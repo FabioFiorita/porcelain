@@ -25,6 +25,10 @@ Guiding principle: viewer, not editor. Lightweight always wins. Reject features 
 | Lint/format | **Biome** (single config, no ESLint/Prettier) |
 | Tests | **Vitest** (unit/component) + **Playwright** (Electron e2e) |
 | Commits | **Conventional Commits** (`feat:`, `fix:`, `chore:`, `refactor:`, `test:`, `docs:`) |
+| Client state | **zustand** — small stores per concern; no other state libraries |
+| Git backend | **Shell out to `git` CLI** from the main process; parse porcelain-format output; no git libraries |
+| Terminal | **xterm.js** renderer + **node-pty** in main process |
+| Per-repo config | App-side JSON store under `~/Library/Application Support/porcelain`, keyed by repo path; never write into work repos |
 
 ## Architecture rules
 
@@ -44,12 +48,11 @@ Guiding principle: viewer, not editor. Lightweight always wins. Reject features 
 ## Decision log
 
 - 2026-06-12: Stack chosen (electron-vite/React/TS, shadcn+Tailwind v4, pnpm, Biome, Vitest+Playwright, Conventional Commits).
+- 2026-06-12: zustand for client state; git via CLI shell-out (no libraries); xterm.js + node-pty for terminal; per-repo config in app-side store (`~/Library/Application Support/porcelain`).
 
 ## Open decisions (ask before implementing)
 
-- State management approach (zustand? jotai? context-only?)
-- Terminal embedding (xterm.js?) and agent-session integration design
-- Git backend (shell out to `git` vs library)
-- How folder hiding/pinning config is persisted
-- Routing/layout structure of the app shell
+- Routing/layout structure of the app shell (panes? sidebar + tabs?)
+- Agent-session integration design (beyond a plain terminal)
+- Flow-ordered review: how to derive the chain — static import-graph analysis, user-defined layer conventions (e.g. component/route/controller/service/prisma path patterns per repo), agent-assisted ordering, or a hybrid
 - Flow-ordered review: how to derive the chain — static import-graph analysis, user-defined layer conventions (e.g. component/route/controller/service/prisma path patterns per repo), agent-assisted ordering, or a hybrid
