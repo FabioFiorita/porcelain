@@ -19,7 +19,7 @@ Guiding principle: viewer, not editor. Lightweight always wins. Reject features 
 | Area | Decision |
 |---|---|
 | Shell | Electron via **electron-vite**, React 19, TypeScript (strict) |
-| UI | **shadcn/ui** + Tailwind CSS v4 |
+| UI | **shadcn/ui on Base UI** (`@base-ui/react`, not Radix) + Tailwind CSS v4, `base-nova` preset, Geist font, dark mode default |
 | Client architecture | **Vercel composition patterns** everywhere (see below) |
 | Package manager | **pnpm** |
 | Lint/format | **Biome** (single config, no ESLint/Prettier) |
@@ -45,9 +45,17 @@ Guiding principle: viewer, not editor. Lightweight always wins. Reject features 
 - Tests live next to source (`foo.test.ts`), named after the unit under test, written in the same style as existing tests.
 - Highest code quality: strict TS, no `any`, no dead code, no commented-out code.
 
+## Repo facts
+
+- Renderer alias is `@renderer/*` → `src/renderer/src/*` (defined in `electron.vite.config.ts`, `tsconfig.web.json`, root `tsconfig.json` for the shadcn CLI, and `vitest.config.ts` — keep all four in sync).
+- shadcn components go in `src/renderer/src/components/ui/` (excluded from Biome); add via `pnpm dlx shadcn@latest add <name>`. Base UI uses `render` prop, not Radix's `asChild` — see `.agents/skills/shadcn/rules/base-vs-radix.md`.
+- Tailwind/theme entry: `src/renderer/src/assets/main.css` (imports `shadcn/tailwind.css` and Geist).
+- Verification gate before any commit: `pnpm lint && pnpm typecheck && pnpm test && pnpm build` must all pass.
+
 ## Decision log
 
 - 2026-06-12: Stack chosen (electron-vite/React/TS, shadcn+Tailwind v4, pnpm, Biome, Vitest+Playwright, Conventional Commits).
+- 2026-06-12: shadcn on **Base UI** instead of Radix (user choice), `base-nova` preset.
 - 2026-06-12: zustand for client state; git via CLI shell-out (no libraries); xterm.js + node-pty for terminal; per-repo config in app-side store (`~/Library/Application Support/porcelain`).
 
 ## Open decisions (ask before implementing)
