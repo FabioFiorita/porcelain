@@ -52,15 +52,22 @@ Guiding principle: viewer, not editor. Lightweight always wins. Reject features 
 - Tailwind/theme entry: `src/renderer/src/assets/main.css` (imports `shadcn/tailwind.css` and Geist).
 - Verification gate before any commit: `pnpm lint && pnpm typecheck && pnpm test && pnpm build` must all pass.
 
+## App shell (decided)
+
+- Layout: left icon rail + file tree sidebar, tabbed center viewer, collapsible bottom terminal pane. Resizing via **react-resizable-panels** (shadcn `resizable` wrapper).
+- **One repo per window** — window state is scoped to a single repo/worktree.
+- Own components: kebab-case filenames, named PascalCase exports, composition-first (no boolean-prop variants). Feature components live in `src/renderer/src/components/<area>/`; zustand stores in `src/renderer/src/stores/`, one file per concern.
+
 ## Decision log
 
 - 2026-06-12: Stack chosen (electron-vite/React/TS, shadcn+Tailwind v4, pnpm, Biome, Vitest+Playwright, Conventional Commits).
 - 2026-06-12: shadcn on **Base UI** instead of Radix (user choice), `base-nova` preset.
 - 2026-06-12: zustand for client state; git via CLI shell-out (no libraries); xterm.js + node-pty for terminal; per-repo config in app-side store (`~/Library/Application Support/porcelain`).
 
+- 2026-06-12: App shell = sidebar + tabs + collapsible bottom terminal; one repo per window; react-resizable-panels.
+
 ## Open decisions (ask before implementing)
 
-- Routing/layout structure of the app shell (panes? sidebar + tabs?)
 - Agent-session integration design (beyond a plain terminal)
 - Flow-ordered review: how to derive the chain — static import-graph analysis, user-defined layer conventions (e.g. component/route/controller/service/prisma path patterns per repo), agent-assisted ordering, or a hybrid
 - Flow-ordered review: how to derive the chain — static import-graph analysis, user-defined layer conventions (e.g. component/route/controller/service/prisma path patterns per repo), agent-assisted ordering, or a hybrid
