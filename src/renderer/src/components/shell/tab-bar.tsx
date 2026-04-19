@@ -10,7 +10,7 @@ export function TabBar(): React.JSX.Element {
   const closeTab = useTabsStore((s) => s.closeTab)
 
   return (
-    <div className="flex h-9 items-end gap-px overflow-x-auto border-b bg-sidebar">
+    <div className="flex h-9 min-w-0 flex-1 items-end gap-px overflow-x-auto">
       {tabs.map((tab) => (
         <div
           key={tab.id}

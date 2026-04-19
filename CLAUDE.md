@@ -10,6 +10,8 @@ Porcelain is a lightweight macOS viewer + agent companion (Electron). Not an edi
 2. **Uniformity everywhere** — code, tests, commits, naming. Match existing patterns exactly.
 3. **Verification gate before any commit:** `pnpm lint && pnpm typecheck && pnpm test && pnpm build`.
 4. **Keep docs in sync:** every architectural/product decision updates the relevant skill and the decision log below in the same commit.
+5. **shadcn primitives only.** Always use shadcn components for UI primitives; never hand-roll one (sidebar, tabs, dialogs, trees, etc.). If a needed primitive doesn't exist in shadcn/registries, **get the user's approval before building it**.
+6. **No type escape hatches.** No `any`, no `as unknown as` casts. If type safety requires a different design (e.g. tRPC over a hand-rolled bridge), prefer the safer design.
 
 ## Skills (in `.claude/skills/`)
 
@@ -25,9 +27,12 @@ Vendor skills in `.agents/skills/`: `shadcn`, `vercel-composition-patterns`, `fr
 - 2026-06-12: zustand; git via CLI shell-out; xterm.js + node-pty; per-repo config in app-side store.
 - 2026-06-12: App shell = sidebar + tabs + collapsible bottom terminal; one repo per window; react-resizable-panels.
 - 2026-06-12: Docs split: slim CLAUDE.md + project skills in `.claude/skills/`.
+- 2026-06-12: IPC = **tRPC over electron-trpc** (user choice over hand-rolled bridge: no casts, zod-validated inputs). File tree = lazy per-directory reads.
+- 2026-06-12: shadcn `sidebar` primitive for the app sidebar (user feedback → hard rule 5); sidebar collapses to rail, no drag-resize.
 
 ## Open decisions (ask before implementing)
 
 - Agent-session integration design (beyond a plain terminal)
 - Flow-ordered review: how to derive the chain — static import-graph analysis, user-defined layer conventions per repo, agent-assisted, or hybrid
-- IPC pattern (typed channel design) — must be decided before the first main↔renderer feature
+- Hidden-folders filtering (where it hooks into readDir + config UI)
+- Syntax highlighting for the file viewer (currently plain text)

@@ -1,7 +1,9 @@
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, shell } from 'electron'
+import { createIPCHandler } from 'electron-trpc/main'
 import { join } from 'path'
 import icon from '../../resources/icon.png?asset'
+import { router } from './api'
 
 function createWindow(): void {
   // Create the browser window.
@@ -16,6 +18,8 @@ function createWindow(): void {
       sandbox: false,
     },
   })
+
+  createIPCHandler({ router, windows: [mainWindow] })
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
@@ -40,7 +44,7 @@ function createWindow(): void {
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
   // Set app user model id for windows
-  electronApp.setAppUserModelId('com.electron')
+  electronApp.setAppUserModelId('com.fabiofiorita.porcelain')
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
@@ -48,9 +52,6 @@ app.whenReady().then(() => {
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
-
-  // IPC test
-  ipcMain.on('ping', () => console.log('pong'))
 
   createWindow()
 

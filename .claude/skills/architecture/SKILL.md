@@ -23,19 +23,22 @@ description: Porcelain's stack, repo layout, aliases, conventions, and app-shell
 
 ## App shell
 
-- Layout: left file-tree sidebar, tabbed center viewer, collapsible bottom terminal pane.
+- Layout: shadcn `sidebar` (collapses to rail via `SidebarTrigger`, fixed width, no drag-resize) + `SidebarInset` holding the tabbed viewer and a collapsible bottom terminal pane (vertical `ResizablePanelGroup`).
 - **One repo per window** — window state is scoped to a single repo/worktree.
-- Shell components live in `src/renderer/src/components/shell/`; tab state in `stores/tabs.ts`.
+- Shell components live in `src/renderer/src/components/shell/` (`app-shell`, `app-sidebar`, `file-tree`, `tab-bar`, `viewer`, `terminal-pane`); stores: `stores/tabs.ts`, `stores/repo.ts`.
+- File tree: lazy per-directory reads (`readDir` on expand), nothing indexed up front; built from shadcn `SidebarMenu` + `Collapsible`.
 
 ## Repo facts
 
 - Renderer alias `@renderer/*` → `src/renderer/src/*`, defined in FOUR places that must stay in sync: `electron.vite.config.ts`, `tsconfig.web.json`, root `tsconfig.json` (needed by the shadcn CLI), `vitest.config.ts`.
 - shadcn components: `src/renderer/src/components/ui/` (excluded from Biome); add via `pnpm dlx shadcn@latest add <name>`. Base UI uses `render` prop, not Radix's `asChild` — see `.agents/skills/shadcn/rules/base-vs-radix.md`.
 - Tailwind/theme entry: `src/renderer/src/assets/main.css` (imports `shadcn/tailwind.css` and Geist).
-- Main process = OS/git/fs access. Renderer = pure UI, no Node APIs. All IPC through typed, preload-exposed channels — one uniform IPC pattern, defined once (not yet established; ask before creating it).
+- Main process = OS/git/fs access. Renderer = pure UI, no Node APIs.
+- **IPC = tRPC via `electron-trpc`** (the only IPC pattern). Router + procedures in `src/main/api.ts` (zod inputs, exported `AppRouter` + shared types like `RepoInfo`/`DirEntry`); preload calls `exposeElectronTRPC()`; renderer client in `src/renderer/src/lib/trpc.ts` (`import type { AppRouter }` from main — type-only import, no runtime coupling). Never use raw `ipcMain`/`ipcRenderer` channels, never cast (`as unknown as` is banned repo-wide).
 
 ## Conventions
 
+- **shadcn primitives only**: never hand-roll a primitive (sidebar, tabs, dialog, tree, …); search shadcn/registries first; building a new primitive requires user approval.
 - Own components: kebab-case filenames, named PascalCase exports, composition-first (no boolean-prop variants). Feature components in `src/renderer/src/components/<area>/`; zustand stores in `src/renderer/src/stores/`, one file per concern.
 - Tests live next to source (`foo.test.ts`), named after the unit under test.
 - Strict TS, no `any`, no dead code, no commented-out code.
