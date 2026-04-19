@@ -4,12 +4,24 @@ import {
   ResizablePanelGroup,
 } from '@renderer/components/ui/resizable'
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@renderer/components/ui/sidebar'
+import { useRepoStore } from '@renderer/stores/repo'
 import { AppSidebar } from './app-sidebar'
 import { TabBar } from './tab-bar'
 import { TerminalPane } from './terminal-pane'
 import { Viewer } from './viewer'
+import { Welcome } from './welcome'
 
 export function AppShell(): React.JSX.Element {
+  const repo = useRepoStore((s) => s.repo)
+
+  if (!repo) {
+    return (
+      <div className="dark h-screen bg-background text-foreground">
+        <Welcome />
+      </div>
+    )
+  }
+
   return (
     <div className="dark h-screen bg-background text-foreground">
       <SidebarProvider>
@@ -18,8 +30,8 @@ export function AppShell(): React.JSX.Element {
           <ResizablePanelGroup orientation="vertical">
             <ResizablePanel defaultSize="75%">
               <div className="flex h-full flex-col">
-                <div className="flex items-end border-b bg-sidebar">
-                  <SidebarTrigger className="m-1" />
+                <div className="flex h-10 items-end border-b bg-sidebar">
+                  <SidebarTrigger className="m-1 self-center" />
                   <TabBar />
                 </div>
                 <div className="min-h-0 flex-1">

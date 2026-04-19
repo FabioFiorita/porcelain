@@ -23,6 +23,7 @@ description: Porcelain's stack, repo layout, aliases, conventions, and app-shell
 
 ## App shell
 
+- No repo open → full-screen `welcome` component (repo picker); shell renders only once a repo is selected.
 - Layout: shadcn `sidebar` (collapses to rail via `SidebarTrigger`, fixed width, no drag-resize) + `SidebarInset` holding the tabbed viewer and a collapsible bottom terminal pane (vertical `ResizablePanelGroup`).
 - **One repo per window** — window state is scoped to a single repo/worktree.
 - Shell components live in `src/renderer/src/components/shell/` (`app-shell`, `app-sidebar`, `file-tree`, `tab-bar`, `viewer`, `terminal-pane`); stores: `stores/tabs.ts`, `stores/repo.ts`.

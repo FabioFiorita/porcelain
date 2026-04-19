@@ -16,7 +16,7 @@ export function AppSidebar(): React.JSX.Element {
 
   return (
     <Sidebar>
-      <SidebarHeader className="flex-row items-center justify-between border-b">
+      <SidebarHeader className="h-10 flex-row items-center justify-between border-b py-0">
         <span className="truncate text-xs font-medium uppercase tracking-wider text-muted-foreground">
           {repo?.name ?? 'Files'}
         </span>
