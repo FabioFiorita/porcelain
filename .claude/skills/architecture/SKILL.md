@@ -35,7 +35,7 @@ description: Porcelain's stack, repo layout, aliases, conventions, and app-shell
 - shadcn components: `src/renderer/src/components/ui/` (excluded from Biome); add via `pnpm dlx shadcn@latest add <name>`. Base UI uses `render` prop, not Radix's `asChild` — see `.agents/skills/shadcn/rules/base-vs-radix.md`.
 - Tailwind/theme entry: `src/renderer/src/assets/main.css` (imports `shadcn/tailwind.css` and Geist).
 - Main process = OS/git/fs access. Renderer = pure UI, no Node APIs.
-- **IPC = tRPC via `electron-trpc`** (the only IPC pattern). Router + procedures in `src/main/api.ts` (zod inputs, exported `AppRouter` + shared types like `RepoInfo`/`DirEntry`); preload calls `exposeElectronTRPC()`; renderer client in `src/renderer/src/lib/trpc.ts` (`import type { AppRouter }` from main — type-only import, no runtime coupling). Never use raw `ipcMain`/`ipcRenderer` channels, never cast (`as unknown as` is banned repo-wide).
+- **IPC = tRPC via `electron-trpc`** (the only IPC pattern). PINNED to tRPC **v10** (`@trpc/*@^10`): electron-trpc 0.7 reads v10 internals (`_def.query`); tRPC v11 silently breaks every call with NOT_FOUND. Don't upgrade until electron-trpc supports v11 (watch `electron-trpc-experimental`). Renderer client uses `createTRPCProxyClient`. Router + procedures in `src/main/api.ts` (zod inputs, exported `AppRouter` + shared types like `RepoInfo`/`DirEntry`); preload calls `exposeElectronTRPC()`; renderer client in `src/renderer/src/lib/trpc.ts` (`import type { AppRouter }` from main — type-only import, no runtime coupling). Never use raw `ipcMain`/`ipcRenderer` channels, never cast (`as unknown as` is banned repo-wide).
 
 ## Conventions
 
