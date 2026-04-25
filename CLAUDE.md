@@ -21,7 +21,6 @@ Porcelain is a lightweight macOS viewer + agent companion (Electron). Not an edi
 Vendor skills in `.agents/skills/`: `shadcn`, `vercel-composition-patterns`, `frontend-design`.
 
 ## Decision log
-
 - 2026-06-12: Stack: electron-vite/React 19/TS strict, shadcn+Tailwind v4, pnpm, Biome, Vitest+Playwright, Conventional Commits.
 - 2026-06-12: shadcn on **Base UI** instead of Radix (user choice), `base-nova` preset.
 - 2026-06-12: zustand; git via CLI shell-out; xterm.js + node-pty; per-repo config in app-side store.
@@ -29,10 +28,10 @@ Vendor skills in `.agents/skills/`: `shadcn`, `vercel-composition-patterns`, `fr
 - 2026-06-12: Docs split: slim CLAUDE.md + project skills in `.claude/skills/`.
 - 2026-06-12: IPC = **tRPC over electron-trpc** (user choice over hand-rolled bridge: no casts, zod-validated inputs). File tree = lazy per-directory reads.
 - 2026-06-12: shadcn `sidebar` primitive for the app sidebar (user feedback → hard rule 5); sidebar collapses to rail, no drag-resize.
+- 2026-06-12: Folder hiding: right-click Hide/Unhide + eye toggle (dimmed in show-hidden mode); filtering in MAIN process. Recents on welcome screen (app config store in userData/config.json).
 
 ## Open decisions (ask before implementing)
 
 - Agent-session integration design (beyond a plain terminal)
 - Flow-ordered review: how to derive the chain — static import-graph analysis, user-defined layer conventions per repo, agent-assisted, or hybrid
-- Hidden-folders filtering (where it hooks into readDir + config UI)
 - Syntax highlighting for the file viewer (currently plain text)

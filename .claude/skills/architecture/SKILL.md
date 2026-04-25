@@ -27,7 +27,9 @@ description: Porcelain's stack, repo layout, aliases, conventions, and app-shell
 - Layout: shadcn `sidebar` (collapses to rail via `SidebarTrigger`, fixed width, no drag-resize) + `SidebarInset` holding the tabbed viewer and a collapsible bottom terminal pane (vertical `ResizablePanelGroup`).
 - **One repo per window** — window state is scoped to a single repo/worktree.
 - Shell components live in `src/renderer/src/components/shell/` (`app-shell`, `app-sidebar`, `file-tree`, `tab-bar`, `viewer`, `terminal-pane`); stores: `stores/tabs.ts`, `stores/repo.ts`.
-- File tree: lazy per-directory reads (`readDir` on expand), nothing indexed up front; built from shadcn `SidebarMenu` + `Collapsible`.
+- File tree: lazy per-directory reads (`readDir` on expand), nothing indexed up front; built from shadcn `SidebarMenu` + `Collapsible` + `ContextMenu`.
+- Folder hiding: hidden paths are absolute, any depth (files or dirs), stored per repo in the app config (`src/main/repo-config.ts` pure logic + `config-store.ts` persistence at `userData/config.json`). `readDir` filters them in the MAIN process; `showHidden` mode returns them flagged (`DirEntry.hidden`) and the UI dims them. Hide/unhide via right-click context menu; eye toggle in sidebar header. Tree refresh = `treeVersion` bump in `stores/repo.ts`.
+- Welcome screen lists recent repos (max 10, `recentRepos` query; `openRepoPath` mutation).
 
 ## Repo facts
 
