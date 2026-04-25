@@ -1,11 +1,20 @@
 import { ScrollArea } from '@renderer/components/ui/scroll-area'
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
+import { CodeLine, useHighlighter } from '@renderer/components/viewer/code-line'
+import { type HIGHLIGHT_THEME, languageFor } from '@renderer/lib/highlight'
 import { trpc } from '@renderer/lib/trpc'
 import { cn } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
-import { useEffect, useState } from 'react'
+import type { BundledLanguage, HighlighterGeneric } from 'shiki'
 import type { DiffHunk, DiffLine } from '../../../../main/diff'
+
+type Highlighter = HighlighterGeneric<BundledLanguage, typeof HIGHLIGHT_THEME>
+
+interface RenderContext {
+  lang: BundledLanguage | null
+  highlighter: Highlighter | null
+}
 
 const lineClass: Record<DiffLine['kind'], string> = {
   add: 'bg-emerald-950/60',
@@ -21,7 +30,7 @@ function LineNo({ value }: { value: number | null }): React.JSX.Element {
   )
 }
 
-function UnifiedHunk({ hunk }: { hunk: DiffHunk }): React.JSX.Element {
+function UnifiedHunk({ hunk, ctx }: { hunk: DiffHunk; ctx: RenderContext }): React.JSX.Element {
   return (
     <div>
       <p className="bg-muted/40 px-2 py-0.5 text-muted-foreground">{hunk.header}</p>
@@ -30,7 +39,7 @@ function UnifiedHunk({ hunk }: { hunk: DiffHunk }): React.JSX.Element {
         <div key={i} className={cn('flex px-2', lineClass[line.kind])}>
           <LineNo value={line.oldLine} />
           <LineNo value={line.newLine} />
-          <pre className="flex-1 whitespace-pre-wrap">{line.text || ' '}</pre>
+          <CodeLine text={line.text} lang={ctx.lang} highlighter={ctx.highlighter} />
         </div>
       ))}
     </div>
@@ -66,24 +75,34 @@ function toSplitRows(hunk: DiffHunk): SplitRow[] {
   return rows
 }
 
-function SplitCell({ line }: { line: DiffLine | null }): React.JSX.Element {
+function SplitCell({
+  line,
+  ctx,
+}: {
+  line: DiffLine | null
+  ctx: RenderContext
+}): React.JSX.Element {
   return (
     <div className={cn('flex min-w-0 flex-1', line ? lineClass[line.kind] : '')}>
       <LineNo value={line ? (line.kind === 'add' ? line.newLine : line.oldLine) : null} />
-      <pre className="flex-1 whitespace-pre-wrap">{line?.text || ' '}</pre>
+      {line ? (
+        <CodeLine text={line.text} lang={ctx.lang} highlighter={ctx.highlighter} />
+      ) : (
+        <pre className="flex-1"> </pre>
+      )}
     </div>
   )
 }
 
-function SplitHunk({ hunk }: { hunk: DiffHunk }): React.JSX.Element {
+function SplitHunk({ hunk, ctx }: { hunk: DiffHunk; ctx: RenderContext }): React.JSX.Element {
   return (
     <div>
       <p className="bg-muted/40 px-2 py-0.5 text-muted-foreground">{hunk.header}</p>
       {toSplitRows(hunk).map((row, i) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: diff rows are static per hunk
         <div key={i} className="flex divide-x divide-border">
-          <SplitCell line={row.left} />
-          <SplitCell line={row.right} />
+          <SplitCell line={row.left} ctx={ctx} />
+          <SplitCell line={row.right} ctx={ctx} />
         </div>
       ))}
     </div>
@@ -94,21 +113,16 @@ export function DiffView({ filePath }: { filePath: string }): React.JSX.Element 
   const repo = useRepoStore((s) => s.repo)
   const diffMode = usePreferencesStore((s) => s.diffMode)
   const setDiffMode = usePreferencesStore((s) => s.setDiffMode)
-  const [hunks, setHunks] = useState<DiffHunk[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const highlighter = useHighlighter()
+  const { data: hunks, error } = trpc.gitDiffFile.useQuery(
+    { repoPath: repo?.path ?? '', filePath },
+    { enabled: repo !== null },
+  )
 
-  useEffect(() => {
-    if (!repo) return
-    setHunks(null)
-    setError(null)
-    trpc.gitDiffFile
-      .query({ repoPath: repo.path, filePath })
-      .then(setHunks)
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
-  }, [repo, filePath])
+  if (error) return <p className="p-4 text-sm text-destructive">{error.message}</p>
+  if (hunks === undefined) return <p className="p-4 text-sm text-muted-foreground">Loading…</p>
 
-  if (error) return <p className="p-4 text-sm text-destructive">{error}</p>
-  if (hunks === null) return <p className="p-4 text-sm text-muted-foreground">Loading…</p>
+  const ctx: RenderContext = { lang: languageFor(filePath), highlighter }
 
   return (
     <div className="flex h-full flex-col">
@@ -134,7 +148,11 @@ export function DiffView({ filePath }: { filePath: string }): React.JSX.Element 
           {hunks.length === 0 && <p className="p-4 text-muted-foreground">No changes</p>}
           {hunks.map((hunk) => (
             <div key={hunk.header} className="mb-2">
-              {diffMode === 'unified' ? <UnifiedHunk hunk={hunk} /> : <SplitHunk hunk={hunk} />}
+              {diffMode === 'unified' ? (
+                <UnifiedHunk hunk={hunk} ctx={ctx} />
+              ) : (
+                <SplitHunk hunk={hunk} ctx={ctx} />
+              )}
             </div>
           ))}
         </div>

@@ -32,6 +32,8 @@ Vendor skills in `.agents/skills/`: `shadcn`, `vercel-composition-patterns`, `fr
 
 - 2026-06-12: Auto-open last repo on startup. Git diffs: working-tree first, sidebar Files/Changes tabs, unified + split rendering (user toggle).
 
+- 2026-06-12: Data fetching = TanStack Query via @trpc/react-query (caching, invalidation); vanilla tRPC client only inside zustand stores. Syntax highlighting = Shiki (dark-plus), per-line tokens in viewer + diffs.
+
 ## Open decisions (ask before implementing)
 
 - Agent-session integration design (beyond a plain terminal)

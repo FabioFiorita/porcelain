@@ -1,32 +1,37 @@
 import { DiffView } from '@renderer/components/git/diff-view'
 import { ScrollArea } from '@renderer/components/ui/scroll-area'
+import { CodeLine, useHighlighter } from '@renderer/components/viewer/code-line'
+import { languageFor } from '@renderer/lib/highlight'
 import { trpc } from '@renderer/lib/trpc'
 import { useTabsStore } from '@renderer/stores/tabs'
-import { useEffect, useState } from 'react'
 
 function FileContent({ path }: { path: string }): React.JSX.Element {
-  const [content, setContent] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    setContent(null)
-    setError(null)
-    trpc.readFile
-      .query(path)
-      .then(setContent)
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
-  }, [path])
+  const { data: content, error } = trpc.readFile.useQuery(path)
+  const highlighter = useHighlighter()
+  const lang = languageFor(path)
 
   if (error) {
-    return <p className="p-4 text-sm text-destructive">{error}</p>
+    return <p className="p-4 text-sm text-destructive">{error.message}</p>
   }
-  if (content === null) {
+  if (content === undefined) {
     return <p className="p-4 text-sm text-muted-foreground">Loading…</p>
   }
 
+  const lines = content.split('\n')
+
   return (
     <ScrollArea className="h-full">
-      <pre className="p-4 font-mono text-xs leading-5 text-foreground">{content}</pre>
+      <div className="p-4 font-mono text-xs leading-5">
+        {lines.map((line, i) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: lines are positional
+          <div key={i} className="flex">
+            <span className="w-10 shrink-0 select-none pr-3 text-right text-muted-foreground/50">
+              {i + 1}
+            </span>
+            <CodeLine text={line} lang={lang} highlighter={highlighter} />
+          </div>
+        ))}
+      </div>
     </ScrollArea>
   )
 }

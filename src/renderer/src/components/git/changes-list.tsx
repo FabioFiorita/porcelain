@@ -10,8 +10,7 @@ import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { RefreshCw } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
-import type { ChangedFile, FileStatus } from '../../../../main/diff'
+import type { FileStatus } from '../../../../main/diff'
 
 const statusBadge: Record<FileStatus, { label: string; className: string }> = {
   modified: { label: 'M', className: 'text-amber-500' },
@@ -24,17 +23,16 @@ const statusBadge: Record<FileStatus, { label: string; className: string }> = {
 export function ChangesList(): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)
   const openTab = useTabsStore((s) => s.openTab)
-  const [changes, setChanges] = useState<ChangedFile[] | null>(null)
+  const utils = trpc.useUtils()
+  const { data: changes, refetch } = trpc.gitStatus.useQuery(repo?.path ?? '', {
+    enabled: repo !== null,
+  })
 
-  const refresh = useCallback(async (): Promise<void> => {
-    if (repo) setChanges(await trpc.gitStatus.query(repo.path))
-  }, [repo])
+  const refresh = async (): Promise<void> => {
+    await Promise.all([refetch(), utils.gitDiffFile.invalidate()])
+  }
 
-  useEffect(() => {
-    refresh()
-  }, [refresh])
-
-  if (changes === null) {
+  if (changes === undefined) {
     return <p className="p-3 text-sm text-muted-foreground">Loading…</p>
   }
 

@@ -2,17 +2,11 @@ import { Button } from '@renderer/components/ui/button'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 import { Folder, FolderOpen } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import type { RepoInfo } from '../../../../main/api'
 
 export function Welcome(): React.JSX.Element {
   const openRepo = useRepoStore((s) => s.openRepo)
   const openRepoPath = useRepoStore((s) => s.openRepoPath)
-  const [recents, setRecents] = useState<RepoInfo[]>([])
-
-  useEffect(() => {
-    trpc.recentRepos.query().then(setRecents)
-  }, [])
+  const { data: recents = [] } = trpc.recentRepos.useQuery()
 
   return (
     <div className="flex h-full flex-col items-center justify-center gap-6">

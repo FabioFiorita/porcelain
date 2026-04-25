@@ -20,7 +20,7 @@ import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { ChevronRight, File, Folder } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { DirEntry } from '../../../../main/api'
 
 function useEntryActions(entry: DirEntry): {
@@ -28,15 +28,17 @@ function useEntryActions(entry: DirEntry): {
   unhide: () => Promise<void>
 } {
   const repo = useRepoStore((s) => s.repo)
-  const refreshTree = useRepoStore((s) => s.refreshTree)
+  const utils = trpc.useUtils()
+  const hideMutation = trpc.hidePath.useMutation()
+  const unhideMutation = trpc.unhidePath.useMutation()
 
-  const run = async (action: 'hidePath' | 'unhidePath'): Promise<void> => {
+  const run = async (mutation: typeof hideMutation): Promise<void> => {
     if (!repo) return
-    await trpc[action].mutate({ repoPath: repo.path, path: entry.path })
-    refreshTree()
+    await mutation.mutateAsync({ repoPath: repo.path, path: entry.path })
+    await utils.readDir.invalidate()
   }
 
-  return { hide: () => run('hidePath'), unhide: () => run('unhidePath') }
+  return { hide: () => run(hideMutation), unhide: () => run(unhideMutation) }
 }
 
 function EntryContextMenu({
@@ -62,36 +64,25 @@ function EntryContextMenu({
   )
 }
 
-function useReadDir(path: string, enabled = true): DirEntry[] | null {
+function useReadDir(path: string, enabled = true): DirEntry[] | undefined {
   const repo = useRepoStore((s) => s.repo)
   const showHidden = useRepoStore((s) => s.showHidden)
-  const treeVersion = useRepoStore((s) => s.treeVersion)
-  const [entries, setEntries] = useState<DirEntry[] | null>(null)
-
-  useEffect(() => {
-    if (!repo || !enabled) return
-    let stale = false
-    trpc.readDir.query({ repoPath: repo.path, path, showHidden }).then((result) => {
-      if (!stale) setEntries(result)
-    })
-    return () => {
-      stale = true
-    }
-  }, [repo, path, showHidden, treeVersion, enabled])
-
-  return entries
+  const { data } = trpc.readDir.useQuery(
+    { repoPath: repo?.path ?? '', path, showHidden },
+    { enabled: enabled && repo !== null },
+  )
+  return data
 }
 
 function TreeNode({ entry }: { entry: DirEntry }): React.JSX.Element {
   const openTab = useTabsStore((s) => s.openTab)
-  const dimmed = entry.hidden && 'opacity-50'
 
   if (entry.kind === 'file') {
     return (
       <SidebarMenuItem>
         <EntryContextMenu entry={entry}>
           <SidebarMenuButton
-            className={cn(dimmed)}
+            className={cn(entry.hidden && 'opacity-50')}
             onClick={() =>
               openTab({ id: entry.path, kind: 'file', title: entry.name, path: entry.path })
             }
@@ -143,7 +134,7 @@ function DirNode({ entry }: { entry: DirEntry }): React.JSX.Element {
 export function FileTree({ rootPath }: { rootPath: string }): React.JSX.Element {
   const entries = useReadDir(rootPath)
 
-  if (entries === null) {
+  if (entries === undefined) {
     return <p className="p-3 text-sm text-muted-foreground">Loading…</p>
   }
 
