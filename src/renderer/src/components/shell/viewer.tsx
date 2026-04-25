@@ -1,3 +1,4 @@
+import { DiffView } from '@renderer/components/git/diff-view'
 import { ScrollArea } from '@renderer/components/ui/scroll-area'
 import { trpc } from '@renderer/lib/trpc'
 import { useTabsStore } from '@renderer/stores/tabs'
@@ -40,6 +41,10 @@ export function Viewer(): React.JSX.Element {
         <p className="text-sm">Open a file from the sidebar to view it</p>
       </div>
     )
+  }
+
+  if (activeTab.kind === 'diff') {
+    return <DiffView filePath={activeTab.path} />
   }
 
   return <FileContent path={activeTab.path} />

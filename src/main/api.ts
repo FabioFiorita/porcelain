@@ -4,6 +4,7 @@ import { readdir, readFile, stat } from 'fs/promises'
 import { basename, join } from 'path'
 import { z } from 'zod'
 import { loadConfig, saveConfig } from './config-store'
+import { gitDiffFile, gitStatus } from './git'
 import { hiddenPathsFor, withHiddenPath, withoutHiddenPath, withRecentRepo } from './repo-config'
 
 const t = initTRPC.create({ isServer: true })
@@ -79,6 +80,12 @@ export const router = t.router({
     }),
 
   readFile: t.procedure.input(z.string()).query(({ input }) => readFile(input, 'utf8')),
+
+  gitStatus: t.procedure.input(z.string()).query(({ input }) => gitStatus(input)),
+
+  gitDiffFile: t.procedure
+    .input(z.object({ repoPath: z.string(), filePath: z.string() }))
+    .query(({ input }) => gitDiffFile(input.repoPath, input.filePath)),
 })
 
 export type AppRouter = typeof router

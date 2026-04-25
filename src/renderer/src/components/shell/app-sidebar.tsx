@@ -1,3 +1,4 @@
+import { ChangesList } from '@renderer/components/git/changes-list'
 import { Button } from '@renderer/components/ui/button'
 import {
   Sidebar,
@@ -6,6 +7,7 @@ import {
   SidebarGroupContent,
   SidebarHeader,
 } from '@renderer/components/ui/sidebar'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@renderer/components/ui/tabs'
 import { useRepoStore } from '@renderer/stores/repo'
 import { Eye, EyeOff, FolderOpen } from 'lucide-react'
 import { FileTree } from './file-tree'
@@ -44,15 +46,30 @@ export function AppSidebar(): React.JSX.Element {
         </div>
       </SidebarHeader>
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupContent>
-            {repo ? (
-              <FileTree rootPath={repo.path} />
-            ) : (
-              <p className="p-2 text-sm text-muted-foreground">No repository open</p>
-            )}
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {repo ? (
+          <Tabs defaultValue="files" className="flex h-full flex-col gap-0">
+            <TabsList className="mx-2 mt-2 grid w-auto grid-cols-2">
+              <TabsTrigger value="files">Files</TabsTrigger>
+              <TabsTrigger value="changes">Changes</TabsTrigger>
+            </TabsList>
+            <TabsContent value="files">
+              <SidebarGroup>
+                <SidebarGroupContent>
+                  <FileTree rootPath={repo.path} />
+                </SidebarGroupContent>
+              </SidebarGroup>
+            </TabsContent>
+            <TabsContent value="changes">
+              <SidebarGroup>
+                <SidebarGroupContent>
+                  <ChangesList />
+                </SidebarGroupContent>
+              </SidebarGroup>
+            </TabsContent>
+          </Tabs>
+        ) : (
+          <p className="p-2 text-sm text-muted-foreground">No repository open</p>
+        )}
       </SidebarContent>
     </Sidebar>
   )

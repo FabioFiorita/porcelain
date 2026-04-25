@@ -29,7 +29,8 @@ description: Porcelain's stack, repo layout, aliases, conventions, and app-shell
 - Shell components live in `src/renderer/src/components/shell/` (`app-shell`, `app-sidebar`, `file-tree`, `tab-bar`, `viewer`, `terminal-pane`); stores: `stores/tabs.ts`, `stores/repo.ts`.
 - File tree: lazy per-directory reads (`readDir` on expand), nothing indexed up front; built from shadcn `SidebarMenu` + `Collapsible` + `ContextMenu`.
 - Folder hiding: hidden paths are absolute, any depth (files or dirs), stored per repo in the app config (`src/main/repo-config.ts` pure logic + `config-store.ts` persistence at `userData/config.json`). `readDir` filters them in the MAIN process; `showHidden` mode returns them flagged (`DirEntry.hidden`) and the UI dims them. Hide/unhide via right-click context menu; eye toggle in sidebar header. Tree refresh = `treeVersion` bump in `stores/repo.ts`.
-- Welcome screen lists recent repos (max 10, `recentRepos` query; `openRepoPath` mutation).
+- Welcome screen lists recent repos (max 10, `recentRepos` query; `openRepoPath` mutation). On startup the last repo auto-opens (`restoreLastRepo` in `stores/repo.ts`); welcome only shows if none/missing.
+- Git: pure parsers in `src/main/diff.ts` (porcelain-z status, unified diff → `DiffHunk[]`, synthesized add-diff for untracked) + shell-out in `src/main/git.ts`. Sidebar has Files/Changes tabs (shadcn `Tabs`); changes list opens `diff` tabs; `DiffView` (`components/git/diff-view.tsx`) renders unified or split (toggle, preference in `stores/preferences.ts`; split rows paired del↔add in `toSplitRows`).
 
 ## Repo facts
 
