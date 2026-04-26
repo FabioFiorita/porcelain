@@ -1,6 +1,7 @@
 import {
   type BundledLanguage,
   createHighlighter,
+  createJavaScriptRegexEngine,
   type HighlighterGeneric,
   type ThemedToken,
 } from 'shiki'
@@ -25,9 +26,11 @@ type Highlighter = HighlighterGeneric<BundledLanguage, typeof HIGHLIGHT_THEME>
 let highlighterPromise: Promise<Highlighter> | null = null
 
 export function getHighlighter(): Promise<Highlighter> {
+  // JS regex engine: the renderer CSP (no 'wasm-unsafe-eval') blocks the default WASM engine
   highlighterPromise ??= createHighlighter({
     themes: [HIGHLIGHT_THEME],
     langs: [...LANGS],
+    engine: createJavaScriptRegexEngine(),
   }) as Promise<Highlighter>
   return highlighterPromise
 }
