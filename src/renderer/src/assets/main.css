@@ -128,3 +128,20 @@
     @apply font-sans;
   }
 }
+
+/* xterm: dark scrollbar instead of the default white viewport scrollbar */
+.xterm .xterm-viewport {
+  background-color: transparent !important;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-muted) transparent;
+}
+.xterm .xterm-viewport::-webkit-scrollbar {
+  width: 8px;
+}
+.xterm .xterm-viewport::-webkit-scrollbar-track {
+  background: transparent;
+}
+.xterm .xterm-viewport::-webkit-scrollbar-thumb {
+  background: var(--color-muted);
+  border-radius: 4px;
+}

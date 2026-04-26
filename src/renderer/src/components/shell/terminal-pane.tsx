@@ -1,11 +1,13 @@
 import '@xterm/xterm/css/xterm.css'
 
 import { trpcClient } from '@renderer/lib/trpc'
+import { cn } from '@renderer/lib/utils'
+import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useTerminalStore } from '@renderer/stores/terminal'
 import { FitAddon } from '@xterm/addon-fit'
 import { Terminal } from '@xterm/xterm'
-import { SquareTerminal } from 'lucide-react'
+import { ChevronUp, SquareTerminal } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 
 const TERMINAL_THEME = {
@@ -31,7 +33,8 @@ export function TerminalPane(): React.JSX.Element {
     if (!repo || !container) return
 
     const terminal = new Terminal({
-      fontFamily: 'Menlo, monospace',
+      fontFamily:
+        "'MesloLGS NF', 'JetBrainsMono Nerd Font', 'Hack Nerd Font', 'FiraCode Nerd Font', 'Symbols Nerd Font', Menlo, monospace",
       fontSize: 12,
       allowTransparency: true,
       theme: TERMINAL_THEME,
@@ -79,11 +82,28 @@ export function TerminalPane(): React.JSX.Element {
 
   return (
     <div className="flex h-full flex-col bg-sidebar">
-      <div className="flex h-8 shrink-0 items-center gap-2 border-b px-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-        <SquareTerminal className="size-3.5" />
-        Terminal
-      </div>
+      <TerminalHeader />
       <div ref={containerRef} className="min-h-0 flex-1 px-2 py-1" />
     </div>
+  )
+}
+
+export function TerminalHeader(): React.JSX.Element {
+  const terminalOpen = usePreferencesStore((s) => s.terminalOpen)
+  const toggleTerminal = usePreferencesStore((s) => s.toggleTerminal)
+
+  return (
+    <button
+      type="button"
+      onClick={toggleTerminal}
+      className="flex h-8 w-full shrink-0 items-center gap-2 border-b bg-sidebar px-3 text-xs font-medium uppercase tracking-wider text-muted-foreground hover:text-foreground"
+      aria-expanded={terminalOpen}
+    >
+      <SquareTerminal className="size-3.5" />
+      Terminal
+      <ChevronUp
+        className={cn('ml-auto size-3.5 transition-transform', terminalOpen && 'rotate-180')}
+      />
+    </button>
   )
 }
