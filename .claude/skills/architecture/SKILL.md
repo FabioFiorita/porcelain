@@ -42,6 +42,8 @@ description: Porcelain's stack, repo layout, aliases, conventions, and app-shell
 - **Syntax highlighting = Shiki**, theme `dark-plus`, singleton in `lib/highlight.ts` (`languageFor(path)` ext→lang map); `CodeLine` + `useHighlighter` in `components/viewer/code-line.tsx` render per-line tokens, shared by file viewer and diffs.
 - **IPC = tRPC via `electron-trpc`** (the only IPC pattern). PINNED to tRPC **v10** (`@trpc/*@^10`): electron-trpc 0.7 reads v10 internals (`_def.query`); tRPC v11 silently breaks every call with NOT_FOUND. Don't upgrade until electron-trpc supports v11 (watch `electron-trpc-experimental`). Renderer client uses `createTRPCProxyClient`. Router + procedures in `src/main/api.ts` (zod inputs, exported `AppRouter` + shared types like `RepoInfo`/`DirEntry`); preload calls `exposeElectronTRPC()`; renderer client in `src/renderer/src/lib/trpc.ts` (`import type { AppRouter }` from main — type-only import, no runtime coupling). Never use raw `ipcMain`/`ipcRenderer` channels, never cast (`as unknown as` is banned repo-wide).
 
+- Terminal: `node-pty` sessions in `src/main/terminal.ts` (Map by id, 256KB scrollback buffer, killed on quit); xterm.js + fit addon in `terminal-pane.tsx`; data streams over a tRPC **subscription** (`termOnData`, the only subscription pattern); session id kept in `stores/terminal.ts` so remounts reattach + replay scrollback. GOTCHA: pnpm strips the exec bit from node-pty's `spawn-helper` prebuilds → `posix_spawnp failed`; postinstall re-chmods it — don't remove that step.
+
 ## Conventions
 
 - **shadcn primitives only**: never hand-roll a primitive (sidebar, tabs, dialog, tree, …); search shadcn/registries first; building a new primitive requires user approval.

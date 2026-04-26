@@ -1,4 +1,5 @@
 import { initTRPC } from '@trpc/server'
+import { observable } from '@trpc/server/observable'
 import { dialog } from 'electron'
 import { readdir, readFile, stat } from 'fs/promises'
 import { basename, join } from 'path'
@@ -6,6 +7,14 @@ import { z } from 'zod'
 import { loadConfig, saveConfig } from './config-store'
 import { gitDiffFile, gitStatus } from './git'
 import { hiddenPathsFor, withHiddenPath, withoutHiddenPath, withRecentRepo } from './repo-config'
+import {
+  createTerminal,
+  hasTerminal,
+  resizeTerminal,
+  subscribeTerminal,
+  terminalScrollback,
+  writeTerminal,
+} from './terminal'
 
 const t = initTRPC.create({ isServer: true })
 
@@ -86,6 +95,28 @@ export const router = t.router({
   gitDiffFile: t.procedure
     .input(z.object({ repoPath: z.string(), filePath: z.string() }))
     .query(({ input }) => gitDiffFile(input.repoPath, input.filePath)),
+
+  termCreate: t.procedure.input(z.object({ cwd: z.string() })).mutation(({ input }) => ({
+    id: createTerminal(input.cwd),
+  })),
+
+  termExists: t.procedure.input(z.string()).query(({ input }) => hasTerminal(input)),
+
+  termScrollback: t.procedure.input(z.string()).query(({ input }) => terminalScrollback(input)),
+
+  termWrite: t.procedure
+    .input(z.object({ id: z.string(), data: z.string() }))
+    .mutation(({ input }) => writeTerminal(input.id, input.data)),
+
+  termResize: t.procedure
+    .input(z.object({ id: z.string(), cols: z.number().int(), rows: z.number().int() }))
+    .mutation(({ input }) => resizeTerminal(input.id, input.cols, input.rows)),
+
+  termOnData: t.procedure
+    .input(z.string())
+    .subscription(({ input }) =>
+      observable<string>((emit) => subscribeTerminal(input, (data) => emit.next(data))),
+    ),
 })
 
 export type AppRouter = typeof router

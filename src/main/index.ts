@@ -4,12 +4,15 @@ import { createIPCHandler } from 'electron-trpc/main'
 import { join } from 'path'
 import icon from '../../resources/icon.png?asset'
 import { router } from './api'
+import { killAllTerminals } from './terminal'
 
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
-    width: 900,
-    height: 670,
+    width: 1400,
+    height: 900,
+    minWidth: 800,
+    minHeight: 500,
     show: false,
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
@@ -69,6 +72,10 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
+})
+
+app.on('before-quit', () => {
+  killAllTerminals()
 })
 
 // In this file you can include the rest of your app's specific main process
