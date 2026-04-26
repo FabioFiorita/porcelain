@@ -20,11 +20,11 @@ export function AppSidebar(): React.JSX.Element {
 
   return (
     <Sidebar>
-      <SidebarHeader className="h-10 flex-row items-center justify-between border-b py-0">
+      <SidebarHeader className="app-drag h-10 flex-row items-center justify-between border-b py-0 pl-[4.75rem]">
         <span className="truncate text-xs font-medium uppercase tracking-wider text-muted-foreground">
           {repo?.name ?? 'Files'}
         </span>
-        <div className="flex items-center">
+        <div className="app-no-drag flex items-center">
           <Button
             variant="ghost"
             size="icon-sm"

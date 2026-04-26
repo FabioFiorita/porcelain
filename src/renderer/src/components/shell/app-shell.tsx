@@ -29,8 +29,11 @@ export function AppShell(): React.JSX.Element {
 
   if (!repo) {
     return (
-      <div className="dark h-screen bg-background text-foreground">
-        <Welcome />
+      <div className="dark flex h-screen flex-col bg-background text-foreground">
+        <div className="app-drag h-10 shrink-0" />
+        <div className="min-h-0 flex-1">
+          <Welcome />
+        </div>
       </div>
     )
   }
@@ -44,9 +47,11 @@ export function AppShell(): React.JSX.Element {
             <ResizablePanelGroup orientation="vertical" className="min-h-0 flex-1">
               <ResizablePanel defaultSize="70%">
                 <div className="flex h-full flex-col">
-                  <div className="flex h-10 items-end border-b bg-sidebar">
-                    <SidebarTrigger className="m-1 self-center" />
-                    <TabBar />
+                  <div className="app-drag flex h-10 items-end border-b bg-sidebar">
+                    <SidebarTrigger className="app-no-drag m-1 self-center" />
+                    <div className="app-no-drag flex min-w-0 flex-1 items-end">
+                      <TabBar />
+                    </div>
                   </div>
                   <div className="min-h-0 flex-1">
                     <Viewer />
