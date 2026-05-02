@@ -18,6 +18,7 @@ import {
 import { trpc } from '@renderer/lib/trpc'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
+import { useSelectionStore } from '@renderer/stores/selection'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { ChevronRight, File, Folder } from 'lucide-react'
 import { useState } from 'react'
@@ -26,19 +27,31 @@ import type { DirEntry } from '../../../../main/api'
 function useEntryActions(entry: DirEntry): {
   hide: () => Promise<void>
   unhide: () => Promise<void>
+  hideSelected: () => Promise<void>
+  selectionSize: number
 } {
   const repo = useRepoStore((s) => s.repo)
+  const selected = useSelectionStore((s) => s.selected)
+  const clearSelection = useSelectionStore((s) => s.clear)
   const utils = trpc.useUtils()
   const hideMutation = trpc.hidePath.useMutation()
   const unhideMutation = trpc.unhidePath.useMutation()
 
-  const run = async (mutation: typeof hideMutation): Promise<void> => {
+  const run = async (mutation: typeof hideMutation, paths: string[]): Promise<void> => {
     if (!repo) return
-    await mutation.mutateAsync({ repoPath: repo.path, path: entry.path })
+    for (const path of paths) {
+      await mutation.mutateAsync({ repoPath: repo.path, path })
+    }
+    clearSelection()
     await utils.readDir.invalidate()
   }
 
-  return { hide: () => run(hideMutation), unhide: () => run(unhideMutation) }
+  return {
+    hide: () => run(hideMutation, [entry.path]),
+    unhide: () => run(unhideMutation, [entry.path]),
+    hideSelected: () => run(hideMutation, [...new Set([...selected, entry.path])]),
+    selectionSize: selected.size,
+  }
 }
 
 function EntryContextMenu({
@@ -48,13 +61,16 @@ function EntryContextMenu({
   entry: DirEntry
   children: React.ReactNode
 }): React.JSX.Element {
-  const { hide, unhide } = useEntryActions(entry)
+  const { hide, unhide, hideSelected, selectionSize } = useEntryActions(entry)
+  const batchSize = selectionSize + (useSelectionStore.getState().selected.has(entry.path) ? 0 : 1)
 
   return (
     <ContextMenu>
       <ContextMenuTrigger>{children}</ContextMenuTrigger>
       <ContextMenuContent>
-        {entry.hidden ? (
+        {selectionSize > 0 ? (
+          <ContextMenuItem onClick={hideSelected}>Hide {batchSize} items</ContextMenuItem>
+        ) : entry.hidden ? (
           <ContextMenuItem onClick={unhide}>Unhide</ContextMenuItem>
         ) : (
           <ContextMenuItem onClick={hide}>Hide</ContextMenuItem>
@@ -76,16 +92,22 @@ function useReadDir(path: string, enabled = true): DirEntry[] | undefined {
 
 function TreeNode({ entry }: { entry: DirEntry }): React.JSX.Element {
   const openTab = useTabsStore((s) => s.openTab)
+  const isSelected = useSelectionStore((s) => s.selected.has(entry.path))
+  const toggleSelection = useSelectionStore((s) => s.toggle)
 
   if (entry.kind === 'file') {
     return (
       <SidebarMenuItem>
         <EntryContextMenu entry={entry}>
           <SidebarMenuButton
-            className={cn(entry.hidden && 'opacity-50')}
-            onClick={() =>
+            className={cn(entry.hidden && 'opacity-50', isSelected && 'bg-sidebar-accent')}
+            onClick={(e) => {
+              if (e.metaKey || e.ctrlKey) {
+                toggleSelection(entry.path)
+                return
+              }
               openTab({ id: entry.path, kind: 'file', title: entry.name, path: entry.path })
-            }
+            }}
           >
             <File className="text-muted-foreground" />
             <span className="truncate">{entry.name}</span>
@@ -101,6 +123,8 @@ function TreeNode({ entry }: { entry: DirEntry }): React.JSX.Element {
 function DirNode({ entry }: { entry: DirEntry }): React.JSX.Element {
   const [expanded, setExpanded] = useState(false)
   const children = useReadDir(entry.path, expanded)
+  const isSelected = useSelectionStore((s) => s.selected.has(entry.path))
+  const toggleSelection = useSelectionStore((s) => s.toggle)
 
   return (
     <SidebarMenuItem>
@@ -111,7 +135,16 @@ function DirNode({ entry }: { entry: DirEntry }): React.JSX.Element {
         <EntryContextMenu entry={entry}>
           <CollapsibleTrigger
             render={
-              <SidebarMenuButton className={cn(entry.hidden && 'opacity-50')}>
+              <SidebarMenuButton
+                className={cn(entry.hidden && 'opacity-50', isSelected && 'bg-sidebar-accent')}
+                onClick={(e) => {
+                  if (e.metaKey || e.ctrlKey) {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    toggleSelection(entry.path)
+                  }
+                }}
+              >
                 <ChevronRight className="transition-transform" />
                 <Folder className="text-muted-foreground" />
                 <span className="truncate">{entry.name}</span>

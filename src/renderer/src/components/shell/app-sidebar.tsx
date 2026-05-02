@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@renderer/components/u
 import { useRepoStore } from '@renderer/stores/repo'
 import { Eye, EyeOff, FolderOpen } from 'lucide-react'
 import { FileTree } from './file-tree'
+import { SidebarResizeHandle } from './sidebar-resize-handle'
 
 export function AppSidebar(): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)
@@ -20,6 +21,7 @@ export function AppSidebar(): React.JSX.Element {
 
   return (
     <Sidebar>
+      <SidebarResizeHandle />
       <SidebarHeader className="app-drag h-10 flex-row items-center justify-between border-b py-0 pl-[4.75rem]">
         <span className="truncate text-xs font-medium uppercase tracking-wider text-muted-foreground">
           {repo?.name ?? 'Files'}

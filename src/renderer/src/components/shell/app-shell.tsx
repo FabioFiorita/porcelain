@@ -16,6 +16,7 @@ import { Welcome } from './welcome'
 export function AppShell(): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)
   const terminalOpen = usePreferencesStore((s) => s.terminalOpen)
+  const sidebarWidth = usePreferencesStore((s) => s.sidebarWidth)
   const restoring = useRepoStore((s) => s.restoring)
   const restoreLastRepo = useRepoStore((s) => s.restoreLastRepo)
 
@@ -40,7 +41,7 @@ export function AppShell(): React.JSX.Element {
 
   return (
     <div className="dark h-screen bg-background text-foreground">
-      <SidebarProvider>
+      <SidebarProvider style={{ '--sidebar-width': `${sidebarWidth}px` } as React.CSSProperties}>
         <AppSidebar />
         <SidebarInset className="h-screen min-w-0">
           <div className="flex h-full flex-col">
