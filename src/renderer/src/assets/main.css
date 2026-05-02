@@ -122,10 +122,13 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    /* transparent so macOS vibrancy shows through; panels paint their own alpha backgrounds */
+    @apply text-foreground;
+    background: transparent;
   }
   html {
     @apply font-sans;
+    background: transparent;
   }
 }
 
