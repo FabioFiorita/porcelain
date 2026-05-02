@@ -8,6 +8,7 @@ import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useEffect } from 'react'
 import { AppSidebar } from './app-sidebar'
+import { FileFinder } from './file-finder'
 import { TabBar } from './tab-bar'
 import { TerminalHeader, TerminalPane } from './terminal-pane'
 import { Viewer } from './viewer'
@@ -42,6 +43,7 @@ export function AppShell(): React.JSX.Element {
   return (
     <div className="dark h-screen bg-background text-foreground">
       <SidebarProvider style={{ '--sidebar-width': `${sidebarWidth}px` } as React.CSSProperties}>
+        <FileFinder />
         <AppSidebar />
         <SidebarInset className="h-screen min-w-0">
           <div className="flex h-full flex-col">

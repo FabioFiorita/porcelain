@@ -38,6 +38,8 @@ Vendor skills in `.agents/skills/`: `shadcn`, `vercel-composition-patterns`, `fr
 
 - 2026-06-12: Liquid-glass: vibrancy under-window + hiddenInset title bar + alpha theme tokens; drag regions via .app-drag/.app-no-drag. Sidebar drag-resizable (--sidebar-width override, 180-520px). Tree multi-select via cmd-click → batch hide.
 
+- 2026-06-12: Cmd+P file finder: git ls-files (cached 30s) + custom subsequence fuzzy scorer in main; shadcn command dialog, shouldFilter=false (server-side filtering).
+
 ## Open decisions (ask before implementing)
 
 - Agent-session integration design (beyond a plain terminal)

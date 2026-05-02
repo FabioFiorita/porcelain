@@ -5,7 +5,8 @@ import { readdir, readFile, stat } from 'fs/promises'
 import { basename, join } from 'path'
 import { z } from 'zod'
 import { loadConfig, saveConfig } from './config-store'
-import { gitDiffFile, gitStatus } from './git'
+import { fuzzySearch } from './fuzzy'
+import { gitDiffFile, gitListFiles, gitStatus } from './git'
 import { hiddenPathsFor, withHiddenPath, withoutHiddenPath, withRecentRepo } from './repo-config'
 import {
   createTerminal,
@@ -95,6 +96,27 @@ export const router = t.router({
   gitDiffFile: t.procedure
     .input(z.object({ repoPath: z.string(), filePath: z.string() }))
     .query(({ input }) => gitDiffFile(input.repoPath, input.filePath)),
+
+  searchFiles: t.procedure
+    .input(z.object({ repoPath: z.string(), query: z.string() }))
+    .query(async ({ input }): Promise<string[]> => {
+      if (input.query.trim() === '') return []
+      const [files, config] = await Promise.all([gitListFiles(input.repoPath), loadConfig()])
+      const hidden = hiddenPathsFor(config, input.repoPath)
+      const visible =
+        hidden.size === 0
+          ? files
+          : files.filter((f) => {
+              for (const h of hidden) {
+                const rel = h.startsWith(`${input.repoPath}/`)
+                  ? h.slice(input.repoPath.length + 1)
+                  : h
+                if (f === rel || f.startsWith(`${rel}/`)) return false
+              }
+              return true
+            })
+      return fuzzySearch(input.query, visible, 50).map((r) => r.path)
+    }),
 
   termCreate: t.procedure.input(z.object({ cwd: z.string() })).mutation(({ input }) => ({
     id: createTerminal(input.cwd),

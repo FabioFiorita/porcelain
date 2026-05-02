@@ -20,6 +20,24 @@ async function runGit(repoPath: string, args: string[]): Promise<string> {
   return stdout
 }
 
+const fileListCache = new Map<string, { files: string[]; at: number }>()
+const FILE_LIST_TTL = 30_000
+
+export async function gitListFiles(repoPath: string): Promise<string[]> {
+  const cached = fileListCache.get(repoPath)
+  if (cached && Date.now() - cached.at < FILE_LIST_TTL) return cached.files
+  const out = await runGit(repoPath, [
+    'ls-files',
+    '--cached',
+    '--others',
+    '--exclude-standard',
+    '-z',
+  ])
+  const files = out.split('\0').filter(Boolean)
+  fileListCache.set(repoPath, { files, at: Date.now() })
+  return files
+}
+
 export async function gitStatus(repoPath: string): Promise<ChangedFile[]> {
   return parseStatus(await runGit(repoPath, ['status', '--porcelain=v1', '-z']))
 }
