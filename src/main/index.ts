@@ -16,7 +16,7 @@ function createWindow(): void {
     show: false,
     autoHideMenuBar: true,
     titleBarStyle: 'hiddenInset',
-    vibrancy: 'under-window',
+    vibrancy: 'hud',
     visualEffectState: 'followWindow',
     backgroundColor: '#00000000',
     ...(process.platform === 'linux' ? { icon } : {}),
