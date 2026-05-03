@@ -3,7 +3,13 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from '@renderer/components/ui/resizable'
-import { SidebarInset, SidebarProvider, SidebarTrigger } from '@renderer/components/ui/sidebar'
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+  useSidebar,
+} from '@renderer/components/ui/sidebar'
+import { cn } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useEffect } from 'react'
@@ -13,6 +19,25 @@ import { TabBar } from './tab-bar'
 import { TerminalHeader, TerminalPane } from './terminal-pane'
 import { Viewer } from './viewer'
 import { Welcome } from './welcome'
+
+function TopBar(): React.JSX.Element {
+  const { state } = useSidebar()
+
+  return (
+    <div className="app-drag flex h-10 items-end border-b bg-sidebar">
+      <SidebarTrigger
+        className={cn(
+          'app-no-drag m-1 ml-2 self-center',
+          // collapsed sidebar puts this strip at the window edge, under the traffic lights
+          state === 'collapsed' && 'ml-[4.75rem]',
+        )}
+      />
+      <div className="app-no-drag flex min-w-0 flex-1 items-end">
+        <TabBar />
+      </div>
+    </div>
+  )
+}
 
 export function AppShell(): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)
@@ -50,12 +75,7 @@ export function AppShell(): React.JSX.Element {
             <ResizablePanelGroup orientation="vertical" className="min-h-0 flex-1">
               <ResizablePanel defaultSize="70%">
                 <div className="flex h-full flex-col">
-                  <div className="app-drag flex h-10 items-end border-b bg-sidebar">
-                    <SidebarTrigger className="app-no-drag m-1 self-center" />
-                    <div className="app-no-drag flex min-w-0 flex-1 items-end">
-                      <TabBar />
-                    </div>
-                  </div>
+                  <TopBar />
                   <div className="min-h-0 flex-1">
                     <Viewer />
                   </div>
