@@ -32,9 +32,7 @@ function TopBar(): React.JSX.Element {
           state === 'collapsed' && 'ml-[4.75rem]',
         )}
       />
-      <div className="app-no-drag flex min-w-0 flex-1 items-end">
-        <TabBar />
-      </div>
+      <TabBar />
     </div>
   )
 }

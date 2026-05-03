@@ -15,7 +15,7 @@ export function TabBar(): React.JSX.Element {
         <div
           key={tab.id}
           className={cn(
-            'group flex h-8 shrink-0 cursor-default items-center gap-1 rounded-t-md px-3 text-sm',
+            'app-no-drag group flex h-8 shrink-0 cursor-default items-center gap-1 rounded-t-md px-3 text-sm',
             tab.id === activeTabId
               ? 'bg-background text-foreground'
               : 'text-muted-foreground hover:bg-muted/50',
