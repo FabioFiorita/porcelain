@@ -48,17 +48,27 @@ export function FileFinder(): React.JSX.Element {
   }
 
   return (
-    <CommandDialog open={open} onOpenChange={setOpen} title="Go to file">
+    <CommandDialog open={open} onOpenChange={setOpen} title="Go to file" className="sm:max-w-2xl">
       <Command shouldFilter={false}>
         <CommandInput placeholder="Search files…" value={query} onValueChange={setQuery} />
         <CommandList>
           {query.trim() !== '' && <CommandEmpty>No files found</CommandEmpty>}
-          {results.map((path) => (
-            <CommandItem key={path} value={path} onSelect={() => select(path)}>
-              <File className="text-muted-foreground" />
-              <span className="truncate">{path}</span>
-            </CommandItem>
-          ))}
+          {results.map((path) => {
+            const slash = path.lastIndexOf('/')
+            const name = slash === -1 ? path : path.slice(slash + 1)
+            const dir = slash === -1 ? '' : path.slice(0, slash)
+            return (
+              <CommandItem key={path} value={path} onSelect={() => select(path)}>
+                <File className="shrink-0 text-muted-foreground" />
+                <span className="shrink-0">{name}</span>
+                {dir && (
+                  <span className="min-w-0 truncate text-xs text-muted-foreground" dir="rtl">
+                    {dir}
+                  </span>
+                )}
+              </CommandItem>
+            )
+          })}
         </CommandList>
       </Command>
     </CommandDialog>
