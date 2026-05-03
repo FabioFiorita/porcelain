@@ -1,6 +1,6 @@
 import { DiffView } from '@renderer/components/git/diff-view'
-import { ScrollArea } from '@renderer/components/ui/scroll-area'
 import { CodeLine, useHighlighter } from '@renderer/components/viewer/code-line'
+import { VirtualRows } from '@renderer/components/viewer/virtual-rows'
 import { languageFor } from '@renderer/lib/highlight'
 import { trpc } from '@renderer/lib/trpc'
 import { useTabsStore } from '@renderer/stores/tabs'
@@ -20,19 +20,18 @@ function FileContent({ path }: { path: string }): React.JSX.Element {
   const lines = content.split('\n')
 
   return (
-    <ScrollArea className="h-full">
-      <div className="p-4 font-mono text-xs leading-5">
-        {lines.map((line, i) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: lines are positional
-          <div key={i} className="flex">
-            <span className="w-10 shrink-0 select-none pr-3 text-right text-muted-foreground/50">
-              {i + 1}
-            </span>
-            <CodeLine text={line} lang={lang} highlighter={highlighter} />
-          </div>
-        ))}
-      </div>
-    </ScrollArea>
+    <VirtualRows
+      rows={lines}
+      className="px-4 py-2 leading-5"
+      renderRow={(line, i) => (
+        <div className="flex">
+          <span className="w-10 shrink-0 select-none pr-3 text-right text-muted-foreground/50">
+            {i + 1}
+          </span>
+          <CodeLine text={line} lang={lang} highlighter={highlighter} />
+        </div>
+      )}
+    />
   )
 }
 

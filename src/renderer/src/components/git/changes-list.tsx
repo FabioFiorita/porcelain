@@ -26,6 +26,9 @@ export function ChangesList(): React.JSX.Element {
   const utils = trpc.useUtils()
   const { data: changes, refetch } = trpc.gitStatus.useQuery(repo?.path ?? '', {
     enabled: repo !== null,
+    // working-tree state changes outside the app constantly; keep it live
+    staleTime: 0,
+    refetchInterval: 3000,
   })
 
   const refresh = async (): Promise<void> => {

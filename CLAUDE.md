@@ -40,6 +40,8 @@ Vendor skills in `.agents/skills/`: `shadcn`, `vercel-composition-patterns`, `fr
 
 - 2026-06-12: Cmd+P file finder: git ls-files (cached 30s) + custom subsequence fuzzy scorer in main; shadcn command dialog, shouldFilter=false (server-side filtering).
 
+- 2026-06-12: Virtualized rendering (@tanstack/react-virtual, VirtualRows) for file viewer + diff rows — never render all lines. gitStatus polls 3s/staleTime 0; gitDiffFile staleTime 0 (git data must be live, unlike fs reads).
+
 ## Open decisions (ask before implementing)
 
 - Agent-session integration design (beyond a plain terminal)
