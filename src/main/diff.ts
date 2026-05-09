@@ -76,6 +76,27 @@ export function parseNameStatus(out: string): ChangedFile[] {
   return files
 }
 
+export interface Worktree {
+  path: string
+  branch: string
+}
+
+/** Parse `git worktree list --porcelain` output. */
+export function parseWorktrees(out: string): Worktree[] {
+  return out
+    .split('\n\n')
+    .map((block) => block.trim())
+    .filter(Boolean)
+    .map((block) => {
+      const lines = block.split('\n')
+      const path = lines.find((l) => l.startsWith('worktree '))?.slice('worktree '.length) ?? ''
+      const branchRef = lines.find((l) => l.startsWith('branch '))?.slice('branch '.length)
+      const branch = branchRef?.replace('refs/heads/', '') ?? '(detached)'
+      return { path, branch }
+    })
+    .filter((w) => w.path !== '')
+}
+
 export function parseUnifiedDiff(diff: string): DiffHunk[] {
   const hunks: DiffHunk[] = []
   let current: DiffHunk | null = null

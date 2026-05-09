@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { parseLog, parseNameStatus, parseStatus, parseUnifiedDiff, synthesizeAddDiff } from './diff'
+import {
+  parseLog,
+  parseNameStatus,
+  parseStatus,
+  parseUnifiedDiff,
+  parseWorktrees,
+  synthesizeAddDiff,
+} from './diff'
 
 describe('parseStatus', () => {
   it('parses porcelain -z output into changed files', () => {
@@ -79,6 +86,18 @@ describe('parseNameStatus', () => {
       { path: 'a.ts', status: 'modified' },
       { path: 'b.ts', status: 'added' },
       { path: 'new.ts', status: 'renamed' },
+    ])
+  })
+})
+
+describe('parseWorktrees', () => {
+  it('parses worktree blocks with branches and detached heads', () => {
+    const out =
+      'worktree /repo\nHEAD abc\nbranch refs/heads/main\n\nworktree /repo-wt/fix\nHEAD def\nbranch refs/heads/fix-1\n\nworktree /repo-wt/detached\nHEAD eee\ndetached\n'
+    expect(parseWorktrees(out)).toEqual([
+      { path: '/repo', branch: 'main' },
+      { path: '/repo-wt/fix', branch: 'fix-1' },
+      { path: '/repo-wt/detached', branch: '(detached)' },
     ])
   })
 })

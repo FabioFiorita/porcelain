@@ -8,7 +8,16 @@ import { type AppEvent, subscribeAppEvents } from './app-events'
 import { loadConfig, saveConfig } from './config-store'
 import { buildFlow, DEFAULT_LAYERS, type FlowGroup } from './flow'
 import { fuzzySearch } from './fuzzy'
-import { gitCommitDiff, gitCommitFiles, gitDiffFile, gitListFiles, gitLog, gitStatus } from './git'
+import {
+  gitBranch,
+  gitCommitDiff,
+  gitCommitFiles,
+  gitDiffFile,
+  gitListFiles,
+  gitLog,
+  gitStatus,
+  gitWorktrees,
+} from './git'
 import { hiddenPathsFor, withHiddenPath, withoutHiddenPath, withRecentRepo } from './repo-config'
 import {
   createTerminal,
@@ -144,6 +153,10 @@ export const router = t.router({
   gitDiffFile: t.procedure
     .input(z.object({ repoPath: z.string(), filePath: z.string() }))
     .query(({ input }) => gitDiffFile(input.repoPath, input.filePath)),
+
+  gitBranch: t.procedure.input(z.string()).query(({ input }) => gitBranch(input)),
+
+  gitWorktrees: t.procedure.input(z.string()).query(({ input }) => gitWorktrees(input)),
 
   gitLog: t.procedure
     .input(z.object({ repoPath: z.string(), limit: z.number().int().max(500).default(200) }))

@@ -10,7 +10,9 @@ import {
   parseNameStatus,
   parseStatus,
   parseUnifiedDiff,
+  parseWorktrees,
   synthesizeAddDiff,
+  type Worktree,
 } from './diff'
 
 const execFileAsync = promisify(execFile)
@@ -70,6 +72,14 @@ export async function gitCommitDiff(
 
 export async function gitStatus(repoPath: string): Promise<ChangedFile[]> {
   return parseStatus(await runGit(repoPath, ['status', '--porcelain=v1', '-z']))
+}
+
+export async function gitBranch(repoPath: string): Promise<string> {
+  return (await runGit(repoPath, ['rev-parse', '--abbrev-ref', 'HEAD'])).trim()
+}
+
+export async function gitWorktrees(repoPath: string): Promise<Worktree[]> {
+  return parseWorktrees(await runGit(repoPath, ['worktree', 'list', '--porcelain']))
 }
 
 export async function gitDiffFile(repoPath: string, filePath: string): Promise<DiffHunk[]> {

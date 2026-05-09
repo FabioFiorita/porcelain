@@ -1,9 +1,11 @@
 import { ChangesList } from '@renderer/components/git/changes-list'
 import { HistoryList } from '@renderer/components/git/history-list'
+import { WorktreeSwitcher } from '@renderer/components/git/worktree-switcher'
 import { Button } from '@renderer/components/ui/button'
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarHeader,
@@ -82,6 +84,9 @@ export function AppSidebar(): React.JSX.Element {
           <p className="p-2 text-sm text-muted-foreground">No repository open</p>
         )}
       </SidebarContent>
+      <SidebarFooter className="border-t">
+        <WorktreeSwitcher />
+      </SidebarFooter>
     </Sidebar>
   )
 }

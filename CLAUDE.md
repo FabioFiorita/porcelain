@@ -29,26 +29,19 @@ Vendor skills in `.agents/skills/`: `shadcn`, `vercel-composition-patterns`, `fr
 - 2026-06-12: IPC = **tRPC over electron-trpc** (user choice over hand-rolled bridge: no casts, zod-validated inputs). File tree = lazy per-directory reads.
 - 2026-06-12: shadcn `sidebar` primitive for the app sidebar (user feedback → hard rule 5); sidebar collapses to rail, no drag-resize.
 - 2026-06-12: Folder hiding: right-click Hide/Unhide + eye toggle (dimmed in show-hidden mode); filtering in MAIN process. Recents on welcome screen (app config store in userData/config.json).
-
 - 2026-06-12: Auto-open last repo on startup. Git diffs: working-tree first, sidebar Files/Changes tabs, unified + split rendering (user toggle).
-
 - 2026-06-12: Data fetching = TanStack Query via @trpc/react-query (caching, invalidation); vanilla tRPC client only inside zustand stores. Syntax highlighting = Shiki (dark-plus), per-line tokens in viewer + diffs.
-
 - 2026-06-12: Terminal shipped: node-pty in main + xterm.js renderer, streaming via tRPC subscription; scrollback replay on reattach. Window default 1400x900.
-
 - 2026-06-12: Liquid-glass: vibrancy under-window + hiddenInset title bar + alpha theme tokens; drag regions via .app-drag/.app-no-drag. Sidebar drag-resizable (--sidebar-width override, 180-520px). Tree multi-select via cmd-click → batch hide.
-
 - 2026-06-12: Cmd+P file finder: git ls-files (cached 30s) + custom subsequence fuzzy scorer in main; shadcn command dialog, shouldFilter=false (server-side filtering).
-
 - 2026-06-12: Virtualized rendering (@tanstack/react-virtual, VirtualRows) for file viewer + diff rows — never render all lines. gitStatus polls 3s/staleTime 0; gitDiffFile staleTime 0 (git data must be live, unlike fs reads).
-
 - 2026-06-12: Flow-ordered review shipped: default layer conventions (deepest-segment-wins matching) + import-edge parsing of changed files; per-repo layer overrides in config schema (no UI yet). Changes list renders grouped by layer, entry-point → data.
-
 - 2026-06-12: History: sidebar History tab (200 commits, relative dates); commit tab = file list + per-file diff reusing HunksView/DiffModeToggle (extracted from DiffView).
-
 - 2026-06-12: Cmd+W closes tab (before-input-event in main → appEvents subscription), Ctrl+Tab cycles tabs. UI prefs persisted (zustand/persist, localStorage). readFile returns FileView union (text/image/binary).
+
+- 2026-06-12: Worktrees: sidebar footer shows current branch (5s poll) + dropdown switcher (git worktree list --porcelain); switching clears tabs and opens the worktree path as the repo.
 
 ## Open decisions (ask before implementing)
 
 - Agent-session integration design (beyond a plain terminal)
-- Syntax highlighting for the file viewer (currently plain text)
+- Per-repo layer override editing UI for flow review
