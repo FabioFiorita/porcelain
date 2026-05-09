@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type TabKind = 'file' | 'diff'
+export type TabKind = 'file' | 'diff' | 'commit'
 
 export interface Tab {
   id: string

@@ -4,7 +4,10 @@ import { join } from 'path'
 import { promisify } from 'util'
 import {
   type ChangedFile,
+  type Commit,
   type DiffHunk,
+  parseLog,
+  parseNameStatus,
   parseStatus,
   parseUnifiedDiff,
   synthesizeAddDiff,
@@ -36,6 +39,33 @@ export async function gitListFiles(repoPath: string): Promise<string[]> {
   const files = out.split('\0').filter(Boolean)
   fileListCache.set(repoPath, { files, at: Date.now() })
   return files
+}
+
+export async function gitLog(repoPath: string, limit: number): Promise<Commit[]> {
+  return parseLog(
+    await runGit(repoPath, [
+      'log',
+      `-n${limit}`,
+      '--pretty=format:%H%x1f%an%x1f%ar%x1f%s%x1e',
+      '--date=relative',
+    ]),
+  )
+}
+
+export async function gitCommitFiles(repoPath: string, hash: string): Promise<ChangedFile[]> {
+  return parseNameStatus(
+    await runGit(repoPath, ['show', hash, '--name-status', '--format=', '-z', '--no-color']),
+  )
+}
+
+export async function gitCommitDiff(
+  repoPath: string,
+  hash: string,
+  filePath: string,
+): Promise<DiffHunk[]> {
+  return parseUnifiedDiff(
+    await runGit(repoPath, ['show', hash, '--no-color', '--format=', '--', filePath]),
+  )
 }
 
 export async function gitStatus(repoPath: string): Promise<ChangedFile[]> {

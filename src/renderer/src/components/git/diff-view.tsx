@@ -123,11 +123,57 @@ function SplitCell({
   )
 }
 
+/** Shared hunk renderer: virtualized unified/split rows with highlighting. */
+export function HunksView({
+  hunks,
+  filePath,
+  diffMode,
+}: {
+  hunks: readonly DiffHunk[]
+  filePath: string
+  diffMode: 'unified' | 'split'
+}): React.JSX.Element {
+  const highlighter = useHighlighter()
+  const ctx: RenderContext = { lang: languageFor(filePath), highlighter }
+
+  if (hunks.length === 0) {
+    return <p className="p-4 font-mono text-xs text-muted-foreground">No changes</p>
+  }
+
+  return (
+    <VirtualRows
+      rows={toRows(hunks, diffMode)}
+      className="leading-5"
+      renderRow={(row) => <DiffRowView row={row} ctx={ctx} />}
+    />
+  )
+}
+
+export function DiffModeToggle(): React.JSX.Element {
+  const diffMode = usePreferencesStore((s) => s.diffMode)
+  const setDiffMode = usePreferencesStore((s) => s.setDiffMode)
+
+  return (
+    <ToggleGroup
+      value={[diffMode]}
+      onValueChange={(value: string[]) => {
+        const mode = value[0]
+        if (mode === 'unified' || mode === 'split') setDiffMode(mode)
+      }}
+    >
+      <ToggleGroupItem value="unified" size="sm">
+        Unified
+      </ToggleGroupItem>
+      <ToggleGroupItem value="split" size="sm">
+        Split
+      </ToggleGroupItem>
+    </ToggleGroup>
+  )
+}
+
 export function DiffView({ filePath }: { filePath: string }): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)
   const diffMode = usePreferencesStore((s) => s.diffMode)
-  const setDiffMode = usePreferencesStore((s) => s.setDiffMode)
-  const highlighter = useHighlighter()
   const { data: hunks, error } = trpc.gitDiffFile.useQuery(
     { repoPath: repo?.path ?? '', filePath },
     // diffs go stale the moment the agent writes; refetch on tab focus, keep last data visible
@@ -137,37 +183,14 @@ export function DiffView({ filePath }: { filePath: string }): React.JSX.Element 
   if (error) return <p className="p-4 text-sm text-destructive">{error.message}</p>
   if (hunks === undefined) return <p className="p-4 text-sm text-muted-foreground">Loading…</p>
 
-  const ctx: RenderContext = { lang: languageFor(filePath), highlighter }
-
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between border-b px-3 py-1">
         <span className="truncate font-mono text-xs text-muted-foreground">{filePath}</span>
-        <ToggleGroup
-          value={[diffMode]}
-          onValueChange={(value: string[]) => {
-            const mode = value[0]
-            if (mode === 'unified' || mode === 'split') setDiffMode(mode)
-          }}
-        >
-          <ToggleGroupItem value="unified" size="sm">
-            Unified
-          </ToggleGroupItem>
-          <ToggleGroupItem value="split" size="sm">
-            Split
-          </ToggleGroupItem>
-        </ToggleGroup>
+        <DiffModeToggle />
       </div>
       <div className="min-h-0 flex-1">
-        {hunks.length === 0 ? (
-          <p className="p-4 font-mono text-xs text-muted-foreground">No changes</p>
-        ) : (
-          <VirtualRows
-            rows={toRows(hunks, diffMode)}
-            className="leading-5"
-            renderRow={(row) => <DiffRowView row={row} ctx={ctx} />}
-          />
-        )}
+        <HunksView hunks={hunks} filePath={filePath} diffMode={diffMode} />
       </div>
     </div>
   )

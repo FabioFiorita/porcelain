@@ -1,4 +1,5 @@
 import { ChangesList } from '@renderer/components/git/changes-list'
+import { HistoryList } from '@renderer/components/git/history-list'
 import { Button } from '@renderer/components/ui/button'
 import {
   Sidebar,
@@ -50,9 +51,10 @@ export function AppSidebar(): React.JSX.Element {
       <SidebarContent>
         {repo ? (
           <Tabs defaultValue="files" className="flex h-full flex-col gap-0">
-            <TabsList className="mx-2 mt-2 grid w-auto grid-cols-2">
+            <TabsList className="mx-2 mt-2 grid w-auto grid-cols-3">
               <TabsTrigger value="files">Files</TabsTrigger>
               <TabsTrigger value="changes">Changes</TabsTrigger>
+              <TabsTrigger value="history">History</TabsTrigger>
             </TabsList>
             <TabsContent value="files">
               <SidebarGroup>
@@ -65,6 +67,13 @@ export function AppSidebar(): React.JSX.Element {
               <SidebarGroup>
                 <SidebarGroupContent>
                   <ChangesList />
+                </SidebarGroupContent>
+              </SidebarGroup>
+            </TabsContent>
+            <TabsContent value="history">
+              <SidebarGroup>
+                <SidebarGroupContent>
+                  <HistoryList />
                 </SidebarGroupContent>
               </SidebarGroup>
             </TabsContent>

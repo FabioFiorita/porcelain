@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseStatus, parseUnifiedDiff, synthesizeAddDiff } from './diff'
+import { parseLog, parseNameStatus, parseStatus, parseUnifiedDiff, synthesizeAddDiff } from './diff'
 
 describe('parseStatus', () => {
   it('parses porcelain -z output into changed files', () => {
@@ -58,5 +58,27 @@ describe('synthesizeAddDiff', () => {
 
   it('returns no hunks for empty content', () => {
     expect(synthesizeAddDiff('')).toEqual([])
+  })
+})
+
+describe('parseLog', () => {
+  it('parses log records', () => {
+    const out =
+      'abc\x1fAlice\x1f2 days ago\x1ffeat: thing\x1e\ndef\x1fBob\x1f3 days ago\x1ffix: other\x1e'
+    expect(parseLog(out)).toEqual([
+      { hash: 'abc', author: 'Alice', date: '2 days ago', subject: 'feat: thing' },
+      { hash: 'def', author: 'Bob', date: '3 days ago', subject: 'fix: other' },
+    ])
+  })
+})
+
+describe('parseNameStatus', () => {
+  it('parses statuses including renames', () => {
+    const out = 'M\0a.ts\0A\0b.ts\0R100\0old.ts\0new.ts\0'
+    expect(parseNameStatus(out)).toEqual([
+      { path: 'a.ts', status: 'modified' },
+      { path: 'b.ts', status: 'added' },
+      { path: 'new.ts', status: 'renamed' },
+    ])
   })
 })

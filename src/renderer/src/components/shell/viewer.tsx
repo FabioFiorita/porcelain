@@ -1,3 +1,4 @@
+import { CommitView } from '@renderer/components/git/commit-view'
 import { DiffView } from '@renderer/components/git/diff-view'
 import { CodeLine, useHighlighter } from '@renderer/components/viewer/code-line'
 import { VirtualRows } from '@renderer/components/viewer/virtual-rows'
@@ -49,6 +50,10 @@ export function Viewer(): React.JSX.Element {
 
   if (activeTab.kind === 'diff') {
     return <DiffView filePath={activeTab.path} />
+  }
+
+  if (activeTab.kind === 'commit') {
+    return <CommitView hash={activeTab.path} />
   }
 
   return <FileContent path={activeTab.path} />

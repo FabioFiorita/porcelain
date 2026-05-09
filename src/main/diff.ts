@@ -39,6 +39,43 @@ export function parseStatus(porcelainZ: string): ChangedFile[] {
     })
 }
 
+export interface Commit {
+  hash: string
+  author: string
+  date: string
+  subject: string
+}
+
+/** Parse `git log --pretty=format:%H%x1f%an%x1f%ar%x1f%s%x1e` output. */
+export function parseLog(out: string): Commit[] {
+  return out
+    .split('\x1e')
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      const [hash = '', author = '', date = '', subject = ''] = entry.split('\x1f')
+      return { hash, author, date, subject }
+    })
+    .filter((c) => c.hash !== '')
+}
+
+/** Parse `git show --name-status --format= -z` output into changed files. */
+export function parseNameStatus(out: string): ChangedFile[] {
+  const parts = out.split('\0').filter(Boolean)
+  const files: ChangedFile[] = []
+  for (let i = 0; i < parts.length; i += 2) {
+    const code = parts[i]?.charAt(0) ?? ''
+    let path = parts[i + 1]
+    if (code === 'R') {
+      // renames carry old and new path; show the new one
+      path = parts[i + 2]
+      i += 1
+    }
+    if (path) files.push({ path, status: statusByCode[code] ?? 'modified' })
+  }
+  return files
+}
+
 export function parseUnifiedDiff(diff: string): DiffHunk[] {
   const hunks: DiffHunk[] = []
   let current: DiffHunk | null = null

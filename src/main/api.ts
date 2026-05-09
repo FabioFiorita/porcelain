@@ -7,7 +7,7 @@ import { z } from 'zod'
 import { loadConfig, saveConfig } from './config-store'
 import { buildFlow, DEFAULT_LAYERS, type FlowGroup } from './flow'
 import { fuzzySearch } from './fuzzy'
-import { gitDiffFile, gitListFiles, gitStatus } from './git'
+import { gitCommitDiff, gitCommitFiles, gitDiffFile, gitListFiles, gitLog, gitStatus } from './git'
 import { hiddenPathsFor, withHiddenPath, withoutHiddenPath, withRecentRepo } from './repo-config'
 import {
   createTerminal,
@@ -114,6 +114,18 @@ export const router = t.router({
   gitDiffFile: t.procedure
     .input(z.object({ repoPath: z.string(), filePath: z.string() }))
     .query(({ input }) => gitDiffFile(input.repoPath, input.filePath)),
+
+  gitLog: t.procedure
+    .input(z.object({ repoPath: z.string(), limit: z.number().int().max(500).default(200) }))
+    .query(({ input }) => gitLog(input.repoPath, input.limit)),
+
+  gitCommitFiles: t.procedure
+    .input(z.object({ repoPath: z.string(), hash: z.string() }))
+    .query(({ input }) => gitCommitFiles(input.repoPath, input.hash)),
+
+  gitCommitDiff: t.procedure
+    .input(z.object({ repoPath: z.string(), hash: z.string(), filePath: z.string() }))
+    .query(({ input }) => gitCommitDiff(input.repoPath, input.hash, input.filePath)),
 
   searchFiles: t.procedure
     .input(z.object({ repoPath: z.string(), query: z.string() }))
