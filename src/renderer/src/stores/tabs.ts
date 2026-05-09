@@ -15,6 +15,7 @@ interface TabsState {
   openTab: (tab: Tab) => void
   closeTab: (id: string) => void
   activateTab: (id: string) => void
+  cycleTab: (direction: 1 | -1) => void
 }
 
 export const useTabsStore = create<TabsState>((set) => ({
@@ -39,4 +40,11 @@ export const useTabsStore = create<TabsState>((set) => ({
       return { tabs, activeTabId }
     }),
   activateTab: (id) => set({ activeTabId: id }),
+  cycleTab: (direction) =>
+    set((state) => {
+      if (state.tabs.length < 2) return state
+      const index = state.tabs.findIndex((t) => t.id === state.activeTabId)
+      const next = (index + direction + state.tabs.length) % state.tabs.length
+      return { activeTabId: state.tabs[next]?.id ?? state.activeTabId }
+    }),
 }))

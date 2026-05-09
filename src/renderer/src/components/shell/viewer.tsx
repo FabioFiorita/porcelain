@@ -7,18 +7,34 @@ import { trpc } from '@renderer/lib/trpc'
 import { useTabsStore } from '@renderer/stores/tabs'
 
 function FileContent({ path }: { path: string }): React.JSX.Element {
-  const { data: content, error } = trpc.readFile.useQuery(path)
+  const { data: view, error } = trpc.readFile.useQuery(path)
   const highlighter = useHighlighter()
   const lang = languageFor(path)
 
   if (error) {
     return <p className="p-4 text-sm text-destructive">{error.message}</p>
   }
-  if (content === undefined) {
+  if (view === undefined) {
     return <p className="p-4 text-sm text-muted-foreground">Loading…</p>
   }
 
-  const lines = content.split('\n')
+  if (view.type === 'image') {
+    return (
+      <div className="flex h-full items-center justify-center p-8">
+        <img src={view.dataUrl} alt={path} className="max-h-full max-w-full object-contain" />
+      </div>
+    )
+  }
+
+  if (view.type === 'binary') {
+    return (
+      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+        Binary file · {(view.size / 1024).toFixed(1)} KB
+      </div>
+    )
+  }
+
+  const lines = view.content.split('\n')
 
   return (
     <VirtualRows

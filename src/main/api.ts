@@ -4,6 +4,7 @@ import { dialog } from 'electron'
 import { readdir, readFile, stat } from 'fs/promises'
 import { basename, join } from 'path'
 import { z } from 'zod'
+import { type AppEvent, subscribeAppEvents } from './app-events'
 import { loadConfig, saveConfig } from './config-store'
 import { buildFlow, DEFAULT_LAYERS, type FlowGroup } from './flow'
 import { fuzzySearch } from './fuzzy'
@@ -30,6 +31,23 @@ export interface DirEntry {
   path: string
   kind: 'file' | 'dir'
   hidden: boolean
+}
+
+export type FileView =
+  | { type: 'text'; content: string }
+  | { type: 'image'; dataUrl: string }
+  | { type: 'binary'; size: number }
+
+const IMAGE_MIME: Record<string, string> = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  svg: 'image/svg+xml',
+  ico: 'image/x-icon',
+  bmp: 'image/bmp',
+  avif: 'image/avif',
 }
 
 const toRepoInfo = (path: string): RepoInfo => ({ path, name: basename(path) })
@@ -90,7 +108,19 @@ export const router = t.router({
       await saveConfig(withoutHiddenPath(await loadConfig(), input.repoPath, input.path))
     }),
 
-  readFile: t.procedure.input(z.string()).query(({ input }) => readFile(input, 'utf8')),
+  readFile: t.procedure.input(z.string()).query(async ({ input }): Promise<FileView> => {
+    const ext = input.split('.').at(-1)?.toLowerCase() ?? ''
+    const imageMime = IMAGE_MIME[ext]
+    if (imageMime) {
+      const buffer = await readFile(input)
+      return { type: 'image', dataUrl: `data:${imageMime};base64,${buffer.toString('base64')}` }
+    }
+    const buffer = await readFile(input)
+    if (buffer.subarray(0, 8000).includes(0)) {
+      return { type: 'binary', size: buffer.length }
+    }
+    return { type: 'text', content: buffer.toString('utf8') }
+  }),
 
   gitStatus: t.procedure.input(z.string()).query(({ input }) => gitStatus(input)),
 
@@ -169,6 +199,10 @@ export const router = t.router({
     .subscription(({ input }) =>
       observable<string>((emit) => subscribeTerminal(input, (data) => emit.next(data))),
     ),
+
+  appEvents: t.procedure.subscription(() =>
+    observable<AppEvent>((emit) => subscribeAppEvents((event) => emit.next(event))),
+  ),
 })
 
 export type AppRouter = typeof router

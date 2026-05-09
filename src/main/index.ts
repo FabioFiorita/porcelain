@@ -4,6 +4,7 @@ import { createIPCHandler } from 'electron-trpc/main'
 import { join } from 'path'
 import icon from '../../resources/icon.png?asset'
 import { router } from './api'
+import { emitAppEvent } from './app-events'
 import { killAllTerminals } from './terminal'
 
 function createWindow(): void {
@@ -27,6 +28,15 @@ function createWindow(): void {
   })
 
   createIPCHandler({ router, windows: [mainWindow] })
+
+  // Cmd+W closes the active tab in the renderer, not the window; the renderer
+  // calls window.close() itself when no tabs are open.
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.type === 'keyDown' && input.meta && input.key.toLowerCase() === 'w' && !input.shift) {
+      event.preventDefault()
+      emitAppEvent('close-tab')
+    }
+  })
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()

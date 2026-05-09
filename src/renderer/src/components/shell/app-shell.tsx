@@ -17,6 +17,7 @@ import { AppSidebar } from './app-sidebar'
 import { FileFinder } from './file-finder'
 import { TabBar } from './tab-bar'
 import { TerminalHeader, TerminalPane } from './terminal-pane'
+import { useAppShortcuts } from './use-app-shortcuts'
 import { Viewer } from './viewer'
 import { Welcome } from './welcome'
 
@@ -43,6 +44,8 @@ export function AppShell(): React.JSX.Element {
   const sidebarWidth = usePreferencesStore((s) => s.sidebarWidth)
   const restoring = useRepoStore((s) => s.restoring)
   const restoreLastRepo = useRepoStore((s) => s.restoreLastRepo)
+
+  useAppShortcuts()
 
   useEffect(() => {
     restoreLastRepo()

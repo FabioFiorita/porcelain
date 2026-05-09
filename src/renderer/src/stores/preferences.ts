@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 
 export type DiffMode = 'unified' | 'split'
 
@@ -14,12 +15,17 @@ interface PreferencesState {
   setSidebarWidth: (width: number) => void
 }
 
-export const usePreferencesStore = create<PreferencesState>((set) => ({
-  diffMode: 'unified',
-  terminalOpen: false,
-  sidebarWidth: 256,
-  setDiffMode: (diffMode) => set({ diffMode }),
-  toggleTerminal: () => set((s) => ({ terminalOpen: !s.terminalOpen })),
-  setSidebarWidth: (width) =>
-    set({ sidebarWidth: Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, width)) }),
-}))
+export const usePreferencesStore = create<PreferencesState>()(
+  persist(
+    (set) => ({
+      diffMode: 'unified',
+      terminalOpen: false,
+      sidebarWidth: 256,
+      setDiffMode: (diffMode) => set({ diffMode }),
+      toggleTerminal: () => set((s) => ({ terminalOpen: !s.terminalOpen })),
+      setSidebarWidth: (width) =>
+        set({ sidebarWidth: Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, width)) }),
+    }),
+    { name: 'porcelain-preferences' },
+  ),
+)

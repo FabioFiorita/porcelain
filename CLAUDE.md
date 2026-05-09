@@ -46,6 +46,8 @@ Vendor skills in `.agents/skills/`: `shadcn`, `vercel-composition-patterns`, `fr
 
 - 2026-06-12: History: sidebar History tab (200 commits, relative dates); commit tab = file list + per-file diff reusing HunksView/DiffModeToggle (extracted from DiffView).
 
+- 2026-06-12: Cmd+W closes tab (before-input-event in main → appEvents subscription), Ctrl+Tab cycles tabs. UI prefs persisted (zustand/persist, localStorage). readFile returns FileView union (text/image/binary).
+
 ## Open decisions (ask before implementing)
 
 - Agent-session integration design (beyond a plain terminal)
