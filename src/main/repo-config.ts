@@ -3,7 +3,13 @@ import { z } from 'zod'
 export const appConfigSchema = z.object({
   recentRepos: z.array(z.string()).default([]),
   repos: z
-    .record(z.string(), z.object({ hiddenPaths: z.array(z.string()).default([]) }))
+    .record(
+      z.string(),
+      z.object({
+        hiddenPaths: z.array(z.string()).default([]),
+        layers: z.array(z.object({ label: z.string(), pattern: z.string() })).optional(),
+      }),
+    )
     .default({}),
 })
 

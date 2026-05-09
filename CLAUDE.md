@@ -42,8 +42,9 @@ Vendor skills in `.agents/skills/`: `shadcn`, `vercel-composition-patterns`, `fr
 
 - 2026-06-12: Virtualized rendering (@tanstack/react-virtual, VirtualRows) for file viewer + diff rows — never render all lines. gitStatus polls 3s/staleTime 0; gitDiffFile staleTime 0 (git data must be live, unlike fs reads).
 
+- 2026-06-12: Flow-ordered review shipped: default layer conventions (deepest-segment-wins matching) + import-edge parsing of changed files; per-repo layer overrides in config schema (no UI yet). Changes list renders grouped by layer, entry-point → data.
+
 ## Open decisions (ask before implementing)
 
 - Agent-session integration design (beyond a plain terminal)
-- Flow-ordered review: how to derive the chain — static import-graph analysis, user-defined layer conventions per repo, agent-assisted, or hybrid
 - Syntax highlighting for the file viewer (currently plain text)

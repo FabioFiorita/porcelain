@@ -5,6 +5,7 @@ import { readdir, readFile, stat } from 'fs/promises'
 import { basename, join } from 'path'
 import { z } from 'zod'
 import { loadConfig, saveConfig } from './config-store'
+import { buildFlow, DEFAULT_LAYERS, type FlowGroup } from './flow'
 import { fuzzySearch } from './fuzzy'
 import { gitDiffFile, gitListFiles, gitStatus } from './git'
 import { hiddenPathsFor, withHiddenPath, withoutHiddenPath, withRecentRepo } from './repo-config'
@@ -92,6 +93,23 @@ export const router = t.router({
   readFile: t.procedure.input(z.string()).query(({ input }) => readFile(input, 'utf8')),
 
   gitStatus: t.procedure.input(z.string()).query(({ input }) => gitStatus(input)),
+
+  gitFlow: t.procedure.input(z.string()).query(async ({ input }): Promise<FlowGroup[]> => {
+    const [files, config] = await Promise.all([gitStatus(input), loadConfig()])
+    const layers = config.repos[input]?.layers ?? DEFAULT_LAYERS
+    const sources = new Map<string, string>()
+    await Promise.all(
+      files.slice(0, 200).map(async (file) => {
+        try {
+          const content = await readFile(join(input, file.path), 'utf8')
+          if (content.length < 1024 * 1024) sources.set(file.path, content)
+        } catch {
+          // deleted files have no working-tree source to parse
+        }
+      }),
+    )
+    return buildFlow(files, sources, layers)
+  }),
 
   gitDiffFile: t.procedure
     .input(z.object({ repoPath: z.string(), filePath: z.string() }))
