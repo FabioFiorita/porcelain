@@ -21,6 +21,7 @@ export function TabBar(): React.JSX.Element {
               : 'text-muted-foreground hover:bg-muted/50',
           )}
           onClick={() => activateTab(tab.id)}
+          onAuxClick={(e) => e.button === 1 && closeTab(tab.id)}
           onKeyDown={(e) => e.key === 'Enter' && activateTab(tab.id)}
           role="tab"
           tabIndex={0}

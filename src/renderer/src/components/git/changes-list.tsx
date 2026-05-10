@@ -37,7 +37,17 @@ function FileRow({ file }: { file: FlowFile }): React.JSX.Element {
         title={file.path}
       >
         <div className="flex min-w-0 flex-col items-start">
-          <span className="max-w-full truncate">{name}</span>
+          <span className="flex max-w-full items-baseline gap-1.5">
+            <span className="truncate">{name}</span>
+            {file.additions !== undefined && (
+              <span className="shrink-0 font-mono text-[10px] text-emerald-500">
+                +{file.additions}
+              </span>
+            )}
+            {file.deletions !== undefined && (
+              <span className="shrink-0 font-mono text-[10px] text-red-500">−{file.deletions}</span>
+            )}
+          </span>
           <span className="max-w-full truncate text-xs text-muted-foreground" dir="rtl">
             {file.path.split('/').slice(0, -1).join('/')}
           </span>

@@ -15,6 +15,7 @@ import {
   gitDiffFile,
   gitListFiles,
   gitLog,
+  gitNumstat,
   gitStatus,
   gitWorktrees,
 } from './git'
@@ -82,7 +83,17 @@ export const router = t.router({
 
   recentRepos: t.procedure.query(async (): Promise<RepoInfo[]> => {
     const config = await loadConfig()
-    return config.recentRepos.map(toRepoInfo)
+    const existing = await Promise.all(
+      config.recentRepos.map(async (path) => {
+        try {
+          await stat(path)
+          return path
+        } catch {
+          return null
+        }
+      }),
+    )
+    return existing.filter((p): p is string => p !== null).map(toRepoInfo)
   }),
 
   readDir: t.procedure
@@ -134,7 +145,11 @@ export const router = t.router({
   gitStatus: t.procedure.input(z.string()).query(({ input }) => gitStatus(input)),
 
   gitFlow: t.procedure.input(z.string()).query(async ({ input }): Promise<FlowGroup[]> => {
-    const [files, config] = await Promise.all([gitStatus(input), loadConfig()])
+    const [files, config, stats] = await Promise.all([
+      gitStatus(input),
+      loadConfig(),
+      gitNumstat(input),
+    ])
     const layers = config.repos[input]?.layers ?? DEFAULT_LAYERS
     const sources = new Map<string, string>()
     await Promise.all(
@@ -147,7 +162,15 @@ export const router = t.router({
         }
       }),
     )
-    return buildFlow(files, sources, layers)
+    const statByPath = new Map(stats.map((s) => [s.path, s]))
+    return buildFlow(files, sources, layers).map((group) => ({
+      ...group,
+      files: group.files.map((file) => ({
+        ...file,
+        additions: statByPath.get(file.path)?.additions,
+        deletions: statByPath.get(file.path)?.deletions,
+      })),
+    }))
   }),
 
   gitDiffFile: t.procedure

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   parseLog,
   parseNameStatus,
+  parseNumstat,
   parseStatus,
   parseUnifiedDiff,
   parseWorktrees,
@@ -98,6 +99,16 @@ describe('parseWorktrees', () => {
       { path: '/repo', branch: 'main' },
       { path: '/repo-wt/fix', branch: 'fix-1' },
       { path: '/repo-wt/detached', branch: '(detached)' },
+    ])
+  })
+})
+
+describe('parseNumstat', () => {
+  it('parses additions and deletions, zeroing binary markers', () => {
+    const out = '12\t3\tsrc/a.ts\0-\t-\timg.png\0'
+    expect(parseNumstat(out)).toEqual([
+      { path: 'src/a.ts', additions: 12, deletions: 3 },
+      { path: 'img.png', additions: 0, deletions: 0 },
     ])
   })
 })

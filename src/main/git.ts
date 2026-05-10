@@ -6,8 +6,10 @@ import {
   type ChangedFile,
   type Commit,
   type DiffHunk,
+  type DiffStat,
   parseLog,
   parseNameStatus,
+  parseNumstat,
   parseStatus,
   parseUnifiedDiff,
   parseWorktrees,
@@ -72,6 +74,10 @@ export async function gitCommitDiff(
 
 export async function gitStatus(repoPath: string): Promise<ChangedFile[]> {
   return parseStatus(await runGit(repoPath, ['status', '--porcelain=v1', '-z']))
+}
+
+export async function gitNumstat(repoPath: string): Promise<DiffStat[]> {
+  return parseNumstat(await runGit(repoPath, ['diff', 'HEAD', '--numstat', '-z']))
 }
 
 export async function gitBranch(repoPath: string): Promise<string> {

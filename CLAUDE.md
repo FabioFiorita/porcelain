@@ -41,6 +41,8 @@ Vendor skills in `.agents/skills/`: `shadcn`, `vercel-composition-patterns`, `fr
 
 - 2026-06-12: Worktrees: sidebar footer shows current branch (5s poll) + dropdown switcher (git worktree list --porcelain); switching clears tabs and opens the worktree path as the repo.
 
+- 2026-06-12: Changes rows show +adds/−dels (git diff --numstat merged into gitFlow). Middle-click closes tabs. recentRepos prunes non-existent paths.
+
 ## Open decisions (ask before implementing)
 
 - Agent-session integration design (beyond a plain terminal)

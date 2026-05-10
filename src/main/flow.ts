@@ -46,6 +46,8 @@ export function layerFor(path: string, layers: readonly Layer[]): string {
 export interface FlowFile extends ChangedFile {
   /** Relative paths of other changed files this file imports. */
   connects: string[]
+  additions?: number
+  deletions?: number
 }
 
 export interface FlowGroup {

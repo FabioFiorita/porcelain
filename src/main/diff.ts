@@ -76,6 +76,28 @@ export function parseNameStatus(out: string): ChangedFile[] {
   return files
 }
 
+export interface DiffStat {
+  path: string
+  additions: number
+  deletions: number
+}
+
+/** Parse `git diff --numstat -z` output (binary files report "-"). */
+export function parseNumstat(out: string): DiffStat[] {
+  return out
+    .split('\0')
+    .filter(Boolean)
+    .map((entry) => {
+      const [additions = '-', deletions = '-', path = ''] = entry.split('\t')
+      return {
+        path,
+        additions: additions === '-' ? 0 : Number(additions),
+        deletions: deletions === '-' ? 0 : Number(deletions),
+      }
+    })
+    .filter((s) => s.path !== '')
+}
+
 export interface Worktree {
   path: string
   branch: string
