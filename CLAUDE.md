@@ -48,6 +48,9 @@ Vendor skills in `.agents/skills/`: `shadcn`, `vercel-composition-patterns`, `fr
 - 2026-06-12: Flow-layer settings UI shipped: gear in sidebar footer → dialog editing per-repo layers (label + regex, reorder, add/remove, reset, inline validation, helper with Stories example); `repoLayers`/`setRepoLayers` procedures. `layerFor` lost its Tests special case — deepest match covers filename layers generally.
 - 2026-06-12: Markdown reader: react-markdown + remark-gfm + @tailwindcss/typography prose, Reader/Source toggle (persisted, reader default), links open externally. Markdown files only; reader view is not virtualized.
 
+- 2026-06-12: Right "Quick Access" sidebar: nested second shadcn SidebarProvider (controlled by `rightSidebarOpen` preference, Cmd+. via new `shortcut` prop on the provider; left keeps Cmd+B). Sections: Pinned (per-repo `pinnedPaths`, tree context-menu Pin/Unpin, reuses TreeNode), git quick commands, commit composer (type/scope chips learned from last 200 subjects via `parseConventions` + message → `git commit -m`). Terminal inserts NEVER auto-execute (no newline); text queued via `pendingInput` if the pane is still opening.
+- 2026-06-12: Verification happens in `~/Code/porcelain-playground` (mock repo, recreate at will) — never drive tests against the user's work repos.
+
 ## Open decisions (ask before implementing)
 
 - Agent-session integration design (beyond a plain terminal)

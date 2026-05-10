@@ -3,8 +3,11 @@ import {
   emptyConfig,
   hiddenPathsFor,
   layersFor,
+  pinnedPathsFor,
   withHiddenPath,
   withoutHiddenPath,
+  withoutPinnedPath,
+  withPinnedPath,
   withRecentRepo,
   withRepoLayers,
 } from './repo-config'
@@ -42,6 +45,25 @@ describe('hidden paths', () => {
     let config = withHiddenPath(emptyConfig, '/repo', '/repo/x')
     config = withHiddenPath(config, '/repo', '/repo/x')
     expect(config.repos['/repo']?.hiddenPaths).toEqual(['/repo/x'])
+  })
+})
+
+describe('pinned paths', () => {
+  it('pins and unpins a path per repo without duplicates', () => {
+    let config = withPinnedPath(emptyConfig, '/repo', '/repo/apps/dtc')
+    config = withPinnedPath(config, '/repo', '/repo/apps/dtc')
+    expect(pinnedPathsFor(config, '/repo')).toEqual(['/repo/apps/dtc'])
+    expect(pinnedPathsFor(config, '/other')).toEqual([])
+
+    config = withoutPinnedPath(config, '/repo', '/repo/apps/dtc')
+    expect(pinnedPathsFor(config, '/repo')).toEqual([])
+  })
+
+  it('keeps hidden paths and pins independent', () => {
+    let config = withPinnedPath(emptyConfig, '/repo', '/repo/pin')
+    config = withHiddenPath(config, '/repo', '/repo/hide')
+    expect(pinnedPathsFor(config, '/repo')).toEqual(['/repo/pin'])
+    expect(hiddenPathsFor(config, '/repo')).toEqual(new Set(['/repo/hide']))
   })
 })
 

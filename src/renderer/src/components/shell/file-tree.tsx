@@ -28,6 +28,8 @@ function useEntryActions(entry: DirEntry): {
   hide: () => Promise<void>
   unhide: () => Promise<void>
   hideSelected: () => Promise<void>
+  pin: () => Promise<void>
+  unpin: () => Promise<void>
   selectionSize: number
 } {
   const repo = useRepoStore((s) => s.repo)
@@ -36,6 +38,8 @@ function useEntryActions(entry: DirEntry): {
   const utils = trpc.useUtils()
   const hideMutation = trpc.hidePath.useMutation()
   const unhideMutation = trpc.unhidePath.useMutation()
+  const pinMutation = trpc.pinPath.useMutation()
+  const unpinMutation = trpc.unpinPath.useMutation()
 
   const run = async (mutation: typeof hideMutation, paths: string[]): Promise<void> => {
     if (!repo) return
@@ -43,13 +47,15 @@ function useEntryActions(entry: DirEntry): {
       await mutation.mutateAsync({ repoPath: repo.path, path })
     }
     clearSelection()
-    await utils.readDir.invalidate()
+    await Promise.all([utils.readDir.invalidate(), utils.pinnedEntries.invalidate()])
   }
 
   return {
     hide: () => run(hideMutation, [entry.path]),
     unhide: () => run(unhideMutation, [entry.path]),
     hideSelected: () => run(hideMutation, [...new Set([...selected, entry.path])]),
+    pin: () => run(pinMutation, [entry.path]),
+    unpin: () => run(unpinMutation, [entry.path]),
     selectionSize: selected.size,
   }
 }
@@ -61,13 +67,18 @@ function EntryContextMenu({
   entry: DirEntry
   children: React.ReactNode
 }): React.JSX.Element {
-  const { hide, unhide, hideSelected, selectionSize } = useEntryActions(entry)
+  const { hide, unhide, hideSelected, pin, unpin, selectionSize } = useEntryActions(entry)
   const batchSize = selectionSize + (useSelectionStore.getState().selected.has(entry.path) ? 0 : 1)
 
   return (
     <ContextMenu>
       <ContextMenuTrigger>{children}</ContextMenuTrigger>
       <ContextMenuContent>
+        {entry.pinned ? (
+          <ContextMenuItem onClick={unpin}>Unpin</ContextMenuItem>
+        ) : (
+          <ContextMenuItem onClick={pin}>Pin</ContextMenuItem>
+        )}
         {selectionSize > 0 ? (
           <ContextMenuItem onClick={hideSelected}>Hide {batchSize} items</ContextMenuItem>
         ) : entry.hidden ? (
@@ -90,7 +101,7 @@ function useReadDir(path: string, enabled = true): DirEntry[] | undefined {
   return data
 }
 
-function TreeNode({ entry }: { entry: DirEntry }): React.JSX.Element {
+export function TreeNode({ entry }: { entry: DirEntry }): React.JSX.Element {
   const openTab = useTabsStore((s) => s.openTab)
   const isSelected = useSelectionStore((s) => s.selected.has(entry.path))
   const toggleSelection = useSelectionStore((s) => s.toggle)

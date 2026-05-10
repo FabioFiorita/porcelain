@@ -8,6 +8,7 @@ export const appConfigSchema = z.object({
       z.string(),
       z.object({
         hiddenPaths: z.array(z.string()).default([]),
+        pinnedPaths: z.array(z.string()).default([]),
         layers: z.array(z.object({ label: z.string(), pattern: z.string() })).optional(),
       }),
     )
@@ -17,6 +18,8 @@ export const appConfigSchema = z.object({
 export type AppConfig = z.infer<typeof appConfigSchema>
 
 export const emptyConfig: AppConfig = { recentRepos: [], repos: {} }
+
+const emptyRepo = (): AppConfig['repos'][string] => ({ hiddenPaths: [], pinnedPaths: [] })
 
 const MAX_RECENTS = 10
 
@@ -31,7 +34,7 @@ export function withRecentRepo(config: AppConfig, repoPath: string): AppConfig {
 }
 
 export function withHiddenPath(config: AppConfig, repoPath: string, path: string): AppConfig {
-  const repo = config.repos[repoPath] ?? { hiddenPaths: [] }
+  const repo = config.repos[repoPath] ?? emptyRepo()
   if (repo.hiddenPaths.includes(path)) return config
   return {
     ...config,
@@ -68,7 +71,7 @@ export function withRepoLayers(
   repoPath: string,
   layers: Layer[] | null,
 ): AppConfig {
-  const repo = config.repos[repoPath] ?? { hiddenPaths: [] }
+  const repo = config.repos[repoPath] ?? emptyRepo()
   return {
     ...config,
     repos: {
@@ -76,4 +79,32 @@ export function withRepoLayers(
       [repoPath]: { ...repo, layers: layers ?? undefined },
     },
   }
+}
+
+export function withPinnedPath(config: AppConfig, repoPath: string, path: string): AppConfig {
+  const repo = config.repos[repoPath] ?? emptyRepo()
+  if (repo.pinnedPaths.includes(path)) return config
+  return {
+    ...config,
+    repos: {
+      ...config.repos,
+      [repoPath]: { ...repo, pinnedPaths: [...repo.pinnedPaths, path] },
+    },
+  }
+}
+
+export function withoutPinnedPath(config: AppConfig, repoPath: string, path: string): AppConfig {
+  const repo = config.repos[repoPath]
+  if (!repo) return config
+  return {
+    ...config,
+    repos: {
+      ...config.repos,
+      [repoPath]: { ...repo, pinnedPaths: repo.pinnedPaths.filter((p) => p !== path) },
+    },
+  }
+}
+
+export function pinnedPathsFor(config: AppConfig, repoPath: string): string[] {
+  return config.repos[repoPath]?.pinnedPaths ?? []
 }

@@ -55,6 +55,9 @@ export function TerminalPane(): React.JSX.Element {
       const subscription = trpcClient.termOnData.subscribe(id, {
         onData: (data) => terminal.write(data),
       })
+      // text inserted while the pane was closed waits for the session
+      const pending = useTerminalStore.getState().takePendingInput()
+      if (pending) trpcClient.termWrite.mutate({ id, data: pending })
       const inputDisposable = terminal.onData((data) => {
         trpcClient.termWrite.mutate({ id, data })
       })

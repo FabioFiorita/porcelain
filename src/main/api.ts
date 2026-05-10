@@ -6,6 +6,7 @@ import { basename, join } from 'path'
 import { z } from 'zod'
 import { type AppEvent, subscribeAppEvents } from './app-events'
 import { loadConfig, saveConfig } from './config-store'
+import { type CommitConventions, parseConventions } from './conventions'
 import { buildFlow, DEFAULT_LAYERS, type FlowGroup, type Layer } from './flow'
 import { fuzzySearch } from './fuzzy'
 import {
@@ -23,8 +24,11 @@ import {
 import {
   hiddenPathsFor,
   layersFor,
+  pinnedPathsFor,
   withHiddenPath,
   withoutHiddenPath,
+  withoutPinnedPath,
+  withPinnedPath,
   withRecentRepo,
   withRepoLayers,
 } from './repo-config'
@@ -49,6 +53,7 @@ export interface DirEntry {
   path: string
   kind: 'file' | 'dir'
   hidden: boolean
+  pinned: boolean
 }
 
 export type FileView =
@@ -148,7 +153,9 @@ export const router = t.router({
   readDir: t.procedure
     .input(z.object({ repoPath: z.string(), path: z.string(), showHidden: z.boolean() }))
     .query(async ({ input }): Promise<DirEntry[]> => {
-      const hidden = hiddenPathsFor(await loadConfig(), input.repoPath)
+      const config = await loadConfig()
+      const hidden = hiddenPathsFor(config, input.repoPath)
+      const pinned = new Set(pinnedPathsFor(config, input.repoPath))
       const entries = await readdir(input.path, { withFileTypes: true })
       return entries
         .map(
@@ -157,6 +164,7 @@ export const router = t.router({
             path: join(input.path, entry.name),
             kind: entry.isDirectory() ? 'dir' : 'file',
             hidden: hidden.has(join(input.path, entry.name)),
+            pinned: pinned.has(join(input.path, entry.name)),
           }),
         )
         .filter((entry) => input.showHidden || !entry.hidden)
@@ -175,6 +183,47 @@ export const router = t.router({
     .input(z.object({ repoPath: z.string(), path: z.string() }))
     .mutation(async ({ input }) => {
       await saveConfig(withoutHiddenPath(await loadConfig(), input.repoPath, input.path))
+    }),
+
+  pinPath: t.procedure
+    .input(z.object({ repoPath: z.string(), path: z.string() }))
+    .mutation(async ({ input }) => {
+      await saveConfig(withPinnedPath(await loadConfig(), input.repoPath, input.path))
+    }),
+
+  unpinPath: t.procedure
+    .input(z.object({ repoPath: z.string(), path: z.string() }))
+    .mutation(async ({ input }) => {
+      await saveConfig(withoutPinnedPath(await loadConfig(), input.repoPath, input.path))
+    }),
+
+  pinnedEntries: t.procedure.input(z.string()).query(async ({ input }): Promise<DirEntry[]> => {
+    const config = await loadConfig()
+    const hidden = hiddenPathsFor(config, input)
+    const entries = await Promise.all(
+      pinnedPathsFor(config, input).map(async (path): Promise<DirEntry | null> => {
+        try {
+          const info = await stat(path)
+          return {
+            name: basename(path),
+            path,
+            kind: info.isDirectory() ? 'dir' : 'file',
+            hidden: hidden.has(path),
+            pinned: true,
+          }
+        } catch {
+          return null // pinned path no longer exists; keep the config, skip the row
+        }
+      }),
+    )
+    return entries.filter((e): e is DirEntry => e !== null)
+  }),
+
+  gitCommitConventions: t.procedure
+    .input(z.string())
+    .query(async ({ input }): Promise<CommitConventions> => {
+      const commits = await gitLog(input, 200)
+      return parseConventions(commits.map((c) => c.subject))
     }),
 
   readFile: t.procedure.input(z.string()).query(async ({ input }): Promise<FileView> => {
