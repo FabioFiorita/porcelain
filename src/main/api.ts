@@ -6,7 +6,7 @@ import { basename, join } from 'path'
 import { z } from 'zod'
 import { type AppEvent, subscribeAppEvents } from './app-events'
 import { loadConfig, saveConfig } from './config-store'
-import { buildFlow, DEFAULT_LAYERS, type FlowGroup } from './flow'
+import { buildFlow, DEFAULT_LAYERS, type FlowGroup, type Layer } from './flow'
 import { fuzzySearch } from './fuzzy'
 import {
   gitBranch,
@@ -20,7 +20,14 @@ import {
   gitWorktrees,
   warmFileList,
 } from './git'
-import { hiddenPathsFor, withHiddenPath, withoutHiddenPath, withRecentRepo } from './repo-config'
+import {
+  hiddenPathsFor,
+  layersFor,
+  withHiddenPath,
+  withoutHiddenPath,
+  withRecentRepo,
+  withRepoLayers,
+} from './repo-config'
 import {
   createTerminal,
   hasTerminal,
@@ -62,6 +69,15 @@ const IMAGE_MIME: Record<string, string> = {
 }
 
 const toRepoInfo = (path: string): RepoInfo => ({ path, name: basename(path) })
+
+function isValidPattern(pattern: string): boolean {
+  try {
+    new RegExp(pattern)
+    return true
+  } catch {
+    return false
+  }
+}
 
 async function recordRecent(path: string): Promise<void> {
   await saveConfig(withRecentRepo(await loadConfig(), path))
@@ -183,7 +199,7 @@ export const router = t.router({
       loadConfig(),
       gitNumstat(input),
     ])
-    const layers = config.repos[input]?.layers ?? DEFAULT_LAYERS
+    const layers = layersFor(config, input) ?? DEFAULT_LAYERS
     const key = JSON.stringify([files, stats, layers])
     const cached = flowCache.get(input)
     if (cached && cached.key === key) return cached.groups
@@ -214,6 +230,33 @@ export const router = t.router({
   gitDiffFile: t.procedure
     .input(z.object({ repoPath: z.string(), filePath: z.string() }))
     .query(({ input }) => gitDiffFile(input.repoPath, input.filePath)),
+
+  repoLayers: t.procedure
+    .input(z.string())
+    .query(async ({ input }): Promise<{ layers: Layer[]; custom: boolean }> => {
+      const override = layersFor(await loadConfig(), input)
+      return { layers: override ?? DEFAULT_LAYERS, custom: override !== undefined }
+    }),
+
+  setRepoLayers: t.procedure
+    .input(
+      z.object({
+        repoPath: z.string(),
+        // null clears the override back to the defaults
+        layers: z
+          .array(
+            z.object({
+              label: z.string().trim().min(1),
+              pattern: z.string().min(1).refine(isValidPattern, 'invalid regular expression'),
+            }),
+          )
+          .min(1)
+          .nullable(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      await saveConfig(withRepoLayers(await loadConfig(), input.repoPath, input.layers))
+    }),
 
   gitBranch: t.procedure.input(z.string()).query(({ input }) => gitBranch(input)),
 

@@ -25,12 +25,10 @@ export const DEFAULT_LAYERS: Layer[] = [
 const OTHER_LABEL = 'Other'
 
 export function layerFor(path: string, layers: readonly Layer[]): string {
-  // tests match by filename regardless of directory, so check them first
-  const test = layers.find((l) => l.label === 'Tests')
-  if (test && new RegExp(test.pattern).test(path)) return test.label
-
-  // the deepest (right-most) matching segment wins: apps/api/controllers/x.ts
-  // is a controller, not a route, even though api/ also matches
+  // The deepest (right-most) matching segment wins: apps/api/controllers/x.ts
+  // is a controller, not a route, even though api/ also matches. Filename
+  // patterns (e.g. \.spec\. or \.stories\.) match right of any directory, so
+  // they win over the directory the file sits in.
   let best: { label: string; index: number } | null = null
   for (const layer of layers) {
     const match = new RegExp(layer.pattern, 'g')

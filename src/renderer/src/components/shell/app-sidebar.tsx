@@ -1,6 +1,7 @@
 import { ChangesList } from '@renderer/components/git/changes-list'
 import { HistoryList } from '@renderer/components/git/history-list'
 import { WorktreeSwitcher } from '@renderer/components/git/worktree-switcher'
+import { FlowLayersDialog } from '@renderer/components/settings/flow-layers-dialog'
 import { Button } from '@renderer/components/ui/button'
 import {
   Sidebar,
@@ -100,7 +101,12 @@ export function AppSidebar(): React.JSX.Element {
         )}
       </SidebarContent>
       <SidebarFooter className="border-t">
-        <WorktreeSwitcher />
+        <div className="flex items-center gap-1">
+          <div className="min-w-0 flex-1">
+            <WorktreeSwitcher />
+          </div>
+          <FlowLayersDialog />
+        </div>
       </SidebarFooter>
     </Sidebar>
   )

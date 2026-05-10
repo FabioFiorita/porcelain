@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { Layer } from './flow'
 
 export const appConfigSchema = z.object({
   recentRepos: z.array(z.string()).default([]),
@@ -34,7 +35,10 @@ export function withHiddenPath(config: AppConfig, repoPath: string, path: string
   if (repo.hiddenPaths.includes(path)) return config
   return {
     ...config,
-    repos: { ...config.repos, [repoPath]: { hiddenPaths: [...repo.hiddenPaths, path] } },
+    repos: {
+      ...config.repos,
+      [repoPath]: { ...repo, hiddenPaths: [...repo.hiddenPaths, path] },
+    },
   }
 }
 
@@ -45,11 +49,31 @@ export function withoutHiddenPath(config: AppConfig, repoPath: string, path: str
     ...config,
     repos: {
       ...config.repos,
-      [repoPath]: { hiddenPaths: repo.hiddenPaths.filter((p) => p !== path) },
+      [repoPath]: { ...repo, hiddenPaths: repo.hiddenPaths.filter((p) => p !== path) },
     },
   }
 }
 
 export function hiddenPathsFor(config: AppConfig, repoPath: string): Set<string> {
   return new Set(config.repos[repoPath]?.hiddenPaths ?? [])
+}
+
+export function layersFor(config: AppConfig, repoPath: string): Layer[] | undefined {
+  return config.repos[repoPath]?.layers
+}
+
+/** Set the per-repo flow layers; `null` clears the override back to defaults. */
+export function withRepoLayers(
+  config: AppConfig,
+  repoPath: string,
+  layers: Layer[] | null,
+): AppConfig {
+  const repo = config.repos[repoPath] ?? { hiddenPaths: [] }
+  return {
+    ...config,
+    repos: {
+      ...config.repos,
+      [repoPath]: { ...repo, layers: layers ?? undefined },
+    },
+  }
 }

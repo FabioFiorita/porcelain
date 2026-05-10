@@ -14,6 +14,12 @@ describe('layerFor', () => {
     expect(layerFor('src/components/Widget.spec.tsx', DEFAULT_LAYERS)).toBe('Tests')
   })
 
+  it('lets a custom filename layer win over the containing directory', () => {
+    const layers = [...DEFAULT_LAYERS, { label: 'Stories', pattern: '\\.stories\\.[a-z]+$' }]
+    expect(layerFor('src/components/Widget.stories.tsx', layers)).toBe('Stories')
+    expect(layerFor('src/components/Widget.tsx', layers)).toBe('Components')
+  })
+
   it('falls back to Other', () => {
     expect(layerFor('README.md', DEFAULT_LAYERS)).toBe('Other')
   })
