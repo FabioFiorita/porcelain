@@ -48,7 +48,6 @@ export function CommitView({ hash }: { hash: string }): React.JSX.Element {
                 ? 'bg-sidebar-accent text-foreground'
                 : 'text-muted-foreground hover:bg-sidebar-accent/50',
             )}
-            title={file.path}
           >
             {file.path}
           </button>

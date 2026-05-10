@@ -23,9 +23,20 @@ const statusBadge: Record<FileStatus, { label: string; className: string }> = {
 }
 
 function FileRow({ file }: { file: FlowFile }): React.JSX.Element {
+  const repo = useRepoStore((s) => s.repo)
   const openTab = useTabsStore((s) => s.openTab)
+  const utils = trpc.useUtils()
   const name = file.path.split('/').at(-1) ?? file.path
   const connects = file.connects.map((c) => c.split('/').at(-1)).join(', ')
+
+  const prefetchDiff = (): void => {
+    if (!repo) return
+    // warm the diff while the pointer hovers so opening the tab feels instant
+    void utils.gitDiffFile.prefetch(
+      { repoPath: repo.path, filePath: file.path },
+      { staleTime: 2000 },
+    )
+  }
 
   return (
     <SidebarMenuItem>
@@ -34,7 +45,7 @@ function FileRow({ file }: { file: FlowFile }): React.JSX.Element {
         onClick={() =>
           openTab({ id: `diff:${file.path}`, kind: 'diff', title: name, path: file.path })
         }
-        title={file.path}
+        onMouseEnter={prefetchDiff}
       >
         <div className="flex min-w-0 flex-col items-start">
           <span className="flex max-w-full items-baseline gap-1.5">

@@ -43,6 +43,8 @@ Vendor skills in `.agents/skills/`: `shadcn`, `vercel-composition-patterns`, `fr
 
 - 2026-06-12: Changes rows show +adds/−dels (git diff --numstat merged into gitFlow). Middle-click closes tabs. recentRepos prunes non-existent paths.
 
+- 2026-06-12: Perf batch: gitFlow memoized on status+numstat key (no 3s re-reads), file list stale-while-revalidate + warm on repo open, finder debounce/loading/reset-on-close, hover prefetch (diffs + files), sidebar resize via direct CSS-var writes. ErrorBoundary at root + renderer console piped to dev stdout. All `@base-ui` entries pre-bundled (`optimizeDeps.entries`) — lazy discovery duplicated React and blank-screened. Tab bar on ScrollArea + tab context menu (close others/left/right/all); global themed scrollbars. GOTCHA: Base UI `GroupLabel` must sit inside `Group` (Radix didn't care).
+
 ## Open decisions (ask before implementing)
 
 - Agent-session integration design (beyond a plain terminal)

@@ -17,6 +17,21 @@ export function FileFinder(): React.JSX.Element {
   const openTab = useTabsStore((s) => s.openTab)
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
+  // debounce keystrokes so each IPC round-trip searches a settled query
+  const [debouncedQuery, setDebouncedQuery] = useState('')
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(query), 100)
+    return () => clearTimeout(timer)
+  }, [query])
+
+  // reset on close so reopening starts a fresh search (Escape keeps state otherwise)
+  useEffect(() => {
+    if (!open) {
+      setQuery('')
+      setDebouncedQuery('')
+    }
+  }, [open])
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent): void => {
@@ -29,10 +44,11 @@ export function FileFinder(): React.JSX.Element {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
-  const { data: results = [] } = trpc.searchFiles.useQuery(
-    { repoPath: repo?.path ?? '', query },
-    { enabled: open && repo !== null && query.trim() !== '', keepPreviousData: true },
+  const { data: results = [], isFetching } = trpc.searchFiles.useQuery(
+    { repoPath: repo?.path ?? '', query: debouncedQuery },
+    { enabled: open && repo !== null && debouncedQuery.trim() !== '', keepPreviousData: true },
   )
+  const searching = isFetching || query !== debouncedQuery
 
   const select = (relPath: string): void => {
     if (!repo) return
@@ -52,7 +68,13 @@ export function FileFinder(): React.JSX.Element {
       <Command shouldFilter={false}>
         <CommandInput placeholder="Search files…" value={query} onValueChange={setQuery} />
         <CommandList>
-          {query.trim() !== '' && <CommandEmpty>No files found</CommandEmpty>}
+          {query.trim() !== '' &&
+            results.length === 0 &&
+            (searching ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">Searching…</p>
+            ) : (
+              <CommandEmpty>No files found</CommandEmpty>
+            ))}
           {results.map((path) => {
             const slash = path.lastIndexOf('/')
             const name = slash === -1 ? path : path.slice(slash + 1)

@@ -29,6 +29,17 @@ function createWindow(): void {
 
   createIPCHandler({ router, windows: [mainWindow] })
 
+  // Surface renderer-side errors in the dev terminal so failures are debuggable
+  // without opening devtools (a blank window otherwise hides the cause).
+  if (is.dev) {
+    mainWindow.webContents.on('console-message', (event) => {
+      console.log(`[renderer:${event.level}] ${event.message}`)
+    })
+  }
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    console.error(`[renderer gone] reason=${details.reason} exitCode=${details.exitCode}`)
+  })
+
   // Cmd+W closes the active tab in the renderer, not the window; the renderer
   // calls window.close() itself when no tabs are open.
   mainWindow.webContents.on('before-input-event', (event, input) => {

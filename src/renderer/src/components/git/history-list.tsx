@@ -29,7 +29,6 @@ export function HistoryList(): React.JSX.Element {
                 path: commit.hash,
               })
             }
-            title={commit.subject}
           >
             <div className="flex min-w-0 flex-col items-start">
               <span className="max-w-full truncate">{commit.subject}</span>

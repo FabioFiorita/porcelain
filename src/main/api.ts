@@ -18,6 +18,7 @@ import {
   gitNumstat,
   gitStatus,
   gitWorktrees,
+  warmFileList,
 } from './git'
 import { hiddenPathsFor, withHiddenPath, withoutHiddenPath, withRecentRepo } from './repo-config'
 import {
@@ -66,18 +67,50 @@ async function recordRecent(path: string): Promise<void> {
   await saveConfig(withRecentRepo(await loadConfig(), path))
 }
 
+// gitFlow polls every 3s; re-reading up to 200 changed files each tick is the
+// single heaviest recurring cost. Memoize on the parsed status+numstat+layers —
+// file contents are only re-read when the working tree actually changes.
+const flowCache = new Map<string, { key: string; groups: FlowGroup[] }>()
+
+// Hidden-path filtering over the full file list is recomputed only when the
+// list or the hidden set changes, not on every search keystroke.
+const visibleFilesCache = new Map<
+  string,
+  { files: readonly string[]; hiddenKey: string; visible: string[] }
+>()
+
+function visibleFiles(repoPath: string, files: string[], hidden: ReadonlySet<string>): string[] {
+  const hiddenKey = [...hidden].sort().join('\0')
+  const cached = visibleFilesCache.get(repoPath)
+  if (cached && cached.files === files && cached.hiddenKey === hiddenKey) return cached.visible
+  const visible =
+    hidden.size === 0
+      ? files
+      : files.filter((f) => {
+          for (const h of hidden) {
+            const rel = h.startsWith(`${repoPath}/`) ? h.slice(repoPath.length + 1) : h
+            if (f === rel || f.startsWith(`${rel}/`)) return false
+          }
+          return true
+        })
+  visibleFilesCache.set(repoPath, { files, hiddenKey, visible })
+  return visible
+}
+
 export const router = t.router({
   openRepo: t.procedure.query(async (): Promise<RepoInfo | null> => {
     const result = await dialog.showOpenDialog({ properties: ['openDirectory'] })
     const path = result.filePaths[0]
     if (!path) return null
     await recordRecent(path)
+    warmFileList(path)
     return toRepoInfo(path)
   }),
 
   openRepoPath: t.procedure.input(z.string()).mutation(async ({ input }): Promise<RepoInfo> => {
     await stat(input)
     await recordRecent(input)
+    warmFileList(input)
     return toRepoInfo(input)
   }),
 
@@ -151,6 +184,9 @@ export const router = t.router({
       gitNumstat(input),
     ])
     const layers = config.repos[input]?.layers ?? DEFAULT_LAYERS
+    const key = JSON.stringify([files, stats, layers])
+    const cached = flowCache.get(input)
+    if (cached && cached.key === key) return cached.groups
     const sources = new Map<string, string>()
     await Promise.all(
       files.slice(0, 200).map(async (file) => {
@@ -163,7 +199,7 @@ export const router = t.router({
       }),
     )
     const statByPath = new Map(stats.map((s) => [s.path, s]))
-    return buildFlow(files, sources, layers).map((group) => ({
+    const groups = buildFlow(files, sources, layers).map((group) => ({
       ...group,
       files: group.files.map((file) => ({
         ...file,
@@ -171,6 +207,8 @@ export const router = t.router({
         deletions: statByPath.get(file.path)?.deletions,
       })),
     }))
+    flowCache.set(input, { key, groups })
+    return groups
   }),
 
   gitDiffFile: t.procedure
@@ -199,19 +237,9 @@ export const router = t.router({
       if (input.query.trim() === '') return []
       const [files, config] = await Promise.all([gitListFiles(input.repoPath), loadConfig()])
       const hidden = hiddenPathsFor(config, input.repoPath)
-      const visible =
-        hidden.size === 0
-          ? files
-          : files.filter((f) => {
-              for (const h of hidden) {
-                const rel = h.startsWith(`${input.repoPath}/`)
-                  ? h.slice(input.repoPath.length + 1)
-                  : h
-                if (f === rel || f.startsWith(`${rel}/`)) return false
-              }
-              return true
-            })
-      return fuzzySearch(input.query, visible, 50).map((r) => r.path)
+      return fuzzySearch(input.query, visibleFiles(input.repoPath, files, hidden), 50).map(
+        (r) => r.path,
+      )
     }),
 
   termCreate: t.procedure.input(z.object({ cwd: z.string() })).mutation(({ input }) => ({

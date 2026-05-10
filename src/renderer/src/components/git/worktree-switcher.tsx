@@ -1,6 +1,7 @@
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
@@ -42,22 +43,25 @@ export function WorktreeSwitcher(): React.JSX.Element | null {
         }
       />
       <DropdownMenuContent side="top" align="start" className="w-72">
-        <DropdownMenuLabel>Worktrees</DropdownMenuLabel>
-        {worktrees.map((worktree) => (
-          <DropdownMenuItem key={worktree.path} onClick={() => switchTo(worktree.path)}>
-            {worktree.path === repo.path ? (
-              <Check className="shrink-0" />
-            ) : (
-              <span className="size-4 shrink-0" />
-            )}
-            <div className="flex min-w-0 flex-col">
-              <span className="truncate">{worktree.branch}</span>
-              <span className="truncate text-xs text-muted-foreground" dir="rtl">
-                {worktree.path}
-              </span>
-            </div>
-          </DropdownMenuItem>
-        ))}
+        {/* Base UI requires GroupLabel inside a Group (Radix did not) */}
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Worktrees</DropdownMenuLabel>
+          {worktrees.map((worktree) => (
+            <DropdownMenuItem key={worktree.path} onClick={() => switchTo(worktree.path)}>
+              {worktree.path === repo.path ? (
+                <Check className="shrink-0" />
+              ) : (
+                <span className="size-4 shrink-0" />
+              )}
+              <div className="flex min-w-0 flex-col">
+                <span className="truncate">{worktree.branch}</span>
+                <span className="truncate text-xs text-muted-foreground" dir="rtl">
+                  {worktree.path}
+                </span>
+              </div>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   )

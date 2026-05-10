@@ -14,9 +14,29 @@ interface TabsState {
   activeTabId: string | null
   openTab: (tab: Tab) => void
   closeTab: (id: string) => void
+  closeOtherTabs: (id: string) => void
+  closeTabsToLeft: (id: string) => void
+  closeTabsToRight: (id: string) => void
+  closeAllTabs: () => void
   activateTab: (id: string) => void
   cycleTab: (direction: 1 | -1) => void
 }
+
+// Closing a set of tabs keeps the anchor tab and activates it if the active
+// tab was among the closed ones.
+const closeTabsWhere =
+  (keep: (index: number, anchorIndex: number) => boolean) =>
+  (state: TabsState, id: string): Partial<TabsState> => {
+    const anchorIndex = state.tabs.findIndex((t) => t.id === id)
+    if (anchorIndex === -1) return state
+    const tabs = state.tabs.filter((_, index) => keep(index, anchorIndex))
+    const activeTabId = tabs.some((t) => t.id === state.activeTabId) ? state.activeTabId : id
+    return { tabs, activeTabId }
+  }
+
+const keepOnlyAnchor = closeTabsWhere((index, anchor) => index === anchor)
+const keepFromAnchor = closeTabsWhere((index, anchor) => index >= anchor)
+const keepThroughAnchor = closeTabsWhere((index, anchor) => index <= anchor)
 
 export const useTabsStore = create<TabsState>((set) => ({
   tabs: [],
@@ -39,6 +59,10 @@ export const useTabsStore = create<TabsState>((set) => ({
           : state.activeTabId
       return { tabs, activeTabId }
     }),
+  closeOtherTabs: (id) => set((state) => keepOnlyAnchor(state, id)),
+  closeTabsToLeft: (id) => set((state) => keepFromAnchor(state, id)),
+  closeTabsToRight: (id) => set((state) => keepThroughAnchor(state, id)),
+  closeAllTabs: () => set({ tabs: [], activeTabId: null }),
   activateTab: (id) => set({ activeTabId: id }),
   cycleTab: (direction) =>
     set((state) => {

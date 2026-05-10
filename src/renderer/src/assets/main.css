@@ -132,6 +132,25 @@
   }
 }
 
+/* Themed thin scrollbars for native-overflow areas (code viewer, diff, sidebar) */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: var(--color-muted);
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-muted-foreground);
+}
+
 /* xterm: dark scrollbar instead of the default white viewport scrollbar */
 .xterm .xterm-viewport {
   background-color: transparent !important;

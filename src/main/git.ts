@@ -27,12 +27,10 @@ async function runGit(repoPath: string, args: string[]): Promise<string> {
   return stdout
 }
 
-const fileListCache = new Map<string, { files: string[]; at: number }>()
+const fileListCache = new Map<string, { files: string[]; at: number; refreshing: boolean }>()
 const FILE_LIST_TTL = 30_000
 
-export async function gitListFiles(repoPath: string): Promise<string[]> {
-  const cached = fileListCache.get(repoPath)
-  if (cached && Date.now() - cached.at < FILE_LIST_TTL) return cached.files
+async function refreshFileList(repoPath: string): Promise<string[]> {
   const out = await runGit(repoPath, [
     'ls-files',
     '--cached',
@@ -41,8 +39,30 @@ export async function gitListFiles(repoPath: string): Promise<string[]> {
     '-z',
   ])
   const files = out.split('\0').filter(Boolean)
-  fileListCache.set(repoPath, { files, at: Date.now() })
+  fileListCache.set(repoPath, { files, at: Date.now(), refreshing: false })
   return files
+}
+
+/**
+ * Stale-while-revalidate: an expired cache entry is returned immediately and
+ * refreshed in the background, so search never blocks on `ls-files` (slow on
+ * large monorepos) after the first call. Warm via `warmFileList` on repo open.
+ */
+export async function gitListFiles(repoPath: string): Promise<string[]> {
+  const cached = fileListCache.get(repoPath)
+  if (!cached) return refreshFileList(repoPath)
+  if (Date.now() - cached.at >= FILE_LIST_TTL && !cached.refreshing) {
+    cached.refreshing = true
+    refreshFileList(repoPath).catch(() => {
+      cached.refreshing = false
+    })
+  }
+  return cached.files
+}
+
+export function warmFileList(repoPath: string): void {
+  // fire-and-forget; non-git directories simply stay uncached
+  refreshFileList(repoPath).catch(() => {})
 }
 
 export async function gitLog(repoPath: string, limit: number): Promise<Commit[]> {

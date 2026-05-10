@@ -41,4 +41,50 @@ describe('useTabsStore', () => {
     expect(useTabsStore.getState().activeTabId).toBeNull()
     expect(useTabsStore.getState().tabs).toHaveLength(0)
   })
+
+  describe('bulk closing', () => {
+    beforeEach(() => {
+      for (const id of ['a', 'b', 'c', 'd']) {
+        useTabsStore.getState().openTab(tab(id))
+      }
+    })
+
+    it('closes other tabs and keeps the anchor active when the active tab closed', () => {
+      useTabsStore.getState().activateTab('d')
+      useTabsStore.getState().closeOtherTabs('b')
+      expect(useTabsStore.getState().tabs.map((t) => t.id)).toEqual(['b'])
+      expect(useTabsStore.getState().activeTabId).toBe('b')
+    })
+
+    it('closes tabs to the left of the anchor', () => {
+      useTabsStore.getState().activateTab('a')
+      useTabsStore.getState().closeTabsToLeft('c')
+      expect(useTabsStore.getState().tabs.map((t) => t.id)).toEqual(['c', 'd'])
+      expect(useTabsStore.getState().activeTabId).toBe('c')
+    })
+
+    it('closes tabs to the right of the anchor', () => {
+      useTabsStore.getState().activateTab('d')
+      useTabsStore.getState().closeTabsToRight('b')
+      expect(useTabsStore.getState().tabs.map((t) => t.id)).toEqual(['a', 'b'])
+      expect(useTabsStore.getState().activeTabId).toBe('b')
+    })
+
+    it('keeps the active tab when it survives a bulk close', () => {
+      useTabsStore.getState().activateTab('d')
+      useTabsStore.getState().closeTabsToLeft('c')
+      expect(useTabsStore.getState().activeTabId).toBe('d')
+    })
+
+    it('closes all tabs', () => {
+      useTabsStore.getState().closeAllTabs()
+      expect(useTabsStore.getState().tabs).toHaveLength(0)
+      expect(useTabsStore.getState().activeTabId).toBeNull()
+    })
+
+    it('ignores bulk close for an unknown tab', () => {
+      useTabsStore.getState().closeOtherTabs('zzz')
+      expect(useTabsStore.getState().tabs).toHaveLength(4)
+    })
+  })
 })

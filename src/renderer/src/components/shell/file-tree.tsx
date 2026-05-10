@@ -94,6 +94,7 @@ function TreeNode({ entry }: { entry: DirEntry }): React.JSX.Element {
   const openTab = useTabsStore((s) => s.openTab)
   const isSelected = useSelectionStore((s) => s.selected.has(entry.path))
   const toggleSelection = useSelectionStore((s) => s.toggle)
+  const utils = trpc.useUtils()
 
   if (entry.kind === 'file') {
     return (
@@ -101,6 +102,7 @@ function TreeNode({ entry }: { entry: DirEntry }): React.JSX.Element {
         <EntryContextMenu entry={entry}>
           <SidebarMenuButton
             className={cn(entry.hidden && 'opacity-50', isSelected && 'bg-sidebar-accent')}
+            onMouseEnter={() => void utils.readFile.prefetch(entry.path)}
             onClick={(e) => {
               if (e.metaKey || e.ctrlKey) {
                 toggleSelection(entry.path)

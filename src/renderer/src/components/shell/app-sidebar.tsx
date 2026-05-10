@@ -11,6 +11,7 @@ import {
   SidebarHeader,
 } from '@renderer/components/ui/sidebar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@renderer/components/ui/tabs'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useRepoStore } from '@renderer/stores/repo'
 import { Eye, EyeOff, FolderOpen } from 'lucide-react'
 import { FileTree } from './file-tree'
@@ -30,24 +31,38 @@ export function AppSidebar(): React.JSX.Element {
           {repo?.name ?? 'Files'}
         </span>
         <div className="app-no-drag flex items-center">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={toggleShowHidden}
-            aria-label={showHidden ? 'Conceal hidden entries' : 'Show hidden entries'}
-            title={showHidden ? 'Conceal hidden entries' : 'Show hidden entries'}
-          >
-            {showHidden ? <Eye /> : <EyeOff />}
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={openRepo}
-            aria-label="Open repository"
-            title="Open repository"
-          >
-            <FolderOpen />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={toggleShowHidden}
+                  aria-label={showHidden ? 'Conceal hidden entries' : 'Show hidden entries'}
+                >
+                  {showHidden ? <Eye /> : <EyeOff />}
+                </Button>
+              }
+            />
+            <TooltipContent>
+              {showHidden ? 'Conceal hidden entries' : 'Show hidden entries'}
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={openRepo}
+                  aria-label="Open repository"
+                >
+                  <FolderOpen />
+                </Button>
+              }
+            />
+            <TooltipContent>Open repository</TooltipContent>
+          </Tooltip>
         </div>
       </SidebarHeader>
       <SidebarContent>

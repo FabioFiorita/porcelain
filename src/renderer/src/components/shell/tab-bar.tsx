@@ -1,19 +1,30 @@
 import { Button } from '@renderer/components/ui/button'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from '@renderer/components/ui/context-menu'
+import { ScrollArea } from '@renderer/components/ui/scroll-area'
 import { cn } from '@renderer/lib/utils'
-import { useTabsStore } from '@renderer/stores/tabs'
+import { type Tab, useTabsStore } from '@renderer/stores/tabs'
 import { X } from 'lucide-react'
 
-export function TabBar(): React.JSX.Element {
+function TabItem({ tab, isLast }: { tab: Tab; isLast: boolean }): React.JSX.Element {
   const tabs = useTabsStore((s) => s.tabs)
   const activeTabId = useTabsStore((s) => s.activeTabId)
   const activateTab = useTabsStore((s) => s.activateTab)
   const closeTab = useTabsStore((s) => s.closeTab)
+  const closeOtherTabs = useTabsStore((s) => s.closeOtherTabs)
+  const closeTabsToLeft = useTabsStore((s) => s.closeTabsToLeft)
+  const closeTabsToRight = useTabsStore((s) => s.closeTabsToRight)
+  const closeAllTabs = useTabsStore((s) => s.closeAllTabs)
+  const isFirst = tabs[0]?.id === tab.id
 
   return (
-    <div className="flex h-9 min-w-0 flex-1 items-end gap-px overflow-x-auto">
-      {tabs.map((tab) => (
+    <ContextMenu>
+      <ContextMenuTrigger>
         <div
-          key={tab.id}
           className={cn(
             'app-no-drag group flex h-8 shrink-0 cursor-default items-center gap-1 rounded-t-md px-3 text-sm',
             tab.id === activeTabId
@@ -27,7 +38,7 @@ export function TabBar(): React.JSX.Element {
           tabIndex={0}
           aria-selected={tab.id === activeTabId}
         >
-          <span className="truncate">{tab.title}</span>
+          <span className="max-w-40 truncate">{tab.title}</span>
           <Button
             variant="ghost"
             size="icon-sm"
@@ -41,7 +52,34 @@ export function TabBar(): React.JSX.Element {
             <X />
           </Button>
         </div>
-      ))}
-    </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem onClick={() => closeTab(tab.id)}>Close</ContextMenuItem>
+        <ContextMenuItem disabled={tabs.length < 2} onClick={() => closeOtherTabs(tab.id)}>
+          Close Others
+        </ContextMenuItem>
+        <ContextMenuItem disabled={isFirst} onClick={() => closeTabsToLeft(tab.id)}>
+          Close to the Left
+        </ContextMenuItem>
+        <ContextMenuItem disabled={isLast} onClick={() => closeTabsToRight(tab.id)}>
+          Close to the Right
+        </ContextMenuItem>
+        <ContextMenuItem onClick={closeAllTabs}>Close All</ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
+  )
+}
+
+export function TabBar(): React.JSX.Element {
+  const tabs = useTabsStore((s) => s.tabs)
+
+  return (
+    <ScrollArea orientation="horizontal" className="min-w-0 flex-1 self-stretch">
+      <div className="flex h-full items-end gap-px">
+        {tabs.map((tab, index) => (
+          <TabItem key={tab.id} tab={tab} isLast={index === tabs.length - 1} />
+        ))}
+      </div>
+    </ScrollArea>
   )
 }
