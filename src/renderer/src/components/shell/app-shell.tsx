@@ -1,9 +1,4 @@
 import { Button } from '@renderer/components/ui/button'
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from '@renderer/components/ui/resizable'
 import { SidebarInset, SidebarProvider, useSidebar } from '@renderer/components/ui/sidebar'
 import { cn } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
@@ -14,7 +9,6 @@ import { AppSidebar } from './app-sidebar'
 import { FileFinder } from './file-finder'
 import { RightSidebar } from './right-sidebar'
 import { TabBar } from './tab-bar'
-import { TerminalHeader, TerminalPane } from './terminal-pane'
 import { useAppShortcuts } from './use-app-shortcuts'
 import { Viewer } from './viewer'
 import { Welcome } from './welcome'
@@ -62,7 +56,6 @@ function TopBar({ left }: { left: LeftSidebarHandle }): React.JSX.Element {
 // Rendered between the providers: useSidebar here reads the outer (left) one.
 function RepoShell(): React.JSX.Element {
   const { state, toggleSidebar } = useSidebar()
-  const terminalOpen = usePreferencesStore((s) => s.terminalOpen)
   const rightSidebarOpen = usePreferencesStore((s) => s.rightSidebarOpen)
   const setRightSidebarOpen = usePreferencesStore((s) => s.setRightSidebarOpen)
   const left: LeftSidebarHandle = { collapsed: state === 'collapsed', toggle: toggleSidebar }
@@ -77,25 +70,10 @@ function RepoShell(): React.JSX.Element {
         style={{ '--sidebar-width': '17rem' } as React.CSSProperties}
       >
         <div className="flex h-full min-w-0 flex-1 flex-col">
-          <ResizablePanelGroup orientation="vertical" className="min-h-0 flex-1">
-            <ResizablePanel defaultSize="70%">
-              <div className="flex h-full flex-col">
-                <TopBar left={left} />
-                <div className="min-h-0 flex-1">
-                  <Viewer />
-                </div>
-              </div>
-            </ResizablePanel>
-            {terminalOpen && (
-              <>
-                <ResizableHandle />
-                <ResizablePanel defaultSize="30%" minSize="100px">
-                  <TerminalPane />
-                </ResizablePanel>
-              </>
-            )}
-          </ResizablePanelGroup>
-          {!terminalOpen && <TerminalHeader />}
+          <TopBar left={left} />
+          <div className="min-h-0 flex-1">
+            <Viewer />
+          </div>
         </div>
         <RightSidebar />
       </SidebarProvider>

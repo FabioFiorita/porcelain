@@ -51,6 +51,8 @@ Vendor skills in `.agents/skills/`: `shadcn`, `vercel-composition-patterns`, `fr
 - 2026-06-12: Right "Quick Access" sidebar: nested second shadcn SidebarProvider (controlled by `rightSidebarOpen` preference, Cmd+. via new `shortcut` prop on the provider; left keeps Cmd+B). Sections follow the left tab (`sidebarTab` preference): Files → Pinned (per-repo `pinnedPaths`, tree context-menu Pin/Unpin, reuses TreeNode); Changes/History → git quick commands; Changes only → commit composer (type/scope chips learned from last 200 subjects via `parseConventions` + message). "Commit all" commits directly (`gitCommit` = `git add -A` + `git commit -m`, stderr surfaced inline); a secondary icon button types the command into the terminal instead. Terminal inserts NEVER auto-execute (no newline); text queued via `pendingInput` if the pane is still opening.
 - 2026-06-12: Verification happens in `~/Code/porcelain-playground` (mock repo, recreate at will) — never drive tests against the user's work repos.
 
+- 2026-06-12: **Embedded terminal removed entirely** (user decision: Porcelain must not compete with Ghostty/Warp — being a terminal *companion* requires not having one). node-pty/xterm/react-resizable-panels dropped, postinstall chmod gone, no bottom pane. Quick commands now RUN directly (`gitQuickCommand`, whitelisted `QUICK_COMMANDS` in git.ts) with stdout+stderr shown inline (errors red); everything invalidates after a run.
+
 ## Open decisions (ask before implementing)
 
 - Agent-session integration design (beyond a plain terminal)

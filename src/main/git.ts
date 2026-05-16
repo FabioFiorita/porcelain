@@ -130,6 +130,35 @@ export async function gitCommitAll(repoPath: string, message: string): Promise<v
   }
 }
 
+/** The only commands the quick-command buttons may run, keyed by id. */
+export const QUICK_COMMANDS: Record<string, { label: string; args: string[] }> = {
+  status: { label: 'git status', args: ['status'] },
+  pull: { label: 'git pull', args: ['pull'] },
+  push: { label: 'git push', args: ['push'] },
+  fetch: { label: 'git fetch --all --prune', args: ['fetch', '--all', '--prune'] },
+  stash: { label: 'git stash', args: ['stash'] },
+  'stash-pop': { label: 'git stash pop', args: ['stash', 'pop'] },
+}
+
+/** Run a whitelisted quick command; returns combined output (git logs progress
+ *  to stderr — e.g. push — so both streams matter). Throws output on failure. */
+export async function gitQuickCommand(repoPath: string, id: string): Promise<string> {
+  const command = QUICK_COMMANDS[id]
+  if (!command) throw new Error(`unknown quick command: ${id}`)
+  try {
+    const { stdout, stderr } = await execFileAsync('git', command.args, {
+      cwd: repoPath,
+      maxBuffer: 64 * 1024 * 1024,
+    })
+    return [stderr, stdout]
+      .filter((s) => s.trim() !== '')
+      .join('\n')
+      .trim()
+  } catch (error) {
+    throw new Error(gitErrorOutput(error))
+  }
+}
+
 export async function gitDiffFile(repoPath: string, filePath: string): Promise<DiffHunk[]> {
   const status = await runGit(repoPath, ['status', '--porcelain=v1', '-z', '--', filePath])
   if (parseStatus(status)[0]?.status === 'untracked') {

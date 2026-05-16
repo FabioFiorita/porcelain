@@ -13,29 +13,18 @@ import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-gro
 import { trpc } from '@renderer/lib/trpc'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
-import { useTerminalStore } from '@renderer/stores/terminal'
-import { GitCommitHorizontal, SquareTerminal } from 'lucide-react'
+import { GitCommitHorizontal, Play } from 'lucide-react'
 import { useState } from 'react'
 import { TreeNode } from './file-tree'
 
 const QUICK_COMMANDS = [
-  'git status',
-  'git pull',
-  'git push',
-  'git fetch --all --prune',
-  'git stash',
-  'git stash pop',
+  { id: 'status', label: 'git status' },
+  { id: 'pull', label: 'git pull' },
+  { id: 'push', label: 'git push' },
+  { id: 'fetch', label: 'git fetch --all --prune' },
+  { id: 'stash', label: 'git stash' },
+  { id: 'stash-pop', label: 'git stash pop' },
 ]
-
-/** Open the terminal pane and type into it (no newline — the user confirms). */
-function useInsertInTerminal(): (text: string) => void {
-  const openTerminal = usePreferencesStore((s) => s.openTerminal)
-  const insertInput = useTerminalStore((s) => s.insertInput)
-  return (text) => {
-    openTerminal()
-    void insertInput(text)
-  }
-}
 
 function PinnedGroup(): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)
@@ -64,7 +53,32 @@ function PinnedGroup(): React.JSX.Element {
 }
 
 function QuickCommandsGroup(): React.JSX.Element {
-  const insert = useInsertInTerminal()
+  const repo = useRepoStore((s) => s.repo)
+  const utils = trpc.useUtils()
+  const [running, setRunning] = useState<string | null>(null)
+  const [result, setResult] = useState<{ label: string; output: string; failed: boolean } | null>(
+    null,
+  )
+  const runMutation = trpc.gitQuickCommand.useMutation()
+
+  const run = async (command: { id: string; label: string }): Promise<void> => {
+    if (!repo || running) return
+    setRunning(command.id)
+    try {
+      const output = await runMutation.mutateAsync({ repoPath: repo.path, command: command.id })
+      setResult({ label: command.label, output: output || '(no output)', failed: false })
+    } catch (error) {
+      setResult({
+        label: command.label,
+        output: error instanceof Error ? error.message : String(error),
+        failed: true,
+      })
+    } finally {
+      setRunning(null)
+      // pull/stash/push all change repo state; refresh everything that's mounted
+      await utils.invalidate()
+    }
+  }
 
   return (
     <SidebarGroup>
@@ -72,25 +86,36 @@ function QuickCommandsGroup(): React.JSX.Element {
       <SidebarGroupContent className="flex flex-col gap-0.5">
         {QUICK_COMMANDS.map((command) => (
           <Button
-            key={command}
+            key={command.id}
             variant="ghost"
             size="sm"
             className="h-7 justify-start font-mono text-xs"
-            onClick={() => insert(command)}
+            disabled={running !== null}
+            onClick={() => run(command)}
           >
-            {command}
+            <Play className="size-3 text-muted-foreground" />
+            {running === command.id ? `${command.label}…` : command.label}
           </Button>
         ))}
+        {result && (
+          <div className="mt-1 px-2">
+            <p className="font-mono text-[10px] text-muted-foreground">$ {result.label}</p>
+            <pre
+              className={`max-h-48 overflow-auto whitespace-pre-wrap font-mono text-[10px] ${
+                result.failed ? 'text-destructive' : 'text-muted-foreground'
+              }`}
+            >
+              {result.output}
+            </pre>
+          </div>
+        )}
       </SidebarGroupContent>
     </SidebarGroup>
   )
 }
 
-const quoteForShell = (text: string): string => text.replace(/(["\\$`])/g, '\\$1')
-
 function CommitGroup(): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)
-  const insert = useInsertInTerminal()
   const utils = trpc.useUtils()
   const [type, setType] = useState<string | null>(null)
   const [scope, setScope] = useState<string | null>(null)
@@ -124,11 +149,6 @@ function CommitGroup(): React.JSX.Element {
   const commit = (): void => {
     if (!ready || !repo || commitMutation.isLoading) return
     commitMutation.mutate({ repoPath: repo.path, message: subject })
-  }
-
-  const insertCommand = (): void => {
-    if (!type) return
-    insert(`git commit -m "${quoteForShell(subject)}"`)
   }
 
   return (
@@ -170,27 +190,15 @@ function CommitGroup(): React.JSX.Element {
         {prefix && (
           <p className="truncate font-mono text-[10px] text-muted-foreground">{subject}</p>
         )}
-        <div className="flex items-center gap-1">
-          <Button
-            size="sm"
-            variant="secondary"
-            className="flex-1"
-            disabled={!ready || commitMutation.isLoading}
-            onClick={commit}
-          >
-            <GitCommitHorizontal />
-            {commitMutation.isLoading ? 'Committing…' : 'Commit all'}
-          </Button>
-          <Button
-            size="icon-sm"
-            variant="ghost"
-            disabled={!type}
-            onClick={insertCommand}
-            aria-label="Insert commit command in terminal"
-          >
-            <SquareTerminal />
-          </Button>
-        </div>
+        <Button
+          size="sm"
+          variant="secondary"
+          disabled={!ready || commitMutation.isLoading}
+          onClick={commit}
+        >
+          <GitCommitHorizontal />
+          {commitMutation.isLoading ? 'Committing…' : 'Commit all'}
+        </Button>
         {commitMutation.error && (
           <p className="whitespace-pre-wrap font-mono text-[10px] text-destructive">
             {commitMutation.error.message}

@@ -18,8 +18,10 @@ import {
   gitListFiles,
   gitLog,
   gitNumstat,
+  gitQuickCommand,
   gitStatus,
   gitWorktrees,
+  QUICK_COMMANDS,
   warmFileList,
 } from './git'
 import {
@@ -33,14 +35,6 @@ import {
   withRecentRepo,
   withRepoLayers,
 } from './repo-config'
-import {
-  createTerminal,
-  hasTerminal,
-  resizeTerminal,
-  subscribeTerminal,
-  terminalScrollback,
-  writeTerminal,
-} from './terminal'
 
 const t = initTRPC.create({ isServer: true })
 
@@ -220,6 +214,15 @@ export const router = t.router({
     return entries.filter((e): e is DirEntry => e !== null)
   }),
 
+  gitQuickCommand: t.procedure
+    .input(
+      z.object({
+        repoPath: z.string(),
+        command: z.string().refine((id) => id in QUICK_COMMANDS, 'unknown command'),
+      }),
+    )
+    .mutation(({ input }) => gitQuickCommand(input.repoPath, input.command)),
+
   gitCommit: t.procedure
     .input(z.object({ repoPath: z.string(), message: z.string().trim().min(1) }))
     .mutation(({ input }) => gitCommitAll(input.repoPath, input.message)),
@@ -338,28 +341,6 @@ export const router = t.router({
         (r) => r.path,
       )
     }),
-
-  termCreate: t.procedure.input(z.object({ cwd: z.string() })).mutation(({ input }) => ({
-    id: createTerminal(input.cwd),
-  })),
-
-  termExists: t.procedure.input(z.string()).query(({ input }) => hasTerminal(input)),
-
-  termScrollback: t.procedure.input(z.string()).query(({ input }) => terminalScrollback(input)),
-
-  termWrite: t.procedure
-    .input(z.object({ id: z.string(), data: z.string() }))
-    .mutation(({ input }) => writeTerminal(input.id, input.data)),
-
-  termResize: t.procedure
-    .input(z.object({ id: z.string(), cols: z.number().int(), rows: z.number().int() }))
-    .mutation(({ input }) => resizeTerminal(input.id, input.cols, input.rows)),
-
-  termOnData: t.procedure
-    .input(z.string())
-    .subscription(({ input }) =>
-      observable<string>((emit) => subscribeTerminal(input, (data) => emit.next(data))),
-    ),
 
   appEvents: t.procedure.subscription(() =>
     observable<AppEvent>((emit) => subscribeAppEvents((event) => emit.next(event))),

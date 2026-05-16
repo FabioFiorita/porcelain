@@ -5,7 +5,6 @@ import { join } from 'path'
 import icon from '../../resources/icon.png?asset'
 import { router } from './api'
 import { emitAppEvent } from './app-events'
-import { killAllTerminals } from './terminal'
 
 function createWindow(): void {
   // Create the browser window.
@@ -97,10 +96,6 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
-})
-
-app.on('before-quit', () => {
-  killAllTerminals()
 })
 
 // In this file you can include the rest of your app's specific main process
