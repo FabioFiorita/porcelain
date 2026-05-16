@@ -1,7 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { ipcLink } from 'electron-trpc/renderer'
 import { useState } from 'react'
-import { trpc } from './trpc'
+import { client, trpc } from './trpc'
 
 export function ApiProvider({ children }: { children: React.ReactNode }): React.JSX.Element {
   const [queryClient] = useState(
@@ -12,7 +11,6 @@ export function ApiProvider({ children }: { children: React.ReactNode }): React.
         },
       }),
   )
-  const [client] = useState(() => trpc.createClient({ links: [ipcLink()] }))
 
   return (
     <trpc.Provider client={client} queryClient={queryClient}>
