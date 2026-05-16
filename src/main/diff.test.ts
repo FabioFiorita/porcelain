@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  parseGrep,
   parseLog,
   parseNameStatus,
   parseNumstat,
@@ -110,5 +111,25 @@ describe('parseNumstat', () => {
       { path: 'src/a.ts', additions: 12, deletions: 3 },
       { path: 'img.png', additions: 0, deletions: 0 },
     ])
+  })
+})
+
+describe('parseGrep', () => {
+  it('parses path:line:text rows', () => {
+    const out = 'src/a.ts:3:const x = getUser()\nsrc/b/c.tsx:12:  getUser()\n'
+    expect(parseGrep(out)).toEqual([
+      { path: 'src/a.ts', line: 3, text: 'const x = getUser()' },
+      { path: 'src/b/c.tsx', line: 12, text: '  getUser()' },
+    ])
+  })
+
+  it('keeps colons inside the matched text', () => {
+    expect(parseGrep('a.ts:1:const url = "http://x"')).toEqual([
+      { path: 'a.ts', line: 1, text: 'const url = "http://x"' },
+    ])
+  })
+
+  it('skips malformed rows', () => {
+    expect(parseGrep('garbage\nno-line:abc:text\n')).toEqual([])
   })
 })

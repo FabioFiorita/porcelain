@@ -13,17 +13,25 @@ import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-gro
 import { trpc } from '@renderer/lib/trpc'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
-import { GitCommitHorizontal, Play } from 'lucide-react'
+import {
+  Archive,
+  ArchiveRestore,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  GitCommitHorizontal,
+  Info,
+  RefreshCw,
+} from 'lucide-react'
 import { useState } from 'react'
 import { TreeNode } from './file-tree'
 
 const QUICK_COMMANDS = [
-  { id: 'status', label: 'git status' },
-  { id: 'pull', label: 'git pull' },
-  { id: 'push', label: 'git push' },
-  { id: 'fetch', label: 'git fetch --all --prune' },
-  { id: 'stash', label: 'git stash' },
-  { id: 'stash-pop', label: 'git stash pop' },
+  { id: 'status', label: 'git status', icon: Info },
+  { id: 'pull', label: 'git pull', icon: ArrowDownToLine },
+  { id: 'push', label: 'git push', icon: ArrowUpFromLine },
+  { id: 'fetch', label: 'git fetch --all --prune', icon: RefreshCw },
+  { id: 'stash', label: 'git stash', icon: Archive },
+  { id: 'stash-pop', label: 'git stash pop', icon: ArchiveRestore },
 ]
 
 function PinnedGroup(): React.JSX.Element {
@@ -93,7 +101,7 @@ function QuickCommandsGroup(): React.JSX.Element {
             disabled={running !== null}
             onClick={() => run(command)}
           >
-            <Play className="size-3 text-muted-foreground" />
+            <command.icon className="size-3 text-muted-foreground" />
             {running === command.id ? `${command.label}…` : command.label}
           </Button>
         ))}

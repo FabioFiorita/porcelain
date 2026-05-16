@@ -1,7 +1,7 @@
 import { initTRPC } from '@trpc/server'
 import { observable } from '@trpc/server/observable'
-import { dialog } from 'electron'
-import { readdir, readFile, stat } from 'fs/promises'
+import { dialog, shell } from 'electron'
+import { readdir, readFile, stat, writeFile } from 'fs/promises'
 import { basename, join } from 'path'
 import { z } from 'zod'
 import { type AppEvent, subscribeAppEvents } from './app-events'
@@ -15,6 +15,7 @@ import {
   gitCommitDiff,
   gitCommitFiles,
   gitDiffFile,
+  gitGrep,
   gitListFiles,
   gitLog,
   gitNumstat,
@@ -246,6 +247,20 @@ export const router = t.router({
       return { type: 'binary', size: buffer.length }
     }
     return { type: 'text', content: buffer.toString('utf8') }
+  }),
+
+  writeTextFile: t.procedure
+    .input(z.object({ path: z.string(), content: z.string() }))
+    .mutation(async ({ input }) => {
+      await writeFile(input.path, input.content, 'utf8')
+    }),
+
+  searchText: t.procedure
+    .input(z.object({ repoPath: z.string(), query: z.string().min(1) }))
+    .query(({ input }) => gitGrep(input.repoPath, input.query)),
+
+  revealInFinder: t.procedure.input(z.string()).mutation(({ input }) => {
+    shell.showItemInFolder(input)
   }),
 
   gitStatus: t.procedure.input(z.string()).query(({ input }) => gitStatus(input)),

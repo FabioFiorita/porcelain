@@ -53,6 +53,8 @@ Vendor skills in `.agents/skills/`: `shadcn`, `vercel-composition-patterns`, `fr
 
 - 2026-06-12: **Embedded terminal removed entirely** (user decision: Porcelain must not compete with Ghostty/Warp — being a terminal *companion* requires not having one). node-pty/xterm/react-resizable-panels dropped, postinstall chmod gone, no bottom pane. Quick commands now RUN directly (`gitQuickCommand`, whitelisted `QUICK_COMMANDS` in git.ts) with stdout+stderr shown inline (errors red); everything invalidates after a run.
 
+- 2026-06-12: Quick edits shipped (user decision — relaxes "read-only by design"): pencil on text-file tabs → plain textarea (NOT CodeMirror/Monaco; staying lightweight), Cmd+S saves via `writeTextFile`. Viewer right-click menu: Copy / Find references / Copy (relative) path / Reveal in Finder; edit mode gets Cut/Copy/Paste. Find references = `git grep --fixed-strings` → `search` tab kind, results jump to line (Tab.line + VirtualRows scrollToLine + row highlight). Quick commands got distinct per-command icons. GOTCHA: ui ContextMenuTrigger defaults to `select-none` — pass `select-text` where selection matters.
+
 ## Open decisions (ask before implementing)
 
 - Agent-session integration design (beyond a plain terminal)

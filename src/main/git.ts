@@ -7,6 +7,8 @@ import {
   type Commit,
   type DiffHunk,
   type DiffStat,
+  type GrepMatch,
+  parseGrep,
   parseLog,
   parseNameStatus,
   parseNumstat,
@@ -156,6 +158,26 @@ export async function gitQuickCommand(repoPath: string, id: string): Promise<str
       .trim()
   } catch (error) {
     throw new Error(gitErrorOutput(error))
+  }
+}
+
+const MAX_GREP_MATCHES = 500
+
+/** Literal text search across tracked + untracked files; empty on no matches. */
+export async function gitGrep(repoPath: string, query: string): Promise<GrepMatch[]> {
+  try {
+    const out = await runGit(repoPath, [
+      'grep',
+      '-n',
+      '-I',
+      '--untracked',
+      '--fixed-strings',
+      '-e',
+      query,
+    ])
+    return parseGrep(out).slice(0, MAX_GREP_MATCHES)
+  } catch {
+    return [] // git grep exits 1 when nothing matches
   }
 }
 

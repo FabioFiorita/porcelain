@@ -119,6 +119,27 @@ export function parseWorktrees(out: string): Worktree[] {
     .filter((w) => w.path !== '')
 }
 
+export interface GrepMatch {
+  path: string
+  line: number
+  text: string
+}
+
+/** Parse `git grep -n` output (`path:line:text` rows). */
+export function parseGrep(out: string): GrepMatch[] {
+  const matches: GrepMatch[] = []
+  for (const row of out.split('\n')) {
+    if (row === '') continue
+    const first = row.indexOf(':')
+    const second = row.indexOf(':', first + 1)
+    if (first === -1 || second === -1) continue
+    const line = Number(row.slice(first + 1, second))
+    if (!Number.isInteger(line) || line < 1) continue
+    matches.push({ path: row.slice(0, first), line, text: row.slice(second + 1) })
+  }
+  return matches
+}
+
 export function parseUnifiedDiff(diff: string): DiffHunk[] {
   const hunks: DiffHunk[] = []
   let current: DiffHunk | null = null

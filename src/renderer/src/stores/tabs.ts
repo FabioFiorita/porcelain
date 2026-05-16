@@ -1,12 +1,15 @@
 import { create } from 'zustand'
 
-export type TabKind = 'file' | 'diff' | 'commit'
+export type TabKind = 'file' | 'diff' | 'commit' | 'search'
 
 export interface Tab {
   id: string
   kind: TabKind
   title: string
+  /** File path for file/diff tabs, commit hash for commit tabs, query for search tabs. */
   path: string
+  /** 1-based line to scroll to when opening (search results jump here). */
+  line?: number
 }
 
 interface TabsState {
@@ -44,10 +47,11 @@ export const useTabsStore = create<TabsState>((set) => ({
   openTab: (tab) =>
     set((state) => {
       const existing = state.tabs.find((t) => t.id === tab.id)
-      return {
-        tabs: existing ? state.tabs : [...state.tabs, tab],
-        activeTabId: tab.id,
-      }
+      const tabs = existing
+        ? // re-opening can carry a new target line (e.g. another search result)
+          state.tabs.map((t) => (t.id === tab.id ? { ...t, line: tab.line ?? t.line } : t))
+        : [...state.tabs, tab]
+      return { tabs, activeTabId: tab.id }
     }),
   closeTab: (id) =>
     set((state) => {

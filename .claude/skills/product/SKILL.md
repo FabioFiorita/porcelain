@@ -9,7 +9,7 @@ A lightweight macOS-first **viewer and agent companion**, not an editor. The use
 
 ## Core features
 
-- **File viewer** — read-only, fast, no LSP, no extensions, no editing.
+- **File viewer** — fast, no LSP, no extensions. Quick edits allowed (pencil → textarea → save), but nothing editor-like: no autocomplete, no multi-file refactors, no format-on-save.
 - **Scoped navigation** — works in huge monorepos (~50 GB); folders can be hidden/pinned so only relevant apps are visible. Core differentiator: no existing tool lets you hide irrelevant parts of a monorepo.
 - **Git** — diffs, worktrees, history.
 - **Flow-ordered review** — review a diff as a *timeline of connected layers*, not an alphabetical file list. A feature change is a straight line (e.g. component → query call → route → controller → service → module → Prisma); Porcelain orders/groups changed files along that dependency flow so the reviewer reads the change as a story from entry point to database. Core differentiator alongside folder hiding.
@@ -17,6 +17,5 @@ A lightweight macOS-first **viewer and agent companion**, not an editor. The use
 
 ## Principles
 
-- Viewer, not editor. Lightweight always wins. Reject features that turn it into an IDE.
+- Viewer, not editor. Lightweight always wins. Reject features that turn it into an IDE. Quick single-file edits are in (decided 2026-06-12); LSP, autocomplete, or multi-file editing are still out.
 - Performance is a feature: must stay fast on a 50 GB monorepo — virtualized lists/trees, lazy fs reads, never index what isn't visible.
-- Read-only by design: no file-write features in the viewer.

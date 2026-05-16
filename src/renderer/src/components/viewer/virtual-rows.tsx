@@ -1,5 +1,5 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 
 export const ROW_HEIGHT = 20
 
@@ -7,6 +7,8 @@ interface VirtualRowsProps<T> {
   rows: readonly T[]
   renderRow: (row: T, index: number) => React.ReactNode
   className?: string
+  /** 1-based line to scroll into view (centered) when it changes. */
+  scrollToLine?: number
 }
 
 /** Virtualized fixed-height row list for code/diff content. Only visible rows mount. */
@@ -14,6 +16,7 @@ export function VirtualRows<T>({
   rows,
   renderRow,
   className,
+  scrollToLine,
 }: VirtualRowsProps<T>): React.JSX.Element {
   const scrollRef = useRef<HTMLDivElement>(null)
   const virtualizer = useVirtualizer({
@@ -22,6 +25,15 @@ export function VirtualRows<T>({
     estimateSize: () => ROW_HEIGHT,
     overscan: 30,
   })
+
+  const virtualizerRef = useRef(virtualizer)
+  virtualizerRef.current = virtualizer
+
+  useEffect(() => {
+    if (scrollToLine !== undefined && scrollToLine >= 1) {
+      virtualizerRef.current.scrollToIndex(scrollToLine - 1, { align: 'center' })
+    }
+  }, [scrollToLine])
 
   return (
     <div ref={scrollRef} className={`h-full overflow-auto font-mono text-xs ${className ?? ''}`}>
