@@ -11,6 +11,7 @@ import { buildFlow, DEFAULT_LAYERS, type FlowGroup, type Layer } from './flow'
 import { fuzzySearch } from './fuzzy'
 import {
   gitBranch,
+  gitCommitAll,
   gitCommitDiff,
   gitCommitFiles,
   gitDiffFile,
@@ -218,6 +219,10 @@ export const router = t.router({
     )
     return entries.filter((e): e is DirEntry => e !== null)
   }),
+
+  gitCommit: t.procedure
+    .input(z.object({ repoPath: z.string(), message: z.string().trim().min(1) }))
+    .mutation(({ input }) => gitCommitAll(input.repoPath, input.message)),
 
   gitCommitConventions: t.procedure
     .input(z.string())

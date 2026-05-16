@@ -13,6 +13,7 @@ import {
 } from '@renderer/components/ui/sidebar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@renderer/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
+import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
 import { Eye, EyeOff, FolderOpen } from 'lucide-react'
 import { FileTree } from './file-tree'
@@ -23,6 +24,8 @@ export function AppSidebar(): React.JSX.Element {
   const openRepo = useRepoStore((s) => s.openRepo)
   const showHidden = useRepoStore((s) => s.showHidden)
   const toggleShowHidden = useRepoStore((s) => s.toggleShowHidden)
+  const sidebarTab = usePreferencesStore((s) => s.sidebarTab)
+  const setSidebarTab = usePreferencesStore((s) => s.setSidebarTab)
 
   return (
     <Sidebar>
@@ -68,7 +71,15 @@ export function AppSidebar(): React.JSX.Element {
       </SidebarHeader>
       <SidebarContent>
         {repo ? (
-          <Tabs defaultValue="files" className="flex h-full flex-col gap-0">
+          <Tabs
+            value={sidebarTab}
+            onValueChange={(value) => {
+              if (value === 'files' || value === 'changes' || value === 'history') {
+                setSidebarTab(value)
+              }
+            }}
+            className="flex h-full flex-col gap-0"
+          >
             <TabsList className="mx-2 mt-2 grid w-auto grid-cols-3">
               <TabsTrigger value="files">Files</TabsTrigger>
               <TabsTrigger value="changes">Changes</TabsTrigger>

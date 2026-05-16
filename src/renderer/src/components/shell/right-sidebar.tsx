@@ -14,7 +14,7 @@ import { trpc } from '@renderer/lib/trpc'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useTerminalStore } from '@renderer/stores/terminal'
-import { SquareTerminal } from 'lucide-react'
+import { GitCommitHorizontal, SquareTerminal } from 'lucide-react'
 import { useState } from 'react'
 import { TreeNode } from './file-tree'
 
@@ -91,11 +91,22 @@ const quoteForShell = (text: string): string => text.replace(/(["\\$`])/g, '\\$1
 function CommitGroup(): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)
   const insert = useInsertInTerminal()
+  const utils = trpc.useUtils()
   const [type, setType] = useState<string | null>(null)
   const [scope, setScope] = useState<string | null>(null)
   const [message, setMessage] = useState('')
   const { data: conventions } = trpc.gitCommitConventions.useQuery(repo?.path ?? '', {
     enabled: repo !== null,
+  })
+  const commitMutation = trpc.gitCommit.useMutation({
+    onSuccess: async () => {
+      setMessage('')
+      await Promise.all([
+        utils.gitFlow.invalidate(),
+        utils.gitLog.invalidate(),
+        utils.gitCommitConventions.invalidate(),
+      ])
+    },
   })
 
   if (!conventions) {
@@ -107,11 +118,17 @@ function CommitGroup(): React.JSX.Element {
   }
 
   const prefix = type ? `${type}${scope ? `(${scope})` : ''}: ` : ''
-  const command = `git commit -m "${quoteForShell(`${prefix}${message}`)}"`
+  const subject = `${prefix}${message.trim()}`
+  const ready = type !== null && message.trim() !== ''
 
-  const insertCommit = (): void => {
+  const commit = (): void => {
+    if (!ready || !repo || commitMutation.isLoading) return
+    commitMutation.mutate({ repoPath: repo.path, message: subject })
+  }
+
+  const insertCommand = (): void => {
     if (!type) return
-    insert(command)
+    insert(`git commit -m "${quoteForShell(subject)}"`)
   }
 
   return (
@@ -145,23 +162,50 @@ function CommitGroup(): React.JSX.Element {
         <Input
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && insertCommit()}
+          onKeyDown={(e) => e.key === 'Enter' && commit()}
           placeholder="commit message"
           aria-label="Commit message"
           className="h-7 text-xs"
         />
         {prefix && (
-          <p className="truncate font-mono text-[10px] text-muted-foreground">{command}</p>
+          <p className="truncate font-mono text-[10px] text-muted-foreground">{subject}</p>
         )}
-        <Button size="sm" variant="secondary" disabled={!type} onClick={insertCommit}>
-          <SquareTerminal /> Insert in terminal
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            size="sm"
+            variant="secondary"
+            className="flex-1"
+            disabled={!ready || commitMutation.isLoading}
+            onClick={commit}
+          >
+            <GitCommitHorizontal />
+            {commitMutation.isLoading ? 'Committing…' : 'Commit all'}
+          </Button>
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            disabled={!type}
+            onClick={insertCommand}
+            aria-label="Insert commit command in terminal"
+          >
+            <SquareTerminal />
+          </Button>
+        </div>
+        {commitMutation.error && (
+          <p className="whitespace-pre-wrap font-mono text-[10px] text-destructive">
+            {commitMutation.error.message}
+          </p>
+        )}
       </SidebarGroupContent>
     </SidebarGroup>
   )
 }
 
+// Sections follow the left sidebar's active tab: pins belong to browsing
+// files, git actions belong to reviewing changes/history.
 export function RightSidebar(): React.JSX.Element {
+  const sidebarTab = usePreferencesStore((s) => s.sidebarTab)
+
   return (
     <Sidebar side="right" collapsible="offcanvas">
       <SidebarHeader className="app-drag h-10 flex-row items-center border-b py-0">
@@ -170,9 +214,9 @@ export function RightSidebar(): React.JSX.Element {
         </span>
       </SidebarHeader>
       <SidebarContent>
-        <PinnedGroup />
-        <QuickCommandsGroup />
-        <CommitGroup />
+        {sidebarTab === 'files' && <PinnedGroup />}
+        {sidebarTab !== 'files' && <QuickCommandsGroup />}
+        {sidebarTab === 'changes' && <CommitGroup />}
       </SidebarContent>
     </Sidebar>
   )

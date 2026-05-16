@@ -108,6 +108,28 @@ export async function gitWorktrees(repoPath: string): Promise<Worktree[]> {
   return parseWorktrees(await runGit(repoPath, ['worktree', 'list', '--porcelain']))
 }
 
+function gitErrorOutput(error: unknown): string {
+  if (error !== null && typeof error === 'object') {
+    if ('stderr' in error && typeof error.stderr === 'string' && error.stderr.trim() !== '') {
+      return error.stderr.trim()
+    }
+    if ('stdout' in error && typeof error.stdout === 'string' && error.stdout.trim() !== '') {
+      return error.stdout.trim()
+    }
+  }
+  return String(error)
+}
+
+/** Stage everything and commit. Throws git's output so the UI can show it. */
+export async function gitCommitAll(repoPath: string, message: string): Promise<void> {
+  await runGit(repoPath, ['add', '-A'])
+  try {
+    await runGit(repoPath, ['commit', '-m', message])
+  } catch (error) {
+    throw new Error(gitErrorOutput(error))
+  }
+}
+
 export async function gitDiffFile(repoPath: string, filePath: string): Promise<DiffHunk[]> {
   const status = await runGit(repoPath, ['status', '--porcelain=v1', '-z', '--', filePath])
   if (parseStatus(status)[0]?.status === 'untracked') {
