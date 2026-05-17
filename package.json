@@ -1,7 +1,7 @@
 {
   "name": "porcelain",
   "version": "0.1.0",
-  "description": "Lightweight viewer and agent companion",
+  "description": "Review changes as a story",
   "main": "./out/main/index.js",
   "author": "Fabio Fiorita",
   "scripts": {
@@ -14,10 +14,8 @@
     "dev": "electron-vite dev",
     "build": "npm run typecheck && electron-vite build",
     "postinstall": "electron-builder install-app-deps",
-    "build:unpack": "npm run build && electron-builder --dir",
-    "build:win": "npm run build && electron-builder --win",
-    "build:mac": "electron-vite build && electron-builder --mac",
-    "build:linux": "electron-vite build && electron-builder --linux",
+    "dist": "npm run build && electron-builder --mac --publish never",
+    "release": "npm run build && electron-builder --mac --publish always",
     "lint:fix": "biome check --write .",
     "test": "vitest run",
     "test:watch": "vitest"
@@ -36,6 +34,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "electron-trpc": "^0.7.1",
+    "electron-updater": "^6.8.9",
     "lucide-react": "^1.18.0",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",

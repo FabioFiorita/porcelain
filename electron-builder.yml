@@ -1,43 +1,36 @@
-appId: com.electron.app
-productName: porcelain-scaffold
+appId: com.fabiofiorita.porcelain
+productName: Porcelain
 directories:
   buildResources: build
 files:
   - '!**/.vscode/*'
   - '!src/*'
   - '!electron.vite.config.{js,ts,mjs,cjs}'
-  - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
+  - '!{.claude,.agents,.codex,docs}/**'
+  - '!{biome.json,components.json,vitest.config.ts,setupTests.ts,AGENTS.md,CLAUDE.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
 asarUnpack:
   - resources/**
-win:
-  executableName: porcelain-scaffold
-nsis:
-  artifactName: ${name}-${version}-setup.${ext}
-  shortcutName: ${productName}
-  uninstallDisplayName: ${productName}
-  createDesktopShortcut: always
 mac:
+  target:
+    - target: dmg
+      arch: [arm64]
+    # zip is what electron-updater actually downloads on macOS
+    - target: zip
+      arch: [arm64]
+  category: public.app-category.developer-tools
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
-  extendInfo:
-    - NSCameraUsageDescription: Application requests access to the device's camera.
-    - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
-    - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
-    - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
+  # flip to true once notarytool credentials exist
+  # (APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID env vars)
   notarize: false
 dmg:
   artifactName: ${name}-${version}.${ext}
-linux:
-  target:
-    - AppImage
-    - snap
-    - deb
-  maintainer: electronjs.org
-  category: Utility
-appImage:
-  artifactName: ${name}-${version}.${ext}
 npmRebuild: false
 publish:
-  provider: generic
-  url: https://example.com/auto-updates
+  provider: github
+  owner: fabiofiorita
+  repo: porcelain

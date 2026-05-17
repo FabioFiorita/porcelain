@@ -5,6 +5,7 @@ import { join } from 'path'
 import icon from '../../resources/icon.png?asset'
 import { router } from './api'
 import { emitAppEvent } from './app-events'
+import { initUpdater } from './updater'
 
 function createWindow(): void {
   // Create the browser window.
@@ -81,6 +82,7 @@ app.whenReady().then(() => {
   })
 
   createWindow()
+  initUpdater()
 
   app.on('activate', () => {
     // On macOS it's common to re-create a window in the app when the

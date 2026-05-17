@@ -36,6 +36,7 @@ import {
   withRecentRepo,
   withRepoLayers,
 } from './repo-config'
+import { checkForUpdates, installUpdate, type UpdateStatus, updateStatus } from './updater'
 
 const t = initTRPC.create({ isServer: true })
 
@@ -356,6 +357,14 @@ export const router = t.router({
         (r) => r.path,
       )
     }),
+
+  updateStatus: t.procedure.query((): UpdateStatus => updateStatus()),
+
+  checkForUpdates: t.procedure.mutation(() => checkForUpdates()),
+
+  installUpdate: t.procedure.mutation(() => {
+    installUpdate()
+  }),
 
   appEvents: t.procedure.subscription(() =>
     observable<AppEvent>((emit) => subscribeAppEvents((event) => emit.next(event))),

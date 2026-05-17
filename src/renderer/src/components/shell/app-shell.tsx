@@ -1,9 +1,10 @@
 import { Button } from '@renderer/components/ui/button'
 import { SidebarInset, SidebarProvider, useSidebar } from '@renderer/components/ui/sidebar'
+import { trpc } from '@renderer/lib/trpc'
 import { cn } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
-import { PanelLeft, PanelRight } from 'lucide-react'
+import { PanelLeft, PanelRight, RotateCw } from 'lucide-react'
 import { useEffect } from 'react'
 import { AppSidebar } from './app-sidebar'
 import { FileFinder } from './file-finder'
@@ -16,6 +17,26 @@ import { Welcome } from './welcome'
 interface LeftSidebarHandle {
   collapsed: boolean
   toggle: () => void
+}
+
+/** Appears only once a new release is downloaded and ready to install. */
+function UpdateButton(): React.JSX.Element | null {
+  const { data: status } = trpc.updateStatus.useQuery()
+  const installMutation = trpc.installUpdate.useMutation()
+
+  if (status?.state !== 'downloaded') return null
+
+  return (
+    <Button
+      size="sm"
+      variant="secondary"
+      className="app-no-drag m-1 h-7 self-center text-xs"
+      disabled={installMutation.isLoading}
+      onClick={() => installMutation.mutate()}
+    >
+      <RotateCw /> Update to {status.version}
+    </Button>
+  )
 }
 
 // TopBar renders inside the right sidebar's provider, so the left sidebar's
@@ -40,6 +61,7 @@ function TopBar({ left }: { left: LeftSidebarHandle }): React.JSX.Element {
         <PanelLeft />
       </Button>
       <TabBar />
+      <UpdateButton />
       <Button
         variant="ghost"
         size="icon-sm"

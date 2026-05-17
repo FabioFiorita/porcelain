@@ -47,6 +47,9 @@ importers:
       electron-trpc:
         specifier: ^0.7.1
         version: 0.7.1(@trpc/client@10.45.4(@trpc/server@10.45.4))(@trpc/server@10.45.4)(electron@39.8.10)
+      electron-updater:
+        specifier: ^6.8.9
+        version: 6.8.9
       lucide-react:
         specifier: ^1.18.0
         version: 1.18.0(react@19.2.7)
@@ -2074,6 +2077,9 @@ packages:
       '@trpc/server': '>10.0.0'
       electron: '>19.0.0'
 
+  electron-updater@6.8.9:
+    resolution: {integrity: sha512-ZhVxM9iGONUpZGI1FxdMRgJjUFXi7AYGVa5PwKlO1tV1/4zDxQmfKpXOHVztKrd6L9rLcFjERvi1Mf2vxyTkig==}
+
   electron-vite@5.0.0:
     resolution: {integrity: sha512-OHp/vjdlubNlhNkPkL/+3JD34ii5ov7M0GpuXEVdQeqdQ3ulvVR7Dg/rNBLfS5XPIFwgoBLDf9sjjrL+CuDyRQ==}
     engines: {node: ^20.19.0 || >=22.12.0}
@@ -2754,6 +2760,13 @@ packages:
 
   lines-and-columns@1.2.4:
     resolution: {integrity: sha512-7ylylesZQ/PV29jhEDl3Ufjo6ZX7gCqJr5F7PKrqc93v7fzSymt1BpwEU8nAUXs8qzzvqhbjhK5QZg6Mt/HkBg==}
+
+  lodash.escaperegexp@4.1.2:
+    resolution: {integrity: sha512-TM9YBvyC84ZxE3rgfefxUWiQKLilstD6k7PTGt6wfbtXF8ixIJLOL3VYyV/z+ZiPLsVxAsKAFVwWlWeb2Y8Yyw==}
+
+  lodash.isequal@4.5.0:
+    resolution: {integrity: sha512-pDo3lu8Jhfjqls6GkMgpahsF9kCyayhgykjyLMNFTKWrpVdAQtYyB4muAMWozBB4ig/dtWAmsMxLEI8wuz+DYQ==}
+    deprecated: This package is deprecated. Use require('node:util').isDeepStrictEqual instead.
 
   lodash@4.18.1:
     resolution: {integrity: sha512-dMInicTPVE8d1e5otfwmmjlxkZoUpiVLwyeTdUsi/Caj/gfzzblBcCE5sRHV/AsjuCmxWrte2TNGSYuCeCq+0Q==}
@@ -3678,6 +3691,9 @@ packages:
 
   tiny-invariant@1.3.3:
     resolution: {integrity: sha512-+FbBPE1o9QAYvviau/qC5SE3caw21q3xkvWKBtja5vgqOWIHHJ3ioaq1VPfn/Szqctz2bU/oYeKd9/z5BL+PVg==}
+
+  tiny-typed-emitter@2.1.0:
+    resolution: {integrity: sha512-qVtvMxeXbVej0cQWKqVSSAHmKZEHAvxdF8HEUBFWts8h+xEo5m/lEiPakuyZ3BnCBjOD8i24kzNOiOLLgsSxhA==}
 
   tinybench@2.9.0:
     resolution: {integrity: sha512-0+DUvqWMValLmha6lr4kD8iAMK1HzV0/aKnCtWb9v9641TnP/MFb7Pc2bxoxQjTXAErryXVgUOfv2YqNllqGeg==}
@@ -5909,6 +5925,19 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  electron-updater@6.8.9:
+    dependencies:
+      builder-util-runtime: 9.7.0
+      fs-extra: 10.1.0
+      js-yaml: 4.2.0
+      lazy-val: 1.0.5
+      lodash.escaperegexp: 4.1.2
+      lodash.isequal: 4.5.0
+      semver: 7.7.4
+      tiny-typed-emitter: 2.1.0
+    transitivePeerDependencies:
+      - supports-color
+
   electron-vite@5.0.0(vite@7.3.5(@types/node@22.19.21)(jiti@2.7.0)(lightningcss@1.32.0)):
     dependencies:
       '@babel/core': 7.29.7
@@ -6674,6 +6703,10 @@ snapshots:
 
   lines-and-columns@1.2.4: {}
 
+  lodash.escaperegexp@4.1.2: {}
+
+  lodash.isequal@4.5.0: {}
+
   lodash@4.18.1: {}
 
   log-symbols@6.0.0:
@@ -7133,11 +7166,11 @@ snapshots:
 
   node-abi@4.31.0:
     dependencies:
-      semver: 7.7.4
+      semver: 7.8.4
 
   node-api-version@0.2.1:
     dependencies:
-      semver: 7.7.4
+      semver: 7.8.4
 
   node-domexception@1.0.0: {}
 
@@ -7154,7 +7187,7 @@ snapshots:
       graceful-fs: 4.2.11
       nopt: 9.0.0
       proc-log: 6.1.0
-      semver: 7.7.4
+      semver: 7.8.4
       tar: 7.5.16
       tinyglobby: 0.2.17
       undici: 6.26.0
@@ -7893,6 +7926,8 @@ snapshots:
       semver: 5.7.2
 
   tiny-invariant@1.3.3: {}
+
+  tiny-typed-emitter@2.1.0: {}
 
   tinybench@2.9.0: {}
 
