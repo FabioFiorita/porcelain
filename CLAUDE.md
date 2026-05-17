@@ -1,6 +1,6 @@
 # Porcelain
 
-Agent-managed foundations. Claude owns this file and the skills under `.claude/skills/` — keep them accurate and never let the codebase diverge from them. `AGENTS.md` is a symlink to this file. Keep this file slim: detail belongs in skills.
+Agent-managed foundations. This file owns project agent guidance; skills live in `.agents/skills/` and are symlinked into `.claude/skills/` for Claude discovery. Keep them accurate and never let the codebase diverge from them. `AGENTS.md` is a symlink to this file. Keep this file slim: detail belongs in skills.
 
 Porcelain is a lightweight macOS viewer + agent companion (Electron). Not an editor.
 
@@ -13,19 +13,18 @@ Porcelain is a lightweight macOS viewer + agent companion (Electron). Not an edi
 5. **shadcn primitives only.** Always use shadcn components for UI primitives; never hand-roll one (sidebar, tabs, dialogs, trees, etc.). If a needed primitive doesn't exist in shadcn/registries, **get the user's approval before building it**.
 6. **No type escape hatches.** No `any`, no `as unknown as` casts. If type safety requires a different design (e.g. tRPC over a hand-rolled bridge), prefer the safer design.
 
-## Skills (in `.claude/skills/`)
+## Skills (in `.agents/skills/`, symlinked at `.claude/skills/`)
 
 - `architecture` — stack, repo facts, aliases, conventions, app shell. Read before writing any code.
 - `product` — what Porcelain is, core features, product principles. Read before designing features/UI.
-
-Vendor skills in `.agents/skills/`: `shadcn`, `vercel-composition-patterns`, `frontend-design`.
+- `shadcn`, `vercel-composition-patterns`, `frontend-design` — vendor skills.
 
 ## Decision log
 - 2026-06-12: Stack: electron-vite/React 19/TS strict, shadcn+Tailwind v4, pnpm, Biome, Vitest+Playwright, Conventional Commits.
 - 2026-06-12: shadcn on **Base UI** instead of Radix (user choice), `base-nova` preset.
 - 2026-06-12: zustand; git via CLI shell-out; xterm.js + node-pty; per-repo config in app-side store.
 - 2026-06-12: App shell = sidebar + tabs + collapsible bottom terminal; one repo per window; react-resizable-panels.
-- 2026-06-12: Docs split: slim CLAUDE.md + project skills in `.claude/skills/`.
+- 2026-06-12: Docs split: slim CLAUDE.md + project skills in `.agents/skills/` (symlinked at `.claude/skills/`).
 - 2026-06-12: IPC = **tRPC over electron-trpc** (user choice over hand-rolled bridge: no casts, zod-validated inputs). File tree = lazy per-directory reads.
 - 2026-06-12: shadcn `sidebar` primitive for the app sidebar (user feedback → hard rule 5); sidebar collapses to rail, no drag-resize.
 - 2026-06-12: Folder hiding: right-click Hide/Unhide + eye toggle (dimmed in show-hidden mode); filtering in MAIN process. Recents on welcome screen (app config store in userData/config.json).
@@ -55,6 +54,9 @@ Vendor skills in `.agents/skills/`: `shadcn`, `vercel-composition-patterns`, `fr
 
 - 2026-06-12: Quick edits shipped (user decision — relaxes "read-only by design"): pencil on text-file tabs → plain textarea (NOT CodeMirror/Monaco; staying lightweight), Cmd+S saves via `writeTextFile`. Viewer right-click menu: Copy / Find references / Copy (relative) path / Reveal in Finder; edit mode gets Cut/Copy/Paste. Find references = `git grep --fixed-strings` → `search` tab kind, results jump to line (Tab.line + VirtualRows scrollToLine + row highlight). Quick commands got distinct per-command icons. GOTCHA: ui ContextMenuTrigger defaults to `select-none` — pass `select-text` where selection matters.
 
-## Open decisions (ask before implementing)
+- 2026-06-12: Branding: porcelain squircle logo (sources from user) → `build/icon.{png,icns,ico}` (832px artwork padded to 1024, regenerate via iconutil) + `src/renderer/src/assets/logo.png` on welcome/empty viewer. Subtitle everywhere: "Review changes as a story".
+- 2026-06-12: Packaging & auto-update: `electron-builder.yml` (dmg+zip arm64, Developer ID signing from keychain, hardened runtime, `notarize: false` until notarytool creds exist), `pnpm dist` = local installer, `pnpm release` = publish to GitHub releases (`fabiofiorita/porcelain`, needs `GH_TOKEN`). `electron-updater` in `src/main/updater.ts` (packaged only, 4h checks, auto-download, install on quit), `update-status` AppEvent → `updateStatus` query → `UpdateButton` pill in TopBar ("Update to vX" → quitAndInstall).
+
+- 2026-06-12: Skills canonical in `.agents/skills/`; `.claude/skills/` symlinks all skills for Claude discovery. Root `AGENTS.md` symlinks to `CLAUDE.md` (canonical). Vercel composition skill compiled doc renamed `AGENTS.md` → `GUIDE.md` to avoid colliding with root.
 
 - Agent-session integration design (beyond a plain terminal)

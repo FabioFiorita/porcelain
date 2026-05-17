@@ -5,6 +5,7 @@ Engineering
 January 2026
 
 > **Note:**  
+> Compiled reference for this skill (`GUIDE.md`), not the repo-root `AGENTS.md`.  
 > This document is mainly for agents and LLMs to follow when maintaining,  
 > generating, or refactoring React codebases using composition. Humans  
 > may also find it useful, but guidance here is optimized for automation  
