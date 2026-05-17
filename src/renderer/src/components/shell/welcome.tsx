@@ -1,3 +1,4 @@
+import logo from '@renderer/assets/logo.png'
 import { Button } from '@renderer/components/ui/button'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
@@ -10,9 +11,10 @@ export function Welcome(): React.JSX.Element {
 
   return (
     <div className="flex h-full flex-col items-center justify-center gap-6">
-      <div className="text-center">
-        <h1 className="text-3xl font-semibold tracking-tight">porcelain</h1>
-        <p className="mt-1 text-sm text-muted-foreground">viewer · git · agent companion</p>
+      <div className="flex flex-col items-center text-center">
+        <img src={logo} alt="" className="size-24" draggable={false} />
+        <h1 className="mt-3 text-3xl font-semibold tracking-tight">porcelain</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Review changes as a story</p>
       </div>
       <Button onClick={openRepo}>
         <FolderOpen />

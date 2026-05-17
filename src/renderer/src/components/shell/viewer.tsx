@@ -1,3 +1,4 @@
+import logo from '@renderer/assets/logo.png'
 import { CommitView } from '@renderer/components/git/commit-view'
 import { DiffView } from '@renderer/components/git/diff-view'
 import { Button } from '@renderer/components/ui/button'
@@ -356,8 +357,10 @@ export function Viewer(): React.JSX.Element {
   if (!activeTab) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-1 text-muted-foreground">
-        <p className="text-lg font-medium">porcelain</p>
-        <p className="text-sm">Open a file from the sidebar to view it</p>
+        <img src={logo} alt="" className="size-16 opacity-80" draggable={false} />
+        <p className="mt-2 text-lg font-medium">porcelain</p>
+        <p className="text-sm">Review changes as a story</p>
+        <p className="mt-3 text-xs">Open a file from the sidebar to view it</p>
       </div>
     )
   }
