@@ -29,10 +29,9 @@ function FileRow({ file }: { file: FlowFile }): React.JSX.Element {
   const name = file.path.split('/').at(-1) ?? file.path
   const connects = file.connects.map((c) => c.split('/').at(-1)).join(', ')
 
-  const prefetchDiff = (): void => {
+  const prefetchDiff = async (): Promise<void> => {
     if (!repo) return
-    // warm the diff while the pointer hovers so opening the tab feels instant
-    void utils.gitDiffFile.prefetch(
+    await utils.gitDiffFile.prefetch(
       { repoPath: repo.path, filePath: file.path },
       { staleTime: 2000 },
     )

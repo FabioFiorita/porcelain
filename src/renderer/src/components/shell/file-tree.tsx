@@ -113,7 +113,7 @@ export function TreeNode({ entry }: { entry: DirEntry }): React.JSX.Element {
         <EntryContextMenu entry={entry}>
           <SidebarMenuButton
             className={cn(entry.hidden && 'opacity-50', isSelected && 'bg-sidebar-accent')}
-            onMouseEnter={() => void utils.readFile.prefetch(entry.path)}
+            onMouseEnter={() => utils.readFile.prefetch(entry.path)}
             onClick={(e) => {
               if (e.metaKey || e.ctrlKey) {
                 toggleSelection(entry.path)

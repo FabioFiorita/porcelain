@@ -12,6 +12,7 @@ Porcelain is a lightweight macOS viewer + agent companion (Electron). Not an edi
 4. **Keep docs in sync:** every architectural/product decision updates the relevant skill and the decision log below in the same commit.
 5. **shadcn primitives only.** Always use shadcn components for UI primitives; never hand-roll one (sidebar, tabs, dialogs, trees, etc.). If a needed primitive doesn't exist in shadcn/registries, **get the user's approval before building it**.
 6. **No type escape hatches.** No `any`, no `as unknown as` casts. If type safety requires a different design (e.g. tRPC over a hand-rolled bridge), prefer the safer design.
+7. **No `void` on promises.** Never write `void somePromise()` to silence floating promises — use `async`/`await` (or `await Promise.all([...])` when batching). Bare calls like `utils.foo.invalidate()` in sync handlers are fine when you truly don't need to wait.
 
 ## Skills (in `.agents/skills/`, symlinked at `.claude/skills/`)
 
@@ -58,5 +59,6 @@ Porcelain is a lightweight macOS viewer + agent companion (Electron). Not an edi
 - 2026-06-12: Packaging & auto-update: `electron-builder.yml` (dmg+zip arm64, Developer ID signing from keychain, hardened runtime, `notarize: false` until notarytool creds exist), `pnpm dist` = local installer, `pnpm release` = publish to GitHub releases (`fabiofiorita/porcelain`, needs `GH_TOKEN`). `electron-updater` in `src/main/updater.ts` (packaged only, 4h checks, auto-download, install on quit), `update-status` AppEvent → `updateStatus` query → `UpdateButton` pill in TopBar ("Update to vX" → quitAndInstall).
 
 - 2026-06-12: Skills canonical in `.agents/skills/`; `.claude/skills/` symlinks all skills for Claude discovery. Root `AGENTS.md` symlinks to `CLAUDE.md` (canonical). Vercel composition skill compiled doc renamed `AGENTS.md` → `GUIDE.md` to avoid colliding with root.
+- 2026-06-12: No `void` on promises — use async/await for tRPC invalidation, prefetch, clipboard, etc.
 
 - Agent-session integration design (beyond a plain terminal)

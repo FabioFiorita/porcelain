@@ -49,8 +49,12 @@ function usePathActions(path: string): {
   const revealMutation = trpc.revealInFinder.useMutation()
 
   return {
-    copyPath: () => void navigator.clipboard.writeText(path),
-    copyRelativePath: () => void navigator.clipboard.writeText(relativeTo(repo?.path, path)),
+    copyPath: () => {
+      navigator.clipboard.writeText(path)
+    },
+    copyRelativePath: () => {
+      navigator.clipboard.writeText(relativeTo(repo?.path, path))
+    },
     reveal: () => revealMutation.mutate(path),
     findReferences: (text) => {
       const query = text.trim()
@@ -81,7 +85,7 @@ function SourceContextMenu({
       <ContextMenuContent className="w-56">
         <ContextMenuItem
           disabled={selection === ''}
-          onClick={() => void navigator.clipboard.writeText(selection)}
+          onClick={() => navigator.clipboard.writeText(selection)}
         >
           <Copy /> Copy
         </ContextMenuItem>
@@ -253,17 +257,17 @@ function FileEditor({
         </ContextMenuTrigger>
         <ContextMenuContent className="w-44">
           <ContextMenuItem
-            onClick={() => {
-              void navigator.clipboard.writeText(selectedText())
+            onClick={async () => {
+              await navigator.clipboard.writeText(selectedText())
               insertAtCursor('')
             }}
           >
             <Scissors /> Cut
           </ContextMenuItem>
-          <ContextMenuItem onClick={() => void navigator.clipboard.writeText(selectedText())}>
+          <ContextMenuItem onClick={() => navigator.clipboard.writeText(selectedText())}>
             <Copy /> Copy
           </ContextMenuItem>
-          <ContextMenuItem onClick={() => void paste()}>
+          <ContextMenuItem onClick={() => paste()}>
             <ClipboardPaste /> Paste
           </ContextMenuItem>
         </ContextMenuContent>

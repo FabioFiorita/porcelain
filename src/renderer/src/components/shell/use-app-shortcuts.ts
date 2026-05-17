@@ -8,9 +8,9 @@ export function useAppShortcuts(): void {
 
   useEffect(() => {
     const subscription = trpcClient.appEvents.subscribe(undefined, {
-      onData: (event) => {
+      onData: async (event) => {
         if (event === 'update-status') {
-          void utils.updateStatus.invalidate()
+          await utils.updateStatus.invalidate()
           return
         }
         if (event !== 'close-tab') return
