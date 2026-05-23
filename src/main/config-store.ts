@@ -1,24 +1,13 @@
 import { app } from 'electron'
-import { readFile, writeFile } from 'fs/promises'
 import { join } from 'path'
+import { createJsonStore } from './json-store'
 import { type AppConfig, appConfigSchema, emptyConfig } from './repo-config'
 
-const configPath = (): string => join(app.getPath('userData'), 'config.json')
+const store = createJsonStore<AppConfig>({
+  path: () => join(app.getPath('userData'), 'config.json'),
+  parse: (raw) => appConfigSchema.parse(raw),
+  empty: emptyConfig,
+})
 
-let cached: AppConfig | null = null
-
-export async function loadConfig(): Promise<AppConfig> {
-  if (cached) return cached
-  try {
-    const raw = await readFile(configPath(), 'utf8')
-    cached = appConfigSchema.parse(JSON.parse(raw))
-  } catch {
-    cached = emptyConfig
-  }
-  return cached
-}
-
-export async function saveConfig(config: AppConfig): Promise<void> {
-  cached = config
-  await writeFile(configPath(), JSON.stringify(config, null, 2), 'utf8')
-}
+export const loadConfig = store.load
+export const updateConfig = store.update

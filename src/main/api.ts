@@ -5,7 +5,7 @@ import { readdir, readFile, stat, writeFile } from 'fs/promises'
 import { basename, join } from 'path'
 import { z } from 'zod'
 import { type AppEvent, subscribeAppEvents } from './app-events'
-import { loadConfig, saveConfig } from './config-store'
+import { loadConfig, updateConfig } from './config-store'
 import { type CommitConventions, parseConventions } from './conventions'
 import { buildFlow, DEFAULT_LAYERS, type FlowGroup, type Layer } from './flow'
 import { fuzzySearch } from './fuzzy'
@@ -84,7 +84,7 @@ function isValidPattern(pattern: string): boolean {
 }
 
 async function recordRecent(path: string): Promise<void> {
-  await saveConfig(withRecentRepo(await loadConfig(), path))
+  await updateConfig((config) => withRecentRepo(config, path))
 }
 
 // gitFlow polls every 3s; re-reading up to 200 changed files each tick is the
@@ -175,25 +175,25 @@ export const router = t.router({
   hidePath: t.procedure
     .input(z.object({ repoPath: z.string(), path: z.string() }))
     .mutation(async ({ input }) => {
-      await saveConfig(withHiddenPath(await loadConfig(), input.repoPath, input.path))
+      await updateConfig((config) => withHiddenPath(config, input.repoPath, input.path))
     }),
 
   unhidePath: t.procedure
     .input(z.object({ repoPath: z.string(), path: z.string() }))
     .mutation(async ({ input }) => {
-      await saveConfig(withoutHiddenPath(await loadConfig(), input.repoPath, input.path))
+      await updateConfig((config) => withoutHiddenPath(config, input.repoPath, input.path))
     }),
 
   pinPath: t.procedure
     .input(z.object({ repoPath: z.string(), path: z.string() }))
     .mutation(async ({ input }) => {
-      await saveConfig(withPinnedPath(await loadConfig(), input.repoPath, input.path))
+      await updateConfig((config) => withPinnedPath(config, input.repoPath, input.path))
     }),
 
   unpinPath: t.procedure
     .input(z.object({ repoPath: z.string(), path: z.string() }))
     .mutation(async ({ input }) => {
-      await saveConfig(withoutPinnedPath(await loadConfig(), input.repoPath, input.path))
+      await updateConfig((config) => withoutPinnedPath(config, input.repoPath, input.path))
     }),
 
   pinnedEntries: t.procedure.input(z.string()).query(async ({ input }): Promise<DirEntry[]> => {
@@ -334,7 +334,7 @@ export const router = t.router({
       }),
     )
     .mutation(async ({ input }) => {
-      await saveConfig(withRepoLayers(await loadConfig(), input.repoPath, input.layers))
+      await updateConfig((config) => withRepoLayers(config, input.repoPath, input.layers))
     }),
 
   gitBranch: t.procedure.input(z.string()).query(({ input }) => gitBranch(input)),
