@@ -25,6 +25,7 @@ import {
   QUICK_COMMANDS,
   warmFileList,
 } from './git'
+import { exceedsReadLimit } from './read-limits'
 import {
   hiddenPathsFor,
   layersFor,
@@ -57,6 +58,7 @@ export type FileView =
   | { type: 'text'; content: string }
   | { type: 'image'; dataUrl: string }
   | { type: 'binary'; size: number }
+  | { type: 'too-large'; size: number }
 
 const IMAGE_MIME: Record<string, string> = {
   png: 'image/png',
@@ -237,6 +239,10 @@ export const router = t.router({
     }),
 
   readFile: t.procedure.input(z.string()).query(async ({ input }): Promise<FileView> => {
+    const info = await stat(input)
+    if (exceedsReadLimit(info.size)) {
+      return { type: 'too-large', size: info.size }
+    }
     const ext = input.split('.').at(-1)?.toLowerCase() ?? ''
     const imageMime = IMAGE_MIME[ext]
     if (imageMime) {

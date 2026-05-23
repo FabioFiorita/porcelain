@@ -352,6 +352,14 @@ function FileContent({ path, line }: { path: string; line?: number }): React.JSX
     )
   }
 
+  if (view.type === 'too-large') {
+    return (
+      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+        File too large to preview · {(view.size / (1024 * 1024)).toFixed(1)} MB
+      </div>
+    )
+  }
+
   return <TextFileView path={path} content={view.content} line={line} />
 }
 

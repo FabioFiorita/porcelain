@@ -13,7 +13,7 @@ have **none**. Everything needed is inlined in each plan file.
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
 | 001  | Allowlist external-URL schemes before `shell.openExternal` | P1 | S | — | DONE |
-| 002  | Guard large-file reads with a size limit | P1 | M | — | TODO |
+| 002  | Guard large-file reads with a size limit | P1 | M | — | DONE |
 | 003  | Make the config store durable and race-free | P1 | M | — | TODO |
 | 004  | Cover hidden-path filtering with unit tests | P2 | S | — | TODO |
 
