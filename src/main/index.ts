@@ -5,6 +5,7 @@ import { join } from 'path'
 import icon from '../../resources/icon.png?asset'
 import { router } from './api'
 import { emitAppEvent } from './app-events'
+import { isSafeExternalUrl } from './external-url'
 import { initUpdater } from './updater'
 
 function createWindow(): void {
@@ -54,7 +55,9 @@ function createWindow(): void {
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
+    if (isSafeExternalUrl(details.url)) {
+      shell.openExternal(details.url)
+    }
     return { action: 'deny' }
   })
 
