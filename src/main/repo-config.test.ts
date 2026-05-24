@@ -4,6 +4,7 @@ import {
   hiddenPathsFor,
   layersFor,
   pinnedPathsFor,
+  visibleFilePaths,
   withHiddenPath,
   withoutHiddenPath,
   withoutPinnedPath,
@@ -90,5 +91,42 @@ describe('repo layers', () => {
     let config = withHiddenPath(emptyConfig, '/repo', '/repo/x')
     config = withRepoLayers(config, '/repo', layers)
     expect(hiddenPathsFor(config, '/repo')).toEqual(new Set(['/repo/x']))
+  })
+})
+
+describe('visibleFilePaths', () => {
+  it('returns all files when nothing is hidden', () => {
+    expect(visibleFilePaths('/repo', ['src/a.ts', 'src/b.ts'], new Set())).toEqual([
+      'src/a.ts',
+      'src/b.ts',
+    ])
+  })
+
+  it('hides the subtree of an absolute hidden directory', () => {
+    expect(
+      visibleFilePaths(
+        '/repo',
+        ['src/foo/a.ts', 'src/foo', 'src/bar.ts'],
+        new Set(['/repo/src/foo']),
+      ),
+    ).toEqual(['src/bar.ts'])
+  })
+
+  it('hides the subtree of a repo-relative hidden directory', () => {
+    expect(visibleFilePaths('/repo', ['src/foo/a.ts', 'src/bar.ts'], new Set(['src/foo']))).toEqual(
+      ['src/bar.ts'],
+    )
+  })
+
+  it('keeps siblings that merely share a name prefix', () => {
+    expect(visibleFilePaths('/repo', ['src/foobar.ts'], new Set(['src/foo']))).toEqual([
+      'src/foobar.ts',
+    ])
+  })
+
+  it('hides an exact file without touching near-matches', () => {
+    expect(
+      visibleFilePaths('/repo', ['src/a.ts', 'src/ab.ts'], new Set(['/repo/src/a.ts'])),
+    ).toEqual(['src/ab.ts'])
   })
 })

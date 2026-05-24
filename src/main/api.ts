@@ -30,6 +30,7 @@ import {
   hiddenPathsFor,
   layersFor,
   pinnedPathsFor,
+  visibleFilePaths,
   withHiddenPath,
   withoutHiddenPath,
   withoutPinnedPath,
@@ -103,16 +104,7 @@ function visibleFiles(repoPath: string, files: string[], hidden: ReadonlySet<str
   const hiddenKey = [...hidden].sort().join('\0')
   const cached = visibleFilesCache.get(repoPath)
   if (cached && cached.files === files && cached.hiddenKey === hiddenKey) return cached.visible
-  const visible =
-    hidden.size === 0
-      ? files
-      : files.filter((f) => {
-          for (const h of hidden) {
-            const rel = h.startsWith(`${repoPath}/`) ? h.slice(repoPath.length + 1) : h
-            if (f === rel || f.startsWith(`${rel}/`)) return false
-          }
-          return true
-        })
+  const visible = visibleFilePaths(repoPath, files, hidden)
   visibleFilesCache.set(repoPath, { files, hiddenKey, visible })
   return visible
 }
