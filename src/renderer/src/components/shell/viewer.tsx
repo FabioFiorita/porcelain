@@ -83,29 +83,32 @@ function SourceContextMenu({
       {/* the ui trigger defaults to select-none; the viewer must stay selectable */}
       <ContextMenuTrigger className="block h-full select-text">{children}</ContextMenuTrigger>
       <ContextMenuContent className="w-56">
-        <ContextMenuItem
-          disabled={selection === ''}
-          onClick={() => navigator.clipboard.writeText(selection)}
-        >
-          <Copy /> Copy
-        </ContextMenuItem>
-        <ContextMenuItem
-          disabled={selection.trim() === ''}
-          onClick={() => findReferences(selection)}
-        >
-          <Search /> Find references
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem onClick={copyPath}>
-          <Link2 /> Copy path
-        </ContextMenuItem>
-        <ContextMenuItem onClick={copyRelativePath}>
-          <FileSymlink /> Copy relative path
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem onClick={reveal}>
-          <FolderOpen /> Reveal in Finder
-        </ContextMenuItem>
+        {selection !== '' ? (
+          <>
+            <ContextMenuItem onClick={() => navigator.clipboard.writeText(selection)}>
+              <Copy /> Copy
+            </ContextMenuItem>
+            <ContextMenuItem
+              disabled={selection.trim() === ''}
+              onClick={() => findReferences(selection)}
+            >
+              <Search /> Find references
+            </ContextMenuItem>
+          </>
+        ) : (
+          <>
+            <ContextMenuItem onClick={copyPath}>
+              <Link2 /> Copy path
+            </ContextMenuItem>
+            <ContextMenuItem onClick={copyRelativePath}>
+              <FileSymlink /> Copy relative path
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+            <ContextMenuItem onClick={reveal}>
+              <FolderOpen /> Reveal in Finder
+            </ContextMenuItem>
+          </>
+        )}
       </ContextMenuContent>
     </ContextMenu>
   )

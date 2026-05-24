@@ -80,6 +80,7 @@ function RepoShell(): React.JSX.Element {
   const { state, toggleSidebar } = useSidebar()
   const rightSidebarOpen = usePreferencesStore((s) => s.rightSidebarOpen)
   const setRightSidebarOpen = usePreferencesStore((s) => s.setRightSidebarOpen)
+  const rightSidebarWidth = usePreferencesStore((s) => s.rightSidebarWidth)
   const left: LeftSidebarHandle = { collapsed: state === 'collapsed', toggle: toggleSidebar }
 
   return (
@@ -89,7 +90,7 @@ function RepoShell(): React.JSX.Element {
         onOpenChange={setRightSidebarOpen}
         shortcut="."
         className="h-full min-h-0"
-        style={{ '--sidebar-width': '17rem' } as React.CSSProperties}
+        style={{ '--sidebar-width': `${rightSidebarWidth}px` } as React.CSSProperties}
       >
         <div className="flex h-full min-w-0 flex-1 flex-col">
           <TopBar left={left} />

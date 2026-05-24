@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { TreeNode } from './file-tree'
+import { RightSidebarResizeHandle } from './sidebar-resize-handle'
 
 const QUICK_COMMANDS = [
   { id: 'status', label: 'git status', icon: Info },
@@ -224,6 +225,7 @@ export function RightSidebar(): React.JSX.Element {
 
   return (
     <Sidebar side="right" collapsible="offcanvas">
+      <RightSidebarResizeHandle />
       <SidebarHeader className="app-drag h-10 flex-row items-center border-b py-0">
         <span className="truncate text-xs font-medium uppercase tracking-wider text-muted-foreground">
           Quick access

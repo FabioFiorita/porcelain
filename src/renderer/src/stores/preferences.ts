@@ -12,12 +12,14 @@ interface PreferencesState {
   diffMode: DiffMode
   markdownMode: MarkdownMode
   rightSidebarOpen: boolean
+  rightSidebarWidth: number
   sidebarTab: SidebarTab
   sidebarWidth: number
   setDiffMode: (mode: DiffMode) => void
   setMarkdownMode: (mode: MarkdownMode) => void
   setSidebarTab: (tab: SidebarTab) => void
   setRightSidebarOpen: (open: boolean) => void
+  setRightSidebarWidth: (width: number) => void
   setSidebarWidth: (width: number) => void
 }
 
@@ -27,12 +29,15 @@ export const usePreferencesStore = create<PreferencesState>()(
       diffMode: 'unified',
       markdownMode: 'reader',
       rightSidebarOpen: true,
+      rightSidebarWidth: 272,
       sidebarTab: 'files',
       sidebarWidth: 256,
       setDiffMode: (diffMode) => set({ diffMode }),
       setMarkdownMode: (markdownMode) => set({ markdownMode }),
       setSidebarTab: (sidebarTab) => set({ sidebarTab }),
       setRightSidebarOpen: (rightSidebarOpen) => set({ rightSidebarOpen }),
+      setRightSidebarWidth: (width) =>
+        set({ rightSidebarWidth: Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, width)) }),
       setSidebarWidth: (width) =>
         set({ sidebarWidth: Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, width)) }),
     }),
