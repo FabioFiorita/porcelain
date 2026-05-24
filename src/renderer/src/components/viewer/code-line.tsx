@@ -28,11 +28,11 @@ interface CodeLineProps {
 
 export function CodeLine({ text, lang, highlighter }: CodeLineProps): React.JSX.Element {
   if (!lang || !highlighter || text === '') {
-    return <pre className="flex-1 whitespace-pre-wrap">{text || ' '}</pre>
+    return <pre className="flex-1 whitespace-pre">{text || ' '}</pre>
   }
 
   return (
-    <pre className="flex-1 whitespace-pre-wrap">
+    <pre className="flex-1 whitespace-pre">
       {tokenizeLine(highlighter, text, lang).map((token, i) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: tokens are static per line
         <span key={i} style={{ color: token.color }}>

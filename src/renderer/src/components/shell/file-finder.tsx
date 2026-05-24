@@ -2,6 +2,7 @@ import {
   Command,
   CommandDialog,
   CommandEmpty,
+  CommandGroup,
   CommandInput,
   CommandItem,
   CommandList,
@@ -75,22 +76,24 @@ export function FileFinder(): React.JSX.Element {
             ) : (
               <CommandEmpty>No files found</CommandEmpty>
             ))}
-          {results.map((path) => {
-            const slash = path.lastIndexOf('/')
-            const name = slash === -1 ? path : path.slice(slash + 1)
-            const dir = slash === -1 ? '' : path.slice(0, slash)
-            return (
-              <CommandItem key={path} value={path} onSelect={() => select(path)}>
-                <File className="shrink-0 text-muted-foreground" />
-                <span className="shrink-0">{name}</span>
-                {dir && (
-                  <span className="min-w-0 truncate text-xs text-muted-foreground" dir="rtl">
-                    {dir}
-                  </span>
-                )}
-              </CommandItem>
-            )
-          })}
+          <CommandGroup>
+            {results.map((path) => {
+              const slash = path.lastIndexOf('/')
+              const name = slash === -1 ? path : path.slice(slash + 1)
+              const dir = slash === -1 ? '' : path.slice(0, slash)
+              return (
+                <CommandItem key={path} value={path} onSelect={() => select(path)}>
+                  <File className="shrink-0 text-muted-foreground" />
+                  <span className="shrink-0">{name}</span>
+                  {dir && (
+                    <span className="min-w-0 truncate text-xs text-muted-foreground" dir="rtl">
+                      {dir}
+                    </span>
+                  )}
+                </CommandItem>
+              )
+            })}
+          </CommandGroup>
         </CommandList>
       </Command>
     </CommandDialog>

@@ -149,6 +149,7 @@ export const router = t.router({
       const pinned = new Set(pinnedPathsFor(config, input.repoPath))
       const entries = await readdir(input.path, { withFileTypes: true })
       return entries
+        .filter((entry) => entry.name !== '.DS_Store')
         .map(
           (entry): DirEntry => ({
             name: entry.name,
