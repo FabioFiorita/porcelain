@@ -19,6 +19,7 @@ function TabItem({ tab, isLast }: { tab: Tab; isLast: boolean }): React.JSX.Elem
   const closeTabsToLeft = useTabsStore((s) => s.closeTabsToLeft)
   const closeTabsToRight = useTabsStore((s) => s.closeTabsToRight)
   const closeAllTabs = useTabsStore((s) => s.closeAllTabs)
+  const pinTab = useTabsStore((s) => s.pinTab)
   const isFirst = tabs[0]?.id === tab.id
 
   return (
@@ -32,13 +33,14 @@ function TabItem({ tab, isLast }: { tab: Tab; isLast: boolean }): React.JSX.Elem
               : 'text-muted-foreground hover:bg-muted/50',
           )}
           onClick={() => activateTab(tab.id)}
+          onDoubleClick={() => pinTab(tab.id)}
           onAuxClick={(e) => e.button === 1 && closeTab(tab.id)}
           onKeyDown={(e) => e.key === 'Enter' && activateTab(tab.id)}
           role="tab"
           tabIndex={0}
           aria-selected={tab.id === activeTabId}
         >
-          <span className="max-w-40 truncate">{tab.title}</span>
+          <span className={cn('max-w-40 truncate', tab.preview && 'italic')}>{tab.title}</span>
           <Button
             variant="ghost"
             size="icon-sm"

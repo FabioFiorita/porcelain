@@ -309,7 +309,10 @@ function TextFileView({
           <Button
             variant="ghost"
             size="icon-sm"
-            onClick={() => setEditing(true)}
+            onClick={() => {
+              useTabsStore.getState().pinTab(path)
+              setEditing(true)
+            }}
             aria-label="Edit file"
           >
             <Pencil />

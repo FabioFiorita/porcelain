@@ -103,6 +103,7 @@ function useReadDir(path: string, enabled = true): DirEntry[] | undefined {
 
 export function TreeNode({ entry }: { entry: DirEntry }): React.JSX.Element {
   const openTab = useTabsStore((s) => s.openTab)
+  const pinTab = useTabsStore((s) => s.pinTab)
   const isSelected = useSelectionStore((s) => s.selected.has(entry.path))
   const toggleSelection = useSelectionStore((s) => s.toggle)
   const utils = trpc.useUtils()
@@ -119,8 +120,15 @@ export function TreeNode({ entry }: { entry: DirEntry }): React.JSX.Element {
                 toggleSelection(entry.path)
                 return
               }
-              openTab({ id: entry.path, kind: 'file', title: entry.name, path: entry.path })
+              openTab({
+                id: entry.path,
+                kind: 'file',
+                title: entry.name,
+                path: entry.path,
+                preview: true,
+              })
             }}
+            onDoubleClick={() => pinTab(entry.path)}
           >
             <File className="text-muted-foreground" />
             <span className="truncate">{entry.name}</span>

@@ -10,12 +10,15 @@ export interface Tab {
   path: string
   /** 1-based line to scroll to when opening (search results jump here). */
   line?: number
+  /** Preview tabs (single-click) are replaced by the next preview; double-click pins. */
+  preview?: boolean
 }
 
 interface TabsState {
   tabs: Tab[]
   activeTabId: string | null
   openTab: (tab: Tab) => void
+  pinTab: (id: string) => void
   closeTab: (id: string) => void
   closeOtherTabs: (id: string) => void
   closeTabsToLeft: (id: string) => void
@@ -47,12 +50,32 @@ export const useTabsStore = create<TabsState>((set) => ({
   openTab: (tab) =>
     set((state) => {
       const existing = state.tabs.find((t) => t.id === tab.id)
-      const tabs = existing
-        ? // re-opening can carry a new target line (e.g. another search result)
-          state.tabs.map((t) => (t.id === tab.id ? { ...t, line: tab.line ?? t.line } : t))
-        : [...state.tabs, tab]
-      return { tabs, activeTabId: tab.id }
+      if (existing) {
+        // re-opening can carry a new target line; a non-preview re-open pins
+        const tabs = state.tabs.map((t) =>
+          t.id === tab.id
+            ? {
+                ...t,
+                line: tab.line ?? t.line,
+                preview: t.preview === true && tab.preview === true,
+              }
+            : t,
+        )
+        return { tabs, activeTabId: tab.id }
+      }
+      if (tab.preview) {
+        const previewIndex = state.tabs.findIndex((t) => t.preview)
+        if (previewIndex !== -1) {
+          const tabs = state.tabs.map((t, index) => (index === previewIndex ? tab : t))
+          return { tabs, activeTabId: tab.id }
+        }
+      }
+      return { tabs: [...state.tabs, tab], activeTabId: tab.id }
     }),
+  pinTab: (id) =>
+    set((state) => ({
+      tabs: state.tabs.map((t) => (t.id === id ? { ...t, preview: false } : t)),
+    })),
   closeTab: (id) =>
     set((state) => {
       const index = state.tabs.findIndex((t) => t.id === id)
