@@ -1,17 +1,8 @@
 import { Button } from '@renderer/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@renderer/components/ui/dialog'
 import { Input } from '@renderer/components/ui/input'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
-import { ChevronDown, ChevronUp, Plus, Settings2, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, Plus, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { Layer } from '../../../../main/flow'
 
@@ -102,17 +93,14 @@ let nextDraftId = 0
 const toDraft = (layers: Layer[]): DraftLayer[] =>
   layers.map((layer) => ({ ...layer, id: nextDraftId++ }))
 
-export function FlowLayersDialog(): React.JSX.Element | null {
+export function FlowLayersSection({ onSaved }: { onSaved: () => void }): React.JSX.Element | null {
   const repo = useRepoStore((s) => s.repo)
-  const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState<DraftLayer[]>([])
   const utils = trpc.useUtils()
-  const { data } = trpc.repoLayers.useQuery(repo?.path ?? '', {
-    enabled: open && repo !== null,
-  })
+  const { data } = trpc.repoLayers.useQuery(repo?.path ?? '', { enabled: repo !== null })
   const saveMutation = trpc.setRepoLayers.useMutation()
 
-  // seed the draft from the saved layers each time the dialog opens
+  // seed the draft from the saved layers each time the section mounts/refetches
   useEffect(() => {
     if (data) setDraft(toDraft(data.layers))
   }, [data])
@@ -138,73 +126,59 @@ export function FlowLayersDialog(): React.JSX.Element | null {
       layers: layers?.map(({ label, pattern }) => ({ label, pattern })) ?? null,
     })
     await Promise.all([utils.repoLayers.invalidate(), utils.gitFlow.invalidate()])
-    setOpen(false)
+    onSaved()
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="app-no-drag"
-            aria-label="Review flow settings"
-          >
-            <Settings2 />
-          </Button>
-        }
-      />
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Review flow layers</DialogTitle>
-          <DialogDescription>
-            Changed files are grouped into these layers, top to bottom, so a diff reads as a story
-            from entry point to data. Saved for this repository only.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="rounded-md bg-muted/40 p-3 text-xs text-muted-foreground">
-          <p>
-            Each pattern is a regular expression tested against the repo-relative path. When several
-            match, the one matching furthest right wins, and unmatched files land in “Other”.
-            Directory layers look like <code className="font-mono">(^|/)components?/</code> while
-            filename layers like <code className="font-mono">{'\\.(test|spec)\\.[a-z]+$'}</code>{' '}
-            beat the folder the file sits in. Example: give Storybook files their own group with a{' '}
-            <span className="text-foreground">Stories</span> layer matching{' '}
-            <code className="font-mono">{'\\.stories\\.[a-z]+$'}</code> — otherwise they sort into
-            the layer of their folder.
-          </p>
-        </div>
-        <div className="flex max-h-80 flex-col gap-1.5 overflow-y-auto pr-1">
-          {draft.map((layer, index) => (
-            <LayerRow
-              key={layer.id}
-              layer={layer}
-              index={index}
-              count={draft.length}
-              onChange={(l) => update(index, l)}
-              onMove={(d) => move(index, d)}
-              onRemove={() => setDraft(draft.filter((_, i) => i !== index))}
-            />
-          ))}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="self-start"
-            onClick={() => setDraft([...draft, { label: '', pattern: '', id: nextDraftId++ }])}
-          >
-            <Plus /> Add layer
-          </Button>
-        </div>
-        <DialogFooter className="sm:justify-between">
-          <Button variant="ghost" size="sm" onClick={() => save(null)}>
-            Reset to defaults
-          </Button>
-          <Button size="sm" disabled={!valid || saveMutation.isLoading} onClick={() => save(draft)}>
-            Save
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <div className="flex flex-col gap-3">
+      <div>
+        <h3 className="text-sm font-medium">Review flow layers</h3>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Changed files are grouped into these layers, top to bottom, so a diff reads as a story
+          from entry point to data. Saved for this repository only.
+        </p>
+      </div>
+      <div className="rounded-md bg-muted/40 p-3 text-xs text-muted-foreground">
+        <p>
+          Each pattern is a regular expression tested against the repo-relative path. When several
+          match, the one matching furthest right wins, and unmatched files land in “Other”.
+          Directory layers look like <code className="font-mono">(^|/)components?/</code> while
+          filename layers like <code className="font-mono">{'\\.(test|spec)\\.[a-z]+$'}</code> beat
+          the folder the file sits in. Example: give Storybook files their own group with a{' '}
+          <span className="text-foreground">Stories</span> layer matching{' '}
+          <code className="font-mono">{'\\.stories\\.[a-z]+$'}</code> — otherwise they sort into the
+          layer of their folder.
+        </p>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        {draft.map((layer, index) => (
+          <LayerRow
+            key={layer.id}
+            layer={layer}
+            index={index}
+            count={draft.length}
+            onChange={(l) => update(index, l)}
+            onMove={(d) => move(index, d)}
+            onRemove={() => setDraft(draft.filter((_, i) => i !== index))}
+          />
+        ))}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="self-start"
+          onClick={() => setDraft([...draft, { label: '', pattern: '', id: nextDraftId++ }])}
+        >
+          <Plus /> Add layer
+        </Button>
+      </div>
+      <div className="flex items-center justify-between">
+        <Button variant="ghost" size="sm" onClick={() => save(null)}>
+          Reset to defaults
+        </Button>
+        <Button size="sm" disabled={!valid || saveMutation.isLoading} onClick={() => save(draft)}>
+          Save
+        </Button>
+      </div>
+    </div>
   )
 }
