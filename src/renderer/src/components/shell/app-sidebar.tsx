@@ -15,13 +15,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@renderer/components/u
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
-import { Eye, EyeOff, FolderOpen } from 'lucide-react'
+import { Eye, EyeOff } from 'lucide-react'
 import { FileTree } from './file-tree'
+import { ProjectSwitcher } from './project-switcher'
 import { SidebarResizeHandle } from './sidebar-resize-handle'
 
 export function AppSidebar(): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)
-  const openRepo = useRepoStore((s) => s.openRepo)
   const showHidden = useRepoStore((s) => s.showHidden)
   const toggleShowHidden = useRepoStore((s) => s.toggleShowHidden)
   const sidebarTab = usePreferencesStore((s) => s.sidebarTab)
@@ -31,9 +31,7 @@ export function AppSidebar(): React.JSX.Element {
     <Sidebar>
       <SidebarResizeHandle />
       <SidebarHeader className="app-drag h-10 flex-row items-center justify-between border-b py-0 pl-[4.75rem]">
-        <span className="truncate text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          {repo?.name ?? 'Files'}
-        </span>
+        <ProjectSwitcher />
         <div className="app-no-drag flex items-center">
           <Tooltip>
             <TooltipTrigger
@@ -51,21 +49,6 @@ export function AppSidebar(): React.JSX.Element {
             <TooltipContent>
               {showHidden ? 'Conceal hidden entries' : 'Show hidden entries'}
             </TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={openRepo}
-                  aria-label="Open repository"
-                >
-                  <FolderOpen />
-                </Button>
-              }
-            />
-            <TooltipContent>Open repository</TooltipContent>
           </Tooltip>
         </div>
       </SidebarHeader>
