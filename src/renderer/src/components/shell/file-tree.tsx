@@ -15,12 +15,13 @@ import {
   SidebarMenuItem,
   SidebarMenuSub,
 } from '@renderer/components/ui/sidebar'
+import { FileTypeIcon, FolderIcon } from '@renderer/components/viewer/file-icon'
 import { trpc } from '@renderer/lib/trpc'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useSelectionStore } from '@renderer/stores/selection'
 import { useTabsStore } from '@renderer/stores/tabs'
-import { ChevronRight, File, Folder } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
 import { useState } from 'react'
 import type { DirEntry } from '../../../../main/api'
 
@@ -130,7 +131,7 @@ export function TreeNode({ entry }: { entry: DirEntry }): React.JSX.Element {
             }}
             onDoubleClick={() => pinTab(entry.path)}
           >
-            <File className="text-muted-foreground" />
+            <FileTypeIcon name={entry.name} />
             <span className="truncate">{entry.name}</span>
           </SidebarMenuButton>
         </EntryContextMenu>
@@ -167,7 +168,7 @@ function DirNode({ entry }: { entry: DirEntry }): React.JSX.Element {
                 }}
               >
                 <ChevronRight className="transition-transform" />
-                <Folder className="text-muted-foreground" />
+                <FolderIcon open={expanded} />
                 <span className="truncate">{entry.name}</span>
               </SidebarMenuButton>
             }

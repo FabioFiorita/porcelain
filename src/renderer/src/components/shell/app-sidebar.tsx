@@ -15,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@renderer/components/u
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, Files, GitCompareArrows, History } from 'lucide-react'
 import { FileTree } from './file-tree'
 import { ProjectSwitcher } from './project-switcher'
 import { SidebarResizeHandle } from './sidebar-resize-handle'
@@ -64,9 +64,15 @@ export function AppSidebar(): React.JSX.Element {
             className="flex h-full flex-col gap-0"
           >
             <TabsList className="mx-2 mt-2 grid w-auto grid-cols-3">
-              <TabsTrigger value="files">Files</TabsTrigger>
-              <TabsTrigger value="changes">Changes</TabsTrigger>
-              <TabsTrigger value="history">History</TabsTrigger>
+              <TabsTrigger value="files">
+                <Files className="text-sky-400" /> Files
+              </TabsTrigger>
+              <TabsTrigger value="changes">
+                <GitCompareArrows className="text-amber-400" /> Changes
+              </TabsTrigger>
+              <TabsTrigger value="history">
+                <History className="text-violet-400" /> History
+              </TabsTrigger>
             </TabsList>
             <TabsContent value="files">
               <SidebarGroup>

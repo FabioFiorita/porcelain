@@ -7,10 +7,10 @@ import {
   CommandItem,
   CommandList,
 } from '@renderer/components/ui/command'
+import { FileTypeIcon } from '@renderer/components/viewer/file-icon'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useTabsStore } from '@renderer/stores/tabs'
-import { File } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 export function FileFinder(): React.JSX.Element {
@@ -83,7 +83,7 @@ export function FileFinder(): React.JSX.Element {
               const dir = slash === -1 ? '' : path.slice(0, slash)
               return (
                 <CommandItem key={path} value={path} onSelect={() => select(path)}>
-                  <File className="shrink-0 text-muted-foreground" />
+                  <FileTypeIcon name={name} className="shrink-0" />
                   <span className="shrink-0">{name}</span>
                   {dir && (
                     <span className="min-w-0 truncate text-xs text-muted-foreground" dir="rtl">
