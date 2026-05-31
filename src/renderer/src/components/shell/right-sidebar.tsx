@@ -21,6 +21,7 @@ import {
   GitCommitHorizontal,
   Info,
   RefreshCw,
+  Sparkles,
 } from 'lucide-react'
 import { useState } from 'react'
 import { TreeNode } from './file-tree'
@@ -69,6 +70,11 @@ function QuickCommandsGroup(): React.JSX.Element {
     null,
   )
   const runMutation = trpc.gitQuickCommand.useMutation()
+  const { data: suggestions = [] } = trpc.gitSuggestions.useQuery(repo?.path ?? '', {
+    enabled: repo !== null,
+    staleTime: 0,
+    refetchInterval: 5000,
+  })
 
   const run = async (command: { id: string; label: string }): Promise<void> => {
     if (!repo || running) return
@@ -93,6 +99,30 @@ function QuickCommandsGroup(): React.JSX.Element {
     <SidebarGroup>
       <SidebarGroupLabel>Quick commands</SidebarGroupLabel>
       <SidebarGroupContent className="flex flex-col gap-0.5">
+        {suggestions.length > 0 && (
+          <div className="mb-1 flex flex-col gap-0.5">
+            {suggestions.map((suggestion) => {
+              const command = QUICK_COMMANDS.find((c) => c.id === suggestion.command)
+              if (!command) return null
+              return (
+                <Button
+                  key={suggestion.command}
+                  variant="ghost"
+                  size="sm"
+                  className="h-auto justify-start py-1 text-left"
+                  disabled={running !== null}
+                  onClick={() => run(command)}
+                >
+                  <Sparkles className="size-3 shrink-0 text-amber-400" />
+                  <span className="flex min-w-0 flex-col items-start">
+                    <span className="font-mono text-xs">{command.label}</span>
+                    <span className="text-[10px] text-muted-foreground">{suggestion.reason}</span>
+                  </span>
+                </Button>
+              )
+            })}
+          </div>
+        )}
         {QUICK_COMMANDS.map((command) => (
           <Button
             key={command.id}

@@ -21,6 +21,7 @@ import {
   gitNumstat,
   gitQuickCommand,
   gitStatus,
+  gitSuggestions,
   gitWorktrees,
   QUICK_COMMANDS,
   warmFileList,
@@ -210,6 +211,8 @@ export const router = t.router({
     )
     return entries.filter((e): e is DirEntry => e !== null)
   }),
+
+  gitSuggestions: t.procedure.input(z.string()).query(({ input }) => gitSuggestions(input)),
 
   gitQuickCommand: t.procedure
     .input(
