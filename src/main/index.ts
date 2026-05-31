@@ -5,7 +5,16 @@ import { join } from 'path'
 import icon from '../../resources/icon.png?asset'
 import { router } from './api'
 import { emitAppEvent } from './app-events'
+import { seedDevConfig } from './dev-config'
 import { isSafeExternalUrl } from './external-url'
+
+// Dev gets its own config dir so `pnpm dev` never touches (or hijacks) the
+// state of the installed app the user works in. Must run before anything
+// reads userData (the config store is lazy, so before whenReady is enough).
+if (is.dev) {
+  app.setPath('userData', `${app.getPath('userData')}-dev`)
+}
+
 import { initUpdater } from './updater'
 
 function createWindow(): void {
@@ -73,9 +82,13 @@ function createWindow(): void {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.fabiofiorita.porcelain')
+
+  if (is.dev) {
+    await seedDevConfig()
+  }
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
