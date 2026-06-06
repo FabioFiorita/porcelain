@@ -1,5 +1,7 @@
 import { Button } from '@renderer/components/ui/button'
+import { Kbd } from '@renderer/components/ui/kbd'
 import { SidebarInset, SidebarProvider, useSidebar } from '@renderer/components/ui/sidebar'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { trpc } from '@renderer/lib/trpc'
 import { cn } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
@@ -47,30 +49,48 @@ function TopBar({ left }: { left: LeftSidebarHandle }): React.JSX.Element {
 
   return (
     <div className="app-drag flex h-10 items-end border-b bg-sidebar">
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        onClick={left.toggle}
-        aria-label="Toggle sidebar"
-        className={cn(
-          'app-no-drag m-1 ml-2 self-center',
-          // collapsed sidebar puts this strip at the window edge, under the traffic lights
-          left.collapsed && 'ml-[4.75rem]',
-        )}
-      >
-        <PanelLeft />
-      </Button>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={left.toggle}
+              aria-label="Toggle sidebar"
+              className={cn(
+                'app-no-drag m-1 ml-2 self-center',
+                // collapsed sidebar puts this strip at the window edge, under the traffic lights
+                left.collapsed && 'ml-[4.75rem]',
+              )}
+            >
+              <PanelLeft />
+            </Button>
+          }
+        />
+        <TooltipContent className="flex items-center gap-1.5">
+          Toggle sidebar <Kbd>⌘B</Kbd>
+        </TooltipContent>
+      </Tooltip>
       <TabBar />
       <UpdateButton />
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        onClick={() => setRightSidebarOpen(!rightSidebarOpen)}
-        aria-label="Toggle quick access sidebar"
-        className="app-no-drag m-1 mr-2 self-center"
-      >
-        <PanelRight />
-      </Button>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setRightSidebarOpen(!rightSidebarOpen)}
+              aria-label="Toggle quick access sidebar"
+              className="app-no-drag m-1 mr-2 self-center"
+            >
+              <PanelRight />
+            </Button>
+          }
+        />
+        <TooltipContent className="flex items-center gap-1.5">
+          Quick access <Kbd>⌘.</Kbd>
+        </TooltipContent>
+      </Tooltip>
     </div>
   )
 }

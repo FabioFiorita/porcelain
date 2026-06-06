@@ -73,9 +73,10 @@ export const useTabsStore = create<TabsState>((set) => ({
       return { tabs: [...state.tabs, tab], activeTabId: tab.id }
     }),
   pinTab: (id) =>
-    set((state) => ({
-      tabs: state.tabs.map((t) => (t.id === id ? { ...t, preview: false } : t)),
-    })),
+    set((state) => {
+      if (!state.tabs.some((t) => t.id === id && t.preview)) return state
+      return { tabs: state.tabs.map((t) => (t.id === id ? { ...t, preview: false } : t)) }
+    }),
   closeTab: (id) =>
     set((state) => {
       const index = state.tabs.findIndex((t) => t.id === id)

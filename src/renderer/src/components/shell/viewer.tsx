@@ -10,6 +10,7 @@ import {
   ContextMenuTrigger,
 } from '@renderer/components/ui/context-menu'
 import { Input } from '@renderer/components/ui/input'
+import { Kbd } from '@renderer/components/ui/kbd'
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
 import { CodeLine, useHighlighter } from '@renderer/components/viewer/code-line'
 import { isMarkdownPath, MarkdownView } from '@renderer/components/viewer/markdown-view'
@@ -29,8 +30,6 @@ import {
   FileSymlink,
   FolderOpen,
   Link2,
-  Pencil,
-  Save,
   Scissors,
   Search,
   X,
@@ -265,44 +264,75 @@ function MarkdownModeToggle(): React.JSX.Element {
   )
 }
 
-function FileEditor({
+// Above this many lines the viewer falls back to the read-only virtualized
+// view — the editor renders every line into the DOM.
+const EDITABLE_MAX_LINES = 5000
+const AUTOSAVE_DELAY_MS = 800
+
+function EditorSource({
   path,
   initialContent,
-  onClose,
+  highlightLine,
 }: {
   path: string
   initialContent: string
-  onClose: () => void
+  highlightLine?: number
 }): React.JSX.Element {
-  const repo = useRepoStore((s) => s.repo)
   const utils = trpc.useUtils()
   const [content, setContent] = useState(initialContent)
+  const [savedContent, setSavedContent] = useState(initialContent)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const backdropRef = useRef<HTMLDivElement>(null)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const highlighter = useHighlighter()
   const lang = languageFor(path)
+  const { findReferences, copyPath, copyRelativePath, reveal } = usePathActions(path)
   const saveMutation = trpc.writeTextFile.useMutation({
-    onSuccess: async () => {
+    onSuccess: async (_data, variables) => {
+      setSavedContent(variables.content)
       // the edit changes git state too, not just the file
       await Promise.all([
         utils.readFile.invalidate(path),
         utils.gitFlow.invalidate(),
         utils.gitDiffFile.invalidate(),
       ])
-      onClose()
     },
   })
 
-  const save = (): void => {
-    if (saveMutation.isLoading) return
+  const saveRef = useRef<() => void>(() => {})
+  saveRef.current = (): void => {
+    if (timerRef.current) clearTimeout(timerRef.current)
+    if (content === savedContent) return
     saveMutation.mutate({ path, content })
   }
+
+  const edit = (next: string): void => {
+    setContent(next)
+    // an edited preview tab must not be silently replaced
+    useTabsStore.getState().pinTab(path)
+    if (timerRef.current) clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(() => saveRef.current(), AUTOSAVE_DELAY_MS)
+  }
+
+  // flush pending changes when the tab unmounts (close, switch, mode change)
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+      saveRef.current()
+    }
+  }, [])
+
+  useEffect(() => {
+    const el = textareaRef.current
+    if (!el || highlightLine === undefined) return
+    el.scrollTop = Math.max(0, (highlightLine - 1) * 20 - el.clientHeight / 2 + 10)
+  }, [highlightLine])
 
   const insertAtCursor = (text: string): void => {
     const el = textareaRef.current
     if (!el) return
     const { selectionStart, selectionEnd, value } = el
-    setContent(value.slice(0, selectionStart) + text + value.slice(selectionEnd))
+    edit(value.slice(0, selectionStart) + text + value.slice(selectionEnd))
     requestAnimationFrame(() => {
       el.focus()
       el.selectionStart = el.selectionEnd = selectionStart + text.length
@@ -319,86 +349,102 @@ function FileEditor({
     insertAtCursor(await navigator.clipboard.readText())
   }
 
+  const dirty = content !== savedContent
+
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex h-9 items-center justify-between gap-2 border-b px-3">
-        <span className="truncate font-mono text-xs text-muted-foreground">
-          {relativeTo(repo?.path, path)} — editing
-        </span>
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="sm" onClick={onClose} disabled={saveMutation.isLoading}>
-            <X /> Cancel
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={save}
-            disabled={saveMutation.isLoading || content === initialContent}
-          >
-            <Save /> {saveMutation.isLoading ? 'Saving…' : 'Save'}
-          </Button>
-        </div>
-      </div>
-      {saveMutation.error && (
-        <p className="border-b px-3 py-1 text-xs text-destructive">{saveMutation.error.message}</p>
-      )}
-      <ContextMenu>
-        <ContextMenuTrigger className="relative block min-h-0 flex-1 select-text overflow-hidden">
-          {/* Highlighted mirror of the textarea content; the textarea on top has
-              transparent text so the native caret/selection sit over the colors. */}
-          <div
-            ref={backdropRef}
-            aria-hidden
-            className="pointer-events-none absolute inset-0 overflow-hidden px-4 py-2 font-mono text-xs leading-5"
-          >
-            <div className="w-max min-w-full">
-              {content.split('\n').map((line, i) => (
-                // biome-ignore lint/suspicious/noArrayIndexKey: lines have no stable identity
-                <EditorLine key={i} text={line} lang={lang} highlighter={highlighter} />
-              ))}
-            </div>
+    <ContextMenu>
+      <ContextMenuTrigger className="relative block h-full select-text overflow-hidden">
+        {/* Highlighted mirror of the textarea content; the textarea on top has
+            transparent text so the native caret/selection sit over the colors. */}
+        <div
+          ref={backdropRef}
+          aria-hidden
+          className="pointer-events-none absolute inset-0 overflow-hidden px-4 py-2 font-mono text-xs leading-5"
+        >
+          <div className="w-max min-w-full">
+            {content.split('\n').map((line, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: lines have no stable identity
+              <div key={i} className={cn('flex', i + 1 === highlightLine && 'bg-primary/15')}>
+                <span className="w-10 shrink-0 select-none pr-3 text-right text-muted-foreground/50">
+                  {i + 1}
+                </span>
+                <EditorLine text={line} lang={lang} highlighter={highlighter} />
+              </div>
+            ))}
           </div>
-          <textarea
-            ref={textareaRef}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            onScroll={(e) => {
-              const backdrop = backdropRef.current
-              if (!backdrop) return
-              backdrop.scrollTop = e.currentTarget.scrollTop
-              backdrop.scrollLeft = e.currentTarget.scrollLeft
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 's' && (e.metaKey || e.ctrlKey)) {
-                e.preventDefault()
-                save()
-              }
-              if (e.key === 'Escape') onClose()
-            }}
-            spellCheck={false}
-            wrap="off"
-            aria-label={`Edit ${path}`}
-            className="absolute inset-0 size-full resize-none whitespace-pre bg-transparent px-4 py-2 font-mono text-xs leading-5 text-transparent caret-foreground outline-none"
-          />
-        </ContextMenuTrigger>
-        <ContextMenuContent className="w-44">
-          <ContextMenuItem
-            onClick={async () => {
-              await navigator.clipboard.writeText(selectedText())
-              insertAtCursor('')
-            }}
-          >
-            <Scissors /> Cut
-          </ContextMenuItem>
-          <ContextMenuItem onClick={() => navigator.clipboard.writeText(selectedText())}>
-            <Copy /> Copy
-          </ContextMenuItem>
-          <ContextMenuItem onClick={() => paste()}>
-            <ClipboardPaste /> Paste
-          </ContextMenuItem>
-        </ContextMenuContent>
-      </ContextMenu>
-    </div>
+        </div>
+        <textarea
+          ref={textareaRef}
+          value={content}
+          onChange={(e) => edit(e.target.value)}
+          onScroll={(e) => {
+            const backdrop = backdropRef.current
+            if (!backdrop) return
+            backdrop.scrollTop = e.currentTarget.scrollTop
+            backdrop.scrollLeft = e.currentTarget.scrollLeft
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 's' && (e.metaKey || e.ctrlKey)) {
+              e.preventDefault()
+              saveRef.current()
+            }
+          }}
+          spellCheck={false}
+          wrap="off"
+          aria-label={`Edit ${path}`}
+          className="absolute inset-0 size-full resize-none whitespace-pre bg-transparent py-2 pl-14 pr-4 font-mono text-xs leading-5 text-transparent caret-foreground outline-none"
+        />
+        {saveMutation.error ? (
+          <span className="pointer-events-none absolute bottom-2 right-3 rounded-md bg-muted/80 px-2 py-0.5 text-[10px] text-destructive">
+            {saveMutation.error.message}
+          </span>
+        ) : saveMutation.isLoading ? (
+          <span className="pointer-events-none absolute bottom-2 right-3 rounded-md bg-muted/80 px-2 py-0.5 text-[10px] text-muted-foreground">
+            Saving…
+          </span>
+        ) : dirty ? (
+          <span className="pointer-events-none absolute bottom-2 right-3 flex items-center gap-1 rounded-md bg-muted/80 px-2 py-0.5 text-[10px] text-muted-foreground">
+            Unsaved <Kbd>⌘S</Kbd>
+          </span>
+        ) : null}
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-56">
+        <ContextMenuItem
+          disabled={selectedText() === ''}
+          onClick={async () => {
+            await navigator.clipboard.writeText(selectedText())
+            insertAtCursor('')
+          }}
+        >
+          <Scissors /> Cut
+        </ContextMenuItem>
+        <ContextMenuItem
+          disabled={selectedText() === ''}
+          onClick={() => navigator.clipboard.writeText(selectedText())}
+        >
+          <Copy /> Copy
+        </ContextMenuItem>
+        <ContextMenuItem onClick={() => paste()}>
+          <ClipboardPaste /> Paste
+        </ContextMenuItem>
+        <ContextMenuItem
+          disabled={selectedText().trim() === ''}
+          onClick={() => findReferences(selectedText())}
+        >
+          <Search /> Find references
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem onClick={copyPath}>
+          <Link2 /> Copy path
+        </ContextMenuItem>
+        <ContextMenuItem onClick={copyRelativePath}>
+          <FileSymlink /> Copy relative path
+        </ContextMenuItem>
+        <ContextMenuItem onClick={reveal}>
+          <FolderOpen /> Reveal in Finder
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   )
 }
 
@@ -413,11 +459,12 @@ function TextFileView({
 }): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)
   const markdownMode = usePreferencesStore((s) => s.markdownMode)
-  const [editing, setEditing] = useState(false)
   const [finding, setFinding] = useState(false)
   const [findLine, setFindLine] = useState<number | undefined>(undefined)
   const markdown = isMarkdownPath(path)
   const reader = markdown && markdownMode === 'reader'
+  const editable = !reader && content.split('\n').length <= EDITABLE_MAX_LINES
+  const highlightLine = finding && findLine !== undefined ? findLine : line
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent): void => {
@@ -430,46 +477,29 @@ function TextFileView({
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
-  if (editing) {
-    return <FileEditor path={path} initialContent={content} onClose={() => setEditing(false)} />
-  }
-
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-9 items-center justify-between gap-2 border-b px-3">
         <span className="truncate font-mono text-xs text-muted-foreground">
           {relativeTo(repo?.path, path)}
         </span>
-        <div className="flex items-center gap-1">
-          {markdown && <MarkdownModeToggle />}
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => {
-              useTabsStore.getState().pinTab(path)
-              setEditing(true)
-            }}
-            aria-label="Edit file"
-          >
-            <Pencil />
-          </Button>
-        </div>
+        {markdown && <MarkdownModeToggle />}
       </div>
       {finding && !reader && (
         <FindBar content={content} onClose={() => setFinding(false)} onMatchLine={setFindLine} />
       )}
       <div className="min-h-0 flex-1">
-        <SourceContextMenu path={path}>
-          {reader ? (
+        {reader ? (
+          <SourceContextMenu path={path}>
             <MarkdownView content={content} />
-          ) : (
-            <SourceView
-              path={path}
-              content={content}
-              highlightLine={finding && findLine !== undefined ? findLine : line}
-            />
-          )}
-        </SourceContextMenu>
+          </SourceContextMenu>
+        ) : editable ? (
+          <EditorSource path={path} initialContent={content} highlightLine={highlightLine} />
+        ) : (
+          <SourceContextMenu path={path}>
+            <SourceView path={path} content={content} highlightLine={highlightLine} />
+          </SourceContextMenu>
+        )}
       </div>
     </div>
   )
@@ -521,7 +551,9 @@ export function Viewer(): React.JSX.Element {
         <img src={logo} alt="" className="size-16 opacity-80" draggable={false} />
         <p className="mt-2 text-lg font-medium">porcelain</p>
         <p className="text-sm">Review changes as a story</p>
-        <p className="mt-3 text-xs">Open a file from the sidebar to view it</p>
+        <p className="mt-3 flex items-center gap-1.5 text-xs">
+          Open a file from the sidebar, or press <Kbd>⌘P</Kbd> to search
+        </p>
       </div>
     )
   }
