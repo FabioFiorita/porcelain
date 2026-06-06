@@ -66,6 +66,7 @@ Porcelain is a lightweight macOS viewer + agent companion (Electron). Not an edi
 - 2026-06-12: Settings dialog (`components/settings/settings-dialog.tsx`): gear in sidebar footer → dialog with nested `SidebarProvider` (shortcut={null}) — sections General (diff/markdown prefs) + Review flow (`flow-layers-section.tsx`, replaces the old standalone FlowLayersDialog).
 - 2026-06-12: Project switcher dropdown in the sidebar header (`project-switcher.tsx`, recent repos + open dialog; switching clears tabs like worktrees). Colored per-filetype icons (`components/viewer/file-icon.tsx`) in tree/finder; folder icon follows expanded state; sidebar tabs got distinct colored icons.
 - 2026-06-12: Git suggestions: `parseSuggestions` (`src/main/suggestions.ts`, pure + tested) over `status --porcelain=v2 --branch` + `stash list` → `gitSuggestions` procedure → "Suggested" sparkle rows atop Quick commands (pull when behind, push when ahead, stash pop when stashed, stash when dirty; 5s poll).
+- 2026-06-12: Edit mode keeps syntax highlighting: transparent-text textarea over an aria-hidden Shiki backdrop (memoized per-line, scroll-synced) — still no CodeMirror/Monaco.
 - 2026-06-12: Dev/prod config split: `pnpm dev` sets `userData` to `porcelain-dev` (before anything reads config) and seeds first-run recents with `~/Code/porcelain-playground` (`src/main/dev-config.ts`) — dev never opens or hijacks the user's real repos; the installed app keeps its own state.
 
 - Agent-session integration design (beyond a plain terminal)

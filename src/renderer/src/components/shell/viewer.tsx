@@ -35,7 +35,7 @@ import {
   Search,
   X,
 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 
 function relativeTo(repoPath: string | undefined, path: string): string {
   return repoPath && path.startsWith(`${repoPath}/`) ? path.slice(repoPath.length + 1) : path
@@ -146,6 +146,9 @@ function SourceView({
     />
   )
 }
+
+// Memoized so a keystroke only re-tokenizes the lines that actually changed.
+const EditorLine = memo(CodeLine)
 
 function FindBar({
   content,
@@ -275,6 +278,9 @@ function FileEditor({
   const utils = trpc.useUtils()
   const [content, setContent] = useState(initialContent)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const backdropRef = useRef<HTMLDivElement>(null)
+  const highlighter = useHighlighter()
+  const lang = languageFor(path)
   const saveMutation = trpc.writeTextFile.useMutation({
     onSuccess: async () => {
       // the edit changes git state too, not just the file
@@ -337,11 +343,31 @@ function FileEditor({
         <p className="border-b px-3 py-1 text-xs text-destructive">{saveMutation.error.message}</p>
       )}
       <ContextMenu>
-        <ContextMenuTrigger className="block min-h-0 flex-1 select-text">
+        <ContextMenuTrigger className="relative block min-h-0 flex-1 select-text overflow-hidden">
+          {/* Highlighted mirror of the textarea content; the textarea on top has
+              transparent text so the native caret/selection sit over the colors. */}
+          <div
+            ref={backdropRef}
+            aria-hidden
+            className="pointer-events-none absolute inset-0 overflow-hidden px-4 py-2 font-mono text-xs leading-5"
+          >
+            <div className="w-max min-w-full">
+              {content.split('\n').map((line, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: lines have no stable identity
+                <EditorLine key={i} text={line} lang={lang} highlighter={highlighter} />
+              ))}
+            </div>
+          </div>
           <textarea
             ref={textareaRef}
             value={content}
             onChange={(e) => setContent(e.target.value)}
+            onScroll={(e) => {
+              const backdrop = backdropRef.current
+              if (!backdrop) return
+              backdrop.scrollTop = e.currentTarget.scrollTop
+              backdrop.scrollLeft = e.currentTarget.scrollLeft
+            }}
             onKeyDown={(e) => {
               if (e.key === 's' && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault()
@@ -350,8 +376,9 @@ function FileEditor({
               if (e.key === 'Escape') onClose()
             }}
             spellCheck={false}
+            wrap="off"
             aria-label={`Edit ${path}`}
-            className="size-full resize-none bg-transparent px-4 py-2 font-mono text-xs leading-5 outline-none"
+            className="absolute inset-0 size-full resize-none whitespace-pre bg-transparent px-4 py-2 font-mono text-xs leading-5 text-transparent caret-foreground outline-none"
           />
         </ContextMenuTrigger>
         <ContextMenuContent className="w-44">
