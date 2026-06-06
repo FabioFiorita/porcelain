@@ -2,12 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { parseConventions } from './conventions'
 
 describe('parseConventions', () => {
-  it('ranks used types first by frequency and appends unused defaults', () => {
+  it('offers only the types the repo actually uses, by frequency', () => {
     const subjects = ['wip: try things', 'wip: more', 'feat(dtc): add screen', 'fix: typo']
-    const { types } = parseConventions(subjects)
-    expect(types.slice(0, 3)).toEqual(['wip', 'feat', 'fix'])
-    expect(types).toContain('chore')
-    expect(types).toContain('refactor')
+    expect(parseConventions(subjects).types).toEqual(['wip', 'feat', 'fix'])
   })
 
   it('collects scopes by frequency', () => {

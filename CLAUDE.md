@@ -68,6 +68,7 @@ Porcelain is a lightweight macOS viewer + agent companion (Electron). Not an edi
 - 2026-06-12: Git suggestions: `parseSuggestions` (`src/main/suggestions.ts`, pure + tested) over `status --porcelain=v2 --branch` + `stash list` → `gitSuggestions` procedure → "Suggested" sparkle rows atop Quick commands (pull when behind, push when ahead, stash pop when stashed, stash when dirty; 5s poll).
 - 2026-06-12: Edit mode keeps syntax highlighting: transparent-text textarea over an aria-hidden Shiki backdrop (memoized per-line, scroll-synced) — still no CodeMirror/Monaco.
 - 2026-06-12: No edit button (user decision): text files are always editable with 800ms-debounced autosave (+flush on unmount, Cmd+S) and a status chip; >5000-line files fall back to read-only virtualized view; markdown reader stays read-only (edit in source mode). shadcn `kbd` added for shortcut hints (TopBar tooltips, ⌘P empty state, ⌘S chip).
+- 2026-06-12: Commit chips strictly history-derived (no static defaults appended; defaults only for repos with zero conventional commits). Sidebar tab bar = floating glass pill (sticky + backdrop-blur, rounded-full), labels collapse to icons under 17rem via container query.
 - 2026-06-12: Dev/prod config split: `pnpm dev` sets `userData` to `porcelain-dev` (before anything reads config) and seeds first-run recents with `~/Code/porcelain-playground` (`src/main/dev-config.ts`) — dev never opens or hijacks the user's real repos; the installed app keeps its own state.
 
 - Agent-session integration design (beyond a plain terminal)

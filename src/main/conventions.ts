@@ -1,14 +1,15 @@
-/** Conventional-commit types every repo gets offered, in display order. */
+/** Fallback types offered only when the history has no conventional commits. */
 export const DEFAULT_COMMIT_TYPES = ['feat', 'fix', 'chore', 'refactor', 'docs', 'test']
 
 export interface CommitConventions {
-  /** Commit types, most-used first; defaults appended even when unused. */
+  /** Commit types the repo actually uses, most-used first. */
   types: string[]
   /** Scopes seen in history (the `dtc` of `feat(dtc):`), most-used first. */
   scopes: string[]
 }
 
 const SUBJECT_RE = /^([a-z][a-z0-9-]*)(?:\(([^)]+)\))?!?:/
+const MAX_TYPES = 8
 const MAX_SCOPES = 8
 
 const byCount = (counts: Map<string, number>): string[] =>
@@ -27,10 +28,9 @@ export function parseConventions(subjects: readonly string[]): CommitConventions
     if (scope) scopeCounts.set(scope, (scopeCounts.get(scope) ?? 0) + 1)
   }
 
-  const used = byCount(typeCounts)
-  const unusedDefaults = DEFAULT_COMMIT_TYPES.filter((t) => !typeCounts.has(t))
+  const used = byCount(typeCounts).slice(0, MAX_TYPES)
   return {
-    types: [...used, ...unusedDefaults],
+    types: used.length > 0 ? used : [...DEFAULT_COMMIT_TYPES],
     scopes: byCount(scopeCounts).slice(0, MAX_SCOPES),
   }
 }

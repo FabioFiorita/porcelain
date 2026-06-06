@@ -61,17 +61,22 @@ export function AppSidebar(): React.JSX.Element {
                 setSidebarTab(value)
               }
             }}
-            className="flex h-full flex-col gap-0"
+            className="@container flex h-full flex-col gap-0"
           >
-            <TabsList className="mx-2 mt-2 grid w-auto grid-cols-3">
-              <TabsTrigger value="files">
-                <Files className="text-sky-400" /> Files
+            {/* iOS-style floating glass bar: stays pinned while the tree scrolls
+                under it; labels collapse to icons when the sidebar is narrow. */}
+            <TabsList className="sticky top-2 z-20 mx-2 mt-2 grid w-auto shrink-0 grid-cols-3 rounded-full border border-sidebar-border bg-sidebar-accent/40 shadow-lg backdrop-blur-xl">
+              <TabsTrigger value="files" className="rounded-full" aria-label="Files">
+                <Files className="text-sky-400" />
+                <span className="hidden @[17rem]:inline">Files</span>
               </TabsTrigger>
-              <TabsTrigger value="changes">
-                <GitCompareArrows className="text-amber-400" /> Changes
+              <TabsTrigger value="changes" className="rounded-full" aria-label="Changes">
+                <GitCompareArrows className="text-amber-400" />
+                <span className="hidden @[17rem]:inline">Changes</span>
               </TabsTrigger>
-              <TabsTrigger value="history">
-                <History className="text-violet-400" /> History
+              <TabsTrigger value="history" className="rounded-full" aria-label="History">
+                <History className="text-violet-400" />
+                <span className="hidden @[17rem]:inline">History</span>
               </TabsTrigger>
             </TabsList>
             <TabsContent value="files">
