@@ -3,6 +3,7 @@ import { HistoryList } from '@renderer/components/git/history-list'
 import { WorktreeSwitcher } from '@renderer/components/git/worktree-switcher'
 import { SettingsDialog } from '@renderer/components/settings/settings-dialog'
 import { Button } from '@renderer/components/ui/button'
+import { Kbd } from '@renderer/components/ui/kbd'
 import {
   Sidebar,
   SidebarContent,
@@ -66,18 +67,45 @@ export function AppSidebar(): React.JSX.Element {
             {/* iOS-style floating glass bar: stays pinned while the tree scrolls
                 under it; labels collapse to icons when the sidebar is narrow. */}
             <TabsList className="sticky top-2 z-20 mx-2 mt-2 grid w-auto shrink-0 grid-cols-3 rounded-full border border-sidebar-border bg-sidebar-accent/40 shadow-lg backdrop-blur-xl">
-              <TabsTrigger value="files" className="rounded-full" aria-label="Files">
-                <Files className="text-sky-400" />
-                <span className="hidden @[17rem]:inline">Files</span>
-              </TabsTrigger>
-              <TabsTrigger value="changes" className="rounded-full" aria-label="Changes">
-                <GitCompareArrows className="text-amber-400" />
-                <span className="hidden @[17rem]:inline">Changes</span>
-              </TabsTrigger>
-              <TabsTrigger value="history" className="rounded-full" aria-label="History">
-                <History className="text-violet-400" />
-                <span className="hidden @[17rem]:inline">History</span>
-              </TabsTrigger>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <TabsTrigger value="files" className="rounded-full" aria-label="Files">
+                      <Files className="text-sky-400" />
+                      <span className="hidden @[17rem]:inline">Files</span>
+                    </TabsTrigger>
+                  }
+                />
+                <TooltipContent className="flex items-center gap-1.5">
+                  Files <Kbd>⌘1</Kbd>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <TabsTrigger value="changes" className="rounded-full" aria-label="Changes">
+                      <GitCompareArrows className="text-amber-400" />
+                      <span className="hidden @[17rem]:inline">Changes</span>
+                    </TabsTrigger>
+                  }
+                />
+                <TooltipContent className="flex items-center gap-1.5">
+                  Changes <Kbd>⌘2</Kbd>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <TabsTrigger value="history" className="rounded-full" aria-label="History">
+                      <History className="text-violet-400" />
+                      <span className="hidden @[17rem]:inline">History</span>
+                    </TabsTrigger>
+                  }
+                />
+                <TooltipContent className="flex items-center gap-1.5">
+                  History <Kbd>⌘3</Kbd>
+                </TooltipContent>
+              </Tooltip>
             </TabsList>
             <TabsContent value="files">
               <SidebarGroup>

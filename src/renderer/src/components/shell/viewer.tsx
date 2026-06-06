@@ -7,6 +7,7 @@ import {
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
+  ContextMenuShortcut,
   ContextMenuTrigger,
 } from '@renderer/components/ui/context-menu'
 import { Input } from '@renderer/components/ui/input'
@@ -89,6 +90,9 @@ function SourceContextMenu({
           <>
             <ContextMenuItem onClick={() => navigator.clipboard.writeText(selection)}>
               <Copy /> Copy
+              <ContextMenuShortcut>
+                <Kbd>⌘C</Kbd>
+              </ContextMenuShortcut>
             </ContextMenuItem>
             <ContextMenuItem
               disabled={selection.trim() === ''}
@@ -281,6 +285,7 @@ function EditorSource({
   const utils = trpc.useUtils()
   const [content, setContent] = useState(initialContent)
   const [savedContent, setSavedContent] = useState(initialContent)
+  const [selection, setSelection] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const backdropRef = useRef<HTMLDivElement>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -352,7 +357,13 @@ function EditorSource({
   const dirty = content !== savedContent
 
   return (
-    <ContextMenu>
+    <ContextMenu
+      onOpenChange={(open) => {
+        // capture on open: nothing re-renders this component when the user
+        // selects text, so reading the selection at render time goes stale
+        if (open) setSelection(selectedText())
+      }}
+    >
       <ContextMenuTrigger className="relative block h-full select-text overflow-hidden">
         {/* Highlighted mirror of the textarea content; the textarea on top has
             transparent text so the native caret/selection sit over the colors. */}
@@ -408,28 +419,37 @@ function EditorSource({
           </span>
         ) : null}
       </ContextMenuTrigger>
-      <ContextMenuContent className="w-56">
+      <ContextMenuContent className="w-60">
         <ContextMenuItem
-          disabled={selectedText() === ''}
+          disabled={selection === ''}
           onClick={async () => {
-            await navigator.clipboard.writeText(selectedText())
+            await navigator.clipboard.writeText(selection)
             insertAtCursor('')
           }}
         >
           <Scissors /> Cut
+          <ContextMenuShortcut>
+            <Kbd>⌘X</Kbd>
+          </ContextMenuShortcut>
         </ContextMenuItem>
         <ContextMenuItem
-          disabled={selectedText() === ''}
-          onClick={() => navigator.clipboard.writeText(selectedText())}
+          disabled={selection === ''}
+          onClick={() => navigator.clipboard.writeText(selection)}
         >
           <Copy /> Copy
+          <ContextMenuShortcut>
+            <Kbd>⌘C</Kbd>
+          </ContextMenuShortcut>
         </ContextMenuItem>
         <ContextMenuItem onClick={() => paste()}>
           <ClipboardPaste /> Paste
+          <ContextMenuShortcut>
+            <Kbd>⌘V</Kbd>
+          </ContextMenuShortcut>
         </ContextMenuItem>
         <ContextMenuItem
-          disabled={selectedText().trim() === ''}
-          onClick={() => findReferences(selectedText())}
+          disabled={selection.trim() === ''}
+          onClick={() => findReferences(selection)}
         >
           <Search /> Find references
         </ContextMenuItem>

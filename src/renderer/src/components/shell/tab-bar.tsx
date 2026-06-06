@@ -3,8 +3,10 @@ import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
+  ContextMenuShortcut,
   ContextMenuTrigger,
 } from '@renderer/components/ui/context-menu'
+import { Kbd } from '@renderer/components/ui/kbd'
 import { ScrollArea } from '@renderer/components/ui/scroll-area'
 import { cn } from '@renderer/lib/utils'
 import { type Tab, useTabsStore } from '@renderer/stores/tabs'
@@ -56,7 +58,12 @@ function TabItem({ tab, isLast }: { tab: Tab; isLast: boolean }): React.JSX.Elem
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent>
-        <ContextMenuItem onClick={() => closeTab(tab.id)}>Close</ContextMenuItem>
+        <ContextMenuItem onClick={() => closeTab(tab.id)}>
+          Close
+          <ContextMenuShortcut>
+            <Kbd>⌘W</Kbd>
+          </ContextMenuShortcut>
+        </ContextMenuItem>
         <ContextMenuItem disabled={tabs.length < 2} onClick={() => closeOtherTabs(tab.id)}>
           Close Others
         </ContextMenuItem>
