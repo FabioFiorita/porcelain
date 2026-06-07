@@ -16,6 +16,7 @@ have **none**. Everything needed is inlined in each plan file.
 | 002  | Guard large-file reads with a size limit | P1 | M | — | DONE |
 | 003  | Make the config store durable and race-free | P1 | M | — | DONE |
 | 004  | Cover hidden-path filtering with unit tests | P2 | S | — | DONE |
+| 005  | Glaze design system (floating tiles, tokens, hover grammar) | P1 | L | — | IN PROGRESS (phases 0–1 landed; 2–4 sequenced behind the code-quality session) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (one-line reason) | REJECTED (one-line rationale)
 

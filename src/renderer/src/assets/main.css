@@ -120,6 +120,96 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+/* ────────────────────────────────────────────────────────────────────────
+   Glaze — Porcelain's design system (plans/005-glaze-design-system.md).
+   Floating porcelain tiles over the vibrancy void. Layered on top of the
+   b2D0xPJT8 preset above; the preset blocks stay untouched so a re-apply
+   never destroys these tokens.
+   ──────────────────────────────────────────────────────────────────────── */
+:root {
+  --radius-panel: 1rem;
+  --surface-0: oklch(0.985 0 0 / 0.62);
+  --surface-1: oklch(0.99 0 0 / 0.8);
+  --surface-2: oklch(1 0 0 / 0.86);
+  --surface-3: oklch(1 0 0 / 0.94);
+  --hairline: oklch(0.145 0 0 / 0.1);
+  --hairline-strong: oklch(0.145 0 0 / 0.14);
+  --glaze: oklch(1 0 0 / 0.55);
+  --glaze-strong: oklch(1 0 0 / 0.75);
+  --hover-fill: oklch(0.145 0 0 / 0.05);
+  --shadow-tile: 0 0 0 1px var(--hairline), 0 1px 2px oklch(0.5 0.02 165 / 0.1),
+    0 8px 24px -6px oklch(0.5 0.02 165 / 0.16);
+  --shadow-float: 0 0 0 1px var(--hairline-strong), 0 4px 8px oklch(0.5 0.02 165 / 0.1),
+    0 24px 60px -12px oklch(0.5 0.02 165 / 0.2);
+  --ease-glaze: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --dur-fast: 120ms;
+  --dur-base: 180ms;
+  --dur-slow: 240ms;
+  /* keyboard focus is the one place the emerald accent always appears */
+  --ring: oklch(0.508 0.118 165.612);
+}
+
+.dark {
+  --surface-0: oklch(0.205 0 0 / 0.55);
+  --surface-1: oklch(0.215 0 0 / 0.72);
+  --surface-2: oklch(0.24 0 0 / 0.8);
+  --surface-3: oklch(0.26 0 0 / 0.92);
+  --hairline: oklch(1 0 0 / 0.1);
+  --hairline-strong: oklch(1 0 0 / 0.16);
+  --glaze: oklch(1 0 0 / 0.14);
+  --glaze-strong: oklch(1 0 0 / 0.22);
+  --hover-fill: oklch(1 0 0 / 0.05);
+  --shadow-tile: 0 0 0 1px var(--hairline), 0 1px 2px oklch(0 0 0 / 0.3),
+    0 8px 24px -6px oklch(0 0 0 / 0.45);
+  --shadow-float: 0 0 0 1px var(--hairline-strong), 0 4px 8px oklch(0 0 0 / 0.3),
+    0 24px 60px -12px oklch(0 0 0 / 0.55);
+  --ring: oklch(0.696 0.17 162.48);
+}
+
+/* A fired porcelain tile: panel radius, glass fill, hairline edge + lifted
+   shadow, and the signature glaze edge (a specular top highlight fading out
+   toward the corners). Unlayered so it outranks preset utility classes; the
+   floating-sidebar selector makes shadcn floating sidebars tiles for free.
+   No backdrop-filter here — it would re-anchor fixed descendants, and blur is
+   a no-op over the native vibrancy void. */
+.glaze-tile,
+[data-variant='floating'] [data-slot='sidebar-inner'] {
+  position: relative;
+  border-radius: var(--radius-panel);
+  background: var(--tile-fill, var(--surface-0));
+  box-shadow: var(--shadow-tile);
+}
+.glaze-tile::before,
+[data-variant='floating'] [data-slot='sidebar-inner']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(180deg, var(--glaze) 0, transparent 3px);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+}
+
+/* Capsule segments (tabs, future segmented controls): the Glaze hover grammar —
+   the surface warms over --dur-fast; the active segment is a lit tile with a
+   glaze top line and an emerald underglow. */
+.glaze-segment {
+  transition:
+    background-color var(--dur-fast) var(--ease-glaze),
+    color var(--dur-fast) var(--ease-glaze);
+}
+.glaze-segment:hover {
+  background-color: var(--hover-fill);
+}
+.glaze-segment[data-active='true'] {
+  background-color: var(--surface-2);
+  box-shadow:
+    inset 0 1px 0 0 var(--glaze),
+    inset 0 -1px 0 0 color-mix(in oklch, var(--primary) 50%, transparent);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

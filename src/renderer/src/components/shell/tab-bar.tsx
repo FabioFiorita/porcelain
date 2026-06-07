@@ -29,11 +29,10 @@ function TabItem({ tab, isLast }: { tab: Tab; isLast: boolean }): React.JSX.Elem
       <ContextMenuTrigger>
         <div
           className={cn(
-            'app-no-drag group flex h-8 shrink-0 cursor-default items-center gap-1 rounded-t-md px-3 text-sm',
-            tab.id === activeTabId
-              ? 'bg-background text-foreground'
-              : 'text-muted-foreground hover:bg-muted/50',
+            'glaze-segment app-no-drag group flex h-7 shrink-0 cursor-default items-center gap-1 rounded-md px-3 text-sm',
+            tab.id === activeTabId ? 'text-foreground' : 'text-muted-foreground',
           )}
+          data-active={tab.id === activeTabId}
           onClick={() => activateTab(tab.id)}
           onDoubleClick={() => pinTab(tab.id)}
           onAuxClick={(e) => e.button === 1 && closeTab(tab.id)}
@@ -84,7 +83,7 @@ export function TabBar(): React.JSX.Element {
 
   return (
     <ScrollArea orientation="horizontal" className="min-w-0 flex-1 self-stretch">
-      <div className="flex h-full items-end gap-px">
+      <div className="flex h-full items-center gap-1">
         {tabs.map((tab, index) => (
           <TabItem key={tab.id} tab={tab} isLast={index === tabs.length - 1} />
         ))}

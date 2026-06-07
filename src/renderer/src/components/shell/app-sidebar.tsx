@@ -29,9 +29,10 @@ export function AppSidebar(): React.JSX.Element {
   const setSidebarTab = usePreferencesStore((s) => s.setSidebarTab)
 
   return (
-    <Sidebar>
+    <Sidebar variant="floating">
       <SidebarResizeHandle />
-      <SidebarHeader className="app-drag h-10 flex-row items-center justify-between border-b py-0 pl-[4.75rem]">
+      {/* pl clears the traffic lights, which sit 8px outside the floating tile */}
+      <SidebarHeader className="app-drag h-10 flex-row items-center justify-between border-b py-0 pl-[4.25rem]">
         <ProjectSwitcher />
         <div className="app-no-drag flex items-center">
           <Tooltip>
