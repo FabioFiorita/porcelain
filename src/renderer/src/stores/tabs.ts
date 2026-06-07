@@ -2,6 +2,13 @@ import { create } from 'zustand'
 
 export type TabKind = 'file' | 'diff' | 'commit' | 'search'
 
+// The tabs store is the router: a tab id is its kind plus its key (file path,
+// commit hash, or search query). Every opener must build ids through this so
+// the same target always maps to the same tab.
+export function tabId(kind: TabKind, key: string): string {
+  return `${kind}:${key}`
+}
+
 export interface Tab {
   id: string
   kind: TabKind

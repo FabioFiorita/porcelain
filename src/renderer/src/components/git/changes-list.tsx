@@ -1,3 +1,5 @@
+import type { FileStatus } from '@main/diff'
+import type { FlowFile } from '@main/flow'
 import { Button } from '@renderer/components/ui/button'
 import {
   SidebarGroupLabel,
@@ -6,13 +8,11 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@renderer/components/ui/sidebar'
-import { trpc } from '@renderer/lib/trpc'
+import { useDiffFilePrefetch } from '@renderer/hooks/use-diff'
+import { useGitFlow } from '@renderer/hooks/use-git-flow'
 import { cn } from '@renderer/lib/utils'
-import { useRepoStore } from '@renderer/stores/repo'
-import { useTabsStore } from '@renderer/stores/tabs'
+import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { RefreshCw } from 'lucide-react'
-import type { FileStatus } from '../../../../main/diff'
-import type { FlowFile } from '../../../../main/flow'
 
 const statusBadge: Record<FileStatus, { label: string; className: string }> = {
   modified: { label: 'M', className: 'text-amber-500' },
@@ -23,28 +23,19 @@ const statusBadge: Record<FileStatus, { label: string; className: string }> = {
 }
 
 function FileRow({ file }: { file: FlowFile }): React.JSX.Element {
-  const repo = useRepoStore((s) => s.repo)
   const openTab = useTabsStore((s) => s.openTab)
-  const utils = trpc.useUtils()
+  const prefetchDiff = useDiffFilePrefetch()
   const name = file.path.split('/').at(-1) ?? file.path
   const connects = file.connects.map((c) => c.split('/').at(-1)).join(', ')
-
-  const prefetchDiff = async (): Promise<void> => {
-    if (!repo) return
-    await utils.gitDiffFile.prefetch(
-      { repoPath: repo.path, filePath: file.path },
-      { staleTime: 2000 },
-    )
-  }
 
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
         className="h-auto py-1"
         onClick={() =>
-          openTab({ id: `diff:${file.path}`, kind: 'diff', title: name, path: file.path })
+          openTab({ id: tabId('diff', file.path), kind: 'diff', title: name, path: file.path })
         }
-        onMouseEnter={prefetchDiff}
+        onMouseEnter={() => prefetchDiff(file.path)}
       >
         <div className="flex min-w-0 flex-col items-start">
           <span className="flex max-w-full items-baseline gap-1.5">
@@ -76,18 +67,7 @@ function FileRow({ file }: { file: FlowFile }): React.JSX.Element {
 }
 
 export function ChangesList(): React.JSX.Element {
-  const repo = useRepoStore((s) => s.repo)
-  const utils = trpc.useUtils()
-  const { data: groups, refetch } = trpc.gitFlow.useQuery(repo?.path ?? '', {
-    enabled: repo !== null,
-    // working-tree state changes outside the app constantly; keep it live
-    staleTime: 0,
-    refetchInterval: 3000,
-  })
-
-  const refresh = async (): Promise<void> => {
-    await Promise.all([refetch(), utils.gitDiffFile.invalidate()])
-  }
+  const { groups, refresh } = useGitFlow()
 
   if (groups === undefined) {
     return <p className="p-3 text-sm text-muted-foreground">Loading…</p>

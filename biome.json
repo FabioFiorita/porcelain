@@ -20,5 +20,26 @@
       "suspicious": { "noExplicitAny": "error" }
     }
   },
-  "assist": { "actions": { "source": { "organizeImports": "on" } } }
+  "assist": { "actions": { "source": { "organizeImports": "on" } } },
+  "overrides": [
+    {
+      "includes": ["src/renderer/src/components/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "@renderer/lib/trpc": "Components must reach the server through hooks in @renderer/hooks/* — never import lib/trpc directly.",
+                  "../lib/trpc": "Components must reach the server through hooks in @renderer/hooks/* — never import lib/trpc directly.",
+                  "../../lib/trpc": "Components must reach the server through hooks in @renderer/hooks/* — never import lib/trpc directly."
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }

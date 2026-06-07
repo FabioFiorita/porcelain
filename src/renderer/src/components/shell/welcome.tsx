@@ -1,13 +1,13 @@
 import logo from '@renderer/assets/logo.png'
 import { Button } from '@renderer/components/ui/button'
-import { trpc } from '@renderer/lib/trpc'
+import { useRecentRepos } from '@renderer/hooks/use-repo'
 import { useRepoStore } from '@renderer/stores/repo'
 import { Folder, FolderOpen } from 'lucide-react'
 
 export function Welcome(): React.JSX.Element {
   const openRepo = useRepoStore((s) => s.openRepo)
   const openRepoPath = useRepoStore((s) => s.openRepoPath)
-  const { data: recents = [] } = trpc.recentRepos.useQuery()
+  const recents = useRecentRepos()
 
   return (
     <div className="flex h-full flex-col items-center justify-center gap-6">

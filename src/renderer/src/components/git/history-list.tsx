@@ -1,15 +1,10 @@
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@renderer/components/ui/sidebar'
-import { trpc } from '@renderer/lib/trpc'
-import { useRepoStore } from '@renderer/stores/repo'
-import { useTabsStore } from '@renderer/stores/tabs'
+import { useGitLog } from '@renderer/hooks/use-history'
+import { tabId, useTabsStore } from '@renderer/stores/tabs'
 
 export function HistoryList(): React.JSX.Element {
-  const repo = useRepoStore((s) => s.repo)
   const openTab = useTabsStore((s) => s.openTab)
-  const { data: commits } = trpc.gitLog.useQuery(
-    { repoPath: repo?.path ?? '', limit: 200 },
-    { enabled: repo !== null, staleTime: 0 },
-  )
+  const commits = useGitLog(200)
 
   if (commits === undefined) {
     return <p className="p-3 text-sm text-muted-foreground">Loading…</p>
@@ -23,7 +18,7 @@ export function HistoryList(): React.JSX.Element {
             className="h-auto py-1"
             onClick={() =>
               openTab({
-                id: `commit:${commit.hash}`,
+                id: tabId('commit', commit.hash),
                 kind: 'commit',
                 title: commit.subject.slice(0, 32),
                 path: commit.hash,

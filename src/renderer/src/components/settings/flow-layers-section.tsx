@@ -1,10 +1,10 @@
+import type { Layer } from '@main/flow'
 import { Button } from '@renderer/components/ui/button'
 import { Input } from '@renderer/components/ui/input'
-import { trpc } from '@renderer/lib/trpc'
+import { useRepoLayers, useSetRepoLayers } from '@renderer/hooks/use-repo-layers'
 import { useRepoStore } from '@renderer/stores/repo'
 import { ChevronDown, ChevronUp, Plus, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import type { Layer } from '../../../../main/flow'
 
 const patternError = (pattern: string): string | null => {
   if (pattern.trim() === '') return 'pattern is required'
@@ -96,9 +96,8 @@ const toDraft = (layers: Layer[]): DraftLayer[] =>
 export function FlowLayersSection({ onSaved }: { onSaved: () => void }): React.JSX.Element | null {
   const repo = useRepoStore((s) => s.repo)
   const [draft, setDraft] = useState<DraftLayer[]>([])
-  const utils = trpc.useUtils()
-  const { data } = trpc.repoLayers.useQuery(repo?.path ?? '', { enabled: repo !== null })
-  const saveMutation = trpc.setRepoLayers.useMutation()
+  const data = useRepoLayers()
+  const { save: saveLayers, isSaving } = useSetRepoLayers()
 
   // seed the draft from the saved layers each time the section mounts/refetches
   useEffect(() => {
@@ -121,11 +120,7 @@ export function FlowLayersSection({ onSaved }: { onSaved: () => void }): React.J
   }
 
   const save = async (layers: DraftLayer[] | null): Promise<void> => {
-    await saveMutation.mutateAsync({
-      repoPath: repo.path,
-      layers: layers?.map(({ label, pattern }) => ({ label, pattern })) ?? null,
-    })
-    await Promise.all([utils.repoLayers.invalidate(), utils.gitFlow.invalidate()])
+    await saveLayers(layers?.map(({ label, pattern }) => ({ label, pattern })) ?? null)
     onSaved()
   }
 
@@ -175,7 +170,7 @@ export function FlowLayersSection({ onSaved }: { onSaved: () => void }): React.J
         <Button variant="ghost" size="sm" onClick={() => save(null)}>
           Reset to defaults
         </Button>
-        <Button size="sm" disabled={!valid || saveMutation.isLoading} onClick={() => save(draft)}>
+        <Button size="sm" disabled={!valid || isSaving} onClick={() => save(draft)}>
           Save
         </Button>
       </div>

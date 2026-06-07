@@ -1,17 +1,14 @@
-import { trpc } from '@renderer/lib/trpc'
+import { useCommitDiff } from '@renderer/hooks/use-diff'
+import { useCommitFiles } from '@renderer/hooks/use-history'
 import { cn } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
-import { useRepoStore } from '@renderer/stores/repo'
 import { useState } from 'react'
-import { DiffModeToggle, HunksView } from './diff-view'
+import { DiffModeToggle } from './diff-mode-toggle'
+import { HunksView } from './hunks-view'
 
 function CommitFileDiff({ hash, filePath }: { hash: string; filePath: string }): React.JSX.Element {
-  const repo = useRepoStore((s) => s.repo)
   const diffMode = usePreferencesStore((s) => s.diffMode)
-  const { data: hunks, error } = trpc.gitCommitDiff.useQuery(
-    { repoPath: repo?.path ?? '', hash, filePath },
-    { enabled: repo !== null },
-  )
+  const { hunks, error } = useCommitDiff(hash, filePath)
 
   if (error) return <p className="p-4 text-sm text-destructive">{error.message}</p>
   if (hunks === undefined) return <p className="p-4 text-sm text-muted-foreground">Loading…</p>
@@ -20,12 +17,8 @@ function CommitFileDiff({ hash, filePath }: { hash: string; filePath: string }):
 }
 
 export function CommitView({ hash }: { hash: string }): React.JSX.Element {
-  const repo = useRepoStore((s) => s.repo)
   const [selected, setSelected] = useState<string | null>(null)
-  const { data: files } = trpc.gitCommitFiles.useQuery(
-    { repoPath: repo?.path ?? '', hash },
-    { enabled: repo !== null },
-  )
+  const files = useCommitFiles(hash)
 
   if (files === undefined) {
     return <p className="p-4 text-sm text-muted-foreground">Loading…</p>

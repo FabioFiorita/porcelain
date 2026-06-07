@@ -20,13 +20,15 @@ export function useHighlighter(): Highlighter | null {
   return highlighter
 }
 
-interface CodeLineProps {
+export function CodeLine({
+  text,
+  lang,
+  highlighter,
+}: {
   text: string
   lang: BundledLanguage | null
   highlighter: Highlighter | null
-}
-
-export function CodeLine({ text, lang, highlighter }: CodeLineProps): React.JSX.Element {
+}): React.JSX.Element {
   if (!lang || !highlighter || text === '') {
     return <pre className="flex-1 whitespace-pre">{text || ' '}</pre>
   }

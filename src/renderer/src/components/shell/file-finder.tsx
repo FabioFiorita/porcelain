@@ -8,9 +8,9 @@ import {
   CommandList,
 } from '@renderer/components/ui/command'
 import { FileTypeIcon } from '@renderer/components/viewer/file-icon'
-import { trpc } from '@renderer/lib/trpc'
+import { useFileSearch } from '@renderer/hooks/use-search'
 import { useRepoStore } from '@renderer/stores/repo'
-import { useTabsStore } from '@renderer/stores/tabs'
+import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { useEffect, useState } from 'react'
 
 export function FileFinder(): React.JSX.Element {
@@ -45,17 +45,14 @@ export function FileFinder(): React.JSX.Element {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
-  const { data: results = [], isFetching } = trpc.searchFiles.useQuery(
-    { repoPath: repo?.path ?? '', query: debouncedQuery },
-    { enabled: open && repo !== null && debouncedQuery.trim() !== '', keepPreviousData: true },
-  )
+  const { results, isFetching } = useFileSearch(debouncedQuery, open)
   const searching = isFetching || query !== debouncedQuery
 
   const select = (relPath: string): void => {
     if (!repo) return
     const name = relPath.split('/').at(-1) ?? relPath
     openTab({
-      id: `${repo.path}/${relPath}`,
+      id: tabId('file', `${repo.path}/${relPath}`),
       kind: 'file',
       title: name,
       path: `${repo.path}/${relPath}`,

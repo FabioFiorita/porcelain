@@ -2,7 +2,8 @@ import { Button } from '@renderer/components/ui/button'
 import { Kbd } from '@renderer/components/ui/kbd'
 import { SidebarInset, SidebarProvider, useSidebar } from '@renderer/components/ui/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
-import { trpc } from '@renderer/lib/trpc'
+import { useAppEvents } from '@renderer/hooks/use-app-events'
+import { useInstallUpdate, useUpdateStatus } from '@renderer/hooks/use-updates'
 import { cn } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
@@ -23,8 +24,8 @@ interface LeftSidebarHandle {
 
 /** Appears only once a new release is downloaded and ready to install. */
 function UpdateButton(): React.JSX.Element | null {
-  const { data: status } = trpc.updateStatus.useQuery()
-  const installMutation = trpc.installUpdate.useMutation()
+  const status = useUpdateStatus()
+  const { install, isInstalling } = useInstallUpdate()
 
   if (status?.state !== 'downloaded') return null
 
@@ -33,8 +34,8 @@ function UpdateButton(): React.JSX.Element | null {
       size="sm"
       variant="secondary"
       className="app-no-drag m-1 h-7 self-center text-xs"
-      disabled={installMutation.isLoading}
-      onClick={() => installMutation.mutate()}
+      disabled={isInstalling}
+      onClick={install}
     >
       <RotateCw /> Update to {status.version}
     </Button>
@@ -48,7 +49,7 @@ function TopBar({ left }: { left: LeftSidebarHandle }): React.JSX.Element {
   const setRightSidebarOpen = usePreferencesStore((s) => s.setRightSidebarOpen)
 
   return (
-    <div className="app-drag flex h-10 items-end border-b bg-sidebar">
+    <div className="app-drag flex h-10 items-end border-b">
       <Tooltip>
         <TooltipTrigger
           render={
@@ -59,8 +60,8 @@ function TopBar({ left }: { left: LeftSidebarHandle }): React.JSX.Element {
               aria-label="Toggle sidebar"
               className={cn(
                 'app-no-drag m-1 ml-2 self-center',
-                // collapsed sidebar puts this strip at the window edge, under the traffic lights
-                left.collapsed && 'ml-[4.75rem]',
+                // collapsed sidebar puts this tile at the window edge, under the traffic lights
+                left.collapsed && 'ml-[4.25rem]',
               )}
             >
               <PanelLeft />
@@ -104,7 +105,7 @@ function RepoShell(): React.JSX.Element {
   const left: LeftSidebarHandle = { collapsed: state === 'collapsed', toggle: toggleSidebar }
 
   return (
-    <SidebarInset className="h-screen min-w-0">
+    <SidebarInset className="h-screen min-w-0 bg-transparent">
       <SidebarProvider
         open={rightSidebarOpen}
         onOpenChange={setRightSidebarOpen}
@@ -112,7 +113,15 @@ function RepoShell(): React.JSX.Element {
         className="h-full min-h-0"
         style={{ '--sidebar-width': `${rightSidebarWidth}px` } as React.CSSProperties}
       >
-        <div className="flex h-full min-w-0 flex-1 flex-col">
+        {/* Main tile floats in the void; margins collapse to 0 on sides where a
+            floating sidebar's own padding already provides the 8px gap. */}
+        <div
+          className={cn(
+            'glaze-tile my-2 flex min-w-0 flex-1 flex-col overflow-hidden [--tile-fill:var(--surface-1)]',
+            left.collapsed && 'ml-2',
+            !rightSidebarOpen && 'mr-2',
+          )}
+        >
           <TopBar left={left} />
           <div className="min-h-0 flex-1">
             <Viewer />
@@ -131,6 +140,7 @@ export function AppShell(): React.JSX.Element {
   const restoreLastRepo = useRepoStore((s) => s.restoreLastRepo)
 
   useAppShortcuts()
+  useAppEvents()
 
   useEffect(() => {
     restoreLastRepo()
@@ -152,7 +162,8 @@ export function AppShell(): React.JSX.Element {
   }
 
   return (
-    <div className="dark h-screen bg-background text-foreground">
+    // No background wash here: the void between the tiles shows raw vibrancy
+    <div className="dark h-screen text-foreground">
       <SidebarProvider style={{ '--sidebar-width': `${sidebarWidth}px` } as React.CSSProperties}>
         <FileFinder />
         <AppSidebar />

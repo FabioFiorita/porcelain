@@ -1,7 +1,20 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { type Tab, useTabsStore } from './tabs'
+import { type Tab, tabId, useTabsStore } from './tabs'
 
 const tab = (id: string): Tab => ({ id, kind: 'file', title: id, path: `/repo/${id}` })
+
+describe('tabId', () => {
+  it('namespaces a key by kind', () => {
+    expect(tabId('file', '/repo/a.ts')).toBe('file:/repo/a.ts')
+    expect(tabId('diff', 'src/a.ts')).toBe('diff:src/a.ts')
+    expect(tabId('commit', 'abc123')).toBe('commit:abc123')
+    expect(tabId('search', 'foo bar')).toBe('search:foo bar')
+  })
+
+  it('distinguishes the same key across kinds', () => {
+    expect(tabId('file', 'a.ts')).not.toBe(tabId('diff', 'a.ts'))
+  })
+})
 
 describe('useTabsStore', () => {
   beforeEach(() => {
@@ -18,6 +31,16 @@ describe('useTabsStore', () => {
     useTabsStore.getState().openTab(tab('a'))
     useTabsStore.getState().openTab(tab('a'))
     expect(useTabsStore.getState().tabs).toHaveLength(1)
+  })
+
+  it('keeps a file and a diff of the same path as distinct tabs', () => {
+    const path = '/repo/src/a.ts'
+    useTabsStore.getState().openTab({ id: tabId('file', path), kind: 'file', title: 'a.ts', path })
+    useTabsStore.getState().openTab({ id: tabId('diff', path), kind: 'diff', title: 'a.ts', path })
+    expect(useTabsStore.getState().tabs.map((t) => t.id)).toEqual([
+      'file:/repo/src/a.ts',
+      'diff:/repo/src/a.ts',
+    ])
   })
 
   it('activates the neighbor when closing the active tab', () => {

@@ -18,7 +18,7 @@ Porcelain is a lightweight macOS viewer + agent companion (Electron). Not an edi
 
 - `architecture` — stack, repo facts, aliases, conventions, app shell. Read before writing any code.
 - `product` — what Porcelain is, core features, product principles. Read before designing features/UI.
-- `shadcn`, `vercel-composition-patterns`, `frontend-design` — vendor skills.
+- `shadcn`, `frontend-design` — vendor skills.
 
 ## Decision log
 - 2026-06-12: Stack: electron-vite/React 19/TS strict, shadcn+Tailwind v4, pnpm, Biome, Vitest+Playwright, Conventional Commits.
@@ -70,5 +70,7 @@ Porcelain is a lightweight macOS viewer + agent companion (Electron). Not an edi
 - 2026-06-12: No edit button (user decision): text files are always editable with 800ms-debounced autosave (+flush on unmount, Cmd+S) and a status chip; >5000-line files fall back to read-only virtualized view; markdown reader stays read-only (edit in source mode). shadcn `kbd` added for shortcut hints (TopBar tooltips, ⌘P empty state, ⌘S chip).
 - 2026-06-12: Commit chips strictly history-derived (no static defaults appended; defaults only for repos with zero conventional commits). Sidebar tab bar = floating glass pill (sticky + backdrop-blur, rounded-full), labels collapse to icons under 17rem via container query.
 - 2026-06-12: Dev/prod config split: `pnpm dev` sets `userData` to `porcelain-dev` (before anything reads config) and seeds first-run recents with `~/Code/porcelain-playground` (`src/main/dev-config.ts`) — dev never opens or hijacks the user's real repos; the installed app keeps its own state.
+
+- 2026-06-12: **Client architecture codified** (replaces the vercel-composition-patterns pointer; that vendor skill removed — audit found near-zero actual usage). One public component per file (viewer.tsx 595→41; right-sidebar/diff-view/settings/file-tree split accordingly); ALL tRPC access in domain hooks `hooks/use-<domain>.ts` that own invalidation (components can't import `lib/trpc` — Biome `noRestrictedImports` override; vanilla client only in `stores/repo.ts` + `use-app-events.ts`); tabs store is the router (`tabId(kind, key)` helper, exhaustive `switch` in Viewer, repo switching = `repo.switchTo` store action); `@main/*` type-only alias (4 config files in sync); component tests mock hooks, never the tRPC proxy (`src/test-setup.ts`, exemplars `history-list.test.tsx`/`changes-list.test.tsx`). Full convention set in the `architecture` skill "Client architecture".
 
 - Agent-session integration design (beyond a plain terminal)

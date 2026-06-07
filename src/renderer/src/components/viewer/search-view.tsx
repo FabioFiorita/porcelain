@@ -1,15 +1,12 @@
-import { trpc } from '@renderer/lib/trpc'
+import { useTextSearch } from '@renderer/hooks/use-search'
 import { useRepoStore } from '@renderer/stores/repo'
-import { useTabsStore } from '@renderer/stores/tabs'
+import { tabId, useTabsStore } from '@renderer/stores/tabs'
 
 /** Repo-wide literal search results (git grep); rows open the file at the line. */
 export function SearchView({ query }: { query: string }): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)
   const openTab = useTabsStore((s) => s.openTab)
-  const { data: matches, error } = trpc.searchText.useQuery(
-    { repoPath: repo?.path ?? '', query },
-    { enabled: repo !== null },
-  )
+  const { matches, error } = useTextSearch(query)
 
   if (error) return <p className="p-4 text-sm text-destructive">{error.message}</p>
   if (matches === undefined) {
@@ -20,7 +17,7 @@ export function SearchView({ query }: { query: string }): React.JSX.Element {
     if (!repo) return
     const name = path.split('/').at(-1) ?? path
     openTab({
-      id: `${repo.path}/${path}`,
+      id: tabId('file', `${repo.path}/${path}`),
       kind: 'file',
       title: name,
       path: `${repo.path}/${path}`,

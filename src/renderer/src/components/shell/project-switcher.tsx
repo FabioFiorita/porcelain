@@ -7,26 +7,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@renderer/components/ui/dropdown-menu'
-import { trpc } from '@renderer/lib/trpc'
+import { useRecentRepos } from '@renderer/hooks/use-repo'
 import { useRepoStore } from '@renderer/stores/repo'
-import { useTabsStore } from '@renderer/stores/tabs'
 import { Check, ChevronsUpDown, FolderOpen } from 'lucide-react'
 
 export function ProjectSwitcher(): React.JSX.Element | null {
   const repo = useRepoStore((s) => s.repo)
   const openRepo = useRepoStore((s) => s.openRepo)
-  const openRepoPath = useRepoStore((s) => s.openRepoPath)
-  const { data: recents = [] } = trpc.recentRepos.useQuery(undefined, {
-    enabled: repo !== null,
-  })
+  const switchTo = useRepoStore((s) => s.switchTo)
+  const recents = useRecentRepos(repo !== null)
 
   if (!repo) return null
-
-  const switchTo = async (path: string): Promise<void> => {
-    if (path === repo.path) return
-    useTabsStore.setState({ tabs: [], activeTabId: null })
-    await openRepoPath(path)
-  }
 
   return (
     <DropdownMenu>

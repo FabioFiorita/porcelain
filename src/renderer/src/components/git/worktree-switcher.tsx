@@ -7,30 +7,17 @@ import {
   DropdownMenuTrigger,
 } from '@renderer/components/ui/dropdown-menu'
 import { SidebarMenuButton } from '@renderer/components/ui/sidebar'
-import { trpc } from '@renderer/lib/trpc'
+import { useBranch, useWorktrees } from '@renderer/hooks/use-worktrees'
 import { useRepoStore } from '@renderer/stores/repo'
-import { useTabsStore } from '@renderer/stores/tabs'
 import { Check, GitBranch } from 'lucide-react'
 
 export function WorktreeSwitcher(): React.JSX.Element | null {
   const repo = useRepoStore((s) => s.repo)
-  const openRepoPath = useRepoStore((s) => s.openRepoPath)
-  const { data: branch } = trpc.gitBranch.useQuery(repo?.path ?? '', {
-    enabled: repo !== null,
-    staleTime: 0,
-    refetchInterval: 5000,
-  })
-  const { data: worktrees = [] } = trpc.gitWorktrees.useQuery(repo?.path ?? '', {
-    enabled: repo !== null,
-  })
+  const switchTo = useRepoStore((s) => s.switchTo)
+  const branch = useBranch()
+  const worktrees = useWorktrees()
 
   if (!repo) return null
-
-  const switchTo = async (path: string): Promise<void> => {
-    if (path === repo.path) return
-    useTabsStore.setState({ tabs: [], activeTabId: null })
-    await openRepoPath(path)
-  }
 
   return (
     <DropdownMenu>

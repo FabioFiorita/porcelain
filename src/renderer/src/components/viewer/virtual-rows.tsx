@@ -1,3 +1,4 @@
+import { cn } from '@renderer/lib/utils'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useEffect, useRef } from 'react'
 
@@ -36,7 +37,7 @@ export function VirtualRows<T>({
   }, [scrollToLine])
 
   return (
-    <div ref={scrollRef} className={`h-full overflow-auto font-mono text-xs ${className ?? ''}`}>
+    <div ref={scrollRef} className={cn('h-full overflow-auto font-mono text-xs', className)}>
       <div className="relative w-max min-w-full" style={{ height: virtualizer.getTotalSize() }}>
         {virtualizer.getVirtualItems().map((item) => {
           const row = rows[item.index]
