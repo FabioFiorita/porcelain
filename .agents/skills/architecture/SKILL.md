@@ -156,3 +156,4 @@ Repo switching is one store action: `useRepoStore.switchTo(path)` (closes all ta
 - Strict TS, no `any`, no `as unknown as`, no dead code, no commented-out code.
 - Conventional Commits (`feat:`, `fix:`, `chore:`, `refactor:`, `test:`, `docs:`).
 - Verification gate before any commit: `pnpm lint && pnpm typecheck && pnpm test && pnpm build` must all pass.
+- **Decision log** (CLAUDE.md): dateless bullets, append-only, position = chronology (git holds timestamps). Terse style — bold lede for a major decision, GOTCHA/file pointers inline. Every entry also lands in its home skill (hard rule 4): the log records *why*, the skill states *what* — the skill is the source of truth for current behavior, the log is the audit trail.
