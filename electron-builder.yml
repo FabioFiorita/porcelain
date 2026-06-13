@@ -26,7 +26,7 @@ mac:
   entitlementsInherit: build/entitlements.mac.plist
   # Pin the distribution identity: the CSC_LINK p12 also carries the Apple
   # Development cert, so name the Developer ID one explicitly.
-  identity: 'Developer ID Application: Fabio Luiz Fiorita Pontes (9QH8M89WF9)'
+  identity: 'Fabio Luiz Fiorita Pontes (9QH8M89WF9)'
   # Notarize via notarytool using APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD /
   # APPLE_TEAM_ID env vars (set as repo secrets).
   notarize: true
