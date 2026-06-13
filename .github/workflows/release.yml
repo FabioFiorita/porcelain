@@ -35,9 +35,11 @@ jobs:
           # disables auto-update on macOS (Squirrel validates the signature).
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-          # With no cert on the runner, skip signing instead of failing on the
-          # ad-hoc path. Flip to true (or just remove) once CSC_LINK is set.
-          CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.CSC_LINK != '' && 'true' || 'false' }}
+          # No cert on the runner: skip signing instead of dying on the ad-hoc
+          # path (electron-builder errors with "<projectDir> not a file" otherwise).
+          # Remove this line once CSC_LINK/CSC_KEY_PASSWORD secrets exist so the
+          # build signs and macOS auto-update works.
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
           # Notarization — also flip `notarize: true` in electron-builder.yml once set.
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
