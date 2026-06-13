@@ -30,17 +30,13 @@ jobs:
         env:
           # Auto-provided; electron-builder reads GH_TOKEN for the github provider.
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # macOS Developer ID signing — optional. Until CSC_LINK (base64 .p12) and
-          # CSC_KEY_PASSWORD exist as repo secrets the build ships unsigned, which
-          # disables auto-update on macOS (Squirrel validates the signature).
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-          # No cert on the runner: skip signing instead of dying on the ad-hoc
-          # path (electron-builder errors with "<projectDir> not a file" otherwise).
-          # Remove this line once CSC_LINK/CSC_KEY_PASSWORD secrets exist so the
-          # build signs and macOS auto-update works.
+          # No signing cert on the runner — ship an unsigned build. Do NOT pass an
+          # empty CSC_LINK here: a *defined-but-empty* CSC_LINK makes electron-builder
+          # attempt signing and fail ("<projectDir> not a file"); leaving it undefined
+          # plus this flag makes it cleanly skip signing.
+          #
+          # To sign + notarize later: add repo secrets CSC_LINK (base64 .p12),
+          # CSC_KEY_PASSWORD, APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID;
+          # map them into this env block, set `notarize: true` in electron-builder.yml,
+          # and delete the line below. (Unsigned builds disable macOS auto-update.)
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
-          # Notarization — also flip `notarize: true` in electron-builder.yml once set.
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
