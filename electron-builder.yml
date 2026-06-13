@@ -7,7 +7,7 @@ files:
   - '!src/*'
   - '!electron.vite.config.{js,ts,mjs,cjs}'
   - '!{.claude,.agents,.codex,docs}/**'
-  - '!{biome.json,components.json,vitest.config.ts,setupTests.ts,AGENTS.md,CLAUDE.md,README.md}'
+  - '!{biome.json,components.json,vitest.config.ts,setupTests.ts,AGENTS.md,CLAUDE.md,README.md,CHANGELOG.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
 asarUnpack:

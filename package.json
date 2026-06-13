@@ -4,6 +4,10 @@
   "description": "Review changes as a story",
   "main": "./out/main/index.js",
   "author": "Fabio Fiorita",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FabioFiorita/porcelain.git"
+  },
   "packageManager": "pnpm@10.26.1",
   "scripts": {
     "format": "biome format --write .",
@@ -19,7 +23,9 @@
     "release": "npm run build && electron-builder --mac --publish always",
     "lint:fix": "biome check --write .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "changelog": "conventional-changelog -p conventionalcommits -i CHANGELOG.md -r 0",
+    "version": "pnpm changelog && git add CHANGELOG.md"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
@@ -57,6 +63,8 @@
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
+    "conventional-changelog": "^7.2.0",
+    "conventional-changelog-conventionalcommits": "^9.3.1",
     "electron": "^39.2.6",
     "electron-builder": "^26.0.12",
     "electron-vite": "^5.0.0",
