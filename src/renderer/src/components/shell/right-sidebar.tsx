@@ -1,7 +1,7 @@
 import { Sidebar, SidebarContent, SidebarHeader } from '@renderer/components/ui/sidebar'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { CommitGroup } from './commit-group'
-import { PinnedGroup } from './pinned-group'
+import { FilesQuickAccess } from './files-quick-access'
 import { QuickCommandsGroup } from './quick-commands-group'
 import { RightSidebarResizeHandle } from './sidebar-resize-handle'
 
@@ -18,8 +18,8 @@ export function RightSidebar(): React.JSX.Element {
           Quick access
         </span>
       </SidebarHeader>
-      <SidebarContent>
-        {sidebarTab === 'files' && <PinnedGroup />}
+      <SidebarContent className={sidebarTab === 'files' ? 'gap-0 overflow-hidden' : undefined}>
+        {sidebarTab === 'files' && <FilesQuickAccess />}
         {sidebarTab !== 'files' && <QuickCommandsGroup />}
         {sidebarTab === 'changes' && <CommitGroup />}
       </SidebarContent>

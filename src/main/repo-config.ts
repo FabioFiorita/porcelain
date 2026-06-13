@@ -10,6 +10,7 @@ export const appConfigSchema = z.object({
         hiddenPaths: z.array(z.string()).default([]),
         pinnedPaths: z.array(z.string()).default([]),
         layers: z.array(z.object({ label: z.string(), pattern: z.string() })).optional(),
+        notes: z.string().default(''),
       }),
     )
     .default({}),
@@ -19,7 +20,11 @@ export type AppConfig = z.infer<typeof appConfigSchema>
 
 export const emptyConfig: AppConfig = { recentRepos: [], repos: {} }
 
-const emptyRepo = (): AppConfig['repos'][string] => ({ hiddenPaths: [], pinnedPaths: [] })
+const emptyRepo = (): AppConfig['repos'][string] => ({
+  hiddenPaths: [],
+  pinnedPaths: [],
+  notes: '',
+})
 
 const MAX_RECENTS = 10
 
@@ -127,4 +132,20 @@ export function withoutPinnedPath(config: AppConfig, repoPath: string, path: str
 
 export function pinnedPathsFor(config: AppConfig, repoPath: string): string[] {
   return config.repos[repoPath]?.pinnedPaths ?? []
+}
+
+export function notesFor(config: AppConfig, repoPath: string): string {
+  return config.repos[repoPath]?.notes ?? ''
+}
+
+export function withRepoNotes(config: AppConfig, repoPath: string, notes: string): AppConfig {
+  const repo = config.repos[repoPath] ?? emptyRepo()
+  if (repo.notes === notes) return config
+  return {
+    ...config,
+    repos: {
+      ...config.repos,
+      [repoPath]: { ...repo, notes },
+    },
+  }
 }

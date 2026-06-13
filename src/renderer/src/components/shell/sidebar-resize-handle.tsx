@@ -1,4 +1,6 @@
 import {
+  NOTES_MAX_HEIGHT,
+  NOTES_MIN_HEIGHT,
   SIDEBAR_MAX_WIDTH,
   SIDEBAR_MIN_WIDTH,
   usePreferencesStore,
@@ -6,6 +8,9 @@ import {
 
 const clampWidth = (width: number): number =>
   Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, width))
+
+const clampHeight = (height: number): number =>
+  Math.min(NOTES_MAX_HEIGHT, Math.max(NOTES_MIN_HEIGHT, height))
 
 export function SidebarResizeHandle(): React.JSX.Element {
   const setSidebarWidth = usePreferencesStore((s) => s.setSidebarWidth)
@@ -68,6 +73,45 @@ export function RightSidebarResizeHandle(): React.JSX.Element {
     // biome-ignore lint/a11y/noStaticElementInteractions: pointer-only resize affordance
     <div
       className="absolute inset-y-0 left-0 z-20 w-1.5 cursor-col-resize transition-colors hover:bg-sidebar-border active:bg-sidebar-border"
+      onMouseDown={startResize}
+    />
+  )
+}
+
+/**
+ * Horizontal divider between the pinned list and the notes card. Drives the
+ * `--notes-height` CSS var on the enclosing files panel directly during the
+ * drag (same no-re-render trick as the width handles) and persists on release.
+ */
+export function NotesResizeHandle(): React.JSX.Element {
+  const setNotesHeight = usePreferencesStore((s) => s.setNotesHeight)
+
+  const startResize = (event: React.MouseEvent): void => {
+    event.preventDefault()
+    const panel = event.currentTarget.closest<HTMLElement>('[data-slot="files-quick-access"]')
+    const startY = event.clientY
+    const startHeight = usePreferencesStore.getState().notesHeight
+    let height = startHeight
+    const onMove = (e: MouseEvent): void => {
+      // dragging up (smaller clientY) grows the notes pane
+      height = clampHeight(startHeight + (startY - e.clientY))
+      panel?.style.setProperty('--notes-height', `${height}px`)
+    }
+    const onUp = (): void => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      document.body.style.removeProperty('cursor')
+      setNotesHeight(height)
+    }
+    document.body.style.cursor = 'row-resize'
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+
+  return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: pointer-only resize affordance
+    <div
+      className="relative z-10 h-1.5 shrink-0 cursor-row-resize transition-colors hover:bg-sidebar-border active:bg-sidebar-border"
       onMouseDown={startResize}
     />
   )

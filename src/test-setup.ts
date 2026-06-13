@@ -8,6 +8,13 @@ afterEach(() => {
   cleanup()
 })
 
+// jsdom ships no elementFromPoint; ProseMirror (the notes-card TipTap editor)
+// calls it during placeholder viewport tracking on mount. Returning null is the
+// "no element here" answer ProseMirror already handles gracefully.
+if (typeof document.elementFromPoint !== 'function') {
+  document.elementFromPoint = (): null => null
+}
+
 // jsdom ships no matchMedia; shadcn's SidebarProvider (and any responsive
 // primitive) calls it on mount, so stub it once for every component test.
 if (typeof window.matchMedia !== 'function') {

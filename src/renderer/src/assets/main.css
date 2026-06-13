@@ -250,3 +250,27 @@
 .app-no-drag {
   -webkit-app-region: no-drag;
 }
+
+/* Quick-notes TipTap editor (notes-card.tsx). The editable surface fills its
+   pane and scrolls with the card; prose handles the rendered look. */
+.notes-prose {
+  min-height: 100%;
+}
+.notes-prose:focus {
+  outline: none;
+}
+/* extension-placeholder: faux placeholder on the empty first paragraph */
+.notes-prose p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--color-muted-foreground);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+/* tighten prose spacing for the cramped sidebar */
+.notes-prose :first-child {
+  margin-top: 0;
+}
+.notes-prose :last-child {
+  margin-bottom: 0;
+}

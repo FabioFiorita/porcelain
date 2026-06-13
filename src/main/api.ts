@@ -33,6 +33,7 @@ import { exceedsReadLimit } from './read-limits'
 import {
   hiddenPathsFor,
   layersFor,
+  notesFor,
   pinnedPathsFor,
   visibleFilePaths,
   withHiddenPath,
@@ -41,6 +42,7 @@ import {
   withPinnedPath,
   withRecentRepo,
   withRepoLayers,
+  withRepoNotes,
 } from './repo-config'
 import { checkForUpdates, installUpdate, type UpdateStatus, updateStatus } from './updater'
 
@@ -346,6 +348,16 @@ export const router = t.router({
     )
     .mutation(async ({ input }) => {
       await updateConfig((config) => withRepoLayers(config, input.repoPath, input.layers))
+    }),
+
+  repoNotes: t.procedure
+    .input(z.string())
+    .query(async ({ input }): Promise<string> => notesFor(await loadConfig(), input)),
+
+  setRepoNotes: t.procedure
+    .input(z.object({ repoPath: z.string(), notes: z.string() }))
+    .mutation(async ({ input }) => {
+      await updateConfig((config) => withRepoNotes(config, input.repoPath, input.notes))
     }),
 
   gitBranch: t.procedure.input(z.string()).query(({ input }) => gitBranch(input)),
