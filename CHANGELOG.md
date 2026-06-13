@@ -1,3 +1,11 @@
+## [0.2.0](https://github.com/FabioFiorita/porcelain/compare/v0.1.2...v0.2.0) (2026-06-13)
+
+### Features
+
+* **git:** file staging plus index-lock race fix ([8a9f667](https://github.com/FabioFiorita/porcelain/commit/8a9f667084bd4712342fb65ec2dc1da8f614a17a))
+* **notes:** per-repo quick-notes card under pinned files ([a355c9a](https://github.com/FabioFiorita/porcelain/commit/a355c9aaef0467e382a4be133c7f512dffca0fa5))
+
+## [0.1.2](https://github.com/FabioFiorita/porcelain/compare/v0.1.1...v0.1.2) (2026-06-13)
 
 ## [0.1.1](https://github.com/FabioFiorita/porcelain/compare/v0.1.0...v0.1.1) (2026-06-13)
 
