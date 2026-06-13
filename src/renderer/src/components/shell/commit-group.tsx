@@ -6,16 +6,26 @@ import {
   SidebarGroupLabel,
 } from '@renderer/components/ui/sidebar'
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
-import { useCommit, useCommitConventions } from '@renderer/hooks/use-commit'
-import { GitCommitHorizontal } from 'lucide-react'
+import { useCommit, useCommitConventions, useStageAll } from '@renderer/hooks/use-commit'
+import { cn } from '@renderer/lib/utils'
+import { FilePlus2, GitCommitHorizontal } from 'lucide-react'
 import { useState } from 'react'
 
 export function CommitGroup(): React.JSX.Element {
   const [type, setType] = useState<string | null>(null)
   const [scope, setScope] = useState<string | null>(null)
   const [message, setMessage] = useState('')
+  const [staged, setStaged] = useState<{ text: string; failed: boolean } | null>(null)
   const conventions = useCommitConventions()
-  const { commit: runCommit, isCommitting, error } = useCommit(() => setMessage(''))
+  const {
+    commit: runCommit,
+    isCommitting,
+    error,
+  } = useCommit(() => {
+    setMessage('')
+    setStaged(null)
+  })
+  const { stageAll, isStaging } = useStageAll()
 
   if (!conventions) {
     return (
@@ -32,6 +42,17 @@ export function CommitGroup(): React.JSX.Element {
   const commit = (): void => {
     if (!ready || isCommitting) return
     runCommit(subject)
+  }
+
+  const stage = async (): Promise<void> => {
+    if (isStaging) return
+    setStaged(null)
+    try {
+      await stageAll()
+      setStaged({ text: 'Staged all changes', failed: false })
+    } catch (e) {
+      setStaged({ text: e instanceof Error ? e.message : String(e), failed: true })
+    }
   }
 
   return (
@@ -73,9 +94,23 @@ export function CommitGroup(): React.JSX.Element {
         {prefix && (
           <p className="truncate font-mono text-[10px] text-muted-foreground">{subject}</p>
         )}
+        <Button size="sm" variant="outline" disabled={isStaging} onClick={stage}>
+          <FilePlus2 />
+          {isStaging ? 'Staging…' : 'Stage all'}
+        </Button>
+        {staged && (
+          <p
+            className={cn(
+              'whitespace-pre-wrap font-mono text-[10px]',
+              staged.failed ? 'text-destructive' : 'text-muted-foreground',
+            )}
+          >
+            {staged.text}
+          </p>
+        )}
         <Button size="sm" variant="secondary" disabled={!ready || isCommitting} onClick={commit}>
           <GitCommitHorizontal />
-          {isCommitting ? 'Committing…' : 'Commit all'}
+          {isCommitting ? 'Committing…' : 'Commit'}
         </Button>
         {error && (
           <p className="whitespace-pre-wrap font-mono text-[10px] text-destructive">

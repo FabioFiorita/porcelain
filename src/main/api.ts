@@ -11,7 +11,7 @@ import { buildFlow, DEFAULT_LAYERS, type FlowGroup, type Layer } from './flow'
 import { fuzzySearch } from './fuzzy'
 import {
   gitBranch,
-  gitCommitAll,
+  gitCommit,
   gitCommitDiff,
   gitCommitFiles,
   gitDiffFile,
@@ -20,8 +20,11 @@ import {
   gitLog,
   gitNumstat,
   gitQuickCommand,
+  gitStageAll,
+  gitStageFile,
   gitStatus,
   gitSuggestions,
+  gitUnstageFile,
   gitWorktrees,
   QUICK_COMMANDS,
   warmFileList,
@@ -223,9 +226,21 @@ export const router = t.router({
     )
     .mutation(({ input }) => gitQuickCommand(input.repoPath, input.command)),
 
+  gitStageAll: t.procedure
+    .input(z.object({ repoPath: z.string() }))
+    .mutation(({ input }) => gitStageAll(input.repoPath)),
+
+  gitStageFile: t.procedure
+    .input(z.object({ repoPath: z.string(), path: z.string() }))
+    .mutation(({ input }) => gitStageFile(input.repoPath, input.path)),
+
+  gitUnstageFile: t.procedure
+    .input(z.object({ repoPath: z.string(), path: z.string() }))
+    .mutation(({ input }) => gitUnstageFile(input.repoPath, input.path)),
+
   gitCommit: t.procedure
     .input(z.object({ repoPath: z.string(), message: z.string().trim().min(1) }))
-    .mutation(({ input }) => gitCommitAll(input.repoPath, input.message)),
+    .mutation(({ input }) => gitCommit(input.repoPath, input.message)),
 
   gitCommitConventions: t.procedure
     .input(z.string())

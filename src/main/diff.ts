@@ -3,6 +3,13 @@ export type FileStatus = 'modified' | 'added' | 'deleted' | 'renamed' | 'untrack
 export interface ChangedFile {
   path: string
   status: FileStatus
+  /**
+   * Working-tree staging state, derived from the porcelain XY columns. Only set
+   * for `git status` output (parseStatus); commit-file lists leave them
+   * undefined since staging is meaningless there. A file may be both (e.g. `MM`).
+   */
+  staged?: boolean
+  unstaged?: boolean
 }
 
 export type DiffLineKind = 'context' | 'add' | 'del'
@@ -33,9 +40,15 @@ export function parseStatus(porcelainZ: string): ChangedFile[] {
     .map((entry) => {
       const xy = entry.slice(0, 2)
       const path = entry.slice(3)
-      if (xy === '??') return { path, status: 'untracked' as const }
+      if (xy === '??') return { path, status: 'untracked' as const, staged: false, unstaged: true }
       const code = xy.trim().charAt(0)
-      return { path, status: statusByCode[code] ?? ('modified' as const) }
+      // X = index (staged) column, Y = working-tree (unstaged) column.
+      return {
+        path,
+        status: statusByCode[code] ?? ('modified' as const),
+        staged: xy.charAt(0) !== ' ',
+        unstaged: xy.charAt(1) !== ' ',
+      }
     })
 }
 

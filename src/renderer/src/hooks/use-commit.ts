@@ -29,6 +29,47 @@ export function useCommit(onCommitted?: () => void): {
   }
 }
 
+export function useStageAll(): {
+  stageAll: () => Promise<void>
+  isStaging: boolean
+} {
+  const repo = useRepoStore((s) => s.repo)
+  const utils = trpc.useUtils()
+  const mutation = trpc.gitStageAll.useMutation()
+  return {
+    stageAll: async () => {
+      if (!repo) return
+      await mutation.mutateAsync({ repoPath: repo.path })
+      // gitFlow carries per-file staged/unstaged state now, so refresh it.
+      await utils.gitFlow.invalidate()
+    },
+    isStaging: mutation.isLoading,
+  }
+}
+
+/** Per-file stage/unstage from the changes list. Refreshes gitFlow after each. */
+export function useFileStaging(): {
+  stageFile: (path: string) => Promise<void>
+  unstageFile: (path: string) => Promise<void>
+} {
+  const repo = useRepoStore((s) => s.repo)
+  const utils = trpc.useUtils()
+  const stage = trpc.gitStageFile.useMutation()
+  const unstage = trpc.gitUnstageFile.useMutation()
+  return {
+    stageFile: async (path) => {
+      if (!repo) return
+      await stage.mutateAsync({ repoPath: repo.path, path })
+      await utils.gitFlow.invalidate()
+    },
+    unstageFile: async (path) => {
+      if (!repo) return
+      await unstage.mutateAsync({ repoPath: repo.path, path })
+      await utils.gitFlow.invalidate()
+    },
+  }
+}
+
 export function useCommitConventions(): CommitConventions | undefined {
   const repo = useRepoStore((s) => s.repo)
   const { data } = trpc.gitCommitConventions.useQuery(repo?.path ?? '', { enabled: repo !== null })

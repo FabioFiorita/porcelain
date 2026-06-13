@@ -11,6 +11,9 @@ import { ChangesList } from './changes-list'
 // diff-prefetch hook is a no-op since hover prefetching is irrelevant here.
 vi.mock('@renderer/hooks/use-git-flow', () => ({ useGitFlow: vi.fn() }))
 vi.mock('@renderer/hooks/use-diff', () => ({ useDiffFilePrefetch: () => async () => {} }))
+vi.mock('@renderer/hooks/use-commit', () => ({
+  useFileStaging: () => ({ stageFile: async () => {}, unstageFile: async () => {} }),
+}))
 
 const groups: FlowGroup[] = [
   {
@@ -22,13 +25,23 @@ const groups: FlowGroup[] = [
         connects: [],
         additions: 12,
         deletions: 3,
+        staged: false,
+        unstaged: true,
       },
     ],
   },
   {
     layer: 'Data',
     files: [
-      { path: 'src/db/schema.ts', status: 'added', connects: [], additions: 40, deletions: 0 },
+      {
+        path: 'src/db/schema.ts',
+        status: 'added',
+        connects: [],
+        additions: 40,
+        deletions: 0,
+        staged: true,
+        unstaged: false,
+      },
     ],
   },
 ]
@@ -55,6 +68,14 @@ describe('ChangesList', () => {
     expect(screen.getByText('schema.ts')).toBeInTheDocument()
     expect(screen.getByText('+12')).toBeInTheDocument()
     expect(screen.getByText('−3')).toBeInTheDocument()
+  })
+
+  it('marks staged files with an indicator and leaves unstaged ones bare', () => {
+    renderList()
+    // schema.ts is staged (staged: true, unstaged: false) → "Staged" dot.
+    expect(screen.getByTitle('Staged')).toBeInTheDocument()
+    // widget.tsx is unstaged only → no indicator at all.
+    expect(screen.queryByTitle('Partially staged')).not.toBeInTheDocument()
   })
 
   it('opens a diff tab keyed by path when a file row is clicked', () => {

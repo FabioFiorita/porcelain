@@ -26,6 +26,12 @@ async function runGit(repoPath: string, args: string[]): Promise<string> {
   const { stdout } = await execFileAsync('git', args, {
     cwd: repoPath,
     maxBuffer: 64 * 1024 * 1024,
+    // GIT_OPTIONAL_LOCKS=0 stops background reads (status/diff polls) from
+    // opportunistically rewriting .git/index, which otherwise races user
+    // writes (pull/commit) and fails them with "fatal: Unable to write index.".
+    // It disables only the optional index refresh — required locks for real
+    // mutations (pull/commit/checkout) are untouched.
+    env: { ...process.env, GIT_OPTIONAL_LOCKS: '0' },
   })
   return stdout
 }
@@ -123,9 +129,35 @@ function gitErrorOutput(error: unknown): string {
   return String(error)
 }
 
-/** Stage everything and commit. Throws git's output so the UI can show it. */
-export async function gitCommitAll(repoPath: string, message: string): Promise<void> {
-  await runGit(repoPath, ['add', '-A'])
+/** Stage every change (tracked + untracked). Throws git's output for the UI. */
+export async function gitStageAll(repoPath: string): Promise<void> {
+  try {
+    await runGit(repoPath, ['add', '-A'])
+  } catch (error) {
+    throw new Error(gitErrorOutput(error))
+  }
+}
+
+/** Stage a single path. Throws git's output for the UI. */
+export async function gitStageFile(repoPath: string, path: string): Promise<void> {
+  try {
+    await runGit(repoPath, ['add', '--', path])
+  } catch (error) {
+    throw new Error(gitErrorOutput(error))
+  }
+}
+
+/** Unstage a single path (restore the index entry from HEAD). */
+export async function gitUnstageFile(repoPath: string, path: string): Promise<void> {
+  try {
+    await runGit(repoPath, ['restore', '--staged', '--', path])
+  } catch (error) {
+    throw new Error(gitErrorOutput(error))
+  }
+}
+
+/** Commit staged changes. Throws git's output so the UI can show it. */
+export async function gitCommit(repoPath: string, message: string): Promise<void> {
   try {
     await runGit(repoPath, ['commit', '-m', message])
   } catch (error) {

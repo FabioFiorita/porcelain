@@ -14,9 +14,20 @@ describe('parseStatus', () => {
   it('parses porcelain -z output into changed files', () => {
     const out = ' M src/a.ts\0?? src/new.ts\0D  src/gone.ts\0'
     expect(parseStatus(out)).toEqual([
-      { path: 'src/a.ts', status: 'modified' },
-      { path: 'src/new.ts', status: 'untracked' },
-      { path: 'src/gone.ts', status: 'deleted' },
+      { path: 'src/a.ts', status: 'modified', staged: false, unstaged: true },
+      { path: 'src/new.ts', status: 'untracked', staged: false, unstaged: true },
+      { path: 'src/gone.ts', status: 'deleted', staged: true, unstaged: false },
+    ])
+  })
+
+  it('derives staged/unstaged from the XY columns', () => {
+    // X = index (staged), Y = working tree (unstaged); `MM` is both.
+    const out = 'M  staged.ts\0 M unstaged.ts\0MM both.ts\0A  new-staged.ts\0'
+    expect(parseStatus(out)).toEqual([
+      { path: 'staged.ts', status: 'modified', staged: true, unstaged: false },
+      { path: 'unstaged.ts', status: 'modified', staged: false, unstaged: true },
+      { path: 'both.ts', status: 'modified', staged: true, unstaged: true },
+      { path: 'new-staged.ts', status: 'added', staged: true, unstaged: false },
     ])
   })
 
