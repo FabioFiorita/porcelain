@@ -4,6 +4,7 @@
   "description": "Review changes as a story",
   "main": "./out/main/index.js",
   "author": "Fabio Fiorita",
+  "packageManager": "pnpm@10.26.1",
   "scripts": {
     "format": "biome format --write .",
     "lint": "biome check .",

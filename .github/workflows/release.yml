@@ -1,0 +1,41 @@
+name: Release
+
+# Cut a release by pushing a version tag that matches package.json, e.g.:
+#   pnpm version patch && git push --follow-tags
+# electron-builder publishes the dmg + zip to a GitHub Release and writes the
+# latest-mac.yml feed that electron-updater reads.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - name: Build and publish to GitHub Releases
+        run: pnpm release
+        env:
+          # Auto-provided; electron-builder reads GH_TOKEN for the github provider.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # macOS Developer ID signing — optional. Until CSC_LINK (base64 .p12) and
+          # CSC_KEY_PASSWORD exist as repo secrets the build ships unsigned, which
+          # disables auto-update on macOS (Squirrel validates the signature).
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          # Notarization — also flip `notarize: true` in electron-builder.yml once set.
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
