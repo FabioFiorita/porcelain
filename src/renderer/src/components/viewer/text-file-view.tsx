@@ -68,10 +68,10 @@ export function TextFileView({
         </span>
         {markdown && <MarkdownModeToggle />}
       </div>
-      {finding && !reader && (
-        <FindBar content={content} onClose={() => setFinding(false)} onMatchLine={setFindLine} />
-      )}
-      <div className="min-h-0 flex-1">
+      <div className="relative min-h-0 flex-1">
+        {finding && !reader && (
+          <FindBar content={content} onClose={() => setFinding(false)} onMatchLine={setFindLine} />
+        )}
         {reader ? (
           <SourceContextMenu path={path}>
             <MarkdownView content={content} />

@@ -58,8 +58,8 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.508 0.118 165.612);
-  --primary-foreground: oklch(0.979 0.021 166.113);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.967 0.001 286.375);
   --secondary-foreground: oklch(0.21 0.006 285.885);
   --muted: oklch(0.97 0 0);
@@ -70,16 +70,16 @@
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.845 0.143 164.978);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.596 0.145 163.225);
-  --chart-4: oklch(0.508 0.118 165.612);
-  --chart-5: oklch(0.432 0.095 166.913);
+  --chart-1: oklch(0.81 0 0);
+  --chart-2: oklch(0.71 0 0);
+  --chart-3: oklch(0.61 0 0);
+  --chart-4: oklch(0.51 0 0);
+  --chart-5: oklch(0.44 0 0);
   --radius: 0.45rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.596 0.145 163.225);
-  --sidebar-primary-foreground: oklch(0.979 0.021 166.113);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.97 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
@@ -93,8 +93,8 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.432 0.095 166.913);
-  --primary-foreground: oklch(0.979 0.021 166.113);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
   --secondary: oklch(0.274 0.006 286.033);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
@@ -105,15 +105,15 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.845 0.143 164.978);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.596 0.145 163.225);
-  --chart-4: oklch(0.508 0.118 165.612);
-  --chart-5: oklch(0.432 0.095 166.913);
+  --chart-1: oklch(0.81 0 0);
+  --chart-2: oklch(0.71 0 0);
+  --chart-3: oklch(0.61 0 0);
+  --chart-4: oklch(0.51 0 0);
+  --chart-5: oklch(0.44 0 0);
   --sidebar: oklch(0.205 0 0 / 0.15);
   --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.696 0.17 162.48);
-  --sidebar-primary-foreground: oklch(0.262 0.051 172.552);
+  --sidebar-primary: oklch(0.922 0 0);
+  --sidebar-primary-foreground: oklch(0.205 0 0);
   --sidebar-accent: oklch(0.269 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
@@ -137,16 +137,14 @@
   --glaze: oklch(1 0 0 / 0.55);
   --glaze-strong: oklch(1 0 0 / 0.75);
   --hover-fill: oklch(0.145 0 0 / 0.05);
-  --shadow-tile: 0 0 0 1px var(--hairline), 0 1px 2px oklch(0.5 0.02 165 / 0.1),
-    0 8px 24px -6px oklch(0.5 0.02 165 / 0.16);
-  --shadow-float: 0 0 0 1px var(--hairline-strong), 0 4px 8px oklch(0.5 0.02 165 / 0.1),
-    0 24px 60px -12px oklch(0.5 0.02 165 / 0.2);
+  --shadow-tile: 0 0 0 1px var(--hairline), 0 1px 2px oklch(0.5 0 0 / 0.1),
+    0 8px 24px -6px oklch(0.5 0 0 / 0.16);
+  --shadow-float: 0 0 0 1px var(--hairline-strong), 0 4px 8px oklch(0.5 0 0 / 0.1),
+    0 24px 60px -12px oklch(0.5 0 0 / 0.2);
   --ease-glaze: cubic-bezier(0.22, 0.61, 0.36, 1);
   --dur-fast: 120ms;
   --dur-base: 180ms;
   --dur-slow: 240ms;
-  /* keyboard focus is the one place the emerald accent always appears */
-  --ring: oklch(0.508 0.118 165.612);
 }
 
 .dark {
@@ -163,7 +161,6 @@
     0 8px 24px -6px oklch(0 0 0 / 0.45);
   --shadow-float: 0 0 0 1px var(--hairline-strong), 0 4px 8px oklch(0 0 0 / 0.3),
     0 24px 60px -12px oklch(0 0 0 / 0.55);
-  --ring: oklch(0.696 0.17 162.48);
 }
 
 /* A fired porcelain tile: panel radius, glass fill, hairline edge + lifted
@@ -225,18 +222,20 @@
   }
 }
 
-/* Themed thin scrollbars for native-overflow areas (code viewer, diff, sidebar) */
+/* Themed thin scrollbars for native-overflow areas (code viewer, diff, sidebar).
+   A slim translucent pill (hairline → muted on hover) rather than a chunky solid
+   bar, so it reads as glaze chrome and never clashes with the rounded tile corner. */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 9px;
+  height: 9px;
 }
 ::-webkit-scrollbar-track,
 ::-webkit-scrollbar-corner {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background-color: var(--color-muted);
-  border-radius: 5px;
+  background-color: var(--hairline-strong);
+  border-radius: 9999px;
   border: 2px solid transparent;
   background-clip: padding-box;
 }

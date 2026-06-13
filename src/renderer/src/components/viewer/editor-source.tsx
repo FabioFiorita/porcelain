@@ -45,7 +45,7 @@ export function EditorSource({
   const [savedContent, setSavedContent] = useState(initialContent)
   const [selection, setSelection] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const backdropRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const highlighter = useHighlighter()
   const lang = languageFor(path)
@@ -77,7 +77,7 @@ export function EditorSource({
   }, [])
 
   useEffect(() => {
-    const el = textareaRef.current
+    const el = scrollRef.current
     if (!el || highlightLine === undefined) return
     el.scrollTop = Math.max(0, (highlightLine - 1) * 20 - el.clientHeight / 2 + 10)
   }, [highlightLine])
@@ -114,46 +114,49 @@ export function EditorSource({
       }}
     >
       <ContextMenuTrigger className="relative block h-full select-text overflow-hidden">
-        {/* Highlighted mirror of the textarea content; the textarea on top has
-            transparent text so the native caret/selection sit over the colors. */}
-        <div
-          ref={backdropRef}
-          aria-hidden
-          className="pointer-events-none absolute inset-0 overflow-hidden px-4 py-2 font-mono text-xs leading-5"
-        >
-          <div className="w-max min-w-full">
-            {content.split('\n').map((line, i) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: lines have no stable identity
-              <div key={i} className={cn('flex', i + 1 === highlightLine && 'bg-primary/15')}>
-                <span className="w-10 shrink-0 select-none pr-3 text-right text-muted-foreground/50">
-                  {i + 1}
-                </span>
-                <EditorLine text={line} lang={lang} highlighter={highlighter} />
+        {/* ONE scroll container holds both layers, so the native selection can
+            never drift from the highlighted text. (The old design scrolled the
+            textarea and its mirror separately and synced them in JS — that lag
+            put selection boxes over the wrong lines after a scroll.) The
+            textarea sizes to its content via field-sizing, so the container —
+            not the textarea — owns the single scroll for both layers. */}
+        <div ref={scrollRef} className="h-full overflow-auto">
+          <div className="relative min-h-full w-max min-w-full">
+            {/* Highlighted mirror; the textarea on top has transparent text so
+                the native caret/selection sit over these colors. */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0 z-0 px-4 py-2 font-mono text-xs leading-5"
+            >
+              <div className="w-max min-w-full">
+                {content.split('\n').map((line, i) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: lines have no stable identity
+                  <div key={i} className={cn('flex', i + 1 === highlightLine && 'bg-primary/15')}>
+                    <span className="w-10 shrink-0 select-none pr-3 text-right text-muted-foreground/50">
+                      {i + 1}
+                    </span>
+                    <EditorLine text={line} lang={lang} highlighter={highlighter} />
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
+            <textarea
+              ref={textareaRef}
+              value={content}
+              onChange={(e) => edit(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 's' && (e.metaKey || e.ctrlKey)) {
+                  e.preventDefault()
+                  saveRef.current()
+                }
+              }}
+              spellCheck={false}
+              wrap="off"
+              aria-label={`Edit ${path}`}
+              className="relative z-10 block min-h-full min-w-full resize-none whitespace-pre bg-transparent py-2 pl-14 pr-4 font-mono text-xs leading-5 text-transparent caret-foreground outline-none field-sizing-content"
+            />
           </div>
         </div>
-        <textarea
-          ref={textareaRef}
-          value={content}
-          onChange={(e) => edit(e.target.value)}
-          onScroll={(e) => {
-            const backdrop = backdropRef.current
-            if (!backdrop) return
-            backdrop.scrollTop = e.currentTarget.scrollTop
-            backdrop.scrollLeft = e.currentTarget.scrollLeft
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 's' && (e.metaKey || e.ctrlKey)) {
-              e.preventDefault()
-              saveRef.current()
-            }
-          }}
-          spellCheck={false}
-          wrap="off"
-          aria-label={`Edit ${path}`}
-          className="absolute inset-0 size-full resize-none whitespace-pre bg-transparent py-2 pl-14 pr-4 font-mono text-xs leading-5 text-transparent caret-foreground outline-none"
-        />
         {saveError ? (
           <span className="pointer-events-none absolute bottom-2 right-3 rounded-md bg-muted/80 px-2 py-0.5 text-[10px] text-destructive">
             {saveError.message}

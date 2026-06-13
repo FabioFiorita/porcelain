@@ -7,7 +7,7 @@ import { useInstallUpdate, useUpdateStatus } from '@renderer/hooks/use-updates'
 import { cn } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
-import { PanelLeft, PanelRight, RotateCw } from 'lucide-react'
+import { PanelLeft, RotateCw, Zap } from 'lucide-react'
 import { useEffect } from 'react'
 import { AppSidebar } from './app-sidebar'
 import { FileFinder } from './file-finder'
@@ -49,7 +49,7 @@ function TopBar({ left }: { left: LeftSidebarHandle }): React.JSX.Element {
   const setRightSidebarOpen = usePreferencesStore((s) => s.setRightSidebarOpen)
 
   return (
-    <div className="app-drag flex h-10 items-end border-b">
+    <div className="app-drag flex h-12 items-center border-b">
       <Tooltip>
         <TooltipTrigger
           render={
@@ -59,9 +59,9 @@ function TopBar({ left }: { left: LeftSidebarHandle }): React.JSX.Element {
               onClick={left.toggle}
               aria-label="Toggle sidebar"
               className={cn(
-                'app-no-drag m-1 ml-2 self-center',
+                'app-no-drag m-1 ml-2',
                 // collapsed sidebar puts this tile at the window edge, under the traffic lights
-                left.collapsed && 'ml-[4.25rem]',
+                left.collapsed && 'ml-[4.75rem]',
               )}
             >
               <PanelLeft />
@@ -82,9 +82,9 @@ function TopBar({ left }: { left: LeftSidebarHandle }): React.JSX.Element {
               size="icon-sm"
               onClick={() => setRightSidebarOpen(!rightSidebarOpen)}
               aria-label="Toggle quick access sidebar"
-              className="app-no-drag m-1 mr-2 self-center"
+              className="app-no-drag m-1 mr-2"
             >
-              <PanelRight />
+              <Zap />
             </Button>
           }
         />
@@ -153,7 +153,7 @@ export function AppShell(): React.JSX.Element {
   if (!repo) {
     return (
       <div className="dark flex h-screen flex-col bg-background text-foreground">
-        <div className="app-drag h-10 shrink-0" />
+        <div className="app-drag h-12 shrink-0" />
         <div className="min-h-0 flex-1">
           <Welcome />
         </div>

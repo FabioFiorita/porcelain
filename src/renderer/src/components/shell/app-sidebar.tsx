@@ -31,10 +31,11 @@ export function AppSidebar(): React.JSX.Element {
   return (
     <Sidebar variant="floating">
       <SidebarResizeHandle />
-      {/* pl clears the traffic lights, which sit 8px outside the floating tile */}
-      <SidebarHeader className="app-drag h-10 flex-row items-center justify-between border-b py-0 pl-[4.25rem]">
+      {/* pl clears the traffic lights, which overlap the top of the floating tile;
+          the picker sits just to their right (same row), truncating if long */}
+      <SidebarHeader className="app-drag h-12 flex-row items-center justify-between gap-2 border-b py-0 pl-[4.75rem] pr-1">
         <ProjectSwitcher />
-        <div className="app-no-drag flex items-center">
+        <div className="app-no-drag flex shrink-0 items-center">
           <Tooltip>
             <TooltipTrigger
               render={
@@ -54,7 +55,7 @@ export function AppSidebar(): React.JSX.Element {
           </Tooltip>
         </div>
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="overflow-hidden">
         {repo ? (
           <Tabs
             value={sidebarTab}
@@ -63,11 +64,12 @@ export function AppSidebar(): React.JSX.Element {
                 setSidebarTab(value)
               }
             }}
-            className="@container flex h-full flex-col gap-0"
+            className="@container flex h-full min-h-0 flex-col gap-0"
           >
-            {/* iOS-style floating glass bar: stays pinned while the tree scrolls
-                under it; labels collapse to icons when the sidebar is narrow. */}
-            <TabsList className="sticky top-2 z-20 mx-2 mt-2 grid w-auto shrink-0 grid-cols-3 rounded-full border border-sidebar-border bg-sidebar-accent/40 shadow-lg backdrop-blur-xl">
+            {/* Floating glass bar: a static header the tree scrolls beneath (the
+                panel below owns the scroll, so rows never ghost through the glass);
+                labels collapse to icons when the sidebar is narrow. */}
+            <TabsList className="mx-2 mt-2 grid w-auto shrink-0 grid-cols-3 rounded-full border border-sidebar-border bg-sidebar-accent/40 shadow-lg backdrop-blur-xl">
               <Tooltip>
                 <TooltipTrigger
                   render={
@@ -108,21 +110,21 @@ export function AppSidebar(): React.JSX.Element {
                 </TooltipContent>
               </Tooltip>
             </TabsList>
-            <TabsContent value="files">
+            <TabsContent value="files" className="mt-0 min-h-0 flex-1 overflow-auto">
               <SidebarGroup>
                 <SidebarGroupContent>
                   <FileTree rootPath={repo.path} />
                 </SidebarGroupContent>
               </SidebarGroup>
             </TabsContent>
-            <TabsContent value="changes">
+            <TabsContent value="changes" className="mt-0 min-h-0 flex-1 overflow-auto">
               <SidebarGroup>
                 <SidebarGroupContent>
                   <ChangesList />
                 </SidebarGroupContent>
               </SidebarGroup>
             </TabsContent>
-            <TabsContent value="history">
+            <TabsContent value="history" className="mt-0 min-h-0 flex-1 overflow-auto">
               <SidebarGroup>
                 <SidebarGroupContent>
                   <HistoryList />

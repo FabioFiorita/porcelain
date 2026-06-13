@@ -13,7 +13,7 @@ export function RightSidebar(): React.JSX.Element {
   return (
     <Sidebar side="right" variant="floating" collapsible="offcanvas">
       <RightSidebarResizeHandle />
-      <SidebarHeader className="app-drag h-10 flex-row items-center border-b py-0">
+      <SidebarHeader className="app-drag h-12 flex-row items-center border-b py-0">
         <span className="truncate text-xs font-medium uppercase tracking-wider text-muted-foreground">
           Quick access
         </span>
