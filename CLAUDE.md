@@ -20,6 +20,17 @@ Porcelain is a lightweight macOS viewer + agent companion (Electron). Not an edi
 - `product` — what Porcelain is, core features, product principles. Read before designing features/UI.
 - `shadcn`, `frontend-design` — vendor skills.
 
+## Releasing
+
+Cutting a new release (publishes a signed + notarized macOS build to GitHub Releases for `electron-updater`):
+
+1. Land your changes on `main` and confirm CI is green (CI runs on every push to `main` + PRs).
+2. Bump and tag in one step: `pnpm version <patch|minor|major>` — updates `package.json`, commits, and creates a matching `vX.Y.Z` git tag. The tag **must** equal `v<package.json version>`, or electron-builder publishes a mismatched release.
+3. `git push --follow-tags` — pushing the `v*` tag triggers `.github/workflows/release.yml` (macOS runner): it re-runs the gate, then `pnpm release` builds, signs, notarizes, and uploads `dmg` + `zip` + `latest-mac.yml`.
+4. electron-builder uploads to a **draft** release — open it on GitHub, verify the assets, then **Publish** (and "Set as latest") so users and the auto-updater can see it. (If assets ever land split across two drafts, consolidate into one before publishing.)
+
+Signing/notarization secrets live on the repo (`gh secret list`): `CSC_LINK` (base64 Developer ID `.p12`), `CSC_KEY_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`. Identity is pinned in `electron-builder.yml`. To ship **unsigned** instead, drop the `CSC_*`/`APPLE_*` env from `release.yml`, set `CSC_IDENTITY_AUTO_DISCOVERY: "false"`, and set `notarize: false`.
+
 ## Decision log
 - Stack: electron-vite/React 19/TS strict, shadcn+Tailwind v4, pnpm, Biome, Vitest+Playwright, Conventional Commits.
 - shadcn on **Base UI** instead of Radix (user choice), `base-nova` preset.
@@ -78,5 +89,7 @@ Porcelain is a lightweight macOS viewer + agent companion (Electron). Not an edi
 - **CI/release via GitHub Actions** (repo public at `FabioFiorita/porcelain`). `.github/workflows/ci.yml` runs install→lint→typecheck→test→build on Ubuntu for pushes to `main` and all PRs (no native modules, so no macOS runner needed for checks). `.github/workflows/release.yml` runs on `v*` tags on `macos-14`: same gate then `pnpm release` (= `electron-builder --mac --publish always`), publishing dmg+zip+`latest-mac.yml` to a GitHub Release for `electron-updater`. `GH_TOKEN` = the auto `GITHUB_TOKEN` (`permissions: contents: write`); mac signing/notarization are optional via `CSC_LINK`/`CSC_KEY_PASSWORD`/`APPLE_*` secrets — unsigned until set, which disables macOS auto-update. `packageManager` pinned to `pnpm@10.26.1` so `pnpm/action-setup` resolves the version. Cut a release with `pnpm version <patch|minor|major> && git push --follow-tags`.
 
 - Decision log entries are **dateless bullets** — position is the chronology, git holds the real timestamps. Append at the end; match the existing terse style (bold lede for a major decision, GOTCHA/file pointers inline). Each entry still updates its home skill per hard rule 4; the log is the "why", the skill is the "what".
+
+- **macOS signing + notarization wired** (release builds are now signed + notarized, not unsigned). Repo secrets set: `CSC_LINK` (base64 Developer ID `.p12`), `CSC_KEY_PASSWORD`, `APPLE_TEAM_ID` (=`9QH8M89WF9`); `APPLE_ID` + `APPLE_APP_SPECIFIC_PASSWORD` complete the set. `electron-builder.yml`: `notarize: true` + `identity` pinned to the Developer ID Application name (the exported p12 also carries the Apple Development cert, so the identity must be explicit). `release.yml` passes all five via `env` (dropped the `CSC_IDENTITY_AUTO_DISCOVERY:false` unsigned fallback). GOTCHA: never map an *empty* `CSC_LINK` secret into env — a defined-but-empty value makes electron-builder attempt signing and die with `<projectDir> not a file`; either set it real or omit it. Release runbook in the `## Releasing` section above.
 
 - Agent-session integration design (beyond a plain terminal)

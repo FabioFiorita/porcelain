@@ -30,13 +30,12 @@ jobs:
         env:
           # Auto-provided; electron-builder reads GH_TOKEN for the github provider.
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # No signing cert on the runner — ship an unsigned build. Do NOT pass an
-          # empty CSC_LINK here: a *defined-but-empty* CSC_LINK makes electron-builder
-          # attempt signing and fail ("<projectDir> not a file"); leaving it undefined
-          # plus this flag makes it cleanly skip signing.
-          #
-          # To sign + notarize later: add repo secrets CSC_LINK (base64 .p12),
-          # CSC_KEY_PASSWORD, APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID;
-          # map them into this env block, set `notarize: true` in electron-builder.yml,
-          # and delete the line below. (Unsigned builds disable macOS auto-update.)
-          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          # Developer ID signing — CSC_LINK is the base64 .p12, CSC_KEY_PASSWORD its
+          # export password. All five are repo secrets; keep them non-empty (an empty
+          # CSC_LINK makes electron-builder attempt signing and fail).
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          # Notarization (notarytool) — required for a warning-free public download.
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
