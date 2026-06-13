@@ -25,6 +25,16 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
+      # Pre-create the draft release so electron-builder reuses it. Without this,
+      # its dmg and zip uploaders run concurrently, both see "no release exists",
+      # and each creates its own draft — splitting assets across two releases.
+      - name: Ensure draft release exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 \
+            || gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+                 --draft --title "Porcelain ${GITHUB_REF_NAME#v}" --generate-notes
       - name: Build and publish to GitHub Releases
         run: pnpm release
         env:
