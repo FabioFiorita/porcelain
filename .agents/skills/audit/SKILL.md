@@ -54,6 +54,13 @@ assumed — this skill is the codebase-specific layer beneath them.
   Porcelain is a review tool — silently `git add -A` on commit is surprising.
 - **Quick commands run a whitelist** (`QUICK_COMMANDS` in `git.ts`), never arbitrary
   shell. New quick actions are added to the whitelist, not passed through.
+- **Status listings use `-uall`** (`--untracked-files=all`) in `gitStatus` and
+  `gitDiffFile`'s status probe (`git.ts`). *Why:* the default `-unormal` collapses
+  an untracked directory into one `dir/` row; that row reaches the Changes list and
+  `gitDiffFile` then `readFile`s the directory → `EISDIR` (blank tab + error). With
+  `-uall` every new file is its own diffable row. *Verify:* new `git status` calls
+  that feed the changes list keep the flag; clicking a newly-added folder's files
+  diffs cleanly.
 
 ## Data fetching & IPC
 

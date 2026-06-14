@@ -10,6 +10,14 @@ interface VirtualRowsProps<T> {
   className?: string
   /** 1-based line to scroll into view (centered) when it changes. */
   scrollToLine?: number
+  /**
+   * Size rows to the viewport width (`w-full`) instead of growing to content
+   * (`w-max`). Use for fixed multi-column layouts (split diff) where each column
+   * owns a share of the width and clips its own overflow — growing to content
+   * would let one column's long line overrun the other. Default `false` keeps the
+   * single-column horizontal-scroll behavior (unified diff, source view).
+   */
+  fitWidth?: boolean
 }
 
 /** Virtualized fixed-height row list for code/diff content. Only visible rows mount. */
@@ -18,6 +26,7 @@ export function VirtualRows<T>({
   renderRow,
   className,
   scrollToLine,
+  fitWidth = false,
 }: VirtualRowsProps<T>): React.JSX.Element {
   const scrollRef = useRef<HTMLDivElement>(null)
   const virtualizer = useVirtualizer({
@@ -38,14 +47,17 @@ export function VirtualRows<T>({
 
   return (
     <div ref={scrollRef} className={cn('h-full overflow-auto font-mono text-xs', className)}>
-      <div className="relative w-max min-w-full" style={{ height: virtualizer.getTotalSize() }}>
+      <div
+        className={cn('relative', fitWidth ? 'w-full' : 'w-max min-w-full')}
+        style={{ height: virtualizer.getTotalSize() }}
+      >
         {virtualizer.getVirtualItems().map((item) => {
           const row = rows[item.index]
           if (row === undefined) return null
           return (
             <div
               key={item.key}
-              className="absolute left-0 w-max min-w-full"
+              className={cn('absolute left-0', fitWidth ? 'w-full' : 'w-max min-w-full')}
               style={{ top: item.start, height: item.size }}
             >
               {renderRow(row, item.index)}
