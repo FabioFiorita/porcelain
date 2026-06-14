@@ -13,8 +13,8 @@ interface RenderContext {
 }
 
 const lineClass: Record<DiffLine['kind'], string> = {
-  add: 'bg-emerald-950/60',
-  del: 'bg-red-950/60',
+  add: 'bg-diff-add',
+  del: 'bg-diff-del',
   context: '',
 }
 

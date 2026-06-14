@@ -22,11 +22,11 @@ import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { RefreshCw } from 'lucide-react'
 
 const statusBadge: Record<FileStatus, { label: string; className: string }> = {
-  modified: { label: 'M', className: 'text-amber-500' },
-  added: { label: 'A', className: 'text-emerald-500' },
-  deleted: { label: 'D', className: 'text-red-500' },
-  renamed: { label: 'R', className: 'text-sky-500' },
-  untracked: { label: 'U', className: 'text-emerald-500' },
+  modified: { label: 'M', className: 'text-warning' },
+  added: { label: 'A', className: 'text-success' },
+  deleted: { label: 'D', className: 'text-destructive' },
+  renamed: { label: 'R', className: 'text-info' },
+  untracked: { label: 'U', className: 'text-success' },
 }
 
 function FileRowMenu({
@@ -74,19 +74,19 @@ function FileRow({ file }: { file: FlowFile }): React.JSX.Element {
                 <span
                   className={cn(
                     'size-1.5 shrink-0 self-center rounded-full',
-                    file.unstaged ? 'bg-amber-500' : 'bg-emerald-500',
+                    file.unstaged ? 'bg-warning' : 'bg-success',
                   )}
                   title={file.unstaged ? 'Partially staged' : 'Staged'}
                 />
               )}
               <span className="truncate">{name}</span>
               {file.additions !== undefined && (
-                <span className="shrink-0 font-mono text-[10px] text-emerald-500">
+                <span className="shrink-0 font-mono text-[10px] text-success">
                   +{file.additions}
                 </span>
               )}
               {file.deletions !== undefined && (
-                <span className="shrink-0 font-mono text-[10px] text-red-500">
+                <span className="shrink-0 font-mono text-[10px] text-destructive">
                   −{file.deletions}
                 </span>
               )}

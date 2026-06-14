@@ -71,7 +71,7 @@ export function QuickCommandsGroup(): React.JSX.Element {
                   disabled={running !== null}
                   onClick={() => run(command)}
                 >
-                  <Sparkles className="size-3 shrink-0 text-amber-400" />
+                  <Sparkles className="size-3 shrink-0 text-ink-amber" />
                   <span className="flex min-w-0 flex-col items-start">
                     <span className="font-mono text-xs">{command.label}</span>
                     <span className="text-[10px] text-muted-foreground">{suggestion.reason}</span>
