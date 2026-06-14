@@ -18,8 +18,9 @@ import { useFileStaging } from '@renderer/hooks/use-commit'
 import { useDiffFilePrefetch } from '@renderer/hooks/use-diff'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'
 import { cn } from '@renderer/lib/utils'
+import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
-import { RefreshCw } from 'lucide-react'
+import { RefreshCw, Waypoints } from 'lucide-react'
 
 const statusBadge: Record<FileStatus, { label: string; className: string }> = {
   modified: { label: 'M', className: 'text-warning' },
@@ -29,44 +30,35 @@ const statusBadge: Record<FileStatus, { label: string; className: string }> = {
   untracked: { label: 'U', className: 'text-success' },
 }
 
-function FileRowMenu({
-  file,
-  children,
-}: {
-  file: FlowFile
-  children: React.ReactNode
-}): React.JSX.Element {
-  const { stageFile, unstageFile } = useFileStaging()
-  return (
-    <ContextMenu>
-      <ContextMenuTrigger>{children}</ContextMenuTrigger>
-      <ContextMenuContent>
-        {file.unstaged && (
-          <ContextMenuItem onClick={() => stageFile(file.path)}>Stage</ContextMenuItem>
-        )}
-        {file.staged && (
-          <ContextMenuItem onClick={() => unstageFile(file.path)}>Unstage</ContextMenuItem>
-        )}
-      </ContextMenuContent>
-    </ContextMenu>
-  )
-}
-
 function FileRow({ file }: { file: FlowFile }): React.JSX.Element {
   const openTab = useTabsStore((s) => s.openTab)
   const prefetchDiff = useDiffFilePrefetch()
+  const { stageFile, unstageFile } = useFileStaging()
   const name = file.path.split('/').at(-1) ?? file.path
   const connects = file.connects.map((c) => c.split('/').at(-1)).join(', ')
 
   return (
     <SidebarMenuItem>
-      <FileRowMenu file={file}>
-        <SidebarMenuButton
-          className="h-auto py-1"
-          onClick={() =>
-            openTab({ id: tabId('diff', file.path), kind: 'diff', title: name, path: file.path })
+      <ContextMenu>
+        {/* render the SidebarMenuButton AS the trigger so it stays a direct
+            sibling of SidebarMenuBadge — the badge's vertical position relies on
+            the `peer/menu-button` relationship, which an extra trigger wrapper
+            would break (badge falls to the bottom of the row). */}
+        <ContextMenuTrigger
+          render={
+            <SidebarMenuButton
+              className="h-auto py-1"
+              onClick={() =>
+                openTab({
+                  id: tabId('diff', file.path),
+                  kind: 'diff',
+                  title: name,
+                  path: file.path,
+                })
+              }
+              onMouseEnter={() => prefetchDiff(file.path)}
+            />
           }
-          onMouseEnter={() => prefetchDiff(file.path)}
         >
           <div className="flex min-w-0 flex-col items-start">
             <span className="flex max-w-full items-baseline gap-1.5">
@@ -100,8 +92,16 @@ function FileRow({ file }: { file: FlowFile }): React.JSX.Element {
               </span>
             )}
           </div>
-        </SidebarMenuButton>
-      </FileRowMenu>
+        </ContextMenuTrigger>
+        <ContextMenuContent>
+          {file.unstaged && (
+            <ContextMenuItem onClick={() => stageFile(file.path)}>Stage</ContextMenuItem>
+          )}
+          {file.staged && (
+            <ContextMenuItem onClick={() => unstageFile(file.path)}>Unstage</ContextMenuItem>
+          )}
+        </ContextMenuContent>
+      </ContextMenu>
       <SidebarMenuBadge className={cn('font-mono', statusBadge[file.status].className)}>
         {statusBadge[file.status].label}
       </SidebarMenuBadge>
@@ -111,12 +111,24 @@ function FileRow({ file }: { file: FlowFile }): React.JSX.Element {
 
 export function ChangesList(): React.JSX.Element {
   const { groups, refresh } = useGitFlow()
+  const openTab = useTabsStore((s) => s.openTab)
+  const repo = useRepoStore((s) => s.repo)
 
   if (groups === undefined) {
     return <p className="p-3 text-sm text-muted-foreground">Loading…</p>
   }
 
   const total = groups.reduce((n, g) => n + g.files.length, 0)
+
+  const openFeatureView = (): void => {
+    if (!repo) return
+    openTab({
+      id: tabId('feature', repo.path),
+      kind: 'feature',
+      title: 'Feature view',
+      path: repo.path,
+    })
+  }
 
   return (
     <div className="flex flex-col gap-1">
@@ -128,6 +140,14 @@ export function ChangesList(): React.JSX.Element {
           <RefreshCw />
         </Button>
       </div>
+      <button
+        type="button"
+        onClick={openFeatureView}
+        className="mx-2 mb-1 flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground"
+      >
+        <Waypoints className="size-3.5" />
+        View full feature
+      </button>
       {groups.map((group) => (
         <div key={group.layer}>
           <SidebarGroupLabel className="h-6 px-2 text-[10px] uppercase tracking-wider">

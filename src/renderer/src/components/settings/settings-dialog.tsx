@@ -16,16 +16,18 @@ import {
   SidebarMenuItem,
   SidebarProvider,
 } from '@renderer/components/ui/sidebar'
-import { Layers, Settings2, SlidersHorizontal } from 'lucide-react'
+import { Blocks, Layers, Settings2, SlidersHorizontal } from 'lucide-react'
 import { useState } from 'react'
 import { FlowLayersSection } from './flow-layers-section'
 import { GeneralSection } from './general-section'
+import { PluginSection } from './plugin-section'
 
-type SectionId = 'general' | 'flow'
+type SectionId = 'general' | 'flow' | 'plugin'
 
 const SECTIONS: { id: SectionId; label: string; icon: typeof Layers }[] = [
   { id: 'general', label: 'General', icon: SlidersHorizontal },
   { id: 'flow', label: 'Review flow', icon: Layers },
+  { id: 'plugin', label: 'Claude Code plugin', icon: Blocks },
 ]
 
 export function SettingsDialog(): React.JSX.Element {
@@ -72,11 +74,9 @@ export function SettingsDialog(): React.JSX.Element {
             </SidebarContent>
           </Sidebar>
           <main className="h-[480px] min-w-0 flex-1 overflow-y-auto p-6">
-            {section === 'general' ? (
-              <GeneralSection />
-            ) : (
-              <FlowLayersSection onSaved={() => setOpen(false)} />
-            )}
+            {section === 'general' && <GeneralSection />}
+            {section === 'flow' && <FlowLayersSection onSaved={() => setOpen(false)} />}
+            {section === 'plugin' && <PluginSection />}
           </main>
         </SidebarProvider>
       </DialogContent>

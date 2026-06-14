@@ -4,7 +4,19 @@ import { defineConfig } from 'electron-vite'
 import { resolve } from 'path'
 
 export default defineConfig({
-  main: {},
+  main: {
+    build: {
+      rollupOptions: {
+        // Two main-process bundles: the app entry, and the standalone stdio MCP
+        // server the user's agent spawns (`node out/main/mcp/server.js`). The MCP
+        // bundle imports only Node builtins, so it runs under a plain `node`.
+        input: {
+          index: resolve('src/main/index.ts'),
+          'mcp/server': resolve('src/mcp/server.ts'),
+        },
+      },
+    },
+  },
   preload: {},
   renderer: {
     resolve: {

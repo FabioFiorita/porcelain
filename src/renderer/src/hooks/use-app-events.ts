@@ -15,6 +15,10 @@ export function useAppEvents(): void {
         await utils.updateStatus.invalidate()
         return
       }
+      if (event === 'feature-view') {
+        await utils.featureView.invalidate()
+        return
+      }
       if (event !== 'close-tab') return
       const { activeTabId, closeTab } = useTabsStore.getState()
       if (activeTabId) closeTab(activeTabId)

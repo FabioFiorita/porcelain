@@ -1,6 +1,7 @@
 import logo from '@renderer/assets/logo.png'
 import { CommitView } from '@renderer/components/git/commit-view'
 import { DiffView } from '@renderer/components/git/diff-view'
+import { FeatureView } from '@renderer/components/git/feature-view'
 import { Kbd } from '@renderer/components/ui/kbd'
 import { FileContent } from '@renderer/components/viewer/file-content'
 import { SearchView } from '@renderer/components/viewer/search-view'
@@ -31,6 +32,8 @@ export function Viewer(): React.JSX.Element {
       return <CommitView hash={activeTab.path} />
     case 'search':
       return <SearchView query={activeTab.path} />
+    case 'feature':
+      return <FeatureView />
     case 'file':
       // keyed by path so edit state never leaks across tab switches
       return <FileContent key={activeTab.path} path={activeTab.path} line={activeTab.line} />

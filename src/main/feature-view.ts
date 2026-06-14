@@ -1,0 +1,176 @@
+import type { ChangedFile, FileStatus } from './diff'
+import { type Layer, layerFor, parseImports, resolveImport } from './flow'
+import type { FileSource, ReviewSet } from './review-set'
+
+const OTHER_LABEL = 'Other'
+
+// Resolution order for an extension-less import. Mirrors the resolver in flow.ts
+// but checks set membership (O(1)) instead of scanning a list — the baseline walks
+// every changed file's imports against the full repo file list on each poll.
+const RESOLVE_EXTS = ['', '.ts', '.tsx', '.js', '.jsx', '.mts', '.cts', '.mjs', '.cjs']
+
+/**
+ * Resolve a RELATIVE import specifier to a real repo file. Only relative specs are
+ * resolved for the baseline: they are unambiguous and cheap. Alias/bare specs (which
+ * is how a client reaches a server route — e.g. `@soaphealth/...`) are deliberately
+ * not followed; those cross-seam edges are exactly what the import graph can't see,
+ * and what the agent-fed review set exists to supply.
+ */
+export function resolveRelativeImport(
+  spec: string,
+  importerPath: string,
+  repoFiles: ReadonlySet<string>,
+): string | null {
+  if (!spec.startsWith('.')) return null
+  const dir = importerPath.split('/').slice(0, -1)
+  for (const segment of spec.split('/')) {
+    if (segment === '.' || segment === '') continue
+    if (segment === '..') dir.pop()
+    else dir.push(segment)
+  }
+  const base = dir.join('/')
+  if (base === '') return null
+  for (const ext of RESOLVE_EXTS) {
+    if (repoFiles.has(base + ext)) return base + ext
+  }
+  for (const ext of RESOLVE_EXTS) {
+    if (repoFiles.has(`${base}/index${ext}`)) return `${base}/index${ext}`
+  }
+  return null
+}
+
+/**
+ * Walk one hop out from the changed files along their relative imports, collecting
+ * unchanged repo files as review context. Bounded by `limit` so a hub file with many
+ * imports can't balloon the view.
+ */
+export function expandContext(
+  changedPaths: readonly string[],
+  sources: ReadonlyMap<string, string>,
+  repoFiles: ReadonlySet<string>,
+  limit = 60,
+): string[] {
+  const changed = new Set(changedPaths)
+  const context = new Set<string>()
+  for (const importer of changedPaths) {
+    const source = sources.get(importer)
+    if (!source) continue
+    for (const spec of parseImports(source)) {
+      const resolved = resolveRelativeImport(spec, importer, repoFiles)
+      if (resolved && !changed.has(resolved)) {
+        context.add(resolved)
+        if (context.size >= limit) return [...context]
+      }
+    }
+  }
+  return [...context]
+}
+
+export interface FeatureFile {
+  path: string
+  source: FileSource
+  /** Git status, only for `changed` files. */
+  status?: FileStatus
+  /** A cross-file invariant the reviewer must check, supplied by the agent. */
+  note?: string
+  additions?: number
+  deletions?: number
+  /** Other files IN THIS VIEW that this file imports. */
+  connects: string[]
+}
+
+export interface FeatureGroup {
+  layer: string
+  files: FeatureFile[]
+}
+
+export interface FeatureView {
+  name: string
+  /** True when an agent-fed review set contributed (cross-seam files + notes). */
+  fromAgent: boolean
+  groups: FeatureGroup[]
+}
+
+/**
+ * Assemble the feature view from the change under review, the statically-expanded
+ * context, and (optionally) an agent-fed review set. One render path for both:
+ * the no-MCP baseline passes `reviewSet: null`; the MCP path overlays declared
+ * files and notes. Git status always wins over a declared source — a file in the
+ * working tree is `changed`, no matter what the agent labelled it.
+ */
+export function buildFeatureView(params: {
+  name: string
+  changed: readonly ChangedFile[]
+  contextPaths: readonly string[]
+  reviewSet: ReviewSet | null
+  sources: ReadonlyMap<string, string>
+  stats: ReadonlyMap<string, { additions: number; deletions: number }>
+  layers: readonly Layer[]
+}): FeatureView {
+  const changedByPath = new Map(params.changed.map((f) => [f.path, f]))
+  const files = new Map<string, FeatureFile>()
+
+  const add = (
+    path: string,
+    source: FileSource,
+    opts: { explicit?: boolean; note?: string } = {},
+  ): void => {
+    const existing = files.get(path)
+    if (existing) {
+      if (opts.note && !existing.note) existing.note = opts.note
+      // An explicit (agent-declared) source can promote context→shipped, but
+      // nothing overrides a file that git says is changed.
+      if (opts.explicit && existing.source !== 'changed') existing.source = source
+      return
+    }
+    const changedFile = changedByPath.get(path)
+    const stat = params.stats.get(path)
+    files.set(path, {
+      path,
+      source: changedFile ? 'changed' : source,
+      status: changedFile?.status,
+      note: opts.note,
+      additions: stat?.additions,
+      deletions: stat?.deletions,
+      connects: [],
+    })
+  }
+
+  for (const file of params.changed) add(file.path, 'changed')
+  for (const path of params.contextPaths) add(path, 'context')
+  if (params.reviewSet) {
+    for (const file of params.reviewSet.files) {
+      add(file.path, file.source ?? 'shipped', { explicit: true, note: file.note })
+    }
+  }
+
+  const unionPaths = [...files.keys()]
+  for (const file of files.values()) {
+    const source = params.sources.get(file.path)
+    if (!source) continue
+    const connects = parseImports(source)
+      .map((spec) => resolveImport(spec, file.path, unionPaths))
+      .filter((p): p is string => p !== null && p !== file.path)
+    file.connects = [...new Set(connects)]
+  }
+
+  const order = [...params.layers.map((l) => l.label), OTHER_LABEL]
+  const groups = new Map<string, FeatureFile[]>()
+  for (const file of files.values()) {
+    const layer = layerFor(file.path, params.layers)
+    const group = groups.get(layer) ?? []
+    group.push(file)
+    groups.set(layer, group)
+  }
+
+  return {
+    name: params.name,
+    fromAgent: params.reviewSet !== null,
+    groups: order
+      .filter((layer) => groups.has(layer))
+      .map((layer) => ({
+        layer,
+        files: (groups.get(layer) ?? []).sort((a, b) => a.path.localeCompare(b.path)),
+      })),
+  }
+}

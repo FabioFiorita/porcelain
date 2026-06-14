@@ -5,6 +5,7 @@ import { basename, join } from 'path'
 import { z } from 'zod'
 import { loadConfig, updateConfig } from './config-store'
 import { type CommitConventions, parseConventions } from './conventions'
+import { buildFeatureView, expandContext, type FeatureView } from './feature-view'
 import { buildFlow, DEFAULT_LAYERS, type FlowGroup, type Layer } from './flow'
 import { fuzzySearch } from './fuzzy'
 import {
@@ -27,6 +28,8 @@ import {
   QUICK_COMMANDS,
   warmFileList,
 } from './git'
+import { installPlugin, type PluginInstallResult } from './plugin'
+import { installCommands, pluginMarketplaceDir } from './plugin-assets'
 import { exceedsReadLimit } from './read-limits'
 import {
   hiddenPathsFor,
@@ -42,6 +45,7 @@ import {
   withRepoLayers,
   withRepoNotes,
 } from './repo-config'
+import { readReviewSet } from './review-store'
 import { checkForUpdates, installUpdate, type UpdateStatus, updateStatus } from './updater'
 
 const t = initTRPC.create({ isServer: true })
@@ -96,6 +100,11 @@ async function recordRecent(path: string): Promise<void> {
 // single heaviest recurring cost. Memoize on the parsed status+numstat+layers —
 // file contents are only re-read when the working tree actually changes.
 const flowCache = new Map<string, { key: string; groups: FlowGroup[] }>()
+
+// Same memoization as flowCache for the (heavier) feature view: keyed on the
+// working-tree state, layers, and the agent-fed review set, so the poll only
+// re-reads file contents when something that affects the view actually changed.
+const featureViewCache = new Map<string, { key: string; view: FeatureView }>()
 
 // Hidden-path filtering over the full file list is recomputed only when the
 // list or the hidden set changes, not on every search keystroke.
@@ -317,6 +326,60 @@ export const router = t.router({
     return groups
   }),
 
+  // The feature view: the change under review widened into the whole feature.
+  // No-MCP baseline = changed files + the unchanged files they reach by relative
+  // import (tagged `context`). When an agent has pushed a review set for this repo
+  // (via the MCP server → ~/.porcelain/review-sets.json), its cross-seam files and
+  // invariant notes overlay on top. One render either way.
+  featureView: t.procedure.input(z.string()).query(async ({ input }): Promise<FeatureView> => {
+    const [files, config, stats, repoFiles, reviewSet] = await Promise.all([
+      gitStatus(input),
+      loadConfig(),
+      gitNumstat(input),
+      gitListFiles(input),
+      readReviewSet(input),
+    ])
+    const layers = layersFor(config, input) ?? DEFAULT_LAYERS
+    const key = JSON.stringify([files, stats, layers, reviewSet])
+    const cached = featureViewCache.get(input)
+    if (cached && cached.key === key) return cached.view
+
+    const sources = new Map<string, string>()
+    const read = async (path: string): Promise<void> => {
+      if (sources.has(path)) return
+      try {
+        const content = await readFile(join(input, path), 'utf8')
+        if (content.length < 1024 * 1024) sources.set(path, content)
+      } catch {
+        // deleted / unreadable files have no working-tree source to parse
+      }
+    }
+    await Promise.all(files.slice(0, 200).map((file) => read(file.path)))
+    const contextPaths = expandContext(
+      files.map((file) => file.path),
+      sources,
+      new Set(repoFiles),
+    )
+    // context + agent-declared files need their source too, for in-view connects
+    await Promise.all(
+      [...contextPaths, ...(reviewSet?.files.map((file) => file.path) ?? [])].map(read),
+    )
+    const statByPath = new Map(
+      stats.map((s) => [s.path, { additions: s.additions, deletions: s.deletions }]),
+    )
+    const view = buildFeatureView({
+      name: reviewSet?.name ?? 'Feature view',
+      changed: files,
+      contextPaths,
+      reviewSet,
+      sources,
+      stats: statByPath,
+      layers,
+    })
+    featureViewCache.set(input, { key, view })
+    return view
+  }),
+
   gitDiffFile: t.procedure
     .input(z.object({ repoPath: z.string(), filePath: z.string() }))
     .query(({ input }) => gitDiffFile(input.repoPath, input.filePath)),
@@ -392,6 +455,14 @@ export const router = t.router({
   installUpdate: t.procedure.mutation(() => {
     installUpdate()
   }),
+
+  // The Claude Code plugin (bundles the feature-review MCP server + skill).
+  pluginInfo: t.procedure.query((): { marketplaceDir: string; commands: string[] } => ({
+    marketplaceDir: pluginMarketplaceDir(),
+    commands: installCommands(),
+  })),
+
+  installPlugin: t.procedure.mutation((): Promise<PluginInstallResult> => installPlugin()),
 })
 
 export type AppRouter = typeof router

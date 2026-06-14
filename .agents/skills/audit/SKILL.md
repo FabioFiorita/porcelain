@@ -30,6 +30,25 @@ assumed — this skill is the codebase-specific layer beneath them.
   `porcelain-dev` before any config read and seeds recents with
   `~/Code/porcelain-playground` (`src/main/dev-config.ts`). Verification/testing
   happens in the playground, never against the user's work repos.
+- **The MCP agent channel adds NO inbound network surface.** The feature-view MCP
+  server (`src/mcp/`) is a standalone **stdio** process the user's agent spawns — it
+  never opens a port or socket the app listens on. The app's only new capability is
+  *reading* and *watching* one file, `~/.porcelain/review-sets.json` (`review-store.ts`
+  / `review-watch.ts`), which it re-validates with zod (`reviewSetsSchema`) on every
+  read because an external process owns it. Don't "upgrade" this to an in-app HTTP/MCP
+  listener — that's the inbound surface this design deliberately avoids. The server
+  stays **dependency-free** (Node builtins only) so it runs under a plain `node`; don't
+  add npm imports to `src/mcp/`, and keep tool inputs validated in `toReviewFiles`.
+  *Verify:* `rg -n "createServer|listen\(|http" src/main src/mcp` finds nothing new.
+- **The plugin installer is the ONLY non-git shell-out, and it takes no user input.**
+  `installPlugin` (`src/main/plugin.ts`) spawns a login shell to run a FIXED command
+  (`claude plugin marketplace add <app-derived dir> && claude plugin install …`) —
+  the only interpolated value is `~/.porcelain/plugin`, derived from `homedir()`, never
+  from the renderer. It's user-initiated from Settings. Don't let any renderer-supplied
+  string reach that command string (injection). It writes the plugin under `~/.porcelain`
+  (home, not a work repo) and copies the built `out/main/mcp/server.js` in. *Verify:* the
+  spawn args stay a constant template; `git`'s `execFile` (no shell) remains the pattern
+  everywhere else.
 
 ## Config persistence
 

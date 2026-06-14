@@ -6,6 +6,7 @@ import { emitAppEvent } from './app-events'
 import { seedDevConfig } from './dev-config'
 import { isSafeExternalUrl } from './external-url'
 import { pipeAppEvents, registerTrpcHandler } from './ipc'
+import { watchReviewSets } from './review-watch'
 
 // Dev gets its own config dir so `pnpm dev` never touches (or hijacks) the
 // state of the installed app the user works in. Must run before anything
@@ -98,6 +99,9 @@ app.whenReady().then(async () => {
   if (is.dev) {
     await seedDevConfig()
   }
+
+  // Watch the agent channel so MCP-pushed review sets refresh the open feature view.
+  await watchReviewSets()
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.

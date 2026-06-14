@@ -46,7 +46,7 @@ Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wron
 **Inside the viewer:**
 - **Tab bar** — the floating glass capsule of open documents (`tab-bar.tsx`).
 - **Tab** — one open document. **Preview tab** = single-click, italic, replaced by the next preview; **pinned tab** = double-click or edit, kept.
-- Tab kinds: **file view** / **source view** (`source-view.tsx`, editable) / **markdown reader** (`markdown-view.tsx`) / **diff view** (`diff-view.tsx`, working-tree) / **commit view** (`commit-view.tsx`, a historical commit) / **search view** (`search-view.tsx`, find-references results).
+- Tab kinds: **file view** / **source view** (`source-view.tsx`, editable) / **markdown reader** (`markdown-view.tsx`) / **diff view** (`diff-view.tsx`, working-tree) / **commit view** (`commit-view.tsx`, a historical commit) / **search view** (`search-view.tsx`, find-references results) / **feature view** (`feature-view.tsx`, the whole feature — changed + context + agent-fed shipped files in flow order).
 
 **Inside Quick Access (section depends on the sidebar tab):**
 - Files → **Pinned** (`pinned-group.tsx`) + **Notes card** (`notes-card.tsx`), wrapped in `files-quick-access.tsx`.
@@ -61,5 +61,6 @@ Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wron
 
 **Cross-cutting concepts:**
 - **Flow / flow layers** — the architectural-layer grouping of changes (entry-point → data); the heart of "review changes as a story".
+- **Feature view / review set** — the change widened into the whole feature, flow-ordered. Files are tagged by **source**: **changed** (working tree), **context** (unchanged, reached by import — the no-MCP baseline), **shipped** (cross-seam files the agent declares). A **review set** is the agent-fed manifest (`~/.porcelain/review-sets.json`) written by the **MCP server** (`src/mcp/`, standalone stdio), distributed as a one-click **Claude Code plugin** (Settings → "Claude Code plugin"). Opened from the Changes tab.
 - **Repo / worktree / window** — one repo per window; the worktree switcher sits in the sidebar footer.
 - **Glaze / glaze tile / vibrancy void** — the design-system surfaces (floating porcelain tiles over the vibrancy void).
