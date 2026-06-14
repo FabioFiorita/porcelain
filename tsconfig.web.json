@@ -9,6 +9,9 @@
   "compilerOptions": {
     "composite": true,
     "jsx": "react-jsx",
+    // baseUrl is retained for the shadcn CLI's alias resolution; TS 6 deprecates it
+    // (removed in TS 7), so silence the deprecation until shadcn reads paths directly.
+    "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
       "@renderer/*": ["src/renderer/src/*"],

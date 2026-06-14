@@ -45,7 +45,7 @@ export function useWriteTextFile(path: string): {
   })
   return {
     save: (content) => mutation.mutate({ path, content }),
-    isSaving: mutation.isLoading,
+    isSaving: mutation.isPending,
     error: mutation.error,
   }
 }

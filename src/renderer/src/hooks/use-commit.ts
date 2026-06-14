@@ -24,7 +24,7 @@ export function useCommit(onCommitted?: () => void): {
       if (!repo) return
       mutation.mutate({ repoPath: repo.path, message })
     },
-    isCommitting: mutation.isLoading,
+    isCommitting: mutation.isPending,
     error: mutation.error,
   }
 }
@@ -43,7 +43,7 @@ export function useStageAll(): {
       // gitFlow carries per-file staged/unstaged state now, so refresh it.
       await utils.gitFlow.invalidate()
     },
-    isStaging: mutation.isLoading,
+    isStaging: mutation.isPending,
   }
 }
 

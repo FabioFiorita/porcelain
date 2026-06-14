@@ -64,10 +64,7 @@ assumed — this skill is the codebase-specific layer beneath them.
 
 ## Data fetching & IPC
 
-- **IPC is tRPC via electron-trpc, pinned to tRPC v10** (`@trpc/*@^10`). electron-trpc
-  0.7 reads v10 internals (`_def.query`); **v11 silently breaks every call** with
-  NOT_FOUND. Don't upgrade until electron-trpc supports v11. Never raw
-  `ipcMain`/`ipcRenderer`; never cast (`as unknown as` is banned repo-wide).
+- **IPC is tRPC over a custom Electron link we own** (tRPC **v11** + `@tanstack/react-query` **v5**). `electron-trpc` is gone (abandoned at 0.7.1, never supported v11). The transport: renderer uses tRPC's official `httpBatchLink` with a custom `fetch` (`lib/trpc.ts`) → `window.porcelain.trpc` → `ipcRenderer.invoke('trpc')`; main (`src/main/ipc.ts`) replays it through tRPC's official `fetchRequestHandler`. Keep all protocol logic inside tRPC — only shuttle bytes; don't reintroduce a transport that reads tRPC internals (that's what rotted electron-trpc). The lone main→renderer push is the dedicated `app-event` IPC channel (`window.porcelain.onAppEvent`), NOT a tRPC subscription. Never raw `ipcMain`/`ipcRenderer` for data; never cast (`as unknown as` is banned repo-wide).
 - **Components never import `@renderer/lib/trpc`** (Biome `noRestrictedImports`
   override on `components/**`). All server access goes through domain hooks
   (`hooks/use-<domain>.ts`) that own their post-mutation invalidation. The vanilla

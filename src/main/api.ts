@@ -1,10 +1,8 @@
 import { initTRPC } from '@trpc/server'
-import { observable } from '@trpc/server/observable'
 import { dialog, shell } from 'electron'
 import { readdir, readFile, stat, writeFile } from 'fs/promises'
 import { basename, join } from 'path'
 import { z } from 'zod'
-import { type AppEvent, subscribeAppEvents } from './app-events'
 import { loadConfig, updateConfig } from './config-store'
 import { type CommitConventions, parseConventions } from './conventions'
 import { buildFlow, DEFAULT_LAYERS, type FlowGroup, type Layer } from './flow'
@@ -394,10 +392,6 @@ export const router = t.router({
   installUpdate: t.procedure.mutation(() => {
     installUpdate()
   }),
-
-  appEvents: t.procedure.subscription(() =>
-    observable<AppEvent>((emit) => subscribeAppEvents((event) => emit.next(event))),
-  ),
 })
 
 export type AppRouter = typeof router

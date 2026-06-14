@@ -8,5 +8,5 @@ export function useUpdateStatus(): UpdateStatus | undefined {
 
 export function useInstallUpdate(): { install: () => void; isInstalling: boolean } {
   const mutation = trpc.installUpdate.useMutation()
-  return { install: () => mutation.mutate(), isInstalling: mutation.isLoading }
+  return { install: () => mutation.mutate(), isInstalling: mutation.isPending }
 }

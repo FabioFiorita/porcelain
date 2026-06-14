@@ -89,8 +89,13 @@ Here's the entire round trip for "read a file":
    ```
    The router's type is exported as `AppRouter` (the last line of `api.ts`).
 
-2. **Preload exposes the channel** — `src/preload/index.ts` calls `exposeElectronTRPC()`. That's
-   the bridge. You rarely touch this file.
+2. **Preload exposes the bridge** — `src/preload/index.ts` exposes a small `window.porcelain`
+   object via `contextBridge`: `trpc(request)` carries a serialized call over IPC, and
+   `onAppEvent(cb)` is the one main→renderer push channel. (We *own* this ~40-line transport
+   instead of depending on the abandoned `electron-trpc` package — see the migration note in the
+   decision log. The renderer wraps it in tRPC's official `httpBatchLink`; the main side replays
+   it through tRPC's official `fetchRequestHandler` in `src/main/ipc.ts`, so all the protocol
+   logic stays in tRPC and we only shuttle bytes.) You rarely touch these files.
 
 3. **Renderer gets a typed client** — `src/renderer/src/lib/trpc.ts` imports the `AppRouter`
    **type only** (no runtime code crosses the boundary) and builds two clients:
