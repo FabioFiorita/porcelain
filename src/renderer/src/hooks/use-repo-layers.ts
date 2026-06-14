@@ -22,6 +22,6 @@ export function useSetRepoLayers(): {
   return {
     // repoPath is read from the store so callers stay declarative
     save: (layers) => save(layers, useRepoStore.getState().repo?.path),
-    isSaving: mutation.isLoading,
+    isSaving: mutation.isPending,
   }
 }

@@ -1,18 +1,64 @@
 import type { AppRouter } from '@main/api'
-import { createTRPCClientProxy } from '@trpc/client'
+import type { AppEvent } from '@main/app-events'
+import { createTRPCClient, httpBatchLink, type TRPCLink } from '@trpc/client'
 import { createTRPCReact } from '@trpc/react-query'
-import { ipcLink } from 'electron-trpc/renderer'
-
-/** React hooks — use in components. */
-export const trpc = createTRPCReact<AppRouter>()
 
 /**
- * ONE underlying client for the whole renderer. Two clients (hooks + vanilla)
- * each had their own ipcLink over the same IPC channel; their per-client
- * request-id counters collide, so one procedure's response could resolve a
- * different procedure's call — random "x.map is not a function" crashes.
+ * The preload bridge. We own the Electron transport instead of depending on the
+ * abandoned electron-trpc: `trpc` carries a serialized HTTP request across IPC,
+ * `onAppEvent` is the one main→renderer push channel (replaces the old tRPC
+ * subscription). See `src/preload/index.ts` for the matching implementation.
  */
-export const client = trpc.createClient({ links: [ipcLink()] })
+interface PorcelainBridge {
+  trpc: (request: {
+    url: string
+    method: string
+    headers: Record<string, string>
+    body?: string
+  }) => Promise<{ status: number; headers: Record<string, string>; body: string }>
+  onAppEvent: (callback: (event: AppEvent) => void) => () => void
+}
 
-/** Vanilla proxy over the SAME client — zustand stores and non-React code. */
-export const trpcClient = createTRPCClientProxy<AppRouter>(client)
+declare global {
+  interface Window {
+    porcelain: PorcelainBridge
+  }
+}
+
+// One terminating link for the whole app. tRPC's httpBatchLink does all the
+// protocol work (batching, GET/POST, input encoding, error shapes); our custom
+// `fetch` only shuttles the bytes over IPC, and the main process replays them
+// through tRPC's official fetchRequestHandler. The host in the URL is ignored —
+// the request never leaves the process.
+function electronLinks(): TRPCLink<AppRouter>[] {
+  return [
+    httpBatchLink({
+      url: 'http://localhost/trpc',
+      fetch: async (input, init) => {
+        const headers: Record<string, string> = {}
+        new Headers(init?.headers).forEach((value, key) => {
+          headers[key] = value
+        })
+        const response = await window.porcelain.trpc({
+          url: input.toString(),
+          method: init?.method ?? 'GET',
+          headers,
+          body: typeof init?.body === 'string' ? init.body : undefined,
+        })
+        return new Response(response.body, {
+          status: response.status,
+          headers: response.headers,
+        })
+      },
+    }),
+  ]
+}
+
+/** React hooks — use in components (via the hooks layer). */
+export const trpc = createTRPCReact<AppRouter>()
+
+/** Client for the React-query integration. */
+export const client = trpc.createClient({ links: electronLinks() })
+
+/** Vanilla client over an independent link — zustand stores and non-React code. */
+export const trpcClient = createTRPCClient<AppRouter>({ links: electronLinks() })

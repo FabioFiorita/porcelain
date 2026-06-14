@@ -1,6 +1,7 @@
 import type { DiffHunk } from '@main/diff'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
+import { keepPreviousData } from '@tanstack/react-query'
 
 export function useDiffFile(filePath: string): {
   hunks: DiffHunk[] | undefined
@@ -10,7 +11,7 @@ export function useDiffFile(filePath: string): {
   const { data: hunks, error } = trpc.gitDiffFile.useQuery(
     { repoPath: repo?.path ?? '', filePath },
     // diffs go stale the moment the agent writes; refetch on tab focus, keep last data visible
-    { enabled: repo !== null, staleTime: 0, keepPreviousData: true },
+    { enabled: repo !== null, staleTime: 0, placeholderData: keepPreviousData },
   )
   return { hunks, error }
 }

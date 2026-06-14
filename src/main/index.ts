@@ -1,12 +1,11 @@
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { app, BrowserWindow, shell } from 'electron'
-import { createIPCHandler } from 'electron-trpc/main'
 import { join } from 'path'
 import icon from '../../resources/icon.png?asset'
-import { router } from './api'
 import { emitAppEvent } from './app-events'
 import { seedDevConfig } from './dev-config'
 import { isSafeExternalUrl } from './external-url'
+import { pipeAppEvents, registerTrpcHandler } from './ipc'
 
 // Dev gets its own config dir so `pnpm dev` never touches (or hijacks) the
 // state of the installed app the user works in. Must run before anything
@@ -44,7 +43,7 @@ function createWindow(): void {
     },
   })
 
-  createIPCHandler({ router, windows: [mainWindow] })
+  pipeAppEvents(mainWindow)
 
   // Surface renderer-side errors in the dev terminal so failures are debuggable
   // without opening devtools (a blank window otherwise hides the cause).
@@ -92,6 +91,9 @@ function createWindow(): void {
 app.whenReady().then(async () => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.fabiofiorita.porcelain')
+
+  // One global tRPC handler for every window (ipcMain.handle is process-wide).
+  registerTrpcHandler()
 
   if (is.dev) {
     await seedDevConfig()
