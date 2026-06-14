@@ -74,7 +74,7 @@ export function AppSidebar(): React.JSX.Element {
                 <TooltipTrigger
                   render={
                     <TabsTrigger value="files" className="rounded-full" aria-label="Files">
-                      <Files className="text-sky-400" />
+                      <Files className="text-ink-sky" />
                       <span className="hidden @[17rem]:inline">Files</span>
                     </TabsTrigger>
                   }
@@ -87,7 +87,7 @@ export function AppSidebar(): React.JSX.Element {
                 <TooltipTrigger
                   render={
                     <TabsTrigger value="changes" className="rounded-full" aria-label="Changes">
-                      <GitCompareArrows className="text-amber-400" />
+                      <GitCompareArrows className="text-ink-amber" />
                       <span className="hidden @[17rem]:inline">Changes</span>
                     </TabsTrigger>
                   }
@@ -100,7 +100,7 @@ export function AppSidebar(): React.JSX.Element {
                 <TooltipTrigger
                   render={
                     <TabsTrigger value="history" className="rounded-full" aria-label="History">
-                      <History className="text-violet-400" />
+                      <History className="text-ink-violet" />
                       <span className="hidden @[17rem]:inline">History</span>
                     </TabsTrigger>
                   }

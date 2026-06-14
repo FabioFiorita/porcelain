@@ -102,7 +102,10 @@ export async function gitCommitDiff(
 }
 
 export async function gitStatus(repoPath: string): Promise<ChangedFile[]> {
-  return parseStatus(await runGit(repoPath, ['status', '--porcelain=v1', '-z']))
+  // --untracked-files=all lists each new file individually; the default
+  // (-unormal) collapses an untracked directory into a single `dir/` row, which
+  // the changes list would then try to diff as a file (readFile → EISDIR).
+  return parseStatus(await runGit(repoPath, ['status', '--porcelain=v1', '-uall', '-z']))
 }
 
 export async function gitNumstat(repoPath: string): Promise<DiffStat[]> {
@@ -223,7 +226,7 @@ export async function gitGrep(repoPath: string, query: string): Promise<GrepMatc
 }
 
 export async function gitDiffFile(repoPath: string, filePath: string): Promise<DiffHunk[]> {
-  const status = await runGit(repoPath, ['status', '--porcelain=v1', '-z', '--', filePath])
+  const status = await runGit(repoPath, ['status', '--porcelain=v1', '-uall', '-z', '--', filePath])
   if (parseStatus(status)[0]?.status === 'untracked') {
     return synthesizeAddDiff(await readFile(join(repoPath, filePath), 'utf8'))
   }

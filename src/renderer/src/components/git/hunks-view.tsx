@@ -13,8 +13,8 @@ interface RenderContext {
 }
 
 const lineClass: Record<DiffLine['kind'], string> = {
-  add: 'bg-emerald-950/60',
-  del: 'bg-red-950/60',
+  add: 'bg-diff-add',
+  del: 'bg-diff-del',
   context: '',
 }
 
@@ -108,7 +108,7 @@ function SplitCell({
   ctx: RenderContext
 }): React.JSX.Element {
   return (
-    <div className={cn('flex min-w-0 flex-1', line ? lineClass[line.kind] : '')}>
+    <div className={cn('flex min-w-0 flex-1 overflow-hidden', line ? lineClass[line.kind] : '')}>
       <LineNo value={line ? (line.kind === 'add' ? line.newLine : line.oldLine) : null} />
       {line ? (
         <CodeLine text={line.text} lang={ctx.lang} highlighter={ctx.highlighter} />
@@ -140,6 +140,7 @@ export function HunksView({
     <VirtualRows
       rows={toRows(hunks, diffMode)}
       className="leading-5"
+      fitWidth={diffMode === 'split'}
       renderRow={(row) => <DiffRowView row={row} ctx={ctx} />}
     />
   )
