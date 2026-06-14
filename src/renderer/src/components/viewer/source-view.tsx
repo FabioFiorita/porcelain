@@ -1,4 +1,4 @@
-import { CodeLine, useHighlighter } from '@renderer/components/viewer/code-line'
+import { CodeLine, useTokenizedLines } from '@renderer/components/viewer/code-line'
 import { VirtualRows } from '@renderer/components/viewer/virtual-rows'
 import { languageFor } from '@renderer/lib/highlight'
 import { cn } from '@renderer/lib/utils'
@@ -12,9 +12,9 @@ export function SourceView({
   content: string
   highlightLine?: number
 }): React.JSX.Element {
-  const highlighter = useHighlighter()
   const lang = languageFor(path)
   const lines = content.split('\n')
+  const tokenLines = useTokenizedLines(content, lang)
 
   return (
     <VirtualRows
@@ -26,7 +26,7 @@ export function SourceView({
           <span className="w-10 shrink-0 select-none pr-3 text-right text-muted-foreground/50">
             {i + 1}
           </span>
-          <CodeLine text={line} lang={lang} highlighter={highlighter} />
+          <CodeLine tokens={tokenLines?.[i] ?? null} text={line} />
         </div>
       )}
     />

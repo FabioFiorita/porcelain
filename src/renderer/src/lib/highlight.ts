@@ -60,10 +60,17 @@ export function languageFor(path: string): BundledLanguage | null {
   return extToLang[ext] ?? null
 }
 
-export function tokenizeLine(
+/**
+ * Tokenize a whole multi-line string into one token array per line, carrying
+ * grammar state across line breaks. Tokenizing line-by-line (the old approach)
+ * loses that state, so continuation lines of a multiline block comment or
+ * template literal were highlighted as code. The returned array has exactly one
+ * entry per `\n`-split line, so callers can index it by line number.
+ */
+export function tokenizeLines(
   highlighter: Highlighter,
-  text: string,
+  code: string,
   lang: BundledLanguage,
-): ThemedToken[] {
-  return highlighter.codeToTokensBase(text, { lang, theme: HIGHLIGHT_THEME })[0] ?? []
+): ThemedToken[][] {
+  return highlighter.codeToTokensBase(code, { lang, theme: HIGHLIGHT_THEME })
 }

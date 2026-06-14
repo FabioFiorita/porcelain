@@ -1,15 +1,46 @@
 import type { DiffHunk, DiffLine } from '@main/diff'
 import { CodeLine, useHighlighter } from '@renderer/components/viewer/code-line'
 import { VirtualRows } from '@renderer/components/viewer/virtual-rows'
-import { type HIGHLIGHT_THEME, languageFor } from '@renderer/lib/highlight'
+import { type HIGHLIGHT_THEME, languageFor, tokenizeLines } from '@renderer/lib/highlight'
 import { cn } from '@renderer/lib/utils'
-import type { BundledLanguage, HighlighterGeneric } from 'shiki'
+import { useMemo } from 'react'
+import type { BundledLanguage, HighlighterGeneric, ThemedToken } from 'shiki'
 
 type Highlighter = HighlighterGeneric<BundledLanguage, typeof HIGHLIGHT_THEME>
 
+/** Pre-tokenized spans per diff line, keyed by the DiffLine object identity. */
+type TokenMap = Map<DiffLine, ThemedToken[]>
+
 interface RenderContext {
-  lang: BundledLanguage | null
-  highlighter: Highlighter | null
+  tokens: TokenMap
+}
+
+/**
+ * Tokenize each hunk by reconstructing its old (context + del) and new
+ * (context + add) images as contiguous text, so a multiline comment or string
+ * inside the hunk keeps its grammar state across lines. A diff can't see the
+ * file outside its hunks, so cross-hunk context is inherently unavailable.
+ */
+function tokenizeHunks(
+  highlighter: Highlighter,
+  hunks: readonly DiffHunk[],
+  lang: BundledLanguage,
+): TokenMap {
+  const map: TokenMap = new Map()
+  for (const hunk of hunks) {
+    const oldImage = hunk.lines.filter((l) => l.kind !== 'add')
+    const newImage = hunk.lines.filter((l) => l.kind !== 'del')
+    const oldTokens = tokenizeLines(highlighter, oldImage.map((l) => l.text).join('\n'), lang)
+    const newTokens = tokenizeLines(highlighter, newImage.map((l) => l.text).join('\n'), lang)
+    oldImage.forEach((l, i) => {
+      // context lines are shared; take their tokens from the new image below
+      if (l.kind === 'del') map.set(l, oldTokens[i] ?? [])
+    })
+    newImage.forEach((l, i) => {
+      map.set(l, newTokens[i] ?? [])
+    })
+  }
+  return map
 }
 
 const lineClass: Record<DiffLine['kind'], string> = {
@@ -59,7 +90,7 @@ function DiffRowView({ row, ctx }: { row: DiffRow; ctx: RenderContext }): React.
       <div className={cn('flex px-2', lineClass[row.line.kind])}>
         <LineNo value={row.line.oldLine} />
         <LineNo value={row.line.newLine} />
-        <CodeLine text={row.line.text} lang={ctx.lang} highlighter={ctx.highlighter} />
+        <CodeLine tokens={ctx.tokens.get(row.line) ?? null} text={row.line.text} />
       </div>
     )
   }
@@ -111,7 +142,7 @@ function SplitCell({
     <div className={cn('flex min-w-0 flex-1 overflow-hidden', line ? lineClass[line.kind] : '')}>
       <LineNo value={line ? (line.kind === 'add' ? line.newLine : line.oldLine) : null} />
       {line ? (
-        <CodeLine text={line.text} lang={ctx.lang} highlighter={ctx.highlighter} />
+        <CodeLine tokens={ctx.tokens.get(line) ?? null} text={line.text} />
       ) : (
         <pre className="flex-1"> </pre>
       )}
@@ -130,7 +161,12 @@ export function HunksView({
   diffMode: 'unified' | 'split'
 }): React.JSX.Element {
   const highlighter = useHighlighter()
-  const ctx: RenderContext = { lang: languageFor(filePath), highlighter }
+  const lang = languageFor(filePath)
+  const tokens = useMemo<TokenMap>(
+    () => (highlighter && lang ? tokenizeHunks(highlighter, hunks, lang) : new Map()),
+    [highlighter, lang, hunks],
+  )
+  const ctx: RenderContext = { tokens }
 
   if (hunks.length === 0) {
     return <p className="p-4 font-mono text-xs text-muted-foreground">No changes</p>

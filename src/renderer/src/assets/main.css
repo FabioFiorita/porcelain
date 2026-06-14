@@ -295,6 +295,9 @@
   html {
     @apply font-mono;
     background: transparent;
+    /* Geist Mono's coding ligatures merge `===`, `!==`, `=>`, `??` into single
+       glyphs that read as a solid bar — disable them so operators stay legible. */
+    font-variant-ligatures: none;
   }
 }
 

@@ -7,7 +7,7 @@ import {
   ContextMenuTrigger,
 } from '@renderer/components/ui/context-menu'
 import { Kbd } from '@renderer/components/ui/kbd'
-import { CodeLine, useHighlighter } from '@renderer/components/viewer/code-line'
+import { CodeLine, useTokenizedLines } from '@renderer/components/viewer/code-line'
 import { useWriteTextFile } from '@renderer/hooks/use-files'
 import { languageFor } from '@renderer/lib/highlight'
 import { cn } from '@renderer/lib/utils'
@@ -29,7 +29,7 @@ import { usePathActions } from './use-path-actions'
 export const EDITABLE_MAX_LINES = 5000
 const AUTOSAVE_DELAY_MS = 800
 
-// Memoized so a keystroke only re-tokenizes the lines that actually changed.
+// Memoized so a line only re-renders when its own tokens change.
 const EditorLine = memo(CodeLine)
 
 export function EditorSource({
@@ -47,8 +47,8 @@ export function EditorSource({
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const highlighter = useHighlighter()
   const lang = languageFor(path)
+  const tokenLines = useTokenizedLines(content, lang)
   const { findReferences, copyPath, copyRelativePath, reveal } = usePathActions(path)
   const { save, isSaving, error: saveError } = useWriteTextFile(path)
 
@@ -135,7 +135,7 @@ export function EditorSource({
                     <span className="w-10 shrink-0 select-none pr-3 text-right text-muted-foreground/50">
                       {i + 1}
                     </span>
-                    <EditorLine text={line} lang={lang} highlighter={highlighter} />
+                    <EditorLine tokens={tokenLines?.[i] ?? null} text={line} />
                   </div>
                 ))}
               </div>
