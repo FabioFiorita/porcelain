@@ -1,3 +1,14 @@
+## [0.3.0](https://github.com/FabioFiorita/porcelain/compare/v0.2.0...v0.3.0) (2026-06-14)
+
+### Features
+
+* **review:** add feature view with MCP server and Claude Code plugin ([93d2170](https://github.com/FabioFiorita/porcelain/commit/93d2170d2bf9ca3aaed25805ede9e73ad7e8b86d))
+
+### Bug Fixes
+
+* **git:** list untracked files individually so folder diffs don't EISDIR ([fb6ec0f](https://github.com/FabioFiorita/porcelain/commit/fb6ec0fb3268447332fec6f4e131c2932ed5ed68))
+* **highlight:** tokenize whole files and disable mono ligatures ([3a6c411](https://github.com/FabioFiorita/porcelain/commit/3a6c4119713af8ddd43e4a0aeebd640750503a26))
+
 ## [0.2.0](https://github.com/FabioFiorita/porcelain/compare/v0.1.2...v0.2.0) (2026-06-13)
 
 ### Features
