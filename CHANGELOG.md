@@ -1,3 +1,9 @@
+## [0.4.0](https://github.com/FabioFiorita/porcelain/compare/v0.3.1...v0.4.0) (2026-06-14)
+
+### Features
+
+* **settings:** add manual check-for-updates section ([da44abc](https://github.com/FabioFiorita/porcelain/commit/da44abc54c997394467d11e56fdb6fcab83fe611))
+
 ## [0.3.1](https://github.com/FabioFiorita/porcelain/compare/v0.3.0...v0.3.1) (2026-06-14)
 
 ### Features
