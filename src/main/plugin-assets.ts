@@ -1,5 +1,5 @@
-import { homedir } from 'os'
-import { join } from 'path'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
 
 // Pure plugin definitions — no electron/fs imports, so this is unit-testable.
 // The side-effecting installer (writes files, copies the built server, runs the
@@ -46,6 +46,7 @@ export function pluginManifest(version: string): Record<string, unknown> {
     mcpServers: {
       porcelain: {
         command: 'node',
+        // biome-ignore lint/suspicious/noTemplateCurlyInString: literal placeholder Claude Code expands at runtime, not a JS template
         args: ['${CLAUDE_PLUGIN_ROOT}/server.js'],
       },
     },

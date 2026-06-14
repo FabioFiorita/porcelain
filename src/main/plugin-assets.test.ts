@@ -24,6 +24,7 @@ describe('plugin assets', () => {
     expect(p.name).toBe(PLUGIN_NAME)
     expect(p.version).toBe('1.2.3')
     expect(p.mcpServers).toEqual({
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: literal placeholder Claude Code expands at runtime, not a JS template
       porcelain: { command: 'node', args: ['${CLAUDE_PLUGIN_ROOT}/server.js'] },
     })
   })

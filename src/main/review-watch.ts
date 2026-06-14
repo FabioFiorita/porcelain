@@ -1,6 +1,6 @@
-import { watch } from 'fs'
-import { mkdir } from 'fs/promises'
-import { basename, dirname } from 'path'
+import { watch } from 'node:fs'
+import { mkdir } from 'node:fs/promises'
+import { basename, dirname } from 'node:path'
 import { emitAppEvent } from './app-events'
 import { reviewSetsPath } from './review-store'
 

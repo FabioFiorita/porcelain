@@ -1,4 +1,4 @@
-import { createInterface } from 'readline'
+import { createInterface } from 'node:readline'
 import { handleRpc } from './protocol'
 import { addReviewFiles, clearReview, setReview, toReviewFiles } from './review-file'
 

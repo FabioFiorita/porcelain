@@ -1,8 +1,8 @@
-import { spawn } from 'child_process'
+import { spawn } from 'node:child_process'
+import { copyFile, mkdir, writeFile } from 'node:fs/promises'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
 import { app } from 'electron'
-import { copyFile, mkdir, writeFile } from 'fs/promises'
-import { homedir } from 'os'
-import { join } from 'path'
 import {
   installCommands,
   marketplaceManifest,

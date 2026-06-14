@@ -1,7 +1,7 @@
-import { execFile } from 'child_process'
-import { readFile } from 'fs/promises'
-import { join } from 'path'
-import { promisify } from 'util'
+import { execFile } from 'node:child_process'
+import { readFile } from 'node:fs/promises'
+import { join } from 'node:path'
+import { promisify } from 'node:util'
 import {
   type ChangedFile,
   type Commit,

@@ -1,6 +1,6 @@
-import { stat } from 'fs/promises'
-import { homedir } from 'os'
-import { join } from 'path'
+import { stat } from 'node:fs/promises'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
 import { updateConfig } from './config-store'
 import { withRecentRepo } from './repo-config'
 

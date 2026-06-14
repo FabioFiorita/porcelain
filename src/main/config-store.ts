@@ -1,5 +1,5 @@
+import { join } from 'node:path'
 import { app } from 'electron'
-import { join } from 'path'
 import { createJsonStore } from './json-store'
 import { type AppConfig, appConfigSchema, emptyConfig } from './repo-config'
 

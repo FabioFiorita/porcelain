@@ -1,4 +1,4 @@
-import { readFile, rename, writeFile } from 'fs/promises'
+import { readFile, rename, writeFile } from 'node:fs/promises'
 
 async function readJson<T>(path: string, parse: (raw: unknown) => T, empty: T): Promise<T> {
   let raw: string
