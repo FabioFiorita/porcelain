@@ -1,3 +1,13 @@
+## [0.3.1](https://github.com/FabioFiorita/porcelain/compare/v0.3.0...v0.3.1) (2026-06-14)
+
+### Features
+
+* **viewer:** split view with two side-by-side panes ([90c1088](https://github.com/FabioFiorita/porcelain/commit/90c1088e2dce091462b44a4cb3bb9e32374d10c4))
+
+### Bug Fixes
+
+* **ui:** dark-mode tooltip surface and enclose active tab border ([0f64766](https://github.com/FabioFiorita/porcelain/commit/0f64766addf52a2ab1232728013acca2c3611841))
+
 ## [0.3.0](https://github.com/FabioFiorita/porcelain/compare/v0.2.0...v0.3.0) (2026-06-14)
 
 ### Features
