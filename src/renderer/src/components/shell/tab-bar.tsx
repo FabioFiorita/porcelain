@@ -12,9 +12,17 @@ import { cn } from '@renderer/lib/utils'
 import { type Tab, useTabsStore } from '@renderer/stores/tabs'
 import { X } from 'lucide-react'
 
-function TabItem({ tab, isLast }: { tab: Tab; isLast: boolean }): React.JSX.Element {
-  const tabs = useTabsStore((s) => s.tabs)
-  const activeTabId = useTabsStore((s) => s.activeTabId)
+function TabItem({
+  tab,
+  paneIndex,
+  isLast,
+}: {
+  tab: Tab
+  paneIndex: number
+  isLast: boolean
+}): React.JSX.Element {
+  const tabs = useTabsStore((s) => s.panes[paneIndex]?.tabs ?? [])
+  const activeTabId = useTabsStore((s) => s.panes[paneIndex]?.activeTabId ?? null)
   const activateTab = useTabsStore((s) => s.activateTab)
   const closeTab = useTabsStore((s) => s.closeTab)
   const closeOtherTabs = useTabsStore((s) => s.closeOtherTabs)
@@ -22,6 +30,7 @@ function TabItem({ tab, isLast }: { tab: Tab; isLast: boolean }): React.JSX.Elem
   const closeTabsToRight = useTabsStore((s) => s.closeTabsToRight)
   const closeAllTabs = useTabsStore((s) => s.closeAllTabs)
   const pinTab = useTabsStore((s) => s.pinTab)
+  const openTabToSide = useTabsStore((s) => s.openTabToSide)
   const isFirst = tabs[0]?.id === tab.id
 
   return (
@@ -33,10 +42,10 @@ function TabItem({ tab, isLast }: { tab: Tab; isLast: boolean }): React.JSX.Elem
             tab.id === activeTabId ? 'text-foreground' : 'text-muted-foreground',
           )}
           data-active={tab.id === activeTabId}
-          onClick={() => activateTab(tab.id)}
+          onClick={() => activateTab(paneIndex, tab.id)}
           onDoubleClick={() => pinTab(tab.id)}
-          onAuxClick={(e) => e.button === 1 && closeTab(tab.id)}
-          onKeyDown={(e) => e.key === 'Enter' && activateTab(tab.id)}
+          onAuxClick={(e) => e.button === 1 && closeTab(paneIndex, tab.id)}
+          onKeyDown={(e) => e.key === 'Enter' && activateTab(paneIndex, tab.id)}
           role="tab"
           tabIndex={0}
           aria-selected={tab.id === activeTabId}
@@ -48,7 +57,7 @@ function TabItem({ tab, isLast }: { tab: Tab; isLast: boolean }): React.JSX.Elem
             className="size-5 opacity-0 group-hover:opacity-100"
             onClick={(e) => {
               e.stopPropagation()
-              closeTab(tab.id)
+              closeTab(paneIndex, tab.id)
             }}
             aria-label={`Close ${tab.title}`}
           >
@@ -57,35 +66,49 @@ function TabItem({ tab, isLast }: { tab: Tab; isLast: boolean }): React.JSX.Elem
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent>
-        <ContextMenuItem onClick={() => closeTab(tab.id)}>
+        <ContextMenuItem onClick={() => closeTab(paneIndex, tab.id)}>
           Close
           <ContextMenuShortcut>
             <Kbd>⌘W</Kbd>
           </ContextMenuShortcut>
         </ContextMenuItem>
-        <ContextMenuItem disabled={tabs.length < 2} onClick={() => closeOtherTabs(tab.id)}>
+        <ContextMenuItem
+          disabled={tabs.length < 2}
+          onClick={() => closeOtherTabs(paneIndex, tab.id)}
+        >
           Close Others
         </ContextMenuItem>
-        <ContextMenuItem disabled={isFirst} onClick={() => closeTabsToLeft(tab.id)}>
+        <ContextMenuItem disabled={isFirst} onClick={() => closeTabsToLeft(paneIndex, tab.id)}>
           Close to the Left
         </ContextMenuItem>
-        <ContextMenuItem disabled={isLast} onClick={() => closeTabsToRight(tab.id)}>
+        <ContextMenuItem disabled={isLast} onClick={() => closeTabsToRight(paneIndex, tab.id)}>
           Close to the Right
         </ContextMenuItem>
         <ContextMenuItem onClick={closeAllTabs}>Close All</ContextMenuItem>
+        <ContextMenuItem onClick={() => openTabToSide({ ...tab, preview: false })}>
+          Open to the Side
+          <ContextMenuShortcut>
+            <Kbd>⌘⇧S</Kbd>
+          </ContextMenuShortcut>
+        </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>
   )
 }
 
-export function TabBar(): React.JSX.Element {
-  const tabs = useTabsStore((s) => s.tabs)
+export function TabBar({ paneIndex }: { paneIndex: number }): React.JSX.Element {
+  const tabs = useTabsStore((s) => s.panes[paneIndex]?.tabs ?? [])
 
   return (
     <ScrollArea orientation="horizontal" className="min-w-0 flex-1 self-stretch">
       <div className="flex h-full items-center gap-1">
         {tabs.map((tab, index) => (
-          <TabItem key={tab.id} tab={tab} isLast={index === tabs.length - 1} />
+          <TabItem
+            key={tab.id}
+            tab={tab}
+            paneIndex={paneIndex}
+            isLast={index === tabs.length - 1}
+          />
         ))}
       </div>
     </ScrollArea>

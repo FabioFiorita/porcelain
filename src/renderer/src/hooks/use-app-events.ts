@@ -20,8 +20,9 @@ export function useAppEvents(): void {
         return
       }
       if (event !== 'close-tab') return
-      const { activeTabId, closeTab } = useTabsStore.getState()
-      if (activeTabId) closeTab(activeTabId)
+      const { panes, activePaneIndex, closeTab } = useTabsStore.getState()
+      const activeTabId = panes[activePaneIndex]?.activeTabId
+      if (activeTabId) closeTab(activePaneIndex, activeTabId)
       else window.close()
     })
   }, [utils])

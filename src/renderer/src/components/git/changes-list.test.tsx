@@ -56,7 +56,7 @@ function renderList(): void {
 
 describe('ChangesList', () => {
   beforeEach(() => {
-    useTabsStore.setState({ tabs: [], activeTabId: null })
+    useTabsStore.setState({ panes: [{ tabs: [], activeTabId: null }], activePaneIndex: 0 })
     vi.mocked(useGitFlow).mockReturnValue({ groups, refresh: async () => {} })
   })
 
@@ -83,9 +83,9 @@ describe('ChangesList', () => {
     screen.getByText('widget.tsx').click()
 
     const path = 'src/components/widget.tsx'
-    const tabs = useTabsStore.getState().tabs
+    const { tabs, activeTabId } = useTabsStore.getState().panes[0]
     expect(tabs).toHaveLength(1)
     expect(tabs[0]).toMatchObject({ id: tabId('diff', path), kind: 'diff', path })
-    expect(useTabsStore.getState().activeTabId).toBe(tabId('diff', path))
+    expect(activeTabId).toBe(tabId('diff', path))
   })
 })

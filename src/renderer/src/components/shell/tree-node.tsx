@@ -28,11 +28,26 @@ function EntryContextMenu({
 }): React.JSX.Element {
   const { hide, unhide, hideSelected, pin, unpin, selectionSize } = useEntryActions(entry)
   const batchSize = selectionSize + (useSelectionStore.getState().selected.has(entry.path) ? 0 : 1)
+  const openTabToSide = useTabsStore((s) => s.openTabToSide)
 
   return (
     <ContextMenu>
       <ContextMenuTrigger>{children}</ContextMenuTrigger>
       <ContextMenuContent>
+        {entry.kind === 'file' && (
+          <ContextMenuItem
+            onClick={() =>
+              openTabToSide({
+                id: tabId('file', entry.path),
+                kind: 'file',
+                title: entry.name,
+                path: entry.path,
+              })
+            }
+          >
+            Open to the Side
+          </ContextMenuItem>
+        )}
         {entry.pinned ? (
           <ContextMenuItem onClick={unpin}>Unpin</ContextMenuItem>
         ) : (

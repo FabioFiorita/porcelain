@@ -9,6 +9,8 @@ export const SIDEBAR_MIN_WIDTH = 180
 export const SIDEBAR_MAX_WIDTH = 520
 export const NOTES_MIN_HEIGHT = 100
 export const NOTES_MAX_HEIGHT = 600
+export const SPLIT_MIN_RATIO = 0.2
+export const SPLIT_MAX_RATIO = 0.8
 
 interface PreferencesState {
   diffMode: DiffMode
@@ -18,6 +20,8 @@ interface PreferencesState {
   sidebarTab: SidebarTab
   sidebarWidth: number
   notesHeight: number
+  /** Fraction of the viewer width given to the left pane when split (0.2–0.8). */
+  splitRatio: number
   setDiffMode: (mode: DiffMode) => void
   setMarkdownMode: (mode: MarkdownMode) => void
   setSidebarTab: (tab: SidebarTab) => void
@@ -25,6 +29,7 @@ interface PreferencesState {
   setRightSidebarWidth: (width: number) => void
   setSidebarWidth: (width: number) => void
   setNotesHeight: (height: number) => void
+  setSplitRatio: (ratio: number) => void
 }
 
 export const usePreferencesStore = create<PreferencesState>()(
@@ -37,6 +42,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       sidebarTab: 'files',
       sidebarWidth: 256,
       notesHeight: 220,
+      splitRatio: 0.5,
       setDiffMode: (diffMode) => set({ diffMode }),
       setMarkdownMode: (markdownMode) => set({ markdownMode }),
       setSidebarTab: (sidebarTab) => set({ sidebarTab }),
@@ -47,6 +53,8 @@ export const usePreferencesStore = create<PreferencesState>()(
         set({ sidebarWidth: Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, width)) }),
       setNotesHeight: (height) =>
         set({ notesHeight: Math.min(NOTES_MAX_HEIGHT, Math.max(NOTES_MIN_HEIGHT, height)) }),
+      setSplitRatio: (ratio) =>
+        set({ splitRatio: Math.min(SPLIT_MAX_RATIO, Math.max(SPLIT_MIN_RATIO, ratio)) }),
     }),
     { name: 'porcelain-preferences' },
   ),

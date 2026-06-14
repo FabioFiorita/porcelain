@@ -25,7 +25,7 @@ function renderList(): void {
 
 describe('HistoryList', () => {
   beforeEach(() => {
-    useTabsStore.setState({ tabs: [], activeTabId: null })
+    useTabsStore.setState({ panes: [{ tabs: [], activeTabId: null }], activePaneIndex: 0 })
     vi.mocked(useGitLog).mockReturnValue(commits)
   })
 
@@ -39,13 +39,13 @@ describe('HistoryList', () => {
     renderList()
     screen.getByText('feat: add the widget').click()
 
-    const tabs = useTabsStore.getState().tabs
+    const { tabs, activeTabId } = useTabsStore.getState().panes[0]
     expect(tabs).toHaveLength(1)
     expect(tabs[0]).toMatchObject({
       id: tabId('commit', 'aaa1111'),
       kind: 'commit',
       path: 'aaa1111',
     })
-    expect(useTabsStore.getState().activeTabId).toBe(tabId('commit', 'aaa1111'))
+    expect(activeTabId).toBe(tabId('commit', 'aaa1111'))
   })
 })

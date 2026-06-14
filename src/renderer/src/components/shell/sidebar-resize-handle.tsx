@@ -3,6 +3,8 @@ import {
   NOTES_MIN_HEIGHT,
   SIDEBAR_MAX_WIDTH,
   SIDEBAR_MIN_WIDTH,
+  SPLIT_MAX_RATIO,
+  SPLIT_MIN_RATIO,
   usePreferencesStore,
 } from '@renderer/stores/preferences'
 
@@ -11,6 +13,9 @@ const clampWidth = (width: number): number =>
 
 const clampHeight = (height: number): number =>
   Math.min(NOTES_MAX_HEIGHT, Math.max(NOTES_MIN_HEIGHT, height))
+
+const clampRatio = (ratio: number): number =>
+  Math.min(SPLIT_MAX_RATIO, Math.max(SPLIT_MIN_RATIO, ratio))
 
 export function SidebarResizeHandle(): React.JSX.Element {
   const setSidebarWidth = usePreferencesStore((s) => s.setSidebarWidth)
@@ -73,6 +78,45 @@ export function RightSidebarResizeHandle(): React.JSX.Element {
     // biome-ignore lint/a11y/noStaticElementInteractions: pointer-only resize affordance
     <div
       className="absolute inset-y-0 left-0 z-20 w-1.5 cursor-col-resize transition-colors hover:bg-sidebar-border active:bg-sidebar-border"
+      onMouseDown={startResize}
+    />
+  )
+}
+
+/**
+ * Vertical divider between the two viewer panes when split. Drives the
+ * `--split-left` CSS var (left pane's flex-basis) on the split container
+ * directly during the drag (same no-re-render trick as the width handles) and
+ * persists the ratio on release.
+ */
+export function SplitResizeHandle(): React.JSX.Element {
+  const setSplitRatio = usePreferencesStore((s) => s.setSplitRatio)
+
+  const startResize = (event: React.MouseEvent): void => {
+    event.preventDefault()
+    const container = event.currentTarget.closest<HTMLElement>('[data-slot="viewer-split"]')
+    let ratio = usePreferencesStore.getState().splitRatio
+    const onMove = (e: MouseEvent): void => {
+      if (!container) return
+      const rect = container.getBoundingClientRect()
+      ratio = clampRatio((e.clientX - rect.left) / rect.width)
+      container.style.setProperty('--split-left', `${ratio * 100}%`)
+    }
+    const onUp = (): void => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      document.body.style.removeProperty('cursor')
+      setSplitRatio(ratio)
+    }
+    document.body.style.cursor = 'col-resize'
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+
+  return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: pointer-only resize affordance
+    <div
+      className="z-20 w-1.5 shrink-0 cursor-col-resize bg-border/50 transition-colors hover:bg-sidebar-border active:bg-sidebar-border"
       onMouseDown={startResize}
     />
   )

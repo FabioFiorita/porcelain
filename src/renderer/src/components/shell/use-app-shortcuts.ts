@@ -17,6 +17,18 @@ export function useAppShortcuts(): void {
         useTabsStore.getState().cycleTab(e.shiftKey ? -1 : 1)
         return
       }
+      // Cmd+Shift+S splits the active tab to the side (mirrors "Open to the Side").
+      // Matched by physical key (`e.code`) so it fires regardless of keyboard layout.
+      if (e.metaKey && e.shiftKey && !e.ctrlKey && !e.altKey && e.code === 'KeyS') {
+        const { panes, activePaneIndex, openTabToSide } = useTabsStore.getState()
+        const pane = panes[activePaneIndex]
+        const active = pane?.tabs.find((t) => t.id === pane.activeTabId)
+        if (active) {
+          e.preventDefault()
+          openTabToSide({ ...active, preview: false })
+        }
+        return
+      }
       if (e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
         const tab = SIDEBAR_TAB_KEYS[e.key]
         if (tab) {

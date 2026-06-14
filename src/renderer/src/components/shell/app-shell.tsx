@@ -7,6 +7,7 @@ import { useInstallUpdate, useUpdateStatus } from '@renderer/hooks/use-updates'
 import { cn } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
+import { useTabsStore } from '@renderer/stores/tabs'
 import { PanelLeft, RotateCw, Zap } from 'lucide-react'
 import { useEffect } from 'react'
 import { AppSidebar } from './app-sidebar'
@@ -47,6 +48,9 @@ function UpdateButton(): React.JSX.Element | null {
 function TopBar({ left }: { left: LeftSidebarHandle }): React.JSX.Element {
   const rightSidebarOpen = usePreferencesStore((s) => s.rightSidebarOpen)
   const setRightSidebarOpen = usePreferencesStore((s) => s.setRightSidebarOpen)
+  // When split, each pane carries its own tab bar inside the viewer; the chrome
+  // bar shows the (single) pane's tabs otherwise.
+  const isSplit = useTabsStore((s) => s.panes.length > 1)
 
   return (
     <div className="app-drag flex h-12 items-center border-b">
@@ -72,7 +76,7 @@ function TopBar({ left }: { left: LeftSidebarHandle }): React.JSX.Element {
           Toggle sidebar <Kbd>⌘B</Kbd>
         </TooltipContent>
       </Tooltip>
-      <TabBar />
+      {isSplit ? <div className="min-w-0 flex-1 self-stretch" /> : <TabBar paneIndex={0} />}
       <UpdateButton />
       <Tooltip>
         <TooltipTrigger

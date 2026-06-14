@@ -10,6 +10,7 @@ A lightweight macOS-first **viewer and agent companion**, not an editor. The use
 ## Core features
 
 - **File viewer** — fast, no LSP, no extensions. Text files are *always editable* in place (plain textarea over a Shiki backdrop, debounced autosave — no edit button, no mode toggle), but nothing editor-like: no autocomplete, no multi-file refactors, no format-on-save. Markdown gets a Reader/Source toggle.
+- **Split view** — view two files side by side. Right-click a file in the tree (or a tab) → "Open to the Side" splits the viewer into two panes, each with its own tabs; the divider is drag-resizable. Closing a pane's last tab collapses back to one. Deliberately just two panes (no recursive grids) — enough to compare or read-while-editing without becoming an IDE.
 - **Scoped navigation** — works in huge monorepos (~50 GB); folders can be hidden/pinned so only relevant apps are visible. Core differentiator: no existing tool lets you hide irrelevant parts of a monorepo.
 - **Git** — diffs, worktrees, history, per-file staging, and an in-app commit composer (quick commands + suggestions, no terminal).
 - **Flow-ordered review** — review a diff as a *timeline of connected layers*, not an alphabetical file list. A feature change is a straight line (e.g. component → query call → route → controller → service → module → Prisma); Porcelain orders/groups changed files along that dependency flow so the reviewer reads the change as a story from entry point to database. Core differentiator alongside folder hiding.

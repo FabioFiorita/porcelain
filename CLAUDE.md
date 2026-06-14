@@ -46,6 +46,7 @@ Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wron
 **Inside the viewer:**
 - **Tab bar** — the floating glass capsule of open documents (`tab-bar.tsx`).
 - **Tab** — one open document. **Preview tab** = single-click, italic, replaced by the next preview; **pinned tab** = double-click or edit, kept.
+- **Split view / pane** — the viewer can split into two side-by-side **panes**, each with its own tab bar and active tab (`panes`/`activePaneIndex` in `stores/tabs.ts`). Open via "Open to the Side" (file-tree row or tab); closing a pane's last tab collapses the split. Details in the `architecture` skill's "Split view" note.
 - Tab kinds: **file view** / **source view** (`source-view.tsx`, editable) / **markdown reader** (`markdown-view.tsx`) / **diff view** (`diff-view.tsx`, working-tree) / **commit view** (`commit-view.tsx`, a historical commit) / **search view** (`search-view.tsx`, find-references results) / **feature view** (`feature-view.tsx`, the whole feature — changed + context + agent-fed shipped files in flow order).
 
 **Inside Quick Access (section depends on the sidebar tab):**
