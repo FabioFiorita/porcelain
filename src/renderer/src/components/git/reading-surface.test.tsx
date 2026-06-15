@@ -1,6 +1,6 @@
 import type { FeatureReading } from '@main/feature-view'
 import { describe, expect, it } from 'vitest'
-import { buildRows } from './feature-view'
+import { buildRows } from './reading-surface'
 
 const reading: FeatureReading = {
   name: 'Feature',

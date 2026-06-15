@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type TabKind = 'file' | 'diff' | 'commit' | 'search' | 'feature'
+export type TabKind = 'file' | 'diff' | 'commit' | 'search' | 'feature' | 'explore'
 
 // The tabs store is the router: a tab id is its kind plus its key (file path,
 // commit hash, or search query). Every opener must build ids through this so
@@ -17,6 +17,8 @@ export interface Tab {
   path: string
   /** 1-based line to scroll to when opening (search results jump here). */
   line?: number
+  /** Explore tabs only: the seed symbol (omitted ⇒ a whole-file seed). */
+  symbol?: string
   /** Preview tabs (single-click) are replaced by the next preview; double-click pins. */
   preview?: boolean
 }

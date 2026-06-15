@@ -14,6 +14,7 @@ import { cn } from '@renderer/lib/utils'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import {
   ClipboardPaste,
+  Compass,
   Copy,
   FileSymlink,
   FolderOpen,
@@ -49,7 +50,7 @@ export function EditorSource({
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lang = languageFor(path)
   const tokenLines = useTokenizedLines(content, lang)
-  const { findReferences, copyPath, copyRelativePath, reveal } = usePathActions(path)
+  const { findReferences, exploreFlow, copyPath, copyRelativePath, reveal } = usePathActions(path)
   const { save, isSaving, error: saveError } = useWriteTextFile(path)
 
   const saveRef = useRef<() => void>(() => {})
@@ -204,6 +205,9 @@ export function EditorSource({
           onClick={() => findReferences(selection)}
         >
           <Search /> Find references
+        </ContextMenuItem>
+        <ContextMenuItem disabled={selection.trim() === ''} onClick={() => exploreFlow(selection)}>
+          <Compass /> Explore flow from “{selection.trim().slice(0, 24)}”
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem onClick={copyPath}>

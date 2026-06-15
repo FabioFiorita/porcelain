@@ -12,11 +12,12 @@ import {
 } from '@renderer/components/ui/context-menu'
 import { SidebarMenuButton, SidebarMenuItem, SidebarMenuSub } from '@renderer/components/ui/sidebar'
 import { FileTypeIcon, FolderIcon } from '@renderer/components/viewer/file-icon'
+import { usePathActions } from '@renderer/components/viewer/use-path-actions'
 import { useEntryActions, useReadDir, useReadFilePrefetch } from '@renderer/hooks/use-files'
 import { cn } from '@renderer/lib/utils'
 import { useSelectionStore } from '@renderer/stores/selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, Compass } from 'lucide-react'
 import { useState } from 'react'
 
 function EntryContextMenu({
@@ -29,6 +30,7 @@ function EntryContextMenu({
   const { hide, unhide, hideSelected, pin, unpin, selectionSize } = useEntryActions(entry)
   const batchSize = selectionSize + (useSelectionStore.getState().selected.has(entry.path) ? 0 : 1)
   const openTabToSide = useTabsStore((s) => s.openTabToSide)
+  const { exploreFlow } = usePathActions(entry.path)
 
   return (
     <ContextMenu>
@@ -46,6 +48,11 @@ function EntryContextMenu({
             }
           >
             Open to the Side
+          </ContextMenuItem>
+        )}
+        {entry.kind === 'file' && (
+          <ContextMenuItem onClick={() => exploreFlow()}>
+            <Compass /> Explore feature flow
           </ContextMenuItem>
         )}
         {entry.pinned ? (

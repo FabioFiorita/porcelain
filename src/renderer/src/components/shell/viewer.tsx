@@ -1,6 +1,7 @@
 import logo from '@renderer/assets/logo.png'
 import { CommitView } from '@renderer/components/git/commit-view'
 import { DiffView } from '@renderer/components/git/diff-view'
+import { ExploreView } from '@renderer/components/git/explore-view'
 import { FeatureView } from '@renderer/components/git/feature-view'
 import { Kbd } from '@renderer/components/ui/kbd'
 import { FileContent } from '@renderer/components/viewer/file-content'
@@ -43,6 +44,8 @@ function PaneView({ paneIndex }: { paneIndex: number }): React.JSX.Element {
       return <SearchView query={activeTab.path} />
     case 'feature':
       return <FeatureView />
+    case 'explore':
+      return <ExploreView path={activeTab.path} symbol={activeTab.symbol} />
     case 'file':
       // keyed by path so edit state never leaks across tab switches
       return <FileContent key={activeTab.path} path={activeTab.path} line={activeTab.line} />

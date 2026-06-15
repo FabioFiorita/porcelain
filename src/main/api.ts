@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { loadConfig, updateConfig } from './config-store'
 import { type CommitConventions, parseConventions } from './conventions'
 import type { DiffHunk } from './diff'
+import { buildExploreReading, walkExplore } from './feature-explore'
 import {
   buildFeatureReading,
   buildFeatureView,
@@ -460,6 +461,46 @@ export const router = t.router({
   clearFeatureReview: t.procedure.input(z.string()).mutation(async ({ input }) => {
     await clearReviewSet(input)
   }),
+
+  // Explore an existing feature read-only: seed from a symbol (or a whole file)
+  // and walk the import/reference graph into the SAME flow-ordered, sliced reading
+  // surface — no working-tree change, no agent. Files outside the working tree are
+  // read on demand (bounded by the walk's depth/file caps + the 10MB read limit).
+  exploreFeature: t.procedure
+    .input(
+      z.object({
+        repoPath: z.string(),
+        seed: z.discriminatedUnion('kind', [
+          z.object({ kind: z.literal('file'), path: z.string() }),
+          z.object({ kind: z.literal('symbol'), path: z.string(), symbol: z.string() }),
+        ]),
+      }),
+    )
+    .query(async ({ input }): Promise<FeatureReading> => {
+      const repoFiles = new Set(await gitListFiles(input.repoPath))
+      const sources = new Map<string, string>()
+      const readSource = async (path: string): Promise<string | undefined> => {
+        const cached = sources.get(path)
+        if (cached !== undefined) return cached
+        try {
+          const content = await readFile(join(input.repoPath, path), 'utf8')
+          if (content.length < 1024 * 1024) {
+            sources.set(path, content)
+            return content
+          }
+        } catch {
+          // unreadable / outside the repo — the walk just treats it as a leaf
+        }
+        return undefined
+      }
+      const nodes = await walkExplore(input.seed, readSource, repoFiles)
+      const layers = layersFor(await loadConfig(), input.repoPath) ?? DEFAULT_LAYERS
+      const name =
+        input.seed.kind === 'symbol'
+          ? input.seed.symbol
+          : (input.seed.path.split('/').at(-1) ?? input.seed.path)
+      return buildExploreReading(name, nodes, sources, layers)
+    }),
 
   gitDiffFile: t.procedure
     .input(z.object({ repoPath: z.string(), filePath: z.string() }))
