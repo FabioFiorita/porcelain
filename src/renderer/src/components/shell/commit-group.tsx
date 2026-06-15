@@ -63,7 +63,7 @@ export function CommitGroup(): React.JSX.Element {
         Commit
       </SidebarGroupLabel>
       <SidebarGroupContent className="px-2">
-        <div className="flex flex-col gap-2.5 rounded-md border border-border/60 bg-card p-2.5">
+        <div className="glaze-tile flex flex-col gap-2.5 p-2.5 [--tile-fill:var(--surface-2)]">
           <ToggleGroup
             value={type ? [type] : []}
             onValueChange={(value: string[]) => setType(value[0] ?? null)}
@@ -94,7 +94,7 @@ export function CommitGroup(): React.JSX.Element {
             onKeyDown={(e) => e.key === 'Enter' && commit()}
             placeholder="commit message"
             aria-label="Commit message"
-            className="h-8 text-sm"
+            className="h-8 rounded-md text-sm"
           />
           {prefix && (
             <p className="truncate font-mono text-[11px] text-muted-foreground">{subject}</p>
@@ -115,11 +115,22 @@ export function CommitGroup(): React.JSX.Element {
             </p>
           )}
           <div className="flex flex-col gap-2">
-            <Button size="sm" variant="outline" disabled={isStaging} onClick={stage}>
+            <Button
+              size="sm"
+              variant="outline"
+              className="rounded-md"
+              disabled={isStaging}
+              onClick={stage}
+            >
               <FilePlus2 />
               {isStaging ? 'Staging…' : 'Stage all'}
             </Button>
-            <Button size="sm" disabled={!ready || isCommitting} onClick={commit}>
+            <Button
+              size="sm"
+              className="rounded-md border-ink-amber/40 bg-ink-amber/10 text-ink-amber hover:bg-ink-amber/20 dark:bg-ink-amber/20 dark:hover:bg-ink-amber/30"
+              disabled={!ready || isCommitting}
+              onClick={commit}
+            >
               <GitCommitHorizontal />
               {isCommitting ? 'Committing…' : 'Commit'}
             </Button>

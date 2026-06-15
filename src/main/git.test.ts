@@ -5,7 +5,7 @@ describe('quickCommandArgs', () => {
   it('resolves static commands to their fixed args', () => {
     expect(quickCommandArgs('status')).toEqual(['status'])
     expect(quickCommandArgs('push')).toEqual(['push'])
-    expect(quickCommandArgs('fetch')).toEqual(['fetch', '--all', '--prune'])
+    expect(quickCommandArgs('fetch')).toEqual(['fetch'])
     expect(quickCommandArgs('stash-pop')).toEqual(['stash', 'pop'])
   })
 
@@ -19,7 +19,7 @@ describe('quickCommandArgs', () => {
   })
 
   it('ignores pullMode for non-pull commands', () => {
-    expect(quickCommandArgs('fetch', 'rebase')).toEqual(['fetch', '--all', '--prune'])
+    expect(quickCommandArgs('fetch', 'rebase')).toEqual(['fetch'])
   })
 
   it('returns null for an unknown id', () => {

@@ -27,7 +27,7 @@ const QUICK_COMMANDS = [
   { id: 'status', label: 'git status', icon: Info },
   { id: 'pull', label: 'git pull', icon: ArrowDownToLine },
   { id: 'push', label: 'git push', icon: ArrowUpFromLine },
-  { id: 'fetch', label: 'git fetch --all --prune', icon: RefreshCw },
+  { id: 'fetch', label: 'git fetch', icon: RefreshCw },
   { id: 'stash', label: 'git stash', icon: Archive },
   { id: 'stash-pop', label: 'git stash pop', icon: ArchiveRestore },
 ]
@@ -110,8 +110,8 @@ export function QuickCommandsGroup(): React.JSX.Element {
               return (
                 <Button
                   key={suggestion.command}
-                  variant="outline"
-                  className="h-auto justify-start gap-2 border-ink-amber/30 py-1.5 text-left"
+                  variant="ghost"
+                  className="glaze-chip h-auto justify-start gap-2 rounded-md border-ink-amber/30 py-1.5 text-left"
                   disabled={running !== null}
                   onClick={() => run(command)}
                 >
@@ -130,9 +130,9 @@ export function QuickCommandsGroup(): React.JSX.Element {
         {QUICK_COMMANDS.map((command) => (
           <Button
             key={command.id}
-            variant="outline"
+            variant="ghost"
             size="sm"
-            className="justify-start gap-2 font-mono text-sm font-normal"
+            className="glaze-chip justify-start gap-2 rounded-md font-mono text-sm font-normal"
             disabled={running !== null}
             onClick={() => run(command)}
           >

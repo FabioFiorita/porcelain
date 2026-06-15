@@ -181,7 +181,7 @@ export const QUICK_COMMANDS: Record<string, { label: string; args: string[] }> =
   status: { label: 'git status', args: ['status'] },
   pull: { label: 'git pull', args: ['pull'] },
   push: { label: 'git push', args: ['push'] },
-  fetch: { label: 'git fetch --all --prune', args: ['fetch', '--all', '--prune'] },
+  fetch: { label: 'git fetch', args: ['fetch'] },
   stash: { label: 'git stash', args: ['stash'] },
   'stash-pop': { label: 'git stash pop', args: ['stash', 'pop'] },
 }
