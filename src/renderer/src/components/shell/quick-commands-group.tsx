@@ -44,7 +44,7 @@ function ResultCard({
   onDismiss: () => void
 }): React.JSX.Element {
   return (
-    <div className="mt-0.5 overflow-hidden rounded-md border border-border/60 bg-card">
+    <div className="glaze-tile mt-0.5 overflow-hidden [--tile-fill:var(--surface-2)]">
       <div className="flex items-center gap-2 border-b border-border/60 px-2.5 py-1.5">
         {result.failed ? (
           <CircleX className="size-3.5 shrink-0 text-destructive" />
