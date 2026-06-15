@@ -32,11 +32,16 @@ assumed — this skill is the codebase-specific layer beneath them.
   happens in the playground, never against the user's work repos.
 - **The MCP agent channel adds NO inbound network surface.** The feature-view MCP
   server (`src/mcp/`) is a standalone **stdio** process the user's agent spawns — it
-  never opens a port or socket the app listens on. The app's only new capability is
-  *reading* and *watching* one file, `~/.porcelain/review-sets.json` (`review-store.ts`
-  / `review-watch.ts`), which it re-validates with zod (`reviewSetsSchema`) on every
-  read because an external process owns it. Don't "upgrade" this to an in-app HTTP/MCP
-  listener — that's the inbound surface this design deliberately avoids. The server
+  never opens a port or socket the app listens on. The app *reads* and *watches* one
+  file, `~/.porcelain/review-sets.json` (`review-store.ts` / `review-watch.ts`), which
+  it re-validates with zod (`reviewSetsSchema`) on every read because an external
+  process owns it. The MCP server **authors** the sets; the app makes exactly ONE
+  write — `clearReviewSet` (user-initiated from the Feature tab's Clear button), an
+  atomic tmp+rename that deletes a repo's entry (reverting to the baseline). That's a
+  local home-dir file write, NOT a network surface, and the app still never authors a
+  set. Don't add other app-side writes to this file, and don't "upgrade" the channel
+  to an in-app HTTP/MCP listener — that's the inbound surface this design deliberately
+  avoids. The server
   stays **dependency-free** (Node builtins only) so it runs under a plain `node`; don't
   add npm imports to `src/mcp/`, and keep tool inputs validated in `toReviewFiles`.
   *Verify:* `rg -n "createServer|listen\(|http" src/main src/mcp` finds nothing new.

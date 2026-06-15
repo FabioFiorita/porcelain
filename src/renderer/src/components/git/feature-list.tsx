@@ -8,11 +8,12 @@ import {
   SidebarMenuItem,
 } from '@renderer/components/ui/sidebar'
 import { useDiffFilePrefetch } from '@renderer/hooks/use-diff'
-import { useFeatureView } from '@renderer/hooks/use-feature-view'
+import { useClearFeatureReview, useFeatureView } from '@renderer/hooks/use-feature-view'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
-import { BookOpen, Flag, RefreshCw, Sparkles } from 'lucide-react'
+import { BookOpen, Eraser, Flag, RefreshCw, Sparkles } from 'lucide-react'
+import { useState } from 'react'
 
 const SOURCE_LABEL: Record<FileSource, string> = {
   changed: 'changed',
@@ -101,6 +102,9 @@ export function FeatureList(): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)
   const openTab = useTabsStore((s) => s.openTab)
   const { view, refresh } = useFeatureView()
+  const { clear, isClearing } = useClearFeatureReview()
+  const [confirmClear, setConfirmClear] = useState(false)
+  const [clearError, setClearError] = useState<string | null>(null)
 
   if (!repo || view === undefined) {
     return <p className="p-3 text-sm text-muted-foreground">Loading…</p>
@@ -115,6 +119,24 @@ export function FeatureList(): React.JSX.Element {
       title: 'Feature view',
       path: repo.path,
     })
+  }
+
+  // Clear discards the agent's curated set + notes (reverting to the baseline), so
+  // it's two-step: the first click arms it, the second confirms. The agent can
+  // always re-push, and blurring the button cancels.
+  const handleClear = async (): Promise<void> => {
+    if (!confirmClear) {
+      setConfirmClear(true)
+      return
+    }
+    setClearError(null)
+    try {
+      await clear()
+    } catch (e) {
+      setClearError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setConfirmClear(false)
+    }
   }
 
   const files = view.groups.flatMap((g) => g.files)
@@ -150,15 +172,41 @@ export function FeatureList(): React.JSX.Element {
         ))}
       </div>
 
-      {view.fromAgent && files.length > 0 && (
-        <button
-          type="button"
-          onClick={openReading}
-          className="mx-2 mb-1 flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-info hover:bg-sidebar-accent/50"
-        >
-          <BookOpen className="size-3.5" />
-          Open inline read
-        </button>
+      {view.fromAgent && (
+        <>
+          <div className="mx-2 mb-1 flex items-center gap-2">
+            {files.length > 0 && (
+              <button
+                type="button"
+                onClick={openReading}
+                className="flex flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-xs text-info hover:bg-sidebar-accent/50"
+              >
+                <BookOpen className="size-3.5" />
+                Open inline read
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleClear}
+              onBlur={() => setConfirmClear(false)}
+              disabled={isClearing}
+              aria-label="Clear agent review set"
+              title="Clear the agent review set (back to the baseline)"
+              className={cn(
+                'ml-auto flex items-center gap-1 rounded-md px-2 py-1.5 text-xs hover:bg-sidebar-accent/50',
+                confirmClear ? 'text-destructive' : 'text-muted-foreground',
+              )}
+            >
+              <Eraser className="size-3.5" />
+              {confirmClear ? (isClearing ? 'Clearing…' : 'Clear?') : 'Clear'}
+            </button>
+          </div>
+          {clearError && (
+            <p className="mx-2 mb-1 whitespace-pre-wrap font-mono text-[10px] text-destructive">
+              {clearError}
+            </p>
+          )}
+        </>
       )}
 
       {files.length === 0 ? (

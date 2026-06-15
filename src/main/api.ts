@@ -52,7 +52,7 @@ import {
   withRepoLayers,
   withRepoNotes,
 } from './repo-config'
-import { readReviewSet } from './review-store'
+import { clearReviewSet, readReviewSet } from './review-store'
 import { checkForUpdates, installUpdate, type UpdateStatus, updateStatus } from './updater'
 
 const t = initTRPC.create({ isServer: true })
@@ -452,6 +452,14 @@ export const router = t.router({
       featureReadingCache.set(input, { key: g.key, reading })
       return reading
     }),
+
+  // Clear a repo's agent review set → revert the feature view to the static
+  // baseline. The app's one write to the agent channel (see `clearReviewSet`);
+  // the next featureView/featureReading poll reads null and rebuilds (cache key
+  // includes the review set, so it self-busts).
+  clearFeatureReview: t.procedure.input(z.string()).mutation(async ({ input }) => {
+    await clearReviewSet(input)
+  }),
 
   gitDiffFile: t.procedure
     .input(z.object({ repoPath: z.string(), filePath: z.string() }))

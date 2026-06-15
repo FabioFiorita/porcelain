@@ -3,13 +3,17 @@ import { SidebarProvider } from '@renderer/components/ui/sidebar'
 import { useFeatureView } from '@renderer/hooks/use-feature-view'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { FeatureList } from './feature-list'
 
 // Same convention as changes-list: mock the domain hook, never tRPC. useFeatureView
 // hands back a FeatureView shaped exactly like the real featureView query.
-vi.mock('@renderer/hooks/use-feature-view', () => ({ useFeatureView: vi.fn() }))
+const clearSpy = vi.hoisted(() => vi.fn(async () => {}))
+vi.mock('@renderer/hooks/use-feature-view', () => ({
+  useFeatureView: vi.fn(),
+  useClearFeatureReview: () => ({ clear: clearSpy, isClearing: false }),
+}))
 vi.mock('@renderer/hooks/use-diff', () => ({ useDiffFilePrefetch: () => async () => {} }))
 
 const view: FeatureView = {
@@ -61,9 +65,21 @@ function renderList(): void {
 
 describe('FeatureList', () => {
   beforeEach(() => {
+    clearSpy.mockClear()
     useTabsStore.setState({ panes: [{ tabs: [], activeTabId: null }], activePaneIndex: 0 })
     useRepoStore.setState({ repo: { path: '/repo', name: 'repo' } })
     vi.mocked(useFeatureView).mockReturnValue({ view, refresh: async () => {} })
+  })
+
+  it('arms then confirms a clear of the agent review set (two-step)', () => {
+    renderList()
+    const btn = screen.getByLabelText('Clear agent review set')
+    expect(btn.textContent).toContain('Clear')
+    fireEvent.click(btn) // first click only arms — does not clear
+    expect(screen.getByLabelText('Clear agent review set').textContent).toContain('Clear?')
+    expect(clearSpy).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByLabelText('Clear agent review set')) // confirm
+    expect(clearSpy).toHaveBeenCalledTimes(1)
   })
 
   it('renders the feature name, flow-grouped files, and per-source counts', () => {

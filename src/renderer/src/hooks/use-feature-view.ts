@@ -18,3 +18,22 @@ export function useFeatureView(): { view: FeatureView | undefined; refresh: () =
 
   return { view, refresh }
 }
+
+/**
+ * Clear the agent review set for the current repo, reverting the feature view to
+ * the static baseline. Invalidates both feature surfaces so the list and the
+ * inline reading surface refresh.
+ */
+export function useClearFeatureReview(): { clear: () => Promise<void>; isClearing: boolean } {
+  const repo = useRepoStore((s) => s.repo)
+  const utils = trpc.useUtils()
+  const mutation = trpc.clearFeatureReview.useMutation()
+  return {
+    clear: async () => {
+      if (!repo) return
+      await mutation.mutateAsync(repo.path)
+      await Promise.all([utils.featureView.invalidate(), utils.featureReading.invalidate()])
+    },
+    isClearing: mutation.isPending,
+  }
+}
