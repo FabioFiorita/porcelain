@@ -2,3 +2,8 @@ node_modules/
 dist/
 out/
 .DS_Store
+
+# Playwright e2e: keep the *-snapshots/ baselines (committed), drop run output.
+test-results/
+playwright-report/
+e2e/.artifacts/

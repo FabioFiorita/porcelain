@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "module": "Preserve",
+    "target": "ES2022",
+    "lib": ["ES2023"],
+    "types": ["node"],
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "noEmit": true
+  },
+  "include": ["**/*.ts", "../playwright.config.ts"]
+}
