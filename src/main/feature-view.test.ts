@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import type { ChangedFile } from './diff'
-import { buildFeatureView, expandContext, resolveRelativeImport } from './feature-view'
+import type { ChangedFile, DiffHunk } from './diff'
+import {
+  buildFeatureReading,
+  buildFeatureView,
+  expandContext,
+  resolveRelativeImport,
+} from './feature-view'
 import { DEFAULT_LAYERS } from './flow'
 import type { ReviewSet } from './review-set'
 
@@ -148,5 +153,45 @@ describe('buildFeatureView', () => {
       layers,
     })
     expect(view.groups[0]?.files[0]).toMatchObject({ additions: 74, deletions: 3 })
+  })
+})
+
+describe('buildFeatureReading', () => {
+  const sources = new Map([
+    ['app/page.tsx', "import { greet } from './svc'"],
+    ['app/svc.ts', 'export function greet() {\n  return 1\n}\nexport const UNUSED = 2'],
+  ])
+  const view = buildFeatureView({
+    name: 'Feature',
+    changed: [changed('app/page.tsx')],
+    contextPaths: ['app/svc.ts'],
+    reviewSet: { name: 'Feature', files: [] },
+    sources,
+    stats: new Map(),
+    layers: DEFAULT_LAYERS,
+  })
+  const diffs = new Map<string, DiffHunk[]>([
+    [
+      'app/page.tsx',
+      [{ header: '@@ -1 +1 @@', lines: [{ kind: 'add', oldLine: null, newLine: 1, text: 'x' }] }],
+    ],
+  ])
+
+  it('passes diff hunks through for changed files and slices the rest', () => {
+    const reading = buildFeatureReading({ view, sources, diffs })
+    const files = reading.groups.flatMap((g) => g.files)
+
+    const page = files.find((f) => f.path === 'app/page.tsx')
+    expect(page?.source).toBe('changed')
+    expect(page?.hunks).toHaveLength(1)
+    expect(page?.ranges).toBeUndefined()
+
+    const svc = files.find((f) => f.path === 'app/svc.ts')
+    expect(svc?.source).toBe('context')
+    expect(svc?.hunks).toBeUndefined()
+    const sliced = svc?.ranges?.flatMap((r) => r.lines).join('\n') ?? ''
+    // page imports only `greet`, so the slice keeps it and drops the UNUSED export
+    expect(sliced).toContain('export function greet')
+    expect(sliced).not.toContain('UNUSED')
   })
 })

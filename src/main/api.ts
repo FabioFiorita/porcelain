@@ -5,7 +5,14 @@ import { dialog, shell } from 'electron'
 import { z } from 'zod'
 import { loadConfig, updateConfig } from './config-store'
 import { type CommitConventions, parseConventions } from './conventions'
-import { buildFeatureView, expandContext, type FeatureView } from './feature-view'
+import type { DiffHunk } from './diff'
+import {
+  buildFeatureReading,
+  buildFeatureView,
+  expandContext,
+  type FeatureReading,
+  type FeatureView,
+} from './feature-view'
 import { buildFlow, DEFAULT_LAYERS, type FlowGroup, type Layer } from './flow'
 import { fuzzySearch } from './fuzzy'
 import {
@@ -105,6 +112,85 @@ const flowCache = new Map<string, { key: string; groups: FlowGroup[] }>()
 // working-tree state, layers, and the agent-fed review set, so the poll only
 // re-reads file contents when something that affects the view actually changed.
 const featureViewCache = new Map<string, { key: string; view: FeatureView }>()
+
+// The (heavier still) inline reading surface, memoized on the same key. Only built
+// when an agent review set is present (MCP-only), so the slice heuristic runs only
+// on curated files; the baseline returns null cheaply from the gather alone.
+const featureReadingCache = new Map<string, { key: string; reading: FeatureReading }>()
+
+// Read working-tree sources into `sources`, skipping already-read and oversized
+// files. Shared by both feature procedures (they parse imports off the contents).
+async function readSourcesInto(
+  repoPath: string,
+  paths: readonly string[],
+  sources: Map<string, string>,
+): Promise<void> {
+  await Promise.all(
+    paths.map(async (path) => {
+      if (sources.has(path)) return
+      try {
+        const content = await readFile(join(repoPath, path), 'utf8')
+        if (content.length < 1024 * 1024) sources.set(path, content)
+      } catch {
+        // deleted / unreadable files have no working-tree source to parse
+      }
+    }),
+  )
+}
+
+// Cheap phase shared by both feature procedures: the working-tree snapshot, agent
+// set, and layers → the memo key. Each procedure checks its own cache on this key
+// before doing the expensive source reads.
+async function gatherFeature(input: string) {
+  const [files, config, stats, repoFiles, reviewSet] = await Promise.all([
+    gitStatus(input),
+    loadConfig(),
+    gitNumstat(input),
+    gitListFiles(input),
+    readReviewSet(input),
+  ])
+  const layers = layersFor(config, input) ?? DEFAULT_LAYERS
+  const key = JSON.stringify([files, stats, layers, reviewSet])
+  return { files, stats, layers, reviewSet, repoFiles, key }
+}
+
+// Expensive phase shared on a cache miss: read changed + context + agent-declared
+// sources, then build the feature view. Returns the view AND the sources (the
+// reading surface needs them to slice context/shipped files).
+async function buildFeatureFromGather(
+  input: string,
+  g: Awaited<ReturnType<typeof gatherFeature>>,
+): Promise<{ view: FeatureView; sources: Map<string, string> }> {
+  const sources = new Map<string, string>()
+  await readSourcesInto(
+    input,
+    g.files.slice(0, 200).map((file) => file.path),
+    sources,
+  )
+  const contextPaths = expandContext(
+    g.files.map((file) => file.path),
+    sources,
+    new Set(g.repoFiles),
+  )
+  await readSourcesInto(
+    input,
+    [...contextPaths, ...(g.reviewSet?.files.map((file) => file.path) ?? [])],
+    sources,
+  )
+  const statByPath = new Map(
+    g.stats.map((s) => [s.path, { additions: s.additions, deletions: s.deletions }]),
+  )
+  const view = buildFeatureView({
+    name: g.reviewSet?.name ?? 'Feature view',
+    changed: g.files,
+    contextPaths,
+    reviewSet: g.reviewSet,
+    sources,
+    stats: statByPath,
+    layers: g.layers,
+  })
+  return { view, sources }
+}
 
 // Hidden-path filtering over the full file list is recomputed only when the
 // list or the hidden set changes, not on every search keystroke.
@@ -332,53 +418,40 @@ export const router = t.router({
   // (via the MCP server → ~/.porcelain/review-sets.json), its cross-seam files and
   // invariant notes overlay on top. One render either way.
   featureView: t.procedure.input(z.string()).query(async ({ input }): Promise<FeatureView> => {
-    const [files, config, stats, repoFiles, reviewSet] = await Promise.all([
-      gitStatus(input),
-      loadConfig(),
-      gitNumstat(input),
-      gitListFiles(input),
-      readReviewSet(input),
-    ])
-    const layers = layersFor(config, input) ?? DEFAULT_LAYERS
-    const key = JSON.stringify([files, stats, layers, reviewSet])
+    const g = await gatherFeature(input)
     const cached = featureViewCache.get(input)
-    if (cached && cached.key === key) return cached.view
-
-    const sources = new Map<string, string>()
-    const read = async (path: string): Promise<void> => {
-      if (sources.has(path)) return
-      try {
-        const content = await readFile(join(input, path), 'utf8')
-        if (content.length < 1024 * 1024) sources.set(path, content)
-      } catch {
-        // deleted / unreadable files have no working-tree source to parse
-      }
-    }
-    await Promise.all(files.slice(0, 200).map((file) => read(file.path)))
-    const contextPaths = expandContext(
-      files.map((file) => file.path),
-      sources,
-      new Set(repoFiles),
-    )
-    // context + agent-declared files need their source too, for in-view connects
-    await Promise.all(
-      [...contextPaths, ...(reviewSet?.files.map((file) => file.path) ?? [])].map(read),
-    )
-    const statByPath = new Map(
-      stats.map((s) => [s.path, { additions: s.additions, deletions: s.deletions }]),
-    )
-    const view = buildFeatureView({
-      name: reviewSet?.name ?? 'Feature view',
-      changed: files,
-      contextPaths,
-      reviewSet,
-      sources,
-      stats: statByPath,
-      layers,
-    })
-    featureViewCache.set(input, { key, view })
+    if (cached && cached.key === g.key) return cached.view
+    const { view } = await buildFeatureFromGather(input, g)
+    featureViewCache.set(input, { key: g.key, view })
     return view
   }),
+
+  // The inline reading surface: the feature rendered as one flow-ordered document
+  // with just the relevant lines (diff hunks for changed files, symbol slices for
+  // context/shipped). MCP-only — returns null when there's no agent review set, so
+  // the baseline stays the lightweight Feature list and the slice heuristic only
+  // ever runs on the agent's curated, annotated set.
+  featureReading: t.procedure
+    .input(z.string())
+    .query(async ({ input }): Promise<FeatureReading | null> => {
+      const g = await gatherFeature(input)
+      if (!g.reviewSet) return null
+      const cached = featureReadingCache.get(input)
+      if (cached && cached.key === g.key) return cached.reading
+      const { view, sources } = await buildFeatureFromGather(input, g)
+      const changed = view.groups
+        .flatMap((group) => group.files)
+        .filter((f) => f.source === 'changed')
+      const diffs = new Map<string, DiffHunk[]>()
+      await Promise.all(
+        changed.map(async (file) => {
+          diffs.set(file.path, await gitDiffFile(input, file.path))
+        }),
+      )
+      const reading = buildFeatureReading({ view, sources, diffs })
+      featureReadingCache.set(input, { key: g.key, reading })
+      return reading
+    }),
 
   gitDiffFile: t.procedure
     .input(z.object({ repoPath: z.string(), filePath: z.string() }))

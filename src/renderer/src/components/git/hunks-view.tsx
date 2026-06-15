@@ -21,7 +21,7 @@ interface RenderContext {
  * inside the hunk keeps its grammar state across lines. A diff can't see the
  * file outside its hunks, so cross-hunk context is inherently unavailable.
  */
-function tokenizeHunks(
+export function tokenizeHunks(
   highlighter: Highlighter,
   hunks: readonly DiffHunk[],
   lang: BundledLanguage,

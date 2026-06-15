@@ -12,7 +12,7 @@ import { useFeatureView } from '@renderer/hooks/use-feature-view'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
-import { Flag, RefreshCw, Sparkles } from 'lucide-react'
+import { BookOpen, Flag, RefreshCw, Sparkles } from 'lucide-react'
 
 const SOURCE_LABEL: Record<FileSource, string> = {
   changed: 'changed',
@@ -99,10 +99,22 @@ function FileRow({ file, repoPath }: { file: FeatureFile; repoPath: string }): R
 // read; this is the index you scan and click from.
 export function FeatureList(): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)
+  const openTab = useTabsStore((s) => s.openTab)
   const { view, refresh } = useFeatureView()
 
   if (!repo || view === undefined) {
     return <p className="p-3 text-sm text-muted-foreground">Loading…</p>
+  }
+
+  // The inline reading surface is MCP-only, so the opener appears only when an
+  // agent has pushed a review set; the baseline stays a plain navigation list.
+  const openReading = (): void => {
+    openTab({
+      id: tabId('feature', repo.path),
+      kind: 'feature',
+      title: 'Feature view',
+      path: repo.path,
+    })
   }
 
   const files = view.groups.flatMap((g) => g.files)
@@ -137,6 +149,17 @@ export function FeatureList(): React.JSX.Element {
           </span>
         ))}
       </div>
+
+      {view.fromAgent && files.length > 0 && (
+        <button
+          type="button"
+          onClick={openReading}
+          className="mx-2 mb-1 flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-info hover:bg-sidebar-accent/50"
+        >
+          <BookOpen className="size-3.5" />
+          Open inline read
+        </button>
+      )}
 
       {files.length === 0 ? (
         <p className="px-3 py-2 text-sm text-muted-foreground">

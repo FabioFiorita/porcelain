@@ -1,4 +1,5 @@
-import type { ChangedFile, FileStatus } from './diff'
+import type { ChangedFile, DiffHunk, FileStatus } from './diff'
+import { collectImportedSymbols, type SliceRange, sliceSource } from './feature-slice'
 import { type Layer, layerFor, parseImports, resolveImport } from './flow'
 import type { FileSource, ReviewSet } from './review-set'
 
@@ -173,4 +174,72 @@ export function buildFeatureView(params: {
         files: (groups.get(layer) ?? []).sort((a, b) => a.path.localeCompare(b.path)),
       })),
   }
+}
+
+/** One file in the inline reading surface: changed files carry diff hunks, the
+ *  rest carry symbol slices (only the lines the in-view files import from them). */
+export interface ReadingFile {
+  path: string
+  source: FileSource
+  note?: string
+  additions?: number
+  deletions?: number
+  /** Changed files only: the working-tree diff. */
+  hunks?: DiffHunk[]
+  /** Context/shipped files only: the symbol-sliced ranges. */
+  ranges?: SliceRange[]
+  /** A slice was capped — more relevant lines exist than shown. */
+  truncated?: boolean
+  /** Slicing found no specific symbol and fell back to the whole file. */
+  whole?: boolean
+}
+
+export interface ReadingGroup {
+  layer: string
+  files: ReadingFile[]
+}
+
+export interface FeatureReading {
+  name: string
+  groups: ReadingGroup[]
+}
+
+/**
+ * Assemble the inline reading surface from an already-built feature view. Changed
+ * files carry their working-tree diff hunks (passed in — they're async git reads);
+ * context/shipped files carry symbol slices (only the lines the in-view files
+ * import from them, falling back to all exports for cross-seam files no in-view
+ * import resolves to). MCP-only: the caller builds this only when a review set is
+ * present, so the slice heuristic runs only on the agent's curated, annotated set.
+ */
+export function buildFeatureReading(params: {
+  view: FeatureView
+  sources: ReadonlyMap<string, string>
+  diffs: ReadonlyMap<string, DiffHunk[]>
+}): FeatureReading {
+  const unionPaths = params.view.groups.flatMap((g) => g.files.map((f) => f.path))
+  const resolve = (spec: string, importer: string): string | null =>
+    resolveImport(spec, importer, unionPaths)
+
+  const groups: ReadingGroup[] = params.view.groups.map((group) => ({
+    layer: group.layer,
+    files: group.files.map((file): ReadingFile => {
+      const base = {
+        path: file.path,
+        source: file.source,
+        note: file.note,
+        additions: file.additions,
+        deletions: file.deletions,
+      }
+      if (file.source === 'changed') {
+        return { ...base, hunks: params.diffs.get(file.path) ?? [] }
+      }
+      const source = params.sources.get(file.path)
+      if (source === undefined) return { ...base, ranges: [] }
+      const slice = sliceSource(source, collectImportedSymbols(file.path, params.sources, resolve))
+      return { ...base, ranges: slice.ranges, truncated: slice.truncated, whole: slice.whole }
+    }),
+  }))
+
+  return { name: params.view.name, groups }
 }
