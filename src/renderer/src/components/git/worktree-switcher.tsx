@@ -23,7 +23,7 @@ export function WorktreeSwitcher(): React.JSX.Element | null {
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <SidebarMenuButton className="app-no-drag">
+          <SidebarMenuButton className="app-no-drag w-auto">
             <GitBranch className="text-muted-foreground" />
             <span className="truncate">{branch ?? '…'}</span>
           </SidebarMenuButton>

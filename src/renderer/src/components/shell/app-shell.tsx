@@ -62,11 +62,9 @@ function TopBar({ left }: { left: LeftSidebarHandle }): React.JSX.Element {
               size="icon-sm"
               onClick={left.toggle}
               aria-label="Toggle sidebar"
-              className={cn(
-                'app-no-drag m-1 ml-2',
-                // collapsed sidebar puts this tile at the window edge, under the traffic lights
-                left.collapsed && 'ml-[4.75rem]',
-              )}
+              // Collapsing leaves the icon rail in place, so the traffic lights
+              // now float over the rail — this toggle never needs to clear them.
+              className="app-no-drag m-1 ml-2"
             >
               <PanelLeft />
             </Button>
@@ -168,7 +166,16 @@ export function AppShell(): React.JSX.Element {
   return (
     // No background wash here: the void between the tiles shows raw vibrancy
     <div className="dark h-screen text-foreground">
-      <SidebarProvider style={{ '--sidebar-width': `${sidebarWidth}px` } as React.CSSProperties}>
+      <SidebarProvider
+        style={
+          {
+            '--sidebar-width': `${sidebarWidth}px`,
+            // A compact icon rail — the divider no longer runs through the header,
+            // so the rail only has to fit the icons (not span under the lights).
+            '--sidebar-width-icon': '3.5rem',
+          } as React.CSSProperties
+        }
+      >
         <FileFinder />
         <AppSidebar />
         <RepoShell />
