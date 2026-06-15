@@ -5,7 +5,9 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   addReviewFiles,
   clearReview,
+  describeReview,
   mergeReviewFiles,
+  readReview,
   setReview,
   toReviewFiles,
 } from './review-file'
@@ -87,5 +89,36 @@ describe('file round-trip', () => {
     expect(all['/repo']).toBeUndefined()
     expect(all['/other']).toBeDefined()
     expect(existsSync(file)).toBe(true)
+  })
+
+  it('readReview returns the stored set, or null when none exists', () => {
+    expect(readReview('/repo')).toBeNull()
+    setReview('/repo', 'Call-outs', [{ path: 'a.ts', source: 'shipped', note: 'check' }])
+    expect(readReview('/repo')).toEqual({
+      name: 'Call-outs',
+      files: [{ path: 'a.ts', source: 'shipped', note: 'check' }],
+    })
+  })
+})
+
+describe('describeReview', () => {
+  it('explains the static baseline when there is no set', () => {
+    expect(describeReview('/repo', null)).toContain('No feature review set for /repo')
+    expect(describeReview('/repo', { name: 'x', files: [] })).toContain('No feature review set')
+  })
+
+  it('summarizes the set with a per-source breakdown and the files as JSON', () => {
+    const text = describeReview('/repo', {
+      name: 'Call-outs',
+      files: [{ path: 'a.ts' }, { path: 'b.ts', source: 'shipped', note: 'match the service' }],
+    })
+    expect(text).toContain('Feature review "Call-outs" for /repo: 2 file(s)')
+    expect(text).toContain('1 auto-detected')
+    expect(text).toContain('1 shipped')
+    // the files round-trip as JSON so an agent can read → modify → set
+    expect(JSON.parse(text.slice(text.indexOf('[')))).toEqual([
+      { path: 'a.ts' },
+      { path: 'b.ts', source: 'shipped', note: 'match the service' },
+    ])
   })
 })

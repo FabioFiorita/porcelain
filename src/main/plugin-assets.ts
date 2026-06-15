@@ -80,6 +80,7 @@ Call the \`porcelain\` MCP tools with \`repoPath\` set to the ABSOLUTE path of t
 
 - \`set_feature_review\` — replace the review set: \`{ repoPath, name, files: [...] }\`
 - \`add_review_files\` — add files to it incrementally while you work
+- \`get_feature_review\` — read back the current set (name, files, sources, notes); use it to verify what you pushed or to make an idempotent update (read → modify → \`set\`), and to recover the set if you lose context
 - \`clear_feature_review\` — remove it
 
 Each file is \`{ path, source?, note? }\`:

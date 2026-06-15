@@ -1,6 +1,13 @@
 import { createInterface } from 'node:readline'
 import { handleRpc } from './protocol'
-import { addReviewFiles, clearReview, setReview, toReviewFiles } from './review-file'
+import {
+  addReviewFiles,
+  clearReview,
+  describeReview,
+  readReview,
+  setReview,
+  toReviewFiles,
+} from './review-file'
 
 // Porcelain's MCP server: a standalone stdio process the user's coding agent spawns
 // (e.g. `claude mcp add porcelain -- node <app>/out/main/mcp/server.js`). It writes
@@ -29,6 +36,9 @@ async function callTool(name: string, args: Record<string, unknown>): Promise<st
   if (name === 'clear_feature_review') {
     clearReview(repoPath)
     return `Cleared the feature review for ${repoPath}`
+  }
+  if (name === 'get_feature_review') {
+    return describeReview(repoPath, readReview(repoPath))
   }
   throw new Error(`unknown tool: ${name}`)
 }

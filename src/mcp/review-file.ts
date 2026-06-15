@@ -124,3 +124,29 @@ export function clearReview(repoPath: string): void {
   delete sets[repoPath]
   writeAll(sets)
 }
+
+/** Read back the stored review set for a repo (null when none is set). */
+export function readReview(repoPath: string): ReviewSet | null {
+  return readAll()[repoPath] ?? null
+}
+
+/**
+ * Render a repo's stored review set for the read tool: a one-line summary (name,
+ * count, per-source breakdown) followed by the files as JSON so an agent can
+ * verify what it pushed and round-trip an idempotent update. The stored source is
+ * what the agent declared; Porcelain still auto-detects working-tree files as
+ * `changed` when it renders, which the summary calls out.
+ */
+export function describeReview(repoPath: string, review: ReviewSet | null): string {
+  if (!review || review.files.length === 0) {
+    return `No feature review set for ${repoPath}. Porcelain shows the static baseline (changed files plus the unchanged files they import). Use set_feature_review to define one.`
+  }
+  const counts = new Map<string, number>()
+  for (const file of review.files) {
+    const key = file.source ?? 'auto-detected'
+    counts.set(key, (counts.get(key) ?? 0) + 1)
+  }
+  const breakdown = [...counts.entries()].map(([source, n]) => `${n} ${source}`).join(', ')
+  const json = JSON.stringify(review.files, null, 2)
+  return `Feature review "${review.name}" for ${repoPath}: ${review.files.length} file(s) (${breakdown}). Working-tree files render as "changed" regardless of declared source.\n${json}`
+}

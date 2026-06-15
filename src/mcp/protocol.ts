@@ -4,7 +4,7 @@
 // nothing to resolve from node_modules (which a non-Electron `node` can't read from
 // inside app.asar). The protocol surface is tiny: initialize, tools/list, tools/call.
 
-export const SERVER_INFO = { name: 'porcelain', version: '0.2.0' }
+export const SERVER_INFO = { name: 'porcelain', version: '0.3.0' }
 export const PROTOCOL_VERSION = '2025-06-18'
 
 const REVIEW_FILE_SCHEMA = {
@@ -58,6 +58,18 @@ export const TOOLS = [
     name: 'clear_feature_review',
     description:
       'Remove the feature review for a repo. Porcelain falls back to the static baseline (changed files plus what they import).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        repoPath: { type: 'string', description: 'Absolute path to the repository' },
+      },
+      required: ['repoPath'],
+    },
+  },
+  {
+    name: 'get_feature_review',
+    description:
+      'Read back the current feature review for a repo: its name, file count, and every file with its declared source and note. Use it to verify what you pushed, make an idempotent update (read → modify → set), or recover the set after losing context. Returns the stored set as declared; Porcelain still auto-detects working-tree files as "changed" when it renders.',
     inputSchema: {
       type: 'object',
       properties: {
