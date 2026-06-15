@@ -1,6 +1,6 @@
 # Porcelain — Codebase Guide
 
-> **Last synced: v0.4.0.** This guide re-syncs against the code on every release (it's step 2 of
+> **Last synced: v0.5.0.** This guide re-syncs against the code on every release (it's step 2 of
 > the `releasing` skill's runbook), so you should never need a dedicated "update the guide"
 > session. If the stamp here is older than the current `package.json` version, the guide may have
 > drifted — the next release will reconcile it.
@@ -32,8 +32,8 @@ LSP, no autocomplete, no embedded terminal. Its differentiators:
 
 Tagline: *"Review changes as a story."*
 
-It's a small codebase — about **11,000 lines** of TypeScript across main + renderer + the MCP
-server, with **20 test files** (most of them on the pure main-side logic).
+It's a small codebase — about **13,000 lines** of TypeScript across main + renderer + the MCP
+server, with **27 test files** (most of them on the pure main-side logic).
 
 ---
 
@@ -171,7 +171,7 @@ porcelain/
 │       │   ├── ui/        ← shadcn primitives (button, dialog, sidebar…). Generated; don't hand-edit.
 │       │   ├── shell/     ← app frame: sidebars, tab bar, file tree, welcome, notes card, quick-access sections.
 │       │   ├── viewer/    ← the file viewer: text/image/markdown rendering, inline editing, find bar.
-│       │   ├── git/       ← diffs, commits, history, changes list, feature view.
+│       │   ├── git/       ← diffs, commits, history, changes list, feature list + inline read, explore view.
 │       │   └── settings/  ← settings dialog sections (general, flow layers, plugin install, updates).
 │       ├── hooks/     ← one use-<domain>.ts per data domain. ALL tRPC access lives here.
 │       ├── stores/    ← zustand stores: tabs, repo, preferences, selection.
@@ -203,9 +203,11 @@ that have no Electron dependency and are unit-tested next to the source (`foo.ts
 | `git.ts` | Shells out to the `git` CLI (`git status`, `diff`, `log`, `commit`, `grep`, `worktree`, staging…). No git library. |
 | `diff.ts` | Pure parsers: porcelain status, unified diff → `DiffHunk[]`, worktree list, grep. Tested. |
 | `flow.ts` | **Flow-ordered review** logic: maps files to layers, parses imports, builds the ordered groups. Tested. |
-| `feature-view.ts` | Widens a diff into the whole **feature**: walks one import hop out for *context* files, unions in the agent's *shipped* files, regroups by flow layer. Tested. |
+| `feature-view.ts` | Widens a diff into the whole **feature**: walks one import hop out for *context* files, unions in the agent's *shipped* files, regroups by flow layer. Also assembles the inline-read document (`buildFeatureReading`). Tested. |
+| `feature-slice.ts` | Heuristic **symbol slicing** for the inline read: parses import bindings, collects the symbols the in-view files actually use, slices just those definitions out of a context/shipped file (with caps + whole-file fallback). Tested. |
+| `feature-explore.ts` | The read-only **explore** walker: from a symbol/file seed, BFS the relative-import graph (injected `readSource` for testability) and build a sliced `FeatureReading`. Tested. |
 | `review-set.ts` | Shared types + zod schemas for the agent channel (`FileSource`, `ReviewSet`). |
-| `review-store.ts` + `review-watch.ts` | Reads the agent's `~/.porcelain/review-sets.json` (re-validated) and watches it to live-refresh the open feature view. |
+| `review-store.ts` + `review-watch.ts` | Reads the agent's `~/.porcelain/review-sets.json` (re-validated), watches it to live-refresh the open feature view, and owns the app's one write back (`clearReviewSet`). |
 | `plugin.ts` + `plugin-assets.ts` | Builds + installs the **Claude Code plugin** that ships the MCP server (assets are pure + tested; `plugin.ts` does the filesystem + shell work). |
 | `repo-config.ts` | Pure logic for per-repo config (hidden paths, pins, layers, notes, recents). Tested. |
 | `config-store.ts` + `json-store.ts` | Persists that config to `~/Library/Application Support/porcelain/config.json` (atomic writes, race-free). Tested. |
@@ -247,7 +249,7 @@ There is **no React Router, no URLs.** Navigation state *is* the list of open ta
 `stores/tabs.ts`. This is unusual if you come from web dev, so it's worth internalizing.
 
 - A "screen" is a **tab**, and every tab has a `kind`:
-  `'file' | 'diff' | 'commit' | 'search' | 'feature'`.
+  `'file' | 'diff' | 'commit' | 'search' | 'feature' | 'explore'`.
 - A tab's id is always `tabId(kind, key)` — e.g. `tabId('diff', '/path/to/file.ts')`. Same target
   → same id → same tab (no duplicates).
 - `viewer.tsx` is the entire "route table":
@@ -256,7 +258,8 @@ There is **no React Router, no URLs.** Navigation state *is* the list of open ta
     case 'diff':    return <DiffView filePath={activeTab.path} />
     case 'commit':  return <CommitView hash={activeTab.path} />
     case 'search':  return <SearchView query={activeTab.path} />
-    case 'feature': return <FeatureView />   // reads the repo from the store
+    case 'feature': return <FeatureView />   // the MCP-only inline read; reads the repo from the store
+    case 'explore': return <ExploreView path={activeTab.path} symbol={activeTab.symbol} />
     case 'file':    return <FileContent key={activeTab.path} path={activeTab.path} … />
   }
   ```
@@ -290,7 +293,7 @@ Four small zustand stores. Each is one concern; components subscribe to just the
 |---|---|---|
 | `tabs.ts` | The `panes` (each with its tabs + active tab) + `activePaneIndex`; open/close/pin/cycle/split actions. | **This is the router** (§6); also holds the split-view model. |
 | `repo.ts` | The current repo, `showHidden` toggle, and `switchTo(path)`. | `switchTo` is the **one** place repo-switching lives — it closes all tabs then opens the new repo. Uses the vanilla `trpcClient`. |
-| `preferences.ts` | Persisted UI prefs (diff/markdown mode, sidebar widths/open state, active sidebar tab, split ratio, notes height…). | Persisted to `localStorage` via zustand's `persist` middleware — the **only** thing that survives reload. |
+| `preferences.ts` | Persisted UI prefs (diff/markdown mode, pull strategy, sidebar widths/open state, active sidebar tab, split ratio, notes height…). | Persisted to `localStorage` via zustand's `persist` middleware — the **only** thing that survives reload. |
 | `selection.ts` | Multi-selected tree rows (for batch hide). | Cmd+click in the tree. |
 
 Rule of thumb for "where does this state go?":
@@ -313,14 +316,15 @@ Use this as a "I want to change X, where do I look?" index.
 | **Syntax highlighting** | — | `lib/highlight.ts` (Shiki), `viewer/code-line.tsx` |
 | **Markdown reader** | — | `viewer/markdown-view.tsx` |
 | **Diffs** (unified/split) | `gitDiffFile`, `diff.ts` parsers | `git/diff-view.tsx`, `git/hunks-view.tsx`, `git/diff-mode-toggle.tsx` |
-| **Changes list + per-file staging** | `gitStatus`/`gitFlow`, `gitStageFile`/`gitUnstageFile`/`gitStageAll` | `git/changes-list.tsx` (dot per row, right-click Stage/Unstage) |
+| **Changes list + per-file staging** | `gitStatus`/`gitFlow`, `gitStageFile`/`gitUnstageFile`/`gitStageAll` | `git/changes-list.tsx` (dot per row, right-click Stage/Unstage + **Open file**) |
 | **Flow-ordered review** | `flow.ts`, `gitFlow` in `api.ts` | `git/changes-list.tsx` (renders the groups) |
-| **Feature view** (widen diff → whole feature) | `feature-view.ts`, `featureView` in `api.ts` | `git/feature-view.tsx` (opened from the Changes list) |
-| **Agent channel** (MCP review sets) | `src/mcp/`, `review-set.ts`, `review-store.ts`, `review-watch.ts` | feeds the feature view; live-refreshes it |
+| **Feature view** (widen diff → whole feature) | `feature-view.ts` + `feature-slice.ts`, `featureView`/`featureReading` in `api.ts` | **Feature** sidebar tab (`git/feature-list.tsx`, Cmd+4) + the MCP-only inline read (`git/feature-view.tsx` over `git/reading-surface.tsx`) |
+| **Explore flow** (read-only, from a symbol/file) | `feature-explore.ts`, `exploreFeature` in `api.ts` | `git/explore-view.tsx` (shares `git/reading-surface.tsx`); opened via right-click "Explore flow" |
+| **Agent channel** (MCP review sets) | `src/mcp/` (4 tools), `review-set.ts`, `review-store.ts`, `review-watch.ts` | feeds the feature view; live-refreshes it |
 | **Claude Code plugin** (ships the MCP server) | `plugin.ts`, `plugin-assets.ts`, `pluginInfo`/`installPlugin` | `settings/plugin-section.tsx` |
 | **History** | `gitLog`, `gitCommitFiles`, `gitCommitDiff` | `git/history-list.tsx`, `git/commit-view.tsx` |
 | **Commit composer** | `gitCommit`, `conventions.ts` | `shell/commit-group.tsx` |
-| **Quick commands** (pull/push/stash) | `gitQuickCommand` (whitelisted) | `shell/quick-commands-group.tsx` |
+| **Quick commands** (pull/push/stash) | `gitQuickCommand` (whitelisted; `quickCommandArgs` adds `--rebase`/`--no-rebase` per the pull-strategy pref) | `shell/quick-commands-group.tsx` |
 | **Git suggestions** | `suggestions.ts`, `gitSuggestions` | `shell/quick-commands-group.tsx` |
 | **Worktrees / branch** | `gitWorktrees`, `gitBranch` | `git/worktree-switcher.tsx` |
 | **Split view** (two panes) | — | `stores/tabs.ts` (`panes`), `shell/tab-bar.tsx`, `shell/viewer.tsx` |
@@ -347,6 +351,18 @@ files on the **other side of a seam** (a server route the client now calls, a mi
 agent touched but that git groups separately or that live in a different diff. The **feature view**
 reconstructs the whole feature and lays it out in flow order.
 
+It now has **two surfaces**, both flow-ordered:
+
+- The **Feature sidebar tab** (the fourth tab, Cmd+4 — `git/feature-list.tsx`): a navigation *list*
+  of the whole feature, peer to Files/Changes/History. `changed` rows open a diff, `context`/`shipped`
+  rows open the file. This is always available (the no-MCP baseline is changed + context).
+- The viewer `feature` tab (`git/feature-view.tsx`): an **MCP-only inline reading surface** — the
+  whole feature as one flow-ordered document showing *just the relevant lines*: diff hunks for
+  `changed` files, heuristic **symbol slices** (`feature-slice.ts`) for `context`/`shipped` (only the
+  definitions the in-view files import). It's opened by an "Open inline read" button that appears in
+  the list only when an agent fed a review set, and shares its renderer (`git/reading-surface.tsx`)
+  with the explore view.
+
 Every file in a feature view carries a **source** tag:
 
 - **changed** — in the working-tree diff (git status wins over everything).
@@ -372,12 +388,19 @@ Every file in a feature view carries a **source** tag:
   src/main/review-store.ts            src/main/review-watch.ts
     │                                       │ on change → "feature-view" app-event
     ▼                                       ▼
-  featureView procedure (api.ts)      renderer invalidates the featureView query
+  featureView / featureReading (api.ts)  renderer invalidates those queries
     │  unions changed + context + the declared "shipped" files,
     │  regroups by flow layer (same grouping the Changes list uses)
     ▼
-  components/git/feature-view.tsx     ← the open feature view live-refreshes
+  feature-list.tsx + feature-view.tsx  ← both surfaces live-refresh
 ```
+
+The agent talks to the MCP server through **four tools** (`src/mcp/protocol.ts`):
+`set_feature_review` (replace the set), `add_review_files` (merge more in), `get_feature_review`
+(read the stored set back — so the agent can verify an idempotent update or recover after a context
+compaction), and `clear_feature_review` (drop it). In the app, the list's two-step **"Clear agent
+set"** button calls `clear_feature_review`'s app-side counterpart (`clearReviewSet` in
+`review-store.ts` — the app's *only* write to the channel) and reverts to the baseline.
 
 The key architectural facts to remember:
 
