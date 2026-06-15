@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware'
 
 export type DiffMode = 'unified' | 'split'
 export type MarkdownMode = 'reader' | 'source'
-export type SidebarTab = 'files' | 'changes' | 'history'
+export type SidebarTab = 'files' | 'changes' | 'history' | 'feature'
 
 export const SIDEBAR_MIN_WIDTH = 180
 export const SIDEBAR_MAX_WIDTH = 520

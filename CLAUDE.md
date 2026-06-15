@@ -39,10 +39,11 @@ Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wron
 - **Quick Access** — the **right** panel (`right-sidebar.tsx`). Cmd+. — its contents follow the active sidebar tab.
 
 **Inside the sidebar:**
-- **Sidebar tabs** — the three: **Files**, **Changes**, **History** (`sidebarTab` pref; Cmd+1/2/3).
+- **Sidebar tabs** — the four: **Files**, **Changes**, **History**, **Feature** (`sidebarTab` pref; Cmd+1/2/3/4).
 - **File tree** — Files tab body (`file-tree.tsx` / `tree-node.tsx`).
 - **Changes list** — Changes tab body (`changes-list.tsx`), grouped by flow layer.
 - **History list** — History tab body (`history-list.tsx`).
+- **Feature list** — Feature tab body (`feature-list.tsx`): the whole feature in flow order as a navigation list (changed + context + agent-fed shipped, with source markers + notes); rows open the diff/file. The viewer's feature view is the expanded read.
 
 **Inside the viewer:**
 - **Tab bar** — the floating glass capsule of open documents (`tab-bar.tsx`).
@@ -52,8 +53,8 @@ Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wron
 
 **Inside Quick Access (section depends on the sidebar tab):**
 - Files → **Pinned** (`pinned-group.tsx`) + **Notes card** (`notes-card.tsx`), wrapped in `files-quick-access.tsx`.
-- Changes/History → **Quick commands** (`quick-commands-group.tsx`) + **Suggested** rows.
-- Changes → **Commit composer** (`commit-group.tsx`).
+- Changes/History/Feature → **Quick commands** (`quick-commands-group.tsx`) + **Suggested** rows.
+- Changes/Feature → **Commit composer** (`commit-group.tsx`).
 
 **Overlays:**
 - **File finder** — Cmd+P fuzzy finder (`file-finder.tsx`).
