@@ -17,6 +17,11 @@ if (is.dev) {
 
 import { initUpdater } from './updater'
 
+// Playwright e2e launches this built app and drives the renderer over CDP +
+// screenshots the web contents directly, so the OS window never needs to appear.
+// Gate test-only "stay hidden" behavior on this flag (set by the e2e fixture).
+const isE2E = process.env.PORCELAIN_E2E === '1'
+
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
@@ -41,6 +46,9 @@ function createWindow(): void {
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
+      // A never-shown e2e window would otherwise throttle rendering and blank
+      // the screenshots; keep it painting.
+      ...(isE2E ? { backgroundThrottling: false } : {}),
     },
   })
 
@@ -67,7 +75,9 @@ function createWindow(): void {
   })
 
   mainWindow.on('ready-to-show', () => {
-    mainWindow.show()
+    // Under e2e the window stays hidden — Playwright drives the renderer and
+    // screenshots the web contents; popping a real window would steal the screen.
+    if (!isE2E) mainWindow.show()
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -92,6 +102,9 @@ function createWindow(): void {
 app.whenReady().then(async () => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.fabiofiorita.porcelain')
+
+  // Keep e2e fully off the user's screen — no Dock icon bounce either.
+  if (isE2E) app.dock?.hide()
 
   // One global tRPC handler for every window (ipcMain.handle is process-wide).
   registerTrpcHandler()

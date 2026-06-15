@@ -75,7 +75,9 @@ export const test = baseTest.extend<Options & Fixtures, WorkerFixtures>({
 
     const app = await _electron.launch({
       args: [MAIN_ENTRY, `--user-data-dir=${udBase}`],
-      env: launchEnv({ PORCELAIN_REVIEW_SETS: reviewSets }),
+      // PORCELAIN_E2E keeps the OS window hidden (Playwright drives the renderer
+      // over CDP) so the app never pops onto the screen during a run.
+      env: launchEnv({ PORCELAIN_REVIEW_SETS: reviewSets, PORCELAIN_E2E: '1' }),
     })
     await use(app)
     await app.close()
