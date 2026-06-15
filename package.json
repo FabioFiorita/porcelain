@@ -1,6 +1,6 @@
 {
   "name": "porcelain",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Review changes as a story",
   "main": "./out/main/index.js",
   "author": "Fabio Fiorita",

@@ -1,3 +1,20 @@
+## [0.5.0](https://github.com/FabioFiorita/porcelain/compare/v0.4.0...v0.5.0) (2026-06-15)
+
+### Features
+
+* **changes-list:** open the full file from a row's context menu ([7769ebb](https://github.com/FabioFiorita/porcelain/commit/7769ebb6f157bb1f64556e2d8f2b478dd0730911))
+* **explore:** read-only feature-flow exploration from a symbol or file ([1a04f20](https://github.com/FabioFiorita/porcelain/commit/1a04f20b686f4f8214bd8f68fefb791e3a653dcf))
+* **feature-view:** add Clear button to dismiss an agent review set ([089b059](https://github.com/FabioFiorita/porcelain/commit/089b059c5134dbc9015f6d0f861bab08de0e63af))
+* **feature-view:** MCP-only inline reading surface with symbol slicing ([d899e82](https://github.com/FabioFiorita/porcelain/commit/d899e82ea8d40bbc69e28a3c5a4be2237986f06a))
+* **feature-view:** promote the feature view to its own sidebar tab ([b439fc2](https://github.com/FabioFiorita/porcelain/commit/b439fc2128ded7038b9e0721f6207db4686e7625))
+* **mcp:** add get_feature_review read tool ([341c135](https://github.com/FabioFiorita/porcelain/commit/341c135ef129dcf018fa7285416277aea6bce6b2))
+* **settings:** choose rebase or merge for the git pull quick command ([3f3c187](https://github.com/FabioFiorita/porcelain/commit/3f3c187ccc9e0c9e56cee71c7758b024f0bd6236))
+* **sidebar:** replace tab strip with icon rail + content panel ([9789d0a](https://github.com/FabioFiorita/porcelain/commit/9789d0aeec874ee6f7bcb0b11b5e3439636fd564))
+
+### Bug Fixes
+
+* **feature-view:** relabel Clear → 'Clear agent set' to name its scope ([e9c2e55](https://github.com/FabioFiorita/porcelain/commit/e9c2e5560c5dee08437e587086ec89108269062e))
+
 ## [0.4.0](https://github.com/FabioFiorita/porcelain/compare/v0.3.1...v0.4.0) (2026-06-14)
 
 ### Features
