@@ -18,6 +18,8 @@ import { useFileStaging } from '@renderer/hooks/use-commit'
 import { useDiffFilePrefetch } from '@renderer/hooks/use-diff'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'
 import { cn } from '@renderer/lib/utils'
+import { usePreferencesStore } from '@renderer/stores/preferences'
+import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { RefreshCw } from 'lucide-react'
 
@@ -29,12 +31,22 @@ const statusBadge: Record<FileStatus, { label: string; className: string }> = {
   untracked: { label: 'U', className: 'text-success' },
 }
 
-function FileRow({ file }: { file: FlowFile }): React.JSX.Element {
+function FileRow({ file, repoPath }: { file: FlowFile; repoPath: string }): React.JSX.Element {
   const openTab = useTabsStore((s) => s.openTab)
+  const setSidebarTab = usePreferencesStore((s) => s.setSidebarTab)
   const prefetchDiff = useDiffFilePrefetch()
   const { stageFile, unstageFile } = useFileStaging()
   const name = file.path.split('/').at(-1) ?? file.path
   const connects = file.connects.map((c) => c.split('/').at(-1)).join(', ')
+
+  // The row's click opens the working-tree diff; this opens the FULL file (better
+  // for reading it whole) and flips the sidebar to Files. Like feature-list, the
+  // file tab is keyed by the absolute path.
+  const openFile = (): void => {
+    const absolute = `${repoPath}/${file.path}`
+    openTab({ id: tabId('file', absolute), kind: 'file', title: name, path: absolute })
+    setSidebarTab('files')
+  }
 
   return (
     <SidebarMenuItem>
@@ -93,6 +105,10 @@ function FileRow({ file }: { file: FlowFile }): React.JSX.Element {
           </div>
         </ContextMenuTrigger>
         <ContextMenuContent>
+          {/* Deleted files no longer exist on disk, so opening them would error. */}
+          {file.status !== 'deleted' && (
+            <ContextMenuItem onClick={openFile}>Open file</ContextMenuItem>
+          )}
           {file.unstaged && (
             <ContextMenuItem onClick={() => stageFile(file.path)}>Stage</ContextMenuItem>
           )}
@@ -109,9 +125,10 @@ function FileRow({ file }: { file: FlowFile }): React.JSX.Element {
 }
 
 export function ChangesList(): React.JSX.Element {
+  const repo = useRepoStore((s) => s.repo)
   const { groups, refresh } = useGitFlow()
 
-  if (groups === undefined) {
+  if (!repo || groups === undefined) {
     return <p className="p-3 text-sm text-muted-foreground">Loading…</p>
   }
 
@@ -134,7 +151,7 @@ export function ChangesList(): React.JSX.Element {
           </SidebarGroupLabel>
           <SidebarMenu>
             {group.files.map((file) => (
-              <FileRow key={file.path} file={file} />
+              <FileRow key={file.path} file={file} repoPath={repo.path} />
             ))}
           </SidebarMenu>
         </div>

@@ -41,7 +41,7 @@ Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wron
 **Inside the sidebar:**
 - **Sidebar tabs** — the four: **Files**, **Changes**, **History**, **Feature** (`sidebarTab` pref; Cmd+1/2/3/4). They're a **vertical icon rail** on the left edge of the sidebar (monochrome, icon-only, tooltips carry the ⌘ shortcut), with the active tab's body in the **content panel** to its right; ⌘B collapses the panel to just the rail. (Was a horizontal glass-pill strip; see the `architecture` skill's app-shell note + `history`.)
 - **File tree** — Files tab body (`file-tree.tsx` / `tree-node.tsx`).
-- **Changes list** — Changes tab body (`changes-list.tsx`), grouped by flow layer.
+- **Changes list** — Changes tab body (`changes-list.tsx`), grouped by flow layer. Row click opens the diff; right-click → **Open file** opens the full file in the viewer and switches to the Files tab.
 - **History list** — History tab body (`history-list.tsx`).
 - **Feature list** — Feature tab body (`feature-list.tsx`): the whole feature in flow order as a navigation list (changed + context + agent-fed shipped, with source markers + notes); rows open the diff/file. The viewer's feature view is the expanded read.
 
