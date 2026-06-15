@@ -18,6 +18,23 @@ test('changes tab', async ({ page }) => {
   await expect(page).toHaveScreenshot('changes-tab.png')
 })
 
+// Element-scoped companion to the full-page `changes tab` shot. A restyle
+// confined to the ~270px-wide right Quick Access column changes far fewer pixels
+// than the full-page 2% tolerance, so it slips through that baseline untouched.
+// Framing just the panel makes its buttons fill the shot, so the same restyle
+// exceeds the per-element diff. The Commit composer renders only when the repo
+// has commit conventions — the fixture's conventional-commit history guarantees
+// it — so we assert the amber Commit button is present before the snapshot.
+test('quick access — changes', async ({ page }) => {
+  await waitForShell(page)
+  await selectTab(page, 'Changes')
+  const panel = page.locator(
+    '[data-slot="sidebar-container"][data-side="right"] [data-slot="sidebar-inner"]',
+  )
+  await expect(panel.getByRole('button', { name: 'Commit', exact: true })).toBeVisible()
+  await expect(panel).toHaveScreenshot('quick-access-changes.png')
+})
+
 test('settings dialog', async ({ page }) => {
   await waitForShell(page)
   await openSettings(page)
