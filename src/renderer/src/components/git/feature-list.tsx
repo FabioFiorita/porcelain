@@ -173,40 +173,41 @@ export function FeatureList(): React.JSX.Element {
       </div>
 
       {view.fromAgent && (
-        <>
-          <div className="mx-2 mb-1 flex items-center gap-2">
-            {files.length > 0 && (
-              <button
-                type="button"
-                onClick={openReading}
-                className="flex flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-xs text-info hover:bg-sidebar-accent/50"
-              >
-                <BookOpen className="size-3.5" />
-                Open inline read
-              </button>
-            )}
+        <div className="mx-2 mb-1 flex flex-col gap-1">
+          {files.length > 0 && (
             <button
               type="button"
-              onClick={handleClear}
-              onBlur={() => setConfirmClear(false)}
-              disabled={isClearing}
-              aria-label="Clear agent review set"
-              title="Clear the agent review set (back to the baseline)"
-              className={cn(
-                'ml-auto flex items-center gap-1 rounded-md px-2 py-1.5 text-xs hover:bg-sidebar-accent/50',
-                confirmClear ? 'text-destructive' : 'text-muted-foreground',
-              )}
+              onClick={openReading}
+              className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-info hover:bg-sidebar-accent/50"
             >
-              <Eraser className="size-3.5" />
-              {confirmClear ? (isClearing ? 'Clearing…' : 'Clear?') : 'Clear'}
+              <BookOpen className="size-3.5" />
+              Open inline read
             </button>
-          </div>
+          )}
+          {/* Scope is explicit in the label: this removes ONLY the agent's set, not
+              your working-tree changes — those keep showing as the baseline (the
+              feature view is derived from git status + the agent overlay). */}
+          <button
+            type="button"
+            onClick={handleClear}
+            onBlur={() => setConfirmClear(false)}
+            disabled={isClearing}
+            aria-label="Clear agent review set"
+            title="Removes the agent's files & notes — your working-tree changes still show as the baseline."
+            className={cn(
+              'flex items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-sidebar-accent/50',
+              confirmClear ? 'text-destructive' : 'text-muted-foreground',
+            )}
+          >
+            <Eraser className="size-3.5" />
+            {confirmClear ? (isClearing ? 'Clearing…' : 'Clear agent set?') : 'Clear agent set'}
+          </button>
           {clearError && (
-            <p className="mx-2 mb-1 whitespace-pre-wrap font-mono text-[10px] text-destructive">
+            <p className="whitespace-pre-wrap font-mono text-[10px] text-destructive">
               {clearError}
             </p>
           )}
-        </>
+        </div>
       )}
 
       {files.length === 0 ? (
