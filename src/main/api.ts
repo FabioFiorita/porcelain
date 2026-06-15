@@ -318,9 +318,10 @@ export const router = t.router({
       z.object({
         repoPath: z.string(),
         command: z.string().refine((id) => id in QUICK_COMMANDS, 'unknown command'),
+        pullMode: z.enum(['merge', 'rebase']).optional(),
       }),
     )
-    .mutation(({ input }) => gitQuickCommand(input.repoPath, input.command)),
+    .mutation(({ input }) => gitQuickCommand(input.repoPath, input.command, input.pullMode)),
 
   gitStageAll: t.procedure
     .input(z.object({ repoPath: z.string() }))

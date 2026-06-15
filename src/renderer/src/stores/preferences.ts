@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware'
 
 export type DiffMode = 'unified' | 'split'
 export type MarkdownMode = 'reader' | 'source'
+export type PullMode = 'merge' | 'rebase'
 export type SidebarTab = 'files' | 'changes' | 'history' | 'feature'
 
 export const SIDEBAR_MIN_WIDTH = 180
@@ -15,6 +16,8 @@ export const SPLIT_MAX_RATIO = 0.8
 interface PreferencesState {
   diffMode: DiffMode
   markdownMode: MarkdownMode
+  /** Strategy the `git pull` quick command uses (`--no-rebase` vs `--rebase`). */
+  pullMode: PullMode
   rightSidebarOpen: boolean
   rightSidebarWidth: number
   sidebarTab: SidebarTab
@@ -24,6 +27,7 @@ interface PreferencesState {
   splitRatio: number
   setDiffMode: (mode: DiffMode) => void
   setMarkdownMode: (mode: MarkdownMode) => void
+  setPullMode: (mode: PullMode) => void
   setSidebarTab: (tab: SidebarTab) => void
   setRightSidebarOpen: (open: boolean) => void
   setRightSidebarWidth: (width: number) => void
@@ -37,6 +41,7 @@ export const usePreferencesStore = create<PreferencesState>()(
     (set) => ({
       diffMode: 'unified',
       markdownMode: 'reader',
+      pullMode: 'merge',
       rightSidebarOpen: true,
       rightSidebarWidth: 272,
       sidebarTab: 'files',
@@ -45,6 +50,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       splitRatio: 0.5,
       setDiffMode: (diffMode) => set({ diffMode }),
       setMarkdownMode: (markdownMode) => set({ markdownMode }),
+      setPullMode: (pullMode) => set({ pullMode }),
       setSidebarTab: (sidebarTab) => set({ sidebarTab }),
       setRightSidebarOpen: (rightSidebarOpen) => set({ rightSidebarOpen }),
       setRightSidebarWidth: (width) =>

@@ -1,5 +1,6 @@
 import type { CommitConventions } from '@main/conventions'
 import { trpc } from '@renderer/lib/trpc'
+import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
 
 export function useCommit(onCommitted?: () => void): {
@@ -83,7 +84,12 @@ export function useQuickCommand(): (commandId: string) => Promise<string> {
   return async (commandId) => {
     if (!repo) return ''
     try {
-      return await mutation.mutateAsync({ repoPath: repo.path, command: commandId })
+      return await mutation.mutateAsync({
+        repoPath: repo.path,
+        command: commandId,
+        // read at call-time — the pull strategy needn't re-render this hook.
+        pullMode: usePreferencesStore.getState().pullMode,
+      })
     } finally {
       // pull/stash/push all change repo state; refresh everything that's mounted
       await utils.invalidate()

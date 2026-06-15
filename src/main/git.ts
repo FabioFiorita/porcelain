@@ -186,13 +186,33 @@ export const QUICK_COMMANDS: Record<string, { label: string; args: string[] }> =
   'stash-pop': { label: 'git stash pop', args: ['stash', 'pop'] },
 }
 
+/** How `git pull` reconciles divergent branches (the user's General preference). */
+export type PullMode = 'merge' | 'rebase'
+
+/** Resolve a whitelisted quick command's git args, or null for an unknown id.
+ *  `pull` is the one parameterized entry: it appends `--rebase`/`--no-rebase`
+ *  per `pullMode` so the user's choice wins over their `pull.rebase` gitconfig.
+ *  Every other command stays static — the whitelist is still authoritative. */
+export function quickCommandArgs(id: string, pullMode: PullMode = 'merge'): string[] | null {
+  const command = QUICK_COMMANDS[id]
+  if (!command) return null
+  if (id === 'pull') {
+    return [...command.args, pullMode === 'rebase' ? '--rebase' : '--no-rebase']
+  }
+  return command.args
+}
+
 /** Run a whitelisted quick command; returns combined output (git logs progress
  *  to stderr — e.g. push — so both streams matter). Throws output on failure. */
-export async function gitQuickCommand(repoPath: string, id: string): Promise<string> {
-  const command = QUICK_COMMANDS[id]
-  if (!command) throw new Error(`unknown quick command: ${id}`)
+export async function gitQuickCommand(
+  repoPath: string,
+  id: string,
+  pullMode?: PullMode,
+): Promise<string> {
+  const args = quickCommandArgs(id, pullMode)
+  if (!args) throw new Error(`unknown quick command: ${id}`)
   try {
-    const { stdout, stderr } = await execFileAsync('git', command.args, {
+    const { stdout, stderr } = await execFileAsync('git', args, {
       cwd: repoPath,
       maxBuffer: 64 * 1024 * 1024,
     })
