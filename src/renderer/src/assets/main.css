@@ -278,10 +278,12 @@
 }
 .glaze-segment[data-active='true'] {
   background-color: var(--surface-2);
+  /* A lifted, clearly-bordered chip: a crisp hairline edge, the specular glaze
+     top line, and a soft drop shadow so the active tab floats off the bar. */
   box-shadow:
-    inset 0 0 0 1px var(--hairline),
+    inset 0 0 0 1px var(--hairline-strong),
     inset 0 1px 0 0 var(--glaze),
-    inset 0 -1px 0 0 color-mix(in oklch, var(--primary) 50%, transparent);
+    0 1px 3px -0.5px oklch(0 0 0 / 0.3);
 }
 
 @layer base {

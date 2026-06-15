@@ -11,14 +11,6 @@ export function UpdatesSection(): React.JSX.Element {
 
   return (
     <div className="flex flex-col gap-5">
-      <div>
-        <h3 className="text-sm font-medium">Updates</h3>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Porcelain checks for updates automatically and installs them on quit. You can also check
-          now.
-        </p>
-      </div>
-
       <div className="flex items-center justify-between gap-4">
         <div>
           <p className="text-sm">Current version</p>

@@ -10,6 +10,10 @@ export function HistoryList(): React.JSX.Element {
     return <p className="p-3 text-sm text-muted-foreground">Loading…</p>
   }
 
+  if (commits.length === 0) {
+    return <p className="p-3 text-sm text-muted-foreground">No commits yet.</p>
+  }
+
   return (
     <SidebarMenu>
       {commits.map((commit) => (

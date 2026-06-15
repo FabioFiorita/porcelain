@@ -144,18 +144,24 @@ export function ChangesList(): React.JSX.Element {
           <RefreshCw />
         </Button>
       </div>
-      {groups.map((group) => (
-        <div key={group.layer}>
-          <SidebarGroupLabel className="h-6 px-2 text-[10px] uppercase tracking-wider">
-            {group.layer}
-          </SidebarGroupLabel>
-          <SidebarMenu>
-            {group.files.map((file) => (
-              <FileRow key={file.path} file={file} repoPath={repo.path} />
-            ))}
-          </SidebarMenu>
-        </div>
-      ))}
+      {total === 0 ? (
+        <p className="px-3 py-2 text-sm text-muted-foreground">
+          No changes to review — your working tree is clean.
+        </p>
+      ) : (
+        groups.map((group) => (
+          <div key={group.layer}>
+            <SidebarGroupLabel className="h-6 px-2 text-[10px] uppercase tracking-wider">
+              {group.layer}
+            </SidebarGroupLabel>
+            <SidebarMenu>
+              {group.files.map((file) => (
+                <FileRow key={file.path} file={file} repoPath={repo.path} />
+              ))}
+            </SidebarMenu>
+          </div>
+        ))
+      )}
     </div>
   )
 }

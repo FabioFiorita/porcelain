@@ -1,12 +1,21 @@
 import { Button } from '@renderer/components/ui/button'
 import { useInstallPlugin, usePluginInfo } from '@renderer/hooks/use-plugin'
-import { Check, Copy, Loader2, TriangleAlert } from 'lucide-react'
-import { useState } from 'react'
+import { usePreferencesStore } from '@renderer/stores/preferences'
+import { Check, CircleCheck, Copy, Loader2, TriangleAlert } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 export function PluginSection(): React.JSX.Element {
   const info = usePluginInfo()
   const { install, isInstalling, result, error } = useInstallPlugin()
   const [copied, setCopied] = useState(false)
+  const pluginInstalled = usePreferencesStore((s) => s.pluginInstalled)
+  const setPluginInstalled = usePreferencesStore((s) => s.setPluginInstalled)
+
+  // Remember a successful install so the big CTA demotes to a quiet "Reinstall"
+  // on later visits — the user already did this once.
+  useEffect(() => {
+    if (result?.ok) setPluginInstalled(true)
+  }, [result, setPluginInstalled])
 
   const commands = info?.commands ?? []
 
@@ -18,24 +27,31 @@ export function PluginSection(): React.JSX.Element {
 
   return (
     <div className="flex flex-col gap-5">
-      <div>
-        <h3 className="text-sm font-medium">Claude Code plugin</h3>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Installs the Porcelain plugin for Claude Code — bundles the MCP server and a skill that
-          teaches your agent to push the whole feature (server + cross-seam files, with notes) into
-          the feature view, not just the diff.
-        </p>
-      </div>
-
-      <div className="flex items-center gap-3">
-        <Button onClick={() => install()} disabled={isInstalling}>
-          {isInstalling && <Loader2 className="animate-spin" />}
-          {isInstalling ? 'Installing…' : 'Install for Claude Code'}
-        </Button>
-        <p className="text-xs text-muted-foreground">
-          Run <code className="font-mono">/reload-plugins</code> (or restart the session) afterward.
-        </p>
-      </div>
+      {pluginInstalled ? (
+        <div className="flex items-center gap-3">
+          <span className="flex items-center gap-1.5 text-sm text-success">
+            <CircleCheck className="size-4" /> Installed
+          </span>
+          <Button variant="ghost" size="sm" onClick={() => install()} disabled={isInstalling}>
+            {isInstalling && <Loader2 className="animate-spin" />}
+            {isInstalling ? 'Reinstalling…' : 'Reinstall'}
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            Run <code className="font-mono">/reload-plugins</code> after reinstalling.
+          </span>
+        </div>
+      ) : (
+        <div className="flex items-center gap-3">
+          <Button onClick={() => install()} disabled={isInstalling}>
+            {isInstalling && <Loader2 className="animate-spin" />}
+            {isInstalling ? 'Installing…' : 'Install for Claude Code'}
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            Run <code className="font-mono">/reload-plugins</code> (or restart the session)
+            afterward.
+          </p>
+        </div>
+      )}
 
       {result?.ok && (
         <p className="flex items-center gap-1.5 text-xs text-success">

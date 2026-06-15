@@ -12,15 +12,45 @@ import { useTabsStore } from '@renderer/stores/tabs'
 import { SplitResizeHandle } from './sidebar-resize-handle'
 import { TabBar } from './tab-bar'
 
+// The empty viewer is the most-seen blank surface, so it doubles as a quiet
+// quick-start: the three gestures that get you moving, each with its shortcut.
+const QUICKSTART: { label: string; keys: string }[] = [
+  { label: 'Search files', keys: '⌘P' },
+  { label: 'Browse the tree', keys: '⌘1' },
+  { label: 'Review changes', keys: '⌘2' },
+]
+
 function EmptyViewer(): React.JSX.Element {
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-1 text-muted-foreground">
-      <img src={logo} alt="" className="size-16 opacity-80" draggable={false} />
-      <p className="mt-2 text-lg font-medium">porcelain</p>
-      <p className="text-sm">Review changes as a story</p>
-      <p className="mt-3 flex items-center gap-1.5 text-xs">
-        Open a file from the sidebar, or press <Kbd>⌘P</Kbd> to search
-      </p>
+    <div className="flex h-full flex-col items-center justify-center gap-7 px-6 text-center">
+      <div className="flex flex-col items-center gap-3">
+        {/* The mark sits on the void like a fired tile — a soft drop shadow
+            follows its squircle so it reads as a physical object, not an icon. */}
+        <img
+          src={logo}
+          alt=""
+          draggable={false}
+          className="size-16 [filter:drop-shadow(0_10px_22px_rgb(0_0_0/0.45))]"
+        />
+        <div className="space-y-0.5">
+          <p className="text-xl font-medium tracking-tight text-foreground">porcelain</p>
+          <p className="text-sm text-muted-foreground">Review changes as a story</p>
+        </div>
+      </div>
+      <div className="flex w-56 flex-col">
+        {QUICKSTART.map((item, i) => (
+          <div
+            key={item.keys}
+            className={cn(
+              'flex items-center justify-between py-1.5 text-xs text-muted-foreground',
+              i > 0 && 'border-t border-border/60',
+            )}
+          >
+            <span>{item.label}</span>
+            <Kbd>{item.keys}</Kbd>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

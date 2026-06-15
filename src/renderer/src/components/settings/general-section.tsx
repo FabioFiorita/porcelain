@@ -36,12 +36,6 @@ export function GeneralSection(): React.JSX.Element {
 
   return (
     <div className="flex flex-col gap-5">
-      <div>
-        <h3 className="text-sm font-medium">General</h3>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Viewer preferences, saved on this machine.
-        </p>
-      </div>
       <PreferenceRow label="Diff layout" description="How file diffs are rendered.">
         <ToggleGroup
           value={[diffMode]}

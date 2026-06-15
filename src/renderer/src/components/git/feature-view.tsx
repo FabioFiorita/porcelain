@@ -1,13 +1,12 @@
-import { Button } from '@renderer/components/ui/button'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
-import { RefreshCw, Sparkles } from 'lucide-react'
+import { Sparkles } from 'lucide-react'
 import { ReadingSurfaceBody } from './reading-surface'
 
 // The viewer's `feature` tab: the inline reading surface. MCP-only — it renders
 // only when an agent has pushed a review set; the baseline directs you to the
 // Feature sidebar tab (the static list). The slice itself is computed in main.
 export function FeatureView(): React.JSX.Element {
-  const { reading, refresh } = useFeatureReading()
+  const { reading } = useFeatureReading()
 
   if (reading === undefined) {
     return <p className="p-4 text-sm text-muted-foreground">Loading…</p>
@@ -30,23 +29,7 @@ export function FeatureView(): React.JSX.Element {
     )
   }
 
-  return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between gap-3 border-b px-3 py-1">
-        <span className="flex min-w-0 items-center gap-2">
-          <span className="truncate text-sm font-medium">{reading.name}</span>
-          <span className="flex shrink-0 items-center gap-1 rounded bg-info/15 px-1.5 py-0.5 text-[10px] font-normal text-info">
-            <Sparkles className="size-3" />
-            from agent
-          </span>
-        </span>
-        <Button variant="ghost" size="icon-sm" onClick={refresh} aria-label="Refresh feature view">
-          <RefreshCw />
-        </Button>
-      </div>
-      <div className="min-h-0 flex-1">
-        <ReadingSurfaceBody reading={reading} />
-      </div>
-    </div>
-  )
+  // No title bar: the tab already names this view and it live-refreshes on MCP
+  // writes, so the inline read is a clean, chromeless reading surface.
+  return <ReadingSurfaceBody reading={reading} />
 }

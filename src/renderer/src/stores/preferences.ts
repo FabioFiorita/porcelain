@@ -25,6 +25,8 @@ interface PreferencesState {
   notesHeight: number
   /** Fraction of the viewer width given to the left pane when split (0.2–0.8). */
   splitRatio: number
+  /** Whether the user has installed the Claude Code plugin (demotes the CTA). */
+  pluginInstalled: boolean
   setDiffMode: (mode: DiffMode) => void
   setMarkdownMode: (mode: MarkdownMode) => void
   setPullMode: (mode: PullMode) => void
@@ -34,6 +36,7 @@ interface PreferencesState {
   setSidebarWidth: (width: number) => void
   setNotesHeight: (height: number) => void
   setSplitRatio: (ratio: number) => void
+  setPluginInstalled: (installed: boolean) => void
 }
 
 export const usePreferencesStore = create<PreferencesState>()(
@@ -48,6 +51,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       sidebarWidth: 256,
       notesHeight: 220,
       splitRatio: 0.5,
+      pluginInstalled: false,
       setDiffMode: (diffMode) => set({ diffMode }),
       setMarkdownMode: (markdownMode) => set({ markdownMode }),
       setPullMode: (pullMode) => set({ pullMode }),
@@ -61,6 +65,7 @@ export const usePreferencesStore = create<PreferencesState>()(
         set({ notesHeight: Math.min(NOTES_MAX_HEIGHT, Math.max(NOTES_MIN_HEIGHT, height)) }),
       setSplitRatio: (ratio) =>
         set({ splitRatio: Math.min(SPLIT_MAX_RATIO, Math.max(SPLIT_MIN_RATIO, ratio)) }),
+      setPluginInstalled: (pluginInstalled) => set({ pluginInstalled }),
     }),
     { name: 'porcelain-preferences' },
   ),

@@ -25,16 +25,50 @@ import { UpdatesSection } from './updates-section'
 
 type SectionId = 'general' | 'flow' | 'plugin' | 'updates'
 
-const SECTIONS: { id: SectionId; label: string; icon: typeof Layers }[] = [
-  { id: 'general', label: 'General', icon: SlidersHorizontal },
-  { id: 'flow', label: 'Review flow', icon: Layers },
-  { id: 'plugin', label: 'Claude Code plugin', icon: Blocks },
-  { id: 'updates', label: 'Updates', icon: Download },
+// Each section's title + blurb live here so the dialog can render a fixed header
+// band (real type hierarchy, always visible) while only the body scrolls — the
+// section components render just their controls.
+const SECTIONS: {
+  id: SectionId
+  label: string
+  icon: typeof Layers
+  title: string
+  blurb: string
+}[] = [
+  {
+    id: 'general',
+    label: 'General',
+    icon: SlidersHorizontal,
+    title: 'General',
+    blurb: 'Viewer preferences, saved on this machine.',
+  },
+  {
+    id: 'flow',
+    label: 'Review flow',
+    icon: Layers,
+    title: 'Review flow layers',
+    blurb: 'Group changed files into a story, entry point to data. Saved per repository.',
+  },
+  {
+    id: 'plugin',
+    label: 'Claude Code plugin',
+    icon: Blocks,
+    title: 'Claude Code plugin',
+    blurb: 'Let your agent push the whole feature — server and cross-seam files — into review.',
+  },
+  {
+    id: 'updates',
+    label: 'Updates',
+    icon: Download,
+    title: 'Updates',
+    blurb: 'Porcelain checks automatically and installs on quit.',
+  },
 ]
 
 export function SettingsDialog(): React.JSX.Element {
   const [open, setOpen] = useState(false)
   const [section, setSection] = useState<SectionId>('general')
+  const active = SECTIONS.find((s) => s.id === section) ?? SECTIONS[0]
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -75,12 +109,20 @@ export function SettingsDialog(): React.JSX.Element {
               </SidebarGroup>
             </SidebarContent>
           </Sidebar>
-          <main className="h-[480px] min-w-0 flex-1 overflow-y-auto p-6">
-            {section === 'general' && <GeneralSection />}
-            {section === 'flow' && <FlowLayersSection onSaved={() => setOpen(false)} />}
-            {section === 'plugin' && <PluginSection />}
-            {section === 'updates' && <UpdatesSection />}
-          </main>
+          <div className="flex h-[480px] min-w-0 flex-1 flex-col">
+            {/* Fixed header band — the section title/blurb stay put so a long
+                scroll never slides row controls up next to the dialog close X. */}
+            <header className="shrink-0 border-b px-6 py-4 pr-12">
+              <h2 className="text-lg font-semibold tracking-tight">{active.title}</h2>
+              <p className="mt-1 text-xs text-muted-foreground">{active.blurb}</p>
+            </header>
+            <main className="min-h-0 flex-1 overflow-y-auto p-6">
+              {section === 'general' && <GeneralSection />}
+              {section === 'flow' && <FlowLayersSection onSaved={() => setOpen(false)} />}
+              {section === 'plugin' && <PluginSection />}
+              {section === 'updates' && <UpdatesSection />}
+            </main>
+          </div>
         </SidebarProvider>
       </DialogContent>
     </Dialog>

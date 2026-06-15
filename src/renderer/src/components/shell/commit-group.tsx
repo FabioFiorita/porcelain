@@ -30,7 +30,9 @@ export function CommitGroup(): React.JSX.Element {
   if (!conventions) {
     return (
       <SidebarGroup>
-        <SidebarGroupLabel>Commit</SidebarGroupLabel>
+        <SidebarGroupLabel className="px-2 uppercase tracking-wider text-muted-foreground">
+          Commit
+        </SidebarGroupLabel>
       </SidebarGroup>
     )
   }
@@ -57,66 +59,72 @@ export function CommitGroup(): React.JSX.Element {
 
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>Commit</SidebarGroupLabel>
-      <SidebarGroupContent className="flex flex-col gap-2 px-2">
-        <ToggleGroup
-          value={type ? [type] : []}
-          onValueChange={(value: string[]) => setType(value[0] ?? null)}
-          className="flex-wrap justify-start gap-1"
-        >
-          {conventions.types.map((t) => (
-            <ToggleGroupItem key={t} value={t} size="sm" className="h-6 px-2 font-mono text-xs">
-              {t}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
-        {conventions.scopes.length > 0 && (
+      <SidebarGroupLabel className="px-2 uppercase tracking-wider text-muted-foreground">
+        Commit
+      </SidebarGroupLabel>
+      <SidebarGroupContent className="px-2">
+        <div className="flex flex-col gap-2.5 rounded-md border border-border/60 bg-card p-2.5">
           <ToggleGroup
-            value={scope ? [scope] : []}
-            onValueChange={(value: string[]) => setScope(value[0] ?? null)}
+            value={type ? [type] : []}
+            onValueChange={(value: string[]) => setType(value[0] ?? null)}
             className="flex-wrap justify-start gap-1"
           >
-            {conventions.scopes.map((s) => (
-              <ToggleGroupItem key={s} value={s} size="sm" className="h-6 px-2 font-mono text-xs">
-                ({s})
+            {conventions.types.map((t) => (
+              <ToggleGroupItem key={t} value={t} size="sm" className="h-6 px-2 font-mono text-xs">
+                {t}
               </ToggleGroupItem>
             ))}
           </ToggleGroup>
-        )}
-        <Input
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && commit()}
-          placeholder="commit message"
-          aria-label="Commit message"
-          className="h-7 text-xs"
-        />
-        {prefix && (
-          <p className="truncate font-mono text-[10px] text-muted-foreground">{subject}</p>
-        )}
-        <Button size="sm" variant="outline" disabled={isStaging} onClick={stage}>
-          <FilePlus2 />
-          {isStaging ? 'Staging…' : 'Stage all'}
-        </Button>
-        {staged && (
-          <p
-            className={cn(
-              'whitespace-pre-wrap font-mono text-[10px]',
-              staged.failed ? 'text-destructive' : 'text-muted-foreground',
-            )}
-          >
-            {staged.text}
-          </p>
-        )}
-        <Button size="sm" variant="secondary" disabled={!ready || isCommitting} onClick={commit}>
-          <GitCommitHorizontal />
-          {isCommitting ? 'Committing…' : 'Commit'}
-        </Button>
-        {error && (
-          <p className="whitespace-pre-wrap font-mono text-[10px] text-destructive">
-            {error.message}
-          </p>
-        )}
+          {conventions.scopes.length > 0 && (
+            <ToggleGroup
+              value={scope ? [scope] : []}
+              onValueChange={(value: string[]) => setScope(value[0] ?? null)}
+              className="flex-wrap justify-start gap-1"
+            >
+              {conventions.scopes.map((s) => (
+                <ToggleGroupItem key={s} value={s} size="sm" className="h-6 px-2 font-mono text-xs">
+                  ({s})
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          )}
+          <Input
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && commit()}
+            placeholder="commit message"
+            aria-label="Commit message"
+            className="h-8 text-sm"
+          />
+          {prefix && (
+            <p className="truncate font-mono text-[11px] text-muted-foreground">{subject}</p>
+          )}
+          {staged && (
+            <p
+              className={cn(
+                'whitespace-pre-wrap font-mono text-[10px]',
+                staged.failed ? 'text-destructive' : 'text-success',
+              )}
+            >
+              {staged.text}
+            </p>
+          )}
+          {error && (
+            <p className="whitespace-pre-wrap font-mono text-[10px] text-destructive">
+              {error.message}
+            </p>
+          )}
+          <div className="flex flex-col gap-2">
+            <Button size="sm" variant="outline" disabled={isStaging} onClick={stage}>
+              <FilePlus2 />
+              {isStaging ? 'Staging…' : 'Stage all'}
+            </Button>
+            <Button size="sm" disabled={!ready || isCommitting} onClick={commit}>
+              <GitCommitHorizontal />
+              {isCommitting ? 'Committing…' : 'Commit'}
+            </Button>
+          </div>
+        </div>
       </SidebarGroupContent>
     </SidebarGroup>
   )

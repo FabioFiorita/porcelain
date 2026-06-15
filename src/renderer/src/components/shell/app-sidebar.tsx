@@ -105,11 +105,11 @@ export function AppSidebar(): React.JSX.Element {
 
       {/* Content panel — project switcher + active list + branch switcher. */}
       <Sidebar collapsible="none" className="min-w-0 flex-1 bg-transparent">
-        {/* Continuous title bar. The traffic lights own the left edge (priority),
-            so pl-2 reserves their strip and the project switcher is centered in
-            the space that remains before the eye — the gap to the lights matches
-            the gap to the eye. */}
-        <SidebarHeader className="app-drag h-12 flex-row items-center gap-0 border-b py-0 pl-2 pr-1">
+        {/* Continuous title bar. The traffic lights own the left edge and
+            overhang the panel slightly, so pl-7 holds the switcher clear of them
+            with a comfortable gap; it centers in the space before the eye and
+            truncates rather than tucking under the lights. */}
+        <SidebarHeader className="app-drag h-12 flex-row items-center gap-0 border-b py-0 pl-7 pr-1">
           <div className="flex min-w-0 flex-1 justify-center">
             <ProjectSwitcher />
           </div>

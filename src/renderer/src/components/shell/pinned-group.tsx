@@ -12,7 +12,9 @@ export function PinnedGroup(): React.JSX.Element {
 
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>Pinned</SidebarGroupLabel>
+      <SidebarGroupLabel className="px-2 uppercase tracking-wider text-muted-foreground">
+        Pinned
+      </SidebarGroupLabel>
       <SidebarGroupContent>
         {entries === undefined || entries.length === 0 ? (
           <p className="px-2 py-1 text-xs text-muted-foreground">

@@ -126,13 +126,6 @@ export function FlowLayersSection({ onSaved }: { onSaved: () => void }): React.J
 
   return (
     <div className="flex flex-col gap-3">
-      <div>
-        <h3 className="text-sm font-medium">Review flow layers</h3>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Changed files are grouped into these layers, top to bottom, so a diff reads as a story
-          from entry point to data. Saved for this repository only.
-        </p>
-      </div>
       <div className="rounded-md bg-muted/40 p-3 text-xs text-muted-foreground">
         <p>
           Each pattern is a regular expression tested against the repo-relative path. When several
