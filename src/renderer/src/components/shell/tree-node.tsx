@@ -15,10 +15,11 @@ import { FileTypeIcon, FolderIcon } from '@renderer/components/viewer/file-icon'
 import { usePathActions } from '@renderer/components/viewer/use-path-actions'
 import { useEntryActions, useReadDir, useReadFilePrefetch } from '@renderer/hooks/use-files'
 import { cn } from '@renderer/lib/utils'
+import { useRevealStore } from '@renderer/stores/reveal'
 import { useSelectionStore } from '@renderer/stores/selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { ChevronRight, Compass } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 function EntryContextMenu({
   entry,
@@ -78,13 +79,25 @@ export function TreeNode({ entry }: { entry: DirEntry }): React.JSX.Element {
   const isSelected = useSelectionStore((s) => s.selected.has(entry.path))
   const toggleSelection = useSelectionStore((s) => s.toggle)
   const prefetchFile = useReadFilePrefetch()
+  // A file opened from outside the tree (Changes → Open file) sets the reveal
+  // target; the matching row scrolls into view and shows the accent highlight.
+  const isRevealed = useRevealStore((s) => s.path === entry.path)
+  const ref = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    if (isRevealed) ref.current?.scrollIntoView({ block: 'nearest' })
+  }, [isRevealed])
 
   if (entry.kind === 'file') {
     return (
       <SidebarMenuItem>
         <EntryContextMenu entry={entry}>
           <SidebarMenuButton
-            className={cn(entry.hidden && 'opacity-50', isSelected && 'bg-sidebar-accent')}
+            ref={ref}
+            className={cn(
+              entry.hidden && 'opacity-50',
+              (isSelected || isRevealed) && 'bg-sidebar-accent',
+            )}
             onMouseEnter={() => prefetchFile(entry.path)}
             onClick={(e) => {
               if (e.metaKey || e.ctrlKey) {
@@ -117,11 +130,21 @@ function DirNode({ entry }: { entry: DirEntry }): React.JSX.Element {
   const children = useReadDir(entry.path, expanded)
   const isSelected = useSelectionStore((s) => s.selected.has(entry.path))
   const toggleSelection = useSelectionStore((s) => s.toggle)
+  // Open this folder when a revealed file lives inside it, so the tree expands
+  // all the way down to a file opened from elsewhere. Each ancestor opens in
+  // turn — opening loads its children (lazy `useReadDir`), mounting the next
+  // level, which repeats the check until the leaf row mounts and scrolls itself
+  // into view. Controlled `open` lets the effect drive the Collapsible.
+  const hasRevealTarget = useRevealStore((s) => s.path?.startsWith(`${entry.path}/`) ?? false)
+  useEffect(() => {
+    if (hasRevealTarget) setExpanded(true)
+  }, [hasRevealTarget])
 
   return (
     <SidebarMenuItem>
       <Collapsible
         className="group/collapsible [&[data-state=open]>button>svg:first-child]:rotate-90"
+        open={expanded}
         onOpenChange={setExpanded}
       >
         <EntryContextMenu entry={entry}>

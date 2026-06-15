@@ -3,6 +3,7 @@ import { SidebarProvider } from '@renderer/components/ui/sidebar'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
+import { useRevealStore } from '@renderer/stores/reveal'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -70,6 +71,7 @@ describe('ChangesList', () => {
     useTabsStore.setState({ panes: [{ tabs: [], activeTabId: null }], activePaneIndex: 0 })
     useRepoStore.setState({ repo: { path: '/repo', name: 'repo' } })
     usePreferencesStore.setState({ sidebarTab: 'changes' })
+    useRevealStore.setState({ path: null })
     vi.mocked(useGitFlow).mockReturnValue({ groups, refresh: async () => {} })
   })
 
@@ -102,7 +104,7 @@ describe('ChangesList', () => {
     expect(activeTabId).toBe(tabId('diff', path))
   })
 
-  it('"Open file" opens the full file at its absolute path and switches to Files', async () => {
+  it('"Open file" opens the full file at its absolute path, switches to Files, and reveals it', async () => {
     renderList()
     fireEvent.contextMenu(screen.getByText('widget.tsx'))
     fireEvent.click(await screen.findByText('Open file'))
@@ -113,6 +115,8 @@ describe('ChangesList', () => {
     expect(tabs[0]).toMatchObject({ id: tabId('file', absolute), kind: 'file', path: absolute })
     expect(activeTabId).toBe(tabId('file', absolute))
     expect(usePreferencesStore.getState().sidebarTab).toBe('files')
+    // The tree should expand/scroll to the opened file — the reveal target is set.
+    expect(useRevealStore.getState().path).toBe(absolute)
   })
 
   it('omits "Open file" for a deleted file (it no longer exists on disk)', async () => {

@@ -20,6 +20,7 @@ import { useGitFlow } from '@renderer/hooks/use-git-flow'
 import { cn } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
+import { useRevealStore } from '@renderer/stores/reveal'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { RefreshCw } from 'lucide-react'
 
@@ -34,18 +35,21 @@ const statusBadge: Record<FileStatus, { label: string; className: string }> = {
 function FileRow({ file, repoPath }: { file: FlowFile; repoPath: string }): React.JSX.Element {
   const openTab = useTabsStore((s) => s.openTab)
   const setSidebarTab = usePreferencesStore((s) => s.setSidebarTab)
+  const reveal = useRevealStore((s) => s.reveal)
   const prefetchDiff = useDiffFilePrefetch()
   const { stageFile, unstageFile } = useFileStaging()
   const name = file.path.split('/').at(-1) ?? file.path
   const connects = file.connects.map((c) => c.split('/').at(-1)).join(', ')
 
   // The row's click opens the working-tree diff; this opens the FULL file (better
-  // for reading it whole) and flips the sidebar to Files. Like feature-list, the
+  // for reading it whole), flips the sidebar to Files, and reveals the file in
+  // the tree (expand down to it + scroll + highlight). Like feature-list, the
   // file tab is keyed by the absolute path.
   const openFile = (): void => {
     const absolute = `${repoPath}/${file.path}`
     openTab({ id: tabId('file', absolute), kind: 'file', title: name, path: absolute })
     setSidebarTab('files')
+    reveal(absolute)
   }
 
   return (
