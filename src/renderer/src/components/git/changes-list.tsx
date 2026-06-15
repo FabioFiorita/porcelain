@@ -18,9 +18,8 @@ import { useFileStaging } from '@renderer/hooks/use-commit'
 import { useDiffFilePrefetch } from '@renderer/hooks/use-diff'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'
 import { cn } from '@renderer/lib/utils'
-import { usePreferencesStore } from '@renderer/stores/preferences'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
-import { RefreshCw, Waypoints } from 'lucide-react'
+import { RefreshCw } from 'lucide-react'
 
 const statusBadge: Record<FileStatus, { label: string; className: string }> = {
   modified: { label: 'M', className: 'text-warning' },
@@ -111,7 +110,6 @@ function FileRow({ file }: { file: FlowFile }): React.JSX.Element {
 
 export function ChangesList(): React.JSX.Element {
   const { groups, refresh } = useGitFlow()
-  const setSidebarTab = usePreferencesStore((s) => s.setSidebarTab)
 
   if (groups === undefined) {
     return <p className="p-3 text-sm text-muted-foreground">Loading…</p>
@@ -129,14 +127,6 @@ export function ChangesList(): React.JSX.Element {
           <RefreshCw />
         </Button>
       </div>
-      <button
-        type="button"
-        onClick={() => setSidebarTab('feature')}
-        className="mx-2 mb-1 flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground"
-      >
-        <Waypoints className="size-3.5" />
-        View full feature
-      </button>
       {groups.map((group) => (
         <div key={group.layer}>
           <SidebarGroupLabel className="h-6 px-2 text-[10px] uppercase tracking-wider">
