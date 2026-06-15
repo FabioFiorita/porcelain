@@ -25,7 +25,7 @@ export function ProjectSwitcher(): React.JSX.Element | null {
         render={
           <button
             type="button"
-            className="app-no-drag flex min-w-0 items-center gap-1 rounded-md px-1 py-0.5 text-xs font-medium uppercase tracking-wider text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            className="app-no-drag flex w-full min-w-0 items-center gap-1 rounded-md px-1 py-0.5 text-xs font-medium uppercase tracking-wider text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
           >
             <span className="truncate">{repo.name}</span>
             <ChevronsUpDown className="size-3 shrink-0" />

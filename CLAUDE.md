@@ -34,7 +34,7 @@ Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wron
 
 **Shell regions (the window, outside-in):**
 - **Top bar** — full-width chrome header (`TopBar` in `app-shell.tsx`): traffic lights + project switcher on the left, panel toggles + Update pill on the right.
-- **Sidebar** (unqualified = the **left** one) — `app-sidebar.tsx`; the navigation panel. Cmd+B. A vertical **icon rail** (tab icons + settings gear at the bottom) sits beside the **content panel** (active tab's body); the panel's continuous title bar holds the project switcher (centered between the traffic lights and the show-hidden eye), and its footer holds the branch/worktree switcher, trailing right.
+- **Sidebar** (unqualified = the **left** one) — `app-sidebar.tsx`; the navigation panel. Cmd+B. A vertical **icon rail** (tab icons + settings gear at the bottom) sits beside the **content panel** (active tab's body); the panel's continuous title bar holds the project switcher (start-aligned and filling the width between the traffic lights and the show-hidden eye, chevron hugging the name), and its footer holds the branch/worktree switcher, trailing right.
 - **Viewer** — the central panel (`shell/viewer.tsx`, everything under `components/viewer/`). The main content area; renders whatever the active tab is. **Never "editor"** — Porcelain is not an editor.
 - **Quick Access** — the **right** panel (`right-sidebar.tsx`). Cmd+. — its contents follow the active sidebar tab.
 
