@@ -1,6 +1,6 @@
 # Porcelain — Codebase Guide
 
-> **Last synced: v0.5.0.** This guide re-syncs against the code on every release (it's step 2 of
+> **Last synced: v0.6.0.** This guide re-syncs against the code on every release (it's step 2 of
 > the `releasing` skill's runbook), so you should never need a dedicated "update the guide"
 > session. If the stamp here is older than the current `package.json` version, the guide may have
 > drifted — the next release will reconcile it.
@@ -32,8 +32,9 @@ LSP, no autocomplete, no embedded terminal. Its differentiators:
 
 Tagline: *"Review changes as a story."*
 
-It's a small codebase — about **13,000 lines** of TypeScript across main + renderer + the MCP
-server, with **27 test files** (most of them on the pure main-side logic).
+It's a small codebase — about **13,500 lines** of TypeScript across main + renderer + the MCP
+server, with **28 unit/component test files** (most of them on the pure main-side logic) plus a
+small **Playwright e2e suite** (`e2e/`, the release gate).
 
 ---
 
@@ -177,13 +178,15 @@ porcelain/
 │       ├── stores/    ← zustand stores: tabs, repo, preferences, selection.
 │       ├── lib/       ← trpc client, query provider, highlight, path/cn helpers.
 │       └── assets/    ← main.css (Tailwind + theme tokens + the Glaze design system), logo.
+├── e2e/               ← Playwright Electron e2e: launches the BUILT app against a seeded fixture repo.
+│                         Smoke + screenshot specs (`*.spec.ts`); the release gate, not the per-commit gate.
 ├── .agents/skills/    ← the canonical agent docs (architecture, product, audit, history, releasing…).
 ├── .claude/skills/    ← symlinks to .agents/skills/ for Claude discovery.
 ├── plans/             ← design/improvement plans (001–005), kept after implementation.
 ├── build/ & resources/← app icons.
 ├── docs/              ← this guide.
 ├── CLAUDE.md          ← agent guidance + nomenclature glossary (the "why" log now lives in the history skill).
-└── electron-builder.yml, electron.vite.config.ts, *.json ← config.
+└── electron-builder.yml, electron.vite.config.ts, playwright.config.ts, *.json ← config.
 ```
 
 > **Two build targets, one repo.** `electron.vite.config.ts` builds *two* main-process bundles:
@@ -287,7 +290,7 @@ You open a split via "Open to the Side" (a file-tree row's or a tab's context me
 
 ## 7. The stores (`stores/`) — client state
 
-Four small zustand stores. Each is one concern; components subscribe to just the field they need.
+Five small zustand stores. Each is one concern; components subscribe to just the field they need.
 
 | Store | Holds | Notable |
 |---|---|---|
@@ -295,6 +298,7 @@ Four small zustand stores. Each is one concern; components subscribe to just the
 | `repo.ts` | The current repo, `showHidden` toggle, and `switchTo(path)`. | `switchTo` is the **one** place repo-switching lives — it closes all tabs then opens the new repo. Uses the vanilla `trpcClient`. |
 | `preferences.ts` | Persisted UI prefs (diff/markdown mode, pull strategy, sidebar widths/open state, active sidebar tab, split ratio, notes height…). | Persisted to `localStorage` via zustand's `persist` middleware — the **only** thing that survives reload. |
 | `selection.ts` | Multi-selected tree rows (for batch hide). | Cmd+click in the tree. |
+| `reveal.ts` | The absolute `path` the file tree should expand-to, scroll into view, and highlight. | Set by Changes → **Open file** (`reveal(path)`); tree nodes derive their expansion/highlight from it (VS-Code-style reveal-in-explorer, persists across tab switch). |
 
 Rule of thumb for "where does this state go?":
 - Comes from git/fs/disk? → a **data hook**, never a store.
@@ -310,7 +314,7 @@ Use this as a "I want to change X, where do I look?" index.
 
 | Feature | Main (logic) | Renderer (UI) |
 |---|---|---|
-| **File tree** (lazy, hide/pin) | `readDir` in `api.ts`, `repo-config.ts` | `shell/file-tree.tsx`, `shell/tree-node.tsx` |
+| **File tree** (lazy, hide/pin, reveal) | `readDir` in `api.ts`, `repo-config.ts` | `shell/file-tree.tsx`, `shell/tree-node.tsx`, `stores/reveal.ts` (expand-to/scroll/highlight a target) |
 | **File viewer** (text/image/binary) | `readFile` in `api.ts` | `viewer/file-content.tsx`, `viewer/source-view.tsx` |
 | **Editing** (always-on, autosave) | `writeTextFile` | `viewer/text-file-view.tsx`, `viewer/editor-source.tsx` |
 | **Syntax highlighting** | — | `lib/highlight.ts` (Shiki), `viewer/code-line.tsx` |
@@ -506,6 +510,8 @@ pnpm install        # install deps (Node + pnpm required)
 pnpm dev            # run the app with hot-reload. Opens a separate dev config that
                     #   points at ~/Code/porcelain-playground — never your real repos.
 pnpm test           # Vitest (unit + component). pnpm test:watch to watch.
+pnpm test:e2e       # Playwright Electron e2e (builds, then drives the real app). Release gate, not the
+                    #   commit gate. pnpm test:e2e:update regenerates the screenshot baselines.
 pnpm lint           # Biome (lint + format check). pnpm lint:fix to autofix.
 pnpm typecheck      # tsc on both the node + web tsconfigs.
 pnpm build          # typecheck + bundle.
@@ -539,6 +545,11 @@ pipeline (signing + notarization live in CI secrets). `pnpm dist` still builds a
   `git/history-list.test.tsx` as templates.
 - `test-setup.ts` wires jest-dom, cleanup, and a couple of jsdom stubs (`matchMedia`,
   `elementFromPoint`).
+- **End-to-end** (`e2e/*.spec.ts`, Playwright) is the secondary tier and the **release gate** — it
+  `_electron.launch`es the *built* app against a deterministic seeded repo (`e2e/helpers/`), runs a
+  handful of high-value full-app flows, and asserts DOM screenshot baselines (`*-darwin.png`, committed).
+  It runs headless via `PORCELAIN_E2E=1` and stays *out* of the per-commit gate (it's slow and needs a
+  built app). Regenerate baselines after intentional UI changes with `pnpm test:e2e:update`.
 
 ---
 
