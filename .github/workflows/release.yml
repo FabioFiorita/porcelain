@@ -25,6 +25,8 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
       # Pre-create the draft release so electron-builder reuses it. Without this,
       # its dmg and zip uploaders run concurrently, both see "no release exists",
       # and each creates its own draft — splitting assets across two releases.

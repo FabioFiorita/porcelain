@@ -1,6 +1,8 @@
 import type { FlowGroup } from '@main/flow'
 import { SidebarProvider } from '@renderer/components/ui/sidebar'
+import { useBranchFlow } from '@renderer/hooks/use-branch-flow'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'
+import { useReviewedPaths, useToggleReviewed } from '@renderer/hooks/use-reviewed'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useRevealStore } from '@renderer/stores/reveal'
@@ -13,9 +15,14 @@ import { ChangesList } from './changes-list'
 // hands back grouped flow data shaped exactly like the real gitFlow result; the
 // diff-prefetch hook is a no-op since hover prefetching is irrelevant here.
 vi.mock('@renderer/hooks/use-git-flow', () => ({ useGitFlow: vi.fn() }))
+vi.mock('@renderer/hooks/use-branch-flow', () => ({ useBranchFlow: vi.fn() }))
 vi.mock('@renderer/hooks/use-diff', () => ({ useDiffFilePrefetch: () => async () => {} }))
 vi.mock('@renderer/hooks/use-commit', () => ({
   useFileStaging: () => ({ stageFile: async () => {}, unstageFile: async () => {} }),
+}))
+vi.mock('@renderer/hooks/use-reviewed', () => ({
+  useReviewedPaths: vi.fn(),
+  useToggleReviewed: vi.fn(),
 }))
 
 const groups: FlowGroup[] = [
@@ -67,12 +74,22 @@ function renderList(): void {
 }
 
 describe('ChangesList', () => {
+  const markFn = vi.fn()
+  const unmarkFn = vi.fn()
+
   beforeEach(() => {
     useTabsStore.setState({ panes: [{ tabs: [], activeTabId: null }], activePaneIndex: 0 })
     useRepoStore.setState({ repo: { path: '/repo', name: 'repo' } })
-    usePreferencesStore.setState({ sidebarTab: 'changes' })
+    usePreferencesStore.setState({ sidebarTab: 'changes', changesScope: 'working' })
     useRevealStore.setState({ path: null })
     vi.mocked(useGitFlow).mockReturnValue({ groups, refresh: async () => {} })
+    vi.mocked(useBranchFlow).mockReturnValue({
+      groups: undefined,
+      base: undefined,
+      refresh: async () => {},
+    })
+    vi.mocked(useReviewedPaths).mockReturnValue(new Set())
+    vi.mocked(useToggleReviewed).mockReturnValue({ mark: markFn, unmark: unmarkFn })
   })
 
   it('renders each layer group with its files and +adds/−dels', () => {
@@ -125,5 +142,71 @@ describe('ChangesList', () => {
     // Stage is present (the file is unstaged), so the menu opened — but Open file isn't.
     expect(await screen.findByText('Stage')).toBeInTheDocument()
     expect(screen.queryByText('Open file')).not.toBeInTheDocument()
+  })
+
+  it('renders a reviewed indicator (Check icon + line-through) for a reviewed file', () => {
+    vi.mocked(useReviewedPaths).mockReturnValue(new Set(['src/components/widget.tsx']))
+    renderList()
+    // The Check icon should be present via aria-label.
+    expect(screen.getByLabelText('Reviewed')).toBeInTheDocument()
+    // The filename span should carry the line-through class.
+    const nameSpan = screen.getByText('widget.tsx')
+    expect(nameSpan).toHaveClass('line-through')
+  })
+
+  it('"Mark reviewed" calls mark with the file path for an un-reviewed row', async () => {
+    renderList()
+    fireEvent.contextMenu(screen.getByText('widget.tsx'))
+    fireEvent.click(await screen.findByText('Mark reviewed'))
+    expect(markFn).toHaveBeenCalledOnce()
+    expect(markFn).toHaveBeenCalledWith('src/components/widget.tsx')
+  })
+
+  it('"Unmark reviewed" calls unmark with the file path for a reviewed row', async () => {
+    vi.mocked(useReviewedPaths).mockReturnValue(new Set(['src/components/widget.tsx']))
+    renderList()
+    fireEvent.contextMenu(screen.getByText('widget.tsx'))
+    fireEvent.click(await screen.findByText('Unmark reviewed'))
+    expect(unmarkFn).toHaveBeenCalledOnce()
+    expect(unmarkFn).toHaveBeenCalledWith('src/components/widget.tsx')
+  })
+
+  it('shows the reviewed count in the header when at least one file is reviewed', () => {
+    vi.mocked(useReviewedPaths).mockReturnValue(new Set(['src/components/widget.tsx']))
+    renderList()
+    // "3 changed files · 1 reviewed" — the header text includes the count.
+    expect(screen.getByText(/1 reviewed/)).toBeInTheDocument()
+  })
+
+  it('omits the reviewed count in the header when no files are reviewed', () => {
+    renderList()
+    expect(screen.queryByText(/reviewed/)).not.toBeInTheDocument()
+  })
+
+  it('renders the scope toggle with a "Branch" item', () => {
+    renderList()
+    expect(screen.getByText('Branch')).toBeInTheDocument()
+  })
+
+  it('branch mode renders the file list and shows the base label in the header', () => {
+    usePreferencesStore.setState({ changesScope: 'branch' })
+    vi.mocked(useBranchFlow).mockReturnValue({ groups, base: 'main', refresh: async () => {} })
+    renderList()
+    expect(screen.getByText('widget.tsx')).toBeInTheDocument()
+    expect(screen.getByText(/vs main/)).toBeInTheDocument()
+  })
+
+  it('clicking a file row in branch mode opens a range diff tab keyed by base:path', () => {
+    usePreferencesStore.setState({ changesScope: 'branch' })
+    vi.mocked(useBranchFlow).mockReturnValue({ groups, base: 'main', refresh: async () => {} })
+    renderList()
+    screen.getByText('widget.tsx').click()
+
+    const path = 'src/components/widget.tsx'
+    const { tabs, activeTabId } = useTabsStore.getState().panes[0]
+    expect(tabs).toHaveLength(1)
+    expect(tabs[0]).toMatchObject({ kind: 'diff', path, base: 'main' })
+    expect(tabs[0].id).toBe(tabId('diff', `main:${path}`))
+    expect(activeTabId).toBe(tabId('diff', `main:${path}`))
   })
 })

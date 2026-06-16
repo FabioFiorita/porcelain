@@ -227,6 +227,15 @@ export async function gitQuickCommand(
 
 const MAX_GREP_MATCHES = 500
 
+/**
+ * `git grep` exits 1 when there are simply no matches — that's not a failure.
+ * Any other exit code (or a non-exit error like a missing binary) IS a real
+ * problem and must not be hidden as "no results".
+ */
+export function isNoMatchError(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 1
+}
+
 /** Literal text search across tracked + untracked files; empty on no matches. */
 export async function gitGrep(repoPath: string, query: string): Promise<GrepMatch[]> {
   try {
@@ -240,8 +249,9 @@ export async function gitGrep(repoPath: string, query: string): Promise<GrepMatc
       query,
     ])
     return parseGrep(out).slice(0, MAX_GREP_MATCHES)
-  } catch {
-    return [] // git grep exits 1 when nothing matches
+  } catch (error) {
+    if (isNoMatchError(error)) return [] // exit 1 = no matches, not a failure
+    throw new Error(gitErrorOutput(error))
   }
 }
 
@@ -251,4 +261,57 @@ export async function gitDiffFile(repoPath: string, filePath: string): Promise<D
     return synthesizeAddDiff(await readFile(join(repoPath, filePath), 'utf8'))
   }
   return parseUnifiedDiff(await runGit(repoPath, ['diff', 'HEAD', '--no-color', '--', filePath]))
+}
+
+/** Compute the common ancestor between `base` and HEAD. */
+export async function gitMergeBase(repoPath: string, base: string): Promise<string> {
+  return (await runGit(repoPath, ['merge-base', base, 'HEAD'])).trim()
+}
+
+/** List files changed between the merge-base of `base`..HEAD and HEAD. */
+export async function gitRangeChangedFiles(repoPath: string, base: string): Promise<ChangedFile[]> {
+  const mergeBase = await gitMergeBase(repoPath, base)
+  return parseNameStatus(
+    await runGit(repoPath, ['diff', '--name-status', '-z', '--no-color', `${mergeBase}..HEAD`]),
+  )
+}
+
+/** Unified diff for a single file over the merge-base of `base`..HEAD range. */
+export async function gitRangeDiffFile(
+  repoPath: string,
+  base: string,
+  filePath: string,
+): Promise<DiffHunk[]> {
+  const mergeBase = await gitMergeBase(repoPath, base)
+  return parseUnifiedDiff(
+    await runGit(repoPath, ['diff', '--no-color', `${mergeBase}..HEAD`, '--', filePath]),
+  )
+}
+
+/**
+ * The base ref a branch review is measured against: the remote's default branch
+ * (origin/HEAD, e.g. "origin/main") if known, else a local main/master.
+ */
+export async function gitDefaultBranch(repoPath: string): Promise<string> {
+  try {
+    const ref = (await runGit(repoPath, ['rev-parse', '--abbrev-ref', 'origin/HEAD'])).trim()
+    if (ref && ref !== 'origin/HEAD') return ref
+  } catch {
+    // no remote / origin/HEAD unset — fall through to local heuristics
+  }
+  for (const candidate of ['main', 'master']) {
+    try {
+      await runGit(repoPath, ['rev-parse', '--verify', '--quiet', candidate])
+      return candidate
+    } catch {
+      // not present; try next
+    }
+  }
+  return 'main' // last resort; range is empty if it doesn't exist
+}
+
+/** +/- counts per file over the merge-base of `base`..HEAD range. */
+export async function gitRangeNumstat(repoPath: string, base: string): Promise<DiffStat[]> {
+  const mergeBase = await gitMergeBase(repoPath, base)
+  return parseNumstat(await runGit(repoPath, ['diff', '--numstat', '-z', `${mergeBase}..HEAD`]))
 }

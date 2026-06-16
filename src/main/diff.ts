@@ -34,22 +34,28 @@ const statusByCode: Record<string, FileStatus> = {
 }
 
 export function parseStatus(porcelainZ: string): ChangedFile[] {
-  return porcelainZ
-    .split('\0')
-    .filter(Boolean)
-    .map((entry) => {
-      const xy = entry.slice(0, 2)
-      const path = entry.slice(3)
-      if (xy === '??') return { path, status: 'untracked' as const, staged: false, unstaged: true }
-      const code = xy.trim().charAt(0)
-      // X = index (staged) column, Y = working-tree (unstaged) column.
-      return {
-        path,
-        status: statusByCode[code] ?? ('modified' as const),
-        staged: xy.charAt(0) !== ' ',
-        unstaged: xy.charAt(1) !== ' ',
-      }
+  const segments = porcelainZ.split('\0').filter(Boolean)
+  const files: ChangedFile[] = []
+  for (let i = 0; i < segments.length; i++) {
+    const entry = segments[i] ?? ''
+    const xy = entry.slice(0, 2)
+    const path = entry.slice(3)
+    if (xy === '??') {
+      files.push({ path, status: 'untracked', staged: false, unstaged: true })
+      continue
+    }
+    const code = xy.trim().charAt(0)
+    // Renames/copies carry the old path as the next NUL field; the new path is
+    // in this segment. Consume the old-path field so it isn't read as a file.
+    if (code === 'R' || code === 'C') i += 1
+    files.push({
+      path,
+      status: statusByCode[code] ?? 'modified',
+      staged: xy.charAt(0) !== ' ',
+      unstaged: xy.charAt(1) !== ' ',
     })
+  }
+  return files
 }
 
 export interface Commit {
@@ -97,18 +103,22 @@ export interface DiffStat {
 
 /** Parse `git diff --numstat -z` output (binary files report "-"). */
 export function parseNumstat(out: string): DiffStat[] {
-  return out
-    .split('\0')
-    .filter(Boolean)
-    .map((entry) => {
-      const [additions = '-', deletions = '-', path = ''] = entry.split('\t')
-      return {
-        path,
-        additions: additions === '-' ? 0 : Number(additions),
-        deletions: deletions === '-' ? 0 : Number(deletions),
-      }
-    })
-    .filter((s) => s.path !== '')
+  const records = out.split('\0').filter(Boolean)
+  const stats: DiffStat[] = []
+  for (let i = 0; i < records.length; i++) {
+    const [additions = '-', deletions = '-', path = ''] = (records[i] ?? '').split('\t')
+    const adds = additions === '-' ? 0 : Number(additions)
+    const dels = deletions === '-' ? 0 : Number(deletions)
+    if (path === '') {
+      // Rename: this record is `adds\tdels\t`; the next two records are old, new.
+      const newPath = records[i + 2]
+      i += 2
+      if (newPath) stats.push({ path: newPath, additions: adds, deletions: dels })
+      continue
+    }
+    stats.push({ path, additions: adds, deletions: dels })
+  }
+  return stats
 }
 
 export interface Worktree {

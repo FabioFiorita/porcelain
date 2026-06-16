@@ -30,4 +30,10 @@ describe('NotesCard', () => {
     expect(screen.getByText('Ship the notes card')).toBeInTheDocument()
     expect(screen.queryByText('Loading…')).not.toBeInTheDocument()
   })
+
+  it('accepts a repoPath and renders the editor', async () => {
+    vi.mocked(useRepoNotes).mockReturnValue('note')
+    render(<NotesCard repoPath="/repo-a" />)
+    expect(await screen.findByText('note')).toBeInTheDocument()
+  })
 })

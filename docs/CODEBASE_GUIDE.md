@@ -1,6 +1,6 @@
 # Porcelain — Codebase Guide
 
-> **Last synced: v0.6.0.** This guide re-syncs against the code on every release (it's step 2 of
+> **Last synced: v0.6.0.** This guide re-syncs against the code on every release (it's step 3 of
 > the `releasing` skill's runbook), so you should never need a dedicated "update the guide"
 > session. If the stamp here is older than the current `package.json` version, the guide may have
 > drifted — the next release will reconcile it.
@@ -182,7 +182,7 @@ porcelain/
 │                         Smoke + screenshot specs (`*.spec.ts`); the release gate, not the per-commit gate.
 ├── .agents/skills/    ← the canonical agent docs (architecture, product, audit, history, releasing…).
 ├── .claude/skills/    ← symlinks to .agents/skills/ for Claude discovery.
-├── plans/             ← design/improvement plans (001–005), kept after implementation.
+├── plans/             ← advisor-generated implementation plans (see plans/README.md), regenerated per audit.
 ├── build/ & resources/← app icons.
 ├── docs/              ← this guide.
 ├── CLAUDE.md          ← agent guidance + nomenclature glossary (the "why" log now lives in the history skill).
@@ -483,7 +483,7 @@ This is the Electron-specific chrome, mostly in `main/index.ts` and `assets/main
   macOS desktop blurs through — the "liquid glass" look. The dark theme tokens have alpha so the
   panels are translucent.
 - The sidebars and main panel are **floating tiles** over that vibrancy "void" (8px gaps) — the
-  "Glaze" design system (`plans/005-glaze-design-system.md`).
+  "Glaze" design system (see the `architecture` skill's Glaze notes and the `history` skill).
 - macOS traffic-light buttons are repositioned (`trafficLightPosition`) to center them in the
   48px header. `.app-drag` / `.app-no-drag` CSS classes mark which chrome you can drag the window by.
 - **One repo per window.**

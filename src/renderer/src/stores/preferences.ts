@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
+export type ChangesScope = 'working' | 'branch'
 export type DiffMode = 'unified' | 'split'
 export type MarkdownMode = 'reader' | 'source'
 export type PullMode = 'merge' | 'rebase'
@@ -14,6 +15,7 @@ export const SPLIT_MIN_RATIO = 0.2
 export const SPLIT_MAX_RATIO = 0.8
 
 interface PreferencesState {
+  changesScope: ChangesScope
   diffMode: DiffMode
   markdownMode: MarkdownMode
   /** Strategy the `git pull` quick command uses (`--no-rebase` vs `--rebase`). */
@@ -27,6 +29,7 @@ interface PreferencesState {
   splitRatio: number
   /** Whether the user has installed the Claude Code plugin (demotes the CTA). */
   pluginInstalled: boolean
+  setChangesScope: (scope: ChangesScope) => void
   setDiffMode: (mode: DiffMode) => void
   setMarkdownMode: (mode: MarkdownMode) => void
   setPullMode: (mode: PullMode) => void
@@ -42,6 +45,7 @@ interface PreferencesState {
 export const usePreferencesStore = create<PreferencesState>()(
   persist(
     (set) => ({
+      changesScope: 'working',
       diffMode: 'unified',
       markdownMode: 'reader',
       pullMode: 'merge',
@@ -52,6 +56,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       notesHeight: 220,
       splitRatio: 0.5,
       pluginInstalled: false,
+      setChangesScope: (changesScope) => set({ changesScope }),
       setDiffMode: (diffMode) => set({ diffMode }),
       setMarkdownMode: (markdownMode) => set({ markdownMode }),
       setPullMode: (pullMode) => set({ pullMode }),

@@ -45,6 +45,13 @@ assumed — this skill is the codebase-specific layer beneath them.
   stays **dependency-free** (Node builtins only) so it runs under a plain `node`; don't
   add npm imports to `src/mcp/`, and keep tool inputs validated in `toReviewFiles`.
   *Verify:* `rg -n "createServer|listen\(|http" src/main src/mcp` finds nothing new.
+- **Agent-channel review-set paths are repo-contained on read.**
+  `readReviewSet` (`src/main/review-store.ts`) drops any review-set entry whose
+  path is absolute or escapes `repoPath` (`isRepoContained`), because the file
+  is authored by an external process and its paths flow into
+  `readFile(join(repoPath, path))`. *Why:* without it, a malicious/injected
+  review set could read arbitrary local files into the feature view. *Verify:*
+  new code that reads agent-supplied paths routes through the filtered set.
 - **The plugin installer is the ONLY non-git shell-out, and it takes no user input.**
   `installPlugin` (`src/main/plugin.ts`) spawns a login shell to run a FIXED command
   (`claude plugin marketplace add <app-derived dir> && claude plugin install …`) —

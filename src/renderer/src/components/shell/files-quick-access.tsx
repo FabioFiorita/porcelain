@@ -22,7 +22,7 @@ export function FilesQuickAccess(): React.JSX.Element {
       <NotesResizeHandle />
       <div className="h-(--notes-height) shrink-0">
         {/* remount per repo so the editor reloads that repo's notes */}
-        <NotesCard key={repoPath ?? 'none'} />
+        <NotesCard key={repoPath ?? 'none'} repoPath={repoPath} />
       </div>
     </div>
   )

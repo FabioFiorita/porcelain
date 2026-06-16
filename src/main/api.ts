@@ -7,6 +7,7 @@ import { loadConfig, updateConfig } from './config-store'
 import { type CommitConventions, parseConventions } from './conventions'
 import type { DiffHunk } from './diff'
 import { buildExploreReading, walkExplore } from './feature-explore'
+import { featureKey, flowKey } from './feature-key'
 import {
   buildFeatureReading,
   buildFeatureView,
@@ -21,12 +22,16 @@ import {
   gitCommit,
   gitCommitDiff,
   gitCommitFiles,
+  gitDefaultBranch,
   gitDiffFile,
   gitGrep,
   gitListFiles,
   gitLog,
   gitNumstat,
   gitQuickCommand,
+  gitRangeChangedFiles,
+  gitRangeDiffFile,
+  gitRangeNumstat,
   gitStageAll,
   gitStageFile,
   gitStatus,
@@ -44,14 +49,17 @@ import {
   layersFor,
   notesFor,
   pinnedPathsFor,
+  reviewedPathsFor,
   visibleFilePaths,
   withHiddenPath,
   withoutHiddenPath,
   withoutPinnedPath,
+  withoutReviewedPath,
   withPinnedPath,
   withRecentRepo,
   withRepoLayers,
   withRepoNotes,
+  withReviewedPath,
 } from './repo-config'
 import { clearReviewSet, readReviewSet } from './review-store'
 import { checkForUpdates, installUpdate, type UpdateStatus, updateStatus } from './updater'
@@ -110,6 +118,11 @@ async function recordRecent(path: string): Promise<void> {
 // file contents are only re-read when the working tree actually changes.
 const flowCache = new Map<string, { key: string; groups: FlowGroup[] }>()
 
+// Same memoization as flowCache for the branch-range flow: keyed on the base ref
+// + range numstat + layers. The range is static until the next commit, so the
+// cache is invalidated only on commit (gitRangeFlow.invalidate in use-commit).
+const rangeFlowCache = new Map<string, { key: string; groups: FlowGroup[] }>()
+
 // Same memoization as flowCache for the (heavier) feature view: keyed on the
 // working-tree state, layers, and the agent-fed review set, so the poll only
 // re-reads file contents when something that affects the view actually changed.
@@ -152,7 +165,7 @@ async function gatherFeature(input: string) {
     readReviewSet(input),
   ])
   const layers = layersFor(config, input) ?? DEFAULT_LAYERS
-  const key = JSON.stringify([files, stats, layers, reviewSet])
+  const key = featureKey(files, stats, layers, reviewSet)
   return { files, stats, layers, reviewSet, repoFiles, key }
 }
 
@@ -312,6 +325,22 @@ export const router = t.router({
     return entries.filter((e): e is DirEntry => e !== null)
   }),
 
+  markReviewed: t.procedure
+    .input(z.object({ repoPath: z.string(), path: z.string() }))
+    .mutation(async ({ input }) => {
+      await updateConfig((config) => withReviewedPath(config, input.repoPath, input.path))
+    }),
+
+  unmarkReviewed: t.procedure
+    .input(z.object({ repoPath: z.string(), path: z.string() }))
+    .mutation(async ({ input }) => {
+      await updateConfig((config) => withoutReviewedPath(config, input.repoPath, input.path))
+    }),
+
+  reviewedPaths: t.procedure
+    .input(z.string())
+    .query(async ({ input }): Promise<string[]> => reviewedPathsFor(await loadConfig(), input)),
+
   gitSuggestions: t.procedure.input(z.string()).query(({ input }) => gitSuggestions(input)),
 
   gitQuickCommand: t.procedure
@@ -402,7 +431,7 @@ export const router = t.router({
       gitNumstat(input),
     ])
     const layers = layersFor(config, input) ?? DEFAULT_LAYERS
-    const key = JSON.stringify([files, stats, layers])
+    const key = flowKey(files, stats, layers)
     const cached = flowCache.get(input)
     if (cached && cached.key === key) return cached.groups
     const sources = new Map<string, string>()
@@ -428,6 +457,51 @@ export const router = t.router({
     flowCache.set(input, { key, groups })
     return groups
   }),
+
+  gitRangeFlow: t.procedure
+    .input(z.string())
+    .query(async ({ input }): Promise<{ groups: FlowGroup[]; base: string }> => {
+      const base = await gitDefaultBranch(input)
+      try {
+        const [files, config, stats] = await Promise.all([
+          gitRangeChangedFiles(input, base),
+          loadConfig(),
+          gitRangeNumstat(input, base),
+        ])
+        const layers = layersFor(config, input) ?? DEFAULT_LAYERS
+        const key = `${base}\n${flowKey(files, stats, layers)}`
+        const cached = rangeFlowCache.get(input)
+        if (cached && cached.key === key) return { groups: cached.groups, base }
+        const sources = new Map<string, string>()
+        await Promise.all(
+          files.slice(0, 200).map(async (file) => {
+            try {
+              const content = await readFile(join(input, file.path), 'utf8')
+              if (content.length < 1024 * 1024) sources.set(file.path, content)
+            } catch {
+              // deleted-in-range files have no working-tree source to parse
+            }
+          }),
+        )
+        const statByPath = new Map(stats.map((s) => [s.path, s]))
+        const groups = buildFlow(files, sources, layers).map((group) => ({
+          ...group,
+          files: group.files.map((file) => ({
+            ...file,
+            additions: statByPath.get(file.path)?.additions,
+            deletions: statByPath.get(file.path)?.deletions,
+          })),
+        }))
+        rangeFlowCache.set(input, { key, groups })
+        return { groups, base }
+      } catch {
+        return { groups: [], base }
+      }
+    }),
+
+  gitRangeDiffFile: t.procedure
+    .input(z.object({ repoPath: z.string(), base: z.string(), filePath: z.string() }))
+    .query(({ input }) => gitRangeDiffFile(input.repoPath, input.base, input.filePath)),
 
   // The feature view: the change under review widened into the whole feature.
   // No-MCP baseline = changed files + the unchanged files they reach by relative
@@ -462,7 +536,12 @@ export const router = t.router({
       const diffs = new Map<string, DiffHunk[]>()
       await Promise.all(
         changed.map(async (file) => {
-          diffs.set(file.path, await gitDiffFile(input, file.path))
+          try {
+            diffs.set(file.path, await gitDiffFile(input, file.path))
+          } catch {
+            // file vanished/renamed between the status snapshot and this read —
+            // leave it out; buildFeatureReading falls back to an empty hunk list
+          }
         }),
       )
       const reading = buildFeatureReading({ view, sources, diffs })

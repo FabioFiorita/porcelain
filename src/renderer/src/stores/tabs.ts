@@ -19,6 +19,8 @@ export interface Tab {
   line?: number
   /** Explore tabs only: the seed symbol (omitted ⇒ a whole-file seed). */
   symbol?: string
+  /** Diff tabs only: the range base ref. Omitted ⇒ a working-tree diff. */
+  base?: string
   /** Preview tabs (single-click) are replaced by the next preview; double-click pins. */
   preview?: boolean
 }

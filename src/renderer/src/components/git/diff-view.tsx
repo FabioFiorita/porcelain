@@ -3,9 +3,15 @@ import { usePreferencesStore } from '@renderer/stores/preferences'
 import { DiffModeToggle } from './diff-mode-toggle'
 import { HunksView } from './hunks-view'
 
-export function DiffView({ filePath }: { filePath: string }): React.JSX.Element {
+export function DiffView({
+  filePath,
+  base,
+}: {
+  filePath: string
+  base?: string
+}): React.JSX.Element {
   const diffMode = usePreferencesStore((s) => s.diffMode)
-  const { hunks, error } = useDiffFile(filePath)
+  const { hunks, error } = useDiffFile(filePath, base)
 
   if (error) return <p className="p-4 text-sm text-destructive">{error.message}</p>
   if (hunks === undefined) return <p className="p-4 text-sm text-muted-foreground">Loading…</p>

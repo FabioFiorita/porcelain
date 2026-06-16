@@ -34,6 +34,15 @@ describe('parseStatus', () => {
   it('returns empty for empty output', () => {
     expect(parseStatus('')).toEqual([])
   })
+
+  it('treats a staged rename as one row (new path) without a phantom old-path row', () => {
+    // `git status --porcelain=v1 -z` emits a staged rename as `R  <new>\0<old>\0`.
+    const out = 'R  renamed.ts\0original.ts\0 M other.ts\0'
+    expect(parseStatus(out)).toEqual([
+      { path: 'renamed.ts', status: 'renamed', staged: true, unstaged: false },
+      { path: 'other.ts', status: 'modified', staged: false, unstaged: true },
+    ])
+  })
 })
 
 describe('parseUnifiedDiff', () => {
@@ -122,6 +131,13 @@ describe('parseNumstat', () => {
       { path: 'src/a.ts', additions: 12, deletions: 3 },
       { path: 'img.png', additions: 0, deletions: 0 },
     ])
+  })
+
+  it('attributes rename-with-edit counts to the new path', () => {
+    // `git diff --numstat -z` emits a renamed-with-edits file as
+    // `adds\tdels\t\0<old>\0<new>\0` (empty path on the stat line).
+    const out = '2\t1\t\0old.ts\0new.ts\0'
+    expect(parseNumstat(out)).toEqual([{ path: 'new.ts', additions: 2, deletions: 1 }])
   })
 })
 
