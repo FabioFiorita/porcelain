@@ -1,11 +1,33 @@
-## [0.6.0](https://github.com/FabioFiorita/porcelain/compare/v0.5.0...v0.6.0) (2026-06-15)
+## [0.7.0](https://github.com/FabioFiorita/porcelain/compare/v0.6.0...v0.7.0) (2026-06-16)
 
 ### Features
 
+* **agents:** show "Update" when the installed plugin is behind ([dea83ee](https://github.com/FabioFiorita/porcelain/commit/dea83ee9872f01a7303490908c35c0cd905a2689))
+* **changes:** branch/base-diff review — Working↔Branch scope toggle ([a92bcae](https://github.com/FabioFiorita/porcelain/commit/a92bcaea5c1e3ee3219b466079a6896d6dc88c0a))
+* **changes:** mark-as-reviewed toggle on the Changes list ([e7f556f](https://github.com/FabioFiorita/porcelain/commit/e7f556fcec16a4df65505da9727f3aa9e8ee509f))
 * **changes:** reveal the opened file in the tree on "Open file" ([e9aa647](https://github.com/FabioFiorita/porcelain/commit/e9aa647053d2291c97495807e7a56ecdcb6070bb))
+* discard changes, surface .env in finder, rework commit composer, Agents settings ([dc966ac](https://github.com/FabioFiorita/porcelain/commit/dc966ac2dc77e604e5208f73f07c297bb0abbfcb))
+* embedded terminal + saved action runner ([cf36fde](https://github.com/FabioFiorita/porcelain/commit/cf36fdee3f7cc28dda1be5424f5f6b05c8fd043d))
+* **files:** add Reveal in Finder + Delete to the tree context menu ([cbdee99](https://github.com/FabioFiorita/porcelain/commit/cbdee9963cbbf1578300d32ce5fdd976dd8b68bd))
+* **git:** prototype branch-range diff helpers (gitMergeBase, gitRangeChangedFiles, gitRangeDiffFile) ([4b67dea](https://github.com/FabioFiorita/porcelain/commit/4b67deac3c99a0d6805eb34460675adbcfd20492))
+* project board (todo/doing/done) with full MCP card control ([867bd15](https://github.com/FabioFiorita/porcelain/commit/867bd15eaa39f4c41b4d545c091b1720d7ed5ef1))
+* review comments fed to the agent over MCP ([a6f0231](https://github.com/FabioFiorita/porcelain/commit/a6f02317832ff51fe9661a1c5cd0aacc92300810))
+* **search:** add Cmd+Shift+F project-wide content search overlay ([f4d0301](https://github.com/FabioFiorita/porcelain/commit/f4d0301c5144f7ba2aeef8b479bead4abade4958))
 * **sidebar:** start-align the project switcher to fill the title bar ([e54bb7c](https://github.com/FabioFiorita/porcelain/commit/e54bb7cb322e5e5d064501cb604315fb921b9b33))
 * **ui:** glassy right-panel git actions ([12aa0b7](https://github.com/FabioFiorita/porcelain/commit/12aa0b7a39dbfffca21a62b448a40f690091a3d2))
 * **ui:** polish empty states, settings chrome, and right-panel sections ([fb51fff](https://github.com/FabioFiorita/porcelain/commit/fb51fff5cf4851d2fce676b8eddb9f006f03e041))
+
+### Bug Fixes
+
+* **api:** guard per-file diff reads in featureReading against vanished files ([ad1cfd6](https://github.com/FabioFiorita/porcelain/commit/ad1cfd6142f94e125ed1bee927563804bc633f13))
+* **diff:** handle renamed files in the -z status and numstat parsers ([0824bc5](https://github.com/FabioFiorita/porcelain/commit/0824bc57c89fee834d47a0c8c8e2d7f755857b76))
+* **git:** surface real gitGrep failures instead of swallowing them as no-match ([7ae08d2](https://github.com/FabioFiorita/porcelain/commit/7ae08d2d7215eae43e828d542f1ef9549ded98ca))
+* **notes:** capture repo path per card instance to prevent autosave flush writing to wrong repo ([be21bbf](https://github.com/FabioFiorita/porcelain/commit/be21bbf23215b082f24c1f87e8e253dd8215c0e3))
+* **viewer:** key every identity-bearing tab branch to prevent stale-content flashes ([cff4312](https://github.com/FabioFiorita/porcelain/commit/cff4312ebbe6cc34491c854594f6094d63a9c71e))
+
+### Performance Improvements
+
+* **editor:** defer syntax-highlight tokenization off the keystroke path ([9383e31](https://github.com/FabioFiorita/porcelain/commit/9383e3161faebbb7749f8b8d39a7776390108db2))
 
 ## [0.5.0](https://github.com/FabioFiorita/porcelain/compare/v0.4.0...v0.5.0) (2026-06-15)
 
