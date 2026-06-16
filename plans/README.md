@@ -22,18 +22,21 @@ pnpm typecheck && pnpm test && pnpm build`) before committing.
 > **Execute run (2026-06-16).** All 12 audit plans (010–021) plus the two concrete
 > builds (008, 009) were executed by dispatched subagents in an isolated worktree and
 > reviewed plan-by-plan (diff + scope + targeted tests + new-test audit). They live as
-> 16 commits on branch **`improve/execute-all`** (based on current `main` `cbdee99`),
+> 17 commits on branch **`improve/execute-all`** (based on current `main` `cbdee99`),
 > NOT yet merged — merging is the maintainer's call. Final full gate on the complete
 > branch is green: `pnpm lint && pnpm typecheck && pnpm test && pnpm build` all pass
-> (228 tests, 31 files). **The two direction spikes (006, 007) were also run** at the
-> maintainer's request: 006 landed an inert, tested data-layer prototype (commit
-> `4b67dea`) + a design memo (`006-…notes.md`); 007 is a pure design memo
-> (`007-…notes.md`, no code). Both stop before the product decision they tee up —
-> 006's review surface, 007's annotation channel direction — which remain the
-> maintainer's calls (hard rule 1). **One CI follow-up:** plan 020's release-gate e2e
-> step (`pnpm test:e2e` in `release.yml`, kept at the maintainer's request) is
-> unvalidated and may fail on screenshot-baseline AA drift on the first tagged release
-> — that's baseline drift, not a regression; regenerate on a matching env if it trips.
+> (233 tests, 31 files). **The two direction spikes (006, 007) were run** at the
+> maintainer's request: 006 landed an inert, tested data-layer prototype (`4b67dea`)
+> + a design memo (`006-…notes.md`); 007 is a pure design memo (`007-…notes.md`, no
+> code). **The maintainer then chose 006's surface — option (a)** — and it was built
+> in full as **plan 022** (`a92bcae`): a Working↔Branch scope toggle on the Changes
+> tab, range flow list, and branch-range-aware per-file diffs (auto-detected default
+> branch; base-ref picker deferred to a v2 fast-follow). **007's annotation channel
+> direction is still the open maintainer decision.** **One CI follow-up:** plan 020's
+> release-gate e2e step (`pnpm test:e2e` in `release.yml`, kept at the maintainer's
+> request) is unvalidated and may fail on screenshot-baseline AA drift on the first
+> tagged release — that's baseline drift, not a regression; regenerate on a matching
+> env if it trips.
 
 ### Direction plans (from the `next` run) — roadmap
 
@@ -43,6 +46,7 @@ pnpm typecheck && pnpm test && pnpm build`) before committing.
 | 007 | Close the agent loop (review feedback flows back via MCP) | design spike | P1 | M | — | DONE — spike (memo `007-…notes.md`, no code); **channel-direction decision pending maintainer** |
 | 008 | Mark-as-reviewed — review progress on the Changes list | build | P2 | S–M | — | DONE (`e7f556f`, on `improve/execute-all`) |
 | 009 | Project-wide content search (Cmd+Shift+F) | build | P2 | S–M | — | DONE (`f4d0301`+`01d7939`, on `improve/execute-all`) |
+| 022 | Branch/base-diff review build — Working↔Branch scope toggle (006 option (a)) | build | P1 | L | 006 | DONE (`a92bcae`); base-ref picker = v2 fast-follow |
 
 ### Audit plans (from the `deep` run) — correctness, security, quality
 
