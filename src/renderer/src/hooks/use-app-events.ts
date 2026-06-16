@@ -19,6 +19,11 @@ export function useAppEvents(): void {
         await utils.featureView.invalidate()
         return
       }
+      if (event === 'comments') {
+        // the agent resolved a comment over MCP — refresh the list + gutter markers
+        await utils.reviewComments.invalidate()
+        return
+      }
       if (event !== 'close-tab') return
       const { panes, activePaneIndex, closeTab } = useTabsStore.getState()
       const activeTabId = panes[activePaneIndex]?.activeTabId

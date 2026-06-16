@@ -54,6 +54,7 @@ Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wron
 - Files → **Pinned** (`pinned-group.tsx`) + **Notes card** (`notes-card.tsx`), wrapped in `files-quick-access.tsx`.
 - Changes/History/Feature → **Quick commands** (`quick-commands-group.tsx`) + **Suggested** rows.
 - Changes/Feature → **Commit composer** (`commit-group.tsx`).
+- Changes/Feature → **Comments** (`comments-group.tsx`) — the reviewer's line/file comments, fed to the agent over MCP.
 
 **Overlays:**
 - **File finder** — Cmd+P fuzzy finder (`file-finder.tsx`).
@@ -64,5 +65,6 @@ Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wron
 **Cross-cutting concepts:**
 - **Flow / flow layers** — the architectural-layer grouping of changes (entry-point → data); the heart of "review changes as a story".
 - **Feature view / review set** — the change widened into the whole feature, flow-ordered. Files are tagged by **source**: **changed** (working tree), **context** (unchanged, reached by import — the no-MCP baseline), **shipped** (cross-seam files the agent declares). A **review set** is the agent-fed manifest (`~/.porcelain/review-sets.json`) written by the **MCP server** (`src/mcp/`, standalone stdio), distributed as a one-click **Claude Code plugin** (Settings → Agents). Opened from the Changes tab.
+- **Review comments** — the reviewer's notes on a line range or a whole file (`~/.porcelain/comments.json`), added from the diff/source right-click ("Add comment" / "Comment on file") and listed in the Comments Quick Access section. The **MCP server** serves them to the agent (`get_review_comments`) and can mark them resolved (`resolve_review_comment`) — the agent-context counterpart to the feature review set, flowing app→agent.
 - **Repo / worktree / window** — one repo per window; the worktree switcher sits in the sidebar footer.
 - **Glaze / glaze tile / vibrancy void** — the design-system surfaces (floating porcelain tiles over the vibrancy void).

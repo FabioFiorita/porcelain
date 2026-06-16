@@ -96,4 +96,13 @@ The COMPLETE feature, not just your diff:
 - A \`note\` on every file where there's an invariant, contract, or gotcha the reviewer would otherwise miss.
 
 Keep it tight: the files that make up THIS feature, broad enough that the human can read it as one story from entry point to data.
+
+## Reviewer comments
+
+The human also leaves comments in Porcelain — anchored to specific lines (or a whole file) — as concrete review context for you. Check them:
+
+- \`get_review_comments\` — \`{ repoPath }\` → the OPEN comments, each with its file/line anchor, the snippet it was attached to, the note, and an id. Read these before and during the work: they tell you exactly what to explain, fix, or look at.
+- \`resolve_review_comment\` — \`{ repoPath, id }\` → mark one resolved once you've ACTUALLY addressed the note; it then drops off the reviewer's open list.
+
+When the human says "look at my comments", "I left some notes", or asks about a specific line/diff, call \`get_review_comments\` first.
 `

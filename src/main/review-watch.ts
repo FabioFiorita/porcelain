@@ -1,26 +1,45 @@
 import { watch } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
 import { basename, dirname } from 'node:path'
-import { emitAppEvent } from './app-events'
+import { type AppEvent, emitAppEvent } from './app-events'
+import { commentsPath } from './comment-store'
 import { reviewSetsPath } from './review-store'
 
 /**
- * Watch the agent channel (`~/.porcelain/review-sets.json`) and push a `feature-view`
- * event when it changes, so an MCP write from the user's coding agent live-refreshes
- * the open feature view. We watch the DIRECTORY, not the file: the MCP server writes
- * atomically (tmp + rename), which replaces the inode and breaks a direct file watch.
+ * Watch the agent channels in `~/.porcelain` — `review-sets.json` (→ `feature-view`)
+ * and `comments.json` (→ `comments`) — and push an app-event when either changes, so
+ * an MCP write from the user's coding agent live-refreshes the open view (a pushed
+ * review set, or a comment the agent resolved). We watch the DIRECTORY, not the file:
+ * writes are atomic (tmp + rename), which replaces the inode and breaks a direct file
+ * watch. The two paths usually share a directory, so it's watched once.
  */
-export async function watchReviewSets(): Promise<void> {
-  const path = reviewSetsPath()
-  const dir = dirname(path)
-  const file = basename(path)
-  await mkdir(dir, { recursive: true }).catch(() => {})
-  try {
-    watch(dir, (_event, filename) => {
-      if (!filename || filename === file) emitAppEvent('feature-view')
-    })
-  } catch {
-    // fs.watch is unsupported on some platforms/filesystems; agent pushes still
-    // surface on the feature view's own poll, just not instantly.
+export async function watchAgentChannels(): Promise<void> {
+  const targets: { path: string; event: AppEvent }[] = [
+    { path: reviewSetsPath(), event: 'feature-view' },
+    { path: commentsPath(), event: 'comments' },
+  ]
+  const byDir = new Map<string, Map<string, AppEvent>>()
+  for (const target of targets) {
+    const dir = dirname(target.path)
+    const files = byDir.get(dir) ?? new Map<string, AppEvent>()
+    files.set(basename(target.path), target.event)
+    byDir.set(dir, files)
+  }
+  for (const [dir, files] of byDir) {
+    await mkdir(dir, { recursive: true }).catch(() => {})
+    try {
+      watch(dir, (_event, filename) => {
+        if (!filename) {
+          // some platforms don't report the filename — refresh every channel here
+          for (const event of new Set(files.values())) emitAppEvent(event)
+          return
+        }
+        const event = files.get(filename)
+        if (event) emitAppEvent(event)
+      })
+    } catch {
+      // fs.watch is unsupported on some platforms/filesystems; agent pushes still
+      // surface on the views' own polls, just not instantly.
+    }
   }
 }

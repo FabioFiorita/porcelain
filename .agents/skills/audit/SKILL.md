@@ -52,6 +52,17 @@ assumed — this skill is the codebase-specific layer beneath them.
   `readFile(join(repoPath, path))`. *Why:* without it, a malicious/injected
   review set could read arbitrary local files into the feature view. *Verify:*
   new code that reads agent-supplied paths routes through the filtered set.
+- **The review-comment channel is a SECOND, two-way agent channel**
+  (`~/.porcelain/comments.json`, `comment-store.ts` ↔ `src/mcp/comment-file.ts`),
+  kept SEPARATE from review-sets so the "app makes one write to the review-set
+  channel" rule above stays intact. Here the **app** authors comments — so their
+  `path`s are app-supplied, never externally injected (no repo-containment guard
+  needed, unlike review-sets) — and the MCP server only reads them and flips
+  `resolved` (`resolve_review_comment`). Both sides write atomically (tmp + rename);
+  the app serializes its own read-modify-write. A cross-process race with an MCP
+  resolve is rare and low-stakes (a lost resolve just reappears; the watcher
+  re-syncs). Still stdio only, no network surface. Don't add an app-side write here
+  that accepts an agent-supplied path, and keep both writers atomic.
 - **The plugin installer is the ONLY non-git shell-out, and it takes no user input.**
   `installPlugin` (`src/main/plugin.ts`) spawns a login shell to run a FIXED command
   (`claude plugin marketplace add <app-derived dir> && claude plugin install …`) —

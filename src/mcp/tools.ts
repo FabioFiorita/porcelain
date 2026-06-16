@@ -1,3 +1,4 @@
+import { describeComments, readComments, resolveComment } from './comment-file'
 import {
   addReviewFiles,
   clearReview,
@@ -32,6 +33,16 @@ export async function callTool(name: string, args: Record<string, unknown>): Pro
   }
   if (name === 'get_feature_review') {
     return describeReview(repoPath, readReview(repoPath))
+  }
+  if (name === 'get_review_comments') {
+    return describeComments(repoPath, readComments(repoPath))
+  }
+  if (name === 'resolve_review_comment') {
+    const id = asString(args.id)
+    if (!id) throw new Error('id is required')
+    return resolveComment(repoPath, id)
+      ? `Resolved comment ${id} for ${repoPath}`
+      : `No open comment ${id} for ${repoPath}`
   }
   throw new Error(`unknown tool: ${name}`)
 }

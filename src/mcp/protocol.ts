@@ -78,6 +78,31 @@ export const TOOLS = [
       required: ['repoPath'],
     },
   },
+  {
+    name: 'get_review_comments',
+    description:
+      "Read the human reviewer's open comments for a repo: each is anchored to a file (and optionally a line range), shows the snippet it was attached to, and carries the reviewer's note plus an id. The reviewer writes these in Porcelain by selecting lines or a file and adding a comment — use them as concrete review context (what to explain, fix, or look at). Resolve each with resolve_review_comment once you've addressed it.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        repoPath: { type: 'string', description: 'Absolute path to the repository' },
+      },
+      required: ['repoPath'],
+    },
+  },
+  {
+    name: 'resolve_review_comment',
+    description:
+      "Mark one of the reviewer's comments resolved, by its id (from get_review_comments), once you've addressed it. It then drops off the reviewer's open list in Porcelain. Only do this after actually handling the note.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        repoPath: { type: 'string', description: 'Absolute path to the repository' },
+        id: { type: 'string', description: 'The comment id from get_review_comments' },
+      },
+      required: ['repoPath', 'id'],
+    },
+  },
 ] as const
 
 function isRecord(value: unknown): value is Record<string, unknown> {

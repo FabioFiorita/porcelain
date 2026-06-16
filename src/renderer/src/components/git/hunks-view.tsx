@@ -86,8 +86,11 @@ function DiffRowView({ row, ctx }: { row: DiffRow; ctx: RenderContext }): React.
     return <p className="h-5 bg-muted/40 px-2 text-muted-foreground">{row.text}</p>
   }
   if (row.type === 'unified') {
+    // data-line carries the new-side line (old-side for a pure deletion) so a text
+    // selection here maps to a commentable line range; see lib/line-selection.ts.
+    const anchorLine = row.line.newLine ?? row.line.oldLine ?? undefined
     return (
-      <div className={cn('flex px-2', lineClass[row.line.kind])}>
+      <div data-line={anchorLine} className={cn('flex px-2', lineClass[row.line.kind])}>
         <LineNo value={row.line.oldLine} />
         <LineNo value={row.line.newLine} />
         <CodeLine tokens={ctx.tokens.get(row.line) ?? null} text={row.line.text} />

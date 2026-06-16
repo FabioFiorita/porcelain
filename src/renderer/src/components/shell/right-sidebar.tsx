@@ -1,5 +1,6 @@
 import { Sidebar, SidebarContent, SidebarHeader } from '@renderer/components/ui/sidebar'
 import { usePreferencesStore } from '@renderer/stores/preferences'
+import { CommentsGroup } from './comments-group'
 import { CommitGroup } from './commit-group'
 import { FilesQuickAccess } from './files-quick-access'
 import { QuickCommandsGroup } from './quick-commands-group'
@@ -24,6 +25,7 @@ export function RightSidebar(): React.JSX.Element {
         {sidebarTab === 'files' && <FilesQuickAccess />}
         {sidebarTab !== 'files' && <QuickCommandsGroup />}
         {(sidebarTab === 'changes' || sidebarTab === 'feature') && <CommitGroup />}
+        {(sidebarTab === 'changes' || sidebarTab === 'feature') && <CommentsGroup />}
       </SidebarContent>
     </Sidebar>
   )

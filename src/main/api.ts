@@ -3,6 +3,14 @@ import { basename, join } from 'node:path'
 import { initTRPC } from '@trpc/server'
 import { dialog, shell } from 'electron'
 import { z } from 'zod'
+import {
+  addComment,
+  deleteComment,
+  editComment,
+  type ReviewComment,
+  readComments,
+  setCommentResolved,
+} from './comment-store'
 import { loadConfig, updateConfig } from './config-store'
 import { type CommitConventions, parseConventions } from './conventions'
 import type { DiffHunk } from './diff'
@@ -575,6 +583,41 @@ export const router = t.router({
   clearFeatureReview: t.procedure.input(z.string()).mutation(async ({ input }) => {
     await clearReviewSet(input)
   }),
+
+  // Review comments — the human's notes on lines/files, fed to the agent as context
+  // over MCP (`get_review_comments`) and resolvable by it (`resolve_review_comment`).
+  // Stored in ~/.porcelain/comments.json (see `comment-store.ts`); a two-way channel.
+  reviewComments: t.procedure
+    .input(z.string())
+    .query(({ input }): Promise<ReviewComment[]> => readComments(input)),
+
+  addReviewComment: t.procedure
+    .input(
+      z.object({
+        repoPath: z.string(),
+        path: z.string().min(1),
+        startLine: z.number().int().positive().optional(),
+        endLine: z.number().int().positive().optional(),
+        anchorText: z.string().optional(),
+        body: z.string().min(1),
+      }),
+    )
+    .mutation(({ input }): Promise<ReviewComment> => {
+      const { repoPath, ...comment } = input
+      return addComment(repoPath, comment)
+    }),
+
+  editReviewComment: t.procedure
+    .input(z.object({ repoPath: z.string(), id: z.string(), body: z.string().min(1) }))
+    .mutation(({ input }) => editComment(input.repoPath, input.id, input.body)),
+
+  deleteReviewComment: t.procedure
+    .input(z.object({ repoPath: z.string(), id: z.string() }))
+    .mutation(({ input }) => deleteComment(input.repoPath, input.id)),
+
+  resolveReviewComment: t.procedure
+    .input(z.object({ repoPath: z.string(), id: z.string(), resolved: z.boolean() }))
+    .mutation(({ input }) => setCommentResolved(input.repoPath, input.id, input.resolved)),
 
   // Explore an existing feature read-only: seed from a symbol (or a whole file)
   // and walk the import/reference graph into the SAME flow-ordered, sliced reading
