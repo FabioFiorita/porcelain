@@ -9,9 +9,7 @@
 import { sliceSource } from './feature-slice'
 import type { FeatureReading, ReadingFile, ReadingGroup } from './feature-view'
 import { resolveRelativeImport } from './feature-view'
-import { type Layer, layerFor, parseImports } from './flow'
-
-const OTHER_LABEL = 'Other'
+import { groupByLayer, type Layer, parseImports } from './flow'
 
 const MAX_DEPTH = 5
 const MAX_FILES = 60
@@ -203,19 +201,6 @@ export function buildExploreReading(
     }
   })
 
-  const order = [...layers.map((l) => l.label), OTHER_LABEL]
-  const byLayer = new Map<string, ReadingFile[]>()
-  for (const file of files) {
-    const layer = layerFor(file.path, layers)
-    const group = byLayer.get(layer) ?? []
-    group.push(file)
-    byLayer.set(layer, group)
-  }
-  const groups: ReadingGroup[] = order
-    .filter((layer) => byLayer.has(layer))
-    .map((layer) => ({
-      layer,
-      files: (byLayer.get(layer) ?? []).sort((a, b) => a.path.localeCompare(b.path)),
-    }))
+  const groups: ReadingGroup[] = groupByLayer(files, layers)
   return { name, groups }
 }

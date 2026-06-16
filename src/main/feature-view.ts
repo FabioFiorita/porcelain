@@ -1,9 +1,7 @@
 import type { ChangedFile, DiffHunk, FileStatus } from './diff'
 import { collectImportedSymbols, type SliceRange, sliceSource } from './feature-slice'
-import { type Layer, layerFor, parseImports, resolveImport } from './flow'
+import { groupByLayer, type Layer, parseImports, resolveImport } from './flow'
 import type { FileSource, ReviewSet } from './review-set'
-
-const OTHER_LABEL = 'Other'
 
 // Resolution order for an extension-less import. Mirrors the resolver in flow.ts
 // but checks set membership (O(1)) instead of scanning a list — the baseline walks
@@ -155,24 +153,10 @@ export function buildFeatureView(params: {
     file.connects = [...new Set(connects)]
   }
 
-  const order = [...params.layers.map((l) => l.label), OTHER_LABEL]
-  const groups = new Map<string, FeatureFile[]>()
-  for (const file of files.values()) {
-    const layer = layerFor(file.path, params.layers)
-    const group = groups.get(layer) ?? []
-    group.push(file)
-    groups.set(layer, group)
-  }
-
   return {
     name: params.name,
     fromAgent: params.reviewSet !== null,
-    groups: order
-      .filter((layer) => groups.has(layer))
-      .map((layer) => ({
-        layer,
-        files: (groups.get(layer) ?? []).sort((a, b) => a.path.localeCompare(b.path)),
-      })),
+    groups: groupByLayer([...files.values()], params.layers),
   }
 }
 

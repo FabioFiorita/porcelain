@@ -22,23 +22,64 @@ export const DEFAULT_LAYERS: Layer[] = [
   { label: 'Tests', pattern: '\\.(test|spec)\\.[a-z]+$' },
 ]
 
-const OTHER_LABEL = 'Other'
+export const OTHER_LABEL = 'Other'
+
+interface CompiledLayer {
+  label: string
+  re: RegExp
+}
+
+/** Compile a layer set's patterns once (reuse across many `layerForCompiled` calls). */
+export function compileLayers(layers: readonly Layer[]): CompiledLayer[] {
+  return layers.map((layer) => ({ label: layer.label, re: new RegExp(layer.pattern, 'g') }))
+}
+
+function layerForCompiled(path: string, compiled: readonly CompiledLayer[]): string {
+  let best: { label: string; index: number } | null = null
+  for (const { label, re } of compiled) {
+    re.lastIndex = 0 // `g` regexes are stateful — reset before each path scan
+    let last: RegExpExecArray | null = null
+    for (let m = re.exec(path); m !== null; m = re.exec(path)) last = m
+    if (last && (best === null || last.index > best.index)) {
+      best = { label, index: last.index }
+    }
+  }
+  return best?.label ?? OTHER_LABEL
+}
 
 export function layerFor(path: string, layers: readonly Layer[]): string {
   // The deepest (right-most) matching segment wins: apps/api/controllers/x.ts
   // is a controller, not a route, even though api/ also matches. Filename
   // patterns (e.g. \.spec\. or \.stories\.) match right of any directory, so
   // they win over the directory the file sits in.
-  let best: { label: string; index: number } | null = null
-  for (const layer of layers) {
-    const match = new RegExp(layer.pattern, 'g')
-    let last: RegExpExecArray | null = null
-    for (let m = match.exec(path); m !== null; m = match.exec(path)) last = m
-    if (last && (best === null || last.index > best.index)) {
-      best = { label: layer.label, index: last.index }
-    }
+  return layerForCompiled(path, compileLayers(layers))
+}
+
+/**
+ * Group files into flow layers: bucket by the deepest-matching layer, then emit
+ * groups in declared layer order (with `Other` last), each file list sorted by
+ * path. The ONE grouping implementation — shared by buildFlow, buildFeatureView,
+ * and buildExploreReading.
+ */
+export function groupByLayer<T extends { path: string }>(
+  items: readonly T[],
+  layers: readonly Layer[],
+): { layer: string; files: T[] }[] {
+  const compiled = compileLayers(layers) // compile once for the whole batch
+  const order = [...layers.map((l) => l.label), OTHER_LABEL]
+  const byLayer = new Map<string, T[]>()
+  for (const item of items) {
+    const layer = layerForCompiled(item.path, compiled)
+    const group = byLayer.get(layer) ?? []
+    group.push(item)
+    byLayer.set(layer, group)
   }
-  return best?.label ?? OTHER_LABEL
+  return order
+    .filter((layer) => byLayer.has(layer))
+    .map((layer) => ({
+      layer,
+      files: (byLayer.get(layer) ?? []).sort((a, b) => a.path.localeCompare(b.path)),
+    }))
 }
 
 export interface FlowFile extends ChangedFile {
@@ -126,19 +167,5 @@ export function buildFlow(
     return { ...file, connects: [...new Set(connects)] }
   })
 
-  const order = [...layers.map((l) => l.label), OTHER_LABEL]
-  const groups = new Map<string, FlowFile[]>()
-  for (const file of flowFiles) {
-    const layer = layerFor(file.path, layers)
-    const group = groups.get(layer) ?? []
-    group.push(file)
-    groups.set(layer, group)
-  }
-
-  return order
-    .filter((layer) => groups.has(layer))
-    .map((layer) => ({
-      layer,
-      files: (groups.get(layer) ?? []).sort((a, b) => a.path.localeCompare(b.path)),
-    }))
+  return groupByLayer(flowFiles, layers)
 }

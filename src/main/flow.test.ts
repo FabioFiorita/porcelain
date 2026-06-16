@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import type { ChangedFile } from './diff'
-import { buildFlow, DEFAULT_LAYERS, layerFor, parseImports, resolveImport } from './flow'
+import {
+  buildFlow,
+  DEFAULT_LAYERS,
+  groupByLayer,
+  layerFor,
+  OTHER_LABEL,
+  parseImports,
+  resolveImport,
+} from './flow'
 
 describe('layerFor', () => {
   it('maps paths to layers', () => {
@@ -73,5 +81,29 @@ describe('buildFlow', () => {
     const groups = buildFlow(files, sources, DEFAULT_LAYERS)
     expect(groups.map((g) => g.layer)).toEqual(['Components', 'Services', 'Data'])
     expect(groups[0]?.files[0]?.connects).toEqual(['src/services/user.ts'])
+  })
+})
+
+describe('groupByLayer', () => {
+  it('orders groups by declared layer with Other last and sorts files by path', () => {
+    const items = [
+      { path: 'src/services/b.ts' },
+      { path: 'src/components/a.tsx' },
+      { path: 'README.md' },
+      { path: 'src/components/c.tsx' },
+    ]
+    const groups = groupByLayer(items, DEFAULT_LAYERS)
+    expect(groups.map((g) => g.layer)).toEqual(['Components', 'Services', OTHER_LABEL])
+    expect(groups[0]?.files.map((f) => f.path)).toEqual([
+      'src/components/a.tsx',
+      'src/components/c.tsx',
+    ])
+  })
+})
+
+describe('compileLayers + layerFor parity', () => {
+  it('layerFor matches a precompiled scan', () => {
+    const path = 'apps/api/controllers/x.ts'
+    expect(layerFor(path, DEFAULT_LAYERS)).toBe('Controllers')
   })
 })
