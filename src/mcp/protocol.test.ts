@@ -30,6 +30,11 @@ describe('handleRpc', () => {
       'get_feature_review',
       'get_review_comments',
       'resolve_review_comment',
+      'list_cards',
+      'create_card',
+      'update_card',
+      'move_card',
+      'delete_card',
     ])
   })
 

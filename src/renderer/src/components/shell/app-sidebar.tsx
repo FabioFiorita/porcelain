@@ -1,3 +1,4 @@
+import { BoardList } from '@renderer/components/board/board-list'
 import { ChangesList } from '@renderer/components/git/changes-list'
 import { FeatureList } from '@renderer/components/git/feature-list'
 import { HistoryList } from '@renderer/components/git/history-list'
@@ -21,7 +22,15 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui
 import { cn } from '@renderer/lib/utils'
 import { type SidebarTab, usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
-import { Eye, EyeOff, Files, GitCompareArrows, History, Waypoints } from 'lucide-react'
+import {
+  Eye,
+  EyeOff,
+  Files,
+  GitCompareArrows,
+  History,
+  SquareKanban,
+  Waypoints,
+} from 'lucide-react'
 import { FileTree } from './file-tree'
 import { ProjectSwitcher } from './project-switcher'
 import { SidebarResizeHandle } from './sidebar-resize-handle'
@@ -31,6 +40,7 @@ const TABS: { id: SidebarTab; label: string; icon: typeof Files; shortcut: strin
   { id: 'changes', label: 'Changes', icon: GitCompareArrows, shortcut: '⌘2' },
   { id: 'history', label: 'History', icon: History, shortcut: '⌘3' },
   { id: 'feature', label: 'Feature', icon: Waypoints, shortcut: '⌘4' },
+  { id: 'board', label: 'Board', icon: SquareKanban, shortcut: '⌘5' },
 ]
 
 export function AppSidebar(): React.JSX.Element {
@@ -142,6 +152,7 @@ export function AppSidebar(): React.JSX.Element {
                   {sidebarTab === 'changes' && <ChangesList />}
                   {sidebarTab === 'history' && <HistoryList />}
                   {sidebarTab === 'feature' && <FeatureList />}
+                  {sidebarTab === 'board' && <BoardList />}
                 </SidebarGroupContent>
               </SidebarGroup>
             </div>

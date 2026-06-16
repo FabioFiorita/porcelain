@@ -1,4 +1,5 @@
 import logo from '@renderer/assets/logo.png'
+import { BoardView } from '@renderer/components/board/board-view'
 import { CommitView } from '@renderer/components/git/commit-view'
 import { DiffView } from '@renderer/components/git/diff-view'
 import { ExploreView } from '@renderer/components/git/explore-view'
@@ -80,6 +81,8 @@ function PaneView({ paneIndex }: { paneIndex: number }): React.JSX.Element {
       return <SearchView key={activeTab.path} query={activeTab.path} />
     case 'feature':
       return <FeatureView />
+    case 'board':
+      return <BoardView />
     case 'explore':
       return (
         <ExploreView

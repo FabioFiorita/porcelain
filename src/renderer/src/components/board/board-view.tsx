@@ -1,0 +1,52 @@
+import { Button } from '@renderer/components/ui/button'
+import { BOARD_COLUMNS, useBoardCards } from '@renderer/hooks/use-board'
+import { Plus } from 'lucide-react'
+import { useState } from 'react'
+import { CardComposer, type CardDraft, draftFromCard } from './card-composer'
+import { CardItem } from './card-item'
+
+/** The wide kanban: the three columns side by side, in a viewer tab. */
+export function BoardView(): React.JSX.Element {
+  const cards = useBoardCards()
+  const [draft, setDraft] = useState<CardDraft | null>(null)
+
+  return (
+    <div className="flex h-full gap-3 overflow-x-auto p-4">
+      {BOARD_COLUMNS.map((column) => {
+        const inColumn = cards.filter((card) => card.status === column.status)
+        return (
+          <div key={column.status} className="flex min-h-0 w-72 shrink-0 flex-col gap-2">
+            <div className="flex items-center justify-between px-1">
+              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                {column.label} · {inColumn.length}
+              </span>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={`Add card to ${column.label}`}
+                onClick={() => setDraft({ title: '', body: '', status: column.status })}
+              >
+                <Plus />
+              </Button>
+            </div>
+            <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
+              {inColumn.map((card) => (
+                <CardItem key={card.id} card={card} onEdit={(c) => setDraft(draftFromCard(c))} />
+              ))}
+              {inColumn.length === 0 && (
+                <p className="px-1 text-[11px] text-muted-foreground/60">No cards</p>
+              )}
+            </div>
+          </div>
+        )
+      })}
+      <CardComposer
+        draft={draft}
+        open={draft !== null}
+        onOpenChange={(open) => {
+          if (!open) setDraft(null)
+        }}
+      />
+    </div>
+  )
+}

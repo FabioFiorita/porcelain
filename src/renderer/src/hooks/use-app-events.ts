@@ -24,6 +24,11 @@ export function useAppEvents(): void {
         await utils.reviewComments.invalidate()
         return
       }
+      if (event === 'board') {
+        // the agent created/moved/edited a card over MCP — refresh the board
+        await utils.boardCards.invalidate()
+        return
+      }
       if (event !== 'close-tab') return
       const { panes, activePaneIndex, closeTab } = useTabsStore.getState()
       const activeTabId = panes[activePaneIndex]?.activeTabId

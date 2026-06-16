@@ -23,7 +23,9 @@ export function RightSidebar(): React.JSX.Element {
       </SidebarHeader>
       <SidebarContent className={sidebarTab === 'files' ? 'gap-0 overflow-hidden' : undefined}>
         {sidebarTab === 'files' && <FilesQuickAccess />}
-        {sidebarTab !== 'files' && <QuickCommandsGroup />}
+        {(sidebarTab === 'changes' || sidebarTab === 'history' || sidebarTab === 'feature') && (
+          <QuickCommandsGroup />
+        )}
         {(sidebarTab === 'changes' || sidebarTab === 'feature') && <CommitGroup />}
         {(sidebarTab === 'changes' || sidebarTab === 'feature') && <CommentsGroup />}
       </SidebarContent>

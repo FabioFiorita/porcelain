@@ -103,6 +103,77 @@ export const TOOLS = [
       required: ['repoPath', 'id'],
     },
   },
+  {
+    name: 'list_cards',
+    description:
+      'Read the project board for a repo: todo/doing/done cards the human (and you) use to plan the work, grouped by column, each with an id, title, and optional body. Read this to learn what to build next instead of waiting for the human to spell it out, and to keep the board in sync as you work.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        repoPath: { type: 'string', description: 'Absolute path to the repository' },
+      },
+      required: ['repoPath'],
+    },
+  },
+  {
+    name: 'create_card',
+    description:
+      'Add a card to the project board (defaults to the "todo" column). Use it to capture a task or feature you or the human identified.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        repoPath: { type: 'string', description: 'Absolute path to the repository' },
+        title: { type: 'string', description: 'Short card title' },
+        body: { type: 'string', description: 'Optional details / description' },
+        status: {
+          type: 'string',
+          enum: ['todo', 'doing', 'done'],
+          description: 'Column; defaults to todo',
+        },
+      },
+      required: ['repoPath', 'title'],
+    },
+  },
+  {
+    name: 'update_card',
+    description: "Edit a card's title and/or body, by its id (from list_cards).",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        repoPath: { type: 'string', description: 'Absolute path to the repository' },
+        id: { type: 'string', description: 'The card id from list_cards' },
+        title: { type: 'string' },
+        body: { type: 'string' },
+      },
+      required: ['repoPath', 'id'],
+    },
+  },
+  {
+    name: 'move_card',
+    description:
+      'Move a card to a different column, by its id. Move a card to "doing" when you start it and "done" when you finish, so the board reflects your progress.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        repoPath: { type: 'string', description: 'Absolute path to the repository' },
+        id: { type: 'string', description: 'The card id from list_cards' },
+        status: { type: 'string', enum: ['todo', 'doing', 'done'], description: 'Target column' },
+      },
+      required: ['repoPath', 'id', 'status'],
+    },
+  },
+  {
+    name: 'delete_card',
+    description: 'Remove a card from the project board, by its id.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        repoPath: { type: 'string', description: 'Absolute path to the repository' },
+        id: { type: 'string', description: 'The card id from list_cards' },
+      },
+      required: ['repoPath', 'id'],
+    },
+  },
 ] as const
 
 function isRecord(value: unknown): value is Record<string, unknown> {

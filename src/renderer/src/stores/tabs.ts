@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type TabKind = 'file' | 'diff' | 'commit' | 'search' | 'feature' | 'explore'
+export type TabKind = 'file' | 'diff' | 'commit' | 'search' | 'feature' | 'explore' | 'board'
 
 // The tabs store is the router: a tab id is its kind plus its key (file path,
 // commit hash, or search query). Every opener must build ids through this so

@@ -105,4 +105,14 @@ The human also leaves comments in Porcelain — anchored to specific lines (or a
 - \`resolve_review_comment\` — \`{ repoPath, id }\` → mark one resolved once you've ACTUALLY addressed the note; it then drops off the reviewer's open list.
 
 When the human says "look at my comments", "I left some notes", or asks about a specific line/diff, call \`get_review_comments\` first.
+
+## Project board
+
+The repo has a todo/doing/done board of cards (features/tasks). Read it to know what to build and keep it in sync as you work — it's how the human queues work without spelling everything out in chat:
+
+- \`list_cards\` — \`{ repoPath }\` → the board grouped by column, each card with an id, title, and body. Check it to pick up queued work.
+- \`create_card\` — \`{ repoPath, title, body?, status? }\` → capture a task (defaults to the "todo" column).
+- \`update_card\` — \`{ repoPath, id, title?, body? }\` → edit a card.
+- \`move_card\` — \`{ repoPath, id, status }\` → move a card to "doing" when you start it and "done" when you finish, so the human sees progress.
+- \`delete_card\` — \`{ repoPath, id }\`.
 `

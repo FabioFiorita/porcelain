@@ -62,7 +62,10 @@ assumed — this skill is the codebase-specific layer beneath them.
   the app serializes its own read-modify-write. A cross-process race with an MCP
   resolve is rare and low-stakes (a lost resolve just reappears; the watcher
   re-syncs). Still stdio only, no network surface. Don't add an app-side write here
-  that accepts an agent-supplied path, and keep both writers atomic.
+  that accepts an agent-supplied path, and keep both writers atomic. The **project
+  board** (`~/.porcelain/board.json`, `board-store.ts` ↔ `src/mcp/board-file.ts`) is a
+  THIRD channel of the same shape and the same rules apply: app-and-agent-authored
+  *content* (not filesystem paths), atomic writes on both sides, stdio only.
 - **The plugin installer is the ONLY non-git shell-out, and it takes no user input.**
   `installPlugin` (`src/main/plugin.ts`) spawns a login shell to run a FIXED command
   (`claude plugin marketplace add <app-derived dir> && claude plugin install …`) —

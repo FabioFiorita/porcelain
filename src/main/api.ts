@@ -4,6 +4,15 @@ import { initTRPC } from '@trpc/server'
 import { dialog, shell } from 'electron'
 import { z } from 'zod'
 import {
+  addCard,
+  type BoardCard,
+  CARD_STATUSES,
+  deleteCard,
+  moveCard,
+  readCards,
+  updateCard,
+} from './board-store'
+import {
   addComment,
   deleteComment,
   editComment,
@@ -618,6 +627,48 @@ export const router = t.router({
   resolveReviewComment: t.procedure
     .input(z.object({ repoPath: z.string(), id: z.string(), resolved: z.boolean() }))
     .mutation(({ input }) => setCommentResolved(input.repoPath, input.id, input.resolved)),
+
+  // Project board — todo/doing/done cards the human and the agent both manage,
+  // stored in ~/.porcelain/board.json (see `board-store.ts`); a two-way channel the
+  // agent reads (list_cards) and mutates (create/update/move/delete_card) over MCP.
+  boardCards: t.procedure
+    .input(z.string())
+    .query(({ input }): Promise<BoardCard[]> => readCards(input)),
+
+  addBoardCard: t.procedure
+    .input(
+      z.object({
+        repoPath: z.string(),
+        title: z.string().min(1),
+        body: z.string().optional(),
+        status: z.enum(CARD_STATUSES).optional(),
+      }),
+    )
+    .mutation(({ input }): Promise<BoardCard> => {
+      const { repoPath, ...card } = input
+      return addCard(repoPath, card)
+    }),
+
+  updateBoardCard: t.procedure
+    .input(
+      z.object({
+        repoPath: z.string(),
+        id: z.string(),
+        title: z.string().min(1).optional(),
+        body: z.string().optional(),
+      }),
+    )
+    .mutation(({ input }) =>
+      updateCard(input.repoPath, input.id, { title: input.title, body: input.body }),
+    ),
+
+  moveBoardCard: t.procedure
+    .input(z.object({ repoPath: z.string(), id: z.string(), status: z.enum(CARD_STATUSES) }))
+    .mutation(({ input }) => moveCard(input.repoPath, input.id, input.status)),
+
+  deleteBoardCard: t.procedure
+    .input(z.object({ repoPath: z.string(), id: z.string() }))
+    .mutation(({ input }) => deleteCard(input.repoPath, input.id)),
 
   // Explore an existing feature read-only: seed from a symbol (or a whole file)
   // and walk the import/reference graph into the SAME flow-ordered, sliced reading

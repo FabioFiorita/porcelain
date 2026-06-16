@@ -2,14 +2,18 @@ import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { useEffect } from 'react'
 
-const SIDEBAR_TAB_KEYS: Record<string, 'files' | 'changes' | 'history' | 'feature' | undefined> = {
+const SIDEBAR_TAB_KEYS: Record<
+  string,
+  'files' | 'changes' | 'history' | 'feature' | 'board' | undefined
+> = {
   '1': 'files',
   '2': 'changes',
   '3': 'history',
   '4': 'feature',
+  '5': 'board',
 }
 
-/** Window-level shortcuts: Cmd+W (via main, see before-input-event), Ctrl+Tab cycling, Cmd+1/2/3/4 sidebar tabs. */
+/** Window-level shortcuts: Cmd+W (via main, see before-input-event), Ctrl+Tab cycling, Cmd+1/2/3/4/5 sidebar tabs. */
 export function useAppShortcuts(): void {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent): void => {
