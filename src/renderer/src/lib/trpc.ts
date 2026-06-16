@@ -7,7 +7,8 @@ import { createTRPCReact } from '@trpc/react-query'
  * The preload bridge. We own the Electron transport instead of depending on the
  * abandoned electron-trpc: `trpc` carries a serialized HTTP request across IPC,
  * `onAppEvent` is the one main→renderer push channel (replaces the old tRPC
- * subscription). See `src/preload/index.ts` for the matching implementation.
+ * subscription), and `terminal` is the dedicated bidirectional byte stream for the
+ * embedded terminal. See `src/preload/index.ts` for the matching implementation.
  */
 interface PorcelainBridge {
   trpc: (request: {
@@ -17,6 +18,19 @@ interface PorcelainBridge {
     body?: string
   }) => Promise<{ status: number; headers: Record<string, string>; body: string }>
   onAppEvent: (callback: (event: AppEvent) => void) => () => void
+  terminal: {
+    create: (opts: {
+      cwd: string
+      initialInput?: string
+      cols?: number
+      rows?: number
+    }) => Promise<string>
+    write: (id: string, data: string) => void
+    resize: (id: string, cols: number, rows: number) => void
+    kill: (id: string) => void
+    onData: (callback: (id: string, data: string) => void) => () => void
+    onExit: (callback: (id: string, exitCode: number) => void) => () => void
+  }
 }
 
 declare global {

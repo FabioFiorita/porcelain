@@ -2,6 +2,7 @@ import { fetchRequestHandler } from '@trpc/server/adapters/fetch'
 import { type BrowserWindow, ipcMain } from 'electron'
 import { router } from './api'
 import { subscribeAppEvents } from './app-events'
+import { createTerminal, killTerminal, resizeTerminal, writeTerminal } from './terminal-manager'
 
 // We own the tRPC transport instead of electron-trpc. The renderer's httpBatchLink
 // serializes each call to an HTTP request and ships the bytes over `invoke('trpc')`;
@@ -40,4 +41,22 @@ export function pipeAppEvents(window: BrowserWindow): void {
     if (!window.isDestroyed()) window.webContents.send('app-event', event)
   })
   window.on('closed', unsubscribe)
+}
+
+// The dedicated bidirectional terminal channel: `create` returns a PTY id (request/
+// response, so it's `handle`), while `write`/`resize`/`kill` are fire-and-forget
+// `on`. PTY output rides `terminal:data` back to the calling window (see
+// terminal-manager). Kept off tRPC on purpose — a terminal streams bytes both ways at
+// keystroke frequency, which tRPC and the one-way app-event bus both fit poorly.
+export function registerTerminalHandlers(): void {
+  ipcMain.handle(
+    'terminal:create',
+    (event, opts: { cwd: string; initialInput?: string; cols?: number; rows?: number }): string =>
+      createTerminal(event.sender, opts),
+  )
+  ipcMain.on('terminal:write', (_event, id: string, data: string) => writeTerminal(id, data))
+  ipcMain.on('terminal:resize', (_event, id: string, cols: number, rows: number) =>
+    resizeTerminal(id, cols, rows),
+  )
+  ipcMain.on('terminal:kill', (_event, id: string) => killTerminal(id))
 }

@@ -12,6 +12,10 @@ files:
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
 asarUnpack:
   - resources/**
+  # node-pty ships a native addon (pty.node) + a `spawn-helper` binary it execs at
+  # runtime; both must live on disk outside app.asar (and get signed there) or the
+  # embedded terminal can't spawn a PTY in the packaged app.
+  - node_modules/node-pty/**
 mac:
   target:
     - target: dmg

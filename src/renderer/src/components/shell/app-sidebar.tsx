@@ -4,6 +4,7 @@ import { FeatureList } from '@renderer/components/git/feature-list'
 import { HistoryList } from '@renderer/components/git/history-list'
 import { WorktreeSwitcher } from '@renderer/components/git/worktree-switcher'
 import { SettingsDialog } from '@renderer/components/settings/settings-dialog'
+import { TerminalList } from '@renderer/components/terminal/terminal-list'
 import { Button } from '@renderer/components/ui/button'
 import { Kbd } from '@renderer/components/ui/kbd'
 import {
@@ -29,6 +30,7 @@ import {
   GitCompareArrows,
   History,
   SquareKanban,
+  SquareTerminal,
   Waypoints,
 } from 'lucide-react'
 import { FileTree } from './file-tree'
@@ -41,6 +43,7 @@ const TABS: { id: SidebarTab; label: string; icon: typeof Files; shortcut: strin
   { id: 'history', label: 'History', icon: History, shortcut: '⌘3' },
   { id: 'feature', label: 'Feature', icon: Waypoints, shortcut: '⌘4' },
   { id: 'board', label: 'Board', icon: SquareKanban, shortcut: '⌘5' },
+  { id: 'terminal', label: 'Terminal', icon: SquareTerminal, shortcut: '⌘6' },
 ]
 
 export function AppSidebar(): React.JSX.Element {
@@ -153,6 +156,7 @@ export function AppSidebar(): React.JSX.Element {
                   {sidebarTab === 'history' && <HistoryList />}
                   {sidebarTab === 'feature' && <FeatureList />}
                   {sidebarTab === 'board' && <BoardList />}
+                  {sidebarTab === 'terminal' && <TerminalList />}
                 </SidebarGroupContent>
               </SidebarGroup>
             </div>

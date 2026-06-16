@@ -3,6 +3,7 @@ import { Kbd } from '@renderer/components/ui/kbd'
 import { SidebarInset, SidebarProvider, useSidebar } from '@renderer/components/ui/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useAppEvents } from '@renderer/hooks/use-app-events'
+import { useTerminalChannel } from '@renderer/hooks/use-terminal-channel'
 import { useInstallUpdate, useUpdateStatus } from '@renderer/hooks/use-updates'
 import { cn } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
@@ -144,6 +145,7 @@ export function AppShell(): React.JSX.Element {
 
   useAppShortcuts()
   useAppEvents()
+  useTerminalChannel()
 
   useEffect(() => {
     restoreLastRepo()

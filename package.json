@@ -39,6 +39,7 @@
     "@electron-toolkit/utils": "^4.0.0",
     "@trpc/server": "^11.17.0",
     "electron-updater": "^6.8.9",
+    "node-pty": "^1.1.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -65,6 +66,8 @@
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.2.0",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -93,7 +96,8 @@
   "pnpm": {
     "onlyBuiltDependencies": [
       "electron",
-      "esbuild"
+      "esbuild",
+      "node-pty"
     ]
   }
 }

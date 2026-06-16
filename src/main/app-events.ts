@@ -1,4 +1,10 @@
-export type AppEvent = 'close-tab' | 'update-status' | 'feature-view' | 'comments' | 'board'
+export type AppEvent =
+  | 'close-tab'
+  | 'update-status'
+  | 'feature-view'
+  | 'comments'
+  | 'board'
+  | 'actions'
 
 const listeners = new Set<(event: AppEvent) => void>()
 

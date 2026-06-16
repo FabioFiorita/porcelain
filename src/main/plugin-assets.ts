@@ -15,8 +15,9 @@ export const REVIEW_SKILL_NAME = 'review-with-porcelain'
  * releases). The app records the version installed and offers an "Update" when this
  * constant is newer. Bump on any change to the MCP tools or the review skill.
  * 2.0.0: added review-comment + project-board tools on top of feature review sets.
+ * 2.1.0: added saved-action tools (list/create/update/delete_action).
  */
-export const PLUGIN_VERSION = '2.0.0'
+export const PLUGIN_VERSION = '2.1.0'
 
 /**
  * The local Claude Code marketplace root the app writes. Lives in ~/.porcelain
@@ -124,4 +125,15 @@ The repo has a todo/doing/done board of cards (features/tasks). Read it to know 
 - \`update_card\` — \`{ repoPath, id, title?, body? }\` → edit a card.
 - \`move_card\` — \`{ repoPath, id, status }\` → move a card to "doing" when you start it and "done" when you finish, so the human sees progress.
 - \`delete_card\` — \`{ repoPath, id }\`.
+
+## Saved actions
+
+The repo has saved "actions" — named shell commands the human runs in Porcelain's embedded terminal with one click (dev server, storybook, test watcher, …). Curate them so the project's common commands are one click away for the human:
+
+- \`list_actions\` — \`{ repoPath }\` → the saved actions, each with an id, title, command, and optional cwd.
+- \`create_action\` — \`{ repoPath, title, command, cwd? }\` → add one (e.g. title "Storybook", command "pnpm --filter web storybook").
+- \`update_action\` — \`{ repoPath, id, title?, command?, cwd? }\` → edit one (empty-string cwd clears it).
+- \`delete_action\` — \`{ repoPath, id }\`.
+
+You DEFINE actions; only the human runs them (there is no run tool). When you discover the project's common commands (from package.json scripts, the README, or what the human asks you to run repeatedly), offer to save them as actions.
 `

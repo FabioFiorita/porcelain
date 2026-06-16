@@ -5,8 +5,9 @@ import icon from '../../resources/icon.png?asset'
 import { emitAppEvent } from './app-events'
 import { seedDevConfig } from './dev-config'
 import { isSafeExternalUrl } from './external-url'
-import { pipeAppEvents, registerTrpcHandler } from './ipc'
+import { pipeAppEvents, registerTerminalHandlers, registerTrpcHandler } from './ipc'
 import { watchAgentChannels } from './review-watch'
+import { killTerminalsForSender } from './terminal-manager'
 
 // Dev gets its own config dir so `pnpm dev` never touches (or hijacks) the
 // state of the installed app the user works in. Must run before anything
@@ -53,6 +54,11 @@ function createWindow(): void {
   })
 
   pipeAppEvents(mainWindow)
+
+  // A window's PTYs are tied to its WebContents — reap them when it closes so no
+  // orphaned shell (or background dev server) outlives the window.
+  const { webContents } = mainWindow
+  mainWindow.on('closed', () => killTerminalsForSender(webContents))
 
   // Surface renderer-side errors in the dev terminal so failures are debuggable
   // without opening devtools (a blank window otherwise hides the cause).
@@ -108,6 +114,7 @@ app.whenReady().then(async () => {
 
   // One global tRPC handler for every window (ipcMain.handle is process-wide).
   registerTrpcHandler()
+  registerTerminalHandlers()
 
   if (is.dev) {
     await seedDevConfig()

@@ -4,16 +4,17 @@ import { useEffect } from 'react'
 
 const SIDEBAR_TAB_KEYS: Record<
   string,
-  'files' | 'changes' | 'history' | 'feature' | 'board' | undefined
+  'files' | 'changes' | 'history' | 'feature' | 'board' | 'terminal' | undefined
 > = {
   '1': 'files',
   '2': 'changes',
   '3': 'history',
   '4': 'feature',
   '5': 'board',
+  '6': 'terminal',
 }
 
-/** Window-level shortcuts: Cmd+W (via main, see before-input-event), Ctrl+Tab cycling, Cmd+1/2/3/4/5 sidebar tabs. */
+/** Window-level shortcuts: Cmd+W (via main, see before-input-event), Ctrl+Tab cycling, Cmd+1–6 sidebar tabs. */
 export function useAppShortcuts(): void {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent): void => {

@@ -68,16 +68,25 @@ export const test = baseTest.extend<Options & Fixtures, WorkerFixtures>({
       join(userData, 'config.json'),
       JSON.stringify({ recentRepos: [seedRepo ? repoDir : ABSENT_REPO], repos: {} }),
     )
-    // Isolate the agent review-set channel so the Feature tab is deterministic and
-    // we never read or touch the user's real ~/.porcelain file.
+    // Isolate the agent review-set + actions channels so the Feature/Terminal tabs
+    // are deterministic and we never read or touch the user's real ~/.porcelain files.
     const reviewSets = join(udBase, 'review-sets.json')
     await writeFile(reviewSets, '{}')
+    const actions = join(udBase, 'actions.json')
+    await writeFile(actions, '{}')
 
     const app = await _electron.launch({
       args: [MAIN_ENTRY, `--user-data-dir=${udBase}`],
       // PORCELAIN_E2E keeps the OS window hidden (Playwright drives the renderer
       // over CDP) so the app never pops onto the screen during a run.
-      env: launchEnv({ PORCELAIN_REVIEW_SETS: reviewSets, PORCELAIN_E2E: '1' }),
+      // PORCELAIN_SHELL pins a fast, config-free shell so the terminal test is
+      // deterministic and doesn't source the runner's zsh profile.
+      env: launchEnv({
+        PORCELAIN_REVIEW_SETS: reviewSets,
+        PORCELAIN_ACTIONS: actions,
+        PORCELAIN_SHELL: '/bin/bash',
+        PORCELAIN_E2E: '1',
+      }),
     })
     await use(app)
     await app.close()
@@ -94,7 +103,7 @@ export const test = baseTest.extend<Options & Fixtures, WorkerFixtures>({
 
 export { expect } from '@playwright/test'
 
-type TabName = 'Files' | 'Changes' | 'History' | 'Feature'
+type TabName = 'Files' | 'Changes' | 'History' | 'Feature' | 'Board' | 'Terminal'
 
 /** Wait until the shell has finished restoring the seeded repo. */
 export async function waitForShell(page: Page): Promise<void> {

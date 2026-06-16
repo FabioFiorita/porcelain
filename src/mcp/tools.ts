@@ -1,4 +1,11 @@
 import {
+  createAction,
+  deleteAction,
+  describeActions,
+  readActions,
+  updateAction,
+} from './action-file'
+import {
   createCard,
   deleteCard,
   describeBoard,
@@ -87,6 +94,34 @@ export async function callTool(name: string, args: Record<string, unknown>): Pro
     return deleteCard(repoPath, id)
       ? `Deleted card ${id} for ${repoPath}`
       : `No card ${id} for ${repoPath}`
+  }
+  if (name === 'list_actions') {
+    return describeActions(repoPath, readActions(repoPath))
+  }
+  if (name === 'create_action') {
+    const title = asString(args.title)
+    const command = asString(args.command)
+    if (!title) throw new Error('title is required')
+    if (!command) throw new Error('command is required')
+    const action = createAction(repoPath, title, command, asString(args.cwd))
+    return `Created action ${action.id} "${title}" for ${repoPath}`
+  }
+  if (name === 'update_action') {
+    const id = asString(args.id)
+    if (!id) throw new Error('id is required')
+    const found = updateAction(repoPath, id, {
+      title: asString(args.title),
+      command: asString(args.command),
+      cwd: asString(args.cwd),
+    })
+    return found ? `Updated action ${id} for ${repoPath}` : `No action ${id} for ${repoPath}`
+  }
+  if (name === 'delete_action') {
+    const id = asString(args.id)
+    if (!id) throw new Error('id is required')
+    return deleteAction(repoPath, id)
+      ? `Deleted action ${id} for ${repoPath}`
+      : `No action ${id} for ${repoPath}`
   }
   throw new Error(`unknown tool: ${name}`)
 }

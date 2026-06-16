@@ -1,3 +1,4 @@
+import { ActionsGroup } from '@renderer/components/terminal/actions-group'
 import { Sidebar, SidebarContent, SidebarHeader } from '@renderer/components/ui/sidebar'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { CommentsGroup } from './comments-group'
@@ -7,9 +8,9 @@ import { QuickCommandsGroup } from './quick-commands-group'
 import { RightSidebarResizeHandle } from './sidebar-resize-handle'
 
 // Sections follow the left sidebar's active tab: pins belong to browsing
-// files, git actions belong to reviewing changes/history/feature. The Feature
-// tab mirrors Changes (quick commands + commit composer) — you review a feature
-// to commit it.
+// files, git actions belong to reviewing changes/history/feature, saved actions
+// belong to the terminal. The Feature tab mirrors Changes (quick commands + commit
+// composer) — you review a feature to commit it.
 export function RightSidebar(): React.JSX.Element {
   const sidebarTab = usePreferencesStore((s) => s.sidebarTab)
 
@@ -28,6 +29,7 @@ export function RightSidebar(): React.JSX.Element {
         )}
         {(sidebarTab === 'changes' || sidebarTab === 'feature') && <CommitGroup />}
         {(sidebarTab === 'changes' || sidebarTab === 'feature') && <CommentsGroup />}
+        {sidebarTab === 'terminal' && <ActionsGroup />}
       </SidebarContent>
     </Sidebar>
   )

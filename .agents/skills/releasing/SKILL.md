@@ -63,6 +63,18 @@ Secrets live on the repo (`gh secret list`), passed to `release.yml` via `env`:
 value makes electron-builder attempt signing and die with `<projectDir> not a file`.
 Either set it real or omit it.
 
+**Native module (`node-pty`) — signing + notarization.** As of the embedded terminal,
+the app ships one native dependency. `electron-builder.yml` `asarUnpack`s
+`node_modules/node-pty/**`, so its `pty.node` AND its `spawn-helper` Mach-O binary land
+in `app.asar.unpacked` and get **signed under the hardened runtime + notarized** like
+the rest of the bundle. Two things to watch on a signed release: (1) the CI runner must
+rebuild it for Electron's ABI — the workflow's `pnpm install` runs the
+`electron-builder install-app-deps` postinstall, so this is automatic, but a `--ignore-scripts`
+install would silently ship a node-ABI binary that crashes on launch; (2) if notarization
+ever rejects an unsigned/!hardened `spawn-helper`, confirm it's inside `asarUnpack`
+(electron-builder only signs unpacked binaries). The renderer's xterm.js is bundled, not
+native — no signing concern.
+
 ### Shipping unsigned instead
 
 Drop the `CSC_*`/`APPLE_*` env from `release.yml`, set

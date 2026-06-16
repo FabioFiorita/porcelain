@@ -66,6 +66,19 @@ assumed — this skill is the codebase-specific layer beneath them.
   board** (`~/.porcelain/board.json`, `board-store.ts` ↔ `src/mcp/board-file.ts`) is a
   THIRD channel of the same shape and the same rules apply: app-and-agent-authored
   *content* (not filesystem paths), atomic writes on both sides, stdio only.
+- **Saved actions are agent-writable but HUMAN-executed.** The 4th channel
+  (`~/.porcelain/actions.json`, `actions-store.ts` ↔ `src/mcp/action-file.ts`) is the
+  same shape as the board, but its content is a *shell command* — higher stakes than
+  inert card text, because an agent that writes the file could plant a command. The
+  safeguards that make this acceptable, all of which must hold: (1) **nothing in the
+  agent channel executes an action** — the MCP server exposes only `list/create/update/
+  delete_action`, NO run tool; running is solely a human click in the app. Don't add a
+  `run_action` MCP tool. (2) The **full command text is always visible** in the Actions
+  Quick Access row (and its run tooltip) before the human clicks — never hide or
+  truncate-without-recourse the command. (3) It runs in a **visible PTY** (the user sees
+  output), via the user's login shell with the command typed in — there's no silent
+  background execution. *Verify:* the MCP tool list has no execute verb; the Action row
+  still shows `command`.
 - **The plugin installer is the ONLY non-git shell-out, and it takes no user input.**
   `installPlugin` (`src/main/plugin.ts`) spawns a login shell to run a FIXED command
   (`claude plugin marketplace add <app-derived dir> && claude plugin install …`) —
@@ -142,6 +155,17 @@ assumed — this skill is the codebase-specific layer beneath them.
 - **Never map an empty `CSC_LINK` into the release env.** A defined-but-empty value
   makes electron-builder attempt signing and die with `<projectDir> not a file` —
   set it real or omit it entirely. (See the `releasing` skill.)
+- **`node-pty` is the lone native module — keep it unpacked, rebuilt, and signed.**
+  It loads in the main process, so it stays in `dependencies` (externalized, copied
+  whole into the app), is rebuilt for Electron's ABI by `electron-builder install-app-deps`
+  (and listed in `onlyBuiltDependencies` so pnpm allows its build), and `electron-builder.yml`
+  `asarUnpack`s `node_modules/node-pty/**` — both `pty.node` AND the `spawn-helper`
+  binary it `exec`s must live on disk outside `app.asar` and be code-signed/notarized,
+  or the packaged app's terminal can't spawn (a PTY fails, or notarization rejects an
+  unsigned Mach-O). *Why:* this is the app's first native dependency; nothing else
+  needs unpacking. *Verify:* a packaged build's `Resources/app.asar.unpacked/node_modules/node-pty`
+  exists and the terminal opens. The renderer half (`@xterm/*`) is Vite-bundled
+  `devDependencies` — no packaging concern.
 
 ## How to verify
 

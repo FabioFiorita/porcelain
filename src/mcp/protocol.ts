@@ -4,7 +4,7 @@
 // nothing to resolve from node_modules (which a non-Electron `node` can't read from
 // inside app.asar). The protocol surface is tiny: initialize, tools/list, tools/call.
 
-export const SERVER_INFO = { name: 'porcelain', version: '0.3.0' }
+export const SERVER_INFO = { name: 'porcelain', version: '0.4.0' }
 export const PROTOCOL_VERSION = '2025-06-18'
 
 const REVIEW_FILE_SCHEMA = {
@@ -170,6 +170,70 @@ export const TOOLS = [
       properties: {
         repoPath: { type: 'string', description: 'Absolute path to the repository' },
         id: { type: 'string', description: 'The card id from list_cards' },
+      },
+      required: ['repoPath', 'id'],
+    },
+  },
+  {
+    name: 'list_actions',
+    description:
+      "Read the repo's saved actions: named shell commands the human runs in Porcelain's embedded terminal with one click (e.g. a dev server, storybook, a test watcher), each with an id, title, command, and optional cwd. Read this to see what's already set up, then curate it with create/update/delete_action. Note: only the human executes an action — there is no run tool.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        repoPath: { type: 'string', description: 'Absolute path to the repository' },
+      },
+      required: ['repoPath'],
+    },
+  },
+  {
+    name: 'create_action',
+    description:
+      "Add a saved action for the repo: a named command the human can run in Porcelain's embedded terminal. Use it to set up the project's common commands (dev server, storybook, lint, tests) so they're one click away. The human runs it; you only define it.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        repoPath: { type: 'string', description: 'Absolute path to the repository' },
+        title: {
+          type: 'string',
+          description: 'Short label shown on the action (e.g. "Storybook")',
+        },
+        command: {
+          type: 'string',
+          description: 'The shell command to run (e.g. "pnpm --filter web dev")',
+        },
+        cwd: {
+          type: 'string',
+          description:
+            'Optional working directory, repo-relative or absolute; defaults to repo root',
+        },
+      },
+      required: ['repoPath', 'title', 'command'],
+    },
+  },
+  {
+    name: 'update_action',
+    description: "Edit a saved action's title, command, and/or cwd, by its id (from list_actions).",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        repoPath: { type: 'string', description: 'Absolute path to the repository' },
+        id: { type: 'string', description: 'The action id from list_actions' },
+        title: { type: 'string' },
+        command: { type: 'string' },
+        cwd: { type: 'string', description: 'Pass an empty string to clear the cwd' },
+      },
+      required: ['repoPath', 'id'],
+    },
+  },
+  {
+    name: 'delete_action',
+    description: 'Remove a saved action from the repo, by its id (from list_actions).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        repoPath: { type: 'string', description: 'Absolute path to the repository' },
+        id: { type: 'string', description: 'The action id from list_actions' },
       },
       required: ['repoPath', 'id'],
     },

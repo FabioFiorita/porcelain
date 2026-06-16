@@ -3,6 +3,7 @@ import { basename, join } from 'node:path'
 import { initTRPC } from '@trpc/server'
 import { dialog, shell } from 'electron'
 import { z } from 'zod'
+import { type Action, addAction, deleteAction, readActions, updateAction } from './actions-store'
 import {
   addCard,
   type BoardCard,
@@ -669,6 +670,50 @@ export const router = t.router({
   deleteBoardCard: t.procedure
     .input(z.object({ repoPath: z.string(), id: z.string() }))
     .mutation(({ input }) => deleteCard(input.repoPath, input.id)),
+
+  // Saved actions — named commands the human runs in the embedded terminal with one
+  // click, stored in ~/.porcelain/actions.json (see `actions-store.ts`); a two-way
+  // channel the agent reads (list_actions) and curates (create/update/delete_action)
+  // over MCP. The agent never EXECUTES one — running is human-only (see the audit skill).
+  actions: t.procedure
+    .input(z.string())
+    .query(({ input }): Promise<Action[]> => readActions(input)),
+
+  addAction: t.procedure
+    .input(
+      z.object({
+        repoPath: z.string(),
+        title: z.string().trim().min(1),
+        command: z.string().trim().min(1),
+        cwd: z.string().optional(),
+      }),
+    )
+    .mutation(({ input }): Promise<Action> => {
+      const { repoPath, ...action } = input
+      return addAction(repoPath, action)
+    }),
+
+  updateAction: t.procedure
+    .input(
+      z.object({
+        repoPath: z.string(),
+        id: z.string(),
+        title: z.string().trim().min(1).optional(),
+        command: z.string().trim().min(1).optional(),
+        cwd: z.string().optional(),
+      }),
+    )
+    .mutation(({ input }) =>
+      updateAction(input.repoPath, input.id, {
+        title: input.title,
+        command: input.command,
+        cwd: input.cwd,
+      }),
+    ),
+
+  deleteAction: t.procedure
+    .input(z.object({ repoPath: z.string(), id: z.string() }))
+    .mutation(({ input }) => deleteAction(input.repoPath, input.id)),
 
   // Explore an existing feature read-only: seed from a symbol (or a whole file)
   // and walk the import/reference graph into the SAME flow-ordered, sliced reading

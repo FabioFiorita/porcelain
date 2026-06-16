@@ -1,6 +1,7 @@
 import type { RepoInfo } from '@main/api'
 import { trpcClient } from '@renderer/lib/trpc'
 import { useTabsStore } from '@renderer/stores/tabs'
+import { useTerminalsStore } from '@renderer/stores/terminals'
 import { create } from 'zustand'
 
 interface RepoState {
@@ -39,8 +40,11 @@ export const useRepoStore = create<RepoState>((set, get) => ({
   },
   switchTo: async (path) => {
     if (path === get().repo?.path) return
-    // cross-store getState() from a store action is the sanctioned pattern
+    // cross-store getState() from a store action is the sanctioned pattern. The new
+    // repo has a different cwd, so the old repo's terminals are killed (closeAllTabs
+    // only closes their views — `reset` reaps the PTYs).
     useTabsStore.getState().closeAllTabs()
+    useTerminalsStore.getState().reset()
     set({ repo: await trpcClient.openRepoPath.mutate(path) })
   },
   toggleShowHidden: () => set((s) => ({ showHidden: !s.showHidden })),
