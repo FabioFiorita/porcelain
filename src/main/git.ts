@@ -227,6 +227,15 @@ export async function gitQuickCommand(
 
 const MAX_GREP_MATCHES = 500
 
+/**
+ * `git grep` exits 1 when there are simply no matches — that's not a failure.
+ * Any other exit code (or a non-exit error like a missing binary) IS a real
+ * problem and must not be hidden as "no results".
+ */
+export function isNoMatchError(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 1
+}
+
 /** Literal text search across tracked + untracked files; empty on no matches. */
 export async function gitGrep(repoPath: string, query: string): Promise<GrepMatch[]> {
   try {
@@ -240,8 +249,9 @@ export async function gitGrep(repoPath: string, query: string): Promise<GrepMatc
       query,
     ])
     return parseGrep(out).slice(0, MAX_GREP_MATCHES)
-  } catch {
-    return [] // git grep exits 1 when nothing matches
+  } catch (error) {
+    if (isNoMatchError(error)) return [] // exit 1 = no matches, not a failure
+    throw new Error(gitErrorOutput(error))
   }
 }
 

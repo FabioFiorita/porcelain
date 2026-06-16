@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { quickCommandArgs } from './git'
+import { isNoMatchError, quickCommandArgs } from './git'
+
+describe('isNoMatchError', () => {
+  it('treats exit code 1 as no-match', () => {
+    expect(isNoMatchError({ code: 1 })).toBe(true)
+  })
+  it('treats other exit codes and errors as real failures', () => {
+    expect(isNoMatchError({ code: 2 })).toBe(false)
+    expect(isNoMatchError({ code: 'ENOENT' })).toBe(false)
+    expect(isNoMatchError(new Error('boom'))).toBe(false)
+    expect(isNoMatchError(null)).toBe(false)
+  })
+})
 
 describe('quickCommandArgs', () => {
   it('resolves static commands to their fixed args', () => {
