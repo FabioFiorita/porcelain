@@ -67,7 +67,13 @@ function PaneView({ paneIndex }: { paneIndex: number }): React.JSX.Element {
 
   switch (activeTab.kind) {
     case 'diff':
-      return <DiffView key={activeTab.path} filePath={activeTab.path} />
+      return (
+        <DiffView
+          key={`${activeTab.path}:${activeTab.base ?? ''}`}
+          filePath={activeTab.path}
+          base={activeTab.base}
+        />
+      )
     case 'commit':
       return <CommitView key={activeTab.path} hash={activeTab.path} />
     case 'search':

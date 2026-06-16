@@ -4,9 +4,11 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
+  gitDefaultBranch,
   gitMergeBase,
   gitRangeChangedFiles,
   gitRangeDiffFile,
+  gitRangeNumstat,
   isNoMatchError,
   quickCommandArgs,
 } from './git'
@@ -122,5 +124,21 @@ describe('range diff prototype', () => {
     const removedLines = allLines.filter((l) => l.kind === 'del').map((l) => l.text)
     expect(addedLines.some((t) => t.includes('42'))).toBe(true)
     expect(removedLines.some((t) => t.includes('= 1'))).toBe(true)
+  })
+
+  it('gitDefaultBranch resolves to "main" when no remote but local main exists', async () => {
+    const branch = await gitDefaultBranch(repoDir)
+    expect(branch).toBe('main')
+  })
+
+  it('gitRangeNumstat returns +/- counts for base.ts and feature.ts', async () => {
+    const stats = await gitRangeNumstat(repoDir, 'main')
+    const baseTs = stats.find((s) => s.path === 'base.ts')
+    const featureTs = stats.find((s) => s.path === 'feature.ts')
+    expect(baseTs).toBeDefined()
+    expect(baseTs?.additions).toBeGreaterThanOrEqual(1)
+    expect(baseTs?.deletions).toBeGreaterThanOrEqual(1)
+    expect(featureTs).toBeDefined()
+    expect(featureTs?.additions).toBeGreaterThanOrEqual(1)
   })
 })

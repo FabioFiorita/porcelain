@@ -15,6 +15,7 @@ export function useCommit(onCommitted?: () => void): {
       onCommitted?.()
       await Promise.all([
         utils.gitFlow.invalidate(),
+        utils.gitRangeFlow.invalidate(),
         utils.gitLog.invalidate(),
         utils.gitCommitConventions.invalidate(),
       ])

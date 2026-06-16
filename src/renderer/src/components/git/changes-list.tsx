@@ -14,6 +14,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@renderer/components/ui/sidebar'
+import { useBranchFlow } from '@renderer/hooks/use-branch-flow'
 import { useFileStaging } from '@renderer/hooks/use-commit'
 import { useDiffFilePrefetch } from '@renderer/hooks/use-diff'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'
@@ -24,6 +25,7 @@ import { useRepoStore } from '@renderer/stores/repo'
 import { useRevealStore } from '@renderer/stores/reveal'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { Check, RefreshCw } from 'lucide-react'
+import { ChangesScopeToggle } from './changes-scope-toggle'
 
 const statusBadge: Record<FileStatus, { label: string; className: string }> = {
   modified: { label: 'M', className: 'text-warning' },
@@ -37,10 +39,12 @@ function FileRow({
   file,
   repoPath,
   isReviewed,
+  base,
 }: {
   file: FlowFile
   repoPath: string
   isReviewed: boolean
+  base: string | undefined
 }): React.JSX.Element {
   const openTab = useTabsStore((s) => s.openTab)
   const setSidebarTab = usePreferencesStore((s) => s.setSidebarTab)
@@ -75,13 +79,14 @@ function FileRow({
               className="h-auto py-1"
               onClick={() =>
                 openTab({
-                  id: tabId('diff', file.path),
+                  id: tabId('diff', base ? `${base}:${file.path}` : file.path),
                   kind: 'diff',
                   title: name,
                   path: file.path,
+                  ...(base ? { base } : {}),
                 })
               }
-              onMouseEnter={() => prefetchDiff(file.path)}
+              onMouseEnter={() => prefetchDiff(file.path, base)}
             />
           }
         >
@@ -152,7 +157,17 @@ function FileRow({
 
 export function ChangesList(): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)
-  const { groups, refresh } = useGitFlow()
+  const changesScope = usePreferencesStore((s) => s.changesScope)
+
+  // Always call both hooks — hooks can't be conditional. Branch hook is disabled
+  // when scope is 'working' (no wasted fetch); working hook always fetches (it
+  // polls for live working-tree state regardless of the active scope).
+  const working = useGitFlow()
+  const branch = useBranchFlow(changesScope === 'branch')
+
+  const { groups, refresh } = changesScope === 'branch' ? branch : working
+  const base = changesScope === 'branch' ? branch.base : undefined
+
   const reviewed = useReviewedPaths()
 
   if (!repo || groups === undefined) {
@@ -170,11 +185,15 @@ export function ChangesList(): React.JSX.Element {
       <div className="flex items-center justify-between px-2">
         <span className="text-xs text-muted-foreground">
           {total} changed {total === 1 ? 'file' : 'files'}
+          {base && ` · vs ${base}`}
           {reviewedCount > 0 && ` · ${reviewedCount} reviewed`}
         </span>
-        <Button variant="ghost" size="icon-sm" onClick={refresh} aria-label="Refresh changes">
-          <RefreshCw />
-        </Button>
+        <div className="flex items-center gap-1">
+          <ChangesScopeToggle />
+          <Button variant="ghost" size="icon-sm" onClick={refresh} aria-label="Refresh changes">
+            <RefreshCw />
+          </Button>
+        </div>
       </div>
       {total === 0 ? (
         <p className="px-3 py-2 text-sm text-muted-foreground">
@@ -193,6 +212,7 @@ export function ChangesList(): React.JSX.Element {
                   file={file}
                   repoPath={repo.path}
                   isReviewed={reviewed.has(file.path)}
+                  base={base}
                 />
               ))}
             </SidebarMenu>

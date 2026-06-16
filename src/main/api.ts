@@ -22,12 +22,16 @@ import {
   gitCommit,
   gitCommitDiff,
   gitCommitFiles,
+  gitDefaultBranch,
   gitDiffFile,
   gitGrep,
   gitListFiles,
   gitLog,
   gitNumstat,
   gitQuickCommand,
+  gitRangeChangedFiles,
+  gitRangeDiffFile,
+  gitRangeNumstat,
   gitStageAll,
   gitStageFile,
   gitStatus,
@@ -113,6 +117,11 @@ async function recordRecent(path: string): Promise<void> {
 // single heaviest recurring cost. Memoize on the parsed status+numstat+layers —
 // file contents are only re-read when the working tree actually changes.
 const flowCache = new Map<string, { key: string; groups: FlowGroup[] }>()
+
+// Same memoization as flowCache for the branch-range flow: keyed on the base ref
+// + range numstat + layers. The range is static until the next commit, so the
+// cache is invalidated only on commit (gitRangeFlow.invalidate in use-commit).
+const rangeFlowCache = new Map<string, { key: string; groups: FlowGroup[] }>()
 
 // Same memoization as flowCache for the (heavier) feature view: keyed on the
 // working-tree state, layers, and the agent-fed review set, so the poll only
@@ -448,6 +457,51 @@ export const router = t.router({
     flowCache.set(input, { key, groups })
     return groups
   }),
+
+  gitRangeFlow: t.procedure
+    .input(z.string())
+    .query(async ({ input }): Promise<{ groups: FlowGroup[]; base: string }> => {
+      const base = await gitDefaultBranch(input)
+      try {
+        const [files, config, stats] = await Promise.all([
+          gitRangeChangedFiles(input, base),
+          loadConfig(),
+          gitRangeNumstat(input, base),
+        ])
+        const layers = layersFor(config, input) ?? DEFAULT_LAYERS
+        const key = `${base}\n${flowKey(files, stats, layers)}`
+        const cached = rangeFlowCache.get(input)
+        if (cached && cached.key === key) return { groups: cached.groups, base }
+        const sources = new Map<string, string>()
+        await Promise.all(
+          files.slice(0, 200).map(async (file) => {
+            try {
+              const content = await readFile(join(input, file.path), 'utf8')
+              if (content.length < 1024 * 1024) sources.set(file.path, content)
+            } catch {
+              // deleted-in-range files have no working-tree source to parse
+            }
+          }),
+        )
+        const statByPath = new Map(stats.map((s) => [s.path, s]))
+        const groups = buildFlow(files, sources, layers).map((group) => ({
+          ...group,
+          files: group.files.map((file) => ({
+            ...file,
+            additions: statByPath.get(file.path)?.additions,
+            deletions: statByPath.get(file.path)?.deletions,
+          })),
+        }))
+        rangeFlowCache.set(input, { key, groups })
+        return { groups, base }
+      } catch {
+        return { groups: [], base }
+      }
+    }),
+
+  gitRangeDiffFile: t.procedure
+    .input(z.object({ repoPath: z.string(), base: z.string(), filePath: z.string() }))
+    .query(({ input }) => gitRangeDiffFile(input.repoPath, input.base, input.filePath)),
 
   // The feature view: the change under review widened into the whole feature.
   // No-MCP baseline = changed files + the unchanged files they reach by relative

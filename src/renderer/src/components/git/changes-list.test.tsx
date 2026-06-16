@@ -1,5 +1,6 @@
 import type { FlowGroup } from '@main/flow'
 import { SidebarProvider } from '@renderer/components/ui/sidebar'
+import { useBranchFlow } from '@renderer/hooks/use-branch-flow'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'
 import { useReviewedPaths, useToggleReviewed } from '@renderer/hooks/use-reviewed'
 import { usePreferencesStore } from '@renderer/stores/preferences'
@@ -14,6 +15,7 @@ import { ChangesList } from './changes-list'
 // hands back grouped flow data shaped exactly like the real gitFlow result; the
 // diff-prefetch hook is a no-op since hover prefetching is irrelevant here.
 vi.mock('@renderer/hooks/use-git-flow', () => ({ useGitFlow: vi.fn() }))
+vi.mock('@renderer/hooks/use-branch-flow', () => ({ useBranchFlow: vi.fn() }))
 vi.mock('@renderer/hooks/use-diff', () => ({ useDiffFilePrefetch: () => async () => {} }))
 vi.mock('@renderer/hooks/use-commit', () => ({
   useFileStaging: () => ({ stageFile: async () => {}, unstageFile: async () => {} }),
@@ -78,9 +80,14 @@ describe('ChangesList', () => {
   beforeEach(() => {
     useTabsStore.setState({ panes: [{ tabs: [], activeTabId: null }], activePaneIndex: 0 })
     useRepoStore.setState({ repo: { path: '/repo', name: 'repo' } })
-    usePreferencesStore.setState({ sidebarTab: 'changes' })
+    usePreferencesStore.setState({ sidebarTab: 'changes', changesScope: 'working' })
     useRevealStore.setState({ path: null })
     vi.mocked(useGitFlow).mockReturnValue({ groups, refresh: async () => {} })
+    vi.mocked(useBranchFlow).mockReturnValue({
+      groups: undefined,
+      base: undefined,
+      refresh: async () => {},
+    })
     vi.mocked(useReviewedPaths).mockReturnValue(new Set())
     vi.mocked(useToggleReviewed).mockReturnValue({ mark: markFn, unmark: unmarkFn })
   })
@@ -174,5 +181,32 @@ describe('ChangesList', () => {
   it('omits the reviewed count in the header when no files are reviewed', () => {
     renderList()
     expect(screen.queryByText(/reviewed/)).not.toBeInTheDocument()
+  })
+
+  it('renders the scope toggle with a "Branch" item', () => {
+    renderList()
+    expect(screen.getByText('Branch')).toBeInTheDocument()
+  })
+
+  it('branch mode renders the file list and shows the base label in the header', () => {
+    usePreferencesStore.setState({ changesScope: 'branch' })
+    vi.mocked(useBranchFlow).mockReturnValue({ groups, base: 'main', refresh: async () => {} })
+    renderList()
+    expect(screen.getByText('widget.tsx')).toBeInTheDocument()
+    expect(screen.getByText(/vs main/)).toBeInTheDocument()
+  })
+
+  it('clicking a file row in branch mode opens a range diff tab keyed by base:path', () => {
+    usePreferencesStore.setState({ changesScope: 'branch' })
+    vi.mocked(useBranchFlow).mockReturnValue({ groups, base: 'main', refresh: async () => {} })
+    renderList()
+    screen.getByText('widget.tsx').click()
+
+    const path = 'src/components/widget.tsx'
+    const { tabs, activeTabId } = useTabsStore.getState().panes[0]
+    expect(tabs).toHaveLength(1)
+    expect(tabs[0]).toMatchObject({ kind: 'diff', path, base: 'main' })
+    expect(tabs[0].id).toBe(tabId('diff', `main:${path}`))
+    expect(activeTabId).toBe(tabId('diff', `main:${path}`))
   })
 })

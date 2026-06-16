@@ -287,3 +287,31 @@ export async function gitRangeDiffFile(
     await runGit(repoPath, ['diff', '--no-color', `${mergeBase}..HEAD`, '--', filePath]),
   )
 }
+
+/**
+ * The base ref a branch review is measured against: the remote's default branch
+ * (origin/HEAD, e.g. "origin/main") if known, else a local main/master.
+ */
+export async function gitDefaultBranch(repoPath: string): Promise<string> {
+  try {
+    const ref = (await runGit(repoPath, ['rev-parse', '--abbrev-ref', 'origin/HEAD'])).trim()
+    if (ref && ref !== 'origin/HEAD') return ref
+  } catch {
+    // no remote / origin/HEAD unset — fall through to local heuristics
+  }
+  for (const candidate of ['main', 'master']) {
+    try {
+      await runGit(repoPath, ['rev-parse', '--verify', '--quiet', candidate])
+      return candidate
+    } catch {
+      // not present; try next
+    }
+  }
+  return 'main' // last resort; range is empty if it doesn't exist
+}
+
+/** +/- counts per file over the merge-base of `base`..HEAD range. */
+export async function gitRangeNumstat(repoPath: string, base: string): Promise<DiffStat[]> {
+  const mergeBase = await gitMergeBase(repoPath, base)
+  return parseNumstat(await runGit(repoPath, ['diff', '--numstat', '-z', `${mergeBase}..HEAD`]))
+}
