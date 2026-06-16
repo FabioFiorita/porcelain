@@ -463,7 +463,12 @@ export const router = t.router({
       const diffs = new Map<string, DiffHunk[]>()
       await Promise.all(
         changed.map(async (file) => {
-          diffs.set(file.path, await gitDiffFile(input, file.path))
+          try {
+            diffs.set(file.path, await gitDiffFile(input, file.path))
+          } catch {
+            // file vanished/renamed between the status snapshot and this read —
+            // leave it out; buildFeatureReading falls back to an empty hunk list
+          }
         }),
       )
       const reading = buildFeatureReading({ view, sources, diffs })
