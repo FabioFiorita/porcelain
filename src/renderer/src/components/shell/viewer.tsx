@@ -67,15 +67,21 @@ function PaneView({ paneIndex }: { paneIndex: number }): React.JSX.Element {
 
   switch (activeTab.kind) {
     case 'diff':
-      return <DiffView filePath={activeTab.path} />
+      return <DiffView key={activeTab.path} filePath={activeTab.path} />
     case 'commit':
-      return <CommitView hash={activeTab.path} />
+      return <CommitView key={activeTab.path} hash={activeTab.path} />
     case 'search':
-      return <SearchView query={activeTab.path} />
+      return <SearchView key={activeTab.path} query={activeTab.path} />
     case 'feature':
       return <FeatureView />
     case 'explore':
-      return <ExploreView path={activeTab.path} symbol={activeTab.symbol} />
+      return (
+        <ExploreView
+          key={`${activeTab.path}:${activeTab.symbol ?? ''}`}
+          path={activeTab.path}
+          symbol={activeTab.symbol}
+        />
+      )
     case 'file':
       // keyed by path so edit state never leaks across tab switches
       return <FileContent key={activeTab.path} path={activeTab.path} line={activeTab.line} />
