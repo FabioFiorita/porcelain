@@ -72,6 +72,30 @@ export function useFileStaging(): {
   }
 }
 
+/**
+ * Discard a single file's changes from the changes list. Reverts a tracked file to
+ * HEAD or trashes a new file (decided server-side), so it can touch the working
+ * tree, the file tree, the pinned list, and the file's open diff — invalidate all.
+ */
+export function useDiscardFile(): (path: string) => Promise<void> {
+  const repo = useRepoStore((s) => s.repo)
+  const utils = trpc.useUtils()
+  const mutation = trpc.gitDiscardFile.useMutation({
+    onSuccess: async () => {
+      await Promise.all([
+        utils.gitFlow.invalidate(),
+        utils.gitDiffFile.invalidate(),
+        utils.readDir.invalidate(),
+        utils.pinnedEntries.invalidate(),
+      ])
+    },
+  })
+  return async (path) => {
+    if (!repo) return
+    await mutation.mutateAsync({ repoPath: repo.path, path })
+  }
+}
+
 export function useCommitConventions(): CommitConventions | undefined {
   const repo = useRepoStore((s) => s.repo)
   const { data } = trpc.gitCommitConventions.useQuery(repo?.path ?? '', { enabled: repo !== null })

@@ -16,14 +16,14 @@ import {
   SidebarMenuItem,
   SidebarProvider,
 } from '@renderer/components/ui/sidebar'
-import { Blocks, Download, Layers, Settings2, SlidersHorizontal } from 'lucide-react'
+import { Bot, Download, Layers, Settings2, SlidersHorizontal } from 'lucide-react'
 import { useState } from 'react'
+import { AgentsSection } from './agents-section'
 import { FlowLayersSection } from './flow-layers-section'
 import { GeneralSection } from './general-section'
-import { PluginSection } from './plugin-section'
 import { UpdatesSection } from './updates-section'
 
-type SectionId = 'general' | 'flow' | 'plugin' | 'updates'
+type SectionId = 'general' | 'flow' | 'agents' | 'updates'
 
 // Each section's title + blurb live here so the dialog can render a fixed header
 // band (real type hierarchy, always visible) while only the body scrolls — the
@@ -50,11 +50,11 @@ const SECTIONS: {
     blurb: 'Group changed files into a story, entry point to data. Saved per repository.',
   },
   {
-    id: 'plugin',
-    label: 'Claude Code plugin',
-    icon: Blocks,
-    title: 'Claude Code plugin',
-    blurb: 'Let your agent push the whole feature — server and cross-seam files — into review.',
+    id: 'agents',
+    label: 'Agents',
+    icon: Bot,
+    title: 'Agents',
+    blurb: 'Connect Porcelain to the coding agent you drive it from.',
   },
   {
     id: 'updates',
@@ -119,7 +119,7 @@ export function SettingsDialog(): React.JSX.Element {
             <main className="min-h-0 flex-1 overflow-y-auto p-6">
               {section === 'general' && <GeneralSection />}
               {section === 'flow' && <FlowLayersSection onSaved={() => setOpen(false)} />}
-              {section === 'plugin' && <PluginSection />}
+              {section === 'agents' && <AgentsSection />}
               {section === 'updates' && <UpdatesSection />}
             </main>
           </div>

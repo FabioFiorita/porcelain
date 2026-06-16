@@ -1,5 +1,15 @@
 import type { FileStatus } from '@main/diff'
 import type { FlowFile } from '@main/flow'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@renderer/components/ui/alert-dialog'
 import { Button } from '@renderer/components/ui/button'
 import {
   ContextMenu,
@@ -15,7 +25,7 @@ import {
   SidebarMenuItem,
 } from '@renderer/components/ui/sidebar'
 import { useBranchFlow } from '@renderer/hooks/use-branch-flow'
-import { useFileStaging } from '@renderer/hooks/use-commit'
+import { useDiscardFile, useFileStaging } from '@renderer/hooks/use-commit'
 import { useDiffFilePrefetch } from '@renderer/hooks/use-diff'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'
 import { useReviewedPaths, useToggleReviewed } from '@renderer/hooks/use-reviewed'
@@ -25,6 +35,7 @@ import { useRepoStore } from '@renderer/stores/repo'
 import { useRevealStore } from '@renderer/stores/reveal'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { Check, RefreshCw } from 'lucide-react'
+import { useState } from 'react'
 import { ChangesScopeToggle } from './changes-scope-toggle'
 
 const statusBadge: Record<FileStatus, { label: string; className: string }> = {
@@ -51,9 +62,14 @@ function FileRow({
   const reveal = useRevealStore((s) => s.reveal)
   const prefetchDiff = useDiffFilePrefetch()
   const { stageFile, unstageFile } = useFileStaging()
+  const discardFile = useDiscardFile()
   const { mark, unmark } = useToggleReviewed()
+  const [confirmDiscard, setConfirmDiscard] = useState(false)
   const name = file.path.split('/').at(-1) ?? file.path
   const connects = file.connects.map((c) => c.split('/').at(-1)).join(', ')
+  // A new file (no committed version) is trashed rather than reverted; word the
+  // confirmation to match what discard actually does in each case.
+  const isNew = file.status === 'untracked' || file.status === 'added'
 
   // The row's click opens the working-tree diff; this opens the FULL file (better
   // for reading it whole), flips the sidebar to Files, and reveals the file in
@@ -146,11 +162,34 @@ function FileRow({
           {file.staged && (
             <ContextMenuItem onClick={() => unstageFile(file.path)}>Unstage</ContextMenuItem>
           )}
+          {/* Discard only makes sense against the working tree — hidden in the
+              branch-diff scope, where rows are committed changes vs a base. */}
+          {!base && (
+            <ContextMenuItem variant="destructive" onClick={() => setConfirmDiscard(true)}>
+              Discard changes
+            </ContextMenuItem>
+          )}
         </ContextMenuContent>
       </ContextMenu>
       <SidebarMenuBadge className={cn('font-mono', statusBadge[file.status].className)}>
         {statusBadge[file.status].label}
       </SidebarMenuBadge>
+      <AlertDialog open={confirmDiscard} onOpenChange={setConfirmDiscard}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Discard {name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {isNew
+                ? `This moves the new file “${name}” to the Trash — you can restore it from there.`
+                : `This reverts “${name}” to the last commit. Uncommitted changes cannot be recovered.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => discardFile(file.path)}>Discard</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SidebarMenuItem>
   )
 }

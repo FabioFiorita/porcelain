@@ -19,6 +19,7 @@ vi.mock('@renderer/hooks/use-branch-flow', () => ({ useBranchFlow: vi.fn() }))
 vi.mock('@renderer/hooks/use-diff', () => ({ useDiffFilePrefetch: () => async () => {} }))
 vi.mock('@renderer/hooks/use-commit', () => ({
   useFileStaging: () => ({ stageFile: async () => {}, unstageFile: async () => {} }),
+  useDiscardFile: () => async () => {},
 }))
 vi.mock('@renderer/hooks/use-reviewed', () => ({
   useReviewedPaths: vi.fn(),

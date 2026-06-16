@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process'
 import { readFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { promisify } from 'node:util'
 import {
   type ChangedFile,
@@ -70,8 +70,64 @@ export async function gitListFiles(repoPath: string): Promise<string[]> {
 }
 
 export function warmFileList(repoPath: string): void {
-  // fire-and-forget; non-git directories simply stay uncached
-  refreshFileList(repoPath).catch(() => {})
+  // fire-and-forget; non-git directories simply stay uncached. Warms the finder
+  // list, which also populates the tracked-file cache (it reads `gitListFiles`).
+  refreshSearchList(repoPath).catch(() => {})
+}
+
+const searchListCache = new Map<string, { files: string[]; at: number; refreshing: boolean }>()
+
+/**
+ * Parse `git ls-files --others --ignored --exclude-standard --directory -z` into
+ * the loose ignored FILES worth surfacing in the finder. `--directory` collapses a
+ * wholly-ignored directory (`node_modules/`, `dist/`) into a single trailing-slash
+ * entry, so keeping only the non-slash entries leaves the individually-ignored
+ * files — `.env`, `.env.local`, … — and never the contents of an ignored dir.
+ * `.DS_Store` is dropped to match the file tree's filter.
+ */
+export function parseLooseIgnoredFiles(output: string): string[] {
+  return output
+    .split('\0')
+    .filter(Boolean)
+    .filter((p) => !p.endsWith('/') && basename(p) !== '.DS_Store')
+}
+
+async function refreshSearchList(repoPath: string): Promise<string[]> {
+  const [tracked, ignored] = await Promise.all([
+    gitListFiles(repoPath),
+    runGit(repoPath, [
+      'ls-files',
+      '--others',
+      '--ignored',
+      '--exclude-standard',
+      '--directory',
+      '-z',
+    ]),
+  ])
+  // tracked and ignored are disjoint by definition, so no dedupe is needed.
+  const files = [...tracked, ...parseLooseIgnoredFiles(ignored)]
+  searchListCache.set(repoPath, { files, at: Date.now(), refreshing: false })
+  return files
+}
+
+/**
+ * The Cmd+P finder candidate set: `gitListFiles` (tracked + untracked-non-ignored)
+ * PLUS loose individually-ignored files like `.env` that git normally hides but the
+ * user still needs to open and review. Wholly-ignored directories (`node_modules`)
+ * stay collapsed-and-dropped, so this never enumerates them. Stale-while-revalidate,
+ * like `gitListFiles`. Distinct from `gitListFiles` because the feature/explore
+ * import-walk must stay scoped to tracked files only.
+ */
+export async function gitListSearchFiles(repoPath: string): Promise<string[]> {
+  const cached = searchListCache.get(repoPath)
+  if (!cached) return refreshSearchList(repoPath)
+  if (Date.now() - cached.at >= FILE_LIST_TTL && !cached.refreshing) {
+    cached.refreshing = true
+    refreshSearchList(repoPath).catch(() => {
+      cached.refreshing = false
+    })
+  }
+  return cached.files
 }
 
 export async function gitLog(repoPath: string, limit: number): Promise<Commit[]> {
@@ -154,6 +210,45 @@ export async function gitStageFile(repoPath: string, path: string): Promise<void
 export async function gitUnstageFile(repoPath: string, path: string): Promise<void> {
   try {
     await runGit(repoPath, ['restore', '--staged', '--', path])
+  } catch (error) {
+    throw new Error(gitErrorOutput(error))
+  }
+}
+
+/**
+ * Does `path` exist in the HEAD commit? Distinguishes a tracked file (discardable
+ * by reverting to HEAD) from a brand-new one (no committed version to revert to).
+ * False on an unborn branch (no HEAD yet) — everything is "new" there.
+ */
+export async function gitFileInHead(repoPath: string, path: string): Promise<boolean> {
+  try {
+    await runGit(repoPath, ['cat-file', '-e', `HEAD:${path}`])
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Discard a tracked file's changes: reset both the index and the working tree to
+ * the committed version. Reverts staged + unstaged edits and restores a deletion.
+ */
+export async function gitRestoreFromHead(repoPath: string, path: string): Promise<void> {
+  try {
+    await runGit(repoPath, ['restore', '--staged', '--worktree', '--source=HEAD', '--', path])
+  } catch (error) {
+    throw new Error(gitErrorOutput(error))
+  }
+}
+
+/**
+ * Drop any staged entry for `path` (resets the index to HEAD for it); leaves the
+ * working-tree file in place. A no-op for an untracked path. Used when discarding a
+ * new file: unstage it here, then the caller trashes the working copy.
+ */
+export async function gitResetPath(repoPath: string, path: string): Promise<void> {
+  try {
+    await runGit(repoPath, ['reset', '-q', '--', path])
   } catch (error) {
     throw new Error(gitErrorOutput(error))
   }

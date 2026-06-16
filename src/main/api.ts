@@ -24,14 +24,18 @@ import {
   gitCommitFiles,
   gitDefaultBranch,
   gitDiffFile,
+  gitFileInHead,
   gitGrep,
   gitListFiles,
+  gitListSearchFiles,
   gitLog,
   gitNumstat,
   gitQuickCommand,
   gitRangeChangedFiles,
   gitRangeDiffFile,
   gitRangeNumstat,
+  gitResetPath,
+  gitRestoreFromHead,
   gitStageAll,
   gitStageFile,
   gitStatus,
@@ -365,6 +369,21 @@ export const router = t.router({
     .input(z.object({ repoPath: z.string(), path: z.string() }))
     .mutation(({ input }) => gitUnstageFile(input.repoPath, input.path)),
 
+  // Discard a single file's changes. A tracked file reverts to its committed
+  // version (staged + unstaged edits gone, deletions restored); a new file is
+  // unstaged then moved to the Trash (recoverable, like the tree's Delete) since
+  // it has no committed version to fall back to.
+  gitDiscardFile: t.procedure
+    .input(z.object({ repoPath: z.string(), path: z.string() }))
+    .mutation(async ({ input }) => {
+      if (await gitFileInHead(input.repoPath, input.path)) {
+        await gitRestoreFromHead(input.repoPath, input.path)
+      } else {
+        await gitResetPath(input.repoPath, input.path)
+        await shell.trashItem(join(input.repoPath, input.path))
+      }
+    }),
+
   gitCommit: t.procedure
     .input(z.object({ repoPath: z.string(), message: z.string().trim().min(1) }))
     .mutation(({ input }) => gitCommit(input.repoPath, input.message)),
@@ -658,7 +677,7 @@ export const router = t.router({
     .input(z.object({ repoPath: z.string(), query: z.string() }))
     .query(async ({ input }): Promise<string[]> => {
       if (input.query.trim() === '') return []
-      const [files, config] = await Promise.all([gitListFiles(input.repoPath), loadConfig()])
+      const [files, config] = await Promise.all([gitListSearchFiles(input.repoPath), loadConfig()])
       const hidden = hiddenPathsFor(config, input.repoPath)
       return fuzzySearch(input.query, visibleFiles(input.repoPath, files, hidden), 50).map(
         (r) => r.path,

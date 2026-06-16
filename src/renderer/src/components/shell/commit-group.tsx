@@ -1,19 +1,110 @@
 import { Button } from '@renderer/components/ui/button'
-import { Input } from '@renderer/components/ui/input'
+import {
+  Command,
+  CommandEmpty,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@renderer/components/ui/command'
+import { Popover, PopoverContent, PopoverTrigger } from '@renderer/components/ui/popover'
 import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
 } from '@renderer/components/ui/sidebar'
-import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
+import { Textarea } from '@renderer/components/ui/textarea'
 import { useCommit, useCommitConventions, useStageAll } from '@renderer/hooks/use-commit'
+import { applyCommitPrefix, parseCommitPrefix } from '@renderer/lib/commit-message'
 import { cn } from '@renderer/lib/utils'
-import { FilePlus2, GitCommitHorizontal } from 'lucide-react'
+import { ChevronsUpDown, FilePlus2, GitCommitHorizontal } from 'lucide-react'
 import { useState } from 'react'
 
+/**
+ * A combobox token (`type` / `scope`) that inserts a conventional-commit prefix
+ * into the message — pick a value the repo already uses or type a brand-new one.
+ * The selected value is DERIVED from the message text (so manual edits keep it in
+ * sync); choosing rewrites the message's leading prefix.
+ */
+function CommitTokenSelect({
+  kind,
+  value,
+  options,
+  onChange,
+  disabled,
+}: {
+  kind: 'type' | 'scope'
+  value: string | null
+  options: string[]
+  onChange: (value: string | null) => void
+  disabled?: boolean
+}): React.JSX.Element {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const q = query.trim()
+  const filtered = options.filter((o) => o.toLowerCase().includes(q.toLowerCase()))
+  const canCreate = q !== '' && !options.includes(q)
+  const display = value ? (kind === 'scope' ? `(${value})` : value) : kind
+  const choose = (next: string | null): void => {
+    onChange(next)
+    setOpen(false)
+    setQuery('')
+  }
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next)
+        if (!next) setQuery('')
+      }}
+    >
+      <PopoverTrigger
+        render={
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={disabled}
+            className={cn(
+              'h-6 rounded-md px-2 font-mono text-xs',
+              !value && 'text-muted-foreground',
+            )}
+          >
+            {display}
+            <ChevronsUpDown className="size-3 opacity-50" />
+          </Button>
+        }
+      />
+      <PopoverContent align="start" className="w-44 rounded-xl p-0">
+        <Command shouldFilter={false}>
+          <CommandInput value={query} onValueChange={setQuery} placeholder={`Add ${kind}…`} />
+          <CommandList>
+            {filtered.length === 0 && !canCreate && <CommandEmpty>No {kind}s yet.</CommandEmpty>}
+            {value && (
+              <CommandItem
+                value="__clear__"
+                onSelect={() => choose(null)}
+                className="text-muted-foreground"
+              >
+                Clear {kind}
+              </CommandItem>
+            )}
+            {filtered.map((o) => (
+              <CommandItem key={o} value={o} onSelect={() => choose(o)} className="font-mono">
+                {kind === 'scope' ? `(${o})` : o}
+              </CommandItem>
+            ))}
+            {canCreate && (
+              <CommandItem value={q} onSelect={() => choose(q)} className="font-mono">
+                Add “{q}”
+              </CommandItem>
+            )}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 export function CommitGroup(): React.JSX.Element {
-  const [type, setType] = useState<string | null>(null)
-  const [scope, setScope] = useState<string | null>(null)
   const [message, setMessage] = useState('')
   const [staged, setStaged] = useState<{ text: string; failed: boolean } | null>(null)
   const conventions = useCommitConventions()
@@ -37,13 +128,19 @@ export function CommitGroup(): React.JSX.Element {
     )
   }
 
-  const prefix = type ? `${type}${scope ? `(${scope})` : ''}: ` : ''
-  const subject = `${prefix}${message.trim()}`
-  const ready = type !== null && message.trim() !== ''
+  // The textarea is the source of truth — the tokens just read/rewrite its prefix,
+  // and a freeform message commits with no prefix at all.
+  const { type, scope } = parseCommitPrefix(message)
+  const ready = applyCommitPrefix(message, null, null).trim() !== ''
+
+  const setType = (next: string | null): void =>
+    setMessage((m) => applyCommitPrefix(m, next, next ? parseCommitPrefix(m).scope : null))
+  const setScope = (next: string | null): void =>
+    setMessage((m) => applyCommitPrefix(m, parseCommitPrefix(m).type, next))
 
   const commit = (): void => {
     if (!ready || isCommitting) return
-    runCommit(subject)
+    runCommit(message.trim())
   }
 
   const stage = async (): Promise<void> => {
@@ -64,41 +161,32 @@ export function CommitGroup(): React.JSX.Element {
       </SidebarGroupLabel>
       <SidebarGroupContent className="px-2">
         <div className="glaze-tile flex flex-col gap-2.5 p-2.5 [--tile-fill:var(--surface-2)]">
-          <ToggleGroup
-            value={type ? [type] : []}
-            onValueChange={(value: string[]) => setType(value[0] ?? null)}
-            className="flex-wrap justify-start gap-1"
-          >
-            {conventions.types.map((t) => (
-              <ToggleGroupItem key={t} value={t} size="sm" className="h-6 px-2 font-mono text-xs">
-                {t}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
-          {conventions.scopes.length > 0 && (
-            <ToggleGroup
-              value={scope ? [scope] : []}
-              onValueChange={(value: string[]) => setScope(value[0] ?? null)}
-              className="flex-wrap justify-start gap-1"
-            >
-              {conventions.scopes.map((s) => (
-                <ToggleGroupItem key={s} value={s} size="sm" className="h-6 px-2 font-mono text-xs">
-                  ({s})
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-          )}
-          <Input
+          <div className="flex items-center gap-1.5">
+            <CommitTokenSelect
+              kind="type"
+              value={type}
+              options={conventions.types}
+              onChange={setType}
+            />
+            <CommitTokenSelect
+              kind="scope"
+              value={scope}
+              options={conventions.scopes}
+              onChange={setScope}
+              disabled={!type}
+            />
+          </div>
+          <Textarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && commit()}
-            placeholder="commit message"
+            onKeyDown={(e) => {
+              if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') commit()
+            }}
+            placeholder="Commit message — ⌘↵ to commit"
             aria-label="Commit message"
-            className="h-8 rounded-md text-sm"
+            rows={3}
+            className="min-h-16 resize-none rounded-md text-sm"
           />
-          {prefix && (
-            <p className="truncate font-mono text-[11px] text-muted-foreground">{subject}</p>
-          )}
           {staged && (
             <p
               className={cn(
