@@ -7,6 +7,7 @@ import { loadConfig, updateConfig } from './config-store'
 import { type CommitConventions, parseConventions } from './conventions'
 import type { DiffHunk } from './diff'
 import { buildExploreReading, walkExplore } from './feature-explore'
+import { featureKey, flowKey } from './feature-key'
 import {
   buildFeatureReading,
   buildFeatureView,
@@ -152,7 +153,7 @@ async function gatherFeature(input: string) {
     readReviewSet(input),
   ])
   const layers = layersFor(config, input) ?? DEFAULT_LAYERS
-  const key = JSON.stringify([files, stats, layers, reviewSet])
+  const key = featureKey(files, stats, layers, reviewSet)
   return { files, stats, layers, reviewSet, repoFiles, key }
 }
 
@@ -402,7 +403,7 @@ export const router = t.router({
       gitNumstat(input),
     ])
     const layers = layersFor(config, input) ?? DEFAULT_LAYERS
-    const key = JSON.stringify([files, stats, layers])
+    const key = flowKey(files, stats, layers)
     const cached = flowCache.get(input)
     if (cached && cached.key === key) return cached.groups
     const sources = new Map<string, string>()
