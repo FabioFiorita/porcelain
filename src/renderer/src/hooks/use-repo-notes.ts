@@ -8,7 +8,7 @@ export function useRepoNotes(): string | undefined {
   return data
 }
 
-export function useSetRepoNotes(): { save: (notes: string) => void } {
+export function useSetRepoNotes(): { save: (repoPath: string | undefined, notes: string) => void } {
   const utils = trpc.useUtils()
   const mutation = trpc.setRepoNotes.useMutation({
     // Keep the cache in step so a repo switch and back shows the latest notes
@@ -16,8 +16,7 @@ export function useSetRepoNotes(): { save: (notes: string) => void } {
     onSuccess: () => utils.repoNotes.invalidate(),
   })
   return {
-    save: (notes) => {
-      const repoPath = useRepoStore.getState().repo?.path
+    save: (repoPath, notes) => {
       if (!repoPath) return
       mutation.mutate({ repoPath, notes })
     },

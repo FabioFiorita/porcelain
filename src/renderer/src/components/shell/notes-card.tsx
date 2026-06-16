@@ -35,7 +35,7 @@ function markdownOf(editor: Editor): string {
  * plain textarea — see the decision log) persisted as a markdown string with
  * debounced autosave, mirroring EditorSource's save lifecycle.
  */
-export function NotesCard(): React.JSX.Element {
+export function NotesCard({ repoPath }: { repoPath?: string }): React.JSX.Element {
   const notes = useRepoNotes()
 
   return (
@@ -46,13 +46,19 @@ export function NotesCard(): React.JSX.Element {
       {notes === undefined ? (
         <div className="px-2 py-1 text-xs text-muted-foreground">Loading…</div>
       ) : (
-        <NotesEditor initialMarkdown={notes} />
+        <NotesEditor initialMarkdown={notes} repoPath={repoPath} />
       )}
     </div>
   )
 }
 
-function NotesEditor({ initialMarkdown }: { initialMarkdown: string }): React.JSX.Element {
+function NotesEditor({
+  initialMarkdown,
+  repoPath,
+}: {
+  initialMarkdown: string
+  repoPath?: string
+}): React.JSX.Element {
   const { save } = useSetRepoNotes()
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const savedRef = useRef(initialMarkdown)
@@ -64,7 +70,7 @@ function NotesEditor({ initialMarkdown }: { initialMarkdown: string }): React.JS
     const next = markdownOf(editor)
     if (next === savedRef.current) return
     savedRef.current = next
-    save(next)
+    save(repoPath, next)
   }
 
   const editor = useEditor({
