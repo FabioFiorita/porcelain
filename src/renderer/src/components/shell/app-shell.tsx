@@ -50,6 +50,9 @@ function UpdateButton(): React.JSX.Element | null {
 function TopBar({ left }: { left: LeftSidebarHandle }): React.JSX.Element {
   const rightSidebarOpen = usePreferencesStore((s) => s.rightSidebarOpen)
   const setRightSidebarOpen = usePreferencesStore((s) => s.setRightSidebarOpen)
+  // The Board tab has no Quick Access section, so its toggle is hidden (the panel
+  // itself is suppressed in RepoShell) — see RIGHT_SIDEBAR-less tabs there.
+  const hasQuickAccess = usePreferencesStore((s) => s.sidebarTab !== 'board')
   // When split, each pane carries its own tab bar inside the viewer; the chrome
   // bar shows the (single) pane's tabs otherwise.
   const isSplit = useTabsStore((s) => s.panes.length > 1)
@@ -78,24 +81,26 @@ function TopBar({ left }: { left: LeftSidebarHandle }): React.JSX.Element {
       </Tooltip>
       {isSplit ? <div className="min-w-0 flex-1 self-stretch" /> : <TabBar paneIndex={0} />}
       <UpdateButton />
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={() => setRightSidebarOpen(!rightSidebarOpen)}
-              aria-label="Toggle quick access sidebar"
-              className="app-no-drag m-1 mr-2"
-            >
-              <Zap />
-            </Button>
-          }
-        />
-        <TooltipContent className="flex items-center gap-1.5">
-          Quick access <Kbd>⌘.</Kbd>
-        </TooltipContent>
-      </Tooltip>
+      {hasQuickAccess && (
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => setRightSidebarOpen(!rightSidebarOpen)}
+                aria-label="Toggle quick access sidebar"
+                className="app-no-drag m-1 mr-2"
+              >
+                <Zap />
+              </Button>
+            }
+          />
+          <TooltipContent className="flex items-center gap-1.5">
+            Quick access <Kbd>⌘.</Kbd>
+          </TooltipContent>
+        </Tooltip>
+      )}
     </div>
   )
 }
@@ -103,15 +108,18 @@ function TopBar({ left }: { left: LeftSidebarHandle }): React.JSX.Element {
 // Rendered between the providers: useSidebar here reads the outer (left) one.
 function RepoShell(): React.JSX.Element {
   const { state, toggleSidebar } = useSidebar()
-  const rightSidebarOpen = usePreferencesStore((s) => s.rightSidebarOpen)
   const setRightSidebarOpen = usePreferencesStore((s) => s.setRightSidebarOpen)
   const rightSidebarWidth = usePreferencesStore((s) => s.rightSidebarWidth)
+  // The Board tab has no Quick Access content, so the right panel is suppressed
+  // there — independently of the user's open/closed preference, which is restored
+  // when they switch back to a tab that has a Quick Access section.
+  const rightOpen = usePreferencesStore((s) => s.rightSidebarOpen && s.sidebarTab !== 'board')
   const left: LeftSidebarHandle = { collapsed: state === 'collapsed', toggle: toggleSidebar }
 
   return (
     <SidebarInset className="h-screen min-w-0 bg-transparent">
       <SidebarProvider
-        open={rightSidebarOpen}
+        open={rightOpen}
         onOpenChange={setRightSidebarOpen}
         shortcut="."
         className="h-full min-h-0"
@@ -123,7 +131,7 @@ function RepoShell(): React.JSX.Element {
           className={cn(
             'glaze-tile my-2 flex min-w-0 flex-1 flex-col overflow-hidden [--tile-fill:var(--surface-1)]',
             left.collapsed && 'ml-2',
-            !rightSidebarOpen && 'mr-2',
+            !rightOpen && 'mr-2',
           )}
         >
           <TopBar left={left} />

@@ -14,6 +14,16 @@ test('Changes tab lists the working-tree changes', async ({ page }) => {
   await expect(page.getByText('Card.tsx')).toBeVisible()
 })
 
+test('Board tab hides the Quick Access panel', async ({ page }) => {
+  await waitForShell(page)
+  // The toggle is present on a tab that has Quick Access content…
+  await selectTab(page, 'Changes')
+  await expect(page.getByRole('button', { name: 'Toggle quick access sidebar' })).toBeVisible()
+  // …and gone on the Board tab, which has none.
+  await selectTab(page, 'Board')
+  await expect(page.getByRole('button', { name: 'Toggle quick access sidebar' })).toHaveCount(0)
+})
+
 test('Settings dialog opens to the General section', async ({ page }) => {
   await waitForShell(page)
   await openSettings(page)
