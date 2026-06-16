@@ -76,6 +76,7 @@ export type FileView =
   | { type: 'image'; dataUrl: string }
   | { type: 'binary'; size: number }
   | { type: 'too-large'; size: number }
+  | { type: 'not-found' }
 
 const IMAGE_MIME: Record<string, string> = {
   png: 'image/png',
@@ -347,21 +348,31 @@ export const router = t.router({
     }),
 
   readFile: t.procedure.input(z.string()).query(async ({ input }): Promise<FileView> => {
-    const info = await stat(input)
-    if (exceedsReadLimit(info.size)) {
-      return { type: 'too-large', size: info.size }
-    }
-    const ext = input.split('.').at(-1)?.toLowerCase() ?? ''
-    const imageMime = IMAGE_MIME[ext]
-    if (imageMime) {
+    try {
+      const info = await stat(input)
+      if (exceedsReadLimit(info.size)) {
+        return { type: 'too-large', size: info.size }
+      }
+      const ext = input.split('.').at(-1)?.toLowerCase() ?? ''
+      const imageMime = IMAGE_MIME[ext]
+      if (imageMime) {
+        const buffer = await readFile(input)
+        return { type: 'image', dataUrl: `data:${imageMime};base64,${buffer.toString('base64')}` }
+      }
       const buffer = await readFile(input)
-      return { type: 'image', dataUrl: `data:${imageMime};base64,${buffer.toString('base64')}` }
+      if (buffer.subarray(0, 8000).includes(0)) {
+        return { type: 'binary', size: buffer.length }
+      }
+      return { type: 'text', content: buffer.toString('utf8') }
+    } catch (err) {
+      // The file vanished (deleted on disk while a stale tree row still points at
+      // it) — surface a clean state instead of a raw ENOENT; the viewer refreshes
+      // the tree so the phantom row drops.
+      if (err instanceof Error && 'code' in err && err.code === 'ENOENT') {
+        return { type: 'not-found' }
+      }
+      throw err
     }
-    const buffer = await readFile(input)
-    if (buffer.subarray(0, 8000).includes(0)) {
-      return { type: 'binary', size: buffer.length }
-    }
-    return { type: 'text', content: buffer.toString('utf8') }
   }),
 
   writeTextFile: t.procedure
@@ -376,6 +387,10 @@ export const router = t.router({
 
   revealInFinder: t.procedure.input(z.string()).mutation(({ input }) => {
     shell.showItemInFolder(input)
+  }),
+
+  trashPath: t.procedure.input(z.string()).mutation(async ({ input }) => {
+    await shell.trashItem(input)
   }),
 
   gitStatus: t.procedure.input(z.string()).query(({ input }) => gitStatus(input)),

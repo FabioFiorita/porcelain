@@ -2,6 +2,7 @@ import type { DirEntry, FileView } from '@main/api'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useSelectionStore } from '@renderer/stores/selection'
+import { useCallback } from 'react'
 
 export function useReadDir(path: string, enabled = true): DirEntry[] | undefined {
   const repo = useRepoStore((s) => s.repo)
@@ -59,6 +60,31 @@ export function usePinnedEntries(): DirEntry[] | undefined {
 export function useRevealInFinder(): (path: string) => void {
   const mutation = trpc.revealInFinder.useMutation()
   return (path) => mutation.mutate(path)
+}
+
+/** Drop stale tree + pinned rows after a file vanished from disk (external delete). */
+export function useRefreshTree(): () => void {
+  const utils = trpc.useUtils()
+  // Stable identity so callers can safely list it in effect deps without re-firing.
+  return useCallback(() => {
+    utils.readDir.invalidate()
+    utils.pinnedEntries.invalidate()
+  }, [utils])
+}
+
+export function useTrashPath(): (path: string) => Promise<void> {
+  const utils = trpc.useUtils()
+  const mutation = trpc.trashPath.useMutation({
+    onSuccess: async () => {
+      // a deleted file leaves the tree, the pinned list, and git's working tree
+      await Promise.all([
+        utils.readDir.invalidate(),
+        utils.pinnedEntries.invalidate(),
+        utils.gitFlow.invalidate(),
+      ])
+    },
+  })
+  return (path) => mutation.mutateAsync(path)
 }
 
 export function useEntryActions(entry: DirEntry): {

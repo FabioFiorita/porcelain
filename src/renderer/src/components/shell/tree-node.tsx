@@ -1,5 +1,15 @@
 import type { DirEntry } from '@main/api'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@renderer/components/ui/alert-dialog'
+import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
@@ -13,7 +23,12 @@ import {
 import { SidebarMenuButton, SidebarMenuItem, SidebarMenuSub } from '@renderer/components/ui/sidebar'
 import { FileTypeIcon, FolderIcon } from '@renderer/components/viewer/file-icon'
 import { usePathActions } from '@renderer/components/viewer/use-path-actions'
-import { useEntryActions, useReadDir, useReadFilePrefetch } from '@renderer/hooks/use-files'
+import {
+  useEntryActions,
+  useReadDir,
+  useReadFilePrefetch,
+  useTrashPath,
+} from '@renderer/hooks/use-files'
 import { cn } from '@renderer/lib/utils'
 import { useRevealStore } from '@renderer/stores/reveal'
 import { useSelectionStore } from '@renderer/stores/selection'
@@ -31,45 +46,67 @@ function EntryContextMenu({
   const { hide, unhide, hideSelected, pin, unpin, selectionSize } = useEntryActions(entry)
   const batchSize = selectionSize + (useSelectionStore.getState().selected.has(entry.path) ? 0 : 1)
   const openTabToSide = useTabsStore((s) => s.openTabToSide)
-  const { exploreFlow } = usePathActions(entry.path)
+  const { reveal, exploreFlow } = usePathActions(entry.path)
+  const trash = useTrashPath()
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   return (
-    <ContextMenu>
-      <ContextMenuTrigger>{children}</ContextMenuTrigger>
-      <ContextMenuContent>
-        {entry.kind === 'file' && (
-          <ContextMenuItem
-            onClick={() =>
-              openTabToSide({
-                id: tabId('file', entry.path),
-                kind: 'file',
-                title: entry.name,
-                path: entry.path,
-              })
-            }
-          >
-            Open to the Side
+    <>
+      <ContextMenu>
+        <ContextMenuTrigger>{children}</ContextMenuTrigger>
+        <ContextMenuContent>
+          {entry.kind === 'file' && (
+            <ContextMenuItem
+              onClick={() =>
+                openTabToSide({
+                  id: tabId('file', entry.path),
+                  kind: 'file',
+                  title: entry.name,
+                  path: entry.path,
+                })
+              }
+            >
+              Open to the Side
+            </ContextMenuItem>
+          )}
+          {entry.kind === 'file' && (
+            <ContextMenuItem onClick={() => exploreFlow()}>
+              <Compass /> Explore feature flow
+            </ContextMenuItem>
+          )}
+          <ContextMenuItem onClick={reveal}>Reveal in Finder</ContextMenuItem>
+          {entry.pinned ? (
+            <ContextMenuItem onClick={unpin}>Unpin</ContextMenuItem>
+          ) : (
+            <ContextMenuItem onClick={pin}>Pin</ContextMenuItem>
+          )}
+          {selectionSize > 0 ? (
+            <ContextMenuItem onClick={hideSelected}>Hide {batchSize} items</ContextMenuItem>
+          ) : entry.hidden ? (
+            <ContextMenuItem onClick={unhide}>Unhide</ContextMenuItem>
+          ) : (
+            <ContextMenuItem onClick={hide}>Hide</ContextMenuItem>
+          )}
+          <ContextMenuItem variant="destructive" onClick={() => setConfirmDelete(true)}>
+            Delete
           </ContextMenuItem>
-        )}
-        {entry.kind === 'file' && (
-          <ContextMenuItem onClick={() => exploreFlow()}>
-            <Compass /> Explore feature flow
-          </ContextMenuItem>
-        )}
-        {entry.pinned ? (
-          <ContextMenuItem onClick={unpin}>Unpin</ContextMenuItem>
-        ) : (
-          <ContextMenuItem onClick={pin}>Pin</ContextMenuItem>
-        )}
-        {selectionSize > 0 ? (
-          <ContextMenuItem onClick={hideSelected}>Hide {batchSize} items</ContextMenuItem>
-        ) : entry.hidden ? (
-          <ContextMenuItem onClick={unhide}>Unhide</ContextMenuItem>
-        ) : (
-          <ContextMenuItem onClick={hide}>Hide</ContextMenuItem>
-        )}
-      </ContextMenuContent>
-    </ContextMenu>
+        </ContextMenuContent>
+      </ContextMenu>
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {entry.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This moves “{entry.name}” to the Trash. You can restore it from there.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => trash(entry.path)}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }
 
