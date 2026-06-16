@@ -6,12 +6,12 @@ Porcelain is a lightweight macOS viewer + agent companion (Electron). Not an edi
 
 ## Hard rules
 
-1. **One way to do everything.** Before introducing any new pattern (state, data fetching, IPC shape, component or test style), check the `architecture` skill. If undecided, **stop and ask the user**, then record the answer in its home skill. Two coexisting architectures is a failure state.
-2. **Uniformity everywhere** — code, tests, commits, naming. Match existing patterns exactly.
+1. **One architecture — but think freely.** Default to the existing pattern (state, data fetching, IPC shape, component/test style): check the `architecture` skill and match what's there, so the codebase stays uniform. But if you think a genuinely better approach exists, **propose it with the tradeoff before building** — don't silently fork the architecture, and don't be timid about suggesting one. The failure state is *two patterns nobody chose*; a considered switch (recorded in the home skill) is not. Outside-the-box thinking is wanted — it just gets surfaced, not smuggled in.
+2. **Match the local idiom.** When you write code, make it read like the code around it — naming, test shape, file layout, commit format. This is small-scale consistency (so the result looks like one author), not a constraint on *what* you build.
 3. **Verification gate before any commit:** `pnpm lint && pnpm typecheck && pnpm test && pnpm build`.
-4. **Keep the relevant skill accurate.** When you change architecture or make a product decision, update its home skill in the same commit so the skill never lies about current behavior. No decision log, no redundant guides — the skill states *what is*, nothing more.
+4. **Docs say what the code can't.** A skill carries decisions, the *why*, the deliberately-absent, and the traps — **not** a paraphrase of how a file works today. For current mechanics, read the file (it never goes stale); the skill points you to the entry file and tells you what a fresh read won't. So: when you change a decision or hit a new trap, update its home skill in the same commit; when you find a skill describing mechanics the code already shows, *cut it*; and prefer enforcing a rule in Biome over writing it in prose (a lint rule can't rot or be ignored). No decision log, no redundant guides.
 5. **shadcn primitives only.** Always use shadcn components for UI primitives; never hand-roll one (sidebar, tabs, dialogs, trees, etc.). If a needed primitive doesn't exist in shadcn/registries, **get the user's approval before building it**.
-6. **No type escape hatches.** No `any`, no `as unknown as` casts. If type safety requires a different design (e.g. tRPC over a hand-rolled bridge), prefer the safer design.
+6. **Let type-safety drive the design.** When types fight you, change the design — don't escape it. `any` is already a Biome error (the gate enforces it), so this rule is the half lint can't: reach for the safer shape (e.g. tRPC over a hand-rolled bridge) instead of an `as unknown as` cast (banned repo-wide).
 7. **No `void` on promises.** Never write `void somePromise()` to silence floating promises — use `async`/`await` (or `await Promise.all([...])` when batching). Bare calls like `utils.foo.invalidate()` in sync handlers are fine when you truly don't need to wait.
 8. **Commit straight to `main` — never create branches.** Solo developer; `main` is the only branch and committing directly to it (after the verification gate, hard rule 3) is safe and expected. Do NOT open `feat/*`/`fix/*` branches or PRs for changes, and do NOT branch just because you're on the default branch — keep everything on `main`. (This deliberately overrides the generic "branch off the default branch first" default.)
 
@@ -23,13 +23,13 @@ Only each skill's one-line description loads up front; the body loads on demand 
 - `product` — what Porcelain is, who it's for, core features, product principles. **Read before designing features/UI or prioritizing.**
 - `audit` — the security/correctness/performance/type invariants the codebase must not regress, with file pointers. **Read before changing the main process, IPC, config persistence, git plumbing, file reads, external-URL handling, or packaging — and when reviewing a diff for regressions.**
 - `releasing` — the runbook for cutting a signed + notarized release (bump/tag, the Actions pipeline, secrets, changelog). **Read when publishing a version or touching the release/signing setup.**
-- `improve` — read-only senior-advisor audit harness that produces handoff plans for other agents (output in `plans/`).
+- `shadcn` — vendored UI-primitive skill (also in `.agents/skills/`).
 
-Vendor skills: `shadcn`, `frontend-design`.
+Also available, but **not** vendored in this repo (globally installed, listed here only so you know they exist): `improve` (read-only senior-advisor audit harness → plans in `plans/`) and `frontend-design`.
 
 ## Nomenclature
 
-Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wrong") resolves to one place without asking. Each term maps to real code; when the user uses one, act on the named region — don't re-ask which one. Detail lives in the `architecture` skill's App shell section; this is the lookup table.
+Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wrong") resolves to one place without asking. Each term maps to real code; when the user uses one, act on the named region — don't re-ask which one. The file in parens is the **entry point** — read it for current mechanics; the `architecture` skill holds the cross-cutting decisions and traps. This is the lookup table.
 
 **Shell regions (the window, outside-in):**
 - **Top bar** — full-width chrome header (`TopBar` in `app-shell.tsx`): traffic lights + project switcher on the left, panel toggles + Update pill on the right.
@@ -38,7 +38,7 @@ Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wron
 - **Quick Access** — the **right** panel (`right-sidebar.tsx`). Cmd+. — its contents follow the active sidebar tab.
 
 **Inside the sidebar:**
-- **Sidebar tabs** — the five: **Files**, **Changes**, **History**, **Feature**, **Board** (`sidebarTab` pref; Cmd+1/2/3/4/5). They're a **vertical icon rail** on the left edge of the sidebar (monochrome, icon-only, tooltips carry the ⌘ shortcut), with the active tab's body in the **content panel** to its right; ⌘B collapses the panel to just the rail. (Was a horizontal glass-pill strip; see the `architecture` skill's app-shell note.)
+- **Sidebar tabs** — the five: **Files**, **Changes**, **History**, **Feature**, **Board** (`sidebarTab` pref; Cmd+1/2/3/4/5). They're a **vertical icon rail** on the left edge of the sidebar (monochrome, icon-only, tooltips carry the ⌘ shortcut), with the active tab's body in the **content panel** to its right; ⌘B collapses the panel to just the rail.
 - **File tree** — Files tab body (`file-tree.tsx` / `tree-node.tsx`).
 - **Changes list** — Changes tab body (`changes-list.tsx`), grouped by flow layer. Row click opens the diff; right-click → **Open file** opens the full file in the viewer and switches to the Files tab.
 - **History list** — History tab body (`history-list.tsx`).
@@ -48,7 +48,7 @@ Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wron
 **Inside the viewer:**
 - **Tab bar** — the floating glass capsule of open documents (`tab-bar.tsx`).
 - **Tab** — one open document. **Preview tab** = single-click, italic, replaced by the next preview; **pinned tab** = double-click or edit, kept.
-- **Split view / pane** — the viewer can split into two side-by-side **panes**, each with its own tab bar and active tab (`panes`/`activePaneIndex` in `stores/tabs.ts`). Open via "Open to the Side" (file-tree row or tab); closing a pane's last tab collapses the split. Details in the `architecture` skill's "Split view" note.
+- **Split view / pane** — the viewer can split into two side-by-side **panes**, each with its own tab bar and active tab (`panes`/`activePaneIndex` in `stores/tabs.ts`). Open via "Open to the Side" (file-tree row or tab); closing a pane's last tab collapses the split. The pane model is in the `architecture` skill (Routing).
 - Tab kinds: **file view** / **source view** (`source-view.tsx`, editable) / **markdown reader** (`markdown-view.tsx`) / **diff view** (`diff-view.tsx`, working-tree) / **commit view** (`commit-view.tsx`, a historical commit) / **search view** (`search-view.tsx`, find-references results) / **feature view** (`feature-view.tsx`, the MCP-only inline reading surface — the whole feature in flow order showing just the relevant lines: diff hunks for changed files, symbol slices for context/shipped) / **explore view** (`explore-view.tsx`, a read-only feature flow seeded from a symbol or file and walked through imports — same sliced reading surface, opened via right-click "Explore flow from X" / "Explore feature flow") / **board view** (`board-view.tsx`, the wide todo/doing/done kanban, opened from the Board tab's "Open board").
 
 **Inside Quick Access (section depends on the sidebar tab):**

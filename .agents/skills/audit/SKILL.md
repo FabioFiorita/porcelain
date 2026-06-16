@@ -8,7 +8,7 @@ description: Porcelain's hard-won invariants — the security, correctness, perf
 A "don't regress these" checklist. These are constraints the codebase **earned**
 — most were a bug, a crash, or a security gap before the fix landed. Breaking one
 rarely fails a test; it fails in production. Before touching the listed area, read
-the invariant; after, verify it still holds. The 8 hard rules in `CLAUDE.md` are
+the invariant; after, verify it still holds. The hard rules in `CLAUDE.md` are
 assumed — this skill is the codebase-specific layer beneath them.
 
 ## Security & process boundary
@@ -148,5 +148,5 @@ assumed — this skill is the codebase-specific layer beneath them.
 - The gate before any commit: `pnpm lint && pnpm typecheck && pnpm test && pnpm build`
   must all pass (hard rule 3).
 - Invariants above that the gate does **not** catch (security guards, git env flags,
-  dep placement, the v10 pin) need a human/agent read of the diff — that's what this
+  dep placement) need a human/agent read of the diff — that's what this
   skill is for. When reviewing, walk this list against the changed files.
