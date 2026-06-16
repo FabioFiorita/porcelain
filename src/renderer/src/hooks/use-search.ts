@@ -15,14 +15,25 @@ export function useFileSearch(
   return { results, isFetching }
 }
 
-export function useTextSearch(query: string): {
+export function useTextSearch(
+  query: string,
+  enabled = true,
+): {
   matches: GrepMatch[] | undefined
   error: { message: string } | null
+  isFetching: boolean
 } {
   const repo = useRepoStore((s) => s.repo)
-  const { data: matches, error } = trpc.searchText.useQuery(
+  const {
+    data: matches,
+    error,
+    isFetching,
+  } = trpc.searchText.useQuery(
     { repoPath: repo?.path ?? '', query },
-    { enabled: repo !== null },
+    {
+      enabled: enabled && repo !== null && query.trim() !== '',
+      placeholderData: keepPreviousData,
+    },
   )
-  return { matches, error }
+  return { matches, error, isFetching }
 }

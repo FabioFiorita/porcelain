@@ -11,6 +11,7 @@ import { useTabsStore } from '@renderer/stores/tabs'
 import { PanelLeft, RotateCw, Zap } from 'lucide-react'
 import { useEffect } from 'react'
 import { AppSidebar } from './app-sidebar'
+import { ContentSearch } from './content-search'
 import { FileFinder } from './file-finder'
 import { RightSidebar } from './right-sidebar'
 import { TabBar } from './tab-bar'
@@ -177,6 +178,7 @@ export function AppShell(): React.JSX.Element {
         }
       >
         <FileFinder />
+        <ContentSearch />
         <AppSidebar />
         <RepoShell />
       </SidebarProvider>
