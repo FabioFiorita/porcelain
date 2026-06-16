@@ -22,7 +22,7 @@ import {
   Scissors,
   Search,
 } from 'lucide-react'
-import { memo, useEffect, useRef, useState } from 'react'
+import { memo, useDeferredValue, useEffect, useRef, useState } from 'react'
 import { usePathActions } from './use-path-actions'
 
 // Above this many lines the viewer falls back to the read-only virtualized
@@ -49,7 +49,8 @@ export function EditorSource({
   const scrollRef = useRef<HTMLDivElement>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lang = languageFor(path)
-  const tokenLines = useTokenizedLines(content, lang)
+  const deferredContent = useDeferredValue(content)
+  const tokenLines = useTokenizedLines(deferredContent, lang)
   const { findReferences, exploreFlow, copyPath, copyRelativePath, reveal } = usePathActions(path)
   const { save, isSaving, error: saveError } = useWriteTextFile(path)
 
