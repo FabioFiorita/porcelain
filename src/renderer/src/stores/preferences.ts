@@ -29,6 +29,10 @@ interface PreferencesState {
   splitRatio: number
   /** Whether the user has installed the Claude Code plugin (demotes the CTA). */
   pluginInstalled: boolean
+  /** Plugin version recorded at the last install; null if never recorded (pre-versioning
+   * installs). When it differs from the app's bundled PLUGIN_VERSION, the Settings CTA
+   * becomes "Update". */
+  pluginVersion: string | null
   setChangesScope: (scope: ChangesScope) => void
   setDiffMode: (mode: DiffMode) => void
   setMarkdownMode: (mode: MarkdownMode) => void
@@ -40,6 +44,7 @@ interface PreferencesState {
   setNotesHeight: (height: number) => void
   setSplitRatio: (ratio: number) => void
   setPluginInstalled: (installed: boolean) => void
+  setPluginVersion: (version: string | null) => void
 }
 
 export const usePreferencesStore = create<PreferencesState>()(
@@ -56,6 +61,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       notesHeight: 220,
       splitRatio: 0.5,
       pluginInstalled: false,
+      pluginVersion: null,
       setChangesScope: (changesScope) => set({ changesScope }),
       setDiffMode: (diffMode) => set({ diffMode }),
       setMarkdownMode: (markdownMode) => set({ markdownMode }),
@@ -71,6 +77,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       setSplitRatio: (ratio) =>
         set({ splitRatio: Math.min(SPLIT_MAX_RATIO, Math.max(SPLIT_MIN_RATIO, ratio)) }),
       setPluginInstalled: (pluginInstalled) => set({ pluginInstalled }),
+      setPluginVersion: (pluginVersion) => set({ pluginVersion }),
     }),
     { name: 'porcelain-preferences' },
   ),

@@ -1,7 +1,7 @@
 import { Button } from '@renderer/components/ui/button'
 import { useInstallPlugin, usePluginInfo } from '@renderer/hooks/use-plugin'
 import { usePreferencesStore } from '@renderer/stores/preferences'
-import { Check, CircleCheck, Copy, Loader2, TriangleAlert } from 'lucide-react'
+import { ArrowUpCircle, Check, CircleCheck, Copy, Loader2, TriangleAlert } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 export function PluginSection(): React.JSX.Element {
@@ -10,12 +10,20 @@ export function PluginSection(): React.JSX.Element {
   const [copied, setCopied] = useState(false)
   const pluginInstalled = usePreferencesStore((s) => s.pluginInstalled)
   const setPluginInstalled = usePreferencesStore((s) => s.setPluginInstalled)
+  const pluginVersion = usePreferencesStore((s) => s.pluginVersion)
+  const setPluginVersion = usePreferencesStore((s) => s.setPluginVersion)
 
-  // Remember a successful install so the big CTA demotes to a quiet "Reinstall"
-  // on later visits — the user already did this once.
+  const current = info?.version
+  // Installed but the bundled plugin is a different version (or we never recorded one,
+  // i.e. it was installed before versioning existed) → offer an update.
+  const needsUpdate = pluginInstalled && current !== undefined && pluginVersion !== current
+
+  // Record a successful install/update: the CTA then reflects "up to date".
   useEffect(() => {
-    if (result?.ok) setPluginInstalled(true)
-  }, [result, setPluginInstalled])
+    if (!result?.ok) return
+    setPluginInstalled(true)
+    if (current) setPluginVersion(current)
+  }, [result, current, setPluginInstalled, setPluginVersion])
 
   const commands = info?.commands ?? []
 
@@ -27,20 +35,7 @@ export function PluginSection(): React.JSX.Element {
 
   return (
     <div className="flex flex-col gap-5">
-      {pluginInstalled ? (
-        <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1.5 text-sm text-success">
-            <CircleCheck className="size-4" /> Installed
-          </span>
-          <Button variant="ghost" size="sm" onClick={() => install()} disabled={isInstalling}>
-            {isInstalling && <Loader2 className="animate-spin" />}
-            {isInstalling ? 'Reinstalling…' : 'Reinstall'}
-          </Button>
-          <span className="text-xs text-muted-foreground">
-            Run <code className="font-mono">/reload-plugins</code> after reinstalling.
-          </span>
-        </div>
-      ) : (
+      {!pluginInstalled ? (
         <div className="flex items-center gap-3">
           <Button onClick={() => install()} disabled={isInstalling}>
             {isInstalling && <Loader2 className="animate-spin" />}
@@ -51,11 +46,36 @@ export function PluginSection(): React.JSX.Element {
             afterward.
           </p>
         </div>
+      ) : needsUpdate ? (
+        <div className="flex items-center gap-3">
+          <Button onClick={() => install()} disabled={isInstalling}>
+            {isInstalling ? <Loader2 className="animate-spin" /> : <ArrowUpCircle />}
+            {isInstalling ? 'Updating…' : current ? `Update to v${current}` : 'Update'}
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            A newer plugin is available{pluginVersion ? ` (you have v${pluginVersion})` : ''}. Run{' '}
+            <code className="font-mono">/reload-plugins</code> after updating.
+          </p>
+        </div>
+      ) : (
+        <div className="flex items-center gap-3">
+          <span className="flex items-center gap-1.5 text-sm text-success">
+            <CircleCheck className="size-4" /> Up to date{current ? ` · v${current}` : ''}
+          </span>
+          <Button variant="ghost" size="sm" onClick={() => install()} disabled={isInstalling}>
+            {isInstalling && <Loader2 className="animate-spin" />}
+            {isInstalling ? 'Reinstalling…' : 'Reinstall'}
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            Run <code className="font-mono">/reload-plugins</code> after reinstalling.
+          </span>
+        </div>
       )}
 
       {result?.ok && (
         <p className="flex items-center gap-1.5 text-xs text-success">
-          <Check className="size-3.5" /> Installed. Your agent can now push feature reviews.
+          <Check className="size-3.5" /> Installed — run{' '}
+          <code className="font-mono">/reload-plugins</code> to load the latest tools.
         </p>
       )}
       {(error || (result && !result.ok)) && (

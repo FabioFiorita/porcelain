@@ -1,7 +1,9 @@
 import type { PluginInstallResult } from '@main/plugin'
 import { trpc } from '@renderer/lib/trpc'
 
-export function usePluginInfo(): { marketplaceDir: string; commands: string[] } | undefined {
+export function usePluginInfo():
+  | { marketplaceDir: string; commands: string[]; version: string }
+  | undefined {
   const { data } = trpc.pluginInfo.useQuery(undefined, { staleTime: Number.POSITIVE_INFINITY })
   return data
 }

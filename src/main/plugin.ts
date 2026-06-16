@@ -7,6 +7,7 @@ import {
   installCommands,
   marketplaceManifest,
   PLUGIN_NAME,
+  PLUGIN_VERSION,
   pluginManifest,
   pluginMarketplaceDir,
   REVIEW_SKILL,
@@ -45,7 +46,7 @@ export async function writePluginFiles(): Promise<string> {
   )
   await writeFile(
     join(plugin, '.claude-plugin', 'plugin.json'),
-    JSON.stringify(pluginManifest(app.getVersion()), null, 2),
+    JSON.stringify(pluginManifest(PLUGIN_VERSION), null, 2),
   )
   await writeFile(join(plugin, 'skills', REVIEW_SKILL_NAME, 'SKILL.md'), REVIEW_SKILL)
   await copyFile(builtServerPath(), join(plugin, 'server.js'))

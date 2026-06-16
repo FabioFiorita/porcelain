@@ -63,7 +63,7 @@ import {
   warmFileList,
 } from './git'
 import { installPlugin, type PluginInstallResult } from './plugin'
-import { installCommands, pluginMarketplaceDir } from './plugin-assets'
+import { installCommands, PLUGIN_VERSION, pluginMarketplaceDir } from './plugin-assets'
 import { exceedsReadLimit } from './read-limits'
 import {
   hiddenPathsFor,
@@ -787,10 +787,13 @@ export const router = t.router({
   }),
 
   // The Claude Code plugin (bundles the feature-review MCP server + skill).
-  pluginInfo: t.procedure.query((): { marketplaceDir: string; commands: string[] } => ({
-    marketplaceDir: pluginMarketplaceDir(),
-    commands: installCommands(),
-  })),
+  pluginInfo: t.procedure.query(
+    (): { marketplaceDir: string; commands: string[]; version: string } => ({
+      marketplaceDir: pluginMarketplaceDir(),
+      commands: installCommands(),
+      version: PLUGIN_VERSION,
+    }),
+  ),
 
   installPlugin: t.procedure.mutation((): Promise<PluginInstallResult> => installPlugin()),
 })

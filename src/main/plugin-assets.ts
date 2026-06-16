@@ -10,6 +10,15 @@ export const MARKETPLACE_NAME = 'porcelain'
 export const REVIEW_SKILL_NAME = 'review-with-porcelain'
 
 /**
+ * The plugin's own version — bumped whenever the bundled MCP server or skill gains
+ * capabilities (NOT tied to the app version, since the plugin can change between
+ * releases). The app records the version installed and offers an "Update" when this
+ * constant is newer. Bump on any change to the MCP tools or the review skill.
+ * 2.0.0: added review-comment + project-board tools on top of feature review sets.
+ */
+export const PLUGIN_VERSION = '2.0.0'
+
+/**
  * The local Claude Code marketplace root the app writes. Lives in ~/.porcelain
  * (the user's home, NOT a work repo) alongside the agent channel. Copying the
  * built MCP server here makes it a real, runnable file even when the app itself
