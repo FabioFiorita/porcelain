@@ -1,7 +1,19 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { type ReviewSet, type ReviewSets, reviewSetsSchema } from './review-set'
+
+/**
+ * True when `entryPath` (a path from the external, MCP-authored review-set file)
+ * stays inside `repoPath`. Rejects absolute paths and `..`-escapes — the file is
+ * owned by an untrusted external process, so its paths must be repo-contained
+ * before they reach `readFile(join(repoPath, entryPath))`.
+ */
+export function isRepoContained(repoPath: string, entryPath: string): boolean {
+  if (isAbsolute(entryPath)) return false
+  const rel = relative(repoPath, resolve(repoPath, entryPath))
+  return rel !== '' && !rel.startsWith('..') && !isAbsolute(rel)
+}
 
 /**
  * The agent channel: review sets the MCP server writes, keyed by absolute repo path.
@@ -23,7 +35,9 @@ export async function readReviewSet(repoPath: string): Promise<ReviewSet | null>
   try {
     const raw = await readFile(reviewSetsPath(), 'utf8')
     const all = reviewSetsSchema.parse(JSON.parse(raw))
-    return all[repoPath] ?? null
+    const set = all[repoPath]
+    if (!set) return null
+    return { ...set, files: set.files.filter((file) => isRepoContained(repoPath, file.path)) }
   } catch {
     // absent, unparseable, or schema-invalid (an external process owns this file) —
     // treat as "no agent set" and fall back to the static baseline

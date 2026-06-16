@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { clearReviewSet } from './review-store'
+import { clearReviewSet, isRepoContained, readReviewSet } from './review-store'
 
 describe('clearReviewSet', () => {
   const file = join(tmpdir(), 'porcelain-review-store-test', 'review-sets.json')
@@ -40,5 +40,63 @@ describe('clearReviewSet', () => {
 
   it('is a no-op (no throw) when the file is absent', async () => {
     await expect(clearReviewSet('/repo')).resolves.toBeUndefined()
+  })
+})
+
+describe('isRepoContained', () => {
+  it('accepts repo-relative paths', () => {
+    expect(isRepoContained('/repo', 'src/a.ts')).toBe(true)
+    expect(isRepoContained('/repo', 'a/../b.ts')).toBe(true) // normalizes inside
+  })
+  it('rejects absolute paths and parent escapes', () => {
+    expect(isRepoContained('/repo', '/etc/passwd')).toBe(false)
+    expect(isRepoContained('/repo', '../../../etc/passwd')).toBe(false)
+    expect(isRepoContained('/repo', '.')).toBe(false) // the repo dir itself, not a file
+  })
+})
+
+describe('readReviewSet path containment', () => {
+  const file = join(tmpdir(), 'porcelain-review-store-containment-test', 'review-sets.json')
+  const write = (data: unknown): void => {
+    mkdirSync(dirname(file), { recursive: true })
+    writeFileSync(file, JSON.stringify(data))
+  }
+
+  beforeEach(() => {
+    process.env.PORCELAIN_REVIEW_SETS = file
+    rmSync(dirname(file), { recursive: true, force: true })
+  })
+  afterEach(() => {
+    delete process.env.PORCELAIN_REVIEW_SETS
+    rmSync(dirname(file), { recursive: true, force: true })
+  })
+
+  it('drops review-set entries that escape the repo', async () => {
+    write({
+      '/repo': {
+        name: 'test',
+        files: [
+          { path: 'src/a.ts', source: 'changed' },
+          { path: '../../secret', source: 'changed' },
+          { path: '/etc/passwd', source: 'context' },
+        ],
+      },
+    })
+    const set = await readReviewSet('/repo')
+    expect(set?.files.map((f) => f.path)).toEqual(['src/a.ts'])
+  })
+
+  it('returns null when all entries escape the repo', async () => {
+    write({
+      '/repo': {
+        name: 'test',
+        files: [
+          { path: '../outside.ts', source: 'changed' },
+          { path: '/absolute/path.ts', source: 'context' },
+        ],
+      },
+    })
+    const set = await readReviewSet('/repo')
+    expect(set?.files).toEqual([])
   })
 })
