@@ -139,11 +139,40 @@ export const useTabsStore = create<TabsState>((set) => ({
   panes: [emptyPane()],
   activePaneIndex: 0,
   openTab: (tab) =>
-    set((state) => ({
-      panes: state.panes.map((p, i) => (i === state.activePaneIndex ? addTab(p, tab) : p)),
-    })),
+    set((state) => {
+      // A terminal is a single xterm instance — it can't be cloned into a second pane.
+      // If it's already open somewhere, activate it in place instead of duplicating it.
+      if (tab.kind === 'terminal') {
+        const existing = state.panes.findIndex((p) => p.tabs.some((t) => t.id === tab.id))
+        if (existing !== -1) {
+          return {
+            panes: state.panes.map((p, i) => (i === existing ? { ...p, activeTabId: tab.id } : p)),
+            activePaneIndex: existing,
+          }
+        }
+      }
+      return {
+        panes: state.panes.map((p, i) => (i === state.activePaneIndex ? addTab(p, tab) : p)),
+      }
+    }),
   openTabToSide: (tab) =>
     set((state) => {
+      // Terminals MOVE to the other pane (one xterm can't render in two places); a
+      // generic tab is cloned. Stripping the terminal from its source pane first is
+      // what makes the split show two distinct shells instead of one blanking out.
+      if (tab.kind === 'terminal') {
+        const stripped = state.panes.map((p) =>
+          p.tabs.some((t) => t.id === tab.id) ? removeTab(p, tab.id) : p,
+        )
+        if (stripped.length === 1) {
+          return normalize([stripped[0], addTab(emptyPane(), tab)], 1)
+        }
+        const target = state.activePaneIndex === 0 ? 1 : 0
+        return normalize(
+          stripped.map((p, i) => (i === target ? addTab(p, tab) : p)),
+          target,
+        )
+      }
       if (state.panes.length === 1) {
         return { panes: [state.panes[0], addTab(emptyPane(), tab)], activePaneIndex: 1 }
       }

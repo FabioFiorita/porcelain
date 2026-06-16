@@ -47,7 +47,10 @@ export function receiveExit(id: string, exitCode: number): void {
 
 function create(id: string): Instance {
   const term = new Terminal({
-    fontFamily: '"Geist Mono Variable", ui-monospace, SFMono-Regular, monospace',
+    // Geist Mono renders text; "Symbols Nerd Font Mono" is the per-glyph fallback so
+    // powerline/devicon prompt glyphs render instead of tofu (see main.css @font-face).
+    fontFamily:
+      '"Geist Mono Variable", "Symbols Nerd Font Mono", ui-monospace, SFMono-Regular, monospace',
     fontSize: 12,
     lineHeight: 1.2,
     cursorBlink: true,
@@ -89,9 +92,16 @@ export function attachTerminal(id: string, container: HTMLElement): void {
   instance.term.focus()
 }
 
-/** Detach the terminal from the DOM on unmount WITHOUT disposing it (PTY lives on). */
-export function detachTerminal(id: string): void {
-  instances.get(id)?.wrapper.remove()
+/**
+ * Detach the terminal from the DOM on unmount WITHOUT disposing it (PTY lives on).
+ * Container-scoped: only remove the wrapper if THIS container still owns it. When a
+ * terminal moves between panes, the new pane's `attach` re-parents the wrapper before
+ * the old pane unmounts — without this guard the old pane's `detach` would yank the
+ * wrapper back out and blank the new pane.
+ */
+export function detachTerminal(id: string, container: HTMLElement): void {
+  const wrapper = instances.get(id)?.wrapper
+  if (wrapper && wrapper.parentElement === container) wrapper.remove()
 }
 
 export function fitTerminal(id: string): void {

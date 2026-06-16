@@ -5,6 +5,16 @@
 @import "@fontsource-variable/geist";
 @import "@fontsource-variable/geist-mono";
 
+/* Symbols-only Nerd Font (MIT — see fonts/SymbolsNerdFontMono-LICENSE), used ONLY as a
+   fallback after Geist Mono in the embedded terminal so prompt/powerline/devicon glyphs
+   (git branch, folder, clock, …) render instead of tofu boxes. The Mono variant keeps
+   every glyph single-cell so it aligns to the terminal grid. Not used by app chrome. */
+@font-face {
+    font-family: 'Symbols Nerd Font Mono';
+    src: url('./fonts/SymbolsNerdFontMono-Regular.ttf') format('truetype');
+    font-display: swap;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

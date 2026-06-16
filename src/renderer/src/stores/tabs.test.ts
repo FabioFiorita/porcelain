@@ -185,4 +185,32 @@ describe('useTabsStore', () => {
       expect(pane(0).activeTabId).toBe('b')
     })
   })
+
+  // A terminal is one xterm instance, so it can live in only one pane — opening it to
+  // the side MOVES it (a generic tab is cloned), and re-opening an already-open one
+  // activates it in place. Otherwise a duplicate would blank one pane's terminal.
+  describe('terminal panes', () => {
+    const term = (id: string): Tab => ({ id, kind: 'terminal', title: id, path: id })
+
+    it('moves a terminal to the side instead of cloning it', () => {
+      useTabsStore.getState().openTab(term('t1'))
+      useTabsStore.getState().openTab(term('t2'))
+      useTabsStore.getState().openTabToSide(term('t2'))
+      expect(useTabsStore.getState().panes).toHaveLength(2)
+      expect(pane(0).tabs.map((t) => t.id)).toEqual(['t1'])
+      expect(pane(1).tabs.map((t) => t.id)).toEqual(['t2'])
+      expect(useTabsStore.getState().activePaneIndex).toBe(1)
+    })
+
+    it('activates an already-open terminal in place rather than duplicating it', () => {
+      useTabsStore.getState().openTab(term('t1'))
+      useTabsStore.getState().openTabToSide(term('t2'))
+      // focus the left pane, then re-open t2 (e.g. from the roster) — it stays in pane 1
+      useTabsStore.getState().setActivePane(0)
+      useTabsStore.getState().openTab(term('t2'))
+      expect(pane(0).tabs.map((t) => t.id)).toEqual(['t1'])
+      expect(pane(1).tabs.map((t) => t.id)).toEqual(['t2'])
+      expect(useTabsStore.getState().activePaneIndex).toBe(1)
+    })
+  })
 })

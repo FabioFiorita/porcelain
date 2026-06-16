@@ -23,7 +23,7 @@ export function TerminalView({ sessionId }: { sessionId: string }): React.JSX.El
     observer.observe(container)
     return () => {
       observer.disconnect()
-      detachTerminal(sessionId)
+      detachTerminal(sessionId, container)
     }
   }, [sessionId])
 
