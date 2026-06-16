@@ -2,7 +2,7 @@ import type { GrepMatch } from '@main/diff'
 import { useTextSearch } from '@renderer/hooks/use-search'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ContentSearch } from './content-search'
 
@@ -68,26 +68,31 @@ describe('ContentSearch', () => {
     })
   })
 
-  it('shows "Searching…" when isFetching is true and query is non-empty', async () => {
+  it('shows no affordance while the query is empty', async () => {
     vi.mocked(useTextSearch).mockReturnValue({ matches: undefined, error: null, isFetching: true })
     render(<ContentSearch />)
     openDialog()
-    // Wait for the dialog to appear
     await screen.findByPlaceholderText('Search in files…')
-    // The "Searching…" label appears when query is non-empty + fetching; but query
-    // starts empty — the searching state only shows when query.trim() !== ''. The
-    // useTextSearch mock always fires, but the component guards on query.trim() !== ''.
-    // Check the empty-query state instead: no searching indicator visible.
     expect(screen.queryByText('Searching…')).not.toBeInTheDocument()
+    expect(screen.queryByText('No matches')).not.toBeInTheDocument()
   })
 
-  it('shows "No matches" when query is set but matches is empty array', async () => {
+  it('shows "Searching…" once a query is entered and a fetch is in flight', async () => {
+    vi.mocked(useTextSearch).mockReturnValue({ matches: undefined, error: null, isFetching: true })
+    render(<ContentSearch />)
+    openDialog()
+    const input = await screen.findByPlaceholderText('Search in files…')
+    fireEvent.change(input, { target: { value: 'doThing' } })
+    expect(await screen.findByText('Searching…')).toBeInTheDocument()
+  })
+
+  it('shows "No matches" once a query is entered and the search returns empty', async () => {
     vi.mocked(useTextSearch).mockReturnValue({ matches: [], error: null, isFetching: false })
     render(<ContentSearch />)
     openDialog()
-    await screen.findByPlaceholderText('Search in files…')
-    // With no query typed, neither "No matches" nor "Searching…" is visible
-    expect(screen.queryByText('No matches')).not.toBeInTheDocument()
+    const input = await screen.findByPlaceholderText('Search in files…')
+    fireEvent.change(input, { target: { value: 'doThing' } })
+    expect(await screen.findByText('No matches')).toBeInTheDocument()
   })
 
   it('shows error message when error is returned', async () => {
@@ -118,11 +123,5 @@ describe('ContentSearch', () => {
       line: 42,
     })
     expect(activeTabId).toBe(tabId('file', '/myrepo/src/foo/bar.ts'))
-  })
-
-  it('does not import lib/trpc directly', () => {
-    // This is a static guarantee — enforced by Biome lint rules on components/**
-    // Verified: content-search.tsx imports useTextSearch from @renderer/hooks/use-search only.
-    expect(true).toBe(true)
   })
 })
