@@ -10,6 +10,7 @@ import {
   gitRangeDiffFile,
   gitRangeNumstat,
   isNoMatchError,
+  parseLooseIgnoredFiles,
   quickCommandArgs,
 } from './git'
 
@@ -48,6 +49,26 @@ describe('quickCommandArgs', () => {
 
   it('returns null for an unknown id', () => {
     expect(quickCommandArgs('rm-rf')).toBeNull()
+  })
+})
+
+describe('parseLooseIgnoredFiles', () => {
+  // input is the NUL-separated output of `git ls-files --others --ignored
+  // --exclude-standard --directory`: collapsed wholly-ignored dirs end in `/`.
+  it('keeps loose ignored files and drops collapsed dirs + .DS_Store', () => {
+    const out = ['.env', 'node_modules/', 'dist/', '.DS_Store', 'apps/web/.env.local', ''].join(
+      '\0',
+    )
+    expect(parseLooseIgnoredFiles(out)).toEqual(['.env', 'apps/web/.env.local'])
+  })
+
+  it('drops .DS_Store at any depth but keeps other dotfiles', () => {
+    const out = ['apps/.DS_Store', 'apps/.npmrc'].join('\0')
+    expect(parseLooseIgnoredFiles(out)).toEqual(['apps/.npmrc'])
+  })
+
+  it('returns nothing when every entry is a collapsed dir', () => {
+    expect(parseLooseIgnoredFiles('node_modules/\0out/\0')).toEqual([])
   })
 })
 
