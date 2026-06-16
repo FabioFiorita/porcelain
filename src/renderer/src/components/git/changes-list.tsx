@@ -17,12 +17,13 @@ import {
 import { useFileStaging } from '@renderer/hooks/use-commit'
 import { useDiffFilePrefetch } from '@renderer/hooks/use-diff'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'
+import { useReviewedPaths, useToggleReviewed } from '@renderer/hooks/use-reviewed'
 import { cn } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useRevealStore } from '@renderer/stores/reveal'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
-import { RefreshCw } from 'lucide-react'
+import { Check, RefreshCw } from 'lucide-react'
 
 const statusBadge: Record<FileStatus, { label: string; className: string }> = {
   modified: { label: 'M', className: 'text-warning' },
@@ -32,12 +33,21 @@ const statusBadge: Record<FileStatus, { label: string; className: string }> = {
   untracked: { label: 'U', className: 'text-success' },
 }
 
-function FileRow({ file, repoPath }: { file: FlowFile; repoPath: string }): React.JSX.Element {
+function FileRow({
+  file,
+  repoPath,
+  isReviewed,
+}: {
+  file: FlowFile
+  repoPath: string
+  isReviewed: boolean
+}): React.JSX.Element {
   const openTab = useTabsStore((s) => s.openTab)
   const setSidebarTab = usePreferencesStore((s) => s.setSidebarTab)
   const reveal = useRevealStore((s) => s.reveal)
   const prefetchDiff = useDiffFilePrefetch()
   const { stageFile, unstageFile } = useFileStaging()
+  const { mark, unmark } = useToggleReviewed()
   const name = file.path.split('/').at(-1) ?? file.path
   const connects = file.connects.map((c) => c.split('/').at(-1)).join(', ')
 
@@ -86,7 +96,12 @@ function FileRow({ file, repoPath }: { file: FlowFile; repoPath: string }): Reac
                   title={file.unstaged ? 'Partially staged' : 'Staged'}
                 />
               )}
-              <span className="truncate">{name}</span>
+              {isReviewed && (
+                <Check className="size-3 shrink-0 self-center text-success" aria-label="Reviewed" />
+              )}
+              <span className={cn('truncate', isReviewed && 'text-muted-foreground line-through')}>
+                {name}
+              </span>
               {file.additions !== undefined && (
                 <span className="shrink-0 font-mono text-[10px] text-success">
                   +{file.additions}
@@ -109,6 +124,13 @@ function FileRow({ file, repoPath }: { file: FlowFile; repoPath: string }): Reac
           </div>
         </ContextMenuTrigger>
         <ContextMenuContent>
+          {isReviewed ? (
+            <ContextMenuItem onClick={async () => unmark(file.path)}>
+              Unmark reviewed
+            </ContextMenuItem>
+          ) : (
+            <ContextMenuItem onClick={async () => mark(file.path)}>Mark reviewed</ContextMenuItem>
+          )}
           {/* Deleted files no longer exist on disk, so opening them would error. */}
           {file.status !== 'deleted' && (
             <ContextMenuItem onClick={openFile}>Open file</ContextMenuItem>
@@ -131,18 +153,24 @@ function FileRow({ file, repoPath }: { file: FlowFile; repoPath: string }): Reac
 export function ChangesList(): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)
   const { groups, refresh } = useGitFlow()
+  const reviewed = useReviewedPaths()
 
   if (!repo || groups === undefined) {
     return <p className="p-3 text-sm text-muted-foreground">Loading…</p>
   }
 
   const total = groups.reduce((n, g) => n + g.files.length, 0)
+  const reviewedCount = groups.reduce(
+    (n, g) => n + g.files.filter((f) => reviewed.has(f.path)).length,
+    0,
+  )
 
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center justify-between px-2">
         <span className="text-xs text-muted-foreground">
           {total} changed {total === 1 ? 'file' : 'files'}
+          {reviewedCount > 0 && ` · ${reviewedCount} reviewed`}
         </span>
         <Button variant="ghost" size="icon-sm" onClick={refresh} aria-label="Refresh changes">
           <RefreshCw />
@@ -160,7 +188,12 @@ export function ChangesList(): React.JSX.Element {
             </SidebarGroupLabel>
             <SidebarMenu>
               {group.files.map((file) => (
-                <FileRow key={file.path} file={file} repoPath={repo.path} />
+                <FileRow
+                  key={file.path}
+                  file={file}
+                  repoPath={repo.path}
+                  isReviewed={reviewed.has(file.path)}
+                />
               ))}
             </SidebarMenu>
           </div>

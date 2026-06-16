@@ -45,14 +45,17 @@ import {
   layersFor,
   notesFor,
   pinnedPathsFor,
+  reviewedPathsFor,
   visibleFilePaths,
   withHiddenPath,
   withoutHiddenPath,
   withoutPinnedPath,
+  withoutReviewedPath,
   withPinnedPath,
   withRecentRepo,
   withRepoLayers,
   withRepoNotes,
+  withReviewedPath,
 } from './repo-config'
 import { clearReviewSet, readReviewSet } from './review-store'
 import { checkForUpdates, installUpdate, type UpdateStatus, updateStatus } from './updater'
@@ -312,6 +315,22 @@ export const router = t.router({
     )
     return entries.filter((e): e is DirEntry => e !== null)
   }),
+
+  markReviewed: t.procedure
+    .input(z.object({ repoPath: z.string(), path: z.string() }))
+    .mutation(async ({ input }) => {
+      await updateConfig((config) => withReviewedPath(config, input.repoPath, input.path))
+    }),
+
+  unmarkReviewed: t.procedure
+    .input(z.object({ repoPath: z.string(), path: z.string() }))
+    .mutation(async ({ input }) => {
+      await updateConfig((config) => withoutReviewedPath(config, input.repoPath, input.path))
+    }),
+
+  reviewedPaths: t.procedure
+    .input(z.string())
+    .query(async ({ input }): Promise<string[]> => reviewedPathsFor(await loadConfig(), input)),
 
   gitSuggestions: t.procedure.input(z.string()).query(({ input }) => gitSuggestions(input)),
 

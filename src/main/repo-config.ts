@@ -9,6 +9,7 @@ export const appConfigSchema = z.object({
       z.object({
         hiddenPaths: z.array(z.string()).default([]),
         pinnedPaths: z.array(z.string()).default([]),
+        reviewedPaths: z.array(z.string()).default([]),
         layers: z.array(z.object({ label: z.string(), pattern: z.string() })).optional(),
         notes: z.string().default(''),
       }),
@@ -23,6 +24,7 @@ export const emptyConfig: AppConfig = { recentRepos: [], repos: {} }
 const emptyRepo = (): AppConfig['repos'][string] => ({
   hiddenPaths: [],
   pinnedPaths: [],
+  reviewedPaths: [],
   notes: '',
 })
 
@@ -132,6 +134,34 @@ export function withoutPinnedPath(config: AppConfig, repoPath: string, path: str
 
 export function pinnedPathsFor(config: AppConfig, repoPath: string): string[] {
   return config.repos[repoPath]?.pinnedPaths ?? []
+}
+
+export function withReviewedPath(config: AppConfig, repoPath: string, path: string): AppConfig {
+  const repo = config.repos[repoPath] ?? emptyRepo()
+  if (repo.reviewedPaths.includes(path)) return config
+  return {
+    ...config,
+    repos: {
+      ...config.repos,
+      [repoPath]: { ...repo, reviewedPaths: [...repo.reviewedPaths, path] },
+    },
+  }
+}
+
+export function withoutReviewedPath(config: AppConfig, repoPath: string, path: string): AppConfig {
+  const repo = config.repos[repoPath]
+  if (!repo) return config
+  return {
+    ...config,
+    repos: {
+      ...config.repos,
+      [repoPath]: { ...repo, reviewedPaths: repo.reviewedPaths.filter((p) => p !== path) },
+    },
+  }
+}
+
+export function reviewedPathsFor(config: AppConfig, repoPath: string): string[] {
+  return config.repos[repoPath]?.reviewedPaths ?? []
 }
 
 export function notesFor(config: AppConfig, repoPath: string): string {

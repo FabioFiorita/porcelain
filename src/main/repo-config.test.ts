@@ -5,14 +5,17 @@ import {
   layersFor,
   notesFor,
   pinnedPathsFor,
+  reviewedPathsFor,
   visibleFilePaths,
   withHiddenPath,
   withoutHiddenPath,
   withoutPinnedPath,
+  withoutReviewedPath,
   withPinnedPath,
   withRecentRepo,
   withRepoLayers,
   withRepoNotes,
+  withReviewedPath,
 } from './repo-config'
 
 describe('withRecentRepo', () => {
@@ -65,6 +68,42 @@ describe('pinned paths', () => {
   it('keeps hidden paths and pins independent', () => {
     let config = withPinnedPath(emptyConfig, '/repo', '/repo/pin')
     config = withHiddenPath(config, '/repo', '/repo/hide')
+    expect(pinnedPathsFor(config, '/repo')).toEqual(['/repo/pin'])
+    expect(hiddenPathsFor(config, '/repo')).toEqual(new Set(['/repo/hide']))
+  })
+})
+
+describe('reviewed paths', () => {
+  it('marks and unmarks a path per repo without duplicates', () => {
+    let config = withReviewedPath(emptyConfig, '/repo', 'src/components/widget.tsx')
+    config = withReviewedPath(config, '/repo', 'src/components/widget.tsx')
+    expect(reviewedPathsFor(config, '/repo')).toEqual(['src/components/widget.tsx'])
+    expect(reviewedPathsFor(config, '/other')).toEqual([])
+
+    config = withoutReviewedPath(config, '/repo', 'src/components/widget.tsx')
+    expect(reviewedPathsFor(config, '/repo')).toEqual([])
+  })
+
+  it('removing a path that is not reviewed leaves the list unchanged', () => {
+    const config = withReviewedPath(emptyConfig, '/repo', 'src/a.ts')
+    expect(withoutReviewedPath(config, '/repo', 'src/b.ts').repos['/repo']?.reviewedPaths).toEqual([
+      'src/a.ts',
+    ])
+  })
+
+  it('no-ops (same reference) when removing a path from an unknown repo', () => {
+    expect(withoutReviewedPath(emptyConfig, '/unknown', 'src/a.ts')).toBe(emptyConfig)
+  })
+
+  it('returns [] for an unknown repo', () => {
+    expect(reviewedPathsFor(emptyConfig, '/unknown')).toEqual([])
+  })
+
+  it('keeps reviewed paths independent from pinned and hidden paths', () => {
+    let config = withReviewedPath(emptyConfig, '/repo', 'src/a.ts')
+    config = withPinnedPath(config, '/repo', '/repo/pin')
+    config = withHiddenPath(config, '/repo', '/repo/hide')
+    expect(reviewedPathsFor(config, '/repo')).toEqual(['src/a.ts'])
     expect(pinnedPathsFor(config, '/repo')).toEqual(['/repo/pin'])
     expect(hiddenPathsFor(config, '/repo')).toEqual(new Set(['/repo/hide']))
   })
