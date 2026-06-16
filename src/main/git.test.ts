@@ -1,5 +1,15 @@
-import { describe, expect, it } from 'vitest'
-import { isNoMatchError, quickCommandArgs } from './git'
+import { execFileSync } from 'node:child_process'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import {
+  gitMergeBase,
+  gitRangeChangedFiles,
+  gitRangeDiffFile,
+  isNoMatchError,
+  quickCommandArgs,
+} from './git'
 
 describe('isNoMatchError', () => {
   it('treats exit code 1 as no-match', () => {
@@ -36,5 +46,81 @@ describe('quickCommandArgs', () => {
 
   it('returns null for an unknown id', () => {
     expect(quickCommandArgs('rm-rf')).toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Range diff prototype
+// ---------------------------------------------------------------------------
+
+const GIT_ENV = {
+  GIT_AUTHOR_NAME: 'Test User',
+  GIT_AUTHOR_EMAIL: 'test@porcelain.test',
+  GIT_COMMITTER_NAME: 'Test User',
+  GIT_COMMITTER_EMAIL: 'test@porcelain.test',
+  GIT_AUTHOR_DATE: '2024-01-01T12:00:00Z',
+  GIT_COMMITTER_DATE: '2024-01-01T12:00:00Z',
+}
+
+function git(cwd: string, ...args: string[]): string {
+  return execFileSync('git', args, {
+    cwd,
+    env: { ...process.env, ...GIT_ENV },
+    stdio: 'pipe',
+  }).toString()
+}
+
+describe('range diff prototype', () => {
+  let repoDir = ''
+  let baseSha = ''
+
+  beforeAll(async () => {
+    repoDir = await mkdtemp(join(tmpdir(), 'porcelain-git-range-'))
+
+    // Init repo on `main`
+    git(repoDir, 'init', '-b', 'main')
+    git(repoDir, '-c', 'commit.gpgsign=false', 'commit', '--allow-empty', '-m', 'root')
+
+    // Write base.ts and commit — this is the `main` branch tip
+    await writeFile(join(repoDir, 'base.ts'), 'export const x = 1\n')
+    git(repoDir, 'add', 'base.ts')
+    git(repoDir, '-c', 'commit.gpgsign=false', 'commit', '-m', 'base')
+    baseSha = git(repoDir, 'rev-parse', 'HEAD').trim()
+
+    // Create `feature` branch from here, add feature.ts, modify base.ts
+    git(repoDir, 'checkout', '-b', 'feature')
+    await writeFile(join(repoDir, 'feature.ts'), 'export const y = 2\n')
+    await writeFile(join(repoDir, 'base.ts'), 'export const x = 42\n')
+    git(repoDir, 'add', 'feature.ts', 'base.ts')
+    git(repoDir, '-c', 'commit.gpgsign=false', 'commit', '-m', 'feature')
+  })
+
+  afterAll(async () => {
+    if (repoDir) await rm(repoDir, { recursive: true, force: true })
+  })
+
+  it('gitMergeBase returns the base branch tip SHA', async () => {
+    const result = await gitMergeBase(repoDir, 'main')
+    expect(result).toBe(baseSha)
+  })
+
+  it('gitRangeChangedFiles lists only the feature branch changes', async () => {
+    const files = await gitRangeChangedFiles(repoDir, 'main')
+    const paths = files.map((f) => f.path).sort()
+    expect(paths).toEqual(['base.ts', 'feature.ts'])
+    const baseTs = files.find((f) => f.path === 'base.ts')
+    const featureTs = files.find((f) => f.path === 'feature.ts')
+    expect(baseTs?.status).toBe('modified')
+    expect(featureTs?.status).toBe('added')
+  })
+
+  it('gitRangeDiffFile returns hunks matching the branch change to base.ts', async () => {
+    const hunks = await gitRangeDiffFile(repoDir, 'main', 'base.ts')
+    expect(hunks.length).toBeGreaterThan(0)
+    const allLines = hunks.flatMap((h) => h.lines)
+    const addedLines = allLines.filter((l) => l.kind === 'add').map((l) => l.text)
+    const removedLines = allLines.filter((l) => l.kind === 'del').map((l) => l.text)
+    expect(addedLines.some((t) => t.includes('42'))).toBe(true)
+    expect(removedLines.some((t) => t.includes('= 1'))).toBe(true)
   })
 })

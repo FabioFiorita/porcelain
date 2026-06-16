@@ -262,3 +262,28 @@ export async function gitDiffFile(repoPath: string, filePath: string): Promise<D
   }
   return parseUnifiedDiff(await runGit(repoPath, ['diff', 'HEAD', '--no-color', '--', filePath]))
 }
+
+/** Compute the common ancestor between `base` and HEAD. */
+export async function gitMergeBase(repoPath: string, base: string): Promise<string> {
+  return (await runGit(repoPath, ['merge-base', base, 'HEAD'])).trim()
+}
+
+/** List files changed between the merge-base of `base`..HEAD and HEAD. */
+export async function gitRangeChangedFiles(repoPath: string, base: string): Promise<ChangedFile[]> {
+  const mergeBase = await gitMergeBase(repoPath, base)
+  return parseNameStatus(
+    await runGit(repoPath, ['diff', '--name-status', '-z', '--no-color', `${mergeBase}..HEAD`]),
+  )
+}
+
+/** Unified diff for a single file over the merge-base of `base`..HEAD range. */
+export async function gitRangeDiffFile(
+  repoPath: string,
+  base: string,
+  filePath: string,
+): Promise<DiffHunk[]> {
+  const mergeBase = await gitMergeBase(repoPath, base)
+  return parseUnifiedDiff(
+    await runGit(repoPath, ['diff', '--no-color', `${mergeBase}..HEAD`, '--', filePath]),
+  )
+}
