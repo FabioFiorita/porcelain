@@ -1,6 +1,6 @@
 ---
 name: audit
-description: Porcelain's hard-won invariants — the security, correctness, performance, and type-safety rules the codebase must never silently regress. Read before changing the main process, IPC, config persistence, git plumbing, file reads, external-URL handling, packaging, or data-fetching wiring; and when reviewing a change for regressions. Each invariant says what to preserve, why it exists, and how to verify you didn't break it. The chronology behind each lives in the `history` skill.
+description: Porcelain's hard-won invariants — the security, correctness, performance, and type-safety rules the codebase must never silently regress. Read before changing the main process, IPC, config persistence, git plumbing, file reads, external-URL handling, packaging, or data-fetching wiring; and when reviewing a change for regressions. Each invariant says what to preserve, why it exists, and how to verify you didn't break it.
 ---
 
 # Porcelain — invariants to preserve
@@ -8,7 +8,7 @@ description: Porcelain's hard-won invariants — the security, correctness, perf
 A "don't regress these" checklist. These are constraints the codebase **earned**
 — most were a bug, a crash, or a security gap before the fix landed. Breaking one
 rarely fails a test; it fails in production. Before touching the listed area, read
-the invariant; after, verify it still holds. The 7 hard rules in `CLAUDE.md` are
+the invariant; after, verify it still holds. The 8 hard rules in `CLAUDE.md` are
 assumed — this skill is the codebase-specific layer beneath them.
 
 ## Security & process boundary

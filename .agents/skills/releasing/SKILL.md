@@ -1,6 +1,6 @@
 ---
 name: releasing
-description: How to cut a Porcelain release — bump/tag, the GitHub Actions release pipeline, signing & notarization secrets, changelog generation, and the draft-then-publish flow for electron-updater. Read when publishing a new version, debugging the release workflow, or changing signing/notarization. The chronology behind these choices lives in the `history` skill.
+description: How to cut a Porcelain release — bump/tag, the GitHub Actions release pipeline, signing & notarization secrets, changelog generation, and the draft-then-publish flow for electron-updater. Read when publishing a new version, debugging the release workflow, or changing signing/notarization.
 ---
 
 # Porcelain — releasing
@@ -22,26 +22,16 @@ for `electron-updater`.
    baselines with `pnpm test:e2e:update`, and commit them (`test:`). A pure-refactor
    release needs no baseline change. (Caveat: the baselines were authored on the dev
    machine; the macОS CI runner is not where we assert them — assert here.)
-3. **Sync the human onboarding guide** (`docs/CODEBASE_GUIDE.md`) against the code as
-   it stands *now*, then commit it (`docs:`) before bumping. This is the guide's only
-   sync trigger — it is a second copy of what the skills hold, so it drifts unless a
-   release refreshes it. How: re-read the `architecture`/`product`/`audit` skills and
-   diff them against the guide; reconcile the directory tour, the main-file table, the
-   `TabKind` list + `viewer.tsx` switch, the feature map, the stores table, and the
-   `## Nomenclature` regions; update the "Last synced" stamp at the top of the guide to
-   the version you're about to cut. If nothing material changed since the stamped
-   version, say so and skip the commit. (No `history` entry for a routine sync — it's
-   syncing a map to reality, not a new decision.)
-4. **Bump and tag in one step:** `pnpm version <patch|minor|major>` — updates
+3. **Bump and tag in one step:** `pnpm version <patch|minor|major>` — updates
    `package.json`, regenerates `CHANGELOG.md` from the conventional commits (the
    `version` lifecycle hook → `pnpm changelog`, staged into the release commit),
    commits, and creates a matching `vX.Y.Z` git tag. The tag **must** equal
    `v<package.json version>`, or electron-builder publishes a mismatched release.
-5. **`git push --follow-tags`** — pushing the `v*` tag triggers
+4. **`git push --follow-tags`** — pushing the `v*` tag triggers
    `.github/workflows/release.yml` (macOS runner, `macos-14`): it re-runs the gate,
    then `pnpm release` (= `electron-builder --mac --publish always`) builds, signs,
    notarizes, and uploads `dmg` + `zip` + `latest-mac.yml`.
-6. electron-builder uploads to a **draft** release. The workflow pre-creates a single
+5. electron-builder uploads to a **draft** release. The workflow pre-creates a single
    draft (`gh release create "$GITHUB_REF_NAME" --draft --generate-notes`, idempotent
    via `gh release view ||`) before `pnpm release` so the dmg and zip uploaders share
    one release — without it each uploader created its own draft and split the assets.
