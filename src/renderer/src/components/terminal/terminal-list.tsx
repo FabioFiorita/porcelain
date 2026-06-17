@@ -1,4 +1,5 @@
 import { Button } from '@renderer/components/ui/button'
+import { spawnTerminal } from '@renderer/lib/terminal-actions'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
@@ -14,7 +15,6 @@ import { Plus, SquareTerminal, X } from 'lucide-react'
  */
 export function TerminalList(): React.JSX.Element {
   const sessions = useTerminalsStore((s) => s.sessions)
-  const createTerminal = useTerminalsStore((s) => s.create)
   const closeTerminal = useTerminalsStore((s) => s.close)
   const repo = useRepoStore((s) => s.repo)
   const openTab = useTabsStore((s) => s.openTab)
@@ -27,13 +27,6 @@ export function TerminalList(): React.JSX.Element {
     openTab({ id: tabId('terminal', id), kind: 'terminal', title: name, path: id })
   }
 
-  const newTerminal = async (): Promise<void> => {
-    if (!repo) return
-    const name = `Terminal ${sessions.length + 1}`
-    const id = await createTerminal({ cwd: repo.path, name })
-    open(id, name)
-  }
-
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-between px-2">
@@ -43,7 +36,7 @@ export function TerminalList(): React.JSX.Element {
         <Button
           variant="ghost"
           size="icon-sm"
-          onClick={newTerminal}
+          onClick={spawnTerminal}
           aria-label="New terminal"
           disabled={!repo}
         >

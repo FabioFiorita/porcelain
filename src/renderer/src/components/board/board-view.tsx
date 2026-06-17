@@ -1,14 +1,13 @@
 import { Button } from '@renderer/components/ui/button'
 import { BOARD_COLUMNS, useBoardCards } from '@renderer/hooks/use-board'
+import { draftFromCard, useCardDraftStore } from '@renderer/stores/card-draft'
 import { Plus } from 'lucide-react'
-import { useState } from 'react'
-import { CardComposer, type CardDraft, draftFromCard } from './card-composer'
 import { CardItem } from './card-item'
 
 /** The wide kanban: the three columns side by side, in a viewer tab. */
 export function BoardView(): React.JSX.Element {
   const cards = useBoardCards()
-  const [draft, setDraft] = useState<CardDraft | null>(null)
+  const openDraft = useCardDraftStore((s) => s.open)
 
   return (
     <div className="flex h-full gap-3 overflow-x-auto p-4">
@@ -24,14 +23,14 @@ export function BoardView(): React.JSX.Element {
                 variant="ghost"
                 size="icon-sm"
                 aria-label={`Add card to ${column.label}`}
-                onClick={() => setDraft({ title: '', body: '', status: column.status })}
+                onClick={() => openDraft({ title: '', body: '', status: column.status })}
               >
                 <Plus />
               </Button>
             </div>
             <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
               {inColumn.map((card) => (
-                <CardItem key={card.id} card={card} onEdit={(c) => setDraft(draftFromCard(c))} />
+                <CardItem key={card.id} card={card} onEdit={(c) => openDraft(draftFromCard(c))} />
               ))}
               {inColumn.length === 0 && (
                 <p className="px-1 text-[11px] text-muted-foreground/60">No cards</p>
@@ -40,13 +39,6 @@ export function BoardView(): React.JSX.Element {
           </div>
         )
       })}
-      <CardComposer
-        draft={draft}
-        open={draft !== null}
-        onOpenChange={(open) => {
-          if (!open) setDraft(null)
-        }}
-      />
     </div>
   )
 }

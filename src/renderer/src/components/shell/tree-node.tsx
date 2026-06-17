@@ -18,18 +18,21 @@ import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
+  ContextMenuSeparator,
   ContextMenuTrigger,
 } from '@renderer/components/ui/context-menu'
 import { SidebarMenuButton, SidebarMenuItem, SidebarMenuSub } from '@renderer/components/ui/sidebar'
 import { FileTypeIcon, FolderIcon } from '@renderer/components/viewer/file-icon'
 import { usePathActions } from '@renderer/components/viewer/use-path-actions'
 import {
+  useDuplicatePath,
   useEntryActions,
   useReadDir,
   useReadFilePrefetch,
   useTrashPath,
 } from '@renderer/hooks/use-files'
 import { cn } from '@renderer/lib/utils'
+import { useFilePromptStore } from '@renderer/stores/file-prompt'
 import { useRevealStore } from '@renderer/stores/reveal'
 import { useSelectionStore } from '@renderer/stores/selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
@@ -48,13 +51,22 @@ function EntryContextMenu({
   const openTabToSide = useTabsStore((s) => s.openTabToSide)
   const { reveal, exploreFlow } = usePathActions(entry.path)
   const trash = useTrashPath()
+  const duplicate = useDuplicatePath()
+  const newFile = useFilePromptStore((s) => s.newFile)
+  const newFolder = useFilePromptStore((s) => s.newFolder)
+  const startRename = useFilePromptStore((s) => s.rename)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  // New file/folder land in this directory (the folder itself, or a file's parent).
+  const dir = entry.kind === 'dir' ? entry.path : entry.path.slice(0, entry.path.lastIndexOf('/'))
 
   return (
     <>
       <ContextMenu>
         <ContextMenuTrigger>{children}</ContextMenuTrigger>
         <ContextMenuContent>
+          <ContextMenuItem onClick={() => newFile(dir)}>New File</ContextMenuItem>
+          <ContextMenuItem onClick={() => newFolder(dir)}>New Folder</ContextMenuItem>
+          <ContextMenuSeparator />
           {entry.kind === 'file' && (
             <ContextMenuItem
               onClick={() =>
@@ -87,6 +99,11 @@ function EntryContextMenu({
           ) : (
             <ContextMenuItem onClick={hide}>Hide</ContextMenuItem>
           )}
+          <ContextMenuSeparator />
+          <ContextMenuItem onClick={() => startRename(entry.path, entry.name)}>
+            Rename
+          </ContextMenuItem>
+          <ContextMenuItem onClick={() => duplicate(entry.path)}>Duplicate</ContextMenuItem>
           <ContextMenuItem variant="destructive" onClick={() => setConfirmDelete(true)}>
             Delete
           </ContextMenuItem>
@@ -115,6 +132,7 @@ export function TreeNode({ entry }: { entry: DirEntry }): React.JSX.Element {
   const pinTab = useTabsStore((s) => s.pinTab)
   const isSelected = useSelectionStore((s) => s.selected.has(entry.path))
   const toggleSelection = useSelectionStore((s) => s.toggle)
+  const setActive = useSelectionStore((s) => s.setActive)
   const prefetchFile = useReadFilePrefetch()
   // A file opened from outside the tree (Changes → Open file) sets the reveal
   // target; the matching row scrolls into view and shows the accent highlight.
@@ -137,6 +155,7 @@ export function TreeNode({ entry }: { entry: DirEntry }): React.JSX.Element {
             )}
             onMouseEnter={() => prefetchFile(entry.path)}
             onClick={(e) => {
+              setActive({ path: entry.path, kind: 'file' })
               if (e.metaKey || e.ctrlKey) {
                 toggleSelection(entry.path)
                 return
@@ -167,6 +186,7 @@ function DirNode({ entry }: { entry: DirEntry }): React.JSX.Element {
   const children = useReadDir(entry.path, expanded)
   const isSelected = useSelectionStore((s) => s.selected.has(entry.path))
   const toggleSelection = useSelectionStore((s) => s.toggle)
+  const setActive = useSelectionStore((s) => s.setActive)
   // Open this folder when a revealed file lives inside it, so the tree expands
   // all the way down to a file opened from elsewhere. Each ancestor opens in
   // turn — opening loads its children (lazy `useReadDir`), mounting the next
@@ -190,6 +210,7 @@ function DirNode({ entry }: { entry: DirEntry }): React.JSX.Element {
               <SidebarMenuButton
                 className={cn(entry.hidden && 'opacity-50', isSelected && 'bg-sidebar-accent')}
                 onClick={(e) => {
+                  setActive({ path: entry.path, kind: 'dir' })
                   if (e.metaKey || e.ctrlKey) {
                     e.preventDefault()
                     e.stopPropagation()

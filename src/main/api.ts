@@ -1,4 +1,5 @@
-import { readdir, readFile, stat, writeFile } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
+import { cp, mkdir, readdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import { initTRPC } from '@trpc/server'
 import { dialog, shell } from 'electron'
@@ -34,6 +35,7 @@ import {
   type FeatureView,
 } from './feature-view'
 import { buildFlow, DEFAULT_LAYERS, type FlowGroup, type Layer } from './flow'
+import { uniqueDuplicatePath } from './fs-ops'
 import { fuzzySearch } from './fuzzy'
 import {
   gitBranch,
@@ -445,6 +447,40 @@ export const router = t.router({
     .input(z.object({ path: z.string(), content: z.string() }))
     .mutation(async ({ input }) => {
       await writeFile(input.path, input.content, 'utf8')
+    }),
+
+  // Create an empty file at an absolute path. `wx` fails if it already exists, so a
+  // collision surfaces as an error instead of silently clobbering the file.
+  createFile: t.procedure.input(z.object({ path: z.string() })).mutation(async ({ input }) => {
+    await writeFile(input.path, '', { flag: 'wx' })
+  }),
+
+  // Create a directory; throws (EEXIST) if one is already there — no recursive so a
+  // typo can't quietly conjure a whole path.
+  createFolder: t.procedure.input(z.object({ path: z.string() })).mutation(async ({ input }) => {
+    await mkdir(input.path)
+  }),
+
+  // Move/rename within the repo. `rename` overwrites an existing target on POSIX, so we
+  // guard first — a rename should never destroy the file it lands on.
+  renamePath: t.procedure
+    .input(z.object({ from: z.string(), to: z.string() }))
+    .mutation(async ({ input }) => {
+      if (input.to !== input.from && existsSync(input.to)) {
+        throw new Error(`“${basename(input.to)}” already exists`)
+      }
+      await rename(input.from, input.to)
+    }),
+
+  // Copy a file or directory to a free "… copy" sibling and return the new path so the
+  // caller can reveal it.
+  duplicatePath: t.procedure
+    .input(z.object({ path: z.string() }))
+    .mutation(async ({ input }): Promise<string> => {
+      const info = await stat(input.path)
+      const target = uniqueDuplicatePath(input.path, info.isDirectory(), existsSync)
+      await cp(input.path, target, { recursive: info.isDirectory() })
+      return target
     }),
 
   searchText: t.procedure

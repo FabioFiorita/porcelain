@@ -1,4 +1,3 @@
-import type { BoardCard, CardStatus } from '@main/board-store'
 import { Button } from '@renderer/components/ui/button'
 import {
   Dialog,
@@ -10,43 +9,28 @@ import {
 import { Input } from '@renderer/components/ui/input'
 import { Textarea } from '@renderer/components/ui/textarea'
 import { useCardActions } from '@renderer/hooks/use-board'
+import { useCardDraftStore } from '@renderer/stores/card-draft'
 import { useEffect, useState } from 'react'
 
-export interface CardDraft {
-  /** Present when editing an existing card; absent when creating a new one. */
-  id?: string
-  title: string
-  body: string
-  /** Column a new card lands in. */
-  status: CardStatus
-}
-
-/** Build an edit draft from an existing card (used by both board surfaces). */
-export function draftFromCard(card: BoardCard): CardDraft {
-  return { id: card.id, title: card.title, body: card.body ?? '', status: card.status }
-}
-
-/** Controlled dialog to create or edit a board card (title + optional body). */
-export function CardComposer({
-  draft,
-  open,
-  onOpenChange,
-}: {
-  draft: CardDraft | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
-}): React.JSX.Element {
+/**
+ * The one create/edit-card dialog, driven by the card-draft store and mounted once in
+ * AppShell. Opened by the board surfaces' "+"/edit buttons and the ⌘N shortcut. Saves on
+ * ⌘↵ or ⌘S.
+ */
+export function CardComposer(): React.JSX.Element {
   const { add, update } = useCardActions()
+  const draft = useCardDraftStore((s) => s.draft)
+  const close = useCardDraftStore((s) => s.close)
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    if (open && draft) {
+    if (draft) {
       setTitle(draft.title)
       setBody(draft.body)
     }
-  }, [open, draft])
+  }, [draft])
 
   const save = async (): Promise<void> => {
     if (!draft || title.trim() === '' || saving) return
@@ -57,14 +41,27 @@ export function CardComposer({
       } else {
         await add({ title: title.trim(), body: body.trim() || undefined, status: draft.status })
       }
-      onOpenChange(false)
+      close()
     } finally {
       setSaving(false)
     }
   }
 
+  // ⌘↵ and ⌘S both save, from either field.
+  const onKeyDown = async (e: React.KeyboardEvent): Promise<void> => {
+    if ((e.metaKey || e.ctrlKey) && (e.key === 'Enter' || e.key.toLowerCase() === 's')) {
+      e.preventDefault()
+      await save()
+    }
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={draft !== null}
+      onOpenChange={(open) => {
+        if (!open) close()
+      }}
+    >
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{draft?.id ? 'Edit card' : 'New card'}</DialogTitle>
@@ -72,6 +69,7 @@ export function CardComposer({
         <Input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
+          onKeyDown={onKeyDown}
           placeholder="Title"
           aria-label="Card title"
           className="rounded-md"
@@ -79,16 +77,14 @@ export function CardComposer({
         <Textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
-          onKeyDown={async (e) => {
-            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') await save()
-          }}
+          onKeyDown={onKeyDown}
           placeholder="Details (optional) — ⌘↵ to save"
           aria-label="Card details"
           rows={4}
           className="resize-none"
         />
         <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+          <Button variant="ghost" onClick={close}>
             Cancel
           </Button>
           <Button disabled={title.trim() === '' || saving} onClick={save}>

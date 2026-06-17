@@ -72,6 +72,23 @@ function create(id: string): Instance {
   // Keystrokes and fit-driven resizes flow back to this session's PTY over the bridge.
   term.onData((data) => window.porcelain.terminal.write(id, data))
   term.onResize(({ cols, rows }) => window.porcelain.terminal.resize(id, cols, rows))
+  // ⌘K clears the viewport (macOS terminal convention). Meta only — never Ctrl-K, which
+  // is readline's kill-to-end-of-line and must still reach the shell. Returning false
+  // keeps the keystroke from being forwarded to the PTY.
+  term.attachCustomKeyEventHandler((event) => {
+    if (
+      event.type === 'keydown' &&
+      event.metaKey &&
+      !event.ctrlKey &&
+      !event.altKey &&
+      !event.shiftKey &&
+      event.key.toLowerCase() === 'k'
+    ) {
+      term.clear()
+      return false
+    }
+    return true
+  })
 
   const instance: Instance = { term, fit, wrapper }
   instances.set(id, instance)

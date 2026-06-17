@@ -87,6 +87,50 @@ export function useTrashPath(): (path: string) => Promise<void> {
   return (path) => mutation.mutateAsync(path)
 }
 
+// Creating/renaming/duplicating a path changes the same three views a delete does:
+// the tree, the pinned list, and git's working tree (a new or renamed file is a new
+// change). The hooks throw on conflict (file exists) so callers can surface the error.
+function invalidateTree(utils: ReturnType<typeof trpc.useUtils>): Promise<unknown> {
+  return Promise.all([
+    utils.readDir.invalidate(),
+    utils.pinnedEntries.invalidate(),
+    utils.gitFlow.invalidate(),
+  ])
+}
+
+export function useCreateFile(): {
+  create: (path: string) => Promise<void>
+  error: { message: string } | null
+} {
+  const utils = trpc.useUtils()
+  const mutation = trpc.createFile.useMutation({ onSuccess: () => invalidateTree(utils) })
+  return { create: (path) => mutation.mutateAsync({ path }), error: mutation.error }
+}
+
+export function useCreateFolder(): {
+  create: (path: string) => Promise<void>
+  error: { message: string } | null
+} {
+  const utils = trpc.useUtils()
+  const mutation = trpc.createFolder.useMutation({ onSuccess: () => invalidateTree(utils) })
+  return { create: (path) => mutation.mutateAsync({ path }), error: mutation.error }
+}
+
+export function useRenamePath(): {
+  rename: (from: string, to: string) => Promise<void>
+  error: { message: string } | null
+} {
+  const utils = trpc.useUtils()
+  const mutation = trpc.renamePath.useMutation({ onSuccess: () => invalidateTree(utils) })
+  return { rename: (from, to) => mutation.mutateAsync({ from, to }), error: mutation.error }
+}
+
+export function useDuplicatePath(): (path: string) => Promise<string> {
+  const utils = trpc.useUtils()
+  const mutation = trpc.duplicatePath.useMutation({ onSuccess: () => invalidateTree(utils) })
+  return (path) => mutation.mutateAsync({ path })
+}
+
 export function useEntryActions(entry: DirEntry): {
   hide: () => Promise<void>
   unhide: () => Promise<void>

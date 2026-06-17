@@ -8,8 +8,9 @@ const MAIN_ENTRY = join(__dirname, '..', '..', 'out', 'main', 'index.js')
 
 // A fixed basename so the project switcher shows a stable repo name in
 // screenshots (mkdtemp's random suffix would change every run). workers=1 makes
-// this single-owner safe.
-const REPO_DIR = join(tmpdir(), 'porcelain-e2e-fixture')
+// this single-owner safe. Exported so a spec that MUTATES the repo (file ops) can
+// restore it to pristine afterward — it's shared worker-wide across spec files.
+export const REPO_DIR = join(tmpdir(), 'porcelain-e2e-fixture')
 
 // For the no-repo (Welcome) case: a path that never exists. A NON-EMPTY recents
 // list stops the dev seed from auto-adding ~/Code/porcelain-playground, and the
@@ -68,12 +69,15 @@ export const test = baseTest.extend<Options & Fixtures, WorkerFixtures>({
       join(userData, 'config.json'),
       JSON.stringify({ recentRepos: [seedRepo ? repoDir : ABSENT_REPO], repos: {} }),
     )
-    // Isolate the agent review-set + actions channels so the Feature/Terminal tabs
-    // are deterministic and we never read or touch the user's real ~/.porcelain files.
+    // Isolate the agent channels (review sets, actions, board) so the
+    // Feature/Terminal/Board tabs are deterministic and we never read or touch the
+    // user's real ~/.porcelain files.
     const reviewSets = join(udBase, 'review-sets.json')
     await writeFile(reviewSets, '{}')
     const actions = join(udBase, 'actions.json')
     await writeFile(actions, '{}')
+    const board = join(udBase, 'board.json')
+    await writeFile(board, '{}')
 
     const app = await _electron.launch({
       args: [MAIN_ENTRY, `--user-data-dir=${udBase}`],
@@ -84,6 +88,7 @@ export const test = baseTest.extend<Options & Fixtures, WorkerFixtures>({
       env: launchEnv({
         PORCELAIN_REVIEW_SETS: reviewSets,
         PORCELAIN_ACTIONS: actions,
+        PORCELAIN_BOARD: board,
         PORCELAIN_SHELL: '/bin/bash',
         PORCELAIN_E2E: '1',
       }),

@@ -1,10 +1,9 @@
 import { Button } from '@renderer/components/ui/button'
 import { BOARD_COLUMNS, useBoardCards } from '@renderer/hooks/use-board'
+import { draftFromCard, useCardDraftStore } from '@renderer/stores/card-draft'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { Columns3, Plus } from 'lucide-react'
-import { useState } from 'react'
-import { CardComposer, type CardDraft, draftFromCard } from './card-composer'
 import { CardItem } from './card-item'
 
 /**
@@ -16,7 +15,7 @@ export function BoardList(): React.JSX.Element {
   const cards = useBoardCards()
   const repo = useRepoStore((s) => s.repo)
   const openTab = useTabsStore((s) => s.openTab)
-  const [draft, setDraft] = useState<CardDraft | null>(null)
+  const openDraft = useCardDraftStore((s) => s.open)
 
   const openBoard = (): void => {
     if (!repo) return
@@ -46,26 +45,19 @@ export function BoardList(): React.JSX.Element {
                 size="icon-sm"
                 className="size-5"
                 aria-label={`Add card to ${column.label}`}
-                onClick={() => setDraft({ title: '', body: '', status: column.status })}
+                onClick={() => openDraft({ title: '', body: '', status: column.status })}
               >
                 <Plus />
               </Button>
             </div>
             <div className="flex flex-col gap-1.5 px-2">
               {inColumn.map((card) => (
-                <CardItem key={card.id} card={card} onEdit={(c) => setDraft(draftFromCard(c))} />
+                <CardItem key={card.id} card={card} onEdit={(c) => openDraft(draftFromCard(c))} />
               ))}
             </div>
           </div>
         )
       })}
-      <CardComposer
-        draft={draft}
-        open={draft !== null}
-        onOpenChange={(open) => {
-          if (!open) setDraft(null)
-        }}
-      />
     </div>
   )
 }

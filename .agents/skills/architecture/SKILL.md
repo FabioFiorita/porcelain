@@ -80,10 +80,16 @@ Repo switching is one store action: `useRepoStore.switchTo(path)` (closes all ta
 ### Keyboard shortcuts — tiered ownership (deliberate, don't "centralize")
 
 1. Main-process `before-input-event` ONLY to override an Electron/OS default (Cmd+W).
-2. App-global bindings acting on stores → `use-app-shortcuts.ts` (Ctrl+Tab, Cmd+1–5, Cmd+Shift+S).
+2. App-global bindings acting on stores → `use-app-shortcuts.ts` (Ctrl+Tab, Cmd+1–6, Cmd+Shift+S, plus the context-aware "new" keys: **Cmd+T** always spawns a terminal; **Cmd+N** follows `preferences.sidebarTab` — Board → new card, Terminal → new terminal).
 3. A shortcut toggling one component's local state registers its own window listener in that component (Cmd+P in `file-finder`, Cmd+F in `text-file-view`).
-4. Focused-element shortcuts as element `onKeyDown` (Cmd+S on the editor textarea).
+4. Focused-element shortcuts as element `onKeyDown` (Cmd+S on the editor textarea; Cmd+Enter/Cmd+S in the card composer).
 5. Sidebar toggles via the `SidebarProvider` `shortcut` prop (Cmd+B / Cmd+.).
+
+Earned rules a fresh read won't show:
+- **A shortcut that fires a tRPC mutation can't live in `use-app-shortcuts.ts`** — that hook is under `components/**`, where importing `lib/trpc` is a lint error (mutations go through hooks, which only components may call). So the Files fs-shortcuts (Cmd+N new file, Cmd+Shift+N new folder, Cmd+D duplicate, Cmd+⌫ trash) live in a dedicated always-mounted component, `file-commands.tsx` (next to `FileFinder` in `AppShell`), guarded to `sidebarTab === 'files'`. The global hook keeps only store/bridge actions (spawn terminal, open a draft).
+- **`isTextEntry` (`lib/keyboard.ts`) is the "don't hijack typing" guard, but it deliberately excludes `.xterm`** — xterm's hidden textarea reports as editable, yet Cmd+T/Cmd+N must still spawn a terminal while the PTY is focused.
+- **Cmd+K (clear terminal) is intercepted in the xterm registry**, not a window listener — `attachCustomKeyEventHandler` returns `false` to swallow it. It matches **meta only, never Ctrl-K** (that's readline kill-to-end-of-line and must reach the shell).
+- **"Compose intent" two surfaces share rides a tiny zustand store, with ONE dialog mounted in `AppShell`** — `file-prompt` (new file/folder/rename) → `FilePromptDialog`; `card-draft` (holds `CardDraft` + `draftFromCard`) → `CardComposer`. Board surfaces and the keyboard both call the store's `open`; mounting the dialog once avoids two stacked modals when the sidebar list and the viewer board are both mounted. The selection store also tracks the last-clicked `active` row so keyboard file ops know where to land.
 
 ### Testing
 

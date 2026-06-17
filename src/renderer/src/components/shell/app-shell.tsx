@@ -11,9 +11,12 @@ import { useRepoStore } from '@renderer/stores/repo'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { PanelLeft, RotateCw, Zap } from 'lucide-react'
 import { useEffect } from 'react'
+import { CardComposer } from '../board/card-composer'
 import { AppSidebar } from './app-sidebar'
 import { ContentSearch } from './content-search'
+import { FileCommands } from './file-commands'
 import { FileFinder } from './file-finder'
+import { FilePromptDialog } from './file-prompt-dialog'
 import { RightSidebar } from './right-sidebar'
 import { TabBar } from './tab-bar'
 import { useAppShortcuts } from './use-app-shortcuts'
@@ -189,6 +192,9 @@ export function AppShell(): React.JSX.Element {
       >
         <FileFinder />
         <ContentSearch />
+        <FileCommands />
+        <FilePromptDialog />
+        <CardComposer />
         <AppSidebar />
         <RepoShell />
       </SidebarProvider>

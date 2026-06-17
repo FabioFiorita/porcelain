@@ -1,3 +1,6 @@
+import { isTextEntry } from '@renderer/lib/keyboard'
+import { spawnTerminal } from '@renderer/lib/terminal-actions'
+import { useCardDraftStore } from '@renderer/stores/card-draft'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { useEffect } from 'react'
@@ -14,10 +17,15 @@ const SIDEBAR_TAB_KEYS: Record<
   '6': 'terminal',
 }
 
-/** Window-level shortcuts: Cmd+W (via main, see before-input-event), Ctrl+Tab cycling, Cmd+1–6 sidebar tabs. */
+/**
+ * Window-level shortcuts: Cmd+W (via main, see before-input-event), Ctrl+Tab cycling,
+ * Cmd+1–6 sidebar tabs, and the context-aware "new" shortcuts for Board/Terminal (⌘N)
+ * plus ⌘T for a terminal anywhere. Files' ⌘N/⌘⇧N/⌘D/⌘⌫ live in FileCommands instead —
+ * those go through tRPC hooks, which only a component may touch.
+ */
 export function useAppShortcuts(): void {
   useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent): void => {
+    const onKeyDown = async (e: KeyboardEvent): Promise<void> => {
       if (e.key === 'Tab' && e.ctrlKey) {
         e.preventDefault()
         useTabsStore.getState().cycleTab(e.shiftKey ? -1 : 1)
@@ -40,6 +48,31 @@ export function useAppShortcuts(): void {
         if (tab) {
           e.preventDefault()
           usePreferencesStore.getState().setSidebarTab(tab)
+          return
+        }
+      }
+      // Context-aware "new". ⌘T always spawns a terminal; ⌘N follows the active sidebar
+      // tab (Board → new card, Terminal → new terminal). Files' ⌘N is owned by
+      // FileCommands. Skipped while typing in a real field (but not the terminal).
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && !isTextEntry(e.target)) {
+        const key = e.key.toLowerCase()
+        if (key === 't' && !e.shiftKey) {
+          e.preventDefault()
+          await spawnTerminal()
+          return
+        }
+        if (key === 'n' && !e.shiftKey) {
+          const sidebarTab = usePreferencesStore.getState().sidebarTab
+          if (sidebarTab === 'board') {
+            e.preventDefault()
+            useCardDraftStore.getState().open({ title: '', body: '', status: 'todo' })
+            return
+          }
+          if (sidebarTab === 'terminal') {
+            e.preventDefault()
+            await spawnTerminal()
+            return
+          }
         }
       }
     }
