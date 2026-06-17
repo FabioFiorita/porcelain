@@ -2,7 +2,7 @@
   "compilerOptions": {
     "module": "Preserve",
     "target": "ES2022",
-    "lib": ["ES2023"],
+    "lib": ["ES2023", "DOM"],
     "types": ["node"],
     "strict": true,
     "skipLibCheck": true,
