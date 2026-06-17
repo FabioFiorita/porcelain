@@ -8,16 +8,21 @@ import { join } from 'node:path'
 export const PLUGIN_NAME = 'porcelain'
 export const MARKETPLACE_NAME = 'porcelain'
 export const REVIEW_SKILL_NAME = 'review-with-porcelain'
+export const BOARD_SKILL_NAME = 'project-board'
+export const ACTIONS_SKILL_NAME = 'saved-actions'
 
 /**
- * The plugin's own version — bumped whenever the bundled MCP server or skill gains
- * capabilities (NOT tied to the app version, since the plugin can change between
- * releases). The app records the version installed and offers an "Update" when this
- * constant is newer. Bump on any change to the MCP tools or the review skill.
+ * The plugin's own version — bumped whenever the bundled MCP server or any skill
+ * gains capabilities (NOT tied to the app version, since the plugin can change
+ * between releases). The app records the version installed and offers an "Update"
+ * when this constant is newer. Bump on any change to the MCP tools or a bundled skill.
  * 2.0.0: added review-comment + project-board tools on top of feature review sets.
  * 2.1.0: added saved-action tools (list/create/update/delete_action).
+ * 2.2.0: split the one review skill into focused skills (review-with-porcelain,
+ *        project-board, saved-actions) so the board/comment/action tools are
+ *        discoverable on their own triggers — no new tools.
  */
-export const PLUGIN_VERSION = '2.1.0'
+export const PLUGIN_VERSION = '2.2.0'
 
 /**
  * The local Claude Code marketplace root the app writes. Lives in ~/.porcelain
@@ -33,12 +38,13 @@ export function marketplaceManifest(): Record<string, unknown> {
   return {
     name: MARKETPLACE_NAME,
     owner: { name: 'Porcelain' },
-    description: 'Porcelain — feature-review companion plugin.',
+    description: 'Porcelain — agent companion plugin.',
     plugins: [
       {
         name: PLUGIN_NAME,
         source: `./${PLUGIN_NAME}`,
-        description: 'Push feature review sets to the Porcelain app (MCP server + review skill).',
+        description:
+          'MCP server + skills to push feature review sets, read review comments, and manage the project board and saved actions in the Porcelain app.',
       },
     ],
   }
@@ -48,7 +54,7 @@ export function pluginManifest(version: string): Record<string, unknown> {
   return {
     name: PLUGIN_NAME,
     description:
-      'Feature-review companion: push review sets to the Porcelain app so a human can review the whole feature in flow order.',
+      'Porcelain companion: push feature review sets so a human reviews the whole feature in flow order, read/resolve review comments, and manage the project board and saved actions — over MCP.',
     version,
     author: { name: 'Porcelain' },
     // Inline stdio MCP server; ${CLAUDE_PLUGIN_ROOT} resolves to the installed
@@ -82,7 +88,7 @@ export function installCommands(): string[] {
 
 export const REVIEW_SKILL = `---
 name: ${REVIEW_SKILL_NAME}
-description: Push a feature review set to the Porcelain app so a human can review the WHOLE feature (including server/cross-seam files that aren't in the git diff) in flow order. Use after implementing, or while working on, a multi-file feature — especially one that spans the client/server seam.
+description: Push a feature review set to the Porcelain app — and read the human's review comments — so a human can review the WHOLE feature (including server/cross-seam files that aren't in the git diff) in flow order. Use after implementing, or while working on, a multi-file feature (especially one spanning the client/server seam), and when the human says they left comments or notes on your change.
 ---
 
 # Review with Porcelain
@@ -118,16 +124,24 @@ Keep it tight: the files that make up THIS feature, broad enough that the human 
 
 ## Reviewer comments
 
-The human also leaves comments in Porcelain — anchored to specific lines (or a whole file) — as concrete review context for you. Check them:
+The human also leaves comments in Porcelain — anchored to specific lines (or a whole file) — as concrete review context for you. They're the counterpart to the review set: app → agent. Check them:
 
 - \`get_review_comments\` — \`{ repoPath }\` → the OPEN comments, each with its file/line anchor, the snippet it was attached to, the note, and an id. Read these before and during the work: they tell you exactly what to explain, fix, or look at.
 - \`resolve_review_comment\` — \`{ repoPath, id }\` → mark one resolved once you've ACTUALLY addressed the note; it then drops off the reviewer's open list.
 
 When the human says "look at my comments", "I left some notes", or asks about a specific line/diff, call \`get_review_comments\` first.
+`
 
-## Project board
+export const BOARD_SKILL = `---
+name: ${BOARD_SKILL_NAME}
+description: Read and update the Porcelain project board — the repo's todo/doing/done cards. Use to pick up queued work the human added, capture new tasks you discover, and move cards to doing/done as you progress, so the human can queue and track work without spelling it out in chat.
+---
 
-The repo has a todo/doing/done board of cards (features/tasks). Read it to know what to build and keep it in sync as you work — it's how the human queues work without spelling everything out in chat:
+# Porcelain project board
+
+Porcelain shows a per-repo todo/doing/done board of cards (features/tasks). It's how the human queues work without spelling everything out in chat, and how you reflect progress back — a two-way channel. Read it to know what to build; keep it in sync as you work.
+
+Call the \`porcelain\` MCP tools with \`repoPath\` set to the ABSOLUTE path of the repo you're working in (your cwd):
 
 - \`list_cards\` — \`{ repoPath }\` → the board grouped by column, each card with an id, title, and body. Check it to pick up queued work.
 - \`create_card\` — \`{ repoPath, title, body?, status? }\` → capture a task (defaults to the "todo" column).
@@ -135,9 +149,23 @@ The repo has a todo/doing/done board of cards (features/tasks). Read it to know 
 - \`move_card\` — \`{ repoPath, id, status }\` → move a card to "doing" when you start it and "done" when you finish, so the human sees progress.
 - \`delete_card\` — \`{ repoPath, id }\`.
 
-## Saved actions
+## How to use it
 
-The repo has saved "actions" — named shell commands the human runs in Porcelain's embedded terminal with one click (dev server, storybook, test watcher, …). Curate them so the project's common commands are one click away for the human:
+- When the human says "what's on my board", "what should I build next", or asks you to pick up queued work, call \`list_cards\` first.
+- When you start a card, \`move_card\` it to "doing"; when you finish, move it to "done" — keep the board honest so the human sees real-time progress.
+- Capture follow-ups and tasks you discover with \`create_card\` so nothing gets lost in chat.
+`
+
+export const ACTIONS_SKILL = `---
+name: ${ACTIONS_SKILL_NAME}
+description: Curate Porcelain's saved actions — named shell commands (dev server, tests, storybook, …) the human runs in the app's embedded terminal with one click. Use to add or edit the project's common commands so they're one click away. You define them; only the human runs them.
+---
+
+# Porcelain saved actions
+
+Porcelain has saved "actions" — named shell commands the human runs in the embedded terminal with one click (dev server, storybook, test watcher, …). Curate them so the project's common commands are one click away for the human.
+
+Call the \`porcelain\` MCP tools with \`repoPath\` set to the ABSOLUTE path of the repo you're working in (your cwd):
 
 - \`list_actions\` — \`{ repoPath }\` → the saved actions, each with an id, title, command, and optional cwd.
 - \`create_action\` — \`{ repoPath, title, command, cwd? }\` → add one (e.g. title "Storybook", command "pnpm --filter web storybook").
@@ -146,3 +174,17 @@ The repo has saved "actions" — named shell commands the human runs in Porcelai
 
 You DEFINE actions; only the human runs them (there is no run tool). When you discover the project's common commands (from package.json scripts, the README, or what the human asks you to run repeatedly), offer to save them as actions.
 `
+
+export interface PluginSkill {
+  /** Skill dir + frontmatter \`name\`; becomes \`porcelain:<name>\` once installed. */
+  name: string
+  /** The SKILL.md body, frontmatter included. */
+  content: string
+}
+
+/** Every skill the plugin ships — the installer writes one \`skills/<name>/SKILL.md\` each. */
+export const SKILLS: readonly PluginSkill[] = [
+  { name: REVIEW_SKILL_NAME, content: REVIEW_SKILL },
+  { name: BOARD_SKILL_NAME, content: BOARD_SKILL },
+  { name: ACTIONS_SKILL_NAME, content: ACTIONS_SKILL },
+]

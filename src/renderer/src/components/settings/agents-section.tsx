@@ -1,8 +1,8 @@
 import { PluginSection } from './plugin-section'
 
 // Reorganize-only for now: Claude Code is the one working integration (the plugin
-// that bundles the MCP server + review skill); Codex/Cursor are declared but not
-// built yet, so they render as labeled placeholders rather than dead controls.
+// that bundles the MCP server + skills); Codex/Cursor are declared but not built
+// yet, so they render as labeled placeholders rather than dead controls.
 const PLANNED = [
   {
     name: 'Codex',
@@ -22,10 +22,10 @@ export function AgentsSection(): React.JSX.Element {
           <h3 className="text-sm font-medium">Claude Code</h3>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Installs a plugin that bundles the Porcelain{' '}
-            <span className="font-medium">MCP server</span> and the{' '}
-            <code className="font-mono">review-with-porcelain</code>{' '}
-            <span className="font-medium">skill</span>, so your agent can push the whole feature —
-            server and cross-seam files — into review.
+            <span className="font-medium">MCP server</span> and its{' '}
+            <span className="font-medium">skills</span> — review, project board, and saved actions —
+            so your agent can push the whole feature into review, read your comments, and stay in
+            sync with the board.
           </p>
         </div>
         <PluginSection />

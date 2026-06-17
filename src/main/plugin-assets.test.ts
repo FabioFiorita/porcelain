@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  ACTIONS_SKILL,
+  BOARD_SKILL,
   installCommands,
   MARKETPLACE_NAME,
   marketplaceManifest,
@@ -7,6 +9,7 @@ import {
   pluginManifest,
   pluginMarketplaceDir,
   REVIEW_SKILL,
+  SKILLS,
 } from './plugin-assets'
 
 describe('plugin assets', () => {
@@ -37,10 +40,38 @@ describe('plugin assets', () => {
     expect(update).toBe(`claude plugin update ${PLUGIN_NAME}@${MARKETPLACE_NAME}`)
   })
 
-  it('the bundled skill teaches the agent the tools and the shipped/context tagging', () => {
+  it('bundles three focused skills, each with frontmatter naming itself', () => {
+    expect(SKILLS.map((s) => s.name)).toEqual([
+      'review-with-porcelain',
+      'project-board',
+      'saved-actions',
+    ])
+    for (const skill of SKILLS) {
+      expect(skill.content).toMatch(new RegExp(`^---\\nname: ${skill.name}\\ndescription: .+`))
+    }
+  })
+
+  it('the review skill teaches review sets + comments and the shipped/context tagging', () => {
     expect(REVIEW_SKILL).toContain('set_feature_review')
+    expect(REVIEW_SKILL).toContain('get_review_comments')
     expect(REVIEW_SKILL).toContain('"shipped"')
     expect(REVIEW_SKILL).toContain('"context"')
     expect(REVIEW_SKILL).toMatch(/^---\nname: review-with-porcelain/)
+    // board/action tools moved out to their own skills, so their triggers fire independently
+    expect(REVIEW_SKILL).not.toContain('list_cards')
+    expect(REVIEW_SKILL).not.toContain('list_actions')
+  })
+
+  it('the board skill teaches the card tools', () => {
+    for (const tool of ['list_cards', 'create_card', 'update_card', 'move_card', 'delete_card']) {
+      expect(BOARD_SKILL).toContain(tool)
+    }
+  })
+
+  it('the actions skill teaches the action tools and the human-runs-only rule', () => {
+    for (const tool of ['list_actions', 'create_action', 'update_action', 'delete_action']) {
+      expect(ACTIONS_SKILL).toContain(tool)
+    }
+    expect(ACTIONS_SKILL).toContain('only the human runs them')
   })
 })

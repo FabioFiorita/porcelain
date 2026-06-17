@@ -10,8 +10,7 @@ import {
   PLUGIN_VERSION,
   pluginManifest,
   pluginMarketplaceDir,
-  REVIEW_SKILL,
-  REVIEW_SKILL_NAME,
+  SKILLS,
 } from './plugin-assets'
 
 export interface PluginInstallResult {
@@ -32,13 +31,12 @@ function builtServerPath(): string {
   return join(app.getAppPath(), 'out', 'main', 'mcp', 'server.js')
 }
 
-/** Materialize the local marketplace + plugin (manifest, skill, copied server). */
+/** Materialize the local marketplace + plugin (manifest, skills, copied server). */
 export async function writePluginFiles(): Promise<string> {
   const root = pluginMarketplaceDir()
   const plugin = join(root, PLUGIN_NAME)
   await mkdir(join(root, '.claude-plugin'), { recursive: true })
   await mkdir(join(plugin, '.claude-plugin'), { recursive: true })
-  await mkdir(join(plugin, 'skills', REVIEW_SKILL_NAME), { recursive: true })
 
   await writeFile(
     join(root, '.claude-plugin', 'marketplace.json'),
@@ -48,7 +46,11 @@ export async function writePluginFiles(): Promise<string> {
     join(plugin, '.claude-plugin', 'plugin.json'),
     JSON.stringify(pluginManifest(PLUGIN_VERSION), null, 2),
   )
-  await writeFile(join(plugin, 'skills', REVIEW_SKILL_NAME, 'SKILL.md'), REVIEW_SKILL)
+  for (const skill of SKILLS) {
+    const dir = join(plugin, 'skills', skill.name)
+    await mkdir(dir, { recursive: true })
+    await writeFile(join(dir, 'SKILL.md'), skill.content)
+  }
   await copyFile(builtServerPath(), join(plugin, 'server.js'))
   return root
 }
