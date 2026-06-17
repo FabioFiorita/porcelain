@@ -63,11 +63,20 @@ export function pluginManifest(version: string): Record<string, unknown> {
   }
 }
 
-/** The two non-interactive CLI commands that register + install the local plugin. */
+/**
+ * The non-interactive CLI commands that register + install the local plugin.
+ * Idempotent across both first-install and upgrade: `add`/`install` do the work
+ * on a clean machine and no-op afterwards, while `marketplace update`/`plugin
+ * update` re-read the bumped manifest and apply the version bump — without them,
+ * a re-run silently stays on the installed version. (Claude still requires a
+ * session restart before the refreshed tools load.)
+ */
 export function installCommands(): string[] {
   return [
     `claude plugin marketplace add ${pluginMarketplaceDir()}`,
+    `claude plugin marketplace update ${MARKETPLACE_NAME}`,
     `claude plugin install ${PLUGIN_NAME}@${MARKETPLACE_NAME}`,
+    `claude plugin update ${PLUGIN_NAME}@${MARKETPLACE_NAME}`,
   ]
 }
 

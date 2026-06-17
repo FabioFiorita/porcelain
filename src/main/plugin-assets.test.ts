@@ -29,10 +29,12 @@ describe('plugin assets', () => {
     })
   })
 
-  it('install commands add the local marketplace then install the plugin', () => {
-    const [add, install] = installCommands()
+  it('install commands register, then both install and update so re-runs upgrade', () => {
+    const [add, marketplaceUpdate, install, update] = installCommands()
     expect(add).toBe(`claude plugin marketplace add ${pluginMarketplaceDir()}`)
+    expect(marketplaceUpdate).toBe(`claude plugin marketplace update ${MARKETPLACE_NAME}`)
     expect(install).toBe(`claude plugin install ${PLUGIN_NAME}@${MARKETPLACE_NAME}`)
+    expect(update).toBe(`claude plugin update ${PLUGIN_NAME}@${MARKETPLACE_NAME}`)
   })
 
   it('the bundled skill teaches the agent the tools and the shipped/context tagging', () => {
