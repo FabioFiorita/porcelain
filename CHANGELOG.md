@@ -1,4 +1,22 @@
+## [0.8.0](https://github.com/FabioFiorita/porcelain/compare/v0.7.1...v0.8.0) (2026-06-17)
+
+### Features
+
+* **board:** hide the Quick Access panel on the Board tab ([587c2eb](https://github.com/FabioFiorita/porcelain/commit/587c2eb89894adf3ddbd9112774c93250aff6975))
+* **shortcuts:** daily keyboard shortcuts for files, board, terminal ([9d9619b](https://github.com/FabioFiorita/porcelain/commit/9d9619b5f9c851e5d235910d8a7fe761c366a8f4))
+* **terminal:** macOS line-editing chords (match Ghostty) ([45ebb83](https://github.com/FabioFiorita/porcelain/commit/45ebb83ba9ebc0a2199329d0741f509b86c13625))
+
+### Bug Fixes
+
+* **plugin:** make install button upgrade, not just first-install ([4e827d0](https://github.com/FabioFiorita/porcelain/commit/4e827d0aae82bcca1296bd6cd4b7f1550f62bd9b))
+
 ## [0.7.1](https://github.com/FabioFiorita/porcelain/compare/v0.7.0...v0.7.1) (2026-06-16)
+
+### Features
+
+* **terminal:** nerd-font glyphs + fix split-to-side ([e8127f1](https://github.com/FabioFiorita/porcelain/commit/e8127f10c027f5a344f2c737975420f528f61f1f))
+
+## [0.7.0](https://github.com/FabioFiorita/porcelain/compare/v0.6.0...v0.7.0) (2026-06-16)
 
 ### Features
 
@@ -12,7 +30,6 @@
 * project board (todo/doing/done) with full MCP card control ([867bd15](https://github.com/FabioFiorita/porcelain/commit/867bd15eaa39f4c41b4d545c091b1720d7ed5ef1))
 * review comments fed to the agent over MCP ([a6f0231](https://github.com/FabioFiorita/porcelain/commit/a6f02317832ff51fe9661a1c5cd0aacc92300810))
 * **search:** add Cmd+Shift+F project-wide content search overlay ([f4d0301](https://github.com/FabioFiorita/porcelain/commit/f4d0301c5144f7ba2aeef8b479bead4abade4958))
-* **terminal:** nerd-font glyphs + fix split-to-side ([e8127f1](https://github.com/FabioFiorita/porcelain/commit/e8127f10c027f5a344f2c737975420f528f61f1f))
 
 ### Bug Fixes
 
