@@ -1,3 +1,9 @@
+## [0.9.0](https://github.com/FabioFiorita/porcelain/compare/v0.8.0...v0.9.0) (2026-06-17)
+
+### Features
+
+* **finder:** surface folders in Cmd+P, not just files ([48d9a5d](https://github.com/FabioFiorita/porcelain/commit/48d9a5d82d3e83869137d29de5b7a6d1f7603da7))
+
 ## [0.8.0](https://github.com/FabioFiorita/porcelain/compare/v0.7.1...v0.8.0) (2026-06-17)
 
 ### Features
