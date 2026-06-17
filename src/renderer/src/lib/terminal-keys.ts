@@ -8,7 +8,7 @@
  * ⌘ is line-wise, ⌥ is word-wise — matching Ghostty's macOS defaults:
  *   ⌘⌫ → delete to line start (Ctrl-U)   ⌘← / ⌘→ → line start / end (Ctrl-A / Ctrl-E)
  *   ⌥⌫ → delete word back               ⌥← / ⌥→ → word back / forward
- *   ⇧↵ → insert a newline instead of submitting (Claude Code & other multiline prompts)
+ *   ⇧↵ / ⌘↵ → insert a newline instead of submitting (Claude Code & other multiline prompts)
  *
  * ⌥ + a letter is deliberately left alone so Option-compose (´ + e → é) still types.
  */
@@ -32,6 +32,7 @@ export function terminalEditBytes({
     if (key === 'Backspace') return '\x15' // Ctrl-U: delete to start of line
     if (key === 'ArrowLeft') return '\x01' // Ctrl-A: start of line
     if (key === 'ArrowRight') return '\x05' // Ctrl-E: end of line
+    if (key === 'Enter') return '\n' // LF newline, not the submit CR (same as ⇧↵)
     return null
   }
   // ⌥ alone — word-wise editing.

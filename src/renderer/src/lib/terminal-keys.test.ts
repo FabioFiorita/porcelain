@@ -22,8 +22,9 @@ describe('terminalEditBytes', () => {
     expect(terminalEditBytes(chord({ key: 'ArrowRight', altKey: true }))).toBe('\x1bf')
   })
 
-  it('maps ⇧↵ to a newline', () => {
+  it('maps ⇧↵ and ⌘↵ to a newline', () => {
     expect(terminalEditBytes(chord({ key: 'Enter', shiftKey: true }))).toBe('\n')
+    expect(terminalEditBytes(chord({ key: 'Enter', metaKey: true }))).toBe('\n')
   })
 
   it('leaves plain keys and Ctrl/Option-compose alone', () => {
