@@ -33,6 +33,7 @@ import {
 } from '@renderer/hooks/use-files'
 import { cn } from '@renderer/lib/utils'
 import { useFilePromptStore } from '@renderer/stores/file-prompt'
+import { useFileTreeStore } from '@renderer/stores/file-tree'
 import { useRevealStore } from '@renderer/stores/reveal'
 import { useSelectionStore } from '@renderer/stores/selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
@@ -204,6 +205,16 @@ function DirNode({ entry }: { entry: DirEntry }): React.JSX.Element {
   useEffect(() => {
     if (isRevealed) ref.current?.scrollIntoView({ block: 'nearest' })
   }, [isRevealed])
+  // Collapse-all (Explorer header) bumps a nonce; collapse on each bump but not on
+  // mount, so a freshly-mounted folder revealed from elsewhere isn't snapped shut.
+  const collapseNonce = useFileTreeStore((s) => s.collapseNonce)
+  const seenNonce = useRef(collapseNonce)
+  useEffect(() => {
+    if (collapseNonce !== seenNonce.current) {
+      seenNonce.current = collapseNonce
+      setExpanded(false)
+    }
+  }, [collapseNonce])
 
   return (
     <SidebarMenuItem>

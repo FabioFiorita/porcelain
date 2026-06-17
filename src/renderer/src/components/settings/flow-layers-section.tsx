@@ -1,6 +1,7 @@
 import type { Layer } from '@main/flow'
 import { Button } from '@renderer/components/ui/button'
 import { Input } from '@renderer/components/ui/input'
+import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
 import { useRepoLayers, useSetRepoLayers } from '@renderer/hooks/use-repo-layers'
 import { useRepoStore } from '@renderer/stores/repo'
 import { ChevronDown, ChevronUp, Plus, X } from 'lucide-react'
@@ -14,6 +15,112 @@ const patternError = (pattern: string): string | null => {
   } catch {
     return 'invalid regular expression'
   }
+}
+
+type MatchType = 'folder' | 'ext' | 'suffix'
+
+// Escape regex metacharacters so a typed name (e.g. `api.client`) stays literal.
+const escapeRe = (name: string): string => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+const splitNames = (raw: string): string[] =>
+  raw
+    .split(',')
+    .map((n) => n.trim())
+    .filter(Boolean)
+
+// Turn the picked match type + names into the regex the flow grouper tests against
+// the repo-relative path — the same three shapes the defaults use.
+const buildPattern = (type: MatchType, names: string[]): string => {
+  if (names.length === 0) return ''
+  const alt = `(${names.map(escapeRe).join('|')})`
+  if (type === 'folder') return `(^|/)${alt}/`
+  if (type === 'ext') return `\\.${alt}$`
+  return `\\.${alt}\\.[a-z]+$`
+}
+
+const deriveLabel = (names: string[]): string => {
+  const first = names[0] ?? ''
+  return first ? first.charAt(0).toUpperCase() + first.slice(1) : 'New layer'
+}
+
+const PLACEHOLDERS: Record<MatchType, string> = {
+  folder: 'components, views',
+  ext: 'ts, tsx',
+  suffix: 'test, spec',
+}
+
+// Compose a layer pattern from a match type + a few names instead of hand-writing
+// the regex; the generated pattern is previewed live and added as a fresh layer
+// (still editable by hand below). Replaces the old wall of explanatory text.
+function PatternBuilder({ onAdd }: { onAdd: (layer: Layer) => void }): React.JSX.Element {
+  const [matchType, setMatchType] = useState<MatchType>('folder')
+  const [names, setNames] = useState('')
+  const parsed = splitNames(names)
+  const preview = buildPattern(matchType, parsed)
+
+  const add = (): void => {
+    if (parsed.length === 0) return
+    onAdd({ label: deriveLabel(parsed), pattern: preview })
+    setNames('')
+  }
+
+  return (
+    <div className="flex flex-col gap-2.5 rounded-md border bg-muted/40 p-3">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        Pattern builder
+      </p>
+      <div className="flex items-center gap-2.5">
+        <span className="w-14 shrink-0 text-xs text-muted-foreground">Match</span>
+        <ToggleGroup
+          value={[matchType]}
+          onValueChange={(value: string[]) => {
+            const type = value[0]
+            if (type === 'folder' || type === 'ext' || type === 'suffix') setMatchType(type)
+          }}
+        >
+          <ToggleGroupItem value="folder" size="sm">
+            Folder
+          </ToggleGroupItem>
+          <ToggleGroupItem value="ext" size="sm">
+            Extension
+          </ToggleGroupItem>
+          <ToggleGroupItem value="suffix" size="sm">
+            Suffix
+          </ToggleGroupItem>
+        </ToggleGroup>
+      </div>
+      <div className="flex items-center gap-2.5">
+        <span className="w-14 shrink-0 text-xs text-muted-foreground">Names</span>
+        <Input
+          value={names}
+          onChange={(e) => setNames(e.target.value)}
+          placeholder={PLACEHOLDERS[matchType]}
+          aria-label="Pattern names"
+          className="flex-1"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              add()
+            }
+          }}
+        />
+      </div>
+      <div className="flex items-center gap-2.5">
+        <span className="w-14 shrink-0 text-xs text-muted-foreground">Pattern</span>
+        <code className="min-w-0 flex-1 truncate rounded-md bg-black/30 px-2.5 py-1.5 font-mono text-xs text-ink-green">
+          {preview || '—'}
+        </code>
+        <Button size="sm" disabled={parsed.length === 0} onClick={add}>
+          <Plus /> Add
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Furthest-right match wins; unmatched files fall into{' '}
+        <span className="text-foreground">Other</span>. You can still edit any pattern by hand
+        below.
+      </p>
+    </div>
+  )
 }
 
 function LayerRow({
@@ -126,18 +233,7 @@ export function FlowLayersSection({ onSaved }: { onSaved: () => void }): React.J
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="rounded-md bg-muted/40 p-3 text-xs text-muted-foreground">
-        <p>
-          Each pattern is a regular expression tested against the repo-relative path. When several
-          match, the one matching furthest right wins, and unmatched files land in “Other”.
-          Directory layers look like <code className="font-mono">(^|/)components?/</code> while
-          filename layers like <code className="font-mono">{'\\.(test|spec)\\.[a-z]+$'}</code> beat
-          the folder the file sits in. Example: give Storybook files their own group with a{' '}
-          <span className="text-foreground">Stories</span> layer matching{' '}
-          <code className="font-mono">{'\\.stories\\.[a-z]+$'}</code> — otherwise they sort into the
-          layer of their folder.
-        </p>
-      </div>
+      <PatternBuilder onAdd={(layer) => setDraft([...draft, { ...layer, id: nextDraftId++ }])} />
       <div className="flex flex-col gap-1.5">
         {draft.map((layer, index) => (
           <LayerRow

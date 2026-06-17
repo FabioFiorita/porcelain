@@ -33,13 +33,12 @@ function createWindow(): void {
     show: false,
     autoHideMenuBar: true,
     titleBarStyle: 'hiddenInset',
-    // Center the traffic lights in the sidebar header. The header is h-12 (48px)
-    // but the floating sidebar tile is inset 8px from the window top, so the
-    // header's center sits at window-y 32 (8 + 24). The buttons' visual center is
-    // ~y+8 (≈16px effective), so 32 − 8 = 24 centers them. GOTCHA: maximizing or
-    // fullscreening the window resets this to the macOS default — Electron doesn't
-    // re-apply trafficLightPosition on window state changes.
-    trafficLightPosition: { x: 19, y: 24 },
+    // Center the traffic lights in the full-width window titlebar. It's h-12 (48px)
+    // flush with the window top, so its center sits at window-y 24. The buttons'
+    // visual center is ~y+8 (≈16px effective), so 24 − 8 = 16 centers them. GOTCHA:
+    // maximizing or fullscreening the window resets this to the macOS default —
+    // Electron doesn't re-apply trafficLightPosition on window state changes.
+    trafficLightPosition: { x: 19, y: 16 },
     vibrancy: 'hud',
     visualEffectState: 'followWindow',
     backgroundColor: '#00000000',

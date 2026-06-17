@@ -21,9 +21,11 @@ import {
 } from '@renderer/components/ui/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { cn } from '@renderer/lib/utils'
+import { useFileTreeStore } from '@renderer/stores/file-tree'
 import { type SidebarTab, usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
 import {
+  ChevronsDownUp,
   Eye,
   EyeOff,
   Files,
@@ -46,12 +48,24 @@ const TABS: { id: SidebarTab; label: string; icon: typeof Files; shortcut: strin
   { id: 'terminal', label: 'Terminal', icon: SquareTerminal, shortcut: '⌘6' },
 ]
 
+// Uppercase title each left panel opens with — one consistent header pattern
+// across all six tabs (the Files panel adds the collapse-all + hide controls).
+const PANEL_TITLES: Record<SidebarTab, string> = {
+  files: 'Explorer',
+  changes: 'Source control',
+  history: 'History',
+  feature: 'Feature review',
+  board: 'Board',
+  terminal: 'Terminal',
+}
+
 export function AppSidebar(): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)
   const showHidden = useRepoStore((s) => s.showHidden)
   const toggleShowHidden = useRepoStore((s) => s.toggleShowHidden)
   const sidebarTab = usePreferencesStore((s) => s.sidebarTab)
   const setSidebarTab = usePreferencesStore((s) => s.setSidebarTab)
+  const collapseAll = useFileTreeStore((s) => s.collapseAll)
   const { state, setOpen } = useSidebar()
 
   // Picking a tab always reveals its panel — switching while collapsed to the
@@ -72,13 +86,15 @@ export function AppSidebar(): React.JSX.Element {
       {/* Resizing a bare rail makes no sense — the handle only exists when expanded. */}
       {state === 'expanded' && <SidebarResizeHandle />}
 
-      {/* Icon rail — the four tabs, monochrome and icon-only, plus settings.
-          The divider lives on the content (not the whole rail) so it starts
-          below the header line and stops above the footer — the title bar and
-          bottom bar read as one continuous strip across rail + panel. */}
+      {/* Icon rail — project avatar on top, then the six tabs (monochrome,
+          icon-only), settings at the bottom. The divider lives on the content (not
+          the whole rail) so it starts below the header line and stops above the
+          footer — the title bar and bottom bar read as one continuous strip. */}
       <Sidebar collapsible="none" className="w-(--sidebar-width-icon) shrink-0 bg-transparent">
-        {/* Empty drag strip the macOS traffic lights float over. */}
-        <SidebarHeader className="app-drag h-12 shrink-0 border-b" />
+        {/* The project switcher avatar; the strip stays draggable around it. */}
+        <SidebarHeader className="app-drag flex h-12 shrink-0 items-center justify-center border-b">
+          <ProjectSwitcher />
+        </SidebarHeader>
         <SidebarContent className="overflow-hidden border-r border-sidebar-border">
           <SidebarMenu className="items-center gap-1 py-2">
             {TABS.map((tab) => {
@@ -116,35 +132,50 @@ export function AppSidebar(): React.JSX.Element {
         </SidebarFooter>
       </Sidebar>
 
-      {/* Content panel — project switcher + active list + branch switcher. */}
+      {/* Content panel — contextual header + active list + branch/worktree footer. */}
       <Sidebar collapsible="none" className="min-w-0 flex-1 bg-transparent">
-        {/* Continuous title bar. The traffic lights own the left edge and
-            overhang the panel slightly, so pl-7 holds the switcher clear of them
-            with a comfortable gap; it fills the width and aligns to the start
-            (left of the eye), truncating rather than tucking under the lights. */}
-        <SidebarHeader className="app-drag h-12 flex-row items-center gap-0 border-b py-0 pl-7 pr-1">
-          <div className="flex min-w-0 flex-1 justify-start">
-            <ProjectSwitcher />
-          </div>
-          <div className="app-no-drag flex shrink-0 items-center">
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={toggleShowHidden}
-                    aria-label={showHidden ? 'Conceal hidden entries' : 'Show hidden entries'}
-                  >
-                    {showHidden ? <Eye /> : <EyeOff />}
-                  </Button>
-                }
-              />
-              <TooltipContent>
-                {showHidden ? 'Conceal hidden entries' : 'Show hidden entries'}
-              </TooltipContent>
-            </Tooltip>
-          </div>
+        {/* Contextual title bar. The traffic lights now live in the window
+            titlebar, so the panel header is free of them — no left inset needed. */}
+        <SidebarHeader className="app-drag h-12 flex-row items-center gap-1 border-b py-0 pr-1 pl-3">
+          <span className="min-w-0 flex-1 truncate text-xs font-semibold text-foreground">
+            {PANEL_TITLES[sidebarTab]}
+          </span>
+          {sidebarTab === 'files' && (
+            <div className="app-no-drag flex shrink-0 items-center text-muted-foreground">
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={collapseAll}
+                      aria-label="Collapse all folders"
+                    >
+                      <ChevronsDownUp />
+                    </Button>
+                  }
+                />
+                <TooltipContent>Collapse all folders</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={toggleShowHidden}
+                      aria-label={showHidden ? 'Conceal hidden entries' : 'Show hidden entries'}
+                    >
+                      {showHidden ? <Eye /> : <EyeOff />}
+                    </Button>
+                  }
+                />
+                <TooltipContent>
+                  {showHidden ? 'Conceal hidden entries' : 'Show hidden entries'}
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          )}
         </SidebarHeader>
         <SidebarContent className="overflow-hidden">
           {repo ? (
@@ -164,8 +195,10 @@ export function AppSidebar(): React.JSX.Element {
             <p className="p-2 text-sm text-muted-foreground">No repository open</p>
           )}
         </SidebarContent>
-        <SidebarFooter className="h-12 items-end justify-center border-t px-2 py-0">
-          <WorktreeSwitcher />
+        {/* Branch on the left, worktree count on the right — both open the switcher. */}
+        <SidebarFooter className="h-12 flex-row items-center justify-between gap-2 border-t px-2 py-0">
+          <WorktreeSwitcher variant="branch" />
+          <WorktreeSwitcher variant="count" />
         </SidebarFooter>
       </Sidebar>
     </Sidebar>

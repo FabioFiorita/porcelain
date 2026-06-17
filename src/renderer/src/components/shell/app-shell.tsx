@@ -20,6 +20,7 @@ import { FileFinder } from './file-finder'
 import { FilePromptDialog } from './file-prompt-dialog'
 import { RightSidebar } from './right-sidebar'
 import { TabBar } from './tab-bar'
+import { TitleBar } from './title-bar'
 import { useAppShortcuts } from './use-app-shortcuts'
 import { Viewer } from './viewer'
 import { Welcome } from './welcome'
@@ -180,11 +181,18 @@ export function AppShell(): React.JSX.Element {
   }
 
   return (
-    // No background wash here: the void between the tiles shows raw vibrancy
-    <div className="dark h-screen text-foreground">
+    // No background wash here: the void between the tiles shows raw vibrancy. The
+    // window titlebar (traffic lights + centered search) spans the top; the three
+    // tiles fill the row below it.
+    <div className="dark flex h-screen flex-col text-foreground">
+      <TitleBar />
       <SidebarProvider
+        // flex-1 fills the row under the titlebar; minHeight:0 overrides the
+        // provider's default min-h-svh (which would push the layout past the window).
+        className="min-h-0 flex-1"
         style={
           {
+            minHeight: 0,
             '--sidebar-width': `${sidebarWidth}px`,
             // A compact icon rail — the divider no longer runs through the header,
             // so the rail only has to fit the icons (not span under the lights).

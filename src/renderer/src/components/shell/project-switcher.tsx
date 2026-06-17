@@ -7,10 +7,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@renderer/components/ui/dropdown-menu'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useRecentRepos } from '@renderer/hooks/use-repo'
 import { useRepoStore } from '@renderer/stores/repo'
 import { Check, ChevronsUpDown, FolderOpen } from 'lucide-react'
 
+// The project lives at the top of the icon rail as an avatar (its initial) with a
+// switch-chevron badge — the same dropdown the old header chip carried, just a
+// denser trigger that sits above the tab icons.
 export function ProjectSwitcher(): React.JSX.Element | null {
   const repo = useRepoStore((s) => s.repo)
   const openRepo = useRepoStore((s) => s.openRepo)
@@ -21,18 +25,28 @@ export function ProjectSwitcher(): React.JSX.Element | null {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <button
-            type="button"
-            className="app-no-drag flex w-full min-w-0 items-center gap-1 rounded-md px-1 py-0.5 text-xs font-medium uppercase tracking-wider text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-          >
-            <span className="truncate">{repo.name}</span>
-            <ChevronsUpDown className="size-3 shrink-0" />
-          </button>
-        }
-      />
-      <DropdownMenuContent align="start" className="w-72">
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <DropdownMenuTrigger
+              render={
+                <button
+                  type="button"
+                  aria-label="Switch project"
+                  className="app-no-drag relative flex size-9 items-center justify-center rounded-lg bg-sidebar-accent text-sm font-semibold text-sidebar-accent-foreground hover:bg-accent"
+                >
+                  {repo.name.charAt(0).toUpperCase()}
+                  <span className="absolute -right-0.5 -bottom-0.5 flex size-3.5 items-center justify-center rounded-full border bg-card text-muted-foreground">
+                    <ChevronsUpDown className="size-2" />
+                  </span>
+                </button>
+              }
+            />
+          }
+        />
+        <TooltipContent side="right">{repo.name}</TooltipContent>
+      </Tooltip>
+      <DropdownMenuContent align="start" side="right" className="w-72">
         {/* Base UI requires GroupLabel inside a Group (Radix did not) */}
         <DropdownMenuGroup>
           <DropdownMenuLabel>Recent projects</DropdownMenuLabel>

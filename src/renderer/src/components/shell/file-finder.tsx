@@ -10,6 +10,8 @@ import {
 } from '@renderer/components/ui/command'
 import { FileTypeIcon, FolderIcon } from '@renderer/components/viewer/file-icon'
 import { useFileSearch } from '@renderer/hooks/use-search'
+import { isTerminalTarget } from '@renderer/lib/keyboard'
+import { useFileFinderStore } from '@renderer/stores/file-finder'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useRevealStore } from '@renderer/stores/reveal'
@@ -21,7 +23,9 @@ export function FileFinder(): React.JSX.Element {
   const openTab = useTabsStore((s) => s.openTab)
   const setSidebarTab = usePreferencesStore((s) => s.setSidebarTab)
   const reveal = useRevealStore((s) => s.reveal)
-  const [open, setOpen] = useState(false)
+  // Open state lives in a store so the titlebar search bar can raise the popup too.
+  const open = useFileFinderStore((s) => s.open)
+  const setOpen = useFileFinderStore((s) => s.setOpen)
   const [query, setQuery] = useState('')
   // debounce keystrokes so each IPC round-trip searches a settled query
   const [debouncedQuery, setDebouncedQuery] = useState('')
@@ -41,14 +45,17 @@ export function FileFinder(): React.JSX.Element {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent): void => {
-      if (e.key === 'p' && (e.metaKey || e.ctrlKey)) {
+      if (!(e.metaKey || e.ctrlKey)) return
+      // ⌘P always; ⌘K mirrors the titlebar search bar, but over a focused terminal
+      // ⌘K stays the shell's clear-screen (handled in the xterm registry).
+      if (e.key === 'p' || (e.key === 'k' && !isTerminalTarget(e.target))) {
         e.preventDefault()
-        setOpen((o) => !o)
+        setOpen(!useFileFinderStore.getState().open)
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [])
+  }, [setOpen])
 
   const { results, isFetching } = useFileSearch(debouncedQuery, open)
   const searching = isFetching || query !== debouncedQuery
