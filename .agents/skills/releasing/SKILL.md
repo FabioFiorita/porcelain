@@ -23,10 +23,12 @@ for `electron-updater`.
    release needs no baseline change. (Caveat: the baselines were authored on the dev
    machine; the macОS CI runner is not where we assert them — assert here.)
 3. **Bump and tag in one step:** `pnpm version <patch|minor|major>` — updates
-   `package.json`, regenerates `CHANGELOG.md` from the conventional commits (the
-   `version` lifecycle hook → `pnpm changelog`, staged into the release commit),
-   commits, and creates a matching `vX.Y.Z` git tag. The tag **must** equal
-   `v<package.json version>`, or electron-builder publishes a mismatched release.
+   `package.json`, **prepends** the new release's section to `CHANGELOG.md` from the
+   conventional commits (the `version` lifecycle hook → `pnpm changelog`, staged into
+   the release commit), commits, and creates a matching `vX.Y.Z` git tag. The tag
+   **must** equal `v<package.json version>`, or electron-builder publishes a
+   mismatched release. (`pnpm changelog` only writes the *newest* section and leaves
+   published history alone — see Changelog below for why and the hook-ordering catch.)
 4. **`git push --follow-tags`** — pushing the `v*` tag triggers
    `.github/workflows/release.yml` (macOS runner, `macos-14`): it re-runs the gate,
    then `pnpm release` (= `electron-builder --mac --publish always`) builds, signs,
@@ -86,13 +88,34 @@ Drop the `CSC_*`/`APPLE_*` env from `release.yml`, set
 `CHANGELOG.md` is generated from conventional commits by `conventional-changelog`
 (the maintained CLI — `conventional-changelog-cli` is deprecated) with the
 `conventionalcommits` preset. `pnpm changelog` =
-`conventional-changelog -p conventionalcommits -i CHANGELOG.md -r 0` (full
-deterministic regen from all `v*` tags; overwrites). The `version` lifecycle script
-(`pnpm changelog && git add CHANGELOG.md`) runs it on every `pnpm version` bump and
-folds the result into the `chore: release vX` commit. Only `feat`/`fix`/breaking
-surface (preset default); `ci`/`chore`/`docs`/`refactor`/`test` are intentionally
-hidden. `repository` in `package.json` makes commit/compare links resolve;
-`CHANGELOG.md` is excluded from the packaged app in `electron-builder.yml`.
+`conventional-changelog -p conventionalcommits -i CHANGELOG.md -r 1` — generate **only
+the newest release** and **prepend** it to the existing file; published sections are
+never touched. The `version` lifecycle script (`pnpm changelog && git add CHANGELOG.md`)
+runs it on every `pnpm version` bump and folds the result into the `chore: release vX`
+commit. Only `feat`/`fix`/breaking surface (preset default); `ci`/`chore`/`docs`/
+`refactor`/`test` are intentionally hidden. `repository` in `package.json` makes
+commit/compare links resolve; `CHANGELOG.md` is excluded from the packaged app in
+`electron-builder.yml`.
+
+**Why `-r 1`, not `-r 0` (this bit us once).** `-r 0` means "regenerate the *whole*
+changelog from git tags and overwrite the file" — it ignores the existing
+`CHANGELOG.md` entirely and rebuilds every section from whatever `v*` tags happen to
+be present locally at that instant. That's fragile: if any prior release's tag is
+missing when the hook fires, that section silently vanishes and its commits get
+swept into the new block. Cutting v0.9.0 it dropped the entire `## [0.8.0]` section
+and merged 0.8.0's four commits up into 0.9.0 (its compare link even came out
+`v0.7.1...v0.9.0`). `-r 1` is additive — it only computes the new section from
+`git log <latest-tag>..HEAD` and prepends; even with a missing prior tag it leaves
+published history byte-for-byte intact. Never go back to `-r 0`.
+
+**Hook-ordering catch.** `pnpm version` runs the lifecycle hook *before* it commits
+and tags, so when `pnpm changelog` fires the new `vX.Y.Z` tag does **not** exist yet —
+the latest tag is the *previous* release and the new commits read as "unreleased,"
+which is exactly what makes `-r 1` emit the new section (header version from the
+already-bumped `package.json`). Corollary: running `pnpm changelog` *by hand* after
+`pnpm version` has finished produces **nothing** — HEAD already sits on the fresh tag,
+so there are no unreleased commits. Don't "fix" the changelog that way; if you need to
+regenerate, do it from the pre-tag state.
 
 ## Local builds
 

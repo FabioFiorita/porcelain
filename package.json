@@ -31,7 +31,7 @@
     "test:e2e:update": "npm run build && PLAYWRIGHT_FORCE_ASYNC_LOADER=1 playwright test --update-snapshots",
     "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "typecheck:e2e": "tsc --noEmit -p e2e/tsconfig.json",
-    "changelog": "conventional-changelog -p conventionalcommits -i CHANGELOG.md -r 0",
+    "changelog": "conventional-changelog -p conventionalcommits -i CHANGELOG.md -r 1",
     "version": "pnpm changelog && git add CHANGELOG.md"
   },
   "dependencies": {
