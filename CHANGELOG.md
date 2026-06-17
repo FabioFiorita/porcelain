@@ -1,3 +1,10 @@
+## [0.9.1](https://github.com/FabioFiorita/porcelain/compare/v0.9.0...v0.9.1) (2026-06-17)
+
+### Bug Fixes
+
+* **release:** prepend newest changelog section instead of full regen ([a05247a](https://github.com/FabioFiorita/porcelain/commit/a05247a40a09330cfa1047ea1d5950465b71b403))
+* **terminal:** treat ⌘↵ as newline so it doesn't submit in Claude Code ([89208aa](https://github.com/FabioFiorita/porcelain/commit/89208aacd6de8e571847aa50cad392984c5f36af))
+
 ## [0.9.0](https://github.com/FabioFiorita/porcelain/compare/v0.8.0...v0.9.0) (2026-06-17)
 
 ### Features
