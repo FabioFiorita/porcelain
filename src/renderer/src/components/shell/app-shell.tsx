@@ -1,6 +1,7 @@
 import { Button } from '@renderer/components/ui/button'
 import { Kbd } from '@renderer/components/ui/kbd'
 import { SidebarInset, SidebarProvider, useSidebar } from '@renderer/components/ui/sidebar'
+import { Toaster } from '@renderer/components/ui/sonner'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useAppEvents } from '@renderer/hooks/use-app-events'
 import { useWatchOpenFiles } from '@renderer/hooks/use-files'
@@ -208,6 +209,7 @@ export function AppShell(): React.JSX.Element {
         <AppSidebar />
         <RepoShell />
       </SidebarProvider>
+      <Toaster />
     </div>
   )
 }

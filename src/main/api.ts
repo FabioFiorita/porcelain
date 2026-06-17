@@ -40,6 +40,8 @@ import { uniqueDuplicatePath } from './fs-ops'
 import { directoriesOf, fuzzySearch, type SearchResult } from './fuzzy'
 import {
   gitBranch,
+  gitBranches,
+  gitCheckout,
   gitCommit,
   gitCommitDiff,
   gitCommitFiles,
@@ -854,6 +856,12 @@ export const router = t.router({
     }),
 
   gitBranch: t.procedure.input(z.string()).query(({ input }) => gitBranch(input)),
+
+  gitBranches: t.procedure.input(z.string()).query(({ input }) => gitBranches(input)),
+
+  gitCheckout: t.procedure
+    .input(z.object({ repoPath: z.string(), branch: z.string() }))
+    .mutation(({ input }) => gitCheckout(input.repoPath, input.branch)),
 
   gitWorktrees: t.procedure.input(z.string()).query(({ input }) => gitWorktrees(input)),
 

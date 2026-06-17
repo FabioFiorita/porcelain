@@ -17,3 +17,27 @@ export function useWorktrees(): Worktree[] {
   const { data = [] } = trpc.gitWorktrees.useQuery(repo?.path ?? '', { enabled: repo !== null })
   return data
 }
+
+export function useBranches(): string[] {
+  const repo = useRepoStore((s) => s.repo)
+  const { data = [] } = trpc.gitBranches.useQuery(repo?.path ?? '', { enabled: repo !== null })
+  return data
+}
+
+/** Check out a local branch. Resolves on success; rejects with git's message (a
+ *  dirty tree makes git refuse) so the caller can surface it. Checkout swaps the
+ *  whole working tree, so — like pull/stash (useQuickCommand) — it blanket-
+ *  invalidates everything mounted. */
+export function useCheckout(): (branch: string) => Promise<void> {
+  const repo = useRepoStore((s) => s.repo)
+  const utils = trpc.useUtils()
+  const mutation = trpc.gitCheckout.useMutation()
+  return async (branch) => {
+    if (!repo) return
+    try {
+      await mutation.mutateAsync({ repoPath: repo.path, branch })
+    } finally {
+      await utils.invalidate()
+    }
+  }
+}

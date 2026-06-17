@@ -6,56 +6,37 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from '@renderer/components/ui/dropdown-menu'
-import { useBranch, useWorktrees } from '@renderer/hooks/use-worktrees'
+import { useWorktrees } from '@renderer/hooks/use-worktrees'
 import { useRepoStore } from '@renderer/stores/repo'
-import { Check, ChevronsUpDown, FolderGit2, GitBranch } from 'lucide-react'
+import { Check, ChevronsUpDown, FolderGit2 } from 'lucide-react'
 
-// The footer carries two reads of the same worktree list: the current branch on
-// the left, the worktree count on the right. A worktree IS a branch here (there is
-// no bare `git checkout`), so both triggers open the same switcher — picking a
-// worktree is how you change branch.
-export function WorktreeSwitcher({
-  variant = 'branch',
-}: {
-  variant?: 'branch' | 'count'
-}): React.JSX.Element | null {
+// The footer's right chip: the worktree count, opening the list to switch the whole
+// worktree (its checked-out branch + directory). The left chip (BranchSwitcher) does
+// in-place branch checkout instead — two distinct controls, no shared menu.
+export function WorktreeSwitcher(): React.JSX.Element | null {
   const repo = useRepoStore((s) => s.repo)
   const switchTo = useRepoStore((s) => s.switchTo)
-  const branch = useBranch()
   const worktrees = useWorktrees()
 
   if (!repo) return null
 
-  const trigger =
-    variant === 'count' ? (
-      <button
-        type="button"
-        className="app-no-drag flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-      >
-        <FolderGit2 className="size-3.5 shrink-0" />
-        <span>
-          {worktrees.length} worktree{worktrees.length === 1 ? '' : 's'}
-        </span>
-        <ChevronsUpDown className="size-3 shrink-0" />
-      </button>
-    ) : (
-      <button
-        type="button"
-        className="app-no-drag flex min-w-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-      >
-        <GitBranch className="size-3.5 shrink-0" />
-        <span className="truncate">{branch ?? '…'}</span>
-      </button>
-    )
-
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={trigger} />
-      <DropdownMenuContent
-        side="top"
-        align={variant === 'count' ? 'end' : 'start'}
-        className="w-72"
-      >
+      <DropdownMenuTrigger
+        render={
+          <button
+            type="button"
+            className="app-no-drag flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+          >
+            <FolderGit2 className="size-3.5 shrink-0" />
+            <span>
+              {worktrees.length} worktree{worktrees.length === 1 ? '' : 's'}
+            </span>
+            <ChevronsUpDown className="size-3 shrink-0" />
+          </button>
+        }
+      />
+      <DropdownMenuContent side="top" align="end" className="w-72">
         {/* Base UI requires GroupLabel inside a Group (Radix did not) */}
         <DropdownMenuGroup>
           <DropdownMenuLabel>Worktrees</DropdownMenuLabel>

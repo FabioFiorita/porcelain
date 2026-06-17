@@ -176,6 +176,31 @@ export async function gitWorktrees(repoPath: string): Promise<Worktree[]> {
   return parseWorktrees(await runGit(repoPath, ['worktree', 'list', '--porcelain']))
 }
 
+/** Local branch names, most-recently-committed first. */
+export async function gitBranches(repoPath: string): Promise<string[]> {
+  const out = await runGit(repoPath, [
+    'for-each-ref',
+    '--format=%(refname:short)',
+    '--sort=-committerdate',
+    'refs/heads/',
+  ])
+  return out
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+}
+
+/** Check out a local branch in the current worktree. Throws git's output (e.g. the
+ *  "local changes would be overwritten" refusal on a dirty tree) so the UI can show
+ *  it — git itself is the guard against clobbering uncommitted work. */
+export async function gitCheckout(repoPath: string, branch: string): Promise<void> {
+  try {
+    await runGit(repoPath, ['checkout', branch])
+  } catch (error) {
+    throw new Error(gitErrorOutput(error))
+  }
+}
+
 function gitErrorOutput(error: unknown): string {
   if (error !== null && typeof error === 'object') {
     if ('stderr' in error && typeof error.stderr === 'string' && error.stderr.trim() !== '') {

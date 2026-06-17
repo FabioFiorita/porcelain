@@ -1,4 +1,5 @@
 import { BoardList } from '@renderer/components/board/board-list'
+import { BranchSwitcher } from '@renderer/components/git/branch-switcher'
 import { ChangesList } from '@renderer/components/git/changes-list'
 import { FeatureList } from '@renderer/components/git/feature-list'
 import { HistoryList } from '@renderer/components/git/history-list'
@@ -195,10 +196,10 @@ export function AppSidebar(): React.JSX.Element {
             <p className="p-2 text-sm text-muted-foreground">No repository open</p>
           )}
         </SidebarContent>
-        {/* Branch on the left, worktree count on the right — both open the switcher. */}
+        {/* Branch picker (in-place checkout) on the left, worktree switcher on the right. */}
         <SidebarFooter className="h-12 flex-row items-center justify-between gap-2 border-t px-2 py-0">
-          <WorktreeSwitcher variant="branch" />
-          <WorktreeSwitcher variant="count" />
+          <BranchSwitcher />
+          <WorktreeSwitcher />
         </SidebarFooter>
       </Sidebar>
     </Sidebar>
