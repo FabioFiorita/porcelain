@@ -9,3 +9,13 @@ export function isTextEntry(target: EventTarget | null): boolean {
   if (target.closest('.xterm')) return false
   return target.isContentEditable || target.tagName === 'INPUT' || target.tagName === 'TEXTAREA'
 }
+
+/**
+ * True when the keystroke landed inside the embedded terminal (xterm). The inverse of
+ * the `.xterm` carve-out above: the spawn shortcuts (⌘T/⌘N) WANT to fire over a focused
+ * PTY, but the destructive Files shortcuts (⌘D/⌘⌫) must NOT — a ⌘⌫ meant to delete a
+ * shell line should never trash a file.
+ */
+export function isTerminalTarget(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && target.closest('.xterm') !== null
+}

@@ -1,5 +1,5 @@
 import { useDuplicatePath, useTrashPath } from '@renderer/hooks/use-files'
-import { isTextEntry } from '@renderer/lib/keyboard'
+import { isTerminalTarget, isTextEntry } from '@renderer/lib/keyboard'
 import { useFilePromptStore } from '@renderer/stores/file-prompt'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
@@ -21,7 +21,7 @@ export function FileCommands(): null {
     const onKeyDown = async (e: KeyboardEvent): Promise<void> => {
       if (usePreferencesStore.getState().sidebarTab !== 'files') return
       if (!(e.metaKey || e.ctrlKey) || e.altKey) return
-      if (isTextEntry(e.target)) return
+      if (isTextEntry(e.target) || isTerminalTarget(e.target)) return
 
       const prompt = useFilePromptStore.getState()
       const { selected, active } = useSelectionStore.getState()

@@ -1,6 +1,7 @@
 import '@xterm/xterm/css/xterm.css'
 import { FitAddon } from '@xterm/addon-fit'
 import { Terminal } from '@xterm/xterm'
+import { terminalEditBytes } from './terminal-keys'
 
 /**
  * The renderer-side home for xterm.js instances. A terminal must outlive its React
@@ -72,12 +73,13 @@ function create(id: string): Instance {
   // Keystrokes and fit-driven resizes flow back to this session's PTY over the bridge.
   term.onData((data) => window.porcelain.terminal.write(id, data))
   term.onResize(({ cols, rows }) => window.porcelain.terminal.resize(id, cols, rows))
-  // ⌘K clears the viewport (macOS terminal convention). Meta only — never Ctrl-K, which
-  // is readline's kill-to-end-of-line and must still reach the shell. Returning false
-  // keeps the keystroke from being forwarded to the PTY.
+  // macOS editing chords xterm doesn't send on its own. Returning false swallows the
+  // key so xterm doesn't also forward its default bytes.
   term.attachCustomKeyEventHandler((event) => {
+    if (event.type !== 'keydown') return true
+    // ⌘K clears the viewport (macOS terminal convention). Meta only — never Ctrl-K,
+    // which is readline's kill-to-end-of-line and must still reach the shell.
     if (
-      event.type === 'keydown' &&
       event.metaKey &&
       !event.ctrlKey &&
       !event.altKey &&
@@ -85,6 +87,12 @@ function create(id: string): Instance {
       event.key.toLowerCase() === 'k'
     ) {
       term.clear()
+      return false
+    }
+    // ⌘/⌥ + arrows/backspace and ⇧↵ → the control bytes a real shell expects.
+    const bytes = terminalEditBytes(event)
+    if (bytes !== null) {
+      window.porcelain.terminal.write(id, bytes)
       return false
     }
     return true

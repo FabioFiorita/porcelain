@@ -59,6 +59,33 @@ test('splits two terminals side by side, both rendering', async ({ page }) => {
   await expect(screens.last()).toContainText('SPLIT_TWO', { timeout: 15_000 })
 })
 
+test('macOS line-editing chords reach the shell (⌘⌫ kill-line, ⌘← line-start)', async ({
+  page,
+}) => {
+  await waitForShell(page)
+  await selectTab(page, 'Terminal')
+  await page.getByRole('button', { name: 'New terminal' }).click()
+  const input = page.locator('.xterm-helper-textarea').first()
+  await input.waitFor()
+  await input.focus()
+  const rows = page.locator('.xterm-rows').first()
+
+  // ⌘⌫ → Ctrl-U: the half-typed line is discarded, so only the real command runs. If it
+  // weren't, the prefix would glue to it and bash would error instead of printing.
+  await page.keyboard.type('junk that must be discarded && ')
+  await page.keyboard.press('Meta+Backspace')
+  await page.keyboard.type('echo KILL_$((6*7))')
+  await page.keyboard.press('Enter')
+  await expect(rows).toContainText('KILL_42', { timeout: 15_000 })
+
+  // ⌘← → Ctrl-A: cursor jumps to line start, so the prefix lands before "world".
+  await page.keyboard.type('world')
+  await page.keyboard.press('Meta+ArrowLeft')
+  await page.keyboard.type('echo START_$((6*7))_')
+  await page.keyboard.press('Enter')
+  await expect(rows).toContainText('START_42_world', { timeout: 15_000 })
+})
+
 test('runs a saved action in a terminal', async ({ page }) => {
   await waitForShell(page)
   await selectTab(page, 'Terminal')
