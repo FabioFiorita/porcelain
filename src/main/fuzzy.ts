@@ -3,6 +3,29 @@ export interface FuzzyResult {
   score: number
 }
 
+export interface SearchResult {
+  path: string
+  kind: 'file' | 'dir'
+}
+
+/**
+ * Every ancestor directory of the given repo-relative files, deduped, with no
+ * trailing slash. Lets the Cmd+P finder surface folders (e.g. `src`) alongside
+ * files, since `git ls-files` only ever lists files. Order is unspecified —
+ * `fuzzySearch` re-ranks the combined candidate set anyway.
+ */
+export function directoriesOf(files: readonly string[]): string[] {
+  const dirs = new Set<string>()
+  for (const file of files) {
+    let slash = file.lastIndexOf('/')
+    while (slash > 0) {
+      dirs.add(file.slice(0, slash))
+      slash = file.lastIndexOf('/', slash - 1)
+    }
+  }
+  return [...dirs]
+}
+
 /**
  * Subsequence fuzzy match: every query char must appear in order in the path.
  * Scoring favors contiguous runs, basename hits, and shorter paths, so typing

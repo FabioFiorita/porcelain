@@ -1,4 +1,5 @@
 import type { GrepMatch } from '@main/diff'
+import type { SearchResult } from '@main/fuzzy'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 import { keepPreviousData } from '@tanstack/react-query'
@@ -6,7 +7,7 @@ import { keepPreviousData } from '@tanstack/react-query'
 export function useFileSearch(
   query: string,
   enabled: boolean,
-): { results: string[]; isFetching: boolean } {
+): { results: SearchResult[]; isFetching: boolean } {
   const repo = useRepoStore((s) => s.repo)
   const { data: results = [], isFetching } = trpc.searchFiles.useQuery(
     { repoPath: repo?.path ?? '', query },

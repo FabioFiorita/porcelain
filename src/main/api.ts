@@ -36,7 +36,7 @@ import {
 } from './feature-view'
 import { buildFlow, DEFAULT_LAYERS, type FlowGroup, type Layer } from './flow'
 import { uniqueDuplicatePath } from './fs-ops'
-import { fuzzySearch } from './fuzzy'
+import { directoriesOf, fuzzySearch, type SearchResult } from './fuzzy'
 import {
   gitBranch,
   gitCommit,
@@ -231,20 +231,33 @@ async function buildFeatureFromGather(
   return { view, sources }
 }
 
-// Hidden-path filtering over the full file list is recomputed only when the
-// list or the hidden set changes, not on every search keystroke.
-const visibleFilesCache = new Map<
+// The finder searches visible files PLUS their ancestor folders. Both the
+// hidden-path filtering and the directory derivation run over the full file
+// list, so they're recomputed only when the list or the hidden set changes —
+// never on every search keystroke (only the fuzzy scoring runs per keystroke).
+interface SearchCandidates {
+  paths: readonly string[]
+  dirs: ReadonlySet<string>
+}
+
+const searchCandidatesCache = new Map<
   string,
-  { files: readonly string[]; hiddenKey: string; visible: string[] }
+  { files: readonly string[]; hiddenKey: string; candidates: SearchCandidates }
 >()
 
-function visibleFiles(repoPath: string, files: string[], hidden: ReadonlySet<string>): string[] {
+function searchCandidates(
+  repoPath: string,
+  files: string[],
+  hidden: ReadonlySet<string>,
+): SearchCandidates {
   const hiddenKey = [...hidden].sort().join('\0')
-  const cached = visibleFilesCache.get(repoPath)
-  if (cached && cached.files === files && cached.hiddenKey === hiddenKey) return cached.visible
+  const cached = searchCandidatesCache.get(repoPath)
+  if (cached && cached.files === files && cached.hiddenKey === hiddenKey) return cached.candidates
   const visible = visibleFilePaths(repoPath, files, hidden)
-  visibleFilesCache.set(repoPath, { files, hiddenKey, visible })
-  return visible
+  const dirs = directoriesOf(visible)
+  const candidates: SearchCandidates = { paths: [...visible, ...dirs], dirs: new Set(dirs) }
+  searchCandidatesCache.set(repoPath, { files, hiddenKey, candidates })
+  return candidates
 }
 
 export const router = t.router({
@@ -850,13 +863,15 @@ export const router = t.router({
 
   searchFiles: t.procedure
     .input(z.object({ repoPath: z.string(), query: z.string() }))
-    .query(async ({ input }): Promise<string[]> => {
+    .query(async ({ input }): Promise<SearchResult[]> => {
       if (input.query.trim() === '') return []
       const [files, config] = await Promise.all([gitListSearchFiles(input.repoPath), loadConfig()])
       const hidden = hiddenPathsFor(config, input.repoPath)
-      return fuzzySearch(input.query, visibleFiles(input.repoPath, files, hidden), 50).map(
-        (r) => r.path,
-      )
+      const { paths, dirs } = searchCandidates(input.repoPath, files, hidden)
+      return fuzzySearch(input.query, paths, 50).map((r) => ({
+        path: r.path,
+        kind: dirs.has(r.path) ? 'dir' : 'file',
+      }))
     }),
 
   updateStatus: t.procedure.query((): UpdateStatus => updateStatus()),

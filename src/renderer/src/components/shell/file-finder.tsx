@@ -1,3 +1,4 @@
+import type { SearchResult } from '@main/fuzzy'
 import {
   Command,
   CommandDialog,
@@ -7,15 +8,19 @@ import {
   CommandItem,
   CommandList,
 } from '@renderer/components/ui/command'
-import { FileTypeIcon } from '@renderer/components/viewer/file-icon'
+import { FileTypeIcon, FolderIcon } from '@renderer/components/viewer/file-icon'
 import { useFileSearch } from '@renderer/hooks/use-search'
+import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
+import { useRevealStore } from '@renderer/stores/reveal'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { useEffect, useState } from 'react'
 
 export function FileFinder(): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)
   const openTab = useTabsStore((s) => s.openTab)
+  const setSidebarTab = usePreferencesStore((s) => s.setSidebarTab)
+  const reveal = useRevealStore((s) => s.reveal)
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   // debounce keystrokes so each IPC round-trip searches a settled query
@@ -48,39 +53,61 @@ export function FileFinder(): React.JSX.Element {
   const { results, isFetching } = useFileSearch(debouncedQuery, open)
   const searching = isFetching || query !== debouncedQuery
 
-  const select = (relPath: string): void => {
+  const select = (result: SearchResult): void => {
     if (!repo) return
-    const name = relPath.split('/').at(-1) ?? relPath
-    openTab({
-      id: tabId('file', `${repo.path}/${relPath}`),
-      kind: 'file',
-      title: name,
-      path: `${repo.path}/${relPath}`,
-    })
+    const absolute = `${repo.path}/${result.path}`
+    if (result.kind === 'dir') {
+      // Porcelain isn't an editor — a folder can't open as a tab. Flip to the
+      // Files tab and reveal it in the tree (expand down to it + scroll), the
+      // same path Changes → Open file takes.
+      setSidebarTab('files')
+      reveal(absolute)
+    } else {
+      const name = result.path.split('/').at(-1) ?? result.path
+      openTab({ id: tabId('file', absolute), kind: 'file', title: name, path: absolute })
+    }
     setOpen(false)
     setQuery('')
   }
 
   return (
-    <CommandDialog open={open} onOpenChange={setOpen} title="Go to file" className="sm:max-w-2xl">
+    <CommandDialog
+      open={open}
+      onOpenChange={setOpen}
+      title="Go to file or folder"
+      className="sm:max-w-2xl"
+    >
       <Command shouldFilter={false}>
-        <CommandInput placeholder="Search files…" value={query} onValueChange={setQuery} />
+        <CommandInput
+          placeholder="Search files and folders…"
+          value={query}
+          onValueChange={setQuery}
+        />
         <CommandList>
           {query.trim() !== '' &&
             results.length === 0 &&
             (searching ? (
               <p className="py-6 text-center text-sm text-muted-foreground">Searching…</p>
             ) : (
-              <CommandEmpty>No files found</CommandEmpty>
+              <CommandEmpty>No matches found</CommandEmpty>
             ))}
           <CommandGroup>
-            {results.map((path) => {
+            {results.map((result) => {
+              const { path, kind } = result
               const slash = path.lastIndexOf('/')
               const name = slash === -1 ? path : path.slice(slash + 1)
               const dir = slash === -1 ? '' : path.slice(0, slash)
               return (
-                <CommandItem key={path} value={path} onSelect={() => select(path)}>
-                  <FileTypeIcon name={name} className="shrink-0" />
+                <CommandItem
+                  key={`${kind}:${path}`}
+                  value={`${kind}:${path}`}
+                  onSelect={() => select(result)}
+                >
+                  {kind === 'dir' ? (
+                    <FolderIcon className="shrink-0" />
+                  ) : (
+                    <FileTypeIcon name={name} className="shrink-0" />
+                  )}
                   <span className="shrink-0">{name}</span>
                   {dir && (
                     <span className="min-w-0 truncate text-xs text-muted-foreground" dir="rtl">

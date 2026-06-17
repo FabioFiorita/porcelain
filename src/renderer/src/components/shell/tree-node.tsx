@@ -187,15 +187,23 @@ function DirNode({ entry }: { entry: DirEntry }): React.JSX.Element {
   const isSelected = useSelectionStore((s) => s.selected.has(entry.path))
   const toggleSelection = useSelectionStore((s) => s.toggle)
   const setActive = useSelectionStore((s) => s.setActive)
-  // Open this folder when a revealed file lives inside it, so the tree expands
-  // all the way down to a file opened from elsewhere. Each ancestor opens in
+  // Open this folder when a revealed file lives inside it (or this folder IS the
+  // reveal target — the Cmd+P finder picking a folder), so the tree expands all
+  // the way down to whatever was opened from elsewhere. Each ancestor opens in
   // turn — opening loads its children (lazy `useReadDir`), mounting the next
   // level, which repeats the check until the leaf row mounts and scrolls itself
   // into view. Controlled `open` lets the effect drive the Collapsible.
-  const hasRevealTarget = useRevealStore((s) => s.path?.startsWith(`${entry.path}/`) ?? false)
+  const isRevealed = useRevealStore((s) => s.path === entry.path)
+  const hasRevealTarget = useRevealStore(
+    (s) => s.path === entry.path || (s.path?.startsWith(`${entry.path}/`) ?? false),
+  )
+  const ref = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     if (hasRevealTarget) setExpanded(true)
   }, [hasRevealTarget])
+  useEffect(() => {
+    if (isRevealed) ref.current?.scrollIntoView({ block: 'nearest' })
+  }, [isRevealed])
 
   return (
     <SidebarMenuItem>
@@ -208,7 +216,11 @@ function DirNode({ entry }: { entry: DirEntry }): React.JSX.Element {
           <CollapsibleTrigger
             render={
               <SidebarMenuButton
-                className={cn(entry.hidden && 'opacity-50', isSelected && 'bg-sidebar-accent')}
+                ref={ref}
+                className={cn(
+                  entry.hidden && 'opacity-50',
+                  (isSelected || isRevealed) && 'bg-sidebar-accent',
+                )}
                 onClick={(e) => {
                   setActive({ path: entry.path, kind: 'dir' })
                   if (e.metaKey || e.ctrlKey) {

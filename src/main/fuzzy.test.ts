@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fuzzyScore, fuzzySearch } from './fuzzy'
+import { directoriesOf, fuzzyScore, fuzzySearch } from './fuzzy'
 
 const PATHS = [
   'packages/app/components/FeedbackWidgetPreview.spec.tsx',
@@ -35,5 +35,17 @@ describe('fuzzySearch', () => {
 
   it('respects the limit', () => {
     expect(fuzzySearch('s', PATHS, 2)).toHaveLength(2)
+  })
+})
+
+describe('directoriesOf', () => {
+  it('derives every ancestor directory, deduped', () => {
+    expect(new Set(directoriesOf(['src/main/index.ts', 'src/renderer/app.tsx']))).toEqual(
+      new Set(['src', 'src/main', 'src/renderer']),
+    )
+  })
+
+  it('ignores top-level files (no ancestor directory)', () => {
+    expect(directoriesOf(['README.md', '.env'])).toEqual([])
   })
 })
