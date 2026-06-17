@@ -5,6 +5,7 @@ export type AppEvent =
   | 'comments'
   | 'board'
   | 'actions'
+  | 'working-tree'
 
 const listeners = new Set<(event: AppEvent) => void>()
 

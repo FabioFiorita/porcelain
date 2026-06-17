@@ -2,7 +2,8 @@ import type { DirEntry, FileView } from '@main/api'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useSelectionStore } from '@renderer/stores/selection'
-import { useCallback } from 'react'
+import { useTabsStore } from '@renderer/stores/tabs'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 export function useReadDir(path: string, enabled = true): DirEntry[] | undefined {
   const repo = useRepoStore((s) => s.repo)
@@ -20,6 +21,36 @@ export function useReadFile(path: string): {
 } {
   const { data: view, error } = trpc.readFile.useQuery(path)
   return { view, error }
+}
+
+/**
+ * Tell main which files are open in the viewer so it can watch them for external
+ * writes (the coding agent editing in the terminal). Mounted once in `AppShell`,
+ * the twin of `useAppEvents`: this pushes the open-file set out, the `working-tree`
+ * app-event comes back and invalidates `readFile`. We re-send only when the set of
+ * open file paths actually changes, not on every tab activation.
+ */
+export function useWatchOpenFiles(): void {
+  const panes = useTabsStore((s) => s.panes)
+  const { mutate } = trpc.watchFiles.useMutation()
+  const lastSent = useRef('')
+
+  const filePaths = useMemo(() => {
+    const paths = new Set<string>()
+    for (const pane of panes) {
+      for (const tab of pane.tabs) {
+        if (tab.kind === 'file') paths.add(tab.path)
+      }
+    }
+    return [...paths].sort()
+  }, [panes])
+
+  useEffect(() => {
+    const key = filePaths.join('\n')
+    if (key === lastSent.current) return
+    lastSent.current = key
+    mutate(filePaths)
+  }, [filePaths, mutate])
 }
 
 /** Prefetch a file's contents (tree hover) so opening it feels instant. */

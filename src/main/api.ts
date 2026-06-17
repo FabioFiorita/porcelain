@@ -34,6 +34,7 @@ import {
   type FeatureReading,
   type FeatureView,
 } from './feature-view'
+import { setWatchedFiles } from './file-watch'
 import { buildFlow, DEFAULT_LAYERS, type FlowGroup, type Layer } from './flow'
 import { uniqueDuplicatePath } from './fs-ops'
 import { directoriesOf, fuzzySearch, type SearchResult } from './fuzzy'
@@ -454,6 +455,13 @@ export const router = t.router({
       }
       throw err
     }
+  }),
+
+  // The renderer pushes its open file-tab paths whenever the set changes; main
+  // watches their dirs and emits `working-tree` so an external write (the coding
+  // agent in the terminal) live-refreshes the open document. See `file-watch.ts`.
+  watchFiles: t.procedure.input(z.array(z.string())).mutation(({ input }) => {
+    setWatchedFiles(input)
   }),
 
   writeTextFile: t.procedure

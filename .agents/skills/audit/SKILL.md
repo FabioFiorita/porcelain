@@ -143,6 +143,16 @@ assumed — this skill is the codebase-specific layer beneath them.
   and `gitDiffFile` (staleTime 0) must reflect the working tree; fs-backed queries
   keep the 30s default. The 3s poll is cheap only because main memoizes flow on a
   status+numstat+layers key (`flowCache`) — don't break that key.
+- **Open file documents stay fresh by a watcher, NOT by polling `readFile`.** The
+  agent editing a file in the terminal must show up in the viewer, but giving
+  `readFile` a `refetchInterval` would re-read every open file on a timer and throw
+  away the 30s cache. Instead the renderer pushes its open file-tab paths (`watchFiles`,
+  `useWatchOpenFiles`) and main watches just **those files' directories** (`file-watch.ts`),
+  emitting `working-tree` → invalidate `readFile` + `gitDiffFile`. *Why dirs, not the
+  tree:* a recursive watch on a 50 GB repo is the thing this rule exists to avoid, and
+  it would drown in `.git`/`node_modules` churn — watching the handful of open files'
+  dirs (filtered by basename, surviving tmp+rename) is O(open tabs). Don't "upgrade" it
+  to a recursive working-tree watch, and don't make `readFile` poll.
 
 ## Packaging
 

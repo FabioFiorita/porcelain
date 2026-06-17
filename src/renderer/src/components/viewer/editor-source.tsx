@@ -78,6 +78,22 @@ export function EditorSource({
     }
   }, [])
 
+  // Adopt an external rewrite of this file — readFile refetches with new content
+  // when the coding agent edits it in the terminal — but ONLY when there's nothing
+  // unsaved to lose. Mid-edit, the user's in-progress text wins; we never clobber
+  // it. (The read-only/reader views render straight from the prop; only this editor
+  // keeps a local copy that needs syncing.) Tracked via a ref so we react to a real
+  // prop change, not to our own keystrokes updating `content`.
+  const lastInitial = useRef(initialContent)
+  useEffect(() => {
+    if (initialContent === lastInitial.current) return
+    lastInitial.current = initialContent
+    if (content === savedContent) {
+      setContent(initialContent)
+      setSavedContent(initialContent)
+    }
+  }, [initialContent, content, savedContent])
+
   useEffect(() => {
     const el = scrollRef.current
     if (!el || highlightLine === undefined) return

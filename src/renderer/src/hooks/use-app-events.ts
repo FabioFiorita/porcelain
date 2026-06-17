@@ -29,6 +29,13 @@ export function useAppEvents(): void {
         await utils.boardCards.invalidate()
         return
       }
+      if (event === 'working-tree') {
+        // a watched file changed on disk outside the app (most often the coding
+        // agent editing in the terminal) — re-read the open documents and diffs so
+        // the viewer isn't showing a stale version. (gitFlow self-polls every 3s.)
+        await Promise.all([utils.readFile.invalidate(), utils.gitDiffFile.invalidate()])
+        return
+      }
       if (event !== 'close-tab') return
       const { panes, activePaneIndex, closeTab } = useTabsStore.getState()
       const activeTabId = panes[activePaneIndex]?.activeTabId
