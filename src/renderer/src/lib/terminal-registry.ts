@@ -1,5 +1,6 @@
 import '@xterm/xterm/css/xterm.css'
 import { FitAddon } from '@xterm/addon-fit'
+import { WebglAddon } from '@xterm/addon-webgl'
 import { Terminal } from '@xterm/xterm'
 import { terminalEditBytes } from './terminal-keys'
 
@@ -53,9 +54,9 @@ function create(id: string): Instance {
     fontFamily:
       '"Geist Mono Variable", "Symbols Nerd Font Mono", ui-monospace, SFMono-Regular, monospace',
     fontSize: 12,
-    // 1.0, not a looser value: xterm's DOM renderer tiles half/quadrant block glyphs
-    // (Claude Code's logo, powerline separators) edge-to-edge only when the line box
-    // equals the cell — any extra leading slices the bottom row and gaps the art apart.
+    // 1.0 keeps the cell box flush with the glyph row: the WebGL renderer's customGlyphs
+    // draw block-element art (the Claude Code logo, powerline fills) edge-to-edge, but any
+    // extra leading would still reintroduce the horizontal gaps between block rows.
     lineHeight: 1.0,
     cursorBlink: true,
     // Solid graphite, in the spirit of the app's neutral dark surfaces.
@@ -73,6 +74,19 @@ function create(id: string): Instance {
   wrapper.style.height = '100%'
   wrapper.style.width = '100%'
   term.open(wrapper)
+  // GPU renderer: its customGlyphs paint box-drawing/block-element chars edge-to-edge
+  // (crisp Claude Code logo + powerline fills), which the DOM renderer can't — it leaves
+  // a letter-spacing gap between every block column. Glyphs are still rasterized via canvas
+  // fillText, so the per-glyph Nerd Font fallback survives the switch. Best-effort: if WebGL
+  // is unavailable, or its context is lost later, dispose so xterm reverts to the DOM
+  // renderer (degraded block art) instead of painting nothing.
+  try {
+    const webgl = new WebglAddon()
+    webgl.onContextLoss(() => webgl.dispose())
+    term.loadAddon(webgl)
+  } catch {
+    // No WebGL context available — stay on the DOM renderer.
+  }
   // Keystrokes and fit-driven resizes flow back to this session's PTY over the bridge.
   term.onData((data) => window.porcelain.terminal.write(id, data))
   term.onResize(({ cols, rows }) => window.porcelain.terminal.resize(id, cols, rows))
