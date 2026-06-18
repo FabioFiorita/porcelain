@@ -84,6 +84,16 @@ function create(id: string): Instance {
     const webgl = new WebglAddon()
     webgl.onContextLoss(() => webgl.dispose())
     term.loadAddon(webgl)
+    // The WebGL atlas rasterizes glyphs in an offscreen canvas which — unlike DOM text —
+    // does NOT trigger @font-face loading, so Nerd Font fallback glyphs cache as tofu. Load
+    // the terminal fonts explicitly (idempotent), then clear the atlas so they re-rasterize
+    // against the real faces.
+    Promise.all([
+      document.fonts.load('12px "Geist Mono Variable"'),
+      document.fonts.load('12px "Symbols Nerd Font Mono"'),
+    ])
+      .then(() => term.clearTextureAtlas())
+      .catch(() => {})
   } catch {
     // No WebGL context available — stay on the DOM renderer.
   }
