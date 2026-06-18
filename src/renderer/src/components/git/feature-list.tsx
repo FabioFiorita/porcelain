@@ -1,5 +1,6 @@
 import type { FeatureFile } from '@main/feature-view'
 import type { FileSource } from '@main/review-set'
+import { SidebarHeaderActions } from '@renderer/components/shell/sidebar-header-actions'
 import { Button } from '@renderer/components/ui/button'
 import { useDiffFilePrefetch } from '@renderer/hooks/use-diff'
 import { useClearFeatureReview, useFeatureView } from '@renderer/hooks/use-feature-view'
@@ -70,7 +71,12 @@ function FlowNode({
         className="flex w-full flex-col items-start gap-0.5 rounded-md px-2 py-1 text-left hover:bg-sidebar-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
       >
         <span className="flex max-w-full items-center gap-1.5">
-          <span className={cn('truncate', file.source !== 'changed' && 'text-muted-foreground')}>
+          <span
+            className={cn(
+              'truncate text-[13px]',
+              file.source !== 'changed' && 'text-muted-foreground',
+            )}
+          >
             {name}
           </span>
           {layer && (
@@ -164,19 +170,32 @@ export function FeatureList(): React.JSX.Element {
 
   return (
     <div className="flex flex-col gap-1">
-      <div className="flex items-center justify-between px-2">
-        <h2 className="flex min-w-0 items-center gap-1.5 text-xs font-medium">
-          <span className="truncate">{view.name}</span>
-          {view.fromAgent && (
+      <div className="flex items-start justify-between gap-1.5 px-2">
+        {/* The title is the agent's own name for the feature — shown only in agent
+            mode (the baseline is already labelled "Feature review" by the sidebar
+            header, so repeating a generic title there is just noise). It wraps to
+            multiple lines rather than truncating. */}
+        {view.fromAgent ? (
+          <h2 className="flex min-w-0 flex-wrap items-center gap-1.5 pt-1 text-xs font-medium">
+            <span className="min-w-0">{view.name}</span>
             <span className="flex shrink-0 items-center gap-1 rounded bg-info/15 px-1 py-0.5 text-[9px] font-normal text-info">
               <Sparkles className="size-2.5" />
               agent
             </span>
-          )}
-        </h2>
-        <Button variant="ghost" size="icon-sm" onClick={refresh} aria-label="Refresh feature view">
-          <RefreshCw />
-        </Button>
+          </h2>
+        ) : (
+          <span aria-hidden />
+        )}
+        <SidebarHeaderActions>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={refresh}
+            aria-label="Refresh feature view"
+          >
+            <RefreshCw />
+          </Button>
+        </SidebarHeaderActions>
       </div>
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-2 pb-1 text-xs text-muted-foreground">
@@ -190,34 +209,37 @@ export function FeatureList(): React.JSX.Element {
 
       {view.fromAgent && (
         <div className="mx-2 mb-1 flex flex-col gap-1">
-          {files.length > 0 && (
-            <button
-              type="button"
-              onClick={openReading}
-              className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-info hover:bg-sidebar-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-            >
-              <BookOpen className="size-3.5" />
-              Open inline read
-            </button>
-          )}
-          {/* Scope is explicit in the label: this removes ONLY the agent's set, not
-              your working-tree changes — those keep showing as the baseline (the
-              feature view is derived from git status + the agent overlay). */}
-          <button
-            type="button"
-            onClick={handleClear}
-            onBlur={() => setConfirmClear(false)}
-            disabled={isClearing}
-            aria-label="Clear agent review set"
-            title="Removes the agent's files & notes — your working-tree changes still show as the baseline."
-            className={cn(
-              'flex items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-sidebar-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
-              confirmClear ? 'text-destructive' : 'text-muted-foreground',
+          {/* Mirrors the Stage all / Commit pairing: a primary action filling the
+              row, with the destructive clear reduced to an icon-only button beside
+              it. The clear stays two-step (arm then confirm) — confirm flips it to
+              the destructive variant. */}
+          <div className="flex gap-2">
+            {files.length > 0 && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1 rounded-md"
+                onClick={openReading}
+              >
+                <BookOpen />
+                Open inline read
+              </Button>
             )}
-          >
-            <Eraser className="size-3.5" />
-            {confirmClear ? (isClearing ? 'Clearing…' : 'Clear agent set?') : 'Clear agent set'}
-          </button>
+            <Button
+              size="icon-sm"
+              variant={confirmClear ? 'destructive' : 'outline'}
+              className="rounded-md"
+              onClick={handleClear}
+              onBlur={() => setConfirmClear(false)}
+              disabled={isClearing}
+              aria-label={
+                confirmClear ? 'Confirm clear agent review set' : 'Clear agent review set'
+              }
+              title="Removes the agent's files & notes — your working-tree changes still show as the baseline."
+            >
+              <Eraser />
+            </Button>
+          </div>
           {clearError && (
             <p className="whitespace-pre-wrap font-mono text-[10px] text-destructive">
               {clearError}
