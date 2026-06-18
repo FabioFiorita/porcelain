@@ -141,6 +141,12 @@ export async function gitLog(repoPath: string, limit: number): Promise<Commit[]>
   )
 }
 
+/** Full commit message (subject + body) for one commit, trailing newline trimmed. */
+export async function gitCommitMessage(repoPath: string, hash: string): Promise<string> {
+  const out = await runGit(repoPath, ['show', '-s', '--format=%B', '--no-color', hash])
+  return out.replace(/\n+$/, '')
+}
+
 export async function gitCommitFiles(repoPath: string, hash: string): Promise<ChangedFile[]> {
   return parseNameStatus(
     await runGit(repoPath, ['show', hash, '--name-status', '--format=', '-z', '--no-color']),

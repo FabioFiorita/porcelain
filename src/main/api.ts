@@ -45,6 +45,7 @@ import {
   gitCommit,
   gitCommitDiff,
   gitCommitFiles,
+  gitCommitMessage,
   gitDefaultBranch,
   gitDiffFile,
   gitFileInHead,
@@ -877,6 +878,10 @@ export const router = t.router({
   gitCommitFiles: t.procedure
     .input(z.object({ repoPath: z.string(), hash: z.string() }))
     .query(({ input }) => gitCommitFiles(input.repoPath, input.hash)),
+
+  gitCommitMessage: t.procedure
+    .input(z.object({ repoPath: z.string(), hash: z.string() }))
+    .query(({ input }) => gitCommitMessage(input.repoPath, input.hash)),
 
   gitCommitDiff: t.procedure
     .input(z.object({ repoPath: z.string(), hash: z.string(), filePath: z.string() }))

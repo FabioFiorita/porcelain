@@ -8,7 +8,10 @@ import { HistoryList } from './history-list'
 // The convention: components read git data through domain hooks, so a component
 // test mocks the hook module and never touches tRPC. useGitLog returns the
 // commits this test wants to render.
-vi.mock('@renderer/hooks/use-history', () => ({ useGitLog: vi.fn() }))
+vi.mock('@renderer/hooks/use-history', () => ({
+  useGitLog: vi.fn(),
+  useFetchCommitMessage: () => vi.fn().mockResolvedValue(''),
+}))
 
 const commits = [
   { hash: 'aaa1111', author: 'Ada', date: '2 days ago', subject: 'feat: add the widget' },

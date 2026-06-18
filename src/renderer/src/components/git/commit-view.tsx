@@ -1,5 +1,5 @@
 import { useCommitDiff } from '@renderer/hooks/use-diff'
-import { useCommitFiles } from '@renderer/hooks/use-history'
+import { useCommitFiles, useCommitMessage } from '@renderer/hooks/use-history'
 import { cn } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useState } from 'react'
@@ -19,6 +19,7 @@ function CommitFileDiff({ hash, filePath }: { hash: string; filePath: string }):
 export function CommitView({ hash }: { hash: string }): React.JSX.Element {
   const [selected, setSelected] = useState<string | null>(null)
   const files = useCommitFiles(hash)
+  const message = useCommitMessage(hash)
 
   if (files === undefined) {
     return <p className="p-4 text-sm text-muted-foreground">Loading…</p>
@@ -29,7 +30,12 @@ export function CommitView({ hash }: { hash: string }): React.JSX.Element {
   return (
     <div className="flex h-full min-h-0">
       <div className="w-64 shrink-0 overflow-y-auto border-r">
-        <p className="px-3 py-2 font-mono text-xs text-muted-foreground">{hash.slice(0, 12)}</p>
+        <div className="border-b px-3 py-2">
+          <p className="whitespace-pre-wrap break-words text-[13px] text-foreground">
+            {message ?? '…'}
+          </p>
+          <p className="mt-1 font-mono text-[11px] text-muted-foreground">{hash.slice(0, 12)}</p>
+        </div>
         {files.map((file) => (
           <button
             key={file.path}
