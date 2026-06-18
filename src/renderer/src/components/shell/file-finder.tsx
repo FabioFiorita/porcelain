@@ -89,6 +89,7 @@ export function FileFinder(): React.JSX.Element {
           placeholder="Search files and folders…"
           value={query}
           onValueChange={setQuery}
+          className="text-[13px]"
         />
         <CommandList>
           {query.trim() !== '' &&
@@ -115,7 +116,7 @@ export function FileFinder(): React.JSX.Element {
                   ) : (
                     <FileTypeIcon name={name} className="shrink-0" />
                   )}
-                  <span className="shrink-0">{name}</span>
+                  <span className="shrink-0 text-[13px]">{name}</span>
                   {dir && (
                     <span className="min-w-0 truncate text-xs text-muted-foreground" dir="rtl">
                       {dir}
