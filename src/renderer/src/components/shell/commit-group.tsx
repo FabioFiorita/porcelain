@@ -82,7 +82,7 @@ function CommitTokenSelect({
             placeholder={`Add ${kind}…`}
             className="text-xs"
           />
-          <CommandList className="pt-1">
+          <CommandList>
             {filtered.length === 0 && !canCreate && <CommandEmpty>No {kind}s yet.</CommandEmpty>}
             {value && (
               <CommandItem
