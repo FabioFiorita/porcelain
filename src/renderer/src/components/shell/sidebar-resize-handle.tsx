@@ -1,6 +1,7 @@
 import {
   NOTES_MAX_HEIGHT,
   NOTES_MIN_HEIGHT,
+  RIGHT_SIDEBAR_MIN_WIDTH,
   SIDEBAR_MAX_WIDTH,
   SIDEBAR_MIN_WIDTH,
   SPLIT_MAX_RATIO,
@@ -8,8 +9,8 @@ import {
   usePreferencesStore,
 } from '@renderer/stores/preferences'
 
-const clampWidth = (width: number): number =>
-  Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, width))
+const clampWidth = (width: number, min: number = SIDEBAR_MIN_WIDTH): number =>
+  Math.min(SIDEBAR_MAX_WIDTH, Math.max(min, width))
 
 const clampHeight = (height: number): number =>
   Math.min(NOTES_MAX_HEIGHT, Math.max(NOTES_MIN_HEIGHT, height))
@@ -60,7 +61,7 @@ export function RightSidebarResizeHandle(): React.JSX.Element {
     const wrapper = event.currentTarget.closest<HTMLElement>('[data-slot="sidebar-wrapper"]')
     let width = usePreferencesStore.getState().rightSidebarWidth
     const onMove = (e: MouseEvent): void => {
-      width = clampWidth(window.innerWidth - e.clientX)
+      width = clampWidth(window.innerWidth - e.clientX, RIGHT_SIDEBAR_MIN_WIDTH)
       wrapper?.style.setProperty('--sidebar-width', `${width}px`)
     }
     const onUp = (): void => {

@@ -7,7 +7,8 @@ export type MarkdownMode = 'reader' | 'source'
 export type PullMode = 'merge' | 'rebase'
 export type SidebarTab = 'files' | 'changes' | 'history' | 'feature' | 'board' | 'terminal'
 
-export const SIDEBAR_MIN_WIDTH = 180
+export const SIDEBAR_MIN_WIDTH = 300
+export const RIGHT_SIDEBAR_MIN_WIDTH = 280
 export const SIDEBAR_MAX_WIDTH = 520
 export const NOTES_MIN_HEIGHT = 100
 export const NOTES_MAX_HEIGHT = 600
@@ -69,7 +70,9 @@ export const usePreferencesStore = create<PreferencesState>()(
       setSidebarTab: (sidebarTab) => set({ sidebarTab }),
       setRightSidebarOpen: (rightSidebarOpen) => set({ rightSidebarOpen }),
       setRightSidebarWidth: (width) =>
-        set({ rightSidebarWidth: Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, width)) }),
+        set({
+          rightSidebarWidth: Math.min(SIDEBAR_MAX_WIDTH, Math.max(RIGHT_SIDEBAR_MIN_WIDTH, width)),
+        }),
       setSidebarWidth: (width) =>
         set({ sidebarWidth: Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, width)) }),
       setNotesHeight: (height) =>
@@ -79,6 +82,15 @@ export const usePreferencesStore = create<PreferencesState>()(
       setPluginInstalled: (pluginInstalled) => set({ pluginInstalled }),
       setPluginVersion: (pluginVersion) => set({ pluginVersion }),
     }),
-    { name: 'porcelain-preferences' },
+    {
+      name: 'porcelain-preferences',
+      // Re-clamp persisted widths in case the min/max floor changed since they
+      // were stored — otherwise an old too-narrow width would survive on load.
+      onRehydrateStorage: () => (state) => {
+        if (!state) return
+        state.setSidebarWidth(state.sidebarWidth)
+        state.setRightSidebarWidth(state.rightSidebarWidth)
+      },
+    },
   ),
 )
