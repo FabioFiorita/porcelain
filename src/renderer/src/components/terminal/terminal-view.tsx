@@ -19,9 +19,18 @@ export function TerminalView({ sessionId }: { sessionId: string }): React.JSX.El
     const container = ref.current
     if (!container) return
     attachTerminal(sessionId, container)
-    const observer = new ResizeObserver(() => fitTerminal(sessionId))
+    // Debounce the fit: a drag-resize fires ResizeObserver continuously, and every fit that
+    // changes cols/rows sends a PTY resize (SIGWINCH). A storm of those makes shells like
+    // p10k reprint their prompt per step, stacking copies up the scrollback — so we wait for
+    // the size to settle and fit once. (The initial fit already happened in attachTerminal.)
+    let pending: ReturnType<typeof setTimeout> | undefined
+    const observer = new ResizeObserver(() => {
+      if (pending !== undefined) clearTimeout(pending)
+      pending = setTimeout(() => fitTerminal(sessionId), 100)
+    })
     observer.observe(container)
     return () => {
+      if (pending !== undefined) clearTimeout(pending)
       observer.disconnect()
       detachTerminal(sessionId, container)
     }
