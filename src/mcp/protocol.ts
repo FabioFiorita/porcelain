@@ -238,6 +238,18 @@ export const TOOLS = [
       required: ['repoPath', 'id'],
     },
   },
+  {
+    name: 'get_repo_notes',
+    description:
+      "Read the human's freeform project notes for a repo: a per-repo markdown scratchpad they keep in Porcelain (Files → Notes) with conventions, gotchas, todos, and context for the work. Read it to pick up project context the human jotted down instead of spelling it out in chat — especially when they mention \"my notes\" or you're starting work in the repo. Read-only: the notes are the human's, so there is no write tool (capture tasks on the project board instead).",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        repoPath: { type: 'string', description: 'Absolute path to the repository' },
+      },
+      required: ['repoPath'],
+    },
+  },
 ] as const
 
 function isRecord(value: unknown): value is Record<string, unknown> {

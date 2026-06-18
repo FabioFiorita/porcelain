@@ -60,6 +60,7 @@ import {
   gitRangeNumstat,
   gitResetPath,
   gitRestoreFromHead,
+  gitSearchCode,
   gitStageAll,
   gitStageFile,
   gitStatus,
@@ -70,13 +71,13 @@ import {
   QUICK_COMMANDS,
   warmFileList,
 } from './git'
+import { readNotes, writeNotes } from './notes-store'
 import { installPlugin, type PluginInstallResult } from './plugin'
 import { installCommands, PLUGIN_VERSION, pluginMarketplaceDir } from './plugin-assets'
 import { exceedsReadLimit } from './read-limits'
 import {
   hiddenPathsFor,
   layersFor,
-  notesFor,
   pinnedPathsFor,
   reviewedPathsFor,
   visibleFilePaths,
@@ -87,7 +88,6 @@ import {
   withPinnedPath,
   withRecentRepo,
   withRepoLayers,
-  withRepoNotes,
   withReviewedPath,
 } from './repo-config'
 import { clearReviewSet, readReviewSet } from './review-store'
@@ -851,14 +851,12 @@ export const router = t.router({
       await updateConfig((config) => withRepoLayers(config, input.repoPath, input.layers))
     }),
 
-  repoNotes: t.procedure
-    .input(z.string())
-    .query(async ({ input }): Promise<string> => notesFor(await loadConfig(), input)),
+  repoNotes: t.procedure.input(z.string()).query(({ input }): Promise<string> => readNotes(input)),
 
   setRepoNotes: t.procedure
     .input(z.object({ repoPath: z.string(), notes: z.string() }))
     .mutation(async ({ input }) => {
-      await updateConfig((config) => withRepoNotes(config, input.repoPath, input.notes))
+      await writeNotes(input.repoPath, input.notes)
     }),
 
   gitBranch: t.procedure.input(z.string()).query(({ input }) => gitBranch(input)),

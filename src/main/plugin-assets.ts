@@ -10,6 +10,7 @@ export const MARKETPLACE_NAME = 'porcelain'
 export const REVIEW_SKILL_NAME = 'review-with-porcelain'
 export const BOARD_SKILL_NAME = 'project-board'
 export const ACTIONS_SKILL_NAME = 'saved-actions'
+export const NOTES_SKILL_NAME = 'repo-notes'
 
 /**
  * The plugin's own version — bumped whenever the bundled MCP server or any skill
@@ -21,8 +22,10 @@ export const ACTIONS_SKILL_NAME = 'saved-actions'
  * 2.2.0: split the one review skill into focused skills (review-with-porcelain,
  *        project-board, saved-actions) so the board/comment/action tools are
  *        discoverable on their own triggers — no new tools.
+ * 2.3.0: added the repo-notes channel — get_repo_notes reads the human's per-repo
+ *        notes scratchpad (read-only, app→agent) — plus a focused repo-notes skill.
  */
-export const PLUGIN_VERSION = '2.2.0'
+export const PLUGIN_VERSION = '2.3.0'
 
 /**
  * The local Claude Code marketplace root the app writes. Lives in ~/.porcelain
@@ -44,7 +47,7 @@ export function marketplaceManifest(): Record<string, unknown> {
         name: PLUGIN_NAME,
         source: `./${PLUGIN_NAME}`,
         description:
-          'MCP server + skills to push feature review sets, read review comments, and manage the project board and saved actions in the Porcelain app.',
+          'MCP server + skills to push feature review sets, read review comments and project notes, and manage the project board and saved actions in the Porcelain app.',
       },
     ],
   }
@@ -54,7 +57,7 @@ export function pluginManifest(version: string): Record<string, unknown> {
   return {
     name: PLUGIN_NAME,
     description:
-      'Porcelain companion: push feature review sets so a human reviews the whole feature in flow order, read/resolve review comments, and manage the project board and saved actions — over MCP.',
+      "Porcelain companion: push feature review sets so a human reviews the whole feature in flow order, read/resolve review comments, read the human's project notes, and manage the project board and saved actions — over MCP.",
     version,
     author: { name: 'Porcelain' },
     // Inline stdio MCP server; ${CLAUDE_PLUGIN_ROOT} resolves to the installed
@@ -175,6 +178,26 @@ Call the \`porcelain\` MCP tools with \`repoPath\` set to the ABSOLUTE path of t
 You DEFINE actions; only the human runs them (there is no run tool). When you discover the project's common commands (from package.json scripts, the README, or what the human asks you to run repeatedly), offer to save them as actions.
 `
 
+export const NOTES_SKILL = `---
+name: ${NOTES_SKILL_NAME}
+description: Read the human's per-repo project notes from Porcelain — a freeform markdown scratchpad of conventions, gotchas, todos, and context for the repo. Use to pick up project context the human jotted down instead of spelling it out in chat, especially when they say "my notes" or you're starting work in a repo.
+---
+
+# Porcelain project notes
+
+Porcelain keeps a per-repo notes scratchpad — a freeform markdown card (Files → Notes) where the human jots conventions, gotchas, todos, and context for the repo. It's a ONE-WAY channel: the human writes, you read.
+
+Call the \`porcelain\` MCP tool with \`repoPath\` set to the ABSOLUTE path of the repo you're working in (your cwd):
+
+- \`get_repo_notes\` — \`{ repoPath }\` → the human's notes as markdown (or a hint that there are none yet).
+
+## How to use it
+
+- When the human says "check my notes", "see my project notes", or "what did I write down", call \`get_repo_notes\` first.
+- When you start work in a repo, read the notes for standing context (conventions to follow, gotchas to avoid, what the human wants next) before asking.
+- The notes are the human's scratchpad — read-only, there is no write tool; don't try to edit them. Capture actionable tasks on the project board instead (see the project-board skill).
+`
+
 export interface PluginSkill {
   /** Skill dir + frontmatter \`name\`; becomes \`porcelain:<name>\` once installed. */
   name: string
@@ -187,4 +210,5 @@ export const SKILLS: readonly PluginSkill[] = [
   { name: REVIEW_SKILL_NAME, content: REVIEW_SKILL },
   { name: BOARD_SKILL_NAME, content: BOARD_SKILL },
   { name: ACTIONS_SKILL_NAME, content: ACTIONS_SKILL },
+  { name: NOTES_SKILL_NAME, content: NOTES_SKILL },
 ]

@@ -15,6 +15,7 @@ import {
   updateCard,
 } from './board-file'
 import { describeComments, readComments, resolveComment } from './comment-file'
+import { describeNotes, readNotes } from './notes-file'
 import {
   addReviewFiles,
   clearReview,
@@ -122,6 +123,9 @@ export async function callTool(name: string, args: Record<string, unknown>): Pro
     return deleteAction(repoPath, id)
       ? `Deleted action ${id} for ${repoPath}`
       : `No action ${id} for ${repoPath}`
+  }
+  if (name === 'get_repo_notes') {
+    return describeNotes(repoPath, readNotes(repoPath))
   }
   throw new Error(`unknown tool: ${name}`)
 }

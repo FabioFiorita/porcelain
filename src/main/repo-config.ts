@@ -11,7 +11,11 @@ export const appConfigSchema = z.object({
         pinnedPaths: z.array(z.string()).default([]),
         reviewedPaths: z.array(z.string()).default([]),
         layers: z.array(z.object({ label: z.string(), pattern: z.string() })).optional(),
-        notes: z.string().default(''),
+        // Deprecated: notes moved to the ~/.porcelain/notes.json agent channel
+        // (notes-store.ts) so the MCP can read them. Kept optional only so the one-time
+        // startup migration (migrateNotesFromConfig) can copy legacy notes out — no
+        // code writes it anymore.
+        notes: z.string().optional(),
       }),
     )
     .default({}),
@@ -25,7 +29,6 @@ const emptyRepo = (): AppConfig['repos'][string] => ({
   hiddenPaths: [],
   pinnedPaths: [],
   reviewedPaths: [],
-  notes: '',
 })
 
 const MAX_RECENTS = 10
@@ -162,20 +165,4 @@ export function withoutReviewedPath(config: AppConfig, repoPath: string, path: s
 
 export function reviewedPathsFor(config: AppConfig, repoPath: string): string[] {
   return config.repos[repoPath]?.reviewedPaths ?? []
-}
-
-export function notesFor(config: AppConfig, repoPath: string): string {
-  return config.repos[repoPath]?.notes ?? ''
-}
-
-export function withRepoNotes(config: AppConfig, repoPath: string, notes: string): AppConfig {
-  const repo = config.repos[repoPath] ?? emptyRepo()
-  if (repo.notes === notes) return config
-  return {
-    ...config,
-    repos: {
-      ...config.repos,
-      [repoPath]: { ...repo, notes },
-    },
-  }
 }

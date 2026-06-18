@@ -79,6 +79,20 @@ assumed — this skill is the codebase-specific layer beneath them.
   output), via the user's login shell with the command typed in — there's no silent
   background execution. *Verify:* the MCP tool list has no execute verb; the Action row
   still shows `command`.
+- **Repo notes are a READ-ONLY, app→agent channel.** The 5th channel
+  (`~/.porcelain/notes.json`, `notes-store.ts` ↔ `src/mcp/notes-file.ts`) is the
+  human's freeform per-repo markdown scratchpad. The **app is the SOLE writer** (the
+  Notes card) and the MCP server only reads it (`get_repo_notes` — there is NO
+  notes-write tool, and don't add one; notes are the human's, captured tasks belong on
+  the board). Because nothing else writes it, it has **no `review-watch` entry** —
+  don't add a watcher expecting agent pushes. The content is inert markdown (not a
+  path, not a command), so no repo-containment or command-injection guard applies, but
+  keep the app's writes atomic (tmp + rename) like the others. Notes moved here out of
+  `userData/config.json` only because the dependency-free MCP can't resolve userData;
+  `migrateNotesFromConfig` (startup, idempotent) carries legacy notes over and never
+  clobbers a newer in-app edit. *Verify:* the MCP tool list still has only
+  `get_repo_notes` for notes; the app never reads `config.repos[*].notes` except in the
+  migration.
 - **The plugin installer is the ONLY non-git shell-out, and it takes no user input.**
   `installPlugin` (`src/main/plugin.ts`) spawns a login shell to run a FIXED command
   (`claude plugin marketplace add <app-derived dir> && claude plugin install …`) —

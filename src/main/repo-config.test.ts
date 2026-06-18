@@ -3,7 +3,6 @@ import {
   emptyConfig,
   hiddenPathsFor,
   layersFor,
-  notesFor,
   pinnedPathsFor,
   reviewedPathsFor,
   visibleFilePaths,
@@ -14,7 +13,6 @@ import {
   withPinnedPath,
   withRecentRepo,
   withRepoLayers,
-  withRepoNotes,
   withReviewedPath,
 } from './repo-config'
 
@@ -132,30 +130,6 @@ describe('repo layers', () => {
     let config = withHiddenPath(emptyConfig, '/repo', '/repo/x')
     config = withRepoLayers(config, '/repo', layers)
     expect(hiddenPathsFor(config, '/repo')).toEqual(new Set(['/repo/x']))
-  })
-})
-
-describe('repo notes', () => {
-  it('defaults to an empty string per repo', () => {
-    expect(notesFor(emptyConfig, '/repo')).toBe('')
-  })
-
-  it('sets and reads notes independently per repo', () => {
-    const config = withRepoNotes(emptyConfig, '/repo', '# todo\n- ship it')
-    expect(notesFor(config, '/repo')).toBe('# todo\n- ship it')
-    expect(notesFor(config, '/other')).toBe('')
-  })
-
-  it('returns the same config object when notes are unchanged', () => {
-    const config = withRepoNotes(emptyConfig, '/repo', 'hi')
-    expect(withRepoNotes(config, '/repo', 'hi')).toBe(config)
-  })
-
-  it('keeps notes and pins independent', () => {
-    let config = withPinnedPath(emptyConfig, '/repo', '/repo/pin')
-    config = withRepoNotes(config, '/repo', 'note')
-    expect(pinnedPathsFor(config, '/repo')).toEqual(['/repo/pin'])
-    expect(notesFor(config, '/repo')).toBe('note')
   })
 })
 

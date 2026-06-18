@@ -1,4 +1,4 @@
-import { readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -6,13 +6,16 @@ import { callTool } from './tools'
 
 const dir = join(tmpdir(), 'porcelain-tools-test')
 const file = join(dir, 'review-sets.json')
+const notesFile = join(dir, 'notes.json')
 
 beforeEach(() => {
   process.env.PORCELAIN_REVIEW_SETS = file
+  process.env.PORCELAIN_NOTES = notesFile
   rmSync(dir, { recursive: true, force: true })
 })
 afterEach(() => {
   delete process.env.PORCELAIN_REVIEW_SETS
+  delete process.env.PORCELAIN_NOTES
   rmSync(dir, { recursive: true, force: true })
 })
 const read = (): Record<string, { name: string; files: unknown[] }> =>
@@ -53,5 +56,12 @@ describe('callTool', () => {
     })
     const text = await callTool('get_feature_review', { repoPath: '/repo' })
     expect(text).toContain('Feature review "X" for /repo')
+  })
+  it('get_repo_notes reads the human notes scratchpad', async () => {
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(notesFile, JSON.stringify({ '/repo': '# conventions\n- no any' }))
+    const text = await callTool('get_repo_notes', { repoPath: '/repo' })
+    expect(text).toContain('# conventions')
+    expect(await callTool('get_repo_notes', { repoPath: '/other' })).toContain('No project notes')
   })
 })

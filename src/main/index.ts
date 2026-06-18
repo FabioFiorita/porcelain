@@ -6,6 +6,7 @@ import { emitAppEvent } from './app-events'
 import { seedDevConfig } from './dev-config'
 import { isSafeExternalUrl } from './external-url'
 import { pipeAppEvents, registerTerminalHandlers, registerTrpcHandler } from './ipc'
+import { migrateNotesFromConfig } from './notes-store'
 import { watchAgentChannels } from './review-watch'
 import { killTerminalsForSender } from './terminal-manager'
 
@@ -118,6 +119,11 @@ app.whenReady().then(async () => {
   if (is.dev) {
     await seedDevConfig()
   }
+
+  // Move any legacy notes out of userData/config.json into the ~/.porcelain notes
+  // channel so the MCP can read them. One-time + idempotent; runs before any window
+  // reads notes.
+  await migrateNotesFromConfig()
 
   // Watch the agent channels so MCP-pushed review sets / resolved comments refresh
   // the open views.

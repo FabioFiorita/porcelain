@@ -5,6 +5,7 @@ import {
   installCommands,
   MARKETPLACE_NAME,
   marketplaceManifest,
+  NOTES_SKILL,
   PLUGIN_NAME,
   pluginManifest,
   pluginMarketplaceDir,
@@ -40,11 +41,12 @@ describe('plugin assets', () => {
     expect(update).toBe(`claude plugin update ${PLUGIN_NAME}@${MARKETPLACE_NAME}`)
   })
 
-  it('bundles three focused skills, each with frontmatter naming itself', () => {
+  it('bundles four focused skills, each with frontmatter naming itself', () => {
     expect(SKILLS.map((s) => s.name)).toEqual([
       'review-with-porcelain',
       'project-board',
       'saved-actions',
+      'repo-notes',
     ])
     for (const skill of SKILLS) {
       expect(skill.content).toMatch(new RegExp(`^---\\nname: ${skill.name}\\ndescription: .+`))
@@ -73,5 +75,12 @@ describe('plugin assets', () => {
       expect(ACTIONS_SKILL).toContain(tool)
     }
     expect(ACTIONS_SKILL).toContain('only the human runs them')
+  })
+
+  it('the notes skill teaches the read-only get_repo_notes tool', () => {
+    expect(NOTES_SKILL).toContain('get_repo_notes')
+    expect(NOTES_SKILL).toMatch(/^---\nname: repo-notes/)
+    // read-only channel: no write/edit tool exists for notes
+    expect(NOTES_SKILL).toContain('read-only')
   })
 })
