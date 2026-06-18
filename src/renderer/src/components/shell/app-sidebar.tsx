@@ -133,9 +133,14 @@ export function AppSidebar(): React.JSX.Element {
                           isActive={active}
                           onClick={() => selectTab(tab.id)}
                           aria-label={tab.label}
+                          // Hover/selected fills come from the shared glass tokens
+                          // (--hover-fill / --selected-fill via the sidebar primitive),
+                          // so the rail matches every other selection surface. The
+                          // rail adds only what's icon-rail-specific: a hairline edge
+                          // on the lit chip + a muted resting icon.
                           className={cn(
                             'size-10 justify-center p-0 [&_svg]:size-5',
-                            !active && 'text-muted-foreground',
+                            active ? 'border border-white/10' : 'text-muted-foreground',
                           )}
                         >
                           <tab.icon />

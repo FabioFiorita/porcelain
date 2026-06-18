@@ -169,7 +169,10 @@
   --hairline-strong: oklch(0.145 0 0 / 0.14);
   --glaze: oklch(1 0 0 / 0.55);
   --glaze-strong: oklch(1 0 0 / 0.75);
+  /* Light-theme twins of the glass interaction tokens (black alpha). No light
+     theme ships yet, but keep them defined so a future one themes for free. */
   --hover-fill: oklch(0.145 0 0 / 0.05);
+  --selected-fill: oklch(0.145 0 0 / 0.1);
   --shadow-tile: 0 0 0 1px var(--hairline), 0 1px 2px oklch(0.5 0 0 / 0.1),
     0 8px 24px -6px oklch(0.5 0 0 / 0.16);
   --shadow-float: 0 0 0 1px var(--hairline-strong), 0 4px 8px oklch(0.5 0 0 / 0.1),
@@ -189,7 +192,16 @@
   --hairline-strong: oklch(1 0 0 / 0.16);
   --glaze: oklch(1 0 0 / 0.14);
   --glaze-strong: oklch(1 0 0 / 0.22);
-  --hover-fill: oklch(1 0 0 / 0.05);
+  /* Unified glass interaction — the ONE hover/selected language shared by sidebar
+     rows, the icon rail, toggles, ghost buttons and menu items. White alpha (not
+     the old opaque graphite) so selection reads as lit porcelain over the glass.
+     --hover-fill = resting hover; --selected-fill = the lit "on" state. Routing
+     --accent/--sidebar-accent here too (the glaze layer, not the preset block)
+     keeps every shadcn interactive surface glass — and survives a preset re-apply. */
+  --hover-fill: oklch(1 0 0 / 0.06);
+  --selected-fill: oklch(1 0 0 / 0.12);
+  --accent: oklch(1 0 0 / 0.12);
+  --sidebar-accent: oklch(1 0 0 / 0.12);
   --shadow-tile: 0 0 0 1px var(--hairline), 0 1px 2px oklch(0 0 0 / 0.3),
     0 8px 24px -6px oklch(0 0 0 / 0.45);
   --shadow-float: 0 0 0 1px var(--hairline-strong), 0 4px 8px oklch(0 0 0 / 0.3),
