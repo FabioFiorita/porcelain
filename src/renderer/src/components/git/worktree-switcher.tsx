@@ -8,7 +8,7 @@ import {
 } from '@renderer/components/ui/dropdown-menu'
 import { useWorktrees } from '@renderer/hooks/use-worktrees'
 import { useRepoStore } from '@renderer/stores/repo'
-import { Check, ChevronsUpDown, FolderGit2 } from 'lucide-react'
+import { Check, ChevronsUpDown, Folder } from 'lucide-react'
 
 // The footer's right chip: the worktree count, opening the list to switch the whole
 // worktree (its checked-out branch + directory). The left chip (BranchSwitcher) does
@@ -28,7 +28,7 @@ export function WorktreeSwitcher(): React.JSX.Element | null {
             type="button"
             className="app-no-drag flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
           >
-            <FolderGit2 className="size-3.5 shrink-0" />
+            <Folder className="size-3.5 shrink-0" />
             <span>
               {worktrees.length} worktree{worktrees.length === 1 ? '' : 's'}
             </span>

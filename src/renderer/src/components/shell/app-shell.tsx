@@ -123,7 +123,7 @@ function RepoShell(): React.JSX.Element {
   const left: LeftSidebarHandle = { collapsed: state === 'collapsed', toggle: toggleSidebar }
 
   return (
-    <SidebarInset className="h-screen min-w-0 bg-transparent">
+    <SidebarInset className="h-full min-h-0 min-w-0 bg-transparent">
       <SidebarProvider
         open={rightOpen}
         onOpenChange={setRightSidebarOpen}

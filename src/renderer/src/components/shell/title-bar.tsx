@@ -9,7 +9,7 @@ export function TitleBar(): React.JSX.Element {
   const setFinderOpen = useFileFinderStore((s) => s.setOpen)
 
   return (
-    <div className="app-drag flex h-12 shrink-0 items-center px-3">
+    <div className="app-drag flex h-12 shrink-0 items-center border-b border-border/70 px-3">
       {/* Spacer matching the traffic lights so the bar centers against the window. */}
       <div className="w-16 shrink-0" />
       <div className="flex flex-1 justify-center">

@@ -83,6 +83,10 @@ export function AppSidebar(): React.JSX.Element {
       variant="floating"
       collapsible="icon"
       className="overflow-hidden *:data-[sidebar=sidebar]:flex-row"
+      // shadcn pins the floating container to the full viewport (fixed inset-y-0
+      // h-svh); offset it below the h-12 titlebar so the card sits UNDER the top
+      // bar instead of riding up over the traffic lights. (Coupled to TitleBar h-12.)
+      style={{ top: '3rem', height: 'calc(100svh - 3rem)' }}
     >
       {/* Resizing a bare rail makes no sense — the handle only exists when expanded. */}
       {state === 'expanded' && <SidebarResizeHandle />}
