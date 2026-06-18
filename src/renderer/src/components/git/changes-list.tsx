@@ -33,7 +33,7 @@ import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useRevealStore } from '@renderer/stores/reveal'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
-import { Check, RefreshCw } from 'lucide-react'
+import { Check, FileText, Minus, Plus, RefreshCw, Square, SquareCheck, Undo2 } from 'lucide-react'
 import { useState } from 'react'
 import { ChangesScopeToggle } from './changes-scope-toggle'
 
@@ -161,25 +161,39 @@ function FileRow({
         <ContextMenuContent>
           {isReviewed ? (
             <ContextMenuItem onClick={async () => unmark(file.path)}>
+              <Square />
               Unmark reviewed
             </ContextMenuItem>
           ) : (
-            <ContextMenuItem onClick={async () => mark(file.path)}>Mark reviewed</ContextMenuItem>
+            <ContextMenuItem onClick={async () => mark(file.path)}>
+              <SquareCheck />
+              Mark reviewed
+            </ContextMenuItem>
           )}
           {/* Deleted files no longer exist on disk, so opening them would error. */}
           {file.status !== 'deleted' && (
-            <ContextMenuItem onClick={openFile}>Open file</ContextMenuItem>
+            <ContextMenuItem onClick={openFile}>
+              <FileText />
+              Open file
+            </ContextMenuItem>
           )}
           {file.unstaged && (
-            <ContextMenuItem onClick={() => stageFile(file.path)}>Stage</ContextMenuItem>
+            <ContextMenuItem onClick={() => stageFile(file.path)}>
+              <Plus />
+              Stage
+            </ContextMenuItem>
           )}
           {file.staged && (
-            <ContextMenuItem onClick={() => unstageFile(file.path)}>Unstage</ContextMenuItem>
+            <ContextMenuItem onClick={() => unstageFile(file.path)}>
+              <Minus />
+              Unstage
+            </ContextMenuItem>
           )}
           {/* Discard only makes sense against the working tree — hidden in the
               branch-diff scope, where rows are committed changes vs a base. */}
           {!base && (
             <ContextMenuItem variant="destructive" onClick={() => setConfirmDiscard(true)}>
+              <Undo2 />
               Discard changes
             </ContextMenuItem>
           )}
