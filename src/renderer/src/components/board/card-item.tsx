@@ -1,4 +1,4 @@
-import type { BoardCard } from '@main/board-store'
+import type { BoardCard, CardStatus } from '@main/board-store'
 import { Button } from '@renderer/components/ui/button'
 import {
   DropdownMenu,
@@ -8,7 +8,14 @@ import {
   DropdownMenuTrigger,
 } from '@renderer/components/ui/dropdown-menu'
 import { BOARD_COLUMNS, useCardActions } from '@renderer/hooks/use-board'
-import { MoreHorizontal } from 'lucide-react'
+import { CheckCircle2, Circle, CircleDot, MoreHorizontal, PenLine, Trash2 } from 'lucide-react'
+
+/** Icon per column, so a "Move to …" row reads at a glance. */
+const COLUMN_ICON: Record<CardStatus, React.ComponentType> = {
+  todo: Circle,
+  doing: CircleDot,
+  done: CheckCircle2,
+}
 
 /**
  * A board card chip with a "⋯" menu: edit, move to another column (the MCP moves
@@ -47,15 +54,23 @@ export function CardItem({
           }
         />
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => onEdit(card)}>Edit</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onEdit(card)}>
+            <PenLine />
+            Edit
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
-          {BOARD_COLUMNS.filter((column) => column.status !== card.status).map((column) => (
-            <DropdownMenuItem key={column.status} onClick={() => move(card.id, column.status)}>
-              Move to {column.label}
-            </DropdownMenuItem>
-          ))}
+          {BOARD_COLUMNS.filter((column) => column.status !== card.status).map((column) => {
+            const Icon = COLUMN_ICON[column.status]
+            return (
+              <DropdownMenuItem key={column.status} onClick={() => move(card.id, column.status)}>
+                <Icon />
+                Move to {column.label}
+              </DropdownMenuItem>
+            )
+          })}
           <DropdownMenuSeparator />
           <DropdownMenuItem variant="destructive" onClick={() => remove(card.id)}>
+            <Trash2 />
             Delete
           </DropdownMenuItem>
         </DropdownMenuContent>

@@ -50,7 +50,7 @@ export function TerminalList(): React.JSX.Element {
             <div
               key={session.id}
               className={cn(
-                'group/term flex h-7 items-center gap-2 rounded-md px-2 text-sm',
+                'group/term flex h-7 items-center gap-2 rounded-md px-2 text-[13px]',
                 isActive
                   ? 'bg-sidebar-accent text-foreground'
                   : 'text-muted-foreground hover:bg-sidebar-accent/50',
