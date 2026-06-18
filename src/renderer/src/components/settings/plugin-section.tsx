@@ -94,7 +94,9 @@ export function PluginSection(): React.JSX.Element {
 
       <div>
         <div className="mb-1.5 flex items-center justify-between">
-          <p className="text-xs font-medium">Install manually</p>
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Install manually
+          </p>
           <Button variant="ghost" size="sm" onClick={() => copy()} disabled={commands.length === 0}>
             {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
             {copied ? 'Copied' : 'Copy'}

@@ -1,3 +1,4 @@
+import { Separator } from '@renderer/components/ui/separator'
 import { PluginSection } from './plugin-section'
 
 // Reorganize-only for now: Claude Code is the one working integration (the plugin
@@ -30,6 +31,8 @@ export function AgentsSection(): React.JSX.Element {
         </div>
         <PluginSection />
       </section>
+
+      <Separator />
 
       {PLANNED.map((agent) => (
         <section key={agent.name} className="flex flex-col gap-1 opacity-60">

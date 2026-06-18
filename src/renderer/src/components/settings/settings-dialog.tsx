@@ -79,7 +79,7 @@ export function SettingsDialog(): React.JSX.Element {
           </Button>
         }
       />
-      <DialogContent className="overflow-hidden p-0 sm:max-w-3xl">
+      <DialogContent className="overflow-hidden p-0 sm:max-w-[960px]">
         <DialogTitle className="sr-only">Settings</DialogTitle>
         <DialogDescription className="sr-only">
           App preferences and repository settings.
@@ -87,9 +87,9 @@ export function SettingsDialog(): React.JSX.Element {
         <SidebarProvider
           shortcut={null}
           className="min-h-0 items-start"
-          style={{ '--sidebar-width': '11rem' } as React.CSSProperties}
+          style={{ '--sidebar-width': '14rem' } as React.CSSProperties}
         >
-          <Sidebar collapsible="none" className="h-[480px] border-r">
+          <Sidebar collapsible="none" className="h-[600px] border-r">
             <SidebarContent>
               <SidebarGroup>
                 <SidebarGroupContent>
@@ -109,7 +109,7 @@ export function SettingsDialog(): React.JSX.Element {
               </SidebarGroup>
             </SidebarContent>
           </Sidebar>
-          <div className="flex h-[480px] min-w-0 flex-1 flex-col">
+          <div className="flex h-[600px] min-w-0 flex-1 flex-col">
             {/* Fixed header band — the section title/blurb stay put so a long
                 scroll never slides row controls up next to the dialog close X. */}
             <header className="shrink-0 border-b px-6 py-4 pr-12">
