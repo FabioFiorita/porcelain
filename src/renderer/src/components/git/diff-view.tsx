@@ -5,9 +5,11 @@ import {
   ContextMenuTrigger,
 } from '@renderer/components/ui/context-menu'
 import { useDiffFile } from '@renderer/hooks/use-diff'
+import { useReviewedPaths, useToggleReviewed } from '@renderer/hooks/use-reviewed'
 import { type LineSelection, lineSelectionFromDom } from '@renderer/lib/line-selection'
+import { cn } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
-import { MessageSquarePlus } from 'lucide-react'
+import { MessageSquarePlus, Square, SquareCheck } from 'lucide-react'
 import { useState } from 'react'
 import { type CommentAnchor, CommentComposer } from './comment-composer'
 import { DiffModeToggle } from './diff-mode-toggle'
@@ -22,6 +24,9 @@ export function DiffView({
 }): React.JSX.Element {
   const diffMode = usePreferencesStore((s) => s.diffMode)
   const { hunks, error } = useDiffFile(filePath, base)
+  const reviewed = useReviewedPaths()
+  const { mark, unmark } = useToggleReviewed()
+  const isReviewed = reviewed.has(filePath)
   const [lineSel, setLineSel] = useState<LineSelection | null>(null)
   const [commentAnchor, setCommentAnchor] = useState<CommentAnchor | null>(null)
 
@@ -30,9 +35,26 @@ export function DiffView({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between border-b px-3 py-1">
+      <div className="flex items-center justify-between gap-2 border-b px-3 py-1">
         <span className="truncate font-mono text-xs text-muted-foreground">{filePath}</span>
-        <DiffModeToggle />
+        <div className="flex shrink-0 items-center gap-1.5">
+          {/* Mark the file reviewed right where you read it — shares state with
+              the Changes list's reviewed indicator (useReviewedPaths). */}
+          <button
+            type="button"
+            onClick={async () => (isReviewed ? unmark(filePath) : mark(filePath))}
+            className={cn(
+              'flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors',
+              isReviewed
+                ? 'text-success hover:bg-accent/50'
+                : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+            )}
+          >
+            {isReviewed ? <SquareCheck className="size-3.5" /> : <Square className="size-3.5" />}
+            {isReviewed ? 'Reviewed' : 'Mark reviewed'}
+          </button>
+          <DiffModeToggle />
+        </div>
       </div>
       <ContextMenu
         onOpenChange={(open) => {
