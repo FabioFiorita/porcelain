@@ -74,7 +74,12 @@ export function SettingsDialog(): React.JSX.Element {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         render={
-          <Button variant="ghost" size="icon-sm" className="app-no-drag" aria-label="Settings">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="app-no-drag size-10 text-muted-foreground [&_svg]:size-5"
+            aria-label="Settings"
+          >
             <Settings2 />
           </Button>
         }

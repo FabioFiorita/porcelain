@@ -88,7 +88,17 @@ export function AppSidebar(): React.JSX.Element {
       // bar instead of riding up over the traffic lights. paddingTop:0 drops the
       // floating top gap so the tile is flush with the titlebar bottom — the search
       // then has an even 8px above (window edge) and below (to the tiles).
-      style={{ top: '3rem', height: 'calc(100svh - 3rem)', paddingTop: 0 }}
+      // --sidebar-width-icon = the rail width: 4rem (64px) matches the mockup's
+      // spacious rail (a preset re-apply resets the vendored 3rem default — set it
+      // here, on the non-vendored shell, so it survives).
+      style={
+        {
+          top: '3rem',
+          height: 'calc(100svh - 3rem)',
+          paddingTop: 0,
+          '--sidebar-width-icon': '4rem',
+        } as React.CSSProperties
+      }
     >
       {/* Resizing a bare rail makes no sense — the handle only exists when expanded. */}
       {state === 'expanded' && <SidebarResizeHandle />}
@@ -98,12 +108,16 @@ export function AppSidebar(): React.JSX.Element {
           the whole rail) so it starts below the header line and stops above the
           footer — the title bar and bottom bar read as one continuous strip. */}
       <Sidebar collapsible="none" className="w-(--sidebar-width-icon) shrink-0 bg-transparent">
-        {/* The project switcher avatar; the strip stays draggable around it. */}
-        <SidebarHeader className="app-drag flex h-12 shrink-0 items-center justify-center border-b">
+        {/* The project switcher avatar; the strip stays draggable around it. No
+            header border here — the mockup separates the avatar from the tabs with
+            a short centered divider (below) rather than a full-width header line. */}
+        <SidebarHeader className="app-drag flex h-12 shrink-0 items-center justify-center">
           <ProjectSwitcher />
         </SidebarHeader>
         <SidebarContent className="overflow-hidden border-r border-sidebar-border">
-          <SidebarMenu className="items-center gap-1 py-2">
+          {/* short centered divider below the avatar (mockup) */}
+          <div className="mx-auto h-px w-7 shrink-0 bg-sidebar-border" />
+          <SidebarMenu className="items-center gap-1.5 py-2.5">
             {TABS.map((tab) => {
               const active = sidebarTab === tab.id
               return (
@@ -116,7 +130,7 @@ export function AppSidebar(): React.JSX.Element {
                           onClick={() => selectTab(tab.id)}
                           aria-label={tab.label}
                           className={cn(
-                            'size-9 justify-center p-0',
+                            'size-10 justify-center p-0 [&_svg]:size-5',
                             !active && 'text-muted-foreground',
                           )}
                         >
