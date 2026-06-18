@@ -35,7 +35,7 @@ test('sidebar icon rail', async ({ page }) => {
 // Framing just the panel makes its buttons fill the shot, so the same restyle
 // exceeds the per-element diff. The Commit composer renders only when the repo
 // has commit conventions — the fixture's conventional-commit history guarantees
-// it — so we assert the amber Commit button is present before the snapshot.
+// it — so we assert the Commit button is present before the snapshot.
 test('quick access — changes', async ({ page }) => {
   await waitForShell(page)
   await selectTab(page, 'Changes')

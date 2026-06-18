@@ -36,7 +36,7 @@ function ActionRow({
         // actions, so the human must see exactly what a click executes (see audit skill).
         title={`Run: ${action.command}`}
       >
-        <Play className="size-3.5 shrink-0 text-ink-amber" />
+        <Play className="size-3.5 shrink-0 text-muted-foreground" />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-xs font-medium">{action.title}</span>
           <span className="block truncate font-mono text-[10px] text-muted-foreground">
@@ -81,7 +81,7 @@ export function ActionsGroup(): React.JSX.Element {
   return (
     <SidebarGroup>
       <SidebarGroupLabel className="flex items-center justify-between px-2 uppercase tracking-wider text-muted-foreground">
-        Actions
+        Saved commands
         <Button
           variant="ghost"
           size="icon-sm"

@@ -12,7 +12,7 @@ import { useClearFeatureReview, useFeatureView } from '@renderer/hooks/use-featu
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
-import { BookOpen, Eraser, Flag, RefreshCw, Sparkles } from 'lucide-react'
+import { BookOpen, Eraser, RefreshCw, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 
 const SOURCE_LABEL: Record<FileSource, string> = {
@@ -86,10 +86,12 @@ function FileRow({ file, repoPath }: { file: FeatureFile; repoPath: string }): R
         </div>
       </SidebarMenuButton>
       {file.note && (
-        <p className="mx-2 my-1 flex items-start gap-1.5 border-l-2 border-warning bg-card px-2 py-1.5 text-xs text-muted-foreground">
-          <Flag className="mt-0.5 size-3 shrink-0 text-warning" />
-          {file.note}
-        </p>
+        <div className="mx-2 my-1 rounded-md border border-border bg-card/50 px-2.5 py-2">
+          <span className="text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Note
+          </span>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{file.note}</p>
+        </div>
       )}
     </SidebarMenuItem>
   )

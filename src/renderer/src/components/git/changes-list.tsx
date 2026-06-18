@@ -221,18 +221,26 @@ export function ChangesList(): React.JSX.Element {
 
   return (
     <div className="flex flex-col gap-1">
-      <div className="flex items-center justify-between px-2">
-        <span className="text-xs text-muted-foreground">
-          {total} changed {total === 1 ? 'file' : 'files'}
-          {base && ` · vs ${base}`}
-          {reviewedCount > 0 && ` · ${reviewedCount} reviewed`}
-        </span>
-        <div className="flex items-center gap-1">
-          <ChangesScopeToggle />
-          <Button variant="ghost" size="icon-sm" onClick={refresh} aria-label="Refresh changes">
+      {/* Two rows so a long "N changed files · vs base · N reviewed" line and the
+          Working/Branch picker never fight for width in the narrow panel. */}
+      <div className="flex flex-col gap-1 px-2">
+        <div className="flex items-center justify-between gap-1">
+          <span className="min-w-0 truncate text-xs text-muted-foreground">
+            {total} changed {total === 1 ? 'file' : 'files'}
+            {base && ` · vs ${base}`}
+            {reviewedCount > 0 && ` · ${reviewedCount} reviewed`}
+          </span>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="shrink-0"
+            onClick={refresh}
+            aria-label="Refresh changes"
+          >
             <RefreshCw />
           </Button>
         </div>
+        <ChangesScopeToggle />
       </div>
       {total === 0 ? (
         <p className="px-3 py-2 text-sm text-muted-foreground">

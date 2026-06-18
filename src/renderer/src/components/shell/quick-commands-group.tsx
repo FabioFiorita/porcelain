@@ -99,7 +99,7 @@ export function QuickCommandsGroup(): React.JSX.Element {
   return (
     <SidebarGroup>
       <SidebarGroupLabel className="px-2 uppercase tracking-wider text-muted-foreground">
-        Quick commands
+        Commands
       </SidebarGroupLabel>
       <SidebarGroupContent className="flex flex-col gap-1.5 px-2">
         {suggestions.length > 0 && (
@@ -111,11 +111,11 @@ export function QuickCommandsGroup(): React.JSX.Element {
                 <Button
                   key={suggestion.command}
                   variant="ghost"
-                  className="glaze-chip h-auto justify-start gap-2 rounded-md border-ink-amber/30 py-1.5 text-left"
+                  className="glaze-chip h-auto justify-start gap-2 rounded-md py-1.5 text-left"
                   disabled={running !== null}
                   onClick={() => run(command)}
                 >
-                  <Sparkles className="size-3.5 shrink-0 text-ink-amber" />
+                  <Sparkles className="size-3.5 shrink-0 text-muted-foreground" />
                   <span className="flex min-w-0 flex-col items-start">
                     <span className="truncate font-mono text-sm font-normal">{command.label}</span>
                     <span className="truncate text-[10px] font-normal text-muted-foreground">

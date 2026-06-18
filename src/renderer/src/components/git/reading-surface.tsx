@@ -4,7 +4,6 @@ import { CodeLine, useHighlighter } from '@renderer/components/viewer/code-line'
 import { VirtualRows } from '@renderer/components/viewer/virtual-rows'
 import { languageFor, tokenizeLines } from '@renderer/lib/highlight'
 import { cn } from '@renderer/lib/utils'
-import { Flag } from 'lucide-react'
 import { useMemo } from 'react'
 import type { ThemedToken } from 'shiki'
 import { SourceMarker } from './feature-list'
@@ -100,10 +99,12 @@ function ReadingRowView({ row }: { row: ReadingRow }): React.JSX.Element {
     case 'note':
       return (
         <p
-          className="flex h-5 items-center gap-1.5 border-l-2 border-warning bg-card px-2 text-xs text-muted-foreground"
+          className="flex h-5 items-center gap-2 border-l-2 border-muted-foreground/25 bg-muted/30 px-2 text-xs text-muted-foreground"
           title={row.note}
         >
-          <Flag className="size-3 shrink-0 text-warning" />
+          <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+            Note
+          </span>
           <span className="truncate">{row.note}</span>
         </p>
       )

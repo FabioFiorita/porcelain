@@ -1,11 +1,23 @@
 import { ActionsGroup } from '@renderer/components/terminal/actions-group'
 import { Sidebar, SidebarContent, SidebarHeader } from '@renderer/components/ui/sidebar'
-import { usePreferencesStore } from '@renderer/stores/preferences'
+import { type SidebarTab, usePreferencesStore } from '@renderer/stores/preferences'
 import { CommentsGroup } from './comments-group'
 import { CommitGroup } from './commit-group'
 import { FilesQuickAccess } from './files-quick-access'
 import { QuickCommandsGroup } from './quick-commands-group'
 import { RightSidebarResizeHandle } from './sidebar-resize-handle'
+
+// The companion panel retitles itself to what you're doing (matching the left
+// panel's contextual header) instead of a generic "Quick access" — the redesign
+// dropped the "Quick Access" / "Quick Commands" labels.
+const COMPANION_TITLES: Record<SidebarTab, string> = {
+  files: 'Workspace',
+  changes: 'Source control',
+  history: 'Review',
+  feature: 'Review',
+  board: 'Workspace',
+  terminal: 'Actions',
+}
 
 // Sections follow the left sidebar's active tab: pins belong to browsing
 // files, git actions belong to reviewing changes/history/feature, saved actions
@@ -18,8 +30,8 @@ export function RightSidebar(): React.JSX.Element {
     <Sidebar side="right" variant="floating" collapsible="offcanvas">
       <RightSidebarResizeHandle />
       <SidebarHeader className="app-drag h-12 flex-row items-center border-b py-0">
-        <span className="truncate text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Quick access
+        <span className="truncate text-xs font-semibold text-foreground">
+          {COMPANION_TITLES[sidebarTab]}
         </span>
       </SidebarHeader>
       <SidebarContent className={sidebarTab === 'files' ? 'gap-0 overflow-hidden' : undefined}>

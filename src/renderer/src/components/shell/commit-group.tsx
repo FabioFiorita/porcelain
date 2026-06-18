@@ -215,7 +215,7 @@ export function CommitGroup(): React.JSX.Element {
             </Button>
             <Button
               size="sm"
-              className="rounded-md border-ink-amber/40 bg-ink-amber/10 text-ink-amber hover:bg-ink-amber/20 dark:bg-ink-amber/20 dark:hover:bg-ink-amber/30"
+              className="rounded-md"
               disabled={!ready || isCommitting}
               onClick={commit}
             >
