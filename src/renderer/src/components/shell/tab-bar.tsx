@@ -38,7 +38,7 @@ function TabItem({
       <ContextMenuTrigger>
         <div
           className={cn(
-            'glaze-segment app-no-drag group flex h-7 shrink-0 cursor-default items-center gap-1 rounded-md px-3 text-sm',
+            'glaze-segment app-no-drag group flex h-7 shrink-0 cursor-default items-center gap-1 rounded-md px-3 text-[13px]',
             tab.id === activeTabId ? 'text-foreground' : 'text-muted-foreground',
           )}
           data-active={tab.id === activeTabId}
