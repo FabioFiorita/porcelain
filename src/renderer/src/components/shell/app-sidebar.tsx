@@ -143,8 +143,14 @@ export function AppSidebar(): React.JSX.Element {
                           // warms to that same frosted glass on hover (the .glaze-rail
                           // rule in main.css) instead of a white tint. Resting icons
                           // are muted.
+                          // The vendored sidebarMenuButtonVariants shrink the
+                          // button to size-8/p-2 with !important once the outer
+                          // sidebar collapses to the rail — re-assert size-10/p-0
+                          // (also !important) so the rail icons stay the same size
+                          // collapsed or expanded.
                           className={cn(
                             'size-10 justify-center p-0 [&_svg]:size-5',
+                            'group-data-[collapsible=icon]:size-10! group-data-[collapsible=icon]:p-0!',
                             active ? 'glaze-chip' : 'glaze-rail text-muted-foreground',
                           )}
                         >

@@ -335,6 +335,15 @@
   background-color: var(--surface-2);
   box-shadow: var(--glaze-lit);
 }
+/* Segmented toggles (ToggleGroupItem — Working/Branch, Unified/Split, Reader/
+   Source…) wear the rail glaze too: a resting segment warms to the frosted chip
+   on hover, the pressed segment is a persistently-lit chip. Keyed on aria-pressed,
+   the attribute base-ui's Toggle emits for the on state, so the selection reads
+   identically to the icon-rail tabs. */
+.glaze-rail[aria-pressed='true'] {
+  background-color: var(--surface-2);
+  box-shadow: var(--glaze-lit);
+}
 /* The chip material owns box-shadow, so route the focus ring through `outline`
    (a separate property) — otherwise the Tailwind ring box-shadow would be
    overridden and keyboard focus would go invisible. */
