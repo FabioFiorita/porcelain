@@ -5,9 +5,9 @@ import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { useTerminalsStore } from '@renderer/stores/terminals'
 
 /** All saved actions for the current repo (live-refreshed when the agent curates them). */
-export function useActions(): Action[] {
+export function useActions(enabled = true): Action[] {
   const repo = useRepoStore((s) => s.repo)
-  const { data } = trpc.actions.useQuery(repo?.path ?? '', { enabled: repo !== null })
+  const { data } = trpc.actions.useQuery(repo?.path ?? '', { enabled: enabled && repo !== null })
   return data ?? []
 }
 

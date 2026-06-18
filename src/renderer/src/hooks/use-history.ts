@@ -2,11 +2,11 @@ import type { ChangedFile, Commit } from '@main/diff'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 
-export function useGitLog(limit = 200): Commit[] | undefined {
+export function useGitLog(limit = 200, enabled = true): Commit[] | undefined {
   const repo = useRepoStore((s) => s.repo)
   const { data } = trpc.gitLog.useQuery(
     { repoPath: repo?.path ?? '', limit },
-    { enabled: repo !== null, staleTime: 0 },
+    { enabled: enabled && repo !== null, staleTime: 0 },
   )
   return data
 }
