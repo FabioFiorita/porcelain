@@ -90,8 +90,8 @@
   --popover-foreground: oklch(0.145 0 0);
   --primary: oklch(0.205 0 0);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.967 0.001 286.375);
-  --secondary-foreground: oklch(0.21 0.006 285.885);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
   --muted-foreground: oklch(0.556 0 0);
   --accent: oklch(0.97 0 0);
@@ -100,12 +100,12 @@
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.81 0 0);
-  --chart-2: oklch(0.71 0 0);
-  --chart-3: oklch(0.61 0 0);
-  --chart-4: oklch(0.51 0 0);
-  --chart-5: oklch(0.44 0 0);
-  --radius: 0.45rem;
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -117,6 +117,8 @@
 }
 
 .dark {
+  /* alpha < 1 so macOS vibrancy shows through the tiles (a vega preset re-apply
+     resets these to opaque — restore the alpha). */
   --background: oklch(0.145 0 0 / 0.3);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
@@ -125,7 +127,7 @@
   --popover-foreground: oklch(0.985 0 0);
   --primary: oklch(0.922 0 0);
   --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.274 0.006 286.033);
+  --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
   --muted-foreground: oklch(0.708 0 0);
@@ -135,13 +137,14 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.81 0 0);
-  --chart-2: oklch(0.71 0 0);
-  --chart-3: oklch(0.61 0 0);
-  --chart-4: oklch(0.51 0 0);
-  --chart-5: oklch(0.44 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
   --sidebar: oklch(0.205 0 0 / 0.15);
   --sidebar-foreground: oklch(0.985 0 0);
+  /* neutral graphite — vega ships a blue --sidebar-primary; keep the app accent-free */
   --sidebar-primary: oklch(0.922 0 0);
   --sidebar-primary-foreground: oklch(0.205 0 0);
   --sidebar-accent: oklch(0.269 0 0);

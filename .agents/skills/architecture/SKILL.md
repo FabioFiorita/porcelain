@@ -12,7 +12,7 @@ This skill is the **durable layer**: the stack, the single architecture every fe
 | Area | Decision |
 |---|---|
 | Shell | Electron via **electron-vite**, React 19, TypeScript (strict) |
-| UI | **shadcn/ui on Base UI** (`@base-ui/react`, not Radix) + Tailwind CSS v4, `base-nova` preset, **JetBrains Mono** for app chrome + code (the terminal keeps Geist Mono + Nerd Font), dark mode default |
+| UI | **shadcn/ui on Base UI** (`@base-ui/react`, not Radix) + Tailwind CSS v4, **`base-vega` preset** (switched from luma 2026-06-18 — vega's components use `rounded-md` instead of luma's `rounded-4xl` pill buttons; `--radius` is `0.625rem`), **JetBrains Mono** for app chrome + code (the terminal keeps Geist Mono + Nerd Font), dark mode default |
 | Client architecture | **Porcelain's own conventions** (see "The one architecture" below): tab-store routing, domain data hooks, one public component per file |
 | Client state | **zustand** — small stores per concern; no other state libraries |
 | Git backend | Shell out to `git` CLI from the main process; parse porcelain-format output; no git libraries |
