@@ -1,3 +1,4 @@
+import { SidebarHeaderActions } from '@renderer/components/shell/sidebar-header-actions'
 import { Button } from '@renderer/components/ui/button'
 import { spawnTerminal } from '@renderer/lib/terminal-actions'
 import { cn } from '@renderer/lib/utils'
@@ -29,19 +30,18 @@ export function TerminalList(): React.JSX.Element {
 
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="flex items-center justify-between px-2">
-        <span className="text-xs text-muted-foreground">
-          {sessions.length} {sessions.length === 1 ? 'terminal' : 'terminals'}
-        </span>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={spawnTerminal}
-          aria-label="New terminal"
-          disabled={!repo}
-        >
-          <Plus />
-        </Button>
+      <div className="flex items-center justify-end px-2">
+        <SidebarHeaderActions>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={spawnTerminal}
+            aria-label="New terminal"
+            disabled={!repo}
+          >
+            <Plus />
+          </Button>
+        </SidebarHeaderActions>
       </div>
       <div className="flex flex-col gap-0.5 px-2">
         {sessions.map((session) => {

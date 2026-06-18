@@ -73,13 +73,12 @@ describe('FeatureList', () => {
 
   it('arms then confirms a clear of the agent review set (two-step)', () => {
     renderList()
-    const btn = screen.getByLabelText('Clear agent review set')
     // the label names its scope — the agent set, not the whole view
-    expect(btn.textContent).toContain('Clear agent set')
+    const btn = screen.getByLabelText('Clear agent review set')
     fireEvent.click(btn) // first click only arms — does not clear
-    expect(screen.getByLabelText('Clear agent review set').textContent).toContain('?')
     expect(clearSpy).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByLabelText('Clear agent review set')) // confirm
+    // arming flips the label to its confirm state
+    fireEvent.click(screen.getByLabelText('Confirm clear agent review set')) // confirm
     expect(clearSpy).toHaveBeenCalledTimes(1)
   })
 

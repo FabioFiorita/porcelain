@@ -1,5 +1,6 @@
 import type { FileStatus } from '@main/diff'
 import type { FlowFile } from '@main/flow'
+import { SidebarHeaderActions } from '@renderer/components/shell/sidebar-header-actions'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -267,15 +268,17 @@ export function ChangesList(): React.JSX.Element {
               {reviewedCount > 0 && ` · ${reviewedCount} reviewed`}
             </span>
           )}
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="shrink-0"
-            onClick={refresh}
-            aria-label="Refresh changes"
-          >
-            <RefreshCw />
-          </Button>
+          <SidebarHeaderActions>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="shrink-0"
+              onClick={refresh}
+              aria-label="Refresh changes"
+            >
+              <RefreshCw />
+            </Button>
+          </SidebarHeaderActions>
         </div>
         <ChangesScopeToggle />
       </div>

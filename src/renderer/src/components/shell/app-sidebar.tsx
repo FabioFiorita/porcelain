@@ -36,8 +36,10 @@ import {
   SquareTerminal,
   Waypoints,
 } from 'lucide-react'
+import { useState } from 'react'
 import { FileTree } from './file-tree'
 import { ProjectSwitcher } from './project-switcher'
+import { SidebarHeaderActionsProvider } from './sidebar-header-actions'
 import { SidebarResizeHandle } from './sidebar-resize-handle'
 
 const TABS: { id: SidebarTab; label: string; icon: typeof Files; shortcut: string }[] = [
@@ -68,6 +70,7 @@ export function AppSidebar(): React.JSX.Element {
   const setSidebarTab = usePreferencesStore((s) => s.setSidebarTab)
   const collapseAll = useFileTreeStore((s) => s.collapseAll)
   const { state, setOpen } = useSidebar()
+  const [actionsSlot, setActionsSlot] = useState<HTMLElement | null>(null)
 
   // Picking a tab always reveals its panel — switching while collapsed to the
   // rail would otherwise change the selection with nothing visible to show for it.
@@ -177,84 +180,93 @@ export function AppSidebar(): React.JSX.Element {
       </Sidebar>
 
       {/* Content panel — contextual header + active list + branch/worktree footer. */}
-      <Sidebar collapsible="none" className="min-w-0 flex-1 bg-transparent">
-        {/* Contextual title bar. The traffic lights now live in the window
+      <SidebarHeaderActionsProvider value={actionsSlot}>
+        <Sidebar collapsible="none" className="min-w-0 flex-1 bg-transparent">
+          {/* Contextual title bar. The traffic lights now live in the window
             titlebar, so the panel header is free of them — no left inset needed. */}
-        <SidebarHeader
-          className={cn(
-            'app-drag h-12 flex-row items-center gap-1 py-0 pr-1 pl-3',
-            state === 'expanded' && 'border-b',
-          )}
-        >
-          <span className="min-w-0 flex-1 truncate text-xs font-semibold text-foreground">
-            {PANEL_TITLES[sidebarTab]}
-          </span>
-          {sidebarTab === 'files' && (
+          <SidebarHeader
+            className={cn(
+              'app-drag h-12 flex-row items-center gap-1 py-0 pr-1 pl-3',
+              state === 'expanded' && 'border-b',
+            )}
+          >
+            <span className="min-w-0 flex-1 truncate text-xs font-semibold text-foreground">
+              {PANEL_TITLES[sidebarTab]}
+            </span>
+            {/* One actions region for every tab. Files renders its tree controls
+              inline here; the other tabs portal their header buttons into the
+              slot below (see SidebarHeaderActions) so no tab grows a second
+              toolbar row beneath the title. */}
             <div className="app-no-drag flex shrink-0 items-center text-muted-foreground">
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={collapseAll}
-                      aria-label="Collapse all folders"
-                    >
-                      <ChevronsDownUp />
-                    </Button>
-                  }
-                />
-                <TooltipContent>Collapse all folders</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={toggleShowHidden}
-                      aria-label={showHidden ? 'Conceal hidden entries' : 'Show hidden entries'}
-                    >
-                      {showHidden ? <Eye /> : <EyeOff />}
-                    </Button>
-                  }
-                />
-                <TooltipContent>
-                  {showHidden ? 'Conceal hidden entries' : 'Show hidden entries'}
-                </TooltipContent>
-              </Tooltip>
+              {sidebarTab === 'files' && (
+                <>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={collapseAll}
+                          aria-label="Collapse all folders"
+                        >
+                          <ChevronsDownUp />
+                        </Button>
+                      }
+                    />
+                    <TooltipContent>Collapse all folders</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={toggleShowHidden}
+                          aria-label={showHidden ? 'Conceal hidden entries' : 'Show hidden entries'}
+                        >
+                          {showHidden ? <Eye /> : <EyeOff />}
+                        </Button>
+                      }
+                    />
+                    <TooltipContent>
+                      {showHidden ? 'Conceal hidden entries' : 'Show hidden entries'}
+                    </TooltipContent>
+                  </Tooltip>
+                </>
+              )}
+              <div ref={setActionsSlot} className="flex items-center" />
             </div>
-          )}
-        </SidebarHeader>
-        <SidebarContent className="overflow-hidden">
-          {repo ? (
-            <div className="min-h-0 flex-1 overflow-auto">
-              <SidebarGroup>
-                <SidebarGroupContent>
-                  {sidebarTab === 'files' && <FileTree rootPath={repo.path} />}
-                  {sidebarTab === 'changes' && <ChangesList />}
-                  {sidebarTab === 'history' && <HistoryList />}
-                  {sidebarTab === 'feature' && <FeatureList />}
-                  {sidebarTab === 'board' && <BoardList />}
-                  {sidebarTab === 'terminal' && <TerminalList />}
-                </SidebarGroupContent>
-              </SidebarGroup>
-            </div>
-          ) : (
-            <p className="p-2 text-sm text-muted-foreground">No repository open</p>
-          )}
-        </SidebarContent>
-        {/* Branch picker (in-place checkout) on the left, worktree switcher on the right. */}
-        <SidebarFooter
-          className={cn(
-            'h-12 flex-row items-center justify-between gap-2 px-2 py-0',
-            state === 'expanded' && 'border-t',
-          )}
-        >
-          <BranchSwitcher />
-          <WorktreeSwitcher />
-        </SidebarFooter>
-      </Sidebar>
+          </SidebarHeader>
+          <SidebarContent className="overflow-hidden">
+            {repo ? (
+              <div className="min-h-0 flex-1 overflow-auto">
+                <SidebarGroup>
+                  <SidebarGroupContent>
+                    {sidebarTab === 'files' && <FileTree rootPath={repo.path} />}
+                    {sidebarTab === 'changes' && <ChangesList />}
+                    {sidebarTab === 'history' && <HistoryList />}
+                    {sidebarTab === 'feature' && <FeatureList />}
+                    {sidebarTab === 'board' && <BoardList />}
+                    {sidebarTab === 'terminal' && <TerminalList />}
+                  </SidebarGroupContent>
+                </SidebarGroup>
+              </div>
+            ) : (
+              <p className="p-2 text-sm text-muted-foreground">No repository open</p>
+            )}
+          </SidebarContent>
+          {/* Branch picker (in-place checkout) on the left, worktree switcher on the right. */}
+          <SidebarFooter
+            className={cn(
+              'h-12 flex-row items-center justify-between gap-2 px-2 py-0',
+              state === 'expanded' && 'border-t',
+            )}
+          >
+            <BranchSwitcher />
+            <WorktreeSwitcher />
+          </SidebarFooter>
+        </Sidebar>
+      </SidebarHeaderActionsProvider>
     </Sidebar>
   )
 }

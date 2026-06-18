@@ -1,3 +1,4 @@
+import { SidebarHeaderActions } from '@renderer/components/shell/sidebar-header-actions'
 import { Button } from '@renderer/components/ui/button'
 import { BOARD_COLUMNS, useBoardCards } from '@renderer/hooks/use-board'
 import { draftFromCard, useCardDraftStore } from '@renderer/stores/card-draft'
@@ -24,13 +25,12 @@ export function BoardList(): React.JSX.Element {
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between px-2">
-        <span className="text-xs text-muted-foreground">
-          {cards.length} {cards.length === 1 ? 'card' : 'cards'}
-        </span>
-        <Button variant="ghost" size="icon-sm" onClick={openBoard} aria-label="Open board">
-          <Columns3 />
-        </Button>
+      <div className="flex items-center justify-end px-2">
+        <SidebarHeaderActions>
+          <Button variant="ghost" size="icon-sm" onClick={openBoard} aria-label="Open board">
+            <Columns3 />
+          </Button>
+        </SidebarHeaderActions>
       </div>
       {BOARD_COLUMNS.map((column) => {
         const inColumn = cards.filter((card) => card.status === column.status)
