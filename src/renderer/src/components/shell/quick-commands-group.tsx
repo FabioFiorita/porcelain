@@ -5,7 +5,6 @@ import {
   SidebarGroupLabel,
 } from '@renderer/components/ui/sidebar'
 import { useQuickCommand } from '@renderer/hooks/use-commit'
-import { useGitSuggestions } from '@renderer/hooks/use-git-flow'
 import { cn } from '@renderer/lib/utils'
 import {
   Archive,
@@ -17,7 +16,6 @@ import {
   Info,
   Loader2,
   RefreshCw,
-  Sparkles,
   X,
 } from 'lucide-react'
 import { useState } from 'react'
@@ -77,7 +75,6 @@ export function QuickCommandsGroup(): React.JSX.Element {
   const [running, setRunning] = useState<string | null>(null)
   const [result, setResult] = useState<CommandResult | null>(null)
   const runCommand = useQuickCommand()
-  const suggestions = useGitSuggestions()
 
   const run = async (command: { id: string; label: string }): Promise<void> => {
     if (running) return
@@ -102,48 +99,27 @@ export function QuickCommandsGroup(): React.JSX.Element {
         Commands
       </SidebarGroupLabel>
       <SidebarGroupContent className="flex flex-col gap-1.5 px-2">
-        {suggestions.length > 0 && (
-          <div className="flex flex-col gap-1">
-            {suggestions.map((suggestion) => {
-              const command = QUICK_COMMANDS.find((c) => c.id === suggestion.command)
-              if (!command) return null
-              return (
-                <Button
-                  key={suggestion.command}
-                  variant="ghost"
-                  className="glaze-chip h-auto justify-start gap-2 rounded-md py-1.5 text-left"
-                  disabled={running !== null}
-                  onClick={() => run(command)}
-                >
-                  <Sparkles className="size-3.5 shrink-0 text-muted-foreground" />
-                  <span className="flex min-w-0 flex-col items-start">
-                    <span className="truncate font-mono text-sm font-normal">{command.label}</span>
-                    <span className="truncate text-[10px] font-normal text-muted-foreground">
-                      {suggestion.reason}
-                    </span>
-                  </span>
-                </Button>
-              )
-            })}
-          </div>
-        )}
-        {QUICK_COMMANDS.map((command) => (
-          <Button
-            key={command.id}
-            variant="ghost"
-            size="sm"
-            className="glaze-chip justify-start gap-2 rounded-md font-mono text-sm font-normal"
-            disabled={running !== null}
-            onClick={() => run(command)}
-          >
-            {running === command.id ? (
-              <Loader2 className="size-3.5 shrink-0 animate-spin text-muted-foreground" />
-            ) : (
-              <command.icon className="size-3.5 shrink-0 text-muted-foreground" />
-            )}
-            <span className="truncate">{command.label}</span>
-          </Button>
-        ))}
+        {/* Compact wrapping chips (matching the mockup) rather than a stack of
+            full-width rows — the command set is small and scannable at a glance. */}
+        <div className="flex flex-wrap gap-1.5">
+          {QUICK_COMMANDS.map((command) => (
+            <Button
+              key={command.id}
+              variant="ghost"
+              size="sm"
+              className="glaze-chip gap-1.5 rounded-md font-mono text-xs font-normal"
+              disabled={running !== null}
+              onClick={() => run(command)}
+            >
+              {running === command.id ? (
+                <Loader2 className="size-3.5 shrink-0 animate-spin text-muted-foreground" />
+              ) : (
+                <command.icon className="size-3.5 shrink-0 text-muted-foreground" />
+              )}
+              {command.label}
+            </Button>
+          ))}
+        </div>
         {result && <ResultCard result={result} onDismiss={() => setResult(null)} />}
       </SidebarGroupContent>
     </SidebarGroup>

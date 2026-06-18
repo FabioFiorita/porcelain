@@ -62,7 +62,6 @@ import {
   gitStageAll,
   gitStageFile,
   gitStatus,
-  gitSuggestions,
   gitUnstageFile,
   gitWorktrees,
   QUICK_COMMANDS,
@@ -380,8 +379,6 @@ export const router = t.router({
   reviewedPaths: t.procedure
     .input(z.string())
     .query(async ({ input }): Promise<string[]> => reviewedPathsFor(await loadConfig(), input)),
-
-  gitSuggestions: t.procedure.input(z.string()).query(({ input }) => gitSuggestions(input)),
 
   gitQuickCommand: t.procedure
     .input(
