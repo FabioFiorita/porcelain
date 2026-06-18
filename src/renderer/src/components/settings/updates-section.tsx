@@ -18,13 +18,7 @@ export function UpdatesSection(): React.JSX.Element {
             Porcelain {status ? `v${status.currentVersion}` : '…'}
           </p>
         </div>
-        <Button
-          variant="secondary"
-          size="sm"
-          className="text-xs"
-          onClick={() => check()}
-          disabled={checking}
-        >
+        <Button variant="secondary" size="sm" onClick={() => check()} disabled={checking}>
           {checking ? <Loader2 className="animate-spin" /> : <RotateCw />}
           {checking ? 'Checking…' : 'Check for updates'}
         </Button>
@@ -46,7 +40,7 @@ export function UpdatesSection(): React.JSX.Element {
           <p className="flex items-center gap-1.5 text-xs text-success">
             <Check className="size-3.5" /> Version {status.version} is ready to install.
           </p>
-          <Button size="sm" className="text-xs" onClick={() => install()} disabled={isInstalling}>
+          <Button size="sm" onClick={() => install()} disabled={isInstalling}>
             <RotateCw /> Install and restart
           </Button>
         </div>

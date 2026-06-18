@@ -44,10 +44,10 @@ export function GeneralSection(): React.JSX.Element {
             if (mode === 'unified' || mode === 'split') setDiffMode(mode satisfies DiffMode)
           }}
         >
-          <ToggleGroupItem value="unified" className="text-xs" size="sm">
+          <ToggleGroupItem value="unified" size="sm">
             Unified
           </ToggleGroupItem>
-          <ToggleGroupItem value="split" className="text-xs" size="sm">
+          <ToggleGroupItem value="split" size="sm">
             Split
           </ToggleGroupItem>
         </ToggleGroup>
@@ -60,10 +60,10 @@ export function GeneralSection(): React.JSX.Element {
             if (mode === 'reader' || mode === 'source') setMarkdownMode(mode satisfies MarkdownMode)
           }}
         >
-          <ToggleGroupItem value="reader" className="text-xs" size="sm">
+          <ToggleGroupItem value="reader" size="sm">
             Reader
           </ToggleGroupItem>
-          <ToggleGroupItem value="source" className="text-xs" size="sm">
+          <ToggleGroupItem value="source" size="sm">
             Source
           </ToggleGroupItem>
         </ToggleGroup>
@@ -76,10 +76,10 @@ export function GeneralSection(): React.JSX.Element {
             if (mode === 'merge' || mode === 'rebase') setPullMode(mode satisfies PullMode)
           }}
         >
-          <ToggleGroupItem value="merge" className="text-xs" size="sm">
+          <ToggleGroupItem value="merge" size="sm">
             Merge
           </ToggleGroupItem>
-          <ToggleGroupItem value="rebase" className="text-xs" size="sm">
+          <ToggleGroupItem value="rebase" size="sm">
             Rebase
           </ToggleGroupItem>
         </ToggleGroup>
