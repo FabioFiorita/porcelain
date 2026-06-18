@@ -75,7 +75,7 @@ export function ActionComposer({
         <Input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Title (e.g. Storybook)"
+          placeholder="Title (e.g. Run Tests)"
           aria-label="Action title"
           className="rounded-md"
         />

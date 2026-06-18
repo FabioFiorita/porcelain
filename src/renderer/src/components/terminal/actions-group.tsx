@@ -13,7 +13,7 @@ import {
   SidebarGroupLabel,
 } from '@renderer/components/ui/sidebar'
 import { useActionMutations, useActions, useRunAction } from '@renderer/hooks/use-actions'
-import { MoreHorizontal, Play, Plus } from 'lucide-react'
+import { MoreHorizontal, PenLine, Play, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { ActionComposer, type ActionDraft, draftFromAction } from './action-composer'
 
@@ -58,9 +58,13 @@ function ActionRow({
           }
         />
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => onEdit(action)}>Edit</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onEdit(action)}>
+            <PenLine />
+            Edit
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem variant="destructive" onClick={() => remove(action.id)}>
+            <Trash2 />
             Delete
           </DropdownMenuItem>
         </DropdownMenuContent>
