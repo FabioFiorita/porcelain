@@ -45,6 +45,7 @@ export function DiffView({
             onClick={async () => (isReviewed ? unmark(filePath) : mark(filePath))}
             className={cn(
               'flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
               isReviewed
                 ? 'text-success hover:bg-accent/50'
                 : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',

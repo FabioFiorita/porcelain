@@ -67,7 +67,7 @@ function FlowNode({
         onMouseEnter={() => {
           if (file.source === 'changed') prefetchDiff(file.path)
         }}
-        className="flex w-full flex-col items-start gap-0.5 rounded-md px-2 py-1 text-left hover:bg-sidebar-accent/50"
+        className="flex w-full flex-col items-start gap-0.5 rounded-md px-2 py-1 text-left hover:bg-sidebar-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
       >
         <span className="flex max-w-full items-center gap-1.5">
           <span className={cn('truncate', file.source !== 'changed' && 'text-muted-foreground')}>
@@ -194,7 +194,7 @@ export function FeatureList(): React.JSX.Element {
             <button
               type="button"
               onClick={openReading}
-              className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-info hover:bg-sidebar-accent/50"
+              className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-info hover:bg-sidebar-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
             >
               <BookOpen className="size-3.5" />
               Open inline read
@@ -211,7 +211,7 @@ export function FeatureList(): React.JSX.Element {
             aria-label="Clear agent review set"
             title="Removes the agent's files & notes — your working-tree changes still show as the baseline."
             className={cn(
-              'flex items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-sidebar-accent/50',
+              'flex items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-sidebar-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
               confirmClear ? 'text-destructive' : 'text-muted-foreground',
             )}
           >
