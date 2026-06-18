@@ -17,7 +17,7 @@ export function TitleBar(): React.JSX.Element {
           type="button"
           onClick={() => setFinderOpen(true)}
           aria-label="Search files, folders, commands"
-          className="app-no-drag flex h-8 w-full max-w-[440px] items-center gap-2 rounded-lg border bg-black/20 px-3 text-xs text-muted-foreground transition-colors hover:border-ring/40 hover:text-foreground"
+          className="app-no-drag flex h-8 w-full max-w-[440px] items-center gap-2 rounded-lg border bg-black/20 px-3 text-xs text-muted-foreground transition-colors hover:border-ring/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
         >
           <Search className="size-3.5 shrink-0" />
           <span className="flex-1 truncate text-left">Search files, folders, commands…</span>
