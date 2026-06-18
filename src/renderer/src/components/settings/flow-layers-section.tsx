@@ -78,13 +78,13 @@ function PatternBuilder({ onAdd }: { onAdd: (layer: Layer) => void }): React.JSX
             if (type === 'folder' || type === 'ext' || type === 'suffix') setMatchType(type)
           }}
         >
-          <ToggleGroupItem value="folder" size="sm">
+          <ToggleGroupItem value="folder" className="text-xs" size="sm">
             Folder
           </ToggleGroupItem>
-          <ToggleGroupItem value="ext" size="sm">
+          <ToggleGroupItem value="ext" className="text-xs" size="sm">
             Extension
           </ToggleGroupItem>
-          <ToggleGroupItem value="suffix" size="sm">
+          <ToggleGroupItem value="suffix" className="text-xs" size="sm">
             Suffix
           </ToggleGroupItem>
         </ToggleGroup>
@@ -96,7 +96,7 @@ function PatternBuilder({ onAdd }: { onAdd: (layer: Layer) => void }): React.JSX
           onChange={(e) => setNames(e.target.value)}
           placeholder={PLACEHOLDERS[matchType]}
           aria-label="Pattern names"
-          className="flex-1"
+          className="flex-1 text-xs md:text-xs"
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               e.preventDefault()
@@ -110,7 +110,7 @@ function PatternBuilder({ onAdd }: { onAdd: (layer: Layer) => void }): React.JSX
         <code className="min-w-0 flex-1 truncate rounded-md bg-black/30 px-2.5 py-1.5 font-mono text-xs text-ink-green">
           {preview || '—'}
         </code>
-        <Button size="sm" disabled={parsed.length === 0} onClick={add}>
+        <Button size="sm" className="text-xs" disabled={parsed.length === 0} onClick={add}>
           <Plus /> Add
         </Button>
       </div>
@@ -147,7 +147,7 @@ function LayerRow({
         onChange={(e) => onChange({ ...layer, label: e.target.value })}
         placeholder="Label"
         aria-label={`Layer ${index + 1} label`}
-        className="w-32 shrink-0"
+        className="w-32 shrink-0 text-xs md:text-xs"
       />
       <div className="min-w-0 flex-1">
         <Input
@@ -156,7 +156,7 @@ function LayerRow({
           placeholder="Pattern (regex)"
           aria-label={`Layer ${index + 1} pattern`}
           aria-invalid={error !== null}
-          className="font-mono text-xs"
+          className="font-mono text-xs md:text-xs"
         />
         {error && <p className="mt-0.5 text-xs text-destructive">{error}</p>}
       </div>
@@ -249,17 +249,22 @@ export function FlowLayersSection({ onSaved }: { onSaved: () => void }): React.J
         <Button
           variant="ghost"
           size="sm"
-          className="self-start"
+          className="self-start text-xs"
           onClick={() => setDraft([...draft, { label: '', pattern: '', id: nextDraftId++ }])}
         >
           <Plus /> Add layer
         </Button>
       </div>
       <div className="flex items-center justify-between">
-        <Button variant="ghost" size="sm" onClick={() => save(null)}>
+        <Button variant="ghost" size="sm" className="text-xs" onClick={() => save(null)}>
           Reset to defaults
         </Button>
-        <Button size="sm" disabled={!valid || isSaving} onClick={() => save(draft)}>
+        <Button
+          size="sm"
+          className="text-xs"
+          disabled={!valid || isSaving}
+          onClick={() => save(draft)}
+        >
           Save
         </Button>
       </div>

@@ -20,7 +20,7 @@ export function AgentsSection(): React.JSX.Element {
     <div className="flex flex-col gap-8">
       <section className="flex flex-col gap-3">
         <div>
-          <h3 className="text-sm font-medium">Claude Code</h3>
+          <h3 className="text-[13px] font-semibold">Claude Code</h3>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Installs a plugin that bundles the Porcelain{' '}
             <span className="font-medium">MCP server</span> and its{' '}
@@ -37,7 +37,7 @@ export function AgentsSection(): React.JSX.Element {
       {PLANNED.map((agent) => (
         <section key={agent.name} className="flex flex-col gap-1 opacity-60">
           <div className="flex items-center gap-2">
-            <h3 className="text-sm font-medium">{agent.name}</h3>
+            <h3 className="text-[13px] font-semibold">{agent.name}</h3>
             <span className="rounded-full border px-1.5 py-px text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
               Coming soon
             </span>

@@ -18,7 +18,7 @@ function PreferenceRow({
   return (
     <div className="flex items-center justify-between gap-4">
       <div>
-        <p className="text-sm font-semibold">{label}</p>
+        <p className="text-[13px] font-semibold">{label}</p>
         <p className="text-xs text-muted-foreground">{description}</p>
       </div>
       {children}
@@ -44,10 +44,10 @@ export function GeneralSection(): React.JSX.Element {
             if (mode === 'unified' || mode === 'split') setDiffMode(mode satisfies DiffMode)
           }}
         >
-          <ToggleGroupItem value="unified" size="sm">
+          <ToggleGroupItem value="unified" className="text-xs" size="sm">
             Unified
           </ToggleGroupItem>
-          <ToggleGroupItem value="split" size="sm">
+          <ToggleGroupItem value="split" className="text-xs" size="sm">
             Split
           </ToggleGroupItem>
         </ToggleGroup>
@@ -60,10 +60,10 @@ export function GeneralSection(): React.JSX.Element {
             if (mode === 'reader' || mode === 'source') setMarkdownMode(mode satisfies MarkdownMode)
           }}
         >
-          <ToggleGroupItem value="reader" size="sm">
+          <ToggleGroupItem value="reader" className="text-xs" size="sm">
             Reader
           </ToggleGroupItem>
-          <ToggleGroupItem value="source" size="sm">
+          <ToggleGroupItem value="source" className="text-xs" size="sm">
             Source
           </ToggleGroupItem>
         </ToggleGroup>
@@ -76,10 +76,10 @@ export function GeneralSection(): React.JSX.Element {
             if (mode === 'merge' || mode === 'rebase') setPullMode(mode satisfies PullMode)
           }}
         >
-          <ToggleGroupItem value="merge" size="sm">
+          <ToggleGroupItem value="merge" className="text-xs" size="sm">
             Merge
           </ToggleGroupItem>
-          <ToggleGroupItem value="rebase" size="sm">
+          <ToggleGroupItem value="rebase" className="text-xs" size="sm">
             Rebase
           </ToggleGroupItem>
         </ToggleGroup>

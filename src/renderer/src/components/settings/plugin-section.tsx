@@ -37,7 +37,7 @@ export function PluginSection(): React.JSX.Element {
     <div className="flex flex-col gap-5">
       {!pluginInstalled ? (
         <div className="flex items-center gap-3">
-          <Button onClick={() => install()} disabled={isInstalling}>
+          <Button size="sm" className="text-xs" onClick={() => install()} disabled={isInstalling}>
             {isInstalling && <Loader2 className="animate-spin" />}
             {isInstalling ? 'Installing…' : 'Install for Claude Code'}
           </Button>
@@ -48,7 +48,7 @@ export function PluginSection(): React.JSX.Element {
         </div>
       ) : needsUpdate ? (
         <div className="flex items-center gap-3">
-          <Button onClick={() => install()} disabled={isInstalling}>
+          <Button size="sm" className="text-xs" onClick={() => install()} disabled={isInstalling}>
             {isInstalling ? <Loader2 className="animate-spin" /> : <ArrowUpCircle />}
             {isInstalling ? 'Updating…' : current ? `Update to v${current}` : 'Update'}
           </Button>
@@ -59,10 +59,16 @@ export function PluginSection(): React.JSX.Element {
         </div>
       ) : (
         <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1.5 text-sm text-success">
+          <span className="flex items-center gap-1.5 text-[13px] text-success">
             <CircleCheck className="size-4" /> Up to date{current ? ` · v${current}` : ''}
           </span>
-          <Button variant="ghost" size="sm" onClick={() => install()} disabled={isInstalling}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-xs"
+            onClick={() => install()}
+            disabled={isInstalling}
+          >
             {isInstalling && <Loader2 className="animate-spin" />}
             {isInstalling ? 'Reinstalling…' : 'Reinstall'}
           </Button>
@@ -97,7 +103,13 @@ export function PluginSection(): React.JSX.Element {
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Install manually
           </p>
-          <Button variant="ghost" size="sm" onClick={() => copy()} disabled={commands.length === 0}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-xs"
+            onClick={() => copy()}
+            disabled={commands.length === 0}
+          >
             {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
             {copied ? 'Copied' : 'Copy'}
           </Button>

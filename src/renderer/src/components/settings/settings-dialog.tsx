@@ -104,6 +104,7 @@ export function SettingsDialog(): React.JSX.Element {
                         <SidebarMenuButton
                           isActive={section === s.id}
                           onClick={() => setSection(s.id)}
+                          className="text-[13px]"
                         >
                           <s.icon /> {s.label}
                         </SidebarMenuButton>
@@ -118,7 +119,7 @@ export function SettingsDialog(): React.JSX.Element {
             {/* Fixed header band — the section title/blurb stay put so a long
                 scroll never slides row controls up next to the dialog close X. */}
             <header className="shrink-0 border-b px-6 py-4 pr-12">
-              <h2 className="text-lg font-semibold tracking-tight">{active.title}</h2>
+              <h2 className="text-base font-semibold tracking-tight">{active.title}</h2>
               <p className="mt-1 text-xs text-muted-foreground">{active.blurb}</p>
             </header>
             <main className="min-h-0 flex-1 overflow-y-auto p-6">

@@ -13,12 +13,18 @@ export function UpdatesSection(): React.JSX.Element {
     <div className="flex flex-col gap-5">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-sm">Current version</p>
+          <p className="text-[13px] font-semibold">Current version</p>
           <p className="text-xs text-muted-foreground">
             Porcelain {status ? `v${status.currentVersion}` : '…'}
           </p>
         </div>
-        <Button variant="secondary" onClick={() => check()} disabled={checking}>
+        <Button
+          variant="secondary"
+          size="sm"
+          className="text-xs"
+          onClick={() => check()}
+          disabled={checking}
+        >
           {checking ? <Loader2 className="animate-spin" /> : <RotateCw />}
           {checking ? 'Checking…' : 'Check for updates'}
         </Button>
@@ -40,7 +46,7 @@ export function UpdatesSection(): React.JSX.Element {
           <p className="flex items-center gap-1.5 text-xs text-success">
             <Check className="size-3.5" /> Version {status.version} is ready to install.
           </p>
-          <Button onClick={() => install()} disabled={isInstalling}>
+          <Button size="sm" className="text-xs" onClick={() => install()} disabled={isInstalling}>
             <RotateCw /> Install and restart
           </Button>
         </div>
