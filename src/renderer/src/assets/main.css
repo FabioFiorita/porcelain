@@ -382,3 +382,18 @@
 .notes-prose :last-child {
   margin-bottom: 0;
 }
+
+/* Respect the OS "reduce motion" setting: collapse the glaze transitions, the
+   dialog/menu open-close animations (tw-animate-css), the blink caret, and any
+   spinner to a near-instant change. The quality floor — motion is decorative
+   here, never load-bearing, so nothing breaks when it's gone. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
