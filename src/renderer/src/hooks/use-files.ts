@@ -2,7 +2,7 @@ import type { DirEntry, FileView } from '@main/api'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useSelectionStore } from '@renderer/stores/selection'
-import { useTabsStore } from '@renderer/stores/tabs'
+import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 export function useReadDir(path: string, enabled = true): DirEntry[] | undefined {
@@ -115,7 +115,12 @@ export function useTrashPath(): (path: string) => Promise<void> {
       ])
     },
   })
-  return (path) => mutation.mutateAsync(path)
+  return async (path) => {
+    await mutation.mutateAsync(path)
+    // The file is gone from disk; close any open view of it so the viewer doesn't
+    // render a dead tab (the tree keys a file tab by this same absolute path).
+    useTabsStore.getState().closeTabEverywhere(tabId('file', path))
+  }
 }
 
 // Creating/renaming/duplicating a path changes the same three views a delete does:

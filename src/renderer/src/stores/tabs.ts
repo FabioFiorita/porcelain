@@ -53,6 +53,11 @@ interface TabsState {
   closeOtherTabs: (paneIndex: number, id: string) => void
   closeTabsToLeft: (paneIndex: number, id: string) => void
   closeTabsToRight: (paneIndex: number, id: string) => void
+  /** Close a tab in whichever pane(s) hold it — for when its underlying source
+   *  is gone (a terminal session killed, a file's diff discarded) and an orphaned
+   *  tab would show a dead view. Pane-agnostic by design (the caller has the id,
+   *  not the pane), unlike the pane-scoped `closeTab`. */
+  closeTabEverywhere: (id: string) => void
   closeAllTabs: () => void
   activateTab: (paneIndex: number, id: string) => void
   setActivePane: (paneIndex: number) => void
@@ -195,6 +200,13 @@ export const useTabsStore = create<TabsState>((set) => ({
   closeOtherTabs: (paneIndex, id) => set(editPane(paneIndex, (p) => keepOnlyAnchor(p, id))),
   closeTabsToLeft: (paneIndex, id) => set(editPane(paneIndex, (p) => keepFromAnchor(p, id))),
   closeTabsToRight: (paneIndex, id) => set(editPane(paneIndex, (p) => keepThroughAnchor(p, id))),
+  closeTabEverywhere: (id) =>
+    set((state) =>
+      normalize(
+        state.panes.map((p) => removeTab(p, id)),
+        state.activePaneIndex,
+      ),
+    ),
   closeAllTabs: () => set({ panes: [emptyPane()], activePaneIndex: 0 }),
   activateTab: (paneIndex, id) =>
     set((state) => ({

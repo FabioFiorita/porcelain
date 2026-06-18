@@ -2,6 +2,7 @@ import type { CommitConventions } from '@main/conventions'
 import { trpc } from '@renderer/lib/trpc'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
+import { tabId, useTabsStore } from '@renderer/stores/tabs'
 
 export function useCommit(onCommitted?: () => void): {
   commit: (message: string) => void
@@ -100,6 +101,10 @@ export function useDiscardFile(): (path: string) => Promise<void> {
   return async (path) => {
     if (!repo) return
     await mutation.mutateAsync({ repoPath: repo.path, path })
+    // The working-tree diff for this file no longer exists (reverted or trashed), so
+    // its open diff tab would render a dead/errored view — close it. The Changes list
+    // keys a working-tree diff tab by the bare path (no base ref).
+    useTabsStore.getState().closeTabEverywhere(tabId('diff', path))
   }
 }
 

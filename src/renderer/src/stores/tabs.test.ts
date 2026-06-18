@@ -126,6 +126,31 @@ describe('useTabsStore', () => {
     })
   })
 
+  // closeTabEverywhere drops a tab id from every pane at once — used when its source
+  // is gone (terminal killed, file's diff discarded) and the caller has the id, not a
+  // pane. It activates a neighbor and collapses an emptied split like a normal close.
+  describe('closeTabEverywhere', () => {
+    it('removes the tab from both panes and collapses the emptied split', () => {
+      useTabsStore.getState().openTab(tab('a'))
+      useTabsStore.getState().openTab(tab('shared'))
+      useTabsStore.getState().openTabToSide(tab('shared'))
+      // 'shared' now lives in both panes (a file clones across a split)
+      expect(pane(0).tabs.map((t) => t.id)).toEqual(['a', 'shared'])
+      expect(pane(1).tabs.map((t) => t.id)).toEqual(['shared'])
+      useTabsStore.getState().closeTabEverywhere('shared')
+      // pane 1 emptied → split collapses; pane 0 keeps 'a'
+      expect(useTabsStore.getState().panes).toHaveLength(1)
+      expect(pane(0).tabs.map((t) => t.id)).toEqual(['a'])
+      expect(pane(0).activeTabId).toBe('a')
+    })
+
+    it('is a no-op for a tab that is not open', () => {
+      useTabsStore.getState().openTab(tab('a'))
+      useTabsStore.getState().closeTabEverywhere('zzz')
+      expect(pane().tabs.map((t) => t.id)).toEqual(['a'])
+    })
+  })
+
   describe('split panes', () => {
     it('opens a second pane to the side and focuses it', () => {
       useTabsStore.getState().openTab(tab('a'))

@@ -1,4 +1,5 @@
 import { disposeTerminal } from '@renderer/lib/terminal-registry'
+import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { create } from 'zustand'
 
 /**
@@ -11,7 +12,8 @@ import { create } from 'zustand'
  *
  * A session is independent of its viewer tab: closing the tab leaves the PTY running
  * (so a background dev server keeps going and stays in this roster); `close` is what
- * actually kills the PTY and disposes the terminal.
+ * actually kills the PTY and disposes the terminal — and closes its viewer tab too, so
+ * a killed session can't leave a black, dead terminal tab behind.
  */
 export interface TerminalSession {
   id: string
@@ -49,6 +51,10 @@ export const useTerminalsStore = create<TerminalsState>((set, get) => ({
   close: (id) => {
     window.porcelain.terminal.kill(id)
     disposeTerminal(id)
+    // The PTY and its xterm are gone; close any viewer tab still pointing at it so
+    // the pane doesn't render a dead terminal. (Cross-store getState() from a store
+    // action is the sanctioned pattern — see repo.switchTo.)
+    useTabsStore.getState().closeTabEverywhere(tabId('terminal', id))
     set((state) => ({ sessions: state.sessions.filter((s) => s.id !== id) }))
   },
   reset: () => {
