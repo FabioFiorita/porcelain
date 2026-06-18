@@ -36,7 +36,7 @@ export function RightSidebar(): React.JSX.Element {
       style={{ top: '3rem', height: 'calc(100svh - 3rem)', paddingTop: 0 }}
     >
       <RightSidebarResizeHandle />
-      <SidebarHeader className="app-drag h-12 flex-row items-center border-b py-0">
+      <SidebarHeader className="app-drag h-12 flex-row items-center border-b py-0 pr-1 pl-3">
         <span className="truncate text-xs font-semibold text-foreground">
           {COMPANION_TITLES[sidebarTab]}
         </span>
