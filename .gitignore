@@ -10,3 +10,7 @@ e2e/.artifacts/
 
 # Agent worktrees (improve/execute isolation) — never track these
 .claude/worktrees/
+
+# Claude Design handoff bundle — a local prototype reference, not source. Keep it
+# out of git and out of the lint/typecheck gate (Biome honours .gitignore).
+claude-design/

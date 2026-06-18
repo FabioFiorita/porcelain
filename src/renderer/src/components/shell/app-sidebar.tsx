@@ -104,17 +104,21 @@ export function AppSidebar(): React.JSX.Element {
       {state === 'expanded' && <SidebarResizeHandle />}
 
       {/* Icon rail — project avatar on top, then the six tabs (monochrome,
-          icon-only), settings at the bottom. The divider lives on the content (not
-          the whole rail) so it starts below the header line and stops above the
-          footer — the title bar and bottom bar read as one continuous strip. */}
-      <Sidebar collapsible="none" className="w-(--sidebar-width-icon) shrink-0 bg-transparent">
+          icon-only), settings at the bottom. The right border runs the FULL rail
+          height (on the rail itself, not its content) so the rail reads as one
+          clean vertical strip — the panel's own header/footer hairlines start at
+          this edge rather than crossing into the rail (matches the mockup). */}
+      <Sidebar
+        collapsible="none"
+        className="w-(--sidebar-width-icon) shrink-0 border-r border-sidebar-border bg-transparent"
+      >
         {/* The project switcher avatar; the strip stays draggable around it. No
             header border here — the mockup separates the avatar from the tabs with
             a short centered divider (below) rather than a full-width header line. */}
         <SidebarHeader className="app-drag flex h-12 shrink-0 items-center justify-center">
           <ProjectSwitcher />
         </SidebarHeader>
-        <SidebarContent className="overflow-hidden border-r border-sidebar-border">
+        <SidebarContent className="overflow-hidden">
           {/* short centered divider below the avatar (mockup) */}
           <div className="mx-auto h-px w-7 shrink-0 bg-sidebar-border" />
           <SidebarMenu className="items-center gap-1.5 py-2.5">
@@ -147,8 +151,11 @@ export function AppSidebar(): React.JSX.Element {
             })}
           </SidebarMenu>
         </SidebarContent>
-        {/* h-12 mirrors the panel footer so the two border-t lines line up. */}
-        <SidebarFooter className="h-12 items-center justify-center border-t p-0">
+        {/* Settings sits clean at the rail bottom — no top hairline. The footer
+            line belongs to the panel only; the rail's full-height right border is
+            what separates this from the branch/worktree footer beside it. h-12
+            still keeps it vertically aligned with that footer. */}
+        <SidebarFooter className="h-12 items-center justify-center p-0">
           <SettingsDialog />
         </SidebarFooter>
       </Sidebar>
