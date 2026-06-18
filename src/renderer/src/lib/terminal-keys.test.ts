@@ -22,9 +22,9 @@ describe('terminalEditBytes', () => {
     expect(terminalEditBytes(chord({ key: 'ArrowRight', altKey: true }))).toBe('\x1bf')
   })
 
-  it('maps ⇧↵ and ⌘↵ to a newline', () => {
-    expect(terminalEditBytes(chord({ key: 'Enter', shiftKey: true }))).toBe('\n')
-    expect(terminalEditBytes(chord({ key: 'Enter', metaKey: true }))).toBe('\n')
+  it('maps ⇧↵ and ⌘↵ to Meta+Enter (ESC CR), the legacy newline — not a bare LF, which submits', () => {
+    expect(terminalEditBytes(chord({ key: 'Enter', shiftKey: true }))).toBe('\x1b\r')
+    expect(terminalEditBytes(chord({ key: 'Enter', metaKey: true }))).toBe('\x1b\r')
   })
 
   it('leaves plain keys and Ctrl/Option-compose alone', () => {

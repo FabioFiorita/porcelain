@@ -53,7 +53,10 @@ function create(id: string): Instance {
     fontFamily:
       '"Geist Mono Variable", "Symbols Nerd Font Mono", ui-monospace, SFMono-Regular, monospace',
     fontSize: 12,
-    lineHeight: 1.2,
+    // 1.0, not a looser value: xterm's DOM renderer tiles half/quadrant block glyphs
+    // (Claude Code's logo, powerline separators) edge-to-edge only when the line box
+    // equals the cell — any extra leading slices the bottom row and gaps the art apart.
+    lineHeight: 1.0,
     cursorBlink: true,
     // Solid graphite, in the spirit of the app's neutral dark surfaces.
     theme: {
@@ -73,8 +76,13 @@ function create(id: string): Instance {
   // Keystrokes and fit-driven resizes flow back to this session's PTY over the bridge.
   term.onData((data) => window.porcelain.terminal.write(id, data))
   term.onResize(({ cols, rows }) => window.porcelain.terminal.resize(id, cols, rows))
-  // macOS editing chords xterm doesn't send on its own. Returning false swallows the
-  // key so xterm doesn't also forward its default bytes.
+  // macOS editing chords xterm doesn't send on its own. We `preventDefault()` + return
+  // false to fully own the key. The preventDefault is LOAD-BEARING for ⏎-based chords:
+  // xterm's keydown path bails on a `false` return WITHOUT calling preventDefault, so the
+  // browser still fires a `keypress` for Enter and xterm's `_keyPress` sends a bare `\r`
+  // (charCode 13) on its own — our ⇧↵ `ESC CR` would then be followed by that stray `\r`,
+  // i.e. newline-then-SUBMIT. (Backspace/arrows never fire keypress, which is why only the
+  // Enter chords were broken.) preventDefault cancels the keypress, so only our bytes go.
   term.attachCustomKeyEventHandler((event) => {
     if (event.type !== 'keydown') return true
     // ⌘K clears the viewport (macOS terminal convention). Meta only — never Ctrl-K,
@@ -86,12 +94,14 @@ function create(id: string): Instance {
       !event.shiftKey &&
       event.key.toLowerCase() === 'k'
     ) {
+      event.preventDefault()
       term.clear()
       return false
     }
     // ⌘/⌥ + arrows/backspace and ⇧↵ → the control bytes a real shell expects.
     const bytes = terminalEditBytes(event)
     if (bytes !== null) {
+      event.preventDefault()
       window.porcelain.terminal.write(id, bytes)
       return false
     }
