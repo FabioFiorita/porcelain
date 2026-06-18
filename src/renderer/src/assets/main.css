@@ -169,6 +169,11 @@
   --hairline-strong: oklch(0.145 0 0 / 0.14);
   --glaze: oklch(1 0 0 / 0.55);
   --glaze-strong: oklch(1 0 0 / 0.75);
+  /* The lit glaze-chip edge (hairline + specular top + soft drop) — one token so
+     the rail's hover can reuse the exact chip material the active chip uses. The
+     sub-vars resolve per theme at the use site, so this stays defined once. */
+  --glaze-lit: inset 0 0 0 1px var(--hairline-strong), inset 0 1px 0 0 var(--glaze),
+    0 1px 3px -0.5px oklch(0 0 0 / 0.3);
   /* Light-theme twins of the glass interaction tokens (black alpha). No light
      theme ships yet, but keep them defined so a future one themes for free. */
   --hover-fill: oklch(0.145 0 0 / 0.05);
@@ -308,13 +313,24 @@
 .glaze-segment[data-active='true'],
 .glaze-chip {
   background-color: var(--surface-2);
-  box-shadow:
-    inset 0 0 0 1px var(--hairline-strong),
-    inset 0 1px 0 0 var(--glaze),
-    0 1px 3px -0.5px oklch(0 0 0 / 0.3);
+  box-shadow: var(--glaze-lit);
 }
 .glaze-chip:hover {
   background-color: var(--surface-3);
+}
+/* Icon-rail tabs warm to the full glaze chip on hover — a frosted surface +
+   hairline edge, NOT a flat white tint — so the rail reads as glass before a tab
+   is even selected. A dedicated rail class on the element (not the shared row
+   tokens, and not an attribute the primitive may or may not emit), so list rows
+   and the viewer tabs keep their subtle --hover-fill tint. The selected tab is a
+   lit .glaze-chip. Unlayered, so it outranks the primitive's hover utility. */
+.glaze-rail {
+  transition: background-color var(--dur-fast) var(--ease-glaze),
+    color var(--dur-fast) var(--ease-glaze);
+}
+.glaze-rail:hover {
+  background-color: var(--surface-2);
+  box-shadow: var(--glaze-lit);
 }
 /* The chip material owns box-shadow, so route the focus ring through `outline`
    (a separate property) — otherwise the Tailwind ring box-shadow would be

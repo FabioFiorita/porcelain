@@ -112,16 +112,14 @@ export function AppSidebar(): React.JSX.Element {
         collapsible="none"
         className="w-(--sidebar-width-icon) shrink-0 border-r border-sidebar-border bg-transparent"
       >
-        {/* The project switcher avatar; the strip stays draggable around it. No
-            header border here — the mockup separates the avatar from the tabs with
-            a short centered divider (below) rather than a full-width header line. */}
-        <SidebarHeader className="app-drag flex h-12 shrink-0 items-center justify-center">
+        {/* The project switcher avatar heads the icon column as the same 40px
+            chip as the tab icons — no fixed-height header, no divider; the even
+            gap-1.5 rhythm alone sets it off from the tabs. Draggable around it. */}
+        <SidebarHeader className="app-drag flex shrink-0 items-center justify-center p-0 pt-2.5">
           <ProjectSwitcher />
         </SidebarHeader>
         <SidebarContent className="overflow-hidden">
-          {/* short centered divider below the avatar (mockup) */}
-          <div className="mx-auto h-px w-7 shrink-0 bg-sidebar-border" />
-          <SidebarMenu className="items-center gap-1.5 py-2.5">
+          <SidebarMenu className="items-center gap-1.5 pt-1.5 pb-2.5">
             {TABS.map((tab) => {
               const active = sidebarTab === tab.id
               return (
@@ -133,14 +131,15 @@ export function AppSidebar(): React.JSX.Element {
                           isActive={active}
                           onClick={() => selectTab(tab.id)}
                           aria-label={tab.label}
-                          // Hover/selected fills come from the shared glass tokens
-                          // (--hover-fill / --selected-fill via the sidebar primitive),
-                          // so the rail matches every other selection surface. The
-                          // rail adds only what's icon-rail-specific: a hairline edge
-                          // on the lit chip + a muted resting icon.
+                          // Rail tabs speak the porcelain glaze language, not a flat
+                          // white-alpha fill: the selected tab is a lit .glaze-chip
+                          // (frosted surface + hairline + specular), and a resting tab
+                          // warms to that same frosted glass on hover (the .glaze-rail
+                          // rule in main.css) instead of a white tint. Resting icons
+                          // are muted.
                           className={cn(
                             'size-10 justify-center p-0 [&_svg]:size-5',
-                            active ? 'border border-white/10' : 'text-muted-foreground',
+                            active ? 'glaze-chip' : 'glaze-rail text-muted-foreground',
                           )}
                         >
                           <tab.icon />
