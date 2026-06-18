@@ -120,8 +120,8 @@ export function CommitGroup(): React.JSX.Element {
 
   if (!conventions) {
     return (
-      <SidebarGroup>
-        <SidebarGroupLabel className="px-2 uppercase tracking-wider text-muted-foreground">
+      <SidebarGroup className="px-3">
+        <SidebarGroupLabel className="px-1 text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
           Commit
         </SidebarGroupLabel>
       </SidebarGroup>
@@ -155,11 +155,11 @@ export function CommitGroup(): React.JSX.Element {
   }
 
   return (
-    <SidebarGroup>
-      <SidebarGroupLabel className="px-2 uppercase tracking-wider text-muted-foreground">
+    <SidebarGroup className="px-3">
+      <SidebarGroupLabel className="px-1 text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
         Commit
       </SidebarGroupLabel>
-      <SidebarGroupContent className="px-2">
+      <SidebarGroupContent className="px-1">
         <div className="glaze-tile flex flex-col gap-2.5 p-2.5 [--tile-fill:var(--surface-2)]">
           <div className="flex items-center gap-1.5">
             <CommitTokenSelect

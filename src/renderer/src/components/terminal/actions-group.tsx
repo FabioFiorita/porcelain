@@ -79,8 +79,8 @@ export function ActionsGroup(): React.JSX.Element {
   const [draft, setDraft] = useState<ActionDraft | null>(null)
 
   return (
-    <SidebarGroup>
-      <SidebarGroupLabel className="flex items-center justify-between px-2 uppercase tracking-wider text-muted-foreground">
+    <SidebarGroup className="px-3">
+      <SidebarGroupLabel className="flex items-center justify-between px-1 text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
         Saved commands
         <Button
           variant="ghost"
@@ -92,7 +92,7 @@ export function ActionsGroup(): React.JSX.Element {
           <Plus />
         </Button>
       </SidebarGroupLabel>
-      <SidebarGroupContent className="flex flex-col gap-1.5 px-2">
+      <SidebarGroupContent className="flex flex-col gap-1.5 px-1">
         {actions.length === 0 ? (
           <p className="px-1 text-xs text-muted-foreground">
             Save a command — a dev server, storybook, a test watcher — and run it in a terminal with

@@ -107,10 +107,16 @@ export function AppSidebar(): React.JSX.Element {
           icon-only), settings at the bottom. The right border runs the FULL rail
           height (on the rail itself, not its content) so the rail reads as one
           clean vertical strip — the panel's own header/footer hairlines start at
-          this edge rather than crossing into the rail (matches the mockup). */}
+          this edge rather than crossing into the rail (matches the mockup). When
+          collapsed to just the rail, there's no panel to divide from, so the
+          border is dropped — otherwise it doubles against the floating tile's own
+          rounded edge and reads as a stray divider. */}
       <Sidebar
         collapsible="none"
-        className="w-(--sidebar-width-icon) shrink-0 border-r border-sidebar-border bg-transparent"
+        className={cn(
+          'w-(--sidebar-width-icon) shrink-0 bg-transparent',
+          state === 'expanded' && 'border-r border-sidebar-border',
+        )}
       >
         {/* The project switcher avatar heads the icon column as the same 40px
             chip as the tab icons — no fixed-height header, no divider; the even
@@ -168,7 +174,12 @@ export function AppSidebar(): React.JSX.Element {
       <Sidebar collapsible="none" className="min-w-0 flex-1 bg-transparent">
         {/* Contextual title bar. The traffic lights now live in the window
             titlebar, so the panel header is free of them — no left inset needed. */}
-        <SidebarHeader className="app-drag h-12 flex-row items-center gap-1 border-b py-0 pr-1 pl-3">
+        <SidebarHeader
+          className={cn(
+            'app-drag h-12 flex-row items-center gap-1 py-0 pr-1 pl-3',
+            state === 'expanded' && 'border-b',
+          )}
+        >
           <span className="min-w-0 flex-1 truncate text-xs font-semibold text-foreground">
             {PANEL_TITLES[sidebarTab]}
           </span>
@@ -228,7 +239,12 @@ export function AppSidebar(): React.JSX.Element {
           )}
         </SidebarContent>
         {/* Branch picker (in-place checkout) on the left, worktree switcher on the right. */}
-        <SidebarFooter className="h-12 flex-row items-center justify-between gap-2 border-t px-2 py-0">
+        <SidebarFooter
+          className={cn(
+            'h-12 flex-row items-center justify-between gap-2 px-2 py-0',
+            state === 'expanded' && 'border-t',
+          )}
+        >
           <BranchSwitcher />
           <WorktreeSwitcher />
         </SidebarFooter>

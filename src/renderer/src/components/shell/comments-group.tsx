@@ -91,11 +91,11 @@ export function CommentsGroup(): React.JSX.Element {
   const open = comments.filter((c) => !c.resolved).length
 
   return (
-    <SidebarGroup>
-      <SidebarGroupLabel className="px-2 uppercase tracking-wider text-muted-foreground">
+    <SidebarGroup className="px-3">
+      <SidebarGroupLabel className="px-1 text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
         Comments{open > 0 && ` · ${open} open`}
       </SidebarGroupLabel>
-      <SidebarGroupContent className="flex flex-col gap-1.5 px-2">
+      <SidebarGroupContent className="flex flex-col gap-1.5 px-1">
         {comments.length === 0 ? (
           <p className="px-1 text-xs text-muted-foreground">
             Select lines in a diff (or right-click a file) and “Add comment” — your agent reads them

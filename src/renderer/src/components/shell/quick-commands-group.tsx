@@ -94,11 +94,11 @@ export function QuickCommandsGroup(): React.JSX.Element {
   }
 
   return (
-    <SidebarGroup>
-      <SidebarGroupLabel className="px-2 uppercase tracking-wider text-muted-foreground">
+    <SidebarGroup className="px-3">
+      <SidebarGroupLabel className="px-1 text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
         Commands
       </SidebarGroupLabel>
-      <SidebarGroupContent className="flex flex-col gap-1.5 px-2">
+      <SidebarGroupContent className="flex flex-col gap-1.5 px-1">
         {/* Compact wrapping chips (matching the mockup) rather than a stack of
             full-width rows — the command set is small and scannable at a glance. */}
         <div className="flex flex-wrap gap-1.5">

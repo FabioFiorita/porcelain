@@ -49,12 +49,10 @@ export function ProjectSwitcher(): React.JSX.Element | null {
         />
         <TooltipContent side="right">{repo.name}</TooltipContent>
       </Tooltip>
-      <DropdownMenuContent align="start" side="right" className="w-72">
+      <DropdownMenuContent align="start" side="right" className="w-64">
         {/* Base UI requires GroupLabel inside a Group (Radix did not) */}
         <DropdownMenuGroup>
-          <DropdownMenuLabel className="uppercase tracking-wider text-muted-foreground">
-            Projects
-          </DropdownMenuLabel>
+          <DropdownMenuLabel>Projects</DropdownMenuLabel>
           {recents.map((recent) => (
             <DropdownMenuItem key={recent.path} onClick={() => switchTo(recent.path)}>
               <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-sidebar-accent text-xs font-semibold text-sidebar-accent-foreground">
@@ -62,7 +60,7 @@ export function ProjectSwitcher(): React.JSX.Element | null {
               </span>
               <div className="flex min-w-0 flex-col">
                 <span className="truncate">{recent.name}</span>
-                <span className="truncate text-xs text-muted-foreground" dir="rtl">
+                <span className="truncate text-[10.5px] text-muted-foreground" dir="rtl">
                   {recent.path}
                 </span>
               </div>
