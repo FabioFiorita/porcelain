@@ -24,12 +24,12 @@ import { useState } from 'react'
 
 // mirrors the QUICK_COMMANDS whitelist in src/main/git.ts — only these ids run.
 const QUICK_COMMANDS = [
-  { id: 'status', label: 'git status', icon: Info },
-  { id: 'pull', label: 'git pull', icon: ArrowDownToLine },
-  { id: 'push', label: 'git push', icon: ArrowUpFromLine },
-  { id: 'fetch', label: 'git fetch', icon: RefreshCw },
-  { id: 'stash', label: 'git stash', icon: Archive },
-  { id: 'stash-pop', label: 'git stash pop', icon: ArchiveRestore },
+  { id: 'status', label: 'status', icon: Info },
+  { id: 'pull', label: 'pull', icon: ArrowDownToLine },
+  { id: 'push', label: 'push', icon: ArrowUpFromLine },
+  { id: 'fetch', label: 'fetch', icon: RefreshCw },
+  { id: 'stash', label: 'stash', icon: Archive },
+  { id: 'stash-pop', label: 'stash pop', icon: ArchiveRestore },
 ]
 
 type CommandResult = { label: string; output: string; failed: boolean }

@@ -202,11 +202,11 @@ export function CommitGroup(): React.JSX.Element {
               {error.message}
             </p>
           )}
-          <div className="flex flex-col gap-2">
+          <div className="flex gap-2">
             <Button
               size="sm"
               variant="outline"
-              className="rounded-md"
+              className="flex-1 rounded-md"
               disabled={isStaging}
               onClick={stage}
             >
@@ -215,7 +215,7 @@ export function CommitGroup(): React.JSX.Element {
             </Button>
             <Button
               size="sm"
-              className="rounded-md"
+              className="flex-1 rounded-md"
               disabled={!ready || isCommitting}
               onClick={commit}
             >

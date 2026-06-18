@@ -1,12 +1,6 @@
 import type { FeatureFile } from '@main/feature-view'
 import type { FileSource } from '@main/review-set'
 import { Button } from '@renderer/components/ui/button'
-import {
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from '@renderer/components/ui/sidebar'
 import { useDiffFilePrefetch } from '@renderer/hooks/use-diff'
 import { useClearFeatureReview, useFeatureView } from '@renderer/hooks/use-feature-view'
 import { cn } from '@renderer/lib/utils'
@@ -30,7 +24,19 @@ export function SourceMarker({ source }: { source: FileSource }): React.JSX.Elem
   return <span className="size-2 shrink-0 rounded-full border border-muted-foreground/70" />
 }
 
-function FileRow({ file, repoPath }: { file: FeatureFile; repoPath: string }): React.JSX.Element {
+// A node on the flow timeline: a source marker threaded on the spine, the file
+// (filename + a layer "station" tag when the layer changes), its path, and any
+// agent note. The whole feature reads top-to-bottom as one connected flow rather
+// than a stack of per-layer groups.
+function FlowNode({
+  file,
+  repoPath,
+  layer,
+}: {
+  file: FeatureFile
+  repoPath: string
+  layer: string | null
+}): React.JSX.Element {
   const openTab = useTabsStore((s) => s.openTab)
   const prefetchDiff = useDiffFilePrefetch()
   const name = file.path.split('/').at(-1) ?? file.path
@@ -50,50 +56,55 @@ function FileRow({ file, repoPath }: { file: FeatureFile; repoPath: string }): R
   }
 
   return (
-    <SidebarMenuItem>
-      <SidebarMenuButton
-        className="h-auto py-1"
+    <div className="relative pl-6">
+      {/* marker sits on the spine; z-10 so solid markers mask the line behind them */}
+      <span className="absolute left-[3px] top-2.5 z-10 flex">
+        <SourceMarker source={file.source} />
+      </span>
+      <button
+        type="button"
         onClick={open}
         onMouseEnter={() => {
           if (file.source === 'changed') prefetchDiff(file.path)
         }}
+        className="flex w-full flex-col items-start gap-0.5 rounded-md px-2 py-1 text-left hover:bg-sidebar-accent/50"
       >
-        <div className="flex min-w-0 flex-col items-start gap-0.5">
-          <span className="flex max-w-full items-center gap-1.5">
-            <SourceMarker source={file.source} />
-            <span className={cn('truncate', file.source !== 'changed' && 'text-muted-foreground')}>
-              {name}
-            </span>
-            {file.additions !== undefined && file.additions > 0 && (
-              <span className="shrink-0 font-mono text-[10px] text-success">+{file.additions}</span>
-            )}
-            {file.deletions !== undefined && file.deletions > 0 && (
-              <span className="shrink-0 font-mono text-[10px] text-destructive">
-                −{file.deletions}
-              </span>
-            )}
+        <span className="flex max-w-full items-center gap-1.5">
+          <span className={cn('truncate', file.source !== 'changed' && 'text-muted-foreground')}>
+            {name}
           </span>
-          {dir && (
-            <span className="max-w-full truncate text-xs text-muted-foreground" dir="rtl">
-              {dir}
+          {layer && (
+            <span className="shrink-0 rounded bg-sidebar-accent px-1.5 py-px text-[8.5px] font-semibold uppercase tracking-wider text-muted-foreground">
+              {layer}
             </span>
           )}
-          {connects && (
-            <span className="max-w-full truncate text-xs text-muted-foreground/70">
-              → {connects}
+          {file.additions !== undefined && file.additions > 0 && (
+            <span className="shrink-0 font-mono text-[10px] text-success">+{file.additions}</span>
+          )}
+          {file.deletions !== undefined && file.deletions > 0 && (
+            <span className="shrink-0 font-mono text-[10px] text-destructive">
+              −{file.deletions}
             </span>
           )}
-        </div>
-      </SidebarMenuButton>
+        </span>
+        {dir && (
+          <span className="max-w-full truncate text-xs text-muted-foreground" dir="rtl">
+            {dir}
+          </span>
+        )}
+        {connects && (
+          <span className="max-w-full truncate text-xs text-muted-foreground/70">→ {connects}</span>
+        )}
+      </button>
       {file.note && (
-        <div className="mx-2 my-1 rounded-md border border-border bg-card/50 px-2.5 py-2">
+        <div className="mx-2 mb-1 rounded-md border border-border bg-card/50 px-2.5 py-2">
           <span className="text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Note
           </span>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{file.note}</p>
         </div>
       )}
-    </SidebarMenuItem>
+    </div>
   )
 }
 
@@ -142,6 +153,9 @@ export function FeatureList(): React.JSX.Element {
   }
 
   const files = view.groups.flatMap((g) => g.files)
+  // Flatten to a single flow (groups are already in entry-point→data order); each
+  // node carries its layer so the timeline can tag the first node of each layer.
+  const flow = view.groups.flatMap((g) => g.files.map((file) => ({ file, layer: g.layer })))
   const counts: Record<FileSource, number> = {
     changed: files.filter((f) => f.source === 'changed').length,
     context: files.filter((f) => f.source === 'context').length,
@@ -218,18 +232,27 @@ export function FeatureList(): React.JSX.Element {
           agent pushes a review set over MCP.
         </p>
       ) : (
-        view.groups.map((group) => (
-          <div key={group.layer}>
-            <SidebarGroupLabel className="h-6 px-2 text-[10px] uppercase tracking-wider">
-              {group.layer}
-            </SidebarGroupLabel>
-            <SidebarMenu>
-              {group.files.map((file) => (
-                <FileRow key={file.path} file={file} repoPath={repo.path} />
-              ))}
-            </SidebarMenu>
+        <div className="px-2 pt-1">
+          <div className="px-1 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Flow
           </div>
-        ))
+          <div className="relative">
+            {/* the spine the markers thread through, inset so it stops at the
+                first/last node rather than running the full column height */}
+            <span
+              aria-hidden
+              className="absolute bottom-3 left-[7px] top-3 w-px bg-sidebar-border"
+            />
+            {flow.map(({ file, layer }, i) => (
+              <FlowNode
+                key={file.path}
+                file={file}
+                repoPath={repo.path}
+                layer={layer === flow[i - 1]?.layer ? null : layer}
+              />
+            ))}
+          </div>
+        </div>
       )}
 
       {!view.fromAgent && files.length > 0 && (

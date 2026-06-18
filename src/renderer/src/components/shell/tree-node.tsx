@@ -37,7 +37,21 @@ import { useFileTreeStore } from '@renderer/stores/file-tree'
 import { useRevealStore } from '@renderer/stores/reveal'
 import { useSelectionStore } from '@renderer/stores/selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
-import { ChevronRight, Compass } from 'lucide-react'
+import {
+  ChevronRight,
+  Columns2,
+  Compass,
+  Copy,
+  Eye,
+  EyeOff,
+  FilePlus,
+  Folder,
+  FolderPlus,
+  PenLine,
+  Pin,
+  PinOff,
+  Trash2,
+} from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 function EntryContextMenu({
@@ -65,8 +79,14 @@ function EntryContextMenu({
       <ContextMenu>
         <ContextMenuTrigger>{children}</ContextMenuTrigger>
         <ContextMenuContent>
-          <ContextMenuItem onClick={() => newFile(dir)}>New File</ContextMenuItem>
-          <ContextMenuItem onClick={() => newFolder(dir)}>New Folder</ContextMenuItem>
+          <ContextMenuItem onClick={() => newFile(dir)}>
+            <FilePlus />
+            New File
+          </ContextMenuItem>
+          <ContextMenuItem onClick={() => newFolder(dir)}>
+            <FolderPlus />
+            New Folder
+          </ContextMenuItem>
           <ContextMenuSeparator />
           {entry.kind === 'file' && (
             <ContextMenuItem
@@ -79,33 +99,58 @@ function EntryContextMenu({
                 })
               }
             >
+              <Columns2 />
               Open to the Side
             </ContextMenuItem>
           )}
           {entry.kind === 'file' && (
             <ContextMenuItem onClick={() => exploreFlow()}>
-              <Compass /> Explore feature flow
+              <Compass />
+              Explore feature flow
             </ContextMenuItem>
           )}
-          <ContextMenuItem onClick={reveal}>Reveal in Finder</ContextMenuItem>
+          <ContextMenuItem onClick={reveal}>
+            <Folder />
+            Reveal in Finder
+          </ContextMenuItem>
           {entry.pinned ? (
-            <ContextMenuItem onClick={unpin}>Unpin</ContextMenuItem>
+            <ContextMenuItem onClick={unpin}>
+              <PinOff />
+              Unpin
+            </ContextMenuItem>
           ) : (
-            <ContextMenuItem onClick={pin}>Pin</ContextMenuItem>
+            <ContextMenuItem onClick={pin}>
+              <Pin />
+              Pin
+            </ContextMenuItem>
           )}
           {selectionSize > 0 ? (
-            <ContextMenuItem onClick={hideSelected}>Hide {batchSize} items</ContextMenuItem>
+            <ContextMenuItem onClick={hideSelected}>
+              <EyeOff />
+              Hide {batchSize} items
+            </ContextMenuItem>
           ) : entry.hidden ? (
-            <ContextMenuItem onClick={unhide}>Unhide</ContextMenuItem>
+            <ContextMenuItem onClick={unhide}>
+              <Eye />
+              Unhide
+            </ContextMenuItem>
           ) : (
-            <ContextMenuItem onClick={hide}>Hide</ContextMenuItem>
+            <ContextMenuItem onClick={hide}>
+              <EyeOff />
+              Hide
+            </ContextMenuItem>
           )}
           <ContextMenuSeparator />
           <ContextMenuItem onClick={() => startRename(entry.path, entry.name)}>
+            <PenLine />
             Rename
           </ContextMenuItem>
-          <ContextMenuItem onClick={() => duplicate(entry.path)}>Duplicate</ContextMenuItem>
+          <ContextMenuItem onClick={() => duplicate(entry.path)}>
+            <Copy />
+            Duplicate
+          </ContextMenuItem>
           <ContextMenuItem variant="destructive" onClick={() => setConfirmDelete(true)}>
+            <Trash2 />
             Delete
           </ContextMenuItem>
         </ContextMenuContent>

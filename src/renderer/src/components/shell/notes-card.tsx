@@ -104,10 +104,10 @@ function NotesEditor({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      {editor ? <NotesToolbar editor={editor} /> : null}
       <div className="min-h-0 flex-1 overflow-auto">
         <EditorContent editor={editor} />
       </div>
-      {editor ? <NotesToolbar editor={editor} /> : null}
     </div>
   )
 }
@@ -126,10 +126,10 @@ function NotesToolbar({ editor }: { editor: Editor }): React.JSX.Element {
       h3: editor.isActive('heading', { level: 3 }),
     }),
   })
-  if (!state) return <div className="h-9 shrink-0 border-t border-sidebar-border" />
+  if (!state) return <div className="h-9 shrink-0 border-b border-sidebar-border" />
 
   return (
-    <div className="flex h-9 shrink-0 items-center gap-0.5 border-t border-sidebar-border px-1">
+    <div className="flex h-9 shrink-0 items-center gap-0.5 border-b border-sidebar-border px-1">
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
@@ -171,6 +171,7 @@ function NotesToolbar({ editor }: { editor: Editor }): React.JSX.Element {
       >
         <Italic className="size-3.5" />
       </ToolbarToggle>
+      <span className="mx-1 h-4 w-px shrink-0 bg-sidebar-border" />
       <ToolbarToggle
         pressed={state.code}
         onPressed={() => editor.chain().focus().toggleCode().run()}

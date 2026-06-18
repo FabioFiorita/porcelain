@@ -20,7 +20,6 @@ import {
 import {
   SidebarGroupLabel,
   SidebarMenu,
-  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@renderer/components/ui/sidebar'
@@ -85,10 +84,9 @@ function FileRow({
   return (
     <SidebarMenuItem>
       <ContextMenu>
-        {/* render the SidebarMenuButton AS the trigger so it stays a direct
-            sibling of SidebarMenuBadge — the badge's vertical position relies on
-            the `peer/menu-button` relationship, which an extra trigger wrapper
-            would break (badge falls to the bottom of the row). */}
+        {/* The whole row IS the trigger, so right-click anywhere on it opens the
+            menu and left-click opens the diff. The status letter leads the row
+            (left), next to the name, rather than floating in a detached badge. */}
         <ContextMenuTrigger
           render={
             <SidebarMenuButton
@@ -106,42 +104,58 @@ function FileRow({
             />
           }
         >
-          <div className="flex min-w-0 flex-col items-start">
-            <span className="flex max-w-full items-baseline gap-1.5">
-              {file.staged && (
+          <div className="flex min-w-0 items-start gap-2">
+            <span
+              className={cn(
+                'mt-px w-3 shrink-0 text-center font-mono text-xs font-semibold',
+                statusBadge[file.status].className,
+              )}
+              title={file.status}
+            >
+              {statusBadge[file.status].label}
+            </span>
+            <div className="flex min-w-0 flex-col items-start">
+              <span className="flex max-w-full items-baseline gap-1.5">
+                {file.staged && (
+                  <span
+                    className={cn(
+                      'size-1.5 shrink-0 self-center rounded-full',
+                      file.unstaged ? 'bg-warning' : 'bg-success',
+                    )}
+                    title={file.unstaged ? 'Partially staged' : 'Staged'}
+                  />
+                )}
+                {isReviewed && (
+                  <Check
+                    className="size-3 shrink-0 self-center text-success"
+                    aria-label="Reviewed"
+                  />
+                )}
                 <span
-                  className={cn(
-                    'size-1.5 shrink-0 self-center rounded-full',
-                    file.unstaged ? 'bg-warning' : 'bg-success',
-                  )}
-                  title={file.unstaged ? 'Partially staged' : 'Staged'}
-                />
-              )}
-              {isReviewed && (
-                <Check className="size-3 shrink-0 self-center text-success" aria-label="Reviewed" />
-              )}
-              <span className={cn('truncate', isReviewed && 'text-muted-foreground line-through')}>
-                {name}
+                  className={cn('truncate', isReviewed && 'text-muted-foreground line-through')}
+                >
+                  {name}
+                </span>
+                {file.additions !== undefined && (
+                  <span className="shrink-0 font-mono text-[10px] text-success">
+                    +{file.additions}
+                  </span>
+                )}
+                {file.deletions !== undefined && (
+                  <span className="shrink-0 font-mono text-[10px] text-destructive">
+                    −{file.deletions}
+                  </span>
+                )}
               </span>
-              {file.additions !== undefined && (
-                <span className="shrink-0 font-mono text-[10px] text-success">
-                  +{file.additions}
+              <span className="max-w-full truncate text-xs text-muted-foreground" dir="rtl">
+                {file.path.split('/').slice(0, -1).join('/')}
+              </span>
+              {connects && (
+                <span className="max-w-full truncate text-xs text-muted-foreground/70">
+                  → {connects}
                 </span>
               )}
-              {file.deletions !== undefined && (
-                <span className="shrink-0 font-mono text-[10px] text-destructive">
-                  −{file.deletions}
-                </span>
-              )}
-            </span>
-            <span className="max-w-full truncate text-xs text-muted-foreground" dir="rtl">
-              {file.path.split('/').slice(0, -1).join('/')}
-            </span>
-            {connects && (
-              <span className="max-w-full truncate text-xs text-muted-foreground/70">
-                → {connects}
-              </span>
-            )}
+            </div>
           </div>
         </ContextMenuTrigger>
         <ContextMenuContent>
@@ -171,9 +185,6 @@ function FileRow({
           )}
         </ContextMenuContent>
       </ContextMenu>
-      <SidebarMenuBadge className={cn('font-mono', statusBadge[file.status].className)}>
-        {statusBadge[file.status].label}
-      </SidebarMenuBadge>
       <AlertDialog open={confirmDiscard} onOpenChange={setConfirmDiscard}>
         <AlertDialogContent>
           <AlertDialogHeader>

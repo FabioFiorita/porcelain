@@ -4,6 +4,7 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
 @import "@fontsource-variable/geist-mono";
+@import "@fontsource-variable/jetbrains-mono";
 
 /* Symbols-only Nerd Font (MIT — see fonts/SymbolsNerdFontMono-LICENSE), used ONLY as a
    fallback after Geist Mono in the embedded terminal so prompt/powerline/devicon glyphs
@@ -77,7 +78,7 @@
     --radius-2xl: calc(var(--radius) * 1.8);
     --radius-3xl: calc(var(--radius) * 2.2);
     --radius-4xl: calc(var(--radius) * 2.6);
-    --font-mono: 'Geist Mono Variable', monospace;
+    --font-mono: 'JetBrains Mono Variable', monospace;
 }
 
 :root {
@@ -320,7 +321,7 @@
   html {
     @apply font-mono;
     background: transparent;
-    /* Geist Mono's coding ligatures merge `===`, `!==`, `=>`, `??` into single
+    /* JetBrains Mono's coding ligatures merge `===`, `!==`, `=>`, `??` into single
        glyphs that read as a solid bar — disable them so operators stay legible. */
     font-variant-ligatures: none;
   }

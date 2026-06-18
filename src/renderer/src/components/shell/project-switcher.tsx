@@ -10,7 +10,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useRecentRepos } from '@renderer/hooks/use-repo'
 import { useRepoStore } from '@renderer/stores/repo'
-import { Check, ChevronsUpDown, FolderOpen } from 'lucide-react'
+import { Check, ChevronsUpDown, FolderPlus } from 'lucide-react'
 
 // The project lives at the top of the icon rail as an avatar (its initial) with a
 // switch-chevron badge — the same dropdown the old header chip carried, just a
@@ -49,28 +49,29 @@ export function ProjectSwitcher(): React.JSX.Element | null {
       <DropdownMenuContent align="start" side="right" className="w-72">
         {/* Base UI requires GroupLabel inside a Group (Radix did not) */}
         <DropdownMenuGroup>
-          <DropdownMenuLabel>Recent projects</DropdownMenuLabel>
+          <DropdownMenuLabel className="uppercase tracking-wider text-muted-foreground">
+            Projects
+          </DropdownMenuLabel>
           {recents.map((recent) => (
             <DropdownMenuItem key={recent.path} onClick={() => switchTo(recent.path)}>
-              {recent.path === repo.path ? (
-                <Check className="shrink-0" />
-              ) : (
-                <span className="size-4 shrink-0" />
-              )}
+              <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-sidebar-accent text-xs font-semibold text-sidebar-accent-foreground">
+                {recent.name.charAt(0).toUpperCase()}
+              </span>
               <div className="flex min-w-0 flex-col">
                 <span className="truncate">{recent.name}</span>
                 <span className="truncate text-xs text-muted-foreground" dir="rtl">
                   {recent.path}
                 </span>
               </div>
+              {recent.path === repo.path && <Check className="ml-auto shrink-0 text-success" />}
             </DropdownMenuItem>
           ))}
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuItem onClick={openRepo}>
-            <FolderOpen className="shrink-0" />
-            Open another repository…
+            <FolderPlus className="shrink-0" />
+            Open project…
           </DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>
