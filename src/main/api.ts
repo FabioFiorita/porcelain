@@ -62,6 +62,8 @@ import {
   gitStageAll,
   gitStageFile,
   gitStatus,
+  gitSuggestions,
+  gitUnstageAll,
   gitUnstageFile,
   gitWorktrees,
   QUICK_COMMANDS,
@@ -394,6 +396,10 @@ export const router = t.router({
     .input(z.object({ repoPath: z.string() }))
     .mutation(({ input }) => gitStageAll(input.repoPath)),
 
+  gitUnstageAll: t.procedure
+    .input(z.object({ repoPath: z.string() }))
+    .mutation(({ input }) => gitUnstageAll(input.repoPath)),
+
   gitStageFile: t.procedure
     .input(z.object({ repoPath: z.string(), path: z.string() }))
     .mutation(({ input }) => gitStageFile(input.repoPath, input.path)),
@@ -516,6 +522,8 @@ export const router = t.router({
   }),
 
   gitStatus: t.procedure.input(z.string()).query(({ input }) => gitStatus(input)),
+
+  gitSuggestions: t.procedure.input(z.string()).query(({ input }) => gitSuggestions(input)),
 
   gitFlow: t.procedure.input(z.string()).query(async ({ input }): Promise<FlowGroup[]> => {
     const [files, config, stats] = await Promise.all([

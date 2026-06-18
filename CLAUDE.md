@@ -56,7 +56,7 @@ Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wron
 
 **Inside Quick Access (section depends on the sidebar tab):**
 - Files → **Pinned** (`pinned-group.tsx`) + **Notes card** (`notes-card.tsx`), wrapped in `files-quick-access.tsx`.
-- Changes/History/Feature → **Quick commands** (`quick-commands-group.tsx`) + **Suggested** rows.
+- Changes/History/Feature → **Quick commands** (`quick-commands-group.tsx`): a **Suggested** card (own glaze tile, above Commands — agent-free heuristic from branch sync + stash state in `suggestions.ts`/`gitSuggestions`, surfaces the one command worth running) over the **Commands** grid.
 - Changes/Feature → **Commit composer** (`commit-group.tsx`).
 - Changes/Feature → **Comments** (`comments-group.tsx`) — the reviewer's line/file comments, fed to the agent over MCP.
 - Terminal → **Actions** (`actions-group.tsx`) — saved named commands; click runs one in a terminal.

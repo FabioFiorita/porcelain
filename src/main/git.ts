@@ -18,6 +18,7 @@ import {
   synthesizeAddDiff,
   type Worktree,
 } from './diff'
+import { type GitSuggestion, parseSuggestions } from './suggestions'
 
 const execFileAsync = promisify(execFile)
 
@@ -221,6 +222,15 @@ export async function gitStageAll(repoPath: string): Promise<void> {
   }
 }
 
+/** Unstage every change (reset the whole index to HEAD). Throws git's output for the UI. */
+export async function gitUnstageAll(repoPath: string): Promise<void> {
+  try {
+    await runGit(repoPath, ['reset', '-q'])
+  } catch (error) {
+    throw new Error(gitErrorOutput(error))
+  }
+}
+
 /** Stage a single path. Throws git's output for the UI. */
 export async function gitStageFile(repoPath: string, path: string): Promise<void> {
   try {
@@ -285,6 +295,15 @@ export async function gitCommit(repoPath: string, message: string): Promise<void
   } catch (error) {
     throw new Error(gitErrorOutput(error))
   }
+}
+
+/** Contextual quick-command suggestions derived from branch sync + stash state. */
+export async function gitSuggestions(repoPath: string): Promise<GitSuggestion[]> {
+  const [statusBranch, stashList] = await Promise.all([
+    runGit(repoPath, ['status', '--porcelain=v2', '--branch']),
+    runGit(repoPath, ['stash', 'list']),
+  ])
+  return parseSuggestions(statusBranch, stashList)
 }
 
 /** The only commands the quick-command buttons may run, keyed by id. */

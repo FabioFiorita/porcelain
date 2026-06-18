@@ -33,19 +33,26 @@ export function useCommit(onCommitted?: () => void): {
 
 export function useStageAll(): {
   stageAll: () => Promise<void>
+  unstageAll: () => Promise<void>
   isStaging: boolean
 } {
   const repo = useRepoStore((s) => s.repo)
   const utils = trpc.useUtils()
-  const mutation = trpc.gitStageAll.useMutation()
+  const stage = trpc.gitStageAll.useMutation()
+  const unstage = trpc.gitUnstageAll.useMutation()
   return {
     stageAll: async () => {
       if (!repo) return
-      await mutation.mutateAsync({ repoPath: repo.path })
+      await stage.mutateAsync({ repoPath: repo.path })
       // gitFlow carries per-file staged/unstaged state now, so refresh it.
       await utils.gitFlow.invalidate()
     },
-    isStaging: mutation.isPending,
+    unstageAll: async () => {
+      if (!repo) return
+      await unstage.mutateAsync({ repoPath: repo.path })
+      await utils.gitFlow.invalidate()
+    },
+    isStaging: stage.isPending || unstage.isPending,
   }
 }
 

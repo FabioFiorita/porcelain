@@ -14,9 +14,10 @@ import {
 } from '@renderer/components/ui/sidebar'
 import { Textarea } from '@renderer/components/ui/textarea'
 import { useCommit, useCommitConventions, useStageAll } from '@renderer/hooks/use-commit'
+import { useGitFlow } from '@renderer/hooks/use-git-flow'
 import { applyCommitPrefix, parseCommitPrefix } from '@renderer/lib/commit-message'
 import { cn } from '@renderer/lib/utils'
-import { ChevronsUpDown, FilePlus2, GitCommitHorizontal } from 'lucide-react'
+import { ChevronsUpDown, FileMinus2, FilePlus2, GitCommitHorizontal } from 'lucide-react'
 import { useState } from 'react'
 
 /**
@@ -75,25 +76,35 @@ function CommitTokenSelect({
       />
       <PopoverContent align="start" className="w-44 rounded-xl p-0">
         <Command shouldFilter={false}>
-          <CommandInput value={query} onValueChange={setQuery} placeholder={`Add ${kind}…`} />
-          <CommandList>
+          <CommandInput
+            value={query}
+            onValueChange={setQuery}
+            placeholder={`Add ${kind}…`}
+            className="text-xs"
+          />
+          <CommandList className="pt-1">
             {filtered.length === 0 && !canCreate && <CommandEmpty>No {kind}s yet.</CommandEmpty>}
             {value && (
               <CommandItem
                 value="__clear__"
                 onSelect={() => choose(null)}
-                className="text-muted-foreground"
+                className="text-xs text-muted-foreground"
               >
                 Clear {kind}
               </CommandItem>
             )}
             {filtered.map((o) => (
-              <CommandItem key={o} value={o} onSelect={() => choose(o)} className="font-mono">
+              <CommandItem
+                key={o}
+                value={o}
+                onSelect={() => choose(o)}
+                className="font-mono text-xs"
+              >
                 {kind === 'scope' ? `(${o})` : o}
               </CommandItem>
             ))}
             {canCreate && (
-              <CommandItem value={q} onSelect={() => choose(q)} className="font-mono">
+              <CommandItem value={q} onSelect={() => choose(q)} className="font-mono text-xs">
                 Add “{q}”
               </CommandItem>
             )}
@@ -116,7 +127,14 @@ export function CommitGroup(): React.JSX.Element {
     setMessage('')
     setStaged(null)
   })
-  const { stageAll, isStaging } = useStageAll()
+  const { stageAll, unstageAll, isStaging } = useStageAll()
+  const { groups } = useGitFlow()
+
+  // "Stage all" flips to "Unstage all" once every change is fully staged with
+  // nothing left in the working tree — at that point the only useful action is
+  // to undo the staging.
+  const files = groups?.flatMap((g) => g.files) ?? []
+  const allStaged = files.length > 0 && files.every((f) => f.staged && !f.unstaged)
 
   if (!conventions) {
     return (
@@ -143,12 +161,17 @@ export function CommitGroup(): React.JSX.Element {
     runCommit(message.trim())
   }
 
-  const stage = async (): Promise<void> => {
+  const toggleStaging = async (): Promise<void> => {
     if (isStaging) return
     setStaged(null)
     try {
-      await stageAll()
-      setStaged({ text: 'Staged all changes', failed: false })
+      if (allStaged) {
+        await unstageAll()
+        setStaged({ text: 'Unstaged all changes', failed: false })
+      } else {
+        await stageAll()
+        setStaged({ text: 'Staged all changes', failed: false })
+      }
     } catch (e) {
       setStaged({ text: e instanceof Error ? e.message : String(e), failed: true })
     }
@@ -185,7 +208,7 @@ export function CommitGroup(): React.JSX.Element {
             placeholder="Commit message — ⌘↵ to commit"
             aria-label="Commit message"
             rows={3}
-            className="min-h-16 resize-none rounded-md text-sm"
+            className="min-h-16 resize-none rounded-md text-[13px] md:text-[13px]"
           />
           {staged && (
             <p
@@ -208,10 +231,16 @@ export function CommitGroup(): React.JSX.Element {
               variant="outline"
               className="flex-1 rounded-md"
               disabled={isStaging}
-              onClick={stage}
+              onClick={toggleStaging}
             >
-              <FilePlus2 />
-              {isStaging ? 'Staging…' : 'Stage all'}
+              {allStaged ? <FileMinus2 /> : <FilePlus2 />}
+              {isStaging
+                ? allStaged
+                  ? 'Unstaging…'
+                  : 'Staging…'
+                : allStaged
+                  ? 'Unstage all'
+                  : 'Stage all'}
             </Button>
             <Button
               size="sm"

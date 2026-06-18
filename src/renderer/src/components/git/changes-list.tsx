@@ -132,7 +132,10 @@ function FileRow({
                   />
                 )}
                 <span
-                  className={cn('truncate', isReviewed && 'text-muted-foreground line-through')}
+                  className={cn(
+                    'truncate text-[13px]',
+                    isReviewed && 'text-muted-foreground line-through',
+                  )}
                 >
                   {name}
                 </span>
@@ -249,16 +252,16 @@ export function ChangesList(): React.JSX.Element {
       {/* Two rows so a long "N changed files · vs base · N reviewed" line and the
           Working/Branch picker never fight for width in the narrow panel. */}
       <div className="flex flex-col gap-1 px-2">
-        <div className="flex items-center justify-between gap-1">
+        <div className="flex items-start justify-between gap-1">
           {total > 0 && reviewedCount === total ? (
             // Completion moment: the whole change set has been reviewed — the
             // story is read end to end, so the count gives way to a clear signal.
-            <span className="flex min-w-0 items-center gap-1 truncate text-xs text-success">
-              <Check className="size-3 shrink-0" />
+            <span className="flex min-w-0 items-start gap-1 text-xs text-success">
+              <Check className="mt-0.5 size-3 shrink-0" />
               All {total} {total === 1 ? 'file' : 'files'} reviewed{base && ` · vs ${base}`}
             </span>
           ) : (
-            <span className="min-w-0 truncate text-xs text-muted-foreground">
+            <span className="min-w-0 text-xs text-muted-foreground">
               {total} changed {total === 1 ? 'file' : 'files'}
               {base && ` · vs ${base}`}
               {reviewedCount > 0 && ` · ${reviewedCount} reviewed`}
@@ -277,7 +280,7 @@ export function ChangesList(): React.JSX.Element {
         <ChangesScopeToggle />
       </div>
       {total === 0 ? (
-        <p className="px-3 py-2 text-sm text-muted-foreground">
+        <p className="px-3 py-2 text-[13px] text-muted-foreground">
           No changes to review — your working tree is clean.
         </p>
       ) : (
