@@ -184,6 +184,20 @@ describe('ChangesList', () => {
     expect(screen.queryByText(/reviewed/)).not.toBeInTheDocument()
   })
 
+  it('shows the completion state when every changed file is reviewed', () => {
+    vi.mocked(useReviewedPaths).mockReturnValue(
+      new Set(['src/components/widget.tsx', 'src/db/schema.ts', 'src/db/legacy.ts']),
+    )
+    renderList()
+    expect(
+      screen.getByText(
+        (_, el) => el?.tagName === 'SPAN' && el.textContent === 'All 3 files reviewed',
+      ),
+    ).toBeInTheDocument()
+    // the running count gives way to the completion signal
+    expect(screen.queryByText(/changed/)).not.toBeInTheDocument()
+  })
+
   it('renders the scope toggle with a "Branch" item', () => {
     renderList()
     expect(screen.getByText('Branch')).toBeInTheDocument()
