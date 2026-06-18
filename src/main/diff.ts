@@ -163,6 +163,66 @@ export function parseGrep(out: string): GrepMatch[] {
   return matches
 }
 
+export interface CodeSearchLine {
+  line: number
+  text: string
+  /** A matched line (`:` separator) vs a surrounding context line (`-`). */
+  match: boolean
+}
+
+export interface CodeSearchHunk {
+  lines: CodeSearchLine[]
+}
+
+export interface CodeSearchFile {
+  path: string
+  hunks: CodeSearchHunk[]
+  /** Matched lines across all hunks (context lines excluded). */
+  matchCount: number
+}
+
+/**
+ * Parse `git grep -n --heading --break -C <n>` output into per-file context
+ * hunks. With `--heading` the filename prints once on its own line; content
+ * lines are `<lineno>:<text>` for a match and `<lineno>-<text>` for context;
+ * `--` separates non-adjacent hunks within a file; a blank line (from `--break`)
+ * separates files. Any other line is a filename heading.
+ */
+export function parseCodeSearch(out: string): CodeSearchFile[] {
+  const files: CodeSearchFile[] = []
+  let file: CodeSearchFile | null = null
+  let hunk: CodeSearchHunk | null = null
+  for (const row of out.split('\n')) {
+    if (row === '') {
+      // `--break` blank line: the next non-blank row opens a new file.
+      file = null
+      hunk = null
+      continue
+    }
+    if (row === '--') {
+      // hunk separator within the current file
+      hunk = null
+      continue
+    }
+    const content = row.match(/^(\d+)([:-])(.*)$/)
+    if (content && file) {
+      if (!hunk) {
+        hunk = { lines: [] }
+        file.hunks.push(hunk)
+      }
+      const match = content[2] === ':'
+      hunk.lines.push({ line: Number(content[1]), text: content[3], match })
+      if (match) file.matchCount++
+      continue
+    }
+    // a filename heading (only reached when no file is open)
+    file = { path: row, hunks: [], matchCount: 0 }
+    hunk = null
+    files.push(file)
+  }
+  return files
+}
+
 export function parseUnifiedDiff(diff: string): DiffHunk[] {
   const hunks: DiffHunk[] = []
   let current: DiffHunk | null = null

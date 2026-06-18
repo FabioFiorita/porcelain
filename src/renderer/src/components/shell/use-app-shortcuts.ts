@@ -1,25 +1,23 @@
 import { isTextEntry } from '@renderer/lib/keyboard'
 import { spawnTerminal } from '@renderer/lib/terminal-actions'
 import { useCardDraftStore } from '@renderer/stores/card-draft'
-import { usePreferencesStore } from '@renderer/stores/preferences'
+import { type SidebarTab, usePreferencesStore } from '@renderer/stores/preferences'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { useEffect } from 'react'
 
-const SIDEBAR_TAB_KEYS: Record<
-  string,
-  'files' | 'changes' | 'history' | 'feature' | 'board' | 'terminal' | undefined
-> = {
+const SIDEBAR_TAB_KEYS: Record<string, SidebarTab | undefined> = {
   '1': 'files',
-  '2': 'changes',
-  '3': 'history',
-  '4': 'feature',
-  '5': 'board',
-  '6': 'terminal',
+  '2': 'search',
+  '3': 'changes',
+  '4': 'history',
+  '5': 'feature',
+  '6': 'board',
+  '7': 'terminal',
 }
 
 /**
  * Window-level shortcuts: Cmd+W (via main, see before-input-event), Ctrl+Tab cycling,
- * Cmd+1–6 sidebar tabs, and the context-aware "new" shortcuts for Board/Terminal (⌘N)
+ * Cmd+1–7 sidebar tabs, and the context-aware "new" shortcuts for Board/Terminal (⌘N)
  * plus ⌘T for a terminal anywhere. Files' ⌘N/⌘⇧N/⌘D/⌘⌫ live in FileCommands instead —
  * those go through tRPC hooks, which only a component may touch.
  */

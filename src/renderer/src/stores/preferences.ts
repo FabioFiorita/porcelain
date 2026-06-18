@@ -5,7 +5,14 @@ export type ChangesScope = 'working' | 'branch'
 export type DiffMode = 'unified' | 'split'
 export type MarkdownMode = 'reader' | 'source'
 export type PullMode = 'merge' | 'rebase'
-export type SidebarTab = 'files' | 'changes' | 'history' | 'feature' | 'board' | 'terminal'
+export type SidebarTab =
+  | 'files'
+  | 'changes'
+  | 'history'
+  | 'feature'
+  | 'board'
+  | 'terminal'
+  | 'search'
 
 export const SIDEBAR_MIN_WIDTH = 320
 export const RIGHT_SIDEBAR_MIN_WIDTH = 280

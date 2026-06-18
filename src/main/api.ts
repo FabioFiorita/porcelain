@@ -514,6 +514,27 @@ export const router = t.router({
     .input(z.object({ repoPath: z.string(), query: z.string().min(1) }))
     .query(({ input }) => gitGrep(input.repoPath, input.query)),
 
+  searchCode: t.procedure
+    .input(
+      z.object({
+        repoPath: z.string(),
+        query: z.string().min(1),
+        regex: z.boolean(),
+        caseSensitive: z.boolean(),
+        include: z.string(),
+        exclude: z.string(),
+      }),
+    )
+    .query(({ input }) =>
+      gitSearchCode(input.repoPath, {
+        query: input.query,
+        regex: input.regex,
+        caseSensitive: input.caseSensitive,
+        include: input.include,
+        exclude: input.exclude,
+      }),
+    ),
+
   revealInFinder: t.procedure.input(z.string()).mutation(({ input }) => {
     shell.showItemInFolder(input)
   }),

@@ -40,8 +40,9 @@ Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wron
 - **Quick Access** — the **right** panel (`right-sidebar.tsx`). Cmd+. — its contents follow the active sidebar tab.
 
 **Inside the sidebar:**
-- **Sidebar tabs** — the six: **Files**, **Changes**, **History**, **Feature**, **Board**, **Terminal** (`sidebarTab` pref; Cmd+1–6). They're a **vertical icon rail** on the left edge of the sidebar (monochrome, icon-only, tooltips carry the ⌘ shortcut), with the active tab's body in the **content panel** to its right; ⌘B collapses the panel to just the rail.
+- **Sidebar tabs** — the seven: **Files**, **Search**, **Changes**, **History**, **Feature**, **Board**, **Terminal** (`sidebarTab` pref; Cmd+1–7). They're a **vertical icon rail** on the left edge of the sidebar (monochrome, icon-only, tooltips carry the ⌘ shortcut), with the active tab's body in the **content panel** to its right; ⌘B collapses the panel to just the rail.
 - **File tree** — Files tab body (`file-tree.tsx` / `tree-node.tsx`).
+- **Search list** — Search tab body (`search-list.tsx`): repo-wide code search via `git grep` (literal/regex, case, include/exclude globs), results grouped by file as collapsible context blocks; rows open the file at the line. Backed by `gitSearchCode`/`parseCodeSearch` (separate from the ⌘⇧F `ContentSearch` overlay + find-references, which still use `gitGrep`). Quick Access here is **Recent searches**.
 - **Changes list** — Changes tab body (`changes-list.tsx`), grouped by flow layer. Row click opens the diff; right-click → **Open file** opens the full file in the viewer and switches to the Files tab.
 - **History list** — History tab body (`history-list.tsx`).
 - **Feature list** — Feature tab body (`feature-list.tsx`): the whole feature in flow order as a navigation list (changed + context + agent-fed shipped, with source markers + notes); rows open the diff/file. The viewer's feature view is the expanded read.
@@ -56,6 +57,7 @@ Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wron
 
 **Inside Quick Access (section depends on the sidebar tab):**
 - Files → **Pinned** (`pinned-group.tsx`) + **Notes card** (`notes-card.tsx`), wrapped in `files-quick-access.tsx`.
+- Search → **Recent searches** (`search-quick-access.tsx`) — the section is named by the companion header; click a query to re-run it, the row's × forgets it (`stores/search.ts`, client-only).
 - Changes/History/Feature → **Quick commands** (`quick-commands-group.tsx`): a **Suggested** card (own glaze tile, above Commands — agent-free heuristic from branch sync + stash state in `suggestions.ts`/`gitSuggestions`, surfaces the one command worth running) over the **Commands** grid.
 - Changes/Feature → **Commit composer** (`commit-group.tsx`).
 - Changes/Feature → **Comments** (`comments-group.tsx`) — the reviewer's line/file comments, fed to the agent over MCP.

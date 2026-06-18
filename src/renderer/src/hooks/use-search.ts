@@ -1,5 +1,6 @@
 import type { GrepMatch } from '@main/diff'
 import type { SearchResult } from '@main/fuzzy'
+import type { CodeSearchOptions, CodeSearchResult } from '@main/git'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 import { keepPreviousData } from '@tanstack/react-query'
@@ -37,4 +38,28 @@ export function useTextSearch(
     },
   )
   return { matches, error, isFetching }
+}
+
+/** Rich repo-wide search (regex/case/globs, context hunks) for the Search tab. */
+export function useCodeSearch(
+  options: CodeSearchOptions,
+  enabled = true,
+): {
+  result: CodeSearchResult | undefined
+  error: { message: string } | null
+  isFetching: boolean
+} {
+  const repo = useRepoStore((s) => s.repo)
+  const {
+    data: result,
+    error,
+    isFetching,
+  } = trpc.searchCode.useQuery(
+    { repoPath: repo?.path ?? '', ...options },
+    {
+      enabled: enabled && repo !== null && options.query.trim() !== '',
+      placeholderData: keepPreviousData,
+    },
+  )
+  return { result, error, isFetching }
 }

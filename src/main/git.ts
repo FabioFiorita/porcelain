@@ -4,10 +4,12 @@ import { basename, join } from 'node:path'
 import { promisify } from 'node:util'
 import {
   type ChangedFile,
+  type CodeSearchFile,
   type Commit,
   type DiffHunk,
   type DiffStat,
   type GrepMatch,
+  parseCodeSearch,
   parseGrep,
   parseLog,
   parseNameStatus,
@@ -387,6 +389,81 @@ export async function gitGrep(repoPath: string, query: string): Promise<GrepMatc
     return parseGrep(out).slice(0, MAX_GREP_MATCHES)
   } catch (error) {
     if (isNoMatchError(error)) return [] // exit 1 = no matches, not a failure
+    throw new Error(gitErrorOutput(error))
+  }
+}
+
+export interface CodeSearchOptions {
+  query: string
+  /** Treat the query as an extended regular expression (`-E`) vs a literal (`-F`). */
+  regex: boolean
+  caseSensitive: boolean
+  /** Comma-separated globs limiting / excluding the search (git pathspecs). */
+  include: string
+  exclude: string
+}
+
+export interface CodeSearchResult {
+  files: CodeSearchFile[]
+  /** True when whole files were dropped to stay under the match cap. */
+  truncated: boolean
+}
+
+/** Context lines git grep shows on each side of a match in the Search tab. */
+const CODE_SEARCH_CONTEXT = 2
+
+function searchGlobs(value: string): string[] {
+  return value
+    .split(',')
+    .map((glob) => glob.trim())
+    .filter((glob) => glob !== '')
+}
+
+/** Keep whole files until the match cap is reached, flagging any drop. */
+function capCodeSearch(files: CodeSearchFile[]): CodeSearchResult {
+  const kept: CodeSearchFile[] = []
+  let count = 0
+  for (const file of files) {
+    if (kept.length > 0 && count + file.matchCount > MAX_GREP_MATCHES) {
+      return { files: kept, truncated: true }
+    }
+    kept.push(file)
+    count += file.matchCount
+  }
+  return { files: kept, truncated: false }
+}
+
+/**
+ * Rich repo-wide search backing the Search tab: literal/regex, case toggle,
+ * include/exclude globs, and `-C` context lines grouped per file. Kept apart
+ * from `gitGrep` (still used by the ⌘⇧F overlay + find-references) because the
+ * output shape — context hunks, not flat matches — is genuinely different.
+ */
+export async function gitSearchCode(
+  repoPath: string,
+  options: CodeSearchOptions,
+): Promise<CodeSearchResult> {
+  const args = [
+    'grep',
+    '-n',
+    '-I',
+    '--untracked',
+    '--heading',
+    '--break',
+    '-C',
+    String(CODE_SEARCH_CONTEXT),
+  ]
+  if (!options.caseSensitive) args.push('-i')
+  args.push(options.regex ? '-E' : '-F', '-e', options.query)
+  const specs = [
+    ...searchGlobs(options.include).map((glob) => `:(glob)${glob}`),
+    ...searchGlobs(options.exclude).map((glob) => `:(exclude,glob)${glob}`),
+  ]
+  if (specs.length > 0) args.push('--', ...specs)
+  try {
+    return capCodeSearch(parseCodeSearch(await runGit(repoPath, args)))
+  } catch (error) {
+    if (isNoMatchError(error)) return { files: [], truncated: false }
     throw new Error(gitErrorOutput(error))
   }
 }

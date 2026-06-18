@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  parseCodeSearch,
   parseGrep,
   parseLog,
   parseNameStatus,
@@ -158,5 +159,67 @@ describe('parseGrep', () => {
 
   it('skips malformed rows', () => {
     expect(parseGrep('garbage\nno-line:abc:text\n')).toEqual([])
+  })
+})
+
+describe('parseCodeSearch', () => {
+  it('groups --heading/--break/-C output into per-file context hunks', () => {
+    const out = [
+      'src/a.ts',
+      "2-import { db } from './db'",
+      '3:export function getUser(id) {',
+      '4-  return db.users.find(id)',
+      '--',
+      '10-function other() {',
+      '11:  getUser(1)',
+      '12-}',
+      '',
+      'src/b.ts',
+      '5:const u = getUser(2)',
+      '',
+    ].join('\n')
+
+    expect(parseCodeSearch(out)).toEqual([
+      {
+        path: 'src/a.ts',
+        matchCount: 2,
+        hunks: [
+          {
+            lines: [
+              { line: 2, text: "import { db } from './db'", match: false },
+              { line: 3, text: 'export function getUser(id) {', match: true },
+              { line: 4, text: '  return db.users.find(id)', match: false },
+            ],
+          },
+          {
+            lines: [
+              { line: 10, text: 'function other() {', match: false },
+              { line: 11, text: '  getUser(1)', match: true },
+              { line: 12, text: '}', match: false },
+            ],
+          },
+        ],
+      },
+      {
+        path: 'src/b.ts',
+        matchCount: 1,
+        hunks: [{ lines: [{ line: 5, text: 'const u = getUser(2)', match: true }] }],
+      },
+    ])
+  })
+
+  it('keeps colons inside the matched text', () => {
+    const out = 'a.ts\n1:const url = "http://x"\n'
+    expect(parseCodeSearch(out)).toEqual([
+      {
+        path: 'a.ts',
+        matchCount: 1,
+        hunks: [{ lines: [{ line: 1, text: 'const url = "http://x"', match: true }] }],
+      },
+    ])
+  })
+
+  it('returns nothing for empty output', () => {
+    expect(parseCodeSearch('')).toEqual([])
   })
 })

@@ -5,6 +5,7 @@ import { CommentsGroup } from './comments-group'
 import { CommitGroup } from './commit-group'
 import { FilesQuickAccess } from './files-quick-access'
 import { QuickCommandsGroup } from './quick-commands-group'
+import { SearchQuickAccess } from './search-quick-access'
 import { RightSidebarResizeHandle } from './sidebar-resize-handle'
 
 // The companion panel retitles itself to what you're doing (matching the left
@@ -17,6 +18,7 @@ const COMPANION_TITLES: Record<SidebarTab, string> = {
   feature: 'Review',
   board: 'Workspace',
   terminal: 'Actions',
+  search: 'Recent searches',
 }
 
 // Sections follow the left sidebar's active tab: pins belong to browsing
@@ -49,6 +51,7 @@ export function RightSidebar(): React.JSX.Element {
         {(sidebarTab === 'changes' || sidebarTab === 'feature') && <CommitGroup />}
         {(sidebarTab === 'changes' || sidebarTab === 'feature') && <CommentsGroup />}
         {sidebarTab === 'terminal' && <ActionsGroup />}
+        {sidebarTab === 'search' && <SearchQuickAccess />}
       </SidebarContent>
     </Sidebar>
   )

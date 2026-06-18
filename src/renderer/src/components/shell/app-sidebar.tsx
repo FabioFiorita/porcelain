@@ -3,6 +3,7 @@ import { BranchSwitcher } from '@renderer/components/git/branch-switcher'
 import { ChangesList } from '@renderer/components/git/changes-list'
 import { FeatureList } from '@renderer/components/git/feature-list'
 import { HistoryList } from '@renderer/components/git/history-list'
+import { SearchList } from '@renderer/components/git/search-list'
 import { WorktreeSwitcher } from '@renderer/components/git/worktree-switcher'
 import { SettingsDialog } from '@renderer/components/settings/settings-dialog'
 import { TerminalList } from '@renderer/components/terminal/terminal-list'
@@ -32,6 +33,7 @@ import {
   Files,
   GitCompareArrows,
   History,
+  Search,
   SquareKanban,
   SquareTerminal,
   Waypoints,
@@ -44,15 +46,16 @@ import { SidebarResizeHandle } from './sidebar-resize-handle'
 
 const TABS: { id: SidebarTab; label: string; icon: typeof Files; shortcut: string }[] = [
   { id: 'files', label: 'Files', icon: Files, shortcut: '⌘1' },
-  { id: 'changes', label: 'Changes', icon: GitCompareArrows, shortcut: '⌘2' },
-  { id: 'history', label: 'History', icon: History, shortcut: '⌘3' },
-  { id: 'feature', label: 'Feature', icon: Waypoints, shortcut: '⌘4' },
-  { id: 'board', label: 'Board', icon: SquareKanban, shortcut: '⌘5' },
-  { id: 'terminal', label: 'Terminal', icon: SquareTerminal, shortcut: '⌘6' },
+  { id: 'search', label: 'Search', icon: Search, shortcut: '⌘2' },
+  { id: 'changes', label: 'Changes', icon: GitCompareArrows, shortcut: '⌘3' },
+  { id: 'history', label: 'History', icon: History, shortcut: '⌘4' },
+  { id: 'feature', label: 'Feature', icon: Waypoints, shortcut: '⌘5' },
+  { id: 'board', label: 'Board', icon: SquareKanban, shortcut: '⌘6' },
+  { id: 'terminal', label: 'Terminal', icon: SquareTerminal, shortcut: '⌘7' },
 ]
 
 // Uppercase title each left panel opens with — one consistent header pattern
-// across all six tabs (the Files panel adds the collapse-all + hide controls).
+// across all seven tabs (the Files panel adds the collapse-all + hide controls).
 const PANEL_TITLES: Record<SidebarTab, string> = {
   files: 'Explorer',
   changes: 'Source control',
@@ -60,6 +63,7 @@ const PANEL_TITLES: Record<SidebarTab, string> = {
   feature: 'Feature review',
   board: 'Board',
   terminal: 'Terminal',
+  search: 'Search',
 }
 
 export function AppSidebar(): React.JSX.Element {
@@ -106,7 +110,7 @@ export function AppSidebar(): React.JSX.Element {
       {/* Resizing a bare rail makes no sense — the handle only exists when expanded. */}
       {state === 'expanded' && <SidebarResizeHandle />}
 
-      {/* Icon rail — project avatar on top, then the six tabs (monochrome,
+      {/* Icon rail — project avatar on top, then the seven tabs (monochrome,
           icon-only), settings at the bottom. The right border runs the FULL rail
           height (on the rail itself, not its content) so the rail reads as one
           clean vertical strip — the panel's own header/footer hairlines start at
@@ -248,6 +252,7 @@ export function AppSidebar(): React.JSX.Element {
                     {sidebarTab === 'feature' && <FeatureList />}
                     {sidebarTab === 'board' && <BoardList />}
                     {sidebarTab === 'terminal' && <TerminalList />}
+                    {sidebarTab === 'search' && <SearchList />}
                   </SidebarGroupContent>
                 </SidebarGroup>
               </div>

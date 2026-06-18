@@ -80,7 +80,7 @@ Repo switching is one store action: `useRepoStore.switchTo(path)` (closes all ta
 ### Keyboard shortcuts — tiered ownership (deliberate, don't "centralize")
 
 1. Main-process `before-input-event` ONLY to override an Electron/OS default (Cmd+W).
-2. App-global bindings acting on stores → `use-app-shortcuts.ts` (Ctrl+Tab, Cmd+1–6, Cmd+Shift+S, plus the context-aware "new" keys: **Cmd+T** always spawns a terminal; **Cmd+N** follows `preferences.sidebarTab` — Board → new card, Terminal → new terminal).
+2. App-global bindings acting on stores → `use-app-shortcuts.ts` (Ctrl+Tab, Cmd+1–7, Cmd+Shift+S, plus the context-aware "new" keys: **Cmd+T** always spawns a terminal; **Cmd+N** follows `preferences.sidebarTab` — Board → new card, Terminal → new terminal).
 3. A shortcut toggling one component's local state registers its own window listener in that component (Cmd+P in `file-finder`, Cmd+F in `text-file-view`).
 4. Focused-element shortcuts as element `onKeyDown` (Cmd+S on the editor textarea; Cmd+Enter/Cmd+S in the card composer).
 5. Sidebar toggles via the `SidebarProvider` `shortcut` prop (Cmd+B / Cmd+.).
