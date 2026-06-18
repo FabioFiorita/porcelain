@@ -85,8 +85,10 @@ export function AppSidebar(): React.JSX.Element {
       className="overflow-hidden *:data-[sidebar=sidebar]:flex-row"
       // shadcn pins the floating container to the full viewport (fixed inset-y-0
       // h-svh); offset it below the h-12 titlebar so the card sits UNDER the top
-      // bar instead of riding up over the traffic lights. (Coupled to TitleBar h-12.)
-      style={{ top: '3rem', height: 'calc(100svh - 3rem)' }}
+      // bar instead of riding up over the traffic lights. paddingTop:0 drops the
+      // floating top gap so the tile is flush with the titlebar bottom — the search
+      // then has an even 8px above (window edge) and below (to the tiles).
+      style={{ top: '3rem', height: 'calc(100svh - 3rem)', paddingTop: 0 }}
     >
       {/* Resizing a bare rail makes no sense — the handle only exists when expanded. */}
       {state === 'expanded' && <SidebarResizeHandle />}

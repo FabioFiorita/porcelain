@@ -32,8 +32,8 @@ export function RightSidebar(): React.JSX.Element {
       variant="floating"
       collapsible="offcanvas"
       // Match the left card: sit below the h-12 titlebar (shadcn pins the floating
-      // container to the full viewport otherwise — it would cover the top bar).
-      style={{ top: '3rem', height: 'calc(100svh - 3rem)' }}
+      // container to the full viewport otherwise), flush at the titlebar bottom.
+      style={{ top: '3rem', height: 'calc(100svh - 3rem)', paddingTop: 0 }}
     >
       <RightSidebarResizeHandle />
       <SidebarHeader className="app-drag h-12 flex-row items-center border-b py-0">

@@ -135,7 +135,7 @@ function RepoShell(): React.JSX.Element {
             floating sidebar's own padding already provides the 8px gap. */}
         <div
           className={cn(
-            'glaze-tile my-2 flex min-w-0 flex-1 flex-col overflow-hidden [--tile-fill:var(--surface-1)]',
+            'glaze-tile mb-2 flex min-w-0 flex-1 flex-col overflow-hidden [--tile-fill:var(--surface-1)]',
             left.collapsed && 'ml-2',
             !rightOpen && 'mr-2',
           )}
