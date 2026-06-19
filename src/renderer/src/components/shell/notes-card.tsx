@@ -84,7 +84,7 @@ function NotesEditor({
         link: { openOnClick: false, HTMLAttributes: { rel: 'noreferrer' } },
       }),
       Markdown.configure({ transformPastedText: true, linkify: true }),
-      Placeholder.configure({ placeholder: 'Jot a quick note…' }),
+      Placeholder.configure({ placeholder: 'Write a note…' }),
     ],
     content: initialMarkdown,
     editorProps: {
