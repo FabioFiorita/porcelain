@@ -1,0 +1,29 @@
+name: Linux build
+
+# Build the Linux artifacts (AppImage + deb) on a clean Ubuntu runner and upload
+# them as downloadable workflow artifacts. Runs on demand (workflow_dispatch) and on
+# every push to main / a claude/** POC branch so the port builds without a tag.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, 'claude/**']
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm dist:linux
+      - uses: actions/upload-artifact@v4
+        with:
+          name: porcelain-linux
+          path: |
+            dist/*.AppImage
+            dist/*.deb
+          if-no-files-found: error

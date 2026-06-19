@@ -34,6 +34,13 @@ mac:
   # Notarize via notarytool using APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD /
   # APPLE_TEAM_ID env vars (set as repo secrets).
   notarize: true
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Development
+  icon: build/icon.png
+  maintainer: Fabio Fiorita <fpontes@soap.health>
 dmg:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false
