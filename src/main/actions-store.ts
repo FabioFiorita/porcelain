@@ -112,6 +112,31 @@ export async function updateAction(
   })
 }
 
+/**
+ * Move an action one slot up or down within its repo by swapping `order` with its
+ * neighbour (the list is rendered sorted by `order`). No-op at the ends or if unknown.
+ */
+export async function moveAction(
+  repoPath: string,
+  id: string,
+  direction: 'up' | 'down',
+): Promise<void> {
+  await mutate((all) => {
+    const actions = all[repoPath]
+    if (!actions) return
+    const sorted = [...actions].sort((a, b) => a.order - b.order)
+    const index = sorted.findIndex((a) => a.id === id)
+    if (index === -1) return
+    const target = index + (direction === 'up' ? -1 : 1)
+    if (target < 0 || target >= sorted.length) return
+    const current = sorted[index]
+    const neighbour = sorted[target]
+    const tmp = current.order
+    current.order = neighbour.order
+    neighbour.order = tmp
+  })
+}
+
 export async function deleteAction(repoPath: string, id: string): Promise<void> {
   await mutate((all) => {
     const actions = all[repoPath]

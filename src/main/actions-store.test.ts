@@ -2,7 +2,7 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { addAction, deleteAction, readActions, updateAction } from './actions-store'
+import { addAction, deleteAction, moveAction, readActions, updateAction } from './actions-store'
 
 const dir = join(tmpdir(), 'porcelain-actions-store-test')
 const file = join(dir, 'actions.json')
@@ -72,5 +72,39 @@ describe('actions-store CRUD', () => {
       }),
     )
     expect((await readActions('/repo')).map((a) => a.id)).toEqual(['a', 'b', 'c'])
+  })
+
+  it('moves an action up and down by swapping order', async () => {
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(
+      file,
+      JSON.stringify({
+        '/repo': [
+          { id: 'a', title: 'first', command: 'a', order: 1, createdAt: 1 },
+          { id: 'b', title: 'second', command: 'b', order: 2, createdAt: 2 },
+          { id: 'c', title: 'third', command: 'c', order: 3, createdAt: 3 },
+        ],
+      }),
+    )
+    await moveAction('/repo', 'c', 'up')
+    expect((await readActions('/repo')).map((a) => a.id)).toEqual(['a', 'c', 'b'])
+    await moveAction('/repo', 'c', 'down')
+    expect((await readActions('/repo')).map((a) => a.id)).toEqual(['a', 'b', 'c'])
+  })
+
+  it('is a no-op when moving past the ends', async () => {
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(
+      file,
+      JSON.stringify({
+        '/repo': [
+          { id: 'a', title: 'first', command: 'a', order: 1, createdAt: 1 },
+          { id: 'b', title: 'second', command: 'b', order: 2, createdAt: 2 },
+        ],
+      }),
+    )
+    await moveAction('/repo', 'a', 'up')
+    await moveAction('/repo', 'b', 'down')
+    expect((await readActions('/repo')).map((a) => a.id)).toEqual(['a', 'b'])
   })
 })

@@ -13,19 +13,23 @@ import {
   SidebarGroupLabel,
 } from '@renderer/components/ui/sidebar'
 import { useActionMutations, useActions, useRunAction } from '@renderer/hooks/use-actions'
-import { MoreHorizontal, PenLine, Play, Plus, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, MoreHorizontal, PenLine, Play, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { ActionComposer, type ActionDraft, draftFromAction } from './action-composer'
 
 function ActionRow({
   action,
   onEdit,
+  isFirst,
+  isLast,
 }: {
   action: Action
   onEdit: (action: Action) => void
+  isFirst: boolean
+  isLast: boolean
 }): React.JSX.Element {
   const run = useRunAction()
-  const { remove } = useActionMutations()
+  const { move, remove } = useActionMutations()
   return (
     <div className="group/action glaze-tile flex items-center gap-1 p-2 [--tile-fill:var(--surface-2)]">
       <button
@@ -61,6 +65,14 @@ function ActionRow({
           <DropdownMenuItem onClick={() => onEdit(action)}>
             <PenLine />
             Edit
+          </DropdownMenuItem>
+          <DropdownMenuItem disabled={isFirst} onClick={() => move(action.id, 'up')}>
+            <ArrowUp />
+            Move up
+          </DropdownMenuItem>
+          <DropdownMenuItem disabled={isLast} onClick={() => move(action.id, 'down')}>
+            <ArrowDown />
+            Move down
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem variant="destructive" onClick={() => remove(action.id)}>
@@ -103,11 +115,13 @@ export function ActionsGroup(): React.JSX.Element {
             one click. Your agent can add them too.
           </p>
         ) : (
-          actions.map((action) => (
+          actions.map((action, index) => (
             <ActionRow
               key={action.id}
               action={action}
               onEdit={(a) => setDraft(draftFromAction(a))}
+              isFirst={index === 0}
+              isLast={index === actions.length - 1}
             />
           ))
         )}

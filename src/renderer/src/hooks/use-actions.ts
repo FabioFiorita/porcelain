@@ -21,6 +21,7 @@ export interface NewActionInput {
 export function useActionMutations(): {
   add: (input: NewActionInput) => Promise<void>
   update: (id: string, fields: NewActionInput) => Promise<void>
+  move: (id: string, direction: 'up' | 'down') => Promise<void>
   remove: (id: string) => Promise<void>
 } {
   const repo = useRepoStore((s) => s.repo)
@@ -30,6 +31,7 @@ export function useActionMutations(): {
   }
   const add = trpc.addAction.useMutation({ onSuccess: refresh })
   const update = trpc.updateAction.useMutation({ onSuccess: refresh })
+  const move = trpc.moveAction.useMutation({ onSuccess: refresh })
   const remove = trpc.deleteAction.useMutation({ onSuccess: refresh })
   return {
     add: async (input) => {
@@ -39,6 +41,10 @@ export function useActionMutations(): {
     update: async (id, fields) => {
       if (!repo) return
       await update.mutateAsync({ repoPath: repo.path, id, ...fields })
+    },
+    move: async (id, direction) => {
+      if (!repo) return
+      await move.mutateAsync({ repoPath: repo.path, id, direction })
     },
     remove: async (id) => {
       if (!repo) return

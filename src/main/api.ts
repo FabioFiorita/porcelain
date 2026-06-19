@@ -4,7 +4,14 @@ import { basename, join } from 'node:path'
 import { initTRPC } from '@trpc/server'
 import { dialog, shell, type WebContents } from 'electron'
 import { z } from 'zod'
-import { type Action, addAction, deleteAction, readActions, updateAction } from './actions-store'
+import {
+  type Action,
+  addAction,
+  deleteAction,
+  moveAction,
+  readActions,
+  updateAction,
+} from './actions-store'
 import {
   addCard,
   type BoardCard,
@@ -823,6 +830,16 @@ export const router = t.router({
         cwd: input.cwd,
       }),
     ),
+
+  moveAction: t.procedure
+    .input(
+      z.object({
+        repoPath: z.string(),
+        id: z.string(),
+        direction: z.enum(['up', 'down']),
+      }),
+    )
+    .mutation(({ input }) => moveAction(input.repoPath, input.id, input.direction)),
 
   deleteAction: t.procedure
     .input(z.object({ repoPath: z.string(), id: z.string() }))
