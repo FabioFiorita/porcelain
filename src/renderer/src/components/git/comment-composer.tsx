@@ -65,6 +65,14 @@ export function CommentComposer({
     }
   }
 
+  // ⌘↵ and ⌘S both save.
+  const onKeyDown = async (e: React.KeyboardEvent): Promise<void> => {
+    if ((e.metaKey || e.ctrlKey) && (e.key === 'Enter' || e.key.toLowerCase() === 's')) {
+      e.preventDefault()
+      await save()
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
@@ -84,9 +92,7 @@ export function CommentComposer({
         <Textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
-          onKeyDown={async (e) => {
-            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') await save()
-          }}
+          onKeyDown={onKeyDown}
           placeholder="What should the agent know about this? — ⌘↵ to save"
           aria-label="Comment"
           rows={4}

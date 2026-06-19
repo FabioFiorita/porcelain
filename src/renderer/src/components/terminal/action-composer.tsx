@@ -66,6 +66,14 @@ export function ActionComposer({
     }
   }
 
+  // ⌘↵ and ⌘S both save, from any field.
+  const onKeyDown = async (e: React.KeyboardEvent): Promise<void> => {
+    if ((e.metaKey || e.ctrlKey) && (e.key === 'Enter' || e.key.toLowerCase() === 's')) {
+      e.preventDefault()
+      await save()
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
@@ -75,6 +83,7 @@ export function ActionComposer({
         <Input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
+          onKeyDown={onKeyDown}
           placeholder="Title (e.g. Run Tests)"
           aria-label="Action title"
           className="rounded-md"
@@ -82,9 +91,7 @@ export function ActionComposer({
         <Textarea
           value={command}
           onChange={(e) => setCommand(e.target.value)}
-          onKeyDown={async (e) => {
-            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') await save()
-          }}
+          onKeyDown={onKeyDown}
           placeholder="Command — runs in a terminal. ⌘↵ to save"
           aria-label="Action command"
           rows={3}
@@ -93,6 +100,7 @@ export function ActionComposer({
         <Input
           value={cwd}
           onChange={(e) => setCwd(e.target.value)}
+          onKeyDown={onKeyDown}
           placeholder="Working directory (optional, relative to repo)"
           aria-label="Action working directory"
           className="rounded-md font-mono text-xs"
