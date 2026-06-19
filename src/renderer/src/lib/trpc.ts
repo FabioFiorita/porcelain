@@ -31,11 +31,19 @@ interface PorcelainBridge {
     onData: (callback: (id: string, data: string) => void) => () => void
     onExit: (callback: (id: string, exitCode: number) => void) => () => void
   }
+  /** True only under the e2e harness; gates the terminal buffer-read test hook. */
+  e2e: boolean
 }
 
 declare global {
   interface Window {
     porcelain: PorcelainBridge
+    /**
+     * Test-only: serialize the on-screen text of the terminal at `index` (creation
+     * order). Installed by the terminal registry only under e2e — the WebGL renderer
+     * paints to a canvas, so `.xterm-rows` can't be scraped for output.
+     */
+    __porcelainTerminalText?: (index: number) => string
   }
 }
 

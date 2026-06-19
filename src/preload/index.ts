@@ -45,6 +45,10 @@ const porcelain = {
       return () => ipcRenderer.removeListener('terminal:exit', handler)
     },
   },
+  // True only under the Playwright e2e harness (PORCELAIN_E2E). The terminal registry
+  // reads this to install a buffer-scraping test hook the WebGL renderer otherwise
+  // makes impossible (the canvas never fills `.xterm-rows`). Never set in real runs.
+  e2e: process.env.PORCELAIN_E2E === '1',
 }
 
 if (process.contextIsolated) {

@@ -1,7 +1,13 @@
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { _electron, test as baseTest, type ElectronApplication, type Page } from '@playwright/test'
+import {
+  _electron,
+  test as baseTest,
+  type ElectronApplication,
+  expect,
+  type Page,
+} from '@playwright/test'
 import { createFixtureRepo } from './fixture-repo'
 
 const MAIN_ENTRY = join(__dirname, '..', '..', 'out', 'main', 'index.js')
@@ -108,6 +114,13 @@ export const test = baseTest.extend<Options & Fixtures, WorkerFixtures>({
 
 export { expect } from '@playwright/test'
 
+declare global {
+  interface Window {
+    /** Test-only terminal buffer reader installed by the registry under e2e. */
+    __porcelainTerminalText?: (index: number) => string
+  }
+}
+
 type TabName = 'Files' | 'Changes' | 'History' | 'Feature' | 'Board' | 'Terminal'
 
 /** Wait until the shell has finished restoring the seeded repo. */
@@ -118,6 +131,23 @@ export async function waitForShell(page: Page): Promise<void> {
 /** Click a left-rail sidebar tab by its label. */
 export async function selectTab(page: Page, tab: TabName): Promise<void> {
   await page.getByRole('button', { name: tab, exact: true }).click()
+}
+
+/**
+ * Assert a terminal's on-screen text contains `text`. The WebGL renderer paints to a
+ * canvas and never fills `.xterm-rows`, so we poll xterm's buffer model through the
+ * `__porcelainTerminalText` test hook (installed by the registry under e2e). `index` is
+ * terminal creation order (0 = first, matching the old `.xterm-rows.first()`).
+ */
+export async function expectTerminalText(
+  page: Page,
+  index: number,
+  text: string,
+  timeout = 15_000,
+): Promise<void> {
+  await expect
+    .poll(() => page.evaluate((i) => window.__porcelainTerminalText?.(i) ?? '', index), { timeout })
+    .toContain(text)
 }
 
 /** Open the Settings dialog and wait for it to appear. */

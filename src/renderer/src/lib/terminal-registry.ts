@@ -171,6 +171,24 @@ export function focusTerminal(id: string): void {
   instances.get(id)?.term.focus()
 }
 
+// Test-only: the WebGL renderer paints glyphs to a canvas and never fills `.xterm-rows`,
+// so e2e can't scrape the DOM for terminal output. xterm's buffer model is maintained
+// independently of the renderer, so we serialize THAT instead. Installed on `window`
+// only under the e2e harness; `index` is creation order (Map insertion = `.first()`/
+// `.last()` pane order in the specs).
+if (window.porcelain?.e2e) {
+  window.__porcelainTerminalText = (index: number): string => {
+    const instance = [...instances.values()][index]
+    if (!instance) return ''
+    const buffer = instance.term.buffer.active
+    const lines: string[] = []
+    for (let row = 0; row < buffer.length; row++) {
+      lines.push(buffer.getLine(row)?.translateToString(true) ?? '')
+    }
+    return lines.join('\n')
+  }
+}
+
 /** Tear down the xterm instance for good — the session is closing. */
 export function disposeTerminal(id: string): void {
   const instance = instances.get(id)

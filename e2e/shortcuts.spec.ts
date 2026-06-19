@@ -1,4 +1,11 @@
-import { expect, REPO_DIR, selectTab, test, waitForShell } from './helpers/electron'
+import {
+  expect,
+  expectTerminalText,
+  REPO_DIR,
+  selectTab,
+  test,
+  waitForShell,
+} from './helpers/electron'
 import { createFixtureRepo } from './helpers/fixture-repo'
 
 // The Files test mutates the shared worker-scoped fixture repo (creates/duplicates/
@@ -32,14 +39,15 @@ test('⌘N spawns a terminal on the Terminal tab, ⌘K clears it', async ({ page
   await input.focus()
   await page.keyboard.type('echo CLEAR_$((6*7))')
   await page.keyboard.press('Enter')
-  const rows = page.locator('.xterm-rows').first()
-  await expect(rows).toContainText('CLEAR_42', { timeout: 15_000 })
+  await expectTerminalText(page, 0, 'CLEAR_42')
 
   // ⌘K is intercepted in the xterm registry (never forwarded to the PTY) and clears the
   // scrollback, so the marker disappears.
   await input.focus()
   await page.keyboard.press('Meta+k')
-  await expect(rows).not.toContainText('CLEAR_42', { timeout: 15_000 })
+  await expect
+    .poll(() => page.evaluate(() => window.__porcelainTerminalText?.(0) ?? ''), { timeout: 15_000 })
+    .not.toContain('CLEAR_42')
 })
 
 test('⌘N opens the card composer and ⌘S saves the card', async ({ page }) => {

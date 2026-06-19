@@ -1,4 +1,4 @@
-import { expect, selectTab, test, waitForShell } from './helpers/electron'
+import { expect, expectTerminalText, selectTab, test, waitForShell } from './helpers/electron'
 
 // These exercise the real PTY round-trip end to end: node-pty spawns a shell in the
 // main process, bytes stream over the dedicated terminal bridge, and xterm.js renders
@@ -18,7 +18,7 @@ test('opens a terminal and runs a typed command', async ({ page }) => {
   await page.keyboard.type('echo READY_$((6*7))')
   await page.keyboard.press('Enter')
 
-  await expect(page.locator('.xterm-rows').first()).toContainText('READY_42', { timeout: 15_000 })
+  await expectTerminalText(page, 0, 'READY_42')
 
   // The Nerd Font fallback must be registered AND its bundled file must actually load,
   // or prompt glyphs render as tofu. `fonts.load` fetches it and returns the matched
@@ -39,24 +39,24 @@ test('splits two terminals side by side, both rendering', async ({ page }) => {
   await page.locator('.xterm-helper-textarea').first().focus()
   await page.keyboard.type('echo SPLIT_ONE')
   await page.keyboard.press('Enter')
-  await expect(page.locator('.xterm-rows').first()).toContainText('SPLIT_ONE', { timeout: 15_000 })
+  await expectTerminalText(page, 0, 'SPLIT_ONE')
 
   // Second terminal (the first unmounts; its scrollback must survive in the registry).
   await page.getByRole('button', { name: 'New terminal' }).click()
   await page.locator('.xterm-helper-textarea').first().focus()
   await page.keyboard.type('echo SPLIT_TWO')
   await page.keyboard.press('Enter')
-  await expect(page.locator('.xterm-rows').first()).toContainText('SPLIT_TWO', { timeout: 15_000 })
+  await expectTerminalText(page, 1, 'SPLIT_TWO')
 
   // Open Terminal 2 to the side — it MOVES to the second pane; Terminal 1 reattaches in
-  // the first. Both terminals must render at once (the bug: one pane blanked out).
+  // the first. Both terminals must mount at once (the bug: one pane blanked out) — two
+  // xterm roots in the DOM — and each keeps its own scrollback.
   await page.getByRole('tab', { name: 'Terminal 2' }).click({ button: 'right' })
   await page.getByRole('menuitem', { name: 'Open to the Side' }).click()
 
-  const screens = page.locator('.xterm-rows')
-  await expect(screens).toHaveCount(2)
-  await expect(screens.first()).toContainText('SPLIT_ONE', { timeout: 15_000 })
-  await expect(screens.last()).toContainText('SPLIT_TWO', { timeout: 15_000 })
+  await expect(page.locator('.xterm')).toHaveCount(2)
+  await expectTerminalText(page, 0, 'SPLIT_ONE')
+  await expectTerminalText(page, 1, 'SPLIT_TWO')
 })
 
 test('macOS line-editing chords reach the shell (⌘⌫ kill-line, ⌘← line-start)', async ({
@@ -68,7 +68,6 @@ test('macOS line-editing chords reach the shell (⌘⌫ kill-line, ⌘← line-s
   const input = page.locator('.xterm-helper-textarea').first()
   await input.waitFor()
   await input.focus()
-  const rows = page.locator('.xterm-rows').first()
 
   // ⌘⌫ → Ctrl-U: the half-typed line is discarded, so only the real command runs. If it
   // weren't, the prefix would glue to it and bash would error instead of printing.
@@ -76,14 +75,14 @@ test('macOS line-editing chords reach the shell (⌘⌫ kill-line, ⌘← line-s
   await page.keyboard.press('Meta+Backspace')
   await page.keyboard.type('echo KILL_$((6*7))')
   await page.keyboard.press('Enter')
-  await expect(rows).toContainText('KILL_42', { timeout: 15_000 })
+  await expectTerminalText(page, 0, 'KILL_42')
 
   // ⌘← → Ctrl-A: cursor jumps to line start, so the prefix lands before "world".
   await page.keyboard.type('world')
   await page.keyboard.press('Meta+ArrowLeft')
   await page.keyboard.type('echo START_$((6*7))_')
   await page.keyboard.press('Enter')
-  await expect(rows).toContainText('START_42_world', { timeout: 15_000 })
+  await expectTerminalText(page, 0, 'START_42_world')
 })
 
 test('runs a saved action in a terminal', async ({ page }) => {
@@ -98,5 +97,5 @@ test('runs a saved action in a terminal', async ({ page }) => {
 
   // The saved action appears; running it opens a terminal that executes the command.
   await page.getByText('Compute', { exact: true }).click()
-  await expect(page.locator('.xterm-rows').first()).toContainText('ACTION_42', { timeout: 15_000 })
+  await expectTerminalText(page, 0, 'ACTION_42')
 })
