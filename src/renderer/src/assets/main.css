@@ -121,6 +121,9 @@
      resets these to opaque — restore the alpha). */
   --background: oklch(0.145 0 0 / 0.3);
   --foreground: oklch(0.985 0 0);
+  /* Opaque graphite backdrop for platforms without vibrancy (Linux): slightly
+     darker than --card so the floating tiles still read as lifted off it. */
+  --void: oklch(0.16 0 0);
   --card: oklch(0.205 0 0);
   --card-foreground: oklch(0.985 0 0);
   /* Menus/popovers render as a near-opaque, faintly-warm dark tile (per the
@@ -367,6 +370,13 @@
     /* JetBrains Mono's coding ligatures merge `===`, `!==`, `=>`, `??` into single
        glyphs that read as a solid bar — disable them so operators stay legible. */
     font-variant-ligatures: none;
+  }
+  /* Linux has no native vibrancy, so the transparent body would show black. Paint an
+     opaque graphite void instead; the floating tiles keep their own alpha over it.
+     macOS keeps the transparent default above so its vibrancy still shows through. */
+  html.platform-linux,
+  html.platform-linux body {
+    background: var(--void);
   }
 }
 

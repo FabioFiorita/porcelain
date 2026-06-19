@@ -1,7 +1,7 @@
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { app, BrowserWindow } from 'electron'
 import { seedDevConfig } from './dev-config'
-import { registerTerminalHandlers, registerTrpcHandler } from './ipc'
+import { registerTerminalHandlers, registerTrpcHandler, registerWindowControlHandlers } from './ipc'
 import { installAppMenu } from './menu'
 import { migrateNotesFromConfig } from './notes-store'
 import { watchAgentChannels } from './review-watch'
@@ -34,6 +34,7 @@ app.whenReady().then(async () => {
   // One global tRPC handler for every window (ipcMain.handle is process-wide).
   registerTrpcHandler()
   registerTerminalHandlers()
+  registerWindowControlHandlers()
   installAppMenu()
 
   if (is.dev) {

@@ -1,17 +1,22 @@
 import { Kbd } from '@renderer/components/ui/kbd'
+import { kbdLabel } from '@renderer/lib/keyboard'
 import { useFileFinderStore } from '@renderer/stores/file-finder'
 import { Search } from 'lucide-react'
+import { WindowControls } from './window-controls'
 
-// Full-width window titlebar. The macOS traffic lights own the left inset, and a
-// centered search bar raises the Cmd+P file finder — it's just a clickable handle
-// on the same popup, not a separate command palette.
+// Full-width window titlebar. On macOS the traffic lights own the left inset and a
+// centered search bar raises the Cmd+P file finder. On Linux/Windows there are no OS
+// traffic lights, so we render our own WindowControls on the right and balance them
+// with a matching left spacer so the search stays centered. The search bar is just a
+// clickable handle on the finder popup, not a separate command palette.
 export function TitleBar(): React.JSX.Element {
   const setFinderOpen = useFileFinderStore((s) => s.setOpen)
+  const isMac = window.porcelain.platform === 'darwin'
 
   return (
     <div className="app-drag flex h-12 shrink-0 items-center px-3">
-      {/* Spacer matching the traffic lights so the bar centers against the window. */}
-      <div className="w-16 shrink-0" />
+      {/* Left inset: traffic lights on macOS, else a spacer matching the controls cluster. */}
+      <div className={isMac ? 'w-16 shrink-0' : 'w-[100px] shrink-0'} />
       <div className="flex flex-1 justify-center">
         <button
           type="button"
@@ -23,10 +28,10 @@ export function TitleBar(): React.JSX.Element {
           <span className="flex-1 truncate text-left">
             Search files, folders, commands, commits…
           </span>
-          <Kbd>⌘K</Kbd>
+          <Kbd>{kbdLabel('mod', 'K')}</Kbd>
         </button>
       </div>
-      <div className="w-16 shrink-0" />
+      {isMac ? <div className="w-16 shrink-0" /> : <WindowControls />}
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { fetchRequestHandler } from '@trpc/server/adapters/fetch'
-import { type BrowserWindow, ipcMain } from 'electron'
+import { BrowserWindow, ipcMain } from 'electron'
 import { router } from './api'
 import { subscribeAppEvents } from './app-events'
 import { createTerminal, killTerminal, resizeTerminal, writeTerminal } from './terminal-manager'
@@ -59,4 +59,26 @@ export function registerTerminalHandlers(): void {
     resizeTerminal(id, cols, rows),
   )
   ipcMain.on('terminal:kill', (_event, id: string) => killTerminal(id))
+}
+
+// The custom window-control channel for the Linux/Windows renderer chrome (where the
+// frame is ours, so minimize/maximize/close live in the titlebar). Each handler resolves
+// the BrowserWindow from the calling WebContents so it targets the right window. Mirrors
+// the fire-and-forget `on` + request/response `handle` split of the terminal channel.
+export function registerWindowControlHandlers(): void {
+  ipcMain.on('window:minimize', (event) => {
+    BrowserWindow.fromWebContents(event.sender)?.minimize()
+  })
+  ipcMain.on('window:toggle-maximize', (event) => {
+    const window = BrowserWindow.fromWebContents(event.sender)
+    if (window?.isMaximized()) window.unmaximize()
+    else window?.maximize()
+  })
+  ipcMain.on('window:close', (event) => {
+    BrowserWindow.fromWebContents(event.sender)?.close()
+  })
+  ipcMain.handle(
+    'window:is-maximized',
+    (event): boolean => BrowserWindow.fromWebContents(event.sender)?.isMaximized() ?? false,
+  )
 }
