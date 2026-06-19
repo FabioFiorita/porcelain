@@ -34,6 +34,7 @@ import {
 import { cn } from '@renderer/lib/utils'
 import { useFilePromptStore } from '@renderer/stores/file-prompt'
 import { useFileTreeStore } from '@renderer/stores/file-tree'
+import { useRepoStore } from '@renderer/stores/repo'
 import { useRevealStore } from '@renderer/stores/reveal'
 import { useSelectionStore } from '@renderer/stores/selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
@@ -47,12 +48,14 @@ import {
   FilePlus,
   Folder,
   FolderPlus,
+  MessageSquarePlus,
   PenLine,
   Pin,
   PinOff,
   Trash2,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { type CommentAnchor, CommentComposer } from '../git/comment-composer'
 
 function EntryContextMenu({
   entry,
@@ -70,7 +73,14 @@ function EntryContextMenu({
   const newFile = useFilePromptStore((s) => s.newFile)
   const newFolder = useFilePromptStore((s) => s.newFolder)
   const startRename = useFilePromptStore((s) => s.rename)
+  const repo = useRepoStore((s) => s.repo)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [commentAnchor, setCommentAnchor] = useState<CommentAnchor | null>(null)
+  // Comments store repo-relative paths; the tree holds absolute ones.
+  const relativePath =
+    repo && entry.path.startsWith(`${repo.path}/`)
+      ? entry.path.slice(repo.path.length + 1)
+      : entry.path
   // New file/folder land in this directory (the folder itself, or a file's parent).
   const dir = entry.kind === 'dir' ? entry.path : entry.path.slice(0, entry.path.lastIndexOf('/'))
 
@@ -107,6 +117,12 @@ function EntryContextMenu({
             <ContextMenuItem onClick={() => exploreFlow()}>
               <Compass />
               Explore feature flow
+            </ContextMenuItem>
+          )}
+          {entry.kind === 'file' && (
+            <ContextMenuItem onClick={() => setCommentAnchor({ path: relativePath })}>
+              <MessageSquarePlus />
+              Comment on file
             </ContextMenuItem>
           )}
           <ContextMenuItem onClick={reveal}>
@@ -169,6 +185,13 @@ function EntryContextMenu({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <CommentComposer
+        anchor={commentAnchor}
+        open={commentAnchor !== null}
+        onOpenChange={(open) => {
+          if (!open) setCommentAnchor(null)
+        }}
+      />
     </>
   )
 }

@@ -34,9 +34,20 @@ import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useRevealStore } from '@renderer/stores/reveal'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
-import { Check, FileText, Minus, Plus, RefreshCw, Square, SquareCheck, Undo2 } from 'lucide-react'
+import {
+  Check,
+  FileText,
+  MessageSquarePlus,
+  Minus,
+  Plus,
+  RefreshCw,
+  Square,
+  SquareCheck,
+  Undo2,
+} from 'lucide-react'
 import { useState } from 'react'
 import { ChangesScopeToggle } from './changes-scope-toggle'
+import { type CommentAnchor, CommentComposer } from './comment-composer'
 
 const statusBadge: Record<FileStatus, { label: string; className: string }> = {
   modified: { label: 'M', className: 'text-warning' },
@@ -65,6 +76,7 @@ function FileRow({
   const discardFile = useDiscardFile()
   const { mark, unmark } = useToggleReviewed()
   const [confirmDiscard, setConfirmDiscard] = useState(false)
+  const [commentAnchor, setCommentAnchor] = useState<CommentAnchor | null>(null)
   const name = file.path.split('/').at(-1) ?? file.path
   const connects = file.connects.map((c) => c.split('/').at(-1)).join(', ')
   // A new file (no committed version) is trashed rather than reverted; word the
@@ -181,6 +193,11 @@ function FileRow({
               Open file
             </ContextMenuItem>
           )}
+          {/* file.path is repo-relative — exactly what a comment anchors to. */}
+          <ContextMenuItem onClick={() => setCommentAnchor({ path: file.path })}>
+            <MessageSquarePlus />
+            Comment on file
+          </ContextMenuItem>
           {file.unstaged && (
             <ContextMenuItem onClick={() => stageFile(file.path)}>
               <Plus />
@@ -219,6 +236,13 @@ function FileRow({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <CommentComposer
+        anchor={commentAnchor}
+        open={commentAnchor !== null}
+        onOpenChange={(open) => {
+          if (!open) setCommentAnchor(null)
+        }}
+      />
     </SidebarMenuItem>
   )
 }
