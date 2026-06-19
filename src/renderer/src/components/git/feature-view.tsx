@@ -1,4 +1,5 @@
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
+import { kbdLabel } from '@renderer/lib/keyboard'
 import { Sparkles } from 'lucide-react'
 import { ReadingSurfaceBody } from './reading-surface'
 
@@ -21,9 +22,9 @@ export function FeatureView(): React.JSX.Element {
         </p>
         <p>
           This view renders the whole feature — just the relevant lines — once your agent pushes a
-          review set over MCP. Until then, the <span className="font-medium">Feature</span> tab (⌘4)
-          shows the static baseline list. Connect Porcelain's MCP server from Settings → “Claude
-          Code plugin”.
+          review set over MCP. Until then, the <span className="font-medium">Feature</span> tab (
+          {kbdLabel('mod', '4')}) shows the static baseline list. Connect Porcelain's MCP server
+          from Settings → “Claude Code plugin”.
         </p>
       </div>
     )

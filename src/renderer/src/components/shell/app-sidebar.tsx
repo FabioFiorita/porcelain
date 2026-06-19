@@ -22,6 +22,7 @@ import {
   useSidebar,
 } from '@renderer/components/ui/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
+import { kbdLabel } from '@renderer/lib/keyboard'
 import { cn } from '@renderer/lib/utils'
 import { useFileTreeStore } from '@renderer/stores/file-tree'
 import { type SidebarTab, usePreferencesStore } from '@renderer/stores/preferences'
@@ -45,13 +46,13 @@ import { SidebarHeaderActionsProvider } from './sidebar-header-actions'
 import { SidebarResizeHandle } from './sidebar-resize-handle'
 
 const TABS: { id: SidebarTab; label: string; icon: typeof Files; shortcut: string }[] = [
-  { id: 'files', label: 'Files', icon: Files, shortcut: '⌘1' },
-  { id: 'search', label: 'Search', icon: Search, shortcut: '⌘2' },
-  { id: 'changes', label: 'Changes', icon: GitCompareArrows, shortcut: '⌘3' },
-  { id: 'history', label: 'History', icon: History, shortcut: '⌘4' },
-  { id: 'feature', label: 'Feature', icon: Waypoints, shortcut: '⌘5' },
-  { id: 'board', label: 'Board', icon: SquareKanban, shortcut: '⌘6' },
-  { id: 'terminal', label: 'Terminal', icon: SquareTerminal, shortcut: '⌘7' },
+  { id: 'files', label: 'Files', icon: Files, shortcut: kbdLabel('mod', '1') },
+  { id: 'search', label: 'Search', icon: Search, shortcut: kbdLabel('mod', '2') },
+  { id: 'changes', label: 'Changes', icon: GitCompareArrows, shortcut: kbdLabel('mod', '3') },
+  { id: 'history', label: 'History', icon: History, shortcut: kbdLabel('mod', '4') },
+  { id: 'feature', label: 'Feature', icon: Waypoints, shortcut: kbdLabel('mod', '5') },
+  { id: 'board', label: 'Board', icon: SquareKanban, shortcut: kbdLabel('mod', '6') },
+  { id: 'terminal', label: 'Terminal', icon: SquareTerminal, shortcut: kbdLabel('mod', '7') },
 ]
 
 // Uppercase title each left panel opens with — one consistent header pattern

@@ -7,6 +7,7 @@ import { useAppEvents } from '@renderer/hooks/use-app-events'
 import { useWatchOpenFiles } from '@renderer/hooks/use-files'
 import { useTerminalChannel } from '@renderer/hooks/use-terminal-channel'
 import { useInstallUpdate, useUpdateStatus } from '@renderer/hooks/use-updates'
+import { kbdLabel } from '@renderer/lib/keyboard'
 import { cn } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
@@ -82,7 +83,7 @@ function TopBar({ left }: { left: LeftSidebarHandle }): React.JSX.Element {
           }
         />
         <TooltipContent className="flex items-center gap-1.5">
-          Toggle sidebar <Kbd>⌘B</Kbd>
+          Toggle sidebar <Kbd>{kbdLabel('mod', 'B')}</Kbd>
         </TooltipContent>
       </Tooltip>
       {isSplit ? <div className="min-w-0 flex-1 self-stretch" /> : <TabBar paneIndex={0} />}
@@ -103,7 +104,7 @@ function TopBar({ left }: { left: LeftSidebarHandle }): React.JSX.Element {
             }
           />
           <TooltipContent className="flex items-center gap-1.5">
-            Quick access <Kbd>⌘.</Kbd>
+            Quick access <Kbd>{kbdLabel('mod', '.')}</Kbd>
           </TooltipContent>
         </Tooltip>
       )}

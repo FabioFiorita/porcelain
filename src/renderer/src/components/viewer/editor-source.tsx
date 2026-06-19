@@ -10,6 +10,7 @@ import { Kbd } from '@renderer/components/ui/kbd'
 import { CodeLine, useTokenizedLines } from '@renderer/components/viewer/code-line'
 import { useWriteTextFile } from '@renderer/hooks/use-files'
 import { languageFor } from '@renderer/lib/highlight'
+import { kbdLabel } from '@renderer/lib/keyboard'
 import { cn } from '@renderer/lib/utils'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import {
@@ -185,7 +186,7 @@ export function EditorSource({
           </span>
         ) : dirty ? (
           <span className="pointer-events-none absolute bottom-2 right-3 flex items-center gap-1 rounded-md bg-muted/80 px-2 py-0.5 text-[10px] text-muted-foreground">
-            Unsaved <Kbd>⌘S</Kbd>
+            Unsaved <Kbd>{kbdLabel('mod', 'S')}</Kbd>
           </span>
         ) : null}
       </ContextMenuTrigger>
@@ -199,7 +200,7 @@ export function EditorSource({
         >
           <Scissors /> Cut
           <ContextMenuShortcut>
-            <Kbd>⌘X</Kbd>
+            <Kbd>{kbdLabel('mod', 'X')}</Kbd>
           </ContextMenuShortcut>
         </ContextMenuItem>
         <ContextMenuItem
@@ -208,13 +209,13 @@ export function EditorSource({
         >
           <Copy /> Copy
           <ContextMenuShortcut>
-            <Kbd>⌘C</Kbd>
+            <Kbd>{kbdLabel('mod', 'C')}</Kbd>
           </ContextMenuShortcut>
         </ContextMenuItem>
         <ContextMenuItem onClick={() => paste()}>
           <ClipboardPaste /> Paste
           <ContextMenuShortcut>
-            <Kbd>⌘V</Kbd>
+            <Kbd>{kbdLabel('mod', 'V')}</Kbd>
           </ContextMenuShortcut>
         </ContextMenuItem>
         <ContextMenuItem

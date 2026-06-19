@@ -8,6 +8,7 @@ import {
 } from '@renderer/components/ui/context-menu'
 import { Kbd } from '@renderer/components/ui/kbd'
 import { ScrollArea } from '@renderer/components/ui/scroll-area'
+import { kbdLabel } from '@renderer/lib/keyboard'
 import { cn } from '@renderer/lib/utils'
 import { type Tab, useTabsStore } from '@renderer/stores/tabs'
 import { X } from 'lucide-react'
@@ -69,7 +70,7 @@ function TabItem({
         <ContextMenuItem onClick={() => closeTab(paneIndex, tab.id)}>
           Close
           <ContextMenuShortcut>
-            <Kbd>⌘W</Kbd>
+            <Kbd>{kbdLabel('mod', 'W')}</Kbd>
           </ContextMenuShortcut>
         </ContextMenuItem>
         <ContextMenuItem
@@ -88,7 +89,7 @@ function TabItem({
         <ContextMenuItem onClick={() => openTabToSide({ ...tab, preview: false })}>
           Open to the Side
           <ContextMenuShortcut>
-            <Kbd>⌘⇧S</Kbd>
+            <Kbd>{kbdLabel('mod', 'shift', 'S')}</Kbd>
           </ContextMenuShortcut>
         </ContextMenuItem>
       </ContextMenuContent>

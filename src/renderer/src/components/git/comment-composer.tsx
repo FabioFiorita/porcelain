@@ -9,6 +9,7 @@ import {
 } from '@renderer/components/ui/dialog'
 import { Textarea } from '@renderer/components/ui/textarea'
 import { type NewCommentInput, useCommentActions } from '@renderer/hooks/use-comments'
+import { kbdLabel } from '@renderer/lib/keyboard'
 import { useEffect, useState } from 'react'
 
 export interface CommentAnchor {
@@ -87,7 +88,7 @@ export function CommentComposer({
           onKeyDown={async (e) => {
             if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') await save()
           }}
-          placeholder="What should the agent know about this? — ⌘↵ to save"
+          placeholder={`What should the agent know about this? — ${kbdLabel('mod', '↵')} to save`}
           aria-label="Comment"
           rows={4}
           className="resize-none"
