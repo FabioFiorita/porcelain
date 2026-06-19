@@ -184,21 +184,59 @@ export async function gitWorktrees(repoPath: string): Promise<Worktree[]> {
   return parseWorktrees(await runGit(repoPath, ['worktree', 'list', '--porcelain']))
 }
 
-/** Local branch names, most-recently-committed first. */
-export async function gitBranches(repoPath: string): Promise<string[]> {
-  const out = await runGit(repoPath, [
-    'for-each-ref',
-    '--format=%(refname:short)',
-    '--sort=-committerdate',
-    'refs/heads/',
-  ])
-  return out
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
+export interface BranchRef {
+  /** The name to check out. For a remote-only branch this is the short name with
+   *  the remote prefix stripped, so `git checkout <name>` lets git DWIM a local
+   *  tracking branch off the remote. */
+  name: string
+  /** The remote a remote-only branch lives on (e.g. `origin`), or `null` for a
+   *  local branch. */
+  remote: string | null
 }
 
-/** Check out a local branch in the current worktree. Throws git's output (e.g. the
+/** Local branches first (most-recently-committed first), then remote-only ones.
+ *  A remote whose short name already has a local branch is dropped (the local one
+ *  is what you'd check out), as is the symbolic `origin/HEAD`. */
+export async function gitBranches(repoPath: string): Promise<BranchRef[]> {
+  const [localOut, remoteOut] = await Promise.all([
+    runGit(repoPath, [
+      'for-each-ref',
+      '--format=%(refname:short)',
+      '--sort=-committerdate',
+      'refs/heads/',
+    ]),
+    runGit(repoPath, [
+      'for-each-ref',
+      '--format=%(refname:short)',
+      '--sort=-committerdate',
+      'refs/remotes/',
+    ]),
+  ])
+  const lines = (out: string): string[] =>
+    out
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+
+  const local = lines(localOut)
+  const localNames = new Set(local)
+  const branches: BranchRef[] = local.map((name) => ({ name, remote: null }))
+
+  for (const ref of lines(remoteOut)) {
+    // `refname:short` renders `refs/remotes/origin/HEAD` as just `origin` and
+    // `refs/remotes/origin/main` as `origin/main`; split off the first segment.
+    const slash = ref.indexOf('/')
+    if (slash === -1) continue // origin/HEAD — no branch part
+    const remote = ref.slice(0, slash)
+    const name = ref.slice(slash + 1)
+    if (name === 'HEAD' || localNames.has(name)) continue
+    branches.push({ name, remote })
+  }
+  return branches
+}
+
+/** Check out a branch in the current worktree. A name that exists only on a remote
+ *  lets git DWIM a local tracking branch off it. Throws git's output (e.g. the
  *  "local changes would be overwritten" refusal on a dirty tree) so the UI can show
  *  it — git itself is the guard against clobbering uncommitted work. */
 export async function gitCheckout(repoPath: string, branch: string): Promise<void> {

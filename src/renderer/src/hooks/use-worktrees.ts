@@ -1,4 +1,5 @@
 import type { Worktree } from '@main/diff'
+import type { BranchRef } from '@main/git'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 
@@ -18,13 +19,14 @@ export function useWorktrees(): Worktree[] {
   return data
 }
 
-export function useBranches(): string[] {
+export function useBranches(): BranchRef[] {
   const repo = useRepoStore((s) => s.repo)
   const { data = [] } = trpc.gitBranches.useQuery(repo?.path ?? '', { enabled: repo !== null })
   return data
 }
 
-/** Check out a local branch. Resolves on success; rejects with git's message (a
+/** Check out a branch by name. A remote-only name lets git DWIM a local tracking
+ *  branch off the remote. Resolves on success; rejects with git's message (a
  *  dirty tree makes git refuse) so the caller can surface it. Checkout swaps the
  *  whole working tree, so — like pull/stash (useQuickCommand) — it blanket-
  *  invalidates everything mounted. */
