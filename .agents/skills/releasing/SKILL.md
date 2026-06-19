@@ -123,6 +123,16 @@ regenerate, do it from the pre-tag state.
 - `pnpm release` — same + publish to GitHub releases `fabiofiorita/porcelain`
   (needs `GH_TOKEN`; the CI workflow is the normal path).
 
+## Linux builds
+
+`pnpm dist:linux` builds an **AppImage + deb** into `dist/` — **unsigned** (Linux needs
+no Apple notarization, so none of the `CSC_*`/`APPLE_*` machinery applies). The
+`.github/workflows/linux-build.yml` CI job builds them on `ubuntu-latest` and uploads
+them as **downloadable workflow artifacts** (`porcelain-linux`) — trigger it via
+`workflow_dispatch`, or just push to `main` or a `claude/**` branch. Promoting Linux
+into the tagged signed-release flow (`release.yml`) is a follow-up; for now the artifacts
+are fetched off the workflow run, not a GitHub Release.
+
 ## See also
 
 - `architecture` skill, "Packaging, signing, updates" — the durable config facts
