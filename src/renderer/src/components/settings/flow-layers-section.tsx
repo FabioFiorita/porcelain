@@ -2,6 +2,7 @@ import type { Layer } from '@main/flow'
 import { Button } from '@renderer/components/ui/button'
 import { Input } from '@renderer/components/ui/input'
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
+import { useGitFlow } from '@renderer/hooks/use-git-flow'
 import { useRepoLayers, useSetRepoLayers } from '@renderer/hooks/use-repo-layers'
 import { useRepoStore } from '@renderer/stores/repo'
 import { ChevronDown, ChevronUp, Plus, X } from 'lucide-react'
@@ -49,14 +50,43 @@ const PLACEHOLDERS: Record<MatchType, string> = {
   suffix: 'test, spec',
 }
 
+const MATCH_HELP: Record<MatchType, string> = {
+  folder: 'Files inside a folder of this name, e.g. src/components/Button.tsx.',
+  ext: 'Files with this extension, e.g. config.yaml.',
+  suffix: 'Files whose name ends with this before the extension, e.g. user.test.ts.',
+}
+
+const EXAMPLE_LIMIT = 6
+
+// Which of the current changed paths the built pattern catches — a live, concrete
+// preview so you can confirm the match type before adding the layer (a yaml file
+// is `.yaml` = Extension, not `.yaml.x` = Suffix).
+const matchingPaths = (pattern: string, paths: readonly string[]): string[] => {
+  if (pattern === '') return []
+  let re: RegExp
+  try {
+    re = new RegExp(pattern)
+  } catch {
+    return []
+  }
+  return paths.filter((p) => re.test(p))
+}
+
 // Compose a layer pattern from a match type + a few names instead of hand-writing
 // the regex; the generated pattern is previewed live and added as a fresh layer
 // (still editable by hand below). Replaces the old wall of explanatory text.
-function PatternBuilder({ onAdd }: { onAdd: (layer: Layer) => void }): React.JSX.Element {
+function PatternBuilder({
+  onAdd,
+  changedPaths,
+}: {
+  onAdd: (layer: Layer) => void
+  changedPaths: readonly string[]
+}): React.JSX.Element {
   const [matchType, setMatchType] = useState<MatchType>('folder')
   const [names, setNames] = useState('')
   const parsed = splitNames(names)
   const preview = buildPattern(matchType, parsed)
+  const matches = matchingPaths(preview, changedPaths)
 
   const add = (): void => {
     if (parsed.length === 0) return
@@ -114,6 +144,36 @@ function PatternBuilder({ onAdd }: { onAdd: (layer: Layer) => void }): React.JSX
           <Plus /> Add
         </Button>
       </div>
+      <p className="text-xs text-muted-foreground">{MATCH_HELP[matchType]}</p>
+      {parsed.length > 0 && (
+        <div className="flex flex-col gap-1 rounded-md bg-black/20 px-2.5 py-2">
+          {changedPaths.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              No changed files to preview against right now.
+            </p>
+          ) : matches.length === 0 ? (
+            <p className="text-xs text-amber-500/90">
+              No changed files match this pattern — try a different match type above.
+            </p>
+          ) : (
+            <>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Matches {matches.length} changed {matches.length === 1 ? 'file' : 'files'}
+              </p>
+              {matches.slice(0, EXAMPLE_LIMIT).map((p) => (
+                <code key={p} className="block truncate font-mono text-xs text-ink-green">
+                  {p}
+                </code>
+              ))}
+              {matches.length > EXAMPLE_LIMIT && (
+                <p className="text-xs text-muted-foreground">
+                  +{matches.length - EXAMPLE_LIMIT} more
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      )}
       <p className="text-xs text-muted-foreground">
         Furthest-right match wins; unmatched files fall into{' '}
         <span className="text-foreground">Other</span>. You can still edit any pattern by hand
@@ -204,6 +264,8 @@ export function FlowLayersSection({ onSaved }: { onSaved: () => void }): React.J
   const repo = useRepoStore((s) => s.repo)
   const [draft, setDraft] = useState<DraftLayer[]>([])
   const data = useRepoLayers()
+  const { groups } = useGitFlow()
+  const changedPaths = (groups ?? []).flatMap((g) => g.files.map((f) => f.path))
   const { save: saveLayers, isSaving } = useSetRepoLayers()
 
   // seed the draft from the saved layers each time the section mounts/refetches
@@ -233,7 +295,10 @@ export function FlowLayersSection({ onSaved }: { onSaved: () => void }): React.J
 
   return (
     <div className="flex flex-col gap-3">
-      <PatternBuilder onAdd={(layer) => setDraft([...draft, { ...layer, id: nextDraftId++ }])} />
+      <PatternBuilder
+        changedPaths={changedPaths}
+        onAdd={(layer) => setDraft([...draft, { ...layer, id: nextDraftId++ }])}
+      />
       <div className="flex flex-col gap-1.5">
         {draft.map((layer, index) => (
           <LayerRow

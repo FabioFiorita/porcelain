@@ -44,9 +44,9 @@ const SECTIONS: {
   },
   {
     id: 'flow',
-    label: 'Review flow',
+    label: 'Review',
     icon: Layers,
-    title: 'Review flow layers',
+    title: 'Review layers',
     blurb: 'Group changed files into a story, entry point to data. Saved per repository.',
   },
   {
