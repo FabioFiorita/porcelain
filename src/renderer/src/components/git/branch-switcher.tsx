@@ -91,7 +91,12 @@ export function BranchSwitcher(): React.JSX.Element | null {
             {local.length > 0 && (
               <CommandGroup heading="Local" className={groupHeading}>
                 {local.map((b) => (
-                  <CommandItem key={b.name} value={b.name} onSelect={() => switchBranch(b.name)}>
+                  <CommandItem
+                    key={b.name}
+                    value={b.name}
+                    onSelect={() => switchBranch(b.name)}
+                    className="text-[12.5px]"
+                  >
                     {b.name === branch ? (
                       <Check className="shrink-0" />
                     ) : (
@@ -109,6 +114,7 @@ export function BranchSwitcher(): React.JSX.Element | null {
                     key={`${b.remote}/${b.name}`}
                     value={`${b.remote}/${b.name}`}
                     onSelect={() => switchBranch(b.name)}
+                    className="text-[12.5px]"
                   >
                     <span className="size-4 shrink-0" />
                     <span className="truncate">
