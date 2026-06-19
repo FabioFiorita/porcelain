@@ -33,6 +33,16 @@ interface PorcelainBridge {
   }
   /** True only under the e2e harness; gates the terminal buffer-read test hook. */
   e2e: boolean
+  /** The effective platform; the renderer tags <html> with it and branches its chrome. */
+  platform: 'darwin' | 'linux' | 'win32'
+  /** Window controls for platforms without native traffic lights (Linux/Windows). */
+  windowControls: {
+    minimize: () => void
+    toggleMaximize: () => void
+    close: () => void
+    isMaximized: () => Promise<boolean>
+    onMaximizedChange: (callback: (isMaximized: boolean) => void) => () => void
+  }
 }
 
 declare global {
