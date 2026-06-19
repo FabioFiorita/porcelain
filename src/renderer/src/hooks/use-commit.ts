@@ -19,6 +19,7 @@ export function useCommit(onCommitted?: () => void): {
         utils.gitRangeFlow.invalidate(),
         utils.gitLog.invalidate(),
         utils.gitCommitConventions.invalidate(),
+        utils.reviewedPaths.invalidate(),
       ])
     },
   })

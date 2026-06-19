@@ -10,6 +10,7 @@ import {
   withoutHiddenPath,
   withoutPinnedPath,
   withoutReviewedPath,
+  withoutReviewedPaths,
   withPinnedPath,
   withRecentRepo,
   withRepoLayers,
@@ -91,6 +92,18 @@ describe('reviewed paths', () => {
 
   it('no-ops (same reference) when removing a path from an unknown repo', () => {
     expect(withoutReviewedPath(emptyConfig, '/unknown', 'src/a.ts')).toBe(emptyConfig)
+  })
+
+  it('clears many reviewed paths at once (committed files) and leaves the rest', () => {
+    let config = withReviewedPath(emptyConfig, '/repo', 'src/a.ts')
+    config = withReviewedPath(config, '/repo', 'src/b.ts')
+    config = withReviewedPath(config, '/repo', 'src/c.ts')
+    config = withoutReviewedPaths(config, '/repo', ['src/a.ts', 'src/c.ts', 'src/never.ts'])
+    expect(reviewedPathsFor(config, '/repo')).toEqual(['src/b.ts'])
+  })
+
+  it('no-ops (same reference) when bulk-removing from an unknown repo', () => {
+    expect(withoutReviewedPaths(emptyConfig, '/unknown', ['src/a.ts'])).toBe(emptyConfig)
   })
 
   it('returns [] for an unknown repo', () => {

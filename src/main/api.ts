@@ -85,6 +85,7 @@ import {
   withoutHiddenPath,
   withoutPinnedPath,
   withoutReviewedPath,
+  withoutReviewedPaths,
   withPinnedPath,
   withRecentRepo,
   withRepoLayers,
@@ -440,7 +441,19 @@ export const router = t.router({
 
   gitCommit: t.procedure
     .input(z.object({ repoPath: z.string(), message: z.string().trim().min(1) }))
-    .mutation(({ input }) => gitCommit(input.repoPath, input.message)),
+    .mutation(async ({ input }) => {
+      await gitCommit(input.repoPath, input.message)
+      // The reviewed marks describe working-tree changes; once committed they no longer
+      // apply, so clear them — a later re-edit of the same file starts unreviewed.
+      const committed = await gitCommitFiles(input.repoPath, 'HEAD')
+      await updateConfig((config) =>
+        withoutReviewedPaths(
+          config,
+          input.repoPath,
+          committed.map((file) => file.path),
+        ),
+      )
+    }),
 
   gitCommitConventions: t.procedure
     .input(z.string())

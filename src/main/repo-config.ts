@@ -163,6 +163,23 @@ export function withoutReviewedPath(config: AppConfig, repoPath: string, path: s
   }
 }
 
+export function withoutReviewedPaths(
+  config: AppConfig,
+  repoPath: string,
+  paths: string[],
+): AppConfig {
+  const repo = config.repos[repoPath]
+  if (!repo) return config
+  const removed = new Set(paths)
+  return {
+    ...config,
+    repos: {
+      ...config.repos,
+      [repoPath]: { ...repo, reviewedPaths: repo.reviewedPaths.filter((p) => !removed.has(p)) },
+    },
+  }
+}
+
 export function reviewedPathsFor(config: AppConfig, repoPath: string): string[] {
   return config.repos[repoPath]?.reviewedPaths ?? []
 }
