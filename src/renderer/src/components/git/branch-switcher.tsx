@@ -13,6 +13,10 @@ import { Check, GitBranch } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
+// Match the worktree popover's DropdownMenuLabel: small, bold, uppercase, tracked.
+const groupHeading =
+  '**:[[cmdk-group-heading]]:text-[10px] **:[[cmdk-group-heading]]:font-bold **:[[cmdk-group-heading]]:uppercase **:[[cmdk-group-heading]]:tracking-[0.08em]'
+
 // The footer's left chip: the current branch, opening a searchable picker of local
 // and remote branches that checks the chosen one out in place. Checking out a
 // remote-only branch lets git DWIM a local tracking branch off it. Distinct from
@@ -85,7 +89,7 @@ export function BranchSwitcher(): React.JSX.Element | null {
               <CommandEmpty>No branches found.</CommandEmpty>
             )}
             {local.length > 0 && (
-              <CommandGroup heading="Local">
+              <CommandGroup heading="Local" className={groupHeading}>
                 {local.map((b) => (
                   <CommandItem key={b.name} value={b.name} onSelect={() => switchBranch(b.name)}>
                     {b.name === branch ? (
@@ -99,7 +103,7 @@ export function BranchSwitcher(): React.JSX.Element | null {
               </CommandGroup>
             )}
             {remote.length > 0 && (
-              <CommandGroup heading="Remote">
+              <CommandGroup heading="Remote" className={groupHeading}>
                 {remote.map((b) => (
                   <CommandItem
                     key={`${b.remote}/${b.name}`}
