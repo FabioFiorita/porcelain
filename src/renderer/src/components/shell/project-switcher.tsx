@@ -12,6 +12,7 @@ import { useNewWindow, useRecentRepos } from '@renderer/hooks/use-repo'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { Check, ChevronsUpDown, FolderPlus, SquareArrowOutUpRight } from 'lucide-react'
+import { useState } from 'react'
 
 // The project lives at the top of the icon rail as an avatar (its initial) with a
 // switch-chevron badge — the same dropdown the old header chip carried, just a
@@ -22,11 +23,12 @@ export function ProjectSwitcher(): React.JSX.Element | null {
   const switchTo = useRepoStore((s) => s.switchTo)
   const newWindow = useNewWindow()
   const recents = useRecentRepos(repo !== null)
+  const [menuOpen, setMenuOpen] = useState(false)
 
   if (!repo) return null
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
       <Tooltip>
         <TooltipTrigger
           render={
@@ -80,6 +82,7 @@ export function ProjectSwitcher(): React.JSX.Element | null {
                   )}
                   onClick={(e) => {
                     e.stopPropagation()
+                    setMenuOpen(false)
                     newWindow.openWindow(recent.path)
                   }}
                 >

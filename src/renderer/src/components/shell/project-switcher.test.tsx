@@ -53,5 +53,8 @@ describe('ProjectSwitcher', () => {
 
     expect(openWindow).toHaveBeenCalledWith(recents[0].path)
     expect(useRepoStore.getState().switchTo).not.toHaveBeenCalled()
+    // The controlled open state closes the menu after the click (the button's
+    // stopPropagation used to suppress Base UI's auto-close).
+    expect(screen.queryByRole('menuitem', { name: /new window/i })).toBeNull()
   })
 })

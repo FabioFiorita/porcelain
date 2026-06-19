@@ -2,6 +2,7 @@ import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { app, BrowserWindow } from 'electron'
 import { seedDevConfig } from './dev-config'
 import { registerTerminalHandlers, registerTrpcHandler } from './ipc'
+import { installAppMenu } from './menu'
 import { migrateNotesFromConfig } from './notes-store'
 import { watchAgentChannels } from './review-watch'
 import { createWindow } from './window'
@@ -33,6 +34,7 @@ app.whenReady().then(async () => {
   // One global tRPC handler for every window (ipcMain.handle is process-wide).
   registerTrpcHandler()
   registerTerminalHandlers()
+  installAppMenu()
 
   if (is.dev) {
     await seedDevConfig()
@@ -53,6 +55,17 @@ app.whenReady().then(async () => {
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
+
+  if (is.dev && !isE2E) {
+    try {
+      const { default: installExtension, REACT_DEVELOPER_TOOLS } = await import(
+        'electron-devtools-installer'
+      )
+      await installExtension(REACT_DEVELOPER_TOOLS)
+    } catch (error) {
+      console.log('[devtools] React DevTools install failed:', error)
+    }
+  }
 
   createWindow({ mode: 'restore' })
   initUpdater()
