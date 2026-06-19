@@ -1,3 +1,17 @@
+## [0.11.0](https://github.com/FabioFiorita/porcelain/compare/v0.10.0...v0.11.0) (2026-06-19)
+
+### Features
+
+* **devtools:** dev-only TanStack Devtools shell with product + MCP panels ([e8ec94a](https://github.com/FabioFiorita/porcelain/commit/e8ec94aa5571fc3ed613f4fe2f6206f7b7046b54))
+* **terminal:** WebGL renderer for crisp block-glyph art ([bc5f496](https://github.com/FabioFiorita/porcelain/commit/bc5f4960a822e2f53b6f507ef994a3a04b635240))
+* **window:** File → New Window menu (⌘⌥N), switcher auto-close, React DevTools in dev ([d33cd78](https://github.com/FabioFiorita/porcelain/commit/d33cd78d633176c85aaddd0b44206c376c7e2857))
+* **window:** multi-window support, one repo per window ([4907730](https://github.com/FabioFiorita/porcelain/commit/49077303887d6db5781f0c1ac65140521676f3b8))
+
+### Bug Fixes
+
+* **terminal:** debounce resize so the prompt doesn't stack on drag ([9e12951](https://github.com/FabioFiorita/porcelain/commit/9e12951f51f1a071d768a59f2064c2639dd4dc38))
+* **terminal:** load fonts + clear WebGL atlas so Nerd Font glyphs render ([557d729](https://github.com/FabioFiorita/porcelain/commit/557d7294a0c4975a6f4d29b1af2b1bbee24e2e57))
+
 ## [0.10.0](https://github.com/FabioFiorita/porcelain/compare/v0.9.1...v0.10.0) (2026-06-18)
 
 ### Features
