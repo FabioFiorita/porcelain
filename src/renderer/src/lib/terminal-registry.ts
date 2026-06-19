@@ -27,6 +27,15 @@ interface Instance {
 const instances = new Map<string, Instance>()
 const buffers = new Map<string, string[]>()
 
+// Display sleep/wake (and GPU context eviction) can lose the WebGL texture atlas without
+// firing onContextLoss, leaving terminals painting smeared/wrong-color cells when the
+// window comes back. No resize accompanies it, so the fit-time clear never runs — clear
+// every instance's atlas on the visibility transition instead. No-op on the DOM renderer.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return
+  for (const instance of instances.values()) instance.term.clearTextureAtlas()
+})
+
 /** Route inbound PTY output to its xterm, buffering until the instance is mounted. */
 export function receiveData(id: string, data: string): void {
   const instance = instances.get(id)
@@ -148,6 +157,9 @@ export function attachTerminal(id: string, container: HTMLElement): void {
   container.appendChild(instance.wrapper)
   // The wrapper now has layout — fit measures it and onResize tells the PTY.
   instance.fit.fit()
+  // Re-parenting on a tab switch can leave the WebGL atlas painting stale cells; clear it
+  // so the re-shown terminal re-rasterizes cleanly.
+  instance.term.clearTextureAtlas()
   instance.term.focus()
 }
 
@@ -164,7 +176,14 @@ export function detachTerminal(id: string, container: HTMLElement): void {
 }
 
 export function fitTerminal(id: string): void {
-  instances.get(id)?.fit.fit()
+  const instance = instances.get(id)
+  if (!instance) return
+  instance.fit.fit()
+  // A resize re-lays-out the cell grid; the WebGL texture atlas can desync from the new
+  // geometry and blit glyphs from stale coordinates (sliced/smeared text, wrong-color
+  // cells). Clear it so glyphs re-rasterize cleanly against the current grid. No-op on the
+  // DOM renderer.
+  instance.term.clearTextureAtlas()
 }
 
 export function focusTerminal(id: string): void {
