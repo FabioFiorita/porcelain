@@ -8,9 +8,10 @@ import {
   DropdownMenuTrigger,
 } from '@renderer/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
-import { useRecentRepos } from '@renderer/hooks/use-repo'
+import { useNewWindow, useRecentRepos } from '@renderer/hooks/use-repo'
+import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
-import { Check, ChevronsUpDown, FolderPlus } from 'lucide-react'
+import { Check, ChevronsUpDown, FolderPlus, SquareArrowOutUpRight } from 'lucide-react'
 
 // The project lives at the top of the icon rail as an avatar (its initial) with a
 // switch-chevron badge — the same dropdown the old header chip carried, just a
@@ -19,6 +20,7 @@ export function ProjectSwitcher(): React.JSX.Element | null {
   const repo = useRepoStore((s) => s.repo)
   const openRepo = useRepoStore((s) => s.openRepo)
   const switchTo = useRepoStore((s) => s.switchTo)
+  const newWindow = useNewWindow()
   const recents = useRecentRepos(repo !== null)
 
   if (!repo) return null
@@ -64,7 +66,26 @@ export function ProjectSwitcher(): React.JSX.Element | null {
                   {recent.path}
                 </span>
               </div>
-              {recent.path === repo.path && <Check className="ml-auto shrink-0 text-success" />}
+              <div className="ml-auto flex shrink-0 items-center gap-1">
+                {recent.path === repo.path && <Check className="shrink-0 text-success" />}
+                {/* Open in a fresh window without switching this one — stopPropagation
+                    keeps the row's switchTo from also firing. */}
+                <button
+                  type="button"
+                  aria-label="Open in new window"
+                  className={cn(
+                    'flex size-6 items-center justify-center rounded-md text-muted-foreground',
+                    'hover:bg-accent/50 hover:text-foreground',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+                  )}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    newWindow.openWindow(recent.path)
+                  }}
+                >
+                  <SquareArrowOutUpRight className="size-3.5" />
+                </button>
+              </div>
             </DropdownMenuItem>
           ))}
         </DropdownMenuGroup>
@@ -73,6 +94,10 @@ export function ProjectSwitcher(): React.JSX.Element | null {
           <DropdownMenuItem onClick={openRepo}>
             <FolderPlus className="shrink-0" />
             Open project…
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => newWindow.openWindow()}>
+            <SquareArrowOutUpRight className="shrink-0" />
+            New window
           </DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>

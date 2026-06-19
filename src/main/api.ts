@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs'
 import { cp, mkdir, readdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import { initTRPC } from '@trpc/server'
-import { dialog, shell } from 'electron'
+import { dialog, shell, type WebContents } from 'electron'
 import { z } from 'zod'
 import { type Action, addAction, deleteAction, readActions, updateAction } from './actions-store'
 import {
@@ -92,8 +92,12 @@ import {
 } from './repo-config'
 import { clearReviewSet, readReviewSet } from './review-store'
 import { checkForUpdates, installUpdate, type UpdateStatus, updateStatus } from './updater'
+import { createWindow, type WindowInit, windowInitFor } from './window'
 
-const t = initTRPC.create({ isServer: true })
+export interface TrpcContext {
+  sender: WebContents
+}
+const t = initTRPC.context<TrpcContext>().create({ isServer: true })
 
 export interface RepoInfo {
   path: string
@@ -282,6 +286,16 @@ export const router = t.router({
     return toRepoInfo(input)
   }),
 
+  windowInit: t.procedure.query(({ ctx }): WindowInit => windowInitFor(ctx.sender)),
+
+  newWindow: t.procedure
+    .input(z.object({ repoPath: z.string().optional() }).optional())
+    .mutation(({ input }) => {
+      createWindow(
+        input?.repoPath ? { mode: 'open', repoPath: input.repoPath } : { mode: 'welcome' },
+      )
+    }),
+
   recentRepos: t.procedure.query(async (): Promise<RepoInfo[]> => {
     const config = await loadConfig()
     const existing = await Promise.all(
@@ -466,9 +480,9 @@ export const router = t.router({
   // The renderer pushes its open file-tab paths whenever the set changes; main
   // watches their dirs and emits `working-tree` so an external write (the coding
   // agent in the terminal) live-refreshes the open document. See `file-watch.ts`.
-  watchFiles: t.procedure.input(z.array(z.string())).mutation(({ input }) => {
-    setWatchedFiles(input)
-  }),
+  watchFiles: t.procedure
+    .input(z.array(z.string()))
+    .mutation(({ input, ctx }) => setWatchedFiles(ctx.sender, input)),
 
   writeTextFile: t.procedure
     .input(z.object({ path: z.string(), content: z.string() }))

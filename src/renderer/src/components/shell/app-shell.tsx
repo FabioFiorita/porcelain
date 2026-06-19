@@ -155,7 +155,7 @@ export function AppShell(): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)
   const sidebarWidth = usePreferencesStore((s) => s.sidebarWidth)
   const restoring = useRepoStore((s) => s.restoring)
-  const restoreLastRepo = useRepoStore((s) => s.restoreLastRepo)
+  const boot = useRepoStore((s) => s.boot)
 
   useAppShortcuts()
   useAppEvents()
@@ -163,8 +163,8 @@ export function AppShell(): React.JSX.Element {
   useWatchOpenFiles()
 
   useEffect(() => {
-    restoreLastRepo()
-  }, [restoreLastRepo])
+    boot()
+  }, [boot])
 
   if (restoring) {
     return <div className="dark h-screen bg-background" />

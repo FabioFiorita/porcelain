@@ -8,6 +8,7 @@ interface RepoState {
   repo: RepoInfo | null
   restoring: boolean
   showHidden: boolean
+  boot: () => Promise<void>
   restoreLastRepo: () => Promise<void>
   openRepo: () => Promise<void>
   openRepoPath: (path: string) => Promise<void>
@@ -21,6 +22,22 @@ export const useRepoStore = create<RepoState>((set, get) => ({
   repo: null,
   restoring: true,
   showHidden: false,
+  boot: async () => {
+    try {
+      const init = await trpcClient.windowInit.query()
+      if (init.mode === 'open') {
+        set({ repo: await trpcClient.openRepoPath.mutate(init.repoPath) })
+      } else if (init.mode === 'restore') {
+        await get().restoreLastRepo()
+        return
+      }
+      // mode 'welcome' falls through to restoring:false with repo:null
+    } catch {
+      // ignore — land on the welcome screen
+    } finally {
+      set({ restoring: false })
+    }
+  },
   restoreLastRepo: async () => {
     try {
       const [last] = await trpcClient.recentRepos.query()

@@ -1,6 +1,5 @@
 import { type FSWatcher, watch } from 'node:fs'
 import { basename, dirname } from 'node:path'
-import { emitAppEvent } from './app-events'
 
 /**
  * Watch the files currently open in the viewer so an external write — most often
@@ -22,14 +21,26 @@ import { emitAppEvent } from './app-events'
  * new capability over `readFile` (which already takes an arbitrary path) and the
  * event leaks nothing — so it's not a new security surface.
  *
- * One global watcher set, not per-window: the app is effectively single-window
- * (one repo per window, re-created only when none exist), so a per-sender map
- * would be needless machinery. A stray cross-window event costs only a harmless
- * re-read.
+ * Watchers are keyed per window (the calling WebContents): each window watches its
+ * own open files, and a directory change fires `working-tree` only on the owning
+ * window (guarded by `isDestroyed`), never broadcast across windows. A window's
+ * watchers are reaped when it closes via `clearWatchedFiles`.
  */
-const watchers = new Map<string, { watcher: FSWatcher; files: Set<string> }>()
 
-export function setWatchedFiles(paths: string[]): void {
+/**
+ * The minimal slice of `WebContents` we need: send an app-event and check the
+ * window is still alive. Kept structural (not the electron type) so the module
+ * stays honest about what it touches and is unit-testable with a plain fake —
+ * `as unknown as` casts are banned repo-wide.
+ */
+interface FileWatchSender {
+  send(channel: string, ...args: unknown[]): void
+  isDestroyed(): boolean
+}
+
+const watchers = new Map<FileWatchSender, Map<string, { watcher: FSWatcher; files: Set<string> }>>()
+
+export function setWatchedFiles(sender: FileWatchSender, paths: string[]): void {
   const byDir = new Map<string, Set<string>>()
   for (const path of paths) {
     const dir = dirname(path)
@@ -38,33 +49,49 @@ export function setWatchedFiles(paths: string[]): void {
     byDir.set(dir, files)
   }
 
+  const senderWatchers =
+    watchers.get(sender) ?? new Map<string, { watcher: FSWatcher; files: Set<string> }>()
+  watchers.set(sender, senderWatchers)
+
   // Drop watchers for directories that no longer hold an open file.
-  for (const [dir, entry] of watchers) {
+  for (const [dir, entry] of senderWatchers) {
     if (!byDir.has(dir)) {
       entry.watcher.close()
-      watchers.delete(dir)
+      senderWatchers.delete(dir)
     }
   }
 
   // Add new directory watchers; refresh the basename filter on existing ones (the
   // live callback reads it back through the map, so mutating it in place is enough).
   for (const [dir, files] of byDir) {
-    const existing = watchers.get(dir)
+    const existing = senderWatchers.get(dir)
     if (existing) {
       existing.files = files
       continue
     }
     try {
       const watcher = watch(dir, (_event, filename) => {
-        const entry = watchers.get(dir)
+        const entry = senderWatchers.get(dir)
         if (!entry) return
         // Some platforms don't report the filename — assume a watched file changed.
-        if (!filename || entry.files.has(filename)) emitAppEvent('working-tree')
+        if (!filename || entry.files.has(filename)) {
+          if (!sender.isDestroyed()) sender.send('app-event', 'working-tree')
+        }
       })
-      watchers.set(dir, { watcher, files })
+      senderWatchers.set(dir, { watcher, files })
     } catch {
       // fs.watch is unsupported on some platforms/filesystems; the file just won't
       // live-refresh (reopening the tab still forces a fresh read).
     }
   }
+
+  // A window with no open files keeps no entry in the top-level map.
+  if (senderWatchers.size === 0) watchers.delete(sender)
+}
+
+export function clearWatchedFiles(sender: FileWatchSender): void {
+  const senderWatchers = watchers.get(sender)
+  if (!senderWatchers) return
+  for (const { watcher } of senderWatchers.values()) watcher.close()
+  watchers.delete(sender)
 }

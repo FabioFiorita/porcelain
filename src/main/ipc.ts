@@ -12,13 +12,13 @@ export function registerTrpcHandler(): void {
   ipcMain.handle(
     'trpc',
     async (
-      _event,
+      event,
       request: { url: string; method: string; headers: Record<string, string>; body?: string },
     ) => {
       const response = await fetchRequestHandler({
         endpoint: '/trpc',
         router,
-        createContext: () => ({}),
+        createContext: () => ({ sender: event.sender }),
         req: new Request(request.url, {
           method: request.method,
           headers: request.headers,
