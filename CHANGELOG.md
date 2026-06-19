@@ -1,3 +1,19 @@
+## [0.12.0](https://github.com/FabioFiorita/porcelain/compare/v0.11.0...v0.12.0) (2026-06-19)
+
+### Features
+
+* **actions:** move saved commands up/down in the Terminal tab ([be84daa](https://github.com/FabioFiorita/porcelain/commit/be84daa91c467eac024e400e76827f2aea1c96c6))
+* **branches:** show remote branches in the picker, with search ([5ab77c8](https://github.com/FabioFiorita/porcelain/commit/5ab77c8edbdf09eb09f8d2c556f4dfd78ef0d1df))
+* **comments:** add Comment on file from the Changes list and file tree ([53f8abe](https://github.com/FabioFiorita/porcelain/commit/53f8abeccc5dcb7cf1cc5a8604b094c208ceeeaa))
+* **composers:** save actions and comments with ⌘S too ([202cd67](https://github.com/FabioFiorita/porcelain/commit/202cd672b6838dc06334664435492fdb89781a64))
+* **notes:** clearer 'Write a note…' placeholder ([c13a52d](https://github.com/FabioFiorita/porcelain/commit/c13a52d325890b1ab60ee62d1119af25a30cb617))
+* **review:** clear reviewed marks for committed files on commit ([50d97af](https://github.com/FabioFiorita/porcelain/commit/50d97af715555ef7e5a1a1d272e4ceec24bc98b9))
+* **settings:** rename Review flow to Review, preview pattern matches ([46d33e2](https://github.com/FabioFiorita/porcelain/commit/46d33e29c3baa8d10626f0ac4378193f917e4c77))
+
+### Bug Fixes
+
+* **terminal:** clear WebGL atlas on resize, tab-switch, and wake ([2c25909](https://github.com/FabioFiorita/porcelain/commit/2c25909c40eb1163e295e0a3c0e9fdf41d0b80fb))
+
 ## [0.11.0](https://github.com/FabioFiorita/porcelain/compare/v0.10.0...v0.11.0) (2026-06-19)
 
 ### Features
