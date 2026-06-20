@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(pnpm lint)",
+      "Bash(pnpm lint:fix)",
+      "Bash(pnpm format)",
+      "Bash(pnpm typecheck)",
+      "Bash(pnpm typecheck:node)",
+      "Bash(pnpm typecheck:web)",
+      "Bash(pnpm typecheck:e2e)",
+      "Bash(pnpm test)",
+      "Bash(pnpm test:*)",
+      "Bash(pnpm build)",
+      "Bash(pnpm verify)",
+      "Bash(pnpm changelog)",
+      "Bash(pnpm dlx shadcn@latest *)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git add*)",
+      "Bash(git restore*)",
+      "Bash(git rm*)",
+      "Bash(git mv*)",
+      "Bash(git log*)",
+      "Bash(git show*)",
+      "Bash(git stash*)",
+      "Bash(git rev-parse*)",
+      "Bash(git branch*)",
+      "Bash(git checkout*)",
+      "Bash(git commit*)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(**/*.p12)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PROJECT_DIR}/.claude/hooks/git-guard.sh\"",
+            "timeout": 600,
+            "statusMessage": "git-guard: branch + commit-gate check"
+          }
+        ]
+      }
+    ]
+  }
+}
