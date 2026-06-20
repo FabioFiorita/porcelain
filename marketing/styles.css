@@ -1,0 +1,41 @@
+/* Porcelain marketing site — shared base.
+   Per-page design tokens (--ink, --glass, …) live inline on each page's root,
+   exactly as the Claude Design source defined them. This file only carries the
+   reset, keyframes, scroll-reveal, and the hover utilities that replace the
+   design runtime's `style-hover` attribute. */
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: #070818; }
+::selection { background: rgba(147, 164, 255, .32); color: #fff; }
+a { color: inherit; text-decoration: none; }
+img { display: block; max-width: 100%; }
+
+@keyframes pcFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
+@keyframes pcDrift { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-2.5%, 2%) scale(1.06); } }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+
+/* Hover states — the design's inline `transition` declarations supply the
+   timing; these supply the end state. */
+.h-ink:hover { color: var(--ink); }
+.h-glass:hover { background: rgba(255, 255, 255, .13); }
+.h-lift1:hover { transform: translateY(-1px); }
+.h-lift2:hover { transform: translateY(-2px); }
+.h-cta:hover { transform: translateY(-2px); box-shadow: 0 14px 34px rgba(150, 170, 255, .42); }
+.h-backhome:hover { color: var(--ink); background: rgba(255, 255, 255, .13); }
+
+/* Scroll reveal. `.reveal-ready` is set on <html> by an inline head script so a
+   no-JS load shows everything; with JS the elements start hidden, then the
+   IntersectionObserver adds `.is-visible`. */
+.reveal-ready [data-reveal] {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity .7s ease, transform .7s ease;
+}
+.reveal-ready [data-reveal].is-visible { opacity: 1; transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-ready [data-reveal] { opacity: 1 !important; transform: none !important; }
+}

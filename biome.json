@@ -2,7 +2,7 @@
   "$schema": "https://biomejs.dev/schemas/2.5.0/schema.json",
   "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
   "files": {
-    "includes": ["**", "!.agents", "!src/renderer/src/components/ui", "!**/*.css"]
+    "includes": ["**", "!.agents", "!marketing", "!src/renderer/src/components/ui", "!**/*.css"]
   },
   "formatter": {
     "enabled": true,
