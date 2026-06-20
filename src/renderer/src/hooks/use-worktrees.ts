@@ -15,7 +15,12 @@ export function useBranch(): string | undefined {
 
 export function useWorktrees(): Worktree[] {
   const repo = useRepoStore((s) => s.repo)
-  const { data = [] } = trpc.gitWorktrees.useQuery(repo?.path ?? '', { enabled: repo !== null })
+  const { data = [] } = trpc.gitWorktrees.useQuery(repo?.path ?? '', {
+    enabled: repo !== null,
+    // worktrees can be added/removed outside the app; poll slowly so the picker
+    // self-heals without churning (the list rarely changes, unlike working-tree state)
+    refetchInterval: 15000,
+  })
   return data
 }
 
