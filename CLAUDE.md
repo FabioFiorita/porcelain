@@ -40,46 +40,44 @@ The advisory layer above (CLAUDE.md + skills) is backed by a deterministic layer
 Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wrong") resolves to one place without asking. Each term maps to real code; when the user uses one, act on the named region — don't re-ask which one. The file in parens is the **entry point** — read it for current mechanics; the `architecture` skill holds the cross-cutting decisions and traps. This is the lookup table.
 
 **Shell regions (the window, outside-in):**
-- **Top bar** — the full-width window **titlebar** (`title-bar.tsx`): traffic lights on the left, a centered **search button** that raises the file finder (⌘K/⌘P) — nothing else. The viewer's own header (`TopBar` in `app-shell.tsx`, below the titlebar) carries the sidebar toggle + tabs + Update pill + Quick-Access bolt.
-- **Sidebar** (unqualified = the **left** one) — `app-sidebar.tsx`; the navigation panel. Cmd+B. A vertical **icon rail** (project avatar on top, tab icons, settings gear at the bottom) sits beside the **content panel** (active tab's body); the panel's title bar holds a **contextual title** (Explorer / Source control / History / Feature review / Board / Terminal) with Files-only collapse-all + hide-files controls, and its footer holds a **branch chip (left) + worktrees picker (right)**.
-- **Viewer** — the central panel (`shell/viewer.tsx`, everything under `components/viewer/`). The main content area; renders whatever the active tab is. **Never "editor"** — Porcelain is not an editor.
-- **Quick Access** — the **right** panel (`right-sidebar.tsx`). Cmd+. — its contents follow the active sidebar tab.
+- **Top bar** — the full-width window **titlebar** (`title-bar.tsx`): traffic lights + a centered search button. **Not** the viewer's own header (`TopBar` in `app-shell.tsx`, below it).
+- **Sidebar** (unqualified = the **left** one) — `app-sidebar.tsx`; the nav panel (Cmd+B). An **icon rail** beside a **content panel** (active tab's body); footer = **branch chip** (left) + **worktrees picker** (right).
+- **Viewer** — the central panel (`shell/viewer.tsx`, `components/viewer/`). **Never "editor"** — Porcelain is a viewer.
+- **Quick Access** — the **right** panel (`right-sidebar.tsx`, Cmd+.); its contents follow the active sidebar tab.
 
-**Inside the sidebar:**
-- **Sidebar tabs** — the seven: **Files**, **Search**, **Changes**, **History**, **Feature**, **Board**, **Terminal** (`sidebarTab` pref; Cmd+1–7). They're a **vertical icon rail** on the left edge of the sidebar (monochrome, icon-only, tooltips carry the ⌘ shortcut), with the active tab's body in the **content panel** to its right; ⌘B collapses the panel to just the rail.
-- **File tree** — Files tab body (`file-tree.tsx` / `tree-node.tsx`).
-- **Search list** — Search tab body (`search-list.tsx`): repo-wide code search via `git grep` (literal/regex, case, include/exclude globs), results grouped by file as collapsible context blocks; rows open the file at the line. Backed by `gitSearchCode`/`parseCodeSearch` (separate from the ⌘⇧F `ContentSearch` overlay + find-references, which still use `gitGrep`). Quick Access here is **Recent searches**.
-- **Changes list** — Changes tab body (`changes-list.tsx`), grouped by flow layer. Row click opens the diff; right-click → **Open file** opens the full file in the viewer and switches to the Files tab.
-- **History list** — History tab body (`history-list.tsx`).
-- **Feature list** — Feature tab body (`feature-list.tsx`): the whole feature in flow order as a navigation list (changed + context + agent-fed shipped, with source markers + notes); rows open the diff/file. The viewer's feature view is the expanded read.
-- **Board list** — Board tab body (`board-list.tsx`): the todo/doing/done cards stacked by column (add/edit/move/delete per card); "Open board" opens the wide kanban in the viewer. Mirrors the Feature tab (list here, expanded view in the viewer).
-- **Terminal list** — Terminal tab body (`terminal-list.tsx`): the roster of open terminal **sessions** (+ to spawn one; row opens/focuses its viewer tab; × kills it). Sessions outlive their tabs (a closed tab keeps the PTY running). Quick Access here is **Actions**.
+**Inside the sidebar** (tabs `Files`·`Search`·`Changes`·`History`·`Feature`·`Board`·`Terminal`; `sidebarTab` pref, Cmd+1–7 — a vertical icon rail, ⌘B collapses to it):
+- **File tree** — Files body (`file-tree.tsx` / `tree-node.tsx`).
+- **Search list** — Search body (`search-list.tsx`): repo-wide code search (`gitSearchCode`), distinct from the ⌘⇧F `ContentSearch` overlay (`gitGrep`).
+- **Changes list** — Changes body (`changes-list.tsx`), grouped by flow layer.
+- **History list** — History body (`history-list.tsx`).
+- **Feature list** — Feature body (`feature-list.tsx`): the whole feature in flow order as a nav list; the viewer feature view is the expanded read.
+- **Board list** — Board body (`board-list.tsx`): the todo/doing/done cards.
+- **Terminal list** — Terminal body (`terminal-list.tsx`): the roster of terminal **sessions** (they outlive their tabs — a closed tab keeps the PTY running).
 
 **Inside the viewer:**
 - **Tab bar** — the floating glass capsule of open documents (`tab-bar.tsx`).
-- **Tab** — one open document. **Preview tab** = single-click, italic, replaced by the next preview; **pinned tab** = double-click or edit, kept.
-- **Split view / pane** — the viewer can split into two side-by-side **panes**, each with its own tab bar and active tab (`panes`/`activePaneIndex` in `stores/tabs.ts`). Open via "Open to the Side" (file-tree row or tab); closing a pane's last tab collapses the split. The pane model is in the `architecture` skill (Routing).
-- Tab kinds: **file view** / **source view** (`source-view.tsx`, editable) / **markdown reader** (`markdown-view.tsx`) / **diff view** (`diff-view.tsx`, working-tree) / **commit view** (`commit-view.tsx`, a historical commit) / **search view** (`search-view.tsx`, find-references results) / **feature view** (`feature-view.tsx`, the MCP-only inline reading surface — the whole feature in flow order showing just the relevant lines: diff hunks for changed files, symbol slices for context/shipped) / **explore view** (`explore-view.tsx`, a read-only feature flow seeded from a symbol or file and walked through imports — same sliced reading surface, opened via right-click "Explore flow from X" / "Explore feature flow") / **board view** (`board-view.tsx`, the wide todo/doing/done kanban, opened from the Board tab's "Open board") / **terminal view** (`terminal-view.tsx`, a live PTY via xterm.js — the xterm instance lives in `lib/terminal-registry.ts`, not React, so it survives tab switches; split-view = a second pane, each its own PTY).
+- **Tab** — one open document. **Preview** = single-click, italic, replaced by the next; **pinned** = double-click/edit, kept.
+- **Split view / pane** — two side-by-side **panes**, each its own tabs (`panes`/`activePaneIndex` in `stores/tabs.ts`); "Open to the Side". Model in `architecture` (Routing).
+- **Tab kinds** — `file view` / `source view` (`source-view.tsx`) / `markdown reader` (`markdown-view.tsx`) / `diff view` (`diff-view.tsx`) / `commit view` (`commit-view.tsx`) / `search view` (`search-view.tsx`) / `feature view` (`feature-view.tsx`) / `explore view` (`explore-view.tsx`) / `board view` (`board-view.tsx`) / `terminal view` (`terminal-view.tsx`). What each renders → read the file; the concepts → `product`.
 
-**Inside Quick Access (section depends on the sidebar tab):**
-- Files → **Pinned** (`pinned-group.tsx`) + **Notes card** (`notes-card.tsx`), wrapped in `files-quick-access.tsx`.
-- Search → **Recent searches** (`search-quick-access.tsx`) — the section is named by the companion header; click a query to re-run it, the row's × forgets it (`stores/search.ts`, client-only).
-- Changes/History/Feature → **Quick commands** (`quick-commands-group.tsx`): a **Suggested** card (own glaze tile, above Commands — agent-free heuristic from branch sync + stash state in `suggestions.ts`/`gitSuggestions`, surfaces the one command worth running) over the **Commands** grid.
-- Changes/Feature → **Commit composer** (`commit-group.tsx`).
-- Changes/Feature → **Comments** (`comments-group.tsx`) — the reviewer's line/file comments, fed to the agent over MCP.
-- Terminal → **Actions** (`actions-group.tsx`) — saved named commands; click runs one in a terminal.
+**Inside Quick Access** (section follows the sidebar tab):
+- Files → **Pinned** (`pinned-group.tsx`) + **Notes card** (`notes-card.tsx`), in `files-quick-access.tsx`.
+- Search → **Recent searches** (`search-quick-access.tsx`).
+- Changes/History/Feature → **Quick commands** (`quick-commands-group.tsx`): a **Suggested** card over the **Commands** grid.
+- Changes/Feature → **Commit composer** (`commit-group.tsx`) + **Comments** (`comments-group.tsx`).
+- Terminal → **Actions** (`actions-group.tsx`).
 
 **Overlays:**
 - **File finder** — Cmd+P fuzzy finder (`file-finder.tsx`).
 - **Find bar** — Cmd+F in-viewer search (`find-bar.tsx`).
-- **Settings** — gear → `settings-dialog.tsx` (General · Review flow · Agents · Updates sections; Agents = `agents-section.tsx`, the Claude Code plugin install + Codex/Cursor placeholders).
+- **Settings** — gear → `settings-dialog.tsx` (General · Review flow · Agents · Updates).
 - **Welcome screen** — the no-repo / repo-picker state (`welcome.tsx`).
 
-**Cross-cutting concepts:**
-- **Flow / flow layers** — the architectural-layer grouping of changes (entry-point → data); the heart of "review changes as a story".
-- **Feature view / review set** — the change widened into the whole feature, flow-ordered. Files are tagged by **source**: **changed** (working tree), **context** (unchanged, reached by import — the no-MCP baseline), **shipped** (cross-seam files the agent declares). A **review set** is the agent-fed manifest (`~/.porcelain/review-sets.json`) written by the **MCP server** (`src/mcp/`, standalone stdio), distributed as a one-click **Claude Code plugin** (Settings → Agents). Opened from the Changes tab.
-- **Review comments** — the reviewer's notes on a line range or a whole file (`~/.porcelain/comments.json`), added from the diff/source right-click ("Add comment" / "Comment on file") and listed in the Comments Quick Access section. The **MCP server** serves them to the agent (`get_review_comments`) and can mark them resolved (`resolve_review_comment`) — the agent-context counterpart to the feature review set, flowing app→agent.
-- **Project board** — a per-repo todo/doing/done card board (`~/.porcelain/board.json`), in the **Board** sidebar tab (list) + a wide viewer **board view**. Two-way over the **MCP server**: the agent can `list_cards` / `create_card` / `update_card` / `move_card` / `delete_card`, so it reads what to build and reflects progress without the human spelling it out in chat.
-- **Embedded terminal / Actions** — real PTYs (node-pty + xterm.js) in the **Terminal** sidebar tab + viewer terminal views; the byte stream rides a dedicated `window.porcelain.terminal` IPC bridge (not tRPC), PTYs in `terminal-manager.ts`. **Actions** are saved named commands (`~/.porcelain/actions.json`, the 4th two-way agent channel — `list/create/update/delete_action`); the agent curates them, the **human runs** them (no MCP run tool — see `audit`). Details in the `architecture` skill's Terminal subsystem.
+**Cross-cutting vocabulary** (the *what* and *why* live in `product`; channel internals + traps in `architecture`/`audit`):
+- **Flow / flow layers** — the architectural-layer grouping of changes (entry-point → data); the heart of "review as a story".
+- **Feature view / review set** — the change widened to the whole feature; files tagged **changed** / **context** (import-reached baseline) / **shipped** (agent-declared cross-seam). The review set is the agent-fed manifest (`~/.porcelain/review-sets.json`).
+- **Review comments** — the reviewer's line/file notes (`~/.porcelain/comments.json`), app→agent over MCP.
+- **Project board** — per-repo todo/doing/done (`~/.porcelain/board.json`), two-way over MCP.
+- **Embedded terminal / Actions** — real PTYs (node-pty + xterm.js) on a dedicated `window.porcelain.terminal` bridge (not tRPC). **Actions** = saved named commands (`~/.porcelain/actions.json`); agent curates, **human runs**.
 - **Repo / worktree / window** — one repo per window; the worktree switcher sits in the sidebar footer.
-- **Glaze / glaze tile / vibrancy void** — the design-system surfaces (floating porcelain tiles over the vibrancy void).
+- **Glaze / glaze tile / vibrancy void** — the design-system glass surfaces (floating porcelain tiles over the vibrancy void).
