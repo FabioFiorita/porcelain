@@ -3,13 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Porcelain — Read what your agent just wrote</title>
-<meta name="description" content="Porcelain is a fast, focused macOS viewer built to read and review the code your agent writes — changes ordered the way they flow through your stack, with a two-way loop straight back to your agent.">
+<title>Porcelain: Review what your agent just wrote</title>
+<meta name="description" content="Porcelain is a fast, focused macOS viewer built to read and review the code your agent writes: changes ordered the way they flow through your stack, with a two-way loop straight back to your agent.">
 <link rel="canonical" href="https://fabiofiorita.github.io/porcelain/">
+<link rel="icon" href="images/logo.png">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Porcelain — Read what your agent just wrote">
+<meta property="og:title" content="Porcelain: Review what your agent just wrote">
 <meta property="og:description" content="A fast, focused macOS viewer built to read and review the code your agent writes.">
-<meta property="og:image" content="images/feature-view.png">
+<meta property="og:image" content="https://fabiofiorita.github.io/porcelain/images/feature-view.png">
+<meta property="og:url" content="https://fabiofiorita.github.io/porcelain/">
+<meta name="twitter:image" content="https://fabiofiorita.github.io/porcelain/images/feature-view.png">
 <meta name="twitter:card" content="summary_large_image">
 <script>document.documentElement.classList.add('reveal-ready');</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -32,15 +35,13 @@
     <header style="position:sticky;top:0;z-index:50;padding:16px 20px;display:flex;justify-content:center;">
       <nav style="width:100%;max-width:1200px;display:flex;align-items:center;gap:18px;padding:9px 12px 9px 14px;background:rgba(12,14,34,.55);border:1px solid var(--line);border-radius:15px;backdrop-filter:blur(22px) saturate(150%);-webkit-backdrop-filter:blur(22px) saturate(150%);box-shadow:0 10px 34px rgba(2,4,20,.4);">
         <a href="#top" style="display:flex;align-items:center;gap:10px;">
-          <span style="display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:linear-gradient(150deg,#ffffff,#dadeef);box-shadow:inset 0 1px 1px rgba(255,255,255,.9),inset 0 -2px 4px rgba(120,130,170,.45),0 3px 8px rgba(2,4,20,.4);">
-            <svg aria-hidden="true" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="#2b3060" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>
-          </span>
+          <img src="images/logo.png" alt="Porcelain" width="30" height="30" style="display:block;width:30px;height:30px;border-radius:9px;box-shadow:0 3px 8px rgba(2,4,20,.4);" />
           <span style="font-family:var(--mono);font-size:17px;font-weight:600;letter-spacing:-.01em;">porcelain</span>
         </a>
         <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:24px;flex-wrap:wrap;font-family:var(--mono);font-size:13px;color:var(--dim);">
           <a href="#review" class="h-ink" style="transition:color .2s;">Review</a>
           <a href="#loop" class="h-ink" style="transition:color .2s;">Agent&nbsp;loop</a>
-          <a href="#speed" class="h-ink" style="transition:color .2s;">Workspace</a>
+          <a href="#speed" class="h-ink" style="transition:color .2s;">Speed</a>
           <a href="#features" class="h-ink" style="transition:color .2s;">Toolkit</a>
         </div>
         <div style="display:flex;align-items:center;gap:9px;">
@@ -55,7 +56,7 @@
 
     <!-- ===================== HERO ===================== -->
     <section id="top" style="max-width:1040px;margin:0 auto;padding:60px 32px 0;text-align:center;">
-      <h1 style="font-family:var(--mono);font-weight:600;font-size:clamp(40px,7vw,84px);line-height:1.02;letter-spacing:-.026em;margin:0 0 24px;">Read what your<br>agent just wrote.</h1>
+      <h1 style="font-family:var(--mono);font-weight:600;font-size:clamp(40px,7vw,84px);line-height:1.02;letter-spacing:-.026em;margin:0 0 24px;">Review what your<br>agent just wrote.</h1>
       <p style="max-width:640px;margin:0 auto 36px;font-size:clamp(17px,2.2vw,20px);line-height:1.55;color:var(--dim);">Your coding agent writes the code. Porcelain is the fast, focused viewer built to <span style="color:var(--ink);">read and review</span> it: changes ordered the way they flow through your stack, with a two-way loop straight back to your agent.</p>
       <div style="display:flex;gap:13px;justify-content:center;flex-wrap:wrap;margin-bottom:16px;">
         <a href="https://github.com/FabioFiorita/porcelain/releases/latest" target="_blank" rel="noopener" class="h-cta" style="display:flex;align-items:center;gap:9px;padding:15px 26px;font-family:var(--mono);font-size:15px;font-weight:600;color:#0a0c1e;background:linear-gradient(180deg,#fff,#e6eaf7);border-radius:13px;box-shadow:0 8px 26px rgba(150,170,255,.3);transition:transform .2s,box-shadow .2s;">
@@ -67,13 +68,14 @@
           View source
         </a>
       </div>
+      <!-- Only place the version is hard-coded — bump on each release. -->
       <p style="font-family:var(--mono);font-size:12.5px;color:var(--faint);letter-spacing:.02em;margin:0;">Apple Silicon · v0.12.0</p>
     </section>
 
     <!-- hero shot: the feature view / story -->
     <div data-reveal style="max-width:1300px;margin:54px auto 0;padding:0 24px;">
       <div style="position:relative;border-radius:18px;overflow:hidden;border:1px solid var(--line2);box-shadow:var(--shot);animation:pcFloat 9s ease-in-out infinite;">
-        <img src="images/feature-view.png" alt="Porcelain feature view — changed files ordered along their dependency flow, each annotated with a note your agent wrote" loading="lazy" />
+        <img src="images/feature-view.png" alt="Porcelain feature view: changed files ordered along their dependency flow, each annotated with a note your agent wrote" loading="lazy" />
       </div>
     </div>
 
@@ -134,12 +136,33 @@
           <p style="font-size:17px;line-height:1.62;color:var(--dim);margin:0 0 26px;">Components, hooks, tests, utils. Porcelain sorts a working-tree diff into the layers of your codebase instead of one flat A-to-Z list, so related changes sit together and you read in passes that make sense.</p>
           <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:13px;">
             <li style="display:flex;gap:11px;font-size:15px;color:var(--dim);"><span style="color:var(--mint);font-family:var(--mono);">▹</span> Unified or split diffs, with per-file staging</li>
-            <li style="display:flex;gap:11px;font-size:15px;color:var(--dim);"><span style="color:var(--mint);font-family:var(--mono);">▹</span> Layers are per-repo and fully customizable</li>
+            <li style="display:flex;gap:11px;font-size:15px;color:var(--dim);"><span style="color:var(--mint);font-family:var(--mono);">▹</span> Layers are per-repo, customizable, and agent-managed over MCP</li>
             <li style="display:flex;gap:11px;font-size:15px;color:var(--dim);"><span style="color:var(--mint);font-family:var(--mono);">▹</span> Mark files reviewed as you work through them</li>
           </ul>
         </div>
         <div data-reveal style="border-radius:16px;overflow:hidden;border:1px solid var(--line2);box-shadow:var(--sh);">
-          <img src="images/grouped-panel.png" alt="Source control panel — changed files grouped under Components, Hooks, Tests, Utils and Other" loading="lazy" />
+          <img src="images/grouped-panel.png" alt="Source control panel: changed files grouped under Components, Hooks, Tests, Utils and Other" loading="lazy" />
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== REVIEW: COMMIT ===================== -->
+    <section style="max-width:1180px;margin:0 auto;padding:30px 32px 40px;">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:48px;align-items:center;">
+        <div data-reveal style="display:flex;justify-content:center;">
+          <div style="width:100%;max-width:360px;border-radius:16px;overflow:hidden;border:1px solid var(--line2);box-shadow:var(--sh);">
+            <img src="images/feat-commit.png" alt="Commit composer with a suggested git stash, a grid of status, pull, push, fetch and stash commands, a type and scope commit box, and open review comments" loading="lazy" />
+          </div>
+        </div>
+        <div data-reveal>
+          <div style="font-family:var(--mono);font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin-bottom:16px;">Commit without the terminal</div>
+          <h2 style="font-family:var(--mono);font-weight:600;font-size:clamp(26px,3.6vw,40px);line-height:1.1;letter-spacing:-.018em;margin:0 0 20px;">Stage, commit, and run git, right where you reviewed.</h2>
+          <p style="font-size:17px;line-height:1.62;color:var(--dim);margin:0 0 26px;">When the read is done, finish the job in place. A commit composer with conventional-commit type and scope chips, suggested next steps, and one-click status, pull, push, fetch and stash. No dropping back to a shell.</p>
+          <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:13px;">
+            <li style="display:flex;gap:11px;font-size:15px;color:var(--dim);"><span style="color:var(--mint);font-family:var(--mono);">▹</span> Conventional-commit type &amp; scope chips</li>
+            <li style="display:flex;gap:11px;font-size:15px;color:var(--dim);"><span style="color:var(--mint);font-family:var(--mono);">▹</span> Suggested commands from your working-tree state</li>
+            <li style="display:flex;gap:11px;font-size:15px;color:var(--dim);"><span style="color:var(--mint);font-family:var(--mono);">▹</span> Open review comments stay in view as you commit</li>
+          </ul>
         </div>
       </div>
     </section>
@@ -151,7 +174,7 @@
         <div data-reveal style="text-align:center;max-width:720px;margin:0 auto;">
           <div style="font-family:var(--mono);font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin-bottom:16px;">The human ↔ agent loop</div>
           <h2 style="font-family:var(--mono);font-weight:600;font-size:clamp(28px,4.2vw,48px);line-height:1.08;letter-spacing:-.02em;margin:0 0 20px;">Review with your agent,<br>not just your code.</h2>
-          <p style="margin:0 auto 14px;font-size:18px;line-height:1.6;color:var(--dim);">A bundled one-click Claude Code plugin runs as a local MCP server that <span style="color:var(--ink);">never opens a network port</span>. Your comments become its review context; its work and resolutions flow back to you, on the same feature, in the same order.</p>
+          <p style="margin:0 auto 14px;font-size:18px;line-height:1.6;color:var(--dim);">A bundled one-click Claude Code plugin runs as a local MCP server: <span style="color:var(--ink);">it stays on your machine, no telemetry</span>. Your comments become its review context; its work and resolutions flow back to you, on the same feature, in the same order.</p>
         </div>
 
         <!-- loop diagram -->
@@ -189,7 +212,7 @@
         <!-- board -->
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:48px;align-items:center;">
           <div data-reveal style="order:2;border-radius:16px;overflow:hidden;border:1px solid var(--line2);box-shadow:var(--sh);">
-            <img src="images/feat-board.png" alt="Project board with To Do, Doing and Done columns alongside a Claude Code terminal" loading="lazy" />
+            <img src="images/feat-board.png" alt="Project board with To Do, Doing and Done columns of cards" loading="lazy" />
           </div>
           <div data-reveal style="order:1;">
             <div style="font-family:var(--mono);font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin-bottom:16px;">A board your agent drives</div>
@@ -212,16 +235,16 @@
           <h2 style="font-family:var(--mono);font-weight:600;font-size:clamp(26px,3.6vw,40px);line-height:1.1;letter-spacing:-.018em;margin:0 0 20px;">Hide what you'll never touch. Pin what you live in.</h2>
           <p style="font-size:17px;line-height:1.62;color:var(--dim);margin:0 0 26px;">Right-click a folder to hide it: it dims out and stops loading. Pin the files and folders you work in to the workspace for one-tap access. Nothing is indexed until you open it, so even huge repos stay instant.</p>
           <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:13px;">
-            <li style="display:flex;gap:11px;font-size:15px;color:var(--dim);"><span style="color:var(--mint);font-family:var(--mono);">▹</span> Hidden folders dim out and skip lazy loading</li>
+            <li style="display:flex;gap:11px;font-size:15px;color:var(--dim);"><span style="color:var(--mint);font-family:var(--mono);">▹</span> Hidden folders dim out and stop loading</li>
             <li style="display:flex;gap:11px;font-size:15px;color:var(--dim);"><span style="color:var(--mint);font-family:var(--mono);">▹</span> Pin files or folders to the workspace</li>
-            <li style="display:flex;gap:11px;font-size:15px;color:var(--dim);"><span style="color:var(--mint);font-family:var(--mono);">▹</span> Per-directory lazy reads keep big repos fast</li>
+            <li style="display:flex;gap:11px;font-size:15px;color:var(--dim);"><span style="color:var(--mint);font-family:var(--mono);">▹</span> Nothing loads until you open it, so big repos stay fast</li>
           </ul>
           <div data-reveal style="margin-top:28px;max-width:380px;border-radius:14px;overflow:hidden;border:1px solid var(--line2);box-shadow:var(--sh);">
             <img src="images/pin-compact.png" alt="Workspace panel with pinned hooks folder and SKILL.md" loading="lazy" />
           </div>
         </div>
         <div data-reveal style="border-radius:16px;overflow:hidden;border:1px solid var(--line2);box-shadow:var(--sh);">
-          <img src="images/hide-panel.png" alt="Explorer with hidden folders dimmed out and a hide toggle in the header" loading="lazy" />
+          <img src="images/hide-panel.png" alt="Explorer right-click menu on a folder with Pin and Hide actions" loading="lazy" />
         </div>
       </div>
     </section>
@@ -238,15 +261,15 @@
           <div style="border-bottom:1px solid var(--line);overflow:hidden;"><img src="images/feat-search.png" alt="Quick search overlay matching files, folders, commands and commit SHAs" loading="lazy" /></div>
           <div style="padding:22px 24px;">
             <div style="font-family:var(--mono);font-size:14px;color:var(--ink);margin-bottom:8px;">Search anything, instantly</div>
-            <p style="margin:0;font-size:14.5px;line-height:1.55;color:var(--dim);">One bar for files, folders, saved commands and commit SHAs. Type a few letters and jump straight there.</p>
+            <p style="margin:0;font-size:14.5px;line-height:1.55;color:var(--dim);">One bar for files, folders, saved commands and commits. Type a few letters and jump straight there.</p>
           </div>
         </div>
 
         <div data-reveal style="background:var(--glass);border:1px solid var(--line);border-radius:18px;overflow:hidden;backdrop-filter:blur(22px) saturate(165%);-webkit-backdrop-filter:blur(22px) saturate(165%);box-shadow:inset 0 1px 0 rgba(255,255,255,.18),inset 0 0 0 1px rgba(255,255,255,.03),0 14px 38px rgba(2,4,20,.32);">
-          <div style="border-bottom:1px solid var(--line);overflow:hidden;"><img src="images/feat-history.png" alt="Commit history with full messages beside a unified diff and one-click git commands" loading="lazy" /></div>
+          <div style="border-bottom:1px solid var(--line);overflow:hidden;"><img src="images/feat-history.png" alt="Commit history list with full messages, author and relative dates" loading="lazy" /></div>
           <div style="padding:22px 24px;">
-            <div style="font-family:var(--mono);font-size:14px;color:var(--ink);margin-bottom:8px;">Git history &amp; commands</div>
-            <p style="margin:0;font-size:14.5px;line-height:1.55;color:var(--dim);">Browse commits with full messages and diffs. Status, pull, push, fetch and stash are one click away.</p>
+            <div style="font-family:var(--mono);font-size:14px;color:var(--ink);margin-bottom:8px;">Git history</div>
+            <p style="margin:0;font-size:14.5px;line-height:1.55;color:var(--dim);">Browse commits with full messages, author and date, and read the diff behind any of them.</p>
           </div>
         </div>
 
@@ -254,7 +277,7 @@
           <div style="border-bottom:1px solid var(--line);overflow:hidden;"><img src="images/feat-terminal.png" alt="Embedded terminal running Claude Code beside saved commands" loading="lazy" /></div>
           <div style="padding:22px 24px;">
             <div style="font-family:var(--mono);font-size:14px;color:var(--ink);margin-bottom:8px;">Terminal &amp; saved actions</div>
-            <p style="margin:0;font-size:14.5px;line-height:1.55;color:var(--dim);">Real PTYs right in the window. Save the commands you run often, the agent can curate them and you run them.</p>
+            <p style="margin:0;font-size:14.5px;line-height:1.55;color:var(--dim);">A real terminal, right in the window. Save the commands you run often. The agent can curate them, and you run them.</p>
           </div>
         </div>
 
@@ -294,8 +317,8 @@
         <div data-reveal style="padding:26px;background:var(--glass);border:1px solid var(--line);border-radius:17px;backdrop-filter:blur(22px) saturate(165%);-webkit-backdrop-filter:blur(22px) saturate(165%);box-shadow:inset 0 1px 0 rgba(255,255,255,.18),inset 0 0 0 1px rgba(255,255,255,.03),0 14px 38px rgba(2,4,20,.32);">
           <div style="font-family:var(--mono);font-size:14px;color:var(--accent);margin-bottom:16px;">Navigation &amp; viewing</div>
           <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:9px;font-size:14px;line-height:1.5;color:var(--dim);">
-            <li>Folder hide / pin, lazy loading</li>
-            <li>Virtualized viewer; Shiki; image + Markdown</li>
+            <li>Folder hide / pin for big repos</li>
+            <li>Fast viewer with syntax highlighting, images and Markdown</li>
             <li>Split view: two files, drag-resizable</li>
             <li>Quick finder for files, commands, commits</li>
             <li>Repo-wide search; live-refresh on disk change</li>
@@ -307,6 +330,7 @@
           <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:9px;font-size:14px;line-height:1.5;color:var(--dim);">
             <li>One-click Claude Code plugin, no port opened</li>
             <li>Feature review sets, two-way</li>
+            <li>Review layers your agent reads &amp; manages</li>
             <li>Project board your agent reads &amp; updates</li>
             <li>Saved actions the agent curates, you run</li>
             <li>Repo notes scratchpad for context</li>
@@ -316,7 +340,7 @@
         <div data-reveal style="padding:26px;background:var(--glass);border:1px solid var(--line);border-radius:17px;backdrop-filter:blur(22px) saturate(165%);-webkit-backdrop-filter:blur(22px) saturate(165%);box-shadow:inset 0 1px 0 rgba(255,255,255,.18),inset 0 0 0 1px rgba(255,255,255,.03),0 14px 38px rgba(2,4,20,.32);">
           <div style="font-family:var(--mono);font-size:14px;color:var(--accent);margin-bottom:16px;">Workspace</div>
           <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:9px;font-size:14px;line-height:1.5;color:var(--dim);">
-            <li>Embedded terminal: real PTYs, split, WebGL</li>
+            <li>Real embedded terminal with split panes</li>
             <li>Project board kanban + per-repo notes</li>
             <li>Pinned files for instant access</li>
             <li>Multi-window, one repo per window</li>
@@ -345,10 +369,10 @@
         <div data-reveal style="padding:32px;background:var(--glass);border:1px solid var(--line);border-radius:18px;backdrop-filter:blur(22px) saturate(165%);-webkit-backdrop-filter:blur(22px) saturate(165%);box-shadow:inset 0 1px 0 rgba(255,255,255,.18),inset 0 0 0 1px rgba(255,255,255,.03),0 14px 38px rgba(2,4,20,.32);">
           <div style="font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin-bottom:14px;">Step 01</div>
           <h3 style="font-family:var(--mono);font-weight:600;font-size:22px;margin:0 0 12px;">Download Porcelain</h3>
-          <p style="font-size:15px;line-height:1.6;color:var(--dim);margin:0 0 24px;">Universal build for Apple Silicon. Auto-updating: it checks on its own and installs on quit.</p>
+          <p style="font-size:15px;line-height:1.6;color:var(--dim);margin:0 0 24px;">Built for Apple Silicon. Auto-updating: it checks on its own and installs on quit.</p>
           <a href="https://github.com/FabioFiorita/porcelain/releases/latest" target="_blank" rel="noopener" class="h-lift2" style="display:inline-flex;align-items:center;gap:9px;padding:14px 22px;font-family:var(--mono);font-size:14px;font-weight:600;color:#0a0c1e;background:linear-gradient(180deg,#fff,#e6eaf7);border-radius:12px;box-shadow:0 8px 24px rgba(150,170,255,.28);transition:transform .2s;">
             <svg aria-hidden="true" viewBox="0 0 24 24" width="17" height="17" fill="#0a0c1e"><path d="M16.4 1.6c.1 1-.3 2-1 2.8-.7.8-1.7 1.4-2.7 1.3-.1-1 .4-2 1-2.7.7-.8 1.8-1.4 2.7-1.4ZM19 17c-.5 1.2-.8 1.7-1.4 2.7-.9 1.4-2.2 3.1-3.8 3.1-1.4 0-1.8-.9-3.7-.9s-2.3.9-3.7.9c-1.6 0-2.8-1.6-3.7-3C-.1 16.4-.6 11 1.6 8.2 2.6 6.8 4.3 6 5.9 6c1.5 0 2.5 1 3.7 1 1.2 0 1.9-1 3.7-1 1.3 0 2.7.7 3.7 2-3.2 1.8-2.7 6.4 0 9Z"/></svg>
-            Download v0.12.0
+            Download for macOS
           </a>
           <p style="font-family:var(--mono);font-size:12px;color:var(--faint);margin:18px 0 0;">No account. No telemetry. Free forever.</p>
         </div>
@@ -369,7 +393,7 @@
       <div data-reveal style="margin-top:20px;padding:28px 32px;background:var(--glass);border:1px solid var(--line);border-radius:18px;backdrop-filter:blur(22px) saturate(165%);-webkit-backdrop-filter:blur(22px) saturate(165%);box-shadow:inset 0 1px 0 rgba(255,255,255,.18),inset 0 0 0 1px rgba(255,255,255,.03),0 14px 38px rgba(2,4,20,.32);display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;">
         <div>
           <h3 style="font-family:var(--mono);font-weight:600;font-size:19px;margin:0 0 6px;">Open source, all the way down.</h3>
-          <p style="font-size:15px;line-height:1.55;color:var(--dim);margin:0;max-width:560px;">Read every line, build it from source, open an issue, or send a patch. No tracking, no accounts, no network port ever opened.</p>
+          <p style="font-size:15px;line-height:1.55;color:var(--dim);margin:0;max-width:560px;">Read every line, build it from source, open an issue, or send a patch. No tracking, no accounts, all local.</p>
         </div>
         <a href="https://github.com/FabioFiorita/porcelain" target="_blank" rel="noopener" class="h-glass h-lift2" style="display:inline-flex;align-items:center;gap:9px;padding:14px 22px;font-family:var(--mono);font-size:14px;font-weight:600;color:var(--ink);background:var(--glass2);border:1px solid var(--line2);border-radius:12px;white-space:nowrap;transition:background .2s,transform .2s;">
           <svg aria-hidden="true" viewBox="0 0 16 16" width="17" height="17" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8a8 8 0 0 0 5.47 7.59c.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.5 7.5 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
@@ -383,12 +407,10 @@
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:32px;flex-wrap:wrap;">
         <div style="max-width:380px;">
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
-            <span style="display:grid;place-items:center;width:28px;height:28px;border-radius:8px;background:linear-gradient(150deg,#ffffff,#dadeef);box-shadow:inset 0 1px 1px rgba(255,255,255,.9),inset 0 -2px 4px rgba(120,130,170,.45);">
-              <svg aria-hidden="true" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#2b3060" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>
-            </span>
+            <img src="images/logo.png" alt="Porcelain" width="28" height="28" style="display:block;width:28px;height:28px;border-radius:8px;" />
             <span style="font-family:var(--mono);font-size:16px;font-weight:600;">porcelain</span>
           </div>
-          <p style="font-family:var(--mono);font-size:13px;line-height:1.6;color:var(--faint);margin:0;">Read what your agent just wrote. The viewer built for the age of coding agents, made for people who read code.</p>
+          <p style="font-family:var(--mono);font-size:13px;line-height:1.6;color:var(--faint);margin:0;">Review what your agent just wrote. The viewer built for the age of coding agents, made for people who read code.</p>
         </div>
         <div style="display:flex;gap:54px;flex-wrap:wrap;font-family:var(--mono);font-size:13px;">
           <div style="display:flex;flex-direction:column;gap:11px;">
@@ -405,10 +427,6 @@
             <a href="privacy.html" class="h-ink" style="color:var(--dim);transition:color .2s;">Privacy</a>
           </div>
         </div>
-      </div>
-      <div style="margin-top:36px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-family:var(--mono);font-size:12px;color:var(--faint);">
-        <span>Free &amp; open source · No telemetry</span>
-        <span>v0.12.0</span>
       </div>
     </footer>
 

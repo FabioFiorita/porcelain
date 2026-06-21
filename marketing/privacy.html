@@ -25,9 +25,7 @@
     <header style="position:sticky;top:0;z-index:50;padding:16px 20px;display:flex;justify-content:center;">
       <nav style="width:100%;max-width:1200px;display:flex;align-items:center;gap:18px;padding:9px 12px 9px 14px;background:rgba(12,14,34,.55);border:1px solid var(--line);border-radius:15px;backdrop-filter:blur(22px) saturate(150%);-webkit-backdrop-filter:blur(22px) saturate(150%);box-shadow:0 10px 34px rgba(2,4,20,.4);">
         <a href="index.html" style="display:flex;align-items:center;gap:10px;">
-          <span style="display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:linear-gradient(150deg,#ffffff,#dadeef);box-shadow:inset 0 1px 1px rgba(255,255,255,.9),inset 0 -2px 4px rgba(120,130,170,.45),0 3px 8px rgba(2,4,20,.4);">
-            <svg aria-hidden="true" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="#2b3060" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"></path><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"></path></svg>
-          </span>
+          <img src="images/logo.png" alt="Porcelain" width="30" height="30" style="display:block;width:30px;height:30px;border-radius:9px;box-shadow:0 3px 8px rgba(2,4,20,.4);" />
           <span style="font-family:var(--mono);font-size:17px;font-weight:600;letter-spacing:-.01em;">porcelain</span>
         </a>
         <div style="flex:1;"></div>
@@ -40,13 +38,13 @@
     <!-- HERO -->
     <section style="max-width:760px;margin:0 auto;padding:80px 32px 0;text-align:center;">
       <h1 style="font-family:var(--mono);font-weight:600;font-size:clamp(36px,6vw,64px);line-height:1.04;letter-spacing:-.025em;margin:0 0 22px;">Privacy</h1>
-      <p style="font-size:clamp(17px,2.2vw,20px);line-height:1.6;color:var(--dim);margin:0;">Porcelain runs on your Mac. It collects nothing about you or your code. That's the whole policy.</p>
+      <p style="font-size:clamp(17px,2.2vw,20px);line-height:1.6;color:var(--dim);margin:0;">Porcelain runs on your Mac and keeps to itself. It has no analytics, no telemetry, and no account to sign into.</p>
     </section>
 
     <!-- THE BIG STATEMENT -->
     <section style="max-width:760px;margin:0 auto;padding:56px 32px 0;">
       <div style="padding:clamp(32px,5vw,52px);background:var(--glass);border:1px solid var(--line);border-radius:20px;backdrop-filter:blur(22px);box-shadow:var(--sh);text-align:center;">
-        <p style="font-family:var(--mono);font-size:clamp(21px,2.8vw,30px);line-height:1.4;letter-spacing:-.01em;margin:0;">Nothing leaves your Mac.</p>
+        <p style="font-family:var(--mono);font-size:clamp(21px,2.8vw,30px);line-height:1.4;letter-spacing:-.01em;margin:0;">Your code never leaves your machine.</p>
       </div>
     </section>
 
@@ -57,25 +55,21 @@
           <span style="width:7px;height:7px;border-radius:50%;background:var(--mint);box-shadow:0 0 10px var(--mint);"></span>
           <span style="font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);">The one exception</span>
         </div>
-        <h3 style="font-family:var(--mono);font-weight:600;font-size:clamp(19px,2.4vw,23px);margin:0 0 12px;letter-spacing:-.01em;">Only ever the update check</h3>
-        <p style="margin:0;font-size:clamp(15px,1.8vw,17px);line-height:1.6;color:var(--dim);">The single time Porcelain reaches the internet is to check for a new version. It sends nothing about you — just asks "is there a newer build?" You can ignore it.</p>
+        <h3 style="font-family:var(--mono);font-weight:600;font-size:clamp(19px,2.4vw,23px);margin:0 0 12px;letter-spacing:-.01em;">The update check</h3>
+        <p style="margin:0;font-size:clamp(15px,1.8vw,17px);line-height:1.6;color:var(--dim);">Porcelain reaches the internet for one reason: to see whether a newer version is available. It asks the release server what the latest version is. That request carries no information about you or your code.</p>
       </div>
     </section>
 
     <!-- VERIFY -->
     <section style="max-width:760px;margin:0 auto;padding:24px 32px 0;text-align:center;">
-      <p style="font-size:15px;line-height:1.6;color:var(--faint);margin:0 0 16px;">Don't take our word for it — Porcelain is open source.</p>
+      <p style="font-size:15px;line-height:1.6;color:var(--faint);margin:0 0 16px;">Porcelain is open source, so you can check any of this for yourself.</p>
       <a href="https://github.com/FabioFiorita/porcelain" target="_blank" rel="noopener" class="h-glass h-lift2" style="display:inline-flex;align-items:center;gap:9px;padding:13px 22px;font-family:var(--mono);font-size:14px;font-weight:600;color:var(--ink);background:var(--glass2);border:1px solid var(--line2);border-radius:12px;white-space:nowrap;transition:background .2s,transform .2s;">
         <svg aria-hidden="true" viewBox="0 0 16 16" width="17" height="17" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8a8 8 0 0 0 5.47 7.59c.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.5 7.5 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"></path></svg>
         Read the source
       </a>
     </section>
 
-    <!-- FOOTER -->
-    <footer style="max-width:760px;margin:64px auto 0;padding:34px 32px 56px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-family:var(--mono);font-size:12px;color:var(--faint);">
-      <span>Open source · No tracking · No telemetry · Nothing leaves your Mac</span>
-      <a href="index.html" class="h-ink" style="color:var(--dim);transition:color .2s;">← porcelain</a>
-    </footer>
+    <div style="height:80px;"></div>
 
   </div>
 </div>
