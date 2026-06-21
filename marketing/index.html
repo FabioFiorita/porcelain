@@ -33,19 +33,19 @@
 
     <!-- ===================== NAV ===================== -->
     <header style="position:sticky;top:0;z-index:50;padding:16px 20px;display:flex;justify-content:center;">
-      <nav style="width:100%;max-width:1200px;display:flex;align-items:center;gap:18px;padding:9px 12px 9px 14px;background:rgba(12,14,34,.55);border:1px solid var(--line);border-radius:15px;backdrop-filter:blur(22px) saturate(150%);-webkit-backdrop-filter:blur(22px) saturate(150%);box-shadow:0 10px 34px rgba(2,4,20,.4);">
+      <nav class="site-nav" style="width:100%;max-width:1200px;display:flex;align-items:center;gap:18px;padding:9px 12px 9px 14px;background:rgba(12,14,34,.55);border:1px solid var(--line);border-radius:15px;backdrop-filter:blur(22px) saturate(150%);-webkit-backdrop-filter:blur(22px) saturate(150%);box-shadow:0 10px 34px rgba(2,4,20,.4);">
         <a href="#top" style="display:flex;align-items:center;gap:10px;">
           <img src="images/logo.png" alt="Porcelain" width="30" height="30" style="display:block;width:30px;height:30px;border-radius:9px;box-shadow:0 3px 8px rgba(2,4,20,.4);" />
           <span style="font-family:var(--mono);font-size:17px;font-weight:600;letter-spacing:-.01em;">porcelain</span>
         </a>
-        <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:24px;flex-wrap:wrap;font-family:var(--mono);font-size:13px;color:var(--dim);">
+        <div class="nav-links" style="flex:1;display:flex;align-items:center;justify-content:center;gap:24px;flex-wrap:wrap;font-family:var(--mono);font-size:13px;color:var(--dim);">
           <a href="#review" class="h-ink" style="transition:color .2s;">Review</a>
           <a href="#loop" class="h-ink" style="transition:color .2s;">Agent&nbsp;loop</a>
           <a href="#speed" class="h-ink" style="transition:color .2s;">Speed</a>
           <a href="#features" class="h-ink" style="transition:color .2s;">Toolkit</a>
         </div>
-        <div style="display:flex;align-items:center;gap:9px;">
-          <a href="https://github.com/FabioFiorita/porcelain" target="_blank" rel="noopener" class="h-glass" style="display:flex;align-items:center;gap:7px;padding:8px 13px;font-family:var(--mono);font-size:13px;color:var(--ink);background:var(--glass2);border:1px solid var(--line2);border-radius:10px;transition:background .2s;">
+        <div class="nav-actions" style="display:flex;align-items:center;gap:9px;">
+          <a href="https://github.com/FabioFiorita/porcelain" target="_blank" rel="noopener" class="h-glass nav-github" style="display:flex;align-items:center;gap:7px;padding:8px 13px;font-family:var(--mono);font-size:13px;color:var(--ink);background:var(--glass2);border:1px solid var(--line2);border-radius:10px;transition:background .2s;">
             <svg aria-hidden="true" viewBox="0 0 16 16" width="15" height="15" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8a8 8 0 0 0 5.47 7.59c.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.5 7.5 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
             GitHub
           </a>
@@ -104,14 +104,14 @@
 
     <!-- ===================== REVIEW: STORY ===================== -->
     <section id="review" style="max-width:1240px;margin:0 auto;padding:110px 32px 30px;">
-      <div data-reveal style="text-align:center;max-width:760px;margin:0 auto 50px;">
+      <div data-reveal class="sec-head" style="text-align:center;max-width:760px;margin:0 auto 50px;">
         <div style="font-family:var(--mono);font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin-bottom:16px;">Read it like a story</div>
         <h2 style="font-family:var(--mono);font-weight:600;font-size:clamp(28px,4.2vw,48px);line-height:1.08;letter-spacing:-.02em;margin:0 0 20px;">A feature, end to end, in the order it runs.</h2>
         <p style="font-size:18px;line-height:1.6;color:var(--dim);margin:0;">Porcelain reads a whole feature as one narrative: entry point, to hook, to mutation, to schema. Each file carries a note on what it does and what to watch for, so you follow the change instead of reconstructing it in your head.</p>
       </div>
 
       <!-- signature flow chain -->
-      <div data-reveal style="display:flex;align-items:stretch;justify-content:center;gap:8px;flex-wrap:wrap;margin-bottom:44px;">
+      <div data-reveal class="flow-chain" style="display:flex;align-items:stretch;justify-content:center;gap:8px;flex-wrap:wrap;margin-bottom:44px;">
         <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:13px 16px;min-width:100px;background:var(--glass2);border:1px solid var(--line2);border-radius:13px;backdrop-filter:blur(16px) saturate(160%);-webkit-backdrop-filter:blur(16px) saturate(160%);box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 8px 22px rgba(2,4,20,.26);">
           <span style="font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--mint);">entry</span>
           <span style="font-family:var(--mono);font-size:14px;color:var(--ink);">component</span>
@@ -171,14 +171,14 @@
     <section id="loop" style="position:relative;margin-top:70px;">
       <div style="position:absolute;inset:0;background:radial-gradient(900px 520px at 50% 0%,rgba(120,140,255,.16),transparent 65%);pointer-events:none;"></div>
       <div style="max-width:1240px;margin:0 auto;padding:96px 32px 40px;position:relative;">
-        <div data-reveal style="text-align:center;max-width:720px;margin:0 auto;">
+        <div data-reveal class="sec-head" style="text-align:center;max-width:720px;margin:0 auto;">
           <div style="font-family:var(--mono);font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin-bottom:16px;">The human ↔ agent loop</div>
-          <h2 style="font-family:var(--mono);font-weight:600;font-size:clamp(28px,4.2vw,48px);line-height:1.08;letter-spacing:-.02em;margin:0 0 20px;">Review with your agent,<br>not just your code.</h2>
+          <h2 style="font-family:var(--mono);font-weight:600;font-size:clamp(28px,4.2vw,48px);line-height:1.08;letter-spacing:-.02em;margin:0 0 20px;">Review with your agent,<br> not just your code.</h2>
           <p style="margin:0 auto 14px;font-size:18px;line-height:1.6;color:var(--dim);">A bundled one-click Claude Code plugin runs as a local MCP server: <span style="color:var(--ink);">it stays on your machine, no telemetry</span>. Your comments become its review context; its work and resolutions flow back to you, on the same feature, in the same order.</p>
         </div>
 
         <!-- loop diagram -->
-        <div data-reveal style="display:flex;align-items:center;justify-content:center;gap:18px;flex-wrap:wrap;margin:32px 0 56px;">
+        <div data-reveal class="loop-diagram" style="display:flex;align-items:center;justify-content:center;gap:18px;flex-wrap:wrap;margin:32px 0 56px;">
           <div style="padding:16px 22px;background:var(--glass2);border:1px solid var(--line2);border-radius:14px;backdrop-filter:blur(16px) saturate(160%);-webkit-backdrop-filter:blur(16px) saturate(160%);box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 8px 22px rgba(2,4,20,.26);text-align:center;">
             <div style="font-family:var(--mono);font-size:13px;color:var(--ink);">You</div>
             <div style="font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:3px;">review &amp; comment</div>
@@ -251,11 +251,11 @@
 
     <!-- ===================== SPEED / NAV GALLERY ===================== -->
     <section id="speed" style="max-width:1240px;margin:0 auto;padding:100px 32px 40px;">
-      <div data-reveal style="text-align:center;max-width:680px;margin:0 auto 50px;">
+      <div data-reveal class="sec-head" style="text-align:center;max-width:680px;margin:0 auto 50px;">
         <div style="font-family:var(--mono);font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin-bottom:16px;">Fast, focused, keyboard-first</div>
         <h2 style="font-family:var(--mono);font-weight:600;font-size:clamp(27px,4vw,44px);line-height:1.1;letter-spacing:-.018em;margin:0;">Built to open instantly and stay out of your way.</h2>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(440px,1fr));gap:24px;">
+      <div class="gallery-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(440px,1fr));gap:24px;">
 
         <div data-reveal style="background:var(--glass);border:1px solid var(--line);border-radius:18px;overflow:hidden;backdrop-filter:blur(22px) saturate(165%);-webkit-backdrop-filter:blur(22px) saturate(165%);box-shadow:inset 0 1px 0 rgba(255,255,255,.18),inset 0 0 0 1px rgba(255,255,255,.03),0 14px 38px rgba(2,4,20,.32);">
           <div style="border-bottom:1px solid var(--line);overflow:hidden;"><img src="images/feat-search.png" alt="Quick search overlay matching files, folders, commands and commit SHAs" loading="lazy" /></div>
@@ -361,7 +361,7 @@
 
     <!-- ===================== INSTALL ===================== -->
     <section id="install" style="max-width:1180px;margin:0 auto;padding:100px 32px 40px;">
-      <div data-reveal style="text-align:center;">
+      <div data-reveal class="sec-head" style="text-align:center;">
         <div style="font-family:var(--mono);font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin-bottom:16px;">Install</div>
         <h2 style="font-family:var(--mono);font-weight:600;font-size:clamp(28px,4.2vw,46px);line-height:1.08;letter-spacing:-.02em;margin:0 0 46px;">Two minutes to your first story.</h2>
       </div>

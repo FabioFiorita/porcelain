@@ -39,3 +39,57 @@ img { display: block; max-width: 100%; }
 @media (prefers-reduced-motion: reduce) {
   .reveal-ready [data-reveal] { opacity: 1 !important; transform: none !important; }
 }
+
+/* ── Mobile ──────────────────────────────────────────────────────────────
+   The page is otherwise inline-styled for desktop; these are the only
+   responsive rules. They override inline styles with !important on purpose. */
+@media (max-width: 760px) {
+  /* Nav: drop the center anchor links (they overflow), tighten the bar so the
+     GitHub + Download actions never get clipped off the right edge. */
+  .nav-links { display: none !important; }
+  .site-nav { gap: 10px !important; padding: 8px 10px 8px 12px !important; }
+  .nav-actions { flex: 1; justify-content: flex-end; }
+  .nav-actions a { padding: 8px 12px !important; font-size: 12px !important; }
+  .nav-github { display: none !important; } /* GitHub lives in the page + footer */
+
+  /* Breathing room: trim oversized horizontal padding and tall section gaps. */
+  header { padding: 12px 14px !important; }
+  section { padding-left: 18px !important; padding-right: 18px !important; padding-top: 64px !important; }
+  #top { padding-top: 36px !important; }
+  footer { padding-left: 18px !important; padding-right: 18px !important; }
+
+  /* Hero type scales down a touch more on narrow screens. */
+  h1 { font-size: clamp(32px, 9vw, 84px) !important; }
+
+  /* The feature gallery's 440px min-track forces horizontal scroll — collapse
+     it (and any wide two-up grid) to a single column. */
+  .gallery-grid { grid-template-columns: 1fr !important; }
+
+  /* The human ↔ agent loop diagram wraps into an asymmetric mess on narrow
+     screens. Stack it vertically: You → ⇄ MCP → agent, centered and even. */
+  .loop-diagram { flex-direction: column !important; gap: 12px !important; }
+  .loop-diagram > div { width: 100%; max-width: 280px; }
+
+  /* Centered section intros read badly on a phone — centered ragged wrapping
+     orphans words ("agent,") and clashes with the left-aligned sections.
+     Left-align them and drop the desktop-tuned forced line breaks. */
+  .sec-head { text-align: left !important; }
+  .sec-head br { display: none; }
+
+  /* The flow chain (entry → hook → … → schema) wraps into a grid where the
+     arrows point into empty space. Stack it vertically with downward arrows. */
+  .flow-chain { flex-direction: column !important; gap: 8px !important; }
+  .flow-chain > div:nth-child(odd) { width: 100%; max-width: 240px; }
+  .flow-chain > div:nth-child(even) { transform: rotate(90deg); }
+
+  /* Two-column sections stack on mobile; their desktop 48px column gap then
+     becomes a wasted vertical chasm. Tighten it. */
+  [style*="gap:48px"] { gap: 26px !important; }
+
+  /* Trim the tallest desktop section gaps so the page doesn't feel sparse. */
+  #loop { margin-top: 0 !important; }
+}
+
+@media (max-width: 380px) {
+  section { padding-left: 14px !important; padding-right: 14px !important; }
+}
