@@ -19,7 +19,7 @@ Most plans are independent — see "Dependency notes".
 
 | Plan | Title | Cat | Pri | Effort | Risk | Depends on | Status |
 |------|-------|-----|-----|--------|------|------------|--------|
-| 001 | Refresh the README (terminal/search/board/feature/multi-window) | docs | P1 | S | LOW | — | TODO |
+| 001 | Refresh the README (terminal/search/board/feature/multi-window) | docs | P1 | S | LOW | — | DONE |
 | 002 | Drop dead `next-themes`; fix font-package placement | tech-debt | P1 | S | LOW | — | TODO |
 | 003 | Typecheck `src/test-setup.ts` (close the gate hole) | dx | P2 | S | LOW | — | TODO |
 | 004 | Find bar opens only in the active split pane | bug | P1 | S | LOW | — | TODO |
