@@ -1,3 +1,20 @@
+## [0.13.0](https://github.com/FabioFiorita/porcelain/compare/v0.12.0...v0.13.0) (2026-06-21)
+
+### Features
+
+* **marketing:** add GitHub Pages landing + privacy site ([c9de274](https://github.com/FabioFiorita/porcelain/commit/c9de2743d4455e783f21c89c682005897691ff69))
+* **marketing:** refresh screenshots and tighten landing copy ([7b036f4](https://github.com/FabioFiorita/porcelain/commit/7b036f40b1b5b6e9e1bc8f0f542742f5e672f048))
+* **mcp:** add flow-layers agent channel + skill ([1ad3cfd](https://github.com/FabioFiorita/porcelain/commit/1ad3cfd7616cf570590b463fcb96b14d21739932))
+
+### Bug Fixes
+
+* **branches:** match worktree-label style for Local/Remote headings ([02335c8](https://github.com/FabioFiorita/porcelain/commit/02335c80e719f02455c65da6be33ae1a0b37e87c))
+* **branches:** size branch rows to match worktree popover (12.5px) ([6ff0996](https://github.com/FabioFiorita/porcelain/commit/6ff09960050bc43b521e87e3476bae37261fcdf6))
+* **hooks:** harden git-guard — fail closed + parse git global flags ([72492d8](https://github.com/FabioFiorita/porcelain/commit/72492d8f4e687c7603aa09d692d839bf8f2ee6f2))
+* **terminal:** auto-hide the xterm scrollbar until hovered ([1bbc5ee](https://github.com/FabioFiorita/porcelain/commit/1bbc5eea46cfb71a1271c74baede182ac50bc994))
+* **terminal:** restyle the real scrollbar to a slim edge-hugging pill ([6cf8140](https://github.com/FabioFiorita/porcelain/commit/6cf814094cd25ecd5009381b54c71810b388bdc5))
+* **worktrees:** poll worktree list so the picker self-heals ([9146600](https://github.com/FabioFiorita/porcelain/commit/9146600068713835b47b904bc1a6362e4e7b6a13))
+
 ## [0.12.0](https://github.com/FabioFiorita/porcelain/compare/v0.11.0...v0.12.0) (2026-06-19)
 
 ### Features
