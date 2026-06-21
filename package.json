@@ -4,6 +4,7 @@
   "description": "Review changes as a story",
   "main": "./out/main/index.js",
   "author": "Fabio Fiorita",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/FabioFiorita/porcelain.git"
