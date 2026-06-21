@@ -7,15 +7,18 @@ import { callTool } from './tools'
 const dir = join(tmpdir(), 'porcelain-tools-test')
 const file = join(dir, 'review-sets.json')
 const notesFile = join(dir, 'notes.json')
+const layersFile = join(dir, 'layers.json')
 
 beforeEach(() => {
   process.env.PORCELAIN_REVIEW_SETS = file
   process.env.PORCELAIN_NOTES = notesFile
+  process.env.PORCELAIN_LAYERS = layersFile
   rmSync(dir, { recursive: true, force: true })
 })
 afterEach(() => {
   delete process.env.PORCELAIN_REVIEW_SETS
   delete process.env.PORCELAIN_NOTES
+  delete process.env.PORCELAIN_LAYERS
   rmSync(dir, { recursive: true, force: true })
 })
 const read = (): Record<string, { name: string; files: unknown[] }> =>
@@ -63,5 +66,31 @@ describe('callTool', () => {
     const text = await callTool('get_repo_notes', { repoPath: '/repo' })
     expect(text).toContain('# conventions')
     expect(await callTool('get_repo_notes', { repoPath: '/other' })).toContain('No project notes')
+  })
+  it('get_flow_layers shows the defaults when none are custom', async () => {
+    const text = await callTool('get_flow_layers', { repoPath: '/repo' })
+    expect(text).toContain('built-in defaults')
+  })
+  it('set_flow_layers writes a repo-keyed ordered set', async () => {
+    await callTool('set_flow_layers', {
+      repoPath: '/repo',
+      layers: [{ label: 'Pages', pattern: '(^|/)pages/' }],
+    })
+    const text = await callTool('get_flow_layers', { repoPath: '/repo' })
+    expect(text).toContain('Custom flow layers')
+    expect(text).toContain('Pages')
+  })
+  it('set_flow_layers rejects an invalid regex', async () => {
+    await expect(
+      callTool('set_flow_layers', { repoPath: '/repo', layers: [{ label: 'Bad', pattern: '(' }] }),
+    ).rejects.toThrow('valid regular expression')
+  })
+  it('reset_flow_layers drops the custom set', async () => {
+    await callTool('set_flow_layers', {
+      repoPath: '/repo',
+      layers: [{ label: 'Pages', pattern: '(^|/)pages/' }],
+    })
+    await callTool('reset_flow_layers', { repoPath: '/repo' })
+    expect(await callTool('get_flow_layers', { repoPath: '/repo' })).toContain('built-in defaults')
   })
 })

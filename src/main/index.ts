@@ -2,6 +2,7 @@ import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { app, BrowserWindow } from 'electron'
 import { seedDevConfig } from './dev-config'
 import { registerTerminalHandlers, registerTrpcHandler } from './ipc'
+import { migrateLayersFromConfig } from './layers-store'
 import { installAppMenu } from './menu'
 import { migrateNotesFromConfig } from './notes-store'
 import { watchAgentChannels } from './review-watch'
@@ -40,10 +41,11 @@ app.whenReady().then(async () => {
     await seedDevConfig()
   }
 
-  // Move any legacy notes out of userData/config.json into the ~/.porcelain notes
-  // channel so the MCP can read them. One-time + idempotent; runs before any window
-  // reads notes.
+  // Move any legacy notes + flow layers out of userData/config.json into their
+  // ~/.porcelain agent channels so the MCP can read (and, for layers, write) them.
+  // One-time + idempotent; runs before any window reads notes/layers.
   await migrateNotesFromConfig()
+  await migrateLayersFromConfig()
 
   // Watch the agent channels so MCP-pushed review sets / resolved comments refresh
   // the open views.

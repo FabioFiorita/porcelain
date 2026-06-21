@@ -78,13 +78,13 @@ import {
   QUICK_COMMANDS,
   warmFileList,
 } from './git'
+import { readLayers, writeLayers } from './layers-store'
 import { readNotes, writeNotes } from './notes-store'
 import { installPlugin, type PluginInstallResult } from './plugin'
 import { installCommands, PLUGIN_VERSION, pluginMarketplaceDir } from './plugin-assets'
 import { exceedsReadLimit } from './read-limits'
 import {
   hiddenPathsFor,
-  layersFor,
   pinnedPathsFor,
   reviewedPathsFor,
   visibleFilePaths,
@@ -95,7 +95,6 @@ import {
   withoutReviewedPaths,
   withPinnedPath,
   withRecentRepo,
-  withRepoLayers,
   withReviewedPath,
 } from './repo-config'
 import { clearReviewSet, readReviewSet } from './review-store'
@@ -198,14 +197,14 @@ async function readSourcesInto(
 // set, and layers → the memo key. Each procedure checks its own cache on this key
 // before doing the expensive source reads.
 async function gatherFeature(input: string) {
-  const [files, config, stats, repoFiles, reviewSet] = await Promise.all([
+  const [files, stored, stats, repoFiles, reviewSet] = await Promise.all([
     gitStatus(input),
-    loadConfig(),
+    readLayers(input),
     gitNumstat(input),
     gitListFiles(input),
     readReviewSet(input),
   ])
-  const layers = layersFor(config, input) ?? DEFAULT_LAYERS
+  const layers = stored ?? DEFAULT_LAYERS
   const key = featureKey(files, stats, layers, reviewSet)
   return { files, stats, layers, reviewSet, repoFiles, key }
 }
@@ -582,12 +581,12 @@ export const router = t.router({
   gitSuggestions: t.procedure.input(z.string()).query(({ input }) => gitSuggestions(input)),
 
   gitFlow: t.procedure.input(z.string()).query(async ({ input }): Promise<FlowGroup[]> => {
-    const [files, config, stats] = await Promise.all([
+    const [files, stored, stats] = await Promise.all([
       gitStatus(input),
-      loadConfig(),
+      readLayers(input),
       gitNumstat(input),
     ])
-    const layers = layersFor(config, input) ?? DEFAULT_LAYERS
+    const layers = stored ?? DEFAULT_LAYERS
     const key = flowKey(files, stats, layers)
     const cached = flowCache.get(input)
     if (cached && cached.key === key) return cached.groups
@@ -620,12 +619,12 @@ export const router = t.router({
     .query(async ({ input }): Promise<{ groups: FlowGroup[]; base: string }> => {
       const base = await gitDefaultBranch(input)
       try {
-        const [files, config, stats] = await Promise.all([
+        const [files, stored, stats] = await Promise.all([
           gitRangeChangedFiles(input, base),
-          loadConfig(),
+          readLayers(input),
           gitRangeNumstat(input, base),
         ])
-        const layers = layersFor(config, input) ?? DEFAULT_LAYERS
+        const layers = stored ?? DEFAULT_LAYERS
         const key = `${base}\n${flowKey(files, stats, layers)}`
         const cached = rangeFlowCache.get(input)
         if (cached && cached.key === key) return { groups: cached.groups, base }
@@ -877,7 +876,7 @@ export const router = t.router({
         return undefined
       }
       const nodes = await walkExplore(input.seed, readSource, repoFiles)
-      const layers = layersFor(await loadConfig(), input.repoPath) ?? DEFAULT_LAYERS
+      const layers = (await readLayers(input.repoPath)) ?? DEFAULT_LAYERS
       const name =
         input.seed.kind === 'symbol'
           ? input.seed.symbol
@@ -892,8 +891,8 @@ export const router = t.router({
   repoLayers: t.procedure
     .input(z.string())
     .query(async ({ input }): Promise<{ layers: Layer[]; custom: boolean }> => {
-      const override = layersFor(await loadConfig(), input)
-      return { layers: override ?? DEFAULT_LAYERS, custom: override !== undefined }
+      const stored = await readLayers(input)
+      return { layers: stored ?? DEFAULT_LAYERS, custom: stored !== null }
     }),
 
   setRepoLayers: t.procedure
@@ -913,7 +912,7 @@ export const router = t.router({
       }),
     )
     .mutation(async ({ input }) => {
-      await updateConfig((config) => withRepoLayers(config, input.repoPath, input.layers))
+      await writeLayers(input.repoPath, input.layers)
     }),
 
   repoNotes: t.procedure.input(z.string()).query(({ input }): Promise<string> => readNotes(input)),

@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import type { Layer } from './flow'
 
 export const appConfigSchema = z.object({
   recentRepos: z.array(z.string()).default([]),
@@ -10,11 +9,11 @@ export const appConfigSchema = z.object({
         hiddenPaths: z.array(z.string()).default([]),
         pinnedPaths: z.array(z.string()).default([]),
         reviewedPaths: z.array(z.string()).default([]),
+        // Deprecated: layers + notes moved to their ~/.porcelain agent channels
+        // (layers-store.ts / notes-store.ts) so the MCP can read+write them. Kept
+        // optional only so the one-time startup migrations (migrateLayersFromConfig /
+        // migrateNotesFromConfig) can copy legacy values out — no code writes them anymore.
         layers: z.array(z.object({ label: z.string(), pattern: z.string() })).optional(),
-        // Deprecated: notes moved to the ~/.porcelain/notes.json agent channel
-        // (notes-store.ts) so the MCP can read them. Kept optional only so the one-time
-        // startup migration (migrateNotesFromConfig) can copy legacy notes out — no
-        // code writes it anymore.
         notes: z.string().optional(),
       }),
     )
@@ -89,26 +88,6 @@ export function visibleFilePaths(
     }
     return true
   })
-}
-
-export function layersFor(config: AppConfig, repoPath: string): Layer[] | undefined {
-  return config.repos[repoPath]?.layers
-}
-
-/** Set the per-repo flow layers; `null` clears the override back to defaults. */
-export function withRepoLayers(
-  config: AppConfig,
-  repoPath: string,
-  layers: Layer[] | null,
-): AppConfig {
-  const repo = config.repos[repoPath] ?? emptyRepo()
-  return {
-    ...config,
-    repos: {
-      ...config.repos,
-      [repoPath]: { ...repo, layers: layers ?? undefined },
-    },
-  }
 }
 
 export function withPinnedPath(config: AppConfig, repoPath: string, path: string): AppConfig {

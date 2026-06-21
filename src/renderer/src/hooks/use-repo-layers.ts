@@ -17,7 +17,17 @@ export function useSetRepoLayers(): {
   const save = async (layers: Layer[] | null, repoPath?: string): Promise<void> => {
     if (!repoPath) return
     await mutation.mutateAsync({ repoPath, layers })
-    await Promise.all([utils.repoLayers.invalidate(), utils.gitFlow.invalidate()])
+    // Refresh every surface that buckets files by layer — same set the MCP-driven
+    // `layers` app-event invalidates (use-app-events.ts), so a Settings edit and an
+    // agent edit refresh identically.
+    await Promise.all([
+      utils.repoLayers.invalidate(),
+      utils.gitFlow.invalidate(),
+      utils.gitRangeFlow.invalidate(),
+      utils.featureView.invalidate(),
+      utils.featureReading.invalidate(),
+      utils.exploreFeature.invalidate(),
+    ])
   }
   return {
     // repoPath is read from the store so callers stay declarative

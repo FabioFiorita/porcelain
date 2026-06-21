@@ -15,6 +15,7 @@ import {
   updateCard,
 } from './board-file'
 import { describeComments, readComments, resolveComment } from './comment-file'
+import { clearLayers, describeLayers, readLayers, setLayers, toLayers } from './layers-file'
 import { describeNotes, readNotes } from './notes-file'
 import {
   addReviewFiles,
@@ -126,6 +127,18 @@ export async function callTool(name: string, args: Record<string, unknown>): Pro
   }
   if (name === 'get_repo_notes') {
     return describeNotes(repoPath, readNotes(repoPath))
+  }
+  if (name === 'get_flow_layers') {
+    return describeLayers(repoPath, readLayers(repoPath))
+  }
+  if (name === 'set_flow_layers') {
+    const layers = toLayers(args.layers)
+    setLayers(repoPath, layers)
+    return `Set ${layers.length} flow layer(s) for ${repoPath}: ${layers.map((l) => l.label).join(' → ')}`
+  }
+  if (name === 'reset_flow_layers') {
+    clearLayers(repoPath)
+    return `Reset flow layers to the built-in defaults for ${repoPath}`
   }
   throw new Error(`unknown tool: ${name}`)
 }

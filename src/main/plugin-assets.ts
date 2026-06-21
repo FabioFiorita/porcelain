@@ -11,6 +11,7 @@ export const REVIEW_SKILL_NAME = 'review-with-porcelain'
 export const BOARD_SKILL_NAME = 'project-board'
 export const ACTIONS_SKILL_NAME = 'saved-actions'
 export const NOTES_SKILL_NAME = 'repo-notes'
+export const LAYERS_SKILL_NAME = 'flow-layers'
 
 /**
  * The plugin's own version — bumped whenever the bundled MCP server or any skill
@@ -24,8 +25,10 @@ export const NOTES_SKILL_NAME = 'repo-notes'
  *        discoverable on their own triggers — no new tools.
  * 2.3.0: added the repo-notes channel — get_repo_notes reads the human's per-repo
  *        notes scratchpad (read-only, app→agent) — plus a focused repo-notes skill.
+ * 2.4.0: added the flow-layers channel — get/set/reset_flow_layers let the agent read
+ *        and retune the per-repo review-flow grouping (two-way) — plus a flow-layers skill.
  */
-export const PLUGIN_VERSION = '2.3.0'
+export const PLUGIN_VERSION = '2.4.0'
 
 /**
  * The local Claude Code marketplace root the app writes. Lives in ~/.porcelain
@@ -47,7 +50,7 @@ export function marketplaceManifest(): Record<string, unknown> {
         name: PLUGIN_NAME,
         source: `./${PLUGIN_NAME}`,
         description:
-          'MCP server + skills to push feature review sets, read review comments and project notes, and manage the project board and saved actions in the Porcelain app.',
+          'MCP server + skills to push feature review sets, read review comments and project notes, manage the project board and saved actions, and tune the review-flow layers in the Porcelain app.',
       },
     ],
   }
@@ -57,7 +60,7 @@ export function pluginManifest(version: string): Record<string, unknown> {
   return {
     name: PLUGIN_NAME,
     description:
-      "Porcelain companion: push feature review sets so a human reviews the whole feature in flow order, read/resolve review comments, read the human's project notes, and manage the project board and saved actions — over MCP.",
+      "Porcelain companion: push feature review sets so a human reviews the whole feature in flow order, read/resolve review comments, read the human's project notes, manage the project board and saved actions, and tune the review-flow layers — over MCP.",
     version,
     author: { name: 'Porcelain' },
     // Inline stdio MCP server; ${CLAUDE_PLUGIN_ROOT} resolves to the installed
@@ -198,6 +201,43 @@ Call the \`porcelain\` MCP tool with \`repoPath\` set to the ABSOLUTE path of th
 - The notes are the human's scratchpad — read-only, there is no write tool; don't try to edit them. Capture actionable tasks on the project board instead (see the project-board skill).
 `
 
+export const LAYERS_SKILL = `---
+name: ${LAYERS_SKILL_NAME}
+description: Tune Porcelain's review-flow layers for a repo — the ordered rules that group changed files into a story from entry point to data. Use to check the codebase's actual structure and decide which layers to add, edit, reorder, or remove so a human reviews changes grouped the way THIS repo is built, especially when the human says the grouping is wrong, files land in "Other", or you've just learned the repo's layout.
+---
+
+# Porcelain flow layers
+
+Porcelain groups a change into **flow layers** — an ordered list of \`{ label, pattern }\` rules — so a human reviews the diff as a story from the entry point down to the data, not as an alphabetical file list. Each changed file is bucketed into the **furthest-right matching** layer; anything no layer matches falls into **Other** (rendered last). You know how this repo is actually laid out, so tune the layers to fit it instead of leaving the generic defaults.
+
+## When to use
+
+- The human says the grouping looks wrong, or too many files are landing in **Other**.
+- You've just mapped the repo's structure (a monorepo, a framework with its own conventions, an unusual folder layout) and the default layers don't reflect it.
+- The human asks you to "set up the review flow", "fix the layers", or "group my changes by layer".
+
+## How
+
+Call the \`porcelain\` MCP tools with \`repoPath\` set to the ABSOLUTE path of the repo you're working in (your cwd). This is a **whole-set replace** — there is no per-layer add/delete; you always send the COMPLETE ordered list.
+
+- \`get_flow_layers\` — \`{ repoPath }\` → the effective layers (the repo's custom set, or the built-in defaults), as a numbered list AND JSON. **Always read this first**, then modify and set — that's how you add, edit, remove, or reorder.
+- \`set_flow_layers\` — \`{ repoPath, layers: [{ label, pattern }, ...] }\` → replace the whole set with your new ordered list (at least one layer).
+- \`reset_flow_layers\` — \`{ repoPath }\` → drop the custom set and fall back to the defaults.
+
+## Designing the layers
+
+1. \`get_flow_layers\` to see what's in effect.
+2. Look at the repo: the directories under \`src\` (or the package roots in a monorepo), the framework's conventions, where the entry points, the data/schema, and the tests live.
+3. Order them **entry point → data**: the surface the user touches first at the top (pages/routes/screens), shared UI and logic in the middle (components, hooks, services), persistence at the bottom (models, schema, migrations), and tests last.
+4. Write a regex \`pattern\` per layer, tested against the **repo-relative path**. The three shapes the defaults use:
+   - **Folder**: \`(^|/)(components|ui)/\` — files inside a folder of that name.
+   - **Extension**: \`\\.(sql|prisma)$\` — files with that extension.
+   - **Filename suffix**: \`\\.(test|spec)\\.[a-z]+$\` — files whose name ends that way before the extension.
+5. \`set_flow_layers\` with the full ordered list.
+
+**Order matters twice**: it's the order groups render in, AND the furthest-right match on a path wins (so \`apps/api/controllers/x.ts\` is a Controller, not a Route, even though \`api/\` also matches). Put the more-specific layer so its match sits further right in the path, or rely on a filename-suffix pattern (which matches to the right of any directory). Keep the set tight — a handful of meaningful layers beats one per folder; let the long tail fall into **Other**.
+`
+
 export interface PluginSkill {
   /** Skill dir + frontmatter \`name\`; becomes \`porcelain:<name>\` once installed. */
   name: string
@@ -211,4 +251,5 @@ export const SKILLS: readonly PluginSkill[] = [
   { name: BOARD_SKILL_NAME, content: BOARD_SKILL },
   { name: ACTIONS_SKILL_NAME, content: ACTIONS_SKILL },
   { name: NOTES_SKILL_NAME, content: NOTES_SKILL },
+  { name: LAYERS_SKILL_NAME, content: LAYERS_SKILL },
 ]

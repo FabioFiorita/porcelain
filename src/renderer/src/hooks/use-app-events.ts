@@ -29,6 +29,19 @@ export function useAppEvents(): void {
         await utils.boardCards.invalidate()
         return
       }
+      if (event === 'layers') {
+        // the agent retuned the flow layers over MCP — refresh the layer config and
+        // every grouping surface that buckets files by them
+        await Promise.all([
+          utils.repoLayers.invalidate(),
+          utils.gitFlow.invalidate(),
+          utils.gitRangeFlow.invalidate(),
+          utils.featureView.invalidate(),
+          utils.featureReading.invalidate(),
+          utils.exploreFeature.invalidate(),
+        ])
+        return
+      }
       if (event === 'working-tree') {
         // a watched file changed on disk outside the app (most often the coding
         // agent editing in the terminal) — re-read the open documents and diffs so

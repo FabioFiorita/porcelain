@@ -26,6 +26,19 @@ const REVIEW_FILE_SCHEMA = {
   required: ['path'],
 } as const
 
+const LAYER_SCHEMA = {
+  type: 'object',
+  properties: {
+    label: { type: 'string', description: 'The group heading shown in Porcelain (e.g. "Hooks")' },
+    pattern: {
+      type: 'string',
+      description:
+        'A JavaScript regular expression tested against the repo-relative path. Conventions the defaults use: a folder match is `(^|/)(foo|bar)/`, an extension match is `\\.(yaml|toml)$`, a filename-suffix match is `\\.(test|spec)\\.[a-z]+$`.',
+    },
+  },
+  required: ['label', 'pattern'],
+} as const
+
 export const TOOLS = [
   {
     name: 'set_feature_review',
@@ -242,6 +255,47 @@ export const TOOLS = [
     name: 'get_repo_notes',
     description:
       "Read the human's freeform project notes for a repo: a per-repo markdown scratchpad they keep in Porcelain (Files → Notes) with conventions, gotchas, todos, and context for the work. Read it to pick up project context the human jotted down instead of spelling it out in chat — especially when they mention \"my notes\" or you're starting work in the repo. Read-only: the notes are the human's, so there is no write tool (capture tasks on the project board instead).",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        repoPath: { type: 'string', description: 'Absolute path to the repository' },
+      },
+      required: ['repoPath'],
+    },
+  },
+  {
+    name: 'get_flow_layers',
+    description:
+      'Read the repo\'s review-flow layers: the ordered { label, pattern } rules Porcelain uses to group changed files into a story from entry point to data. Returns the effective set — the repo\'s custom layers if set, otherwise the built-in defaults — as both a numbered list and JSON. Read this before tailoring the grouping with set_flow_layers; a file belongs to the furthest-right matching layer and unmatched files fall into "Other".',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        repoPath: { type: 'string', description: 'Absolute path to the repository' },
+      },
+      required: ['repoPath'],
+    },
+  },
+  {
+    name: 'set_flow_layers',
+    description:
+      "Replace the repo's review-flow layers with a full ordered list (entry point → data), tailored to this codebase's actual structure. Send the COMPLETE desired set every time — this is a whole-set replace, so to add, edit, remove, or reorder a layer you send the new full list (read get_flow_layers first, modify, then set). Order matters twice: it is the order groups render in, and the furthest-right match on a path wins. Patterns are JavaScript regexes tested against repo-relative paths.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        repoPath: { type: 'string', description: 'Absolute path to the repository' },
+        layers: {
+          type: 'array',
+          items: LAYER_SCHEMA,
+          description: 'The full ordered layer set, entry point → data (at least one)',
+        },
+      },
+      required: ['repoPath', 'layers'],
+    },
+  },
+  {
+    name: 'reset_flow_layers',
+    description:
+      "Remove the repo's custom review-flow layers so Porcelain falls back to its built-in defaults.",
     inputSchema: {
       type: 'object',
       properties: {

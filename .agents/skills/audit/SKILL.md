@@ -93,6 +93,25 @@ assumed — this skill is the codebase-specific layer beneath them.
   clobbers a newer in-app edit. *Verify:* the MCP tool list still has only
   `get_repo_notes` for notes; the app never reads `config.repos[*].notes` except in the
   migration.
+- **Flow layers are a TWO-WAY channel whose content is auto-executed regex.** The 6th
+  channel (`~/.porcelain/layers.json`, `layers-store.ts` ↔ `src/mcp/layers-file.ts`,
+  `get/set/reset_flow_layers`) holds the per-repo review-flow layers. Same two-way shape
+  and rules as the board (app-and-agent-authored content, atomic writes both sides,
+  stdio only, a `review-watch` entry → the `layers` app-event). What's DIFFERENT and must
+  hold: the content is a `pattern` the main process **compiles and runs** on every flow
+  build (`compileLayers` in `flow.ts`, `new RegExp(pattern, 'g')`), not inert text — so
+  **the app's read MUST drop any layer whose pattern doesn't compile** (`readLayers` in
+  `layers-store.ts` filters with `compilable`), or one bad agent-written pattern throws
+  and breaks every grouping view (gitFlow/featureView/exploreFeature). The MCP's
+  `toLayers` likewise rejects an uncompilable pattern up front. Patterns run against
+  short repo-relative paths and the human can already type any valid regex in Settings →
+  Review flow, so the ReDoS surface is unchanged — don't add a bespoke complexity guard
+  here that the human path lacks; just keep the compile-on-read filter. Layers moved out
+  of `userData/config.json` (like notes) so the dependency-free MCP can read+write them;
+  `migrateLayersFromConfig` (startup, idempotent) carries a legacy override over and
+  never clobbers a newer in-app edit. *Verify:* an MCP-written invalid pattern is dropped,
+  not thrown, on the next flow poll; the app reads layers only from the channel (no
+  `config.repos[*].layers` read outside the migration).
 - **The plugin installer is the ONLY non-git shell-out, and it takes no user input.**
   `installPlugin` (`src/main/plugin.ts`) spawns a login shell to run a FIXED command
   (`claude plugin marketplace add <app-derived dir> && claude plugin install …`) —

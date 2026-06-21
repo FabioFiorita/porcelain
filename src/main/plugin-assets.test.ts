@@ -3,6 +3,7 @@ import {
   ACTIONS_SKILL,
   BOARD_SKILL,
   installCommands,
+  LAYERS_SKILL,
   MARKETPLACE_NAME,
   marketplaceManifest,
   NOTES_SKILL,
@@ -41,12 +42,13 @@ describe('plugin assets', () => {
     expect(update).toBe(`claude plugin update ${PLUGIN_NAME}@${MARKETPLACE_NAME}`)
   })
 
-  it('bundles four focused skills, each with frontmatter naming itself', () => {
+  it('bundles five focused skills, each with frontmatter naming itself', () => {
     expect(SKILLS.map((s) => s.name)).toEqual([
       'review-with-porcelain',
       'project-board',
       'saved-actions',
       'repo-notes',
+      'flow-layers',
     ])
     for (const skill of SKILLS) {
       expect(skill.content).toMatch(new RegExp(`^---\\nname: ${skill.name}\\ndescription: .+`))
@@ -82,5 +84,14 @@ describe('plugin assets', () => {
     expect(NOTES_SKILL).toMatch(/^---\nname: repo-notes/)
     // read-only channel: no write/edit tool exists for notes
     expect(NOTES_SKILL).toContain('read-only')
+  })
+
+  it('the flow-layers skill teaches the whole-set layer tools and the read-first rule', () => {
+    for (const tool of ['get_flow_layers', 'set_flow_layers', 'reset_flow_layers']) {
+      expect(LAYERS_SKILL).toContain(tool)
+    }
+    expect(LAYERS_SKILL).toMatch(/^---\nname: flow-layers/)
+    // whole-set replace: the agent always sends the full ordered list
+    expect(LAYERS_SKILL).toContain('whole-set replace')
   })
 })
