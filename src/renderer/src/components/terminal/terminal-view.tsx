@@ -40,7 +40,7 @@ export function TerminalView({ sessionId }: { sessionId: string }): React.JSX.El
     // biome-ignore lint/a11y/noStaticElementInteractions: clicking anywhere refocuses the PTY
     <div
       ref={ref}
-      className="h-full w-full overflow-hidden bg-[#16161a] p-2"
+      className="h-full w-full overflow-hidden bg-[#16161a] py-2 pr-1 pl-2"
       onMouseDown={() => focusTerminal(sessionId)}
     />
   )
