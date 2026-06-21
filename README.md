@@ -7,30 +7,30 @@
 
 ---
 
-Your coding agent writes the code now. But the moment you need to *read* the result — skim a diff, trace a change across files, understand what the agent actually did — you reach for Cursor, Zed, or GitHub Desktop. Heavy editors for a job that isn't editing, and none of them talk to your agent.
+Your coding agent writes the code now. But the moment you need to *read* the result (skim a diff, trace a change across files, understand what the agent actually did) you reach for Cursor, Zed, or GitHub Desktop. Heavy editors for a job that isn't editing, and none of them talk to your agent.
 
-Porcelain fills that gap. It's a fast, focused **viewer and review surface** — not an editor — built to read code and review changes alongside your coding agent, with a two-way loop straight back to it.
+Porcelain fills that gap. It's a fast, focused **viewer and review surface** (not an editor) built to read code and review changes alongside your coding agent, with a two-way loop straight back to it.
 
 ## Why Porcelain
 
-- **Flow-ordered review.** A diff isn't an alphabetical list of files — it's one change rippling through your stack. Porcelain orders and groups changed files along their dependency flow (component → hook → action → mutation → schema), so you read a feature as a story from entry point to database instead of jumping around a file tree.
-- **A two-way loop with your agent.** A bundled one-click Claude Code plugin runs as a local MCP server (on your machine, no telemetry). Your review comments become its context; its work, resolutions, and the whole-feature manifest flow back to you — on the same feature, in the same order.
-- **Built for huge monorepos.** Stays fast on a ~50 GB repo. Folders can be hidden so only the apps you care about are visible, and pinned for quick access — nothing is indexed until you look at it. No other tool lets you carve a monorepo down to just the part you're working on.
-- **A companion terminal, not your daily driver.** A real embedded terminal sits beside the review surface to run your agent and its tasks — sessions outlive their tabs, so a background dev server keeps running when you close the tab. It complements Ghostty or Warp; it doesn't try to replace them.
-- **Viewer first, lightweight always.** Fast file viewing with Shiki syntax highlighting, no LSP and no extensions. Quick single-file edits are allowed (pencil → edit → save) — but no autocomplete, no format-on-save, no multi-file refactors. It never grows into an IDE.
+- **Flow-ordered review.** A diff isn't an alphabetical list of files; it's one change rippling through your stack. Porcelain orders and groups changed files along their dependency flow (component → hook → action → mutation → schema), so you read a feature as a story from entry point to database instead of jumping around a file tree.
+- **A two-way loop with your agent.** A bundled one-click Claude Code plugin runs as a local MCP server (on your machine, no telemetry). Your review comments become its context; its work, resolutions, and the whole-feature manifest flow back to you, on the same feature, in the same order.
+- **Built for huge monorepos.** Stays fast on a ~50 GB repo. Folders can be hidden so only the apps you care about are visible, and pinned for quick access; nothing is indexed until you look at it. No other tool lets you carve a monorepo down to just the part you're working on.
+- **A companion terminal, not your daily driver.** A real embedded terminal sits beside the review surface to run your agent and its tasks; sessions outlive their tabs, so a background dev server keeps running when you close the tab. It complements Ghostty or Warp; it doesn't try to replace them.
+- **Viewer first, lightweight always.** Fast file viewing with Shiki syntax highlighting, no LSP and no extensions. Quick single-file edits are allowed (pencil → edit → save), but no autocomplete, no format-on-save, no multi-file refactors. It never grows into an IDE.
 
 ## Features
 
 - **Flow-ordered diff review** with per-repo layer definitions you can customize, agent-managed over MCP
-- **Whole-feature review** — widen a diff to the entire feature in flow order (changed · context · shipped files), fed by your agent over a local MCP channel; mark files reviewed as you go
-- **Human ↔ agent loop** — review comments on lines or files sync to your agent as context, resolutions sync back; a per-repo todo/doing/done **project board** the agent reads and updates
-- **Git** — working-tree diffs (unified or split), per-file staging, commit history, worktree switching with a searchable branch picker, in-app commits with conventional-commit chips learned from your history
-- **Embedded terminal & Actions** — real PTYs (xterm.js + node-pty), split-view terminals, sessions that outlive their tabs, and saved **Actions** (named commands your agent curates and you run)
-- **Fast file viewer** — virtualized rendering, Shiki highlighting, image and Markdown support (reader + source modes), drag-resizable split view
-- **Monorepo navigation** — hide/unhide folders, pin paths, lazy per-directory loading
-- **Search & finders** — repo-wide code search, Cmd+P fuzzy file finder, Cmd+F find-in-file, find-references via `git grep`
-- **Multi-window** — one repo per window
-- **Liquid-glass UI** — native macOS vibrancy, floating sidebars, drag-resizable panels
+- **Whole-feature review**: widen a diff to the entire feature in flow order (changed · context · shipped files), fed by your agent over a local MCP channel; mark files reviewed as you go
+- **Human ↔ agent loop**: review comments on lines or files sync to your agent as context, resolutions sync back; a per-repo todo/doing/done **project board** the agent reads and updates
+- **Git**: working-tree diffs (unified or split), per-file staging, commit history, worktree switching with a searchable branch picker, in-app commits with conventional-commit chips learned from your history
+- **Embedded terminal & Actions**: real PTYs (xterm.js + node-pty), split-view terminals, sessions that outlive their tabs, and saved **Actions** (named commands your agent curates and you run)
+- **Fast file viewer**: virtualized rendering, Shiki highlighting, image and Markdown support (reader + source modes), drag-resizable split view
+- **Monorepo navigation**: hide/unhide folders, pin paths, lazy per-directory loading
+- **Search & finders**: repo-wide code search, Cmd+P fuzzy file finder, Cmd+F find-in-file, find-references via `git grep`
+- **Multi-window**: one repo per window
+- **Liquid-glass UI**: native macOS vibrancy, floating sidebars, drag-resizable panels
 - **Auto-updating** signed builds
 
 ## Install
@@ -41,7 +41,7 @@ Download the latest `.dmg` from the [Releases](https://github.com/fabiofiorita/p
 
 ## Connect your agent
 
-Porcelain talks to your coding agent through a bundled Claude Code plugin — an MCP server and skills that run locally, with no port opened and no telemetry. Install it with one click from **Settings → Agents**, or by hand:
+Porcelain talks to your coding agent through a bundled Claude Code plugin: an MCP server and skills that run locally, with no port opened and no telemetry. Install it with one click from **Settings → Agents**, or by hand:
 
 ```bash
 claude plugin marketplace add ~/.porcelain/plugin
@@ -52,7 +52,7 @@ Then run `/reload-plugins` (or restart the session). Codex & Cursor support is c
 
 ## Develop
 
-Porcelain is built with Electron (electron-vite), React 19, TypeScript (strict), shadcn/ui on Base UI, Tailwind v4, tRPC over IPC, TanStack Query, and zustand. State and git access run through a single, deliberately uniform architecture — see [CLAUDE.md](CLAUDE.md) and the skills in [`.agents/skills/`](.agents/skills/).
+Porcelain is built with Electron (electron-vite), React 19, TypeScript (strict), shadcn/ui on Base UI, Tailwind v4, tRPC over IPC, TanStack Query, and zustand. State and git access run through a single, deliberately uniform architecture; see [CLAUDE.md](CLAUDE.md) and the skills in [`.agents/skills/`](.agents/skills/).
 
 ```bash
 pnpm install   # install dependencies
