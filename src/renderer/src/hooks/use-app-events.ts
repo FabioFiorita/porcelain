@@ -44,6 +44,7 @@ export function useAppEvents(): void {
           utils.repoLayers.invalidate(),
           utils.gitFlow.invalidate(),
           utils.gitRangeFlow.invalidate(),
+          utils.gitCommitFlow.invalidate(),
           utils.featureView.invalidate(),
           utils.featureReading.invalidate(),
           utils.exploreFeature.invalidate(),

@@ -657,8 +657,8 @@ export const router = t.router({
     .input(z.string())
     .query(async ({ input }): Promise<{ groups: FlowGroup[]; base: string }> => {
       const base = await gitDefaultBranch(input)
-      const mergeBase = await gitMergeBase(input, base)
       try {
+        const mergeBase = await gitMergeBase(input, base)
         const [files, stored, stats] = await Promise.all([
           gitRangeChangedFilesFrom(input, mergeBase),
           readLayers(input),
