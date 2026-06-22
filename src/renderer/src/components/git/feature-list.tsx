@@ -106,7 +106,9 @@ function FlowNodeImpl({
           <span className="text-3xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Note
           </span>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{file.note}</p>
+          <p className="mt-1 break-words text-xs leading-relaxed text-muted-foreground">
+            {file.note}
+          </p>
         </div>
       )}
     </div>
