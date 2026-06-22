@@ -38,7 +38,7 @@ Most plans are independent — see "Dependency notes".
 | 017 | Collapse the git try/catch into `runGitChecked` | tech-debt | P3 | S | LOW | **009** | DONE |
 | 018 | Extract a shared factory for the agent-channel stores | tech-debt | P3 | M | MED | — | DONE |
 | 019 | Tokenize the arbitrary font-size literals into a named scale | tech-debt | P3 | M | LOW | — | TODO |
-| 020 | Flow-group a historical commit's files (CommitView as a story) | enhancement | P3 | M | MED | — | TODO |
+| 020 | Flow-group a historical commit's files (CommitView as a story) | enhancement | P3 | M | MED | — | DONE |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (one-line reason) | REJECTED (one-line rationale)
 

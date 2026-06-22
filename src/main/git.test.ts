@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   gitCommit,
+  gitCommitNumstat,
   gitDefaultBranch,
   gitFileInHead,
   gitMergeBase,
@@ -347,5 +348,72 @@ describe('mutations', () => {
     await expect(gitCommit(dir, 'should not exist')).rejects.toThrow()
     // Commit count must be unchanged.
     expect(git(dir, 'log', '--oneline').trim()).toBe(logBefore)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// gitCommitNumstat
+// ---------------------------------------------------------------------------
+
+describe('gitCommitNumstat', () => {
+  let repoDir = ''
+  let rootHash = ''
+  let addHash = ''
+  let modifyHash = ''
+
+  beforeAll(async () => {
+    repoDir = await mkdtemp(join(tmpdir(), 'porcelain-numstat-'))
+
+    // Root commit (empty — no files yet, diffs vs empty tree)
+    git(repoDir, 'init', '-b', 'main')
+    git(repoDir, '-c', 'commit.gpgsign=false', 'commit', '--allow-empty', '-m', 'root')
+    rootHash = git(repoDir, 'rev-parse', 'HEAD').trim()
+
+    // Add two files (+1 line each)
+    await writeFile(join(repoDir, 'alpha.ts'), 'export const a = 1\n')
+    await writeFile(join(repoDir, 'beta.ts'), 'export const b = 2\n')
+    git(repoDir, 'add', 'alpha.ts', 'beta.ts')
+    git(repoDir, '-c', 'commit.gpgsign=false', 'commit', '-m', 'add files')
+    addHash = git(repoDir, 'rev-parse', 'HEAD').trim()
+
+    // Modify alpha (+1 -1) and add a line to beta (+1)
+    await writeFile(join(repoDir, 'alpha.ts'), 'export const a = 42\n')
+    await writeFile(join(repoDir, 'beta.ts'), 'export const b = 2\nexport const c = 3\n')
+    git(repoDir, 'add', 'alpha.ts', 'beta.ts')
+    git(repoDir, '-c', 'commit.gpgsign=false', 'commit', '-m', 'modify files')
+    modifyHash = git(repoDir, 'rev-parse', 'HEAD').trim()
+  })
+
+  afterAll(async () => {
+    if (repoDir) await rm(repoDir, { recursive: true, force: true })
+  })
+
+  it('returns empty array for a root commit with no files (diffs vs empty tree)', async () => {
+    const stats = await gitCommitNumstat(repoDir, rootHash)
+    expect(stats).toEqual([])
+  })
+
+  it('returns correct +/- counts for a commit that adds two files', async () => {
+    const stats = await gitCommitNumstat(repoDir, addHash)
+    const alpha = stats.find((s) => s.path === 'alpha.ts')
+    const beta = stats.find((s) => s.path === 'beta.ts')
+    expect(alpha).toBeDefined()
+    expect(alpha?.additions).toBe(1)
+    expect(alpha?.deletions).toBe(0)
+    expect(beta).toBeDefined()
+    expect(beta?.additions).toBe(1)
+    expect(beta?.deletions).toBe(0)
+  })
+
+  it('returns correct +/- counts for a commit that modifies files', async () => {
+    const stats = await gitCommitNumstat(repoDir, modifyHash)
+    const alpha = stats.find((s) => s.path === 'alpha.ts')
+    const beta = stats.find((s) => s.path === 'beta.ts')
+    expect(alpha).toBeDefined()
+    expect(alpha?.additions).toBe(1)
+    expect(alpha?.deletions).toBe(1)
+    expect(beta).toBeDefined()
+    expect(beta?.additions).toBe(1)
+    expect(beta?.deletions).toBe(0)
   })
 })

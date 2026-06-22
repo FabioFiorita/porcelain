@@ -176,6 +176,14 @@ export async function gitNumstat(repoPath: string): Promise<DiffStat[]> {
   return parseNumstat(await runGit(repoPath, ['diff', 'HEAD', '--numstat', '-z']))
 }
 
+/**
+ * +/- counts per file for a single commit vs its first parent.
+ * Root commits (no parent) diff against the empty tree — returns stats normally.
+ */
+export async function gitCommitNumstat(repoPath: string, hash: string): Promise<DiffStat[]> {
+  return parseNumstat(await runGit(repoPath, ['show', '--numstat', '--format=', '-z', hash]))
+}
+
 export async function gitBranch(repoPath: string): Promise<string> {
   return (await runGit(repoPath, ['rev-parse', '--abbrev-ref', 'HEAD'])).trim()
 }

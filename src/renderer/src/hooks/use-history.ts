@@ -1,4 +1,5 @@
 import type { ChangedFile, Commit } from '@main/diff'
+import type { FlowGroup } from '@main/flow'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 
@@ -35,4 +36,17 @@ export function useCommitFiles(hash: string): ChangedFile[] | undefined {
     { enabled: repo !== null },
   )
   return data
+}
+
+/** Flow-grouped file list for a single historical commit.
+ *  staleTime: Infinity — a commit hash is immutable, so the result never changes.
+ *  No refetchInterval — unlike the live gitFlow, there's nothing to poll.
+ */
+export function useCommitFlow(hash: string): { groups: FlowGroup[] | undefined } {
+  const repo = useRepoStore((s) => s.repo)
+  const { data } = trpc.gitCommitFlow.useQuery(
+    { repoPath: repo?.path ?? '', hash },
+    { enabled: repo !== null, staleTime: Number.POSITIVE_INFINITY },
+  )
+  return { groups: data }
 }

@@ -54,6 +54,7 @@ import {
   gitCommitDiff,
   gitCommitFiles,
   gitCommitMessage,
+  gitCommitNumstat,
   gitDefaultBranch,
   gitDiffFile,
   gitFileInHead,
@@ -166,6 +167,10 @@ const flowCache = new Map<string, { key: string; groups: FlowGroup[] }>()
 // + range numstat + layers. The range is static until the next commit, so the
 // cache is invalidated only on commit (gitRangeFlow.invalidate in use-commit).
 const rangeFlowCache = new Map<string, { key: string; groups: FlowGroup[] }>()
+
+// Commit hashes are immutable, so this cache never busts for the same commit.
+// Keyed by `repoPath\nhash` so different repos' commits don't collide.
+const commitFlowCache = new Map<string, { key: string; groups: FlowGroup[] }>()
 
 // One shared build per snapshot — both feature procedures reuse it instead of each
 // re-reading ≤200 sources and rebuilding the view for the identical key. Keyed on
@@ -970,6 +975,51 @@ export const router = t.router({
   gitCommitDiff: t.procedure
     .input(z.object({ repoPath: z.string(), hash: z.string(), filePath: z.string() }))
     .query(({ input }) => gitCommitDiff(input.repoPath, input.hash, input.filePath)),
+
+  // Flow-grouped file list for a single historical commit. Uses the same
+  // buildFlow pipeline as gitFlow/gitRangeFlow; sources are read from the
+  // working tree (option A — best-effort, consistent with gitRangeFlow). A
+  // commit hash is immutable, so the cache never needs to bust for the same hash.
+  gitCommitFlow: t.procedure
+    .input(z.object({ repoPath: z.string(), hash: z.string() }))
+    .query(async ({ input }): Promise<FlowGroup[]> => {
+      try {
+        const [files, stored, stats] = await Promise.all([
+          gitCommitFiles(input.repoPath, input.hash),
+          readLayers(input.repoPath),
+          gitCommitNumstat(input.repoPath, input.hash),
+        ])
+        const layers = stored ?? DEFAULT_LAYERS
+        const cacheKey = `${input.repoPath}\n${input.hash}`
+        const key = `${input.hash}\n${flowKey(files, stats, layers)}`
+        const cached = commitFlowCache.get(cacheKey)
+        if (cached && cached.key === key) return cached.groups
+        const sources = new Map<string, string>()
+        await Promise.all(
+          files.slice(0, 200).map(async (file) => {
+            try {
+              const content = await readFile(join(input.repoPath, file.path), 'utf8')
+              if (content.length < 1024 * 1024) sources.set(file.path, content)
+            } catch {
+              // file no longer in working tree — grouping still works by path
+            }
+          }),
+        )
+        const statByPath = new Map(stats.map((s) => [s.path, s]))
+        const groups = buildFlow(files, sources, layers).map((group) => ({
+          ...group,
+          files: group.files.map((file) => ({
+            ...file,
+            additions: statByPath.get(file.path)?.additions,
+            deletions: statByPath.get(file.path)?.deletions,
+          })),
+        }))
+        commitFlowCache.set(cacheKey, { key, groups })
+        return groups
+      } catch {
+        return []
+      }
+    }),
 
   searchFiles: t.procedure
     .input(z.object({ repoPath: z.string(), query: z.string() }))

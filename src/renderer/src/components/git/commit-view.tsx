@@ -1,5 +1,5 @@
 import { useCommitDiff } from '@renderer/hooks/use-diff'
-import { useCommitFiles, useCommitMessage } from '@renderer/hooks/use-history'
+import { useCommitFlow, useCommitMessage } from '@renderer/hooks/use-history'
 import { cn } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useState } from 'react'
@@ -18,14 +18,15 @@ function CommitFileDiff({ hash, filePath }: { hash: string; filePath: string }):
 
 export function CommitView({ hash }: { hash: string }): React.JSX.Element {
   const [selected, setSelected] = useState<string | null>(null)
-  const files = useCommitFiles(hash)
+  const { groups } = useCommitFlow(hash)
   const message = useCommitMessage(hash)
 
-  if (files === undefined) {
+  if (groups === undefined) {
     return <p className="p-4 text-sm text-muted-foreground">Loading…</p>
   }
 
-  const selectedFile = selected ?? files[0]?.path ?? null
+  const allFiles = groups.flatMap((g) => g.files)
+  const selectedFile = selected ?? allFiles[0]?.path ?? null
 
   return (
     <div className="flex h-full min-h-0">
@@ -36,21 +37,31 @@ export function CommitView({ hash }: { hash: string }): React.JSX.Element {
           </p>
           <p className="mt-1 font-mono text-[11px] text-muted-foreground">{hash.slice(0, 12)}</p>
         </div>
-        {files.map((file) => (
-          <button
-            key={file.path}
-            type="button"
-            onClick={() => setSelected(file.path)}
-            className={cn(
-              'block w-full truncate px-3 py-1 text-left text-xs',
-              file.path === selectedFile
-                ? 'bg-sidebar-accent text-foreground'
-                : 'text-muted-foreground hover:bg-sidebar-accent/50',
-            )}
-          >
-            {file.path}
-          </button>
+        {groups.map((group) => (
+          <div key={group.layer}>
+            <p className="h-6 px-2 text-[10px] uppercase tracking-wider text-muted-foreground/70 flex items-center">
+              {group.layer}
+            </p>
+            {group.files.map((file) => (
+              <button
+                key={file.path}
+                type="button"
+                onClick={() => setSelected(file.path)}
+                className={cn(
+                  'block w-full truncate px-3 py-1 text-left text-xs',
+                  file.path === selectedFile
+                    ? 'bg-sidebar-accent text-foreground'
+                    : 'text-muted-foreground hover:bg-sidebar-accent/50',
+                )}
+              >
+                {file.path.split('/').at(-1) ?? file.path}
+              </button>
+            ))}
+          </div>
         ))}
+        {allFiles.length === 0 && (
+          <p className="px-3 py-2 text-xs text-muted-foreground">No files changed</p>
+        )}
       </div>
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-center justify-between border-b px-3 py-1">
