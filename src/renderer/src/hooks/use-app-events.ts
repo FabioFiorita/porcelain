@@ -16,7 +16,15 @@ export function useAppEvents(): void {
         return
       }
       if (event === 'feature-view') {
-        await utils.featureView.invalidate()
+        // the agent pushed a review-set change over MCP — refresh BOTH feature surfaces
+        // (the sidebar list AND the inline reading surface) so they don't disagree until
+        // the next 3s poll, matching useClearFeatureReview. Also refresh exploreFeature
+        // to match the layers branch, which fans out to all three feature surfaces.
+        await Promise.all([
+          utils.featureView.invalidate(),
+          utils.featureReading.invalidate(),
+          utils.exploreFeature.invalidate(),
+        ])
         return
       }
       if (event === 'comments') {
