@@ -77,12 +77,6 @@ ever rejects an unsigned/!hardened `spawn-helper`, confirm it's inside `asarUnpa
 (electron-builder only signs unpacked binaries). The renderer's xterm.js is bundled, not
 native — no signing concern.
 
-### Shipping unsigned instead
-
-Drop the `CSC_*`/`APPLE_*` env from `release.yml`, set
-`CSC_IDENTITY_AUTO_DISCOVERY: "false"`, and set `notarize: false` in
-`electron-builder.yml`. Unsigned disables macOS auto-update.
-
 ## Changelog
 
 `CHANGELOG.md` is generated from conventional commits by `conventional-changelog`
