@@ -1,4 +1,6 @@
 import { getHighlighter, type HIGHLIGHT_THEME, tokenizeLines } from '@renderer/lib/highlight'
+import { cn } from '@renderer/lib/utils'
+import { type CharRange, splitByRanges } from '@renderer/lib/word-diff'
 import { useEffect, useMemo, useState } from 'react'
 import type { BundledLanguage, HighlighterGeneric, ThemedToken } from 'shiki'
 
@@ -41,22 +43,39 @@ export function useTokenizedLines(
 export function CodeLine({
   tokens,
   text,
+  emphasis,
 }: {
   /** Pre-tokenized spans for this line, or null to render plain text. */
   tokens: ThemedToken[] | null
   /** Raw line text — the fallback when `tokens` is null/empty (and the blank-line spacer). */
   text: string
+  /** Intra-line word-diff highlight: character ranges to emphasize + the bg class to apply. */
+  emphasis?: { ranges: readonly CharRange[]; className: string }
 }): React.JSX.Element {
-  if (!tokens || tokens.length === 0) {
+  const ranges = emphasis?.ranges
+  // Plain text with nothing to emphasize keeps its bare <pre> (also the blank-line spacer).
+  if ((!tokens || tokens.length === 0) && !ranges?.length) {
     return <pre className="flex-1 whitespace-pre">{text || ' '}</pre>
   }
 
+  const base =
+    tokens && tokens.length > 0
+      ? tokens.map((t) => ({ content: t.content, color: t.color }))
+      : [{ content: text }]
+  const segments = ranges?.length
+    ? splitByRanges(base, ranges)
+    : base.map((s) => ({ ...s, emphasized: false }))
+
   return (
     <pre className="flex-1 whitespace-pre">
-      {tokens.map((token, i) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: tokens are static per line
-        <span key={i} style={{ color: token.color }}>
-          {token.content}
+      {segments.map((seg, i) => (
+        <span
+          // biome-ignore lint/suspicious/noArrayIndexKey: segments are static per line
+          key={i}
+          style={seg.color ? { color: seg.color } : undefined}
+          className={cn(seg.emphasized && emphasis?.className)}
+        >
+          {seg.content}
         </span>
       ))}
     </pre>

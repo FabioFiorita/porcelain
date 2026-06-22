@@ -3,6 +3,7 @@ import { CodeLine, useHighlighter } from '@renderer/components/viewer/code-line'
 import { VirtualRows } from '@renderer/components/viewer/virtual-rows'
 import { type HIGHLIGHT_THEME, languageFor, tokenizeLines } from '@renderer/lib/highlight'
 import { cn } from '@renderer/lib/utils'
+import { type CharRange, intraLineEmphasis } from '@renderer/lib/word-diff'
 import { useMemo } from 'react'
 import type { BundledLanguage, HighlighterGeneric, ThemedToken } from 'shiki'
 
@@ -11,8 +12,12 @@ type Highlighter = HighlighterGeneric<BundledLanguage, typeof HIGHLIGHT_THEME>
 /** Pre-tokenized spans per diff line, keyed by the DiffLine object identity. */
 type TokenMap = Map<DiffLine, ThemedToken[]>
 
+/** Intra-line word-diff ranges per diff line (paired del/add lines only). */
+type EmphasisMap = Map<DiffLine, CharRange[]>
+
 interface RenderContext {
   tokens: TokenMap
+  emphasis: EmphasisMap
 }
 
 /**
@@ -46,6 +51,13 @@ export function tokenizeHunks(
 const lineClass: Record<DiffLine['kind'], string> = {
   add: 'bg-diff-add',
   del: 'bg-diff-del',
+  context: '',
+}
+
+/** Stronger bg for the changed words inside a line, sitting over the line's lineClass. */
+const emphasisClass: Record<DiffLine['kind'], string> = {
+  add: 'rounded-sm bg-diff-add-emphasis',
+  del: 'rounded-sm bg-diff-del-emphasis',
   context: '',
 }
 
@@ -89,11 +101,16 @@ function DiffRowView({ row, ctx }: { row: DiffRow; ctx: RenderContext }): React.
     // data-line carries the new-side line (old-side for a pure deletion) so a text
     // selection here maps to a commentable line range; see lib/line-selection.ts.
     const anchorLine = row.line.newLine ?? row.line.oldLine ?? undefined
+    const ranges = ctx.emphasis.get(row.line)
     return (
       <div data-line={anchorLine} className={cn('flex px-2', lineClass[row.line.kind])}>
         <LineNo value={row.line.oldLine} />
         <LineNo value={row.line.newLine} />
-        <CodeLine tokens={ctx.tokens.get(row.line) ?? null} text={row.line.text} />
+        <CodeLine
+          tokens={ctx.tokens.get(row.line) ?? null}
+          text={row.line.text}
+          emphasis={ranges ? { ranges, className: emphasisClass[row.line.kind] } : undefined}
+        />
       </div>
     )
   }
@@ -141,11 +158,16 @@ function SplitCell({
   line: DiffLine | null
   ctx: RenderContext
 }): React.JSX.Element {
+  const ranges = line ? ctx.emphasis.get(line) : undefined
   return (
     <div className={cn('flex min-w-0 flex-1 overflow-hidden', line ? lineClass[line.kind] : '')}>
       <LineNo value={line ? (line.kind === 'add' ? line.newLine : line.oldLine) : null} />
       {line ? (
-        <CodeLine tokens={ctx.tokens.get(line) ?? null} text={line.text} />
+        <CodeLine
+          tokens={ctx.tokens.get(line) ?? null}
+          text={line.text}
+          emphasis={ranges ? { ranges, className: emphasisClass[line.kind] } : undefined}
+        />
       ) : (
         <pre className="flex-1"> </pre>
       )}
@@ -169,7 +191,8 @@ export function HunksView({
     () => (highlighter && lang ? tokenizeHunks(highlighter, hunks, lang) : new Map()),
     [highlighter, lang, hunks],
   )
-  const ctx: RenderContext = { tokens }
+  const emphasis = useMemo<EmphasisMap>(() => intraLineEmphasis(hunks), [hunks])
+  const ctx: RenderContext = { tokens, emphasis }
 
   if (hunks.length === 0) {
     return <p className="p-4 font-mono text-xs text-muted-foreground">No changes</p>

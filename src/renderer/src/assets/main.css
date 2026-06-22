@@ -43,6 +43,8 @@
     --color-info: var(--info);
     --color-diff-add: var(--diff-add);
     --color-diff-del: var(--diff-del);
+    --color-diff-add-emphasis: var(--diff-add-emphasis);
+    --color-diff-del-emphasis: var(--diff-del-emphasis);
     --color-ink-blue: var(--ink-blue);
     --color-ink-yellow: var(--ink-yellow);
     --color-ink-green: var(--ink-green);
@@ -235,6 +237,8 @@
   --info: oklch(0.588 0.158 241.966);
   --diff-add: oklch(0.93 0.05 163 / 0.55);
   --diff-del: oklch(0.93 0.06 25 / 0.55);
+  --diff-add-emphasis: oklch(0.85 0.13 163 / 0.75);
+  --diff-del-emphasis: oklch(0.83 0.15 25 / 0.75);
   --ink-blue: oklch(0.546 0.245 262.881);
   --ink-yellow: oklch(0.681 0.162 75.834);
   --ink-green: oklch(0.627 0.194 149.214);
@@ -257,6 +261,8 @@
   --info: oklch(0.685 0.169 237.32);
   --diff-add: oklch(0.262 0.051 172.55 / 0.6);
   --diff-del: oklch(0.258 0.092 26.04 / 0.6);
+  --diff-add-emphasis: oklch(0.45 0.12 165 / 0.7);
+  --diff-del-emphasis: oklch(0.45 0.17 25 / 0.7);
   --ink-blue: oklch(0.707 0.165 254.624);
   --ink-yellow: oklch(0.852 0.199 91.936);
   --ink-green: oklch(0.792 0.209 151.711);
