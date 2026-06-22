@@ -1,4 +1,4 @@
-import type { ChangedFile, Commit } from '@main/diff'
+import type { Commit } from '@main/diff'
 import type { FlowGroup } from '@main/flow'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
@@ -27,15 +27,6 @@ export function useFetchCommitMessage(): (hash: string) => Promise<string> {
   const utils = trpc.useUtils()
   return (hash: string) =>
     repo ? utils.gitCommitMessage.fetch({ repoPath: repo.path, hash }) : Promise.resolve('')
-}
-
-export function useCommitFiles(hash: string): ChangedFile[] | undefined {
-  const repo = useRepoStore((s) => s.repo)
-  const { data } = trpc.gitCommitFiles.useQuery(
-    { repoPath: repo?.path ?? '', hash },
-    { enabled: repo !== null },
-  )
-  return data
 }
 
 /** Flow-grouped file list for a single historical commit.

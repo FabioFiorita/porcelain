@@ -958,10 +958,6 @@ export const router = t.router({
     .input(z.object({ repoPath: z.string(), limit: z.number().int().max(500).default(200) }))
     .query(({ input }) => gitLog(input.repoPath, input.limit)),
 
-  gitCommitFiles: t.procedure
-    .input(z.object({ repoPath: z.string(), hash: z.string() }))
-    .query(({ input }) => gitCommitFiles(input.repoPath, input.hash)),
-
   gitCommitMessage: t.procedure
     .input(z.object({ repoPath: z.string(), hash: z.string() }))
     .query(({ input }) => gitCommitMessage(input.repoPath, input.hash)),
