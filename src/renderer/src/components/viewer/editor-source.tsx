@@ -87,8 +87,11 @@ export function EditorSource({
   const lastInitial = useRef(initialContent)
   useEffect(() => {
     if (initialContent === lastInitial.current) return
-    lastInitial.current = initialContent
+    // Only "consume" the external change once we actually adopt it. If we skip
+    // because of unsaved edits, leave lastInitial behind so the change is
+    // re-evaluated (and adopted) the next time the buffer is clean.
     if (content === savedContent) {
+      lastInitial.current = initialContent
       setContent(initialContent)
       setSavedContent(initialContent)
     }
