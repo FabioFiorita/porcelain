@@ -112,3 +112,42 @@ deps, DX, docs, direction). Reconciliation:
 When you finish a plan, set its Status to DONE (or BLOCKED/REJECTED with a one-line
 reason). If you discover a plan has drifted (its "Current state" no longer matches the
 code), mark it and note the drift — don't silently force it through.
+
+## Also landed this batch (beyond the numbered plans)
+
+Found and fixed while implementing the plans above:
+
+- **SC3 — share the flow pipeline** (`refactor(api)`): extracted `readSourcesAndBuildFlow`
+  so `gitFlow`/`gitRangeFlow`/`gitCommitFlow` stop triplicating the
+  read-sources→buildFlow→attach-stats body (the prior audit's SC3, made timely by plan
+  020). Verified byte-identical.
+- **Dead-code** (`refactor`): removed the `useCommitFiles` hook + `gitCommitFiles` tRPC
+  procedure that plan 020 orphaned (the underlying git helper stays — still used by
+  `gitCommit` and `gitCommitFlow`).
+- **Two closing-review regressions** (`fix`): restored `gitRangeFlow`'s empty-range
+  fallback (013 had hoisted `gitMergeBase` outside its try/catch, so a repo with no
+  real default branch / unborn HEAD errored on every poll) and added `gitCommitFlow` to
+  the `layers` invalidation fan-out (020's new grouping surface was missed).
+
+## Recommended follow-ups (found during this batch, not yet done)
+
+- **Guard the type scale (completes 019).** New `text-[Npx]` literals can creep back. A
+  convention test or a Biome GritQL plugin asserting zero `text-[Npx]` in
+  `src/renderer/src` would make the gain rot-proof — but it's a new "convention test"
+  pattern, so it wants a deliberate call (CLAUDE.md rule 1).
+- **015 signed-build smoke test (maintainer-only).** Confirm the fuses on a signed
+  `pnpm dist`: a terminal PTY still spawns (OnlyLoadAppFromAsar × node-pty), the updater
+  launches, and `ELECTRON_RUN_AS_NODE=1` no longer opens a Node REPL. Fallback (drop
+  OnlyLoadAppFromAsar) is documented in `build/after-pack.js`.
+- **Centralize flow-surface invalidation.** The closing review caught `gitCommitFlow`
+  being missed in the `layers` fan-out; an `invalidateFlowSurfaces(utils)` helper would
+  make adding a grouping surface a one-place change and prevent that class of bug.
+- **012 follow-on — gather cache.** `gatherFeature` runs ~5 git calls twice per snapshot
+  when both feature surfaces poll; a short-TTL/shared gather cache extends 012's win (MED
+  — cache-freshness sensitive).
+- **`gitFileInHead` swallows all errors → `false`** (`git.ts`), so an infra failure
+  would route a discard down the trash branch. Distinguish exit-1 ("not in HEAD") from a
+  real git failure (behavior change; current behavior is pinned by plan 009's test).
+- **D2 + tracking tokens (companions to 019).** The flow-spine geometry
+  (`size-[7px]`/`left-[3px]`/`left-[7px]`) and `tracking-[0.08em]` (×12) are the
+  remaining un-tokenized literals.
