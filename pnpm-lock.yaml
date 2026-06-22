@@ -36,6 +36,9 @@ importers:
       '@electron-toolkit/tsconfig':
         specifier: ^2.0.0
         version: 2.0.0(@types/node@24.13.2)
+      '@electron/fuses':
+        specifier: ^2.1.2
+        version: 2.1.2
       '@fontsource-variable/geist':
         specifier: ^5.2.9
         version: 5.2.9
@@ -532,6 +535,11 @@ packages:
 
   '@electron/fuses@1.8.0':
     resolution: {integrity: sha512-zx0EIq78WlY/lBb1uXlziZmDZI4ubcCXIMJ4uGjXzZW0nS19TjSPeXPAjzzTmKQlJUZm0SbmZhPKP7tuQ1SsEw==}
+    hasBin: true
+
+  '@electron/fuses@2.1.2':
+    resolution: {integrity: sha512-x083OSf4xO9CKUKmJFYW+Egua9y/v2XOCcCIuWnM4RlpMj8xHwKICezlVN6vZyI2cZTr/ysZXRU5AKtYPJivBQ==}
+    engines: {node: '>=22.12.0'}
     hasBin: true
 
   '@electron/get@3.1.0':
@@ -5056,6 +5064,8 @@ snapshots:
       chalk: 4.1.2
       fs-extra: 9.1.0
       minimist: 1.2.8
+
+  '@electron/fuses@2.1.2': {}
 
   '@electron/get@3.1.0':
     dependencies:

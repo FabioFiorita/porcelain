@@ -1,5 +1,8 @@
 appId: com.fabiofiorita.porcelain
 productName: Porcelain
+# Flip Electron security fuses on the packaged binary before signing.
+# See build/after-pack.js for the fuse set and smoke-test instructions.
+afterPack: build/after-pack.js
 directories:
   buildResources: build
 files:

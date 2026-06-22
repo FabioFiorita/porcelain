@@ -117,6 +117,34 @@ regenerate, do it from the pre-tag state.
 - `pnpm release` — same + publish to GitHub releases `fabiofiorita/porcelain`
   (needs `GH_TOKEN`; the CI workflow is the normal path).
 
+## Electron fuses smoke test (required on every packaged build)
+
+`electron-builder.yml` wires `build/after-pack.js` as an `afterPack` hook that
+flips Electron security fuses on the `.app` before signing. The standard gate
+(`pnpm verify`) does NOT exercise fuses — they only take effect in a packaged
+build. After every `pnpm dist` or release build, verify **all three** before
+publishing:
+
+1. **Terminal PTY spawns.** Open a terminal tab in the installed app and run any
+   command. A PTY must spawn and show output. This proves the unpacked
+   `node-pty` native addon (`pty.node` + `spawn-helper` in `app.asar.unpacked`)
+   still loads correctly under `OnlyLoadAppFromAsar: true`. If the terminal
+   silently fails to spawn, the fuse is interacting with the unpacked addon —
+   STOP, drop `OnlyLoadAppFromAsar` from `build/after-pack.js`, and re-build.
+
+2. **Updater launches without crash.** Launch the packaged app and let it reach
+   the main window without an error dialog or crash. The updater (`electron-updater`,
+   `src/main/updater.ts`) runs at launch; a fuse-related failure surfaces here in
+   the main log.
+
+3. **`RunAsNode` is disabled.** From a terminal:
+   `ELECTRON_RUN_AS_NODE=1 open -a Porcelain`
+   The app must open as the normal GUI app, NOT as a Node REPL. If it drops to a
+   Node prompt, the `RunAsNode: false` fuse did not take effect.
+
+If any check fails, do NOT publish the draft release. Report the exact failure
+before proceeding.
+
 ## See also
 
 - `architecture` skill, "Packaging, signing, updates" — the durable config facts
