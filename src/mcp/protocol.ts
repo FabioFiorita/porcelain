@@ -349,6 +349,12 @@ export async function handleRpc(
   const id = message.id
   if (method === undefined) return null
   const isNotification = !('id' in message) || id === null || id === undefined
+  // Notifications get no reply and must not execute any side effect. JSON-RPC 2.0:
+  // a message without an id is a notification; the server MUST NOT return a response.
+  // MCP always sends tools/call as a request (with an id), so no legitimate traffic
+  // is lost here. Moving the guard above dispatch also prevents double-execution if
+  // a client retries a notification-shaped tools/call.
+  if (isNotification) return null
 
   if (method === 'initialize') {
     const params = isRecord(message.params) ? message.params : {}
@@ -373,6 +379,5 @@ export async function handleRpc(
       return ok(id, { content: [{ type: 'text', text }], isError: true })
     }
   }
-  if (isNotification) return null
   return fail(id, -32601, `method not found: ${method}`)
 }

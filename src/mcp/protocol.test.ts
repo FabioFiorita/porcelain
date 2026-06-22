@@ -85,6 +85,16 @@ describe('handleRpc', () => {
     ).toBeNull()
   })
 
+  it('ignores a tools/call sent as a notification (no id): no reply, no execution', async () => {
+    const callTool = vi.fn(async () => 'ran')
+    const res = await handleRpc(
+      { jsonrpc: '2.0', method: 'tools/call', params: { name: 'x', arguments: {} } },
+      callTool,
+    )
+    expect(res).toBeNull()
+    expect(callTool).not.toHaveBeenCalled()
+  })
+
   it('errors on an unknown method that expects a reply', async () => {
     const res = await handleRpc({ jsonrpc: '2.0', id: 5, method: 'resources/list' }, noTool)
     expect(res).toMatchObject({ id: 5, error: { code: -32601 } })
