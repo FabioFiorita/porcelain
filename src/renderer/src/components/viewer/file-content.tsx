@@ -2,7 +2,15 @@ import { useReadFile, useRefreshTree } from '@renderer/hooks/use-files'
 import { useEffect } from 'react'
 import { TextFileView } from './text-file-view'
 
-export function FileContent({ path, line }: { path: string; line?: number }): React.JSX.Element {
+export function FileContent({
+  path,
+  line,
+  paneIndex,
+}: {
+  path: string
+  line?: number
+  paneIndex: number
+}): React.JSX.Element {
   const { view, error } = useReadFile(path)
   const refreshTree = useRefreshTree()
 
@@ -51,5 +59,5 @@ export function FileContent({ path, line }: { path: string; line?: number }): Re
     )
   }
 
-  return <TextFileView path={path} content={view.content} line={line} />
+  return <TextFileView path={path} content={view.content} line={line} paneIndex={paneIndex} />
 }

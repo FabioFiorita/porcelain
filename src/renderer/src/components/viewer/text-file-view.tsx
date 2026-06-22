@@ -3,6 +3,7 @@ import { isMarkdownPath, MarkdownView } from '@renderer/components/viewer/markdo
 import { relativeTo } from '@renderer/lib/paths'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
+import { useTabsStore } from '@renderer/stores/tabs'
 import { useEffect, useState } from 'react'
 import { EDITABLE_MAX_LINES, EditorSource } from './editor-source'
 import { FindBar } from './find-bar'
@@ -35,10 +36,12 @@ export function TextFileView({
   path,
   content,
   line,
+  paneIndex,
 }: {
   path: string
   content: string
   line?: number
+  paneIndex: number
 }): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)
   const markdownMode = usePreferencesStore((s) => s.markdownMode)
@@ -51,6 +54,7 @@ export function TextFileView({
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent): void => {
+      if (useTabsStore.getState().activePaneIndex !== paneIndex) return
       if (e.key === 'f' && (e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey) {
         e.preventDefault()
         setFinding(true)
@@ -58,7 +62,7 @@ export function TextFileView({
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [])
+  }, [paneIndex])
 
   return (
     <div className="flex h-full flex-col">

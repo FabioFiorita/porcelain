@@ -96,7 +96,14 @@ function PaneView({ paneIndex }: { paneIndex: number }): React.JSX.Element {
       )
     case 'file':
       // keyed by path so edit state never leaks across tab switches
-      return <FileContent key={activeTab.path} path={activeTab.path} line={activeTab.line} />
+      return (
+        <FileContent
+          key={activeTab.path}
+          path={activeTab.path}
+          line={activeTab.line}
+          paneIndex={paneIndex}
+        />
+      )
   }
 }
 
