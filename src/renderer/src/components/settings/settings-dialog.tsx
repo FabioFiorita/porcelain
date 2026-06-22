@@ -16,20 +16,18 @@ import {
   SidebarMenuItem,
   SidebarProvider,
 } from '@renderer/components/ui/sidebar'
+import { type SettingsSection, useSettingsDialogStore } from '@renderer/stores/settings-dialog'
 import { Bot, Download, Layers, Settings2, SlidersHorizontal } from 'lucide-react'
-import { useState } from 'react'
 import { AgentsSection } from './agents-section'
 import { FlowLayersSection } from './flow-layers-section'
 import { GeneralSection } from './general-section'
 import { UpdatesSection } from './updates-section'
 
-type SectionId = 'general' | 'flow' | 'agents' | 'updates'
-
 // Each section's title + blurb live here so the dialog can render a fixed header
 // band (real type hierarchy, always visible) while only the body scrolls — the
 // section components render just their controls.
 const SECTIONS: {
-  id: SectionId
+  id: SettingsSection
   label: string
   icon: typeof Layers
   title: string
@@ -66,8 +64,10 @@ const SECTIONS: {
 ]
 
 export function SettingsDialog(): React.JSX.Element {
-  const [open, setOpen] = useState(false)
-  const [section, setSection] = useState<SectionId>('general')
+  const open = useSettingsDialogStore((s) => s.open)
+  const setOpen = useSettingsDialogStore((s) => s.setOpen)
+  const section = useSettingsDialogStore((s) => s.section)
+  const setSection = useSettingsDialogStore((s) => s.setSection)
   const active = SECTIONS.find((s) => s.id === section) ?? SECTIONS[0]
 
   return (

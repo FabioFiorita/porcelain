@@ -41,6 +41,9 @@ interface PreferencesState {
    * installs). When it differs from the app's bundled PLUGIN_VERSION, the Settings CTA
    * becomes "Update". */
   pluginVersion: string | null
+  /** Bundled plugin version the user dismissed the update toast for, so it doesn't
+   * re-nag on every relaunch — but still fires when a newer version ships. */
+  pluginUpdateDismissedVersion: string | null
   setChangesScope: (scope: ChangesScope) => void
   setDiffMode: (mode: DiffMode) => void
   setMarkdownMode: (mode: MarkdownMode) => void
@@ -53,6 +56,7 @@ interface PreferencesState {
   setSplitRatio: (ratio: number) => void
   setPluginInstalled: (installed: boolean) => void
   setPluginVersion: (version: string | null) => void
+  setPluginUpdateDismissedVersion: (version: string | null) => void
 }
 
 export const usePreferencesStore = create<PreferencesState>()(
@@ -70,6 +74,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       splitRatio: 0.5,
       pluginInstalled: false,
       pluginVersion: null,
+      pluginUpdateDismissedVersion: null,
       setChangesScope: (changesScope) => set({ changesScope }),
       setDiffMode: (diffMode) => set({ diffMode }),
       setMarkdownMode: (markdownMode) => set({ markdownMode }),
@@ -88,6 +93,8 @@ export const usePreferencesStore = create<PreferencesState>()(
         set({ splitRatio: Math.min(SPLIT_MAX_RATIO, Math.max(SPLIT_MIN_RATIO, ratio)) }),
       setPluginInstalled: (pluginInstalled) => set({ pluginInstalled }),
       setPluginVersion: (pluginVersion) => set({ pluginVersion }),
+      setPluginUpdateDismissedVersion: (pluginUpdateDismissedVersion) =>
+        set({ pluginUpdateDismissedVersion }),
     }),
     {
       name: 'porcelain-preferences',

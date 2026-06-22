@@ -19,6 +19,7 @@ import { ContentSearch } from './content-search'
 import { FileCommands } from './file-commands'
 import { FileFinder } from './file-finder'
 import { FilePromptDialog } from './file-prompt-dialog'
+import { PluginUpdateToast } from './plugin-update-toast'
 import { RightSidebar } from './right-sidebar'
 import { TabBar } from './tab-bar'
 import { TitleBar } from './title-bar'
@@ -206,6 +207,7 @@ export function AppShell(): React.JSX.Element {
         <FileCommands />
         <FilePromptDialog />
         <CardComposer />
+        <PluginUpdateToast />
         <AppSidebar />
         <RepoShell />
       </SidebarProvider>
