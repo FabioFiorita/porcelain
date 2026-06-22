@@ -55,9 +55,10 @@ describe('plugin assets', () => {
     }
   })
 
-  it('the review skill teaches review sets + comments and the shipped/context tagging', () => {
+  it('the review skill teaches review sets + comments + reviewed files and the shipped/context tagging', () => {
     expect(REVIEW_SKILL).toContain('set_feature_review')
     expect(REVIEW_SKILL).toContain('get_review_comments')
+    expect(REVIEW_SKILL).toContain('get_reviewed_files')
     expect(REVIEW_SKILL).toContain('"shipped"')
     expect(REVIEW_SKILL).toContain('"context"')
     expect(REVIEW_SKILL).toMatch(/^---\nname: review-with-porcelain/)

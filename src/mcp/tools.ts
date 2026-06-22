@@ -25,6 +25,7 @@ import {
   setReview,
   toReviewFiles,
 } from './review-file'
+import { describeReviewed, readReviewed } from './reviewed-file'
 
 function asString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined
@@ -61,6 +62,9 @@ export async function callTool(name: string, args: Record<string, unknown>): Pro
     return resolveComment(repoPath, id)
       ? `Resolved comment ${id} for ${repoPath}`
       : `No open comment ${id} for ${repoPath}`
+  }
+  if (name === 'get_reviewed_files') {
+    return describeReviewed(repoPath, readReviewed(repoPath))
   }
   if (name === 'list_cards') {
     return describeBoard(repoPath, readCards(repoPath))

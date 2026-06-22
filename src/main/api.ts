@@ -87,18 +87,20 @@ import { exceedsReadLimit } from './read-limits'
 import {
   hiddenPathsFor,
   pinnedPathsFor,
-  reviewedPathsFor,
   visibleFilePaths,
   withHiddenPath,
   withoutHiddenPath,
   withoutPinnedPath,
-  withoutReviewedPath,
-  withoutReviewedPaths,
   withPinnedPath,
   withRecentRepo,
-  withReviewedPath,
 } from './repo-config'
 import { clearReviewSet, readReviewSet } from './review-store'
+import {
+  clearReviewedPaths,
+  markReviewed,
+  readReviewedPaths,
+  unmarkReviewed,
+} from './reviewed-store'
 import { checkForUpdates, installUpdate, type UpdateStatus, updateStatus } from './updater'
 import { createWindow, type WindowInit, windowInitFor } from './window'
 
@@ -392,18 +394,18 @@ export const router = t.router({
   markReviewed: t.procedure
     .input(z.object({ repoPath: z.string(), path: z.string() }))
     .mutation(async ({ input }) => {
-      await updateConfig((config) => withReviewedPath(config, input.repoPath, input.path))
+      await markReviewed(input.repoPath, input.path)
     }),
 
   unmarkReviewed: t.procedure
     .input(z.object({ repoPath: z.string(), path: z.string() }))
     .mutation(async ({ input }) => {
-      await updateConfig((config) => withoutReviewedPath(config, input.repoPath, input.path))
+      await unmarkReviewed(input.repoPath, input.path)
     }),
 
   reviewedPaths: t.procedure
     .input(z.string())
-    .query(async ({ input }): Promise<string[]> => reviewedPathsFor(await loadConfig(), input)),
+    .query(async ({ input }): Promise<string[]> => readReviewedPaths(input)),
 
   gitQuickCommand: t.procedure
     .input(
@@ -453,12 +455,9 @@ export const router = t.router({
       // The reviewed marks describe working-tree changes; once committed they no longer
       // apply, so clear them — a later re-edit of the same file starts unreviewed.
       const committed = await gitCommitFiles(input.repoPath, 'HEAD')
-      await updateConfig((config) =>
-        withoutReviewedPaths(
-          config,
-          input.repoPath,
-          committed.map((file) => file.path),
-        ),
+      await clearReviewedPaths(
+        input.repoPath,
+        committed.map((file) => file.path),
       )
     }),
 

@@ -75,8 +75,8 @@ export const test = baseTest.extend<Options & Fixtures, WorkerFixtures>({
       join(userData, 'config.json'),
       JSON.stringify({ recentRepos: [seedRepo ? repoDir : ABSENT_REPO], repos: {} }),
     )
-    // Isolate the agent channels (review sets, actions, board, layers) so the
-    // Feature/Terminal/Board tabs and the flow grouping are deterministic and we
+    // Isolate the agent channels (review sets, actions, board, layers, reviewed marks)
+    // so the Feature/Terminal/Board tabs and the flow grouping are deterministic and we
     // never read or touch the user's real ~/.porcelain files.
     const reviewSets = join(udBase, 'review-sets.json')
     await writeFile(reviewSets, '{}')
@@ -86,6 +86,8 @@ export const test = baseTest.extend<Options & Fixtures, WorkerFixtures>({
     await writeFile(board, '{}')
     const layers = join(udBase, 'layers.json')
     await writeFile(layers, '{}')
+    const reviewed = join(udBase, 'reviewed.json')
+    await writeFile(reviewed, '{}')
 
     const app = await _electron.launch({
       args: [MAIN_ENTRY, `--user-data-dir=${udBase}`],
@@ -98,6 +100,7 @@ export const test = baseTest.extend<Options & Fixtures, WorkerFixtures>({
         PORCELAIN_ACTIONS: actions,
         PORCELAIN_BOARD: board,
         PORCELAIN_LAYERS: layers,
+        PORCELAIN_REVIEWED: reviewed,
         PORCELAIN_SHELL: '/bin/bash',
         PORCELAIN_E2E: '1',
       }),

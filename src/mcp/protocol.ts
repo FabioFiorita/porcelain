@@ -4,7 +4,7 @@
 // nothing to resolve from node_modules (which a non-Electron `node` can't read from
 // inside app.asar). The protocol surface is tiny: initialize, tools/list, tools/call.
 
-export const SERVER_INFO = { name: 'porcelain', version: '0.4.0' }
+export const SERVER_INFO = { name: 'porcelain', version: '0.5.0' }
 export const PROTOCOL_VERSION = '2025-06-18'
 
 const REVIEW_FILE_SCHEMA = {
@@ -114,6 +114,18 @@ export const TOOLS = [
         id: { type: 'string', description: 'The comment id from get_review_comments' },
       },
       required: ['repoPath', 'id'],
+    },
+  },
+  {
+    name: 'get_reviewed_files',
+    description:
+      "Read which files the human has checked off as reviewed for a repo. Porcelain lets the reviewer mark each changed file reviewed (a per-file checkbox in the Changes / Feature lists); this returns those repo-relative paths. Use it to see how far the human has gotten and where to focus — any changed file NOT in this list is still unreviewed, so explain or double-check those, and treat reviewed ones as already vetted. The marks describe the current working tree and reset when the changes are committed. Read-only: the marks are the human's review state, so there is no tool to set them.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        repoPath: { type: 'string', description: 'Absolute path to the repository' },
+      },
+      required: ['repoPath'],
     },
   },
   {

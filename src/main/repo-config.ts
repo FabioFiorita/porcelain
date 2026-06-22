@@ -8,11 +8,12 @@ export const appConfigSchema = z.object({
       z.object({
         hiddenPaths: z.array(z.string()).default([]),
         pinnedPaths: z.array(z.string()).default([]),
-        reviewedPaths: z.array(z.string()).default([]),
-        // Deprecated: layers + notes moved to their ~/.porcelain agent channels
-        // (layers-store.ts / notes-store.ts) so the MCP can read+write them. Kept
-        // optional only so the one-time startup migrations (migrateLayersFromConfig /
-        // migrateNotesFromConfig) can copy legacy values out — no code writes them anymore.
+        // Deprecated: reviewed marks + layers + notes moved to their ~/.porcelain agent
+        // channels (reviewed-store.ts / layers-store.ts / notes-store.ts) so the MCP can
+        // read them. Kept optional only so the one-time startup migrations
+        // (migrateReviewedFromConfig / migrateLayersFromConfig / migrateNotesFromConfig)
+        // can copy legacy values out — no code writes them anymore.
+        reviewedPaths: z.array(z.string()).optional(),
         layers: z.array(z.object({ label: z.string(), pattern: z.string() })).optional(),
         notes: z.string().optional(),
       }),
@@ -27,7 +28,6 @@ export const emptyConfig: AppConfig = { recentRepos: [], repos: {} }
 const emptyRepo = (): AppConfig['repos'][string] => ({
   hiddenPaths: [],
   pinnedPaths: [],
-  reviewedPaths: [],
 })
 
 const MAX_RECENTS = 10
@@ -116,49 +116,4 @@ export function withoutPinnedPath(config: AppConfig, repoPath: string, path: str
 
 export function pinnedPathsFor(config: AppConfig, repoPath: string): string[] {
   return config.repos[repoPath]?.pinnedPaths ?? []
-}
-
-export function withReviewedPath(config: AppConfig, repoPath: string, path: string): AppConfig {
-  const repo = config.repos[repoPath] ?? emptyRepo()
-  if (repo.reviewedPaths.includes(path)) return config
-  return {
-    ...config,
-    repos: {
-      ...config.repos,
-      [repoPath]: { ...repo, reviewedPaths: [...repo.reviewedPaths, path] },
-    },
-  }
-}
-
-export function withoutReviewedPath(config: AppConfig, repoPath: string, path: string): AppConfig {
-  const repo = config.repos[repoPath]
-  if (!repo) return config
-  return {
-    ...config,
-    repos: {
-      ...config.repos,
-      [repoPath]: { ...repo, reviewedPaths: repo.reviewedPaths.filter((p) => p !== path) },
-    },
-  }
-}
-
-export function withoutReviewedPaths(
-  config: AppConfig,
-  repoPath: string,
-  paths: string[],
-): AppConfig {
-  const repo = config.repos[repoPath]
-  if (!repo) return config
-  const removed = new Set(paths)
-  return {
-    ...config,
-    repos: {
-      ...config.repos,
-      [repoPath]: { ...repo, reviewedPaths: repo.reviewedPaths.filter((p) => !removed.has(p)) },
-    },
-  }
-}
-
-export function reviewedPathsFor(config: AppConfig, repoPath: string): string[] {
-  return config.repos[repoPath]?.reviewedPaths ?? []
 }

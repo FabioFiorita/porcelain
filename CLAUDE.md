@@ -77,6 +77,7 @@ Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wron
 - **Flow / flow layers** — the architectural-layer grouping of changes (entry-point → data); the heart of "review as a story".
 - **Feature view / review set** — the change widened to the whole feature; files tagged **changed** / **context** (import-reached baseline) / **shipped** (agent-declared cross-seam). The review set is the agent-fed manifest (`~/.porcelain/review-sets.json`).
 - **Review comments** — the reviewer's line/file notes (`~/.porcelain/comments.json`), app→agent over MCP.
+- **Reviewed marks** — the per-file "reviewed" checkboxes the human ticks in the Changes/Feature lists (`~/.porcelain/reviewed.json`), app→agent over MCP (read-only, like notes); cleared on commit.
 - **Project board** — per-repo todo/doing/done (`~/.porcelain/board.json`), two-way over MCP.
 - **Embedded terminal / Actions** — real PTYs (node-pty + xterm.js) on a dedicated `window.porcelain.terminal` bridge (not tRPC). **Actions** = saved named commands (`~/.porcelain/actions.json`); agent curates, **human runs**.
 - **Repo / worktree / window** — one repo per window; the worktree switcher sits in the sidebar footer.

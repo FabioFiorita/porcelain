@@ -6,6 +6,7 @@ import { migrateLayersFromConfig } from './layers-store'
 import { installAppMenu } from './menu'
 import { migrateNotesFromConfig } from './notes-store'
 import { watchAgentChannels } from './review-watch'
+import { migrateReviewedFromConfig } from './reviewed-store'
 import { createWindow } from './window'
 
 // Dev gets its own config dir so `pnpm dev` never touches (or hijacks) the
@@ -41,11 +42,12 @@ app.whenReady().then(async () => {
     await seedDevConfig()
   }
 
-  // Move any legacy notes + flow layers out of userData/config.json into their
-  // ~/.porcelain agent channels so the MCP can read (and, for layers, write) them.
-  // One-time + idempotent; runs before any window reads notes/layers.
+  // Move any legacy notes, flow layers, and reviewed marks out of userData/config.json
+  // into their ~/.porcelain agent channels so the MCP can read (and, for layers, write)
+  // them. One-time + idempotent; runs before any window reads notes/layers/reviewed.
   await migrateNotesFromConfig()
   await migrateLayersFromConfig()
+  await migrateReviewedFromConfig()
 
   // Watch the agent channels so MCP-pushed review sets / resolved comments refresh
   // the open views.

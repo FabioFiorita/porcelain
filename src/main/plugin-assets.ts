@@ -27,8 +27,10 @@ export const LAYERS_SKILL_NAME = 'flow-layers'
  *        notes scratchpad (read-only, app→agent) — plus a focused repo-notes skill.
  * 2.4.0: added the flow-layers channel — get/set/reset_flow_layers let the agent read
  *        and retune the per-repo review-flow grouping (two-way) — plus a flow-layers skill.
+ * 2.5.0: added the reviewed-marks channel — get_reviewed_files reads which files the human
+ *        has ticked as reviewed (read-only, app→agent) — taught in the review skill.
  */
-export const PLUGIN_VERSION = '2.4.0'
+export const PLUGIN_VERSION = '2.5.0'
 
 /**
  * The local Claude Code marketplace root the app writes. Lives in ~/.porcelain
@@ -50,7 +52,7 @@ export function marketplaceManifest(): Record<string, unknown> {
         name: PLUGIN_NAME,
         source: `./${PLUGIN_NAME}`,
         description:
-          'MCP server + skills to push feature review sets, read review comments and project notes, manage the project board and saved actions, and tune the review-flow layers in the Porcelain app.',
+          'MCP server + skills to push feature review sets, read review comments, reviewed-file marks, and project notes, manage the project board and saved actions, and tune the review-flow layers in the Porcelain app.',
       },
     ],
   }
@@ -60,7 +62,7 @@ export function pluginManifest(version: string): Record<string, unknown> {
   return {
     name: PLUGIN_NAME,
     description:
-      "Porcelain companion: push feature review sets so a human reviews the whole feature in flow order, read/resolve review comments, read the human's project notes, manage the project board and saved actions, and tune the review-flow layers — over MCP.",
+      "Porcelain companion: push feature review sets so a human reviews the whole feature in flow order, read/resolve review comments, see which files the human has marked reviewed, read the human's project notes, manage the project board and saved actions, and tune the review-flow layers — over MCP.",
     version,
     author: { name: 'Porcelain' },
     // Inline stdio MCP server; ${CLAUDE_PLUGIN_ROOT} resolves to the installed
@@ -94,7 +96,7 @@ export function installCommands(): string[] {
 
 export const REVIEW_SKILL = `---
 name: ${REVIEW_SKILL_NAME}
-description: Push a feature review set to the Porcelain app — and read the human's review comments — so a human can review the WHOLE feature (including server/cross-seam files that aren't in the git diff) in flow order. Use after implementing, or while working on, a multi-file feature (especially one spanning the client/server seam), and when the human says they left comments or notes on your change.
+description: Push a feature review set to the Porcelain app — and read the human's review comments and which files they've marked reviewed — so a human can review the WHOLE feature (including server/cross-seam files that aren't in the git diff) in flow order. Use after implementing, or while working on, a multi-file feature (especially one spanning the client/server seam), and when the human says they left comments or notes on your change or asks what they've reviewed so far.
 ---
 
 # Review with Porcelain
@@ -136,6 +138,14 @@ The human also leaves comments in Porcelain — anchored to specific lines (or a
 - \`resolve_review_comment\` — \`{ repoPath, id }\` → mark one resolved once you've ACTUALLY addressed the note; it then drops off the reviewer's open list.
 
 When the human says "look at my comments", "I left some notes", or asks about a specific line/diff, call \`get_review_comments\` first.
+
+## Reviewed files
+
+The human also ticks off files as they review them — a per-file "reviewed" checkbox in Porcelain's Changes/Feature lists. This is the other half of their review state (app → agent, read-only):
+
+- \`get_reviewed_files\` — \`{ repoPath }\` → the repo-relative paths the human has marked reviewed. Any changed file NOT in this list is still unreviewed, so focus your explanations and double-checks there and treat the listed ones as already vetted. The marks describe the current working tree and reset when the changes are committed.
+
+When the human asks "what have I reviewed", "where was I", or "what's left to review", call \`get_reviewed_files\`. It's read-only — "reviewed" is the human's act, so there is no tool to set it; don't mark files reviewed on their behalf.
 `
 
 export const BOARD_SKILL = `---

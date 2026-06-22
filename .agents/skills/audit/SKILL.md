@@ -112,6 +112,24 @@ assumed — this skill is the codebase-specific layer beneath them.
   never clobbers a newer in-app edit. *Verify:* an MCP-written invalid pattern is dropped,
   not thrown, on the next flow poll; the app reads layers only from the channel (no
   `config.repos[*].layers` read outside the migration).
+- **Reviewed marks are a READ-ONLY, app→agent channel.** The 7th channel
+  (`~/.porcelain/reviewed.json`, `reviewed-store.ts` ↔ `src/mcp/reviewed-file.ts`,
+  `Record<repoPath, string[]>`) holds the repo-relative paths the human has ticked as
+  reviewed in the Changes/Feature lists. Same shape and rules as the notes channel: the
+  **app is the SOLE writer** (`markReviewed`/`unmarkReviewed`, and `clearReviewedPaths`
+  which `gitCommit` calls to drop the just-committed files' marks) and the MCP server only
+  reads it (`get_reviewed_files` — there is NO mark-write tool, and don't add one;
+  "reviewed" is the human's act, not the agent's). Because nothing else writes it, it has
+  **no `review-watch` entry** — don't add a watcher expecting agent pushes. Paths are
+  inert here (the agent reads them as review-progress context; the app already validates
+  any path it acts on), so no repo-containment guard applies, but keep the app's writes
+  atomic (tmp + rename) and in-process-serialized like the others. Marks moved here out of
+  `userData/config.json` (`config.repos[*].reviewedPaths`, now a deprecated optional field
+  kept only for the migration) so the dependency-free MCP can read them;
+  `migrateReviewedFromConfig` (startup, idempotent) carries legacy marks over and never
+  clobbers a newer in-app mark. *Verify:* the MCP tool list has only `get_reviewed_files`
+  for reviewed state; the app reads marks only from the channel (no
+  `config.repos[*].reviewedPaths` read outside the migration).
 - **The plugin installer is the ONLY non-git shell-out, and it takes no user input.**
   `installPlugin` (`src/main/plugin.ts`) spawns a login shell to run a FIXED command
   (`claude plugin marketplace add <app-derived dir> && claude plugin install …`) —
