@@ -81,6 +81,20 @@
     --radius-3xl: calc(var(--radius) * 2.2);
     --radius-4xl: calc(var(--radius) * 2.6);
     --font-mono: 'JetBrains Mono Variable', monospace;
+
+    /* Sub-xs micro-scale — the app's custom font-size tokens (px ÷ 16 = rem).
+       Each maps to the same rem as the text-[Npx] literal it replaces so the
+       refactor is pixel-identical. Tailwind v4 generates a text-<name> utility
+       for each --text-<name> entry here.
+         4xs  = 8.5px   3xs = 9px   2xs = 10px   2xs-plus = 10.5px
+         xs-minus = 11px   xs-plus = 12.5px   sm-minus = 13px         */
+    --text-4xs: 0.53125rem;
+    --text-3xs: 0.5625rem;
+    --text-2xs: 0.625rem;
+    --text-2xs-plus: 0.65625rem;
+    --text-xs-minus: 0.6875rem;
+    --text-xs-plus: 0.78125rem;
+    --text-sm-minus: 0.8125rem;
 }
 
 :root {

@@ -35,7 +35,7 @@ export function CardItem({
       <div className="min-w-0 flex-1">
         <p className="break-words text-xs font-medium">{card.title}</p>
         {card.body && (
-          <p className="mt-0.5 line-clamp-3 whitespace-pre-wrap text-[11px] text-muted-foreground">
+          <p className="mt-0.5 line-clamp-3 whitespace-pre-wrap text-xs-minus text-muted-foreground">
             {card.body}
           </p>
         )}

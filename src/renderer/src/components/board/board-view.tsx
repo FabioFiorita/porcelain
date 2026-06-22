@@ -39,7 +39,7 @@ export function BoardView(): React.JSX.Element {
                 <CardItem key={card.id} card={card} onEdit={(c) => openDraft(draftFromCard(c))} />
               ))}
               {inColumn.length === 0 && (
-                <p className="px-1 text-[11px] text-muted-foreground/60">No cards</p>
+                <p className="px-1 text-xs-minus text-muted-foreground/60">No cards</p>
               )}
             </div>
           </div>

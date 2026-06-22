@@ -96,13 +96,13 @@ function FileGroup({
           >
             <ChevronRight className="size-3 shrink-0 text-muted-foreground transition-transform" />
             <FileTypeIcon name={name} className="size-3.5 shrink-0" />
-            <span className="shrink-0 truncate text-[13px]">{name}</span>
+            <span className="shrink-0 truncate text-sm-minus">{name}</span>
             {dir && (
               <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground" dir="rtl">
                 {dir}
               </span>
             )}
-            <span className="ml-auto shrink-0 font-mono text-[10px] text-muted-foreground tabular-nums">
+            <span className="ml-auto shrink-0 font-mono text-2xs text-muted-foreground tabular-nums">
               {file.matchCount}
             </span>
           </button>
@@ -127,7 +127,7 @@ function FileGroup({
                       ln.match ? 'text-foreground' : 'text-muted-foreground',
                     )}
                   >
-                    <span className="w-9 shrink-0 select-none text-right text-[10px] text-muted-foreground/50 tabular-nums">
+                    <span className="w-9 shrink-0 select-none text-right text-2xs text-muted-foreground/50 tabular-nums">
                       {ln.line}
                     </span>
                     <span className="min-w-0 flex-1 overflow-hidden whitespace-pre">
@@ -198,7 +198,7 @@ export function SearchList(): React.JSX.Element {
             placeholder="Search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="text-[13px]"
+            className="text-sm-minus"
           />
           <InputGroupAddon align="inline-end" className="gap-0.5 text-muted-foreground">
             <Toggle
@@ -248,11 +248,11 @@ export function SearchList(): React.JSX.Element {
       {error ? (
         <p className="px-3 py-2 text-xs break-words text-destructive">{error.message}</p>
       ) : query.trim() === '' ? (
-        <p className="px-3 py-2 text-[13px] text-muted-foreground">
+        <p className="px-3 py-2 text-sm-minus text-muted-foreground">
           Search the repository for text or a regular expression.
         </p>
       ) : !result || result.files.length === 0 ? (
-        <p className="px-3 py-2 text-[13px] text-muted-foreground">
+        <p className="px-3 py-2 text-sm-minus text-muted-foreground">
           {searching ? 'Searching…' : 'No results'}
         </p>
       ) : (

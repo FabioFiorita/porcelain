@@ -56,7 +56,7 @@ export function FindBar({
         aria-label="Find in file"
         className="h-6 max-w-64 border-none bg-transparent text-xs shadow-none focus-visible:ring-0"
       />
-      <span className="shrink-0 text-[10px] text-muted-foreground tabular-nums">
+      <span className="shrink-0 text-2xs text-muted-foreground tabular-nums">
         {query === ''
           ? ''
           : matches.length === 0

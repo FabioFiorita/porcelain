@@ -59,7 +59,7 @@ export function PluginSection(): React.JSX.Element {
         </div>
       ) : (
         <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1.5 text-[13px] text-success">
+          <span className="flex items-center gap-1.5 text-sm-minus text-success">
             <CircleCheck className="size-4" /> Up to date{current ? ` · v${current}` : ''}
           </span>
           <Button variant="ghost" size="sm" onClick={() => install()} disabled={isInstalling}>
@@ -87,7 +87,7 @@ export function PluginSection(): React.JSX.Element {
         </p>
       )}
       {(result || error) && (
-        <pre className="max-h-32 overflow-auto rounded-md bg-card p-2.5 font-mono text-[11px] text-muted-foreground">
+        <pre className="max-h-32 overflow-auto rounded-md bg-card p-2.5 font-mono text-xs-minus text-muted-foreground">
           {error ?? result?.output}
         </pre>
       )}
@@ -102,13 +102,13 @@ export function PluginSection(): React.JSX.Element {
             {copied ? 'Copied' : 'Copy'}
           </Button>
         </div>
-        <pre className="overflow-auto rounded-md bg-card p-2.5 font-mono text-[11px] text-foreground/90">
+        <pre className="overflow-auto rounded-md bg-card p-2.5 font-mono text-xs-minus text-foreground/90">
           {commands.map((command) => (
             <div key={command}>{command}</div>
           ))}
         </pre>
         {info && (
-          <p className="mt-1.5 text-[11px] text-muted-foreground/70">
+          <p className="mt-1.5 text-xs-minus text-muted-foreground/70">
             Plugin written to <code className="font-mono">{info.marketplaceDir}</code>
           </p>
         )}

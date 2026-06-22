@@ -52,7 +52,7 @@ function ResultCard({
         ) : (
           <CircleCheck className="size-3.5 shrink-0 text-success" />
         )}
-        <span className="min-w-0 flex-1 truncate font-mono text-[11px]">{result.label}</span>
+        <span className="min-w-0 flex-1 truncate font-mono text-xs-minus">{result.label}</span>
         <button
           type="button"
           onClick={onDismiss}
@@ -64,7 +64,7 @@ function ResultCard({
       </div>
       <pre
         className={cn(
-          'max-h-44 overflow-auto whitespace-pre-wrap px-2.5 py-2 font-mono text-[10px] leading-relaxed',
+          'max-h-44 overflow-auto whitespace-pre-wrap px-2.5 py-2 font-mono text-2xs leading-relaxed',
           result.failed ? 'text-destructive' : 'text-muted-foreground',
         )}
       >
@@ -105,7 +105,7 @@ export function QuickCommandsGroup(): React.JSX.Element {
           the mockup's accent treatment. */}
       {suggestions.length > 0 && (
         <SidebarGroup className="px-3">
-          <SidebarGroupLabel className="px-1 text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+          <SidebarGroupLabel className="px-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
             Suggested
           </SidebarGroupLabel>
           <SidebarGroupContent className="px-1">
@@ -130,7 +130,7 @@ export function QuickCommandsGroup(): React.JSX.Element {
                       <span className="truncate font-mono text-xs font-normal">
                         git {command.label}
                       </span>
-                      <span className="truncate text-[10px] font-normal text-muted-foreground">
+                      <span className="truncate text-2xs font-normal text-muted-foreground">
                         {suggestion.reason}
                       </span>
                     </span>
@@ -143,7 +143,7 @@ export function QuickCommandsGroup(): React.JSX.Element {
         </SidebarGroup>
       )}
       <SidebarGroup className="px-3">
-        <SidebarGroupLabel className="px-1 text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+        <SidebarGroupLabel className="px-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
           Commands
         </SidebarGroupLabel>
         <SidebarGroupContent className="flex flex-col gap-1.5 px-1">

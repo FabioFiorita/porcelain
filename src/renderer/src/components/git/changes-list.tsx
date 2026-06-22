@@ -147,19 +147,19 @@ function FileRowImpl({
                 )}
                 <span
                   className={cn(
-                    'truncate text-[13px]',
+                    'truncate text-sm-minus',
                     isReviewed && 'text-muted-foreground line-through',
                   )}
                 >
                   {name}
                 </span>
                 {file.additions !== undefined && (
-                  <span className="shrink-0 font-mono text-[10px] text-success">
+                  <span className="shrink-0 font-mono text-2xs text-success">
                     +{file.additions}
                   </span>
                 )}
                 {file.deletions !== undefined && (
-                  <span className="shrink-0 font-mono text-[10px] text-destructive">
+                  <span className="shrink-0 font-mono text-2xs text-destructive">
                     −{file.deletions}
                   </span>
                 )}
@@ -310,13 +310,13 @@ export function ChangesList(): React.JSX.Element {
         <ChangesScopeToggle />
       </div>
       {total === 0 ? (
-        <p className="px-3 py-2 text-[13px] text-muted-foreground">
+        <p className="px-3 py-2 text-sm-minus text-muted-foreground">
           No changes to review — your working tree is clean.
         </p>
       ) : (
         groups.map((group) => (
           <div key={group.layer}>
-            <SidebarGroupLabel className="h-6 px-2 text-[10px] uppercase tracking-wider">
+            <SidebarGroupLabel className="h-6 px-2 text-2xs uppercase tracking-wider">
               {group.layer}
             </SidebarGroupLabel>
             <SidebarMenu>

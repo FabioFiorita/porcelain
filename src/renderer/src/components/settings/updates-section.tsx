@@ -13,7 +13,7 @@ export function UpdatesSection(): React.JSX.Element {
     <div className="flex flex-col gap-5">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-[13px] font-semibold">Current version</p>
+          <p className="text-sm-minus font-semibold">Current version</p>
           <p className="text-xs text-muted-foreground">
             Porcelain {status ? `v${status.currentVersion}` : '…'}
           </p>

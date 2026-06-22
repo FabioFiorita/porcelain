@@ -15,7 +15,7 @@ import { toast } from 'sonner'
 
 // Match the worktree popover's DropdownMenuLabel: small, bold, uppercase, tracked.
 const groupHeading =
-  '**:[[cmdk-group-heading]]:text-[10px] **:[[cmdk-group-heading]]:font-bold **:[[cmdk-group-heading]]:uppercase **:[[cmdk-group-heading]]:tracking-[0.08em]'
+  '**:[[cmdk-group-heading]]:text-2xs **:[[cmdk-group-heading]]:font-bold **:[[cmdk-group-heading]]:uppercase **:[[cmdk-group-heading]]:tracking-[0.08em]'
 
 // The footer's left chip: the current branch, opening a searchable picker of local
 // and remote branches that checks the chosen one out in place. Checking out a
@@ -95,7 +95,7 @@ export function BranchSwitcher(): React.JSX.Element | null {
                     key={b.name}
                     value={b.name}
                     onSelect={() => switchBranch(b.name)}
-                    className="text-[12.5px]"
+                    className="text-xs-plus"
                   >
                     {b.name === branch ? (
                       <Check className="shrink-0" />
@@ -114,7 +114,7 @@ export function BranchSwitcher(): React.JSX.Element | null {
                     key={`${b.remote}/${b.name}`}
                     value={`${b.remote}/${b.name}`}
                     onSelect={() => switchBranch(b.name)}
-                    className="text-[12.5px]"
+                    className="text-xs-plus"
                   >
                     <span className="size-4 shrink-0" />
                     <span className="truncate">

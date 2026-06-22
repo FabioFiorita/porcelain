@@ -147,7 +147,7 @@ export function FileFinder(): React.JSX.Element {
           placeholder="Search files, folders, commands, commits…"
           value={query}
           onValueChange={setQuery}
-          className="text-[13px]"
+          className="text-sm-minus"
         />
         <CommandList>
           {query.trim() !== '' &&
@@ -174,7 +174,7 @@ export function FileFinder(): React.JSX.Element {
                     ) : (
                       <FileTypeIcon name={name} className="shrink-0" />
                     )}
-                    <span className="shrink-0 text-[13px]">{name}</span>
+                    <span className="shrink-0 text-sm-minus">{name}</span>
                     {dir && (
                       <span className="min-w-0 truncate text-xs text-muted-foreground" dir="rtl">
                         {dir}
@@ -194,7 +194,7 @@ export function FileFinder(): React.JSX.Element {
                   onSelect={() => runCommand(action)}
                 >
                   <Play className="shrink-0 text-muted-foreground" />
-                  <span className="shrink-0 text-[13px]">{action.title}</span>
+                  <span className="shrink-0 text-sm-minus">{action.title}</span>
                   <span className="min-w-0 truncate font-mono text-xs text-muted-foreground">
                     {action.command}
                   </span>
@@ -211,7 +211,7 @@ export function FileFinder(): React.JSX.Element {
                   onSelect={() => openCommit(commit)}
                 >
                   <GitCommitHorizontal className="shrink-0 text-muted-foreground" />
-                  <span className="min-w-0 flex-1 truncate text-[13px]">{commit.subject}</span>
+                  <span className="min-w-0 flex-1 truncate text-sm-minus">{commit.subject}</span>
                   <span className="shrink-0 font-mono text-xs text-muted-foreground">
                     {commit.hash.slice(0, 7)}
                   </span>

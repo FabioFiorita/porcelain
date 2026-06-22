@@ -85,7 +85,7 @@ export function CommentComposer({
           )}
         </DialogHeader>
         {anchor?.anchorText && (
-          <pre className="max-h-28 overflow-auto rounded-md bg-card p-2 font-mono text-[11px] text-muted-foreground">
+          <pre className="max-h-28 overflow-auto rounded-md bg-card p-2 font-mono text-xs-minus text-muted-foreground">
             {anchor.anchorText}
           </pre>
         )}

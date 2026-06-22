@@ -49,7 +49,7 @@ function CommentRow({ comment }: { comment: ReviewComment }): React.JSX.Element 
         <button
           type="button"
           onClick={open}
-          className="min-w-0 flex-1 truncate text-left font-mono text-[11px] text-muted-foreground hover:text-foreground"
+          className="min-w-0 flex-1 truncate text-left font-mono text-xs-minus text-muted-foreground hover:text-foreground"
           title={`${comment.path}${comment.startLine ? `:${comment.startLine}` : ''}`}
         >
           {anchorLabel(comment)}
@@ -93,7 +93,7 @@ export function CommentsGroup(): React.JSX.Element {
 
   return (
     <SidebarGroup className="px-3">
-      <SidebarGroupLabel className="px-1 text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+      <SidebarGroupLabel className="px-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
         Comments{open > 0 && ` · ${open} open`}
       </SidebarGroupLabel>
       <SidebarGroupContent className="flex flex-col gap-1.5 px-1">

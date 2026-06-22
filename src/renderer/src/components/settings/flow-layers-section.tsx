@@ -96,7 +96,7 @@ function PatternBuilder({
 
   return (
     <div className="flex flex-col gap-2.5 rounded-md border bg-muted/40 p-3">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <p className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
         Pattern builder
       </p>
       <div className="flex items-center gap-2.5">
@@ -157,7 +157,7 @@ function PatternBuilder({
             </p>
           ) : (
             <>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <p className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Matches {matches.length} changed {matches.length === 1 ? 'file' : 'files'}
               </p>
               {matches.slice(0, EXAMPLE_LIMIT).map((p) => (

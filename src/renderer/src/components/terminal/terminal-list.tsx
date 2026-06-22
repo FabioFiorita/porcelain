@@ -50,7 +50,7 @@ export function TerminalList(): React.JSX.Element {
             <div
               key={session.id}
               className={cn(
-                'group/term flex h-7 items-center gap-2 rounded-md px-2 text-[13px]',
+                'group/term flex h-7 items-center gap-2 rounded-md px-2 text-sm-minus',
                 isActive
                   ? 'bg-sidebar-accent text-foreground'
                   : 'text-muted-foreground hover:bg-sidebar-accent/50',
@@ -65,7 +65,7 @@ export function TerminalList(): React.JSX.Element {
                 <span className="min-w-0 flex-1 truncate">{session.name}</span>
               </button>
               {session.status === 'exited' ? (
-                <span className="shrink-0 text-[10px] uppercase tracking-wider text-muted-foreground/60">
+                <span className="shrink-0 text-2xs uppercase tracking-wider text-muted-foreground/60">
                   exited
                 </span>
               ) : (
@@ -84,7 +84,7 @@ export function TerminalList(): React.JSX.Element {
           )
         })}
         {sessions.length === 0 && (
-          <p className="px-1 py-2 text-[11px] text-muted-foreground/60">
+          <p className="px-1 py-2 text-xs-minus text-muted-foreground/60">
             No terminals. Add one with +, or run an action from Quick access.
           </p>
         )}

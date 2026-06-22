@@ -40,7 +40,7 @@ export function NotesCard({ repoPath }: { repoPath?: string }): React.JSX.Elemen
 
   return (
     <div className="flex h-full flex-col px-3 pb-3">
-      <div className="flex h-8 shrink-0 items-center px-1 text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+      <div className="flex h-8 shrink-0 items-center px-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
         Notes
       </div>
       {/* A self-contained porcelain tile (matching the mockup) rather than a

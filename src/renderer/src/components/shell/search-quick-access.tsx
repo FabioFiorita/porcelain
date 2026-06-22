@@ -22,7 +22,7 @@ export function SearchQuickAccess(): React.JSX.Element {
             {recent.map((query) => (
               <div
                 key={query}
-                className="group/recent flex h-7 items-center gap-1 rounded-md px-1 text-[13px] hover:bg-(--hover-fill)"
+                className="group/recent flex h-7 items-center gap-1 rounded-md px-1 text-sm-minus hover:bg-(--hover-fill)"
               >
                 <button
                   type="button"

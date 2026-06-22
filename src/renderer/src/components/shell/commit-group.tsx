@@ -139,7 +139,7 @@ export function CommitGroup(): React.JSX.Element {
   if (!conventions) {
     return (
       <SidebarGroup className="px-3">
-        <SidebarGroupLabel className="px-1 text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+        <SidebarGroupLabel className="px-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
           Commit
         </SidebarGroupLabel>
       </SidebarGroup>
@@ -179,7 +179,7 @@ export function CommitGroup(): React.JSX.Element {
 
   return (
     <SidebarGroup className="px-3">
-      <SidebarGroupLabel className="px-1 text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+      <SidebarGroupLabel className="px-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
         Commit
       </SidebarGroupLabel>
       <SidebarGroupContent className="px-1">
@@ -208,12 +208,12 @@ export function CommitGroup(): React.JSX.Element {
             placeholder="Commit message — ⌘↵ to commit"
             aria-label="Commit message"
             rows={3}
-            className="min-h-16 resize-none rounded-md text-[13px] md:text-[13px]"
+            className="min-h-16 resize-none rounded-md text-sm-minus md:text-sm-minus"
           />
           {staged && (
             <p
               className={cn(
-                'whitespace-pre-wrap font-mono text-[10px]',
+                'whitespace-pre-wrap font-mono text-2xs',
                 staged.failed ? 'text-destructive' : 'text-success',
               )}
             >
@@ -221,7 +221,7 @@ export function CommitGroup(): React.JSX.Element {
             </p>
           )}
           {error && (
-            <p className="whitespace-pre-wrap font-mono text-[10px] text-destructive">
+            <p className="whitespace-pre-wrap font-mono text-2xs text-destructive">
               {error.message}
             </p>
           )}

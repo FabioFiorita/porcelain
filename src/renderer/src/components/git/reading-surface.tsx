@@ -76,7 +76,7 @@ function ReadingRowView({ row }: { row: ReadingRow }): React.JSX.Element {
   switch (row.type) {
     case 'layer':
       return (
-        <p className="flex h-5 items-center bg-muted/30 px-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/80">
+        <p className="flex h-5 items-center bg-muted/30 px-2 text-2xs font-medium uppercase tracking-wider text-muted-foreground/80">
           {row.label}
         </p>
       )
@@ -86,14 +86,12 @@ function ReadingRowView({ row }: { row: ReadingRow }): React.JSX.Element {
           <SourceMarker source={row.file.source} />
           <span className="font-mono text-xs font-medium">{row.file.path}</span>
           {row.file.additions ? (
-            <span className="font-mono text-[10px] text-success">+{row.file.additions}</span>
+            <span className="font-mono text-2xs text-success">+{row.file.additions}</span>
           ) : null}
           {row.file.deletions ? (
-            <span className="font-mono text-[10px] text-destructive">−{row.file.deletions}</span>
+            <span className="font-mono text-2xs text-destructive">−{row.file.deletions}</span>
           ) : null}
-          {row.file.whole && (
-            <span className="text-[10px] text-muted-foreground/50">whole file</span>
-          )}
+          {row.file.whole && <span className="text-2xs text-muted-foreground/50">whole file</span>}
         </div>
       )
     case 'note':
@@ -102,7 +100,7 @@ function ReadingRowView({ row }: { row: ReadingRow }): React.JSX.Element {
           className="flex h-5 items-center gap-2 border-l-2 border-muted-foreground/25 bg-muted/30 px-2 text-xs text-muted-foreground"
           title={row.note}
         >
-          <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+          <span className="shrink-0 text-3xs font-semibold uppercase tracking-wider text-muted-foreground/60">
             Note
           </span>
           <span className="truncate">{row.note}</span>
@@ -121,13 +119,13 @@ function ReadingRowView({ row }: { row: ReadingRow }): React.JSX.Element {
       )
     case 'gap':
       return (
-        <p className="flex h-5 items-center px-2 text-[10px] text-muted-foreground/45">
+        <p className="flex h-5 items-center px-2 text-2xs text-muted-foreground/45">
           {row.count > 0 ? `⋯ ${row.count} line${row.count === 1 ? '' : 's'}` : '⋯'}
         </p>
       )
     case 'truncated':
       return (
-        <p className="flex h-5 items-center px-2 text-[10px] text-muted-foreground/45">
+        <p className="flex h-5 items-center px-2 text-2xs text-muted-foreground/45">
           ⋯ more relevant lines (capped)
         </p>
       )

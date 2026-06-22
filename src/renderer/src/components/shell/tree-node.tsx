@@ -220,7 +220,7 @@ function TreeNodeImpl({ entry }: { entry: DirEntry }): React.JSX.Element {
           <SidebarMenuButton
             ref={ref}
             className={cn(
-              'text-[13px]',
+              'text-sm-minus',
               entry.hidden && 'opacity-50',
               (isSelected || isRevealed) && 'bg-sidebar-accent',
             )}
@@ -301,7 +301,7 @@ function DirNode({ entry }: { entry: DirEntry }): React.JSX.Element {
               <SidebarMenuButton
                 ref={ref}
                 className={cn(
-                  'text-[13px]',
+                  'text-sm-minus',
                   entry.hidden && 'opacity-50',
                   (isSelected || isRevealed) && 'bg-sidebar-accent',
                 )}

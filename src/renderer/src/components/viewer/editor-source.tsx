@@ -179,15 +179,15 @@ export function EditorSource({
           </div>
         </div>
         {saveError ? (
-          <span className="pointer-events-none absolute bottom-2 right-3 rounded-md bg-muted/80 px-2 py-0.5 text-[10px] text-destructive">
+          <span className="pointer-events-none absolute bottom-2 right-3 rounded-md bg-muted/80 px-2 py-0.5 text-2xs text-destructive">
             {saveError.message}
           </span>
         ) : isSaving ? (
-          <span className="pointer-events-none absolute bottom-2 right-3 rounded-md bg-muted/80 px-2 py-0.5 text-[10px] text-muted-foreground">
+          <span className="pointer-events-none absolute bottom-2 right-3 rounded-md bg-muted/80 px-2 py-0.5 text-2xs text-muted-foreground">
             Saving…
           </span>
         ) : dirty ? (
-          <span className="pointer-events-none absolute bottom-2 right-3 flex items-center gap-1 rounded-md bg-muted/80 px-2 py-0.5 text-[10px] text-muted-foreground">
+          <span className="pointer-events-none absolute bottom-2 right-3 flex items-center gap-1 rounded-md bg-muted/80 px-2 py-0.5 text-2xs text-muted-foreground">
             Unsaved <Kbd>⌘S</Kbd>
           </span>
         ) : null}

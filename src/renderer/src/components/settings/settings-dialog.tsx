@@ -104,7 +104,7 @@ export function SettingsDialog(): React.JSX.Element {
                         <SidebarMenuButton
                           isActive={section === s.id}
                           onClick={() => setSection(s.id)}
-                          className="text-[13px]"
+                          className="text-sm-minus"
                         >
                           <s.icon /> {s.label}
                         </SidebarMenuButton>

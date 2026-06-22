@@ -12,7 +12,7 @@ export function PinnedGroup(): React.JSX.Element {
 
   return (
     <SidebarGroup className="px-3 pt-3">
-      <SidebarGroupLabel className="h-6 px-1 text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+      <SidebarGroupLabel className="h-6 px-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
         Pinned
       </SidebarGroupLabel>
       <SidebarGroupContent>

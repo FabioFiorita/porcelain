@@ -26,7 +26,7 @@ export function ExploreView({
       <div className="flex items-center justify-between gap-3 border-b px-3 py-1">
         <span className="flex min-w-0 items-center gap-2">
           <span className="truncate text-sm font-medium">{reading.name}</span>
-          <span className="flex shrink-0 items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground">
+          <span className="flex shrink-0 items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-2xs font-normal text-muted-foreground">
             <Compass className="size-3" />
             explore · {total} {total === 1 ? 'file' : 'files'}
           </span>

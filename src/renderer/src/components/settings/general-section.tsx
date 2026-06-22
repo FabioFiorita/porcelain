@@ -18,7 +18,7 @@ function PreferenceRow({
   return (
     <div className="flex items-center justify-between gap-4">
       <div>
-        <p className="text-[13px] font-semibold">{label}</p>
+        <p className="text-sm-minus font-semibold">{label}</p>
         <p className="text-xs text-muted-foreground">{description}</p>
       </div>
       {children}

@@ -58,7 +58,7 @@ export function HistoryList(): React.JSX.Element {
         <SidebarMenuItem key={commit.hash}>
           <CommitContextMenu commit={commit}>
             <SidebarMenuButton
-              className="h-auto py-1 text-[13px]"
+              className="h-auto py-1 text-sm-minus"
               onClick={() =>
                 openTab({
                   id: tabId('commit', commit.hash),

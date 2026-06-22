@@ -33,14 +33,14 @@ export function CommitView({ hash }: { hash: string }): React.JSX.Element {
     <div className="flex h-full min-h-0">
       <div className="w-64 shrink-0 overflow-y-auto border-r">
         <div className="border-b px-3 py-2">
-          <p className="whitespace-pre-wrap break-words text-[13px] text-foreground">
+          <p className="whitespace-pre-wrap break-words text-sm-minus text-foreground">
             {message ?? '…'}
           </p>
-          <p className="mt-1 font-mono text-[11px] text-muted-foreground">{hash.slice(0, 12)}</p>
+          <p className="mt-1 font-mono text-xs-minus text-muted-foreground">{hash.slice(0, 12)}</p>
         </div>
         {groups.map((group) => (
           <div key={group.layer}>
-            <p className="h-6 px-2 text-[10px] uppercase tracking-wider text-muted-foreground/70 flex items-center">
+            <p className="h-6 px-2 text-2xs uppercase tracking-wider text-muted-foreground/70 flex items-center">
               {group.layer}
             </p>
             {group.files.map((file) => (

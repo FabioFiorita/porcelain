@@ -38,7 +38,7 @@ export function BoardList(): React.JSX.Element {
         return (
           <div key={column.status} className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between px-2">
-              <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              <span className="text-2xs font-medium uppercase tracking-wider text-muted-foreground">
                 {column.label} · {inColumn.length}
               </span>
               <div className="flex items-center gap-0.5">

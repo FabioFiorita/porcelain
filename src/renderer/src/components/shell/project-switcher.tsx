@@ -64,7 +64,7 @@ export function ProjectSwitcher(): React.JSX.Element | null {
               </span>
               <div className="flex min-w-0 flex-col">
                 <span className="truncate">{recent.name}</span>
-                <span className="truncate text-[10.5px] text-muted-foreground" dir="rtl">
+                <span className="truncate text-2xs-plus text-muted-foreground" dir="rtl">
                   {recent.path}
                 </span>
               </div>

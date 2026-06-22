@@ -74,24 +74,22 @@ function FlowNodeImpl({
         <span className="flex max-w-full items-center gap-1.5">
           <span
             className={cn(
-              'truncate text-[13px]',
+              'truncate text-sm-minus',
               file.source !== 'changed' && 'text-muted-foreground',
             )}
           >
             {name}
           </span>
           {layer && (
-            <span className="shrink-0 rounded bg-sidebar-accent px-1.5 py-px text-[8.5px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <span className="shrink-0 rounded bg-sidebar-accent px-1.5 py-px text-4xs font-semibold uppercase tracking-wider text-muted-foreground">
               {layer}
             </span>
           )}
           {file.additions !== undefined && file.additions > 0 && (
-            <span className="shrink-0 font-mono text-[10px] text-success">+{file.additions}</span>
+            <span className="shrink-0 font-mono text-2xs text-success">+{file.additions}</span>
           )}
           {file.deletions !== undefined && file.deletions > 0 && (
-            <span className="shrink-0 font-mono text-[10px] text-destructive">
-              −{file.deletions}
-            </span>
+            <span className="shrink-0 font-mono text-2xs text-destructive">−{file.deletions}</span>
           )}
         </span>
         {dir && (
@@ -105,7 +103,7 @@ function FlowNodeImpl({
       </button>
       {file.note && (
         <div className="mx-2 mb-1 rounded-md border border-border bg-card/50 px-2.5 py-2">
-          <span className="text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+          <span className="text-3xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Note
           </span>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{file.note}</p>
@@ -181,7 +179,7 @@ export function FeatureList(): React.JSX.Element {
         {view.fromAgent ? (
           <h2 className="flex min-w-0 flex-wrap items-center gap-1.5 pt-1 text-xs font-medium">
             <span className="min-w-0">{view.name}</span>
-            <span className="flex shrink-0 items-center gap-1 rounded bg-info/15 px-1 py-0.5 text-[9px] font-normal text-info">
+            <span className="flex shrink-0 items-center gap-1 rounded bg-info/15 px-1 py-0.5 text-3xs font-normal text-info">
               <Sparkles className="size-2.5" />
               agent
             </span>
@@ -244,9 +242,7 @@ export function FeatureList(): React.JSX.Element {
             </Button>
           </div>
           {clearError && (
-            <p className="whitespace-pre-wrap font-mono text-[10px] text-destructive">
-              {clearError}
-            </p>
+            <p className="whitespace-pre-wrap font-mono text-2xs text-destructive">{clearError}</p>
           )}
         </div>
       )}
@@ -258,7 +254,7 @@ export function FeatureList(): React.JSX.Element {
         </p>
       ) : (
         <div className="px-2 pt-1">
-          <div className="px-1 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <div className="px-1 pb-1 text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
             Flow
           </div>
           <div className="relative">

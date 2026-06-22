@@ -43,7 +43,7 @@ function ActionRow({
         <Play className="size-3.5 shrink-0 text-muted-foreground" />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-xs font-medium">{action.title}</span>
-          <span className="block truncate font-mono text-[10px] text-muted-foreground">
+          <span className="block truncate font-mono text-2xs text-muted-foreground">
             {action.command}
           </span>
         </span>
@@ -96,7 +96,7 @@ export function ActionsGroup(): React.JSX.Element {
 
   return (
     <SidebarGroup className="px-3">
-      <SidebarGroupLabel className="flex items-center justify-between px-1 text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+      <SidebarGroupLabel className="flex items-center justify-between px-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
         Saved commands
         <Button
           variant="ghost"
