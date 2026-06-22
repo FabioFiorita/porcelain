@@ -1,3 +1,34 @@
+## [0.14.0](https://github.com/FabioFiorita/porcelain/compare/v0.13.0...v0.14.0) (2026-06-22)
+
+### Features
+
+* **board:** add a Clear done button to bulk-clear completed cards ([dd2a584](https://github.com/FabioFiorita/porcelain/commit/dd2a584d7918d2bcef77c4cf1415ee8939f57e1f))
+* **diff:** highlight intra-line word changes ([bcb73b4](https://github.com/FabioFiorita/porcelain/commit/bcb73b42ed4a87d45a28cb571a22df96f93a8e45))
+* **history:** flow-group a commit's files like the rest of the app ([e297b26](https://github.com/FabioFiorita/porcelain/commit/e297b266c7506dc423c0dac13707eb1b15d2c48e))
+* **mcp:** expose human-reviewed file marks to the agent ([103b5bd](https://github.com/FabioFiorita/porcelain/commit/103b5bd5fc18d1d0e52eb182bff43a24adac26a9)), closes [#7](https://github.com/FabioFiorita/porcelain/issues/7)
+* toast on launch when a newer plugin version is bundled ([ef24da1](https://github.com/FabioFiorita/porcelain/commit/ef24da152a65a114511ad57d101fbc45044f7924))
+* **worktrees:** add "open in new window" to the worktree switcher ([bf479f5](https://github.com/FabioFiorita/porcelain/commit/bf479f509e7f0e87e008767af151c634c0fbb8ce))
+
+### Bug Fixes
+
+* **events:** refresh the inline reading surface on agent push ([df7ec71](https://github.com/FabioFiorita/porcelain/commit/df7ec7131f9038446c3bb1289bf7ccf9f228f93e))
+* **main:** silence devtools-installer extension API deprecations ([49dc6eb](https://github.com/FabioFiorita/porcelain/commit/49dc6eb9e61af7a447e031a86e2df523facc01e7))
+* **marketing:** equalize the speed-gallery cards and show the search shot in full ([1139436](https://github.com/FabioFiorita/porcelain/commit/1139436e13bec2742e095541aaeede1c930d30e7))
+* **marketing:** make the landing page mobile-responsive ([a9bd5c4](https://github.com/FabioFiorita/porcelain/commit/a9bd5c493f150c22ddb98aa747d6a409a42021c8))
+* **mcp:** don't reply to or execute a notification-shaped call ([ba5553b](https://github.com/FabioFiorita/porcelain/commit/ba5553bd960f02e80621e44fcee66136246b8869))
+* restore gitRangeFlow empty-range fallback; invalidate gitCommitFlow on relayer ([88a8ac1](https://github.com/FabioFiorita/porcelain/commit/88a8ac1b9e2e23a232100ae653fab818187ad210))
+* **ui:** register custom font-size tokens with tailwind-merge ([30dc01f](https://github.com/FabioFiorita/porcelain/commit/30dc01f1b4028406c9fea959cdc5a46c1c1b2d6a))
+* **ui:** stop truncate from clipping the italic tab label's last glyph ([42ab6b3](https://github.com/FabioFiorita/porcelain/commit/42ab6b371096041be75acc3b2f7ac62950e41d86))
+* **viewer:** adopt an external rewrite that arrived mid-edit ([2ebc23c](https://github.com/FabioFiorita/porcelain/commit/2ebc23c832f542bde1c4df11cde266d7de371200))
+* **viewer:** open the find bar only in the active split pane ([2cc2367](https://github.com/FabioFiorita/porcelain/commit/2cc236763c2c21efc582abaa41b34cf04ddf1372))
+
+### Performance Improvements
+
+* **feature:** share one feature build between featureView and featureReading ([5be85ea](https://github.com/FabioFiorita/porcelain/commit/5be85eab1264d492b7d2cc3f248254590936ca27))
+* **git:** compute the range merge-base once per branch-flow build ([864a45b](https://github.com/FabioFiorita/porcelain/commit/864a45b1abfa8dfb744a804e620ab2a1715ca870))
+* **renderer:** memoize the change/feature/tree list rows ([24869c4](https://github.com/FabioFiorita/porcelain/commit/24869c461f0a8721beb4bc7393192ea873383f7a))
+* **viewer:** cap whole-file syntax tokenization ([4b745a5](https://github.com/FabioFiorita/porcelain/commit/4b745a570857db86d7bcef046319303c8b021b18))
+
 ## [0.13.0](https://github.com/FabioFiorita/porcelain/compare/v0.12.0...v0.13.0) (2026-06-21)
 
 ### Features
