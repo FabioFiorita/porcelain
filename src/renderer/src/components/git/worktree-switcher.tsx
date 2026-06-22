@@ -6,22 +6,30 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from '@renderer/components/ui/dropdown-menu'
+import { useNewWindow } from '@renderer/hooks/use-repo'
 import { useWorktrees } from '@renderer/hooks/use-worktrees'
+import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
-import { Check, ChevronsUpDown, Folder } from 'lucide-react'
+import { Check, ChevronsUpDown, Folder, SquareArrowOutUpRight } from 'lucide-react'
+import { useState } from 'react'
 
-// The footer's right chip: the worktree count, opening the list to switch the whole
-// worktree (its checked-out branch + directory). The left chip (BranchSwitcher) does
-// in-place branch checkout instead — two distinct controls, no shared menu.
+// The footer's right chip: the worktree count, opening the list to jump to a
+// worktree. Mirrors the ProjectSwitcher's two-option pattern — clicking a row
+// switches THIS window to that worktree (in place, via switchTo), while the
+// trailing button opens it in a NEW window (this one — and its terminals — stays
+// put), for working two worktrees side by side. The left chip (BranchSwitcher)
+// does in-place branch checkout instead — two distinct controls, no shared menu.
 export function WorktreeSwitcher(): React.JSX.Element | null {
   const repo = useRepoStore((s) => s.repo)
   const switchTo = useRepoStore((s) => s.switchTo)
+  const newWindow = useNewWindow()
   const worktrees = useWorktrees()
+  const [menuOpen, setMenuOpen] = useState(false)
 
   if (!repo) return null
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
       <DropdownMenuTrigger
         render={
           <button
@@ -42,16 +50,32 @@ export function WorktreeSwitcher(): React.JSX.Element | null {
           <DropdownMenuLabel>Worktrees</DropdownMenuLabel>
           {worktrees.map((worktree) => (
             <DropdownMenuItem key={worktree.path} onClick={() => switchTo(worktree.path)}>
-              {worktree.path === repo.path ? (
-                <Check className="shrink-0" />
-              ) : (
-                <span className="size-4 shrink-0" />
-              )}
               <div className="flex min-w-0 flex-col">
                 <span className="truncate">{worktree.branch}</span>
                 <span className="truncate text-xs text-muted-foreground" dir="rtl">
                   {worktree.path}
                 </span>
+              </div>
+              <div className="ml-auto flex shrink-0 items-center gap-1">
+                {worktree.path === repo.path && <Check className="shrink-0 text-success" />}
+                {/* Open in a fresh window without switching this one —
+                    stopPropagation keeps the row's switchTo from also firing. */}
+                <button
+                  type="button"
+                  aria-label="Open in new window"
+                  className={cn(
+                    'flex size-6 items-center justify-center rounded-md text-muted-foreground',
+                    'hover:bg-accent/50 hover:text-foreground',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+                  )}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setMenuOpen(false)
+                    newWindow.openWindow(worktree.path)
+                  }}
+                >
+                  <SquareArrowOutUpRight className="size-3.5" />
+                </button>
               </div>
             </DropdownMenuItem>
           ))}

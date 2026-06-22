@@ -12,8 +12,11 @@ interface RepoState {
   restoreLastRepo: () => Promise<void>
   openRepo: () => Promise<void>
   openRepoPath: (path: string) => Promise<void>
-  /** Closes every tab, then opens the repo/worktree at `path`. The one place
-   *  repo switching lives — project and worktree switchers both call this. */
+  /** Closes every tab (and reaps the terminals — different cwd), then opens the
+   *  repo/worktree at `path` in THIS window. The ProjectSwitcher and the
+   *  WorktreeSwitcher's row click both call this for an in-place switch; each
+   *  switcher ALSO offers a trailing "open in new window" button (useNewWindow)
+   *  that leaves this window — and its terminals — untouched. */
   switchTo: (path: string) => Promise<void>
   toggleShowHidden: () => void
 }

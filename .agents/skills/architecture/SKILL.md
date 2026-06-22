@@ -49,7 +49,7 @@ No URL routing, no router library; the active tab's `(kind, path, line)` in `sto
 7. New `case` in `Viewer`'s switch (the compiler forces this).
 8. Keyboard binding in `use-app-shortcuts.ts` if needed.
 
-Repo switching is one store action: `useRepoStore.switchTo(path)` (closes all tabs, opens the repo) — used by `ProjectSwitcher` and `WorktreeSwitcher`; never clear tabs ad hoc. The right sidebar follows `preferences.sidebarTab` (the LEFT sidebar's tab), not the active main tab — two parallel nav axes by design.
+Repo switching is one store action: `useRepoStore.switchTo(path)` (closes all tabs, reaps terminals, opens the repo/worktree in THIS window) — the row click of both `ProjectSwitcher` and `WorktreeSwitcher`; never clear tabs ad hoc. Both switchers ALSO carry a per-row trailing "open in new window" button (`useNewWindow().openWindow`) that leaves this window — terminals included — untouched (worktrees are parallel checkouts often worked side by side, so opening one in a new window instead of switching in place is the terminal-preserving option). The right sidebar follows `preferences.sidebarTab` (the LEFT sidebar's tab), not the active main tab — two parallel nav axes by design.
 
 ### Data hooks (`src/renderer/src/hooks/`)
 
