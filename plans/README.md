@@ -27,7 +27,7 @@ Most plans are independent — see "Dependency notes".
 | 006 | Refresh the inline reading surface on the agent push event | bug | P2 | S | LOW | — | TODO |
 | 007 | MCP: don't reply to a notification-call; test board/action dispatch | bug+tests | P2 | S | LOW | — | TODO |
 | 008 | Tests: feature-slice malformed input + keyboard predicates | tests | P2 | S | LOW | — | DONE |
-| 009 | Characterize the git mutation helpers (irreversible effects) | tests | P1 | M | LOW | — | TODO |
+| 009 | Characterize the git mutation helpers (irreversible effects) | tests | P1 | M | LOW | — | DONE |
 | 010 | Cap whole-file syntax tokenization (large-file jank) | perf | P1 | M | MED | — | TODO |
 | 011 | Memoize the change/feature/tree row components | perf | P2 | S | LOW | — | TODO |
 | 012 | Share one feature build between featureView/featureReading | perf | P2 | M | MED | — | TODO |
