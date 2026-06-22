@@ -61,6 +61,40 @@ export function languageFor(path: string): BundledLanguage | null {
 }
 
 /**
+ * Files with more lines than this cap are not syntax-highlighted. Whole-file
+ * tokenization runs synchronously on the renderer main thread via the JS regex
+ * engine (the CSP blocks the faster WASM engine), so very large generated files
+ * (lockfiles, schema dumps, bundled JS) block the UI for hundreds of ms to
+ * seconds. Above this threshold `isTokenizable` returns false and callers fall
+ * back to plain text — still fully readable, just unhighlighted.
+ */
+export const MAX_TOKENIZE_LINES = 10_000
+
+/** Maximum byte length before we bail out regardless of line count (catches
+ * pathological minified single-line files that slip under the line cap). */
+const MAX_TOKENIZE_BYTES = 2 * 1024 * 1024 // 2 MB
+
+/**
+ * Returns true when `content` is small enough to tokenize without janking the
+ * renderer. Pure function — no Shiki dependency, safe to call before the
+ * highlighter loads.
+ *
+ * Counts `\n` occurrences with an index loop rather than `split('\n')` so we
+ * don't allocate a giant array for the very large files we're protecting.
+ */
+export function isTokenizable(content: string): boolean {
+  if (content.length > MAX_TOKENIZE_BYTES) return false
+  let newlines = 0
+  let idx = content.indexOf('\n')
+  while (idx !== -1) {
+    newlines++
+    if (newlines > MAX_TOKENIZE_LINES) return false
+    idx = content.indexOf('\n', idx + 1)
+  }
+  return true
+}
+
+/**
  * Tokenize a whole multi-line string into one token array per line, carrying
  * grammar state across line breaks. Tokenizing line-by-line (the old approach)
  * loses that state, so continuation lines of a multiline block comment or

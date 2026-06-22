@@ -1,4 +1,9 @@
-import { getHighlighter, type HIGHLIGHT_THEME, tokenizeLines } from '@renderer/lib/highlight'
+import {
+  getHighlighter,
+  type HIGHLIGHT_THEME,
+  isTokenizable,
+  tokenizeLines,
+} from '@renderer/lib/highlight'
 import { cn } from '@renderer/lib/utils'
 import { type CharRange, splitByRanges } from '@renderer/lib/word-diff'
 import { useEffect, useMemo, useState } from 'react'
@@ -35,7 +40,10 @@ export function useTokenizedLines(
 ): ThemedToken[][] | null {
   const highlighter = useHighlighter()
   return useMemo(
-    () => (highlighter && lang ? tokenizeLines(highlighter, content, lang) : null),
+    () =>
+      highlighter && lang && isTokenizable(content)
+        ? tokenizeLines(highlighter, content, lang)
+        : null,
     [highlighter, lang, content],
   )
 }

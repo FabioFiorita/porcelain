@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { getHighlighter, languageFor, tokenizeLines } from './highlight'
+import {
+  getHighlighter,
+  isTokenizable,
+  languageFor,
+  MAX_TOKENIZE_LINES,
+  tokenizeLines,
+} from './highlight'
 
 describe('languageFor', () => {
   it('maps known extensions to shiki languages', () => {
@@ -40,5 +46,32 @@ describe('tokenizeLines', () => {
     // …and that color is the comment color, not a code color (variable blue).
     const commentColor = tokens[0]?.[0]?.color
     expect([...interiorColors][0]).toBe(commentColor)
+  })
+})
+
+describe('isTokenizable', () => {
+  it('allows normal-sized files', () => {
+    expect(isTokenizable('a\n'.repeat(100))).toBe(true)
+    expect(isTokenizable('')).toBe(true)
+  })
+
+  it('blocks files past the line cap', () => {
+    expect(isTokenizable('a\n'.repeat(MAX_TOKENIZE_LINES + 1))).toBe(false)
+  })
+
+  it('allows files right at the line cap', () => {
+    // Exactly MAX_TOKENIZE_LINES newlines is still tokenizable.
+    expect(isTokenizable('a\n'.repeat(MAX_TOKENIZE_LINES))).toBe(true)
+  })
+
+  it('blocks files past the 2 MB byte cap regardless of line count', () => {
+    // One enormous line (no newlines) — slips under a pure line-count check.
+    const huge = 'x'.repeat(2 * 1024 * 1024 + 1)
+    expect(isTokenizable(huge)).toBe(false)
+  })
+
+  it('allows files just under the byte cap', () => {
+    const fine = 'x'.repeat(2 * 1024 * 1024 - 1)
+    expect(isTokenizable(fine)).toBe(true)
   })
 })

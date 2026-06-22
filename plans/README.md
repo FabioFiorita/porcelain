@@ -28,7 +28,7 @@ Most plans are independent — see "Dependency notes".
 | 007 | MCP: don't reply to a notification-call; test board/action dispatch | bug+tests | P2 | S | LOW | — | DONE |
 | 008 | Tests: feature-slice malformed input + keyboard predicates | tests | P2 | S | LOW | — | DONE |
 | 009 | Characterize the git mutation helpers (irreversible effects) | tests | P1 | M | LOW | — | DONE |
-| 010 | Cap whole-file syntax tokenization (large-file jank) | perf | P1 | M | MED | — | TODO |
+| 010 | Cap whole-file syntax tokenization (large-file jank) | perf | P1 | M | MED | — | DONE |
 | 011 | Memoize the change/feature/tree row components | perf | P2 | S | LOW | — | TODO |
 | 012 | Share one feature build between featureView/featureReading | perf | P2 | M | MED | — | TODO |
 | 013 | Compute the range merge-base once per branch-flow build | perf | P3 | S | LOW | — | TODO |
