@@ -54,7 +54,7 @@ import {
   PinOff,
   Trash2,
 } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useRef, useState } from 'react'
 import { type CommentAnchor, CommentComposer } from '../git/comment-composer'
 
 function EntryContextMenu({
@@ -196,7 +196,7 @@ function EntryContextMenu({
   )
 }
 
-export function TreeNode({ entry }: { entry: DirEntry }): React.JSX.Element {
+function TreeNodeImpl({ entry }: { entry: DirEntry }): React.JSX.Element {
   const openTab = useTabsStore((s) => s.openTab)
   const pinTab = useTabsStore((s) => s.pinTab)
   const isSelected = useSelectionStore((s) => s.selected.has(entry.path))
@@ -250,6 +250,8 @@ export function TreeNode({ entry }: { entry: DirEntry }): React.JSX.Element {
 
   return <DirNode entry={entry} />
 }
+
+export const TreeNode = memo(TreeNodeImpl)
 
 function DirNode({ entry }: { entry: DirEntry }): React.JSX.Element {
   const [expanded, setExpanded] = useState(false)

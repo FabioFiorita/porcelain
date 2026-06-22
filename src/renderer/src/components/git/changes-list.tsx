@@ -45,7 +45,7 @@ import {
   SquareCheck,
   Undo2,
 } from 'lucide-react'
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import { ChangesScopeToggle } from './changes-scope-toggle'
 import { type CommentAnchor, CommentComposer } from './comment-composer'
 
@@ -57,7 +57,7 @@ const statusBadge: Record<FileStatus, { label: string; className: string }> = {
   untracked: { label: 'U', className: 'text-success' },
 }
 
-function FileRow({
+function FileRowImpl({
   file,
   repoPath,
   isReviewed,
@@ -246,6 +246,8 @@ function FileRow({
     </SidebarMenuItem>
   )
 }
+
+const FileRow = memo(FileRowImpl)
 
 export function ChangesList(): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)

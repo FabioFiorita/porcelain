@@ -8,7 +8,7 @@ import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { BookOpen, Eraser, RefreshCw, Sparkles } from 'lucide-react'
-import { useState } from 'react'
+import { memo, useState } from 'react'
 
 const SOURCE_LABEL: Record<FileSource, string> = {
   changed: 'changed',
@@ -29,7 +29,7 @@ export function SourceMarker({ source }: { source: FileSource }): React.JSX.Elem
 // (filename + a layer "station" tag when the layer changes), its path, and any
 // agent note. The whole feature reads top-to-bottom as one connected flow rather
 // than a stack of per-layer groups.
-function FlowNode({
+function FlowNodeImpl({
   file,
   repoPath,
   layer,
@@ -113,6 +113,8 @@ function FlowNode({
     </div>
   )
 }
+
+const FlowNode = memo(FlowNodeImpl)
 
 // The Feature sidebar tab: the whole feature in flow order as a navigation list
 // (peer of Files/Changes/History). The viewer's `feature` tab is the expanded

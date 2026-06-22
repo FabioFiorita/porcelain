@@ -29,7 +29,7 @@ Most plans are independent — see "Dependency notes".
 | 008 | Tests: feature-slice malformed input + keyboard predicates | tests | P2 | S | LOW | — | DONE |
 | 009 | Characterize the git mutation helpers (irreversible effects) | tests | P1 | M | LOW | — | DONE |
 | 010 | Cap whole-file syntax tokenization (large-file jank) | perf | P1 | M | MED | — | DONE |
-| 011 | Memoize the change/feature/tree row components | perf | P2 | S | LOW | — | TODO |
+| 011 | Memoize the change/feature/tree row components | perf | P2 | S | LOW | — | DONE |
 | 012 | Share one feature build between featureView/featureReading | perf | P2 | M | MED | — | DONE |
 | 013 | Compute the range merge-base once per branch-flow build | perf | P3 | S | LOW | — | DONE |
 | 014 | Renderer/process hardening (`will-navigate` + explicit isolation) | security | P2 | S | LOW | — | DONE |
