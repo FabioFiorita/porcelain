@@ -31,7 +31,7 @@ Most plans are independent — see "Dependency notes".
 | 010 | Cap whole-file syntax tokenization (large-file jank) | perf | P1 | M | MED | — | DONE |
 | 011 | Memoize the change/feature/tree row components | perf | P2 | S | LOW | — | TODO |
 | 012 | Share one feature build between featureView/featureReading | perf | P2 | M | MED | — | TODO |
-| 013 | Compute the range merge-base once per branch-flow build | perf | P3 | S | LOW | — | TODO |
+| 013 | Compute the range merge-base once per branch-flow build | perf | P3 | S | LOW | — | DONE |
 | 014 | Renderer/process hardening (`will-navigate` + explicit isolation) | security | P2 | S | LOW | — | DONE |
 | 015 | Harden the packaged app with Electron Fuses | security | P3 | M | MED | — | TODO |
 | 016 | Add `fileName`/`dirName` to `lib/paths.ts`; replace inline reimpls | tech-debt | P3 | S | LOW | — | TODO |

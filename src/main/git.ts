@@ -519,12 +519,19 @@ export async function gitMergeBase(repoPath: string, base: string): Promise<stri
   return (await runGit(repoPath, ['merge-base', base, 'HEAD'])).trim()
 }
 
-/** List files changed between the merge-base of `base`..HEAD and HEAD. */
-export async function gitRangeChangedFiles(repoPath: string, base: string): Promise<ChangedFile[]> {
-  const mergeBase = await gitMergeBase(repoPath, base)
+/** List files changed between a resolved `mergeBase` SHA and HEAD. */
+export async function gitRangeChangedFilesFrom(
+  repoPath: string,
+  mergeBase: string,
+): Promise<ChangedFile[]> {
   return parseNameStatus(
     await runGit(repoPath, ['diff', '--name-status', '-z', '--no-color', `${mergeBase}..HEAD`]),
   )
+}
+
+/** List files changed between the merge-base of `base`..HEAD and HEAD. */
+export async function gitRangeChangedFiles(repoPath: string, base: string): Promise<ChangedFile[]> {
+  return gitRangeChangedFilesFrom(repoPath, await gitMergeBase(repoPath, base))
 }
 
 /** Unified diff for a single file over the merge-base of `base`..HEAD range. */
@@ -561,8 +568,15 @@ export async function gitDefaultBranch(repoPath: string): Promise<string> {
   return 'main' // last resort; range is empty if it doesn't exist
 }
 
+/** +/- counts per file over the range from a resolved `mergeBase` SHA to HEAD. */
+export async function gitRangeNumstatFrom(
+  repoPath: string,
+  mergeBase: string,
+): Promise<DiffStat[]> {
+  return parseNumstat(await runGit(repoPath, ['diff', '--numstat', '-z', `${mergeBase}..HEAD`]))
+}
+
 /** +/- counts per file over the merge-base of `base`..HEAD range. */
 export async function gitRangeNumstat(repoPath: string, base: string): Promise<DiffStat[]> {
-  const mergeBase = await gitMergeBase(repoPath, base)
-  return parseNumstat(await runGit(repoPath, ['diff', '--numstat', '-z', `${mergeBase}..HEAD`]))
+  return gitRangeNumstatFrom(repoPath, await gitMergeBase(repoPath, base))
 }

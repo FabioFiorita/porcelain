@@ -61,11 +61,12 @@ import {
   gitListFiles,
   gitListSearchFiles,
   gitLog,
+  gitMergeBase,
   gitNumstat,
   gitQuickCommand,
-  gitRangeChangedFiles,
+  gitRangeChangedFilesFrom,
   gitRangeDiffFile,
-  gitRangeNumstat,
+  gitRangeNumstatFrom,
   gitResetPath,
   gitRestoreFromHead,
   gitSearchCode,
@@ -618,11 +619,12 @@ export const router = t.router({
     .input(z.string())
     .query(async ({ input }): Promise<{ groups: FlowGroup[]; base: string }> => {
       const base = await gitDefaultBranch(input)
+      const mergeBase = await gitMergeBase(input, base)
       try {
         const [files, stored, stats] = await Promise.all([
-          gitRangeChangedFiles(input, base),
+          gitRangeChangedFilesFrom(input, mergeBase),
           readLayers(input),
-          gitRangeNumstat(input, base),
+          gitRangeNumstatFrom(input, mergeBase),
         ])
         const layers = stored ?? DEFAULT_LAYERS
         const key = `${base}\n${flowKey(files, stats, layers)}`
