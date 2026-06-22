@@ -29,6 +29,7 @@ import { useDiscardFile, useFileStaging } from '@renderer/hooks/use-commit'
 import { useDiffFilePrefetch } from '@renderer/hooks/use-diff'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'
 import { useReviewedPaths, useToggleReviewed } from '@renderer/hooks/use-reviewed'
+import { dirName, fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
@@ -77,8 +78,8 @@ function FileRowImpl({
   const { mark, unmark } = useToggleReviewed()
   const [confirmDiscard, setConfirmDiscard] = useState(false)
   const [commentAnchor, setCommentAnchor] = useState<CommentAnchor | null>(null)
-  const name = file.path.split('/').at(-1) ?? file.path
-  const connects = file.connects.map((c) => c.split('/').at(-1)).join(', ')
+  const name = fileName(file.path)
+  const connects = file.connects.map((c) => fileName(c)).join(', ')
   // A new file (no committed version) is trashed rather than reverted; word the
   // confirmation to match what discard actually does in each case.
   const isNew = file.status === 'untracked' || file.status === 'added'
@@ -164,7 +165,7 @@ function FileRowImpl({
                 )}
               </span>
               <span className="max-w-full truncate text-xs text-muted-foreground" dir="rtl">
-                {file.path.split('/').slice(0, -1).join('/')}
+                {dirName(file.path)}
               </span>
               {connects && (
                 <span className="max-w-full truncate text-xs text-muted-foreground/70">

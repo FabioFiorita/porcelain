@@ -4,6 +4,7 @@ import { SidebarHeaderActions } from '@renderer/components/shell/sidebar-header-
 import { Button } from '@renderer/components/ui/button'
 import { useDiffFilePrefetch } from '@renderer/hooks/use-diff'
 import { useClearFeatureReview, useFeatureView } from '@renderer/hooks/use-feature-view'
+import { dirName, fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
@@ -40,9 +41,9 @@ function FlowNodeImpl({
 }): React.JSX.Element {
   const openTab = useTabsStore((s) => s.openTab)
   const prefetchDiff = useDiffFilePrefetch()
-  const name = file.path.split('/').at(-1) ?? file.path
-  const dir = file.path.split('/').slice(0, -1).join('/')
-  const connects = file.connects.map((c) => c.split('/').at(-1)).join(', ')
+  const name = fileName(file.path)
+  const dir = dirName(file.path)
+  const connects = file.connects.map((c) => fileName(c)).join(', ')
 
   // Changed files open their working-tree diff (relative path, like the Changes
   // list); context/shipped files are unchanged, so open the file itself (absolute

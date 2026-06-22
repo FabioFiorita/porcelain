@@ -1,5 +1,6 @@
 import { useDuplicatePath, useTrashPath } from '@renderer/hooks/use-files'
 import { isTerminalTarget, isTextEntry } from '@renderer/lib/keyboard'
+import { dirName } from '@renderer/lib/paths'
 import { useFilePromptStore } from '@renderer/stores/file-prompt'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
@@ -31,7 +32,7 @@ export function FileCommands(): null {
       const newDir = active
         ? active.kind === 'dir'
           ? active.path
-          : active.path.slice(0, active.path.lastIndexOf('/'))
+          : dirName(active.path)
         : (repo?.path ?? '')
       // What duplicate/trash act on: the multi-selection, else the active row.
       const targets = selected.size > 0 ? [...selected] : active ? [active.path] : []

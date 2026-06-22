@@ -8,14 +8,11 @@ import {
 } from '@renderer/components/ui/dialog'
 import { Input } from '@renderer/components/ui/input'
 import { useCreateFile, useCreateFolder, useRenamePath } from '@renderer/hooks/use-files'
+import { dirName } from '@renderer/lib/paths'
 import { type FilePromptKind, useFilePromptStore } from '@renderer/stores/file-prompt'
 import { useState } from 'react'
 
 const TITLE = { 'new-file': 'New file', 'new-folder': 'New folder', rename: 'Rename' } as const
-
-function parentDir(path: string): string {
-  return path.slice(0, path.lastIndexOf('/'))
-}
 
 /**
  * The name-prompt for the file tree (new file / new folder / rename), driven by the
@@ -75,7 +72,7 @@ function FilePrompt({
     try {
       if (kind === 'new-file') await createFile(`${dir}/${trimmed}`)
       else if (kind === 'new-folder') await createFolder(`${dir}/${trimmed}`)
-      else await rename(target, `${parentDir(target)}/${trimmed}`)
+      else await rename(target, `${dirName(target)}/${trimmed}`)
       onClose()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not complete that')

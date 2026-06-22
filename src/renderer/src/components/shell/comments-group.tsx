@@ -6,13 +6,14 @@ import {
   SidebarGroupLabel,
 } from '@renderer/components/ui/sidebar'
 import { useCommentActions, useReviewComments } from '@renderer/hooks/use-comments'
+import { fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { Check, RotateCcw, Trash2 } from 'lucide-react'
 
 function anchorLabel(comment: ReviewComment): string {
-  const name = comment.path.split('/').at(-1) ?? comment.path
+  const name = fileName(comment.path)
   if (comment.startLine === undefined) return name
   if (comment.endLine && comment.endLine !== comment.startLine) {
     return `${name}:${comment.startLine}–${comment.endLine}`
@@ -31,7 +32,7 @@ function CommentRow({ comment }: { comment: ReviewComment }): React.JSX.Element 
     openTab({
       id: tabId('file', absolute),
       kind: 'file',
-      title: comment.path.split('/').at(-1) ?? comment.path,
+      title: fileName(comment.path),
       path: absolute,
       ...(comment.startLine ? { line: comment.startLine } : {}),
     })

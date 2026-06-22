@@ -31,6 +31,7 @@ import {
   useReadFilePrefetch,
   useTrashPath,
 } from '@renderer/hooks/use-files'
+import { dirName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
 import { useFilePromptStore } from '@renderer/stores/file-prompt'
 import { useFileTreeStore } from '@renderer/stores/file-tree'
@@ -82,7 +83,7 @@ function EntryContextMenu({
       ? entry.path.slice(repo.path.length + 1)
       : entry.path
   // New file/folder land in this directory (the folder itself, or a file's parent).
-  const dir = entry.kind === 'dir' ? entry.path : entry.path.slice(0, entry.path.lastIndexOf('/'))
+  const dir = entry.kind === 'dir' ? entry.path : dirName(entry.path)
 
   return (
     <>

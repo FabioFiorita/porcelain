@@ -15,6 +15,7 @@ import { useActions, useRunAction } from '@renderer/hooks/use-actions'
 import { useGitLog } from '@renderer/hooks/use-history'
 import { useFileSearch } from '@renderer/hooks/use-search'
 import { isTerminalTarget } from '@renderer/lib/keyboard'
+import { dirName, fileName } from '@renderer/lib/paths'
 import { useFileFinderStore } from '@renderer/stores/file-finder'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
@@ -108,7 +109,7 @@ export function FileFinder(): React.JSX.Element {
       setSidebarTab('files')
       reveal(absolute)
     } else {
-      const name = result.path.split('/').at(-1) ?? result.path
+      const name = fileName(result.path)
       openTab({ id: tabId('file', absolute), kind: 'file', title: name, path: absolute })
     }
     setOpen(false)
@@ -160,9 +161,8 @@ export function FileFinder(): React.JSX.Element {
             <CommandGroup heading={labelled ? 'Files' : undefined}>
               {files.map((result) => {
                 const { path, kind } = result
-                const slash = path.lastIndexOf('/')
-                const name = slash === -1 ? path : path.slice(slash + 1)
-                const dir = slash === -1 ? '' : path.slice(0, slash)
+                const name = fileName(path)
+                const dir = dirName(path)
                 return (
                   <CommandItem
                     key={`${kind}:${path}`}

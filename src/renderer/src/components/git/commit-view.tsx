@@ -1,5 +1,6 @@
 import { useCommitDiff } from '@renderer/hooks/use-diff'
 import { useCommitFlow, useCommitMessage } from '@renderer/hooks/use-history'
+import { fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useState } from 'react'
@@ -54,7 +55,7 @@ export function CommitView({ hash }: { hash: string }): React.JSX.Element {
                     : 'text-muted-foreground hover:bg-sidebar-accent/50',
                 )}
               >
-                {file.path.split('/').at(-1) ?? file.path}
+                {fileName(file.path)}
               </button>
             ))}
           </div>

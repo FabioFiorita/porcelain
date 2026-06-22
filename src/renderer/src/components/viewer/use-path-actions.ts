@@ -1,5 +1,5 @@
 import { useRevealInFinder } from '@renderer/hooks/use-files'
-import { relativeTo } from '@renderer/lib/paths'
+import { fileName, relativeTo } from '@renderer/lib/paths'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 
@@ -36,7 +36,7 @@ export function usePathActions(path: string): {
       openTab({
         id: tabId('explore', seed ? `${relative}#${seed}` : relative),
         kind: 'explore',
-        title: seed ? `Flow: ${seed}` : `Flow: ${relative.split('/').at(-1) ?? relative}`,
+        title: seed ? `Flow: ${seed}` : `Flow: ${fileName(relative)}`,
         path: relative,
         symbol: seed,
       })

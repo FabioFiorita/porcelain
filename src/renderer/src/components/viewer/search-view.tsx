@@ -1,4 +1,5 @@
 import { useTextSearch } from '@renderer/hooks/use-search'
+import { fileName } from '@renderer/lib/paths'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 
@@ -15,7 +16,7 @@ export function SearchView({ query }: { query: string }): React.JSX.Element {
 
   const open = (path: string, line: number): void => {
     if (!repo) return
-    const name = path.split('/').at(-1) ?? path
+    const name = fileName(path)
     openTab({
       id: tabId('file', `${repo.path}/${path}`),
       kind: 'file',

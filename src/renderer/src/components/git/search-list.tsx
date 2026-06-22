@@ -9,6 +9,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from '@renderer/componen
 import { Toggle } from '@renderer/components/ui/toggle'
 import { FileTypeIcon } from '@renderer/components/viewer/file-icon'
 import { useCodeSearch } from '@renderer/hooks/use-search'
+import { dirName, fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useSearchStore } from '@renderer/stores/search'
@@ -74,8 +75,8 @@ function FileGroup({
   caseSensitive: boolean
 }): React.JSX.Element {
   const openTab = useTabsStore((s) => s.openTab)
-  const name = file.path.split('/').at(-1) ?? file.path
-  const dir = file.path.split('/').slice(0, -1).join('/')
+  const name = fileName(file.path)
+  const dir = dirName(file.path)
 
   const open = (line: number): void => {
     const absolute = `${repoPath}/${file.path}`
