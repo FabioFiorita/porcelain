@@ -1,5 +1,5 @@
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, type Session, session } from 'electron'
 import { seedDevConfig } from './dev-config'
 import { registerTerminalHandlers, registerTrpcHandler } from './ipc'
 import { migrateLayersFromConfig } from './layers-store'
@@ -22,6 +22,27 @@ import { initUpdater } from './updater'
 // screenshots the web contents directly, so the OS window never needs to appear.
 // Gate test-only "stay hidden" behavior on this flag (set by the e2e fixture).
 const isE2E = process.env.PORCELAIN_E2E === '1'
+
+// `defaultSession` wrapped so the deprecated `getAllExtensions`/`loadExtension`
+// calls inside electron-devtools-installer@4 resolve to `session.extensions.*`.
+// The Proxy preserves the underlying `Session`, so the package keeps working
+// while the deprecation warnings go away.
+function extensionsCompatSession(): Session {
+  const target = session.defaultSession
+  return new Proxy(target, {
+    get(ses, prop) {
+      if (prop === 'getAllExtensions') return () => ses.extensions.getAllExtensions()
+      if (prop === 'loadExtension')
+        return (...args: Parameters<typeof ses.extensions.loadExtension>) =>
+          ses.extensions.loadExtension(...args)
+      if (prop === 'removeExtension')
+        return (...args: Parameters<typeof ses.extensions.removeExtension>) =>
+          ses.extensions.removeExtension(...args)
+      const value = Reflect.get(ses, prop)
+      return typeof value === 'function' ? value.bind(ses) : value
+    },
+  })
+}
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
@@ -65,7 +86,11 @@ app.whenReady().then(async () => {
       const { default: installExtension, REACT_DEVELOPER_TOOLS } = await import(
         'electron-devtools-installer'
       )
-      await installExtension(REACT_DEVELOPER_TOOLS)
+      // electron-devtools-installer@4 still calls the deprecated
+      // `session.getAllExtensions`/`loadExtension`. Route the two methods it
+      // touches through the non-deprecated `session.extensions` API via a
+      // Proxy (stays a `Session`, so no cast) until the package is updated.
+      await installExtension(REACT_DEVELOPER_TOOLS, { session: extensionsCompatSession() })
     } catch (error) {
       console.log('[devtools] React DevTools install failed:', error)
     }
