@@ -50,7 +50,11 @@ function TabItem({
           tabIndex={0}
           aria-selected={tab.id === activeTabId}
         >
-          <span className={cn('max-w-40 truncate', tab.preview && 'italic')}>{tab.title}</span>
+          {/* pr-0.5 on the italic case: truncate's overflow:hidden would otherwise
+              shear the slanted top-right overhang of the last glyph (e.g. the x in .tsx). */}
+          <span className={cn('max-w-40 truncate', tab.preview && 'italic pr-0.5')}>
+            {tab.title}
+          </span>
           <Button
             variant="ghost"
             size="icon-sm"
