@@ -34,6 +34,7 @@ export function useCardActions(): {
   update: (id: string, fields: { title?: string; body?: string }) => Promise<void>
   move: (id: string, status: CardStatus) => Promise<void>
   remove: (id: string) => Promise<void>
+  clear: (status: CardStatus) => Promise<void>
 } {
   const repo = useRepoStore((s) => s.repo)
   const utils = trpc.useUtils()
@@ -44,6 +45,7 @@ export function useCardActions(): {
   const update = trpc.updateBoardCard.useMutation({ onSuccess: refresh })
   const move = trpc.moveBoardCard.useMutation({ onSuccess: refresh })
   const remove = trpc.deleteBoardCard.useMutation({ onSuccess: refresh })
+  const clear = trpc.clearBoardCards.useMutation({ onSuccess: refresh })
   return {
     add: async (input) => {
       if (!repo) return
@@ -60,6 +62,10 @@ export function useCardActions(): {
     remove: async (id) => {
       if (!repo) return
       await remove.mutateAsync({ repoPath: repo.path, id })
+    },
+    clear: async (status) => {
+      if (!repo) return
+      await clear.mutateAsync({ repoPath: repo.path, status })
     },
   }
 }

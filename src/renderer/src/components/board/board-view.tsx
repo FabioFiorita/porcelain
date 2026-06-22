@@ -3,6 +3,7 @@ import { BOARD_COLUMNS, useBoardCards } from '@renderer/hooks/use-board'
 import { draftFromCard, useCardDraftStore } from '@renderer/stores/card-draft'
 import { Plus } from 'lucide-react'
 import { CardItem } from './card-item'
+import { ClearColumnButton } from './clear-column-button'
 
 /** The wide kanban: the three columns side by side, in a viewer tab. */
 export function BoardView(): React.JSX.Element {
@@ -19,14 +20,19 @@ export function BoardView(): React.JSX.Element {
               <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 {column.label} · {inColumn.length}
               </span>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label={`Add card to ${column.label}`}
-                onClick={() => openDraft({ title: '', body: '', status: column.status })}
-              >
-                <Plus />
-              </Button>
+              <div className="flex items-center gap-0.5">
+                {column.status === 'done' && (
+                  <ClearColumnButton status={column.status} count={inColumn.length} />
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`Add card to ${column.label}`}
+                  onClick={() => openDraft({ title: '', body: '', status: column.status })}
+                >
+                  <Plus />
+                </Button>
+              </div>
             </div>
             <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
               {inColumn.map((card) => (

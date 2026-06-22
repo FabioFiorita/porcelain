@@ -6,6 +6,7 @@ import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { Columns3, Plus } from 'lucide-react'
 import { CardItem } from './card-item'
+import { ClearColumnButton } from './clear-column-button'
 
 /**
  * The Board sidebar tab body: the three columns stacked vertically (narrow panel),
@@ -40,15 +41,24 @@ export function BoardList(): React.JSX.Element {
               <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                 {column.label} · {inColumn.length}
               </span>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="size-5"
-                aria-label={`Add card to ${column.label}`}
-                onClick={() => openDraft({ title: '', body: '', status: column.status })}
-              >
-                <Plus />
-              </Button>
+              <div className="flex items-center gap-0.5">
+                {column.status === 'done' && (
+                  <ClearColumnButton
+                    status={column.status}
+                    count={inColumn.length}
+                    className="size-5"
+                  />
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="size-5"
+                  aria-label={`Add card to ${column.label}`}
+                  onClick={() => openDraft({ title: '', body: '', status: column.status })}
+                >
+                  <Plus />
+                </Button>
+              </div>
             </div>
             <div className="flex flex-col gap-1.5 px-2">
               {inColumn.map((card) => (

@@ -2,7 +2,7 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { addCard, deleteCard, moveCard, readCards, updateCard } from './board-store'
+import { addCard, clearCards, deleteCard, moveCard, readCards, updateCard } from './board-store'
 
 const dir = join(tmpdir(), 'porcelain-board-store-test')
 const file = join(dir, 'board.json')
@@ -46,6 +46,14 @@ describe('board-store CRUD', () => {
     const { id } = await addCard('/repo', { title: 'Add login' })
     await deleteCard('/repo', id)
     expect(await readCards('/repo')).toEqual([])
+  })
+
+  it('clears every card in a column, leaving the others', async () => {
+    await addCard('/repo', { title: 'still todo' })
+    await addCard('/repo', { title: 'done a', status: 'done' })
+    await addCard('/repo', { title: 'done b', status: 'done' })
+    await clearCards('/repo', 'done')
+    expect((await readCards('/repo')).map((c) => c.title)).toEqual(['still todo'])
   })
 
   it('keeps repos isolated', async () => {

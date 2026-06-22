@@ -16,6 +16,7 @@ import {
   addCard,
   type BoardCard,
   CARD_STATUSES,
+  clearCards,
   deleteCard,
   moveCard,
   readCards,
@@ -789,6 +790,10 @@ export const router = t.router({
   deleteBoardCard: t.procedure
     .input(z.object({ repoPath: z.string(), id: z.string() }))
     .mutation(({ input }) => deleteCard(input.repoPath, input.id)),
+
+  clearBoardCards: t.procedure
+    .input(z.object({ repoPath: z.string(), status: z.enum(CARD_STATUSES) }))
+    .mutation(({ input }) => clearCards(input.repoPath, input.status)),
 
   // Saved actions — named commands the human runs in the embedded terminal with one
   // click, stored in ~/.porcelain/actions.json (see `actions-store.ts`); a two-way

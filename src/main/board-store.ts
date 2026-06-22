@@ -123,3 +123,12 @@ export async function deleteCard(repoPath: string, id: string): Promise<void> {
     if (cards) all[repoPath] = cards.filter((c) => c.id !== id)
   })
 }
+
+/** Remove every card in a column in one atomic write (the human's bulk
+ * equivalent of clearing out, e.g., all Done cards). */
+export async function clearCards(repoPath: string, status: CardStatus): Promise<void> {
+  await mutate((all) => {
+    const cards = all[repoPath]
+    if (cards) all[repoPath] = cards.filter((c) => c.status !== status)
+  })
+}
