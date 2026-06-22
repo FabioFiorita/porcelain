@@ -32,7 +32,7 @@ import {
 } from './comment-store'
 import { loadConfig, updateConfig } from './config-store'
 import { type CommitConventions, parseConventions } from './conventions'
-import type { DiffHunk } from './diff'
+import type { ChangedFile, DiffHunk, DiffStat } from './diff'
 import { buildExploreReading, walkExplore } from './feature-explore'
 import { featureKey, flowKey } from './feature-key'
 import {
@@ -156,6 +156,38 @@ function isValidPattern(pattern: string): boolean {
 
 async function recordRecent(path: string): Promise<void> {
   await updateConfig((config) => withRecentRepo(config, path))
+}
+
+// Read up to 200 files' working-tree contents, run buildFlow, and attach
+// additions/deletions from the stat map. Shared by gitFlow, gitRangeFlow, and
+// gitCommitFlow — each procedure owns its own file/stat gathering, cache key,
+// and cache store; this helper is the common "sources → groups" pipeline.
+async function readSourcesAndBuildFlow(
+  repoPath: string,
+  files: ChangedFile[],
+  stats: DiffStat[],
+  layers: Layer[],
+): Promise<FlowGroup[]> {
+  const sources = new Map<string, string>()
+  await Promise.all(
+    files.slice(0, 200).map(async (file) => {
+      try {
+        const content = await readFile(join(repoPath, file.path), 'utf8')
+        if (content.length < 1024 * 1024) sources.set(file.path, content)
+      } catch {
+        // deleted / no-longer-in-working-tree files have no source to parse
+      }
+    }),
+  )
+  const statByPath = new Map(stats.map((s) => [s.path, s]))
+  return buildFlow(files, sources, layers).map((group) => ({
+    ...group,
+    files: group.files.map((file) => ({
+      ...file,
+      additions: statByPath.get(file.path)?.additions,
+      deletions: statByPath.get(file.path)?.deletions,
+    })),
+  }))
 }
 
 // gitFlow polls every 3s; re-reading up to 200 changed files each tick is the
@@ -616,26 +648,7 @@ export const router = t.router({
     const key = flowKey(files, stats, layers)
     const cached = flowCache.get(input)
     if (cached && cached.key === key) return cached.groups
-    const sources = new Map<string, string>()
-    await Promise.all(
-      files.slice(0, 200).map(async (file) => {
-        try {
-          const content = await readFile(join(input, file.path), 'utf8')
-          if (content.length < 1024 * 1024) sources.set(file.path, content)
-        } catch {
-          // deleted files have no working-tree source to parse
-        }
-      }),
-    )
-    const statByPath = new Map(stats.map((s) => [s.path, s]))
-    const groups = buildFlow(files, sources, layers).map((group) => ({
-      ...group,
-      files: group.files.map((file) => ({
-        ...file,
-        additions: statByPath.get(file.path)?.additions,
-        deletions: statByPath.get(file.path)?.deletions,
-      })),
-    }))
+    const groups = await readSourcesAndBuildFlow(input, files, stats, layers)
     flowCache.set(input, { key, groups })
     return groups
   }),
@@ -655,26 +668,7 @@ export const router = t.router({
         const key = `${base}\n${flowKey(files, stats, layers)}`
         const cached = rangeFlowCache.get(input)
         if (cached && cached.key === key) return { groups: cached.groups, base }
-        const sources = new Map<string, string>()
-        await Promise.all(
-          files.slice(0, 200).map(async (file) => {
-            try {
-              const content = await readFile(join(input, file.path), 'utf8')
-              if (content.length < 1024 * 1024) sources.set(file.path, content)
-            } catch {
-              // deleted-in-range files have no working-tree source to parse
-            }
-          }),
-        )
-        const statByPath = new Map(stats.map((s) => [s.path, s]))
-        const groups = buildFlow(files, sources, layers).map((group) => ({
-          ...group,
-          files: group.files.map((file) => ({
-            ...file,
-            additions: statByPath.get(file.path)?.additions,
-            deletions: statByPath.get(file.path)?.deletions,
-          })),
-        }))
+        const groups = await readSourcesAndBuildFlow(input, files, stats, layers)
         rangeFlowCache.set(input, { key, groups })
         return { groups, base }
       } catch {
@@ -994,26 +988,7 @@ export const router = t.router({
         const key = `${input.hash}\n${flowKey(files, stats, layers)}`
         const cached = commitFlowCache.get(cacheKey)
         if (cached && cached.key === key) return cached.groups
-        const sources = new Map<string, string>()
-        await Promise.all(
-          files.slice(0, 200).map(async (file) => {
-            try {
-              const content = await readFile(join(input.repoPath, file.path), 'utf8')
-              if (content.length < 1024 * 1024) sources.set(file.path, content)
-            } catch {
-              // file no longer in working tree — grouping still works by path
-            }
-          }),
-        )
-        const statByPath = new Map(stats.map((s) => [s.path, s]))
-        const groups = buildFlow(files, sources, layers).map((group) => ({
-          ...group,
-          files: group.files.map((file) => ({
-            ...file,
-            additions: statByPath.get(file.path)?.additions,
-            deletions: statByPath.get(file.path)?.deletions,
-          })),
-        }))
+        const groups = await readSourcesAndBuildFlow(input.repoPath, files, stats, layers)
         commitFlowCache.set(cacheKey, { key, groups })
         return groups
       } catch {
