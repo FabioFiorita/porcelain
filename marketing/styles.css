@@ -10,6 +10,17 @@ html, body { margin: 0; padding: 0; background: #070818; }
 a { color: inherit; text-decoration: none; }
 img { display: block; max-width: 100%; }
 
+/* The two side-by-side gallery shots (search ~2.09, history ~1.13) have very
+   different native aspect ratios, so at equal column widths one card towered
+   over the other and the shorter card padded out with empty space below its
+   text. Pin both to a uniform band so the cards are naturally equal-height.
+   The band matches the WIDE search shot's own ratio (feat-search.png, 1342×642
+   ≈ 2.09) so that shot is shown in full — a tighter 2/1 band zoomed it just
+   enough to clip its edges. The tall history shot then crops to its top rows
+   (anchored to the top). The full-width terminal card keeps its natural ratio,
+   so it is deliberately not a .gallery-shot. */
+.gallery-shot { width: 100%; aspect-ratio: 2.09 / 1; object-fit: cover; object-position: top; }
+
 @keyframes pcFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
 @keyframes pcDrift { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-2.5%, 2%) scale(1.06); } }
 
