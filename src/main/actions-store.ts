@@ -1,8 +1,6 @@
 import { randomUUID } from 'node:crypto'
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
-import { homedir } from 'node:os'
-import { dirname, join } from 'node:path'
 import { z } from 'zod'
+import { createHomeChannel } from './home-channel'
 
 /**
  * The saved-actions channel: named, runnable commands the human launches in the
@@ -34,45 +32,19 @@ export type Action = z.infer<typeof actionSchema>
 export const actionsSchema = z.record(z.string(), z.array(actionSchema))
 export type Actions = z.infer<typeof actionsSchema>
 
-export function actionsPath(): string {
-  // Must match src/mcp/action-file.ts. PORCELAIN_ACTIONS redirects both sides for tests.
-  return process.env.PORCELAIN_ACTIONS ?? join(homedir(), '.porcelain', 'actions.json')
-}
+const channel = createHomeChannel({
+  envVar: 'PORCELAIN_ACTIONS',
+  fileName: 'actions.json',
+  schema: actionsSchema,
+  empty: (): Actions => ({}),
+})
 
-async function readAll(): Promise<Actions> {
-  try {
-    return actionsSchema.parse(JSON.parse(await readFile(actionsPath(), 'utf8')))
-  } catch {
-    return {}
-  }
-}
-
-async function writeAll(all: Actions): Promise<void> {
-  const path = actionsPath()
-  await mkdir(dirname(path), { recursive: true })
-  const tmp = `${path}.tmp`
-  await writeFile(tmp, JSON.stringify(all, null, 2))
-  await rename(tmp, path)
-}
-
-let chain: Promise<void> = Promise.resolve()
-function mutate<T>(fn: (all: Actions) => T): Promise<T> {
-  const run = chain.then(async () => {
-    const all = await readAll()
-    const result = fn(all)
-    await writeAll(all)
-    return result
-  })
-  chain = run.then(
-    () => undefined,
-    () => undefined,
-  )
-  return run
-}
+// Must match src/mcp/action-file.ts. PORCELAIN_ACTIONS redirects both sides for tests.
+export const actionsPath = channel.path
 
 /** The actions for a repo, sorted by creation order (oldest first). */
 export async function readActions(repoPath: string): Promise<Action[]> {
-  const actions = (await readAll())[repoPath] ?? []
+  const actions = (await channel.readAll())[repoPath] ?? []
   return [...actions].sort((a, b) => a.order - b.order)
 }
 
@@ -92,7 +64,7 @@ export async function addAction(repoPath: string, input: NewAction): Promise<Act
     createdAt: now,
     ...(input.cwd !== undefined ? { cwd: input.cwd } : {}),
   }
-  await mutate((all) => {
+  await channel.mutate((all) => {
     all[repoPath] = [...(all[repoPath] ?? []), action]
   })
   return action
@@ -103,7 +75,7 @@ export async function updateAction(
   id: string,
   fields: { title?: string; command?: string; cwd?: string },
 ): Promise<void> {
-  await mutate((all) => {
+  await channel.mutate((all) => {
     const action = all[repoPath]?.find((a) => a.id === id)
     if (!action) return
     if (fields.title !== undefined) action.title = fields.title
@@ -121,7 +93,7 @@ export async function moveAction(
   id: string,
   direction: 'up' | 'down',
 ): Promise<void> {
-  await mutate((all) => {
+  await channel.mutate((all) => {
     const actions = all[repoPath]
     if (!actions) return
     const sorted = [...actions].sort((a, b) => a.order - b.order)
@@ -138,7 +110,7 @@ export async function moveAction(
 }
 
 export async function deleteAction(repoPath: string, id: string): Promise<void> {
-  await mutate((all) => {
+  await channel.mutate((all) => {
     const actions = all[repoPath]
     if (actions) all[repoPath] = actions.filter((a) => a.id !== id)
   })

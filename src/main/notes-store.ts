@@ -1,8 +1,6 @@
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
-import { homedir } from 'node:os'
-import { dirname, join } from 'node:path'
 import { z } from 'zod'
 import { loadConfig } from './config-store'
+import { createHomeChannel } from './home-channel'
 
 /**
  * The repo-notes channel: the human's freeform per-repo markdown scratchpad, keyed by
@@ -18,52 +16,24 @@ import { loadConfig } from './config-store'
 export const notesSchema = z.record(z.string(), z.string())
 export type Notes = z.infer<typeof notesSchema>
 
-export function notesPath(): string {
-  // Must match src/mcp/notes-file.ts. PORCELAIN_NOTES redirects both sides for tests.
-  return process.env.PORCELAIN_NOTES ?? join(homedir(), '.porcelain', 'notes.json')
-}
+const channel = createHomeChannel({
+  envVar: 'PORCELAIN_NOTES',
+  fileName: 'notes.json',
+  schema: notesSchema,
+  empty: (): Notes => ({}),
+})
 
-async function readAll(): Promise<Notes> {
-  try {
-    return notesSchema.parse(JSON.parse(await readFile(notesPath(), 'utf8')))
-  } catch {
-    // absent, unparseable, or schema-invalid — treat as empty
-    return {}
-  }
-}
-
-async function writeAll(all: Notes): Promise<void> {
-  const path = notesPath()
-  await mkdir(dirname(path), { recursive: true })
-  const tmp = `${path}.tmp`
-  await writeFile(tmp, JSON.stringify(all, null, 2))
-  await rename(tmp, path)
-}
-
-// Serialize app-side read-modify-write so two quick saves never drop a write.
-let chain: Promise<void> = Promise.resolve()
-function mutate<T>(fn: (all: Notes) => T): Promise<T> {
-  const run = chain.then(async () => {
-    const all = await readAll()
-    const result = fn(all)
-    await writeAll(all)
-    return result
-  })
-  chain = run.then(
-    () => undefined,
-    () => undefined,
-  )
-  return run
-}
+// Must match src/mcp/notes-file.ts. PORCELAIN_NOTES redirects both sides for tests.
+export const notesPath = channel.path
 
 /** The human's notes for a repo ('' when none / file absent). */
 export async function readNotes(repoPath: string): Promise<string> {
-  return (await readAll())[repoPath] ?? ''
+  return (await channel.readAll())[repoPath] ?? ''
 }
 
 /** Replace a repo's notes; an empty string drops the entry so the file stays tidy. */
 export async function writeNotes(repoPath: string, notes: string): Promise<void> {
-  await mutate((all) => {
+  await channel.mutate((all) => {
     if (notes === '') delete all[repoPath]
     else all[repoPath] = notes
   })
@@ -80,7 +50,7 @@ export async function migrateNotesFromConfig(): Promise<void> {
   const config = await loadConfig()
   const legacy = Object.entries(config.repos).filter(([, repo]) => repo.notes)
   if (legacy.length === 0) return
-  await mutate((all) => {
+  await channel.mutate((all) => {
     for (const [repoPath, repo] of legacy) {
       if (all[repoPath] === undefined && repo.notes) all[repoPath] = repo.notes
     }

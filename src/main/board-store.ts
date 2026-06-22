@@ -1,8 +1,6 @@
 import { randomUUID } from 'node:crypto'
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
-import { homedir } from 'node:os'
-import { dirname, join } from 'node:path'
 import { z } from 'zod'
+import { createHomeChannel } from './home-channel'
 
 /**
  * The project-board channel: todo/doing/done cards the human and the agent both
@@ -31,45 +29,19 @@ export type BoardCard = z.infer<typeof boardCardSchema>
 export const boardSchema = z.record(z.string(), z.array(boardCardSchema))
 export type Board = z.infer<typeof boardSchema>
 
-export function boardPath(): string {
-  // Must match src/mcp/board-file.ts. PORCELAIN_BOARD redirects both sides for tests.
-  return process.env.PORCELAIN_BOARD ?? join(homedir(), '.porcelain', 'board.json')
-}
+const channel = createHomeChannel({
+  envVar: 'PORCELAIN_BOARD',
+  fileName: 'board.json',
+  schema: boardSchema,
+  empty: (): Board => ({}),
+})
 
-async function readAll(): Promise<Board> {
-  try {
-    return boardSchema.parse(JSON.parse(await readFile(boardPath(), 'utf8')))
-  } catch {
-    return {}
-  }
-}
-
-async function writeAll(all: Board): Promise<void> {
-  const path = boardPath()
-  await mkdir(dirname(path), { recursive: true })
-  const tmp = `${path}.tmp`
-  await writeFile(tmp, JSON.stringify(all, null, 2))
-  await rename(tmp, path)
-}
-
-let chain: Promise<void> = Promise.resolve()
-function mutate<T>(fn: (all: Board) => T): Promise<T> {
-  const run = chain.then(async () => {
-    const all = await readAll()
-    const result = fn(all)
-    await writeAll(all)
-    return result
-  })
-  chain = run.then(
-    () => undefined,
-    () => undefined,
-  )
-  return run
-}
+// Must match src/mcp/board-file.ts. PORCELAIN_BOARD redirects both sides for tests.
+export const boardPath = channel.path
 
 /** The cards for a repo, sorted by column order (oldest/first at the top). */
 export async function readCards(repoPath: string): Promise<BoardCard[]> {
-  const cards = (await readAll())[repoPath] ?? []
+  const cards = (await channel.readAll())[repoPath] ?? []
   return [...cards].sort((a, b) => a.order - b.order)
 }
 
@@ -89,7 +61,7 @@ export async function addCard(repoPath: string, input: NewCard): Promise<BoardCa
     createdAt: now,
     ...(input.body !== undefined ? { body: input.body } : {}),
   }
-  await mutate((all) => {
+  await channel.mutate((all) => {
     all[repoPath] = [...(all[repoPath] ?? []), card]
   })
   return card
@@ -100,7 +72,7 @@ export async function updateCard(
   id: string,
   fields: { title?: string; body?: string },
 ): Promise<void> {
-  await mutate((all) => {
+  await channel.mutate((all) => {
     const card = all[repoPath]?.find((c) => c.id === id)
     if (!card) return
     if (fields.title !== undefined) card.title = fields.title
@@ -109,7 +81,7 @@ export async function updateCard(
 }
 
 export async function moveCard(repoPath: string, id: string, status: CardStatus): Promise<void> {
-  await mutate((all) => {
+  await channel.mutate((all) => {
     const card = all[repoPath]?.find((c) => c.id === id)
     if (!card) return
     card.status = status
@@ -118,7 +90,7 @@ export async function moveCard(repoPath: string, id: string, status: CardStatus)
 }
 
 export async function deleteCard(repoPath: string, id: string): Promise<void> {
-  await mutate((all) => {
+  await channel.mutate((all) => {
     const cards = all[repoPath]
     if (cards) all[repoPath] = cards.filter((c) => c.id !== id)
   })
@@ -127,7 +99,7 @@ export async function deleteCard(repoPath: string, id: string): Promise<void> {
 /** Remove every card in a column in one atomic write (the human's bulk
  * equivalent of clearing out, e.g., all Done cards). */
 export async function clearCards(repoPath: string, status: CardStatus): Promise<void> {
-  await mutate((all) => {
+  await channel.mutate((all) => {
     const cards = all[repoPath]
     if (cards) all[repoPath] = cards.filter((c) => c.status !== status)
   })
