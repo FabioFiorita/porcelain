@@ -35,7 +35,7 @@ Most plans are independent — see "Dependency notes".
 | 014 | Renderer/process hardening (`will-navigate` + explicit isolation) | security | P2 | S | LOW | — | DONE |
 | 015 | Harden the packaged app with Electron Fuses | security | P3 | M | MED | — | DONE (smoke-test pending) |
 | 016 | Add `fileName`/`dirName` to `lib/paths.ts`; replace inline reimpls | tech-debt | P3 | S | LOW | — | TODO |
-| 017 | Collapse the git try/catch into `runGitChecked` | tech-debt | P3 | S | LOW | **009** | TODO |
+| 017 | Collapse the git try/catch into `runGitChecked` | tech-debt | P3 | S | LOW | **009** | DONE |
 | 018 | Extract a shared factory for the agent-channel stores | tech-debt | P3 | M | MED | — | DONE |
 | 019 | Tokenize the arbitrary font-size literals into a named scale | tech-debt | P3 | M | LOW | — | TODO |
 | 020 | Flow-group a historical commit's files (CommitView as a story) | enhancement | P3 | M | MED | — | TODO |

@@ -240,11 +240,7 @@ export async function gitBranches(repoPath: string): Promise<BranchRef[]> {
  *  "local changes would be overwritten" refusal on a dirty tree) so the UI can show
  *  it — git itself is the guard against clobbering uncommitted work. */
 export async function gitCheckout(repoPath: string, branch: string): Promise<void> {
-  try {
-    await runGit(repoPath, ['checkout', branch])
-  } catch (error) {
-    throw new Error(gitErrorOutput(error))
-  }
+  await runGitChecked(repoPath, ['checkout', branch])
 }
 
 function gitErrorOutput(error: unknown): string {
@@ -259,40 +255,37 @@ function gitErrorOutput(error: unknown): string {
   return String(error)
 }
 
-/** Stage every change (tracked + untracked). Throws git's output for the UI. */
-export async function gitStageAll(repoPath: string): Promise<void> {
+/**
+ * Run a git mutation and rethrow git's own stderr/stdout (via gitErrorOutput) so the
+ * UI can surface the message (e.g. a dirty-tree checkout refusal). Read-only helpers
+ * call runGit directly; the mutating ones go through this so error surfacing is uniform.
+ */
+async function runGitChecked(repoPath: string, args: string[]): Promise<string> {
   try {
-    await runGit(repoPath, ['add', '-A'])
+    return await runGit(repoPath, args)
   } catch (error) {
     throw new Error(gitErrorOutput(error))
   }
+}
+
+/** Stage every change (tracked + untracked). Throws git's output for the UI. */
+export async function gitStageAll(repoPath: string): Promise<void> {
+  await runGitChecked(repoPath, ['add', '-A'])
 }
 
 /** Unstage every change (reset the whole index to HEAD). Throws git's output for the UI. */
 export async function gitUnstageAll(repoPath: string): Promise<void> {
-  try {
-    await runGit(repoPath, ['reset', '-q'])
-  } catch (error) {
-    throw new Error(gitErrorOutput(error))
-  }
+  await runGitChecked(repoPath, ['reset', '-q'])
 }
 
 /** Stage a single path. Throws git's output for the UI. */
 export async function gitStageFile(repoPath: string, path: string): Promise<void> {
-  try {
-    await runGit(repoPath, ['add', '--', path])
-  } catch (error) {
-    throw new Error(gitErrorOutput(error))
-  }
+  await runGitChecked(repoPath, ['add', '--', path])
 }
 
 /** Unstage a single path (restore the index entry from HEAD). */
 export async function gitUnstageFile(repoPath: string, path: string): Promise<void> {
-  try {
-    await runGit(repoPath, ['restore', '--staged', '--', path])
-  } catch (error) {
-    throw new Error(gitErrorOutput(error))
-  }
+  await runGitChecked(repoPath, ['restore', '--staged', '--', path])
 }
 
 /**
@@ -314,11 +307,7 @@ export async function gitFileInHead(repoPath: string, path: string): Promise<boo
  * the committed version. Reverts staged + unstaged edits and restores a deletion.
  */
 export async function gitRestoreFromHead(repoPath: string, path: string): Promise<void> {
-  try {
-    await runGit(repoPath, ['restore', '--staged', '--worktree', '--source=HEAD', '--', path])
-  } catch (error) {
-    throw new Error(gitErrorOutput(error))
-  }
+  await runGitChecked(repoPath, ['restore', '--staged', '--worktree', '--source=HEAD', '--', path])
 }
 
 /**
@@ -327,20 +316,12 @@ export async function gitRestoreFromHead(repoPath: string, path: string): Promis
  * new file: unstage it here, then the caller trashes the working copy.
  */
 export async function gitResetPath(repoPath: string, path: string): Promise<void> {
-  try {
-    await runGit(repoPath, ['reset', '-q', '--', path])
-  } catch (error) {
-    throw new Error(gitErrorOutput(error))
-  }
+  await runGitChecked(repoPath, ['reset', '-q', '--', path])
 }
 
 /** Commit staged changes. Throws git's output so the UI can show it. */
 export async function gitCommit(repoPath: string, message: string): Promise<void> {
-  try {
-    await runGit(repoPath, ['commit', '-m', message])
-  } catch (error) {
-    throw new Error(gitErrorOutput(error))
-  }
+  await runGitChecked(repoPath, ['commit', '-m', message])
 }
 
 /** Contextual quick-command suggestions derived from branch sync + stash state. */
