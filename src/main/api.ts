@@ -167,10 +167,14 @@ const flowCache = new Map<string, { key: string; groups: FlowGroup[] }>()
 // cache is invalidated only on commit (gitRangeFlow.invalidate in use-commit).
 const rangeFlowCache = new Map<string, { key: string; groups: FlowGroup[] }>()
 
-// Same memoization as flowCache for the (heavier) feature view: keyed on the
-// working-tree state, layers, and the agent-fed review set, so the poll only
-// re-reads file contents when something that affects the view actually changed.
-const featureViewCache = new Map<string, { key: string; view: FeatureView }>()
+// One shared build per snapshot — both feature procedures reuse it instead of each
+// re-reading ≤200 sources and rebuilding the view for the identical key. Keyed on
+// repoPath; the key encodes status+numstat+layers+reviewSet so it self-busts on any
+// working-tree change that affects the feature view.
+const featureBuildCache = new Map<
+  string,
+  { key: string; view: FeatureView; sources: Map<string, string> }
+>()
 
 // The (heavier still) inline reading surface, memoized on the same key. Only built
 // when an agent review set is present (MCP-only), so the slice heuristic runs only
@@ -249,6 +253,22 @@ async function buildFeatureFromGather(
     layers: g.layers,
   })
   return { view, sources }
+}
+
+// Shared cache accessor — returns the memoized build for the current snapshot,
+// or runs buildFeatureFromGather once and stores the result. Both feature
+// procedures call this so the expensive source-read + view-build runs at most
+// once per snapshot regardless of which procedure polls first.
+async function getFeatureBuild(
+  input: string,
+  g: Awaited<ReturnType<typeof gatherFeature>>,
+): Promise<{ key: string; view: FeatureView; sources: Map<string, string> }> {
+  const cached = featureBuildCache.get(input)
+  if (cached && cached.key === g.key) return cached
+  const { view, sources } = await buildFeatureFromGather(input, g)
+  const entry = { key: g.key, view, sources }
+  featureBuildCache.set(input, entry)
+  return entry
 }
 
 // The finder searches visible files PLUS their ancestor folders. Both the
@@ -668,11 +688,7 @@ export const router = t.router({
   // invariant notes overlay on top. One render either way.
   featureView: t.procedure.input(z.string()).query(async ({ input }): Promise<FeatureView> => {
     const g = await gatherFeature(input)
-    const cached = featureViewCache.get(input)
-    if (cached && cached.key === g.key) return cached.view
-    const { view } = await buildFeatureFromGather(input, g)
-    featureViewCache.set(input, { key: g.key, view })
-    return view
+    return (await getFeatureBuild(input, g)).view
   }),
 
   // The inline reading surface: the feature rendered as one flow-ordered document
@@ -687,7 +703,7 @@ export const router = t.router({
       if (!g.reviewSet) return null
       const cached = featureReadingCache.get(input)
       if (cached && cached.key === g.key) return cached.reading
-      const { view, sources } = await buildFeatureFromGather(input, g)
+      const { view, sources } = await getFeatureBuild(input, g)
       const changed = view.groups
         .flatMap((group) => group.files)
         .filter((f) => f.source === 'changed')
