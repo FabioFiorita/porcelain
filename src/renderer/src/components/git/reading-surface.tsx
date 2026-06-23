@@ -9,6 +9,7 @@ import {
 import { CodeLine, useHighlighter } from '@renderer/components/viewer/code-line'
 import { VirtualRows } from '@renderer/components/viewer/virtual-rows'
 import { languageFor, tokenizeLines } from '@renderer/lib/highlight'
+import { type LineSelection, lineSelectionForFile } from '@renderer/lib/line-selection'
 import { cn } from '@renderer/lib/utils'
 import { MessageSquarePlus } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -82,10 +83,12 @@ export function buildRows(
 }
 
 // Right-click a feature file (or one of its lines) to leave a review comment without
-// leaving the read — "Add comment" anchors to the line, "Comment on file" to the file.
-// One CommentComposer is mounted by the body; these items just set its anchor. The
-// trigger stays text-selectable (the surface is read) and `block` so the measured row
-// height comes from the inner content.
+// leaving the read — "Add comment" anchors to the line (or the drag-selected range),
+// "Comment on file" to the file. One CommentComposer is mounted by the body; these
+// items just set its anchor. The trigger stays text-selectable (the surface is read)
+// and `block` so the measured row height comes from the inner content. On open it reads
+// the DOM selection CLAMPED to this file (rows carry data-file), so a multi-line
+// drag-select anchors to the whole range; otherwise it falls back to the single line.
 function CommentMenu({
   path,
   line,
@@ -97,22 +100,25 @@ function CommentMenu({
   onComment: (anchor: CommentAnchor) => void
   children: React.ReactNode
 }): React.JSX.Element {
+  const [selection, setSelection] = useState<LineSelection | null>(null)
+  const lineAnchor: CommentAnchor | null = selection
+    ? {
+        path,
+        startLine: selection.startLine,
+        endLine: selection.endLine,
+        anchorText: selection.text,
+      }
+    : line
+      ? { path, startLine: line.lineNo, endLine: line.lineNo, anchorText: line.text.slice(0, 2000) }
+      : null
+  const spanned = selection ? selection.endLine - selection.startLine + 1 : 0
   return (
-    <ContextMenu>
+    <ContextMenu onOpenChange={(open) => setSelection(open ? lineSelectionForFile(path) : null)}>
       <ContextMenuTrigger className="block select-text">{children}</ContextMenuTrigger>
       <ContextMenuContent className="w-48">
-        {line && (
-          <ContextMenuItem
-            onClick={() =>
-              onComment({
-                path,
-                startLine: line.lineNo,
-                endLine: line.lineNo,
-                anchorText: line.text.slice(0, 2000),
-              })
-            }
-          >
-            <MessageSquarePlus /> Add comment
+        {lineAnchor && (
+          <ContextMenuItem onClick={() => onComment(lineAnchor)}>
+            <MessageSquarePlus /> Add comment{spanned > 1 ? ` (${spanned} lines)` : ''}
           </ContextMenuItem>
         )}
         <ContextMenuItem onClick={() => onComment({ path })}>
@@ -179,7 +185,13 @@ function ReadingRowView({
           line={newLine === null ? undefined : { lineNo: newLine, text: row.line.text }}
           onComment={onComment}
         >
-          <div className={cn('flex h-5 leading-5', diffLineClass[row.line.kind])}>
+          {/* data-file + data-line let a drag-selection map to a line range in THIS
+              file; new-side line (old-side for a pure deletion), like the diff view. */}
+          <div
+            data-file={row.path}
+            data-line={row.line.newLine ?? row.line.oldLine ?? undefined}
+            className={cn('flex h-5 leading-5', diffLineClass[row.line.kind])}
+          >
             <span className="w-12 shrink-0 select-none pr-2 text-right text-muted-foreground/40">
               {row.line.newLine ?? row.line.oldLine ?? ''}
             </span>
@@ -207,7 +219,7 @@ function ReadingRowView({
           line={{ lineNo: row.lineNo, text: row.text }}
           onComment={onComment}
         >
-          <div className="flex h-5 leading-5">
+          <div data-file={row.path} data-line={row.lineNo} className="flex h-5 leading-5">
             <span className="w-12 shrink-0 select-none pr-2 text-right text-muted-foreground/35">
               {row.lineNo}
             </span>

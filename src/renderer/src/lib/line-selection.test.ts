@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { lineRangeFromRange } from './line-selection'
+import { fileLineRangeFromRange, lineRangeFromRange } from './line-selection'
 
 // Mirror the rendered DOM: VirtualRows wraps each row in a div that has NO data-line;
 // the row div inside carries data-line and holds the code text. This is the shape
@@ -14,6 +14,20 @@ function appendRow(line: number, text: string): { wrapper: HTMLElement; textNode
   wrapper.appendChild(row)
   document.body.appendChild(wrapper)
   return { wrapper, textNode: span.firstChild as Text }
+}
+
+// The reading surface adds data-file so a selection maps to a range WITHIN one file.
+function appendFileRow(file: string, line: number, text: string): { textNode: Text } {
+  const wrapper = document.createElement('div')
+  const row = document.createElement('div')
+  row.setAttribute('data-line', String(line))
+  row.setAttribute('data-file', file)
+  const span = document.createElement('span')
+  span.textContent = text
+  row.appendChild(span)
+  wrapper.appendChild(row)
+  document.body.appendChild(wrapper)
+  return { textNode: span.firstChild as Text }
 }
 
 describe('lineRangeFromRange', () => {
@@ -55,5 +69,39 @@ describe('lineRangeFromRange', () => {
     range.setStart(plain.firstChild as Text, 0)
     range.setEnd(plain.firstChild as Text, 2)
     expect(lineRangeFromRange(range)).toBeNull()
+  })
+})
+
+describe('fileLineRangeFromRange', () => {
+  beforeEach(() => {
+    document.body.innerHTML = ''
+  })
+
+  it('clamps a same-file multi-line selection to that file', () => {
+    const first = appendFileRow('a.ts', 3, 'line three')
+    const last = appendFileRow('a.ts', 7, 'line seven')
+    const range = document.createRange()
+    range.setStart(first.textNode, 0)
+    range.setEnd(last.textNode, 4)
+    expect(fileLineRangeFromRange(range, 'a.ts')).toEqual({ startLine: 3, endLine: 7 })
+  })
+
+  it('returns null when the selection crosses into another file', () => {
+    const a = appendFileRow('a.ts', 3, 'in a')
+    const b = appendFileRow('b.ts', 5, 'in b')
+    const range = document.createRange()
+    range.setStart(a.textNode, 0)
+    range.setEnd(b.textNode, 2)
+    expect(fileLineRangeFromRange(range, 'a.ts')).toBeNull()
+    expect(fileLineRangeFromRange(range, 'b.ts')).toBeNull()
+  })
+
+  it('returns null when the selection is in a different file than asked', () => {
+    const b = appendFileRow('b.ts', 5, 'only b')
+    const range = document.createRange()
+    range.setStart(b.textNode, 0)
+    range.setEnd(b.textNode, 4)
+    expect(fileLineRangeFromRange(range, 'a.ts')).toBeNull()
+    expect(fileLineRangeFromRange(range, 'b.ts')).toEqual({ startLine: 5, endLine: 5 })
   })
 })

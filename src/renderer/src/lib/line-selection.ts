@@ -11,17 +11,25 @@ export interface LineSelection {
  * has no `data-line`), descend to the child the offset points at before climbing —
  * otherwise `closest` would walk past the rows entirely and find nothing.
  */
-function lineAt(container: Node, offset: number): number | null {
+/** The nearest `[data-line]` row element a range boundary (container + offset) sits in. */
+function rowAt(container: Node, offset: number): Element | null {
   let node: Node | null = container
   if (container.nodeType === Node.ELEMENT_NODE) {
     const element = container as Element
     node = element.childNodes[offset] ?? element.childNodes[offset - 1] ?? element
   }
   const element = node instanceof Element ? node : (node?.parentElement ?? null)
-  const row = element?.closest('[data-line]')
+  return element?.closest('[data-line]') ?? null
+}
+
+function lineOf(row: Element | null): number | null {
   const value = row?.getAttribute('data-line')
   const parsed = value ? Number.parseInt(value, 10) : Number.NaN
   return Number.isFinite(parsed) ? parsed : null
+}
+
+function lineAt(container: Node, offset: number): number | null {
+  return lineOf(rowAt(container, offset))
 }
 
 /**
@@ -50,4 +58,47 @@ export function lineSelectionFromDom(): LineSelection | null {
   const range = lineRangeFromRange(selection.getRangeAt(0))
   if (!range) return null
   return { ...range, text: selection.toString() }
+}
+
+/**
+ * Map a `Range` to a 1-based line range WITHIN a single file, for a surface that
+ * interleaves many files in one scroll (the feature reading surface): rows there
+ * carry `data-file` alongside `data-line`, and only endpoints in `path` count. A
+ * selection that crosses INTO another file can't anchor cleanly to one, so it
+ * returns null (the caller falls back to the single right-clicked line). The pure
+ * core of `lineSelectionForFile`, split out so it's testable with a built `Range`.
+ */
+export function fileLineRangeFromRange(
+  range: Range,
+  path: string,
+): { startLine: number; endLine: number } | null {
+  const startRow = rowAt(range.startContainer, range.startOffset)
+  const endRow = rowAt(range.endContainer, range.endOffset)
+  const startFile = startRow?.getAttribute('data-file') ?? null
+  const endFile = endRow?.getAttribute('data-file') ?? null
+  if (startFile !== null && endFile !== null && startFile !== endFile) return null
+  const lines: number[] = []
+  for (const [row, file] of [
+    [startRow, startFile],
+    [endRow, endFile],
+  ] as const) {
+    if (file !== path) continue
+    const line = lineOf(row)
+    if (line !== null) lines.push(line)
+  }
+  if (lines.length === 0) return null
+  return { startLine: Math.min(...lines), endLine: Math.max(...lines) }
+}
+
+/**
+ * Map the current DOM text selection to a 1-based line range within `path` on a
+ * multi-file surface. Null when there's no (non-collapsed) selection or it doesn't
+ * land in that file's rows. The anchor text is capped — it's best-effort context.
+ */
+export function lineSelectionForFile(path: string): LineSelection | null {
+  const selection = window.getSelection()
+  if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return null
+  const range = fileLineRangeFromRange(selection.getRangeAt(0), path)
+  if (!range) return null
+  return { ...range, text: selection.toString().slice(0, 2000) }
 }
