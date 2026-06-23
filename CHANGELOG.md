@@ -1,3 +1,17 @@
+## [0.15.0](https://github.com/FabioFiorita/porcelain/compare/v0.14.0...v0.15.0) (2026-06-23)
+
+### Features
+
+* **mcp:** feature-view snapshot channel + comment status tags ([86c1ecc](https://github.com/FabioFiorita/porcelain/commit/86c1ecc950703d4c1aa3d69b0e9bdf0c38497418))
+* **review:** comment on the feature view and wrap the inline-read note ([fff2d50](https://github.com/FabioFiorita/porcelain/commit/fff2d50fb9c3604a5af8a7b228d52fe763c0a633))
+* **review:** let the agent drive the feature-view grouping ([4b64888](https://github.com/FabioFiorita/porcelain/commit/4b64888efac040db4a1154200028e151b9fa73b8))
+* **review:** multi-line drag-select comments in the inline read ([2906fbf](https://github.com/FabioFiorita/porcelain/commit/2906fbfd0a135168de9eece9cd1e38660d947b8f))
+* **viewer:** add Swift syntax highlighting ([0e54397](https://github.com/FabioFiorita/porcelain/commit/0e54397f11fd7e9dade96f99026f132c33e1772f))
+
+### Bug Fixes
+
+* **ui:** wrap long note tokens so the feature list Note card doesn't clip ([a5b8299](https://github.com/FabioFiorita/porcelain/commit/a5b82991870fd6d54f7010dacfa7e297bec9469f))
+
 ## [0.14.0](https://github.com/FabioFiorita/porcelain/compare/v0.13.0...v0.14.0) (2026-06-22)
 
 ### Features
