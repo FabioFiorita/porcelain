@@ -4,6 +4,7 @@ import {
   buildFlow,
   DEFAULT_LAYERS,
   groupByLayer,
+  groupByLayerOrdered,
   layerFor,
   OTHER_LABEL,
   parseImports,
@@ -98,6 +99,43 @@ describe('groupByLayer', () => {
       'src/components/a.tsx',
       'src/components/c.tsx',
     ])
+  })
+})
+
+describe('groupByLayerOrdered', () => {
+  it('honours an explicit per-item layer over the regex match', () => {
+    // `app/` would regex-match Pages and `store/` would fall into Other; the explicit
+    // layers win, so the agent can place files the repo-wide regex can't.
+    const items = [
+      { path: 'app/core/AppAccessProvider.tsx', layer: 'Bootstrap' },
+      { path: 'store/registration/index.tsx', layer: 'Store' },
+    ]
+    const groups = groupByLayerOrdered(items, DEFAULT_LAYERS)
+    expect(groups.map((g) => g.layer)).toEqual(['Bootstrap', 'Store'])
+  })
+
+  it('keeps the caller order within a group (no alphabetical sort)', () => {
+    const items = [
+      { path: 'src/components/z.tsx' },
+      { path: 'src/components/a.tsx' },
+      { path: 'src/components/m.tsx' },
+    ]
+    const groups = groupByLayerOrdered(items, DEFAULT_LAYERS)
+    expect(groups[0]?.files.map((f) => f.path)).toEqual([
+      'src/components/z.tsx',
+      'src/components/a.tsx',
+      'src/components/m.tsx',
+    ])
+  })
+
+  it('emits groups in first-appearance order and falls back to Other for un-layered misses', () => {
+    const items = [
+      { path: 'src/services/b.ts' }, // regex → Services
+      { path: 'README.md' }, // no match → Other
+      { path: 'src/components/a.tsx', layer: 'UI' }, // explicit
+    ]
+    const groups = groupByLayerOrdered(items, DEFAULT_LAYERS)
+    expect(groups.map((g) => g.layer)).toEqual(['Services', OTHER_LABEL, 'UI'])
   })
 })
 

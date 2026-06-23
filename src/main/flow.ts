@@ -82,6 +82,36 @@ export function groupByLayer<T extends { path: string }>(
     }))
 }
 
+/**
+ * Group files honouring the CALLER'S order and an optional per-item explicit `layer`,
+ * instead of the regex match + alphabetical sort `groupByLayer` imposes. A file's
+ * layer is its explicit `layer` when set, else the deepest-matching regex layer;
+ * groups emit in first-appearance order and files keep their incoming order within a
+ * group. This is the feature view's agent path: the agent declares each file's layer
+ * and the flow order, and Porcelain renders that verbatim (the Changes tab keeps the
+ * repo-wide `groupByLayer`). Falls through to `Other` only for an un-layered file no
+ * regex matches.
+ */
+export function groupByLayerOrdered<T extends { path: string; layer?: string }>(
+  items: readonly T[],
+  layers: readonly Layer[],
+): { layer: string; files: T[] }[] {
+  const compiled = compileLayers(layers) // compile once for the whole batch
+  const order: string[] = []
+  const byLayer = new Map<string, T[]>()
+  for (const item of items) {
+    const layer = item.layer ?? layerForCompiled(item.path, compiled)
+    let group = byLayer.get(layer)
+    if (!group) {
+      group = []
+      byLayer.set(layer, group)
+      order.push(layer)
+    }
+    group.push(item)
+  }
+  return order.map((layer) => ({ layer, files: byLayer.get(layer) ?? [] }))
+}
+
 export interface FlowFile extends ChangedFile {
   /** Relative paths of other changed files this file imports. */
   connects: string[]

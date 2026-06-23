@@ -126,6 +126,55 @@ describe('buildFeatureView', () => {
     expect(hook).toMatchObject({ source: 'changed', note: 'maps ISO date' })
   })
 
+  it('lets the agent drive the feature view grouping + order via per-file layers', () => {
+    // `app/` would regex into Pages, `store/`/`infra/` would fall into Other; the
+    // agent's explicit layers + declared order win for the feature view (the Changes
+    // tab still uses the regex layers). This is the user's Q2 outcome.
+    const reviewSet: ReviewSet = {
+      name: 'Account access',
+      files: [
+        { path: 'app/core/AppAccessProvider.tsx', source: 'context', layer: 'Bootstrap' },
+        { path: 'store/registration/index.tsx', source: 'context', layer: 'Store' },
+        { path: 'infra/auth/createAccountDraft.ts', source: 'shipped', layer: 'Infra' },
+      ],
+    }
+    const view = buildFeatureView({
+      name: 'Account access',
+      changed: [],
+      contextPaths: [],
+      reviewSet,
+      sources: new Map(),
+      stats: noStats,
+      layers,
+    })
+    expect(view.groups.map((g) => g.layer)).toEqual(['Bootstrap', 'Store', 'Infra'])
+    expect(view.groups.flatMap((g) => g.files.map((f) => f.path))).toEqual([
+      'app/core/AppAccessProvider.tsx',
+      'store/registration/index.tsx',
+      'infra/auth/createAccountDraft.ts',
+    ])
+  })
+
+  it('honours declared order and regex-fills an un-layered file in agent mode', () => {
+    const reviewSet: ReviewSet = {
+      name: 'X',
+      files: [
+        { path: 'app/screens/crew/tab.tsx' }, // no layer → regex → Pages
+        { path: 'server/services/crew.service.ts', source: 'shipped', layer: 'Services' },
+      ],
+    }
+    const view = buildFeatureView({
+      name: 'X',
+      changed: [changed('app/screens/crew/tab.tsx')],
+      contextPaths: [],
+      reviewSet,
+      sources: new Map(),
+      stats: noStats,
+      layers,
+    })
+    expect(view.groups.map((g) => g.layer)).toEqual(['Pages', 'Services'])
+  })
+
   it('connects files within the view via their imports', () => {
     const view = buildFeatureView({
       name: 'Feature view',

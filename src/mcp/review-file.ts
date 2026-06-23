@@ -14,6 +14,7 @@ export interface ReviewFile {
   path: string
   source?: string
   note?: string
+  layer?: string
 }
 
 export interface ReviewSet {
@@ -48,6 +49,7 @@ export function toReviewFiles(value: unknown): ReviewFile[] {
       file.source = item.source
     }
     if (typeof item.note === 'string') file.note = item.note
+    if (typeof item.layer === 'string') file.layer = item.layer
     return file
   })
 }
@@ -61,6 +63,7 @@ function parseReviewFiles(value: unknown): ReviewFile[] {
     const file: ReviewFile = { path: item.path }
     if (typeof item.source === 'string' && FILE_SOURCES.has(item.source)) file.source = item.source
     if (typeof item.note === 'string') file.note = item.note
+    if (typeof item.layer === 'string') file.layer = item.layer
     files.push(file)
   }
   return files

@@ -1,6 +1,6 @@
 import type { ChangedFile, DiffHunk, FileStatus } from './diff'
 import { collectImportedSymbols, type SliceRange, sliceSource } from './feature-slice'
-import { groupByLayer, type Layer, parseImports, resolveImport } from './flow'
+import { groupByLayer, groupByLayerOrdered, type Layer, parseImports, resolveImport } from './flow'
 import type { FileSource, ReviewSet } from './review-set'
 
 // Resolution order for an extension-less import. Mirrors the resolver in flow.ts
@@ -72,6 +72,8 @@ export interface FeatureFile {
   status?: FileStatus
   /** A cross-file invariant the reviewer must check, supplied by the agent. */
   note?: string
+  /** The agent-declared flow layer for the feature view (overrides the regex match). */
+  layer?: string
   additions?: number
   deletions?: number
   /** Other files IN THIS VIEW that this file imports. */
@@ -112,11 +114,14 @@ export function buildFeatureView(params: {
   const add = (
     path: string,
     source: FileSource,
-    opts: { explicit?: boolean; note?: string } = {},
+    opts: { explicit?: boolean; note?: string; layer?: string } = {},
   ): void => {
     const existing = files.get(path)
     if (existing) {
       if (opts.note && !existing.note) existing.note = opts.note
+      // The agent's layer applies to a changed file too (git owns the source, the
+      // agent owns where it sits in the flow), so set it regardless of source.
+      if (opts.layer && !existing.layer) existing.layer = opts.layer
       // An explicit (agent-declared) source can promote context→shipped, but
       // nothing overrides a file that git says is changed.
       if (opts.explicit && existing.source !== 'changed') existing.source = source
@@ -129,6 +134,7 @@ export function buildFeatureView(params: {
       source: changedFile ? 'changed' : source,
       status: changedFile?.status,
       note: opts.note,
+      layer: opts.layer,
       additions: stat?.additions,
       deletions: stat?.deletions,
       connects: [],
@@ -139,7 +145,11 @@ export function buildFeatureView(params: {
   for (const path of params.contextPaths) add(path, 'context')
   if (params.reviewSet) {
     for (const file of params.reviewSet.files) {
-      add(file.path, file.source ?? 'shipped', { explicit: true, note: file.note })
+      add(file.path, file.source ?? 'shipped', {
+        explicit: true,
+        note: file.note,
+        layer: file.layer,
+      })
     }
   }
 
@@ -153,11 +163,38 @@ export function buildFeatureView(params: {
     file.connects = [...new Set(connects)]
   }
 
-  return {
-    name: params.name,
-    fromAgent: params.reviewSet !== null,
-    groups: groupByLayer([...files.values()], params.layers),
-  }
+  // Two grouping paths by design (see the flow-layers skill + Q from the user):
+  // the no-MCP baseline keeps the repo-wide regex layers (matching the Changes tab),
+  // but once the agent pushes a review set it OWNS the feature view's flow — its
+  // declared file order and per-file `layer` render verbatim (groupByLayerOrdered),
+  // since the agent built the feature and knows its true shape better than a regex.
+  const reviewSet = params.reviewSet
+  const groups = reviewSet
+    ? groupByLayerOrdered(orderByDeclared([...files.values()], reviewSet), params.layers)
+    : groupByLayer([...files.values()], params.layers)
+
+  return { name: params.name, fromAgent: reviewSet !== null, groups }
+}
+
+/**
+ * Reorder the feature's files into the agent's DECLARED order: files listed in the
+ * review set come first in review-set order, the rest (auto-added context, changed
+ * files the agent didn't list) keep their original insertion order after. Stable, so
+ * `groupByLayerOrdered` can render the agent's flow exactly as pushed.
+ */
+function orderByDeclared(files: readonly FeatureFile[], reviewSet: ReviewSet): FeatureFile[] {
+  const declared = new Map(reviewSet.files.map((file, index) => [file.path, index]))
+  return files
+    .map((file, index) => ({ file, index }))
+    .sort((a, b) => {
+      const ad = declared.get(a.file.path)
+      const bd = declared.get(b.file.path)
+      if (ad !== undefined && bd !== undefined) return ad - bd
+      if (ad !== undefined) return -1
+      if (bd !== undefined) return 1
+      return a.index - b.index // both undeclared — keep insertion order
+    })
+    .map((entry) => entry.file)
 }
 
 /** One file in the inline reading surface: changed files carry diff hunks, the

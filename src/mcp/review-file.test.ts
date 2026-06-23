@@ -19,6 +19,12 @@ describe('toReviewFiles', () => {
     ).toEqual([{ path: 'a.ts' }, { path: 'b.ts', source: 'shipped', note: 'check this' }])
   })
 
+  it('keeps an agent-declared flow layer', () => {
+    expect(toReviewFiles([{ path: 'a.ts', layer: 'Store' }])).toEqual([
+      { path: 'a.ts', layer: 'Store' },
+    ])
+  })
+
   it('throws on a non-array', () => {
     expect(() => toReviewFiles('nope')).toThrow('files must be an array')
   })

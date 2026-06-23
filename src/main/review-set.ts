@@ -16,6 +16,7 @@ export const reviewSetFileSchema = z.object({
   path: z.string().min(1),
   source: z.enum(FILE_SOURCES).optional(),
   note: z.string().optional(),
+  layer: z.string().optional(),
 })
 
 export interface ReviewSetFile {
@@ -25,6 +26,13 @@ export interface ReviewSetFile {
   source?: FileSource
   /** A cross-file invariant the reviewer must check (e.g. "labels must match the service"). */
   note?: string
+  /**
+   * The flow-layer (group heading) this file belongs to IN THE FEATURE VIEW. When
+   * the agent sets it, the feature view honours the agent's layers + declared file
+   * order verbatim instead of the repo-wide regex layers (which still drive the
+   * Changes tab). Files left without a layer fall back to the regex match.
+   */
+  layer?: string
 }
 
 export const reviewSetSchema = z.object({
