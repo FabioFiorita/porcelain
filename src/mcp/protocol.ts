@@ -22,6 +22,11 @@ const REVIEW_FILE_SCHEMA = {
       description:
         'A cross-file invariant the reviewer must check (e.g. "labels must match the service").',
     },
+    layer: {
+      type: 'string',
+      description:
+        'The flow-layer heading this file sits under IN THE FEATURE VIEW (e.g. "Store", "Routes"). Set it to place the file exactly where it belongs in the feature\'s flow — when any file has a layer, Porcelain renders the feature view by your declared layers and file order instead of the repo-wide regex layers (which still drive the Changes tab). Omit to fall back to the regex match. Order your files entry-point → data; that order is preserved within each layer.',
+    },
   },
   required: ['path'],
 } as const
@@ -43,7 +48,7 @@ export const TOOLS = [
   {
     name: 'set_feature_review',
     description:
-      'Define the feature review for a repo: the full set of files that make up the feature being reviewed, including server/cross-seam files the diff alone never shows, each optionally annotated with the invariant to check. Replaces any existing review set for the repo. Porcelain renders these in flow order.',
+      "Define the feature review for a repo: the full set of files that make up the feature being reviewed, including server/cross-seam files the diff alone never shows, each optionally annotated with the invariant to check. Replaces any existing review set for the repo. List the files in flow order (entry point → data) — Porcelain renders the feature view in the order you send them. Set each file's `layer` to control the grouping for THIS feature; when you do, your layers + order win over the repo-wide regex layers (use get/set_flow_layers only for the repo-wide Changes-tab grouping).",
     inputSchema: {
       type: 'object',
       properties: {
@@ -92,9 +97,21 @@ export const TOOLS = [
     },
   },
   {
+    name: 'get_feature_view',
+    description:
+      "Read Porcelain's COMPUTED feature view for a repo: every file it renders, grouped in flow order, each tagged with its source — 'changed' (in the git diff), 'context' (unchanged but reached by import), or 'shipped' (cross-seam, agent-declared) — and its flow layer. This is the complement to get_feature_review: that echoes what you DECLARED, this shows what Porcelain MADE of it after folding in git status and the import baseline (so it includes context files you didn't list, and tells you which files are actually diffed). Use it to confirm your set rendered as intended and to see the whole feature, not just the diff.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        repoPath: { type: 'string', description: 'Absolute path to the repository' },
+      },
+      required: ['repoPath'],
+    },
+  },
+  {
     name: 'get_review_comments',
     description:
-      "Read the human reviewer's open comments for a repo: each is anchored to a file (and optionally a line range), shows the snippet it was attached to, and carries the reviewer's note plus an id. The reviewer writes these in Porcelain by selecting lines or a file and adding a comment — use them as concrete review context (what to explain, fix, or look at). Resolve each with resolve_review_comment once you've addressed it.",
+      "Read the human reviewer's open comments for a repo: each is anchored to a file (and optionally a line range), shows the snippet it was attached to, and carries the reviewer's note plus an id. Each is also tagged with the file's feature-view status — changed (in the git diff), context, or shipped — so you can tell a comment on a diffed file from one on an unchanged context/cross-seam file. The reviewer writes these in Porcelain by selecting lines or a file and adding a comment — use them as concrete review context (what to explain, fix, or look at). Resolve each with resolve_review_comment once you've addressed it.",
     inputSchema: {
       type: 'object',
       properties: {

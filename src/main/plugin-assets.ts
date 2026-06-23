@@ -29,8 +29,12 @@ export const LAYERS_SKILL_NAME = 'flow-layers'
  *        and retune the per-repo review-flow grouping (two-way) — plus a flow-layers skill.
  * 2.5.0: added the reviewed-marks channel — get_reviewed_files reads which files the human
  *        has ticked as reviewed (read-only, app→agent) — taught in the review skill.
+ * 2.6.0: added the feature-view snapshot channel — get_feature_view reads Porcelain's
+ *        COMPUTED view (every file with its git-truth source + flow layer; read-only,
+ *        app→agent) and get_review_comments now tags each comment with that source; plus a
+ *        per-file `layer` on review files that drives the feature view's grouping/order.
  */
-export const PLUGIN_VERSION = '2.5.0'
+export const PLUGIN_VERSION = '2.6.0'
 
 /**
  * The local Claude Code marketplace root the app writes. Lives in ~/.porcelain
@@ -111,15 +115,17 @@ After you implement a feature, finish a meaningful slice, or are asked to "set u
 
 Call the \`porcelain\` MCP tools with \`repoPath\` set to the ABSOLUTE path of the repo you're working in (your cwd):
 
-- \`set_feature_review\` — replace the review set: \`{ repoPath, name, files: [...] }\`
+- \`set_feature_review\` — replace the review set: \`{ repoPath, name, files: [...] }\`. List files in FLOW ORDER (entry point → data) — Porcelain renders them in that order.
 - \`add_review_files\` — add files to it incrementally while you work
-- \`get_feature_review\` — read back the current set (name, files, sources, notes); use it to verify what you pushed or to make an idempotent update (read → modify → \`set\`), and to recover the set if you lose context
+- \`get_feature_review\` — read back the current set (name, files, sources, notes, layers); use it to verify what you pushed or to make an idempotent update (read → modify → \`set\`), and to recover the set if you lose context
+- \`get_feature_view\` — read back the COMPUTED view: every file Porcelain renders, grouped in flow order, each tagged with its real source (\`changed\` = in the git diff, \`context\`/\`shipped\` = the unchanged rest) and layer. Where \`get_feature_review\` echoes what you declared, this shows what Porcelain made of it after folding in git status + the import baseline — use it to confirm the view rendered as intended.
 - \`clear_feature_review\` — remove it
 
-Each file is \`{ path, source?, note? }\`:
+Each file is \`{ path, source?, note?, layer? }\`:
 - \`path\` — repo-relative.
 - \`source\` — OMIT for files you changed (Porcelain detects those from git). Use \`"shipped"\` for files already landed that the change depends on (the server route/controller/service, an existing endpoint), and \`"context"\` for unchanged files needed to follow the flow (shared types, constants).
 - \`note\` — the cross-file invariant a reviewer must check, e.g. "labels here must match CALLOUT_TEMPLATES in the service" or "this mutation must invalidate the listX query".
+- \`layer\` — OPTIONAL, and the way to control the feature view's grouping. Set it to the flow-layer heading this file belongs to (e.g. \`"Store"\`, \`"Routes"\`, \`"Data"\`). When ANY file has a \`layer\`, Porcelain groups the FEATURE VIEW by your declared layers + file order verbatim, instead of the repo-wide regex layers — so you place every file exactly where it belongs in THIS feature, no file lands in "Other", and nothing gets swept up by a catch-all pattern. Files left without a \`layer\` fall back to the regex match. (The repo-wide regex layers still group the Changes/History tabs — tune those with the flow-layers skill; the feature view is yours to shape per-feature here.)
 
 ## What to include
 
@@ -134,7 +140,7 @@ Keep it tight: the files that make up THIS feature, broad enough that the human 
 
 The human also leaves comments in Porcelain — anchored to specific lines (or a whole file) — as concrete review context for you. They're the counterpart to the review set: app → agent. Check them:
 
-- \`get_review_comments\` — \`{ repoPath }\` → the OPEN comments, each with its file/line anchor, the snippet it was attached to, the note, and an id. Read these before and during the work: they tell you exactly what to explain, fix, or look at.
+- \`get_review_comments\` — \`{ repoPath }\` → the OPEN comments, each with its file/line anchor, the snippet it was attached to, the note, and an id. Each is also tagged with the file's feature-view status — \`(changed)\` (in the git diff), \`(context)\`, or \`(shipped)\` — so you can tell a comment on a file you diffed from one on an unchanged context/cross-seam file the human is asking about. Read these before and during the work: they tell you exactly what to explain, fix, or look at.
 - \`resolve_review_comment\` — \`{ repoPath, id }\` → mark one resolved once you've ACTUALLY addressed the note; it then drops off the reviewer's open list.
 
 When the human says "look at my comments", "I left some notes", or asks about a specific line/diff, call \`get_review_comments\` first.
@@ -219,6 +225,8 @@ description: Tune Porcelain's review-flow layers for a repo — the ordered rule
 # Porcelain flow layers
 
 Porcelain groups a change into **flow layers** — an ordered list of \`{ label, pattern }\` rules — so a human reviews the diff as a story from the entry point down to the data, not as an alphabetical file list. Each changed file is bucketed into the **furthest-right matching** layer; anything no layer matches falls into **Other** (rendered last). You know how this repo is actually laid out, so tune the layers to fit it instead of leaving the generic defaults.
+
+**Scope — these layers drive the Changes/History tabs (the whole repo).** They're regex rules applied to every review, so they suit broad, repo-wide structure. They are NOT the lever for one feature's flow: if a regex layer is hard to write (files would land in "Other", or a catch-all like \`app/\` sweeps unrelated files together), that's a sign you're fighting the wrong tool. To shape **the feature view** for a specific feature, don't bend the repo-wide regex — set each file's \`layer\` in \`set_feature_review\` (see the review-with-porcelain skill). There you place each file in a named layer and declared order verbatim, per-feature, with no regex and no "Other". Reach for repo-wide layers below only for the Changes-tab grouping.
 
 ## When to use
 

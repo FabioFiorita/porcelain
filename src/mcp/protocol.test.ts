@@ -28,6 +28,7 @@ describe('handleRpc', () => {
       'add_review_files',
       'clear_feature_review',
       'get_feature_review',
+      'get_feature_view',
       'get_review_comments',
       'resolve_review_comment',
       'get_reviewed_files',

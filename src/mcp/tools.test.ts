@@ -11,6 +11,8 @@ const layersFile = join(dir, 'layers.json')
 const reviewedFile = join(dir, 'reviewed.json')
 const boardFile = join(dir, 'board.json')
 const actionsFile = join(dir, 'actions.json')
+const commentsFile = join(dir, 'comments.json')
+const featureViewFile = join(dir, 'feature-view.json')
 
 beforeEach(() => {
   process.env.PORCELAIN_REVIEW_SETS = file
@@ -19,6 +21,8 @@ beforeEach(() => {
   process.env.PORCELAIN_REVIEWED = reviewedFile
   process.env.PORCELAIN_BOARD = boardFile
   process.env.PORCELAIN_ACTIONS = actionsFile
+  process.env.PORCELAIN_COMMENTS = commentsFile
+  process.env.PORCELAIN_FEATURE_VIEW = featureViewFile
   rmSync(dir, { recursive: true, force: true })
 })
 afterEach(() => {
@@ -28,6 +32,8 @@ afterEach(() => {
   delete process.env.PORCELAIN_REVIEWED
   delete process.env.PORCELAIN_BOARD
   delete process.env.PORCELAIN_ACTIONS
+  delete process.env.PORCELAIN_COMMENTS
+  delete process.env.PORCELAIN_FEATURE_VIEW
   rmSync(dir, { recursive: true, force: true })
 })
 const read = (): Record<string, { name: string; files: unknown[] }> =>
@@ -71,6 +77,42 @@ describe('callTool', () => {
     const text = await callTool('get_feature_review', { repoPath: '/repo' })
     expect(text).toContain('Feature review "X" for /repo')
   })
+  it('get_feature_view describes the app-computed snapshot, or hints when absent', async () => {
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(
+      featureViewFile,
+      JSON.stringify({
+        '/repo': { name: 'X', files: [{ path: 'a.ts', source: 'changed', layer: 'Pages' }] },
+      }),
+    )
+    expect(await callTool('get_feature_view', { repoPath: '/repo' })).toContain(
+      'Feature view "X" for /repo',
+    )
+    expect(await callTool('get_feature_view', { repoPath: '/other' })).toContain(
+      'No feature view computed',
+    )
+  })
+
+  it('get_review_comments tags each comment with its feature-view source', async () => {
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(
+      commentsFile,
+      JSON.stringify({
+        '/repo': [
+          { id: 'c1', path: 'server/svc.ts', body: 'check', resolved: false, createdAt: 1 },
+        ],
+      }),
+    )
+    writeFileSync(
+      featureViewFile,
+      JSON.stringify({
+        '/repo': { name: 'X', files: [{ path: 'server/svc.ts', source: 'shipped', layer: 'Svc' }] },
+      }),
+    )
+    const text = await callTool('get_review_comments', { repoPath: '/repo' })
+    expect(text).toContain('[c1] server/svc.ts (shipped)')
+  })
+
   it('get_repo_notes reads the human notes scratchpad', async () => {
     mkdirSync(dir, { recursive: true })
     writeFileSync(notesFile, JSON.stringify({ '/repo': '# conventions\n- no any' }))

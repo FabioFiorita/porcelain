@@ -67,6 +67,11 @@ describe('plugin assets', () => {
     expect(REVIEW_SKILL).not.toContain('list_actions')
   })
 
+  it('the review skill teaches the feature-view snapshot read and the per-file layer', () => {
+    expect(REVIEW_SKILL).toContain('get_feature_view')
+    expect(REVIEW_SKILL).toContain('`layer`')
+  })
+
   it('the board skill teaches the card tools', () => {
     for (const tool of ['list_cards', 'create_card', 'update_card', 'move_card', 'delete_card']) {
       expect(BOARD_SKILL).toContain(tool)
@@ -94,5 +99,7 @@ describe('plugin assets', () => {
     expect(LAYERS_SKILL).toMatch(/^---\nname: flow-layers/)
     // whole-set replace: the agent always sends the full ordered list
     expect(LAYERS_SKILL).toContain('whole-set replace')
+    // scopes itself to the Changes tab and points feature-view grouping at set_feature_review
+    expect(LAYERS_SKILL).toContain('set_feature_review')
   })
 })

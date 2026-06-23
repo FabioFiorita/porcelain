@@ -35,6 +35,7 @@ import { type CommitConventions, parseConventions } from './conventions'
 import type { ChangedFile, DiffHunk, DiffStat } from './diff'
 import { buildExploreReading, walkExplore } from './feature-explore'
 import { featureKey, flowKey } from './feature-key'
+import { writeFeatureSnapshot } from './feature-snapshot-store'
 import {
   buildFeatureReading,
   buildFeatureView,
@@ -305,6 +306,15 @@ async function getFeatureBuild(
   const { view, sources } = await buildFeatureFromGather(input, g)
   const entry = { key: g.key, view, sources }
   featureBuildCache.set(input, entry)
+  // Snapshot the computed view to the app→agent channel so the MCP server can tell
+  // the agent which files are actually `changed` (diffed) vs context/shipped — git
+  // truth the dependency-free server can't derive itself. Skipped when unchanged.
+  await writeFeatureSnapshot(input, {
+    name: view.name,
+    files: view.groups.flatMap((group) =>
+      group.files.map((file) => ({ path: file.path, source: file.source, layer: group.layer })),
+    ),
+  })
   return entry
 }
 

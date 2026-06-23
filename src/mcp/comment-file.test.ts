@@ -38,6 +38,25 @@ describe('describeComments', () => {
     expect(text).toContain('why unbounded?')
     expect(text).not.toContain('resolved note')
   })
+
+  it('tags each comment with its feature-view source when a lookup is supplied', () => {
+    const text = describeComments(
+      '/repo',
+      [
+        { id: 'c1', path: 'a.ts', body: 'q', resolved: false, createdAt: 1 },
+        { id: 'c2', path: 'server/svc.ts', body: 'q', resolved: false, createdAt: 2 },
+        { id: 'c3', path: 'unknown.ts', body: 'q', resolved: false, createdAt: 3 },
+      ],
+      new Map([
+        ['a.ts', 'changed'],
+        ['server/svc.ts', 'shipped'],
+      ]),
+    )
+    expect(text).toContain('[c1] a.ts (changed)')
+    expect(text).toContain('[c2] server/svc.ts (shipped)')
+    // a file not in the snapshot is left untagged
+    expect(text).toContain('[c3] unknown.ts\n')
+  })
 })
 
 describe('comment-file round-trip', () => {

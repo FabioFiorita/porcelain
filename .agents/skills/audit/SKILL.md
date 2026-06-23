@@ -130,6 +130,24 @@ assumed — this skill is the codebase-specific layer beneath them.
   clobbers a newer in-app mark. *Verify:* the MCP tool list has only `get_reviewed_files`
   for reviewed state; the app reads marks only from the channel (no
   `config.repos[*].reviewedPaths` read outside the migration).
+- **The feature-view snapshot is a READ-ONLY, app→agent channel.** The 8th channel
+  (`~/.porcelain/feature-view.json`, `feature-snapshot-store.ts` ↔
+  `src/mcp/feature-view-file.ts`, `Record<repoPath, { name, files: { path, source, layer }[] }>`,
+  exposed as `get_feature_view`) holds Porcelain's COMPUTED feature view — every file it
+  renders with its **git-truth** source (`changed`/`context`/`shipped`) and flow layer. It
+  exists because that git truth lives only in the main process (the dependency-free MCP has
+  no git), yet the agent needs it to tell a diffed file from a context/cross-seam one — and
+  `get_review_comments` now tags each comment with this source. Same shape and rules as the
+  notes/reviewed channels: the **app is the SOLE writer** (`writeFeatureSnapshot`, called from
+  `getFeatureBuild` on every view rebuild), the MCP server only reads it (NO write tool — and
+  don't add one; the snapshot is derived, not authored), there is **no `review-watch` entry**
+  (nothing pushes back), and writes stay atomic + in-process-serialized. The content is inert
+  (app-supplied repo-relative paths + source/layer labels, not externally injected and not a
+  filesystem path the app resolves), so no repo-containment guard applies — but it's a derived
+  snapshot, refreshed only while the Feature surfaces poll, so treat it as "the view as last
+  rendered," never as source of truth (the agent's own pushed set is still `get_feature_review`).
+  *Verify:* the MCP tool list has only `get_feature_view` for it; the only writer is
+  `writeFeatureSnapshot`; `rg -n "createServer|listen\(|http" src/mcp` still finds nothing.
 - **The plugin installer is the ONLY non-git shell-out, and it takes no user input.**
   `installPlugin` (`src/main/plugin.ts`) spawns a login shell to run a FIXED command
   (`claude plugin marketplace add <app-derived dir> && claude plugin install …`) —

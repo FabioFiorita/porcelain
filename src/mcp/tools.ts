@@ -15,6 +15,7 @@ import {
   updateCard,
 } from './board-file'
 import { describeComments, readComments, resolveComment } from './comment-file'
+import { describeFeatureView, readFeatureView, sourceByPath } from './feature-view-file'
 import { clearLayers, describeLayers, readLayers, setLayers, toLayers } from './layers-file'
 import { describeNotes, readNotes } from './notes-file'
 import {
@@ -53,8 +54,15 @@ export async function callTool(name: string, args: Record<string, unknown>): Pro
   if (name === 'get_feature_review') {
     return describeReview(repoPath, readReview(repoPath))
   }
+  if (name === 'get_feature_view') {
+    return describeFeatureView(repoPath, readFeatureView(repoPath))
+  }
   if (name === 'get_review_comments') {
-    return describeComments(repoPath, readComments(repoPath))
+    return describeComments(
+      repoPath,
+      readComments(repoPath),
+      sourceByPath(readFeatureView(repoPath)),
+    )
   }
   if (name === 'resolve_review_comment') {
     const id = asString(args.id)

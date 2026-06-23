@@ -93,24 +93,34 @@ export function resolveComment(repoPath: string, id: string): boolean {
   return true
 }
 
-function describeOne(c: Comment): string {
+function describeOne(c: Comment, sourceOf?: ReadonlyMap<string, string>): string {
   const where =
     c.startLine === undefined
       ? c.path
       : c.endLine && c.endLine !== c.startLine
         ? `${c.path}:${c.startLine}-${c.endLine}`
         : `${c.path}:${c.startLine}`
+  // Tag the file's feature-view status when known (changed = in the git diff), so the
+  // agent can tell a comment on a diffed file from one on a context/shipped file.
+  const status = sourceOf?.get(c.path)
+  const tag = status ? ` (${status})` : ''
   const anchor = c.anchorText ? `\n    « ${c.anchorText.replace(/\n/g, '\n      ')} »` : ''
-  return `- [${c.id}] ${where}${anchor}\n    ${c.body}`
+  return `- [${c.id}] ${where}${tag}${anchor}\n    ${c.body}`
 }
 
 /**
  * Render a repo's comments for the read tool: the OPEN comments (what the reviewer
  * still wants addressed) listed with their file/line anchor, the anchored snippet,
  * and the note — followed by a resolved count. Each carries its id so the agent can
- * resolve_review_comment once it has addressed the note.
+ * resolve_review_comment once it has addressed the note. When `sourceOf` is supplied
+ * (the feature-view snapshot, path→source), each comment is tagged changed/context/
+ * shipped so the agent knows whether the commented file is in the git diff.
  */
-export function describeComments(repoPath: string, comments: Comment[]): string {
+export function describeComments(
+  repoPath: string,
+  comments: Comment[],
+  sourceOf?: ReadonlyMap<string, string>,
+): string {
   const open = comments.filter((c) => !c.resolved)
   const resolved = comments.length - open.length
   if (comments.length === 0) {
@@ -119,6 +129,6 @@ export function describeComments(repoPath: string, comments: Comment[]): string 
   if (open.length === 0) {
     return `No open review comments for ${repoPath} (${resolved} resolved).`
   }
-  const body = open.map(describeOne).join('\n')
+  const body = open.map((c) => describeOne(c, sourceOf)).join('\n')
   return `${open.length} open review comment(s) for ${repoPath}${resolved ? ` (${resolved} resolved)` : ''}. Resolve each with resolve_review_comment once addressed:\n${body}`
 }
