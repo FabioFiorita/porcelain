@@ -2,14 +2,21 @@ import type { FeatureFile } from '@main/feature-view'
 import type { FileSource } from '@main/review-set'
 import { SidebarHeaderActions } from '@renderer/components/shell/sidebar-header-actions'
 import { Button } from '@renderer/components/ui/button'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from '@renderer/components/ui/context-menu'
 import { useDiffFilePrefetch } from '@renderer/hooks/use-diff'
 import { useClearFeatureReview, useFeatureView } from '@renderer/hooks/use-feature-view'
 import { dirName, fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
-import { BookOpen, Eraser, RefreshCw, Sparkles } from 'lucide-react'
+import { BookOpen, Eraser, MessageSquarePlus, RefreshCw, Sparkles } from 'lucide-react'
 import { memo, useState } from 'react'
+import { CommentComposer } from './comment-composer'
 
 const SOURCE_LABEL: Record<FileSource, string> = {
   changed: 'changed',
@@ -34,10 +41,12 @@ function FlowNodeImpl({
   file,
   repoPath,
   layer,
+  onComment,
 }: {
   file: FeatureFile
   repoPath: string
   layer: string | null
+  onComment: (path: string) => void
 }): React.JSX.Element {
   const openTab = useTabsStore((s) => s.openTab)
   const prefetchDiff = useDiffFilePrefetch()
@@ -63,44 +72,59 @@ function FlowNodeImpl({
       <span className="absolute left-[3px] top-2.5 z-10 flex">
         <SourceMarker source={file.source} />
       </span>
-      <button
-        type="button"
-        onClick={open}
-        onMouseEnter={() => {
-          if (file.source === 'changed') prefetchDiff(file.path)
-        }}
-        className="flex w-full flex-col items-start gap-0.5 rounded-md px-2 py-1 text-left hover:bg-sidebar-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-      >
-        <span className="flex max-w-full items-center gap-1.5">
-          <span
-            className={cn(
-              'truncate text-sm-minus',
-              file.source !== 'changed' && 'text-muted-foreground',
+      <ContextMenu>
+        <ContextMenuTrigger
+          render={
+            <button
+              type="button"
+              onClick={open}
+              onMouseEnter={() => {
+                if (file.source === 'changed') prefetchDiff(file.path)
+              }}
+              className="flex w-full flex-col items-start gap-0.5 rounded-md px-2 py-1 text-left hover:bg-sidebar-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            />
+          }
+        >
+          <span className="flex max-w-full items-center gap-1.5">
+            <span
+              className={cn(
+                'truncate text-sm-minus',
+                file.source !== 'changed' && 'text-muted-foreground',
+              )}
+            >
+              {name}
+            </span>
+            {layer && (
+              <span className="shrink-0 rounded bg-sidebar-accent px-1.5 py-px text-4xs font-semibold uppercase tracking-wider text-muted-foreground">
+                {layer}
+              </span>
             )}
-          >
-            {name}
+            {file.additions !== undefined && file.additions > 0 && (
+              <span className="shrink-0 font-mono text-2xs text-success">+{file.additions}</span>
+            )}
+            {file.deletions !== undefined && file.deletions > 0 && (
+              <span className="shrink-0 font-mono text-2xs text-destructive">
+                −{file.deletions}
+              </span>
+            )}
           </span>
-          {layer && (
-            <span className="shrink-0 rounded bg-sidebar-accent px-1.5 py-px text-4xs font-semibold uppercase tracking-wider text-muted-foreground">
-              {layer}
+          {dir && (
+            <span className="max-w-full truncate text-xs text-muted-foreground" dir="rtl">
+              {dir}
             </span>
           )}
-          {file.additions !== undefined && file.additions > 0 && (
-            <span className="shrink-0 font-mono text-2xs text-success">+{file.additions}</span>
+          {connects && (
+            <span className="max-w-full truncate text-xs text-muted-foreground/70">
+              → {connects}
+            </span>
           )}
-          {file.deletions !== undefined && file.deletions > 0 && (
-            <span className="shrink-0 font-mono text-2xs text-destructive">−{file.deletions}</span>
-          )}
-        </span>
-        {dir && (
-          <span className="max-w-full truncate text-xs text-muted-foreground" dir="rtl">
-            {dir}
-          </span>
-        )}
-        {connects && (
-          <span className="max-w-full truncate text-xs text-muted-foreground/70">→ {connects}</span>
-        )}
-      </button>
+        </ContextMenuTrigger>
+        <ContextMenuContent className="w-48">
+          <ContextMenuItem onClick={() => onComment(file.path)}>
+            <MessageSquarePlus /> Comment on file
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
       {file.note && (
         <div className="mx-2 mb-1 rounded-md border border-border bg-card/50 px-2.5 py-2">
           <span className="text-3xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
@@ -127,6 +151,7 @@ export function FeatureList(): React.JSX.Element {
   const { clear, isClearing } = useClearFeatureReview()
   const [confirmClear, setConfirmClear] = useState(false)
   const [clearError, setClearError] = useState<string | null>(null)
+  const [commentPath, setCommentPath] = useState<string | null>(null)
 
   if (!repo || view === undefined) {
     return <p className="p-3 text-sm text-muted-foreground">Loading…</p>
@@ -272,11 +297,20 @@ export function FeatureList(): React.JSX.Element {
                 file={file}
                 repoPath={repo.path}
                 layer={layer === flow[i - 1]?.layer ? null : layer}
+                onComment={setCommentPath}
               />
             ))}
           </div>
         </div>
       )}
+
+      <CommentComposer
+        anchor={commentPath ? { path: commentPath } : null}
+        open={commentPath !== null}
+        onOpenChange={(open) => {
+          if (!open) setCommentPath(null)
+        }}
+      />
 
       {!view.fromAgent && files.length > 0 && (
         <p className="mx-2 mt-2 border-t border-border pt-2 text-xs text-muted-foreground/70">

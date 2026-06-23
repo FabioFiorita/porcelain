@@ -1,11 +1,19 @@
 import type { DiffLine } from '@main/diff'
 import type { FeatureReading, ReadingFile } from '@main/feature-view'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from '@renderer/components/ui/context-menu'
 import { CodeLine, useHighlighter } from '@renderer/components/viewer/code-line'
 import { VirtualRows } from '@renderer/components/viewer/virtual-rows'
 import { languageFor, tokenizeLines } from '@renderer/lib/highlight'
 import { cn } from '@renderer/lib/utils'
-import { useMemo } from 'react'
+import { MessageSquarePlus } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import type { ThemedToken } from 'shiki'
+import { type CommentAnchor, CommentComposer } from './comment-composer'
 import { SourceMarker } from './feature-list'
 import { tokenizeHunks } from './hunks-view'
 
@@ -18,10 +26,10 @@ type ReadingRow =
   | { type: 'file'; file: ReadingFile }
   | { type: 'note'; note: string }
   | { type: 'hunkHeader'; text: string }
-  | { type: 'diff'; line: DiffLine; tokens: ThemedToken[] | null }
+  | { type: 'diff'; path: string; line: DiffLine; tokens: ThemedToken[] | null }
   | { type: 'gap'; count: number }
   | { type: 'truncated' }
-  | { type: 'code'; lineNo: number; text: string; tokens: ThemedToken[] | null }
+  | { type: 'code'; path: string; lineNo: number; text: string; tokens: ThemedToken[] | null }
 
 const diffLineClass: Record<DiffLine['kind'], string> = {
   add: 'bg-diff-add',
@@ -48,7 +56,7 @@ export function buildRows(
         for (const hunk of file.hunks) {
           rows.push({ type: 'hunkHeader', text: hunk.header })
           for (const line of hunk.lines) {
-            rows.push({ type: 'diff', line, tokens: tokenMap?.get(line) ?? null })
+            rows.push({ type: 'diff', path: file.path, line, tokens: tokenMap?.get(line) ?? null })
           }
         }
       } else if (file.ranges) {
@@ -59,6 +67,7 @@ export function buildRows(
           range.lines.forEach((text, i) => {
             rows.push({
               type: 'code',
+              path: file.path,
               lineNo: range.startLine + i,
               text,
               tokens: tokenLines?.[i] ?? null,
@@ -72,7 +81,55 @@ export function buildRows(
   return rows
 }
 
-function ReadingRowView({ row }: { row: ReadingRow }): React.JSX.Element {
+// Right-click a feature file (or one of its lines) to leave a review comment without
+// leaving the read — "Add comment" anchors to the line, "Comment on file" to the file.
+// One CommentComposer is mounted by the body; these items just set its anchor. The
+// trigger stays text-selectable (the surface is read) and `block` so the measured row
+// height comes from the inner content.
+function CommentMenu({
+  path,
+  line,
+  onComment,
+  children,
+}: {
+  path: string
+  line?: { lineNo: number; text: string }
+  onComment: (anchor: CommentAnchor) => void
+  children: React.ReactNode
+}): React.JSX.Element {
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger className="block select-text">{children}</ContextMenuTrigger>
+      <ContextMenuContent className="w-48">
+        {line && (
+          <ContextMenuItem
+            onClick={() =>
+              onComment({
+                path,
+                startLine: line.lineNo,
+                endLine: line.lineNo,
+                anchorText: line.text.slice(0, 2000),
+              })
+            }
+          >
+            <MessageSquarePlus /> Add comment
+          </ContextMenuItem>
+        )}
+        <ContextMenuItem onClick={() => onComment({ path })}>
+          <MessageSquarePlus /> Comment on file
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
+  )
+}
+
+function ReadingRowView({
+  row,
+  onComment,
+}: {
+  row: ReadingRow
+  onComment: (anchor: CommentAnchor) => void
+}): React.JSX.Element {
   switch (row.type) {
     case 'layer':
       return (
@@ -82,41 +139,55 @@ function ReadingRowView({ row }: { row: ReadingRow }): React.JSX.Element {
       )
     case 'file':
       return (
-        <div className="flex h-5 items-center gap-2 border-t border-border bg-card px-2">
-          <SourceMarker source={row.file.source} />
-          <span className="font-mono text-xs font-medium">{row.file.path}</span>
-          {row.file.additions ? (
-            <span className="font-mono text-2xs text-success">+{row.file.additions}</span>
-          ) : null}
-          {row.file.deletions ? (
-            <span className="font-mono text-2xs text-destructive">−{row.file.deletions}</span>
-          ) : null}
-          {row.file.whole && <span className="text-2xs text-muted-foreground/50">whole file</span>}
-        </div>
+        <CommentMenu path={row.file.path} onComment={onComment}>
+          <div className="flex h-5 items-center gap-2 border-t border-border bg-card px-2">
+            <SourceMarker source={row.file.source} />
+            <span className="font-mono text-xs font-medium">{row.file.path}</span>
+            {row.file.additions ? (
+              <span className="font-mono text-2xs text-success">+{row.file.additions}</span>
+            ) : null}
+            {row.file.deletions ? (
+              <span className="font-mono text-2xs text-destructive">−{row.file.deletions}</span>
+            ) : null}
+            {row.file.whole && (
+              <span className="text-2xs text-muted-foreground/50">whole file</span>
+            )}
+          </div>
+        </CommentMenu>
       )
     case 'note':
+      // The note wraps to multiple lines and is capped at the viewport width (the
+      // `--vrows-vw` var, NOT the surface's horizontally-scrolling `w-max` content), so
+      // the whole block — inline "Note" label included — never overflows sideways. It
+      // sticks left so it stays readable when the reader scrolls a wide diff sideways.
+      // A block (not flex), so wrapped lines flow full-width under the label.
       return (
-        <p
-          className="flex h-5 items-center gap-2 border-l-2 border-muted-foreground/25 bg-muted/30 px-2 text-xs text-muted-foreground"
-          title={row.note}
-        >
-          <span className="shrink-0 text-3xs font-semibold uppercase tracking-wider text-muted-foreground/60">
+        <div className="sticky left-0 max-w-[var(--vrows-vw)] whitespace-pre-wrap break-words border-l-2 border-muted-foreground/25 bg-muted/30 px-2 py-1 font-sans text-xs leading-relaxed text-muted-foreground">
+          <span className="mr-2 text-3xs font-semibold uppercase tracking-wider text-muted-foreground/60">
             Note
           </span>
-          <span className="truncate">{row.note}</span>
-        </p>
+          {row.note}
+        </div>
       )
     case 'hunkHeader':
       return <p className="h-5 bg-muted/40 px-2 leading-5 text-muted-foreground">{row.text}</p>
-    case 'diff':
+    case 'diff': {
+      const newLine = row.line.newLine
       return (
-        <div className={cn('flex h-5 leading-5', diffLineClass[row.line.kind])}>
-          <span className="w-12 shrink-0 select-none pr-2 text-right text-muted-foreground/40">
-            {row.line.newLine ?? row.line.oldLine ?? ''}
-          </span>
-          <CodeLine tokens={row.tokens} text={row.line.text} />
-        </div>
+        <CommentMenu
+          path={row.path}
+          line={newLine === null ? undefined : { lineNo: newLine, text: row.line.text }}
+          onComment={onComment}
+        >
+          <div className={cn('flex h-5 leading-5', diffLineClass[row.line.kind])}>
+            <span className="w-12 shrink-0 select-none pr-2 text-right text-muted-foreground/40">
+              {row.line.newLine ?? row.line.oldLine ?? ''}
+            </span>
+            <CodeLine tokens={row.tokens} text={row.line.text} />
+          </div>
+        </CommentMenu>
       )
+    }
     case 'gap':
       return (
         <p className="flex h-5 items-center px-2 text-2xs text-muted-foreground/45">
@@ -131,25 +202,48 @@ function ReadingRowView({ row }: { row: ReadingRow }): React.JSX.Element {
       )
     case 'code':
       return (
-        <div className="flex h-5 leading-5">
-          <span className="w-12 shrink-0 select-none pr-2 text-right text-muted-foreground/35">
-            {row.lineNo}
-          </span>
-          <CodeLine tokens={row.tokens} text={row.text} />
-        </div>
+        <CommentMenu
+          path={row.path}
+          line={{ lineNo: row.lineNo, text: row.text }}
+          onComment={onComment}
+        >
+          <div className="flex h-5 leading-5">
+            <span className="w-12 shrink-0 select-none pr-2 text-right text-muted-foreground/35">
+              {row.lineNo}
+            </span>
+            <CodeLine tokens={row.tokens} text={row.text} />
+          </div>
+        </CommentMenu>
       )
   }
 }
 
-/** The scrollable body: flattens a FeatureReading into one virtualized 20px-row list. */
+/**
+ * The scrollable body: flattens a FeatureReading into one virtualized row list. Rows
+ * are normally 20px, but the note row wraps to any height, so this surface opts into
+ * VirtualRows' dynamic measurement (it's small + sliced — the perf invariant that
+ * keeps full files fixed-height still holds for the file/diff viewers). One shared
+ * CommentComposer renders the dialog any row's context menu opens.
+ */
 export function ReadingSurfaceBody({ reading }: { reading: FeatureReading }): React.JSX.Element {
   const highlighter = useHighlighter()
   const rows = useMemo(() => buildRows(reading, highlighter), [reading, highlighter])
+  const [anchor, setAnchor] = useState<CommentAnchor | null>(null)
   return (
-    <VirtualRows
-      rows={rows}
-      className="text-xs"
-      renderRow={(row) => <ReadingRowView row={row} />}
-    />
+    <>
+      <VirtualRows
+        rows={rows}
+        className="text-xs"
+        dynamicHeight
+        renderRow={(row) => <ReadingRowView row={row} onComment={setAnchor} />}
+      />
+      <CommentComposer
+        anchor={anchor}
+        open={anchor !== null}
+        onOpenChange={(open) => {
+          if (!open) setAnchor(null)
+        }}
+      />
+    </>
   )
 }

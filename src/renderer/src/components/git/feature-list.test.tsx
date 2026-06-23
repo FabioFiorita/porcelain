@@ -15,6 +15,11 @@ vi.mock('@renderer/hooks/use-feature-view', () => ({
   useClearFeatureReview: () => ({ clear: clearSpy, isClearing: false }),
 }))
 vi.mock('@renderer/hooks/use-diff', () => ({ useDiffFilePrefetch: () => async () => {} }))
+// FeatureList mounts CommentComposer (right-click → "Comment on file"), which uses the
+// comment hook — mock the domain hook, never the tRPC proxy (the component-test rule).
+vi.mock('@renderer/hooks/use-comments', () => ({
+  useCommentActions: () => ({ add: async () => {} }),
+}))
 
 const view: FeatureView = {
   name: 'Crew call-outs',
@@ -117,5 +122,11 @@ describe('FeatureList', () => {
     const { tabs } = useTabsStore.getState().panes[0]
     expect(tabs).toHaveLength(1)
     expect(tabs[0]).toMatchObject({ id: tabId('file', absolute), kind: 'file', path: absolute })
+  })
+
+  it('offers "Comment on file" from a flow node context menu', () => {
+    renderList()
+    fireEvent.contextMenu(screen.getByText('callout.tsx'))
+    expect(screen.getByText('Comment on file')).toBeInTheDocument()
   })
 })

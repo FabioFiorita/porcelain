@@ -18,6 +18,16 @@ interface VirtualRowsProps<T> {
    * single-column horizontal-scroll behavior (unified diff, source view).
    */
   fitWidth?: boolean
+  /**
+   * Measure each row's real height instead of locking every row to `ROW_HEIGHT`.
+   * Default `false` — the big file/diff viewers stay fixed-height (the perf
+   * invariant). Opt in ONLY for small, sliced surfaces that need a tall row (the
+   * reading surface's wrapping note). When on, the scroll viewport's width is
+   * published as the `--vrows-vw` CSS var on the scroll element, so a row that must
+   * wrap to the VIEWPORT (not the horizontally-scrolling `w-max` content) can size
+   * itself with `max-w-[var(--vrows-vw)]`.
+   */
+  dynamicHeight?: boolean
 }
 
 /** Virtualized fixed-height row list for code/diff content. Only visible rows mount. */
@@ -27,6 +37,7 @@ export function VirtualRows<T>({
   className,
   scrollToLine,
   fitWidth = false,
+  dynamicHeight = false,
 }: VirtualRowsProps<T>): React.JSX.Element {
   const scrollRef = useRef<HTMLDivElement>(null)
   const virtualizer = useVirtualizer({
@@ -45,6 +56,19 @@ export function VirtualRows<T>({
     }
   }, [scrollToLine])
 
+  // Publish the scroll viewport width as a CSS var (written straight to the DOM during
+  // resize, like the app's resize handles — no per-frame React render). Lets a wrapping
+  // row size to the viewport, not the `w-max` content width. Only when measuring rows.
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el || !dynamicHeight) return
+    const publish = (): void => el.style.setProperty('--vrows-vw', `${el.clientWidth}px`)
+    publish()
+    const observer = new ResizeObserver(publish)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [dynamicHeight])
+
   return (
     <div ref={scrollRef} className={cn('h-full overflow-auto font-mono text-xs', className)}>
       <div
@@ -57,8 +81,10 @@ export function VirtualRows<T>({
           return (
             <div
               key={item.key}
+              data-index={item.index}
+              ref={dynamicHeight ? virtualizer.measureElement : undefined}
               className={cn('absolute left-0', fitWidth ? 'w-full' : 'w-max min-w-full')}
-              style={{ top: item.start, height: item.size }}
+              style={dynamicHeight ? { top: item.start } : { top: item.start, height: item.size }}
             >
               {renderRow(row, item.index)}
             </div>
