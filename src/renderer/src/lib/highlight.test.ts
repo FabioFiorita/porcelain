@@ -12,6 +12,7 @@ describe('languageFor', () => {
     expect(languageFor('src/api.ts')).toBe('typescript')
     expect(languageFor('App.tsx')).toBe('tsx')
     expect(languageFor('notes.md')).toBe('markdown')
+    expect(languageFor('ContentView.swift')).toBe('swift')
   })
 
   it('returns null for unknown extensions', () => {

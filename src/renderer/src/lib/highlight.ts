@@ -19,6 +19,7 @@ const LANGS = [
   'markdown',
   'yaml',
   'shellscript',
+  'swift',
 ] as const satisfies readonly BundledLanguage[]
 
 type Highlighter = HighlighterGeneric<BundledLanguage, typeof HIGHLIGHT_THEME>
@@ -53,6 +54,7 @@ const extToLang: Record<string, BundledLanguage> = {
   sh: 'shellscript',
   zsh: 'shellscript',
   bash: 'shellscript',
+  swift: 'swift',
 }
 
 export function languageFor(path: string): BundledLanguage | null {
