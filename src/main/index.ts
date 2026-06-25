@@ -3,6 +3,7 @@ import { app, BrowserWindow, type Session, session } from 'electron'
 import { seedDevConfig } from './dev-config'
 import { registerTerminalHandlers, registerTrpcHandler } from './ipc'
 import { migrateLayersFromConfig } from './layers-store'
+import { shutdownAllLsp } from './lsp-manager'
 import { installAppMenu } from './menu'
 import { migrateNotesFromConfig } from './notes-store'
 import { watchAgentChannels } from './review-watch'
@@ -113,6 +114,13 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
+})
+
+// Kill every spawned TS language server before exit (mirrors how a window kills its
+// PTYs on close). These are per-repo children that outlive any single window, so
+// they're torn down here at the process level rather than per-window.
+app.on('will-quit', () => {
+  shutdownAllLsp()
 })
 
 // In this file you can include the rest of your app's specific main process

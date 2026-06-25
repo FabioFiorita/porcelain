@@ -7,6 +7,7 @@ import { FeatureView } from '@renderer/components/git/feature-view'
 import { TerminalView } from '@renderer/components/terminal/terminal-view'
 import { Kbd } from '@renderer/components/ui/kbd'
 import { FileContent } from '@renderer/components/viewer/file-content'
+import { ReferencesView } from '@renderer/components/viewer/references-view'
 import { SearchView } from '@renderer/components/viewer/search-view'
 import { cn } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
@@ -80,6 +81,15 @@ function PaneView({ paneIndex }: { paneIndex: number }): React.JSX.Element {
       return <CommitView key={activeTab.path} hash={activeTab.path} />
     case 'search':
       return <SearchView key={activeTab.path} query={activeTab.path} />
+    case 'references':
+      return (
+        <ReferencesView
+          key={`${activeTab.path}#${activeTab.line ?? 0}:${activeTab.character ?? 0}`}
+          path={activeTab.path}
+          line={activeTab.line ?? 0}
+          character={activeTab.character ?? 0}
+        />
+      )
     case 'feature':
       return <FeatureView />
     case 'board':

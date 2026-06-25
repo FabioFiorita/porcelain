@@ -83,6 +83,16 @@ import {
   warmFileList,
 } from './git'
 import { readLayers, writeLayers } from './layers-store'
+import type { Diagnostic, HoverInfo, SymbolLocation } from './lsp'
+import {
+  lspDefinition,
+  lspDiagnostics,
+  lspDidChange,
+  lspDidClose,
+  lspDidOpen,
+  lspHover,
+  lspReferences,
+} from './lsp-manager'
 import { readNotes, writeNotes } from './notes-store'
 import { installPlugin, type PluginInstallResult } from './plugin'
 import { installCommands, PLUGIN_VERSION, pluginMarketplaceDir } from './plugin-assets'
@@ -1033,6 +1043,55 @@ export const router = t.router({
   ),
 
   installPlugin: t.procedure.mutation((): Promise<PluginInstallResult> => installPlugin()),
+
+  // Opt-in TypeScript language server (see lsp-manager.ts). A per-repo
+  // typescript-language-server child, spawned lazily on first call — if the renderer
+  // never invokes these (feature off), nothing spawns. Diagnostics are pushed via the
+  // `diagnostics` app-event (the renderer invalidates lspDiagnostics on it); the rest
+  // are direct request/response. didOpen/didChange/didClose mirror the renderer's open
+  // documents into the server's text-sync so hover/definition/references stay accurate.
+  lspDidOpen: t.procedure
+    .input(z.object({ repo: z.string(), path: z.string(), content: z.string() }))
+    .mutation(({ input }) => lspDidOpen(input.repo, input.path, input.content)),
+
+  lspDidChange: t.procedure
+    .input(z.object({ repo: z.string(), path: z.string(), content: z.string() }))
+    .mutation(({ input }) => lspDidChange(input.repo, input.path, input.content)),
+
+  lspDidClose: t.procedure
+    .input(z.object({ repo: z.string(), path: z.string() }))
+    .mutation(({ input }) => lspDidClose(input.repo, input.path)),
+
+  lspHover: t.procedure
+    .input(
+      z.object({ repo: z.string(), path: z.string(), line: z.number(), character: z.number() }),
+    )
+    .query(
+      ({ input }): Promise<HoverInfo | null> =>
+        lspHover(input.repo, input.path, { line: input.line, character: input.character }),
+    ),
+
+  lspDefinition: t.procedure
+    .input(
+      z.object({ repo: z.string(), path: z.string(), line: z.number(), character: z.number() }),
+    )
+    .query(
+      ({ input }): Promise<SymbolLocation[]> =>
+        lspDefinition(input.repo, input.path, { line: input.line, character: input.character }),
+    ),
+
+  lspReferences: t.procedure
+    .input(
+      z.object({ repo: z.string(), path: z.string(), line: z.number(), character: z.number() }),
+    )
+    .query(
+      ({ input }): Promise<SymbolLocation[]> =>
+        lspReferences(input.repo, input.path, { line: input.line, character: input.character }),
+    ),
+
+  lspDiagnostics: t.procedure
+    .input(z.object({ repo: z.string(), path: z.string() }))
+    .query(({ input }): Diagnostic[] => lspDiagnostics(input.repo, input.path)),
 })
 
 export type AppRouter = typeof router
