@@ -79,7 +79,7 @@ export function CommentComposer({
         <DialogHeader>
           <DialogTitle>Add comment</DialogTitle>
           {anchor && (
-            <DialogDescription className="font-mono text-xs">
+            <DialogDescription className="font-mono text-xs break-all">
               {describeAnchor(anchor)}
             </DialogDescription>
           )}
