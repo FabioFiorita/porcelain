@@ -53,13 +53,13 @@ export function ActionComposer({
     if (!draft || title.trim() === '' || command.trim() === '' || saving) return
     setSaving(true)
     try {
-      const fields = {
-        title: title.trim(),
-        command: command.trim(),
-        cwd: cwd.trim() || undefined,
+      // Editing sends cwd as a plain string so clearing it (empty) actually clears it —
+      // undefined is dropped over IPC and would leave the old cwd untouched. Create omits empty.
+      if (draft.id) {
+        await update(draft.id, { title: title.trim(), command: command.trim(), cwd: cwd.trim() })
+      } else {
+        await add({ title: title.trim(), command: command.trim(), cwd: cwd.trim() || undefined })
       }
-      if (draft.id) await update(draft.id, fields)
-      else await add(fields)
       onOpenChange(false)
     } finally {
       setSaving(false)
