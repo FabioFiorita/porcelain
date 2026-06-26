@@ -340,7 +340,10 @@ export function EditorSource({
     if (!lspEnabled || !repo) return
     const locations = await definition(offsetToPosition(content, offset))
     const target = locations[0]
-    if (!target) return
+    if (!target) {
+      toast('No definition found')
+      return
+    }
     // SymbolLocation.path is absolute; tabs key file ids on the absolute path
     // (see search-list / use-files), and SymbolLocation.line is 0-based while tabs
     // expect a 1-based line.

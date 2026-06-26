@@ -54,12 +54,26 @@ interface ServerHandle {
   // global) so a crash+respawn drops it with the rest of the state — otherwise
   // ensureOpen would skip re-opening a doc the fresh server never received.
   openDocs: Set<string>
+  // Resolves once tsserver reports the project finished loading (the first
+  // workDoneProgress 'end'), or after READY_TIMEOUT_MS as a fallback. Semantic
+  // requests await it so they don't race the program build. One-shot — later
+  // re-analysis progress cycles are background work and never re-block requests.
+  ready: Promise<void>
+  markReady: () => void
 }
 
 const servers = new Map<string, ServerHandle>()
 
 // A hung server should reject rather than hang a renderer query forever.
 const REQUEST_TIMEOUT_MS = 15_000
+
+// tsserver resolves cross-file symbols to a bare import (or nothing) until it has
+// built the project's program — so the FIRST hover/definition/references after a
+// file opens races project loading and returns a useless result. The server
+// announces load completion via a workDoneProgress 'end'; semantic requests await
+// that (`handle.ready`). This cap is the fallback so a project that never reports
+// 'end' (an older server, an edge case) can't block a request forever.
+const READY_TIMEOUT_MS = 10_000
 
 // Resolve the language-server entry, rewriting the asar path to its unpacked
 // sibling in a packaged app (the child Node process reads the .mjs off disk, and
@@ -120,6 +134,19 @@ function handleMessage(handle: ServerHandle, message: JsonRpcResponse): void {
     else pending.resolve(message.result)
     return
   }
+  // tsserver reports project loading via workDoneProgress. The create is a
+  // server→client REQUEST — the spec requires a reply, and without one the server
+  // can withhold the progress notifications we key readiness off. The first
+  // progress 'end' means the program is built → semantic requests are reliable.
+  if (message.method === 'window/workDoneProgress/create' && message.id !== undefined) {
+    handle.child.stdin.write(encodeMessage({ jsonrpc: '2.0', id: message.id, result: null }))
+    return
+  }
+  if (message.method === '$/progress') {
+    const value = (message.params as { value?: { kind?: string } } | undefined)?.value
+    if (value?.kind === 'end') handle.markReady()
+    return
+  }
   if (message.method === 'textDocument/publishDiagnostics') {
     const params = message.params as
       | { uri: string; diagnostics: Parameters<typeof toDiagnostics>[0] }
@@ -146,6 +173,9 @@ function dropServer(repo: string, handle: ServerHandle, reason: string): void {
     pending.reject(new Error(reason))
   }
   handle.pending.clear()
+  // Unblock any request parked on `ready` (the next write fails on the dead child
+  // and rejects, instead of hanging until READY_TIMEOUT_MS).
+  handle.markReady()
   if (servers.get(repo) === handle) servers.delete(repo)
 }
 
@@ -162,6 +192,10 @@ function ensureServer(repo: string): ServerHandle {
   }) as ChildProcessWithoutNullStreams
 
   const buffer = createMessageBuffer()
+  let markReady: () => void = () => {}
+  const ready = new Promise<void>((resolve) => {
+    markReady = resolve
+  })
   const handle: ServerHandle = {
     child,
     buffer,
@@ -171,8 +205,14 @@ function ensureServer(repo: string): ServerHandle {
     diagnostics: new Map(),
     versions: new Map(),
     openDocs: new Set(),
+    ready,
+    markReady,
   }
   servers.set(repo, handle)
+  // Fallback so an awaited request can't hang if the project never reports 'end'.
+  // Resolving an already-resolved promise is a no-op, so the real 'end' (or a
+  // crash drop) winning the race is fine.
+  setTimeout(() => handle.markReady(), READY_TIMEOUT_MS)
 
   child.stdout.on('data', (chunk: Buffer) => {
     for (const message of buffer.push(chunk)) {
@@ -195,6 +235,9 @@ async function handshake(repo: string, handle: ServerHandle): Promise<void> {
     processId: process.pid,
     rootUri: pathToFileURL(repo).href,
     capabilities: {
+      // Opt into work-done progress so tsserver reports project-load begin/end —
+      // `handle.ready` keys off the 'end' to know when semantics are reliable.
+      window: { workDoneProgress: true },
       textDocument: {
         hover: { contentFormat: ['markdown', 'plaintext'] },
         definition: { linkSupport: true },
@@ -283,6 +326,9 @@ export async function lspHover(
   if (!isRepoContained(repo, file)) return null
   const handle = await readyServer(repo)
   await ensureOpen(handle, repo, file)
+  // Wait out project loading so the symbol resolves to its real target, not a
+  // bare import (or nothing). Bounded by READY_TIMEOUT_MS.
+  await handle.ready
   const result = await request(handle, 'textDocument/hover', {
     textDocument: { uri: fileUri(repo, file) },
     position: { line: pos.line, character: pos.character },
@@ -298,6 +344,9 @@ export async function lspDefinition(
   if (!isRepoContained(repo, file)) return []
   const handle = await readyServer(repo)
   await ensureOpen(handle, repo, file)
+  // Wait out project loading so the symbol resolves to its real target, not a
+  // bare import (or nothing). Bounded by READY_TIMEOUT_MS.
+  await handle.ready
   const result = await request(handle, 'textDocument/definition', {
     textDocument: { uri: fileUri(repo, file) },
     position: { line: pos.line, character: pos.character },
@@ -313,6 +362,9 @@ export async function lspReferences(
   if (!isRepoContained(repo, file)) return []
   const handle = await readyServer(repo)
   await ensureOpen(handle, repo, file)
+  // Wait out project loading so the symbol resolves to its real target, not a
+  // bare import (or nothing). Bounded by READY_TIMEOUT_MS.
+  await handle.ready
   const result = await request(handle, 'textDocument/references', {
     textDocument: { uri: fileUri(repo, file) },
     position: { line: pos.line, character: pos.character },
