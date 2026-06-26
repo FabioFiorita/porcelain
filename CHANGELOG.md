@@ -1,3 +1,9 @@
+## [0.16.2](https://github.com/FabioFiorita/porcelain/compare/v0.16.1...v0.16.2) (2026-06-26)
+
+### Bug Fixes
+
+* remove the opt-in TypeScript language server and revert the single-instance lock ([5c6456c](https://github.com/FabioFiorita/porcelain/commit/5c6456cf9e91d395beffb4e364de3b23b0acf17b))
+
 ## [0.16.1](https://github.com/FabioFiorita/porcelain/compare/v0.16.0...v0.16.1) (2026-06-26)
 
 ### Features
