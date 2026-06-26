@@ -1,3 +1,14 @@
+## [0.16.0](https://github.com/FabioFiorita/porcelain/compare/v0.15.0...v0.16.0) (2026-06-26)
+
+### Features
+
+* **lsp:** opt-in TypeScript language server (off by default) ([899281d](https://github.com/FabioFiorita/porcelain/commit/899281dc80bc25e70d9da091dbdbbf4563152ec4))
+
+### Bug Fixes
+
+* **actions:** clear a saved action's working directory on edit ([ef8e1fd](https://github.com/FabioFiorita/porcelain/commit/ef8e1fd3978666e5e848a8b7ddd00562a33203cb))
+* **review:** wrap long file paths in the Add comment dialog ([53bd6e0](https://github.com/FabioFiorita/porcelain/commit/53bd6e0b4b8a8546b14eba98a1548f51c6a0f008))
+
 ## [0.15.0](https://github.com/FabioFiorita/porcelain/compare/v0.14.0...v0.15.0) (2026-06-23)
 
 ### Features
