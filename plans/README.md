@@ -42,6 +42,19 @@ Most plans are independent — see "Dependency notes".
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (one-line reason) | REJECTED (one-line rationale)
 
+### Direction round (`improve next`, 2026-06-26, against `9670e07`)
+
+A separate, **direction-only** pass (where to take the product, not fixes). These
+are design/spike plans, not part of the 001–020 fix batch above. The full
+direction assessment surfaced five options (comment replies, Codex/Cursor plugin,
+PR/remote review, Linux/Windows port, live agent-activity surface); the maintainer
+selected the first two to plan.
+
+| Plan | Title | Cat | Pri | Effort | Risk | Depends on | Status |
+|------|-------|-----|-----|--------|------|------------|--------|
+| 021 | Agent can *reply* to a review comment, not just resolve | direction | P2 | M | MED | — | TODO |
+| 022 | Agent-agnostic loop: ship Codex support (spike + slice) | direction | P2 | L | MED | — | TODO |
+
 ### Suggested order
 
 1. **Quick wins, zero/low risk, independent** (do first, any order): 001, 002, 003, 004, 006, 007, 008, 011, 013, 014, 016.
@@ -106,6 +119,31 @@ deps, DX, docs, direction). Reconciliation:
 - **S2 — fs procedures accept absolute paths**: BY DESIGN (the trusted-renderer model;
   CSP + no remote content). Not a finding; the real residual (explore-reader
   containment) is a small, low-priority hardening noted but not planned.
+
+### Direction options surfaced but NOT selected (`improve next`, 2026-06-26)
+
+Presented to the maintainer; held, not rejected — revisit if priorities shift.
+- **PR / remote-branch review** — flow-review a change you didn't author. Git
+  plumbing mostly exists (`gitRangeFlow` + remote-branch listing/checkout in
+  `git.ts`); the hard part is the local-first product boundary (network/`gh`,
+  GitHub-client gravity). The biggest *strategic* bet — wants a design spike
+  before code. HELD.
+- **Linux/Windows port** — branch `linux-port` exists (frameless chrome,
+  keyboard remap, AppImage/deb) but is **85 commits behind `main`, 5 ahead**
+  (last real work ~v0.11.0). Not a merge — a re-apply onto heavy drift, plus
+  per-platform signing/updater/maintenance tax and the macOS-glass identity that
+  doesn't translate. Highest carrying cost; HELD unless cross-platform becomes a
+  deliberate priority.
+- **Live agent-activity surface** — make the "companion" real-time (a
+  working-tree change-stream / "what the agent just touched" feed; `file-watch.ts`
+  is the seed). Most novel, most speculative — needs real UX design. HELD.
+- **"Ask the agent about this hunk"** (right-click → pipe a prompt to the
+  embedded terminal/MCP) — sits on the viewer-not-editor / companion-not-competitor
+  line; a deliberate yes/no, not a spike. HELD.
+- **e2e in the per-push CI** — DX/tooling, not direction: `ci.yml` runs `pnpm
+  verify` + `typecheck:e2e` only; the full `pnpm test:e2e` runs **only** in
+  `release.yml`. Adding an e2e leg to `ci.yml` would catch regressions before tag
+  time. Matches the open board card "Run the Electron e2e suite locally". Noted.
 
 ## How to update this file
 
