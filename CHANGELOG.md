@@ -1,3 +1,15 @@
+## [0.16.1](https://github.com/FabioFiorita/porcelain/compare/v0.16.0...v0.16.1) (2026-06-26)
+
+### Features
+
+* **lsp:** completion, rename, format, type-def + implementation; harden the server ([a9d6848](https://github.com/FabioFiorita/porcelain/commit/a9d68488e44f443b4550c40e31fe9b9462d1ebb7))
+
+### Bug Fixes
+
+* **lsp:** render hover/completion/rename overlays via a portal, not Base UI Popover ([afefe20](https://github.com/FabioFiorita/porcelain/commit/afefe207f7ada4c5be5b170e17df4a5f2586f56f))
+* **lsp:** wait for project load before serving go-to-definition ([1e2b478](https://github.com/FabioFiorita/porcelain/commit/1e2b47841727a0f2c9783ce52a98bfe78b914920))
+* **window:** hold a single-instance lock so duplicate launches don't open a window ([f70d447](https://github.com/FabioFiorita/porcelain/commit/f70d447fcc015cb8b804323eb6f92ebc40235fe0))
+
 ## [0.16.0](https://github.com/FabioFiorita/porcelain/compare/v0.15.0...v0.16.0) (2026-06-26)
 
 ### Features
