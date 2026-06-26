@@ -1,36 +1,16 @@
-import { Popover as PopoverPrimitive } from '@base-ui/react/popover'
+import { createPortal } from 'react-dom'
 
-// A transient, pointer-anchored popover for LSP hover types and diagnostic
-// messages. The wrapped shadcn `PopoverContent` always anchors to a
-// `PopoverTrigger`; here the anchor is a *virtual element* at an arbitrary pixel
-// point (under the cursor or at the caret), so we drive the Base UI primitive
-// directly — same primitive, just a virtual anchor instead of a trigger element.
-//
-// Non-focus-stealing: the popover is rendered `open` but with no trigger, so it
-// never steals the caret from the textarea. The owner controls visibility and
-// dismissal (scroll/keydown/mouseleave); this component is pure presentation.
+// A transient, point-anchored readout for LSP hover types and diagnostic messages.
+// A plain fixed-position element portaled to <body> — NOT a Base UI Popover. Base UI's
+// Popover only mounts its popup once its open transition fires from a trigger
+// interaction; an always-open, trigger-less popover (what a cursor/caret overlay needs)
+// never mounts, so the card stayed invisible. This is a passive readout — the editor
+// owns visibility and dismissal (scroll/keydown/mouseleave) — so it needs none of the
+// Popover machinery; pointer-events stay off so it can never trap the cursor.
 
 export interface HoverAnchor {
   x: number
   y: number
-}
-
-/** A Floating-UI virtual element: a zero-size rect at the given viewport point. */
-function pointRect(anchor: HoverAnchor): { getBoundingClientRect: () => DOMRect } {
-  return {
-    getBoundingClientRect: () =>
-      ({
-        x: anchor.x,
-        y: anchor.y,
-        width: 0,
-        height: 0,
-        top: anchor.y,
-        left: anchor.x,
-        right: anchor.x,
-        bottom: anchor.y,
-        toJSON: () => ({}),
-      }) as DOMRect,
-  }
 }
 
 export function LspHoverCard({
@@ -40,26 +20,16 @@ export function LspHoverCard({
   anchor: HoverAnchor
   children: React.ReactNode
 }): React.JSX.Element {
-  return (
-    <PopoverPrimitive.Root open>
-      <PopoverPrimitive.Portal>
-        <PopoverPrimitive.Positioner
-          anchor={pointRect(anchor)}
-          side="top"
-          sideOffset={8}
-          align="start"
-          className="isolate z-50"
-        >
-          <PopoverPrimitive.Popup
-            // No outline/focus ring and pointer-events disabled: this is a passive
-            // readout, never an interactive surface, so it can't trap the cursor.
-            className="pointer-events-none z-50 max-w-md overflow-hidden rounded-md bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 outline-hidden"
-          >
-            {children}
-          </PopoverPrimitive.Popup>
-        </PopoverPrimitive.Positioner>
-      </PopoverPrimitive.Portal>
-    </PopoverPrimitive.Root>
+  return createPortal(
+    <div
+      // `translateY(-100%)` sits the card ABOVE the cursor point (its bottom edge 8px
+      // above `anchor.y`) without needing to know its height first.
+      className="pointer-events-none fixed z-50 max-w-md overflow-hidden rounded-md bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10"
+      style={{ left: anchor.x, top: anchor.y - 8, transform: 'translateY(-100%)' }}
+    >
+      {children}
+    </div>,
+    document.body,
   )
 }
 
