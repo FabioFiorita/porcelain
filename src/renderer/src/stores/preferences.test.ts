@@ -13,16 +13,3 @@ describe('usePreferencesStore — pullMode', () => {
     expect(usePreferencesStore.getState().pullMode).toBe('rebase')
   })
 })
-
-describe('usePreferencesStore — lspEnabled', () => {
-  beforeEach(() => usePreferencesStore.setState({ lspEnabled: false }))
-
-  it('defaults to false', () => {
-    expect(usePreferencesStore.getState().lspEnabled).toBe(false)
-  })
-
-  it('setLspEnabled toggles the value', () => {
-    usePreferencesStore.getState().setLspEnabled(true)
-    expect(usePreferencesStore.getState().lspEnabled).toBe(true)
-  })
-})

@@ -19,12 +19,6 @@ asarUnpack:
   # runtime; both must live on disk outside app.asar (and get signed there) or the
   # embedded terminal can't spawn a PTY in the packaged app.
   - node_modules/node-pty/**
-  # The opt-in TS language server is spawned as a child Node process that reads its
-  # own entry (typescript-language-server/lib/cli.mjs) and its tsserver (typescript)
-  # off disk — both must be unpacked from app.asar or the spawn can't resolve them.
-  # Pure JS, so (unlike node-pty) no native-binary signing concern.
-  - node_modules/typescript-language-server/**/*
-  - node_modules/typescript/**/*
 mac:
   target:
     - target: dmg

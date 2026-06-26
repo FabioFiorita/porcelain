@@ -35,9 +35,6 @@ interface PreferencesState {
   notesHeight: number
   /** Fraction of the viewer width given to the left pane when split (0.2–0.8). */
   splitRatio: number
-  /** Opt-in TypeScript/JavaScript language intelligence — hover types, go-to-definition,
-   * diagnostics. Off by default to keep the viewer fast. */
-  lspEnabled: boolean
   /** Whether the user has installed the Claude Code plugin (demotes the CTA). */
   pluginInstalled: boolean
   /** Plugin version recorded at the last install; null if never recorded (pre-versioning
@@ -57,7 +54,6 @@ interface PreferencesState {
   setSidebarWidth: (width: number) => void
   setNotesHeight: (height: number) => void
   setSplitRatio: (ratio: number) => void
-  setLspEnabled: (enabled: boolean) => void
   setPluginInstalled: (installed: boolean) => void
   setPluginVersion: (version: string | null) => void
   setPluginUpdateDismissedVersion: (version: string | null) => void
@@ -76,7 +72,6 @@ export const usePreferencesStore = create<PreferencesState>()(
       sidebarWidth: 256,
       notesHeight: 220,
       splitRatio: 0.5,
-      lspEnabled: false,
       pluginInstalled: false,
       pluginVersion: null,
       pluginUpdateDismissedVersion: null,
@@ -96,7 +91,6 @@ export const usePreferencesStore = create<PreferencesState>()(
         set({ notesHeight: Math.min(NOTES_MAX_HEIGHT, Math.max(NOTES_MIN_HEIGHT, height)) }),
       setSplitRatio: (ratio) =>
         set({ splitRatio: Math.min(SPLIT_MAX_RATIO, Math.max(SPLIT_MIN_RATIO, ratio)) }),
-      setLspEnabled: (lspEnabled) => set({ lspEnabled }),
       setPluginInstalled: (pluginInstalled) => set({ pluginInstalled }),
       setPluginVersion: (pluginVersion) => set({ pluginVersion }),
       setPluginUpdateDismissedVersion: (pluginUpdateDismissedVersion) =>

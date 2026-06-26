@@ -37,13 +37,6 @@ export function useAppEvents(): void {
         await utils.boardCards.invalidate()
         return
       }
-      if (event === 'diagnostics') {
-        // the opt-in TS language server published new diagnostics — refetch the
-        // repo-keyed lspDiagnostics query (a no-op when the feature is off, since
-        // every lspDiagnostics query is then disabled and has nothing to refetch)
-        await utils.lspDiagnostics.invalidate()
-        return
-      }
       if (event === 'layers') {
         // the agent retuned the flow layers over MCP — refresh the layer config and
         // every grouping surface that buckets files by them

@@ -33,8 +33,6 @@ export function GeneralSection(): React.JSX.Element {
   const setMarkdownMode = usePreferencesStore((s) => s.setMarkdownMode)
   const pullMode = usePreferencesStore((s) => s.pullMode)
   const setPullMode = usePreferencesStore((s) => s.setPullMode)
-  const lspEnabled = usePreferencesStore((s) => s.lspEnabled)
-  const setLspEnabled = usePreferencesStore((s) => s.setLspEnabled)
 
   return (
     <div className="flex flex-col gap-5">
@@ -83,25 +81,6 @@ export function GeneralSection(): React.JSX.Element {
           </ToggleGroupItem>
           <ToggleGroupItem value="rebase" size="sm">
             Rebase
-          </ToggleGroupItem>
-        </ToggleGroup>
-      </PreferenceRow>
-      <PreferenceRow
-        label="TypeScript intelligence"
-        description="Hover types, go-to-definition, and diagnostics for TS/JS files. Off by default — Porcelain stays a fast viewer."
-      >
-        <ToggleGroup
-          value={[lspEnabled ? 'on' : 'off']}
-          onValueChange={(value: string[]) => {
-            const mode = value[0]
-            if (mode === 'off' || mode === 'on') setLspEnabled(mode === 'on')
-          }}
-        >
-          <ToggleGroupItem value="off" size="sm">
-            Off
-          </ToggleGroupItem>
-          <ToggleGroupItem value="on" size="sm">
-            On
           </ToggleGroupItem>
         </ToggleGroup>
       </PreferenceRow>

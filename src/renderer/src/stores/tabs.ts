@@ -9,7 +9,6 @@ export type TabKind =
   | 'explore'
   | 'board'
   | 'terminal'
-  | 'references'
 
 // The tabs store is the router: a tab id is its kind plus its key (file path,
 // commit hash, or search query). Every opener must build ids through this so
@@ -27,10 +26,6 @@ export interface Tab {
   path: string
   /** 1-based line to scroll to when opening (search results jump here). */
   line?: number
-  /** References tabs only: 0-based LSP column; pairs with `line` (which for
-   *  references holds the 0-based LSP line — NOT the 1-based convention the
-   *  file/search kinds use). */
-  character?: number
   /** Explore tabs only: the seed symbol (omitted ⇒ a whole-file seed). */
   symbol?: string
   /** Diff tabs only: the range base ref. Omitted ⇒ a working-tree diff. */

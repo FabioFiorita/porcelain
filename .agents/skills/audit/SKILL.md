@@ -245,7 +245,6 @@ assumed — this skill is the codebase-specific layer beneath them.
   needs unpacking. *Verify:* a packaged build's `Resources/app.asar.unpacked/node_modules/node-pty`
   exists and the terminal opens. The renderer half (`@xterm/*`) is Vite-bundled
   `devDependencies` — no packaging concern.
-- **The opt-in LSP server must stay unpacked + lazily spawned.** `typescript-language-server` + `typescript` are main-process `dependencies` (pure JS — NO native binary, so unlike node-pty they need no rebuild/sign), and `electron-builder.yml` `asarUnpack`s `node_modules/typescript-language-server/**` AND `node_modules/typescript/**` — the server runs as a child Node process (`process.execPath` + `ELECTRON_RUN_AS_NODE=1`) that reads its entry off disk, with `app.asar`→`app.asar.unpacked` rewritten when `app.isPackaged`. Drop either unpack and the packaged app silently can't spawn the server. *Gating invariant:* the server is spawned **lazily on the first LSP request** (the renderer only calls when `lspEnabled` is on) — there is deliberately **no enable flag in main**; "off ⇒ nothing spawns" depends on the renderer never calling, so don't move gating server-side or eager-spawn. *Verify:* with the toggle off, opening a TS file spawns no `typescript-language-server` process; a packaged build has `app.asar.unpacked/node_modules/typescript-language-server`. (Architecture: the LSP subsystem section.)
 
 ## How to verify
 

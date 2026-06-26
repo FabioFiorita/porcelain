@@ -16,27 +16,6 @@ vi.mock(import('@renderer/hooks/use-files'), async (importOriginal) => {
   }
 })
 
-// EditorSource also calls the tRPC-backed LSP hook. Mock it inert (the feature is
-// off by default anyway) so these tests don't need a tRPC provider.
-vi.mock('@renderer/hooks/use-lsp', () => ({
-  useLspEnabledFor: () => false,
-  useLspDocSync: () => {},
-  useDiagnostics: () => [],
-  useLspActions: () => ({
-    hover: async () => null,
-    definition: async () => [],
-    references: async () => [],
-    typeDefinition: async () => [],
-    implementation: async () => [],
-    completion: async () => [],
-  }),
-  useLspFormat: () => ({ format: async () => [] }),
-  useLspRename: () => ({
-    prepareRename: async () => null,
-    rename: async () => ({ changedPaths: [], updatedContent: {} }),
-  }),
-}))
-
 beforeEach(() => {
   useRepoStore.setState({ repo: { path: '/repo', name: 'repo' } as never })
   usePreferencesStore.setState({ markdownMode: 'source' } as never)

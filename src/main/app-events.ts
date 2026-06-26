@@ -7,11 +7,6 @@ export type AppEvent =
   | 'actions'
   | 'layers'
   | 'working-tree'
-  // Broadcast when the opt-in TS language server publishes new diagnostics for any
-  // file; the renderer invalidates its repo-keyed lspDiagnostics query in response.
-  // Like the other agent-channel events it's per-repo-keyed downstream, so a
-  // cross-window delivery is just a no-op refetch.
-  | 'diagnostics'
 
 const listeners = new Set<(event: AppEvent) => void>()
 
