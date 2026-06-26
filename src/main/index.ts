@@ -45,10 +45,35 @@ function extensionsCompatSession(): Session {
   })
 }
 
+// Porcelain runs as ONE process hosting N windows (the multi-window model shares a
+// single stateless tRPC handler), so a second OS *instance* is always a bug: it boots
+// its own createWindow({ mode: 'restore' }) and a duplicate window of the last repo
+// pops up "on its own" when something relaunches the binary past macOS's
+// activate-instead-of-launch coordination. Hold a single-instance lock so a duplicate
+// launch quits before it can spawn a window, and focus the existing window instead.
+// Skipped when unpackaged so electron-vite's dev restart and the (sometimes parallel)
+// e2e launches aren't killed by the lock.
+const hasInstanceLock = !app.isPackaged || app.requestSingleInstanceLock()
+if (!hasInstanceLock) {
+  // A duplicate launch — the first instance owns the lock and will focus its window.
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    const existing = BrowserWindow.getAllWindows().at(-1)
+    if (!existing) return
+    if (existing.isMinimized()) existing.restore()
+    existing.focus()
+  })
+}
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(async () => {
+  // The duplicate instance has already called app.quit() above; never let its
+  // whenReady boot a window or register the global handlers.
+  if (!hasInstanceLock) return
+
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.fabiofiorita.porcelain')
 
