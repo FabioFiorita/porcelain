@@ -26,6 +26,14 @@ vi.mock('@renderer/hooks/use-lsp', () => ({
     hover: async () => null,
     definition: async () => [],
     references: async () => [],
+    typeDefinition: async () => [],
+    implementation: async () => [],
+    completion: async () => [],
+  }),
+  useLspFormat: () => ({ format: async () => [] }),
+  useLspRename: () => ({
+    prepareRename: async () => null,
+    rename: async () => ({ changedPaths: [], updatedContent: {} }),
   }),
 }))
 

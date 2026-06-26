@@ -36,6 +36,14 @@ vi.mock('@renderer/hooks/use-lsp', () => ({
     hover: vi.fn().mockResolvedValue(null),
     definition: vi.fn().mockResolvedValue([]),
     references: vi.fn().mockResolvedValue([]),
+    typeDefinition: vi.fn().mockResolvedValue([]),
+    implementation: vi.fn().mockResolvedValue([]),
+    completion: vi.fn().mockResolvedValue([]),
+  }),
+  useLspFormat: () => ({ format: vi.fn().mockResolvedValue([]) }),
+  useLspRename: () => ({
+    prepareRename: vi.fn().mockResolvedValue(null),
+    rename: vi.fn().mockResolvedValue({ changedPaths: [], updatedContent: {} }),
   }),
 }))
 

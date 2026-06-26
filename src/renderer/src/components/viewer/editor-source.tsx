@@ -1,4 +1,4 @@
-import type { Diagnostic } from '@main/lsp'
+import type { CompletionItem, Diagnostic, SymbolLocation } from '@main/lsp'
 import {
   ContextMenu,
   ContextMenuContent,
@@ -9,20 +9,25 @@ import {
 } from '@renderer/components/ui/context-menu'
 import { Kbd } from '@renderer/components/ui/kbd'
 import { CodeLine, useTokenizedLines } from '@renderer/components/viewer/code-line'
+import { CompletionPopup } from '@renderer/components/viewer/completion-popup'
 import {
   type HoverAnchor,
   LspHoverCard,
   stripHoverFences,
 } from '@renderer/components/viewer/lsp-hover-card'
+import { RenameSymbolInput } from '@renderer/components/viewer/rename-symbol-input'
 import { useWriteTextFile } from '@renderer/hooks/use-files'
 import {
   useDiagnostics,
   useLspActions,
   useLspDocSync,
   useLspEnabledFor,
+  useLspFormat,
+  useLspRename,
 } from '@renderer/hooks/use-lsp'
 import { languageFor } from '@renderer/lib/highlight'
-import { offsetToPosition } from '@renderer/lib/lsp-position'
+import { offsetToPosition, positionToOffset } from '@renderer/lib/lsp-position'
+import { caretRect } from '@renderer/lib/textarea-caret'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
@@ -33,9 +38,11 @@ import {
   FileSymlink,
   FolderOpen,
   Link2,
+  PencilLine,
   Scissors,
   Search,
   SquareArrowOutUpRight,
+  WrapText,
 } from 'lucide-react'
 import { memo, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
@@ -45,6 +52,29 @@ import { usePathActions } from './use-path-actions'
 // view — the editor renders every line into the DOM.
 export const EDITABLE_MAX_LINES = 5000
 const AUTOSAVE_DELAY_MS = 800
+
+// Formatting options handed to `textDocument/formatting`. Two-space indent matches the
+// repo's Biome config; the server still defers to the file's own editorconfig/prettier.
+const FORMAT_TAB_SIZE = 2
+const FORMAT_INSERT_SPACES = true
+
+// After a keystroke, wait this long before firing an automatic completion request so a
+// burst of typing collapses into a single query (mirrors the hover rest delay).
+const COMPLETION_DEBOUNCE_MS = 150
+// Cap the rendered completion list so a huge member set (e.g. `.` on a big namespace)
+// stays cheap to render and scroll.
+const COMPLETION_MAX_ITEMS = 50
+
+// Identifier characters: the run we treat as "the current word" when computing a
+// completion's replace range and when deciding whether a typed char should trigger one.
+const IDENT_CHAR = /[A-Za-z0-9_$]/
+
+/** Scan left from `offset` over identifier chars to find the start of the current word. */
+function wordStartBefore(content: string, offset: number): number {
+  let start = offset
+  while (start > 0 && IDENT_CHAR.test(content[start - 1])) start--
+  return start
+}
 
 // Memoized so a line only re-renders when its own tokens change.
 const EditorLine = memo(CodeLine)
@@ -156,6 +186,9 @@ export function EditorSource({
   // Caret position (0-based LSP) captured when the context menu opens, so "Find
   // references" can query the symbol under the cursor on the LSP path.
   const [lspRefPos, setLspRefPos] = useState<{ line: number; character: number } | null>(null)
+  // The same caret as a flat offset — the LSP navigation/rename context-menu items take
+  // an offset (they convert to an LSP position themselves), so snapshot it on open.
+  const [lspRefOffset, setLspRefOffset] = useState<number | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -172,7 +205,12 @@ export function EditorSource({
   const lspEnabled = useLspEnabledFor(path)
   useLspDocSync(repo?.path, path, content, lspEnabled)
   const diagnostics = useDiagnostics(repo?.path, path, lspEnabled)
-  const { hover, definition } = useLspActions(repo?.path, path)
+  const { hover, definition, typeDefinition, implementation, completion } = useLspActions(
+    repo?.path,
+    path,
+  )
+  const { format } = useLspFormat(repo?.path, path)
+  const { prepareRename, rename } = useLspRename(repo?.path, path)
 
   const diagnosticsByLine = useMemo(() => groupByLine(diagnostics), [diagnostics])
   const [hoverCard, setHoverCard] = useState<{ anchor: HoverAnchor; text: string } | null>(null)
@@ -181,6 +219,42 @@ export function EditorSource({
   const lastMoveRef = useRef(0)
   const lastEditAtRef = useRef(0)
   const hoverOffsetRef = useRef<number | null>(null)
+
+  // --- Inline rename: an anchored input over the symbol, plus its in-flight/error UI.
+  const [renameState, setRenameState] = useState<{
+    anchor: { x: number; y: number }
+    pos: { line: number; character: number }
+    initialName: string
+  } | null>(null)
+  const [renameBusy, setRenameBusy] = useState(false)
+  const [renameError, setRenameError] = useState<string | null>(null)
+
+  // --- Completion: the popup controller. `rawItems` is the server's full list for the
+  // trigger; `word` is the identifier range being replaced; the rendered list is the
+  // client-filtered slice of `rawItems` (see `completionItems`).
+  const [completionState, setCompletionState] = useState<{
+    rawItems: CompletionItem[]
+    word: { start: number; end: number }
+    anchor: { x: number; y: number }
+  } | null>(null)
+  const [completionIndex, setCompletionIndex] = useState(0)
+  const completionOpen = completionState !== null
+  // The offset the in-flight completion request was fired for; a later edit/selection
+  // change invalidates the response (mirrors the hover offset guard).
+  const completionReqRef = useRef<number | null>(null)
+  const completionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const closeCompletion = (): void => {
+    if (completionTimerRef.current) clearTimeout(completionTimerRef.current)
+    completionTimerRef.current = null
+    completionReqRef.current = null
+    setCompletionState((prev) => (prev === null ? prev : null))
+  }
+
+  // Tracks the last adopted `initialContent` so the external-rewrite effect (below)
+  // only reacts to a real prop change, not our own keystrokes. Declared here so the
+  // rename path can adopt its rewritten buffer through the same ref.
+  const lastInitial = useRef(initialContent)
 
   const dismissHover = (): void => {
     if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
@@ -221,6 +295,235 @@ export function EditorSource({
     // suppress + dismiss the hover card while the user is actively typing
     lastEditAtRef.current = Date.now()
     dismissHover()
+    // Auto-trigger completions when the char just before the caret is an identifier
+    // char or a member access `.` — debounced so a typing burst fires one query. The
+    // caret already reflects the edit (onChange runs after the value updated).
+    if (lspEnabled) {
+      if (completionTimerRef.current) clearTimeout(completionTimerRef.current)
+      const caret = textareaRef.current?.selectionStart
+      const before = caret !== undefined && caret > 0 ? next[caret - 1] : ''
+      if (before !== '' && (before === '.' || IDENT_CHAR.test(before))) {
+        completionTimerRef.current = setTimeout(() => {
+          completionTimerRef.current = null
+          runCompletion()
+        }, COMPLETION_DEBOUNCE_MS)
+      } else {
+        // typed a non-identifier char (space, bracket, …) → no longer in a word
+        closeCompletion()
+      }
+    }
+  }
+
+  // Fetch completions for the caret and open the popup anchored at the current word's
+  // start. `content` is captured at request time; we bail on apply if the caret moved
+  // (mirrors the hover offset guard). Shared by the debounced trigger and Ctrl/Cmd+Space.
+  const runCompletion = async (): Promise<void> => {
+    if (!lspEnabled) return
+    const el = textareaRef.current
+    if (!el) return
+    const trigger = el.selectionStart
+    const text = el.value
+    completionReqRef.current = trigger
+    const items = await completion(offsetToPosition(text, trigger))
+    // the caret moved (more typing / a click) while the request was in flight
+    if (completionReqRef.current !== trigger) return
+    if (items.length === 0) {
+      closeCompletion()
+      return
+    }
+    const start = wordStartBefore(text, trigger)
+    setCompletionState({
+      rawItems: items,
+      word: { start, end: trigger },
+      anchor: caretRect(el, start),
+    })
+    setCompletionIndex(0)
+  }
+
+  // The live word range: from the fixed `word.start` (set when the popup opened) to the
+  // end of the contiguous identifier run in CURRENT content — so chars typed after the
+  // trigger extend it and narrow the filter without a refetch. Used for both the filter
+  // text and the fallback replace range on accept.
+  const liveWordEnd = ((): number => {
+    if (!completionState) return 0
+    let end = completionState.word.start
+    while (end < content.length && IDENT_CHAR.test(content[end])) end++
+    return end
+  })()
+  const completionWord = completionState
+    ? content.slice(completionState.word.start, liveWordEnd)
+    : ''
+
+  // Filter `rawItems` by the current word as the user types: case-insensitive match on
+  // `filterText ?? label`, prefix matches first, then the server's `sortText`, capped.
+  const completionItems = useMemo<CompletionItem[]>(() => {
+    if (!completionState) return []
+    const query = completionWord.toLowerCase()
+    const scored: { item: CompletionItem; prefix: boolean; sort: string }[] = []
+    for (const item of completionState.rawItems) {
+      const candidate = (item.filterText ?? item.label).toLowerCase()
+      if (query !== '' && !candidate.includes(query)) continue
+      scored.push({
+        item,
+        prefix: query === '' ? true : candidate.startsWith(query),
+        sort: item.sortText ?? item.label,
+      })
+    }
+    scored.sort((a, b) => {
+      if (a.prefix !== b.prefix) return a.prefix ? -1 : 1
+      return a.sort < b.sort ? -1 : a.sort > b.sort ? 1 : 0
+    })
+    return scored.slice(0, COMPLETION_MAX_ITEMS).map((s) => s.item)
+  }, [completionState, completionWord])
+
+  // Accept a completion: prefer its server-provided replace range + newText, else
+  // overtype the scanned word with `insertText ?? label`. Route through `edit` so
+  // autosave/pinning fire, then place the caret after the inserted text.
+  const acceptCompletion = (index: number): void => {
+    const el = textareaRef.current
+    if (!el || !completionState) return
+    const item = completionItems[index]
+    if (!item) {
+      closeCompletion()
+      return
+    }
+    const replace =
+      item.replace !== undefined
+        ? {
+            start: positionToOffset(content, {
+              line: item.replace.line,
+              character: item.replace.character,
+            }),
+            end: positionToOffset(content, {
+              line: item.replace.endLine,
+              character: item.replace.endCharacter,
+            }),
+            newText: item.newText ?? item.insertText ?? item.label,
+          }
+        : {
+            start: completionState.word.start,
+            end: liveWordEnd,
+            newText: item.insertText ?? item.label,
+          }
+    const next = content.slice(0, replace.start) + replace.newText + content.slice(replace.end)
+    const caret = replace.start + replace.newText.length
+    closeCompletion()
+    edit(next)
+    // `edit` re-arms the completion debounce (the inserted text usually ends in an
+    // identifier char); cancel it so accepting doesn't immediately reopen the popup.
+    if (completionTimerRef.current) clearTimeout(completionTimerRef.current)
+    completionTimerRef.current = null
+    requestAnimationFrame(() => {
+      el.focus()
+      el.selectionStart = el.selectionEnd = caret
+    })
+  }
+
+  // Close the popup when the caret leaves the anchored word (click elsewhere, arrow
+  // keys, or a range selection); typing within the word keeps it open. `onSelect` fires
+  // on our own post-edit caret advance too, so this must be word-aware.
+  const onTextareaSelect = (): void => {
+    const el = textareaRef.current
+    if (!el || !completionState) return
+    const { selectionStart, selectionEnd } = el
+    if (
+      selectionStart !== selectionEnd ||
+      selectionStart < completionState.word.start ||
+      selectionStart > liveWordEnd
+    ) {
+      closeCompletion()
+    }
+  }
+
+  // --- Format document (⇧⌥F or the context-menu item) -------------------------
+  // Apply the server's TextEdits to `content` IN THE RENDERER: convert each edit's
+  // start/end position to a flat offset, sort DESCENDING by start, splice from the end
+  // backward (so an earlier splice never shifts a later one). Mirrors `applyTextEdits`.
+  const runFormat = async (): Promise<void> => {
+    if (!lspEnabled) return
+    const edits = await format(content, {
+      tabSize: FORMAT_TAB_SIZE,
+      insertSpaces: FORMAT_INSERT_SPACES,
+    })
+    if (edits.length === 0) return
+    const resolved = edits
+      .map((e) => ({
+        start: positionToOffset(content, { line: e.line, character: e.character }),
+        end: positionToOffset(content, { line: e.endLine, character: e.endCharacter }),
+        newText: e.newText,
+      }))
+      .sort((a, b) => b.start - a.start || b.end - a.end)
+    let result = content
+    for (const e of resolved) {
+      result = result.slice(0, e.start) + e.newText + result.slice(e.end)
+    }
+    if (result !== content) edit(result)
+  }
+
+  // --- Rename symbol (F2 or the context-menu item) ----------------------------
+  // Open the inline input over the symbol at `offset`. Flush any pending autosave first
+  // so the rename's per-file write doesn't race the buffer write; probe `prepareRename`
+  // to confirm the symbol is renamable and to seed the input.
+  const startRename = async (offset: number): Promise<void> => {
+    if (!lspEnabled) return
+    const el = textareaRef.current
+    if (!el) return
+    saveRef.current()
+    const pos = offsetToPosition(content, offset)
+    const prep = await prepareRename(pos)
+    if (prep === null) {
+      toast("You can't rename this")
+      return
+    }
+    // Anchor at the range start; seed with the server's placeholder, or — when it's
+    // empty ("derive from source") — the identifier text under the caret.
+    const rangeStart = positionToOffset(content, { line: prep.line, character: prep.character })
+    const seed =
+      prep.placeholder !== ''
+        ? prep.placeholder
+        : content.slice(
+            rangeStart,
+            positionToOffset(content, { line: prep.endLine, character: prep.endCharacter }),
+          )
+    setRenameError(null)
+    setRenameBusy(false)
+    setRenameState({
+      anchor: caretRect(el, rangeStart),
+      pos: { line: prep.line, character: prep.character },
+      initialName: seed,
+    })
+  }
+
+  const submitRename = async (newName: string): Promise<void> => {
+    if (!renameState) return
+    setRenameBusy(true)
+    setRenameError(null)
+    try {
+      // Pass THIS file's live buffer so the server renames against unsaved text, not
+      // the on-disk version.
+      const { changedPaths, updatedContent } = await rename(renameState.pos, newName, [
+        { path, content },
+      ])
+      const updated = updatedContent[path]
+      if (updated !== undefined) {
+        // Adopt the rewritten buffer for this file: set content + savedContent +
+        // lastInitial together so the readFile refetch's adopt-effect sees no change
+        // and doesn't clobber the rename.
+        lastInitial.current = updated
+        setContent(updated)
+        setSavedContent(updated)
+      }
+      toast(
+        changedPaths.length === 0
+          ? 'No occurrences renamed'
+          : `Renamed in ${changedPaths.length} file(s)`,
+      )
+      setRenameState(null)
+    } catch (err) {
+      setRenameError(err instanceof Error ? err.message : 'Rename failed')
+    } finally {
+      setRenameBusy(false)
+    }
   }
 
   // flush pending changes when the tab unmounts (close, switch, mode change)
@@ -228,9 +531,16 @@ export function EditorSource({
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
       if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
+      if (completionTimerRef.current) clearTimeout(completionTimerRef.current)
       saveRef.current()
     }
   }, [])
+
+  // Keep the highlighted completion row valid as the filtered list shrinks (typing
+  // narrows it); clamp into range so accept never lands on a dropped item.
+  useEffect(() => {
+    if (completionIndex >= completionItems.length) setCompletionIndex(0)
+  }, [completionItems.length, completionIndex])
 
   // Dismiss the hover card on scroll — its anchor is a frozen viewport point that
   // would otherwise drift away from the token. Only attached when LSP is on, so the
@@ -256,8 +566,8 @@ export function EditorSource({
   // unsaved to lose. Mid-edit, the user's in-progress text wins; we never clobber
   // it. (The read-only/reader views render straight from the prop; only this editor
   // keeps a local copy that needs syncing.) Tracked via a ref so we react to a real
-  // prop change, not to our own keystrokes updating `content`.
-  const lastInitial = useRef(initialContent)
+  // prop change, not to our own keystrokes updating `content`. (Declared above so the
+  // rename path can adopt its rewritten buffer through the same ref.)
   useEffect(() => {
     if (initialContent === lastInitial.current) return
     // Only "consume" the external change once we actually adopt it. If we skip
@@ -335,20 +645,27 @@ export function EditorSource({
     setHoverCard({ anchor: point, text })
   }
 
-  // --- Go to definition (Cmd/Ctrl+click, or the context-menu item) -------------
-  const goToDefinition = async (offset: number): Promise<void> => {
-    if (!lspEnabled || !repo) return
-    const locations = await definition(offsetToPosition(content, offset))
+  // --- Navigation: go to definition / type definition / implementation ----------
+  // Open the first location of a symbol query in a tab. Shared by all three
+  // navigators (definition, type definition, implementation): each runs its own query
+  // and hands the result here, so the workspace-bounds + openTab logic lives once.
+  // `emptyToast`/`outsideToast` name the action for the failure case.
+  const openLocation = (
+    locations: SymbolLocation[],
+    emptyToast: string,
+    outsideToast: string,
+  ): void => {
+    if (!repo) return
     const target = locations[0]
     if (!target) {
-      toast('No definition found')
+      toast(emptyToast)
       return
     }
     // SymbolLocation.path is absolute; tabs key file ids on the absolute path
     // (see search-list / use-files), and SymbolLocation.line is 0-based while tabs
     // expect a 1-based line.
     if (!target.path.startsWith(`${repo.path}/`)) {
-      toast('Definition is outside the workspace')
+      toast(outsideToast)
       return
     }
     useTabsStore.getState().openTab({
@@ -358,6 +675,34 @@ export function EditorSource({
       path: target.path,
       line: target.line + 1,
     })
+  }
+
+  // --- Go to definition (Cmd/Ctrl+click, or the context-menu item) -------------
+  const goToDefinition = async (offset: number): Promise<void> => {
+    if (!lspEnabled || !repo) return
+    openLocation(
+      await definition(offsetToPosition(content, offset)),
+      'No definition found',
+      'Definition is outside the workspace',
+    )
+  }
+
+  const goToTypeDefinition = async (offset: number): Promise<void> => {
+    if (!lspEnabled || !repo) return
+    openLocation(
+      await typeDefinition(offsetToPosition(content, offset)),
+      'No type definition found',
+      'Type definition is outside the workspace',
+    )
+  }
+
+  const goToImplementation = async (offset: number): Promise<void> => {
+    if (!lspEnabled || !repo) return
+    openLocation(
+      await implementation(offsetToPosition(content, offset)),
+      'No implementation found',
+      'Implementation is outside the workspace',
+    )
   }
 
   const onTextareaClick = async (e: React.MouseEvent<HTMLTextAreaElement>): Promise<void> => {
@@ -380,6 +725,7 @@ export function EditorSource({
           // resolve the symbol under the cursor without a text selection
           const offset = textareaRef.current?.selectionStart
           setLspRefPos(offset === undefined ? null : offsetToPosition(content, offset))
+          setLspRefOffset(offset ?? null)
         }
       }}
     >
@@ -438,13 +784,72 @@ export function EditorSource({
               value={content}
               onChange={(e) => edit(e.target.value)}
               onKeyDown={(e) => {
+                // When the completion popup is open it owns the arrows/Enter/Tab/Escape;
+                // anything else falls through so normal typing is unaffected. Checked
+                // FIRST so accept/navigate never hits the editor's own shortcuts.
+                if (completionOpen) {
+                  if (e.key === 'ArrowDown') {
+                    e.preventDefault()
+                    setCompletionIndex((i) =>
+                      completionItems.length === 0 ? 0 : (i + 1) % completionItems.length,
+                    )
+                    return
+                  }
+                  if (e.key === 'ArrowUp') {
+                    e.preventDefault()
+                    setCompletionIndex((i) =>
+                      completionItems.length === 0
+                        ? 0
+                        : (i - 1 + completionItems.length) % completionItems.length,
+                    )
+                    return
+                  }
+                  if (e.key === 'Enter' || e.key === 'Tab') {
+                    e.preventDefault()
+                    acceptCompletion(completionIndex)
+                    return
+                  }
+                  if (e.key === 'Escape') {
+                    e.preventDefault()
+                    closeCompletion()
+                    return
+                  }
+                  // any other key falls through to typing below
+                }
                 // typing dismisses any open hover card
                 if (lspEnabled) dismissHover()
                 if (e.key === 's' && (e.metaKey || e.ctrlKey)) {
                   e.preventDefault()
                   saveRef.current()
+                  return
+                }
+                if (!lspEnabled) return
+                // Manual completion: Ctrl/Cmd+Space, regardless of the char before.
+                if (e.code === 'Space' && (e.metaKey || e.ctrlKey)) {
+                  e.preventDefault()
+                  runCompletion()
+                  return
+                }
+                // Format document: ⇧⌥F.
+                if (e.shiftKey && e.altKey && e.code === 'KeyF') {
+                  e.preventDefault()
+                  runFormat()
+                  return
+                }
+                // Rename symbol: F2.
+                if (e.key === 'F2') {
+                  e.preventDefault()
+                  const el = textareaRef.current
+                  if (el) startRename(el.selectionStart)
                 }
               }}
+              // The caret moving OUT of the word the popup is anchored to (a click,
+              // arrow keys, or a range selection) closes it; typing WITHIN the word
+              // keeps it open (the list just re-filters). `onSelect` fires on every
+              // caret move including our own post-edit advance, so it must be word-aware
+              // rather than a blanket close.
+              onSelect={completionOpen ? onTextareaSelect : undefined}
+              onBlur={completionOpen ? () => closeCompletion() : undefined}
               onMouseMove={lspEnabled ? onMouseMove : undefined}
               onMouseLeave={lspEnabled ? dismissHover : undefined}
               onClick={lspEnabled ? onTextareaClick : undefined}
@@ -474,6 +879,25 @@ export function EditorSource({
               {hoverCard.text}
             </pre>
           </LspHoverCard>
+        )}
+        {lspEnabled && completionState && completionItems.length > 0 && (
+          <CompletionPopup
+            anchor={completionState.anchor}
+            items={completionItems}
+            selectedIndex={completionIndex}
+            onAccept={acceptCompletion}
+            onHover={setCompletionIndex}
+          />
+        )}
+        {lspEnabled && renameState && (
+          <RenameSymbolInput
+            anchor={renameState.anchor}
+            initialName={renameState.initialName}
+            busy={renameBusy}
+            error={renameError}
+            onSubmit={submitRename}
+            onCancel={() => setRenameState(null)}
+          />
         )}
       </ContextMenuTrigger>
       <ContextMenuContent className="w-60">
@@ -513,6 +937,45 @@ export function EditorSource({
             }}
           >
             <SquareArrowOutUpRight /> Go to definition
+          </ContextMenuItem>
+        )}
+        {lspEnabled && (
+          <ContextMenuItem
+            onClick={async () => {
+              // use the caret snapshot taken when the menu opened
+              if (lspRefOffset !== null) await goToTypeDefinition(lspRefOffset)
+            }}
+          >
+            <SquareArrowOutUpRight /> Go to type definition
+          </ContextMenuItem>
+        )}
+        {lspEnabled && (
+          <ContextMenuItem
+            onClick={async () => {
+              if (lspRefOffset !== null) await goToImplementation(lspRefOffset)
+            }}
+          >
+            <SquareArrowOutUpRight /> Go to implementation
+          </ContextMenuItem>
+        )}
+        {lspEnabled && (
+          <ContextMenuItem
+            onClick={async () => {
+              if (lspRefOffset !== null) await startRename(lspRefOffset)
+            }}
+          >
+            <PencilLine /> Rename symbol
+            <ContextMenuShortcut>
+              <Kbd>F2</Kbd>
+            </ContextMenuShortcut>
+          </ContextMenuItem>
+        )}
+        {lspEnabled && (
+          <ContextMenuItem onClick={() => runFormat()}>
+            <WrapText /> Format document
+            <ContextMenuShortcut>
+              <Kbd>⇧⌥F</Kbd>
+            </ContextMenuShortcut>
           </ContextMenuItem>
         )}
         <ContextMenuItem

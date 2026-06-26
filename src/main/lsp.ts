@@ -226,3 +226,283 @@ export function toDiagnostics(lspDiagnostics: LspDiagnostic[] | null | undefined
     source: diagnostic.source,
   }))
 }
+
+// --- Completion -------------------------------------------------------------
+
+// LSP `CompletionItemKind` is 1..25. We map each to a short string the renderer
+// shows as a glyph; anything unmapped (or absent) falls back to 'text', mirroring
+// the SEVERITY_BY_CODE shape for diagnostics.
+export type CompletionKind =
+  | 'text'
+  | 'method'
+  | 'function'
+  | 'constructor'
+  | 'field'
+  | 'variable'
+  | 'class'
+  | 'interface'
+  | 'module'
+  | 'property'
+  | 'unit'
+  | 'value'
+  | 'enum'
+  | 'keyword'
+  | 'snippet'
+  | 'color'
+  | 'file'
+  | 'reference'
+  | 'folder'
+  | 'enummember'
+  | 'constant'
+  | 'struct'
+  | 'event'
+  | 'operator'
+  | 'typeparameter'
+
+const KIND_BY_CODE: Record<number, CompletionKind> = {
+  1: 'text',
+  2: 'method',
+  3: 'function',
+  4: 'constructor',
+  5: 'field',
+  6: 'variable',
+  7: 'class',
+  8: 'interface',
+  9: 'module',
+  10: 'property',
+  11: 'unit',
+  12: 'value',
+  13: 'enum',
+  14: 'keyword',
+  15: 'snippet',
+  16: 'color',
+  17: 'file',
+  18: 'reference',
+  19: 'folder',
+  20: 'enummember',
+  21: 'constant',
+  22: 'struct',
+  23: 'event',
+  24: 'operator',
+  25: 'typeparameter',
+}
+
+export interface CompletionItem {
+  label: string
+  kind: CompletionKind
+  detail?: string
+  documentation?: string
+  insertText?: string
+  sortText?: string
+  filterText?: string
+  // The 0-based range the accepted item should replace (from an InsertReplaceEdit's
+  // `replace`, or a plain TextEdit's `range`). Absent when the server gave none.
+  replace?: { line: number; character: number; endLine: number; endCharacter: number }
+  // The text to splice in over `replace` (the edit's `newText`), distinct from
+  // `insertText` (used when there's no explicit range).
+  newText?: string
+}
+
+type LspTextEdit = { range: LspRange; newText: string }
+// `InsertReplaceEdit` carries two ranges; we always prefer `replace` (overtype).
+type LspInsertReplaceEdit = { insert: LspRange; replace: LspRange; newText: string }
+type LspCompletionItem = {
+  label?: string
+  kind?: number
+  detail?: string
+  documentation?: string | MarkupContent
+  insertText?: string
+  sortText?: string
+  filterText?: string
+  textEdit?: LspTextEdit | LspInsertReplaceEdit
+}
+type LspCompletionResult =
+  | LspCompletionItem[]
+  | { isIncomplete?: boolean; items: LspCompletionItem[] }
+  | null
+  | undefined
+
+function isInsertReplaceEdit(
+  edit: LspTextEdit | LspInsertReplaceEdit,
+): edit is LspInsertReplaceEdit {
+  return 'replace' in edit
+}
+
+// `documentation` is a plain string or `{ kind, value }` MarkupContent; flatten to
+// the string, reusing the same MarkupContent guard the hover path uses.
+function flattenDocumentation(doc: string | MarkupContent | undefined): string | undefined {
+  if (doc === undefined) return undefined
+  if (typeof doc === 'string') return doc
+  return isMarkupContent(doc) ? doc.value : undefined
+}
+
+export function toCompletionItems(result: LspCompletionResult): CompletionItem[] {
+  if (result === null || result === undefined) return []
+  const items = Array.isArray(result) ? result : result.items
+  if (!items) return []
+  const out: CompletionItem[] = []
+  for (const item of items) {
+    if (item.label === undefined) continue // a label-less item is unrenderable
+    const edit = item.textEdit
+    const range = edit ? (isInsertReplaceEdit(edit) ? edit.replace : edit.range) : undefined
+    out.push({
+      label: item.label,
+      kind: (item.kind !== undefined && KIND_BY_CODE[item.kind]) || 'text',
+      detail: item.detail,
+      documentation: flattenDocumentation(item.documentation),
+      insertText: item.insertText,
+      sortText: item.sortText,
+      filterText: item.filterText,
+      replace: range
+        ? {
+            line: range.start.line,
+            character: range.start.character,
+            endLine: range.end.line,
+            endCharacter: range.end.character,
+          }
+        : undefined,
+      newText: edit ? edit.newText : undefined,
+    })
+  }
+  return out
+}
+
+// --- Text edits / formatting / rename ---------------------------------------
+
+// A 0-based replace range plus its replacement text. The flat shape the renderer
+// and `applyTextEdits` both speak (matching SymbolLocation's flattened range).
+export interface TextEdit {
+  line: number
+  character: number
+  endLine: number
+  endCharacter: number
+  newText: string
+}
+
+// `textDocument/formatting` (and rangeFormatting) returns `TextEdit[] | null`.
+export function toTextEdits(result: LspTextEdit[] | null | undefined): TextEdit[] {
+  if (!result) return []
+  return result.map((edit) => ({
+    line: edit.range.start.line,
+    character: edit.range.start.character,
+    endLine: edit.range.end.line,
+    endCharacter: edit.range.end.character,
+    newText: edit.newText,
+  }))
+}
+
+// The range to rename plus a `placeholder` the renderer seeds the input with. An
+// empty placeholder means "derive it from the source text under the range".
+export interface RenamePrep {
+  line: number
+  character: number
+  endLine: number
+  endCharacter: number
+  placeholder: string
+}
+
+type LspPrepareRenameResult =
+  | LspRange
+  | { range: LspRange; placeholder: string }
+  | { defaultBehavior: boolean }
+  | null
+  | undefined
+
+function isPlaceholderRange(
+  value: LspRange | { range: LspRange; placeholder: string },
+): value is { range: LspRange; placeholder: string } {
+  return 'range' in value
+}
+
+// `textDocument/prepareRename` returns null (not renamable), a bare Range, a
+// `{ range, placeholder }`, or `{ defaultBehavior }`. `defaultBehavior: false`
+// means "not renamable" → null; a bare Range or `defaultBehavior: true` carry no
+// placeholder, so we hand back '' and let the renderer derive one from the source.
+export function toRenamePrep(result: LspPrepareRenameResult): RenamePrep | null {
+  if (result === null || result === undefined) return null
+  if ('defaultBehavior' in result) return null // bare defaultBehavior carries no range
+  const range = isPlaceholderRange(result) ? result.range : result
+  const placeholder = isPlaceholderRange(result) ? result.placeholder : ''
+  return {
+    line: range.start.line,
+    character: range.start.character,
+    endLine: range.end.line,
+    endCharacter: range.end.character,
+    placeholder,
+  }
+}
+
+// One file's worth of edits from a `WorkspaceEdit`. `path` is an ABSOLUTE fs path
+// (the file:// uri decoded), so `applyWorkspaceEdit` can read/write it directly.
+export interface FileEdits {
+  path: string
+  edits: TextEdit[]
+}
+
+type LspWorkspaceEdit = {
+  changes?: Record<string, LspTextEdit[]>
+  documentChanges?: Array<{ textDocument?: { uri?: string }; edits?: LspTextEdit[] }>
+}
+
+// `textDocument/rename` returns a WorkspaceEdit with EITHER `changes` (uri→edits)
+// or `documentChanges` (versioned, ordered). We normalize both, decoding each
+// file:// uri to an abs path and dropping non-file uris and non-text resource ops
+// (create/rename/delete entries lack `edits` and so fall out naturally).
+export function toWorkspaceEdit(result: LspWorkspaceEdit | null | undefined): FileEdits[] {
+  if (!result) return []
+  const out: FileEdits[] = []
+  if (result.changes) {
+    for (const [uri, edits] of Object.entries(result.changes)) {
+      const path = uriToPath(uri)
+      if (path === null) continue
+      out.push({ path, edits: toTextEdits(edits) })
+    }
+  }
+  if (result.documentChanges) {
+    for (const change of result.documentChanges) {
+      const uri = change.textDocument?.uri
+      if (uri === undefined || !change.edits) continue // a resource op (no edits) → skip
+      const path = uriToPath(uri)
+      if (path === null) continue
+      out.push({ path, edits: toTextEdits(change.edits) })
+    }
+  }
+  return out
+}
+
+// Flatten a 0-based `{ line, character }` to a string offset, counting newlines
+// ourselves so this stays a pure function (the same logic as positionToOffset in
+// the renderer, kept local so lsp.ts has no DOM/renderer dependency).
+function flatOffset(content: string, line: number, character: number): number {
+  let offset = 0
+  let currentLine = 0
+  while (currentLine < line) {
+    const next = content.indexOf('\n', offset)
+    if (next === -1) return content.length // past EOF clamps to the end
+    offset = next + 1
+    currentLine++
+  }
+  const lineEnd = content.indexOf('\n', offset)
+  const max = lineEnd === -1 ? content.length : lineEnd
+  return Math.min(offset + Math.max(0, character), max)
+}
+
+// Apply a set of TextEdits to `content`, returning the new text. PURE: we convert
+// every edit's start/end to flat offsets, sort DESCENDING by start offset, then
+// splice from the end backward — so an earlier splice never shifts the offsets of
+// a later (lower) one. Ties on start are broken by end so a zero-width insert and
+// an overlapping replace at the same point keep a stable order.
+export function applyTextEdits(content: string, edits: TextEdit[]): string {
+  const resolved = edits
+    .map((edit) => ({
+      start: flatOffset(content, edit.line, edit.character),
+      end: flatOffset(content, edit.endLine, edit.endCharacter),
+      newText: edit.newText,
+    }))
+    .sort((a, b) => b.start - a.start || b.end - a.end)
+  let result = content
+  for (const edit of resolved) {
+    result = result.slice(0, edit.start) + edit.newText + result.slice(edit.end)
+  }
+  return result
+}

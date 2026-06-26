@@ -1,4 +1,12 @@
-import type { Diagnostic, HoverInfo, LspPosition, SymbolLocation } from '@main/lsp'
+import type {
+  CompletionItem,
+  Diagnostic,
+  HoverInfo,
+  LspPosition,
+  RenamePrep,
+  SymbolLocation,
+  TextEdit,
+} from '@main/lsp'
 import { isLspLang } from '@renderer/lib/lsp-position'
 import { relativeTo } from '@renderer/lib/paths'
 import { trpc } from '@renderer/lib/trpc'
@@ -121,7 +129,10 @@ export function useReferencesQuery(
 export interface LspActions {
   hover: (pos: LspPosition) => Promise<HoverInfo | null>
   definition: (pos: LspPosition) => Promise<SymbolLocation[]>
+  typeDefinition: (pos: LspPosition) => Promise<SymbolLocation[]>
+  implementation: (pos: LspPosition) => Promise<SymbolLocation[]>
   references: (pos: LspPosition) => Promise<SymbolLocation[]>
+  completion: (pos: LspPosition) => Promise<CompletionItem[]>
 }
 
 /**
@@ -160,6 +171,32 @@ export function useLspActions(repo: string | undefined, absPath: string): LspAct
     [utils, repo, relPath],
   )
 
+  const typeDefinition = useCallback(
+    (pos: LspPosition): Promise<SymbolLocation[]> => {
+      if (repo === undefined) return Promise.resolve([])
+      return utils.lspTypeDefinition.fetch({
+        repo,
+        path: relPath,
+        line: pos.line,
+        character: pos.character,
+      })
+    },
+    [utils, repo, relPath],
+  )
+
+  const implementation = useCallback(
+    (pos: LspPosition): Promise<SymbolLocation[]> => {
+      if (repo === undefined) return Promise.resolve([])
+      return utils.lspImplementation.fetch({
+        repo,
+        path: relPath,
+        line: pos.line,
+        character: pos.character,
+      })
+    },
+    [utils, repo, relPath],
+  )
+
   const references = useCallback(
     (pos: LspPosition): Promise<SymbolLocation[]> => {
       if (repo === undefined) return Promise.resolve([])
@@ -173,5 +210,117 @@ export function useLspActions(repo: string | undefined, absPath: string): LspAct
     [utils, repo, relPath],
   )
 
-  return { hover, definition, references }
+  const completion = useCallback(
+    (pos: LspPosition): Promise<CompletionItem[]> => {
+      if (repo === undefined) return Promise.resolve([])
+      return utils.lspCompletion.fetch({
+        repo,
+        path: relPath,
+        line: pos.line,
+        character: pos.character,
+      })
+    },
+    [utils, repo, relPath],
+  )
+
+  return { hover, definition, typeDefinition, implementation, references, completion }
+}
+
+/**
+ * Imperative formatting for an open document. `format` syncs the live buffer to the
+ * server and returns the edits to apply to it (the caller splices them into its
+ * buffer via `applyTextEdits`). Resolves to `[]` when `repo` is missing so callers
+ * never special-case the no-repo state. `absPath` is converted to repo-relative here.
+ */
+export function useLspFormat(
+  repo: string | undefined,
+  absPath: string,
+): {
+  format: (
+    content: string,
+    options: { tabSize: number; insertSpaces: boolean },
+  ) => Promise<TextEdit[]>
+} {
+  const relPath = repo !== undefined ? relativeTo(repo, absPath) : absPath
+  const mutation = trpc.lspFormatting.useMutation()
+  const format = useCallback(
+    (content: string, options: { tabSize: number; insertSpaces: boolean }): Promise<TextEdit[]> => {
+      if (repo === undefined) return Promise.resolve([])
+      return mutation.mutateAsync({
+        repo,
+        path: relPath,
+        content,
+        tabSize: options.tabSize,
+        insertSpaces: options.insertSpaces,
+      })
+    },
+    [mutation, repo, relPath],
+  )
+  return { format }
+}
+
+export interface LspRename {
+  prepareRename: (pos: LspPosition) => Promise<RenamePrep | null>
+  rename: (
+    pos: LspPosition,
+    newName: string,
+    buffers: { path: string; content: string }[],
+  ) => Promise<{ changedPaths: string[]; updatedContent: Record<string, string> }>
+}
+
+/**
+ * Imperative rename for the symbol at a position. `prepareRename` probes whether the
+ * symbol is renamable (and seeds the input); `rename` performs it, writing the
+ * WorkspaceEdit to disk in main, then invalidates the read/diff/flow queries for every
+ * changed path — mirroring `useWriteTextFile`, since a rename is just a multi-file
+ * write that moves git state. `absPath` is converted to repo-relative here.
+ */
+export function useLspRename(repo: string | undefined, absPath: string): LspRename {
+  const utils = trpc.useUtils()
+  const relPath = repo !== undefined ? relativeTo(repo, absPath) : absPath
+  const mutation = trpc.lspRename.useMutation({
+    onSuccess: async (data) => {
+      // A rename touches several files plus git's working tree (every renamed
+      // occurrence is a change) — invalidate per changed path, then flow + diff once.
+      await Promise.all([
+        ...data.changedPaths.map((path) => utils.readFile.invalidate(path)),
+        utils.gitDiffFile.invalidate(),
+        utils.gitFlow.invalidate(),
+      ])
+    },
+  })
+
+  const prepareRename = useCallback(
+    (pos: LspPosition): Promise<RenamePrep | null> => {
+      if (repo === undefined) return Promise.resolve(null)
+      return utils.lspPrepareRename.fetch({
+        repo,
+        path: relPath,
+        line: pos.line,
+        character: pos.character,
+      })
+    },
+    [utils, repo, relPath],
+  )
+
+  const rename = useCallback(
+    (
+      pos: LspPosition,
+      newName: string,
+      buffers: { path: string; content: string }[],
+    ): Promise<{ changedPaths: string[]; updatedContent: Record<string, string> }> => {
+      if (repo === undefined) return Promise.resolve({ changedPaths: [], updatedContent: {} })
+      return mutation.mutateAsync({
+        repo,
+        path: relPath,
+        line: pos.line,
+        character: pos.character,
+        newName,
+        buffers,
+      })
+    },
+    [mutation, repo, relPath],
+  )
+
+  return { prepareRename, rename }
 }

@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import {
+  applyTextEdits,
   createMessageBuffer,
   encodeMessage,
+  toCompletionItems,
   toDiagnostics,
   toHoverInfo,
+  toRenamePrep,
   toSymbolLocations,
+  toTextEdits,
+  toWorkspaceEdit,
 } from './lsp'
 
 // Build the wire bytes for an object the way a server would frame it, so the buffer
@@ -225,5 +230,265 @@ describe('toDiagnostics', () => {
     expect(toDiagnostics(null)).toEqual([])
     expect(toDiagnostics(undefined)).toEqual([])
     expect(toDiagnostics([])).toEqual([])
+  })
+})
+
+describe('toCompletionItems', () => {
+  it('normalizes a bare CompletionItem[] array', () => {
+    const out = toCompletionItems([{ label: 'foo' }, { label: 'bar' }])
+    expect(out.map((c) => c.label)).toEqual(['foo', 'bar'])
+  })
+
+  it('normalizes a { isIncomplete, items } completion list', () => {
+    const out = toCompletionItems({ isIncomplete: true, items: [{ label: 'baz' }] })
+    expect(out.map((c) => c.label)).toEqual(['baz'])
+  })
+
+  it('maps kind codes 1..25 to labels, defaulting absent/unknown to text', () => {
+    const out = toCompletionItems([
+      { label: 'a', kind: 1 },
+      { label: 'b', kind: 3 },
+      { label: 'c', kind: 7 },
+      { label: 'd', kind: 25 },
+      { label: 'e' }, // absent kind
+      { label: 'f', kind: 99 }, // unknown code
+    ])
+    expect(out.map((c) => c.kind)).toEqual([
+      'text',
+      'function',
+      'class',
+      'typeparameter',
+      'text',
+      'text',
+    ])
+  })
+
+  it('carries detail/insertText/sortText/filterText and flattens documentation', () => {
+    const out = toCompletionItems([
+      {
+        label: 'doStuff',
+        detail: '(): void',
+        documentation: { kind: 'markdown', value: 'does stuff' },
+        insertText: 'doStuff()',
+        sortText: '0001',
+        filterText: 'doStuff',
+      },
+      { label: 'plain', documentation: 'a plain doc string' },
+    ])
+    expect(out[0]).toMatchObject({
+      label: 'doStuff',
+      detail: '(): void',
+      documentation: 'does stuff',
+      insertText: 'doStuff()',
+      sortText: '0001',
+      filterText: 'doStuff',
+    })
+    expect(out[1]?.documentation).toBe('a plain doc string')
+  })
+
+  it('extracts the replace range from a plain TextEdit', () => {
+    const out = toCompletionItems([
+      {
+        label: 'x',
+        textEdit: {
+          range: { start: { line: 2, character: 4 }, end: { line: 2, character: 9 } },
+          newText: 'xLonger',
+        },
+      },
+    ])
+    expect(out[0]?.replace).toEqual({ line: 2, character: 4, endLine: 2, endCharacter: 9 })
+    expect(out[0]?.newText).toBe('xLonger')
+  })
+
+  it('prefers the replace range from an InsertReplaceEdit (overtype)', () => {
+    const out = toCompletionItems([
+      {
+        label: 'y',
+        textEdit: {
+          insert: { start: { line: 1, character: 0 }, end: { line: 1, character: 2 } },
+          replace: { start: { line: 1, character: 0 }, end: { line: 1, character: 6 } },
+          newText: 'yReplaced',
+        },
+      },
+    ])
+    expect(out[0]?.replace).toEqual({ line: 1, character: 0, endLine: 1, endCharacter: 6 })
+    expect(out[0]?.newText).toBe('yReplaced')
+  })
+
+  it('leaves replace/newText undefined when there is no textEdit', () => {
+    const out = toCompletionItems([{ label: 'z' }])
+    expect(out[0]?.replace).toBeUndefined()
+    expect(out[0]?.newText).toBeUndefined()
+  })
+
+  it('drops label-less items', () => {
+    const out = toCompletionItems([{ kind: 3 }, { label: 'kept' }])
+    expect(out.map((c) => c.label)).toEqual(['kept'])
+  })
+
+  it('returns [] for null/undefined and a list with no items', () => {
+    expect(toCompletionItems(null)).toEqual([])
+    expect(toCompletionItems(undefined)).toEqual([])
+    expect(toCompletionItems({ items: [] })).toEqual([])
+  })
+})
+
+describe('toTextEdits', () => {
+  it('maps each edit range to the flat shape and carries newText', () => {
+    const out = toTextEdits([
+      {
+        range: { start: { line: 0, character: 0 }, end: { line: 0, character: 3 } },
+        newText: 'let',
+      },
+      {
+        range: { start: { line: 4, character: 2 }, end: { line: 5, character: 0 } },
+        newText: '',
+      },
+    ])
+    expect(out).toEqual([
+      { line: 0, character: 0, endLine: 0, endCharacter: 3, newText: 'let' },
+      { line: 4, character: 2, endLine: 5, endCharacter: 0, newText: '' },
+    ])
+  })
+
+  it('returns [] for null/undefined/empty', () => {
+    expect(toTextEdits(null)).toEqual([])
+    expect(toTextEdits(undefined)).toEqual([])
+    expect(toTextEdits([])).toEqual([])
+  })
+})
+
+describe('toRenamePrep', () => {
+  const range = { start: { line: 3, character: 6 }, end: { line: 3, character: 12 } }
+
+  it('returns null for null/undefined', () => {
+    expect(toRenamePrep(null)).toBeNull()
+    expect(toRenamePrep(undefined)).toBeNull()
+  })
+
+  it('maps a bare Range with an empty placeholder', () => {
+    expect(toRenamePrep(range)).toEqual({
+      line: 3,
+      character: 6,
+      endLine: 3,
+      endCharacter: 12,
+      placeholder: '',
+    })
+  })
+
+  it('maps a { range, placeholder } carrying the placeholder through', () => {
+    expect(toRenamePrep({ range, placeholder: 'oldName' })).toEqual({
+      line: 3,
+      character: 6,
+      endLine: 3,
+      endCharacter: 12,
+      placeholder: 'oldName',
+    })
+  })
+
+  it('returns null for { defaultBehavior: true } (no range) and false (not renamable)', () => {
+    expect(toRenamePrep({ defaultBehavior: true })).toBeNull()
+    expect(toRenamePrep({ defaultBehavior: false })).toBeNull()
+  })
+})
+
+describe('toWorkspaceEdit', () => {
+  const edit = (newText: string) => ({
+    range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
+    newText,
+  })
+
+  it('normalizes the `changes` (uri→edits) shape, decoding file:// uris', () => {
+    const out = toWorkspaceEdit({
+      changes: {
+        'file:///a.ts': [edit('A')],
+        'file:///b.ts': [edit('B')],
+      },
+    })
+    expect(out).toEqual([
+      {
+        path: '/a.ts',
+        edits: [{ line: 0, character: 0, endLine: 0, endCharacter: 1, newText: 'A' }],
+      },
+      {
+        path: '/b.ts',
+        edits: [{ line: 0, character: 0, endLine: 0, endCharacter: 1, newText: 'B' }],
+      },
+    ])
+  })
+
+  it('normalizes the `documentChanges` (versioned) shape', () => {
+    const out = toWorkspaceEdit({
+      documentChanges: [{ textDocument: { uri: 'file:///c.ts' }, edits: [edit('C')] }],
+    })
+    expect(out).toEqual([
+      {
+        path: '/c.ts',
+        edits: [{ line: 0, character: 0, endLine: 0, endCharacter: 1, newText: 'C' }],
+      },
+    ])
+  })
+
+  it('drops non-file uris from both shapes', () => {
+    expect(
+      toWorkspaceEdit({ changes: { 'untitled:foo': [edit('x')], 'file:///keep.ts': [edit('k')] } }),
+    ).toEqual([
+      {
+        path: '/keep.ts',
+        edits: [{ line: 0, character: 0, endLine: 0, endCharacter: 1, newText: 'k' }],
+      },
+    ])
+    expect(
+      toWorkspaceEdit({
+        documentChanges: [{ textDocument: { uri: 'untitled:foo' }, edits: [edit('x')] }],
+      }),
+    ).toEqual([])
+  })
+
+  it('skips resource ops (documentChanges entries without edits)', () => {
+    expect(
+      toWorkspaceEdit({
+        documentChanges: [{ textDocument: { uri: 'file:///renamed.ts' } }],
+      }),
+    ).toEqual([])
+  })
+
+  it('returns [] for null/undefined', () => {
+    expect(toWorkspaceEdit(null)).toEqual([])
+    expect(toWorkspaceEdit(undefined)).toEqual([])
+  })
+})
+
+describe('applyTextEdits', () => {
+  it('applies an early and a late edit together, both landing correctly', () => {
+    // Three lines; replace "foo" on line 0 and "baz" on line 2 in one pass. The
+    // descending-by-offset splice means the early edit must not shift the late one.
+    const content = 'foo = 1\nbar = 2\nbaz = 3'
+    const out = applyTextEdits(content, [
+      { line: 0, character: 0, endLine: 0, endCharacter: 3, newText: 'FOO' },
+      { line: 2, character: 0, endLine: 2, endCharacter: 3, newText: 'BAZ' },
+    ])
+    expect(out).toBe('FOO = 1\nbar = 2\nBAZ = 3')
+  })
+
+  it('lands both edits regardless of input order (sort, not array order)', () => {
+    const content = 'foo = 1\nbar = 2\nbaz = 3'
+    const out = applyTextEdits(content, [
+      { line: 2, character: 0, endLine: 2, endCharacter: 3, newText: 'BAZ' },
+      { line: 0, character: 0, endLine: 0, endCharacter: 3, newText: 'FOO' },
+    ])
+    expect(out).toBe('FOO = 1\nbar = 2\nBAZ = 3')
+  })
+
+  it('applies a single whole-document replace', () => {
+    const content = 'old\ncontent\nhere'
+    const out = applyTextEdits(content, [
+      { line: 0, character: 0, endLine: 2, endCharacter: 4, newText: 'brand new\nbody' },
+    ])
+    expect(out).toBe('brand new\nbody')
+  })
+
+  it('returns content unchanged for an empty edit list', () => {
+    expect(applyTextEdits('unchanged', [])).toBe('unchanged')
   })
 })

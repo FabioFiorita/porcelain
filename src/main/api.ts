@@ -83,15 +83,28 @@ import {
   warmFileList,
 } from './git'
 import { readLayers, writeLayers } from './layers-store'
-import type { Diagnostic, HoverInfo, SymbolLocation } from './lsp'
+import type {
+  CompletionItem,
+  Diagnostic,
+  HoverInfo,
+  RenamePrep,
+  SymbolLocation,
+  TextEdit,
+} from './lsp'
 import {
+  lspCompletion,
   lspDefinition,
   lspDiagnostics,
   lspDidChange,
   lspDidClose,
   lspDidOpen,
+  lspFormatting,
   lspHover,
+  lspImplementation,
+  lspPrepareRename,
   lspReferences,
+  lspRename,
+  lspTypeDefinition,
 } from './lsp-manager'
 import { readNotes, writeNotes } from './notes-store'
 import { installPlugin, type PluginInstallResult } from './plugin'
@@ -1092,6 +1105,82 @@ export const router = t.router({
   lspDiagnostics: t.procedure
     .input(z.object({ repo: z.string(), path: z.string() }))
     .query(({ input }): Diagnostic[] => lspDiagnostics(input.repo, input.path)),
+
+  lspTypeDefinition: t.procedure
+    .input(
+      z.object({ repo: z.string(), path: z.string(), line: z.number(), character: z.number() }),
+    )
+    .query(
+      ({ input }): Promise<SymbolLocation[]> =>
+        lspTypeDefinition(input.repo, input.path, { line: input.line, character: input.character }),
+    ),
+
+  lspImplementation: t.procedure
+    .input(
+      z.object({ repo: z.string(), path: z.string(), line: z.number(), character: z.number() }),
+    )
+    .query(
+      ({ input }): Promise<SymbolLocation[]> =>
+        lspImplementation(input.repo, input.path, { line: input.line, character: input.character }),
+    ),
+
+  lspCompletion: t.procedure
+    .input(
+      z.object({ repo: z.string(), path: z.string(), line: z.number(), character: z.number() }),
+    )
+    .query(
+      ({ input }): Promise<CompletionItem[]> =>
+        lspCompletion(input.repo, input.path, { line: input.line, character: input.character }),
+    ),
+
+  lspPrepareRename: t.procedure
+    .input(
+      z.object({ repo: z.string(), path: z.string(), line: z.number(), character: z.number() }),
+    )
+    .query(
+      ({ input }): Promise<RenamePrep | null> =>
+        lspPrepareRename(input.repo, input.path, { line: input.line, character: input.character }),
+    ),
+
+  lspRename: t.procedure
+    .input(
+      z.object({
+        repo: z.string(),
+        path: z.string(),
+        line: z.number(),
+        character: z.number(),
+        newName: z.string(),
+        buffers: z.array(z.object({ path: z.string(), content: z.string() })),
+      }),
+    )
+    .mutation(
+      ({ input }): Promise<{ changedPaths: string[]; updatedContent: Record<string, string> }> =>
+        lspRename(
+          input.repo,
+          input.path,
+          { line: input.line, character: input.character },
+          input.newName,
+          input.buffers,
+        ),
+    ),
+
+  lspFormatting: t.procedure
+    .input(
+      z.object({
+        repo: z.string(),
+        path: z.string(),
+        content: z.string(),
+        tabSize: z.number(),
+        insertSpaces: z.boolean(),
+      }),
+    )
+    .mutation(
+      ({ input }): Promise<TextEdit[]> =>
+        lspFormatting(input.repo, input.path, input.content, {
+          tabSize: input.tabSize,
+          insertSpaces: input.insertSpaces,
+        }),
+    ),
 })
 
 export type AppRouter = typeof router
