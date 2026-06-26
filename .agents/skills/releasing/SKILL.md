@@ -13,15 +13,25 @@ for `electron-updater`.
 1. Land your changes on `main` and confirm CI is green (`.github/workflows/ci.yml`
    runs on every push to `main` + PRs: install → lint → typecheck → test → build on
    Ubuntu).
-2. **Run the Electron e2e suite locally** (`pnpm test:e2e` — builds, then Playwright
-   drives the real built app). This is the e2e *release gate*, deliberately kept OUT
-   of the per-commit gate (hard rule 3) so commits stay fast. It runs here, locally
-   on macOS — CI does unit checks only, because the launch needs a window server and
-   the screenshot baselines are `-darwin`. If you changed the UI on purpose, the
-   screenshot tests will fail on the diff: review the diff images, regenerate the
-   baselines with `pnpm test:e2e:update`, and commit them (`test:`). A pure-refactor
-   release needs no baseline change. (Caveat: the baselines were authored on the dev
-   machine; the macОS CI runner is not where we assert them — assert here.)
+2. **The e2e suite is the release gate, and it runs in CI — not on your machine.**
+   `release.yml` (`macos-14`) runs `pnpm test:e2e` on the tag push: it builds, then
+   Playwright drives the real built app, `-darwin` screenshot baselines included. You
+   do **not** run it locally before tagging. (It's kept OUT of the per-commit gate,
+   hard rule 3, so commits stay fast; and out of the Ubuntu `ci.yml`, which can't
+   launch the app or assert the `-darwin` baselines — `ci.yml` only `typecheck:e2e`s.)
+   The one time you still touch e2e locally: when you change the UI **on purpose**,
+   regenerate the baselines with `pnpm test:e2e:update` and commit them (`test:`) as
+   part of that change — otherwise the stale snapshot stays hidden until the release
+   workflow fails on the diff (Ubuntu CI never runs e2e). A pure-refactor release
+   needs no baseline change.
+
+   **Why we trust the runner (decided 2026-06-26).** The baselines are authored on the
+   dev machine, but the `macos-14` runner has asserted them green across eight straight
+   releases (0.11.0 → 0.16.2), so dev-machine and runner rendering match in practice —
+   the old "assert locally, the runner isn't where we assert" caveat was disproven by
+   that streak. The tradeoff we accepted: an *unintentional* visual regression now
+   fails the release workflow *after* the tag is pushed, rather than locally before it.
+   Recoverable (fix the baselines, re-tag), just later in the flow.
 3. **Bump and tag in one step:** `pnpm version <patch|minor|major>` — updates
    `package.json`, **prepends** the new release's section to `CHANGELOG.md` from the
    conventional commits (the `version` lifecycle hook → `pnpm changelog`, staged into
