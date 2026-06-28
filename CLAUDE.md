@@ -82,3 +82,12 @@ Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wron
 - **Embedded terminal / Actions** — real PTYs (node-pty + xterm.js) on a dedicated `window.porcelain.terminal` bridge (not tRPC). **Actions** = saved named commands (`~/.porcelain/actions.json`); agent curates, **human runs**.
 - **Repo / worktree / window** — one repo per window; the worktree switcher sits in the sidebar footer.
 - **Glaze / glaze tile / vibrancy void** — the design-system glass surfaces (floating porcelain tiles over the vibrancy void).
+
+## Cursor Cloud specific instructions
+
+Porcelain is a macOS app, but it runs headlessly in the Linux Cloud VM for dev + manual testing. Commands (`pnpm dev/lint/typecheck/test/build/verify`) are in `package.json`; this section only records the non-obvious cloud caveats.
+
+- **Electron 42 has no `postinstall`** — `pnpm install` does NOT download the Electron binary, so `pnpm dev`/`pnpm start` fail with `Error: Electron uninstall` on a fresh checkout. Fix: `node node_modules/electron/install.js` (idempotent, cached). The startup update script already runs this; only re-run it by hand if dev errors with `Electron uninstall`.
+- **Run the dev app under Xvfb:** `DISPLAY=:1 pnpm dev`. The repeated `Failed to connect to the bus` (dbus) errors in the log are harmless on this headless VM. Drive/screenshot the window via computer-use as the **"Electron"** app.
+- **`pnpm dev` opens `~/Code/porcelain-playground`** (`dev-config.ts` seeds it as a recent repo only if the path exists). The VM has no such repo by default — create it as a git repo first (`git init` + a commit), or the app just lands on the welcome screen with nothing to review.
+- **macOS-only paths don't run here:** `pnpm dist`/`pnpm release` (electron-builder `--mac`, signing/notarization) and the Playwright `pnpm test:e2e` Electron suite target macOS arm64; they are not part of the per-commit gate and aren't expected to work on the Linux VM. The per-commit gate `pnpm verify` (lint + typecheck + test + build) does run fully here.
