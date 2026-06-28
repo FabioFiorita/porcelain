@@ -16,7 +16,30 @@ export function useInstallPlugin(): {
 } {
   const mutation = trpc.installPlugin.useMutation()
   return {
-    // mutate (not mutateAsync) so a failure surfaces via `error`, not a floating rejection
+    install: () => mutation.mutate(),
+    isInstalling: mutation.isPending,
+    result: mutation.data,
+    error: mutation.error?.message ?? null,
+  }
+}
+
+export function useCursorPluginInfo():
+  | { installDir: string; commands: string[]; version: string }
+  | undefined {
+  const { data } = trpc.cursorPluginInfo.useQuery(undefined, {
+    staleTime: Number.POSITIVE_INFINITY,
+  })
+  return data
+}
+
+export function useInstallCursorPlugin(): {
+  install: () => void
+  isInstalling: boolean
+  result: PluginInstallResult | undefined
+  error: string | null
+} {
+  const mutation = trpc.installCursorPlugin.useMutation()
+  return {
     install: () => mutation.mutate(),
     isInstalling: mutation.isPending,
     result: mutation.data,

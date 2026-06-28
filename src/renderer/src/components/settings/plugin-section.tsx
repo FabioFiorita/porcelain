@@ -1,24 +1,105 @@
 import { Button } from '@renderer/components/ui/button'
-import { useInstallPlugin, usePluginInfo } from '@renderer/hooks/use-plugin'
+import {
+  useCursorPluginInfo,
+  useInstallCursorPlugin,
+  useInstallPlugin,
+  usePluginInfo,
+} from '@renderer/hooks/use-plugin'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { ArrowUpCircle, Check, CircleCheck, Copy, Loader2, TriangleAlert } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-export function PluginSection(): React.JSX.Element {
-  const info = usePluginInfo()
-  const { install, isInstalling, result, error } = useInstallPlugin()
+type PluginTarget = 'claude' | 'cursor'
+
+interface PluginSectionProps {
+  target: PluginTarget
+}
+
+function usePluginSectionState(target: PluginTarget) {
+  const claudeInfo = usePluginInfo()
+  const cursorInfo = useCursorPluginInfo()
+  const claudeInstall = useInstallPlugin()
+  const cursorInstall = useInstallCursorPlugin()
+
+  const pluginInstalled = usePreferencesStore((s) =>
+    target === 'claude' ? s.pluginInstalled : s.cursorPluginInstalled,
+  )
+  const pluginVersion = usePreferencesStore((s) =>
+    target === 'claude' ? s.pluginVersion : s.cursorPluginVersion,
+  )
+  const setPluginInstalled = usePreferencesStore((s) =>
+    target === 'claude' ? s.setPluginInstalled : s.setCursorPluginInstalled,
+  )
+  const setPluginVersion = usePreferencesStore((s) =>
+    target === 'claude' ? s.setPluginVersion : s.setCursorPluginVersion,
+  )
+
+  const info = target === 'claude' ? claudeInfo : cursorInfo
+  const { install, isInstalling, result, error } =
+    target === 'claude' ? claudeInstall : cursorInstall
+
+  return {
+    info,
+    install,
+    isInstalling,
+    result,
+    error,
+    pluginInstalled,
+    pluginVersion,
+    setPluginInstalled,
+    setPluginVersion,
+  }
+}
+
+const TARGET_CONFIG: Record<
+  PluginTarget,
+  {
+    installLabel: string
+    reloadHint: string
+    reloadAfter: string
+    autoInstallFailure: string
+    filesLabel: string
+    filesPath: (info: { marketplaceDir?: string; installDir?: string }) => string | undefined
+  }
+> = {
+  claude: {
+    installLabel: 'Install for Claude Code',
+    reloadHint: '/reload-plugins',
+    reloadAfter: 'Run /reload-plugins (or restart the session) afterward.',
+    autoInstallFailure:
+      "Couldn't run the install automatically (is the claude CLI installed?). The plugin files are ready — run the commands below by hand.",
+    filesLabel: 'Plugin written to',
+    filesPath: (info) => info.marketplaceDir,
+  },
+  cursor: {
+    installLabel: 'Install for Cursor',
+    reloadHint: 'Developer: Reload Window',
+    reloadAfter: 'Restart Cursor or run Developer: Reload Window afterward.',
+    autoInstallFailure:
+      "Couldn't copy the plugin into ~/.cursor/plugins/local automatically. The plugin files are ready — run the commands below by hand.",
+    filesLabel: 'Plugin installed to',
+    filesPath: (info) => info.installDir,
+  },
+}
+
+export function PluginSection({ target }: PluginSectionProps): React.JSX.Element {
+  const config = TARGET_CONFIG[target]
+  const {
+    info,
+    install,
+    isInstalling,
+    result,
+    error,
+    pluginInstalled,
+    pluginVersion,
+    setPluginInstalled,
+    setPluginVersion,
+  } = usePluginSectionState(target)
   const [copied, setCopied] = useState(false)
-  const pluginInstalled = usePreferencesStore((s) => s.pluginInstalled)
-  const setPluginInstalled = usePreferencesStore((s) => s.setPluginInstalled)
-  const pluginVersion = usePreferencesStore((s) => s.pluginVersion)
-  const setPluginVersion = usePreferencesStore((s) => s.setPluginVersion)
 
   const current = info?.version
-  // Installed but the bundled plugin is a different version (or we never recorded one,
-  // i.e. it was installed before versioning existed) → offer an update.
   const needsUpdate = pluginInstalled && current !== undefined && pluginVersion !== current
 
-  // Record a successful install/update: the CTA then reflects "up to date".
   useEffect(() => {
     if (!result?.ok) return
     setPluginInstalled(true)
@@ -33,18 +114,17 @@ export function PluginSection(): React.JSX.Element {
     setTimeout(() => setCopied(false), 1500)
   }
 
+  const filesPath = info ? config.filesPath(info) : undefined
+
   return (
     <div className="flex flex-col gap-5">
       {!pluginInstalled ? (
         <div className="flex items-center gap-3">
           <Button size="sm" onClick={() => install()} disabled={isInstalling}>
             {isInstalling && <Loader2 className="animate-spin" />}
-            {isInstalling ? 'Installing…' : 'Install for Claude Code'}
+            {isInstalling ? 'Installing…' : config.installLabel}
           </Button>
-          <p className="text-xs text-muted-foreground">
-            Run <code className="font-mono">/reload-plugins</code> (or restart the session)
-            afterward.
-          </p>
+          <p className="text-xs text-muted-foreground">{config.reloadAfter}</p>
         </div>
       ) : needsUpdate ? (
         <div className="flex items-center gap-3">
@@ -54,7 +134,7 @@ export function PluginSection(): React.JSX.Element {
           </Button>
           <p className="text-xs text-muted-foreground">
             A newer plugin is available{pluginVersion ? ` (you have v${pluginVersion})` : ''}. Run{' '}
-            <code className="font-mono">/reload-plugins</code> after updating.
+            <code className="font-mono">{config.reloadHint}</code> after updating.
           </p>
         </div>
       ) : (
@@ -67,7 +147,7 @@ export function PluginSection(): React.JSX.Element {
             {isInstalling ? 'Reinstalling…' : 'Reinstall'}
           </Button>
           <span className="text-xs text-muted-foreground">
-            Run <code className="font-mono">/reload-plugins</code> after reinstalling.
+            Run <code className="font-mono">{config.reloadHint}</code> after reinstalling.
           </span>
         </div>
       )}
@@ -75,15 +155,13 @@ export function PluginSection(): React.JSX.Element {
       {result?.ok && (
         <p className="flex items-center gap-1.5 text-xs text-success">
           <Check className="size-3.5" /> Installed — run{' '}
-          <code className="font-mono">/reload-plugins</code> to load the latest tools.
+          <code className="font-mono">{config.reloadHint}</code> to load the latest tools.
         </p>
       )}
       {(error || (result && !result.ok)) && (
         <p className="flex items-start gap-1.5 text-xs text-warning">
           <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
-          Couldn't run the install automatically (is the{' '}
-          <code className="mx-1 font-mono">claude</code> CLI installed?). The plugin files are ready
-          — run the commands below by hand.
+          {config.autoInstallFailure}
         </p>
       )}
       {(result || error) && (
@@ -107,9 +185,9 @@ export function PluginSection(): React.JSX.Element {
             <div key={command}>{command}</div>
           ))}
         </pre>
-        {info && (
+        {filesPath && (
           <p className="mt-1.5 text-xs-minus text-muted-foreground/70">
-            Plugin written to <code className="font-mono">{info.marketplaceDir}</code>
+            {config.filesLabel} <code className="font-mono">{filesPath}</code>
           </p>
         )}
       </div>

@@ -84,8 +84,14 @@ import {
 } from './git'
 import { readLayers, writeLayers } from './layers-store'
 import { readNotes, writeNotes } from './notes-store'
-import { installPlugin, type PluginInstallResult } from './plugin'
-import { installCommands, PLUGIN_VERSION, pluginMarketplaceDir } from './plugin-assets'
+import { installCursorPlugin, installPlugin, type PluginInstallResult } from './plugin'
+import {
+  cursorInstallCommands,
+  cursorPluginLocalDir,
+  installCommands,
+  PLUGIN_VERSION,
+  pluginMarketplaceDir,
+} from './plugin-assets'
 import { exceedsReadLimit } from './read-limits'
 import {
   hiddenPathsFor,
@@ -1033,6 +1039,18 @@ export const router = t.router({
   ),
 
   installPlugin: t.procedure.mutation((): Promise<PluginInstallResult> => installPlugin()),
+
+  cursorPluginInfo: t.procedure.query(
+    (): { installDir: string; commands: string[]; version: string } => ({
+      installDir: cursorPluginLocalDir(),
+      commands: cursorInstallCommands(),
+      version: PLUGIN_VERSION,
+    }),
+  ),
+
+  installCursorPlugin: t.procedure.mutation(
+    (): Promise<PluginInstallResult> => installCursorPlugin(),
+  ),
 })
 
 export type AppRouter = typeof router

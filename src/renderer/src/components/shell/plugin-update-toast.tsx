@@ -1,4 +1,4 @@
-import { usePluginInfo } from '@renderer/hooks/use-plugin'
+import { useCursorPluginInfo, usePluginInfo } from '@renderer/hooks/use-plugin'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useSettingsDialogStore } from '@renderer/stores/settings-dialog'
 import { useEffect, useRef } from 'react'
@@ -14,39 +14,66 @@ const TOAST_ID = 'plugin-update'
  * proactively on launch. Renders nothing.
  */
 export function PluginUpdateToast(): null {
-  const info = usePluginInfo()
+  const claudeInfo = usePluginInfo()
+  const cursorInfo = useCursorPluginInfo()
   const pluginInstalled = usePreferencesStore((s) => s.pluginInstalled)
   const pluginVersion = usePreferencesStore((s) => s.pluginVersion)
+  const cursorPluginInstalled = usePreferencesStore((s) => s.cursorPluginInstalled)
+  const cursorPluginVersion = usePreferencesStore((s) => s.cursorPluginVersion)
   const dismissedVersion = usePreferencesStore((s) => s.pluginUpdateDismissedVersion)
+  const cursorDismissedVersion = usePreferencesStore((s) => s.cursorPluginUpdateDismissedVersion)
   const setDismissedVersion = usePreferencesStore((s) => s.setPluginUpdateDismissedVersion)
-  // Guards against re-raising within a session (StrictMode double-invoke, query refetch).
+  const setCursorDismissedVersion = usePreferencesStore(
+    (s) => s.setCursorPluginUpdateDismissedVersion,
+  )
   const shown = useRef<string | null>(null)
 
-  const current = info?.version
-  const needsUpdate = pluginInstalled && current !== undefined && pluginVersion !== current
+  const current = claudeInfo?.version ?? cursorInfo?.version
+  const claudeNeedsUpdate = pluginInstalled && current !== undefined && pluginVersion !== current
+  const cursorNeedsUpdate =
+    cursorPluginInstalled && current !== undefined && cursorPluginVersion !== current
+  const claudePending = claudeNeedsUpdate && dismissedVersion !== current
+  const cursorPending = cursorNeedsUpdate && cursorDismissedVersion !== current
+  const needsUpdate = claudePending || cursorPending
 
   useEffect(() => {
     if (!needsUpdate || current === undefined) return
-    if (shown.current === current || dismissedVersion === current) return
+    if (shown.current === current) return
     shown.current = current
+
+    const reloadHint =
+      claudePending && cursorPending
+        ? 'reload plugins in each agent'
+        : claudePending
+          ? 'run /reload-plugins in Claude Code'
+          : 'run Developer: Reload Window in Cursor'
 
     toast.info('Plugin update available', {
       id: TOAST_ID,
-      description: pluginVersion
-        ? `You have v${pluginVersion}. Update to v${current}, then run /reload-plugins.`
-        : `Update to v${current}, then run /reload-plugins.`,
+      description: `Update to v${current}, then ${reloadHint}.`,
       duration: Number.POSITIVE_INFINITY,
       closeButton: true,
       action: {
         label: 'Open settings',
         onClick: () => {
-          setDismissedVersion(current)
+          if (claudePending) setDismissedVersion(current)
+          if (cursorPending) setCursorDismissedVersion(current)
           useSettingsDialogStore.getState().openTo('agents')
         },
       },
-      onDismiss: () => setDismissedVersion(current),
+      onDismiss: () => {
+        if (claudePending) setDismissedVersion(current)
+        if (cursorPending) setCursorDismissedVersion(current)
+      },
     })
-  }, [needsUpdate, current, pluginVersion, dismissedVersion, setDismissedVersion])
+  }, [
+    needsUpdate,
+    current,
+    claudePending,
+    cursorPending,
+    setDismissedVersion,
+    setCursorDismissedVersion,
+  ])
 
   return null
 }

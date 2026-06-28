@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest'
 import {
   ACTIONS_SKILL,
   BOARD_SKILL,
+  cursorInstallCommands,
+  cursorMcpManifest,
+  cursorPluginLocalDir,
+  cursorPluginManifest,
   installCommands,
   LAYERS_SKILL,
   MARKETPLACE_NAME,
@@ -40,6 +44,23 @@ describe('plugin assets', () => {
     expect(marketplaceUpdate).toBe(`claude plugin marketplace update ${MARKETPLACE_NAME}`)
     expect(install).toBe(`claude plugin install ${PLUGIN_NAME}@${MARKETPLACE_NAME}`)
     expect(update).toBe(`claude plugin update ${PLUGIN_NAME}@${MARKETPLACE_NAME}`)
+  })
+
+  it('cursor plugin manifest and mcp.json use a relative server.js path', () => {
+    const p = cursorPluginManifest('1.2.3')
+    expect(p.name).toBe(PLUGIN_NAME)
+    expect(p.version).toBe('1.2.3')
+    expect(cursorMcpManifest()).toEqual({
+      mcpServers: { porcelain: { command: 'node', args: ['server.js'] } },
+    })
+  })
+
+  it('cursor install commands copy into the local plugins directory', () => {
+    const [mkdir, copy] = cursorInstallCommands()
+    const src = `${pluginMarketplaceDir()}/${PLUGIN_NAME}`
+    const dest = cursorPluginLocalDir()
+    expect(mkdir).toBe(`mkdir -p ${dest}`)
+    expect(copy).toBe(`cp -R ${src}/. ${dest}/`)
   })
 
   it('bundles five focused skills, each with frontmatter naming itself', () => {

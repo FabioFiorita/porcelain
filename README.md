@@ -41,14 +41,27 @@ Download the latest `.dmg` from the [Releases](https://github.com/fabiofiorita/p
 
 ## Connect your agent
 
-Porcelain talks to your coding agent through a bundled Claude Code plugin: an MCP server and skills that run locally, with no port opened and no telemetry. Install it with one click from **Settings → Agents**, or by hand:
+Porcelain talks to your coding agent through a bundled plugin: an MCP server and skills that run locally, with no port opened and no telemetry. Install from **Settings → Agents**.
+
+**Claude Code** — one click, or by hand:
 
 ```bash
 claude plugin marketplace add ~/.porcelain/plugin
 claude plugin install porcelain@porcelain
 ```
 
-Then run `/reload-plugins` (or restart the session). Codex & Cursor support is coming soon.
+Then run `/reload-plugins` (or restart the session).
+
+**Cursor** — one click copies the plugin to `~/.cursor/plugins/local/porcelain`. Or by hand:
+
+```bash
+mkdir -p ~/.cursor/plugins/local/porcelain
+cp -R ~/.porcelain/plugin/porcelain/. ~/.cursor/plugins/local/porcelain/
+```
+
+Then restart Cursor or run **Developer: Reload Window**.
+
+Codex support is coming soon.
 
 ## Develop
 
