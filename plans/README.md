@@ -55,6 +55,26 @@ selected the first two to plan.
 | 021 | Agent can *reply* to a review comment, not just resolve | direction | P2 | M | MED | — | TODO |
 | 022 | Agent-agnostic loop: ship Codex support (spike + slice) | direction | P2 | L | MED | — | TODO |
 
+### Deep audit round (`improve deep`, 2026-06-26, against `7bb4a55`)
+
+A fresh whole-repo deep pass over the **69 commits since the prior base** `b224765`
+(the review-comment / feature-view-snapshot / reviewed / flow-layers channels, the
+agent-driven feature view, Swift highlighting, and the reverted LSP + single-instance
+lock). The codebase came back **clean** — correctness/perf/deps/docs found nothing new
+of substance (the reverts were surgical; no orphans, no stale docs). Four findings
+survived vetting; all four were selected to plan. These are independent of 001–022.
+
+| Plan | Title | Cat | Pri | Effort | Risk | Depends on | Status |
+|------|-------|-----|-----|--------|------|------------|--------|
+| 023 | Show a saved action's `cwd` before the human runs it | security | P2 | S | LOW | — | TODO |
+| 024 | Characterize the terminal PTY manager (crash/leak guards) | tests | P2 | S | LOW | — | TODO |
+| 025 | Characterize updater + agent-channel watcher + window-init | tests | P3 | M | LOW | — | TODO |
+| 026 | Run the e2e suite on every push, not only at release | dx | P3 | M | MED | — | TODO |
+
+Order: 023 and 024 first (small, high-confidence). 025 is the lower-value lifecycle
+batch (do review-watch + updater; window-init is a small bonus). 026 is CI-config and
+needs a macOS runner (see the plan's two constraints) — push to exercise it.
+
 ### Suggested order
 
 1. **Quick wins, zero/low risk, independent** (do first, any order): 001, 002, 003, 004, 006, 007, 008, 011, 013, 014, 016.
@@ -119,6 +139,33 @@ deps, DX, docs, direction). Reconciliation:
 - **S2 — fs procedures accept absolute paths**: BY DESIGN (the trusted-renderer model;
   CSP + no remote content). Not a finding; the real residual (explore-reader
   containment) is a small, low-priority hardening noted but not planned.
+
+### Deep audit round rejections (`improve deep`, 2026-06-26, against `7bb4a55`)
+
+Vetted out — do not re-audit:
+- **Single-instance-lock untested**: REJECTED — the lock was *reverted* in `5c6456c`;
+  `grep requestSingleInstanceLock|second-instance` finds nothing. A subagent hallucinated
+  it at `index.ts:48-78` (that range is the `whenReady` block, no lock). No code to test.
+- **`@tanstack/react-devtools` unused devDependency**: REJECTED — it IS imported
+  (`src/renderer/src/lib/devtools-shell.tsx:1`). Not dead.
+- **`src/mcp` not typechecked**: REJECTED — `tsconfig.node.json` includes `src/mcp/**/*`
+  and `pnpm typecheck` runs `typecheck:node` over it. No gate hole.
+- **`home-channel.ts` `mutate` "swallows" rejections**: REJECTED (by-design, harmful fix).
+  `chain = run.then(()=>undefined,()=>undefined)` deliberately stops one failed write from
+  poisoning the queue; the failing caller still gets the rejection via the returned `run`,
+  and an atomic write that fails leaves the prior file intact (no lost-update corruption).
+  The proposed "poison the chain" change would break every subsequent mutation on one
+  transient failure. Net negative.
+- **`gatherFeature` double-call when both feature surfaces poll**: NOT NEW — this is the
+  already-tracked "012 follow-on — gather cache" in Recommended follow-ups below. Left there.
+- **`pnpm audit`'s 13 advisories**: NOT ACTIONABLE — all transitive **build-tooling**
+  (undici/form-data via `electron-builder`/`@electron/get`/`node-gyp`), none reachable at
+  runtime or in the shipped `.app`. Monitor on `electron`/`electron-builder` bumps; no patch.
+- **Polish items** (component barrel files, server-side git-error logging, MCP version
+  string, base-ui import guard, WebGL font-load logging, `EditorSource` rename): low
+  leverage / forward-defense / documented traps. Not worth plans.
+- **`.env.example`**: the `PORCELAIN_*` vars are test-fixture path overrides, not
+  developer-facing config (`pnpm dev` is zero-config on the playground). Low value; skipped.
 
 ### Direction options surfaced but NOT selected (`improve next`, 2026-06-26)
 
