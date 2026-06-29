@@ -1,3 +1,13 @@
+## [0.17.0](https://github.com/FabioFiorita/porcelain/compare/v0.16.2...v0.17.0) (2026-06-29)
+
+### Features
+
+* add Codex plugin install path ([57db6c3](https://github.com/FabioFiorita/porcelain/commit/57db6c3f7a26c619147ae163c3dfe27e259cc77b))
+
+### Bug Fixes
+
+* contain agent settings overflow ([23e98ef](https://github.com/FabioFiorita/porcelain/commit/23e98ef037bdb3dd549468f57d09bbfc4992fe46))
+
 ## [0.16.2](https://github.com/FabioFiorita/porcelain/compare/v0.16.1...v0.16.2) (2026-06-26)
 
 ### Bug Fixes
