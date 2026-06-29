@@ -22,6 +22,8 @@ import {
   readCards,
   updateCard,
 } from './board-store'
+import { type CodexInstallResult, installCodex } from './codex'
+import { codexInstallCommands, codexMarketplaceDir, codexPluginVersion } from './codex-assets'
 import {
   addComment,
   deleteComment,
@@ -1051,6 +1053,17 @@ export const router = t.router({
   installCursorPlugin: t.procedure.mutation(
     (): Promise<PluginInstallResult> => installCursorPlugin(),
   ),
+
+  // The Codex plugin (same local MCP server + skills, packaged as a Codex marketplace).
+  codexInfo: t.procedure.query(
+    (): { marketplaceDir: string; commands: string[]; version: string } => ({
+      marketplaceDir: codexMarketplaceDir(),
+      commands: codexInstallCommands(),
+      version: codexPluginVersion(),
+    }),
+  ),
+
+  installCodex: t.procedure.mutation((): Promise<CodexInstallResult> => installCodex()),
 })
 
 export type AppRouter = typeof router

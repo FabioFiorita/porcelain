@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "porcelain": {
+      "command": "node",
+      "args": ["./server.js"]
+    }
+  }
+}

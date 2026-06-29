@@ -1,0 +1,27 @@
+{
+  "name": "porcelain",
+  "version": "2.6.0",
+  "description": "Porcelain companion plugin for feature review sets, review comments, project boards, saved actions, notes, and flow layers.",
+  "author": {
+    "name": "Porcelain"
+  },
+  "homepage": "https://github.com/FabioFiorita/porcelain",
+  "repository": "https://github.com/FabioFiorita/porcelain",
+  "license": "MIT",
+  "keywords": ["porcelain", "code-review", "mcp", "project-board"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Porcelain",
+    "shortDescription": "Send review context from Codex to Porcelain.",
+    "longDescription": "Porcelain lets Codex define whole-feature review sets, read and resolve human review comments, inspect reviewed marks and project notes, manage project-board cards and saved actions, and tune review-flow layers through Porcelain's local MCP server.",
+    "developerName": "Porcelain",
+    "category": "Productivity",
+    "capabilities": ["MCP", "Skills", "Code Review", "Project Management"],
+    "defaultPrompt": [
+      "Set up a Porcelain feature review for this change.",
+      "Check my Porcelain review comments.",
+      "What is on my Porcelain project board?"
+    ]
+  },
+  "mcpServers": "./.mcp.json"
+}

@@ -19,7 +19,7 @@ import {
 } from './plugin-assets'
 
 export interface PluginInstallResult {
-  /** True when the `claude` CLI ran the install commands successfully. */
+  /** True when the agent CLI ran the install commands successfully. */
   ok: boolean
   /** Combined stdout/stderr from the install attempt (or the error why it couldn't run). */
   output: string
@@ -32,7 +32,7 @@ export interface PluginInstallResult {
 // The built, dependency-free stdio server (electron.vite emits it as a second main
 // input). Readable even inside app.asar; we copy its bytes into the plugin dir so
 // it becomes a real, runnable file.
-function builtServerPath(): string {
+export function builtServerPath(): string {
   return join(app.getAppPath(), 'out', 'main', 'mcp', 'server.js')
 }
 
@@ -87,7 +87,7 @@ function augmentedPath(): string {
   return [process.env.PATH ?? '', ...extra].filter(Boolean).join(':')
 }
 
-function runInstall(commands: string[]): Promise<{ ok: boolean; output: string }> {
+export function runInstall(commands: string[]): Promise<{ ok: boolean; output: string }> {
   return new Promise((resolve) => {
     const shell = process.env.SHELL ?? '/bin/zsh'
     const child = spawn(shell, ['-lc', commands.join(' && ')], {

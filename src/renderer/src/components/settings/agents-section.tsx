@@ -1,12 +1,6 @@
 import { Separator } from '@renderer/components/ui/separator'
+import { CodexSection } from './codex-section'
 import { PluginSection } from './plugin-section'
-
-const PLANNED = [
-  {
-    name: 'Codex',
-    blurb: 'Push feature review sets from the OpenAI Codex CLI. Planned.',
-  },
-]
 
 export function AgentsSection(): React.JSX.Element {
   return (
@@ -40,19 +34,20 @@ export function AgentsSection(): React.JSX.Element {
         <PluginSection target="cursor" />
       </section>
 
-      {PLANNED.length > 0 && <Separator />}
+      <Separator />
 
-      {PLANNED.map((agent) => (
-        <section key={agent.name} className="flex flex-col gap-1 opacity-60">
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm-minus font-semibold">{agent.name}</h3>
-            <span className="rounded-full border px-1.5 py-px text-2xs font-medium uppercase tracking-wide text-muted-foreground">
-              Coming soon
-            </span>
-          </div>
-          <p className="text-xs text-muted-foreground">{agent.blurb}</p>
-        </section>
-      ))}
+      <section className="flex flex-col gap-3">
+        <div>
+          <h3 className="text-sm-minus font-semibold">Codex</h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Installs a Codex plugin marketplace with the same Porcelain{' '}
+            <span className="font-medium">MCP server</span> and{' '}
+            <span className="font-medium">skills</span>, so Codex can push feature reviews, read
+            comments and notes, update the board, and curate saved actions.
+          </p>
+        </div>
+        <CodexSection />
+      </section>
     </div>
   )
 }

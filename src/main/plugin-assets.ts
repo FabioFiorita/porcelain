@@ -122,7 +122,7 @@ export function cursorMcpManifest(): Record<string, unknown> {
     mcpServers: {
       porcelain: {
         command: 'node',
-        args: ['server.js'],
+        args: ['./server.js'],
       },
     },
   }

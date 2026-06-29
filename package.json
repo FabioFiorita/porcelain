@@ -100,12 +100,5 @@
     "vite": "^7.3.5",
     "vitest": "^4.1.8",
     "zustand": "^5.0.14"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "electron",
-      "esbuild",
-      "node-pty"
-    ]
   }
 }

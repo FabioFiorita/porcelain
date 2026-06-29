@@ -51,7 +51,7 @@ describe('plugin assets', () => {
     expect(p.name).toBe(PLUGIN_NAME)
     expect(p.version).toBe('1.2.3')
     expect(cursorMcpManifest()).toEqual({
-      mcpServers: { porcelain: { command: 'node', args: ['server.js'] } },
+      mcpServers: { porcelain: { command: 'node', args: ['./server.js'] } },
     })
   })
 
