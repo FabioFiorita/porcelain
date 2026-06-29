@@ -78,10 +78,23 @@ export function codexMcpManifest(): Record<string, unknown> {
   }
 }
 
+/**
+ * Install (and re-install/upgrade) the local Codex plugin. Unlike Claude — which
+ * has `marketplace update`/`plugin update` verbs — a Codex LOCAL marketplace is a
+ * point-in-time snapshot taken at `marketplace add`, and `marketplace upgrade`
+ * only refreshes *Git* sources. So a plain `add` + `add` re-run would silently keep
+ * the OLD snapshot, never picking up a bumped PLUGIN_VERSION. We therefore drop the
+ * plugin + marketplace first and re-add, which re-snapshots the freshly-written
+ * files. The `|| true` on the removes keeps the first install (nothing to remove
+ * yet) from failing the `&&`-joined chain; the trailing `add`s still gate success.
+ */
 export function codexInstallCommands(): string[] {
+  const plugin = `${PLUGIN_NAME}@${CODEX_MARKETPLACE_NAME}`
   return [
+    `codex plugin remove ${plugin} || true`,
+    `codex plugin marketplace remove ${CODEX_MARKETPLACE_NAME} || true`,
     `codex plugin marketplace add ${codexMarketplaceDir()}`,
-    `codex plugin add ${PLUGIN_NAME}@${CODEX_MARKETPLACE_NAME}`,
+    `codex plugin add ${plugin}`,
   ]
 }
 

@@ -43,8 +43,10 @@ describe('codex assets', () => {
     })
   })
 
-  it('install commands add the local marketplace then install porcelain', () => {
+  it('install commands drop any prior install then re-add so a re-run upgrades the snapshot', () => {
     expect(codexInstallCommands()).toEqual([
+      `codex plugin remove porcelain@${CODEX_MARKETPLACE_NAME} || true`,
+      `codex plugin marketplace remove ${CODEX_MARKETPLACE_NAME} || true`,
       `codex plugin marketplace add ${codexMarketplaceDir()}`,
       `codex plugin add porcelain@${CODEX_MARKETPLACE_NAME}`,
     ])
