@@ -64,6 +64,7 @@ Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wron
 - Files → **Pinned** (`pinned-group.tsx`) + **Notes card** (`notes-card.tsx`), in `files-quick-access.tsx`.
 - Search → **Recent searches** (`search-quick-access.tsx`).
 - Changes/History/Feature → **Quick commands** (`quick-commands-group.tsx`): a **Suggested** card over the **Commands** grid.
+- History → **File timeline** (`file-timeline-group.tsx`): the commit history of the file open in the viewer (`gitFileLog`, `--follow`); click an entry to open that commit.
 - Changes/Feature → **Commit composer** (`commit-group.tsx`) + **Comments** (`comments-group.tsx`).
 - Terminal → **Actions** (`actions-group.tsx`).
 
