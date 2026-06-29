@@ -1,3 +1,13 @@
+## [0.17.2](https://github.com/FabioFiorita/porcelain/compare/v0.17.1...v0.17.2) (2026-06-29)
+
+### Features
+
+* add file timeline to the History tab's Quick Access ([acb1fed](https://github.com/FabioFiorita/porcelain/commit/acb1fed7d8060b185dcc365f60858796b4282c89))
+
+### Bug Fixes
+
+* live-refresh saved actions on MCP curate + guard app-event wiring ([2108cdc](https://github.com/FabioFiorita/porcelain/commit/2108cdcf42aec88f77d0785baf0b9256ee0931d3))
+
 ## [0.17.1](https://github.com/FabioFiorita/porcelain/compare/v0.17.0...v0.17.1) (2026-06-29)
 
 ### Bug Fixes
