@@ -9,6 +9,7 @@ import {
   gitCommitNumstat,
   gitDefaultBranch,
   gitFileInHead,
+  gitFileLog,
   gitMergeBase,
   gitRangeChangedFiles,
   gitRangeDiffFile,
@@ -419,5 +420,57 @@ describe('gitCommitNumstat', () => {
     expect(beta).toBeDefined()
     expect(beta?.additions).toBe(1)
     expect(beta?.deletions).toBe(0)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// gitFileLog — the file timeline (one file's history, following renames)
+// ---------------------------------------------------------------------------
+
+describe('gitFileLog', () => {
+  let repoDir = ''
+
+  beforeAll(async () => {
+    repoDir = await mkdtemp(join(tmpdir(), 'porcelain-file-log-'))
+    git(repoDir, 'init', '-b', 'main')
+
+    // Add a.ts, then modify it, then rename it to b.ts — three commits touching
+    // the same file across a rename. A sibling file proves the log is scoped.
+    await writeFile(join(repoDir, 'a.ts'), 'export const a = 1\n')
+    await writeFile(join(repoDir, 'other.ts'), 'export const o = 0\n')
+    git(repoDir, 'add', 'a.ts', 'other.ts')
+    git(repoDir, '-c', 'commit.gpgsign=false', 'commit', '-m', 'add a')
+
+    await writeFile(join(repoDir, 'a.ts'), 'export const a = 42\n')
+    git(repoDir, 'add', 'a.ts')
+    git(repoDir, '-c', 'commit.gpgsign=false', 'commit', '-m', 'modify a')
+
+    git(repoDir, 'mv', 'a.ts', 'b.ts')
+    git(repoDir, '-c', 'commit.gpgsign=false', 'commit', '-m', 'rename a to b')
+  })
+
+  afterAll(async () => {
+    if (repoDir) await rm(repoDir, { recursive: true, force: true })
+  })
+
+  it('follows the file across a rename and lists its commits newest-first', async () => {
+    const commits = await gitFileLog(repoDir, join(repoDir, 'b.ts'), 50)
+    expect(commits.map((c) => c.subject)).toEqual(['rename a to b', 'modify a', 'add a'])
+    expect(commits.every((c) => c.author === 'Test User')).toBe(true)
+  })
+
+  it('scopes the log to the one file, not the whole repo', async () => {
+    const commits = await gitFileLog(repoDir, join(repoDir, 'other.ts'), 50)
+    expect(commits.map((c) => c.subject)).toEqual(['add a'])
+  })
+
+  it('accepts a repo-relative path as well as an absolute one', async () => {
+    const commits = await gitFileLog(repoDir, 'b.ts', 50)
+    expect(commits.map((c) => c.subject)).toEqual(['rename a to b', 'modify a', 'add a'])
+  })
+
+  it('returns no commits for an untracked file', async () => {
+    await writeFile(join(repoDir, 'untracked.ts'), 'export const u = 9\n')
+    expect(await gitFileLog(repoDir, join(repoDir, 'untracked.ts'), 50)).toEqual([])
   })
 })

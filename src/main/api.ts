@@ -61,6 +61,7 @@ import {
   gitDefaultBranch,
   gitDiffFile,
   gitFileInHead,
+  gitFileLog,
   gitGrep,
   gitListFiles,
   gitListSearchFiles,
@@ -979,6 +980,17 @@ export const router = t.router({
   gitCommitMessage: t.procedure
     .input(z.object({ repoPath: z.string(), hash: z.string() }))
     .query(({ input }) => gitCommitMessage(input.repoPath, input.hash)),
+
+  // File timeline: the commit history of a single file (--follow across renames).
+  gitFileLog: t.procedure
+    .input(
+      z.object({
+        repoPath: z.string(),
+        filePath: z.string(),
+        limit: z.number().int().max(200).default(50),
+      }),
+    )
+    .query(({ input }) => gitFileLog(input.repoPath, input.filePath, input.limit)),
 
   gitCommitDiff: t.procedure
     .input(z.object({ repoPath: z.string(), hash: z.string(), filePath: z.string() }))

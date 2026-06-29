@@ -3,6 +3,7 @@ import { Sidebar, SidebarContent, SidebarHeader } from '@renderer/components/ui/
 import { type SidebarTab, usePreferencesStore } from '@renderer/stores/preferences'
 import { CommentsGroup } from './comments-group'
 import { CommitGroup } from './commit-group'
+import { FileTimelineGroup } from './file-timeline-group'
 import { FilesQuickAccess } from './files-quick-access'
 import { QuickCommandsGroup } from './quick-commands-group'
 import { SearchQuickAccess } from './search-quick-access'
@@ -48,6 +49,7 @@ export function RightSidebar(): React.JSX.Element {
         {(sidebarTab === 'changes' || sidebarTab === 'history' || sidebarTab === 'feature') && (
           <QuickCommandsGroup />
         )}
+        {sidebarTab === 'history' && <FileTimelineGroup />}
         {(sidebarTab === 'changes' || sidebarTab === 'feature') && <CommitGroup />}
         {(sidebarTab === 'changes' || sidebarTab === 'feature') && <CommentsGroup />}
         {sidebarTab === 'terminal' && <ActionsGroup />}

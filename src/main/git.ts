@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process'
 import { readFile } from 'node:fs/promises'
-import { basename, join } from 'node:path'
+import { basename, isAbsolute, join, relative } from 'node:path'
 import { promisify } from 'node:util'
 import {
   type ChangedFile,
@@ -139,6 +139,30 @@ export async function gitLog(repoPath: string, limit: number): Promise<Commit[]>
       `-n${limit}`,
       '--pretty=format:%H%x1f%an%x1f%ar%x1f%s%x1e',
       '--date=relative',
+    ]),
+  )
+}
+
+/** Commit history for a single file — the History tab's file timeline.
+ *  `--follow` tracks the file across renames so the timeline doesn't stop at a
+ *  move. `filePath` arrives as an absolute viewer-tab path (or repo-relative);
+ *  we relativize it so the pathspec resolves against the work-tree root. Same
+ *  pretty-format as gitLog, so parseLog/Commit are reused. */
+export async function gitFileLog(
+  repoPath: string,
+  filePath: string,
+  limit: number,
+): Promise<Commit[]> {
+  const pathspec = isAbsolute(filePath) ? relative(repoPath, filePath) : filePath
+  return parseLog(
+    await runGit(repoPath, [
+      'log',
+      `-n${limit}`,
+      '--follow',
+      '--pretty=format:%H%x1f%an%x1f%ar%x1f%s%x1e',
+      '--date=relative',
+      '--',
+      pathspec,
     ]),
   )
 }

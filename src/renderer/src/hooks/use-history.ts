@@ -12,6 +12,19 @@ export function useGitLog(limit = 200, enabled = true): Commit[] | undefined {
   return data
 }
 
+/** Commit history for a single file — the History tab's file timeline.
+ *  `filePath` is null when no file is open in the viewer, which disables the
+ *  query (no point asking git for an empty path). staleTime 0: the timeline
+ *  should reflect new commits as they land. */
+export function useFileLog(filePath: string | null, limit = 50): Commit[] | undefined {
+  const repo = useRepoStore((s) => s.repo)
+  const { data } = trpc.gitFileLog.useQuery(
+    { repoPath: repo?.path ?? '', filePath: filePath ?? '', limit },
+    { enabled: repo !== null && filePath !== null, staleTime: 0 },
+  )
+  return data
+}
+
 export function useCommitMessage(hash: string): string | undefined {
   const repo = useRepoStore((s) => s.repo)
   const { data } = trpc.gitCommitMessage.useQuery(
