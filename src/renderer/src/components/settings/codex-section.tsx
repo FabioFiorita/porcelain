@@ -16,13 +16,13 @@ export function CodexSection(): React.JSX.Element {
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex items-center gap-3">
+    <div className="flex min-w-0 flex-col gap-5">
+      <div className="flex min-w-0 flex-wrap items-center gap-3">
         <Button size="sm" onClick={() => install()} disabled={isInstalling}>
           {isInstalling && <Loader2 className="animate-spin" />}
           {isInstalling ? 'Installing…' : result?.ok ? 'Reinstall for Codex' : 'Install for Codex'}
         </Button>
-        <p className="text-xs text-muted-foreground">
+        <p className="min-w-0 text-xs text-muted-foreground">
           Start a new Codex thread after installing so the plugin loads.
         </p>
       </div>
@@ -42,12 +42,12 @@ export function CodexSection(): React.JSX.Element {
         </p>
       )}
       {(result || error) && (
-        <pre className="max-h-32 overflow-auto rounded-md bg-card p-2.5 font-mono text-xs-minus text-muted-foreground">
+        <pre className="max-h-32 max-w-full overflow-auto rounded-md bg-card p-2.5 font-mono text-xs-minus text-muted-foreground">
           {error ?? result?.output}
         </pre>
       )}
 
-      <div>
+      <div className="min-w-0">
         <div className="mb-1.5 flex items-center justify-between">
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Install manually
@@ -57,13 +57,13 @@ export function CodexSection(): React.JSX.Element {
             {copied ? 'Copied' : 'Copy'}
           </Button>
         </div>
-        <pre className="overflow-auto rounded-md bg-card p-2.5 font-mono text-xs-minus text-foreground/90">
+        <pre className="max-w-full overflow-auto rounded-md bg-card p-2.5 font-mono text-xs-minus text-foreground/90">
           {commands.map((command) => (
             <div key={command}>{command}</div>
           ))}
         </pre>
         {info && (
-          <p className="mt-1.5 text-xs-minus text-muted-foreground/70">
+          <p className="mt-1.5 min-w-0 break-all text-xs-minus text-muted-foreground/70">
             Plugin written to <code className="font-mono">{info.marketplaceDir}</code>
           </p>
         )}

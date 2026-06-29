@@ -91,10 +91,10 @@ export function SettingsDialog(): React.JSX.Element {
         </DialogDescription>
         <SidebarProvider
           shortcut={null}
-          className="min-h-0 items-start"
+          className="min-h-0 min-w-0 items-start overflow-hidden"
           style={{ '--sidebar-width': '14rem' } as React.CSSProperties}
         >
-          <Sidebar collapsible="none" className="h-[600px] border-r">
+          <Sidebar collapsible="none" className="h-[600px] shrink-0 border-r">
             <SidebarContent>
               <SidebarGroup>
                 <SidebarGroupContent>
@@ -115,14 +115,14 @@ export function SettingsDialog(): React.JSX.Element {
               </SidebarGroup>
             </SidebarContent>
           </Sidebar>
-          <div className="flex h-[600px] min-w-0 flex-1 flex-col">
+          <div className="flex h-[600px] min-w-0 flex-1 flex-col overflow-hidden">
             {/* Fixed header band — the section title/blurb stay put so a long
                 scroll never slides row controls up next to the dialog close X. */}
             <header className="shrink-0 border-b px-6 py-4 pr-12">
               <h2 className="text-base font-semibold tracking-tight">{active.title}</h2>
               <p className="mt-1 text-xs text-muted-foreground">{active.blurb}</p>
             </header>
-            <main className="min-h-0 flex-1 overflow-y-auto p-6">
+            <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-6">
               {section === 'general' && <GeneralSection />}
               {section === 'flow' && <FlowLayersSection onSaved={() => setOpen(false)} />}
               {section === 'agents' && <AgentsSection />}

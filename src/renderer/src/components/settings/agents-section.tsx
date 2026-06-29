@@ -4,9 +4,9 @@ import { PluginSection } from './plugin-section'
 
 export function AgentsSection(): React.JSX.Element {
   return (
-    <div className="flex flex-col gap-8">
-      <section className="flex flex-col gap-3">
-        <div>
+    <div className="flex min-w-0 flex-col gap-8">
+      <section className="flex min-w-0 flex-col gap-3">
+        <div className="min-w-0">
           <h3 className="text-sm-minus font-semibold">Claude Code</h3>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Installs a plugin that bundles the Porcelain{' '}
@@ -21,8 +21,8 @@ export function AgentsSection(): React.JSX.Element {
 
       <Separator />
 
-      <section className="flex flex-col gap-3">
-        <div>
+      <section className="flex min-w-0 flex-col gap-3">
+        <div className="min-w-0">
           <h3 className="text-sm-minus font-semibold">Cursor</h3>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Installs the same Porcelain <span className="font-medium">MCP server</span> and{' '}
@@ -36,8 +36,8 @@ export function AgentsSection(): React.JSX.Element {
 
       <Separator />
 
-      <section className="flex flex-col gap-3">
-        <div>
+      <section className="flex min-w-0 flex-col gap-3">
+        <div className="min-w-0">
           <h3 className="text-sm-minus font-semibold">Codex</h3>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Installs a Codex plugin marketplace with the same Porcelain{' '}
