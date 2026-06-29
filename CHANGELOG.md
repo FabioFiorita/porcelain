@@ -1,3 +1,9 @@
+## [0.17.1](https://github.com/FabioFiorita/porcelain/compare/v0.17.0...v0.17.1) (2026-06-29)
+
+### Bug Fixes
+
+* re-snapshot the Codex local marketplace so re-install upgrades ([b10871c](https://github.com/FabioFiorita/porcelain/commit/b10871cb20f4c319836e77a30fca97c9df33d5e6))
+
 ## [0.17.0](https://github.com/FabioFiorita/porcelain/compare/v0.16.2...v0.17.0) (2026-06-29)
 
 ### Features
