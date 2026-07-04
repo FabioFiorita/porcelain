@@ -26,6 +26,9 @@ interface TerminalsState {
   sessions: TerminalSession[]
   /** Spawn a PTY in `cwd` (optionally typing a command into it) and add it to the roster. */
   create: (opts: { cwd: string; name: string; initialInput?: string }) => Promise<string>
+  /** Rename a session's roster label (trimmed; empty and unknown ids are ignored). The
+   *  caller retitles any open terminal tab(s) — this store doesn't reach into tabs. */
+  rename: (id: string, name: string) => void
   /** Mark a session exited (its PTY closed on its own) — kept in the roster, not removed. */
   markExited: (id: string, exitCode: number) => void
   /** Kill the PTY, dispose its terminal, and drop it from the roster. */
@@ -40,6 +43,13 @@ export const useTerminalsStore = create<TerminalsState>((set, get) => ({
     const id = await window.porcelain.terminal.create({ cwd, initialInput })
     set((state) => ({ sessions: [...state.sessions, { id, name, status: 'running' }] }))
     return id
+  },
+  rename: (id, name) => {
+    const trimmed = name.trim()
+    if (trimmed === '') return
+    set((state) => ({
+      sessions: state.sessions.map((s) => (s.id === id ? { ...s, name: trimmed } : s)),
+    }))
   },
   // A PTY that exits on its own (the shell was `exit`ed, or an action's command ran and
   // the shell closed) stays in the roster marked "exited" so its final output is still

@@ -238,4 +238,36 @@ describe('useTabsStore', () => {
       expect(useTabsStore.getState().activePaneIndex).toBe(1)
     })
   })
+
+  // Renaming a session in the roster retitles its open terminal tab(s) — matched by
+  // kind 'terminal' and path === session id — across both panes; other tabs untouched.
+  describe('retitleTerminalTab', () => {
+    it('retitles the session tab in every pane and leaves others untouched', () => {
+      useTabsStore.setState({
+        panes: [
+          {
+            tabs: [
+              { id: 'file:x', kind: 'file', title: 'x', path: 'sid' },
+              { id: 'terminal:sid', kind: 'terminal', title: 'zsh', path: 'sid' },
+            ],
+            activeTabId: 'terminal:sid',
+          },
+          {
+            tabs: [{ id: 'terminal:sid', kind: 'terminal', title: 'zsh', path: 'sid' }],
+            activeTabId: 'terminal:sid',
+          },
+        ],
+        activePaneIndex: 0,
+      })
+      useTabsStore.getState().retitleTerminalTab('sid', 'dev server')
+      expect(pane(0).tabs.map((t) => t.title)).toEqual(['x', 'dev server'])
+      expect(pane(1).tabs.map((t) => t.title)).toEqual(['dev server'])
+    })
+
+    it('is a no-op when no terminal tab matches the session', () => {
+      useTabsStore.getState().openTab(tab('a'))
+      useTabsStore.getState().retitleTerminalTab('sid', 'dev server')
+      expect(pane().tabs.map((t) => t.title)).toEqual(['a'])
+    })
+  })
 })

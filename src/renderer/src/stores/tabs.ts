@@ -58,6 +58,9 @@ interface TabsState {
    *  tab would show a dead view. Pane-agnostic by design (the caller has the id,
    *  not the pane), unlike the pane-scoped `closeTab`. */
   closeTabEverywhere: (id: string) => void
+  /** Retitle every open terminal tab for a session (its `path` holds the session id)
+   *  across both panes — kept in sync when the session is renamed in the roster. */
+  retitleTerminalTab: (sessionId: string, title: string) => void
   closeAllTabs: () => void
   activateTab: (paneIndex: number, id: string) => void
   setActivePane: (paneIndex: number) => void
@@ -207,6 +210,15 @@ export const useTabsStore = create<TabsState>((set) => ({
         state.activePaneIndex,
       ),
     ),
+  retitleTerminalTab: (sessionId, title) =>
+    set((state) => ({
+      panes: state.panes.map((p) => ({
+        ...p,
+        tabs: p.tabs.map((t) =>
+          t.kind === 'terminal' && t.path === sessionId ? { ...t, title } : t,
+        ),
+      })),
+    })),
   closeAllTabs: () => set({ panes: [emptyPane()], activePaneIndex: 0 }),
   activateTab: (paneIndex, id) =>
     set((state) => ({
