@@ -30,11 +30,11 @@ Key insight from t3: **Tailscale is not a transport, it's reachability.** The da
 
 ## Phases (each lands on main behind the verify gate; app fully working after each)
 
-**Phase 1 — Extraction + local daemon (pure refactor, zero new features).**
-Backend package with zero Electron imports; daemon entrypoint mounting the router over WS on localhost; Electron main spawns/manages it; renderer talks WS. Acceptance: daily driving indistinguishable from today; `pnpm verify` green; a Biome/lint fence exists against Electron imports in the backend package and renderer.
+**Phase 1 — Extraction + local daemon (pure refactor, zero new features). — SHIPPED 2026-07-04 (commits 840abc1 extraction + 5e3a042 daemon).**
+Backend package with zero Electron imports; daemon entrypoint mounting the router over WS on localhost; Electron main spawns/manages it; renderer talks WS. Acceptance: daily driving indistinguishable from today; `pnpm verify` green; a Biome/lint fence exists against Electron imports in the backend package and renderer. (Details: `plans/remote-environments-phase1.md`. Note: **the session token was pulled forward into Phase 1** — the daemon is Bearer + subprotocol gated from day one — so the Phase 2 baseline below shrinks.)
 
-**Phase 2 — Network-ready: token auth + reattachable PTYs + remote repo picker.**
-Token handshake; PTYs survive disconnect with scrollback replay; daemon-side repo registry + remote directory picker; broadcast pushes. Acceptance: kill the renderer mid-Claude-session, relaunch, reattach with scrollback; second client connects simultaneously.
+**Phase 2 — Network-ready: reattachable PTYs + remote repo picker (auth already exists).**
+The token handshake shipped in Phase 1, so Phase 2 adds only: the **tailnet bind** (daemon also listens on the Tailscale interface, behind the same token) + a **persistent shared token file** (`~/.porcelain/daemon-token` on both ends, replacing Phase 1's per-app-run token); PTYs survive disconnect with scrollback replay; daemon-side repo registry + remote directory picker; broadcast pushes. Acceptance: kill the renderer mid-Claude-session, relaunch, reattach with scrollback; second client connects simultaneously.
 
 **Phase 3 — Browser client (iPad).**
 Daemon serves renderer static files over HTTP; glaze fallback backdrop; Safari/touch/shortcut pass. Acceptance: full review flow (Changes, Feature, comments, board, terminal) from Safari on the iPad against a localhost daemon.

