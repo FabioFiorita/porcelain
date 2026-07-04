@@ -10,9 +10,17 @@ interface RevealState {
    */
   path: string | null
   reveal: (path: string) => void
+  /**
+   * Drop the target once the leaf row has consumed it (scrolled into view and
+   * highlighted). Without this the path lingers forever, so the next time the
+   * Files tab remounts (a sidebar tab switch) the whole ancestor chain of the
+   * last-revealed file re-expands — a folder appears to open itself.
+   */
+  clear: () => void
 }
 
 export const useRevealStore = create<RevealState>((set) => ({
   path: null,
   reveal: (path) => set({ path }),
+  clear: () => set({ path: null }),
 }))

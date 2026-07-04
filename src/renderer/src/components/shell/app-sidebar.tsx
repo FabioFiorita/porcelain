@@ -246,7 +246,13 @@ export function AppSidebar(): React.JSX.Element {
               <div className="min-h-0 flex-1 overflow-auto">
                 <SidebarGroup>
                   <SidebarGroupContent>
-                    {sidebarTab === 'files' && <FileTree rootPath={repo.path} />}
+                    {/* The tree stays MOUNTED across tab switches (hidden via CSS,
+                        not unmounted) — folder expansion is per-DirNode local
+                        state, so unmounting would collapse everything the user
+                        had opened. The other tabs keep conditional rendering. */}
+                    <div className={cn(sidebarTab !== 'files' && 'hidden')}>
+                      <FileTree rootPath={repo.path} />
+                    </div>
                     {sidebarTab === 'changes' && <ChangesList />}
                     {sidebarTab === 'history' && <HistoryList />}
                     {sidebarTab === 'feature' && <FeatureList />}

@@ -20,4 +20,15 @@ describe('reveal store', () => {
     useRevealStore.getState().reveal('/repo/src/b.ts')
     expect(useRevealStore.getState().path).toBe('/repo/src/b.ts')
   })
+
+  it('clear() drops the target once consumed', () => {
+    useRevealStore.getState().reveal('/repo/src/a.ts')
+    useRevealStore.getState().clear()
+    expect(useRevealStore.getState().path).toBeNull()
+  })
+
+  it('clear() is a no-op when there is no target', () => {
+    useRevealStore.getState().clear()
+    expect(useRevealStore.getState().path).toBeNull()
+  })
 })

@@ -35,6 +35,7 @@ import { dirName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
 import { useFilePromptStore } from '@renderer/stores/file-prompt'
 import { useFileTreeStore } from '@renderer/stores/file-tree'
+import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useRevealStore } from '@renderer/stores/reveal'
 import { useSelectionStore } from '@renderer/stores/selection'
@@ -47,16 +48,22 @@ import {
   Eye,
   EyeOff,
   FilePlus,
+  FileSymlink,
   Folder,
   FolderPlus,
+  Link2,
   MessageSquarePlus,
   PenLine,
   Pin,
   PinOff,
   Trash2,
 } from 'lucide-react'
-import { memo, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { type CommentAnchor, CommentComposer } from '../git/comment-composer'
+
+// A reveal highlight lingers this long after the row scrolls into view, then the
+// target is cleared so a later Files-tab remount doesn't re-expand its ancestors.
+const REVEAL_LINGER_MS = 2000
 
 function EntryContextMenu({
   entry,
@@ -68,7 +75,7 @@ function EntryContextMenu({
   const { hide, unhide, hideSelected, pin, unpin, selectionSize } = useEntryActions(entry)
   const batchSize = selectionSize + (useSelectionStore.getState().selected.has(entry.path) ? 0 : 1)
   const openTabToSide = useTabsStore((s) => s.openTabToSide)
-  const { reveal, exploreFlow } = usePathActions(entry.path)
+  const { reveal, exploreFlow, copyPath, copyRelativePath } = usePathActions(entry.path)
   const trash = useTrashPath()
   const duplicate = useDuplicatePath()
   const newFile = useFilePromptStore((s) => s.newFile)
@@ -126,6 +133,14 @@ function EntryContextMenu({
               Comment on file
             </ContextMenuItem>
           )}
+          <ContextMenuItem onClick={copyPath}>
+            <Link2 />
+            Copy Path
+          </ContextMenuItem>
+          <ContextMenuItem onClick={copyRelativePath}>
+            <FileSymlink />
+            Copy Relative Path
+          </ContextMenuItem>
           <ContextMenuItem onClick={reveal}>
             <Folder />
             Reveal in Finder
@@ -197,7 +212,13 @@ function EntryContextMenu({
   )
 }
 
-function TreeNodeImpl({ entry }: { entry: DirEntry }): React.JSX.Element {
+function TreeNodeImpl({
+  entry,
+  parentCollapseNonce = 0,
+}: {
+  entry: DirEntry
+  parentCollapseNonce?: number
+}): React.JSX.Element {
   const openTab = useTabsStore((s) => s.openTab)
   const pinTab = useTabsStore((s) => s.pinTab)
   const isSelected = useSelectionStore((s) => s.selected.has(entry.path))
@@ -207,11 +228,21 @@ function TreeNodeImpl({ entry }: { entry: DirEntry }): React.JSX.Element {
   // A file opened from outside the tree (Changes → Open file) sets the reveal
   // target; the matching row scrolls into view and shows the accent highlight.
   const isRevealed = useRevealStore((s) => s.path === entry.path)
+  const clearReveal = useRevealStore((s) => s.clear)
+  // The tree stays mounted while other sidebar tabs show (CSS-hidden, so folder
+  // expansion survives tab switches); scrollIntoView on a hidden element is a
+  // no-op, so the leaf waits for the Files tab before consuming the reveal.
+  const isTreeVisible = usePreferencesStore((s) => s.sidebarTab === 'files')
   const ref = useRef<HTMLButtonElement>(null)
 
+  // This file is the reveal leaf: once it scrolls into view, let the highlight
+  // linger, then clear the target so a later remount doesn't re-expand the chain.
   useEffect(() => {
-    if (isRevealed) ref.current?.scrollIntoView({ block: 'nearest' })
-  }, [isRevealed])
+    if (!isRevealed || !isTreeVisible) return
+    ref.current?.scrollIntoView({ block: 'nearest' })
+    const timer = setTimeout(clearReveal, REVEAL_LINGER_MS)
+    return () => clearTimeout(timer)
+  }, [isRevealed, isTreeVisible, clearReveal])
 
   if (entry.kind === 'file') {
     return (
@@ -249,12 +280,18 @@ function TreeNodeImpl({ entry }: { entry: DirEntry }): React.JSX.Element {
     )
   }
 
-  return <DirNode entry={entry} />
+  return <DirNode entry={entry} parentCollapseNonce={parentCollapseNonce} />
 }
 
 export const TreeNode = memo(TreeNodeImpl)
 
-function DirNode({ entry }: { entry: DirEntry }): React.JSX.Element {
+function DirNode({
+  entry,
+  parentCollapseNonce,
+}: {
+  entry: DirEntry
+  parentCollapseNonce: number
+}): React.JSX.Element {
   const [expanded, setExpanded] = useState(false)
   const children = useReadDir(entry.path, expanded)
   const isSelected = useSelectionStore((s) => s.selected.has(entry.path))
@@ -270,30 +307,52 @@ function DirNode({ entry }: { entry: DirEntry }): React.JSX.Element {
   const hasRevealTarget = useRevealStore(
     (s) => s.path === entry.path || (s.path?.startsWith(`${entry.path}/`) ?? false),
   )
+  const clearReveal = useRevealStore((s) => s.clear)
+  // Same visibility gate as the file leaf: the tree is CSS-hidden under other
+  // sidebar tabs, so defer the scroll/clear until the Files tab shows it.
+  const isTreeVisible = usePreferencesStore((s) => s.sidebarTab === 'files')
   const ref = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     if (hasRevealTarget) setExpanded(true)
   }, [hasRevealTarget])
+  // When this folder IS the reveal leaf (a revealed folder), scroll it in and
+  // clear the target after the highlight lingers — same as a revealed file.
   useEffect(() => {
-    if (isRevealed) ref.current?.scrollIntoView({ block: 'nearest' })
-  }, [isRevealed])
-  // Collapse-all (Explorer header) bumps a nonce; collapse on each bump but not on
-  // mount, so a freshly-mounted folder revealed from elsewhere isn't snapped shut.
+    if (!isRevealed || !isTreeVisible) return
+    ref.current?.scrollIntoView({ block: 'nearest' })
+    const timer = setTimeout(clearReveal, REVEAL_LINGER_MS)
+    return () => clearTimeout(timer)
+  }, [isRevealed, isTreeVisible, clearReveal])
+  // Cascade collapse: this folder's own local nonce, bumped whenever it collapses
+  // (user click or its own cascade), is passed down to children so re-expanding a
+  // parent shows its inner folders freshly collapsed rather than stale-expanded.
+  const [subtreeCollapseNonce, setSubtreeCollapseNonce] = useState(0)
+  const collapseSubtree = useCallback(() => {
+    setExpanded(false)
+    setSubtreeCollapseNonce((n) => n + 1)
+  }, [])
+  // Collapse signals from above: the global collapse-all nonce (Explorer header)
+  // and the parent's cascade nonce, summed into one monotonic value. Collapse on
+  // each change but not on mount, so a freshly-mounted folder revealed from
+  // elsewhere isn't snapped shut, and the reveal-driven expansion survives.
   const collapseNonce = useFileTreeStore((s) => s.collapseNonce)
-  const seenNonce = useRef(collapseNonce)
+  const externalCollapse = collapseNonce + parentCollapseNonce
+  const seenNonce = useRef(externalCollapse)
   useEffect(() => {
-    if (collapseNonce !== seenNonce.current) {
-      seenNonce.current = collapseNonce
-      setExpanded(false)
+    if (externalCollapse !== seenNonce.current) {
+      seenNonce.current = externalCollapse
+      collapseSubtree()
     }
-  }, [collapseNonce])
+  }, [externalCollapse, collapseSubtree])
+  // What children watch: this node's inherited signal plus its own collapse nonce.
+  const childCollapseNonce = parentCollapseNonce + subtreeCollapseNonce
 
   return (
     <SidebarMenuItem>
       <Collapsible
         className="group/collapsible [&[data-state=open]>button>svg:first-child]:rotate-90"
         open={expanded}
-        onOpenChange={setExpanded}
+        onOpenChange={(open) => (open ? setExpanded(true) : collapseSubtree())}
       >
         <EntryContextMenu entry={entry}>
           <CollapsibleTrigger
@@ -324,7 +383,7 @@ function DirNode({ entry }: { entry: DirEntry }): React.JSX.Element {
         <CollapsibleContent>
           <SidebarMenuSub className="mr-0 pr-0">
             {children?.map((child) => (
-              <TreeNode key={child.path} entry={child} />
+              <TreeNode key={child.path} entry={child} parentCollapseNonce={childCollapseNonce} />
             ))}
           </SidebarMenuSub>
         </CollapsibleContent>

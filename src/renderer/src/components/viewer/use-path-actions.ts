@@ -4,8 +4,8 @@ import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 
 export function usePathActions(path: string): {
-  copyPath: () => void
-  copyRelativePath: () => void
+  copyPath: () => Promise<void>
+  copyRelativePath: () => Promise<void>
   reveal: () => void
   findReferences: (text: string) => void
   exploreFlow: (symbol?: string) => void
@@ -15,11 +15,11 @@ export function usePathActions(path: string): {
   const reveal = useRevealInFinder()
 
   return {
-    copyPath: () => {
-      navigator.clipboard.writeText(path)
+    copyPath: async () => {
+      await navigator.clipboard.writeText(path)
     },
-    copyRelativePath: () => {
-      navigator.clipboard.writeText(relativeTo(repo?.path, path))
+    copyRelativePath: async () => {
+      await navigator.clipboard.writeText(relativeTo(repo?.path, path))
     },
     reveal: () => reveal(path),
     findReferences: (text) => {
