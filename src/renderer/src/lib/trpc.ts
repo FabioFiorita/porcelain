@@ -3,6 +3,7 @@ import type { ShellRouter } from '@main/shell-api'
 import type { ShellEvent } from '@main/shell-events'
 import { createTRPCClient, httpBatchLink, type TRPCLink } from '@trpc/client'
 import { createTRPCReact } from '@trpc/react-query'
+import { createContext } from 'react'
 import { daemonBaseUrl, daemonToken } from './daemon'
 
 /** The serialized-HTTP shuttle the shell tRPC channel rides over Electron IPC. */
@@ -113,8 +114,15 @@ export const client = trpc.createClient({ links: appLinks() })
 /** Vanilla client over an independent link — zustand stores and non-React code. */
 export const trpcClient = createTRPCClient<AppRouter>({ links: appLinks() })
 
+// createTRPCReact defaults to a module-level shared TRPCContext singleton. With
+// two instances on the default context, nesting their Providers makes the inner
+// one win for ALL hooks — every app `trpc.*` hook would silently resolve the
+// shell client and hang on "No procedure found". Give the shell hooks their own
+// context so the two never collide.
+const shellTrpcContext = createContext<unknown>(null)
+
 /** React hooks for the shell router (Electron-native procedures — see shell-api.ts). */
-export const shellTrpc = createTRPCReact<ShellRouter>()
+export const shellTrpc = createTRPCReact<ShellRouter>({ context: shellTrpcContext })
 
 /** Client for the shell router's React-query integration. */
 export const shellClient = shellTrpc.createClient({ links: shellLinks() })
