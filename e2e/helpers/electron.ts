@@ -169,7 +169,10 @@ export async function expectTerminalText(
   page: Page,
   index: number,
   text: string,
-  timeout = 15_000,
+  // 30s, not Playwright's usual 15: shell startup + arithmetic evaluation on the
+  // macos-14 CI runner has gated a release once at 15s (flake, not regression) —
+  // e2e is a release gate, so slower-but-stable wins here.
+  timeout = 30_000,
 ): Promise<void> {
   await expect
     .poll(() => page.evaluate((i) => window.__porcelainTerminalText?.(i) ?? '', index), { timeout })
