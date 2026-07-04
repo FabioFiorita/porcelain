@@ -222,6 +222,17 @@ assumed — this skill is the codebase-specific layer beneath them.
   it would drown in `.git`/`node_modules` churn — watching the handful of open files'
   dirs (filtered by basename, surviving tmp+rename) is O(open tabs). Don't "upgrade" it
   to a recursive working-tree watch, and don't make `readFile` poll.
+- **The Files tree stays fresh by a watcher, NOT by polling `readDir`.** Same shape as
+  the open-files watcher: the renderer pushes the set of currently-**expanded** dir paths
+  (`watchDirs`, `useWatchTreeDirs`, tracked in the `tree-dirs` store) and main
+  (`setWatchedDirs` in `file-watch.ts`) puts ONE non-recursive `fs.watch` on each,
+  emitting the window-targeted `file-tree` event → invalidate `readDir` + `pinnedEntries`
+  + `gitFlow`. This stays O(expanded dirs): `.git` events are dropped (git's index churn
+  must not spam refetches), watchers are capped per sender (extras fall back to the
+  3s-stale tab switch), and a burst of events is debounced into one send. It must NEVER
+  become a recursive tree watch (the 50 GB / `node_modules` churn trap) and `readDir`
+  must keep its 30s cache. Watchers are reaped on window close via `clearWatchedDirs`
+  (next to `clearWatchedFiles`).
 
 ## Packaging
 

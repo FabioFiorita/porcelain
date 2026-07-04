@@ -1,6 +1,12 @@
 import { watch } from 'node:fs'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { clearWatchedFiles, setWatchedFiles } from './file-watch'
+import {
+  clearWatchedDirs,
+  clearWatchedFiles,
+  isGitChurn,
+  setWatchedDirs,
+  setWatchedFiles,
+} from './file-watch'
 
 // Mock node:fs so `watch` records its args and hands back a fake watcher whose
 // `close` we can spy on — no real fs.watch, no temp dirs, no timers. This makes
@@ -8,7 +14,9 @@ import { clearWatchedFiles, setWatchedFiles } from './file-watch'
 // flake. node:path is NOT mocked, so dirname/basename stay real. The `default`
 // mirror keeps vitest's CJS interop happy (node:fs is resolved via its default).
 vi.mock('node:fs', () => {
-  const watch = vi.fn(() => ({ close: vi.fn() }))
+  // `on` is here for the dir watcher, which registers an 'error' handler; the file
+  // watcher never touches it, so a no-op spy satisfies both.
+  const watch = vi.fn(() => ({ close: vi.fn(), on: vi.fn() }))
   return { watch, default: { watch } }
 })
 
@@ -99,5 +107,101 @@ describe('per-sender file watching', () => {
 
     expect(dead.send).not.toHaveBeenCalled()
     clearWatchedFiles(dead)
+  })
+})
+
+describe('isGitChurn', () => {
+  it('flags a bare .git entry and anything beneath it', () => {
+    expect(isGitChurn('.git')).toBe(true)
+    expect(isGitChurn('.git/index')).toBe(true)
+    expect(isGitChurn('.git/refs/heads/main')).toBe(true)
+  })
+
+  it('passes real source paths and a missing filename through', () => {
+    expect(isGitChurn('src/index.ts')).toBe(false)
+    expect(isGitChurn('.gitignore')).toBe(false)
+    expect(isGitChurn(null)).toBe(false)
+  })
+})
+
+describe('per-sender tree-dir watching', () => {
+  const dirListenerFor = (dir: string) => vi.mocked(watch).mock.calls.find(([d]) => d === dir)?.[1]
+  const dirWatcherFor = (dir: string) => {
+    const i = vi.mocked(watch).mock.calls.findIndex(([d]) => d === dir)
+    return vi.mocked(watch).mock.results[i]?.value
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    clearWatchedDirs(a)
+    clearWatchedDirs(b)
+    vi.useRealTimers()
+  })
+
+  it('debounces a dir change into one file-tree send to the owning sender', () => {
+    setWatchedDirs(a, ['/ra/src'])
+    setWatchedDirs(b, ['/rb/src'])
+
+    dirListenerFor('/ra/src')?.('rename', 'new.ts')
+    dirListenerFor('/ra/src')?.('rename', 'other.ts')
+    expect(a.send).not.toHaveBeenCalled() // still within the debounce window
+
+    vi.advanceTimersByTime(200)
+
+    expect(a.send).toHaveBeenCalledTimes(1)
+    expect(a.send).toHaveBeenCalledWith('app-event', 'file-tree')
+    expect(b.send).not.toHaveBeenCalled()
+  })
+
+  it('ignores .git churn so git index writes do not spam refetches', () => {
+    setWatchedDirs(a, ['/ra'])
+
+    dirListenerFor('/ra')?.('change', '.git')
+    dirListenerFor('/ra')?.('change', '.git/index')
+    vi.advanceTimersByTime(200)
+
+    expect(a.send).not.toHaveBeenCalled()
+  })
+
+  it('caps the watcher count per sender', () => {
+    const dirs = Array.from({ length: 200 }, (_, i) => `/ra/d${i}`)
+    setWatchedDirs(a, dirs)
+
+    expect(vi.mocked(watch)).toHaveBeenCalledTimes(128)
+  })
+
+  it('drops watchers for dirs that collapse', () => {
+    setWatchedDirs(a, ['/ra/src', '/ra/lib'])
+    const wSrc = dirWatcherFor('/ra/src')
+
+    setWatchedDirs(a, ['/ra/lib'])
+
+    expect(wSrc.close).toHaveBeenCalled()
+  })
+
+  it('closes a sender dir watchers on clearWatchedDirs, leaving others', () => {
+    setWatchedDirs(a, ['/ra/src'])
+    setWatchedDirs(b, ['/rb/src'])
+    const wa = dirWatcherFor('/ra/src')
+    const wb = dirWatcherFor('/rb/src')
+
+    clearWatchedDirs(a)
+
+    expect(wa.close).toHaveBeenCalled()
+    expect(wb.close).not.toHaveBeenCalled()
+  })
+
+  it('does not send file-tree to a destroyed sender', () => {
+    const dead = { send: vi.fn(), isDestroyed: () => true }
+    setWatchedDirs(dead, ['/rc/src'])
+
+    dirListenerFor('/rc/src')?.('rename', 'new.ts')
+    vi.advanceTimersByTime(200)
+
+    expect(dead.send).not.toHaveBeenCalled()
+    clearWatchedDirs(dead)
   })
 })

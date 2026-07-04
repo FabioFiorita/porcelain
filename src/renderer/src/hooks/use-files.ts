@@ -3,6 +3,7 @@ import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useSelectionStore } from '@renderer/stores/selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
+import { useTreeDirsStore } from '@renderer/stores/tree-dirs'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 export function useReadDir(path: string, enabled = true): DirEntry[] | undefined {
@@ -51,6 +52,28 @@ export function useWatchOpenFiles(): void {
     lastSent.current = key
     mutate(filePaths)
   }, [filePaths, mutate])
+}
+
+/**
+ * Tell main which directories are expanded in the Files tree so it can watch them
+ * for external adds/removes (the coding agent creating files in the terminal). The
+ * tree twin of `useWatchOpenFiles`: this pushes the expanded-dir set out, the
+ * `file-tree` app-event comes back and invalidates the tree. Mounted once in
+ * `AppShell`. We re-send only when the set actually changes.
+ */
+export function useWatchTreeDirs(): void {
+  const dirs = useTreeDirsStore((s) => s.dirs)
+  const { mutate } = trpc.watchDirs.useMutation()
+  const lastSent = useRef('')
+
+  const dirPaths = useMemo(() => [...dirs].sort(), [dirs])
+
+  useEffect(() => {
+    const key = dirPaths.join('\n')
+    if (key === lastSent.current) return
+    lastSent.current = key
+    mutate(dirPaths)
+  }, [dirPaths, mutate])
 }
 
 /** Prefetch a file's contents (tree hover) so opening it feels instant. */

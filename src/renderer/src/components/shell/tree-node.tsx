@@ -40,6 +40,7 @@ import { useRepoStore } from '@renderer/stores/repo'
 import { useRevealStore } from '@renderer/stores/reveal'
 import { useSelectionStore } from '@renderer/stores/selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
+import { useTreeDirsStore } from '@renderer/stores/tree-dirs'
 import {
   ChevronRight,
   Columns2,
@@ -294,6 +295,15 @@ function DirNode({
 }): React.JSX.Element {
   const [expanded, setExpanded] = useState(false)
   const children = useReadDir(entry.path, expanded)
+  // Register this dir as watched while it's open so an external add/remove inside it
+  // live-refreshes the tree (see `useWatchTreeDirs`); cleanup on collapse or unmount.
+  const addWatchedDir = useTreeDirsStore((s) => s.add)
+  const removeWatchedDir = useTreeDirsStore((s) => s.remove)
+  useEffect(() => {
+    if (!expanded) return
+    addWatchedDir(entry.path)
+    return () => removeWatchedDir(entry.path)
+  }, [expanded, entry.path, addWatchedDir, removeWatchedDir])
   const isSelected = useSelectionStore((s) => s.selected.has(entry.path))
   const toggleSelection = useSelectionStore((s) => s.toggle)
   const setActive = useSelectionStore((s) => s.setActive)

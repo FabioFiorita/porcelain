@@ -45,7 +45,7 @@ import {
   type FeatureReading,
   type FeatureView,
 } from './feature-view'
-import { setWatchedFiles } from './file-watch'
+import { setWatchedDirs, setWatchedFiles } from './file-watch'
 import { buildFlow, DEFAULT_LAYERS, type FlowGroup, type Layer } from './flow'
 import { uniqueDuplicatePath } from './fs-ops'
 import { directoriesOf, fuzzySearch, type SearchResult } from './fuzzy'
@@ -579,6 +579,13 @@ export const router = t.router({
   watchFiles: t.procedure
     .input(z.array(z.string()))
     .mutation(({ input, ctx }) => setWatchedFiles(ctx.sender, input)),
+
+  // The renderer pushes its expanded tree dirs whenever the set changes; main
+  // watches them (non-recursively) and emits `file-tree` so an external add/remove
+  // (the coding agent in the terminal) live-refreshes the tree. See `file-watch.ts`.
+  watchDirs: t.procedure
+    .input(z.array(z.string()))
+    .mutation(({ input, ctx }) => setWatchedDirs(ctx.sender, input)),
 
   writeTextFile: t.procedure
     .input(z.object({ path: z.string(), content: z.string() }))

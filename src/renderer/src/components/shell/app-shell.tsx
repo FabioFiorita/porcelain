@@ -4,7 +4,7 @@ import { SidebarInset, SidebarProvider, useSidebar } from '@renderer/components/
 import { Toaster } from '@renderer/components/ui/sonner'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useAppEvents } from '@renderer/hooks/use-app-events'
-import { useWatchOpenFiles } from '@renderer/hooks/use-files'
+import { useWatchOpenFiles, useWatchTreeDirs } from '@renderer/hooks/use-files'
 import { useTerminalChannel } from '@renderer/hooks/use-terminal-channel'
 import { useInstallUpdate, useUpdateStatus } from '@renderer/hooks/use-updates'
 import { cn } from '@renderer/lib/utils'
@@ -162,6 +162,7 @@ export function AppShell(): React.JSX.Element {
   useAppEvents()
   useTerminalChannel()
   useWatchOpenFiles()
+  useWatchTreeDirs()
 
   useEffect(() => {
     boot()

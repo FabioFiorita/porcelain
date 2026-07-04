@@ -3,7 +3,7 @@ import { is } from '@electron-toolkit/utils'
 import { BrowserWindow, shell, type WebContents } from 'electron'
 import icon from '../../resources/icon.png?asset'
 import { isSafeExternalUrl } from './external-url'
-import { clearWatchedFiles } from './file-watch'
+import { clearWatchedDirs, clearWatchedFiles } from './file-watch'
 import { pipeAppEvents } from './ipc'
 import { killTerminalsForSender } from './terminal-manager'
 
@@ -70,6 +70,7 @@ export function createWindow(init: WindowInit = { mode: 'restore' }): BrowserWin
   mainWindow.on('closed', () => {
     killTerminalsForSender(webContents)
     clearWatchedFiles(webContents)
+    clearWatchedDirs(webContents)
     pendingInits.delete(webContents)
   })
 

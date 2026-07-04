@@ -59,6 +59,15 @@ function handle(event: AppEvent, utils: Utils): Promise<unknown> {
       // agent editing in the terminal) — re-read the open documents and diffs so
       // the viewer isn't showing a stale version. (gitFlow self-polls every 3s.)
       return Promise.all([utils.readFile.invalidate(), utils.gitDiffFile.invalidate()])
+    case 'file-tree':
+      // a watched dir changed on disk outside the app (the coding agent adding or
+      // removing files in the terminal) — refresh the lazy tree rows, the pinned
+      // list, and the working-tree grouping so the new/gone file shows up live.
+      return Promise.all([
+        utils.readDir.invalidate(),
+        utils.pinnedEntries.invalidate(),
+        utils.gitFlow.invalidate(),
+      ])
     case 'close-tab': {
       // Cmd+W routed from the main process before-input-event — close the active
       // tab, or the window if it was the last one.
