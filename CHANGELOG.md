@@ -1,3 +1,17 @@
+## [0.18.0](https://github.com/FabioFiorita/porcelain/compare/v0.17.2...v0.18.0) (2026-07-04)
+
+### Features
+
+* feature artifacts — agent-authored HTML explainers in the viewer ([7139bbb](https://github.com/FabioFiorita/porcelain/commit/7139bbbc6a7d452e21cc4588c5400d0d81c71730))
+* file-tree copy-path items + stable expansion across tab switches ([6ae1499](https://github.com/FabioFiorita/porcelain/commit/6ae14997ec37e9843b9e9b1908b51c56191b4fbf))
+* live-refresh the Files tree on external file changes ([767cb00](https://github.com/FabioFiorita/porcelain/commit/767cb00b72565623ceaa84335b7c7e7017e2f0a1))
+* open the real file from the diff view header ([36af9f6](https://github.com/FabioFiorita/porcelain/commit/36af9f6efedee199fef7d6b83944ca83339a6be2))
+* rename terminal sessions ([e7eeb69](https://github.com/FabioFiorita/porcelain/commit/e7eeb694fee4e44f2bf8cc47a9728b1d2acbb7c8))
+
+### Bug Fixes
+
+* static "Feature artifact" label on the Feature-list opener row ([c580514](https://github.com/FabioFiorita/porcelain/commit/c580514978c489603d6b0588fc59b5ce8381d419))
+
 ## [0.17.2](https://github.com/FabioFiorita/porcelain/compare/v0.17.1...v0.17.2) (2026-06-29)
 
 ### Features
