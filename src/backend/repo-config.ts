@@ -2,6 +2,10 @@ import { z } from 'zod'
 
 export const appConfigSchema = z.object({
   recentRepos: z.array(z.string()).default([]),
+  // Global (not per-repo): when true the daemon additionally listens on the
+  // detected Tailscale interface (see backend/tailnet.ts + server.ts), gated on
+  // the same token. Absent/false ⇒ loopback only. Toggled from Settings.
+  tailnetBind: z.boolean().optional(),
   repos: z
     .record(
       z.string(),

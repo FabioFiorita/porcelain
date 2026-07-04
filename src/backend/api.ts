@@ -109,6 +109,7 @@ import {
   readReviewedPaths,
   unmarkReviewed,
 } from './reviewed-store'
+import { startTailnetListener, stopTailnetListener, tailnetUrl } from './tailnet-listener'
 
 // No per-connection context: appRouter procedures are pure Node and must never
 // reference a caller (per-connection concerns live shell-side until the Stage 2
@@ -945,6 +946,26 @@ export const router = t.router({
     .input(z.object({ repoPath: z.string(), notes: z.string() }))
     .mutation(async ({ input }) => {
       await writeNotes(input.repoPath, input.notes)
+    }),
+
+  // Remote access over Tailscale: the daemon can additionally listen on the
+  // detected Tailscale interface (same token, fixed port; see tailnet-listener.ts).
+  // `enabled` is the persisted config flag; `url` is non-null only while the second
+  // listener is actually up (so the UI can distinguish "on, but no tailnet here").
+  tailnetStatus: t.procedure.query(async (): Promise<{ enabled: boolean; url: string | null }> => {
+    const config = await loadConfig()
+    return { enabled: config.tailnetBind === true, url: tailnetUrl() }
+  }),
+
+  setTailnetBind: t.procedure
+    .input(z.boolean())
+    .mutation(async ({ input }): Promise<{ enabled: boolean; url: string | null }> => {
+      await updateConfig((config) => ({ ...config, tailnetBind: input }))
+      // Apply the change live: start the second listener (null url ⇒ no Tailscale
+      // interface here) or tear it down. The loopback listener is untouched either way.
+      if (input) await startTailnetListener()
+      else await stopTailnetListener()
+      return { enabled: input, url: tailnetUrl() }
     }),
 
   gitBranch: t.procedure.input(z.string()).query(({ input }) => gitBranch(input)),

@@ -1,10 +1,10 @@
 import { type ChildProcessByStdio, spawn } from 'node:child_process'
-import { randomBytes } from 'node:crypto'
 import { join } from 'node:path'
 import type { Readable, Writable } from 'node:stream'
 import { is } from '@electron-toolkit/utils'
 import { app, BrowserWindow, ipcMain } from 'electron'
 import { z } from 'zod'
+import { ensureDaemonToken } from '../backend/token-file'
 
 /**
  * Spawn and babysit the daemon child (`out/main/daemon/server.js`) — the
@@ -24,17 +24,20 @@ import { z } from 'zod'
  * WS client reconnects and queries refetch); quit kills the child, and the
  * daemon also self-exits when its stdin pipe closes (parent death).
  *
- * Auth: every daemon request is gated on a per-app-run session token (see the
+ * Auth: every daemon request is gated on a persistent session token (see the
  * security note in backend/server.ts — loopback is reachable from any webpage,
- * so the listener must never run open). The shell generates it once here, hands
- * it to the daemon via env (never argv — argv is visible in `ps`) and to the
- * renderer via the preload getter; one token per app run means a restarted
- * daemon accepts the credentials every open window already holds.
+ * so the listener must never run open). The token now lives in a shared file,
+ * `~/.porcelain/daemon-token` (0600); the shell reads/creates it once at startup
+ * (ensureDaemonToken) and hands it to the daemon via env (never argv — argv is
+ * visible in `ps`) and to the renderer via the preload getter. A persistent
+ * shared token means a restarted daemon — and a standalone/remote daemon that
+ * reads the same file — accepts the credentials every open window already holds.
  */
 
 const readyLineSchema = z.object({ port: z.number().int().positive() })
 
-const token = randomBytes(32).toString('hex')
+// Set once in startDaemon (before any window boots) from the shared token file.
+let token = ''
 
 type DaemonProcess = ChildProcessByStdio<Writable, Readable, null>
 
@@ -150,6 +153,12 @@ async function launch(): Promise<void> {
 
 /** Spawn the daemon and register its url getter + quit teardown. Called once, before the first window. */
 export async function startDaemon(): Promise<void> {
+  // Resolve the shared token before launching the daemon or exposing the getter —
+  // ensureDaemonToken reads ~/.porcelain/daemon-token (creating it 0600 on first
+  // run), so both the daemon (via env, below) and every window (via the getter)
+  // agree on the same secret. Runs once, before the first window exists.
+  token = await ensureDaemonToken()
+
   // Sync getter the preload calls at window boot; restarts push updates over
   // `daemon-url-changed` (see above), so the value survives daemon crashes.
   ipcMain.on('daemon-url', (event) => {

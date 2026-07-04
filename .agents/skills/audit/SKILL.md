@@ -47,9 +47,11 @@ assumed — this skill is the codebase-specific layer beneath them.
   Since the daemon split the renderer talks to `src/backend/server.ts` over HTTP + WS
   (`daemon.ts` spawns it), so the old "the app opens no port" claim no longer holds —
   but the surface is deliberately hostile-input-hardened, and these must ALL stay true:
-  (1) **The bind never widens beyond loopback** — `server.listen(port, '127.0.0.1')`,
-  never `0.0.0.0` or a public interface, until Phase 2's tailnet work adds the Tailscale
-  interface *behind the same token*. (2) **Auth is never optional:** every `/trpc`
+  (1) **The bind is loopback PLUS, optionally, the detected Tailscale interface (100.64/10)
+  behind the same token** — `server.listen(port, '127.0.0.1')` ALWAYS, and when the user
+  enables the setting a second listener on the Tailscale address at fixed port 43117
+  (`tailnet-listener.ts`, same shared handlers so the token gate applies unchanged); never
+  `0.0.0.0` and never any other interface. (2) **Auth is never optional:** every `/trpc`
   request needs `authorization: Bearer <token>` (constant-time compare over sha256
   digests, 401 otherwise) and the WS upgrade needs the `porcelain.<token>` subprotocol
   (rejected handshake without it) — loopback is reachable from any webpage the user's
@@ -63,9 +65,11 @@ assumed — this skill is the codebase-specific layer beneath them.
   Bearer check on the real request is the gate). Don't relax any of these to "make local
   dev easier."
   *Verify:* `rg -n "createServer|listen\(|http\.createServer" src/backend src/main src/mcp`
-  hits exactly `src/backend/server.ts` (the one daemon listener) and nothing in `src/mcp`;
-  the `listen` call still passes `'127.0.0.1'`, and both the Bearer and subprotocol checks
-  are still present.
+  hits the loopback listener in `src/backend/server.ts` AND the tailnet listener in
+  `src/backend/tailnet-listener.ts` (at most those two) and nothing in `src/mcp`; the
+  loopback `listen` still passes `'127.0.0.1'`, the tailnet `listen` binds only the
+  `findTailscaleAddress()` result (never `0.0.0.0`), and both listeners share the same
+  Bearer + subprotocol checks.
 - **A spawned PTY's env is scrubbed of the daemon's internals** (`terminalEnv` in
   `src/backend/terminal-env.ts`, unit-tested). The daemon process env carries the session
   token and process-mode flags that must NEVER reach a user shell: `PORCELAIN_DAEMON_TOKEN`

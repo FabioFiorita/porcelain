@@ -1,4 +1,6 @@
+import { Switch } from '@renderer/components/ui/switch'
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
+import { useSetTailnetBind, useTailnetStatus } from '@renderer/hooks/use-tailnet'
 import {
   type DiffMode,
   type MarkdownMode,
@@ -33,6 +35,8 @@ export function GeneralSection(): React.JSX.Element {
   const setMarkdownMode = usePreferencesStore((s) => s.setMarkdownMode)
   const pullMode = usePreferencesStore((s) => s.pullMode)
   const setPullMode = usePreferencesStore((s) => s.setPullMode)
+  const tailnet = useTailnetStatus()
+  const { setEnabled } = useSetTailnetBind()
 
   return (
     <div className="flex flex-col gap-5">
@@ -84,6 +88,23 @@ export function GeneralSection(): React.JSX.Element {
           </ToggleGroupItem>
         </ToggleGroup>
       </PreferenceRow>
+      <div className="flex flex-col gap-2">
+        <PreferenceRow
+          label="Share over Tailscale"
+          description="Lets other devices on your tailnet reach this daemon — token-gated."
+        >
+          <Switch
+            checked={tailnet?.enabled ?? false}
+            onCheckedChange={(checked) => setEnabled(checked)}
+          />
+        </PreferenceRow>
+        {tailnet?.url != null && (
+          <p className="font-mono text-xs text-muted-foreground">{tailnet.url}</p>
+        )}
+        {tailnet?.enabled === true && tailnet.url == null && (
+          <p className="text-xs text-muted-foreground">No Tailscale interface found</p>
+        )}
+      </div>
     </div>
   )
 }
