@@ -46,7 +46,8 @@ test('feature artifact opens and renders inside a fully sandboxed iframe', async
   await selectTab(page, 'Feature')
 
   // The opener row appears in the Feature tab only when an artifact exists for the repo.
-  const opener = page.getByRole('button', { name: 'Test artifact' })
+  // The row carries a static label ("Feature artifact"), not the artifact's own title.
+  const opener = page.getByRole('button', { name: 'Feature artifact' })
   await expect(opener).toBeVisible({ timeout: 15_000 })
   await opener.click()
 

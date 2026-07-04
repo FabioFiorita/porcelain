@@ -178,7 +178,7 @@ export function FeatureList(): React.JSX.Element {
     openTab({
       id: tabId('artifact', repo.path),
       kind: 'artifact',
-      title: artifact.title,
+      title: 'Feature artifact',
       path: repo.path,
     })
   }
@@ -250,7 +250,7 @@ export function FeatureList(): React.JSX.Element {
             onClick={openArtifact}
           >
             <FileText />
-            <span className="truncate">{artifact.title}</span>
+            <span className="truncate">Feature artifact</span>
           </Button>
         </div>
       )}
