@@ -354,7 +354,10 @@ assumed — this skill is the codebase-specific layer beneath them.
   runtime, so `electron-builder.yml` `asarUnpack`s `node_modules/trash/**` too. *Why:* a
   helper binary packed inside `app.asar` can't be executed — trashing would fail in the
   packaged app. *Verify:* `node_modules/trash/**` is in the `asarUnpack` list alongside
-  node-pty.
+  node-pty. The main bundles are CJS while `trash` is ESM-only, so `electron.vite.config.ts`
+  sets `output.interop: 'auto'` — without it the `require` returns a namespace object and
+  every daemon trash call throws "trash is not a function" (it slipped through the unit gate
+  because only e2e exercises a real daemon trash; don't drop the interop setting).
 
 ## How to verify
 

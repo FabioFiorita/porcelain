@@ -19,6 +19,11 @@ export default defineConfig({
           'mcp/server': resolve('src/mcp/server.ts'),
           'daemon/server': resolve('src/backend/server.ts'),
         },
+        // External ESM-only deps (trash) required from the CJS bundles need the
+        // __esModule-aware interop helper, or their default import becomes a
+        // namespace object at runtime ("trash is not a function"); caught by the
+        // e2e trash spec.
+        output: { interop: 'auto' },
       },
     },
   },
