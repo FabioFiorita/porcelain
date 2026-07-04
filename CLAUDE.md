@@ -35,6 +35,46 @@ The advisory layer above (CLAUDE.md + skills) is backed by a deterministic layer
 - **`.claude/settings.json`** — a `PreToolUse` git-guard hook (`.claude/hooks/git-guard.sh`) that hard-blocks branch creation (rule 8) and runs the `pnpm verify` gate before any commit (rule 3), plus a dev-loop permission allowlist (lint/typecheck/test/build + local git). `git push` is deliberately left to prompt (the one outward-facing action).
 - **`invariant-reviewer` agent** (`.claude/agents/`) — read-only; reviews a diff against the `audit` invariants and the one architecture. Delegate to it before committing non-trivial changes ("use the invariant-reviewer on this diff").
 
+## Orchestrator + sub-agents
+
+The main loop is the **orchestrator**: it plans, scopes, verifies, and decides. Work is delegated to sub-agents (Agent tool / Workflow) whenever it's parallelizable, mechanical, or exploratory.
+
+### Picking models
+
+Rankings, higher = better. Intelligence is how hard a problem you can hand the model unsupervised. Taste covers UI/UX, code quality, API design, and copy.
+
+| model           | cost | intelligence | taste |
+|-----------------|------|--------------|-------|
+| sonnet-5        | 5    | 5            | 7     |
+| opus-4.8        | 4    | 7            | 8     |
+| opus-4.8 xhigh  | 3    | 8            | 8     |
+| fable-5         | 2    | 9            | 9     |
+
+Availability note: fable-5 is a limited preview (roughly until 2026-07-09). While it's available, it's the top pick for orchestration and hard sub-agent work. When it's gone, **opus-4.8 with `effort: 'xhigh'` is the replacement** everywhere this file says fable.
+
+How to apply:
+
+- Defaults, not limits. Standing permission to escalate: if a cheaper model's output doesn't meet the bar, rerun with a smarter model without asking. Judge the output, not the price tag.
+- Cost is a tie-breaker only; for anything that ships, intelligence > taste > cost.
+- Bulk/mechanical work (clear-spec implementation, mechanical edits, spec fixes, migrations, exploration/search): orchestrator's judgment call per task, biased toward **opus at `effort: 'low'`** (or medium) when in doubt. Sonnet-high is fine for small, clear-cut jobs it won't struggle with — and it can delegate to its own subagents, which adds reliability. But sonnet's failure mode is going in circles when it can't get something right, burning more time and tokens than opus-low would have upfront — so if you foresee any struggle (ambiguity, tricky types, fiddly tests), send opus low/medium instead. Never sonnet at low effort.
+- Anything user-facing (UI, copy, API design) needs taste ≥ 7: **opus** or **fable**.
+- Reviews of plans/implementations, adversarial verification, hard debugging: **fable**, or **opus at `effort: 'xhigh'`**.
+- Never use Haiku.
+- Pass the model via the Agent/Workflow `model` parameter; omit it only when the session model is the right choice anyway.
+
+### Delegation rules
+
+- Orchestrator scopes and verifies; sub-agents execute. Don't burn orchestrator context on mechanical edits — hand them to a sub-agent (sonnet-high if clearly within its reach, opus low/medium if it might struggle) with a self-contained prompt (files, exact change, verification command).
+- **This is unconditional in fable sessions (any effort level) and xhigh sessions: never type mechanical edits yourself.** Small task size is not an excuse — the value is the fable-written prompt: I don't trust a cheaper model to get an edit 100% right from my prompt, but I trust your prompt to make it do it right. Only exception: a single one-line edit in one file.
+- Independent sub-agents launch in parallel (one message, multiple Agent calls).
+- Delegated prompts must be self-contained: the sub-agent doesn't see this conversation. Include file paths, the applicable hard rules above (one architecture, shadcn primitives only, no `any` / no `as unknown as`, no `void` on promises), and how to verify.
+- Spot-check every sub-agent result (read the diff, run the targeted test) before reporting done. Never relay "it works" unverified; verify review findings adversarially — no plausible-but-unchecked findings.
+- For multi-step fan-out (audits, migrations, reviews across many files), prefer a Workflow over ad-hoc Agent calls when I've asked for orchestration.
+
+### Hardware constraint
+
+This machine is a MacBook Pro M1 Pro with **16GB RAM** — heavy parallel work swaps and everything crawls. Keep concurrent sub-agents that run local commands (builds/tests) modest: 2-3 at a time, not a 10-wide fan-out. Read-only/search sub-agents can fan out freely. If a command seems stuck or the machine is thrashing, suspect memory pressure before suspecting the code.
+
 ## Nomenclature
 
 Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wrong") resolves to one place without asking. Each term maps to real code; when the user uses one, act on the named region — don't re-ask which one. The file in parens is the **entry point** — read it for current mechanics; the `architecture` skill holds the cross-cutting decisions and traps. This is the lookup table.
@@ -58,7 +98,7 @@ Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wron
 - **Tab bar** — the floating glass capsule of open documents (`tab-bar.tsx`).
 - **Tab** — one open document. **Preview** = single-click, italic, replaced by the next; **pinned** = double-click/edit, kept.
 - **Split view / pane** — two side-by-side **panes**, each its own tabs (`panes`/`activePaneIndex` in `stores/tabs.ts`); "Open to the Side". Model in `architecture` (Routing).
-- **Tab kinds** — `file view` / `source view` (`source-view.tsx`) / `markdown reader` (`markdown-view.tsx`) / `diff view` (`diff-view.tsx`) / `commit view` (`commit-view.tsx`) / `search view` (`search-view.tsx`) / `feature view` (`feature-view.tsx`) / `explore view` (`explore-view.tsx`) / `board view` (`board-view.tsx`) / `terminal view` (`terminal-view.tsx`). What each renders → read the file; the concepts → `product`.
+- **Tab kinds** — `file view` / `source view` (`source-view.tsx`) / `markdown reader` (`markdown-view.tsx`) / `diff view` (`diff-view.tsx`) / `commit view` (`commit-view.tsx`) / `search view` (`search-view.tsx`) / `feature view` (`feature-view.tsx`) / `explore view` (`explore-view.tsx`) / `board view` (`board-view.tsx`) / `terminal view` (`terminal-view.tsx`) / `artifact view` (`artifact-view.tsx`). What each renders → read the file; the concepts → `product`.
 
 **Inside Quick Access** (section follows the sidebar tab):
 - Files → **Pinned** (`pinned-group.tsx`) + **Notes card** (`notes-card.tsx`), in `files-quick-access.tsx`.
@@ -77,6 +117,7 @@ Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wron
 **Cross-cutting vocabulary** (the *what* and *why* live in `product`; channel internals + traps in `architecture`/`audit`):
 - **Flow / flow layers** — the architectural-layer grouping of changes (entry-point → data); the heart of "review as a story".
 - **Feature view / review set** — the change widened to the whole feature; files tagged **changed** / **context** (import-reached baseline) / **shipped** (agent-declared cross-seam). The review set is the agent-fed manifest (`~/.porcelain/review-sets.json`).
+- **Feature artifact** — an agent-authored self-contained HTML explainer of the feature (`~/.porcelain/artifacts.json`), two-way over MCP (app write = clear only); rendered in a fully sandboxed iframe in the viewer (`artifact view` tab kind), opened from the Feature list.
 - **Review comments** — the reviewer's line/file notes (`~/.porcelain/comments.json`), app→agent over MCP.
 - **Reviewed marks** — the per-file "reviewed" checkboxes the human ticks in the Changes/Feature lists (`~/.porcelain/reviewed.json`), app→agent over MCP (read-only, like notes); cleared on commit.
 - **Project board** — per-repo todo/doing/done (`~/.porcelain/board.json`), two-way over MCP.
