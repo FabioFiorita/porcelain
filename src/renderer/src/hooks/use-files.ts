@@ -1,4 +1,5 @@
 import type { DirEntry, FileView } from '@backend/api'
+import { watchDirs, watchFiles } from '@renderer/lib/daemon'
 import { shellTrpc, trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useSelectionStore } from '@renderer/stores/selection'
@@ -25,15 +26,16 @@ export function useReadFile(path: string): {
 }
 
 /**
- * Tell main which files are open in the viewer so it can watch them for external
- * writes (the coding agent editing in the terminal). Mounted once in `AppShell`,
- * the twin of `useAppEvents`: this pushes the open-file set out, the `working-tree`
- * app-event comes back and invalidates `readFile`. We re-send only when the set of
- * open file paths actually changes, not on every tab activation.
+ * Tell the daemon which files are open in the viewer so it can watch them for
+ * external writes (the coding agent editing in the terminal). Mounted once in
+ * `AppShell`, the twin of `useAppEvents`: this pushes the open-file set out over
+ * the WS session (`watch:files` — per-connection state, so it lives there, not
+ * on the router), the `working-tree` app-event comes back and invalidates
+ * `readFile`. We re-send only when the set of open file paths actually changes,
+ * not on every tab activation.
  */
 export function useWatchOpenFiles(): void {
   const panes = useTabsStore((s) => s.panes)
-  const { mutate } = shellTrpc.watchFiles.useMutation()
   const lastSent = useRef('')
 
   const filePaths = useMemo(() => {
@@ -50,20 +52,20 @@ export function useWatchOpenFiles(): void {
     const key = filePaths.join('\n')
     if (key === lastSent.current) return
     lastSent.current = key
-    mutate(filePaths)
-  }, [filePaths, mutate])
+    watchFiles(filePaths)
+  }, [filePaths])
 }
 
 /**
- * Tell main which directories are expanded in the Files tree so it can watch them
- * for external adds/removes (the coding agent creating files in the terminal). The
- * tree twin of `useWatchOpenFiles`: this pushes the expanded-dir set out, the
- * `file-tree` app-event comes back and invalidates the tree. Mounted once in
- * `AppShell`. We re-send only when the set actually changes.
+ * Tell the daemon which directories are expanded in the Files tree so it can
+ * watch them for external adds/removes (the coding agent creating files in the
+ * terminal). The tree twin of `useWatchOpenFiles`: this pushes the expanded-dir
+ * set out over the WS session (`watch:dirs`), the `file-tree` app-event comes
+ * back and invalidates the tree. Mounted once in `AppShell`. We re-send only
+ * when the set actually changes.
  */
 export function useWatchTreeDirs(): void {
   const dirs = useTreeDirsStore((s) => s.dirs)
-  const { mutate } = shellTrpc.watchDirs.useMutation()
   const lastSent = useRef('')
 
   const dirPaths = useMemo(() => [...dirs].sort(), [dirs])
@@ -72,8 +74,8 @@ export function useWatchTreeDirs(): void {
     const key = dirPaths.join('\n')
     if (key === lastSent.current) return
     lastSent.current = key
-    mutate(dirPaths)
-  }, [dirPaths, mutate])
+    watchDirs(dirPaths)
+  }, [dirPaths])
 }
 
 /** Prefetch a file's contents (tree hover) so opening it feels instant. */

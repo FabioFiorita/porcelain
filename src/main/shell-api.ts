@@ -1,9 +1,6 @@
 import { initTRPC } from '@trpc/server'
 import { dialog, shell, type WebContents } from 'electron'
 import { z } from 'zod'
-import { type RepoInfo, recordRecent, toRepoInfo } from '../backend/api'
-import { setWatchedDirs, setWatchedFiles } from '../backend/file-watch'
-import { warmFileList } from '../backend/git'
 import { type CodexInstallResult, installCodex } from './codex'
 import { codexInstallCommands, codexMarketplaceDir, codexPluginVersion } from './codex-assets'
 import { installCursorPlugin, installPlugin, type PluginInstallResult } from './plugin'
@@ -26,13 +23,13 @@ export interface ShellTrpcContext {
 const t = initTRPC.context<ShellTrpcContext>().create({ isServer: true })
 
 export const shellRouter = t.router({
-  openRepo: t.procedure.query(async (): Promise<RepoInfo | null> => {
+  // Only the native folder dialog is shell work; the config side effects
+  // (recording the recent, warming the file list) live daemon-side now, so the
+  // renderer follows up by opening the returned path over the appRouter
+  // (`openRepoPath` — see stores/repo.ts).
+  openRepo: t.procedure.query(async (): Promise<string | null> => {
     const result = await dialog.showOpenDialog({ properties: ['openDirectory'] })
-    const path = result.filePaths[0]
-    if (!path) return null
-    await recordRecent(path)
-    warmFileList(path)
-    return toRepoInfo(path)
+    return result.filePaths[0] ?? null
   }),
 
   windowInit: t.procedure.query(({ ctx }): WindowInit => windowInitFor(ctx.sender)),
@@ -48,25 +45,6 @@ export const shellRouter = t.router({
   revealInFinder: t.procedure.input(z.string()).mutation(({ input }) => {
     shell.showItemInFolder(input)
   }),
-
-  // The two watch procedures are shell-side only TEMPORARILY (Stage 1): they need
-  // the calling window (ctx.sender) to target their app-events, and the WS session
-  // that replaces it doesn't exist until Stage 2. The watchers themselves already
-  // live Electron-free in src/backend/file-watch.ts.
-
-  // The renderer pushes its open file-tab paths whenever the set changes; main
-  // watches their dirs and emits `working-tree` so an external write (the coding
-  // agent in the terminal) live-refreshes the open document. See `file-watch.ts`.
-  watchFiles: t.procedure
-    .input(z.array(z.string()))
-    .mutation(({ input, ctx }) => setWatchedFiles(ctx.sender, input)),
-
-  // The renderer pushes its expanded tree dirs whenever the set changes; main
-  // watches them (non-recursively) and emits `file-tree` so an external add/remove
-  // (the coding agent in the terminal) live-refreshes the tree. See `file-watch.ts`.
-  watchDirs: t.procedure
-    .input(z.array(z.string()))
-    .mutation(({ input, ctx }) => setWatchedDirs(ctx.sender, input)),
 
   updateStatus: t.procedure.query((): UpdateStatus => updateStatus()),
 

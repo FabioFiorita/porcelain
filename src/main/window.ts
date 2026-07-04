@@ -3,9 +3,6 @@ import { is } from '@electron-toolkit/utils'
 import { BrowserWindow, shell, type WebContents } from 'electron'
 import icon from '../../resources/icon.png?asset'
 import { isSafeExternalUrl } from '../backend/external-url'
-import { clearWatchedDirs, clearWatchedFiles } from '../backend/file-watch'
-import { killTerminalsForSender } from '../backend/terminal-manager'
-import { pipeAppEvents } from './ipc'
 
 // Playwright e2e launches this built app and drives the renderer over CDP +
 // screenshots the web contents directly, so the OS window never needs to appear.
@@ -62,15 +59,10 @@ export function createWindow(init: WindowInit = { mode: 'restore' }): BrowserWin
 
   pendingInits.set(mainWindow.webContents, init)
 
-  pipeAppEvents(mainWindow)
-
-  // A window's PTYs are tied to its WebContents — reap them when it closes so no
-  // orphaned shell (or background dev server) outlives the window.
+  // A window's PTYs and watchers now live daemon-side, keyed by its WS session —
+  // closing the window closes the socket and the daemon reaps them (session.ts).
   const { webContents } = mainWindow
   mainWindow.on('closed', () => {
-    killTerminalsForSender(webContents)
-    clearWatchedFiles(webContents)
-    clearWatchedDirs(webContents)
     pendingInits.delete(webContents)
   })
 
@@ -90,7 +82,7 @@ export function createWindow(init: WindowInit = { mode: 'restore' }): BrowserWin
   mainWindow.webContents.on('before-input-event', (event, input) => {
     if (input.type === 'keyDown' && input.meta && input.key.toLowerCase() === 'w' && !input.shift) {
       event.preventDefault()
-      mainWindow.webContents.send('app-event', 'close-tab')
+      mainWindow.webContents.send('shell-event', 'close-tab')
     }
   })
 

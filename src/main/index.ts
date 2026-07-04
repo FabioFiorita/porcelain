@@ -1,27 +1,18 @@
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { app, BrowserWindow, type Session, session } from 'electron'
-import { initConfigDir } from '../backend/config-store'
-import { migrateLayersFromConfig } from '../backend/layers-store'
-import { migrateNotesFromConfig } from '../backend/notes-store'
-import { watchAgentChannels } from '../backend/review-watch'
-import { migrateReviewedFromConfig } from '../backend/reviewed-store'
-import { seedDevConfig } from './dev-config'
-import { registerTerminalHandlers, registerTrpcHandler } from './ipc'
+import { startDaemon } from './daemon'
+import { registerTrpcHandler } from './ipc'
 import { installAppMenu } from './menu'
+import { initUpdater } from './updater'
 import { createWindow } from './window'
 
 // Dev gets its own config dir so `pnpm dev` never touches (or hijacks) the
-// state of the installed app the user works in. Must run before anything
-// reads userData (the config store is lazy, so before whenReady is enough).
+// state of the installed app the user works in. Must run before the daemon
+// spawn (which passes app.getPath('userData') down as PORCELAIN_USER_DATA —
+// the daemon owns the config store now, the shell never reads it).
 if (is.dev) {
   app.setPath('userData', `${app.getPath('userData')}-dev`)
 }
-
-// The Electron-free backend can't resolve userData itself; hand it the config
-// directory once, after the dev override above and before any config read.
-initConfigDir(app.getPath('userData'))
-
-import { initUpdater } from './updater'
 
 // Playwright e2e launches this built app and drives the renderer over CDP +
 // screenshots the web contents directly, so the OS window never needs to appear.
@@ -59,25 +50,21 @@ app.whenReady().then(async () => {
   // Keep e2e fully off the user's screen — no Dock icon bounce either.
   if (isE2E) app.dock?.hide()
 
-  // One global tRPC handler for every window (ipcMain.handle is process-wide).
+  // One global shell-router handler for every window (ipcMain.handle is process-wide).
   registerTrpcHandler()
-  registerTerminalHandlers()
   installAppMenu()
 
-  if (is.dev) {
-    await seedDevConfig()
+  // Spawn the daemon (the Electron-free backend: appRouter over HTTP, terminal/
+  // watch/app-events over the WS session) before the first window so the preload's
+  // sync daemon-url getter has a port to hand out. Config seeding, the agent-channel
+  // migrations, and the channel watchers all run daemon-side now (backend/server.ts).
+  try {
+    await startDaemon()
+  } catch (error) {
+    // The window still opens; daemon.ts keeps retrying with backoff and pushes
+    // the url over `daemon-url-changed` once a spawn succeeds.
+    console.error('[daemon] initial start failed:', error)
   }
-
-  // Move any legacy notes, flow layers, and reviewed marks out of userData/config.json
-  // into their ~/.porcelain agent channels so the MCP can read (and, for layers, write)
-  // them. One-time + idempotent; runs before any window reads notes/layers/reviewed.
-  await migrateNotesFromConfig()
-  await migrateLayersFromConfig()
-  await migrateReviewedFromConfig()
-
-  // Watch the agent channels so MCP-pushed review sets / resolved comments refresh
-  // the open views.
-  await watchAgentChannels()
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.

@@ -2,6 +2,7 @@ import '@xterm/xterm/css/xterm.css'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebglAddon } from '@xterm/addon-webgl'
 import { Terminal } from '@xterm/xterm'
+import { resizeTerminal, writeTerminal } from './daemon'
 import { terminalEditBytes } from './terminal-keys'
 
 /**
@@ -106,9 +107,10 @@ function create(id: string): Instance {
   } catch {
     // No WebGL context available — stay on the DOM renderer.
   }
-  // Keystrokes and fit-driven resizes flow back to this session's PTY over the bridge.
-  term.onData((data) => window.porcelain.terminal.write(id, data))
-  term.onResize(({ cols, rows }) => window.porcelain.terminal.resize(id, cols, rows))
+  // Keystrokes and fit-driven resizes flow back to this session's PTY over the
+  // daemon WS session (lib/daemon.ts).
+  term.onData((data) => writeTerminal(id, data))
+  term.onResize(({ cols, rows }) => resizeTerminal(id, cols, rows))
   // macOS editing chords xterm doesn't send on its own. We `preventDefault()` + return
   // false to fully own the key. The preventDefault is LOAD-BEARING for ⏎-based chords:
   // xterm's keydown path bails on a `false` return WITHOUT calling preventDefault, so the
@@ -135,7 +137,7 @@ function create(id: string): Instance {
     const bytes = terminalEditBytes(event)
     if (bytes !== null) {
       event.preventDefault()
-      window.porcelain.terminal.write(id, bytes)
+      writeTerminal(id, bytes)
       return false
     }
     return true

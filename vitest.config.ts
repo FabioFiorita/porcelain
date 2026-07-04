@@ -9,6 +9,7 @@ export default defineConfig({
       '@renderer': resolve('src/renderer/src'),
       '@main': resolve('src/main'),
       '@backend': resolve('src/backend'),
+      '@shared': resolve('src/shared'),
     },
   },
   test: {

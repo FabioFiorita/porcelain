@@ -1,6 +1,6 @@
 import { app } from 'electron'
 import { autoUpdater } from 'electron-updater'
-import { emitAppEvent } from '../backend/app-events'
+import { broadcastShellEvent } from './shell-events'
 
 export interface UpdateStatus {
   state: 'idle' | 'checking' | 'available' | 'downloaded' | 'up-to-date' | 'error'
@@ -19,7 +19,9 @@ let status: UpdateStatus = {
 
 function setStatus(next: Partial<UpdateStatus>): void {
   status = { ...status, ...next }
-  emitAppEvent('update-status')
+  // The updater lives in the shell, so its push rides the shell-event channel —
+  // NOT the daemon's app-event bus (the daemon knows nothing about updates).
+  broadcastShellEvent('update-status')
 }
 
 export const updateStatus = (): UpdateStatus => status

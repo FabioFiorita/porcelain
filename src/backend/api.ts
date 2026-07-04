@@ -147,9 +147,7 @@ const IMAGE_MIME: Record<string, string> = {
   avif: 'image/avif',
 }
 
-// Exported for the shell router's openRepo (the native folder dialog) — the one
-// Electron-side procedure that also records a recent and returns a RepoInfo.
-export const toRepoInfo = (path: string): RepoInfo => ({ path, name: basename(path) })
+const toRepoInfo = (path: string): RepoInfo => ({ path, name: basename(path) })
 
 function isValidPattern(pattern: string): boolean {
   try {
@@ -160,7 +158,7 @@ function isValidPattern(pattern: string): boolean {
   }
 }
 
-export async function recordRecent(path: string): Promise<void> {
+async function recordRecent(path: string): Promise<void> {
   await updateConfig((config) => withRecentRepo(config, path))
 }
 

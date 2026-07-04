@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { type IPty, spawn } from 'node-pty'
+import { terminalEnv } from './terminal-env'
 
 // The embedded terminal's PTY layer. PTYs are OS resources, so they live here in the
 // main process (one Map for the whole app); the renderer drives them over the
@@ -43,16 +44,6 @@ function defaultShell(): string {
   return process.env.SHELL && process.env.SHELL.trim() !== '' ? process.env.SHELL : '/bin/zsh'
 }
 
-function cleanEnv(): Record<string, string> {
-  const env: Record<string, string> = {}
-  for (const [key, value] of Object.entries(process.env)) {
-    if (value !== undefined) env[key] = value
-  }
-  env.TERM = 'xterm-256color'
-  env.COLORTERM = 'truecolor'
-  return env
-}
-
 /**
  * Spawn an interactive login shell (so the user's PATH/aliases are present) in `cwd`
  * and stream its output to `sender` over `terminal:data`. An action runs by typing its
@@ -66,7 +57,9 @@ export function createTerminal(sender: TerminalSender, opts: CreateTerminalOptio
     cols: opts.cols ?? 80,
     rows: opts.rows ?? 24,
     cwd: opts.cwd,
-    env: cleanEnv(),
+    // terminalEnv strips the daemon-only vars (session token, RUN_AS_NODE, …)
+    // so no secret or process-mode flag leaks into a user shell — see terminal-env.ts.
+    env: terminalEnv(process.env),
   })
   sessions.set(id, { pty, sender })
 

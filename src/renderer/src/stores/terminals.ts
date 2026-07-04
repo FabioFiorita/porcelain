@@ -1,3 +1,4 @@
+import { createTerminal, killTerminal } from '@renderer/lib/daemon'
 import { disposeTerminal } from '@renderer/lib/terminal-registry'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { create } from 'zustand'
@@ -40,7 +41,7 @@ interface TerminalsState {
 export const useTerminalsStore = create<TerminalsState>((set, get) => ({
   sessions: [],
   create: async ({ cwd, name, initialInput }) => {
-    const id = await window.porcelain.terminal.create({ cwd, initialInput })
+    const id = await createTerminal({ cwd, initialInput })
     set((state) => ({ sessions: [...state.sessions, { id, name, status: 'running' }] }))
     return id
   },
@@ -59,7 +60,7 @@ export const useTerminalsStore = create<TerminalsState>((set, get) => ({
       sessions: state.sessions.map((s) => (s.id === id ? { ...s, status: 'exited', exitCode } : s)),
     })),
   close: (id) => {
-    window.porcelain.terminal.kill(id)
+    killTerminal(id)
     disposeTerminal(id)
     // The PTY and its xterm are gone; close any viewer tab still pointing at it so
     // the pane doesn't render a dead terminal. (Cross-store getState() from a store
@@ -69,7 +70,7 @@ export const useTerminalsStore = create<TerminalsState>((set, get) => ({
   },
   reset: () => {
     for (const session of get().sessions) {
-      window.porcelain.terminal.kill(session.id)
+      killTerminal(session.id)
       disposeTerminal(session.id)
     }
     set({ sessions: [] })

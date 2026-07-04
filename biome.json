@@ -30,7 +30,7 @@
   "assist": { "actions": { "source": { "organizeImports": "on" } } },
   "overrides": [
     {
-      "includes": ["src/backend/**", "src/renderer/**"],
+      "includes": ["src/backend/**", "src/shared/**", "src/renderer/**"],
       "linter": {
         "rules": {
           "style": {
@@ -60,6 +60,9 @@
                   "@renderer/lib/trpc": "Components must reach the server through hooks in @renderer/hooks/* — never import lib/trpc directly.",
                   "../lib/trpc": "Components must reach the server through hooks in @renderer/hooks/* — never import lib/trpc directly.",
                   "../../lib/trpc": "Components must reach the server through hooks in @renderer/hooks/* — never import lib/trpc directly.",
+                  "@renderer/lib/daemon": "Components must reach the daemon session through hooks (use-app-events, use-terminal-channel, use-files) — never import lib/daemon directly.",
+                  "../lib/daemon": "Components must reach the daemon session through hooks (use-app-events, use-terminal-channel, use-files) — never import lib/daemon directly.",
+                  "../../lib/daemon": "Components must reach the daemon session through hooks (use-app-events, use-terminal-channel, use-files) — never import lib/daemon directly.",
                   "electron": "Electron stays in src/main and src/preload — src/backend and src/renderer must remain Electron-free.",
                   "@electron-toolkit/preload": "Electron stays in src/main and src/preload — src/backend and src/renderer must remain Electron-free.",
                   "@electron-toolkit/utils": "Electron stays in src/main and src/preload — src/backend and src/renderer must remain Electron-free."

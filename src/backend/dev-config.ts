@@ -1,8 +1,8 @@
 import { stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { updateConfig } from '../backend/config-store'
-import { withRecentRepo } from '../backend/repo-config'
+import { updateConfig } from './config-store'
+import { withRecentRepo } from './repo-config'
 
 const DEV_REPO = join(homedir(), 'Code', 'porcelain-playground')
 

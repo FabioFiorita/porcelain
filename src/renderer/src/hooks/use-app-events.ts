@@ -1,4 +1,6 @@
 import type { AppEvent } from '@backend/app-events'
+import type { ShellEvent } from '@main/shell-events'
+import { onDaemonEvent, onDaemonReconnect } from '@renderer/lib/daemon'
 import { shellTrpc, trpc } from '@renderer/lib/trpc'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { useEffect } from 'react'
@@ -8,19 +10,24 @@ type Utils = ReturnType<typeof trpc.useUtils>
 /** Same proxy for the shell router (updateStatus lives shell-side). */
 type ShellUtils = ReturnType<typeof shellTrpc.useUtils>
 
-// The one main→renderer push channel (Cmd+W close-tab plus every agent-channel
-// refresh). It rides a dedicated IPC event channel (`window.porcelain.onAppEvent`),
-// not tRPC — push doesn't fit the request/response transport, and a typed event
-// channel is the idiomatic Electron pattern.
+// The renderer's push inbox, fed by TWO sources since the daemon split: the
+// daemon's WS session (agent-channel refreshes + the watcher events, via
+// lib/daemon.ts) and the tiny Electron shell-event channel (Cmd+W close-tab,
+// updater status — `window.porcelain.onShellEvent`). One handler serves both
+// under one union type so an event can't fall between the transports.
 //
 // `handle` maps each event to the work it triggers (a query invalidation, or for
 // close-tab a store action). Its `Promise<unknown>` return type with no `default`
-// is the exhaustiveness guard: a new AppEvent that isn't wired here lets the switch
+// is the exhaustiveness guard: a new event that isn't wired here lets the switch
 // fall through to an implicit `return undefined`, which fails the annotated type at
 // `pnpm typecheck` — the same compile-time net the Viewer's tab-kind switch uses. So
 // adding a channel can't silently ship un-refreshed (the bug that left MCP-curated
 // actions stale until a tab switch remounted the list).
-function handle(event: AppEvent, utils: Utils, shellUtils: ShellUtils): Promise<unknown> {
+function handle(
+  event: AppEvent | ShellEvent,
+  utils: Utils,
+  shellUtils: ShellUtils,
+): Promise<unknown> {
   switch (event) {
     case 'update-status':
       return shellUtils.updateStatus.invalidate()
@@ -94,8 +101,24 @@ export function useAppEvents(): void {
   const shellUtils = shellTrpc.useUtils()
 
   useEffect(() => {
-    return window.porcelain.onAppEvent(async (event) => {
+    const offShell = window.porcelain.onShellEvent(async (event) => {
       await handle(event, utils, shellUtils)
     })
+    const offDaemon = onDaemonEvent(async (event) => {
+      await handle(event, utils, shellUtils)
+    })
+    // The session came back after a daemon restart: a NEW process with empty
+    // caches and no session state, so every server-derived query is stale. A
+    // blanket invalidate is sanctioned here (like useQuickCommand's) because the
+    // event is rare and genuinely global; the watch sets re-register inside the
+    // ws client itself (lib/daemon.ts).
+    const offReconnect = onDaemonReconnect(async () => {
+      await utils.invalidate()
+    })
+    return () => {
+      offShell()
+      offDaemon()
+      offReconnect()
+    }
   }, [utils, shellUtils])
 }

@@ -52,8 +52,10 @@ export const useRepoStore = create<RepoState>((set, get) => ({
     }
   },
   openRepo: async () => {
-    const repo = await shellTrpcClient.openRepo.query()
-    if (repo) set({ repo })
+    // The shell only runs the native folder dialog; opening the returned path
+    // through the daemon's openRepoPath records the recent + warms the file list.
+    const path = await shellTrpcClient.openRepo.query()
+    if (path) set({ repo: await trpcClient.openRepoPath.mutate(path) })
   },
   openRepoPath: async (path) => {
     set({ repo: await trpcClient.openRepoPath.mutate(path) })

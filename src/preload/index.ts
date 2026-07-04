@@ -1,22 +1,34 @@
 import { electronAPI } from '@electron-toolkit/preload'
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AppEvent } from '../backend/app-events'
+import type { ShellEvent } from '../main/shell-events'
 
-// Our own type-safe transport over Electron IPC (replaces electron-trpc):
-// `trpc`/`trpcShell` are request/response for queries + mutations (one shuttle per
-// router — the Electron-free appRouter and the shell router), `onAppEvent` is the
-// single main→renderer push channel, and `terminal` is a SECOND dedicated channel —
-// a bidirectional byte stream for the embedded terminal (PTY output out, keystrokes
-// in), which the request/response transport can't carry. The renderer's matching
-// types live in lib/trpc.ts.
+// The daemon's base url + session token, fetched synchronously at window boot
+// (the shell spawns the daemon before the first window, so both are known). A
+// daemon restart lands on a NEW port; `daemon.onUrlChanged` pushes the fresh
+// pair (see src/main/daemon.ts). The token gates every daemon request — see the
+// security note in backend/server.ts.
+interface DaemonInfo {
+  url: string
+  token: string
+}
+
+function toDaemonInfo(value: unknown): DaemonInfo {
+  if (value !== null && typeof value === 'object' && 'url' in value && 'token' in value) {
+    const { url, token } = value
+    if (typeof url === 'string' && typeof token === 'string') return { url, token }
+  }
+  return { url: '', token: '' }
+}
+
+const initialDaemon = toDaemonInfo(ipcRenderer.sendSync('daemon-url'))
+
+// The Electron bridge after the daemon split: `trpcShell` is the surviving
+// request/response shuttle for the SHELL router only (the appRouter is real HTTP
+// to the daemon now — see renderer lib/trpc.ts), `onShellEvent` is the tiny
+// shell-side push channel (close-tab, update-status), and `daemon` hands the
+// renderer the daemon's url. The terminal and app-event channels moved to the
+// daemon's WS session (renderer lib/daemon.ts).
 const porcelain = {
-  trpc: (request: {
-    url: string
-    method: string
-    headers: Record<string, string>
-    body?: string
-  }): Promise<{ status: number; headers: Record<string, string>; body: string }> =>
-    ipcRenderer.invoke('trpc', request),
   trpcShell: (request: {
     url: string
     method: string
@@ -24,33 +36,19 @@ const porcelain = {
     body?: string
   }): Promise<{ status: number; headers: Record<string, string>; body: string }> =>
     ipcRenderer.invoke('trpc-shell', request),
-  onAppEvent: (callback: (event: AppEvent) => void): (() => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, event: AppEvent): void => callback(event)
-    ipcRenderer.on('app-event', handler)
-    return () => ipcRenderer.removeListener('app-event', handler)
+  onShellEvent: (callback: (event: ShellEvent) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, event: ShellEvent): void => callback(event)
+    ipcRenderer.on('shell-event', handler)
+    return () => ipcRenderer.removeListener('shell-event', handler)
   },
-  terminal: {
-    create: (opts: {
-      cwd: string
-      initialInput?: string
-      cols?: number
-      rows?: number
-    }): Promise<string> => ipcRenderer.invoke('terminal:create', opts),
-    write: (id: string, data: string): void => ipcRenderer.send('terminal:write', id, data),
-    resize: (id: string, cols: number, rows: number): void =>
-      ipcRenderer.send('terminal:resize', id, cols, rows),
-    kill: (id: string): void => ipcRenderer.send('terminal:kill', id),
-    onData: (callback: (id: string, data: string) => void): (() => void) => {
-      const handler = (_event: Electron.IpcRendererEvent, id: string, data: string): void =>
-        callback(id, data)
-      ipcRenderer.on('terminal:data', handler)
-      return () => ipcRenderer.removeListener('terminal:data', handler)
-    },
-    onExit: (callback: (id: string, exitCode: number) => void): (() => void) => {
-      const handler = (_event: Electron.IpcRendererEvent, id: string, exitCode: number): void =>
-        callback(id, exitCode)
-      ipcRenderer.on('terminal:exit', handler)
-      return () => ipcRenderer.removeListener('terminal:exit', handler)
+  daemon: {
+    url: initialDaemon.url,
+    token: initialDaemon.token,
+    onUrlChanged: (callback: (info: DaemonInfo) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, info: unknown): void =>
+        callback(toDaemonInfo(info))
+      ipcRenderer.on('daemon-url-changed', handler)
+      return () => ipcRenderer.removeListener('daemon-url-changed', handler)
     },
   },
   // True only under the Playwright e2e harness (PORCELAIN_E2E). The terminal registry
