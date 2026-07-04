@@ -9,6 +9,7 @@ import {
 } from '@renderer/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useNewWindow, useRecentRepos } from '@renderer/hooks/use-repo'
+import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { Check, ChevronsUpDown, FolderPlus, SquareArrowOutUpRight } from 'lucide-react'
@@ -71,23 +72,26 @@ export function ProjectSwitcher(): React.JSX.Element | null {
               <div className="ml-auto flex shrink-0 items-center gap-1">
                 {recent.path === repo.path && <Check className="shrink-0 text-success" />}
                 {/* Open in a fresh window without switching this one — stopPropagation
-                    keeps the row's switchTo from also firing. */}
-                <button
-                  type="button"
-                  aria-label="Open in new window"
-                  className={cn(
-                    'flex size-6 items-center justify-center rounded-md text-muted-foreground',
-                    'hover:bg-accent/50 hover:text-foreground',
-                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
-                  )}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setMenuOpen(false)
-                    newWindow.openWindow(recent.path)
-                  }}
-                >
-                  <SquareArrowOutUpRight className="size-3.5" />
-                </button>
+                    keeps the row's switchTo from also firing. Shell-only: the browser
+                    client can't spawn Electron windows. */}
+                {!isBrowser && (
+                  <button
+                    type="button"
+                    aria-label="Open in new window"
+                    className={cn(
+                      'flex size-6 items-center justify-center rounded-md text-muted-foreground',
+                      'hover:bg-accent/50 hover:text-foreground',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+                    )}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setMenuOpen(false)
+                      newWindow.openWindow(recent.path)
+                    }}
+                  >
+                    <SquareArrowOutUpRight className="size-3.5" />
+                  </button>
+                )}
               </div>
             </DropdownMenuItem>
           ))}
@@ -98,10 +102,13 @@ export function ProjectSwitcher(): React.JSX.Element | null {
             <FolderPlus className="shrink-0" />
             Open project…
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => newWindow.openWindow()}>
-            <SquareArrowOutUpRight className="shrink-0" />
-            New window
-          </DropdownMenuItem>
+          {/* A fresh window is an Electron-shell action — hidden in the browser client. */}
+          {!isBrowser && (
+            <DropdownMenuItem onClick={() => newWindow.openWindow()}>
+              <SquareArrowOutUpRight className="shrink-0" />
+              New window
+            </DropdownMenuItem>
+          )}
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>

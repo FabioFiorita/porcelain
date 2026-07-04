@@ -6,6 +6,11 @@ import { toast } from 'sonner'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { PluginUpdateToast } from './plugin-update-toast'
 
+// The toast is shell-only (plugin installs don't exist in the browser client), so
+// it early-returns when isBrowser — which is jsdom's default (no preload bridge).
+// This suite tests the Electron-shell behavior, so pin isBrowser false.
+vi.mock('@renderer/lib/platform', () => ({ isBrowser: false }))
+
 // Mock the domain hook (never tRPC) and the toast system; the component is pure
 // side effect, so we assert on what it tells sonner.
 vi.mock('@renderer/hooks/use-plugin', () => ({

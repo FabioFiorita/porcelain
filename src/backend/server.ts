@@ -12,6 +12,7 @@ import { migrateNotesFromConfig } from './notes-store'
 import { watchAgentChannels } from './review-watch'
 import { migrateReviewedFromConfig } from './reviewed-store'
 import { broadcastAppEvent, createSession } from './session'
+import { rendererDistExists, serveStatic } from './static-server'
 import { initTailnetHandlers, startTailnetListener } from './tailnet-listener'
 import { ensureDaemonToken } from './token-file'
 
@@ -131,8 +132,22 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
   try {
     const url = req.url ?? '/'
     if (!url.startsWith('/trpc')) {
-      res.writeHead(404, cors)
-      res.end()
+      // OPTIONS anywhere is a CORS preflight — answer it, don't fall to static.
+      if (req.method === 'OPTIONS') {
+        res.writeHead(204, cors)
+        res.end()
+        return
+      }
+      // Everything that isn't /trpc (and isn't the /session WS upgrade, which
+      // never reaches here) is the renderer dist — the browser client's app shell.
+      // Static assets are UNAUTHENTICATED by design (the shell is not secret; the
+      // token gate stays on /trpc + /session — see static-server.ts). GET/HEAD only.
+      if (req.method === 'GET' || req.method === 'HEAD') {
+        await serveStatic(req, res)
+      } else {
+        res.writeHead(404, cors)
+        res.end()
+      }
       return
     }
     if (req.method === 'OPTIONS') {
@@ -223,6 +238,15 @@ async function main(): Promise<void> {
   tokenHash = createHash('sha256')
     .update(await resolveToken())
     .digest()
+
+  // The daemon serves the renderer dist to the browser client (Phase 3). In dev
+  // the daemon runs before any build, so the dist is legitimately absent — log
+  // once (static requests 404 until a build exists) instead of failing.
+  if (!rendererDistExists()) {
+    console.error(
+      '[daemon] renderer dist not found — the browser client is unavailable until `pnpm build` runs (loopback + tRPC unaffected)',
+    )
+  }
 
   // Dev seeding moved here from the shell with the config store: the playground
   // recent is config state, and the daemon owns config now. Same semantics —

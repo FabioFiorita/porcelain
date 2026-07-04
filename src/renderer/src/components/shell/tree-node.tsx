@@ -32,6 +32,7 @@ import {
   useTrashPath,
 } from '@renderer/hooks/use-files'
 import { dirName } from '@renderer/lib/paths'
+import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { useFilePromptStore } from '@renderer/stores/file-prompt'
 import { useFileTreeStore } from '@renderer/stores/file-tree'
@@ -142,10 +143,13 @@ function EntryContextMenu({
             <FileSymlink />
             Copy Relative Path
           </ContextMenuItem>
-          <ContextMenuItem onClick={reveal}>
-            <Folder />
-            Reveal in Finder
-          </ContextMenuItem>
+          {/* Reveal in Finder is a shell-only action — hidden in the browser client. */}
+          {!isBrowser && (
+            <ContextMenuItem onClick={reveal}>
+              <Folder />
+              Reveal in Finder
+            </ContextMenuItem>
+          )}
           {entry.pinned ? (
             <ContextMenuItem onClick={unpin}>
               <PinOff />

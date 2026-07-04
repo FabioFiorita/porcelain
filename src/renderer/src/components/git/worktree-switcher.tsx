@@ -8,6 +8,7 @@ import {
 } from '@renderer/components/ui/dropdown-menu'
 import { useNewWindow } from '@renderer/hooks/use-repo'
 import { useWorktrees } from '@renderer/hooks/use-worktrees'
+import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { Check, ChevronsUpDown, Folder, SquareArrowOutUpRight } from 'lucide-react'
@@ -59,23 +60,26 @@ export function WorktreeSwitcher(): React.JSX.Element | null {
               <div className="ml-auto flex shrink-0 items-center gap-1">
                 {worktree.path === repo.path && <Check className="shrink-0 text-success" />}
                 {/* Open in a fresh window without switching this one —
-                    stopPropagation keeps the row's switchTo from also firing. */}
-                <button
-                  type="button"
-                  aria-label="Open in new window"
-                  className={cn(
-                    'flex size-6 items-center justify-center rounded-md text-muted-foreground',
-                    'hover:bg-accent/50 hover:text-foreground',
-                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
-                  )}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setMenuOpen(false)
-                    newWindow.openWindow(worktree.path)
-                  }}
-                >
-                  <SquareArrowOutUpRight className="size-3.5" />
-                </button>
+                    stopPropagation keeps the row's switchTo from also firing.
+                    Shell-only: the browser client can't spawn Electron windows. */}
+                {!isBrowser && (
+                  <button
+                    type="button"
+                    aria-label="Open in new window"
+                    className={cn(
+                      'flex size-6 items-center justify-center rounded-md text-muted-foreground',
+                      'hover:bg-accent/50 hover:text-foreground',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+                    )}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setMenuOpen(false)
+                      newWindow.openWindow(worktree.path)
+                    }}
+                  >
+                    <SquareArrowOutUpRight className="size-3.5" />
+                  </button>
+                )}
               </div>
             </DropdownMenuItem>
           ))}

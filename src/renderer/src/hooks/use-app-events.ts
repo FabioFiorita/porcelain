@@ -1,6 +1,7 @@
 import type { AppEvent } from '@backend/app-events'
 import type { ShellEvent } from '@main/shell-events'
 import { onDaemonEvent, onDaemonReconnect } from '@renderer/lib/daemon'
+import { isBrowser } from '@renderer/lib/platform'
 import { shellTrpc, trpc } from '@renderer/lib/trpc'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { useEffect } from 'react'
@@ -101,9 +102,14 @@ export function useAppEvents(): void {
   const shellUtils = shellTrpc.useUtils()
 
   useEffect(() => {
-    const offShell = window.porcelain.onShellEvent(async (event) => {
-      await handle(event, utils, shellUtils)
-    })
+    // The shell-event push channel is Electron-only (close-tab, update-status);
+    // in the browser client there's no preload bridge, so skip it — the daemon WS
+    // events below keep working untouched.
+    const offShell = isBrowser
+      ? () => {}
+      : window.porcelain.onShellEvent(async (event) => {
+          await handle(event, utils, shellUtils)
+        })
     const offDaemon = onDaemonEvent(async (event) => {
       await handle(event, utils, shellUtils)
     })

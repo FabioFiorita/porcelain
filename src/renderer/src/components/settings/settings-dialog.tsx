@@ -16,6 +16,7 @@ import {
   SidebarMenuItem,
   SidebarProvider,
 } from '@renderer/components/ui/sidebar'
+import { isBrowser } from '@renderer/lib/platform'
 import { type SettingsSection, useSettingsDialogStore } from '@renderer/stores/settings-dialog'
 import { Bot, Download, Layers, Settings2, SlidersHorizontal } from 'lucide-react'
 import { AgentsSection } from './agents-section'
@@ -26,12 +27,15 @@ import { UpdatesSection } from './updates-section'
 // Each section's title + blurb live here so the dialog can render a fixed header
 // band (real type hierarchy, always visible) while only the body scrolls — the
 // section components render just their controls.
-const SECTIONS: {
+const ALL_SECTIONS: {
   id: SettingsSection
   label: string
   icon: typeof Layers
   title: string
   blurb: string
+  // Drives shell-only procedures (plugin/codex install, the Electron auto-updater),
+  // so it's hidden in the browser client — there's no shell to run them.
+  shellOnly?: boolean
 }[] = [
   {
     id: 'general',
@@ -53,6 +57,7 @@ const SECTIONS: {
     icon: Bot,
     title: 'Agents',
     blurb: 'Connect Porcelain to the coding agent you drive it from.',
+    shellOnly: true,
   },
   {
     id: 'updates',
@@ -60,15 +65,22 @@ const SECTIONS: {
     icon: Download,
     title: 'Updates',
     blurb: 'Porcelain checks automatically and installs on quit.',
+    shellOnly: true,
   },
 ]
+
+const SECTIONS = ALL_SECTIONS.filter((s) => !(isBrowser && s.shellOnly))
 
 export function SettingsDialog(): React.JSX.Element {
   const open = useSettingsDialogStore((s) => s.open)
   const setOpen = useSettingsDialogStore((s) => s.setOpen)
   const section = useSettingsDialogStore((s) => s.section)
   const setSection = useSettingsDialogStore((s) => s.setSection)
+  // A persisted section that's hidden in this client (e.g. 'updates' opened in
+  // Electron, then the same prefs viewed in a browser) falls back to General so
+  // the header and body never disagree.
   const active = SECTIONS.find((s) => s.id === section) ?? SECTIONS[0]
+  const activeId = active.id
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -123,10 +135,10 @@ export function SettingsDialog(): React.JSX.Element {
               <p className="mt-1 text-xs text-muted-foreground">{active.blurb}</p>
             </header>
             <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-6">
-              {section === 'general' && <GeneralSection />}
-              {section === 'flow' && <FlowLayersSection onSaved={() => setOpen(false)} />}
-              {section === 'agents' && <AgentsSection />}
-              {section === 'updates' && <UpdatesSection />}
+              {activeId === 'general' && <GeneralSection />}
+              {activeId === 'flow' && <FlowLayersSection onSaved={() => setOpen(false)} />}
+              {activeId === 'agents' && <AgentsSection />}
+              {activeId === 'updates' && <UpdatesSection />}
             </main>
           </div>
         </SidebarProvider>

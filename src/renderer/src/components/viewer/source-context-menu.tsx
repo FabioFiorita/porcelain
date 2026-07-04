@@ -8,6 +8,7 @@ import {
 } from '@renderer/components/ui/context-menu'
 import { Kbd } from '@renderer/components/ui/kbd'
 import { type LineSelection, lineSelectionFromDom } from '@renderer/lib/line-selection'
+import { isBrowser } from '@renderer/lib/platform'
 import { useRepoStore } from '@renderer/stores/repo'
 import {
   Compass,
@@ -100,10 +101,15 @@ export function SourceContextMenu({
               <ContextMenuItem onClick={copyRelativePath}>
                 <FileSymlink /> Copy relative path
               </ContextMenuItem>
-              <ContextMenuSeparator />
-              <ContextMenuItem onClick={reveal}>
-                <FolderOpen /> Reveal in Finder
-              </ContextMenuItem>
+              {/* Reveal in Finder is a shell-only action — hidden in the browser client. */}
+              {!isBrowser && (
+                <>
+                  <ContextMenuSeparator />
+                  <ContextMenuItem onClick={reveal}>
+                    <FolderOpen /> Reveal in Finder
+                  </ContextMenuItem>
+                </>
+              )}
             </>
           )}
         </ContextMenuContent>

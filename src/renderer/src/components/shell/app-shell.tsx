@@ -7,6 +7,7 @@ import { useAppEvents } from '@renderer/hooks/use-app-events'
 import { useWatchOpenFiles, useWatchTreeDirs } from '@renderer/hooks/use-files'
 import { useTerminalChannel } from '@renderer/hooks/use-terminal-channel'
 import { useInstallUpdate, useUpdateStatus } from '@renderer/hooks/use-updates'
+import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
@@ -38,6 +39,8 @@ function UpdateButton(): React.JSX.Element | null {
   const status = useUpdateStatus()
   const { install, isInstalling } = useInstallUpdate()
 
+  // The Electron auto-updater doesn't exist in the browser client.
+  if (isBrowser) return null
   if (status?.state !== 'downloaded') return null
 
   return (

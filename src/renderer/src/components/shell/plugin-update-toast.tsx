@@ -1,4 +1,5 @@
 import { useCursorPluginInfo, usePluginInfo } from '@renderer/hooks/use-plugin'
+import { isBrowser } from '@renderer/lib/platform'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useSettingsDialogStore } from '@renderer/stores/settings-dialog'
 import { useEffect, useRef } from 'react'
@@ -37,6 +38,8 @@ export function PluginUpdateToast(): null {
   const needsUpdate = claudePending || cursorPending
 
   useEffect(() => {
+    // Plugin installs are shell-only; the browser client has nothing to update.
+    if (isBrowser) return
     if (!needsUpdate || current === undefined) return
     if (shown.current === current) return
     shown.current = current

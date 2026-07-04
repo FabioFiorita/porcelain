@@ -86,6 +86,13 @@ function shellLinks(): TRPCLink<ShellRouter>[] {
     httpBatchLink({
       url: 'http://localhost/trpc-shell',
       fetch: async (input, init) => {
+        // The shell router rides the Electron preload bridge; in the browser client
+        // there is no bridge. Fail loudly and instantly rather than hang — every
+        // shell-only call site is supposed to be gated out (lib/platform isBrowser),
+        // so reaching here is a bug, not an expected browser path.
+        if (window.porcelain === undefined) {
+          throw new Error('shell router is unavailable in the browser client')
+        }
         const headers: Record<string, string> = {}
         new Headers(init?.headers).forEach((value, key) => {
           headers[key] = value

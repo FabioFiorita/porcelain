@@ -1,4 +1,5 @@
 import type { RepoInfo } from '@backend/api'
+import { isBrowser } from '@renderer/lib/platform'
 import { shellTrpcClient, trpcClient } from '@renderer/lib/trpc'
 import { useRepoPickerStore } from '@renderer/stores/repo-picker'
 import { useTabsStore } from '@renderer/stores/tabs'
@@ -31,6 +32,14 @@ export const useRepoStore = create<RepoState>((set, get) => ({
   restoring: true,
   showHidden: false,
   boot: async () => {
+    // No shell in a browser, so there's no windowInit to ask (open-this-repo /
+    // restore / welcome is a per-Electron-window decision). The daemon's recents
+    // are the browser client's restore source — fall straight to them, keeping the
+    // try/catch → welcome fallback restoreLastRepo already carries.
+    if (isBrowser) {
+      await get().restoreLastRepo()
+      return
+    }
     try {
       const init = await shellTrpcClient.windowInit.query()
       if (init.mode === 'open') {

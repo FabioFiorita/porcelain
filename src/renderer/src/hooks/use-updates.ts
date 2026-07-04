@@ -1,8 +1,10 @@
 import type { UpdateStatus } from '@main/updater'
+import { isBrowser } from '@renderer/lib/platform'
 import { shellTrpc } from '@renderer/lib/trpc'
 
 export function useUpdateStatus(): UpdateStatus | undefined {
-  const { data } = shellTrpc.updateStatus.useQuery()
+  // Shell-only (Electron auto-updater) — the browser client never queries it.
+  const { data } = shellTrpc.updateStatus.useQuery(undefined, { enabled: !isBrowser })
   return data
 }
 

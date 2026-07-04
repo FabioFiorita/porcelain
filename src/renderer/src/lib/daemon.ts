@@ -28,10 +28,26 @@ import {
  * notified (use-app-events refetches queries).
  */
 
+// The localStorage key the browser client stores its user-entered daemon token
+// under (Phase 3): the packaged app gets its token from the preload bridge, but a
+// plain browser has no bridge, so the human types it once on the TokenGate screen
+// and it's persisted here.
+const BROWSER_TOKEN_KEY = 'porcelain-daemon-token'
+
+// The bridge is absent both in the browser client AND under vitest/jsdom. In the
+// browser we read the persisted token from localStorage; under jsdom localStorage
+// exists and returns null → '' (nothing connects in unit tests — hooks are mocked,
+// ensureSession is lazy), so this fallback stays quiet there too.
+function initialToken(): string {
+  const fromBridge = window.porcelain?.daemon?.token
+  if (fromBridge !== undefined) return fromBridge
+  return localStorage.getItem(BROWSER_TOKEN_KEY) ?? ''
+}
+
 // window.porcelain is absent under vitest/jsdom — fall back quietly; nothing
 // connects in unit tests (hooks are mocked; ensureSession is lazy).
 let baseUrl = window.porcelain?.daemon?.url ?? ''
-let token = window.porcelain?.daemon?.token ?? ''
+let token = initialToken()
 
 /** The daemon's HTTP origin. Falls back to the page origin — Phase 3 serves the remote client FROM the daemon, making it same-origin. */
 export function daemonBaseUrl(): string {
@@ -217,12 +233,11 @@ function ensureSession(): void {
   }
 }
 
-// A daemon restart lands on a new port: adopt the url (+ token — stable per app
-// run, re-sent for one payload shape), drop the socket aimed at the dead
-// process, and reconnect immediately (skipping any pending backoff).
-window.porcelain?.daemon?.onUrlChanged((info) => {
-  baseUrl = info.url
-  token = info.token
+// Drop the current socket and reconnect immediately with the current baseUrl/token,
+// skipping any pending backoff. Shared by the shell's url-change push (below) and
+// the browser's token-gate submit (setBrowserDaemonToken) — both change what the
+// next handshake must carry, so both want the same forced-reconnect path.
+function reconnectNow(): void {
   recoveryPending = true
   if (reconnectTimer !== null) {
     window.clearTimeout(reconnectTimer)
@@ -233,7 +248,28 @@ window.porcelain?.daemon?.onUrlChanged((info) => {
   socket = null
   stale?.close()
   ensureSession()
+}
+
+// A daemon restart lands on a new port: adopt the url (+ token — stable per app
+// run, re-sent for one payload shape), drop the socket aimed at the dead
+// process, and reconnect immediately (skipping any pending backoff).
+window.porcelain?.daemon?.onUrlChanged((info) => {
+  baseUrl = info.url
+  token = info.token
+  reconnectNow()
 })
+
+/**
+ * Persist and adopt a browser-client daemon token (from the TokenGate screen),
+ * then reconnect the WS with the new subprotocol — no reload needed. The base
+ * url stays the page origin (daemonBaseUrl's fallback); only the token changes.
+ * A no-op for the packaged app, which never calls this (its token rides the bridge).
+ */
+export function setBrowserDaemonToken(newToken: string): void {
+  localStorage.setItem(BROWSER_TOKEN_KEY, newToken)
+  token = newToken
+  reconnectNow()
+}
 
 export function onDaemonEvent(listener: (event: AppEvent) => void): () => void {
   ensureSession()
