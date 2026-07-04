@@ -57,7 +57,9 @@ assumed — this skill is the codebase-specific layer beneath them.
   (rejected handshake without it) — loopback is reachable from any webpage the user's
   browser has open (fetch to 127.0.0.1; WebSockets carry no CORS at all), so an
   unauthenticated `/session` would hand `terminal:create` — a shell — to drive-by web
-  content. (3) **The token never appears in argv** (`ps`-visible), **stdout** (the
+  content. (The token gate is the whole boundary: a holder can already open/read any
+  path via `openRepoPath`/`readFile`, so the daemon-side repo browser `browseDirs` —
+  directory names only — widens nothing.) (3) **The token never appears in argv** (`ps`-visible), **stdout** (the
   daemon's only stdout line is the port; the parent passed the token via env so it
   already knows it), **or a spawned PTY's env** (see the terminal-env invariant below).
   (4) **CORS is scoped, never `*`** — only the dev Vite origin (`PORCELAIN_ALLOWED_ORIGIN`)

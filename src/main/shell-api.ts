@@ -1,5 +1,5 @@
 import { initTRPC } from '@trpc/server'
-import { dialog, shell, type WebContents } from 'electron'
+import { shell, type WebContents } from 'electron'
 import { z } from 'zod'
 import { type CodexInstallResult, installCodex } from './codex'
 import { codexInstallCommands, codexMarketplaceDir, codexPluginVersion } from './codex-assets'
@@ -23,15 +23,6 @@ export interface ShellTrpcContext {
 const t = initTRPC.context<ShellTrpcContext>().create({ isServer: true })
 
 export const shellRouter = t.router({
-  // Only the native folder dialog is shell work; the config side effects
-  // (recording the recent, warming the file list) live daemon-side now, so the
-  // renderer follows up by opening the returned path over the appRouter
-  // (`openRepoPath` — see stores/repo.ts).
-  openRepo: t.procedure.query(async (): Promise<string | null> => {
-    const result = await dialog.showOpenDialog({ properties: ['openDirectory'] })
-    return result.filePaths[0] ?? null
-  }),
-
   windowInit: t.procedure.query(({ ctx }): WindowInit => windowInitFor(ctx.sender)),
 
   newWindow: t.procedure

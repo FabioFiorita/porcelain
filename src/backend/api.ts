@@ -29,6 +29,7 @@ import {
   readCards,
   updateCard,
 } from './board-store'
+import { type BrowseResult, browseDirs } from './browse'
 import {
   addComment,
   deleteComment,
@@ -374,6 +375,15 @@ export const router = t.router({
     )
     return existing.filter((p): p is string => p !== null).map(toRepoInfo)
   }),
+
+  // Daemon-side directory browser for the repo picker (replaces the native
+  // open-folder dialog — repos are daemon paths, so a remote daemon must pick
+  // ITS paths; see remote-envs decision 5). `null` starts at the daemon home.
+  // Directory NAMES only, never file contents; any token-holder can already open
+  // any path via openRepoPath, so this widens nothing.
+  browseDirs: t.procedure
+    .input(z.string().nullable())
+    .query(({ input }): Promise<BrowseResult> => browseDirs(input)),
 
   readDir: t.procedure
     .input(z.object({ repoPath: z.string(), path: z.string(), showHidden: z.boolean() }))

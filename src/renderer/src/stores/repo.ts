@@ -1,5 +1,6 @@
 import type { RepoInfo } from '@backend/api'
 import { shellTrpcClient, trpcClient } from '@renderer/lib/trpc'
+import { useRepoPickerStore } from '@renderer/stores/repo-picker'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { useTerminalsStore } from '@renderer/stores/terminals'
 import { create } from 'zustand'
@@ -10,7 +11,10 @@ interface RepoState {
   showHidden: boolean
   boot: () => Promise<void>
   restoreLastRepo: () => Promise<void>
-  openRepo: () => Promise<void>
+  /** Opens the daemon-side repo picker (the native folder dialog is gone —
+   *  remote-envs decision 5; repos are daemon paths, so local and remote share
+   *  one browse code path). The picker calls `openRepoPath` on confirm. */
+  openRepo: () => void
   openRepoPath: (path: string) => Promise<void>
   /** Closes every tab and clears this window's terminal views (the PTYs live on
    *  daemon-side — sessions survive a repo switch now, explicit kill only), then opens
@@ -52,11 +56,12 @@ export const useRepoStore = create<RepoState>((set, get) => ({
       set({ restoring: false })
     }
   },
-  openRepo: async () => {
-    // The shell only runs the native folder dialog; opening the returned path
-    // through the daemon's openRepoPath records the recent + warms the file list.
-    const path = await shellTrpcClient.openRepo.query()
-    if (path) set({ repo: await trpcClient.openRepoPath.mutate(path) })
+  openRepo: () => {
+    // Open the daemon-side directory browser (RepoPickerDialog). The native
+    // folder dialog is gone (remote-envs decision 5): repos are daemon paths, so
+    // the picker browses the DAEMON's filesystem — one code path local or remote.
+    // The dialog confirms through openRepoPath (records the recent + warms files).
+    useRepoPickerStore.getState().show()
   },
   openRepoPath: async (path) => {
     set({ repo: await trpcClient.openRepoPath.mutate(path) })

@@ -20,6 +20,7 @@ import { FileCommands } from './file-commands'
 import { FileFinder } from './file-finder'
 import { FilePromptDialog } from './file-prompt-dialog'
 import { PluginUpdateToast } from './plugin-update-toast'
+import { RepoPickerDialog } from './repo-picker-dialog'
 import { RightSidebar } from './right-sidebar'
 import { TabBar } from './tab-bar'
 import { TitleBar } from './title-bar'
@@ -179,6 +180,7 @@ export function AppShell(): React.JSX.Element {
         <div className="min-h-0 flex-1">
           <Welcome />
         </div>
+        <RepoPickerDialog />
       </div>
     )
   }
@@ -207,6 +209,7 @@ export function AppShell(): React.JSX.Element {
         <ContentSearch />
         <FileCommands />
         <FilePromptDialog />
+        <RepoPickerDialog />
         <CardComposer />
         <PluginUpdateToast />
         <AppSidebar />
