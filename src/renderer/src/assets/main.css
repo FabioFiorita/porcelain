@@ -388,6 +388,20 @@
        glyphs that read as a solid bar — disable them so operators stay legible. */
     font-variant-ligatures: none;
   }
+  /* Browser client (daemon-served, Phase 3) — no macOS vibrancy behind the window, so
+     the void behind the floating tiles would render as flat browser-default. Paint an
+     opaque fallback on `html` (body stays transparent so tiles keep floating). The void
+     must stay a VOID: deep graphite + two blooms echoing a blurred wallpaper, noise only
+     to kill gradient banding — no picture, no pattern, no motion (deliberate). Electron
+     path is untouched: this rule only applies under `.browser`. */
+  html.browser {
+    background:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E"),
+      radial-gradient(120% 90% at 18% -10%, rgba(58, 64, 96, 0.55), transparent 60%),
+      radial-gradient(90% 70% at 85% 105%, rgba(52, 46, 78, 0.35), transparent 55%),
+      radial-gradient(140% 140% at 50% 50%, transparent 55%, rgba(10, 10, 12, 0.6) 100%),
+      #0e0e11;
+  }
 }
 
 /* Themed thin scrollbars for native-overflow areas (code viewer, diff, sidebar).
