@@ -12,11 +12,12 @@ interface RepoState {
   restoreLastRepo: () => Promise<void>
   openRepo: () => Promise<void>
   openRepoPath: (path: string) => Promise<void>
-  /** Closes every tab (and reaps the terminals — different cwd), then opens the
-   *  repo/worktree at `path` in THIS window. The ProjectSwitcher and the
-   *  WorktreeSwitcher's row click both call this for an in-place switch; each
-   *  switcher ALSO offers a trailing "open in new window" button (useNewWindow)
-   *  that leaves this window — and its terminals — untouched. */
+  /** Closes every tab and clears this window's terminal views (the PTYs live on
+   *  daemon-side — sessions survive a repo switch now, explicit kill only), then opens
+   *  the repo/worktree at `path` in THIS window. The ProjectSwitcher and the
+   *  WorktreeSwitcher's row click both call this for an in-place switch; each switcher
+   *  ALSO offers a trailing "open in new window" button (useNewWindow) that leaves this
+   *  window untouched. */
   switchTo: (path: string) => Promise<void>
   toggleShowHidden: () => void
 }
@@ -62,9 +63,10 @@ export const useRepoStore = create<RepoState>((set, get) => ({
   },
   switchTo: async (path) => {
     if (path === get().repo?.path) return
-    // cross-store getState() from a store action is the sanctioned pattern. The new
-    // repo has a different cwd, so the old repo's terminals are killed (closeAllTabs
-    // only closes their views — `reset` reaps the PTYs).
+    // cross-store getState() from a store action is the sanctioned pattern. `reset` only
+    // clears this window's terminal views — the PTYs survive the switch (explicit kill
+    // only) and re-hydrate if the repo comes back; `use-terminals` re-filters the roster
+    // to the new repo after openRepoPath resolves.
     useTabsStore.getState().closeAllTabs()
     useTerminalsStore.getState().reset()
     set({ repo: await trpcClient.openRepoPath.mutate(path) })

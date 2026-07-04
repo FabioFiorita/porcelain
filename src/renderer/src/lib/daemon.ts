@@ -19,10 +19,13 @@ import {
  * Reconnect story: the socket retries with capped backoff for as long as the
  * daemon is down; the shell pushes a NEW url over `daemon.onUrlChanged` when it
  * restarts a crashed daemon on a fresh port. On every reconnect the client
- * re-registers the last watch sets (server-side session state died with the old
- * socket) and notifies `onDaemonReconnect` subscribers (use-app-events refetches
- * queries). Terminal routing needs no re-attach — inbound messages are dispatched
- * by id to the same listeners regardless of which socket delivered them.
+ * re-registers the last watch sets AND re-attaches every terminal it was streaming
+ * (server-side session state died with the old socket — the daemon keys attached
+ * senders by connection). The fresh scrollback from each re-attach is pushed through
+ * the `onTerminalScrollback` listeners so the registry can replay it into the xterm;
+ * inbound `terminal:data` is otherwise dispatched by id to the same listeners
+ * regardless of which socket delivered it. `onDaemonReconnect` subscribers are also
+ * notified (use-app-events refetches queries).
  */
 
 // window.porcelain is absent under vitest/jsdom — fall back quietly; nothing
@@ -43,12 +46,28 @@ export function daemonToken(): string {
 const eventListeners = new Set<(event: AppEvent) => void>()
 const dataListeners = new Set<(id: string, data: string) => void>()
 const exitListeners = new Set<(id: string, exitCode: number) => void>()
+const scrollbackListeners = new Set<(id: string, scrollback: string) => void>()
 const reconnectListeners = new Set<() => void>()
 interface PendingCreate {
   resolve: (id: string) => void
   reject: (error: Error) => void
 }
 const pendingCreates = new Map<string, PendingCreate>()
+export interface AttachResult {
+  scrollback: string
+  status: 'running' | 'exited'
+  exitCode?: number
+  found: boolean
+}
+interface PendingAttach {
+  resolve: (result: AttachResult) => void
+  reject: (error: Error) => void
+}
+const pendingAttaches = new Map<string, PendingAttach>()
+// The ids this client is currently streaming — re-sent as `terminal:attach` on every
+// reconnect (the daemon's attached-sender set died with the old socket), with the fresh
+// scrollback routed through the scrollback listeners so the registry can replay it.
+const attachedIds = new Set<string>()
 // Creates issued while the socket is still CONNECTING are queued and flushed on
 // open; fire-and-forget messages (write/resize/kill/watch) are not — a dead
 // socket means dead PTYs, and watches re-register from lastWatched* on open.
@@ -68,12 +87,15 @@ let recoveryPending = false
 let retryDelay = 500
 let reconnectTimer: number | null = null
 
-/** Fail every in-flight/queued terminal create — their socket is gone. */
+/** Fail every in-flight/queued terminal create + attach — their socket is gone. */
 function failPendingCreates(reason: string): void {
   outbox.length = 0
-  const pending = [...pendingCreates.values()]
+  const creates = [...pendingCreates.values()]
   pendingCreates.clear()
-  for (const { reject } of pending) reject(new Error(reason))
+  for (const { reject } of creates) reject(new Error(reason))
+  const attaches = [...pendingAttaches.values()]
+  pendingAttaches.clear()
+  for (const { reject } of attaches) reject(new Error(reason))
 }
 
 function dispatch(message: ServerMessage): void {
@@ -92,6 +114,23 @@ function dispatch(message: ServerMessage): void {
       if (pending) {
         pendingCreates.delete(message.reqId)
         pending.resolve(message.id)
+      }
+      break
+    }
+    case 'terminal:attached': {
+      // Route the replay scrollback to the registry before any live data follows
+      // (the daemon sends this reply before subsequent terminal:data), then settle
+      // the pending attach promise for the caller that awaited the initial attach.
+      for (const listener of scrollbackListeners) listener(message.id, message.scrollback)
+      const pending = pendingAttaches.get(message.reqId)
+      if (pending) {
+        pendingAttaches.delete(message.reqId)
+        pending.resolve({
+          scrollback: message.scrollback,
+          status: message.status,
+          exitCode: message.exitCode,
+          found: message.found,
+        })
       }
       break
     }
@@ -136,6 +175,15 @@ function ensureSession(): void {
     // replay the current watch sets before anything else.
     if (lastWatchedFiles !== null) push({ t: 'watch:files', paths: lastWatchedFiles })
     if (lastWatchedDirs !== null) push({ t: 'watch:dirs', paths: lastWatchedDirs })
+    // On a genuine REconnect, re-attach every terminal this client was streaming: the
+    // daemon's attached-sender set died with the old socket, so a fresh attach
+    // re-registers us and its scrollback reply replays into the registry (dispatch →
+    // scrollbackListeners). Not awaited — best-effort re-registrations, not the initial
+    // attach promise. Skipped on the first-ever open: those attaches are already queued
+    // in the outbox (double-sending would replay scrollback twice).
+    if (everConnected) {
+      for (const id of attachedIds) push({ t: 'terminal:attach', id, reqId: crypto.randomUUID() })
+    }
     for (const message of outbox.splice(0)) push(message)
     // Refetch on every REconnect — and on the first connect after the shell
     // pushed a fresh url (the daemon came up late; boot queries errored and
@@ -205,6 +253,18 @@ export function onTerminalExit(listener: (id: string, exitCode: number) => void)
   return () => exitListeners.delete(listener)
 }
 
+/**
+ * Fires with a session's replay scrollback on attach (both the initial attach and every
+ * reconnect re-attach). The registry replays it into the xterm before live data follows.
+ */
+export function onTerminalScrollback(
+  listener: (id: string, scrollback: string) => void,
+): () => void {
+  ensureSession()
+  scrollbackListeners.add(listener)
+  return () => scrollbackListeners.delete(listener)
+}
+
 /** Fires after the session comes BACK (never on the first connect) — queries are stale, refetch. */
 export function onDaemonReconnect(listener: () => void): () => void {
   ensureSession()
@@ -233,6 +293,7 @@ export function watchDirs(paths: string[]): void {
  * hanging on a promise that can never settle.
  */
 export function createTerminal(opts: {
+  name: string
   cwd: string
   initialInput?: string
   cols?: number
@@ -241,11 +302,59 @@ export function createTerminal(opts: {
   ensureSession()
   return new Promise<string>((resolve, reject) => {
     const reqId = crypto.randomUUID()
-    pendingCreates.set(reqId, { resolve, reject })
+    pendingCreates.set(reqId, {
+      // The creator is auto-attached daemon-side — track the id so a later reconnect
+      // re-attaches it like any other streaming terminal.
+      resolve: (id) => {
+        attachedIds.add(id)
+        resolve(id)
+      },
+      reject,
+    })
     const message: ClientMessage = { t: 'terminal:create', reqId, ...opts }
     if (socket !== null && socket.readyState === WebSocket.OPEN) push(message)
     else outbox.push(message)
   })
+}
+
+/**
+ * Attach to a daemon-owned PTY (opening a session hydrated from the roster after a
+ * reload, or a second view of one already running) and resolve with its replay
+ * scrollback + state. The scrollback is ALSO pushed through `onTerminalScrollback` (the
+ * registry's replay path); the promise result is for the caller that needs the state
+ * (e.g. an already-exited session). Rejects if the socket drops before the daemon
+ * answers, like create. Re-attaches automatically on every reconnect thereafter.
+ */
+export function attachTerminal(id: string): Promise<AttachResult> {
+  ensureSession()
+  attachedIds.add(id)
+  return new Promise<AttachResult>((resolve, reject) => {
+    const reqId = crypto.randomUUID()
+    pendingAttaches.set(reqId, {
+      resolve,
+      // A socket drop before the reply rejects this — drop the id so `isTerminalAttached`
+      // reports false and the next roster hydrate re-attaches (the reconnect re-attach
+      // loop only fires once everConnected, so an initial-connect failure needs this).
+      reject: (error) => {
+        attachedIds.delete(id)
+        reject(error)
+      },
+    })
+    const message: ClientMessage = { t: 'terminal:attach', id, reqId }
+    if (socket !== null && socket.readyState === WebSocket.OPEN) push(message)
+    else outbox.push(message)
+  })
+}
+
+/** Stop streaming a PTY to this client without killing it (fire-and-forget). */
+export function detachTerminal(id: string): void {
+  attachedIds.delete(id)
+  push({ t: 'terminal:detach', id })
+}
+
+/** Whether this client is currently streaming `id` — so a caller doesn't re-attach it. */
+export function isTerminalAttached(id: string): boolean {
+  return attachedIds.has(id)
 }
 
 export function writeTerminal(id: string, data: string): void {
@@ -257,5 +366,6 @@ export function resizeTerminal(id: string, cols: number, rows: number): void {
 }
 
 export function killTerminal(id: string): void {
+  attachedIds.delete(id)
   push({ t: 'terminal:kill', id })
 }

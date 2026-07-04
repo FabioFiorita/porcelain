@@ -110,6 +110,7 @@ import {
   unmarkReviewed,
 } from './reviewed-store'
 import { startTailnetListener, stopTailnetListener, tailnetUrl } from './tailnet-listener'
+import { listTerminals, renameTerminal, type TerminalInfo } from './terminal-manager'
 
 // No per-connection context: appRouter procedures are pure Node and must never
 // reference a caller (per-connection concerns live shell-side until the Stage 2
@@ -1038,6 +1039,19 @@ export const router = t.router({
         path: r.path,
         kind: dirs.has(r.path) ? 'dir' : 'file',
       }))
+    }),
+
+  // The daemon-owned terminal roster — every live/exited PTY with its name, cwd, and
+  // status. The renderer hydrates its sidebar list from this (filtered to the current
+  // repo) on repo open and on daemon reconnect, so a still-running session reappears
+  // after a reload. Create/attach/write ride the WS session (byte streams); list/rename
+  // are plain request/response, so they live here.
+  terminalSessions: t.procedure.query((): TerminalInfo[] => listTerminals()),
+
+  renameTerminal: t.procedure
+    .input(z.object({ id: z.string(), name: z.string() }))
+    .mutation(({ input }) => {
+      renameTerminal(input.id, input.name)
     }),
 })
 

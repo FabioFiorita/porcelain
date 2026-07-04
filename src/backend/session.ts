@@ -8,9 +8,11 @@ import {
 } from '../shared/ws-protocol'
 import { clearWatchedDirs, clearWatchedFiles, setWatchedDirs, setWatchedFiles } from './file-watch'
 import {
+  attachTerminal,
   createTerminal,
+  detachSender,
+  detachTerminal,
   killTerminal,
-  killTerminalsForSender,
   resizeTerminal,
   writeTerminal,
 } from './terminal-manager'
@@ -24,9 +26,10 @@ import {
  * A session IS the structural sender that `file-watch.ts` (FileWatchSender) and
  * `terminal-manager.ts` (TerminalSender) expect: their `send(channel, ...args)`
  * calls are translated into typed WS messages here, so those modules didn't
- * change when the transport did. On socket close the session reaps exactly what
- * the window-close path used to: its file/dir watchers and its PTYs (a window's
- * terminals still die with it — daemon-surviving PTYs are Phase 2).
+ * change when the transport did. On socket close the session clears its file/dir
+ * watchers and DETACHES from every terminal — but the PTYs live on (Phase 2:
+ * sessions outlive connections, so a renderer reload re-attaches and replays
+ * scrollback). Only an explicit `terminal:kill` ends a PTY.
  */
 
 const sessions = new Set<Session>()
@@ -93,6 +96,7 @@ class Session {
     switch (message.t) {
       case 'terminal:create': {
         const id = createTerminal(this, {
+          name: message.name,
           cwd: message.cwd,
           initialInput: message.initialInput,
           cols: message.cols,
@@ -101,6 +105,24 @@ class Session {
         this.push({ t: 'terminal:created', reqId: message.reqId, id })
         break
       }
+      case 'terminal:attach': {
+        // null (unknown id) → reply found=false with an empty snapshot so the client's
+        // pending attach still settles instead of hanging.
+        const result = attachTerminal(message.id, this)
+        this.push({
+          t: 'terminal:attached',
+          reqId: message.reqId,
+          id: message.id,
+          scrollback: result?.scrollback ?? '',
+          status: result?.status ?? 'exited',
+          exitCode: result?.exitCode,
+          found: result !== null,
+        })
+        break
+      }
+      case 'terminal:detach':
+        detachTerminal(message.id, this)
+        break
       case 'terminal:write':
         writeTerminal(message.id, message.data)
         break
@@ -119,13 +141,14 @@ class Session {
     }
   }
 
-  // Today's window-close semantics, keyed by connection instead of WebContents:
-  // the session's watchers and PTYs die with the socket.
+  // Phase-2 socket-close semantics: the session's watchers are cleared, but its PTYs
+  // are only DETACHED — they live on so a reconnecting renderer re-attaches and replays
+  // scrollback. A PTY ends only on an explicit `terminal:kill` (or the daemon dying).
   private dispose(): void {
     sessions.delete(this)
     clearWatchedFiles(this)
     clearWatchedDirs(this)
-    killTerminalsForSender(this)
+    detachSender(this)
   }
 }
 

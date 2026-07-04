@@ -270,13 +270,24 @@ assumed — this skill is the codebase-specific layer beneath them.
   restart or resolving+rejecting the ready promise. Don't drop the `error` listener when
   touching the lifecycle. *Verify:* `kill -9` the daemon while the app runs → it restarts and
   the UI recovers; a bad daemon path fails closed, not with an app crash.
-- **On WS-session close, reject every in-flight/queued terminal create and clear the outbox**
-  (`failPendingCreates` in `lib/daemon.ts`, from `ws.onclose`). *Why:* a `createTerminal`
-  promise whose `terminal:created` reply died with the socket would hang forever, and
-  replaying a stale `terminal:create` from the outbox on a much-later reconnect would spawn
-  an abandoned shell nobody awaits. Reconnect DOES re-register watch sets (from `lastWatched*`)
-  and flush the outbox on a *live* open — but a dropped socket's pending creates are rejected,
-  not replayed, so the caller surfaces the error and retries. Don't make creates auto-replay.
+- **On WS-session close, DETACH senders (PTYs survive) — but still reject every in-flight/queued
+  terminal create AND attach and clear the outbox** (`failPendingCreates` in `lib/daemon.ts`,
+  from `ws.onclose`; `session.dispose` → `detachSender`, NOT a kill). *Why:* Phase 2 decouples
+  a PTY's lifetime from the connection, so a dropped socket must not end a shell — the daemon
+  only removes that sender from each session's attached set, and a reconnecting client
+  re-attaches (replaying scrollback) to resume. But a `createTerminal`/`attachTerminal` promise
+  whose reply died with the socket would still hang forever, and replaying a stale
+  `terminal:create` from the outbox on a much-later reconnect would spawn an abandoned shell
+  nobody awaits — so both pendings are rejected (attaches drop their id so the next hydrate
+  retries). Reconnect DOES re-register watch sets (from `lastWatched*`), re-attach every
+  streamed terminal (from `attachedIds`), and flush the outbox on a *live* open — but a dropped
+  socket's pending creates/attaches are rejected, not replayed. Don't make creates auto-replay,
+  and don't reintroduce a kill-on-close path.
+- **A session's scrollback is byte-capped (64KB, `scrollback-buffer.ts`).** *Why:* attach
+  replays a session's retained output into the reconnecting client's xterm, so it must be
+  remembered — but a long-running shell (dev server, chatty build) would grow daemon memory
+  without bound. The buffer keeps only the newest ≤64KB (oldest chunks dropped). Don't remove
+  or unbound the cap. *Verify:* `scrollback-buffer.test.ts` (over-cap trimming keeps newest).
 
 ## Performance (must stay fast on a 50 GB monorepo)
 

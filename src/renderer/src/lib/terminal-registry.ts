@@ -27,6 +27,12 @@ interface Instance {
 
 const instances = new Map<string, Instance>()
 const buffers = new Map<string, string[]>()
+// Ids whose replay scrollback has already been seeded into their xterm (or buffered for
+// it). A fresh reload seeds once when the view first attaches; a later live reconnect
+// re-attaches the same id but must NOT re-write the scrollback — the xterm already holds
+// the full stream, and the live feed just resumes. Cleared on dispose (the session is
+// gone) so a future same-id session would seed cleanly.
+const seeded = new Set<string>()
 
 // Display sleep/wake (and GPU context eviction) can lose the WebGL texture atlas without
 // firing onContextLoss, leaving terminals painting smeared/wrong-color cells when the
@@ -39,6 +45,10 @@ document.addEventListener('visibilitychange', () => {
 
 /** Route inbound PTY output to its xterm, buffering until the instance is mounted. */
 export function receiveData(id: string, data: string): void {
+  // Live output means this id's xterm is being built from the stream itself — mark it
+  // seeded so a later reconnect's scrollback replay (receiveScrollback) is ignored and
+  // can't duplicate content the terminal already shows.
+  seeded.add(id)
   const instance = instances.get(id)
   if (instance) {
     instance.term.write(data)
@@ -47,6 +57,20 @@ export function receiveData(id: string, data: string): void {
   const buffer = buffers.get(id) ?? []
   buffer.push(data)
   buffers.set(id, buffer)
+}
+
+/**
+ * Replay a re-attached session's scrollback into its xterm (buffering until the instance
+ * mounts, like receiveData). Seeds at most once per session: the first attach after a
+ * fresh reload writes it, but a later live reconnect's re-attach is ignored so the xterm
+ * — which already holds the full stream — isn't duplicated. An 'exited' session replays
+ * its final output the same way; the roster shows the exited state separately.
+ */
+export function receiveScrollback(id: string, scrollback: string): void {
+  if (seeded.has(id)) return
+  seeded.add(id)
+  if (scrollback === '') return
+  receiveData(id, scrollback)
 }
 
 /** Write a dim footer line when a session's PTY exits. */
@@ -218,4 +242,5 @@ export function disposeTerminal(id: string): void {
   instance.wrapper.remove()
   instances.delete(id)
   buffers.delete(id)
+  seeded.delete(id)
 }

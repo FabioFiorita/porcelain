@@ -3,8 +3,11 @@ import { z } from 'zod'
 /**
  * The daemon's WS session protocol (`ws://127.0.0.1:<port>/session`) — one socket
  * per window, carrying everything that isn't request/response tRPC: app-event
- * pushes, the bidirectional terminal byte stream, and the watch registrations
- * (which are per-connection state, so they live on the session, not the router).
+ * pushes, the bidirectional terminal byte stream (create/attach/detach/write/
+ * resize/kill out, data/exit/attached in — PTYs are daemon-owned and outlive the
+ * socket, so a reconnecting or second client `attach`es to replay scrollback and
+ * resume), and the watch registrations (per-connection state, so they live on the
+ * session, not the router).
  * Both ends validate every message with these schemas: the daemon because the
  * socket is an external input, the renderer so a protocol drift fails loudly
  * instead of silently mis-shaping data. Shared by src/backend (runtime) and the
@@ -38,6 +41,19 @@ export const serverMessageSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('terminal:exit'), id: z.string(), exitCode: z.number() }),
   // Answers a `terminal:create`; `reqId` correlates it back to the caller's promise.
   z.object({ t: z.literal('terminal:created'), reqId: z.string(), id: z.string() }),
+  // Answers a `terminal:attach`; carries the replay scrollback and the session's
+  // current state. `found=false` (empty scrollback) means the id is unknown to the
+  // daemon (killed, or a stale reference); it precedes any subsequent `terminal:data`
+  // so the client can write the snapshot before live output follows.
+  z.object({
+    t: z.literal('terminal:attached'),
+    reqId: z.string(),
+    id: z.string(),
+    scrollback: z.string(),
+    status: z.enum(['running', 'exited']),
+    exitCode: z.number().optional(),
+    found: z.boolean(),
+  }),
 ])
 
 export type ServerMessage = z.infer<typeof serverMessageSchema>
@@ -46,11 +62,17 @@ export const clientMessageSchema = z.discriminatedUnion('t', [
   z.object({
     t: z.literal('terminal:create'),
     reqId: z.string(),
+    name: z.string(),
     cwd: z.string(),
     initialInput: z.string().optional(),
     cols: z.number().int().positive().optional(),
     rows: z.number().int().positive().optional(),
   }),
+  // Attach to a daemon-owned PTY (reconnect, second client, or opening a session
+  // hydrated from the roster after a reload); the daemon replies `terminal:attached`.
+  z.object({ t: z.literal('terminal:attach'), id: z.string(), reqId: z.string() }),
+  // Stop streaming a PTY to this client without killing it (the PTY lives on).
+  z.object({ t: z.literal('terminal:detach'), id: z.string() }),
   z.object({ t: z.literal('terminal:write'), id: z.string(), data: z.string() }),
   z.object({
     t: z.literal('terminal:resize'),
