@@ -1,5 +1,5 @@
-import type { FileStatus } from '@main/diff'
-import type { FlowFile } from '@main/flow'
+import type { FileStatus } from '@backend/diff'
+import type { FlowFile } from '@backend/flow'
 import { SidebarHeaderActions } from '@renderer/components/shell/sidebar-header-actions'
 import {
   AlertDialog,

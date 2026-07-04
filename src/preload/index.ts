@@ -1,11 +1,12 @@
 import { electronAPI } from '@electron-toolkit/preload'
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AppEvent } from '../main/app-events'
+import type { AppEvent } from '../backend/app-events'
 
 // Our own type-safe transport over Electron IPC (replaces electron-trpc):
-// `trpc` is request/response for queries + mutations, `onAppEvent` is the single
-// main→renderer push channel, and `terminal` is a SECOND dedicated channel — a
-// bidirectional byte stream for the embedded terminal (PTY output out, keystrokes
+// `trpc`/`trpcShell` are request/response for queries + mutations (one shuttle per
+// router — the Electron-free appRouter and the shell router), `onAppEvent` is the
+// single main→renderer push channel, and `terminal` is a SECOND dedicated channel —
+// a bidirectional byte stream for the embedded terminal (PTY output out, keystrokes
 // in), which the request/response transport can't carry. The renderer's matching
 // types live in lib/trpc.ts.
 const porcelain = {
@@ -16,6 +17,13 @@ const porcelain = {
     body?: string
   }): Promise<{ status: number; headers: Record<string, string>; body: string }> =>
     ipcRenderer.invoke('trpc', request),
+  trpcShell: (request: {
+    url: string
+    method: string
+    headers: Record<string, string>
+    body?: string
+  }): Promise<{ status: number; headers: Record<string, string>; body: string }> =>
+    ipcRenderer.invoke('trpc-shell', request),
   onAppEvent: (callback: (event: AppEvent) => void): (() => void) => {
     const handler = (_event: Electron.IpcRendererEvent, event: AppEvent): void => callback(event)
     ipcRenderer.on('app-event', handler)

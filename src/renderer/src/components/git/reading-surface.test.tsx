@@ -1,4 +1,4 @@
-import type { FeatureReading } from '@main/feature-view'
+import type { FeatureReading } from '@backend/feature-view'
 import { describe, expect, it } from 'vitest'
 import { buildRows } from './reading-surface'
 

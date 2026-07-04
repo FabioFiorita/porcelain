@@ -1,5 +1,5 @@
-import type { RepoInfo } from '@main/api'
-import { trpcClient } from '@renderer/lib/trpc'
+import type { RepoInfo } from '@backend/api'
+import { shellTrpcClient, trpcClient } from '@renderer/lib/trpc'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { useTerminalsStore } from '@renderer/stores/terminals'
 import { create } from 'zustand'
@@ -27,7 +27,7 @@ export const useRepoStore = create<RepoState>((set, get) => ({
   showHidden: false,
   boot: async () => {
     try {
-      const init = await trpcClient.windowInit.query()
+      const init = await shellTrpcClient.windowInit.query()
       if (init.mode === 'open') {
         set({ repo: await trpcClient.openRepoPath.mutate(init.repoPath) })
       } else if (init.mode === 'restore') {
@@ -52,7 +52,7 @@ export const useRepoStore = create<RepoState>((set, get) => ({
     }
   },
   openRepo: async () => {
-    const repo = await trpcClient.openRepo.query()
+    const repo = await shellTrpcClient.openRepo.query()
     if (repo) set({ repo })
   },
   openRepoPath: async (path) => {

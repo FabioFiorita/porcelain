@@ -1,4 +1,4 @@
-import type { BoardCard, CardStatus } from '@main/board-store'
+import type { BoardCard, CardStatus } from '@backend/board-store'
 import { Button } from '@renderer/components/ui/button'
 import {
   DropdownMenu,

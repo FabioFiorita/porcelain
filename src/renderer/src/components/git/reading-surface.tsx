@@ -1,5 +1,5 @@
-import type { DiffLine } from '@main/diff'
-import type { FeatureReading, ReadingFile } from '@main/feature-view'
+import type { DiffLine } from '@backend/diff'
+import type { FeatureReading, ReadingFile } from '@backend/feature-view'
 import {
   ContextMenu,
   ContextMenuContent,

@@ -8,6 +8,7 @@ export default defineConfig({
     alias: {
       '@renderer': resolve('src/renderer/src'),
       '@main': resolve('src/main'),
+      '@backend': resolve('src/backend'),
     },
   },
   test: {

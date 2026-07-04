@@ -1,5 +1,5 @@
-import type { Worktree } from '@main/diff'
-import type { BranchRef } from '@main/git'
+import type { Worktree } from '@backend/diff'
+import type { BranchRef } from '@backend/git'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 

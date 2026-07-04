@@ -1,5 +1,5 @@
-import type { RepoInfo } from '@main/api'
-import { trpcClient } from '@renderer/lib/trpc'
+import type { RepoInfo } from '@backend/api'
+import { shellTrpcClient, trpcClient } from '@renderer/lib/trpc'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useRepoStore } from './repo'
 
@@ -7,9 +7,11 @@ import { useRepoStore } from './repo'
 // mode, so we mock the tRPC client surface it (and restoreLastRepo) touches.
 vi.mock('@renderer/lib/trpc', () => ({
   trpcClient: {
-    windowInit: { query: vi.fn() },
     openRepoPath: { mutate: vi.fn() },
     recentRepos: { query: vi.fn() },
+  },
+  shellTrpcClient: {
+    windowInit: { query: vi.fn() },
   },
 }))
 
@@ -18,13 +20,13 @@ const aRepo: RepoInfo = { path: '/x', name: 'x' }
 describe('useRepoStore.boot', () => {
   beforeEach(() => {
     useRepoStore.setState({ repo: null, restoring: true })
-    vi.mocked(trpcClient.windowInit.query).mockReset()
+    vi.mocked(shellTrpcClient.windowInit.query).mockReset()
     vi.mocked(trpcClient.openRepoPath.mutate).mockReset()
     vi.mocked(trpcClient.recentRepos.query).mockReset()
   })
 
   it("mode 'open' opens the given repo", async () => {
-    vi.mocked(trpcClient.windowInit.query).mockResolvedValue({ mode: 'open', repoPath: '/x' })
+    vi.mocked(shellTrpcClient.windowInit.query).mockResolvedValue({ mode: 'open', repoPath: '/x' })
     vi.mocked(trpcClient.openRepoPath.mutate).mockResolvedValue(aRepo)
 
     await useRepoStore.getState().boot()
@@ -35,7 +37,7 @@ describe('useRepoStore.boot', () => {
   })
 
   it("mode 'restore' restores the last repo", async () => {
-    vi.mocked(trpcClient.windowInit.query).mockResolvedValue({ mode: 'restore' })
+    vi.mocked(shellTrpcClient.windowInit.query).mockResolvedValue({ mode: 'restore' })
     vi.mocked(trpcClient.recentRepos.query).mockResolvedValue([aRepo])
     vi.mocked(trpcClient.openRepoPath.mutate).mockResolvedValue(aRepo)
 
@@ -47,7 +49,7 @@ describe('useRepoStore.boot', () => {
   })
 
   it("mode 'welcome' lands on the welcome screen", async () => {
-    vi.mocked(trpcClient.windowInit.query).mockResolvedValue({ mode: 'welcome' })
+    vi.mocked(shellTrpcClient.windowInit.query).mockResolvedValue({ mode: 'welcome' })
 
     await useRepoStore.getState().boot()
 

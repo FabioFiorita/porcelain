@@ -1,17 +1,26 @@
 import { randomUUID } from 'node:crypto'
-import type { WebContents } from 'electron'
 import { type IPty, spawn } from 'node-pty'
 
 // The embedded terminal's PTY layer. PTYs are OS resources, so they live here in the
 // main process (one Map for the whole app); the renderer drives them over the
 // dedicated `terminal` IPC bridge (preload), NOT tRPC — a terminal streams bytes both
 // ways at high frequency, which the request/response transport and the one-way
-// app-event channel both fit poorly. Each PTY remembers the WebContents that opened it
+// app-event channel both fit poorly. Each PTY remembers the sender that opened it
 // so its output goes back to the right window and all of a window's PTYs die with it.
+
+/**
+ * The minimal slice of `WebContents` we need: send terminal output and check the
+ * window is still alive. Kept structural (not the electron type, same as
+ * `FileWatchSender` in file-watch.ts) so this module stays Electron-free.
+ */
+export interface TerminalSender {
+  send(channel: string, ...args: unknown[]): void
+  isDestroyed(): boolean
+}
 
 interface Session {
   pty: IPty
-  sender: WebContents
+  sender: TerminalSender
 }
 
 const sessions = new Map<string, Session>()
@@ -50,7 +59,7 @@ function cleanEnv(): Record<string, string> {
  * command into this same shell (`initialInput`), so the terminal stays live afterwards
  * — Ctrl-C, re-run, keep working — instead of dying when the command exits.
  */
-export function createTerminal(sender: WebContents, opts: CreateTerminalOptions): string {
+export function createTerminal(sender: TerminalSender, opts: CreateTerminalOptions): string {
   const id = randomUUID()
   const pty = spawn(defaultShell(), ['-l'], {
     name: 'xterm-256color',
@@ -93,7 +102,7 @@ export function killTerminal(id: string): void {
 }
 
 /** Kill every PTY a window owns — called when that window closes. */
-export function killTerminalsForSender(sender: WebContents): void {
+export function killTerminalsForSender(sender: TerminalSender): void {
   for (const [id, session] of sessions) {
     if (session.sender === sender) {
       sessions.delete(id)

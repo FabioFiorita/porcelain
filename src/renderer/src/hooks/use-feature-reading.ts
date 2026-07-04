@@ -1,4 +1,4 @@
-import type { FeatureReading } from '@main/feature-view'
+import type { FeatureReading } from '@backend/feature-view'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 

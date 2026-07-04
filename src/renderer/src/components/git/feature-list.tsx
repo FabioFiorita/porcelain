@@ -1,5 +1,5 @@
-import type { FeatureFile } from '@main/feature-view'
-import type { FileSource } from '@main/review-set'
+import type { FeatureFile } from '@backend/feature-view'
+import type { FileSource } from '@backend/review-set'
 import { SidebarHeaderActions } from '@renderer/components/shell/sidebar-header-actions'
 import { Button } from '@renderer/components/ui/button'
 import {

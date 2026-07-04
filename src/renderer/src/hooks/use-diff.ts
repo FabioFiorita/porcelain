@@ -1,4 +1,4 @@
-import type { DiffHunk, FileStatus } from '@main/diff'
+import type { DiffHunk, FileStatus } from '@backend/diff'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 import { keepPreviousData } from '@tanstack/react-query'

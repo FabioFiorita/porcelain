@@ -1,4 +1,4 @@
-import type { ReviewComment } from '@main/comment-store'
+import type { ReviewComment } from '@backend/comment-store'
 import { Button } from '@renderer/components/ui/button'
 import {
   SidebarGroup,

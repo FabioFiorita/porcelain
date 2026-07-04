@@ -1,4 +1,4 @@
-import type { CodeSearchResult } from '@main/git'
+import type { CodeSearchResult } from '@backend/git'
 import { useCodeSearch } from '@renderer/hooks/use-search'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useSearchStore } from '@renderer/stores/search'

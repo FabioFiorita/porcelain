@@ -1,4 +1,4 @@
-import type { DirEntry } from '@main/api'
+import type { DirEntry } from '@backend/api'
 import {
   AlertDialog,
   AlertDialogAction,

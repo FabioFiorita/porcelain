@@ -1,4 +1,4 @@
-import type { GrepMatch } from '@main/diff'
+import type { GrepMatch } from '@backend/diff'
 import { useTextSearch } from '@renderer/hooks/use-search'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'

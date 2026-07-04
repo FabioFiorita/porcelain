@@ -1,12 +1,13 @@
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { app, BrowserWindow, type Session, session } from 'electron'
+import { initConfigDir } from '../backend/config-store'
+import { migrateLayersFromConfig } from '../backend/layers-store'
+import { migrateNotesFromConfig } from '../backend/notes-store'
+import { watchAgentChannels } from '../backend/review-watch'
+import { migrateReviewedFromConfig } from '../backend/reviewed-store'
 import { seedDevConfig } from './dev-config'
 import { registerTerminalHandlers, registerTrpcHandler } from './ipc'
-import { migrateLayersFromConfig } from './layers-store'
 import { installAppMenu } from './menu'
-import { migrateNotesFromConfig } from './notes-store'
-import { watchAgentChannels } from './review-watch'
-import { migrateReviewedFromConfig } from './reviewed-store'
 import { createWindow } from './window'
 
 // Dev gets its own config dir so `pnpm dev` never touches (or hijacks) the
@@ -15,6 +16,10 @@ import { createWindow } from './window'
 if (is.dev) {
   app.setPath('userData', `${app.getPath('userData')}-dev`)
 }
+
+// The Electron-free backend can't resolve userData itself; hand it the config
+// directory once, after the dev override above and before any config read.
+initConfigDir(app.getPath('userData'))
 
 import { initUpdater } from './updater'
 

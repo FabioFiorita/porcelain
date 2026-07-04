@@ -1,6 +1,6 @@
-import type { Action } from '@main/actions-store'
-import type { Commit } from '@main/diff'
-import type { SearchResult } from '@main/fuzzy'
+import type { Action } from '@backend/actions-store'
+import type { Commit } from '@backend/diff'
+import type { SearchResult } from '@backend/fuzzy'
 import {
   Command,
   CommandDialog,

@@ -1,4 +1,4 @@
-import type { FlowGroup } from '@main/flow'
+import type { FlowGroup } from '@backend/flow'
 import { SidebarProvider } from '@renderer/components/ui/sidebar'
 import { useBranchFlow } from '@renderer/hooks/use-branch-flow'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'

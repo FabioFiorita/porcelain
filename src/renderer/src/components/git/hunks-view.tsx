@@ -1,4 +1,4 @@
-import type { DiffHunk, DiffLine } from '@main/diff'
+import type { DiffHunk, DiffLine } from '@backend/diff'
 import { CodeLine, useHighlighter } from '@renderer/components/viewer/code-line'
 import { VirtualRows } from '@renderer/components/viewer/virtual-rows'
 import { type HIGHLIGHT_THEME, languageFor, tokenizeLines } from '@renderer/lib/highlight'

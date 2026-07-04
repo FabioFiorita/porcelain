@@ -1,4 +1,4 @@
-import type { DiffHunk, DiffLine } from '@main/diff'
+import type { DiffHunk, DiffLine } from '@backend/diff'
 import { describe, expect, it } from 'vitest'
 import { intraLineEmphasis, lineChangeRange, splitByRanges } from './word-diff'
 

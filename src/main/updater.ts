@@ -1,6 +1,6 @@
 import { app } from 'electron'
 import { autoUpdater } from 'electron-updater'
-import { emitAppEvent } from './app-events'
+import { emitAppEvent } from '../backend/app-events'
 
 export interface UpdateStatus {
   state: 'idle' | 'checking' | 'available' | 'downloaded' | 'up-to-date' | 'error'

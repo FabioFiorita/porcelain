@@ -1,19 +1,19 @@
 import type { UpdateStatus } from '@main/updater'
-import { trpc } from '@renderer/lib/trpc'
+import { shellTrpc } from '@renderer/lib/trpc'
 
 export function useUpdateStatus(): UpdateStatus | undefined {
-  const { data } = trpc.updateStatus.useQuery()
+  const { data } = shellTrpc.updateStatus.useQuery()
   return data
 }
 
 export function useInstallUpdate(): { install: () => void; isInstalling: boolean } {
-  const mutation = trpc.installUpdate.useMutation()
+  const mutation = shellTrpc.installUpdate.useMutation()
   return { install: () => mutation.mutate(), isInstalling: mutation.isPending }
 }
 
 export function useCheckForUpdates(): { check: () => void; isChecking: boolean } {
-  const utils = trpc.useUtils()
-  const mutation = trpc.checkForUpdates.useMutation({
+  const utils = shellTrpc.useUtils()
+  const mutation = shellTrpc.checkForUpdates.useMutation({
     onSuccess: async () => {
       await utils.updateStatus.invalidate()
     },

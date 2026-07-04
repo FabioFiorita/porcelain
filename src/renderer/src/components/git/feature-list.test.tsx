@@ -1,4 +1,4 @@
-import type { FeatureView } from '@main/feature-view'
+import type { FeatureView } from '@backend/feature-view'
 import { SidebarProvider } from '@renderer/components/ui/sidebar'
 import { useFeatureView } from '@renderer/hooks/use-feature-view'
 import { useRepoStore } from '@renderer/stores/repo'

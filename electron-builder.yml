@@ -19,6 +19,7 @@ asarUnpack:
   # runtime; both must live on disk outside app.asar (and get signed there) or the
   # embedded terminal can't spawn a PTY in the packaged app.
   - node_modules/node-pty/**
+  - node_modules/trash/**
 mac:
   target:
     - target: dmg

@@ -30,6 +30,25 @@
   "assist": { "actions": { "source": { "organizeImports": "on" } } },
   "overrides": [
     {
+      "includes": ["src/backend/**", "src/renderer/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "electron": "Electron stays in src/main and src/preload — src/backend and src/renderer must remain Electron-free.",
+                  "@electron-toolkit/preload": "Electron stays in src/main and src/preload — src/backend and src/renderer must remain Electron-free.",
+                  "@electron-toolkit/utils": "Electron stays in src/main and src/preload — src/backend and src/renderer must remain Electron-free."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": ["src/renderer/src/components/**"],
       "linter": {
         "rules": {
@@ -40,7 +59,10 @@
                 "paths": {
                   "@renderer/lib/trpc": "Components must reach the server through hooks in @renderer/hooks/* — never import lib/trpc directly.",
                   "../lib/trpc": "Components must reach the server through hooks in @renderer/hooks/* — never import lib/trpc directly.",
-                  "../../lib/trpc": "Components must reach the server through hooks in @renderer/hooks/* — never import lib/trpc directly."
+                  "../../lib/trpc": "Components must reach the server through hooks in @renderer/hooks/* — never import lib/trpc directly.",
+                  "electron": "Electron stays in src/main and src/preload — src/backend and src/renderer must remain Electron-free.",
+                  "@electron-toolkit/preload": "Electron stays in src/main and src/preload — src/backend and src/renderer must remain Electron-free.",
+                  "@electron-toolkit/utils": "Electron stays in src/main and src/preload — src/backend and src/renderer must remain Electron-free."
                 }
               }
             }

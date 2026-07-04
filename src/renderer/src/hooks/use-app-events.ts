@@ -1,10 +1,12 @@
-import type { AppEvent } from '@main/app-events'
-import { trpc } from '@renderer/lib/trpc'
+import type { AppEvent } from '@backend/app-events'
+import { shellTrpc, trpc } from '@renderer/lib/trpc'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { useEffect } from 'react'
 
 /** The tRPC query-invalidation proxy — the value `trpc.useUtils()` returns. */
 type Utils = ReturnType<typeof trpc.useUtils>
+/** Same proxy for the shell router (updateStatus lives shell-side). */
+type ShellUtils = ReturnType<typeof shellTrpc.useUtils>
 
 // The one main→renderer push channel (Cmd+W close-tab plus every agent-channel
 // refresh). It rides a dedicated IPC event channel (`window.porcelain.onAppEvent`),
@@ -18,10 +20,10 @@ type Utils = ReturnType<typeof trpc.useUtils>
 // `pnpm typecheck` — the same compile-time net the Viewer's tab-kind switch uses. So
 // adding a channel can't silently ship un-refreshed (the bug that left MCP-curated
 // actions stale until a tab switch remounted the list).
-function handle(event: AppEvent, utils: Utils): Promise<unknown> {
+function handle(event: AppEvent, utils: Utils, shellUtils: ShellUtils): Promise<unknown> {
   switch (event) {
     case 'update-status':
-      return utils.updateStatus.invalidate()
+      return shellUtils.updateStatus.invalidate()
     case 'feature-view':
       // the agent pushed a review-set change over MCP — refresh BOTH feature surfaces
       // (the sidebar list AND the inline reading surface) so they don't disagree until
@@ -89,10 +91,11 @@ function handle(event: AppEvent, utils: Utils): Promise<unknown> {
 
 export function useAppEvents(): void {
   const utils = trpc.useUtils()
+  const shellUtils = shellTrpc.useUtils()
 
   useEffect(() => {
     return window.porcelain.onAppEvent(async (event) => {
-      await handle(event, utils)
+      await handle(event, utils, shellUtils)
     })
-  }, [utils])
+  }, [utils, shellUtils])
 }

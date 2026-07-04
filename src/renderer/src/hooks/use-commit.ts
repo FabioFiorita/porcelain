@@ -1,4 +1,4 @@
-import type { CommitConventions } from '@main/conventions'
+import type { CommitConventions } from '@backend/conventions'
 import { trpc } from '@renderer/lib/trpc'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'

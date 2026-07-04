@@ -1,4 +1,4 @@
-import type { RepoInfo } from '@main/api'
+import type { RepoInfo } from '@backend/api'
 import { useNewWindow, useRecentRepos } from '@renderer/hooks/use-repo'
 import { useRepoStore } from '@renderer/stores/repo'
 import { fireEvent, render, screen } from '@testing-library/react'

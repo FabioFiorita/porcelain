@@ -1,4 +1,4 @@
-import type { CardStatus } from '@main/board-store'
+import type { CardStatus } from '@backend/board-store'
 import {
   AlertDialog,
   AlertDialogAction,

@@ -1,4 +1,4 @@
-import type { ReviewComment } from '@main/comment-store'
+import type { ReviewComment } from '@backend/comment-store'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 

@@ -1,10 +1,10 @@
 import type { PluginInstallResult } from '@main/plugin'
-import { trpc } from '@renderer/lib/trpc'
+import { shellTrpc } from '@renderer/lib/trpc'
 
 export function usePluginInfo():
   | { marketplaceDir: string; commands: string[]; version: string }
   | undefined {
-  const { data } = trpc.pluginInfo.useQuery(undefined, { staleTime: Number.POSITIVE_INFINITY })
+  const { data } = shellTrpc.pluginInfo.useQuery(undefined, { staleTime: Number.POSITIVE_INFINITY })
   return data
 }
 
@@ -14,7 +14,7 @@ export function useInstallPlugin(): {
   result: PluginInstallResult | undefined
   error: string | null
 } {
-  const mutation = trpc.installPlugin.useMutation()
+  const mutation = shellTrpc.installPlugin.useMutation()
   return {
     install: () => mutation.mutate(),
     isInstalling: mutation.isPending,
@@ -26,7 +26,7 @@ export function useInstallPlugin(): {
 export function useCursorPluginInfo():
   | { installDir: string; commands: string[]; version: string }
   | undefined {
-  const { data } = trpc.cursorPluginInfo.useQuery(undefined, {
+  const { data } = shellTrpc.cursorPluginInfo.useQuery(undefined, {
     staleTime: Number.POSITIVE_INFINITY,
   })
   return data
@@ -38,7 +38,7 @@ export function useInstallCursorPlugin(): {
   result: PluginInstallResult | undefined
   error: string | null
 } {
-  const mutation = trpc.installCursorPlugin.useMutation()
+  const mutation = shellTrpc.installCursorPlugin.useMutation()
   return {
     install: () => mutation.mutate(),
     isInstalling: mutation.isPending,

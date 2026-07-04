@@ -1,5 +1,5 @@
-import type { RepoInfo } from '@main/api'
-import { trpc } from '@renderer/lib/trpc'
+import type { RepoInfo } from '@backend/api'
+import { shellTrpc, trpc } from '@renderer/lib/trpc'
 
 /** Recent repos for the welcome screen + project switcher; pass `enabled` to gate. */
 export function useRecentRepos(enabled = true): RepoInfo[] {
@@ -14,6 +14,6 @@ export function useRecentRepos(enabled = true): RepoInfo[] {
  * so callers — and their tests — never handle the TanStack result directly.
  */
 export function useNewWindow(): { openWindow: (repoPath?: string) => void } {
-  const mutation = trpc.newWindow.useMutation()
+  const mutation = shellTrpc.newWindow.useMutation()
   return { openWindow: (repoPath) => mutation.mutate(repoPath ? { repoPath } : undefined) }
 }

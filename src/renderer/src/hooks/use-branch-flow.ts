@@ -1,4 +1,4 @@
-import type { FlowGroup } from '@main/flow'
+import type { FlowGroup } from '@backend/flow'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 

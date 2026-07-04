@@ -1,4 +1,4 @@
-import type { FlowGroup } from '@main/flow'
+import type { FlowGroup } from '@backend/flow'
 import { useCommitFlow, useCommitMessage } from '@renderer/hooks/use-history'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'

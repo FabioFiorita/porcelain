@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs'
 import { cp, mkdir, readdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import { initTRPC } from '@trpc/server'
-import { dialog, shell, type WebContents } from 'electron'
+import trash from 'trash'
 import { z } from 'zod'
 import {
   type Action,
@@ -29,8 +29,6 @@ import {
   readCards,
   updateCard,
 } from './board-store'
-import { type CodexInstallResult, installCodex } from './codex'
-import { codexInstallCommands, codexMarketplaceDir, codexPluginVersion } from './codex-assets'
 import {
   addComment,
   deleteComment,
@@ -52,7 +50,6 @@ import {
   type FeatureReading,
   type FeatureView,
 } from './feature-view'
-import { setWatchedDirs, setWatchedFiles } from './file-watch'
 import { buildFlow, DEFAULT_LAYERS, type FlowGroup, type Layer } from './flow'
 import { uniqueDuplicatePath } from './fs-ops'
 import { directoriesOf, fuzzySearch, type SearchResult } from './fuzzy'
@@ -94,14 +91,6 @@ import {
 } from './git'
 import { readLayers, writeLayers } from './layers-store'
 import { readNotes, writeNotes } from './notes-store'
-import { installCursorPlugin, installPlugin, type PluginInstallResult } from './plugin'
-import {
-  cursorInstallCommands,
-  cursorPluginLocalDir,
-  installCommands,
-  PLUGIN_VERSION,
-  pluginMarketplaceDir,
-} from './plugin-assets'
 import { exceedsReadLimit } from './read-limits'
 import {
   hiddenPathsFor,
@@ -120,13 +109,11 @@ import {
   readReviewedPaths,
   unmarkReviewed,
 } from './reviewed-store'
-import { checkForUpdates, installUpdate, type UpdateStatus, updateStatus } from './updater'
-import { createWindow, type WindowInit, windowInitFor } from './window'
 
-export interface TrpcContext {
-  sender: WebContents
-}
-const t = initTRPC.context<TrpcContext>().create({ isServer: true })
+// No per-connection context: appRouter procedures are pure Node and must never
+// reference a caller (per-connection concerns live shell-side until the Stage 2
+// WS session exists). The Electron-native procedures live in src/main/shell-api.ts.
+const t = initTRPC.create({ isServer: true })
 
 export interface RepoInfo {
   path: string
@@ -160,7 +147,9 @@ const IMAGE_MIME: Record<string, string> = {
   avif: 'image/avif',
 }
 
-const toRepoInfo = (path: string): RepoInfo => ({ path, name: basename(path) })
+// Exported for the shell router's openRepo (the native folder dialog) — the one
+// Electron-side procedure that also records a recent and returns a RepoInfo.
+export const toRepoInfo = (path: string): RepoInfo => ({ path, name: basename(path) })
 
 function isValidPattern(pattern: string): boolean {
   try {
@@ -171,7 +160,7 @@ function isValidPattern(pattern: string): boolean {
   }
 }
 
-async function recordRecent(path: string): Promise<void> {
+export async function recordRecent(path: string): Promise<void> {
   await updateConfig((config) => withRecentRepo(config, path))
 }
 
@@ -364,31 +353,12 @@ function searchCandidates(
 }
 
 export const router = t.router({
-  openRepo: t.procedure.query(async (): Promise<RepoInfo | null> => {
-    const result = await dialog.showOpenDialog({ properties: ['openDirectory'] })
-    const path = result.filePaths[0]
-    if (!path) return null
-    await recordRecent(path)
-    warmFileList(path)
-    return toRepoInfo(path)
-  }),
-
   openRepoPath: t.procedure.input(z.string()).mutation(async ({ input }): Promise<RepoInfo> => {
     await stat(input)
     await recordRecent(input)
     warmFileList(input)
     return toRepoInfo(input)
   }),
-
-  windowInit: t.procedure.query(({ ctx }): WindowInit => windowInitFor(ctx.sender)),
-
-  newWindow: t.procedure
-    .input(z.object({ repoPath: z.string().optional() }).optional())
-    .mutation(({ input }) => {
-      createWindow(
-        input?.repoPath ? { mode: 'open', repoPath: input.repoPath } : { mode: 'welcome' },
-      )
-    }),
 
   recentRepos: t.procedure.query(async (): Promise<RepoInfo[]> => {
     const config = await loadConfig()
@@ -520,7 +490,9 @@ export const router = t.router({
   // Discard a single file's changes. A tracked file reverts to its committed
   // version (staged + unstaged edits gone, deletions restored); a new file is
   // unstaged then moved to the Trash (recoverable, like the tree's Delete) since
-  // it has no committed version to fall back to.
+  // it has no committed version to fall back to. `trash` (npm) replaces Electron's
+  // shell.trashItem — files must be trashed on the machine that owns them, and this
+  // module stays Electron-free.
   gitDiscardFile: t.procedure
     .input(z.object({ repoPath: z.string(), path: z.string() }))
     .mutation(async ({ input }) => {
@@ -528,7 +500,7 @@ export const router = t.router({
         await gitRestoreFromHead(input.repoPath, input.path)
       } else {
         await gitResetPath(input.repoPath, input.path)
-        await shell.trashItem(join(input.repoPath, input.path))
+        await trash(join(input.repoPath, input.path))
       }
     }),
 
@@ -579,20 +551,6 @@ export const router = t.router({
       throw err
     }
   }),
-
-  // The renderer pushes its open file-tab paths whenever the set changes; main
-  // watches their dirs and emits `working-tree` so an external write (the coding
-  // agent in the terminal) live-refreshes the open document. See `file-watch.ts`.
-  watchFiles: t.procedure
-    .input(z.array(z.string()))
-    .mutation(({ input, ctx }) => setWatchedFiles(ctx.sender, input)),
-
-  // The renderer pushes its expanded tree dirs whenever the set changes; main
-  // watches them (non-recursively) and emits `file-tree` so an external add/remove
-  // (the coding agent in the terminal) live-refreshes the tree. See `file-watch.ts`.
-  watchDirs: t.procedure
-    .input(z.array(z.string()))
-    .mutation(({ input, ctx }) => setWatchedDirs(ctx.sender, input)),
 
   writeTextFile: t.procedure
     .input(z.object({ path: z.string(), content: z.string() }))
@@ -659,12 +617,8 @@ export const router = t.router({
       }),
     ),
 
-  revealInFinder: t.procedure.input(z.string()).mutation(({ input }) => {
-    shell.showItemInFolder(input)
-  }),
-
   trashPath: t.procedure.input(z.string()).mutation(async ({ input }) => {
-    await shell.trashItem(input)
+    await trash(input)
   }),
 
   gitStatus: t.procedure.input(z.string()).query(({ input }) => gitStatus(input)),
@@ -1066,48 +1020,6 @@ export const router = t.router({
         kind: dirs.has(r.path) ? 'dir' : 'file',
       }))
     }),
-
-  updateStatus: t.procedure.query((): UpdateStatus => updateStatus()),
-
-  checkForUpdates: t.procedure.mutation(() => checkForUpdates()),
-
-  installUpdate: t.procedure.mutation(() => {
-    installUpdate()
-  }),
-
-  // The Claude Code plugin (bundles the feature-review MCP server + skill).
-  pluginInfo: t.procedure.query(
-    (): { marketplaceDir: string; commands: string[]; version: string } => ({
-      marketplaceDir: pluginMarketplaceDir(),
-      commands: installCommands(),
-      version: PLUGIN_VERSION,
-    }),
-  ),
-
-  installPlugin: t.procedure.mutation((): Promise<PluginInstallResult> => installPlugin()),
-
-  cursorPluginInfo: t.procedure.query(
-    (): { installDir: string; commands: string[]; version: string } => ({
-      installDir: cursorPluginLocalDir(),
-      commands: cursorInstallCommands(),
-      version: PLUGIN_VERSION,
-    }),
-  ),
-
-  installCursorPlugin: t.procedure.mutation(
-    (): Promise<PluginInstallResult> => installCursorPlugin(),
-  ),
-
-  // The Codex plugin (same local MCP server + skills, packaged as a Codex marketplace).
-  codexInfo: t.procedure.query(
-    (): { marketplaceDir: string; commands: string[]; version: string } => ({
-      marketplaceDir: codexMarketplaceDir(),
-      commands: codexInstallCommands(),
-      version: codexPluginVersion(),
-    }),
-  ),
-
-  installCodex: t.procedure.mutation((): Promise<CodexInstallResult> => installCodex()),
 })
 
 export type AppRouter = typeof router

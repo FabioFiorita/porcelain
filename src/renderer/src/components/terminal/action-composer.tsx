@@ -1,4 +1,4 @@
-import type { Action } from '@main/actions-store'
+import type { Action } from '@backend/actions-store'
 import { Button } from '@renderer/components/ui/button'
 import {
   Dialog,

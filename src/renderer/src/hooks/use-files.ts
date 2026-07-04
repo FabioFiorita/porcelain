@@ -1,5 +1,5 @@
-import type { DirEntry, FileView } from '@main/api'
-import { trpc } from '@renderer/lib/trpc'
+import type { DirEntry, FileView } from '@backend/api'
+import { shellTrpc, trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useSelectionStore } from '@renderer/stores/selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
@@ -33,7 +33,7 @@ export function useReadFile(path: string): {
  */
 export function useWatchOpenFiles(): void {
   const panes = useTabsStore((s) => s.panes)
-  const { mutate } = trpc.watchFiles.useMutation()
+  const { mutate } = shellTrpc.watchFiles.useMutation()
   const lastSent = useRef('')
 
   const filePaths = useMemo(() => {
@@ -63,7 +63,7 @@ export function useWatchOpenFiles(): void {
  */
 export function useWatchTreeDirs(): void {
   const dirs = useTreeDirsStore((s) => s.dirs)
-  const { mutate } = trpc.watchDirs.useMutation()
+  const { mutate } = shellTrpc.watchDirs.useMutation()
   const lastSent = useRef('')
 
   const dirPaths = useMemo(() => [...dirs].sort(), [dirs])
@@ -112,7 +112,7 @@ export function usePinnedEntries(): DirEntry[] | undefined {
 }
 
 export function useRevealInFinder(): (path: string) => void {
-  const mutation = trpc.revealInFinder.useMutation()
+  const mutation = shellTrpc.revealInFinder.useMutation()
   return (path) => mutation.mutate(path)
 }
 

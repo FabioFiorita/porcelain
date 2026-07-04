@@ -1,4 +1,4 @@
-import type { Worktree } from '@main/diff'
+import type { Worktree } from '@backend/diff'
 import { useNewWindow } from '@renderer/hooks/use-repo'
 import { useWorktrees } from '@renderer/hooks/use-worktrees'
 import { useRepoStore } from '@renderer/stores/repo'

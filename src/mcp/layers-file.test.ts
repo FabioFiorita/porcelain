@@ -2,9 +2,9 @@ import { rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-// Relative (not @main) so this typechecks under tsconfig.node, where @main is not a
-// path alias. A test may reach into src/main; the runtime layers-file.ts never does.
-import { DEFAULT_LAYERS as MAIN_DEFAULT_LAYERS } from '../main/flow'
+// Relative so this typechecks: the mcp tree uses no path aliases, so this test
+// reaches into src/backend relatively; the runtime layers-file.ts never does.
+import { DEFAULT_LAYERS as MAIN_DEFAULT_LAYERS } from '../backend/flow'
 import {
   clearLayers,
   DEFAULT_LAYERS,

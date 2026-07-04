@@ -1,22 +1,29 @@
-import type { AppRouter } from '@main/api'
-import type { AppEvent } from '@main/app-events'
+import type { AppRouter } from '@backend/api'
+import type { AppEvent } from '@backend/app-events'
+import type { ShellRouter } from '@main/shell-api'
 import { createTRPCClient, httpBatchLink, type TRPCLink } from '@trpc/client'
 import { createTRPCReact } from '@trpc/react-query'
 
+/** The serialized-HTTP shuttle a tRPC channel rides over Electron IPC. */
+type TrpcShuttle = (request: {
+  url: string
+  method: string
+  headers: Record<string, string>
+  body?: string
+}) => Promise<{ status: number; headers: Record<string, string>; body: string }>
+
 /**
  * The preload bridge. We own the Electron transport instead of depending on the
- * abandoned electron-trpc: `trpc` carries a serialized HTTP request across IPC,
- * `onAppEvent` is the one main→renderer push channel (replaces the old tRPC
- * subscription), and `terminal` is the dedicated bidirectional byte stream for the
- * embedded terminal. See `src/preload/index.ts` for the matching implementation.
+ * abandoned electron-trpc: `trpc`/`trpcShell` each carry a serialized HTTP request
+ * across IPC (one channel per router — the Electron-free appRouter and the
+ * Electron-side shell router), `onAppEvent` is the one main→renderer push channel
+ * (replaces the old tRPC subscription), and `terminal` is the dedicated
+ * bidirectional byte stream for the embedded terminal. See `src/preload/index.ts`
+ * for the matching implementation.
  */
 interface PorcelainBridge {
-  trpc: (request: {
-    url: string
-    method: string
-    headers: Record<string, string>
-    body?: string
-  }) => Promise<{ status: number; headers: Record<string, string>; body: string }>
+  trpc: TrpcShuttle
+  trpcShell: TrpcShuttle
   onAppEvent: (callback: (event: AppEvent) => void) => () => void
   terminal: {
     create: (opts: {
@@ -47,12 +54,16 @@ declare global {
   }
 }
 
-// One terminating link for the whole app. tRPC's httpBatchLink does all the
-// protocol work (batching, GET/POST, input encoding, error shapes); our custom
-// `fetch` only shuttles the bytes over IPC, and the main process replays them
-// through tRPC's official fetchRequestHandler. The host in the URL is ignored —
-// the request never leaves the process.
-function electronLinks(): TRPCLink<AppRouter>[] {
+// One terminating link per router. tRPC's httpBatchLink does all the protocol
+// work (batching, GET/POST, input encoding, error shapes); our custom `fetch`
+// only shuttles the bytes over IPC, and the main process replays them through
+// tRPC's official fetchRequestHandler. The host in the URL is ignored — the
+// request never leaves the process. The channel name doubles as the endpoint
+// path so main can mount each router on its own `ipcMain.handle` channel.
+// One factory per router (rather than one generic) because httpBatchLink's
+// options are conditional on the router's transformer, which a type parameter
+// can't carry.
+function appLinks(): TRPCLink<AppRouter>[] {
   return [
     httpBatchLink({
       url: 'http://localhost/trpc',
@@ -76,11 +87,44 @@ function electronLinks(): TRPCLink<AppRouter>[] {
   ]
 }
 
+function shellLinks(): TRPCLink<ShellRouter>[] {
+  return [
+    httpBatchLink({
+      url: 'http://localhost/trpc-shell',
+      fetch: async (input, init) => {
+        const headers: Record<string, string> = {}
+        new Headers(init?.headers).forEach((value, key) => {
+          headers[key] = value
+        })
+        const response = await window.porcelain.trpcShell({
+          url: input.toString(),
+          method: init?.method ?? 'GET',
+          headers,
+          body: typeof init?.body === 'string' ? init.body : undefined,
+        })
+        return new Response(response.body, {
+          status: response.status,
+          headers: response.headers,
+        })
+      },
+    }),
+  ]
+}
+
 /** React hooks — use in components (via the hooks layer). */
 export const trpc = createTRPCReact<AppRouter>()
 
 /** Client for the React-query integration. */
-export const client = trpc.createClient({ links: electronLinks() })
+export const client = trpc.createClient({ links: appLinks() })
 
 /** Vanilla client over an independent link — zustand stores and non-React code. */
-export const trpcClient = createTRPCClient<AppRouter>({ links: electronLinks() })
+export const trpcClient = createTRPCClient<AppRouter>({ links: appLinks() })
+
+/** React hooks for the shell router (Electron-native procedures — see shell-api.ts). */
+export const shellTrpc = createTRPCReact<ShellRouter>()
+
+/** Client for the shell router's React-query integration. */
+export const shellClient = shellTrpc.createClient({ links: shellLinks() })
+
+/** Vanilla shell-router client — zustand stores and non-React code. */
+export const shellTrpcClient = createTRPCClient<ShellRouter>({ links: shellLinks() })

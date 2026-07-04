@@ -1,4 +1,4 @@
-import type { Action } from '@main/actions-store'
+import type { Action } from '@backend/actions-store'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'

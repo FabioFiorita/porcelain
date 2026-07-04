@@ -1,4 +1,4 @@
-import type { Artifact, ArtifactMeta } from '@main/artifact-store'
+import type { Artifact, ArtifactMeta } from '@backend/artifact-store'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 

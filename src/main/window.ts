@@ -2,10 +2,10 @@ import { join } from 'node:path'
 import { is } from '@electron-toolkit/utils'
 import { BrowserWindow, shell, type WebContents } from 'electron'
 import icon from '../../resources/icon.png?asset'
-import { isSafeExternalUrl } from './external-url'
-import { clearWatchedDirs, clearWatchedFiles } from './file-watch'
+import { isSafeExternalUrl } from '../backend/external-url'
+import { clearWatchedDirs, clearWatchedFiles } from '../backend/file-watch'
+import { killTerminalsForSender } from '../backend/terminal-manager'
 import { pipeAppEvents } from './ipc'
-import { killTerminalsForSender } from './terminal-manager'
 
 // Playwright e2e launches this built app and drives the renderer over CDP +
 // screenshots the web contents directly, so the OS window never needs to appear.

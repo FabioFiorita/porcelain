@@ -1,4 +1,4 @@
-import type { Layer } from '@main/flow'
+import type { Layer } from '@backend/flow'
 import { Button } from '@renderer/components/ui/button'
 import { Input } from '@renderer/components/ui/input'
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'

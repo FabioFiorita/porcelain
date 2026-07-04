@@ -1,4 +1,4 @@
-import type { CodeSearchFile, CodeSearchLine } from '@main/diff'
+import type { CodeSearchFile, CodeSearchLine } from '@backend/diff'
 import {
   Collapsible,
   CollapsibleContent,
