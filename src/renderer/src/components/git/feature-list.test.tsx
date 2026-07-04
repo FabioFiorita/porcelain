@@ -15,6 +15,11 @@ vi.mock('@renderer/hooks/use-feature-view', () => ({
   useClearFeatureReview: () => ({ clear: clearSpy, isClearing: false }),
 }))
 vi.mock('@renderer/hooks/use-diff', () => ({ useDiffFilePrefetch: () => async () => {} }))
+// The artifact opener reads the artifact metadata hook — mock it (no artifact by default,
+// like the other domain hooks) so the test never touches the tRPC proxy.
+vi.mock('@renderer/hooks/use-artifact', () => ({
+  useFeatureArtifact: () => ({ artifact: null }),
+}))
 // FeatureList mounts CommentComposer (right-click → "Comment on file"), which uses the
 // comment hook — mock the domain hook, never the tRPC proxy (the component-test rule).
 vi.mock('@renderer/hooks/use-comments', () => ({

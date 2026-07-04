@@ -12,6 +12,7 @@ export const BOARD_SKILL_NAME = 'project-board'
 export const ACTIONS_SKILL_NAME = 'saved-actions'
 export const NOTES_SKILL_NAME = 'repo-notes'
 export const LAYERS_SKILL_NAME = 'flow-layers'
+export const ARTIFACT_SKILL_NAME = 'feature-artifact'
 
 /**
  * The plugin's own version — bumped whenever the bundled MCP server or any skill
@@ -33,8 +34,11 @@ export const LAYERS_SKILL_NAME = 'flow-layers'
  *        COMPUTED view (every file with its git-truth source + flow layer; read-only,
  *        app→agent) and get_review_comments now tags each comment with that source; plus a
  *        per-file `layer` on review files that drives the feature view's grouping/order.
+ * 2.7.0: added the feature-artifact channel — set/get/clear_feature_artifact let the agent
+ *        author a self-contained HTML explainer Porcelain renders in a sandboxed iframe
+ *        (two-way) — plus a focused feature-artifact skill.
  */
-export const PLUGIN_VERSION = '2.6.0'
+export const PLUGIN_VERSION = '2.7.0'
 
 /**
  * The local Claude Code marketplace root the app writes. Lives in ~/.porcelain
@@ -61,7 +65,7 @@ export function marketplaceManifest(): Record<string, unknown> {
         name: PLUGIN_NAME,
         source: `./${PLUGIN_NAME}`,
         description:
-          'MCP server + skills to push feature review sets, read review comments, reviewed-file marks, and project notes, manage the project board and saved actions, and tune the review-flow layers in the Porcelain app.',
+          'MCP server + skills to push feature review sets, read review comments, reviewed-file marks, and project notes, manage the project board and saved actions, tune the review-flow layers, and author feature artifacts in the Porcelain app.',
       },
     ],
   }
@@ -71,7 +75,7 @@ export function pluginManifest(version: string): Record<string, unknown> {
   return {
     name: PLUGIN_NAME,
     description:
-      "Porcelain companion: push feature review sets so a human reviews the whole feature in flow order, read/resolve review comments, see which files the human has marked reviewed, read the human's project notes, manage the project board and saved actions, and tune the review-flow layers — over MCP.",
+      "Porcelain companion: push feature review sets so a human reviews the whole feature in flow order, read/resolve review comments, see which files the human has marked reviewed, read the human's project notes, manage the project board and saved actions, tune the review-flow layers, and author feature artifacts — over MCP.",
     version,
     author: { name: 'Porcelain' },
     // Inline stdio MCP server; ${CLAUDE_PLUGIN_ROOT} resolves to the installed
@@ -111,7 +115,7 @@ export function cursorPluginManifest(version: string): Record<string, unknown> {
   return {
     name: PLUGIN_NAME,
     description:
-      "Porcelain companion: push feature review sets so a human reviews the whole feature in flow order, read/resolve review comments, see which files the human has marked reviewed, read the human's project notes, manage the project board and saved actions, and tune the review-flow layers — over MCP.",
+      "Porcelain companion: push feature review sets so a human reviews the whole feature in flow order, read/resolve review comments, see which files the human has marked reviewed, read the human's project notes, manage the project board and saved actions, tune the review-flow layers, and author feature artifacts — over MCP.",
     version,
     author: { name: 'Porcelain' },
   }
@@ -293,6 +297,59 @@ Call the \`porcelain\` MCP tools with \`repoPath\` set to the ABSOLUTE path of t
 **Order matters twice**: it's the order groups render in, AND the furthest-right match on a path wins (so \`apps/api/controllers/x.ts\` is a Controller, not a Route, even though \`api/\` also matches). Put the more-specific layer so its match sits further right in the path, or rely on a filename-suffix pattern (which matches to the right of any directory). Keep the set tight — a handful of meaningful layers beats one per folder; let the long tail fall into **Other**.
 `
 
+export const ARTIFACT_SKILL = `---
+name: ${ARTIFACT_SKILL_NAME}
+description: Author a "feature artifact" for the Porcelain app — a self-contained HTML document (prose, inline SVG diagrams, tables, images) that explains a feature, which Porcelain renders in the viewer so the human gets an enhanced way to understand what you built. Use after implementing or explaining a feature when a rich visual/narrative explainer helps more than a plain chat message, or when the human asks you to "write it up in Porcelain".
+---
+
+# Porcelain feature artifact
+
+Porcelain can render a **feature artifact**: a self-contained HTML document you author that explains a feature — with prose, diagrams, tables, and images — shown in the viewer. It COMPLEMENTS the feature review set (which is the file-by-file flow in \`review-with-porcelain\`): the review set is the code walkthrough; the artifact is the narrative/visual explainer (how it works, the architecture, the data flow, the decisions).
+
+## When to use
+
+- After you implement or explain a feature and a rich, visual write-up beats a wall of chat text — an architecture diagram, a sequence of steps, a comparison table.
+- When the human says "write it up in Porcelain", "make me a diagram of this", or "explain the feature visually".
+
+## How
+
+Call the \`porcelain\` MCP tools with \`repoPath\` set to the ABSOLUTE path of the repo you're working in (your cwd):
+
+- \`set_feature_artifact\` — \`{ repoPath, title, html }\` → author/replace the artifact.
+- \`get_feature_artifact\` — \`{ repoPath }\` → check whether one exists (title, size, when set — not the full HTML).
+- \`clear_feature_artifact\` — \`{ repoPath }\` → remove it.
+
+## Authoring the HTML — read this before you write it
+
+Porcelain renders your HTML in a **FULLY SANDBOXED iframe**. This is a hard constraint, not a preference:
+
+- **Scripts NEVER run.** \`<script>\` is inert — don't rely on JS for anything.
+- **External resources NEVER load.** No CDN scripts or stylesheets, no web fonts, no remote images, no \`fetch\`. Anything pointing at a URL silently fails to load.
+
+So the document must be **ONE self-contained file**:
+
+- **Inline all CSS** in a \`<style>\` tag (never \`<link rel="stylesheet">\`).
+- **Diagrams = inline \`<svg>\`** drawn directly in the HTML — not \`<img>\` to a diagram service, not a Mermaid script.
+- **Images = \`data:\` URIs** (e.g. \`<img src="data:image/png;base64,…">\`). No remote \`src\`.
+- **Tables, headings, lists** = plain semantic HTML.
+- Use system fonts (\`font-family: system-ui, sans-serif\`) — web fonts won't load.
+
+**Dark styling.** Porcelain's UI is dark. Style the document itself to match: a dark background and light text, e.g.
+
+\`\`\`html
+<style>
+  body { margin: 0; padding: 2rem; background: #0b0b0d; color: #e5e5e7;
+         font-family: system-ui, sans-serif; line-height: 1.6; }
+  h1, h2 { color: #fff; } a { color: #7aa2f7; }
+  table { border-collapse: collapse; } td, th { border: 1px solid #2a2a2e; padding: .4rem .6rem; }
+</style>
+\`\`\`
+
+**Size cap.** The HTML must be under ~1.5 MB. If you're embedding images, keep them small (or prefer inline SVG, which is tiny) — don't paste huge base64 blobs.
+
+Write the whole \`<html>…</html>\` document (or just the body content — Porcelain renders whatever you send via \`srcdoc\`). Keep it focused: one feature, one clear explanation the human can read top to bottom.
+`
+
 export interface PluginSkill {
   /** Skill dir + frontmatter \`name\`; becomes \`porcelain:<name>\` once installed. */
   name: string
@@ -307,4 +364,5 @@ export const SKILLS: readonly PluginSkill[] = [
   { name: ACTIONS_SKILL_NAME, content: ACTIONS_SKILL },
   { name: NOTES_SKILL_NAME, content: NOTES_SKILL },
   { name: LAYERS_SKILL_NAME, content: LAYERS_SKILL },
+  { name: ARTIFACT_SKILL_NAME, content: ARTIFACT_SKILL },
 ]

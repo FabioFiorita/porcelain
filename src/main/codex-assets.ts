@@ -40,7 +40,7 @@ export function codexPluginManifest(version: string): Record<string, unknown> {
     name: PLUGIN_NAME,
     version,
     description:
-      'Porcelain companion plugin for feature review sets, review comments, project boards, saved actions, notes, and flow layers.',
+      'Porcelain companion plugin for feature review sets, review comments, project boards, saved actions, notes, flow layers, and feature artifacts.',
     author: {
       name: 'Porcelain',
     },
@@ -53,7 +53,7 @@ export function codexPluginManifest(version: string): Record<string, unknown> {
       displayName: 'Porcelain',
       shortDescription: 'Send review context from Codex to Porcelain.',
       longDescription:
-        "Porcelain lets Codex define whole-feature review sets, read and resolve human review comments, inspect reviewed marks and project notes, manage project-board cards and saved actions, and tune review-flow layers through Porcelain's local MCP server.",
+        "Porcelain lets Codex define whole-feature review sets, read and resolve human review comments, inspect reviewed marks and project notes, manage project-board cards and saved actions, tune review-flow layers, and author feature artifacts through Porcelain's local MCP server.",
       developerName: 'Porcelain',
       category: 'Productivity',
       capabilities: ['MCP', 'Skills', 'Code Review', 'Project Management'],

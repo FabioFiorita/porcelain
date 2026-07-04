@@ -41,6 +41,13 @@ interface Options {
    * false to land on the Welcome screen.
    */
   seedRepo: boolean
+  /**
+   * Seed the feature-artifact channel for the fixture repo (default null → none, so
+   * the Feature tab shows no artifact opener). When set, the app finds an authored
+   * artifact keyed by the fixture repo at launch, exactly as if the MCP server had
+   * written one. `updatedAt` is filled in for you.
+   */
+  seedArtifact: { title: string; html: string } | null
 }
 
 interface Fixtures {
@@ -54,6 +61,7 @@ interface WorkerFixtures {
 
 export const test = baseTest.extend<Options & Fixtures, WorkerFixtures>({
   seedRepo: [true, { option: true }],
+  seedArtifact: [null, { option: true }],
 
   repoDir: [
     // biome-ignore lint/correctness/noEmptyPattern: Playwright requires the fixture's first arg to be a destructuring pattern.
@@ -65,7 +73,7 @@ export const test = baseTest.extend<Options & Fixtures, WorkerFixtures>({
     { scope: 'worker' },
   ],
 
-  app: async ({ repoDir, seedRepo }, use) => {
+  app: async ({ repoDir, seedRepo, seedArtifact }, use) => {
     const udBase = await mkdtemp(join(tmpdir(), 'porcelain-e2e-ud-'))
     // main appends '-dev' to userData on the is.dev path (the built app launched
     // outside a package counts as dev), so the config it actually reads is there.
@@ -88,6 +96,17 @@ export const test = baseTest.extend<Options & Fixtures, WorkerFixtures>({
     await writeFile(layers, '{}')
     const reviewed = join(udBase, 'reviewed.json')
     await writeFile(reviewed, '{}')
+    // The feature-artifact channel (agent-authored HTML). Seeded keyed by the fixture
+    // repo when the spec asks for one, so the artifact opener is present at launch.
+    const artifacts = join(udBase, 'artifacts.json')
+    await writeFile(
+      artifacts,
+      JSON.stringify(
+        seedArtifact
+          ? { [repoDir]: { ...seedArtifact, updatedAt: '2024-01-01T12:00:00.000Z' } }
+          : {},
+      ),
+    )
 
     const app = await _electron.launch({
       args: [MAIN_ENTRY, `--user-data-dir=${udBase}`],
@@ -101,6 +120,7 @@ export const test = baseTest.extend<Options & Fixtures, WorkerFixtures>({
         PORCELAIN_BOARD: board,
         PORCELAIN_LAYERS: layers,
         PORCELAIN_REVIEWED: reviewed,
+        PORCELAIN_ARTIFACTS: artifacts,
         PORCELAIN_SHELL: '/bin/bash',
         PORCELAIN_E2E: '1',
       }),

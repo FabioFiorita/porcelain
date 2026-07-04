@@ -4,7 +4,7 @@
 // nothing to resolve from node_modules (which a non-Electron `node` can't read from
 // inside app.asar). The protocol surface is tiny: initialize, tools/list, tools/call.
 
-export const SERVER_INFO = { name: 'porcelain', version: '0.5.0' }
+export const SERVER_INFO = { name: 'porcelain', version: '0.6.0' }
 export const PROTOCOL_VERSION = '2025-06-18'
 
 const REVIEW_FILE_SCHEMA = {
@@ -137,6 +137,51 @@ export const TOOLS = [
     name: 'get_reviewed_files',
     description:
       "Read which files the human has checked off as reviewed for a repo. Porcelain lets the reviewer mark each changed file reviewed (a per-file checkbox in the Changes / Feature lists); this returns those repo-relative paths. Use it to see how far the human has gotten and where to focus — any changed file NOT in this list is still unreviewed, so explain or double-check those, and treat reviewed ones as already vetted. The marks describe the current working tree and reset when the changes are committed. Read-only: the marks are the human's review state, so there is no tool to set them.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        repoPath: { type: 'string', description: 'Absolute path to the repository' },
+      },
+      required: ['repoPath'],
+    },
+  },
+  {
+    name: 'set_feature_artifact',
+    description:
+      "Author (or replace) the feature artifact for a repo: a self-contained HTML document that explains the feature — prose, inline SVG diagrams, tables, images — which Porcelain renders in the viewer so the human gets an enhanced way to understand what you built. It COMPLEMENTS the feature review set (which is the file-by-file flow); this is the narrative/visual explainer. HOW TO AUTHOR IT: the HTML is rendered in a FULLY SANDBOXED iframe — scripts NEVER execute and external resources (CDN scripts/stylesheets/fonts, remote images, fetch) NEVER load. So it must be ONE self-contained document: inline all CSS in a <style> tag (no <link>), draw diagrams as inline <svg> (not <img> to a URL), embed any raster image as a data: URI (e.g. data:image/png;base64,…), and write tables/headings/lists as plain HTML. No <script> — it won't run, so don't rely on it. Porcelain's UI is DARK: style the document itself with a dark background and light text (e.g. body { background:#0b0b0d; color:#e5e5e7 }) so it matches. Keep it under ~1.5 MB — trim or shrink embedded images rather than pasting huge blobs.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        repoPath: { type: 'string', description: 'Absolute path to the repository' },
+        title: {
+          type: 'string',
+          description: 'A short title for the artifact (e.g. "Crew call-outs — how it works")',
+        },
+        html: {
+          type: 'string',
+          description:
+            'The complete self-contained HTML document. Inline CSS only, diagrams as inline SVG, images as data: URIs; no scripts, no external resources; dark background + light text to match the app.',
+        },
+      },
+      required: ['repoPath', 'title', 'html'],
+    },
+  },
+  {
+    name: 'get_feature_artifact',
+    description:
+      'Read back the current feature artifact for a repo: its title, size, and when it was last set (not the full HTML). Use it to check whether one exists and confirm what you pushed.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        repoPath: { type: 'string', description: 'Absolute path to the repository' },
+      },
+      required: ['repoPath'],
+    },
+  },
+  {
+    name: 'clear_feature_artifact',
+    description:
+      'Remove the feature artifact for a repo. Porcelain stops showing the artifact opener in the Feature tab.',
     inputSchema: {
       type: 'object',
       properties: {

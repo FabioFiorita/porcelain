@@ -9,6 +9,7 @@ export type TabKind =
   | 'explore'
   | 'board'
   | 'terminal'
+  | 'artifact'
 
 // The tabs store is the router: a tab id is its kind plus its key (file path,
 // commit hash, or search query). Every opener must build ids through this so
@@ -22,7 +23,7 @@ export interface Tab {
   kind: TabKind
   title: string
   /** File path for file/diff tabs, commit hash for commit tabs, query for search tabs,
-   *  terminal session id for terminal tabs. */
+   *  terminal session id for terminal tabs, repo path for artifact tabs. */
   path: string
   /** 1-based line to scroll to when opening (search results jump here). */
   line?: number

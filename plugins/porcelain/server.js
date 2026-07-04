@@ -4,7 +4,7 @@ const node_crypto = require("node:crypto");
 const node_fs = require("node:fs");
 const node_os = require("node:os");
 const node_path = require("node:path");
-const SERVER_INFO = { name: "porcelain", version: "0.5.0" };
+const SERVER_INFO = { name: "porcelain", version: "0.6.0" };
 const PROTOCOL_VERSION = "2025-06-18";
 const REVIEW_FILE_SCHEMA = {
   type: "object",
@@ -122,6 +122,47 @@ const TOOLS = [
   {
     name: "get_reviewed_files",
     description: "Read which files the human has checked off as reviewed for a repo. Porcelain lets the reviewer mark each changed file reviewed (a per-file checkbox in the Changes / Feature lists); this returns those repo-relative paths. Use it to see how far the human has gotten and where to focus — any changed file NOT in this list is still unreviewed, so explain or double-check those, and treat reviewed ones as already vetted. The marks describe the current working tree and reset when the changes are committed. Read-only: the marks are the human's review state, so there is no tool to set them.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        repoPath: { type: "string", description: "Absolute path to the repository" }
+      },
+      required: ["repoPath"]
+    }
+  },
+  {
+    name: "set_feature_artifact",
+    description: "Author (or replace) the feature artifact for a repo: a self-contained HTML document that explains the feature — prose, inline SVG diagrams, tables, images — which Porcelain renders in the viewer so the human gets an enhanced way to understand what you built. It COMPLEMENTS the feature review set (which is the file-by-file flow); this is the narrative/visual explainer. HOW TO AUTHOR IT: the HTML is rendered in a FULLY SANDBOXED iframe — scripts NEVER execute and external resources (CDN scripts/stylesheets/fonts, remote images, fetch) NEVER load. So it must be ONE self-contained document: inline all CSS in a <style> tag (no <link>), draw diagrams as inline <svg> (not <img> to a URL), embed any raster image as a data: URI (e.g. data:image/png;base64,…), and write tables/headings/lists as plain HTML. No <script> — it won't run, so don't rely on it. Porcelain's UI is DARK: style the document itself with a dark background and light text (e.g. body { background:#0b0b0d; color:#e5e5e7 }) so it matches. Keep it under ~1.5 MB — trim or shrink embedded images rather than pasting huge blobs.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        repoPath: { type: "string", description: "Absolute path to the repository" },
+        title: {
+          type: "string",
+          description: 'A short title for the artifact (e.g. "Crew call-outs — how it works")'
+        },
+        html: {
+          type: "string",
+          description: "The complete self-contained HTML document. Inline CSS only, diagrams as inline SVG, images as data: URIs; no scripts, no external resources; dark background + light text to match the app."
+        }
+      },
+      required: ["repoPath", "title", "html"]
+    }
+  },
+  {
+    name: "get_feature_artifact",
+    description: "Read back the current feature artifact for a repo: its title, size, and when it was last set (not the full HTML). Use it to check whether one exists and confirm what you pushed.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        repoPath: { type: "string", description: "Absolute path to the repository" }
+      },
+      required: ["repoPath"]
+    }
+  },
+  {
+    name: "clear_feature_artifact",
+    description: "Remove the feature artifact for a repo. Porcelain stops showing the artifact opener in the Feature tab.",
     inputSchema: {
       type: "object",
       properties: {
@@ -309,7 +350,7 @@ const TOOLS = [
     }
   }
 ];
-function isRecord$8(value) {
+function isRecord$9(value) {
   return typeof value === "object" && value !== null;
 }
 function asString$1(value) {
@@ -322,14 +363,14 @@ function fail(id, code, message) {
   return { jsonrpc: "2.0", id, error: { code, message } };
 }
 async function handleRpc(message, callTool2) {
-  if (!isRecord$8(message)) return null;
+  if (!isRecord$9(message)) return null;
   const method = asString$1(message.method);
   const id = message.id;
   if (method === void 0) return null;
   const isNotification = !("id" in message) || id === null || id === void 0;
   if (isNotification) return null;
   if (method === "initialize") {
-    const params = isRecord$8(message.params) ? message.params : {};
+    const params = isRecord$9(message.params) ? message.params : {};
     return ok(id, {
       protocolVersion: asString$1(params.protocolVersion) ?? PROTOCOL_VERSION,
       capabilities: { tools: {} },
@@ -339,9 +380,9 @@ async function handleRpc(message, callTool2) {
   if (method === "tools/list") return ok(id, { tools: TOOLS });
   if (method === "ping") return ok(id, {});
   if (method === "tools/call") {
-    const params = isRecord$8(message.params) ? message.params : {};
+    const params = isRecord$9(message.params) ? message.params : {};
     const name = asString$1(params.name);
-    const args = isRecord$8(params.arguments) ? params.arguments : {};
+    const args = isRecord$9(params.arguments) ? params.arguments : {};
     if (name === void 0) return fail(id, -32602, "missing tool name");
     try {
       const text = await callTool2(name, args);
@@ -353,7 +394,7 @@ async function handleRpc(message, callTool2) {
   }
   return fail(id, -32601, `method not found: ${method}`);
 }
-function isRecord$7(value) {
+function isRecord$8(value) {
   return typeof value === "object" && value !== null;
 }
 function actionsPath() {
@@ -363,7 +404,7 @@ function parseActions(value) {
   if (!Array.isArray(value)) return [];
   const actions = [];
   for (const item of value) {
-    if (!isRecord$7(item)) continue;
+    if (!isRecord$8(item)) continue;
     if (typeof item.id !== "string" || typeof item.title !== "string" || typeof item.command !== "string") {
       continue;
     }
@@ -379,19 +420,19 @@ function parseActions(value) {
   }
   return actions;
 }
-function readAll$7() {
+function readAll$8() {
   let parsed;
   try {
     parsed = JSON.parse(node_fs.readFileSync(actionsPath(), "utf8"));
   } catch {
     return {};
   }
-  if (!isRecord$7(parsed)) return {};
+  if (!isRecord$8(parsed)) return {};
   const all = {};
   for (const [repoPath, value] of Object.entries(parsed)) all[repoPath] = parseActions(value);
   return all;
 }
-function writeAll$4(all) {
+function writeAll$5(all) {
   const path = actionsPath();
   node_fs.mkdirSync(node_path.dirname(path), { recursive: true });
   const tmp = `${path}.tmp`;
@@ -399,34 +440,34 @@ function writeAll$4(all) {
   node_fs.renameSync(tmp, path);
 }
 function readActions(repoPath) {
-  const actions = readAll$7()[repoPath] ?? [];
+  const actions = readAll$8()[repoPath] ?? [];
   return [...actions].sort((a, b) => a.order - b.order);
 }
 function createAction(repoPath, title, command, cwd) {
   const now = Date.now();
   const action = { id: node_crypto.randomUUID(), title, command, order: now, createdAt: now };
   if (cwd !== void 0) action.cwd = cwd;
-  const all = readAll$7();
+  const all = readAll$8();
   all[repoPath] = [...all[repoPath] ?? [], action];
-  writeAll$4(all);
+  writeAll$5(all);
   return action;
 }
 function updateAction(repoPath, id, fields) {
-  const all = readAll$7();
+  const all = readAll$8();
   const action = all[repoPath]?.find((a) => a.id === id);
   if (!action) return false;
   if (fields.title !== void 0) action.title = fields.title;
   if (fields.command !== void 0) action.command = fields.command;
   if (fields.cwd !== void 0) action.cwd = fields.cwd || void 0;
-  writeAll$4(all);
+  writeAll$5(all);
   return true;
 }
 function deleteAction(repoPath, id) {
-  const all = readAll$7();
+  const all = readAll$8();
   const actions = all[repoPath];
   if (!actions?.some((a) => a.id === id)) return false;
   all[repoPath] = actions.filter((a) => a.id !== id);
-  writeAll$4(all);
+  writeAll$5(all);
   return true;
 }
 function describeActions(repoPath, actions) {
@@ -441,6 +482,81 @@ function describeActions(repoPath, actions) {
     );
   }
   return lines.join("\n");
+}
+const MAX_HTML_BYTES = 1572864;
+function isRecord$7(value) {
+  return typeof value === "object" && value !== null;
+}
+function artifactsPath() {
+  return process.env.PORCELAIN_ARTIFACTS ?? node_path.join(node_os.homedir(), ".porcelain", "artifacts.json");
+}
+function validateArtifact(title, html) {
+  if (typeof title !== "string" || title.trim().length === 0) {
+    throw new Error("title must be a non-empty string");
+  }
+  if (typeof html !== "string" || html.length === 0) {
+    throw new Error("html must be a non-empty string");
+  }
+  const bytes = Buffer.byteLength(html, "utf8");
+  if (bytes > MAX_HTML_BYTES) {
+    throw new Error(
+      `html is ${bytes} bytes, over the ${MAX_HTML_BYTES}-byte limit — slim it down (drop or shrink embedded images/data URIs, trim the prose). The document must be self-contained but small.`
+    );
+  }
+  return { title, html };
+}
+function readAll$7() {
+  let parsed;
+  try {
+    parsed = JSON.parse(node_fs.readFileSync(artifactsPath(), "utf8"));
+  } catch {
+    return {};
+  }
+  if (!isRecord$7(parsed)) return {};
+  const all = {};
+  for (const [repoPath, value] of Object.entries(parsed)) {
+    if (!isRecord$7(value)) continue;
+    const { title, html, updatedAt } = value;
+    if (typeof title !== "string" || typeof html !== "string") continue;
+    all[repoPath] = {
+      title,
+      html,
+      updatedAt: typeof updatedAt === "string" ? updatedAt : ""
+    };
+  }
+  return all;
+}
+function writeAll$4(all) {
+  const path = artifactsPath();
+  node_fs.mkdirSync(node_path.dirname(path), { recursive: true });
+  const tmp = `${path}.tmp`;
+  node_fs.writeFileSync(tmp, JSON.stringify(all, null, 2));
+  node_fs.renameSync(tmp, path);
+}
+function setArtifact(repoPath, title, html) {
+  const valid = validateArtifact(title, html);
+  const artifact = { ...valid, updatedAt: (/* @__PURE__ */ new Date()).toISOString() };
+  const all = readAll$7();
+  all[repoPath] = artifact;
+  writeAll$4(all);
+  return artifact;
+}
+function clearArtifact(repoPath) {
+  const all = readAll$7();
+  if (!(repoPath in all)) return;
+  delete all[repoPath];
+  writeAll$4(all);
+}
+function getArtifact(repoPath) {
+  return readAll$7()[repoPath] ?? null;
+}
+function describeArtifact(repoPath, artifact) {
+  if (!artifact) {
+    return `No feature artifact for ${repoPath}. Use set_feature_artifact to author a self-contained HTML document that explains the feature; Porcelain renders it in the viewer.`;
+  }
+  const bytes = Buffer.byteLength(artifact.html, "utf8");
+  const when = artifact.updatedAt ? ` (updated ${artifact.updatedAt})` : "";
+  return `Feature artifact "${artifact.title}" for ${repoPath}: ${bytes} bytes of HTML${when}.`;
 }
 const CARD_STATUSES = ["todo", "doing", "done"];
 const STATUS_SET = new Set(CARD_STATUSES);
@@ -1019,6 +1135,17 @@ async function callTool(name, args) {
   }
   if (name === "get_reviewed_files") {
     return describeReviewed(repoPath, readReviewed(repoPath));
+  }
+  if (name === "set_feature_artifact") {
+    const artifact = setArtifact(repoPath, args.title, args.html);
+    return `Set feature artifact "${artifact.title}" for ${repoPath}. Porcelain renders it in a fully sandboxed iframe (no scripts, no external loads).`;
+  }
+  if (name === "get_feature_artifact") {
+    return describeArtifact(repoPath, getArtifact(repoPath));
+  }
+  if (name === "clear_feature_artifact") {
+    clearArtifact(repoPath);
+    return `Cleared the feature artifact for ${repoPath}`;
   }
   if (name === "list_cards") {
     return describeBoard(repoPath, readCards(repoPath));

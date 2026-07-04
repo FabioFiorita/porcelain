@@ -13,6 +13,13 @@ import {
   updateAction,
 } from './actions-store'
 import {
+  type Artifact,
+  type ArtifactMeta,
+  clearArtifact,
+  readArtifact,
+  readArtifactMeta,
+} from './artifact-store'
+import {
   addCard,
   type BoardCard,
   CARD_STATUSES,
@@ -754,6 +761,24 @@ export const router = t.router({
   // includes the review set, so it self-busts).
   clearFeatureReview: t.procedure.input(z.string()).mutation(async ({ input }) => {
     await clearReviewSet(input)
+  }),
+
+  // The feature artifact: an agent-authored, self-contained HTML document explaining
+  // the feature, rendered in a fully sandboxed iframe (see `artifact-store.ts`).
+  // Split into a cheap metadata query (the Feature list polls this to show/hide the
+  // opener without shuttling the whole document) and a full query the artifact view
+  // reads only while open. Both re-validate + size-cap on read (external process owns
+  // the file). `clearFeatureArtifact` is the app's one write to this channel.
+  featureArtifact: t.procedure
+    .input(z.string())
+    .query(({ input }): Promise<ArtifactMeta | null> => readArtifactMeta(input)),
+
+  featureArtifactHtml: t.procedure
+    .input(z.string())
+    .query(({ input }): Promise<Artifact | null> => readArtifact(input)),
+
+  clearFeatureArtifact: t.procedure.input(z.string()).mutation(async ({ input }) => {
+    await clearArtifact(input)
   }),
 
   // Review comments — the human's notes on lines/files, fed to the agent as context

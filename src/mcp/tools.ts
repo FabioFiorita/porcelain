@@ -5,6 +5,7 @@ import {
   readActions,
   updateAction,
 } from './action-file'
+import { clearArtifact, describeArtifact, getArtifact, setArtifact } from './artifact-file'
 import {
   createCard,
   deleteCard,
@@ -73,6 +74,17 @@ export async function callTool(name: string, args: Record<string, unknown>): Pro
   }
   if (name === 'get_reviewed_files') {
     return describeReviewed(repoPath, readReviewed(repoPath))
+  }
+  if (name === 'set_feature_artifact') {
+    const artifact = setArtifact(repoPath, args.title, args.html)
+    return `Set feature artifact "${artifact.title}" for ${repoPath}. Porcelain renders it in a fully sandboxed iframe (no scripts, no external loads).`
+  }
+  if (name === 'get_feature_artifact') {
+    return describeArtifact(repoPath, getArtifact(repoPath))
+  }
+  if (name === 'clear_feature_artifact') {
+    clearArtifact(repoPath)
+    return `Cleared the feature artifact for ${repoPath}`
   }
   if (name === 'list_cards') {
     return describeBoard(repoPath, readCards(repoPath))

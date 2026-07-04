@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   ACTIONS_SKILL,
+  ARTIFACT_SKILL,
   BOARD_SKILL,
   cursorInstallCommands,
   cursorMcpManifest,
@@ -63,13 +64,14 @@ describe('plugin assets', () => {
     expect(copy).toBe(`cp -R ${src}/. ${dest}/`)
   })
 
-  it('bundles five focused skills, each with frontmatter naming itself', () => {
+  it('bundles six focused skills, each with frontmatter naming itself', () => {
     expect(SKILLS.map((s) => s.name)).toEqual([
       'review-with-porcelain',
       'project-board',
       'saved-actions',
       'repo-notes',
       'flow-layers',
+      'feature-artifact',
     ])
     for (const skill of SKILLS) {
       expect(skill.content).toMatch(new RegExp(`^---\\nname: ${skill.name}\\ndescription: .+`))
@@ -122,5 +124,16 @@ describe('plugin assets', () => {
     expect(LAYERS_SKILL).toContain('whole-set replace')
     // scopes itself to the Changes tab and points feature-view grouping at set_feature_review
     expect(LAYERS_SKILL).toContain('set_feature_review')
+  })
+
+  it('the artifact skill teaches the artifact tools and the sandbox/self-contained constraints', () => {
+    for (const tool of ['set_feature_artifact', 'get_feature_artifact', 'clear_feature_artifact']) {
+      expect(ARTIFACT_SKILL).toContain(tool)
+    }
+    expect(ARTIFACT_SKILL).toMatch(/^---\nname: feature-artifact/)
+    // the hard constraints: fully sandboxed, self-contained (no scripts / no external loads)
+    expect(ARTIFACT_SKILL).toContain('SANDBOXED')
+    expect(ARTIFACT_SKILL).toContain('data:')
+    expect(ARTIFACT_SKILL).toContain('inline')
   })
 })

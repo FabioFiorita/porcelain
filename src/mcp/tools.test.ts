@@ -13,9 +13,11 @@ const boardFile = join(dir, 'board.json')
 const actionsFile = join(dir, 'actions.json')
 const commentsFile = join(dir, 'comments.json')
 const featureViewFile = join(dir, 'feature-view.json')
+const artifactsFile = join(dir, 'artifacts.json')
 
 beforeEach(() => {
   process.env.PORCELAIN_REVIEW_SETS = file
+  process.env.PORCELAIN_ARTIFACTS = artifactsFile
   process.env.PORCELAIN_NOTES = notesFile
   process.env.PORCELAIN_LAYERS = layersFile
   process.env.PORCELAIN_REVIEWED = reviewedFile
@@ -34,6 +36,7 @@ afterEach(() => {
   delete process.env.PORCELAIN_ACTIONS
   delete process.env.PORCELAIN_COMMENTS
   delete process.env.PORCELAIN_FEATURE_VIEW
+  delete process.env.PORCELAIN_ARTIFACTS
   rmSync(dir, { recursive: true, force: true })
 })
 const read = (): Record<string, { name: string; files: unknown[] }> =>
@@ -91,6 +94,27 @@ describe('callTool', () => {
     expect(await callTool('get_feature_view', { repoPath: '/other' })).toContain(
       'No feature view computed',
     )
+  })
+
+  it('set/get/clear_feature_artifact round-trips through the artifact channel', async () => {
+    const readArtifacts = (): Record<string, { title: string; html: string }> =>
+      JSON.parse(readFileSync(artifactsFile, 'utf8'))
+    await callTool('set_feature_artifact', {
+      repoPath: '/repo',
+      title: 'Overview',
+      html: '<h1>Overview</h1>',
+    })
+    expect(readArtifacts()['/repo']?.title).toBe('Overview')
+    expect(await callTool('get_feature_artifact', { repoPath: '/repo' })).toContain(
+      'Feature artifact "Overview" for /repo',
+    )
+    await callTool('clear_feature_artifact', { repoPath: '/repo' })
+    expect(readArtifacts()['/repo']).toBeUndefined()
+  })
+  it('set_feature_artifact rejects a missing title', async () => {
+    await expect(
+      callTool('set_feature_artifact', { repoPath: '/repo', html: '<p>x</p>' }),
+    ).rejects.toThrow('title must be a non-empty string')
   })
 
   it('get_review_comments tags each comment with its feature-view source', async () => {

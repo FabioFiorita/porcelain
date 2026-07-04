@@ -6,6 +6,7 @@ export type AppEvent =
   | 'board'
   | 'actions'
   | 'layers'
+  | 'artifact'
   | 'working-tree'
   | 'file-tree'
 

@@ -8,13 +8,14 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from '@renderer/components/ui/context-menu'
+import { useFeatureArtifact } from '@renderer/hooks/use-artifact'
 import { useDiffFilePrefetch } from '@renderer/hooks/use-diff'
 import { useClearFeatureReview, useFeatureView } from '@renderer/hooks/use-feature-view'
 import { dirName, fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
-import { BookOpen, Eraser, MessageSquarePlus, RefreshCw, Sparkles } from 'lucide-react'
+import { BookOpen, Eraser, FileText, MessageSquarePlus, RefreshCw, Sparkles } from 'lucide-react'
 import { memo, useState } from 'react'
 import { CommentComposer } from './comment-composer'
 
@@ -148,6 +149,7 @@ export function FeatureList(): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)
   const openTab = useTabsStore((s) => s.openTab)
   const { view, refresh } = useFeatureView()
+  const { artifact } = useFeatureArtifact()
   const { clear, isClearing } = useClearFeatureReview()
   const [confirmClear, setConfirmClear] = useState(false)
   const [clearError, setClearError] = useState<string | null>(null)
@@ -164,6 +166,19 @@ export function FeatureList(): React.JSX.Element {
       id: tabId('feature', repo.path),
       kind: 'feature',
       title: 'Feature view',
+      path: repo.path,
+    })
+  }
+
+  // The agent-authored artifact (a self-contained HTML explainer) opens pinned, like
+  // the feature view — it's a document to keep, not a preview. Shown only when the
+  // agent has pushed one; independent of the review set.
+  const openArtifact = (): void => {
+    if (!artifact) return
+    openTab({
+      id: tabId('artifact', repo.path),
+      kind: 'artifact',
+      title: artifact.title,
       path: repo.path,
     })
   }
@@ -225,6 +240,20 @@ export function FeatureList(): React.JSX.Element {
           </Button>
         </SidebarHeaderActions>
       </div>
+
+      {artifact && (
+        <div className="mx-2 mb-1">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-start rounded-md"
+            onClick={openArtifact}
+          >
+            <FileText />
+            <span className="truncate">{artifact.title}</span>
+          </Button>
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-2 pb-1 text-xs text-muted-foreground">
         {(['changed', 'context', 'shipped'] as const).map((source) => (
