@@ -26,6 +26,15 @@ export interface DiffHunk {
   lines: DiffLine[]
 }
 
+/**
+ * A single file's diff plus the status that produced it, so a viewer can tell a
+ * deleted file (no longer on disk) from a modified one without a second query.
+ */
+export interface DiffFileResult {
+  hunks: DiffHunk[]
+  status: FileStatus
+}
+
 const statusByCode: Record<string, FileStatus> = {
   M: 'modified',
   A: 'added',
@@ -253,6 +262,22 @@ export function parseUnifiedDiff(diff: string): DiffHunk[] {
     }
   }
   return hunks
+}
+
+/**
+ * Classify a raw unified diff by its extended header lines. Used where the file
+ * status isn't already known from a status probe (e.g. a range diff): a deleted
+ * file carries `deleted file mode`, a new one `new file mode`, a rename `rename
+ * from`. Anything else is a content edit.
+ */
+export function diffFileStatus(rawDiff: string): FileStatus {
+  for (const line of rawDiff.split('\n')) {
+    if (line.startsWith('deleted file mode')) return 'deleted'
+    if (line.startsWith('new file mode')) return 'added'
+    if (line.startsWith('rename from') || line.startsWith('rename to')) return 'renamed'
+    if (line.startsWith('@@')) break // headers precede the first hunk; stop once diffing
+  }
+  return 'modified'
 }
 
 export function synthesizeAddDiff(content: string): DiffHunk[] {

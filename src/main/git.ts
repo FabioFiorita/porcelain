@@ -6,8 +6,10 @@ import {
   type ChangedFile,
   type CodeSearchFile,
   type Commit,
+  type DiffFileResult,
   type DiffHunk,
   type DiffStat,
+  diffFileStatus,
   type GrepMatch,
   parseCodeSearch,
   parseGrep,
@@ -519,12 +521,19 @@ export async function gitSearchCode(
   }
 }
 
-export async function gitDiffFile(repoPath: string, filePath: string): Promise<DiffHunk[]> {
+export async function gitDiffFile(repoPath: string, filePath: string): Promise<DiffFileResult> {
   const status = await runGit(repoPath, ['status', '--porcelain=v1', '-uall', '-z', '--', filePath])
-  if (parseStatus(status)[0]?.status === 'untracked') {
-    return synthesizeAddDiff(await readFile(join(repoPath, filePath), 'utf8'))
+  const probed = parseStatus(status)[0]?.status
+  if (probed === 'untracked') {
+    return {
+      hunks: synthesizeAddDiff(await readFile(join(repoPath, filePath), 'utf8')),
+      status: 'untracked',
+    }
   }
-  return parseUnifiedDiff(await runGit(repoPath, ['diff', 'HEAD', '--no-color', '--', filePath]))
+  const hunks = parseUnifiedDiff(
+    await runGit(repoPath, ['diff', 'HEAD', '--no-color', '--', filePath]),
+  )
+  return { hunks, status: probed ?? 'modified' }
 }
 
 /** Compute the common ancestor between `base` and HEAD. */
@@ -552,11 +561,10 @@ export async function gitRangeDiffFile(
   repoPath: string,
   base: string,
   filePath: string,
-): Promise<DiffHunk[]> {
+): Promise<DiffFileResult> {
   const mergeBase = await gitMergeBase(repoPath, base)
-  return parseUnifiedDiff(
-    await runGit(repoPath, ['diff', '--no-color', `${mergeBase}..HEAD`, '--', filePath]),
-  )
+  const raw = await runGit(repoPath, ['diff', '--no-color', `${mergeBase}..HEAD`, '--', filePath])
+  return { hunks: parseUnifiedDiff(raw), status: diffFileStatus(raw) }
 }
 
 /**

@@ -149,13 +149,19 @@ describe('range diff prototype', () => {
   })
 
   it('gitRangeDiffFile returns hunks matching the branch change to base.ts', async () => {
-    const hunks = await gitRangeDiffFile(repoDir, 'main', 'base.ts')
+    const { hunks, status } = await gitRangeDiffFile(repoDir, 'main', 'base.ts')
+    expect(status).toBe('modified')
     expect(hunks.length).toBeGreaterThan(0)
     const allLines = hunks.flatMap((h) => h.lines)
     const addedLines = allLines.filter((l) => l.kind === 'add').map((l) => l.text)
     const removedLines = allLines.filter((l) => l.kind === 'del').map((l) => l.text)
     expect(addedLines.some((t) => t.includes('42'))).toBe(true)
     expect(removedLines.some((t) => t.includes('= 1'))).toBe(true)
+  })
+
+  it('gitRangeDiffFile reports an added file as added', async () => {
+    const { status } = await gitRangeDiffFile(repoDir, 'main', 'feature.ts')
+    expect(status).toBe('added')
   })
 
   it('gitDefaultBranch resolves to "main" when no remote but local main exists', async () => {

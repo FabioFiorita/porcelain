@@ -1,4 +1,4 @@
-import type { DiffHunk } from '@main/diff'
+import type { DiffHunk, FileStatus } from '@main/diff'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 import { keepPreviousData } from '@tanstack/react-query'
@@ -6,7 +6,11 @@ import { keepPreviousData } from '@tanstack/react-query'
 export function useDiffFile(
   filePath: string,
   base?: string,
-): { hunks: DiffHunk[] | undefined; error: { message: string } | null } {
+): {
+  hunks: DiffHunk[] | undefined
+  status: FileStatus | undefined
+  error: { message: string } | null
+} {
   const repo = useRepoStore((s) => s.repo)
   const working = trpc.gitDiffFile.useQuery(
     { repoPath: repo?.path ?? '', filePath },
@@ -26,7 +30,7 @@ export function useDiffFile(
     },
   )
   const active = base === undefined ? working : range
-  return { hunks: active.data, error: active.error }
+  return { hunks: active.data?.hunks, status: active.data?.status, error: active.error }
 }
 
 /** Prefetch a file's diff (changes-list hover) so opening the diff tab feels instant. */

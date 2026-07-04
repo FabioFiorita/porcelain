@@ -729,7 +729,7 @@ export const router = t.router({
       await Promise.all(
         changed.map(async (file) => {
           try {
-            diffs.set(file.path, await gitDiffFile(input, file.path))
+            diffs.set(file.path, (await gitDiffFile(input, file.path)).hunks)
           } catch {
             // file vanished/renamed between the status snapshot and this read —
             // leave it out; buildFeatureReading falls back to an empty hunk list

@@ -1,15 +1,20 @@
+import { Button } from '@renderer/components/ui/button'
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuTrigger,
 } from '@renderer/components/ui/context-menu'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useDiffFile } from '@renderer/hooks/use-diff'
 import { useReviewedPaths, useToggleReviewed } from '@renderer/hooks/use-reviewed'
 import { type LineSelection, lineSelectionFromDom } from '@renderer/lib/line-selection'
+import { fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
-import { MessageSquarePlus, Square, SquareCheck } from 'lucide-react'
+import { useRepoStore } from '@renderer/stores/repo'
+import { tabId, useTabsStore } from '@renderer/stores/tabs'
+import { FileText, MessageSquarePlus, Square, SquareCheck } from 'lucide-react'
 import { useState } from 'react'
 import { type CommentAnchor, CommentComposer } from './comment-composer'
 import { DiffModeToggle } from './diff-mode-toggle'
@@ -23,12 +28,29 @@ export function DiffView({
   base?: string
 }): React.JSX.Element {
   const diffMode = usePreferencesStore((s) => s.diffMode)
-  const { hunks, error } = useDiffFile(filePath, base)
+  const repo = useRepoStore((s) => s.repo)
+  const openTab = useTabsStore((s) => s.openTab)
+  const { hunks, status, error } = useDiffFile(filePath, base)
   const reviewed = useReviewedPaths()
   const { mark, unmark } = useToggleReviewed()
   const isReviewed = reviewed.has(filePath)
   const [lineSel, setLineSel] = useState<LineSelection | null>(null)
   const [commentAnchor, setCommentAnchor] = useState<CommentAnchor | null>(null)
+
+  // Jump from the diff to the whole file (a preview tab, like the Changes list's
+  // "Open file"). Hidden for a deleted file — it no longer exists on disk, so
+  // there's nothing to open.
+  const openFile = (): void => {
+    if (!repo) return
+    const absolute = `${repo.path}/${filePath}`
+    openTab({
+      id: tabId('file', absolute),
+      kind: 'file',
+      title: fileName(filePath),
+      path: absolute,
+      preview: true,
+    })
+  }
 
   if (error) return <p className="p-4 text-sm text-destructive">{error.message}</p>
   if (hunks === undefined) return <p className="p-4 text-sm text-muted-foreground">Loading…</p>
@@ -54,6 +76,24 @@ export function DiffView({
             {isReviewed ? <SquareCheck className="size-3.5" /> : <Square className="size-3.5" />}
             {isReviewed ? 'Reviewed' : 'Mark reviewed'}
           </button>
+          {status !== 'deleted' && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    className="text-muted-foreground"
+                    onClick={openFile}
+                    aria-label="Open file"
+                  >
+                    <FileText />
+                  </Button>
+                }
+              />
+              <TooltipContent>Open file</TooltipContent>
+            </Tooltip>
+          )}
           <DiffModeToggle />
         </div>
       </div>

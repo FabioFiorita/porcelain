@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  diffFileStatus,
   parseCodeSearch,
   parseGrep,
   parseLog,
@@ -88,6 +89,40 @@ describe('synthesizeAddDiff', () => {
 
   it('returns no hunks for empty content', () => {
     expect(synthesizeAddDiff('')).toEqual([])
+  })
+})
+
+describe('diffFileStatus', () => {
+  it('detects a deleted file from its mode header', () => {
+    const diff =
+      'diff --git a/gone.ts b/gone.ts\ndeleted file mode 100644\nindex abc..000\n--- a/gone.ts\n+++ /dev/null\n@@ -1,2 +0,0 @@\n-one\n-two\n'
+    expect(diffFileStatus(diff)).toBe('deleted')
+  })
+
+  it('detects a new file', () => {
+    const diff =
+      'diff --git a/new.ts b/new.ts\nnew file mode 100644\nindex 000..abc\n--- /dev/null\n+++ b/new.ts\n@@ -0,0 +1 @@\n+one\n'
+    expect(diffFileStatus(diff)).toBe('added')
+  })
+
+  it('detects a rename', () => {
+    const diff =
+      'diff --git a/old.ts b/new.ts\nsimilarity index 100%\nrename from old.ts\nrename to new.ts\n'
+    expect(diffFileStatus(diff)).toBe('renamed')
+  })
+
+  it('treats a content edit as modified', () => {
+    const diff =
+      'diff --git a/a.ts b/a.ts\nindex abc..def 100644\n--- a/a.ts\n+++ b/a.ts\n@@ -1 +1 @@\n-old\n+new\n'
+    expect(diffFileStatus(diff)).toBe('modified')
+  })
+
+  it('does not mistake a hunk body line for a mode header', () => {
+    // A removed line whose text starts with "deleted file mode" must not flip the
+    // classification — header scanning stops at the first @@.
+    const diff =
+      'diff --git a/a.ts b/a.ts\nindex abc..def 100644\n--- a/a.ts\n+++ b/a.ts\n@@ -1 +1 @@\n-deleted file mode 100644\n+kept\n'
+    expect(diffFileStatus(diff)).toBe('modified')
   })
 })
 
