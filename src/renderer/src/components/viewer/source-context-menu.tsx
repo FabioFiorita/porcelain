@@ -10,6 +10,7 @@ import { Kbd } from '@renderer/components/ui/kbd'
 import { kbdLabel } from '@renderer/lib/keyboard'
 import { type LineSelection, lineSelectionFromDom } from '@renderer/lib/line-selection'
 import { isBrowser } from '@renderer/lib/platform'
+import { copyText } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import {
   Compass,
@@ -66,7 +67,7 @@ export function SourceContextMenu({
         <ContextMenuContent className="w-56">
           {selection !== '' ? (
             <>
-              <ContextMenuItem onClick={() => navigator.clipboard.writeText(selection)}>
+              <ContextMenuItem onClick={() => copyText(selection)}>
                 <Copy /> Copy
                 <ContextMenuShortcut>
                   <Kbd>{kbdLabel('mod', 'C')}</Kbd>

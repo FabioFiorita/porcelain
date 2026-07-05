@@ -1,5 +1,6 @@
 import { useRevealInFinder } from '@renderer/hooks/use-files'
 import { fileName, relativeTo } from '@renderer/lib/paths'
+import { copyText } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 
@@ -16,10 +17,10 @@ export function usePathActions(path: string): {
 
   return {
     copyPath: async () => {
-      await navigator.clipboard.writeText(path)
+      await copyText(path)
     },
     copyRelativePath: async () => {
-      await navigator.clipboard.writeText(relativeTo(repo?.path, path))
+      await copyText(relativeTo(repo?.path, path))
     },
     reveal: () => reveal(path),
     findReferences: (text) => {

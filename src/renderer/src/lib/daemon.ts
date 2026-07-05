@@ -4,6 +4,7 @@ import {
   type ServerMessage,
   serverMessageSchema,
 } from '@shared/ws-protocol'
+import { randomId } from './utils'
 
 /**
  * The renderer's connection to the daemon: the base url for the appRouter's HTTP
@@ -198,7 +199,7 @@ function ensureSession(): void {
     // attach promise. Skipped on the first-ever open: those attaches are already queued
     // in the outbox (double-sending would replay scrollback twice).
     if (everConnected) {
-      for (const id of attachedIds) push({ t: 'terminal:attach', id, reqId: crypto.randomUUID() })
+      for (const id of attachedIds) push({ t: 'terminal:attach', id, reqId: randomId() })
     }
     for (const message of outbox.splice(0)) push(message)
     // Refetch on every REconnect — and on the first connect after the shell
@@ -337,7 +338,7 @@ export function createTerminal(opts: {
 }): Promise<string> {
   ensureSession()
   return new Promise<string>((resolve, reject) => {
-    const reqId = crypto.randomUUID()
+    const reqId = randomId()
     pendingCreates.set(reqId, {
       // The creator is auto-attached daemon-side — track the id so a later reconnect
       // re-attaches it like any other streaming terminal.
@@ -365,7 +366,7 @@ export function attachTerminal(id: string): Promise<AttachResult> {
   ensureSession()
   attachedIds.add(id)
   return new Promise<AttachResult>((resolve, reject) => {
-    const reqId = crypto.randomUUID()
+    const reqId = randomId()
     pendingAttaches.set(reqId, {
       resolve,
       // A socket drop before the reply rejects this — drop the id so `isTerminalAttached`

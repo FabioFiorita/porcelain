@@ -1,5 +1,6 @@
 import { Button } from '@renderer/components/ui/button'
 import { useCodexInfo, useInstallCodex } from '@renderer/hooks/use-codex'
+import { copyText } from '@renderer/lib/utils'
 import { Check, CircleCheck, Copy, Loader2, TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
 
@@ -10,7 +11,7 @@ export function CodexSection(): React.JSX.Element {
   const commands = info?.commands ?? []
 
   const copy = async (): Promise<void> => {
-    await navigator.clipboard.writeText(commands.join('\n'))
+    await copyText(commands.join('\n'))
     setCopied(true)
     setTimeout(() => setCopied(false), 1500)
   }

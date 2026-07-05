@@ -11,7 +11,7 @@ import { CodeLine, useTokenizedLines } from '@renderer/components/viewer/code-li
 import { useWriteTextFile } from '@renderer/hooks/use-files'
 import { languageFor } from '@renderer/lib/highlight'
 import { kbdLabel } from '@renderer/lib/keyboard'
-import { cn } from '@renderer/lib/utils'
+import { cn, copyText } from '@renderer/lib/utils'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import {
   ClipboardPaste,
@@ -122,6 +122,10 @@ export function EditorSource({
   }
 
   const paste = async (): Promise<void> => {
+    // readText has no insecure-context polyfill (tailnet browser client). When it's
+    // absent, no-op: the browser's native paste event still delivers the text and
+    // Cmd/Ctrl+V keeps working — only this context-menu Paste item goes quiet.
+    if (!navigator.clipboard?.readText) return
     insertAtCursor(await navigator.clipboard.readText())
   }
 
@@ -197,7 +201,7 @@ export function EditorSource({
         <ContextMenuItem
           disabled={selection === ''}
           onClick={async () => {
-            await navigator.clipboard.writeText(selection)
+            await copyText(selection)
             insertAtCursor('')
           }}
         >
@@ -206,10 +210,7 @@ export function EditorSource({
             <Kbd>{kbdLabel('mod', 'X')}</Kbd>
           </ContextMenuShortcut>
         </ContextMenuItem>
-        <ContextMenuItem
-          disabled={selection === ''}
-          onClick={() => navigator.clipboard.writeText(selection)}
-        >
+        <ContextMenuItem disabled={selection === ''} onClick={() => copyText(selection)}>
           <Copy /> Copy
           <ContextMenuShortcut>
             <Kbd>{kbdLabel('mod', 'C')}</Kbd>

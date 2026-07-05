@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { cn } from './utils'
+import { describe, expect, it, vi } from 'vitest'
+import { cn, randomId } from './utils'
 
 describe('cn', () => {
   it('merges class names', () => {
@@ -41,5 +41,32 @@ describe('cn', () => {
 
   it('still resolves two conflicting font sizes to the last one', () => {
     expect(cn('text-sm-minus', 'text-sm')).toBe('text-sm')
+  })
+})
+
+describe('randomId', () => {
+  const V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+
+  // Simulate an insecure context (tailnet browser client): randomUUID absent,
+  // only getRandomValues available.
+  const insecureCrypto = {
+    getRandomValues: crypto.getRandomValues.bind(crypto),
+  } as Crypto
+
+  it('builds a v4-shaped UUID from getRandomValues when randomUUID is absent', () => {
+    expect(randomId(insecureCrypto)).toMatch(V4)
+  })
+
+  it('produces unique ids across 100 calls in the fallback path', () => {
+    const ids = new Set(Array.from({ length: 100 }, () => randomId(insecureCrypto)))
+    expect(ids.size).toBe(100)
+  })
+
+  it('delegates to randomUUID when present', () => {
+    const sentinel = '11111111-1111-4111-8111-111111111111'
+    const spy = vi.fn<Crypto['randomUUID']>(() => sentinel)
+    const secureCrypto: Crypto = { ...insecureCrypto, randomUUID: spy }
+    expect(randomId(secureCrypto)).toBe(sentinel)
+    expect(spy).toHaveBeenCalledTimes(1)
   })
 })

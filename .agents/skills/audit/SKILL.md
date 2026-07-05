@@ -216,7 +216,11 @@ assumed — this skill is the codebase-specific layer beneath them.
   daemon). That loopback scope is what the Electron window loads; when the daemon serves the
   Phase-3 browser client it rewrites ONLY `connect-src` to same-origin WS for the request Host
   (`rewriteCsp` in `static-server.ts`) — it does NOT relax `img-src`/`default-src`, which
-  remain the artifact backstop, and the rewrite must never touch them. Don't widen `img-src`/`default-src`, and keep the CSP rewrite connect-src-only. (3) Reads are zod-validated + size-capped on
+  remain the artifact backstop, and the rewrite must never touch them. `font-src 'self' data:`
+  is also present and DELIBERATE (Vite inlines small font subsets — the JetBrains Mono Cyrillic
+  slice — as data: URIs, which the `default-src` fallback otherwise blocks); a `data:` font is
+  inert (no request leaves the machine), so it adds no exfil channel — but never add a REMOTE
+  host to `font-src` (a remote font load IS a beacon). Don't widen `img-src`/`default-src`, and keep the CSP rewrite connect-src-only. (3) Reads are zod-validated + size-capped on
   EVERY read (`readArtifact` drops an entry whose html exceeds `MAX_HTML_BYTES` = 1.5 MB, and
   never throws — one bad agent write can't break the viewer), because an external process owns the
   file. Same two-way shape as review-sets: the MCP server authors it, the app makes exactly ONE

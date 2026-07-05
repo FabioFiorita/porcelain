@@ -5,6 +5,7 @@ import {
   useInstallPlugin,
   usePluginInfo,
 } from '@renderer/hooks/use-plugin'
+import { copyText } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { ArrowUpCircle, Check, CircleCheck, Copy, Loader2, TriangleAlert } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -109,7 +110,7 @@ export function PluginSection({ target }: PluginSectionProps): React.JSX.Element
   const commands = info?.commands ?? []
 
   const copy = async (): Promise<void> => {
-    await navigator.clipboard.writeText(commands.join('\n'))
+    await copyText(commands.join('\n'))
     setCopied(true)
     setTimeout(() => setCopied(false), 1500)
   }
