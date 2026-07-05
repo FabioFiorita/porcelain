@@ -111,11 +111,36 @@ export function createTerminal(sender: TerminalSender, opts: CreateTerminalOptio
   }
   sessions.set(id, session)
 
+  // Race: initialInput written right after spawn() (before the shell finishes readline
+  // init) is echoed at the tty level but SWALLOWED when the shell takes over its input —
+  // the command never runs. This failed two release gates (v0.17.1, v0.19.0) as a phantom
+  // "flake": on a slow runner the echoed line landed ABOVE bash's "default shell is zsh"
+  // banner and produced no output. So we don't write at spawn — we write once on the
+  // shell's FIRST output (its banner/prompt = readline is up), with a 2s fallback for a
+  // shell configured to print nothing on startup. A one-shot closure that whichever fires
+  // first calls-and-nulls; killTerminal/onExit null it so a session gone before the write
+  // never fires it. The onData scrollback/fan-out below is untouched — this rides in front.
+  let initialTimer: ReturnType<typeof setTimeout> | undefined
+  let sendInitialInput: (() => void) | null = null
+  if (opts.initialInput !== undefined && opts.initialInput !== '') {
+    const input = opts.initialInput
+    sendInitialInput = () => {
+      if (initialTimer !== undefined) clearTimeout(initialTimer)
+      sendInitialInput = null
+      if (sessions.has(id)) pty.write(`${input}\r`)
+    }
+    initialTimer = setTimeout(() => sendInitialInput?.(), 2000)
+  }
+
   pty.onData((data) => {
+    sendInitialInput?.()
     session.scrollback.append(data)
     fanOut(session, 'terminal:data', id, data)
   })
   pty.onExit(({ exitCode }) => {
+    // A session that exits before the initialInput write must never fire it.
+    if (initialTimer !== undefined) clearTimeout(initialTimer)
+    sendInitialInput = null
     // Keep the entry (its final output stays readable across reloads) — only an explicit
     // killTerminal removes it. Mark it exited so a re-attach shows the exited state.
     session.status = 'exited'
@@ -123,9 +148,6 @@ export function createTerminal(sender: TerminalSender, opts: CreateTerminalOptio
     fanOut(session, 'terminal:exit', id, exitCode)
   })
 
-  if (opts.initialInput !== undefined && opts.initialInput !== '') {
-    pty.write(`${opts.initialInput}\r`)
-  }
   return id
 }
 

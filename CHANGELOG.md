@@ -14,6 +14,7 @@
 
 ### Bug Fixes
 
+* action commands typed into a fresh terminal could be silently swallowed — initialInput raced the shell's readline init (reliably on slow machines; failed two release gates as a phantom flake); it now writes on the shell's first output, with a 2s fallback
 * emit __esModule-aware interop (output.interop auto) for the CJS main bundles — ESM-only trash was required as a bare namespace, so every daemon trashPath/gitDiscardFile threw 'trash is not a function' since the split; caught by the local e2e run ([0f54fd3](https://github.com/FabioFiorita/porcelain/commit/0f54fd374a470718cb7344e07f75a34db7cb3cf6))
 * give shell tRPC hooks their own React context — nested providers shared the default TRPCContext singleton, routing every app hook to the shell router (No procedure found → eternal Loading) ([ea0bf42](https://github.com/FabioFiorita/porcelain/commit/ea0bf420ae674a3ef926f6c1859fa463b0fc2134))
 * tailnet browser client runs in an insecure context — crypto.randomUUID/navigator.clipboard don't exist on plain-HTTP non-localhost origins: randomId()/copyText() helpers (getRandomValues v4 + execCommand fallback) replace direct calls (terminal create/attach reqIds, all copy buttons); CSP gains font-src 'self' data: (Vite-inlined JetBrains Mono subset was blocked by the default-src fallback) ([1f06941](https://github.com/FabioFiorita/porcelain/commit/1f06941af03e1690933518a3f647db08a1a6a916))
