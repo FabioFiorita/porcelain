@@ -132,7 +132,7 @@ regenerate, do it from the pre-tag state.
 `electron-builder.yml` wires `build/after-pack.js` as an `afterPack` hook that
 flips Electron security fuses on the `.app` before signing. The standard gate
 (`pnpm verify`) does NOT exercise fuses — they only take effect in a packaged
-build. After every `pnpm dist` or release build, verify **all three** before
+build. After every `pnpm dist` or release build, verify **all four** before
 publishing:
 
 1. **Terminal PTY spawns.** Open a terminal tab in the installed app and run any
@@ -151,6 +151,15 @@ publishing:
    `ELECTRON_RUN_AS_NODE=1 open -a Porcelain`
    The app must open as the normal GUI app, NOT as a Node REPL. If it drops to a
    Node prompt, the `RunAsNode: false` fuse did not take effect.
+
+4. **The daemon serves.** After launch, exactly ONE process has
+   `daemon/server.js` in its argv (`ps ax | grep 'daemon/server.js'`) and `lsof`
+   shows it LISTENing on 127.0.0.1 — or simply: the app's file tree loads, which
+   requires the daemon. A multiplying process count is the RunAsNode/spawn
+   regression: the daemon must be forked via `utilityProcess.fork`, never by
+   re-spawning the app binary with `ELECTRON_RUN_AS_NODE` (the fuse silently
+   ignores it and the child boots as a second GUI app, recursively — this
+   fork-bombed the v0.19.0 draft).
 
 If any check fails, do NOT publish the draft release. Report the exact failure
 before proceeding.

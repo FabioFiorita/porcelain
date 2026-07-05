@@ -1,29 +1,36 @@
-import { type ChildProcessByStdio, spawn } from 'node:child_process'
 import { join } from 'node:path'
-import type { Readable, Writable } from 'node:stream'
 import { is } from '@electron-toolkit/utils'
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, type UtilityProcess, utilityProcess } from 'electron'
 import { z } from 'zod'
 import { ensureDaemonToken } from '../backend/token-file'
 import { loadRemoteDaemon, type RemoteDaemon } from './remote-daemon'
 
 /**
- * Spawn and babysit the daemon child (`out/main/daemon/server.js`) — the
+ * Fork and babysit the daemon child (`out/main/daemon/server.js`) — the
  * Electron-free backend the renderer talks to over HTTP/WS on 127.0.0.1.
  *
- * `ELECTRON_RUN_AS_NODE` runs the same Electron binary as plain Node, which
- * keeps node-pty's Electron-ABI build valid inside the daemon. The daemon
- * resolves userData from PORCELAIN_USER_DATA (the shell owns the dev `-dev`
- * suffix, so the config file location never changes) and runs the dev seeding
- * under PORCELAIN_DEV. The rest of the env is inherited — that's how the e2e
- * fixture's PORCELAIN_E2E / PORCELAIN_REVIEW_SETS / PORCELAIN_SHELL overrides
- * reach the daemon-side stores and terminal manager.
+ * The fork goes through `utilityProcess.fork`, which runs the script in a real
+ * Node.js environment inside Electron — node-pty's Electron-ABI build stays
+ * valid — and behaves identically in dev and packaged builds. It must NEVER go
+ * back to child_process-spawning our own binary with the run-as-Node env
+ * switch: packaged builds fuse RunAsNode OFF (build/after-pack.js) and the fuse
+ * silently IGNORES that env var, so the child boots as a second full GUI app
+ * whose own startDaemon() spawns another — a fork bomb (caught in the v0.19.0
+ * pre-publish fuse check).
+ * The daemon resolves userData from PORCELAIN_USER_DATA (the shell owns the dev
+ * `-dev` suffix, so the config file location never changes) and runs the dev
+ * seeding under PORCELAIN_DEV. The rest of the env is inherited — that's how
+ * the e2e fixture's PORCELAIN_E2E / PORCELAIN_REVIEW_SETS / PORCELAIN_SHELL
+ * overrides reach the daemon-side stores and terminal manager.
  *
  * Lifecycle: the ready line (`{"port": N}` on stdout) resolves the port; a crash
  * restarts the daemon with a capped backoff (give up after 3 rapid failures) and
  * pushes the NEW url to every window over `daemon-url-changed` (the renderer's
- * WS client reconnects and queries refetch); quit kills the child, and the
- * daemon also self-exits when its stdin pipe closes (parent death).
+ * WS client reconnects and queries refetch); quit kills the child. Electron ties
+ * a utility child's lifetime to the app, which supersedes the daemon's stdin
+ * parent-death watchdog here — utilityProcess provides no stdin at all, so the
+ * shell disables the watchdog via PORCELAIN_NO_STDIN_WATCHDOG (standalone
+ * daemons under plain `node` keep it).
  *
  * Auth: every daemon request is gated on a persistent session token (see the
  * security note in backend/server.ts — loopback is reachable from any webpage,
@@ -40,13 +47,11 @@ const readyLineSchema = z.object({ port: z.number().int().positive() })
 // Set once in startDaemon (before any window boots) from the shared token file.
 let token = ''
 
-type DaemonProcess = ChildProcessByStdio<Writable, Readable, null>
-
 const MAX_RAPID_FAILURES = 3
 const RAPID_WINDOW_MS = 10_000
 const RESTART_DELAYS_MS = [500, 1500, 3000]
 
-let child: DaemonProcess | null = null
+let child: UtilityProcess | null = null
 let port: number | null = null
 let quitting = false
 let rapidFailures = 0
@@ -75,14 +80,20 @@ export function pushDaemonInfo(): void {
   }
 }
 
-/** Resolve the first stdout line into the daemon's port (rejects on early exit or spawn error). */
-function awaitReadyLine(proc: DaemonProcess): Promise<number> {
+/** Resolve the first stdout line into the daemon's port (rejects on an exit before ready). */
+function awaitReadyLine(proc: UtilityProcess): Promise<number> {
   return new Promise<number>((resolve, reject) => {
+    // stdio: 'pipe' guarantees a stdout stream, but the type is nullable —
+    // reject rather than assert so a future stdio change fails loudly.
+    const stdout = proc.stdout
+    if (stdout === null) {
+      reject(new Error('daemon forked without a stdout pipe'))
+      return
+    }
     let buffer = ''
     const cleanup = (): void => {
-      proc.stdout.off('data', onData)
+      stdout.off('data', onData)
       proc.off('exit', onExit)
-      proc.off('error', onError)
     }
     const onData = (chunk: string): void => {
       buffer += chunk
@@ -95,32 +106,34 @@ function awaitReadyLine(proc: DaemonProcess): Promise<number> {
         reject(new Error(`unparseable daemon ready line: ${String(error)}`))
       }
     }
-    const onExit = (code: number | null): void => {
+    // utilityProcess has no 'error' event: a fork that fails to boot (bad module
+    // path, immediate crash) surfaces as an early 'exit', so this single handler
+    // is what keeps the ready await from hanging on a child that never served.
+    const onExit = (code: number): void => {
       cleanup()
       reject(new Error(`daemon exited before ready (code ${code})`))
     }
-    // 'exit' is NOT guaranteed after 'error' (e.g. a failed spawn) — reject
-    // here too so the ready await can never hang on a child that never ran.
-    const onError = (error: Error): void => {
-      cleanup()
-      reject(new Error(`daemon failed to spawn: ${error.message}`))
-    }
-    proc.stdout.setEncoding('utf8')
-    proc.stdout.on('data', onData)
+    stdout.setEncoding('utf8')
+    stdout.on('data', onData)
     proc.once('exit', onExit)
-    proc.once('error', onError)
   })
 }
 
 async function launch(): Promise<void> {
   const startedAt = Date.now()
-  const proc = spawn(process.execPath, [join(__dirname, 'daemon', 'server.js')], {
+  // utilityProcess.fork — never child_process with the run-as-Node env switch:
+  // see the fork-bomb note in the module doc above.
+  const proc = utilityProcess.fork(join(__dirname, 'daemon', 'server.js'), [], {
     env: {
       ...process.env,
-      ELECTRON_RUN_AS_NODE: '1',
       PORCELAIN_USER_DATA: app.getPath('userData'),
       PORCELAIN_DEV: is.dev ? '1' : '',
       PORCELAIN_DAEMON_TOKEN: token,
+      // A utility child gets NO stdin, so the daemon's stdin parent-death
+      // watchdog would insta-exit it; Electron ties the child's lifetime to
+      // this app, which supersedes the watchdog here (standalone daemons under
+      // plain `node` keep it — see backend/server.ts).
+      PORCELAIN_NO_STDIN_WATCHDOG: '1',
       // The dev renderer is served by Vite, so its origin must be CORS-echoed;
       // the packaged file:// renderer sends the "null" origin the daemon always
       // accepts (the Bearer token is the real gate either way).
@@ -129,16 +142,20 @@ async function launch(): Promise<void> {
           ? new URL(process.env.ELECTRON_RENDERER_URL).origin
           : '',
     },
-    // stdin stays piped for the daemon's parent-death watchdog; stderr flows
-    // into the shell's stderr so daemon logs surface in the dev terminal.
-    stdio: ['pipe', 'pipe', 'inherit'],
+    // 'pipe' for the ready line on stdout; utilityProcess can't 'inherit', so
+    // stderr is piped too and forwarded below to keep daemon logs in the dev
+    // terminal.
+    stdio: 'pipe',
   })
   child = proc
 
-  // One shared down-handler for 'exit' AND 'error': a failed spawn emits only
-  // 'error' (an unhandled 'error' would crash the Electron main process, and
-  // 'exit' may never follow), while a crash emits 'exit' — and some failures
-  // emit both, so the flag guards against double-scheduling a restart.
+  // end:false — process.stderr can't be end()ed, and a plain pipe would try
+  // when the child exits.
+  proc.stderr?.pipe(process.stderr, { end: false })
+
+  // utilityProcess emits only 'spawn' and 'exit' (no 'error' event): every way
+  // down — crash, kill, or a fork that never boots — lands on 'exit'. The flag
+  // still guards the restart path against ever double-firing.
   let wentDown = false
   const onChildDown = (description: string): void => {
     if (wentDown) return
@@ -160,7 +177,6 @@ async function launch(): Promise<void> {
     }, delay)
   }
   proc.on('exit', (code) => onChildDown(`exited (code ${code})`))
-  proc.on('error', (error) => onChildDown(`spawn failed: ${error.message}`))
 
   port = await awaitReadyLine(proc)
   // Push the (new) url + token to every open window — after a restart the

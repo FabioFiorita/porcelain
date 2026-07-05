@@ -283,14 +283,20 @@ assumed — this skill is the codebase-specific layer beneath them.
   tRPC client is sanctioned only in `stores/repo.ts` and `use-app-events.ts`.
 - **Never `void` a promise** to silence a floating-promise lint — use `async`/`await`
   or `await Promise.all([...])` for invalidation/prefetch/clipboard.
-- **The daemon child's `error` event MUST be handled, not just `exit`.** `src/main/daemon.ts`
-  attaches one `onChildDown` to BOTH `proc.on('exit')` and `proc.on('error')`, and
-  `awaitReadyLine` rejects on either. *Why:* a failed spawn emits only `error` (no `exit`),
-  and an unhandled child `error` crashes the Electron main process. The shared `wentDown` /
-  ready-await `cleanup` flags stop a failure that emits *both* from double-scheduling a
-  restart or resolving+rejecting the ready promise. Don't drop the `error` listener when
-  touching the lifecycle. *Verify:* `kill -9` the daemon while the app runs → it restarts and
-  the UI recovers; a bad daemon path fails closed, not with an app crash.
+- **The shell forks the daemon via `utilityProcess.fork` — NEVER via
+  `spawn(process.execPath, …, ELECTRON_RUN_AS_NODE)`.** Packaged builds fuse `RunAsNode`
+  OFF (`build/after-pack.js`) and the fuse silently IGNORES the env var, so a
+  child_process spawn boots the child as a second full GUI app whose own `startDaemon()`
+  spawns another — a recursive fork bomb (caught in the v0.19.0 pre-publish fuse check;
+  dev/e2e never see it because they run unfused). `utilityProcess` runs the script in a
+  real Node environment regardless of the fuse and node-pty's Electron-ABI build stays
+  valid. Lifecycle semantics differ from child_process: only `spawn`/`exit` events exist
+  (no `error`), so every way down lands on `exit` — `onChildDown` and `awaitReadyLine`'s
+  reject both key off it, with the `wentDown`/`cleanup` flags still guarding against a
+  double signal. The shell also sets `PORCELAIN_NO_STDIN_WATCHDOG=1` (a utility child has
+  no stdin; Electron owns its lifetime). *Verify:* `kill -9` the daemon while the app runs
+  → it restarts and the UI recovers; in a packaged build exactly ONE process has
+  `daemon/server.js` in argv (see the `releasing` fuse smoke test).
 - **On WS-session close, DETACH senders (PTYs survive) — but still reject every in-flight/queued
   terminal create AND attach and clear the outbox** (`failPendingCreates` in `lib/daemon.ts`,
   from `ws.onclose`; `session.dispose` → `detachSender`, NOT a kill). *Why:* Phase 2 decouples
