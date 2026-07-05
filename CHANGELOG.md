@@ -1,3 +1,23 @@
+## [0.19.0](https://github.com/FabioFiorita/porcelain/compare/v0.18.0...v0.19.0) (2026-07-05)
+
+### Features
+
+* local porcelain daemon — renderer talks HTTP/WS to the electron-free backend ([5e3a042](https://github.com/FabioFiorita/porcelain/commit/5e3a0421d897ab192f68699b2eb8191502fd6bc5))
+* remote envs phase 2 slice A — persistent daemon token (~/.porcelain/daemon-token, 0600) + settings-toggled Tailscale listener (fixed port 43117, same token gate, never 0.0.0.0) ([996012c](https://github.com/FabioFiorita/porcelain/commit/996012c2007c1af46605545ea9b726701884dc22))
+* remote envs phase 2 slice B — PTYs survive disconnect: daemon-owned roster (terminalSessions/renameTerminal), attach/detach with 64KB scrollback replay, multi-client fan-out; socket close detaches, explicit kill only ([c8f09ed](https://github.com/FabioFiorita/porcelain/commit/c8f09ed50e86de928abb873fd675e13dd937ffa7))
+* remote envs phase 2 slice C — daemon-side repo browser (browseDirs + RepoPickerDialog) replaces the native openRepo dialog; phase 2 marked shipped in the plan ([30dd1ab](https://github.com/FabioFiorita/porcelain/commit/30dd1abf250eeef996bc7e672f763ca718fb1015))
+* remote envs phase 3 slice A — daemon serves the renderer to plain browsers: static server (traversal-guarded, unauthenticated assets, /trpc+/session stay token-gated), serve-time CSP connect-src rewrite, isBrowser seam (boot skips windowInit, shell-only UI hidden), localStorage token gate ([04e388c](https://github.com/FabioFiorita/porcelain/commit/04e388c17028bf1f5a63e41ae9ace36e36dd27ed))
+* remote envs phase 3 slice B — browser void backdrop: html.browser paints opaque graphite + two blooms + edge vignette + 3% turbulence noise (post-filter opacity, not fill-opacity — feTurbulence ignores fill) so daemon-served clients keep the tiles-over-void depth without vibrancy ([40a0f3c](https://github.com/FabioFiorita/porcelain/commit/40a0f3c6b8b8a1de3c68334a72160410ae9f36b0))
+* remote envs phase 3 slice C — browser primary mod remaps to Ctrl (Safari owns the Cmd row): shared isModExclusive/kbdLabel per the Linux-branch pattern, ⌃ labels, viewport meta, touch-visible close buttons; fix stale 'Review changes ⌘2' hint (Changes is ⌘3); phase 3 marked code-shipped in the plan ([ad8a848](https://github.com/FabioFiorita/porcelain/commit/ad8a84858874e68efecf37c80b5d660c45d39d41))
+* remote envs phase 4 slice A — pnpm daemon:dist assembles the standalone plain-Node daemon package (bundle + chunks + renderer + MCP server, deps pinned from root); PORCELAIN_NO_STDIN_WATCHDOG=1 escape hatch for supervisors (systemd hands /dev/null); mock lib/trpc in terminals store test (unmocked rename fetch flaked the gate under load). Linux-verified in an OrbStack node:22 container: npm install compiles node-pty, 200/401 auth, openRepoPath, PTY spawn over WS ([05fe1b8](https://github.com/FabioFiorita/porcelain/commit/05fe1b8263dbe391f29cd43e9a4ec0ebaec9f3bf))
+* remote envs phase 4 slice B — point the Mac app at a remote daemon: Settings → Remote access connect/disconnect (probe distinguishes unreachable vs 401 before accepting), remote-daemon.json in userData (plaintext token, same trust as the token file), daemonInfo() override + existing daemon-url-changed push, switch = renderer reload by design; corrupt-file load fails closed to null ([30cdfb6](https://github.com/FabioFiorita/porcelain/commit/30cdfb62d758a0b65a4e2dca84cfd5af15d4ec20))
+
+### Bug Fixes
+
+* emit __esModule-aware interop (output.interop auto) for the CJS main bundles — ESM-only trash was required as a bare namespace, so every daemon trashPath/gitDiscardFile threw 'trash is not a function' since the split; caught by the local e2e run ([0f54fd3](https://github.com/FabioFiorita/porcelain/commit/0f54fd374a470718cb7344e07f75a34db7cb3cf6))
+* give shell tRPC hooks their own React context — nested providers shared the default TRPCContext singleton, routing every app hook to the shell router (No procedure found → eternal Loading) ([ea0bf42](https://github.com/FabioFiorita/porcelain/commit/ea0bf420ae674a3ef926f6c1859fa463b0fc2134))
+* tailnet browser client runs in an insecure context — crypto.randomUUID/navigator.clipboard don't exist on plain-HTTP non-localhost origins: randomId()/copyText() helpers (getRandomValues v4 + execCommand fallback) replace direct calls (terminal create/attach reqIds, all copy buttons); CSP gains font-src 'self' data: (Vite-inlined JetBrains Mono subset was blocked by the default-src fallback) ([1f06941](https://github.com/FabioFiorita/porcelain/commit/1f06941af03e1690933518a3f647db08a1a6a916))
+
 ## [0.18.0](https://github.com/FabioFiorita/porcelain/compare/v0.17.2...v0.18.0) (2026-07-04)
 
 ### Features
