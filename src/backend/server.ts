@@ -283,9 +283,16 @@ async function main(): Promise<void> {
 
   // Parent-death watchdog: the shell holds our stdin pipe open for our lifetime,
   // so stdin ending means the Electron process is gone — exit instead of orphaning.
-  process.stdin.resume()
-  process.stdin.on('end', () => process.exit(0))
-  process.stdin.on('close', () => process.exit(0))
+  // Escape hatch for the standalone daemon package (plans/remote-environments.md
+  // Phase 4): a supervisor like systemd hands stdin as /dev/null, which reads EOF
+  // immediately and would kill the daemon on boot. PORCELAIN_NO_STDIN_WATCHDOG=1
+  // opts out. FAIL CLOSED — the watchdog stays armed unless the var is exactly '1',
+  // so the shell (which never sets it) keeps the orphan protection.
+  if (process.env.PORCELAIN_NO_STDIN_WATCHDOG !== '1') {
+    process.stdin.resume()
+    process.stdin.on('end', () => process.exit(0))
+    process.stdin.on('close', () => process.exit(0))
+  }
 }
 
 main().catch((error) => {
