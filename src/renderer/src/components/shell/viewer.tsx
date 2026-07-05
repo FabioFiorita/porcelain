@@ -9,6 +9,7 @@ import { TerminalView } from '@renderer/components/terminal/terminal-view'
 import { Kbd } from '@renderer/components/ui/kbd'
 import { FileContent } from '@renderer/components/viewer/file-content'
 import { SearchView } from '@renderer/components/viewer/search-view'
+import { kbdLabel } from '@renderer/lib/keyboard'
 import { cn } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useTabsStore } from '@renderer/stores/tabs'
@@ -18,9 +19,9 @@ import { TabBar } from './tab-bar'
 // The empty viewer is the most-seen blank surface, so it doubles as a quiet
 // quick-start: the three gestures that get you moving, each with its shortcut.
 const QUICKSTART: { label: string; keys: string }[] = [
-  { label: 'Search files', keys: '⌘P' },
-  { label: 'Browse the tree', keys: '⌘1' },
-  { label: 'Review changes', keys: '⌘2' },
+  { label: 'Search files', keys: kbdLabel('mod', 'P') },
+  { label: 'Browse the tree', keys: kbdLabel('mod', '1') },
+  { label: 'Review changes', keys: kbdLabel('mod', '3') },
 ]
 
 function EmptyViewer(): React.JSX.Element {

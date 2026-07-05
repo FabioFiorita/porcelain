@@ -16,6 +16,7 @@ import { Textarea } from '@renderer/components/ui/textarea'
 import { useCommit, useCommitConventions, useStageAll } from '@renderer/hooks/use-commit'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'
 import { applyCommitPrefix, parseCommitPrefix } from '@renderer/lib/commit-message'
+import { kbdLabel } from '@renderer/lib/keyboard'
 import { cn } from '@renderer/lib/utils'
 import { ChevronsUpDown, FileMinus2, FilePlus2, GitCommitHorizontal } from 'lucide-react'
 import { useState } from 'react'
@@ -205,7 +206,7 @@ export function CommitGroup(): React.JSX.Element {
             onKeyDown={(e) => {
               if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') commit()
             }}
-            placeholder="Commit message — ⌘↵ to commit"
+            placeholder={`Commit message — ${kbdLabel('mod', '↵')} to commit`}
             aria-label="Commit message"
             rows={3}
             className="min-h-16 resize-none rounded-md text-sm-minus md:text-sm-minus"

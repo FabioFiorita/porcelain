@@ -8,6 +8,7 @@ import {
 } from '@renderer/components/ui/context-menu'
 import { Kbd } from '@renderer/components/ui/kbd'
 import { ScrollArea } from '@renderer/components/ui/scroll-area'
+import { kbdLabel } from '@renderer/lib/keyboard'
 import { cn } from '@renderer/lib/utils'
 import { type Tab, useTabsStore } from '@renderer/stores/tabs'
 import { X } from 'lucide-react'
@@ -58,7 +59,9 @@ function TabItem({
           <Button
             variant="ghost"
             size="icon-sm"
-            className="size-5 opacity-0 group-hover:opacity-100"
+            // Hover-revealed on pointer devices; always visible where hover doesn't
+            // exist (touch — iPad Safari), so the close button stays tappable there.
+            className="size-5 opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
             onClick={(e) => {
               e.stopPropagation()
               closeTab(paneIndex, tab.id)
@@ -73,7 +76,7 @@ function TabItem({
         <ContextMenuItem onClick={() => closeTab(paneIndex, tab.id)}>
           Close
           <ContextMenuShortcut>
-            <Kbd>⌘W</Kbd>
+            <Kbd>{kbdLabel('mod', 'W')}</Kbd>
           </ContextMenuShortcut>
         </ContextMenuItem>
         <ContextMenuItem
@@ -92,7 +95,7 @@ function TabItem({
         <ContextMenuItem onClick={() => openTabToSide({ ...tab, preview: false })}>
           Open to the Side
           <ContextMenuShortcut>
-            <Kbd>⌘⇧S</Kbd>
+            <Kbd>{kbdLabel('mod', 'shift', 'S')}</Kbd>
           </ContextMenuShortcut>
         </ContextMenuItem>
       </ContextMenuContent>

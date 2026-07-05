@@ -9,6 +9,7 @@ import {
 import { Input } from '@renderer/components/ui/input'
 import { Textarea } from '@renderer/components/ui/textarea'
 import { useCardActions } from '@renderer/hooks/use-board'
+import { kbdLabel } from '@renderer/lib/keyboard'
 import { useCardDraftStore } from '@renderer/stores/card-draft'
 import { useEffect, useState } from 'react'
 
@@ -78,7 +79,7 @@ export function CardComposer(): React.JSX.Element {
           value={body}
           onChange={(e) => setBody(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder="Details (optional) — ⌘↵ to save"
+          placeholder={`Details (optional) — ${kbdLabel('mod', '↵')} to save`}
           aria-label="Card details"
           rows={4}
           className="resize-none"

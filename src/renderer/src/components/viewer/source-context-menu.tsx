@@ -7,6 +7,7 @@ import {
   ContextMenuTrigger,
 } from '@renderer/components/ui/context-menu'
 import { Kbd } from '@renderer/components/ui/kbd'
+import { kbdLabel } from '@renderer/lib/keyboard'
 import { type LineSelection, lineSelectionFromDom } from '@renderer/lib/line-selection'
 import { isBrowser } from '@renderer/lib/platform'
 import { useRepoStore } from '@renderer/stores/repo'
@@ -68,7 +69,7 @@ export function SourceContextMenu({
               <ContextMenuItem onClick={() => navigator.clipboard.writeText(selection)}>
                 <Copy /> Copy
                 <ContextMenuShortcut>
-                  <Kbd>⌘C</Kbd>
+                  <Kbd>{kbdLabel('mod', 'C')}</Kbd>
                 </ContextMenuShortcut>
               </ContextMenuItem>
               <ContextMenuItem

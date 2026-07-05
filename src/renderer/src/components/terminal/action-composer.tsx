@@ -10,6 +10,7 @@ import {
 import { Input } from '@renderer/components/ui/input'
 import { Textarea } from '@renderer/components/ui/textarea'
 import { useActionMutations } from '@renderer/hooks/use-actions'
+import { kbdLabel } from '@renderer/lib/keyboard'
 import { useEffect, useState } from 'react'
 
 export interface ActionDraft {
@@ -92,7 +93,7 @@ export function ActionComposer({
           value={command}
           onChange={(e) => setCommand(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder="Command — runs in a terminal. ⌘↵ to save"
+          placeholder={`Command — runs in a terminal. ${kbdLabel('mod', '↵')} to save`}
           aria-label="Action command"
           rows={3}
           className="resize-none font-mono text-xs"

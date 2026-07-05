@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isTerminalTarget, isTextEntry } from './keyboard'
+import { formatKbd, isModExclusive, isTerminalTarget, isTextEntry } from './keyboard'
 
 // Mount a child element inside a `.xterm` host appended to the document body.
 // This lets `closest('.xterm')` traverse correctly in the jsdom environment.
@@ -68,6 +68,51 @@ describe('isTerminalTarget', () => {
 
   it('returns false for null', () => {
     expect(isTerminalTarget(null)).toBe(false)
+  })
+})
+
+// The browser client (Safari/Chrome) makes Ctrl the primary modifier; the Electron shell
+// keeps Cmd. Both helpers take the mode as a param, so the pure logic is checked for both
+// without stubbing the platform bridge (which forces the browser default under jsdom).
+describe('isModExclusive', () => {
+  describe('shell mode (Cmd is primary)', () => {
+    it('is true for Cmd alone, false when Ctrl is also down', () => {
+      expect(isModExclusive({ metaKey: true, ctrlKey: false }, false)).toBe(true)
+      expect(isModExclusive({ metaKey: true, ctrlKey: true }, false)).toBe(false)
+    })
+
+    it('is false for Ctrl alone (the foreign modifier must not fire it)', () => {
+      expect(isModExclusive({ metaKey: false, ctrlKey: true }, false)).toBe(false)
+    })
+  })
+
+  describe('browser mode (Ctrl is primary)', () => {
+    it('is true for Ctrl alone, false when Cmd is also down', () => {
+      expect(isModExclusive({ metaKey: false, ctrlKey: true }, true)).toBe(true)
+      expect(isModExclusive({ metaKey: true, ctrlKey: true }, true)).toBe(false)
+    })
+
+    it('is false for Cmd alone (the foreign modifier must not fire it)', () => {
+      expect(isModExclusive({ metaKey: true, ctrlKey: false }, true)).toBe(false)
+    })
+  })
+})
+
+describe('formatKbd', () => {
+  describe('shell mode (Cmd is primary)', () => {
+    it('renders mod/alt/shift as ⌘/⌥/⇧, joined tight, other tokens verbatim', () => {
+      expect(formatKbd(['mod', 'B'], false)).toBe('⌘B')
+      expect(formatKbd(['mod', 'shift', 'S'], false)).toBe('⌘⇧S')
+      expect(formatKbd(['alt', '↵'], false)).toBe('⌥↵')
+    })
+  })
+
+  describe('browser mode (Ctrl is primary)', () => {
+    it('renders mod as ⌃ (Ctrl glyph, since the OS may be macOS), joined with +', () => {
+      expect(formatKbd(['mod', 'B'], true)).toBe('⌃+B')
+      expect(formatKbd(['mod', 'shift', 'S'], true)).toBe('⌃+⇧+S')
+      expect(formatKbd(['alt', '↵'], true)).toBe('Alt+↵')
+    })
   })
 })
 

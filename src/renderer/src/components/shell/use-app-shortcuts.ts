@@ -1,4 +1,9 @@
-import { isTextEntry } from '@renderer/lib/keyboard'
+import {
+  ctrlIsPrimary,
+  isModExclusive,
+  isTerminalTarget,
+  isTextEntry,
+} from '@renderer/lib/keyboard'
 import { spawnTerminal } from '@renderer/lib/terminal-actions'
 import { useCardDraftStore } from '@renderer/stores/card-draft'
 import { type SidebarTab, usePreferencesStore } from '@renderer/stores/preferences'
@@ -31,7 +36,7 @@ export function useAppShortcuts(): void {
       }
       // Cmd+Shift+S splits the active tab to the side (mirrors "Open to the Side").
       // Matched by physical key (`e.code`) so it fires regardless of keyboard layout.
-      if (e.metaKey && e.shiftKey && !e.ctrlKey && !e.altKey && e.code === 'KeyS') {
+      if (isModExclusive(e) && e.shiftKey && !e.altKey && e.code === 'KeyS') {
         const { panes, activePaneIndex, openTabToSide } = useTabsStore.getState()
         const pane = panes[activePaneIndex]
         const active = pane?.tabs.find((t) => t.id === pane.activeTabId)
@@ -41,7 +46,7 @@ export function useAppShortcuts(): void {
         }
         return
       }
-      if (e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+      if (isModExclusive(e) && !e.altKey && !e.shiftKey) {
         const tab = SIDEBAR_TAB_KEYS[e.key]
         if (tab) {
           e.preventDefault()
@@ -53,6 +58,11 @@ export function useAppShortcuts(): void {
       // tab (Board → new card, Terminal → new terminal). Files' ⌘N is owned by
       // FileCommands. Skipped while typing in a real field (but not the terminal).
       if ((e.metaKey || e.ctrlKey) && !e.altKey && !isTextEntry(e.target)) {
+        // In the browser client the primary modifier is Ctrl, which the shell itself uses
+        // (Ctrl+T transpose, Ctrl+N history) — yield these to a focused PTY. The Electron
+        // shell keeps the deliberate carve-out (Cmd is free in the terminal, so ⌘T/⌘N
+        // spawn over it).
+        if (ctrlIsPrimary && isTerminalTarget(e.target)) return
         const key = e.key.toLowerCase()
         if (key === 't' && !e.shiftKey) {
           e.preventDefault()

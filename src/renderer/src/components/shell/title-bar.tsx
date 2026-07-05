@@ -1,4 +1,5 @@
 import { Kbd } from '@renderer/components/ui/kbd'
+import { kbdLabel } from '@renderer/lib/keyboard'
 import { useFileFinderStore } from '@renderer/stores/file-finder'
 import { Search } from 'lucide-react'
 
@@ -23,7 +24,7 @@ export function TitleBar(): React.JSX.Element {
           <span className="flex-1 truncate text-left">
             Search files, folders, commands, commits…
           </span>
-          <Kbd>⌘K</Kbd>
+          <Kbd>{kbdLabel('mod', 'K')}</Kbd>
         </button>
       </div>
       <div className="w-16 shrink-0" />
