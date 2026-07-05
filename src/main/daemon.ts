@@ -5,6 +5,7 @@ import { is } from '@electron-toolkit/utils'
 import { app, BrowserWindow, ipcMain } from 'electron'
 import { z } from 'zod'
 import { ensureDaemonToken } from '../backend/token-file'
+import { loadRemoteDaemon, type RemoteDaemon } from './remote-daemon'
 
 /**
  * Spawn and babysit the daemon child (`out/main/daemon/server.js`) — the
@@ -50,9 +51,28 @@ let port: number | null = null
 let quitting = false
 let rapidFailures = 0
 
+// When set, every window is pointed at a REMOTE daemon (over the tailnet) instead
+// of the local child. The local daemon keeps running underneath (it costs little,
+// and it makes switching back instant); daemonInfo just returns the remote pair
+// while this is non-null. Persisted in remote-daemon.json (see remote-daemon.ts).
+let remoteOverride: RemoteDaemon | null = null
+
 /** url is '' until the first ready line — the preload getter turns that into the renderer fallback. */
 export function daemonInfo(): { url: string; token: string } {
+  if (remoteOverride !== null) return remoteOverride
   return { url: port === null ? '' : `http://127.0.0.1:${port}`, token }
+}
+
+/** Point every window at a remote daemon (or clear back to local with null). Caller persists + pushes. */
+export function setRemoteOverride(value: RemoteDaemon | null): void {
+  remoteOverride = value
+}
+
+/** Push the current daemonInfo to every open window (the same channel a daemon restart uses). */
+export function pushDaemonInfo(): void {
+  for (const window of BrowserWindow.getAllWindows()) {
+    if (!window.isDestroyed()) window.webContents.send('daemon-url-changed', daemonInfo())
+  }
 }
 
 /** Resolve the first stdout line into the daemon's port (rejects on early exit or spawn error). */
@@ -146,9 +166,9 @@ async function launch(): Promise<void> {
   // Push the (new) url + token to every open window — after a restart the
   // renderer's WS client reconnects here and its queries refetch against the
   // new port (the token is stable per app run, sent along for one payload shape).
-  for (const window of BrowserWindow.getAllWindows()) {
-    if (!window.isDestroyed()) window.webContents.send('daemon-url-changed', daemonInfo())
-  }
+  // No-op for the windows' point of view while a remote override is active
+  // (daemonInfo returns the remote pair), but the local child stays alive.
+  pushDaemonInfo()
 }
 
 /** Spawn the daemon and register its url getter + quit teardown. Called once, before the first window. */
@@ -158,6 +178,11 @@ export async function startDaemon(): Promise<void> {
   // run), so both the daemon (via env, below) and every window (via the getter)
   // agree on the same secret. Runs once, before the first window exists.
   token = await ensureDaemonToken()
+
+  // Adopt a persisted remote override before the first window boots, so a new
+  // window's preload getter returns the remote pair straight away (and boot
+  // restores the remote daemon's recents). The local child still launches below.
+  remoteOverride = await loadRemoteDaemon()
 
   // Sync getter the preload calls at window boot; restarts push updates over
   // `daemon-url-changed` (see above), so the value survives daemon crashes.

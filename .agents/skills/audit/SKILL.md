@@ -62,6 +62,9 @@ assumed — this skill is the codebase-specific layer beneath them.
   directory names only — widens nothing.) (3) **The token never appears in argv** (`ps`-visible), **stdout** (the
   daemon's only stdout line is the port; the parent passed the token via env so it
   already knows it), **or a spawned PTY's env** (see the terminal-env invariant below).
+  The remote-daemon override (Phase 4) stores its token in **plaintext** at
+  `userData/remote-daemon.json` — user-owned dir, same trust as the token file — and the
+  connect probe sends that token **only** to the user-typed url over the tailnet; never log it.
   (4) **CORS is scoped, never `*`** — only the dev Vite origin (`PORCELAIN_ALLOWED_ORIGIN`)
   or the packaged `null` origin is echoed; the preflight carries nothing sensitive (the
   Bearer check on the real request is the gate). Don't relax any of these to "make local

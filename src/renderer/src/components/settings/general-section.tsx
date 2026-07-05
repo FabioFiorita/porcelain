@@ -1,12 +1,21 @@
+import { Button } from '@renderer/components/ui/button'
+import { Input } from '@renderer/components/ui/input'
 import { Switch } from '@renderer/components/ui/switch'
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
+import {
+  useClearRemoteDaemon,
+  useRemoteDaemon,
+  useSetRemoteDaemon,
+} from '@renderer/hooks/use-remote-daemon'
 import { useSetTailnetBind, useTailnetStatus } from '@renderer/hooks/use-tailnet'
+import { isBrowser } from '@renderer/lib/platform'
 import {
   type DiffMode,
   type MarkdownMode,
   type PullMode,
   usePreferencesStore,
 } from '@renderer/stores/preferences'
+import { useState } from 'react'
 
 function PreferenceRow({
   label,
@@ -24,6 +33,72 @@ function PreferenceRow({
         <p className="text-xs text-muted-foreground">{description}</p>
       </div>
       {children}
+    </div>
+  )
+}
+
+/**
+ * Point this Mac app at a REMOTE daemon over the tailnet (remote-envs Phase 4),
+ * or clear back to the local one. Electron-only — the whole block is hidden in
+ * the browser client (which already IS served by its daemon). On connect the
+ * shell probes the url+token; a failure surfaces inline. Both connect and
+ * disconnect reload the window (see use-remote-daemon).
+ */
+function RemoteDaemonBlock(): React.JSX.Element {
+  const remote = useRemoteDaemon()
+  const { connect, isPending: isConnecting, error } = useSetRemoteDaemon()
+  const { disconnect, isPending: isDisconnecting } = useClearRemoteDaemon()
+  const [url, setUrl] = useState('')
+  const [token, setToken] = useState('')
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div>
+        <p className="text-sm-minus font-semibold">Remote daemon</p>
+        <p className="text-xs text-muted-foreground">
+          Point this app at another machine's Porcelain daemon on your tailnet.
+        </p>
+      </div>
+      {remote == null ? (
+        <div className="flex flex-col gap-2">
+          <Input
+            placeholder="http://beelink:43117"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            disabled={isConnecting}
+          />
+          <Input
+            type="password"
+            placeholder="Daemon token"
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+            disabled={isConnecting}
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            className="self-start"
+            disabled={isConnecting || url.trim() === '' || token.trim() === ''}
+            onClick={() => connect({ url, token })}
+          >
+            {isConnecting ? 'Connecting…' : 'Connect'}
+          </Button>
+          {error != null && <p className="text-xs text-destructive">{error}</p>}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          <p className="font-mono text-xs text-muted-foreground">{remote.url}</p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="self-start"
+            disabled={isDisconnecting}
+            onClick={() => disconnect()}
+          >
+            {isDisconnecting ? 'Disconnecting…' : 'Disconnect'}
+          </Button>
+        </div>
+      )}
     </div>
   )
 }
@@ -105,6 +180,7 @@ export function GeneralSection(): React.JSX.Element {
           <p className="text-xs text-muted-foreground">No Tailscale interface found</p>
         )}
       </div>
+      {!isBrowser && <RemoteDaemonBlock />}
     </div>
   )
 }
