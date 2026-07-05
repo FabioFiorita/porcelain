@@ -12,9 +12,13 @@ test('opens a terminal and runs a typed command', async ({ page }) => {
   await page.getByRole('button', { name: 'New terminal' }).click()
 
   // The xterm instance mounts into the viewer; its hidden input takes keystrokes.
+  // Type only after the prompt renders: readline's terminal prep flushes queued
+  // typeahead, so keystrokes sent while bash is still printing its banner/profile
+  // output are echoed but DISCARDED (the pinned /bin/bash prompt ends in "$").
   const input = page.locator('.xterm-helper-textarea').first()
   await input.waitFor()
   await input.focus()
+  await expectTerminalText(page, 0, '$')
   await page.keyboard.type('echo READY_$((6*7))')
   await page.keyboard.press('Enter')
 
@@ -34,15 +38,24 @@ test('splits two terminals side by side, both rendering', async ({ page }) => {
   await waitForShell(page)
   await selectTab(page, 'Terminal')
 
-  // First terminal: run a marker, then confirm it rendered while mounted.
+  // First terminal: run a marker, then confirm it rendered while mounted. Wait for the
+  // prompt before typing (readline discards pre-prompt typeahead — see the first spec).
   await page.getByRole('button', { name: 'New terminal' }).click()
   await page.locator('.xterm-helper-textarea').first().focus()
+  await expectTerminalText(page, 0, '$')
   await page.keyboard.type('echo SPLIT_ONE')
   await page.keyboard.press('Enter')
   await expectTerminalText(page, 0, 'SPLIT_ONE')
 
   // Second terminal (the first unmounts; its scrollback must survive in the registry).
+  // Its tab only opens once the daemon create round-trip resolves, so on a slow machine
+  // the textarea in the DOM is still terminal 1's — typing immediately would start in
+  // terminal 1 and get SPLIT when the new xterm mounts and steals focus (this failed the
+  // v0.19.0 release gate: terminal 2 received only the tail, `bash: TWO: command not
+  // found`). Waiting for terminal 2's prompt guarantees it is mounted, focused, and past
+  // readline init before any keystroke.
   await page.getByRole('button', { name: 'New terminal' }).click()
+  await expectTerminalText(page, 1, '$')
   await page.locator('.xterm-helper-textarea').first().focus()
   await page.keyboard.type('echo SPLIT_TWO')
   await page.keyboard.press('Enter')
@@ -68,6 +81,8 @@ test('macOS line-editing chords reach the shell (⌘⌫ kill-line, ⌘← line-s
   const input = page.locator('.xterm-helper-textarea').first()
   await input.waitFor()
   await input.focus()
+  // Prompt first — pre-prompt keystrokes are flushed by readline init (see first spec).
+  await expectTerminalText(page, 0, '$')
 
   // ⌘⌫ → Ctrl-U: the half-typed line is discarded, so only the real command runs. If it
   // weren't, the prefix would glue to it and bash would error instead of printing.

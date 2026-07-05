@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { type IPty, spawn } from 'node-pty'
+import { initialInputQuietDelay, QUIET_AFTER_NEWLINE_MS } from './initial-input'
 import { ScrollbackBuffer } from './scrollback-buffer'
 import { terminalEnv } from './terminal-env'
 
@@ -111,15 +112,17 @@ export function createTerminal(sender: TerminalSender, opts: CreateTerminalOptio
   }
   sessions.set(id, session)
 
-  // Race: initialInput written right after spawn() (before the shell finishes readline
-  // init) is echoed at the tty level but SWALLOWED when the shell takes over its input —
-  // the command never runs. This failed two release gates (v0.17.1, v0.19.0) as a phantom
-  // "flake": on a slow runner the echoed line landed ABOVE bash's "default shell is zsh"
-  // banner and produced no output. So we don't write at spawn — we write once on the
-  // shell's FIRST output (its banner/prompt = readline is up), with a 2s fallback for a
-  // shell configured to print nothing on startup. A one-shot closure that whichever fires
-  // first calls-and-nulls; killTerminal/onExit null it so a session gone before the write
-  // never fires it. The onData scrollback/fan-out below is untouched — this rides in front.
+  // Race: initialInput written before the shell's readline has prepped the tty is echoed
+  // at the tty level but SWALLOWED (readline's prep flushes queued typeahead) — the
+  // command never runs. Writing at spawn failed two release gates (v0.17.1, v0.19.0),
+  // and writing on the shell's FIRST output failed a third: the first chunk is bash's
+  // "default shell is zsh" banner, still pre-readline on a slow runner. So the write is
+  // a quiet-period debounce keyed on the output's shape (see initial-input.ts): a
+  // prompt-shaped chunk (no trailing newline) arms a short window, a newline-terminated
+  // one a long window, and the same long window from spawn covers a shell that prints
+  // nothing at all. A one-shot closure that whichever timer fires calls-and-nulls;
+  // killTerminal/onExit null it so a session gone before the write never fires it. The
+  // onData scrollback/fan-out below is untouched — this rides in front.
   let initialTimer: ReturnType<typeof setTimeout> | undefined
   let sendInitialInput: (() => void) | null = null
   if (opts.initialInput !== undefined && opts.initialInput !== '') {
@@ -129,11 +132,14 @@ export function createTerminal(sender: TerminalSender, opts: CreateTerminalOptio
       sendInitialInput = null
       if (sessions.has(id)) pty.write(`${input}\r`)
     }
-    initialTimer = setTimeout(() => sendInitialInput?.(), 2000)
+    initialTimer = setTimeout(() => sendInitialInput?.(), QUIET_AFTER_NEWLINE_MS)
   }
 
   pty.onData((data) => {
-    sendInitialInput?.()
+    if (sendInitialInput !== null) {
+      if (initialTimer !== undefined) clearTimeout(initialTimer)
+      initialTimer = setTimeout(() => sendInitialInput?.(), initialInputQuietDelay(data))
+    }
     session.scrollback.append(data)
     fanOut(session, 'terminal:data', id, data)
   })
