@@ -152,10 +152,13 @@ publishing:
    The app must open as the normal GUI app, NOT as a Node REPL. If it drops to a
    Node prompt, the `RunAsNode: false` fuse did not take effect.
 
-4. **The daemon serves.** After launch, exactly ONE process has
-   `daemon/server.js` in its argv (`ps ax | grep 'daemon/server.js'`) and `lsof`
-   shows it LISTENing on 127.0.0.1 — or simply: the app's file tree loads, which
-   requires the daemon. A multiplying process count is the RunAsNode/spawn
+4. **The daemon serves.** After launch, the app's total process count stays
+   sane (~7, not multiplying — a utilityProcess child does NOT show
+   `daemon/server.js` in `ps` argv, so don't grep for that), `lsof` shows ONE
+   Porcelain process LISTENing on 127.0.0.1, and an unauthed `curl` to its
+   `/trpc` returns 401 — or simply: the app's file tree loads, which requires
+   the daemon; a PTY spawn (check 1) doubles as the node-pty proof over the
+   same daemon. A multiplying process count is the RunAsNode/spawn
    regression: the daemon must be forked via `utilityProcess.fork`, never by
    re-spawning the app binary with `ELECTRON_RUN_AS_NODE` (the fuse silently
    ignores it and the child boots as a second GUI app, recursively — this
