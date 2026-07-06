@@ -1,13 +1,29 @@
 import { Button } from '@renderer/components/ui/button'
 import { useCodexInfo, useInstallCodex } from '@renderer/hooks/use-codex'
 import { copyText } from '@renderer/lib/utils'
-import { Check, CircleCheck, Copy, Loader2, TriangleAlert } from 'lucide-react'
-import { useState } from 'react'
+import { usePreferencesStore } from '@renderer/stores/preferences'
+import { ArrowUpCircle, Check, CircleCheck, Copy, Loader2, TriangleAlert } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 export function CodexSection(): React.JSX.Element {
   const info = useCodexInfo()
   const { install, isInstalling, result, error } = useInstallCodex()
+  const codexPluginInstalled = usePreferencesStore((s) => s.codexPluginInstalled)
+  const codexPluginVersion = usePreferencesStore((s) => s.codexPluginVersion)
+  const setCodexPluginInstalled = usePreferencesStore((s) => s.setCodexPluginInstalled)
+  const setCodexPluginVersion = usePreferencesStore((s) => s.setCodexPluginVersion)
   const [copied, setCopied] = useState(false)
+
+  const current = info?.version
+  const needsUpdate =
+    codexPluginInstalled && current !== undefined && codexPluginVersion !== current
+
+  useEffect(() => {
+    if (!result?.ok) return
+    setCodexPluginInstalled(true)
+    if (current) setCodexPluginVersion(current)
+  }, [result, current, setCodexPluginInstalled, setCodexPluginVersion])
+
   const commands = info?.commands ?? []
 
   const copy = async (): Promise<void> => {
@@ -18,20 +34,46 @@ export function CodexSection(): React.JSX.Element {
 
   return (
     <div className="flex min-w-0 flex-col gap-5">
-      <div className="flex min-w-0 flex-wrap items-center gap-3">
-        <Button size="sm" onClick={() => install()} disabled={isInstalling}>
-          {isInstalling && <Loader2 className="animate-spin" />}
-          {isInstalling ? 'Installing…' : result?.ok ? 'Reinstall for Codex' : 'Install for Codex'}
-        </Button>
-        <p className="min-w-0 text-xs text-muted-foreground">
-          Start a new Codex thread after installing so the plugin loads.
-        </p>
-      </div>
+      {!codexPluginInstalled ? (
+        <div className="flex min-w-0 flex-wrap items-center gap-3">
+          <Button size="sm" onClick={() => install()} disabled={isInstalling}>
+            {isInstalling && <Loader2 className="animate-spin" />}
+            {isInstalling ? 'Installing…' : 'Install for Codex'}
+          </Button>
+          <p className="min-w-0 text-xs text-muted-foreground">
+            Start a new Codex thread after installing so the plugin loads.
+          </p>
+        </div>
+      ) : needsUpdate ? (
+        <div className="flex min-w-0 flex-wrap items-center gap-3">
+          <Button size="sm" onClick={() => install()} disabled={isInstalling}>
+            {isInstalling ? <Loader2 className="animate-spin" /> : <ArrowUpCircle />}
+            {isInstalling ? 'Updating…' : current ? `Update to v${current}` : 'Update'}
+          </Button>
+          <p className="min-w-0 text-xs text-muted-foreground">
+            A newer plugin is available
+            {codexPluginVersion ? ` (you have v${codexPluginVersion})` : ''}. Start a new Codex
+            thread after updating.
+          </p>
+        </div>
+      ) : (
+        <div className="flex min-w-0 flex-wrap items-center gap-3">
+          <span className="flex items-center gap-1.5 text-sm-minus text-success">
+            <CircleCheck className="size-4" /> Up to date{current ? ` · v${current}` : ''}
+          </span>
+          <Button variant="ghost" size="sm" onClick={() => install()} disabled={isInstalling}>
+            {isInstalling && <Loader2 className="animate-spin" />}
+            {isInstalling ? 'Reinstalling…' : 'Reinstall'}
+          </Button>
+          <span className="min-w-0 text-xs text-muted-foreground">
+            Start a new Codex thread after reinstalling.
+          </span>
+        </div>
+      )}
 
       {result?.ok && (
         <p className="flex items-center gap-1.5 text-xs text-success">
-          <CircleCheck className="size-3.5" /> Installed — start a new Codex thread to load the
-          plugin.
+          <Check className="size-3.5" /> Installed — start a new Codex thread to load the plugin.
         </p>
       )}
       {(error || (result && !result.ok)) && (
@@ -63,7 +105,7 @@ export function CodexSection(): React.JSX.Element {
             <div key={command}>{command}</div>
           ))}
         </pre>
-        {info && (
+        {info?.marketplaceDir && (
           <p className="mt-1.5 min-w-0 break-all text-xs-minus text-muted-foreground/70">
             Plugin written to <code className="font-mono">{info.marketplaceDir}</code>
           </p>

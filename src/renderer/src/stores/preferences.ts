@@ -41,6 +41,12 @@ interface PreferencesState {
   pluginVersion: string | null
   /** Bundled plugin version the user dismissed the Claude update toast for. */
   pluginUpdateDismissedVersion: string | null
+  /** Whether the user has installed the Codex plugin (demotes the CTA). */
+  codexPluginInstalled: boolean
+  /** Plugin version recorded at the last Codex install; null if never recorded. */
+  codexPluginVersion: string | null
+  /** Bundled plugin version the user dismissed the Codex update toast for. */
+  codexPluginUpdateDismissedVersion: string | null
   setChangesScope: (scope: ChangesScope) => void
   setDiffMode: (mode: DiffMode) => void
   setMarkdownMode: (mode: MarkdownMode) => void
@@ -54,6 +60,9 @@ interface PreferencesState {
   setPluginInstalled: (installed: boolean) => void
   setPluginVersion: (version: string | null) => void
   setPluginUpdateDismissedVersion: (version: string | null) => void
+  setCodexPluginInstalled: (installed: boolean) => void
+  setCodexPluginVersion: (version: string | null) => void
+  setCodexPluginUpdateDismissedVersion: (version: string | null) => void
 }
 
 export const usePreferencesStore = create<PreferencesState>()(
@@ -72,6 +81,9 @@ export const usePreferencesStore = create<PreferencesState>()(
       pluginInstalled: false,
       pluginVersion: null,
       pluginUpdateDismissedVersion: null,
+      codexPluginInstalled: false,
+      codexPluginVersion: null,
+      codexPluginUpdateDismissedVersion: null,
       setChangesScope: (changesScope) => set({ changesScope }),
       setDiffMode: (diffMode) => set({ diffMode }),
       setMarkdownMode: (markdownMode) => set({ markdownMode }),
@@ -92,6 +104,10 @@ export const usePreferencesStore = create<PreferencesState>()(
       setPluginVersion: (pluginVersion) => set({ pluginVersion }),
       setPluginUpdateDismissedVersion: (pluginUpdateDismissedVersion) =>
         set({ pluginUpdateDismissedVersion }),
+      setCodexPluginInstalled: (codexPluginInstalled) => set({ codexPluginInstalled }),
+      setCodexPluginVersion: (codexPluginVersion) => set({ codexPluginVersion }),
+      setCodexPluginUpdateDismissedVersion: (codexPluginUpdateDismissedVersion) =>
+        set({ codexPluginUpdateDismissedVersion }),
     }),
     {
       name: 'porcelain-preferences',

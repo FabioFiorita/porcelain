@@ -1,6 +1,6 @@
 {
   "name": "porcelain",
-  "version": "2.7.0",
+  "version": "2.8.0",
   "description": "Porcelain companion plugin for feature review sets, review comments, project boards, saved actions, notes, flow layers, and feature artifacts.",
   "author": {
     "name": "Porcelain"
