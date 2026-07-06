@@ -47,11 +47,22 @@ assumed — this skill is the codebase-specific layer beneath them.
   Since the daemon split the renderer talks to `src/backend/server.ts` over HTTP + WS
   (`daemon.ts` spawns it), so the old "the app opens no port" claim no longer holds —
   but the surface is deliberately hostile-input-hardened, and these must ALL stay true:
-  (1) **The bind is loopback PLUS, optionally, the detected Tailscale interface (100.64/10)
+  (1) **The bind is loopback PLUS, optionally, enumerated private interfaces
   behind the same token** — `server.listen(port, '127.0.0.1')` ALWAYS, and when the user
-  enables the setting a second listener on the Tailscale address at fixed port 43117
-  (`tailnet-listener.ts`, same shared handlers so the token gate applies unchanged); never
-  `0.0.0.0` and never any other interface. (2) **Auth is never optional:** every `/trpc`
+  enables a setting, second listener(s) at fixed port 43117 on either the detected Tailscale
+  address (100.64/10, `findTailscaleAddress`) OR the machine's RFC1918 private addresses
+  (10/8, 172.16/12, 192.168/16, `findLanAddresses` — the home-LAN path) — both are two
+  instances of the one `createIfaceListener` factory in `tailnet-listener.ts` sharing the
+  same handlers, so the token gate applies unchanged; **never `0.0.0.0` and never any other
+  interface** (the enumerated-addresses rule is the guard against accidentally serving a
+  coffee-shop network — anyone proposing to "just bind 0.0.0.0 since we bind everything
+  anyway" is wrong: `findLanAddresses` returns ONLY private-range addresses, never a public
+  one). **Cleartext-token-on-LAN is an accepted tradeoff:** on the tailnet WireGuard encrypts
+  the traffic, but on a plain home LAN the bearer token crosses the wire in cleartext (a
+  sniffer on that network can capture it). This is accepted the way countless local dev tools
+  accept it — for a trusted home network — BUT ONLY because the LAN bind is (a) opt-in and
+  default-off, (b) recorded here, and (c) never silently widened past the enumerated private
+  addresses. (2) **Auth is never optional:** every `/trpc`
   request needs `authorization: Bearer <token>` (constant-time compare over sha256
   digests, 401 otherwise) and the WS upgrade needs the `porcelain.<token>` subprotocol
   (rejected handshake without it) — loopback is reachable from any webpage the user's
@@ -83,17 +94,21 @@ assumed — this skill is the codebase-specific layer beneath them.
   loopback gets, including arbitrary-path `readFile`/`writeTextFile`/`renamePath`/`trashPath`
   and `terminal:create` (a shell). That's the design (the token holder IS the user); the
   consequences are (a) the token file and `remote-daemon.json` are exactly as sensitive as
-  user-level shell access on the daemon host, and (b) the tailnet bind must never widen beyond
-  the Tailscale interface — the 100.64/10 match is range-based BY DESIGN (name-independent; see
-  `tailnet.ts`'s comment), with the residual risk that non-Tailscale CGNAT interfaces exist;
-  `findTailscaleAddress` therefore refuses ambiguous multi-candidate setups (logs and returns
-  null) rather than guessing. Don't add per-procedure authorization to "fix" this — repo-scoping
+  user-level shell access on the daemon host — the same holds for a LAN peer, plus the cleartext
+  caveat above (a token sniffed off the LAN grants a shell), and (b) the second-listener binds
+  must never widen beyond their enumerated addresses — the tailnet's 100.64/10 match is
+  range-based BY DESIGN (name-independent; see `tailnet.ts`'s comment), with the residual risk
+  that non-Tailscale CGNAT interfaces exist; `findTailscaleAddress` therefore refuses ambiguous
+  multi-candidate setups (logs and returns null) rather than guessing; the LAN's `findLanAddresses`
+  returns ONLY RFC1918 private addresses (never public, never the CGNAT range). Don't add
+  per-procedure authorization to "fix" this — repo-scoping
   the file procedures breaks the cross-repo viewer flows and was explicitly rejected.
   *Verify:* `rg -n "createServer|listen\(|http\.createServer" src/backend src/main src/mcp`
-  hits the loopback listener in `src/backend/server.ts` AND the tailnet listener in
-  `src/backend/tailnet-listener.ts` (at most those two) and nothing in `src/mcp`; the
-  loopback `listen` still passes `'127.0.0.1'`, the tailnet `listen` binds only the
-  `findTailscaleAddress()` result (never `0.0.0.0`), and both listeners share the same
+  hits the loopback listener in `src/backend/server.ts` AND the second-listener factory in
+  `src/backend/tailnet-listener.ts` (at most those two `createServer` sites) and nothing in
+  `src/mcp`; the loopback `listen` still passes `'127.0.0.1'`, the factory's `listen` binds only
+  addresses from `findTailscaleAddress()` / `findLanAddresses()` (never `0.0.0.0`, never public),
+  and all listeners share the same
   Bearer + subprotocol checks; `resolveStaticPath`/`rewriteCsp` traversal + connect-src-only
   tests in `static-server.test.ts` stay green.
 - **A spawned PTY's env is scrubbed of the daemon's internals** (`terminalEnv` in

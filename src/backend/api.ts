@@ -110,7 +110,15 @@ import {
   readReviewedPaths,
   unmarkReviewed,
 } from './reviewed-store'
-import { startTailnetListener, stopTailnetListener, tailnetUrl } from './tailnet-listener'
+import {
+  lanNumericUrl,
+  lanUrl,
+  startLanListener,
+  startTailnetListener,
+  stopLanListener,
+  stopTailnetListener,
+  tailnetUrl,
+} from './tailnet-listener'
 import { listTerminals, renameTerminal, type TerminalInfo } from './terminal-manager'
 import { clearWorkingTreeSnapshot, workingTreeSnapshot } from './working-tree'
 
@@ -993,6 +1001,33 @@ export const router = t.router({
       else await stopTailnetListener()
       return { enabled: input, url: tailnetUrl() }
     }),
+
+  // Remote access over the home LAN: the daemon can additionally listen on the
+  // machine's RFC1918 private addresses (same token, same fixed port; see
+  // lan.ts + tailnet-listener.ts). `url` prefers the `<host>.local` Bonjour name;
+  // `numericUrl` is the numeric fallback. Both are non-null only while the LAN
+  // listener is actually up (so the UI can distinguish "on, but no LAN here").
+  lanStatus: t.procedure.query(
+    async (): Promise<{ enabled: boolean; url: string | null; numericUrl: string | null }> => {
+      const config = await loadConfig()
+      return { enabled: config.lanBind === true, url: lanUrl(), numericUrl: lanNumericUrl() }
+    },
+  ),
+
+  setLanBind: t.procedure
+    .input(z.boolean())
+    .mutation(
+      async ({
+        input,
+      }): Promise<{ enabled: boolean; url: string | null; numericUrl: string | null }> => {
+        await updateConfig((config) => ({ ...config, lanBind: input }))
+        // Apply the change live: start the LAN listener(s) (null url ⇒ no private
+        // interface here) or tear them down. The loopback listener is untouched.
+        if (input) await startLanListener()
+        else await stopLanListener()
+        return { enabled: input, url: lanUrl(), numericUrl: lanNumericUrl() }
+      },
+    ),
 
   gitBranch: t.procedure.input(z.string()).query(({ input }) => gitBranch(input)),
 

@@ -10,7 +10,7 @@ import { watchAgentChannels } from './review-watch'
 import { migrateReviewedFromConfig } from './reviewed-store'
 import { broadcastAppEvent, createSession } from './session'
 import { rendererDistExists, serveStatic } from './static-server'
-import { initTailnetHandlers, startTailnetListener } from './tailnet-listener'
+import { initIfaceHandlers, startLanListener, startTailnetListener } from './tailnet-listener'
 import { ensureDaemonToken } from './token-file'
 
 /**
@@ -22,10 +22,12 @@ import { ensureDaemonToken } from './token-file'
  * one WebSocket (`/session`, see session.ts / shared/ws-protocol.ts).
  *
  * SECURITY INVARIANTS (audit skill):
- * - The daemon binds 127.0.0.1 ALWAYS, and additionally the detected Tailscale
- *   interface (100.64/10) when the user enables the setting — never 0.0.0.0 or
- *   any other interface. The tailnet listener shares this listener's handlers,
- *   so the same token gate applies to it automatically.
+ * - The daemon binds 127.0.0.1 ALWAYS, and additionally enumerated private
+ *   interfaces when the user opts in: the detected Tailscale address (100.64/10)
+ *   and/or the machine's RFC1918 addresses for the home LAN — never 0.0.0.0 or
+ *   any other interface. Those second listeners share this listener's handlers,
+ *   so the same token gate applies to them automatically (LAN traffic is
+ *   cleartext, an accepted opt-in tradeoff — see the audit skill).
  * - Every request is token-gated, ALWAYS. Loopback is reachable from any webpage
  *   the user's browser has open (fetch to 127.0.0.1, and WebSockets have no CORS
  *   at all), so an unauthenticated listener would hand `terminal:create` — a
@@ -98,10 +100,10 @@ async function main(): Promise<void> {
     serveStatic,
   })
 
-  // Hand the shared handlers to the tailnet-listener module so its optional second
-  // listener (bound to the Tailscale interface, started/stopped live from the API)
-  // behaves identically to loopback — same token gate, never 0.0.0.0.
-  initTailnetHandlers(daemon.requestListener, daemon.handleUpgrade)
+  // Hand the shared handlers to the second-listener module so its optional
+  // tailnet + LAN listeners (started/stopped live from the API) behave identically
+  // to loopback — same token gate, never 0.0.0.0.
+  initIfaceHandlers(daemon.requestListener, daemon.handleUpgrade)
 
   // The daemon serves the renderer dist to the browser client (Phase 3). In dev
   // the daemon runs before any build, so the dist is legitimately absent — log
@@ -140,10 +142,13 @@ async function main(): Promise<void> {
     }
   })
 
-  // If the user has the tailnet bind enabled, bring the second listener up too. A
-  // missing Tailscale interface (or a listen error) at boot must NOT crash or block
-  // the loopback listener — startTailnetListener logs to stderr and resolves null.
-  if ((await loadConfig()).tailnetBind === true) await startTailnetListener()
+  // If the user has the tailnet and/or LAN bind enabled, bring the second
+  // listener(s) up too. A missing interface (or a listen error) at boot must NOT
+  // crash or block the loopback listener — the start functions log to stderr and
+  // resolve null.
+  const bootConfig = await loadConfig()
+  if (bootConfig.tailnetBind === true) await startTailnetListener()
+  if (bootConfig.lanBind === true) await startLanListener()
 
   // Parent-death watchdog: the shell holds our stdin pipe open for our lifetime,
   // so stdin ending means the Electron process is gone — exit instead of orphaning.

@@ -27,6 +27,7 @@ import { router } from './api'
 import { initConfigDir } from './config-store'
 import { createDaemonHttp } from './daemon-http'
 import { createSession } from './session'
+import { createIfaceListener, initIfaceHandlers, LISTENER_PORT } from './tailnet-listener'
 import { attachTerminal } from './terminal-manager'
 
 const TOKEN = 'test-token'
@@ -123,6 +124,36 @@ describe('daemon http surface — the token gate + CORS scope', () => {
   it('404s a non-GET request to a non-/trpc path (only GET/HEAD reach static)', async () => {
     const res = await fetch(`${base}/anything-not-trpc`, { method: 'POST' })
     expect(res.status).toBe(404)
+  })
+})
+
+describe('second-listener factory — the tailnet/LAN listeners share the token gate', () => {
+  it('serves /trpc token-gated on a second bound address (401 without token, 200 with)', async () => {
+    // The LAN and tailnet listeners are two instances of createIfaceListener sharing
+    // server.ts's request/upgrade handlers. Boot one on loopback (a distinct socket
+    // from the main harness daemon: same 127.0.0.1, fixed port LISTENER_PORT) and
+    // prove the token gate applies to it exactly as it does to the primary listener.
+    initIfaceHandlers(daemon.requestListener, daemon.handleUpgrade)
+    const listener = createIfaceListener(
+      () => ['127.0.0.1'],
+      (addresses) =>
+        addresses[0] !== undefined ? `http://${addresses[0]}:${LISTENER_PORT}` : null,
+      'test',
+    )
+    const url = await listener.start()
+    expect(url).toBe(`http://127.0.0.1:${LISTENER_PORT}`)
+    try {
+      const noAuth = await fetch(`http://127.0.0.1:${LISTENER_PORT}/trpc/recentRepos`)
+      expect(noAuth.status).toBe(401)
+      const withAuth = await fetch(`http://127.0.0.1:${LISTENER_PORT}/trpc/recentRepos`, {
+        headers: { authorization: `Bearer ${TOKEN}` },
+      })
+      expect(withAuth.status).toBe(200)
+    } finally {
+      await listener.stop()
+    }
+    // stop() releases the socket — url() is null again and a restart is possible.
+    expect(listener.url()).toBeNull()
   })
 })
 

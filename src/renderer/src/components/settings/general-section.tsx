@@ -3,6 +3,7 @@ import { Input } from '@renderer/components/ui/input'
 import { Switch } from '@renderer/components/ui/switch'
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
 import { useDaemonToken } from '@renderer/hooks/use-daemon-token'
+import { useLanStatus, useSetLanBind } from '@renderer/hooks/use-lan'
 import {
   useClearRemoteDaemon,
   useRemoteDaemon,
@@ -10,6 +11,7 @@ import {
 } from '@renderer/hooks/use-remote-daemon'
 import { useSetTailnetBind, useTailnetStatus } from '@renderer/hooks/use-tailnet'
 import { isBrowser } from '@renderer/lib/platform'
+import { copyText } from '@renderer/lib/utils'
 import {
   type DiffMode,
   type MarkdownMode,
@@ -34,6 +36,57 @@ function PreferenceRow({
         <p className="text-xs text-muted-foreground">{description}</p>
       </div>
       {children}
+    </div>
+  )
+}
+
+/** Copy the daemon token to the clipboard — the affordance a peer needs to connect. */
+function CopyTokenButton(): React.JSX.Element {
+  const daemonToken = useDaemonToken()
+  const [copied, setCopied] = useState(false)
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={async () => {
+        // copyText, not navigator.clipboard directly: the daemon-served browser
+        // client (the LAN/tailnet peer that reaches this very block) is an insecure
+        // context where navigator.clipboard is undefined — copyText falls back to
+        // the execCommand path there. See the architecture skill's insecure-context trap.
+        await copyText(daemonToken)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 1500)
+      }}
+    >
+      {copied ? 'Copied' : 'Copy token'}
+    </Button>
+  )
+}
+
+/**
+ * The reveal shown once a second listener is up: the reachable url(s), a copy-token
+ * button, and the token-path hint. Shared by the Tailscale and LAN blocks — the LAN
+ * passes a `numericUrl` fallback alongside its `.local` name.
+ */
+function ShareReveal({
+  url,
+  numericUrl,
+}: {
+  url: string
+  numericUrl?: string | null
+}): React.JSX.Element {
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-2">
+        <p className="font-mono text-xs text-muted-foreground">{url}</p>
+        <CopyTokenButton />
+      </div>
+      {numericUrl != null && numericUrl !== url && (
+        <p className="font-mono text-xs text-muted-foreground">{numericUrl}</p>
+      )}
+      <p className="text-xs text-muted-foreground">
+        The token lives at <span className="font-mono">~/.porcelain/daemon-token</span>.
+      </p>
     </div>
   )
 }
@@ -116,9 +169,9 @@ export function GeneralSection(): React.JSX.Element {
   const pullMode = usePreferencesStore((s) => s.pullMode)
   const setPullMode = usePreferencesStore((s) => s.setPullMode)
   const tailnet = useTailnetStatus()
-  const { setEnabled } = useSetTailnetBind()
-  const daemonToken = useDaemonToken()
-  const [tokenCopied, setTokenCopied] = useState(false)
+  const { setEnabled: setTailnetEnabled } = useSetTailnetBind()
+  const lan = useLanStatus()
+  const { setEnabled: setLanEnabled } = useSetLanBind()
 
   return (
     <div className="flex flex-col gap-5">
@@ -177,32 +230,27 @@ export function GeneralSection(): React.JSX.Element {
         >
           <Switch
             checked={tailnet?.enabled ?? false}
-            onCheckedChange={(checked) => setEnabled(checked)}
+            onCheckedChange={(checked) => setTailnetEnabled(checked)}
           />
         </PreferenceRow>
-        {tailnet?.url != null && (
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-2">
-              <p className="font-mono text-xs text-muted-foreground">{tailnet.url}</p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={async () => {
-                  await navigator.clipboard.writeText(daemonToken)
-                  setTokenCopied(true)
-                  setTimeout(() => setTokenCopied(false), 1500)
-                }}
-              >
-                {tokenCopied ? 'Copied' : 'Copy token'}
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              The token lives at <span className="font-mono">~/.porcelain/daemon-token</span>.
-            </p>
-          </div>
-        )}
+        {tailnet?.url != null && <ShareReveal url={tailnet.url} />}
         {tailnet?.enabled === true && tailnet.url == null && (
           <p className="text-xs text-muted-foreground">No Tailscale interface found</p>
+        )}
+      </div>
+      <div className="flex flex-col gap-2">
+        <PreferenceRow
+          label="Share on local network"
+          description="Lets devices on your home network reach this daemon — token-gated, traffic is unencrypted on the LAN."
+        >
+          <Switch
+            checked={lan?.enabled ?? false}
+            onCheckedChange={(checked) => setLanEnabled(checked)}
+          />
+        </PreferenceRow>
+        {lan?.url != null && <ShareReveal url={lan.url} numericUrl={lan.numericUrl} />}
+        {lan?.enabled === true && lan.url == null && (
+          <p className="text-xs text-muted-foreground">No local network interface found</p>
         )}
       </div>
       {!isBrowser && <RemoteDaemonBlock />}
