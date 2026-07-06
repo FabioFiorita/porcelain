@@ -78,7 +78,17 @@ assumed — this skill is the codebase-specific layer beneath them.
   endpoints and keep the token gate — static assets being open doesn't loosen them. The
   index.html CSP rewrite (`rewriteCsp`) touches **only `connect-src`** (same-origin WS for
   the request Host); `img-src`/`default-src` stay the artifact backstop, byte-identical.
-  Don't relax any of these to "make local dev easier."
+  Don't relax any of these to "make local dev easier." (6) **The token is the whole boundary
+  ACROSS THE TAILNET TOO — accepted:** a tailnet peer presenting the token gets everything
+  loopback gets, including arbitrary-path `readFile`/`writeTextFile`/`renamePath`/`trashPath`
+  and `terminal:create` (a shell). That's the design (the token holder IS the user); the
+  consequences are (a) the token file and `remote-daemon.json` are exactly as sensitive as
+  user-level shell access on the daemon host, and (b) the tailnet bind must never widen beyond
+  the Tailscale interface — the 100.64/10 match is range-based BY DESIGN (name-independent; see
+  `tailnet.ts`'s comment), with the residual risk that non-Tailscale CGNAT interfaces exist;
+  `findTailscaleAddress` therefore refuses ambiguous multi-candidate setups (logs and returns
+  null) rather than guessing. Don't add per-procedure authorization to "fix" this — repo-scoping
+  the file procedures breaks the cross-repo viewer flows and was explicitly rejected.
   *Verify:* `rg -n "createServer|listen\(|http\.createServer" src/backend src/main src/mcp`
   hits the loopback listener in `src/backend/server.ts` AND the tailnet listener in
   `src/backend/tailnet-listener.ts` (at most those two) and nothing in `src/mcp`; the

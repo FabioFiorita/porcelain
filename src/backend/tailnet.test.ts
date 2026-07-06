@@ -56,4 +56,20 @@ describe('findTailscaleAddress', () => {
   it('returns null when no interfaces qualify', () => {
     expect(findTailscaleAddress({})).toBeNull()
   })
+
+  it('prefers the tailscale-named interface when two candidates exist', () => {
+    const interfaces: Interfaces = {
+      utun4: [v4('100.90.90.90')],
+      tailscale0: [v4('100.101.102.103')],
+    }
+    expect(findTailscaleAddress(interfaces)).toBe('100.101.102.103')
+  })
+
+  it('fails closed (null) when two candidates and neither is tailscale-named', () => {
+    const interfaces: Interfaces = {
+      utun3: [v4('100.90.90.90')],
+      utun7: [v4('100.101.102.103')],
+    }
+    expect(findTailscaleAddress(interfaces)).toBeNull()
+  })
 })
