@@ -102,3 +102,30 @@ export function lineSelectionForFile(path: string): LineSelection | null {
   if (!range) return null
   return { ...range, text: selection.toString().slice(0, 2000) }
 }
+
+function countNewlines(text: string): number {
+  let count = 0
+  for (let i = 0; i < text.length; i++) if (text[i] === '\n') count++
+  return count
+}
+
+/**
+ * Map a textarea's character-offset selection (`start`..`end`) to a 1-based line
+ * range, for the editable source viewer — a `<textarea>` has no `data-line` rows to
+ * walk, so we count newlines in the raw text instead. Returns null for a caret-only /
+ * empty selection (`start === end`). A selection that ends exactly on a `'\n'` closes
+ * the line it just finished rather than spilling into the next one, so dragging to the
+ * end of a line doesn't over-count.
+ */
+export function lineRangeFromOffsets(
+  text: string,
+  start: number,
+  end: number,
+): { startLine: number; endLine: number } | null {
+  if (start === end) return null
+  const startLine = countNewlines(text.slice(0, start)) + 1
+  // A selection ending on a line boundary belongs to the line it closed, not the next.
+  const endBoundary = end > start && text[end - 1] === '\n' ? end - 1 : end
+  const endLine = countNewlines(text.slice(0, endBoundary)) + 1
+  return { startLine, endLine: Math.max(startLine, endLine) }
+}

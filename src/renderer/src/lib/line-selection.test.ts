@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { fileLineRangeFromRange, lineRangeFromRange } from './line-selection'
+import { fileLineRangeFromRange, lineRangeFromOffsets, lineRangeFromRange } from './line-selection'
 
 // Mirror the rendered DOM: VirtualRows wraps each row in a div that has NO data-line;
 // the row div inside carries data-line and holds the code text. This is the shape
@@ -103,5 +103,33 @@ describe('fileLineRangeFromRange', () => {
     range.setEnd(b.textNode, 4)
     expect(fileLineRangeFromRange(range, 'a.ts')).toBeNull()
     expect(fileLineRangeFromRange(range, 'b.ts')).toEqual({ startLine: 5, endLine: 5 })
+  })
+})
+
+describe('lineRangeFromOffsets', () => {
+  const text = 'line one\nline two\nline three\nline four'
+
+  it('maps a single-line selection to that one line', () => {
+    // "one" within the first line
+    expect(lineRangeFromOffsets(text, 5, 8)).toEqual({ startLine: 1, endLine: 1 })
+  })
+
+  it('spans a multi-line selection from its first line to its last', () => {
+    // from mid line two into line three
+    expect(lineRangeFromOffsets(text, 12, 22)).toEqual({ startLine: 2, endLine: 3 })
+  })
+
+  it('does not over-count a selection that ends exactly on a newline boundary', () => {
+    // select the whole of lines one and two, ending right at the '\n' after line two
+    const end = text.indexOf('line three') // offset of the char just past line two's '\n'
+    expect(lineRangeFromOffsets(text, 0, end)).toEqual({ startLine: 1, endLine: 2 })
+  })
+
+  it('returns null for a caret-only / empty selection', () => {
+    expect(lineRangeFromOffsets(text, 4, 4)).toBeNull()
+  })
+
+  it('starts at line 1 for a selection anchored at offset 0', () => {
+    expect(lineRangeFromOffsets(text, 0, 4)).toEqual({ startLine: 1, endLine: 1 })
   })
 })

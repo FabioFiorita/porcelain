@@ -11,7 +11,9 @@ import { CodeLine, useTokenizedLines } from '@renderer/components/viewer/code-li
 import { useWriteTextFile } from '@renderer/hooks/use-files'
 import { languageFor } from '@renderer/lib/highlight'
 import { kbdLabel } from '@renderer/lib/keyboard'
+import { lineRangeFromOffsets } from '@renderer/lib/line-selection'
 import { cn, copyText } from '@renderer/lib/utils'
+import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import {
   ClipboardPaste,
@@ -20,10 +22,12 @@ import {
   FileSymlink,
   FolderOpen,
   Link2,
+  MessageSquarePlus,
   Scissors,
   Search,
 } from 'lucide-react'
 import { memo, useDeferredValue, useEffect, useRef, useState } from 'react'
+import { type CommentAnchor, CommentComposer } from '../git/comment-composer'
 import { usePathActions } from './use-path-actions'
 
 // Above this many lines the viewer falls back to the read-only virtualized
@@ -46,6 +50,8 @@ export function EditorSource({
   const [content, setContent] = useState(initialContent)
   const [savedContent, setSavedContent] = useState(initialContent)
   const [selection, setSelection] = useState('')
+  const [commentAnchor, setCommentAnchor] = useState<CommentAnchor | null>(null)
+  const [lineRange, setLineRange] = useState<{ startLine: number; endLine: number } | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -54,6 +60,11 @@ export function EditorSource({
   const tokenLines = useTokenizedLines(deferredContent, lang)
   const { findReferences, exploreFlow, copyPath, copyRelativePath, reveal } = usePathActions(path)
   const { save, isSaving, error: saveError } = useWriteTextFile(path)
+  const repo = useRepoStore((s) => s.repo)
+
+  // Comments store repo-relative paths; the viewer holds an absolute one.
+  const relativePath =
+    repo && path.startsWith(`${repo.path}/`) ? path.slice(repo.path.length + 1) : path
 
   const saveRef = useRef<() => void>(() => {})
   saveRef.current = (): void => {
@@ -136,116 +147,151 @@ export function EditorSource({
   const dirty = content !== savedContent
 
   return (
-    <ContextMenu
-      onOpenChange={(open) => {
-        // capture on open: nothing re-renders this component when the user
-        // selects text, so reading the selection at render time goes stale
-        if (open) setSelection(selectedText())
-      }}
-    >
-      <ContextMenuTrigger className="relative block h-full select-text overflow-hidden">
-        {/* ONE scroll container holds both layers, so the native selection can
+    <>
+      <ContextMenu
+        onOpenChange={(open) => {
+          // capture on open: nothing re-renders this component when the user
+          // selects text, so reading the selection at render time goes stale
+          if (open) {
+            setSelection(selectedText())
+            const el = textareaRef.current
+            setLineRange(
+              el ? lineRangeFromOffsets(el.value, el.selectionStart, el.selectionEnd) : null,
+            )
+          }
+        }}
+      >
+        <ContextMenuTrigger className="relative block h-full select-text overflow-hidden">
+          {/* ONE scroll container holds both layers, so the native selection can
             never drift from the highlighted text. (The old design scrolled the
             textarea and its mirror separately and synced them in JS — that lag
             put selection boxes over the wrong lines after a scroll.) The
             textarea sizes to its content via field-sizing, so the container —
             not the textarea — owns the single scroll for both layers. */}
-        <div ref={scrollRef} className="h-full overflow-auto">
-          <div className="relative min-h-full w-max min-w-full">
-            {/* Highlighted mirror; the textarea on top has transparent text so
+          <div ref={scrollRef} className="h-full overflow-auto">
+            <div className="relative min-h-full w-max min-w-full">
+              {/* Highlighted mirror; the textarea on top has transparent text so
                 the native caret/selection sit over these colors. */}
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-0 z-0 px-4 py-2 font-mono text-xs leading-5"
-            >
-              <div className="w-max min-w-full">
-                {content.split('\n').map((line, i) => (
-                  // biome-ignore lint/suspicious/noArrayIndexKey: lines have no stable identity
-                  <div key={i} className={cn('flex', i + 1 === highlightLine && 'bg-primary/15')}>
-                    <span className="w-10 shrink-0 select-none pr-3 text-right text-muted-foreground/50">
-                      {i + 1}
-                    </span>
-                    <EditorLine tokens={tokenLines?.[i] ?? null} text={line} />
-                  </div>
-                ))}
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0 z-0 px-4 py-2 font-mono text-xs leading-5"
+              >
+                <div className="w-max min-w-full">
+                  {content.split('\n').map((line, i) => (
+                    // biome-ignore lint/suspicious/noArrayIndexKey: lines have no stable identity
+                    <div key={i} className={cn('flex', i + 1 === highlightLine && 'bg-primary/15')}>
+                      <span className="w-10 shrink-0 select-none pr-3 text-right text-muted-foreground/50">
+                        {i + 1}
+                      </span>
+                      <EditorLine tokens={tokenLines?.[i] ?? null} text={line} />
+                    </div>
+                  ))}
+                </div>
               </div>
+              <textarea
+                ref={textareaRef}
+                value={content}
+                onChange={(e) => edit(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 's' && (e.metaKey || e.ctrlKey)) {
+                    e.preventDefault()
+                    saveRef.current()
+                  }
+                }}
+                spellCheck={false}
+                wrap="off"
+                aria-label={`Edit ${path}`}
+                className="relative z-10 block min-h-full min-w-full resize-none whitespace-pre bg-transparent py-2 pl-14 pr-4 font-mono text-xs leading-5 text-transparent caret-foreground outline-none field-sizing-content"
+              />
             </div>
-            <textarea
-              ref={textareaRef}
-              value={content}
-              onChange={(e) => edit(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 's' && (e.metaKey || e.ctrlKey)) {
-                  e.preventDefault()
-                  saveRef.current()
-                }
-              }}
-              spellCheck={false}
-              wrap="off"
-              aria-label={`Edit ${path}`}
-              className="relative z-10 block min-h-full min-w-full resize-none whitespace-pre bg-transparent py-2 pl-14 pr-4 font-mono text-xs leading-5 text-transparent caret-foreground outline-none field-sizing-content"
-            />
           </div>
-        </div>
-        {saveError ? (
-          <span className="pointer-events-none absolute bottom-2 right-3 rounded-md bg-muted/80 px-2 py-0.5 text-2xs text-destructive">
-            {saveError.message}
-          </span>
-        ) : isSaving ? (
-          <span className="pointer-events-none absolute bottom-2 right-3 rounded-md bg-muted/80 px-2 py-0.5 text-2xs text-muted-foreground">
-            Saving…
-          </span>
-        ) : dirty ? (
-          <span className="pointer-events-none absolute bottom-2 right-3 flex items-center gap-1 rounded-md bg-muted/80 px-2 py-0.5 text-2xs text-muted-foreground">
-            Unsaved <Kbd>{kbdLabel('mod', 'S')}</Kbd>
-          </span>
-        ) : null}
-      </ContextMenuTrigger>
-      <ContextMenuContent className="w-60">
-        <ContextMenuItem
-          disabled={selection === ''}
-          onClick={async () => {
-            await copyText(selection)
-            insertAtCursor('')
-          }}
-        >
-          <Scissors /> Cut
-          <ContextMenuShortcut>
-            <Kbd>{kbdLabel('mod', 'X')}</Kbd>
-          </ContextMenuShortcut>
-        </ContextMenuItem>
-        <ContextMenuItem disabled={selection === ''} onClick={() => copyText(selection)}>
-          <Copy /> Copy
-          <ContextMenuShortcut>
-            <Kbd>{kbdLabel('mod', 'C')}</Kbd>
-          </ContextMenuShortcut>
-        </ContextMenuItem>
-        <ContextMenuItem onClick={() => paste()}>
-          <ClipboardPaste /> Paste
-          <ContextMenuShortcut>
-            <Kbd>{kbdLabel('mod', 'V')}</Kbd>
-          </ContextMenuShortcut>
-        </ContextMenuItem>
-        <ContextMenuItem
-          disabled={selection.trim() === ''}
-          onClick={() => findReferences(selection)}
-        >
-          <Search /> Find references
-        </ContextMenuItem>
-        <ContextMenuItem disabled={selection.trim() === ''} onClick={() => exploreFlow(selection)}>
-          <Compass /> Explore flow from “{selection.trim().slice(0, 24)}”
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem onClick={copyPath}>
-          <Link2 /> Copy path
-        </ContextMenuItem>
-        <ContextMenuItem onClick={copyRelativePath}>
-          <FileSymlink /> Copy relative path
-        </ContextMenuItem>
-        <ContextMenuItem onClick={reveal}>
-          <FolderOpen /> Reveal in Finder
-        </ContextMenuItem>
-      </ContextMenuContent>
-    </ContextMenu>
+          {saveError ? (
+            <span className="pointer-events-none absolute bottom-2 right-3 rounded-md bg-muted/80 px-2 py-0.5 text-2xs text-destructive">
+              {saveError.message}
+            </span>
+          ) : isSaving ? (
+            <span className="pointer-events-none absolute bottom-2 right-3 rounded-md bg-muted/80 px-2 py-0.5 text-2xs text-muted-foreground">
+              Saving…
+            </span>
+          ) : dirty ? (
+            <span className="pointer-events-none absolute bottom-2 right-3 flex items-center gap-1 rounded-md bg-muted/80 px-2 py-0.5 text-2xs text-muted-foreground">
+              Unsaved <Kbd>{kbdLabel('mod', 'S')}</Kbd>
+            </span>
+          ) : null}
+        </ContextMenuTrigger>
+        <ContextMenuContent className="w-60">
+          <ContextMenuItem
+            disabled={selection === ''}
+            onClick={async () => {
+              await copyText(selection)
+              insertAtCursor('')
+            }}
+          >
+            <Scissors /> Cut
+            <ContextMenuShortcut>
+              <Kbd>{kbdLabel('mod', 'X')}</Kbd>
+            </ContextMenuShortcut>
+          </ContextMenuItem>
+          <ContextMenuItem disabled={selection === ''} onClick={() => copyText(selection)}>
+            <Copy /> Copy
+            <ContextMenuShortcut>
+              <Kbd>{kbdLabel('mod', 'C')}</Kbd>
+            </ContextMenuShortcut>
+          </ContextMenuItem>
+          <ContextMenuItem onClick={() => paste()}>
+            <ClipboardPaste /> Paste
+            <ContextMenuShortcut>
+              <Kbd>{kbdLabel('mod', 'V')}</Kbd>
+            </ContextMenuShortcut>
+          </ContextMenuItem>
+          <ContextMenuItem
+            disabled={selection.trim() === ''}
+            onClick={() => findReferences(selection)}
+          >
+            <Search /> Find references
+          </ContextMenuItem>
+          <ContextMenuItem
+            disabled={selection.trim() === ''}
+            onClick={() => exploreFlow(selection)}
+          >
+            <Compass /> Explore flow from “{selection.trim().slice(0, 24)}”
+          </ContextMenuItem>
+          <ContextMenuItem
+            disabled={selection === ''}
+            onClick={() => {
+              if (!lineRange) return
+              setCommentAnchor({
+                path: relativePath,
+                startLine: lineRange.startLine,
+                endLine: lineRange.endLine,
+                anchorText: selection.slice(0, 2000),
+              })
+            }}
+          >
+            <MessageSquarePlus /> Add comment
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem onClick={() => setCommentAnchor({ path: relativePath })}>
+            <MessageSquarePlus /> Comment on file
+          </ContextMenuItem>
+          <ContextMenuItem onClick={copyPath}>
+            <Link2 /> Copy path
+          </ContextMenuItem>
+          <ContextMenuItem onClick={copyRelativePath}>
+            <FileSymlink /> Copy relative path
+          </ContextMenuItem>
+          <ContextMenuItem onClick={reveal}>
+            <FolderOpen /> Reveal in Finder
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+      <CommentComposer
+        anchor={commentAnchor}
+        open={commentAnchor !== null}
+        onOpenChange={(open) => {
+          if (!open) setCommentAnchor(null)
+        }}
+      />
+    </>
   )
 }
