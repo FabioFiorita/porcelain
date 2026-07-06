@@ -36,7 +36,7 @@ export function McpDevtoolsPanel(): React.JSX.Element {
 
   return (
     <div style={WRAP}>
-      <Section title="Plugin (Claude Code · Cursor)">
+      <Section title="Plugin (Claude Code · Codex)">
         <Row label="Version" value={plugin?.version ?? '—'} />
         <Row label="Commands" value={plugin ? String(plugin.commands.length) : '—'} />
       </Section>

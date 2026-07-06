@@ -16,22 +16,7 @@ export function AgentsSection(): React.JSX.Element {
             sync with the board.
           </p>
         </div>
-        <PluginSection target="claude" />
-      </section>
-
-      <Separator />
-
-      <section className="flex min-w-0 flex-col gap-3">
-        <div className="min-w-0">
-          <h3 className="text-sm-minus font-semibold">Cursor</h3>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Installs the same Porcelain <span className="font-medium">MCP server</span> and{' '}
-            <span className="font-medium">skills</span> as a local Cursor plugin — push feature
-            review sets, read your comments and notes, manage the board, and tune flow layers from
-            Cursor&apos;s agent.
-          </p>
-        </div>
-        <PluginSection target="cursor" />
+        <PluginSection />
       </section>
 
       <Separator />

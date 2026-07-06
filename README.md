@@ -53,15 +53,6 @@ claude plugin install porcelain@porcelain
 
 Then run `/reload-plugins` (or restart the session).
 
-**Cursor** — one click copies the plugin to `~/.cursor/plugins/local/porcelain`. Or by hand:
-
-```bash
-mkdir -p ~/.cursor/plugins/local/porcelain
-cp -R ~/.porcelain/plugin/porcelain/. ~/.cursor/plugins/local/porcelain/
-```
-
-Then restart Cursor or run **Developer: Reload Window**.
-
 **Codex** — one click, or add the local marketplace and install by hand:
 
 ```bash

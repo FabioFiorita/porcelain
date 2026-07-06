@@ -1,4 +1,4 @@
-import { useCursorPluginInfo, usePluginInfo } from '@renderer/hooks/use-plugin'
+import { usePluginInfo } from '@renderer/hooks/use-plugin'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useSettingsDialogStore } from '@renderer/stores/settings-dialog'
 import { render } from '@testing-library/react'
@@ -15,7 +15,6 @@ vi.mock('@renderer/lib/platform', () => ({ isBrowser: false }))
 // side effect, so we assert on what it tells sonner.
 vi.mock('@renderer/hooks/use-plugin', () => ({
   usePluginInfo: vi.fn(),
-  useCursorPluginInfo: vi.fn(),
 }))
 vi.mock('sonner', () => ({ toast: { info: vi.fn() } }))
 
@@ -41,14 +40,10 @@ const lastToast = (): NonNullable<Parameters<typeof toast.info>[1]> => {
 beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(usePluginInfo).mockReturnValue(pluginInfo('2.4.0'))
-  vi.mocked(useCursorPluginInfo).mockReturnValue(undefined)
   usePreferencesStore.setState({
     pluginInstalled: true,
     pluginVersion: '2.3.0',
     pluginUpdateDismissedVersion: null,
-    cursorPluginInstalled: false,
-    cursorPluginVersion: null,
-    cursorPluginUpdateDismissedVersion: null,
   })
   useSettingsDialogStore.setState({ open: false, section: 'general' })
 })

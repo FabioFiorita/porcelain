@@ -52,11 +52,6 @@ export function pluginMarketplaceDir(): string {
   return join(homedir(), '.porcelain', 'plugin')
 }
 
-/** Where Cursor loads user-installed local plugins from. */
-export function cursorPluginLocalDir(): string {
-  return join(homedir(), '.cursor', 'plugins', 'local', PLUGIN_NAME)
-}
-
 export function marketplaceManifest(): Record<string, unknown> {
   return {
     name: MARKETPLACE_NAME,
@@ -107,38 +102,6 @@ export function installCommands(): string[] {
     `claude plugin install ${PLUGIN_NAME}@${MARKETPLACE_NAME}`,
     `claude plugin update ${PLUGIN_NAME}@${MARKETPLACE_NAME}`,
   ]
-}
-
-export function cursorMarketplaceManifest(): Record<string, unknown> {
-  return marketplaceManifest()
-}
-
-export function cursorPluginManifest(version: string): Record<string, unknown> {
-  return {
-    name: PLUGIN_NAME,
-    description:
-      "Porcelain companion: push feature review sets so a human reviews the whole feature in flow order, read/resolve review comments, see which files the human has marked reviewed, read the human's project notes, manage the project board and saved actions, tune the review-flow layers, and author feature artifacts — over MCP.",
-    version,
-    author: { name: 'Porcelain' },
-  }
-}
-
-export function cursorMcpManifest(): Record<string, unknown> {
-  return {
-    mcpServers: {
-      porcelain: {
-        command: 'node',
-        args: ['./server.js'],
-      },
-    },
-  }
-}
-
-/** Manual fallback when the app can't copy into ~/.cursor/plugins/local. */
-export function cursorInstallCommands(): string[] {
-  const src = join(pluginMarketplaceDir(), PLUGIN_NAME)
-  const dest = cursorPluginLocalDir()
-  return [`mkdir -p ${dest}`, `cp -R ${src}/. ${dest}/`]
 }
 
 export const REVIEW_SKILL = `---

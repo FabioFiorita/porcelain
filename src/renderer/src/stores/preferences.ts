@@ -41,12 +41,6 @@ interface PreferencesState {
   pluginVersion: string | null
   /** Bundled plugin version the user dismissed the Claude update toast for. */
   pluginUpdateDismissedVersion: string | null
-  /** Whether the user has installed the Cursor plugin. */
-  cursorPluginInstalled: boolean
-  /** Plugin version recorded at the last Cursor install; null if never recorded. */
-  cursorPluginVersion: string | null
-  /** Bundled plugin version the user dismissed the Cursor update toast for. */
-  cursorPluginUpdateDismissedVersion: string | null
   setChangesScope: (scope: ChangesScope) => void
   setDiffMode: (mode: DiffMode) => void
   setMarkdownMode: (mode: MarkdownMode) => void
@@ -60,9 +54,6 @@ interface PreferencesState {
   setPluginInstalled: (installed: boolean) => void
   setPluginVersion: (version: string | null) => void
   setPluginUpdateDismissedVersion: (version: string | null) => void
-  setCursorPluginInstalled: (installed: boolean) => void
-  setCursorPluginVersion: (version: string | null) => void
-  setCursorPluginUpdateDismissedVersion: (version: string | null) => void
 }
 
 export const usePreferencesStore = create<PreferencesState>()(
@@ -81,9 +72,6 @@ export const usePreferencesStore = create<PreferencesState>()(
       pluginInstalled: false,
       pluginVersion: null,
       pluginUpdateDismissedVersion: null,
-      cursorPluginInstalled: false,
-      cursorPluginVersion: null,
-      cursorPluginUpdateDismissedVersion: null,
       setChangesScope: (changesScope) => set({ changesScope }),
       setDiffMode: (diffMode) => set({ diffMode }),
       setMarkdownMode: (markdownMode) => set({ markdownMode }),
@@ -104,10 +92,6 @@ export const usePreferencesStore = create<PreferencesState>()(
       setPluginVersion: (pluginVersion) => set({ pluginVersion }),
       setPluginUpdateDismissedVersion: (pluginUpdateDismissedVersion) =>
         set({ pluginUpdateDismissedVersion }),
-      setCursorPluginInstalled: (cursorPluginInstalled) => set({ cursorPluginInstalled }),
-      setCursorPluginVersion: (cursorPluginVersion) => set({ cursorPluginVersion }),
-      setCursorPluginUpdateDismissedVersion: (cursorPluginUpdateDismissedVersion) =>
-        set({ cursorPluginUpdateDismissedVersion }),
     }),
     {
       name: 'porcelain-preferences',

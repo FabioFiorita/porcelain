@@ -4,14 +4,8 @@ import { z } from 'zod'
 import { type CodexInstallResult, installCodex } from './codex'
 import { codexInstallCommands, codexMarketplaceDir, codexPluginVersion } from './codex-assets'
 import { pushDaemonInfo, setRemoteOverride } from './daemon'
-import { installCursorPlugin, installPlugin, type PluginInstallResult } from './plugin'
-import {
-  cursorInstallCommands,
-  cursorPluginLocalDir,
-  installCommands,
-  PLUGIN_VERSION,
-  pluginMarketplaceDir,
-} from './plugin-assets'
+import { installPlugin, type PluginInstallResult } from './plugin'
+import { installCommands, PLUGIN_VERSION, pluginMarketplaceDir } from './plugin-assets'
 import {
   deleteRemoteDaemon,
   loadRemoteDaemon,
@@ -62,18 +56,6 @@ export const shellRouter = t.router({
   ),
 
   installPlugin: t.procedure.mutation((): Promise<PluginInstallResult> => installPlugin()),
-
-  cursorPluginInfo: t.procedure.query(
-    (): { installDir: string; commands: string[]; version: string } => ({
-      installDir: cursorPluginLocalDir(),
-      commands: cursorInstallCommands(),
-      version: PLUGIN_VERSION,
-    }),
-  ),
-
-  installCursorPlugin: t.procedure.mutation(
-    (): Promise<PluginInstallResult> => installCursorPlugin(),
-  ),
 
   // The Codex plugin (same local MCP server + skills, packaged as a Codex marketplace).
   codexInfo: t.procedure.query(

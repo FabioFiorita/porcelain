@@ -1,14 +1,9 @@
 import { spawn } from 'node:child_process'
-import { copyFile, cp, mkdir, rm, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { app } from 'electron'
 import {
-  cursorInstallCommands,
-  cursorMarketplaceManifest,
-  cursorMcpManifest,
-  cursorPluginLocalDir,
-  cursorPluginManifest,
   installCommands,
   marketplaceManifest,
   PLUGIN_NAME,
@@ -41,27 +36,16 @@ export async function writePluginFiles(): Promise<string> {
   const root = pluginMarketplaceDir()
   const plugin = join(root, PLUGIN_NAME)
   await mkdir(join(root, '.claude-plugin'), { recursive: true })
-  await mkdir(join(root, '.cursor-plugin'), { recursive: true })
   await mkdir(join(plugin, '.claude-plugin'), { recursive: true })
-  await mkdir(join(plugin, '.cursor-plugin'), { recursive: true })
 
   await writeFile(
     join(root, '.claude-plugin', 'marketplace.json'),
     JSON.stringify(marketplaceManifest(), null, 2),
   )
   await writeFile(
-    join(root, '.cursor-plugin', 'marketplace.json'),
-    JSON.stringify(cursorMarketplaceManifest(), null, 2),
-  )
-  await writeFile(
     join(plugin, '.claude-plugin', 'plugin.json'),
     JSON.stringify(pluginManifest(PLUGIN_VERSION), null, 2),
   )
-  await writeFile(
-    join(plugin, '.cursor-plugin', 'plugin.json'),
-    JSON.stringify(cursorPluginManifest(PLUGIN_VERSION), null, 2),
-  )
-  await writeFile(join(plugin, 'mcp.json'), JSON.stringify(cursorMcpManifest(), null, 2))
   for (const skill of SKILLS) {
     const dir = join(plugin, 'skills', skill.name)
     await mkdir(dir, { recursive: true })
@@ -115,35 +99,4 @@ export async function installPlugin(): Promise<PluginInstallResult> {
   const commands = installCommands()
   const result = await runInstall(commands)
   return { ...result, marketplaceDir, commands }
-}
-
-/**
- * Write the plugin to ~/.porcelain/plugin and copy it into Cursor's local
- * plugins directory (~/.cursor/plugins/local/porcelain). No shell-out — the
- * copy is done with fs.cp so manual install is only a fallback.
- */
-export async function installCursorPlugin(): Promise<PluginInstallResult> {
-  const marketplaceDir = await writePluginFiles()
-  const commands = cursorInstallCommands()
-  const pluginSrc = join(marketplaceDir, PLUGIN_NAME)
-  const pluginDest = cursorPluginLocalDir()
-  try {
-    await mkdir(join(homedir(), '.cursor', 'plugins', 'local'), { recursive: true })
-    await rm(pluginDest, { recursive: true, force: true })
-    await cp(pluginSrc, pluginDest, { recursive: true })
-    return {
-      ok: true,
-      output: `Installed to ${pluginDest}. Restart Cursor or run Developer: Reload Window.`,
-      marketplaceDir,
-      commands,
-    }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    return {
-      ok: false,
-      output: message,
-      marketplaceDir,
-      commands,
-    }
-  }
 }
