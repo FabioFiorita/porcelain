@@ -54,8 +54,8 @@ if (userData === undefined || userData === '') {
 }
 initConfigDir(userData)
 
-// The session token, now a persistent shared secret (plans/remote-environments.md
-// Phase 2, replacing the per-app-run token the shell used to mint). The shell
+// The session token, now a persistent shared secret (remote-environments Phase 2,
+// replacing the per-app-run token the shell used to mint). The shell
 // always passes one via env (PORCELAIN_DAEMON_TOKEN); when it's absent we read
 // the same `~/.porcelain/daemon-token` file the shell reads (ensureDaemonToken
 // creates it 0600 on first run) so a standalone/non-interactive spawn agrees on
@@ -283,8 +283,8 @@ async function main(): Promise<void> {
 
   // Parent-death watchdog: the shell holds our stdin pipe open for our lifetime,
   // so stdin ending means the Electron process is gone — exit instead of orphaning.
-  // Escape hatch for the standalone daemon package (plans/remote-environments.md
-  // Phase 4): a supervisor like systemd hands stdin as /dev/null, which reads EOF
+  // Escape hatch for the standalone daemon package (remote-environments Phase 4):
+  // a supervisor like systemd hands stdin as /dev/null, which reads EOF
   // immediately and would kill the daemon on boot. PORCELAIN_NO_STDIN_WATCHDOG=1
   // opts out. FAIL CLOSED — the watchdog stays armed unless the var is exactly '1',
   // so the shell (which never sets it) keeps the orphan protection.

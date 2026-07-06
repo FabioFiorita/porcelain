@@ -13,15 +13,15 @@ assumed — this skill is the codebase-specific layer beneath them.
 
 ## Security & process boundary
 
-- **External URLs go through `isSafeExternalUrl`** (`src/main/external-url.ts`,
+- **External URLs go through `isSafeExternalUrl`** (`src/backend/external-url.ts`,
   http/https/mailto allowlist). Every `shell.openExternal` / `setWindowOpenHandler`
   path is gated. Extend `ALLOWED_PROTOCOLS` deliberately; never drop the guard.
   *Why:* an unfiltered `openExternal` runs `file://`/custom-scheme URLs from
   rendered content. *Verify:* new external-link code calls the guard.
 - **`readFile` stats before it reads** and returns `{type:'too-large'}` above
-  `MAX_READ_BYTES` (10 MB, `src/main/read-limits.ts`). Never read the bytes of an
+  `MAX_READ_BYTES` (10 MB, `src/backend/read-limits.ts`). Never read the bytes of an
   oversized file. *Why:* a multi-GB file in a 50 GB monorepo OOMs the main process.
-- **Main process = the only OS/git/fs surface.** Renderer is pure UI, no Node APIs.
+- **The daemon (`src/backend`) is the only OS/git/fs surface; `src/main` keeps only the Electron-native rump (dialogs, windows, updater, plugin installer).** Renderer is pure UI, no Node APIs.
   `@main/*` imports in the renderer are **type-only** (`import type`) — never
   runtime-import main code. *Why:* runtime coupling leaks Node into the bundle.
 - **Never write into the user's work repos.** Per-repo state lives in the app config
@@ -98,7 +98,7 @@ assumed — this skill is the codebase-specific layer beneath them.
   `DAEMON_ONLY_ENV`; `terminal-env.test.ts` still asserts the token and `RUN_AS_NODE` are
   absent from a spawned env.
 - **Agent-channel review-set paths are repo-contained on read.**
-  `readReviewSet` (`src/main/review-store.ts`) drops any review-set entry whose
+  `readReviewSet` (`src/backend/review-store.ts`) drops any review-set entry whose
   path is absolute or escapes `repoPath` (`isRepoContained`), because the file
   is authored by an external process and its paths flow into
   `readFile(join(repoPath, path))`. *Why:* without it, a malicious/injected
@@ -243,7 +243,7 @@ assumed — this skill is the codebase-specific layer beneath them.
 
 ## Config persistence
 
-- **All config writes go through `createJsonStore`** (`src/main/json-store.ts`):
+- **All config writes go through `createJsonStore`** (`src/backend/json-store.ts`):
   atomic tmp+rename writes, corrupt files backed up to `.corrupt-*`, and
   `updateConfig(mutate)` serializes read-modify-write. Never reintroduce a bare
   load→mutate→save pair. *Why:* concurrent mutations dropped writes; a crash
@@ -254,7 +254,7 @@ assumed — this skill is the codebase-specific layer beneath them.
 
 ## Git plumbing
 
-- **Every git invocation sets `GIT_OPTIONAL_LOCKS=0`** (`runGit` in `src/main/git.ts`).
+- **Every git invocation sets `GIT_OPTIONAL_LOCKS=0`** (`runGit` in `src/backend/git.ts`).
   *Why:* the 3s `gitStatus`/`gitFlow` background polls otherwise rewrite `.git/index`
   under a lock, racing the user's own `pull`/`commit` and failing it with
   `fatal: Unable to write index.`. The flag disables only optional refreshes;

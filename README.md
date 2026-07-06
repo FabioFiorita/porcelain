@@ -29,6 +29,7 @@ Porcelain fills that gap. It's a fast, focused **viewer and review surface** (no
 - **Fast file viewer**: virtualized rendering, Shiki highlighting, image and Markdown support (reader + source modes), drag-resizable split view
 - **Monorepo navigation**: hide/unhide folders, pin paths, lazy per-directory loading
 - **Search & finders**: repo-wide code search, Cmd+P fuzzy file finder, Cmd+F find-in-file, find-references via `git grep`
+- **Remote access**: the same client three ways — the Mac app on a local daemon, the Mac app pointed at a remote daemon, or any browser on your tailnet served by the daemon; one token-gated surface, with PTYs and review state living daemon-side so they survive reconnects
 - **Multi-window**: one repo per window
 - **Liquid-glass UI**: native macOS vibrancy, floating sidebars, drag-resizable panels
 - **Auto-updating** signed builds
@@ -41,7 +42,7 @@ Download the latest `.dmg` from the [Releases](https://github.com/fabiofiorita/p
 
 ## Connect your agent
 
-Porcelain talks to your coding agent through bundled plugins: an MCP server and skills that run locally, with no port opened and no telemetry. Install from **Settings → Agents**.
+Porcelain talks to your coding agent through bundled plugins: an MCP server and skills that run locally, over stdio — the agent channel opens no port — and with no telemetry. Install from **Settings → Agents**.
 
 **Claude Code** — one click, or by hand:
 
