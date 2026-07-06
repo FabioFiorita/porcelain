@@ -34,7 +34,7 @@ Ordered by leverage; most plans are independent — see Dependency notes.
 | 033 | Lint-enforce named-exports-only (noDefaultExport) | dx | P3 | S | LOW | — | DONE |
 | 032 | Clear build-path advisories (undici/form-data); stage Electron 43 | deps | P3 | S–M | LOW–MED | 027 (soft, for step 4) | DONE (Steps 1–3; prod audit clean; override lives in pnpm-workspace.yaml — pnpm 11.7 dropped the package.json `pnpm` field; residual: 1 dev-only esbuild low, Windows-dev-server, accepted; Electron 43 staged, not executed) |
 | 035 | Unread dots on the rail when the agent pushes | direction | P3 | S–M | LOW | — | DONE |
-| 036 | Branch-create in the picker + read-only PR-review spike doc | direction | P3 | S | LOW | — | TODO |
+| 036 | Branch-create in the picker + read-only PR-review spike doc | direction | P3 | S | LOW | — | DONE (Part A shipped; Part B = plans/spike-pr-review.md, GO/M) |
 | 037 | Share on local network (LAN listener — the tailnet setup without Tailscale) | direction | P2 | M | MED | 031 | TODO |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
