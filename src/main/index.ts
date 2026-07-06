@@ -1,5 +1,6 @@
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { app, BrowserWindow, type Session, session } from 'electron'
+import { ensureMcpServer } from './agent-mcp'
 import { startDaemon } from './daemon'
 import { registerTrpcHandler } from './ipc'
 import { installAppMenu } from './menu'
@@ -64,6 +65,17 @@ app.whenReady().then(async () => {
     // The window still opens; daemon.ts keeps retrying with backoff and pushes
     // the url over `daemon-url-changed` once a spawn succeeds.
     console.error('[daemon] initial start failed:', error)
+  }
+
+  // Refresh the bundled MCP server the user's agents point at. Agents run
+  // `node ~/.porcelain/mcp/server.js` — a STABLE path baked into their config
+  // once via Settings → Agents → MCP. Re-copying it from the app bundle on every
+  // boot means an app update ships new/fixed tools transparently, with no need to
+  // re-run "Add MCP". Best-effort: a failure here never blocks the window.
+  try {
+    await ensureMcpServer()
+  } catch (error) {
+    console.error('[mcp] server refresh failed:', error)
   }
 
   // Default open or close DevTools by F12 in development

@@ -10,7 +10,7 @@ interface SerializedRequest {
 }
 
 // The surviving Electron IPC shuttle: only the SHELL router rides it now (native
-// dialogs, window management, the updater, plugin installers — procedures that
+// dialogs, window management, the updater, agent MCP installers — procedures that
 // need Electron or the calling window). The appRouter moved to the daemon and the
 // renderer reaches it over real HTTP (lib/trpc.ts → 127.0.0.1:<port>/trpc).
 //

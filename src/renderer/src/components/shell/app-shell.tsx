@@ -21,9 +21,9 @@ import { ContentSearch } from './content-search'
 import { FileCommands } from './file-commands'
 import { FileFinder } from './file-finder'
 import { FilePromptDialog } from './file-prompt-dialog'
-import { PluginUpdateToast } from './plugin-update-toast'
 import { RepoPickerDialog } from './repo-picker-dialog'
 import { RightSidebar } from './right-sidebar'
+import { SkillsUpdateToast } from './skills-update-toast'
 import { TabBar } from './tab-bar'
 import { TitleBar } from './title-bar'
 import { useAppShortcuts } from './use-app-shortcuts'
@@ -215,7 +215,7 @@ export function AppShell(): React.JSX.Element {
         <FilePromptDialog />
         <RepoPickerDialog />
         <CardComposer />
-        <PluginUpdateToast />
+        <SkillsUpdateToast />
         <AppSidebar />
         <RepoShell />
       </SidebarProvider>

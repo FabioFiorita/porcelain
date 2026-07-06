@@ -4,7 +4,7 @@ export type SettingsSection = 'general' | 'flow' | 'agents' | 'updates'
 
 /**
  * Open/section state for the Settings dialog, lifted out of the component so other
- * surfaces (e.g. the plugin-update toast) can open it straight to a section. The
+ * surfaces (e.g. the skills-update toast) can open it straight to a section. The
  * gear trigger in the sidebar footer still drives it through `setOpen`.
  */
 interface SettingsDialogState {

@@ -2,22 +2,22 @@ import { useActions } from '@renderer/hooks/use-actions'
 import { useBoardCards } from '@renderer/hooks/use-board'
 import { useReviewComments } from '@renderer/hooks/use-comments'
 import { useFeatureView } from '@renderer/hooks/use-feature-view'
-import { usePluginInfo } from '@renderer/hooks/use-plugin'
 import { useRepoNotes } from '@renderer/hooks/use-repo-notes'
+import { useSkillsInfo } from '@renderer/hooks/use-skills'
 import { useRepoStore } from '@renderer/stores/repo'
 
 /**
  * A product-specific devtools panel that inspects Porcelain's MCP surface — the
  * five agent channels (review set, comments, board, actions, notes) plus the
- * Claude Code plugin install info. Each channel is a `~/.porcelain/*.json` file
- * the standalone MCP server (`src/mcp/`) reads/writes; the renderer sees them
- * through the same domain hooks the UI uses, so this panel is a live mirror of
- * what the agent can currently see/do. Registered as a `plugins` entry in
+ * bundled skills version. Each channel is a `~/.porcelain/*.json` file the
+ * standalone MCP server (`src/mcp/`) reads/writes; the renderer sees them through
+ * the same domain hooks the UI uses, so this panel is a live mirror of what the
+ * agent can currently see/do. Registered as a `plugins` entry in
  * {@link DevtoolsShell}.
  */
 export function McpDevtoolsPanel(): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)
-  const plugin = usePluginInfo()
+  const skills = useSkillsInfo()
   const { view } = useFeatureView()
   const comments = useReviewComments()
   const cards = useBoardCards()
@@ -36,9 +36,9 @@ export function McpDevtoolsPanel(): React.JSX.Element {
 
   return (
     <div style={WRAP}>
-      <Section title="Plugin (Claude Code · Codex)">
-        <Row label="Version" value={plugin?.version ?? '—'} />
-        <Row label="Commands" value={plugin ? String(plugin.commands.length) : '—'} />
+      <Section title="Skills (skills.sh)">
+        <Row label="Version" value={skills?.version ?? '—'} />
+        <Row label="Install" value={skills?.installCommand ?? '—'} />
       </Section>
 
       <Section title="Review set (agent → app)">

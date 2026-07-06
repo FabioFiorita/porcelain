@@ -1,22 +1,26 @@
 import { initTRPC } from '@trpc/server'
 import { shell, type WebContents } from 'electron'
 import { z } from 'zod'
-import { type CodexInstallResult, installCodex } from './codex'
-import { codexInstallCommands, codexMarketplaceDir, codexPluginVersion } from './codex-assets'
+import {
+  AGENT_NAMES,
+  type AgentMcpResult,
+  type AgentName,
+  agentConfigPath,
+  installMcpForAgents,
+} from './agent-mcp'
 import { pushDaemonInfo, setRemoteOverride } from './daemon'
-import { installPlugin, type PluginInstallResult } from './plugin'
-import { installCommands, PLUGIN_VERSION, pluginMarketplaceDir } from './plugin-assets'
 import {
   deleteRemoteDaemon,
   loadRemoteDaemon,
   normalizeDaemonUrl,
   saveRemoteDaemon,
 } from './remote-daemon'
+import { SKILLS_VERSION, skillsInstallCommand, skillsUpgradeCommand } from './skills-assets'
 import { checkForUpdates, installUpdate, type UpdateStatus, updateStatus } from './updater'
 import { createWindow, type WindowInit, windowInitFor } from './window'
 
 // The Electron-side half of the router split: everything here needs the shell
-// (native dialogs, window management, the updater, plugin installers) or the
+// (native dialogs, window management, the updater, agent MCP installers) or the
 // calling window. The pure-Node procedures live in src/backend/api.ts.
 export interface ShellTrpcContext {
   sender: WebContents
@@ -46,27 +50,28 @@ export const shellRouter = t.router({
     installUpdate()
   }),
 
-  // The Claude Code plugin (bundles the feature-review MCP server + skill).
-  pluginInfo: t.procedure.query(
-    (): { marketplaceDir: string; commands: string[]; version: string } => ({
-      marketplaceDir: pluginMarketplaceDir(),
-      commands: installCommands(),
-      version: PLUGIN_VERSION,
+  // Skills are distributed via skills.sh (`npx skills add FabioFiorita/porcelain`).
+  // The app does not install them directly; it only tells the user the command and
+  // tracks the bundled skills version to prompt for `npx skills upgrade`.
+  skillsInfo: t.procedure.query(
+    (): { version: string; installCommand: string; upgradeCommand: string } => ({
+      version: SKILLS_VERSION,
+      installCommand: skillsInstallCommand(),
+      upgradeCommand: skillsUpgradeCommand(),
     }),
   ),
 
-  installPlugin: t.procedure.mutation((): Promise<PluginInstallResult> => installPlugin()),
+  // Agent MCP config: one button writes the Porcelain MCP server into Claude Code,
+  // Codex, and OpenCode's user-global config files.
+  agentMcpInfo: t.procedure.query((): { agents: { name: AgentName; configPath: string }[] } => ({
+    agents: AGENT_NAMES.map((name) => ({ name, configPath: agentConfigPath(name) })),
+  })),
 
-  // The Codex plugin (same local MCP server + skills, packaged as a Codex marketplace).
-  codexInfo: t.procedure.query(
-    (): { marketplaceDir: string; commands: string[]; version: string } => ({
-      marketplaceDir: codexMarketplaceDir(),
-      commands: codexInstallCommands(),
-      version: codexPluginVersion(),
+  installAgentMcp: t.procedure
+    .input(z.array(z.enum(AGENT_NAMES as [AgentName, ...AgentName[]])).optional())
+    .mutation(async ({ input }): Promise<AgentMcpResult[]> => {
+      return installMcpForAgents(input ?? AGENT_NAMES)
     }),
-  ),
-
-  installCodex: t.procedure.mutation((): Promise<CodexInstallResult> => installCodex()),
 
   // Remote daemon (remote-envs Phase 4): point every window at a REMOTE daemon
   // over the tailnet instead of the local child. The token is deliberately NOT

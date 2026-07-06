@@ -256,15 +256,24 @@ assumed — this skill is the codebase-specific layer beneath them.
   `review-watch` entry → the `artifact` event. Still stdio only, no network surface. *Verify:* the
   iframe keeps `sandbox=""` with no allow-tokens; the CSP is unchanged; `rg -n "createServer|listen\(|http" src/mcp`
   still finds nothing; the app's only write to `artifacts.json` is `clearArtifact`.
-- **The plugin installer is the ONLY non-git shell-out, and it takes no user input.**
-  `installPlugin` (`src/main/plugin.ts`) spawns a login shell to run a FIXED command
-  (`claude plugin marketplace add <app-derived dir> && claude plugin install …`) —
-  the only interpolated value is `~/.porcelain/plugin`, derived from `homedir()`, never
-  from the renderer. It's user-initiated from Settings. Don't let any renderer-supplied
-  string reach that command string (injection). It writes the plugin under `~/.porcelain`
-  (home, not a work repo) and copies the built `out/main/mcp/server.js` in. *Verify:* the
-  spawn args stay a constant template; `git`'s `execFile` (no shell) remains the pattern
-  everywhere else.
+- **The agent MCP installer is the ONLY non-git file write driven by the renderer, and it takes no user input.**
+  `installAgentMcp` (`src/main/agent-mcp.ts`) copies the bundled `out/main/mcp/server.js`
+  to `~/.porcelain/mcp/server.js` (home, not a work repo) and writes per-agent MCP config
+  files (`~/.claude.json`, `~/.codex/config.toml`, `~/.config/opencode/opencode.json`).
+  The renderer supplies only the agent list (a fixed enum); no user string reaches the
+  file paths or command args. It's user-initiated from Settings. Don't let any
+  renderer-supplied string reach a file path or command (injection). `git`'s `execFile`
+  (no shell) remains the pattern everywhere else; there are no other shell-outs.
+  Two properties this design leans on, don't regress them: (1) the config points at the
+  **stable** `~/.porcelain/mcp/server.js`, and `ensureMcpServer` re-copies the bundled
+  server there on **every app boot** (`index.ts`, best-effort) — that's what lets an app
+  update ship new/fixed MCP tools without the user re-running "Add MCP" (skills update
+  separately over skills.sh, so nothing else refreshes the server). (2) The config writes
+  are **atomic** (tmp+rename via `writeFileAtomic` in `agent-mcp-config.ts`), create the
+  parent dir, and **preserve the existing file mode** — `~/.claude.json` holds the user's
+  live Claude Code state (projects/history/auth, often 0600), so a truncate-and-write or a
+  0644 rewrite would risk corruption or leak. *Verify:* `ensureMcpServer` is still called
+  at boot; `agent-mcp-config.ts` writes never call bare `writeFile` on a target path.
 
 ## Config persistence
 

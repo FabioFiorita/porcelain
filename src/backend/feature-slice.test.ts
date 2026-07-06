@@ -146,13 +146,12 @@ describe('sliceSource', () => {
     // Line 1: value line — no braces, depth stays 2
     // Line 2: closing `}` — depth 1; still > 0, so spanEnd continues
     // Lines 3+: `after` and beyond get swallowed until MAX_SYMBOL_LINES cap
-    const src =
-      [
-        'export const a = { // { extra brace in comment',
-        '  x: 1',
-        '}',
-        'export const after = 1',
-      ].join('\n') + '\n'
+    const src = `${[
+      'export const a = { // { extra brace in comment',
+      '  x: 1',
+      '}',
+      'export const after = 1',
+    ].join('\n')}\n`
     const slice = sliceSource(src, new Set(['a']))
     expect(slice.whole).toBe(false)
     // Because the comment-brace inflates depth, `after` bleeds into `a`'s span
@@ -168,7 +167,7 @@ describe('sliceSource', () => {
   it('caps a symbol whose body exceeds MAX_SYMBOL_LINES', () => {
     const MAX_SYMBOL_LINES = 80
     const bodyLines = Array.from({ length: 100 }, (_, i) => `  const x${i} = ${i}`)
-    const src = ['export function big() {', ...bodyLines, '}'].join('\n') + '\n'
+    const src = `${['export function big() {', ...bodyLines, '}'].join('\n')}\n`
     const slice = sliceSource(src, new Set(['big']))
     expect(slice.whole).toBe(false)
     expect(slice.ranges).toHaveLength(1)

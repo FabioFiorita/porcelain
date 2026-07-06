@@ -1,3 +1,4 @@
+import type { AgentName } from '@main/agent-mcp'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
@@ -35,18 +36,12 @@ interface PreferencesState {
   notesHeight: number
   /** Fraction of the viewer width given to the left pane when split (0.2–0.8). */
   splitRatio: number
-  /** Whether the user has installed the Claude Code plugin (demotes the CTA). */
-  pluginInstalled: boolean
-  /** Plugin version recorded at the last Claude install; null if never recorded. */
-  pluginVersion: string | null
-  /** Bundled plugin version the user dismissed the Claude update toast for. */
-  pluginUpdateDismissedVersion: string | null
-  /** Whether the user has installed the Codex plugin (demotes the CTA). */
-  codexPluginInstalled: boolean
-  /** Plugin version recorded at the last Codex install; null if never recorded. */
-  codexPluginVersion: string | null
-  /** Bundled plugin version the user dismissed the Codex update toast for. */
-  codexPluginUpdateDismissedVersion: string | null
+  /** Bundled skills version the user last dismissed the upgrade toast for. */
+  skillsDismissedVersion: string | null
+  /** Whether the Porcelain MCP config has been written for each agent. */
+  mcpClaudeConfigured: boolean
+  mcpCodexConfigured: boolean
+  mcpOpenCodeConfigured: boolean
   setChangesScope: (scope: ChangesScope) => void
   setDiffMode: (mode: DiffMode) => void
   setMarkdownMode: (mode: MarkdownMode) => void
@@ -57,12 +52,8 @@ interface PreferencesState {
   setSidebarWidth: (width: number) => void
   setNotesHeight: (height: number) => void
   setSplitRatio: (ratio: number) => void
-  setPluginInstalled: (installed: boolean) => void
-  setPluginVersion: (version: string | null) => void
-  setPluginUpdateDismissedVersion: (version: string | null) => void
-  setCodexPluginInstalled: (installed: boolean) => void
-  setCodexPluginVersion: (version: string | null) => void
-  setCodexPluginUpdateDismissedVersion: (version: string | null) => void
+  setSkillsDismissedVersion: (version: string | null) => void
+  setMcpConfigured: (agent: AgentName, configured: boolean) => void
 }
 
 export const usePreferencesStore = create<PreferencesState>()(
@@ -78,12 +69,10 @@ export const usePreferencesStore = create<PreferencesState>()(
       sidebarWidth: 256,
       notesHeight: 220,
       splitRatio: 0.5,
-      pluginInstalled: false,
-      pluginVersion: null,
-      pluginUpdateDismissedVersion: null,
-      codexPluginInstalled: false,
-      codexPluginVersion: null,
-      codexPluginUpdateDismissedVersion: null,
+      skillsDismissedVersion: null,
+      mcpClaudeConfigured: false,
+      mcpCodexConfigured: false,
+      mcpOpenCodeConfigured: false,
       setChangesScope: (changesScope) => set({ changesScope }),
       setDiffMode: (diffMode) => set({ diffMode }),
       setMarkdownMode: (markdownMode) => set({ markdownMode }),
@@ -100,14 +89,18 @@ export const usePreferencesStore = create<PreferencesState>()(
         set({ notesHeight: Math.min(NOTES_MAX_HEIGHT, Math.max(NOTES_MIN_HEIGHT, height)) }),
       setSplitRatio: (ratio) =>
         set({ splitRatio: Math.min(SPLIT_MAX_RATIO, Math.max(SPLIT_MIN_RATIO, ratio)) }),
-      setPluginInstalled: (pluginInstalled) => set({ pluginInstalled }),
-      setPluginVersion: (pluginVersion) => set({ pluginVersion }),
-      setPluginUpdateDismissedVersion: (pluginUpdateDismissedVersion) =>
-        set({ pluginUpdateDismissedVersion }),
-      setCodexPluginInstalled: (codexPluginInstalled) => set({ codexPluginInstalled }),
-      setCodexPluginVersion: (codexPluginVersion) => set({ codexPluginVersion }),
-      setCodexPluginUpdateDismissedVersion: (codexPluginUpdateDismissedVersion) =>
-        set({ codexPluginUpdateDismissedVersion }),
+      setSkillsDismissedVersion: (skillsDismissedVersion) => set({ skillsDismissedVersion }),
+      setMcpConfigured: (agent, configured) =>
+        set(() => {
+          switch (agent) {
+            case 'claude':
+              return { mcpClaudeConfigured: configured }
+            case 'codex':
+              return { mcpCodexConfigured: configured }
+            case 'opencode':
+              return { mcpOpenCodeConfigured: configured }
+          }
+        }),
     }),
     {
       name: 'porcelain-preferences',

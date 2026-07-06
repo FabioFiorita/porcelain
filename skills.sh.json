@@ -1,0 +1,26 @@
+{
+  "$schema": "https://skills.sh/schemas/skills.sh.schema.json",
+  "notGrouped": "bottom",
+  "groupings": [
+    {
+      "title": "Review",
+      "description": "Push whole-feature review sets and read reviewer state from the Porcelain app.",
+      "skills": ["review-with-porcelain"]
+    },
+    {
+      "title": "Project management",
+      "description": "Manage the repo project board and saved terminal actions.",
+      "skills": ["project-board", "saved-actions"]
+    },
+    {
+      "title": "Repo context",
+      "description": "Read human-written repo notes and tune review-flow layers.",
+      "skills": ["repo-notes", "flow-layers"]
+    },
+    {
+      "title": "Explainers",
+      "description": "Author rich HTML artifacts Porcelain renders in the viewer.",
+      "skills": ["feature-artifact"]
+    }
+  ]
+}

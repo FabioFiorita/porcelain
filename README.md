@@ -42,25 +42,23 @@ Download the latest `.dmg` from the [Releases](https://github.com/fabiofiorita/p
 
 ## Connect your agent
 
-Porcelain talks to your coding agent through bundled plugins: an MCP server and skills that run locally, over stdio — the agent channel opens no port — and with no telemetry. Install from **Settings → Agents**.
+Porcelain talks to your coding agent through a local stdio MCP server and companion skills — the agent channel opens no port and sends no telemetry. Set it up from **Settings → Agents**.
 
-**Claude Code** — one click, or by hand:
-
-```bash
-claude plugin marketplace add ~/.porcelain/plugin
-claude plugin install porcelain@porcelain
-```
-
-Then run `/reload-plugins` (or restart the session).
-
-**Codex** — one click, or add the local marketplace and install by hand:
+**Skills** — install the companion skills via [skills.sh](https://www.skills.sh):
 
 ```bash
-codex plugin marketplace add ~/.porcelain/codex-plugin
-codex plugin add porcelain@porcelain-local
+npx skills add FabioFiorita/porcelain
 ```
 
-Start a new Codex thread after installing.
+Run from any repo and choose global or project-local when prompted. Update later with `npx skills upgrade`.
+
+**MCP** — one click per agent in Settings → Agents, or configure by hand:
+
+- **Claude Code** — add to `~/.claude.json`
+- **Codex** — add to `~/.codex/config.toml`
+- **OpenCode** — add to `~/.config/opencode/opencode.json`
+
+Each points to `node ~/.porcelain/mcp/server.js`.
 
 ## Develop
 

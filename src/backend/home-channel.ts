@@ -12,7 +12,7 @@ export interface HomeChannel<T> {
    * (returning nothing) or returns a full replacement doc; whichever it produces
    * is what gets persisted.
    */
-  mutate(fn: (all: T) => T | void): Promise<void>
+  mutate(fn: (all: T) => T | undefined): Promise<void>
 }
 
 type PathOpts = { path: () => string } | { envVar: string; fileName: string }
@@ -138,7 +138,7 @@ export function createHomeChannel<T>(
 
   // Serialize app-side read-modify-write so two quick mutations never drop a write.
   let chain: Promise<void> = Promise.resolve()
-  const mutate = (fn: (all: T) => T | void): Promise<void> => {
+  const mutate = (fn: (all: T) => T | undefined): Promise<void> => {
     const run = chain.then(async () => {
       const all = await readAll()
       const next = fn(all)
