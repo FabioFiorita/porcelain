@@ -174,12 +174,12 @@ export function AppShell(): React.JSX.Element {
   }, [boot])
 
   if (restoring) {
-    return <div className="dark h-screen bg-background" />
+    return <div className="dark h-dvh bg-background" />
   }
 
   if (!repo) {
     return (
-      <div className="dark flex h-screen flex-col bg-background text-foreground">
+      <div className="dark flex h-dvh flex-col bg-background text-foreground">
         <div className="app-drag h-12 shrink-0" />
         <div className="min-h-0 flex-1">
           <Welcome />
@@ -193,7 +193,7 @@ export function AppShell(): React.JSX.Element {
     // No background wash here: the void between the tiles shows raw vibrancy. The
     // window titlebar (traffic lights + centered search) spans the top; the three
     // tiles fill the row below it.
-    <div className="dark flex h-screen flex-col text-foreground">
+    <div className="dark flex h-dvh flex-col text-foreground">
       <TitleBar />
       <SidebarProvider
         // flex-1 fills the row under the titlebar; minHeight:0 overrides the

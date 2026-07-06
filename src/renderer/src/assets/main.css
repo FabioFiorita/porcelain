@@ -376,6 +376,17 @@
   * {
     @apply border-border outline-ring/50;
   }
+  /* The app is a fixed, viewport-filling shell — page scroll must never exist. Lock the
+     document to the visible viewport so iOS Safari can't rubber-band the whole page (its
+     toolbar-shrunk viewport is shorter than 100vh, so an unlocked body scrolled the chrome
+     away while the fixed sidebar rails stayed put). Inert in Electron. */
+  html,
+  body,
+  #root {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
   body {
     /* transparent so macOS vibrancy shows through; panels paint their own alpha backgrounds */
     @apply text-foreground;

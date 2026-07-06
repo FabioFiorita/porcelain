@@ -2,8 +2,14 @@
 <html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
-    <!-- iPad/mobile Safari renders a scaled desktop canvas without this; inert in Electron. -->
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- iPad/mobile Safari renders a scaled desktop canvas without this; inert in Electron.
+         maximum-scale/user-scalable stop iOS input-focus zoom-panning; viewport-fit=cover
+         reaches under the notch/home bar; interactive-widget=resizes-content makes the soft
+         keyboard shrink the layout viewport (so the terminal refits) instead of overlaying. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content"
+    />
     <title>porcelain</title>
     <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
     <meta
