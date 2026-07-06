@@ -297,6 +297,12 @@ export async function gitCheckout(repoPath: string, branch: string): Promise<voi
   await runGitChecked(repoPath, ['checkout', branch])
 }
 
+/** Create a branch off the current HEAD and switch to it. Throws git's own
+ *  message (e.g. "a branch named 'x' already exists") for the UI to surface. */
+export async function gitCreateBranch(repoPath: string, branch: string): Promise<void> {
+  await runGitChecked(repoPath, ['checkout', '-b', branch])
+}
+
 function gitErrorOutput(error: unknown): string {
   if (error !== null && typeof error === 'object') {
     if ('stderr' in error && typeof error.stderr === 'string' && error.stderr.trim() !== '') {

@@ -63,6 +63,7 @@ import {
   gitCommitFiles,
   gitCommitMessage,
   gitCommitNumstat,
+  gitCreateBranch,
   gitDefaultBranch,
   gitDiffFile,
   gitFileInHead,
@@ -1000,6 +1001,10 @@ export const router = t.router({
   gitCheckout: t.procedure
     .input(z.object({ repoPath: z.string(), branch: z.string() }))
     .mutation(({ input }) => gitCheckout(input.repoPath, input.branch)),
+
+  gitCreateBranch: t.procedure
+    .input(z.object({ repoPath: z.string(), branch: z.string().min(1) }))
+    .mutation(({ input }) => gitCreateBranch(input.repoPath, input.branch)),
 
   gitWorktrees: t.procedure.input(z.string()).query(({ input }) => gitWorktrees(input)),
 

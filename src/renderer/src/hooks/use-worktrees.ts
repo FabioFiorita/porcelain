@@ -48,3 +48,21 @@ export function useCheckout(): (branch: string) => Promise<void> {
     }
   }
 }
+
+/** Create a branch off the current HEAD and switch to it. Resolves on success;
+ *  rejects with git's message (e.g. "already exists") so the caller can surface
+ *  it. Same blast radius as checkout — creating-and-switching moves HEAD — so it
+ *  blanket-invalidates everything mounted, like useCheckout. */
+export function useCreateBranch(): (branch: string) => Promise<void> {
+  const repo = useRepoStore((s) => s.repo)
+  const utils = trpc.useUtils()
+  const mutation = trpc.gitCreateBranch.useMutation()
+  return async (branch) => {
+    if (!repo) return
+    try {
+      await mutation.mutateAsync({ repoPath: repo.path, branch })
+    } finally {
+      await utils.invalidate()
+    }
+  }
+}

@@ -1,3 +1,4 @@
+import { Button } from '@renderer/components/ui/button'
 import {
   Command,
   CommandEmpty,
@@ -5,11 +6,20 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
+  CommandSeparator,
 } from '@renderer/components/ui/command'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@renderer/components/ui/dialog'
+import { Input } from '@renderer/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@renderer/components/ui/popover'
-import { useBranch, useBranches, useCheckout } from '@renderer/hooks/use-worktrees'
+import { useBranch, useBranches, useCheckout, useCreateBranch } from '@renderer/hooks/use-worktrees'
 import { useRepoStore } from '@renderer/stores/repo'
-import { Check, GitBranch } from 'lucide-react'
+import { Check, GitBranch, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
@@ -32,8 +42,14 @@ export function BranchSwitcher(): React.JSX.Element | null {
   const branch = useBranch()
   const branches = useBranches()
   const checkout = useCheckout()
+  const createBranch = useCreateBranch()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
+  // The create-branch dialog: opened from the menu, so the popover closes first
+  // (no nested-overlay dance). `creating` guards a double-submit while git runs.
+  const [createOpen, setCreateOpen] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [creating, setCreating] = useState(false)
 
   if (!repo) return null
 
@@ -54,6 +70,31 @@ export function BranchSwitcher(): React.JSX.Element | null {
       toast.error('Checkout failed', {
         description: error instanceof Error ? error.message : String(error),
       })
+    }
+  }
+
+  const openCreate = (): void => {
+    setOpen(false)
+    setQuery('')
+    setNewName('')
+    setCreateOpen(true)
+  }
+
+  const create = async (): Promise<void> => {
+    const name = newName.trim()
+    if (name === '' || creating) return
+    setCreating(true)
+    // git is the validator — no client-side name regex (see the checkout philosophy).
+    try {
+      await createBranch(name)
+      setCreateOpen(false)
+      toast.success(`Created ${name}`)
+    } catch (error) {
+      toast.error('Create branch failed', {
+        description: error instanceof Error ? error.message : String(error),
+      })
+    } finally {
+      setCreating(false)
     }
   }
 
@@ -125,9 +166,51 @@ export function BranchSwitcher(): React.JSX.Element | null {
                 ))}
               </CommandGroup>
             )}
+            <CommandSeparator />
+            <CommandGroup>
+              <CommandItem value="__new-branch__" onSelect={openCreate} className="text-xs-plus">
+                <Plus className="shrink-0" />
+                <span className="truncate">New branch…</span>
+              </CommandItem>
+            </CommandGroup>
           </CommandList>
         </Command>
       </PopoverContent>
+      <Dialog
+        open={createOpen}
+        onOpenChange={(next) => {
+          setCreateOpen(next)
+          if (!next) setNewName('')
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>New branch</DialogTitle>
+          </DialogHeader>
+          <Input
+            autoFocus
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                create()
+              }
+            }}
+            placeholder="Branch name"
+            aria-label="Branch name"
+            className="rounded-md"
+          />
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setCreateOpen(false)}>
+              Cancel
+            </Button>
+            <Button disabled={newName.trim() === '' || creating} onClick={create}>
+              Create
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Popover>
   )
 }

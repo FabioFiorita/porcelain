@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   gitCommit,
   gitCommitNumstat,
+  gitCreateBranch,
   gitDefaultBranch,
   gitFileInHead,
   gitFileLog,
@@ -382,6 +383,31 @@ describe('mutations', () => {
     await expect(gitCommit(dir, 'should not exist')).rejects.toThrow()
     // Commit count must be unchanged.
     expect(git(dir, 'log', '--oneline').trim()).toBe(logBefore)
+  })
+
+  // ----- gitCreateBranch ---------------------------------------------------
+
+  it('gitCreateBranch creates the branch and switches HEAD to it', async () => {
+    const dir = await repo()
+    await gitCreateBranch(dir, 'feature-x')
+    // HEAD now reports the new branch as the current one.
+    expect(git(dir, 'rev-parse', '--abbrev-ref', 'HEAD').trim()).toBe('feature-x')
+  })
+
+  it('gitCreateBranch throws git’s message when the branch already exists', async () => {
+    const dir = await repo()
+    git(dir, 'branch', 'dup')
+    // A second create of the same name is git's error to surface, not ours.
+    await expect(gitCreateBranch(dir, 'dup')).rejects.toThrow(/already exists/)
+  })
+
+  it('gitCreateBranch rejects a name starting with a dash (no option injection)', async () => {
+    const dir = await repo()
+    // `checkout -b -foo` treats `-foo` as an invalid ref name, not a flag — git
+    // rejects it. This pins the no-option-injection property of the argv.
+    await expect(gitCreateBranch(dir, '-foo')).rejects.toThrow()
+    // HEAD must still be on the original branch (no branch was created/switched).
+    expect(git(dir, 'rev-parse', '--abbrev-ref', 'HEAD').trim()).toBe('main')
   })
 })
 
