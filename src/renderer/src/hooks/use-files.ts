@@ -85,7 +85,7 @@ export function useReadFilePrefetch(): (path: string) => Promise<void> {
 }
 
 export function useWriteTextFile(path: string): {
-  save: (content: string) => void
+  save: (content: string, onSaved?: () => void) => void
   isSaving: boolean
   error: { message: string } | null
 } {
@@ -101,7 +101,9 @@ export function useWriteTextFile(path: string): {
     },
   })
   return {
-    save: (content) => mutation.mutate({ path, content }),
+    // Per-call onSuccess runs *in addition to* the hook-level one (TanStack v5);
+    // it lets the caller advance its saved-watermark only once the write settles.
+    save: (content, onSaved) => mutation.mutate({ path, content }, { onSuccess: onSaved }),
     isSaving: mutation.isPending,
     error: mutation.error,
   }

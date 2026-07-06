@@ -59,8 +59,12 @@ export function EditorSource({
   saveRef.current = (): void => {
     if (timerRef.current) clearTimeout(timerRef.current)
     if (content === savedContent) return
-    setSavedContent(content)
-    save(content)
+    // Advance the watermark only once the write settles, pinned to the snapshot
+    // we sent (the user may keep typing — that newer text must stay dirty). A
+    // failed save leaves the watermark behind, so the buffer stays dirty: the
+    // unmount flush retries and the external-adopt effect refuses to clobber.
+    const snapshot = content
+    save(snapshot, () => setSavedContent(snapshot))
   }
 
   const edit = (next: string): void => {
