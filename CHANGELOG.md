@@ -1,3 +1,11 @@
+## [0.20.1](https://github.com/FabioFiorita/porcelain/compare/v0.20.0...v0.20.1) (2026-07-06)
+
+### Features
+
+* Codex plugin install + version tracking — surface updates like Claude does ([b9deebe](https://github.com/FabioFiorita/porcelain/commit/b9deebe928a5d292591c053e06c0da99df5aa69a))
+* comment on any file, not just diffs — Add comment / Comment on file in the code viewer ([4e3feba](https://github.com/FabioFiorita/porcelain/commit/4e3feba537fdb47bd936af4aeaba3064442cfbdf))
+* harden the daemon's LAN/tailnet listeners — honest 'port in use', orphan reaper, boot env override ([0d1686b](https://github.com/FabioFiorita/porcelain/commit/0d1686bf240f11ab0d72d14738670fb2f1adeae4))
+
 ## [0.20.0](https://github.com/FabioFiorita/porcelain/compare/v0.19.0...v0.20.0) (2026-07-06)
 
 ### Features
