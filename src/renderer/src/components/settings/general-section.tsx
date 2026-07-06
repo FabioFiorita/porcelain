@@ -2,6 +2,7 @@ import { Button } from '@renderer/components/ui/button'
 import { Input } from '@renderer/components/ui/input'
 import { Switch } from '@renderer/components/ui/switch'
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
+import { useDaemonToken } from '@renderer/hooks/use-daemon-token'
 import {
   useClearRemoteDaemon,
   useRemoteDaemon,
@@ -74,6 +75,10 @@ function RemoteDaemonBlock(): React.JSX.Element {
             onChange={(e) => setToken(e.target.value)}
             disabled={isConnecting}
           />
+          <p className="text-xs text-muted-foreground">
+            On the other machine, copy it from Settings → Share over Tailscale, or run{' '}
+            <span className="font-mono">cat ~/.porcelain/daemon-token</span>.
+          </p>
           <Button
             variant="outline"
             size="sm"
@@ -112,6 +117,8 @@ export function GeneralSection(): React.JSX.Element {
   const setPullMode = usePreferencesStore((s) => s.setPullMode)
   const tailnet = useTailnetStatus()
   const { setEnabled } = useSetTailnetBind()
+  const daemonToken = useDaemonToken()
+  const [tokenCopied, setTokenCopied] = useState(false)
 
   return (
     <div className="flex flex-col gap-5">
@@ -174,7 +181,25 @@ export function GeneralSection(): React.JSX.Element {
           />
         </PreferenceRow>
         {tailnet?.url != null && (
-          <p className="font-mono text-xs text-muted-foreground">{tailnet.url}</p>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <p className="font-mono text-xs text-muted-foreground">{tailnet.url}</p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  await navigator.clipboard.writeText(daemonToken)
+                  setTokenCopied(true)
+                  setTimeout(() => setTokenCopied(false), 1500)
+                }}
+              >
+                {tokenCopied ? 'Copied' : 'Copy token'}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              The token lives at <span className="font-mono">~/.porcelain/daemon-token</span>.
+            </p>
+          </div>
         )}
         {tailnet?.enabled === true && tailnet.url == null && (
           <p className="text-xs text-muted-foreground">No Tailscale interface found</p>
