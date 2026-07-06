@@ -72,7 +72,6 @@ import {
   gitListSearchFiles,
   gitLog,
   gitMergeBase,
-  gitNumstat,
   gitQuickCommand,
   gitRangeChangedFilesFrom,
   gitRangeDiffFile,
@@ -112,6 +111,7 @@ import {
 } from './reviewed-store'
 import { startTailnetListener, stopTailnetListener, tailnetUrl } from './tailnet-listener'
 import { listTerminals, renameTerminal, type TerminalInfo } from './terminal-manager'
+import { clearWorkingTreeSnapshot, workingTreeSnapshot } from './working-tree'
 
 // No per-connection context: appRouter procedures are pure Node and must never
 // reference a caller (per-connection concerns live shell-side until the Stage 2
@@ -249,10 +249,9 @@ async function readSourcesInto(
 // set, and layers → the memo key. Each procedure checks its own cache on this key
 // before doing the expensive source reads.
 async function gatherFeature(input: string) {
-  const [files, stored, stats, repoFiles, reviewSet] = await Promise.all([
-    gitStatus(input),
+  const [{ files, stats }, stored, repoFiles, reviewSet] = await Promise.all([
+    workingTreeSnapshot(input),
     readLayers(input),
-    gitNumstat(input),
     gitListFiles(input),
     readReviewSet(input),
   ])
@@ -479,23 +478,37 @@ export const router = t.router({
         pullMode: z.enum(['merge', 'rebase']).optional(),
       }),
     )
-    .mutation(({ input }) => gitQuickCommand(input.repoPath, input.command, input.pullMode)),
+    .mutation(async ({ input }) => {
+      const out = await gitQuickCommand(input.repoPath, input.command, input.pullMode)
+      clearWorkingTreeSnapshot(input.repoPath)
+      return out
+    }),
 
-  gitStageAll: t.procedure
-    .input(z.object({ repoPath: z.string() }))
-    .mutation(({ input }) => gitStageAll(input.repoPath)),
+  gitStageAll: t.procedure.input(z.object({ repoPath: z.string() })).mutation(async ({ input }) => {
+    await gitStageAll(input.repoPath)
+    clearWorkingTreeSnapshot(input.repoPath)
+  }),
 
   gitUnstageAll: t.procedure
     .input(z.object({ repoPath: z.string() }))
-    .mutation(({ input }) => gitUnstageAll(input.repoPath)),
+    .mutation(async ({ input }) => {
+      await gitUnstageAll(input.repoPath)
+      clearWorkingTreeSnapshot(input.repoPath)
+    }),
 
   gitStageFile: t.procedure
     .input(z.object({ repoPath: z.string(), path: z.string() }))
-    .mutation(({ input }) => gitStageFile(input.repoPath, input.path)),
+    .mutation(async ({ input }) => {
+      await gitStageFile(input.repoPath, input.path)
+      clearWorkingTreeSnapshot(input.repoPath)
+    }),
 
   gitUnstageFile: t.procedure
     .input(z.object({ repoPath: z.string(), path: z.string() }))
-    .mutation(({ input }) => gitUnstageFile(input.repoPath, input.path)),
+    .mutation(async ({ input }) => {
+      await gitUnstageFile(input.repoPath, input.path)
+      clearWorkingTreeSnapshot(input.repoPath)
+    }),
 
   // Discard a single file's changes. A tracked file reverts to its committed
   // version (staged + unstaged edits gone, deletions restored); a new file is
@@ -512,12 +525,14 @@ export const router = t.router({
         await gitResetPath(input.repoPath, input.path)
         await trash(join(input.repoPath, input.path))
       }
+      clearWorkingTreeSnapshot(input.repoPath)
     }),
 
   gitCommit: t.procedure
     .input(z.object({ repoPath: z.string(), message: z.string().trim().min(1) }))
     .mutation(async ({ input }) => {
       await gitCommit(input.repoPath, input.message)
+      clearWorkingTreeSnapshot(input.repoPath)
       // The reviewed marks describe working-tree changes; once committed they no longer
       // apply, so clear them — a later re-edit of the same file starts unreviewed.
       const committed = await gitCommitFiles(input.repoPath, 'HEAD')
@@ -636,10 +651,9 @@ export const router = t.router({
   gitSuggestions: t.procedure.input(z.string()).query(({ input }) => gitSuggestions(input)),
 
   gitFlow: t.procedure.input(z.string()).query(async ({ input }): Promise<FlowGroup[]> => {
-    const [files, stored, stats] = await Promise.all([
-      gitStatus(input),
+    const [{ files, stats }, stored] = await Promise.all([
+      workingTreeSnapshot(input),
       readLayers(input),
-      gitNumstat(input),
     ])
     const layers = stored ?? DEFAULT_LAYERS
     const key = flowKey(files, stats, layers)

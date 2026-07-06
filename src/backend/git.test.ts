@@ -23,6 +23,7 @@ import {
   isNoMatchError,
   parseLooseIgnoredFiles,
   quickCommandArgs,
+  reuseIfUnchanged,
 } from './git'
 
 describe('isNoMatchError', () => {
@@ -34,6 +35,28 @@ describe('isNoMatchError', () => {
     expect(isNoMatchError({ code: 'ENOENT' })).toBe(false)
     expect(isNoMatchError(new Error('boom'))).toBe(false)
     expect(isNoMatchError(null)).toBe(false)
+  })
+})
+
+describe('reuseIfUnchanged', () => {
+  it('returns the previous array object when content is identical (identity preserved)', () => {
+    const previous = ['a.ts', 'b.ts']
+    const next = ['a.ts', 'b.ts']
+    expect(reuseIfUnchanged(previous, next)).toBe(previous)
+  })
+  it('returns the next array when content differs', () => {
+    const previous = ['a.ts', 'b.ts']
+    const next = ['a.ts', 'c.ts']
+    expect(reuseIfUnchanged(previous, next)).toBe(next)
+  })
+  it('returns the next array on a length change', () => {
+    const previous = ['a.ts']
+    const next = ['a.ts', 'b.ts']
+    expect(reuseIfUnchanged(previous, next)).toBe(next)
+  })
+  it('returns the next array when there is no previous entry', () => {
+    const next = ['a.ts']
+    expect(reuseIfUnchanged(undefined, next)).toBe(next)
   })
 })
 

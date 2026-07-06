@@ -43,6 +43,20 @@ async function runGit(repoPath: string, args: string[]): Promise<string> {
 const fileListCache = new Map<string, { files: string[]; at: number; refreshing: boolean }>()
 const FILE_LIST_TTL = 30_000
 
+/**
+ * Reuse the `previous` array object when a refresh produced a content-identical
+ * list. The stale-while-revalidate refresh allocates a fresh array every tick;
+ * without this, an identity-keyed downstream memo (`searchCandidates` compares
+ * `cached.files === files`) would rebuild on every no-op refresh. Same length +
+ * element-wise equality — a linear scan, cheap next to the git spawn that fed it.
+ */
+export function reuseIfUnchanged(previous: string[] | undefined, next: string[]): string[] {
+  if (previous && previous.length === next.length && previous.every((p, i) => p === next[i])) {
+    return previous
+  }
+  return next
+}
+
 async function refreshFileList(repoPath: string): Promise<string[]> {
   const out = await runGit(repoPath, [
     'ls-files',
@@ -51,7 +65,10 @@ async function refreshFileList(repoPath: string): Promise<string[]> {
     '--exclude-standard',
     '-z',
   ])
-  const files = out.split('\0').filter(Boolean)
+  const files = reuseIfUnchanged(
+    fileListCache.get(repoPath)?.files,
+    out.split('\0').filter(Boolean),
+  )
   fileListCache.set(repoPath, { files, at: Date.now(), refreshing: false })
   return files
 }
@@ -109,7 +126,10 @@ async function refreshSearchList(repoPath: string): Promise<string[]> {
     ]),
   ])
   // tracked and ignored are disjoint by definition, so no dedupe is needed.
-  const files = [...tracked, ...parseLooseIgnoredFiles(ignored)]
+  const files = reuseIfUnchanged(searchListCache.get(repoPath)?.files, [
+    ...tracked,
+    ...parseLooseIgnoredFiles(ignored),
+  ])
   searchListCache.set(repoPath, { files, at: Date.now(), refreshing: false })
   return files
 }
