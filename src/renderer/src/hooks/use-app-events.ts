@@ -4,6 +4,7 @@ import { onDaemonEvent, onDaemonReconnect } from '@renderer/lib/daemon'
 import { isBrowser } from '@renderer/lib/platform'
 import { shellTrpc, trpc } from '@renderer/lib/trpc'
 import { useTabsStore } from '@renderer/stores/tabs'
+import { unreadTabFor, useUnreadStore } from '@renderer/stores/unread'
 import { useEffect } from 'react'
 
 /** The tRPC query-invalidation proxy — the value `trpc.useUtils()` returns. */
@@ -111,6 +112,10 @@ export function useAppEvents(): void {
           await handle(event, utils, shellUtils)
         })
     const offDaemon = onDaemonEvent(async (event) => {
+      // Light the rail's unread dot for the agent-push events that carry an
+      // attention signal (mark no-ops when that tab is already active).
+      const tab = unreadTabFor(event)
+      if (tab) useUnreadStore.getState().mark(tab)
       await handle(event, utils, shellUtils)
     })
     // The session came back after a daemon restart: a NEW process with empty

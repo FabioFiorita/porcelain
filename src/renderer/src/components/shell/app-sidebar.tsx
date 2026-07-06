@@ -27,6 +27,7 @@ import { cn } from '@renderer/lib/utils'
 import { useFileTreeStore } from '@renderer/stores/file-tree'
 import { type SidebarTab, usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
+import { isUnreadTab, useUnreadStore } from '@renderer/stores/unread'
 import {
   ChevronsDownUp,
   Eye,
@@ -73,6 +74,7 @@ export function AppSidebar(): React.JSX.Element {
   const toggleShowHidden = useRepoStore((s) => s.toggleShowHidden)
   const sidebarTab = usePreferencesStore((s) => s.sidebarTab)
   const setSidebarTab = usePreferencesStore((s) => s.setSidebarTab)
+  const unread = useUnreadStore((s) => s.unread)
   const collapseAll = useFileTreeStore((s) => s.collapseAll)
   const { state, setOpen } = useSidebar()
   const [actionsSlot, setActionsSlot] = useState<HTMLElement | null>(null)
@@ -136,6 +138,9 @@ export function AppSidebar(): React.JSX.Element {
           <SidebarMenu className="items-center gap-1.5 pt-1.5 pb-2.5">
             {TABS.map((tab) => {
               const active = sidebarTab === tab.id
+              // An agent push while this tab was unvisited lights a dot (feature/
+              // board/terminal only); visiting the tab clears it (see unread.ts).
+              const showDot = isUnreadTab(tab.id) && unread[tab.id]
               return (
                 <SidebarMenuItem key={tab.id}>
                   <Tooltip>
@@ -157,12 +162,18 @@ export function AppSidebar(): React.JSX.Element {
                           // (also !important) so the rail icons stay the same size
                           // collapsed or expanded.
                           className={cn(
-                            'size-10 justify-center p-0 [&_svg]:size-5',
+                            'relative size-10 justify-center p-0 [&_svg]:size-5',
                             'group-data-[collapsible=icon]:size-10! group-data-[collapsible=icon]:p-0!',
                             active ? 'glaze-chip' : 'glaze-rail text-muted-foreground',
                           )}
                         >
                           <tab.icon />
+                          {showDot && (
+                            <span
+                              aria-hidden
+                              className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-foreground/70"
+                            />
+                          )}
                         </SidebarMenuButton>
                       }
                     />
