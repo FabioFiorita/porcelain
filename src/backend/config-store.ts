@@ -1,5 +1,5 @@
 import { join } from 'node:path'
-import { createJsonStore } from './json-store'
+import { createHomeChannel } from './home-channel'
 import { type AppConfig, appConfigSchema, emptyConfig } from './repo-config'
 
 // The backend is Electron-free, so it can't resolve `app.getPath('userData')`
@@ -13,14 +13,25 @@ export function initConfigDir(dir: string): void {
   configDir = dir
 }
 
-const store = createJsonStore<AppConfig>({
+// Config lives under userData, not ~/.porcelain, and the app is its SOLE writer —
+// hence the `path` form and the in-memory cache (safe: nothing else touches it).
+const channel = createHomeChannel<AppConfig>({
   path: () => {
     if (configDir === null) throw new Error('config-store: initConfigDir has not been called')
     return join(configDir, 'config.json')
   },
-  parse: (raw) => appConfigSchema.parse(raw),
-  empty: emptyConfig,
+  schema: appConfigSchema,
+  empty: () => emptyConfig,
+  cache: 'memory',
 })
 
-export const loadConfig = store.load
-export const updateConfig = store.update
+export const loadConfig = channel.readAll
+
+export async function updateConfig(fn: (current: AppConfig) => AppConfig): Promise<AppConfig> {
+  let updated = emptyConfig
+  await channel.mutate((current) => {
+    updated = fn(current)
+    return updated
+  })
+  return updated
+}

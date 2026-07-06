@@ -1,7 +1,8 @@
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { join } from 'node:path'
 import { z } from 'zod'
+import { createHomeChannel } from './home-channel'
 
 /**
  * The feature-artifact channel: a self-contained HTML document the MCP server writes
@@ -37,6 +38,14 @@ export function artifactsPath(): string {
   return process.env.PORCELAIN_ARTIFACTS ?? join(homedir(), '.porcelain', 'artifacts.json')
 }
 
+// The read path stays custom below (per-entry MAX_HTML_BYTES drop); the channel
+// exists only for the app's one write — the user-initiated clear.
+const channel = createHomeChannel({
+  path: artifactsPath,
+  schema: artifactsSchema,
+  empty: (): z.infer<typeof artifactsSchema> => ({}),
+})
+
 /**
  * The agent-authored artifact for a repo, or null if none / the file is absent,
  * corrupt, or the html is over the size cap. An oversized entry is treated as absent
@@ -70,17 +79,7 @@ export async function readArtifactMeta(repoPath: string): Promise<ArtifactMeta |
  * view like any MCP write.
  */
 export async function clearArtifact(repoPath: string): Promise<void> {
-  let all: z.infer<typeof artifactsSchema>
-  try {
-    all = artifactsSchema.parse(JSON.parse(await readFile(artifactsPath(), 'utf8')))
-  } catch {
-    return
-  }
-  if (!(repoPath in all)) return
-  delete all[repoPath]
-  const path = artifactsPath()
-  await mkdir(dirname(path), { recursive: true })
-  const tmp = `${path}.tmp`
-  await writeFile(tmp, JSON.stringify(all, null, 2))
-  await rename(tmp, path)
+  await channel.mutate((all) => {
+    if (repoPath in all) delete all[repoPath]
+  })
 }

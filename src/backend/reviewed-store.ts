@@ -1,8 +1,6 @@
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
-import { homedir } from 'node:os'
-import { dirname, join } from 'node:path'
 import { z } from 'zod'
 import { loadConfig } from './config-store'
+import { createHomeChannel } from './home-channel'
 
 /**
  * The reviewed-marks channel: the repo-relative file paths the human has checked off
@@ -23,43 +21,15 @@ import { loadConfig } from './config-store'
 export const reviewedSchema = z.record(z.string(), z.array(z.string()))
 export type Reviewed = z.infer<typeof reviewedSchema>
 
-export function reviewedPath(): string {
-  // Must match src/mcp/reviewed-file.ts. PORCELAIN_REVIEWED redirects both sides for tests.
-  return process.env.PORCELAIN_REVIEWED ?? join(homedir(), '.porcelain', 'reviewed.json')
-}
+const channel = createHomeChannel({
+  envVar: 'PORCELAIN_REVIEWED',
+  fileName: 'reviewed.json',
+  schema: reviewedSchema,
+  empty: (): Reviewed => ({}),
+})
 
-async function readAll(): Promise<Reviewed> {
-  try {
-    return reviewedSchema.parse(JSON.parse(await readFile(reviewedPath(), 'utf8')))
-  } catch {
-    // absent, unparseable, or schema-invalid — treat as empty
-    return {}
-  }
-}
-
-async function writeAll(all: Reviewed): Promise<void> {
-  const path = reviewedPath()
-  await mkdir(dirname(path), { recursive: true })
-  const tmp = `${path}.tmp`
-  await writeFile(tmp, JSON.stringify(all, null, 2))
-  await rename(tmp, path)
-}
-
-// Serialize app-side read-modify-write so two quick marks never drop a write.
-let chain: Promise<void> = Promise.resolve()
-function mutate<T>(fn: (all: Reviewed) => T): Promise<T> {
-  const run = chain.then(async () => {
-    const all = await readAll()
-    const result = fn(all)
-    await writeAll(all)
-    return result
-  })
-  chain = run.then(
-    () => undefined,
-    () => undefined,
-  )
-  return run
-}
+// Must match src/mcp/reviewed-file.ts. PORCELAIN_REVIEWED redirects both sides for tests.
+export const reviewedPath = channel.path
 
 // Drop an emptied entry so the file stays tidy (matches notes/layers).
 function setPaths(all: Reviewed, repoPath: string, paths: string[]): void {
@@ -69,12 +39,12 @@ function setPaths(all: Reviewed, repoPath: string, paths: string[]): void {
 
 /** The repo-relative paths the human has marked reviewed ([] when none / file absent). */
 export async function readReviewedPaths(repoPath: string): Promise<string[]> {
-  return (await readAll())[repoPath] ?? []
+  return (await channel.readAll())[repoPath] ?? []
 }
 
 /** Mark a path reviewed (idempotent — a path already present is left as-is). */
 export async function markReviewed(repoPath: string, path: string): Promise<void> {
-  await mutate((all) => {
+  await channel.mutate((all) => {
     const current = all[repoPath] ?? []
     if (current.includes(path)) return
     setPaths(all, repoPath, [...current, path])
@@ -83,7 +53,7 @@ export async function markReviewed(repoPath: string, path: string): Promise<void
 
 /** Unmark a path (no-op when it wasn't reviewed). */
 export async function unmarkReviewed(repoPath: string, path: string): Promise<void> {
-  await mutate((all) => {
+  await channel.mutate((all) => {
     const current = all[repoPath]
     if (!current) return
     setPaths(
@@ -97,7 +67,7 @@ export async function unmarkReviewed(repoPath: string, path: string): Promise<vo
 /** Drop many marks at once (the files just committed — their marks no longer apply). */
 export async function clearReviewedPaths(repoPath: string, paths: string[]): Promise<void> {
   if (paths.length === 0) return
-  await mutate((all) => {
+  await channel.mutate((all) => {
     const current = all[repoPath]
     if (!current) return
     const removed = new Set(paths)
@@ -120,7 +90,7 @@ export async function migrateReviewedFromConfig(): Promise<void> {
   const config = await loadConfig()
   const legacy = Object.entries(config.repos).filter(([, repo]) => repo.reviewedPaths?.length)
   if (legacy.length === 0) return
-  await mutate((all) => {
+  await channel.mutate((all) => {
     for (const [repoPath, repo] of legacy) {
       if (all[repoPath] === undefined && repo.reviewedPaths?.length) {
         all[repoPath] = repo.reviewedPaths

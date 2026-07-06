@@ -1,6 +1,7 @@
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
+import { isAbsolute, join, relative, resolve } from 'node:path'
+import { createHomeChannel } from './home-channel'
 import { type ReviewSet, type ReviewSets, reviewSetsSchema } from './review-set'
 
 /**
@@ -30,6 +31,14 @@ export function reviewSetsPath(): string {
   return process.env.PORCELAIN_REVIEW_SETS ?? join(homedir(), '.porcelain', 'review-sets.json')
 }
 
+// The read path stays custom below (per-entry repo-containment filter); the channel
+// exists only for the app's one write — the user-initiated clear.
+const channel = createHomeChannel({
+  path: reviewSetsPath,
+  schema: reviewSetsSchema,
+  empty: (): ReviewSets => ({}),
+})
+
 /** The agent-fed review set for a repo, or null if none / the file is absent or corrupt. */
 export async function readReviewSet(repoPath: string): Promise<ReviewSet | null> {
   try {
@@ -52,17 +61,7 @@ export async function readReviewSet(repoPath: string): Promise<ReviewSet | null>
  * (`review-watch.ts`) sees the change and refreshes the open view like any MCP write.
  */
 export async function clearReviewSet(repoPath: string): Promise<void> {
-  let all: ReviewSets
-  try {
-    all = reviewSetsSchema.parse(JSON.parse(await readFile(reviewSetsPath(), 'utf8')))
-  } catch {
-    return
-  }
-  if (!(repoPath in all)) return
-  delete all[repoPath]
-  const path = reviewSetsPath()
-  await mkdir(dirname(path), { recursive: true })
-  const tmp = `${path}.tmp`
-  await writeFile(tmp, JSON.stringify(all, null, 2))
-  await rename(tmp, path)
+  await channel.mutate((all) => {
+    if (repoPath in all) delete all[repoPath]
+  })
 }

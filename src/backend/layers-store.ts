@@ -1,9 +1,7 @@
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
-import { homedir } from 'node:os'
-import { dirname, join } from 'node:path'
 import { z } from 'zod'
 import { loadConfig } from './config-store'
 import type { Layer } from './flow'
+import { createHomeChannel } from './home-channel'
 
 /**
  * The flow-layers channel: the per-repo review-flow layers (the ordered
@@ -23,11 +21,6 @@ import type { Layer } from './flow'
 const layerSchema = z.object({ label: z.string(), pattern: z.string() })
 export const layersSchema = z.record(z.string(), z.array(layerSchema))
 
-export function layersPath(): string {
-  // Must match src/mcp/layers-file.ts. PORCELAIN_LAYERS redirects both sides for tests.
-  return process.env.PORCELAIN_LAYERS ?? join(homedir(), '.porcelain', 'layers.json')
-}
-
 // A pattern the flow grouper can compile. The file is externally owned (the MCP
 // writes it), so we drop any layer whose pattern is not a valid regex on read —
 // otherwise `compileLayers` (flow.ts) would throw and break every grouping view.
@@ -41,14 +34,8 @@ function compilable(layer: Layer): boolean {
   }
 }
 
-async function readAll(): Promise<Record<string, Layer[]>> {
-  let parsed: z.infer<typeof layersSchema>
-  try {
-    parsed = layersSchema.parse(JSON.parse(await readFile(layersPath(), 'utf8')))
-  } catch {
-    // absent, unparseable, or schema-invalid — treat as empty
-    return {}
-  }
+// Drop uncompilable patterns on read, and any repo whose layers all drop.
+function keepCompilable(parsed: Record<string, Layer[]>): Record<string, Layer[]> {
   const all: Record<string, Layer[]> = {}
   for (const [repoPath, layers] of Object.entries(parsed)) {
     const valid = layers.filter(compilable)
@@ -57,38 +44,25 @@ async function readAll(): Promise<Record<string, Layer[]>> {
   return all
 }
 
-async function writeAll(all: Record<string, Layer[]>): Promise<void> {
-  const path = layersPath()
-  await mkdir(dirname(path), { recursive: true })
-  const tmp = `${path}.tmp`
-  await writeFile(tmp, JSON.stringify(all, null, 2))
-  await rename(tmp, path)
-}
+const channel = createHomeChannel({
+  envVar: 'PORCELAIN_LAYERS',
+  fileName: 'layers.json',
+  schema: layersSchema,
+  empty: (): Record<string, Layer[]> => ({}),
+  transform: keepCompilable,
+})
 
-// Serialize app-side read-modify-write so two quick saves never drop a write.
-let chain: Promise<void> = Promise.resolve()
-function mutate<T>(fn: (all: Record<string, Layer[]>) => T): Promise<T> {
-  const run = chain.then(async () => {
-    const all = await readAll()
-    const result = fn(all)
-    await writeAll(all)
-    return result
-  })
-  chain = run.then(
-    () => undefined,
-    () => undefined,
-  )
-  return run
-}
+// Must match src/mcp/layers-file.ts. PORCELAIN_LAYERS redirects both sides for tests.
+export const layersPath = channel.path
 
 /** The repo's custom flow layers, or null when none is set (→ Porcelain uses defaults). */
 export async function readLayers(repoPath: string): Promise<Layer[] | null> {
-  return (await readAll())[repoPath] ?? null
+  return (await channel.readAll())[repoPath] ?? null
 }
 
 /** Set a repo's flow layers; `null` clears the override back to the defaults. */
 export async function writeLayers(repoPath: string, layers: Layer[] | null): Promise<void> {
-  await mutate((all) => {
+  await channel.mutate((all) => {
     if (layers === null) delete all[repoPath]
     else all[repoPath] = layers
   })
@@ -105,7 +79,7 @@ export async function migrateLayersFromConfig(): Promise<void> {
   const config = await loadConfig()
   const legacy = Object.entries(config.repos).filter(([, repo]) => repo.layers?.length)
   if (legacy.length === 0) return
-  await mutate((all) => {
+  await channel.mutate((all) => {
     for (const [repoPath, repo] of legacy) {
       if (all[repoPath] === undefined && repo.layers?.length) all[repoPath] = repo.layers
     }

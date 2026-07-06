@@ -23,7 +23,7 @@ Ordered by leverage; most plans are independent — see Dependency notes.
 |------|-------|-----|-----|--------|------|------------|--------|
 | 023 | Failed autosave keeps the buffer dirty (silent data-loss fix) | bug | P1 | S | LOW | — | DONE |
 | 024 | Skills doc-truth pass (src/backend pointers, dead plan refs, "no port") | docs | P1 | S | LOW | — | DONE |
-| 025 | One durable-JSON factory (fold 4 hand-copied stores; cache modes; size cap) | tech-debt | P1 | M | MED | — | TODO |
+| 025 | One durable-JSON factory (fold 4 hand-copied stores; cache modes; size cap) | tech-debt | P1 | M | MED | — | DONE |
 | 027 | Daemon integration harness (auth gate, CORS, WS session — boot it for real) | tests | P1 | L | MED | — | TODO |
 | 026 | One working-tree snapshot per poll tick (dedupe 3s git spawns) | perf | P2 | M | MED | 025 | TODO |
 | 029 | Verify typechecks once; release builds once and ships the tested artifact | dx | P2 | S | LOW | — | TODO |
