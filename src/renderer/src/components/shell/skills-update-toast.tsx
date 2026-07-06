@@ -16,10 +16,19 @@ export function SkillsUpdateToast(): null {
   const info = useSkillsInfo()
   const dismissedVersion = usePreferencesStore((s) => s.skillsDismissedVersion)
   const setDismissedVersion = usePreferencesStore((s) => s.setSkillsDismissedVersion)
+  const anyMcpConfigured = usePreferencesStore(
+    (s) => s.mcpClaudeConfigured || s.mcpCodexConfigured || s.mcpOpenCodeConfigured,
+  )
   const shown = useRef<string | null>(null)
 
   const current = info?.version
-  const needsUpdate = current !== undefined && dismissedVersion !== current
+  // Only nag about a newer skills bundle once the user has wired up at least one
+  // agent's MCP — a strong signal they use the Porcelain integration (and have
+  // likely run `npx skills add`). Skills.sh installs happen outside the app, so
+  // this is our best "engaged user" proxy. Without it a brand-new user, who has
+  // installed nothing, gets told "update available" on first launch (and the toast
+  // bleeds into every screenshot). Mirrors the old plugin toast's `installed` gate.
+  const needsUpdate = anyMcpConfigured && current !== undefined && dismissedVersion !== current
 
   useEffect(() => {
     // Skills installs are shell-only; the browser client has nothing to update.
