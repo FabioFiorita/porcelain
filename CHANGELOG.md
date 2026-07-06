@@ -1,3 +1,9 @@
+## [0.20.2](https://github.com/FabioFiorita/porcelain/compare/v0.20.1...v0.20.2) (2026-07-06)
+
+### Features
+
+* replace bundled agent plugins with skills.sh skills + one-click MCP config ([26485fc](https://github.com/FabioFiorita/porcelain/commit/26485fc6243b8caf74297767dc1abc6a45e3aff3))
+
 ## [0.20.1](https://github.com/FabioFiorita/porcelain/compare/v0.20.0...v0.20.1) (2026-07-06)
 
 ### Features
