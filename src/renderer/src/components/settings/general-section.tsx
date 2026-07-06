@@ -62,7 +62,7 @@ function RemoteDaemonBlock(): React.JSX.Element {
       {remote == null ? (
         <div className="flex flex-col gap-2">
           <Input
-            placeholder="http://beelink:43117"
+            placeholder="http://my-mac.tailnet.ts.net:43117"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             disabled={isConnecting}
