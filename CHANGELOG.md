@@ -1,3 +1,9 @@
+## [0.20.3](https://github.com/FabioFiorita/porcelain/compare/v0.20.2...v0.20.3) (2026-07-06)
+
+### Bug Fixes
+
+* only nag about skill upgrades once an agent's MCP is configured ([4610c1e](https://github.com/FabioFiorita/porcelain/commit/4610c1e50ddb0df0f9d7a044176e2777bddb6884))
+
 ## [0.20.2](https://github.com/FabioFiorita/porcelain/compare/v0.20.1...v0.20.2) (2026-07-06)
 
 ### Features
