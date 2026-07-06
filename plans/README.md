@@ -26,7 +26,7 @@ Ordered by leverage; most plans are independent — see Dependency notes.
 | 025 | One durable-JSON factory (fold 4 hand-copied stores; cache modes; size cap) | tech-debt | P1 | M | MED | — | DONE |
 | 027 | Daemon integration harness (auth gate, CORS, WS session — boot it for real) | tests | P1 | L | MED | — | DONE |
 | 026 | One working-tree snapshot per poll tick (dedupe 3s git spawns) | perf | P2 | M | MED | 025 | DONE |
-| 029 | Verify typechecks once; release builds once and ships the tested artifact | dx | P2 | S | LOW | — | TODO |
+| 029 | Verify typechecks once; release builds once and ships the tested artifact | dx | P2 | S | LOW | — | DONE (release path unproven until next tag push) |
 | 028 | WS-client characterization tests (reconnect, outbox, pending rejection) | tests | P2 | L | LOW | — | TODO |
 | 030 | Highlighting perf (cross-mount token LRU + fine-grained Shiki) | perf | P2 | M | LOW | — | TODO |
 | 034 | Agent comment replies (answer_review_comment; plugin 2.8.0) | direction | P2 | M | MED | — | TODO |

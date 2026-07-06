@@ -23,10 +23,10 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
-      - run: pnpm typecheck
       - run: pnpm test
+      - run: pnpm build
       - run: pnpm exec playwright install --with-deps chromium
-      - run: pnpm test:e2e
+      - run: pnpm test:e2e:prebuilt
       # Pre-create the draft release so electron-builder reuses it. Without this,
       # its dmg and zip uploaders run concurrently, both see "no release exists",
       # and each creates its own draft — splitting assets across two releases.
@@ -38,7 +38,7 @@ jobs:
             || gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
                  --draft --title "Porcelain ${GITHUB_REF_NAME#v}" --generate-notes
       - name: Build and publish to GitHub Releases
-        run: pnpm release
+        run: pnpm release:prebuilt
         env:
           # Auto-provided; electron-builder reads GH_TOKEN for the github provider.
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
