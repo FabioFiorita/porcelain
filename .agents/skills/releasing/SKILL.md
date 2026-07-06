@@ -14,8 +14,9 @@ for `electron-updater`.
    runs on every push to `main` + PRs: install → lint → typecheck → test → build on
    Ubuntu).
 2. **The e2e suite is the release gate, and it runs in CI — not on your machine.**
-   `release.yml` (`macos-14`) runs `pnpm test:e2e` on the tag push: it builds, then
-   Playwright drives the real built app, `-darwin` screenshot baselines included. You
+   `release.yml` (`macos-14`) builds **once** on the tag push, then runs
+   `pnpm test:e2e:prebuilt` against that build: Playwright drives the real built app,
+   `-darwin` screenshot baselines included, and the same `out/` is what ships. You
    do **not** run it locally before tagging. (It's kept OUT of the per-commit gate,
    hard rule 3, so commits stay fast; and out of the Ubuntu `ci.yml`, which can't
    launch the app or assert the `-darwin` baselines — `ci.yml` only `typecheck:e2e`s.)
@@ -40,12 +41,15 @@ for `electron-updater`.
    mismatched release. (`pnpm changelog` only writes the *newest* section and leaves
    published history alone — see Changelog below for why and the hook-ordering catch.)
 4. **`git push --follow-tags`** — pushing the `v*` tag triggers
-   `.github/workflows/release.yml` (macOS runner, `macos-14`): it re-runs the gate,
-   then `pnpm release` (= `electron-builder --mac --publish always`) builds, signs,
-   notarizes, and uploads `dmg` + `zip` + `latest-mac.yml`.
+   `.github/workflows/release.yml` (macOS runner, `macos-14`): lint → test → build →
+   `test:e2e:prebuilt` → `pnpm release:prebuilt` (= `electron-builder --mac
+   --publish always`, packaging the already-built `out/`) signs, notarizes, and
+   uploads `dmg` + `zip` + `latest-mac.yml`. One build; the artifact that ships is
+   the artifact e2e tested (reordered 2026-07-05, plan 029 — the old flow built a
+   second, untested bundle inside `pnpm release`).
 5. electron-builder uploads to a **draft** release. The workflow pre-creates a single
    draft (`gh release create "$GITHUB_REF_NAME" --draft --generate-notes`, idempotent
-   via `gh release view ||`) before `pnpm release` so the dmg and zip uploaders share
+   via `gh release view ||`) before `pnpm release:prebuilt` so the dmg and zip uploaders share
    one release — without it each uploader created its own draft and split the assets.
    Open the draft on GitHub, verify the assets and notes, then **Publish** (and "Set
    as latest") so users and the auto-updater can see it. Draft-then-manually-publish
