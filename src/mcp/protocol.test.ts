@@ -31,6 +31,7 @@ describe('handleRpc', () => {
       'get_feature_view',
       'get_review_comments',
       'resolve_review_comment',
+      'answer_review_comment',
       'get_reviewed_files',
       'set_feature_artifact',
       'get_feature_artifact',

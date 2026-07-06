@@ -26,6 +26,8 @@ export const reviewCommentSchema = z.object({
   body: z.string(),
   resolved: z.boolean().default(false),
   createdAt: z.number(),
+  /** The agent's one reply (overwritten on re-answer), set via the MCP answer tool. */
+  agentReply: z.object({ body: z.string(), createdAt: z.number() }).optional(),
 })
 export type ReviewComment = z.infer<typeof reviewCommentSchema>
 

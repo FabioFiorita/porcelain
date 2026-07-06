@@ -15,7 +15,7 @@ import {
   readCards,
   updateCard,
 } from './board-file'
-import { describeComments, readComments, resolveComment } from './comment-file'
+import { answerComment, describeComments, readComments, resolveComment } from './comment-file'
 import { describeFeatureView, readFeatureView, sourceByPath } from './feature-view-file'
 import { clearLayers, describeLayers, readLayers, setLayers, toLayers } from './layers-file'
 import { describeNotes, readNotes } from './notes-file'
@@ -71,6 +71,15 @@ export async function callTool(name: string, args: Record<string, unknown>): Pro
     return resolveComment(repoPath, id)
       ? `Resolved comment ${id} for ${repoPath}`
       : `No open comment ${id} for ${repoPath}`
+  }
+  if (name === 'answer_review_comment') {
+    const id = asString(args.id)
+    const body = asString(args.body)
+    if (!id) throw new Error('id is required')
+    if (!body) throw new Error('body is required')
+    return answerComment(repoPath, id, body)
+      ? `Answered comment ${id} for ${repoPath}`
+      : `No comment ${id} for ${repoPath}`
   }
   if (name === 'get_reviewed_files') {
     return describeReviewed(repoPath, readReviewed(repoPath))

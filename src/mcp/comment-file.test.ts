@@ -2,7 +2,7 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { describeComments, readComments, resolveComment } from './comment-file'
+import { answerComment, describeComments, readComments, resolveComment } from './comment-file'
 
 describe('describeComments', () => {
   it('explains a repo with no comments', () => {
@@ -93,5 +93,46 @@ describe('comment-file round-trip', () => {
     expect(resolveComment('/repo', 'nope')).toBe(false)
     resolveComment('/repo', 'c1')
     expect(resolveComment('/repo', 'c1')).toBe(false)
+  })
+
+  it('attaches an agent reply by id and reads it back', () => {
+    seed()
+    expect(answerComment('/repo', 'c1', 'bounded by MAX_RETRIES')).toBe(true)
+    expect(readComments('/repo')[0]?.agentReply).toMatchObject({ body: 'bounded by MAX_RETRIES' })
+  })
+
+  it('returns false answering an unknown id or a blank body', () => {
+    seed()
+    expect(answerComment('/repo', 'nope', 'x')).toBe(false)
+    expect(answerComment('/repo', 'c1', '   ')).toBe(false)
+    expect(readComments('/repo')[0]?.agentReply).toBeUndefined()
+  })
+
+  it('overwrites the reply on a second answer', () => {
+    seed()
+    answerComment('/repo', 'c1', 'first')
+    answerComment('/repo', 'c1', 'second')
+    expect(readComments('/repo')[0]?.agentReply?.body).toBe('second')
+  })
+
+  it('does not strip an agent reply when resolving (app-written field survives)', () => {
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(
+      file,
+      JSON.stringify({
+        '/repo': [
+          {
+            id: 'c1',
+            path: 'a.ts',
+            body: 'x',
+            resolved: false,
+            createdAt: 1,
+            agentReply: { body: 'kept', createdAt: 2 },
+          },
+        ],
+      }),
+    )
+    expect(resolveComment('/repo', 'c1')).toBe(true)
+    expect(readComments('/repo')[0]?.agentReply).toEqual({ body: 'kept', createdAt: 2 })
   })
 })

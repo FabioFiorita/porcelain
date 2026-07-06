@@ -41,6 +41,7 @@ Keep it tight: the files that make up THIS feature, broad enough that the human 
 The human also leaves comments in Porcelain — anchored to specific lines (or a whole file) — as concrete review context for you. They're the counterpart to the review set: app → agent. Check them:
 
 - `get_review_comments` — `{ repoPath }` → the OPEN comments, each with its file/line anchor, the snippet it was attached to, the note, and an id. Each is also tagged with the file's feature-view status — `(changed)` (in the git diff), `(context)`, or `(shipped)` — so you can tell a comment on a file you diffed from one on an unchanged context/cross-seam file the human is asking about. Read these before and during the work: they tell you exactly what to explain, fix, or look at.
+- `answer_review_comment` — `{ repoPath, id, body }` → attach a short reply (one or two sentences) to a comment when the note is a QUESTION; Porcelain renders your answer under the comment. One reply per comment (re-answering overwrites it). Answering is separate from resolving — still `resolve_review_comment` once the note is actually addressed.
 - `resolve_review_comment` — `{ repoPath, id }` → mark one resolved once you've ACTUALLY addressed the note; it then drops off the reviewer's open list.
 
 When the human says "look at my comments", "I left some notes", or asks about a specific line/diff, call `get_review_comments` first.

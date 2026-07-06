@@ -134,6 +134,20 @@ export const TOOLS = [
     },
   },
   {
+    name: 'answer_review_comment',
+    description:
+      'Answer a reviewer\'s comment by attaching a short reply to it, by its id (from get_review_comments). Use this when the note is a QUESTION (e.g. "why is this setTimeout here?") — reply in one or two sentences and Porcelain renders your answer under the comment for the human. A comment holds one reply; answering again overwrites it. This is separate from resolving: still call resolve_review_comment once the underlying note is actually addressed.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        repoPath: { type: 'string', description: 'Absolute path to the repository' },
+        id: { type: 'string', description: 'The comment id from get_review_comments' },
+        body: { type: 'string', description: 'The reply, one or two sentences' },
+      },
+      required: ['repoPath', 'id', 'body'],
+    },
+  },
+  {
     name: 'get_reviewed_files',
     description:
       "Read which files the human has checked off as reviewed for a repo. Porcelain lets the reviewer mark each changed file reviewed (a per-file checkbox in the Changes / Feature lists); this returns those repo-relative paths. Use it to see how far the human has gotten and where to focus — any changed file NOT in this list is still unreviewed, so explain or double-check those, and treat reviewed ones as already vetted. The marks describe the current working tree and reset when the changes are committed. Read-only: the marks are the human's review state, so there is no tool to set them.",

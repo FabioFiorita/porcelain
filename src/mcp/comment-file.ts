@@ -18,6 +18,7 @@ export interface Comment {
   body: string
   resolved: boolean
   createdAt: number
+  agentReply?: { body: string; createdAt: number }
 }
 
 type Comments = Record<string, Comment[]>
@@ -48,6 +49,13 @@ function parseComments(value: unknown): Comment[] {
     if (typeof item.startLine === 'number') comment.startLine = item.startLine
     if (typeof item.endLine === 'number') comment.endLine = item.endLine
     if (typeof item.anchorText === 'string') comment.anchorText = item.anchorText
+    if (
+      isRecord(item.agentReply) &&
+      typeof item.agentReply.body === 'string' &&
+      typeof item.agentReply.createdAt === 'number'
+    ) {
+      comment.agentReply = { body: item.agentReply.body, createdAt: item.agentReply.createdAt }
+    }
     comments.push(comment)
   }
   return comments
@@ -93,6 +101,23 @@ export function resolveComment(repoPath: string, id: string): boolean {
   return true
 }
 
+/**
+ * Attach the agent's reply to a comment (overwriting any previous reply), by id.
+ * Returns true if the comment was found and the reply written; false for an unknown
+ * id or a blank body (we never store an empty reply).
+ */
+export function answerComment(repoPath: string, id: string, body: string): boolean {
+  if (body.trim().length === 0) return false
+  const all = readAll()
+  const comments = all[repoPath]
+  if (!comments) return false
+  const target = comments.find((c) => c.id === id)
+  if (!target) return false
+  target.agentReply = { body, createdAt: Date.now() }
+  writeAll(all)
+  return true
+}
+
 function describeOne(c: Comment, sourceOf?: ReadonlyMap<string, string>): string {
   const where =
     c.startLine === undefined
@@ -105,7 +130,9 @@ function describeOne(c: Comment, sourceOf?: ReadonlyMap<string, string>): string
   const status = sourceOf?.get(c.path)
   const tag = status ? ` (${status})` : ''
   const anchor = c.anchorText ? `\n    « ${c.anchorText.replace(/\n/g, '\n      ')} »` : ''
-  return `- [${c.id}] ${where}${tag}${anchor}\n    ${c.body}`
+  // Surface any prior reply so the agent doesn't blindly re-answer (only its first line).
+  const reply = c.agentReply ? `\n    ↳ answered: ${c.agentReply.body.split('\n')[0]}` : ''
+  return `- [${c.id}] ${where}${tag}${anchor}\n    ${c.body}${reply}`
 }
 
 /**
@@ -130,5 +157,5 @@ export function describeComments(
     return `No open review comments for ${repoPath} (${resolved} resolved).`
   }
   const body = open.map((c) => describeOne(c, sourceOf)).join('\n')
-  return `${open.length} open review comment(s) for ${repoPath}${resolved ? ` (${resolved} resolved)` : ''}. Resolve each with resolve_review_comment once addressed:\n${body}`
+  return `${open.length} open review comment(s) for ${repoPath}${resolved ? ` (${resolved} resolved)` : ''}. Answer a question with answer_review_comment, and resolve each with resolve_review_comment once addressed:\n${body}`
 }

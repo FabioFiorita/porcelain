@@ -68,6 +68,31 @@ describe('comment-store CRUD', () => {
     expect(await readComments('/repo')).toEqual([])
   })
 
+  it('preserves an agent reply across an app-side edit and resolve', async () => {
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(
+      file,
+      JSON.stringify({
+        '/repo': [
+          {
+            id: 'a',
+            path: 'a.ts',
+            body: 'why unbounded?',
+            resolved: false,
+            createdAt: 1,
+            agentReply: { body: 'bounded by MAX_RETRIES', createdAt: 2 },
+          },
+        ],
+      }),
+    )
+    await editComment('/repo', 'a', 'why unbounded here?')
+    await setCommentResolved('/repo', 'a', true)
+    const comment = (await readComments('/repo'))[0]
+    expect(comment?.body).toBe('why unbounded here?')
+    expect(comment?.resolved).toBe(true)
+    expect(comment?.agentReply).toEqual({ body: 'bounded by MAX_RETRIES', createdAt: 2 })
+  })
+
   it('returns comments newest first (by createdAt)', async () => {
     mkdirSync(dir, { recursive: true })
     writeFileSync(

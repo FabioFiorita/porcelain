@@ -37,8 +37,10 @@ export const ARTIFACT_SKILL_NAME = 'feature-artifact'
  * 2.7.0: added the feature-artifact channel — set/get/clear_feature_artifact let the agent
  *        author a self-contained HTML explainer Porcelain renders in a sandboxed iframe
  *        (two-way) — plus a focused feature-artifact skill.
+ * 2.8.0: added answer_review_comment — the agent attaches one reply to a review comment
+ *        (overwritten on re-answer), rendered under the comment in Porcelain.
  */
-export const PLUGIN_VERSION = '2.7.0'
+export const PLUGIN_VERSION = '2.8.0'
 
 /**
  * The local Claude Code marketplace root the app writes. Lives in ~/.porcelain

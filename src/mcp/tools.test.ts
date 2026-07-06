@@ -137,6 +137,34 @@ describe('callTool', () => {
     expect(text).toContain('[c1] server/svc.ts (shipped)')
   })
 
+  it('answer_review_comment attaches a reply, found/not-found by id', async () => {
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(
+      commentsFile,
+      JSON.stringify({
+        '/repo': [{ id: 'c1', path: 'a.ts', body: 'why?', resolved: false, createdAt: 1 }],
+      }),
+    )
+    expect(
+      await callTool('answer_review_comment', { repoPath: '/repo', id: 'c1', body: 'because' }),
+    ).toContain('Answered comment c1')
+    const stored: Record<string, Array<{ agentReply?: { body: string } }>> = JSON.parse(
+      readFileSync(commentsFile, 'utf8'),
+    )
+    expect(stored['/repo']?.[0]?.agentReply?.body).toBe('because')
+    expect(
+      await callTool('answer_review_comment', { repoPath: '/repo', id: 'nope', body: 'x' }),
+    ).toContain('No comment nope')
+  })
+  it('answer_review_comment requires id and body', async () => {
+    await expect(
+      callTool('answer_review_comment', { repoPath: '/repo', body: 'x' }),
+    ).rejects.toThrow('id is required')
+    await expect(
+      callTool('answer_review_comment', { repoPath: '/repo', id: 'c1' }),
+    ).rejects.toThrow('body is required')
+  })
+
   it('get_repo_notes reads the human notes scratchpad', async () => {
     mkdirSync(dir, { recursive: true })
     writeFileSync(notesFile, JSON.stringify({ '/repo': '# conventions\n- no any' }))

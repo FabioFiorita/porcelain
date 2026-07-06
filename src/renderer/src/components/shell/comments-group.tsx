@@ -83,6 +83,14 @@ function CommentRow({ comment }: { comment: ReviewComment }): React.JSX.Element 
       >
         {comment.body}
       </button>
+      {comment.agentReply && (
+        <div className="mt-0.5 flex flex-col gap-0.5 border-l-2 border-border pl-2">
+          <span className="text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
+            Agent
+          </span>
+          <p className="text-xs text-muted-foreground">{comment.agentReply.body}</p>
+        </div>
+      )}
     </div>
   )
 }

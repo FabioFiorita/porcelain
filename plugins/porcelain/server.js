@@ -120,6 +120,19 @@ const TOOLS = [
     }
   },
   {
+    name: "answer_review_comment",
+    description: `Answer a reviewer's comment by attaching a short reply to it, by its id (from get_review_comments). Use this when the note is a QUESTION (e.g. "why is this setTimeout here?") — reply in one or two sentences and Porcelain renders your answer under the comment for the human. A comment holds one reply; answering again overwrites it. This is separate from resolving: still call resolve_review_comment once the underlying note is actually addressed.`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        repoPath: { type: "string", description: "Absolute path to the repository" },
+        id: { type: "string", description: "The comment id from get_review_comments" },
+        body: { type: "string", description: "The reply, one or two sentences" }
+      },
+      required: ["repoPath", "id", "body"]
+    }
+  },
+  {
     name: "get_reviewed_files",
     description: "Read which files the human has checked off as reviewed for a repo. Porcelain lets the reviewer mark each changed file reviewed (a per-file checkbox in the Changes / Feature lists); this returns those repo-relative paths. Use it to see how far the human has gotten and where to focus — any changed file NOT in this list is still unreviewed, so explain or double-check those, and treat reviewed ones as already vetted. The marks describe the current working tree and reset when the changes are committed. Read-only: the marks are the human's review state, so there is no tool to set them.",
     inputSchema: {
@@ -689,6 +702,9 @@ function parseComments(value) {
     if (typeof item.startLine === "number") comment.startLine = item.startLine;
     if (typeof item.endLine === "number") comment.endLine = item.endLine;
     if (typeof item.anchorText === "string") comment.anchorText = item.anchorText;
+    if (isRecord$5(item.agentReply) && typeof item.agentReply.body === "string" && typeof item.agentReply.createdAt === "number") {
+      comment.agentReply = { body: item.agentReply.body, createdAt: item.agentReply.createdAt };
+    }
     comments.push(comment);
   }
   return comments;
@@ -727,14 +743,27 @@ function resolveComment(repoPath, id) {
   writeAll$2(all);
   return true;
 }
+function answerComment(repoPath, id, body) {
+  if (body.trim().length === 0) return false;
+  const all = readAll$5();
+  const comments = all[repoPath];
+  if (!comments) return false;
+  const target = comments.find((c) => c.id === id);
+  if (!target) return false;
+  target.agentReply = { body, createdAt: Date.now() };
+  writeAll$2(all);
+  return true;
+}
 function describeOne(c, sourceOf) {
   const where = c.startLine === void 0 ? c.path : c.endLine && c.endLine !== c.startLine ? `${c.path}:${c.startLine}-${c.endLine}` : `${c.path}:${c.startLine}`;
   const status = sourceOf?.get(c.path);
   const tag = status ? ` (${status})` : "";
   const anchor = c.anchorText ? `
     « ${c.anchorText.replace(/\n/g, "\n      ")} »` : "";
+  const reply = c.agentReply ? `
+    ↳ answered: ${c.agentReply.body.split("\n")[0]}` : "";
   return `- [${c.id}] ${where}${tag}${anchor}
-    ${c.body}`;
+    ${c.body}${reply}`;
 }
 function describeComments(repoPath, comments, sourceOf) {
   const open = comments.filter((c) => !c.resolved);
@@ -746,7 +775,7 @@ function describeComments(repoPath, comments, sourceOf) {
     return `No open review comments for ${repoPath} (${resolved} resolved).`;
   }
   const body = open.map((c) => describeOne(c, sourceOf)).join("\n");
-  return `${open.length} open review comment(s) for ${repoPath}${resolved ? ` (${resolved} resolved)` : ""}. Resolve each with resolve_review_comment once addressed:
+  return `${open.length} open review comment(s) for ${repoPath}${resolved ? ` (${resolved} resolved)` : ""}. Answer a question with answer_review_comment, and resolve each with resolve_review_comment once addressed:
 ${body}`;
 }
 const FILE_SOURCES$1 = /* @__PURE__ */ new Set(["changed", "context", "shipped"]);
@@ -1132,6 +1161,13 @@ async function callTool(name, args) {
     const id = asString(args.id);
     if (!id) throw new Error("id is required");
     return resolveComment(repoPath, id) ? `Resolved comment ${id} for ${repoPath}` : `No open comment ${id} for ${repoPath}`;
+  }
+  if (name === "answer_review_comment") {
+    const id = asString(args.id);
+    const body = asString(args.body);
+    if (!id) throw new Error("id is required");
+    if (!body) throw new Error("body is required");
+    return answerComment(repoPath, id, body) ? `Answered comment ${id} for ${repoPath}` : `No comment ${id} for ${repoPath}`;
   }
   if (name === "get_reviewed_files") {
     return describeReviewed(repoPath, readReviewed(repoPath));
