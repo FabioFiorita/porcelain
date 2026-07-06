@@ -174,7 +174,7 @@
         <div data-reveal class="sec-head" style="text-align:center;max-width:720px;margin:0 auto;">
           <div style="font-family:var(--mono);font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin-bottom:16px;">The human ↔ agent loop</div>
           <h2 style="font-family:var(--mono);font-weight:600;font-size:clamp(28px,4.2vw,48px);line-height:1.08;letter-spacing:-.02em;margin:0 0 20px;">Review with your agent,<br> not just your code.</h2>
-          <p style="margin:0 auto 14px;font-size:18px;line-height:1.6;color:var(--dim);">Bundled one-click plugins for Claude Code and Codex run as a local MCP server: <span style="color:var(--ink);">it stays on your machine, no telemetry</span>. Your comments become its review context; its work and resolutions flow back to you, on the same feature, in the same order.</p>
+          <p style="margin:0 auto 14px;font-size:18px;line-height:1.6;color:var(--dim);">A one-click local MCP server for Claude Code, Codex, and OpenCode, plus companion skills: <span style="color:var(--ink);">it stays on your machine, no telemetry</span>. Your comments become its review context; its work and resolutions flow back to you, on the same feature, in the same order.</p>
         </div>
 
         <!-- loop diagram -->
@@ -219,7 +219,7 @@
             <h3 style="font-family:var(--mono);font-weight:600;font-size:clamp(24px,3.4vw,36px);line-height:1.12;letter-spacing:-.018em;margin:0 0 18px;">A kanban the agent reads and updates.</h3>
             <p style="font-size:17px;line-height:1.62;color:var(--dim);margin:0 0 22px;">A per-repo To&nbsp;Do / Doing / Done board, connected over MCP. Your agent reads what's planned, moves cards as it works, and writes back what it shipped, all without leaving the same window you review in.</p>
             <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:13px;">
-              <li style="display:flex;gap:11px;font-size:15px;color:var(--dim);"><span style="color:var(--mint);font-family:var(--mono);">▹</span> One-click install for Claude Code &amp; Codex, no JSON to paste</li>
+              <li style="display:flex;gap:11px;font-size:15px;color:var(--dim);"><span style="color:var(--mint);font-family:var(--mono);">▹</span> One-click MCP for Claude Code, Codex &amp; OpenCode, no JSON to paste</li>
               <li style="display:flex;gap:11px;font-size:15px;color:var(--dim);"><span style="color:var(--mint);font-family:var(--mono);">▹</span> Local MCP server, nothing leaves your machine</li>
             </ul>
           </div>
@@ -328,7 +328,7 @@
         <div data-reveal style="padding:26px;background:var(--glass);border:1px solid var(--line);border-radius:17px;backdrop-filter:blur(22px) saturate(165%);-webkit-backdrop-filter:blur(22px) saturate(165%);box-shadow:inset 0 1px 0 rgba(255,255,255,.18),inset 0 0 0 1px rgba(255,255,255,.03),0 14px 38px rgba(2,4,20,.32);">
           <div style="font-family:var(--mono);font-size:14px;color:var(--accent);margin-bottom:16px;">Agent integration · MCP</div>
           <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:9px;font-size:14px;line-height:1.5;color:var(--dim);">
-            <li>One-click plugin for Claude Code &amp; Codex, no port opened</li>
+            <li>One-click MCP for Claude Code, Codex &amp; OpenCode, no port opened</li>
             <li>Feature review sets, two-way</li>
             <li>Review layers your agent reads &amp; manages</li>
             <li>Project board your agent reads &amp; updates</li>
@@ -380,16 +380,17 @@
         <div data-reveal style="padding:32px;background:var(--glass);border:1px solid var(--line);border-radius:18px;backdrop-filter:blur(22px) saturate(165%);-webkit-backdrop-filter:blur(22px) saturate(165%);box-shadow:inset 0 1px 0 rgba(255,255,255,.18),inset 0 0 0 1px rgba(255,255,255,.03),0 14px 38px rgba(2,4,20,.32);">
           <div style="font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin-bottom:14px;">Step 02</div>
           <h3 style="font-family:var(--mono);font-weight:600;font-size:22px;margin:0 0 12px;">Connect your agent</h3>
-          <p style="font-size:15px;line-height:1.6;color:var(--dim);margin:0 0 20px;">One click from <span style="color:var(--ink);">Settings → Agents</span> installs the plugin (MCP server and skills) for Claude&nbsp;Code or Codex. Or run it by hand:</p>
+          <p style="font-size:15px;line-height:1.6;color:var(--dim);margin:0 0 20px;">From <span style="color:var(--ink);">Settings → Agents</span>: install the skills, then click <span style="color:var(--ink);">Add&nbsp;MCP</span> for each agent you use — Claude&nbsp;Code, Codex, or OpenCode. Or run it by hand:</p>
           <div style="background:rgba(4,5,16,.6);border:1px solid var(--line);border-radius:12px;padding:16px 18px;font-family:var(--mono);font-size:12.5px;line-height:1.85;color:var(--dim);overflow-x:auto;">
-            <div style="color:var(--accent);font-size:11px;letter-spacing:.06em;margin-bottom:2px;"># Claude Code</div>
-            <div><span style="color:var(--mint);">$</span> claude plugin marketplace add ~/.porcelain/plugin</div>
-            <div><span style="color:var(--mint);">$</span> claude plugin install porcelain@porcelain</div>
-            <div style="color:var(--accent);font-size:11px;letter-spacing:.06em;margin:12px 0 2px;"># Codex</div>
-            <div><span style="color:var(--mint);">$</span> codex plugin marketplace add ~/.porcelain/codex-plugin</div>
-            <div><span style="color:var(--mint);">$</span> codex plugin add porcelain@porcelain-local</div>
+            <div style="color:var(--accent);font-size:11px;letter-spacing:.06em;margin-bottom:2px;"># Skills — every agent, via skills.sh</div>
+            <div><span style="color:var(--mint);">$</span> npx skills add FabioFiorita/porcelain</div>
+            <div style="color:var(--accent);font-size:11px;letter-spacing:.06em;margin:12px 0 2px;"># MCP — point your agent's config at the local server</div>
+            <div>node ~/.porcelain/mcp/server.js</div>
+            <div style="color:var(--faint);margin-top:4px;">Claude&nbsp;Code&nbsp;· ~/.claude.json</div>
+            <div style="color:var(--faint);">Codex&nbsp;· ~/.codex/config.toml</div>
+            <div style="color:var(--faint);">OpenCode&nbsp;· ~/.config/opencode/opencode.json</div>
           </div>
-          <p style="font-family:var(--mono);font-size:12px;color:var(--faint);margin:16px 0 0;">Claude Code: run <span style="color:var(--dim);">/reload-plugins</span>. Codex: start a new thread.</p>
+          <p style="font-family:var(--mono);font-size:12px;color:var(--faint);margin:16px 0 0;">Update the skills later with <span style="color:var(--dim);">npx skills upgrade</span>.</p>
         </div>
       </div>
 
