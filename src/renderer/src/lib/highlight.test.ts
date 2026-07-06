@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   getHighlighter,
   isTokenizable,
+  LANGS,
   languageFor,
   MAX_TOKENIZE_LINES,
   tokenizeLines,
@@ -26,6 +27,15 @@ describe('tokenizeLines', () => {
     const h = await getHighlighter()
     const tokens = tokenizeLines(h, 'const a = 1\nconst b = 2', 'typescript')
     expect(tokens).toHaveLength(2)
+  })
+
+  it('tokenizes every one of the fine-grained bundled languages', async () => {
+    const h = await getHighlighter()
+    // Proves all 11 grammars registered by the core highlighter loaded — a
+    // missing @shikijs/langs import would throw here, not just ship a bad theme.
+    for (const lang of LANGS) {
+      expect(Array.isArray(tokenizeLines(h, 'x', lang))).toBe(true)
+    }
   })
 
   it('keeps multiline-comment continuation lines colored as comments', async () => {

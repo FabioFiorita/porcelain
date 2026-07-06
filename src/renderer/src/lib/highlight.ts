@@ -1,14 +1,27 @@
-import {
-  type BundledLanguage,
-  createHighlighter,
-  createJavaScriptRegexEngine,
-  type HighlighterGeneric,
-  type ThemedToken,
-} from 'shiki'
+// Fine-grained Shiki: import ONLY the grammars/theme the app uses, not the
+// `'shiki'` meta-bundle (which registers the entire language/theme registry in
+// the renderer chunk). Adding a 12th language = one `@shikijs/langs/<x>` import
+// below + a `LANGS` entry — never reach back for the meta bundle.
+
+import langCss from '@shikijs/langs/css'
+import langHtml from '@shikijs/langs/html'
+import langJavascript from '@shikijs/langs/javascript'
+import langJson from '@shikijs/langs/json'
+import langJsx from '@shikijs/langs/jsx'
+import langMarkdown from '@shikijs/langs/markdown'
+import langShellscript from '@shikijs/langs/shellscript'
+import langSwift from '@shikijs/langs/swift'
+import langTsx from '@shikijs/langs/tsx'
+import langTypescript from '@shikijs/langs/typescript'
+import langYaml from '@shikijs/langs/yaml'
+import themeDarkPlus from '@shikijs/themes/dark-plus'
+import type { BundledLanguage, HighlighterGeneric, ThemedToken } from 'shiki'
+import { createHighlighterCore } from 'shiki/core'
+import { createJavaScriptRegexEngine } from 'shiki/engine/javascript'
 
 export const HIGHLIGHT_THEME = 'dark-plus'
 
-const LANGS = [
+export const LANGS = [
   'typescript',
   'tsx',
   'javascript',
@@ -22,15 +35,31 @@ const LANGS = [
   'swift',
 ] as const satisfies readonly BundledLanguage[]
 
+// Return the broad HighlighterGeneric type (a supertype of the core build) so
+// consumers that pass this highlighter around compile unchanged — they only
+// ever call `codeToTokensBase`, which the core build provides. The type is
+// import-only (zero bundle weight); the runtime is the fine-grained core.
 type Highlighter = HighlighterGeneric<BundledLanguage, typeof HIGHLIGHT_THEME>
 
 let highlighterPromise: Promise<Highlighter> | null = null
 
 export function getHighlighter(): Promise<Highlighter> {
   // JS regex engine: the renderer CSP (no 'wasm-unsafe-eval') blocks the default WASM engine
-  highlighterPromise ??= createHighlighter({
-    themes: [HIGHLIGHT_THEME],
-    langs: [...LANGS],
+  highlighterPromise ??= createHighlighterCore({
+    themes: [themeDarkPlus],
+    langs: [
+      langTypescript,
+      langTsx,
+      langJavascript,
+      langJsx,
+      langJson,
+      langCss,
+      langHtml,
+      langMarkdown,
+      langYaml,
+      langShellscript,
+      langSwift,
+    ],
     engine: createJavaScriptRegexEngine(),
   }) as Promise<Highlighter>
   return highlighterPromise
@@ -102,8 +131,7 @@ export function isTokenizable(content: string): boolean {
  * loses that state, so continuation lines of a multiline block comment or
  * template literal were highlighted as code. The returned array has exactly one
  * entry per `\n`-split line, so callers can index it by line number.
- */
-/**
+ *
  * Bounded LRU over whole-file tokenization. The viewer mounts only the ACTIVE
  * tab, so a component-local `useMemo` is discarded when you switch away — and
  * revisiting re-pays the full synchronous tokenization for identical content.
