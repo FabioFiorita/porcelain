@@ -457,6 +457,12 @@
   background-color: var(--color-muted-foreground) !important;
 }
 
+/* Touch scroll stays inside the terminal scrollback — never chains to the page (iOS). */
+.xterm-viewport {
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+}
+
 /* Electron hiddenInset title bar: draggable chrome regions */
 .app-drag {
   -webkit-app-region: drag;

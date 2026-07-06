@@ -108,28 +108,47 @@ function create(id: string): Instance {
   wrapper.style.height = '100%'
   wrapper.style.width = '100%'
   term.open(wrapper)
-  // GPU renderer: its customGlyphs paint box-drawing/block-element chars edge-to-edge
-  // (crisp Claude Code logo + powerline fills), which the DOM renderer can't — it leaves
-  // a letter-spacing gap between every block column. Glyphs are still rasterized via canvas
-  // fillText, so the per-glyph Nerd Font fallback survives the switch. Best-effort: if WebGL
-  // is unavailable, or its context is lost later, dispose so xterm reverts to the DOM
-  // renderer (degraded block art) instead of painting nothing.
-  try {
-    const webgl = new WebglAddon()
-    webgl.onContextLoss(() => webgl.dispose())
-    term.loadAddon(webgl)
-    // The WebGL atlas rasterizes glyphs in an offscreen canvas which — unlike DOM text —
-    // does NOT trigger @font-face loading, so Nerd Font fallback glyphs cache as tofu. Load
-    // the terminal fonts explicitly (idempotent), then clear the atlas so they re-rasterize
-    // against the real faces.
-    Promise.all([
-      document.fonts.load('12px "Geist Mono Variable"'),
-      document.fonts.load('12px "Symbols Nerd Font Mono"'),
-    ])
-      .then(() => term.clearTextureAtlas())
-      .catch(() => {})
-  } catch {
-    // No WebGL context available — stay on the DOM renderer.
+  // iOS soft keyboard mangles shell input (autocapitalizes the first char, autocorrects
+  // command names, injects predictive-text substitutions) via xterm's hidden helper
+  // textarea. xterm already sets autocorrect/autocapitalize/spellcheck, but not autocomplete;
+  // set all four defensively (idempotent, self-documenting). Inert on desktop.
+  const helper = wrapper.querySelector('.xterm-helper-textarea')
+  if (helper) {
+    helper.setAttribute('autocapitalize', 'off')
+    helper.setAttribute('autocorrect', 'off')
+    helper.setAttribute('autocomplete', 'off')
+    helper.setAttribute('spellcheck', 'false')
+  }
+  // Multi-touch Apple devices (iPad/iPhone Safari) evict WebGL contexts per-page under memory
+  // pressure, and each terminal session owns one — so a blanked/garbled terminal is the norm
+  // there. Take the DOM renderer instead: slower and it can't paint block-element art
+  // edge-to-edge, but it never blanks. Desktop Electron (maxTouchPoints 0) always takes the
+  // WebGL path below.
+  const coarseTouch = navigator.maxTouchPoints > 1
+  if (!coarseTouch) {
+    // GPU renderer: its customGlyphs paint box-drawing/block-element chars edge-to-edge
+    // (crisp Claude Code logo + powerline fills), which the DOM renderer can't — it leaves
+    // a letter-spacing gap between every block column. Glyphs are still rasterized via canvas
+    // fillText, so the per-glyph Nerd Font fallback survives the switch. Best-effort: if WebGL
+    // is unavailable, or its context is lost later, dispose so xterm reverts to the DOM
+    // renderer (degraded block art) instead of painting nothing.
+    try {
+      const webgl = new WebglAddon()
+      webgl.onContextLoss(() => webgl.dispose())
+      term.loadAddon(webgl)
+      // The WebGL atlas rasterizes glyphs in an offscreen canvas which — unlike DOM text —
+      // does NOT trigger @font-face loading, so Nerd Font fallback glyphs cache as tofu. Load
+      // the terminal fonts explicitly (idempotent), then clear the atlas so they re-rasterize
+      // against the real faces.
+      Promise.all([
+        document.fonts.load('12px "Geist Mono Variable"'),
+        document.fonts.load('12px "Symbols Nerd Font Mono"'),
+      ])
+        .then(() => term.clearTextureAtlas())
+        .catch(() => {})
+    } catch {
+      // No WebGL context available — stay on the DOM renderer.
+    }
   }
   // Keystrokes and fit-driven resizes flow back to this session's PTY over the
   // daemon WS session (lib/daemon.ts).
