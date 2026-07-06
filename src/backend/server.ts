@@ -40,7 +40,9 @@ import { ensureDaemonToken } from './token-file'
  * Contract with the shell: exactly ONE stdout line, `{"port": N}`, once
  * listening (everything else logs to stderr — and the token is NEVER printed:
  * the parent passed it via env, so it already knows it), and self-exit when
- * stdin ends (the parent died — don't linger as an orphan).
+ * stdin ends OR the parent pid changes (the parent died — don't linger as an
+ * orphan squatting the second-listener port; both checks live in the
+ * PORCELAIN_NO_STDIN_WATCHDOG block below).
  */
 
 // The shell resolves userData (it owns the dev `-dev` suffix) and hands the
@@ -142,13 +144,20 @@ async function main(): Promise<void> {
     }
   })
 
-  // If the user has the tailnet and/or LAN bind enabled, bring the second
-  // listener(s) up too. A missing interface (or a listen error) at boot must NOT
-  // crash or block the loopback listener — the start functions log to stderr and
-  // resolve null.
+  // If the user has the tailnet and/or LAN bind enabled — persisted config OR the
+  // boot env override (PORCELAIN_TAILNET_BIND / PORCELAIN_LAN_BIND = '1', so a
+  // headless/systemd daemon can share with no GUI and no config edit; the env
+  // FORCE-enables without flipping persisted config, keeping the unit file the
+  // source of truth) — bring the second listener(s) up too. A missing interface
+  // (or a listen error) at boot must NOT crash or block the loopback listener —
+  // the start functions log to stderr and resolve null.
   const bootConfig = await loadConfig()
-  if (bootConfig.tailnetBind === true) await startTailnetListener()
-  if (bootConfig.lanBind === true) await startLanListener()
+  if (bootConfig.tailnetBind === true || process.env.PORCELAIN_TAILNET_BIND === '1') {
+    await startTailnetListener()
+  }
+  if (bootConfig.lanBind === true || process.env.PORCELAIN_LAN_BIND === '1') {
+    await startLanListener()
+  }
 
   // Parent-death watchdog: the shell holds our stdin pipe open for our lifetime,
   // so stdin ending means the Electron process is gone — exit instead of orphaning.
@@ -161,6 +170,19 @@ async function main(): Promise<void> {
     process.stdin.resume()
     process.stdin.on('end', () => process.exit(0))
     process.stdin.on('close', () => process.exit(0))
+    // Companion check: reap orphans whose stdin never EOFs (e.g. a standalone/dev
+    // daemon whose spawning shell died) so they can't squat the fixed second-listener
+    // port forever. On Unix `ppid` changes ONLY when the original parent dies (the
+    // process is reparented to init/a subreaper), so key on the ppid CHANGING — NOT
+    // on `ppid === 1`: under systemd, pid 1 IS the parent, so a service-born daemon
+    // has initialPpid === 1 from the start, it never changes, and it is never
+    // mistaken for an orphan. (Supervised deployments set PORCELAIN_NO_STDIN_WATCHDOG=1
+    // anyway and skip this whole block — their supervisor owns the lifecycle.)
+    const initialPpid = process.ppid
+    const orphanPoll = setInterval(() => {
+      if (process.ppid !== initialPpid) process.exit(0)
+    }, 5000)
+    orphanPoll.unref()
   }
 }
 

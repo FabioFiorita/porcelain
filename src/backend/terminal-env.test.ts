@@ -18,6 +18,8 @@ describe('terminalEnv', () => {
       PORCELAIN_USER_DATA: '/tmp/ud',
       PORCELAIN_DEV: '1',
       PORCELAIN_ALLOWED_ORIGIN: 'http://localhost:5173',
+      PORCELAIN_TAILNET_BIND: '1',
+      PORCELAIN_LAN_BIND: '1',
       PORCELAIN_E2E: '1',
       PORCELAIN_SHELL: '/bin/bash',
     })
@@ -28,6 +30,8 @@ describe('terminalEnv', () => {
     expect('PORCELAIN_USER_DATA' in env).toBe(false)
     expect('PORCELAIN_DEV' in env).toBe(false)
     expect('PORCELAIN_ALLOWED_ORIGIN' in env).toBe(false)
+    expect('PORCELAIN_TAILNET_BIND' in env).toBe(false)
+    expect('PORCELAIN_LAN_BIND' in env).toBe(false)
     expect('PORCELAIN_E2E' in env).toBe(false)
     expect('PORCELAIN_SHELL' in env).toBe(false)
   })

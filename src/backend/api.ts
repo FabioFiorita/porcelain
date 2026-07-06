@@ -111,12 +111,14 @@ import {
   unmarkReviewed,
 } from './reviewed-store'
 import {
+  lanBindError,
   lanNumericUrl,
   lanUrl,
   startLanListener,
   startTailnetListener,
   stopLanListener,
   stopTailnetListener,
+  tailnetBindError,
   tailnetUrl,
 } from './tailnet-listener'
 import { listTerminals, renameTerminal, type TerminalInfo } from './terminal-manager'
@@ -984,50 +986,104 @@ export const router = t.router({
 
   // Remote access over Tailscale: the daemon can additionally listen on the
   // detected Tailscale interface (same token, fixed port; see tailnet-listener.ts).
-  // `enabled` is the persisted config flag; `url` is non-null only while the second
-  // listener is actually up (so the UI can distinguish "on, but no tailnet here").
-  tailnetStatus: t.procedure.query(async (): Promise<{ enabled: boolean; url: string | null }> => {
-    const config = await loadConfig()
-    return { enabled: config.tailnetBind === true, url: tailnetUrl() }
-  }),
+  // `enabled` is the persisted config flag OR the boot env override (`envForced`,
+  // PORCELAIN_TAILNET_BIND=1 — a headless daemon enabled by its unit file, so the
+  // GUI shows it on but not togglable); `url` is non-null only while the second
+  // listener is actually up, and `error` says why nothing bound ('in-use' = the
+  // fixed port is squatted) so the UI can distinguish that from "no tailnet here".
+  tailnetStatus: t.procedure.query(
+    async (): Promise<{
+      enabled: boolean
+      url: string | null
+      error: 'in-use' | null
+      envForced: boolean
+    }> => {
+      const config = await loadConfig()
+      const envForced = process.env.PORCELAIN_TAILNET_BIND === '1'
+      return {
+        enabled: config.tailnetBind === true || envForced,
+        url: tailnetUrl(),
+        error: tailnetBindError(),
+        envForced,
+      }
+    },
+  ),
 
-  setTailnetBind: t.procedure
-    .input(z.boolean())
-    .mutation(async ({ input }): Promise<{ enabled: boolean; url: string | null }> => {
+  setTailnetBind: t.procedure.input(z.boolean()).mutation(
+    async ({
+      input,
+    }): Promise<{
+      enabled: boolean
+      url: string | null
+      error: 'in-use' | null
+      envForced: boolean
+    }> => {
       await updateConfig((config) => ({ ...config, tailnetBind: input }))
       // Apply the change live: start the second listener (null url ⇒ no Tailscale
       // interface here) or tear it down. The loopback listener is untouched either way.
       if (input) await startTailnetListener()
       else await stopTailnetListener()
-      return { enabled: input, url: tailnetUrl() }
-    }),
+      const envForced = process.env.PORCELAIN_TAILNET_BIND === '1'
+      return {
+        enabled: input || envForced,
+        url: tailnetUrl(),
+        error: tailnetBindError(),
+        envForced,
+      }
+    },
+  ),
 
   // Remote access over the home LAN: the daemon can additionally listen on the
   // machine's RFC1918 private addresses (same token, same fixed port; see
   // lan.ts + tailnet-listener.ts). `url` prefers the `<host>.local` Bonjour name;
   // `numericUrl` is the numeric fallback. Both are non-null only while the LAN
-  // listener is actually up (so the UI can distinguish "on, but no LAN here").
+  // listener is actually up; `enabled`/`envForced` (PORCELAIN_LAN_BIND=1) and
+  // `error` ('in-use' = the fixed port is squatted) mirror tailnetStatus above.
   lanStatus: t.procedure.query(
-    async (): Promise<{ enabled: boolean; url: string | null; numericUrl: string | null }> => {
+    async (): Promise<{
+      enabled: boolean
+      url: string | null
+      numericUrl: string | null
+      error: 'in-use' | null
+      envForced: boolean
+    }> => {
       const config = await loadConfig()
-      return { enabled: config.lanBind === true, url: lanUrl(), numericUrl: lanNumericUrl() }
+      const envForced = process.env.PORCELAIN_LAN_BIND === '1'
+      return {
+        enabled: config.lanBind === true || envForced,
+        url: lanUrl(),
+        numericUrl: lanNumericUrl(),
+        error: lanBindError(),
+        envForced,
+      }
     },
   ),
 
-  setLanBind: t.procedure
-    .input(z.boolean())
-    .mutation(
-      async ({
-        input,
-      }): Promise<{ enabled: boolean; url: string | null; numericUrl: string | null }> => {
-        await updateConfig((config) => ({ ...config, lanBind: input }))
-        // Apply the change live: start the LAN listener(s) (null url ⇒ no private
-        // interface here) or tear them down. The loopback listener is untouched.
-        if (input) await startLanListener()
-        else await stopLanListener()
-        return { enabled: input, url: lanUrl(), numericUrl: lanNumericUrl() }
-      },
-    ),
+  setLanBind: t.procedure.input(z.boolean()).mutation(
+    async ({
+      input,
+    }): Promise<{
+      enabled: boolean
+      url: string | null
+      numericUrl: string | null
+      error: 'in-use' | null
+      envForced: boolean
+    }> => {
+      await updateConfig((config) => ({ ...config, lanBind: input }))
+      // Apply the change live: start the LAN listener(s) (null url ⇒ no private
+      // interface here) or tear them down. The loopback listener is untouched.
+      if (input) await startLanListener()
+      else await stopLanListener()
+      const envForced = process.env.PORCELAIN_LAN_BIND === '1'
+      return {
+        enabled: input || envForced,
+        url: lanUrl(),
+        numericUrl: lanNumericUrl(),
+        error: lanBindError(),
+        envForced,
+      }
+    },
+  ),
 
   gitBranch: t.procedure.input(z.string()).query(({ input }) => gitBranch(input)),
 

@@ -45,7 +45,7 @@ export interface IfaceListener {
    * "unavailable"). Idempotent: a second call while up returns the current url. A
    * per-address listen error is logged to stderr and that address is skipped — it
    * must NEVER take the loopback listener (a separate server) down, and if some
-   * addresses bind it stays up on those.
+   * addresses bind it stays up on those. When nothing binds, `error()` says why.
    */
   start: () => Promise<string | null>
   /** Tear down every bound server if any are up (no-op otherwise). */
@@ -54,6 +54,14 @@ export interface IfaceListener {
   url: () => string | null
   /** The live numeric addresses currently bound (empty when down). */
   addresses: () => string[]
+  /**
+   * Why the last `start()` ended with nothing bound: `'in-use'` when at least one
+   * attempted bind failed with EADDRINUSE (e.g. a stale daemon still squatting the
+   * fixed port) — so the UI can say "port in use" instead of the misleading "no
+   * interface found". `null` otherwise, including the genuinely-no-interface case.
+   * Reset at the start of every `start()` run and cleared by `stop()`.
+   */
+  error: () => 'in-use' | null
 }
 
 /**
@@ -69,6 +77,7 @@ export function createIfaceListener(
 ): IfaceListener {
   let servers: Server[] = []
   let bound: string[] = []
+  let lastError: 'in-use' | null = null
 
   function url(): string | null {
     return servers.length > 0 ? formatUrl(bound) : null
@@ -79,10 +88,12 @@ export function createIfaceListener(
     if (requestHandler === null || upgradeHandler === null) {
       throw new Error('iface-listener: initIfaceHandlers has not been called')
     }
+    lastError = null
     const found = pickAddresses()
     if (found.length === 0) return Promise.resolve(null)
     const request = requestHandler
     const upgrade = upgradeHandler
+    let sawInUse = false
     return Promise.all(
       found.map(
         (addr) =>
@@ -90,6 +101,10 @@ export function createIfaceListener(
             const listener = createServer(request)
             listener.on('upgrade', upgrade)
             listener.once('error', (error) => {
+              // EADDRINUSE = the fixed port is squatted (typically a stale daemon
+              // that outlived its parent) — remember it so error() can distinguish
+              // "port in use" from "no interface found" when nothing binds.
+              if ((error as NodeJS.ErrnoException).code === 'EADDRINUSE') sawInUse = true
               console.error(`[daemon] ${label} listener failed on ${addr}:`, error)
               listener.close()
               resolve(null)
@@ -102,11 +117,13 @@ export function createIfaceListener(
       ),
     ).then((results) => {
       bound = results.filter((addr): addr is string => addr !== null)
+      if (bound.length === 0 && sawInUse) lastError = 'in-use'
       return url()
     })
   }
 
   function stop(): Promise<void> {
+    lastError = null
     const current = servers
     servers = []
     bound = []
@@ -116,7 +133,7 @@ export function createIfaceListener(
     ).then(() => undefined)
   }
 
-  return { start, stop, url, addresses: () => [...bound] }
+  return { start, stop, url, addresses: () => [...bound], error: () => lastError }
 }
 
 // The tailnet instance: a single Tailscale address, formatted numerically (the
@@ -144,10 +161,12 @@ const lan = createIfaceListener(
 export const startTailnetListener = tailnet.start
 export const stopTailnetListener = tailnet.stop
 export const tailnetUrl = tailnet.url
+export const tailnetBindError = tailnet.error
 
 export const startLanListener = lan.start
 export const stopLanListener = lan.stop
 export const lanUrl = lan.url
+export const lanBindError = lan.error
 
 /** The LAN listener's numeric url (first bound address), for the UI's fallback line. */
 export function lanNumericUrl(): string | null {

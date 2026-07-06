@@ -20,6 +20,8 @@ const DAEMON_ONLY_ENV = [
   'PORCELAIN_USER_DATA',
   'PORCELAIN_DEV',
   'PORCELAIN_ALLOWED_ORIGIN',
+  'PORCELAIN_TAILNET_BIND',
+  'PORCELAIN_LAN_BIND',
   // Harness knobs read by the daemon/shell processes themselves (defaultShell,
   // preload), never inside a spawned shell — verified unused there.
   'PORCELAIN_E2E',

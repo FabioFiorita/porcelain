@@ -230,12 +230,22 @@ export function GeneralSection(): React.JSX.Element {
         >
           <Switch
             checked={tailnet?.enabled ?? false}
+            disabled={tailnet?.envForced ?? false}
             onCheckedChange={(checked) => setTailnetEnabled(checked)}
           />
         </PreferenceRow>
+        {tailnet?.envForced === true && (
+          <p className="text-xs text-muted-foreground">
+            Enabled via <span className="font-mono">PORCELAIN_TAILNET_BIND</span>
+          </p>
+        )}
         {tailnet?.url != null && <ShareReveal url={tailnet.url} />}
         {tailnet?.enabled === true && tailnet.url == null && (
-          <p className="text-xs text-muted-foreground">No Tailscale interface found</p>
+          <p className="text-xs text-muted-foreground">
+            {tailnet.error === 'in-use'
+              ? 'Port 43117 is in use — another daemon may still be running.'
+              : 'No Tailscale interface found'}
+          </p>
         )}
       </div>
       <div className="flex flex-col gap-2">
@@ -245,12 +255,22 @@ export function GeneralSection(): React.JSX.Element {
         >
           <Switch
             checked={lan?.enabled ?? false}
+            disabled={lan?.envForced ?? false}
             onCheckedChange={(checked) => setLanEnabled(checked)}
           />
         </PreferenceRow>
+        {lan?.envForced === true && (
+          <p className="text-xs text-muted-foreground">
+            Enabled via <span className="font-mono">PORCELAIN_LAN_BIND</span>
+          </p>
+        )}
         {lan?.url != null && <ShareReveal url={lan.url} numericUrl={lan.numericUrl} />}
         {lan?.enabled === true && lan.url == null && (
-          <p className="text-xs text-muted-foreground">No local network interface found</p>
+          <p className="text-xs text-muted-foreground">
+            {lan.error === 'in-use'
+              ? 'Port 43117 is in use — another daemon may still be running.'
+              : 'No local network interface found'}
+          </p>
         )}
       </div>
       {!isBrowser && <RemoteDaemonBlock />}

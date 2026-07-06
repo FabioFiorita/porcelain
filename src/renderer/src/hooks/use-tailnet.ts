@@ -3,9 +3,13 @@ import { trpc } from '@renderer/lib/trpc'
 export interface TailnetStatus {
   enabled: boolean
   url: string | null
+  /** Why nothing bound: 'in-use' = port 43117 squatted (likely a stale daemon). */
+  error: 'in-use' | null
+  /** True when PORCELAIN_TAILNET_BIND=1 force-enabled the bind at boot (not togglable). */
+  envForced: boolean
 }
 
-/** The persisted tailnet-bind flag plus the live listener url (null when not up). */
+/** The persisted tailnet-bind flag (or env force) plus the live listener url (null when not up). */
 export function useTailnetStatus(): TailnetStatus | undefined {
   const { data } = trpc.tailnetStatus.useQuery()
   return data
