@@ -35,6 +35,7 @@ Ordered by leverage; most plans are independent — see Dependency notes.
 | 032 | Clear build-path advisories (undici/form-data); stage Electron 43 | deps | P3 | S–M | LOW–MED | 027 (soft, for step 4) | TODO |
 | 035 | Unread dots on the rail when the agent pushes | direction | P3 | S–M | LOW | — | TODO |
 | 036 | Branch-create in the picker + read-only PR-review spike doc | direction | P3 | S | LOW | — | TODO |
+| 037 | Share on local network (LAN listener — the tailnet setup without Tailscale) | direction | P2 | M | MED | 031 | TODO |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
@@ -49,6 +50,9 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
   the major bump a per-commit safety net beyond the release e2e.
 - **027 before/alongside 026 (soft)**: 026 refactors `api.ts`'s poll
   procedures; 027's harness exercises the router for real.
+- **037 requires 031**: both refactor `tailnet-listener.ts` and extend the same
+  audit-skill bind invariant; 031's recorded posture is the baseline 037 amends.
+  (037 added 2026-07-05 by user request, after the audit round.)
 - 023, 028, 029, 030, 033, 034, 035, 036 are fully independent.
 - Concurrency caution (16 GB machine): plans whose verification runs builds/e2e
   (027, 029, 030, 032) shouldn't execute in parallel with each other.
