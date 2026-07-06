@@ -103,10 +103,38 @@ export function isTokenizable(content: string): boolean {
  * template literal were highlighted as code. The returned array has exactly one
  * entry per `\n`-split line, so callers can index it by line number.
  */
+/**
+ * Bounded LRU over whole-file tokenization. The viewer mounts only the ACTIVE
+ * tab, so a component-local `useMemo` is discarded when you switch away — and
+ * revisiting re-pays the full synchronous tokenization for identical content.
+ * A module-level cache survives unmounts (the terminal registry solves the same
+ * lifecycle problem the same way). Keyed on `${lang} ${code}` so a `.ts` and a
+ * `.js` file sharing content don't collide. 8 entries bounds worst-case
+ * retained tokens (content ≤ 2 MB by the `isTokenizable` guard) — don't raise
+ * it without a memory look. Returned arrays are shared and treated as immutable
+ * by every caller (consumers only read/index).
+ */
+const TOKEN_CACHE_MAX = 8
+const tokenCache = new Map<string, ThemedToken[][]>()
+
 export function tokenizeLines(
   highlighter: Highlighter,
   code: string,
   lang: BundledLanguage,
 ): ThemedToken[][] {
-  return highlighter.codeToTokensBase(code, { lang, theme: HIGHLIGHT_THEME })
+  const key = `${lang} ${code}`
+  const hit = tokenCache.get(key)
+  if (hit) {
+    // Re-insert to mark most-recently-used (Map preserves insertion order).
+    tokenCache.delete(key)
+    tokenCache.set(key, hit)
+    return hit
+  }
+  const tokens = highlighter.codeToTokensBase(code, { lang, theme: HIGHLIGHT_THEME })
+  tokenCache.set(key, tokens)
+  if (tokenCache.size > TOKEN_CACHE_MAX) {
+    const oldest = tokenCache.keys().next().value
+    if (oldest !== undefined) tokenCache.delete(oldest)
+  }
+  return tokens
 }

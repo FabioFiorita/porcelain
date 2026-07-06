@@ -50,6 +50,51 @@ describe('tokenizeLines', () => {
   })
 })
 
+describe('tokenizeLines cache', () => {
+  // Uses the real highlighter: `codeToTokensBase` allocates a fresh array on
+  // every call, so an identical array reference across two calls can ONLY come
+  // from the module-level LRU. Unique keys per test keep the shared cache from
+  // cross-contaminating; the eviction/recency cases fully replace an 8-cap
+  // cache (8+ distinct inserts), so they hold regardless of prior state.
+  it('returns the same array reference for a repeated (code, lang)', async () => {
+    const h = await getHighlighter()
+    const a = tokenizeLines(h, 'z-cache-repeat', 'typescript')
+    const b = tokenizeLines(h, 'z-cache-repeat', 'typescript')
+    expect(b).toBe(a)
+  })
+
+  it('keys on lang: same code, different lang → different result', async () => {
+    const h = await getHighlighter()
+    const ts = tokenizeLines(h, 'z-cache-lang', 'typescript')
+    const js = tokenizeLines(h, 'z-cache-lang', 'javascript')
+    expect(js).not.toBe(ts)
+  })
+
+  it('evicts the least-recently-used entry past the cap', async () => {
+    const h = await getHighlighter()
+    const first = tokenizeLines(h, 'z-evict-0', 'typescript')
+    // 8 more distinct entries → 9 distinct inserts into an 8-cap LRU, so the
+    // never-touched first entry is the least-recently-used and gets evicted.
+    for (let i = 1; i <= 8; i++) tokenizeLines(h, `z-evict-${i}`, 'typescript')
+    // Re-request the first: evicted, so a fresh (non-identical) array.
+    expect(tokenizeLines(h, 'z-evict-0', 'typescript')).not.toBe(first)
+  })
+
+  it('keeps a touched entry and evicts the next-oldest instead', async () => {
+    const h = await getHighlighter()
+    // 8 distinct inserts fully replace the 8-cap cache: order is 0,1,…,7.
+    const kept = tokenizeLines(h, 'z-recency-0', 'typescript')
+    const second = tokenizeLines(h, 'z-recency-1', 'typescript')
+    for (let i = 2; i < 8; i++) tokenizeLines(h, `z-recency-${i}`, 'typescript')
+    // Touch the oldest (0), making it most-recently-used → order 1,…,7,0.
+    expect(tokenizeLines(h, 'z-recency-0', 'typescript')).toBe(kept)
+    // One more insert overflows the cap: the now-oldest (1) is evicted, not 0.
+    tokenizeLines(h, 'z-recency-overflow', 'typescript')
+    expect(tokenizeLines(h, 'z-recency-0', 'typescript')).toBe(kept)
+    expect(tokenizeLines(h, 'z-recency-1', 'typescript')).not.toBe(second)
+  })
+})
+
 describe('isTokenizable', () => {
   it('allows normal-sized files', () => {
     expect(isTokenizable('a\n'.repeat(100))).toBe(true)
