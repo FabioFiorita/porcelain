@@ -1,5 +1,7 @@
 ---
 name: audit
+metadata:
+  internal: true
 description: Porcelain's hard-won invariants — the security, correctness, performance, and type-safety rules the codebase must never silently regress. Read before changing the main process, IPC, config persistence, git plumbing, file reads, external-URL handling, packaging, or data-fetching wiring; and when reviewing a change for regressions. Each invariant says what to preserve, why it exists, and how to verify you didn't break it.
 ---
 

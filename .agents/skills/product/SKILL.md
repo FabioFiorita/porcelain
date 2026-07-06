@@ -1,5 +1,7 @@
 ---
 name: product
+metadata:
+  internal: true
 description: What Porcelain is, who it's for, its core features and product principles. Read when designing features, UI, or prioritizing work.
 ---
 

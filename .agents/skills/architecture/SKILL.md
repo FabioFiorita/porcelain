@@ -1,5 +1,7 @@
 ---
 name: architecture
+metadata:
+  internal: true
 description: Porcelain's stack, the one client architecture every feature follows, repo facts, and the app-shell decisions/traps the code can't show you. Read before writing or reviewing any code in this repo.
 ---
 

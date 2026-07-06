@@ -1,5 +1,7 @@
 ---
 name: releasing
+metadata:
+  internal: true
 description: How to cut a Porcelain release — bump/tag, the GitHub Actions release pipeline, signing & notarization secrets, changelog generation, and the draft-then-publish flow for electron-updater. Read when publishing a new version, debugging the release workflow, or changing signing/notarization.
 ---
 
