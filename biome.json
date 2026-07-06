@@ -24,11 +24,21 @@
     "enabled": true,
     "rules": {
       "preset": "recommended",
-      "suspicious": { "noExplicitAny": "error" }
+      "suspicious": { "noExplicitAny": "error" },
+      "style": { "noDefaultExport": "error" }
     }
   },
   "assist": { "actions": { "source": { "organizeImports": "on" } } },
   "overrides": [
+    {
+      "includes": [
+        "src/renderer/src/App.tsx",
+        "**/*.config.ts",
+        "**/*.d.ts",
+        "playwright.config.ts"
+      ],
+      "linter": { "rules": { "style": { "noDefaultExport": "off" } } }
+    },
     {
       "includes": ["src/backend/**", "src/shared/**", "src/renderer/**"],
       "linter": {

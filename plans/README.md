@@ -31,7 +31,7 @@ Ordered by leverage; most plans are independent — see Dependency notes.
 | 030 | Highlighting perf (cross-mount token LRU + fine-grained Shiki) | perf | P2 | M | LOW | — | DONE (renderer assets 17M→8.4M) |
 | 034 | Agent comment replies (answer_review_comment; plugin 2.8.0) | direction | P2 | M | MED | — | DONE |
 | 031 | Tailnet posture: record the token blast radius; deterministic iface pick | security | P2 | S | LOW | 024 (soft) | DONE |
-| 033 | Lint-enforce named-exports-only (noDefaultExport) | dx | P3 | S | LOW | — | TODO |
+| 033 | Lint-enforce named-exports-only (noDefaultExport) | dx | P3 | S | LOW | — | DONE |
 | 032 | Clear build-path advisories (undici/form-data); stage Electron 43 | deps | P3 | S–M | LOW–MED | 027 (soft, for step 4) | TODO |
 | 035 | Unread dots on the rail when the agent pushes | direction | P3 | S–M | LOW | — | TODO |
 | 036 | Branch-create in the picker + read-only PR-review spike doc | direction | P3 | S | LOW | — | TODO |

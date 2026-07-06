@@ -92,10 +92,10 @@ No URL routing, no router library; the active tab's `(kind, path, line)` in `sto
 ### Component authoring
 
 - **One public component per file**; filename = kebab-case of the export. Private module-scoped subcomponents only when tightly bound to the export; an independent feature (own queries/state) gets its own file. Co-location exceptions: inseparable variant pairs (`file-icon.tsx`), a component + its companion hook (`code-line.tsx` + `useHighlighter`), mutually recursive components (`tree-node.tsx`).
-- Named exports only (`export function PascalCase()`); the sole default export is `App`. Class components only where React requires it (`ErrorBoundary`).
+- Named exports only (`export function PascalCase()`); the sole default export is `App` (lint-enforced: `noDefaultExport`). Class components only where React requires it (`ErrorBoundary`).
 - Explicit return types: `React.JSX.Element` (`| null` when conditionally empty); handlers `void`/`Promise<void>`.
 - Props typed INLINE in the destructuring parameter. A named `XProps` interface only for generic components (`VirtualRowsProps<T>`); domain/data types may be named interfaces.
-- Handlers named by intent (`run`, `save`, `switchTo`, `select`) — never `handleX`; callback props use `onX`.
+- Handlers named by intent (`run`, `save`, `switchTo`, `select`) — never `handleX`; callback props use `onX`. (prose-only: Biome can't ban a name prefix)
 - Composition: plain prop-driven components + zustand; `children`-wrapper components for menu/boundary shells; render-prop only for generic virtualized lists; Base UI's `render={<.../>}` to merge shadcn triggers. NO app-authored React context, no boolean-prop variant proliferation.
 - Pure single-file helpers stay module-scoped at the top; pure shared helpers go in `@renderer/lib/` with a test; reused stateful logic is a `useX` hook returning named callbacks. Derive, don't store, computed values. Always `cn()` for conditional classNames.
 
