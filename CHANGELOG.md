@@ -1,3 +1,25 @@
+## [0.20.0](https://github.com/FabioFiorita/porcelain/compare/v0.19.0...v0.20.0) (2026-07-06)
+
+### Features
+
+* agent comment replies — answer_review_comment MCP tool + inline reply under the comment (plugin 2.8.0) ([c3b4015](https://github.com/FabioFiorita/porcelain/commit/c3b4015efdfa5896e734d58225e24d5c13edecc5))
+* create a branch from the branch picker (checkout -b) ([0353c9e](https://github.com/FabioFiorita/porcelain/commit/0353c9ee8fd419b94da4e0deec3b079db56bbffa))
+* share the daemon on the local network — opt-in LAN listener on the private-range interface, same token gate and port as the tailnet path (Tailscale stays the away-from-home path) ([b1e2ee2](https://github.com/FabioFiorita/porcelain/commit/b1e2ee286dbbd3f9d58f8cc252d6615b2a7ab5fb))
+* surface the daemon token in Settings — Copy-token button + file-path hint in Share over Tailscale, and a where-to-find-it line under the Remote daemon token field (users couldn't locate the token when connecting devices); new use-daemon-token hook is the lint-sanctioned crossing of the components→lib/daemon fence ([3e7fac6](https://github.com/FabioFiorita/porcelain/commit/3e7fac68cbc693ef5618b72714ef86b2d84cb911))
+* unread dots on the rail when the agent pushes (feature/board/terminal), cleared on visit ([6bb9323](https://github.com/FabioFiorita/porcelain/commit/6bb93236c1fd612224a514d2b43e463e3eb49949))
+
+### Bug Fixes
+
+* keep the editor buffer dirty when an autosave fails — the watermark advanced before the write settled, so the unmount flush no-oped and the external adopt clobbered the edit ([70a6909](https://github.com/FabioFiorita/porcelain/commit/70a69093cfeaa90e2d48d8507a646d4a623222da))
+* lock the browser client to the visible viewport — h-dvh shell, html/body scroll-lock, iOS viewport meta (on iPad the 100vh root exceeded the toolbar-shrunk viewport, so the page itself scrolled: chrome scrolled away while the fixed sidebar rails stayed) ([7465e98](https://github.com/FabioFiorita/porcelain/commit/7465e981d714d367519064660526ffbf335168fb))
+* make the embedded terminal usable on iPad — DOM renderer on multi-touch devices (iOS evicts WebGL contexts), kill autocorrect on xterm's hidden textarea, contain touch scroll in the viewport, refocus on pointerdown ([cbf9d04](https://github.com/FabioFiorita/porcelain/commit/cbf9d0463e5c3618d6a38cc87847f0d199faae9e))
+
+### Performance Improvements
+
+* coalesce the 3s poll's git status/numstat into one shared working-tree snapshot per tick ([c47c44e](https://github.com/FabioFiorita/porcelain/commit/c47c44ee81e041d82dd6a43b5ed46a82ffa86040))
+* fine-grained shiki imports — ship 11 grammars, not the registry ([0ae0edb](https://github.com/FabioFiorita/porcelain/commit/0ae0edb7d29ba1ae9854f4e8e87a5402473bb7c8))
+* LRU-cache whole-file tokenization across tab switches ([a149267](https://github.com/FabioFiorita/porcelain/commit/a149267210b0c28ef903138bea02c542b5175a3d))
+
 ## [0.19.0](https://github.com/FabioFiorita/porcelain/compare/v0.18.0...v0.19.0) (2026-07-05)
 
 ### Features
