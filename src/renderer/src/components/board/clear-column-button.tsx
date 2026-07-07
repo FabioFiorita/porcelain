@@ -55,7 +55,9 @@ export function ClearColumnButton({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => clear(status)}>Clear</AlertDialogAction>
+            <AlertDialogAction variant="destructive" onClick={() => clear(status)}>
+              Clear
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

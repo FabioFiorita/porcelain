@@ -202,7 +202,9 @@ function EntryContextMenu({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => trash(entry.path)}>Delete</AlertDialogAction>
+            <AlertDialogAction variant="destructive" onClick={() => trash(entry.path)}>
+              Delete
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

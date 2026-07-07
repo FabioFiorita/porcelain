@@ -234,7 +234,9 @@ function FileRowImpl({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => discardFile(file.path)}>Discard</AlertDialogAction>
+            <AlertDialogAction variant="destructive" onClick={() => discardFile(file.path)}>
+              Discard
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
