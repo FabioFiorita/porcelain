@@ -1,3 +1,16 @@
+## [0.20.4](https://github.com/FabioFiorita/porcelain/compare/v0.20.3...v0.20.4) (2026-07-07)
+
+### Features
+
+* mark-all / unmark-all reviewed toggle in the Changes header ([f50801c](https://github.com/FabioFiorita/porcelain/commit/f50801c2a4cf2925ba26a4a76a303d56470e5fe7))
+* open Notes links on Cmd/Ctrl-click ([53de907](https://github.com/FabioFiorita/porcelain/commit/53de9079c13c018df33169266184343f9cd6c992))
+
+### Bug Fixes
+
+* close the confirm dialog on the delete/discard action ([a5f1965](https://github.com/FabioFiorita/porcelain/commit/a5f19659f2d4428a18b09d171aaec4da9c1c17fd))
+* hide internal skills from skills.sh distribution ([a5ce949](https://github.com/FabioFiorita/porcelain/commit/a5ce949f2201b47d783eae7582e8b573024aa689))
+* use the destructive variant for the delete/discard/clear confirm buttons ([27b3c39](https://github.com/FabioFiorita/porcelain/commit/27b3c398ebb1f01fcfaeef8f7e8bed84a17b20a6))
+
 ## [0.20.3](https://github.com/FabioFiorita/porcelain/compare/v0.20.2...v0.20.3) (2026-07-06)
 
 ### Bug Fixes
