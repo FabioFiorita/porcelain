@@ -139,14 +139,26 @@ function AlertDialogDescription({
   )
 }
 
+// base-ui's alert-dialog has no `Action` part — unlike Radix, whose `AlertDialog.Action`
+// both runs onClick AND dismisses. Build it on `Close` (like `AlertDialogCancel` below) so
+// the confirm button always closes the dialog. As a bare Button it never closed: the dialog
+// only went away as a side effect of the confirmed action unmounting its trigger row (e.g. a
+// delete that removes the file from the tree), so a failing action — or a still-mounted
+// trigger — left it stuck open ("the delete modal keeps opening but nothing happens"). base-ui
+// merges Close's own click handler with the consumer's onClick, so both the action and the
+// dismiss fire.
 function AlertDialogAction({
   className,
+  variant = "default",
+  size = "default",
   ...props
-}: React.ComponentProps<typeof Button>) {
+}: AlertDialogPrimitive.Close.Props &
+  Pick<React.ComponentProps<typeof Button>, "variant" | "size">) {
   return (
-    <Button
+    <AlertDialogPrimitive.Close
       data-slot="alert-dialog-action"
       className={cn(className)}
+      render={<Button variant={variant} size={size} />}
       {...props}
     />
   )

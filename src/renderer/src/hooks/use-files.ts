@@ -6,6 +6,7 @@ import { useSelectionStore } from '@renderer/stores/selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { useTreeDirsStore } from '@renderer/stores/tree-dirs'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { toast } from 'sonner'
 
 export function useReadDir(path: string, enabled = true): DirEntry[] | undefined {
   const repo = useRepoStore((s) => s.repo)
@@ -141,12 +142,22 @@ export function useTrashPath(): (path: string) => Promise<void> {
         utils.gitFlow.invalidate(),
       ])
     },
+    onError: (error) => {
+      // The confirm dialog now closes on click, so a silent failure would leave the file
+      // in place with no feedback — surface why (permission denied, locked file, …).
+      toast.error('Delete failed', { description: error.message })
+    },
   })
   return async (path) => {
-    await mutation.mutateAsync(path)
-    // The file is gone from disk; close any open view of it so the viewer doesn't
-    // render a dead tab (the tree keys a file tab by this same absolute path).
-    useTabsStore.getState().closeTabEverywhere(tabId('file', path))
+    try {
+      await mutation.mutateAsync(path)
+      // The file is gone from disk; close any open view of it so the viewer doesn't
+      // render a dead tab (the tree keys a file tab by this same absolute path).
+      useTabsStore.getState().closeTabEverywhere(tabId('file', path))
+    } catch {
+      // Already surfaced by the mutation's onError toast; swallow so the click handler's
+      // floating promise doesn't reject unhandled.
+    }
   }
 }
 
