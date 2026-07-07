@@ -7,6 +7,7 @@ import {
 } from '@renderer/components/ui/dropdown-menu'
 import { Toggle } from '@renderer/components/ui/toggle'
 import { useRepoNotes, useSetRepoNotes } from '@renderer/hooks/use-repo-notes'
+import { isModExclusive } from '@renderer/lib/keyboard'
 import { cn } from '@renderer/lib/utils'
 import Placeholder from '@tiptap/extension-placeholder'
 import { type Editor, EditorContent, useEditor, useEditorState } from '@tiptap/react'
@@ -90,6 +91,22 @@ function NotesEditor({
     editorProps: {
       attributes: {
         class: 'notes-prose prose prose-sm prose-invert max-w-none px-3.5 py-3 focus:outline-none',
+      },
+      handleDOMEvents: {
+        // Cmd/Ctrl-click a link to open it in the browser. The editor stays editable, so a
+        // plain click just places the cursor (Link is configured openOnClick:false); the
+        // modifier follows the app's primary-mod convention (Cmd in the shell, Ctrl in the
+        // browser client). window.open routes through main's setWindowOpenHandler →
+        // isSafeExternalUrl → shell.openExternal — the one gated external path, same as the
+        // markdown reader; in the browser client it just opens a new tab.
+        click: (_view, event) => {
+          if (!isModExclusive(event)) return false
+          const href = (event.target as HTMLElement | null)?.closest('a')?.getAttribute('href')
+          if (!href) return false
+          event.preventDefault()
+          window.open(href, '_blank', 'noopener,noreferrer')
+          return true
+        },
       },
     },
     onUpdate: ({ editor }) => {
