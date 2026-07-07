@@ -80,6 +80,16 @@ export async function clearReviewedPaths(repoPath: string, paths: string[]): Pro
 }
 
 /**
+ * Replace a repo's reviewed marks wholesale — the header "mark all / unmark all" toggle.
+ * An empty list clears the repo's entry (unmark all); duplicates are collapsed.
+ */
+export async function setReviewedPaths(repoPath: string, paths: string[]): Promise<void> {
+  await channel.mutate((all) => {
+    setPaths(all, repoPath, [...new Set(paths)])
+  })
+}
+
+/**
  * One-time migration: reviewed marks used to live in userData/config.json
  * (`config.repos[*].reviewedPaths`). Copy any non-empty legacy marks into reviewed.json
  * so the MCP — which can't resolve userData — can serve them. Idempotent: only fills a

@@ -108,6 +108,7 @@ import {
   clearReviewedPaths,
   markReviewed,
   readReviewedPaths,
+  setReviewedPaths,
   unmarkReviewed,
 } from './reviewed-store'
 import {
@@ -480,6 +481,12 @@ export const router = t.router({
   reviewedPaths: t.procedure
     .input(z.string())
     .query(async ({ input }): Promise<string[]> => readReviewedPaths(input)),
+
+  setReviewed: t.procedure
+    .input(z.object({ repoPath: z.string(), paths: z.array(z.string()) }))
+    .mutation(async ({ input }) => {
+      await setReviewedPaths(input.repoPath, input.paths)
+    }),
 
   gitQuickCommand: t.procedure
     .input(

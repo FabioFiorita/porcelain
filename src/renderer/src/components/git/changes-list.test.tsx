@@ -24,6 +24,7 @@ vi.mock('@renderer/hooks/use-commit', () => ({
 vi.mock('@renderer/hooks/use-reviewed', () => ({
   useReviewedPaths: vi.fn(),
   useToggleReviewed: vi.fn(),
+  useSetReviewed: () => async () => {},
 }))
 // The "Comment on file" item mounts CommentComposer, which reaches tRPC; mock the
 // domain hook so the list renders without a tRPC provider (same convention above).

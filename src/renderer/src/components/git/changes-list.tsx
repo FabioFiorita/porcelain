@@ -49,6 +49,7 @@ import {
 import { memo, useState } from 'react'
 import { ChangesScopeToggle } from './changes-scope-toggle'
 import { type CommentAnchor, CommentComposer } from './comment-composer'
+import { ReviewAllToggle } from './review-all-toggle'
 
 const statusBadge: Record<FileStatus, { label: string; className: string }> = {
   modified: { label: 'M', className: 'text-warning' },
@@ -296,6 +297,12 @@ export function ChangesList(): React.JSX.Element {
             </span>
           )}
           <SidebarHeaderActions>
+            {total > 0 && (
+              <ReviewAllToggle
+                paths={groups.flatMap((g) => g.files.map((f) => f.path))}
+                allReviewed={reviewedCount === total}
+              />
+            )}
             <Button
               variant="ghost"
               size="icon-sm"

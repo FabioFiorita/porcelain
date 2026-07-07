@@ -36,3 +36,21 @@ export function useToggleReviewed(): {
     },
   }
 }
+
+/**
+ * Replace all reviewed marks for the current repo in one write — powers the Changes
+ * header's "mark all / unmark all" toggle (pass every path, or [] to clear them all).
+ */
+export function useSetReviewed(): (paths: string[]) => Promise<void> {
+  const repo = useRepoStore((s) => s.repo)
+  const utils = trpc.useUtils()
+  const mutation = trpc.setReviewed.useMutation({
+    onSuccess: async () => {
+      await utils.reviewedPaths.invalidate()
+    },
+  })
+  return async (paths) => {
+    if (!repo) return
+    await mutation.mutateAsync({ repoPath: repo.path, paths })
+  }
+}

@@ -7,6 +7,7 @@ import {
   markReviewed,
   migrateReviewedFromConfig,
   readReviewedPaths,
+  setReviewedPaths,
   unmarkReviewed,
 } from './reviewed-store'
 
@@ -70,6 +71,23 @@ describe('reviewed-store', () => {
     await markReviewed('/r2', 'b.ts')
     expect(await readReviewedPaths('/r1')).toEqual(['a.ts'])
     expect(await readReviewedPaths('/r2')).toEqual(['b.ts'])
+  })
+
+  it('sets a repo’s marks, replacing any pre-existing marks', async () => {
+    await markReviewed('/repo', 'src/old.ts')
+    await setReviewedPaths('/repo', ['src/a.ts', 'src/b.ts'])
+    expect(await readReviewedPaths('/repo')).toEqual(['src/a.ts', 'src/b.ts'])
+  })
+
+  it('clears the repo entry when set to an empty array', async () => {
+    await markReviewed('/repo', 'src/a.ts')
+    await setReviewedPaths('/repo', [])
+    expect(await readReviewedPaths('/repo')).toEqual([])
+  })
+
+  it('collapses duplicate paths to unique', async () => {
+    await setReviewedPaths('/repo', ['src/a.ts', 'src/a.ts', 'src/b.ts'])
+    expect(await readReviewedPaths('/repo')).toEqual(['src/a.ts', 'src/b.ts'])
   })
 })
 
