@@ -1,3 +1,9 @@
+## [0.20.5](https://github.com/FabioFiorita/porcelain/compare/v0.20.4...v0.20.5) (2026-07-10)
+
+### Bug Fixes
+
+* execute trash helper outside app.asar ([5e69f39](https://github.com/FabioFiorita/porcelain/commit/5e69f392253bdb383286c1b44900ddb385258916))
+
 ## [0.20.4](https://github.com/FabioFiorita/porcelain/compare/v0.20.3...v0.20.4) (2026-07-07)
 
 ### Features
