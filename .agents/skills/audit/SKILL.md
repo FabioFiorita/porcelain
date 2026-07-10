@@ -409,13 +409,19 @@ assumed — this skill is the codebase-specific layer beneath them.
   needs unpacking. *Verify:* a packaged build's `Resources/app.asar.unpacked/node_modules/node-pty`
   exists and the terminal opens. The renderer half (`@xterm/*`) is Vite-bundled
   `devDependencies` — no packaging concern.
-- **`trash` joins node-pty in `asarUnpack`.** The `trash` package (the electron-free
+- **`trash` joins node-pty in `asarUnpack` AND patches its helper URL.** The `trash`
+  package (the electron-free
   daemon's replacement for `shell.trashItem`, used by `trashPath`/`gitDiscardFile` in
   `src/backend/api.ts`) ships platform helper binaries (`macos-trash`) it `exec`s at
   runtime, so `electron-builder.yml` `asarUnpack`s `node_modules/trash/**` too. *Why:* a
   helper binary packed inside `app.asar` can't be executed — trashing would fail in the
-  packaged app. *Verify:* `node_modules/trash/**` is in the `asarUnpack` list alongside
-  node-pty. The main bundles are CJS while `trash` is ESM-only, so `electron.vite.config.ts`
+  packaged app. Unpacking alone is insufficient: `trash` derives the helper URL from its
+  module inside `app.asar`, and `execFile` fails with `spawn ENOTDIR` unless that URL is
+  redirected to the sibling `app.asar.unpacked`. The pinned pnpm patch in
+  `patches/trash@10.1.1.patch` performs only that segment rewrite, leaving plain-Node and
+  non-ASAR installs unchanged. *Verify:* `node_modules/trash/**` is in the `asarUnpack` list
+  alongside node-pty and `trash-packaging.test.ts` passes. The main bundles are CJS while
+  `trash` is ESM-only, so `electron.vite.config.ts`
   sets `output.interop: 'auto'` — without it the `require` returns a namespace object and
   every daemon trash call throws "trash is not a function" (it slipped through the unit gate
   because only e2e exercises a real daemon trash; don't drop the interop setting).

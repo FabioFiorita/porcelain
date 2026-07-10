@@ -7,6 +7,9 @@ settings:
 overrides:
   undici@7: '>=7.28.0 <8'
 
+patchedDependencies:
+  trash@10.1.1: 3fd7a85418b1cea1bb24dc4ec5cceffb3bccbce3cdabed8bfab0cb914be0fbc5
+
 importers:
 
   .:
@@ -31,7 +34,7 @@ importers:
         version: 1.1.0
       trash:
         specifier: ^10.1.1
-        version: 10.1.1
+        version: 10.1.1(patch_hash=3fd7a85418b1cea1bb24dc4ec5cceffb3bccbce3cdabed8bfab0cb914be0fbc5)
       ws:
         specifier: ^8.21.0
         version: 8.21.0
@@ -9432,7 +9435,7 @@ snapshots:
     dependencies:
       punycode: 2.3.1
 
-  trash@10.1.1:
+  trash@10.1.1(patch_hash=3fd7a85418b1cea1bb24dc4ec5cceffb3bccbce3cdabed8bfab0cb914be0fbc5):
     dependencies:
       '@stroncium/procfs': 1.2.1
       chunkify: 5.0.0

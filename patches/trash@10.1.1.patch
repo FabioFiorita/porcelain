@@ -1,0 +1,23 @@
+diff --git a/lib/macos.js b/lib/macos.js
+index 45d900599fec7857b79d60c190e5443b9b262f31..bde4478734ef86447a4ddb207d0cff3d6e01350a 100644
+--- a/lib/macos.js
++++ b/lib/macos.js
+@@ -8,7 +8,17 @@ import chunkedExec from './chunked-exec.js';
+ const isOlderThanMountainLion = Number(os.release().split('.')[0]) < 12;
+ 
+ // Binary source: https://github.com/sindresorhus/macos-trash
+-const binary = new URL('macos-trash', import.meta.url);
++export function resolveBinary(moduleUrl) {
++	const binary = new URL('macos-trash', moduleUrl);
++
++	// Electron's ASAR loader can read modules from app.asar, but child_process
++	// cannot execute a helper through that archive path. electron-builder puts
++	// unpacked files in the sibling app.asar.unpacked directory.
++	binary.pathname = binary.pathname.replace('/app.asar/', '/app.asar.unpacked/');
++	return binary;
++}
++
++const binary = resolveBinary(import.meta.url);
+ 
+ export default async function macOS(paths) {
+ 	if (isOlderThanMountainLion) {

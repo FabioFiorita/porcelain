@@ -13,3 +13,5 @@ overrides:
   # (install-time binary fetch) and jsdom (test-only). Not a shipped code path.
   # Try deleting on the next `pnpm update electron*`.
   undici@7: '>=7.28.0 <8'
+patchedDependencies:
+  trash@10.1.1: patches/trash@10.1.1.patch
