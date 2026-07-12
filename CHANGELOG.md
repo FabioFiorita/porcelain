@@ -1,3 +1,16 @@
+## [0.21.0](https://github.com/FabioFiorita/porcelain/compare/v0.20.5...v0.21.0) (2026-07-12)
+
+### Features
+
+* add the Agent tab — run Claude Code, Codex, and OpenCode inside Porcelain ([f45da98](https://github.com/FabioFiorita/porcelain/commit/f45da98ba9ea1f899f1fdb8b4ff62f5801d5d614))
+* agent composer power features, provider limits, and session polish ([d9876e4](https://github.com/FabioFiorita/porcelain/commit/d9876e410ca4b57af45a5fb233bb04a2aeb572f0))
+* agent threads — queued messages, image thumbnails, real turn timer, failure flag ([83af2a5](https://github.com/FabioFiorita/porcelain/commit/83af2a5dc05de1a2b4881c9ec6b4c58416609c0d))
+* saved remote environments — named daemon list with switch, add-and-connect, remove ([ac23deb](https://github.com/FabioFiorita/porcelain/commit/ac23deba54b3e80e32951e88d12faf5363cb6708))
+
+### Bug Fixes
+
+* single-instance lock — a second launch focuses the running app ([850a04b](https://github.com/FabioFiorita/porcelain/commit/850a04bb9993570b4c157d029c0839890c946a33))
+
 ## [0.20.5](https://github.com/FabioFiorita/porcelain/compare/v0.20.4...v0.20.5) (2026-07-10)
 
 ### Bug Fixes
