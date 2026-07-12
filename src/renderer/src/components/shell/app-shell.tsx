@@ -6,6 +6,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui
 import { useAgentChannel } from '@renderer/hooks/use-agent-channel'
 import { useAppEvents } from '@renderer/hooks/use-app-events'
 import { useWatchOpenFiles, useWatchTreeDirs } from '@renderer/hooks/use-files'
+import { useResponsiveShell } from '@renderer/hooks/use-responsive-shell'
 import { useTerminalChannel } from '@renderer/hooks/use-terminal-channel'
 import { useInstallUpdate, useUpdateStatus } from '@renderer/hooks/use-updates'
 import { kbdLabel } from '@renderer/lib/keyboard'
@@ -121,14 +122,24 @@ function TopBar({ left }: { left: LeftSidebarHandle }): React.JSX.Element {
 
 // Rendered between the providers: useSidebar here reads the outer (left) one.
 function RepoShell(): React.JSX.Element {
-  const { state, toggleSidebar } = useSidebar()
+  const { state, setOpen, toggleSidebar } = useSidebar()
   const setRightSidebarOpen = usePreferencesStore((s) => s.setRightSidebarOpen)
   const rightSidebarWidth = usePreferencesStore((s) => s.rightSidebarWidth)
+  const sidebarTab = usePreferencesStore((s) => s.sidebarTab)
   // The Board tab has no Quick Access content, so the right panel is suppressed
   // there — independently of the user's open/closed preference, which is restored
   // when they switch back to a tab that has a Quick Access section.
-  const rightOpen = usePreferencesStore((s) => s.rightSidebarOpen && s.sidebarTab !== 'board')
+  const rightOpen = usePreferencesStore((s) => s.rightSidebarOpen) && sidebarTab !== 'board'
   const left: LeftSidebarHandle = { collapsed: state === 'collapsed', toggle: toggleSidebar }
+
+  // Keep the center viewer usable when the window is narrowed: close the right
+  // Quick Access first, then collapse the left sidebar to its rail, restoring
+  // them as the window widens (see useResponsiveShell / decideResponsiveLayout).
+  useResponsiveShell({
+    leftOpen: state === 'expanded',
+    setLeftOpen: setOpen,
+    rightSuppressed: sidebarTab === 'board',
+  })
 
   return (
     <SidebarInset className="h-full min-h-0 min-w-0 bg-transparent">
