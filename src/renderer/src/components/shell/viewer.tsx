@@ -1,4 +1,5 @@
 import logo from '@renderer/assets/logo.png'
+import { AgentView } from '@renderer/components/agent/agent-view'
 import { BoardView } from '@renderer/components/board/board-view'
 import { ArtifactView } from '@renderer/components/git/artifact-view'
 import { CommitView } from '@renderer/components/git/commit-view'
@@ -90,6 +91,8 @@ function PaneView({ paneIndex }: { paneIndex: number }): React.JSX.Element {
       return <ArtifactView key={activeTab.path} repoPath={activeTab.path} />
     case 'terminal':
       return <TerminalView key={activeTab.path} sessionId={activeTab.path} />
+    case 'agent':
+      return <AgentView key={activeTab.path} threadId={activeTab.path} />
     case 'explore':
       return (
         <ExploreView

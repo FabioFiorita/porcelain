@@ -3,6 +3,7 @@ import { Kbd } from '@renderer/components/ui/kbd'
 import { SidebarInset, SidebarProvider, useSidebar } from '@renderer/components/ui/sidebar'
 import { Toaster } from '@renderer/components/ui/sonner'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
+import { useAgentChannel } from '@renderer/hooks/use-agent-channel'
 import { useAppEvents } from '@renderer/hooks/use-app-events'
 import { useWatchOpenFiles, useWatchTreeDirs } from '@renderer/hooks/use-files'
 import { useTerminalChannel } from '@renderer/hooks/use-terminal-channel'
@@ -15,6 +16,7 @@ import { useRepoStore } from '@renderer/stores/repo'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { PanelLeft, RotateCw, Zap } from 'lucide-react'
 import { useEffect } from 'react'
+import { AgentCommands } from '../agent/agent-commands'
 import { CardComposer } from '../board/card-composer'
 import { AppSidebar } from './app-sidebar'
 import { ContentSearch } from './content-search'
@@ -166,6 +168,7 @@ export function AppShell(): React.JSX.Element {
   useAppShortcuts()
   useAppEvents()
   useTerminalChannel()
+  useAgentChannel()
   useWatchOpenFiles()
   useWatchTreeDirs()
 
@@ -212,6 +215,7 @@ export function AppShell(): React.JSX.Element {
         <FileFinder />
         <ContentSearch />
         <FileCommands />
+        <AgentCommands />
         <FilePromptDialog />
         <RepoPickerDialog />
         <CardComposer />

@@ -1,3 +1,10 @@
+import type {
+  AgentEvent,
+  AgentImage,
+  AgentStatus,
+  ApprovalDecision,
+  TimelineItem,
+} from '@shared/agent-protocol'
 import {
   type AppEvent,
   type ClientMessage,
@@ -85,6 +92,29 @@ const pendingAttaches = new Map<string, PendingAttach>()
 // reconnect (the daemon's attached-sender set died with the old socket), with the fresh
 // scrollback routed through the scrollback listeners so the registry can replay it.
 const attachedIds = new Set<string>()
+
+// The Agent-thread twins of the terminal streaming plumbing above. A thread is a
+// daemon-owned session like a PTY: attach replays a reduced timeline snapshot then live
+// `agent:event`s follow, socket close detaches (never kills), and a reconnect re-attaches
+// every id in `attachedThreadIds` (the daemon's attached-sender set died with the old
+// socket). Events fan out to `agentEventListeners`; each attach snapshot (initial AND
+// reconnect) fans out to `agentSnapshotListeners` so the store re-seeds regardless of
+// which socket delivered it — mirroring `onTerminalScrollback`.
+const agentEventListeners = new Set<(threadId: string, event: AgentEvent) => void>()
+const agentSnapshotListeners = new Set<
+  (threadId: string, items: TimelineItem[], status: AgentStatus) => void
+>()
+export interface AgentAttachResult {
+  found: boolean
+  items: TimelineItem[]
+  status: AgentStatus
+}
+interface PendingAgentAttach {
+  resolve: (result: AgentAttachResult) => void
+  reject: (error: Error) => void
+}
+const pendingAgentAttaches = new Map<string, PendingAgentAttach>()
+const attachedThreadIds = new Set<string>()
 // Creates issued while the socket is still CONNECTING are queued and flushed on
 // open; fire-and-forget messages (write/resize/kill/watch) are not — a dead
 // socket means dead PTYs, and watches re-register from lastWatched* on open.
@@ -104,7 +134,7 @@ let recoveryPending = false
 let retryDelay = 500
 let reconnectTimer: number | null = null
 
-/** Fail every in-flight/queued terminal create + attach — their socket is gone. */
+/** Fail every in-flight/queued create + attach (terminal AND agent) — their socket is gone. */
 function failPendingCreates(reason: string): void {
   outbox.length = 0
   const creates = [...pendingCreates.values()]
@@ -113,6 +143,9 @@ function failPendingCreates(reason: string): void {
   const attaches = [...pendingAttaches.values()]
   pendingAttaches.clear()
   for (const { reject } of attaches) reject(new Error(reason))
+  const agentAttaches = [...pendingAgentAttaches.values()]
+  pendingAgentAttaches.clear()
+  for (const { reject } of agentAttaches) reject(new Error(reason))
 }
 
 function dispatch(message: ServerMessage): void {
@@ -151,6 +184,22 @@ function dispatch(message: ServerMessage): void {
       }
       break
     }
+    case 'agent:event':
+      for (const listener of agentEventListeners) listener(message.threadId, message.event)
+      break
+    case 'agent:attached': {
+      // Seed the store with the reduced snapshot before any live event follows (the
+      // daemon sends this reply before subsequent agent:event), then settle the pending
+      // attach promise for the caller that awaited the initial attach.
+      for (const listener of agentSnapshotListeners)
+        listener(message.threadId, message.items, message.status)
+      const pending = pendingAgentAttaches.get(message.reqId)
+      if (pending) {
+        pendingAgentAttaches.delete(message.reqId)
+        pending.resolve({ found: message.found, items: message.items, status: message.status })
+      }
+      break
+    }
   }
 }
 
@@ -158,6 +207,24 @@ function push(message: ClientMessage): void {
   if (socket !== null && socket.readyState === WebSocket.OPEN) {
     socket.send(JSON.stringify(message))
   }
+}
+
+/**
+ * Send now if the socket is OPEN, else queue in the outbox to flush on the next open —
+ * the same pattern `createTerminal`/`attachTerminal` use. For agent turn actions
+ * (`agent:send`/`approve`/`abort`) a bare `push` would SILENTLY DROP while the socket is
+ * reconnecting, yet the composer clears its draft the instant it calls send — so the
+ * message would be lost with no trace. Queuing flushes it once the session comes back.
+ * Safe to replay (unlike a stale `terminal:create`, which spawns an abandoned shell):
+ * the thread is daemon-owned and outlives the socket, so a queued send/approve/abort
+ * still targets a live thread on reconnect. Like every queued message it's cleared if the
+ * socket closes before the flush (failPendingCreates) — a never-reconnecting drop can't be
+ * helped, but a reconnect gap no longer eats the message.
+ */
+function sendOrQueue(message: ClientMessage): void {
+  ensureSession()
+  if (socket !== null && socket.readyState === WebSocket.OPEN) push(message)
+  else outbox.push(message)
 }
 
 function scheduleReconnect(): void {
@@ -200,6 +267,11 @@ function ensureSession(): void {
     // in the outbox (double-sending would replay scrollback twice).
     if (everConnected) {
       for (const id of attachedIds) push({ t: 'terminal:attach', id, reqId: randomId() })
+      // Same for Agent threads: re-attach re-registers this socket and its snapshot
+      // reply re-seeds the store (dispatch → agentSnapshotListeners). Best-effort, not
+      // awaited — the reqId has no waiting promise here.
+      for (const threadId of attachedThreadIds)
+        push({ t: 'agent:attach', threadId, reqId: randomId() })
     }
     for (const message of outbox.splice(0)) push(message)
     // Refetch on every REconnect — and on the first connect after the shell
@@ -405,4 +477,89 @@ export function resizeTerminal(id: string, cols: number, rows: number): void {
 export function killTerminal(id: string): void {
   attachedIds.delete(id)
   push({ t: 'terminal:kill', id })
+}
+
+/** Fires with each thread's live turn events; the channel hook reduces them into the store. */
+export function onAgentEvent(listener: (threadId: string, event: AgentEvent) => void): () => void {
+  ensureSession()
+  agentEventListeners.add(listener)
+  return () => agentEventListeners.delete(listener)
+}
+
+/**
+ * Fires with a thread's reduced timeline snapshot on attach (both the initial attach and
+ * every reconnect re-attach). The channel hook seeds the store with it before live events
+ * follow — the single application path (like `onTerminalScrollback`), so a live event that
+ * lands between attach and the awaited promise can't be clobbered by a late re-apply.
+ */
+export function onAgentSnapshot(
+  listener: (threadId: string, items: TimelineItem[], status: AgentStatus) => void,
+): () => void {
+  ensureSession()
+  agentSnapshotListeners.add(listener)
+  return () => agentSnapshotListeners.delete(listener)
+}
+
+/**
+ * Attach to a daemon-owned Agent thread and resolve with its reduced timeline snapshot +
+ * status. The snapshot is ALSO pushed through `onAgentSnapshot` (the store's seed path);
+ * the promise result is for the caller that needs the state. Rejects if the socket drops
+ * before the daemon answers, like `attachTerminal`. Re-attaches on every reconnect after.
+ */
+export function attachAgent(threadId: string): Promise<AgentAttachResult> {
+  ensureSession()
+  attachedThreadIds.add(threadId)
+  return new Promise<AgentAttachResult>((resolve, reject) => {
+    const reqId = randomId()
+    pendingAgentAttaches.set(reqId, {
+      resolve,
+      // A socket drop before the reply rejects this — drop the id so `isAgentAttached`
+      // reports false and a re-open re-attaches (the reconnect loop only fires once
+      // everConnected, so an initial-connect failure needs this).
+      reject: (error) => {
+        attachedThreadIds.delete(threadId)
+        reject(error)
+      },
+    })
+    const message: ClientMessage = { t: 'agent:attach', threadId, reqId }
+    if (socket !== null && socket.readyState === WebSocket.OPEN) push(message)
+    else outbox.push(message)
+  })
+}
+
+/** Stop streaming a thread's events to this client without ending the thread (fire-and-forget). */
+export function detachAgent(threadId: string): void {
+  attachedThreadIds.delete(threadId)
+  push({ t: 'agent:detach', threadId })
+}
+
+/** Whether this client is currently streaming `threadId` — so a caller doesn't re-attach it. */
+export function isAgentAttached(threadId: string): boolean {
+  return attachedThreadIds.has(threadId)
+}
+
+/**
+ * Start a turn on a thread (rejected daemon-side as an error item if it's already working).
+ * Queued through the outbox so a send during a reconnect gap flushes on open instead of
+ * being silently dropped (the composer clears its draft immediately — see `sendOrQueue`).
+ */
+export function sendAgentMessage(
+  threadId: string,
+  message: { text: string; images?: AgentImage[] },
+): void {
+  sendOrQueue({ t: 'agent:send', threadId, text: message.text, images: message.images })
+}
+
+/** Interrupt the thread's active turn; queued to flush on reconnect (see `sendOrQueue`). */
+export function abortAgentTurn(threadId: string): void {
+  sendOrQueue({ t: 'agent:abort', threadId })
+}
+
+/** Answer a pending approval request on a thread; queued to flush on reconnect (see `sendOrQueue`). */
+export function respondAgentApproval(
+  threadId: string,
+  requestId: string,
+  decision: ApprovalDecision,
+): void {
+  sendOrQueue({ t: 'agent:approve', threadId, requestId, decision })
 }

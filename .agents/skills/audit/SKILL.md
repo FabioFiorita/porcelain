@@ -124,6 +124,41 @@ assumed — this skill is the codebase-specific layer beneath them.
   is testable. *Verify:* a new daemon env var that must not leak is added to
   `DAEMON_ONLY_ENV`; `terminal-env.test.ts` still asserts the token and `RUN_AS_NODE` are
   absent from a spawned env.
+- **Agent drivers spawn the user's CLIs safely — scrubbed env, arg arrays, enumerated
+  binaries.** The Agent tab's drivers (`src/backend/agents/drivers/`) launch the installed
+  `claude`/`codex`/`opencode` CLIs, so they carry the same spawn discipline as PTYs plus a
+  few of their own: (1) every child spawn passes `terminalEnv(process.env)` — the daemon
+  token and `ELECTRON_RUN_AS_NODE` must never reach an agent CLI any more than a shell. (2)
+  Spawns use **arg arrays** (`spawn`/`execFile`, no shell), never an interpolated shell
+  string. (3) The **binary is resolved from an enumerated set** — an explicit
+  `PORCELAIN_{CLAUDE,CODEX,OPENCODE}_BIN` override, then each `PATH` dir, then hard-coded
+  well-known install locations — the renderer only ever picks a **provider enum + a model
+  string**, NEVER a filesystem path, so no renderer-supplied string reaches the spawn path
+  (the well-known-paths probe also exists because a GUI-launched daemon has a minimal
+  `PATH`). (4) Thread files (`~/.porcelain/agent-threads/<id>.json`, `thread-store.ts`) are
+  **zod-validated + size-capped on every read** and return null (drop the thread) on
+  corruption rather than throwing — the daemon is the sole writer, but a corrupt/oversized
+  file still can't break hydration. (5) Timeline writes are **atomic tmp+rename**
+  (`writeThread`). *Why:* an agent CLI is arbitrary code with the user's auth; the failure
+  modes are a leaked token, a shell-injection via an interpolated arg, a renderer-chosen
+  binary path, or one bad thread file taking down the roster. *Verify:* driver spawns pass
+  `terminalEnv` and an arg array; binary resolution never consumes a renderer-supplied
+  string; `readThread` still validates + caps and returns null on bad input; `writeThread`
+  is tmp+rename. **Accepted tradeoff — the OpenCode driver spawns a third-party
+  unauthenticated loopback listener.** `opencode serve` (one per repo, `opencode.ts`) is an
+  HTTP+SSE server Porcelain starts on `127.0.0.1` with `--port 0` (random ephemeral port).
+  Live-verified on opencode 1.17.18 (2026-07-11): it boots warning `OPENCODE_SERVER_PASSWORD
+  is not set; server is unsecured`, and with no password a state-changing `POST /session`
+  (and every other route, incl. `GET /config/providers` which returns provider **API keys** in
+  cleartext) is served with **no auth token at all**; the daemon's Bearer/subprotocol gate
+  cannot cover it (it's a separate process we don't control). CORS is the one mitigation
+  present: the `OPTIONS` preflight returns no `Access-Control-Allow-Origin`, so browser JS
+  can't read its responses cross-origin — but any LOCAL process that discovers the port can
+  drive it. This is accepted the SAME way the LAN-cleartext bind above is: (a) it binds
+  loopback only (never `--mdns`/`0.0.0.0`), (b) the port is random and never advertised, (c)
+  the child is killed on daemon exit (`process.on('exit')` reaper), and (d) it's recorded here,
+  not hidden. Do NOT expose the opencode port to the renderer, bind it to a non-loopback
+  interface, or pass `--mdns`; if opencode ever gains a usable token flag, set it.
 - **Agent-channel review-set paths are repo-contained on read.**
   `readReviewSet` (`src/backend/review-store.ts`) drops any review-set entry whose
   path is absolute or escapes `repoPath` (`isRepoContained`), because the file
@@ -315,7 +350,7 @@ assumed — this skill is the codebase-specific layer beneath them.
   (Biome `noRestrictedImports` override on `components/**`, now lint-enforced for
   both). All server access goes through domain hooks (`hooks/use-<domain>.ts`)
   that own their post-mutation invalidation; the daemon WS session is reached only
-  through `use-app-events` / `use-terminal-channel` / `use-files`. The vanilla
+  through `use-app-events` / `use-terminal-channel` / `use-files` / `use-agent-channel`. The vanilla
   tRPC client is sanctioned only in `stores/repo.ts` and `use-app-events.ts`.
 - **Never `void` a promise** to silence a floating-promise lint — use `async`/`await`
   or `await Promise.all([...])` for invalidation/prefetch/clipboard.

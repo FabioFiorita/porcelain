@@ -5,6 +5,14 @@ import { initTRPC } from '@trpc/server'
 import trash from 'trash'
 import { z } from 'zod'
 import {
+  agentInteractionSchema,
+  agentModeSchema,
+  agentProviderSchema,
+  type ProviderStatus,
+  type ThreadInfo,
+  threadOptionsSchema,
+} from '../shared/agent-protocol'
+import {
   type Action,
   addAction,
   deleteAction,
@@ -12,6 +20,14 @@ import {
   readActions,
   updateAction,
 } from './actions-store'
+import {
+  createThread,
+  deleteThread,
+  listThreads,
+  providerStatuses,
+  renameThread,
+  updateThread,
+} from './agents/agent-manager'
 import {
   type Artifact,
   type ArtifactMeta,
@@ -96,6 +112,7 @@ import { exceedsReadLimit } from './read-limits'
 import {
   hiddenPathsFor,
   pinnedPathsFor,
+  toggleModelFavorite,
   visibleFilePaths,
   withHiddenPath,
   withoutHiddenPath,
@@ -163,6 +180,12 @@ const IMAGE_MIME: Record<string, string> = {
 }
 
 const toRepoInfo = (path: string): RepoInfo => ({ path, name: basename(path) })
+
+// Probing each provider CLI's status shells out (or will, once the drivers land), so
+// cache the roster of statuses for a short TTL — the model picker polls it and doesn't
+// need per-keystroke freshness.
+const PROVIDER_STATUS_TTL_MS = 30_000
+let providerStatusCache: { at: number; value: ProviderStatus[] } | null = null
 
 function isValidPattern(pattern: string): boolean {
   try {
@@ -1179,6 +1202,80 @@ export const router = t.router({
     .input(z.object({ id: z.string(), name: z.string() }))
     .mutation(({ input }) => {
       renameTerminal(input.id, input.name)
+    }),
+
+  // The daemon-owned Agent thread roster for a repo — like the terminal roster, the
+  // renderer hydrates its Agent list from this and re-reads it on the `agent-threads`
+  // app event. Turn streaming + approvals ride the WS session; the roster is plain
+  // request/response, so it lives here.
+  agentThreads: t.procedure
+    .input(z.object({ repoPath: z.string() }))
+    .query(({ input }): Promise<ThreadInfo[]> => listThreads(input.repoPath)),
+
+  createAgentThread: t.procedure
+    .input(
+      z.object({
+        repoPath: z.string(),
+        provider: agentProviderSchema,
+        model: z.string(),
+        mode: agentModeSchema,
+      }),
+    )
+    .mutation(({ input }): Promise<ThreadInfo> => createThread(input)),
+
+  renameAgentThread: t.procedure
+    .input(z.object({ id: z.string(), title: z.string().min(1) }))
+    .mutation(({ input }) => renameThread(input.id, input.title)),
+
+  updateAgentThread: t.procedure
+    .input(
+      z.object({
+        id: z.string(),
+        model: z.string().optional(),
+        mode: agentModeSchema.optional(),
+        provider: agentProviderSchema.optional(),
+        interaction: agentInteractionSchema.optional(),
+        options: threadOptionsSchema.optional(),
+      }),
+    )
+    .mutation(({ input }) =>
+      updateThread(input.id, {
+        model: input.model,
+        mode: input.mode,
+        provider: input.provider,
+        interaction: input.interaction,
+        options: input.options,
+      }),
+    ),
+
+  deleteAgentThread: t.procedure
+    .input(z.object({ id: z.string() }))
+    .mutation(({ input }) => deleteThread(input.id)),
+
+  // Install/auth state + model catalog per provider, probed from the installed CLIs
+  // (tolerant of a missing one — see providerStatuses). Cached 30s (see the TTL above).
+  agentProviders: t.procedure.query(async (): Promise<ProviderStatus[]> => {
+    const now = Date.now()
+    if (providerStatusCache && now - providerStatusCache.at < PROVIDER_STATUS_TTL_MS) {
+      return providerStatusCache.value
+    }
+    const value = await providerStatuses()
+    providerStatusCache = { at: now, value }
+    return value
+  }),
+
+  // The Agent tab's favorited models (`provider:modelId` keys), stored global in the
+  // daemon config so they follow the user to the iPad/browser client.
+  agentModelFavorites: t.procedure.query(async (): Promise<string[]> => {
+    const config = await loadConfig()
+    return config.agentModelFavorites ?? []
+  }),
+
+  toggleAgentModelFavorite: t.procedure
+    .input(z.object({ key: z.string() }))
+    .mutation(async ({ input }): Promise<string[]> => {
+      const updated = await updateConfig((config) => toggleModelFavorite(config, input.key))
+      return updated.agentModelFavorites ?? []
     }),
 })
 

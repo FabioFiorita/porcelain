@@ -22,6 +22,8 @@ const DAEMON_ONLY_ENV = [
   'PORCELAIN_ALLOWED_ORIGIN',
   'PORCELAIN_TAILNET_BIND',
   'PORCELAIN_LAN_BIND',
+  // The agent-threads store dir redirect (dev + tests) — a daemon knob, not shell state.
+  'PORCELAIN_AGENT_THREADS',
   // Harness knobs read by the daemon/shell processes themselves (defaultShell,
   // preload), never inside a spawned shell — verified unused there.
   'PORCELAIN_E2E',

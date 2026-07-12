@@ -11,6 +11,10 @@ export const appConfigSchema = z.object({
   // devices on the home LAN can reach it, gated on the same token. Cleartext on
   // the LAN — opt-in, default off (see the audit skill). Toggled from Settings.
   lanBind: z.boolean().optional(),
+  // Global (not per-repo): the Agent tab's favorited models, each a
+  // `provider:modelId` key. Daemon-side so the favorites follow the user to the
+  // iPad/browser client. Optional so pre-existing configs stay valid.
+  agentModelFavorites: z.array(z.string()).optional(),
   repos: z
     .record(
       z.string(),
@@ -125,4 +129,11 @@ export function withoutPinnedPath(config: AppConfig, repoPath: string, path: str
 
 export function pinnedPathsFor(config: AppConfig, repoPath: string): string[] {
   return config.repos[repoPath]?.pinnedPaths ?? []
+}
+
+/** Toggle a `provider:modelId` favorite on/off (global — not repo-keyed). */
+export function toggleModelFavorite(config: AppConfig, key: string): AppConfig {
+  const current = config.agentModelFavorites ?? []
+  const next = current.includes(key) ? current.filter((k) => k !== key) : [...current, key]
+  return { ...config, agentModelFavorites: next }
 }

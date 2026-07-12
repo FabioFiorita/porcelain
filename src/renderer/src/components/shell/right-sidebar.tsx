@@ -1,3 +1,4 @@
+import { AgentsQuickAccess } from '@renderer/components/agent/agents-quick-access'
 import { ActionsGroup } from '@renderer/components/terminal/actions-group'
 import { Sidebar, SidebarContent, SidebarHeader } from '@renderer/components/ui/sidebar'
 import { type SidebarTab, usePreferencesStore } from '@renderer/stores/preferences'
@@ -20,6 +21,7 @@ const COMPANION_TITLES: Record<SidebarTab, string> = {
   board: 'Workspace',
   terminal: 'Actions',
   search: 'Recent searches',
+  agent: 'Agent',
 }
 
 // Sections follow the left sidebar's active tab: pins belong to browsing
@@ -54,6 +56,7 @@ export function RightSidebar(): React.JSX.Element {
         {(sidebarTab === 'changes' || sidebarTab === 'feature') && <CommentsGroup />}
         {sidebarTab === 'terminal' && <ActionsGroup />}
         {sidebarTab === 'search' && <SearchQuickAccess />}
+        {sidebarTab === 'agent' && <AgentsQuickAccess />}
       </SidebarContent>
     </Sidebar>
   )

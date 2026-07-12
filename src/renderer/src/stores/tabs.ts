@@ -10,6 +10,7 @@ export type TabKind =
   | 'board'
   | 'terminal'
   | 'artifact'
+  | 'agent'
 
 // The tabs store is the router: a tab id is its kind plus its key (file path,
 // commit hash, or search query). Every opener must build ids through this so
@@ -23,7 +24,10 @@ export interface Tab {
   kind: TabKind
   title: string
   /** File path for file/diff tabs, commit hash for commit tabs, query for search tabs,
-   *  terminal session id for terminal tabs, repo path for artifact tabs. */
+   *  terminal session id for terminal tabs, thread id for agent tabs, repo path for
+   *  artifact tabs. (Agent tabs use the generic clone/preview path — unlike a terminal's
+   *  single xterm DOM node, an agent view's state lives in the store, so it can render in
+   *  both panes at once and needs no special-casing in `openTab`/`openTabToSide`.) */
   path: string
   /** 1-based line to scroll to when opening (search results jump here). */
   line?: number

@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { flushAllThreads } from './agents/agent-manager'
 import { router } from './api'
 import { subscribeAppEvents } from './app-events'
 import { initConfigDir, loadConfig } from './config-store'
@@ -54,6 +55,25 @@ if (userData === undefined || userData === '') {
   process.exit(1)
 }
 initConfigDir(userData)
+
+// The single daemon shutdown path. Agent turn events persist on a ~500ms trailing debounce,
+// so a bare exit could drop the last un-written slice of a timeline — flush every thread
+// first (best-effort), THEN exit. `process.exit(0)` fires 'exit' handlers, which is what
+// reaps the opencode child servers (opencode.ts registers `process.on('exit')`), so every
+// shutdown route (SIGTERM from the shell's utilityProcess.kill, SIGINT at a TTY, or the
+// stdin-EOF watchdog) converges here and both flushes threads and reaps children.
+let shuttingDown = false
+async function shutdown(): Promise<void> {
+  if (shuttingDown) return
+  shuttingDown = true
+  await flushAllThreads()
+  process.exit(0)
+}
+// utilityProcess.kill() (the shell's teardown) sends SIGTERM; a standalone `node` daemon at
+// a TTY gets SIGINT. Registering a listener suppresses the default terminate, so we must exit
+// ourselves (shutdown does — and it can't reject, flushAllThreads is best-effort).
+process.on('SIGTERM', () => shutdown().catch(() => process.exit(0)))
+process.on('SIGINT', () => shutdown().catch(() => process.exit(0)))
 
 // The session token, now a persistent shared secret (remote-environments Phase 2,
 // replacing the per-app-run token the shell used to mint). The shell
@@ -168,8 +188,9 @@ async function main(): Promise<void> {
   // so the shell (which never sets it) keeps the orphan protection.
   if (process.env.PORCELAIN_NO_STDIN_WATCHDOG !== '1') {
     process.stdin.resume()
-    process.stdin.on('end', () => process.exit(0))
-    process.stdin.on('close', () => process.exit(0))
+    // Flush threads before exiting on parent death too (same shutdown path as the signals).
+    process.stdin.on('end', () => shutdown().catch(() => process.exit(0)))
+    process.stdin.on('close', () => shutdown().catch(() => process.exit(0)))
     // Companion check: reap orphans whose stdin never EOFs (e.g. a standalone/dev
     // daemon whose spawning shell died) so they can't squat the fixed second-listener
     // port forever. On Unix `ppid` changes ONLY when the original parent dies (the
@@ -180,7 +201,7 @@ async function main(): Promise<void> {
     // anyway and skip this whole block — their supervisor owns the lifecycle.)
     const initialPpid = process.ppid
     const orphanPoll = setInterval(() => {
-      if (process.ppid !== initialPpid) process.exit(0)
+      if (process.ppid !== initialPpid) shutdown().catch(() => process.exit(0))
     }, 5000)
     orphanPoll.unref()
   }

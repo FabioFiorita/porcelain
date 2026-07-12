@@ -2,7 +2,7 @@
 
 Agent-managed foundations. This file owns project agent guidance; skills live in `.agents/skills/` and are symlinked into `.claude/skills/` for Claude discovery. Keep them accurate and never let the codebase diverge from them. `AGENTS.md` is a symlink to this file. **Keep this file slim — it loads into every session. Detail belongs in skills (loaded on demand).**
 
-Porcelain is a lightweight macOS viewer + agent companion (Electron). Not an editor.
+Porcelain is the hub for agentic coding (Electron, macOS): run your coding agents (Claude Code, Codex, OpenCode) in it *and* review their work. Still lightweight, still not an editor.
 
 ## Hard rules
 
@@ -87,7 +87,7 @@ Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wron
 - **Viewer** — the central panel (`shell/viewer.tsx`, `components/viewer/`). **Never "editor"** — Porcelain is a viewer.
 - **Quick Access** — the **right** panel (`right-sidebar.tsx`, Cmd+.); its contents follow the active sidebar tab.
 
-**Inside the sidebar** (tabs `Files`·`Search`·`Changes`·`History`·`Feature`·`Board`·`Terminal`; `sidebarTab` pref, Cmd+1–7 — a vertical icon rail, ⌘B collapses to it):
+**Inside the sidebar** (tabs `Files`·`Search`·`Changes`·`History`·`Feature`·`Board`·`Terminal`·`Agent`; `sidebarTab` pref, Cmd+1–8 — a vertical icon rail, ⌘B collapses to it):
 - **File tree** — Files body (`file-tree.tsx` / `tree-node.tsx`).
 - **Search list** — Search body (`search-list.tsx`): repo-wide code search (`gitSearchCode`), distinct from the ⌘⇧F `ContentSearch` overlay (`gitGrep`).
 - **Changes list** — Changes body (`changes-list.tsx`), grouped by flow layer.
@@ -95,12 +95,13 @@ Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wron
 - **Feature list** — Feature body (`feature-list.tsx`): the whole feature in flow order as a nav list; the viewer feature view is the expanded read.
 - **Board list** — Board body (`board-list.tsx`): the todo/doing/done cards.
 - **Terminal list** — Terminal body (`terminal-list.tsx`): the roster of terminal **sessions** (they outlive their tabs — a closed tab keeps the PTY running).
+- **Agent list** — Agent body (`agent-list.tsx`): the roster of **agent threads** (daemon-owned, they survive reloads).
 
 **Inside the viewer:**
 - **Tab bar** — the floating glass capsule of open documents (`tab-bar.tsx`).
 - **Tab** — one open document. **Preview** = single-click, italic, replaced by the next; **pinned** = double-click/edit, kept.
 - **Split view / pane** — two side-by-side **panes**, each its own tabs (`panes`/`activePaneIndex` in `stores/tabs.ts`); "Open to the Side". Model in `architecture` (Routing).
-- **Tab kinds** — `file view` / `source view` (`source-view.tsx`) / `markdown reader` (`markdown-view.tsx`) / `diff view` (`diff-view.tsx`) / `commit view` (`commit-view.tsx`) / `search view` (`search-view.tsx`) / `feature view` (`feature-view.tsx`) / `explore view` (`explore-view.tsx`) / `board view` (`board-view.tsx`) / `terminal view` (`terminal-view.tsx`) / `artifact view` (`artifact-view.tsx`). What each renders → read the file; the concepts → `product`.
+- **Tab kinds** — `file view` / `source view` (`source-view.tsx`) / `markdown reader` (`markdown-view.tsx`) / `diff view` (`diff-view.tsx`) / `commit view` (`commit-view.tsx`) / `search view` (`search-view.tsx`) / `feature view` (`feature-view.tsx`) / `explore view` (`explore-view.tsx`) / `board view` (`board-view.tsx`) / `terminal view` (`terminal-view.tsx`) / `artifact view` (`artifact-view.tsx`) / `agent view` (`agent-view.tsx`). What each renders → read the file; the concepts → `product`.
 
 **Inside Quick Access** (section follows the sidebar tab):
 - Files → **Pinned** (`pinned-group.tsx`) + **Notes card** (`notes-card.tsx`), in `files-quick-access.tsx`.
@@ -109,6 +110,7 @@ Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wron
 - History → **File timeline** (`file-timeline-group.tsx`): the commit history of the file open in the viewer (`gitFileLog`, `--follow`); click an entry to open that commit.
 - Changes/Feature → **Commit composer** (`commit-group.tsx`) + **Comments** (`comments-group.tsx`).
 - Terminal → **Actions** (`actions-group.tsx`).
+- Agent → **provider status** (`agents-quick-access.tsx`).
 
 **Overlays:**
 - **File finder** — Cmd+P fuzzy finder (`file-finder.tsx`).
@@ -124,6 +126,7 @@ Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wron
 - **Reviewed marks** — the per-file "reviewed" checkboxes the human ticks in the Changes/Feature lists (`~/.porcelain/reviewed.json`), app→agent over MCP (read-only, like notes); cleared on commit.
 - **Project board** — per-repo todo/doing/done (`~/.porcelain/board.json`), two-way over MCP.
 - **Embedded terminal / Actions** — real PTYs (node-pty + xterm.js) on the daemon's WS session (`lib/daemon.ts`, not tRPC and no longer a preload channel). **Actions** = saved named commands (`~/.porcelain/actions.json`); agent curates, **human runs**.
+- **Agent threads / drivers** — daemon-owned conversations with a coding agent, run inside Porcelain; **drivers** spawn the user's installed CLIs (Claude Code, Codex, OpenCode). Entry points: `src/backend/agents/agent-manager.ts` + `src/shared/agent-protocol.ts`. The *what/why* lives in `product`; internals/traps in `architecture`/`audit`.
 - **Daemon** — the headless, Electron-free backend process (`src/backend/server.ts`) the renderer talks to over HTTP + one WebSocket on 127.0.0.1; the shell spawns/babysits it. Entry points: `src/main/daemon.ts` (spawn), `src/backend/server.ts` + `session.ts` (serve). "The daemon" always resolves here.
 - **Repo / worktree / window** — one repo per window; the worktree switcher sits in the sidebar footer.
 - **Glaze / glaze tile / vibrancy void** — the design-system glass surfaces (floating porcelain tiles over the vibrancy void).

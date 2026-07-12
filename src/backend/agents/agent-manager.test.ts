@@ -1,0 +1,368 @@
+import { rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import type { AgentEvent } from '../../shared/agent-protocol'
+import {
+  type AgentSender,
+  abortTurn,
+  attachThread,
+  createThread,
+  deleteThread,
+  detachThread,
+  flushThread,
+  listThreads,
+  providerStatuses,
+  renameThread,
+  resetForTests,
+  respondApproval,
+  sendMessage,
+  setDrivers,
+  updateThread,
+} from './agent-manager'
+import { readThread } from './thread-store'
+import type { AgentDriver, DriverRegistry, StartTurnOptions } from './types'
+
+const dir = join(tmpdir(), 'porcelain-agent-manager-test')
+
+// A controllable driver: it records the last turn's options so a test can drive `emit`
+// / `onDone` by hand, plus the abort/approval calls it received.
+class MockDriver implements AgentDriver {
+  provider = 'claude' as const
+  last: StartTurnOptions | null = null
+  starts = 0
+  aborts = 0
+  approvals: { requestId: string; decision: string }[] = []
+  installed = true
+
+  async status() {
+    return {
+      provider: this.provider,
+      installed: this.installed,
+      authenticated: true,
+      models: [{ id: 'sonnet', label: 'Sonnet', provider: this.provider }],
+    }
+  }
+
+  startTurn(opts: StartTurnOptions) {
+    this.last = opts
+    this.starts += 1
+    return {
+      abort: () => {
+        this.aborts += 1
+      },
+      respondApproval: (requestId: string, decision: string) => {
+        this.approvals.push({ requestId, decision })
+      },
+    }
+  }
+}
+
+// A driver whose status() throws — exercises providerStatuses' per-driver tolerance.
+const throwingDriver: AgentDriver = {
+  provider: 'codex',
+  status() {
+    throw new Error('CLI blew up')
+  },
+  startTurn() {
+    return { abort() {}, respondApproval() {} }
+  },
+}
+
+let mock: MockDriver
+
+function registry(claude: AgentDriver): DriverRegistry {
+  return { claude, codex: throwingDriver, opencode: throwingDriver }
+}
+
+// A sender that just records every fanned-out event.
+function recordingSender(): AgentSender & { events: AgentEvent[] } {
+  const events: AgentEvent[] = []
+  return {
+    events,
+    send(_channel, ...args) {
+      events.push(args[1] as AgentEvent)
+    },
+    isDestroyed: () => false,
+  }
+}
+
+beforeEach(() => {
+  process.env.PORCELAIN_AGENT_THREADS = dir
+  rmSync(dir, { recursive: true, force: true })
+  resetForTests()
+  mock = new MockDriver()
+  setDrivers(registry(mock))
+})
+afterEach(() => {
+  delete process.env.PORCELAIN_AGENT_THREADS
+  rmSync(dir, { recursive: true, force: true })
+  resetForTests()
+})
+
+const newThread = () =>
+  createThread({ repoPath: '/repo', provider: 'claude', model: 'sonnet', mode: 'full' })
+
+describe('agent-manager', () => {
+  it('creates a thread, persists it, and lists it', async () => {
+    const info = await newThread()
+    expect(info).toMatchObject({ repoPath: '/repo', provider: 'claude', status: 'idle' })
+    expect(await readThread(info.id)).not.toBeNull()
+    expect((await listThreads('/repo')).map((t) => t.id)).toEqual([info.id])
+  })
+
+  it('keeps repos isolated in the roster', async () => {
+    await newThread()
+    await createThread({ repoPath: '/other', provider: 'claude', model: 'sonnet', mode: 'full' })
+    expect(await listThreads('/repo')).toHaveLength(1)
+    expect(await listThreads('/other')).toHaveLength(1)
+  })
+
+  it('sendMessage appends a user item, goes working, and calls the driver', async () => {
+    const { id } = await newThread()
+    await sendMessage(id, { text: 'do a thing' })
+    expect(mock.last?.text).toBe('do a thing')
+    const stored = await readThread(id)
+    expect(stored?.items).toEqual([{ kind: 'user', id: expect.any(String), text: 'do a thing' }])
+    expect((await listThreads('/repo'))[0]?.status).toBe('working')
+  })
+
+  it('auto-titles from the first user message only', async () => {
+    const { id } = await newThread()
+    await sendMessage(id, { text: 'Fix the retry loop\nand add a test' })
+    expect((await listThreads('/repo'))[0]?.title).toBe('Fix the retry loop')
+    // A second send (rejected because still working) must not retitle.
+    await sendMessage(id, { text: 'another' })
+    expect((await listThreads('/repo'))[0]?.title).toBe('Fix the retry loop')
+  })
+
+  it('records imageCount on the user item', async () => {
+    const { id } = await newThread()
+    await sendMessage(id, {
+      text: 'look',
+      images: [{ mediaType: 'image/png', base64: 'AAAA' }],
+    })
+    const stored = await readThread(id)
+    expect(stored?.items[0]).toMatchObject({ kind: 'user', imageCount: 1 })
+  })
+
+  it('rejects a second send while working with an error item, no second turn', async () => {
+    const { id } = await newThread()
+    await sendMessage(id, { text: 'first' })
+    const firstTurnOpts = mock.last
+    await sendMessage(id, { text: 'second' })
+    expect(mock.last).toBe(firstTurnOpts) // startTurn not called again
+    await flushThread(id) // the rejection's error item persists on the debounce
+    const stored = await readThread(id)
+    expect(stored?.items.map((i) => i.kind)).toEqual(['user', 'error'])
+  })
+
+  it('reduces driver events into the timeline and returns to idle onDone', async () => {
+    const { id } = await newThread()
+    await sendMessage(id, { text: 'go' })
+    const opts = mock.last
+    if (!opts) throw new Error('expected a started turn')
+    opts.emit({ t: 'item', item: { kind: 'assistant', id: 'a1', text: 'Hel', streaming: true } })
+    opts.emit({ t: 'item-delta', id: 'a1', delta: 'lo' })
+    opts.emit({ t: 'item', item: { kind: 'assistant', id: 'a1', text: 'Hello', streaming: false } })
+    opts.onDone({ ok: true })
+    await flushThread(id)
+    const stored = await readThread(id)
+    expect(stored?.items).toEqual([
+      { kind: 'user', id: expect.any(String), text: 'go' },
+      { kind: 'assistant', id: 'a1', text: 'Hello', streaming: false },
+    ])
+    expect((await listThreads('/repo'))[0]?.status).toBe('idle')
+  })
+
+  it('persists driver session state for the next turn to resume', async () => {
+    const { id } = await newThread()
+    await sendMessage(id, { text: 'go' })
+    mock.last?.onSessionState({ resume: 'sess-1' })
+    mock.last?.onDone({ ok: true })
+    await flushThread(id)
+    expect((await readThread(id))?.sessionState).toEqual({ resume: 'sess-1' })
+    // The next turn is handed the resumed state.
+    await sendMessage(id, { text: 'again' })
+    expect(mock.last?.resume).toEqual({ resume: 'sess-1' })
+  })
+
+  it('fans turn events out to attached senders only', async () => {
+    const { id } = await newThread()
+    const sender = recordingSender()
+    const attach = await attachThread(id, sender)
+    expect(attach).toMatchObject({ found: true, status: 'idle' })
+    await sendMessage(id, { text: 'go' })
+    mock.last?.emit({
+      t: 'item',
+      item: { kind: 'assistant', id: 'a1', text: 'hi', streaming: false },
+    })
+    // The user item, the manager's working flip, and the assistant item all fan out.
+    expect(sender.events.map((e) => e.t)).toEqual(['item', 'status', 'item'])
+    detachThread(id, sender)
+    mock.last?.emit({ t: 'item', item: { kind: 'error', id: 'e1', message: 'boom' } })
+    expect(sender.events).toHaveLength(3) // nothing after detach
+  })
+
+  it('fans the working flip on send and the idle flip on done to attached senders', async () => {
+    const { id } = await newThread()
+    const sender = recordingSender()
+    await attachThread(id, sender)
+    await sendMessage(id, { text: 'go' })
+    const statusesAfterSend = sender.events
+      .filter((e) => e.t === 'status')
+      .map((e) => (e.t === 'status' ? e.status : ''))
+    expect(statusesAfterSend).toEqual(['working'])
+    mock.last?.onDone({ ok: true })
+    const allStatuses = sender.events
+      .filter((e) => e.t === 'status')
+      .map((e) => (e.t === 'status' ? e.status : ''))
+    expect(allStatuses).toEqual(['working', 'idle'])
+  })
+
+  it('claims the turn synchronously so a racing second send is rejected', async () => {
+    const { id } = await newThread()
+    // Two sends without awaiting the first — the second must hit the already-working guard.
+    const first = sendMessage(id, { text: 'first' })
+    const second = sendMessage(id, { text: 'second' })
+    await Promise.all([first, second])
+    expect(mock.starts).toBe(1) // exactly one driver turn started
+    await flushThread(id)
+    const stored = await readThread(id)
+    expect(stored?.items.map((i) => i.kind)).toEqual(['user', 'error'])
+  })
+
+  it('does not resurrect the thread file when a debounced persist was pending', async () => {
+    const { id } = await newThread()
+    await sendMessage(id, { text: 'go' })
+    // A driver emit schedules a trailing (debounced) persist that hasn't fired yet.
+    mock.last?.emit({
+      t: 'item',
+      item: { kind: 'assistant', id: 'a1', text: 'hi', streaming: false },
+    })
+    await deleteThread(id)
+    // Give the (now-cancelled) debounce well past its ~500ms window to prove it can't write.
+    await new Promise((resolve) => setTimeout(resolve, 700))
+    expect(await readThread(id)).toBeNull()
+  })
+
+  it('attach replays the current timeline snapshot', async () => {
+    const { id } = await newThread()
+    await sendMessage(id, { text: 'go' })
+    const sender = recordingSender()
+    const result = await attachThread(id, sender)
+    expect(result.found).toBe(true)
+    expect(result.items.map((i) => i.kind)).toEqual(['user'])
+    expect(result.status).toBe('working')
+  })
+
+  it('reports found=false for an unknown thread', async () => {
+    const result = await attachThread('nope', recordingSender())
+    expect(result).toEqual({ found: false, items: [], status: 'idle' })
+  })
+
+  it('aborts a running turn back to idle', async () => {
+    const { id } = await newThread()
+    await sendMessage(id, { text: 'go' })
+    await abortTurn(id)
+    expect(mock.aborts).toBe(1)
+    expect((await listThreads('/repo'))[0]?.status).toBe('idle')
+  })
+
+  it('ignores a late callback from an aborted turn, keeping the new turn intact', async () => {
+    const { id } = await newThread()
+    await sendMessage(id, { text: 'first' })
+    const firstOpts = mock.last
+    if (!firstOpts) throw new Error('expected a started turn')
+    await abortTurn(id)
+    // A new turn starts; capture its (distinct) options.
+    await sendMessage(id, { text: 'second' })
+    const secondOpts = mock.last
+    if (!secondOpts || secondOpts === firstOpts) throw new Error('expected a second turn')
+    // The aborted turn's process exits late, firing a final emit + onDone.
+    firstOpts.emit({
+      t: 'item',
+      item: { kind: 'assistant', id: 'stale', text: 'stale', streaming: false },
+    })
+    firstOpts.onDone({ ok: true })
+    // The new turn is untouched: still working, no stale item, and its own emit lands.
+    expect((await listThreads('/repo'))[0]?.status).toBe('working')
+    secondOpts.emit({
+      t: 'item',
+      item: { kind: 'assistant', id: 'live', text: 'live', streaming: false },
+    })
+    await flushThread(id)
+    const stored = await readThread(id)
+    expect(stored?.items).toEqual([
+      { kind: 'user', id: expect.any(String), text: 'first' },
+      { kind: 'user', id: expect.any(String), text: 'second' },
+      { kind: 'assistant', id: 'live', text: 'live', streaming: false },
+    ])
+  })
+
+  it('routes an approval decision to the running turn', async () => {
+    const { id } = await newThread()
+    await sendMessage(id, { text: 'go' })
+    await respondApproval(id, 'req-1', 'accept-session')
+    expect(mock.approvals).toEqual([{ requestId: 'req-1', decision: 'accept-session' }])
+  })
+
+  it('renames and updates a thread', async () => {
+    const { id } = await newThread()
+    await renameThread(id, '  Renamed  ')
+    await updateThread(id, { model: 'opus', mode: 'approve' })
+    const stored = await readThread(id)
+    expect(stored?.meta).toMatchObject({ title: 'Renamed', model: 'opus', mode: 'approve' })
+  })
+
+  it('persists thread options and hands them to the next turn', async () => {
+    const { id } = await newThread()
+    await updateThread(id, { options: { effort: 'high', contextWindow: '1m' } })
+    expect((await readThread(id))?.meta.options).toEqual({ effort: 'high', contextWindow: '1m' })
+    await sendMessage(id, { text: 'go' })
+    expect(mock.last?.options).toEqual({ effort: 'high', contextWindow: '1m' })
+  })
+
+  it('passes {} options to the driver for an untouched thread', async () => {
+    const { id } = await newThread()
+    await sendMessage(id, { text: 'go' })
+    expect(mock.last?.options).toEqual({})
+  })
+
+  it('persists the interaction mode and hands it to the next turn', async () => {
+    const { id } = await newThread()
+    await updateThread(id, { interaction: 'plan' })
+    expect((await readThread(id))?.meta.interaction).toBe('plan')
+    await sendMessage(id, { text: 'go' })
+    expect(mock.last?.interaction).toBe('plan')
+  })
+
+  it("defaults an untouched thread's interaction to build", async () => {
+    const { id } = await newThread()
+    await sendMessage(id, { text: 'go' })
+    expect(mock.last?.interaction).toBe('build')
+  })
+
+  it('deletes a thread and its file, aborting any running turn', async () => {
+    const { id } = await newThread()
+    await sendMessage(id, { text: 'go' })
+    await deleteThread(id)
+    expect(mock.aborts).toBe(1)
+    expect(await readThread(id)).toBeNull()
+    expect(await listThreads('/repo')).toEqual([])
+  })
+
+  it('hydrates threads from disk on a fresh manager', async () => {
+    const { id } = await newThread()
+    resetForTests() // simulate a daemon restart: empty map, same on-disk dir
+    setDrivers(registry(mock))
+    expect((await listThreads('/repo')).map((t) => t.id)).toEqual([id])
+  })
+
+  it('probes provider statuses, tolerating a throwing driver', async () => {
+    const statuses = await providerStatuses()
+    const byProvider = Object.fromEntries(statuses.map((s) => [s.provider, s]))
+    expect(byProvider.claude).toMatchObject({ installed: true, authenticated: true })
+    expect(byProvider.codex).toMatchObject({ installed: false, authenticated: false, models: [] })
+  })
+})

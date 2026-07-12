@@ -1,11 +1,20 @@
 import { WebSocket } from 'ws'
 import { z } from 'zod'
+import { agentEventSchema } from '../shared/agent-protocol'
 import {
   type AppEvent,
   appEventSchema,
   clientMessageSchema,
   type ServerMessage,
 } from '../shared/ws-protocol'
+import {
+  abortTurn,
+  attachThread,
+  detachAgentSender,
+  detachThread,
+  respondApproval,
+  sendMessage,
+} from './agents/agent-manager'
 import { clearWatchedDirs, clearWatchedFiles, setWatchedDirs, setWatchedFiles } from './file-watch'
 import {
   attachTerminal,
@@ -38,6 +47,7 @@ const sessions = new Set<Session>()
 // WebContents.send); re-validate the args into the typed protocol messages.
 const terminalDataArgs = z.tuple([z.string(), z.string()])
 const terminalExitArgs = z.tuple([z.string(), z.number()])
+const agentEventArgs = z.tuple([z.string(), agentEventSchema])
 
 class Session {
   private readonly socket: WebSocket
@@ -45,7 +55,12 @@ class Session {
   constructor(socket: WebSocket) {
     this.socket = socket
     sessions.add(this)
-    socket.on('message', (raw) => this.handleMessage(raw.toString()))
+    // Some handlers (agent attach/send/…) hit the disk-backed thread store, so
+    // handleMessage is async; the socket callback can't await it, so swallow a
+    // rejection rather than crash the daemon on an unhandled promise.
+    socket.on('message', (raw) => {
+      this.handleMessage(raw.toString()).catch(() => {})
+    })
     // 'close' always follows 'error'; the empty error listener just keeps an
     // abruptly-dropped socket from crashing the daemon with an unhandled 'error'.
     socket.on('error', () => {})
@@ -69,6 +84,11 @@ class Session {
         this.push({ t: 'terminal:exit', id, exitCode })
         break
       }
+      case 'agent:event': {
+        const [threadId, event] = agentEventArgs.parse(args)
+        this.push({ t: 'agent:event', threadId, event })
+        break
+      }
     }
   }
 
@@ -81,7 +101,7 @@ class Session {
     if (this.socket.readyState === WebSocket.OPEN) this.socket.send(JSON.stringify(message))
   }
 
-  private handleMessage(raw: string): void {
+  private async handleMessage(raw: string): Promise<void> {
     let json: unknown
     try {
       json = JSON.parse(raw)
@@ -138,6 +158,32 @@ class Session {
       case 'watch:dirs':
         setWatchedDirs(this, message.paths)
         break
+      case 'agent:attach': {
+        // Mirror terminal:attach — found=false with an empty snapshot for an unknown
+        // id so the client's pending attach still settles.
+        const result = await attachThread(message.threadId, this)
+        this.push({
+          t: 'agent:attached',
+          reqId: message.reqId,
+          threadId: message.threadId,
+          found: result.found,
+          items: result.items,
+          status: result.status,
+        })
+        break
+      }
+      case 'agent:detach':
+        detachThread(message.threadId, this)
+        break
+      case 'agent:send':
+        await sendMessage(message.threadId, { text: message.text, images: message.images })
+        break
+      case 'agent:abort':
+        await abortTurn(message.threadId)
+        break
+      case 'agent:approve':
+        await respondApproval(message.threadId, message.requestId, message.decision)
+        break
     }
   }
 
@@ -149,6 +195,7 @@ class Session {
     clearWatchedFiles(this)
     clearWatchedDirs(this)
     detachSender(this)
+    detachAgentSender(this)
   }
 }
 

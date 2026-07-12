@@ -1,6 +1,7 @@
 import type { RepoInfo } from '@backend/api'
 import { isBrowser } from '@renderer/lib/platform'
 import { shellTrpcClient, trpcClient } from '@renderer/lib/trpc'
+import { useAgentThreadsStore } from '@renderer/stores/agent-threads'
 import { useRepoPickerStore } from '@renderer/stores/repo-picker'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { useTerminalsStore } from '@renderer/stores/terminals'
@@ -83,6 +84,10 @@ export const useRepoStore = create<RepoState>((set, get) => ({
     // to the new repo after openRepoPath resolves.
     useTabsStore.getState().closeAllTabs()
     useTerminalsStore.getState().reset()
+    // Drop this window's live agent timelines too — the threads live on daemon-side (like
+    // the PTYs) and re-hydrate on re-attach, but their in-memory state must not bleed across
+    // a repo switch.
+    useAgentThreadsStore.getState().reset()
     set({ repo: await trpcClient.openRepoPath.mutate(path) })
   },
   toggleShowHidden: () => set((s) => ({ showHidden: !s.showHidden })),
