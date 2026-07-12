@@ -9,6 +9,7 @@ import {
   CommandList,
 } from '@renderer/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@renderer/components/ui/popover'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import {
   useAgentModelFavorites,
   useAgentProviders,
@@ -84,17 +85,31 @@ export function ModelPicker({
     )
   }
 
+  const label = current?.label ?? model ?? 'Default model'
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger
-        render={
-          <Button variant="ghost" size="xs" className="max-w-44 gap-1 text-muted-foreground">
-            <ProviderGlyph provider={provider} className="size-3" />
-            <span className="min-w-0 truncate">{current?.label ?? model ?? 'Default model'}</span>
-            <ChevronsUpDown className="opacity-60" />
-          </Button>
-        }
-      />
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <PopoverTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  aria-label="Model"
+                  className="max-w-44 gap-1 text-muted-foreground"
+                >
+                  <ProviderGlyph provider={provider} className="size-3" />
+                  <span className="min-w-0 truncate @max-[30rem]/composer:hidden">{label}</span>
+                  <ChevronsUpDown className="opacity-60 @max-[30rem]/composer:hidden" />
+                </Button>
+              }
+            />
+          }
+        />
+        <TooltipContent>{label}</TooltipContent>
+      </Tooltip>
       <PopoverContent align="start" className="w-72 p-0" side="top">
         <Command>
           <CommandInput placeholder="Search models…" />

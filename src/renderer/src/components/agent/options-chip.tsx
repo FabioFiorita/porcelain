@@ -9,6 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@renderer/components/ui/dropdown-menu'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useUpdateAgentThread } from '@renderer/hooks/use-agents'
 import type { ModelInfo, ThreadOptions } from '@shared/agent-protocol'
 import { SlidersHorizontal } from 'lucide-react'
@@ -62,21 +63,30 @@ export function OptionsChip({
     update(threadId, { options: { ...options, ...patch } })
   }
 
+  const label = parts.join(' · ')
+
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="xs"
-            aria-label="Model options"
-            className="gap-1 text-muted-foreground"
-          >
-            <SlidersHorizontal className="size-3" />
-            <span className="truncate">{parts.join(' · ')}</span>
-          </Button>
-        }
-      />
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  aria-label="Model options"
+                  className="gap-1 text-muted-foreground"
+                >
+                  <SlidersHorizontal className="size-3" />
+                  <span className="truncate @max-[30rem]/composer:hidden">{label}</span>
+                </Button>
+              }
+            />
+          }
+        />
+        <TooltipContent>{label}</TooltipContent>
+      </Tooltip>
       <DropdownMenuContent align="start" className="min-w-44">
         {efforts && (
           <DropdownMenuGroup>

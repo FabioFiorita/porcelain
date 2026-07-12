@@ -311,7 +311,7 @@ export function AgentComposer({
             className="max-h-48 min-h-9 resize-none border-0 bg-transparent px-1.5 py-1 shadow-none focus-visible:border-0 focus-visible:ring-0 dark:bg-transparent"
           />
         </div>
-        <div className="flex items-center gap-1">
+        <div className="@container/composer flex items-center gap-1">
           <input
             ref={fileInputRef}
             type="file"
@@ -336,14 +336,28 @@ export function AgentComposer({
           <ModelPicker threadId={threadId} provider={provider} model={model} />
           <OptionsChip threadId={threadId} modelInfo={modelInfo} options={options} />
           <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button variant="ghost" size="xs" className="gap-1 text-muted-foreground">
-                  <ModeIcon className="size-3" />
-                  <span className="truncate">{MODE_LABEL[mode]}</span>
-                </Button>
-              }
-            />
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        aria-label="Permission mode"
+                        className="gap-1 text-muted-foreground"
+                      >
+                        <ModeIcon className="size-3" />
+                        <span className="truncate @max-[30rem]/composer:hidden">
+                          {MODE_LABEL[mode]}
+                        </span>
+                      </Button>
+                    }
+                  />
+                }
+              />
+              <TooltipContent>{MODE_LABEL[mode]}</TooltipContent>
+            </Tooltip>
             <DropdownMenuContent align="start" className="min-w-44">
               <DropdownMenuRadioGroup
                 value={mode}
@@ -374,8 +388,10 @@ export function AgentComposer({
                         className="gap-1 text-muted-foreground"
                       >
                         <InteractionIcon className="size-3" />
-                        <span className="truncate">{INTERACTION_LABEL[interaction]}</span>
-                        <ChevronDown className="size-3" />
+                        <span className="truncate @max-[30rem]/composer:hidden">
+                          {INTERACTION_LABEL[interaction]}
+                        </span>
+                        <ChevronDown className="size-3 @max-[30rem]/composer:hidden" />
                       </Button>
                     }
                   />
