@@ -21,6 +21,7 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
@@ -261,29 +262,32 @@ export function AgentList(): React.JSX.Element {
                 }
               />
               <DropdownMenuContent align="end" className="min-w-44">
-                <DropdownMenuLabel>New thread with…</DropdownMenuLabel>
-                {agentProviderSchema.options.map((provider) => {
-                  // Treat "not yet probed" as available so a slow probe doesn't lock the menu;
-                  // only hard-disable once we KNOW the CLI is missing (mirrors the composer).
-                  const installed =
-                    providers.find((p) => p.provider === provider)?.installed ?? true
-                  return (
-                    <DropdownMenuItem
-                      key={provider}
-                      disabled={!installed}
-                      onClick={() => newThreadWith(provider)}
-                    >
-                      <ProviderGlyph
-                        provider={provider}
-                        className="size-3.5 text-muted-foreground"
-                      />
-                      <span className="flex-1">{PROVIDER_LABEL[provider]}</span>
-                      {!installed && (
-                        <span className="text-2xs text-muted-foreground/60">Not installed</span>
-                      )}
-                    </DropdownMenuItem>
-                  )
-                })}
+                {/* Base UI requires GroupLabel inside a Group (Radix did not) */}
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>New thread with…</DropdownMenuLabel>
+                  {agentProviderSchema.options.map((provider) => {
+                    // Treat "not yet probed" as available so a slow probe doesn't lock the menu;
+                    // only hard-disable once we KNOW the CLI is missing (mirrors the composer).
+                    const installed =
+                      providers.find((p) => p.provider === provider)?.installed ?? true
+                    return (
+                      <DropdownMenuItem
+                        key={provider}
+                        disabled={!installed}
+                        onClick={() => newThreadWith(provider)}
+                      >
+                        <ProviderGlyph
+                          provider={provider}
+                          className="size-3.5 text-muted-foreground"
+                        />
+                        <span className="flex-1">{PROVIDER_LABEL[provider]}</span>
+                        {!installed && (
+                          <span className="text-2xs text-muted-foreground/60">Not installed</span>
+                        )}
+                      </DropdownMenuItem>
+                    )
+                  })}
+                </DropdownMenuGroup>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
