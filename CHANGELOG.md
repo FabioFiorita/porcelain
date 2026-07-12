@@ -1,3 +1,12 @@
+## [0.21.3](https://github.com/FabioFiorita/porcelain/compare/v0.21.2...v0.21.3) (2026-07-12)
+
+### Bug Fixes
+
+* collapse composer chip labels to icons when the pane is narrow ([3f81240](https://github.com/FabioFiorita/porcelain/commit/3f812408bf609cf1092bdd4e2c43cbf2446d489d))
+* keep selected lines tinted while the viewer context menu is open ([ea156ef](https://github.com/FabioFiorita/porcelain/commit/ea156ef6a6576004e393f4c38203474b7215159e))
+* keep the chips' accessible names value-based — a static aria-label overrode them ([7f6b58b](https://github.com/FabioFiorita/porcelain/commit/7f6b58b99b56e8cd3a7d9b0b2411639035ce83b5))
+* wrap the provider menu label in a group — Base UI throws [#31](https://github.com/FabioFiorita/porcelain/issues/31) on bare labels ([fbf27a0](https://github.com/FabioFiorita/porcelain/commit/fbf27a04d8778a6c8389567185692dbfbf7b860c))
+
 ## [0.21.2](https://github.com/FabioFiorita/porcelain/compare/v0.21.1...v0.21.2) (2026-07-12)
 
 ## [0.21.1](https://github.com/FabioFiorita/porcelain/compare/v0.21.0...v0.21.1) (2026-07-12)
