@@ -2,6 +2,7 @@ import type { AgentCommand } from '@backend/agents/types'
 import type { LimitsRefresh } from '@backend/repo-config'
 import { onMutationError } from '@renderer/hooks/mutation-error'
 import { trpc } from '@renderer/lib/trpc'
+import { useAgentDraftsStore } from '@renderer/stores/agent-drafts'
 import { useAgentThreadsStore } from '@renderer/stores/agent-threads'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
@@ -118,6 +119,7 @@ export function useDeleteAgentThread(): {
       await mutation.mutateAsync({ id })
       useTabsStore.getState().closeTabEverywhere(tabId('agent', id))
       useAgentThreadsStore.getState().remove(id)
+      useAgentDraftsStore.getState().clearDraft(id)
     },
     isPending: mutation.isPending,
   }

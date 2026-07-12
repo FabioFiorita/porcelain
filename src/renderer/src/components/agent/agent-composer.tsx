@@ -19,6 +19,7 @@ import { useAgentActions } from '@renderer/hooks/use-agent-channel'
 import { useAgentProviders, useUpdateAgentThread } from '@renderer/hooks/use-agents'
 import { makeThumbnail } from '@renderer/lib/image-thumbnail'
 import { cn } from '@renderer/lib/utils'
+import { type Attachment, useAgentDraftsStore } from '@renderer/stores/agent-drafts'
 import type {
   AgentImage,
   AgentInteraction,
@@ -67,16 +68,6 @@ const INTERACTION_LABEL: Record<AgentInteraction, string> = {
 const INTERACTION_ICON: Record<AgentInteraction, LucideIcon> = {
   build: Hammer,
   plan: NotebookPen,
-}
-
-interface Attachment {
-  id: string
-  mediaType: string
-  base64: string
-  dataUrl: string
-  // The downscaled preview persisted in the timeline (see makeThumbnail); absent if the image
-  // couldn't be re-encoded — the send still carries the full image, just no stored thumbnail.
-  thumbnail: AgentImage | null
 }
 
 /** Read a File into an in-memory image attachment (base64 for the wire, data URL for the chip). */
@@ -142,8 +133,14 @@ export function AgentComposer({
   const { send, abort, cancelQueued } = useAgentActions()
   const { update } = useUpdateAgentThread()
   const providers = useAgentProviders()
-  const [text, setText] = useState('')
-  const [images, setImages] = useState<Attachment[]>([])
+  // Drafts live in a per-thread store, not local state, so a viewer-tab switch (which unmounts
+  // this view) doesn't destroy a half-written message; text also survives a reload (see the store).
+  const draft = useAgentDraftsStore((s) => s.drafts[threadId])
+  const setDraft = useAgentDraftsStore((s) => s.setDraft)
+  const clearDraft = useAgentDraftsStore((s) => s.clearDraft)
+  const text = draft?.text ?? ''
+  const images = draft?.images ?? []
+  const setText = (value: string): void => setDraft(threadId, { text: value })
   const [dragging, setDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -166,7 +163,11 @@ export function AgentComposer({
   const addFiles = async (files: FileList | File[]): Promise<void> => {
     const read = await Promise.all(Array.from(files).map(readImage))
     const next = read.filter((image): image is Attachment => image !== null)
-    if (next.length > 0) setImages((current) => [...current, ...next])
+    if (next.length === 0) return
+    // Read fresh from the store — this runs after an await, so the closed-over `images` may be
+    // stale (mirrors the old functional setState).
+    const current = useAgentDraftsStore.getState().drafts[threadId]?.images ?? []
+    setDraft(threadId, { images: [...current, ...next] })
   }
 
   const toggleInteraction = (): void => {
@@ -174,13 +175,14 @@ export function AgentComposer({
   }
 
   // Drop a picked example prompt into the field and focus it, consuming the prefill so the
-  // same prompt can be picked again later.
+  // same prompt can be picked again later. Uses the stable store action directly (setText is a
+  // fresh closure each render, so it can't be an effect dependency).
   useEffect(() => {
     if (prefill === null) return
-    setText(prefill)
+    setDraft(threadId, { text: prefill })
     onPrefillConsumed()
     textareaRef.current?.focus()
-  }, [prefill, onPrefillConsumed])
+  }, [prefill, onPrefillConsumed, setDraft, threadId])
 
   const submit = (): void => {
     if (!canSend) return
@@ -195,8 +197,7 @@ export function AgentComposer({
       if (thumbnails.length > 0) payload.thumbnails = thumbnails
     }
     send(threadId, payload)
-    setText('')
-    setImages([])
+    clearDraft(threadId)
   }
 
   return (
@@ -253,7 +254,9 @@ export function AgentComposer({
                   size="icon-xs"
                   aria-label="Remove attachment"
                   className="absolute -top-1.5 -right-1.5 size-5 rounded-full bg-popover ring-1 ring-border"
-                  onClick={() => setImages((current) => current.filter((i) => i.id !== image.id))}
+                  onClick={() =>
+                    setDraft(threadId, { images: images.filter((i) => i.id !== image.id) })
+                  }
                 >
                   <X />
                 </Button>

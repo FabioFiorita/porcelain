@@ -18,6 +18,8 @@ import { useGitFlow } from '@renderer/hooks/use-git-flow'
 import { applyCommitPrefix, parseCommitPrefix } from '@renderer/lib/commit-message'
 import { kbdLabel } from '@renderer/lib/keyboard'
 import { cn } from '@renderer/lib/utils'
+import { useCommitDraftStore } from '@renderer/stores/commit-draft'
+import { useRepoStore } from '@renderer/stores/repo'
 import { ChevronsUpDown, FileMinus2, FilePlus2, GitCommitHorizontal } from 'lucide-react'
 import { useState } from 'react'
 
@@ -117,7 +119,12 @@ function CommitTokenSelect({
 }
 
 export function CommitGroup(): React.JSX.Element {
-  const [message, setMessage] = useState('')
+  // The draft is keyed by repo path and lives in a persisted store so it survives the
+  // Quick Access section unmounting on sidebar-tab switches (and a reload).
+  const repoPath = useRepoStore((s) => s.repo?.path ?? '')
+  const message = useCommitDraftStore((s) => s.messages[repoPath] ?? '')
+  const setMessage = useCommitDraftStore((s) => s.setMessage)
+  const clearMessage = useCommitDraftStore((s) => s.clearMessage)
   const [staged, setStaged] = useState<{ text: string; failed: boolean } | null>(null)
   const conventions = useCommitConventions()
   const {
@@ -125,7 +132,7 @@ export function CommitGroup(): React.JSX.Element {
     isCommitting,
     error,
   } = useCommit(() => {
-    setMessage('')
+    clearMessage(repoPath)
     setStaged(null)
   })
   const { stageAll, unstageAll, isStaging } = useStageAll()
@@ -153,9 +160,12 @@ export function CommitGroup(): React.JSX.Element {
   const ready = applyCommitPrefix(message, null, null).trim() !== ''
 
   const setType = (next: string | null): void =>
-    setMessage((m) => applyCommitPrefix(m, next, next ? parseCommitPrefix(m).scope : null))
+    setMessage(
+      repoPath,
+      applyCommitPrefix(message, next, next ? parseCommitPrefix(message).scope : null),
+    )
   const setScope = (next: string | null): void =>
-    setMessage((m) => applyCommitPrefix(m, parseCommitPrefix(m).type, next))
+    setMessage(repoPath, applyCommitPrefix(message, parseCommitPrefix(message).type, next))
 
   const commit = (): void => {
     if (!ready || isCommitting) return
@@ -202,7 +212,7 @@ export function CommitGroup(): React.JSX.Element {
           </div>
           <Textarea
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={(e) => setMessage(repoPath, e.target.value)}
             onKeyDown={(e) => {
               if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') commit()
             }}
