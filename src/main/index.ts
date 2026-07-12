@@ -15,6 +15,34 @@ if (is.dev) {
   app.setPath('userData', `${app.getPath('userData')}-dev`)
 }
 
+// Porcelain is ONE process hosting N windows (File → New Window / ⌘⌥N add windows
+// *within* it), so a second OS instance is always a bug: it would boot its own
+// createWindow({ mode: 'restore' }) and a duplicate window pops up "on its own" when
+// something relaunches the binary. Hold a single-instance lock — a duplicate launch
+// fails it, quits before whenReady can spawn a window, and the holder focuses an
+// existing window via 'second-instance' instead. The lock only stops a second
+// PROCESS; multi-window is untouched.
+//
+// This MUST run after the is.dev setPath above: the lock is scoped to userData, and
+// that scoping is exactly what keeps things isolated — `pnpm dev` (…-dev userData)
+// never contends with the packaged app, and each Playwright e2e instance (its own
+// --user-data-dir → its own …-dev userData) holds a DISTINCT lock, so parallel e2e
+// launches all acquire it and none quit. No isPackaged/env gate needed — the prior
+// band-aid gated on !app.isPackaged, leaving the lock live only in the one build dev
+// and e2e never exercise, so it shipped untested and quit the first packaged instance.
+const gotInstanceLock = app.requestSingleInstanceLock()
+if (!gotInstanceLock) {
+  // A duplicate launch: the first instance owns the lock and focuses its window below.
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    const existing = BrowserWindow.getAllWindows().at(-1)
+    if (!existing) return
+    if (existing.isMinimized()) existing.restore()
+    existing.focus()
+  })
+}
+
 // Playwright e2e launches this built app and drives the renderer over CDP +
 // screenshots the web contents directly, so the OS window never needs to appear.
 // Gate test-only "stay hidden" behavior on this flag (set by the e2e fixture).
@@ -45,6 +73,10 @@ function extensionsCompatSession(): Session {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(async () => {
+  // The duplicate instance already called app.quit() above; never let its whenReady
+  // boot a window or register the process-wide handlers.
+  if (!gotInstanceLock) return
+
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.fabiofiorita.porcelain')
 
