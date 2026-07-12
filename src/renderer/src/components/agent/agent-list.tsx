@@ -18,8 +18,16 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from '@renderer/components/ui/context-menu'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from '@renderer/components/ui/dropdown-menu'
 import { Input } from '@renderer/components/ui/input'
 import {
+  useAgentProviders,
   useAgentThreads,
   useCreateAgentThread,
   useDeleteAgentThread,
@@ -27,9 +35,10 @@ import {
 } from '@renderer/hooks/use-agents'
 import { cn } from '@renderer/lib/utils'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
-import type { ThreadInfo } from '@shared/agent-protocol'
-import { Loader2, PenLine, Plus, Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import type { AgentProvider, ThreadInfo } from '@shared/agent-protocol'
+import { agentProviderSchema, PROVIDER_LABEL } from '@shared/agent-protocol'
+import { ChevronDown, Loader2, PenLine, Plus, Trash2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 /** Short "updated" label for a thread row — coarse buckets, never a live-ticking string. */
 function relativeTime(ms: number): string {
@@ -184,43 +193,100 @@ function ThreadRow({ thread }: { thread: ThreadInfo }): React.JSX.Element {
 }
 
 /**
- * The Agent sidebar tab body: the roster of agent threads for the current repo. "+"
- * starts a new Claude thread and opens it; a row opens/focuses its viewer tab. Mirrors
- * the Terminal/Board tabs — a list here, the live surface (timeline + composer) in the
- * viewer. Sessions are daemon-owned, so a thread persists across reloads.
+ * The Agent sidebar tab body: the roster of agent threads for the current repo. The split
+ * "+" starts a new thread on the last-used provider and opens it, while its dropdown starts
+ * one on a specific provider (uninstalled ones disabled); a row opens/focuses its viewer tab.
+ * Mirrors the Terminal/Board tabs — a list here, the live surface (timeline + composer) in
+ * the viewer. Sessions are daemon-owned, so a thread persists across reloads.
  */
 export function AgentList(): React.JSX.Element {
   const threads = useAgentThreads()
+  const providers = useAgentProviders()
   const { create, isPending } = useCreateAgentThread()
   const openTab = useTabsStore((s) => s.openTab)
+
+  // Coarse re-render tick so each row's relativeTime() label refreshes as time passes (rows
+  // compute it at render, so they'd otherwise go stale). One interval for the whole list.
+  const [, setTick] = useState(0)
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 30_000)
+    return () => clearInterval(id)
+  }, [])
+
+  const openThreadTab = (thread: ThreadInfo): void => {
+    openTab({ id: tabId('agent', thread.id), kind: 'agent', title: thread.title, path: thread.id })
+  }
 
   const newThread = async (): Promise<void> => {
     // No provider/model = default to the last-used selection (the composer's model
     // picker changes it later); falls back to the driver's default on a fresh config.
     const thread = await create({ mode: 'full' })
-    if (thread) {
-      openTab({
-        id: tabId('agent', thread.id),
-        kind: 'agent',
-        title: thread.title,
-        path: thread.id,
-      })
-    }
+    if (thread) openThreadTab(thread)
+  }
+
+  const newThreadWith = async (provider: AgentProvider): Promise<void> => {
+    // An explicit provider pick passes model:'' so the daemon honors the provider verbatim
+    // (both fields present) and the driver fills its own default model — no cross-provider
+    // mix with the last-used selection.
+    const thread = await create({ provider, model: '', mode: 'full' })
+    if (thread) openThreadTab(thread)
   }
 
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-end px-2">
         <SidebarHeaderActions>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={newThread}
-            aria-label="New thread"
-            disabled={isPending}
-          >
-            <Plus />
-          </Button>
+          <div className="flex items-center">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={newThread}
+              aria-label="New thread"
+              disabled={isPending}
+            >
+              <Plus />
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="-ml-1.5 size-5"
+                    aria-label="Choose provider for new thread"
+                    disabled={isPending}
+                  >
+                    <ChevronDown />
+                  </Button>
+                }
+              />
+              <DropdownMenuContent align="end" className="min-w-44">
+                <DropdownMenuLabel>New thread with…</DropdownMenuLabel>
+                {agentProviderSchema.options.map((provider) => {
+                  // Treat "not yet probed" as available so a slow probe doesn't lock the menu;
+                  // only hard-disable once we KNOW the CLI is missing (mirrors the composer).
+                  const installed =
+                    providers.find((p) => p.provider === provider)?.installed ?? true
+                  return (
+                    <DropdownMenuItem
+                      key={provider}
+                      disabled={!installed}
+                      onClick={() => newThreadWith(provider)}
+                    >
+                      <ProviderGlyph
+                        provider={provider}
+                        className="size-3.5 text-muted-foreground"
+                      />
+                      <span className="flex-1">{PROVIDER_LABEL[provider]}</span>
+                      {!installed && (
+                        <span className="text-2xs text-muted-foreground/60">Not installed</span>
+                      )}
+                    </DropdownMenuItem>
+                  )
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </SidebarHeaderActions>
       </div>
       <div className="flex flex-col gap-0.5 px-2">

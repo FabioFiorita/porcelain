@@ -27,6 +27,7 @@ import type {
   QueuedMessageInfo,
   ThreadOptions,
 } from '@shared/agent-protocol'
+import { PROVIDER_LABEL } from '@shared/agent-protocol'
 import type { LucideIcon } from 'lucide-react'
 import {
   ArrowUp,
@@ -40,7 +41,7 @@ import {
   Square,
   X,
 } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 const MODE_LABEL: Record<AgentMode, string> = {
   approve: 'Ask to approve',
@@ -54,12 +55,6 @@ const MODE_ICON: Record<AgentMode, LucideIcon> = {
   approve: ShieldQuestion,
   'auto-edits': ShieldCheck,
   full: ShieldOff,
-}
-
-const PROVIDER_LABEL: Record<AgentProvider, string> = {
-  claude: 'Claude Code',
-  codex: 'Codex',
-  opencode: 'OpenCode',
 }
 
 // Build vs Plan reads as a permission-mode sibling: one chip, one dropdown, same icons on
@@ -127,6 +122,8 @@ export function AgentComposer({
   options,
   working,
   queued,
+  prefill,
+  onPrefillConsumed,
 }: {
   threadId: string
   provider: AgentProvider
@@ -137,6 +134,10 @@ export function AgentComposer({
   working: boolean
   // The message queued behind the running turn (roster-fed), or undefined when none.
   queued: QueuedMessageInfo | undefined
+  // Text to drop into the (empty) field — the empty-timeline example chips push a prompt here.
+  // Consumed once via `onPrefillConsumed`, so a repeat pick of the same prompt still fires.
+  prefill: string | null
+  onPrefillConsumed: () => void
 }): React.JSX.Element {
   const { send, abort, cancelQueued } = useAgentActions()
   const { update } = useUpdateAgentThread()
@@ -171,6 +172,15 @@ export function AgentComposer({
   const toggleInteraction = (): void => {
     update(threadId, { interaction: interaction === 'plan' ? 'build' : 'plan' })
   }
+
+  // Drop a picked example prompt into the field and focus it, consuming the prefill so the
+  // same prompt can be picked again later.
+  useEffect(() => {
+    if (prefill === null) return
+    setText(prefill)
+    onPrefillConsumed()
+    textareaRef.current?.focus()
+  }, [prefill, onPrefillConsumed])
 
   const submit = (): void => {
     if (!canSend) return

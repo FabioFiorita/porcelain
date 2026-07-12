@@ -12,6 +12,7 @@ import type {
   ThreadInfo,
   ThreadOptions,
 } from '@shared/agent-protocol'
+import { useState } from 'react'
 
 /**
  * The Agent tab's domain hooks: the daemon-owned roster + provider status as TanStack
@@ -124,6 +125,27 @@ export function useDeleteAgentThread(): {
 export function useAgentProviders(): ProviderStatus[] {
   const { data } = trpc.agentProviders.useQuery(undefined, { staleTime: 30_000 })
   return data ?? []
+}
+
+/**
+ * Re-probe the provider CLIs on demand (Settings → Agents' refresh button): invalidate the
+ * cached `agentProviders` query so an install/sign-in done after launch is picked up without
+ * a restart. `isPending` drives the button's spinner state.
+ */
+export function useRefreshAgentProviders(): { refresh: () => Promise<void>; isPending: boolean } {
+  const utils = trpc.useUtils()
+  const [isPending, setPending] = useState(false)
+  return {
+    refresh: async () => {
+      setPending(true)
+      try {
+        await utils.agentProviders.invalidate()
+      } finally {
+        setPending(false)
+      }
+    },
+    isPending,
+  }
 }
 
 /**

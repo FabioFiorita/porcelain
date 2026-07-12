@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { AgentEvent } from '../../shared/agent-protocol'
+import { type AppEvent, subscribeAppEvents } from '../app-events'
 import {
   type AgentSender,
   abortTurn,
@@ -619,6 +620,30 @@ describe('agent-manager', () => {
     expect(restored?.queued).toEqual({ text: 'queued', imageCount: 1 })
     // The full image payload is not on disk (never persisted).
     expect(JSON.stringify(await readThread(id))).not.toContain('BIG')
+  })
+
+  it('throttles roster broadcasts from streamed usage reports, keeping status flips instant', async () => {
+    const events: AppEvent[] = []
+    const unsub = subscribeAppEvents((e) => events.push(e))
+    try {
+      const { id } = await newThread()
+      await sendMessage(id, { text: 'go' })
+      const rosterBefore = events.filter((e) => e === 'agent-threads').length
+      // A burst of usage reports coalesces onto a trailing timer — none broadcast synchronously.
+      for (const n of [1, 2, 3]) {
+        mock.last?.emit({
+          t: 'status',
+          status: 'working',
+          usage: { inputTokens: n, outputTokens: n },
+        })
+      }
+      expect(events.filter((e) => e === 'agent-threads').length).toBe(rosterBefore)
+      // The idle flip on done is a status change, so it still broadcasts immediately.
+      mock.last?.onDone({ ok: true })
+      expect(events.filter((e) => e === 'agent-threads').length).toBeGreaterThan(rosterBefore)
+    } finally {
+      unsub()
+    }
   })
 
   it('probes provider statuses, tolerating a throwing driver', async () => {

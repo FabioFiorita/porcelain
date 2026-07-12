@@ -8,8 +8,10 @@ import {
   useUpdateAgentThread,
 } from '@renderer/hooks/use-agents'
 import { useFileSearch } from '@renderer/hooks/use-search'
+import { copyText } from '@renderer/lib/utils'
 import { useAgentThreadsStore } from '@renderer/stores/agent-threads'
 import type { ProviderStatus, ThreadInfo, TimelineItem } from '@shared/agent-protocol'
+import { TOOL_OUTPUT_CAP } from '@shared/agent-protocol'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AgentView } from './agent-view'
@@ -28,6 +30,12 @@ vi.mock('@renderer/hooks/use-agents', () => ({
 }))
 // The composer's autocomplete rides the file finder's exact search source.
 vi.mock('@renderer/hooks/use-search', () => ({ useFileSearch: vi.fn() }))
+// Keep cn() real (layout depends on it); only stub copyText so the copy affordances don't hit
+// the insecure-context execCommand fallback under jsdom.
+vi.mock('@renderer/lib/utils', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@renderer/lib/utils')>()),
+  copyText: vi.fn(),
+}))
 
 // cmdk (the completion popup's list) needs a ResizeObserver and scrolls the active row
 // into view — neither exists in jsdom, so stub them for the popup's mount.
@@ -132,6 +140,46 @@ describe('AgentView', () => {
     expect(screen.queryByText('file.txt')).not.toBeInTheDocument()
     fireEvent.click(screen.getByText('Bash'))
     expect(screen.getByText('file.txt')).toBeInTheDocument()
+  })
+
+  it('copies an assistant message via copyText', () => {
+    seed([{ kind: 'assistant', id: 'a1', text: 'copy me', streaming: false }])
+    render(<AgentView threadId={THREAD_ID} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
+    expect(copyText).toHaveBeenCalledWith('copy me')
+  })
+
+  it('flags tool output that hit the truncation cap', () => {
+    const capped = 'x'.repeat(TOOL_OUTPUT_CAP)
+    seed([{ kind: 'tool', id: 't1', title: 'Bash', status: 'ok', output: capped }])
+    render(<AgentView threadId={THREAD_ID} />)
+    expect(screen.queryByText('output truncated')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText('Bash'))
+    expect(screen.getByText('output truncated')).toBeInTheDocument()
+  })
+
+  it('the empty timeline offers starter prompts that drop into the composer', () => {
+    seed([])
+    render(<AgentView threadId={THREAD_ID} />)
+    expect(screen.getByText('Claude Code')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Add tests for the code I’m looking at.'))
+    const input = screen.getByLabelText('Message the agent') as HTMLTextAreaElement
+    expect(input.value).toBe('Add tests for the code I’m looking at.')
+  })
+
+  it('Enter approves and Escape declines the pending approval, but not while typing', () => {
+    seed([
+      { kind: 'approval', id: 'ap1', requestId: 'req-9', title: 'Run command?', status: 'pending' },
+    ])
+    render(<AgentView threadId={THREAD_ID} />)
+    fireEvent.keyDown(window, { key: 'Enter' })
+    expect(approve).toHaveBeenLastCalledWith(THREAD_ID, 'req-9', 'accept')
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(approve).toHaveBeenLastCalledWith(THREAD_ID, 'req-9', 'decline')
+    // Typing in the composer must not trigger a decision.
+    approve.mockClear()
+    fireEvent.keyDown(screen.getByLabelText('Message the agent'), { key: 'Enter' })
+    expect(approve).not.toHaveBeenCalled()
   })
 
   it('renders an error row', () => {

@@ -1,16 +1,63 @@
 import { AgentComposer } from '@renderer/components/agent/agent-composer'
 import { PlanSteps } from '@renderer/components/agent/plan-steps'
+import { ProviderGlyph } from '@renderer/components/agent/provider-glyph'
 import { Button } from '@renderer/components/ui/button'
 import { ScrollArea } from '@renderer/components/ui/scroll-area'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useAgentActions } from '@renderer/hooks/use-agent-channel'
 import { useAgentThreads } from '@renderer/hooks/use-agents'
-import { cn } from '@renderer/lib/utils'
+import { isTextEntry } from '@renderer/lib/keyboard'
+import { cn, copyText } from '@renderer/lib/utils'
 import { useAgentThreadsStore } from '@renderer/stores/agent-threads'
-import type { ApprovalDecision, TimelineItem } from '@shared/agent-protocol'
-import { AlertTriangle, ArrowDown, Check, ChevronRight, ImageIcon, Loader2, X } from 'lucide-react'
-import { memo, useEffect, useRef, useState } from 'react'
+import type { AgentProvider, ApprovalDecision, TimelineItem } from '@shared/agent-protocol'
+import { PROVIDER_LABEL, TOOL_OUTPUT_CAP } from '@shared/agent-protocol'
+import {
+  AlertTriangle,
+  ArrowDown,
+  Check,
+  ChevronRight,
+  Copy,
+  ImageIcon,
+  Loader2,
+  X,
+} from 'lucide-react'
+import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+
+/**
+ * A ghost icon copy button revealed on hover of the block it sits in — the parent must carry
+ * `group/copy relative`. Uses `copyText` (never navigator.clipboard directly — absent in the
+ * tailnet browser's insecure context) and swaps to a check for ~1.5s. The `copy` group name is
+ * fixed (and thus statically present for Tailwind's JIT); the copy blocks never nest, so one
+ * shared name can't cross-trigger.
+ */
+function CopyButton({ text }: { text: string }): React.JSX.Element {
+  const [copied, setCopied] = useState(false)
+  const copy = async (): Promise<void> => {
+    await copyText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label="Copy"
+            onClick={copy}
+            className="absolute top-1 right-1 bg-popover/70 text-muted-foreground opacity-0 backdrop-blur-sm transition-opacity focus-visible:opacity-100 group-hover/copy:opacity-100"
+          >
+            {copied ? <Check /> : <Copy />}
+          </Button>
+        }
+      />
+      <TooltipContent>{copied ? 'Copied' : 'Copy'}</TooltipContent>
+    </Tooltip>
+  )
+}
 
 /** Assistant/user prose through the same pipeline as the markdown reader (react-markdown + gfm). */
 function MessageMarkdown({ text }: { text: string }): React.JSX.Element {
@@ -82,10 +129,12 @@ function AssistantMessage({
     )
   }
   return (
-    <div className="text-sm">
+    <div className="group/copy relative text-sm">
       <MessageMarkdown text={item.text} />
-      {item.streaming && (
+      {item.streaming ? (
         <span className="ml-0.5 inline-block h-4 w-[3px] translate-y-0.5 animate-pulse rounded-full bg-foreground/70 align-text-bottom" />
+      ) : (
+        <CopyButton text={item.text} />
       )}
     </div>
   )
@@ -123,6 +172,10 @@ function ReasoningItem({
 function ToolItem({ item }: { item: Extract<TimelineItem, { kind: 'tool' }> }): React.JSX.Element {
   const [expanded, setExpanded] = useState(false)
   const hasOutput = item.output !== undefined && item.output !== ''
+  // Drivers cap captured output at TOOL_OUTPUT_CAP; Claude/OpenCode slice exactly to it (no
+  // marker) while Codex appends "…[truncated]" (so it lands past the cap). Length at/over the
+  // cap is the reliable signal for all three.
+  const truncated = item.output !== undefined && item.output.length >= TOOL_OUTPUT_CAP
   return (
     <div className="flex flex-col gap-1">
       <button
@@ -154,9 +207,17 @@ function ToolItem({ item }: { item: Extract<TimelineItem, { kind: 'tool' }> }): 
         )}
       </button>
       {expanded && hasOutput && (
-        <pre className="ml-5 max-h-64 overflow-auto rounded-md bg-muted/40 p-2 font-mono text-2xs whitespace-pre text-muted-foreground">
-          {item.output}
-        </pre>
+        <div className="ml-5 flex flex-col gap-1">
+          <div className="group/copy relative">
+            <pre className="max-h-64 overflow-auto rounded-md bg-muted/40 p-2 font-mono text-2xs whitespace-pre text-muted-foreground">
+              {item.output}
+            </pre>
+            {item.output !== undefined && <CopyButton text={item.output} />}
+          </div>
+          {truncated && (
+            <span className="text-2xs text-muted-foreground/60 italic">output truncated</span>
+          )}
+        </div>
       )}
     </div>
   )
@@ -203,9 +264,12 @@ function ApprovalCard({
         )}
       </div>
       {item.command !== undefined && item.command !== '' && (
-        <pre className="max-h-40 overflow-auto rounded-md bg-muted/40 p-2 font-mono text-xs whitespace-pre-wrap text-foreground">
-          {item.command}
-        </pre>
+        <div className="group/copy relative">
+          <pre className="max-h-40 overflow-auto rounded-md bg-muted/40 p-2 font-mono text-xs whitespace-pre-wrap text-foreground">
+            {item.command}
+          </pre>
+          <CopyButton text={item.command} />
+        </div>
       )}
       <div className="flex flex-wrap gap-1.5">
         {DECISIONS.map(({ label, decision }) => (
@@ -310,6 +374,54 @@ const TimelineRow = memo(function TimelineRow({
 
 const STICK_THRESHOLD_PX = 60
 
+// Starter prompts offered on a fresh thread — clicking one drops it into the composer.
+const EXAMPLE_PROMPTS = [
+  'Give me a tour of this codebase and how it fits together.',
+  'Find and fix a bug in the file I have open.',
+  'Add tests for the code I’m looking at.',
+]
+
+/**
+ * The first-run state of an empty thread: what it's wired to (provider + model), a few starter
+ * prompts that drop into the composer on click, and a one-line nudge toward Build/Plan.
+ */
+function EmptyTimeline({
+  provider,
+  model,
+  onPickPrompt,
+}: {
+  provider: AgentProvider
+  model: string
+  onPickPrompt: (text: string) => void
+}): React.JSX.Element {
+  return (
+    <div className="flex flex-col items-center gap-4 py-16 text-center">
+      <div className="flex flex-col items-center gap-1.5">
+        <ProviderGlyph provider={provider} className="size-6" />
+        <p className="text-sm-minus font-medium text-foreground">{PROVIDER_LABEL[provider]}</p>
+        <p className="text-2xs text-muted-foreground">{model !== '' ? model : 'Default model'}</p>
+      </div>
+      <div className="flex w-full max-w-md flex-col gap-1.5">
+        {EXAMPLE_PROMPTS.map((prompt) => (
+          <button
+            key={prompt}
+            type="button"
+            onClick={() => onPickPrompt(prompt)}
+            className="glaze-chip rounded-lg px-3 py-2 text-left text-xs-minus text-muted-foreground transition-colors hover:text-foreground [--tile-fill:var(--surface-2)]"
+          >
+            {prompt}
+          </button>
+        ))}
+      </div>
+      <p className="max-w-md text-2xs text-muted-foreground/70">
+        Tip: switch to <span className="font-medium text-muted-foreground">Plan</span> to think
+        through an approach first, or stay on{' '}
+        <span className="font-medium text-muted-foreground">Build</span> to make changes.
+      </p>
+    </div>
+  )
+}
+
 /**
  * The Agent thread viewer: the live timeline over a composer. Mounting attaches to the
  * daemon-owned thread (its snapshot seeds the store via the channel), unmounting detaches;
@@ -318,7 +430,7 @@ const STICK_THRESHOLD_PX = 60
  * (tracked against a small threshold); a "jump to latest" pill appears while unstuck.
  */
 export function AgentView({ threadId }: { threadId: string }): React.JSX.Element {
-  const { openThread, closeThreadView } = useAgentActions()
+  const { openThread, closeThreadView, approve } = useAgentActions()
   const thread = useAgentThreads().find((t) => t.id === threadId)
   const state = useAgentThreadsStore((s) => s.threads[threadId])
   const items = state?.items ?? []
@@ -327,8 +439,11 @@ export function AgentView({ threadId }: { threadId: string }): React.JSX.Element
 
   const rootRef = useRef<HTMLDivElement>(null)
   const viewportRef = useRef<HTMLElement | null>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
   const stuckRef = useRef(true)
   const [showJump, setShowJump] = useState(false)
+  const [prefill, setPrefill] = useState<string | null>(null)
+  const consumePrefill = useCallback(() => setPrefill(null), [])
 
   useEffect(() => {
     openThread(threadId)
@@ -366,15 +481,57 @@ export function AgentView({ threadId }: { threadId: string }): React.JSX.Element
     }
   }, [items, working])
 
+  // Late layout shifts (image/thumbnail loads, markdown reflow) grow the content AFTER the
+  // items effect ran, which would leave the tail off-screen. A ResizeObserver on the content
+  // re-anchors on every such shift — but only while still stuck (respecting a reader who
+  // scrolled up, exactly like the tail-follow above).
+  useEffect(() => {
+    const content = contentRef.current
+    if (!content) return
+    const observer = new ResizeObserver(() => {
+      if (stuckRef.current && viewportRef.current) {
+        viewportRef.current.scrollTop = viewportRef.current.scrollHeight
+      }
+    })
+    observer.observe(content)
+    return () => observer.disconnect()
+  }, [])
+
+  // The last still-pending approval owns Enter (accept) / Esc (decline) while it's the blocking
+  // interaction. Scoped so it never fires while typing in the composer (isTextEntry) or when a
+  // decision button already has focus (its own Enter handles the click).
+  const pendingRequestId = [...items]
+    .reverse()
+    .find(
+      (item): item is Extract<TimelineItem, { kind: 'approval' }> =>
+        item.kind === 'approval' && item.status === 'pending',
+    )?.requestId
+  useEffect(() => {
+    if (pendingRequestId === undefined) return
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key !== 'Enter' && e.key !== 'Escape') return
+      if (isTextEntry(e.target)) return
+      if (e.target instanceof HTMLElement && e.target.closest('button')) return
+      e.preventDefault()
+      approve(threadId, pendingRequestId, e.key === 'Enter' ? 'accept' : 'decline')
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [pendingRequestId, threadId, approve])
+
   return (
     <div className="flex h-full flex-col">
       <div className="relative min-h-0 flex-1">
         <ScrollArea ref={rootRef} onScroll={onScroll} className="h-full">
-          <div className="mx-auto flex max-w-3xl flex-col gap-4 px-4 py-4">
+          <div ref={contentRef} className="mx-auto flex max-w-3xl flex-col gap-4 px-4 py-4">
             {items.length === 0 ? (
-              <p className="py-16 text-center text-sm text-muted-foreground/60">
-                Send a message to start the conversation.
-              </p>
+              thread ? (
+                <EmptyTimeline
+                  provider={thread.provider}
+                  model={thread.model}
+                  onPickPrompt={setPrefill}
+                />
+              ) : null
             ) : (
               items.map((item) => <TimelineRow key={item.id} item={item} threadId={threadId} />)
             )}
@@ -403,6 +560,8 @@ export function AgentView({ threadId }: { threadId: string }): React.JSX.Element
           options={thread.options}
           working={working}
           queued={thread.queued}
+          prefill={prefill}
+          onPrefillConsumed={consumePrefill}
         />
       )}
     </div>

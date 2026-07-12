@@ -190,6 +190,30 @@ function broadcastRoster(): void {
   emitAppEvent('agent-threads')
 }
 
+// A streamed turn reports usage many times a second, and every roster broadcast invalidates
+// the renderer's `agentThreads` query (a full refetch + re-render). Usage-driven broadcasts
+// are therefore coalesced onto a trailing timer here — the token totals are already written
+// to `thread.meta.usage` synchronously (see applyUsage), so this only defers the *notification*.
+// Status flips (working/idle) still call broadcastRoster directly, so they stay instant. A
+// pending timer is cleared on shutdown/reset so a late tick can't outlive the manager.
+const USAGE_BROADCAST_THROTTLE_MS = 1000
+let usageBroadcastTimer: ReturnType<typeof setTimeout> | null = null
+
+function broadcastRosterFromUsage(): void {
+  if (usageBroadcastTimer !== null) return
+  usageBroadcastTimer = setTimeout(() => {
+    usageBroadcastTimer = null
+    broadcastRoster()
+  }, USAGE_BROADCAST_THROTTLE_MS)
+}
+
+function clearUsageBroadcast(): void {
+  if (usageBroadcastTimer !== null) {
+    clearTimeout(usageBroadcastTimer)
+    usageBroadcastTimer = null
+  }
+}
+
 /** Fan a `send` out to every still-alive attached sender, dropping destroyed ones. */
 function fanOut(thread: Thread, channel: string, ...args: unknown[]): void {
   for (const sender of thread.attached) {
@@ -295,7 +319,9 @@ function applyUsage(
     totalOutput: thread.turnUsageBase.output + usage.outputTokens,
     ...(totalCostUsd !== undefined ? { totalCostUsd } : {}),
   }
-  broadcastRoster()
+  // Trailing-throttled: the totals above are already live on thread.meta; only the roster
+  // notification is deferred so a token-by-token stream doesn't thrash the renderer query.
+  broadcastRosterFromUsage()
 }
 
 function onDone(thread: Thread, ok: boolean): void {
@@ -671,6 +697,8 @@ export async function flushThread(id: string): Promise<void> {
  * SIGTERM/SIGINT/stdin-EOF exit doesn't drop the last ~500ms of un-persisted timeline.
  */
 export async function flushAllThreads(): Promise<void> {
+  // A pending usage-broadcast tick has nothing left to notify once we're shutting down.
+  clearUsageBroadcast()
   await Promise.all([...threads.values()].map((thread) => persistNow(thread).catch(() => {})))
 }
 
@@ -737,6 +765,7 @@ export function setDrivers(next: DriverRegistry): void {
 
 /** Reset all in-memory state (tests run against a fresh, per-test threads dir). */
 export function resetForTests(): void {
+  clearUsageBroadcast()
   threads.clear()
   hydration = null
   drivers = defaultDrivers

@@ -17,14 +17,9 @@ import {
 } from '@renderer/hooks/use-agents'
 import { cn } from '@renderer/lib/utils'
 import type { AgentProvider, ModelInfo } from '@shared/agent-protocol'
+import { PROVIDER_LABEL } from '@shared/agent-protocol'
 import { ChevronsUpDown, Star } from 'lucide-react'
 import { useState } from 'react'
-
-const PROVIDER_LABEL: Record<AgentProvider, string> = {
-  claude: 'Claude Code',
-  codex: 'Codex',
-  opencode: 'OpenCode',
-}
 
 const favoriteKey = (provider: AgentProvider, modelId: string): string => `${provider}:${modelId}`
 

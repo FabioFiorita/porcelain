@@ -13,6 +13,15 @@ import { z } from 'zod'
 export const agentProviderSchema = z.enum(['claude', 'codex', 'opencode'])
 export type AgentProvider = z.infer<typeof agentProviderSchema>
 
+// The human-facing name for each provider. Co-located with the provider type so every
+// renderer surface that labels a provider (composer, model picker, settings, the Agent
+// list's new-thread menu) shares ONE source of truth instead of redeclaring the map.
+export const PROVIDER_LABEL: Record<AgentProvider, string> = {
+  claude: 'Claude Code',
+  codex: 'Codex',
+  opencode: 'OpenCode',
+}
+
 // The three permission postures a turn runs under, mapped per-driver onto each CLI's
 // own approval flags. `full` (no gate) is the default — see createThread.
 export const agentModeSchema = z.enum(['approve', 'auto-edits', 'full'])
