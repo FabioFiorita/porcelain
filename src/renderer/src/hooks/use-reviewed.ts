@@ -22,17 +22,39 @@ export function useToggleReviewed(): {
 } {
   const repo = useRepoStore((s) => s.repo)
   const utils = trpc.useUtils()
+  // Optimistic: the checkbox flips on click, then the 3s poll reconciles against server truth.
   const markMutation = trpc.markReviewed.useMutation({
-    onSuccess: async () => {
-      await utils.reviewedPaths.invalidate()
+    onMutate: async ({ repoPath, path }) => {
+      await utils.reviewedPaths.cancel(repoPath)
+      const previous = utils.reviewedPaths.getData(repoPath)
+      utils.reviewedPaths.setData(repoPath, [...new Set([...(previous ?? []), path])])
+      return { previous, repoPath }
     },
-    onError: onMutationError('Mark reviewed'),
+    onError: (error, _vars, context) => {
+      if (context) utils.reviewedPaths.setData(context.repoPath, context.previous)
+      onMutationError('Mark reviewed')(error)
+    },
+    onSettled: async (_data, _error, { repoPath }) => {
+      await utils.reviewedPaths.invalidate(repoPath)
+    },
   })
   const unmarkMutation = trpc.unmarkReviewed.useMutation({
-    onSuccess: async () => {
-      await utils.reviewedPaths.invalidate()
+    onMutate: async ({ repoPath, path }) => {
+      await utils.reviewedPaths.cancel(repoPath)
+      const previous = utils.reviewedPaths.getData(repoPath)
+      utils.reviewedPaths.setData(
+        repoPath,
+        (previous ?? []).filter((p) => p !== path),
+      )
+      return { previous, repoPath }
     },
-    onError: onMutationError('Unmark reviewed'),
+    onError: (error, _vars, context) => {
+      if (context) utils.reviewedPaths.setData(context.repoPath, context.previous)
+      onMutationError('Unmark reviewed')(error)
+    },
+    onSettled: async (_data, _error, { repoPath }) => {
+      await utils.reviewedPaths.invalidate(repoPath)
+    },
   })
   return {
     mark: async (path) => {
@@ -54,10 +76,19 @@ export function useSetReviewed(): (paths: string[]) => Promise<void> {
   const repo = useRepoStore((s) => s.repo)
   const utils = trpc.useUtils()
   const mutation = trpc.setReviewed.useMutation({
-    onSuccess: async () => {
-      await utils.reviewedPaths.invalidate()
+    onMutate: async ({ repoPath, paths }) => {
+      await utils.reviewedPaths.cancel(repoPath)
+      const previous = utils.reviewedPaths.getData(repoPath)
+      utils.reviewedPaths.setData(repoPath, paths)
+      return { previous, repoPath }
     },
-    onError: onMutationError('Update reviewed'),
+    onError: (error, _vars, context) => {
+      if (context) utils.reviewedPaths.setData(context.repoPath, context.previous)
+      onMutationError('Update reviewed')(error)
+    },
+    onSettled: async (_data, _error, { repoPath }) => {
+      await utils.reviewedPaths.invalidate(repoPath)
+    },
   })
   return async (paths) => {
     if (!repo) return

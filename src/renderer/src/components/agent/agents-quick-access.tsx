@@ -121,7 +121,9 @@ function RunningGroup({ threadId }: { threadId: string }): React.JSX.Element | n
           >
             <Loader2 className="size-3.5 shrink-0 animate-spin text-muted-foreground" />
             <span className="flex min-w-0 flex-1 items-baseline gap-2">
-              <span className="shrink-0 text-xs font-medium text-foreground">{item.title}</span>
+              <span className="max-w-full shrink-0 truncate text-xs font-medium text-foreground">
+                {item.title}
+              </span>
               {item.detail !== undefined && item.detail !== '' && (
                 <span className="min-w-0 flex-1 truncate font-mono text-2xs text-muted-foreground">
                   {item.detail}

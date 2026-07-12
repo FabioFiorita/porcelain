@@ -31,7 +31,7 @@ export function PlanSteps({ steps }: { steps: PlanStep[] }): React.JSX.Element {
           </span>
           <span
             className={cn(
-              'min-w-0 flex-1',
+              'min-w-0 flex-1 break-words',
               step.status === 'done' && 'line-through decoration-muted-foreground/40',
             )}
           >

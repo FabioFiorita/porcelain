@@ -110,6 +110,7 @@ import {
   gitWorktrees,
   QUICK_COMMANDS,
   reviewedFingerprint,
+  reviewedFingerprints,
   warmFileList,
 } from './git'
 import { readLayers, writeLayers } from './layers-store'
@@ -532,23 +533,21 @@ export const router = t.router({
     // Only the marked paths need fingerprinting (few files); reconcile prunes stale
     // marks and writes through so reviewed.json stays truthful for the MCP reader.
     const marks = await readReviewedMarks(input)
-    const current = new Map<string, string>()
-    for (const mark of marks) {
-      current.set(mark.path, await reviewedFingerprint(input, mark.path))
-    }
+    const current = await reviewedFingerprints(
+      input,
+      marks.map((mark) => mark.path),
+    )
     return reconcileReviewed(input, marks, current)
   }),
 
   setReviewed: t.procedure
     .input(z.object({ repoPath: z.string(), paths: z.array(z.string()) }))
     .mutation(async ({ input }) => {
-      const marks = await Promise.all(
-        input.paths.map(async (path) => ({
-          path,
-          fingerprint: await reviewedFingerprint(input.repoPath, path),
-        })),
+      const fingerprints = await reviewedFingerprints(input.repoPath, input.paths)
+      await setReviewedMarks(
+        input.repoPath,
+        Array.from(fingerprints, ([path, fingerprint]) => ({ path, fingerprint })),
       )
-      await setReviewedMarks(input.repoPath, marks)
     }),
 
   gitQuickCommand: t.procedure

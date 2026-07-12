@@ -596,11 +596,14 @@ async function untrackedFingerprintInput(repoPath: string, path: string): Promis
  * instead (see untrackedFingerprintInput). A clean/missing tracked file, and a repo
  * with no HEAD yet (unborn branch), hash the empty diff — that can't match a fingerprint
  * taken when the file had changes, so the mark prunes, which is the intent.
+ *
+ * `--no-renames` keeps this byte-identical to the batched `reviewedFingerprints`, whose
+ * multi-path diff would otherwise pair a rename that a single-path diff can't see.
  */
 export async function reviewedFingerprint(repoPath: string, path: string): Promise<string> {
   let diff: string | null = null
   try {
-    diff = await runGit(repoPath, ['diff', 'HEAD', '--no-color', '--', path])
+    diff = await runGit(repoPath, ['diff', 'HEAD', '--no-renames', '--no-color', '--', path])
   } catch {
     diff = null // no HEAD yet (unborn branch) — treat like an untracked file
   }
@@ -611,6 +614,105 @@ export async function reviewedFingerprint(repoPath: string, path: string): Promi
     return sha256Hex(await untrackedFingerprintInput(repoPath, path))
   }
   return sha256Hex('')
+}
+
+/**
+ * Batched `reviewedFingerprint` for many paths at a constant spawn count (one `git diff`,
+ * plus one `git status` only when some path has an empty diff) instead of one diff (and
+ * maybe one status) per path — the reviewed-marks reconcile polls this every few seconds.
+ * Each path gets exactly the fingerprint the single-file `reviewedFingerprint` would.
+ *
+ * The combined diff is split into per-file chunks on `diff --git ` header lines (never a
+ * content line, which git prefixes with a space/±); each chunk is byte-identical to that
+ * path's single-file diff, so its sha256 matches. A chunk is attributed to a path by its
+ * `+++ b/<path>` line, or `--- a/<path>` when the file was deleted (`+++ /dev/null`).
+ * Anything we can't attribute confidently (quoted/escaped headers, binary, mode-only)
+ * falls back to a per-path `reviewedFingerprint` — correctness over spawn count.
+ */
+export async function reviewedFingerprints(
+  repoPath: string,
+  paths: string[],
+): Promise<Map<string, string>> {
+  const result = new Map<string, string>()
+  if (paths.length === 0) return result
+
+  let combined: string | null = null
+  try {
+    combined = await runGit(repoPath, [
+      'diff',
+      'HEAD',
+      '--no-renames',
+      '--no-color',
+      '--',
+      ...paths,
+    ])
+  } catch {
+    // No HEAD yet (unborn branch): every path fingerprints as untracked, like the single case.
+    for (const path of paths) {
+      result.set(path, sha256Hex(await untrackedFingerprintInput(repoPath, path)))
+    }
+    return result
+  }
+
+  const wanted = new Set(paths)
+  let hasUnattributable = false
+  for (const chunk of splitDiffChunks(combined)) {
+    const path = attributeDiffChunk(chunk)
+    if (path !== null && wanted.has(path)) result.set(path, sha256Hex(chunk))
+    else hasUnattributable = true
+  }
+
+  const remaining = paths.filter((path) => !result.has(path))
+  if (remaining.length === 0) return result
+
+  // An unattributable chunk belongs to one of the remaining paths but we can't tell which,
+  // so resolve each remaining path on its own rather than mislabel an empty-diff path.
+  if (hasUnattributable) {
+    for (const path of remaining) result.set(path, await reviewedFingerprint(repoPath, path))
+    return result
+  }
+
+  // Every remaining path has an empty diff: untracked hashes its bytes, clean hashes ''.
+  const untracked = new Set(
+    parseStatus(
+      await runGit(repoPath, ['status', '--porcelain=v1', '-uall', '-z', '--', ...remaining]),
+    )
+      .filter((entry) => entry.status === 'untracked')
+      .map((entry) => entry.path),
+  )
+  for (const path of remaining) {
+    result.set(
+      path,
+      untracked.has(path)
+        ? sha256Hex(await untrackedFingerprintInput(repoPath, path))
+        : sha256Hex(''),
+    )
+  }
+  return result
+}
+
+/** Split a combined `git diff` into per-file chunks at each `diff --git ` header line. */
+function splitDiffChunks(combined: string): string[] {
+  const starts: number[] = []
+  if (combined.startsWith('diff --git ')) starts.push(0)
+  for (
+    let pos = combined.indexOf('\ndiff --git ');
+    pos !== -1;
+    pos = combined.indexOf('\ndiff --git ', pos + 1)
+  ) {
+    starts.push(pos + 1)
+  }
+  return starts.map((start, i) => combined.slice(start, starts[i + 1]))
+}
+
+/** The repo-relative path a single-file diff chunk describes, or null if unattributable. */
+function attributeDiffChunk(chunk: string): string | null {
+  const lines = chunk.split('\n')
+  const added = lines.find((line) => line.startsWith('+++ '))?.slice(4)
+  if (added !== undefined && added.startsWith('b/')) return added.slice(2)
+  const removed = lines.find((line) => line.startsWith('--- '))?.slice(4)
+  if (removed !== undefined && removed.startsWith('a/')) return removed.slice(2)
+  return null
 }
 
 /** Compute the common ancestor between `base` and HEAD. */

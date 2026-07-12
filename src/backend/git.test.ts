@@ -26,6 +26,7 @@ import {
   quickCommandArgs,
   reuseIfUnchanged,
   reviewedFingerprint,
+  reviewedFingerprints,
 } from './git'
 
 describe('isNoMatchError', () => {
@@ -595,5 +596,56 @@ describe('reviewedFingerprint', () => {
     git(dir, 'init', '-b', 'main')
     await writeFile(join(dir, 'a.ts'), 'export const a = 1\n')
     expect(await reviewedFingerprint(dir, 'a.ts')).not.toBe('')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// reviewedFingerprints: the batched form, one git diff for all paths. Assert it
+// returns exactly what per-file reviewedFingerprint returns, so the reconcile poll
+// can trade N spawns for one without changing which marks survive.
+// ---------------------------------------------------------------------------
+
+describe('reviewedFingerprints', () => {
+  const repos: string[] = []
+  afterAll(async () => {
+    await Promise.all(repos.map((d) => rm(d, { recursive: true, force: true })))
+  })
+
+  it('returns an empty map (and spawns no git) for no paths', async () => {
+    expect(await reviewedFingerprints('/nonexistent-repo', [])).toEqual(new Map())
+  })
+
+  it('matches per-file reviewedFingerprint across a mixed set of paths', async () => {
+    const dir = await makeRepo()
+    repos.push(dir)
+    // Extra committed files: clean.ts stays untouched; doomed.ts gets deleted; with
+    // space.ts exercises an unquoted spaced path in the diff header.
+    await writeFile(join(dir, 'clean.ts'), 'export const c = 1\n')
+    await writeFile(join(dir, 'doomed.ts'), 'export const d = 1\n')
+    await writeFile(join(dir, 'with space.ts'), 'export const s = 1\n')
+    git(dir, 'add', 'clean.ts', 'doomed.ts', 'with space.ts')
+    git(dir, '-c', 'commit.gpgsign=false', 'commit', '-m', 'add more')
+
+    await writeFile(join(dir, 'tracked.ts'), 'export const v = 2\n') // modified tracked
+    await writeFile(join(dir, 'new.ts'), 'export const n = 1\n') // untracked
+    await writeFile(join(dir, 'with space.ts'), 'export const s = 2\n') // modified, spaced name
+    git(dir, 'rm', 'doomed.ts') // deleted tracked
+
+    const paths = ['tracked.ts', 'new.ts', 'clean.ts', 'doomed.ts', 'with space.ts']
+    const batch = await reviewedFingerprints(dir, paths)
+    for (const path of paths) {
+      expect(batch.get(path)).toBe(await reviewedFingerprint(dir, path))
+    }
+  })
+
+  it('matches per-file reviewedFingerprint on an unborn-branch repo', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'porcelain-fps-unborn-'))
+    repos.push(dir)
+    git(dir, 'init', '-b', 'main')
+    await writeFile(join(dir, 'a.ts'), 'export const a = 1\n')
+    await writeFile(join(dir, 'b.ts'), 'export const b = 1\n')
+    const batch = await reviewedFingerprints(dir, ['a.ts', 'b.ts'])
+    expect(batch.get('a.ts')).toBe(await reviewedFingerprint(dir, 'a.ts'))
+    expect(batch.get('b.ts')).toBe(await reviewedFingerprint(dir, 'b.ts'))
   })
 })
