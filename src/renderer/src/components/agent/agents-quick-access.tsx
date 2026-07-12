@@ -1,14 +1,15 @@
 import { PlanSteps } from '@renderer/components/agent/plan-steps'
+import { Button } from '@renderer/components/ui/button'
 import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
 } from '@renderer/components/ui/sidebar'
-import { useAgentLimits, useAgentThreads } from '@renderer/hooks/use-agents'
+import { useAgentLimits, useAgentThreads, useRefreshAgentLimits } from '@renderer/hooks/use-agents'
 import { useAgentThreadsStore } from '@renderer/stores/agent-threads'
 import { useTabsStore } from '@renderer/stores/tabs'
 import type { AgentProvider, TimelineItem } from '@shared/agent-protocol'
-import { Loader2 } from 'lucide-react'
+import { Loader2, RefreshCw } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 
 type PlanTimelineItem = Extract<TimelineItem, { kind: 'plan' }>
@@ -172,13 +173,25 @@ function UsageGroup({ threadId }: { threadId: string }): React.JSX.Element | nul
  */
 function LimitsGroup({ provider }: { provider: AgentProvider }): React.JSX.Element | null {
   const limits = useAgentLimits(provider)
+  const { refresh, isPending } = useRefreshAgentLimits()
   if (!limits || limits.windows.length === 0) return null
   const now = Date.now()
   return (
     <SidebarGroup className="px-3">
-      <SidebarGroupLabel className="px-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
-        Limits
-      </SidebarGroupLabel>
+      <div className="flex items-center justify-between gap-1 pr-1">
+        <SidebarGroupLabel className="px-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
+          Limits
+        </SidebarGroupLabel>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Refresh limits"
+          disabled={isPending}
+          onClick={() => refresh(provider)}
+        >
+          <RefreshCw className={isPending ? 'animate-spin' : undefined} />
+        </Button>
+      </div>
       <SidebarGroupContent className="flex flex-col gap-2 px-1">
         {limits.windows.map((window) => {
           const percent = Math.max(0, Math.min(100, window.usedPercent))

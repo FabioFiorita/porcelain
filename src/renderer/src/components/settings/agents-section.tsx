@@ -1,11 +1,24 @@
+import type { LimitsRefresh } from '@backend/repo-config'
 import { ProviderGlyph } from '@renderer/components/agent/provider-glyph'
 import { Button } from '@renderer/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@renderer/components/ui/dropdown-menu'
 import { Separator } from '@renderer/components/ui/separator'
-import { useAgentProviders, useRefreshAgentProviders } from '@renderer/hooks/use-agents'
+import {
+  useAgentProviders,
+  useLimitsRefresh,
+  useRefreshAgentProviders,
+  useSetLimitsRefresh,
+} from '@renderer/hooks/use-agents'
 import { copyText } from '@renderer/lib/utils'
 import type { AgentProvider, ProviderStatus } from '@shared/agent-protocol'
 import { PROVIDER_LABEL } from '@shared/agent-protocol'
-import { RefreshCw } from 'lucide-react'
+import { ChevronDown, RefreshCw } from 'lucide-react'
 import { useState } from 'react'
 import { AgentMcpSection } from './agent-mcp-section'
 import { SkillsSection } from './skills-section'
@@ -122,6 +135,69 @@ function ProvidersBlock(): React.JSX.Element {
   )
 }
 
+// The user-facing label for each limits-refresh choice — one map shared by the
+// dropdown's trigger (the current choice) and its menu items.
+const LIMITS_REFRESH_LABEL: Record<LimitsRefresh, string> = {
+  '1m': 'Every minute',
+  '5m': 'Every 5 minutes',
+  '15m': 'Every 15 minutes',
+  manual: 'Manually',
+}
+
+/** The Limits-group poll cadence — a global setting, since a slow provider fetch can spawn a CLI. */
+function LimitsRefreshRow(): React.JSX.Element {
+  const value = useLimitsRefresh()
+  const { set } = useSetLimitsRefresh()
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div className="min-w-0">
+        <p className="text-sm-minus font-semibold">Limits refresh</p>
+        <p className="text-xs text-muted-foreground">
+          How often the Agent panel re-checks provider usage limits. Some providers read them by
+          running a CLI, so a slower cadence spawns fewer processes.
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Claude limits are read through CodexBar when it's installed.{' '}
+          <a
+            href="https://github.com/steipete/CodexBar"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-2"
+          >
+            Get CodexBar
+          </a>
+        </p>
+      </div>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button variant="outline" size="sm" className="shrink-0 gap-1">
+              {LIMITS_REFRESH_LABEL[value]}
+              <ChevronDown className="size-3.5 text-muted-foreground" />
+            </Button>
+          }
+        />
+        <DropdownMenuContent align="end" className="min-w-44">
+          <DropdownMenuRadioGroup
+            value={value}
+            onValueChange={(choice) => {
+              if (choice === '1m' || choice === '5m' || choice === '15m' || choice === 'manual') {
+                set(choice satisfies LimitsRefresh)
+              }
+            }}
+          >
+            {(Object.keys(LIMITS_REFRESH_LABEL) as LimitsRefresh[]).map((choice) => (
+              <DropdownMenuRadioItem key={choice} value={choice} className="whitespace-nowrap">
+                {LIMITS_REFRESH_LABEL[choice]}
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  )
+}
+
 export function AgentsSection(): React.JSX.Element {
   const { refresh, isPending } = useRefreshAgentProviders()
   return (
@@ -146,6 +222,7 @@ export function AgentsSection(): React.JSX.Element {
           </Button>
         </div>
         <ProvidersBlock />
+        <LimitsRefreshRow />
       </section>
 
       <Separator />

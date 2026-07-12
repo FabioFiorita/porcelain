@@ -1,4 +1,6 @@
 import type { AgentCommand } from '@backend/agents/types'
+import type { LimitsRefresh } from '@backend/repo-config'
+import { onMutationError } from '@renderer/hooks/mutation-error'
 import { trpc } from '@renderer/lib/trpc'
 import { useAgentThreadsStore } from '@renderer/stores/agent-threads'
 import { useRepoStore } from '@renderer/stores/repo'
@@ -162,23 +164,82 @@ export function useAgentCommands(provider: AgentProvider): AgentCommand[] {
   return data ?? []
 }
 
+/** The cadence a config with no `limitsRefresh` set falls back to — the one place the default lives. */
+export const DEFAULT_LIMITS_REFRESH: LimitsRefresh = '5m'
+
+/** The chosen limits-refresh cadence, resolving the shared default when unset. */
+export function useLimitsRefresh(): LimitsRefresh {
+  const { data } = trpc.limitsRefresh.useQuery()
+  return data ?? DEFAULT_LIMITS_REFRESH
+}
+
+/**
+ * Set the limits-refresh cadence (global config); refreshes the config query. Fire-and-
+ * forget from the settings row, so it's a sync `mutate` (never rejects) + an error toast
+ * — the useSetTailnetBind shape.
+ */
+export function useSetLimitsRefresh(): { set: (value: LimitsRefresh) => void } {
+  const utils = trpc.useUtils()
+  const mutation = trpc.setLimitsRefresh.useMutation({
+    onSuccess: () => utils.limitsRefresh.invalidate(),
+    onError: onMutationError('Save limits refresh'),
+  })
+  return {
+    set: (value) => mutation.mutate(value),
+  }
+}
+
+// The poll cadence each choice maps to: [staleTime, refetchInterval] in ms. 'manual' fetches
+// once on first mount (staleTime Infinity) and never auto-repolls (refetchInterval false) —
+// the reload button is then the only refresh path. The 1/5/15-minute choices poll on a timer.
+const LIMITS_POLL: Record<LimitsRefresh, { staleTime: number; refetchInterval: number | false }> = {
+  '1m': { staleTime: 60_000, refetchInterval: 60_000 },
+  '5m': { staleTime: 300_000, refetchInterval: 300_000 },
+  '15m': { staleTime: 900_000, refetchInterval: 900_000 },
+  manual: { staleTime: Number.POSITIVE_INFINITY, refetchInterval: false },
+}
+
 /**
  * The running provider's live quota windows + plan, for the Agent Quick Access Limits
- * group. Cached 60s and re-polled every 2 min (limits move slowly); enabled only once a
+ * group. Its poll cadence follows the user's `limitsRefresh` setting (Settings → Agents),
+ * since some providers surface limits by spawning the codexbar CLI; 'manual' fetches once
+ * then only refreshes via the reload button (useRefreshAgentLimits). Enabled only once a
  * repo is open and a provider is resolved. Returns null when the provider exposes no limits
  * (OpenCode) or isn't subscription-authed — the group then hides.
  */
 export function useAgentLimits(provider: AgentProvider | null): ProviderLimits | null {
   const repo = useRepoStore((s) => s.repo)
+  const cadence = LIMITS_POLL[useLimitsRefresh()]
   const { data } = trpc.agentLimits.useQuery(
     { provider: provider ?? 'claude' },
     {
       enabled: repo !== null && provider !== null,
-      staleTime: 60_000,
-      refetchInterval: 120_000,
+      staleTime: cadence.staleTime,
+      refetchInterval: cadence.refetchInterval,
     },
   )
   return data ?? null
+}
+
+/**
+ * Force a fresh limits fetch on demand (the Limits group's reload button): the daemon
+ * bypasses/overwrites its TTL cache, then we invalidate `agentLimits` so the auto query
+ * re-reads the now-fresh cache. Fire-and-forget from the button, so it's a sync `mutate`
+ * (never rejects) + an error toast; `isPending` drives the button's spinner.
+ */
+export function useRefreshAgentLimits(): {
+  refresh: (provider: AgentProvider) => void
+  isPending: boolean
+} {
+  const utils = trpc.useUtils()
+  const mutation = trpc.agentLimitsRefresh.useMutation({
+    onSuccess: () => utils.agentLimits.invalidate(),
+    onError: onMutationError('Refresh limits'),
+  })
+  return {
+    refresh: (provider) => mutation.mutate({ provider }),
+    isPending: mutation.isPending,
+  }
 }
 
 /** The favorited-model keys (`provider:modelId`), stored global in the daemon config. */

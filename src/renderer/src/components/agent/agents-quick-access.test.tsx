@@ -1,8 +1,8 @@
-import { useAgentLimits, useAgentThreads } from '@renderer/hooks/use-agents'
+import { useAgentLimits, useAgentThreads, useRefreshAgentLimits } from '@renderer/hooks/use-agents'
 import { useAgentThreadsStore } from '@renderer/stores/agent-threads'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import type { AgentUsage, ThreadInfo, TimelineItem } from '@shared/agent-protocol'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   AgentsQuickAccess,
@@ -16,6 +16,7 @@ import {
 vi.mock('@renderer/hooks/use-agents', () => ({
   useAgentThreads: vi.fn(),
   useAgentLimits: vi.fn(),
+  useRefreshAgentLimits: vi.fn(),
 }))
 
 function makeThread(
@@ -70,6 +71,7 @@ describe('AgentsQuickAccess', () => {
     useTabsStore.setState({ panes: [{ tabs: [], activeTabId: null }], activePaneIndex: 0 })
     vi.mocked(useAgentThreads).mockReturnValue([])
     vi.mocked(useAgentLimits).mockReturnValue(null)
+    vi.mocked(useRefreshAgentLimits).mockReturnValue({ refresh: vi.fn(), isPending: false })
   })
 
   it('shows the active agent tab thread plan with its progress line', () => {
@@ -191,6 +193,20 @@ describe('AgentsQuickAccess', () => {
     expect(screen.getByText('42%')).toBeInTheDocument()
     expect(screen.getByText('resets in 3h 25m')).toBeInTheDocument()
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '42')
+  })
+
+  it('fires an on-demand refresh for the provider when the reload button is clicked', () => {
+    const refresh = vi.fn()
+    vi.mocked(useRefreshAgentLimits).mockReturnValue({ refresh, isPending: false })
+    vi.mocked(useAgentThreads).mockReturnValue([makeThread('t1', 'idle', 1)])
+    vi.mocked(useAgentLimits).mockReturnValue({
+      windows: [{ id: '5h', label: '5-hour', usedPercent: 42 }],
+    })
+    activateAgentTab('t1')
+
+    render(<AgentsQuickAccess />)
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh limits' }))
+    expect(refresh).toHaveBeenCalledWith('claude')
   })
 
   it('hides the Limits group when the provider returns null limits', () => {

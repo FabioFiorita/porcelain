@@ -6,6 +6,11 @@ import {
   threadOptionsSchema,
 } from '../shared/agent-protocol'
 
+// How often the Agent tab's Limits group re-polls provider quotas. A choice, not a
+// free number, so the mapping to poll intervals stays in one place (see useAgentLimits).
+export const limitsRefreshSchema = z.enum(['1m', '5m', '15m', 'manual'])
+export type LimitsRefresh = z.infer<typeof limitsRefreshSchema>
+
 export const appConfigSchema = z.object({
   recentRepos: z.array(z.string()).default([]),
   // Global (not per-repo): when true the daemon additionally listens on the
@@ -21,6 +26,11 @@ export const appConfigSchema = z.object({
   // `provider:modelId` key. Daemon-side so the favorites follow the user to the
   // iPad/browser client. Optional so pre-existing configs stay valid.
   agentModelFavorites: z.array(z.string()).optional(),
+  // Global (not per-repo): how often the Agent tab's Limits group re-polls provider
+  // quotas. Some providers surface limits by spawning the codexbar CLI — a real
+  // subprocess with a web fetch per poll — so the cadence is user-tunable to bound that
+  // cost. Absent ⇒ the shared DEFAULT_LIMITS_REFRESH ('5m'). Set from Settings → Agents.
+  limitsRefresh: limitsRefreshSchema.optional(),
   // Global (not per-repo): the last provider/model/options a thread was created or
   // switched to, so a NEW thread defaults to what the user last worked with instead
   // of a hardcoded provider + empty model. The three fields travel together — a model
