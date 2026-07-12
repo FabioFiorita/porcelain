@@ -1,3 +1,19 @@
+## [0.23.0](https://github.com/FabioFiorita/porcelain/compare/v0.22.1...v0.23.0) (2026-07-12)
+
+### Features
+
+* agent tab shows the CLI-resolved model and lists skills as slash commands ([4d3b2d9](https://github.com/FabioFiorita/porcelain/commit/4d3b2d95bb815a859fabf6b9014c2032e5f6e164))
+* landing page shows the Agent tab ([0034d21](https://github.com/FabioFiorita/porcelain/commit/0034d21c8b353f80e26fce6446215c1e76ecc022))
+* remove a project from the recents list ([856c119](https://github.com/FabioFiorita/porcelain/commit/856c1195f92495ba375ed78703dd59f6822a212d))
+
+### Bug Fixes
+
+* agent viewer tabs follow the thread's auto-title, and titles run shorter ([0e03ad1](https://github.com/FabioFiorita/porcelain/commit/0e03ad1fedcbd0f31a2333c9b2ad16317215cc32))
+* instant reviewed toggles and contained agent quick-access cards ([1e9cd04](https://github.com/FabioFiorita/porcelain/commit/1e9cd046ed311663da42d1a1292b86e2ab8eaf56))
+* provider limits read the right account — and OpenCode gets limits at all ([d3978f0](https://github.com/FabioFiorita/porcelain/commit/d3978f0a49522f7c0cb278cc5e0974fc5e5ab7dd))
+* tab bar scrolls the active tab into view and tooltips full titles ([43f5efc](https://github.com/FabioFiorita/porcelain/commit/43f5efcc6bef558780cbdbcd8425139d04a11412))
+* viewer keeps a minimum width — side panels give way on narrow windows ([7e57bda](https://github.com/FabioFiorita/porcelain/commit/7e57bdaeac5086048ae93709ad62f64eab9aadd3))
+
 ## [0.22.1](https://github.com/FabioFiorita/porcelain/compare/v0.22.0...v0.22.1) (2026-07-12)
 
 ### Bug Fixes
