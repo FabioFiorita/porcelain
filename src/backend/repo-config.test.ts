@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
+  type AppConfig,
+  appConfigSchema,
   emptyConfig,
   hiddenPathsFor,
   pinnedPathsFor,
+  resolveCreationDefaults,
   visibleFilePaths,
   withHiddenPath,
+  withLastAgentSelection,
   withoutHiddenPath,
   withoutPinnedPath,
   withPinnedPath,
@@ -63,6 +67,68 @@ describe('pinned paths', () => {
     config = withHiddenPath(config, '/repo', '/repo/hide')
     expect(pinnedPathsFor(config, '/repo')).toEqual(['/repo/pin'])
     expect(hiddenPathsFor(config, '/repo')).toEqual(new Set(['/repo/hide']))
+  })
+})
+
+describe('lastAgentSelection', () => {
+  it('accepts a config without a selection (old configs stay valid)', () => {
+    const parsed = appConfigSchema.parse({ recentRepos: [], repos: {} })
+    expect(parsed.lastAgentSelection).toBeUndefined()
+  })
+
+  it('records the last-used selection', () => {
+    const config = withLastAgentSelection(emptyConfig, {
+      provider: 'codex',
+      model: 'gpt-5',
+      options: { effort: 'high' },
+    })
+    expect(config.lastAgentSelection).toEqual({
+      provider: 'codex',
+      model: 'gpt-5',
+      options: { effort: 'high' },
+    })
+  })
+})
+
+describe('resolveCreationDefaults', () => {
+  it('honors an explicit provider + model verbatim', () => {
+    expect(resolveCreationDefaults(emptyConfig, { provider: 'codex', model: 'gpt-5' })).toEqual({
+      provider: 'codex',
+      model: 'gpt-5',
+      options: undefined,
+    })
+  })
+
+  it('falls back to the last-used selection as a unit when either is missing', () => {
+    const config = withLastAgentSelection(emptyConfig, {
+      provider: 'codex',
+      model: 'gpt-5',
+      options: { effort: 'high' },
+    })
+    // Missing model → the whole last selection wins, not a cross-provider mix.
+    expect(resolveCreationDefaults(config, { provider: 'claude' })).toEqual({
+      provider: 'codex',
+      model: 'gpt-5',
+      options: { effort: 'high' },
+    })
+    // Missing everything → same.
+    expect(resolveCreationDefaults(config, {})).toEqual({
+      provider: 'codex',
+      model: 'gpt-5',
+      options: { effort: 'high' },
+    })
+  })
+
+  it('uses the legacy default (claude + empty model) with nothing recorded', () => {
+    expect(resolveCreationDefaults(emptyConfig, {})).toEqual({ provider: 'claude', model: '' })
+  })
+
+  it('keeps an explicit provider fallback when no selection is recorded', () => {
+    const config: AppConfig = { recentRepos: [], repos: {} }
+    expect(resolveCreationDefaults(config, { provider: 'opencode' })).toEqual({
+      provider: 'opencode',
+      model: '',
+    })
   })
 })
 

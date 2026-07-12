@@ -1,4 +1,5 @@
 import type { BoardCard, CardStatus } from '@backend/board-store'
+import { onMutationError } from '@renderer/hooks/mutation-error'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 
@@ -41,11 +42,26 @@ export function useCardActions(): {
   const refresh = async (): Promise<void> => {
     await utils.boardCards.invalidate()
   }
-  const add = trpc.addBoardCard.useMutation({ onSuccess: refresh })
-  const update = trpc.updateBoardCard.useMutation({ onSuccess: refresh })
-  const move = trpc.moveBoardCard.useMutation({ onSuccess: refresh })
-  const remove = trpc.deleteBoardCard.useMutation({ onSuccess: refresh })
-  const clear = trpc.clearBoardCards.useMutation({ onSuccess: refresh })
+  const add = trpc.addBoardCard.useMutation({
+    onSuccess: refresh,
+    onError: onMutationError('Add card'),
+  })
+  const update = trpc.updateBoardCard.useMutation({
+    onSuccess: refresh,
+    onError: onMutationError('Update card'),
+  })
+  const move = trpc.moveBoardCard.useMutation({
+    onSuccess: refresh,
+    onError: onMutationError('Move card'),
+  })
+  const remove = trpc.deleteBoardCard.useMutation({
+    onSuccess: refresh,
+    onError: onMutationError('Delete card'),
+  })
+  const clear = trpc.clearBoardCards.useMutation({
+    onSuccess: refresh,
+    onError: onMutationError('Clear cards'),
+  })
   return {
     add: async (input) => {
       if (!repo) return

@@ -1,3 +1,7 @@
+import {
+  ComposerCompletion,
+  useComposerCompletion,
+} from '@renderer/components/agent/composer-completion'
 import { ModelPicker } from '@renderer/components/agent/model-picker'
 import { OptionsChip } from '@renderer/components/agent/options-chip'
 import { Button } from '@renderer/components/ui/button'
@@ -10,7 +14,6 @@ import {
 } from '@renderer/components/ui/dropdown-menu'
 import { Kbd } from '@renderer/components/ui/kbd'
 import { Textarea } from '@renderer/components/ui/textarea'
-import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useAgentActions } from '@renderer/hooks/use-agent-channel'
 import { useAgentProviders, useUpdateAgentThread } from '@renderer/hooks/use-agents'
@@ -25,6 +28,7 @@ import type {
 import type { LucideIcon } from 'lucide-react'
 import {
   ArrowUp,
+  ChevronDown,
   Hammer,
   ImagePlus,
   NotebookPen,
@@ -54,6 +58,18 @@ const PROVIDER_LABEL: Record<AgentProvider, string> = {
   claude: 'Claude Code',
   codex: 'Codex',
   opencode: 'OpenCode',
+}
+
+// Build vs Plan reads as a permission-mode sibling: one chip, one dropdown, same icons on
+// the trigger and its radio rows.
+const INTERACTION_LABEL: Record<AgentInteraction, string> = {
+  build: 'Build',
+  plan: 'Plan',
+}
+
+const INTERACTION_ICON: Record<AgentInteraction, LucideIcon> = {
+  build: Hammer,
+  plan: NotebookPen,
 }
 
 interface Attachment {
@@ -112,10 +128,18 @@ export function AgentComposer({
   const [images, setImages] = useState<Attachment[]>([])
   const [dragging, setDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const completion = useComposerCompletion({
+    value: text,
+    provider,
+    textareaRef,
+    onChange: setText,
+  })
 
   const providerStatus = providers.find((p) => p.provider === provider)
   const modelInfo = providerStatus?.models.find((m) => m.id === model)
   const ModeIcon = MODE_ICON[mode]
+  const InteractionIcon = INTERACTION_ICON[interaction]
   // Providers come from an async probe; treat "unknown yet" as available so a slow probe
   // doesn't lock the composer, and only hard-disable once we KNOW the CLI is missing.
   const installed = providerStatus?.installed ?? true
@@ -183,39 +207,56 @@ export function AgentComposer({
             ))}
           </div>
         )}
-        <Textarea
-          rows={1}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          disabled={!installed}
-          placeholder={
-            installed
-              ? 'Message the agent…'
-              : `${PROVIDER_LABEL[provider]} isn’t installed — install its CLI to chat.`
-          }
-          aria-label="Message the agent"
-          onPaste={async (e) => {
-            const files = Array.from(e.clipboardData.files)
-            if (files.length > 0) {
-              e.preventDefault()
-              await addFiles(files)
+        <div className="relative">
+          <ComposerCompletion
+            open={completion.open}
+            items={completion.items}
+            selectedIndex={completion.selectedIndex}
+            onSelect={completion.onSelect}
+          />
+          <Textarea
+            ref={textareaRef}
+            rows={1}
+            value={text}
+            onChange={(e) => {
+              setText(e.target.value)
+              completion.onCaretChange(e.target.selectionStart ?? 0)
+            }}
+            onKeyUp={completion.syncCaret}
+            onClick={completion.syncCaret}
+            disabled={!installed}
+            placeholder={
+              installed
+                ? 'Message the agent…'
+                : `${PROVIDER_LABEL[provider]} isn’t installed — install its CLI to chat.`
             }
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault()
-              submit()
-              return
-            }
-            // Shift+Tab flips Build↔Plan without leaving the field; plain Tab keeps
-            // its default focus move.
-            if (e.key === 'Tab' && e.shiftKey) {
-              e.preventDefault()
-              toggleInteraction()
-            }
-          }}
-          className="max-h-48 min-h-9 resize-none border-0 bg-transparent px-1.5 py-1 shadow-none focus-visible:border-0 focus-visible:ring-0 dark:bg-transparent"
-        />
+            aria-label="Message the agent"
+            onPaste={async (e) => {
+              const files = Array.from(e.clipboardData.files)
+              if (files.length > 0) {
+                e.preventDefault()
+                await addFiles(files)
+              }
+            }}
+            onKeyDown={(e) => {
+              // The completion popup gets first refusal on navigation/commit keys so an
+              // open list intercepts Enter/Tab/arrows (and never lets Enter send).
+              if (completion.handleKeyDown(e)) return
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                submit()
+                return
+              }
+              // Shift+Tab flips Build↔Plan without leaving the field; plain Tab keeps
+              // its default focus move.
+              if (e.key === 'Tab' && e.shiftKey) {
+                e.preventDefault()
+                toggleInteraction()
+              }
+            }}
+            className="max-h-48 min-h-9 resize-none border-0 bg-transparent px-1.5 py-1 shadow-none focus-visible:border-0 focus-visible:ring-0 dark:bg-transparent"
+          />
+        </div>
         <div className="flex items-center gap-1">
           <input
             ref={fileInputRef}
@@ -266,43 +307,51 @@ export function AgentComposer({
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <ToggleGroup
-                  aria-label="Interaction mode"
-                  className="gap-0.5"
-                  value={[interaction]}
-                  onValueChange={(value: string[]) => {
-                    const next = value[0]
-                    if ((next === 'build' || next === 'plan') && next !== interaction) {
-                      update(threadId, { interaction: next })
+          <DropdownMenu>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        aria-label="Interaction mode"
+                        className="gap-1 text-muted-foreground"
+                      >
+                        <InteractionIcon className="size-3" />
+                        <span className="truncate">{INTERACTION_LABEL[interaction]}</span>
+                        <ChevronDown className="size-3" />
+                      </Button>
                     }
-                  }}
-                >
-                  <ToggleGroupItem
-                    value="build"
-                    aria-label="Build"
-                    className="h-6 min-w-0 gap-1 px-2 text-xs"
-                  >
-                    <Hammer className="size-3.5" />
-                    Build
-                  </ToggleGroupItem>
-                  <ToggleGroupItem
-                    value="plan"
-                    aria-label="Plan"
-                    className="h-6 min-w-0 gap-1 px-2 text-xs"
-                  >
-                    <NotebookPen className="size-3.5" />
-                    Plan
-                  </ToggleGroupItem>
-                </ToggleGroup>
-              }
-            />
-            <TooltipContent className="flex items-center gap-1.5">
-              Build or plan first <Kbd>⇧⇥</Kbd>
-            </TooltipContent>
-          </Tooltip>
+                  />
+                }
+              />
+              <TooltipContent className="flex items-center gap-1.5">
+                Build or plan first <Kbd>⇧⇥</Kbd>
+              </TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent align="start" className="min-w-44">
+              <DropdownMenuRadioGroup
+                value={interaction}
+                onValueChange={(value) => {
+                  if ((value === 'build' || value === 'plan') && value !== interaction) {
+                    update(threadId, { interaction: value })
+                  }
+                }}
+              >
+                {(Object.keys(INTERACTION_LABEL) as AgentInteraction[]).map((value) => {
+                  const Icon = INTERACTION_ICON[value]
+                  return (
+                    <DropdownMenuRadioItem key={value} value={value} className="whitespace-nowrap">
+                      <Icon className="size-3.5 text-muted-foreground" />
+                      {INTERACTION_LABEL[value]}
+                    </DropdownMenuRadioItem>
+                  )
+                })}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <div className="flex-1" />
           {working ? (
             <Button

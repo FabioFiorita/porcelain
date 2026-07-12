@@ -27,6 +27,7 @@ vi.mock('./use-path-actions', () => ({
 // (the component-test rule — never mock the tRPC proxy).
 vi.mock('@renderer/hooks/use-comments', () => ({
   useCommentActions: () => ({ add: async () => {} }),
+  useCommentIndex: () => ({ byLine: new Map(), fileLevel: [] }),
 }))
 
 // Import AFTER mocks are declared (Vitest hoists vi.mock to the top of the module).

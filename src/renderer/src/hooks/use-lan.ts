@@ -1,3 +1,4 @@
+import { onMutationError } from '@renderer/hooks/mutation-error'
 import { trpc } from '@renderer/lib/trpc'
 
 export interface LanStatus {
@@ -24,6 +25,9 @@ export function useSetLanBind(): {
   const utils = trpc.useUtils()
   const mutation = trpc.setLanBind.useMutation({
     onSuccess: () => utils.lanStatus.invalidate(),
+    // A bind that can't find an interface surfaces inline via lanStatus; a rejected
+    // toggle write itself would otherwise be invisible, so toast it.
+    onError: onMutationError('Toggle local network sharing'),
   })
   return {
     setEnabled: (enabled) => mutation.mutate(enabled),

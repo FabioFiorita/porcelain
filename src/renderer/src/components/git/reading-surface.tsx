@@ -8,6 +8,11 @@ import {
 } from '@renderer/components/ui/context-menu'
 import { CodeLine, useHighlighter } from '@renderer/components/viewer/code-line'
 import { VirtualRows } from '@renderer/components/viewer/virtual-rows'
+import {
+  buildCommentIndex,
+  type CommentIndex,
+  useReviewComments,
+} from '@renderer/hooks/use-comments'
 import { languageFor, tokenizeLines } from '@renderer/lib/highlight'
 import { type LineSelection, lineSelectionForFile } from '@renderer/lib/line-selection'
 import { cn } from '@renderer/lib/utils'
@@ -15,6 +20,7 @@ import { MessageSquarePlus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { ThemedToken } from 'shiki'
 import { type CommentAnchor, CommentComposer } from './comment-composer'
+import { LineDecorations } from './comment-marker'
 import { SourceMarker } from './feature-list'
 import { tokenizeHunks } from './hunks-view'
 
@@ -129,12 +135,24 @@ function CommentMenu({
   )
 }
 
+/** Whether the open composer is anchored to `line` in `path` (for the pending tint). */
+function isPending(anchor: CommentAnchor | null, path: string, line: number | undefined): boolean {
+  if (!anchor || line === undefined || anchor.path !== path || anchor.startLine === undefined) {
+    return false
+  }
+  return line >= anchor.startLine && line <= (anchor.endLine ?? anchor.startLine)
+}
+
 function ReadingRowView({
   row,
   onComment,
+  commentIndexByPath,
+  pendingAnchor,
 }: {
   row: ReadingRow
   onComment: (anchor: CommentAnchor) => void
+  commentIndexByPath: Map<string, CommentIndex>
+  pendingAnchor: CommentAnchor | null
 }): React.JSX.Element {
   switch (row.type) {
     case 'layer':
@@ -179,6 +197,11 @@ function ReadingRowView({
       return <p className="h-5 bg-muted/40 px-2 leading-5 text-muted-foreground">{row.text}</p>
     case 'diff': {
       const newLine = row.line.newLine
+      const anchorLine = row.line.newLine ?? row.line.oldLine ?? undefined
+      const comments =
+        anchorLine !== undefined
+          ? commentIndexByPath.get(row.path)?.byLine.get(anchorLine)
+          : undefined
       return (
         <CommentMenu
           path={row.path}
@@ -189,9 +212,13 @@ function ReadingRowView({
               file; new-side line (old-side for a pure deletion), like the diff view. */}
           <div
             data-file={row.path}
-            data-line={row.line.newLine ?? row.line.oldLine ?? undefined}
-            className={cn('flex h-5 leading-5', diffLineClass[row.line.kind])}
+            data-line={anchorLine}
+            className={cn('relative flex h-5 leading-5', diffLineClass[row.line.kind])}
           >
+            <LineDecorations
+              comments={comments}
+              pending={isPending(pendingAnchor, row.path, anchorLine)}
+            />
             <span className="w-12 shrink-0 select-none pr-2 text-right text-muted-foreground/40">
               {row.line.newLine ?? row.line.oldLine ?? ''}
             </span>
@@ -212,14 +239,19 @@ function ReadingRowView({
           ⋯ more relevant lines (capped)
         </p>
       )
-    case 'code':
+    case 'code': {
+      const comments = commentIndexByPath.get(row.path)?.byLine.get(row.lineNo)
       return (
         <CommentMenu
           path={row.path}
           line={{ lineNo: row.lineNo, text: row.text }}
           onComment={onComment}
         >
-          <div data-file={row.path} data-line={row.lineNo} className="flex h-5 leading-5">
+          <div data-file={row.path} data-line={row.lineNo} className="relative flex h-5 leading-5">
+            <LineDecorations
+              comments={comments}
+              pending={isPending(pendingAnchor, row.path, row.lineNo)}
+            />
             <span className="w-12 shrink-0 select-none pr-2 text-right text-muted-foreground/35">
               {row.lineNo}
             </span>
@@ -227,6 +259,7 @@ function ReadingRowView({
           </div>
         </CommentMenu>
       )
+    }
   }
 }
 
@@ -241,13 +274,34 @@ export function ReadingSurfaceBody({ reading }: { reading: FeatureReading }): Re
   const highlighter = useHighlighter()
   const rows = useMemo(() => buildRows(reading, highlighter), [reading, highlighter])
   const [anchor, setAnchor] = useState<CommentAnchor | null>(null)
+  const comments = useReviewComments()
+
+  // One comment index per file in the reading (built once per file), so each diff/code
+  // row can mark its commented lines. Comments key on the same repo-relative paths.
+  const commentIndexByPath = useMemo(() => {
+    const map = new Map<string, CommentIndex>()
+    for (const group of reading.groups) {
+      for (const file of group.files) {
+        if (!map.has(file.path)) map.set(file.path, buildCommentIndex(comments, file.path))
+      }
+    }
+    return map
+  }, [comments, reading])
+
   return (
     <>
       <VirtualRows
         rows={rows}
         className="text-xs"
         dynamicHeight
-        renderRow={(row) => <ReadingRowView row={row} onComment={setAnchor} />}
+        renderRow={(row) => (
+          <ReadingRowView
+            row={row}
+            onComment={setAnchor}
+            commentIndexByPath={commentIndexByPath}
+            pendingAnchor={anchor}
+          />
+        )}
       />
       <CommentComposer
         anchor={anchor}

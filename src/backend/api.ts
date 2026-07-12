@@ -5,9 +5,11 @@ import { initTRPC } from '@trpc/server'
 import trash from 'trash'
 import { z } from 'zod'
 import {
+  type AgentProvider,
   agentInteractionSchema,
   agentModeSchema,
   agentProviderSchema,
+  type ProviderLimits,
   type ProviderStatus,
   type ThreadInfo,
   threadOptionsSchema,
@@ -21,6 +23,8 @@ import {
   updateAction,
 } from './actions-store'
 import {
+  agentCommands,
+  agentLimits,
   createThread,
   deleteThread,
   listThreads,
@@ -28,6 +32,7 @@ import {
   renameThread,
   updateThread,
 } from './agents/agent-manager'
+import type { AgentCommand } from './agents/types'
 import {
   type Artifact,
   type ArtifactMeta,
@@ -104,6 +109,7 @@ import {
   gitUnstageFile,
   gitWorktrees,
   QUICK_COMMANDS,
+  reviewedFingerprint,
   warmFileList,
 } from './git'
 import { readLayers, writeLayers } from './layers-store'
@@ -112,9 +118,11 @@ import { exceedsReadLimit } from './read-limits'
 import {
   hiddenPathsFor,
   pinnedPathsFor,
+  resolveCreationDefaults,
   toggleModelFavorite,
   visibleFilePaths,
   withHiddenPath,
+  withLastAgentSelection,
   withoutHiddenPath,
   withoutPinnedPath,
   withPinnedPath,
@@ -124,8 +132,9 @@ import { clearReviewSet, readReviewSet } from './review-store'
 import {
   clearReviewedPaths,
   markReviewed,
-  readReviewedPaths,
-  setReviewedPaths,
+  readReviewedMarks,
+  reconcileReviewed,
+  setReviewedMarks,
   unmarkReviewed,
 } from './reviewed-store'
 import {
@@ -186,6 +195,15 @@ const toRepoInfo = (path: string): RepoInfo => ({ path, name: basename(path) })
 // need per-keystroke freshness.
 const PROVIDER_STATUS_TTL_MS = 30_000
 let providerStatusCache: { at: number; value: ProviderStatus[] } | null = null
+
+// Slash-command lists are scanned from disk per (repo, provider); cache them for the same
+// short TTL so the composer's command menu doesn't re-walk the filesystem per keystroke.
+const agentCommandsCache = new Map<string, { at: number; value: AgentCommand[] }>()
+
+// Provider limit probes hit the network (Claude) / an RPC round-trip (Codex), so cache the
+// result per provider for a longer TTL — the Quick Access poll only needs coarse freshness.
+const AGENT_LIMITS_TTL_MS = 60_000
+const agentLimitsCache = new Map<AgentProvider, { at: number; value: ProviderLimits | null }>()
 
 function isValidPattern(pattern: string): boolean {
   try {
@@ -489,10 +507,17 @@ export const router = t.router({
     return entries.filter((e): e is DirEntry => e !== null)
   }),
 
+  // A mark stores a content fingerprint (sha256 of the file's diff vs HEAD) so it can be
+  // reconciled: `reviewedPaths` re-derives each marked file's current fingerprint and
+  // prunes any mark whose content changed (external commit, amend, post-mark edit).
   markReviewed: t.procedure
     .input(z.object({ repoPath: z.string(), path: z.string() }))
     .mutation(async ({ input }) => {
-      await markReviewed(input.repoPath, input.path)
+      await markReviewed(
+        input.repoPath,
+        input.path,
+        await reviewedFingerprint(input.repoPath, input.path),
+      )
     }),
 
   unmarkReviewed: t.procedure
@@ -501,14 +526,27 @@ export const router = t.router({
       await unmarkReviewed(input.repoPath, input.path)
     }),
 
-  reviewedPaths: t.procedure
-    .input(z.string())
-    .query(async ({ input }): Promise<string[]> => readReviewedPaths(input)),
+  reviewedPaths: t.procedure.input(z.string()).query(async ({ input }): Promise<string[]> => {
+    // Only the marked paths need fingerprinting (few files); reconcile prunes stale
+    // marks and writes through so reviewed.json stays truthful for the MCP reader.
+    const marks = await readReviewedMarks(input)
+    const current = new Map<string, string>()
+    for (const mark of marks) {
+      current.set(mark.path, await reviewedFingerprint(input, mark.path))
+    }
+    return reconcileReviewed(input, marks, current)
+  }),
 
   setReviewed: t.procedure
     .input(z.object({ repoPath: z.string(), paths: z.array(z.string()) }))
     .mutation(async ({ input }) => {
-      await setReviewedPaths(input.repoPath, input.paths)
+      const marks = await Promise.all(
+        input.paths.map(async (path) => ({
+          path,
+          fingerprint: await reviewedFingerprint(input.repoPath, path),
+        })),
+      )
+      await setReviewedMarks(input.repoPath, marks)
     }),
 
   gitQuickCommand: t.procedure
@@ -1212,16 +1250,45 @@ export const router = t.router({
     .input(z.object({ repoPath: z.string() }))
     .query(({ input }): Promise<ThreadInfo[]> => listThreads(input.repoPath)),
 
+  // Create a thread. `provider`/`model` are optional: when either is absent (the Agent
+  // list's "new thread" button sends neither), they're filled from the last-used
+  // selection in config (provider+model+options together — no cross-provider mix), or
+  // the legacy default (provider 'claude' + empty model) if nothing's recorded yet. A
+  // create carrying an explicit non-empty model also records it as the new last-used.
   createAgentThread: t.procedure
     .input(
       z.object({
         repoPath: z.string(),
-        provider: agentProviderSchema,
-        model: z.string(),
+        provider: agentProviderSchema.optional(),
+        model: z.string().optional(),
         mode: agentModeSchema,
+        options: threadOptionsSchema.optional(),
       }),
     )
-    .mutation(({ input }): Promise<ThreadInfo> => createThread(input)),
+    .mutation(async ({ input }): Promise<ThreadInfo> => {
+      const config = await loadConfig()
+      const resolved = resolveCreationDefaults(config, {
+        provider: input.provider,
+        model: input.model,
+        options: input.options,
+      })
+      if (resolved.model !== '') {
+        await updateConfig((c) =>
+          withLastAgentSelection(c, {
+            provider: resolved.provider,
+            model: resolved.model,
+            ...(resolved.options !== undefined ? { options: resolved.options } : {}),
+          }),
+        )
+      }
+      return createThread({
+        repoPath: input.repoPath,
+        provider: resolved.provider,
+        model: resolved.model,
+        mode: input.mode,
+        ...(resolved.options !== undefined ? { options: resolved.options } : {}),
+      })
+    }),
 
   renameAgentThread: t.procedure
     .input(z.object({ id: z.string(), title: z.string().min(1) }))
@@ -1238,15 +1305,27 @@ export const router = t.router({
         options: threadOptionsSchema.optional(),
       }),
     )
-    .mutation(({ input }) =>
-      updateThread(input.id, {
+    .mutation(async ({ input }) => {
+      const updated = await updateThread(input.id, {
         model: input.model,
         mode: input.mode,
         provider: input.provider,
         interaction: input.interaction,
         options: input.options,
-      }),
-    ),
+      })
+      // Whenever the switch carried a model, record the thread's resulting
+      // provider/model/options as the last-used selection (the provider may have
+      // followed the model), so the next new thread defaults to it.
+      if (input.model !== undefined && updated) {
+        await updateConfig((c) =>
+          withLastAgentSelection(c, {
+            provider: updated.provider,
+            model: updated.model,
+            ...(updated.options !== undefined ? { options: updated.options } : {}),
+          }),
+        )
+      }
+    }),
 
   deleteAgentThread: t.procedure
     .input(z.object({ id: z.string() }))
@@ -1263,6 +1342,35 @@ export const router = t.router({
     providerStatusCache = { at: now, value }
     return value
   }),
+
+  // The custom slash commands a provider's CLI exposes for a repo (scanned from its command
+  // `.md` files). Cached 30s per (repo, provider) like agentProviders.
+  agentCommands: t.procedure
+    .input(z.object({ repoPath: z.string(), provider: agentProviderSchema }))
+    .query(async ({ input }): Promise<AgentCommand[]> => {
+      const key = `${input.provider}:${input.repoPath}`
+      const cached = agentCommandsCache.get(key)
+      const now = Date.now()
+      if (cached && now - cached.at < PROVIDER_STATUS_TTL_MS) return cached.value
+      const value = await agentCommands(input.repoPath, input.provider)
+      agentCommandsCache.set(key, { at: now, value })
+      return value
+    }),
+
+  // A provider's live quota windows + plan (Codex rate limits, Claude OAuth `/usage`), or
+  // null when it exposes none / isn't subscription-authed / the probe failed. Cached 60s per
+  // provider — the Agent Quick Access polls it. Only DERIVED percentages/labels cross here;
+  // no provider auth token ever does (see the audit skill's agent-driver invariant).
+  agentLimits: t.procedure
+    .input(z.object({ provider: agentProviderSchema }))
+    .query(async ({ input }): Promise<ProviderLimits | null> => {
+      const cached = agentLimitsCache.get(input.provider)
+      const now = Date.now()
+      if (cached && now - cached.at < AGENT_LIMITS_TTL_MS) return cached.value
+      const value = await agentLimits(input.provider)
+      agentLimitsCache.set(input.provider, { at: now, value })
+      return value
+    }),
 
   // The Agent tab's favorited models (`provider:modelId` keys), stored global in the
   // daemon config so they follow the user to the iPad/browser client.

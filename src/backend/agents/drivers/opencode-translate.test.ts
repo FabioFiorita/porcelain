@@ -438,3 +438,54 @@ describe('createOpencodeTranslator', () => {
     expect(t.handle({ type: 'session.status' }).events).toEqual([])
   })
 })
+
+describe('createOpencodeTranslator session cost', () => {
+  const SES = 'ses_1'
+
+  it('emits summed cost + tokens as a status usage report across assistant messages', () => {
+    const t = createOpencodeTranslator('full', fixedIds())
+    const first = t.handle(
+      raw('message.updated', {
+        sessionID: SES,
+        info: { id: 'm1', role: 'assistant', cost: 0.1, tokens: { input: 100, output: 20 } },
+      }),
+    )
+    expect(first.events).toEqual([
+      {
+        t: 'status',
+        status: 'working',
+        usage: { inputTokens: 100, outputTokens: 20, costUsd: 0.1 },
+      },
+    ])
+    // A second assistant message SUMS; a re-update of m1 would REPLACE (keyed by id).
+    const second = t.handle(
+      raw('message.updated', {
+        sessionID: SES,
+        info: { id: 'm2', role: 'assistant', cost: 0.05, tokens: { input: 10, output: 4 } },
+      }),
+    )
+    expect(second.events).toEqual([
+      {
+        t: 'status',
+        status: 'working',
+        usage: { inputTokens: 110, outputTokens: 24, costUsd: 0.15000000000000002 },
+      },
+    ])
+  })
+
+  it('emits no usage for a legacy assistant message without cost/tokens or for the user', () => {
+    const t = createOpencodeTranslator('full', fixedIds())
+    expect(
+      t.handle(raw('message.updated', { sessionID: SES, info: { id: 'm1', role: 'assistant' } }))
+        .events,
+    ).toEqual([])
+    expect(
+      t.handle(
+        raw('message.updated', {
+          sessionID: SES,
+          info: { id: 'u1', role: 'user', cost: 0.9, tokens: { input: 5, output: 5 } },
+        }),
+      ).events,
+    ).toEqual([])
+  })
+})

@@ -25,6 +25,15 @@ vi.mock('@renderer/hooks/use-artifact', () => ({
 vi.mock('@renderer/hooks/use-comments', () => ({
   useCommentActions: () => ({ add: async () => {} }),
 }))
+// Reviewed marks (green check + strikethrough, Mark/Unmark menu) — mock the domain hook.
+// reviewedPaths is swapped per-test; the toggle spies record mark/unmark calls.
+const markSpy = vi.hoisted(() => vi.fn(async () => {}))
+const unmarkSpy = vi.hoisted(() => vi.fn(async () => {}))
+const reviewedPaths = vi.hoisted(() => ({ current: new Set<string>() }))
+vi.mock('@renderer/hooks/use-reviewed', () => ({
+  useReviewedPaths: () => reviewedPaths.current,
+  useToggleReviewed: () => ({ mark: markSpy, unmark: unmarkSpy }),
+}))
 
 const view: FeatureView = {
   name: 'Crew call-outs',
@@ -76,6 +85,9 @@ function renderList(): void {
 describe('FeatureList', () => {
   beforeEach(() => {
     clearSpy.mockClear()
+    markSpy.mockClear()
+    unmarkSpy.mockClear()
+    reviewedPaths.current = new Set()
     useTabsStore.setState({ panes: [{ tabs: [], activeTabId: null }], activePaneIndex: 0 })
     useRepoStore.setState({ repo: { path: '/repo', name: 'repo' } })
     vi.mocked(useFeatureView).mockReturnValue({ view, refresh: async () => {} })
@@ -133,5 +145,21 @@ describe('FeatureList', () => {
     renderList()
     fireEvent.contextMenu(screen.getByText('callout.tsx'))
     expect(screen.getByText('Comment on file')).toBeInTheDocument()
+  })
+
+  it('offers "Mark reviewed" for an unreviewed file and marks it', () => {
+    renderList()
+    fireEvent.contextMenu(screen.getByText('callout.tsx'))
+    fireEvent.click(screen.getByText('Mark reviewed'))
+    expect(markSpy).toHaveBeenCalledWith('src/components/callout.tsx')
+  })
+
+  it('strikes through a reviewed file and offers "Unmark reviewed"', () => {
+    reviewedPaths.current = new Set(['src/components/callout.tsx'])
+    renderList()
+    expect(screen.getByText('callout.tsx')).toHaveClass('line-through')
+    fireEvent.contextMenu(screen.getByText('callout.tsx'))
+    fireEvent.click(screen.getByText('Unmark reviewed'))
+    expect(unmarkSpy).toHaveBeenCalledWith('src/components/callout.tsx')
   })
 })

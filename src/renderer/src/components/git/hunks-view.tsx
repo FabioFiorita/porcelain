@@ -1,6 +1,9 @@
+import type { ReviewComment } from '@backend/comment-store'
 import type { DiffHunk, DiffLine } from '@backend/diff'
+import { LineDecorations } from '@renderer/components/git/comment-marker'
 import { CodeLine, useHighlighter } from '@renderer/components/viewer/code-line'
 import { VirtualRows } from '@renderer/components/viewer/virtual-rows'
+import type { CommentIndex } from '@renderer/hooks/use-comments'
 import { type HIGHLIGHT_THEME, languageFor, tokenizeLines } from '@renderer/lib/highlight'
 import { cn } from '@renderer/lib/utils'
 import { type CharRange, intraLineEmphasis } from '@renderer/lib/word-diff'
@@ -15,9 +18,18 @@ type TokenMap = Map<DiffLine, ThemedToken[]>
 /** Intra-line word-diff ranges per diff line (paired del/add lines only). */
 type EmphasisMap = Map<DiffLine, CharRange[]>
 
+/** Line-anchored comments, keyed by 1-based line (empty when comments aren't shown). */
+type CommentsByLine = Map<number, ReviewComment[]>
+
+const NO_COMMENTS: CommentsByLine = new Map()
+const NO_PENDING: ReadonlySet<number> = new Set()
+
 interface RenderContext {
   tokens: TokenMap
   emphasis: EmphasisMap
+  commentsByLine: CommentsByLine
+  /** Lines the open comment composer is currently anchored to (transient highlight). */
+  pendingLines: ReadonlySet<number>
 }
 
 /**
@@ -69,6 +81,16 @@ function LineNo({ value }: { value: number | null }): React.JSX.Element {
   )
 }
 
+/**
+ * The commentable line a split cell owns. The new side owns adds and context (comments
+ * anchor to new-side lines); the old side owns only pure deletions (no new-side line),
+ * so a context line is marked once — on the new side.
+ */
+function cellAnchorLine(line: DiffLine, side: 'left' | 'right'): number | undefined {
+  if (side === 'right') return line.newLine ?? undefined
+  return line.kind === 'del' ? (line.oldLine ?? undefined) : undefined
+}
+
 type DiffRow =
   | { type: 'header'; text: string }
   | { type: 'unified'; line: DiffLine }
@@ -102,8 +124,11 @@ function DiffRowView({ row, ctx }: { row: DiffRow; ctx: RenderContext }): React.
     // selection here maps to a commentable line range; see lib/line-selection.ts.
     const anchorLine = row.line.newLine ?? row.line.oldLine ?? undefined
     const ranges = ctx.emphasis.get(row.line)
+    const comments = anchorLine !== undefined ? ctx.commentsByLine.get(anchorLine) : undefined
+    const pending = anchorLine !== undefined && ctx.pendingLines.has(anchorLine)
     return (
-      <div data-line={anchorLine} className={cn('flex px-2', lineClass[row.line.kind])}>
+      <div data-line={anchorLine} className={cn('relative flex px-2', lineClass[row.line.kind])}>
+        <LineDecorations comments={comments} pending={pending} />
         <LineNo value={row.line.oldLine} />
         <LineNo value={row.line.newLine} />
         <CodeLine
@@ -116,8 +141,8 @@ function DiffRowView({ row, ctx }: { row: DiffRow; ctx: RenderContext }): React.
   }
   return (
     <div className="flex h-full divide-x divide-border">
-      <SplitCell line={row.left} ctx={ctx} />
-      <SplitCell line={row.right} ctx={ctx} />
+      <SplitCell line={row.left} side="left" ctx={ctx} />
+      <SplitCell line={row.right} side="right" ctx={ctx} />
     </div>
   )
 }
@@ -153,14 +178,26 @@ function toSplitRows(hunk: DiffHunk): SplitRow[] {
 
 function SplitCell({
   line,
+  side,
   ctx,
 }: {
   line: DiffLine | null
+  side: 'left' | 'right'
   ctx: RenderContext
 }): React.JSX.Element {
   const ranges = line ? ctx.emphasis.get(line) : undefined
+  const anchorLine = line ? cellAnchorLine(line, side) : undefined
+  const comments = anchorLine !== undefined ? ctx.commentsByLine.get(anchorLine) : undefined
+  const pending = anchorLine !== undefined && ctx.pendingLines.has(anchorLine)
   return (
-    <div className={cn('flex min-w-0 flex-1 overflow-hidden', line ? lineClass[line.kind] : '')}>
+    <div
+      data-line={anchorLine}
+      className={cn(
+        'relative flex min-w-0 flex-1 overflow-hidden',
+        line ? lineClass[line.kind] : '',
+      )}
+    >
+      <LineDecorations comments={comments} pending={pending} />
       <LineNo value={line ? (line.kind === 'add' ? line.newLine : line.oldLine) : null} />
       {line ? (
         <CodeLine
@@ -175,15 +212,25 @@ function SplitCell({
   )
 }
 
-/** Shared hunk renderer: virtualized unified/split rows with highlighting. */
+/**
+ * Shared hunk renderer: virtualized unified/split rows with highlighting. When a
+ * `commentIndex` is passed (the working-tree diff, where comments anchor to new-side
+ * lines), commented lines get a gutter marker + tint; `pendingLines` tints the lines
+ * the open composer is anchored to. Historical commit diffs omit both — their line
+ * numbers don't match the working-tree comments.
+ */
 export function HunksView({
   hunks,
   filePath,
   diffMode,
+  commentIndex,
+  pendingLines,
 }: {
   hunks: readonly DiffHunk[]
   filePath: string
   diffMode: 'unified' | 'split'
+  commentIndex?: CommentIndex
+  pendingLines?: ReadonlySet<number>
 }): React.JSX.Element {
   const highlighter = useHighlighter()
   const lang = languageFor(filePath)
@@ -192,7 +239,12 @@ export function HunksView({
     [highlighter, lang, hunks],
   )
   const emphasis = useMemo<EmphasisMap>(() => intraLineEmphasis(hunks), [hunks])
-  const ctx: RenderContext = { tokens, emphasis }
+  const ctx: RenderContext = {
+    tokens,
+    emphasis,
+    commentsByLine: commentIndex?.byLine ?? NO_COMMENTS,
+    pendingLines: pendingLines ?? NO_PENDING,
+  }
 
   if (hunks.length === 0) {
     return <p className="p-4 font-mono text-xs text-muted-foreground">No changes</p>

@@ -5,6 +5,8 @@ import {
   buildUserMessage,
   CLAUDE_MODELS,
   ClaudeStreamTranslator,
+  mapClaudeUsage,
+  parseClaudeOAuthToken,
   permissionModeForMode,
   planStepsFromTodos,
   readClaudeAuthFromJson,
@@ -523,6 +525,26 @@ describe('ClaudeStreamTranslator', () => {
     ])
   })
 
+  it('surfaces total_cost_usd as the status usage costUsd', () => {
+    const signals = drive([
+      line({
+        type: 'result',
+        subtype: 'success',
+        is_error: false,
+        total_cost_usd: 0.4231,
+        usage: { input_tokens: 10, output_tokens: 44 },
+      }),
+    ])
+    expect(signals[0]).toEqual({
+      t: 'event',
+      event: {
+        t: 'status',
+        status: 'idle',
+        usage: { inputTokens: 10, outputTokens: 44, costUsd: 0.4231 },
+      },
+    })
+  })
+
   it('reports ok:false on an error result subtype', () => {
     const signals = drive([line({ type: 'result', subtype: 'error_max_turns', is_error: true })])
     expect(signals.at(-1)).toEqual({ t: 'done', ok: false })
@@ -537,5 +559,51 @@ describe('ClaudeStreamTranslator', () => {
     expect(translator.pushLine(line({ type: 'system', subtype: 'status', status: null }))).toEqual(
       [],
     )
+  })
+})
+
+describe('parseClaudeOAuthToken', () => {
+  it('extracts the access token from a stored credential', () => {
+    const raw = JSON.stringify({
+      claudeAiOauth: { accessToken: 'sk-oauth-xyz', refreshToken: 'r', subscriptionType: 'max' },
+    })
+    expect(parseClaudeOAuthToken(raw)).toBe('sk-oauth-xyz')
+  })
+
+  it('returns null for an api-key credential, empty token, or malformed JSON', () => {
+    expect(parseClaudeOAuthToken(JSON.stringify({ apiKey: 'x' }))).toBeNull()
+    expect(parseClaudeOAuthToken(JSON.stringify({ claudeAiOauth: { accessToken: '' } }))).toBeNull()
+    expect(parseClaudeOAuthToken('not json')).toBeNull()
+  })
+})
+
+describe('mapClaudeUsage', () => {
+  it('maps the known windows with epoch-seconds→ms resets', () => {
+    const limits = mapClaudeUsage({
+      five_hour: { used_percentage: 18, resets_at: 1_800_000_000 },
+      seven_day: { used_percentage: 55, resets_at: 1_800_500_000 },
+      seven_day_opus: { used_percentage: 70, resets_at: 1_800_500_000 },
+      overageStatus: 'ok',
+    })
+    expect(limits).toEqual({
+      windows: [
+        { id: '5h', label: '5-hour', usedPercent: 18, resetsAt: 1_800_000_000_000 },
+        { id: 'weekly', label: 'Weekly', usedPercent: 55, resetsAt: 1_800_500_000_000 },
+        { id: 'weekly-opus', label: 'Weekly (Opus)', usedPercent: 70, resetsAt: 1_800_500_000_000 },
+      ],
+    })
+  })
+
+  it('keeps a window with no reset time and skips unparseable ones', () => {
+    const limits = mapClaudeUsage({
+      five_hour: { used_percentage: 5 },
+      seven_day: { nope: true },
+    })
+    expect(limits).toEqual({ windows: [{ id: '5h', label: '5-hour', usedPercent: 5 }] })
+  })
+
+  it('returns null when no known window is present (api-key account)', () => {
+    expect(mapClaudeUsage({ overageStatus: 'ok' })).toBeNull()
+    expect(mapClaudeUsage('nope')).toBeNull()
   })
 })

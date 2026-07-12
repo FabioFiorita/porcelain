@@ -40,6 +40,25 @@ describe('useAgentThreadsStore', () => {
     expect(useAgentThreadsStore.getState().threads.t1.items).toEqual([userItem])
   })
 
+  it('applyEvent stashes usage from a usage-bearing status and keeps it on later events', () => {
+    useAgentThreadsStore.getState().applySnapshot('t1', [userItem], 'working')
+    useAgentThreadsStore.getState().applyEvent('t1', {
+      t: 'status',
+      status: 'idle',
+      usage: { inputTokens: 100, outputTokens: 50 },
+    })
+    expect(useAgentThreadsStore.getState().threads.t1.usage).toEqual({
+      inputTokens: 100,
+      outputTokens: 50,
+    })
+    // A subsequent non-usage event leaves the last usage in place.
+    useAgentThreadsStore.getState().applyEvent('t1', { t: 'status', status: 'working' })
+    expect(useAgentThreadsStore.getState().threads.t1.usage).toEqual({
+      inputTokens: 100,
+      outputTokens: 50,
+    })
+  })
+
   it('applyEvent on an unseen thread starts from an empty timeline', () => {
     useAgentThreadsStore.getState().applyEvent('t2', { t: 'item', item: userItem })
     expect(useAgentThreadsStore.getState().threads.t2).toEqual({

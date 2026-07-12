@@ -1,15 +1,19 @@
-import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process'
+import { type ChildProcessWithoutNullStreams, execFile, spawn } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { accessSync, constants } from 'node:fs'
-import { homedir } from 'node:os'
+import { readFile, rm } from 'node:fs/promises'
+import { homedir, tmpdir } from 'node:os'
 import { delimiter, join } from 'node:path'
 import type {
   AgentEvent,
   ApprovalDecision,
+  ProviderLimits,
   ProviderStatus,
   TimelineItem,
 } from '../../../shared/agent-protocol'
 import { terminalEnv } from '../../terminal-env'
-import type { AgentDriver, StartTurnOptions, TurnHandle } from '../types'
+import type { AgentCommand, AgentDriver, StartTurnOptions, TurnHandle } from '../types'
+import { expandSlashCommand, listCommandFiles } from './agent-commands-fs'
 import {
   APPROVAL_METHODS,
   buildApprovalItem,
@@ -17,19 +21,24 @@ import {
   buildThreadStartParams,
   buildTurnStartParams,
   buildUserInput,
+  type CodexRateLimitSnapshot,
   encodeMessage,
   type Incoming,
   isLegacyApprovalMethod,
   LineDecoder,
+  mergeRateLimitSnapshot,
   modeToPolicy,
   parseAccountLabel,
   parseAuthenticated,
   parseIncoming,
   parseModelList,
+  parseRateLimitsResponse,
+  parseRateLimitsUpdated,
   parseThreadId,
   parseTurnId,
   type RpcId,
   routingKeys,
+  snapshotToLimits,
   toLegacyDecision,
   toV2Decision,
   translateNotification,
@@ -78,6 +87,17 @@ function resolveCodexBin(env: NodeJS.ProcessEnv): string | null {
   }
   return null
 }
+
+// Codex custom prompts live flat in `~/.codex/prompts/*.md` (invoked as `/name` in the TUI).
+function codexPromptsDir(): string {
+  return join(homedir(), '.codex', 'prompts')
+}
+
+// Auto-title: capped so a hung `codex exec` can't leak a process (execFile SIGTERMs on
+// timeout).
+const TITLE_TIMEOUT_MS = 20_000
+const titlePrompt = (text: string): string =>
+  `Reply with ONLY a 3-8 word title for this coding request, no quotes or punctuation:\n\n${text.slice(0, 2000)}`
 
 /** One approval this turn is blocked on, keyed by its stringified server-request id. */
 interface PendingApproval {
@@ -128,6 +148,10 @@ class CodexServer {
   // (the manager enforces it), so a thread id uniquely routes a notification/approval.
   private readonly turns = new Map<string, CodexTurn>()
   private ready: Promise<void> | null = null
+  // The last known rate-limit snapshot: seeded by `account/rateLimits/read` and kept fresh
+  // by merging sparse `account/rateLimits/updated` pushes (see handleNotification). `at` is
+  // when it was last touched, so `readRateLimits` can serve a recent push without a round-trip.
+  private rateLimits: { snapshot: CodexRateLimitSnapshot; at: number } | null = null
 
   constructor(
     private readonly bin: string,
@@ -228,6 +252,19 @@ class CodexServer {
   }
 
   private handleNotification(method: string, params: unknown): void {
+    // Rate-limit pushes are account-scoped (no thread/turn id): merge them into the cached
+    // snapshot so `readRateLimits` can serve them without a round-trip. Handle before the
+    // thread routing below, which would drop them for lacking a threadId.
+    if (method === 'account/rateLimits/updated') {
+      const update = parseRateLimitsUpdated(params)
+      if (update) {
+        this.rateLimits = {
+          snapshot: mergeRateLimitSnapshot(this.rateLimits?.snapshot ?? null, update),
+          at: Date.now(),
+        }
+      }
+      return
+    }
     const { threadId, turnId } = routingKeys(params)
     const turn = threadId ? this.turns.get(threadId) : undefined
     if (!turn) return
@@ -271,7 +308,26 @@ class CodexServer {
     }
     this.turns.delete(turn.threadId ?? '')
   }
+
+  /**
+   * The current rate-limit snapshot: serve a recent push-merged snapshot without a
+   * round-trip (`freshMs`), else fetch a fresh `account/rateLimits/read` and cache it.
+   * Returns null when the read fails or the account exposes no snapshot.
+   */
+  async readRateLimits(freshMs: number): Promise<CodexRateLimitSnapshot | null> {
+    if (this.rateLimits && Date.now() - this.rateLimits.at < freshMs)
+      return this.rateLimits.snapshot
+    const result = await this.request('account/rateLimits/read', {})
+    const snapshot = parseRateLimitsResponse(result)
+    if (snapshot) this.rateLimits = { snapshot, at: Date.now() }
+    return snapshot
+  }
 }
+
+// A push-merged snapshot newer than this is returned without a fresh read (the app layer
+// caches `agentLimits` for 60s anyway, so this only avoids a redundant round-trip within a
+// burst of pushes).
+const RATE_LIMITS_FRESH_MS = 60_000
 
 // ── The shared server singleton ────────────────────────────────────────────────────
 
@@ -329,6 +385,77 @@ export const codexDriver: AgentDriver = {
     } catch {
       // The binary exists but the server wouldn't answer — report installed-but-unknown.
       return { provider: 'codex', installed: true, authenticated: false, models: [] }
+    }
+  },
+
+  // Codex prompts are flat `.md` files under `~/.codex/prompts` — no namespacing, so the
+  // scan is non-recursive.
+  listCommands(): Promise<AgentCommand[]> {
+    return listCommandFiles([codexPromptsDir()], false)
+  },
+
+  // Codex exposes rate limits first-class on the shared app-server: `account/rateLimits/read`
+  // seeds a snapshot, and mid-turn `account/rateLimits/updated` pushes keep it fresh (merged
+  // in handleNotification). Returns null on any failure or for an account with no windows
+  // (API key). No secrets involved — Codex's own OAuth stays inside the app-server process.
+  async limits(): Promise<ProviderLimits | null> {
+    const active = ensureServer()
+    if (!active) return null
+    try {
+      await active.ensureReady()
+      const snapshot = await active.readRateLimits(RATE_LIMITS_FRESH_MS)
+      return snapshot ? snapshotToLimits(snapshot) : null
+    } catch {
+      return null
+    }
+  },
+
+  // A cheap one-shot title via `codex exec`: `--ephemeral` (no session file), read-only
+  // sandbox + `--skip-git-repo-check` (safe anywhere), `-o <file>` to capture just the
+  // final message. Default model (no `-m`) keeps the invocation simple; a title turn is
+  // tiny. Resolves null on any failure so the manager keeps the derived title.
+  async generateTitle({
+    repoPath,
+    text,
+  }: {
+    repoPath: string
+    text: string
+  }): Promise<string | null> {
+    const bin = resolveCodexBin(terminalEnv(process.env))
+    if (!bin) return null
+    const outFile = join(tmpdir(), `porcelain-codex-title-${randomUUID()}.txt`)
+    try {
+      return await new Promise<string | null>((resolve) => {
+        execFile(
+          bin,
+          [
+            'exec',
+            '--ephemeral',
+            '--sandbox',
+            'read-only',
+            '--skip-git-repo-check',
+            '--color',
+            'never',
+            '-C',
+            repoPath,
+            '-o',
+            outFile,
+            titlePrompt(text),
+          ],
+          { env: terminalEnv(process.env), timeout: TITLE_TIMEOUT_MS },
+          (error) => {
+            if (error) {
+              resolve(null)
+              return
+            }
+            readFile(outFile, 'utf8')
+              .then((out) => resolve(out.trim() === '' ? null : out.trim()))
+              .catch(() => resolve(null))
+          },
+        )
+      })
+    } finally {
+      await rm(outFile, { force: true }).catch(() => {})
     }
   },
 
@@ -399,11 +526,15 @@ export const codexDriver: AgentDriver = {
         return
       }
 
+      // The app-server turn takes the input text literally — expanding `/name` is a Codex
+      // TUI feature, not something `turn/start` does — so we expand custom prompts driver-
+      // side against `~/.codex/prompts`. A non-command message passes through unchanged.
+      const promptText = await expandSlashCommand(opts.text, [codexPromptsDir()], false)
       const turnResult = await active.request(
         'turn/start',
         buildTurnStartParams({
           threadId,
-          input: buildUserInput(opts.text, opts.images),
+          input: buildUserInput(promptText, opts.images),
           effort: opts.options.effort,
           model: opts.model,
           interaction: opts.interaction,

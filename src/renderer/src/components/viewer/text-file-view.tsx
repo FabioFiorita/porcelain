@@ -1,5 +1,6 @@
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
 import { isMarkdownPath, MarkdownView } from '@renderer/components/viewer/markdown-view'
+import { useCommentIndex } from '@renderer/hooks/use-comments'
 import { relativeTo } from '@renderer/lib/paths'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
@@ -51,6 +52,8 @@ export function TextFileView({
   const reader = markdown && markdownMode === 'reader'
   const editable = !reader && content.split('\n').length <= EDITABLE_MAX_LINES
   const highlightLine = finding && findLine !== undefined ? findLine : line
+  // Comments key on repo-relative paths; the viewer holds an absolute one.
+  const commentIndex = useCommentIndex(relativeTo(repo?.path, path))
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent): void => {
@@ -81,10 +84,20 @@ export function TextFileView({
             <MarkdownView content={content} />
           </SourceContextMenu>
         ) : editable ? (
-          <EditorSource path={path} initialContent={content} highlightLine={highlightLine} />
+          <EditorSource
+            path={path}
+            initialContent={content}
+            highlightLine={highlightLine}
+            commentsByLine={commentIndex.byLine}
+          />
         ) : (
           <SourceContextMenu path={path}>
-            <SourceView path={path} content={content} highlightLine={highlightLine} />
+            <SourceView
+              path={path}
+              content={content}
+              highlightLine={highlightLine}
+              commentsByLine={commentIndex.byLine}
+            />
           </SourceContextMenu>
         )}
       </div>

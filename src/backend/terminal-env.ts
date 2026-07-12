@@ -24,6 +24,9 @@ const DAEMON_ONLY_ENV = [
   'PORCELAIN_LAN_BIND',
   // The agent-threads store dir redirect (dev + tests) — a daemon knob, not shell state.
   'PORCELAIN_AGENT_THREADS',
+  // Swaps the agent drivers for a scripted in-process fake (Playwright e2e) — a daemon
+  // knob, never meaningful inside a spawned shell.
+  'PORCELAIN_AGENT_FAKE',
   // Harness knobs read by the daemon/shell processes themselves (defaultShell,
   // preload), never inside a spawned shell — verified unused there.
   'PORCELAIN_E2E',

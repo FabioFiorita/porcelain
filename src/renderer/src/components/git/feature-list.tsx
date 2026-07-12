@@ -11,11 +11,22 @@ import {
 import { useFeatureArtifact } from '@renderer/hooks/use-artifact'
 import { useDiffFilePrefetch } from '@renderer/hooks/use-diff'
 import { useClearFeatureReview, useFeatureView } from '@renderer/hooks/use-feature-view'
+import { useReviewedPaths, useToggleReviewed } from '@renderer/hooks/use-reviewed'
 import { dirName, fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
-import { BookOpen, Eraser, FileText, MessageSquarePlus, RefreshCw, Sparkles } from 'lucide-react'
+import {
+  BookOpen,
+  Check,
+  Eraser,
+  FileText,
+  MessageSquarePlus,
+  RefreshCw,
+  Sparkles,
+  Square,
+  SquareCheck,
+} from 'lucide-react'
 import { memo, useState } from 'react'
 import { CommentComposer } from './comment-composer'
 
@@ -42,15 +53,18 @@ function FlowNodeImpl({
   file,
   repoPath,
   layer,
+  isReviewed,
   onComment,
 }: {
   file: FeatureFile
   repoPath: string
   layer: string | null
+  isReviewed: boolean
   onComment: (path: string) => void
 }): React.JSX.Element {
   const openTab = useTabsStore((s) => s.openTab)
   const prefetchDiff = useDiffFilePrefetch()
+  const { mark, unmark } = useToggleReviewed()
   const name = fileName(file.path)
   const dir = dirName(file.path)
   const connects = file.connects.map((c) => fileName(c)).join(', ')
@@ -87,10 +101,14 @@ function FlowNodeImpl({
           }
         >
           <span className="flex max-w-full items-center gap-1.5">
+            {isReviewed && (
+              <Check className="size-3 shrink-0 self-center text-success" aria-label="Reviewed" />
+            )}
             <span
               className={cn(
                 'truncate text-sm-minus',
-                file.source !== 'changed' && 'text-muted-foreground',
+                (file.source !== 'changed' || isReviewed) && 'text-muted-foreground',
+                isReviewed && 'line-through',
               )}
             >
               {name}
@@ -121,6 +139,17 @@ function FlowNodeImpl({
           )}
         </ContextMenuTrigger>
         <ContextMenuContent className="w-48">
+          {isReviewed ? (
+            <ContextMenuItem onClick={async () => unmark(file.path)}>
+              <Square />
+              Unmark reviewed
+            </ContextMenuItem>
+          ) : (
+            <ContextMenuItem onClick={async () => mark(file.path)}>
+              <SquareCheck />
+              Mark reviewed
+            </ContextMenuItem>
+          )}
           <ContextMenuItem onClick={() => onComment(file.path)}>
             <MessageSquarePlus /> Comment on file
           </ContextMenuItem>
@@ -150,6 +179,7 @@ export function FeatureList(): React.JSX.Element {
   const openTab = useTabsStore((s) => s.openTab)
   const { view, refresh } = useFeatureView()
   const { artifact } = useFeatureArtifact()
+  const reviewed = useReviewedPaths()
   const { clear, isClearing } = useClearFeatureReview()
   const [confirmClear, setConfirmClear] = useState(false)
   const [clearError, setClearError] = useState<string | null>(null)
@@ -326,6 +356,7 @@ export function FeatureList(): React.JSX.Element {
                 file={file}
                 repoPath={repo.path}
                 layer={layer === flow[i - 1]?.layer ? null : layer}
+                isReviewed={reviewed.has(file.path)}
                 onComment={setCommentPath}
               />
             ))}

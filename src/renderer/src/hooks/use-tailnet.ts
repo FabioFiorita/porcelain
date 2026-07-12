@@ -1,3 +1,4 @@
+import { onMutationError } from '@renderer/hooks/mutation-error'
 import { trpc } from '@renderer/lib/trpc'
 
 export interface TailnetStatus {
@@ -23,6 +24,9 @@ export function useSetTailnetBind(): {
   const utils = trpc.useUtils()
   const mutation = trpc.setTailnetBind.useMutation({
     onSuccess: () => utils.tailnetStatus.invalidate(),
+    // A bind that can't find an interface surfaces inline via tailnetStatus; a rejected
+    // toggle write itself would otherwise be invisible, so toast it.
+    onError: onMutationError('Toggle Tailscale sharing'),
   })
   return {
     setEnabled: (enabled) => mutation.mutate(enabled),

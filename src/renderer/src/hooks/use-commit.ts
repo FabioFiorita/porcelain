@@ -1,4 +1,5 @@
 import type { CommitConventions } from '@backend/conventions'
+import { onMutationError } from '@renderer/hooks/mutation-error'
 import { trpc } from '@renderer/lib/trpc'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
@@ -40,8 +41,8 @@ export function useStageAll(): {
 } {
   const repo = useRepoStore((s) => s.repo)
   const utils = trpc.useUtils()
-  const stage = trpc.gitStageAll.useMutation()
-  const unstage = trpc.gitUnstageAll.useMutation()
+  const stage = trpc.gitStageAll.useMutation({ onError: onMutationError('Stage changes') })
+  const unstage = trpc.gitUnstageAll.useMutation({ onError: onMutationError('Unstage changes') })
   return {
     stageAll: async () => {
       if (!repo) return
@@ -65,8 +66,8 @@ export function useFileStaging(): {
 } {
   const repo = useRepoStore((s) => s.repo)
   const utils = trpc.useUtils()
-  const stage = trpc.gitStageFile.useMutation()
-  const unstage = trpc.gitUnstageFile.useMutation()
+  const stage = trpc.gitStageFile.useMutation({ onError: onMutationError('Stage file') })
+  const unstage = trpc.gitUnstageFile.useMutation({ onError: onMutationError('Unstage file') })
   return {
     stageFile: async (path) => {
       if (!repo) return
@@ -98,6 +99,7 @@ export function useDiscardFile(): (path: string) => Promise<void> {
         utils.pinnedEntries.invalidate(),
       ])
     },
+    onError: onMutationError('Discard file'),
   })
   return async (path) => {
     if (!repo) return

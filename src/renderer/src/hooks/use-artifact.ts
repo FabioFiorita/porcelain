@@ -1,4 +1,5 @@
 import type { Artifact, ArtifactMeta } from '@backend/artifact-store'
+import { onMutationError } from '@renderer/hooks/mutation-error'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 
@@ -41,7 +42,9 @@ export function useArtifactHtml(repoPath: string): { artifact: Artifact | null |
 export function useClearArtifact(): { clear: () => Promise<void>; isClearing: boolean } {
   const repo = useRepoStore((s) => s.repo)
   const utils = trpc.useUtils()
-  const mutation = trpc.clearFeatureArtifact.useMutation()
+  const mutation = trpc.clearFeatureArtifact.useMutation({
+    onError: onMutationError('Clear artifact'),
+  })
   return {
     clear: async () => {
       if (!repo) return

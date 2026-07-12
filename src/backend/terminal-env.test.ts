@@ -21,6 +21,7 @@ describe('terminalEnv', () => {
       PORCELAIN_TAILNET_BIND: '1',
       PORCELAIN_LAN_BIND: '1',
       PORCELAIN_AGENT_THREADS: '/tmp/threads',
+      PORCELAIN_AGENT_FAKE: '1',
       PORCELAIN_E2E: '1',
       PORCELAIN_SHELL: '/bin/bash',
     })
@@ -34,6 +35,7 @@ describe('terminalEnv', () => {
     expect('PORCELAIN_TAILNET_BIND' in env).toBe(false)
     expect('PORCELAIN_LAN_BIND' in env).toBe(false)
     expect('PORCELAIN_AGENT_THREADS' in env).toBe(false)
+    expect('PORCELAIN_AGENT_FAKE' in env).toBe(false)
     expect('PORCELAIN_E2E' in env).toBe(false)
     expect('PORCELAIN_SHELL' in env).toBe(false)
   })

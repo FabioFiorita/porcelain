@@ -20,6 +20,7 @@ vi.mock(import('@renderer/hooks/use-files'), async (importOriginal) => {
 // mock the domain hook so it renders without a tRPC provider (the component-test rule).
 vi.mock('@renderer/hooks/use-comments', () => ({
   useCommentActions: () => ({ add: async () => {} }),
+  useCommentIndex: () => ({ byLine: new Map(), fileLevel: [] }),
 }))
 
 beforeEach(() => {

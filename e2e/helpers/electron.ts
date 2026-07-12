@@ -107,6 +107,11 @@ export const test = baseTest.extend<Options & Fixtures, WorkerFixtures>({
           : {},
       ),
     )
+    // Agent threads persist to their own directory (the same PORCELAIN_AGENT_THREADS escape
+    // hatch dev/tests use), so a thread never touches the user's real ~/.porcelain, and it
+    // survives a window reload the way the daemon-owned thread does. Left uncreated — the
+    // store treats an absent dir as "no threads yet".
+    const agentThreads = join(udBase, 'agent-threads')
 
     const app = await _electron.launch({
       args: [MAIN_ENTRY, `--user-data-dir=${udBase}`],
@@ -121,6 +126,10 @@ export const test = baseTest.extend<Options & Fixtures, WorkerFixtures>({
         PORCELAIN_LAYERS: layers,
         PORCELAIN_REVIEWED: reviewed,
         PORCELAIN_ARTIFACTS: artifacts,
+        PORCELAIN_AGENT_THREADS: agentThreads,
+        // Swap every agent provider slot for the scripted in-process fake driver so the
+        // Agent tab has a deterministic turn to drive (no real CLI / auth / network).
+        PORCELAIN_AGENT_FAKE: '1',
         PORCELAIN_SHELL: '/bin/bash',
         PORCELAIN_E2E: '1',
       }),
@@ -147,7 +156,7 @@ declare global {
   }
 }
 
-type TabName = 'Files' | 'Changes' | 'History' | 'Feature' | 'Board' | 'Terminal'
+type TabName = 'Files' | 'Changes' | 'History' | 'Feature' | 'Board' | 'Terminal' | 'Agent'
 
 /** Wait until the shell has finished restoring the seeded repo. */
 export async function waitForShell(page: Page): Promise<void> {

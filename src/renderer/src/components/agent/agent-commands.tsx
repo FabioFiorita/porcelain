@@ -21,7 +21,7 @@ export function AgentCommands(): null {
       if (isTextEntry(e.target) || isTerminalTarget(e.target)) return
       if (e.key.toLowerCase() !== 'n') return
       e.preventDefault()
-      const thread = await create({ provider: 'claude', model: '', mode: 'full' })
+      const thread = await create({ mode: 'full' })
       if (thread) {
         useTabsStore.getState().openTab({
           id: tabId('agent', thread.id),

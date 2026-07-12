@@ -43,6 +43,50 @@ document.addEventListener('visibilitychange', () => {
   for (const instance of instances.values()) instance.term.clearTextureAtlas()
 })
 
+// The iPad software keyboard resizes the visual viewport WITHOUT resizing any pane element,
+// so the pane ResizeObserver in terminal-view never fires and cols/rows keep tracking the
+// full-height area behind the keyboard. Refit every instance on a visual-viewport resize,
+// debounced like that observer (100ms). visualViewport is absent outside Safari/Chrome
+// (and in the test env) — guard for it.
+if (typeof window !== 'undefined' && window.visualViewport) {
+  let pending: ReturnType<typeof setTimeout> | undefined
+  window.visualViewport.addEventListener('resize', () => {
+    if (pending !== undefined) clearTimeout(pending)
+    pending = setTimeout(() => {
+      for (const id of instances.keys()) fitTerminal(id)
+    }, 100)
+  })
+}
+
+// The terminal faces load via font-display: swap, so term.open() can measure fallback-font
+// cell metrics before Geist Mono swaps in — glyphs then paint at a different advance width
+// inside stale cells (floating/misaligned on the DOM renderer, tofu in the WebGL atlas). Load
+// both faces explicitly, then re-measure against the real metrics: the WebGL renderer re-
+// rasterizes its offscreen atlas (clearTextureAtlas), while the DOM renderer caches char size
+// in its CharSizeService — reassigning fontFamily to its current value is the only public lever
+// that invalidates that cache, so follow it with a refit. Runs again on document.fonts.ready
+// because the swap can land after our explicit load resolves. document.fonts is absent in the
+// test env — skip the guard there.
+function remeasureFonts(instance: Instance, usesWebgl: boolean): void {
+  if (typeof document === 'undefined' || !document.fonts) return
+  const apply = (): void => {
+    if (usesWebgl) {
+      instance.term.clearTextureAtlas()
+      return
+    }
+    const { fontFamily } = instance.term.options
+    instance.term.options.fontFamily = fontFamily
+    instance.fit.fit()
+  }
+  Promise.all([
+    document.fonts.load('12px "Geist Mono Variable"'),
+    document.fonts.load('12px "Symbols Nerd Font Mono"'),
+  ])
+    .then(apply)
+    .catch(() => {})
+  document.fonts.ready.then(apply).catch(() => {})
+}
+
 /** Route inbound PTY output to its xterm, buffering until the instance is mounted. */
 export function receiveData(id: string, data: string): void {
   // Live output means this id's xterm is being built from the stream itself — mark it
@@ -125,6 +169,7 @@ function create(id: string): Instance {
   // edge-to-edge, but it never blanks. Desktop Electron (maxTouchPoints 0) always takes the
   // WebGL path below.
   const coarseTouch = navigator.maxTouchPoints > 1
+  let usesWebgl = false
   if (!coarseTouch) {
     // GPU renderer: its customGlyphs paint box-drawing/block-element chars edge-to-edge
     // (crisp Claude Code logo + powerline fills), which the DOM renderer can't — it leaves
@@ -136,16 +181,7 @@ function create(id: string): Instance {
       const webgl = new WebglAddon()
       webgl.onContextLoss(() => webgl.dispose())
       term.loadAddon(webgl)
-      // The WebGL atlas rasterizes glyphs in an offscreen canvas which — unlike DOM text —
-      // does NOT trigger @font-face loading, so Nerd Font fallback glyphs cache as tofu. Load
-      // the terminal fonts explicitly (idempotent), then clear the atlas so they re-rasterize
-      // against the real faces.
-      Promise.all([
-        document.fonts.load('12px "Geist Mono Variable"'),
-        document.fonts.load('12px "Symbols Nerd Font Mono"'),
-      ])
-        .then(() => term.clearTextureAtlas())
-        .catch(() => {})
+      usesWebgl = true
     } catch {
       // No WebGL context available — stay on the DOM renderer.
     }
@@ -193,6 +229,9 @@ function create(id: string): Instance {
     for (const data of buffered) term.write(data)
     buffers.delete(id)
   }
+  // open() above measured cell metrics synchronously against whatever face was ready; re-
+  // measure once the real terminal faces have loaded (see remeasureFonts).
+  remeasureFonts(instance, usesWebgl)
   return instance
 }
 

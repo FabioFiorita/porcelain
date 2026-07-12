@@ -4,9 +4,15 @@ import { accessSync, constants } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import type { AgentImage, ModelInfo, ProviderStatus } from '../../../shared/agent-protocol'
+import type {
+  AgentImage,
+  ModelInfo,
+  ProviderLimits,
+  ProviderStatus,
+} from '../../../shared/agent-protocol'
 import { terminalEnv } from '../../terminal-env'
-import type { AgentDriver, StartTurnOptions, TurnHandle } from '../types'
+import type { AgentCommand, AgentDriver, StartTurnOptions, TurnHandle } from '../types'
+import { expandSlashCommand, listCommandFiles } from './agent-commands-fs'
 import {
   mapProvidersConfig,
   parseAuthProviders,
@@ -212,6 +218,12 @@ function resumeSessionId(resume: unknown): string | null {
   return typeof resume === 'string' && resume.startsWith('ses_') ? resume : null
 }
 
+// OpenCode commands are flat `.md` files: repo-local `.opencode/command`, then user-global
+// `~/.config/opencode/command`. Repo-local shadows global (listCommandFiles keeps the first).
+function opencodeCommandDirs(repoPath: string): string[] {
+  return [join(repoPath, '.opencode', 'command'), join(homedir(), '.config', 'opencode', 'command')]
+}
+
 function eventSessionId(properties: Record<string, unknown> | undefined): string | undefined {
   const value = properties?.sessionID
   return typeof value === 'string' ? value : undefined
@@ -236,6 +248,25 @@ export const opencodeDriver: AgentDriver = {
       account: providers.length > 0 ? providers.join(', ') : undefined,
       models,
     }
+  },
+
+  // Flat `.md` command files under `.opencode/command` (repo) + `~/.config/opencode/command`.
+  listCommands(repoPath: string): Promise<AgentCommand[]> {
+    return listCommandFiles(opencodeCommandDirs(repoPath), false)
+  },
+
+  // OpenCode is BYO-provider-key and exposes NO usage/quota/limit endpoint (verified on
+  // opencode 1.17.18 — nothing in the server OpenAPI or CLI), so it has no plan windows to
+  // report. Always null; the Limits group hides for opencode. (Session cost still comes
+  // through per-message `cost` — see opencode-translate's handleMessageUpdated.)
+  limits(): Promise<ProviderLimits | null> {
+    return Promise.resolve(null)
+  },
+
+  // No guaranteed-cheap one-shot title path (a prompt turn spins the full server + agent),
+  // so we decline and let the manager keep the derived title.
+  generateTitle(): Promise<string | null> {
+    return Promise.resolve(null)
   },
 
   startTurn(opts: StartTurnOptions): TurnHandle {
@@ -293,6 +324,14 @@ export const opencodeDriver: AgentDriver = {
       // Reasoning effort rides the prompt as the model `variant` (OpenCode's mechanism);
       // omitted when unset so the model's own default applies.
       const variant = opts.options.effort
+      // The prompt endpoint takes the text literally — `/name` expansion is an OpenCode TUI
+      // feature — so we expand custom commands driver-side. A non-command message is
+      // unchanged.
+      const promptText = await expandSlashCommand(
+        opts.text,
+        opencodeCommandDirs(opts.repoPath),
+        false,
+      )
       await postJson(
         `${baseUrl}/session/${sessionId}/prompt_async`,
         {
@@ -302,7 +341,7 @@ export const opencodeDriver: AgentDriver = {
           // Plan mode selects opencode's built-in read-only `plan` agent for this prompt;
           // omitted in Build so the server default (`build`) applies.
           ...(opts.interaction === 'plan' ? { agent: 'plan' } : {}),
-          parts: buildParts(opts.text, opts.images),
+          parts: buildParts(promptText, opts.images),
         },
         abortController.signal,
       )

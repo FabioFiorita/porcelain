@@ -1,3 +1,4 @@
+import { onMutationError } from '@renderer/hooks/mutation-error'
 import { isBrowser } from '@renderer/lib/platform'
 import { shellTrpc } from '@renderer/lib/trpc'
 
@@ -46,6 +47,9 @@ export function useClearRemoteDaemon(): { disconnect: () => void; isPending: boo
       await utils.remoteDaemon.invalidate()
       window.location.reload()
     },
+    // Unlike connect (whose error renders inline in the settings block), disconnect
+    // has no inline surface — a failed clear would otherwise be silent.
+    onError: onMutationError('Disconnect remote daemon'),
   })
   return { disconnect: () => mutation.mutate(), isPending: mutation.isPending }
 }

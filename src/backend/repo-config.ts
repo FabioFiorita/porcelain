@@ -1,4 +1,10 @@
 import { z } from 'zod'
+import {
+  type AgentProvider,
+  agentProviderSchema,
+  type ThreadOptions,
+  threadOptionsSchema,
+} from '../shared/agent-protocol'
 
 export const appConfigSchema = z.object({
   recentRepos: z.array(z.string()).default([]),
@@ -15,6 +21,18 @@ export const appConfigSchema = z.object({
   // `provider:modelId` key. Daemon-side so the favorites follow the user to the
   // iPad/browser client. Optional so pre-existing configs stay valid.
   agentModelFavorites: z.array(z.string()).optional(),
+  // Global (not per-repo): the last provider/model/options a thread was created or
+  // switched to, so a NEW thread defaults to what the user last worked with instead
+  // of a hardcoded provider + empty model. The three fields travel together — a model
+  // belongs to its provider, so we never mix a provider from one selection with a
+  // model from another. Optional so pre-existing configs stay valid.
+  lastAgentSelection: z
+    .object({
+      provider: agentProviderSchema,
+      model: z.string(),
+      options: threadOptionsSchema.optional(),
+    })
+    .optional(),
   repos: z
     .record(
       z.string(),
@@ -136,4 +154,32 @@ export function toggleModelFavorite(config: AppConfig, key: string): AppConfig {
   const current = config.agentModelFavorites ?? []
   const next = current.includes(key) ? current.filter((k) => k !== key) : [...current, key]
   return { ...config, agentModelFavorites: next }
+}
+
+// The remembered provider/model/options a new thread defaults to. Non-optional shape
+// (the config field itself is optional until the first selection is recorded).
+export type AgentSelection = NonNullable<AppConfig['lastAgentSelection']>
+
+/** Remember the provider/model/options last used, so the next new thread defaults to it. */
+export function withLastAgentSelection(config: AppConfig, selection: AgentSelection): AppConfig {
+  return { ...config, lastAgentSelection: selection }
+}
+
+/**
+ * Resolve the provider/model/options a new thread is created with. When the caller
+ * supplies BOTH provider and model, honor them verbatim (the options ride along). When
+ * either is missing, fall back to the last-used selection as a unit — provider, model,
+ * and options together, never a cross-provider mix. With no selection recorded yet, use
+ * the legacy default (provider 'claude' + empty model, i.e. the driver's own default).
+ */
+export function resolveCreationDefaults(
+  config: AppConfig,
+  input: { provider?: AgentProvider; model?: string; options?: ThreadOptions },
+): { provider: AgentProvider; model: string; options?: ThreadOptions } {
+  if (input.provider !== undefined && input.model !== undefined) {
+    return { provider: input.provider, model: input.model, options: input.options }
+  }
+  const last = config.lastAgentSelection
+  if (last) return { provider: last.provider, model: last.model, options: last.options }
+  return { provider: input.provider ?? 'claude', model: input.model ?? '' }
 }

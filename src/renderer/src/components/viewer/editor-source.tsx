@@ -1,3 +1,5 @@
+import type { ReviewComment } from '@backend/comment-store'
+import { CommentMarker } from '@renderer/components/git/comment-marker'
 import {
   ContextMenu,
   ContextMenuContent,
@@ -8,6 +10,7 @@ import {
 } from '@renderer/components/ui/context-menu'
 import { Kbd } from '@renderer/components/ui/kbd'
 import { CodeLine, useTokenizedLines } from '@renderer/components/viewer/code-line'
+import { ROW_HEIGHT } from '@renderer/components/viewer/virtual-rows'
 import { useWriteTextFile } from '@renderer/hooks/use-files'
 import { languageFor } from '@renderer/lib/highlight'
 import { kbdLabel } from '@renderer/lib/keyboard'
@@ -26,7 +29,7 @@ import {
   Scissors,
   Search,
 } from 'lucide-react'
-import { memo, useDeferredValue, useEffect, useRef, useState } from 'react'
+import { memo, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { type CommentAnchor, CommentComposer } from '../git/comment-composer'
 import { usePathActions } from './use-path-actions'
 
@@ -38,14 +41,21 @@ const AUTOSAVE_DELAY_MS = 800
 // Memoized so a line only re-renders when its own tokens change.
 const EditorLine = memo(CodeLine)
 
+// The editor mirror is padded `py-2` (8px) above the first line; each line is
+// ROW_HEIGHT tall (leading-5), so line N's top is PADDING_TOP + (N-1)*ROW_HEIGHT. The
+// clickable marker overlay reuses this to sit each glyph on its line.
+const PADDING_TOP = 8
+
 export function EditorSource({
   path,
   initialContent,
   highlightLine,
+  commentsByLine,
 }: {
   path: string
   initialContent: string
   highlightLine?: number
+  commentsByLine?: Map<number, ReviewComment[]>
 }): React.JSX.Element {
   const [content, setContent] = useState(initialContent)
   const [savedContent, setSavedContent] = useState(initialContent)
@@ -65,6 +75,16 @@ export function EditorSource({
   // Comments store repo-relative paths; the viewer holds an absolute one.
   const relativePath =
     repo && path.startsWith(`${repo.path}/`) ? path.slice(repo.path.length + 1) : path
+
+  // While the composer is open on a range in this file, tint those lines so the anchor
+  // stays visible after the dialog steals focus (killing the DOM selection).
+  const pendingLines = useMemo(() => {
+    if (!commentAnchor || commentAnchor.startLine === undefined) return null
+    const lines = new Set<number>()
+    const end = commentAnchor.endLine ?? commentAnchor.startLine
+    for (let line = commentAnchor.startLine; line <= end; line++) lines.add(line)
+    return lines
+  }, [commentAnchor])
 
   const saveRef = useRef<() => void>(() => {})
   saveRef.current = (): void => {
@@ -177,17 +197,47 @@ export function EditorSource({
                 className="pointer-events-none absolute inset-0 z-0 px-4 py-2 font-mono text-xs leading-5"
               >
                 <div className="w-max min-w-full">
-                  {content.split('\n').map((line, i) => (
-                    // biome-ignore lint/suspicious/noArrayIndexKey: lines have no stable identity
-                    <div key={i} className={cn('flex', i + 1 === highlightLine && 'bg-primary/15')}>
-                      <span className="w-10 shrink-0 select-none pr-3 text-right text-muted-foreground/50">
-                        {i + 1}
-                      </span>
-                      <EditorLine tokens={tokenLines?.[i] ?? null} text={line} />
+                  {content.split('\n').map((line, i) => {
+                    const ln = i + 1
+                    const pending = pendingLines?.has(ln) ?? false
+                    const open =
+                      !pending && (commentsByLine?.get(ln)?.some((c) => !c.resolved) ?? false)
+                    return (
+                      <div
+                        // biome-ignore lint/suspicious/noArrayIndexKey: lines have no stable identity
+                        key={i}
+                        className={cn(
+                          'flex',
+                          (ln === highlightLine || pending) && 'bg-primary/15',
+                          open && 'bg-(--selected-fill)',
+                        )}
+                      >
+                        <span className="w-10 shrink-0 select-none pr-3 text-right text-muted-foreground/50">
+                          {ln}
+                        </span>
+                        <EditorLine tokens={tokenLines?.[i] ?? null} text={line} />
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+              {/* Clickable comment glyphs, above the transparent textarea (z-10) so the
+                popover opens on click; the layer is pass-through except the glyphs, so
+                typing elsewhere is unaffected. Positioned per line, not virtualized (the
+                editor already renders every line). */}
+              {commentsByLine && commentsByLine.size > 0 && (
+                <div className="pointer-events-none absolute inset-0 z-20 font-mono text-xs leading-5">
+                  {[...commentsByLine.entries()].map(([ln, comments]) => (
+                    <div
+                      key={ln}
+                      className="pointer-events-auto absolute left-1 flex h-5 items-center"
+                      style={{ top: PADDING_TOP + (ln - 1) * ROW_HEIGHT }}
+                    >
+                      <CommentMarker comments={comments} />
                     </div>
                   ))}
                 </div>
-              </div>
+              )}
               <textarea
                 ref={textareaRef}
                 value={content}

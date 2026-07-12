@@ -6,6 +6,7 @@ import {
   agentInteractionSchema,
   agentModeSchema,
   agentProviderSchema,
+  agentUsageSchema,
   threadOptionsSchema,
   timelineItemSchema,
 } from '../../shared/agent-protocol'
@@ -38,6 +39,9 @@ export const storedThreadMetaSchema = z.object({
   // The thread's chosen model options. Optional so a thread file written before options
   // existed (or one whose options were never touched) still reads back.
   options: threadOptionsSchema.optional(),
+  // Accumulated token usage. Optional so a thread file written before usage tracking (or
+  // one whose driver never reported tokens) still reads back.
+  usage: agentUsageSchema.optional(),
   createdAt: z.number(),
   updatedAt: z.number(),
 })

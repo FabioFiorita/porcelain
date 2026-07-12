@@ -1,4 +1,5 @@
 import type { Action } from '@backend/actions-store'
+import { onMutationError } from '@renderer/hooks/mutation-error'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
@@ -29,10 +30,22 @@ export function useActionMutations(): {
   const refresh = async (): Promise<void> => {
     await utils.actions.invalidate()
   }
-  const add = trpc.addAction.useMutation({ onSuccess: refresh })
-  const update = trpc.updateAction.useMutation({ onSuccess: refresh })
-  const move = trpc.moveAction.useMutation({ onSuccess: refresh })
-  const remove = trpc.deleteAction.useMutation({ onSuccess: refresh })
+  const add = trpc.addAction.useMutation({
+    onSuccess: refresh,
+    onError: onMutationError('Add action'),
+  })
+  const update = trpc.updateAction.useMutation({
+    onSuccess: refresh,
+    onError: onMutationError('Update action'),
+  })
+  const move = trpc.moveAction.useMutation({
+    onSuccess: refresh,
+    onError: onMutationError('Move action'),
+  })
+  const remove = trpc.deleteAction.useMutation({
+    onSuccess: refresh,
+    onError: onMutationError('Delete action'),
+  })
   return {
     add: async (input) => {
       if (!repo) return

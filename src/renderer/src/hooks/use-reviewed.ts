@@ -1,10 +1,17 @@
+import { onMutationError } from '@renderer/hooks/mutation-error'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 
 /** Returns the set of repo-relative paths the user has marked as reviewed for the current repo. */
 export function useReviewedPaths(): Set<string> {
   const repo = useRepoStore((s) => s.repo)
-  const { data } = trpc.reviewedPaths.useQuery(repo?.path ?? '', { enabled: repo !== null })
+  const { data } = trpc.reviewedPaths.useQuery(repo?.path ?? '', {
+    enabled: repo !== null,
+    // Marks reconcile against the working tree (content-keyed) — an external commit or
+    // post-mark edit prunes them — so poll like the flow queries to surface un-ticks.
+    staleTime: 0,
+    refetchInterval: 3000,
+  })
   return new Set(data ?? [])
 }
 
@@ -19,11 +26,13 @@ export function useToggleReviewed(): {
     onSuccess: async () => {
       await utils.reviewedPaths.invalidate()
     },
+    onError: onMutationError('Mark reviewed'),
   })
   const unmarkMutation = trpc.unmarkReviewed.useMutation({
     onSuccess: async () => {
       await utils.reviewedPaths.invalidate()
     },
+    onError: onMutationError('Unmark reviewed'),
   })
   return {
     mark: async (path) => {
@@ -48,6 +57,7 @@ export function useSetReviewed(): (paths: string[]) => Promise<void> {
     onSuccess: async () => {
       await utils.reviewedPaths.invalidate()
     },
+    onError: onMutationError('Update reviewed'),
   })
   return async (paths) => {
     if (!repo) return

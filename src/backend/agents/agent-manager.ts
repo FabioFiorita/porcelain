@@ -9,6 +9,7 @@ import {
   type ApprovalDecision,
   agentProviderSchema,
   applyAgentEvent,
+  type ProviderLimits,
   type ProviderStatus,
   type ThreadInfo,
   type ThreadOptions,
@@ -24,7 +25,7 @@ import {
   type StoredThread,
   writeThread,
 } from './thread-store'
-import type { DriverRegistry, TurnHandle } from './types'
+import type { AgentCommand, DriverRegistry, TurnHandle } from './types'
 
 /**
  * The thread session layer — the Agent tab's analogue of `terminal-manager.ts`: an
@@ -64,6 +65,14 @@ interface Thread {
   // quick writes to the same file never overlap (the tmp name is shared).
   persistTimer: ReturnType<typeof setTimeout> | null
   persistChain: Promise<void>
+  // The cumulative token + cost totals captured when the current turn started, so a driver's
+  // per-turn `status.usage` (which reports THIS turn's counts, possibly several times as
+  // it streams) folds into a running total without double-counting: total = base + turn.
+  turnUsageBase: { input: number; output: number; cost: number }
+  // Set on the first user message (whose title came from deriveTitle); consumed on the
+  // first successful onDone to fire the one-shot LLM auto-title. Runtime-only — a restart
+  // just keeps the derived title, which is fine.
+  pendingAutoTitle: boolean
 }
 
 const PERSIST_DEBOUNCE_MS = 500
@@ -110,13 +119,26 @@ function toThread(stored: StoredThread): Thread {
     turnToken: null,
     persistTimer: null,
     persistChain: Promise.resolve(),
+    turnUsageBase: { input: 0, output: 0, cost: 0 },
+    pendingAutoTitle: false,
   }
 }
 
 function toStored(thread: Thread): StoredThread {
   // Drop the runtime `status` — a hydrated thread is always idle (see thread-store).
-  const { id, repoPath, title, provider, model, mode, interaction, options, createdAt, updatedAt } =
-    thread.meta
+  const {
+    id,
+    repoPath,
+    title,
+    provider,
+    model,
+    mode,
+    interaction,
+    options,
+    usage,
+    createdAt,
+    updatedAt,
+  } = thread.meta
   return {
     meta: {
       id,
@@ -127,6 +149,7 @@ function toStored(thread: Thread): StoredThread {
       mode,
       ...(interaction !== undefined ? { interaction } : {}),
       ...(options !== undefined ? { options } : {}),
+      ...(usage !== undefined ? { usage } : {}),
       createdAt,
       updatedAt,
     },
@@ -211,22 +234,86 @@ function applyMeta(thread: Thread, event: Extract<AgentEvent, { t: 'meta' }>): v
 // clients (usage), just not trusted to flip idle/working here.
 function onEmit(thread: Thread, event: AgentEvent): void {
   if (event.t === 'meta') applyMeta(thread, event)
+  if (event.t === 'status' && event.usage) applyUsage(thread, event.usage)
   thread.items = applyAgentEvent(thread.items, event)
   schedulePersist(thread)
   fanOut(thread, 'agent:event', thread.meta.id, event)
 }
 
-function onDone(thread: Thread): void {
+// Fold a driver's per-turn token report into the thread's accumulated usage. The report
+// carries THIS turn's running counts (a driver may re-report as it streams), so the turn
+// values are taken as-is and the totals are recomputed off the per-turn baseline — never
+// added incrementally — so repeated reports for one turn don't double-count. Broadcasts
+// the roster (but doesn't bump updatedAt, to avoid reshuffling the list mid-stream).
+function applyUsage(
+  thread: Thread,
+  usage: { inputTokens: number; outputTokens: number; costUsd?: number },
+): void {
+  // Cost accumulates by the SAME baseline discipline as tokens: total = base + this turn's
+  // reported cost. A report without `costUsd` (Codex, or a mid-turn token-only report) keeps
+  // the prior accumulated total rather than dropping it.
+  const totalCostUsd =
+    usage.costUsd !== undefined
+      ? thread.turnUsageBase.cost + usage.costUsd
+      : thread.meta.usage?.totalCostUsd
+  thread.meta.usage = {
+    turnInput: usage.inputTokens,
+    turnOutput: usage.outputTokens,
+    totalInput: thread.turnUsageBase.input + usage.inputTokens,
+    totalOutput: thread.turnUsageBase.output + usage.outputTokens,
+    ...(totalCostUsd !== undefined ? { totalCostUsd } : {}),
+  }
+  broadcastRoster()
+}
+
+function onDone(thread: Thread, ok: boolean): void {
   thread.turn = null
   setStatus(thread, 'idle')
   persistNow(thread).catch(() => {})
+  // After the FIRST turn succeeds, upgrade the derived title to an LLM-generated one (if
+  // the driver offers the hook). Fire-and-forget with its own error/timeout handling — it
+  // must never block the turn from finishing, and a failure just keeps the derived title.
+  if (ok && thread.pendingAutoTitle) {
+    thread.pendingAutoTitle = false
+    maybeAutoTitle(thread).catch(() => {})
+  }
 }
 
-/** First line of the message, trimmed + truncated — the v1 auto-title (no LLM). */
+function truncateTitle(title: string): string {
+  return title.length > TITLE_MAX ? `${title.slice(0, TITLE_MAX - 1)}…` : title
+}
+
+/** First line of the message, trimmed + truncated — the fallback title (no LLM). */
 function deriveTitle(text: string): string {
   const line = text.trim().split('\n')[0]?.trim() ?? ''
   if (line === '') return 'New thread'
-  return line.length > TITLE_MAX ? `${line.slice(0, TITLE_MAX - 1)}…` : line
+  return truncateTitle(line)
+}
+
+/**
+ * One-shot LLM auto-title after a thread's first successful turn. Asks the driver (if it
+ * exposes `generateTitle`) for a short title off the thread's first user message; a
+ * non-empty result (trimmed + capped at TITLE_MAX) replaces the derived title, persists,
+ * and broadcasts both the roster and a `meta` event to attached clients. Any failure is
+ * swallowed by the caller's `.catch` — the derived title stays.
+ */
+async function maybeAutoTitle(thread: Thread): Promise<void> {
+  const driver = drivers[thread.meta.provider]
+  if (!driver.generateTitle) return
+  const first = thread.items.find((item) => item.kind === 'user')
+  const text = first?.kind === 'user' ? first.text : ''
+  if (text.trim() === '') return
+  const generated = await driver.generateTitle({ repoPath: thread.meta.repoPath, text })
+  if (generated === null) return
+  const title = truncateTitle(generated.trim())
+  if (title === '') return
+  // The thread may have been deleted (or replaced) while the LLM ran — bail if so.
+  if (threads.get(thread.meta.id) !== thread) return
+  thread.meta.title = title
+  thread.meta.updatedAt = Date.now()
+  persistNow(thread).catch(() => {})
+  broadcastRoster()
+  fanOut(thread, 'agent:event', thread.meta.id, { t: 'meta', title })
 }
 
 export interface CreateThreadOptions {
@@ -234,6 +321,10 @@ export interface CreateThreadOptions {
   provider: AgentProvider
   model: string
   mode: AgentMode
+  // The model's effort/context-window options, when the caller already knows them (a
+  // last-used selection carries them). Absent = an untouched thread with no options,
+  // exactly like a thread created before this field existed.
+  options?: ThreadOptions
 }
 
 export async function createThread(opts: CreateThreadOptions): Promise<ThreadInfo> {
@@ -246,6 +337,7 @@ export async function createThread(opts: CreateThreadOptions): Promise<ThreadInf
     provider: opts.provider,
     model: opts.model,
     mode: opts.mode,
+    ...(opts.options !== undefined ? { options: opts.options } : {}),
     status: 'idle',
     createdAt: now,
     updatedAt: now,
@@ -259,6 +351,8 @@ export async function createThread(opts: CreateThreadOptions): Promise<ThreadInf
     turnToken: null,
     persistTimer: null,
     persistChain: Promise.resolve(),
+    turnUsageBase: { input: 0, output: 0, cost: 0 },
+    pendingAutoTitle: false,
   }
   threads.set(meta.id, thread)
   await persistNow(thread)
@@ -296,10 +390,10 @@ export async function updateThread(
     interaction?: AgentInteraction
     options?: ThreadOptions
   },
-): Promise<void> {
+): Promise<ThreadInfo | undefined> {
   await ensureHydrated()
   const thread = threads.get(id)
-  if (!thread) return
+  if (!thread) return undefined
   if (fields.model !== undefined) thread.meta.model = fields.model
   if (fields.mode !== undefined) thread.meta.mode = fields.mode
   // A model picked from another provider carries its provider with it — the thread's
@@ -312,6 +406,9 @@ export async function updateThread(
   thread.meta.updatedAt = Date.now()
   await persistNow(thread)
   broadcastRoster()
+  // Return the merged meta so the procedure layer can record the last-used selection
+  // (provider may have followed the model here) without re-reading the roster.
+  return thread.meta
 }
 
 export async function deleteThread(id: string): Promise<void> {
@@ -404,10 +501,19 @@ export async function sendMessage(id: string, input: SendMessageInput): Promise<
       ...(imageCount > 0 ? { imageCount } : {}),
     },
   })
-  // Auto-title on the first user message (v1: derived, no LLM).
+  // Auto-title on the first user message: derive immediately (instant feedback) and arm
+  // the one-shot LLM upgrade that fires when this first turn succeeds (see onDone).
   if (!hadUserMessage) {
     thread.meta.title = deriveTitle(input.text)
+    thread.pendingAutoTitle = true
     broadcastRoster()
+  }
+  // Snapshot the cumulative totals so this turn's usage reports fold in without double-
+  // counting (see applyUsage).
+  thread.turnUsageBase = {
+    input: thread.meta.usage?.totalInput ?? 0,
+    output: thread.meta.usage?.totalOutput ?? 0,
+    cost: thread.meta.usage?.totalCostUsd ?? 0,
   }
   setStatus(thread, 'working')
   await persistNow(thread)
@@ -433,8 +539,8 @@ export async function sendMessage(id: string, input: SendMessageInput): Promise<
       thread.sessionState = state
       schedulePersist(thread)
     },
-    onDone: () => {
-      if (isCurrent()) onDone(thread)
+    onDone: (result) => {
+      if (isCurrent()) onDone(thread, result.ok)
     },
   })
 }
@@ -494,6 +600,36 @@ export async function providerStatuses(): Promise<ProviderStatus[]> {
       }
     }),
   )
+}
+
+/**
+ * The custom slash commands a provider's CLI exposes for a repo (scanned from its command
+ * `.md` files). Tolerant of a driver without the hook (returns []) or a scan failure. The
+ * api layer caches this like provider statuses.
+ */
+export async function agentCommands(
+  repoPath: string,
+  provider: AgentProvider,
+): Promise<AgentCommand[]> {
+  try {
+    return (await drivers[provider].listCommands?.(repoPath)) ?? []
+  } catch {
+    return []
+  }
+}
+
+/**
+ * A provider's live quota windows + plan (Codex's rate-limit snapshot, Claude's OAuth
+ * `/usage`), or null when the driver exposes no limits (OpenCode), isn't subscription-authed,
+ * or the probe fails. Tolerant of a driver without the hook and of a thrown probe. The api
+ * layer caches this per provider like provider statuses.
+ */
+export async function agentLimits(provider: AgentProvider): Promise<ProviderLimits | null> {
+  try {
+    return (await drivers[provider].limits?.()) ?? null
+  } catch {
+    return null
+  }
 }
 
 /** Swap the driver registry — tests inject a mock driver. */

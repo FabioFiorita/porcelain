@@ -1,6 +1,12 @@
 import { join } from 'node:path'
 import { z } from 'zod'
-import { type AgentEvent, type ModelInfo, TOOL_OUTPUT_CAP } from '../../../shared/agent-protocol'
+import {
+  type AgentEvent,
+  type ModelInfo,
+  type ProviderLimits,
+  type ProviderLimitWindow,
+  TOOL_OUTPUT_CAP,
+} from '../../../shared/agent-protocol'
 
 /**
  * The Claude driver's PURE half: binary resolution, the static model catalog, the
@@ -181,6 +187,73 @@ export function readClaudeAuthFromJson(raw: string): ClaudeAuth {
   }
 }
 
+// --- rate-limit (OAuth `/usage`) mapping ------------------------------------
+
+/**
+ * Pull the OAuth access token out of a stored Claude credential (the macOS Keychain
+ * `Claude Code-credentials` generic-password value, or `~/.claude/.credentials.json`).
+ * Both hold the same JSON: `{ claudeAiOauth: { accessToken, … } }`. Returns null (never
+ * throws, never logs) for a missing/api-key/malformed credential.
+ *
+ * SECURITY: the returned token is a subscription auth secret — the driver sends it ONLY in
+ * the `Authorization` header to api.anthropic.com and never caches, logs, or surfaces it
+ * (see the audit skill's agent-driver invariant). This helper is pure so the parse itself
+ * is unit-tested without touching Keychain/disk.
+ */
+const claudeCredentialSchema = z.object({
+  claudeAiOauth: z.object({ accessToken: z.string() }).optional(),
+})
+export function parseClaudeOAuthToken(raw: string): string | null {
+  try {
+    const parsed = claudeCredentialSchema.safeParse(JSON.parse(raw))
+    const token = parsed.success ? parsed.data.claudeAiOauth?.accessToken : undefined
+    return token !== undefined && token !== '' ? token : null
+  } catch {
+    return null
+  }
+}
+
+// One usage-window key on the `/api/oauth/usage` response → its normalized id + label. The
+// endpoint exposes a 5-hour rolling window, a weekly window, and per-model weekly buckets;
+// we surface the ones present. `used_percentage` is 0–100, `resets_at` epoch SECONDS.
+const CLAUDE_USAGE_WINDOWS: { key: string; id: string; label: string }[] = [
+  { key: 'five_hour', id: '5h', label: '5-hour' },
+  { key: 'seven_day', id: 'weekly', label: 'Weekly' },
+  { key: 'seven_day_opus', id: 'weekly-opus', label: 'Weekly (Opus)' },
+  { key: 'seven_day_sonnet', id: 'weekly-sonnet', label: 'Weekly (Sonnet)' },
+]
+
+const usageWindowSchema = z.object({
+  used_percentage: z.number(),
+  resets_at: z.number().nullish(),
+})
+// Read leniently: the response carries more fields (overage, credits, monthly spend) than
+// we map, and a window may be absent — an unparseable window is simply skipped.
+const claudeUsageResponseSchema = z.record(z.string(), z.unknown())
+
+/**
+ * Map the `GET /api/oauth/usage` response into normalized `ProviderLimits`. Each known
+ * window key that's present with a numeric `used_percentage` becomes a window (`resets_at`
+ * converted epoch-seconds→ms). Returns null when no known window is present — an API-key
+ * account (no subscription windows) yields nothing to show, so the group hides.
+ */
+export function mapClaudeUsage(json: unknown): ProviderLimits | null {
+  const parsed = claudeUsageResponseSchema.safeParse(json)
+  if (!parsed.success) return null
+  const windows: ProviderLimitWindow[] = []
+  for (const { key, id, label } of CLAUDE_USAGE_WINDOWS) {
+    const window = usageWindowSchema.safeParse(parsed.data[key])
+    if (!window.success) continue
+    windows.push({
+      id,
+      label,
+      usedPercent: window.data.used_percentage,
+      ...(window.data.resets_at != null ? { resetsAt: window.data.resets_at * 1000 } : {}),
+    })
+  }
+  return windows.length > 0 ? { windows } : null
+}
+
 // --- tool titles ------------------------------------------------------------
 
 const asString = (value: unknown): string | undefined =>
@@ -339,6 +412,10 @@ const userSchema = z.object({
 const resultSchema = z.object({
   subtype: z.string(),
   is_error: z.boolean().optional(),
+  // The turn's cumulative cost (notional under a subscription plan, real for API-key auth).
+  // Present on both success and error result subtypes; we surface it as the status usage's
+  // `costUsd` when it's a number.
+  total_cost_usd: z.number().optional(),
   usage: z
     .object({ input_tokens: z.number().optional(), output_tokens: z.number().optional() })
     .optional(),
@@ -622,6 +699,7 @@ export class ClaudeStreamTranslator {
       return [{ t: 'done', ok: false }]
     }
     const usage = parsed.data.usage
+    const cost = parsed.data.total_cost_usd
     const ok = parsed.data.subtype === 'success' && parsed.data.is_error !== true
     return [
       {
@@ -632,6 +710,9 @@ export class ClaudeStreamTranslator {
           usage: {
             inputTokens: usage?.input_tokens ?? 0,
             outputTokens: usage?.output_tokens ?? 0,
+            // Only carry cost when the result reported it — an absent figure leaves the
+            // thread's accumulated totalCostUsd untouched (see the manager's applyUsage).
+            ...(cost !== undefined ? { costUsd: cost } : {}),
           },
         },
       },

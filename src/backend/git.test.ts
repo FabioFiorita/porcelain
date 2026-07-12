@@ -25,6 +25,7 @@ import {
   parseLooseIgnoredFiles,
   quickCommandArgs,
   reuseIfUnchanged,
+  reviewedFingerprint,
 } from './git'
 
 describe('isNoMatchError', () => {
@@ -527,5 +528,72 @@ describe('gitFileLog', () => {
   it('returns no commits for an untracked file', async () => {
     await writeFile(join(repoDir, 'untracked.ts'), 'export const u = 9\n')
     expect(await gitFileLog(repoDir, join(repoDir, 'untracked.ts'), 50)).toEqual([])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// reviewedFingerprint: the content key for a reviewed mark (sha256 of the file's
+// diff vs HEAD; untracked files hash their bytes). Assert relational semantics —
+// same content ⇒ same hash, changed content / committed change ⇒ different hash —
+// rather than exact digests. makeRepo commits a `tracked.ts` so HEAD exists.
+// ---------------------------------------------------------------------------
+
+describe('reviewedFingerprint', () => {
+  const repos: string[] = []
+  async function repo(): Promise<string> {
+    const dir = await makeRepo()
+    repos.push(dir)
+    return dir
+  }
+  afterAll(async () => {
+    await Promise.all(repos.map((d) => rm(d, { recursive: true, force: true })))
+  })
+
+  it('fingerprints a modified tracked file by its diff, changing when the content changes', async () => {
+    const dir = await repo()
+    await writeFile(join(dir, 'tracked.ts'), 'export const v = 2\n')
+    const fp1 = await reviewedFingerprint(dir, 'tracked.ts')
+    await writeFile(join(dir, 'tracked.ts'), 'export const v = 3\n')
+    const fp2 = await reviewedFingerprint(dir, 'tracked.ts')
+    expect(fp1).not.toBe('')
+    expect(fp2).not.toBe(fp1)
+  })
+
+  it('stops matching once the change is committed (diff vs HEAD goes empty)', async () => {
+    const dir = await repo()
+    await writeFile(join(dir, 'tracked.ts'), 'export const v = 2\n')
+    const before = await reviewedFingerprint(dir, 'tracked.ts')
+    git(dir, 'add', 'tracked.ts')
+    git(dir, '-c', 'commit.gpgsign=false', 'commit', '-m', 'change tracked')
+    // A mark taken pre-commit reconciles as stale: the fingerprint no longer matches.
+    expect(await reviewedFingerprint(dir, 'tracked.ts')).not.toBe(before)
+  })
+
+  it('gives a clean tracked file a stable fingerprint, distinct from a modified one', async () => {
+    const dir = await repo()
+    const clean = await reviewedFingerprint(dir, 'tracked.ts')
+    await writeFile(join(dir, 'tracked.ts'), 'export const v = 2\n')
+    const modified = await reviewedFingerprint(dir, 'tracked.ts')
+    git(dir, 'checkout', '--', 'tracked.ts')
+    expect(await reviewedFingerprint(dir, 'tracked.ts')).toBe(clean)
+    expect(modified).not.toBe(clean)
+  })
+
+  it('fingerprints an untracked file by its bytes (no diff vs HEAD)', async () => {
+    const dir = await repo()
+    await writeFile(join(dir, 'new.ts'), 'export const n = 1\n')
+    const fp1 = await reviewedFingerprint(dir, 'new.ts')
+    await writeFile(join(dir, 'new.ts'), 'export const n = 2\n')
+    const fp2 = await reviewedFingerprint(dir, 'new.ts')
+    expect(fp1).not.toBe('')
+    expect(fp2).not.toBe(fp1)
+  })
+
+  it('does not throw on a repo with no HEAD (unborn branch)', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'porcelain-fp-unborn-'))
+    repos.push(dir)
+    git(dir, 'init', '-b', 'main')
+    await writeFile(join(dir, 'a.ts'), 'export const a = 1\n')
+    expect(await reviewedFingerprint(dir, 'a.ts')).not.toBe('')
   })
 })

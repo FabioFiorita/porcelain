@@ -1,4 +1,5 @@
 import type { FeatureView } from '@backend/feature-view'
+import { onMutationError } from '@renderer/hooks/mutation-error'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 
@@ -27,7 +28,9 @@ export function useFeatureView(): { view: FeatureView | undefined; refresh: () =
 export function useClearFeatureReview(): { clear: () => Promise<void>; isClearing: boolean } {
   const repo = useRepoStore((s) => s.repo)
   const utils = trpc.useUtils()
-  const mutation = trpc.clearFeatureReview.useMutation()
+  const mutation = trpc.clearFeatureReview.useMutation({
+    onError: onMutationError('Clear review'),
+  })
   return {
     clear: async () => {
       if (!repo) return

@@ -187,8 +187,9 @@ export function AgentList(): React.JSX.Element {
   const openTab = useTabsStore((s) => s.openTab)
 
   const newThread = async (): Promise<void> => {
-    // Empty model = the driver's default; the composer's model picker changes it later.
-    const thread = await create({ provider: 'claude', model: '', mode: 'full' })
+    // No provider/model = default to the last-used selection (the composer's model
+    // picker changes it later); falls back to the driver's default on a fresh config.
+    const thread = await create({ mode: 'full' })
     if (thread) {
       openTab({
         id: tabId('agent', thread.id),

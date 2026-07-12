@@ -35,6 +35,10 @@ function asString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined
 }
 
+function asNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+}
+
 /**
  * Frame the raw SSE byte stream into events. Callers accumulate decoded text in `buffer`
  * and feed it here; we split on newlines, keep only `data:` lines, JSON-parse each, and
@@ -147,6 +151,11 @@ export function createOpencodeTranslator(
   const roles = new Map<string, string>() // messageID -> role
   const parts = new Map<string, StreamingPart>() // partID -> open assistant/reasoning item
   const approvals = new Map<string, PendingApproval>() // permissionID -> title/command
+  // Per-assistant-message cost + token totals, keyed by message id so a re-updated message
+  // replaces (not double-counts) and multiple messages in one turn SUM. OpenCode carries a
+  // real `cost` (+ `tokens`) on each assistant message; we emit the running turn totals as a
+  // status usage report, matching the cumulative-for-turn shape the manager expects.
+  const usageByMessage = new Map<string, { cost: number; input: number; output: number }>()
 
   function finalize(): AgentEvent[] {
     const events: AgentEvent[] = []
@@ -165,6 +174,38 @@ export function createOpencodeTranslator(
     const id = info ? asString(info.id) : undefined
     const role = info ? asString(info.role) : undefined
     if (id !== undefined && role !== undefined) roles.set(id, role)
+    // Fold an assistant message's cost/tokens into the turn totals and report them. Absent
+    // on legacy events (nothing to fold) — we skip cleanly so those turns report no usage.
+    if (id !== undefined && role === 'assistant' && info) {
+      const cost = asNumber(info.cost)
+      const tokens = asRecord(info.tokens)
+      if (cost !== undefined || tokens !== undefined) {
+        usageByMessage.set(id, {
+          cost: cost ?? 0,
+          input: (tokens ? asNumber(tokens.input) : undefined) ?? 0,
+          output: (tokens ? asNumber(tokens.output) : undefined) ?? 0,
+        })
+        const totals = { cost: 0, input: 0, output: 0 }
+        for (const entry of usageByMessage.values()) {
+          totals.cost += entry.cost
+          totals.input += entry.input
+          totals.output += entry.output
+        }
+        return {
+          events: [
+            {
+              t: 'status',
+              status: 'working',
+              usage: {
+                inputTokens: totals.input,
+                outputTokens: totals.output,
+                costUsd: totals.cost,
+              },
+            },
+          ],
+        }
+      }
+    }
     return { events: [] }
   }
 

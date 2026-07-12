@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process'
-import { readFile } from 'node:fs/promises'
+import { createHash } from 'node:crypto'
+import { readFile, stat } from 'node:fs/promises'
 import { basename, isAbsolute, join, relative } from 'node:path'
 import { promisify } from 'node:util'
 import {
@@ -22,6 +23,7 @@ import {
   synthesizeAddDiff,
   type Worktree,
 } from './diff'
+import { exceedsReadLimit } from './read-limits'
 import { type GitSuggestion, parseSuggestions } from './suggestions'
 
 const execFileAsync = promisify(execFile)
@@ -560,6 +562,55 @@ export async function gitDiffFile(repoPath: string, filePath: string): Promise<D
     await runGit(repoPath, ['diff', 'HEAD', '--no-color', '--', filePath]),
   )
   return { hunks, status: probed ?? 'modified' }
+}
+
+function sha256Hex(input: string | Buffer): string {
+  return createHash('sha256').update(input).digest('hex')
+}
+
+async function isUntracked(repoPath: string, path: string): Promise<boolean> {
+  const status = await runGit(repoPath, ['status', '--porcelain=v1', '-uall', '-z', '--', path])
+  return parseStatus(status)[0]?.status === 'untracked'
+}
+
+// The hash input for an untracked file (no diff vs HEAD): its bytes, tagged so it
+// can't collide with a same-content tracked diff. An oversized file falls back to
+// size+mtime rather than reading it whole into memory (precision matters less than
+// not OOMing); a vanished file hashes empty (its mark then prunes).
+async function untrackedFingerprintInput(repoPath: string, path: string): Promise<string | Buffer> {
+  const abs = join(repoPath, path)
+  try {
+    const info = await stat(abs)
+    if (exceedsReadLimit(info.size)) return `untracked-large:${info.size}:${info.mtimeMs}`
+    return Buffer.concat([Buffer.from('untracked:'), await readFile(abs)])
+  } catch {
+    return ''
+  }
+}
+
+/**
+ * A content fingerprint for a reviewed mark: sha256 hex of the file's diff vs HEAD, so
+ * a mark stops matching once the reviewed content changes — an external commit/amend
+ * empties or reshapes the diff, a post-mark edit reshapes it, and reconcile prunes the
+ * stale mark. An untracked file has no diff vs HEAD, so it's fingerprinted by its bytes
+ * instead (see untrackedFingerprintInput). A clean/missing tracked file, and a repo
+ * with no HEAD yet (unborn branch), hash the empty diff — that can't match a fingerprint
+ * taken when the file had changes, so the mark prunes, which is the intent.
+ */
+export async function reviewedFingerprint(repoPath: string, path: string): Promise<string> {
+  let diff: string | null = null
+  try {
+    diff = await runGit(repoPath, ['diff', 'HEAD', '--no-color', '--', path])
+  } catch {
+    diff = null // no HEAD yet (unborn branch) — treat like an untracked file
+  }
+  if (diff) return sha256Hex(diff) // non-empty diff: a modified tracked file
+  // Empty diff (or no HEAD): an untracked file hashes its bytes; a clean/missing
+  // tracked file hashes the empty diff so its mark prunes.
+  if (diff === null || (await isUntracked(repoPath, path))) {
+    return sha256Hex(await untrackedFingerprintInput(repoPath, path))
+  }
+  return sha256Hex('')
 }
 
 /** Compute the common ancestor between `base` and HEAD. */

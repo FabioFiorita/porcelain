@@ -1,4 +1,5 @@
 import type { Layer } from '@backend/flow'
+import { onMutationError } from '@renderer/hooks/mutation-error'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 
@@ -13,7 +14,7 @@ export function useSetRepoLayers(): {
   isSaving: boolean
 } {
   const utils = trpc.useUtils()
-  const mutation = trpc.setRepoLayers.useMutation()
+  const mutation = trpc.setRepoLayers.useMutation({ onError: onMutationError('Save layers') })
   const save = async (layers: Layer[] | null, repoPath?: string): Promise<void> => {
     if (!repoPath) return
     await mutation.mutateAsync({ repoPath, layers })

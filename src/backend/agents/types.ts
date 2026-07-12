@@ -5,6 +5,7 @@ import type {
   AgentMode,
   AgentProvider,
   ApprovalDecision,
+  ProviderLimits,
   ProviderStatus,
 } from '../../shared/agent-protocol'
 
@@ -62,10 +63,36 @@ export interface StartTurnOptions {
   onDone(result: { ok: boolean }): void
 }
 
+/** One custom slash command a driver's CLI exposes (from its `.md` command/prompt files). */
+export interface AgentCommand {
+  name: string
+  description?: string
+}
+
 export interface AgentDriver {
   provider: AgentProvider
   status(): Promise<ProviderStatus>
   startTurn(opts: StartTurnOptions): TurnHandle
+  /**
+   * Generate a short LLM title for a thread from its first user message. Optional — a
+   * driver returns `null` (or omits the hook) when it has no cheap one-shot path, and the
+   * manager keeps the derived title. Implementations own their own timeout; they must
+   * resolve (never hang) and never throw a rejection the manager can't swallow.
+   */
+  generateTitle?(opts: { repoPath: string; text: string }): Promise<string | null>
+  /**
+   * List the custom slash commands the CLI would expand, scanned from its command/prompt
+   * `.md` files (repo-local + user-global). Optional — absent = no commands. Read-only.
+   */
+  listCommands?(repoPath: string): Promise<AgentCommand[]>
+  /**
+   * The provider's live quota windows + plan (Codex's rate-limit snapshot, Claude's OAuth
+   * `/usage`). Optional — OpenCode has no limits API and omits it. Returns null when limits
+   * are unavailable (not subscription-authed, the probe failed, …) rather than throwing;
+   * the manager and api layer treat a throw as null too. Only DERIVED percentages/labels
+   * are returned — an implementation must never surface a provider auth token here.
+   */
+  limits?(): Promise<ProviderLimits | null>
 }
 
 export type DriverRegistry = Record<AgentProvider, AgentDriver>

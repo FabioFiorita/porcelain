@@ -139,12 +139,26 @@ assumed — this skill is the codebase-specific layer beneath them.
   **zod-validated + size-capped on every read** and return null (drop the thread) on
   corruption rather than throwing — the daemon is the sole writer, but a corrupt/oversized
   file still can't break hydration. (5) Timeline writes are **atomic tmp+rename**
-  (`writeThread`). *Why:* an agent CLI is arbitrary code with the user's auth; the failure
-  modes are a leaked token, a shell-injection via an interpolated arg, a renderer-chosen
-  binary path, or one bad thread file taking down the roster. *Verify:* driver spawns pass
-  `terminalEnv` and an arg array; binary resolution never consumes a renderer-supplied
-  string; `readThread` still validates + caps and returns null on bad input; `writeThread`
-  is tmp+rename. **Accepted tradeoff — the OpenCode driver spawns a third-party
+  (`writeThread`). (6) **The Claude subscription OAuth token is read, used once, and never
+  surfaced.** The Claude driver's `limits()` (`claude.ts`) replicates the CLI's `GET
+  /api/oauth/usage` to show quota windows, which needs the stored subscription token: it's
+  read lazily (only when the Limits Quick Access group is visible → `agentLimits` is called)
+  from the macOS **Keychain** (`security find-generic-password -s 'Claude Code-credentials'
+  -w`, an arg array — a one-time OS prompt is acceptable) or `~/.claude/.credentials.json`
+  (Linux/standalone), parsed by the pure `parseClaudeOAuthToken`. The token then leaves the
+  daemon **only** in the `Authorization: Bearer` header to **exactly** `https://api.anthropic.com`
+  (a hard-coded URL, wrapped in a ~5s timeout) — it is **never logged, never cached beyond the
+  in-flight call, never put in an error message/event, and never crosses the tRPC-WS boundary**;
+  only the derived percentages/labels (`ProviderLimits`) are returned to the renderer. Any
+  failure (no token, non-200, timeout, bad JSON) returns null quietly, which is also how an
+  API-key user — who has no such token and no subscription windows — is skipped. *Why:* an
+  agent CLI is arbitrary code with the user's auth; the failure modes are a leaked token, a
+  shell-injection via an interpolated arg, a renderer-chosen binary path, or one bad thread
+  file taking down the roster. *Verify:* driver spawns pass `terminalEnv` and an arg array;
+  binary resolution never consumes a renderer-supplied string; `readThread` still validates +
+  caps and returns null on bad input; `writeThread` is tmp+rename; the Claude token appears
+  only in the api.anthropic.com Authorization header and in no log/error/event/tRPC payload,
+  and is not held past the fetch. **Accepted tradeoff — the OpenCode driver spawns a third-party
   unauthenticated loopback listener.** `opencode serve` (one per repo, `opencode.ts`) is an
   HTTP+SSE server Porcelain starts on `127.0.0.1` with `--port 0` (random ephemeral port).
   Live-verified on opencode 1.17.18 (2026-07-11): it boots warning `OPENCODE_SERVER_PASSWORD
@@ -228,11 +242,19 @@ assumed — this skill is the codebase-specific layer beneath them.
   `config.repos[*].layers` read outside the migration).
 - **Reviewed marks are a READ-ONLY, app→agent channel.** The 7th channel
   (`~/.porcelain/reviewed.json`, `reviewed-store.ts` ↔ `src/mcp/reviewed-file.ts`,
-  `Record<repoPath, string[]>`) holds the repo-relative paths the human has ticked as
-  reviewed in the Changes/Feature lists. Same shape and rules as the notes channel: the
-  **app is the SOLE writer** (`markReviewed`/`unmarkReviewed`, and `clearReviewedPaths`
-  which `gitCommit` calls to drop the just-committed files' marks) and the MCP server only
-  reads it (`get_reviewed_files` — there is NO mark-write tool, and don't add one;
+  `Record<repoPath, { path, fingerprint }[]>` — legacy bare-string marks still parse as
+  `{ path, fingerprint: '' }`) holds the paths the human has ticked as reviewed in the
+  Changes/Feature lists, each keyed to a content fingerprint (sha256 of the file's diff
+  vs HEAD, computed in api.ts via `reviewedFingerprint`). The app reconciles at read time
+  (`reviewedPaths` → `reconcileReviewed`): a mark whose stored fingerprint no longer
+  matches the file's current diff hash is pruned (silently un-ticked, written through so
+  the JSON stays truthful for the MCP) — this is what clears marks after external commits,
+  amends, rebases, and post-mark edits; the `gitCommit` clearing stays a fast path. An
+  empty fingerprint (legacy mark) never matches, so it prunes on first reconcile. Same
+  rules as the notes channel: the **app is the SOLE writer** (`markReviewed`/`unmarkReviewed`,
+  `setReviewedMarks`, `clearReviewedPaths`, and the reconcile write-through) and the MCP
+  server only reads it (`get_reviewed_files` — it can't run git, so it just exposes the
+  path list and trusts the app's write-through; there is NO mark-write tool, and don't add one;
   "reviewed" is the human's act, not the agent's). Because nothing else writes it, it has
   **no `review-watch` entry** — don't add a watcher expecting agent pushes. Paths are
   inert here (the agent reads them as review-progress context; the app already validates

@@ -113,7 +113,17 @@ export const agentEventSchema = z.discriminatedUnion('t', [
   z.object({
     t: z.literal('status'),
     status: agentStatusSchema,
-    usage: z.object({ inputTokens: z.number(), outputTokens: z.number() }).optional(),
+    // `costUsd` is this turn's cumulative dollar figure (Claude's `total_cost_usd`,
+    // OpenCode's summed per-message `cost`) — optional because most reports (and Codex,
+    // always) carry only tokens. Notional for a subscription plan, real spend for API-key
+    // auth. The manager folds it into `AgentUsage.totalCostUsd` (see agent-manager).
+    usage: z
+      .object({
+        inputTokens: z.number(),
+        outputTokens: z.number(),
+        costUsd: z.number().optional(),
+      })
+      .optional(),
   }),
   z.object({
     t: z.literal('meta'),
@@ -135,6 +145,44 @@ export const threadOptionsSchema = z.object({
 })
 export type ThreadOptions = z.infer<typeof threadOptionsSchema>
 
+// Accumulated token usage on a thread: the LAST turn's input/output (`turn*`) plus the
+// cumulative total across every turn (`total*`). The manager folds a driver's per-turn
+// `status.usage` into this (see agent-manager); a provider that reports no token counts
+// (OpenCode's legacy events) simply never populates it.
+export const agentUsageSchema = z.object({
+  turnInput: z.number(),
+  turnOutput: z.number(),
+  totalInput: z.number(),
+  totalOutput: z.number(),
+  // Cumulative session cost in USD across every turn, when the provider reports it (Claude,
+  // OpenCode). Optional — Codex reports tokens only, and a pre-cost thread file still reads
+  // back. "Est."/notional under a subscription plan; the UI labels it accordingly.
+  totalCostUsd: z.number().optional(),
+})
+export type AgentUsage = z.infer<typeof agentUsageSchema>
+
+// One quota window a provider exposes (Claude's five_hour/seven_day/…, Codex's
+// primary/secondary). `id` is a stable key ('5h'|'weekly'|'monthly'|'weekly-opus'|…) and
+// `label` its human name; `usedPercent` is 0–100 utilization; `resetsAt` is the epoch-ms
+// reset time when known. Only DERIVED percentages/labels cross the daemon boundary — never
+// a provider auth token (see the audit skill's agent-driver invariant).
+export const providerLimitWindowSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  usedPercent: z.number(),
+  resetsAt: z.number().optional(),
+})
+export type ProviderLimitWindow = z.infer<typeof providerLimitWindowSchema>
+
+// A provider's live rate-limit picture: its quota windows plus an optional plan label. The
+// daemon's `agentLimits` procedure returns this (or null when the provider exposes no
+// limits API, isn't subscription-authed, or the probe fails).
+export const providerLimitsSchema = z.object({
+  windows: z.array(providerLimitWindowSchema),
+  plan: z.string().optional(),
+})
+export type ProviderLimits = z.infer<typeof providerLimitsSchema>
+
 // One roster row: the daemon-owned metadata the renderer's Agent list renders. `status`
 // is runtime (a hydrated-from-disk thread is always idle); everything else persists.
 export const threadInfoSchema = z.object({
@@ -150,6 +198,9 @@ export const threadInfoSchema = z.object({
   // The thread's chosen model options (effort/context window). Optional — an untouched
   // thread has none and each driver falls back to the model default.
   options: threadOptionsSchema.optional(),
+  // Accumulated token usage. Optional — absent until the first turn reports usage, so a
+  // pre-usage thread file still reads back.
+  usage: agentUsageSchema.optional(),
   createdAt: z.number(),
   updatedAt: z.number(),
 })

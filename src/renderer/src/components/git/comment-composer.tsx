@@ -10,6 +10,7 @@ import {
 import { Textarea } from '@renderer/components/ui/textarea'
 import { type NewCommentInput, useCommentActions } from '@renderer/hooks/use-comments'
 import { kbdLabel } from '@renderer/lib/keyboard'
+import { fileName } from '@renderer/lib/paths'
 import { useEffect, useState } from 'react'
 
 export interface CommentAnchor {
@@ -20,13 +21,14 @@ export interface CommentAnchor {
   anchorText?: string
 }
 
-/** Where a comment is anchored, as a `path` or `path:start–end`, for display. */
+/** Human-readable anchor: "Line N of file.ts", "Lines N–M of file.ts", or the filename. */
 function describeAnchor(anchor: CommentAnchor): string {
-  if (anchor.startLine === undefined) return anchor.path
+  const name = fileName(anchor.path)
+  if (anchor.startLine === undefined) return name
   if (anchor.endLine && anchor.endLine !== anchor.startLine) {
-    return `${anchor.path}:${anchor.startLine}–${anchor.endLine}`
+    return `Lines ${anchor.startLine}–${anchor.endLine} of ${name}`
   }
-  return `${anchor.path}:${anchor.startLine}`
+  return `Line ${anchor.startLine} of ${name}`
 }
 
 /**

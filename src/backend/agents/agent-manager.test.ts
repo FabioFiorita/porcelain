@@ -34,6 +34,10 @@ class MockDriver implements AgentDriver {
   aborts = 0
   approvals: { requestId: string; decision: string }[] = []
   installed = true
+  // Optional LLM-title hook — absent by default (matching a driver that offers none); a
+  // titling test assigns it. The same object backs the registry, so a later assignment
+  // reaches the manager.
+  generateTitle?: (opts: { repoPath: string; text: string }) => Promise<string | null>
 
   async status() {
     return {
@@ -357,6 +361,133 @@ describe('agent-manager', () => {
     resetForTests() // simulate a daemon restart: empty map, same on-disk dir
     setDrivers(registry(mock))
     expect((await listThreads('/repo')).map((t) => t.id)).toEqual([id])
+  })
+
+  it('accumulates token usage across turns (last turn + cumulative total)', async () => {
+    const { id } = await newThread()
+    await sendMessage(id, { text: 'first' })
+    mock.last?.emit({ t: 'status', status: 'idle', usage: { inputTokens: 10, outputTokens: 5 } })
+    mock.last?.onDone({ ok: true })
+    await flushThread(id)
+    expect((await readThread(id))?.meta.usage).toEqual({
+      turnInput: 10,
+      turnOutput: 5,
+      totalInput: 10,
+      totalOutput: 5,
+    })
+    await sendMessage(id, { text: 'second' })
+    mock.last?.emit({ t: 'status', status: 'idle', usage: { inputTokens: 20, outputTokens: 8 } })
+    mock.last?.onDone({ ok: true })
+    await flushThread(id)
+    expect((await readThread(id))?.meta.usage).toEqual({
+      turnInput: 20,
+      turnOutput: 8,
+      totalInput: 30,
+      totalOutput: 13,
+    })
+  })
+
+  it('does not double-count when one turn reports usage multiple times', async () => {
+    const { id } = await newThread()
+    await sendMessage(id, { text: 'go' })
+    mock.last?.emit({ t: 'status', status: 'working', usage: { inputTokens: 5, outputTokens: 2 } })
+    mock.last?.emit({ t: 'status', status: 'working', usage: { inputTokens: 12, outputTokens: 6 } })
+    mock.last?.onDone({ ok: true })
+    await flushThread(id)
+    expect((await readThread(id))?.meta.usage).toEqual({
+      turnInput: 12,
+      turnOutput: 6,
+      totalInput: 12,
+      totalOutput: 6,
+    })
+  })
+
+  it('accumulates session cost across turns and leaves it untouched by a token-only report', async () => {
+    const { id } = await newThread()
+    await sendMessage(id, { text: 'first' })
+    mock.last?.emit({
+      t: 'status',
+      status: 'idle',
+      usage: { inputTokens: 10, outputTokens: 5, costUsd: 0.25 },
+    })
+    mock.last?.onDone({ ok: true })
+    await flushThread(id)
+    expect((await readThread(id))?.meta.usage).toEqual({
+      turnInput: 10,
+      turnOutput: 5,
+      totalInput: 10,
+      totalOutput: 5,
+      totalCostUsd: 0.25,
+    })
+    await sendMessage(id, { text: 'second' })
+    // A mid-turn token-only report must keep the accumulated cost, not drop it.
+    mock.last?.emit({ t: 'status', status: 'working', usage: { inputTokens: 20, outputTokens: 8 } })
+    expect((await listThreads('/repo'))[0]?.usage?.totalCostUsd).toBe(0.25)
+    mock.last?.emit({
+      t: 'status',
+      status: 'idle',
+      usage: { inputTokens: 20, outputTokens: 8, costUsd: 0.5 },
+    })
+    mock.last?.onDone({ ok: true })
+    await flushThread(id)
+    expect((await readThread(id))?.meta.usage?.totalCostUsd).toBe(0.75)
+  })
+
+  it('replaces the derived title with an LLM title after the first successful turn', async () => {
+    mock.generateTitle = () => Promise.resolve('  LLM Generated Title  ')
+    const { id } = await newThread()
+    await sendMessage(id, { text: 'fix the thing' })
+    expect((await listThreads('/repo'))[0]?.title).toBe('fix the thing') // derived immediately
+    mock.last?.onDone({ ok: true })
+    await new Promise((resolve) => setTimeout(resolve, 20)) // let the fire-and-forget settle
+    expect((await listThreads('/repo'))[0]?.title).toBe('LLM Generated Title')
+  })
+
+  it('keeps the derived title when generateTitle returns null', async () => {
+    mock.generateTitle = () => Promise.resolve(null)
+    const { id } = await newThread()
+    await sendMessage(id, { text: 'fix the thing' })
+    mock.last?.onDone({ ok: true })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect((await listThreads('/repo'))[0]?.title).toBe('fix the thing')
+  })
+
+  it('keeps the derived title when generateTitle throws', async () => {
+    mock.generateTitle = () => Promise.reject(new Error('title boom'))
+    const { id } = await newThread()
+    await sendMessage(id, { text: 'fix the thing' })
+    mock.last?.onDone({ ok: true })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect((await listThreads('/repo'))[0]?.title).toBe('fix the thing')
+  })
+
+  it('only auto-titles after the first turn, not later ones or a failed turn', async () => {
+    let calls = 0
+    mock.generateTitle = () => {
+      calls += 1
+      return Promise.resolve(`Title ${calls}`)
+    }
+    const { id } = await newThread()
+    await sendMessage(id, { text: 'first' })
+    mock.last?.onDone({ ok: true })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    await sendMessage(id, { text: 'second' })
+    mock.last?.onDone({ ok: true })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(calls).toBe(1)
+  })
+
+  it('does not auto-title after a failed first turn', async () => {
+    let calls = 0
+    mock.generateTitle = () => {
+      calls += 1
+      return Promise.resolve('X')
+    }
+    const { id } = await newThread()
+    await sendMessage(id, { text: 'first' })
+    mock.last?.onDone({ ok: false })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(calls).toBe(0)
   })
 
   it('probes provider statuses, tolerating a throwing driver', async () => {

@@ -1,3 +1,4 @@
+import type { AgentCommand } from '@backend/agents/types'
 import { trpc } from '@renderer/lib/trpc'
 import { useAgentThreadsStore } from '@renderer/stores/agent-threads'
 import { useRepoStore } from '@renderer/stores/repo'
@@ -6,6 +7,7 @@ import type {
   AgentInteraction,
   AgentMode,
   AgentProvider,
+  ProviderLimits,
   ProviderStatus,
   ThreadInfo,
   ThreadOptions,
@@ -28,11 +30,14 @@ export function useAgentThreads(): ThreadInfo[] {
   return data ?? []
 }
 
-/** Create a thread in the current repo; refreshes the roster. */
+/**
+ * Create a thread in the current repo; refreshes the roster. `provider`/`model` are
+ * optional — omit them to default to the last-used selection (see `createAgentThread`).
+ */
 export function useCreateAgentThread(): {
   create: (input: {
-    provider: AgentProvider
-    model: string
+    provider?: AgentProvider
+    model?: string
     mode: AgentMode
   }) => Promise<ThreadInfo | undefined>
   isPending: boolean
@@ -119,6 +124,39 @@ export function useDeleteAgentThread(): {
 export function useAgentProviders(): ProviderStatus[] {
   const { data } = trpc.agentProviders.useQuery(undefined, { staleTime: 30_000 })
   return data ?? []
+}
+
+/**
+ * The custom slash commands a provider's CLI exposes for the current repo (scanned from
+ * its command `.md` files). Cached ~30s per (repo, provider) like `useAgentProviders`;
+ * enabled once a repo + provider are known. Feeds the composer's `/` autocomplete.
+ */
+export function useAgentCommands(provider: AgentProvider): AgentCommand[] {
+  const repo = useRepoStore((s) => s.repo)
+  const { data } = trpc.agentCommands.useQuery(
+    { repoPath: repo?.path ?? '', provider },
+    { enabled: repo !== null, staleTime: 30_000 },
+  )
+  return data ?? []
+}
+
+/**
+ * The running provider's live quota windows + plan, for the Agent Quick Access Limits
+ * group. Cached 60s and re-polled every 2 min (limits move slowly); enabled only once a
+ * repo is open and a provider is resolved. Returns null when the provider exposes no limits
+ * (OpenCode) or isn't subscription-authed — the group then hides.
+ */
+export function useAgentLimits(provider: AgentProvider | null): ProviderLimits | null {
+  const repo = useRepoStore((s) => s.repo)
+  const { data } = trpc.agentLimits.useQuery(
+    { provider: provider ?? 'claude' },
+    {
+      enabled: repo !== null && provider !== null,
+      staleTime: 60_000,
+      refetchInterval: 120_000,
+    },
+  )
+  return data ?? null
 }
 
 /** The favorited-model keys (`provider:modelId`), stored global in the daemon config. */

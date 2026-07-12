@@ -21,6 +21,9 @@ export interface AgentThreadState {
   items: TimelineItem[]
   status: AgentStatus
   attached: boolean
+  // The latest per-turn token counts from a driver's `status.usage` event, stashed so a
+  // thread view can show live usage. Absent until the first usage-bearing status arrives.
+  usage?: { inputTokens: number; outputTokens: number }
 }
 
 interface AgentThreadsState {
@@ -50,7 +53,9 @@ export const useAgentThreadsStore = create<AgentThreadsState>((set) => ({
       const current = state.threads[threadId] ?? emptyThread()
       const items = applyAgentEvent(current.items, event)
       const status = event.t === 'status' ? event.status : current.status
-      return { threads: { ...state.threads, [threadId]: { ...current, items, status } } }
+      // A usage-bearing status stashes the latest token counts; other events keep the last.
+      const usage = event.t === 'status' && event.usage ? event.usage : current.usage
+      return { threads: { ...state.threads, [threadId]: { ...current, items, status, usage } } }
     }),
   markDetached: (threadId) =>
     set((state) => {

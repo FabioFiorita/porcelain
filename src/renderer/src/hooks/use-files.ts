@@ -1,4 +1,5 @@
 import type { DirEntry, FileView } from '@backend/api'
+import { onMutationError } from '@renderer/hooks/mutation-error'
 import { watchDirs, watchFiles } from '@renderer/lib/daemon'
 import { shellTrpc, trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
@@ -6,7 +7,6 @@ import { useSelectionStore } from '@renderer/stores/selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { useTreeDirsStore } from '@renderer/stores/tree-dirs'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
-import { toast } from 'sonner'
 
 export function useReadDir(path: string, enabled = true): DirEntry[] | undefined {
   const repo = useRepoStore((s) => s.repo)
@@ -142,11 +142,9 @@ export function useTrashPath(): (path: string) => Promise<void> {
         utils.gitFlow.invalidate(),
       ])
     },
-    onError: (error) => {
-      // The confirm dialog now closes on click, so a silent failure would leave the file
-      // in place with no feedback — surface why (permission denied, locked file, …).
-      toast.error('Delete failed', { description: error.message })
-    },
+    // The confirm dialog now closes on click, so a silent failure would leave the file
+    // in place with no feedback — surface why (permission denied, locked file, …).
+    onError: onMutationError('Delete'),
   })
   return async (path) => {
     try {

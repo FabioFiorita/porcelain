@@ -1,11 +1,13 @@
 import { useAgentActions } from '@renderer/hooks/use-agent-channel'
 import {
+  useAgentCommands,
   useAgentModelFavorites,
   useAgentProviders,
   useAgentThreads,
   useToggleAgentModelFavorite,
   useUpdateAgentThread,
 } from '@renderer/hooks/use-agents'
+import { useFileSearch } from '@renderer/hooks/use-search'
 import { useAgentThreadsStore } from '@renderer/stores/agent-threads'
 import type { ProviderStatus, ThreadInfo, TimelineItem } from '@shared/agent-protocol'
 import { fireEvent, render, screen } from '@testing-library/react'
@@ -22,7 +24,22 @@ vi.mock('@renderer/hooks/use-agents', () => ({
   useUpdateAgentThread: vi.fn(),
   useAgentModelFavorites: vi.fn(),
   useToggleAgentModelFavorite: vi.fn(),
+  useAgentCommands: vi.fn(),
 }))
+// The composer's autocomplete rides the file finder's exact search source.
+vi.mock('@renderer/hooks/use-search', () => ({ useFileSearch: vi.fn() }))
+
+// cmdk (the completion popup's list) needs a ResizeObserver and scrolls the active row
+// into view — neither exists in jsdom, so stub them for the popup's mount.
+class ResizeObserverStub {
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+}
+globalThis.ResizeObserver ??= ResizeObserverStub
+Element.prototype.scrollIntoView ??= (): void => {}
+// Base UI's ScrollArea (inside menus/popups) polls getAnimations on a timer; jsdom has none.
+Element.prototype.getAnimations ??= (): Animation[] => []
 
 const THREAD_ID = 'thread-1'
 
@@ -80,6 +97,8 @@ describe('AgentView', () => {
     vi.mocked(useUpdateAgentThread).mockReturnValue({ update })
     vi.mocked(useAgentModelFavorites).mockReturnValue([])
     vi.mocked(useToggleAgentModelFavorite).mockReturnValue({ toggle: vi.fn() })
+    vi.mocked(useAgentCommands).mockReturnValue([])
+    vi.mocked(useFileSearch).mockReturnValue({ results: [], isFetching: false })
   })
 
   it('renders a user bubble with its image-count badge', () => {
@@ -242,5 +261,52 @@ describe('AgentView', () => {
     fireEvent.change(input, { target: { value: 'ship it' } })
     fireEvent.keyDown(input, { key: 'Enter' })
     expect(send).toHaveBeenCalledWith(THREAD_ID, { text: 'ship it' })
+  })
+
+  it('typing an @-token opens the file mention popup; selecting inserts the path + a space', () => {
+    vi.mocked(useFileSearch).mockReturnValue({
+      results: [{ path: 'src/queue.ts', kind: 'file' }],
+      isFetching: false,
+    })
+    seed([])
+    render(<AgentView threadId={THREAD_ID} />)
+    const input = screen.getByLabelText('Message the agent')
+
+    fireEvent.change(input, { target: { value: '@que' } })
+    expect(screen.getByText('queue.ts')).toBeInTheDocument()
+
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect((input as HTMLTextAreaElement).value).toBe('@src/queue.ts ')
+    // A mention Enter completes — it must not send the message.
+    expect(send).not.toHaveBeenCalled()
+  })
+
+  it('a leading slash lists the provider commands; selecting inserts /name + a space', () => {
+    vi.mocked(useAgentCommands).mockReturnValue([
+      { name: 'commit', description: 'Commit staged changes' },
+    ])
+    seed([])
+    render(<AgentView threadId={THREAD_ID} />)
+    const input = screen.getByLabelText('Message the agent')
+
+    fireEvent.change(input, { target: { value: '/comm' } })
+    expect(screen.getByText('Commit staged changes')).toBeInTheDocument()
+
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect((input as HTMLTextAreaElement).value).toBe('/commit ')
+  })
+
+  it('Enter does not send while the completion popup is open', () => {
+    vi.mocked(useFileSearch).mockReturnValue({
+      results: [{ path: 'src/queue.ts', kind: 'file' }],
+      isFetching: false,
+    })
+    seed([])
+    render(<AgentView threadId={THREAD_ID} />)
+    const input = screen.getByLabelText('Message the agent')
+
+    fireEvent.change(input, { target: { value: '@que' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(send).not.toHaveBeenCalled()
   })
 })
