@@ -97,7 +97,7 @@
         </div>
         <div data-reveal style="padding:24px;background:var(--glass);border:1px solid var(--line);border-radius:16px;backdrop-filter:blur(22px) saturate(165%);-webkit-backdrop-filter:blur(22px) saturate(165%);box-shadow:inset 0 1px 0 rgba(255,255,255,.18),inset 0 0 0 1px rgba(255,255,255,.03),0 14px 38px rgba(2,4,20,.32);">
           <div style="font-family:var(--mono);font-size:13px;color:var(--accent);margin-bottom:12px;">None of them</div>
-          <p style="margin:0;font-size:15px;line-height:1.55;color:var(--dim);">…talk to your agent. You review in one tool; the agent works in another. Neither knows what the other sees.</p>
+          <p style="margin:0;font-size:15px;line-height:1.55;color:var(--dim);">…put it all in one place. You bounce between a heavy editor, a terminal, and a chat pane, re-explaining the same change to each.</p>
         </div>
       </div>
     </section>
@@ -163,6 +163,25 @@
             <li style="display:flex;gap:11px;font-size:15px;color:var(--dim);"><span style="color:var(--mint);font-family:var(--mono);">▹</span> Suggested commands from your working-tree state</li>
             <li style="display:flex;gap:11px;font-size:15px;color:var(--dim);"><span style="color:var(--mint);font-family:var(--mono);">▹</span> Open review comments stay in view as you commit</li>
           </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== RUN THE AGENT ===================== -->
+    <section id="agent" style="max-width:1180px;margin:0 auto;padding:30px 32px 40px;">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:48px;align-items:center;">
+        <div data-reveal>
+          <div style="font-family:var(--mono);font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin-bottom:16px;">Run the agent, don't just review it</div>
+          <h2 style="font-family:var(--mono);font-weight:600;font-size:clamp(26px,3.6vw,40px);line-height:1.1;letter-spacing:-.018em;margin:0 0 20px;">Your coding agents run inside Porcelain now.</h2>
+          <p style="font-size:17px;line-height:1.62;color:var(--dim);margin:0 0 26px;">Start a thread and drive Claude Code, Codex, or OpenCode without leaving the window you read in. Threads survive reloads, you watch what the agent is doing as it works, and every review comment lands in the same tool it's working in.</p>
+          <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:13px;">
+            <li style="display:flex;gap:11px;font-size:15px;color:var(--dim);"><span style="color:var(--mint);font-family:var(--mono);">▹</span> Claude Code, Codex &amp; OpenCode, through the CLIs you already have</li>
+            <li style="display:flex;gap:11px;font-size:15px;color:var(--dim);"><span style="color:var(--mint);font-family:var(--mono);">▹</span> Threads survive reloads; Build or Plan mode with a live plan checklist</li>
+            <li style="display:flex;gap:11px;font-size:15px;color:var(--dim);"><span style="color:var(--mint);font-family:var(--mono);">▹</span> Running-tool status, token usage and subscription limits at a glance</li>
+          </ul>
+        </div>
+        <div data-reveal style="border-radius:16px;overflow:hidden;border:1px solid var(--line2);box-shadow:var(--sh);">
+          <img src="images/feat-agent.png" alt="An agent thread running inside Porcelain: a rendered Markdown answer touring the renderer architecture, with a composer below carrying model, access and Build-mode chips" loading="lazy" />
         </div>
       </div>
     </section>
