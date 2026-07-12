@@ -1,3 +1,14 @@
+## [0.22.0](https://github.com/FabioFiorita/porcelain/compare/v0.21.3...v0.22.0) (2026-07-12)
+
+### Features
+
+* read Claude limits via the user-installed codexbar CLI, native probe as fallback ([81a2ec8](https://github.com/FabioFiorita/porcelain/commit/81a2ec8dba4a17f9fd391622fa74aa035ce88147))
+* user-tunable limits refresh cadence with manual reload, and a CodexBar install hint ([52eb002](https://github.com/FabioFiorita/porcelain/commit/52eb002d5da3060820fb2c58cdd76170af1a36d9))
+
+### Bug Fixes
+
+* show 'Default model' on the model chip when the thread uses the CLI default ([caaf7d7](https://github.com/FabioFiorita/porcelain/commit/caaf7d771eb8d938de4e0ac8a905355965cfdcd1))
+
 ## [0.21.3](https://github.com/FabioFiorita/porcelain/compare/v0.21.2...v0.21.3) (2026-07-12)
 
 ### Bug Fixes
