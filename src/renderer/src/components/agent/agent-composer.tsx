@@ -344,7 +344,7 @@ export function AgentComposer({
                       <Button
                         variant="ghost"
                         size="xs"
-                        aria-label="Permission mode"
+                        aria-label={MODE_LABEL[mode]}
                         className="gap-1 text-muted-foreground"
                       >
                         <ModeIcon className="size-3" />

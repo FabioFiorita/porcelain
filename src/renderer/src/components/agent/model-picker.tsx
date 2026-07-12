@@ -97,7 +97,7 @@ export function ModelPicker({
                 <Button
                   variant="ghost"
                   size="xs"
-                  aria-label="Model"
+                  aria-label={label}
                   className="max-w-44 gap-1 text-muted-foreground"
                 >
                   <ProviderGlyph provider={provider} className="size-3" />
