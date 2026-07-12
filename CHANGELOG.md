@@ -1,3 +1,9 @@
+## [0.22.1](https://github.com/FabioFiorita/porcelain/compare/v0.22.0...v0.22.1) (2026-07-12)
+
+### Bug Fixes
+
+* composer drafts survive tab switches — agent messages per thread, commit message per repo ([8cb8f7a](https://github.com/FabioFiorita/porcelain/commit/8cb8f7ab98420a7ca195a29c79a0174cd1b96faa))
+
 ## [0.22.0](https://github.com/FabioFiorita/porcelain/compare/v0.21.3...v0.22.0) (2026-07-12)
 
 ### Features
