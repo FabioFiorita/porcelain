@@ -38,8 +38,9 @@ test('streams a turn into the timeline + Quick Access, and persists across reloa
 
   // The plan card sits in the timeline (its "N/M done" counter is unique to it — "Plan"
   // alone also labels the composer toggle + the Quick Access group), and the tool call lands.
+  // Scope the step text to the viewer: the Quick Access checklist renders "Run tests" too.
   await expect(page.getByText('1/3 done')).toBeVisible()
-  await expect(page.getByText('Run tests')).toBeVisible()
+  await expect(timeline.getByText('Run tests')).toBeVisible()
 
   // Quick Access mirrors the session: the plan checklist with its own progress counter…
   await expect(page.getByText('1 of 3 done')).toBeVisible()
