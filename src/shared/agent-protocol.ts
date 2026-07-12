@@ -146,6 +146,10 @@ export const agentEventSchema = z.discriminatedUnion('t', [
     t: z.literal('meta'),
     title: z.string().optional(),
     model: z.string().optional(),
+    // The CLI-reported effective model for the session (see ThreadInfo.resolvedModel). Moves
+    // thread state, not the chosen `model` — a driver emits it so the roster can label a
+    // default-model thread with what the CLI actually resolved to.
+    resolvedModel: z.string().optional(),
     provider: agentProviderSchema.optional(),
   }),
 ])
@@ -218,6 +222,11 @@ export const threadInfoSchema = z.object({
   title: z.string(),
   provider: agentProviderSchema,
   model: z.string(),
+  // The full model id the CLI actually reported for the session (from Claude's init
+  // message), distinct from the user's chosen `model`. Meaningful when `model` is `''`
+  // (CLI default) — it lets the chip surface WHICH model the CLI picked. Optional/absent
+  // until a turn's init reports one (and for providers that don't surface an effective model).
+  resolvedModel: z.string().optional(),
   mode: agentModeSchema,
   status: agentStatusSchema,
   // The thread's interaction mode (Build/Plan toggle). Optional — absent = 'build'.

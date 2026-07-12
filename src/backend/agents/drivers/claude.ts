@@ -9,7 +9,7 @@ import { promisify } from 'node:util'
 import type { ApprovalDecision, ProviderLimits } from '../../../shared/agent-protocol'
 import { terminalEnv } from '../../terminal-env'
 import type { AgentCommand, AgentDriver, StartTurnOptions, TurnHandle } from '../types'
-import { listCommandFiles } from './agent-commands-fs'
+import { listCommandsAndSkills } from './agent-commands-fs'
 import {
   buildClaudeArgs,
   buildUserMessage,
@@ -160,12 +160,15 @@ export const claudeDriver: AgentDriver = {
     }
   },
 
-  // Custom slash commands live in `.md` files, repo-local then user-global; nested dirs
-  // namespace with `:` (Claude's own convention), so the scan is recursive.
+  // Claude's slash invocations are custom commands (`.claude/commands/**.md`, repo-local then
+  // user-global; nested dirs namespace with `:`, so the scan is recursive) AND skills
+  // (`.claude/skills/<name>/SKILL.md`) — modern Claude Code exposes each skill as `/<name>`.
+  // The CLI natively expands both in `-p` stream-json mode, so startTurn sends the user's text
+  // through untouched (no expandSlashCommand here, unlike Codex/OpenCode).
   listCommands(repoPath: string): Promise<AgentCommand[]> {
-    return listCommandFiles(
+    return listCommandsAndSkills(
       [join(repoPath, '.claude', 'commands'), join(homedir(), '.claude', 'commands')],
-      true,
+      [join(repoPath, '.claude', 'skills'), join(homedir(), '.claude', 'skills')],
     )
   },
 

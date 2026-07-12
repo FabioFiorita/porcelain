@@ -43,6 +43,11 @@ describe('ModelPicker', () => {
     expect(screen.getByRole('button', { name: 'Default model' })).toBeInTheDocument()
   })
 
+  it('labels an empty model with the CLI-resolved model (prefix-matched) plus a default tag', () => {
+    render(<ModelPicker threadId="t1" provider="claude" model="" resolvedModel="opus-20260115" />)
+    expect(screen.getByRole('button', { name: 'Opus · default' })).toBeInTheDocument()
+  })
+
   it('shows a not-in-catalog model id verbatim', () => {
     render(<ModelPicker threadId="t1" provider="claude" model="opus-x" />)
     expect(screen.getByRole('button', { name: 'opus-x' })).toBeInTheDocument()

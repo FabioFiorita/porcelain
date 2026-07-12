@@ -34,6 +34,10 @@ export const storedThreadMetaSchema = z.object({
   title: z.string(),
   provider: agentProviderSchema,
   model: z.string(),
+  // The CLI-reported effective model for the session (see ThreadInfo.resolvedModel).
+  // Optional/back-compat: absent until a turn's init reports one (or for providers that
+  // don't surface an effective model), and older thread files read back without it.
+  resolvedModel: z.string().optional(),
   mode: agentModeSchema,
   // The Build/Plan toggle. Optional (absent = 'build') so pre-existing files read back.
   interaction: agentInteractionSchema.optional(),

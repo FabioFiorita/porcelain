@@ -108,6 +108,7 @@ export function AgentComposer({
   threadId,
   provider,
   model,
+  resolvedModel,
   mode,
   interaction,
   options,
@@ -119,6 +120,8 @@ export function AgentComposer({
   threadId: string
   provider: AgentProvider
   model: string
+  // The CLI-reported model for the session; the picker uses it to label a default-model thread.
+  resolvedModel: string | undefined
   mode: AgentMode
   interaction: AgentInteraction
   options: ThreadOptions | undefined
@@ -336,7 +339,12 @@ export function AgentComposer({
           >
             <ImagePlus />
           </Button>
-          <ModelPicker threadId={threadId} provider={provider} model={model} />
+          <ModelPicker
+            threadId={threadId}
+            provider={provider}
+            model={model}
+            resolvedModel={resolvedModel}
+          />
           <OptionsChip threadId={threadId} modelInfo={modelInfo} options={options} />
           <DropdownMenu>
             <Tooltip>

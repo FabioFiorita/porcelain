@@ -154,6 +154,7 @@ function toStored(thread: Thread): StoredThread {
     title,
     provider,
     model,
+    resolvedModel,
     mode,
     interaction,
     options,
@@ -171,6 +172,7 @@ function toStored(thread: Thread): StoredThread {
       title,
       provider,
       model,
+      ...(resolvedModel !== undefined ? { resolvedModel } : {}),
       mode,
       ...(interaction !== undefined ? { interaction } : {}),
       ...(options !== undefined ? { options } : {}),
@@ -272,6 +274,10 @@ function applyMeta(thread: Thread, event: Extract<AgentEvent, { t: 'meta' }>): v
   }
   if (event.model !== undefined && event.model !== thread.meta.model) {
     thread.meta.model = event.model
+    changed = true
+  }
+  if (event.resolvedModel !== undefined && event.resolvedModel !== thread.meta.resolvedModel) {
+    thread.meta.resolvedModel = event.resolvedModel
     changed = true
   }
   if (event.provider !== undefined && event.provider !== thread.meta.provider) {

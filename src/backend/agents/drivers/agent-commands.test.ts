@@ -1,4 +1,4 @@
-import { mkdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -8,7 +8,7 @@ import {
   parseCommandDescription,
   parseSlashInvocation,
 } from './agent-commands'
-import { expandSlashCommand, listCommandFiles } from './agent-commands-fs'
+import { expandSlashCommand, listCommandFiles, listCommandsAndSkills } from './agent-commands-fs'
 
 describe('commandNameFromRelPath', () => {
   it('strips .md and namespaces nested dirs with a colon', () => {
@@ -115,5 +115,93 @@ describe('command filesystem scan', () => {
   it('passes through an unknown command or non-slash text unchanged', async () => {
     expect(await expandSlashCommand('/unknown x', [repo, home], true)).toBe('/unknown x')
     expect(await expandSlashCommand('plain text', [repo, home], true)).toBe('plain text')
+  })
+})
+
+describe('listCommandsAndSkills (commands + skills)', () => {
+  let root: string
+  let repoCommands: string
+  let homeCommands: string
+  let repoSkills: string
+  let homeSkills: string
+
+  beforeEach(async () => {
+    root = join(tmpdir(), `porcelain-skill-test-${Math.random().toString(36).slice(2)}`)
+    repoCommands = join(root, 'repo', '.claude', 'commands')
+    homeCommands = join(root, 'home', '.claude', 'commands')
+    repoSkills = join(root, 'repo', '.claude', 'skills')
+    homeSkills = join(root, 'home', '.claude', 'skills')
+    await mkdir(repoCommands, { recursive: true })
+    await mkdir(homeCommands, { recursive: true })
+  })
+  afterEach(async () => {
+    await rm(root, { recursive: true, force: true })
+  })
+
+  it('lists a skill by directory name with its frontmatter description', async () => {
+    await mkdir(join(repoSkills, 'architecture'), { recursive: true })
+    await writeFile(
+      join(repoSkills, 'architecture', 'SKILL.md'),
+      '---\ndescription: The stack and conventions\n---\nbody',
+    )
+    // A directory without a SKILL.md is not a skill; a loose file is ignored too.
+    await mkdir(join(repoSkills, 'not-a-skill'), { recursive: true })
+    await writeFile(join(repoSkills, 'loose.md'), 'ignored')
+
+    expect(await listCommandsAndSkills([], [repoSkills])).toEqual([
+      { name: 'architecture', description: 'The stack and conventions' },
+    ])
+  })
+
+  it('follows a symlinked skill directory (stat, not lstat)', async () => {
+    // Mirrors this repo: `.claude/skills/<name>` symlinks to `.agents/skills/<name>`.
+    const realSkills = join(root, 'repo', '.agents', 'skills')
+    await mkdir(join(realSkills, 'shadcn'), { recursive: true })
+    await writeFile(
+      join(realSkills, 'shadcn', 'SKILL.md'),
+      '---\ndescription: UI primitives\n---\nbody',
+    )
+    await mkdir(repoSkills, { recursive: true })
+    await symlink(join(realSkills, 'shadcn'), join(repoSkills, 'shadcn'))
+
+    expect(await listCommandsAndSkills([], [repoSkills])).toEqual([
+      { name: 'shadcn', description: 'UI primitives' },
+    ])
+  })
+
+  it('lets a repo skill shadow a user-global skill of the same name', async () => {
+    await mkdir(join(repoSkills, 'audit'), { recursive: true })
+    await writeFile(join(repoSkills, 'audit', 'SKILL.md'), '---\ndescription: Repo audit\n---\n')
+    await mkdir(join(homeSkills, 'audit'), { recursive: true })
+    await writeFile(join(homeSkills, 'audit', 'SKILL.md'), '---\ndescription: Home audit\n---\n')
+
+    expect(await listCommandsAndSkills([], [repoSkills, homeSkills])).toEqual([
+      { name: 'audit', description: 'Repo audit' },
+    ])
+  })
+
+  it('dedups a command against a skill of the same name, command first', async () => {
+    await writeFile(join(repoCommands, 'review.md'), '---\ndescription: Command review\n---\nbody')
+    await mkdir(join(repoSkills, 'review'), { recursive: true })
+    await writeFile(join(repoSkills, 'review', 'SKILL.md'), '---\ndescription: Skill review\n---\n')
+
+    expect(await listCommandsAndSkills([repoCommands], [repoSkills])).toEqual([
+      { name: 'review', description: 'Command review' },
+    ])
+  })
+
+  it('merges commands and skills, sorted by name', async () => {
+    await writeFile(join(repoCommands, 'deploy.md'), '---\ndescription: Ship it\n---\n')
+    await mkdir(join(repoSkills, 'product'), { recursive: true })
+    await writeFile(join(repoSkills, 'product', 'SKILL.md'), '---\ndescription: What it is\n---\n')
+
+    expect(await listCommandsAndSkills([repoCommands], [repoSkills])).toEqual([
+      { name: 'deploy', description: 'Ship it' },
+      { name: 'product', description: 'What it is' },
+    ])
+  })
+
+  it('returns [] when skill roots are absent', async () => {
+    expect(await listCommandsAndSkills([], [join(root, 'nope')])).toEqual([])
   })
 })

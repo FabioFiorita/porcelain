@@ -16,6 +16,7 @@ import {
   useToggleAgentModelFavorite,
   useUpdateAgentThread,
 } from '@renderer/hooks/use-agents'
+import { modelChipLabel } from '@renderer/lib/agent-model-label'
 import { cn } from '@renderer/lib/utils'
 import type { AgentProvider, ModelInfo } from '@shared/agent-protocol'
 import { PROVIDER_LABEL } from '@shared/agent-protocol'
@@ -34,10 +35,13 @@ export function ModelPicker({
   threadId,
   provider,
   model,
+  resolvedModel,
 }: {
   threadId: string
   provider: AgentProvider
   model: string
+  // The CLI-reported model for the session; labels the chip when `model` is '' (CLI default).
+  resolvedModel?: string
 }): React.JSX.Element {
   const providers = useAgentProviders()
   const favorites = useAgentModelFavorites()
@@ -46,7 +50,6 @@ export function ModelPicker({
   const [open, setOpen] = useState(false)
 
   const allModels = providers.flatMap((p) => p.models)
-  const current = allModels.find((m) => m.provider === provider && m.id === model)
   const favoriteSet = new Set(favorites)
   const favoriteModels = allModels.filter((m) => favoriteSet.has(favoriteKey(m.provider, m.id)))
 
@@ -85,7 +88,7 @@ export function ModelPicker({
     )
   }
 
-  const label = current?.label ?? (model || 'Default model')
+  const label = modelChipLabel(model, resolvedModel, allModels)
 
   return (
     <Popover open={open} onOpenChange={setOpen}>

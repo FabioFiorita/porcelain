@@ -5,7 +5,8 @@ import { Button } from '@renderer/components/ui/button'
 import { ScrollArea } from '@renderer/components/ui/scroll-area'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useAgentActions } from '@renderer/hooks/use-agent-channel'
-import { useAgentThreads } from '@renderer/hooks/use-agents'
+import { useAgentProviders, useAgentThreads } from '@renderer/hooks/use-agents'
+import { modelChipLabel } from '@renderer/lib/agent-model-label'
 import { isTextEntry } from '@renderer/lib/keyboard'
 import { cn, copyText } from '@renderer/lib/utils'
 import { useAgentThreadsStore } from '@renderer/stores/agent-threads'
@@ -388,18 +389,23 @@ const EXAMPLE_PROMPTS = [
 function EmptyTimeline({
   provider,
   model,
+  resolvedModel,
   onPickPrompt,
 }: {
   provider: AgentProvider
   model: string
+  resolvedModel: string | undefined
   onPickPrompt: (text: string) => void
 }): React.JSX.Element {
+  const models = useAgentProviders().flatMap((p) => p.models)
   return (
     <div className="flex flex-col items-center gap-4 py-16 text-center">
       <div className="flex flex-col items-center gap-1.5">
         <ProviderGlyph provider={provider} className="size-6" />
         <p className="text-sm-minus font-medium text-foreground">{PROVIDER_LABEL[provider]}</p>
-        <p className="text-2xs text-muted-foreground">{model !== '' ? model : 'Default model'}</p>
+        <p className="text-2xs text-muted-foreground">
+          {modelChipLabel(model, resolvedModel, models)}
+        </p>
       </div>
       <div className="flex w-full max-w-md flex-col gap-1.5">
         {EXAMPLE_PROMPTS.map((prompt) => (
@@ -529,6 +535,7 @@ export function AgentView({ threadId }: { threadId: string }): React.JSX.Element
                 <EmptyTimeline
                   provider={thread.provider}
                   model={thread.model}
+                  resolvedModel={thread.resolvedModel}
                   onPickPrompt={setPrefill}
                 />
               ) : null
@@ -555,6 +562,7 @@ export function AgentView({ threadId }: { threadId: string }): React.JSX.Element
           threadId={threadId}
           provider={thread.provider}
           model={thread.model}
+          resolvedModel={thread.resolvedModel}
           mode={thread.mode}
           interaction={thread.interaction ?? 'build'}
           options={thread.options}

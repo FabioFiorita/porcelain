@@ -57,6 +57,7 @@ function renderComposer(threadId = THREAD_ID): ReturnType<typeof render> {
       threadId={threadId}
       provider="claude"
       model="sonnet"
+      resolvedModel={undefined}
       mode="full"
       interaction="build"
       options={undefined}

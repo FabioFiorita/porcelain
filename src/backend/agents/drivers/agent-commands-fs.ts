@@ -1,5 +1,5 @@
 import type { Dirent } from 'node:fs'
-import { readdir, readFile } from 'node:fs/promises'
+import { readdir, readFile, stat } from 'node:fs/promises'
 import { join, relative } from 'node:path'
 import type { AgentCommand } from '../types'
 import {
@@ -48,6 +48,32 @@ async function collect(
   }
 }
 
+// Every direct child directory of `root` that holds a `SKILL.md` is one command — its name
+// is the directory name, its description the SKILL.md frontmatter (read later, in common with
+// commands). Modern Claude Code exposes skills as slash invocations (`/architecture`), so the
+// picker treats them as commands. Follows symlinks: in this very repo `.claude/skills/*` are
+// symlinks into `.agents/skills/*`, and `withFileTypes` dirents report a symlink as a symlink
+// (not a directory), so we `stat` (which follows) the candidate SKILL.md rather than trusting
+// the dirent's type. An absent/unreadable root yields nothing.
+async function collectSkills(root: string, out: CommandFile[]): Promise<void> {
+  let entries: Dirent[]
+  try {
+    entries = await readdir(root, { withFileTypes: true })
+  } catch {
+    return // directory absent — no skills here
+  }
+  for (const entry of entries) {
+    if (entry.isFile()) continue // a plain file can't be a skill directory
+    const path = join(root, entry.name, 'SKILL.md')
+    try {
+      if (!(await stat(path)).isFile()) continue
+    } catch {
+      continue // no SKILL.md under this child — not a skill
+    }
+    out.push({ name: entry.name, path })
+  }
+}
+
 // Scan every directory in order, first occurrence of a name winning (repo-local dirs are
 // listed before the user-global ones so a repo command shadows a global of the same name).
 async function scan(dirs: string[], recursive: boolean): Promise<Map<string, CommandFile>> {
@@ -60,14 +86,11 @@ async function scan(dirs: string[], recursive: boolean): Promise<Map<string, Com
   return seen
 }
 
-/** The slash commands in `dirs`, each with its parsed description, sorted by name. */
-export async function listCommandFiles(
-  dirs: string[],
-  recursive: boolean,
-): Promise<AgentCommand[]> {
-  const files = await scan(dirs, recursive)
+// Resolve a name→file map into sorted, described commands (frontmatter description; an
+// unreadable file is listed without one).
+async function describe(files: Iterable<CommandFile>): Promise<AgentCommand[]> {
   const commands: AgentCommand[] = []
-  for (const file of files.values()) {
+  for (const file of files) {
     let description: string | undefined
     try {
       description = parseCommandDescription(await readFile(file.path, 'utf8'))
@@ -77,6 +100,33 @@ export async function listCommandFiles(
     commands.push({ name: file.name, ...(description ? { description } : {}) })
   }
   return commands.sort((a, b) => a.name.localeCompare(b.name))
+}
+
+/** The slash commands in `dirs`, each with its parsed description, sorted by name. */
+export async function listCommandFiles(
+  dirs: string[],
+  recursive: boolean,
+): Promise<AgentCommand[]> {
+  return describe((await scan(dirs, recursive)).values())
+}
+
+/**
+ * Claude's invocable slash commands: the `.md` commands in `commandDirs` (recursive, `:`
+ * namespaced) PLUS the skills in `skillDirs` (each `<dir>/SKILL.md`). One combined, deduped
+ * list — a command shadows a skill of the same name (commands scanned first), and within each
+ * kind the first dir wins (repo-local before user-global). Sorted by name.
+ */
+export async function listCommandsAndSkills(
+  commandDirs: string[],
+  skillDirs: string[],
+): Promise<AgentCommand[]> {
+  const seen = await scan(commandDirs, true)
+  for (const dir of skillDirs) {
+    const found: CommandFile[] = []
+    await collectSkills(dir, found)
+    for (const file of found) if (!seen.has(file.name)) seen.set(file.name, file)
+  }
+  return describe(seen.values())
 }
 
 /**

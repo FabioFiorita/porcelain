@@ -195,6 +195,18 @@ describe('agent-manager', () => {
     expect(mock.last?.resume).toEqual({ resume: 'sess-1' })
   })
 
+  it('records a driver meta resolvedModel on the thread without touching the chosen model', async () => {
+    const { id } = await newThread()
+    await sendMessage(id, { text: 'go' })
+    mock.last?.emit({ t: 'meta', resolvedModel: 'claude-opus-4-8-20260115' })
+    mock.last?.onDone({ ok: true })
+    await flushThread(id)
+    const stored = await readThread(id)
+    expect(stored?.meta.resolvedModel).toBe('claude-opus-4-8-20260115')
+    // The user's chosen model is a separate field, untouched by the resolved report.
+    expect(stored?.meta.model).toBe('sonnet')
+  })
+
   it('fans turn events out to attached senders only', async () => {
     const { id } = await newThread()
     const sender = recordingSender()

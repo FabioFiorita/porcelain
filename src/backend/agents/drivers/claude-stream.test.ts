@@ -250,11 +250,20 @@ describe('ClaudeStreamTranslator', () => {
       capabilities: ['interrupt_receipt_v1', 'msg_lifecycle_v1'],
     })
 
-  it('captures the session id and interrupt capability from init', () => {
+  it('captures the session id, resolved model, and interrupt capability from init', () => {
     const translator = new ClaudeStreamTranslator()
     const signals = translator.pushLine(initLine('sess-1'))
-    expect(signals).toEqual([{ t: 'session', sessionId: 'sess-1' }])
+    expect(signals).toEqual([
+      { t: 'session', sessionId: 'sess-1' },
+      { t: 'event', event: { t: 'meta', resolvedModel: 'claude-haiku-4-5-20251001' } },
+    ])
     expect(translator.interruptSupported).toBe(true)
+  })
+
+  it('emits no model meta when init omits the model', () => {
+    const translator = new ClaudeStreamTranslator()
+    const signals = translator.pushLine(line({ type: 'system', subtype: 'init', session_id: 's' }))
+    expect(signals).toEqual([{ t: 'session', sessionId: 's' }])
   })
 
   it('streams an assistant text block: open, deltas, final promotion', () => {
@@ -280,6 +289,8 @@ describe('ClaudeStreamTranslator', () => {
       line({ type: 'stream_event', event: { type: 'content_block_stop', index: 0 } }),
     ])
     expect(events(signals)).toEqual([
+      // The init line reports the resolved model as a meta event before the block events.
+      { t: 'meta', resolvedModel: 'claude-haiku-4-5-20251001' },
       { t: 'item', item: { kind: 'assistant', id: 'msg_1:0', text: '', streaming: true } },
       { t: 'item-delta', id: 'msg_1:0', delta: 'He' },
       { t: 'item-delta', id: 'msg_1:0', delta: 'llo' },
@@ -306,6 +317,7 @@ describe('ClaudeStreamTranslator', () => {
       line({ type: 'stream_event', event: { type: 'content_block_stop', index: 0 } }),
     ])
     expect(events(signals)).toEqual([
+      { t: 'meta', resolvedModel: 'claude-haiku-4-5-20251001' },
       { t: 'item', item: { kind: 'reasoning', id: 'msg_2:0', text: '', streaming: true } },
       { t: 'item-delta', id: 'msg_2:0', delta: 'Hmm' },
       { t: 'item', item: { kind: 'reasoning', id: 'msg_2:0', text: 'Hmm', streaming: false } },
@@ -349,6 +361,7 @@ describe('ClaudeStreamTranslator', () => {
       }),
     ])
     expect(events(signals)).toEqual([
+      { t: 'meta', resolvedModel: 'claude-haiku-4-5-20251001' },
       { t: 'item', item: { kind: 'tool', id: 'toolu_9', title: 'Bash', status: 'running' } },
       {
         t: 'item',

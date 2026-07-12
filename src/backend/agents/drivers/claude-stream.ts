@@ -369,6 +369,10 @@ const typeSchema = z.object({ type: z.string() }).passthrough()
 const initSchema = z.object({
   subtype: z.string(),
   session_id: z.string().optional(),
+  // The full model id the CLI resolved for this session (e.g. `claude-opus-4-8-20260115`),
+  // echoed even when we passed no `--model`. We surface it so a default-model thread can show
+  // which model the CLI actually chose. A catalog slug is a prefix of this id (see CLAUDE_MODELS).
+  model: z.string().optional(),
   capabilities: z.array(z.string()).optional(),
 })
 
@@ -497,8 +501,15 @@ export class ClaudeStreamTranslator {
     const parsed = initSchema.safeParse(raw)
     if (!parsed.success || parsed.data.subtype !== 'init') return []
     if (parsed.data.capabilities?.includes('interrupt_receipt_v1')) this.interruptSupported = true
+    const signals: StreamSignal[] = []
     // The init `session_id` is what `--resume` takes on the next turn.
-    return parsed.data.session_id ? [{ t: 'session', sessionId: parsed.data.session_id }] : []
+    if (parsed.data.session_id) signals.push({ t: 'session', sessionId: parsed.data.session_id })
+    // The init `model` is the CLI's resolved model id — carry it as a `meta` event so the
+    // manager records it on the thread (and the roster labels a default-model thread with it).
+    if (parsed.data.model !== undefined && parsed.data.model !== '') {
+      signals.push({ t: 'event', event: { t: 'meta', resolvedModel: parsed.data.model } })
+    }
+    return signals
   }
 
   private handleStreamEvent(raw: unknown): StreamSignal[] {
