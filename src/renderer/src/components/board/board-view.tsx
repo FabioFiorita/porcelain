@@ -7,8 +7,18 @@ import { ClearColumnButton } from './clear-column-button'
 
 /** The wide kanban: the three columns side by side, in a viewer tab. */
 export function BoardView(): React.JSX.Element {
-  const cards = useBoardCards()
+  const { cards, error } = useBoardCards()
   const openDraft = useCardDraftStore((s) => s.open)
+
+  if (error) {
+    return (
+      <div className="flex h-full items-center justify-center p-4">
+        <p className="max-w-md text-center text-sm text-destructive">
+          Couldn't load the board. {error}
+        </p>
+      </div>
+    )
+  }
 
   return (
     <div className="flex h-full gap-3 overflow-x-auto p-4">

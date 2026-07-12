@@ -111,10 +111,11 @@ describe('ChangesList', () => {
 
   it('marks staged files with an indicator and leaves unstaged ones bare', () => {
     renderList()
-    // schema.ts is staged (staged: true, unstaged: false) → "Staged" dot.
-    expect(screen.getByTitle('Staged')).toBeInTheDocument()
+    // schema.ts is staged (staged: true, unstaged: false) → "Staged" dot. The dot
+    // carries the state as an aria-label (with a glass Tooltip echoing it on hover).
+    expect(screen.getByLabelText('Staged')).toBeInTheDocument()
     // widget.tsx is unstaged only → no indicator at all.
-    expect(screen.queryByTitle('Partially staged')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Partially staged')).not.toBeInTheDocument()
   })
 
   it('opens a diff tab keyed by path when a file row is clicked', () => {

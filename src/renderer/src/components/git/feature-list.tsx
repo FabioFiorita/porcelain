@@ -8,6 +8,7 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from '@renderer/components/ui/context-menu'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useFeatureArtifact } from '@renderer/hooks/use-artifact'
 import { useDiffFilePrefetch } from '@renderer/hooks/use-diff'
 import { useClearFeatureReview, useFeatureView } from '@renderer/hooks/use-feature-view'
@@ -312,20 +313,29 @@ export function FeatureList(): React.JSX.Element {
                 Open inline read
               </Button>
             )}
-            <Button
-              size="icon-sm"
-              variant={confirmClear ? 'destructive' : 'outline'}
-              className="rounded-md"
-              onClick={handleClear}
-              onBlur={() => setConfirmClear(false)}
-              disabled={isClearing}
-              aria-label={
-                confirmClear ? 'Confirm clear agent review set' : 'Clear agent review set'
-              }
-              title="Removes the agent's files & notes — your working-tree changes still show as the baseline."
-            >
-              <Eraser />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    size="icon-sm"
+                    variant={confirmClear ? 'destructive' : 'outline'}
+                    className="rounded-md"
+                    onClick={handleClear}
+                    onBlur={() => setConfirmClear(false)}
+                    disabled={isClearing}
+                    aria-label={
+                      confirmClear ? 'Confirm clear agent review set' : 'Clear agent review set'
+                    }
+                  >
+                    <Eraser />
+                  </Button>
+                }
+              />
+              <TooltipContent>
+                Removes the agent's files &amp; notes — your working-tree changes still show as the
+                baseline.
+              </TooltipContent>
+            </Tooltip>
           </div>
           {clearError && (
             <p className="whitespace-pre-wrap font-mono text-2xs text-destructive">{clearError}</p>

@@ -14,7 +14,7 @@ import { ClearColumnButton } from './clear-column-button'
  * board in the viewer. Mirrors the Feature tab (list here, expanded view in the viewer).
  */
 export function BoardList(): React.JSX.Element {
-  const cards = useBoardCards()
+  const { cards, error } = useBoardCards()
   const repo = useRepoStore((s) => s.repo)
   const openTab = useTabsStore((s) => s.openTab)
   const openDraft = useCardDraftStore((s) => s.open)
@@ -33,41 +33,47 @@ export function BoardList(): React.JSX.Element {
           </Button>
         </SidebarHeaderActions>
       </div>
-      {BOARD_COLUMNS.map((column) => {
-        const inColumn = cards.filter((card) => card.status === column.status)
-        return (
-          <div key={column.status} className="flex flex-col gap-1.5">
-            <div className="flex items-center justify-between px-2">
-              <span className="text-2xs font-medium uppercase tracking-wider text-muted-foreground">
-                {column.label} · {inColumn.length}
-              </span>
-              <div className="flex items-center gap-0.5">
-                {column.status === 'done' && (
-                  <ClearColumnButton
-                    status={column.status}
-                    count={inColumn.length}
+      {error ? (
+        <p className="px-3 py-2 text-xs break-words text-destructive">
+          Couldn't load the board. {error}
+        </p>
+      ) : (
+        BOARD_COLUMNS.map((column) => {
+          const inColumn = cards.filter((card) => card.status === column.status)
+          return (
+            <div key={column.status} className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between px-2">
+                <span className="text-2xs font-medium uppercase tracking-wider text-muted-foreground">
+                  {column.label} · {inColumn.length}
+                </span>
+                <div className="flex items-center gap-0.5">
+                  {column.status === 'done' && (
+                    <ClearColumnButton
+                      status={column.status}
+                      count={inColumn.length}
+                      className="size-5"
+                    />
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
                     className="size-5"
-                  />
-                )}
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="size-5"
-                  aria-label={`Add card to ${column.label}`}
-                  onClick={() => openDraft({ title: '', body: '', status: column.status })}
-                >
-                  <Plus />
-                </Button>
+                    aria-label={`Add card to ${column.label}`}
+                    onClick={() => openDraft({ title: '', body: '', status: column.status })}
+                  >
+                    <Plus />
+                  </Button>
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5 px-2">
+                {inColumn.map((card) => (
+                  <CardItem key={card.id} card={card} onEdit={(c) => openDraft(draftFromCard(c))} />
+                ))}
               </div>
             </div>
-            <div className="flex flex-col gap-1.5 px-2">
-              {inColumn.map((card) => (
-                <CardItem key={card.id} card={card} onEdit={(c) => openDraft(draftFromCard(c))} />
-              ))}
-            </div>
-          </div>
-        )
-      })}
+          )
+        })
+      )}
     </div>
   )
 }

@@ -16,11 +16,13 @@ export const STATUS_LABEL: Record<CardStatus, string> = {
   done: 'Done',
 }
 
-/** All board cards for the current repo (live-refreshed when the agent moves one). */
-export function useBoardCards(): BoardCard[] {
+/** All board cards for the current repo (live-refreshed when the agent moves one).
+ *  `error` surfaces a failed fetch so callers can distinguish it from an empty
+ *  board (which would otherwise both render as no cards). */
+export function useBoardCards(): { cards: BoardCard[]; error: string | null } {
   const repo = useRepoStore((s) => s.repo)
-  const { data } = trpc.boardCards.useQuery(repo?.path ?? '', { enabled: repo !== null })
-  return data ?? []
+  const { data, error } = trpc.boardCards.useQuery(repo?.path ?? '', { enabled: repo !== null })
+  return { cards: data ?? [], error: error?.message ?? null }
 }
 
 export interface NewCardInput {

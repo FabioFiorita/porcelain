@@ -24,6 +24,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@renderer/components/ui/sidebar'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useBranchFlow } from '@renderer/hooks/use-branch-flow'
 import { useDiscardFile, useFileStaging } from '@renderer/hooks/use-commit'
 import { useDiffFilePrefetch } from '@renderer/hooks/use-diff'
@@ -120,25 +121,41 @@ function FileRowImpl({
           }
         >
           <div className="flex min-w-0 items-start gap-2">
-            <span
-              className={cn(
-                'mt-px w-3 shrink-0 text-center font-mono text-xs font-semibold',
-                statusBadge[file.status].className,
-              )}
-              title={file.status}
-            >
-              {statusBadge[file.status].label}
-            </span>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <span
+                    role="img"
+                    aria-label={file.status}
+                    className={cn(
+                      'mt-px w-3 shrink-0 text-center font-mono text-xs font-semibold',
+                      statusBadge[file.status].className,
+                    )}
+                  >
+                    {statusBadge[file.status].label}
+                  </span>
+                }
+              />
+              <TooltipContent>{file.status}</TooltipContent>
+            </Tooltip>
             <div className="flex min-w-0 flex-col items-start">
               <span className="flex max-w-full items-baseline gap-1.5">
                 {file.staged && (
-                  <span
-                    className={cn(
-                      'size-1.5 shrink-0 self-center rounded-full',
-                      file.unstaged ? 'bg-warning' : 'bg-success',
-                    )}
-                    title={file.unstaged ? 'Partially staged' : 'Staged'}
-                  />
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <span
+                          role="img"
+                          aria-label={file.unstaged ? 'Partially staged' : 'Staged'}
+                          className={cn(
+                            'size-1.5 shrink-0 self-center rounded-full',
+                            file.unstaged ? 'bg-warning' : 'bg-success',
+                          )}
+                        />
+                      }
+                    />
+                    <TooltipContent>{file.unstaged ? 'Partially staged' : 'Staged'}</TooltipContent>
+                  </Tooltip>
                 )}
                 {isReviewed && (
                   <Check

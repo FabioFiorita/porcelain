@@ -2,6 +2,7 @@ import type { Layer } from '@backend/flow'
 import { Button } from '@renderer/components/ui/button'
 import { Input } from '@renderer/components/ui/input'
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'
 import { useRepoLayers, useSetRepoLayers } from '@renderer/hooks/use-repo-layers'
 import { useRepoStore } from '@renderer/stores/repo'
@@ -220,33 +221,54 @@ function LayerRow({
         />
         {error && <p className="mt-0.5 text-xs text-destructive">{error}</p>}
       </div>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        disabled={index === 0}
-        onClick={() => onMove(-1)}
-        aria-label="Move layer up"
-      >
-        <ChevronUp />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        disabled={index === count - 1}
-        onClick={() => onMove(1)}
-        aria-label="Move layer down"
-      >
-        <ChevronDown />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        disabled={count === 1}
-        onClick={onRemove}
-        aria-label="Remove layer"
-      >
-        <X />
-      </Button>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              disabled={index === 0}
+              onClick={() => onMove(-1)}
+              aria-label="Move layer up"
+            >
+              <ChevronUp />
+            </Button>
+          }
+        />
+        <TooltipContent>Move layer up</TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              disabled={index === count - 1}
+              onClick={() => onMove(1)}
+              aria-label="Move layer down"
+            >
+              <ChevronDown />
+            </Button>
+          }
+        />
+        <TooltipContent>Move layer down</TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              disabled={count === 1}
+              onClick={onRemove}
+              aria-label="Remove layer"
+            >
+              <X />
+            </Button>
+          }
+        />
+        <TooltipContent>Remove layer</TooltipContent>
+      </Tooltip>
     </div>
   )
 }

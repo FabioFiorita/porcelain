@@ -20,7 +20,7 @@ export function McpDevtoolsPanel(): React.JSX.Element {
   const skills = useSkillsInfo()
   const { view } = useFeatureView()
   const comments = useReviewComments()
-  const cards = useBoardCards()
+  const { cards } = useBoardCards()
   const actions = useActions()
   const notes = useRepoNotes()
 
