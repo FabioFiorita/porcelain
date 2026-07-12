@@ -73,6 +73,22 @@ interface Thread {
   // first successful onDone to fire the one-shot LLM auto-title. Runtime-only — a restart
   // just keeps the derived title, which is fine.
   pendingAutoTitle: boolean
+  // The ONE message queued behind the running turn (last-write-wins), auto-run when the turn
+  // ends (naturally OR via abort — "stop this, do the next thing"). The FULL images live here,
+  // daemon-only, never reduced and never persisted (mirrors the timeline, which only ever
+  // persists thumbnails); `meta.queued` carries the lightweight {text, imageCount} to disk +
+  // the roster. A hard daemon restart therefore keeps the queued text/chip but drops the full
+  // images (rare, documented) — and since a hydrated thread is idle, a restored queue just
+  // shows a chip until the user cancels it or sends again (both clear it).
+  queued: QueuedMessage | null
+}
+
+// The full queued message the manager holds in memory (full images included) — distinct from
+// the persisted/roster `QueuedMessageInfo`, which is text + count only.
+interface QueuedMessage {
+  text: string
+  images: AgentImage[]
+  thumbnails: AgentImage[]
 }
 
 const PERSIST_DEBOUNCE_MS = 500
@@ -111,7 +127,9 @@ function ensureHydrated(): Promise<void> {
 
 function toThread(stored: StoredThread): Thread {
   return {
-    meta: { ...stored.meta, status: 'idle' },
+    // `queued` persists top-level on the file (next to items), NOT inside the stored meta —
+    // restore it onto the roster meta here so the composer's chip survives a restart.
+    meta: { ...stored.meta, status: 'idle', ...(stored.queued ? { queued: stored.queued } : {}) },
     sessionState: stored.sessionState,
     items: stored.items,
     attached: new Set(),
@@ -121,6 +139,10 @@ function toThread(stored: StoredThread): Thread {
     persistChain: Promise.resolve(),
     turnUsageBase: { input: 0, output: 0, cost: 0 },
     pendingAutoTitle: false,
+    // Restore the queued message from disk, but with empty images — the full payloads aren't
+    // persisted (see the Thread comment).
+    queued:
+      stored.queued !== undefined ? { text: stored.queued.text, images: [], thumbnails: [] } : null,
   }
 }
 
@@ -136,6 +158,9 @@ function toStored(thread: Thread): StoredThread {
     interaction,
     options,
     usage,
+    turnStartedAt,
+    lastTurnFailed,
+    queued,
     createdAt,
     updatedAt,
   } = thread.meta
@@ -150,11 +175,14 @@ function toStored(thread: Thread): StoredThread {
       ...(interaction !== undefined ? { interaction } : {}),
       ...(options !== undefined ? { options } : {}),
       ...(usage !== undefined ? { usage } : {}),
+      ...(turnStartedAt !== undefined ? { turnStartedAt } : {}),
+      ...(lastTurnFailed !== undefined ? { lastTurnFailed } : {}),
       createdAt,
       updatedAt,
     },
     sessionState: thread.sessionState,
     items: thread.items,
+    ...(queued !== undefined ? { queued } : {}),
   }
 }
 
@@ -197,6 +225,10 @@ function schedulePersist(thread: Thread): void {
 function setStatus(thread: Thread, status: AgentStatus): void {
   if (thread.meta.status === status) return
   thread.meta.status = status
+  // Stamp the turn's start when it begins so the viewer's "Working for Ns" counts from the
+  // real start (not from when a client opened the thread). Left as-is on idle — it's only read
+  // while working, so a stale idle value is harmless.
+  if (status === 'working') thread.meta.turnStartedAt = Date.now()
   thread.meta.updatedAt = Date.now()
   broadcastRoster()
   // The manager is the authoritative source of working/idle, so a real flip is fanned
@@ -268,6 +300,9 @@ function applyUsage(
 
 function onDone(thread: Thread, ok: boolean): void {
   thread.turn = null
+  // Record whether this turn failed so the roster can flag it; a successful turn clears the
+  // flag. The NEXT turn (including a drained queued message below) clears it on start.
+  thread.meta.lastTurnFailed = ok ? undefined : true
   setStatus(thread, 'idle')
   persistNow(thread).catch(() => {})
   // After the FIRST turn succeeds, upgrade the derived title to an LLM-generated one (if
@@ -277,6 +312,26 @@ function onDone(thread: Thread, ok: boolean): void {
     thread.pendingAutoTitle = false
     maybeAutoTitle(thread).catch(() => {})
   }
+  // Auto-run a queued message REGARDLESS of ok. Rationale: the user queued "do this next",
+  // so we honor it even after a failed turn — the `lastTurnFailed` flag still surfaced on the
+  // roster before the new turn cleared it, so they can course-correct, but we don't silently
+  // drop their intent. (The simplest defensible policy; documented in the feature.)
+  // Fire-and-forget here: onDone is a sync driver callback, and a spawn failure must not
+  // throw into it (startTurn persists + broadcasts on its own).
+  drainQueue(thread).catch(() => {})
+}
+
+/**
+ * If a message is queued, dequeue it and start it as the next turn. Called when a turn ends
+ * (naturally, from onDone — fire-and-forget) or via abort (which awaits it, so an abort
+ * resolves with the queued turn already claimed).
+ */
+async function drainQueue(thread: Thread): Promise<void> {
+  const queued = thread.queued
+  if (!queued) return
+  thread.queued = null
+  thread.meta.queued = undefined
+  await startTurn(thread, queued)
 }
 
 function truncateTitle(title: string): string {
@@ -353,6 +408,7 @@ export async function createThread(opts: CreateThreadOptions): Promise<ThreadInf
     persistChain: Promise.resolve(),
     turnUsageBase: { input: 0, output: 0, cost: 0 },
     pendingAutoTitle: false,
+    queued: null,
   }
   threads.set(meta.id, thread)
   await persistNow(thread)
@@ -459,12 +515,16 @@ export function detachAgentSender(sender: AgentSender): void {
 export interface SendMessageInput {
   text: string
   images?: AgentImage[]
+  // Renderer-downscaled previews of `images`, persisted in the user timeline item (the full
+  // `images` go to the CLI live and are never stored). See agent-protocol's `user` item.
+  thumbnails?: AgentImage[]
 }
 
 /**
- * Start a turn: append the user item, set the thread working, and hand off to the
- * driver. One active turn per thread — a send while already working appends an error
- * item instead of starting a second turn.
+ * Send a message to a thread. If the thread is idle, this starts a turn immediately. If a
+ * turn is already running, the message is QUEUED (one slot, last-write-wins) to auto-run when
+ * the turn ends — a second mid-turn send REPLACES the queued one. The full images ride the
+ * in-memory queue; only {text, imageCount} persist + reach the roster (the composer chip).
  */
 export async function sendMessage(id: string, input: SendMessageInput): Promise<void> {
   await ensureHydrated()
@@ -472,12 +532,33 @@ export async function sendMessage(id: string, input: SendMessageInput): Promise<
   if (!thread) return
 
   if (thread.turn !== null) {
-    onEmit(thread, {
-      t: 'item',
-      item: { kind: 'error', id: randomUUID(), message: 'This thread is already working.' },
-    })
+    // Queue behind the running turn (replacing any prior queued message — last wins).
+    const imageCount = input.images?.length ?? 0
+    thread.queued = {
+      text: input.text,
+      images: input.images ?? [],
+      thumbnails: input.thumbnails ?? [],
+    }
+    thread.meta.queued = { text: input.text, ...(imageCount > 0 ? { imageCount } : {}) }
+    thread.meta.updatedAt = Date.now()
+    await persistNow(thread)
+    broadcastRoster()
     return
   }
+
+  await startTurn(thread, input)
+}
+
+/**
+ * Start a turn on an idle thread: append the user item, set it working, and hand off to the
+ * driver. Shared by the idle-send path (sendMessage) and the queue drain (drainQueue) — both
+ * reach an idle thread, so both need the synchronous-claim guard against a racing send.
+ */
+async function startTurn(thread: Thread, input: SendMessageInput): Promise<void> {
+  // Starting a turn supersedes any queued message and clears the last-turn-failed flag.
+  thread.queued = null
+  thread.meta.queued = undefined
+  thread.meta.lastTurnFailed = undefined
 
   // Claim the turn SYNCHRONOUSLY, before the first await: `thread.turn` is only assigned
   // the real handle after `await persistNow` (several awaits away), so without this a second
@@ -492,6 +573,7 @@ export async function sendMessage(id: string, input: SendMessageInput): Promise<
 
   const hadUserMessage = thread.items.some((item) => item.kind === 'user')
   const imageCount = input.images?.length ?? 0
+  const thumbnails = input.thumbnails ?? []
   onEmit(thread, {
     t: 'item',
     item: {
@@ -499,6 +581,7 @@ export async function sendMessage(id: string, input: SendMessageInput): Promise<
       id: randomUUID(),
       text: input.text,
       ...(imageCount > 0 ? { imageCount } : {}),
+      ...(thumbnails.length > 0 ? { thumbnails } : {}),
     },
   })
   // Auto-title on the first user message: derive immediately (instant feedback) and arm
@@ -555,6 +638,21 @@ export async function abortTurn(id: string): Promise<void> {
   thread.turnToken = null // any late emit/onDone from the killed turn is now inert
   setStatus(thread, 'idle')
   await persistNow(thread)
+  // An abort is "stop this, do the next thing" — so a queued message still runs. (The aborted
+  // turn's onDone is inert now, cleared by the token above, so this is the only drain path.)
+  await drainQueue(thread)
+}
+
+/** Drop the thread's queued message (the composer's "Queued" chip × ). No-op if empty. */
+export async function cancelQueued(id: string): Promise<void> {
+  await ensureHydrated()
+  const thread = threads.get(id)
+  if (!thread?.queued) return
+  thread.queued = null
+  thread.meta.queued = undefined
+  thread.meta.updatedAt = Date.now()
+  await persistNow(thread)
+  broadcastRoster()
 }
 
 /**

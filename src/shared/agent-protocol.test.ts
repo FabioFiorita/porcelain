@@ -63,6 +63,18 @@ describe('applyAgentEvent', () => {
     expect(next[1]).toEqual(second)
   })
 
+  it('upserts a user item carrying image thumbnails intact', () => {
+    const withThumbs: TimelineItem = {
+      kind: 'user',
+      id: 'u1',
+      text: 'look',
+      imageCount: 1,
+      thumbnails: [{ mediaType: 'image/jpeg', base64: 'THUMB' }],
+    }
+    const after = applyAgentEvent([], { t: 'item', item: withThumbs })
+    expect(after).toEqual([withThumbs])
+  })
+
   it('appends a delta onto a reasoning item', () => {
     const before: TimelineItem[] = [{ kind: 'reasoning', id: 'r1', text: 'think', streaming: true }]
     const after = applyAgentEvent(before, { t: 'item-delta', id: 'r1', delta: 'ing' })

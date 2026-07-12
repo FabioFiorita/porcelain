@@ -119,6 +119,14 @@ function ThreadRow({ thread }: { thread: ThreadInfo }): React.JSX.Element {
                   <span className="min-w-0 flex-1 truncate">{thread.title}</span>
                 </button>
               )}
+              {!editing && thread.status !== 'working' && thread.lastTurnFailed && (
+                <span
+                  role="img"
+                  aria-label="Last turn failed"
+                  title="Last turn ended with an error"
+                  className="size-1.5 shrink-0 rounded-full bg-destructive"
+                />
+              )}
               {!editing &&
                 (thread.status === 'working' ? (
                   <Loader2

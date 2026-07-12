@@ -28,21 +28,38 @@ function MessageMarkdown({ text }: { text: string }): React.JSX.Element {
   )
 }
 
-/** Right-aligned user turn — a lit glass chip, with an image-count badge when present. */
+/** Right-aligned user turn — a lit glass chip. Shows the persisted image thumbnails when
+ *  present, else falls back to a plain image-count badge (older threads have no thumbnails). */
 function UserBubble({
   item,
 }: {
   item: Extract<TimelineItem, { kind: 'user' }>
 }): React.JSX.Element {
+  const thumbnails = item.thumbnails ?? []
   return (
     <div className="flex justify-end">
       <div className="glaze-chip max-w-[85%] rounded-2xl px-3 py-2 text-sm-minus whitespace-pre-wrap [--tile-fill:var(--surface-2)]">
         {item.text}
-        {item.imageCount !== undefined && item.imageCount > 0 && (
-          <span className="mt-1 flex items-center gap-1 text-2xs text-muted-foreground">
-            <ImageIcon className="size-3" />
-            {item.imageCount} {item.imageCount === 1 ? 'image' : 'images'}
-          </span>
+        {thumbnails.length > 0 ? (
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {thumbnails.map((thumb) => (
+              <img
+                // Content-addressed key — thumbnails are immutable base64 on a persisted item.
+                key={thumb.base64}
+                src={`data:${thumb.mediaType};base64,${thumb.base64}`}
+                alt="Attachment"
+                className="size-14 rounded-md border border-border object-cover"
+              />
+            ))}
+          </div>
+        ) : (
+          item.imageCount !== undefined &&
+          item.imageCount > 0 && (
+            <span className="mt-1 flex items-center gap-1 text-2xs text-muted-foreground">
+              <ImageIcon className="size-3" />
+              {item.imageCount} {item.imageCount === 1 ? 'image' : 'images'}
+            </span>
+          )
         )}
       </div>
     </div>
@@ -221,21 +238,23 @@ function ErrorRow({ item }: { item: Extract<TimelineItem, { kind: 'error' }> }):
 
 /**
  * "Working for Ns" — the elapsed-time row shown while the turn runs. The seconds tick via
- * an imperative interval writing the span's textContent (started at mount = the moment the
- * status flipped to working), NOT React state, so a long turn doesn't re-render per second.
+ * an imperative interval writing the span's textContent, NOT React state, so a long turn
+ * doesn't re-render per second. Counts from the turn's real `startedAt` (the daemon's
+ * `turnStartedAt`) so opening an already-running thread shows the true elapsed time; falls
+ * back to mount time only until the roster carries a start stamp.
  */
-function WorkingIndicator(): React.JSX.Element {
+function WorkingIndicator({ startedAt }: { startedAt: number | undefined }): React.JSX.Element {
   const spanRef = useRef<HTMLSpanElement>(null)
   useEffect(() => {
-    const start = Date.now()
+    const start = startedAt ?? Date.now()
     const tick = (): void => {
       if (spanRef.current)
-        spanRef.current.textContent = `${Math.floor((Date.now() - start) / 1000)}`
+        spanRef.current.textContent = `${Math.max(0, Math.floor((Date.now() - start) / 1000))}`
     }
     tick()
     const id = setInterval(tick, 1000)
     return () => clearInterval(id)
-  }, [])
+  }, [startedAt])
   return (
     <div className="flex items-center gap-2 text-xs text-muted-foreground">
       <Loader2 className="size-3.5 shrink-0 animate-spin" />
@@ -359,7 +378,7 @@ export function AgentView({ threadId }: { threadId: string }): React.JSX.Element
             ) : (
               items.map((item) => <TimelineRow key={item.id} item={item} threadId={threadId} />)
             )}
-            {working && <WorkingIndicator />}
+            {working && <WorkingIndicator startedAt={thread?.turnStartedAt} />}
           </div>
         </ScrollArea>
         {showJump && (
@@ -383,6 +402,7 @@ export function AgentView({ threadId }: { threadId: string }): React.JSX.Element
           interaction={thread.interaction ?? 'build'}
           options={thread.options}
           working={working}
+          queued={thread.queued}
         />
       )}
     </div>

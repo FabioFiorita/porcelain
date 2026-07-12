@@ -60,6 +60,14 @@ export const timelineItemSchema = z.discriminatedUnion('kind', [
     id: z.string(),
     text: z.string(),
     imageCount: z.number().int().nonnegative().optional(),
+    // Downscaled thumbnails of the images attached to this message, persisted so reopening
+    // the thread still shows what was sent (the FULL images are streamed to the CLI live and
+    // never persisted). The renderer produces these (max ~256px long edge, JPEG q~0.7) before
+    // send; capped at 8/message. `imageCount` is kept for back-compat with threads persisted
+    // before thumbnails existed (and is the count even when thumbnails are absent). Size math:
+    // one ~256px JPEG q0.7 is ~20-55KB base64, so ≤8 ≈ ≤0.5MB/message — the timeline text
+    // dominates the 16MB thread-file cap long before thumbnails do.
+    thumbnails: z.array(agentImageSchema).max(8).optional(),
   }),
   z.object({
     kind: z.literal('assistant'),
@@ -183,6 +191,16 @@ export const providerLimitsSchema = z.object({
 })
 export type ProviderLimits = z.infer<typeof providerLimitsSchema>
 
+// The lightweight, client-facing view of a thread's ONE queued message (the message the
+// user sent mid-turn, held to auto-run when the turn ends). Only the text preview + image
+// count cross to the renderer (the composer's "Queued" chip) — the FULL image payloads stay
+// daemon-only on the manager's thread record (see agent-manager), never on the roster.
+export const queuedMessageInfoSchema = z.object({
+  text: z.string(),
+  imageCount: z.number().int().nonnegative().optional(),
+})
+export type QueuedMessageInfo = z.infer<typeof queuedMessageInfoSchema>
+
 // One roster row: the daemon-owned metadata the renderer's Agent list renders. `status`
 // is runtime (a hydrated-from-disk thread is always idle); everything else persists.
 export const threadInfoSchema = z.object({
@@ -201,6 +219,17 @@ export const threadInfoSchema = z.object({
   // Accumulated token usage. Optional — absent until the first turn reports usage, so a
   // pre-usage thread file still reads back.
   usage: agentUsageSchema.optional(),
+  // Epoch-ms the current turn started, set when the thread flips to working (manager-owned
+  // run-state, like `status`). The viewer's "Working for Ns" reads this so opening an
+  // already-running thread counts from the real start, not from when the view mounted.
+  // Optional — a pre-existing file (or an idle thread) may have none.
+  turnStartedAt: z.number().optional(),
+  // True when the thread's last turn ended in error (onDone ok=false); cleared when the next
+  // turn starts. Drives the roster's error dot. Optional/absent = the last turn was fine.
+  lastTurnFailed: z.boolean().optional(),
+  // The one message queued behind a running turn (text + image count only; the full images
+  // stay daemon-side). Absent when nothing is queued.
+  queued: queuedMessageInfoSchema.optional(),
   createdAt: z.number(),
   updatedAt: z.number(),
 })

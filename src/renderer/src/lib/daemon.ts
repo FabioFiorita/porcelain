@@ -539,20 +539,33 @@ export function isAgentAttached(threadId: string): boolean {
 }
 
 /**
- * Start a turn on a thread (rejected daemon-side as an error item if it's already working).
- * Queued through the outbox so a send during a reconnect gap flushes on open instead of
- * being silently dropped (the composer clears its draft immediately — see `sendOrQueue`).
+ * Send a message to a thread — starts a turn if idle, or queues it (one slot, last wins)
+ * behind a running turn daemon-side. Queued through the outbox so a send during a reconnect
+ * gap flushes on open instead of being silently dropped (the composer clears its draft
+ * immediately — see `sendOrQueue`). `thumbnails` are the downscaled previews the timeline
+ * persists; `images` are the full payloads the CLI receives.
  */
 export function sendAgentMessage(
   threadId: string,
-  message: { text: string; images?: AgentImage[] },
+  message: { text: string; images?: AgentImage[]; thumbnails?: AgentImage[] },
 ): void {
-  sendOrQueue({ t: 'agent:send', threadId, text: message.text, images: message.images })
+  sendOrQueue({
+    t: 'agent:send',
+    threadId,
+    text: message.text,
+    images: message.images,
+    thumbnails: message.thumbnails,
+  })
 }
 
 /** Interrupt the thread's active turn; queued to flush on reconnect (see `sendOrQueue`). */
 export function abortAgentTurn(threadId: string): void {
   sendOrQueue({ t: 'agent:abort', threadId })
+}
+
+/** Cancel the thread's queued message; queued to flush on reconnect (see `sendOrQueue`). */
+export function cancelQueuedAgentMessage(threadId: string): void {
+  sendOrQueue({ t: 'agent:cancel-queued', threadId })
 }
 
 /** Answer a pending approval request on a thread; queued to flush on reconnect (see `sendOrQueue`). */

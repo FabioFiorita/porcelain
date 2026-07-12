@@ -110,9 +110,11 @@ export const clientMessageSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('agent:attach'), threadId: z.string(), reqId: z.string() }),
   // Stop streaming a thread's events to this client (the thread lives on).
   z.object({ t: z.literal('agent:detach'), threadId: z.string() }),
-  // Start a turn. Rejected (an error item, not a throw) if the thread is already
-  // working. The caps bound an external input: text length, image count, and each
-  // image's base64 size (~10MB) so a hostile socket can't exhaust daemon memory.
+  // Start a turn — or, if the thread is already working, QUEUE this message (one slot,
+  // last-write-wins) to auto-run when the turn ends. The caps bound an external input: text
+  // length, image count, and each image's base64 size (~10MB) so a hostile socket can't
+  // exhaust daemon memory. `thumbnails` are the renderer-downscaled previews persisted in the
+  // timeline (small: ~256px JPEG); the full `images` go to the CLI live and are never stored.
   z.object({
     t: z.literal('agent:send'),
     threadId: z.string(),
@@ -121,8 +123,14 @@ export const clientMessageSchema = z.discriminatedUnion('t', [
       .array(z.object({ mediaType: z.string(), base64: z.string().max(10 * 1024 * 1024) }))
       .max(8)
       .optional(),
+    thumbnails: z
+      .array(z.object({ mediaType: z.string(), base64: z.string().max(512 * 1024) }))
+      .max(8)
+      .optional(),
   }),
   z.object({ t: z.literal('agent:abort'), threadId: z.string() }),
+  // Drop the thread's queued message (the composer's "Queued" chip × ). No-op if empty.
+  z.object({ t: z.literal('agent:cancel-queued'), threadId: z.string() }),
   z.object({
     t: z.literal('agent:approve'),
     threadId: z.string(),

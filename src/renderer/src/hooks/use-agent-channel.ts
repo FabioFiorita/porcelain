@@ -1,6 +1,7 @@
 import {
   abortAgentTurn,
   attachAgent,
+  cancelQueuedAgentMessage,
   detachAgent,
   onAgentEvent,
   onAgentSnapshot,
@@ -49,8 +50,12 @@ const viewCounts = new Map<string, number>()
 export function useAgentActions(): {
   openThread: (threadId: string) => void
   closeThreadView: (threadId: string) => void
-  send: (threadId: string, message: { text: string; images?: AgentImage[] }) => void
+  send: (
+    threadId: string,
+    message: { text: string; images?: AgentImage[]; thumbnails?: AgentImage[] },
+  ) => void
   abort: (threadId: string) => void
+  cancelQueued: (threadId: string) => void
   approve: (threadId: string, requestId: string, decision: ApprovalDecision) => void
 } {
   const markDetached = useAgentThreadsStore((s) => s.markDetached)
@@ -76,6 +81,7 @@ export function useAgentActions(): {
       },
       send: (threadId, message) => sendAgentMessage(threadId, message),
       abort: (threadId) => abortAgentTurn(threadId),
+      cancelQueued: (threadId) => cancelQueuedAgentMessage(threadId),
       approve: (threadId, requestId, decision) =>
         respondAgentApproval(threadId, requestId, decision),
     }),

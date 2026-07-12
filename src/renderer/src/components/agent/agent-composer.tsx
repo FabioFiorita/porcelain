@@ -17,12 +17,14 @@ import { Textarea } from '@renderer/components/ui/textarea'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useAgentActions } from '@renderer/hooks/use-agent-channel'
 import { useAgentProviders, useUpdateAgentThread } from '@renderer/hooks/use-agents'
+import { makeThumbnail } from '@renderer/lib/image-thumbnail'
 import { cn } from '@renderer/lib/utils'
 import type {
   AgentImage,
   AgentInteraction,
   AgentMode,
   AgentProvider,
+  QueuedMessageInfo,
   ThreadOptions,
 } from '@shared/agent-protocol'
 import type { LucideIcon } from 'lucide-react'
@@ -77,6 +79,9 @@ interface Attachment {
   mediaType: string
   base64: string
   dataUrl: string
+  // The downscaled preview persisted in the timeline (see makeThumbnail); absent if the image
+  // couldn't be re-encoded — the send still carries the full image, just no stored thumbnail.
+  thumbnail: AgentImage | null
 }
 
 /** Read a File into an in-memory image attachment (base64 for the wire, data URL for the chip). */
@@ -87,10 +92,19 @@ function readImage(file: File): Promise<Attachment | null> {
       return
     }
     const reader = new FileReader()
-    reader.onload = () => {
+    reader.onload = async () => {
       const dataUrl = typeof reader.result === 'string' ? reader.result : ''
       const base64 = dataUrl.split(',')[1] ?? ''
-      resolve({ id: `${Date.now()}-${Math.random()}`, mediaType: file.type, base64, dataUrl })
+      // Downscale up front (at attach time) so submit stays synchronous and the thumbnail is
+      // ready to persist alongside the message.
+      const thumbnail = dataUrl === '' ? null : await makeThumbnail(dataUrl)
+      resolve({
+        id: `${Date.now()}-${Math.random()}`,
+        mediaType: file.type,
+        base64,
+        dataUrl,
+        thumbnail,
+      })
     }
     reader.onerror = () => resolve(null)
     reader.readAsDataURL(file)
@@ -112,6 +126,7 @@ export function AgentComposer({
   interaction,
   options,
   working,
+  queued,
 }: {
   threadId: string
   provider: AgentProvider
@@ -120,8 +135,10 @@ export function AgentComposer({
   interaction: AgentInteraction
   options: ThreadOptions | undefined
   working: boolean
+  // The message queued behind the running turn (roster-fed), or undefined when none.
+  queued: QueuedMessageInfo | undefined
 }): React.JSX.Element {
-  const { send, abort } = useAgentActions()
+  const { send, abort, cancelQueued } = useAgentActions()
   const { update } = useUpdateAgentThread()
   const providers = useAgentProviders()
   const [text, setText] = useState('')
@@ -157,9 +174,15 @@ export function AgentComposer({
 
   const submit = (): void => {
     if (!canSend) return
-    const payload: { text: string; images?: AgentImage[] } = { text: text.trim() }
+    const payload: { text: string; images?: AgentImage[]; thumbnails?: AgentImage[] } = {
+      text: text.trim(),
+    }
     if (images.length > 0) {
       payload.images = images.map((image) => ({ mediaType: image.mediaType, base64: image.base64 }))
+      const thumbnails = images
+        .map((image) => image.thumbnail)
+        .filter((thumb): thumb is AgentImage => thumb !== null)
+      if (thumbnails.length > 0) payload.thumbnails = thumbnails
     }
     send(threadId, payload)
     setText('')
@@ -185,6 +208,27 @@ export function AgentComposer({
           if (e.dataTransfer.files.length > 0) await addFiles(e.dataTransfer.files)
         }}
       >
+        {queued && (
+          <div className="flex items-center gap-2 rounded-lg bg-muted/40 px-2.5 py-1.5 text-2xs text-muted-foreground">
+            <span className="shrink-0 font-medium text-foreground/80">Queued</span>
+            <span className="min-w-0 flex-1 truncate">{queued.text}</span>
+            {queued.imageCount !== undefined && queued.imageCount > 0 && (
+              <span className="flex shrink-0 items-center gap-1">
+                <ImagePlus className="size-3" />
+                {queued.imageCount}
+              </span>
+            )}
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              aria-label="Cancel queued message"
+              className="size-4 shrink-0"
+              onClick={() => cancelQueued(threadId)}
+            >
+              <X />
+            </Button>
+          </div>
+        )}
         {images.length > 0 && (
           <div className="flex flex-wrap gap-2 px-1 pt-1">
             {images.map((image) => (

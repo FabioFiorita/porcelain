@@ -7,6 +7,7 @@ import {
   type AgentSender,
   abortTurn,
   attachThread,
+  cancelQueued,
   createThread,
   deleteThread,
   detachThread,
@@ -135,7 +136,7 @@ describe('agent-manager', () => {
     const { id } = await newThread()
     await sendMessage(id, { text: 'Fix the retry loop\nand add a test' })
     expect((await listThreads('/repo'))[0]?.title).toBe('Fix the retry loop')
-    // A second send (rejected because still working) must not retitle.
+    // A second send (queued behind the running turn) must not retitle.
     await sendMessage(id, { text: 'another' })
     expect((await listThreads('/repo'))[0]?.title).toBe('Fix the retry loop')
   })
@@ -150,15 +151,17 @@ describe('agent-manager', () => {
     expect(stored?.items[0]).toMatchObject({ kind: 'user', imageCount: 1 })
   })
 
-  it('rejects a second send while working with an error item, no second turn', async () => {
+  it('queues a second send while working instead of starting a second turn', async () => {
     const { id } = await newThread()
     await sendMessage(id, { text: 'first' })
     const firstTurnOpts = mock.last
     await sendMessage(id, { text: 'second' })
     expect(mock.last).toBe(firstTurnOpts) // startTurn not called again
-    await flushThread(id) // the rejection's error item persists on the debounce
+    // No error item — the second message is queued (text + count on the roster).
     const stored = await readThread(id)
-    expect(stored?.items.map((i) => i.kind)).toEqual(['user', 'error'])
+    expect(stored?.items.map((i) => i.kind)).toEqual(['user'])
+    expect(stored?.queued).toEqual({ text: 'second' })
+    expect((await listThreads('/repo'))[0]?.queued).toEqual({ text: 'second' })
   })
 
   it('reduces driver events into the timeline and returns to idle onDone', async () => {
@@ -224,16 +227,18 @@ describe('agent-manager', () => {
     expect(allStatuses).toEqual(['working', 'idle'])
   })
 
-  it('claims the turn synchronously so a racing second send is rejected', async () => {
+  it('claims the turn synchronously so a racing second send is queued, not started', async () => {
     const { id } = await newThread()
-    // Two sends without awaiting the first — the second must hit the already-working guard.
+    // Two sends without awaiting the first — the second must hit the already-working guard
+    // (the turn is claimed synchronously) and be queued rather than start a second turn.
     const first = sendMessage(id, { text: 'first' })
     const second = sendMessage(id, { text: 'second' })
     await Promise.all([first, second])
     expect(mock.starts).toBe(1) // exactly one driver turn started
     await flushThread(id)
     const stored = await readThread(id)
-    expect(stored?.items.map((i) => i.kind)).toEqual(['user', 'error'])
+    expect(stored?.items.map((i) => i.kind)).toEqual(['user'])
+    expect(stored?.queued).toEqual({ text: 'second' })
   })
 
   it('does not resurrect the thread file when a debounced persist was pending', async () => {
@@ -488,6 +493,132 @@ describe('agent-manager', () => {
     mock.last?.onDone({ ok: false })
     await new Promise((resolve) => setTimeout(resolve, 20))
     expect(calls).toBe(0)
+  })
+
+  it('stamps turnStartedAt when a turn starts and persists it', async () => {
+    const before = Date.now()
+    const { id } = await newThread()
+    expect((await listThreads('/repo'))[0]?.turnStartedAt).toBeUndefined()
+    await sendMessage(id, { text: 'go' })
+    const startedAt = (await listThreads('/repo'))[0]?.turnStartedAt
+    expect(startedAt).toBeGreaterThanOrEqual(before)
+    expect((await readThread(id))?.meta.turnStartedAt).toBe(startedAt)
+  })
+
+  it('persists downscaled thumbnails on the user item (full images never persisted)', async () => {
+    const { id } = await newThread()
+    await sendMessage(id, {
+      text: 'look',
+      images: [{ mediaType: 'image/png', base64: 'FULLDATA' }],
+      thumbnails: [{ mediaType: 'image/jpeg', base64: 'THUMB' }],
+    })
+    const stored = await readThread(id)
+    expect(stored?.items[0]).toMatchObject({
+      kind: 'user',
+      imageCount: 1,
+      thumbnails: [{ mediaType: 'image/jpeg', base64: 'THUMB' }],
+    })
+    // The full-size image is streamed to the CLI live, never written to disk.
+    expect(JSON.stringify(stored)).not.toContain('FULLDATA')
+  })
+
+  it('flags lastTurnFailed on a failed turn and clears it when the next turn starts', async () => {
+    const { id } = await newThread()
+    await sendMessage(id, { text: 'go' })
+    mock.last?.onDone({ ok: false })
+    await flushThread(id)
+    expect((await listThreads('/repo'))[0]?.lastTurnFailed).toBe(true)
+    expect((await readThread(id))?.meta.lastTurnFailed).toBe(true)
+    // A new turn clears the flag.
+    await sendMessage(id, { text: 'again' })
+    expect((await listThreads('/repo'))[0]?.lastTurnFailed).toBeUndefined()
+  })
+
+  it('clears lastTurnFailed on a successful turn', async () => {
+    const { id } = await newThread()
+    await sendMessage(id, { text: 'go' })
+    mock.last?.onDone({ ok: false })
+    await sendMessage(id, { text: 'retry' })
+    mock.last?.onDone({ ok: true })
+    await flushThread(id)
+    expect((await listThreads('/repo'))[0]?.lastTurnFailed).toBeUndefined()
+  })
+
+  it('auto-runs the queued message when the turn ends OK', async () => {
+    const { id } = await newThread()
+    await sendMessage(id, { text: 'first' })
+    await sendMessage(id, { text: 'queued' }) // queued behind the running turn
+    expect(mock.starts).toBe(1)
+    mock.last?.onDone({ ok: true })
+    await flushThread(id)
+    expect(mock.starts).toBe(2) // the queued message started its own turn
+    expect(mock.last?.text).toBe('queued')
+    const stored = await readThread(id)
+    expect(stored?.items.map((i) => i.kind)).toEqual(['user', 'user'])
+    expect(stored?.queued).toBeUndefined() // drained
+    expect((await listThreads('/repo'))[0]?.status).toBe('working')
+  })
+
+  it('auto-runs the queued message even after a failed turn', async () => {
+    const { id } = await newThread()
+    await sendMessage(id, { text: 'first' })
+    await sendMessage(id, { text: 'queued' })
+    mock.last?.onDone({ ok: false })
+    await flushThread(id)
+    expect(mock.starts).toBe(2)
+    expect(mock.last?.text).toBe('queued')
+    // The new turn cleared the failed flag as it started.
+    expect((await listThreads('/repo'))[0]?.lastTurnFailed).toBeUndefined()
+  })
+
+  it('last write wins — a second mid-turn send replaces the queued message', async () => {
+    const { id } = await newThread()
+    await sendMessage(id, { text: 'first' })
+    await sendMessage(id, { text: 'queued A' })
+    await sendMessage(id, { text: 'queued B' })
+    expect((await listThreads('/repo'))[0]?.queued).toEqual({ text: 'queued B' })
+    mock.last?.onDone({ ok: true })
+    await flushThread(id)
+    expect(mock.last?.text).toBe('queued B')
+  })
+
+  it('cancelQueued drops the queued message so it does not auto-run', async () => {
+    const { id } = await newThread()
+    await sendMessage(id, { text: 'first' })
+    await sendMessage(id, { text: 'queued' })
+    await cancelQueued(id)
+    expect((await listThreads('/repo'))[0]?.queued).toBeUndefined()
+    expect((await readThread(id))?.queued).toBeUndefined()
+    mock.last?.onDone({ ok: true })
+    await flushThread(id)
+    expect(mock.starts).toBe(1) // nothing drained
+  })
+
+  it('runs the queued message on abort ("stop this, do the next thing")', async () => {
+    const { id } = await newThread()
+    await sendMessage(id, { text: 'first' })
+    await sendMessage(id, { text: 'queued' })
+    await abortTurn(id)
+    expect(mock.aborts).toBe(1)
+    expect(mock.starts).toBe(2) // the queued message ran after the abort
+    expect(mock.last?.text).toBe('queued')
+    expect((await listThreads('/repo'))[0]?.status).toBe('working')
+  })
+
+  it('restores a queued message across a daemon restart (chip survives)', async () => {
+    const { id } = await newThread()
+    await sendMessage(id, { text: 'first' })
+    await sendMessage(id, {
+      text: 'queued',
+      images: [{ mediaType: 'image/png', base64: 'BIG' }],
+    })
+    resetForTests() // simulate a daemon restart: reload from disk
+    setDrivers(registry(mock))
+    const restored = (await listThreads('/repo'))[0]
+    expect(restored?.status).toBe('idle') // hydrated threads are idle
+    expect(restored?.queued).toEqual({ text: 'queued', imageCount: 1 })
+    // The full image payload is not on disk (never persisted).
+    expect(JSON.stringify(await readThread(id))).not.toContain('BIG')
   })
 
   it('probes provider statuses, tolerating a throwing driver', async () => {

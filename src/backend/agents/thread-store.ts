@@ -7,6 +7,7 @@ import {
   agentModeSchema,
   agentProviderSchema,
   agentUsageSchema,
+  queuedMessageInfoSchema,
   threadOptionsSchema,
   timelineItemSchema,
 } from '../../shared/agent-protocol'
@@ -42,6 +43,11 @@ export const storedThreadMetaSchema = z.object({
   // Accumulated token usage. Optional so a thread file written before usage tracking (or
   // one whose driver never reported tokens) still reads back.
   usage: agentUsageSchema.optional(),
+  // The current turn's start time. Optional/back-compat; only meaningful while working, and a
+  // hydrated thread is forced idle, so a persisted value is just a harmless last-turn stamp.
+  turnStartedAt: z.number().optional(),
+  // Whether the last turn ended in error. Optional/back-compat (absent = last turn was fine).
+  lastTurnFailed: z.boolean().optional(),
   createdAt: z.number(),
   updatedAt: z.number(),
 })
@@ -54,6 +60,11 @@ export const storedThreadSchema = z.object({
   // turn has none), and zod's `z.unknown()` alone would reject the missing key.
   sessionState: z.unknown().optional(),
   items: z.array(timelineItemSchema),
+  // The queued message (text + image count only — the full image payloads are deliberately
+  // NOT persisted, matching the timeline, so one queued message can't blow the 16MB file cap;
+  // the daemon holds the full images in memory). Survives a daemon restart so the composer's
+  // chip reappears, though a hard restart loses the full images (documented in agent-manager).
+  queued: queuedMessageInfoSchema.optional(),
 })
 export type StoredThread = z.infer<typeof storedThreadSchema>
 

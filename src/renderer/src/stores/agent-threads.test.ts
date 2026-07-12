@@ -26,6 +26,19 @@ describe('useAgentThreadsStore', () => {
     expect(useAgentThreadsStore.getState().threads.t1.items).toEqual([assistantItem])
   })
 
+  it('applyEvent keeps a user item’s image thumbnails intact', () => {
+    useAgentThreadsStore.getState().applySnapshot('t1', [], 'working')
+    const withThumbs: TimelineItem = {
+      kind: 'user',
+      id: 'u2',
+      text: 'look',
+      imageCount: 1,
+      thumbnails: [{ mediaType: 'image/jpeg', base64: 'THUMB' }],
+    }
+    useAgentThreadsStore.getState().applyEvent('t1', { t: 'item', item: withThumbs })
+    expect(useAgentThreadsStore.getState().threads.t1.items).toEqual([withThumbs])
+  })
+
   it('applyEvent appends a delta to an open assistant item', () => {
     useAgentThreadsStore.getState().applySnapshot('t1', [assistantItem], 'working')
     useAgentThreadsStore.getState().applyEvent('t1', { t: 'item-delta', id: 'a1', delta: ' there' })

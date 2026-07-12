@@ -10,6 +10,7 @@ import {
 import {
   abortTurn,
   attachThread,
+  cancelQueued,
   detachAgentSender,
   detachThread,
   respondApproval,
@@ -176,10 +177,17 @@ class Session {
         detachThread(message.threadId, this)
         break
       case 'agent:send':
-        await sendMessage(message.threadId, { text: message.text, images: message.images })
+        await sendMessage(message.threadId, {
+          text: message.text,
+          images: message.images,
+          thumbnails: message.thumbnails,
+        })
         break
       case 'agent:abort':
         await abortTurn(message.threadId)
+        break
+      case 'agent:cancel-queued':
+        await cancelQueued(message.threadId)
         break
       case 'agent:approve':
         await respondApproval(message.threadId, message.requestId, message.decision)

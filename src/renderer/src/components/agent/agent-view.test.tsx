@@ -74,6 +74,7 @@ const openThread = vi.fn()
 const closeThreadView = vi.fn()
 const send = vi.fn()
 const abort = vi.fn()
+const cancelQueued = vi.fn()
 const approve = vi.fn()
 const update = vi.fn()
 
@@ -90,6 +91,7 @@ describe('AgentView', () => {
       closeThreadView,
       send,
       abort,
+      cancelQueued,
       approve,
     })
     vi.mocked(useAgentThreads).mockReturnValue([thread])
