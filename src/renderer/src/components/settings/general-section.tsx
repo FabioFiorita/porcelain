@@ -2,12 +2,15 @@ import { Button } from '@renderer/components/ui/button'
 import { Input } from '@renderer/components/ui/input'
 import { Switch } from '@renderer/components/ui/switch'
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useDaemonToken } from '@renderer/hooks/use-daemon-token'
 import { useLanStatus, useSetLanBind } from '@renderer/hooks/use-lan'
 import {
-  useClearRemoteDaemon,
-  useRemoteDaemon,
-  useSetRemoteDaemon,
+  useAddRemoteEnvironment,
+  useConnectRemoteEnvironment,
+  useDisconnectRemoteEnvironment,
+  useRemoteEnvironments,
+  useRemoveRemoteEnvironment,
 } from '@renderer/hooks/use-remote-daemon'
 import { useSetTailnetBind, useTailnetStatus } from '@renderer/hooks/use-tailnet'
 import { isBrowser } from '@renderer/lib/platform'
@@ -18,6 +21,7 @@ import {
   type PullMode,
   usePreferencesStore,
 } from '@renderer/stores/preferences'
+import { X } from 'lucide-react'
 import { useState } from 'react'
 
 function PreferenceRow({
@@ -92,71 +96,125 @@ function ShareReveal({
 }
 
 /**
- * Point this Mac app at a REMOTE daemon over the tailnet (remote-envs Phase 4),
- * or clear back to the local one. Electron-only — the whole block is hidden in
- * the browser client (which already IS served by its daemon). On connect the
- * shell probes the url+token; a failure surfaces inline. Both connect and
- * disconnect reload the window (see use-remote-daemon).
+ * Save other machines' Porcelain daemons and switch this Mac app between them
+ * (remote-envs Phase 4), or clear back to the local one. Electron-only — the whole
+ * block is hidden in the browser client (which already IS served by its daemon).
+ * Adding probes the url+token and surfaces a failure inline. Connecting to
+ * another environment, disconnecting, and removing the ACTIVE one all re-point the
+ * window and reload it; removing a non-active row just drops it (see
+ * use-remote-daemon for the reload semantics).
  */
-function RemoteDaemonBlock(): React.JSX.Element {
-  const remote = useRemoteDaemon()
-  const { connect, isPending: isConnecting, error } = useSetRemoteDaemon()
-  const { disconnect, isPending: isDisconnecting } = useClearRemoteDaemon()
+function RemoteEnvironmentsBlock(): React.JSX.Element {
+  const data = useRemoteEnvironments()
+  const { add, isPending: isAdding, error } = useAddRemoteEnvironment()
+  const { connect, pendingId: connectingId } = useConnectRemoteEnvironment()
+  const { disconnect, isPending: isDisconnecting } = useDisconnectRemoteEnvironment()
+  const { remove, pendingId: removingId } = useRemoveRemoteEnvironment()
+  const [name, setName] = useState('')
   const [url, setUrl] = useState('')
   const [token, setToken] = useState('')
 
+  const environments = data?.environments ?? []
+  const activeId = data?.activeId ?? null
+
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-3">
       <div>
-        <p className="text-sm-minus font-semibold">Remote daemon</p>
+        <p className="text-sm-minus font-semibold">Remote daemons</p>
         <p className="text-xs text-muted-foreground">
-          Point this app at another machine's Porcelain daemon on your tailnet.
+          Save other machines' Porcelain daemons and switch this app between them.
         </p>
       </div>
-      {remote == null ? (
+      {environments.length > 0 && (
         <div className="flex flex-col gap-2">
-          <Input
-            placeholder="http://my-mac.tailnet.ts.net:43117"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            disabled={isConnecting}
-          />
-          <Input
-            type="password"
-            placeholder="Daemon token"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            disabled={isConnecting}
-          />
-          <p className="text-xs text-muted-foreground">
-            On the other machine, copy it from Settings → Share over Tailscale, or run{' '}
-            <span className="font-mono">cat ~/.porcelain/daemon-token</span>.
-          </p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="self-start"
-            disabled={isConnecting || url.trim() === '' || token.trim() === ''}
-            onClick={() => connect({ url, token })}
-          >
-            {isConnecting ? 'Connecting…' : 'Connect'}
-          </Button>
-          {error != null && <p className="text-xs text-destructive">{error}</p>}
-        </div>
-      ) : (
-        <div className="flex flex-col gap-2">
-          <p className="font-mono text-xs text-muted-foreground">{remote.url}</p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="self-start"
-            disabled={isDisconnecting}
-            onClick={() => disconnect()}
-          >
-            {isDisconnecting ? 'Disconnecting…' : 'Disconnect'}
-          </Button>
+          {environments.map((env) => {
+            const isActive = env.id === activeId
+            return (
+              <div key={env.id} className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm-minus font-semibold">{env.name}</p>
+                  <p className="truncate font-mono text-xs text-muted-foreground">{env.url}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {isActive ? (
+                    <>
+                      <span className="text-xs text-muted-foreground">Connected</span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={isDisconnecting}
+                        onClick={() => disconnect()}
+                      >
+                        {isDisconnecting ? 'Disconnecting…' : 'Disconnect'}
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={connectingId === env.id}
+                      onClick={() => connect(env.id)}
+                    >
+                      {connectingId === env.id ? 'Connecting…' : 'Connect'}
+                    </Button>
+                  )}
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          disabled={removingId === env.id}
+                          onClick={() => remove(env.id)}
+                          aria-label="Remove"
+                        >
+                          <X />
+                        </Button>
+                      }
+                    />
+                    <TooltipContent>Remove</TooltipContent>
+                  </Tooltip>
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
+      <div className="flex flex-col gap-2">
+        <Input
+          placeholder="Beelink"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          disabled={isAdding}
+        />
+        <Input
+          placeholder="http://beelink.tailnet.ts.net:43117"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          disabled={isAdding}
+        />
+        <Input
+          type="password"
+          placeholder="Daemon token"
+          value={token}
+          onChange={(e) => setToken(e.target.value)}
+          disabled={isAdding}
+        />
+        <p className="text-xs text-muted-foreground">
+          On the other machine, copy it from Settings → Share over Tailscale, or run{' '}
+          <span className="font-mono">cat ~/.porcelain/daemon-token</span>.
+        </p>
+        <Button
+          variant="outline"
+          size="sm"
+          className="self-start"
+          disabled={isAdding || url.trim() === '' || token.trim() === ''}
+          onClick={() => add({ name, url, token })}
+        >
+          {isAdding ? 'Connecting…' : 'Add & connect'}
+        </Button>
+        {error != null && <p className="text-xs text-destructive">{error}</p>}
+      </div>
     </div>
   )
 }
@@ -273,7 +331,7 @@ export function GeneralSection(): React.JSX.Element {
           </p>
         )}
       </div>
-      {!isBrowser && <RemoteDaemonBlock />}
+      {!isBrowser && <RemoteEnvironmentsBlock />}
     </div>
   )
 }

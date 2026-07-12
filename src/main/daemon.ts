@@ -3,7 +3,7 @@ import { is } from '@electron-toolkit/utils'
 import { app, BrowserWindow, ipcMain, type UtilityProcess, utilityProcess } from 'electron'
 import { z } from 'zod'
 import { ensureDaemonToken } from '../backend/token-file'
-import { loadRemoteDaemon, type RemoteDaemon } from './remote-daemon'
+import { activeRemoteDaemon, loadRemoteEnvironmentState, type RemoteDaemon } from './remote-daemon'
 
 /**
  * Fork and babysit the daemon child (`out/main/daemon/server.js`) — the
@@ -195,10 +195,10 @@ export async function startDaemon(): Promise<void> {
   // agree on the same secret. Runs once, before the first window exists.
   token = await ensureDaemonToken()
 
-  // Adopt a persisted remote override before the first window boots, so a new
+  // Adopt the active saved environment before the first window boots, so a new
   // window's preload getter returns the remote pair straight away (and boot
   // restores the remote daemon's recents). The local child still launches below.
-  remoteOverride = await loadRemoteDaemon()
+  remoteOverride = activeRemoteDaemon(await loadRemoteEnvironmentState())
 
   // Sync getter the preload calls at window boot; restarts push updates over
   // `daemon-url-changed` (see above), so the value survives daemon crashes.
