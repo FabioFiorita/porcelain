@@ -46,8 +46,35 @@ afterEach(() => {
 const ta = (): HTMLTextAreaElement =>
   screen.getByLabelText('Edit /repo/a.ts') as HTMLTextAreaElement
 
+// The highlighted mirror rows (one per line), in order. `aria-hidden` uniquely tags
+// the mirror layer; its rows carry the `bg-primary/15` tint.
+const mirrorRows = (container: HTMLElement): HTMLElement[] => {
+  const mirror = container.querySelector('[aria-hidden]')?.firstElementChild
+  return Array.from(mirror?.children ?? []) as HTMLElement[]
+}
+
 // The autosave debounce (AUTOSAVE_DELAY_MS = 800) plus a margin.
 const AUTOSAVE_DELAY_MS = 800
+
+test('right-clicking a selection tints the selected lines while the menu is open', () => {
+  const { container } = render(<EditorSource path="/repo/a.ts" initialContent={'aaa\nbbb\nccc'} />)
+  ta().setSelectionRange(4, 7) // "bbb" — line 2
+  fireEvent.contextMenu(
+    container.querySelector('[data-slot="context-menu-trigger"]') as HTMLElement,
+  )
+  const rows = mirrorRows(container)
+  expect(rows[1].className).toContain('bg-primary/15') // selected line stays visible under the menu
+  expect(rows[0].className).not.toContain('bg-primary/15') // unselected line untouched
+})
+
+test('a plain right-click (collapsed cursor) tints nothing', () => {
+  const { container } = render(<EditorSource path="/repo/a.ts" initialContent={'aaa\nbbb\nccc'} />)
+  ta().setSelectionRange(5, 5) // collapsed cursor on line 2
+  fireEvent.contextMenu(
+    container.querySelector('[data-slot="context-menu-trigger"]') as HTMLElement,
+  )
+  expect(mirrorRows(container)[1].className).not.toContain('bg-primary/15')
+})
 
 test('clean adoption still works (regression guard): external rewrite on a clean buffer', () => {
   const { rerender } = render(<EditorSource path="/repo/a.ts" initialContent="V1" />)

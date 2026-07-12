@@ -60,6 +60,7 @@ export function EditorSource({
   const [content, setContent] = useState(initialContent)
   const [savedContent, setSavedContent] = useState(initialContent)
   const [selection, setSelection] = useState('')
+  const [menuOpen, setMenuOpen] = useState(false)
   const [commentAnchor, setCommentAnchor] = useState<CommentAnchor | null>(null)
   const [lineRange, setLineRange] = useState<{ startLine: number; endLine: number } | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -85,6 +86,17 @@ export function EditorSource({
     for (let line = commentAnchor.startLine; line <= end; line++) lines.add(line)
     return lines
   }, [commentAnchor])
+
+  // While the context menu is open on a selection, tint those lines too — the menu
+  // takes focus (killing the DOM selection), so this keeps what's selected visible.
+  // Gate on a non-empty selection: lineRange is also set for a collapsed cursor, and
+  // a plain right-click must not tint the cursor line.
+  const menuLines = useMemo(() => {
+    if (!menuOpen || selection === '' || !lineRange) return null
+    const lines = new Set<number>()
+    for (let line = lineRange.startLine; line <= lineRange.endLine; line++) lines.add(line)
+    return lines
+  }, [menuOpen, selection, lineRange])
 
   const saveRef = useRef<() => void>(() => {})
   saveRef.current = (): void => {
@@ -172,6 +184,7 @@ export function EditorSource({
         onOpenChange={(open) => {
           // capture on open: nothing re-renders this component when the user
           // selects text, so reading the selection at render time goes stale
+          setMenuOpen(open)
           if (open) {
             setSelection(selectedText())
             const el = textareaRef.current
@@ -199,7 +212,8 @@ export function EditorSource({
                 <div className="w-max min-w-full">
                   {content.split('\n').map((line, i) => {
                     const ln = i + 1
-                    const pending = pendingLines?.has(ln) ?? false
+                    const pending =
+                      (pendingLines?.has(ln) ?? false) || (menuLines?.has(ln) ?? false)
                     const open =
                       !pending && (commentsByLine?.get(ln)?.some((c) => !c.resolved) ?? false)
                     return (
