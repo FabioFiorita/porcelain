@@ -38,9 +38,11 @@ test('streams a turn into the timeline + Quick Access, and persists across reloa
 
   // The plan card sits in the timeline (its "N/M done" counter is unique to it — "Plan"
   // alone also labels the composer toggle + the Quick Access group), and the tool call lands.
-  // Scope the step text to the viewer: the Quick Access checklist renders "Run tests" too.
+  // The tool item is the ONE button titled "Run tests" — a bare text match is ambiguous
+  // (the plan checklist renders the same step text, and both live under role=main; the
+  // v0.21.0/0.21.1 release runs died on exactly that strict-mode violation).
   await expect(page.getByText('1/3 done')).toBeVisible()
-  await expect(timeline.getByText('Run tests')).toBeVisible()
+  await expect(timeline.getByRole('button', { name: 'Run tests' })).toBeVisible()
 
   // Quick Access mirrors the session: the plan checklist with its own progress counter…
   await expect(page.getByText('1 of 3 done')).toBeVisible()

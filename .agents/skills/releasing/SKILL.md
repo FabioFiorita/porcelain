@@ -34,7 +34,20 @@ for `electron-updater`.
    the old "assert locally, the runner isn't where we assert" caveat was disproven by
    that streak. The tradeoff we accepted: an *unintentional* visual regression now
    fails the release workflow *after* the tag is pushed, rather than locally before it.
-   Recoverable (fix the baselines, re-tag), just later in the flow.
+   Recoverable — fix and bump a NEW patch (see below), just later in the flow.
+
+   **Failed-release recovery: never rewrite pushed history — add a new patch
+   (Fabio's rule, 2026-07-12).** When a release run fails after the tag is pushed,
+   do NOT delete, move, or force-push the tag (or any pushed commit): commit the fix
+   on main, `pnpm version patch`, and release the new version. The dead tag stays on
+   origin as an honest record of the attempt (it has no release attached, so
+   electron-updater never sees it; its changelog section stays too — the fixed
+   version's section will just be short). First applied on v0.21.0/v0.21.1 (both died
+   on the same e2e strict-mode locator; v0.21.2 shipped the fix). Corollary: before
+   cutting a release after ANY UI-touching commits, run the full `pnpm
+   test:e2e:prebuilt` suite locally — an ambiguous locator is deterministic on the
+   runner even when a local race lets it pass once, and each failed attempt costs a
+   version number.
 3. **Bump and tag in one step:** `pnpm version <patch|minor|major>` — updates
    `package.json`, **prepends** the new release's section to `CHANGELOG.md` from the
    conventional commits (the `version` lifecycle hook → `pnpm changelog`, staged into
