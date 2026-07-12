@@ -55,6 +55,13 @@ for `electron-updater`.
    **must** equal `v<package.json version>`, or electron-builder publishes a
    mismatched release. (`pnpm changelog` only writes the *newest* section and leaves
    published history alone — see Changelog below for why and the hook-ordering catch.)
+   `pnpm version` uses a bare-number commit message — amend to `chore: release vX.Y.Z`
+   and re-tag BEFORE pushing (never after). **Re-tag with `git tag -fa vX.Y.Z -m
+   "vX.Y.Z" HEAD`, not plain `git tag -f`:** `pnpm version` makes an *annotated* tag,
+   a plain `-f` re-tag downgrades it to lightweight, and `--follow-tags` only pushes
+   annotated tags — the tag silently stays local and release.yml never fires (bit
+   v0.23.0; the fix is safe because the tag never reached origin — push it explicitly
+   with `git push origin vX.Y.Z` if you notice no tag ref in the push output).
 4. **`git push --follow-tags`** — pushing the `v*` tag triggers
    `.github/workflows/release.yml` (macOS runner, `macos-14`): lint → test → build →
    `test:e2e:prebuilt` → `pnpm release:prebuilt` (= `electron-builder --mac
