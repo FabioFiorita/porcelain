@@ -97,7 +97,7 @@ function codexPromptsDir(): string {
 // timeout).
 const TITLE_TIMEOUT_MS = 20_000
 const titlePrompt = (text: string): string =>
-  `Reply with ONLY a 3-8 word title for this coding request, no quotes or punctuation:\n\n${text.slice(0, 2000)}`
+  `Reply with ONLY a 2-5 word title for this coding request, no quotes or punctuation:\n\n${text.slice(0, 2000)}`
 
 /** One approval this turn is blocked on, keyed by its stringified server-request id. */
 interface PendingApproval {

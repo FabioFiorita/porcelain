@@ -4,6 +4,7 @@ import { SidebarInset, SidebarProvider, useSidebar } from '@renderer/components/
 import { Toaster } from '@renderer/components/ui/sonner'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useAgentChannel } from '@renderer/hooks/use-agent-channel'
+import { useReconcileAgentTabTitles } from '@renderer/hooks/use-agents'
 import { useAppEvents } from '@renderer/hooks/use-app-events'
 import { useWatchOpenFiles, useWatchTreeDirs } from '@renderer/hooks/use-files'
 import { useResponsiveShell } from '@renderer/hooks/use-responsive-shell'
@@ -180,6 +181,7 @@ export function AppShell(): React.JSX.Element {
   useAppEvents()
   useTerminalChannel()
   useAgentChannel()
+  useReconcileAgentTabTitles()
   useWatchOpenFiles()
   useWatchTreeDirs()
 

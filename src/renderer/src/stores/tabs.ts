@@ -66,6 +66,9 @@ interface TabsState {
   /** Retitle every open terminal tab for a session (its `path` holds the session id)
    *  across both panes — kept in sync when the session is renamed in the roster. */
   retitleTerminalTab: (sessionId: string, title: string) => void
+  /** Retitle every open agent tab for a thread (its `path` holds the thread id) across
+   *  both panes — kept in sync when the thread's auto-title lands or it's renamed. */
+  retitleAgentTab: (threadId: string, title: string) => void
   closeAllTabs: () => void
   activateTab: (paneIndex: number, id: string) => void
   setActivePane: (paneIndex: number) => void
@@ -222,6 +225,13 @@ export const useTabsStore = create<TabsState>((set) => ({
         tabs: p.tabs.map((t) =>
           t.kind === 'terminal' && t.path === sessionId ? { ...t, title } : t,
         ),
+      })),
+    })),
+  retitleAgentTab: (threadId, title) =>
+    set((state) => ({
+      panes: state.panes.map((p) => ({
+        ...p,
+        tabs: p.tabs.map((t) => (t.kind === 'agent' && t.path === threadId ? { ...t, title } : t)),
       })),
     })),
   closeAllTabs: () => set({ panes: [emptyPane()], activePaneIndex: 0 }),

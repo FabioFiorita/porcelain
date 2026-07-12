@@ -270,4 +270,36 @@ describe('useTabsStore', () => {
       expect(pane().tabs.map((t) => t.title)).toEqual(['a'])
     })
   })
+
+  // When a thread's auto-title lands, its open agent tab(s) — matched by kind 'agent' and
+  // path === thread id — retitle across both panes; other tabs untouched.
+  describe('retitleAgentTab', () => {
+    it('retitles the thread tab in every pane and leaves others untouched', () => {
+      useTabsStore.setState({
+        panes: [
+          {
+            tabs: [
+              { id: 'file:x', kind: 'file', title: 'x', path: 'tid' },
+              { id: 'agent:tid', kind: 'agent', title: 'New thread', path: 'tid' },
+            ],
+            activeTabId: 'agent:tid',
+          },
+          {
+            tabs: [{ id: 'agent:tid', kind: 'agent', title: 'New thread', path: 'tid' }],
+            activeTabId: 'agent:tid',
+          },
+        ],
+        activePaneIndex: 0,
+      })
+      useTabsStore.getState().retitleAgentTab('tid', 'Fix login bug')
+      expect(pane(0).tabs.map((t) => t.title)).toEqual(['x', 'Fix login bug'])
+      expect(pane(1).tabs.map((t) => t.title)).toEqual(['Fix login bug'])
+    })
+
+    it('is a no-op when no agent tab matches the thread', () => {
+      useTabsStore.getState().openTab(tab('a'))
+      useTabsStore.getState().retitleAgentTab('tid', 'Fix login bug')
+      expect(pane().tabs.map((t) => t.title)).toEqual(['a'])
+    })
+  })
 })

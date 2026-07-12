@@ -82,7 +82,7 @@ function binLookup() {
 // title text itself — `--output-format text` gives us just that, no JSON to parse.
 const TITLE_TIMEOUT_MS = 20_000
 const titlePrompt = (text: string): string =>
-  `Reply with ONLY a 3-8 word title for this coding request, no quotes or punctuation:\n\n${text.slice(0, 2000)}`
+  `Reply with ONLY a 2-5 word title for this coding request, no quotes or punctuation:\n\n${text.slice(0, 2000)}`
 
 // The pending state for one in-flight approval, kept so `respondApproval` can build the
 // right allow/deny control_response and re-emit the resolved approval item.

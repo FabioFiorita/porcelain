@@ -15,7 +15,7 @@ import type {
   ThreadInfo,
   ThreadOptions,
 } from '@shared/agent-protocol'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 /**
  * The Agent tab's domain hooks: the daemon-owned roster + provider status as TanStack
@@ -32,6 +32,27 @@ export function useAgentThreads(): ThreadInfo[] {
     { enabled: repo !== null },
   )
   return data ?? []
+}
+
+/**
+ * Keep open agent tabs' titles in sync with the roster — mounted once in AppShell so
+ * BACKGROUND tabs update too (an AgentView-local effect would only fix the active one).
+ * A thread's auto-title lands on the daemon after the tab was opened as "New thread"; the
+ * roster refetches on the `agent-threads` app event, and this walks every open agent tab
+ * and retitles any whose title diverges from its thread's. A tab whose thread has vanished
+ * is left alone (deletion already closes it via `closeTabEverywhere`).
+ */
+export function useReconcileAgentTabTitles(): void {
+  const threads = useAgentThreads()
+  useEffect(() => {
+    const { panes, retitleAgentTab } = useTabsStore.getState()
+    for (const thread of threads) {
+      const open = panes.some((p) =>
+        p.tabs.some((t) => t.kind === 'agent' && t.path === thread.id && t.title !== thread.title),
+      )
+      if (open) retitleAgentTab(thread.id, thread.title)
+    }
+  }, [threads])
 }
 
 /**
