@@ -63,7 +63,7 @@ export function OptionsChip({
     update(threadId, { options: { ...options, ...patch } })
   }
 
-  const label = parts.join(' · ')
+  const label = parts.join(' · ') || 'Model options'
 
   return (
     <DropdownMenu>

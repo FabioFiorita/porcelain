@@ -85,7 +85,7 @@ export function ModelPicker({
     )
   }
 
-  const label = current?.label ?? model ?? 'Default model'
+  const label = current?.label ?? (model || 'Default model')
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
