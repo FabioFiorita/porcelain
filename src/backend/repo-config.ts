@@ -83,6 +83,10 @@ export function withRecentRepo(config: AppConfig, repoPath: string): AppConfig {
   }
 }
 
+export function withoutRecentRepo(config: AppConfig, repoPath: string): AppConfig {
+  return { ...config, recentRepos: config.recentRepos.filter((p) => p !== repoPath) }
+}
+
 export function withHiddenPath(config: AppConfig, repoPath: string, path: string): AppConfig {
   const repo = config.repos[repoPath] ?? emptyRepo()
   if (repo.hiddenPaths.includes(path)) return config

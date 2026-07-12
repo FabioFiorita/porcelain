@@ -1,12 +1,14 @@
 import logo from '@renderer/assets/logo.png'
 import { Button } from '@renderer/components/ui/button'
-import { useRecentRepos } from '@renderer/hooks/use-repo'
+import { useRecentRepos, useRemoveRecentRepo } from '@renderer/hooks/use-repo'
+import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
-import { Folder, FolderOpen } from 'lucide-react'
+import { Folder, FolderOpen, X } from 'lucide-react'
 
 export function Welcome(): React.JSX.Element {
   const openRepo = useRepoStore((s) => s.openRepo)
   const openRepoPath = useRepoStore((s) => s.openRepoPath)
+  const removeRecent = useRemoveRecentRepo()
   const recents = useRecentRepos()
 
   return (
@@ -33,20 +35,36 @@ export function Welcome(): React.JSX.Element {
             Recent
           </p>
           {recents.map((repo) => (
-            <Button
-              key={repo.path}
-              variant="ghost"
-              className="h-auto justify-start gap-2.5 py-1.5"
-              onClick={() => openRepoPath(repo.path)}
-            >
-              <Folder className="size-4 shrink-0 text-muted-foreground" />
-              <span className="flex min-w-0 flex-col items-start">
-                <span className="truncate text-sm">{repo.name}</span>
-                <span className="max-w-full truncate text-xs text-muted-foreground" dir="rtl">
-                  {repo.path}
+            // A button can't nest a button, so the remove affordance is an overlaid
+            // sibling revealed on hover (or keyboard focus) rather than a child.
+            <div key={repo.path} className="group relative">
+              <Button
+                variant="ghost"
+                className="h-auto w-full justify-start gap-2.5 py-1.5 pr-9"
+                onClick={() => openRepoPath(repo.path)}
+              >
+                <Folder className="size-4 shrink-0 text-muted-foreground" />
+                <span className="flex min-w-0 flex-col items-start">
+                  <span className="truncate text-sm">{repo.name}</span>
+                  <span className="max-w-full truncate text-xs text-muted-foreground" dir="rtl">
+                    {repo.path}
+                  </span>
                 </span>
-              </span>
-            </Button>
+              </Button>
+              <button
+                type="button"
+                aria-label="Remove from projects"
+                className={cn(
+                  'absolute right-1.5 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground',
+                  'opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100',
+                  'hover:bg-accent/50 hover:text-foreground',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+                )}
+                onClick={() => removeRecent.remove(repo.path)}
+              >
+                <X className="size-3.5" />
+              </button>
+            </div>
           ))}
         </div>
       )}

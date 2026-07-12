@@ -11,6 +11,7 @@ import {
   withLastAgentSelection,
   withoutHiddenPath,
   withoutPinnedPath,
+  withoutRecentRepo,
   withPinnedPath,
   withRecentRepo,
 } from './repo-config'
@@ -31,6 +32,26 @@ describe('withRecentRepo', () => {
     for (let i = 0; i < 12; i++) config = withRecentRepo(config, `/repo-${i}`)
     expect(config.recentRepos).toHaveLength(10)
     expect(config.recentRepos[0]).toBe('/repo-11')
+  })
+})
+
+describe('withoutRecentRepo', () => {
+  it('removes the given repo from the recents', () => {
+    const config = withoutRecentRepo(withRecentRepo(withRecentRepo(emptyConfig, '/a'), '/b'), '/a')
+    expect(config.recentRepos).toEqual(['/b'])
+  })
+
+  it('is a no-op when the repo is not in the recents', () => {
+    const config = withRecentRepo(emptyConfig, '/a')
+    expect(withoutRecentRepo(config, '/missing').recentRepos).toEqual(['/a'])
+  })
+
+  it('keeps the per-repo config so hidden/pinned paths survive a re-open', () => {
+    let config = withRecentRepo(emptyConfig, '/repo')
+    config = withHiddenPath(config, '/repo', '/repo/x')
+    config = withoutRecentRepo(config, '/repo')
+    expect(config.recentRepos).toEqual([])
+    expect(hiddenPathsFor(config, '/repo')).toEqual(new Set(['/repo/x']))
   })
 })
 

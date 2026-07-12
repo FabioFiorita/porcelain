@@ -8,6 +8,21 @@ export function useRecentRepos(enabled = true): RepoInfo[] {
 }
 
 /**
+ * Removes a repo from the recents list (the project switcher's "Projects"). The list is
+ * small and the write instant, so `onSuccess` just invalidates `recentRepos` — no optimistic
+ * update. The repo's per-repo config (hidden/pinned paths) survives a later re-open.
+ */
+export function useRemoveRecentRepo(): { remove: (repoPath: string) => void } {
+  const utils = trpc.useUtils()
+  const mutation = trpc.removeRecentRepo.useMutation({
+    onSuccess: async () => {
+      await utils.recentRepos.invalidate()
+    },
+  })
+  return { remove: (repoPath) => mutation.mutate(repoPath) }
+}
+
+/**
  * Opens another window — `openWindow()` raises a welcome window, `openWindow(repoPath)`
  * opens that repo in a fresh window; the current one stays put either way. Wraps the raw
  * mutation in a small domain object, matching the other mutation hooks (e.g. useInstallUpdate)

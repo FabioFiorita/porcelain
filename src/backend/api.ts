@@ -128,6 +128,7 @@ import {
   withLastAgentSelection,
   withoutHiddenPath,
   withoutPinnedPath,
+  withoutRecentRepo,
   withPinnedPath,
   withRecentRepo,
 } from './repo-config'
@@ -429,6 +430,13 @@ export const router = t.router({
       }),
     )
     return existing.filter((p): p is string => p !== null).map(toRepoInfo)
+  }),
+
+  // Drop a repo from the recents list. Removes only the recents entry — the repo's
+  // per-repo config under `repos` (hidden/pinned paths) survives, so re-opening it
+  // restores those settings.
+  removeRecentRepo: t.procedure.input(z.string()).mutation(async ({ input }) => {
+    await updateConfig((config) => withoutRecentRepo(config, input))
   }),
 
   // Daemon-side directory browser for the repo picker (replaces the native

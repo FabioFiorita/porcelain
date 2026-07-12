@@ -8,11 +8,11 @@ import {
   DropdownMenuTrigger,
 } from '@renderer/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
-import { useNewWindow, useRecentRepos } from '@renderer/hooks/use-repo'
+import { useNewWindow, useRecentRepos, useRemoveRecentRepo } from '@renderer/hooks/use-repo'
 import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
-import { Check, ChevronsUpDown, FolderPlus, SquareArrowOutUpRight } from 'lucide-react'
+import { Check, ChevronsUpDown, FolderPlus, SquareArrowOutUpRight, X } from 'lucide-react'
 import { useState } from 'react'
 
 // The project lives at the top of the icon rail as an avatar (its initial) with a
@@ -23,6 +23,7 @@ export function ProjectSwitcher(): React.JSX.Element | null {
   const openRepo = useRepoStore((s) => s.openRepo)
   const switchTo = useRepoStore((s) => s.switchTo)
   const newWindow = useNewWindow()
+  const removeRecent = useRemoveRecentRepo()
   const recents = useRecentRepos(repo !== null)
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -90,6 +91,27 @@ export function ProjectSwitcher(): React.JSX.Element | null {
                     }}
                   >
                     <SquareArrowOutUpRight className="size-3.5" />
+                  </button>
+                )}
+                {/* Prune a stale project from the list — stopPropagation keeps the row's
+                    switchTo from firing, and we deliberately leave the menu open so the
+                    user can remove several in a row. Never offered for the open repo (that
+                    row shows the check — you can't drop the project you're standing in). */}
+                {recent.path !== repo.path && (
+                  <button
+                    type="button"
+                    aria-label="Remove from projects"
+                    className={cn(
+                      'flex size-6 items-center justify-center rounded-md text-muted-foreground',
+                      'hover:bg-accent/50 hover:text-foreground',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+                    )}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      removeRecent.remove(recent.path)
+                    }}
+                  >
+                    <X className="size-3.5" />
                   </button>
                 )}
               </div>
