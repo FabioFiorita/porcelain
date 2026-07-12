@@ -141,7 +141,13 @@ assumed — this skill is the codebase-specific layer beneath them.
   corruption rather than throwing — the daemon is the sole writer, but a corrupt/oversized
   file still can't break hydration. (5) Timeline writes are **atomic tmp+rename**
   (`writeThread`). (6) **The Claude subscription OAuth token is read, used once, and never
-  surfaced.** The Claude driver's `limits()` (`claude.ts`) replicates the CLI's `GET
+  surfaced.** The Claude driver's `limits()` (`claude.ts`) FIRST tries the user-installed
+  **codexbar** CLI (`codexbar.ts` — same spawn discipline: `terminalEnv`, an arg array, an
+  enumerated binary resolution incl. `PORCELAIN_CODEXBAR_BIN`; its stdout is NEVER logged
+  because it carries the account email, and every failure falls back to the native probe). The
+  codexbar path is strictly safer — the OAuth token never enters Porcelain at all (codexbar
+  holds its own auth). When codexbar is absent or returns nothing, it falls through to the
+  native probe: `limits()` replicates the CLI's `GET
   /api/oauth/usage` to show quota windows, which needs the stored subscription token: it's
   read lazily (only when the Limits Quick Access group is visible → `agentLimits` is called)
   from the macOS **Keychain** (`security find-generic-password -s 'Claude Code-credentials'

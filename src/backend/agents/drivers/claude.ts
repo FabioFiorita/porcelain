@@ -21,6 +21,7 @@ import {
   resolveClaudeBin,
   titleForTool,
 } from './claude-stream'
+import { codexbarLimits, resolveCodexbarBin } from './codexbar'
 
 const execFileAsync = promisify(execFile)
 
@@ -130,6 +131,15 @@ export const claudeDriver: AgentDriver = {
   // non-200, bad JSON) degrades to null quietly — never surfacing the token. Wrapped in a
   // ~5s timeout so a hung request can't stall the poll.
   async limits(): Promise<ProviderLimits | null> {
+    // Prefer the user-installed codexbar CLI when present: it reads Claude's quota through its
+    // own sources more reliably than our Keychain probe, AND the subscription OAuth token never
+    // enters Porcelain on that path (codexbar holds its own auth). Fall through to the native
+    // probe below when codexbar isn't installed or returns nothing.
+    const codexbarBin = resolveCodexbarBin(binLookup())
+    if (codexbarBin !== null) {
+      const limits = await codexbarLimits('claude', codexbarBin)
+      if (limits !== null) return limits
+    }
     const token = await readClaudeOAuthToken()
     if (token === null) return null
     const controller = new AbortController()
