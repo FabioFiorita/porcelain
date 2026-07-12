@@ -1,6 +1,6 @@
 import { type ChildProcess, execFile, spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { accessSync, constants } from 'node:fs'
+import { accessSync, constants, existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
@@ -13,6 +13,7 @@ import type {
 import { terminalEnv } from '../../terminal-env'
 import type { AgentCommand, AgentDriver, StartTurnOptions, TurnHandle } from '../types'
 import { expandSlashCommand, listCommandFiles } from './agent-commands-fs'
+import { codexbarLimits, resolveCodexbarBin } from './codexbar'
 import {
   mapProvidersConfig,
   parseAuthProviders,
@@ -255,12 +256,21 @@ export const opencodeDriver: AgentDriver = {
     return listCommandFiles(opencodeCommandDirs(repoPath), false)
   },
 
-  // OpenCode is BYO-provider-key and exposes NO usage/quota/limit endpoint (verified on
-  // opencode 1.17.18 — nothing in the server OpenAPI or CLI), so it has no plan windows to
-  // report. Always null; the Limits group hides for opencode. (Session cost still comes
-  // through per-message `cost` — see opencode-translate's handleMessageUpdated.)
-  limits(): Promise<ProviderLimits | null> {
-    return Promise.resolve(null)
+  // OpenCode itself still exposes NO usage/quota/limit endpoint (verified on opencode
+  // 1.17.18 — nothing in the server OpenAPI or CLI), but the user-installed codexbar CLI
+  // reads the subscription (zen) usage through its own web auth — same bridge as
+  // claude/codex, same BinLookup shape as claude's. There is NO native fallback probe, so
+  // without codexbar — or for BYO-key users with no subscription — this stays null and the
+  // Limits group hides, same as before. (Session cost still comes through per-message
+  // `cost` — see opencode-translate's handleMessageUpdated.)
+  async limits(): Promise<ProviderLimits | null> {
+    const codexbarBin = resolveCodexbarBin({
+      exists: (path: string) => existsSync(path),
+      env: process.env,
+      home: homedir(),
+    })
+    if (codexbarBin === null) return null
+    return codexbarLimits('opencode', codexbarBin)
   },
 
   // No guaranteed-cheap one-shot title path (a prompt turn spins the full server + agent),

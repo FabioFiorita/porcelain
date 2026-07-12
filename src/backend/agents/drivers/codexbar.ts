@@ -66,6 +66,16 @@ const codexbarWindowSchema = z.object({
   resetsAt: z.string().optional(),
 })
 
+// An `extraRateWindows` entry: a window (same shape as the primary/secondary/tertiary slots)
+// wrapped with codexbar's own `id` and `title`. These are scoped caps (e.g. "Fable only"), so
+// the entry's title is a better label than our windowMinutes-derived one, and its id is the
+// stable identity. Parsed leniently per entry, like every other slot.
+const codexbarExtraWindowSchema = z.object({
+  window: codexbarWindowSchema,
+  title: z.string(),
+  id: z.string(),
+})
+
 const codexbarItemSchema = z
   .object({
     provider: z.string(),
@@ -74,6 +84,7 @@ const codexbarItemSchema = z
         primary: z.unknown().optional(),
         secondary: z.unknown().optional(),
         tertiary: z.unknown().optional(),
+        extraRateWindows: z.unknown().optional(),
       })
       .passthrough(),
   })
@@ -99,7 +110,9 @@ function parseResetsAt(iso: string | undefined): number | undefined {
 /**
  * Map codexbar's JSON into the normalized `ProviderLimits`. Accepts a single object or an
  * array; picks the first item whose `provider` equals the requested one, then maps its
- * `usage.primary`/`secondary`/`tertiary` windows (a null/unparseable slot is skipped).
+ * `usage.primary`/`secondary`/`tertiary` windows (a null/unparseable slot is skipped), then any
+ * `usage.extraRateWindows` (scoped caps labeled by their own title, keyed by their own id;
+ * an entry colliding with an already-mapped id is skipped).
  * Returns null when nothing matches or no window survives — so the Limits group hides.
  */
 export function mapCodexbarUsage(json: unknown, provider: string): ProviderLimits | null {
@@ -124,6 +137,21 @@ export function mapCodexbarUsage(json: unknown, provider: string): ProviderLimit
         ...(resetsAt !== undefined ? { resetsAt } : {}),
       })
     }
+    const extras = Array.isArray(item.data.usage.extraRateWindows)
+      ? item.data.usage.extraRateWindows
+      : []
+    for (const rawExtra of extras) {
+      const extra = codexbarExtraWindowSchema.safeParse(rawExtra)
+      if (!extra.success) continue
+      if (windows.some((w) => w.id === extra.data.id)) continue
+      const resetsAt = parseResetsAt(extra.data.window.resetsAt)
+      windows.push({
+        id: extra.data.id,
+        label: extra.data.title,
+        usedPercent: extra.data.window.usedPercent,
+        ...(resetsAt !== undefined ? { resetsAt } : {}),
+      })
+    }
     // The requested provider matched — this is THE item, so we're done either way.
     return windows.length > 0 ? { windows } : null
   }
@@ -132,27 +160,66 @@ export function mapCodexbarUsage(json: unknown, provider: string): ProviderLimit
 
 // --- probe ------------------------------------------------------------------
 
-/**
- * Run `codexbar --provider <p> --format json --no-color` and map its usage. EVERY failure
- * (spawn error, non-zero exit, timeout, unparseable JSON) returns null quietly. NEVER logs
- * stdout/stderr — codexbar's output carries the user's account email.
- */
-export async function codexbarLimits(
-  provider: 'claude' | 'codex',
+/** One codexbar spawn for one codexbar provider id; every failure degrades to null quietly. */
+async function probeCodexbar(
   bin: string,
+  codexbarId: string,
+  sourceCli: boolean,
 ): Promise<ProviderLimits | null> {
   try {
     const { stdout } = await execFileAsync(
       bin,
-      ['--provider', provider, '--format', 'json', '--no-color'],
+      [
+        '--provider',
+        codexbarId,
+        ...(sourceCli ? ['--source', 'cli'] : []),
+        '--format',
+        'json',
+        '--no-color',
+      ],
       {
         env: terminalEnv(process.env),
         timeout: CODEXBAR_TIMEOUT_MS,
         maxBuffer: CODEXBAR_MAX_BUFFER,
       },
     )
-    return mapCodexbarUsage(JSON.parse(stdout), provider)
+    return mapCodexbarUsage(JSON.parse(stdout), codexbarId)
   } catch {
     return null
   }
+}
+
+/**
+ * Run `codexbar --provider <p> [--source cli] --format json --no-color` and map its usage.
+ * EVERY failure (spawn error, non-zero exit, timeout, unparseable JSON) returns null quietly.
+ * NEVER logs stdout/stderr — codexbar's output carries the user's account email.
+ *
+ * `--source cli` for claude/codex is deliberate: without it codexbar's default `auto` prefers
+ * claude.ai web cookies, which can belong to a DIFFERENT account than the CLI the agent threads
+ * actually spend against (observed here returning a zeroed personal web session while the CLI
+ * account was really at 47%/50%). Porcelain drives the provider CLIs, so the CLI account's quota
+ * is the semantically right one — for Codex too.
+ *
+ * OpenCode maps to TWO codexbar ids: `opencodego` first (observed returning the real
+ * subscription/zen usage for this account), then `opencode` as a fallback (observed failing
+ * upstream with an HTTP 500 today, kept in case codexbar fixes it). NO `--source cli` for
+ * either — codexbar rejects it for opencode ("Source 'cli' is not supported"), so its auto
+ * source picks; note `mapCodexbarUsage` matches against the codexbar id actually queried.
+ */
+export async function codexbarLimits(
+  provider: 'claude' | 'codex' | 'opencode',
+  bin: string,
+): Promise<ProviderLimits | null> {
+  const attempts =
+    provider === 'opencode'
+      ? [
+          { codexbarId: 'opencodego', sourceCli: false },
+          { codexbarId: 'opencode', sourceCli: false },
+        ]
+      : [{ codexbarId: provider, sourceCli: true }]
+  for (const { codexbarId, sourceCli } of attempts) {
+    const limits = await probeCodexbar(bin, codexbarId, sourceCli)
+    if (limits !== null) return limits
+  }
+  return null
 }

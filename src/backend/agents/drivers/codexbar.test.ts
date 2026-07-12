@@ -1,5 +1,95 @@
-import { describe, expect, it } from 'vitest'
-import { mapCodexbarUsage, resolveCodexbarBin } from './codexbar'
+import { describe, expect, it, vi } from 'vitest'
+
+// Capture the argv codexbarLimits spawns with. promisify(execFile) calls execFile with a
+// trailing (err, { stdout, stderr }) callback, so the mock resolves that way.
+// A synchronous factory (not async/importOriginal): codexbar.ts runs `promisify(execFile)` at
+// module load, which races an async factory's resolution and would silently use the real binary.
+const execFileMock = vi.hoisted(() => vi.fn())
+vi.mock('node:child_process', () => ({
+  execFile: execFileMock,
+  default: { execFile: execFileMock },
+}))
+
+import { codexbarLimits, mapCodexbarUsage, resolveCodexbarBin } from './codexbar'
+
+describe('codexbarLimits', () => {
+  it('spawns codexbar with --source cli so it reads the CLI account, not web cookies', async () => {
+    execFileMock.mockImplementation((...args: unknown[]) => {
+      const cb = args[args.length - 1] as (err: null, out: { stdout: string }) => void
+      cb(null, {
+        stdout: JSON.stringify([
+          { provider: 'claude', usage: { primary: { windowMinutes: 300, usedPercent: 47 } } },
+        ]),
+      })
+    })
+    const limits = await codexbarLimits('claude', '/opt/homebrew/bin/codexbar')
+    expect(limits).toEqual({ windows: [{ id: '5h', label: '5-hour', usedPercent: 47 }] })
+    expect(execFileMock).toHaveBeenCalledWith(
+      '/opt/homebrew/bin/codexbar',
+      ['--provider', 'claude', '--source', 'cli', '--format', 'json', '--no-color'],
+      expect.any(Object),
+      expect.any(Function),
+    )
+  })
+
+  it('queries opencodego first for opencode, without --source cli, and short-circuits', async () => {
+    execFileMock.mockReset()
+    execFileMock.mockImplementation((...args: unknown[]) => {
+      const cb = args[args.length - 1] as (err: null, out: { stdout: string }) => void
+      cb(null, {
+        stdout: JSON.stringify([
+          {
+            provider: 'opencodego',
+            usage: {
+              primary: { windowMinutes: 300, usedPercent: 1 },
+              secondary: { windowMinutes: 10080, usedPercent: 73 },
+              tertiary: { windowMinutes: 43200, usedPercent: 36 },
+            },
+          },
+        ]),
+      })
+    })
+    const limits = await codexbarLimits('opencode', '/opt/homebrew/bin/codexbar')
+    expect(limits).toEqual({
+      windows: [
+        { id: '5h', label: '5-hour', usedPercent: 1 },
+        { id: 'weekly', label: 'Weekly', usedPercent: 73 },
+        { id: 'window-43200', label: '30-day', usedPercent: 36 },
+      ],
+    })
+    expect(execFileMock).toHaveBeenCalledTimes(1)
+    expect(execFileMock).toHaveBeenCalledWith(
+      '/opt/homebrew/bin/codexbar',
+      ['--provider', 'opencodego', '--format', 'json', '--no-color'],
+      expect.any(Object),
+      expect.any(Function),
+    )
+  })
+
+  it('falls back to the opencode id when opencodego yields nothing', async () => {
+    execFileMock.mockReset()
+    execFileMock.mockImplementation((...args: unknown[]) => {
+      const provider = (args[1] as string[])[1]
+      const cb = args[args.length - 1] as (err: Error | null, out?: { stdout: string }) => void
+      // opencodego fails upstream (the observed HTTP 500 surfaces as a non-zero exit).
+      if (provider === 'opencodego') {
+        cb(new Error('exit 1'))
+        return
+      }
+      cb(null, {
+        stdout: JSON.stringify([
+          { provider: 'opencode', usage: { primary: { windowMinutes: 300, usedPercent: 8 } } },
+        ]),
+      })
+    })
+    const limits = await codexbarLimits('opencode', '/opt/homebrew/bin/codexbar')
+    expect(limits).toEqual({ windows: [{ id: '5h', label: '5-hour', usedPercent: 8 }] })
+    expect(execFileMock.mock.calls.map((call) => call[1])).toEqual([
+      ['--provider', 'opencodego', '--format', 'json', '--no-color'],
+      ['--provider', 'opencode', '--format', 'json', '--no-color'],
+    ])
+  })
+})
 
 describe('resolveCodexbarBin', () => {
   const home = '/Users/x'
@@ -125,6 +215,83 @@ describe('mapCodexbarUsage', () => {
       'claude',
     )
     expect(limits).toEqual({ windows: [{ id: '5h', label: '5-hour', usedPercent: 1 }] })
+  })
+
+  it('maps extraRateWindows after the primary/secondary slots, labeled by title', () => {
+    const limits = mapCodexbarUsage(
+      {
+        provider: 'claude',
+        source: 'cli',
+        usage: {
+          primary: { windowMinutes: 300, usedPercent: 47 },
+          secondary: { windowMinutes: 10080, usedPercent: 50 },
+          extraRateWindows: [
+            {
+              window: {
+                windowMinutes: 10080,
+                usedPercent: 67,
+                resetsAt: '2026-07-15T00:00:00Z',
+              },
+              title: 'Fable only',
+              id: 'claude-weekly-scoped-fable',
+            },
+          ],
+        },
+      },
+      'claude',
+    )
+    expect(limits).toEqual({
+      windows: [
+        { id: '5h', label: '5-hour', usedPercent: 47 },
+        { id: 'weekly', label: 'Weekly', usedPercent: 50 },
+        {
+          id: 'claude-weekly-scoped-fable',
+          label: 'Fable only',
+          usedPercent: 67,
+          resetsAt: Date.parse('2026-07-15T00:00:00Z'),
+        },
+      ],
+    })
+  })
+
+  it('skips an extraRateWindows entry whose window is unparseable', () => {
+    const limits = mapCodexbarUsage(
+      {
+        provider: 'claude',
+        usage: {
+          primary: { windowMinutes: 300, usedPercent: 47 },
+          extraRateWindows: [
+            { window: { windowMinutes: 10080 }, title: 'Fable only', id: 'scoped' },
+          ],
+        },
+      },
+      'claude',
+    )
+    expect(limits).toEqual({ windows: [{ id: '5h', label: '5-hour', usedPercent: 47 }] })
+  })
+
+  it('skips an extraRateWindows entry whose id collides with an already-mapped window', () => {
+    const limits = mapCodexbarUsage(
+      {
+        provider: 'claude',
+        usage: {
+          primary: { windowMinutes: 300, usedPercent: 47 },
+          extraRateWindows: [
+            { window: { windowMinutes: 300, usedPercent: 99 }, title: 'Dup', id: '5h' },
+          ],
+        },
+      },
+      'claude',
+    )
+    expect(limits).toEqual({ windows: [{ id: '5h', label: '5-hour', usedPercent: 47 }] })
+  })
+
+  it('leaves behavior unchanged when extraRateWindows is absent', () => {
+    const limits = mapCodexbarUsage(
+      { provider: 'claude', usage: { primary: { windowMinutes: 300, usedPercent: 47 } } },
+      'claude',
+    )
+    expect(limits).toEqual({ windows: [{ id: '5h', label: '5-hour', usedPercent: 47 }] })
   })
 
   it('returns null when only a different provider is present', () => {
