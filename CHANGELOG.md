@@ -1,3 +1,9 @@
+## [0.23.3](https://github.com/FabioFiorita/porcelain/compare/v0.23.2...v0.23.3) (2026-07-13)
+
+### Features
+
+* continuous stacked-diff review for Changes and History ([c7b53c0](https://github.com/FabioFiorita/porcelain/commit/c7b53c0c6aaef1b11a81fcee1fe681a1df6850db))
+
 ## [0.23.2](https://github.com/FabioFiorita/porcelain/compare/v0.23.1...v0.23.2) (2026-07-13)
 
 ### Bug Fixes
