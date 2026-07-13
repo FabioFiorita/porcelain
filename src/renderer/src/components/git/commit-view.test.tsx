@@ -18,6 +18,13 @@ vi.mock('@renderer/hooks/use-history', () => ({
 vi.mock('@renderer/hooks/use-diff', () => ({
   useCommitDiff: () => ({ hunks: undefined, error: undefined }),
 }))
+// File rows and the diff pane mount CommentComposer and read the comment index,
+// both of which reach tRPC; mock the domain hooks so the view renders without a
+// provider (same convention as changes-list.test.tsx).
+vi.mock('@renderer/hooks/use-comments', () => ({
+  useCommentIndex: () => ({ byLine: new Map(), fileLevel: [] }),
+  useCommentActions: () => ({ add: async () => {} }),
+}))
 
 const groups: FlowGroup[] = [
   {
