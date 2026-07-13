@@ -30,9 +30,12 @@ test('streams a turn into the timeline + Quick Access, and persists across reloa
   await composer.press('Enter')
 
   // The user turn renders as a bubble, and the assistant text streams in. Scope to the
-  // viewer (role=main): the derived thread title makes the sidebar row read "Ship the
-  // feature" too, so an unscoped match is ambiguous.
+  // viewer (role=main) isn't enough on its own: the new thread's provisional title is the
+  // first message text, so until the auto-title reconciles, the viewer's own TAB (also under
+  // role=main — see tab-bar.tsx) reads "Ship the feature" too, colliding with the timeline
+  // bubble. Wait for the retitle to land first, which makes the bubble match unique.
   const timeline = page.getByRole('main')
+  await expect(timeline.getByText('Fake thread title', { exact: true })).toBeVisible()
   await expect(timeline.getByText('Ship the feature', { exact: true })).toBeVisible()
   await expect(timeline.getByText('Hello from the fake agent')).toBeVisible()
 
