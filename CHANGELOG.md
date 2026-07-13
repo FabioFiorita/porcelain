@@ -1,3 +1,9 @@
+## [0.23.2](https://github.com/FabioFiorita/porcelain/compare/v0.23.1...v0.23.2) (2026-07-13)
+
+### Bug Fixes
+
+* agent CLIs spawn with the login-shell PATH so npx-style MCP servers resolve under a Dock-launched app ([73815e5](https://github.com/FabioFiorita/porcelain/commit/73815e502a952faf6d5a063f091b520d5c370fa1))
+
 ## [0.23.1](https://github.com/FabioFiorita/porcelain/compare/v0.23.0...v0.23.1) (2026-07-13)
 
 ### Features
