@@ -8,7 +8,7 @@ import {
 } from '@renderer/hooks/use-agents'
 import { useFileSearch } from '@renderer/hooks/use-search'
 import { useAgentDraftsStore } from '@renderer/stores/agent-drafts'
-import type { ProviderStatus } from '@shared/agent-protocol'
+import type { ProviderStatus, QueuedMessageInfo } from '@shared/agent-protocol'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AgentComposer } from './agent-composer'
@@ -51,7 +51,10 @@ const abort = vi.fn()
 const cancelQueued = vi.fn()
 const update = vi.fn()
 
-function renderComposer(threadId = THREAD_ID): ReturnType<typeof render> {
+function renderComposer(
+  threadId = THREAD_ID,
+  overrides: { working?: boolean; queued?: QueuedMessageInfo } = {},
+): ReturnType<typeof render> {
   return render(
     <AgentComposer
       threadId={threadId}
@@ -61,8 +64,8 @@ function renderComposer(threadId = THREAD_ID): ReturnType<typeof render> {
       mode="full"
       interaction="build"
       options={undefined}
-      working={false}
-      queued={undefined}
+      working={overrides.working ?? false}
+      queued={overrides.queued}
       prefill={null}
       onPrefillConsumed={vi.fn()}
     />,
@@ -118,5 +121,78 @@ describe('AgentComposer draft persistence', () => {
 
     expect(send).toHaveBeenCalledWith(THREAD_ID, { text: 'ship it' })
     expect(useAgentDraftsStore.getState().drafts[THREAD_ID]).toBeUndefined()
+  })
+})
+
+describe('AgentComposer mid-turn steering', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    useAgentDraftsStore.setState({ drafts: {} })
+    vi.mocked(useAgentActions).mockReturnValue({
+      openThread: vi.fn(),
+      closeThreadView: vi.fn(),
+      send,
+      abort,
+      cancelQueued,
+      approve: vi.fn(),
+    })
+    vi.mocked(useAgentProviders).mockReturnValue([claudeProvider])
+    vi.mocked(useUpdateAgentThread).mockReturnValue({ update })
+    vi.mocked(useAgentCommands).mockReturnValue([])
+    vi.mocked(useAgentModelFavorites).mockReturnValue([])
+    vi.mocked(useToggleAgentModelFavorite).mockReturnValue({ toggle: vi.fn() })
+    vi.mocked(useFileSearch).mockReturnValue({ results: [], isFetching: false })
+  })
+
+  const queuedInfo: QueuedMessageInfo = { text: 'already waiting' }
+
+  it('shows a working Send button that queues the draft without stopping', () => {
+    renderComposer(THREAD_ID, { working: true })
+    fireEvent.change(screen.getByLabelText('Message the agent'), {
+      target: { value: 'steer left' },
+    })
+
+    const sendButton = screen.getByLabelText('Send')
+    expect(sendButton).not.toBeDisabled()
+    fireEvent.click(sendButton)
+
+    expect(send).toHaveBeenCalledWith(THREAD_ID, { text: 'steer left' })
+    expect(abort).not.toHaveBeenCalled()
+  })
+
+  it('Stop queues the pending draft before aborting (send then abort)', () => {
+    renderComposer(THREAD_ID, { working: true })
+    fireEvent.change(screen.getByLabelText('Message the agent'), {
+      target: { value: 'run this next' },
+    })
+
+    fireEvent.click(screen.getByLabelText('Stop'))
+
+    expect(send).toHaveBeenCalledWith(THREAD_ID, { text: 'run this next' })
+    expect(abort).toHaveBeenCalledWith(THREAD_ID)
+    // Queue-before-abort: the daemon must see the send first on the ordered socket.
+    expect(send.mock.invocationCallOrder[0]).toBeLessThan(abort.mock.invocationCallOrder[0])
+  })
+
+  it('Stop only aborts when a message is already queued (never clobbers the chip)', () => {
+    renderComposer(THREAD_ID, { working: true, queued: queuedInfo })
+    fireEvent.change(screen.getByLabelText('Message the agent'), {
+      target: { value: 'a newer draft' },
+    })
+
+    fireEvent.click(screen.getByLabelText('Stop'))
+
+    expect(send).not.toHaveBeenCalled()
+    expect(abort).toHaveBeenCalledWith(THREAD_ID)
+  })
+
+  it('Stop only aborts on an empty draft, and Send is disabled', () => {
+    renderComposer(THREAD_ID, { working: true })
+
+    expect(screen.getByLabelText('Send')).toBeDisabled()
+    fireEvent.click(screen.getByLabelText('Stop'))
+
+    expect(send).not.toHaveBeenCalled()
+    expect(abort).toHaveBeenCalledWith(THREAD_ID)
   })
 })

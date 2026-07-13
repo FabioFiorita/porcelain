@@ -203,6 +203,16 @@ export function AgentComposer({
     clearDraft(threadId)
   }
 
+  const stop = (): void => {
+    // Steer-then-stop: queue the typed draft, then abort. Ordering contract — both rides the
+    // same ordered WS socket, so the daemon sees the send BEFORE the abort and drains the
+    // queued message the instant the aborted turn ends (the draft runs next). Only steal the
+    // draft into the queue when the slot is free; a live queued chip already owns it, so a
+    // plain abort lets that chip drain instead of clobbering it.
+    if (canSend && !queued) submit()
+    abort(threadId)
+  }
+
   return (
     <div className="px-3 pb-3">
       {/* biome-ignore lint/a11y/noStaticElementInteractions: image drop target wrapping the textarea */}
@@ -435,14 +445,24 @@ export function AgentComposer({
           </DropdownMenu>
           <div className="flex-1" />
           {working ? (
-            <Button
-              variant="outline"
-              size="icon-sm"
-              aria-label="Stop"
-              onClick={() => abort(threadId)}
-            >
-              <Square className="fill-current" />
-            </Button>
+            <>
+              {/* Mid-turn the draft has nowhere to go by button alone — Send queues it (daemon
+                  single-slot) so the user can steer without stopping the turn. Stop still wins
+                  the row's trailing spot. */}
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button size="icon-sm" aria-label="Send" disabled={!canSend} onClick={submit}>
+                      <ArrowUp />
+                    </Button>
+                  }
+                />
+                <TooltipContent>Queue message — runs when the current turn ends</TooltipContent>
+              </Tooltip>
+              <Button variant="outline" size="icon-sm" aria-label="Stop" onClick={stop}>
+                <Square className="fill-current" />
+              </Button>
+            </>
           ) : (
             <Button size="icon-sm" aria-label="Send" disabled={!canSend} onClick={submit}>
               <ArrowUp />
