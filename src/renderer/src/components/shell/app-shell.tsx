@@ -6,6 +6,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui
 import { useAgentChannel } from '@renderer/hooks/use-agent-channel'
 import { useReconcileAgentTabTitles } from '@renderer/hooks/use-agents'
 import { useAppEvents } from '@renderer/hooks/use-app-events'
+import { useDocumentTitle } from '@renderer/hooks/use-document-title'
 import { useWatchOpenFiles, useWatchTreeDirs } from '@renderer/hooks/use-files'
 import { useResponsiveShell } from '@renderer/hooks/use-responsive-shell'
 import { useTerminalChannel } from '@renderer/hooks/use-terminal-channel'
@@ -179,6 +180,7 @@ export function AppShell(): React.JSX.Element {
 
   useAppShortcuts()
   useAppEvents()
+  useDocumentTitle()
   useTerminalChannel()
   useAgentChannel()
   useReconcileAgentTabTitles()
