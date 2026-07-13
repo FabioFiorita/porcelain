@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { z } from 'zod'
 import type { ProviderLimits, ProviderLimitWindow } from '../../../shared/agent-protocol'
-import { terminalEnv } from '../../terminal-env'
+import { agentSpawnEnv } from '../../login-shell-env'
 import type { BinLookup } from './claude-stream'
 
 /**
@@ -13,9 +13,10 @@ import type { BinLookup } from './claude-stream'
  * more reliable than our native probe AND — crucially for the agent-driver invariant — the
  * provider's OAuth token never enters Porcelain on this path (codexbar holds its own auth).
  *
- * Same spawn discipline as the rest of the drivers: `terminalEnv` scrubs the daemon token /
- * ELECTRON_RUN_AS_NODE, the arg list is an array (no shell), and the binary is resolved from
- * an enumerated set (never a renderer-supplied string). codexbar's stdout carries the user's
+ * Same spawn discipline as the rest of the drivers: `agentSpawnEnv` scrubs the daemon token /
+ * ELECTRON_RUN_AS_NODE (and merges the login-shell PATH in), the arg list is an array (no
+ * shell), and the binary is resolved from an enumerated set (never a renderer-supplied
+ * string). codexbar's stdout carries the user's
  * account email, so it is NEVER logged; every failure degrades to null.
  */
 
@@ -178,7 +179,9 @@ async function probeCodexbar(
         '--no-color',
       ],
       {
-        env: terminalEnv(process.env),
+        // Login-PATH-merged scrubbed env (see login-shell-env.ts): keeps the daemon token
+        // out of the child while giving a Dock-launched daemon the same PATH a terminal has.
+        env: await agentSpawnEnv(),
         timeout: CODEXBAR_TIMEOUT_MS,
         maxBuffer: CODEXBAR_MAX_BUFFER,
       },

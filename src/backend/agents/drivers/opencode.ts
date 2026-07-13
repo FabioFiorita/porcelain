@@ -10,7 +10,7 @@ import type {
   ProviderLimits,
   ProviderStatus,
 } from '../../../shared/agent-protocol'
-import { terminalEnv } from '../../terminal-env'
+import { agentSpawnEnv } from '../../login-shell-env'
 import type { AgentCommand, AgentDriver, StartTurnOptions, TurnHandle } from '../types'
 import { expandSlashCommand, listCommandFiles } from './agent-commands-fs'
 import { codexbarLimits, resolveCodexbarBin } from './codexbar'
@@ -58,10 +58,13 @@ function isExecutable(path: string): boolean {
   }
 }
 
-function resolveOpencodeBin(): string | null {
-  const override = process.env.PORCELAIN_OPENCODE_BIN
+// Resolve from the passed env's PATH — the caller merges the login-shell PATH in
+// (agentSpawnEnv), so a Homebrew `opencode` is found by PATH like in a terminal; the
+// well-known fallback below stays the safety net for a truly minimal PATH.
+function resolveOpencodeBin(env: NodeJS.ProcessEnv): string | null {
+  const override = env.PORCELAIN_OPENCODE_BIN
   if (override !== undefined && override !== '' && isExecutable(override)) return override
-  for (const dir of (process.env.PATH ?? '').split(':')) {
+  for (const dir of (env.PATH ?? '').split(':')) {
     if (dir === '') continue
     const candidate = join(dir, 'opencode')
     if (isExecutable(candidate)) return candidate
@@ -113,14 +116,20 @@ function registerCleanup(): void {
   })
 }
 
-function spawnServer(bin: string, cwd: string): Promise<OpencodeServer> {
+function spawnServer(
+  bin: string,
+  cwd: string,
+  env: Record<string, string>,
+): Promise<OpencodeServer> {
   registerCleanup()
   return new Promise<OpencodeServer>((resolve, reject) => {
-    // terminalEnv strips the daemon token / ELECTRON_RUN_AS_NODE — never leak them into the
-    // agent CLI. Arg array (never a shell string) so nothing is interpolated.
+    // `env` is the scrubbed + login-PATH-merged agentSpawnEnv: the daemon token /
+    // ELECTRON_RUN_AS_NODE never leak into the CLI, and its `npx`/`node`-style MCP servers
+    // resolve under a Dock-launched daemon's minimal PATH. Arg array (never a shell string)
+    // so nothing is interpolated.
     const proc = spawn(bin, ['serve', '--port', '0', '--hostname', '127.0.0.1'], {
       cwd,
-      env: terminalEnv(process.env),
+      env,
       stdio: ['ignore', 'pipe', 'pipe'],
     })
     liveServers.add(proc)
@@ -160,12 +169,20 @@ function spawnServer(bin: string, cwd: string): Promise<OpencodeServer> {
   })
 }
 
+// Resolve the login-shell env + binary, then spawn. Async (agentSpawnEnv awaits the shell
+// probe), but getServer stores the pending promise synchronously so concurrent first turns
+// still share ONE server (the dedupe the servers map provides).
+async function spawnServerForRepo(repoPath: string): Promise<OpencodeServer> {
+  const env = await agentSpawnEnv()
+  const bin = resolveOpencodeBin(env)
+  if (bin === null) throw new Error('opencode is not installed')
+  return spawnServer(bin, repoPath, env)
+}
+
 function getServer(repoPath: string): Promise<OpencodeServer> {
   const existing = servers.get(repoPath)
   if (existing) return existing
-  const bin = resolveOpencodeBin()
-  if (bin === null) return Promise.reject(new Error('opencode is not installed'))
-  const pending = spawnServer(bin, repoPath)
+  const pending = spawnServerForRepo(repoPath)
   // On boot failure or when the process later exits, drop the entry so the next turn
   // respawns rather than reusing a dead server.
   pending.catch(() => servers.delete(repoPath))
@@ -236,12 +253,13 @@ export const opencodeDriver: AgentDriver = {
   provider: 'opencode',
 
   async status(): Promise<ProviderStatus> {
-    const bin = resolveOpencodeBin()
+    const env = await agentSpawnEnv()
+    const bin = resolveOpencodeBin(env)
     if (bin === null) {
       return { provider: 'opencode', installed: false, authenticated: false, models: [] }
     }
     const providers = await readAuthProviders()
-    const models = await fetchModels(bin)
+    const models = await fetchModels(bin, env)
     return {
       provider: 'opencode',
       installed: true,
@@ -432,7 +450,7 @@ async function readAuthProviders(): Promise<string[]> {
  * reuse an already-running per-repo server when one exists, else spawn a short-lived one in
  * the home dir. On any failure, fall back to the `opencode models` CLI (ids only).
  */
-async function fetchModels(bin: string): Promise<ModelInfo[]> {
+async function fetchModels(bin: string, env: Record<string, string>): Promise<ModelInfo[]> {
   for (const pending of servers.values()) {
     try {
       const server = await pending
@@ -442,7 +460,7 @@ async function fetchModels(bin: string): Promise<ModelInfo[]> {
       // fall through to an ephemeral server
     }
   }
-  const ephemeral = await spawnServer(bin, homedir()).catch(() => null)
+  const ephemeral = await spawnServer(bin, homedir(), env).catch(() => null)
   if (ephemeral) {
     try {
       const config = await getConfigProviders(ephemeral.baseUrl)
@@ -452,7 +470,7 @@ async function fetchModels(bin: string): Promise<ModelInfo[]> {
       ephemeral.proc.kill()
     }
   }
-  return modelsFromCli(bin)
+  return modelsFromCli(bin, env)
 }
 
 async function getConfigProviders(baseUrl: string): Promise<unknown | null> {
@@ -465,9 +483,9 @@ async function getConfigProviders(baseUrl: string): Promise<unknown | null> {
   }
 }
 
-function modelsFromCli(bin: string): Promise<ModelInfo[]> {
+function modelsFromCli(bin: string, env: Record<string, string>): Promise<ModelInfo[]> {
   return new Promise((resolve) => {
-    execFile(bin, ['models'], { env: terminalEnv(process.env) }, (error, stdout) => {
+    execFile(bin, ['models'], { env }, (error, stdout) => {
       resolve(error ? [] : parseModelsCli(stdout))
     })
   })

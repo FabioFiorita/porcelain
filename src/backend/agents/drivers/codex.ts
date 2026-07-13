@@ -11,7 +11,7 @@ import type {
   ProviderStatus,
   TimelineItem,
 } from '../../../shared/agent-protocol'
-import { terminalEnv } from '../../terminal-env'
+import { agentSpawnEnv } from '../../login-shell-env'
 import type { AgentCommand, AgentDriver, StartTurnOptions, TurnHandle } from '../types'
 import { expandSlashCommand, listCommandFiles } from './agent-commands-fs'
 import {
@@ -332,14 +332,40 @@ const RATE_LIMITS_FRESH_MS = 60_000
 // ── The shared server singleton ────────────────────────────────────────────────────
 
 let server: CodexServer | null = null
+// The in-flight creation, cached SYNCHRONOUSLY so two concurrent first callers share ONE
+// app-server. `ensureServer` is now async (it awaits the login-shell PATH), so without this
+// the await between the `if (server)` check and the assignment lets both racers construct a
+// CodexServer and spawn a duplicate `codex app-server` (no reaper for it) — same dedupe
+// discipline as opencode's `getServer`.
+let serverPromise: Promise<CodexServer | null> | null = null
 
-function ensureServer(): CodexServer | null {
-  if (server) return server
-  const env = terminalEnv(process.env)
+// Merge the login-shell PATH into the app-server's env so its `npx`/`node`-style MCP servers
+// resolve under a Dock-launched daemon's minimal PATH (see login-shell-env.ts); resolving the
+// binary from that same PATH also finds a Homebrew `codex` like a terminal.
+async function createServer(): Promise<CodexServer | null> {
+  const env = await agentSpawnEnv()
   const bin = resolveCodexBin(env)
   if (!bin) return null
   server = new CodexServer(bin, env)
   return server
+}
+
+function ensureServer(): Promise<CodexServer | null> {
+  if (server) return Promise.resolve(server)
+  if (serverPromise !== null) return serverPromise
+  const pending = createServer()
+  serverPromise = pending
+  // Once settled, drop the in-flight cache: on success `server` is set (the fast path above
+  // serves later calls); on null (no CLI) / failure, retry on the next call so a mid-session
+  // install is picked up. Mirrors opencode's `servers.delete` on the pending entry.
+  pending
+    .then(() => {
+      if (serverPromise === pending) serverPromise = null
+    })
+    .catch(() => {
+      if (serverPromise === pending) serverPromise = null
+    })
+  return pending
 }
 
 // Collect the whole model catalog, following `nextCursor` (capped so a broken server
@@ -365,7 +391,7 @@ export const codexDriver: AgentDriver = {
   provider: 'codex',
 
   async status(): Promise<ProviderStatus> {
-    const active = ensureServer()
+    const active = await ensureServer()
     if (!active) return { provider: 'codex', installed: false, authenticated: false, models: [] }
     try {
       await active.ensureReady()
@@ -399,7 +425,7 @@ export const codexDriver: AgentDriver = {
   // in handleNotification). Returns null on any failure or for an account with no windows
   // (API key). No secrets involved — Codex's own OAuth stays inside the app-server process.
   async limits(): Promise<ProviderLimits | null> {
-    const active = ensureServer()
+    const active = await ensureServer()
     if (!active) return null
     try {
       await active.ensureReady()
@@ -421,7 +447,8 @@ export const codexDriver: AgentDriver = {
     repoPath: string
     text: string
   }): Promise<string | null> {
-    const bin = resolveCodexBin(terminalEnv(process.env))
+    const env = await agentSpawnEnv()
+    const bin = resolveCodexBin(env)
     if (!bin) return null
     const outFile = join(tmpdir(), `porcelain-codex-title-${randomUUID()}.txt`)
     try {
@@ -442,7 +469,7 @@ export const codexDriver: AgentDriver = {
             outFile,
             titlePrompt(text),
           ],
-          { env: terminalEnv(process.env), timeout: TITLE_TIMEOUT_MS },
+          { env, timeout: TITLE_TIMEOUT_MS },
           (error) => {
             if (error) {
               resolve(null)
@@ -461,11 +488,15 @@ export const codexDriver: AgentDriver = {
 
   startTurn(opts: StartTurnOptions): TurnHandle {
     const turn = new CodexTurn(opts)
-    const active = ensureServer()
+    // Resolved inside run() (ensureServer is async — it awaits the login-shell PATH); the
+    // returned handle guards on it being set, and an abort during that window is caught by
+    // turn.abortRequested below (the existing pre-turn abort path).
+    let active: CodexServer | null = null
 
     // The whole handshake is async; startTurn returns synchronously, so every emit here
     // lands after the manager has recorded the returned handle (per StartTurnOptions).
     const run = async (): Promise<void> => {
+      active = await ensureServer()
       if (!active) {
         turn.emit({
           t: 'item',

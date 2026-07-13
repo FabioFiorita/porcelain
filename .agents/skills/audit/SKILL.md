@@ -128,15 +128,26 @@ assumed — this skill is the codebase-specific layer beneath them.
 - **Agent drivers spawn the user's CLIs safely — scrubbed env, arg arrays, enumerated
   binaries.** The Agent tab's drivers (`src/backend/agents/drivers/`) launch the installed
   `claude`/`codex`/`opencode` CLIs, so they carry the same spawn discipline as PTYs plus a
-  few of their own: (1) every child spawn passes `terminalEnv(process.env)` — the daemon
-  token and `ELECTRON_RUN_AS_NODE` must never reach an agent CLI any more than a shell. (2)
+  few of their own: (1) every child spawn passes a scrubbed env — now `agentSpawnEnv()`
+  (`login-shell-env.ts`), which is `terminalEnv(process.env)` with the **login-shell-resolved
+  PATH merged in** (login segments first, current appended, deduped). The daemon token and
+  `ELECTRON_RUN_AS_NODE` must never reach an agent CLI any more than a shell — the merge only
+  touches PATH, never re-adds a scrubbed var. *Why the PATH merge:* a Dock-launched daemon
+  inherits launchd's minimal PATH, so a CLI's own `npx foo` / `node …` / `bun …` MCP servers
+  couldn't resolve (worked in a terminal, failed packaged); `agentSpawnEnv` resolves the
+  login shell's PATH ONCE per daemon lifetime by spawning it non-interactively (`$SHELL -l -c
+  'printf %s "$PATH"'`) — and that resolver's OWN child env is `terminalEnv(process.env)` too,
+  so the user's rc files never see the token. Prewarmed fire-and-forget at daemon startup
+  (`server.ts`). (2)
   Spawns use **arg arrays** (`spawn`/`execFile`, no shell), never an interpolated shell
   string. (3) The **binary is resolved from an enumerated set** — an explicit
   `PORCELAIN_{CLAUDE,CODEX,OPENCODE}_BIN` override, then each `PATH` dir, then hard-coded
   well-known install locations — the renderer only ever picks a **provider enum + a model
-  string**, NEVER a filesystem path, so no renderer-supplied string reaches the spawn path
-  (the well-known-paths probe also exists because a GUI-launched daemon has a minimal
-  `PATH`). (4) Thread files (`~/.porcelain/agent-threads/<id>.json`, `thread-store.ts`) are
+  string**, NEVER a filesystem path, so no renderer-supplied string reaches the spawn path.
+  The `PATH` those dirs come from is the **merged login PATH** (`agentSpawnEnv`), so a
+  Homebrew-installed CLI is found by PATH like in a terminal — but the hard-coded
+  well-known-paths probe stays the fallback (a GUI-launched daemon can still have a minimal
+  PATH, and the login-shell resolve can fail). (4) Thread files (`~/.porcelain/agent-threads/<id>.json`, `thread-store.ts`) are
   **zod-validated + size-capped on every read** and return null (drop the thread) on
   corruption rather than throwing — the daemon is the sole writer, but a corrupt/oversized
   file still can't break hydration. (5) Timeline writes are **atomic tmp+rename**

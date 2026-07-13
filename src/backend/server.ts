@@ -6,6 +6,7 @@ import { initConfigDir, loadConfig } from './config-store'
 import { createDaemonHttp } from './daemon-http'
 import { seedDevConfig } from './dev-config'
 import { migrateLayersFromConfig } from './layers-store'
+import { resolveLoginShellPath } from './login-shell-env'
 import { migrateNotesFromConfig } from './notes-store'
 import { watchAgentChannels } from './review-watch'
 import { migrateReviewedFromConfig } from './reviewed-store'
@@ -153,6 +154,11 @@ async function main(): Promise<void> {
   // the open views — fanned out to every session over the WS channel.
   await watchAgentChannels()
   subscribeAppEvents(broadcastAppEvent)
+
+  // Prewarm the login-shell PATH resolution (login-shell-env.ts) so the first agent turn
+  // doesn't pay the shell-startup latency. Fire-and-forget — a failed probe just leaves the
+  // drivers on the plain scrubbed env (same accepted pattern as api.ts's provider reprobe).
+  resolveLoginShellPath().catch(() => {})
 
   // Port 0 = OS-assigned (the default); PORCELAIN_DAEMON_PORT pins it (e2e/debugging).
   const requestedPort = Number(process.env.PORCELAIN_DAEMON_PORT ?? '') || 0
