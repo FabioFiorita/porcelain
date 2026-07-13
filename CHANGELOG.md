@@ -1,3 +1,12 @@
+## [0.23.1](https://github.com/FabioFiorita/porcelain/compare/v0.23.0...v0.23.1) (2026-07-13)
+
+### Features
+
+* comment and open files from the History tab's commit view ([2629980](https://github.com/FabioFiorita/porcelain/commit/2629980fa7fbde88915f6a30fdfbb699ec731bfd))
+* new agent threads resume each provider's last-used config; model catalog cached so favorites show on first open ([b7ac296](https://github.com/FabioFiorita/porcelain/commit/b7ac296eb742c9a486ee8e8abaf9414f51f1aff9))
+* steer a working agent thread — mid-turn send queues, stop runs the pending draft ([c776f7f](https://github.com/FabioFiorita/porcelain/commit/c776f7f44ff92743adeb59ffda954174bff2df12))
+* window title shows the repo name (Dock and Mission Control) ([650866a](https://github.com/FabioFiorita/porcelain/commit/650866ad4dbb7561612ad9401fecc6e1feb2b844))
+
 ## [0.23.0](https://github.com/FabioFiorita/porcelain/compare/v0.22.1...v0.23.0) (2026-07-12)
 
 ### Features
