@@ -17,11 +17,12 @@ import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useRevealStore } from '@renderer/stores/reveal'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
-import { FileText, MessageSquarePlus } from 'lucide-react'
+import { FileText, MessageSquarePlus, Rows3 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { type CommentAnchor, CommentComposer } from './comment-composer'
 import { DiffModeToggle } from './diff-mode-toggle'
 import { HunksView } from './hunks-view'
+import { reviewTabKey } from './review-view'
 
 // A file row in the commit's flow list. Right-click matches the Changes list: "Open
 // file" (full file tab + flip to Files + reveal in the tree) and "Comment on file".
@@ -206,13 +207,46 @@ export function CommitView({ hash }: { hash: string }): React.JSX.Element {
     })
   }
 
+  // Same continuous stacked-diff surface as Changes — one scroll for every file
+  // in this commit, in the same flow order as the list below.
+  const openReviewAll = (): void => {
+    const key = reviewTabKey({ type: 'commit', hash })
+    const title = (message ?? hash.slice(0, 12)).split('\n')[0]?.trim() || hash.slice(0, 12)
+    openTab({
+      id: tabId('review', key),
+      kind: 'review',
+      title,
+      path: key,
+    })
+  }
+
   return (
     <div className="flex h-full min-h-0">
       <div className="w-64 shrink-0 overflow-y-auto border-r">
         <div className="border-b px-3 py-2">
-          <p className="whitespace-pre-wrap break-words text-sm-minus text-foreground">
-            {message ?? '…'}
-          </p>
+          <div className="flex items-start justify-between gap-2">
+            <p className="min-w-0 flex-1 whitespace-pre-wrap break-words text-sm-minus text-foreground">
+              {message ?? '…'}
+            </p>
+            {allFiles.length > 0 && (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      className="shrink-0 text-muted-foreground"
+                      onClick={openReviewAll}
+                      aria-label="Review all"
+                    >
+                      <Rows3 />
+                    </Button>
+                  }
+                />
+                <TooltipContent>Review all</TooltipContent>
+              </Tooltip>
+            )}
+          </div>
           <p className="mt-1 font-mono text-xs-minus text-muted-foreground">{hash.slice(0, 12)}</p>
         </div>
         {groups.map((group) => (

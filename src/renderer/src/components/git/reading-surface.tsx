@@ -6,6 +6,7 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from '@renderer/components/ui/context-menu'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { CodeLine, useHighlighter } from '@renderer/components/viewer/code-line'
 import { VirtualRows } from '@renderer/components/viewer/virtual-rows'
 import {
@@ -13,16 +14,32 @@ import {
   type CommentIndex,
   useReviewComments,
 } from '@renderer/hooks/use-comments'
+import { useReviewedPaths, useToggleReviewed } from '@renderer/hooks/use-reviewed'
 import { languageFor, tokenizeLines } from '@renderer/lib/highlight'
 import { type LineSelection, lineSelectionForFile } from '@renderer/lib/line-selection'
+import { fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
-import { MessageSquarePlus } from 'lucide-react'
+import { usePreferencesStore } from '@renderer/stores/preferences'
+import { useRepoStore } from '@renderer/stores/repo'
+import { useRevealStore } from '@renderer/stores/reveal'
+import { tabId, useTabsStore } from '@renderer/stores/tabs'
+import { FileText, MessageSquarePlus, Square, SquareCheck } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { ThemedToken } from 'shiki'
 import { type CommentAnchor, CommentComposer } from './comment-composer'
 import { LineDecorations } from './comment-marker'
 import { SourceMarker } from './feature-list'
 import { tokenizeHunks } from './hunks-view'
+
+/** Optional chrome on each file-name row in a pure-diff continuous review. */
+export interface ReadingFileActions {
+  /** Show mark/unmark reviewed on the file header (working-tree / branch review). */
+  reviewed?: boolean
+  /** Show open-file control (hidden for deleted files via `ReadingFile.status`). */
+  openFile?: boolean
+  /** Show the feature source marker (changed/context/shipped). Off for pure diffs. */
+  showSource?: boolean
+}
 
 // The shared inline reading surface: the MCP feature read (`feature-view.tsx`) and
 // the read-only explore view (`explore-view.tsx`) both render through this. One
@@ -95,15 +112,26 @@ export function buildRows(
 // and `block` so the measured row height comes from the inner content. On open it reads
 // the DOM selection CLAMPED to this file (rows carry data-file), so a multi-line
 // drag-select anchors to the whole range; otherwise it falls back to the single line.
+// Optional `fileActions` add mark-reviewed / open-file on the pure-diff continuous review.
 function CommentMenu({
   path,
   line,
   onComment,
+  fileActions,
+  isReviewed,
+  onToggleReviewed,
+  onOpenFile,
+  canOpenFile,
   children,
 }: {
   path: string
   line?: { lineNo: number; text: string }
   onComment: (anchor: CommentAnchor) => void
+  fileActions?: ReadingFileActions
+  isReviewed?: boolean
+  onToggleReviewed?: () => void | Promise<void>
+  onOpenFile?: () => void
+  canOpenFile?: boolean
   children: React.ReactNode
 }): React.JSX.Element {
   const [selection, setSelection] = useState<LineSelection | null>(null)
@@ -127,6 +155,22 @@ function CommentMenu({
             <MessageSquarePlus /> Add comment{spanned > 1 ? ` (${spanned} lines)` : ''}
           </ContextMenuItem>
         )}
+        {fileActions?.reviewed && onToggleReviewed && (
+          <ContextMenuItem
+            onClick={async () => {
+              await onToggleReviewed()
+            }}
+          >
+            {isReviewed ? <Square /> : <SquareCheck />}
+            {isReviewed ? 'Unmark reviewed' : 'Mark reviewed'}
+          </ContextMenuItem>
+        )}
+        {fileActions?.openFile && canOpenFile && onOpenFile && (
+          <ContextMenuItem onClick={onOpenFile}>
+            <FileText />
+            Open file
+          </ContextMenuItem>
+        )}
         <ContextMenuItem onClick={() => onComment({ path })}>
           <MessageSquarePlus /> Comment on file
         </ContextMenuItem>
@@ -143,16 +187,137 @@ function isPending(anchor: CommentAnchor | null, path: string, line: number | un
   return line >= anchor.startLine && line <= (anchor.endLine ?? anchor.startLine)
 }
 
+function FileHeaderRow({
+  file,
+  onComment,
+  fileActions,
+}: {
+  file: ReadingFile
+  onComment: (anchor: CommentAnchor) => void
+  fileActions?: ReadingFileActions
+}): React.JSX.Element {
+  const repo = useRepoStore((s) => s.repo)
+  const openTab = useTabsStore((s) => s.openTab)
+  const setSidebarTab = usePreferencesStore((s) => s.setSidebarTab)
+  const reveal = useRevealStore((s) => s.reveal)
+  const reviewed = useReviewedPaths()
+  const { mark, unmark } = useToggleReviewed()
+  const isReviewed = reviewed.has(file.path)
+  const canOpenFile = file.status !== 'deleted'
+  const showSource = fileActions?.showSource !== false
+
+  const openFile = (): void => {
+    if (!repo || !canOpenFile) return
+    const absolute = `${repo.path}/${file.path}`
+    openTab({
+      id: tabId('file', absolute),
+      kind: 'file',
+      title: fileName(file.path),
+      path: absolute,
+      preview: true,
+    })
+    setSidebarTab('files')
+    reveal(absolute)
+  }
+
+  const toggleReviewed = async (): Promise<void> => {
+    if (isReviewed) await unmark(file.path)
+    else await mark(file.path)
+  }
+
+  return (
+    <CommentMenu
+      path={file.path}
+      onComment={onComment}
+      fileActions={fileActions}
+      isReviewed={isReviewed}
+      onToggleReviewed={fileActions?.reviewed ? toggleReviewed : undefined}
+      onOpenFile={fileActions?.openFile ? openFile : undefined}
+      canOpenFile={canOpenFile}
+    >
+      <div className="flex h-5 items-center gap-2 border-t border-border bg-card px-2">
+        {showSource && <SourceMarker source={file.source} />}
+        <span
+          className={cn(
+            'min-w-0 flex-1 truncate font-mono text-xs font-medium',
+            isReviewed && fileActions?.reviewed && 'text-muted-foreground line-through',
+          )}
+        >
+          {file.path}
+        </span>
+        {file.additions ? (
+          <span className="font-mono text-2xs text-success">+{file.additions}</span>
+        ) : null}
+        {file.deletions ? (
+          <span className="font-mono text-2xs text-destructive">−{file.deletions}</span>
+        ) : null}
+        {file.whole && <span className="text-2xs text-muted-foreground/50">whole file</span>}
+        {fileActions?.reviewed && (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <button
+                  type="button"
+                  onClick={async (e) => {
+                    e.stopPropagation()
+                    await toggleReviewed()
+                  }}
+                  className={cn(
+                    'shrink-0 rounded p-0.5 transition-colors',
+                    isReviewed
+                      ? 'text-success hover:bg-accent/50'
+                      : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+                  )}
+                  aria-label={isReviewed ? 'Unmark reviewed' : 'Mark reviewed'}
+                >
+                  {isReviewed ? (
+                    <SquareCheck className="size-3.5" />
+                  ) : (
+                    <Square className="size-3.5" />
+                  )}
+                </button>
+              }
+            />
+            <TooltipContent>{isReviewed ? 'Unmark reviewed' : 'Mark reviewed'}</TooltipContent>
+          </Tooltip>
+        )}
+        {fileActions?.openFile && canOpenFile && (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    openFile()
+                  }}
+                  className="shrink-0 rounded p-0.5 text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
+                  aria-label="Open file"
+                >
+                  <FileText className="size-3.5" />
+                </button>
+              }
+            />
+            <TooltipContent>Open file</TooltipContent>
+          </Tooltip>
+        )}
+      </div>
+    </CommentMenu>
+  )
+}
+
 function ReadingRowView({
   row,
   onComment,
   commentIndexByPath,
   pendingAnchor,
+  fileActions,
 }: {
   row: ReadingRow
   onComment: (anchor: CommentAnchor) => void
   commentIndexByPath: Map<string, CommentIndex>
   pendingAnchor: CommentAnchor | null
+  fileActions?: ReadingFileActions
 }): React.JSX.Element {
   switch (row.type) {
     case 'layer':
@@ -162,23 +327,7 @@ function ReadingRowView({
         </p>
       )
     case 'file':
-      return (
-        <CommentMenu path={row.file.path} onComment={onComment}>
-          <div className="flex h-5 items-center gap-2 border-t border-border bg-card px-2">
-            <SourceMarker source={row.file.source} />
-            <span className="font-mono text-xs font-medium">{row.file.path}</span>
-            {row.file.additions ? (
-              <span className="font-mono text-2xs text-success">+{row.file.additions}</span>
-            ) : null}
-            {row.file.deletions ? (
-              <span className="font-mono text-2xs text-destructive">−{row.file.deletions}</span>
-            ) : null}
-            {row.file.whole && (
-              <span className="text-2xs text-muted-foreground/50">whole file</span>
-            )}
-          </div>
-        </CommentMenu>
-      )
+      return <FileHeaderRow file={row.file} onComment={onComment} fileActions={fileActions} />
     case 'note':
       // The note wraps to multiple lines and is capped at the viewport width (the
       // `--vrows-vw` var, NOT the surface's horizontally-scrolling `w-max` content), so
@@ -269,8 +418,16 @@ function ReadingRowView({
  * VirtualRows' dynamic measurement (it's small + sliced — the perf invariant that
  * keeps full files fixed-height still holds for the file/diff viewers). One shared
  * CommentComposer renders the dialog any row's context menu opens.
+ * `fileActions` adds mark-reviewed / open-file chrome on file-name rows (Changes /
+ * History continuous review); Feature/Explore leave it off.
  */
-export function ReadingSurfaceBody({ reading }: { reading: FeatureReading }): React.JSX.Element {
+export function ReadingSurfaceBody({
+  reading,
+  fileActions,
+}: {
+  reading: FeatureReading
+  fileActions?: ReadingFileActions
+}): React.JSX.Element {
   const highlighter = useHighlighter()
   const rows = useMemo(() => buildRows(reading, highlighter), [reading, highlighter])
   const [anchor, setAnchor] = useState<CommentAnchor | null>(null)
@@ -300,6 +457,7 @@ export function ReadingSurfaceBody({ reading }: { reading: FeatureReading }): Re
             onComment={setAnchor}
             commentIndexByPath={commentIndexByPath}
             pendingAnchor={anchor}
+            fileActions={fileActions}
           />
         )}
       />

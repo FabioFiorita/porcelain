@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import type { ChangedFile, DiffHunk } from './diff'
 import {
+  buildDiffReading,
   buildFeatureReading,
   buildFeatureView,
   expandContext,
   resolveRelativeImport,
 } from './feature-view'
-import { DEFAULT_LAYERS } from './flow'
+import { DEFAULT_LAYERS, type FlowGroup } from './flow'
 import type { ReviewSet } from './review-set'
 
 const changed = (path: string, status: ChangedFile['status'] = 'modified'): ChangedFile => ({
@@ -242,5 +243,60 @@ describe('buildFeatureReading', () => {
     // page imports only `greet`, so the slice keeps it and drops the UNUSED export
     expect(sliced).toContain('export function greet')
     expect(sliced).not.toContain('UNUSED')
+  })
+})
+
+describe('buildDiffReading', () => {
+  const groups: FlowGroup[] = [
+    {
+      layer: 'Pages',
+      files: [
+        {
+          path: 'app/page.tsx',
+          status: 'modified',
+          connects: [],
+          additions: 2,
+          deletions: 1,
+        },
+      ],
+    },
+    {
+      layer: 'Data',
+      files: [
+        {
+          path: 'schema.prisma',
+          status: 'deleted',
+          connects: [],
+          deletions: 5,
+        },
+      ],
+    },
+  ]
+  const diffs = new Map<string, DiffHunk[]>([
+    [
+      'app/page.tsx',
+      [{ header: '@@ -1 +1 @@', lines: [{ kind: 'add', oldLine: null, newLine: 1, text: 'x' }] }],
+    ],
+  ])
+
+  it('keeps flow order and tags every file as changed with its hunks/status', () => {
+    const reading = buildDiffReading({ name: 'Changes', groups, diffs })
+    expect(reading.name).toBe('Changes')
+    expect(reading.groups.map((g) => g.layer)).toEqual(['Pages', 'Data'])
+    const [page, schema] = reading.groups.flatMap((g) => g.files)
+    expect(page).toMatchObject({
+      path: 'app/page.tsx',
+      source: 'changed',
+      status: 'modified',
+      additions: 2,
+      deletions: 1,
+    })
+    expect(page?.hunks).toHaveLength(1)
+    expect(schema).toMatchObject({
+      path: 'schema.prisma',
+      source: 'changed',
+      status: 'deleted',
+      hunks: [],
+    })
   })
 })

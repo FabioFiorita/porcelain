@@ -2,7 +2,7 @@ import type { FlowGroup } from '@backend/flow'
 import { useCommitFlow, useCommitMessage } from '@renderer/hooks/use-history'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
-import { useTabsStore } from '@renderer/stores/tabs'
+import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { CommitView } from './commit-view'
@@ -110,5 +110,27 @@ describe('CommitView', () => {
     vi.mocked(useCommitFlow).mockReturnValue({ groups: [] })
     renderView()
     expect(screen.getByText('No files changed')).toBeInTheDocument()
+  })
+
+  it('opens a continuous review tab for the commit when Review all is clicked', () => {
+    renderView()
+    fireEvent.click(screen.getByLabelText('Review all'))
+
+    const key = `commit:${HASH}`
+    const { tabs, activeTabId } = useTabsStore.getState().panes[0]
+    expect(tabs).toHaveLength(1)
+    expect(tabs[0]).toMatchObject({
+      id: tabId('review', key),
+      kind: 'review',
+      path: key,
+      title: 'feat: add widget and schema',
+    })
+    expect(activeTabId).toBe(tabId('review', key))
+  })
+
+  it('hides Review all when the commit has no files', () => {
+    vi.mocked(useCommitFlow).mockReturnValue({ groups: [] })
+    renderView()
+    expect(screen.queryByLabelText('Review all')).not.toBeInTheDocument()
   })
 })

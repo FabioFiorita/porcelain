@@ -1,6 +1,13 @@
 import type { ChangedFile, DiffHunk, FileStatus } from './diff'
 import { collectImportedSymbols, type SliceRange, sliceSource } from './feature-slice'
-import { groupByLayer, groupByLayerOrdered, type Layer, parseImports, resolveImport } from './flow'
+import {
+  type FlowGroup,
+  groupByLayer,
+  groupByLayerOrdered,
+  type Layer,
+  parseImports,
+  resolveImport,
+} from './flow'
 import type { FileSource, ReviewSet } from './review-set'
 
 // Resolution order for an extension-less import. Mirrors the resolver in flow.ts
@@ -205,6 +212,8 @@ export interface ReadingFile {
   note?: string
   additions?: number
   deletions?: number
+  /** Git status when the surface is a pure diff review (open-file gating). */
+  status?: FileStatus
   /** Changed files only: the working-tree diff. */
   hunks?: DiffHunk[]
   /** Context/shipped files only: the symbol-sliced ranges. */
@@ -263,4 +272,32 @@ export function buildFeatureReading(params: {
   }))
 
   return { name: params.view.name, groups }
+}
+
+/**
+ * Build a continuous stacked-diff reading surface from a flow-grouped file list
+ * and pre-fetched per-file hunks. Used by the Changes / History "review all"
+ * views — pure diffs only (every file is `changed`), same flow order as the list.
+ */
+export function buildDiffReading(params: {
+  name: string
+  groups: readonly FlowGroup[]
+  diffs: ReadonlyMap<string, DiffHunk[]>
+}): FeatureReading {
+  return {
+    name: params.name,
+    groups: params.groups.map((group) => ({
+      layer: group.layer,
+      files: group.files.map(
+        (file): ReadingFile => ({
+          path: file.path,
+          source: 'changed',
+          additions: file.additions,
+          deletions: file.deletions,
+          status: file.status,
+          hunks: params.diffs.get(file.path) ?? [],
+        }),
+      ),
+    })),
+  }
 }

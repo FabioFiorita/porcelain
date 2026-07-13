@@ -66,6 +66,7 @@ import { buildExploreReading, walkExplore } from './feature-explore'
 import { featureKey, flowKey } from './feature-key'
 import { writeFeatureSnapshot } from './feature-snapshot-store'
 import {
+  buildDiffReading,
   buildFeatureReading,
   buildFeatureView,
   expandContext,
@@ -289,6 +290,64 @@ const rangeFlowCache = new Map<string, { key: string; groups: FlowGroup[] }>()
 // Commit hashes are immutable, so this cache never busts for the same commit.
 // Keyed by `repoPath\nhash` so different repos' commits don't collide.
 const commitFlowCache = new Map<string, { key: string; groups: FlowGroup[] }>()
+
+/** Working-tree flow groups (shared by gitFlow + diffReading). */
+async function loadWorkingFlow(repoPath: string): Promise<FlowGroup[]> {
+  const [{ files, stats }, stored] = await Promise.all([
+    workingTreeSnapshot(repoPath),
+    readLayers(repoPath),
+  ])
+  const layers = stored ?? DEFAULT_LAYERS
+  const key = flowKey(files, stats, layers)
+  const cached = flowCache.get(repoPath)
+  if (cached && cached.key === key) return cached.groups
+  const groups = await readSourcesAndBuildFlow(repoPath, files, stats, layers)
+  flowCache.set(repoPath, { key, groups })
+  return groups
+}
+
+/** Branch-range flow groups + base label (shared by gitRangeFlow + diffReading). */
+async function loadRangeFlow(repoPath: string): Promise<{ groups: FlowGroup[]; base: string }> {
+  const base = await gitDefaultBranch(repoPath)
+  try {
+    const mergeBase = await gitMergeBase(repoPath, base)
+    const [files, stored, stats] = await Promise.all([
+      gitRangeChangedFilesFrom(repoPath, mergeBase),
+      readLayers(repoPath),
+      gitRangeNumstatFrom(repoPath, mergeBase),
+    ])
+    const layers = stored ?? DEFAULT_LAYERS
+    const key = `${base}\n${flowKey(files, stats, layers)}`
+    const cached = rangeFlowCache.get(repoPath)
+    if (cached && cached.key === key) return { groups: cached.groups, base }
+    const groups = await readSourcesAndBuildFlow(repoPath, files, stats, layers)
+    rangeFlowCache.set(repoPath, { key, groups })
+    return { groups, base }
+  } catch {
+    return { groups: [], base }
+  }
+}
+
+/** Historical commit flow groups (shared by gitCommitFlow + diffReading). */
+async function loadCommitFlow(repoPath: string, hash: string): Promise<FlowGroup[]> {
+  try {
+    const [files, stored, stats] = await Promise.all([
+      gitCommitFiles(repoPath, hash),
+      readLayers(repoPath),
+      gitCommitNumstat(repoPath, hash),
+    ])
+    const layers = stored ?? DEFAULT_LAYERS
+    const cacheKey = `${repoPath}\n${hash}`
+    const key = `${hash}\n${flowKey(files, stats, layers)}`
+    const cached = commitFlowCache.get(cacheKey)
+    if (cached && cached.key === key) return cached.groups
+    const groups = await readSourcesAndBuildFlow(repoPath, files, stats, layers)
+    commitFlowCache.set(cacheKey, { key, groups })
+    return groups
+  } catch {
+    return []
+  }
+}
 
 // One shared build per snapshot — both feature procedures reuse it instead of each
 // re-reading ≤200 sources and rebuilding the view for the identical key. Keyed on
@@ -760,46 +819,67 @@ export const router = t.router({
 
   gitSuggestions: t.procedure.input(z.string()).query(({ input }) => gitSuggestions(input)),
 
-  gitFlow: t.procedure.input(z.string()).query(async ({ input }): Promise<FlowGroup[]> => {
-    const [{ files, stats }, stored] = await Promise.all([
-      workingTreeSnapshot(input),
-      readLayers(input),
-    ])
-    const layers = stored ?? DEFAULT_LAYERS
-    const key = flowKey(files, stats, layers)
-    const cached = flowCache.get(input)
-    if (cached && cached.key === key) return cached.groups
-    const groups = await readSourcesAndBuildFlow(input, files, stats, layers)
-    flowCache.set(input, { key, groups })
-    return groups
-  }),
+  gitFlow: t.procedure
+    .input(z.string())
+    .query(({ input }): Promise<FlowGroup[]> => loadWorkingFlow(input)),
 
   gitRangeFlow: t.procedure
     .input(z.string())
-    .query(async ({ input }): Promise<{ groups: FlowGroup[]; base: string }> => {
-      const base = await gitDefaultBranch(input)
-      try {
-        const mergeBase = await gitMergeBase(input, base)
-        const [files, stored, stats] = await Promise.all([
-          gitRangeChangedFilesFrom(input, mergeBase),
-          readLayers(input),
-          gitRangeNumstatFrom(input, mergeBase),
-        ])
-        const layers = stored ?? DEFAULT_LAYERS
-        const key = `${base}\n${flowKey(files, stats, layers)}`
-        const cached = rangeFlowCache.get(input)
-        if (cached && cached.key === key) return { groups: cached.groups, base }
-        const groups = await readSourcesAndBuildFlow(input, files, stats, layers)
-        rangeFlowCache.set(input, { key, groups })
-        return { groups, base }
-      } catch {
-        return { groups: [], base }
-      }
-    }),
+    .query(({ input }): Promise<{ groups: FlowGroup[]; base: string }> => loadRangeFlow(input)),
 
   gitRangeDiffFile: t.procedure
     .input(z.object({ repoPath: z.string(), base: z.string(), filePath: z.string() }))
     .query(({ input }) => gitRangeDiffFile(input.repoPath, input.base, input.filePath)),
+
+  // Continuous stacked-diff reading surface for Changes (working/branch) and
+  // History (a single commit). Same flow order as the lists; every file carries
+  // its full diff so the viewer can scroll the whole change as one document.
+  diffReading: t.procedure
+    .input(
+      z.object({
+        repoPath: z.string(),
+        scope: z.discriminatedUnion('type', [
+          z.object({ type: z.literal('working') }),
+          z.object({ type: z.literal('branch') }),
+          z.object({ type: z.literal('commit'), hash: z.string() }),
+        ]),
+      }),
+    )
+    .query(async ({ input }): Promise<FeatureReading> => {
+      const { repoPath, scope } = input
+      let groups: FlowGroup[]
+      let name: string
+      let fetchHunks: (path: string) => Promise<DiffHunk[]>
+
+      if (scope.type === 'working') {
+        groups = await loadWorkingFlow(repoPath)
+        name = 'Changes'
+        fetchHunks = async (path) => (await gitDiffFile(repoPath, path)).hunks
+      } else if (scope.type === 'branch') {
+        const range = await loadRangeFlow(repoPath)
+        groups = range.groups
+        name = `vs ${range.base}`
+        fetchHunks = async (path) => (await gitRangeDiffFile(repoPath, range.base, path)).hunks
+      } else {
+        groups = await loadCommitFlow(repoPath, scope.hash)
+        const message = await gitCommitMessage(repoPath, scope.hash)
+        name = message.split('\n')[0]?.trim() || scope.hash.slice(0, 12)
+        fetchHunks = (path) => gitCommitDiff(repoPath, scope.hash, path)
+      }
+
+      const files = groups.flatMap((group) => group.files)
+      const diffs = new Map<string, DiffHunk[]>()
+      await Promise.all(
+        files.map(async (file) => {
+          try {
+            diffs.set(file.path, await fetchHunks(file.path))
+          } catch {
+            // vanished/renamed between the flow snapshot and this read — empty hunks
+          }
+        }),
+      )
+      return buildDiffReading({ name, groups, diffs })
+    }),
 
   // The feature view: the change under review widened into the whole feature.
   // No-MCP baseline = changed files + the unchanged files they reach by relative
@@ -1227,25 +1307,7 @@ export const router = t.router({
   // commit hash is immutable, so the cache never needs to bust for the same hash.
   gitCommitFlow: t.procedure
     .input(z.object({ repoPath: z.string(), hash: z.string() }))
-    .query(async ({ input }): Promise<FlowGroup[]> => {
-      try {
-        const [files, stored, stats] = await Promise.all([
-          gitCommitFiles(input.repoPath, input.hash),
-          readLayers(input.repoPath),
-          gitCommitNumstat(input.repoPath, input.hash),
-        ])
-        const layers = stored ?? DEFAULT_LAYERS
-        const cacheKey = `${input.repoPath}\n${input.hash}`
-        const key = `${input.hash}\n${flowKey(files, stats, layers)}`
-        const cached = commitFlowCache.get(cacheKey)
-        if (cached && cached.key === key) return cached.groups
-        const groups = await readSourcesAndBuildFlow(input.repoPath, files, stats, layers)
-        commitFlowCache.set(cacheKey, { key, groups })
-        return groups
-      } catch {
-        return []
-      }
-    }),
+    .query(({ input }): Promise<FlowGroup[]> => loadCommitFlow(input.repoPath, input.hash)),
 
   searchFiles: t.procedure
     .input(z.object({ repoPath: z.string(), query: z.string() }))

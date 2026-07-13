@@ -43,6 +43,7 @@ import {
   Minus,
   Plus,
   RefreshCw,
+  Rows3,
   Square,
   SquareCheck,
   Undo2,
@@ -51,6 +52,7 @@ import { memo, useState } from 'react'
 import { ChangesScopeToggle } from './changes-scope-toggle'
 import { type CommentAnchor, CommentComposer } from './comment-composer'
 import { ReviewAllToggle } from './review-all-toggle'
+import { reviewTabKey } from './review-view'
 
 const statusBadge: Record<FileStatus, { label: string; className: string }> = {
   modified: { label: 'M', className: 'text-warning' },
@@ -273,6 +275,7 @@ const FileRow = memo(FileRowImpl)
 export function ChangesList(): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)
   const changesScope = usePreferencesStore((s) => s.changesScope)
+  const openTab = useTabsStore((s) => s.openTab)
 
   // Always call both hooks — hooks can't be conditional. Branch hook is disabled
   // when scope is 'working' (no wasted fetch); working hook always fetches (it
@@ -294,6 +297,20 @@ export function ChangesList(): React.JSX.Element {
     (n, g) => n + g.files.filter((f) => reviewed.has(f.path)).length,
     0,
   )
+
+  // Opens the continuous stacked-diff surface for the active scope (working or
+  // branch) — same flow order as this list, one scrollable document.
+  const openReviewAll = (): void => {
+    const scope =
+      changesScope === 'branch' ? ({ type: 'branch' } as const) : ({ type: 'working' } as const)
+    const key = reviewTabKey(scope)
+    openTab({
+      id: tabId('review', key),
+      kind: 'review',
+      title: scope.type === 'branch' ? `Review · vs ${base ?? 'base'}` : 'Review all',
+      path: key,
+    })
+  }
 
   return (
     <div className="flex flex-col gap-1">
@@ -321,6 +338,24 @@ export function ChangesList(): React.JSX.Element {
                 paths={groups.flatMap((g) => g.files.map((f) => f.path))}
                 allReviewed={reviewedCount === total}
               />
+            )}
+            {total > 0 && (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className="shrink-0"
+                      onClick={openReviewAll}
+                      aria-label="Review all"
+                    >
+                      <Rows3 />
+                    </Button>
+                  }
+                />
+                <TooltipContent>Review all</TooltipContent>
+              </Tooltip>
             )}
             <Button
               variant="ghost"

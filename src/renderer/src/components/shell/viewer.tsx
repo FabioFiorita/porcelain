@@ -6,6 +6,7 @@ import { CommitView } from '@renderer/components/git/commit-view'
 import { DiffView } from '@renderer/components/git/diff-view'
 import { ExploreView } from '@renderer/components/git/explore-view'
 import { FeatureView } from '@renderer/components/git/feature-view'
+import { ReviewView } from '@renderer/components/git/review-view'
 import { TerminalView } from '@renderer/components/terminal/terminal-view'
 import { Kbd } from '@renderer/components/ui/kbd'
 import { FileContent } from '@renderer/components/viewer/file-content'
@@ -81,6 +82,8 @@ function PaneView({ paneIndex }: { paneIndex: number }): React.JSX.Element {
       )
     case 'commit':
       return <CommitView key={activeTab.path} hash={activeTab.path} />
+    case 'review':
+      return <ReviewView key={activeTab.path} path={activeTab.path} />
     case 'search':
       return <SearchView key={activeTab.path} query={activeTab.path} />
     case 'feature':
