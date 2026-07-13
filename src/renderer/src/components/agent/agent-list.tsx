@@ -219,17 +219,16 @@ export function AgentList(): React.JSX.Element {
   }
 
   const newThread = async (): Promise<void> => {
-    // No provider/model = default to the last-used selection (the composer's model
-    // picker changes it later); falls back to the driver's default on a fresh config.
-    const thread = await create({ mode: 'full' })
+    // Nothing supplied = resume the last-used provider with its remembered config (model,
+    // access mode, options, Build/Plan); falls back to the driver's default on a fresh config.
+    const thread = await create({})
     if (thread) openThreadTab(thread)
   }
 
   const newThreadWith = async (provider: AgentProvider): Promise<void> => {
-    // An explicit provider pick passes model:'' so the daemon honors the provider verbatim
-    // (both fields present) and the driver fills its own default model — no cross-provider
-    // mix with the last-used selection.
-    const thread = await create({ provider, model: '', mode: 'full' })
+    // An explicit provider pick inherits THAT provider's remembered defaults (the daemon
+    // resolves model/mode/options/interaction per provider — no cross-provider mix).
+    const thread = await create({ provider })
     if (thread) openThreadTab(thread)
   }
 

@@ -124,8 +124,9 @@ import {
   resolveCreationDefaults,
   toggleModelFavorite,
   visibleFilePaths,
+  withAgentDefaults,
+  withAgentProviderCache,
   withHiddenPath,
-  withLastAgentSelection,
   withoutHiddenPath,
   withoutPinnedPath,
   withoutRecentRepo,
@@ -199,6 +200,27 @@ const toRepoInfo = (path: string): RepoInfo => ({ path, name: basename(path) })
 // need per-keystroke freshness.
 const PROVIDER_STATUS_TTL_MS = 30_000
 let providerStatusCache: { at: number; value: ProviderStatus[] } | null = null
+
+// Stale-while-revalidate for agentProviders across launches: a single background re-probe
+// refreshes both the in-memory cache and the persisted `agentProviderCache`. The in-flight
+// flag stops a burst of first-open queries from stampeding the CLI probe.
+let providerReprobeInFlight = false
+async function reprobeProviders(): Promise<void> {
+  if (providerReprobeInFlight) return
+  providerReprobeInFlight = true
+  try {
+    const value = await providerStatuses()
+    providerStatusCache = { at: Date.now(), value }
+    await updateConfig((c) => withAgentProviderCache(c, value))
+  } finally {
+    providerReprobeInFlight = false
+  }
+}
+function kickProviderReprobe(): void {
+  // Fire-and-forget: the persisted cache is already serving this request; errors are
+  // swallowed so a failed re-probe just leaves the stale value in place.
+  reprobeProviders().catch(() => {})
+}
 
 // Slash-command lists are scanned from disk per (repo, provider); cache them for the same
 // short TTL so the composer's command menu doesn't re-walk the filesystem per keystroke.
@@ -1259,18 +1281,19 @@ export const router = t.router({
     .input(z.object({ repoPath: z.string() }))
     .query(({ input }): Promise<ThreadInfo[]> => listThreads(input.repoPath)),
 
-  // Create a thread. `provider`/`model` are optional: when either is absent (the Agent
-  // list's "new thread" button sends neither), they're filled from the last-used
-  // selection in config (provider+model+options together — no cross-provider mix), or
-  // the legacy default (provider 'claude' + empty model) if nothing's recorded yet. A
-  // create carrying an explicit non-empty model also records it as the new last-used.
+  // Create a thread. Every field except repoPath is optional: whatever the caller omits is
+  // filled from the chosen provider's remembered defaults — model, access mode, effort/
+  // context options, and Build/Plan interaction — so a bare "+" reopens the last-used
+  // provider exactly how it was left, and an explicit-provider pick inherits THAT provider's
+  // defaults (see resolveCreationDefaults). A create resolving to a non-empty model records
+  // the resolved config as that provider's new defaults.
   createAgentThread: t.procedure
     .input(
       z.object({
         repoPath: z.string(),
         provider: agentProviderSchema.optional(),
         model: z.string().optional(),
-        mode: agentModeSchema,
+        mode: agentModeSchema.optional(),
         options: threadOptionsSchema.optional(),
       }),
     )
@@ -1279,14 +1302,16 @@ export const router = t.router({
       const resolved = resolveCreationDefaults(config, {
         provider: input.provider,
         model: input.model,
+        mode: input.mode,
         options: input.options,
       })
       if (resolved.model !== '') {
         await updateConfig((c) =>
-          withLastAgentSelection(c, {
-            provider: resolved.provider,
+          withAgentDefaults(c, resolved.provider, {
             model: resolved.model,
+            mode: resolved.mode,
             ...(resolved.options !== undefined ? { options: resolved.options } : {}),
+            ...(resolved.interaction !== undefined ? { interaction: resolved.interaction } : {}),
           }),
         )
       }
@@ -1294,8 +1319,9 @@ export const router = t.router({
         repoPath: input.repoPath,
         provider: resolved.provider,
         model: resolved.model,
-        mode: input.mode,
+        mode: resolved.mode,
         ...(resolved.options !== undefined ? { options: resolved.options } : {}),
+        ...(resolved.interaction !== undefined ? { interaction: resolved.interaction } : {}),
       })
     }),
 
@@ -1322,14 +1348,22 @@ export const router = t.router({
         interaction: input.interaction,
         options: input.options,
       })
-      // Whenever the switch carried a model, record the thread's resulting
-      // provider/model/options as the last-used selection (the provider may have
-      // followed the model), so the next new thread defaults to it.
-      if (input.model !== undefined && updated) {
+      // Whenever the switch touched any remembered field (model/mode/interaction/options —
+      // not just the model), record the thread's resulting config as that provider's
+      // defaults (the provider may have followed the model), so the next new thread for
+      // this provider resumes exactly how it was left.
+      if (
+        updated &&
+        (input.model !== undefined ||
+          input.mode !== undefined ||
+          input.interaction !== undefined ||
+          input.options !== undefined)
+      ) {
         await updateConfig((c) =>
-          withLastAgentSelection(c, {
-            provider: updated.provider,
+          withAgentDefaults(c, updated.provider, {
             model: updated.model,
+            mode: updated.mode,
+            ...(updated.interaction !== undefined ? { interaction: updated.interaction } : {}),
             ...(updated.options !== undefined ? { options: updated.options } : {}),
           }),
         )
@@ -1347,8 +1381,18 @@ export const router = t.router({
     if (providerStatusCache && now - providerStatusCache.at < PROVIDER_STATUS_TTL_MS) {
       return providerStatusCache.value
     }
+    // Stale-while-revalidate across launches: a persisted probe returns instantly (so the
+    // model picker's favorites render on first open) while a single background re-probe
+    // refreshes both caches. With nothing persisted, probe inline as before and store it.
+    const config = await loadConfig()
+    if (config.agentProviderCache) {
+      kickProviderReprobe()
+      providerStatusCache = { at: now, value: config.agentProviderCache }
+      return config.agentProviderCache
+    }
     const value = await providerStatuses()
     providerStatusCache = { at: now, value }
+    await updateConfig((c) => withAgentProviderCache(c, value))
     return value
   }),
 

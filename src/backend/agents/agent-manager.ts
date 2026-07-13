@@ -412,6 +412,9 @@ export interface CreateThreadOptions {
   // last-used selection carries them). Absent = an untouched thread with no options,
   // exactly like a thread created before this field existed.
   options?: ThreadOptions
+  // The Build/Plan interaction to start in, when the provider's remembered defaults carry
+  // one. Absent = 'build', exactly like a thread created before this field existed.
+  interaction?: AgentInteraction
 }
 
 export async function createThread(opts: CreateThreadOptions): Promise<ThreadInfo> {
@@ -425,6 +428,7 @@ export async function createThread(opts: CreateThreadOptions): Promise<ThreadInf
     model: opts.model,
     mode: opts.mode,
     ...(opts.options !== undefined ? { options: opts.options } : {}),
+    ...(opts.interaction !== undefined ? { interaction: opts.interaction } : {}),
     status: 'idle',
     createdAt: now,
     updatedAt: now,

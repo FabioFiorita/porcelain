@@ -56,14 +56,15 @@ export function useReconcileAgentTabTitles(): void {
 }
 
 /**
- * Create a thread in the current repo; refreshes the roster. `provider`/`model` are
- * optional — omit them to default to the last-used selection (see `createAgentThread`).
+ * Create a thread in the current repo; refreshes the roster. Every field is optional —
+ * whatever's omitted is filled from the resolved provider's remembered defaults (model,
+ * mode, options, interaction). See `createAgentThread`.
  */
 export function useCreateAgentThread(): {
   create: (input: {
     provider?: AgentProvider
     model?: string
-    mode: AgentMode
+    mode?: AgentMode
   }) => Promise<ThreadInfo | undefined>
   isPending: boolean
 } {

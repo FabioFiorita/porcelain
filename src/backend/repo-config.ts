@@ -1,10 +1,29 @@
 import { z } from 'zod'
 import {
+  type AgentInteraction,
+  type AgentMode,
   type AgentProvider,
+  agentInteractionSchema,
+  agentModeSchema,
   agentProviderSchema,
+  type ProviderStatus,
+  providerStatusSchema,
   type ThreadOptions,
   threadOptionsSchema,
 } from '../shared/agent-protocol'
+
+// The config a thread was last created/switched to for one provider — model, access mode,
+// Build/Plan interaction, and effort/context options. Persisted per provider (see
+// `agentProviderDefaults`) so a new thread resumes exactly how THAT provider was last left,
+// never crossing a model or effort from a different provider. Only `model` is required
+// (a provider always has one, even '' = the CLI's own default); the rest are absent until set.
+export const agentProviderDefaultSchema = z.object({
+  model: z.string(),
+  mode: agentModeSchema.optional(),
+  interaction: agentInteractionSchema.optional(),
+  options: threadOptionsSchema.optional(),
+})
+export type AgentProviderDefault = z.infer<typeof agentProviderDefaultSchema>
 
 // How often the Agent tab's Limits group re-polls provider quotas. A choice, not a
 // free number, so the mapping to poll intervals stays in one place (see useAgentLimits).
@@ -31,11 +50,20 @@ export const appConfigSchema = z.object({
   // subprocess with a web fetch per poll — so the cadence is user-tunable to bound that
   // cost. Absent ⇒ the shared DEFAULT_LIMITS_REFRESH ('5m'). Set from Settings → Agents.
   limitsRefresh: limitsRefreshSchema.optional(),
-  // Global (not per-repo): the last provider/model/options a thread was created or
-  // switched to, so a NEW thread defaults to what the user last worked with instead
-  // of a hardcoded provider + empty model. The three fields travel together — a model
-  // belongs to its provider, so we never mix a provider from one selection with a
-  // model from another. Optional so pre-existing configs stay valid.
+  // Global (not per-repo): the provider a thread was last created/switched to, so a bare
+  // "+" new thread reopens in the provider the user last worked in. Optional until the
+  // first selection is recorded.
+  lastAgentProvider: agentProviderSchema.optional(),
+  // Global (not per-repo): the last-used config PER provider (see agentProviderDefaultSchema),
+  // so a new thread — bare "+" or explicit-provider pick — resumes how that provider was
+  // last left, independent of the others. A partial record: a provider absent from the map
+  // simply has no remembered defaults yet. Optional so pre-existing configs stay valid.
+  agentProviderDefaults: z
+    .partialRecord(agentProviderSchema, agentProviderDefaultSchema)
+    .optional(),
+  // Legacy (superseded by lastAgentProvider + agentProviderDefaults): the single last-used
+  // provider/model/options. No code writes it anymore — kept in the schema so pre-existing
+  // configs still parse, and read back once by resolveCreationDefaults as a fallback seed.
   lastAgentSelection: z
     .object({
       provider: agentProviderSchema,
@@ -43,6 +71,11 @@ export const appConfigSchema = z.object({
       options: threadOptionsSchema.optional(),
     })
     .optional(),
+  // Global (not per-repo): the last successful `agentProviders` probe, persisted so the
+  // Agent tab's model picker renders its favorites immediately on first open (stale-while-
+  // revalidate) instead of waiting on the slow CLI probe. Overwritten on each successful
+  // re-probe. Optional so pre-existing configs stay valid.
+  agentProviderCache: z.array(providerStatusSchema).optional(),
   repos: z
     .record(
       z.string(),
@@ -170,30 +203,76 @@ export function toggleModelFavorite(config: AppConfig, key: string): AppConfig {
   return { ...config, agentModelFavorites: next }
 }
 
-// The remembered provider/model/options a new thread defaults to. Non-optional shape
-// (the config field itself is optional until the first selection is recorded).
-export type AgentSelection = NonNullable<AppConfig['lastAgentSelection']>
+/**
+ * Remember the config a thread was last created/switched to for its provider — `model`
+ * plus whichever of mode/interaction/options the caller knows — and mark that provider as
+ * the last-used one. The patch is MERGED into the provider's existing entry (a field the
+ * caller omits keeps its remembered value), and never crosses into another provider.
+ */
+export function withAgentDefaults(
+  config: AppConfig,
+  provider: AgentProvider,
+  patch: Partial<AgentProviderDefault> & { model: string },
+): AppConfig {
+  const existing = config.agentProviderDefaults?.[provider]
+  return {
+    ...config,
+    lastAgentProvider: provider,
+    agentProviderDefaults: {
+      ...config.agentProviderDefaults,
+      [provider]: { ...existing, ...patch },
+    },
+  }
+}
 
-/** Remember the provider/model/options last used, so the next new thread defaults to it. */
-export function withLastAgentSelection(config: AppConfig, selection: AgentSelection): AppConfig {
-  return { ...config, lastAgentSelection: selection }
+/** Persist the latest successful `agentProviders` probe for stale-while-revalidate reads. */
+export function withAgentProviderCache(config: AppConfig, cache: ProviderStatus[]): AppConfig {
+  return { ...config, agentProviderCache: cache }
 }
 
 /**
- * Resolve the provider/model/options a new thread is created with. When the caller
- * supplies BOTH provider and model, honor them verbatim (the options ride along). When
- * either is missing, fall back to the last-used selection as a unit — provider, model,
- * and options together, never a cross-provider mix. With no selection recorded yet, use
- * the legacy default (provider 'claude' + empty model, i.e. the driver's own default).
+ * Resolve the full config a new thread is created with, drawn from the chosen provider's
+ * remembered defaults so an explicit-provider create still inherits how that provider was
+ * last left (a non-empty caller value always wins). The provider is the caller's, else the
+ * last-used one, else the legacy selection's provider, else 'claude'; then per that provider:
+ *   - model: the caller's non-empty model, else the provider default's model, else '' (the CLI's own default)
+ *   - mode: the caller's, else the provider default's, else 'full'
+ *   - options: the caller's, else the provider default's
+ *   - interaction: the provider default's (absent = build)
+ * With no per-provider defaults yet, the legacy single `lastAgentSelection` seeds the last
+ * provider and — for its own provider — that provider's model/options: a one-way READ
+ * fallback so pre-existing configs keep working with no startup migration.
  */
 export function resolveCreationDefaults(
   config: AppConfig,
-  input: { provider?: AgentProvider; model?: string; options?: ThreadOptions },
-): { provider: AgentProvider; model: string; options?: ThreadOptions } {
-  if (input.provider !== undefined && input.model !== undefined) {
-    return { provider: input.provider, model: input.model, options: input.options }
+  input: { provider?: AgentProvider; model?: string; mode?: AgentMode; options?: ThreadOptions },
+): {
+  provider: AgentProvider
+  model: string
+  mode: AgentMode
+  options?: ThreadOptions
+  interaction?: AgentInteraction
+} {
+  const legacy = config.lastAgentSelection
+  const provider = input.provider ?? config.lastAgentProvider ?? legacy?.provider ?? 'claude'
+  const defaults =
+    config.agentProviderDefaults?.[provider] ??
+    (legacy?.provider === provider
+      ? {
+          model: legacy.model,
+          ...(legacy.options !== undefined ? { options: legacy.options } : {}),
+        }
+      : undefined)
+  const model =
+    input.model !== undefined && input.model !== '' ? input.model : (defaults?.model ?? '')
+  const mode = input.mode ?? defaults?.mode ?? 'full'
+  const options = input.options ?? defaults?.options
+  const interaction = defaults?.interaction
+  return {
+    provider,
+    model,
+    mode,
+    ...(options !== undefined ? { options } : {}),
+    ...(interaction !== undefined ? { interaction } : {}),
   }
-  const last = config.lastAgentSelection
-  if (last) return { provider: last.provider, model: last.model, options: last.options }
-  return { provider: input.provider ?? 'claude', model: input.model ?? '' }
 }
