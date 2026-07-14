@@ -34,6 +34,7 @@ describe('CommentsGroup', () => {
       edit: vi.fn(),
       remove: vi.fn(),
       setResolved: vi.fn(),
+      clearResolved: vi.fn(),
     })
   })
 
@@ -52,5 +53,17 @@ describe('CommentsGroup', () => {
     renderGroup()
     expect(screen.getByText('why unbounded?')).toBeInTheDocument()
     expect(screen.queryByText('Agent')).not.toBeInTheDocument()
+  })
+
+  it('hides the clear-closed eraser when nothing is resolved', () => {
+    vi.mocked(useReviewComments).mockReturnValue([base])
+    renderGroup()
+    expect(screen.queryByRole('button', { name: 'Clear closed comments' })).not.toBeInTheDocument()
+  })
+
+  it('shows the clear-closed eraser when resolved comments exist', () => {
+    vi.mocked(useReviewComments).mockReturnValue([{ ...base, resolved: true }])
+    renderGroup()
+    expect(screen.getByRole('button', { name: 'Clear closed comments' })).toBeInTheDocument()
   })
 })

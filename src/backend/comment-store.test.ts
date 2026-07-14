@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   addComment,
+  clearResolvedComments,
   deleteComment,
   editComment,
   readComments,
@@ -66,6 +67,17 @@ describe('comment-store CRUD', () => {
     const { id } = await addComment('/repo', { path: 'a.ts', body: 'x' })
     await deleteComment('/repo', id)
     expect(await readComments('/repo')).toEqual([])
+  })
+
+  it('clears only resolved comments, leaving open ones', async () => {
+    const open = await addComment('/repo', { path: 'a.ts', body: 'still open' })
+    const closed = await addComment('/repo', { path: 'b.ts', body: 'done' })
+    await setCommentResolved('/repo', closed.id, true)
+    await clearResolvedComments('/repo')
+    const remaining = await readComments('/repo')
+    expect(remaining).toHaveLength(1)
+    expect(remaining[0]?.id).toBe(open.id)
+    expect(remaining[0]?.resolved).toBe(false)
   })
 
   it('preserves an agent reply across an app-side edit and resolve', async () => {

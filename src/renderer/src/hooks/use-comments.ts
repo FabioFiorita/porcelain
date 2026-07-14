@@ -64,6 +64,8 @@ export function useCommentActions(): {
   edit: (id: string, body: string) => Promise<void>
   remove: (id: string) => Promise<void>
   setResolved: (id: string, resolved: boolean) => Promise<void>
+  /** Permanently delete every resolved (closed) comment for the current repo. */
+  clearResolved: () => Promise<void>
 } {
   const repo = useRepoStore((s) => s.repo)
   const utils = trpc.useUtils()
@@ -86,6 +88,10 @@ export function useCommentActions(): {
     onSuccess: refresh,
     onError: onMutationError('Resolve comment'),
   })
+  const clearResolved = trpc.clearResolvedReviewComments.useMutation({
+    onSuccess: refresh,
+    onError: onMutationError('Clear closed comments'),
+  })
   return {
     add: async (input) => {
       if (!repo) return
@@ -102,6 +108,10 @@ export function useCommentActions(): {
     setResolved: async (id, resolved) => {
       if (!repo) return
       await resolve.mutateAsync({ repoPath: repo.path, id, resolved })
+    },
+    clearResolved: async () => {
+      if (!repo) return
+      await clearResolved.mutateAsync({ repoPath: repo.path })
     },
   }
 }

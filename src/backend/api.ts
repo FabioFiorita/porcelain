@@ -56,6 +56,7 @@ import {
 import { type BrowseResult, browseDirs } from './browse'
 import {
   addComment,
+  clearResolvedComments,
   deleteComment,
   editComment,
   type ReviewComment,
@@ -982,6 +983,10 @@ export const router = t.router({
   deleteReviewComment: t.procedure
     .input(z.object({ repoPath: z.string(), id: z.string() }))
     .mutation(({ input }) => deleteComment(input.repoPath, input.id)),
+
+  clearResolvedReviewComments: t.procedure
+    .input(z.object({ repoPath: z.string() }))
+    .mutation(({ input }) => clearResolvedComments(input.repoPath)),
 
   resolveReviewComment: t.procedure
     .input(z.object({ repoPath: z.string(), id: z.string(), resolved: z.boolean() }))

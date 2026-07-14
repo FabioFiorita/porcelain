@@ -90,6 +90,15 @@ export async function deleteComment(repoPath: string, id: string): Promise<void>
   })
 }
 
+/** Remove every resolved (closed) comment in one atomic write — the human's
+ * bulk erase once a review thread is done, analogous to clearing Done cards. */
+export async function clearResolvedComments(repoPath: string): Promise<void> {
+  await channel.mutate((all) => {
+    const comments = all[repoPath]
+    if (comments) all[repoPath] = comments.filter((c) => !c.resolved)
+  })
+}
+
 export async function setCommentResolved(
   repoPath: string,
   id: string,
