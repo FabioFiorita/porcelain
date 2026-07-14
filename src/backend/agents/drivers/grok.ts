@@ -7,6 +7,7 @@ import { createInterface } from 'node:readline'
 import { agentSpawnEnv } from '../../login-shell-env'
 import type { AgentCommand, AgentDriver, StartTurnOptions, TurnHandle } from '../types'
 import { listCommandsAndSkills } from './agent-commands-fs'
+import { importGrokSession, listGrokSessions } from './grok-sessions'
 import {
   buildGrokArgs,
   GROK_MODELS,
@@ -74,6 +75,14 @@ export const grokDriver: AgentDriver = {
         join(homedir(), '.agents', 'skills'),
       ],
     )
+  },
+
+  listRecentSessions(repoPath: string, limit?: number) {
+    return listGrokSessions(repoPath, limit)
+  },
+
+  importSession(repoPath: string, externalId: string) {
+    return importGrokSession(repoPath, externalId)
   },
 
   async generateTitle({

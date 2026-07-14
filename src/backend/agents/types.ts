@@ -7,6 +7,7 @@ import type {
   ApprovalDecision,
   ProviderLimits,
   ProviderStatus,
+  TimelineItem,
 } from '../../shared/agent-protocol'
 
 /**
@@ -93,6 +94,36 @@ export interface AgentDriver {
    * are returned — an implementation must never surface a provider auth token here.
    */
   limits?(): Promise<ProviderLimits | null>
+  /**
+   * Recent on-disk CLI sessions for `repoPath` (sessions started in a terminal, IDE, or
+   * elsewhere). Optional — absent = provider doesn't support import. Never throws; returns
+   * [] when the CLI's session store is missing or unreadable.
+   */
+  listRecentSessions?(repoPath: string, limit?: number): Promise<ExternalSessionInfo[]>
+  /**
+   * Load one CLI session into a title + timeline + resume handle. Null when the id is
+   * unknown or not in this repo. Pure of daemon state — the manager creates the thread.
+   */
+  importSession?(repoPath: string, externalId: string): Promise<ImportSessionResult | null>
+}
+
+/** Lightweight list-row for a CLI session (no transcript). */
+export interface ExternalSessionInfo {
+  provider: AgentProvider
+  externalId: string
+  title: string
+  updatedAt: number
+  model?: string
+}
+
+/** Result of importing a CLI session — everything needed to create a Porcelain thread. */
+export interface ImportSessionResult {
+  title: string
+  model?: string
+  sessionState: unknown
+  items: TimelineItem[]
+  mode?: AgentMode
+  interaction?: AgentInteraction
 }
 
 export type DriverRegistry = Record<AgentProvider, AgentDriver>

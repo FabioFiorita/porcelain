@@ -32,14 +32,17 @@ import {
   useAgentThreads,
   useCreateAgentThread,
   useDeleteAgentThread,
+  useExternalAgentSessions,
+  useImportAgentSession,
   useRenameAgentThread,
 } from '@renderer/hooks/use-agents'
 import { cn } from '@renderer/lib/utils'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
-import type { AgentProvider, ThreadInfo } from '@shared/agent-protocol'
+import type { AgentProvider, ExternalSession, ThreadInfo } from '@shared/agent-protocol'
 import { agentProviderSchema, PROVIDER_LABEL } from '@shared/agent-protocol'
-import { ChevronDown, Loader2, PenLine, Plus, Trash2 } from 'lucide-react'
+import { ChevronDown, History, Loader2, PenLine, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 
 /** Short "updated" label for a thread row — coarse buckets, never a live-ticking string. */
 function relativeTime(ms: number): string {
@@ -203,7 +206,9 @@ function ThreadRow({ thread }: { thread: ThreadInfo }): React.JSX.Element {
 export function AgentList(): React.JSX.Element {
   const threads = useAgentThreads()
   const providers = useAgentProviders()
+  const external = useExternalAgentSessions()
   const { create, isPending } = useCreateAgentThread()
+  const { importSession, isPending: isImporting } = useImportAgentSession()
   const openTab = useTabsStore((s) => s.openTab)
 
   // Coarse re-render tick so each row's relativeTime() label refreshes as time passes (rows
@@ -232,11 +237,85 @@ export function AgentList(): React.JSX.Element {
     if (thread) openThreadTab(thread)
   }
 
+  const openExternal = async (session: ExternalSession): Promise<void> => {
+    // Already imported → just focus the existing thread tab.
+    if (session.threadId) {
+      const existing = threads.find((t) => t.id === session.threadId)
+      openThreadTab(
+        existing ?? {
+          id: session.threadId,
+          repoPath: '',
+          title: session.title,
+          provider: session.provider,
+          model: session.model ?? '',
+          mode: 'full',
+          status: 'idle',
+          createdAt: session.updatedAt,
+          updatedAt: session.updatedAt,
+        },
+      )
+      return
+    }
+    try {
+      const thread = await importSession(session.provider, session.externalId)
+      if (thread) openThreadTab(thread)
+    } catch {
+      toast.error('Couldn’t open that session')
+    }
+  }
+
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-end px-2">
         <SidebarHeaderActions>
           <div className="flex items-center">
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Open recent CLI session"
+                    disabled={isImporting}
+                  >
+                    {isImporting ? <Loader2 className="animate-spin" /> : <History />}
+                  </Button>
+                }
+              />
+              <DropdownMenuContent align="end" className="min-w-64 max-w-80">
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Open recent session…</DropdownMenuLabel>
+                  {external.length === 0 ? (
+                    <div className="px-2 py-3 text-2xs text-muted-foreground">
+                      No CLI sessions found for this repo. Run Grok, Claude, Codex, or OpenCode here
+                      first.
+                    </div>
+                  ) : (
+                    external.map((session) => (
+                      <DropdownMenuItem
+                        key={`${session.provider}:${session.externalId}`}
+                        onClick={() => openExternal(session)}
+                        className="items-start gap-2 py-1.5"
+                      >
+                        <ProviderGlyph
+                          provider={session.provider}
+                          className="mt-0.5 size-3.5 shrink-0 text-muted-foreground"
+                        />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm-minus">{session.title}</span>
+                          <span className="block text-2xs text-muted-foreground">
+                            {PROVIDER_LABEL[session.provider]}
+                            {' · '}
+                            {relativeTime(session.updatedAt)}
+                            {session.threadId ? ' · open' : ''}
+                          </span>
+                        </span>
+                      </DropdownMenuItem>
+                    ))
+                  )}
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button
               variant="ghost"
               size="icon-sm"
@@ -295,7 +374,7 @@ export function AgentList(): React.JSX.Element {
       <div className="flex flex-col gap-0.5 px-2">
         {threads.length === 0 ? (
           <p className="px-1 py-6 text-center text-xs-minus text-muted-foreground/60">
-            No threads yet. Start one with +.
+            No threads yet. Start one with +, or open a recent CLI session.
           </p>
         ) : (
           threads.map((thread) => <ThreadRow key={thread.id} thread={thread} />)

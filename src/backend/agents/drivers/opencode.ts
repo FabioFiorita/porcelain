@@ -20,6 +20,7 @@ import {
   parseModelsCli,
   splitModelId,
 } from './opencode-catalog'
+import { importOpencodeSession, listOpencodeSessions } from './opencode-sessions'
 import {
   createOpencodeTranslator,
   drainSseLines,
@@ -272,6 +273,14 @@ export const opencodeDriver: AgentDriver = {
   // Flat `.md` command files under `.opencode/command` (repo) + `~/.config/opencode/command`.
   listCommands(repoPath: string): Promise<AgentCommand[]> {
     return listCommandFiles(opencodeCommandDirs(repoPath), false)
+  },
+
+  listRecentSessions(repoPath: string, limit?: number) {
+    return listOpencodeSessions(repoPath, limit)
+  },
+
+  importSession(repoPath: string, externalId: string) {
+    return importOpencodeSession(repoPath, externalId)
   },
 
   // OpenCode itself still exposes NO usage/quota/limit endpoint (verified on opencode

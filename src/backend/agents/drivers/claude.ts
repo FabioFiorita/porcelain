@@ -10,6 +10,7 @@ import type { ApprovalDecision, ProviderLimits } from '../../../shared/agent-pro
 import { agentSpawnEnv } from '../../login-shell-env'
 import type { AgentCommand, AgentDriver, StartTurnOptions, TurnHandle } from '../types'
 import { listCommandsAndSkills } from './agent-commands-fs'
+import { importClaudeSession, listClaudeSessions } from './claude-sessions'
 import {
   buildClaudeArgs,
   buildUserMessage,
@@ -174,6 +175,14 @@ export const claudeDriver: AgentDriver = {
       [join(repoPath, '.claude', 'commands'), join(homedir(), '.claude', 'commands')],
       [join(repoPath, '.claude', 'skills'), join(homedir(), '.claude', 'skills')],
     )
+  },
+
+  listRecentSessions(repoPath: string, limit?: number) {
+    return listClaudeSessions(repoPath, limit)
+  },
+
+  importSession(repoPath: string, externalId: string) {
+    return importClaudeSession(repoPath, externalId)
   },
 
   // A cheap one-shot title via `claude -p … --model haiku`. Resolves null on any failure

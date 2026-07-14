@@ -10,6 +10,7 @@ import type {
   AgentInteraction,
   AgentMode,
   AgentProvider,
+  ExternalSession,
   ProviderLimits,
   ProviderStatus,
   ThreadInfo,
@@ -77,6 +78,41 @@ export function useCreateAgentThread(): {
     create: async (input) => {
       if (!repo) return undefined
       return mutation.mutateAsync({ repoPath: repo.path, ...input })
+    },
+    isPending: mutation.isPending,
+  }
+}
+
+/**
+ * Recent CLI sessions for the current repo that can be opened as Agent threads
+ * (Grok/Claude/Codex/OpenCode on-disk history). Sessions already imported carry `threadId`.
+ */
+export function useExternalAgentSessions(): ExternalSession[] {
+  const repo = useRepoStore((s) => s.repo)
+  const { data } = trpc.agentExternalSessions.useQuery(
+    { repoPath: repo?.path ?? '' },
+    { enabled: repo !== null, staleTime: 15_000 },
+  )
+  return data ?? []
+}
+
+/** Import a CLI session into an Agent thread (or reopen the existing linked thread). */
+export function useImportAgentSession(): {
+  importSession: (provider: AgentProvider, externalId: string) => Promise<ThreadInfo | undefined>
+  isPending: boolean
+} {
+  const repo = useRepoStore((s) => s.repo)
+  const utils = trpc.useUtils()
+  const mutation = trpc.importAgentSession.useMutation({
+    onSuccess: async () => {
+      await Promise.all([utils.agentThreads.invalidate(), utils.agentExternalSessions.invalidate()])
+    },
+    onError: onMutationError('Couldn’t open session'),
+  })
+  return {
+    importSession: async (provider, externalId) => {
+      if (!repo) return undefined
+      return mutation.mutateAsync({ repoPath: repo.path, provider, externalId })
     },
     isPending: mutation.isPending,
   }

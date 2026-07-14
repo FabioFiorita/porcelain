@@ -9,6 +9,7 @@ import {
   type ApprovalDecision,
   agentProviderSchema,
   applyAgentEvent,
+  type ExternalSession,
   type ProviderLimits,
   type ProviderStatus,
   type ThreadInfo,
@@ -18,6 +19,7 @@ import {
 import { emitAppEvent } from '../app-events'
 import type { TerminalSender } from '../terminal-manager'
 import { drivers as defaultDrivers } from './drivers'
+import { resumeKey } from './session-import'
 import {
   deleteThreadFile,
   listThreadFiles,
@@ -766,6 +768,107 @@ export async function agentLimits(provider: AgentProvider): Promise<ProviderLimi
   } catch {
     return null
   }
+}
+
+/**
+ * Recent CLI sessions for `repoPath` across every provider that supports import. Marks
+ * sessions already linked to a Porcelain thread (`threadId`) so the UI can reopen instead
+ * of duplicating. Failures in one provider don't fail the whole list.
+ */
+export async function listExternalSessions(
+  repoPath: string,
+  limit = 30,
+): Promise<ExternalSession[]> {
+  await ensureHydrated()
+  const byProvider = await Promise.all(
+    agentProviderSchema.options.map(async (provider) => {
+      try {
+        return (await drivers[provider].listRecentSessions?.(repoPath, limit)) ?? []
+      } catch {
+        return []
+      }
+    }),
+  )
+  // Map resume keys → existing thread ids for this repo (idempotent open).
+  const existing = new Map<string, string>()
+  for (const thread of threads.values()) {
+    if (thread.meta.repoPath !== repoPath) continue
+    const key = resumeKey(thread.sessionState)
+    if (key !== null) existing.set(`${thread.meta.provider}:${key}`, thread.meta.id)
+  }
+  const merged: ExternalSession[] = []
+  for (const list of byProvider) {
+    for (const s of list) {
+      const threadId = existing.get(`${s.provider}:${s.externalId}`)
+      merged.push({
+        provider: s.provider,
+        externalId: s.externalId,
+        title: s.title,
+        updatedAt: s.updatedAt,
+        ...(s.model !== undefined ? { model: s.model } : {}),
+        ...(threadId !== undefined ? { threadId } : {}),
+      })
+    }
+  }
+  merged.sort((a, b) => b.updatedAt - a.updatedAt)
+  return merged.slice(0, limit)
+}
+
+/**
+ * Import a CLI session into a Porcelain Agent thread (or return the existing thread if
+ * this external id was already imported for the repo). The transcript becomes the
+ * timeline; `sessionState` is set so the next turn resumes that CLI conversation.
+ */
+export async function importExternalSession(
+  repoPath: string,
+  provider: AgentProvider,
+  externalId: string,
+): Promise<ThreadInfo | null> {
+  await ensureHydrated()
+  // Idempotent reopen.
+  for (const thread of threads.values()) {
+    if (thread.meta.repoPath !== repoPath || thread.meta.provider !== provider) continue
+    if (resumeKey(thread.sessionState) === externalId) return thread.meta
+  }
+
+  let imported: Awaited<ReturnType<NonNullable<DriverRegistry[AgentProvider]['importSession']>>>
+  try {
+    imported = (await drivers[provider].importSession?.(repoPath, externalId)) ?? null
+  } catch {
+    return null
+  }
+  if (imported === null) return null
+
+  const now = Date.now()
+  const meta: ThreadInfo = {
+    id: randomUUID(),
+    repoPath,
+    title: imported.title.slice(0, TITLE_MAX) || 'Imported session',
+    provider,
+    model: imported.model ?? '',
+    mode: imported.mode ?? 'full',
+    ...(imported.interaction !== undefined ? { interaction: imported.interaction } : {}),
+    status: 'idle',
+    createdAt: now,
+    updatedAt: now,
+  }
+  const thread: Thread = {
+    meta,
+    sessionState: imported.sessionState,
+    items: imported.items,
+    attached: new Set(),
+    turn: null,
+    turnToken: null,
+    persistTimer: null,
+    persistChain: Promise.resolve(),
+    turnUsageBase: { input: 0, output: 0, cost: 0 },
+    pendingAutoTitle: false,
+    queued: null,
+  }
+  threads.set(meta.id, thread)
+  await persistNow(thread)
+  broadcastRoster()
+  return meta
 }
 
 /** Swap the driver registry — tests inject a mock driver. */

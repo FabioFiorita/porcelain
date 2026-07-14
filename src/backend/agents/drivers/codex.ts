@@ -43,6 +43,7 @@ import {
   toV2Decision,
   translateNotification,
 } from './codex-rpc'
+import { importCodexSession, listCodexSessions } from './codex-sessions'
 
 /**
  * Codex driver — drives the user's installed `codex` CLI via `codex app-server`, a
@@ -418,6 +419,14 @@ export const codexDriver: AgentDriver = {
   // scan is non-recursive.
   listCommands(): Promise<AgentCommand[]> {
     return listCommandFiles([codexPromptsDir()], false)
+  },
+
+  listRecentSessions(repoPath: string, limit?: number) {
+    return listCodexSessions(repoPath, limit)
+  },
+
+  importSession(repoPath: string, externalId: string) {
+    return importCodexSession(repoPath, externalId)
   },
 
   // Codex exposes rate limits first-class on the shared app-server: `account/rateLimits/read`

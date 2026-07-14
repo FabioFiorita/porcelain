@@ -285,6 +285,23 @@ export const providerStatusSchema = z.object({
 export type ProviderStatus = z.infer<typeof providerStatusSchema>
 
 /**
+ * A coding-agent CLI session discovered on disk (Grok/Claude/Codex/OpenCode) that can be
+ * imported into a Porcelain Agent thread. `externalId` is the CLI's own session id (what
+ * `--resume` takes); the manager stores it as driver sessionState so the next turn continues
+ * that conversation.
+ */
+export const externalSessionSchema = z.object({
+  provider: agentProviderSchema,
+  externalId: z.string(),
+  title: z.string(),
+  updatedAt: z.number(),
+  model: z.string().optional(),
+  /** Set when this CLI session is already linked to a Porcelain thread for the repo. */
+  threadId: z.string().optional(),
+})
+export type ExternalSession = z.infer<typeof externalSessionSchema>
+
+/**
  * The pure timeline reducer, run by BOTH the daemon (to persist) and the renderer (to
  * hold live state), so an attaching client always converges on the daemon's stored
  * timeline. Never mutates the input array.

@@ -9,6 +9,7 @@ import {
   agentInteractionSchema,
   agentModeSchema,
   agentProviderSchema,
+  type ExternalSession,
   type ProviderLimits,
   type ProviderStatus,
   type ThreadInfo,
@@ -27,6 +28,8 @@ import {
   agentLimits,
   createThread,
   deleteThread,
+  importExternalSession,
+  listExternalSessions,
   listThreads,
   providerStatuses,
   renameThread,
@@ -1435,6 +1438,37 @@ export const router = t.router({
   deleteAgentThread: t.procedure
     .input(z.object({ id: z.string() }))
     .mutation(({ input }) => deleteThread(input.id)),
+
+  // Recent on-disk CLI sessions for the repo (Grok/Claude/Codex/OpenCode) that can be
+  // opened as Agent threads. Sessions already imported carry `threadId` so the UI reopens
+  // instead of duplicating. Not cached — the store is local and the scan is cheap enough.
+  agentExternalSessions: t.procedure
+    .input(
+      z.object({ repoPath: z.string(), limit: z.number().int().positive().max(100).optional() }),
+    )
+    .query(
+      ({ input }): Promise<ExternalSession[]> => listExternalSessions(input.repoPath, input.limit),
+    ),
+
+  // Import a CLI session into a Porcelain thread (or return the existing one if already
+  // linked). The transcript becomes the timeline; the next send resumes that CLI session.
+  importAgentSession: t.procedure
+    .input(
+      z.object({
+        repoPath: z.string(),
+        provider: agentProviderSchema,
+        externalId: z.string().min(1),
+      }),
+    )
+    .mutation(async ({ input }): Promise<ThreadInfo> => {
+      const thread = await importExternalSession(input.repoPath, input.provider, input.externalId)
+      if (thread === null) {
+        throw new Error(
+          `Could not import ${input.provider} session ${input.externalId} for this repo.`,
+        )
+      }
+      return thread
+    }),
 
   // Install/auth state + model catalog per provider, probed from the installed CLIs
   // (tolerant of a missing one — see providerStatuses). Cached 30s (see the TTL above).

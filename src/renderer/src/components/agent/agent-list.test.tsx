@@ -4,6 +4,8 @@ import {
   useAgentThreads,
   useCreateAgentThread,
   useDeleteAgentThread,
+  useExternalAgentSessions,
+  useImportAgentSession,
   useRenameAgentThread,
 } from '@renderer/hooks/use-agents'
 import { useTabsStore } from '@renderer/stores/tabs'
@@ -19,6 +21,8 @@ vi.mock('@renderer/hooks/use-agents', () => ({
   useCreateAgentThread: vi.fn(),
   useDeleteAgentThread: vi.fn(),
   useRenameAgentThread: vi.fn(),
+  useExternalAgentSessions: vi.fn(),
+  useImportAgentSession: vi.fn(),
 }))
 
 // Base UI's menu positioner/scroll-area polls getAnimations on a timer; jsdom has none.
@@ -45,6 +49,11 @@ describe('AgentList', () => {
     vi.mocked(useCreateAgentThread).mockReturnValue({ create: vi.fn(), isPending: false })
     vi.mocked(useDeleteAgentThread).mockReturnValue({ remove: vi.fn(), isPending: false })
     vi.mocked(useRenameAgentThread).mockReturnValue({ rename: vi.fn() })
+    vi.mocked(useExternalAgentSessions).mockReturnValue([])
+    vi.mocked(useImportAgentSession).mockReturnValue({
+      importSession: vi.fn(),
+      isPending: false,
+    })
   })
 
   it('opens the provider menu without throwing (GroupLabel needs a Group)', async () => {
