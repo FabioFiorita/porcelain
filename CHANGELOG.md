@@ -1,3 +1,9 @@
+## [0.24.2](https://github.com/FabioFiorita/porcelain/compare/v0.24.1...v0.24.2) (2026-07-14)
+
+### Bug Fixes
+
+* keep mark-reviewed ticks after concurrent reviewedPaths polls ([c2e7416](https://github.com/FabioFiorita/porcelain/commit/c2e74163559c083263d38a845c1a39f324a87eca))
+
 ## [0.24.1](https://github.com/FabioFiorita/porcelain/compare/v0.24.0...v0.24.1) (2026-07-14)
 
 ### Features
