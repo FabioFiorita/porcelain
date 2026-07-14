@@ -1,3 +1,9 @@
+## [0.24.1](https://github.com/FabioFiorita/porcelain/compare/v0.24.0...v0.24.1) (2026-07-14)
+
+### Features
+
+* **skills:** require feature-artifact layout review before finish ([a6e752f](https://github.com/FabioFiorita/porcelain/commit/a6e752f8b9b0983cb46484d23c1e9b2d77691f34))
+
 ## [0.24.0](https://github.com/FabioFiorita/porcelain/compare/v0.23.5...v0.24.0) (2026-07-14)
 
 ### Features
