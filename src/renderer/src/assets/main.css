@@ -457,10 +457,13 @@
   background-color: var(--color-muted-foreground) !important;
 }
 
-/* Touch scroll stays inside the terminal scrollback — never chains to the page (iOS). */
-.xterm-viewport {
-  touch-action: pan-y;
-  overscroll-behavior: contain;
+/* xterm 6 scrolls via a custom wheel-driven scrollbar (SmoothScrollableElement), not
+   native overflow — finger pans never become scroll without our touch→scrollLines
+   adapter (terminal-touch-scroll.ts). touch-action:none keeps Safari from panning the
+   page over the terminal; the adapter owns vertical pan and preventDefaults move. */
+.xterm {
+  touch-action: none;
+  overscroll-behavior: none;
 }
 
 /* Electron hiddenInset title bar: draggable chrome regions */

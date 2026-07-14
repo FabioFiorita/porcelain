@@ -4,6 +4,7 @@ import { WebglAddon } from '@xterm/addon-webgl'
 import { Terminal } from '@xterm/xterm'
 import { resizeTerminal, writeTerminal } from './daemon'
 import { terminalEditBytes } from './terminal-keys'
+import { attachTouchScroll } from './terminal-touch-scroll'
 
 /**
  * The renderer-side home for xterm.js instances. A terminal must outlive its React
@@ -23,6 +24,8 @@ interface Instance {
   term: Terminal
   fit: FitAddon
   wrapper: HTMLDivElement
+  /** Tear down iPad touch→scrollLines listeners (absent on desktop). */
+  disposeTouchScroll?: () => void
 }
 
 const instances = new Map<string, Instance>()
@@ -186,6 +189,17 @@ function create(id: string): Instance {
       // No WebGL context available — stay on the DOM renderer.
     }
   }
+  // xterm 6 scrolls via SmoothScrollableElement, which only listens for wheel events —
+  // iOS Safari never fires those for finger pans, so the page steals the gesture. Convert
+  // vertical touch pans into scrollLines and preventDefault so the browser client can't
+  // rubber-band the shell. Desktop keeps the wheel path (no listeners attached).
+  const disposeTouchScroll = coarseTouch
+    ? attachTouchScroll(
+        (lines) => term.scrollLines(lines),
+        () => (term.options.fontSize ?? 12) * (term.options.lineHeight ?? 1),
+        wrapper,
+      )
+    : undefined
   // Keystrokes and fit-driven resizes flow back to this session's PTY over the
   // daemon WS session (lib/daemon.ts).
   term.onData((data) => writeTerminal(id, data))
@@ -222,7 +236,7 @@ function create(id: string): Instance {
     return true
   })
 
-  const instance: Instance = { term, fit, wrapper }
+  const instance: Instance = { term, fit, wrapper, disposeTouchScroll }
   instances.set(id, instance)
   const buffered = buffers.get(id)
   if (buffered) {
@@ -296,6 +310,7 @@ if (window.porcelain?.e2e) {
 export function disposeTerminal(id: string): void {
   const instance = instances.get(id)
   if (!instance) return
+  instance.disposeTouchScroll?.()
   instance.term.dispose()
   instance.wrapper.remove()
   instances.delete(id)
