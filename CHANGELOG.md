@@ -1,3 +1,13 @@
+## [0.23.4](https://github.com/FabioFiorita/porcelain/compare/v0.23.3...v0.23.4) (2026-07-14)
+
+### Features
+
+* add Grok as an Agent tab provider ([4558756](https://github.com/FabioFiorita/porcelain/commit/4558756645c62d5805340d44a5b0e62446c585b5))
+
+### Bug Fixes
+
+* scroll the terminal with touch on iPad Safari ([73d1a10](https://github.com/FabioFiorita/porcelain/commit/73d1a10e15ebd4b50ea9f8046791339107cb5aff))
+
 ## [0.23.3](https://github.com/FabioFiorita/porcelain/compare/v0.23.2...v0.23.3) (2026-07-13)
 
 ### Features
