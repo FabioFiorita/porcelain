@@ -49,3 +49,40 @@ So the document must be **ONE self-contained file**:
 **Size cap.** The HTML must be under ~1.5 MB. If you're embedding images, keep them small (or prefer inline SVG, which is tiny) — don't paste huge base64 blobs.
 
 Write the whole `<html>…</html>` document (or just the body content — Porcelain renders whatever you send via `srcdoc`). Keep it focused: one feature, one clear explanation the human can read top to bottom.
+
+## Review before you say you're done (required)
+
+**Do not tell the human the artifact is ready until you've re-read the HTML you just wrote and fixed anything that fails the checks below.** Prefer a second pass + another `set_feature_artifact` call over shipping a first draft that clips or overflows.
+
+Porcelain cannot run your scripts in the iframe, so *you* are the QA. Re-open the HTML you produced (from your own message / draft, or rewrite from the same structure if you only have the MCP response metadata) and walk it as a visual layout review — especially every SVG diagram.
+
+### Always check
+
+- **Self-contained / sandbox-safe.** No `<script>`, no remote `src`/`href` assets, no web fonts, no external CSS. Dark background + light text still look right.
+- **Size.** Under ~1.5 MB; no huge base64 blobs.
+- **Structure.** Sensible heading order, readable prose length, tables not wider than the content column without intentional horizontal scroll.
+
+### Diagrams and cards (the usual breakage)
+
+Inline SVG is where most artifacts fail. For **every** box/card/node and label:
+
+- **Text fits inside its shape.** Title/body text must not spill past the rect/rounded-rect bounds. If a label is longer than the box, **widen the box, wrap the text (`<tspan>` lines), or shorten the copy** — never leave overflow.
+- **Padding.** Leave real inset from text to the edge of the card (roughly ≥8–12px equivalent in user units). Text flush against a border looks cut off even when it technically fits.
+- **No clipping.** Nothing important sits outside the SVG `viewBox`, and no group is half-cut by a parent with a hard width/height. If you set `width`/`height` on the `<svg>`, keep them consistent with the `viewBox` so the diagram isn't scaled into illegibility or crop.
+- **No overlaps.** Labels don't sit on top of other labels, arrow heads, or node borders unless intentional. Connectors (lines/paths) don't cross through text.
+- **Readable type.** Diagram font sizes large enough to read in the viewer (prefer ≥12–14px equivalent for body labels; titles larger). Tiny SVG text that "fits" but can't be read is still a fail.
+- **Alignment.** Rows/columns of cards share consistent sizes and spacing when they're the same kind of node; arrows meet box edges cleanly, not mid-padding or floating.
+
+### HTML layout (non-SVG)
+
+- Cards/sections using CSS: long words or titles don't blow out of the card; padding isn't zero; flex/grid children aren't forced into a width that truncates with `overflow: hidden` unless you meant a truncate.
+- Code blocks and tables: horizontal overflow is ok if intentional; content shouldn't be permanently cut off with no way to read it.
+- Images (`data:` URIs): not stretched into unreadable distortion; have sensible max-width.
+
+### If anything fails
+
+1. Fix the HTML (resize boxes, wrap text, bump padding, adjust `viewBox`, shorten labels).
+2. Call `set_feature_artifact` again with the corrected full document (same title is fine — it's a replace).
+3. Re-check the changed spots only, then stop.
+
+Only after that pass: tell the human the artifact is ready and where to open it (Feature list → artifact / the artifact view tab).

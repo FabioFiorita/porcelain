@@ -2,7 +2,7 @@
 // The actual SKILL.md files live at the repo root under /skills/<name>/SKILL.md.
 
 /** Bump whenever the bundled skills change so the update toast prompts `npx skills upgrade`. */
-export const SKILLS_VERSION = '2.8.0'
+export const SKILLS_VERSION = '2.9.0'
 
 /** Repository slug passed to `npx skills add`. */
 export const SKILLS_REPO = 'FabioFiorita/porcelain'
