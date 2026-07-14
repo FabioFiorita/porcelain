@@ -1,3 +1,14 @@
+## [0.24.0](https://github.com/FabioFiorita/porcelain/compare/v0.23.5...v0.24.0) (2026-07-14)
+
+### Features
+
+* clear closed review comments with an eraser control ([ab657cf](https://github.com/FabioFiorita/porcelain/commit/ab657cf0eba7b5eb1517cbd16d7be09b52785a30))
+* sticky-pin viewer tabs so agent/terminal stay fixed ([d36b229](https://github.com/FabioFiorita/porcelain/commit/d36b229c93139284828a45e78dd983781dc19dd1))
+
+### Bug Fixes
+
+* **agent:** stackable queue, cleaner timeline, and Grok multi-turn replies ([6e347ce](https://github.com/FabioFiorita/porcelain/commit/6e347ce63a61ddb3a8908bcb2246607f9b7675bd))
+
 ## [0.23.5](https://github.com/FabioFiorita/porcelain/compare/v0.23.4...v0.23.5) (2026-07-14)
 
 ### Features
