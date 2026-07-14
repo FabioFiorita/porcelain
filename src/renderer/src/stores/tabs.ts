@@ -37,8 +37,12 @@ export interface Tab {
   symbol?: string
   /** Diff tabs only: the range base ref. Omitted ⇒ a working-tree diff. */
   base?: string
-  /** Preview tabs (single-click) are replaced by the next preview; double-click pins. */
+  /** Preview tabs (single-click) are replaced by the next preview; double-click pins
+   *  (clears this flag via `pinTab`). Distinct from sticky `pinned` below. */
   preview?: boolean
+  /** Sticky-pinned to the left of the tab bar — stays fixed while unpinned tabs scroll.
+   *  Independent of `preview` (a sticky pin also clears preview so it can't be replaced). */
+  pinned?: boolean
 }
 
 // A pane is one column of the (optionally split) viewer: its own ordered tab
@@ -55,11 +59,16 @@ interface TabsState {
   activePaneIndex: number
   openTab: (tab: Tab) => void
   openTabToSide: (tab: Tab) => void
+  /** Clear the preview flag (single-click → kept). Not the sticky tab-bar pin. */
   pinTab: (id: string) => void
+  /** Toggle sticky pin for a tab in one pane (pinned strip stays fixed; unpinned scroll). */
+  togglePinned: (paneIndex: number, id: string) => void
   closeTab: (paneIndex: number, id: string) => void
   closeOtherTabs: (paneIndex: number, id: string) => void
   closeTabsToLeft: (paneIndex: number, id: string) => void
   closeTabsToRight: (paneIndex: number, id: string) => void
+  /** Close every unpinned tab in the pane; sticky-pinned tabs stay. */
+  closeUnpinnedTabs: (paneIndex: number) => void
   /** Close a tab in whichever pane(s) hold it — for when its underlying source
    *  is gone (a terminal session killed, a file's diff discarded) and an orphaned
    *  tab would show a dead view. Pane-agnostic by design (the caller has the id,
@@ -129,6 +138,34 @@ const keepWhere =
 const keepOnlyAnchor = keepWhere((index, anchor) => index === anchor)
 const keepFromAnchor = keepWhere((index, anchor) => index >= anchor)
 const keepThroughAnchor = keepWhere((index, anchor) => index <= anchor)
+
+// Sticky pin: reorder so all pinned tabs sit first (order among each group preserved),
+// then the target tab is placed at the end of the pinned group (pin) or the front of
+// the unpinned group (unpin). Pinning also clears `preview` so a sticky tab can't be
+// replaced by the next single-click open.
+function setPinned(pane: Pane, id: string, pinned: boolean): Pane {
+  const index = pane.tabs.findIndex((t) => t.id === id)
+  if (index === -1) return pane
+  const current = pane.tabs[index]
+  if (!current || !!current.pinned === pinned) return pane
+  const updated: Tab = pinned
+    ? { ...current, pinned: true, preview: false }
+    : { ...current, pinned: false }
+  const rest = pane.tabs.filter((t) => t.id !== id)
+  const pinnedTabs = rest.filter((t) => t.pinned)
+  const unpinnedTabs = rest.filter((t) => !t.pinned)
+  // Pin → end of pinned group; unpin → front of unpinned group (same splice).
+  return { ...pane, tabs: [...pinnedTabs, updated, ...unpinnedTabs] }
+}
+
+function dropUnpinned(pane: Pane): Pane {
+  const tabs = pane.tabs.filter((t) => t.pinned)
+  if (tabs.length === pane.tabs.length) return pane
+  const activeTabId = tabs.some((t) => t.id === pane.activeTabId)
+    ? pane.activeTabId
+    : (tabs[tabs.length - 1]?.id ?? null)
+  return { tabs, activeTabId }
+}
 
 // After a close, an emptied second pane collapses the split: drop empty panes,
 // keep at least one (an empty single pane shows the welcome view).
@@ -209,10 +246,19 @@ export const useTabsStore = create<TabsState>((set) => ({
           : p,
       ),
     })),
+  togglePinned: (paneIndex, id) =>
+    set(
+      editPane(paneIndex, (p) => {
+        const tab = p.tabs.find((t) => t.id === id)
+        if (!tab) return p
+        return setPinned(p, id, !tab.pinned)
+      }),
+    ),
   closeTab: (paneIndex, id) => set(editPane(paneIndex, (p) => removeTab(p, id))),
   closeOtherTabs: (paneIndex, id) => set(editPane(paneIndex, (p) => keepOnlyAnchor(p, id))),
   closeTabsToLeft: (paneIndex, id) => set(editPane(paneIndex, (p) => keepFromAnchor(p, id))),
   closeTabsToRight: (paneIndex, id) => set(editPane(paneIndex, (p) => keepThroughAnchor(p, id))),
+  closeUnpinnedTabs: (paneIndex) => set(editPane(paneIndex, dropUnpinned)),
   closeTabEverywhere: (id) =>
     set((state) =>
       normalize(

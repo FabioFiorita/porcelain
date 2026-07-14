@@ -1,5 +1,5 @@
 import { type Tab, useTabsStore } from '@renderer/stores/tabs'
-import { act, render } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TabBar } from './tab-bar'
 
@@ -8,8 +8,8 @@ import { TabBar } from './tab-bar'
 // observed here, only that the effect fires on activation change).
 const scrollIntoView = vi.fn()
 
-function tab(id: string, title: string): Tab {
-  return { id, kind: 'file', title, path: id }
+function tab(id: string, title: string, extra: Partial<Tab> = {}): Tab {
+  return { id, kind: 'file', title, path: id, ...extra }
 }
 
 describe('TabBar', () => {
@@ -42,5 +42,24 @@ describe('TabBar', () => {
 
     act(() => useTabsStore.getState().activateTab(0, 'file:b'))
     expect(scrollIntoView).toHaveBeenCalledWith({ inline: 'nearest', block: 'nearest' })
+  })
+
+  it('marks sticky-pinned tabs with data-pinned', () => {
+    useTabsStore.setState({
+      panes: [
+        {
+          tabs: [
+            tab('file:agent', 'Agent', { pinned: true }),
+            tab('file:a', 'alpha'),
+            tab('file:b', 'beta'),
+          ],
+          activeTabId: 'file:a',
+        },
+      ],
+      activePaneIndex: 0,
+    })
+    render(<TabBar paneIndex={0} />)
+    expect(screen.getByRole('tab', { name: /Agent/i })).toHaveAttribute('data-pinned', 'true')
+    expect(screen.getByRole('tab', { name: /alpha/i })).not.toHaveAttribute('data-pinned')
   })
 })

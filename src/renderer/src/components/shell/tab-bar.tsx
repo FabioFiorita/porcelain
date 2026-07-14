@@ -3,6 +3,7 @@ import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
+  ContextMenuSeparator,
   ContextMenuShortcut,
   ContextMenuTrigger,
 } from '@renderer/components/ui/context-menu'
@@ -12,7 +13,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui
 import { kbdLabel } from '@renderer/lib/keyboard'
 import { cn } from '@renderer/lib/utils'
 import { type Tab, useTabsStore } from '@renderer/stores/tabs'
-import { X } from 'lucide-react'
+import { Pin, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 
 function TabItem({
@@ -31,17 +32,21 @@ function TabItem({
   const closeOtherTabs = useTabsStore((s) => s.closeOtherTabs)
   const closeTabsToLeft = useTabsStore((s) => s.closeTabsToLeft)
   const closeTabsToRight = useTabsStore((s) => s.closeTabsToRight)
+  const closeUnpinnedTabs = useTabsStore((s) => s.closeUnpinnedTabs)
   const closeAllTabs = useTabsStore((s) => s.closeAllTabs)
   const pinTab = useTabsStore((s) => s.pinTab)
+  const togglePinned = useTabsStore((s) => s.togglePinned)
   const openTabToSide = useTabsStore((s) => s.openTabToSide)
   const isFirst = tabs[0]?.id === tab.id
   const isActive = tab.id === activeTabId
+  const hasUnpinned = tabs.some((t) => !t.pinned)
   const ref = useRef<HTMLDivElement>(null)
 
   // Scroll the active tab into view whenever it becomes active — including a tab
   // appended past the capsule's right edge (the overflow repro that read as a
   // one-letter title). inline:'nearest' keeps it horizontal-only inside the
   // ScrollArea viewport; block:'nearest' avoids scrolling any ancestor vertically.
+  // Sticky-pinned tabs live outside the ScrollArea, so this is a no-op for them.
   useEffect(() => {
     if (isActive) ref.current?.scrollIntoView({ inline: 'nearest', block: 'nearest' })
   }, [isActive])
@@ -60,6 +65,7 @@ function TabItem({
                     isActive ? 'text-foreground' : 'text-muted-foreground',
                   )}
                   data-active={isActive}
+                  data-pinned={tab.pinned ? 'true' : undefined}
                   onClick={() => activateTab(paneIndex, tab.id)}
                   onDoubleClick={() => pinTab(tab.id)}
                   onAuxClick={(e) => e.button === 1 && closeTab(paneIndex, tab.id)}
@@ -68,6 +74,9 @@ function TabItem({
                   tabIndex={0}
                   aria-selected={isActive}
                 >
+                  {tab.pinned ? (
+                    <Pin className="size-3 shrink-0 text-muted-foreground" aria-hidden />
+                  ) : null}
                   {/* pr-0.5 on the italic case: truncate's overflow:hidden would otherwise
                       shear the slanted top-right overhang of the last glyph (e.g. the x in .tsx). */}
                   <span className={cn('max-w-40 truncate', tab.preview && 'italic pr-0.5')}>
@@ -93,6 +102,10 @@ function TabItem({
           }
         />
         <ContextMenuContent>
+          <ContextMenuItem onClick={() => togglePinned(paneIndex, tab.id)}>
+            {tab.pinned ? 'Unpin Tab' : 'Pin Tab'}
+          </ContextMenuItem>
+          <ContextMenuSeparator />
           <ContextMenuItem onClick={() => closeTab(paneIndex, tab.id)}>
             Close
             <ContextMenuShortcut>
@@ -111,7 +124,11 @@ function TabItem({
           <ContextMenuItem disabled={isLast} onClick={() => closeTabsToRight(paneIndex, tab.id)}>
             Close to the Right
           </ContextMenuItem>
+          <ContextMenuItem disabled={!hasUnpinned} onClick={() => closeUnpinnedTabs(paneIndex)}>
+            Close Unpinned
+          </ContextMenuItem>
           <ContextMenuItem onClick={closeAllTabs}>Close All</ContextMenuItem>
+          <ContextMenuSeparator />
           <ContextMenuItem onClick={() => openTabToSide({ ...tab, preview: false })}>
             Open to the Side
             <ContextMenuShortcut>
@@ -127,19 +144,27 @@ function TabItem({
 
 export function TabBar({ paneIndex }: { paneIndex: number }): React.JSX.Element {
   const tabs = useTabsStore((s) => s.panes[paneIndex]?.tabs ?? [])
+  const pinned = tabs.filter((t) => t.pinned)
+  const unpinned = tabs.filter((t) => !t.pinned)
+  // isLast for close-to-right: last in the full ordered list (pinned then unpinned).
+  const lastId = tabs[tabs.length - 1]?.id
 
   return (
-    <ScrollArea orientation="horizontal" className="min-w-0 flex-1 self-stretch">
-      <div className="flex h-full items-center gap-1">
-        {tabs.map((tab, index) => (
-          <TabItem
-            key={tab.id}
-            tab={tab}
-            paneIndex={paneIndex}
-            isLast={index === tabs.length - 1}
-          />
-        ))}
-      </div>
-    </ScrollArea>
+    <div className="flex min-w-0 flex-1 items-center self-stretch gap-1">
+      {pinned.length > 0 ? (
+        <div className="flex shrink-0 items-center gap-1" role="presentation">
+          {pinned.map((tab) => (
+            <TabItem key={tab.id} tab={tab} paneIndex={paneIndex} isLast={tab.id === lastId} />
+          ))}
+        </div>
+      ) : null}
+      <ScrollArea orientation="horizontal" className="min-w-0 flex-1 self-stretch">
+        <div className="flex h-full items-center gap-1">
+          {unpinned.map((tab) => (
+            <TabItem key={tab.id} tab={tab} paneIndex={paneIndex} isLast={tab.id === lastId} />
+          ))}
+        </div>
+      </ScrollArea>
+    </div>
   )
 }

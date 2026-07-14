@@ -79,6 +79,78 @@ describe('useTabsStore', () => {
     })
   })
 
+  // Sticky pin: pinned tabs reorder to the front of the pane; unpinned scroll in the
+  // tab bar. Distinct from pinTab (which only clears the preview flag).
+  describe('sticky pin', () => {
+    it('moves a tab to the end of the pinned group and clears preview', () => {
+      useTabsStore.getState().openTab(tab('a'))
+      useTabsStore.getState().openTab({ ...tab('b'), preview: true })
+      useTabsStore.getState().openTab(tab('c'))
+      useTabsStore.getState().togglePinned(0, 'c')
+      expect(pane().tabs.map((t) => t.id)).toEqual(['c', 'a', 'b'])
+      expect(pane().tabs[0]).toMatchObject({ id: 'c', pinned: true, preview: false })
+      expect(
+        pane()
+          .tabs.filter((t) => t.pinned)
+          .map((t) => t.id),
+      ).toEqual(['c'])
+    })
+
+    it('stacks multiple pins in pin order and unpins to the front of unpinned', () => {
+      for (const id of ['a', 'b', 'c', 'd']) {
+        useTabsStore.getState().openTab(tab(id))
+      }
+      useTabsStore.getState().togglePinned(0, 'b')
+      useTabsStore.getState().togglePinned(0, 'd')
+      expect(pane().tabs.map((t) => t.id)).toEqual(['b', 'd', 'a', 'c'])
+      useTabsStore.getState().togglePinned(0, 'b')
+      expect(pane().tabs.map((t) => t.id)).toEqual(['d', 'b', 'a', 'c'])
+      expect(pane().tabs.find((t) => t.id === 'b')?.pinned).toBe(false)
+    })
+
+    it('is a no-op for an unknown tab', () => {
+      useTabsStore.getState().openTab(tab('a'))
+      useTabsStore.getState().togglePinned(0, 'zzz')
+      expect(pane().tabs.map((t) => t.id)).toEqual(['a'])
+    })
+
+    it('closeUnpinnedTabs keeps sticky pins and activates the last survivor', () => {
+      for (const id of ['a', 'b', 'c', 'd']) {
+        useTabsStore.getState().openTab(tab(id))
+      }
+      useTabsStore.getState().togglePinned(0, 'b')
+      useTabsStore.getState().togglePinned(0, 'd')
+      useTabsStore.getState().activateTab(0, 'a')
+      useTabsStore.getState().closeUnpinnedTabs(0)
+      expect(pane().tabs.map((t) => t.id)).toEqual(['b', 'd'])
+      expect(pane().activeTabId).toBe('d')
+    })
+
+    it('closeUnpinnedTabs is a no-op when every tab is pinned', () => {
+      useTabsStore.getState().openTab(tab('a'))
+      useTabsStore.getState().togglePinned(0, 'a')
+      useTabsStore.getState().closeUnpinnedTabs(0)
+      expect(pane().tabs.map((t) => t.id)).toEqual(['a'])
+      expect(pane().activeTabId).toBe('a')
+    })
+
+    it('closeUnpinnedTabs leaves an empty pane when nothing is pinned', () => {
+      useTabsStore.getState().openTab(tab('a'))
+      useTabsStore.getState().openTab(tab('b'))
+      useTabsStore.getState().closeUnpinnedTabs(0)
+      expect(pane().tabs).toHaveLength(0)
+      expect(pane().activeTabId).toBeNull()
+    })
+
+    it('scopes sticky pin to one pane', () => {
+      useTabsStore.getState().openTab(tab('a'))
+      useTabsStore.getState().openTabToSide(tab('a'))
+      useTabsStore.getState().togglePinned(0, 'a')
+      expect(pane(0).tabs[0]?.pinned).toBe(true)
+      expect(pane(1).tabs[0]?.pinned).toBeUndefined()
+    })
+  })
+
   describe('bulk closing', () => {
     beforeEach(() => {
       for (const id of ['a', 'b', 'c', 'd']) {
