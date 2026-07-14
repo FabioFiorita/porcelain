@@ -625,6 +625,9 @@ export const router = t.router({
   reviewedPaths: t.procedure.input(z.string()).query(async ({ input }): Promise<string[]> => {
     // Only the marked paths need fingerprinting (few files); reconcile prunes stale
     // marks and writes through so reviewed.json stays truthful for the MCP reader.
+    // reconcileReviewed re-reads after prune so a concurrent markReviewed (the UI's
+    // optimistic tick) is never omitted from this response — that omission used to
+    // overwrite the client cache and make the mark appear to un-toggle a second later.
     const marks = await readReviewedMarks(input)
     const current = await reviewedFingerprints(
       input,

@@ -23,6 +23,9 @@ export function useToggleReviewed(): {
   const repo = useRepoStore((s) => s.repo)
   const utils = trpc.useUtils()
   // Optimistic: the checkbox flips on click, then the 3s poll reconciles against server truth.
+  // cancelQueries stops in-flight polls from writing a pre-mark snapshot over the tick;
+  // the server also re-reads after reconcile so a poll that started before the mark still
+  // returns the new path once it finishes (see reconcileReviewed).
   const markMutation = trpc.markReviewed.useMutation({
     onMutate: async ({ repoPath, path }) => {
       await utils.reviewedPaths.cancel(repoPath)

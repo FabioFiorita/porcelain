@@ -197,10 +197,21 @@ describe('reconcileReviewed (write-through)', () => {
     const fingerprints = new Map([['a.ts', 'CHANGED']])
     // A concurrent mark of a DIFFERENT path lands between the snapshot read and reconcile.
     await markReviewed('/repo', 'new.ts', 'fp-new')
-    // Reconcile drops the stale a.ts but must leave the concurrently-added new.ts on disk.
+    // Reconcile drops the stale a.ts but must leave the concurrently-added new.ts on disk
+    // AND return it (re-read) — otherwise the client poll that started before the concurrent
+    // mark would overwrite the optimistic tick with a list that omits it.
     const survivors = await reconcileReviewed('/repo', snapshot, fingerprints)
-    expect(survivors).toEqual([])
+    expect(survivors).toEqual(['new.ts'])
     expect(await readReviewedMarks('/repo')).toEqual([{ path: 'new.ts', fingerprint: 'fp-new' }])
+  })
+
+  it('returns a concurrent mark even when nothing in the snapshot was pruned', async () => {
+    await markReviewed('/repo', 'a.ts', 'fp-a')
+    const snapshot = await readReviewedMarks('/repo')
+    await markReviewed('/repo', 'new.ts', 'fp-new')
+    // No stale fingerprints → no write-through, but the return value still re-reads disk.
+    const survivors = await reconcileReviewed('/repo', snapshot, new Map([['a.ts', 'fp-a']]))
+    expect(survivors).toEqual(['a.ts', 'new.ts'])
   })
 })
 
