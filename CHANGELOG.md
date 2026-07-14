@@ -1,3 +1,9 @@
+## [0.23.5](https://github.com/FabioFiorita/porcelain/compare/v0.23.4...v0.23.5) (2026-07-14)
+
+### Features
+
+* open recent CLI sessions in the Agent tab ([84fa4a6](https://github.com/FabioFiorita/porcelain/commit/84fa4a6d20d011b67a4d8a81f6b4dc5a1a292a4e))
+
 ## [0.23.4](https://github.com/FabioFiorita/porcelain/compare/v0.23.3...v0.23.4) (2026-07-14)
 
 ### Features
