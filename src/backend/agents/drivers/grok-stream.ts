@@ -171,21 +171,32 @@ export type StreamSignal =
   | { t: 'session'; sessionId: string }
   | { t: 'done'; ok: boolean }
 
-const ASSISTANT_ID = 'grok-assistant'
-const REASONING_ID = 'grok-reasoning'
-
 /**
  * Stateful fold of streaming-json lines into AgentEvents. One instance per turn.
  * Text/thought chunks accumulate into a single streaming assistant/reasoning item
  * (re-emitted with the growing text so the reducer upserts); `end` finalizes them,
  * reports usage, and signals done.
+ *
+ * **Turn-scoped item ids** — the reducer upserts by id, so a fixed id like
+ * `grok-assistant` would rewrite the PREVIOUS turn's reply whenever a new turn
+ * streams (stale timeline, "reply vanished", message order looks wrong). Every
+ * turn must mint unique assistant/reasoning ids via `turnKey`.
  */
 export class GrokStreamTranslator {
+  private readonly assistantId: string
+  private readonly reasoningId: string
+  private readonly errorId: string
   private assistantText = ''
   private reasoningText = ''
   private assistantOpen = false
   private reasoningOpen = false
   private finished = false
+
+  constructor(turnKey: string) {
+    this.assistantId = `grok-a:${turnKey}`
+    this.reasoningId = `grok-r:${turnKey}`
+    this.errorId = `grok-e:${turnKey}`
+  }
 
   pushLine(line: string): StreamSignal[] {
     const trimmed = line.trim()
@@ -232,7 +243,7 @@ export class GrokStreamTranslator {
         t: 'item',
         item: {
           kind: 'assistant',
-          id: ASSISTANT_ID,
+          id: this.assistantId,
           text: this.assistantText,
           streaming: true,
         },
@@ -257,7 +268,7 @@ export class GrokStreamTranslator {
         t: 'event',
         event: {
           t: 'item',
-          item: { kind: 'reasoning', id: REASONING_ID, text, streaming: true },
+          item: { kind: 'reasoning', id: this.reasoningId, text, streaming: true },
         },
       },
     ]
@@ -300,10 +311,23 @@ export class GrokStreamTranslator {
     return [
       {
         t: 'event',
-        event: { t: 'item', item: { kind: 'error', id: 'grok-error', message } },
+        event: { t: 'item', item: { kind: 'error', id: this.errorId, message } },
       },
       { t: 'done', ok: false },
     ]
+  }
+
+  /**
+   * Close any still-open streaming items when the process exits without a clean `end`
+   * event (or after a partial stream). Idempotent with `onEnd`/`onError` via `finished`.
+   */
+  finalize(): StreamSignal[] {
+    if (this.finished) return []
+    this.finished = true
+    const out: StreamSignal[] = []
+    if (this.reasoningOpen) out.push(...this.closeReasoning())
+    if (this.assistantOpen) out.push(...this.closeAssistant())
+    return out
   }
 
   private closeAssistant(): StreamSignal[] {
@@ -315,7 +339,7 @@ export class GrokStreamTranslator {
           t: 'item',
           item: {
             kind: 'assistant',
-            id: ASSISTANT_ID,
+            id: this.assistantId,
             text: this.assistantText,
             streaming: false,
           },
@@ -335,7 +359,7 @@ export class GrokStreamTranslator {
         t: 'event',
         event: {
           t: 'item',
-          item: { kind: 'reasoning', id: REASONING_ID, text, streaming: false },
+          item: { kind: 'reasoning', id: this.reasoningId, text, streaming: false },
         },
       },
     ]

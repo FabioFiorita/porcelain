@@ -187,7 +187,7 @@ class Session {
         await abortTurn(message.threadId)
         break
       case 'agent:cancel-queued':
-        await cancelQueued(message.threadId)
+        await cancelQueued(message.threadId, message.index)
         break
       case 'agent:approve':
         await respondApproval(message.threadId, message.requestId, message.decision)

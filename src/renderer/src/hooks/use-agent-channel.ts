@@ -3,6 +3,7 @@ import {
   attachAgent,
   cancelQueuedAgentMessage,
   detachAgent,
+  isAgentAttached,
   onAgentEvent,
   onAgentSnapshot,
   respondAgentApproval,
@@ -55,7 +56,7 @@ export function useAgentActions(): {
     message: { text: string; images?: AgentImage[]; thumbnails?: AgentImage[] },
   ) => void
   abort: (threadId: string) => void
-  cancelQueued: (threadId: string) => void
+  cancelQueued: (threadId: string, index?: number) => void
   approve: (threadId: string, requestId: string, decision: ApprovalDecision) => void
 } {
   const markDetached = useAgentThreadsStore((s) => s.markDetached)
@@ -65,9 +66,18 @@ export function useAgentActions(): {
       openThread: (threadId) => {
         const next = (viewCounts.get(threadId) ?? 0) + 1
         viewCounts.set(threadId, next)
-        // The reconnect re-attach loop and the store seeding are automatic once attached;
-        // a dropped socket rejects here and the next open re-attaches (best-effort).
-        if (next === 1) attachAgent(threadId).catch(() => {})
+        // First mount attaches. A failed attach used to leave viewCounts > 0 with
+        // isAgentAttached false forever (`.catch(() => {})`), so the tab looked open
+        // but received no live events — "stale agent tab" until remount. Retry once.
+        if (next === 1 || !isAgentAttached(threadId)) {
+          attachAgent(threadId).catch(() => {
+            window.setTimeout(() => {
+              if ((viewCounts.get(threadId) ?? 0) > 0 && !isAgentAttached(threadId)) {
+                attachAgent(threadId).catch(() => {})
+              }
+            }, 750)
+          })
+        }
       },
       closeThreadView: (threadId) => {
         const next = (viewCounts.get(threadId) ?? 1) - 1
@@ -81,7 +91,7 @@ export function useAgentActions(): {
       },
       send: (threadId, message) => sendAgentMessage(threadId, message),
       abort: (threadId) => abortAgentTurn(threadId),
-      cancelQueued: (threadId) => cancelQueuedAgentMessage(threadId),
+      cancelQueued: (threadId, index) => cancelQueuedAgentMessage(threadId, index),
       approve: (threadId, requestId, decision) =>
         respondAgentApproval(threadId, requestId, decision),
     }),

@@ -10,8 +10,10 @@ import {
   agentProviderSchema,
   applyAgentEvent,
   type ExternalSession,
+  MAX_QUEUED_MESSAGES,
   type ProviderLimits,
   type ProviderStatus,
+  type QueuedMessageInfo,
   type ThreadInfo,
   type ThreadOptions,
   type TimelineItem,
@@ -75,22 +77,38 @@ interface Thread {
   // first successful onDone to fire the one-shot LLM auto-title. Runtime-only — a restart
   // just keeps the derived title, which is fine.
   pendingAutoTitle: boolean
-  // The ONE message queued behind the running turn (last-write-wins), auto-run when the turn
-  // ends (naturally OR via abort — "stop this, do the next thing"). The FULL images live here,
-  // daemon-only, never reduced and never persisted (mirrors the timeline, which only ever
-  // persists thumbnails); `meta.queued` carries the lightweight {text, imageCount} to disk +
-  // the roster. A hard daemon restart therefore keeps the queued text/chip but drops the full
-  // images (rare, documented) — and since a hydrated thread is idle, a restored queue just
-  // shows a chip until the user cancels it or sends again (both clear it).
-  queued: QueuedMessage | null
+  // FIFO of messages queued behind the running turn (append on mid-turn send; drain front
+  // when the turn ends — naturally OR via abort, "stop this, do the next thing"). FULL images
+  // live here daemon-only (never persisted); `meta.queued` carries the lightweight
+  // {text, imageCount}[] to disk + the roster. A hard restart keeps the text/chips but drops
+  // full images (rare, documented).
+  queued: QueuedMessage[]
 }
 
 // The full queued message the manager holds in memory (full images included) — distinct from
-// the persisted/roster `QueuedMessageInfo`, which is text + count only.
+// the persisted/roster `QueuedMessageInfo`, which is text + count only. `imageCount` is kept
+// so a restored-from-disk chip still shows its count after the full images were dropped.
 interface QueuedMessage {
+  id: string
   text: string
   images: AgentImage[]
   thumbnails: AgentImage[]
+  imageCount?: number
+}
+
+/** Roster/disk shape for one in-memory queued message. */
+function toQueuedInfo(message: QueuedMessage): QueuedMessageInfo {
+  const count = message.images.length > 0 ? message.images.length : (message.imageCount ?? 0)
+  return {
+    id: message.id,
+    text: message.text,
+    ...(count > 0 ? { imageCount: count } : {}),
+  }
+}
+
+/** Mirror the in-memory queue onto `meta.queued` (undefined when empty). */
+function syncQueuedMeta(thread: Thread): void {
+  thread.meta.queued = thread.queued.length > 0 ? thread.queued.map(toQueuedInfo) : undefined
 }
 
 const PERSIST_DEBOUNCE_MS = 500
@@ -128,10 +146,22 @@ function ensureHydrated(): Promise<void> {
 }
 
 function toThread(stored: StoredThread): Thread {
+  // `queued` persists top-level on the file (next to items), NOT inside the stored meta —
+  // restore it onto the roster meta here so the composer's chips survive a restart.
+  // Full image payloads aren't on disk (see the Thread comment) — keep imageCount only.
+  const restoredQueue: QueuedMessage[] = (stored.queued ?? []).map((q) => ({
+    id: q.id ?? randomUUID(),
+    text: q.text,
+    images: [],
+    thumbnails: [],
+    ...(q.imageCount !== undefined ? { imageCount: q.imageCount } : {}),
+  }))
   return {
-    // `queued` persists top-level on the file (next to items), NOT inside the stored meta —
-    // restore it onto the roster meta here so the composer's chip survives a restart.
-    meta: { ...stored.meta, status: 'idle', ...(stored.queued ? { queued: stored.queued } : {}) },
+    meta: {
+      ...stored.meta,
+      status: 'idle',
+      ...(restoredQueue.length > 0 ? { queued: restoredQueue.map(toQueuedInfo) } : {}),
+    },
     sessionState: stored.sessionState,
     items: stored.items,
     attached: new Set(),
@@ -141,10 +171,7 @@ function toThread(stored: StoredThread): Thread {
     persistChain: Promise.resolve(),
     turnUsageBase: { input: 0, output: 0, cost: 0 },
     pendingAutoTitle: false,
-    // Restore the queued message from disk, but with empty images — the full payloads aren't
-    // persisted (see the Thread comment).
-    queued:
-      stored.queued !== undefined ? { text: stored.queued.text, images: [], thumbnails: [] } : null,
+    queued: restoredQueue,
   }
 }
 
@@ -186,7 +213,7 @@ function toStored(thread: Thread): StoredThread {
     },
     sessionState: thread.sessionState,
     items: thread.items,
-    ...(queued !== undefined ? { queued } : {}),
+    ...(queued !== undefined && queued.length > 0 ? { queued } : {}),
   }
 }
 
@@ -356,16 +383,16 @@ function onDone(thread: Thread, ok: boolean): void {
 }
 
 /**
- * If a message is queued, dequeue it and start it as the next turn. Called when a turn ends
- * (naturally, from onDone — fire-and-forget) or via abort (which awaits it, so an abort
- * resolves with the queued turn already claimed).
+ * If anything is queued, dequeue the FRONT message and start it as the next turn. Called
+ * when a turn ends (naturally, from onDone — fire-and-forget) or via abort (which awaits it,
+ * so an abort resolves with the next queued turn already claimed). Remaining items stay
+ * queued and drain on subsequent turn ends (FIFO).
  */
 async function drainQueue(thread: Thread): Promise<void> {
-  const queued = thread.queued
-  if (!queued) return
-  thread.queued = null
-  thread.meta.queued = undefined
-  await startTurn(thread, queued)
+  const next = thread.queued.shift()
+  if (!next) return
+  syncQueuedMeta(thread)
+  await startTurn(thread, next)
 }
 
 function truncateTitle(title: string): string {
@@ -446,7 +473,7 @@ export async function createThread(opts: CreateThreadOptions): Promise<ThreadInf
     persistChain: Promise.resolve(),
     turnUsageBase: { input: 0, output: 0, cost: 0 },
     pendingAutoTitle: false,
-    queued: null,
+    queued: [],
   }
   threads.set(meta.id, thread)
   await persistNow(thread)
@@ -560,9 +587,11 @@ export interface SendMessageInput {
 
 /**
  * Send a message to a thread. If the thread is idle, this starts a turn immediately. If a
- * turn is already running, the message is QUEUED (one slot, last-write-wins) to auto-run when
- * the turn ends — a second mid-turn send REPLACES the queued one. The full images ride the
- * in-memory queue; only {text, imageCount} persist + reach the roster (the composer chip).
+ * turn is already running, the message is APPENDED to the FIFO queue to auto-run when the
+ * current turn ends (and subsequent queued ones drain in order). Full images ride the
+ * in-memory queue; only {text, imageCount}[] persist + reach the roster (composer chips).
+ * Cap: at `MAX_QUEUED_MESSAGES` the oldest queued message is dropped so a new send always
+ * lands (steering never silently fails).
  */
 export async function sendMessage(id: string, input: SendMessageInput): Promise<void> {
   await ensureHydrated()
@@ -570,14 +599,16 @@ export async function sendMessage(id: string, input: SendMessageInput): Promise<
   if (!thread) return
 
   if (thread.turn !== null) {
-    // Queue behind the running turn (replacing any prior queued message — last wins).
     const imageCount = input.images?.length ?? 0
-    thread.queued = {
+    if (thread.queued.length >= MAX_QUEUED_MESSAGES) thread.queued.shift()
+    thread.queued.push({
+      id: randomUUID(),
       text: input.text,
       images: input.images ?? [],
       thumbnails: input.thumbnails ?? [],
-    }
-    thread.meta.queued = { text: input.text, ...(imageCount > 0 ? { imageCount } : {}) }
+      ...(imageCount > 0 ? { imageCount } : {}),
+    })
+    syncQueuedMeta(thread)
     thread.meta.updatedAt = Date.now()
     await persistNow(thread)
     broadcastRoster()
@@ -591,11 +622,10 @@ export async function sendMessage(id: string, input: SendMessageInput): Promise<
  * Start a turn on an idle thread: append the user item, set it working, and hand off to the
  * driver. Shared by the idle-send path (sendMessage) and the queue drain (drainQueue) — both
  * reach an idle thread, so both need the synchronous-claim guard against a racing send.
+ * Does NOT clear the remaining queue (FIFO drain owns that).
  */
 async function startTurn(thread: Thread, input: SendMessageInput): Promise<void> {
-  // Starting a turn supersedes any queued message and clears the last-turn-failed flag.
-  thread.queued = null
-  thread.meta.queued = undefined
+  // Clear the last-turn-failed flag; remaining queued messages stay for subsequent drains.
   thread.meta.lastTurnFailed = undefined
 
   // Claim the turn SYNCHRONOUSLY, before the first await: `thread.turn` is only assigned
@@ -681,13 +711,22 @@ export async function abortTurn(id: string): Promise<void> {
   await drainQueue(thread)
 }
 
-/** Drop the thread's queued message (the composer's "Queued" chip × ). No-op if empty. */
-export async function cancelQueued(id: string): Promise<void> {
+/**
+ * Drop queued message(s). With `index`, remove that chip; without it, clear the whole
+ * queue. No-op if empty or the index is out of range.
+ */
+export async function cancelQueued(id: string, index?: number): Promise<void> {
   await ensureHydrated()
   const thread = threads.get(id)
-  if (!thread?.queued) return
-  thread.queued = null
-  thread.meta.queued = undefined
+  if (!thread || thread.queued.length === 0) return
+  if (index === undefined) {
+    thread.queued = []
+  } else if (index >= 0 && index < thread.queued.length) {
+    thread.queued.splice(index, 1)
+  } else {
+    return
+  }
+  syncQueuedMeta(thread)
   thread.meta.updatedAt = Date.now()
   await persistNow(thread)
   broadcastRoster()
@@ -863,7 +902,7 @@ export async function importExternalSession(
     persistChain: Promise.resolve(),
     turnUsageBase: { input: 0, output: 0, cost: 0 },
     pendingAutoTitle: false,
-    queued: null,
+    queued: [],
   }
   threads.set(meta.id, thread)
   await persistNow(thread)

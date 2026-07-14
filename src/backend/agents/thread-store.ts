@@ -64,11 +64,15 @@ export const storedThreadSchema = z.object({
   // turn has none), and zod's `z.unknown()` alone would reject the missing key.
   sessionState: z.unknown().optional(),
   items: z.array(timelineItemSchema),
-  // The queued message (text + image count only — the full image payloads are deliberately
-  // NOT persisted, matching the timeline, so one queued message can't blow the 16MB file cap;
-  // the daemon holds the full images in memory). Survives a daemon restart so the composer's
-  // chip reappears, though a hard restart loses the full images (documented in agent-manager).
-  queued: queuedMessageInfoSchema.optional(),
+  // Queued messages (text + image count only — full image payloads are deliberately NOT
+  // persisted, matching the timeline, so a long queue can't blow the 16MB file cap; the
+  // daemon holds full images in memory). Survives a daemon restart so the composer's chips
+  // reappear, though a hard restart loses the full images (documented in agent-manager).
+  // Back-compat: pre-array files stored a single object; preprocess lifts it to `[obj]`.
+  queued: z.preprocess((value) => {
+    if (value === undefined || value === null) return undefined
+    return Array.isArray(value) ? value : [value]
+  }, z.array(queuedMessageInfoSchema).optional()),
 })
 export type StoredThread = z.infer<typeof storedThreadSchema>
 

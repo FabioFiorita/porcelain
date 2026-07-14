@@ -539,7 +539,7 @@ export function isAgentAttached(threadId: string): boolean {
 }
 
 /**
- * Send a message to a thread — starts a turn if idle, or queues it (one slot, last wins)
+ * Send a message to a thread — starts a turn if idle, or appends it to the FIFO queue
  * behind a running turn daemon-side. Queued through the outbox so a send during a reconnect
  * gap flushes on open instead of being silently dropped (the composer clears its draft
  * immediately — see `sendOrQueue`). `thumbnails` are the downscaled previews the timeline
@@ -563,9 +563,16 @@ export function abortAgentTurn(threadId: string): void {
   sendOrQueue({ t: 'agent:abort', threadId })
 }
 
-/** Cancel the thread's queued message; queued to flush on reconnect (see `sendOrQueue`). */
-export function cancelQueuedAgentMessage(threadId: string): void {
-  sendOrQueue({ t: 'agent:cancel-queued', threadId })
+/**
+ * Cancel a queued message (or the whole queue when `index` is omitted). Rides the outbox
+ * so a cancel during reconnect flushes on open (see `sendOrQueue`).
+ */
+export function cancelQueuedAgentMessage(threadId: string, index?: number): void {
+  sendOrQueue({
+    t: 'agent:cancel-queued',
+    threadId,
+    ...(index !== undefined ? { index } : {}),
+  })
 }
 
 /** Answer a pending approval request on a thread; queued to flush on reconnect (see `sendOrQueue`). */

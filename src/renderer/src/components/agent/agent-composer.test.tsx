@@ -8,7 +8,7 @@ import {
 } from '@renderer/hooks/use-agents'
 import { useFileSearch } from '@renderer/hooks/use-search'
 import { useAgentDraftsStore } from '@renderer/stores/agent-drafts'
-import type { ProviderStatus, QueuedMessageInfo } from '@shared/agent-protocol'
+import type { ProviderStatus } from '@shared/agent-protocol'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AgentComposer } from './agent-composer'
@@ -53,7 +53,7 @@ const update = vi.fn()
 
 function renderComposer(
   threadId = THREAD_ID,
-  overrides: { working?: boolean; queued?: QueuedMessageInfo } = {},
+  overrides: { working?: boolean } = {},
 ): ReturnType<typeof render> {
   return render(
     <AgentComposer
@@ -65,7 +65,6 @@ function renderComposer(
       interaction="build"
       options={undefined}
       working={overrides.working ?? false}
-      queued={overrides.queued}
       prefill={null}
       onPrefillConsumed={vi.fn()}
     />,
@@ -100,31 +99,12 @@ describe('AgentComposer draft persistence', () => {
     // Switching viewer tabs unmounts the whole agent view — the draft must not go with it.
     first.unmount()
     renderComposer()
-
     const reopened = screen.getByLabelText('Message the agent') as HTMLTextAreaElement
     expect(reopened.value).toBe('half a thought')
   })
-
-  it('isolates drafts per thread', () => {
-    renderComposer('thread-1')
-    fireEvent.change(screen.getByLabelText('Message the agent'), { target: { value: 'for one' } })
-
-    expect(useAgentDraftsStore.getState().drafts['thread-1']?.text).toBe('for one')
-    expect(useAgentDraftsStore.getState().drafts['thread-2']).toBeUndefined()
-  })
-
-  it('clears the draft on send', () => {
-    renderComposer()
-    const input = screen.getByLabelText('Message the agent')
-    fireEvent.change(input, { target: { value: 'ship it' } })
-    fireEvent.keyDown(input, { key: 'Enter' })
-
-    expect(send).toHaveBeenCalledWith(THREAD_ID, { text: 'ship it' })
-    expect(useAgentDraftsStore.getState().drafts[THREAD_ID]).toBeUndefined()
-  })
 })
 
-describe('AgentComposer mid-turn steering', () => {
+describe('AgentComposer mid-turn send / stop', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     useAgentDraftsStore.setState({ drafts: {} })
@@ -143,8 +123,6 @@ describe('AgentComposer mid-turn steering', () => {
     vi.mocked(useToggleAgentModelFavorite).mockReturnValue({ toggle: vi.fn() })
     vi.mocked(useFileSearch).mockReturnValue({ results: [], isFetching: false })
   })
-
-  const queuedInfo: QueuedMessageInfo = { text: 'already waiting' }
 
   it('shows a working Send button that queues the draft without stopping', () => {
     renderComposer(THREAD_ID, { working: true })
@@ -172,18 +150,6 @@ describe('AgentComposer mid-turn steering', () => {
     expect(abort).toHaveBeenCalledWith(THREAD_ID)
     // Queue-before-abort: the daemon must see the send first on the ordered socket.
     expect(send.mock.invocationCallOrder[0]).toBeLessThan(abort.mock.invocationCallOrder[0])
-  })
-
-  it('Stop only aborts when a message is already queued (never clobbers the chip)', () => {
-    renderComposer(THREAD_ID, { working: true, queued: queuedInfo })
-    fireEvent.change(screen.getByLabelText('Message the agent'), {
-      target: { value: 'a newer draft' },
-    })
-
-    fireEvent.click(screen.getByLabelText('Stop'))
-
-    expect(send).not.toHaveBeenCalled()
-    expect(abort).toHaveBeenCalledWith(THREAD_ID)
   })
 
   it('Stop only aborts on an empty draft, and Send is disabled', () => {

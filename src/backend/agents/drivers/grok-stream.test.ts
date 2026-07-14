@@ -11,8 +11,8 @@ import {
   type StreamSignal,
 } from './grok-stream'
 
-function drive(lines: string[]): StreamSignal[] {
-  const translator = new GrokStreamTranslator()
+function drive(lines: string[], turnKey = 'turn-1'): StreamSignal[] {
+  const translator = new GrokStreamTranslator(turnKey)
   return lines.flatMap((line) => translator.pushLine(line))
 }
 
@@ -170,13 +170,13 @@ describe('GrokStreamTranslator', () => {
     expect(events(signals)).toEqual([
       {
         t: 'item',
-        item: { kind: 'assistant', id: 'grok-assistant', text: 'Hello', streaming: true },
+        item: { kind: 'assistant', id: 'grok-a:turn-1', text: 'Hello', streaming: true },
       },
       {
         t: 'item',
         item: {
           kind: 'assistant',
-          id: 'grok-assistant',
+          id: 'grok-a:turn-1',
           text: 'Hello world',
           streaming: true,
         },
@@ -185,7 +185,7 @@ describe('GrokStreamTranslator', () => {
         t: 'item',
         item: {
           kind: 'assistant',
-          id: 'grok-assistant',
+          id: 'grok-a:turn-1',
           text: 'Hello world',
           streaming: false,
         },
@@ -212,10 +212,33 @@ describe('GrokStreamTranslator', () => {
     expect(signals.at(-1)).toEqual({ t: 'done', ok: true })
   })
 
+  it('mints distinct assistant ids per turn so multi-turn replies do not overwrite', () => {
+    const turn1 = drive([line({ type: 'text', data: 'first' })], 'a')
+    const turn2 = drive([line({ type: 'text', data: 'second' })], 'b')
+    const id1 = events(turn1)[0]
+    const id2 = events(turn2)[0]
+    expect(id1?.t === 'item' && id1.item.id).toBe('grok-a:a')
+    expect(id2?.t === 'item' && id2.item.id).toBe('grok-a:b')
+  })
+
+  it('finalize closes a still-streaming assistant when the process exits without end', () => {
+    const translator = new GrokStreamTranslator('exit')
+    translator.pushLine(line({ type: 'text', data: 'partial' }))
+    const closed = translator.finalize()
+    expect(events(closed)).toEqual([
+      {
+        t: 'item',
+        item: { kind: 'assistant', id: 'grok-a:exit', text: 'partial', streaming: false },
+      },
+    ])
+    // Idempotent — a second finalize emits nothing.
+    expect(translator.finalize()).toEqual([])
+  })
+
   it('emits an error item and done ok=false on error events', () => {
     const signals = drive([line({ type: 'error', message: 'auth failed' })])
     expect(events(signals)).toEqual([
-      { t: 'item', item: { kind: 'error', id: 'grok-error', message: 'auth failed' } },
+      { t: 'item', item: { kind: 'error', id: 'grok-e:turn-1', message: 'auth failed' } },
     ])
     expect(signals).toContainEqual({ t: 'done', ok: false })
   })

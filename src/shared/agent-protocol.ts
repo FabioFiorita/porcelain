@@ -205,15 +205,22 @@ export const providerLimitsSchema = z.object({
 })
 export type ProviderLimits = z.infer<typeof providerLimitsSchema>
 
-// The lightweight, client-facing view of a thread's ONE queued message (the message the
-// user sent mid-turn, held to auto-run when the turn ends). Only the text preview + image
-// count cross to the renderer (the composer's "Queued" chip) — the FULL image payloads stay
-// daemon-only on the manager's thread record (see agent-manager), never on the roster.
+// The lightweight, client-facing view of ONE queued message (a mid-turn send held to
+// auto-run when the current turn ends). Only the text preview + image count cross to the
+// renderer (the composer's "Queued" chips) — the FULL image payloads stay daemon-only on
+// the manager's thread record (see agent-manager), never on the roster.
 export const queuedMessageInfoSchema = z.object({
+  // Stable chip identity (React key + cancel-by-id). Optional for legacy single-object
+  // thread files written before stacking; the manager assigns one on hydrate when missing.
+  id: z.string().optional(),
   text: z.string(),
   imageCount: z.number().int().nonnegative().optional(),
 })
 export type QueuedMessageInfo = z.infer<typeof queuedMessageInfoSchema>
+
+// FIFO queue of mid-turn messages (append on send, drain front on turn end). Cap is
+// enforced by the manager; the schema stays permissive so a longer legacy list still reads.
+export const MAX_QUEUED_MESSAGES = 20
 
 // One roster row: the daemon-owned metadata the renderer's Agent list renders. `status`
 // is runtime (a hydrated-from-disk thread is always idle); everything else persists.
@@ -246,9 +253,10 @@ export const threadInfoSchema = z.object({
   // True when the thread's last turn ended in error (onDone ok=false); cleared when the next
   // turn starts. Drives the roster's error dot. Optional/absent = the last turn was fine.
   lastTurnFailed: z.boolean().optional(),
-  // The one message queued behind a running turn (text + image count only; the full images
-  // stay daemon-side). Absent when nothing is queued.
-  queued: queuedMessageInfoSchema.optional(),
+  // Messages queued behind a running turn (FIFO; text + image count only — full images
+  // stay daemon-side). Absent or empty when nothing is queued. A pre-array thread file
+  // is migrated on read by the thread-store (single object → one-element array).
+  queued: z.array(queuedMessageInfoSchema).optional(),
   createdAt: z.number(),
   updatedAt: z.number(),
 })

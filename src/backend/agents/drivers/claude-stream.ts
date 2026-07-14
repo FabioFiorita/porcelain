@@ -298,6 +298,48 @@ export function titleForTool(
   }
 }
 
+/** Salient string keys we try to recover from a still-streaming tool-input JSON fragment. */
+const PEEK_TOOL_KEYS = [
+  'command',
+  'file_path',
+  'path',
+  'notebook_path',
+  'pattern',
+  'url',
+  'query',
+  'description',
+] as const
+
+/**
+ * Best-effort fields from a tool's streamed `input_json_delta` buffer. Full `JSON.parse`
+ * when the fragment is already valid; otherwise pull completed `"key":"value"` pairs so a
+ * running Bash/Read row can show its command/path before the block closes.
+ */
+export function peekToolFields(json: string): Record<string, unknown> {
+  if (json === '') return {}
+  try {
+    const parsed: unknown = JSON.parse(json)
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>
+    }
+  } catch {
+    // incomplete JSON — fall through to regex peeks of finished string values
+  }
+  const fields: Record<string, unknown> = {}
+  for (const key of PEEK_TOOL_KEYS) {
+    // A completed JSON string value: "key":"…escaped…" (closing quote required).
+    const re = new RegExp(`"${key}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"`)
+    const match = re.exec(json)
+    if (!match) continue
+    try {
+      fields[key] = JSON.parse(`"${match[1]}"`) as string
+    } catch {
+      fields[key] = match[1]
+    }
+  }
+  return fields
+}
+
 // --- plan (TodoWrite) mapping -----------------------------------------------
 
 type PlanStep = { text: string; status: 'pending' | 'active' | 'done' }
@@ -555,14 +597,12 @@ export class ClaudeStreamTranslator {
       ]
     }
     if (block.type === 'thinking' || block.type === 'redacted_thinking') {
+      // Claude Code often redacts thinking (display omitted / redacted_thinking): the block
+      // opens and closes with no thinking_delta. Don't emit an empty "Thought" row — wait for
+      // the first real delta (see deltaBlock) and skip the close when still empty.
       const id = this.blockId(index)
       this.open.set(index, { kind: 'reasoning', id, text: '', name: '', input: {}, inputJson: '' })
-      return [
-        {
-          t: 'event',
-          event: { t: 'item', item: { kind: 'reasoning', id, text: '', streaming: true } },
-        },
-      ]
+      return []
     }
     if (block.type === 'tool_use') {
       // Prefer the CLI's own tool id so the result flip targets the same item.
@@ -607,16 +647,55 @@ export class ClaudeStreamTranslator {
       open.kind === 'reasoning' &&
       delta.thinking !== undefined
     ) {
+      // First visible token opens the reasoning item (we suppressed the empty open for
+      // redacted blocks); later tokens stream as deltas.
+      const wasEmpty = open.text === ''
       open.text += delta.thinking
+      if (wasEmpty) {
+        return [
+          {
+            t: 'event',
+            event: {
+              t: 'item',
+              item: { kind: 'reasoning', id: open.id, text: open.text, streaming: true },
+            },
+          },
+        ]
+      }
       return [{ t: 'event', event: { t: 'item-delta', id: open.id, delta: delta.thinking } }]
     }
-    // Tool/plan args stream as partial JSON fragments; accumulate silently, parse on close.
+    // Tool/plan args stream as partial JSON fragments; accumulate and — for tools — re-emit
+    // the row as soon as a salient field (command/path/…) is complete so Running/timeline
+    // show the detail mid-stream, not only when the block closes.
     if (
       delta.type === 'input_json_delta' &&
       (open.kind === 'tool' || open.kind === 'plan') &&
       delta.partial_json !== undefined
     ) {
       open.inputJson += delta.partial_json
+      if (open.kind === 'tool') {
+        const peeked = peekToolFields(open.inputJson)
+        const { title, detail } = titleForTool(open.name, peeked)
+        const known = this.toolTitles.get(open.id)
+        if (detail !== undefined && detail !== '' && detail !== known?.detail) {
+          this.toolTitles.set(open.id, { title, detail })
+          return [
+            {
+              t: 'event',
+              event: {
+                t: 'item',
+                item: {
+                  kind: 'tool',
+                  id: open.id,
+                  title,
+                  detail,
+                  status: 'running',
+                },
+              },
+            },
+          ]
+        }
+      }
     }
     return []
   }
@@ -625,14 +704,27 @@ export class ClaudeStreamTranslator {
     const open = this.open.get(index)
     if (!open) return []
     this.open.delete(index)
-    if (open.kind === 'assistant' || open.kind === 'reasoning') {
+    if (open.kind === 'reasoning') {
+      // Redacted / omitted thinking never produced a delta — leave no empty Thought row.
+      if (open.text === '') return []
+      return [
+        {
+          t: 'event',
+          event: {
+            t: 'item',
+            item: { kind: 'reasoning', id: open.id, text: open.text, streaming: false },
+          },
+        },
+      ]
+    }
+    if (open.kind === 'assistant') {
       // Promote the streamed item to its final form (streaming:false) with the full text.
       return [
         {
           t: 'event',
           event: {
             t: 'item',
-            item: { kind: open.kind, id: open.id, text: open.text, streaming: false },
+            item: { kind: 'assistant', id: open.id, text: open.text, streaming: false },
           },
         },
       ]

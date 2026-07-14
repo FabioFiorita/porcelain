@@ -110,7 +110,7 @@ Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wron
 - History → **File timeline** (`file-timeline-group.tsx`): the commit history of the file open in the viewer (`gitFileLog`, `--follow`); click an entry to open that commit.
 - Changes/Feature → **Commit composer** (`commit-group.tsx`) + **Comments** (`comments-group.tsx`).
 - Terminal → **Actions** (`actions-group.tsx`).
-- Agent → **provider status** (`agents-quick-access.tsx`).
+- Agent → **Session** companion (`agents-quick-access.tsx`): live activity, plan, files touched, usage/limits — header is **Session** (not "Agent") so it doesn't collide with the left tab.
 
 **Overlays:**
 - **File finder** — Cmd+P fuzzy finder (`file-finder.tsx`).

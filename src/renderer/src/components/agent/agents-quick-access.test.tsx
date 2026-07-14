@@ -9,6 +9,7 @@ import {
   formatCostUsd,
   formatResetIn,
   formatTokenCount,
+  touchedFilesFromItems,
 } from './agents-quick-access'
 
 // Repo idiom: mock the domain hooks, never tRPC. The stores are real — we seed the
@@ -112,7 +113,7 @@ describe('AgentsQuickAccess', () => {
     expect(screen.getByText('Survey the code')).toBeInTheDocument()
   })
 
-  it('lists only still-running tools in the Running group', () => {
+  it('lists only still-running tools in the Activity group with full detail', () => {
     vi.mocked(useAgentThreads).mockReturnValue([makeThread('t1', 'working', 1)])
     activateAgentTab('t1')
     seedThread('t1', [
@@ -121,13 +122,32 @@ describe('AgentsQuickAccess', () => {
     ])
 
     render(<AgentsQuickAccess />)
-    expect(screen.getByText('Running')).toBeInTheDocument()
+    expect(screen.getByText('Activity')).toBeInTheDocument()
     expect(screen.getByText('Bash')).toBeInTheDocument()
     expect(screen.getByText('pnpm test')).toBeInTheDocument()
     expect(screen.queryByText('Read')).toBeNull()
   })
 
-  it('renders nothing when there is no plan and nothing running', () => {
+  it('lists files the agent touched, preferring the last action per path', () => {
+    vi.mocked(useAgentThreads).mockReturnValue([makeThread('t1', 'idle', 1)])
+    activateAgentTab('t1')
+    seedThread('t1', [
+      { kind: 'tool', id: 't-r', title: 'Read', detail: '/repo/a.ts', status: 'ok' },
+      { kind: 'tool', id: 't-e', title: 'Edit', detail: '/repo/a.ts', status: 'ok' },
+      { kind: 'tool', id: 't-w', title: 'Write', detail: '/repo/b.ts', status: 'ok' },
+      { kind: 'tool', id: 't-b', title: 'Bash', detail: 'ls', status: 'ok' },
+    ])
+
+    render(<AgentsQuickAccess />)
+    expect(screen.getByText('Files')).toBeInTheDocument()
+    expect(screen.getByText('a.ts')).toBeInTheDocument()
+    expect(screen.getByText('edit')).toBeInTheDocument()
+    expect(screen.getByText('b.ts')).toBeInTheDocument()
+    expect(screen.getByText('write')).toBeInTheDocument()
+    expect(screen.queryByText('read')).toBeNull()
+  })
+
+  it('renders nothing when there is no plan, activity, or files', () => {
     vi.mocked(useAgentThreads).mockReturnValue([makeThread('t1', 'idle', 1)])
     activateAgentTab('t1')
     seedThread('t1', [{ kind: 'assistant', id: 'a1', text: 'done', streaming: false }])
@@ -249,5 +269,18 @@ describe('formatTokenCount', () => {
     expect(formatTokenCount(45000)).toBe('45k')
     expect(formatTokenCount(12000)).toBe('12k')
     expect(formatTokenCount(1_500_000)).toBe('1.5M')
+  })
+})
+
+describe('touchedFilesFromItems', () => {
+  it('dedupes by path and keeps the last action', () => {
+    expect(
+      touchedFilesFromItems([
+        { kind: 'tool', id: '1', title: 'Read', detail: 'a.ts', status: 'ok' },
+        { kind: 'tool', id: '2', title: 'Edit', detail: 'a.ts', status: 'ok' },
+        { kind: 'tool', id: '3', title: 'Bash', detail: 'ls', status: 'ok' },
+        { kind: 'assistant', id: 'a', text: 'hi', streaming: false },
+      ]),
+    ).toEqual([{ path: 'a.ts', action: 'edit' }])
   })
 })

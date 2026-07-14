@@ -161,8 +161,8 @@ describe('agent-manager', () => {
     // No error item — the second message is queued (text + count on the roster).
     const stored = await readThread(id)
     expect(stored?.items.map((i) => i.kind)).toEqual(['user'])
-    expect(stored?.queued).toEqual({ text: 'second' })
-    expect((await listThreads('/repo'))[0]?.queued).toEqual({ text: 'second' })
+    expect(stored?.queued?.map((q) => q.text)).toEqual(['second'])
+    expect((await listThreads('/repo'))[0]?.queued?.map((q) => q.text)).toEqual(['second'])
   })
 
   it('reduces driver events into the timeline and returns to idle onDone', async () => {
@@ -251,7 +251,7 @@ describe('agent-manager', () => {
     await flushThread(id)
     const stored = await readThread(id)
     expect(stored?.items.map((i) => i.kind)).toEqual(['user'])
-    expect(stored?.queued).toEqual({ text: 'second' })
+    expect(stored?.queued?.map((q) => q.text)).toEqual(['second'])
   })
 
   it('does not resurrect the thread file when a debounced persist was pending', async () => {
@@ -584,18 +584,26 @@ describe('agent-manager', () => {
     expect((await listThreads('/repo'))[0]?.lastTurnFailed).toBeUndefined()
   })
 
-  it('last write wins — a second mid-turn send replaces the queued message', async () => {
+  it('stacks mid-turn sends FIFO and drains in order', async () => {
     const { id } = await newThread()
     await sendMessage(id, { text: 'first' })
     await sendMessage(id, { text: 'queued A' })
     await sendMessage(id, { text: 'queued B' })
-    expect((await listThreads('/repo'))[0]?.queued).toEqual({ text: 'queued B' })
+    expect((await listThreads('/repo'))[0]?.queued?.map((q) => q.text)).toEqual([
+      'queued A',
+      'queued B',
+    ])
+    mock.last?.onDone({ ok: true })
+    await flushThread(id)
+    expect(mock.last?.text).toBe('queued A')
+    expect((await listThreads('/repo'))[0]?.queued?.map((q) => q.text)).toEqual(['queued B'])
     mock.last?.onDone({ ok: true })
     await flushThread(id)
     expect(mock.last?.text).toBe('queued B')
+    expect((await listThreads('/repo'))[0]?.queued).toBeUndefined()
   })
 
-  it('cancelQueued drops the queued message so it does not auto-run', async () => {
+  it('cancelQueued drops the whole queue so nothing auto-runs', async () => {
     const { id } = await newThread()
     await sendMessage(id, { text: 'first' })
     await sendMessage(id, { text: 'queued' })
@@ -605,6 +613,25 @@ describe('agent-manager', () => {
     mock.last?.onDone({ ok: true })
     await flushThread(id)
     expect(mock.starts).toBe(1) // nothing drained
+  })
+
+  it('cancelQueued(index) drops one chip and leaves the rest', async () => {
+    const { id } = await newThread()
+    await sendMessage(id, { text: 'first' })
+    await sendMessage(id, { text: 'queued A' })
+    await sendMessage(id, { text: 'queued B' })
+    await sendMessage(id, { text: 'queued C' })
+    await cancelQueued(id, 1)
+    expect((await listThreads('/repo'))[0]?.queued?.map((q) => q.text)).toEqual([
+      'queued A',
+      'queued C',
+    ])
+    mock.last?.onDone({ ok: true })
+    await flushThread(id)
+    expect(mock.last?.text).toBe('queued A')
+    mock.last?.onDone({ ok: true })
+    await flushThread(id)
+    expect(mock.last?.text).toBe('queued C')
   })
 
   it('runs the queued message on abort ("stop this, do the next thing")', async () => {
@@ -618,18 +645,22 @@ describe('agent-manager', () => {
     expect((await listThreads('/repo'))[0]?.status).toBe('working')
   })
 
-  it('restores a queued message across a daemon restart (chip survives)', async () => {
+  it('restores queued messages across a daemon restart (chips survive)', async () => {
     const { id } = await newThread()
     await sendMessage(id, { text: 'first' })
     await sendMessage(id, {
       text: 'queued',
       images: [{ mediaType: 'image/png', base64: 'BIG' }],
     })
+    await sendMessage(id, { text: 'also queued' })
     resetForTests() // simulate a daemon restart: reload from disk
     setDrivers(registry(mock))
     const restored = (await listThreads('/repo'))[0]
     expect(restored?.status).toBe('idle') // hydrated threads are idle
-    expect(restored?.queued).toEqual({ text: 'queued', imageCount: 1 })
+    expect(restored?.queued?.map((q) => ({ text: q.text, imageCount: q.imageCount }))).toEqual([
+      { text: 'queued', imageCount: 1 },
+      { text: 'also queued', imageCount: undefined },
+    ])
     // The full image payload is not on disk (never persisted).
     expect(JSON.stringify(await readThread(id))).not.toContain('BIG')
   })

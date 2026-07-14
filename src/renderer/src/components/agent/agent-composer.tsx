@@ -25,7 +25,6 @@ import type {
   AgentInteraction,
   AgentMode,
   AgentProvider,
-  QueuedMessageInfo,
   ThreadOptions,
 } from '@shared/agent-protocol'
 import { PROVIDER_LABEL } from '@shared/agent-protocol'
@@ -113,7 +112,6 @@ export function AgentComposer({
   interaction,
   options,
   working,
-  queued,
   prefill,
   onPrefillConsumed,
 }: {
@@ -126,14 +124,14 @@ export function AgentComposer({
   interaction: AgentInteraction
   options: ThreadOptions | undefined
   working: boolean
-  // The message queued behind the running turn (roster-fed), or undefined when none.
-  queued: QueuedMessageInfo | undefined
   // Text to drop into the (empty) field — the empty-timeline example chips push a prompt here.
   // Consumed once via `onPrefillConsumed`, so a repeat pick of the same prompt still fires.
+  // Queued mid-turn messages render in the timeline ("Up next"), not here — the composer sits
+  // under the last reply, so chips here read as "sent after the response".
   prefill: string | null
   onPrefillConsumed: () => void
 }): React.JSX.Element {
-  const { send, abort, cancelQueued } = useAgentActions()
+  const { send, abort } = useAgentActions()
   const { update } = useUpdateAgentThread()
   const providers = useAgentProviders()
   // Drafts live in a per-thread store, not local state, so a viewer-tab switch (which unmounts
@@ -204,12 +202,11 @@ export function AgentComposer({
   }
 
   const stop = (): void => {
-    // Steer-then-stop: queue the typed draft, then abort. Ordering contract — both rides the
-    // same ordered WS socket, so the daemon sees the send BEFORE the abort and drains the
-    // queued message the instant the aborted turn ends (the draft runs next). Only steal the
-    // draft into the queue when the slot is free; a live queued chip already owns it, so a
-    // plain abort lets that chip drain instead of clobbering it.
-    if (canSend && !queued) submit()
+    // Steer-then-stop: append the typed draft to the FIFO queue, then abort. Ordering contract
+    // — both ride the same ordered WS socket, so the daemon sees the send BEFORE the abort and
+    // drains the front of the queue the instant the aborted turn ends. Always append when the
+    // draft is non-empty (queue stacks; never clobber prior chips).
+    if (canSend) submit()
     abort(threadId)
   }
 
@@ -232,27 +229,6 @@ export function AgentComposer({
           if (e.dataTransfer.files.length > 0) await addFiles(e.dataTransfer.files)
         }}
       >
-        {queued && (
-          <div className="flex items-center gap-2 rounded-lg bg-muted/40 px-2.5 py-1.5 text-2xs text-muted-foreground">
-            <span className="shrink-0 font-medium text-foreground/80">Queued</span>
-            <span className="min-w-0 flex-1 truncate">{queued.text}</span>
-            {queued.imageCount !== undefined && queued.imageCount > 0 && (
-              <span className="flex shrink-0 items-center gap-1">
-                <ImagePlus className="size-3" />
-                {queued.imageCount}
-              </span>
-            )}
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              aria-label="Cancel queued message"
-              className="size-4 shrink-0"
-              onClick={() => cancelQueued(threadId)}
-            >
-              <X />
-            </Button>
-          </div>
-        )}
         {images.length > 0 && (
           <div className="flex flex-wrap gap-2 px-1 pt-1">
             {images.map((image) => (

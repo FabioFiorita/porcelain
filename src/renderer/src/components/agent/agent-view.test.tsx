@@ -14,7 +14,7 @@ import type { ProviderStatus, ThreadInfo, TimelineItem } from '@shared/agent-pro
 import { TOOL_OUTPUT_CAP } from '@shared/agent-protocol'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { AgentView } from './agent-view'
+import { AgentView, groupTimelineItems } from './agent-view'
 
 // Repo idiom (see changes-list.test): mock the domain hooks + the channel action
 // surface, never tRPC or lib/daemon. The store is real — we seed the live timeline
@@ -131,6 +131,22 @@ describe('AgentView', () => {
     expect(screen.getByText(/first thought/)).toBeInTheDocument()
   })
 
+  it('hides completed reasoning with empty text (redacted thoughts)', () => {
+    seed([{ kind: 'reasoning', id: 'r1', text: '', streaming: false }])
+    render(<AgentView threadId={THREAD_ID} />)
+    expect(screen.queryByText(/Thought/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Thinking/)).not.toBeInTheDocument()
+  })
+
+  it('expands reasoning to show the full thought body', () => {
+    seed([{ kind: 'reasoning', id: 'r1', text: 'line one\nline two', streaming: false }])
+    render(<AgentView threadId={THREAD_ID} />)
+    expect(screen.getByText(/Thought/)).toBeInTheDocument()
+    expect(screen.queryByText(/line two/)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText(/Thought/))
+    expect(screen.getByText(/line two/)).toBeInTheDocument()
+  })
+
   it('renders a tool one-liner and reveals its output on expand', () => {
     seed([
       { kind: 'tool', id: 't1', title: 'Bash', detail: 'ls -la', status: 'ok', output: 'file.txt' },
@@ -140,6 +156,40 @@ describe('AgentView', () => {
     expect(screen.queryByText('file.txt')).not.toBeInTheDocument()
     fireEvent.click(screen.getByText('Bash'))
     expect(screen.getByText('file.txt')).toBeInTheDocument()
+  })
+
+  it('collapses consecutive tools into one summary row', () => {
+    seed([
+      { kind: 'tool', id: 't1', title: 'Read', detail: 'a.ts', status: 'ok' },
+      { kind: 'tool', id: 't2', title: 'Edit', detail: 'a.ts', status: 'ok' },
+      { kind: 'tool', id: 't3', title: 'Bash', detail: 'pnpm test', status: 'ok' },
+    ])
+    render(<AgentView threadId={THREAD_ID} />)
+    expect(screen.getByText(/3 tools/)).toBeInTheDocument()
+    // Individual tools stay collapsed until the group expands.
+    expect(screen.queryByText('pnpm test')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText(/3 tools/))
+    expect(screen.getByText('pnpm test')).toBeInTheDocument()
+  })
+
+  it('renders stacked queue as Up next after the turn, not as user bubbles', () => {
+    vi.mocked(useAgentThreads).mockReturnValue([
+      {
+        ...thread,
+        status: 'working',
+        queued: [
+          { id: 'q1', text: 'first pending' },
+          { id: 'q2', text: 'second pending' },
+        ],
+      },
+    ])
+    seed([{ kind: 'assistant', id: 'a1', text: 'still working', streaming: true }], 'working')
+    render(<AgentView threadId={THREAD_ID} />)
+    expect(screen.getByText(/Up next/)).toBeInTheDocument()
+    expect(screen.getByText('first pending')).toBeInTheDocument()
+    expect(screen.getByText('second pending')).toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('Cancel queued message 2'))
+    expect(cancelQueued).toHaveBeenCalledWith(THREAD_ID, 1)
   })
 
   it('copies an assistant message via copyText', () => {
@@ -186,6 +236,18 @@ describe('AgentView', () => {
     seed([{ kind: 'error', id: 'e1', message: 'turn failed' }])
     render(<AgentView threadId={THREAD_ID} />)
     expect(screen.getByText('turn failed')).toBeInTheDocument()
+  })
+
+  it('groupTimelineItems collapses consecutive tools and leaves singles alone', () => {
+    const rows = groupTimelineItems([
+      { kind: 'user', id: 'u1', text: 'go' },
+      { kind: 'tool', id: 't1', title: 'Read', status: 'ok' },
+      { kind: 'tool', id: 't2', title: 'Edit', status: 'ok' },
+      { kind: 'assistant', id: 'a1', text: 'done', streaming: false },
+      { kind: 'tool', id: 't3', title: 'Bash', status: 'ok' },
+    ])
+    expect(rows.map((r) => r.kind)).toEqual(['single', 'tools', 'single', 'single'])
+    expect(rows[1]?.kind === 'tools' && rows[1].tools).toHaveLength(2)
   })
 
   it('a pending approval calls approve with the decision when a button is clicked', () => {

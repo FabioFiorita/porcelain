@@ -6,11 +6,18 @@ import {
   SidebarGroupLabel,
 } from '@renderer/components/ui/sidebar'
 import { useAgentLimits, useAgentThreads, useRefreshAgentLimits } from '@renderer/hooks/use-agents'
+import { fileName } from '@renderer/lib/paths'
+import { cn } from '@renderer/lib/utils'
 import { useAgentThreadsStore } from '@renderer/stores/agent-threads'
-import { useTabsStore } from '@renderer/stores/tabs'
+import { useRepoStore } from '@renderer/stores/repo'
+import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import type { AgentProvider, TimelineItem } from '@shared/agent-protocol'
-import { Loader2, RefreshCw } from 'lucide-react'
+import { FilePenLine, FileText, Loader2, RefreshCw } from 'lucide-react'
+import { useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
+
+/** Stable empty timeline so `?? EMPTY_ITEMS` doesn't allocate a new `[]` every snapshot. */
+const EMPTY_ITEMS: TimelineItem[] = []
 
 type PlanTimelineItem = Extract<TimelineItem, { kind: 'plan' }>
 type ToolTimelineItem = Extract<TimelineItem, { kind: 'tool' }>
@@ -95,10 +102,15 @@ function PlanGroup({ threadId }: { threadId: string }): React.JSX.Element | null
   )
 }
 
-/** What the agent is doing right now — every still-running tool call, one compact row each. */
-function RunningGroup({ threadId }: { threadId: string }): React.JSX.Element | null {
+/**
+ * What the agent is doing right now — every still-running tool call, with the command/path
+ * on its own line (not truncated into a single crowded row). The value is the detail, not
+ * just "Bash + spinner".
+ */
+function ActivityGroup({ threadId }: { threadId: string }): React.JSX.Element | null {
   // Shallow-compared slice of the running tools: tool item objects are only replaced when
-  // their own status flips, so text deltas leave the array shallow-equal — no re-render.
+  // their own status flips (or detail lands mid-stream), so text deltas leave the array
+  // shallow-equal — no re-render.
   const running = useAgentThreadsStore(
     useShallow((s): ToolTimelineItem[] => {
       const items = s.threads[threadId]?.items ?? []
@@ -111,27 +123,121 @@ function RunningGroup({ threadId }: { threadId: string }): React.JSX.Element | n
   return (
     <SidebarGroup className="px-3">
       <SidebarGroupLabel className="px-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
-        Running
+        Activity
       </SidebarGroupLabel>
       <SidebarGroupContent className="flex flex-col gap-1.5 px-1">
         {running.map((item) => (
           <div
             key={item.id}
-            className="glaze-tile flex items-center gap-2 p-2 [--tile-fill:var(--surface-2)]"
+            className="glaze-tile flex flex-col gap-1 p-2.5 [--tile-fill:var(--surface-2)]"
           >
-            <Loader2 className="size-3.5 shrink-0 animate-spin text-muted-foreground" />
-            <span className="flex min-w-0 flex-1 items-baseline gap-2">
-              <span className="max-w-full shrink-0 truncate text-xs font-medium text-foreground">
-                {item.title}
-              </span>
-              {item.detail !== undefined && item.detail !== '' && (
-                <span className="min-w-0 flex-1 truncate font-mono text-2xs text-muted-foreground">
-                  {item.detail}
-                </span>
-              )}
-            </span>
+            <div className="flex items-center gap-2">
+              <Loader2 className="size-3.5 shrink-0 animate-spin text-muted-foreground" />
+              <span className="truncate text-xs font-medium text-foreground">{item.title}</span>
+            </div>
+            {item.detail !== undefined && item.detail !== '' && (
+              <p className="pl-5 font-mono text-2xs break-all whitespace-pre-wrap text-muted-foreground">
+                {item.detail}
+              </p>
+            )}
           </div>
         ))}
+      </SidebarGroupContent>
+    </SidebarGroup>
+  )
+}
+
+/** Titles whose `detail` is a file path the user can open in the viewer. */
+const FILE_TOOL_TITLES = new Set(['Read', 'Edit', 'Write', 'Edit notebook'])
+
+export type TouchedFile = {
+  path: string
+  /** Last action against this path in timeline order (Write/Edit beat a prior Read). */
+  action: 'read' | 'edit' | 'write'
+}
+
+/**
+ * Deduped file paths the agent has Read/Edit/Written in this thread (timeline order,
+ * last action wins). Pure so it's unit-testable without mounting the sidebar.
+ */
+export function touchedFilesFromItems(items: TimelineItem[]): TouchedFile[] {
+  const byPath = new Map<string, TouchedFile>()
+  for (const item of items) {
+    if (item.kind !== 'tool') continue
+    if (!FILE_TOOL_TITLES.has(item.title)) continue
+    const path = item.detail?.trim()
+    if (path === undefined || path === '') continue
+    const action: TouchedFile['action'] =
+      item.title === 'Write' ? 'write' : item.title === 'Read' ? 'read' : 'edit'
+    // Later ops replace earlier ones so an Edit after a Read lands as "edit".
+    byPath.set(path, { path, action })
+  }
+  return [...byPath.values()]
+}
+
+/**
+ * Files the agent has touched in this thread — click a row to open it in the viewer.
+ * The main timeline collapses tools; this is where you jump into what changed.
+ */
+function FilesGroup({ threadId }: { threadId: string }): React.JSX.Element | null {
+  // Select the items array by identity (not a mapped TouchedFile[] — that would allocate
+  // new objects every snapshot and trip useShallow into an infinite re-render loop).
+  const items = useAgentThreadsStore((s) => s.threads[threadId]?.items ?? EMPTY_ITEMS)
+  const files = useMemo(() => touchedFilesFromItems(items), [items])
+  const repoPath = useRepoStore((s) => s.repo?.path ?? null)
+  const openTab = useTabsStore((s) => s.openTab)
+  if (files.length === 0) return null
+
+  const open = (path: string): void => {
+    // Claude usually emits absolute paths; relative ones are joined to the open repo.
+    const absolute =
+      path.startsWith('/') || /^[A-Za-z]:[\\/]/.test(path)
+        ? path
+        : repoPath !== null
+          ? `${repoPath}/${path}`
+          : path
+    openTab({
+      id: tabId('file', absolute),
+      kind: 'file',
+      title: fileName(absolute),
+      path: absolute,
+      preview: true,
+    })
+  }
+
+  return (
+    <SidebarGroup className="px-3">
+      <SidebarGroupLabel className="px-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
+        Files
+      </SidebarGroupLabel>
+      <SidebarGroupContent className="flex flex-col gap-0.5 px-1">
+        {files.map((file) => {
+          const name = fileName(file.path)
+          const Icon = file.action === 'read' ? FileText : FilePenLine
+          return (
+            <button
+              key={file.path}
+              type="button"
+              onClick={() => open(file.path)}
+              title={file.path}
+              className={cn(
+                'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left',
+                'hover:bg-(--hover-fill) focus-visible:bg-(--hover-fill) focus-visible:outline-none',
+              )}
+            >
+              <Icon
+                className={cn(
+                  'size-3.5 shrink-0',
+                  file.action === 'read' ? 'text-muted-foreground' : 'text-foreground',
+                )}
+              />
+              <span className="min-w-0 flex-1 truncate text-xs text-foreground">{name}</span>
+              <span className="shrink-0 text-2xs text-muted-foreground capitalize">
+                {file.action}
+              </span>
+            </button>
+          )
+        })}
       </SidebarGroupContent>
     </SidebarGroup>
   )
@@ -229,10 +335,10 @@ function LimitsGroup({ provider }: { provider: AgentProvider }): React.JSX.Eleme
 }
 
 /**
- * The Agent tab's Quick Access: the session at a glance — the relevant thread's plan, its
- * currently-running tool calls, and the last turn's token usage. Each group hides when
- * empty (provider install/auth state lives in Settings → Agents, not here). The relevant
- * thread is the active agent tab's, else the busiest working thread.
+ * The Agent tab's Session companion (right sidebar): plan, live activity with full
+ * command/path, files touched (click to open), usage, and rate limits. Each group hides
+ * when empty. The relevant thread is the active agent tab's, else the busiest working
+ * thread.
  */
 export function AgentsQuickAccess(): React.JSX.Element | null {
   const threadId = useRelevantThreadId()
@@ -240,8 +346,9 @@ export function AgentsQuickAccess(): React.JSX.Element | null {
   if (threadId === null) return null
   return (
     <>
+      <ActivityGroup threadId={threadId} />
       <PlanGroup threadId={threadId} />
-      <RunningGroup threadId={threadId} />
+      <FilesGroup threadId={threadId} />
       <UsageGroup threadId={threadId} />
       {provider !== null && <LimitsGroup provider={provider} />}
     </>

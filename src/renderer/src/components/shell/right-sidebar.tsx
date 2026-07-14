@@ -21,7 +21,9 @@ const COMPANION_TITLES: Record<SidebarTab, string> = {
   board: 'Workspace',
   terminal: 'Actions',
   search: 'Recent searches',
-  agent: 'Agent',
+  // Distinct from the left sidebar's "Agent" tab (the thread roster). This panel is
+  // the live session companion — plan, activity, files touched, usage/limits.
+  agent: 'Session',
 }
 
 // Sections follow the left sidebar's active tab: pins belong to browsing

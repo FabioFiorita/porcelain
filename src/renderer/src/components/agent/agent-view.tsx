@@ -10,7 +10,12 @@ import { modelChipLabel } from '@renderer/lib/agent-model-label'
 import { isTextEntry } from '@renderer/lib/keyboard'
 import { cn, copyText } from '@renderer/lib/utils'
 import { useAgentThreadsStore } from '@renderer/stores/agent-threads'
-import type { AgentProvider, ApprovalDecision, TimelineItem } from '@shared/agent-protocol'
+import type {
+  AgentProvider,
+  ApprovalDecision,
+  QueuedMessageInfo,
+  TimelineItem,
+} from '@shared/agent-protocol'
 import { PROVIDER_LABEL, TOOL_OUTPUT_CAP } from '@shared/agent-protocol'
 import {
   AlertTriangle,
@@ -141,14 +146,27 @@ function AssistantMessage({
   )
 }
 
-/** Collapsed reasoning: one dim italic line; click to expand the full muted text. */
+/** Collapsed reasoning: one dim italic line; click to expand the full muted text.
+ *  Empty completed thoughts (Claude Code often redacts them) are hidden entirely;
+ *  a still-streaming empty block is just a non-expandable "Thinking…" so expand never
+ *  reveals a blank body. */
 function ReasoningItem({
   item,
 }: {
   item: Extract<TimelineItem, { kind: 'reasoning' }>
-}): React.JSX.Element {
+}): React.JSX.Element | null {
   const [expanded, setExpanded] = useState(false)
   const firstLine = item.text.split('\n').find((line) => line.trim() !== '') ?? ''
+  const hasText = firstLine !== ''
+  if (!item.streaming && !hasText) return null
+  if (item.streaming && !hasText) {
+    return (
+      <div className="flex w-full items-center gap-1.5 text-xs text-muted-foreground/70 italic">
+        <Loader2 className="size-3 shrink-0 animate-spin" />
+        <span>Thinking…</span>
+      </div>
+    )
+  }
   return (
     <button
       type="button"
@@ -169,8 +187,10 @@ function ReasoningItem({
   )
 }
 
+type ToolTimelineItem = Extract<TimelineItem, { kind: 'tool' }>
+
 /** Compact tool call — status dot + title + dim detail; a chevron reveals capped output. */
-function ToolItem({ item }: { item: Extract<TimelineItem, { kind: 'tool' }> }): React.JSX.Element {
+function ToolItem({ item }: { item: ToolTimelineItem }): React.JSX.Element {
   const [expanded, setExpanded] = useState(false)
   const hasOutput = item.output !== undefined && item.output !== ''
   // Drivers cap captured output at TOOL_OUTPUT_CAP; Claude/OpenCode slice exactly to it (no
@@ -222,6 +242,94 @@ function ToolItem({ item }: { item: Extract<TimelineItem, { kind: 'tool' }> }): 
       )}
     </div>
   )
+}
+
+/**
+ * A run of consecutive tool calls collapsed to one line so a long agent turn doesn't push
+ * the conversation out of view. Expand to see each tool; auto-expands while any tool in the
+ * group is still running so the live action stays visible.
+ */
+function ToolGroup({ tools }: { tools: ToolTimelineItem[] }): React.JSX.Element {
+  const anyRunning = tools.some((t) => t.status === 'running')
+  const anyError = tools.some((t) => t.status === 'error')
+  const [expanded, setExpanded] = useState(anyRunning)
+  // Open when a tool starts running; leave the reader's manual collapse alone once idle.
+  useEffect(() => {
+    if (anyRunning) setExpanded(true)
+  }, [anyRunning])
+
+  // Unique titles in order of first appearance for a compact lead-in ("Bash · Read · Edit").
+  const titles: string[] = []
+  for (const tool of tools) {
+    if (!titles.includes(tool.title)) titles.push(tool.title)
+  }
+  const titleSummary = titles.slice(0, 4).join(' · ')
+  const moreTitles = titles.length > 4 ? ` +${titles.length - 4}` : ''
+  const running = tools.find((t) => t.status === 'running')
+  const summary = anyRunning
+    ? `Running ${running?.title ?? 'tool'}${running?.detail ? ` · ${running.detail}` : ''} (${tools.length})`
+    : `${tools.length} tools · ${titleSummary}${moreTitles}`
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <button
+        type="button"
+        onClick={() => setExpanded((value) => !value)}
+        className="flex w-full items-center gap-1.5 text-left text-xs text-muted-foreground hover:text-foreground"
+      >
+        <ChevronRight
+          className={cn('size-3 shrink-0 transition-transform', expanded && 'rotate-90')}
+        />
+        {anyRunning ? (
+          <Loader2 className="size-3.5 shrink-0 animate-spin" />
+        ) : anyError ? (
+          <X className="size-3.5 shrink-0 text-destructive" />
+        ) : (
+          <Check className="size-3.5 shrink-0 text-diff-add-emphasis" />
+        )}
+        <span className="min-w-0 flex-1 truncate">{summary}</span>
+      </button>
+      {expanded && (
+        <div className="ml-4 flex flex-col gap-1.5 border-l border-border/60 pl-3">
+          {tools.map((tool) => (
+            <ToolItem key={tool.id} item={tool} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Display rows for the timeline: consecutive tools collapse into one group. */
+type TimelineDisplayRow =
+  | { key: string; kind: 'single'; item: TimelineItem }
+  | { key: string; kind: 'tools'; tools: ToolTimelineItem[] }
+
+/** Group consecutive tool items so the conversation stays readable. Exported for tests. */
+export function groupTimelineItems(items: TimelineItem[]): TimelineDisplayRow[] {
+  const rows: TimelineDisplayRow[] = []
+  let toolBuf: ToolTimelineItem[] = []
+  const flushTools = (): void => {
+    if (toolBuf.length === 0) return
+    if (toolBuf.length === 1) {
+      const only = toolBuf[0]
+      if (only) rows.push({ key: only.id, kind: 'single', item: only })
+    } else {
+      const first = toolBuf[0]
+      if (first) rows.push({ key: `tools:${first.id}`, kind: 'tools', tools: toolBuf })
+    }
+    toolBuf = []
+  }
+  for (const item of items) {
+    if (item.kind === 'tool') {
+      toolBuf.push(item)
+      continue
+    }
+    flushTools()
+    rows.push({ key: item.id, kind: 'single', item })
+  }
+  flushTools()
+  return rows
 }
 
 const DECISIONS: { label: string; decision: ApprovalDecision }[] = [
@@ -328,6 +436,59 @@ function WorkingIndicator({ startedAt }: { startedAt: number | undefined }): Rea
   )
 }
 
+/**
+ * Pending mid-turn sends, rendered AFTER the working indicator (and never as full user
+ * bubbles) so they read as "up next when this turn ends" — not as messages that already
+ * arrived after the assistant reply. Lives in the timeline, not the composer, for the same
+ * reason: the composer sits under the last reply and made the chips look sent.
+ */
+function QueuedPendingList({
+  threadId,
+  queued,
+}: {
+  threadId: string
+  queued: QueuedMessageInfo[]
+}): React.JSX.Element {
+  const { cancelQueued } = useAgentActions()
+  return (
+    <div className="flex flex-col gap-2 rounded-xl border border-dashed border-border/70 bg-muted/15 px-3 py-2.5">
+      <p className="text-2xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
+        Up next · after this turn
+      </p>
+      {queued.map((item, index) => (
+        <div
+          key={item.id ?? `q-${item.text.slice(0, 48)}-${item.imageCount ?? 0}`}
+          className="flex items-start gap-2 rounded-lg bg-background/40 px-2.5 py-2 text-xs text-muted-foreground"
+        >
+          <span className="mt-0.5 shrink-0 rounded-md bg-muted/70 px-1.5 py-0.5 text-2xs font-medium tabular-nums text-muted-foreground">
+            {index + 1}
+          </span>
+          <span className="min-w-0 flex-1 whitespace-pre-wrap italic text-foreground/75">
+            {item.text}
+          </span>
+          {item.imageCount !== undefined && item.imageCount > 0 && (
+            <span className="flex shrink-0 items-center gap-1 text-2xs">
+              <ImageIcon className="size-3" />
+              {item.imageCount}
+            </span>
+          )}
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label={
+              queued.length > 1 ? `Cancel queued message ${index + 1}` : 'Cancel queued message'
+            }
+            className="size-5 shrink-0"
+            onClick={() => cancelQueued(threadId, index)}
+          >
+            <X className="size-3" />
+          </Button>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 /** The agent's checklist as a quiet card — a "Plan" header with an N/M done counter over
  *  the shared step rows (the same rows the Quick Access Plan group renders). */
 function PlanItem({ item }: { item: Extract<TimelineItem, { kind: 'plan' }> }): React.JSX.Element {
@@ -354,7 +515,7 @@ const TimelineRow = memo(function TimelineRow({
 }: {
   item: TimelineItem
   threadId: string
-}): React.JSX.Element {
+}): React.JSX.Element | null {
   switch (item.kind) {
     case 'user':
       return <UserBubble item={item} />
@@ -440,6 +601,7 @@ export function AgentView({ threadId }: { threadId: string }): React.JSX.Element
   const thread = useAgentThreads().find((t) => t.id === threadId)
   const state = useAgentThreadsStore((s) => s.threads[threadId])
   const items = state?.items ?? []
+  const displayRows = groupTimelineItems(items)
   const status = state?.status ?? thread?.status ?? 'idle'
   const working = status === 'working'
 
@@ -540,9 +702,18 @@ export function AgentView({ threadId }: { threadId: string }): React.JSX.Element
                 />
               ) : null
             ) : (
-              items.map((item) => <TimelineRow key={item.id} item={item} threadId={threadId} />)
+              displayRows.map((row) =>
+                row.kind === 'tools' ? (
+                  <ToolGroup key={row.key} tools={row.tools} />
+                ) : (
+                  <TimelineRow key={row.key} item={row.item} threadId={threadId} />
+                ),
+              )
             )}
             {working && <WorkingIndicator startedAt={thread?.turnStartedAt} />}
+            {thread?.queued !== undefined && thread.queued.length > 0 && (
+              <QueuedPendingList threadId={threadId} queued={thread.queued} />
+            )}
           </div>
         </ScrollArea>
         {showJump && (
@@ -567,7 +738,6 @@ export function AgentView({ threadId }: { threadId: string }): React.JSX.Element
           interaction={thread.interaction ?? 'build'}
           options={thread.options}
           working={working}
-          queued={thread.queued}
           prefill={prefill}
           onPrefillConsumed={consumePrefill}
         />

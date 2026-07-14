@@ -298,7 +298,7 @@ describe('ClaudeStreamTranslator', () => {
     ])
   })
 
-  it('maps a thinking block to a reasoning item', () => {
+  it('maps a thinking block to a reasoning item (opens on first delta, not empty)', () => {
     const signals = drive([
       initLine('s'),
       line({ type: 'stream_event', event: { type: 'message_start', message: { id: 'msg_2' } } }),
@@ -314,14 +314,39 @@ describe('ClaudeStreamTranslator', () => {
           delta: { type: 'thinking_delta', thinking: 'Hmm' },
         },
       }),
+      line({
+        type: 'stream_event',
+        event: {
+          type: 'content_block_delta',
+          index: 0,
+          delta: { type: 'thinking_delta', thinking: '…' },
+        },
+      }),
       line({ type: 'stream_event', event: { type: 'content_block_stop', index: 0 } }),
     ])
     expect(events(signals)).toEqual([
       { t: 'meta', resolvedModel: 'claude-haiku-4-5-20251001' },
-      { t: 'item', item: { kind: 'reasoning', id: 'msg_2:0', text: '', streaming: true } },
-      { t: 'item-delta', id: 'msg_2:0', delta: 'Hmm' },
-      { t: 'item', item: { kind: 'reasoning', id: 'msg_2:0', text: 'Hmm', streaming: false } },
+      // First delta opens the item with text (no empty Thought row); later deltas append.
+      { t: 'item', item: { kind: 'reasoning', id: 'msg_2:0', text: 'Hmm', streaming: true } },
+      { t: 'item-delta', id: 'msg_2:0', delta: '…' },
+      { t: 'item', item: { kind: 'reasoning', id: 'msg_2:0', text: 'Hmm…', streaming: false } },
     ])
+  })
+
+  it('suppresses redacted/empty thinking blocks (no Thought row)', () => {
+    const signals = drive([
+      line({ type: 'stream_event', event: { type: 'message_start', message: { id: 'msg_r' } } }),
+      line({
+        type: 'stream_event',
+        event: {
+          type: 'content_block_start',
+          index: 0,
+          content_block: { type: 'redacted_thinking' },
+        },
+      }),
+      line({ type: 'stream_event', event: { type: 'content_block_stop', index: 0 } }),
+    ])
+    expect(events(signals)).toEqual([])
   })
 
   it('flows a tool_use through to its tool_result (running → ok, with output)', () => {
@@ -363,6 +388,12 @@ describe('ClaudeStreamTranslator', () => {
     expect(events(signals)).toEqual([
       { t: 'meta', resolvedModel: 'claude-haiku-4-5-20251001' },
       { t: 'item', item: { kind: 'tool', id: 'toolu_9', title: 'Bash', status: 'running' } },
+      // Detail surfaces as soon as the streamed JSON has a complete "command" value —
+      // once on the finishing delta, again on block close (idempotent upsert).
+      {
+        t: 'item',
+        item: { kind: 'tool', id: 'toolu_9', title: 'Bash', detail: 'ls -la', status: 'running' },
+      },
       {
         t: 'item',
         item: { kind: 'tool', id: 'toolu_9', title: 'Bash', detail: 'ls -la', status: 'running' },

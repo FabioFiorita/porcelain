@@ -124,7 +124,9 @@ export const grokDriver: AgentDriver = {
 
   startTurn(opts: StartTurnOptions): TurnHandle {
     let child: ChildProcess | null = null
-    const translator = new GrokStreamTranslator()
+    // Per-turn key so assistant/reasoning item ids never collide with a prior turn
+    // (the reducer upserts by id — a fixed id rewrote earlier replies).
+    const translator = new GrokStreamTranslator(randomUUID())
     let finished = false
     let killTimer: ReturnType<typeof setTimeout> | null = null
     let abortRequested = false
@@ -134,6 +136,15 @@ export const grokDriver: AgentDriver = {
       finished = true
       if (killTimer) clearTimeout(killTimer)
       opts.onDone({ ok })
+    }
+
+    /** Emit any still-open streaming items, then end the turn (exit without a clean `end`). */
+    const finalizeAndFinish = (ok: boolean): void => {
+      if (finished) return
+      for (const signal of translator.finalize()) {
+        if (signal.t === 'event') opts.emit(signal.event)
+      }
+      finish(ok)
     }
 
     const emitError = (message: string): void => {
@@ -180,8 +191,9 @@ export const grokDriver: AgentDriver = {
       }
       child = proc
       proc.on('error', (error) => {
-        if (!finished) emitError(`grok process error: ${error.message}`)
-        finish(false)
+        if (finished) return
+        emitError(`grok process error: ${error.message}`)
+        finalizeAndFinish(false)
       })
 
       if (abortRequested) {
@@ -219,12 +231,15 @@ export const grokDriver: AgentDriver = {
       })
 
       proc.on('exit', (code) => {
-        if (!finished) {
-          if (code !== 0 && code !== null) {
-            emitError(`grok exited with code ${code}${stderrTail ? `: ${stderrTail.trim()}` : ''}`)
-          }
-          finish(code === 0)
+        if (finished) return
+        // No `end` line: still close any open streaming bubble so the UI doesn't
+        // stay on "Thinking…" / a blinking caret forever after the process dies.
+        if (code !== 0 && code !== null) {
+          emitError(`grok exited with code ${code}${stderrTail ? `: ${stderrTail.trim()}` : ''}`)
+          finalizeAndFinish(false)
+          return
         }
+        finalizeAndFinish(true)
       })
     }
 
@@ -243,7 +258,7 @@ export const grokDriver: AgentDriver = {
             if (child && !child.killed) child.kill('SIGKILL')
           }, 3_000)
         }
-        if (!finished) finish(false)
+        if (!finished) finalizeAndFinish(false)
       },
       // Headless streaming-json has no control channel for approvals.
       respondApproval() {},
