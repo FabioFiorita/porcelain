@@ -2,15 +2,15 @@ import { z } from 'zod'
 
 /**
  * The Agent tab's normalized protocol: the small, reduced shapes every provider
- * driver (Claude Code, Codex, OpenCode) translates its native output into, plus the
- * pure reducer that folds live events into the persisted timeline. Shared by the
+ * driver (Claude Code, Codex, OpenCode, Grok) translates its native output into, plus
+ * the pure reducer that folds live events into the persisted timeline. Shared by the
  * daemon (`src/backend/agents`, which persists the reduced state) and the renderer
  * (which holds the same reduced state live), so this module stays dependency-light
  * (zod only) and Electron-free — the reducer must produce byte-identical results on
  * both ends or an attaching client would diverge from what the daemon stored.
  */
 
-export const agentProviderSchema = z.enum(['claude', 'codex', 'opencode'])
+export const agentProviderSchema = z.enum(['claude', 'codex', 'opencode', 'grok'])
 export type AgentProvider = z.infer<typeof agentProviderSchema>
 
 // The human-facing name for each provider. Co-located with the provider type so every
@@ -20,6 +20,7 @@ export const PROVIDER_LABEL: Record<AgentProvider, string> = {
   claude: 'Claude Code',
   codex: 'Codex',
   opencode: 'OpenCode',
+  grok: 'Grok',
 }
 
 // The three permission postures a turn runs under, mapped per-driver onto each CLI's

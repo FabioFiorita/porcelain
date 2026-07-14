@@ -2,11 +2,11 @@ import { cn } from '@renderer/lib/utils'
 import type { AgentProvider } from '@shared/agent-protocol'
 
 /**
- * The official brand marks for the three agent providers — inline SVG so no image
- * assets ship. Supplied by the user (dark-mode variants). OpenCode and OpenAI (Codex)
- * render monochrome via `currentColor` so they inherit the muted-foreground chrome
- * like a lucide icon; Claude (Anthropic) keeps its brand terracotta (#D97757) as a
- * literal fill. Sized `size-4` by default (override via `className`).
+ * The official brand marks for the agent providers — inline SVG so no image assets
+ * ship. OpenCode, OpenAI (Codex), and Grok render monochrome via `currentColor` so they
+ * inherit the muted-foreground chrome like a lucide icon; Claude (Anthropic) keeps its
+ * brand terracotta (#D97757) as a literal fill. Sized `size-4` by default (override via
+ * `className`).
  */
 export function ProviderGlyph({
   provider,
@@ -53,22 +53,35 @@ export function ProviderGlyph({
     )
   }
 
-  // opencode: transparent monochrome outline only — background rect and gray filler
-  // path dropped so it sits on our glass surfaces; outline in currentColor.
+  if (provider === 'opencode') {
+    // Transparent monochrome outline only — background rect and gray filler path dropped
+    // so it sits on our glass surfaces; outline in currentColor.
+    return (
+      <svg
+        viewBox="0 0 512 512"
+        fill="none"
+        className={classes}
+        role="img"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <title>{provider}</title>
+        <path
+          fillRule="evenodd"
+          clipRule="evenodd"
+          d="M384 416H128V96H384V416ZM320 160H192V352H320V160Z"
+          fill="currentColor"
+        />
+      </svg>
+    )
+  }
+
+  // grok (xAI): simplified "X" mark in currentColor so it inherits chrome color.
   return (
-    <svg
-      viewBox="0 0 512 512"
-      fill="none"
-      className={classes}
-      role="img"
-      xmlns="http://www.w3.org/2000/svg"
-    >
+    <svg viewBox="0 0 24 24" className={classes} role="img" xmlns="http://www.w3.org/2000/svg">
       <title>{provider}</title>
       <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M384 416H128V96H384V416ZM320 160H192V352H320V160Z"
         fill="currentColor"
+        d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"
       />
     </svg>
   )

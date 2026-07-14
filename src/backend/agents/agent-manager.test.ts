@@ -78,7 +78,7 @@ const throwingDriver: AgentDriver = {
 let mock: MockDriver
 
 function registry(claude: AgentDriver): DriverRegistry {
-  return { claude, codex: throwingDriver, opencode: throwingDriver }
+  return { claude, codex: throwingDriver, opencode: throwingDriver, grok: throwingDriver }
 }
 
 // A sender that just records every fanned-out event.

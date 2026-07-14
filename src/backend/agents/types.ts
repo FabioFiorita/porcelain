@@ -11,10 +11,10 @@ import type {
 
 /**
  * A driver is the daemon's adapter for one coding-agent CLI (Claude Code, Codex,
- * OpenCode). It probes the installed CLI's status and runs a single turn, translating
- * that CLI's native output into normalized `AgentEvent`s. Drivers are Electron-free
- * and own NO persistence, roster, or fan-out — the agent-manager does all of that; a
- * driver only speaks its CLI's protocol.
+ * OpenCode, Grok). It probes the installed CLI's status and runs a single turn,
+ * translating that CLI's native output into normalized `AgentEvent`s. Drivers are
+ * Electron-free and own NO persistence, roster, or fan-out — the agent-manager does all
+ * of that; a driver only speaks its CLI's protocol.
  */
 
 /** A live handle on the running turn — the manager's only levers once it's started. */

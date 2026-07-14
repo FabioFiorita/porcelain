@@ -38,6 +38,11 @@ const PROVIDER_SETUP: Record<AgentProvider, { install: string; signIn: string; b
     signIn: 'opencode auth login',
     bin: 'PORCELAIN_OPENCODE_BIN',
   },
+  grok: {
+    install: 'curl -fsSL https://grok.com/install | sh',
+    signIn: 'grok login',
+    bin: 'PORCELAIN_GROK_BIN',
+  },
 }
 
 /** The install/auth line for a provider — the second, dim row under its name. */
