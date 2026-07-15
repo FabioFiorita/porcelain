@@ -31,6 +31,12 @@ const DAEMON_ONLY_ENV = [
   // preload), never inside a spawned shell — verified unused there.
   'PORCELAIN_E2E',
   'PORCELAIN_SHELL',
+  // Volta's shim sets this on the real node process when the daemon is started via
+  // `~/.volta/bin/node` (common on headless Linux units). If it leaks into a PTY,
+  // every subsequent `node`/`yarn`/`npm` shim thinks it's a recursive tool call,
+  // skips the managed platform, and fails with "Node is not available" (ENOENT)
+  // because there is no system node. VS Code / normal terminals never set this.
+  '_VOLTA_TOOL_RECURSION',
 ]
 
 export function terminalEnv(source: NodeJS.ProcessEnv): Record<string, string> {

@@ -119,12 +119,16 @@ assumed — this skill is the codebase-specific layer beneath them.
   token and process-mode flags that must NEVER reach a user shell: `PORCELAIN_DAEMON_TOKEN`
   (a secret — `env` in the terminal would print it) and `ELECTRON_RUN_AS_NODE` (would make
   any Electron-based binary the user launches from the terminal silently run as plain
-  Node), plus the other daemon-only `PORCELAIN_*` knobs. `terminalEnv` strips the
-  `DAEMON_ONLY_ENV` list and passes the user's real environment through untouched. *Why:*
-  extracted from `terminal-manager.ts` (the one impure module) precisely so the strip list
-  is testable. *Verify:* a new daemon env var that must not leak is added to
-  `DAEMON_ONLY_ENV`; `terminal-env.test.ts` still asserts the token and `RUN_AS_NODE` are
-  absent from a spawned env.
+  Node), plus the other daemon-only `PORCELAIN_*` knobs, and **`_VOLTA_TOOL_RECURSION`**
+  (Volta's shim sets this on the real node process when the daemon is started via
+  `~/.volta/bin/node`; if it leaks into a PTY, every `node`/`yarn`/`npm` shim thinks it is
+  a recursive tool call, skips the managed platform, and fails with "Node is not available"
+  / ENOENT — VS Code works because its PTY host never has the flag). `terminalEnv` strips
+  the `DAEMON_ONLY_ENV` list and passes the user's real environment through untouched.
+  *Why:* extracted from `terminal-manager.ts` (the one impure module) precisely so the
+  strip list is testable. *Verify:* a new daemon env var that must not leak is added to
+  `DAEMON_ONLY_ENV`; `terminal-env.test.ts` still asserts the token, `RUN_AS_NODE`, and
+  `_VOLTA_TOOL_RECURSION` are absent from a spawned env.
 - **Agent drivers spawn the user's CLIs safely — scrubbed env, arg arrays, enumerated
   binaries.** The Agent tab's drivers (`src/backend/agents/drivers/`) launch the installed
   `claude`/`codex`/`opencode` CLIs, so they carry the same spawn discipline as PTYs plus a

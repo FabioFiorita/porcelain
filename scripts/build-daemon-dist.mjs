@@ -173,6 +173,10 @@ Environment=PORCELAIN_NO_STDIN_WATCHDOG=1
 # Optional: force tailnet/LAN binds without a GUI toggle
 # Environment=PORCELAIN_TAILNET_BIND=1
 # Environment=PORCELAIN_LAN_BIND=1
+# Prefer a real node binary (or /usr/bin/node), not a Volta/fnm/nvm shim path.
+# Volta's shim sets _VOLTA_TOOL_RECURSION=1 on the process; older daemons leaked
+# that into every PTY and broke yarn/node with "Node is not available". Current
+# terminalEnv strips the flag, but a real binary avoids the trap entirely.
 ExecStart=/usr/bin/node /opt/porcelain-daemon/main/daemon/server.js
 Restart=always
 \`\`\`

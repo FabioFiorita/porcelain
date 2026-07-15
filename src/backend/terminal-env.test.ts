@@ -24,6 +24,8 @@ describe('terminalEnv', () => {
       PORCELAIN_AGENT_FAKE: '1',
       PORCELAIN_E2E: '1',
       PORCELAIN_SHELL: '/bin/bash',
+      // Volta shim leaves this on a daemon started via ~/.volta/bin/node.
+      _VOLTA_TOOL_RECURSION: '1',
     })
     expect(env.PATH).toBe('/usr/bin')
     expect('ELECTRON_RUN_AS_NODE' in env).toBe(false)
@@ -38,6 +40,7 @@ describe('terminalEnv', () => {
     expect('PORCELAIN_AGENT_FAKE' in env).toBe(false)
     expect('PORCELAIN_E2E' in env).toBe(false)
     expect('PORCELAIN_SHELL' in env).toBe(false)
+    expect('_VOLTA_TOOL_RECURSION' in env).toBe(false)
   })
 
   it('forces the terminal type variables', () => {
