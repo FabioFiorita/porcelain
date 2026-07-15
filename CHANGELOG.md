@@ -1,3 +1,13 @@
+## [0.24.4](https://github.com/FabioFiorita/porcelain/compare/v0.24.3...v0.24.4) (2026-07-15)
+
+### Features
+
+* seed remote env settings and install MCP on the daemon host ([39e7d78](https://github.com/FabioFiorita/porcelain/commit/39e7d7895e413aa81b8811bc489348bd4942179f))
+
+### Bug Fixes
+
+* re-scan LAN/tailnet listeners when interfaces appear after boot ([cf75bc9](https://github.com/FabioFiorita/porcelain/commit/cf75bc91f821de6476c600c31d080ba40c2f59de))
+
 ## [0.24.3](https://github.com/FabioFiorita/porcelain/compare/v0.24.2...v0.24.3) (2026-07-15)
 
 ### Bug Fixes
