@@ -1,9 +1,48 @@
 import logo from '@renderer/assets/logo.png'
+import { SettingsButton } from '@renderer/components/settings/settings-dialog'
 import { Button } from '@renderer/components/ui/button'
+import {
+  useDisconnectRemoteEnvironment,
+  useRemoteEnvironments,
+} from '@renderer/hooks/use-remote-daemon'
 import { useRecentRepos, useRemoveRecentRepo } from '@renderer/hooks/use-repo'
+import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
-import { Folder, FolderOpen, X } from 'lucide-react'
+import { useSettingsDialogStore } from '@renderer/stores/settings-dialog'
+import { Folder, FolderOpen, Unplug, X } from 'lucide-react'
+
+/**
+ * Banner when this window is pointed at a remote daemon: name + disconnect so a
+ * failed remote (empty disk, unreachable LAN) never traps the user without a
+ * way back to local. Electron-only — the browser client already IS its daemon.
+ */
+function RemoteConnectionBanner(): React.JSX.Element | null {
+  const data = useRemoteEnvironments()
+  const { disconnect, isPending } = useDisconnectRemoteEnvironment()
+  if (isBrowser || data == null || data.activeId == null) return null
+  const active = data.environments.find((env) => env.id === data.activeId)
+  if (active == null) return null
+
+  return (
+    <div className="flex w-full max-w-sm items-center justify-between gap-3 rounded-md border bg-muted/40 px-3 py-2">
+      <div className="min-w-0">
+        <p className="text-xs font-medium">Connected to {active.name}</p>
+        <p className="truncate font-mono text-2xs text-muted-foreground">{active.url}</p>
+      </div>
+      <Button
+        variant="outline"
+        size="sm"
+        className="shrink-0"
+        disabled={isPending}
+        onClick={() => disconnect()}
+      >
+        <Unplug className="size-3.5" />
+        {isPending ? 'Disconnecting…' : 'Disconnect'}
+      </Button>
+    </div>
+  )
+}
 
 export function Welcome(): React.JSX.Element {
   const openRepo = useRepoStore((s) => s.openRepo)
@@ -12,7 +51,12 @@ export function Welcome(): React.JSX.Element {
   const recents = useRecentRepos()
 
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-8 px-6">
+    <div className="relative flex h-full flex-col items-center justify-center gap-8 px-6">
+      {/* Settings must be reachable with no repo open — Remote daemons live there,
+          and a stuck remote would otherwise leave no escape hatch. */}
+      <div className="absolute top-2 right-3">
+        <SettingsButton className="app-no-drag size-10 text-muted-foreground [&_svg]:size-5" />
+      </div>
       <div className="flex flex-col items-center text-center">
         {/* Same fired-tile treatment as the empty viewer: the mark rests on the
             void with a soft squircle shadow, so first run and blank tabs match. */}
@@ -25,6 +69,7 @@ export function Welcome(): React.JSX.Element {
         <h1 className="mt-4 text-3xl font-medium tracking-tight">porcelain</h1>
         <p className="mt-1 text-sm text-muted-foreground">Review changes as a story</p>
       </div>
+      <RemoteConnectionBanner />
       <Button onClick={openRepo}>
         <FolderOpen />
         Open repository
@@ -67,6 +112,15 @@ export function Welcome(): React.JSX.Element {
             </div>
           ))}
         </div>
+      )}
+      {recents.length === 0 && (
+        <button
+          type="button"
+          className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+          onClick={() => useSettingsDialogStore.getState().openTo('general')}
+        >
+          Remote daemon settings
+        </button>
       )}
     </div>
   )

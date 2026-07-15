@@ -21,6 +21,7 @@ import { PanelLeft, RotateCw, Zap } from 'lucide-react'
 import { useEffect } from 'react'
 import { AgentCommands } from '../agent/agent-commands'
 import { CardComposer } from '../board/card-composer'
+import { SettingsDialog } from '../settings/settings-dialog'
 import { AppSidebar } from './app-sidebar'
 import { ContentSearch } from './content-search'
 import { FileCommands } from './file-commands'
@@ -195,6 +196,9 @@ export function AppShell(): React.JSX.Element {
     return <div className="dark h-dvh bg-background" />
   }
 
+  // SettingsDialog is mounted on BOTH paths: remote-daemon connect/disconnect lives
+  // there, and a stuck remote (or empty recents) must not lock the user out of it.
+  // The gear triggers (sidebar rail + welcome) only open the store.
   if (!repo) {
     return (
       <div className="dark flex h-dvh flex-col bg-background text-foreground">
@@ -203,6 +207,8 @@ export function AppShell(): React.JSX.Element {
           <Welcome />
         </div>
         <RepoPickerDialog />
+        <SettingsDialog />
+        <Toaster />
       </div>
     )
   }
@@ -235,6 +241,7 @@ export function AppShell(): React.JSX.Element {
         <RepoPickerDialog />
         <CardComposer />
         <SkillsUpdateToast />
+        <SettingsDialog />
         <AppSidebar />
         <RepoShell />
       </SidebarProvider>

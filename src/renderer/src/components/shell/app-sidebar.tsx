@@ -6,7 +6,7 @@ import { FeatureList } from '@renderer/components/git/feature-list'
 import { HistoryList } from '@renderer/components/git/history-list'
 import { SearchList } from '@renderer/components/git/search-list'
 import { WorktreeSwitcher } from '@renderer/components/git/worktree-switcher'
-import { SettingsDialog } from '@renderer/components/settings/settings-dialog'
+import { SettingsButton } from '@renderer/components/settings/settings-dialog'
 import { TerminalList } from '@renderer/components/terminal/terminal-list'
 import { Button } from '@renderer/components/ui/button'
 import { Kbd } from '@renderer/components/ui/kbd'
@@ -195,7 +195,7 @@ export function AppSidebar(): React.JSX.Element {
             what separates this from the branch/worktree footer beside it. h-12
             still keeps it vertically aligned with that footer. */}
         <SidebarFooter className="h-12 items-center justify-center p-0">
-          <SettingsDialog />
+          <SettingsButton className="app-no-drag size-10 text-muted-foreground [&_svg]:size-5" />
         </SidebarFooter>
       </Sidebar>
 

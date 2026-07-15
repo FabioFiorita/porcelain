@@ -62,10 +62,19 @@ describe('rewriteCsp', () => {
   const META = (connect: string) =>
     `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; ${connect}" />`
 
-  const ORIGINAL = "connect-src 'self' http://127.0.0.1:* ws://127.0.0.1:*"
+  // Matches the Electron index.html CSP: loopback entries + scheme-wide sources so a
+  // remote daemon (LAN/tailnet) is reachable from the packaged app (Phase 4).
+  const ORIGINAL = "connect-src 'self' http://127.0.0.1:* ws://127.0.0.1:* http: https: ws: wss:"
+  // Legacy loopback-only form still rewrites (older packaged dist / partial builds).
+  const LEGACY = "connect-src 'self' http://127.0.0.1:* ws://127.0.0.1:*"
 
   it('rewrites connect-src to same-origin ws for the request host', () => {
     const out = rewriteCsp(META(ORIGINAL), '100.64.0.1:43117')
+    expect(out).toBe(META("connect-src 'self' ws://100.64.0.1:43117 wss://100.64.0.1:43117"))
+  })
+
+  it('also rewrites the legacy loopback-only connect-src', () => {
+    const out = rewriteCsp(META(LEGACY), '100.64.0.1:43117')
     expect(out).toBe(META("connect-src 'self' ws://100.64.0.1:43117 wss://100.64.0.1:43117"))
   })
 

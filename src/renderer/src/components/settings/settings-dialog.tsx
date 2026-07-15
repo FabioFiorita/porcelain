@@ -4,7 +4,6 @@ import {
   DialogContent,
   DialogDescription,
   DialogTitle,
-  DialogTrigger,
 } from '@renderer/components/ui/dialog'
 import {
   Sidebar,
@@ -71,6 +70,31 @@ const ALL_SECTIONS: {
 
 const SECTIONS = ALL_SECTIONS.filter((s) => !(isBrowser && s.shellOnly))
 
+/**
+ * Gear that opens Settings via the store. Used from the sidebar rail and the
+ * welcome screen — the dialog itself is mounted once in AppShell so both paths
+ * share one instance (and the welcome screen can reach Remote daemons without
+ * opening a repo first).
+ */
+export function SettingsButton({ className }: { className?: string }): React.JSX.Element {
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      className={className}
+      aria-label="Settings"
+      onClick={() => useSettingsDialogStore.getState().openTo()}
+    >
+      <Settings2 />
+    </Button>
+  )
+}
+
+/**
+ * The Settings dialog body — store-driven open state, no trigger. Mounted once
+ * in AppShell (welcome + repo shell both need it; remote-daemon disconnect lives
+ * here and must stay reachable when no repo is open).
+ */
 export function SettingsDialog(): React.JSX.Element {
   const open = useSettingsDialogStore((s) => s.open)
   const setOpen = useSettingsDialogStore((s) => s.setOpen)
@@ -84,18 +108,6 @@ export function SettingsDialog(): React.JSX.Element {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon"
-            className="app-no-drag size-10 text-muted-foreground [&_svg]:size-5"
-            aria-label="Settings"
-          >
-            <Settings2 />
-          </Button>
-        }
-      />
       <DialogContent className="overflow-hidden p-0 sm:max-w-[960px]">
         <DialogTitle className="sr-only">Settings</DialogTitle>
         <DialogDescription className="sr-only">

@@ -103,21 +103,21 @@ export function resolveStaticPath(root: string, urlPath: string): string | null 
 
 /**
  * Rewrite index.html's CSP meta so the browser client can reach the daemon it was
- * served from. The dev/Electron CSP only allows the loopback daemon
- * (`http://127.0.0.1:* ws://127.0.0.1:*`); over the tailnet the origin is a real
- * host, so `connect-src` must allow same-origin WS. We replace ONLY the
- * connect-src directive's daemon entries with `ws://<host> wss://<host>`
- * (<host> = the request's Host header, host:port). Same-origin HTTP is already
- * covered by 'self'; the explicit ws entries cover Safari's stricter ws origin
- * matching.
+ * served from. The Electron CSP allows the loopback daemon plus scheme-wide
+ * `http:/https:/ws:/wss:` so a remote daemon (LAN/tailnet) is reachable from the
+ * packaged app; over the tailnet the browser origin is a real host, so we narrow
+ * `connect-src` to same-origin WS. We replace ONLY the connect-src directive with
+ * `ws://<host> wss://<host>` (<host> = the request's Host header, host:port).
+ * Same-origin HTTP is covered by 'self'; the explicit ws entries cover Safari's
+ * stricter ws origin matching.
  *
  * Pure + tested. It touches connect-src ONLY — never default-src/img-src, which
  * are the artifact-exfil backstop (audit invariant). Idempotent-ish: a host with
- * no 127.0.0.1 entries left is a no-op beyond appending its own (harmless).
+ * no matching connect-src left is a no-op.
  */
 export function rewriteCsp(html: string, host: string): string {
   return html.replace(
-    /connect-src 'self' http:\/\/127\.0\.0\.1:\* ws:\/\/127\.0\.0\.1:\*/,
+    /connect-src 'self' http:\/\/127\.0\.0\.1:\* ws:\/\/127\.0\.0\.1:\*(?: http: https: ws: wss:)?/,
     `connect-src 'self' ws://${host} wss://${host}`,
   )
 }

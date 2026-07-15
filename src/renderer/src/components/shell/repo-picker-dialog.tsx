@@ -8,11 +8,29 @@ import {
 } from '@renderer/components/ui/dialog'
 import { ScrollArea } from '@renderer/components/ui/scroll-area'
 import { useBrowseDirs } from '@renderer/hooks/use-browse'
+import { useRemoteEnvironments } from '@renderer/hooks/use-remote-daemon'
+import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useRepoPickerStore } from '@renderer/stores/repo-picker'
+import { useSettingsDialogStore } from '@renderer/stores/settings-dialog'
 import { CornerLeftUp, Folder, FolderGit2 } from 'lucide-react'
 import { useState } from 'react'
+
+/** Turn a raw tRPC/fetch error into a short, actionable line for the picker. */
+function browseErrorMessage(error: { message: string }, remoteName: string | null): string {
+  const raw = error.message
+  // fetch() TypeError surfaces as "Failed to fetch" when the daemon is unreachable
+  // or CSP/CORS blocked the request — the connect probe (main process) can still
+  // have succeeded, so point the human at the remote settings escape hatch.
+  if (/failed to fetch|networkerror|load failed|econnrefused|enotfound/i.test(raw)) {
+    if (remoteName != null) {
+      return `Can't reach ${remoteName}. Check that the daemon is running and Share on local network / Tailscale is on, or disconnect in Settings.`
+    }
+    return "Can't reach the Porcelain daemon. Try again in a moment."
+  }
+  return raw
+}
 
 /**
  * The daemon-side directory browser that opens a repo — mounted once in AppShell so it
@@ -39,6 +57,11 @@ function RepoPicker({ onClose }: { onClose: () => void }): React.JSX.Element {
   // null = the daemon home; a fresh browse each open (no persistence).
   const [path, setPath] = useState<string | null>(null)
   const { result, error, isFetching } = useBrowseDirs(path, true)
+  const remote = useRemoteEnvironments()
+  const activeRemote =
+    !isBrowser && remote?.activeId != null
+      ? (remote.environments.find((env) => env.id === remote.activeId) ?? null)
+      : null
 
   // openRepoPath is a store action (the sanctioned cross-store call from a component);
   // it records the recent + warms the file list daemon-side, then this dialog closes.
@@ -65,8 +88,14 @@ function RepoPicker({ onClose }: { onClose: () => void }): React.JSX.Element {
             dir="rtl"
             title={currentPath}
           >
-            {currentPath || '…'}
+            {currentPath || (error ? '—' : '…')}
           </p>
+          {activeRemote != null && (
+            <p className="text-2xs text-muted-foreground">
+              Browsing {activeRemote.name}
+              <span className="font-mono"> ({activeRemote.url})</span>
+            </p>
+          )}
         </DialogHeader>
 
         <ScrollArea className="h-72 rounded-md border">
@@ -129,7 +158,25 @@ function RepoPicker({ onClose }: { onClose: () => void }): React.JSX.Element {
           </div>
         </ScrollArea>
 
-        {error && <p className="text-xs text-destructive">{error.message}</p>}
+        {error && (
+          <div className="flex flex-col gap-1.5">
+            <p className="text-xs text-destructive">
+              {browseErrorMessage(error, activeRemote?.name ?? null)}
+            </p>
+            {activeRemote != null && (
+              <button
+                type="button"
+                className="self-start text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                onClick={() => {
+                  onClose()
+                  useSettingsDialogStore.getState().openTo('general')
+                }}
+              >
+                Open remote daemon settings
+              </button>
+            )}
+          </div>
+        )}
 
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>
