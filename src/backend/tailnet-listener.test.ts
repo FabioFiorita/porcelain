@@ -17,12 +17,14 @@ beforeAll(() => {
 })
 
 // A loopback-only instance: the tests exercise REAL binds, but only ever on
-// 127.0.0.1 (never a network interface), on the real fixed port.
+// 127.0.0.1 (never a network interface), on the real fixed port. reconcileMs=0
+// disables the background re-scan so tests stay deterministic.
 const loopbackListener = (): IfaceListener =>
   createIfaceListener(
     () => ['127.0.0.1'],
     (addresses) => (addresses[0] !== undefined ? `http://${addresses[0]}:${LISTENER_PORT}` : null),
     'test',
+    0,
   )
 
 const LOOPBACK_URL = `http://127.0.0.1:${LISTENER_PORT}`
@@ -52,14 +54,18 @@ afterEach(async () => {
 
 describe('createIfaceListener error()', () => {
   it('is null when no interface matches — genuinely no interface, not a bind failure', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     listener = createIfaceListener(
       () => [],
       () => null,
       'test',
+      0,
     )
     expect(await listener.start()).toBeNull()
     expect(listener.error()).toBeNull()
     expect(listener.url()).toBeNull()
+    // Empty pick is now logged (was a silent no-op) so ops can see a boot race.
+    expect(errorSpy).toHaveBeenCalled()
   })
 
   it("is 'in-use' when the fixed port is already bound (a stale daemon squatting it)", async () => {
@@ -71,10 +77,11 @@ describe('createIfaceListener error()', () => {
     expect(await listener.start()).toBeNull()
     expect(listener.error()).toBe('in-use')
     expect(listener.url()).toBeNull()
-    expect(errorSpy).toHaveBeenCalledOnce()
+    expect(errorSpy).toHaveBeenCalled()
   })
 
   it('is null after a successful bind, and start() resolves the formatted url', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
     listener = loopbackListener()
     expect(await listener.start()).toBe(LOOPBACK_URL)
     expect(listener.error()).toBeNull()
@@ -104,5 +111,49 @@ describe('createIfaceListener error()', () => {
     await new Promise<void>((resolve) => server.close(() => resolve()))
     expect(await listener.start()).toBe(LOOPBACK_URL)
     expect(listener.error()).toBeNull()
+  })
+})
+
+describe('createIfaceListener reconcile()', () => {
+  it('binds an address that appears after a prior empty start (boot-race recovery)', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    let addresses: string[] = []
+    listener = createIfaceListener(
+      () => addresses,
+      (addrs) => (addrs[0] !== undefined ? `http://${addrs[0]}:${LISTENER_PORT}` : null),
+      'test',
+      0,
+    )
+    // Boot race: no interface yet.
+    expect(await listener.start()).toBeNull()
+    expect(listener.addresses()).toEqual([])
+    // Interface comes up (DHCP / Tailscale / resume) — re-start reconciles.
+    addresses = ['127.0.0.1']
+    expect(await listener.start()).toBe(LOOPBACK_URL)
+    expect(listener.addresses()).toEqual(['127.0.0.1'])
+  })
+
+  it('is safe to call start() repeatedly while already bound (no double-bind)', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    listener = loopbackListener()
+    expect(await listener.start()).toBe(LOOPBACK_URL)
+    expect(await listener.start()).toBe(LOOPBACK_URL)
+    expect(listener.addresses()).toEqual(['127.0.0.1'])
+  })
+
+  it('closes a stale bind when the address disappears from the pick', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    let addresses: string[] = ['127.0.0.1']
+    listener = createIfaceListener(
+      () => addresses,
+      (addrs) => (addrs[0] !== undefined ? `http://${addrs[0]}:${LISTENER_PORT}` : null),
+      'test',
+      0,
+    )
+    expect(await listener.start()).toBe(LOOPBACK_URL)
+    addresses = []
+    expect(await listener.start()).toBeNull()
+    expect(listener.addresses()).toEqual([])
+    expect(listener.url()).toBeNull()
   })
 })

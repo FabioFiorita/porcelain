@@ -161,13 +161,26 @@ PORCELAIN_NO_STDIN_WATCHDOG=1 node main/daemon/server.js
 The supervisor is then responsible for the process lifetime. Example unit:
 
 \`\`\`ini
+[Unit]
+Description=Porcelain daemon
+After=network-online.target
+Wants=network-online.target
+
 [Service]
 Environment=PORCELAIN_USER_DATA=/var/lib/porcelain
 Environment=PORCELAIN_DAEMON_PORT=43117
 Environment=PORCELAIN_NO_STDIN_WATCHDOG=1
+# Optional: force tailnet/LAN binds without a GUI toggle
+# Environment=PORCELAIN_TAILNET_BIND=1
+# Environment=PORCELAIN_LAN_BIND=1
 ExecStart=/usr/bin/node /opt/porcelain-daemon/main/daemon/server.js
 Restart=always
 \`\`\`
+
+Prefer \`network-online.target\` over \`network.target\` so DHCP has an address
+before the first bind attempt. The daemon also re-scans interfaces every 5s while
+a second listener is enabled, so a remaining boot race or a later network change
+still recovers without a restart.
 
 If you run it in a shell instead, hold stdin open (e.g. under \`tmux\`) rather than
 setting the escape hatch, so an interactive session still reaps it on disconnect.

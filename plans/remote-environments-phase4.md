@@ -39,12 +39,16 @@ ssh beelink 'chmod 600 ~/.porcelain/daemon-token'
 ```ini
 [Unit]
 Description=Porcelain daemon
-After=network.target
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Environment=PORCELAIN_USER_DATA=%h/.local/share/porcelain
 Environment=PORCELAIN_DAEMON_PORT=43117
 Environment=PORCELAIN_NO_STDIN_WATCHDOG=1
+# Optional: force second-listener binds without a GUI toggle
+# Environment=PORCELAIN_TAILNET_BIND=1
+# Environment=PORCELAIN_LAN_BIND=1
 WorkingDirectory=%h/porcelain-daemon
 ExecStart=/usr/bin/node main/daemon/server.js
 Restart=on-failure
@@ -52,7 +56,7 @@ Restart=on-failure
 [Install]
 WantedBy=default.target
 ```
-`PORCELAIN_NO_STDIN_WATCHDOG=1` is REQUIRED under systemd — stdin is `/dev/null`, which closes immediately and the parent-death watchdog would exit the daemon on boot (verified empirically). Then:
+`PORCELAIN_NO_STDIN_WATCHDOG=1` is REQUIRED under systemd — stdin is `/dev/null`, which closes immediately and the parent-death watchdog would exit the daemon on boot (verified empirically). Prefer `network-online.target` over `network.target` so DHCP has an address before the first bind; the daemon also re-scans interfaces every 5s while a second listener is enabled, so a residual boot race or later network change still recovers without a restart. Then:
 ```sh
 systemctl --user enable --now porcelain-daemon
 loginctl enable-linger $USER      # keep it running without an active session

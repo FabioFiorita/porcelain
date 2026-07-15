@@ -21,10 +21,19 @@ import { findTailscaleAddress } from './tailnet'
  * so the API's setTailnetBind/setLanBind mutations can start/stop them live
  * without importing server.ts (which would drag in the daemon's `main()` side
  * effects).
+ *
+ * **Reconcile, not bind-once.** Addresses appear after boot (DHCP race, resume,
+ * Tailscale up, Wi-Fi join). `start()` is a reconcile: bind newly-appeared
+ * addresses, close sockets whose address disappeared, safe to call repeatedly.
+ * While enabled, a short interval re-scans `os.networkInterfaces()` so a boot
+ * race or network change is recovered without a daemon restart.
  */
 export const LISTENER_PORT = 43117
 /** Back-compat alias — the fixed port both second listeners bind. */
 export const TAILNET_PORT = LISTENER_PORT
+
+/** How often an enabled listener re-scans interfaces and reconciles binds. */
+export const IFACE_RECONCILE_MS = 5_000
 
 type RequestHandler = (req: IncomingMessage, res: ServerResponse) => void
 type UpgradeHandler = (req: IncomingMessage, socket: Duplex, head: Buffer) => void
@@ -40,26 +49,27 @@ export function initIfaceHandlers(request: RequestHandler, upgrade: UpgradeHandl
 
 export interface IfaceListener {
   /**
-   * Bind one http.Server per picked address on `LISTENER_PORT`. Resolves the
-   * formatted url, or `null` when there's no matching interface (caller reports
-   * "unavailable"). Idempotent: a second call while up returns the current url. A
-   * per-address listen error is logged to stderr and that address is skipped — it
-   * must NEVER take the loopback listener (a separate server) down, and if some
-   * addresses bind it stays up on those. When nothing binds, `error()` says why.
+   * Enable the listener and reconcile binds against the current interfaces.
+   * Resolves the formatted url, or `null` when there's no matching interface
+   * (caller reports "unavailable"). Safe to call repeatedly — diffs bound
+   * sockets vs. desired addresses (bind new, close stale). A per-address listen
+   * error is logged to stderr and that address is skipped — it must NEVER take
+   * the loopback listener (a separate server) down. While enabled, a background
+   * interval re-runs the reconcile so addresses that appear later are picked up.
    */
   start: () => Promise<string | null>
-  /** Tear down every bound server if any are up (no-op otherwise). */
+  /** Disable the listener and tear down every bound server (no-op otherwise). */
   stop: () => Promise<void>
   /** The live formatted url, or null when this listener isn't up. */
   url: () => string | null
   /** The live numeric addresses currently bound (empty when down). */
   addresses: () => string[]
   /**
-   * Why the last `start()` ended with nothing bound: `'in-use'` when at least one
+   * Why the last reconcile ended with nothing bound: `'in-use'` when at least one
    * attempted bind failed with EADDRINUSE (e.g. a stale daemon still squatting the
    * fixed port) — so the UI can say "port in use" instead of the misleading "no
    * interface found". `null` otherwise, including the genuinely-no-interface case.
-   * Reset at the start of every `start()` run and cleared by `stop()`.
+   * Reset at the start of every reconcile and cleared by `stop()`.
    */
   error: () => 'in-use' | null
 }
@@ -69,68 +79,175 @@ export interface IfaceListener {
  * (a one-element array for the tailnet, possibly several for the LAN);
  * `formatUrl` turns the bound addresses into the url the UI shows. `label` names
  * the instance in stderr on a listen error.
+ *
+ * `reconcileMs` is injectable so tests can exercise the interval without waiting
+ * the production 5s (or set 0 to disable the timer entirely).
  */
 export function createIfaceListener(
   pickAddresses: () => string[],
   formatUrl: (addresses: string[]) => string | null,
   label: string,
+  reconcileMs: number = IFACE_RECONCILE_MS,
 ): IfaceListener {
   let servers: Server[] = []
   let bound: string[] = []
   let lastError: 'in-use' | null = null
+  /** True while the user/config wants this listener up — drives the re-scan timer. */
+  let wanted = false
+  let timer: ReturnType<typeof setInterval> | null = null
+  /** Serialize concurrent start/stop/timer reconciles so socket bookkeeping stays coherent. */
+  let chain: Promise<unknown> = Promise.resolve()
+  /** Avoid spamming stderr every interval while addresses are still missing. */
+  let loggedEmpty = false
 
   function url(): string | null {
     return servers.length > 0 ? formatUrl(bound) : null
   }
 
-  function start(): Promise<string | null> {
-    if (servers.length > 0) return Promise.resolve(url())
-    if (requestHandler === null || upgradeHandler === null) {
-      throw new Error('iface-listener: initIfaceHandlers has not been called')
-    }
-    lastError = null
-    const found = pickAddresses()
-    if (found.length === 0) return Promise.resolve(null)
-    const request = requestHandler
-    const upgrade = upgradeHandler
-    let sawInUse = false
-    return Promise.all(
-      found.map(
-        (addr) =>
-          new Promise<string | null>((resolve) => {
-            const listener = createServer(request)
-            listener.on('upgrade', upgrade)
-            listener.once('error', (error) => {
-              // EADDRINUSE = the fixed port is squatted (typically a stale daemon
-              // that outlived its parent) — remember it so error() can distinguish
-              // "port in use" from "no interface found" when nothing binds.
-              if ((error as NodeJS.ErrnoException).code === 'EADDRINUSE') sawInUse = true
-              console.error(`[daemon] ${label} listener failed on ${addr}:`, error)
-              listener.close()
-              resolve(null)
-            })
-            listener.listen(LISTENER_PORT, addr, () => {
-              servers.push(listener)
-              resolve(addr)
-            })
-          }),
-      ),
-    ).then((results) => {
-      bound = results.filter((addr): addr is string => addr !== null)
-      if (bound.length === 0 && sawInUse) lastError = 'in-use'
-      return url()
+  function clearTimer(): void {
+    if (timer === null) return
+    clearInterval(timer)
+    timer = null
+  }
+
+  function scheduleTimer(): void {
+    if (timer !== null || reconcileMs <= 0) return
+    timer = setInterval(() => {
+      if (!wanted) return
+      chain = chain.then(() => reconcile()).catch(() => null)
+    }, reconcileMs)
+    // Don't keep the process alive solely for the re-scan — the loopback listener does.
+    timer.unref()
+  }
+
+  function closeServer(server: Server): Promise<void> {
+    return new Promise<void>((resolve) => {
+      server.close(() => resolve())
     })
   }
 
-  function stop(): Promise<void> {
-    lastError = null
+  async function closeAll(): Promise<void> {
     const current = servers
     servers = []
     bound = []
-    if (current.length === 0) return Promise.resolve()
-    return Promise.all(
-      current.map((s) => new Promise<void>((resolve) => s.close(() => resolve()))),
-    ).then(() => undefined)
+    if (current.length === 0) return
+    await Promise.all(current.map(closeServer))
+  }
+
+  async function bindOne(
+    addr: string,
+  ): Promise<{ server: Server; addr: string } | { failed: 'in-use' | 'other' }> {
+    if (requestHandler === null || upgradeHandler === null) {
+      throw new Error('iface-listener: initIfaceHandlers has not been called')
+    }
+    const request = requestHandler
+    const upgrade = upgradeHandler
+    return new Promise((resolve) => {
+      const listener = createServer(request)
+      listener.on('upgrade', upgrade)
+      listener.once('error', (error) => {
+        // EADDRINUSE = the fixed port is squatted (typically a stale daemon
+        // that outlived its parent) — remember it so error() can distinguish
+        // "port in use" from "no interface found" when nothing binds.
+        const inUse = (error as NodeJS.ErrnoException).code === 'EADDRINUSE'
+        console.error(`[daemon] ${label} listener failed on ${addr}:`, error)
+        listener.close()
+        resolve({ failed: inUse ? 'in-use' : 'other' })
+      })
+      listener.listen(LISTENER_PORT, addr, () => {
+        console.error(`[daemon] ${label} listener bound on ${addr}:${LISTENER_PORT}`)
+        resolve({ server: listener, addr })
+      })
+    })
+  }
+
+  async function reconcile(): Promise<string | null> {
+    if (requestHandler === null || upgradeHandler === null) {
+      throw new Error('iface-listener: initIfaceHandlers has not been called')
+    }
+    // Only clear 'in-use' when we start a fresh pass; a mid-pass bind failure
+    // sets it again below. Don't clear if we're about to discover empty interfaces.
+    lastError = null
+    const found = pickAddresses()
+    const foundSet = new Set(found)
+
+    // Close sockets whose address disappeared (stale bind on a removed IP).
+    const keepServers: Server[] = []
+    const keepBound: string[] = []
+    const drop: Server[] = []
+    for (let i = 0; i < servers.length; i++) {
+      const addr = bound[i]
+      const server = servers[i]
+      if (addr !== undefined && server !== undefined && foundSet.has(addr)) {
+        keepServers.push(server)
+        keepBound.push(addr)
+      } else if (server !== undefined) {
+        drop.push(server)
+      }
+    }
+    if (drop.length > 0) {
+      await Promise.all(drop.map(closeServer))
+      console.error(
+        `[daemon] ${label} listener: closed ${drop.length} stale address(es); still bound: [${keepBound.join(', ')}]`,
+      )
+    }
+    servers = keepServers
+    bound = keepBound
+
+    if (found.length === 0) {
+      if (!loggedEmpty) {
+        console.error(
+          `[daemon] ${label} listener: no matching interface addresses (will re-scan every ${reconcileMs}ms)`,
+        )
+        loggedEmpty = true
+      }
+      return null
+    }
+    loggedEmpty = false
+
+    const boundSet = new Set(bound)
+    const toBind = found.filter((addr) => !boundSet.has(addr))
+    if (toBind.length === 0) return url()
+
+    let sawInUse = false
+    const results = await Promise.all(toBind.map((addr) => bindOne(addr)))
+    for (const result of results) {
+      if ('failed' in result) {
+        if (result.failed === 'in-use') sawInUse = true
+        continue
+      }
+      servers.push(result.server)
+      bound.push(result.addr)
+    }
+    // Only report 'in-use' when NOTHING bound — a partial success is still up.
+    if (bound.length === 0 && sawInUse) lastError = 'in-use'
+    return url()
+  }
+
+  function start(): Promise<string | null> {
+    wanted = true
+    scheduleTimer()
+    const run = chain.then(() => reconcile())
+    chain = run.then(
+      () => undefined,
+      () => undefined,
+    )
+    return run
+  }
+
+  function stop(): Promise<void> {
+    wanted = false
+    clearTimer()
+    loggedEmpty = false
+    const run = chain.then(async () => {
+      lastError = null
+      await closeAll()
+    })
+    chain = run.then(
+      () => undefined,
+      () => undefined,
+    )
+    return run
   }
 
   return { start, stop, url, addresses: () => [...bound], error: () => lastError }
