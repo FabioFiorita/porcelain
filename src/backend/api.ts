@@ -24,6 +24,13 @@ import {
   updateAction,
 } from './actions-store'
 import {
+  AGENT_NAMES,
+  type AgentMcpResult,
+  type AgentName,
+  agentConfigPath,
+  installMcpForAgents,
+} from './agent-mcp-install'
+import {
   agentCommands,
   agentLimits,
   createThread,
@@ -138,6 +145,14 @@ import {
   withPinnedPath,
   withRecentRepo,
 } from './repo-config'
+import {
+  copyRepoSettings,
+  exportRepoSettings,
+  type ImportRepoSettingsResult,
+  importRepoSettings,
+  type RepoSettings,
+  repoSettingsSchema,
+} from './repo-settings'
 import { clearReviewSet, readReviewSet } from './review-store'
 import {
   clearReviewedPaths,
@@ -1173,6 +1188,40 @@ export const router = t.router({
     .mutation(async ({ input }) => {
       await writeNotes(input.repoPath, input.notes)
     }),
+
+  // Explicit seed of per-repo channel settings (actions/notes/board/layers) — used
+  // to carry project setup from one environment/path to another. Never silent:
+  // the caller supplies source + target; present channels replace on the target.
+  exportRepoSettings: t.procedure
+    .input(z.string())
+    .query(({ input }): Promise<RepoSettings> => exportRepoSettings(input)),
+
+  importRepoSettings: t.procedure
+    .input(z.object({ repoPath: z.string(), settings: repoSettingsSchema }))
+    .mutation(
+      ({ input }): Promise<ImportRepoSettingsResult> =>
+        importRepoSettings(input.repoPath, input.settings),
+    ),
+
+  copyRepoSettings: t.procedure
+    .input(z.object({ fromPath: z.string(), toPath: z.string() }))
+    .mutation(
+      ({ input }): Promise<ImportRepoSettingsResult> =>
+        copyRepoSettings(input.fromPath, input.toPath),
+    ),
+
+  // Agent MCP install on the *daemon host* (not the Mac shell). When the app is
+  // pointed at a remote daemon, Settings → Agents must configure that machine's
+  // ~/.claude.json etc. so agents there can use the channel tools.
+  agentMcpInfo: t.procedure.query((): { agents: { name: AgentName; configPath: string }[] } => ({
+    agents: AGENT_NAMES.map((name) => ({ name, configPath: agentConfigPath(name) })),
+  })),
+
+  installAgentMcp: t.procedure
+    .input(z.array(z.enum(AGENT_NAMES as [AgentName, ...AgentName[]])).optional())
+    .mutation(
+      async ({ input }): Promise<AgentMcpResult[]> => installMcpForAgents(input ?? AGENT_NAMES),
+    ),
 
   // Remote access over Tailscale: the daemon can additionally listen on the
   // detected Tailscale interface (same token, fixed port; see tailnet-listener.ts).

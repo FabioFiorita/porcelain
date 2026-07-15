@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { initTRPC } from '@trpc/server'
 import { shell, type WebContents } from 'electron'
 import { z } from 'zod'
+import { exportRepoSettings, type RepoSettings } from '../backend/repo-settings'
 import {
   AGENT_NAMES,
   type AgentMcpResult,
@@ -80,8 +81,11 @@ export const shellRouter = t.router({
     }),
   ),
 
-  // Agent MCP config: one button writes the Porcelain MCP server into Claude Code,
-  // Codex, and OpenCode's user-global config files.
+  // Agent MCP config on the Mac shell (local agents). Prefer the daemon's
+  // installAgentMcp when configuring the active environment — especially remote —
+  // so the host that owns ~/.porcelain channel files is what gets configured.
+  // Kept so a local-only install still works without a round-trip and so boot
+  // ensureMcpServer (main/index.ts) can refresh the bundled server.
   agentMcpInfo: t.procedure.query((): { agents: { name: AgentName; configPath: string }[] } => ({
     agents: AGENT_NAMES.map((name) => ({ name, configPath: agentConfigPath(name) })),
   })),
@@ -91,6 +95,14 @@ export const shellRouter = t.router({
     .mutation(async ({ input }): Promise<AgentMcpResult[]> => {
       return installMcpForAgents(input ?? AGENT_NAMES)
     }),
+
+  // Read this Mac's channel snapshot for a repo path — used when the app is
+  // pointed at a remote daemon and the human wants to seed that environment
+  // from local setup (shell reads local ~/.porcelain; the renderer then imports
+  // into the active daemon via importRepoSettings).
+  exportLocalRepoSettings: t.procedure
+    .input(z.string())
+    .query(({ input }): Promise<RepoSettings> => exportRepoSettings(input)),
 
   // Saved remote environments (remote-envs Phase 4): keep a list of other
   // machines' Porcelain daemons and switch this app between them. Tokens are

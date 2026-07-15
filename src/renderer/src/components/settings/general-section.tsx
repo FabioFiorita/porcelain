@@ -12,6 +12,7 @@ import {
   useRemoteEnvironments,
   useRemoveRemoteEnvironment,
 } from '@renderer/hooks/use-remote-daemon'
+import { useCopyRepoSettingsOnDaemon, useSeedFromLocalMac } from '@renderer/hooks/use-repo-settings'
 import { useSetTailnetBind, useTailnetStatus } from '@renderer/hooks/use-tailnet'
 import { isBrowser } from '@renderer/lib/platform'
 import { copyText } from '@renderer/lib/utils'
@@ -21,6 +22,7 @@ import {
   type PullMode,
   usePreferencesStore,
 } from '@renderer/stores/preferences'
+import { useRepoStore } from '@renderer/stores/repo'
 import { X } from 'lucide-react'
 import { useState } from 'react'
 
@@ -215,6 +217,99 @@ function RemoteEnvironmentsBlock(): React.JSX.Element {
         </Button>
         {error != null && <p className="text-xs text-destructive">{error}</p>}
       </div>
+      {activeId != null && <SeedRepoSettingsBlock />}
+    </div>
+  )
+}
+
+/**
+ * Explicit seed of actions / notes / board / layers onto the active remote
+ * environment. Channel files are keyed by absolute path on the daemon host and
+ * never cross machines silently — this is the user-initiated copy (board card
+ * "Remote env: seed settings").
+ */
+function SeedRepoSettingsBlock(): React.JSX.Element {
+  const repo = useRepoStore((s) => s.repo)
+  const { seed, isPending: seeding, result: seedResult, error: seedError } = useSeedFromLocalMac()
+  const {
+    copy,
+    isPending: copying,
+    result: copyResult,
+    error: copyError,
+  } = useCopyRepoSettingsOnDaemon()
+  const [localPath, setLocalPath] = useState('')
+  const [fromPath, setFromPath] = useState('')
+  const targetPath = repo?.path ?? ''
+  const busy = seeding || copying
+
+  return (
+    <div className="flex flex-col gap-3 border-t border-border/60 pt-3">
+      <div>
+        <p className="text-sm-minus font-semibold">Copy repo settings to this environment</p>
+        <p className="text-xs text-muted-foreground">
+          Seeds actions, notes, board cards, and flow layers onto the open remote repo. Replaces
+          those channels on the target path — never a silent merge.
+        </p>
+      </div>
+      {targetPath === '' ? (
+        <p className="text-xs text-muted-foreground">Open a repo on this environment first.</p>
+      ) : (
+        <>
+          <p className="truncate font-mono text-xs text-muted-foreground">Target: {targetPath}</p>
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-medium">From this Mac</p>
+            <Input
+              placeholder="/Users/you/Code/soaphealth"
+              value={localPath}
+              onChange={(e) => setLocalPath(e.target.value)}
+              disabled={busy}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              className="self-start"
+              disabled={busy || localPath.trim() === ''}
+              onClick={() => seed(localPath.trim(), targetPath)}
+            >
+              {seeding ? 'Copying…' : 'Copy from this Mac'}
+            </Button>
+            {seedResult != null && (
+              <p className="text-xs text-muted-foreground">
+                {seedResult.imported.length === 0
+                  ? 'Nothing to copy (source had no settings).'
+                  : `Imported: ${seedResult.imported.join(', ')}`}
+              </p>
+            )}
+            {seedError != null && <p className="text-xs text-destructive">{seedError}</p>}
+          </div>
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-medium">Remap a path on this daemon</p>
+            <Input
+              placeholder="/other/path/on/daemon"
+              value={fromPath}
+              onChange={(e) => setFromPath(e.target.value)}
+              disabled={busy}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              className="self-start"
+              disabled={busy || fromPath.trim() === '' || fromPath.trim() === targetPath}
+              onClick={() => copy(fromPath.trim(), targetPath)}
+            >
+              {copying ? 'Copying…' : 'Copy on daemon'}
+            </Button>
+            {copyResult != null && (
+              <p className="text-xs text-muted-foreground">
+                {copyResult.imported.length === 0
+                  ? 'Nothing to copy (source had no settings).'
+                  : `Imported: ${copyResult.imported.join(', ')}`}
+              </p>
+            )}
+            {copyError != null && <p className="text-xs text-destructive">{copyError}</p>}
+          </div>
+        </>
+      )}
     </div>
   )
 }

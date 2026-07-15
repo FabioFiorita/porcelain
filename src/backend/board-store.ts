@@ -104,3 +104,11 @@ export async function clearCards(repoPath: string, status: CardStatus): Promise<
     if (cards) all[repoPath] = cards.filter((c) => c.status !== status)
   })
 }
+
+/** Whole-set replace for a repo (user-initiated seed / path remap). Empty drops the entry. */
+export async function writeCards(repoPath: string, cards: BoardCard[]): Promise<void> {
+  await channel.mutate((all) => {
+    if (cards.length === 0) delete all[repoPath]
+    else all[repoPath] = cards
+  })
+}

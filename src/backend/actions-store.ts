@@ -115,3 +115,11 @@ export async function deleteAction(repoPath: string, id: string): Promise<void> 
     if (actions) all[repoPath] = actions.filter((a) => a.id !== id)
   })
 }
+
+/** Whole-set replace for a repo (user-initiated seed / path remap). Empty drops the entry. */
+export async function writeActions(repoPath: string, actions: Action[]): Promise<void> {
+  await channel.mutate((all) => {
+    if (actions.length === 0) delete all[repoPath]
+    else all[repoPath] = actions
+  })
+}

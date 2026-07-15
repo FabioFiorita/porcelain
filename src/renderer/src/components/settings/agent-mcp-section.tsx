@@ -36,8 +36,10 @@ export function AgentMcpSection(): React.JSX.Element {
       <div className="min-w-0">
         <h4 className="text-sm-minus font-semibold">Add MCP</h4>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Writes the Porcelain MCP server into each agent's config so it can call the review, board,
-          action, note, layer, and artifact tools. Add only the agents you use.
+          Writes the Porcelain MCP server into each agent&apos;s config on the{' '}
+          <span className="font-medium text-foreground">active daemon host</span> (this Mac, or a
+          remote like the Beelink) so agents there can call the review, board, action, note, layer,
+          and artifact tools. Add only the agents you use.
         </p>
       </div>
 

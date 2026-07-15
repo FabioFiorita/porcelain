@@ -1,14 +1,17 @@
-import type { AgentMcpResult, AgentName } from '@main/agent-mcp'
-import { isBrowser } from '@renderer/lib/platform'
-import { shellTrpc } from '@renderer/lib/trpc'
+import type { AgentMcpResult, AgentName } from '@backend/agent-mcp-config'
+import { trpc } from '@renderer/lib/trpc'
 
+/**
+ * MCP install targets the *active daemon host* (not the Mac shell). Local daemon →
+ * local agents; remote daemon → Beelink agents. Channel files and agent CLIs live
+ * on the daemon host, so configuring the shell Mac while pointed at a remote
+ * environment was the bug this fixes.
+ */
 export function useAgentMcpInfo():
   | { agents: { name: AgentName; configPath: string }[] }
   | undefined {
-  // Shell-only — the browser client hides the Agents section, so this is never queried there.
-  const { data } = shellTrpc.agentMcpInfo.useQuery(undefined, {
+  const { data } = trpc.agentMcpInfo.useQuery(undefined, {
     staleTime: Number.POSITIVE_INFINITY,
-    enabled: !isBrowser,
   })
   return data
 }
@@ -19,7 +22,7 @@ export function useInstallAgentMcp(): {
   result: AgentMcpResult[] | undefined
   error: string | null
 } {
-  const mutation = shellTrpc.installAgentMcp.useMutation()
+  const mutation = trpc.installAgentMcp.useMutation()
   return {
     install: (agents) => mutation.mutate(agents),
     isInstalling: mutation.isPending,
