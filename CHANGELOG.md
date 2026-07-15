@@ -1,3 +1,9 @@
+## [0.24.3](https://github.com/FabioFiorita/porcelain/compare/v0.24.2...v0.24.3) (2026-07-15)
+
+### Bug Fixes
+
+* settings on welcome + CSP so remote daemon browse works ([dde89a4](https://github.com/FabioFiorita/porcelain/commit/dde89a4901d61281f14123d3d387d855585b8e40))
+
 ## [0.24.2](https://github.com/FabioFiorita/porcelain/compare/v0.24.1...v0.24.2) (2026-07-14)
 
 ### Bug Fixes
