@@ -281,7 +281,7 @@ function SeedRepoSettingsBlock(): React.JSX.Element {
           <div className="flex flex-col gap-2">
             <p className="text-xs font-medium">From this Mac</p>
             <Input
-              placeholder="/Users/you/Code/soaphealth"
+              placeholder="/Users/you/Code/my-project"
               value={localPath}
               onChange={(e) => setLocalPath(e.target.value)}
               disabled={busy}

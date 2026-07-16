@@ -35,7 +35,7 @@ describe('resolveRelativeImport', () => {
   })
 
   it('ignores non-relative (alias/bare) specs — those cross seams it cannot follow', () => {
-    expect(resolveRelativeImport('@soaphealth/mens-health/client', 'app/x.ts', files)).toBeNull()
+    expect(resolveRelativeImport('@acme/shared/client', 'app/x.ts', files)).toBeNull()
     expect(resolveRelativeImport('react', 'app/x.ts', files)).toBeNull()
   })
 

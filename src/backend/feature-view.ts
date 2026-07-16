@@ -18,7 +18,7 @@ const RESOLVE_EXTS = ['', '.ts', '.tsx', '.js', '.jsx', '.mts', '.cts', '.mjs', 
 /**
  * Resolve a RELATIVE import specifier to a real repo file. Only relative specs are
  * resolved for the baseline: they are unambiguous and cheap. Alias/bare specs (which
- * is how a client reaches a server route — e.g. `@soaphealth/...`) are deliberately
+ * is how a client reaches a server route — e.g. `@acme/shared/...`) are deliberately
  * not followed; those cross-seam edges are exactly what the import graph can't see,
  * and what the agent-fed review set exists to supply.
  */

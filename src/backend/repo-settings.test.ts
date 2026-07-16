@@ -9,8 +9,8 @@ import { readLayers, writeLayers } from './layers-store'
 import { readNotes, writeNotes } from './notes-store'
 import { copyRepoSettings, exportRepoSettings, importRepoSettings } from './repo-settings'
 
-const SRC = '/Users/me/Code/soaphealth'
-const DST = '/home/me/code/soaphealth'
+const SRC = '/Users/me/Code/my-project'
+const DST = '/home/me/code/my-project'
 
 describe('repo-settings export/import/copy', () => {
   let dir: string
