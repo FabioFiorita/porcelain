@@ -1,3 +1,14 @@
+## [0.25.1](https://github.com/FabioFiorita/porcelain/compare/v0.25.0...v0.25.1) (2026-07-16)
+
+### Bug Fixes
+
+* **ci:** clear setup-node dummy token so npm OIDC publish works ([c264c7e](https://github.com/FabioFiorita/porcelain/commit/c264c7e8ba5834d6134d2984734898f2de9be9e9))
+* **ci:** keep OIDC probe as a single-line python snippet ([2fae29a](https://github.com/FabioFiorita/porcelain/commit/2fae29a3b3e4ccd6ce7736cf5b3462d41556b758))
+* **ci:** make npm OIDC publish work without setup-node dummy auth ([609e764](https://github.com/FabioFiorita/porcelain/commit/609e7642b480c4bf98c130f4388468543ed511cd))
+* **ci:** publish porcelain-daemon on Ubuntu via OIDC ([81ef6c9](https://github.com/FabioFiorita/porcelain/commit/81ef6c94b459578ece66fc02e41fae4436088921))
+* **ci:** surface npm OIDC exchange errors for trusted publishing ([f46e64c](https://github.com/FabioFiorita/porcelain/commit/f46e64c78831b35f9ab5fdb4b8e909911dae89dd))
+* use generic example paths in settings and fixtures ([52efb53](https://github.com/FabioFiorita/porcelain/commit/52efb53325cd5705fb50ecf133662b83fb2d77e7))
+
 ## [0.25.0](https://github.com/FabioFiorita/porcelain/compare/v0.24.4...v0.25.0) (2026-07-16)
 
 ### Features
