@@ -49,8 +49,13 @@ test('streams a turn into the timeline + Quick Access, and persists across reloa
 
   // Quick Access mirrors the session: the plan checklist with its own progress counter…
   await expect(page.getByText('1 of 3 done')).toBeVisible()
-  // …and, once the turn ends, the usage line from the final idle status ({100 in, 50 out}).
-  await expect(page.getByText('100 in · 50 out')).toBeVisible()
+  // …and, once the turn ends, the Usage group last-turn line from the final idle status
+  // ({100 in, 50 out}). Prefer the "Last turn …" phrasing — the timeline footer and the
+  // session strip also carry token counts, and a bare "100 in · 50 out" is no longer unique
+  // (strict mode would fail on the multi-match, the same class of bug that killed v0.21.x).
+  await expect(page.getByText('Last turn 100 in · 50 out')).toBeVisible()
+  // Session strip orients the thread (Idle once the turn ends).
+  await expect(page.getByText('Idle', { exact: true })).toBeVisible()
 
   // Turn is idle again: the composer shows Send (not Stop).
   await expect(page.getByRole('button', { name: 'Send' })).toBeVisible()
