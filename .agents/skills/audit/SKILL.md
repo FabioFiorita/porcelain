@@ -340,6 +340,17 @@ assumed — this skill is the codebase-specific layer beneath them.
   `review-watch` entry → the `artifact` event. Still stdio only, no network surface. *Verify:* the
   iframe keeps `sandbox=""` with no allow-tokens; the CSP is unchanged; `rg -n "createServer|listen\(|http" src/mcp`
   still finds nothing; the app's only write to `artifacts.json` is `clearArtifact`.
+- **Loop evidence is the 10th channel and inherits the artifact sandbox invariant
+  byte-for-byte.** (`~/.porcelain/evidence.json`, `evidence-store.ts` ↔ `src/mcp/evidence-file.ts`,
+  `set/get/clear_loop_evidence`, same `{ title, html, updatedAt }` shape, `evidence-view.tsx`
+  with `sandbox=""` + `srcdoc`, `review-watch` → `evidence` event, app's only write is
+  `clearEvidence`.) Product role differs (ephemeral validation proof vs narrative explainer) but
+  the security surface is identical: agent-authored ACTIVE HTML, same CSP backstop, same
+  size cap (`MAX_HTML_BYTES` = 1.5 MB, drop oversized on read), same stdio-only / no-network
+  rule. Never add allow-* tokens, never widen `img-src`/`default-src` for either surface, and
+  keep the app's only write to `evidence.json` as `clearEvidence`. *Verify:* `evidence-view.tsx`
+  keeps `sandbox=""`; tools list has set/get/clear_loop_evidence; `rg` still finds no listener
+  in `src/mcp`.
 - **The agent MCP installer is the ONLY non-git file write driven by the renderer, and it takes no user input.**
   `installAgentMcp` (`src/main/agent-mcp.ts`) copies the bundled `out/main/mcp/server.js`
   to `~/.porcelain/mcp/server.js` (home, not a work repo) and writes per-agent MCP config

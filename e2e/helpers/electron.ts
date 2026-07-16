@@ -48,6 +48,11 @@ interface Options {
    * written one. `updatedAt` is filled in for you.
    */
   seedArtifact: { title: string; html: string } | null
+  /**
+   * Seed the loop-evidence channel for the fixture repo (default null → none). Same
+   * shape as seedArtifact; opens as "Loop evidence" in the Feature tab.
+   */
+  seedEvidence: { title: string; html: string } | null
 }
 
 interface Fixtures {
@@ -62,6 +67,7 @@ interface WorkerFixtures {
 export const test = baseTest.extend<Options & Fixtures, WorkerFixtures>({
   seedRepo: [true, { option: true }],
   seedArtifact: [null, { option: true }],
+  seedEvidence: [null, { option: true }],
 
   repoDir: [
     // biome-ignore lint/correctness/noEmptyPattern: Playwright requires the fixture's first arg to be a destructuring pattern.
@@ -73,7 +79,7 @@ export const test = baseTest.extend<Options & Fixtures, WorkerFixtures>({
     { scope: 'worker' },
   ],
 
-  app: async ({ repoDir, seedRepo, seedArtifact }, use) => {
+  app: async ({ repoDir, seedRepo, seedArtifact, seedEvidence }, use) => {
     const udBase = await mkdtemp(join(tmpdir(), 'porcelain-e2e-ud-'))
     // main appends '-dev' to userData on the is.dev path (the built app launched
     // outside a package counts as dev), so the config it actually reads is there.
@@ -107,6 +113,16 @@ export const test = baseTest.extend<Options & Fixtures, WorkerFixtures>({
           : {},
       ),
     )
+    // Loop evidence (agent-authored validation proof). Same seed shape as artifacts.
+    const evidence = join(udBase, 'evidence.json')
+    await writeFile(
+      evidence,
+      JSON.stringify(
+        seedEvidence
+          ? { [repoDir]: { ...seedEvidence, updatedAt: '2024-01-01T12:00:00.000Z' } }
+          : {},
+      ),
+    )
     // Agent threads persist to their own directory (the same PORCELAIN_AGENT_THREADS escape
     // hatch dev/tests use), so a thread never touches the user's real ~/.porcelain, and it
     // survives a window reload the way the daemon-owned thread does. Left uncreated — the
@@ -126,6 +142,7 @@ export const test = baseTest.extend<Options & Fixtures, WorkerFixtures>({
         PORCELAIN_LAYERS: layers,
         PORCELAIN_REVIEWED: reviewed,
         PORCELAIN_ARTIFACTS: artifacts,
+        PORCELAIN_EVIDENCE: evidence,
         PORCELAIN_AGENT_THREADS: agentThreads,
         // Swap every agent provider slot for the scripted in-process fake driver so the
         // Agent tab has a deterministic turn to drive (no real CLI / auth / network).

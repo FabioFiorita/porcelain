@@ -21,6 +21,11 @@
       "title": "Explainers",
       "description": "Author rich HTML artifacts Porcelain renders in the viewer.",
       "skills": ["feature-artifact"]
+    },
+    {
+      "title": "Validation",
+      "description": "Push loop-closing proof (screenshots, browser/simulator checks) to the Feature tab.",
+      "skills": ["loop-evidence"]
     }
   ]
 }

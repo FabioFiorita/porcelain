@@ -29,7 +29,7 @@ Only each skill's one-line description loads up front; the body loads on demand 
 
 Also available, but **not** vendored in this repo (globally installed, listed here only so you know they exist): `improve` (read-only senior-advisor audit harness → plans in `plans/`) and `frontend-design`.
 
-**Distribution split (don't leak internal skills).** The 6 *companion* skills the app ships to users live at repo root `/skills/` and are published via skills.sh (`npx skills add FabioFiorita/porcelain`). Everything in `.agents/skills/` is *internal* (repo guidance + vendored `shadcn`) and must carry `metadata.internal: true` in its frontmatter — the skills.sh CLI scans `.agents/skills` **and** `.claude/skills`, so without that flag an internal skill leaks into users' `npx skills add`. Any new `.agents/skills/` skill needs the flag.
+**Distribution split (don't leak internal skills).** The 7 *companion* skills the app ships to users live at repo root `/skills/` and are published via skills.sh (`npx skills add FabioFiorita/porcelain`). Everything in `.agents/skills/` is *internal* (repo guidance + vendored `shadcn`) and must carry `metadata.internal: true` in its frontmatter — the skills.sh CLI scans `.agents/skills` **and** `.claude/skills`, so without that flag an internal skill leaks into users' `npx skills add`. Any new `.agents/skills/` skill needs the flag.
 
 ## Agentic enforcement
 
@@ -101,7 +101,7 @@ Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wron
 - **Tab bar** — the floating glass capsule of open documents (`tab-bar.tsx`).
 - **Tab** — one open document. **Preview** = single-click, italic, replaced by the next; **pinned** = double-click/edit, kept.
 - **Split view / pane** — two side-by-side **panes**, each its own tabs (`panes`/`activePaneIndex` in `stores/tabs.ts`); "Open to the Side". Model in `architecture` (Routing).
-- **Tab kinds** — `file view` / `source view` (`source-view.tsx`) / `markdown reader` (`markdown-view.tsx`) / `diff view` (`diff-view.tsx`) / `commit view` (`commit-view.tsx`) / `search view` (`search-view.tsx`) / `feature view` (`feature-view.tsx`) / `explore view` (`explore-view.tsx`) / `board view` (`board-view.tsx`) / `terminal view` (`terminal-view.tsx`) / `artifact view` (`artifact-view.tsx`) / `agent view` (`agent-view.tsx`). What each renders → read the file; the concepts → `product`.
+- **Tab kinds** — `file view` / `source view` (`source-view.tsx`) / `markdown reader` (`markdown-view.tsx`) / `diff view` (`diff-view.tsx`) / `commit view` (`commit-view.tsx`) / `search view` (`search-view.tsx`) / `feature view` (`feature-view.tsx`) / `explore view` (`explore-view.tsx`) / `board view` (`board-view.tsx`) / `terminal view` (`terminal-view.tsx`) / `artifact view` (`artifact-view.tsx`) / `evidence view` (`evidence-view.tsx`) / `agent view` (`agent-view.tsx`). What each renders → read the file; the concepts → `product`.
 
 **Inside Quick Access** (section follows the sidebar tab):
 - Files → **Pinned** (`pinned-group.tsx`) + **Notes card** (`notes-card.tsx`), in `files-quick-access.tsx`.
@@ -122,6 +122,7 @@ Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wron
 - **Flow / flow layers** — the architectural-layer grouping of changes (entry-point → data); the heart of "review as a story".
 - **Feature view / review set** — the change widened to the whole feature; files tagged **changed** / **context** (import-reached baseline) / **shipped** (agent-declared cross-seam). The review set is the agent-fed manifest (`~/.porcelain/review-sets.json`).
 - **Feature artifact** — an agent-authored self-contained HTML explainer of the feature (`~/.porcelain/artifacts.json`), two-way over MCP (app write = clear only); rendered in a fully sandboxed iframe in the viewer (`artifact view` tab kind), opened from the Feature list.
+- **Loop evidence** — agent-authored self-contained HTML *proof the loop closed* (browser/simulator validation, screenshots, pass/fail) (`~/.porcelain/evidence.json`), two-way over MCP (app write = clear only); same sandboxed iframe path (`evidence view` tab kind), opened from the Feature list as **Loop evidence**. Ephemeral — clear after review (e.g. before commit/push).
 - **Review comments** — the reviewer's line/file notes (`~/.porcelain/comments.json`), app→agent over MCP.
 - **Reviewed marks** — the per-file "reviewed" checkboxes the human ticks in the Changes/Feature lists (`~/.porcelain/reviewed.json`), app→agent over MCP (read-only, like notes); cleared on commit.
 - **Project board** — per-repo todo/doing/done (`~/.porcelain/board.json`), two-way over MCP.

@@ -37,6 +37,7 @@ describe('unreadTabFor', () => {
   const cases: [AppEvent, UnreadTab | null][] = [
     ['feature-view', 'feature'],
     ['artifact', 'feature'],
+    ['evidence', 'feature'],
     ['comments', 'feature'],
     ['board', 'board'],
     ['actions', 'terminal'],

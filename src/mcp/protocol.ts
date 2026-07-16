@@ -205,6 +205,52 @@ export const TOOLS = [
     },
   },
   {
+    name: 'set_loop_evidence',
+    description:
+      'Author (or replace) the loop evidence for a repo: a self-contained HTML document that PROVES you closed the loop — you ran the app (dev server / browser / iOS simulator / …), validated the change yourself, and captured the result for the human. Complements the feature review set (what to read) and the feature artifact (how it works): this is the ephemeral proof that it works. The human opens it from the Feature tab and clears it once reviewed (e.g. before commit/push). HOW TO AUTHOR IT: same sandbox rules as feature artifacts — FULLY SANDBOXED iframe, scripts NEVER execute, external resources NEVER load. ONE self-contained document: inline CSS in a <style> tag, screenshots as data: URIs (data:image/png;base64,…), tables/checklists as plain HTML, dark background + light text. Keep under ~1.5 MB — shrink screenshots rather than pasting huge blobs. Prefer a clear pass/fail summary at the top, then steps with evidence (what you ran, what you saw, embedded screenshots).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        repoPath: { type: 'string', description: 'Absolute path to the repository' },
+        title: {
+          type: 'string',
+          description:
+            'A short title for the evidence (e.g. "Login flow — browser validation" or "iOS simulator — checkout pass")',
+        },
+        html: {
+          type: 'string',
+          description:
+            'The complete self-contained HTML document. Inline CSS only, screenshots as data: URIs; no scripts, no external resources; dark background + light text to match the app.',
+        },
+      },
+      required: ['repoPath', 'title', 'html'],
+    },
+  },
+  {
+    name: 'get_loop_evidence',
+    description:
+      'Read back the current loop evidence for a repo: its title, size, and when it was last set (not the full HTML). Use it to check whether one exists and confirm what you pushed.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        repoPath: { type: 'string', description: 'Absolute path to the repository' },
+      },
+      required: ['repoPath'],
+    },
+  },
+  {
+    name: 'clear_loop_evidence',
+    description:
+      'Remove the loop evidence for a repo. Porcelain stops showing the Loop evidence opener in the Feature tab. Prefer letting the human clear it after review; only clear yourself when asked or when replacing with a fresh validation.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        repoPath: { type: 'string', description: 'Absolute path to the repository' },
+      },
+      required: ['repoPath'],
+    },
+  },
+  {
     name: 'list_cards',
     description:
       'Read the project board for a repo: todo/doing/done cards the human (and you) use to plan the work, grouped by column, each with an id, title, and optional body. Read this to learn what to build next instead of waiting for the human to spell it out, and to keep the board in sync as you work.',

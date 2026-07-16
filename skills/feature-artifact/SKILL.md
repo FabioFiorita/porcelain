@@ -5,7 +5,7 @@ description: Author a "feature artifact" for the Porcelain app — a self-contai
 
 # Porcelain feature artifact
 
-Porcelain can render a **feature artifact**: a self-contained HTML document you author that explains a feature — with prose, diagrams, tables, and images — shown in the viewer. It COMPLEMENTS the feature review set (which is the file-by-file flow in `review-with-porcelain`): the review set is the code walkthrough; the artifact is the narrative/visual explainer (how it works, the architecture, the data flow, the decisions).
+Porcelain can render a **feature artifact**: a self-contained HTML document you author that explains a feature — with prose, diagrams, tables, and images — shown in the viewer. It COMPLEMENTS the feature review set (which is the file-by-file flow in `review-with-porcelain`) and loop evidence (`loop-evidence`): the review set is the code walkthrough; the artifact is the narrative/visual explainer (how it works, the architecture, the data flow, the decisions); **loop evidence** is the ephemeral proof that you validated the running app (browser/simulator screenshots) — use that skill for close-the-loop proof, not this one.
 
 ## When to use
 

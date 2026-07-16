@@ -11,6 +11,7 @@ export type TabKind =
   | 'board'
   | 'terminal'
   | 'artifact'
+  | 'evidence'
   | 'agent'
 
 // The tabs store is the router: a tab id is its kind plus its key (file path,
@@ -26,10 +27,11 @@ export interface Tab {
   title: string
   /** File path for file/diff tabs, commit hash for commit tabs, query for search tabs,
    *  terminal session id for terminal tabs, thread id for agent tabs, repo path for
-   *  artifact tabs, review scope key (`working` / `branch` / `commit:<hash>`) for review
-   *  tabs. (Agent tabs use the generic clone/preview path — unlike a terminal's single
-   *  xterm DOM node, an agent view's state lives in the store, so it can render in both
-   *  panes at once and needs no special-casing in `openTab`/`openTabToSide`.) */
+   *  artifact/evidence tabs, review scope key (`working` / `branch` / `commit:<hash>`)
+   *  for review tabs. (Agent tabs use the generic clone/preview path — unlike a
+   *  terminal's single xterm DOM node, an agent view's state lives in the store, so it
+   *  can render in both panes at once and needs no special-casing in `openTab`/
+   *  `openTabToSide`.) */
   path: string
   /** 1-based line to scroll to when opening (search results jump here). */
   line?: number

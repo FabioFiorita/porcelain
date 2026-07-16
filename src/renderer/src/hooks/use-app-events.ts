@@ -72,6 +72,10 @@ function handle(
         utils.featureArtifact.invalidate(),
         utils.featureArtifactHtml.invalidate(),
       ])
+    case 'evidence':
+      // the agent authored/cleared loop evidence over MCP — refresh the Feature list
+      // opener (metadata) and the open evidence view (full HTML).
+      return Promise.all([utils.loopEvidence.invalidate(), utils.loopEvidenceHtml.invalidate()])
     case 'working-tree':
       // a watched file changed on disk outside the app (most often the coding
       // agent editing in the terminal) — re-read the open documents and diffs so

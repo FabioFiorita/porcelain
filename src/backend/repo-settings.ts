@@ -20,8 +20,8 @@ import { readNotes, writeNotes } from './notes-store'
  *
  * Included: actions (saved commands), notes, board, flow layers, review comments.
  * Deliberately NOT included: reviewed marks (session ticks), feature-view snapshot
- * (derived), artifacts (agent-authored HTML), review sets (MCP-authored; app only
- * clears). Those are live session/review state, not "project setup" + open notes.
+ * (derived), artifacts / loop evidence (agent-authored HTML), review sets (MCP-authored;
+ * app only clears). Those are live session/review state, not "project setup" + open notes.
  */
 export const repoSettingsSchema = z.object({
   actions: z.array(actionSchema).optional(),

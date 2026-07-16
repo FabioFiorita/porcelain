@@ -73,6 +73,13 @@ import {
 import { loadConfig, updateConfig } from './config-store'
 import { type CommitConventions, parseConventions } from './conventions'
 import type { ChangedFile, DiffHunk, DiffStat } from './diff'
+import {
+  clearEvidence,
+  type Evidence,
+  type EvidenceMeta,
+  readEvidence,
+  readEvidenceMeta,
+} from './evidence-store'
 import { buildExploreReading, walkExplore } from './feature-explore'
 import { featureKey, flowKey } from './feature-key'
 import { writeFeatureSnapshot } from './feature-snapshot-store'
@@ -969,6 +976,23 @@ export const router = t.router({
 
   clearFeatureArtifact: t.procedure.input(z.string()).mutation(async ({ input }) => {
     await clearArtifact(input)
+  }),
+
+  // Loop evidence: agent-authored HTML proving the work was validated (browser /
+  // simulator / screenshots). Same sandbox + size-cap rules as the feature artifact;
+  // different product role (ephemeral proof, not narrative explainer). See
+  // `evidence-store.ts`. Cheap metadata for the Feature list opener; full HTML only
+  // while the evidence view is open. `clearLoopEvidence` is the app's one write.
+  loopEvidence: t.procedure
+    .input(z.string())
+    .query(({ input }): Promise<EvidenceMeta | null> => readEvidenceMeta(input)),
+
+  loopEvidenceHtml: t.procedure
+    .input(z.string())
+    .query(({ input }): Promise<Evidence | null> => readEvidence(input)),
+
+  clearLoopEvidence: t.procedure.input(z.string()).mutation(async ({ input }) => {
+    await clearEvidence(input)
   }),
 
   // Review comments — the human's notes on lines/files, fed to the agent as context

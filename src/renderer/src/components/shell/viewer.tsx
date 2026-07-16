@@ -4,6 +4,7 @@ import { BoardView } from '@renderer/components/board/board-view'
 import { ArtifactView } from '@renderer/components/git/artifact-view'
 import { CommitView } from '@renderer/components/git/commit-view'
 import { DiffView } from '@renderer/components/git/diff-view'
+import { EvidenceView } from '@renderer/components/git/evidence-view'
 import { ExploreView } from '@renderer/components/git/explore-view'
 import { FeatureView } from '@renderer/components/git/feature-view'
 import { ReviewView } from '@renderer/components/git/review-view'
@@ -96,6 +97,8 @@ function PaneView({ paneIndex }: { paneIndex: number }): React.JSX.Element {
       return <BoardView />
     case 'artifact':
       return <ArtifactView key={activeTab.path} repoPath={activeTab.path} />
+    case 'evidence':
+      return <EvidenceView key={activeTab.path} repoPath={activeTab.path} />
     case 'terminal':
       return <TerminalView key={activeTab.path} sessionId={activeTab.path} />
     case 'agent':

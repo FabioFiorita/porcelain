@@ -35,6 +35,7 @@ export const appEventSchema = z.enum([
   'actions',
   'layers',
   'artifact',
+  'evidence',
   'working-tree',
   'file-tree',
   // Broadcast when the Agent thread roster changes (create/rename/delete, or a

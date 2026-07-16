@@ -14,10 +14,12 @@ const actionsFile = join(dir, 'actions.json')
 const commentsFile = join(dir, 'comments.json')
 const featureViewFile = join(dir, 'feature-view.json')
 const artifactsFile = join(dir, 'artifacts.json')
+const evidenceFile = join(dir, 'evidence.json')
 
 beforeEach(() => {
   process.env.PORCELAIN_REVIEW_SETS = file
   process.env.PORCELAIN_ARTIFACTS = artifactsFile
+  process.env.PORCELAIN_EVIDENCE = evidenceFile
   process.env.PORCELAIN_NOTES = notesFile
   process.env.PORCELAIN_LAYERS = layersFile
   process.env.PORCELAIN_REVIEWED = reviewedFile
@@ -37,6 +39,7 @@ afterEach(() => {
   delete process.env.PORCELAIN_COMMENTS
   delete process.env.PORCELAIN_FEATURE_VIEW
   delete process.env.PORCELAIN_ARTIFACTS
+  delete process.env.PORCELAIN_EVIDENCE
   rmSync(dir, { recursive: true, force: true })
 })
 const read = (): Record<string, { name: string; files: unknown[] }> =>
@@ -114,6 +117,27 @@ describe('callTool', () => {
   it('set_feature_artifact rejects a missing title', async () => {
     await expect(
       callTool('set_feature_artifact', { repoPath: '/repo', html: '<p>x</p>' }),
+    ).rejects.toThrow('title must be a non-empty string')
+  })
+
+  it('set/get/clear_loop_evidence round-trips through the evidence channel', async () => {
+    const readEvidence = (): Record<string, { title: string; html: string }> =>
+      JSON.parse(readFileSync(evidenceFile, 'utf8'))
+    await callTool('set_loop_evidence', {
+      repoPath: '/repo',
+      title: 'Vite loop',
+      html: '<h1>Pass</h1>',
+    })
+    expect(readEvidence()['/repo']?.title).toBe('Vite loop')
+    expect(await callTool('get_loop_evidence', { repoPath: '/repo' })).toContain(
+      'Loop evidence "Vite loop" for /repo',
+    )
+    await callTool('clear_loop_evidence', { repoPath: '/repo' })
+    expect(readEvidence()['/repo']).toBeUndefined()
+  })
+  it('set_loop_evidence rejects a missing title', async () => {
+    await expect(
+      callTool('set_loop_evidence', { repoPath: '/repo', html: '<p>x</p>' }),
     ).rejects.toThrow('title must be a non-empty string')
   })
 

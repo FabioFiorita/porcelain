@@ -11,6 +11,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useFeatureArtifact } from '@renderer/hooks/use-artifact'
 import { useDiffFilePrefetch } from '@renderer/hooks/use-diff'
+import { useLoopEvidence } from '@renderer/hooks/use-evidence'
 import { useClearFeatureReview, useFeatureView } from '@renderer/hooks/use-feature-view'
 import { useReviewedPaths, useToggleReviewed } from '@renderer/hooks/use-reviewed'
 import { dirName, fileName } from '@renderer/lib/paths'
@@ -24,6 +25,7 @@ import {
   FileText,
   MessageSquarePlus,
   RefreshCw,
+  ShieldCheck,
   Sparkles,
   Square,
   SquareCheck,
@@ -180,6 +182,7 @@ export function FeatureList(): React.JSX.Element {
   const openTab = useTabsStore((s) => s.openTab)
   const { view, refresh } = useFeatureView()
   const { artifact } = useFeatureArtifact()
+  const { evidence } = useLoopEvidence()
   const reviewed = useReviewedPaths()
   const { clear, isClearing } = useClearFeatureReview()
   const [confirmClear, setConfirmClear] = useState(false)
@@ -210,6 +213,19 @@ export function FeatureList(): React.JSX.Element {
       id: tabId('artifact', repo.path),
       kind: 'artifact',
       title: 'Feature artifact',
+      path: repo.path,
+    })
+  }
+
+  // Loop evidence is the ephemeral proof the agent closed the loop (browser /
+  // simulator validation). Same open pattern as the artifact; clear lives on the
+  // evidence view header (Eraser), not here.
+  const openEvidence = (): void => {
+    if (!evidence) return
+    openTab({
+      id: tabId('evidence', repo.path),
+      kind: 'evidence',
+      title: 'Loop evidence',
       path: repo.path,
     })
   }
@@ -272,17 +288,30 @@ export function FeatureList(): React.JSX.Element {
         </SidebarHeaderActions>
       </div>
 
-      {artifact && (
-        <div className="mx-2 mb-1">
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full justify-start rounded-md"
-            onClick={openArtifact}
-          >
-            <FileText />
-            <span className="truncate">Feature artifact</span>
-          </Button>
+      {(artifact || evidence) && (
+        <div className="mx-2 mb-1 flex flex-col gap-1">
+          {artifact && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full justify-start rounded-md"
+              onClick={openArtifact}
+            >
+              <FileText />
+              <span className="truncate">Feature artifact</span>
+            </Button>
+          )}
+          {evidence && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full justify-start rounded-md"
+              onClick={openEvidence}
+            >
+              <ShieldCheck />
+              <span className="truncate">Loop evidence</span>
+            </Button>
+          )}
         </div>
       )}
 

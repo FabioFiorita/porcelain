@@ -16,6 +16,7 @@ import {
   updateCard,
 } from './board-file'
 import { answerComment, describeComments, readComments, resolveComment } from './comment-file'
+import { clearEvidence, describeEvidence, getEvidence, setEvidence } from './evidence-file'
 import { describeFeatureView, readFeatureView, sourceByPath } from './feature-view-file'
 import { clearLayers, describeLayers, readLayers, setLayers, toLayers } from './layers-file'
 import { describeNotes, readNotes } from './notes-file'
@@ -94,6 +95,17 @@ export async function callTool(name: string, args: Record<string, unknown>): Pro
   if (name === 'clear_feature_artifact') {
     clearArtifact(repoPath)
     return `Cleared the feature artifact for ${repoPath}`
+  }
+  if (name === 'set_loop_evidence') {
+    const evidence = setEvidence(repoPath, args.title, args.html)
+    return `Set loop evidence "${evidence.title}" for ${repoPath}. Porcelain renders it in a fully sandboxed iframe in the Feature tab (no scripts, no external loads). Clear it after the human reviews.`
+  }
+  if (name === 'get_loop_evidence') {
+    return describeEvidence(repoPath, getEvidence(repoPath))
+  }
+  if (name === 'clear_loop_evidence') {
+    clearEvidence(repoPath)
+    return `Cleared the loop evidence for ${repoPath}`
   }
   if (name === 'list_cards') {
     return describeBoard(repoPath, readCards(repoPath))
