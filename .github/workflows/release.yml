@@ -41,13 +41,13 @@ jobs:
       - uses: pnpm/action-setup@v5
       - uses: actions/setup-node@v5
         with:
+          # Node ≥ 22.14 required for npm trusted publishing (npm docs).
           node-version: 22
           cache: pnpm
-          # Points npm at the public registry so OIDC publish targets npmjs.
-          # Do NOT set NODE_AUTH_TOKEN — trusted publishing uses the job OIDC
-          # token (id-token: write). setup-node still injects a dummy token when
-          # registry-url is set; the publish step clears it (see below).
-          registry-url: 'https://registry.npmjs.org'
+          # Deliberately NO registry-url: setup-node would write a dummy
+          # NODE_AUTH_TOKEN + always-auth npmrc that blocks OIDC (v0.25.0 got
+          # E404 with the dummy, ENEEDAUTH after partial clear). pnpm install
+          # does not need npm registry auth; the publish step uses a clean npmrc.
       - run: pnpm install --frozen-lockfile
       # daemon:dist needs out/main/daemon/server.js — always build. Full gate + e2e only on
       # a real tag release (or a dispatch that opts out of npm_only).
@@ -95,20 +95,28 @@ jobs:
       # Headless remote daemon — same version as the Mac app. Enables:
       #   npx porcelain-daemon@latest serve --tailnet
       # Auth is OIDC trusted publishing (npm package settings → Trusted Publisher
-      # → GitHub Actions → workflow release.yml). No NPM_TOKEN secret.
-      # Requires npm CLI ≥ 11.5.1 (bundled with Node 22 may be older).
+      # → GitHub Actions → fabiofiorita/porcelain → release.yml). No NPM_TOKEN.
+      # Requires npm CLI ≥ 11.5.1 (Node 22 ships older; we upgrade below).
       - name: Publish porcelain-daemon to npm
         run: |
-          npm install -g npm@latest
+          set -euo pipefail
+          # Fail loud if the job OIDC env is missing (id-token: write not applied).
+          if [ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ] || [ -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}" ]; then
+            echo "OIDC env missing — need permissions.id-token: write on GitHub-hosted runners"
+            exit 1
+          fi
+          # Pin the first OIDC-capable line, not npm@latest (12.x regressed OIDC
+          # detection for some setups; 11.5.x is the documented floor).
+          npm install -g npm@11.5.2
           npm --version
-          # actions/setup-node with registry-url always writes a dummy
-          # NODE_AUTH_TOKEN + _authToken into the user npmrc when no secret is set.
-          # That dummy token is preferred over the job OIDC credential and npm
-          # returns a misleading 404 on PUT. Clear both so trusted publishing works.
-          # (Caught on v0.25.0 — first release that actually reached this step.)
+          # Isolate publish from any leftover user npmrc (always-auth, dummy tokens).
+          PUBLISH_NPMRC="$(mktemp)"
+          printf 'registry=https://registry.npmjs.org/\n' > "$PUBLISH_NPMRC"
+          # Drop any inherited token so npm falls through to OIDC.
           unset NODE_AUTH_TOKEN
-          npm config delete "//registry.npmjs.org/:_authToken" || true
+          export NPM_CONFIG_USERCONFIG="$PUBLISH_NPMRC"
           pnpm daemon:dist
-          # npm publish reads package.json name/version from dist-daemon/
-          # Provenance is generated automatically under trusted publishing.
-          npm publish ./dist-daemon --access public --provenance
+          # Provenance is automatic under trusted publishing — no --provenance flag.
+          # Publish from dist-daemon so package.json name/version are correct.
+          npm publish ./dist-daemon --access public
+          rm -f "$PUBLISH_NPMRC"
