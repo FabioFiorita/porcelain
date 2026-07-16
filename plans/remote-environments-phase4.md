@@ -68,7 +68,7 @@ Prefer `network-online.target` so DHCP/Tailscale have an address before the firs
 
 ## 1b. Legacy: ship a local dist tarball
 
-Only needed when iterating on an **unpublished** daemon build (or before `NPM_TOKEN` is set on the release workflow). On the Mac:
+Only needed when iterating on an **unpublished** daemon build (or before the package is on npm via a release tag / Trusted Publishing). On the Mac:
 
 ```sh
 pnpm build && pnpm daemon:dist

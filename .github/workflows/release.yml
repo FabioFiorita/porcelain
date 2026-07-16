@@ -3,13 +3,17 @@ name: Release
 # Cut a release by pushing a version tag that matches package.json, e.g.:
 #   pnpm version patch && git push --follow-tags
 # electron-builder publishes the dmg + zip to a GitHub Release and writes the
-# latest-mac.yml feed that electron-updater reads.
+# latest-mac.yml feed that electron-updater reads. After that, the same job
+# publishes porcelain-daemon to npm via OIDC trusted publishing (no NPM_TOKEN).
 on:
   push:
     tags: ['v*']
 
 permissions:
   contents: write
+  # OIDC short-lived token for npm trusted publishing of porcelain-daemon.
+  # Trusted publisher on npmjs.com: fabiofiorita/porcelain → release.yml
+  id-token: write
 
 jobs:
   release:
@@ -21,7 +25,9 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          # Needed so `npm publish dist-daemon` can auth with NODE_AUTH_TOKEN.
+          # Points npm at the public registry so OIDC publish targets npmjs.
+          # Do NOT set NODE_AUTH_TOKEN — trusted publishing uses the job OIDC
+          # token (id-token: write). An empty NODE_AUTH_TOKEN breaks publish.
           registry-url: 'https://registry.npmjs.org'
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
@@ -55,17 +61,14 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       # Headless remote daemon — same version as the Mac app. Enables:
       #   npx porcelain-daemon@latest serve --tailnet
-      # on a Beelink/Linux host without scp'ing dist-daemon. Skips cleanly when
-      # NPM_TOKEN is unset so a release still ships the Mac artifacts.
+      # Auth is OIDC trusted publishing (npm package settings → Trusted Publisher
+      # → GitHub Actions → workflow release.yml). No NPM_TOKEN secret.
+      # Requires npm CLI ≥ 11.5.1 (bundled with Node 22 may be older).
       - name: Publish porcelain-daemon to npm
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
-            echo "NPM_TOKEN not set — skipping npm publish of porcelain-daemon"
-            echo "Add a classic npm automation token as repo secret NPM_TOKEN to enable."
-            exit 0
-          fi
+          npm install -g npm@latest
+          npm --version
           pnpm daemon:dist
           # npm publish reads package.json name/version from dist-daemon/
+          # Provenance is generated automatically under trusted publishing.
           npm publish ./dist-daemon --access public
