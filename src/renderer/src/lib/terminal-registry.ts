@@ -1,4 +1,5 @@
 import '@xterm/xterm/css/xterm.css'
+import { type TerminalRenderer, usePreferencesStore } from '@renderer/stores/preferences'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebglAddon } from '@xterm/addon-webgl'
 import { Terminal } from '@xterm/xterm'
@@ -19,11 +20,17 @@ import { attachTouchScroll } from './terminal-touch-scroll'
  * (buffered until the instance exists, so nothing is lost in the gap between spawn and
  * first mount), and an exit → `receiveExit` writes a dim footer line. Keystrokes and
  * fit-driven resizes flow back out per instance.
+ *
+ * Paint path is a user preference (`preferences.terminalRenderer`): WebGL (default,
+ * crisp block glyphs) or DOM (most stable). xterm.js removed the Canvas addon in v6.
+ * Changing the preference rebuilds every live xterm in place (PTY stays up).
  */
 interface Instance {
   term: Terminal
   fit: FitAddon
   wrapper: HTMLDivElement
+  /** Paint path this instance was opened with — rebuild when the pref diverges. */
+  renderer: TerminalRenderer
   /** Tear down iPad touch→scrollLines listeners (absent on desktop). */
   disposeTouchScroll?: () => void
 }
@@ -36,6 +43,16 @@ const buffers = new Map<string, string[]>()
 // the full stream, and the live feed just resumes. Cleared on dispose (the session is
 // gone) so a future same-id session would seed cleanly.
 const seeded = new Set<string>()
+
+/** Resolved paint path for new instances (pref + multi-touch force-DOM). */
+function resolveRenderer(): TerminalRenderer {
+  const pref = usePreferencesStore.getState().terminalRenderer
+  // Multi-touch Apple devices (iPad/iPhone Safari) evict WebGL contexts under memory
+  // pressure — a blanked/garbled terminal is the norm there. Always take DOM on those
+  // devices regardless of the preference (the Settings copy explains this).
+  if (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 1) return 'dom'
+  return pref
+}
 
 // Display sleep/wake (and GPU context eviction) can lose the WebGL texture atlas without
 // firing onContextLoss, leaving terminals painting smeared/wrong-color cells when the
@@ -60,6 +77,14 @@ if (typeof window !== 'undefined' && window.visualViewport) {
     }, 100)
   })
 }
+
+// Preference change → rebuild every live xterm under the new paint path. PTYs keep
+// running; only the renderer-side instance is swapped. Plain-text scrollback is restored
+// (ANSI styling of history is lost on switch — live output keeps colors).
+usePreferencesStore.subscribe((state, prev) => {
+  if (state.terminalRenderer === prev.terminalRenderer) return
+  rebuildAllForRendererChange()
+})
 
 // The terminal faces load via font-display: swap, so term.open() can measure fallback-font
 // cell metrics before Geist Mono swaps in — glyphs then paint at a different advance width
@@ -128,7 +153,20 @@ export function receiveExit(id: string, exitCode: number): void {
   else buffers.set(id, [...(buffers.get(id) ?? []), footer])
 }
 
-function create(id: string): Instance {
+/** Plain-text dump of the active buffer for renderer rebuild (history colors not kept). */
+function snapshotText(term: Terminal): string {
+  const buffer = term.buffer.active
+  const lines: string[] = []
+  for (let row = 0; row < buffer.length; row++) {
+    lines.push(buffer.getLine(row)?.translateToString(true) ?? '')
+  }
+  // Drop trailing blank lines so a rebuild doesn't leave a tall empty tail.
+  while (lines.length > 0 && lines[lines.length - 1] === '') lines.pop()
+  return lines.join('\r\n')
+}
+
+function create(id: string, opts?: { cols: number; rows: number }): Instance {
+  const renderer = resolveRenderer()
   const term = new Terminal({
     // Geist Mono renders text; "Symbols Nerd Font Mono" is the per-glyph fallback so
     // powerline/devicon prompt glyphs render instead of tofu (see main.css @font-face).
@@ -140,6 +178,9 @@ function create(id: string): Instance {
     // extra leading would still reintroduce the horizontal gaps between block rows.
     lineHeight: 1.0,
     cursorBlink: true,
+    // Preserve geometry across a paint-path rebuild so the PTY isn't SIGWINCH'd to a
+    // different size for one frame (and so the restored scrollback lines wrap the same).
+    ...(opts ? { cols: opts.cols, rows: opts.rows } : {}),
     // Solid graphite, in the spirit of the app's neutral dark surfaces.
     theme: {
       background: '#16161a',
@@ -166,14 +207,9 @@ function create(id: string): Instance {
     helper.setAttribute('autocomplete', 'off')
     helper.setAttribute('spellcheck', 'false')
   }
-  // Multi-touch Apple devices (iPad/iPhone Safari) evict WebGL contexts per-page under memory
-  // pressure, and each terminal session owns one — so a blanked/garbled terminal is the norm
-  // there. Take the DOM renderer instead: slower and it can't paint block-element art
-  // edge-to-edge, but it never blanks. Desktop Electron (maxTouchPoints 0) always takes the
-  // WebGL path below.
-  const coarseTouch = navigator.maxTouchPoints > 1
+
   let usesWebgl = false
-  if (!coarseTouch) {
+  if (renderer === 'webgl') {
     // GPU renderer: its customGlyphs paint box-drawing/block-element chars edge-to-edge
     // (crisp Claude Code logo + powerline fills), which the DOM renderer can't — it leaves
     // a letter-spacing gap between every block column. Glyphs are still rasterized via canvas
@@ -189,10 +225,13 @@ function create(id: string): Instance {
       // No WebGL context available — stay on the DOM renderer.
     }
   }
+  // renderer === 'dom': no addon — xterm's built-in DOM path.
+
   // xterm 6 scrolls via SmoothScrollableElement, which only listens for wheel events —
   // iOS Safari never fires those for finger pans, so the page steals the gesture. Convert
   // vertical touch pans into scrollLines and preventDefault so the browser client can't
   // rubber-band the shell. Desktop keeps the wheel path (no listeners attached).
+  const coarseTouch = typeof navigator !== 'undefined' && navigator.maxTouchPoints > 1
   const disposeTouchScroll = coarseTouch
     ? attachTouchScroll(
         (lines) => term.scrollLines(lines),
@@ -236,7 +275,7 @@ function create(id: string): Instance {
     return true
   })
 
-  const instance: Instance = { term, fit, wrapper, disposeTouchScroll }
+  const instance: Instance = { term, fit, wrapper, renderer, disposeTouchScroll }
   instances.set(id, instance)
   const buffered = buffers.get(id)
   if (buffered) {
@@ -249,9 +288,59 @@ function create(id: string): Instance {
   return instance
 }
 
+/**
+ * Tear down one instance's xterm without clearing the seed bookkeeping or the
+ * early-output buffer — used when swapping paint paths so live PTY output still
+ * lands on the replacement, and a later reconnect doesn't re-seed scrollback.
+ */
+function disposeInstanceShell(id: string): {
+  parent: HTMLElement | null
+  text: string
+  cols: number
+  rows: number
+} | null {
+  const instance = instances.get(id)
+  if (!instance) return null
+  const parent = instance.wrapper.parentElement
+  const text = snapshotText(instance.term)
+  const { cols, rows } = instance.term
+  instance.disposeTouchScroll?.()
+  instance.term.dispose()
+  instance.wrapper.remove()
+  instances.delete(id)
+  return { parent, text, cols, rows }
+}
+
+/** Rebuild every live xterm under the current preference (PTY sessions untouched). */
+function rebuildAllForRendererChange(): void {
+  const desired = resolveRenderer()
+  for (const id of [...instances.keys()]) {
+    const current = instances.get(id)
+    if (!current || current.renderer === desired) continue
+    const snap = disposeInstanceShell(id)
+    if (!snap) continue
+    const next = create(id, { cols: snap.cols, rows: snap.rows })
+    if (snap.text !== '') next.term.write(snap.text)
+    if (snap.parent) {
+      snap.parent.appendChild(next.wrapper)
+      next.fit.fit()
+      if (next.renderer === 'webgl') next.term.clearTextureAtlas()
+    }
+  }
+}
+
 /** Re-parent the session's terminal into `container`, size it, and focus it. */
 export function attachTerminal(id: string, container: HTMLElement): void {
-  const instance = instances.get(id) ?? create(id)
+  let instance = instances.get(id)
+  // Pref may have changed while this session had no live xterm (tab closed); honor it
+  // on first (re)create. If an instance exists under a stale paint path, rebuild first.
+  if (instance && instance.renderer !== resolveRenderer()) {
+    const snap = disposeInstanceShell(id)
+    instance = create(id, snap ? { cols: snap.cols, rows: snap.rows } : undefined)
+    if (snap?.text) instance.term.write(snap.text)
+  } else {
+    instance = instance ?? create(id)
+  }
   container.appendChild(instance.wrapper)
   // The wrapper now has layout — fit measures it and onResize tells the PTY.
   instance.fit.fit()

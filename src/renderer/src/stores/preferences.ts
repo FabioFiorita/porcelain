@@ -6,6 +6,11 @@ export type ChangesScope = 'working' | 'branch'
 export type DiffMode = 'unified' | 'split'
 export type MarkdownMode = 'reader' | 'source'
 export type PullMode = 'merge' | 'rebase'
+/**
+ * How the embedded terminal paints cells (xterm.js renderer).
+ * Canvas was removed upstream in xterm v6 — only WebGL and DOM remain.
+ */
+export type TerminalRenderer = 'webgl' | 'dom'
 export type SidebarTab =
   | 'files'
   | 'changes'
@@ -30,6 +35,11 @@ interface PreferencesState {
   markdownMode: MarkdownMode
   /** Strategy the `git pull` quick command uses (`--no-rebase` vs `--rebase`). */
   pullMode: PullMode
+  /**
+   * Embedded terminal paint path. Default `webgl` for crisp block glyphs; switch
+   * to `dom` if text ever garbles (WebGL atlas corruption). Applied live.
+   */
+  terminalRenderer: TerminalRenderer
   rightSidebarOpen: boolean
   rightSidebarWidth: number
   sidebarTab: SidebarTab
@@ -47,6 +57,7 @@ interface PreferencesState {
   setDiffMode: (mode: DiffMode) => void
   setMarkdownMode: (mode: MarkdownMode) => void
   setPullMode: (mode: PullMode) => void
+  setTerminalRenderer: (renderer: TerminalRenderer) => void
   setSidebarTab: (tab: SidebarTab) => void
   setRightSidebarOpen: (open: boolean) => void
   setRightSidebarWidth: (width: number) => void
@@ -64,6 +75,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       diffMode: 'unified',
       markdownMode: 'reader',
       pullMode: 'merge',
+      terminalRenderer: 'webgl',
       rightSidebarOpen: true,
       rightSidebarWidth: 272,
       sidebarTab: 'files',
@@ -78,6 +90,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       setDiffMode: (diffMode) => set({ diffMode }),
       setMarkdownMode: (markdownMode) => set({ markdownMode }),
       setPullMode: (pullMode) => set({ pullMode }),
+      setTerminalRenderer: (terminalRenderer) => set({ terminalRenderer }),
       setSidebarTab: (sidebarTab) => set({ sidebarTab }),
       setRightSidebarOpen: (rightSidebarOpen) => set({ rightSidebarOpen }),
       setRightSidebarWidth: (width) =>

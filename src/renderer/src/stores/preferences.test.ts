@@ -13,3 +13,16 @@ describe('usePreferencesStore — pullMode', () => {
     expect(usePreferencesStore.getState().pullMode).toBe('rebase')
   })
 })
+
+describe('usePreferencesStore — terminalRenderer', () => {
+  beforeEach(() => usePreferencesStore.setState({ terminalRenderer: 'webgl' }))
+
+  it('defaults to webgl', () => {
+    expect(usePreferencesStore.getState().terminalRenderer).toBe('webgl')
+  })
+
+  it('setTerminalRenderer switches the paint path', () => {
+    usePreferencesStore.getState().setTerminalRenderer('dom')
+    expect(usePreferencesStore.getState().terminalRenderer).toBe('dom')
+  })
+})

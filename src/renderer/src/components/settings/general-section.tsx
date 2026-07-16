@@ -16,16 +16,39 @@ import {
 import { useCopyRepoSettingsOnDaemon, useSeedFromLocalMac } from '@renderer/hooks/use-repo-settings'
 import { useSetTailnetBind, useTailnetStatus } from '@renderer/hooks/use-tailnet'
 import { isBrowser } from '@renderer/lib/platform'
-import { copyText } from '@renderer/lib/utils'
+import { cn, copyText } from '@renderer/lib/utils'
 import {
   type DiffMode,
   type MarkdownMode,
   type PullMode,
+  type TerminalRenderer,
   usePreferencesStore,
 } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
 import { X } from 'lucide-react'
 import { useState } from 'react'
+
+const TERMINAL_RENDERERS: {
+  value: TerminalRenderer
+  label: string
+  badge?: string
+  description: string
+}[] = [
+  {
+    value: 'webgl',
+    label: 'WebGL',
+    badge: 'Default',
+    description:
+      'GPU-accelerated. Crisp Claude Code logo and powerline block glyphs. Can occasionally garble text (texture-atlas corruption) — switch tabs, hide the window, or pick DOM to recover.',
+  },
+  {
+    value: 'dom',
+    label: 'DOM',
+    badge: 'Most stable',
+    description:
+      'Renders with ordinary HTML. Never garbles. Slightly slower on heavy output; block-drawing art shows thin gaps between cells. Prefer this if WebGL has been glitching.',
+  },
+]
 
 function PreferenceRow({
   label,
@@ -343,6 +366,8 @@ export function GeneralSection(): React.JSX.Element {
   const setMarkdownMode = usePreferencesStore((s) => s.setMarkdownMode)
   const pullMode = usePreferencesStore((s) => s.pullMode)
   const setPullMode = usePreferencesStore((s) => s.setPullMode)
+  const terminalRenderer = usePreferencesStore((s) => s.terminalRenderer)
+  const setTerminalRenderer = usePreferencesStore((s) => s.setTerminalRenderer)
   const tailnet = useTailnetStatus()
   const { setEnabled: setTailnetEnabled } = useSetTailnetBind()
   const lan = useLanStatus()
@@ -398,6 +423,55 @@ export function GeneralSection(): React.JSX.Element {
           </ToggleGroupItem>
         </ToggleGroup>
       </PreferenceRow>
+      <div className="flex flex-col gap-2">
+        <div>
+          <p className="text-sm-minus font-semibold">Terminal display</p>
+          <p className="text-xs text-muted-foreground">
+            How the embedded terminal paints cells. Applies immediately to open sessions (history
+            colors reset on switch; the shell keeps running). Canvas is no longer available —
+            xterm.js removed it in v6. On iPad, WebGL always falls back to DOM.
+          </p>
+        </div>
+        <div className="flex flex-col gap-2">
+          {TERMINAL_RENDERERS.map((option) => {
+            const selected = terminalRenderer === option.value
+            const inputId = `terminal-renderer-${option.value}`
+            return (
+              <label
+                key={option.value}
+                htmlFor={inputId}
+                className={cn(
+                  'flex cursor-pointer items-start gap-2.5 rounded-md border px-3 py-2.5 text-left transition-colors',
+                  selected
+                    ? 'border-white/20 bg-(--selected-fill)'
+                    : 'border-border/60 bg-transparent hover:bg-(--hover-fill)',
+                )}
+              >
+                <input
+                  id={inputId}
+                  type="radio"
+                  name="terminal-renderer"
+                  value={option.value}
+                  checked={selected}
+                  onChange={() => setTerminalRenderer(option.value)}
+                  className="mt-0.5 size-3.5 shrink-0 accent-foreground"
+                />
+                <span className="flex min-w-0 flex-col gap-1">
+                  <span className="flex items-center gap-2">
+                    <span className="text-sm-minus font-semibold">{option.label}</span>
+                    {option.badge != null && (
+                      <span className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+                        {option.badge}
+                      </span>
+                    )}
+                  </span>
+                  <span className="text-xs text-muted-foreground">{option.description}</span>
+                </span>
+              </label>
+            )
+          })}
+        </div>
+      </div>
       <div className="flex flex-col gap-2">
         <PreferenceRow
           label="Share over Tailscale"
