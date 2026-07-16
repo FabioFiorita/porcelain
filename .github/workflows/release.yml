@@ -100,22 +100,47 @@ jobs:
         run: |
           set -euo pipefail
           echo "GITHUB_ACTIONS=${GITHUB_ACTIONS:-}"
-          echo "OIDC url set: ${ACTIONS_ID_TOKEN_REQUEST_URL:+yes}"
+          echo "ref=${GITHUB_REF:-}  workflow=${GITHUB_WORKFLOW:-}  event=${GITHUB_EVENT_NAME:-}"
           if [ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ] || [ -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}" ]; then
             echo "OIDC env missing — need permissions.id-token: write on a GitHub-hosted runner"
+            exit 1
+          fi
+          # Probe the OIDC exchange ourselves so a silent npm failure is diagnosable
+          # (npm's oidc() swallows exchange errors and only later throws ENEEDAUTH).
+          AUDIENCE="npm:registry.npmjs.org"
+          export ID_TOKEN="$(curl -fsSL -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${AUDIENCE}" | python3 -c 'import sys,json; print(json.load(sys.stdin)["value"])')"
+          # Decode claims (no verify) for the Trusted Publisher match fields.
+          python3 - <<'PY'
+import os, json, base64
+tok = os.environ["ID_TOKEN"]
+payload = tok.split(".")[1] + "=="
+claims = json.loads(base64.urlsafe_b64decode(payload))
+for k in ("sub", "repository", "repository_owner", "repository_visibility",
+          "workflow", "workflow_ref", "job_workflow_ref", "ref", "event_name", "actor"):
+    if k in claims:
+        print(f"oidc claim {k}={claims[k]}")
+PY
+          EXCHANGE_CODE="$(curl -sS -o /tmp/oidc-exchange.json -w '%{http_code}' -X POST \
+            -H "Authorization: Bearer ${ID_TOKEN}" \
+            -H "Accept: application/json" \
+            "https://registry.npmjs.org/-/npm/v1/oidc/token/exchange/package/porcelain-daemon")"
+          echo "oidc exchange HTTP ${EXCHANGE_CODE}"
+          cat /tmp/oidc-exchange.json
+          echo
+          if [ "$EXCHANGE_CODE" != "200" ] && [ "$EXCHANGE_CODE" != "201" ]; then
+            echo "::error::npm OIDC token exchange failed — Trusted Publisher claim mismatch or package config"
             exit 1
           fi
           # First OIDC-capable line (docs floor). Avoid npm@latest (12.x) until stable.
           npm install -g npm@11.5.2
           npm --version
           pnpm daemon:dist
-          # Publish from inside the package dir so npm resolves package.json cleanly.
-          # Clean userconfig: only the public registry, no always-auth / token lines.
           cd dist-daemon
           PUBLISH_NPMRC="$(mktemp)"
           printf 'registry=https://registry.npmjs.org/\n' > "$PUBLISH_NPMRC"
           unset NODE_AUTH_TOKEN || true
           export NPM_CONFIG_USERCONFIG="$PUBLISH_NPMRC"
-          # Provenance is automatic under trusted publishing — no --provenance flag.
-          npm publish --access public
+          # Verbose so oidc() logs exchange success/failure instead of silent skip.
+          npm publish --access public --loglevel verbose
           rm -f "$PUBLISH_NPMRC"
