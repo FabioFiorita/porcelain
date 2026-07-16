@@ -5,9 +5,24 @@ name: Release
 # electron-builder publishes the dmg + zip to a GitHub Release and writes the
 # latest-mac.yml feed that electron-updater reads. After that, the same job
 # publishes porcelain-daemon to npm via OIDC trusted publishing (no NPM_TOKEN).
+#
+# workflow_dispatch: re-publish porcelain-daemon for an existing tag (e.g. when
+# the Mac assets already landed but npm OIDC failed). Keeps the workflow
+# *filename* `release.yml` so the npm Trusted Publisher still matches.
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to (re)publish porcelain-daemon for (e.g. v0.25.0)'
+        required: true
+        type: string
+      npm_only:
+        description: 'Skip Mac build/e2e/GitHub Release; only publish porcelain-daemon'
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -20,6 +35,9 @@ jobs:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v5
+        with:
+          # Tag push: the pushed ref. Dispatch: the requested existing tag.
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
       - uses: pnpm/action-setup@v5
       - uses: actions/setup-node@v5
         with:
@@ -27,25 +45,40 @@ jobs:
           cache: pnpm
           # Points npm at the public registry so OIDC publish targets npmjs.
           # Do NOT set NODE_AUTH_TOKEN — trusted publishing uses the job OIDC
-          # token (id-token: write). An empty NODE_AUTH_TOKEN breaks publish.
+          # token (id-token: write). setup-node still injects a dummy token when
+          # registry-url is set; the publish step clears it (see below).
           registry-url: 'https://registry.npmjs.org'
       - run: pnpm install --frozen-lockfile
-      - run: pnpm lint
-      - run: pnpm test
-      - run: pnpm build
-      - run: pnpm exec playwright install --with-deps chromium
-      - run: pnpm test:e2e:prebuilt
+      # daemon:dist needs out/main/daemon/server.js — always build. Full gate + e2e only on
+      # a real tag release (or a dispatch that opts out of npm_only).
+      - name: Lint / test / build
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.npm_only != true }}
+        run: |
+          pnpm lint
+          pnpm test
+          pnpm build
+      - name: Build (npm-only re-publish)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.npm_only == true }}
+        run: pnpm build
+      - name: E2E (prebuilt)
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.npm_only != true }}
+        run: |
+          pnpm exec playwright install --with-deps chromium
+          pnpm test:e2e:prebuilt
       # Pre-create the draft release so electron-builder reuses it. Without this,
       # its dmg and zip uploaders run concurrently, both see "no release exists",
       # and each creates its own draft — splitting assets across two releases.
       - name: Ensure draft release exists
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.npm_only != true }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 \
-            || gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
-                 --draft --title "Porcelain ${GITHUB_REF_NAME#v}" --generate-notes
+          TAG="${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}"
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 \
+            || gh release create "$TAG" --repo "$GITHUB_REPOSITORY" \
+                 --draft --title "Porcelain ${TAG#v}" --generate-notes
       - name: Build and publish to GitHub Releases
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.npm_only != true }}
         run: pnpm release:prebuilt
         env:
           # Auto-provided; electron-builder reads GH_TOKEN for the github provider.
@@ -68,7 +101,14 @@ jobs:
         run: |
           npm install -g npm@latest
           npm --version
+          # actions/setup-node with registry-url always writes a dummy
+          # NODE_AUTH_TOKEN + _authToken into the user npmrc when no secret is set.
+          # That dummy token is preferred over the job OIDC credential and npm
+          # returns a misleading 404 on PUT. Clear both so trusted publishing works.
+          # (Caught on v0.25.0 — first release that actually reached this step.)
+          unset NODE_AUTH_TOKEN
+          npm config delete "//registry.npmjs.org/:_authToken" || true
           pnpm daemon:dist
           # npm publish reads package.json name/version from dist-daemon/
           # Provenance is generated automatically under trusted publishing.
-          npm publish ./dist-daemon --access public
+          npm publish ./dist-daemon --access public --provenance
