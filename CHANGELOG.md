@@ -1,3 +1,14 @@
+## [0.27.0](https://github.com/FabioFiorita/porcelain/compare/v0.26.1...v0.27.0) (2026-07-16)
+
+### Features
+
+* add loop evidence — ephemeral validation proof in the Feature tab ([6b020d5](https://github.com/FabioFiorita/porcelain/commit/6b020d550d5ecea321fbe4c252f1a4a993f9edfb))
+* reorganize Settings — Environments tab, disk MCP probe, Grok ([bd9e42e](https://github.com/FabioFiorita/porcelain/commit/bd9e42e832237c324bab6c281b5355cfcc538a17))
+
+### Bug Fixes
+
+* tighten Settings type hierarchy across all tabs ([a5744c1](https://github.com/FabioFiorita/porcelain/commit/a5744c1af02affefb03cf742ba1567455f647b85))
+
 ## [0.26.1](https://github.com/FabioFiorita/porcelain/compare/v0.26.0...v0.26.1) (2026-07-16)
 
 ## [0.26.0](https://github.com/FabioFiorita/porcelain/compare/v0.25.1...v0.26.0) (2026-07-16)
