@@ -4,6 +4,10 @@ import { copyText } from '@renderer/lib/utils'
 import { Check, Copy } from 'lucide-react'
 import { useState } from 'react'
 
+/**
+ * Command blocks only — the parent Agents "Skills" group owns the section title
+ * and blurb so this doesn't re-introduce the same-weight heading underneath.
+ */
 export function SkillsSection(): React.JSX.Element {
   const info = useSkillsInfo()
   const [copiedInstall, setCopiedInstall] = useState(false)
@@ -20,26 +24,13 @@ export function SkillsSection(): React.JSX.Element {
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
-      <div className="min-w-0">
-        <h4 className="text-sm-minus font-semibold">Install skills</h4>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          Porcelain's companion skills are distributed via{' '}
-          <a
-            href="https://www.skills.sh"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline underline-offset-2"
-          >
-            skills.sh
-          </a>
-          . Run the command below from any repo (choose global or project-local when prompted).
-          {info?.version ? ` Current bundle: v${info.version}.` : ''}
-        </p>
-      </div>
+      {info?.version != null && (
+        <p className="text-xs text-muted-foreground">Current bundle: v{info.version}.</p>
+      )}
 
       <div className="min-w-0">
         <div className="mb-1.5 flex items-center justify-between">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          <p className="text-2xs font-medium tracking-wider text-muted-foreground uppercase">
             Add skills
           </p>
           <Button
@@ -59,7 +50,7 @@ export function SkillsSection(): React.JSX.Element {
 
       <div className="min-w-0">
         <div className="mb-1.5 flex items-center justify-between">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          <p className="text-2xs font-medium tracking-wider text-muted-foreground uppercase">
             Upgrade skills
           </p>
           <Button

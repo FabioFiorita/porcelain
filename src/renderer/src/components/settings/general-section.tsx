@@ -30,6 +30,12 @@ const TERMINAL_RENDERERS: {
   },
 ]
 
+/**
+ * Settings type scale (page title lives on the dialog header):
+ * - Control label: text-sm-minus font-medium
+ * - Nested option: text-xs font-medium
+ * - Description: text-xs text-muted-foreground
+ */
 function PreferenceRow({
   label,
   description,
@@ -41,8 +47,8 @@ function PreferenceRow({
 }): React.JSX.Element {
   return (
     <div className="flex items-center justify-between gap-4">
-      <div>
-        <p className="text-sm-minus font-semibold">{label}</p>
+      <div className="min-w-0">
+        <p className="text-sm-minus font-medium">{label}</p>
         <p className="text-xs text-muted-foreground">{description}</p>
       </div>
       {children}
@@ -113,14 +119,14 @@ export function GeneralSection(): React.JSX.Element {
       </PreferenceRow>
       <div className="flex flex-col gap-2">
         <div>
-          <p className="text-sm-minus font-semibold">Terminal display</p>
+          <p className="text-sm-minus font-medium">Terminal display</p>
           <p className="text-xs text-muted-foreground">
             How the embedded terminal paints cells. Applies immediately to open sessions (history
             colors reset on switch; the shell keeps running). Canvas is no longer available —
             xterm.js removed it in v6. On iPad, WebGL always falls back to DOM.
           </p>
         </div>
-        <div className="flex flex-col gap-2">
+        <div className="divide-y divide-border/60 overflow-hidden rounded-md border border-border/60">
           {TERMINAL_RENDERERS.map((option) => {
             const selected = terminalRenderer === option.value
             const inputId = `terminal-renderer-${option.value}`
@@ -129,10 +135,8 @@ export function GeneralSection(): React.JSX.Element {
                 key={option.value}
                 htmlFor={inputId}
                 className={cn(
-                  'flex cursor-pointer items-start gap-2.5 rounded-md border px-3 py-2.5 text-left transition-colors',
-                  selected
-                    ? 'border-white/20 bg-(--selected-fill)'
-                    : 'border-border/60 bg-transparent hover:bg-(--hover-fill)',
+                  'flex cursor-pointer items-start gap-2.5 px-3 py-2.5 text-left transition-colors',
+                  selected ? 'bg-(--selected-fill)' : 'hover:bg-(--hover-fill)',
                 )}
               >
                 <input
@@ -144,9 +148,9 @@ export function GeneralSection(): React.JSX.Element {
                   onChange={() => setTerminalRenderer(option.value)}
                   className="mt-0.5 size-3.5 shrink-0 accent-foreground"
                 />
-                <span className="flex min-w-0 flex-col gap-1">
+                <span className="flex min-w-0 flex-col gap-0.5">
                   <span className="flex items-center gap-2">
-                    <span className="text-sm-minus font-semibold">{option.label}</span>
+                    <span className="text-xs font-medium">{option.label}</span>
                     {option.badge != null && (
                       <span className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
                         {option.badge}

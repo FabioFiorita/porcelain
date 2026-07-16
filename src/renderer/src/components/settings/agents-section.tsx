@@ -149,14 +149,14 @@ const LIMITS_REFRESH_LABEL: Record<LimitsRefresh, string> = {
   manual: 'Manually',
 }
 
-/** The Limits-group poll cadence — a global setting, since a slow provider fetch can spawn a CLI. */
+/** The Limits-group poll cadence — a control under Providers, not a peer section title. */
 function LimitsRefreshRow(): React.JSX.Element {
   const value = useLimitsRefresh()
   const { set } = useSetLimitsRefresh()
   return (
     <div className="flex items-center justify-between gap-4">
       <div className="min-w-0">
-        <p className="text-sm-minus font-semibold">Limits refresh</p>
+        <p className="text-sm-minus font-medium">Limits refresh</p>
         <p className="text-xs text-muted-foreground">
           How often the Agent panel re-checks provider usage limits. Some providers read them by
           running a CLI, so a slower cadence spawns fewer processes.
@@ -203,29 +203,47 @@ function LimitsRefreshRow(): React.JSX.Element {
   )
 }
 
+/** Group section title — one step above control labels (see General PreferenceRow). */
+function SectionHeading({
+  title,
+  blurb,
+  action,
+}: {
+  title: string
+  blurb: string
+  action?: React.ReactNode
+}): React.JSX.Element {
+  return (
+    <div className="flex items-start justify-between gap-2">
+      <div className="min-w-0">
+        <h3 className="text-sm font-semibold tracking-tight">{title}</h3>
+        <p className="mt-0.5 text-xs text-muted-foreground">{blurb}</p>
+      </div>
+      {action}
+    </div>
+  )
+}
+
 export function AgentsSection(): React.JSX.Element {
   const { refresh, isPending } = useRefreshAgentProviders()
   return (
     <div className="flex min-w-0 flex-col gap-8">
       <section className="flex min-w-0 flex-col gap-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <h3 className="text-sm-minus font-semibold">Providers</h3>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              The coding-agent CLIs Porcelain can run threads on — whether each is installed and
-              signed in on the daemon's machine.
-            </p>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Refresh providers"
-            disabled={isPending}
-            onClick={refresh}
-          >
-            <RefreshCw className={isPending ? 'animate-spin' : undefined} />
-          </Button>
-        </div>
+        <SectionHeading
+          title="Providers"
+          blurb="The coding-agent CLIs Porcelain can run threads on — whether each is installed and signed in on the daemon's machine."
+          action={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Refresh providers"
+              disabled={isPending}
+              onClick={refresh}
+            >
+              <RefreshCw className={isPending ? 'animate-spin' : undefined} />
+            </Button>
+          }
+        />
         <ProvidersBlock />
         <LimitsRefreshRow />
       </section>
@@ -233,29 +251,20 @@ export function AgentsSection(): React.JSX.Element {
       <Separator />
 
       <section className="flex min-w-0 flex-col gap-3">
-        <div className="min-w-0">
-          <h3 className="text-sm-minus font-semibold">Skills</h3>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Porcelain's companion skills teach your agent how to push feature reviews, read
-            comments, manage the board, curate actions, and author artifacts. They ship through{' '}
-            <span className="font-medium">skills.sh</span> and update independently of the MCP
-            server.
-          </p>
-        </div>
+        <SectionHeading
+          title="Skills"
+          blurb="Companion skills teach your agent how to push feature reviews, read comments, manage the board, curate actions, and author artifacts. They ship through skills.sh and update independently of the MCP server."
+        />
         <SkillsSection />
       </section>
 
       <Separator />
 
       <section className="flex min-w-0 flex-col gap-3">
-        <div className="min-w-0">
-          <h3 className="text-sm-minus font-semibold">MCP</h3>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            The Porcelain MCP server gives your agent the actual tools — set_feature_review,
-            list_cards, create_action, and the rest. One button writes the config for Claude Code,
-            Codex, OpenCode, or Grok. Status is read from each agent&apos;s config file on disk.
-          </p>
-        </div>
+        <SectionHeading
+          title="MCP"
+          blurb="Writes the Porcelain MCP server into each agent's config on the active daemon host (this Mac, or a remote like the Beelink). Status is read from each config file on disk — add only the agents you use."
+        />
         <AgentMcpSection />
       </section>
     </div>

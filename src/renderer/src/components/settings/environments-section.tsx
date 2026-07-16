@@ -93,14 +93,21 @@ function ShareToggleRow({
   numericUrl?: string | null
   emptyHint: string
 }): React.JSX.Element {
+  // Nested under a section heading — labels stay medium (not semibold) so the
+  // group title is the only bold step at this size.
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2 px-3 py-3">
       <div className="flex items-center justify-between gap-4">
-        <div>
-          <p className="text-sm-minus font-semibold">{label}</p>
+        <div className="min-w-0">
+          <p className="text-sm-minus font-medium">{label}</p>
           <p className="text-xs text-muted-foreground">{description}</p>
         </div>
-        <Switch checked={checked} disabled={disabled} onCheckedChange={onCheckedChange} />
+        <Switch
+          checked={checked}
+          disabled={disabled}
+          onCheckedChange={onCheckedChange}
+          className="shrink-0"
+        />
       </div>
       {envForcedLabel != null && <p className="text-xs text-muted-foreground">{envForcedLabel}</p>}
       {url != null && <ShareReveal url={url} numericUrl={numericUrl} />}
@@ -135,8 +142,8 @@ function SavedEnvironmentsBlock(): React.JSX.Element {
   return (
     <div className="flex flex-col gap-3">
       <div>
-        <p className="text-sm-minus font-semibold">Saved environments</p>
-        <p className="text-xs text-muted-foreground">
+        <h3 className="text-sm font-semibold tracking-tight">Saved environments</h3>
+        <p className="mt-0.5 text-xs text-muted-foreground">
           Each window can use a different daemon — local project in one, remote in another. Use here
           reloads this window; New window opens a fresh one on that environment.
         </p>
@@ -145,7 +152,7 @@ function SavedEnvironmentsBlock(): React.JSX.Element {
       <ul className="flex flex-col gap-2">
         <li className="flex items-center justify-between gap-3 rounded-md bg-card p-3">
           <div className="min-w-0">
-            <p className="text-sm-minus font-semibold">This device</p>
+            <p className="text-sm-minus font-medium">This device</p>
             <p className="text-xs text-muted-foreground">Local daemon on this Mac</p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -174,7 +181,7 @@ function SavedEnvironmentsBlock(): React.JSX.Element {
               className="flex items-center justify-between gap-3 rounded-md bg-card p-3"
             >
               <div className="min-w-0">
-                <p className="text-sm-minus font-semibold">{env.name}</p>
+                <p className="text-sm-minus font-medium">{env.name}</p>
                 <p className="truncate font-mono text-xs text-muted-foreground">{env.url}</p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
@@ -221,7 +228,9 @@ function SavedEnvironmentsBlock(): React.JSX.Element {
 
       {showAdd ? (
         <div className="flex flex-col gap-2 rounded-md border border-border/60 p-3">
-          <p className="text-xs font-medium">Add environment</p>
+          <p className="text-2xs font-medium tracking-wider text-muted-foreground uppercase">
+            Add environment
+          </p>
           <Input
             placeholder="Name (e.g. Beelink)"
             value={name}
@@ -303,7 +312,8 @@ function SeedRepoSettingsBlock(): React.JSX.Element {
   return (
     <div className="flex flex-col gap-3 border-t border-border/60 pt-3">
       <div>
-        <p className="text-sm-minus font-semibold">Copy repo settings to this environment</p>
+        {/* Nested under Saved environments — control-weight, not a peer group title. */}
+        <p className="text-sm-minus font-medium">Copy repo settings to this environment</p>
         <p className="text-xs text-muted-foreground">
           Seeds actions (commands), notes, board cards, flow layers, and review comments onto the
           open remote repo. Replaces those channels on the target path — never a silent merge.
@@ -315,7 +325,9 @@ function SeedRepoSettingsBlock(): React.JSX.Element {
         <>
           <p className="truncate font-mono text-xs text-muted-foreground">Target: {targetPath}</p>
           <div className="flex flex-col gap-2">
-            <p className="text-xs font-medium">From this Mac</p>
+            <p className="text-2xs font-medium tracking-wider text-muted-foreground uppercase">
+              From this Mac
+            </p>
             <Input
               placeholder="/Users/you/Code/my-project"
               value={localPath}
@@ -341,7 +353,9 @@ function SeedRepoSettingsBlock(): React.JSX.Element {
             {seedError != null && <p className="text-xs text-destructive">{seedError}</p>}
           </div>
           <div className="flex flex-col gap-2">
-            <p className="text-xs font-medium">Remap a path on this daemon</p>
+            <p className="text-2xs font-medium tracking-wider text-muted-foreground uppercase">
+              Remap a path on this daemon
+            </p>
             <Input
               placeholder="/other/path/on/daemon"
               value={fromPath}
@@ -384,44 +398,47 @@ export function EnvironmentsSection(): React.JSX.Element {
 
   return (
     <div className="flex flex-col gap-8">
-      <section className="flex flex-col gap-4">
+      <section className="flex flex-col gap-3">
+        {/* Group title one step above the control labels (sm + semibold vs sm-minus + medium). */}
         <div>
-          <h3 className="text-sm-minus font-semibold">Share this device</h3>
+          <h3 className="text-sm font-semibold tracking-tight">Share this device</h3>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Let other devices reach this daemon over Tailscale or your LAN. Always token-gated.
           </p>
         </div>
-        <ShareToggleRow
-          label="Share over Tailscale"
-          description="Other devices on your tailnet — WireGuard-encrypted."
-          checked={tailnet?.enabled ?? false}
-          disabled={tailnet?.envForced ?? false}
-          onCheckedChange={(checked) => setTailnetEnabled(checked)}
-          envForcedLabel={
-            tailnet?.envForced === true ? 'Enabled via PORCELAIN_TAILNET_BIND (env)' : undefined
-          }
-          url={tailnet?.url}
-          emptyHint={
-            tailnet?.error === 'in-use'
-              ? 'Port 43117 is in use — another daemon may still be running.'
-              : 'No Tailscale interface found'
-          }
-        />
-        <ShareToggleRow
-          label="Share on local network"
-          description="Same Wi-Fi / LAN — token-gated, traffic is unencrypted on the wire."
-          checked={lan?.enabled ?? false}
-          disabled={lan?.envForced ?? false}
-          onCheckedChange={(checked) => setLanEnabled(checked)}
-          envForcedLabel={lan?.envForced === true ? 'Enabled via PORCELAIN_LAN_BIND' : undefined}
-          url={lan?.url}
-          numericUrl={lan?.numericUrl}
-          emptyHint={
-            lan?.error === 'in-use'
-              ? 'Port 43117 is in use — another daemon may still be running.'
-              : 'No local network interface found'
-          }
-        />
+        <div className="divide-y divide-border/60 overflow-hidden rounded-md border border-border/60">
+          <ShareToggleRow
+            label="Share over Tailscale"
+            description="Other devices on your tailnet — WireGuard-encrypted."
+            checked={tailnet?.enabled ?? false}
+            disabled={tailnet?.envForced ?? false}
+            onCheckedChange={(checked) => setTailnetEnabled(checked)}
+            envForcedLabel={
+              tailnet?.envForced === true ? 'Enabled via PORCELAIN_TAILNET_BIND (env)' : undefined
+            }
+            url={tailnet?.url}
+            emptyHint={
+              tailnet?.error === 'in-use'
+                ? 'Port 43117 is in use — another daemon may still be running.'
+                : 'No Tailscale interface found'
+            }
+          />
+          <ShareToggleRow
+            label="Share on local network"
+            description="Same Wi-Fi / LAN — token-gated, traffic is unencrypted on the wire."
+            checked={lan?.enabled ?? false}
+            disabled={lan?.envForced ?? false}
+            onCheckedChange={(checked) => setLanEnabled(checked)}
+            envForcedLabel={lan?.envForced === true ? 'Enabled via PORCELAIN_LAN_BIND' : undefined}
+            url={lan?.url}
+            numericUrl={lan?.numericUrl}
+            emptyHint={
+              lan?.error === 'in-use'
+                ? 'Port 43117 is in use — another daemon may still be running.'
+                : 'No local network interface found'
+            }
+          />
+        </div>
       </section>
 
       {!isBrowser && (

@@ -9,25 +9,18 @@ const AGENT_LABELS: Record<string, string> = {
   grok: 'Grok',
 }
 
+/**
+ * Agent rows only — the parent Agents "MCP" group owns the section title/blurb
+ * so we don't stack another same-weight heading under it.
+ */
 export function AgentMcpSection(): React.JSX.Element {
   const info = useAgentMcpInfo()
   const { install, isInstalling, result, error } = useInstallAgentMcp()
 
   return (
-    <div className="flex min-w-0 flex-col gap-4">
-      <div className="min-w-0">
-        <h4 className="text-sm-minus font-semibold">Add MCP</h4>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          Writes the Porcelain MCP server into each agent&apos;s config on the{' '}
-          <span className="font-medium text-foreground">active daemon host</span> (this Mac, or a
-          remote like the Beelink) so agents there can call the review, board, action, note, layer,
-          artifact, and evidence tools. Status is read from each config file on disk. Add only the
-          agents you use.
-        </p>
-      </div>
-
+    <div className="flex min-w-0 flex-col gap-3">
       {info?.agents && (
-        <ul className="flex min-w-0 flex-col gap-3">
+        <ul className="flex min-w-0 flex-col gap-2">
           {info.agents.map((agent) => {
             const isConfigured = agent.configured
             return (
@@ -36,13 +29,13 @@ export function AgentMcpSection(): React.JSX.Element {
                 className="flex min-w-0 items-center justify-between gap-3 rounded-md bg-card p-3"
               >
                 <div className="flex min-w-0 flex-col gap-0.5">
-                  <div className="flex items-center gap-2 text-sm-minus">
+                  <div className="flex items-center gap-2">
                     {isConfigured ? (
-                      <CircleCheck className="size-3.5 text-success" />
+                      <CircleCheck className="size-3.5 shrink-0 text-success" />
                     ) : (
-                      <XCircle className="size-3.5 text-muted-foreground/60" />
+                      <XCircle className="size-3.5 shrink-0 text-muted-foreground/60" />
                     )}
-                    <span className={isConfigured ? 'text-foreground' : ''}>
+                    <span className="text-sm-minus font-medium">
                       {AGENT_LABELS[agent.name] ?? agent.name}
                     </span>
                   </div>
