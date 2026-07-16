@@ -7,8 +7,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   AgentsQuickAccess,
   formatCostUsd,
+  formatElapsed,
   formatResetIn,
   formatTokenCount,
+  formatUsageCompact,
+  formatUsageLine,
   touchedFilesFromItems,
 } from './agents-quick-access'
 
@@ -156,7 +159,7 @@ describe('AgentsQuickAccess', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
-  it('renders the token-usage line with compact last-turn + total counts', () => {
+  it('renders last-turn + total usage lines with compact counts', () => {
     vi.mocked(useAgentThreads).mockReturnValue([
       makeThread('t1', 'idle', 1, {
         turnInput: 1200,
@@ -169,8 +172,28 @@ describe('AgentsQuickAccess', () => {
 
     render(<AgentsQuickAccess />)
     expect(screen.getByText('Usage')).toBeInTheDocument()
+    expect(screen.getByText('Last turn 1.2k in · 340 out')).toBeInTheDocument()
+    expect(screen.getByText('Total 45k in · 12k out')).toBeInTheDocument()
+  })
+
+  it('shows the cached parenthetical when the driver reported cache reads', () => {
+    vi.mocked(useAgentThreads).mockReturnValue([
+      makeThread('t1', 'idle', 1, {
+        turnInput: 45_002,
+        turnOutput: 18,
+        turnCacheRead: 45_000,
+        totalInput: 45_002,
+        totalOutput: 18,
+        totalCacheRead: 45_000,
+        totalCostUsd: 0.56,
+      }),
+    ])
+    activateAgentTab('t1')
+
+    render(<AgentsQuickAccess />)
+    expect(screen.getByText('Last turn 45k in (45k cached) · 18 out')).toBeInTheDocument()
     expect(
-      screen.getByText('Last turn 1.2k in · 340 out — total 45k in · 12k out'),
+      screen.getByText(/Total 45k in \(45k cached\) · 18 out · \$0\.56 est\./),
     ).toBeInTheDocument()
   })
 
@@ -183,7 +206,7 @@ describe('AgentsQuickAccess', () => {
     expect(screen.queryByText('Usage')).toBeNull()
   })
 
-  it('appends the notional session cost to the usage line when present', () => {
+  it('appends the notional session cost to the total line when present', () => {
     vi.mocked(useAgentThreads).mockReturnValue([
       makeThread('t1', 'idle', 1, {
         turnInput: 1200,
@@ -269,6 +292,33 @@ describe('formatTokenCount', () => {
     expect(formatTokenCount(45000)).toBe('45k')
     expect(formatTokenCount(12000)).toBe('12k')
     expect(formatTokenCount(1_500_000)).toBe('1.5M')
+  })
+})
+
+describe('formatElapsed', () => {
+  it('formats seconds, minutes, and hours like Claude Code', () => {
+    expect(formatElapsed(0)).toBe('0s')
+    expect(formatElapsed(42_000)).toBe('42s')
+    expect(formatElapsed(100_000)).toBe('1m 40s')
+    expect(formatElapsed(60_000)).toBe('1m')
+    expect(formatElapsed(3_720_000)).toBe('1h 2m')
+    expect(formatElapsed(3_600_000)).toBe('1h')
+  })
+})
+
+describe('formatUsageLine / formatUsageCompact', () => {
+  it('includes the cached parenthetical only when present', () => {
+    expect(formatUsageLine({ turnInput: 1200, turnOutput: 340 })).toBe('1.2k in · 340 out')
+    expect(formatUsageLine({ turnInput: 45_002, turnOutput: 18, turnCacheRead: 45_000 })).toBe(
+      '45k in (45k cached) · 18 out',
+    )
+  })
+
+  it('puts cost first on the compact session-strip form', () => {
+    expect(formatUsageCompact({ turnInput: 45_002, totalCostUsd: 0.56 })).toBe(
+      '$0.56 est. · 45k in',
+    )
+    expect(formatUsageCompact({ turnInput: 1200 })).toBe('1.2k in')
   })
 })
 

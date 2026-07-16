@@ -72,7 +72,8 @@ interface Thread {
   // The cumulative token + cost totals captured when the current turn started, so a driver's
   // per-turn `status.usage` (which reports THIS turn's counts, possibly several times as
   // it streams) folds into a running total without double-counting: total = base + turn.
-  turnUsageBase: { input: number; output: number; cost: number }
+  // `cacheRead` is the cumulative cached-input subset (optional field on AgentUsage).
+  turnUsageBase: { input: number; output: number; cacheRead: number; cost: number }
   // Set on the first user message (whose title came from deriveTitle); consumed on the
   // first successful onDone to fire the one-shot LLM auto-title. Runtime-only — a restart
   // just keeps the derived title, which is fine.
@@ -169,7 +170,7 @@ function toThread(stored: StoredThread): Thread {
     turnToken: null,
     persistTimer: null,
     persistChain: Promise.resolve(),
-    turnUsageBase: { input: 0, output: 0, cost: 0 },
+    turnUsageBase: { input: 0, output: 0, cacheRead: 0, cost: 0 },
     pendingAutoTitle: false,
     queued: restoredQueue,
   }
@@ -338,7 +339,12 @@ function onEmit(thread: Thread, event: AgentEvent): void {
 // the roster (but doesn't bump updatedAt, to avoid reshuffling the list mid-stream).
 function applyUsage(
   thread: Thread,
-  usage: { inputTokens: number; outputTokens: number; costUsd?: number },
+  usage: {
+    inputTokens: number
+    outputTokens: number
+    cacheReadTokens?: number
+    costUsd?: number
+  },
 ): void {
   // Cost accumulates by the SAME baseline discipline as tokens: total = base + this turn's
   // reported cost. A report without `costUsd` (Codex, or a mid-turn token-only report) keeps
@@ -347,11 +353,18 @@ function applyUsage(
     usage.costUsd !== undefined
       ? thread.turnUsageBase.cost + usage.costUsd
       : thread.meta.usage?.totalCostUsd
+  const turnCacheRead = usage.cacheReadTokens
+  const totalCacheRead =
+    turnCacheRead !== undefined
+      ? thread.turnUsageBase.cacheRead + turnCacheRead
+      : thread.meta.usage?.totalCacheRead
   thread.meta.usage = {
     turnInput: usage.inputTokens,
     turnOutput: usage.outputTokens,
     totalInput: thread.turnUsageBase.input + usage.inputTokens,
     totalOutput: thread.turnUsageBase.output + usage.outputTokens,
+    ...(turnCacheRead !== undefined ? { turnCacheRead } : {}),
+    ...(totalCacheRead !== undefined ? { totalCacheRead } : {}),
     ...(totalCostUsd !== undefined ? { totalCostUsd } : {}),
   }
   // Trailing-throttled: the totals above are already live on thread.meta; only the roster
@@ -471,7 +484,7 @@ export async function createThread(opts: CreateThreadOptions): Promise<ThreadInf
     turnToken: null,
     persistTimer: null,
     persistChain: Promise.resolve(),
-    turnUsageBase: { input: 0, output: 0, cost: 0 },
+    turnUsageBase: { input: 0, output: 0, cacheRead: 0, cost: 0 },
     pendingAutoTitle: false,
     queued: [],
   }
@@ -664,6 +677,7 @@ async function startTurn(thread: Thread, input: SendMessageInput): Promise<void>
   thread.turnUsageBase = {
     input: thread.meta.usage?.totalInput ?? 0,
     output: thread.meta.usage?.totalOutput ?? 0,
+    cacheRead: thread.meta.usage?.totalCacheRead ?? 0,
     cost: thread.meta.usage?.totalCostUsd ?? 0,
   }
   setStatus(thread, 'working')
@@ -900,7 +914,7 @@ export async function importExternalSession(
     turnToken: null,
     persistTimer: null,
     persistChain: Promise.resolve(),
-    turnUsageBase: { input: 0, output: 0, cost: 0 },
+    turnUsageBase: { input: 0, output: 0, cacheRead: 0, cost: 0 },
     pendingAutoTitle: false,
     queued: [],
   }

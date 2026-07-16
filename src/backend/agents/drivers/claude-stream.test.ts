@@ -5,6 +5,7 @@ import {
   buildUserMessage,
   CLAUDE_MODELS,
   ClaudeStreamTranslator,
+  mapClaudeResultUsage,
   mapClaudeUsage,
   parseClaudeOAuthToken,
   permissionModeForMode,
@@ -93,10 +94,19 @@ describe('titleForTool', () => {
     expect(titleForTool('TodoWrite', {})).toEqual({ title: 'Update todos' })
   })
 
-  it('falls through to the raw name for unknown/MCP tools', () => {
+  it('prettifies MCP wire names into server title + tool detail', () => {
     expect(titleForTool('mcp__porcelain__list_cards', {})).toEqual({
-      title: 'mcp__porcelain__list_cards',
+      title: 'Porcelain',
+      detail: 'list_cards',
     })
+    expect(titleForTool('mcp__figma__get_design_context', {})).toEqual({
+      title: 'Figma',
+      detail: 'get_design_context',
+    })
+  })
+
+  it('falls through to the raw name for unknown non-MCP tools', () => {
+    expect(titleForTool('SomeCustomTool', {})).toEqual({ title: 'SomeCustomTool' })
   })
 })
 
@@ -107,6 +117,12 @@ describe('buildClaudeArgs', () => {
     expect(args[args.indexOf('--model') + 1]).toBe('sonnet')
     expect(args).toContain('--permission-mode')
     expect(args).not.toContain('--resume')
+  })
+
+  it('includes --exclude-dynamic-system-prompt-sections for per-turn cache hygiene', () => {
+    // Cold-spawning claude -p each turn otherwise re-bills a dynamic system prefix.
+    const args = buildClaudeArgs({ model: 'sonnet', mode: 'full' })
+    expect(args).toContain('--exclude-dynamic-system-prompt-sections')
   })
 
   it('omits --model entirely for an empty model (the CLI default)', () => {
@@ -569,6 +585,38 @@ describe('ClaudeStreamTranslator', () => {
     ])
   })
 
+  it('folds cache tokens into inputTokens and surfaces cacheReadTokens', () => {
+    // The smoking-gun case: Claude reports input_tokens=2 for the user message while the
+    // system prompt + tools sit in cache_read — without the fold the UI showed "2 in · $0.50".
+    const signals = drive([
+      line({
+        type: 'result',
+        subtype: 'success',
+        is_error: false,
+        total_cost_usd: 0.56,
+        usage: {
+          input_tokens: 2,
+          output_tokens: 18,
+          cache_read_input_tokens: 40_000,
+          cache_creation_input_tokens: 5_000,
+        },
+      }),
+    ])
+    expect(signals[0]).toEqual({
+      t: 'event',
+      event: {
+        t: 'status',
+        status: 'idle',
+        usage: {
+          inputTokens: 45_002,
+          outputTokens: 18,
+          cacheReadTokens: 45_000,
+          costUsd: 0.56,
+        },
+      },
+    })
+  })
+
   it('surfaces total_cost_usd as the status usage costUsd', () => {
     const signals = drive([
       line({
@@ -618,6 +666,54 @@ describe('parseClaudeOAuthToken', () => {
     expect(parseClaudeOAuthToken(JSON.stringify({ apiKey: 'x' }))).toBeNull()
     expect(parseClaudeOAuthToken(JSON.stringify({ claudeAiOauth: { accessToken: '' } }))).toBeNull()
     expect(parseClaudeOAuthToken('not json')).toBeNull()
+  })
+})
+
+describe('mapClaudeResultUsage', () => {
+  it('sums new + cache tokens into inputTokens and exposes the cached subset', () => {
+    expect(
+      mapClaudeResultUsage(
+        {
+          input_tokens: 2,
+          output_tokens: 18,
+          cache_read_input_tokens: 40_000,
+          cache_creation_input_tokens: 5_000,
+        },
+        0.56,
+      ),
+    ).toEqual({
+      inputTokens: 45_002,
+      outputTokens: 18,
+      cacheReadTokens: 45_000,
+      costUsd: 0.56,
+    })
+  })
+
+  it('omits cacheReadTokens and costUsd when absent/zero', () => {
+    expect(mapClaudeResultUsage({ input_tokens: 10, output_tokens: 4 }, undefined)).toEqual({
+      inputTokens: 10,
+      outputTokens: 4,
+    })
+  })
+
+  it('folds nested cache_creation ephemerals when the flat field is absent', () => {
+    expect(
+      mapClaudeResultUsage(
+        {
+          input_tokens: 1,
+          output_tokens: 2,
+          cache_creation: {
+            ephemeral_5m_input_tokens: 100,
+            ephemeral_1h_input_tokens: 50,
+          },
+        },
+        undefined,
+      ),
+    ).toEqual({
+      inputTokens: 151,
+      outputTokens: 2,
+      cacheReadTokens: 150,
+    })
   })
 })
 

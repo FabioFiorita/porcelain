@@ -262,8 +262,9 @@ const asString = (value: unknown): string | undefined =>
 /**
  * A human title (+ salient detail) for a tool call. The title is the tool's own name so
  * it reads like the CLI ("Bash", "Edit"); the detail is the one argument a reviewer
- * cares about (the command, the file path, the pattern). Unknown tools (incl. `mcp__*`)
- * fall through to just their name.
+ * cares about (the command, the file path, the pattern). MCP tools (`mcp__server__tool`)
+ * prettify to title=server / detail=tool so the timeline never dumps the wire name.
+ * Unknown non-MCP tools fall through to just their name.
  */
 export function titleForTool(
   name: string,
@@ -293,8 +294,24 @@ export function titleForTool(
       return { title: 'Task', detail: asString(input.description) }
     case 'TodoWrite':
       return { title: 'Update todos' }
-    default:
+    default: {
+      // Claude wires MCP tools as `mcp__<server>__<tool>` (double underscore). Split once
+      // so a tool name that itself contains `__` still lands in detail intact.
+      if (name.startsWith('mcp__')) {
+        const rest = name.slice('mcp__'.length)
+        const sep = rest.indexOf('__')
+        if (sep > 0) {
+          const server = rest.slice(0, sep)
+          const tool = rest.slice(sep + 2)
+          if (server !== '' && tool !== '') {
+            // Capitalize the server id for the row title ("porcelain" → "Porcelain").
+            const title = server.charAt(0).toUpperCase() + server.slice(1)
+            return { title, detail: tool }
+          }
+        }
+      }
       return { title: name }
+    }
   }
 }
 
@@ -462,10 +479,64 @@ const resultSchema = z.object({
   // Present on both success and error result subtypes; we surface it as the status usage's
   // `costUsd` when it's a number.
   total_cost_usd: z.number().optional(),
+  // Claude's result usage: `input_tokens` is often just the *new* tokens (the last user
+  // message), while `cache_read_input_tokens` / `cache_creation_input_tokens` hold the
+  // bulk of the system prompt + tools. We sum them in `mapClaudeResultUsage` so the UI
+  // never shows "2 in · $0.50". Extra keys are ignored (passthrough via optional only).
   usage: z
-    .object({ input_tokens: z.number().optional(), output_tokens: z.number().optional() })
+    .object({
+      input_tokens: z.number().optional(),
+      output_tokens: z.number().optional(),
+      cache_read_input_tokens: z.number().optional(),
+      cache_creation_input_tokens: z.number().optional(),
+      // Nested cache-creation breakdown some CLI versions emit instead of the flat field.
+      cache_creation: z
+        .object({
+          ephemeral_1h_input_tokens: z.number().optional(),
+          ephemeral_5m_input_tokens: z.number().optional(),
+        })
+        .optional(),
+    })
     .optional(),
 })
+
+/**
+ * Map a Claude stream-json `result.usage` (+ optional `total_cost_usd`) onto the normalized
+ * status.usage payload. `inputTokens` is the FULL prompt size (new + cache read + cache
+ * creation) so metering matches the real context; `cacheReadTokens` is the cached subset
+ * for "(Nk cached)" copy. Pure + exported for unit tests.
+ */
+export function mapClaudeResultUsage(
+  usage:
+    | {
+        input_tokens?: number
+        output_tokens?: number
+        cache_read_input_tokens?: number
+        cache_creation_input_tokens?: number
+        cache_creation?: {
+          ephemeral_1h_input_tokens?: number
+          ephemeral_5m_input_tokens?: number
+        }
+      }
+    | undefined,
+  totalCostUsd: number | undefined,
+): { inputTokens: number; outputTokens: number; cacheReadTokens?: number; costUsd?: number } {
+  const input = usage?.input_tokens ?? 0
+  const output = usage?.output_tokens ?? 0
+  const cacheRead = usage?.cache_read_input_tokens ?? 0
+  const nestedCreation =
+    (usage?.cache_creation?.ephemeral_1h_input_tokens ?? 0) +
+    (usage?.cache_creation?.ephemeral_5m_input_tokens ?? 0)
+  const cacheCreation = usage?.cache_creation_input_tokens ?? nestedCreation
+  const cached = cacheRead + cacheCreation
+  return {
+    // Full prompt size — what the human means by "how many tokens did this turn use".
+    inputTokens: input + cached,
+    outputTokens: output,
+    ...(cached > 0 ? { cacheReadTokens: cached } : {}),
+    ...(totalCostUsd !== undefined ? { costUsd: totalCostUsd } : {}),
+  }
+}
 
 const controlRequestSchema = z.object({
   request_id: z.string(),
@@ -801,8 +872,6 @@ export class ClaudeStreamTranslator {
       // A result line we couldn't read still ends the turn — never leave it hanging.
       return [{ t: 'done', ok: false }]
     }
-    const usage = parsed.data.usage
-    const cost = parsed.data.total_cost_usd
     const ok = parsed.data.subtype === 'success' && parsed.data.is_error !== true
     return [
       {
@@ -810,13 +879,10 @@ export class ClaudeStreamTranslator {
         event: {
           t: 'status',
           status: 'idle',
-          usage: {
-            inputTokens: usage?.input_tokens ?? 0,
-            outputTokens: usage?.output_tokens ?? 0,
-            // Only carry cost when the result reported it — an absent figure leaves the
-            // thread's accumulated totalCostUsd untouched (see the manager's applyUsage).
-            ...(cost !== undefined ? { costUsd: cost } : {}),
-          },
+          // mapClaudeResultUsage folds cache_* into inputTokens so the UI's "in" count is
+          // the real prompt size (not just the last user message). Cost is only carried
+          // when present — absent leaves the thread's totalCostUsd untouched (applyUsage).
+          usage: mapClaudeResultUsage(parsed.data.usage, parsed.data.total_cost_usd),
         },
       },
       { t: 'done', ok },
@@ -894,6 +960,11 @@ export function buildUserMessage(
  *   and plan mode is itself a permission posture (read/explore only, present a plan) —
  *   it supersedes approve/auto-edits/full for as long as the toggle is on; flipping back
  *   to Build restores the thread's own mode on the next turn.
+ *
+ * `--exclude-dynamic-system-prompt-sections` moves cwd/env/git status out of the system
+ * prompt into the first user message so the system-prompt prefix stays cache-stable across
+ * our per-turn `claude -p --resume` spawns (each spawn is a cold process; without this the
+ * dynamic sections bust the cache every turn and re-bill the full system prompt).
  */
 export function buildClaudeArgs(opts: {
   model: string
@@ -911,6 +982,8 @@ export function buildClaudeArgs(opts: {
     '--include-partial-messages',
     // stream-json output with -p REQUIRES --verbose or the CLI refuses to start.
     '--verbose',
+    // Prompt-cache hygiene across per-turn process spawns (see docstring above).
+    '--exclude-dynamic-system-prompt-sections',
   ]
   const catalog = findClaudeModel(opts.model)
   const { effort, contextWindow } = opts.options ?? {}

@@ -185,11 +185,11 @@ export const claudeDriver: AgentDriver = {
     return importClaudeSession(repoPath, externalId)
   },
 
-  // A cheap one-shot title via `claude -p … --model haiku`. Resolves null on any failure
-  // (no binary, non-zero exit, timeout, empty output) so the manager keeps the derived
-  // title. The turn itself never expands `/name` here because the CLI does that natively
-  // (verified: `-p` stream-json mode expands custom slash commands), so startTurn passes
-  // the user's text through untouched.
+  // A cheap one-shot title via `claude -p … --model haiku --bare`. `--bare` is load-bearing:
+  // without it the title call cold-starts a FULL project session (CLAUDE.md, skills, MCP,
+  // hooks) just to mint a 2–5 word name — the single biggest agent-tab-only token waste vs
+  // the terminal. Bare skips that; any failure (no binary, older CLI without --bare, auth,
+  // timeout, empty output) resolves null so the manager keeps the derived first-line title.
   async generateTitle({
     repoPath,
     text,
@@ -203,7 +203,7 @@ export const claudeDriver: AgentDriver = {
     return new Promise((resolve) => {
       execFile(
         bin,
-        ['-p', titlePrompt(text), '--model', 'haiku', '--output-format', 'text'],
+        ['-p', titlePrompt(text), '--model', 'haiku', '--output-format', 'text', '--bare'],
         { cwd: repoPath, env, timeout: TITLE_TIMEOUT_MS },
         (error, stdout) => {
           if (error) {

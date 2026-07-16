@@ -1,3 +1,4 @@
+import { formatCostUsd, formatTokenCount } from '@renderer/components/agent/agents-quick-access'
 import { ProviderGlyph } from '@renderer/components/agent/provider-glyph'
 import { SidebarHeaderActions } from '@renderer/components/shell/sidebar-header-actions'
 import {
@@ -147,8 +148,14 @@ function ThreadRow({ thread }: { thread: ThreadInfo }): React.JSX.Element {
                     aria-label="Working"
                   />
                 ) : (
+                  // Prefer a spend/token chip over relative time when the thread has usage
+                  // so expensive threads are obvious without opening them.
                   <span className="shrink-0 text-2xs tabular-nums text-muted-foreground/60 group-hover/thread:hidden">
-                    {relativeTime(thread.updatedAt)}
+                    {thread.usage?.totalCostUsd !== undefined
+                      ? formatCostUsd(thread.usage.totalCostUsd)
+                      : thread.usage !== undefined
+                        ? formatTokenCount(thread.usage.turnInput)
+                        : relativeTime(thread.updatedAt)}
                   </span>
                 ))}
               <Button

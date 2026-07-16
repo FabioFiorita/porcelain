@@ -1,4 +1,9 @@
 import { AgentComposer } from '@renderer/components/agent/agent-composer'
+import {
+  formatElapsed,
+  formatUsageCompact,
+  formatUsageLine,
+} from '@renderer/components/agent/agents-quick-access'
 import { PlanSteps } from '@renderer/components/agent/plan-steps'
 import { ProviderGlyph } from '@renderer/components/agent/provider-glyph'
 import { Button } from '@renderer/components/ui/button'
@@ -12,6 +17,7 @@ import { cn, copyText } from '@renderer/lib/utils'
 import { useAgentThreadsStore } from '@renderer/stores/agent-threads'
 import type {
   AgentProvider,
+  AgentUsage,
   ApprovalDecision,
   QueuedMessageInfo,
   TimelineItem,
@@ -246,16 +252,27 @@ function ToolItem({ item }: { item: ToolTimelineItem }): React.JSX.Element {
 
 /**
  * A run of consecutive tool calls collapsed to one line so a long agent turn doesn't push
- * the conversation out of view. Expand to see each tool; auto-expands while any tool in the
- * group is still running so the live action stays visible.
+ * the conversation out of view. Auto-expands while any tool is running (live action stays
+ * visible); auto-collapses when the group goes fully idle so the conversation returns to
+ * prose. A manual toggle sets `userToggled` so we never fight a reader who re-opened a
+ * finished group (or collapsed a running one — re-running still re-expands).
  */
 function ToolGroup({ tools }: { tools: ToolTimelineItem[] }): React.JSX.Element {
   const anyRunning = tools.some((t) => t.status === 'running')
   const anyError = tools.some((t) => t.status === 'error')
   const [expanded, setExpanded] = useState(anyRunning)
-  // Open when a tool starts running; leave the reader's manual collapse alone once idle.
+  const userToggledRef = useRef(false)
+  const wasRunningRef = useRef(anyRunning)
   useEffect(() => {
-    if (anyRunning) setExpanded(true)
+    if (anyRunning) {
+      // A new run always wins over a prior manual collapse — the live action is the point.
+      setExpanded(true)
+      userToggledRef.current = false
+    } else if (wasRunningRef.current && !userToggledRef.current) {
+      // running → idle transition, user didn't intervene: collapse so prose reclaims the view.
+      setExpanded(false)
+    }
+    wasRunningRef.current = anyRunning
   }, [anyRunning])
 
   // Unique titles in order of first appearance for a compact lead-in ("Bash · Read · Edit").
@@ -274,7 +291,10 @@ function ToolGroup({ tools }: { tools: ToolTimelineItem[] }): React.JSX.Element 
     <div className="flex flex-col gap-1.5">
       <button
         type="button"
-        onClick={() => setExpanded((value) => !value)}
+        onClick={() => {
+          userToggledRef.current = true
+          setExpanded((value) => !value)
+        }}
         className="flex w-full items-center gap-1.5 text-left text-xs text-muted-foreground hover:text-foreground"
       >
         <ChevronRight
@@ -410,19 +430,19 @@ function ErrorRow({ item }: { item: Extract<TimelineItem, { kind: 'error' }> }):
 }
 
 /**
- * "Working for Ns" — the elapsed-time row shown while the turn runs. The seconds tick via
- * an imperative interval writing the span's textContent, NOT React state, so a long turn
- * doesn't re-render per second. Counts from the turn's real `startedAt` (the daemon's
+ * "Working for 1m 40s" — the elapsed-time row shown while the turn runs. The label ticks
+ * via an imperative interval writing the span's textContent, NOT React state, so a long
+ * turn doesn't re-render per second. Counts from the turn's real `startedAt` (the daemon's
  * `turnStartedAt`) so opening an already-running thread shows the true elapsed time; falls
- * back to mount time only until the roster carries a start stamp.
+ * back to mount time only until the roster carries a start stamp. Format matches Claude
+ * Code (`formatElapsed`).
  */
 function WorkingIndicator({ startedAt }: { startedAt: number | undefined }): React.JSX.Element {
   const spanRef = useRef<HTMLSpanElement>(null)
   useEffect(() => {
     const start = startedAt ?? Date.now()
     const tick = (): void => {
-      if (spanRef.current)
-        spanRef.current.textContent = `${Math.max(0, Math.floor((Date.now() - start) / 1000))}`
+      if (spanRef.current) spanRef.current.textContent = formatElapsed(Date.now() - start)
     }
     tick()
     const id = setInterval(tick, 1000)
@@ -431,7 +451,73 @@ function WorkingIndicator({ startedAt }: { startedAt: number | undefined }): Rea
   return (
     <div className="flex items-center gap-2 text-xs text-muted-foreground">
       <Loader2 className="size-3.5 shrink-0 animate-spin" />
-      Working for <span ref={spanRef}>0</span>s
+      Working for <span ref={spanRef}>{formatElapsed(0)}</span>
+    </div>
+  )
+}
+
+/**
+ * Quiet footer after the last assistant reply when the thread is idle — last-turn tokens
+ * (with cache parenthetical when known). Cost lives on the session strip so this line
+ * stays a lightweight "what did that turn cost in context" signal, not a bill.
+ */
+function TurnUsageFooter({ usage }: { usage: AgentUsage }): React.JSX.Element {
+  return <p className="text-2xs tabular-nums text-muted-foreground/70">{formatUsageLine(usage)}</p>
+}
+
+/**
+ * Thin session chrome above the timeline: provider + model, live status, compact usage.
+ * Orientation + metering only — Plan/Activity/Files/Limits stay in Quick Access.
+ */
+function SessionStrip({
+  provider,
+  model,
+  resolvedModel,
+  working,
+  startedAt,
+  usage,
+}: {
+  provider: AgentProvider
+  model: string
+  resolvedModel: string | undefined
+  working: boolean
+  startedAt: number | undefined
+  usage: AgentUsage | undefined
+}): React.JSX.Element {
+  const models = useAgentProviders().flatMap((p) => p.models)
+  const elapsedRef = useRef<HTMLSpanElement>(null)
+  useEffect(() => {
+    if (!working) return
+    const start = startedAt ?? Date.now()
+    const tick = (): void => {
+      if (elapsedRef.current) elapsedRef.current.textContent = formatElapsed(Date.now() - start)
+    }
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [working, startedAt])
+
+  return (
+    <div className="flex shrink-0 items-center gap-2 border-b border-border/50 px-4 py-2 text-2xs text-muted-foreground">
+      <ProviderGlyph provider={provider} className="size-3.5" />
+      <span className="truncate font-medium text-foreground/80">
+        {modelChipLabel(model, resolvedModel, models)}
+      </span>
+      <span className="text-muted-foreground/40">·</span>
+      {working ? (
+        <span className="flex items-center gap-1.5">
+          <Loader2 className="size-3 shrink-0 animate-spin" />
+          Working <span ref={elapsedRef}>{formatElapsed(0)}</span>
+        </span>
+      ) : (
+        <span>Idle</span>
+      )}
+      {usage !== undefined && (
+        <>
+          <span className="text-muted-foreground/40">·</span>
+          <span className="min-w-0 truncate tabular-nums">{formatUsageCompact(usage)}</span>
+        </>
+      )}
     </div>
   )
 }
@@ -536,16 +622,17 @@ const TimelineRow = memo(function TimelineRow({
 
 const STICK_THRESHOLD_PX = 60
 
-// Starter prompts offered on a fresh thread — clicking one drops it into the composer.
+// Starter prompts framed as Porcelain-shaped tasks (review hub, not a generic chatbot).
 const EXAMPLE_PROMPTS = [
-  'Give me a tour of this codebase and how it fits together.',
-  'Find and fix a bug in the file I have open.',
-  'Add tests for the code I’m looking at.',
+  'Review my open changes and call out anything risky.',
+  'Explain the file I’m looking at and how it fits the feature.',
+  'Plan a fix for the bug I’m seeing — don’t edit yet.',
 ]
 
 /**
- * The first-run state of an empty thread: what it's wired to (provider + model), a few starter
- * prompts that drop into the composer on click, and a one-line nudge toward Build/Plan.
+ * The first-run state of an empty thread: provider + model, a few task chips that drop into
+ * the composer, and an honesty line that this is the installed CLI (same auth/project files
+ * as the terminal).
  */
 function EmptyTimeline({
   provider,
@@ -581,8 +668,8 @@ function EmptyTimeline({
         ))}
       </div>
       <p className="max-w-md text-2xs text-muted-foreground/70">
-        Tip: switch to <span className="font-medium text-muted-foreground">Plan</span> to think
-        through an approach first, or stay on{' '}
+        Uses your installed CLI — same auth and project files as the terminal. Switch to{' '}
+        <span className="font-medium text-muted-foreground">Plan</span> to think first, or stay on{' '}
         <span className="font-medium text-muted-foreground">Build</span> to make changes.
       </p>
     </div>
@@ -687,8 +774,24 @@ export function AgentView({ threadId }: { threadId: string }): React.JSX.Element
     return () => window.removeEventListener('keydown', onKey)
   }, [pendingRequestId, threadId, approve])
 
+  // Last timeline row is an assistant reply and the turn is idle → show a quiet usage footer
+  // under the conversation (tokens only; cost lives on the session strip).
+  const lastItem = items[items.length - 1]
+  const showTurnUsage =
+    !working && thread?.usage !== undefined && lastItem?.kind === 'assistant' && !lastItem.streaming
+
   return (
     <div className="flex h-full flex-col">
+      {thread && (
+        <SessionStrip
+          provider={thread.provider}
+          model={thread.model}
+          resolvedModel={thread.resolvedModel}
+          working={working}
+          startedAt={thread.turnStartedAt}
+          usage={thread.usage}
+        />
+      )}
       <div className="relative min-h-0 flex-1">
         <ScrollArea ref={rootRef} onScroll={onScroll} className="h-full">
           <div ref={contentRef} className="mx-auto flex max-w-3xl flex-col gap-4 px-4 py-4">
@@ -711,6 +814,9 @@ export function AgentView({ threadId }: { threadId: string }): React.JSX.Element
               )
             )}
             {working && <WorkingIndicator startedAt={thread?.turnStartedAt} />}
+            {showTurnUsage && thread.usage !== undefined && (
+              <TurnUsageFooter usage={thread.usage} />
+            )}
             {thread?.queued !== undefined && thread.queued.length > 0 && (
               <QueuedPendingList threadId={threadId} queued={thread.queued} />
             )}

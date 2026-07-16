@@ -420,6 +420,42 @@ describe('agent-manager', () => {
     })
   })
 
+  it('accumulates cache-read tokens across turns when reported', async () => {
+    const { id } = await newThread()
+    await sendMessage(id, { text: 'first' })
+    mock.last?.emit({
+      t: 'status',
+      status: 'idle',
+      usage: { inputTokens: 45_002, outputTokens: 18, cacheReadTokens: 45_000 },
+    })
+    mock.last?.onDone({ ok: true })
+    await flushThread(id)
+    expect((await readThread(id))?.meta.usage).toEqual({
+      turnInput: 45_002,
+      turnOutput: 18,
+      totalInput: 45_002,
+      totalOutput: 18,
+      turnCacheRead: 45_000,
+      totalCacheRead: 45_000,
+    })
+    await sendMessage(id, { text: 'second' })
+    mock.last?.emit({
+      t: 'status',
+      status: 'idle',
+      usage: { inputTokens: 46_000, outputTokens: 10, cacheReadTokens: 45_500 },
+    })
+    mock.last?.onDone({ ok: true })
+    await flushThread(id)
+    expect((await readThread(id))?.meta.usage).toEqual({
+      turnInput: 46_000,
+      turnOutput: 10,
+      totalInput: 91_002,
+      totalOutput: 28,
+      turnCacheRead: 45_500,
+      totalCacheRead: 90_500,
+    })
+  })
+
   it('accumulates session cost across turns and leaves it untouched by a token-only report', async () => {
     const { id } = await newThread()
     await sendMessage(id, { text: 'first' })

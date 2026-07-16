@@ -37,6 +37,51 @@ export function formatCostUsd(n: number): string {
 }
 
 /**
+ * Human elapsed duration for a running (or finished) turn: 42s / 1m 40s / 1h 2m.
+ * Matches Claude Code's "Worked for …" language so the Agent tab reads the same.
+ * Pure + `ms`-based so tests don't depend on wall-clock.
+ */
+export function formatElapsed(ms: number): string {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000))
+  if (totalSeconds < 60) return `${totalSeconds}s`
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+  if (hours === 0) {
+    return seconds === 0 ? `${minutes}m` : `${minutes}m ${seconds}s`
+  }
+  return minutes === 0 ? `${hours}h` : `${hours}h ${minutes}m`
+}
+
+/**
+ * Last-turn token line: "48k in (42k cached) · 1.2k out". Cache parenthetical only when
+ * the driver reported cache reads (Claude). Cost is NOT here — it lives on the total line
+ * / session strip so a cumulative est. isn't misread as last-turn spend.
+ */
+export function formatUsageLine(usage: {
+  turnInput: number
+  turnOutput: number
+  turnCacheRead?: number
+}): string {
+  const cached =
+    usage.turnCacheRead !== undefined && usage.turnCacheRead > 0
+      ? ` (${formatTokenCount(usage.turnCacheRead)} cached)`
+      : ''
+  return `${formatTokenCount(usage.turnInput)} in${cached} · ${formatTokenCount(usage.turnOutput)} out`
+}
+
+/**
+ * Compact session-strip metering: cost first (the honest spend signal under a
+ * subscription), then last-turn input. `est.` = notional, never billed cash.
+ */
+export function formatUsageCompact(usage: { turnInput: number; totalCostUsd?: number }): string {
+  if (usage.totalCostUsd !== undefined) {
+    return `${formatCostUsd(usage.totalCostUsd)} est. · ${formatTokenCount(usage.turnInput)} in`
+  }
+  return `${formatTokenCount(usage.turnInput)} in`
+}
+
+/**
  * A quota window's reset as a relative "resets in Xh Ym" phrase (dropping a zero hour/minute:
  * "resets in 42m", "resets in 3h"). A reset in the past — or under a minute away — reads
  * "resets soon". `now` is injected so the mapping is deterministic to test.
@@ -244,29 +289,31 @@ function FilesGroup({ threadId }: { threadId: string }): React.JSX.Element | nul
 }
 
 /**
- * The thread's accumulated token usage — the last turn's I/O plus the running total, one
- * muted line. Read from the daemon-owned roster (`threadInfo.usage`), so it survives
+ * The thread's accumulated token usage — last turn (with cache parenthetical when known)
+ * plus a total line. Read from the daemon-owned roster (`threadInfo.usage`), so it survives
  * reloads. Hidden until the first turn reports usage (a provider that reports none stays
- * hidden forever).
+ * hidden forever). Cost is the primary spend signal under a subscription (notional — "est.").
  */
 function UsageGroup({ threadId }: { threadId: string }): React.JSX.Element | null {
   const usage = useAgentThreads().find((t) => t.id === threadId)?.usage
   if (!usage) return null
+  const totalCached =
+    usage.totalCacheRead !== undefined && usage.totalCacheRead > 0
+      ? ` (${formatTokenCount(usage.totalCacheRead)} cached)`
+      : ''
   return (
     <SidebarGroup className="px-3">
       <SidebarGroupLabel className="px-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
         Usage
       </SidebarGroupLabel>
-      <SidebarGroupContent className="px-1">
+      <SidebarGroupContent className="flex flex-col gap-0.5 px-1">
         <p className="text-2xs tabular-nums text-muted-foreground">
-          Last turn {formatTokenCount(usage.turnInput)} in · {formatTokenCount(usage.turnOutput)}{' '}
-          out — total {formatTokenCount(usage.totalInput)} in ·{' '}
+          Last turn {formatUsageLine(usage)}
+        </p>
+        <p className="text-2xs tabular-nums text-muted-foreground/70">
+          Total {formatTokenCount(usage.totalInput)} in{totalCached} ·{' '}
           {formatTokenCount(usage.totalOutput)} out
-          {usage.totalCostUsd !== undefined && (
-            // "est." because the figure is notional under a subscription plan (token counts ×
-            // list prices), not billed spend — see the protocol/audit notes.
-            <> · {formatCostUsd(usage.totalCostUsd)} est.</>
-          )}
+          {usage.totalCostUsd !== undefined && <> · {formatCostUsd(usage.totalCostUsd)} est.</>}
         </p>
       </SidebarGroupContent>
     </SidebarGroup>

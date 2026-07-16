@@ -135,10 +135,17 @@ export const agentEventSchema = z.discriminatedUnion('t', [
     // OpenCode's summed per-message `cost`) — optional because most reports (and Codex,
     // always) carry only tokens. Notional for a subscription plan, real spend for API-key
     // auth. The manager folds it into `AgentUsage.totalCostUsd` (see agent-manager).
+    //
+    // Token fields: `inputTokens` is the FULL prompt size the UI should show as "in"
+    // (new input + cache read + cache creation when the driver reports them — Claude's
+    // bare `input_tokens` alone is often just the last user message and hides the real
+    // context). Optional `cacheReadTokens` is the cached subset for a parenthetical
+    // "(42k cached)". Absent cache fields = older driver / provider with no cache data.
     usage: z
       .object({
         inputTokens: z.number(),
         outputTokens: z.number(),
+        cacheReadTokens: z.number().optional(),
         costUsd: z.number().optional(),
       })
       .optional(),
@@ -171,11 +178,19 @@ export type ThreadOptions = z.infer<typeof threadOptionsSchema>
 // cumulative total across every turn (`total*`). The manager folds a driver's per-turn
 // `status.usage` into this (see agent-manager); a provider that reports no token counts
 // (OpenCode's legacy events) simply never populates it.
+//
+// `turnInput` / `totalInput` are the FULL prompt sizes (new + cached) so the UI never
+// shows a misleading "2 in · $0.50" for a turn that actually loaded the whole system
+// prompt. Optional `turnCacheRead` / `totalCacheRead` break out the cached subset for
+// "48k in (42k cached)" copy; absent on pre-cache thread files and providers without
+// cache accounting.
 export const agentUsageSchema = z.object({
   turnInput: z.number(),
   turnOutput: z.number(),
   totalInput: z.number(),
   totalOutput: z.number(),
+  turnCacheRead: z.number().optional(),
+  totalCacheRead: z.number().optional(),
   // Cumulative session cost in USD across every turn, when the provider reports it (Claude,
   // OpenCode). Optional — Codex reports tokens only, and a pre-cost thread file still reads
   // back. "Est."/notional under a subscription plan; the UI labels it accordingly.

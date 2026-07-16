@@ -273,7 +273,7 @@ export function AgentComposer({
             disabled={!installed}
             placeholder={
               installed
-                ? 'Message the agent…'
+                ? `Message ${PROVIDER_LABEL[provider]}…`
                 : `${PROVIDER_LABEL[provider]} isn’t installed — install its CLI to chat.`
             }
             aria-label="Message the agent"
@@ -342,7 +342,7 @@ export function AgentComposer({
                         variant="ghost"
                         size="xs"
                         aria-label={MODE_LABEL[mode]}
-                        className="gap-1 text-muted-foreground"
+                        className="gap-1 text-muted-foreground/70 hover:text-muted-foreground"
                       >
                         <ModeIcon className="size-3" />
                         <span className="truncate @max-[30rem]/composer:hidden">
@@ -382,7 +382,7 @@ export function AgentComposer({
                         variant="ghost"
                         size="xs"
                         aria-label="Interaction mode"
-                        className="gap-1 text-muted-foreground"
+                        className="gap-1 text-muted-foreground/70 hover:text-muted-foreground"
                       >
                         <InteractionIcon className="size-3" />
                         <span className="truncate @max-[30rem]/composer:hidden">

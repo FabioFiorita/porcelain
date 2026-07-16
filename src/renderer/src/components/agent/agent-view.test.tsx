@@ -212,9 +212,37 @@ describe('AgentView', () => {
     seed([])
     render(<AgentView threadId={THREAD_ID} />)
     expect(screen.getByText('Claude Code')).toBeInTheDocument()
-    fireEvent.click(screen.getByText('Add tests for the code I’m looking at.'))
+    fireEvent.click(screen.getByText('Plan a fix for the bug I’m seeing — don’t edit yet.'))
     const input = screen.getByLabelText('Message the agent') as HTMLTextAreaElement
-    expect(input.value).toBe('Add tests for the code I’m looking at.')
+    expect(input.value).toBe('Plan a fix for the bug I’m seeing — don’t edit yet.')
+  })
+
+  it('shows a session strip with model and idle/working status', () => {
+    seed([{ kind: 'assistant', id: 'a1', text: 'hi', streaming: false }])
+    render(<AgentView threadId={THREAD_ID} />)
+    // Strip + composer both label the model — assert Idle (strip-only) for orientation.
+    expect(screen.getAllByText('Sonnet').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getByText('Idle')).toBeInTheDocument()
+  })
+
+  it('shows a turn usage footer after an idle assistant reply when usage is known', () => {
+    vi.mocked(useAgentThreads).mockReturnValue([
+      {
+        ...thread,
+        usage: {
+          turnInput: 45_002,
+          turnOutput: 18,
+          totalInput: 45_002,
+          totalOutput: 18,
+          turnCacheRead: 45_000,
+          totalCostUsd: 0.56,
+        },
+      },
+    ])
+    seed([{ kind: 'assistant', id: 'a1', text: 'hi', streaming: false }])
+    render(<AgentView threadId={THREAD_ID} />)
+    expect(screen.getByText('45k in (45k cached) · 18 out')).toBeInTheDocument()
+    expect(screen.getByText(/\$0\.56 est\./)).toBeInTheDocument()
   })
 
   it('Enter approves and Escape declines the pending approval, but not while typing', () => {
