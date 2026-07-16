@@ -1,3 +1,9 @@
+## [0.26.0](https://github.com/FabioFiorita/porcelain/compare/v0.25.1...v0.26.0) (2026-07-16)
+
+### Features
+
+* **terminal:** let users choose WebGL or DOM paint path ([3ed559b](https://github.com/FabioFiorita/porcelain/commit/3ed559b7cea0503bc22f913a85c32c07c174b491))
+
 ## [0.25.1](https://github.com/FabioFiorita/porcelain/compare/v0.25.0...v0.25.1) (2026-07-16)
 
 ### Bug Fixes
