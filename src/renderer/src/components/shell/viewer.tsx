@@ -20,6 +20,7 @@ import { TabBar } from './tab-bar'
 
 // The empty viewer is the most-seen blank surface, so it doubles as a quiet
 // quick-start: the three gestures that get you moving, each with its shortcut.
+// On phone the sidebar toggle is the real entry — keyboard chords are secondary.
 const QUICKSTART: { label: string; keys: string }[] = [
   { label: 'Search files', keys: kbdLabel('mod', 'P') },
   { label: 'Browse the tree', keys: kbdLabel('mod', '1') },
@@ -41,9 +42,12 @@ function EmptyViewer(): React.JSX.Element {
         <div className="space-y-0.5">
           <p className="text-xl font-medium tracking-tight text-foreground">porcelain</p>
           <p className="text-sm text-muted-foreground">Review changes as a story</p>
+          <p className="mt-2 max-w-xs text-xs text-muted-foreground/80 [@media(hover:hover)]:hidden">
+            Tap the sidebar button to browse files and changes — a quick look, not a full workspace.
+          </p>
         </div>
       </div>
-      <div className="flex w-56 flex-col">
+      <div className="hidden w-56 flex-col [@media(hover:hover)]:flex">
         {QUICKSTART.map((item, i) => (
           <div
             key={item.keys}

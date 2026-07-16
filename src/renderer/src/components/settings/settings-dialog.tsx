@@ -108,7 +108,7 @@ export function SettingsDialog(): React.JSX.Element {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="overflow-hidden p-0 sm:max-w-[960px]">
+      <DialogContent className="max-h-[min(600px,90dvh)] overflow-hidden p-0 sm:max-w-[960px]">
         <DialogTitle className="sr-only">Settings</DialogTitle>
         <DialogDescription className="sr-only">
           App preferences and repository settings.
@@ -118,7 +118,8 @@ export function SettingsDialog(): React.JSX.Element {
           className="min-h-0 min-w-0 items-start overflow-hidden"
           style={{ '--sidebar-width': '14rem' } as React.CSSProperties}
         >
-          <Sidebar collapsible="none" className="h-[600px] shrink-0 border-r">
+          {/* Fixed 600px overflowed small phone viewports; cap to the dialog's max-h. */}
+          <Sidebar collapsible="none" className="h-[min(600px,90dvh)] shrink-0 border-r">
             <SidebarContent>
               <SidebarGroup>
                 <SidebarGroupContent>
@@ -139,7 +140,7 @@ export function SettingsDialog(): React.JSX.Element {
               </SidebarGroup>
             </SidebarContent>
           </Sidebar>
-          <div className="flex h-[600px] min-w-0 flex-1 flex-col overflow-hidden">
+          <div className="flex h-[min(600px,90dvh)] min-w-0 flex-1 flex-col overflow-hidden">
             {/* Fixed header band — the section title/blurb stay put so a long
                 scroll never slides row controls up next to the dialog close X. */}
             <header className="shrink-0 border-b px-6 py-4 pr-12">

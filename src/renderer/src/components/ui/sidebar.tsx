@@ -26,7 +26,11 @@ import { PanelLeftIcon } from "lucide-react"
 const SIDEBAR_COOKIE_NAME = "sidebar_state"
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
 const SIDEBAR_WIDTH = "16rem"
+// Phone drawer: nearly full-width so the dual-rail left shell (icon strip + list)
+// can actually fit; right companion stays a bit narrower. The old fixed 18rem
+// crushed the dual-rail into a stacked flex-col body and made iPhone unusable.
 const SIDEBAR_WIDTH_MOBILE = "18rem"
+const SIDEBAR_WIDTH_MOBILE_LEFT = "min(100dvw - 0.75rem, 22rem)"
 const SIDEBAR_WIDTH_ICON = "3rem"
 const SIDEBAR_KEYBOARD_SHORTCUT = "b"
 
@@ -154,6 +158,7 @@ function Sidebar({
   className,
   children,
   dir,
+  style,
   ...props
 }: React.ComponentProps<"div"> & {
   side?: "left" | "right"
@@ -170,6 +175,7 @@ function Sidebar({
           "flex h-full w-(--sidebar-width) flex-col bg-sidebar text-sidebar-foreground",
           className
         )}
+        style={style}
         {...props}
       >
         {children}
@@ -178,6 +184,12 @@ function Sidebar({
   }
 
   if (isMobile) {
+    // Phone/quick-look drawer. collapsible="icon" is our left dual-rail shell
+    // (icon strip + content panel) — body must be flex-row or the rail stacks
+    // on top of the list and eats the sheet. Right companion stays a column.
+    // Drop the sheet primitive's sm:max-w-sm so the dual-rail can use the full
+    // SIDEBAR_WIDTH_MOBILE_LEFT. Shell `style` (e.g. --sidebar-width-icon) is
+    // merged; desktop-only top/height offsets are irrelevant on a full-height sheet.
     return (
       <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
         <SheetContent
@@ -185,10 +197,17 @@ function Sidebar({
           data-sidebar="sidebar"
           data-slot="sidebar"
           data-mobile="true"
-          className="w-(--sidebar-width) bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+          className={cn(
+            "gap-0 bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden",
+            "w-(--sidebar-width) data-[side=left]:sm:max-w-none data-[side=right]:sm:max-w-none",
+            // Home-indicator clearance on notched iPhones.
+            "pb-[env(safe-area-inset-bottom)]",
+          )}
           style={
             {
-              "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
+              "--sidebar-width":
+                side === "left" ? SIDEBAR_WIDTH_MOBILE_LEFT : SIDEBAR_WIDTH_MOBILE,
+              ...style,
             } as React.CSSProperties
           }
           side={side}
@@ -197,7 +216,14 @@ function Sidebar({
             <SheetTitle>Sidebar</SheetTitle>
             <SheetDescription>Displays the mobile sidebar.</SheetDescription>
           </SheetHeader>
-          <div className="flex h-full w-full flex-col">{children}</div>
+          <div
+            className={cn(
+              "flex h-full w-full overflow-hidden",
+              collapsible === "icon" ? "flex-row" : "flex-col",
+            )}
+          >
+            {children}
+          </div>
         </SheetContent>
       </Sheet>
     )
@@ -235,6 +261,7 @@ function Sidebar({
             : "group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-r group-data-[side=right]:border-l",
           className
         )}
+        style={style}
         {...props}
       >
         <div

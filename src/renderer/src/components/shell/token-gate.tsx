@@ -20,13 +20,13 @@ export function TokenGate({ children }: { children: React.ReactNode }): React.JS
   // While the initial probe runs, hold on the same blank surface AppShell shows
   // during restore — no flash of the form before we know we even need it.
   if (status === 'checking') {
-    return <div className="dark h-screen bg-background" />
+    return <div className="dark h-dvh bg-background" />
   }
 
   if (status === 'open') return <>{children}</>
 
   return (
-    <div className="dark flex h-screen flex-col items-center justify-center gap-8 bg-background px-6 text-foreground">
+    <div className="dark flex h-dvh flex-col items-center justify-center gap-8 bg-background px-6 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-foreground">
       <div className="flex flex-col items-center text-center">
         <img
           src={logo}
@@ -38,7 +38,7 @@ export function TokenGate({ children }: { children: React.ReactNode }): React.JS
         <p className="mt-1 text-sm text-muted-foreground">Enter your daemon token to connect</p>
       </div>
       <form
-        className="flex w-80 flex-col gap-3"
+        className="flex w-full max-w-80 flex-col gap-3"
         onSubmit={(e) => {
           e.preventDefault()
           if (token.trim() !== '') connect(token.trim())

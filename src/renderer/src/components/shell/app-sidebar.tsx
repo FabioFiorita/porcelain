@@ -28,6 +28,7 @@ import { cn } from '@renderer/lib/utils'
 import { useFileTreeStore } from '@renderer/stores/file-tree'
 import { type SidebarTab, usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
+import { useTabsStore } from '@renderer/stores/tabs'
 import { isUnreadTab, useUnreadStore } from '@renderer/stores/unread'
 import {
   Bot,
@@ -42,7 +43,7 @@ import {
   SquareTerminal,
   Waypoints,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { FileTree } from './file-tree'
 import { ProjectSwitcher } from './project-switcher'
 import { SidebarHeaderActionsProvider } from './sidebar-header-actions'
@@ -80,14 +81,34 @@ export function AppSidebar(): React.JSX.Element {
   const setSidebarTab = usePreferencesStore((s) => s.setSidebarTab)
   const unread = useUnreadStore((s) => s.unread)
   const collapseAll = useFileTreeStore((s) => s.collapseAll)
-  const { state, setOpen } = useSidebar()
+  const { state, setOpen, isMobile, setOpenMobile } = useSidebar()
   const [actionsSlot, setActionsSlot] = useState<HTMLElement | null>(null)
+
+  // Phone quick-look: when the user opens a file/diff/commit/etc. from the drawer,
+  // dismiss it so the viewer is visible. Switching only the rail tab keeps it open.
+  const activeTabId = useTabsStore((s) => {
+    const pane = s.panes[s.activePaneIndex]
+    return pane?.activeTabId ?? null
+  })
+  const prevActiveTabId = useRef(activeTabId)
+  useEffect(() => {
+    if (!isMobile) {
+      prevActiveTabId.current = activeTabId
+      return
+    }
+    if (prevActiveTabId.current !== activeTabId) {
+      prevActiveTabId.current = activeTabId
+      if (activeTabId !== null) setOpenMobile(false)
+    }
+  }, [activeTabId, isMobile, setOpenMobile])
 
   // Picking a tab always reveals its panel — switching while collapsed to the
   // rail would otherwise change the selection with nothing visible to show for it.
+  // On phone the panel is a sheet (`openMobile`), not the desktop `open` flag.
   const selectTab = (tab: SidebarTab): void => {
     setSidebarTab(tab)
-    setOpen(true)
+    if (isMobile) setOpenMobile(true)
+    else setOpen(true)
   }
 
   return (
@@ -114,8 +135,9 @@ export function AppSidebar(): React.JSX.Element {
         } as React.CSSProperties
       }
     >
-      {/* Resizing a bare rail makes no sense — the handle only exists when expanded. */}
-      {state === 'expanded' && <SidebarResizeHandle />}
+      {/* Resizing a bare rail makes no sense — the handle only exists when expanded.
+          Phone sheets are fixed-width drawers; the drag handle is pointer-only. */}
+      {state === 'expanded' && !isMobile && <SidebarResizeHandle />}
 
       {/* Icon rail — project avatar on top, then the eight tabs (monochrome,
           icon-only), settings at the bottom. The right border runs the FULL rail

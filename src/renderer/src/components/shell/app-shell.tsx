@@ -64,16 +64,18 @@ function UpdateButton(): React.JSX.Element | null {
 }
 
 // TopBar renders inside the right sidebar's provider, so the left sidebar's
-// state/toggle come in as props captured from the outer provider.
+// state/toggle come in as props captured from the outer provider. The right
+// toggle MUST go through this provider's `toggleSidebar` — on phone that flips
+// `openMobile` (the sheet); writing the preference alone leaves the sheet closed.
 function TopBar({ left }: { left: LeftSidebarHandle }): React.JSX.Element {
-  const rightSidebarOpen = usePreferencesStore((s) => s.rightSidebarOpen)
-  const setRightSidebarOpen = usePreferencesStore((s) => s.setRightSidebarOpen)
+  const { toggleSidebar: toggleRight, isMobile, openMobile, open: rightOpen } = useSidebar()
   // The Board tab has no Quick Access section, so its toggle is hidden (the panel
   // itself is suppressed in RepoShell) — see RIGHT_SIDEBAR-less tabs there.
   const hasQuickAccess = usePreferencesStore((s) => s.sidebarTab !== 'board')
   // When split, each pane carries its own tab bar inside the viewer; the chrome
   // bar shows the (single) pane's tabs otherwise.
   const isSplit = useTabsStore((s) => s.panes.length > 1)
+  const rightActive = isMobile ? openMobile : rightOpen
 
   return (
     <div className="app-drag flex h-12 items-center border-b">
@@ -85,6 +87,7 @@ function TopBar({ left }: { left: LeftSidebarHandle }): React.JSX.Element {
               size="icon-sm"
               onClick={left.toggle}
               aria-label="Toggle sidebar"
+              aria-expanded={!left.collapsed}
               // Collapsing leaves the icon rail in place, so the traffic lights
               // now float over the rail — this toggle never needs to clear them.
               className="app-no-drag m-1 ml-2"
@@ -106,8 +109,9 @@ function TopBar({ left }: { left: LeftSidebarHandle }): React.JSX.Element {
               <Button
                 variant="ghost"
                 size="icon-sm"
-                onClick={() => setRightSidebarOpen(!rightSidebarOpen)}
+                onClick={toggleRight}
                 aria-label="Toggle quick access sidebar"
+                aria-expanded={rightActive}
                 className="app-no-drag m-1 mr-2"
               >
                 <Zap />
@@ -125,7 +129,7 @@ function TopBar({ left }: { left: LeftSidebarHandle }): React.JSX.Element {
 
 // Rendered between the providers: useSidebar here reads the outer (left) one.
 function RepoShell(): React.JSX.Element {
-  const { state, setOpen, toggleSidebar } = useSidebar()
+  const { state, setOpen, toggleSidebar, isMobile, openMobile } = useSidebar()
   const setRightSidebarOpen = usePreferencesStore((s) => s.setRightSidebarOpen)
   const rightSidebarWidth = usePreferencesStore((s) => s.rightSidebarWidth)
   const sidebarTab = usePreferencesStore((s) => s.sidebarTab)
@@ -133,7 +137,11 @@ function RepoShell(): React.JSX.Element {
   // there — independently of the user's open/closed preference, which is restored
   // when they switch back to a tab that has a Quick Access section.
   const rightOpen = usePreferencesStore((s) => s.rightSidebarOpen) && sidebarTab !== 'board'
-  const left: LeftSidebarHandle = { collapsed: state === 'collapsed', toggle: toggleSidebar }
+  // On phone the left panel is a sheet (`openMobile`), not the desktop expanded flag.
+  const left: LeftSidebarHandle = {
+    collapsed: isMobile ? !openMobile : state === 'collapsed',
+    toggle: toggleSidebar,
+  }
 
   // Keep the center viewer usable when the window is narrowed: close the right
   // Quick Access first, then collapse the left sidebar to its rail, restoring
@@ -154,12 +162,14 @@ function RepoShell(): React.JSX.Element {
         style={{ '--sidebar-width': `${rightSidebarWidth}px` } as React.CSSProperties}
       >
         {/* Main tile floats in the void; margins collapse to 0 on sides where a
-            floating sidebar's own padding already provides the 8px gap. */}
+            floating sidebar's own padding already provides the 8px gap. On phone
+            both sidebars are overlay sheets (no gap peer), so always keep the
+            8px margin on both sides. */}
         <div
           className={cn(
             'glaze-tile mb-2 flex min-w-0 flex-1 flex-col overflow-hidden [--tile-fill:var(--surface-1)]',
-            left.collapsed && 'ml-2',
-            !rightOpen && 'mr-2',
+            (isMobile || left.collapsed) && 'ml-2',
+            (isMobile || !rightOpen) && 'mr-2',
           )}
         >
           <TopBar left={left} />
@@ -199,9 +209,11 @@ export function AppShell(): React.JSX.Element {
   // SettingsDialog is mounted on BOTH paths: remote-daemon connect/disconnect lives
   // there, and a stuck remote (or empty recents) must not lock the user out of it.
   // The gear triggers (sidebar rail + welcome) only open the store.
+  // Safe-area padding keeps the browser client clear of the iPhone notch / home bar
+  // (viewport-fit=cover in index.html); inert on desktop Electron (env() → 0).
   if (!repo) {
     return (
-      <div className="dark flex h-dvh flex-col bg-background text-foreground">
+      <div className="dark flex h-dvh flex-col bg-background pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-foreground">
         <div className="app-drag h-12 shrink-0" />
         <div className="min-h-0 flex-1">
           <Welcome />
@@ -217,7 +229,7 @@ export function AppShell(): React.JSX.Element {
     // No background wash here: the void between the tiles shows raw vibrancy. The
     // window titlebar (traffic lights + centered search) spans the top; the three
     // tiles fill the row below it.
-    <div className="dark flex h-dvh flex-col text-foreground">
+    <div className="dark flex h-dvh flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-foreground">
       <TitleBar />
       <SidebarProvider
         // flex-1 fills the row under the titlebar; minHeight:0 overrides the

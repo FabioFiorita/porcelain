@@ -8,6 +8,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useCommentIndex } from '@renderer/hooks/use-comments'
 import { useDiffFile } from '@renderer/hooks/use-diff'
+import { useIsMobile } from '@renderer/hooks/use-mobile'
 import { useReviewedPaths, useToggleReviewed } from '@renderer/hooks/use-reviewed'
 import { type LineSelection, lineSelectionFromDom } from '@renderer/lib/line-selection'
 import { fileName } from '@renderer/lib/paths'
@@ -28,7 +29,10 @@ export function DiffView({
   filePath: string
   base?: string
 }): React.JSX.Element {
-  const diffMode = usePreferencesStore((s) => s.diffMode)
+  const prefDiffMode = usePreferencesStore((s) => s.diffMode)
+  // Split needs two code columns — force unified on phone for a readable glance.
+  const isMobile = useIsMobile()
+  const diffMode = isMobile ? 'unified' : prefDiffMode
   const repo = useRepoStore((s) => s.repo)
   const openTab = useTabsStore((s) => s.openTab)
   const { hunks, status, error } = useDiffFile(filePath, base)

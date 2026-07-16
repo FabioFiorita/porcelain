@@ -1,18 +1,20 @@
 import { Kbd } from '@renderer/components/ui/kbd'
 import { kbdLabel } from '@renderer/lib/keyboard'
+import { isBrowser } from '@renderer/lib/platform'
 import { useFileFinderStore } from '@renderer/stores/file-finder'
 import { Search } from 'lucide-react'
 
 // Full-width window titlebar. The macOS traffic lights own the left inset, and a
 // centered search bar raises the Cmd+P file finder — it's just a clickable handle
-// on the same popup, not a separate command palette.
+// on the same popup, not a separate command palette. Browser clients (iPad/iPhone
+// Safari) have no traffic lights, so the side spacers are dropped there — on a
+// phone they were eating ~128px of an already-tight bar.
 export function TitleBar(): React.JSX.Element {
   const setFinderOpen = useFileFinderStore((s) => s.setOpen)
 
   return (
     <div className="app-drag flex h-12 shrink-0 items-center px-3">
-      {/* Spacer matching the traffic lights so the bar centers against the window. */}
-      <div className="w-16 shrink-0" />
+      {!isBrowser && <div className="w-16 shrink-0" aria-hidden />}
       <div className="flex flex-1 justify-center">
         <button
           type="button"
@@ -24,10 +26,11 @@ export function TitleBar(): React.JSX.Element {
           <span className="flex-1 truncate text-left">
             Search files, folders, commands, commits…
           </span>
-          <Kbd>{kbdLabel('mod', 'K')}</Kbd>
+          {/* Keyboard chords are noise on a phone soft-keyboard; keep them for pointer. */}
+          <Kbd className="[@media(hover:none)]:hidden">{kbdLabel('mod', 'K')}</Kbd>
         </button>
       </div>
-      <div className="w-16 shrink-0" />
+      {!isBrowser && <div className="w-16 shrink-0" aria-hidden />}
     </div>
   )
 }

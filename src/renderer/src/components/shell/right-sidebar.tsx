@@ -1,6 +1,6 @@
 import { AgentsQuickAccess } from '@renderer/components/agent/agents-quick-access'
 import { ActionsGroup } from '@renderer/components/terminal/actions-group'
-import { Sidebar, SidebarContent, SidebarHeader } from '@renderer/components/ui/sidebar'
+import { Sidebar, SidebarContent, SidebarHeader, useSidebar } from '@renderer/components/ui/sidebar'
 import { type SidebarTab, usePreferencesStore } from '@renderer/stores/preferences'
 import { CommentsGroup } from './comments-group'
 import { CommitGroup } from './commit-group'
@@ -32,6 +32,7 @@ const COMPANION_TITLES: Record<SidebarTab, string> = {
 // composer) — you review a feature to commit it.
 export function RightSidebar(): React.JSX.Element {
   const sidebarTab = usePreferencesStore((s) => s.sidebarTab)
+  const { isMobile } = useSidebar()
 
   return (
     <Sidebar
@@ -42,7 +43,7 @@ export function RightSidebar(): React.JSX.Element {
       // container to the full viewport otherwise), flush at the titlebar bottom.
       style={{ top: '3rem', height: 'calc(100svh - 3rem)', paddingTop: 0 }}
     >
-      <RightSidebarResizeHandle />
+      {!isMobile && <RightSidebarResizeHandle />}
       <SidebarHeader className="app-drag h-12 flex-row items-center border-b py-0 pr-1 pl-3">
         <span className="truncate text-xs font-semibold text-foreground">
           {COMPANION_TITLES[sidebarTab]}
