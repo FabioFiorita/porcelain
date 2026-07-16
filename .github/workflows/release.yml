@@ -110,17 +110,8 @@ jobs:
           AUDIENCE="npm:registry.npmjs.org"
           export ID_TOKEN="$(curl -fsSL -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
             "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${AUDIENCE}" | python3 -c 'import sys,json; print(json.load(sys.stdin)["value"])')"
-          # Decode claims (no verify) for the Trusted Publisher match fields.
-          python3 - <<'PY'
-import os, json, base64
-tok = os.environ["ID_TOKEN"]
-payload = tok.split(".")[1] + "=="
-claims = json.loads(base64.urlsafe_b64decode(payload))
-for k in ("sub", "repository", "repository_owner", "repository_visibility",
-          "workflow", "workflow_ref", "job_workflow_ref", "ref", "event_name", "actor"):
-    if k in claims:
-        print(f"oidc claim {k}={claims[k]}")
-PY
+          # Decode claims (no verify) for the Trusted Publisher match fields (one line — YAML).
+          python3 -c 'import os,json,base64; t=os.environ["ID_TOKEN"].split(".")[1]+"=="; c=json.loads(base64.urlsafe_b64decode(t)); ks=("sub","repository","repository_owner","repository_visibility","workflow","workflow_ref","job_workflow_ref","ref","event_name","actor"); [print(f"oidc claim {k}={c[k]}") for k in ks if k in c]'
           EXCHANGE_CODE="$(curl -sS -o /tmp/oidc-exchange.json -w '%{http_code}' -X POST \
             -H "Authorization: Bearer ${ID_TOKEN}" \
             -H "Accept: application/json" \
