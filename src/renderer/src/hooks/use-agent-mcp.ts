@@ -6,12 +6,16 @@ import { trpc } from '@renderer/lib/trpc'
  * local agents; remote daemon → Beelink agents. Channel files and agent CLIs live
  * on the daemon host, so configuring the shell Mac while pointed at a remote
  * environment was the bug this fixes.
+ *
+ * `configured` is probed from each agent's config file on disk — never a
+ * client-local preference (that caused false "not configured" when MCP was
+ * written outside the app or prefs were cleared).
  */
 export function useAgentMcpInfo():
-  | { agents: { name: AgentName; configPath: string }[] }
+  | { agents: { name: AgentName; configPath: string; configured: boolean }[] }
   | undefined {
   const { data } = trpc.agentMcpInfo.useQuery(undefined, {
-    staleTime: Number.POSITIVE_INFINITY,
+    staleTime: 30_000,
   })
   return data
 }
@@ -22,7 +26,12 @@ export function useInstallAgentMcp(): {
   result: AgentMcpResult[] | undefined
   error: string | null
 } {
-  const mutation = trpc.installAgentMcp.useMutation()
+  const utils = trpc.useUtils()
+  const mutation = trpc.installAgentMcp.useMutation({
+    onSuccess: async () => {
+      await utils.agentMcpInfo.invalidate()
+    },
+  })
   return {
     install: (agents) => mutation.mutate(agents),
     isInstalling: mutation.isPending,

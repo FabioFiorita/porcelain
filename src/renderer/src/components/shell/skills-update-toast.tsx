@@ -1,3 +1,4 @@
+import { useAgentMcpInfo } from '@renderer/hooks/use-agent-mcp'
 import { useSkillsInfo } from '@renderer/hooks/use-skills'
 import { isBrowser } from '@renderer/lib/platform'
 import { usePreferencesStore } from '@renderer/stores/preferences'
@@ -14,11 +15,12 @@ const TOAST_ID = 'skills-update'
  */
 export function SkillsUpdateToast(): null {
   const info = useSkillsInfo()
+  const mcpInfo = useAgentMcpInfo()
   const dismissedVersion = usePreferencesStore((s) => s.skillsDismissedVersion)
   const setDismissedVersion = usePreferencesStore((s) => s.setSkillsDismissedVersion)
-  const anyMcpConfigured = usePreferencesStore(
-    (s) => s.mcpClaudeConfigured || s.mcpCodexConfigured || s.mcpOpenCodeConfigured,
-  )
+  // Disk probe: any agent with Porcelain MCP written is an engaged user. Client-
+  // local prefs used to false-negative after a prefs clear or external MCP write.
+  const anyMcpConfigured = mcpInfo?.agents.some((a) => a.configured) ?? false
   const shown = useRef<string | null>(null)
 
   const current = info?.version

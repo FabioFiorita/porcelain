@@ -4,9 +4,11 @@ export {
   AGENT_NAMES,
   type AgentMcpResult,
   type AgentName,
+  isAgentMcpConfigured,
   PORCELAIN_MCP_KEY,
   writeAgentMcp,
   writeClaudeMcp,
   writeCodexMcp,
+  writeGrokMcp,
   writeOpenCodeMcp,
 } from '../backend/agent-mcp-config'

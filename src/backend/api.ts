@@ -27,8 +27,8 @@ import {
   AGENT_NAMES,
   type AgentMcpResult,
   type AgentName,
-  agentConfigPath,
   installMcpForAgents,
+  listAgentMcpInfo,
 } from './agent-mcp-install'
 import {
   agentCommands,
@@ -1237,10 +1237,15 @@ export const router = t.router({
 
   // Agent MCP install on the *daemon host* (not the Mac shell). When the app is
   // pointed at a remote daemon, Settings → Agents must configure that machine's
-  // ~/.claude.json etc. so agents there can use the channel tools.
-  agentMcpInfo: t.procedure.query((): { agents: { name: AgentName; configPath: string }[] } => ({
-    agents: AGENT_NAMES.map((name) => ({ name, configPath: agentConfigPath(name) })),
-  })),
+  // ~/.claude.json etc. so agents there can use the channel tools. `configured`
+  // is probed from disk — never a client-local flag (false-negative trap).
+  agentMcpInfo: t.procedure.query(
+    async (): Promise<{
+      agents: { name: AgentName; configPath: string; configured: boolean }[]
+    }> => ({
+      agents: await listAgentMcpInfo(),
+    }),
+  ),
 
   installAgentMcp: t.procedure
     .input(z.array(z.enum(AGENT_NAMES as [AgentName, ...AgentName[]])).optional())

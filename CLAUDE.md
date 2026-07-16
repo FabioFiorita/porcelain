@@ -115,7 +115,7 @@ Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wron
 **Overlays:**
 - **File finder** — Cmd+P fuzzy finder (`file-finder.tsx`).
 - **Find bar** — Cmd+F in-viewer search (`find-bar.tsx`).
-- **Settings** — gear → `settings-dialog.tsx` (General · Review flow · Agents · Updates).
+- **Settings** — gear → `settings-dialog.tsx` (General · Environments · Review flow · Agents · Updates).
 - **Welcome screen** — the no-repo / repo-picker state (`welcome.tsx`).
 
 **Cross-cutting vocabulary** (the *what* and *why* live in `product`; channel internals + traps in `architecture`/`audit`):

@@ -7,8 +7,8 @@ import {
   AGENT_NAMES,
   type AgentMcpResult,
   type AgentName,
-  agentConfigPath,
   installMcpForAgents,
+  listAgentMcpInfo,
 } from './agent-mcp'
 import {
   getDefaultEnvironmentId,
@@ -106,9 +106,13 @@ export const shellRouter = t.router({
   // so the host that owns ~/.porcelain channel files is what gets configured.
   // Kept so a local-only install still works without a round-trip and so boot
   // ensureMcpServer (main/index.ts) can refresh the bundled server.
-  agentMcpInfo: t.procedure.query((): { agents: { name: AgentName; configPath: string }[] } => ({
-    agents: AGENT_NAMES.map((name) => ({ name, configPath: agentConfigPath(name) })),
-  })),
+  agentMcpInfo: t.procedure.query(
+    async (): Promise<{
+      agents: { name: AgentName; configPath: string; configured: boolean }[]
+    }> => ({
+      agents: await listAgentMcpInfo(),
+    }),
+  ),
 
   installAgentMcp: t.procedure
     .input(z.array(z.enum(AGENT_NAMES as [AgentName, ...AgentName[]])).optional())

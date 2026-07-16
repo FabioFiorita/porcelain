@@ -118,7 +118,7 @@ export function Welcome(): React.JSX.Element {
         <button
           type="button"
           className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-          onClick={() => useSettingsDialogStore.getState().openTo('general')}
+          onClick={() => useSettingsDialogStore.getState().openTo('environments')}
         >
           Remote daemon settings
         </button>

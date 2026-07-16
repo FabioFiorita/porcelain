@@ -1,12 +1,18 @@
 import { copyFile, mkdir } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { AGENT_NAMES, type AgentMcpResult, type AgentName, writeAgentMcp } from './agent-mcp-config'
+import {
+  AGENT_NAMES,
+  type AgentMcpResult,
+  type AgentName,
+  isAgentMcpConfigured,
+  writeAgentMcp,
+} from './agent-mcp-config'
 
 /**
  * Daemon-host MCP install: copy the bundled stdio server into `~/.porcelain/mcp/`
- * and write each agent's user-global config so Claude/Codex/OpenCode on THIS
- * machine can call the review/board/action/note/layer/artifact tools.
+ * and write each agent's user-global config so Claude/Codex/OpenCode/Grok on THIS
+ * machine can call the review/board/action/note/layer/artifact/evidence tools.
  *
  * This is the remote-aware path — when the Mac app is pointed at a Beelink (or
  * any remote daemon), Settings → Agents → Add MCP must configure the *daemon
@@ -37,6 +43,8 @@ export function agentConfigPath(agent: AgentName): string {
       return join(homedir(), '.codex', 'config.toml')
     case 'opencode':
       return join(homedir(), '.config', 'opencode', 'opencode.json')
+    case 'grok':
+      return join(homedir(), '.grok', 'config.toml')
   }
 }
 
@@ -75,6 +83,22 @@ export async function installMcpForAgents(agents: AgentName[]): Promise<AgentMcp
     }
   }
   return results
+}
+
+/** Probe each agent's config on this host for a Porcelain MCP entry. */
+export async function listAgentMcpInfo(): Promise<
+  { name: AgentName; configPath: string; configured: boolean }[]
+> {
+  return Promise.all(
+    AGENT_NAMES.map(async (name) => {
+      const configPath = agentConfigPath(name)
+      return {
+        name,
+        configPath,
+        configured: await isAgentMcpConfigured(name, configPath),
+      }
+    }),
+  )
 }
 
 export { AGENT_NAMES, type AgentMcpResult, type AgentName }

@@ -100,7 +100,7 @@ function ProvidersBlock(): React.JSX.Element {
   if (providers.length === 0) {
     return (
       <p className="text-xs text-muted-foreground">
-        Detecting agent CLIs (Claude Code, Codex, OpenCode)…
+        Detecting agent CLIs (Claude Code, Codex, OpenCode, Grok)…
       </p>
     )
   }
@@ -253,7 +253,7 @@ export function AgentsSection(): React.JSX.Element {
           <p className="mt-0.5 text-xs text-muted-foreground">
             The Porcelain MCP server gives your agent the actual tools — set_feature_review,
             list_cards, create_action, and the rest. One button writes the config for Claude Code,
-            Codex, and OpenCode.
+            Codex, OpenCode, or Grok. Status is read from each agent&apos;s config file on disk.
           </p>
         </div>
         <AgentMcpSection />

@@ -3,9 +3,11 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
+  isAgentMcpConfigured,
   PORCELAIN_MCP_KEY,
   writeClaudeMcp,
   writeCodexMcp,
+  writeGrokMcp,
   writeOpenCodeMcp,
 } from './agent-mcp-config'
 
@@ -102,5 +104,51 @@ describe('agent mcp config writers', () => {
     const path = join(tmp, '.claude.json')
     await writeClaudeMcp(path, '/Users/test/.porcelain/mcp/server.js')
     await expect(readFile(`${path}.porcelain-tmp`, 'utf8')).rejects.toThrow()
+  })
+
+  it('writes Grok ~/.grok/config.toml with mcp_servers.porcelain', async () => {
+    const path = join(tmp, 'config.toml')
+    await writeGrokMcp(path, '/Users/test/.porcelain/mcp/server.js')
+    const content = await readFile(path, 'utf8')
+    expect(content).toContain('[mcp_servers.porcelain]')
+    expect(content).toContain('command = "node"')
+    expect(content).toContain('args = [ "/Users/test/.porcelain/mcp/server.js" ]')
+    expect(content).toContain('enabled = true')
+  })
+
+  it('merges Grok config without clobbering other mcp_servers', async () => {
+    const path = join(tmp, 'config.toml')
+    await writeFile(path, '[mcp_servers.other]\ncommand = "foo"\n')
+    await writeGrokMcp(path, '/Users/test/.porcelain/mcp/server.js')
+    const content = await readFile(path, 'utf8')
+    expect(content).toContain('[mcp_servers.other]')
+    expect(content).toContain('[mcp_servers.porcelain]')
+  })
+
+  it('probes configured status from disk for each agent', async () => {
+    const claude = join(tmp, '.claude.json')
+    const codex = join(tmp, 'codex.toml')
+    const opencode = join(tmp, 'opencode.json')
+    const grok = join(tmp, 'grok.toml')
+    const missing = join(tmp, 'missing.json')
+
+    expect(await isAgentMcpConfigured('claude', missing)).toBe(false)
+    expect(await isAgentMcpConfigured('claude', claude)).toBe(false)
+
+    await writeClaudeMcp(claude, '/s.js')
+    await writeCodexMcp(codex, '/s.js')
+    await writeOpenCodeMcp(opencode, '/s.js')
+    await writeGrokMcp(grok, '/s.js')
+
+    expect(await isAgentMcpConfigured('claude', claude)).toBe(true)
+    expect(await isAgentMcpConfigured('codex', codex)).toBe(true)
+    expect(await isAgentMcpConfigured('opencode', opencode)).toBe(true)
+    expect(await isAgentMcpConfigured('grok', grok)).toBe(true)
+  })
+
+  it('treats a config without porcelain as not configured', async () => {
+    const path = join(tmp, '.claude.json')
+    await writeFile(path, JSON.stringify({ mcpServers: { other: { command: 'x' } } }))
+    expect(await isAgentMcpConfigured('claude', path)).toBe(false)
   })
 })

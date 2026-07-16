@@ -2,7 +2,13 @@ import { copyFile, mkdir } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { app } from 'electron'
-import { AGENT_NAMES, type AgentMcpResult, type AgentName, writeAgentMcp } from './agent-mcp-config'
+import {
+  AGENT_NAMES,
+  type AgentMcpResult,
+  type AgentName,
+  isAgentMcpConfigured,
+  writeAgentMcp,
+} from './agent-mcp-config'
 
 export { AGENT_NAMES, type AgentMcpResult, type AgentName }
 
@@ -41,6 +47,8 @@ export function agentConfigPath(agent: AgentName): string {
       return join(homedir(), '.codex', 'config.toml')
     case 'opencode':
       return join(homedir(), '.config', 'opencode', 'opencode.json')
+    case 'grok':
+      return join(homedir(), '.grok', 'config.toml')
   }
 }
 
@@ -65,4 +73,20 @@ export async function installMcpForAgents(agents: AgentName[]): Promise<AgentMcp
     }
   }
   return results
+}
+
+/** Probe each agent's config on this Mac for a Porcelain MCP entry. */
+export async function listAgentMcpInfo(): Promise<
+  { name: AgentName; configPath: string; configured: boolean }[]
+> {
+  return Promise.all(
+    AGENT_NAMES.map(async (name) => {
+      const configPath = agentConfigPath(name)
+      return {
+        name,
+        configPath,
+        configured: await isAgentMcpConfigured(name, configPath),
+      }
+    }),
+  )
 }

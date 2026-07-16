@@ -2,7 +2,7 @@ import { chmod, mkdir, readFile, rename, stat, writeFile } from 'node:fs/promise
 import { dirname } from 'node:path'
 import { parse as parseToml, stringify as stringifyToml } from '@iarna/toml'
 
-export type AgentName = 'claude' | 'codex' | 'opencode'
+export type AgentName = 'claude' | 'codex' | 'opencode' | 'grok'
 
 export interface AgentMcpResult {
   agent: AgentName
@@ -10,7 +10,7 @@ export interface AgentMcpResult {
   output: string
 }
 
-export const AGENT_NAMES: AgentName[] = ['claude', 'codex', 'opencode']
+export const AGENT_NAMES: AgentName[] = ['claude', 'codex', 'opencode', 'grok']
 
 export const PORCELAIN_MCP_KEY = 'porcelain'
 
@@ -27,6 +27,14 @@ interface CodexConfig {
 
 interface OpenCodeConfig {
   mcp?: Record<string, { type: string; command: string[]; enabled: boolean }>
+}
+
+/** Grok Build uses the same TOML shape as Codex (`mcp_servers.<name>`). */
+interface GrokConfig {
+  mcp_servers?: Record<
+    string,
+    { command: string; args: string[]; enabled?: boolean; env?: Record<string, string> }
+  >
 }
 
 function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
@@ -106,6 +114,18 @@ export async function writeOpenCodeMcp(configPath: string, serverPath: string): 
   await writeJsonFile(configPath, config)
 }
 
+/**
+ * Write Porcelain into Grok Build's user config (`~/.grok/config.toml`). Same
+ * TOML table shape as Codex; `enabled = true` matches Grok's defaults docs.
+ */
+export async function writeGrokMcp(configPath: string, serverPath: string): Promise<void> {
+  const config = (await readTomlFile<GrokConfig>(configPath)) ?? {}
+  const mcpServers = config.mcp_servers ?? {}
+  mcpServers[PORCELAIN_MCP_KEY] = { command: 'node', args: [serverPath], enabled: true }
+  config.mcp_servers = mcpServers
+  await writeTomlFile(configPath, config)
+}
+
 export async function writeAgentMcp(
   agent: AgentName,
   configPath: string,
@@ -118,5 +138,38 @@ export async function writeAgentMcp(
       return writeCodexMcp(configPath, serverPath)
     case 'opencode':
       return writeOpenCodeMcp(configPath, serverPath)
+    case 'grok':
+      return writeGrokMcp(configPath, serverPath)
+  }
+}
+
+/**
+ * Whether the agent's config file on disk already names the Porcelain MCP key.
+ * Source of truth for Settings → Agents status (localStorage was a false-
+ * negative trap when the user configured MCP outside the app, or cleared prefs).
+ * Missing / unreadable / unparseable files → not configured (never throw to UI).
+ */
+export async function isAgentMcpConfigured(agent: AgentName, configPath: string): Promise<boolean> {
+  try {
+    switch (agent) {
+      case 'claude': {
+        const config = await readJsonFile<ClaudeConfig>(configPath)
+        return config?.mcpServers?.[PORCELAIN_MCP_KEY] != null
+      }
+      case 'codex': {
+        const config = await readTomlFile<CodexConfig>(configPath)
+        return config?.mcp_servers?.[PORCELAIN_MCP_KEY] != null
+      }
+      case 'opencode': {
+        const config = await readJsonFile<OpenCodeConfig>(configPath)
+        return config?.mcp?.[PORCELAIN_MCP_KEY] != null
+      }
+      case 'grok': {
+        const config = await readTomlFile<GrokConfig>(configPath)
+        return config?.mcp_servers?.[PORCELAIN_MCP_KEY] != null
+      }
+    }
+  } catch {
+    return false
   }
 }

@@ -17,8 +17,9 @@ import {
 } from '@renderer/components/ui/sidebar'
 import { isBrowser } from '@renderer/lib/platform'
 import { type SettingsSection, useSettingsDialogStore } from '@renderer/stores/settings-dialog'
-import { Bot, Download, Layers, Settings2, SlidersHorizontal } from 'lucide-react'
+import { Bot, Download, Layers, Network, Settings2, SlidersHorizontal } from 'lucide-react'
 import { AgentsSection } from './agents-section'
+import { EnvironmentsSection } from './environments-section'
 import { FlowLayersSection } from './flow-layers-section'
 import { GeneralSection } from './general-section'
 import { UpdatesSection } from './updates-section'
@@ -42,6 +43,13 @@ const ALL_SECTIONS: {
     icon: SlidersHorizontal,
     title: 'General',
     blurb: 'Viewer preferences, saved on this machine.',
+  },
+  {
+    id: 'environments',
+    label: 'Environments',
+    icon: Network,
+    title: 'Environments',
+    blurb: 'Share this daemon and bind windows to remote machines.',
   },
   {
     id: 'flow',
@@ -149,6 +157,7 @@ export function SettingsDialog(): React.JSX.Element {
             </header>
             <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-6">
               {activeId === 'general' && <GeneralSection />}
+              {activeId === 'environments' && <EnvironmentsSection />}
               {activeId === 'flow' && <FlowLayersSection onSaved={() => setOpen(false)} />}
               {activeId === 'agents' && <AgentsSection />}
               {activeId === 'updates' && <UpdatesSection />}

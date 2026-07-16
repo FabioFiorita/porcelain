@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type SettingsSection = 'general' | 'flow' | 'agents' | 'updates'
+export type SettingsSection = 'general' | 'environments' | 'flow' | 'agents' | 'updates'
 
 /**
  * Open/section state for the Settings dialog, lifted out of the component so other

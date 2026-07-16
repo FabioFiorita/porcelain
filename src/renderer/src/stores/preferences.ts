@@ -1,4 +1,3 @@
-import type { AgentName } from '@main/agent-mcp'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
@@ -49,10 +48,6 @@ interface PreferencesState {
   splitRatio: number
   /** Bundled skills version the user last dismissed the upgrade toast for. */
   skillsDismissedVersion: string | null
-  /** Whether the Porcelain MCP config has been written for each agent. */
-  mcpClaudeConfigured: boolean
-  mcpCodexConfigured: boolean
-  mcpOpenCodeConfigured: boolean
   setChangesScope: (scope: ChangesScope) => void
   setDiffMode: (mode: DiffMode) => void
   setMarkdownMode: (mode: MarkdownMode) => void
@@ -65,7 +60,6 @@ interface PreferencesState {
   setNotesHeight: (height: number) => void
   setSplitRatio: (ratio: number) => void
   setSkillsDismissedVersion: (version: string | null) => void
-  setMcpConfigured: (agent: AgentName, configured: boolean) => void
 }
 
 export const usePreferencesStore = create<PreferencesState>()(
@@ -83,9 +77,6 @@ export const usePreferencesStore = create<PreferencesState>()(
       notesHeight: 220,
       splitRatio: 0.5,
       skillsDismissedVersion: null,
-      mcpClaudeConfigured: false,
-      mcpCodexConfigured: false,
-      mcpOpenCodeConfigured: false,
       setChangesScope: (changesScope) => set({ changesScope }),
       setDiffMode: (diffMode) => set({ diffMode }),
       setMarkdownMode: (markdownMode) => set({ markdownMode }),
@@ -104,17 +95,6 @@ export const usePreferencesStore = create<PreferencesState>()(
       setSplitRatio: (ratio) =>
         set({ splitRatio: Math.min(SPLIT_MAX_RATIO, Math.max(SPLIT_MIN_RATIO, ratio)) }),
       setSkillsDismissedVersion: (skillsDismissedVersion) => set({ skillsDismissedVersion }),
-      setMcpConfigured: (agent, configured) =>
-        set(() => {
-          switch (agent) {
-            case 'claude':
-              return { mcpClaudeConfigured: configured }
-            case 'codex':
-              return { mcpCodexConfigured: configured }
-            case 'opencode':
-              return { mcpOpenCodeConfigured: configured }
-          }
-        }),
     }),
     {
       name: 'porcelain-preferences',

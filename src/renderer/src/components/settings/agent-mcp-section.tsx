@@ -1,35 +1,17 @@
 import { Button } from '@renderer/components/ui/button'
 import { useAgentMcpInfo, useInstallAgentMcp } from '@renderer/hooks/use-agent-mcp'
-import { usePreferencesStore } from '@renderer/stores/preferences'
 import { Check, CircleCheck, Loader2, TriangleAlert, XCircle } from 'lucide-react'
-import { useEffect } from 'react'
 
 const AGENT_LABELS: Record<string, string> = {
   claude: 'Claude Code',
   codex: 'Codex',
   opencode: 'OpenCode',
+  grok: 'Grok',
 }
 
 export function AgentMcpSection(): React.JSX.Element {
   const info = useAgentMcpInfo()
   const { install, isInstalling, result, error } = useInstallAgentMcp()
-  const mcpClaudeConfigured = usePreferencesStore((s) => s.mcpClaudeConfigured)
-  const mcpCodexConfigured = usePreferencesStore((s) => s.mcpCodexConfigured)
-  const mcpOpenCodeConfigured = usePreferencesStore((s) => s.mcpOpenCodeConfigured)
-  const setMcpConfigured = usePreferencesStore((s) => s.setMcpConfigured)
-
-  const configured: Record<string, boolean> = {
-    claude: mcpClaudeConfigured,
-    codex: mcpCodexConfigured,
-    opencode: mcpOpenCodeConfigured,
-  }
-
-  useEffect(() => {
-    if (!result) return
-    for (const item of result) {
-      setMcpConfigured(item.agent, item.ok)
-    }
-  }, [result, setMcpConfigured])
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
@@ -39,14 +21,15 @@ export function AgentMcpSection(): React.JSX.Element {
           Writes the Porcelain MCP server into each agent&apos;s config on the{' '}
           <span className="font-medium text-foreground">active daemon host</span> (this Mac, or a
           remote like the Beelink) so agents there can call the review, board, action, note, layer,
-          and artifact tools. Add only the agents you use.
+          artifact, and evidence tools. Status is read from each config file on disk. Add only the
+          agents you use.
         </p>
       </div>
 
       {info?.agents && (
         <ul className="flex min-w-0 flex-col gap-3">
           {info.agents.map((agent) => {
-            const isConfigured = configured[agent.name]
+            const isConfigured = agent.configured
             return (
               <li
                 key={agent.name}
