@@ -1,48 +1,57 @@
 import { z } from 'zod'
 import { type Action, actionSchema, readActions, writeActions } from './actions-store'
 import { type BoardCard, boardCardSchema, readCards, writeCards } from './board-store'
+import {
+  type ReviewComment,
+  readComments,
+  reviewCommentSchema,
+  writeComments,
+} from './comment-store'
 import type { Layer } from './flow'
 import { readLayers, writeLayers } from './layers-store'
 import { readNotes, writeNotes } from './notes-store'
 
 /**
- * Snapshot of the per-repo agent-channel settings that a human commonly wants to
- * carry from one environment to another (Mac → Beelink, or one absolute path →
- * another after a clone). Channel files are keyed by absolute path on the
- * *daemon host*, so nothing crosses machines automatically — this is the explicit,
- * user-initiated seed (see the board card "Remote env: seed settings").
+ * Snapshot of the per-repo companion data a human commonly wants to carry from
+ * one environment to another (Mac → Beelink, or one absolute path → another after
+ * a clone). Channel files are keyed by absolute path on the *daemon host*, so
+ * nothing crosses machines automatically — this is the explicit, user-initiated
+ * seed (Settings → Remote daemons → Copy repo settings).
  *
- * Deliberately NOT included: reviewed marks (human ticks), comments (in-progress
- * review notes), feature-view snapshot (derived), artifacts (agent-authored HTML),
- * review sets (MCP-authored; app only clears). Those are session/review state, not
- * "project setup".
+ * Included: actions (saved commands), notes, board, flow layers, review comments.
+ * Deliberately NOT included: reviewed marks (session ticks), feature-view snapshot
+ * (derived), artifacts (agent-authored HTML), review sets (MCP-authored; app only
+ * clears). Those are live session/review state, not "project setup" + open notes.
  */
 export const repoSettingsSchema = z.object({
   actions: z.array(actionSchema).optional(),
   notes: z.string().optional(),
   board: z.array(boardCardSchema).optional(),
   layers: z.array(z.object({ label: z.string(), pattern: z.string() })).optional(),
+  comments: z.array(reviewCommentSchema).optional(),
 })
 export type RepoSettings = z.infer<typeof repoSettingsSchema>
 
 export interface ImportRepoSettingsResult {
   /** Channel names that were written (empty when the snapshot had nothing). */
-  imported: Array<'actions' | 'notes' | 'board' | 'layers'>
+  imported: Array<'actions' | 'notes' | 'board' | 'layers' | 'comments'>
 }
 
 /** Read the current channel snapshot for a repo on this daemon host. */
 export async function exportRepoSettings(repoPath: string): Promise<RepoSettings> {
-  const [actions, notes, board, layers] = await Promise.all([
+  const [actions, notes, board, layers, comments] = await Promise.all([
     readActions(repoPath),
     readNotes(repoPath),
     readCards(repoPath),
     readLayers(repoPath),
+    readComments(repoPath),
   ])
   const settings: RepoSettings = {}
   if (actions.length > 0) settings.actions = actions
   if (notes !== '') settings.notes = notes
   if (board.length > 0) settings.board = board
   if (layers !== null && layers.length > 0) settings.layers = layers
+  if (comments.length > 0) settings.comments = comments
   return settings
 }
 
@@ -73,6 +82,10 @@ export async function importRepoSettings(
   if (parsed.layers !== undefined) {
     await writeLayers(repoPath, parsed.layers as Layer[])
     imported.push('layers')
+  }
+  if (parsed.comments !== undefined) {
+    await writeComments(repoPath, parsed.comments as ReviewComment[])
+    imported.push('comments')
   }
 
   return { imported }

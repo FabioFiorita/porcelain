@@ -9,6 +9,7 @@ import {
   useAddRemoteEnvironment,
   useConnectRemoteEnvironment,
   useDisconnectRemoteEnvironment,
+  useOpenWindowInEnvironment,
   useRemoteEnvironments,
   useRemoveRemoteEnvironment,
 } from '@renderer/hooks/use-remote-daemon'
@@ -98,19 +99,19 @@ function ShareReveal({
 }
 
 /**
- * Save other machines' Porcelain daemons and switch this Mac app between them
- * (remote-envs Phase 4), or clear back to the local one. Electron-only — the whole
- * block is hidden in the browser client (which already IS served by its daemon).
- * Adding probes the url+token and surfaces a failure inline. Connecting to
- * another environment, disconnecting, and removing the ACTIVE one all re-point the
- * window and reload it; removing a non-active row just drops it (see
- * use-remote-daemon for the reload semantics).
+ * Save other machines' Porcelain daemons and bind THIS window (or open a new
+ * one) to them. Environments are per-window: local project in one window, remote
+ * in another. Electron-only — hidden in the browser client (which already IS
+ * served by its daemon). Adding probes the url+token and surfaces a failure
+ * inline. Connect / disconnect / remove-when-this-window reloads THIS window
+ * only (see use-remote-daemon).
  */
 function RemoteEnvironmentsBlock(): React.JSX.Element {
   const data = useRemoteEnvironments()
   const { add, isPending: isAdding, error } = useAddRemoteEnvironment()
   const { connect, pendingId: connectingId } = useConnectRemoteEnvironment()
   const { disconnect, isPending: isDisconnecting } = useDisconnectRemoteEnvironment()
+  const { open: openInEnv } = useOpenWindowInEnvironment()
   const { remove, pendingId: removingId } = useRemoveRemoteEnvironment()
   const [name, setName] = useState('')
   const [url, setUrl] = useState('')
@@ -122,10 +123,35 @@ function RemoteEnvironmentsBlock(): React.JSX.Element {
   return (
     <div className="flex flex-col gap-3">
       <div>
-        <p className="text-sm-minus font-semibold">Remote daemons</p>
+        <p className="text-sm-minus font-semibold">Environments</p>
         <p className="text-xs text-muted-foreground">
-          Save other machines' Porcelain daemons and switch this app between them.
+          Save other machines' Porcelain daemons. Each window can use a different environment —
+          local in one, remote in another.
         </p>
+      </div>
+      {/* This device row — always present so "Open in new window" works from a remote. */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm-minus font-semibold">This device</p>
+          <p className="text-xs text-muted-foreground">Local daemon on this Mac</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {activeId == null ? (
+            <span className="text-xs text-muted-foreground">This window</span>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isDisconnecting}
+              onClick={() => disconnect()}
+            >
+              {isDisconnecting ? 'Switching…' : 'Use here'}
+            </Button>
+          )}
+          <Button variant="ghost" size="sm" onClick={() => openInEnv({ environmentId: null })}>
+            New window
+          </Button>
+        </div>
       </div>
       {environments.length > 0 && (
         <div className="flex flex-col gap-2">
@@ -139,17 +165,7 @@ function RemoteEnvironmentsBlock(): React.JSX.Element {
                 </div>
                 <div className="flex items-center gap-2">
                   {isActive ? (
-                    <>
-                      <span className="text-xs text-muted-foreground">Connected</span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={isDisconnecting}
-                        onClick={() => disconnect()}
-                      >
-                        {isDisconnecting ? 'Disconnecting…' : 'Disconnect'}
-                      </Button>
-                    </>
+                    <span className="text-xs text-muted-foreground">This window</span>
                   ) : (
                     <Button
                       variant="outline"
@@ -157,9 +173,16 @@ function RemoteEnvironmentsBlock(): React.JSX.Element {
                       disabled={connectingId === env.id}
                       onClick={() => connect(env.id)}
                     >
-                      {connectingId === env.id ? 'Connecting…' : 'Connect'}
+                      {connectingId === env.id ? 'Switching…' : 'Use here'}
                     </Button>
                   )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => openInEnv({ environmentId: env.id })}
+                  >
+                    New window
+                  </Button>
                   <Tooltip>
                     <TooltipTrigger
                       render={
@@ -213,7 +236,7 @@ function RemoteEnvironmentsBlock(): React.JSX.Element {
           disabled={isAdding || url.trim() === '' || token.trim() === ''}
           onClick={() => add({ name, url, token })}
         >
-          {isAdding ? 'Connecting…' : 'Add & connect'}
+          {isAdding ? 'Adding…' : 'Add & use here'}
         </Button>
         {error != null && <p className="text-xs text-destructive">{error}</p>}
       </div>
@@ -223,10 +246,9 @@ function RemoteEnvironmentsBlock(): React.JSX.Element {
 }
 
 /**
- * Explicit seed of actions / notes / board / layers onto the active remote
- * environment. Channel files are keyed by absolute path on the daemon host and
- * never cross machines silently — this is the user-initiated copy (board card
- * "Remote env: seed settings").
+ * Explicit seed of actions / notes / board / layers / comments onto the active
+ * remote environment. Channel files are keyed by absolute path on the daemon host
+ * and never cross machines silently — this is the user-initiated copy.
  */
 function SeedRepoSettingsBlock(): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)
@@ -247,8 +269,8 @@ function SeedRepoSettingsBlock(): React.JSX.Element {
       <div>
         <p className="text-sm-minus font-semibold">Copy repo settings to this environment</p>
         <p className="text-xs text-muted-foreground">
-          Seeds actions, notes, board cards, and flow layers onto the open remote repo. Replaces
-          those channels on the target path — never a silent merge.
+          Seeds actions (commands), notes, board cards, flow layers, and review comments onto the
+          open remote repo. Replaces those channels on the target path — never a silent merge.
         </p>
       </div>
       {targetPath === '' ? (

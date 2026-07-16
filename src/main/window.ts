@@ -3,16 +3,23 @@ import { is } from '@electron-toolkit/utils'
 import { BrowserWindow, shell, type WebContents } from 'electron'
 import icon from '../../resources/icon.png?asset'
 import { isSafeExternalUrl } from '../backend/external-url'
+import { getDefaultEnvironmentId, setWindowEnvironment } from './daemon'
 
 // Playwright e2e launches this built app and drives the renderer over CDP +
 // screenshots the web contents directly, so the OS window never needs to appear.
 // Gate test-only "stay hidden" behavior on this flag (set by the e2e fixture).
 const isE2E = process.env.PORCELAIN_E2E === '1'
 
+/**
+ * Boot intent for a new window. `environmentId` is optional: omit to use the
+ * app's default (last env this app opened a window into); pass `null` for This
+ * device (local daemon); pass a saved remote id for that environment. Binding is
+ * per-window — see setWindowEnvironment in daemon.ts.
+ */
 export type WindowInit =
-  | { mode: 'restore' }
-  | { mode: 'open'; repoPath: string }
-  | { mode: 'welcome' }
+  | { mode: 'restore'; environmentId?: string | null }
+  | { mode: 'open'; repoPath: string; environmentId?: string | null }
+  | { mode: 'welcome'; environmentId?: string | null }
 
 const pendingInits = new Map<WebContents, WindowInit>()
 
@@ -58,6 +65,13 @@ export function createWindow(init: WindowInit = { mode: 'restore' }): BrowserWin
   })
 
   pendingInits.set(mainWindow.webContents, init)
+
+  // Bind this window to its environment BEFORE loadURL so the preload's sync
+  // daemon-url getter (sendSync) resolves the right pair on first paint.
+  // Undefined environmentId → app default (persisted activeId); null → local.
+  const environmentId =
+    init.environmentId !== undefined ? init.environmentId : getDefaultEnvironmentId()
+  setWindowEnvironment(mainWindow.webContents, environmentId)
 
   // A window's PTYs and watchers now live daemon-side, keyed by its WS session —
   // closing the window closes the socket and the daemon reaps them (session.ts).

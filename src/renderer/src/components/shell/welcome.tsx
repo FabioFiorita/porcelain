@@ -13,9 +13,10 @@ import { useSettingsDialogStore } from '@renderer/stores/settings-dialog'
 import { Folder, FolderOpen, Unplug, X } from 'lucide-react'
 
 /**
- * Banner when this window is pointed at a remote daemon: name + disconnect so a
- * failed remote (empty disk, unreachable LAN) never traps the user without a
- * way back to local. Electron-only — the browser client already IS its daemon.
+ * Banner when THIS window is pointed at a remote daemon: name + switch back to
+ * This device so a failed remote (empty disk, unreachable LAN) never traps the
+ * user without a way back to local. Electron-only — the browser client already
+ * IS its daemon. Other windows keep their own environment.
  */
 function RemoteConnectionBanner(): React.JSX.Element | null {
   const data = useRemoteEnvironments()
@@ -27,7 +28,7 @@ function RemoteConnectionBanner(): React.JSX.Element | null {
   return (
     <div className="flex w-full max-w-sm items-center justify-between gap-3 rounded-md border bg-muted/40 px-3 py-2">
       <div className="min-w-0">
-        <p className="text-xs font-medium">Connected to {active.name}</p>
+        <p className="text-xs font-medium">This window → {active.name}</p>
         <p className="truncate font-mono text-2xs text-muted-foreground">{active.url}</p>
       </div>
       <Button
@@ -38,7 +39,7 @@ function RemoteConnectionBanner(): React.JSX.Element | null {
         onClick={() => disconnect()}
       >
         <Unplug className="size-3.5" />
-        {isPending ? 'Disconnecting…' : 'Disconnect'}
+        {isPending ? 'Switching…' : 'This device'}
       </Button>
     </div>
   )

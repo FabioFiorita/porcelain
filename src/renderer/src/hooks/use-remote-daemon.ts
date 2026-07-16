@@ -3,39 +3,44 @@ import { isBrowser } from '@renderer/lib/platform'
 import { shellTrpc } from '@renderer/lib/trpc'
 
 /**
- * Saved remote environments (remote-envs Phase 4): keep a list of other machines'
- * Porcelain daemons and switch this Mac app between them, or clear back to the
- * local child. Wraps the SHELL-router procedures (Electron-only — the whole
- * feature is hidden in the browser client, so these never run there).
+ * Saved remote environments: list other machines' Porcelain daemons and bind
+ * THIS window (or open a new window) to one of them. Environments are
+ * per-window — a local project can stay open while another window uses the
+ * Beelink. Wraps the SHELL-router procedures (Electron-only — the whole feature
+ * is hidden in the browser client).
  *
- * Switch semantics = full reload. Adding activates the new environment, connecting
- * flips to another, disconnecting clears, and removing the ACTIVE environment
- * clears too — all of which change which daemon the window talks to, so each does
- * `window.location.reload()`: the preload daemon getter now returns the new pair,
- * so the renderer re-boots cleanly against the new daemon and restores ITS
- * recents. A live re-point would leave repo paths, open tabs, and PTY attachments
- * pointing at the other machine's disk — reload is the bulletproof v1. Removing a
- * NON-active environment changes nothing the window is pointed at, so it just
- * invalidates the list. The reload is synchronous (no floating promise); it only
- * ever runs in the Electron client, where this UI exists.
+ * Switch semantics = full reload of THIS window only. Connecting, disconnecting,
+ * adding (with connect), and removing the environment THIS window is on all
+ * change which daemon the window talks to, so each does `window.location.reload()`:
+ * the preload daemon getter now returns the new pair, so the renderer re-boots
+ * cleanly against the new daemon and restores ITS recents. Other windows keep
+ * their binding. A live re-point would leave repo paths, open tabs, and PTY
+ * attachments pointing at the other machine's disk — reload is the bulletproof
+ * path. Removing a NON-active-for-this-window environment just invalidates the
+ * list. The reload is synchronous (no floating promise); it only ever runs in
+ * the Electron client, where this UI exists.
  */
 export function useRemoteEnvironments():
-  | { activeId: string | null; environments: { id: string; name: string; url: string }[] }
+  | {
+      activeId: string | null
+      defaultId: string | null
+      environments: { id: string; name: string; url: string }[]
+    }
   | undefined {
   const { data } = shellTrpc.remoteEnvironments.useQuery(undefined, { enabled: !isBrowser })
   return data
 }
 
 export function useAddRemoteEnvironment(): {
-  add: (input: { name: string; url: string; token: string }) => void
+  add: (input: { name: string; url: string; token: string; connectThisWindow?: boolean }) => void
   isPending: boolean
   error: string | null
 } {
   const utils = shellTrpc.useUtils()
   const mutation = shellTrpc.addRemoteEnvironment.useMutation({
-    onSuccess: async () => {
+    onSuccess: async (result) => {
       await utils.remoteEnvironments.invalidate()
-      window.location.reload()
+      if (result.reloaded) window.location.reload()
     },
   })
   return {
@@ -78,17 +83,27 @@ export function useDisconnectRemoteEnvironment(): { disconnect: () => void; isPe
   return { disconnect: () => mutation.mutate(), isPending: mutation.isPending }
 }
 
+export function useOpenWindowInEnvironment(): {
+  open: (input: { environmentId: string | null; repoPath?: string }) => void
+} {
+  const mutation = shellTrpc.openWindowInEnvironment.useMutation({
+    onError: onMutationError('Open window in environment'),
+  })
+  return {
+    open: (input) => mutation.mutate(input),
+  }
+}
+
 export function useRemoveRemoteEnvironment(): {
   remove: (id: string) => void
   pendingId: string | null
 } {
   const utils = shellTrpc.useUtils()
   const removeMutation = shellTrpc.removeRemoteEnvironment.useMutation({
-    onSuccess: async (result) => {
+    onSuccess: async () => {
+      // Main process reloads every window that was on the removed env (including
+      // this one when wasActive). Invalidate for the case where this window stayed put.
       await utils.remoteEnvironments.invalidate()
-      // Removing the ACTIVE environment re-points the window (back to local); a
-      // non-active removal just drops a list row, so the invalidate above is enough.
-      if (result.wasActive) window.location.reload()
     },
     onError: onMutationError('Remove remote daemon'),
   })

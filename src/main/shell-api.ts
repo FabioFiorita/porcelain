@@ -10,7 +10,14 @@ import {
   agentConfigPath,
   installMcpForAgents,
 } from './agent-mcp'
-import { pushDaemonInfo, setRemoteOverride } from './daemon'
+import {
+  getDefaultEnvironmentId,
+  rebindWindowsOnRemovedEnvironment,
+  reloadEnvironmentsCache,
+  setDefaultEnvironmentId,
+  setWindowEnvironment,
+  windowEnvironmentId,
+} from './daemon'
 import {
   loadRemoteEnvironmentState,
   normalizeDaemonUrl,
@@ -51,10 +58,23 @@ export const shellRouter = t.router({
   windowInit: t.procedure.query(({ ctx }): WindowInit => windowInitFor(ctx.sender)),
 
   newWindow: t.procedure
-    .input(z.object({ repoPath: z.string().optional() }).optional())
-    .mutation(({ input }) => {
+    .input(
+      z
+        .object({
+          repoPath: z.string().optional(),
+          // Omit = inherit the calling window's environment (so "open in new
+          // window" on a remote stays on that remote). Pass null for local.
+          environmentId: z.string().nullable().optional(),
+        })
+        .optional(),
+    )
+    .mutation(({ ctx, input }) => {
+      const environmentId =
+        input?.environmentId !== undefined ? input.environmentId : windowEnvironmentId(ctx.sender)
       createWindow(
-        input?.repoPath ? { mode: 'open', repoPath: input.repoPath } : { mode: 'welcome' },
+        input?.repoPath
+          ? { mode: 'open', repoPath: input.repoPath, environmentId }
+          : { mode: 'welcome', environmentId },
       )
     }),
 
@@ -104,29 +124,41 @@ export const shellRouter = t.router({
     .input(z.string())
     .query(({ input }): Promise<RepoSettings> => exportRepoSettings(input)),
 
-  // Saved remote environments (remote-envs Phase 4): keep a list of other
-  // machines' Porcelain daemons and switch this app between them. Tokens are
-  // deliberately NOT returned to the renderer — the active one already reaches the
-  // window via the preload daemon getter; the settings UI only needs name + url.
-  // Each mutation is load→mutate→save; the shell is single-process so no lock is
-  // needed. Windows re-point via a full reload (see use-remote-daemon), so these
-  // just persist, flip the override, and push the new daemonInfo.
+  // Saved remote environments (remote-envs Phase 4 → per-window 2026-07): keep a
+  // list of other machines' Porcelain daemons. Each WINDOW picks its own
+  // environment (local child always running underneath). Tokens are deliberately
+  // NOT returned to the renderer — the bound one already reaches the window via
+  // the preload daemon getter; the settings UI only needs name + url.
+  // `activeId` in the response is THIS window's binding (not a process-global).
+  // Switching reloads only the calling window (see use-remote-daemon).
   remoteEnvironments: t.procedure.query(
-    async (): Promise<{
+    async ({
+      ctx,
+    }): Promise<{
       activeId: string | null
+      defaultId: string | null
       environments: { id: string; name: string; url: string }[]
     }> => {
       const state = await loadRemoteEnvironmentState()
       return {
-        activeId: state.activeId,
+        activeId: windowEnvironmentId(ctx.sender),
+        defaultId: state.activeId,
         environments: state.environments.map(({ id, name, url }) => ({ id, name, url })),
       }
     },
   ),
 
   addRemoteEnvironment: t.procedure
-    .input(z.object({ name: z.string(), url: z.string(), token: z.string() }))
-    .mutation(async ({ input }): Promise<{ id: string }> => {
+    .input(
+      z.object({
+        name: z.string(),
+        url: z.string(),
+        token: z.string(),
+        /** When true (default), point THIS window at the new env and reload it. */
+        connectThisWindow: z.boolean().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }): Promise<{ id: string; reloaded: boolean }> => {
       const url = normalizeDaemonUrl(input.url)
       await probeDaemon(url, input.token)
 
@@ -143,50 +175,81 @@ export const shellRouter = t.router({
       const id = randomUUID()
       const state = await loadRemoteEnvironmentState()
       state.environments.push({ id, name, url, token: input.token })
+      // New env becomes the default for future bare New Window / app restore.
       state.activeId = id
       await saveRemoteEnvironmentState(state)
-      setRemoteOverride({ url, token: input.token })
-      pushDaemonInfo()
-      return { id }
+      await reloadEnvironmentsCache()
+
+      const connectThis = input.connectThisWindow !== false
+      if (connectThis) {
+        setWindowEnvironment(ctx.sender, id)
+      }
+      return { id, reloaded: connectThis }
     }),
 
+  /** Point THIS window at a saved environment (other windows untouched). */
   connectRemoteEnvironment: t.procedure
     .input(z.object({ id: z.string() }))
-    .mutation(async ({ input }): Promise<void> => {
+    .mutation(async ({ ctx, input }): Promise<void> => {
       const state = await loadRemoteEnvironmentState()
       const env = state.environments.find((e) => e.id === input.id)
       if (env === undefined) throw new Error('That environment no longer exists')
 
       await probeDaemon(env.url, env.token)
+      // Remember as default for new windows / app restore.
       state.activeId = env.id
       await saveRemoteEnvironmentState(state)
-      setRemoteOverride({ url: env.url, token: env.token })
-      pushDaemonInfo()
+      await reloadEnvironmentsCache()
+      setWindowEnvironment(ctx.sender, env.id)
     }),
 
-  disconnectRemoteEnvironment: t.procedure.mutation(async (): Promise<void> => {
-    const state = await loadRemoteEnvironmentState()
-    state.activeId = null
-    await saveRemoteEnvironmentState(state)
-    setRemoteOverride(null)
-    // Push the LOCAL daemonInfo back to every window (the child kept running).
-    pushDaemonInfo()
+  /** Point THIS window back at the local child (other windows untouched). */
+  disconnectRemoteEnvironment: t.procedure.mutation(async ({ ctx }): Promise<void> => {
+    // Only clear the default when THIS window was on it — leave other windows' defaults alone.
+    if (getDefaultEnvironmentId() === windowEnvironmentId(ctx.sender)) {
+      await setDefaultEnvironmentId(null)
+    } else {
+      await reloadEnvironmentsCache()
+    }
+    setWindowEnvironment(ctx.sender, null)
   }),
+
+  /**
+   * Open a fresh window on an environment without touching the caller's binding.
+   * `environmentId: null` = This device (local).
+   */
+  openWindowInEnvironment: t.procedure
+    .input(
+      z.object({
+        environmentId: z.string().nullable(),
+        repoPath: z.string().optional(),
+      }),
+    )
+    .mutation(({ input }) => {
+      createWindow(
+        input.repoPath
+          ? { mode: 'open', repoPath: input.repoPath, environmentId: input.environmentId }
+          : { mode: 'welcome', environmentId: input.environmentId },
+      )
+    }),
 
   removeRemoteEnvironment: t.procedure
     .input(z.object({ id: z.string() }))
-    .mutation(async ({ input }): Promise<{ wasActive: boolean }> => {
+    .mutation(async ({ ctx, input }): Promise<{ wasActive: boolean; reloaded: boolean }> => {
       const state = await loadRemoteEnvironmentState()
-      const wasActive = state.activeId === input.id
+      const wasDefault = state.activeId === input.id
+      const wasThisWindow = windowEnvironmentId(ctx.sender) === input.id
       state.environments = state.environments.filter((e) => e.id !== input.id)
-      if (wasActive) {
+      if (wasDefault) {
         state.activeId = null
-        setRemoteOverride(null)
       }
       await saveRemoteEnvironmentState(state)
-      // Only the active environment's removal changes what windows point at.
-      if (wasActive) pushDaemonInfo()
-      return { wasActive }
+      await reloadEnvironmentsCache()
+      // Any open window on the removed env falls back to local and is reloaded
+      // here (including the caller's window). Renderer onSuccess should NOT
+      // reload again when wasActive — the main-process reload already ran.
+      rebindWindowsOnRemovedEnvironment(input.id)
+      return { wasActive: wasThisWindow, reloaded: wasThisWindow }
     }),
 })
 

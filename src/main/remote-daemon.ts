@@ -6,11 +6,13 @@ import { z } from 'zod'
 /**
  * Shell-side persistence for SAVED remote environments (remote-envs Phase 4).
  *
- * The shell owns which daemon every window talks to, so the choice CANNOT live
- * in the daemon's own config (that config lives on whichever machine the daemon
- * runs on — circular). It's a small file, `remote-daemon.json`, in the shell's
- * userData dir: a list of named `{ id, name, url, token }` environments plus the
- * `activeId` of the one this app is currently pointed at (null = the local child).
+ * The shell owns the list of known daemons (the choice CANNOT live in the
+ * daemon's own config — that config lives on whichever machine the daemon runs
+ * on — circular). It's a small file, `remote-daemon.json`, in the shell's
+ * userData dir: a list of named `{ id, name, url, token }` environments plus
+ * `activeId`, which is only the DEFAULT for new/restore windows (null = local).
+ * Each open window has its OWN binding in memory (daemon.ts) — so one window can
+ * be on This device while another is on the Beelink.
  *
  * The tokens are stored in plaintext. That's the same trust level as
  * `~/.porcelain/daemon-token` (the local daemon's own token file): a
@@ -32,7 +34,7 @@ const stateSchema = z.object({
 })
 export type RemoteEnvironmentState = z.infer<typeof stateSchema>
 
-/** The resolved daemon pair the daemon module points every window at. */
+/** The resolved daemon pair a window can be pointed at. */
 export type RemoteDaemon = { url: string; token: string }
 
 // The pre-list shape: a single `{ url, token }` override meant "connected to

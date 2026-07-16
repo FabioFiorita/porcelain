@@ -109,3 +109,11 @@ export async function setCommentResolved(
     if (comment) comment.resolved = resolved
   })
 }
+
+/** Whole-set replace for a repo (user-initiated seed / path remap). Empty drops the entry. */
+export async function writeComments(repoPath: string, comments: ReviewComment[]): Promise<void> {
+  await channel.mutate((all) => {
+    if (comments.length === 0) delete all[repoPath]
+    else all[repoPath] = comments
+  })
+}

@@ -9,6 +9,7 @@ async function invalidateRepoSettings(utils: ReturnType<typeof trpc.useUtils>): 
     utils.repoNotes.invalidate(),
     utils.boardCards.invalidate(),
     utils.repoLayers.invalidate(),
+    utils.reviewComments.invalidate(),
   ])
 }
 

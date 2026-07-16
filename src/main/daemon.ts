@@ -1,9 +1,22 @@
 import { join } from 'node:path'
 import { is } from '@electron-toolkit/utils'
-import { app, BrowserWindow, ipcMain, type UtilityProcess, utilityProcess } from 'electron'
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  type UtilityProcess,
+  utilityProcess,
+  type WebContents,
+} from 'electron'
 import { z } from 'zod'
 import { ensureDaemonToken } from '../backend/token-file'
-import { activeRemoteDaemon, loadRemoteEnvironmentState, type RemoteDaemon } from './remote-daemon'
+import {
+  loadRemoteEnvironmentState,
+  type RemoteDaemon,
+  type RemoteEnvironment,
+  type RemoteEnvironmentState,
+  saveRemoteEnvironmentState,
+} from './remote-daemon'
 
 /**
  * Fork and babysit the daemon child (`out/main/daemon/server.js`) — the
@@ -25,12 +38,12 @@ import { activeRemoteDaemon, loadRemoteEnvironmentState, type RemoteDaemon } fro
  *
  * Lifecycle: the ready line (`{"port": N}` on stdout) resolves the port; a crash
  * restarts the daemon with a capped backoff (give up after 3 rapid failures) and
- * pushes the NEW url to every window over `daemon-url-changed` (the renderer's
- * WS client reconnects and queries refetch); quit kills the child. Electron ties
- * a utility child's lifetime to the app, which supersedes the daemon's stdin
- * parent-death watchdog here — utilityProcess provides no stdin at all, so the
- * shell disables the watchdog via PORCELAIN_NO_STDIN_WATCHDOG (standalone
- * daemons under plain `node` keep it).
+ * pushes the NEW url to every LOCAL-bound window over `daemon-url-changed` (the
+ * renderer's WS client reconnects and queries refetch); quit kills the child.
+ * Electron ties a utility child's lifetime to the app, which supersedes the
+ * daemon's stdin parent-death watchdog here — utilityProcess provides no stdin
+ * at all, so the shell disables the watchdog via PORCELAIN_NO_STDIN_WATCHDOG
+ * (standalone daemons under plain `node` keep it).
  *
  * Auth: every daemon request is gated on a persistent session token (see the
  * security note in backend/server.ts — loopback is reachable from any webpage,
@@ -40,6 +53,11 @@ import { activeRemoteDaemon, loadRemoteEnvironmentState, type RemoteDaemon } fro
  * visible in `ps`) and to the renderer via the preload getter. A persistent
  * shared token means a restarted daemon — and a standalone/remote daemon that
  * reads the same file — accepts the credentials every open window already holds.
+ *
+ * Environments are PER WINDOW: each BrowserWindow can point at the local child
+ * or a saved remote daemon. The local child always keeps running (instant
+ * switch-back and multi-env simultaneous use — local project in one window,
+ * Beelink in another). See setWindowEnvironment / daemonInfoFor.
  */
 
 const readyLineSchema = z.object({ port: z.number().int().positive() })
@@ -56,28 +74,139 @@ let port: number | null = null
 let quitting = false
 let rapidFailures = 0
 
-// When set, every window is pointed at a REMOTE daemon (over the tailnet) instead
-// of the local child. The local daemon keeps running underneath (it costs little,
-// and it makes switching back instant); daemonInfo just returns the remote pair
-// while this is non-null. Persisted in remote-daemon.json (see remote-daemon.ts).
-let remoteOverride: RemoteDaemon | null = null
+// Cached saved environments + default for windows that don't specify one.
+// `activeId` in remote-daemon.json is the default for new/restore windows only
+// (not a process-wide override — each window has its own binding below).
+let environmentsCache: RemoteEnvironment[] = []
+let defaultEnvironmentId: string | null = null
 
-/** url is '' until the first ready line — the preload getter turns that into the renderer fallback. */
-export function daemonInfo(): { url: string; token: string } {
-  if (remoteOverride !== null) return remoteOverride
+/** Per-window binding: webContents.id → environment id (null = This device / local). */
+const windowEnvIds = new Map<number, string | null>()
+/** Per-window remote pair; absent or null = local child. */
+const windowDaemons = new Map<number, RemoteDaemon | null>()
+/** webContents ids that already have a destroyed cleanup listener. */
+const windowCleanupBound = new Set<number>()
+
+function localDaemonInfo(): { url: string; token: string } {
   return { url: port === null ? '' : `http://127.0.0.1:${port}`, token }
 }
 
-/** Point every window at a remote daemon (or clear back to local with null). Caller persists + pushes. */
-export function setRemoteOverride(value: RemoteDaemon | null): void {
-  remoteOverride = value
+/** Resolve a saved environment id to its daemon pair (null id → local). */
+export function resolveEnvironment(envId: string | null | undefined): {
+  environmentId: string | null
+  daemon: RemoteDaemon | null
+} {
+  if (envId == null || envId === '') {
+    return { environmentId: null, daemon: null }
+  }
+  const env = environmentsCache.find((e) => e.id === envId)
+  if (env === undefined) {
+    return { environmentId: null, daemon: null }
+  }
+  return { environmentId: env.id, daemon: { url: env.url, token: env.token } }
 }
 
-/** Push the current daemonInfo to every open window (the same channel a daemon restart uses). */
-export function pushDaemonInfo(): void {
-  for (const window of BrowserWindow.getAllWindows()) {
-    if (!window.isDestroyed()) window.webContents.send('daemon-url-changed', daemonInfo())
+/**
+ * Bind a window to an environment before it loads (or when the human switches
+ * this window). Reloads are fine — WebContents identity survives
+ * `location.reload()`, so the preload getter still sees the same binding.
+ */
+export function setWindowEnvironment(
+  webContents: WebContents,
+  environmentId: string | null | undefined,
+): void {
+  const resolved = resolveEnvironment(environmentId)
+  const id = webContents.id
+  windowEnvIds.set(id, resolved.environmentId)
+  windowDaemons.set(id, resolved.daemon)
+  // Clean up when the window is destroyed (not on reload — WebContents lives).
+  // Register the listener once so re-binding the same window doesn't stack handlers.
+  if (!windowCleanupBound.has(id)) {
+    windowCleanupBound.add(id)
+    webContents.once('destroyed', () => {
+      windowCleanupBound.delete(id)
+      windowEnvIds.delete(id)
+      windowDaemons.delete(id)
+    })
   }
+}
+
+/** This window's environment id (null = local). */
+export function windowEnvironmentId(webContents: WebContents): string | null {
+  return windowEnvIds.get(webContents.id) ?? null
+}
+
+/** url/token this window should talk to (local child or a remote). */
+export function daemonInfoFor(webContents: WebContents): { url: string; token: string } {
+  const remote = windowDaemons.get(webContents.id)
+  if (remote != null) return remote
+  return localDaemonInfo()
+}
+
+/** Default environment for new windows that don't specify one. */
+export function getDefaultEnvironmentId(): string | null {
+  return defaultEnvironmentId
+}
+
+export function getEnvironmentsCache(): RemoteEnvironment[] {
+  return environmentsCache
+}
+
+/** Refresh the in-memory environment list from disk (after add/remove). */
+export async function reloadEnvironmentsCache(): Promise<RemoteEnvironmentState> {
+  const state = await loadRemoteEnvironmentState()
+  environmentsCache = state.environments
+  defaultEnvironmentId = state.activeId
+  return state
+}
+
+/**
+ * Persist default environment id (used by bare New Window / app-launch restore)
+ * without touching any open window's binding.
+ */
+export async function setDefaultEnvironmentId(id: string | null): Promise<void> {
+  defaultEnvironmentId = id
+  const state = await loadRemoteEnvironmentState()
+  state.activeId = id
+  await saveRemoteEnvironmentState(state)
+}
+
+/** Push daemon info to ONE window (used after a per-window env switch if needed). */
+export function pushDaemonInfoTo(webContents: WebContents): void {
+  if (!webContents.isDestroyed()) {
+    webContents.send('daemon-url-changed', daemonInfoFor(webContents))
+  }
+}
+
+/**
+ * After a local daemon restart, only re-point windows that are on the local
+ * child — remote-bound windows must keep their remote pair.
+ */
+export function pushLocalDaemonInfo(): void {
+  for (const window of BrowserWindow.getAllWindows()) {
+    if (window.isDestroyed()) continue
+    const remote = windowDaemons.get(window.webContents.id)
+    if (remote != null) continue
+    window.webContents.send('daemon-url-changed', localDaemonInfo())
+  }
+}
+
+/**
+ * If any open window was bound to a removed environment, re-bind it to local
+ * and reload it so it stops talking to a deleted daemon. Returns the affected
+ * webContents (caller may still want to know if *it* was among them).
+ */
+export function rebindWindowsOnRemovedEnvironment(removedId: string): WebContents[] {
+  const affected: WebContents[] = []
+  for (const window of BrowserWindow.getAllWindows()) {
+    if (window.isDestroyed()) continue
+    if (windowEnvIds.get(window.webContents.id) === removedId) {
+      setWindowEnvironment(window.webContents, null)
+      window.webContents.reload()
+      affected.push(window.webContents)
+    }
+  }
+  return affected
 }
 
 /** Resolve the first stdout line into the daemon's port (rejects on an exit before ready). */
@@ -179,12 +308,10 @@ async function launch(): Promise<void> {
   proc.on('exit', (code) => onChildDown(`exited (code ${code})`))
 
   port = await awaitReadyLine(proc)
-  // Push the (new) url + token to every open window — after a restart the
+  // Push the (new) url + token only to LOCAL-bound windows — after a restart the
   // renderer's WS client reconnects here and its queries refetch against the
-  // new port (the token is stable per app run, sent along for one payload shape).
-  // No-op for the windows' point of view while a remote override is active
-  // (daemonInfo returns the remote pair), but the local child stays alive.
-  pushDaemonInfo()
+  // new port. Remote-bound windows keep their remote pair.
+  pushLocalDaemonInfo()
 }
 
 /** Spawn the daemon and register its url getter + quit teardown. Called once, before the first window. */
@@ -195,15 +322,15 @@ export async function startDaemon(): Promise<void> {
   // agree on the same secret. Runs once, before the first window exists.
   token = await ensureDaemonToken()
 
-  // Adopt the active saved environment before the first window boots, so a new
-  // window's preload getter returns the remote pair straight away (and boot
-  // restores the remote daemon's recents). The local child still launches below.
-  remoteOverride = activeRemoteDaemon(await loadRemoteEnvironmentState())
+  // Load saved environments so createWindow can resolve defaultEnvironmentId
+  // (and explicit environmentId) before the preload's sync daemon-url getter runs.
+  await reloadEnvironmentsCache()
 
   // Sync getter the preload calls at window boot; restarts push updates over
   // `daemon-url-changed` (see above), so the value survives daemon crashes.
+  // Per-window: event.sender is the calling WebContents.
   ipcMain.on('daemon-url', (event) => {
-    event.returnValue = daemonInfo()
+    event.returnValue = daemonInfoFor(event.sender)
   })
   app.on('before-quit', () => {
     quitting = true

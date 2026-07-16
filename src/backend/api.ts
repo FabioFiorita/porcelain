@@ -1189,9 +1189,10 @@ export const router = t.router({
       await writeNotes(input.repoPath, input.notes)
     }),
 
-  // Explicit seed of per-repo channel settings (actions/notes/board/layers) — used
-  // to carry project setup from one environment/path to another. Never silent:
-  // the caller supplies source + target; present channels replace on the target.
+  // Explicit seed of per-repo channel settings (actions/notes/board/layers/comments)
+  // — used to carry project setup from one environment/path to another. Never
+  // silent: the caller supplies source + target; present channels replace on the
+  // target.
   exportRepoSettings: t.procedure
     .input(z.string())
     .query(({ input }): Promise<RepoSettings> => exportRepoSettings(input)),
