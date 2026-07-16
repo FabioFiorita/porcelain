@@ -1,3 +1,16 @@
+## [0.25.0](https://github.com/FabioFiorita/porcelain/compare/v0.24.4...v0.25.0) (2026-07-16)
+
+### Features
+
+* per-window environments and seed review comments to remote ([da9fd42](https://github.com/FabioFiorita/porcelain/commit/da9fd427d95c536e6175f3be29777aa830888fec))
+* publish porcelain-daemon for npx serve on remote hosts ([551071b](https://github.com/FabioFiorita/porcelain/commit/551071b82615a28e92436cf7cf980aca7dcf1ffa))
+
+### Bug Fixes
+
+* **agent:** truthful usage metering and cleaner thread UX ([091771b](https://github.com/FabioFiorita/porcelain/commit/091771bf923e73c315d09af3297b89429a2f48b6))
+* make the browser client usable for quick look on iPhone ([0f143ee](https://github.com/FabioFiorita/porcelain/commit/0f143eefaf4241de23fea2b4b6ca3013108132b3))
+* strip Volta recursion flag from PTY/agent env ([4e71b84](https://github.com/FabioFiorita/porcelain/commit/4e71b846971e8268f8d38daeb13d1928294c08d9))
+
 ## [0.24.4](https://github.com/FabioFiorita/porcelain/compare/v0.24.3...v0.24.4) (2026-07-15)
 
 ### Features
