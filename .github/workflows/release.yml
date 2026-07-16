@@ -3,7 +3,7 @@ name: Release
 # Cut a release by pushing a version tag that matches package.json, e.g.:
 #   pnpm version patch && git push --follow-tags
 # electron-builder publishes the dmg + zip to a GitHub Release and writes the
-# latest-mac.yml feed that electron-updater reads. After that, the same job
+# latest-mac.yml feed that electron-updater reads. A separate Ubuntu job then
 # publishes porcelain-daemon to npm via OIDC trusted publishing (no NPM_TOKEN).
 #
 # workflow_dispatch: re-publish porcelain-daemon for an existing tag (e.g. when
@@ -31,92 +31,91 @@ permissions:
   id-token: write
 
 jobs:
+  # Mac app: sign, notarize, e2e, GitHub Releases. Skipped on npm_only re-publish.
   release:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.npm_only != true }}
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v5
-        with:
-          # Tag push: the pushed ref. Dispatch: the requested existing tag.
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
       - uses: pnpm/action-setup@v5
       - uses: actions/setup-node@v5
         with:
-          # Node ≥ 22.14 required for npm trusted publishing (npm docs).
           node-version: 22
           cache: pnpm
-          # Deliberately NO registry-url: setup-node would write a dummy
-          # NODE_AUTH_TOKEN + always-auth npmrc that blocks OIDC (v0.25.0 got
-          # E404 with the dummy, ENEEDAUTH after partial clear). pnpm install
-          # does not need npm registry auth; the publish step uses a clean npmrc.
       - run: pnpm install --frozen-lockfile
-      # daemon:dist needs out/main/daemon/server.js — always build. Full gate + e2e only on
-      # a real tag release (or a dispatch that opts out of npm_only).
-      - name: Lint / test / build
-        if: ${{ github.event_name != 'workflow_dispatch' || inputs.npm_only != true }}
-        run: |
-          pnpm lint
-          pnpm test
-          pnpm build
-      - name: Build (npm-only re-publish)
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.npm_only == true }}
-        run: pnpm build
-      - name: E2E (prebuilt)
-        if: ${{ github.event_name != 'workflow_dispatch' || inputs.npm_only != true }}
-        run: |
-          pnpm exec playwright install --with-deps chromium
-          pnpm test:e2e:prebuilt
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm build
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e:prebuilt
       # Pre-create the draft release so electron-builder reuses it. Without this,
       # its dmg and zip uploaders run concurrently, both see "no release exists",
       # and each creates its own draft — splitting assets across two releases.
       - name: Ensure draft release exists
-        if: ${{ github.event_name != 'workflow_dispatch' || inputs.npm_only != true }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG="${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}"
-          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 \
-            || gh release create "$TAG" --repo "$GITHUB_REPOSITORY" \
-                 --draft --title "Porcelain ${TAG#v}" --generate-notes
+          gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 \
+            || gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+                 --draft --title "Porcelain ${GITHUB_REF_NAME#v}" --generate-notes
       - name: Build and publish to GitHub Releases
-        if: ${{ github.event_name != 'workflow_dispatch' || inputs.npm_only != true }}
         run: pnpm release:prebuilt
         env:
-          # Auto-provided; electron-builder reads GH_TOKEN for the github provider.
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Developer ID signing — CSC_LINK is the base64 .p12, CSC_KEY_PASSWORD its
-          # export password. All five are repo secrets; keep them non-empty (an empty
-          # CSC_LINK makes electron-builder attempt signing and fail).
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-          # Notarization (notarytool) — required for a warning-free public download.
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-      # Headless remote daemon — same version as the Mac app. Enables:
-      #   npx porcelain-daemon@latest serve --tailnet
-      # Auth is OIDC trusted publishing (npm package settings → Trusted Publisher
-      # → GitHub Actions → fabiofiorita/porcelain → release.yml). No NPM_TOKEN.
-      # Requires npm CLI ≥ 11.5.1 (Node 22 ships older; we upgrade below).
+
+  # Headless remote daemon — same version as the Mac app. Enables:
+  #   npx porcelain-daemon@latest serve --tailnet
+  # Runs on ubuntu (npm's documented OIDC path); Mac-only was failing with ENEEDAUTH
+  # even with id-token: write and a clean npmrc (v0.25.0).
+  # Auth is OIDC trusted publishing (npm package settings → Trusted Publisher
+  # → GitHub Actions → fabiofiorita/porcelain → release.yml). No NPM_TOKEN.
+  publish-npm:
+    # After a full release, or alone for npm_only re-publish of an existing tag.
+    # When release is skipped (npm_only dispatch), needs.result is "skipped" — still run.
+    needs: [release]
+    if: ${{ always() && (needs.release.result == 'success' || (github.event_name == 'workflow_dispatch' && needs.release.result == 'skipped')) }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
+        with:
+          # Node ≥ 22.14 + npm ≥ 11.5.1 required for trusted publishing.
+          node-version: 22
+          cache: pnpm
+          # No registry-url — avoids the dummy NODE_AUTH_TOKEN that blocks OIDC.
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
       - name: Publish porcelain-daemon to npm
         run: |
           set -euo pipefail
-          # Fail loud if the job OIDC env is missing (id-token: write not applied).
+          echo "GITHUB_ACTIONS=${GITHUB_ACTIONS:-}"
+          echo "OIDC url set: ${ACTIONS_ID_TOKEN_REQUEST_URL:+yes}"
           if [ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ] || [ -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}" ]; then
-            echo "OIDC env missing — need permissions.id-token: write on GitHub-hosted runners"
+            echo "OIDC env missing — need permissions.id-token: write on a GitHub-hosted runner"
             exit 1
           fi
-          # Pin the first OIDC-capable line, not npm@latest (12.x regressed OIDC
-          # detection for some setups; 11.5.x is the documented floor).
+          # First OIDC-capable line (docs floor). Avoid npm@latest (12.x) until stable.
           npm install -g npm@11.5.2
           npm --version
-          # Isolate publish from any leftover user npmrc (always-auth, dummy tokens).
+          pnpm daemon:dist
+          # Publish from inside the package dir so npm resolves package.json cleanly.
+          # Clean userconfig: only the public registry, no always-auth / token lines.
+          cd dist-daemon
           PUBLISH_NPMRC="$(mktemp)"
           printf 'registry=https://registry.npmjs.org/\n' > "$PUBLISH_NPMRC"
-          # Drop any inherited token so npm falls through to OIDC.
-          unset NODE_AUTH_TOKEN
+          unset NODE_AUTH_TOKEN || true
           export NPM_CONFIG_USERCONFIG="$PUBLISH_NPMRC"
-          pnpm daemon:dist
           # Provenance is automatic under trusted publishing — no --provenance flag.
-          # Publish from dist-daemon so package.json name/version are correct.
-          npm publish ./dist-daemon --access public
+          npm publish --access public
           rm -f "$PUBLISH_NPMRC"
