@@ -21,6 +21,8 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+          # Needed so `npm publish dist-daemon` can auth with NODE_AUTH_TOKEN.
+          registry-url: 'https://registry.npmjs.org'
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm test
@@ -51,3 +53,19 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      # Headless remote daemon — same version as the Mac app. Enables:
+      #   npx porcelain-daemon@latest serve --tailnet
+      # on a Beelink/Linux host without scp'ing dist-daemon. Skips cleanly when
+      # NPM_TOKEN is unset so a release still ships the Mac artifacts.
+      - name: Publish porcelain-daemon to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
+            echo "NPM_TOKEN not set — skipping npm publish of porcelain-daemon"
+            echo "Add a classic npm automation token as repo secret NPM_TOKEN to enable."
+            exit 0
+          fi
+          pnpm daemon:dist
+          # npm publish reads package.json name/version from dist-daemon/
+          npm publish ./dist-daemon --access public

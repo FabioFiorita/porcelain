@@ -1,20 +1,31 @@
 #!/usr/bin/env node
-// Assemble `dist-daemon/` — a self-contained, npm-installable copy of the
+// Assemble `dist-daemon/` — a self-contained, npm-publishable copy of the
 // Porcelain daemon that runs under PLAIN Node (no Electron, no pnpm workspace)
 // on another machine (the Beelink mini-PC; plans/remote-environments.md Phase 4).
+//
+// Primary UX (t3-style):
+//   npx porcelain-daemon@latest serve --tailnet
 //
 // It mirrors the `out/` layout exactly so the daemon's two relative resolutions
 // keep working unchanged: the chunk require `../chunks/token-file-*.js` (from
 // main/daemon/server.js) and RENDERER_ROOT (`__dirname/../../renderer`, see
 // src/backend/static-server.ts). The five externalized runtime deps are declared
 // in a generated package.json with the EXACT semver ranges read from the root
-// package.json, so `npm install` on the target pulls them (and compiles node-pty
-// for that host). The dependency-free MCP server ships too — the Beelink's coding
-// agent spawns it under plain node with zero deps.
+// package.json, so `npm install` / npx on the target pulls them (and compiles
+// node-pty for that host). The dependency-free MCP server ships too — the
+// Beelink's coding agent spawns it under plain node with zero deps.
 //
 // Plain-Node ESM, zero dependencies (runs before `npm install`).
 
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  chmodSync,
+  cpSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -73,120 +84,154 @@ for (const [from, to] of copies) {
   cpSync(src, dest, { recursive: true })
 }
 
+// CLI entry (npx porcelain-daemon serve …). Source of truth is scripts/daemon-cli.js;
+// it resolves main/daemon/server.js relative to the installed package layout.
+const cliSrc = join(root, 'scripts', 'daemon-cli.js')
+if (!existsSync(cliSrc)) {
+  console.error('[daemon:dist] scripts/daemon-cli.js missing')
+  process.exit(1)
+}
+const binDir = join(dist, 'bin')
+mkdirSync(binDir, { recursive: true })
+const cliDest = join(binDir, 'porcelain-daemon.js')
+// Install as .js (CJS) — package has no "type":"module", and the CLI is written
+// as plain CommonJS so require(server.js) works without createRequire.
+cpSync(cliSrc, cliDest)
+// Executable for direct bin invocation after npm install / npx.
+chmodSync(cliDest, 0o755)
+
+// `porcelain` is already taken on npm (unrelated plate templating package).
+// Publish as porcelain-daemon; bin name matches for `npx porcelain-daemon@latest`.
 const distPkg = {
   name: 'porcelain-daemon',
-  private: true,
   version: rootPkg.version,
+  description:
+    'Headless Porcelain daemon — plain Node backend for remote machines (npx porcelain-daemon@latest serve)',
+  license: rootPkg.license ?? 'MIT',
+  author: rootPkg.author,
+  repository: rootPkg.repository,
+  bugs: rootPkg.bugs,
+  homepage: rootPkg.homepage ?? 'https://github.com/FabioFiorita/porcelain',
   engines: { node: '>=22' },
+  bin: {
+    'porcelain-daemon': 'bin/porcelain-daemon.js',
+  },
+  files: ['bin', 'main', 'renderer', 'README.md'],
   dependencies,
+  publishConfig: {
+    access: 'public',
+  },
+  keywords: ['porcelain', 'daemon', 'code-review', 'remote', 'tailscale'],
 }
 writeFileSync(join(dist, 'package.json'), `${JSON.stringify(distPkg, null, 2)}\n`)
 
 writeFileSync(join(dist, 'README.md'), readme(rootPkg.version))
 
 console.log(`[daemon:dist] assembled dist-daemon/ (porcelain-daemon@${rootPkg.version})`)
-console.log('[daemon:dist] next: cd dist-daemon && npm install && node main/daemon/server.js')
+console.log(
+  '[daemon:dist] try:   cd dist-daemon && npm install && npx porcelain-daemon serve --print-token',
+)
+console.log('[daemon:dist] or:    npx porcelain-daemon@latest serve --tailnet  (after npm publish)')
 
 function readme(version) {
   return `# porcelain-daemon (${version})
 
-The standalone Porcelain **daemon** — the Electron-free backend — packaged to run
-under plain Node on another machine (e.g. a Linux mini-PC on your tailnet). It
-serves the app over HTTP + one WebSocket on 127.0.0.1 (and, when you enable it,
-the Tailscale interface), plus the built renderer so a browser gets the same app
-the Electron window loads. The dependency-free MCP server ships alongside for the
-machine's coding agent (\`node main/mcp/server.js\`).
+Headless **Porcelain** backend — the Electron-free daemon + renderer, packaged for
+plain Node on any machine (Linux mini-PC, cloud VM, laptop). Same token-gated
+HTTP/WS surface the Mac app and browser clients already talk to.
 
-Assembled by \`pnpm daemon:dist\` from a completed \`pnpm build\`. Do not edit by
-hand — regenerate.
+## Quick start (recommended)
+
+On the remote host (Node ≥ 22, git, and a C toolchain for \`node-pty\`):
+
+\`\`\`sh
+npx porcelain-daemon@latest serve --tailnet --print-token
+\`\`\`
+
+That:
+
+1. Fetches the **latest** published package (use \`@latest\` so you don't stick on a
+   stale npx cache of an older version).
+2. Compiles \`node-pty\` for this host on first install.
+3. Starts the daemon on port **43117**, binding loopback + Tailscale when
+   \`--tailnet\` is set.
+4. Prints the shared token (only with \`--print-token\`) so you can paste it into
+   the Mac app: **Settings → General → Remote daemons**.
+
+Leave the process in the foreground while you work (Termius / tmux / SSH session).
+Ctrl+C stops it — **no systemd required**. Start it when you sit down; stop it
+when you're done.
+
+### Pair a client
+
+- **Mac app:** Settings → General → Remote daemons → add
+  \`http://<tailscale-name-or-ip>:43117\` + the token.
+- **Browser:** open the same URL, paste the token once (remembered per origin).
+
+Token file on the host: \`~/.porcelain/daemon-token\` (mode \`0600\`). Copy that file
+(or the same token string) to every client you pair — one secret across the fleet.
+
+## CLI
+
+\`\`\`text
+porcelain-daemon serve [options]
+
+  --port <n>           Port (default 43117)
+  --user-data <path>   Config dir (default ~/.local/share/porcelain)
+  --tailnet            Bind Tailscale interface too
+  --lan                Bind RFC1918 LAN addresses too
+  --no-watchdog        For systemd / supervisors (stdin is /dev/null)
+  --print-token        Print the pairing token on stderr
+\`\`\`
+
+Security posture is unchanged: always bind \`127.0.0.1\`; optional private-interface
+listeners only; **never** \`0.0.0.0\`. Every \`/trpc\` + \`/session\` request is
+token-gated.
+
+## Always-on (optional)
+
+If you *do* want a supervised process, use \`--no-watchdog\` and a unit like:
+
+\`\`\`ini
+[Service]
+Environment=PORCELAIN_USER_DATA=%h/.local/share/porcelain
+Environment=PORCELAIN_DAEMON_PORT=43117
+Environment=PORCELAIN_TAILNET_BIND=1
+Environment=PORCELAIN_NO_STDIN_WATCHDOG=1
+ExecStart=/usr/bin/npx --yes porcelain-daemon@latest serve --no-watchdog --tailnet
+Restart=on-failure
+\`\`\`
+
+Prefer a real \`node\` binary over Volta/fnm/nvm shims in \`ExecStart\` when pinning
+a global install instead of npx.
+
+## MCP server (agent channel)
+
+The dependency-free MCP server ships at \`main/mcp/server.js\`:
+
+\`\`\`sh
+node $(npm root -g)/porcelain-daemon/main/mcp/server.js
+# or, from an npx cache / local install of this package:
+node path/to/package/main/mcp/server.js
+\`\`\`
+
+Wire it into Claude Code / Codex / OpenCode the same way as on the Mac
+(Settings → Agents, or the porcelain skills install).
 
 ## Requirements
 
 - **Node ≥ 22**
-- **git** on PATH (the daemon shells out to it)
-- A **C toolchain** (make, g++, python3) — \`npm install\` compiles \`node-pty\`
-  natively for this host.
+- **git** on PATH
+- A **C toolchain** (make, g++, python3) — first install compiles \`node-pty\`
 
-## Install
-
-\`\`\`sh
-npm install
-\`\`\`
-
-## Run
+## Develop / ship from the monorepo
 
 \`\`\`sh
-PORCELAIN_USER_DATA=~/.local/share/porcelain \\
-PORCELAIN_DAEMON_PORT=43117 \\
-node main/daemon/server.js
+pnpm build && pnpm daemon:dist
+cd dist-daemon && npm publish --access public
 \`\`\`
 
-- \`PORCELAIN_USER_DATA\` (**required**) — where the daemon keeps \`config.json\`.
-- \`PORCELAIN_DAEMON_PORT\` — pins the port (omit for an OS-assigned one; the
-  daemon prints \`{"port":N}\` on stdout once listening). 43117 matches the fixed
-  Tailscale port the clients expect.
-
-## Token
-
-Every \`/trpc\` request and the \`/session\` WebSocket are token-gated. The token is
-resolved once at startup:
-
-- \`PORCELAIN_DAEMON_TOKEN\` env wins if set.
-- Otherwise \`~/.porcelain/daemon-token\` is used, and **created \`0600\` on first
-  run** if absent.
-
-Copy the **same** token to every client that connects to this daemon.
-
-## Tailnet
-
-The daemon always binds 127.0.0.1. To also bind the Tailscale interface (fixed
-port 43117), enable the setting from a connected client, or POST the toggle:
-
-\`\`\`sh
-curl -X POST -H "authorization: Bearer $TOKEN" \\
-  -d true http://127.0.0.1:43117/trpc/setTailnetBind
-\`\`\`
-
-## Running under a supervisor (systemd, etc.)
-
-**Important:** by default the daemon watches stdin and exits when it closes — that
-is how the Electron shell reaps it when it dies. A supervisor typically hands
-stdin as \`/dev/null\`, which reads EOF immediately and would kill the daemon on
-boot. Disable the watchdog with:
-
-\`\`\`sh
-PORCELAIN_NO_STDIN_WATCHDOG=1 node main/daemon/server.js
-\`\`\`
-
-The supervisor is then responsible for the process lifetime. Example unit:
-
-\`\`\`ini
-[Unit]
-Description=Porcelain daemon
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Environment=PORCELAIN_USER_DATA=/var/lib/porcelain
-Environment=PORCELAIN_DAEMON_PORT=43117
-Environment=PORCELAIN_NO_STDIN_WATCHDOG=1
-# Optional: force tailnet/LAN binds without a GUI toggle
-# Environment=PORCELAIN_TAILNET_BIND=1
-# Environment=PORCELAIN_LAN_BIND=1
-# Prefer a real node binary (or /usr/bin/node), not a Volta/fnm/nvm shim path.
-# Volta's shim sets _VOLTA_TOOL_RECURSION=1 on the process; older daemons leaked
-# that into every PTY and broke yarn/node with "Node is not available". Current
-# terminalEnv strips the flag, but a real binary avoids the trap entirely.
-ExecStart=/usr/bin/node /opt/porcelain-daemon/main/daemon/server.js
-Restart=always
-\`\`\`
-
-Prefer \`network-online.target\` over \`network.target\` so DHCP has an address
-before the first bind attempt. The daemon also re-scans interfaces every 5s while
-a second listener is enabled, so a remaining boot race or a later network change
-still recovers without a restart.
-
-If you run it in a shell instead, hold stdin open (e.g. under \`tmux\`) rather than
-setting the escape hatch, so an interactive session still reaps it on disconnect.
+Assembled by \`pnpm daemon:dist\` from a completed \`pnpm build\`. Do not edit
+\`dist-daemon/\` by hand — regenerate.
 `
 }

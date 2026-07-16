@@ -68,7 +68,12 @@ for `electron-updater`.
    --publish always`, packaging the already-built `out/`) signs, notarizes, and
    uploads `dmg` + `zip` + `latest-mac.yml`. One build; the artifact that ships is
    the artifact e2e tested (reordered 2026-07-05, plan 029 — the old flow built a
-   second, untested bundle inside `pnpm release`).
+   second, untested bundle inside `pnpm release`). After the Mac publish step, the
+   workflow runs `pnpm daemon:dist` and `npm publish ./dist-daemon` when the
+   **`NPM_TOKEN`** repo secret is set (classic npm automation token with publish
+   rights for `porcelain-daemon`). If the secret is missing the step skips so a
+   Mac release still ships — add the secret once to unlock
+   `npx porcelain-daemon@latest serve` on remote hosts at the same version.
 5. electron-builder uploads to a **draft** release. The workflow pre-creates a single
    draft (`gh release create "$GITHUB_REF_NAME" --draft --generate-notes`, idempotent
    via `gh release view ||`) before `pnpm release:prebuilt` so the dmg and zip uploaders share
@@ -76,7 +81,7 @@ for `electron-updater`.
    Open the draft on GitHub, verify the assets and notes, then **Publish** (and "Set
    as latest") so users and the auto-updater can see it. Draft-then-manually-publish
    is by design: electron-updater ignores drafts, so you can verify assets before
-   going live.
+   going live. The npm package publishes immediately (not draft) when `NPM_TOKEN` is set.
 
 ## Signing & notarization
 

@@ -29,7 +29,13 @@ Porcelain fills that gap. It's a fast, focused **viewer and review surface** (no
 - **Fast file viewer**: virtualized rendering, Shiki highlighting, image and Markdown support (reader + source modes), drag-resizable split view
 - **Monorepo navigation**: hide/unhide folders, pin paths, lazy per-directory loading
 - **Search & finders**: repo-wide code search, Cmd+P fuzzy file finder, Cmd+F find-in-file, find-references via `git grep`
-- **Remote access**: the same client three ways — the Mac app on a local daemon, the Mac app pointed at a remote daemon, or any browser on your tailnet served by the daemon; one token-gated surface, with PTYs and review state living daemon-side so they survive reconnects
+- **Remote access**: the same client three ways — the Mac app on a local daemon, the Mac app pointed at a remote daemon, or any browser on your tailnet served by the daemon; one token-gated surface, with PTYs and review state living daemon-side so they survive reconnects. Headless host:
+
+  ```bash
+  npx porcelain-daemon@latest serve --tailnet --print-token
+  ```
+
+  Start it when you work, Ctrl+C when you're done — no always-on service required.
 - **Multi-window**: one repo per window
 - **Liquid-glass UI**: native macOS vibrancy, floating sidebars, drag-resizable panels
 - **Auto-updating** signed builds
@@ -81,6 +87,7 @@ pnpm dev       # run the app in development
 | `pnpm test` | Run the Vitest suite |
 | `pnpm build` | Type-check and build |
 | `pnpm dist` | Build a signed local `.dmg` / `.zip` |
+| `pnpm daemon:dist` | Assemble publishable `dist-daemon/` (`porcelain-daemon` npm package) |
 | `pnpm release` | Build and publish to GitHub Releases |
 
 The verification gate before any commit is `pnpm lint && pnpm typecheck && pnpm test && pnpm build`.

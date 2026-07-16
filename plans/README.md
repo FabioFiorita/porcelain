@@ -11,9 +11,10 @@ standalone record of what shipped.
 
 ## Live docs (not finished — keep)
 
-- **`remote-environments-phase4.md`** — Beelink bring-up runbook. Prep code
-  shipped; the ops checklist waits on the hardware (~mid-July 2026). Its parent
-  spec + Phase 1 doc shipped and were removed (in git history).
+- **`remote-environments-phase4.md`** — Beelink bring-up runbook. Prep code +
+  `npx porcelain-daemon@latest serve` path shipped; preferred remote UX is
+  on-demand npx (no scp tarball / no always-on systemd). Its parent spec +
+  Phase 1 doc shipped and were removed (in git history).
 
 ## Completed — deep audit, 2026-07-05 → reconciled 2026-07-07 (`2e72017`)
 
