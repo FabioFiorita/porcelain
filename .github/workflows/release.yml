@@ -1,39 +1,32 @@
 name: Release
 
-# Cut a release by pushing a version tag that matches package.json, e.g.:
-#   pnpm version patch && git push --follow-tags
-# electron-builder publishes the dmg + zip to a GitHub Release and writes the
-# latest-mac.yml feed that electron-updater reads. A separate Ubuntu job then
-# publishes porcelain-daemon to npm via OIDC trusted publishing (no NPM_TOKEN).
+# Tag push (pnpm version X && git push --follow-tags) cuts a full release:
+#   1. Mac: lint → test → build → e2e → signed/notarized GitHub Release (draft)
+#   2. Ubuntu: build porcelain-daemon and npm publish via OIDC trusted publishing
 #
-# workflow_dispatch: re-publish porcelain-daemon for an existing tag (e.g. when
-# the Mac assets already landed but npm OIDC failed). Keeps the workflow
-# *filename* `release.yml` so the npm Trusted Publisher still matches.
+# npm Trusted Publisher (npmjs.com → porcelain-daemon): GitHub Actions →
+#   FabioFiorita/porcelain → release.yml  (owner casing must match OIDC claims)
+#
+# workflow_dispatch is a recovery path only (re-publish npm for an existing tag
+# without re-running the Mac pipeline). Normal releases do not need it.
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Existing tag to (re)publish porcelain-daemon for (e.g. v0.25.0)'
+        description: 'Existing tag to re-publish porcelain-daemon for (e.g. v0.25.0)'
         required: true
         type: string
-      npm_only:
-        description: 'Skip Mac build/e2e/GitHub Release; only publish porcelain-daemon'
-        required: false
-        type: boolean
-        default: true
 
 permissions:
   contents: write
-  # OIDC short-lived token for npm trusted publishing of porcelain-daemon.
-  # Trusted publisher on npmjs.com: fabiofiorita/porcelain → release.yml
   id-token: write
 
 jobs:
-  # Mac app: sign, notarize, e2e, GitHub Releases. Skipped on npm_only re-publish.
+  # Signed + notarized Mac app → draft GitHub Release (publish manually as Latest).
   release:
-    if: ${{ github.event_name != 'workflow_dispatch' || inputs.npm_only != true }}
+    if: ${{ github.event_name == 'push' }}
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v5
@@ -48,9 +41,7 @@ jobs:
       - run: pnpm build
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e:prebuilt
-      # Pre-create the draft release so electron-builder reuses it. Without this,
-      # its dmg and zip uploaders run concurrently, both see "no release exists",
-      # and each creates its own draft — splitting assets across two releases.
+      # Pre-create the draft so dmg + zip uploaders share one release (not two drafts).
       - name: Ensure draft release exists
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -68,16 +59,12 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
-  # Headless remote daemon — same version as the Mac app. Enables:
-  #   npx porcelain-daemon@latest serve --tailnet
-  # Runs on ubuntu (npm's documented OIDC path); Mac-only was failing with ENEEDAUTH
-  # even with id-token: write and a clean npmrc (v0.25.0).
-  # Auth is OIDC trusted publishing (npm package settings → Trusted Publisher
-  # → GitHub Actions → fabiofiorita/porcelain → release.yml). No NPM_TOKEN.
+  # porcelain-daemon@<version> → npm latest (npx porcelain-daemon@latest serve --tailnet).
+  # Ubuntu matches npm's documented OIDC path; no registry-url on setup-node (avoids a
+  # dummy NODE_AUTH_TOKEN that blocks trusted publishing).
   publish-npm:
-    # After a full release, or alone for npm_only re-publish of an existing tag.
-    # When release is skipped (npm_only dispatch), needs.result is "skipped" — still run.
     needs: [release]
+    # Tag push: after Mac success. Dispatch: alone (release is skipped).
     if: ${{ always() && (needs.release.result == 'success' || (github.event_name == 'workflow_dispatch' && needs.release.result == 'skipped')) }}
     runs-on: ubuntu-latest
     permissions:
@@ -90,48 +77,22 @@ jobs:
       - uses: pnpm/action-setup@v5
       - uses: actions/setup-node@v5
         with:
-          # Node ≥ 22.14 + npm ≥ 11.5.1 required for trusted publishing.
           node-version: 22
           cache: pnpm
-          # No registry-url — avoids the dummy NODE_AUTH_TOKEN that blocks OIDC.
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - name: Publish porcelain-daemon to npm
         run: |
           set -euo pipefail
-          echo "GITHUB_ACTIONS=${GITHUB_ACTIONS:-}"
-          echo "ref=${GITHUB_REF:-}  workflow=${GITHUB_WORKFLOW:-}  event=${GITHUB_EVENT_NAME:-}"
-          if [ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ] || [ -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}" ]; then
-            echo "OIDC env missing — need permissions.id-token: write on a GitHub-hosted runner"
-            exit 1
-          fi
-          # Probe the OIDC exchange ourselves so a silent npm failure is diagnosable
-          # (npm's oidc() swallows exchange errors and only later throws ENEEDAUTH).
-          AUDIENCE="npm:registry.npmjs.org"
-          export ID_TOKEN="$(curl -fsSL -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
-            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${AUDIENCE}" | python3 -c 'import sys,json; print(json.load(sys.stdin)["value"])')"
-          # Decode claims (no verify) for the Trusted Publisher match fields (one line — YAML).
-          python3 -c 'import os,json,base64; t=os.environ["ID_TOKEN"].split(".")[1]+"=="; c=json.loads(base64.urlsafe_b64decode(t)); ks=("sub","repository","repository_owner","repository_visibility","workflow","workflow_ref","job_workflow_ref","ref","event_name","actor"); [print(f"oidc claim {k}={c[k]}") for k in ks if k in c]'
-          EXCHANGE_CODE="$(curl -sS -o /tmp/oidc-exchange.json -w '%{http_code}' -X POST \
-            -H "Authorization: Bearer ${ID_TOKEN}" \
-            -H "Accept: application/json" \
-            "https://registry.npmjs.org/-/npm/v1/oidc/token/exchange/package/porcelain-daemon")"
-          echo "oidc exchange HTTP ${EXCHANGE_CODE}"
-          cat /tmp/oidc-exchange.json
-          echo
-          if [ "$EXCHANGE_CODE" != "200" ] && [ "$EXCHANGE_CODE" != "201" ]; then
-            echo "::error::npm OIDC token exchange failed — Trusted Publisher claim mismatch or package config"
-            exit 1
-          fi
-          # First OIDC-capable line (docs floor). Avoid npm@latest (12.x) until stable.
+          # npm CLI ≥ 11.5.1 required for OIDC trusted publishing (Node 22 ships older).
           npm install -g npm@11.5.2
-          npm --version
           pnpm daemon:dist
           cd dist-daemon
+          # Clean userconfig: no always-auth / dummy token from setup-node.
           PUBLISH_NPMRC="$(mktemp)"
           printf 'registry=https://registry.npmjs.org/\n' > "$PUBLISH_NPMRC"
           unset NODE_AUTH_TOKEN || true
           export NPM_CONFIG_USERCONFIG="$PUBLISH_NPMRC"
-          # Verbose so oidc() logs exchange success/failure instead of silent skip.
-          npm publish --access public --loglevel verbose
+          # Provenance is automatic under trusted publishing.
+          npm publish --access public
           rm -f "$PUBLISH_NPMRC"
