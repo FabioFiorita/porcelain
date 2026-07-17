@@ -1,3 +1,5 @@
+## [0.29.1](https://github.com/FabioFiorita/porcelain/compare/v0.29.0...v0.29.1) (2026-07-17)
+
 ## [0.29.0](https://github.com/FabioFiorita/porcelain/compare/v0.28.3...v0.29.0) (2026-07-17)
 
 ### Features
