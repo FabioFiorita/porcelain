@@ -103,8 +103,9 @@ export const shellRouter = t.router({
   // Agent MCP config on the Mac shell (local agents). Prefer the daemon's
   // installAgentMcp when configuring the active environment — especially remote —
   // so the host that owns ~/.porcelain channel files is what gets configured.
-  // Kept so a local-only install still works without a round-trip and so boot
-  // ensureMcpServer (main/index.ts) can refresh the bundled server.
+  // Kept so a local-only install still works without a round-trip. Server binary
+  // refresh on boot is shared: Mac shell (main/index.ts) and daemon main() both
+  // call ensureMcpServer so local + remote stay current without re-Add MCP.
   agentMcpInfo: t.procedure.query(
     async (): Promise<{
       agents: { name: AgentName; configPath: string; configured: boolean }[]

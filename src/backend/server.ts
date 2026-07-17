@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { ensureMcpServer } from './agent-mcp-install'
 import { flushAllThreads } from './agents/agent-manager'
 import { router } from './api'
 import { subscribeAppEvents } from './app-events'
@@ -149,6 +150,19 @@ async function main(): Promise<void> {
   await migrateNotesFromConfig()
   await migrateLayersFromConfig()
   await migrateReviewedFromConfig()
+
+  // Refresh the bundled MCP server agents point at (`node ~/.porcelain/mcp/server.js`).
+  // Same contract as the Mac shell boot path (`src/main/index.ts`): a STABLE path is
+  // baked into agent configs once via Settings → Agents → Add MCP, and every daemon
+  // start re-copies from this package so a daemon upgrade (npx porcelain-daemon@latest
+  // on Linux, or a Mac app update) ships new/fixed tools without re-running Add MCP.
+  // Best-effort: a missing build artifact or home-dir write failure must never block
+  // the listener (agents keep whatever copy they already had).
+  try {
+    await ensureMcpServer()
+  } catch (error) {
+    console.error('[daemon] MCP server refresh failed:', error)
+  }
 
   // Watch the agent channels so MCP-pushed review sets / resolved comments refresh
   // the open views — fanned out to every session over the WS channel.

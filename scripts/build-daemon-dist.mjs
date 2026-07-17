@@ -207,16 +207,22 @@ a global install instead of npx.
 
 ## MCP server (agent channel)
 
-The dependency-free MCP server ships at \`main/mcp/server.js\`:
+The dependency-free MCP server ships at \`main/mcp/server.js\`. On every
+\`serve\`, the daemon re-copies it to the stable path agents invoke:
 
 \`\`\`sh
-node $(npm root -g)/porcelain-daemon/main/mcp/server.js
-# or, from an npx cache / local install of this package:
-node path/to/package/main/mcp/server.js
+node ~/.porcelain/mcp/server.js
 \`\`\`
 
-Wire it into Claude Code / Codex / OpenCode the same way as on the Mac
-(Settings → Agents, or the porcelain skills install).
+So upgrading the daemon (\`npx porcelain-daemon@latest\`) ships new MCP tools
+without re-running Settings → Agents → Add MCP. First-time agent config still
+needs Add MCP once (that writes each CLI's config to point at the stable path).
+
+Direct package path (debug only; agents should use the stable home path):
+
+\`\`\`sh
+node path/to/package/main/mcp/server.js
+\`\`\`
 
 ## Requirements
 

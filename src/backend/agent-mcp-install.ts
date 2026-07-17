@@ -16,8 +16,11 @@ import {
  *
  * This is the remote-aware path — when the Mac app is pointed at a Beelink (or
  * any remote daemon), Settings → Agents → Add MCP must configure the *daemon
- * host*, not the Mac. The shell still refreshes the local copy on boot for the
- * local-only case (see `src/main/agent-mcp.ts`).
+ * host*, not the Mac. The server *binary* is also re-copied on every daemon boot
+ * (`ensureMcpServer` from `server.ts`) so a daemon upgrade ships new tools without
+ * re-running Add MCP — same contract as the Mac shell boot path
+ * (`src/main/agent-mcp.ts` / `src/main/index.ts`). Add MCP still writes agent
+ * configs the first time; boot only refreshes the shared `server.js`.
  *
  * Layout: the daemon bundle lives at `out/main/daemon/server.js` (and the same
  * relative layout in dist-daemon); the MCP server is the sibling
