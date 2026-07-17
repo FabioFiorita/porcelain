@@ -31,11 +31,12 @@ export function CardItem({
 }): React.JSX.Element {
   const { move, remove } = useCardActions()
   return (
-    <div className="group/card glaze-tile flex items-start gap-1 p-2 [--tile-fill:var(--surface-2)]">
-      <div className="min-w-0 flex-1">
-        <p className="break-words text-xs font-medium">{card.title}</p>
+    <div className="group/card glaze-tile flex max-h-48 items-start gap-1 p-2 [--tile-fill:var(--surface-2)]">
+      <div className="min-h-0 min-w-0 flex-1">
+        {/* Title capped so a multi-line title never eats the column; body scrolls. */}
+        <p className="max-h-10 overflow-y-auto break-words text-xs font-medium">{card.title}</p>
         {card.body && (
-          <p className="mt-0.5 line-clamp-3 whitespace-pre-wrap text-xs-minus text-muted-foreground">
+          <p className="mt-0.5 max-h-28 overflow-y-auto whitespace-pre-wrap text-xs-minus text-muted-foreground">
             {card.body}
           </p>
         )}

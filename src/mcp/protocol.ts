@@ -322,6 +322,47 @@ export const TOOLS = [
     },
   },
   {
+    name: 'list_chat_messages',
+    description:
+      'Read the agent chat (relay) for a repo: messages agents and the human post to exchange context across local and remote environments (e.g. "need an iOS sim screenshot" on the Mac, reply from Linux). Each message has an id, from label, body, and timestamp. Prefer this over stuffing cross-agent notes into board cards.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        repoPath: { type: 'string', description: 'Absolute path to the repository' },
+      },
+      required: ['repoPath'],
+    },
+  },
+  {
+    name: 'post_chat_message',
+    description:
+      'Post a message to the agent chat for a repo. Set a clear `from` label identifying this environment/agent (e.g. "local", "beelink", "mac:claude"). For true local↔remote collab both sides must use the same host as the chat hub (usually the remote daemon\'s ~/.porcelain) — see the agent-chat skill.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        repoPath: { type: 'string', description: 'Absolute path to the repository' },
+        from: {
+          type: 'string',
+          description: 'Origin label (environment or agent id), e.g. "local" or "beelink"',
+        },
+        body: { type: 'string', description: 'Message body' },
+      },
+      required: ['repoPath', 'from', 'body'],
+    },
+  },
+  {
+    name: 'clear_chat_messages',
+    description:
+      'Clear the agent chat thread for a repo. Prefer letting the human clear it; only clear when asked or when starting a fresh collab session.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        repoPath: { type: 'string', description: 'Absolute path to the repository' },
+      },
+      required: ['repoPath'],
+    },
+  },
+  {
     name: 'list_actions',
     description:
       "Read the repo's saved actions: named shell commands the human runs in Porcelain's embedded terminal with one click (e.g. a dev server, storybook, a test watcher), each with an id, title, command, and optional cwd. Read this to see what's already set up, then curate it with create/update/delete_action. Note: only the human executes an action — there is no run tool.",

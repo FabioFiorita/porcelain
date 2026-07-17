@@ -62,6 +62,12 @@ import {
 } from './board-store'
 import { type BrowseResult, browseDirs } from './browse'
 import {
+  type ChatMessage,
+  clearMessages as clearChatMessages,
+  postMessage as postChatMessage,
+  readMessages as readChatMessages,
+} from './chat-store'
+import {
   addComment,
   clearResolvedComments,
   deleteComment,
@@ -1079,6 +1085,30 @@ export const router = t.router({
   clearBoardCards: t.procedure
     .input(z.object({ repoPath: z.string(), status: z.enum(CARD_STATUSES) }))
     .mutation(({ input }) => clearCards(input.repoPath, input.status)),
+
+  // Agent chat — relay messages between agents (and the human) on this daemon host,
+  // stored in ~/.porcelain/chat.json. Local↔remote collab needs the same host as the
+  // hub (or the agent-chat skill's SSH path); see the companion skill.
+  chatMessages: t.procedure
+    .input(z.string())
+    .query(({ input }): Promise<ChatMessage[]> => readChatMessages(input)),
+
+  postChatMessage: t.procedure
+    .input(
+      z.object({
+        repoPath: z.string(),
+        from: z.string().trim().min(1),
+        body: z.string().trim().min(1),
+      }),
+    )
+    .mutation(
+      ({ input }): Promise<ChatMessage> =>
+        postChatMessage(input.repoPath, { from: input.from, body: input.body }),
+    ),
+
+  clearChatMessages: t.procedure
+    .input(z.object({ repoPath: z.string() }))
+    .mutation(({ input }) => clearChatMessages(input.repoPath)),
 
   // Saved actions — named commands the human runs in the embedded terminal with one
   // click, stored in ~/.porcelain/actions.json (see `actions-store.ts`); a two-way

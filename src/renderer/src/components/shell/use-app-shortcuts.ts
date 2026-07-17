@@ -17,13 +17,14 @@ const SIDEBAR_TAB_KEYS: Record<string, SidebarTab | undefined> = {
   '4': 'history',
   '5': 'feature',
   '6': 'board',
-  '7': 'terminal',
-  '8': 'agent',
+  '7': 'chat',
+  '8': 'terminal',
+  '9': 'agent',
 }
 
 /**
  * Window-level shortcuts: Cmd+W (via main, see before-input-event), Ctrl+Tab cycling,
- * Cmd+1–8 sidebar tabs, and the context-aware "new" shortcuts for Board/Terminal (⌘N)
+ * Cmd+1–9 sidebar tabs, and the context-aware "new" shortcuts for Board/Terminal (⌘N)
  * plus ⌘T for a terminal anywhere. Files' ⌘N/⌘⇧N/⌘D/⌘⌫ and the Agent tab's ⌘N (new
  * thread) live in dedicated components (FileCommands / AgentCommands) instead — those go
  * through tRPC hooks, which only a component may touch.

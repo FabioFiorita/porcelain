@@ -5,6 +5,7 @@ import { actionsPath } from './actions-store'
 import { type AppEvent, emitAppEvent } from './app-events'
 import { artifactsPath } from './artifact-store'
 import { boardPath } from './board-store'
+import { chatPath } from './chat-store'
 import { commentsPath } from './comment-store'
 import { evidencePath } from './evidence-store'
 import { layersPath } from './layers-store'
@@ -13,13 +14,12 @@ import { reviewSetsPath } from './review-store'
 /**
  * Watch the agent channels in `~/.porcelain` — `review-sets.json` (→ `feature-view`),
  * `comments.json` (→ `comments`), `board.json` (→ `board`), `actions.json`
- * (→ `actions`), `layers.json` (→ `layers`), `artifacts.json` (→ `artifact`), and
- * `evidence.json` (→ `evidence`) — and push an app-event when any changes, so an MCP
- * write from the user's coding agent live-refreshes the open view (a pushed review
- * set, a resolved comment, a moved card, a curated action, retuned flow layers, an
- * authored feature artifact or loop evidence). We watch the DIRECTORY, not the file:
- * writes are atomic (tmp + rename), which replaces the inode and breaks a direct file
- * watch. The paths usually share a directory, watched once.
+ * (→ `actions`), `layers.json` (→ `layers`), `artifacts.json` (→ `artifact`),
+ * `evidence.json` (→ `evidence`), and `chat.json` (→ `chat`) — and push an app-event
+ * when any changes, so an MCP write from the user's coding agent live-refreshes the
+ * open view. We watch the DIRECTORY, not the file: writes are atomic (tmp + rename),
+ * which replaces the inode and breaks a direct file watch. The paths usually share a
+ * directory, watched once.
  */
 export async function watchAgentChannels(): Promise<void> {
   const targets: { path: string; event: AppEvent }[] = [
@@ -30,6 +30,7 @@ export async function watchAgentChannels(): Promise<void> {
     { path: layersPath(), event: 'layers' },
     { path: artifactsPath(), event: 'artifact' },
     { path: evidencePath(), event: 'evidence' },
+    { path: chatPath(), event: 'chat' },
   ]
   const byDir = new Map<string, Map<string, AppEvent>>()
   for (const target of targets) {

@@ -2,7 +2,6 @@ import { randomUUID } from 'node:crypto'
 import { initTRPC } from '@trpc/server'
 import { shell, type WebContents } from 'electron'
 import { z } from 'zod'
-import { exportRepoSettings, type RepoSettings } from '../backend/repo-settings'
 import {
   AGENT_NAMES,
   type AgentMcpResult,
@@ -119,14 +118,6 @@ export const shellRouter = t.router({
     .mutation(async ({ input }): Promise<AgentMcpResult[]> => {
       return installMcpForAgents(input ?? AGENT_NAMES)
     }),
-
-  // Read this Mac's channel snapshot for a repo path — used when the app is
-  // pointed at a remote daemon and the human wants to seed that environment
-  // from local setup (shell reads local ~/.porcelain; the renderer then imports
-  // into the active daemon via importRepoSettings).
-  exportLocalRepoSettings: t.procedure
-    .input(z.string())
-    .query(({ input }): Promise<RepoSettings> => exportRepoSettings(input)),
 
   // Saved remote environments (remote-envs Phase 4 → per-window 2026-07): keep a
   // list of other machines' Porcelain daemons. Each WINDOW picks its own

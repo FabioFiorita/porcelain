@@ -19,6 +19,7 @@ const COMPANION_TITLES: Record<SidebarTab, string> = {
   history: 'Review',
   feature: 'Review',
   board: 'Workspace',
+  chat: 'Workspace',
   terminal: 'Actions',
   search: 'Recent searches',
   // Distinct from the left sidebar's "Agent" tab (the thread roster). This panel is

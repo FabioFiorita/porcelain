@@ -18,14 +18,15 @@ test('changes tab', async ({ page }) => {
   await expect(page).toHaveScreenshot('changes-tab.png')
 })
 
-// Element-scoped baseline for the icon rail (Files…Terminal). The rail is a ~56px
-// column, so adding/restyling a tab icon changes far fewer pixels than the full-page
-// 2% tolerance and slips through the page shots untouched — framing just the rail
-// makes such a change actually fail.
+// Element-scoped baseline for the icon rail (Files…Agent, including Chat). The rail
+// is a ~56px column, so adding/restyling a tab icon changes far fewer pixels than the
+// full-page 2% tolerance and slips through the page shots untouched — framing just
+// the rail makes such a change actually fail.
 test('sidebar icon rail', async ({ page }) => {
   await waitForShell(page)
   const rail = page.locator('[data-slot="sidebar-menu"]').first()
-  await expect(rail.getByRole('button', { name: 'Terminal' })).toBeVisible()
+  await expect(rail.getByRole('button', { name: 'Chat' })).toBeVisible()
+  await expect(rail.getByRole('button', { name: 'Agent' })).toBeVisible()
   await expect(rail).toHaveScreenshot('sidebar-rail.png')
 })
 

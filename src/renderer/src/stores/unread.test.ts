@@ -5,7 +5,9 @@ import { isUnreadTab, type UnreadTab, unreadTabFor, useUnreadStore } from './unr
 
 describe('useUnreadStore', () => {
   beforeEach(() => {
-    useUnreadStore.setState({ unread: { feature: false, board: false, terminal: false } })
+    useUnreadStore.setState({
+      unread: { feature: false, board: false, chat: false, terminal: false },
+    })
     usePreferencesStore.setState({ sidebarTab: 'files' })
   })
 
@@ -40,6 +42,7 @@ describe('unreadTabFor', () => {
     ['evidence', 'feature'],
     ['comments', 'feature'],
     ['board', 'board'],
+    ['chat', 'chat'],
     ['actions', 'terminal'],
     ['layers', null],
     ['working-tree', null],
@@ -58,9 +61,10 @@ describe('unreadTabFor', () => {
 })
 
 describe('isUnreadTab', () => {
-  it('accepts the three unread-capable tabs', () => {
+  it('accepts the unread-capable tabs', () => {
     expect(isUnreadTab('feature')).toBe(true)
     expect(isUnreadTab('board')).toBe(true)
+    expect(isUnreadTab('chat')).toBe(true)
     expect(isUnreadTab('terminal')).toBe(true)
   })
 

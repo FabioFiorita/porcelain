@@ -1,5 +1,6 @@
 import { AgentList } from '@renderer/components/agent/agent-list'
 import { BoardList } from '@renderer/components/board/board-list'
+import { ChatList } from '@renderer/components/chat/chat-list'
 import { BranchSwitcher } from '@renderer/components/git/branch-switcher'
 import { ChangesList } from '@renderer/components/git/changes-list'
 import { FeatureList } from '@renderer/components/git/feature-list'
@@ -38,6 +39,7 @@ import {
   Files,
   GitCompareArrows,
   History,
+  MessagesSquare,
   Search,
   SquareKanban,
   SquareTerminal,
@@ -56,18 +58,20 @@ const TABS: { id: SidebarTab; label: string; icon: typeof Files; shortcut: strin
   { id: 'history', label: 'History', icon: History, shortcut: kbdLabel('mod', '4') },
   { id: 'feature', label: 'Feature', icon: Waypoints, shortcut: kbdLabel('mod', '5') },
   { id: 'board', label: 'Board', icon: SquareKanban, shortcut: kbdLabel('mod', '6') },
-  { id: 'terminal', label: 'Terminal', icon: SquareTerminal, shortcut: kbdLabel('mod', '7') },
-  { id: 'agent', label: 'Agent', icon: Bot, shortcut: kbdLabel('mod', '8') },
+  { id: 'chat', label: 'Chat', icon: MessagesSquare, shortcut: kbdLabel('mod', '7') },
+  { id: 'terminal', label: 'Terminal', icon: SquareTerminal, shortcut: kbdLabel('mod', '8') },
+  { id: 'agent', label: 'Agent', icon: Bot, shortcut: kbdLabel('mod', '9') },
 ]
 
 // Uppercase title each left panel opens with — one consistent header pattern
-// across all eight tabs (the Files panel adds the collapse-all + hide controls).
+// across all sidebar tabs (the Files panel adds the collapse-all + hide controls).
 const PANEL_TITLES: Record<SidebarTab, string> = {
   files: 'Explorer',
   changes: 'Source control',
   history: 'History',
   feature: 'Feature review',
   board: 'Board',
+  chat: 'Agent chat',
   terminal: 'Terminal',
   search: 'Search',
   agent: 'Agent',
@@ -139,7 +143,7 @@ export function AppSidebar(): React.JSX.Element {
           Phone sheets are fixed-width drawers; the drag handle is pointer-only. */}
       {state === 'expanded' && !isMobile && <SidebarResizeHandle />}
 
-      {/* Icon rail — project avatar on top, then the eight tabs (monochrome,
+      {/* Icon rail — project avatar on top, then the rail tabs (monochrome,
           icon-only), settings at the bottom. The right border runs the FULL rail
           height (on the rail itself, not its content) so the rail reads as one
           clean vertical strip — the panel's own header/footer hairlines start at
@@ -295,6 +299,7 @@ export function AppSidebar(): React.JSX.Element {
                     {sidebarTab === 'history' && <HistoryList />}
                     {sidebarTab === 'feature' && <FeatureList />}
                     {sidebarTab === 'board' && <BoardList />}
+                    {sidebarTab === 'chat' && <ChatList />}
                     {sidebarTab === 'terminal' && <TerminalList />}
                     {sidebarTab === 'search' && <SearchList />}
                     {sidebarTab === 'agent' && <AgentList />}

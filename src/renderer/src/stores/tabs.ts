@@ -9,6 +9,7 @@ export type TabKind =
   | 'feature'
   | 'explore'
   | 'board'
+  | 'chat'
   | 'terminal'
   | 'artifact'
   | 'evidence'

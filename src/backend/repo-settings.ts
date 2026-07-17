@@ -12,16 +12,16 @@ import { readLayers, writeLayers } from './layers-store'
 import { readNotes, writeNotes } from './notes-store'
 
 /**
- * Snapshot of the per-repo companion data a human commonly wants to carry from
- * one environment to another (Mac → Beelink, or one absolute path → another after
- * a clone). Channel files are keyed by absolute path on the *daemon host*, so
- * nothing crosses machines automatically — this is the explicit, user-initiated
- * seed (Settings → Remote daemons → Copy repo settings).
+ * Snapshot of the per-repo companion data agents (or scripts) carry from one
+ * environment/path to another (Mac → remote daemon, or remapping after a clone).
+ * Channel files are keyed by absolute path on the *daemon host* — never silent.
+ * Agents use the `sync-environments` companion skill (MCP list/create + SSH/path
+ * remap); the Settings UI no longer offers a one-click seed.
  *
  * Included: actions (saved commands), notes, board, flow layers, review comments.
- * Deliberately NOT included: reviewed marks (session ticks), feature-view snapshot
- * (derived), artifacts / loop evidence (agent-authored HTML), review sets (MCP-authored;
- * app only clears). Those are live session/review state, not "project setup" + open notes.
+ * Deliberately NOT included: reviewed marks, feature-view snapshot, artifacts /
+ * loop evidence, review sets (dynamic feature view), agent chat (ephemeral relay).
+ * Hidden/pinned folders live in daemon config.json — see the skill, not this snapshot.
  */
 export const repoSettingsSchema = z.object({
   actions: z.array(actionSchema).optional(),

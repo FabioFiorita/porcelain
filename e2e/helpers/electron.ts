@@ -173,7 +173,16 @@ declare global {
   }
 }
 
-type TabName = 'Files' | 'Changes' | 'History' | 'Feature' | 'Board' | 'Terminal' | 'Agent'
+type TabName =
+  | 'Files'
+  | 'Search'
+  | 'Changes'
+  | 'History'
+  | 'Feature'
+  | 'Board'
+  | 'Chat'
+  | 'Terminal'
+  | 'Agent'
 
 /** Wait until the shell has finished restoring the seeded repo. */
 export async function waitForShell(page: Page): Promise<void> {

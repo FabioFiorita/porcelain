@@ -63,8 +63,10 @@ export function CardComposer(): React.JSX.Element {
         if (!open) close()
       }}
     >
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
+      {/* Cap height so a long description can't push title/footer off-screen;
+          title stays fixed; body scrolls inside the dialog. */}
+      <DialogContent className="flex max-h-[min(600px,90dvh)] flex-col gap-4 overflow-hidden sm:max-w-lg">
+        <DialogHeader className="shrink-0">
           <DialogTitle>{draft?.id ? 'Edit card' : 'New card'}</DialogTitle>
         </DialogHeader>
         <Input
@@ -73,7 +75,7 @@ export function CardComposer(): React.JSX.Element {
           onKeyDown={onKeyDown}
           placeholder="Title"
           aria-label="Card title"
-          className="rounded-md"
+          className="max-h-20 shrink-0 overflow-y-auto rounded-md"
         />
         <Textarea
           value={body}
@@ -82,9 +84,9 @@ export function CardComposer(): React.JSX.Element {
           placeholder={`Details (optional) — ${kbdLabel('mod', '↵')} to save`}
           aria-label="Card details"
           rows={4}
-          className="resize-none"
+          className="min-h-24 flex-1 resize-none overflow-y-auto"
         />
-        <DialogFooter>
+        <DialogFooter className="shrink-0">
           <Button variant="ghost" onClick={close}>
             Cancel
           </Button>

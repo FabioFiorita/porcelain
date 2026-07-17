@@ -15,6 +15,12 @@ import {
   readCards,
   updateCard,
 } from './board-file'
+import {
+  clearMessages as clearChatMessages,
+  describeChat,
+  postMessage as postChatMessage,
+  readMessages as readChatMessages,
+} from './chat-file'
 import { answerComment, describeComments, readComments, resolveComment } from './comment-file'
 import { clearEvidence, describeEvidence, getEvidence, setEvidence } from './evidence-file'
 import { describeFeatureView, readFeatureView, sourceByPath } from './feature-view-file'
@@ -141,6 +147,22 @@ export async function callTool(name: string, args: Record<string, unknown>): Pro
     return deleteCard(repoPath, id)
       ? `Deleted card ${id} for ${repoPath}`
       : `No card ${id} for ${repoPath}`
+  }
+  if (name === 'list_chat_messages') {
+    return describeChat(repoPath, readChatMessages(repoPath))
+  }
+  if (name === 'post_chat_message') {
+    const from = asString(args.from)
+    const body = asString(args.body)
+    if (!from) throw new Error('from is required')
+    if (!body) throw new Error('body is required')
+    const message = postChatMessage(repoPath, from, body)
+    return `Posted chat message ${message.id} as "${from}" for ${repoPath}`
+  }
+  if (name === 'clear_chat_messages') {
+    return clearChatMessages(repoPath)
+      ? `Cleared agent chat for ${repoPath}`
+      : `Agent chat for ${repoPath} was already empty`
   }
   if (name === 'list_actions') {
     return describeActions(repoPath, readActions(repoPath))

@@ -20,7 +20,7 @@ describe('handleRpc', () => {
     expect(res).toMatchObject({ result: { protocolVersion: PROTOCOL_VERSION } })
   })
 
-  it('lists the feature-review, comment, reviewed, artifact, evidence, board, action, notes, and flow-layer tools', async () => {
+  it('lists the feature-review, comment, reviewed, artifact, evidence, board, chat, action, notes, and flow-layer tools', async () => {
     const res = await handleRpc({ jsonrpc: '2.0', id: 2, method: 'tools/list' }, noTool)
     expect(res).toMatchObject({ id: 2, result: { tools: TOOLS } })
     expect(TOOLS.map((t) => t.name)).toEqual([
@@ -44,6 +44,9 @@ describe('handleRpc', () => {
       'update_card',
       'move_card',
       'delete_card',
+      'list_chat_messages',
+      'post_chat_message',
+      'clear_chat_messages',
       'list_actions',
       'create_action',
       'update_action',

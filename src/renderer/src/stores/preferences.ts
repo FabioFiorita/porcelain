@@ -16,6 +16,7 @@ export type SidebarTab =
   | 'history'
   | 'feature'
   | 'board'
+  | 'chat'
   | 'terminal'
   | 'search'
   | 'agent'

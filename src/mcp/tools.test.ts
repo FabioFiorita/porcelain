@@ -15,6 +15,7 @@ const commentsFile = join(dir, 'comments.json')
 const featureViewFile = join(dir, 'feature-view.json')
 const artifactsFile = join(dir, 'artifacts.json')
 const evidenceFile = join(dir, 'evidence.json')
+const chatFile = join(dir, 'chat.json')
 
 beforeEach(() => {
   process.env.PORCELAIN_REVIEW_SETS = file
@@ -27,6 +28,7 @@ beforeEach(() => {
   process.env.PORCELAIN_ACTIONS = actionsFile
   process.env.PORCELAIN_COMMENTS = commentsFile
   process.env.PORCELAIN_FEATURE_VIEW = featureViewFile
+  process.env.PORCELAIN_CHAT = chatFile
   rmSync(dir, { recursive: true, force: true })
 })
 afterEach(() => {
@@ -40,6 +42,7 @@ afterEach(() => {
   delete process.env.PORCELAIN_FEATURE_VIEW
   delete process.env.PORCELAIN_ARTIFACTS
   delete process.env.PORCELAIN_EVIDENCE
+  delete process.env.PORCELAIN_CHAT
   rmSync(dir, { recursive: true, force: true })
 })
 const read = (): Record<string, { name: string; files: unknown[] }> =>
@@ -296,6 +299,23 @@ describe('board + actions', () => {
     const result = await callTool('delete_card', { repoPath: '/repo', id })
     expect(result).toContain('Deleted card')
     expect((readBoard()['/repo'] as unknown[]).length).toBe(0)
+  })
+
+  it('post_chat_message + list_chat_messages round-trip', async () => {
+    await callTool('post_chat_message', {
+      repoPath: '/repo',
+      from: 'local',
+      body: 'need sim shot',
+    })
+    const text = await callTool('list_chat_messages', { repoPath: '/repo' })
+    expect(text).toContain('local')
+    expect(text).toContain('need sim shot')
+  })
+
+  it('clear_chat_messages empties the thread', async () => {
+    await callTool('post_chat_message', { repoPath: '/repo', from: 'a', body: 'b' })
+    await callTool('clear_chat_messages', { repoPath: '/repo' })
+    expect(await callTool('list_chat_messages', { repoPath: '/repo' })).toContain('is empty')
   })
 
   it('create_action with title+command writes an action', async () => {
