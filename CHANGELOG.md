@@ -1,3 +1,9 @@
+## [0.28.2](https://github.com/FabioFiorita/porcelain/compare/v0.28.1...v0.28.2) (2026-07-17)
+
+### Bug Fixes
+
+* MCP htmlFile input and auto-reload on binary upgrade ([6742569](https://github.com/FabioFiorita/porcelain/commit/67425698027cdcf37bb492307610eba1e1406d50))
+
 ## [0.28.1](https://github.com/FabioFiorita/porcelain/compare/v0.28.0...v0.28.1) (2026-07-17)
 
 ### Bug Fixes
