@@ -1,3 +1,9 @@
+## [0.28.0](https://github.com/FabioFiorita/porcelain/compare/v0.27.1...v0.28.0) (2026-07-17)
+
+### Features
+
+* agent chat, env sync skill, board scroll; drop seed UI ([62f111a](https://github.com/FabioFiorita/porcelain/commit/62f111ac233378da4d205b06b60db4276ccc1b7f))
+
 ## [0.27.1](https://github.com/FabioFiorita/porcelain/compare/v0.27.0...v0.27.1) (2026-07-16)
 
 ## [0.27.0](https://github.com/FabioFiorita/porcelain/compare/v0.26.1...v0.27.0) (2026-07-16)
