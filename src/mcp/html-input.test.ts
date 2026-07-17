@@ -4,6 +4,9 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { readHtmlFile, resolveToolHtml } from './html-input'
 
+// A plausible self-contained document: has a `<` tag and clears the MIN_HTML_BYTES floor.
+const doc = `<main>${'x'.repeat(600)}</main>`
+
 describe('resolveToolHtml', () => {
   const dir = join(tmpdir(), 'porcelain-html-input-test')
   const file = join(dir, 'doc.html')
@@ -11,27 +14,38 @@ describe('resolveToolHtml', () => {
   beforeEach(() => {
     rmSync(dir, { recursive: true, force: true })
     mkdirSync(dir, { recursive: true })
-    writeFileSync(file, '<h1>from file</h1>')
+    writeFileSync(file, doc)
   })
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true })
   })
 
   it('returns inline html', () => {
-    expect(resolveToolHtml({ html: '<p>hi</p>' }, 1000)).toBe('<p>hi</p>')
+    expect(resolveToolHtml({ html: doc }, 100_000)).toBe(doc)
   })
 
   it('reads htmlFile when provided', () => {
-    expect(resolveToolHtml({ htmlFile: file }, 1000)).toBe('<h1>from file</h1>')
+    expect(resolveToolHtml({ htmlFile: file }, 100_000)).toBe(doc)
   })
 
   it('rejects both html and htmlFile', () => {
-    expect(() => resolveToolHtml({ html: '<p>x</p>', htmlFile: file }, 1000)).toThrow('not both')
+    expect(() => resolveToolHtml({ html: doc, htmlFile: file }, 100_000)).toThrow('not both')
   })
 
   it('rejects when neither is provided', () => {
     expect(() => resolveToolHtml({}, 1000)).toThrow('html or htmlFile is required')
     expect(() => resolveToolHtml({ html: '' }, 1000)).toThrow('html or htmlFile is required')
+  })
+
+  it('rejects a file path pasted into the html field, pointing at htmlFile', () => {
+    expect(() => resolveToolHtml({ html: 'filePath:/tmp/x/loop-evidence.html' }, 100_000)).toThrow(
+      /htmlFile/,
+    )
+  })
+
+  it('rejects an implausibly small html document, pointing at htmlFile', () => {
+    expect(() => resolveToolHtml({ html: '<p>tiny</p>' }, 100_000)).toThrow(/too small/)
+    expect(() => resolveToolHtml({ html: '<p>tiny</p>' }, 100_000)).toThrow(/htmlFile/)
   })
 })
 
@@ -52,7 +66,7 @@ describe('readHtmlFile', () => {
   })
 
   it('rejects a missing file', () => {
-    expect(() => readHtmlFile(join(dir, 'missing.html'), 1000)).toThrow('not readable')
+    expect(() => readHtmlFile(join(dir, 'missing.html'), 1000)).toThrow('not found or unreadable')
   })
 
   it('rejects an empty file', () => {

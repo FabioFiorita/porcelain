@@ -73,11 +73,13 @@ describe('evidence directory channel', () => {
     expect(getEvidence('/repo')).toBeNull()
   })
 
-  it('describeEvidence points at the directory when index exists', () => {
+  it('describeEvidence points at the directory when index exists, with a preview', () => {
     setEvidence('/repo', 'Vite loop', '<h1>Pass</h1>')
     const text = describeEvidence('/repo', getEvidence('/repo'))
     expect(text).toContain('index.html')
     expect(text).toContain(evidenceDirForRepo('/repo'))
+    expect(text).toContain('Preview:')
+    expect(text).toContain('<h1>Pass</h1>')
   })
 
   it('describeEvidence without evidence explains the prepare flow', () => {

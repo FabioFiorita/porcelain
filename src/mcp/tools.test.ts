@@ -46,6 +46,10 @@ afterEach(() => {
   delete process.env.PORCELAIN_CHAT
   rmSync(dir, { recursive: true, force: true })
 })
+// A plausible self-contained document: has a `<` tag and clears the MIN_HTML_BYTES floor,
+// so it survives resolveToolHtml's plausibility guard (unlike tiny test fragments).
+const doc = `<main>${'x'.repeat(600)}</main>`
+
 const read = (): Record<string, { name: string; files: unknown[] }> =>
   JSON.parse(readFileSync(file, 'utf8'))
 const readBoard = (): Record<string, unknown[]> => JSON.parse(readFileSync(boardFile, 'utf8'))
@@ -109,7 +113,7 @@ describe('callTool', () => {
     await callTool('set_feature_artifact', {
       repoPath: '/repo',
       title: 'Overview',
-      html: '<h1>Overview</h1>',
+      html: doc,
     })
     expect(readArtifacts()['/repo']?.title).toBe('Overview')
     expect(await callTool('get_feature_artifact', { repoPath: '/repo' })).toContain(
@@ -120,14 +124,59 @@ describe('callTool', () => {
   })
   it('set_feature_artifact rejects a missing title', async () => {
     await expect(
-      callTool('set_feature_artifact', { repoPath: '/repo', html: '<p>x</p>' }),
+      callTool('set_feature_artifact', { repoPath: '/repo', html: doc }),
     ).rejects.toThrow('title must be a non-empty string')
+  })
+
+  it('set_feature_artifact rejects both html and htmlFile', async () => {
+    mkdirSync(dir, { recursive: true })
+    const htmlPath = join(dir, 'artifact.html')
+    writeFileSync(htmlPath, doc)
+    await expect(
+      callTool('set_feature_artifact', {
+        repoPath: '/repo',
+        title: 'X',
+        html: doc,
+        htmlFile: htmlPath,
+      }),
+    ).rejects.toThrow('not both')
+  })
+
+  it('set_feature_artifact rejects a file path pasted into the html field', async () => {
+    await expect(
+      callTool('set_feature_artifact', {
+        repoPath: '/repo',
+        title: 'X',
+        html: 'filePath:/tmp/x/artifact.html',
+      }),
+    ).rejects.toThrow(/htmlFile/)
+  })
+
+  it('set_feature_artifact rejects a missing htmlFile', async () => {
+    await expect(
+      callTool('set_feature_artifact', {
+        repoPath: '/repo',
+        title: 'X',
+        htmlFile: join(dir, 'nope.html'),
+      }),
+    ).rejects.toThrow('not found or unreadable')
+  })
+
+  it('get_feature_artifact includes a content preview of what was stored', async () => {
+    await callTool('set_feature_artifact', {
+      repoPath: '/repo',
+      title: 'Overview',
+      html: `<h1>Marker heading</h1>${'x'.repeat(600)}`,
+    })
+    const text = await callTool('get_feature_artifact', { repoPath: '/repo' })
+    expect(text).toContain('Preview:')
+    expect(text).toContain('Marker heading')
   })
 
   it('set_feature_artifact accepts htmlFile instead of inline html', async () => {
     mkdirSync(dir, { recursive: true })
     const htmlPath = join(dir, 'artifact.html')
-    writeFileSync(htmlPath, '<h1>From disk</h1>')
+    writeFileSync(htmlPath, doc)
     const readArtifacts = (): Record<string, { title: string; html: string }> =>
       JSON.parse(readFileSync(artifactsFile, 'utf8'))
     await callTool('set_feature_artifact', {
@@ -135,7 +184,7 @@ describe('callTool', () => {
       title: 'Disk',
       htmlFile: htmlPath,
     })
-    expect(readArtifacts()['/repo']?.html).toBe('<h1>From disk</h1>')
+    expect(readArtifacts()['/repo']?.html).toBe(doc)
   })
 
   it('set_loop_evidence with title only prepares the on-disk directory', async () => {
@@ -154,7 +203,7 @@ describe('callTool', () => {
     await callTool('set_loop_evidence', {
       repoPath: '/repo',
       title: 'Vite loop',
-      html: '<h1>Pass</h1>',
+      html: doc,
     })
     expect(await callTool('get_loop_evidence', { repoPath: '/repo' })).toContain(
       'Loop evidence "Vite loop" for /repo',
@@ -165,16 +214,50 @@ describe('callTool', () => {
   })
 
   it('set_loop_evidence rejects a missing title', async () => {
+    await expect(callTool('set_loop_evidence', { repoPath: '/repo', html: doc })).rejects.toThrow(
+      'title must be a non-empty string',
+    )
+  })
+
+  it('set_loop_evidence rejects a file path pasted into the html field', async () => {
+    process.env.PORCELAIN_LOOP_EVIDENCE_DIR = join(dir, 'loop-evidence')
     await expect(
-      callTool('set_loop_evidence', { repoPath: '/repo', html: '<p>x</p>' }),
-    ).rejects.toThrow('title must be a non-empty string')
+      callTool('set_loop_evidence', {
+        repoPath: '/repo',
+        title: 'Redirect',
+        html: 'filePath:/tmp/x/loop-evidence.html',
+      }),
+    ).rejects.toThrow(/htmlFile/)
+  })
+
+  it('set_loop_evidence rejects a missing htmlFile', async () => {
+    process.env.PORCELAIN_LOOP_EVIDENCE_DIR = join(dir, 'loop-evidence')
+    await expect(
+      callTool('set_loop_evidence', {
+        repoPath: '/repo',
+        title: 'Redirect',
+        htmlFile: join(dir, 'nope.html'),
+      }),
+    ).rejects.toThrow('not found or unreadable')
+  })
+
+  it('get_loop_evidence includes a content preview of what was stored', async () => {
+    process.env.PORCELAIN_LOOP_EVIDENCE_DIR = join(dir, 'loop-evidence')
+    await callTool('set_loop_evidence', {
+      repoPath: '/repo',
+      title: 'Vite loop',
+      html: `<h1>Marker heading</h1>${'x'.repeat(600)}`,
+    })
+    const text = await callTool('get_loop_evidence', { repoPath: '/repo' })
+    expect(text).toContain('Preview:')
+    expect(text).toContain('Marker heading')
   })
 
   it('set_loop_evidence accepts htmlFile and writes the evidence dir', async () => {
     process.env.PORCELAIN_LOOP_EVIDENCE_DIR = join(dir, 'loop-evidence')
     mkdirSync(dir, { recursive: true })
     const htmlPath = join(dir, 'evidence.html')
-    writeFileSync(htmlPath, '<h1>Evidence on disk</h1>')
+    writeFileSync(htmlPath, doc)
     const msg = await callTool('set_loop_evidence', {
       repoPath: '/repo',
       title: 'Disk evidence',

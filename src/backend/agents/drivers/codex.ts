@@ -447,8 +447,12 @@ export const codexDriver: AgentDriver = {
 
   // A cheap one-shot title via `codex exec`: `--ephemeral` (no session file), read-only
   // sandbox + `--skip-git-repo-check` (safe anywhere), `-o <file>` to capture just the
-  // final message. Default model (no `-m`) keeps the invocation simple; a title turn is
-  // tiny. Resolves null on any failure so the manager keeps the derived title.
+  // final message. The title analog of Claude's `--bare`: `-c project_doc_max_bytes=0`
+  // skips the AGENTS.md / project-doc boot and `-c model_reasoning_effort=none` spends no
+  // reasoning tokens on a 2-5 word name — together they drop a title turn from ~7.9k to
+  // ~0.7k tokens, the single biggest agent-tab-only waste vs the terminal. Default model
+  // (no `-m`) stays simple (mini/nano ids aren't valid on a ChatGPT account). Resolves
+  // null on any failure so the manager keeps the derived title.
   async generateTitle({
     repoPath,
     text,
@@ -470,6 +474,10 @@ export const codexDriver: AgentDriver = {
             '--sandbox',
             'read-only',
             '--skip-git-repo-check',
+            '-c',
+            'project_doc_max_bytes=0',
+            '-c',
+            'model_reasoning_effort=none',
             '--color',
             'never',
             '-C',

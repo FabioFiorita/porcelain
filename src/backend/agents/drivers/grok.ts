@@ -1,7 +1,7 @@
 import { type ChildProcess, execFile, spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
-import { homedir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline'
 import { agentSpawnEnv } from '../../login-shell-env'
@@ -85,13 +85,13 @@ export const grokDriver: AgentDriver = {
     return importGrokSession(repoPath, externalId)
   },
 
-  async generateTitle({
-    repoPath,
-    text,
-  }: {
-    repoPath: string
-    text: string
-  }): Promise<string | null> {
+  // A cheap one-shot title via `grok -p` on the fast/cheap composer model. Grok has no
+  // `--bare`-style project-doc skip, so the analog of Claude's `--bare` is running in a
+  // neutral tmp cwd instead of the repo: that keeps AGENTS.md / project skills from
+  // cold-loading just to mint a 2-5 word name (the biggest agent-tab-only waste vs the
+  // terminal) — the prompt already carries the user's message. Resolves null on any
+  // failure so the manager keeps the derived title.
+  async generateTitle({ text }: { repoPath: string; text: string }): Promise<string | null> {
     const env = await agentSpawnEnv()
     const bin = resolveGrokBin(binLookup(env))
     if (bin === null) return null
@@ -109,7 +109,7 @@ export const grokDriver: AgentDriver = {
           'bypassPermissions',
           '--no-auto-update',
         ],
-        { cwd: repoPath, env, timeout: TITLE_TIMEOUT_MS },
+        { cwd: tmpdir(), env, timeout: TITLE_TIMEOUT_MS },
         (error, stdout) => {
           if (error) {
             resolve(null)

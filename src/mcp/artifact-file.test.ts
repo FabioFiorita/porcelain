@@ -105,14 +105,16 @@ describe('describeArtifact', () => {
     expect(describeArtifact('/repo', null)).toContain('No feature artifact for /repo')
   })
 
-  it('summarizes the artifact without echoing the whole document', () => {
+  it('summarizes the artifact with a short preview, not the whole document', () => {
     const text = describeArtifact('/repo', {
       title: 'Overview',
-      html: '<h1>Overview</h1>',
+      html: `<h1>Overview</h1>${'x'.repeat(500)}<footer>END-MARKER</footer>`,
       updatedAt: '2026-07-04T00:00:00.000Z',
     })
     expect(text).toContain('Feature artifact "Overview" for /repo')
     expect(text).toContain('bytes of HTML')
-    expect(text).not.toContain('<h1>')
+    expect(text).toContain('Preview:')
+    expect(text).toContain('<h1>Overview</h1>')
+    expect(text).not.toContain('END-MARKER')
   })
 })

@@ -230,12 +230,12 @@ export const TOOLS = [
         html: {
           type: 'string',
           description:
-            'Optional. Small self-contained HTML to write as index.html. Prefer omitting this and writing the file yourself into the returned directory.',
+            'Optional. Small self-contained HTML document to write as index.html — the actual markup, NOT a file path (pass paths as htmlFile). Prefer omitting this and writing the file yourself into the returned directory.',
         },
         htmlFile: {
           type: 'string',
           description:
-            'Optional. Absolute path to a local HTML file to copy into the evidence directory as index.html. Prefer writing index.html directly into the prepare path instead.',
+            'Optional. Absolute path to a local HTML file to copy into the evidence directory as index.html. Use this (not html) whenever you have a path on disk. Prefer writing index.html directly into the prepare path instead.',
         },
       },
       required: ['repoPath', 'title'],

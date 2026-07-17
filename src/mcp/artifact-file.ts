@@ -1,6 +1,7 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { htmlPreview } from './html-input'
 
 // Builtins only — see protocol.ts for why this server must stay dependency-free.
 // This file owns the feature-artifact channel that Porcelain reads (src/main/
@@ -108,9 +109,9 @@ export function getArtifact(repoPath: string): Artifact | null {
 }
 
 /**
- * Render a repo's stored artifact for the read tool: a one-line summary (title, size,
- * when it was last set) so the agent can confirm what it pushed without echoing the
- * whole document back.
+ * Render a repo's stored artifact for the read tool: a summary (title, size, when it
+ * was last set) plus a short content preview so the agent can confirm WHAT it pushed
+ * (not just the byte count) without echoing the whole document back.
  */
 export function describeArtifact(repoPath: string, artifact: Artifact | null): string {
   if (!artifact) {
@@ -118,5 +119,5 @@ export function describeArtifact(repoPath: string, artifact: Artifact | null): s
   }
   const bytes = Buffer.byteLength(artifact.html, 'utf8')
   const when = artifact.updatedAt ? ` (updated ${artifact.updatedAt})` : ''
-  return `Feature artifact "${artifact.title}" for ${repoPath}: ${bytes} bytes of HTML${when}.`
+  return `Feature artifact "${artifact.title}" for ${repoPath}: ${bytes} bytes of HTML${when}.\nPreview: ${htmlPreview(artifact.html)}`
 }

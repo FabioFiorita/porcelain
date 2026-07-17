@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { htmlPreview } from './html-input'
 
 // Builtins only — see protocol.ts. Loop evidence is a **directory of files**:
 //
@@ -175,6 +176,7 @@ export function describeEvidence(repoPath: string, evidence: Evidence | null): s
   }
   const bytes = Buffer.byteLength(evidence.html, 'utf8')
   const when = evidence.updatedAt ? ` (updated ${evidence.updatedAt})` : ''
+  const preview = `\nPreview: ${htmlPreview(evidence.html)}`
   const hasIndex = (() => {
     try {
       statSync(join(dir, 'index.html'))
@@ -184,7 +186,7 @@ export function describeEvidence(repoPath: string, evidence: Evidence | null): s
     }
   })()
   if (hasIndex) {
-    return `Loop evidence "${evidence.title}" for ${repoPath}: ${bytes} bytes at ${dir}/index.html${when}. Open that path in a browser, or Feature tab → Loop evidence in Porcelain.`
+    return `Loop evidence "${evidence.title}" for ${repoPath}: ${bytes} bytes at ${dir}/index.html${when}. Open that path in a browser, or Feature tab → Loop evidence in Porcelain.${preview}`
   }
-  return `Loop evidence "${evidence.title}" for ${repoPath}: ${bytes} bytes of HTML${when} (legacy channel). Prefer writing ${dir}/index.html next time.`
+  return `Loop evidence "${evidence.title}" for ${repoPath}: ${bytes} bytes of HTML${when} (legacy channel). Prefer writing ${dir}/index.html next time.${preview}`
 }

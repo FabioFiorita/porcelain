@@ -6,6 +6,13 @@ import { isAbsolute, resolve } from 'node:path'
 // (base64 screenshots) through the tool-call channel, which is slow and fragile.
 
 /**
+ * Below this an `html` value is almost certainly a stray fragment or a file path an
+ * agent pasted into the html field (the "filePath:/tmp/…" junk-write bug), not a real
+ * self-contained document. The guard catches that before it's stored verbatim.
+ */
+export const MIN_HTML_BYTES = 512
+
+/**
  * Resolve the document body for set_feature_artifact / set_loop_evidence.
  * Exactly one of `html` (inline string) or `htmlFile` (absolute path the MCP
  * process reads locally) is required. Prefer `htmlFile` for anything with
@@ -22,11 +29,40 @@ export function resolveToolHtml(args: Record<string, unknown>, maxBytes: number)
   if (!hasHtml && !hasFile) {
     throw new Error('html or htmlFile is required')
   }
-  if (hasFile) {
-    return readHtmlFile(htmlFile, maxBytes)
-  }
   // hasHtml — non-empty string; size still enforced by validateArtifact/Evidence.
-  return html as string
+  const content = hasFile ? readHtmlFile(htmlFile, maxBytes) : (html as string)
+  assertPlausibleHtml(content)
+  return content
+}
+
+/**
+ * Reject an html value that plainly isn't an HTML document: content with no `<` tag
+ * near the start (a bare file path or plain string) or one implausibly small for a
+ * real document. Guards the silent junk-write where an agent passes a path/prefix
+ * (e.g. "filePath:/tmp/…") in the html field and it gets stored verbatim.
+ */
+export function assertPlausibleHtml(html: string): void {
+  if (!html.slice(0, 256).includes('<')) {
+    throw new Error(
+      'html doesn\'t look like an HTML document (no "<" tag near the start). If you meant to point at a file on disk, pass its ABSOLUTE path as the htmlFile parameter — a path does not belong in the html field.',
+    )
+  }
+  const bytes = Buffer.byteLength(html, 'utf8')
+  if (bytes < MIN_HTML_BYTES) {
+    throw new Error(
+      `html is only ${bytes} bytes — too small to be a real self-contained document (expected at least ${MIN_HTML_BYTES}). If you meant to reference a file on disk, pass its absolute path as the htmlFile parameter; otherwise send the full HTML document.`,
+    )
+  }
+}
+
+/**
+ * A short, whitespace-collapsed preview of stored HTML for the get_* read tools, so an
+ * agent can confirm what was actually stored — not just its size (the junk-write above
+ * had a plausible byte count but garbage content).
+ */
+export function htmlPreview(html: string, max = 200): string {
+  const collapsed = html.replace(/\s+/g, ' ').trim()
+  return collapsed.length > max ? `${collapsed.slice(0, max)}…` : collapsed
 }
 
 /** Read a local HTML document for a set_* tool. Absolute path only; size-capped. */
@@ -39,7 +75,7 @@ export function readHtmlFile(path: string, maxBytes: number): string {
   try {
     size = statSync(resolved).size
   } catch {
-    throw new Error(`htmlFile not readable: ${resolved}`)
+    throw new Error(`htmlFile not found or unreadable: ${resolved}`)
   }
   // Refuse before reading so a multi-GB path cannot OOM the stdio MCP process.
   if (size > maxBytes) {
@@ -51,7 +87,7 @@ export function readHtmlFile(path: string, maxBytes: number): string {
   try {
     content = readFileSync(resolved, 'utf8')
   } catch {
-    throw new Error(`htmlFile not readable: ${resolved}`)
+    throw new Error(`htmlFile not found or unreadable: ${resolved}`)
   }
   if (content.length === 0) {
     throw new Error('htmlFile is empty')
