@@ -25,7 +25,9 @@ The human opens it from the **Feature** tab → **Loop evidence**, then hits **C
 
 Call the `porcelain` MCP tools with `repoPath` set to the ABSOLUTE path of the repo you're working in (your cwd):
 
-- `set_loop_evidence` — `{ repoPath, title, html }` → author/replace the evidence.
+- `set_loop_evidence` — `{ repoPath, title, html }` **or** `{ repoPath, title, htmlFile }` → author/replace the evidence.
+  - Prefer **`htmlFile`** (absolute path to a local `.html` file) when the document has base64 screenshots or is otherwise large — inlining 100KB+ through the tool channel is slow and can be cut off mid-call. Write the file, then pass the path; the MCP process reads it on this machine.
+  - Use inline `html` only for small documents. Provide exactly one of `html` or `htmlFile`.
 - `get_loop_evidence` — `{ repoPath }` → check whether one exists (title, size, when set — not the full HTML).
 - `clear_loop_evidence` — `{ repoPath }` → remove it (prefer letting the human clear after review; only clear yourself when asked or when replacing with a fresh validation).
 

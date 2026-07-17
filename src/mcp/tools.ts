@@ -5,7 +5,13 @@ import {
   readActions,
   updateAction,
 } from './action-file'
-import { clearArtifact, describeArtifact, getArtifact, setArtifact } from './artifact-file'
+import {
+  MAX_HTML_BYTES as ARTIFACT_MAX_HTML_BYTES,
+  clearArtifact,
+  describeArtifact,
+  getArtifact,
+  setArtifact,
+} from './artifact-file'
 import {
   createCard,
   deleteCard,
@@ -22,8 +28,15 @@ import {
   readMessages as readChatMessages,
 } from './chat-file'
 import { answerComment, describeComments, readComments, resolveComment } from './comment-file'
-import { clearEvidence, describeEvidence, getEvidence, setEvidence } from './evidence-file'
+import {
+  clearEvidence,
+  describeEvidence,
+  MAX_HTML_BYTES as EVIDENCE_MAX_HTML_BYTES,
+  getEvidence,
+  setEvidence,
+} from './evidence-file'
 import { describeFeatureView, readFeatureView, sourceByPath } from './feature-view-file'
+import { resolveToolHtml } from './html-input'
 import { clearLayers, describeLayers, readLayers, setLayers, toLayers } from './layers-file'
 import { describeNotes, readNotes } from './notes-file'
 import {
@@ -92,7 +105,8 @@ export async function callTool(name: string, args: Record<string, unknown>): Pro
     return describeReviewed(repoPath, readReviewed(repoPath))
   }
   if (name === 'set_feature_artifact') {
-    const artifact = setArtifact(repoPath, args.title, args.html)
+    const html = resolveToolHtml(args, ARTIFACT_MAX_HTML_BYTES)
+    const artifact = setArtifact(repoPath, args.title, html)
     return `Set feature artifact "${artifact.title}" for ${repoPath}. Porcelain renders it in a fully sandboxed iframe (no scripts, no external loads).`
   }
   if (name === 'get_feature_artifact') {
@@ -103,7 +117,8 @@ export async function callTool(name: string, args: Record<string, unknown>): Pro
     return `Cleared the feature artifact for ${repoPath}`
   }
   if (name === 'set_loop_evidence') {
-    const evidence = setEvidence(repoPath, args.title, args.html)
+    const html = resolveToolHtml(args, EVIDENCE_MAX_HTML_BYTES)
+    const evidence = setEvidence(repoPath, args.title, html)
     return `Set loop evidence "${evidence.title}" for ${repoPath}. Porcelain renders it in a fully sandboxed iframe in the Feature tab (no scripts, no external loads). Clear it after the human reviews.`
   }
   if (name === 'get_loop_evidence') {

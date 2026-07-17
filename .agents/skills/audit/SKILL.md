@@ -351,6 +351,19 @@ assumed — this skill is the codebase-specific layer beneath them.
   keep the app's only write to `evidence.json` as `clearEvidence`. *Verify:* `evidence-view.tsx`
   keeps `sandbox=""`; tools list has set/get/clear_loop_evidence; `rg` still finds no listener
   in `src/mcp`.
+- **`set_feature_artifact` / `set_loop_evidence` accept `html` OR `htmlFile` (absolute path).**
+  Large documents (base64 screenshots) must not ride the tool-call channel inline — agents
+  write a local file and pass `htmlFile`; the stdio MCP reads it (`src/mcp/html-input.ts`),
+  size-caps before/after read, and rejects relative paths. Exactly one of the two is required.
+  *Verify:* `html-input.test.ts` + tools tests for `htmlFile`; schema `required` is only
+  `repoPath`+`title`.
+- **A long-lived MCP process exits when its own binary is replaced.** Daemon/app boot
+  re-copies `~/.porcelain/mcp/server.js` (`ensureMcpServer`); the old process still has the
+  previous tool list in memory, and `notifications/tools/list_changed` cannot invent tools
+  that only exist in the new file. `watchServerBinaryForUpgrade` (`src/mcp/self-reload.ts`)
+  watches the script path and `process.exit(0)`s so the agent harness restarts MCP and
+  reloads tools. Do not "fix" upgrades with list_changed alone. *Verify:* self-reload test
+  fires exit on mtime change; server.ts still calls the watcher at boot.
 - **The agent MCP installer is the ONLY non-git file write driven by the renderer, and it takes no user input.**
   `installAgentMcp` (shell: `src/main/agent-mcp.ts`; daemon host: `src/backend/agent-mcp-install.ts`)
   copies the bundled `out/main/mcp/server.js` to `~/.porcelain/mcp/server.js` (home, not a

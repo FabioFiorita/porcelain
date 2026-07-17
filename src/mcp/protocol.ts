@@ -4,8 +4,22 @@
 // nothing to resolve from node_modules (which a non-Electron `node` can't read from
 // inside app.asar). The protocol surface is tiny: initialize, tools/list, tools/call.
 
-export const SERVER_INFO = { name: 'porcelain', version: '0.6.0' }
+export const SERVER_INFO = { name: 'porcelain', version: '0.7.0' }
 export const PROTOCOL_VERSION = '2025-06-18'
+
+/** Shared schema bits for set_feature_artifact / set_loop_evidence HTML input. */
+const HTML_OR_FILE_PROPERTIES = {
+  html: {
+    type: 'string',
+    description:
+      'The complete self-contained HTML document (inline). Prefer htmlFile when the document has base64 screenshots or is otherwise large — inlining 100KB+ through the tool channel is slow and can be cut off mid-call.',
+  },
+  htmlFile: {
+    type: 'string',
+    description:
+      'Absolute path to a local HTML file the MCP server reads on this machine. Prefer this over inline html for large documents (screenshots as data URIs). Provide exactly one of html or htmlFile.',
+  },
+} as const
 
 const REVIEW_FILE_SCHEMA = {
   type: 'object',
@@ -162,7 +176,7 @@ export const TOOLS = [
   {
     name: 'set_feature_artifact',
     description:
-      "Author (or replace) the feature artifact for a repo: a self-contained HTML document that explains the feature — prose, inline SVG diagrams, tables, images — which Porcelain renders in the viewer so the human gets an enhanced way to understand what you built. It COMPLEMENTS the feature review set (which is the file-by-file flow); this is the narrative/visual explainer. HOW TO AUTHOR IT: the HTML is rendered in a FULLY SANDBOXED iframe — scripts NEVER execute and external resources (CDN scripts/stylesheets/fonts, remote images, fetch) NEVER load. So it must be ONE self-contained document: inline all CSS in a <style> tag (no <link>), draw diagrams as inline <svg> (not <img> to a URL), embed any raster image as a data: URI (e.g. data:image/png;base64,…), and write tables/headings/lists as plain HTML. No <script> — it won't run, so don't rely on it. Porcelain's UI is DARK: style the document itself with a dark background and light text (e.g. body { background:#0b0b0d; color:#e5e5e7 }) so it matches. Keep it under ~1.5 MB — trim or shrink embedded images rather than pasting huge blobs.",
+      "Author (or replace) the feature artifact for a repo: a self-contained HTML document that explains the feature — prose, inline SVG diagrams, tables, images — which Porcelain renders in the viewer so the human gets an enhanced way to understand what you built. It COMPLEMENTS the feature review set (which is the file-by-file flow); this is the narrative/visual explainer. HOW TO AUTHOR IT: the HTML is rendered in a FULLY SANDBOXED iframe — scripts NEVER execute and external resources (CDN scripts/stylesheets/fonts, remote images, fetch) NEVER load. So it must be ONE self-contained document: inline all CSS in a <style> tag (no <link>), draw diagrams as inline <svg> (not <img> to a URL), embed any raster image as a data: URI (e.g. data:image/png;base64,…), and write tables/headings/lists as plain HTML. No <script> — it won't run, so don't rely on it. Porcelain's UI is DARK: style the document itself with a dark background and light text (e.g. body { background:#0b0b0d; color:#e5e5e7 }) so it matches. Keep it under ~1.5 MB — trim or shrink embedded images rather than pasting huge blobs. For large HTML (screenshots), write the file to disk and pass htmlFile (absolute path) instead of inlining html — the MCP process reads it locally.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -171,13 +185,9 @@ export const TOOLS = [
           type: 'string',
           description: 'A short title for the artifact (e.g. "Crew call-outs — how it works")',
         },
-        html: {
-          type: 'string',
-          description:
-            'The complete self-contained HTML document. Inline CSS only, diagrams as inline SVG, images as data: URIs; no scripts, no external resources; dark background + light text to match the app.',
-        },
+        ...HTML_OR_FILE_PROPERTIES,
       },
-      required: ['repoPath', 'title', 'html'],
+      required: ['repoPath', 'title'],
     },
   },
   {
@@ -207,7 +217,7 @@ export const TOOLS = [
   {
     name: 'set_loop_evidence',
     description:
-      'Author (or replace) the loop evidence for a repo: a self-contained HTML document that PROVES you closed the loop — you ran the app (dev server / browser / iOS simulator / …), validated the change yourself, and captured the result for the human. Complements the feature review set (what to read) and the feature artifact (how it works): this is the ephemeral proof that it works. The human opens it from the Feature tab and clears it once reviewed (e.g. before commit/push). HOW TO AUTHOR IT: same sandbox rules as feature artifacts — FULLY SANDBOXED iframe, scripts NEVER execute, external resources NEVER load. ONE self-contained document: inline CSS in a <style> tag, screenshots as data: URIs (data:image/png;base64,…), tables/checklists as plain HTML, dark background + light text. Keep under ~1.5 MB — shrink screenshots rather than pasting huge blobs. Prefer a clear pass/fail summary at the top, then steps with evidence (what you ran, what you saw, embedded screenshots).',
+      'Author (or replace) the loop evidence for a repo: a self-contained HTML document that PROVES you closed the loop — you ran the app (dev server / browser / iOS simulator / …), validated the change yourself, and captured the result for the human. Complements the feature review set (what to read) and the feature artifact (how it works): this is the ephemeral proof that it works. The human opens it from the Feature tab and clears it once reviewed (e.g. before commit/push). HOW TO AUTHOR IT: same sandbox rules as feature artifacts — FULLY SANDBOXED iframe, scripts NEVER execute, external resources NEVER load. ONE self-contained document: inline CSS in a <style> tag, screenshots as data: URIs (data:image/png;base64,…), tables/checklists as plain HTML, dark background + light text. Keep under ~1.5 MB — shrink screenshots rather than pasting huge blobs. Prefer a clear pass/fail summary at the top, then steps with evidence (what you ran, what you saw, embedded screenshots). For large HTML (screenshots), write the file to disk and pass htmlFile (absolute path) instead of inlining html — the MCP process reads it locally.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -217,13 +227,9 @@ export const TOOLS = [
           description:
             'A short title for the evidence (e.g. "Login flow — browser validation" or "iOS simulator — checkout pass")',
         },
-        html: {
-          type: 'string',
-          description:
-            'The complete self-contained HTML document. Inline CSS only, screenshots as data: URIs; no scripts, no external resources; dark background + light text to match the app.',
-        },
+        ...HTML_OR_FILE_PROPERTIES,
       },
-      required: ['repoPath', 'title', 'html'],
+      required: ['repoPath', 'title'],
     },
   },
   {

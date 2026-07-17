@@ -16,7 +16,9 @@ Porcelain can render a **feature artifact**: a self-contained HTML document you 
 
 Call the `porcelain` MCP tools with `repoPath` set to the ABSOLUTE path of the repo you're working in (your cwd):
 
-- `set_feature_artifact` — `{ repoPath, title, html }` → author/replace the artifact.
+- `set_feature_artifact` — `{ repoPath, title, html }` **or** `{ repoPath, title, htmlFile }` → author/replace the artifact.
+  - Prefer **`htmlFile`** (absolute path to a local `.html` file) when the document is large or embeds images — inlining big payloads through the tool channel is slow and fragile. Write the file, then pass the path.
+  - Use inline `html` only for small documents. Provide exactly one of `html` or `htmlFile`.
 - `get_feature_artifact` — `{ repoPath }` → check whether one exists (title, size, when set — not the full HTML).
 - `clear_feature_artifact` — `{ repoPath }` → remove it.
 

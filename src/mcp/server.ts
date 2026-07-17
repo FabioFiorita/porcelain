@@ -1,11 +1,16 @@
 import { createInterface } from 'node:readline'
 import { handleRpc } from './protocol'
+import { watchServerBinaryForUpgrade } from './self-reload'
 import { callTool } from './tools'
 
 // Porcelain's MCP server: a standalone stdio process the user's coding agent spawns
 // (e.g. `claude mcp add porcelain -- node <app>/out/main/mcp/server.js`). It writes
 // feature review sets the running Porcelain app watches and renders. stdio only —
 // no network port, so it adds no inbound surface to the app.
+
+// When the daemon/app re-copies this script (ensureMcpServer), exit so the agent
+// restarts us with the new tool list — see self-reload.ts.
+watchServerBinaryForUpgrade()
 
 async function processLine(line: string): Promise<void> {
   const trimmed = line.trim()

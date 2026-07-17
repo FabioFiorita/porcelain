@@ -123,6 +123,20 @@ describe('callTool', () => {
     ).rejects.toThrow('title must be a non-empty string')
   })
 
+  it('set_feature_artifact accepts htmlFile instead of inline html', async () => {
+    mkdirSync(dir, { recursive: true })
+    const htmlPath = join(dir, 'artifact.html')
+    writeFileSync(htmlPath, '<h1>From disk</h1>')
+    const readArtifacts = (): Record<string, { title: string; html: string }> =>
+      JSON.parse(readFileSync(artifactsFile, 'utf8'))
+    await callTool('set_feature_artifact', {
+      repoPath: '/repo',
+      title: 'Disk',
+      htmlFile: htmlPath,
+    })
+    expect(readArtifacts()['/repo']?.html).toBe('<h1>From disk</h1>')
+  })
+
   it('set/get/clear_loop_evidence round-trips through the evidence channel', async () => {
     const readEvidence = (): Record<string, { title: string; html: string }> =>
       JSON.parse(readFileSync(evidenceFile, 'utf8'))
@@ -142,6 +156,20 @@ describe('callTool', () => {
     await expect(
       callTool('set_loop_evidence', { repoPath: '/repo', html: '<p>x</p>' }),
     ).rejects.toThrow('title must be a non-empty string')
+  })
+
+  it('set_loop_evidence accepts htmlFile instead of inline html', async () => {
+    mkdirSync(dir, { recursive: true })
+    const htmlPath = join(dir, 'evidence.html')
+    writeFileSync(htmlPath, '<h1>Evidence on disk</h1>')
+    const readEvidence = (): Record<string, { title: string; html: string }> =>
+      JSON.parse(readFileSync(evidenceFile, 'utf8'))
+    await callTool('set_loop_evidence', {
+      repoPath: '/repo',
+      title: 'Disk evidence',
+      htmlFile: htmlPath,
+    })
+    expect(readEvidence()['/repo']?.html).toBe('<h1>Evidence on disk</h1>')
   })
 
   it('get_review_comments tags each comment with its feature-view source', async () => {
