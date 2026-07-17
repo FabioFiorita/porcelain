@@ -31,6 +31,20 @@ export function useRemoteEnvironments():
   return data
 }
 
+/**
+ * The remote environment THIS window is bound to, or null when on This device
+ * (local daemon). Electron-only — always null in the browser client.
+ */
+export function useActiveRemoteEnvironment(): {
+  id: string
+  name: string
+  url: string
+} | null {
+  const data = useRemoteEnvironments()
+  if (data === undefined || data.activeId === null) return null
+  return data.environments.find((env) => env.id === data.activeId) ?? null
+}
+
 export function useAddRemoteEnvironment(): {
   add: (input: { name: string; url: string; token: string; connectThisWindow?: boolean }) => void
   isPending: boolean

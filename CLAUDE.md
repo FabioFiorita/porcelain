@@ -82,7 +82,7 @@ This machine is a MacBook Pro M1 Pro with **16GB RAM** — heavy parallel work s
 Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wrong") resolves to one place without asking. Each term maps to real code; when the user uses one, act on the named region — don't re-ask which one. The file in parens is the **entry point** — read it for current mechanics; the `architecture` skill holds the cross-cutting decisions and traps. This is the lookup table.
 
 **Shell regions (the window, outside-in):**
-- **Top bar** — the full-width window **titlebar** (`title-bar.tsx`): traffic lights + a centered search button. **Not** the viewer's own header (`TopBar` in `app-shell.tsx`, below it).
+- **Top bar** — the full-width window **titlebar** (`title-bar.tsx`): traffic lights + a centered search button + a **Remote** chip (top-right) when THIS window is bound to a remote environment (Settings → Environments). **Not** the viewer's own header (`TopBar` in `app-shell.tsx`, below it).
 - **Sidebar** (unqualified = the **left** one) — `app-sidebar.tsx`; the nav panel (Cmd+B). An **icon rail** beside a **content panel** (active tab's body); footer = **branch chip** (left) + **worktrees picker** (right).
 - **Viewer** — the central panel (`shell/viewer.tsx`, `components/viewer/`). **Never "editor"** — Porcelain is a viewer.
 - **Quick Access** — the **right** panel (`right-sidebar.tsx`, Cmd+.); its contents follow the active sidebar tab.

@@ -1,16 +1,27 @@
 import { Kbd } from '@renderer/components/ui/kbd'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
+import { useActiveRemoteEnvironment } from '@renderer/hooks/use-remote-daemon'
 import { kbdLabel } from '@renderer/lib/keyboard'
 import { isBrowser } from '@renderer/lib/platform'
 import { useFileFinderStore } from '@renderer/stores/file-finder'
-import { Search } from 'lucide-react'
+import { useSettingsDialogStore } from '@renderer/stores/settings-dialog'
+import { Cloud, Search } from 'lucide-react'
 
-// Full-width window titlebar. The macOS traffic lights own the left inset, and a
-// centered search bar raises the Cmd+P file finder — it's just a clickable handle
-// on the same popup, not a separate command palette. Browser clients (iPad/iPhone
-// Safari) have no traffic lights, so the side spacers are dropped there — on a
-// phone they were eating ~128px of an already-tight bar.
+/**
+ * Full-width window titlebar. The macOS traffic lights own the left inset, and a
+ * centered search bar raises the Cmd+P file finder — it's just a clickable handle
+ * on the same popup, not a separate command palette. Browser clients (iPad/iPhone
+ * Safari) have no traffic lights, so the side spacers are dropped there — on a
+ * phone they were eating ~128px of an already-tight bar.
+ *
+ * When THIS window is bound to a remote daemon (Settings → Environments), a
+ * Remote chip sits top-right so the human never confuses a Beelink window with
+ * a local one. Click opens Environments.
+ */
 export function TitleBar(): React.JSX.Element {
   const setFinderOpen = useFileFinderStore((s) => s.setOpen)
+  const remote = useActiveRemoteEnvironment()
+  const openSettings = useSettingsDialogStore((s) => s.openTo)
 
   return (
     <div className="app-drag flex h-12 shrink-0 items-center px-3">
@@ -30,7 +41,36 @@ export function TitleBar(): React.JSX.Element {
           <Kbd className="[@media(hover:none)]:hidden">{kbdLabel('mod', 'K')}</Kbd>
         </button>
       </div>
-      {!isBrowser && <div className="w-16 shrink-0" aria-hidden />}
+      {/* Right inset mirrors traffic lights when local; expands for the Remote chip. */}
+      <div
+        className={`app-no-drag flex shrink-0 items-center justify-end ${remote ? 'min-w-16 pl-2' : 'w-16'}`}
+      >
+        {remote && (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <button
+                  type="button"
+                  onClick={() => openSettings('environments')}
+                  aria-label={`Remote environment: ${remote.name}`}
+                  className="glaze-chip flex max-w-[10rem] items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-foreground/90 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                >
+                  <Cloud className="size-3.5 shrink-0 opacity-80" aria-hidden />
+                  <span className="truncate">
+                    Remote
+                    <span className="text-muted-foreground"> · {remote.name}</span>
+                  </span>
+                </button>
+              }
+            />
+            <TooltipContent className="max-w-xs">
+              <p className="font-medium">{remote.name}</p>
+              <p className="font-mono text-xs text-muted-foreground">{remote.url}</p>
+              <p className="mt-1 text-xs text-muted-foreground">Click to manage environments</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
+      </div>
     </div>
   )
 }
