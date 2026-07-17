@@ -4,6 +4,7 @@ import { persist } from 'zustand/middleware'
 export type ChangesScope = 'working' | 'branch'
 export type DiffMode = 'unified' | 'split'
 export type MarkdownMode = 'reader' | 'source'
+export type HtmlMode = 'preview' | 'source'
 export type PullMode = 'merge' | 'rebase'
 /**
  * How the embedded terminal paints cells (xterm.js renderer).
@@ -33,6 +34,8 @@ interface PreferencesState {
   changesScope: ChangesScope
   diffMode: DiffMode
   markdownMode: MarkdownMode
+  /** Default for .html/.htm: sandboxed preview vs source. */
+  htmlMode: HtmlMode
   /** Strategy the `git pull` quick command uses (`--no-rebase` vs `--rebase`). */
   pullMode: PullMode
   /**
@@ -52,6 +55,7 @@ interface PreferencesState {
   setChangesScope: (scope: ChangesScope) => void
   setDiffMode: (mode: DiffMode) => void
   setMarkdownMode: (mode: MarkdownMode) => void
+  setHtmlMode: (mode: HtmlMode) => void
   setPullMode: (mode: PullMode) => void
   setTerminalRenderer: (renderer: TerminalRenderer) => void
   setSidebarTab: (tab: SidebarTab) => void
@@ -69,6 +73,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       changesScope: 'working',
       diffMode: 'unified',
       markdownMode: 'reader',
+      htmlMode: 'preview',
       pullMode: 'merge',
       terminalRenderer: 'webgl',
       rightSidebarOpen: true,
@@ -81,6 +86,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       setChangesScope: (changesScope) => set({ changesScope }),
       setDiffMode: (diffMode) => set({ diffMode }),
       setMarkdownMode: (markdownMode) => set({ markdownMode }),
+      setHtmlMode: (htmlMode) => set({ htmlMode }),
       setPullMode: (pullMode) => set({ pullMode }),
       setTerminalRenderer: (terminalRenderer) => set({ terminalRenderer }),
       setSidebarTab: (sidebarTab) => set({ sidebarTab }),

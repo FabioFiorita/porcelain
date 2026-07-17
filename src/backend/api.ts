@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs'
 import { cp, mkdir, readdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
-import { basename, join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { initTRPC } from '@trpc/server'
 import trash from 'trash'
 import { z } from 'zod'
@@ -79,10 +79,12 @@ import {
 import { loadConfig, updateConfig } from './config-store'
 import { type CommitConventions, parseConventions } from './conventions'
 import type { ChangedFile, DiffHunk, DiffStat } from './diff'
+import { inlineLocalAssets } from './evidence-assets'
 import {
   clearEvidence,
   type Evidence,
   type EvidenceMeta,
+  MAX_HTML_BYTES,
   readEvidence,
   readEvidenceMeta,
 } from './evidence-store'
@@ -777,6 +779,25 @@ export const router = t.router({
       if (err instanceof Error && 'code' in err && err.code === 'ENOENT') {
         return { type: 'not-found' }
       }
+      throw err
+    }
+  }),
+
+  // HTML preview for the built-in viewer: read a .html/.htm file and inline
+  // sibling relative images as data URIs so a sandboxed srcdoc can show them
+  // under the app CSP (same helper as loop evidence). Size-capped like artifacts.
+  previewHtml: t.procedure.input(z.string()).query(async ({ input }): Promise<string | null> => {
+    try {
+      const info = await stat(input)
+      if (exceedsReadLimit(info.size) || info.size > MAX_HTML_BYTES) return null
+      const raw = await readFile(input, 'utf8')
+      if (raw.length === 0) return null
+      if (Buffer.byteLength(raw, 'utf8') > MAX_HTML_BYTES) return null
+      const html = await inlineLocalAssets(dirname(input), raw)
+      if (Buffer.byteLength(html, 'utf8') > MAX_HTML_BYTES) return null
+      return html
+    } catch (err) {
+      if (err instanceof Error && 'code' in err && err.code === 'ENOENT') return null
       throw err
     }
   }),

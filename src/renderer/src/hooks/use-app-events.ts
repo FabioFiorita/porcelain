@@ -83,7 +83,11 @@ function handle(
       // a watched file changed on disk outside the app (most often the coding
       // agent editing in the terminal) — re-read the open documents and diffs so
       // the viewer isn't showing a stale version. (gitFlow self-polls every 3s.)
-      return Promise.all([utils.readFile.invalidate(), utils.gitDiffFile.invalidate()])
+      return Promise.all([
+        utils.readFile.invalidate(),
+        utils.previewHtml.invalidate(),
+        utils.gitDiffFile.invalidate(),
+      ])
     case 'agent-threads':
       // the Agent thread roster changed (create/rename/delete, or a status/model
       // flip) — refresh the roster query. (Phase E fills in the rest of the tab.)

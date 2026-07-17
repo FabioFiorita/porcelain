@@ -13,6 +13,7 @@ vi.mock(import('@renderer/hooks/use-files'), async (importOriginal) => {
     ...actual,
     useWriteTextFile: () => ({ save: async () => {}, isSaving: false, error: null }),
     useRevealInFinder: () => () => {},
+    usePreviewHtml: () => ({ html: null, error: null }),
   }
 })
 

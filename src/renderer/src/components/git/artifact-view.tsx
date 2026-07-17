@@ -1,5 +1,6 @@
 import { Button } from '@renderer/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
+import { HtmlView } from '@renderer/components/viewer/html-view'
 import { useArtifactHtml, useClearArtifact } from '@renderer/hooks/use-artifact'
 import { Eraser } from 'lucide-react'
 
@@ -50,14 +51,7 @@ export function ArtifactView({ repoPath }: { repoPath: string }): React.JSX.Elem
           <TooltipContent>Clear artifact</TooltipContent>
         </Tooltip>
       </div>
-      {/* sandbox="" is fully inert: no scripts, no same-origin, no network. srcdoc keeps
-          the document self-contained. Do NOT add allow-* tokens here. */}
-      <iframe
-        title={artifact.title}
-        srcDoc={artifact.html}
-        sandbox=""
-        className="min-h-0 w-full flex-1 border-0 bg-background"
-      />
+      <HtmlView html={artifact.html} title={artifact.title} />
     </div>
   )
 }

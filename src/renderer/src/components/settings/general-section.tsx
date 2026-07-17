@@ -2,6 +2,7 @@ import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-gro
 import { cn } from '@renderer/lib/utils'
 import {
   type DiffMode,
+  type HtmlMode,
   type MarkdownMode,
   type PullMode,
   type TerminalRenderer,
@@ -62,6 +63,8 @@ export function GeneralSection(): React.JSX.Element {
   const setDiffMode = usePreferencesStore((s) => s.setDiffMode)
   const markdownMode = usePreferencesStore((s) => s.markdownMode)
   const setMarkdownMode = usePreferencesStore((s) => s.setMarkdownMode)
+  const htmlMode = usePreferencesStore((s) => s.htmlMode) ?? 'preview'
+  const setHtmlMode = usePreferencesStore((s) => s.setHtmlMode)
   const pullMode = usePreferencesStore((s) => s.pullMode)
   const setPullMode = usePreferencesStore((s) => s.setPullMode)
   const terminalRenderer = usePreferencesStore((s) => s.terminalRenderer)
@@ -95,6 +98,25 @@ export function GeneralSection(): React.JSX.Element {
         >
           <ToggleGroupItem value="reader" size="sm">
             Reader
+          </ToggleGroupItem>
+          <ToggleGroupItem value="source" size="sm">
+            Source
+          </ToggleGroupItem>
+        </ToggleGroup>
+      </PreferenceRow>
+      <PreferenceRow
+        label="HTML"
+        description="Default view when opening .html files (sandboxed preview)."
+      >
+        <ToggleGroup
+          value={[htmlMode]}
+          onValueChange={(value: string[]) => {
+            const mode = value[0]
+            if (mode === 'preview' || mode === 'source') setHtmlMode(mode satisfies HtmlMode)
+          }}
+        >
+          <ToggleGroupItem value="preview" size="sm">
+            Preview
           </ToggleGroupItem>
           <ToggleGroupItem value="source" size="sm">
             Source

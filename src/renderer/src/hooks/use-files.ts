@@ -27,6 +27,18 @@ export function useReadFile(path: string): {
 }
 
 /**
+ * Sandboxed HTML preview for a path: daemon reads the file and inlines relative
+ * sibling images as data URIs. Only enabled while the HTML preview mode is active.
+ */
+export function usePreviewHtml(
+  path: string,
+  enabled: boolean,
+): { html: string | null | undefined; error: { message: string } | null } {
+  const { data: html, error } = trpc.previewHtml.useQuery(path, { enabled })
+  return { html, error }
+}
+
+/**
  * Tell the daemon which files are open in the viewer so it can watch them for
  * external writes (the coding agent editing in the terminal). Mounted once in
  * `AppShell`, the twin of `useAppEvents`: this pushes the open-file set out over
@@ -96,6 +108,7 @@ export function useWriteTextFile(path: string): {
       // the edit changes git state too, not just the file
       await Promise.all([
         utils.readFile.invalidate(variables.path),
+        utils.previewHtml.invalidate(variables.path),
         utils.gitFlow.invalidate(),
         utils.gitDiffFile.invalidate(),
       ])

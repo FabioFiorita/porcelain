@@ -29,7 +29,7 @@ The **directory is the source of truth**. Write files with your normal Write too
    - **screenshots** as real image files next to it (`shot.png`, …) with  
      `<img src="shot.png">` (relative paths — Porcelain inlines them for the sandboxed viewer; a browser opening `index.html` works too)
    - optional: you can ignore `meta.json` (the prepare step already wrote title)
-4. Done. Porcelain discovers the directory within a few seconds (Feature tab → **Loop evidence**). No second MCP call with the HTML.
+4. Done. Porcelain discovers the directory within a few seconds (Feature tab → **Loop evidence**). No second MCP call with the HTML. You can also open `index.html` from the Files tree (or any `.html` file) — Porcelain has a built-in sandboxed **Preview** for HTML (toggle Source for the raw file).
 
 `repoPath` = absolute path of the repo you're working in (your cwd).
 
