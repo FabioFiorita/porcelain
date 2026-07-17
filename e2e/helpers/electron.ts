@@ -197,9 +197,12 @@ type TabName =
   | 'Terminal'
   | 'Agent'
 
-/** Wait until the shell has finished restoring the seeded repo. */
+/** Wait until the shell has finished restoring the seeded repo. `exact` matters:
+ *  getByRole matches substrings, so the skills-update toast's "Open settings" button
+ *  collides with the rail's "Settings" whenever the toast is mounted — a timing
+ *  flake. The long timeout covers a cold Electron + daemon boot under load. */
 export async function waitForShell(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'Settings' }).waitFor()
+  await page.getByRole('button', { name: 'Settings', exact: true }).waitFor({ timeout: 60_000 })
 }
 
 /** Click a left-rail sidebar tab by its label. */
@@ -229,6 +232,6 @@ export async function expectTerminalText(
 
 /** Open the Settings dialog and wait for it to appear. */
 export async function openSettings(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'Settings' }).click()
+  await page.getByRole('button', { name: 'Settings', exact: true }).click()
   await page.getByRole('dialog').waitFor()
 }
