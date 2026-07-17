@@ -1,3 +1,9 @@
+## [0.29.2](https://github.com/FabioFiorita/porcelain/compare/v0.29.1...v0.29.2) (2026-07-17)
+
+### Features
+
+* Remote badge in title bar when window is on a remote daemon ([ac1cd13](https://github.com/FabioFiorita/porcelain/commit/ac1cd131cb5a17406773cd8dc38c0d34b6dc7894))
+
 ## [0.29.1](https://github.com/FabioFiorita/porcelain/compare/v0.29.0...v0.29.1) (2026-07-17)
 
 ## [0.29.0](https://github.com/FabioFiorita/porcelain/compare/v0.28.3...v0.29.0) (2026-07-17)
