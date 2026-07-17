@@ -1,3 +1,9 @@
+## [0.28.3](https://github.com/FabioFiorita/porcelain/compare/v0.28.2...v0.28.3) (2026-07-17)
+
+### Bug Fixes
+
+* loop evidence as on-disk directory, not MCP HTML payload ([61df10f](https://github.com/FabioFiorita/porcelain/commit/61df10fdcac792aa3f76a1b486a7b8b71b0aeab8))
+
 ## [0.28.2](https://github.com/FabioFiorita/porcelain/compare/v0.28.1...v0.28.2) (2026-07-17)
 
 ### Bug Fixes
