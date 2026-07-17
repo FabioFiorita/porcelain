@@ -1,3 +1,9 @@
+## [0.29.0](https://github.com/FabioFiorita/porcelain/compare/v0.28.3...v0.29.0) (2026-07-17)
+
+### Features
+
+* built-in sandboxed HTML preview for .html files ([9d3fa82](https://github.com/FabioFiorita/porcelain/commit/9d3fa827c5f123a64450564eb038168f1091ebbc))
+
 ## [0.28.3](https://github.com/FabioFiorita/porcelain/compare/v0.28.2...v0.28.3) (2026-07-17)
 
 ### Bug Fixes
