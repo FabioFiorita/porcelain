@@ -15,15 +15,11 @@ import {
   useRemoveRemoteEnvironment,
 } from '@renderer/hooks/use-remote-daemon'
 import { useSetTailnetBind, useTailnetStatus } from '@renderer/hooks/use-tailnet'
+import { compactButtonClass, rowActionClass } from '@renderer/lib/controls'
 import { isBrowser } from '@renderer/lib/platform'
 import { cn, copyText } from '@renderer/lib/utils'
 import { X } from 'lucide-react'
 import { useState } from 'react'
-
-// Quiet, compact sizing so no control in this section outweighs a row label.
-const compactButtonClass = 'h-7 text-xs'
-// Row actions further mute their label until hover — secondary to the row's name.
-const rowActionClass = `${compactButtonClass} px-2.5 text-muted-foreground hover:text-foreground`
 
 /** Copy the daemon token to the clipboard — the affordance a peer needs to connect. */
 function CopyTokenButton(): React.JSX.Element {

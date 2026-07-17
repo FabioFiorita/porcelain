@@ -1,11 +1,12 @@
 import { Kbd } from '@renderer/components/ui/kbd'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
+import { useDaemonSkew } from '@renderer/hooks/use-daemon-skew'
 import { useActiveRemoteEnvironment } from '@renderer/hooks/use-remote-daemon'
 import { kbdLabel } from '@renderer/lib/keyboard'
 import { isBrowser } from '@renderer/lib/platform'
 import { useFileFinderStore } from '@renderer/stores/file-finder'
 import { useSettingsDialogStore } from '@renderer/stores/settings-dialog'
-import { Cloud, Search } from 'lucide-react'
+import { Cloud, Search, TriangleAlert } from 'lucide-react'
 
 /**
  * Full-width window titlebar. The macOS traffic lights own the left inset, and a
@@ -15,12 +16,16 @@ import { Cloud, Search } from 'lucide-react'
  * phone they were eating ~128px of an already-tight bar.
  *
  * When THIS window is bound to a remote daemon (Settings → Environments), a
- * Remote chip sits top-right so the human never confuses a Beelink window with
- * a local one. Click opens Environments.
+ * Remote chip sits top-right (the environment name, cloud icon) so the human never
+ * confuses a Beelink window with a local one. Click opens Environments. If the
+ * daemon's build version differs from this app's, the chip gains an amber warning
+ * and the tooltip explains the skew — the second surface of the version-skew guard
+ * (the first is the DaemonSkewToast).
  */
 export function TitleBar(): React.JSX.Element {
   const setFinderOpen = useFileFinderStore((s) => s.setOpen)
   const remote = useActiveRemoteEnvironment()
+  const skew = useDaemonSkew()
   const openSettings = useSettingsDialogStore((s) => s.openTo)
 
   return (
@@ -52,21 +57,31 @@ export function TitleBar(): React.JSX.Element {
                 <button
                   type="button"
                   onClick={() => openSettings('environments')}
-                  aria-label={`Remote environment: ${remote.name}`}
-                  className="glaze-chip flex max-w-[10rem] items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-foreground/90 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                  aria-label={
+                    skew
+                      ? `Remote environment: ${remote.name} — daemon version mismatch`
+                      : `Remote environment: ${remote.name}`
+                  }
+                  className="glaze-chip flex max-w-48 items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-foreground/90 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                 >
                   <Cloud className="size-3.5 shrink-0 opacity-80" aria-hidden />
-                  <span className="truncate">
-                    Remote
-                    <span className="text-muted-foreground"> · {remote.name}</span>
-                  </span>
+                  <span className="truncate">{remote.name}</span>
+                  {skew && <TriangleAlert className="size-3.5 shrink-0 text-warning" aria-hidden />}
                 </button>
               }
             />
-            <TooltipContent className="max-w-xs">
-              <p className="font-medium">{remote.name}</p>
-              <p className="font-mono text-xs text-muted-foreground">{remote.url}</p>
-              <p className="mt-1 text-xs text-muted-foreground">Click to manage environments</p>
+            {/* Anchored to the chip's right edge and opening downward so it can't be
+                clipped by the window's right side; the name/url never wrap, only the
+                longer skew sentence does. */}
+            <TooltipContent side="bottom" align="end" className="max-w-sm">
+              <div className="flex flex-col gap-0.5 text-left">
+                <p className="whitespace-nowrap font-medium">{remote.name}</p>
+                <p className="whitespace-nowrap font-mono text-xs text-muted-foreground">
+                  {remote.url}
+                </p>
+                {skew && <p className="mt-1 text-xs text-warning">{skew.message}</p>}
+                <p className="mt-1 text-xs text-muted-foreground">Click to manage environments</p>
+              </div>
             </TooltipContent>
           </Tooltip>
         )}

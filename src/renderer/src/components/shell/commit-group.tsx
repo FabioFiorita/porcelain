@@ -16,6 +16,7 @@ import { Textarea } from '@renderer/components/ui/textarea'
 import { useCommit, useCommitConventions, useStageAll } from '@renderer/hooks/use-commit'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'
 import { applyCommitPrefix, parseCommitPrefix } from '@renderer/lib/commit-message'
+import { compactButtonClass } from '@renderer/lib/controls'
 import { kbdLabel } from '@renderer/lib/keyboard'
 import { cn } from '@renderer/lib/utils'
 import { useCommitDraftStore } from '@renderer/stores/commit-draft'
@@ -68,7 +69,8 @@ function CommitTokenSelect({
             size="sm"
             disabled={disabled}
             className={cn(
-              'h-6 rounded-md px-2 font-mono text-xs',
+              compactButtonClass,
+              'rounded-md px-2 font-mono',
               !value && 'text-muted-foreground',
             )}
           >
@@ -240,7 +242,7 @@ export function CommitGroup(): React.JSX.Element {
             <Button
               size="sm"
               variant="outline"
-              className="flex-1 rounded-md"
+              className={cn(compactButtonClass, 'flex-1 rounded-md')}
               disabled={isStaging}
               onClick={toggleStaging}
             >
@@ -255,7 +257,7 @@ export function CommitGroup(): React.JSX.Element {
             </Button>
             <Button
               size="sm"
-              className="flex-1 rounded-md"
+              className={cn(compactButtonClass, 'flex-1 rounded-md')}
               disabled={!ready || isCommitting}
               onClick={commit}
             >

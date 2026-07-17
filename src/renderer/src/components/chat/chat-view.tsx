@@ -1,5 +1,6 @@
 import { Button } from '@renderer/components/ui/button'
 import { useChatActions, useChatMessages } from '@renderer/hooks/use-chat'
+import { compactButtonClass } from '@renderer/lib/controls'
 import { useEffect, useRef } from 'react'
 import { ChatComposer } from './chat-composer'
 import { ChatMessageRow } from './chat-message-row'
@@ -37,7 +38,13 @@ export function ChatView(): React.JSX.Element {
             Relay for agents across environments (e.g. Mac simulator ↔ Linux remote).
           </p>
         </div>
-        <Button variant="ghost" size="sm" disabled={messages.length === 0} onClick={() => clear()}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className={compactButtonClass}
+          disabled={messages.length === 0}
+          onClick={() => clear()}
+        >
           Clear
         </Button>
       </div>

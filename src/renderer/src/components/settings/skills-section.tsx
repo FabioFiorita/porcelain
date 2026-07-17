@@ -1,5 +1,6 @@
 import { Button } from '@renderer/components/ui/button'
 import { useSkillsInfo } from '@renderer/hooks/use-skills'
+import { compactButtonClass } from '@renderer/lib/controls'
 import { copyText } from '@renderer/lib/utils'
 import { Check, Copy } from 'lucide-react'
 import { useState } from 'react'
@@ -36,6 +37,7 @@ export function SkillsSection(): React.JSX.Element {
           <Button
             variant="ghost"
             size="sm"
+            className={compactButtonClass}
             onClick={() => copy(installCommand, setCopiedInstall)}
             disabled={installCommand.length === 0}
           >
@@ -56,6 +58,7 @@ export function SkillsSection(): React.JSX.Element {
           <Button
             variant="ghost"
             size="sm"
+            className={compactButtonClass}
             onClick={() => copy(upgradeCommand, setCopiedUpgrade)}
             disabled={upgradeCommand.length === 0}
           >

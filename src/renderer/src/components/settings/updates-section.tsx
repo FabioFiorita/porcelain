@@ -1,5 +1,6 @@
 import { Button } from '@renderer/components/ui/button'
 import { useCheckForUpdates, useInstallUpdate, useUpdateStatus } from '@renderer/hooks/use-updates'
+import { compactButtonClass } from '@renderer/lib/controls'
 import { Check, Loader2, RotateCw, TriangleAlert } from 'lucide-react'
 
 export function UpdatesSection(): React.JSX.Element {
@@ -18,7 +19,13 @@ export function UpdatesSection(): React.JSX.Element {
             Porcelain {status ? `v${status.currentVersion}` : '…'}
           </p>
         </div>
-        <Button variant="secondary" size="sm" onClick={() => check()} disabled={checking}>
+        <Button
+          variant="secondary"
+          size="sm"
+          className={compactButtonClass}
+          onClick={() => check()}
+          disabled={checking}
+        >
           {checking ? <Loader2 className="animate-spin" /> : <RotateCw />}
           {checking ? 'Checking…' : 'Check for updates'}
         </Button>
@@ -40,7 +47,12 @@ export function UpdatesSection(): React.JSX.Element {
           <p className="flex items-center gap-1.5 text-xs text-success">
             <Check className="size-3.5" /> Version {status.version} is ready to install.
           </p>
-          <Button size="sm" onClick={() => install()} disabled={isInstalling}>
+          <Button
+            size="sm"
+            className={compactButtonClass}
+            onClick={() => install()}
+            disabled={isInstalling}
+          >
             <RotateCw /> Install and restart
           </Button>
         </div>

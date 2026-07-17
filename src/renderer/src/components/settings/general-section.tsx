@@ -1,4 +1,5 @@
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
+import { compactButtonClass } from '@renderer/lib/controls'
 import { cn } from '@renderer/lib/utils'
 import {
   type DiffMode,
@@ -80,10 +81,10 @@ export function GeneralSection(): React.JSX.Element {
             if (mode === 'unified' || mode === 'split') setDiffMode(mode satisfies DiffMode)
           }}
         >
-          <ToggleGroupItem value="unified" size="sm">
+          <ToggleGroupItem value="unified" size="sm" className={compactButtonClass}>
             Unified
           </ToggleGroupItem>
-          <ToggleGroupItem value="split" size="sm">
+          <ToggleGroupItem value="split" size="sm" className={compactButtonClass}>
             Split
           </ToggleGroupItem>
         </ToggleGroup>
@@ -96,10 +97,10 @@ export function GeneralSection(): React.JSX.Element {
             if (mode === 'reader' || mode === 'source') setMarkdownMode(mode satisfies MarkdownMode)
           }}
         >
-          <ToggleGroupItem value="reader" size="sm">
+          <ToggleGroupItem value="reader" size="sm" className={compactButtonClass}>
             Reader
           </ToggleGroupItem>
-          <ToggleGroupItem value="source" size="sm">
+          <ToggleGroupItem value="source" size="sm" className={compactButtonClass}>
             Source
           </ToggleGroupItem>
         </ToggleGroup>
@@ -115,10 +116,10 @@ export function GeneralSection(): React.JSX.Element {
             if (mode === 'preview' || mode === 'source') setHtmlMode(mode satisfies HtmlMode)
           }}
         >
-          <ToggleGroupItem value="preview" size="sm">
+          <ToggleGroupItem value="preview" size="sm" className={compactButtonClass}>
             Preview
           </ToggleGroupItem>
-          <ToggleGroupItem value="source" size="sm">
+          <ToggleGroupItem value="source" size="sm" className={compactButtonClass}>
             Source
           </ToggleGroupItem>
         </ToggleGroup>
@@ -131,10 +132,10 @@ export function GeneralSection(): React.JSX.Element {
             if (mode === 'merge' || mode === 'rebase') setPullMode(mode satisfies PullMode)
           }}
         >
-          <ToggleGroupItem value="merge" size="sm">
+          <ToggleGroupItem value="merge" size="sm" className={compactButtonClass}>
             Merge
           </ToggleGroupItem>
-          <ToggleGroupItem value="rebase" size="sm">
+          <ToggleGroupItem value="rebase" size="sm" className={compactButtonClass}>
             Rebase
           </ToggleGroupItem>
         </ToggleGroup>

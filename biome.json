@@ -11,7 +11,8 @@
     "lineWidth": 100
   },
   "javascript": {
-    "formatter": { "quoteStyle": "single", "semicolons": "asNeeded" }
+    "formatter": { "quoteStyle": "single", "semicolons": "asNeeded" },
+    "globals": ["__PORCELAIN_VERSION__"]
   },
   "linter": {
     "enabled": true,

@@ -11,6 +11,7 @@ import { useWatchOpenFiles, useWatchTreeDirs } from '@renderer/hooks/use-files'
 import { useResponsiveShell } from '@renderer/hooks/use-responsive-shell'
 import { useTerminalChannel } from '@renderer/hooks/use-terminal-channel'
 import { useInstallUpdate, useUpdateStatus } from '@renderer/hooks/use-updates'
+import { compactButtonClass } from '@renderer/lib/controls'
 import { kbdLabel } from '@renderer/lib/keyboard'
 import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
@@ -24,6 +25,7 @@ import { CardComposer } from '../board/card-composer'
 import { SettingsDialog } from '../settings/settings-dialog'
 import { AppSidebar } from './app-sidebar'
 import { ContentSearch } from './content-search'
+import { DaemonSkewToast } from './daemon-skew-toast'
 import { FileCommands } from './file-commands'
 import { FileFinder } from './file-finder'
 import { FilePromptDialog } from './file-prompt-dialog'
@@ -54,7 +56,7 @@ function UpdateButton(): React.JSX.Element | null {
     <Button
       size="sm"
       variant="secondary"
-      className="app-no-drag m-1 h-7 self-center text-xs"
+      className={cn(compactButtonClass, 'app-no-drag m-1 self-center')}
       disabled={isInstalling}
       onClick={install}
     >
@@ -220,6 +222,7 @@ export function AppShell(): React.JSX.Element {
         </div>
         <RepoPickerDialog />
         <SettingsDialog />
+        <DaemonSkewToast />
         <Toaster />
       </div>
     )
@@ -253,6 +256,7 @@ export function AppShell(): React.JSX.Element {
         <RepoPickerDialog />
         <CardComposer />
         <SkillsUpdateToast />
+        <DaemonSkewToast />
         <SettingsDialog />
         <AppSidebar />
         <RepoShell />

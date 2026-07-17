@@ -9,6 +9,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from '@renderer/componen
 import { Toggle } from '@renderer/components/ui/toggle'
 import { FileTypeIcon } from '@renderer/components/viewer/file-icon'
 import { useCodeSearch } from '@renderer/hooks/use-search'
+import { compactInputClass } from '@renderer/lib/controls'
 import { dirName, fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
@@ -233,13 +234,13 @@ export function SearchList(): React.JSX.Element {
               placeholder="files to include (e.g. src/**, *.ts)"
               value={include}
               onChange={(e) => setInclude(e.target.value)}
-              className="h-7 text-xs"
+              className={compactInputClass}
             />
             <Input
               placeholder="files to exclude"
               value={exclude}
               onChange={(e) => setExclude(e.target.value)}
-              className="h-7 text-xs"
+              className={compactInputClass}
             />
           </CollapsibleContent>
         </Collapsible>

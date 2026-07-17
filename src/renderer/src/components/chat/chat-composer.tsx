@@ -2,7 +2,9 @@ import { Button } from '@renderer/components/ui/button'
 import { Input } from '@renderer/components/ui/input'
 import { Textarea } from '@renderer/components/ui/textarea'
 import { useChatActions } from '@renderer/hooks/use-chat'
+import { compactButtonClass } from '@renderer/lib/controls'
 import { kbdLabel } from '@renderer/lib/keyboard'
+import { cn } from '@renderer/lib/utils'
 import { useState } from 'react'
 
 /**
@@ -56,7 +58,7 @@ export function ChatComposer(): React.JSX.Element {
       />
       <Button
         size="sm"
-        className="self-end"
+        className={cn(compactButtonClass, 'self-end')}
         disabled={from.trim() === '' || body.trim() === '' || pending}
         onClick={send}
       >

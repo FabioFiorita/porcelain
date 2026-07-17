@@ -70,7 +70,12 @@ export function ContentSearch(): React.JSX.Element {
       className="sm:max-w-2xl"
     >
       <Command shouldFilter={false}>
-        <CommandInput placeholder="Search in files…" value={query} onValueChange={setQuery} />
+        <CommandInput
+          placeholder="Search in files…"
+          value={query}
+          onValueChange={setQuery}
+          className="text-sm-minus"
+        />
         <CommandList>
           {error && <p className="py-6 text-center text-sm text-destructive">{error.message}</p>}
           {!error &&

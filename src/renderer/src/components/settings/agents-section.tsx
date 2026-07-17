@@ -15,7 +15,8 @@ import {
   useRefreshAgentProviders,
   useSetLimitsRefresh,
 } from '@renderer/hooks/use-agents'
-import { copyText } from '@renderer/lib/utils'
+import { compactButtonClass } from '@renderer/lib/controls'
+import { cn, copyText } from '@renderer/lib/utils'
 import type { AgentProvider, ProviderStatus } from '@shared/agent-protocol'
 import { PROVIDER_LABEL } from '@shared/agent-protocol'
 import { ChevronDown, RefreshCw } from 'lucide-react'
@@ -65,7 +66,7 @@ function CopyableCode({ text }: { text: string }): React.JSX.Element {
         setCopied(true)
         setTimeout(() => setCopied(false), 1500)
       }}
-      className="rounded bg-muted/60 px-1 py-0.5 font-mono text-2xs text-foreground transition-colors hover:bg-muted"
+      className="rounded bg-muted/60 px-1 py-0.5 font-mono text-xs text-foreground transition-colors hover:bg-muted"
     >
       {copied ? 'Copied' : text}
     </button>
@@ -105,24 +106,21 @@ function ProvidersBlock(): React.JSX.Element {
     )
   }
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="divide-y divide-border/60 overflow-hidden rounded-md border border-border/60">
       {providers.map((provider) => {
         const ready = provider.installed && provider.authenticated
         return (
-          <div
-            key={provider.provider}
-            className="glaze-tile flex flex-col gap-1.5 p-2 [--tile-fill:var(--surface-2)]"
-          >
+          <div key={provider.provider} className="flex flex-col gap-1.5 p-3">
             <div className="flex items-center gap-2.5">
               <ProviderGlyph
                 provider={provider.provider}
                 className="size-4 text-muted-foreground"
               />
               <span className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate text-xs font-medium text-foreground">
+                <span className="truncate text-sm-minus font-medium text-foreground">
                   {PROVIDER_LABEL[provider.provider]}
                 </span>
-                <span className="truncate text-2xs text-muted-foreground">
+                <span className="truncate text-xs text-muted-foreground">
                   {statusLabel(provider)}
                 </span>
               </span>
@@ -176,7 +174,11 @@ function LimitsRefreshRow(): React.JSX.Element {
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
-            <Button variant="outline" size="sm" className="shrink-0 gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn(compactButtonClass, 'shrink-0 gap-1')}
+            >
               {LIMITS_REFRESH_LABEL[value]}
               <ChevronDown className="size-3.5 text-muted-foreground" />
             </Button>

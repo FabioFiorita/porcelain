@@ -6,6 +6,7 @@ import {
 } from '@renderer/components/ui/sidebar'
 import { useQuickCommand } from '@renderer/hooks/use-commit'
 import { useGitSuggestions } from '@renderer/hooks/use-git-flow'
+import { compactButtonClass } from '@renderer/lib/controls'
 import { cn } from '@renderer/lib/utils'
 import {
   Archive,
@@ -155,7 +156,10 @@ export function QuickCommandsGroup(): React.JSX.Element {
                 key={command.id}
                 variant="ghost"
                 size="sm"
-                className="glaze-chip justify-start gap-1.5 rounded-md font-mono text-xs font-normal"
+                className={cn(
+                  compactButtonClass,
+                  'glaze-chip justify-start gap-1.5 rounded-md font-mono font-normal',
+                )}
                 disabled={running !== null}
                 onClick={() => run(command)}
               >

@@ -1,5 +1,6 @@
 import type { DiffLine } from '@backend/diff'
 import type { FeatureReading, ReadingFile } from '@backend/feature-view'
+import { Button } from '@renderer/components/ui/button'
 import {
   ContextMenu,
   ContextMenuContent,
@@ -256,17 +257,16 @@ function FileHeaderRow({
           <Tooltip>
             <TooltipTrigger
               render={
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
                   onClick={async (e) => {
                     e.stopPropagation()
                     await toggleReviewed()
                   }}
                   className={cn(
-                    'shrink-0 rounded p-0.5 transition-colors',
-                    isReviewed
-                      ? 'text-success hover:bg-accent/50'
-                      : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+                    'shrink-0',
+                    isReviewed ? 'text-success' : 'text-muted-foreground hover:text-foreground',
                   )}
                   aria-label={isReviewed ? 'Unmark reviewed' : 'Mark reviewed'}
                 >
@@ -275,7 +275,7 @@ function FileHeaderRow({
                   ) : (
                     <Square className="size-3.5" />
                   )}
-                </button>
+                </Button>
               }
             />
             <TooltipContent>{isReviewed ? 'Unmark reviewed' : 'Mark reviewed'}</TooltipContent>
@@ -285,17 +285,18 @@ function FileHeaderRow({
           <Tooltip>
             <TooltipTrigger
               render={
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
                   onClick={(e) => {
                     e.stopPropagation()
                     openFile()
                   }}
-                  className="shrink-0 rounded p-0.5 text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
+                  className="shrink-0 text-muted-foreground hover:text-foreground"
                   aria-label="Open file"
                 >
                   <FileText className="size-3.5" />
-                </button>
+                </Button>
               }
             />
             <TooltipContent>Open file</TooltipContent>

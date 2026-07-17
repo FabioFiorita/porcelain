@@ -65,8 +65,7 @@ export function FindBar({
       </span>
       <Button
         variant="ghost"
-        size="icon-sm"
-        className="size-6"
+        size="icon-xs"
         disabled={matches.length === 0}
         onClick={() => setStep((s) => s - 1)}
         aria-label="Previous match"
@@ -75,21 +74,14 @@ export function FindBar({
       </Button>
       <Button
         variant="ghost"
-        size="icon-sm"
-        className="size-6"
+        size="icon-xs"
         disabled={matches.length === 0}
         onClick={() => setStep((s) => s + 1)}
         aria-label="Next match"
       >
         <ChevronDown />
       </Button>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        className="size-6"
-        onClick={onClose}
-        aria-label="Close find bar"
-      >
+      <Button variant="ghost" size="icon-xs" onClick={onClose} aria-label="Close find bar">
         <X />
       </Button>
     </div>

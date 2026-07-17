@@ -10,6 +10,7 @@ import { useCommentIndex } from '@renderer/hooks/use-comments'
 import { useDiffFile } from '@renderer/hooks/use-diff'
 import { useIsMobile } from '@renderer/hooks/use-mobile'
 import { useReviewedPaths, useToggleReviewed } from '@renderer/hooks/use-reviewed'
+import { compactButtonClass } from '@renderer/lib/controls'
 import { type LineSelection, lineSelectionFromDom } from '@renderer/lib/line-selection'
 import { fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
@@ -84,20 +85,28 @@ export function DiffView({
         <div className="flex shrink-0 items-center gap-1.5">
           {/* Mark the file reviewed right where you read it — shares state with
               the Changes list's reviewed indicator (useReviewedPaths). */}
-          <button
-            type="button"
-            onClick={async () => (isReviewed ? unmark(filePath) : mark(filePath))}
-            className={cn(
-              'flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
-              isReviewed
-                ? 'text-success hover:bg-accent/50'
-                : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-            )}
-          >
-            {isReviewed ? <SquareCheck className="size-3.5" /> : <Square className="size-3.5" />}
-            {isReviewed ? 'Reviewed' : 'Mark reviewed'}
-          </button>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  className={cn(
+                    compactButtonClass,
+                    isReviewed ? 'text-success' : 'text-muted-foreground hover:text-foreground',
+                  )}
+                  onClick={async () => (isReviewed ? unmark(filePath) : mark(filePath))}
+                >
+                  {isReviewed ? (
+                    <SquareCheck className="size-3.5" />
+                  ) : (
+                    <Square className="size-3.5" />
+                  )}
+                  {isReviewed ? 'Reviewed' : 'Mark reviewed'}
+                </Button>
+              }
+            />
+            <TooltipContent>{isReviewed ? 'Unmark reviewed' : 'Mark reviewed'}</TooltipContent>
+          </Tooltip>
           {status !== 'deleted' && (
             <Tooltip>
               <TooltipTrigger

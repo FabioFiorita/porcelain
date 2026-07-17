@@ -5,6 +5,8 @@ import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-gro
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'
 import { useRepoLayers, useSetRepoLayers } from '@renderer/hooks/use-repo-layers'
+import { compactButtonClass, compactInputClass } from '@renderer/lib/controls'
+import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { ChevronDown, ChevronUp, Plus, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -109,13 +111,13 @@ function PatternBuilder({
             if (type === 'folder' || type === 'ext' || type === 'suffix') setMatchType(type)
           }}
         >
-          <ToggleGroupItem value="folder" size="sm">
+          <ToggleGroupItem value="folder" size="sm" className={compactButtonClass}>
             Folder
           </ToggleGroupItem>
-          <ToggleGroupItem value="ext" size="sm">
+          <ToggleGroupItem value="ext" size="sm" className={compactButtonClass}>
             Extension
           </ToggleGroupItem>
-          <ToggleGroupItem value="suffix" size="sm">
+          <ToggleGroupItem value="suffix" size="sm" className={compactButtonClass}>
             Suffix
           </ToggleGroupItem>
         </ToggleGroup>
@@ -127,7 +129,7 @@ function PatternBuilder({
           onChange={(e) => setNames(e.target.value)}
           placeholder={PLACEHOLDERS[matchType]}
           aria-label="Pattern names"
-          className="flex-1"
+          className={cn(compactInputClass, 'flex-1')}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               e.preventDefault()
@@ -141,7 +143,12 @@ function PatternBuilder({
         <code className="min-w-0 flex-1 truncate rounded-md bg-black/30 px-2.5 py-1.5 font-mono text-xs text-ink-green">
           {preview || '—'}
         </code>
-        <Button size="sm" disabled={parsed.length === 0} onClick={add}>
+        <Button
+          size="sm"
+          className={compactButtonClass}
+          disabled={parsed.length === 0}
+          onClick={add}
+        >
           <Plus /> Add
         </Button>
       </div>
@@ -208,7 +215,7 @@ function LayerRow({
         onChange={(e) => onChange({ ...layer, label: e.target.value })}
         placeholder="Label"
         aria-label={`Layer ${index + 1} label`}
-        className="w-32 shrink-0"
+        className={cn(compactInputClass, 'w-32 shrink-0')}
       />
       <div className="min-w-0 flex-1">
         <Input
@@ -217,7 +224,7 @@ function LayerRow({
           placeholder="Pattern (regex)"
           aria-label={`Layer ${index + 1} pattern`}
           aria-invalid={error !== null}
-          className="font-mono"
+          className={cn(compactInputClass, 'font-mono')}
         />
         {error && <p className="mt-0.5 text-xs text-destructive">{error}</p>}
       </div>
@@ -336,17 +343,22 @@ export function FlowLayersSection({ onSaved }: { onSaved: () => void }): React.J
         <Button
           variant="ghost"
           size="sm"
-          className="self-start"
+          className={cn(compactButtonClass, 'self-start')}
           onClick={() => setDraft([...draft, { label: '', pattern: '', id: nextDraftId++ }])}
         >
           <Plus /> Add layer
         </Button>
       </div>
       <div className="flex items-center justify-between">
-        <Button variant="ghost" size="sm" onClick={() => save(null)}>
+        <Button variant="ghost" size="sm" className={compactButtonClass} onClick={() => save(null)}>
           Reset to defaults
         </Button>
-        <Button size="sm" disabled={!valid || isSaving} onClick={() => save(draft)}>
+        <Button
+          size="sm"
+          className={compactButtonClass}
+          disabled={!valid || isSaving}
+          onClick={() => save(draft)}
+        >
           Save
         </Button>
       </div>

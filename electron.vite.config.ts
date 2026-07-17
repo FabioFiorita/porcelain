@@ -1,10 +1,20 @@
+import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'electron-vite'
 
+// Bake package.json's version into BOTH the daemon bundle (so `daemonInfo` can
+// announce it — Electron-free, no runtime package.json read that the differing
+// out/ vs dist-daemon layouts would break) and the renderer bundle (so the client
+// knows its own build version). One source of truth, replaced at build time; the
+// standalone porcelain-daemon package copies the already-baked bundle unchanged.
+const { version } = JSON.parse(readFileSync(resolve('package.json'), 'utf8')) as { version: string }
+const define = { __PORCELAIN_VERSION__: JSON.stringify(version) }
+
 export default defineConfig({
   main: {
+    define,
     build: {
       rollupOptions: {
         // Three main-process bundles: the app entry; the standalone stdio MCP
@@ -29,6 +39,7 @@ export default defineConfig({
   },
   preload: {},
   renderer: {
+    define,
     resolve: {
       alias: {
         '@renderer': resolve('src/renderer/src'),

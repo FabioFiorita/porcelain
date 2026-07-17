@@ -1,6 +1,7 @@
 import type { FeatureFile } from '@backend/feature-view'
 import type { FileSource } from '@backend/review-set'
 import { SidebarHeaderActions } from '@renderer/components/shell/sidebar-header-actions'
+import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
 import {
   ContextMenu,
@@ -14,6 +15,7 @@ import { useDiffFilePrefetch } from '@renderer/hooks/use-diff'
 import { useLoopEvidence } from '@renderer/hooks/use-evidence'
 import { useClearFeatureReview, useFeatureView } from '@renderer/hooks/use-feature-view'
 import { useReviewedPaths, useToggleReviewed } from '@renderer/hooks/use-reviewed'
+import { compactButtonClass } from '@renderer/lib/controls'
 import { dirName, fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
@@ -117,9 +119,12 @@ function FlowNodeImpl({
               {name}
             </span>
             {layer && (
-              <span className="shrink-0 rounded bg-sidebar-accent px-1.5 py-px text-4xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <Badge
+                variant="outline"
+                className="shrink-0 rounded-md border-border/60 px-1.5 py-0 text-4xs uppercase tracking-wider text-muted-foreground"
+              >
                 {layer}
-              </span>
+              </Badge>
             )}
             {file.additions !== undefined && file.additions > 0 && (
               <span className="shrink-0 font-mono text-2xs text-success">+{file.additions}</span>
@@ -159,7 +164,7 @@ function FlowNodeImpl({
         </ContextMenuContent>
       </ContextMenu>
       {file.note && (
-        <div className="mx-2 mb-1 rounded-md border border-border bg-card/50 px-2.5 py-2">
+        <div className="mx-2 mb-1 rounded-lg border border-border/60 bg-black/20 px-2.5 py-2">
           <span className="text-3xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Note
           </span>
@@ -268,10 +273,13 @@ export function FeatureList(): React.JSX.Element {
         {view.fromAgent ? (
           <h2 className="flex min-w-0 flex-wrap items-center gap-1.5 pt-1 text-xs font-medium">
             <span className="min-w-0">{view.name}</span>
-            <span className="flex shrink-0 items-center gap-1 rounded bg-info/15 px-1 py-0.5 text-3xs font-normal text-info">
+            <Badge
+              variant="outline"
+              className="shrink-0 rounded-md border-info/20 bg-info/15 text-3xs font-normal text-info"
+            >
               <Sparkles className="size-2.5" />
               agent
-            </span>
+            </Badge>
           </h2>
         ) : (
           <span aria-hidden />
@@ -294,7 +302,7 @@ export function FeatureList(): React.JSX.Element {
             <Button
               variant="outline"
               size="sm"
-              className="w-full justify-start rounded-md"
+              className={cn(compactButtonClass, 'w-full justify-start rounded-md')}
               onClick={openArtifact}
             >
               <FileText />
@@ -305,7 +313,7 @@ export function FeatureList(): React.JSX.Element {
             <Button
               variant="outline"
               size="sm"
-              className="w-full justify-start rounded-md"
+              className={cn(compactButtonClass, 'w-full justify-start rounded-md')}
               onClick={openEvidence}
             >
               <ShieldCheck />
@@ -335,7 +343,7 @@ export function FeatureList(): React.JSX.Element {
               <Button
                 size="sm"
                 variant="outline"
-                className="flex-1 rounded-md"
+                className={cn(compactButtonClass, 'flex-1 rounded-md')}
                 onClick={openReading}
               >
                 <BookOpen />
@@ -379,7 +387,7 @@ export function FeatureList(): React.JSX.Element {
         </p>
       ) : (
         <div className="px-2 pt-1">
-          <div className="px-1 pb-1 text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <div className="px-1 pb-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
             Flow
           </div>
           <div className="relative">

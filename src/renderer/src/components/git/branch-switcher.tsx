@@ -18,14 +18,11 @@ import {
 import { Input } from '@renderer/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@renderer/components/ui/popover'
 import { useBranch, useBranches, useCheckout, useCreateBranch } from '@renderer/hooks/use-worktrees'
+import { commandGroupHeadingClass } from '@renderer/lib/controls'
 import { useRepoStore } from '@renderer/stores/repo'
 import { Check, GitBranch, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
-
-// Match the worktree popover's DropdownMenuLabel: small, bold, uppercase, tracked.
-const groupHeading =
-  '**:[[cmdk-group-heading]]:text-2xs **:[[cmdk-group-heading]]:font-bold **:[[cmdk-group-heading]]:uppercase **:[[cmdk-group-heading]]:tracking-[0.08em]'
 
 // The footer's left chip: the current branch, opening a searchable picker of local
 // and remote branches that checks the chosen one out in place. Checking out a
@@ -130,7 +127,7 @@ export function BranchSwitcher(): React.JSX.Element | null {
               <CommandEmpty>No branches found.</CommandEmpty>
             )}
             {local.length > 0 && (
-              <CommandGroup heading="Local" className={groupHeading}>
+              <CommandGroup heading="Local" className={commandGroupHeadingClass}>
                 {local.map((b) => (
                   <CommandItem
                     key={b.name}
@@ -149,7 +146,7 @@ export function BranchSwitcher(): React.JSX.Element | null {
               </CommandGroup>
             )}
             {remote.length > 0 && (
-              <CommandGroup heading="Remote" className={groupHeading}>
+              <CommandGroup heading="Remote" className={commandGroupHeadingClass}>
                 {remote.map((b) => (
                   <CommandItem
                     key={`${b.remote}/${b.name}`}

@@ -1,5 +1,6 @@
 import type { ReviewComment } from '@backend/comment-store'
 import { CommentMarker } from '@renderer/components/git/comment-marker'
+import { Badge } from '@renderer/components/ui/badge'
 import {
   ContextMenu,
   ContextMenuContent,
@@ -37,6 +38,11 @@ import { usePathActions } from './use-path-actions'
 // view — the editor renders every line into the DOM.
 export const EDITABLE_MAX_LINES = 5000
 const AUTOSAVE_DELAY_MS = 800
+
+// The floating save-status pill in the editor's bottom-right — a borderless Badge
+// on the muted glaze; each state supplies only its own text color.
+const STATUS_PILL =
+  'pointer-events-none absolute bottom-2 right-3 rounded-md border-transparent bg-muted/80 text-2xs'
 
 // Memoized so a line only re-renders when its own tokens change.
 const EditorLine = memo(CodeLine)
@@ -270,17 +276,17 @@ export function EditorSource({
             </div>
           </div>
           {saveError ? (
-            <span className="pointer-events-none absolute bottom-2 right-3 rounded-md bg-muted/80 px-2 py-0.5 text-2xs text-destructive">
+            <Badge variant="outline" className={cn(STATUS_PILL, 'text-destructive')}>
               {saveError.message}
-            </span>
+            </Badge>
           ) : isSaving ? (
-            <span className="pointer-events-none absolute bottom-2 right-3 rounded-md bg-muted/80 px-2 py-0.5 text-2xs text-muted-foreground">
+            <Badge variant="outline" className={cn(STATUS_PILL, 'text-muted-foreground')}>
               Saving…
-            </span>
+            </Badge>
           ) : dirty ? (
-            <span className="pointer-events-none absolute bottom-2 right-3 flex items-center gap-1 rounded-md bg-muted/80 px-2 py-0.5 text-2xs text-muted-foreground">
+            <Badge variant="outline" className={cn(STATUS_PILL, 'text-muted-foreground')}>
               Unsaved <Kbd>{kbdLabel('mod', 'S')}</Kbd>
-            </span>
+            </Badge>
           ) : null}
         </ContextMenuTrigger>
         <ContextMenuContent className="w-60">

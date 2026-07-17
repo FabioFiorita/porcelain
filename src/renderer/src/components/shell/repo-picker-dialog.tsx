@@ -1,3 +1,4 @@
+import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
 import {
   Dialog,
@@ -9,6 +10,7 @@ import {
 import { ScrollArea } from '@renderer/components/ui/scroll-area'
 import { useBrowseDirs } from '@renderer/hooks/use-browse'
 import { useRemoteEnvironments } from '@renderer/hooks/use-remote-daemon'
+import { rowActionClass } from '@renderer/lib/controls'
 import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
@@ -105,7 +107,7 @@ function RepoPicker({ onClose }: { onClose: () => void }): React.JSX.Element {
               disabled={!result || result.parent === null}
               onClick={() => result?.parent && setPath(result.parent)}
               className={cn(
-                'flex items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-sm',
+                'flex items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-sm-minus',
                 'hover:bg-accent/50 disabled:pointer-events-none disabled:opacity-40',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
               )}
@@ -118,7 +120,7 @@ function RepoPicker({ onClose }: { onClose: () => void }): React.JSX.Element {
               <div
                 key={entry.path}
                 className={cn(
-                  'group flex items-center gap-2.5 rounded-md pr-1.5 text-sm',
+                  'group flex items-center gap-2.5 rounded-md pr-1.5 text-sm-minus',
                   'hover:bg-accent/50',
                 )}
               >
@@ -134,16 +136,21 @@ function RepoPicker({ onClose }: { onClose: () => void }): React.JSX.Element {
                   )}
                   <span className="truncate">{entry.name}</span>
                   {entry.isRepo && (
-                    <span className="text-2xs font-medium uppercase tracking-wider text-muted-foreground">
+                    <Badge
+                      variant="outline"
+                      className="rounded-md border-border/60 text-2xs uppercase tracking-wider text-muted-foreground"
+                    >
                       repo
-                    </span>
+                    </Badge>
                   )}
                 </button>
                 {entry.isRepo && (
                   <Button
-                    size="sm"
                     variant="ghost"
-                    className="h-6 shrink-0 px-2 text-xs opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                    className={cn(
+                      rowActionClass,
+                      'shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
+                    )}
                     onClick={() => open(entry.path)}
                   >
                     Open

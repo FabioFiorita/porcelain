@@ -1,5 +1,6 @@
 import { Button } from '@renderer/components/ui/button'
 import { useAgentMcpInfo, useInstallAgentMcp } from '@renderer/hooks/use-agent-mcp'
+import { compactButtonClass } from '@renderer/lib/controls'
 import { Check, CircleCheck, Loader2, TriangleAlert, XCircle } from 'lucide-react'
 
 const AGENT_LABELS: Record<string, string> = {
@@ -20,14 +21,11 @@ export function AgentMcpSection(): React.JSX.Element {
   return (
     <div className="flex min-w-0 flex-col gap-3">
       {info?.agents && (
-        <ul className="flex min-w-0 flex-col gap-2">
+        <ul className="min-w-0 divide-y divide-border/60 overflow-hidden rounded-md border border-border/60">
           {info.agents.map((agent) => {
             const isConfigured = agent.configured
             return (
-              <li
-                key={agent.name}
-                className="flex min-w-0 items-center justify-between gap-3 rounded-md bg-card p-3"
-              >
+              <li key={agent.name} className="flex min-w-0 items-center justify-between gap-3 p-3">
                 <div className="flex min-w-0 flex-col gap-0.5">
                   <div className="flex items-center gap-2">
                     {isConfigured ? (
@@ -46,6 +44,7 @@ export function AgentMcpSection(): React.JSX.Element {
                 <Button
                   size="sm"
                   variant={isConfigured ? 'outline' : 'default'}
+                  className={compactButtonClass}
                   onClick={() => install([agent.name])}
                   disabled={isInstalling}
                 >

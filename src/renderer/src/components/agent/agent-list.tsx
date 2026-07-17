@@ -37,6 +37,7 @@ import {
   useImportAgentSession,
   useRenameAgentThread,
 } from '@renderer/hooks/use-agents'
+import { compactInputClass } from '@renderer/lib/controls'
 import { cn } from '@renderer/lib/utils'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import type { AgentProvider, ExternalSession, ThreadInfo } from '@shared/agent-protocol'
@@ -97,7 +98,7 @@ function ThreadRow({ thread }: { thread: ThreadInfo }): React.JSX.Element {
           render={
             <div
               className={cn(
-                'group/thread flex h-8 items-center gap-2 rounded-md px-2 text-sm-minus',
+                'group/thread flex h-7 items-center gap-2 rounded-md px-2 text-sm-minus',
                 isActive
                   ? 'bg-(--selected-fill) text-foreground'
                   : 'text-muted-foreground hover:bg-(--hover-fill)',
@@ -120,7 +121,10 @@ function ThreadRow({ thread }: { thread: ThreadInfo }): React.JSX.Element {
                       setEditing(false)
                     }
                   }}
-                  className="h-6 min-w-0 flex-1 rounded-sm border-input/50 bg-input/30 px-1.5 text-sm-minus"
+                  className={cn(
+                    compactInputClass,
+                    'min-w-0 flex-1 border-input/50 bg-input/30 px-1.5',
+                  )}
                   aria-label="Thread name"
                 />
               ) : (

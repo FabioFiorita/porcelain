@@ -6,6 +6,7 @@ import {
 } from '@renderer/components/agent/agents-quick-access'
 import { PlanSteps } from '@renderer/components/agent/plan-steps'
 import { ProviderGlyph } from '@renderer/components/agent/provider-glyph'
+import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
 import { ScrollArea } from '@renderer/components/ui/scroll-area'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
@@ -382,14 +383,15 @@ function ApprovalCard({
       <div className="flex items-center justify-between gap-2">
         <span className="text-sm-minus font-medium text-foreground">{item.title}</span>
         {!pending && (
-          <span
+          <Badge
+            variant="outline"
             className={cn(
-              'shrink-0 text-2xs uppercase tracking-wider',
+              'shrink-0 rounded-md border-border/60 text-2xs uppercase tracking-[0.08em]',
               item.status === 'accepted' ? 'text-diff-add-emphasis' : 'text-muted-foreground/70',
             )}
           >
             {RESOLVED_LABEL[item.status]}
-          </span>
+          </Badge>
         )}
       </div>
       {item.command !== undefined && item.command !== '' && (
@@ -498,7 +500,7 @@ function SessionStrip({
   }, [working, startedAt])
 
   return (
-    <div className="flex shrink-0 items-center gap-2 border-b border-border/50 px-4 py-2 text-2xs text-muted-foreground">
+    <div className="flex shrink-0 items-center gap-2 border-b border-border/60 px-4 py-2 text-2xs text-muted-foreground">
       <ProviderGlyph provider={provider} className="size-3.5" />
       <span className="truncate font-medium text-foreground/80">
         {modelChipLabel(model, resolvedModel, models)}
@@ -538,7 +540,7 @@ function QueuedPendingList({
   const { cancelQueued } = useAgentActions()
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-dashed border-border/70 bg-muted/15 px-3 py-2.5">
-      <p className="text-2xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
+      <p className="text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
         Up next · after this turn
       </p>
       {queued.map((item, index) => (
@@ -580,7 +582,7 @@ function QueuedPendingList({
 function PlanItem({ item }: { item: Extract<TimelineItem, { kind: 'plan' }> }): React.JSX.Element {
   const done = item.steps.filter((step) => step.status === 'done').length
   return (
-    <div className="flex flex-col gap-1.5 rounded-lg bg-muted/40 px-3 py-2.5">
+    <div className="glaze-tile flex flex-col gap-1.5 p-2.5 [--tile-fill:var(--surface-2)]">
       <div className="flex items-baseline justify-between">
         <span className="text-xs font-medium text-foreground">Plan</span>
         <span className="text-2xs text-muted-foreground">

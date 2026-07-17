@@ -377,7 +377,7 @@ export function ChangesList(): React.JSX.Element {
       ) : (
         groups.map((group) => (
           <div key={group.layer}>
-            <SidebarGroupLabel className="h-6 px-2 text-2xs uppercase tracking-wider">
+            <SidebarGroupLabel className="h-6 px-2 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
               {group.layer}
             </SidebarGroupLabel>
             <SidebarMenu>

@@ -14,6 +14,7 @@ import { FileTypeIcon, FolderIcon } from '@renderer/components/viewer/file-icon'
 import { useActions, useRunAction } from '@renderer/hooks/use-actions'
 import { useGitLog } from '@renderer/hooks/use-history'
 import { useFileSearch } from '@renderer/hooks/use-search'
+import { commandGroupHeadingClass } from '@renderer/lib/controls'
 import { isTerminalTarget } from '@renderer/lib/keyboard'
 import { dirName, fileName } from '@renderer/lib/paths'
 import { useFileFinderStore } from '@renderer/stores/file-finder'
@@ -158,7 +159,10 @@ export function FileFinder(): React.JSX.Element {
               <CommandEmpty>No matches found</CommandEmpty>
             ))}
           {files.length > 0 && (
-            <CommandGroup heading={labelled ? 'Files' : undefined}>
+            <CommandGroup
+              heading={labelled ? 'Files' : undefined}
+              className={commandGroupHeadingClass}
+            >
               {files.map((result) => {
                 const { path, kind } = result
                 const name = fileName(path)
@@ -186,7 +190,10 @@ export function FileFinder(): React.JSX.Element {
             </CommandGroup>
           )}
           {commands.length > 0 && (
-            <CommandGroup heading={labelled ? 'Commands' : undefined}>
+            <CommandGroup
+              heading={labelled ? 'Commands' : undefined}
+              className={commandGroupHeadingClass}
+            >
               {commands.map((action) => (
                 <CommandItem
                   key={`command:${action.id}`}
@@ -203,7 +210,10 @@ export function FileFinder(): React.JSX.Element {
             </CommandGroup>
           )}
           {commits.length > 0 && (
-            <CommandGroup heading={labelled ? 'Commits' : undefined}>
+            <CommandGroup
+              heading={labelled ? 'Commits' : undefined}
+              className={commandGroupHeadingClass}
+            >
               {commits.map((commit) => (
                 <CommandItem
                   key={`commit:${commit.hash}`}
