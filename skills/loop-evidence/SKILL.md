@@ -15,34 +15,39 @@ Porcelain can render **loop evidence**: a self-contained HTML document you autho
 
 The human opens it from the **Feature** tab → **Loop evidence**, then hits **Clear** when done (e.g. before commit/push). You do not need to keep evidence forever.
 
-## When to use
+## Preferred flow — files on disk (NOT MCP payloads)
 
-- After a "close the loop" run: you started the dev server / opened the app / drove the iOS simulator, validated the change, and need to show the human the result without them re-running everything.
-- When the human asks for proof, screenshots, or "show me it works."
-- Prefer this over dumping base64 screenshots into chat — Porcelain is the place they review the feature.
+**Do not push large HTML or base64 screenshots through `set_loop_evidence`.** That is slow, interruptible, and was the failure mode that made sessions look stuck for minutes.
 
-## How
+The **directory is the source of truth**. Write files with your normal Write tools:
 
-Call the `porcelain` MCP tools with `repoPath` set to the ABSOLUTE path of the repo you're working in (your cwd):
+1. Call `set_loop_evidence` with **only** `{ repoPath, title }` (no `html`, no `htmlFile`).
+2. The tool returns an absolute directory path, e.g.  
+   `~/.porcelain/loop-evidence/<key>/`
+3. Write into that directory:
+   - **`index.html`** — the document (required for Porcelain to show the opener)
+   - **screenshots** as real image files next to it (`shot.png`, …) with  
+     `<img src="shot.png">` (relative paths — Porcelain inlines them for the sandboxed viewer; a browser opening `index.html` works too)
+   - optional: you can ignore `meta.json` (the prepare step already wrote title)
+4. Done. Porcelain discovers the directory within a few seconds (Feature tab → **Loop evidence**). No second MCP call with the HTML.
 
-- `set_loop_evidence` — `{ repoPath, title, html }` **or** `{ repoPath, title, htmlFile }` → author/replace the evidence.
-  - Prefer **`htmlFile`** (absolute path to a local `.html` file) when the document has base64 screenshots or is otherwise large — inlining 100KB+ through the tool channel is slow and can be cut off mid-call. Write the file, then pass the path; the MCP process reads it on this machine.
-  - Use inline `html` only for small documents. Provide exactly one of `html` or `htmlFile`.
-- `get_loop_evidence` — `{ repoPath }` → check whether one exists (title, size, when set — not the full HTML).
-- `clear_loop_evidence` — `{ repoPath }` → remove it (prefer letting the human clear after review; only clear yourself when asked or when replacing with a fresh validation).
+`repoPath` = absolute path of the repo you're working in (your cwd).
 
-## Authoring the HTML — same sandbox rules as feature artifacts
+Optional helpers:
 
-Porcelain renders your HTML in a **FULLY SANDBOXED iframe**:
+- `get_loop_evidence` — confirm the dir / title / size (not the full HTML).
+- `clear_loop_evidence` — remove the directory (prefer letting the human clear after review).
 
-- **Scripts NEVER run.** `<script>` is inert.
-- **External resources NEVER load.** No CDN, remote images, web fonts, or `fetch`.
+### Optional: small docs only
 
-So the document must be **ONE self-contained file**:
+If the document is tiny (no screenshots), you may still pass `html` or `htmlFile` to `set_loop_evidence` and it will write `index.html` for you. **Never** use that path for multi-screenshot evidence.
+
+## Authoring the HTML
+
+Porcelain renders your HTML in a **FULLY SANDBOXED iframe** (scripts never run; remote assets never load). Local sibling images with relative `src` are fine (the app inlines them).
 
 - **Inline all CSS** in a `<style>` tag.
-- **Screenshots = `data:` URIs** (e.g. `<img src="data:image/png;base64,…">`). Prefer compressed PNGs/JPEGs; keep total HTML under ~1.5 MB.
-- **Diagrams** (if any) = inline `<svg>`.
+- **Screenshots = real files** in the evidence directory + relative `src` (preferred), or `data:` URIs if you must.
 - System fonts only (`font-family: system-ui, sans-serif`).
 - **Dark styling** to match Porcelain:
 
@@ -57,21 +62,20 @@ So the document must be **ONE self-contained file**:
 </style>
 ```
 
+Keep the whole folder under a few MB after screenshots (shrink images). Porcelain drops documents over ~1.5 MB of HTML after asset inlining.
+
 ## Recommended structure
 
 1. **Title + overall status** at the top (`PASS` / `FAIL` / partial).
 2. **What I ran** — commands, URLs, simulator target, env.
 3. **Steps** — ordered checklist of validations (each pass/fail + short note).
-4. **Evidence** — screenshots as data URIs, key log lines (trimmed), console output if it proves the bug/fix.
+4. **Evidence** — screenshots (sibling files), key log lines (trimmed).
 5. **What's left** (if partial) — anything the human still needs to check by hand.
-
-Keep it scannable: the human should know in five seconds whether the loop closed.
 
 ## Review before you say you're done
 
-- Self-contained / sandbox-safe (no scripts, no remote assets).
-- Under ~1.5 MB; shrink images if needed.
-- Pass/fail is obvious; screenshots are readable (not tiny or stretched).
+- `index.html` exists in the directory returned by prepare.
+- Relative images resolve; pass/fail is obvious.
 - You actually ran the validation — don't invent evidence.
 
-Only after that pass: tell the human the evidence is ready (Feature tab → **Loop evidence**). They clear it when finished reviewing.
+Only after that pass: tell the human the evidence is ready (Feature tab → **Loop evidence**, or open `index.html` in a browser). They clear it when finished reviewing.

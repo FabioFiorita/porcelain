@@ -26,8 +26,8 @@ export function EvidenceView({ repoPath }: { repoPath: string }): React.JSX.Elem
   if (evidence === null) {
     return (
       <p className="p-4 text-sm text-muted-foreground">
-        No loop evidence. Your agent can author one over MCP (set_loop_evidence) after validating
-        the work (browser, simulator, …).
+        No loop evidence. Your agent writes index.html under ~/.porcelain/loop-evidence/ after
+        validating the work (browser, simulator, …) — Feature tab shows it automatically.
       </p>
     )
   }

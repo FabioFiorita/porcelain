@@ -217,7 +217,7 @@ export const TOOLS = [
   {
     name: 'set_loop_evidence',
     description:
-      'Author (or replace) the loop evidence for a repo: a self-contained HTML document that PROVES you closed the loop — you ran the app (dev server / browser / iOS simulator / …), validated the change yourself, and captured the result for the human. Complements the feature review set (what to read) and the feature artifact (how it works): this is the ephemeral proof that it works. The human opens it from the Feature tab and clears it once reviewed (e.g. before commit/push). HOW TO AUTHOR IT: same sandbox rules as feature artifacts — FULLY SANDBOXED iframe, scripts NEVER execute, external resources NEVER load. ONE self-contained document: inline CSS in a <style> tag, screenshots as data: URIs (data:image/png;base64,…), tables/checklists as plain HTML, dark background + light text. Keep under ~1.5 MB — shrink screenshots rather than pasting huge blobs. Prefer a clear pass/fail summary at the top, then steps with evidence (what you ran, what you saw, embedded screenshots). For large HTML (screenshots), write the file to disk and pass htmlFile (absolute path) instead of inlining html — the MCP process reads it locally.',
+      'Prepare or write loop evidence for a repo — proof you closed the loop (browser/simulator validation, screenshots, pass/fail). PREFERRED FLOW (no large MCP payload): call with only { repoPath, title }. The tool creates ~/.porcelain/loop-evidence/<key>/ and returns that absolute directory path. Then write index.html there with your normal file Write tool, and put screenshots as sibling files (relative <img src="shot.png">). Porcelain watches the directory and shows Feature tab → Loop evidence; the human can also open index.html in any browser. OPTIONAL: pass html or htmlFile to have this tool write index.html for you — only for small docs; large base64-through-MCP is slow and fragile (that is the failure mode this directory design avoids). Sandbox rules for the HTML: inline CSS, dark background, no scripts (they will not run).',
     inputSchema: {
       type: 'object',
       properties: {
@@ -227,7 +227,16 @@ export const TOOLS = [
           description:
             'A short title for the evidence (e.g. "Login flow — browser validation" or "iOS simulator — checkout pass")',
         },
-        ...HTML_OR_FILE_PROPERTIES,
+        html: {
+          type: 'string',
+          description:
+            'Optional. Small self-contained HTML to write as index.html. Prefer omitting this and writing the file yourself into the returned directory.',
+        },
+        htmlFile: {
+          type: 'string',
+          description:
+            'Optional. Absolute path to a local HTML file to copy into the evidence directory as index.html. Prefer writing index.html directly into the prepare path instead.',
+        },
       },
       required: ['repoPath', 'title'],
     },

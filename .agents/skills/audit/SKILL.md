@@ -340,23 +340,21 @@ assumed — this skill is the codebase-specific layer beneath them.
   `review-watch` entry → the `artifact` event. Still stdio only, no network surface. *Verify:* the
   iframe keeps `sandbox=""` with no allow-tokens; the CSP is unchanged; `rg -n "createServer|listen\(|http" src/mcp`
   still finds nothing; the app's only write to `artifacts.json` is `clearArtifact`.
-- **Loop evidence is the 10th channel and inherits the artifact sandbox invariant
-  byte-for-byte.** (`~/.porcelain/evidence.json`, `evidence-store.ts` ↔ `src/mcp/evidence-file.ts`,
-  `set/get/clear_loop_evidence`, same `{ title, html, updatedAt }` shape, `evidence-view.tsx`
-  with `sandbox=""` + `srcdoc`, `review-watch` → `evidence` event, app's only write is
-  `clearEvidence`.) Product role differs (ephemeral validation proof vs narrative explainer) but
-  the security surface is identical: agent-authored ACTIVE HTML, same CSP backstop, same
-  size cap (`MAX_HTML_BYTES` = 1.5 MB, drop oversized on read), same stdio-only / no-network
-  rule. Never add allow-* tokens, never widen `img-src`/`default-src` for either surface, and
-  keep the app's only write to `evidence.json` as `clearEvidence`. *Verify:* `evidence-view.tsx`
-  keeps `sandbox=""`; tools list has set/get/clear_loop_evidence; `rg` still finds no listener
-  in `src/mcp`.
-- **`set_feature_artifact` / `set_loop_evidence` accept `html` OR `htmlFile` (absolute path).**
-  Large documents (base64 screenshots) must not ride the tool-call channel inline — agents
-  write a local file and pass `htmlFile`; the stdio MCP reads it (`src/mcp/html-input.ts`),
-  size-caps before/after read, and rejects relative paths. Exactly one of the two is required.
-  *Verify:* `html-input.test.ts` + tools tests for `htmlFile`; schema `required` is only
-  `repoPath`+`title`.
+- **Loop evidence is directory-on-disk, not an MCP HTML payload.** Layout:
+  `~/.porcelain/loop-evidence/<sha256(repoPath)[0..16]>/` with `index.html` (+ sibling
+  screenshots, optional `meta.json`). Agents write those files with normal Write tools;
+  `set_loop_evidence` with **title only** prepares the dir and returns the path — large
+  base64 through MCP is the failure mode we designed out. The app (`evidence-store.ts`)
+  reads the dir, inlines relative `img` src under that dir into data URIs for the
+  sandboxed `srcdoc` viewer (`evidence-assets.ts`), and `clearEvidence` deletes the
+  directory. Legacy `evidence.json` is still read as a fallback. Same sandbox invariant
+  as artifacts: `evidence-view.tsx` keeps `sandbox=""` + `srcdoc`; never widen
+  `img-src`/`default-src`. Watch: recursive on `loop-evidence/` root + Feature list 3s
+  poll. *Verify:* disk-first tests in `evidence-store.test.ts`; skill documents prepare +
+  Write; MCP prepare returns a path without requiring html.
+- **`set_feature_artifact` still accepts `html` OR `htmlFile` (absolute path).**
+  Artifacts remain the JSON-channel shape; large artifact HTML can use `htmlFile`
+  (`src/mcp/html-input.ts`). Loop evidence prefers the directory flow above.
 - **A long-lived MCP process exits when its own binary is replaced.** Daemon/app boot
   re-copies `~/.porcelain/mcp/server.js` (`ensureMcpServer`); the old process still has the
   previous tool list in memory, and `notifications/tools/list_changed` cannot invent tools

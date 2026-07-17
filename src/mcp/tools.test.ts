@@ -42,6 +42,7 @@ afterEach(() => {
   delete process.env.PORCELAIN_FEATURE_VIEW
   delete process.env.PORCELAIN_ARTIFACTS
   delete process.env.PORCELAIN_EVIDENCE
+  delete process.env.PORCELAIN_LOOP_EVIDENCE_DIR
   delete process.env.PORCELAIN_CHAT
   rmSync(dir, { recursive: true, force: true })
 })
@@ -137,39 +138,50 @@ describe('callTool', () => {
     expect(readArtifacts()['/repo']?.html).toBe('<h1>From disk</h1>')
   })
 
-  it('set/get/clear_loop_evidence round-trips through the evidence channel', async () => {
-    const readEvidence = (): Record<string, { title: string; html: string }> =>
-      JSON.parse(readFileSync(evidenceFile, 'utf8'))
+  it('set_loop_evidence with title only prepares the on-disk directory', async () => {
+    process.env.PORCELAIN_LOOP_EVIDENCE_DIR = join(dir, 'loop-evidence')
+    const msg = await callTool('set_loop_evidence', {
+      repoPath: '/repo',
+      title: 'SPA redirect',
+    })
+    expect(msg).toContain('Loop evidence directory ready')
+    expect(msg).toContain('index.html')
+    expect(msg).toMatch(/loop-evidence/)
+  })
+
+  it('set/get/clear_loop_evidence with html writes index.html under the dir', async () => {
+    process.env.PORCELAIN_LOOP_EVIDENCE_DIR = join(dir, 'loop-evidence')
     await callTool('set_loop_evidence', {
       repoPath: '/repo',
       title: 'Vite loop',
       html: '<h1>Pass</h1>',
     })
-    expect(readEvidence()['/repo']?.title).toBe('Vite loop')
     expect(await callTool('get_loop_evidence', { repoPath: '/repo' })).toContain(
       'Loop evidence "Vite loop" for /repo',
     )
+    expect(await callTool('get_loop_evidence', { repoPath: '/repo' })).toContain('index.html')
     await callTool('clear_loop_evidence', { repoPath: '/repo' })
-    expect(readEvidence()['/repo']).toBeUndefined()
+    expect(await callTool('get_loop_evidence', { repoPath: '/repo' })).toContain('No loop evidence')
   })
+
   it('set_loop_evidence rejects a missing title', async () => {
     await expect(
       callTool('set_loop_evidence', { repoPath: '/repo', html: '<p>x</p>' }),
     ).rejects.toThrow('title must be a non-empty string')
   })
 
-  it('set_loop_evidence accepts htmlFile instead of inline html', async () => {
+  it('set_loop_evidence accepts htmlFile and writes the evidence dir', async () => {
+    process.env.PORCELAIN_LOOP_EVIDENCE_DIR = join(dir, 'loop-evidence')
     mkdirSync(dir, { recursive: true })
     const htmlPath = join(dir, 'evidence.html')
     writeFileSync(htmlPath, '<h1>Evidence on disk</h1>')
-    const readEvidence = (): Record<string, { title: string; html: string }> =>
-      JSON.parse(readFileSync(evidenceFile, 'utf8'))
-    await callTool('set_loop_evidence', {
+    const msg = await callTool('set_loop_evidence', {
       repoPath: '/repo',
       title: 'Disk evidence',
       htmlFile: htmlPath,
     })
-    expect(readEvidence()['/repo']?.html).toBe('<h1>Evidence on disk</h1>')
+    expect(msg).toContain('index.html')
+    expect(await callTool('get_loop_evidence', { repoPath: '/repo' })).toContain('Disk evidence')
   })
 
   it('get_review_comments tags each comment with its feature-view source', async () => {

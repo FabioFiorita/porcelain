@@ -7,7 +7,7 @@ import { artifactsPath } from './artifact-store'
 import { boardPath } from './board-store'
 import { chatPath } from './chat-store'
 import { commentsPath } from './comment-store'
-import { evidencePath } from './evidence-store'
+import { evidencePath, loopEvidenceRoot } from './evidence-store'
 import { layersPath } from './layers-store'
 import { reviewSetsPath } from './review-store'
 
@@ -15,11 +15,12 @@ import { reviewSetsPath } from './review-store'
  * Watch the agent channels in `~/.porcelain` — `review-sets.json` (→ `feature-view`),
  * `comments.json` (→ `comments`), `board.json` (→ `board`), `actions.json`
  * (→ `actions`), `layers.json` (→ `layers`), `artifacts.json` (→ `artifact`),
- * `evidence.json` (→ `evidence`), and `chat.json` (→ `chat`) — and push an app-event
- * when any changes, so an MCP write from the user's coding agent live-refreshes the
- * open view. We watch the DIRECTORY, not the file: writes are atomic (tmp + rename),
+ * `evidence.json` + `loop-evidence/` (→ `evidence`), and `chat.json` (→ `chat`) —
+ * and push an app-event when any changes, so an agent write live-refreshes the open
+ * view. We watch the DIRECTORY, not the file: writes are atomic (tmp + rename),
  * which replaces the inode and breaks a direct file watch. The paths usually share a
- * directory, watched once.
+ * directory, watched once. Loop evidence is primarily a **tree** of files under
+ * `loop-evidence/<key>/` (index.html + screenshots); that root is watched recursively.
  */
 export async function watchAgentChannels(): Promise<void> {
   const targets: { path: string; event: AppEvent }[] = [
@@ -54,6 +55,24 @@ export async function watchAgentChannels(): Promise<void> {
     } catch {
       // fs.watch is unsupported on some platforms/filesystems; agent pushes still
       // surface on the views' own polls, just not instantly.
+    }
+  }
+
+  // Loop-evidence directory tree (agent Write tools drop index.html + screenshots).
+  // Recursive watch when available; Feature list also polls every 3s as a backstop.
+  const evidenceRoot = loopEvidenceRoot()
+  await mkdir(evidenceRoot, { recursive: true }).catch(() => {})
+  try {
+    watch(evidenceRoot, { recursive: true }, () => {
+      emitAppEvent('evidence')
+    })
+  } catch {
+    try {
+      watch(evidenceRoot, () => {
+        emitAppEvent('evidence')
+      })
+    } catch {
+      // polls still cover discovery
     }
   }
 }

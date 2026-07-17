@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -113,16 +114,27 @@ export const test = baseTest.extend<Options & Fixtures, WorkerFixtures>({
           : {},
       ),
     )
-    // Loop evidence (agent-authored validation proof). Same seed shape as artifacts.
+    // Loop evidence is a directory of files (index.html + optional assets), not JSON.
+    // Seed the on-disk layout the app/MCP share (see evidence-paths.ts).
+    const evidenceRoot = join(udBase, 'loop-evidence')
+    await mkdir(evidenceRoot, { recursive: true })
+    if (seedEvidence) {
+      const key = createHash('sha256').update(repoDir).digest('hex').slice(0, 16)
+      const evidenceDir = join(evidenceRoot, key)
+      await mkdir(evidenceDir, { recursive: true })
+      await writeFile(join(evidenceDir, 'index.html'), seedEvidence.html)
+      await writeFile(
+        join(evidenceDir, 'meta.json'),
+        JSON.stringify({
+          title: seedEvidence.title,
+          repoPath: repoDir,
+          updatedAt: '2024-01-01T12:00:00.000Z',
+        }),
+      )
+    }
+    // Legacy empty json so env redirect still isolates any leftover json readers.
     const evidence = join(udBase, 'evidence.json')
-    await writeFile(
-      evidence,
-      JSON.stringify(
-        seedEvidence
-          ? { [repoDir]: { ...seedEvidence, updatedAt: '2024-01-01T12:00:00.000Z' } }
-          : {},
-      ),
-    )
+    await writeFile(evidence, '{}')
     // Agent threads persist to their own directory (the same PORCELAIN_AGENT_THREADS escape
     // hatch dev/tests use), so a thread never touches the user's real ~/.porcelain, and it
     // survives a window reload the way the daemon-owned thread does. Left uncreated — the
@@ -143,6 +155,7 @@ export const test = baseTest.extend<Options & Fixtures, WorkerFixtures>({
         PORCELAIN_REVIEWED: reviewed,
         PORCELAIN_ARTIFACTS: artifacts,
         PORCELAIN_EVIDENCE: evidence,
+        PORCELAIN_LOOP_EVIDENCE_DIR: evidenceRoot,
         PORCELAIN_AGENT_THREADS: agentThreads,
         // Swap every agent provider slot for the scripted in-process fake driver so the
         // Agent tab has a deterministic turn to drive (no real CLI / auth / network).

@@ -33,6 +33,7 @@ import {
   describeEvidence,
   MAX_HTML_BYTES as EVIDENCE_MAX_HTML_BYTES,
   getEvidence,
+  prepareEvidence,
   setEvidence,
 } from './evidence-file'
 import { describeFeatureView, readFeatureView, sourceByPath } from './feature-view-file'
@@ -117,9 +118,19 @@ export async function callTool(name: string, args: Record<string, unknown>): Pro
     return `Cleared the feature artifact for ${repoPath}`
   }
   if (name === 'set_loop_evidence') {
+    // Preferred: title only → prepare the on-disk directory; agent writes index.html
+    // with normal file tools (no MCP payload). Optional html/htmlFile still write
+    // index.html for small docs / automation.
+    const hasHtml =
+      (typeof args.html === 'string' && args.html.length > 0) ||
+      (typeof args.htmlFile === 'string' && args.htmlFile.trim().length > 0)
+    if (!hasHtml) {
+      const prepared = prepareEvidence(repoPath, args.title)
+      return `Loop evidence directory ready for "${prepared.title}" at:\n${prepared.dir}\n\nWrite index.html there (and screenshots as sibling files with relative <img src="shot.png">). Porcelain picks it up automatically within a few seconds — Feature tab → Loop evidence. Do NOT push large HTML through this tool.`
+    }
     const html = resolveToolHtml(args, EVIDENCE_MAX_HTML_BYTES)
     const evidence = setEvidence(repoPath, args.title, html)
-    return `Set loop evidence "${evidence.title}" for ${repoPath}. Porcelain renders it in a fully sandboxed iframe in the Feature tab (no scripts, no external loads). Clear it after the human reviews.`
+    return `Wrote loop evidence "${evidence.title}" to ${evidence.dir}/index.html for ${repoPath}. Porcelain renders it in the Feature tab. For large docs prefer title-only prepare + Write tools next time.`
   }
   if (name === 'get_loop_evidence') {
     return describeEvidence(repoPath, getEvidence(repoPath))
