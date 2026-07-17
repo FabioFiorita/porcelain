@@ -1,3 +1,9 @@
+## [0.28.1](https://github.com/FabioFiorita/porcelain/compare/v0.28.0...v0.28.1) (2026-07-17)
+
+### Bug Fixes
+
+* refresh MCP server on daemon boot ([597d83d](https://github.com/FabioFiorita/porcelain/commit/597d83d4502cb8d7053fc8e2079a15d44bdbf3c5))
+
 ## [0.28.0](https://github.com/FabioFiorita/porcelain/compare/v0.27.1...v0.28.0) (2026-07-17)
 
 ### Features
