@@ -77,7 +77,7 @@ export function Welcome(): React.JSX.Element {
       </Button>
       {recents.length > 0 && (
         <div className="flex w-80 flex-col gap-0.5">
-          <p className="px-2 pb-1 text-2xs font-medium uppercase tracking-wider text-muted-foreground">
+          <p className="px-2 pb-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
             Recent
           </p>
           {recents.map((repo) => (

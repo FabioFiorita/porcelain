@@ -15,7 +15,7 @@ import { RightSidebarResizeHandle } from './sidebar-resize-handle'
 // dropped the "Quick Access" / "Quick Commands" labels.
 const COMPANION_TITLES: Record<SidebarTab, string> = {
   files: 'Workspace',
-  changes: 'Source control',
+  changes: 'Commit',
   history: 'Review',
   feature: 'Review',
   board: 'Workspace',

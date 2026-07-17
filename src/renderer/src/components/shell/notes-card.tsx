@@ -46,7 +46,7 @@ export function NotesCard({ repoPath }: { repoPath?: string }): React.JSX.Elemen
       </div>
       {/* A self-contained porcelain tile (matching the mockup) rather than a
           full-bleed pane — the editor reads as its own card, inset from the rail. */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-sidebar-border bg-black/20">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border/60 bg-black/20">
         {notes === undefined ? (
           <div className="px-3 py-2 text-xs text-muted-foreground">Loading…</div>
         ) : (
@@ -147,10 +147,10 @@ function NotesToolbar({ editor }: { editor: Editor }): React.JSX.Element {
       h3: editor.isActive('heading', { level: 3 }),
     }),
   })
-  if (!state) return <div className="h-9 shrink-0 border-b border-sidebar-border" />
+  if (!state) return <div className="h-9 shrink-0 border-b border-border/60" />
 
   return (
-    <div className="flex h-9 shrink-0 items-center gap-0.5 border-b border-sidebar-border px-1">
+    <div className="flex h-9 shrink-0 items-center gap-0.5 border-b border-border/60 px-1">
       <DropdownMenu>
         <DropdownMenuTrigger
           render={

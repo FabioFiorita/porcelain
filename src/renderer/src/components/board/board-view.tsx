@@ -25,7 +25,10 @@ export function BoardView(): React.JSX.Element {
       {BOARD_COLUMNS.map((column) => {
         const inColumn = cards.filter((card) => card.status === column.status)
         return (
-          <div key={column.status} className="flex min-h-0 w-72 shrink-0 flex-col gap-2">
+          <div
+            key={column.status}
+            className="flex min-h-0 min-w-64 max-w-[30rem] flex-1 shrink-0 flex-col gap-2"
+          >
             <div className="flex items-center justify-between px-1">
               <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 {column.label} · {inColumn.length}

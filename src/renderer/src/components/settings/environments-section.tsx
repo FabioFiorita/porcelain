@@ -1,3 +1,4 @@
+import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
 import { Input } from '@renderer/components/ui/input'
 import { Separator } from '@renderer/components/ui/separator'
@@ -15,9 +16,14 @@ import {
 } from '@renderer/hooks/use-remote-daemon'
 import { useSetTailnetBind, useTailnetStatus } from '@renderer/hooks/use-tailnet'
 import { isBrowser } from '@renderer/lib/platform'
-import { copyText } from '@renderer/lib/utils'
+import { cn, copyText } from '@renderer/lib/utils'
 import { X } from 'lucide-react'
 import { useState } from 'react'
+
+// Quiet, compact sizing so no control in this section outweighs a row label.
+const compactButtonClass = 'h-7 text-xs'
+// Row actions further mute their label until hover — secondary to the row's name.
+const rowActionClass = `${compactButtonClass} px-2.5 text-muted-foreground hover:text-foreground`
 
 /** Copy the daemon token to the clipboard — the affordance a peer needs to connect. */
 function CopyTokenButton(): React.JSX.Element {
@@ -27,6 +33,7 @@ function CopyTokenButton(): React.JSX.Element {
     <Button
       variant="outline"
       size="sm"
+      className={compactButtonClass}
       onClick={async () => {
         // copyText, not navigator.clipboard directly: the daemon-served browser
         // client (the LAN/tailnet peer that reaches this very block) is an insecure
@@ -147,26 +154,37 @@ function SavedEnvironmentsBlock(): React.JSX.Element {
         </p>
       </div>
 
-      <ul className="flex flex-col gap-2">
-        <li className="flex items-center justify-between gap-3 rounded-md bg-card p-3">
+      <ul className="divide-y divide-border/60 overflow-hidden rounded-md border border-border/60">
+        <li className="flex items-center justify-between gap-3 p-3">
           <div className="min-w-0">
             <p className="text-sm-minus font-medium">This device</p>
             <p className="text-xs text-muted-foreground">Local daemon on this Mac</p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {activeId == null ? (
-              <span className="text-xs text-muted-foreground">This window</span>
+              <Badge
+                variant="outline"
+                className="rounded-md border-border/60 text-2xs text-muted-foreground"
+              >
+                This window
+              </Badge>
             ) : (
               <Button
                 variant="outline"
                 size="sm"
+                className={rowActionClass}
                 disabled={isDisconnecting}
                 onClick={() => disconnect()}
               >
                 {isDisconnecting ? 'Switching…' : 'Use here'}
               </Button>
             )}
-            <Button variant="ghost" size="sm" onClick={() => openInEnv({ environmentId: null })}>
+            <Button
+              variant="outline"
+              size="sm"
+              className={rowActionClass}
+              onClick={() => openInEnv({ environmentId: null })}
+            >
               New window
             </Button>
           </div>
@@ -174,21 +192,24 @@ function SavedEnvironmentsBlock(): React.JSX.Element {
         {environments.map((env) => {
           const isActive = env.id === activeId
           return (
-            <li
-              key={env.id}
-              className="flex items-center justify-between gap-3 rounded-md bg-card p-3"
-            >
+            <li key={env.id} className="flex items-center justify-between gap-3 p-3">
               <div className="min-w-0">
                 <p className="text-sm-minus font-medium">{env.name}</p>
                 <p className="truncate font-mono text-xs text-muted-foreground">{env.url}</p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 {isActive ? (
-                  <span className="text-xs text-muted-foreground">This window</span>
+                  <Badge
+                    variant="outline"
+                    className="rounded-md border-border/60 text-2xs text-muted-foreground"
+                  >
+                    This window
+                  </Badge>
                 ) : (
                   <Button
                     variant="outline"
                     size="sm"
+                    className={rowActionClass}
                     disabled={connectingId === env.id}
                     onClick={() => connect(env.id)}
                   >
@@ -196,8 +217,9 @@ function SavedEnvironmentsBlock(): React.JSX.Element {
                   </Button>
                 )}
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
+                  className={rowActionClass}
                   onClick={() => openInEnv({ environmentId: env.id })}
                 >
                   New window
@@ -256,6 +278,7 @@ function SavedEnvironmentsBlock(): React.JSX.Element {
             <Button
               variant="default"
               size="sm"
+              className={compactButtonClass}
               disabled={isAdding || url.trim() === '' || token.trim() === ''}
               onClick={() => add({ name, url, token })}
             >
@@ -264,6 +287,7 @@ function SavedEnvironmentsBlock(): React.JSX.Element {
             <Button
               variant="ghost"
               size="sm"
+              className={compactButtonClass}
               disabled={isAdding}
               onClick={() => {
                 setShowAdd(false)
@@ -278,7 +302,12 @@ function SavedEnvironmentsBlock(): React.JSX.Element {
           {error != null && <p className="text-xs text-destructive">{error}</p>}
         </div>
       ) : (
-        <Button variant="outline" size="sm" className="self-start" onClick={() => setShowAdd(true)}>
+        <Button
+          variant="outline"
+          size="sm"
+          className={cn('self-start', compactButtonClass)}
+          onClick={() => setShowAdd(true)}
+        >
           Add environment
         </Button>
       )}
