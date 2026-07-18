@@ -14,20 +14,23 @@ same release.
 ## Runbook
 
 1. Land your changes on `main` and confirm CI is green (`.github/workflows/ci.yml`
-   runs on every push to `main` + PRs: install → lint → typecheck → test → build on
-   Ubuntu).
-2. **The e2e suite is the release gate, and it runs in CI — not on your machine.**
+   runs on every push to `main` + PRs: `pnpm verify` = lint → test → build —
+   typecheck runs inside `build` — then `typecheck:e2e`, on Ubuntu).
+2. **The NATIVE e2e suite is the release gate, and it runs in CI — not on your machine.**
    `release.yml` (`macos-14`) builds **once** on the tag push, then runs
-   `pnpm test:e2e:prebuilt` against that build: Playwright drives the real built app,
-   `-darwin` screenshot baselines included, and the same `out/` is what ships. You
-   do **not** run it locally before tagging. (It's kept OUT of the per-commit gate,
-   hard rule 3, so commits stay fast; and out of the Ubuntu `ci.yml`, which can't
-   launch the app or assert the `-darwin` baselines — `ci.yml` only `typecheck:e2e`s.)
-   The one time you still touch e2e locally: when you change the UI **on purpose**,
-   regenerate the baselines with `pnpm test:e2e:update` and commit them (`test:`) as
-   part of that change — otherwise the stale snapshot stays hidden until the release
-   workflow fails on the diff (Ubuntu CI never runs e2e). A pure-refactor release
-   needs no baseline change.
+   `pnpm test:e2e:native:prebuilt` against that build: Playwright's `_electron`
+   drives the real built app, `-darwin` screenshot baselines included, and the same
+   `out/` is what ships (the Linux release leg does the same under Xvfb with the
+   `-linux` baselines). You do **not** run it locally before tagging. (Native e2e is
+   kept OUT of the per-commit gate, hard rule 3, so commits stay fast; the
+   per-push e2e is the **browser** project — `pnpm test:e2e` in `linux.yml`,
+   headless Chromium on the daemon-served client, asserting the `-browser-linux`
+   baselines.) When you change the UI **on purpose**, regenerate BOTH baseline sets
+   and commit them (`test:`) as part of that change: `pnpm test:e2e:update`
+   (browser, runs anywhere headless) and `pnpm test:e2e:native:update` (Electron,
+   needs a display) — otherwise the stale native snapshot stays hidden until the
+   release workflow fails on the diff. A pure-refactor release needs no baseline
+   change.
 
    **Why we trust the runner (decided 2026-06-26).** The baselines are authored on the
    dev machine, but the `macos-14` runner has asserted them green across eight straight
@@ -46,7 +49,7 @@ same release.
    version's section will just be short). First applied on v0.21.0/v0.21.1 (both died
    on the same e2e strict-mode locator; v0.21.2 shipped the fix). Corollary: before
    cutting a release after ANY UI-touching commits, run the full `pnpm
-   test:e2e:prebuilt` suite locally — an ambiguous locator is deterministic on the
+   test:e2e:native:prebuilt` suite locally — an ambiguous locator is deterministic on the
    runner even when a local race lets it pass once, and each failed attempt costs a
    version number.
 3. **Bump and tag in one step:** `pnpm version <patch|minor|major>` — updates
@@ -65,7 +68,7 @@ same release.
    with `git push origin vX.Y.Z` if you notice no tag ref in the push output).
 4. **`git push --follow-tags`** — pushing the `v*` tag triggers
    `.github/workflows/release.yml` (macOS runner, `macos-14`): lint → test → build →
-   `test:e2e:prebuilt` → `pnpm release:prebuilt` (= `electron-builder --mac
+   `test:e2e:native:prebuilt` → `pnpm release:prebuilt` (= `electron-builder --mac
    --publish always`, packaging the already-built `out/`) signs, notarizes, and
    uploads `dmg` + `zip` + `latest-mac.yml`. One build; the artifact that ships is
    the artifact e2e tested (reordered 2026-07-05, plan 029 — the old flow built a
@@ -75,9 +78,11 @@ same release.
    `permissions.id-token: write`; npm exchanges the GitHub OIDC token for a
    short-lived publish credential. Configure once on the package
    ([npmjs.com/package/porcelain-daemon](https://www.npmjs.com/package/porcelain-daemon)
-   → Settings → Trusted Publisher): GitHub Actions, user `fabiofiorita`, repo
+   → Settings → Trusted Publisher): GitHub Actions, user `FabioFiorita`, repo
    `porcelain`, workflow filename **`release.yml`** (filename only), allow
-   `npm publish`. Publishing access may be "disallow tokens" — trusted
+   `npm publish`. **Owner casing must match the OIDC claim (`FabioFiorita`, not
+   `fabiofiorita`)** or the token exchange fails. Publishing access may be
+   "disallow tokens" — trusted
    publishers still work. Local `npm publish` from a laptop is not the release
    path (passkey 2FA + disallow-tokens); use a version tag.
 5. electron-builder uploads to a **draft** release. The workflow pre-creates a single
@@ -173,14 +178,6 @@ already-bumped `package.json`). Corollary: running `pnpm changelog` *by hand* af
 `pnpm version` has finished produces **nothing** — HEAD already sits on the fresh tag,
 so there are no unreleased commits. Don't "fix" the changelog that way; if you need to
 regenerate, do it from the pre-tag state.
-
-## Local builds
-
-- `pnpm dist` — typecheck + build + signed DMG/ZIP into `dist/`, no publish.
-- `pnpm dist:linux` — typecheck + build + unsigned AppImage/deb into `dist/`, no
-  publish (the AppImage is the only auto-updating target; deb is manual-install).
-- `pnpm release` — same as `dist` + publish to GitHub releases `fabiofiorita/porcelain`
-  (needs `GH_TOKEN`; the CI workflow is the normal path).
 
 ## Electron fuses smoke test (required on every packaged build)
 

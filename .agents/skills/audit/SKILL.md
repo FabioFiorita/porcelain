@@ -30,7 +30,7 @@ assumed — this skill is the codebase-specific layer beneath them.
   under `userData` (`~/Library/Application Support/porcelain`), keyed by repo path.
 - **Dev never opens or mutates real repos.** `pnpm dev` sets `userData` to
   `porcelain-dev` before any config read and seeds recents with
-  `~/Code/porcelain-playground` (`src/main/dev-config.ts`). Verification/testing
+  `~/Code/porcelain-playground` (`src/backend/dev-config.ts`). Verification/testing
   happens in the playground, never against the user's work repos.
 - **The agent CLI adds NO inbound network surface.** The porcelain CLI
   (`src/cli/`, installed at `~/.porcelain/porcelain`) is a short-lived process the
@@ -408,7 +408,7 @@ assumed — this skill is the codebase-specific layer beneath them.
 
 ## Config persistence
 
-- **All config writes go through `createJsonStore`** (`src/backend/json-store.ts`):
+- **All config writes go through `createHomeChannel`** (`src/backend/home-channel.ts`):
   atomic tmp+rename writes, corrupt files backed up to `.corrupt-*`, and
   `updateConfig(mutate)` serializes read-modify-write. Never reintroduce a bare
   load→mutate→save pair. *Why:* concurrent mutations dropped writes; a crash

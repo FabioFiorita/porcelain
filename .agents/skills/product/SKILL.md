@@ -7,7 +7,7 @@ description: What Porcelain is, who it's for, its core features and product prin
 
 # Porcelain — product
 
-A lightweight macOS-first **hub for agentic coding**, not an editor: run your coding agents and review their work in one window. (Retires the older "viewer + agent companion, agents live in the terminal" framing — the agents now run *inside* Porcelain, alongside the review surfaces that fill the gaps which used to force Cursor/Zed/GitHub Desktop.)
+A lightweight **hub for agentic coding** (macOS + Linux apps, plus a browser viewer served by the daemon), not an editor: run your coding agents and review their work in one window. (Retires the older "viewer + agent companion, agents live in the terminal" framing — the agents now run *inside* Porcelain, alongside the review surfaces that fill the gaps which used to force Cursor/Zed/GitHub Desktop.)
 
 ## Core features
 

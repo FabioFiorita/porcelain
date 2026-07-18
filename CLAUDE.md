@@ -8,12 +8,13 @@ Porcelain is the hub for agentic coding (Electron, macOS): run your coding agent
 
 1. **One architecture — but think freely.** Default to the existing pattern (state, data fetching, IPC shape, component/test style): check the `architecture` skill and match what's there, so the codebase stays uniform. But if you think a genuinely better approach exists, **propose it with the tradeoff before building** — don't silently fork the architecture, and don't be timid about suggesting one. The failure state is *two patterns nobody chose*; a considered switch (recorded in the home skill) is not. Outside-the-box thinking is wanted — it just gets surfaced, not smuggled in.
 2. **Match the local idiom.** When you write code, make it read like the code around it — naming, test shape, file layout, commit format. This is small-scale consistency (so the result looks like one author), not a constraint on *what* you build.
-3. **Verification gate before any commit:** `pnpm lint && pnpm typecheck && pnpm test && pnpm build` (= `pnpm verify`). **Hook-enforced** — the `PreToolUse` git-guard (`.claude/settings.json`) blocks any commit until the gate passes, so a failing gate is a loop to fix, not a suggestion to skip.
+3. **Verification gate before any commit:** `pnpm verify` (= `pnpm lint && pnpm test && pnpm build`; typecheck runs inside `build`). **Hook-enforced** — the `PreToolUse` git-guard (`.claude/settings.json`) blocks any commit until the gate passes, so a failing gate is a loop to fix, not a suggestion to skip.
 4. **Docs say what the code can't.** A skill carries decisions, the *why*, the deliberately-absent, and the traps — **not** a paraphrase of how a file works today. For current mechanics, read the file (it never goes stale); the skill points you to the entry file and tells you what a fresh read won't. So: when you change a decision or hit a new trap, update its home skill in the same commit; when you find a skill describing mechanics the code already shows, *cut it*; and prefer enforcing a rule in Biome over writing it in prose (a lint rule can't rot or be ignored). No decision log, no redundant guides.
 5. **shadcn primitives only — and load the `shadcn` skill first.** Always use shadcn components for UI primitives; never hand-roll one (sidebar, tabs, dialogs, trees, etc.). **Before any UI work, load the `shadcn` skill** and check whether shadcn/registries already provide something that fits — search there before building. If a needed primitive doesn't exist in shadcn/registries, **get the user's approval before building it**.
 6. **Let type-safety drive the design.** When types fight you, change the design — don't escape it. `any` is already a Biome error (the gate enforces it), so this rule is the half lint can't: reach for the safer shape (e.g. tRPC over a hand-rolled bridge) instead of an `as unknown as` cast (banned repo-wide).
 7. **No `void` on promises.** Never write `void somePromise()` to silence floating promises — use `async`/`await` (or `await Promise.all([...])` when batching). Bare calls like `utils.foo.invalidate()` in sync handlers are fine when you truly don't need to wait.
 8. **Commit straight to `main` — never create branches.** Solo developer; `main` is the only branch and committing directly to it (after the verification gate, hard rule 3) is safe and expected. Do NOT open `feat/*`/`fix/*` branches or PRs for changes, and do NOT branch just because you're on the default branch — keep everything on `main`. (This deliberately overrides the generic "branch off the default branch first" default.) The git-guard hook **hard-blocks** branch creation, so this is enforced, not just convention.
+9. **Close the loop — every session.** Intent → paths → execute → test → verify **with evidence** → docs sync → gate → commit; the `close-the-loop` skill owns the phases, the testing doctrine (unit tests for the daemon, browser-first for the UI), and the autonomy split (fix objective findings without asking; escalate judgment calls). Never end at "implemented, should work" — ship verified, or report blocked with exactly what's missing.
 
 **Verifying live with computer-use:** run `pnpm dev` (opens the dev Electron on `~/Code/porcelain-playground` with isolated config) and request computer-use access for the **dev app — it shows up as "Electron"**, bundle id `com.github.Electron`. NEVER request the installed **"Porcelain"** app: that's the user's real work (their day-job repo) and it doesn't have your changes anyway. Screenshot/drive the dev "Electron" window.
 
@@ -21,7 +22,8 @@ Porcelain is the hub for agentic coding (Electron, macOS): run your coding agent
 
 Only each skill's one-line description loads up front; the body loads on demand when you read it. Read the relevant skill *before* acting in its area.
 
-- `architecture` — stack, repo facts, aliases, conventions, app shell, client architecture. **Read before writing or reviewing any code.**
+- `close-the-loop` — the development loop every session must complete, the testing doctrine (unit tests for the daemon, browser-first for the UI), and the autonomy split. **Read at the start of any session that will change code.**
+- `architecture` — stack, repo facts, aliases, conventions, app shell, client architecture, and the app's shared nomenclature. **Read before writing or reviewing any code.**
 - `product` — what Porcelain is, who it's for, core features, product principles. **Read before designing features/UI or prioritizing.**
 - `audit` — the security/correctness/performance/type invariants the codebase must not regress, with file pointers. **Read before changing the main process, IPC, config persistence, git plumbing, file reads, external-URL handling, or packaging — and when reviewing a diff for regressions.**
 - `releasing` — the runbook for cutting a signed + notarized release (bump/tag, the Actions pipeline, secrets, changelog). **Read when publishing a version or touching the release/signing setup.**
@@ -29,7 +31,7 @@ Only each skill's one-line description loads up front; the body loads on demand 
 
 Also available, but **not** vendored in this repo (globally installed, listed here only so you know they exist): `improve` (read-only senior-advisor audit harness → plans in `plans/`) and `frontend-design`.
 
-**Distribution split (don't leak internal skills).** The 7 *companion* skills the app ships to users live at repo root `/skills/` and are published via skills.sh (`npx skills add FabioFiorita/porcelain`). Everything in `.agents/skills/` is *internal* (repo guidance + vendored `shadcn`) and must carry `metadata.internal: true` in its frontmatter — the skills.sh CLI scans `.agents/skills` **and** `.claude/skills`, so without that flag an internal skill leaks into users' `npx skills add`. Any new `.agents/skills/` skill needs the flag.
+**Distribution split (don't leak internal skills).** The 8 *companion* skills the app ships to users live at repo root `/skills/` and are published via skills.sh (`npx skills add FabioFiorita/porcelain`). Everything in `.agents/skills/` is *internal* (repo guidance + vendored `shadcn`) and must carry `metadata.internal: true` in its frontmatter — the skills.sh CLI scans `.agents/skills` **and** `.claude/skills`, so without that flag an internal skill leaks into users' `npx skills add`. Any new `.agents/skills/` skill needs the flag.
 
 **No personal setup in shipped content.** Anything users see — the `/skills/` companion skills, app copy, published docs — must never use Fabio's personal environment as an example or placeholder (his "beelink" home server, personal hostnames, `soaphealth` repo paths, etc.). Use generic placeholders instead (`you@remote-host`, `/home/you/code/my-app`). Internal `.agents/skills/` guidance may reference the real dev setup.
 
@@ -77,65 +79,11 @@ How to apply:
 
 ### Hardware constraint
 
-This machine is a MacBook Pro M1 Pro with **16GB RAM** — heavy parallel work swaps and everything crawls. Keep concurrent sub-agents that run local commands (builds/tests) modest: 2-3 at a time, not a 10-wide fan-out. Read-only/search sub-agents can fan out freely. If a command seems stuck or the machine is thrashing, suspect memory pressure before suspecting the code.
+Dev usually runs on the Beelink Linux host (Ryzen 7 255, 8c/16t, **32GB RAM**) — 4-6 concurrent sub-agents running local commands (builds/tests) are fine there. If the session is on the MacBook Pro (M1 Pro, **16GB**), keep it to 2-3 — heavy parallel work swaps and everything crawls. Read-only/search sub-agents can fan out freely on either. If a command seems stuck or the machine is thrashing, suspect memory pressure before suspecting the code.
 
 ## Nomenclature
 
-Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wrong") resolves to one place without asking. Each term maps to real code; when the user uses one, act on the named region — don't re-ask which one. The file in parens is the **entry point** — read it for current mechanics; the `architecture` skill holds the cross-cutting decisions and traps. This is the lookup table.
-
-**Shell regions (the window, outside-in):**
-- **Top bar** — the full-width window **titlebar** (`title-bar.tsx`): traffic lights + a centered search button + a **Remote** chip (top-right) when THIS window is bound to a remote environment (Settings → Environments). **Not** the viewer's own header (`TopBar` in `app-shell.tsx`, below it).
-- **Sidebar** (unqualified = the **left** one) — `app-sidebar.tsx`; the nav panel (Cmd+B). An **icon rail** beside a **content panel** (active tab's body); footer = **branch chip** (left) + **worktrees picker** (right).
-- **Viewer** — the central panel (`shell/viewer.tsx`, `components/viewer/`). **Never "editor"** — Porcelain is a viewer.
-- **Quick Access** — the **right** panel (`right-sidebar.tsx`, Cmd+.); its contents follow the active sidebar tab.
-
-**Inside the sidebar** (tabs `Files`·`Search`·`Changes`·`History`·`Feature`·`Board`·`Chat`·`Terminal`·`Agent`; `sidebarTab` pref, Cmd+1–9 — a vertical icon rail, ⌘B collapses to it):
-- **File tree** — Files body (`file-tree.tsx` / `tree-node.tsx`).
-- **Search list** — Search body (`search-list.tsx`): repo-wide code search (`gitSearchCode`), distinct from the ⌘⇧F `ContentSearch` overlay (`gitGrep`).
-- **Changes list** — Changes body (`changes-list.tsx`), grouped by flow layer.
-- **History list** — History body (`history-list.tsx`).
-- **Feature list** — Feature body (`feature-list.tsx`): the **outline** of the Review — section titles (click to jump the open Review document there) + each section's files with reviewed marks, a "More files" block, and a Loop evidence row. The viewer feature view is the expanded read.
-- **Board list** — Board body (`board-list.tsx`): the todo/doing/done cards.
-- **Chat list** — Chat body (`chat-list.tsx`): agent relay messages (local ↔ remote collab); viewer chat view is the full thread.
-- **Terminal list** — Terminal body (`terminal-list.tsx`): the roster of terminal **sessions** (they outlive their tabs — a closed tab keeps the PTY running).
-- **Agent list** — Agent body (`agent-list.tsx`): the roster of **agent threads** (daemon-owned, they survive reloads).
-
-**Inside the viewer:**
-- **Tab bar** — the floating capsule of open documents (`tab-bar.tsx`).
-- **Tab** — one open document. **Preview** = single-click, italic, replaced by the next; **pinned** = double-click/edit, kept.
-- **Split view / pane** — two side-by-side **panes**, each its own tabs (`panes`/`activePaneIndex` in `stores/tabs.ts`); "Open to the Side". Model in `architecture` (Routing).
-- **Tab kinds** — `file view` / `source view` (`source-view.tsx`) / `markdown reader` (`markdown-view.tsx`) / `html preview` (`html-view.tsx`, sandboxed; Preview|Source like markdown) / `diff view` (`diff-view.tsx`) / `commit view` (`commit-view.tsx`) / `search view` (`search-view.tsx`) / `feature view` (`feature-view.tsx`) / `explore view` (`explore-view.tsx`) / `board view` (`board-view.tsx`) / `chat view` (`chat-view.tsx`) / `terminal view` (`terminal-view.tsx`) / `agent view` (`agent-view.tsx`). What each renders → read the file; the concepts → `product`. (The `feature view` IS the Review — thesis + walkthrough sections + the loop-evidence chapter; the former `artifact`/`evidence` tab kinds are gone.)
-
-**Inside Quick Access** (section follows the sidebar tab):
-- Files → **Pinned** (`pinned-group.tsx`) + **Notes card** (`notes-card.tsx`), in `files-quick-access.tsx`.
-- Search → **Recent searches** (`search-quick-access.tsx`).
-- Changes/History/Feature → **Quick commands** (`quick-commands-group.tsx`): a **Suggested** card over the **Commands** grid.
-- History → **File timeline** (`file-timeline-group.tsx`): the commit history of the file open in the viewer (`gitFileLog`, `--follow`); click an entry to open that commit.
-- Changes/Feature → **Commit composer** (`commit-group.tsx`) + **Comments** (`comments-group.tsx`).
-- Terminal → **Actions** (`actions-group.tsx`).
-- Chat → **Coordination** (`chat-quick-access.tsx`): Participants · Claims · Overlaps, derived from the thread at read time (advisory, no locking).
-- Feature (with the Review focused) → a **Review group** (`review-group.tsx`) above the commit composer: the active section + the visible files' invariants + comment count.
-- Agent → **Session** companion (`agents-quick-access.tsx`): live activity, plan, files touched, usage/limits — header is **Session** (not "Agent") so it doesn't collide with the left tab.
-
-**Overlays:**
-- **File finder** — Cmd+P fuzzy finder (`file-finder.tsx`).
-- **Find bar** — Cmd+F in-viewer search (`find-bar.tsx`).
-- **Settings** — gear → `settings-dialog.tsx` (General · Environments · Review flow · Agents · Updates).
-- **Welcome screen** — the no-repo / repo-picker state (`welcome.tsx`).
-
-**Cross-cutting vocabulary** (the *what* and *why* live in `product`; channel internals + traps in `architecture`/`audit`):
-- **Flow / flow layers** — the architectural-layer grouping of changes (entry-point → data); the heart of "review as a story".
-- **The Review / feature view / review set** — the change widened to the whole feature and published by the agent as ONE document (**the Review**): a thesis, flow-ordered walkthrough sections (markdown prose + optional inline-SVG diagram + line-range-anchored code), then the loop-evidence chapter. Files are tagged **changed** / **context** (import-reached) / **shipped** (agent-declared cross-seam). The review set is the agent-fed manifest (`~/.porcelain/review-sets.json`), now carrying `thesis` + `sections`. No review set → the Feature tab's "No review yet" empty state (there is no baseline).
-- **Loop evidence** — agent-authored self-contained HTML *proof the loop closed* (browser/simulator validation, screenshots, pass/fail); directory-on-disk (`~/.porcelain/loop-evidence/<key>/`, legacy `evidence.json` fallback), the app write = clear only. Renders as the **final chapter of the Review** (no separate tab kind); the outline's Loop evidence row jumps there. Ephemeral — clear after review (e.g. before commit/push).
-- **Review comments** — the reviewer's line/file notes (`~/.porcelain/comments.json`), app→agent via the porcelain CLI.
-- **Reviewed marks** — the per-file "reviewed" checkboxes the human ticks in the Changes/Feature lists (`~/.porcelain/reviewed.json`), app→agent via the porcelain CLI (read-only, like notes); cleared on commit.
-- **Project board** — per-repo todo/doing/done (`~/.porcelain/board.json`), two-way via the porcelain CLI.
-- **Agent chat / relay** — per-repo messages (`~/.porcelain/chat.json`), two-way via the porcelain CLI; Chat sidebar tab for local↔remote agent collab. A message carrying a file footprint (`--files`/`--intent`/`--closes`) is a **claim**; the app derives live claims + overlaps at read time (Coordination panel), no new channel.
-- **Embedded terminal / Actions** — real PTYs (node-pty + xterm.js) on the daemon's WS session (`lib/daemon.ts`, not tRPC and no longer a preload channel). **Actions** = saved named commands (`~/.porcelain/actions.json`); agent curates, **human runs**.
-- **Agent threads / drivers** — daemon-owned conversations with a coding agent, run inside Porcelain; **drivers** spawn the user's installed CLIs (Claude Code, Codex, OpenCode). Entry points: `src/backend/agents/agent-manager.ts` + `src/shared/agent-protocol.ts`. The *what/why* lives in `product`; internals/traps in `architecture`/`audit`.
-- **Daemon** — the headless, Electron-free backend process (`src/backend/server.ts`) the renderer talks to over HTTP + one WebSocket on 127.0.0.1; the shell spawns/babysits it. Entry points: `src/main/daemon.ts` (spawn), `src/backend/server.ts` + `session.ts` (serve). "The daemon" always resolves here.
-- **Repo / worktree / window** — one repo per window; the worktree switcher sits in the sidebar footer.
-- **Surface language** — the opaque design (shadcn preset `b1tNqHXYe`: mira/mist/sky). Raised surfaces are cards (`rounded-* border bg-card`) over the app background; recessed wells are `border bg-muted`; hover/selected are the opaque `bg-accent`/`bg-accent/50` (and `bg-sidebar-accent`). **No vibrancy/glass/translucency anywhere** — the former glaze system is gone. ONE design serves mac/linux/web.
+The shared vocabulary — shell regions (top bar, sidebar, viewer, Quick Access), sidebar tabs and their lists, viewer tab kinds, overlays, and the cross-cutting terms (flow layers, the Review, loop evidence, agent channels, the daemon) — lives in the `architecture` skill's **Nomenclature** section: a lookup table mapping each term to its entry file. When the user says a bare noun ("improve the viewer", "the Changes tab is wrong"), resolve it there and act on the named region — don't re-ask which one.
 
 ## Cursor Cloud specific instructions
 
@@ -144,4 +92,4 @@ Porcelain is a macOS app, but it runs headlessly in the Linux Cloud VM for dev +
 - **Electron 42 has no `postinstall`** — `pnpm install` does NOT download the Electron binary, so `pnpm dev`/`pnpm start` fail with `Error: Electron uninstall` on a fresh checkout. Fix: `node node_modules/electron/install.js` (idempotent, cached). The startup update script already runs this; only re-run it by hand if dev errors with `Electron uninstall`.
 - **Run the dev app under Xvfb:** `DISPLAY=:1 pnpm dev`. The repeated `Failed to connect to the bus` (dbus) errors in the log are harmless on this headless VM. Drive/screenshot the window via computer-use as the **"Electron"** app.
 - **`pnpm dev` opens `~/Code/porcelain-playground`** (`dev-config.ts` seeds it as a recent repo only if the path exists). The VM has no such repo by default — create it as a git repo first (`git init` + a commit), or the app just lands on the welcome screen with nothing to review.
-- **macOS-only paths don't run here:** `pnpm dist`/`pnpm release` (electron-builder `--mac`, signing/notarization) and the Playwright `pnpm test:e2e` Electron suite target macOS arm64; they are not part of the per-commit gate and aren't expected to work on the Linux VM. The per-commit gate `pnpm verify` (lint + typecheck + test + build) does run fully here.
+- **macOS-only paths don't run here:** `pnpm dist`/`pnpm release` (electron-builder `--mac`, signing/notarization) aren't expected to work on the Linux VM. The per-commit gate `pnpm verify` (lint + test + build) runs fully here, and so does the day-to-day e2e suite `pnpm test:e2e` (the `browser` Playwright project — headless Chromium, no display needed). Only `pnpm test:e2e:native` (the Electron project) needs a display server.
