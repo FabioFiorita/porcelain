@@ -120,25 +120,27 @@ export function createWindow(init: WindowInit = { mode: 'restore' }): BrowserWin
     console.error(`[renderer gone] reason=${details.reason} exitCode=${details.exitCode}`)
   })
 
-  // Cmd/Ctrl+W closes the active tab in the renderer, not the window; the renderer
-  // calls window.close() itself when no tabs are open. Modifier is platform-aware:
-  // Cmd on macOS, Ctrl elsewhere (Linux/Windows need Ctrl+W).
-  const usesMetaClose = platform === 'darwin'
-  mainWindow.webContents.on('before-input-event', (event, input) => {
-    // TRAP: on Linux, Ctrl+W inside a focused embedded terminal should reach the
-    // shell (kill word / close pane), not the tab — that focus-aware refinement is
-    // deliberately out of scope; this intercepts Ctrl+W window-wide for now.
-    const closeModifierDown = usesMetaClose ? input.meta : input.control
-    if (
-      input.type === 'keyDown' &&
-      closeModifierDown &&
-      input.key.toLowerCase() === 'w' &&
-      !input.shift
-    ) {
-      event.preventDefault()
-      mainWindow.webContents.send('shell-event', 'close-tab')
-    }
-  })
+  // Close-tab (Cmd/Ctrl+W → close the active tab, or the window when none is open) is
+  // owned platform-split:
+  //   - macOS: the main process intercepts Cmd+W here, because Electron delivers it to
+  //     the OS default (close window) before the renderer sees it — main must
+  //     preventDefault() and route it to the renderer via the shell-event channel.
+  //   - Linux/Windows: NO intercept — the renderer owns Ctrl+W (use-app-shortcuts.ts).
+  //     Letting the keydown reach the page is what lets a focused embedded terminal
+  //     keep Ctrl+W as readline's kill-word; the renderer handler yields to the PTY.
+  if (platform === 'darwin') {
+    mainWindow.webContents.on('before-input-event', (event, input) => {
+      if (
+        input.type === 'keyDown' &&
+        input.meta &&
+        input.key.toLowerCase() === 'w' &&
+        !input.shift
+      ) {
+        event.preventDefault()
+        mainWindow.webContents.send('shell-event', 'close-tab')
+      }
+    })
+  }
 
   mainWindow.on('ready-to-show', () => {
     // Under e2e the window stays hidden — Playwright drives the renderer and

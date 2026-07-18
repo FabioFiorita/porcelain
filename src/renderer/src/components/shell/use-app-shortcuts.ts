@@ -23,7 +23,8 @@ const SIDEBAR_TAB_KEYS: Record<string, SidebarTab | undefined> = {
 }
 
 /**
- * Window-level shortcuts: Cmd+W (via main, see before-input-event), Ctrl+Tab cycling,
+ * Window-level shortcuts: close-tab (Ctrl+W here on Linux/Windows, yielding to a focused
+ * terminal; macOS Cmd+W goes via main's before-input-event instead), Ctrl+Tab cycling,
  * Cmd+1–9 sidebar tabs, and the context-aware "new" shortcuts for Board/Terminal (⌘N)
  * plus ⌘T for a terminal anywhere. Files' ⌘N/⌘⇧N/⌘D/⌘⌫ and the Agent tab's ⌘N (new
  * thread) live in dedicated components (FileCommands / AgentCommands) instead — those go
@@ -35,6 +36,20 @@ export function useAppShortcuts(): void {
       if (e.key === 'Tab' && e.ctrlKey) {
         e.preventDefault()
         useTabsStore.getState().cycleTab(e.shiftKey ? -1 : 1)
+        return
+      }
+      // Ctrl+W closes the active tab (or the window when none is open) on Linux/Windows,
+      // where the renderer owns it — macOS keeps the main-process path (before-input-event
+      // → shell-event 'close-tab'), so gate this on ctrlIsPrimary to avoid double-handling
+      // Cmd+W. Yield to a focused embedded terminal: let Ctrl+W fall through to xterm so
+      // readline gets its kill-word.
+      if (ctrlIsPrimary && isModExclusive(e) && e.key.toLowerCase() === 'w' && !e.shiftKey) {
+        if (isTerminalTarget(e.target)) return
+        e.preventDefault()
+        const { panes, activePaneIndex, closeTab } = useTabsStore.getState()
+        const activeTabId = panes[activePaneIndex]?.activeTabId
+        if (activeTabId) closeTab(activePaneIndex, activeTabId)
+        else window.close()
         return
       }
       // Cmd+Shift+S splits the active tab to the side (mirrors "Open to the Side").
