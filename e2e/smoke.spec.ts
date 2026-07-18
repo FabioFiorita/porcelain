@@ -1,4 +1,4 @@
-import { expect, openSettings, selectTab, test, waitForShell } from './helpers/electron'
+import { expect, openSettings, selectTab, test, waitForShell } from './helpers/app'
 
 test('boots and restores the seeded repo into the shell', async ({ page }) => {
   await waitForShell(page)

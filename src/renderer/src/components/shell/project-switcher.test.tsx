@@ -8,7 +8,7 @@ import { ProjectSwitcher } from './project-switcher'
 // The switcher hides its new-window controls in the browser client (isBrowser);
 // under jsdom there's no preload bridge, so isBrowser is true by default. These
 // tests exercise the Electron-shell UI, so pin isBrowser false.
-vi.mock('@renderer/lib/platform', () => ({ isBrowser: false }))
+vi.mock('@renderer/lib/platform', () => ({ isBrowser: false, isE2E: false }))
 
 // The convention: components read through domain hooks, so mock the hook module
 // and never touch the tRPC proxy. RepoInfo is the real @main/api type, so drift

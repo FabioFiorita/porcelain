@@ -41,7 +41,7 @@ jobs:
       - run: pnpm test
       - run: pnpm build
       - run: pnpm exec playwright install --with-deps chromium
-      - run: pnpm test:e2e:prebuilt
+      - run: pnpm test:e2e:native:prebuilt
       # Pre-create the draft so dmg + zip uploaders share one release (not two drafts).
       - name: Ensure draft release exists
         env:
@@ -87,7 +87,7 @@ jobs:
       # what release:linux:prebuilt packages below.
       # Pin the Xvfb screen large enough for the window: the default Xvfb screen is
       # 1280 wide, which clamps the 1400x900 e2e window and breaks the visual baselines.
-      - run: xvfb-run --auto-servernum -s "-screen 0 1600x1000x24" pnpm test:e2e
+      - run: xvfb-run --auto-servernum -s "-screen 0 1600x1000x24" pnpm test:e2e:native
       - name: Build and publish Linux to GitHub Releases
         run: pnpm release:linux:prebuilt
         env:

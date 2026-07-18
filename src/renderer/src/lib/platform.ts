@@ -28,3 +28,17 @@ export const isBrowser = typeof window !== 'undefined' && window.porcelain === u
  * baseline, unchanged by this flag.
  */
 export const isLinuxShell = typeof window !== 'undefined' && window.porcelain?.platform === 'linux'
+
+/**
+ * True under the Playwright e2e harness, in EITHER runtime: the Electron shell
+ * (the preload sets `porcelain.e2e` from PORCELAIN_E2E) or the browser client
+ * (no preload — the harness plants a localStorage flag via addInitScript before
+ * any script runs). Gates test-only affordances (the terminal buffer hook,
+ * skills-toast suppression). Never set in real runs — and harmless if a user
+ * sets the flag by hand.
+ *
+ * vitest/jsdom note: localStorage exists and returns null → `false` under test.
+ */
+export const isE2E =
+  typeof window !== 'undefined' &&
+  (window.porcelain?.e2e === true || window.localStorage.getItem('porcelain-e2e') === '1')

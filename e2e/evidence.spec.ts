@@ -1,4 +1,4 @@
-import { expect, selectTab, test, waitForShell } from './helpers/electron'
+import { expect, selectTab, test, waitForShell } from './helpers/app'
 
 // A distinctive heading so an assertion inside the frame can't accidentally match the
 // surrounding app chrome.

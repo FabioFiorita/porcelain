@@ -25,12 +25,12 @@ jobs:
       # missing; fetch it explicitly (idempotent, cached) before anything runs it.
       - run: node node_modules/electron/install.js
       - run: pnpm exec playwright install --with-deps chromium
-      # `*-linux.png` visual baselines are committed as of this release, so the
-      # e2e suite asserts them here (no --ignore-snapshots). Runs under a virtual
-      # display; PLAYWRIGHT_FORCE_ASYNC_LOADER=1 is carried by the test:e2e script.
-      # Pin the Xvfb screen large enough for the window: the default Xvfb screen is
-      # 1280 wide, which clamps the 1400x900 e2e window and breaks the visual baselines.
-      - run: xvfb-run --auto-servernum -s "-screen 0 1600x1000x24" pnpm test:e2e
+      # Day-to-day e2e = the browser project (close-the-loop testing doctrine):
+      # headless Chromium against the daemon-served browser client — same built
+      # renderer dist and data path as the Electron window, no display server
+      # needed. The native Electron suite runs on every release (release.yml,
+      # macOS + Linux). `*-browser-linux.png` baselines are asserted.
+      - run: pnpm test:e2e
       # Reuse the build test:e2e just produced in out/ (electron-builder packages it)
       # instead of rebuilding via dist:linux — same trick as the release:prebuilt
       # script for mac.

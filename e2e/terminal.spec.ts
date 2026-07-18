@@ -1,4 +1,4 @@
-import { expect, expectTerminalText, selectTab, test, waitForShell } from './helpers/electron'
+import { expect, expectTerminalText, selectTab, test, waitForShell } from './helpers/app'
 
 // These exercise the real PTY round-trip end to end: node-pty spawns a shell in the
 // main process, bytes stream over the dedicated terminal bridge, and xterm.js renders

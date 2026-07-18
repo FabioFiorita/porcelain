@@ -1,6 +1,6 @@
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { expect, REPO_DIR, selectTab, test, waitForShell } from './helpers/electron'
+import { expect, REPO_DIR, selectTab, test, waitForShell } from './helpers/app'
 import { createFixtureRepo } from './helpers/fixture-repo'
 
 // This spec mutates a tracked file in the shared worker-scoped fixture repo

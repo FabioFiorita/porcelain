@@ -1,4 +1,4 @@
-import { expect, openSettings, selectTab, test, waitForShell } from './helpers/electron'
+import { expect, openSettings, selectTab, test, waitForShell } from './helpers/app'
 
 // Screenshot baselines = the regression net. DOM-only (no native window chrome /
 // traffic lights — the UI is one opaque design, no vibrancy), per-platform

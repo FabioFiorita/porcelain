@@ -18,6 +18,7 @@ vi.mock('@renderer/hooks/use-daemon-skew', () => ({
 vi.mock('@renderer/lib/platform', () => ({
   isBrowser: false,
   isLinuxShell: false,
+  isE2E: false,
 }))
 
 const beelink = { id: 'beelink', name: 'Beelink', url: 'http://100.64.1.2:43117' }

@@ -8,8 +8,10 @@ import { SkillsUpdateToast } from './skills-update-toast'
 
 // The toast is shell-only (skills installs don't exist in the browser client), so
 // it early-returns when isBrowser — jsdom's default (no preload bridge). This
-// suite tests the Electron-shell behavior, so pin isBrowser false.
-vi.mock('@renderer/lib/platform', () => ({ isBrowser: false }))
+// suite tests the Electron-shell behavior, so pin isBrowser false. isE2E is a
+// mutable holder so the e2e-harness test can flip it per test.
+const mockPlatform = vi.hoisted(() => ({ isBrowser: false, isE2E: false }))
+vi.mock('@renderer/lib/platform', () => mockPlatform)
 
 // Mock the info hook (never tRPC) and the toast system; the component is a pure
 // side effect, so we assert on what it tells sonner.
@@ -36,6 +38,7 @@ const lastToast = (): NonNullable<Parameters<typeof toast.info>[1]> => {
 beforeEach(() => {
   vi.clearAllMocks()
   vi.unstubAllGlobals()
+  mockPlatform.isE2E = false
   vi.mocked(useSkillsInfo).mockReturnValue(skillsInfo('2.9.0'))
   usePreferencesStore.setState({
     skillsDismissedVersion: null,
@@ -54,7 +57,7 @@ describe('SkillsUpdateToast', () => {
   })
 
   it('stays silent under the e2e harness so screenshots stay deterministic', () => {
-    vi.stubGlobal('porcelain', { e2e: true })
+    mockPlatform.isE2E = true
     render(<SkillsUpdateToast />)
     expect(toast.info).not.toHaveBeenCalled()
   })

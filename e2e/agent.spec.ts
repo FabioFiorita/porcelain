@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, selectTab, test, waitForShell } from './helpers/electron'
+import { expect, selectTab, test, waitForShell } from './helpers/app'
 
 // These exercise the Agent tab against the scripted in-process FAKE driver (enabled by
 // PORCELAIN_AGENT_FAKE=1 in the fixture), so a turn runs deterministically without a real

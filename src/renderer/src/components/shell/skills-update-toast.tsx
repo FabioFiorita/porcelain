@@ -1,5 +1,5 @@
 import { useSkillsInfo } from '@renderer/hooks/use-skills'
-import { isBrowser } from '@renderer/lib/platform'
+import { isBrowser, isE2E } from '@renderer/lib/platform'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useSettingsDialogStore } from '@renderer/stores/settings-dialog'
 import { useEffect, useRef } from 'react'
@@ -29,7 +29,7 @@ export function SkillsUpdateToast(): null {
     // Skills installs are shell-only; the browser client has nothing to update.
     if (isBrowser) return
     // Suppress under the e2e harness — deterministic e2e screenshots.
-    if (window.porcelain?.e2e) return
+    if (isE2E) return
     if (!needsUpdate || current === undefined) return
     if (shown.current === current) return
     shown.current = current

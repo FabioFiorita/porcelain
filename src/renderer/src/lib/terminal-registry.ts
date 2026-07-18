@@ -4,6 +4,7 @@ import { FitAddon } from '@xterm/addon-fit'
 import { WebglAddon } from '@xterm/addon-webgl'
 import { Terminal } from '@xterm/xterm'
 import { resizeTerminal, writeTerminal } from './daemon'
+import { isE2E } from './platform'
 import { terminalEditBytes } from './terminal-keys'
 import { attachTouchScroll } from './terminal-touch-scroll'
 
@@ -382,7 +383,7 @@ export function focusTerminal(id: string): void {
 // independently of the renderer, so we serialize THAT instead. Installed on `window`
 // only under the e2e harness; `index` is creation order (Map insertion = `.first()`/
 // `.last()` pane order in the specs).
-if (window.porcelain?.e2e) {
+if (isE2E) {
   window.__porcelainTerminalText = (index: number): string => {
     const instance = [...instances.values()][index]
     if (!instance) return ''

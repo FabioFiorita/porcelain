@@ -6,7 +6,7 @@ import { useRepoStore } from './repo'
 // boot() skips windowInit entirely in the browser client (isBrowser), which is
 // jsdom's default (no preload bridge). This suite tests the Electron windowInit
 // branches, so pin isBrowser false.
-vi.mock('@renderer/lib/platform', () => ({ isBrowser: false }))
+vi.mock('@renderer/lib/platform', () => ({ isBrowser: false, isE2E: false }))
 
 // boot() drives the window-aware boot: it reads windowInit and branches on the
 // mode, so we mock the tRPC client surface it (and restoreLastRepo) touches.

@@ -9,7 +9,7 @@ import { WorktreeSwitcher } from './worktree-switcher'
 // The switcher hides its new-window control in the browser client (isBrowser);
 // jsdom has no preload bridge, so isBrowser is true by default. This suite tests
 // the Electron-shell UI, so pin isBrowser false.
-vi.mock('@renderer/lib/platform', () => ({ isBrowser: false }))
+vi.mock('@renderer/lib/platform', () => ({ isBrowser: false, isE2E: false }))
 
 // Components read through domain hooks, so mock the hook modules and never touch
 // the tRPC proxy. Worktree is the real @main/diff type, so shape drift breaks here.

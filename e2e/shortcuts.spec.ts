@@ -1,11 +1,4 @@
-import {
-  expect,
-  expectTerminalText,
-  REPO_DIR,
-  selectTab,
-  test,
-  waitForShell,
-} from './helpers/electron'
+import { expect, expectTerminalText, REPO_DIR, selectTab, test, waitForShell } from './helpers/app'
 import { createFixtureRepo } from './helpers/fixture-repo'
 
 // The Files test mutates the shared worker-scoped fixture repo (creates/duplicates/
