@@ -82,12 +82,17 @@ export interface IfaceListener {
  *
  * `reconcileMs` is injectable so tests can exercise the interval without waiting
  * the production 5s (or set 0 to disable the timer entirely).
+ *
+ * `port` defaults to the fixed `LISTENER_PORT` — the production tailnet/LAN
+ * singletons always bind it. It's injectable only so tests can own an ephemeral
+ * port on a host whose live daemon is already squatting the fixed one.
  */
 export function createIfaceListener(
   pickAddresses: () => string[],
   formatUrl: (addresses: string[]) => string | null,
   label: string,
   reconcileMs: number = IFACE_RECONCILE_MS,
+  port: number = LISTENER_PORT,
 ): IfaceListener {
   let servers: Server[] = []
   let bound: string[] = []
@@ -146,16 +151,17 @@ export function createIfaceListener(
       const listener = createServer(request)
       listener.on('upgrade', upgrade)
       listener.once('error', (error) => {
-        // EADDRINUSE = the fixed port is squatted (typically a stale daemon
-        // that outlived its parent) — remember it so error() can distinguish
-        // "port in use" from "no interface found" when nothing binds.
+        // EADDRINUSE = the bound port is squatted (in production the fixed port,
+        // typically a stale daemon that outlived its parent) — remember it so
+        // error() can distinguish "port in use" from "no interface found" when
+        // nothing binds.
         const inUse = (error as NodeJS.ErrnoException).code === 'EADDRINUSE'
         console.error(`[daemon] ${label} listener failed on ${addr}:`, error)
         listener.close()
         resolve({ failed: inUse ? 'in-use' : 'other' })
       })
-      listener.listen(LISTENER_PORT, addr, () => {
-        console.error(`[daemon] ${label} listener bound on ${addr}:${LISTENER_PORT}`)
+      listener.listen(port, addr, () => {
+        console.error(`[daemon] ${label} listener bound on ${addr}:${port}`)
         resolve({ server: listener, addr })
       })
     })

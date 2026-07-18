@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { createHash } from 'node:crypto'
 import { mkdtemp } from 'node:fs/promises'
-import type { AddressInfo } from 'node:net'
+import { type AddressInfo, createServer as createNetServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -27,11 +27,25 @@ import { router } from './api'
 import { initConfigDir } from './config-store'
 import { createDaemonHttp } from './daemon-http'
 import { createSession } from './session'
-import { createIfaceListener, initIfaceHandlers, LISTENER_PORT } from './tailnet-listener'
+import { createIfaceListener, initIfaceHandlers } from './tailnet-listener'
 import { attachTerminal } from './terminal-manager'
 
 const TOKEN = 'test-token'
 const ORIGIN = 'http://localhost:5173'
+
+// Bind a throwaway server on port 0 to learn a free port, then release it — so
+// the second-listener test owns its port instead of racing a live daemon on the
+// production LISTENER_PORT.
+function freePort(): Promise<number> {
+  return new Promise<number>((resolve, reject) => {
+    const probe = createNetServer()
+    probe.once('error', reject)
+    probe.listen(0, '127.0.0.1', () => {
+      const { port } = probe.address() as AddressInfo
+      probe.close(() => resolve(port))
+    })
+  })
+}
 
 let base: string
 let daemon: ReturnType<typeof createDaemonHttp>
@@ -131,21 +145,24 @@ describe('second-listener factory — the tailnet/LAN listeners share the token 
   it('serves /trpc token-gated on a second bound address (401 without token, 200 with)', async () => {
     // The LAN and tailnet listeners are two instances of createIfaceListener sharing
     // server.ts's request/upgrade handlers. Boot one on loopback (a distinct socket
-    // from the main harness daemon: same 127.0.0.1, fixed port LISTENER_PORT) and
-    // prove the token gate applies to it exactly as it does to the primary listener.
+    // from the main harness daemon: same 127.0.0.1, an ephemeral port THIS test owns
+    // rather than the production fixed port a live daemon may hold) and prove the
+    // token gate applies to it exactly as it does to the primary listener.
     initIfaceHandlers(daemon.requestListener, daemon.handleUpgrade)
+    const port = await freePort()
     const listener = createIfaceListener(
       () => ['127.0.0.1'],
-      (addresses) =>
-        addresses[0] !== undefined ? `http://${addresses[0]}:${LISTENER_PORT}` : null,
+      (addresses) => (addresses[0] !== undefined ? `http://${addresses[0]}:${port}` : null),
       'test',
+      0,
+      port,
     )
     const url = await listener.start()
-    expect(url).toBe(`http://127.0.0.1:${LISTENER_PORT}`)
+    expect(url).toBe(`http://127.0.0.1:${port}`)
     try {
-      const noAuth = await fetch(`http://127.0.0.1:${LISTENER_PORT}/trpc/recentRepos`)
+      const noAuth = await fetch(`http://127.0.0.1:${port}/trpc/recentRepos`)
       expect(noAuth.status).toBe(401)
-      const withAuth = await fetch(`http://127.0.0.1:${LISTENER_PORT}/trpc/recentRepos`, {
+      const withAuth = await fetch(`http://127.0.0.1:${port}/trpc/recentRepos`, {
         headers: { authorization: `Bearer ${TOKEN}` },
       })
       expect(withAuth.status).toBe(200)
