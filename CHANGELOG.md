@@ -1,3 +1,18 @@
+## [0.30.0](https://github.com/FabioFiorita/porcelain/compare/v0.29.2...v0.30.0) (2026-07-18)
+
+### Features
+
+* daemon version-skew guard; app-wide compact-scale and surface-language pass ([d3acf7f](https://github.com/FabioFiorita/porcelain/commit/d3acf7f10524c6727c7738fa59d14a715465de79))
+* Linux foundations — platform seam, Porcelain-aware agent sessions, Linux CI ([2eff230](https://github.com/FabioFiorita/porcelain/commit/2eff230e9407e5087c035914181956e52ba92c64))
+* opaque redesign — mira/mist/sky identity, glass system removed, Linux window chrome ([b649dc9](https://github.com/FabioFiorita/porcelain/commit/b649dc95a283210653dc92d5e0e2bfa274d71248)), closes [#090b0c](https://github.com/FabioFiorita/porcelain/issues/090b0c)
+* replace the MCP server with the bundled porcelain CLI ([7833529](https://github.com/FabioFiorita/porcelain/commit/7833529ee115293abb3ec88a401fa9e18a8ef8b1))
+
+### Bug Fixes
+
+* set author email — required by the Linux deb maintainer field ([95d7698](https://github.com/FabioFiorita/porcelain/commit/95d7698be56d8d9f4d457e55f8050bbf1749a973))
+* UI hierarchy pass — quiet row actions, unified card/well recipes, board fill, dedupe Source control ([8ec2fbf](https://github.com/FabioFiorita/porcelain/commit/8ec2fbf3c85bcb0929b4a11ee94b6277466d095c))
+* validate agent-channel HTML inputs, add read previews, skip project boot in codex/grok titles ([085bae4](https://github.com/FabioFiorita/porcelain/commit/085bae42c6894620cd735c1c27e5980df112b6b2))
+
 ## [0.29.2](https://github.com/FabioFiorita/porcelain/compare/v0.29.1...v0.29.2) (2026-07-17)
 
 ### Features
