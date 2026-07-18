@@ -1,6 +1,6 @@
 ---
 name: sync-environments
-description: Copy Porcelain companion setup (saved actions/commands, board, notes, flow layers, review comments, and hidden/pinned folders) from one environment to another — local Mac ↔ remote daemon (Beelink/Linux) — via the Porcelain CLI and SSH. Use when the human asks to seed, share, or mirror Porcelain config/settings between machines, or when a remote clone is missing the project board/actions. Do NOT copy the dynamic feature view (review sets), artifacts, loop evidence, or reviewed marks.
+description: Copy Porcelain companion setup (saved actions/commands, board, notes, flow layers, review comments, and hidden/pinned folders) from one environment to another — local Mac ↔ remote daemon (Linux server) — via the Porcelain CLI and SSH. Use when the human asks to seed, share, or mirror Porcelain config/settings between machines, or when a remote clone is missing the project board/actions. Do NOT copy the dynamic feature view (review sets), artifacts, loop evidence, or reviewed marks.
 ---
 
 # Sync Porcelain environments
@@ -70,7 +70,7 @@ Shape:
    - **A. SSH + the remote's CLI** (best): SSH in and run the daemon-installed `~/.porcelain/porcelain` there — `actions create` / `board create` / `layers set` with `--repo <remote path>`. Nothing to install; the remote daemon already put the CLI in place.
 
      ```bash
-     ssh you@beelink '~/.porcelain/porcelain board create --title "Wire up auth" \
+     ssh you@remote-host '~/.porcelain/porcelain board create --title "Wire up auth" \
        --status todo --repo /home/you/code/my-app'
      ```
    - **B. SSH + edit channel JSON**: merge under the remote absolute path key in each `~/.porcelain/*.json` (atomic write: write `.tmp` then rename). Preserve other repos' keys
@@ -85,7 +85,7 @@ Same steps, reverse source/target. When the human works in a **remote Porcelain 
 
 ```bash
 # Reach the remote (Tailscale hostname or LAN)
-ssh you@beelink
+ssh you@remote-host
 
 # The CLI is already installed by the remote daemon
 ~/.porcelain/porcelain board list --repo /home/you/code/my-app

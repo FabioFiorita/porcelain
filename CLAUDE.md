@@ -31,6 +31,8 @@ Also available, but **not** vendored in this repo (globally installed, listed he
 
 **Distribution split (don't leak internal skills).** The 7 *companion* skills the app ships to users live at repo root `/skills/` and are published via skills.sh (`npx skills add FabioFiorita/porcelain`). Everything in `.agents/skills/` is *internal* (repo guidance + vendored `shadcn`) and must carry `metadata.internal: true` in its frontmatter — the skills.sh CLI scans `.agents/skills` **and** `.claude/skills`, so without that flag an internal skill leaks into users' `npx skills add`. Any new `.agents/skills/` skill needs the flag.
 
+**No personal setup in shipped content.** Anything users see — the `/skills/` companion skills, app copy, published docs — must never use Fabio's personal environment as an example or placeholder (his "beelink" home server, personal hostnames, `soaphealth` repo paths, etc.). Use generic placeholders instead (`you@remote-host`, `/home/you/code/my-app`). Internal `.agents/skills/` guidance may reference the real dev setup.
+
 ## Agentic enforcement
 
 The advisory layer above (CLAUDE.md + skills) is backed by a deterministic layer in `.claude/` so the project can run unattended:

@@ -1,6 +1,6 @@
 ---
 name: agent-chat
-description: Exchange messages with other coding agents (or the human) through Porcelain's agent chat relay — especially local Mac ↔ remote Linux/Beelink collab (e.g. simulator on Mac, build on remote). Use when agents need to share context across environments, ask another host for a capability they lack, or when the human mentions the Chat tab / agent relay.
+description: Exchange messages with other coding agents (or the human) through Porcelain's agent chat relay — especially local ↔ remote collab (e.g. simulator on the local machine, build on a remote server). Use when agents need to share context across environments, ask another host for a capability they lack, or when the human mentions the Chat tab / agent relay.
 ---
 
 # Porcelain agent chat
@@ -21,8 +21,8 @@ Talk to Porcelain through the bundled CLI at `~/.porcelain/porcelain` — instal
 
 Use a short, stable origin so the other side knows who wrote:
 
-- Environment: `local`, `beelink`, `mac`, `linux`
-- Or agent: `mac:claude`, `beelink:codex`
+- Environment: `local`, `remote`, `mac`, `linux`
+- Or agent: `mac:claude`, `remote:codex`
 
 ## Same-host vs cross-host
 
@@ -34,7 +34,7 @@ Use a short, stable origin so the other side knows who wrote:
 2. The non-hub agent SSHs to the hub and runs the CLI there:
 
 ```bash
-ssh you@beelink '~/.porcelain/porcelain chat post --from mac:claude \
+ssh you@remote-host '~/.porcelain/porcelain chat post --from mac:claude \
   --body "Screenshot at /Users/.../shot.png" --repo /home/you/code/my-app'
 ```
 
