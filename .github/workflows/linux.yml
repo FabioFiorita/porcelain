@@ -1,0 +1,42 @@
+name: Linux
+
+# Runs the e2e suite and builds the Linux app (AppImage + deb) on Ubuntu. The
+# `pnpm verify` gate lives in ci.yml (already run on ubuntu for every main push),
+# so this workflow does e2e + packaging only, to avoid doubling CI time.
+# The Mac release lives in release.yml; this is a separate, unsigned Linux track
+# for the Intel/AMD mini PC dev box. Artifacts are uploaded, not published.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Electron 42 has no postinstall, so a fresh install leaves the binary
+      # missing; fetch it explicitly (idempotent, cached) before anything runs it.
+      - run: node node_modules/electron/install.js
+      - run: pnpm exec playwright install --with-deps chromium
+      # --ignore-snapshots: visual baselines are per-platform and only `-darwin`
+      # baselines exist today. Drop this flag once `*-linux.png` baselines are
+      # generated on real Linux hardware and committed. Runs under a virtual
+      # display; PLAYWRIGHT_FORCE_ASYNC_LOADER=1 is carried by the test:e2e script.
+      - run: xvfb-run --auto-servernum pnpm test:e2e --ignore-snapshots
+      # Reuse the build test:e2e just produced in out/ (electron-builder packages it)
+      # instead of rebuilding via dist:linux — same trick as the release:prebuilt
+      # script for mac.
+      - run: pnpm exec electron-builder --linux --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: porcelain-linux
+          path: |
+            dist/*.AppImage
+            dist/*.deb

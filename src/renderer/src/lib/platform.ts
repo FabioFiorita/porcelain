@@ -14,3 +14,17 @@
  * them, so nothing reaches the shell router through this flag.
  */
 export const isBrowser = typeof window !== 'undefined' && window.porcelain === undefined
+
+/**
+ * True in the Electron shell running on a Linux (or forced-Linux) desktop — the
+ * preload IS present, so `isBrowser` is false, but `window.porcelain.platform`
+ * is 'linux'. This is the third seam case: like the browser client it wants
+ * Ctrl as the primary modifier and the opaque fallback surface, but with
+ * desktop-Linux word labels (Ctrl+Shift+F), not the browser's glyphs. Keyboard
+ * and main.tsx fan out from here.
+ *
+ * vitest/jsdom note: no preload bridge, so `window.porcelain?.platform` is
+ * undefined and this is `false` under test — the browser default stays the
+ * baseline, unchanged by this flag.
+ */
+export const isLinuxShell = typeof window !== 'undefined' && window.porcelain?.platform === 'linux'

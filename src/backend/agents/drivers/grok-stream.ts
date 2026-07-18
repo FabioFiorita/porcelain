@@ -1,5 +1,6 @@
 import { join } from 'node:path'
 import { type AgentEvent, type ModelInfo, TOOL_OUTPUT_CAP } from '../../../shared/agent-protocol'
+import { PORCELAIN_PREAMBLE } from '../porcelain-preamble'
 
 /**
  * The Grok driver's PURE half: binary resolution, the static model catalog, auth
@@ -145,7 +146,17 @@ export function buildGrokArgs(opts: {
   resumeId?: string
   options?: { effort?: string }
 }): string[] {
-  const args = ['-p', opts.prompt, '--output-format', 'streaming-json']
+  // Tell the agent it's running inside Porcelain on every headless turn. `--rules` is Grok's
+  // native "extra rules appended to the system prompt"; a constant string keeps the prompt
+  // prefix cache-stable across our per-turn spawns (same rationale as Claude's flag).
+  const args = [
+    '-p',
+    opts.prompt,
+    '--output-format',
+    'streaming-json',
+    '--rules',
+    PORCELAIN_PREAMBLE,
+  ]
   if (opts.model !== '') args.push('--model', opts.model)
   args.push(
     '--permission-mode',

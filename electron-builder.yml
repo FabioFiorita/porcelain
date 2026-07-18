@@ -38,6 +38,17 @@ mac:
   # Notarize via notarytool using APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD /
   # APPLE_TEAM_ID env vars (set as repo secrets).
   notarize: true
+linux:
+  target:
+    # x64 only: the target dev box is an Intel/AMD mini PC, and cross-building
+    # arm64 AppImage/deb from an x64 CI runner needs a qemu/arm toolchain that
+    # isn't worth it yet. Add arm64 arches here once there's hardware to run them.
+    - target: AppImage
+      arch: [x64]
+    - target: deb
+      arch: [x64]
+  category: Development
+  # Unsigned: Linux has no equivalent to the Mac Developer ID / notarization step.
 dmg:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false

@@ -114,6 +114,18 @@ describe('formatKbd', () => {
       expect(formatKbd(['alt', '↵'], true)).toBe('Alt+↵')
     })
   })
+
+  describe('Linux shell mode (words, joined with +)', () => {
+    it('renders mod/alt/shift as the words Ctrl/Alt/Shift, other tokens verbatim', () => {
+      expect(formatKbd(['mod', 'B'], true, true)).toBe('Ctrl+B')
+      expect(formatKbd(['mod', 'shift', 'F'], true, true)).toBe('Ctrl+Shift+F')
+      expect(formatKbd(['alt', 'Backspace'], true, true)).toBe('Alt+Backspace')
+    })
+
+    it('takes precedence over the glyph style even when ctrlPrimary is set', () => {
+      expect(formatKbd(['mod', 'shift', 'S'], true, true)).toBe('Ctrl+Shift+S')
+    })
+  })
 })
 
 describe('the .xterm asymmetry (load-bearing for destructive-shortcut safety)', () => {

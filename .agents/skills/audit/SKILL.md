@@ -135,7 +135,10 @@ assumed — this skill is the codebase-specific layer beneath them.
   `claude`/`codex`/`opencode` CLIs, so they carry the same spawn discipline as PTYs plus a
   few of their own: (1) every child spawn passes a scrubbed env — now `agentSpawnEnv()`
   (`login-shell-env.ts`), which is `terminalEnv(process.env)` with the **login-shell-resolved
-  PATH merged in** (login segments first, current appended, deduped). The daemon token and
+  PATH merged in** (login segments first, current appended, deduped) plus **`PORCELAIN=1`**
+  so agent children can detect they're inside Porcelain — deliberately set here, NOT in
+  `terminalEnv` (embedded-terminal PTYs are a plain shell, not an agent session), and it is
+  not a scrubbed var. The daemon token and
   `ELECTRON_RUN_AS_NODE` must never reach an agent CLI any more than a shell — the merge only
   touches PATH, never re-adds a scrubbed var. *Why the PATH merge:* a Dock-launched daemon
   inherits launchd's minimal PATH, so a CLI's own `npx foo` / `node …` / `bun …` MCP servers

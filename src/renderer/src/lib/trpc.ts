@@ -34,6 +34,8 @@ interface PorcelainBridge {
   }
   /** True only under the e2e harness; gates the terminal buffer-read test hook. */
   e2e: boolean
+  /** The desktop OS the shell runs on (resolvePlatform in the preload). Absent on the browser client — read via `window.porcelain?.platform`. */
+  platform: 'darwin' | 'linux' | 'win32'
 }
 
 declare global {

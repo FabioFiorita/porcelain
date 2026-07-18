@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AgentEvent } from '../../../shared/agent-protocol'
+import { PORCELAIN_PREAMBLE } from '../porcelain-preamble'
 import {
   buildClaudeArgs,
   buildUserMessage,
@@ -123,6 +124,18 @@ describe('buildClaudeArgs', () => {
     // Cold-spawning claude -p each turn otherwise re-bills a dynamic system prefix.
     const args = buildClaudeArgs({ model: 'sonnet', mode: 'full' })
     expect(args).toContain('--exclude-dynamic-system-prompt-sections')
+  })
+
+  it('appends the Porcelain preamble as a system prompt on every spawn', () => {
+    // A constant string on each per-turn spawn keeps the system-prompt prefix cache-stable.
+    const args = buildClaudeArgs({ model: 'sonnet', mode: 'full' })
+    expect(args[args.indexOf('--append-system-prompt') + 1]).toBe(PORCELAIN_PREAMBLE)
+  })
+
+  it('keeps the Porcelain preamble on a resumed turn (--resume still last)', () => {
+    const args = buildClaudeArgs({ model: 'claude-opus-4-8', mode: 'full', resumeId: 'sess-1' })
+    expect(args).toContain('--append-system-prompt')
+    expect(args.slice(-2)).toEqual(['--resume', 'sess-1'])
   })
 
   it('omits --model entirely for an empty model (the CLI default)', () => {

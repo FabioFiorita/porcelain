@@ -1,6 +1,7 @@
 import { electronAPI } from '@electron-toolkit/preload'
 import { contextBridge, ipcRenderer } from 'electron'
 import type { ShellEvent } from '../main/shell-events'
+import { resolvePlatform } from '../shared/platform'
 
 // The daemon's base url + session token, fetched synchronously at window boot
 // (the shell spawns the daemon before the first window, so both are known). A
@@ -55,6 +56,9 @@ const porcelain = {
   // reads this to install a buffer-scraping test hook the WebGL renderer otherwise
   // makes impossible (the canvas never fills `.xterm-rows`). Never set in real runs.
   e2e: process.env.PORCELAIN_E2E === '1',
+  // The desktop OS the shell runs on — drives Ctrl-primary + Linux labels + the
+  // opaque fallback surface in the renderer (lib/platform.ts `isLinuxShell`).
+  platform: resolvePlatform(),
 }
 
 if (process.contextIsolated) {

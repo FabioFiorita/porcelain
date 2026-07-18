@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AgentEvent } from '../../../shared/agent-protocol'
+import { PORCELAIN_PREAMBLE } from '../porcelain-preamble'
 import {
   buildGrokArgs,
   GROK_MODELS,
@@ -104,6 +105,8 @@ describe('permissionModeForMode / buildGrokArgs', () => {
       'fix it',
       '--output-format',
       'streaming-json',
+      '--rules',
+      PORCELAIN_PREAMBLE,
       '--model',
       'grok-4.5',
       '--permission-mode',

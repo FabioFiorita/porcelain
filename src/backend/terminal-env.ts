@@ -31,6 +31,10 @@ const DAEMON_ONLY_ENV = [
   // preload), never inside a spawned shell — verified unused there.
   'PORCELAIN_E2E',
   'PORCELAIN_SHELL',
+  // The Mac-dev Linux-chrome override, read only by the shell/preload's resolvePlatform.
+  // Must not leak into a PTY: a nested `pnpm dev` run there would silently render
+  // Linux chrome.
+  'PORCELAIN_FORCE_LINUX',
   // Volta's shim sets this on the real node process when the daemon is started via
   // `~/.volta/bin/node` (common on headless Linux units). If it leaks into a PTY,
   // every subsequent `node`/`yarn`/`npm` shim thinks it's a recursive tool call,

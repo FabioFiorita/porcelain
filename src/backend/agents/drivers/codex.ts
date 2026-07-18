@@ -12,6 +12,7 @@ import type {
   TimelineItem,
 } from '../../../shared/agent-protocol'
 import { agentSpawnEnv } from '../../login-shell-env'
+import { wrapPorcelainContext } from '../porcelain-preamble'
 import type { AgentCommand, AgentDriver, StartTurnOptions, TurnHandle } from '../types'
 import { expandSlashCommand, listCommandFiles } from './agent-commands-fs'
 import {
@@ -578,11 +579,16 @@ export const codexDriver: AgentDriver = {
       // TUI feature, not something `turn/start` does — so we expand custom prompts driver-
       // side against `~/.codex/prompts`. A non-command message passes through unchanged.
       const promptText = await expandSlashCommand(opts.text, [codexPromptsDir()], false)
+      // Porcelain-awareness: the app-server exposes no reliable per-turn system/developer-
+      // prompt surface (developer_instructions only rides EXPERIMENTAL plan mode), so we
+      // prepend the preamble to the FIRST user message of a NEW thread only — `resumeId ===
+      // null`. A resumed thread already carries it, so re-wrapping would re-inject every turn.
+      const inputText = resumeId === null ? wrapPorcelainContext(promptText) : promptText
       const turnResult = await active.request(
         'turn/start',
         buildTurnStartParams({
           threadId,
-          input: buildUserInput(promptText, opts.images),
+          input: buildUserInput(inputText, opts.images),
           effort: opts.options.effort,
           model: opts.model,
           interaction: opts.interaction,

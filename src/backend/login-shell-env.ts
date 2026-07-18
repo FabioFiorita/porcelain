@@ -111,10 +111,17 @@ export function resetLoginShellPathCache(): void {
 /**
  * The env for an agent-CLI child spawn: `terminalEnv(process.env)` with PATH replaced by
  * the login PATH merged over the current one. When resolution failed (null), the plain
- * scrubbed env is returned unchanged.
+ * scrubbed env keeps its original PATH.
+ *
+ * `PORCELAIN=1` marks every agent-CLI child as running inside Porcelain, so skills/scripts
+ * (e.g. the bundled `~/.porcelain/porcelain` CLI's own detection) can tell they're in the
+ * Agent tab rather than a bare terminal. Set here, at the single spawn-env source, so it
+ * reaches every driver — and NOT in `terminalEnv`, so the embedded terminal's PTYs stay
+ * unmarked (they're a plain shell, not an agent session).
  */
 export async function agentSpawnEnv(): Promise<Record<string, string>> {
   const env = terminalEnv(process.env)
+  env.PORCELAIN = '1'
   const loginPath = await resolveLoginShellPath()
   if (loginPath === null) return env
   env.PATH = mergePathSegments(loginPath, env.PATH ?? '')

@@ -3,10 +3,12 @@ import './assets/main.css'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
-import { isBrowser } from './lib/platform'
+import { isBrowser, isLinuxShell } from './lib/platform'
 
-// Browser client has no vibrancy behind the window; main.css paints the void fallback on this class.
-if (isBrowser) document.documentElement.classList.add('browser')
+// No macOS vibrancy behind the window on the browser client OR the Linux Electron shell;
+// main.css paints the opaque void fallback on this class. (A design reset will make opaque
+// the default later — for now Linux borrows the browser surface.)
+if (isBrowser || isLinuxShell) document.documentElement.classList.add('browser')
 
 const root = document.getElementById('root')
 if (!root) throw new Error('Root element not found')

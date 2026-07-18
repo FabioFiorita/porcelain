@@ -7,6 +7,7 @@ import {
   type ProviderLimitWindow,
   TOOL_OUTPUT_CAP,
 } from '../../../shared/agent-protocol'
+import { PORCELAIN_PREAMBLE } from '../porcelain-preamble'
 
 /**
  * The Claude driver's PURE half: binary resolution, the static model catalog, the
@@ -984,6 +985,11 @@ export function buildClaudeArgs(opts: {
     '--verbose',
     // Prompt-cache hygiene across per-turn process spawns (see docstring above).
     '--exclude-dynamic-system-prompt-sections',
+    // Tell the agent it's running inside Porcelain on EVERY turn (each is a fresh
+    // `claude -p --resume` process). A constant string keeps the system-prompt prefix
+    // cache-stable, same rationale as --exclude-dynamic-system-prompt-sections above.
+    '--append-system-prompt',
+    PORCELAIN_PREAMBLE,
   ]
   const catalog = findClaudeModel(opts.model)
   const { effort, contextWindow } = opts.options ?? {}

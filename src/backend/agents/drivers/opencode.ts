@@ -11,6 +11,7 @@ import type {
   ProviderStatus,
 } from '../../../shared/agent-protocol'
 import { agentSpawnEnv } from '../../login-shell-env'
+import { wrapPorcelainContext } from '../porcelain-preamble'
 import type { AgentCommand, AgentDriver, StartTurnOptions, TurnHandle } from '../types'
 import { expandSlashCommand, listCommandFiles } from './agent-commands-fs'
 import { codexbarLimits, resolveCodexbarBin } from './codexbar'
@@ -310,6 +311,10 @@ export const opencodeDriver: AgentDriver = {
     const abortController = new AbortController()
     const translator = createOpencodeTranslator(opts.mode)
     let sessionId: string | null = resumeSessionId(opts.resume)
+    // Porcelain-awareness: the prompt API has no reliable per-turn system-prompt surface, so
+    // we prepend the preamble to the FIRST user message of a NEW thread only. Captured here
+    // because `sessionId` is reassigned once the new session is created below.
+    const isNewThread = sessionId === null
     let baseUrl = ''
     let finished = false
 
@@ -369,6 +374,7 @@ export const opencodeDriver: AgentDriver = {
         opencodeCommandDirs(opts.repoPath),
         false,
       )
+      const inputText = isNewThread ? wrapPorcelainContext(promptText) : promptText
       await postJson(
         `${baseUrl}/session/${sessionId}/prompt_async`,
         {
@@ -378,7 +384,7 @@ export const opencodeDriver: AgentDriver = {
           // Plan mode selects opencode's built-in read-only `plan` agent for this prompt;
           // omitted in Build so the server default (`build`) applies.
           ...(opts.interaction === 'plan' ? { agent: 'plan' } : {}),
-          parts: buildParts(promptText, opts.images),
+          parts: buildParts(inputText, opts.images),
         },
         abortController.signal,
       )
