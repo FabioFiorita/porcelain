@@ -3,8 +3,9 @@ import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 
 /**
- * The inline reading surface payload. `null` means no agent review set (the
- * baseline — the surface needs an agent-declared review set); `undefined` while loading.
+ * The Review document payload (thesis, walkthrough sections, unanchored groups,
+ * evidence meta). `null` means no agent review set — the "No review yet" empty
+ * state; `undefined` while loading.
  */
 export function useFeatureReading(): {
   reading: FeatureReading | null | undefined

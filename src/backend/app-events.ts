@@ -10,7 +10,7 @@ const listeners = new Set<(event: AppEvent) => void>()
 
 // This broadcasts to every session, which is INTENTIONAL and harmless under
 // multi-window: agent-channel events (feature-view/comments/board/actions/layers/
-// artifact/evidence) are per-repo keyed, so a cross-window delivery is just a no-op refetch.
+// evidence) are per-repo keyed, so a cross-window delivery is just a no-op refetch.
 // Session-specific events (working-tree, file-tree) bypass this and are sent
 // directly to the registering session instead (see file-watch.ts).
 export function emitAppEvent(event: AppEvent): void {

@@ -112,7 +112,7 @@ export function resolveStaticPath(root: string, urlPath: string): string | null 
  * stricter ws origin matching.
  *
  * Pure + tested. It touches connect-src ONLY — never default-src/img-src, which
- * are the artifact-exfil backstop (audit invariant). Idempotent-ish: a host with
+ * are the agent-HTML-exfil backstop (audit invariant). Idempotent-ish: a host with
  * no matching connect-src left is a no-op.
  */
 export function rewriteCsp(html: string, host: string): string {

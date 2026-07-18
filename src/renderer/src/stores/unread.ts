@@ -47,14 +47,13 @@ usePreferencesStore.subscribe((state, prev) => {
 /**
  * Which rail dot an agent-push event lights, or `null` for events that carry no
  * attention signal (plan 035, decision 2):
- * - `feature-view` / `artifact` / `evidence` / `comments` → Feature (all surface there)
+ * - `feature-view` / `evidence` / `comments` → Feature (all surface there)
  * - `board` → Board ; `chat` → Chat ; `actions` → Terminal
  * - `layers` (regroups the open view visibly) + the on-disk watches → no dot
  */
 export function unreadTabFor(event: AppEvent): UnreadTab | null {
   switch (event) {
     case 'feature-view':
-    case 'artifact':
     case 'evidence':
     case 'comments':
       return 'feature'

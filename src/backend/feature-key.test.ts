@@ -24,7 +24,22 @@ describe('featureKey', () => {
     const withSet = featureKey(files, stats, DEFAULT_LAYERS, {
       name: 'X',
       files: [{ path: 'b.ts' }],
+      sections: [],
     })
     expect(withSet).not.toBe(none)
+  })
+
+  it('changes when only the sections change (a walkthrough edit busts the cache)', () => {
+    const base = featureKey(files, stats, DEFAULT_LAYERS, {
+      name: 'X',
+      files: [{ path: 'b.ts' }],
+      sections: [],
+    })
+    const withSections = featureKey(files, stats, DEFAULT_LAYERS, {
+      name: 'X',
+      files: [{ path: 'b.ts' }],
+      sections: [{ title: 'Entry', prose: 'starts here', anchors: [{ path: 'b.ts' }] }],
+    })
+    expect(withSections).not.toBe(base)
   })
 })

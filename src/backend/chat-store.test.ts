@@ -46,4 +46,32 @@ describe('chat-store', () => {
     expect(list[0]?.body).toBe('m5')
     expect(list[list.length - 1]?.body).toBe(`m${MAX_CHAT_MESSAGES + 4}`)
   })
+
+  it('keeps a plain message free of claim keys', async () => {
+    const msg = await postMessage(REPO, { from: 'local', body: 'hello' })
+    expect(msg).not.toHaveProperty('files')
+    expect(msg).not.toHaveProperty('intent')
+    expect(msg).not.toHaveProperty('closes')
+  })
+
+  it('stores and reads back a claim', async () => {
+    await postMessage(REPO, {
+      from: 'alice',
+      body: 'wiring login',
+      files: ['auth.ts', 'session.ts'],
+      intent: 'wiring login',
+      closes: false,
+    })
+    const [claim] = await readMessages(REPO)
+    expect(claim?.files).toEqual(['auth.ts', 'session.ts'])
+    expect(claim?.intent).toBe('wiring login')
+    // closes: false is falsy so it is not serialized.
+    expect(claim).not.toHaveProperty('closes')
+  })
+
+  it('stores a closes message that carries no files', async () => {
+    const msg = await postMessage(REPO, { from: 'alice', body: 'done', closes: true })
+    expect(msg.closes).toBe(true)
+    expect(msg).not.toHaveProperty('files')
+  })
 })

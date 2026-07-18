@@ -100,3 +100,105 @@ describe('readReviewSet path containment', () => {
     expect(set?.files).toEqual([])
   })
 })
+
+describe('readReviewSet sections', () => {
+  const file = join(tmpdir(), 'porcelain-review-store-sections-test', 'review-sets.json')
+  const write = (data: unknown): void => {
+    mkdirSync(dirname(file), { recursive: true })
+    writeFileSync(file, JSON.stringify(data))
+  }
+
+  beforeEach(() => {
+    process.env.PORCELAIN_REVIEW_SETS = file
+    rmSync(dirname(file), { recursive: true, force: true })
+  })
+  afterEach(() => {
+    delete process.env.PORCELAIN_REVIEW_SETS
+    rmSync(dirname(file), { recursive: true, force: true })
+  })
+
+  it('parses thesis and sections, defaulting them when absent', async () => {
+    write({
+      '/repo': {
+        name: 'Login flow',
+        thesis: 'One round-trip instead of three.',
+        files: [{ path: 'a.ts' }],
+        sections: [
+          {
+            title: 'Entry',
+            prose: 'starts here',
+            diagram: '<svg />',
+            anchors: [{ path: 'a.ts', startLine: 1, endLine: 9 }],
+          },
+        ],
+      },
+      '/bare': { name: 'x', files: [] },
+    })
+    const set = await readReviewSet('/repo')
+    expect(set?.thesis).toBe('One round-trip instead of three.')
+    expect(set?.sections).toEqual([
+      {
+        title: 'Entry',
+        prose: 'starts here',
+        diagram: '<svg />',
+        anchors: [{ path: 'a.ts', startLine: 1, endLine: 9 }],
+      },
+    ])
+    const bare = await readReviewSet('/bare')
+    expect(bare?.sections).toEqual([])
+    expect(bare?.thesis).toBeUndefined()
+  })
+
+  it('drops an invalid section but keeps the valid ones (never throws)', async () => {
+    write({
+      '/repo': {
+        name: 'test',
+        files: [{ path: 'a.ts' }],
+        sections: [
+          { title: 'Good', prose: 'kept', anchors: [] },
+          { title: '', prose: 'empty title fails min(1)' },
+          { title: 'No prose at all' },
+          { title: 'Oversized', prose: 'x'.repeat(32_769) },
+        ],
+      },
+    })
+    const set = await readReviewSet('/repo')
+    expect(set?.sections.map((s) => s.title)).toEqual(['Good'])
+    expect(set?.files).toEqual([{ path: 'a.ts' }])
+  })
+
+  it('filters anchors that escape the repo, exactly like file paths', async () => {
+    write({
+      '/repo': {
+        name: 'test',
+        files: [],
+        sections: [
+          {
+            title: 'Entry',
+            prose: 'x',
+            anchors: [
+              { path: 'src/a.ts' },
+              { path: '../../etc/passwd' },
+              { path: '/etc/passwd', startLine: 1 },
+            ],
+          },
+        ],
+      },
+    })
+    const set = await readReviewSet('/repo')
+    expect(set?.sections[0]?.anchors).toEqual([{ path: 'src/a.ts' }])
+  })
+
+  it('caps the sections at 30', async () => {
+    write({
+      '/repo': {
+        name: 'test',
+        files: [],
+        sections: Array.from({ length: 35 }, (_, i) => ({ title: `S${i}`, prose: '' })),
+      },
+    })
+    const set = await readReviewSet('/repo')
+    expect(set?.sections).toHaveLength(30)
+    expect(set?.sections.at(-1)?.title).toBe('S29')
+  })
+})

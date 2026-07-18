@@ -1,7 +1,6 @@
-import type { FeatureFile } from '@backend/feature-view'
+import type { ReadingFile } from '@backend/feature-view'
 import type { FileSource } from '@backend/review-set'
 import { SidebarHeaderActions } from '@renderer/components/shell/sidebar-header-actions'
-import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
 import {
   ContextMenu,
@@ -10,36 +9,30 @@ import {
   ContextMenuTrigger,
 } from '@renderer/components/ui/context-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
-import { useFeatureArtifact } from '@renderer/hooks/use-artifact'
 import { useDiffFilePrefetch } from '@renderer/hooks/use-diff'
-import { useLoopEvidence } from '@renderer/hooks/use-evidence'
-import { useClearFeatureReview, useFeatureView } from '@renderer/hooks/use-feature-view'
+import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
+import { useClearFeatureReview } from '@renderer/hooks/use-feature-view'
 import { useReviewedPaths, useToggleReviewed } from '@renderer/hooks/use-reviewed'
-import { compactButtonClass } from '@renderer/lib/controls'
 import { dirName, fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
+import {
+  type ReviewFocusSection,
+  type ReviewJumpTarget,
+  useReviewFocusStore,
+} from '@renderer/stores/review-focus'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import {
-  BookOpen,
   Check,
   Eraser,
-  FileText,
   MessageSquarePlus,
   RefreshCw,
   ShieldCheck,
-  Sparkles,
   Square,
   SquareCheck,
 } from 'lucide-react'
 import { memo, useState } from 'react'
 import { CommentComposer } from './comment-composer'
-
-const SOURCE_LABEL: Record<FileSource, string> = {
-  changed: 'changed',
-  context: 'context',
-  shipped: 'shipped',
-}
 
 // The legend marker for a file's source: a filled dot for a changed file, a
 // rotated square for an agent-shipped cross-seam file, a hollow ring for the
@@ -50,20 +43,19 @@ export function SourceMarker({ source }: { source: FileSource }): React.JSX.Elem
   return <span className="size-2 shrink-0 rounded-full border border-muted-foreground/70" />
 }
 
-// A node on the flow timeline: a source marker threaded on the spine, the file
-// (filename + a layer "station" tag when the layer changes), its path, and any
-// agent note. The whole feature reads top-to-bottom as one connected flow rather
-// than a stack of per-layer groups.
-function FlowNodeImpl({
+// One file row of the outline, anchored under its section (or a "More files"
+// group). Same behaviors as the old flow timeline node: click opens the
+// working-tree diff for a changed file (relative path, like the Changes list) or
+// the file itself otherwise (absolute path, like the file tree); right-click
+// marks/unmarks reviewed or starts a file comment.
+function OutlineFileRowImpl({
   file,
   repoPath,
-  layer,
   isReviewed,
   onComment,
 }: {
-  file: FeatureFile
+  file: ReadingFile
   repoPath: string
-  layer: string | null
   isReviewed: boolean
   onComment: (path: string) => void
 }): React.JSX.Element {
@@ -72,11 +64,7 @@ function FlowNodeImpl({
   const { mark, unmark } = useToggleReviewed()
   const name = fileName(file.path)
   const dir = dirName(file.path)
-  const connects = file.connects.map((c) => fileName(c)).join(', ')
 
-  // Changed files open their working-tree diff (relative path, like the Changes
-  // list); context/shipped files are unchanged, so open the file itself (absolute
-  // path, like the file tree).
   const open = (): void => {
     if (file.source === 'changed') {
       openTab({ id: tabId('diff', file.path), kind: 'diff', title: name, path: file.path })
@@ -88,7 +76,6 @@ function FlowNodeImpl({
 
   return (
     <div className="relative pl-6">
-      {/* marker sits on the spine; z-10 so solid markers mask the line behind them */}
       <span className="absolute left-[3px] top-2.5 z-10 flex">
         <SourceMarker source={file.source} />
       </span>
@@ -118,14 +105,6 @@ function FlowNodeImpl({
             >
               {name}
             </span>
-            {layer && (
-              <Badge
-                variant="outline"
-                className="shrink-0 rounded-md border-border/60 px-1.5 py-0 text-4xs uppercase tracking-wider text-muted-foreground"
-              >
-                {layer}
-              </Badge>
-            )}
             {file.additions !== undefined && file.additions > 0 && (
               <span className="shrink-0 font-mono text-2xs text-success">+{file.additions}</span>
             )}
@@ -138,11 +117,6 @@ function FlowNodeImpl({
           {dir && (
             <span className="max-w-full truncate text-xs text-muted-foreground" dir="rtl">
               {dir}
-            </span>
-          )}
-          {connects && (
-            <span className="max-w-full truncate text-xs text-muted-foreground/70">
-              → {connects}
             </span>
           )}
         </ContextMenuTrigger>
@@ -177,67 +151,89 @@ function FlowNodeImpl({
   )
 }
 
-const FlowNode = memo(FlowNodeImpl)
+const OutlineFileRow = memo(OutlineFileRowImpl)
 
-// The Feature sidebar tab: the whole feature in flow order as a navigation list
-// (peer of Files/Changes/History). The viewer's `feature` tab is the expanded
-// read; this is the index you scan and click from.
+// A chapter title in the outline: click jumps the open Review document there
+// (opening it first if needed). Highlighted while it's the topmost visible chapter.
+function ChapterButton({
+  label,
+  active,
+  onJump,
+}: {
+  label: string
+  active: boolean
+  onJump: () => void
+}): React.JSX.Element {
+  return (
+    <button
+      type="button"
+      onClick={onJump}
+      className={cn(
+        'w-full truncate rounded-md px-2 py-1 text-left text-sm-minus font-medium hover:bg-sidebar-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+        active ? 'bg-sidebar-accent/50 text-foreground' : 'text-muted-foreground',
+      )}
+    >
+      {label}
+    </button>
+  )
+}
+
+/** A section's files, deduped by path (a file anchored twice reads once in the outline). */
+function uniqueFiles(files: readonly ReadingFile[]): ReadingFile[] {
+  const seen = new Set<string>()
+  return files.filter((file) => {
+    if (seen.has(file.path)) return false
+    seen.add(file.path)
+    return true
+  })
+}
+
+// The Feature sidebar tab: the OUTLINE of the Review document — chapter titles
+// that jump the open Review, each section's anchored files, the unanchored "More
+// files", and the loop-evidence chapter. The viewer's `feature` tab is the
+// document; this is the index you scan, click, and tick reviewed from.
 export function FeatureList(): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)
   const openTab = useTabsStore((s) => s.openTab)
-  const { view, refresh } = useFeatureView()
-  const { artifact } = useFeatureArtifact()
-  const { evidence } = useLoopEvidence()
+  const { reading, refresh } = useFeatureReading()
   const reviewed = useReviewedPaths()
   const { clear, isClearing } = useClearFeatureReview()
+  const requestJump = useReviewFocusStore((s) => s.requestJump)
+  const activeSection = useReviewFocusStore((s) => s.activeSection)
   const [confirmClear, setConfirmClear] = useState(false)
   const [clearError, setClearError] = useState<string | null>(null)
   const [commentPath, setCommentPath] = useState<string | null>(null)
 
-  if (!repo || view === undefined) {
+  if (!repo || reading === undefined) {
     return <p className="p-3 text-sm text-muted-foreground">Loading…</p>
   }
 
-  // The inline reading surface needs an agent review set, so the opener appears only
-  // when an agent has pushed one; the baseline stays a plain navigation list.
-  const openReading = (): void => {
+  // No agent review set → no Review at all. The viewer's empty state carries the
+  // copy-a-prompt affordance; the outline stays a one-liner.
+  if (reading === null) {
+    return (
+      <p className="px-3 py-2 text-sm text-muted-foreground">
+        No review yet. The outline fills in when your agent publishes the Review via the porcelain
+        CLI.
+      </p>
+    )
+  }
+
+  // Open the Review document (pinned place: one tab per repo) and optionally jump
+  // it to a chapter — the reading surface consumes the jump once mounted.
+  const openReview = (target?: ReviewJumpTarget): void => {
     openTab({
       id: tabId('feature', repo.path),
       kind: 'feature',
-      title: 'Feature view',
+      title: 'Review',
       path: repo.path,
     })
+    if (target) requestJump(target)
   }
 
-  // The agent-authored artifact (a self-contained HTML explainer) opens pinned, like
-  // the feature view — it's a document to keep, not a preview. Shown only when the
-  // agent has pushed one; independent of the review set.
-  const openArtifact = (): void => {
-    if (!artifact) return
-    openTab({
-      id: tabId('artifact', repo.path),
-      kind: 'artifact',
-      title: 'Feature artifact',
-      path: repo.path,
-    })
-  }
-
-  // Loop evidence is the ephemeral proof the agent closed the loop (browser /
-  // simulator validation). Same open pattern as the artifact; clear lives on the
-  // evidence view header (Eraser), not here.
-  const openEvidence = (): void => {
-    if (!evidence) return
-    openTab({
-      id: tabId('evidence', repo.path),
-      kind: 'evidence',
-      title: 'Loop evidence',
-      path: repo.path,
-    })
-  }
-
-  // Clear discards the agent's curated set + notes (reverting to the baseline), so
-  // it's two-step: the first click arms it, the second confirms. The agent can
-  // always re-push, and blurring the button cancels.
+  // Clear discards the agent's whole Review (files, notes, sections), so it's
+  // two-step: the first click arms it, the second confirms. The agent can always
+  // re-push, and blurring the button cancels.
   const handleClear = async (): Promise<void> => {
     if (!confirmClear) {
       setConfirmClear(true)
@@ -253,162 +249,146 @@ export function FeatureList(): React.JSX.Element {
     }
   }
 
-  const files = view.groups.flatMap((g) => g.files)
-  // Flatten to a single flow (groups are already in entry-point→data order); each
-  // node carries its layer so the timeline can tag the first node of each layer.
-  const flow = view.groups.flatMap((g) => g.files.map((file) => ({ file, layer: g.layer })))
-  const counts: Record<FileSource, number> = {
-    changed: files.filter((f) => f.source === 'changed').length,
-    context: files.filter((f) => f.source === 'context').length,
-    shipped: files.filter((f) => f.source === 'shipped').length,
-  }
+  const allFiles = uniqueFiles([
+    ...reading.sections.flatMap((section) => section.files),
+    ...reading.groups.flatMap((group) => group.files),
+  ])
+  const reviewedCount = allFiles.filter((file) => reviewed.has(file.path)).length
+  const moreFilesIndex = reading.sections.length
+  const isActive = (section: ReviewFocusSection): boolean => activeSection === section
+
+  // Stable list keys from the agent-authored titles (deduped — two sections may
+  // share a title; the whole list is replaced on every push, so title#n is stable
+  // enough and avoids keying on the index).
+  const seenTitles = new Map<string, number>()
+  const sectionEntries = reading.sections.map((section, index) => {
+    const n = (seenTitles.get(section.title) ?? 0) + 1
+    seenTitles.set(section.title, n)
+    return { section, index, key: n === 1 ? section.title : `${section.title}#${n}` }
+  })
 
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-start justify-between gap-1.5 px-2">
-        {/* The title is the agent's own name for the feature — shown only in agent
-            mode (the baseline is already labelled "Feature review" by the sidebar
-            header, so repeating a generic title there is just noise). It wraps to
-            multiple lines rather than truncating. */}
-        {view.fromAgent ? (
-          <h2 className="flex min-w-0 flex-wrap items-center gap-1.5 pt-1 text-xs font-medium">
-            <span className="min-w-0">{view.name}</span>
-            <Badge
-              variant="outline"
-              className="shrink-0 rounded-md border-info/20 bg-info/15 text-3xs font-normal text-info"
-            >
-              <Sparkles className="size-2.5" />
-              agent
-            </Badge>
-          </h2>
-        ) : (
-          <span aria-hidden />
-        )}
+        {/* The title is the agent's own name for the Review; clicking it opens the
+            document. It wraps to multiple lines rather than truncating. */}
+        <button
+          type="button"
+          onClick={() => openReview()}
+          className="min-w-0 pt-1 text-left text-xs font-medium hover:text-foreground/80"
+        >
+          {reading.name}
+        </button>
         <SidebarHeaderActions>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={refresh}
-            aria-label="Refresh feature view"
-          >
+          <Button variant="ghost" size="icon-sm" onClick={refresh} aria-label="Refresh review">
             <RefreshCw />
           </Button>
         </SidebarHeaderActions>
       </div>
 
-      {(artifact || evidence) && (
-        <div className="mx-2 mb-1 flex flex-col gap-1">
-          {artifact && (
-            <Button
-              variant="outline"
-              size="sm"
-              className={cn(compactButtonClass, 'w-full justify-start rounded-md')}
-              onClick={openArtifact}
-            >
-              <FileText />
-              <span className="truncate">Feature artifact</span>
-            </Button>
-          )}
-          {evidence && (
-            <Button
-              variant="outline"
-              size="sm"
-              className={cn(compactButtonClass, 'w-full justify-start rounded-md')}
-              onClick={openEvidence}
-            >
-              <ShieldCheck />
-              <span className="truncate">Loop evidence</span>
-            </Button>
-          )}
-        </div>
-      )}
-
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-2 pb-1 text-xs text-muted-foreground">
-        {(['changed', 'context', 'shipped'] as const).map((source) => (
-          <span key={source} className="flex items-center gap-1.5">
-            <SourceMarker source={source} />
-            {counts[source]} {SOURCE_LABEL[source]}
-          </span>
-        ))}
+      {/* Progress + the destructive clear: two-step (arm then confirm — the confirm
+          flips it to the destructive variant), and blurring the button disarms. */}
+      <div className="flex items-center justify-between gap-2 px-2">
+        <p className="text-2xs text-muted-foreground">
+          {allFiles.length > 0 ? `${reviewedCount}/${allFiles.length} reviewed` : ''}
+        </p>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                size="icon-xs"
+                variant={confirmClear ? 'destructive' : 'ghost'}
+                className="text-muted-foreground"
+                onClick={handleClear}
+                onBlur={() => setConfirmClear(false)}
+                disabled={isClearing}
+                aria-label={
+                  confirmClear ? 'Confirm clear agent review set' : 'Clear agent review set'
+                }
+              >
+                <Eraser />
+              </Button>
+            }
+          />
+          <TooltipContent>
+            Removes the agent's Review — files, notes, and walkthrough sections.
+          </TooltipContent>
+        </Tooltip>
       </div>
 
-      {view.fromAgent && (
-        <div className="mx-2 mb-1 flex flex-col gap-1">
-          {/* Mirrors the Stage all / Commit pairing: a primary action filling the
-              row, with the destructive clear reduced to an icon-only button beside
-              it. The clear stays two-step (arm then confirm) — confirm flips it to
-              the destructive variant. */}
-          <div className="flex gap-2">
-            {files.length > 0 && (
-              <Button
-                size="sm"
-                variant="outline"
-                className={cn(compactButtonClass, 'flex-1 rounded-md')}
-                onClick={openReading}
-              >
-                <BookOpen />
-                Open inline read
-              </Button>
-            )}
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    size="icon-sm"
-                    variant={confirmClear ? 'destructive' : 'outline'}
-                    className="rounded-md"
-                    onClick={handleClear}
-                    onBlur={() => setConfirmClear(false)}
-                    disabled={isClearing}
-                    aria-label={
-                      confirmClear ? 'Confirm clear agent review set' : 'Clear agent review set'
-                    }
-                  >
-                    <Eraser />
-                  </Button>
-                }
-              />
-              <TooltipContent>
-                Removes the agent's files &amp; notes — your working-tree changes still show as the
-                baseline.
-              </TooltipContent>
-            </Tooltip>
-          </div>
-          {clearError && (
-            <p className="whitespace-pre-wrap font-mono text-2xs text-destructive">{clearError}</p>
-          )}
-        </div>
+      {clearError && (
+        <p className="mx-2 whitespace-pre-wrap font-mono text-2xs text-destructive">{clearError}</p>
       )}
 
-      {files.length === 0 ? (
-        <p className="px-3 py-2 text-sm text-muted-foreground">
-          No changes yet. The feature view appears once you have working-tree changes — or when your
-          agent pushes a review set via the porcelain CLI.
-        </p>
-      ) : (
-        <div className="px-2 pt-1">
-          <div className="px-1 pb-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
-            Flow
-          </div>
-          <div className="relative">
-            {/* the spine the markers thread through, inset so it stops at the
-                first/last node rather than running the full column height */}
-            <span
-              aria-hidden
-              className="absolute bottom-3 left-[7px] top-3 w-px bg-sidebar-border"
+      <div className="flex flex-col gap-0.5 px-2 pt-1">
+        {sectionEntries.map(({ section, index, key }) => (
+          <div key={key}>
+            <ChapterButton
+              label={section.title}
+              active={isActive(index)}
+              onJump={() => openReview({ kind: 'section', index })}
             />
-            {flow.map(({ file, layer }, i) => (
-              <FlowNode
+            {uniqueFiles(section.files).map((file) => (
+              <OutlineFileRow
                 key={file.path}
                 file={file}
                 repoPath={repo.path}
-                layer={layer === flow[i - 1]?.layer ? null : layer}
                 isReviewed={reviewed.has(file.path)}
                 onComment={setCommentPath}
               />
             ))}
           </div>
-        </div>
+        ))}
+
+        {reading.groups.length > 0 && (
+          <div>
+            {reading.sections.length > 0 && (
+              <ChapterButton
+                label="More files"
+                active={isActive(moreFilesIndex)}
+                onJump={() => openReview({ kind: 'section', index: moreFilesIndex })}
+              />
+            )}
+            {reading.groups.map((group) => (
+              <div key={group.layer}>
+                <div className="px-2 pb-0.5 pt-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
+                  {group.layer}
+                </div>
+                {group.files.map((file) => (
+                  <OutlineFileRow
+                    key={file.path}
+                    file={file}
+                    repoPath={repo.path}
+                    isReviewed={reviewed.has(file.path)}
+                    onComment={setCommentPath}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {reading.evidence && (
+          <button
+            type="button"
+            onClick={() => openReview({ kind: 'evidence' })}
+            className={cn(
+              'flex w-full items-center gap-1.5 truncate rounded-md px-2 py-1 text-left text-sm-minus font-medium hover:bg-sidebar-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+              isActive('evidence')
+                ? 'bg-sidebar-accent/50 text-foreground'
+                : 'text-muted-foreground',
+            )}
+          >
+            <ShieldCheck className="size-3.5 shrink-0 text-info" />
+            <span className="truncate">Loop evidence</span>
+          </button>
+        )}
+      </div>
+
+      {allFiles.length === 0 && reading.sections.length === 0 && (
+        <p className="px-3 py-2 text-sm text-muted-foreground">
+          The Review is empty — the agent published a name but no files or sections yet.
+        </p>
       )}
 
       <CommentComposer
@@ -418,14 +398,6 @@ export function FeatureList(): React.JSX.Element {
           if (!open) setCommentPath(null)
         }}
       />
-
-      {!view.fromAgent && files.length > 0 && (
-        <p className="mx-2 mt-2 border-t border-border pt-2 text-xs text-muted-foreground/70">
-          Static baseline — changed files plus what they import. Your agent widens this to the whole
-          feature (server files, cross-seam contracts) by pushing a review set via the porcelain
-          CLI.
-        </p>
-      )}
     </div>
   )
 }

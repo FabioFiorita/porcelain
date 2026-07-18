@@ -16,6 +16,36 @@ standalone record of what shipped.
   on-demand npx (no scp tarball / no always-on systemd). Its parent spec +
   Phase 1 doc shipped and were removed (in git history).
 
+## Completed — the Review + chat claims + Linux release leg, 2026-07-18
+
+Three workstreams shipped together (breaking changes sanctioned for this release);
+the working docs were removed, **recoverable from git**
+(`git show HEAD:plans/feature-view-proposal-notes.md`, `…:plans/chat-coordination-brief.md`,
+`…:plans/linux-rebuild-map.md`):
+
+- **The Review** — the feature view became ONE agent-authored document. The review-set
+  schema gained `thesis` + `sections` (markdown prose, agent-rendered inline-SVG diagrams
+  shown sandboxed, line-range anchors); the viewer renders thesis → flow-ordered walkthrough
+  sections → a "More files" block → the loop-evidence **final chapter**. The
+  **feature-artifact channel is deleted** (store/CLI/verbs/event/tab kind/companion skill),
+  its narrative folded into the sections. The import-graph **baseline is gone** (`featureView`
+  null → "No review yet" empty state; agent-only). The `artifact`/`evidence` tab kinds are
+  removed; the Feature list is now the **outline** (J/K section nav, Z zen), and Feature Quick
+  Access gained a Review group. Design now lives in the shipped code plus the
+  `review-with-porcelain` companion skill and this shipped record — no separate spec doc.
+- **Chat coordination claims** — a chat message can carry `--files`/`--intent`/`--closes`
+  (a claim); the Chat tab's **Coordination** panel derives live claims + overlaps at read
+  time (`lib/chat-claims.ts`), no new channel. Agent-authored claim paths are repo-contained
+  before the panel opens one (`isContainedClaimPath` — the audit gap this truth-pass caught
+  and fixed).
+- **Linux release leg** — `release.yml` gained a Linux build/publish job (the port itself —
+  window chrome, Ctrl-primary, opaque design — landed earlier in `b649dc9`).
+
+Docs reconciled in the same pass: CLAUDE.md nomenclature, `architecture` (channel count
+11→10, tab kinds, reading-surface rows), `audit` (artifact invariant → review-sections
+invariant; chat-claim containment; evidence-as-chapter), `product`, and the
+`review-with-porcelain` / `loop-evidence` / `sync-environments` companion skills.
+
 ## Completed — deep audit, 2026-07-05 → reconciled 2026-07-07 (`2e72017`)
 
 All 15 plans (023–037) executed and spot-checked holding on HEAD at reconcile —
@@ -101,6 +131,7 @@ copy beyond staleness.
 - **e2e additions** (reconnect-after-crash, stage→commit flow) and **daemon
   spawn/restart state-machine tests** (`src/main/daemon.ts`): worthy test gaps
   ranked below 027/028; queue for the next round.
-- **Feature-artifact multi-artifact + share/export**: the share-URL half has an
-  unresolved auth boundary (the static server is deliberately unauthenticated);
-  design that boundary first.
+- **Feature-artifact multi-artifact + share/export**: MOOT — the feature-artifact
+  channel was deleted on 2026-07-18 (folded into the Review's walkthrough sections).
+  Any future "share a review" feature still inherits the unresolved auth boundary
+  (the static server is deliberately unauthenticated); design that boundary first.

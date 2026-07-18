@@ -69,17 +69,14 @@ function handle(
         utils.featureReading.invalidate(),
         utils.exploreFeature.invalidate(),
       ])
-    case 'artifact':
-      // the agent authored/cleared a feature artifact via the CLI — refresh the Feature
-      // list opener (metadata) and the open artifact view (full HTML).
-      return Promise.all([
-        utils.featureArtifact.invalidate(),
-        utils.featureArtifactHtml.invalidate(),
-      ])
     case 'evidence':
-      // the agent authored/cleared loop evidence via the CLI — refresh the Feature list
-      // opener (metadata) and the open evidence view (full HTML).
-      return Promise.all([utils.loopEvidence.invalidate(), utils.loopEvidenceHtml.invalidate()])
+      // the agent authored/cleared loop evidence — refresh the Review document (its
+      // evidence chapter meta rides on featureReading) and the chapter's full HTML.
+      return Promise.all([
+        utils.featureReading.invalidate(),
+        utils.loopEvidence.invalidate(),
+        utils.loopEvidenceHtml.invalidate(),
+      ])
     case 'chat':
       // an agent (or human) posted to the agent-chat relay via the CLI
       return utils.chatMessages.invalidate()

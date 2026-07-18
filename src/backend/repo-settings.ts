@@ -19,8 +19,8 @@ import { readNotes, writeNotes } from './notes-store'
  * remap); the Settings UI no longer offers a one-click seed.
  *
  * Included: actions (saved commands), notes, board, flow layers, review comments.
- * Deliberately NOT included: reviewed marks, feature-view snapshot, artifacts /
- * loop evidence, review sets (dynamic feature view), agent chat (ephemeral relay).
+ * Deliberately NOT included: reviewed marks, feature-view snapshot, loop evidence,
+ * review sets (dynamic feature view), agent chat (ephemeral relay).
  * Hidden/pinned folders live in daemon config.json — see the skill, not this snapshot.
  */
 export const repoSettingsSchema = z.object({

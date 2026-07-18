@@ -14,6 +14,15 @@ export const chatMessageSchema = z.object({
   from: z.string().min(1),
   body: z.string().min(1),
   createdAt: z.number().default(0),
+  // Coordination claim fields (all optional; absent on a plain message so it stays
+  // byte-identical). A message is "a claim" iff `files` is present and non-empty.
+  // KEEP IN LOCKSTEP with the CLI's hand-parsed copy in src/cli/chat-file.ts.
+  /** Repo-relative paths the poster is working on — declares a claim. */
+  files: z.array(z.string().trim().min(1)).max(50).optional(),
+  /** One-line "working on X". */
+  intent: z.string().trim().max(280).optional(),
+  /** This message retires the poster's currently-open claim(s). */
+  closes: z.boolean().optional(),
 })
 export type ChatMessage = z.infer<typeof chatMessageSchema>
 
@@ -40,13 +49,18 @@ export async function readMessages(repoPath: string): Promise<ChatMessage[]> {
 
 export async function postMessage(
   repoPath: string,
-  input: { from: string; body: string },
+  input: { from: string; body: string; files?: string[]; intent?: string; closes?: boolean },
 ): Promise<ChatMessage> {
   const message: ChatMessage = {
     id: randomUUID(),
     from: input.from.trim(),
     body: input.body.trim(),
     createdAt: Date.now(),
+    // Only serialize claim keys when present, so a plain message stays byte-identical
+    // (the api layer already trims/caps files & intent).
+    ...(input.files && input.files.length > 0 ? { files: input.files } : {}),
+    ...(input.intent ? { intent: input.intent } : {}),
+    ...(input.closes ? { closes: true } : {}),
   }
   await channel.mutate((all) => {
     const next = [...(all[repoPath] ?? []), message]

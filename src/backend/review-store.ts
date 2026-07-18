@@ -1,8 +1,14 @@
 import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { isAbsolute, join, relative, resolve } from 'node:path'
+import { z } from 'zod'
 import { createHomeChannel } from './home-channel'
-import { type ReviewSet, type ReviewSets, reviewSetsSchema } from './review-set'
+import {
+  type ReviewSection,
+  type ReviewSet,
+  reviewSectionSchema,
+  reviewSetSchema,
+} from './review-set'
 
 /**
  * True when `entryPath` (a path from the external, CLI-authored review-set file)
@@ -31,31 +37,62 @@ export function reviewSetsPath(): string {
   return process.env.PORCELAIN_REVIEW_SETS ?? join(homedir(), '.porcelain', 'review-sets.json')
 }
 
+// Read-side leniency for sections: parse them per-item (below) so ONE invalid
+// section is dropped instead of invalidating the whole set. Everything else in the
+// set keeps the strict schema (`reviewSetsSchema` stays the documented on-disk shape).
+const lenientReviewSetSchema = reviewSetSchema.extend({
+  sections: z.array(z.unknown()).default([]),
+})
+const lenientReviewSetsSchema = z.record(z.string(), lenientReviewSetSchema)
+type LenientReviewSets = z.infer<typeof lenientReviewSetsSchema>
+
 // The read path stays custom below (per-entry repo-containment filter); the channel
-// exists only for the app's one write — the user-initiated clear.
+// exists only for the app's one write — the user-initiated clear. It validates with
+// the lenient schema so one invalid section can't make the clear treat the whole
+// CLI-owned file as corrupt (backing it up and dropping every other repo's set).
 const channel = createHomeChannel({
   path: reviewSetsPath,
-  schema: reviewSetsSchema,
-  empty: (): ReviewSets => ({}),
+  schema: lenientReviewSetsSchema,
+  empty: (): LenientReviewSets => ({}),
 })
+
+/** Max sections rendered, mirroring `reviewSetSchema`'s cap on the strict parse. */
+const MAX_SECTIONS = 30
 
 /** The agent-fed review set for a repo, or null if none / the file is absent or corrupt. */
 export async function readReviewSet(repoPath: string): Promise<ReviewSet | null> {
   try {
     const raw = await readFile(reviewSetsPath(), 'utf8')
-    const all = reviewSetsSchema.parse(JSON.parse(raw))
+    const all = lenientReviewSetsSchema.parse(JSON.parse(raw))
     const set = all[repoPath]
     if (!set) return null
-    return { ...set, files: set.files.filter((file) => isRepoContained(repoPath, file.path)) }
+    // A section that fails validation is DROPPED, never thrown (the agent keeps its
+    // other sections); anchor paths are repo-contained exactly like file paths —
+    // both flow into readFile(join(repoPath, path)).
+    const sections = set.sections.slice(0, MAX_SECTIONS).flatMap((section): ReviewSection[] => {
+      const parsed = reviewSectionSchema.safeParse(section)
+      if (!parsed.success) return []
+      return [
+        {
+          ...parsed.data,
+          anchors: parsed.data.anchors.filter((anchor) => isRepoContained(repoPath, anchor.path)),
+        },
+      ]
+    })
+    return {
+      ...set,
+      files: set.files.filter((file) => isRepoContained(repoPath, file.path)),
+      sections,
+    }
   } catch {
     // absent, unparseable, or schema-invalid (an external process owns this file) —
-    // treat as "no agent set" and fall back to the static baseline
+    // treat as "no agent set" and let the app show the no-review empty state
     return null
   }
 }
 
 /**
- * Remove a repo's review set, reverting its feature view to the static baseline.
+ * Remove a repo's review set, reverting its feature view to the no-review empty state.
  * Atomic (tmp + rename) so a concurrent CLI write can't corrupt the shared file;
  * a no-op if the file is absent/corrupt or the repo has no set. The watcher
  * (`review-watch.ts`) sees the change and refreshes the open view like any CLI write.

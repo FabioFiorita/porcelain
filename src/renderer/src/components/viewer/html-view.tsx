@@ -6,7 +6,7 @@ export function isHtmlPath(path: string): boolean {
 }
 
 /**
- * Sandboxed HTML preview — same rules as feature artifacts / loop evidence:
+ * Sandboxed HTML preview — same rules as loop evidence / Review diagrams:
  * `sandbox=""` (no scripts, no same-origin, no popups) + `srcdoc`. Remote assets
  * stay blocked by the parent CSP (`img-src 'self' data:`); local relative images
  * should already be inlined as data URIs by the daemon (`previewHtml`).

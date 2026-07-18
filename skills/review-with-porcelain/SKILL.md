@@ -5,7 +5,9 @@ description: Push a feature review set to the Porcelain app — and read the hum
 
 # Review with Porcelain
 
-Porcelain is a macOS review companion that shows a "feature view": the whole feature in flow order (entry point → data), not just the git diff. You built the feature, so you know its true boundary — hand it over so the human reviews the complete picture instead of only the files that happen to have changed.
+Porcelain is a desktop review companion (macOS and Linux). Its **Feature** tab renders the whole feature as ONE agent-authored document — **the Review**: a thesis, then walkthrough sections in flow order (entry point → data), each explaining a step of the change with its code shown inline, ending with the loop-evidence chapter. You built the feature, so you know its true boundary and how it fits together — hand it over as a narrative the human reads top to bottom, not just the files that happen to have changed.
+
+Without a review set the Feature tab shows an empty "No review yet" state — there is no automatic baseline. The Review exists only when you publish one.
 
 ## When to use
 
@@ -15,43 +17,104 @@ After you implement a feature, finish a meaningful slice, or are asked to "set u
 
 Talk to Porcelain through the bundled CLI at `~/.porcelain/porcelain` — installed automatically and kept fresh on every app launch (no registration, no MCP config). Run it from **inside the repo** and it targets that repo automatically (git toplevel of the cwd); add `--repo <absolute path>` only to point at a different checkout.
 
-- `~/.porcelain/porcelain review set --name <name> --files <json|->` → replace the review set. List files in FLOW ORDER (entry point → data) — Porcelain renders them in that order. `--name` defaults to "Feature view".
-- `~/.porcelain/porcelain review add --files <json|->` → add files to it incrementally while you work.
-- `~/.porcelain/porcelain review get` → read back the current set (name, files, sources, notes, layers); use it to verify what you pushed or to make an idempotent update (read → modify → `review set`), and to recover the set if you lose context.
-- `~/.porcelain/porcelain feature get` → read back the COMPUTED view: every file Porcelain renders, grouped in flow order, each tagged with its real source (`changed` = in the git diff, `context`/`shipped` = the unchanged rest) and layer. Where `review get` echoes what you declared, this shows what Porcelain made of it after folding in git status + the import baseline — use it to confirm the view rendered as intended.
-- `~/.porcelain/porcelain review clear` → remove it.
+- `~/.porcelain/porcelain review set --name <name> [--thesis <s>] [--sections <json|->] --files <json|->` → replace the whole review set (files + thesis + sections). `--name` defaults to "Feature view".
+- `~/.porcelain/porcelain review add --files <json|->` → add FILES to the existing set incrementally while you work. Name, thesis, and sections are whole-set — they're replaced by `review set`, never merged by `review add`.
+- `~/.porcelain/porcelain review get` → read back the current set (name, thesis, files, and sections) as JSON; use it to verify what you pushed or to make an idempotent update (read → modify → `review set`), and to recover the set if you lose context.
+- `~/.porcelain/porcelain feature get` → read back the COMPUTED view: every file Porcelain renders, grouped in flow order, each tagged with its real source (`changed` = in the git diff, `context`/`shipped` = the unchanged rest) and layer. Where `review get` echoes what you declared, this shows what Porcelain made of it after folding in git status — use it to confirm the view rendered as intended.
+- `~/.porcelain/porcelain review clear` → remove it (the Feature tab returns to its empty state).
 
-`--files` takes inline JSON, or `-` to read the JSON from stdin — pipe or heredoc it for anything non-trivial:
+`--files` and `--sections` take inline JSON, or `-` to read the JSON from stdin — pipe or heredoc them for anything non-trivial.
 
-```bash
-~/.porcelain/porcelain review set --name "Callout templates" --files - <<'JSON'
-[
-  { "path": "src/routes/callouts.ts", "layer": "Routes" },
-  { "path": "src/services/callout-service.ts", "source": "shipped", "layer": "Services",
-    "note": "labels here must match CALLOUT_TEMPLATES in the client" },
-  { "path": "src/shared/callout-types.ts", "source": "context", "layer": "Data" }
-]
-JSON
-```
+### The files
 
-Each file is `{ path, source?, note?, layer? }`:
+`--files` is an array of `{ path, source?, note?, layer? }`, in FLOW ORDER (entry point → data):
+
 - `path` — repo-relative.
 - `source` — OMIT for files you changed (Porcelain detects those from git). Use `"shipped"` for files already landed that the change depends on (the server route/controller/service, an existing endpoint), and `"context"` for unchanged files needed to follow the flow (shared types, constants).
-- `note` — the cross-file invariant a reviewer must check, e.g. "labels here must match CALLOUT_TEMPLATES in the service" or "this mutation must invalidate the listX query".
-- `layer` — OPTIONAL, and the way to control the feature view's grouping. Set it to the flow-layer heading this file belongs to (e.g. `"Store"`, `"Routes"`, `"Data"`). When ANY file has a `layer`, Porcelain groups the FEATURE VIEW by your declared layers + file order verbatim, instead of the repo-wide regex layers — so you place every file exactly where it belongs in THIS feature, no file lands in "Other", and nothing gets swept up by a catch-all pattern. Files left without a `layer` fall back to the regex match. (The repo-wide regex layers still group the Changes/History tabs — tune those with the flow-layers skill; the feature view is yours to shape per-feature here.)
+- `note` — the cross-file invariant a reviewer must check, e.g. "labels here must match TEMPLATES in the service" or "this mutation must invalidate the listX query".
+- `layer` — OPTIONAL, and the way to control grouping. Set it to the flow-layer heading this file belongs to (e.g. `"Store"`, `"Routes"`, `"Data"`). When ANY file has a `layer`, Porcelain groups by your declared layers + file order verbatim, instead of the repo-wide regex layers — so every file lands exactly where it belongs, none in "Other". Files left without a `layer` fall back to the regex match. (The repo-wide regex layers still group the Changes/History tabs — tune those with the flow-layers skill; the Review is yours to shape per-feature here.)
+
+Files you list but don't anchor in any section still render, grouped in flow order under a **"More files"** block at the end of the walkthrough — nothing is dropped.
+
+### The thesis
+
+`--thesis <s>` — one short paragraph of markdown at the top of the Review: what this feature is and the single most important thing to understand about it. Think of it as the opening line a senior engineer would give before walking you through the code.
+
+### The sections (the walkthrough)
+
+`--sections` is an array of walkthrough sections, in FLOW ORDER (entry point → data — the same spine as the files). Each section is one step of the change explained the way a senior engineer would explain it, with the exact lines shown inline beneath the prose:
+
+```
+{
+  "title": "string",                    // section heading
+  "prose": "string",                    // markdown; the explanation of this step
+  "diagram": "string",                  // OPTIONAL inline SVG markup (see below)
+  "anchors": [                          // the code this section walks through, in order
+    { "path": "src/routes/callouts.ts", "startLine": 12, "endLine": 40 },
+    { "path": "src/services/callout-service.ts" }
+  ]
+}
+```
+
+- `title` — the heading for this step (≤200 chars).
+- `prose` — markdown, rendered with default escaping (**no raw HTML** — a `<script>` or `<img>` in prose is shown as text, not executed). Explain *why* this code is the way it is, the invariant it upholds, the trap it avoids — not a line-by-line paraphrase the reader can see for themselves.
+- `anchors` — the code blocks this section shows inline, in document order. Each is `{ path, startLine?, endLine? }`:
+  - `path` — repo-relative (must stay inside the repo; absolute or `..`-escaping paths are dropped).
+  - Omit both line numbers to anchor the file's **normal reading block** (diff hunks for a changed file; a symbol slice otherwise).
+  - Give `startLine`/`endLine` (1-based, inclusive) to anchor a specific range — for a changed file, the hunks intersecting that range; otherwise those exact lines (clamped, capped).
+  - A file anchored in a section does NOT repeat in "More files".
+
+Order sections and their anchors so the Review reads as one story from entry point to data. Keep it tight: enough sections to tell the whole feature, not a section per file.
+
+### Diagrams — render mermaid to SVG yourself
+
+A section's optional `diagram` is **self-contained inline SVG markup**. Porcelain displays it in a fully sandboxed iframe (no scripts, no external loads), so it must be finished SVG — Porcelain does not run mermaid, a layout engine, or any renderer for you.
+
+If you'd normally reach for a mermaid sequence/state/ER diagram to illuminate the flow, **render the mermaid to SVG yourself** and pass that SVG string as `diagram`. Keep it self-contained: inline any styles, embed nothing remote (no external fonts, images, or stylesheets — they're blocked and would just render blank). Only add a diagram where it genuinely clarifies the step (a request path across the seam, a state machine); skip it otherwise.
+
+### Example
+
+`--sections` reads one stdin at a time, so for anything sizeable pass the files inline and pipe the sections (or vice versa), or write the JSON to a temp file and `--sections "$(cat sections.json)"`:
+
+```bash
+~/.porcelain/porcelain review set --name "Callout templates" \
+  --thesis "Adds server-driven callout templates; the client renders whatever labels the service ships." \
+  --files '[
+    { "path": "src/routes/callouts.ts", "layer": "Routes" },
+    { "path": "src/services/callout-service.ts", "source": "shipped", "layer": "Services",
+      "note": "labels here must match CALLOUT_TEMPLATES in the client" },
+    { "path": "src/shared/callout-types.ts", "source": "context", "layer": "Data" }
+  ]' \
+  --sections '[
+    { "title": "The route accepts a template id",
+      "prose": "The handler validates the id and delegates straight to the service — no business logic at the edge.",
+      "anchors": [ { "path": "src/routes/callouts.ts", "startLine": 12, "endLine": 40 } ] },
+    { "title": "The service owns the template list",
+      "prose": "`CALLOUT_TEMPLATES` is the single source of truth; the client mirrors these labels, so a change here is a cross-seam contract.",
+      "anchors": [ { "path": "src/services/callout-service.ts" } ] }
+  ]'
+```
 
 ## What to include
 
 The COMPLETE feature, not just your diff:
+
 - The files you changed (no `source` needed).
 - The cross-seam files the diff can't show — the server route/controller/service a client change calls (`shipped`), and shared types or constants both sides depend on (`context`).
 - A `note` on every file where there's an invariant, contract, or gotcha the reviewer would otherwise miss.
+- Walkthrough sections in flow order that turn the file list into a narrative, each anchoring the exact lines it explains.
 
-Keep it tight: the files that make up THIS feature, broad enough that the human can read it as one story from entry point to data.
+Keep it tight: the files and steps that make up THIS feature, broad enough that the human can read it as one story from entry point to data.
+
+## Loop evidence — the final chapter
+
+The Review ends with proof the loop closed. After you've validated the work yourself (browser, simulator, screenshots, pass/fail), author **loop evidence** with the **`loop-evidence`** skill — Porcelain appends it as the Review's **final chapter** (and the outline gets a "Loop evidence" row that jumps there). It's a separate, ephemeral channel the human clears after review; you don't publish it through `review set`. See the `loop-evidence` skill for the flow.
+
+(There is no longer a separate "feature artifact" — the narrative explainer folded into the walkthrough sections above. If you're looking for the old `artifact set` verb, it's gone; write sections instead.)
 
 ## Reviewer comments
 
-The human also leaves comments in Porcelain — anchored to specific lines (or a whole file) — as concrete review context for you. They're the counterpart to the review set: app → agent. Check them:
+The human also leaves comments in Porcelain — anchored to specific lines (or a whole file) — as concrete review context for you. They're the counterpart to the Review: app → agent. Check them:
 
 - `~/.porcelain/porcelain comments list` → the OPEN comments, each with its file/line anchor, the snippet it was attached to, the note, and an id. Each is also tagged with the file's feature-view status — `(changed)` (in the git diff), `(context)`, or `(shipped)` — so you can tell a comment on a file you diffed from one on an unchanged context/cross-seam file the human is asking about. Read these before and during the work: they tell you exactly what to explain, fix, or look at.
 - `~/.porcelain/porcelain comments resolve --id <id>` → mark one resolved once you've ACTUALLY addressed the note; it then drops off the reviewer's open list.

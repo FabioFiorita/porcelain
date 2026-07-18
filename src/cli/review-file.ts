@@ -17,10 +17,34 @@ export interface ReviewFile {
   layer?: string
 }
 
+export interface ReviewSectionAnchor {
+  path: string
+  startLine?: number
+  endLine?: number
+}
+
+export interface ReviewSection {
+  title: string
+  prose: string
+  diagram?: string
+  anchors: ReviewSectionAnchor[]
+}
+
 export interface ReviewSet {
   name: string
+  thesis?: string
   files: ReviewFile[]
+  sections: ReviewSection[]
 }
+
+// Caps mirrored from src/backend/review-set.ts (the zod schema Porcelain re-validates
+// with on read) so a too-big write fails HERE with an actionable message instead of
+// being silently dropped by the app.
+const MAX_SECTIONS = 30
+const MAX_TITLE_CHARS = 200
+const MAX_PROSE_CHARS = 32_768
+const MAX_DIAGRAM_CHARS = 262_144
+const MAX_ANCHORS = 40
 
 type ReviewSets = Record<string, ReviewSet>
 
@@ -54,6 +78,71 @@ export function toReviewFiles(value: unknown): ReviewFile[] {
   })
 }
 
+/** Coerce arbitrary tool input into validated walkthrough sections; throws on bad shape. */
+export function toReviewSections(value: unknown): ReviewSection[] {
+  if (!Array.isArray(value)) throw new Error('sections must be an array')
+  if (value.length > MAX_SECTIONS) {
+    throw new Error(`sections must have at most ${MAX_SECTIONS} entries (got ${value.length})`)
+  }
+  return value.map((item, index) => {
+    if (!isRecord(item)) throw new Error(`sections[${index}] must be an object`)
+    const title = item.title
+    if (typeof title !== 'string' || title.length === 0) {
+      throw new Error(`sections[${index}].title must be a non-empty string`)
+    }
+    if (title.length > MAX_TITLE_CHARS) {
+      throw new Error(`sections[${index}].title must be at most ${MAX_TITLE_CHARS} characters`)
+    }
+    const prose = item.prose
+    if (typeof prose !== 'string') {
+      throw new Error(`sections[${index}].prose must be a string (markdown)`)
+    }
+    if (prose.length > MAX_PROSE_CHARS) {
+      throw new Error(`sections[${index}].prose must be at most ${MAX_PROSE_CHARS} characters`)
+    }
+    const section: ReviewSection = { title, prose, anchors: toSectionAnchors(item.anchors, index) }
+    if (item.diagram !== undefined) {
+      if (typeof item.diagram !== 'string') {
+        throw new Error(`sections[${index}].diagram must be a string (inline SVG markup)`)
+      }
+      if (item.diagram.length > MAX_DIAGRAM_CHARS) {
+        throw new Error(
+          `sections[${index}].diagram must be at most ${MAX_DIAGRAM_CHARS} characters`,
+        )
+      }
+      section.diagram = item.diagram
+    }
+    return section
+  })
+}
+
+function toSectionAnchors(value: unknown, sectionIndex: number): ReviewSectionAnchor[] {
+  if (value === undefined) return []
+  if (!Array.isArray(value)) throw new Error(`sections[${sectionIndex}].anchors must be an array`)
+  if (value.length > MAX_ANCHORS) {
+    throw new Error(
+      `sections[${sectionIndex}].anchors must have at most ${MAX_ANCHORS} entries (got ${value.length})`,
+    )
+  }
+  return value.map((item, index) => {
+    const label = `sections[${sectionIndex}].anchors[${index}]`
+    if (!isRecord(item)) throw new Error(`${label} must be an object`)
+    if (typeof item.path !== 'string' || item.path.length === 0) {
+      throw new Error(`${label}.path must be a non-empty string`)
+    }
+    const anchor: ReviewSectionAnchor = { path: item.path }
+    for (const key of ['startLine', 'endLine'] as const) {
+      const line = item[key]
+      if (line === undefined) continue
+      if (typeof line !== 'number' || !Number.isInteger(line) || line < 1) {
+        throw new Error(`${label}.${key} must be a positive integer (1-based line number)`)
+      }
+      anchor[key] = line
+    }
+    return anchor
+  })
+}
+
 /** Lenient variant for reading our own file back: skip malformed rows, never throw. */
 function parseReviewFiles(value: unknown): ReviewFile[] {
   if (!Array.isArray(value)) return []
@@ -67,6 +156,30 @@ function parseReviewFiles(value: unknown): ReviewFile[] {
     files.push(file)
   }
   return files
+}
+
+/** Lenient section variant for reading our own file back: skip malformed rows, never throw. */
+function parseReviewSections(value: unknown): ReviewSection[] {
+  if (!Array.isArray(value)) return []
+  const sections: ReviewSection[] = []
+  for (const item of value) {
+    if (!isRecord(item) || typeof item.title !== 'string' || typeof item.prose !== 'string') {
+      continue
+    }
+    const section: ReviewSection = { title: item.title, prose: item.prose, anchors: [] }
+    if (typeof item.diagram === 'string') section.diagram = item.diagram
+    if (Array.isArray(item.anchors)) {
+      for (const anchor of item.anchors) {
+        if (!isRecord(anchor) || typeof anchor.path !== 'string') continue
+        const parsed: ReviewSectionAnchor = { path: anchor.path }
+        if (typeof anchor.startLine === 'number') parsed.startLine = anchor.startLine
+        if (typeof anchor.endLine === 'number') parsed.endLine = anchor.endLine
+        section.anchors.push(parsed)
+      }
+    }
+    sections.push(section)
+  }
+  return sections
 }
 
 /** Merge incoming files into existing, replacing any with a path already present. */
@@ -90,10 +203,13 @@ function readAll(): ReviewSets {
   const sets: ReviewSets = {}
   for (const [repoPath, value] of Object.entries(parsed)) {
     if (!isRecord(value)) continue
-    sets[repoPath] = {
+    const set: ReviewSet = {
       name: typeof value.name === 'string' ? value.name : 'Feature view',
       files: parseReviewFiles(value.files),
+      sections: parseReviewSections(value.sections),
     }
+    if (typeof value.thesis === 'string') set.thesis = value.thesis
+    sets[repoPath] = set
   }
   return sets
 }
@@ -106,17 +222,18 @@ function writeAll(sets: ReviewSets): void {
   renameSync(tmp, path)
 }
 
-export function setReview(repoPath: string, name: string, files: ReviewFile[]): void {
+export function setReview(repoPath: string, set: ReviewSet): void {
   const sets = readAll()
-  sets[repoPath] = { name, files }
+  sets[repoPath] = set
   writeAll(sets)
 }
 
+/** Merge files into the existing set; name/thesis/sections are whole-set (replaced by `review set`). */
 export function addReviewFiles(repoPath: string, files: ReviewFile[]): number {
   const sets = readAll()
-  const current = sets[repoPath] ?? { name: 'Feature view', files: [] }
+  const current = sets[repoPath] ?? { name: 'Feature view', files: [], sections: [] }
   const merged = mergeReviewFiles(current.files, files)
-  sets[repoPath] = { name: current.name, files: merged }
+  sets[repoPath] = { ...current, files: merged }
   writeAll(sets)
   return merged.length
 }
@@ -135,14 +252,15 @@ export function readReview(repoPath: string): ReviewSet | null {
 
 /**
  * Render a repo's stored review set for the read tool: a one-line summary (name,
- * count, per-source breakdown) followed by the files as JSON so an agent can
- * verify what it pushed and round-trip an idempotent update. The stored source is
- * what the agent declared; Porcelain still auto-detects working-tree files as
- * `changed` when it renders, which the summary calls out.
+ * counts, per-source breakdown) followed by the thesis, files, and sections as one
+ * JSON object so an agent can verify what it pushed and round-trip an idempotent
+ * update (`review set --thesis --files --sections`). The stored source is what the
+ * agent declared; Porcelain still auto-detects working-tree files as `changed` when
+ * it renders, which the summary calls out.
  */
 export function describeReview(repoPath: string, review: ReviewSet | null): string {
-  if (!review || review.files.length === 0) {
-    return `No feature review set for ${repoPath}. Porcelain shows the static baseline (changed files plus the unchanged files they import). Use \`porcelain review set\` to define one.`
+  if (!review || (review.files.length === 0 && review.sections.length === 0)) {
+    return `No feature review set for ${repoPath}. Porcelain shows the no-review empty state until one is pushed. Use \`porcelain review set\` to define one.`
   }
   const counts = new Map<string, number>()
   for (const file of review.files) {
@@ -150,6 +268,9 @@ export function describeReview(repoPath: string, review: ReviewSet | null): stri
     counts.set(key, (counts.get(key) ?? 0) + 1)
   }
   const breakdown = [...counts.entries()].map(([source, n]) => `${n} ${source}`).join(', ')
-  const json = JSON.stringify(review.files, null, 2)
-  return `Feature review "${review.name}" for ${repoPath}: ${review.files.length} file(s) (${breakdown}). Working-tree files render as "changed" regardless of declared source.\n${json}`
+  const roundTrip: Record<string, unknown> = { files: review.files, sections: review.sections }
+  if (review.thesis !== undefined) roundTrip.thesis = review.thesis
+  const json = JSON.stringify(roundTrip, null, 2)
+  const fileCount = `${review.files.length} file(s)${breakdown ? ` (${breakdown})` : ''}`
+  return `Feature review "${review.name}" for ${repoPath}: ${fileCount}, ${review.sections.length} section(s), thesis ${review.thesis ? 'set' : 'not set'}. Working-tree files render as "changed" regardless of declared source.\n${json}`
 }

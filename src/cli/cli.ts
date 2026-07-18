@@ -9,13 +9,6 @@ import {
   updateAction,
 } from './action-file'
 import {
-  MAX_HTML_BYTES as ARTIFACT_MAX_HTML_BYTES,
-  clearArtifact,
-  describeArtifact,
-  getArtifact,
-  setArtifact,
-} from './artifact-file'
-import {
   createCard,
   deleteCard,
   describeBoard,
@@ -47,15 +40,17 @@ import {
   addReviewFiles,
   clearReview,
   describeReview,
+  type ReviewSet,
   readReview,
   setReview,
   toReviewFiles,
+  toReviewSections,
 } from './review-file'
 import { describeReviewed, readReviewed } from './reviewed-file'
 
 // Porcelain's agent CLI: a dependency-free command that reads and writes the watched
 // JSON channels under ~/.porcelain (review sets, board, actions, notes, layers,
-// artifact, evidence, comments, reviewed marks, chat). It replaces the old stdio MCP
+// evidence, comments, reviewed marks, chat). It replaces the old stdio MCP
 // server — a fresh process per invocation doing one synchronous read-modify-write, so
 // there is no ordering machinery to keep. Node builtins only, hand-rolled flag parsing:
 // the built bundle is copied to ~/.porcelain/porcelain.js and run under a plain `node`,
@@ -68,7 +63,7 @@ interface CliDeps {
   readStdin?: () => string
 }
 
-const BOOLEAN_FLAGS = new Set(['help', 'version'])
+const BOOLEAN_FLAGS = new Set(['help', 'version', 'closes'])
 
 interface ParsedArgs {
   positionals: string[]
@@ -130,6 +125,9 @@ const FLAG_DESCRIPTIONS: Record<string, string> = {
   name: 'Feature name shown in Porcelain (default "Feature view")',
   files:
     "Review files as JSON: array of {path, source?: changed|context|shipped, note?, layer?}, in flow order (entry point → data); '-' reads stdin",
+  thesis: 'One-paragraph markdown thesis shown at the top of the Review',
+  sections:
+    "Walkthrough sections as JSON: array of {title, prose (markdown), diagram? (inline SVG), anchors?: [{path, startLine?, endLine?}]}, in flow order; '-' reads stdin",
   title: 'Short title for the item',
   body: 'Body / details text',
   html: "The complete self-contained HTML document, inline; '-' reads stdin",
@@ -138,6 +136,8 @@ const FLAG_DESCRIPTIONS: Record<string, string> = {
   id: 'The item id (from the matching list/get command)',
   status: 'Column: todo | doing | done',
   from: 'Origin label (environment or agent id), e.g. "local" or "beelink"',
+  intent: 'One line on what you are doing, e.g. "refactoring auth"',
+  closes: 'Retire your open claim (pair with --body to note what finished)',
   command: 'The shell command to run',
   cwd: 'Working directory, repo-relative or absolute (defaults to repo root)',
   layers:
@@ -156,19 +156,28 @@ interface NounHelp {
   verbs: VerbHelp[]
   /** Flags whose descriptions are shown under `porcelain <noun> --help`. */
   flags: string[]
+  /**
+   * Per-noun descriptions that override the shared FLAG_DESCRIPTIONS — for a flag whose
+   * meaning differs by noun (e.g. chat's `--files` is a CSV claim, review's is a JSON array).
+   */
+  flagOverrides?: Record<string, string>
 }
 
 const COMMANDS: NounHelp[] = [
   {
     noun: 'review',
-    blurb: 'the feature review set (the files that make up the feature)',
+    blurb: 'the feature review set (the files and walkthrough that make up the Review)',
     verbs: [
-      { verb: 'set', args: '[--name <s>] --files <json|->', desc: 'Replace the review set' },
+      {
+        verb: 'set',
+        args: '[--name <s>] [--thesis <s>] [--sections <json|->] --files <json|->',
+        desc: 'Replace the review set',
+      },
       { verb: 'add', args: '--files <json|->', desc: 'Add files to the existing set' },
       { verb: 'get', args: '', desc: 'Read back the declared set' },
-      { verb: 'clear', args: '', desc: 'Remove the set (fall back to the baseline)' },
+      { verb: 'clear', args: '', desc: 'Remove the set (the Review shows its empty state)' },
     ],
-    flags: ['name', 'files'],
+    flags: ['name', 'thesis', 'files', 'sections'],
   },
   {
     noun: 'feature',
@@ -191,20 +200,6 @@ const COMMANDS: NounHelp[] = [
     blurb: 'the files the human has checked off as reviewed (read-only)',
     verbs: [{ verb: 'list', args: '', desc: 'List the reviewed file paths' }],
     flags: [],
-  },
-  {
-    noun: 'artifact',
-    blurb: 'the self-contained HTML feature explainer',
-    verbs: [
-      {
-        verb: 'set',
-        args: '--title <s> (--html <s|-> | --html-file <p>)',
-        desc: 'Author (or replace) the artifact',
-      },
-      { verb: 'get', args: '', desc: 'Read back the stored artifact (summary + preview)' },
-      { verb: 'clear', args: '', desc: 'Remove the artifact' },
-    ],
-    flags: ['title', 'html', 'html-file'],
   },
   {
     noun: 'evidence',
@@ -245,11 +240,19 @@ const COMMANDS: NounHelp[] = [
     noun: 'chat',
     blurb: 'the agent chat / relay (local ↔ remote collab)',
     verbs: [
-      { verb: 'list', args: '', desc: 'List messages' },
-      { verb: 'post', args: '--from <s> --body <s>', desc: 'Post a message' },
+      { verb: 'list', args: '', desc: 'List messages, live claims, and overlaps' },
+      {
+        verb: 'post',
+        args: '--from <s> --body <s> [--files <csv>] [--intent <s>] [--closes]',
+        desc: 'Post a message or a file claim',
+      },
       { verb: 'clear', args: '', desc: 'Clear the thread' },
     ],
-    flags: ['from', 'body'],
+    flags: ['from', 'body', 'files', 'intent', 'closes'],
+    flagOverrides: {
+      files:
+        'Repo-relative paths you are working on, comma-separated — declares a claim so other agents see overlaps',
+    },
   },
   {
     noun: 'actions',
@@ -307,7 +310,7 @@ function renderHelp(nounName?: string): string {
   const noun = nounName ? COMMANDS.find((c) => c.noun === nounName) : undefined
   if (noun) {
     const flagLines = ['repo', ...noun.flags]
-      .map((f) => `  --${f.padEnd(11)} ${FLAG_DESCRIPTIONS[f]}`)
+      .map((f) => `  --${f.padEnd(11)} ${noun.flagOverrides?.[f] ?? FLAG_DESCRIPTIONS[f]}`)
       .join('\n')
     return `${HEADER}\n\nporcelain ${noun.noun} <verb> — ${noun.blurb}\n\n${renderVerbs(noun)}\n\nFlags:\n${flagLines}`
   }
@@ -357,8 +360,14 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
     case 'review set': {
       const name = opt('name') ?? 'Feature view'
       const files = toReviewFiles(readJson('files'))
-      setReview(repo, name, files)
-      return `Set feature review "${name}" (${files.length} files) for ${repo}`
+      const rawSections = readJson('sections')
+      const sections = rawSections === undefined ? [] : toReviewSections(rawSections)
+      const set: ReviewSet = { name, files, sections }
+      const thesis = opt('thesis')
+      if (thesis !== undefined && thesis !== '') set.thesis = thesis
+      setReview(repo, set)
+      const extras = sections.length > 0 ? `, ${sections.length} section(s)` : ''
+      return `Set feature review "${name}" (${files.length} files${extras}) for ${repo}`
     }
     case 'review add': {
       const files = toReviewFiles(readJson('files'))
@@ -389,24 +398,14 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
     }
     case 'reviewed list':
       return describeReviewed(repo, readReviewed(repo))
-    case 'artifact set': {
-      const html = resolveHtml(ARTIFACT_MAX_HTML_BYTES)
-      const artifact = setArtifact(repo, opt('title'), html)
-      return `Set feature artifact "${artifact.title}" for ${repo}. Porcelain renders it in a fully sandboxed iframe (no scripts, no external loads).`
-    }
-    case 'artifact get':
-      return describeArtifact(repo, getArtifact(repo))
-    case 'artifact clear':
-      clearArtifact(repo)
-      return `Cleared the feature artifact for ${repo}`
     case 'evidence prepare': {
       const prepared = prepareEvidence(repo, opt('title'))
-      return `Loop evidence directory ready for "${prepared.title}" at:\n${prepared.dir}\n\nWrite index.html there (and screenshots as sibling files with relative <img src="shot.png">). Porcelain picks it up automatically within a few seconds — Feature tab → Loop evidence. For large HTML, write the file yourself rather than passing --html.`
+      return `Loop evidence directory ready for "${prepared.title}" at:\n${prepared.dir}\n\nWrite index.html there (and screenshots as sibling files with relative <img src="shot.png">). Porcelain picks it up automatically within a few seconds — it renders as the Review's final chapter (Feature tab). For large HTML, write the file yourself rather than passing --html.`
     }
     case 'evidence set': {
       const html = resolveHtml(EVIDENCE_MAX_HTML_BYTES)
       const evidence = setEvidence(repo, opt('title'), html)
-      return `Wrote loop evidence "${evidence.title}" to ${evidence.dir}/index.html for ${repo}. Porcelain renders it in the Feature tab. For large docs prefer "evidence prepare" + writing index.html yourself.`
+      return `Wrote loop evidence "${evidence.title}" to ${evidence.dir}/index.html for ${repo}. Porcelain renders it as the Review's final chapter. For large docs prefer "evidence prepare" + writing index.html yourself.`
     }
     case 'evidence get':
       return describeEvidence(repo, getEvidence(repo))
@@ -442,9 +441,31 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
       return describeChat(repo, readChatMessages(repo))
     case 'chat post': {
       const from = req('from')
-      const body = req('body')
-      const message = postChatMessage(repo, from, body)
-      return `Posted chat message ${message.id} as "${from}" for ${repo}`
+      // Chat's --files is a plain CSV claim (agents shouldn't hand-write JSON for a quick
+      // claim), independent of review's JSON --files (readJson). See the noun flagOverride.
+      const filesRaw = opt('files')
+      const files = filesRaw
+        ? filesRaw
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : undefined
+      const intent = opt('intent')?.trim() || undefined
+      const closes = flags.has('closes')
+      const isClaim = files !== undefined && files.length > 0
+      // Body is required for a plain message; for a claim or close it can be synthesized from
+      // the intent/footprint so the message still carries readable text (the app schema needs
+      // a non-empty body). Lets an agent post a quick claim without repeating itself in --body.
+      let body = opt('body')?.trim()
+      if (!body) {
+        if (files && files.length > 0) body = intent ?? `Working on ${files.join(', ')}`
+        else if (closes) body = intent ?? 'Closed claim'
+        else throw new Error('body is required')
+      }
+      const message = postChatMessage(repo, { from, body, files, intent, closes })
+      return isClaim
+        ? `Posted claim ${message.id} as "${from}" — ${files?.length ?? 0} file(s) for ${repo}`
+        : `Posted chat message ${message.id} as "${from}" for ${repo}`
     }
     case 'chat clear':
       return clearChatMessages(repo)

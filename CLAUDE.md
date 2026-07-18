@@ -94,7 +94,7 @@ Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wron
 - **Search list** — Search body (`search-list.tsx`): repo-wide code search (`gitSearchCode`), distinct from the ⌘⇧F `ContentSearch` overlay (`gitGrep`).
 - **Changes list** — Changes body (`changes-list.tsx`), grouped by flow layer.
 - **History list** — History body (`history-list.tsx`).
-- **Feature list** — Feature body (`feature-list.tsx`): the whole feature in flow order as a nav list; the viewer feature view is the expanded read.
+- **Feature list** — Feature body (`feature-list.tsx`): the **outline** of the Review — section titles (click to jump the open Review document there) + each section's files with reviewed marks, a "More files" block, and a Loop evidence row. The viewer feature view is the expanded read.
 - **Board list** — Board body (`board-list.tsx`): the todo/doing/done cards.
 - **Chat list** — Chat body (`chat-list.tsx`): agent relay messages (local ↔ remote collab); viewer chat view is the full thread.
 - **Terminal list** — Terminal body (`terminal-list.tsx`): the roster of terminal **sessions** (they outlive their tabs — a closed tab keeps the PTY running).
@@ -104,7 +104,7 @@ Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wron
 - **Tab bar** — the floating capsule of open documents (`tab-bar.tsx`).
 - **Tab** — one open document. **Preview** = single-click, italic, replaced by the next; **pinned** = double-click/edit, kept.
 - **Split view / pane** — two side-by-side **panes**, each its own tabs (`panes`/`activePaneIndex` in `stores/tabs.ts`); "Open to the Side". Model in `architecture` (Routing).
-- **Tab kinds** — `file view` / `source view` (`source-view.tsx`) / `markdown reader` (`markdown-view.tsx`) / `html preview` (`html-view.tsx`, sandboxed; Preview|Source like markdown) / `diff view` (`diff-view.tsx`) / `commit view` (`commit-view.tsx`) / `search view` (`search-view.tsx`) / `feature view` (`feature-view.tsx`) / `explore view` (`explore-view.tsx`) / `board view` (`board-view.tsx`) / `chat view` (`chat-view.tsx`) / `terminal view` (`terminal-view.tsx`) / `artifact view` (`artifact-view.tsx`) / `evidence view` (`evidence-view.tsx`) / `agent view` (`agent-view.tsx`). What each renders → read the file; the concepts → `product`.
+- **Tab kinds** — `file view` / `source view` (`source-view.tsx`) / `markdown reader` (`markdown-view.tsx`) / `html preview` (`html-view.tsx`, sandboxed; Preview|Source like markdown) / `diff view` (`diff-view.tsx`) / `commit view` (`commit-view.tsx`) / `search view` (`search-view.tsx`) / `feature view` (`feature-view.tsx`) / `explore view` (`explore-view.tsx`) / `board view` (`board-view.tsx`) / `chat view` (`chat-view.tsx`) / `terminal view` (`terminal-view.tsx`) / `agent view` (`agent-view.tsx`). What each renders → read the file; the concepts → `product`. (The `feature view` IS the Review — thesis + walkthrough sections + the loop-evidence chapter; the former `artifact`/`evidence` tab kinds are gone.)
 
 **Inside Quick Access** (section follows the sidebar tab):
 - Files → **Pinned** (`pinned-group.tsx`) + **Notes card** (`notes-card.tsx`), in `files-quick-access.tsx`.
@@ -113,6 +113,8 @@ Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wron
 - History → **File timeline** (`file-timeline-group.tsx`): the commit history of the file open in the viewer (`gitFileLog`, `--follow`); click an entry to open that commit.
 - Changes/Feature → **Commit composer** (`commit-group.tsx`) + **Comments** (`comments-group.tsx`).
 - Terminal → **Actions** (`actions-group.tsx`).
+- Chat → **Coordination** (`chat-quick-access.tsx`): Participants · Claims · Overlaps, derived from the thread at read time (advisory, no locking).
+- Feature (with the Review focused) → a **Review group** (`review-group.tsx`) above the commit composer: the active section + the visible files' invariants + comment count.
 - Agent → **Session** companion (`agents-quick-access.tsx`): live activity, plan, files touched, usage/limits — header is **Session** (not "Agent") so it doesn't collide with the left tab.
 
 **Overlays:**
@@ -123,13 +125,12 @@ Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wron
 
 **Cross-cutting vocabulary** (the *what* and *why* live in `product`; channel internals + traps in `architecture`/`audit`):
 - **Flow / flow layers** — the architectural-layer grouping of changes (entry-point → data); the heart of "review as a story".
-- **Feature view / review set** — the change widened to the whole feature; files tagged **changed** / **context** (import-reached baseline) / **shipped** (agent-declared cross-seam). The review set is the agent-fed manifest (`~/.porcelain/review-sets.json`).
-- **Feature artifact** — an agent-authored self-contained HTML explainer of the feature (`~/.porcelain/artifacts.json`), two-way via the porcelain CLI (app write = clear only); rendered in a fully sandboxed iframe in the viewer (`artifact view` tab kind), opened from the Feature list.
-- **Loop evidence** — agent-authored self-contained HTML *proof the loop closed* (browser/simulator validation, screenshots, pass/fail) (`~/.porcelain/evidence.json`), two-way via the porcelain CLI (app write = clear only); same sandboxed iframe path (`evidence view` tab kind), opened from the Feature list as **Loop evidence**. Ephemeral — clear after review (e.g. before commit/push).
+- **The Review / feature view / review set** — the change widened to the whole feature and published by the agent as ONE document (**the Review**): a thesis, flow-ordered walkthrough sections (markdown prose + optional inline-SVG diagram + line-range-anchored code), then the loop-evidence chapter. Files are tagged **changed** / **context** (import-reached) / **shipped** (agent-declared cross-seam). The review set is the agent-fed manifest (`~/.porcelain/review-sets.json`), now carrying `thesis` + `sections`. No review set → the Feature tab's "No review yet" empty state (there is no baseline).
+- **Loop evidence** — agent-authored self-contained HTML *proof the loop closed* (browser/simulator validation, screenshots, pass/fail); directory-on-disk (`~/.porcelain/loop-evidence/<key>/`, legacy `evidence.json` fallback), the app write = clear only. Renders as the **final chapter of the Review** (no separate tab kind); the outline's Loop evidence row jumps there. Ephemeral — clear after review (e.g. before commit/push).
 - **Review comments** — the reviewer's line/file notes (`~/.porcelain/comments.json`), app→agent via the porcelain CLI.
 - **Reviewed marks** — the per-file "reviewed" checkboxes the human ticks in the Changes/Feature lists (`~/.porcelain/reviewed.json`), app→agent via the porcelain CLI (read-only, like notes); cleared on commit.
 - **Project board** — per-repo todo/doing/done (`~/.porcelain/board.json`), two-way via the porcelain CLI.
-- **Agent chat / relay** — per-repo messages (`~/.porcelain/chat.json`), two-way via the porcelain CLI; Chat sidebar tab for local↔remote agent collab.
+- **Agent chat / relay** — per-repo messages (`~/.porcelain/chat.json`), two-way via the porcelain CLI; Chat sidebar tab for local↔remote agent collab. A message carrying a file footprint (`--files`/`--intent`/`--closes`) is a **claim**; the app derives live claims + overlaps at read time (Coordination panel), no new channel.
 - **Embedded terminal / Actions** — real PTYs (node-pty + xterm.js) on the daemon's WS session (`lib/daemon.ts`, not tRPC and no longer a preload channel). **Actions** = saved named commands (`~/.porcelain/actions.json`); agent curates, **human runs**.
 - **Agent threads / drivers** — daemon-owned conversations with a coding agent, run inside Porcelain; **drivers** spawn the user's installed CLIs (Claude Code, Codex, OpenCode). Entry points: `src/backend/agents/agent-manager.ts` + `src/shared/agent-protocol.ts`. The *what/why* lives in `product`; internals/traps in `architecture`/`audit`.
 - **Daemon** — the headless, Electron-free backend process (`src/backend/server.ts`) the renderer talks to over HTTP + one WebSocket on 127.0.0.1; the shell spawns/babysits it. Entry points: `src/main/daemon.ts` (spawn), `src/backend/server.ts` + `session.ts` (serve). "The daemon" always resolves here.

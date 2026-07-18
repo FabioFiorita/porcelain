@@ -15,6 +15,10 @@ const changed = (path: string, status: ChangedFile['status'] = 'modified'): Chan
   status,
 })
 
+// The view is review-set-only now; an empty set is the minimal input (declared
+// files/sections just widen it).
+const emptySet = (name = 'Feature view'): ReviewSet => ({ name, files: [], sections: [] })
+
 describe('resolveRelativeImport', () => {
   const files = new Set([
     'app/hooks/use-crew.ts',
@@ -70,19 +74,20 @@ describe('buildFeatureView', () => {
   const layers = DEFAULT_LAYERS
   const noStats = new Map<string, { additions: number; deletions: number }>()
 
-  it('groups changed files in flow order with no review set (the baseline)', () => {
+  it('groups changed files in flow order with an empty review set', () => {
     const view = buildFeatureView({
       name: 'Feature view',
       changed: [changed('app/screens/crew/tab.tsx'), changed('app/hooks/use-crew.ts')],
       contextPaths: [],
-      reviewSet: null,
+      reviewSet: emptySet(),
       sources: new Map(),
       stats: noStats,
       layers,
     })
-    expect(view.fromAgent).toBe(false)
     expect(view.groups.map((g) => g.layer)).toEqual(['Pages', 'Hooks'])
     expect(view.groups[0]?.files[0]?.source).toBe('changed')
+    expect(view.sections).toEqual([])
+    expect(view.thesis).toBeUndefined()
   })
 
   it('tags context files and keeps them in their own layer', () => {
@@ -90,7 +95,7 @@ describe('buildFeatureView', () => {
       name: 'Feature view',
       changed: [changed('app/screens/crew/tab.tsx')],
       contextPaths: ['app/hooks/use-crew.ts'],
-      reviewSet: null,
+      reviewSet: emptySet(),
       sources: new Map(),
       stats: noStats,
       layers,
@@ -106,6 +111,7 @@ describe('buildFeatureView', () => {
         { path: 'server/services/crew.service.ts', source: 'shipped', note: 'owns the labels' },
         { path: 'app/hooks/use-crew.ts', note: 'maps ISO date' },
       ],
+      sections: [],
     }
     const view = buildFeatureView({
       name: 'fallback',
@@ -138,6 +144,7 @@ describe('buildFeatureView', () => {
         { path: 'store/registration/index.tsx', source: 'context', layer: 'Store' },
         { path: 'infra/auth/createAccountDraft.ts', source: 'shipped', layer: 'Infra' },
       ],
+      sections: [],
     }
     const view = buildFeatureView({
       name: 'Account access',
@@ -163,6 +170,7 @@ describe('buildFeatureView', () => {
         { path: 'app/screens/crew/tab.tsx' }, // no layer → regex → Pages
         { path: 'server/services/crew.service.ts', source: 'shipped', layer: 'Services' },
       ],
+      sections: [],
     }
     const view = buildFeatureView({
       name: 'X',
@@ -181,7 +189,7 @@ describe('buildFeatureView', () => {
       name: 'Feature view',
       changed: [changed('app/screens/crew/tab.tsx')],
       contextPaths: ['app/hooks/use-crew.ts'],
-      reviewSet: null,
+      reviewSet: emptySet(),
       sources: new Map([
         ['app/screens/crew/tab.tsx', "import { useCrew } from '../../hooks/use-crew'"],
       ]),
@@ -197,12 +205,38 @@ describe('buildFeatureView', () => {
       name: 'Feature view',
       changed: [changed('app/hooks/use-crew.ts')],
       contextPaths: [],
-      reviewSet: null,
+      reviewSet: emptySet(),
       sources: new Map(),
       stats: new Map([['app/hooks/use-crew.ts', { additions: 74, deletions: 3 }]]),
       layers,
     })
     expect(view.groups[0]?.files[0]).toMatchObject({ additions: 74, deletions: 3 })
+  })
+
+  it('carries the thesis and a per-section outline (title + anchor count)', () => {
+    const reviewSet: ReviewSet = {
+      name: 'Login flow',
+      thesis: 'One round-trip instead of three.',
+      files: [{ path: 'app/login.tsx' }],
+      sections: [
+        { title: 'Entry point', prose: 'starts here', anchors: [{ path: 'app/login.tsx' }] },
+        { title: 'Server half', prose: 'the seam', anchors: [] },
+      ],
+    }
+    const view = buildFeatureView({
+      name: 'Login flow',
+      changed: [changed('app/login.tsx')],
+      contextPaths: [],
+      reviewSet,
+      sources: new Map(),
+      stats: noStats,
+      layers,
+    })
+    expect(view.thesis).toBe('One round-trip instead of three.')
+    expect(view.sections).toEqual([
+      { title: 'Entry point', anchorCount: 1 },
+      { title: 'Server half', anchorCount: 0 },
+    ])
   })
 })
 
@@ -215,7 +249,7 @@ describe('buildFeatureReading', () => {
     name: 'Feature',
     changed: [changed('app/page.tsx')],
     contextPaths: ['app/svc.ts'],
-    reviewSet: { name: 'Feature', files: [] },
+    reviewSet: emptySet('Feature'),
     sources,
     stats: new Map(),
     layers: DEFAULT_LAYERS,
@@ -228,7 +262,7 @@ describe('buildFeatureReading', () => {
   ])
 
   it('passes diff hunks through for changed files and slices the rest', () => {
-    const reading = buildFeatureReading({ view, sources, diffs })
+    const reading = buildFeatureReading({ view, sections: [], sources, diffs, evidence: null })
     const files = reading.groups.flatMap((g) => g.files)
 
     const page = files.find((f) => f.path === 'app/page.tsx')
@@ -243,6 +277,104 @@ describe('buildFeatureReading', () => {
     // page imports only `greet`, so the slice keeps it and drops the UNUSED export
     expect(sliced).toContain('export function greet')
     expect(sliced).not.toContain('UNUSED')
+  })
+
+  it('carries the thesis, the sections with prose/diagram, and the evidence meta', () => {
+    const thesisView = buildFeatureView({
+      name: 'Feature',
+      changed: [changed('app/page.tsx')],
+      contextPaths: [],
+      reviewSet: { name: 'Feature', thesis: 'The why.', files: [], sections: [] },
+      sources,
+      stats: new Map(),
+      layers: DEFAULT_LAYERS,
+    })
+    const reading = buildFeatureReading({
+      view: thesisView,
+      sections: [{ title: 'Entry', prose: 'starts here', diagram: '<svg />', anchors: [] }],
+      sources,
+      diffs,
+      evidence: { title: 'Loop closed', updatedAt: '2026-07-18T00:00:00Z' },
+    })
+    expect(reading.thesis).toBe('The why.')
+    expect(reading.sections).toEqual([
+      { title: 'Entry', prose: 'starts here', diagram: '<svg />', files: [] },
+    ])
+    expect(reading.evidence).toEqual({ title: 'Loop closed', updatedAt: '2026-07-18T00:00:00Z' })
+  })
+
+  it("gives a rangeless anchor the file's normal reading block and removes it from groups", () => {
+    const reading = buildFeatureReading({
+      view,
+      sections: [{ title: 'Entry', prose: 'the page', anchors: [{ path: 'app/page.tsx' }] }],
+      sources,
+      diffs,
+      evidence: null,
+    })
+    const anchored = reading.sections[0]?.files[0]
+    expect(anchored).toMatchObject({ path: 'app/page.tsx', source: 'changed' })
+    expect(anchored?.hunks).toHaveLength(1)
+    // anchored files do not repeat in the leftover groups; the rest stays
+    const leftover = reading.groups.flatMap((g) => g.files.map((f) => f.path))
+    expect(leftover).toEqual(['app/svc.ts'])
+  })
+
+  it('resolves a ranged anchor on a changed file to the intersecting hunks', () => {
+    const twoHunks = new Map<string, DiffHunk[]>([
+      [
+        'app/page.tsx',
+        [
+          { header: '@@ -1 +1 @@', lines: [{ kind: 'add', oldLine: null, newLine: 1, text: 'a' }] },
+          {
+            header: '@@ -40 +40 @@',
+            lines: [{ kind: 'add', oldLine: null, newLine: 40, text: 'b' }],
+          },
+        ],
+      ],
+    ])
+    const reading = buildFeatureReading({
+      view,
+      sections: [
+        {
+          title: 'Tail',
+          prose: 'the bottom half',
+          anchors: [{ path: 'app/page.tsx', startLine: 39, endLine: 45 }],
+        },
+      ],
+      sources,
+      diffs: twoHunks,
+      evidence: null,
+    })
+    const anchored = reading.sections[0]?.files[0]
+    expect(anchored?.hunks).toHaveLength(1)
+    expect(anchored?.hunks?.[0]?.header).toBe('@@ -40 +40 @@')
+  })
+
+  it('resolves a ranged anchor on an unchanged file to a single clamped slice', () => {
+    const reading = buildFeatureReading({
+      view,
+      sections: [
+        {
+          title: 'Service',
+          prose: 'the greet body',
+          // endLine runs past the 4-line file — clamped to its length
+          anchors: [{ path: 'app/svc.ts', startLine: 2, endLine: 99 }],
+        },
+      ],
+      sources,
+      diffs,
+      evidence: null,
+    })
+    const anchored = reading.sections[0]?.files[0]
+    expect(anchored?.source).toBe('context')
+    expect(anchored?.ranges).toEqual([
+      {
+        startLine: 2,
+        lines: ['  return 1', '}', 'export const UNUSED = 2'],
+        gapBefore: 1,
+      },
+    ])
+    expect(anchored?.truncated).toBeFalsy()
   })
 })
 

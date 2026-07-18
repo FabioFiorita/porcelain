@@ -37,13 +37,6 @@ import {
 } from './agents/agent-manager'
 import type { AgentCommand } from './agents/types'
 import {
-  type Artifact,
-  type ArtifactMeta,
-  clearArtifact,
-  readArtifact,
-  readArtifactMeta,
-} from './artifact-store'
-import {
   addCard,
   type BoardCard,
   CARD_STATUSES,
@@ -162,6 +155,7 @@ import {
   type RepoSettings,
   repoSettingsSchema,
 } from './repo-settings'
+import type { ReviewSet } from './review-set'
 import { clearReviewSet, readReviewSet } from './review-store'
 import {
   clearReviewedPaths,
@@ -427,12 +421,17 @@ async function gatherFeature(input: string) {
   return { files, stats, layers, reviewSet, repoFiles, key }
 }
 
+// A gather narrowed to "an agent review set exists" — the only state the feature
+// build runs in now (both procedures return null to the renderer without one).
+type ReviewGather = Awaited<ReturnType<typeof gatherFeature>> & { reviewSet: ReviewSet }
+
 // Expensive phase shared on a cache miss: read changed + context + agent-declared
-// sources, then build the feature view. Returns the view AND the sources (the
-// reading surface needs them to slice context/shipped files).
+// sources (including section-anchor targets — a section may anchor a file the set
+// never listed), then build the feature view. Returns the view AND the sources
+// (the reading surface needs them to slice context/shipped files).
 async function buildFeatureFromGather(
   input: string,
-  g: Awaited<ReturnType<typeof gatherFeature>>,
+  g: ReviewGather,
 ): Promise<{ view: FeatureView; sources: Map<string, string> }> {
   const sources = new Map<string, string>()
   await readSourcesInto(
@@ -447,14 +446,18 @@ async function buildFeatureFromGather(
   )
   await readSourcesInto(
     input,
-    [...contextPaths, ...(g.reviewSet?.files.map((file) => file.path) ?? [])],
+    [
+      ...contextPaths,
+      ...g.reviewSet.files.map((file) => file.path),
+      ...g.reviewSet.sections.flatMap((section) => section.anchors.map((anchor) => anchor.path)),
+    ],
     sources,
   )
   const statByPath = new Map(
     g.stats.map((s) => [s.path, { additions: s.additions, deletions: s.deletions }]),
   )
   const view = buildFeatureView({
-    name: g.reviewSet?.name ?? 'Feature view',
+    name: g.reviewSet.name,
     changed: g.files,
     contextPaths,
     reviewSet: g.reviewSet,
@@ -471,7 +474,7 @@ async function buildFeatureFromGather(
 // once per snapshot regardless of which procedure polls first.
 async function getFeatureBuild(
   input: string,
-  g: Awaited<ReturnType<typeof gatherFeature>>,
+  g: ReviewGather,
 ): Promise<{ key: string; view: FeatureView; sources: Map<string, string> }> {
   const cached = featureBuildCache.get(input)
   if (cached && cached.key === g.key) return cached
@@ -787,7 +790,7 @@ export const router = t.router({
 
   // HTML preview for the built-in viewer: read a .html/.htm file and inline
   // sibling relative images as data URIs so a sandboxed srcdoc can show them
-  // under the app CSP (same helper as loop evidence). Size-capped like artifacts.
+  // under the app CSP (same helper and size cap as loop evidence).
   previewHtml: t.procedure.input(z.string()).query(async ({ input }): Promise<string | null> => {
     try {
       const info = await stat(input)
@@ -939,29 +942,38 @@ export const router = t.router({
       return buildDiffReading({ name, groups, diffs })
     }),
 
-  // The feature view: the change under review widened into the whole feature.
-  // No-review-set baseline = changed files + the unchanged files they reach by relative
-  // import (tagged `context`). When an agent has pushed a review set for this repo
-  // (via the porcelain CLI → ~/.porcelain/review-sets.json), its cross-seam files and
-  // invariant notes overlay on top. One render either way.
-  featureView: t.procedure.input(z.string()).query(async ({ input }): Promise<FeatureView> => {
-    const g = await gatherFeature(input)
-    return (await getFeatureBuild(input, g)).view
-  }),
+  // The feature view (the Review's outline): the change under review widened into
+  // the whole feature by the agent's review set (porcelain CLI →
+  // ~/.porcelain/review-sets.json) — its cross-seam files, invariant notes, thesis,
+  // and section outline. Review-set-only: null without a set (the renderer shows
+  // the "No review yet" empty state; there is no import-graph baseline anymore).
+  featureView: t.procedure
+    .input(z.string())
+    .query(async ({ input }): Promise<FeatureView | null> => {
+      const g = await gatherFeature(input)
+      if (!g.reviewSet) return null
+      return (await getFeatureBuild(input, { ...g, reviewSet: g.reviewSet })).view
+    }),
 
-  // The inline reading surface: the feature rendered as one flow-ordered document
-  // with just the relevant lines (diff hunks for changed files, symbol slices for
-  // context/shipped). Review-set-only — returns null when there's no agent review set, so
-  // the baseline stays the lightweight Feature list and the slice heuristic only
-  // ever runs on the agent's curated, annotated set.
+  // The Review document: thesis + walkthrough sections (prose/diagram + anchored
+  // code blocks) + the leftover files flow-grouped, with just the relevant lines
+  // (diff hunks for changed files, symbol slices for context/shipped) and the
+  // loop-evidence meta as the final chapter. Review-set-only — null without an
+  // agent review set, so the slice heuristic only ever runs on the agent's
+  // curated, annotated set.
   featureReading: t.procedure
     .input(z.string())
     .query(async ({ input }): Promise<FeatureReading | null> => {
       const g = await gatherFeature(input)
       if (!g.reviewSet) return null
+      // Evidence meta is read fresh on every poll (a cheap stat-level read): it is
+      // NOT part of the feature key, so a cached reading would otherwise pin a
+      // stale/absent final chapter until the working tree changed.
+      const meta = await readEvidenceMeta(input)
+      const evidence = meta ? { title: meta.title, updatedAt: meta.updatedAt } : null
       const cached = featureReadingCache.get(input)
-      if (cached && cached.key === g.key) return cached.reading
-      const { view, sources } = await getFeatureBuild(input, g)
+      if (cached && cached.key === g.key) return { ...cached.reading, evidence }
+      const { view, sources } = await getFeatureBuild(input, { ...g, reviewSet: g.reviewSet })
       const changed = view.groups
         .flatMap((group) => group.files)
         .filter((f) => f.source === 'changed')
@@ -976,42 +988,30 @@ export const router = t.router({
           }
         }),
       )
-      const reading = buildFeatureReading({ view, sources, diffs })
+      const reading = buildFeatureReading({
+        view,
+        sections: g.reviewSet.sections,
+        sources,
+        diffs,
+        evidence,
+      })
       featureReadingCache.set(input, { key: g.key, reading })
       return reading
     }),
 
-  // Clear a repo's agent review set → revert the feature view to the static
-  // baseline. The app's one write to the agent channel (see `clearReviewSet`);
-  // the next featureView/featureReading poll reads null and rebuilds (cache key
-  // includes the review set, so it self-busts).
+  // Clear a repo's agent review set → the Review reverts to its "No review yet"
+  // empty state. The app's one write to the agent channel (see `clearReviewSet`);
+  // the next featureView/featureReading poll reads null (cache key includes the
+  // review set, so it self-busts).
   clearFeatureReview: t.procedure.input(z.string()).mutation(async ({ input }) => {
     await clearReviewSet(input)
   }),
 
-  // The feature artifact: an agent-authored, self-contained HTML document explaining
-  // the feature, rendered in a fully sandboxed iframe (see `artifact-store.ts`).
-  // Split into a cheap metadata query (the Feature list polls this to show/hide the
-  // opener without shuttling the whole document) and a full query the artifact view
-  // reads only while open. Both re-validate + size-cap on read (external process owns
-  // the file). `clearFeatureArtifact` is the app's one write to this channel.
-  featureArtifact: t.procedure
-    .input(z.string())
-    .query(({ input }): Promise<ArtifactMeta | null> => readArtifactMeta(input)),
-
-  featureArtifactHtml: t.procedure
-    .input(z.string())
-    .query(({ input }): Promise<Artifact | null> => readArtifact(input)),
-
-  clearFeatureArtifact: t.procedure.input(z.string()).mutation(async ({ input }) => {
-    await clearArtifact(input)
-  }),
-
   // Loop evidence: agent-authored HTML proving the work was validated (browser /
-  // simulator / screenshots). Same sandbox + size-cap rules as the feature artifact;
-  // different product role (ephemeral proof, not narrative explainer). See
-  // `evidence-store.ts`. Cheap metadata for the Feature list opener; full HTML only
-  // while the evidence view is open. `clearLoopEvidence` is the app's one write.
+  // simulator / screenshots), rendered sandboxed as the Review's final chapter.
+  // See `evidence-store.ts` — re-validated + size-capped on every read (external
+  // process owns the files). Cheap metadata query; full HTML fetched only while
+  // the evidence chapter is on screen. `clearLoopEvidence` is the app's one write.
   loopEvidence: t.procedure
     .input(z.string())
     .query(({ input }): Promise<EvidenceMeta | null> => readEvidenceMeta(input)),
@@ -1122,11 +1122,21 @@ export const router = t.router({
         repoPath: z.string(),
         from: z.string().trim().min(1),
         body: z.string().trim().min(1),
+        // Coordination claim fields (optional). Trimmed + capped to match chat-store's schema.
+        files: z.array(z.string().trim().min(1)).max(50).optional(),
+        intent: z.string().trim().max(280).optional(),
+        closes: z.boolean().optional(),
       }),
     )
     .mutation(
       ({ input }): Promise<ChatMessage> =>
-        postChatMessage(input.repoPath, { from: input.from, body: input.body }),
+        postChatMessage(input.repoPath, {
+          from: input.from,
+          body: input.body,
+          files: input.files,
+          intent: input.intent,
+          closes: input.closes,
+        }),
     ),
 
   clearChatMessages: t.procedure

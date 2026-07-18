@@ -36,6 +36,18 @@ function launchEnv(extra: Record<string, string>): Record<string, string> {
   return { ...env, ...extra }
 }
 
+/** The on-disk review-set shape `porcelain review set` writes (see src/cli/review-file.ts). */
+interface SeedReviewSet {
+  name: string
+  files: { path: string; source?: string; note?: string; layer?: string }[]
+  sections?: {
+    title: string
+    prose: string
+    diagram?: string
+    anchors?: { path: string; startLine?: number; endLine?: number }[]
+  }[]
+}
+
 interface Options {
   /**
    * Seed the app config so it auto-opens the fixture repo (default true). Set to
@@ -43,15 +55,15 @@ interface Options {
    */
   seedRepo: boolean
   /**
-   * Seed the feature-artifact channel for the fixture repo (default null → none, so
-   * the Feature tab shows no artifact opener). When set, the app finds an authored
-   * artifact keyed by the fixture repo at launch, exactly as if the porcelain CLI had
-   * written one. `updatedAt` is filled in for you.
+   * Seed the review-set channel for the fixture repo (default null → the Review's
+   * empty state). Written keyed by the fixture repo at launch, exactly as if the
+   * porcelain CLI had pushed it, so the Feature outline + Review document render.
    */
-  seedArtifact: { title: string; html: string } | null
+  seedReviewSet: SeedReviewSet | null
   /**
-   * Seed the loop-evidence channel for the fixture repo (default null → none). Same
-   * shape as seedArtifact; opens as "Loop evidence" in the Feature tab.
+   * Seed the loop-evidence channel for the fixture repo (default null → none).
+   * Renders as the Review's final chapter (needs a `seedReviewSet` — without a
+   * review set the Review shows only its empty state).
    */
   seedEvidence: { title: string; html: string } | null
 }
@@ -67,7 +79,7 @@ interface WorkerFixtures {
 
 export const test = baseTest.extend<Options & Fixtures, WorkerFixtures>({
   seedRepo: [true, { option: true }],
-  seedArtifact: [null, { option: true }],
+  seedReviewSet: [null, { option: true }],
   seedEvidence: [null, { option: true }],
 
   repoDir: [
@@ -80,7 +92,7 @@ export const test = baseTest.extend<Options & Fixtures, WorkerFixtures>({
     { scope: 'worker' },
   ],
 
-  app: async ({ repoDir, seedRepo, seedArtifact, seedEvidence }, use) => {
+  app: async ({ repoDir, seedRepo, seedReviewSet, seedEvidence }, use) => {
     const udBase = await mkdtemp(join(tmpdir(), 'porcelain-e2e-ud-'))
     // main appends '-dev' to userData on the is.dev path (the built app launched
     // outside a package counts as dev), so the config it actually reads is there.
@@ -94,7 +106,7 @@ export const test = baseTest.extend<Options & Fixtures, WorkerFixtures>({
     // so the Feature/Terminal/Board tabs and the flow grouping are deterministic and we
     // never read or touch the user's real ~/.porcelain files.
     const reviewSets = join(udBase, 'review-sets.json')
-    await writeFile(reviewSets, '{}')
+    await writeFile(reviewSets, JSON.stringify(seedReviewSet ? { [repoDir]: seedReviewSet } : {}))
     const actions = join(udBase, 'actions.json')
     await writeFile(actions, '{}')
     const board = join(udBase, 'board.json')
@@ -103,17 +115,6 @@ export const test = baseTest.extend<Options & Fixtures, WorkerFixtures>({
     await writeFile(layers, '{}')
     const reviewed = join(udBase, 'reviewed.json')
     await writeFile(reviewed, '{}')
-    // The feature-artifact channel (agent-authored HTML). Seeded keyed by the fixture
-    // repo when the spec asks for one, so the artifact opener is present at launch.
-    const artifacts = join(udBase, 'artifacts.json')
-    await writeFile(
-      artifacts,
-      JSON.stringify(
-        seedArtifact
-          ? { [repoDir]: { ...seedArtifact, updatedAt: '2024-01-01T12:00:00.000Z' } }
-          : {},
-      ),
-    )
     // Loop evidence is a directory of files (index.html + optional assets), not JSON.
     // Seed the on-disk layout the app/CLI share (see evidence-paths.ts).
     const evidenceRoot = join(udBase, 'loop-evidence')
@@ -153,7 +154,6 @@ export const test = baseTest.extend<Options & Fixtures, WorkerFixtures>({
         PORCELAIN_BOARD: board,
         PORCELAIN_LAYERS: layers,
         PORCELAIN_REVIEWED: reviewed,
-        PORCELAIN_ARTIFACTS: artifacts,
         PORCELAIN_EVIDENCE: evidence,
         PORCELAIN_LOOP_EVIDENCE_DIR: evidenceRoot,
         PORCELAIN_AGENT_THREADS: agentThreads,

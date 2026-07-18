@@ -37,6 +37,8 @@ vi.mock('@renderer/components/viewer/virtual-rows', () => ({
 
 const reading: FeatureReading = {
   name: 'Changes',
+  sections: [],
+  evidence: null,
   groups: [
     {
       layer: 'Pages',
@@ -89,7 +91,7 @@ describe('ReviewView', () => {
 
   it('shows an empty-state when there are no files', () => {
     vi.mocked(useDiffReading).mockReturnValue({
-      reading: { name: 'Changes', groups: [] },
+      reading: { name: 'Changes', sections: [], groups: [], evidence: null },
       error: null,
     })
     render(<ReviewView path="working" />)

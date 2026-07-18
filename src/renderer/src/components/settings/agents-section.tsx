@@ -254,7 +254,7 @@ export function AgentsSection(): React.JSX.Element {
       <section className="flex min-w-0 flex-col gap-3">
         <SectionHeading
           title="Skills"
-          blurb="Companion skills teach your agent how to push feature reviews, read comments, manage the board, curate actions, and author artifacts. They ship through skills.sh and update independently of the bundled CLI."
+          blurb="Companion skills teach your agent how to push feature reviews, read comments, manage the board, curate actions, and author loop evidence. They ship through skills.sh and update independently of the bundled CLI."
         />
         <SkillsSection />
       </section>
@@ -264,7 +264,7 @@ export function AgentsSection(): React.JSX.Element {
       <section className="flex min-w-0 flex-col gap-3">
         <SectionHeading
           title="CLI"
-          blurb="Agents drive Porcelain's channels — feature reviews, comments, the board, actions, artifacts — by running the bundled CLI. Nothing to configure."
+          blurb="Agents drive Porcelain's channels — feature reviews, comments, the board, actions, loop evidence — by running the bundled CLI. Nothing to configure."
         />
         <p className="text-xs text-muted-foreground">
           Agents talk to Porcelain through the bundled CLI at{' '}

@@ -5,7 +5,7 @@ import { join, resolve } from 'node:path'
 /**
  * Install the bundled Porcelain CLI into `~/.porcelain/` so the user's agents can
  * run it as `~/.porcelain/porcelain <noun> <verb>` to drive the review/board/
- * action/note/layer/artifact/evidence/comment/chat channels. No per-agent config
+ * action/note/layer/evidence/comment/chat channels. No per-agent config
  * writing — a CLI needs no registration to be runnable, so all the old Add-MCP
  * machinery is gone.
  *

@@ -32,22 +32,35 @@ const EVIDENCE_HTML = `<!doctype html>
 </html>
 `
 
-// Seed the loop-evidence channel for the fixture repo (see helpers/electron.ts).
-// The app finds it at launch, keyed by the fixture repo, exactly as the porcelain CLI would.
-test.use({ seedEvidence: { title: 'Test evidence', html: EVIDENCE_HTML } })
+// Evidence renders as the Review's final chapter, so the Review itself has to exist:
+// seed a review set (as `porcelain review set` would write it) alongside the evidence.
+test.use({
+  seedReviewSet: {
+    name: 'Ghost variant review',
+    files: [{ path: 'src/pages/Home.tsx' }],
+    sections: [{ title: 'The variant hop', prose: 'Home passes the new ghost variant down.' }],
+  },
+  seedEvidence: { title: 'Test evidence', html: EVIDENCE_HTML },
+})
 
-test('loop evidence opens and renders inside a fully sandboxed iframe', async ({ page }) => {
+test('loop evidence renders as the Review chapter in a fully sandboxed iframe', async ({
+  page,
+}) => {
   await waitForShell(page)
   await selectTab(page, 'Feature')
 
-  // The opener row appears in the Feature tab only when evidence exists for the repo.
-  // The row carries a static label ("Loop evidence"), not the evidence's own title.
-  const opener = page.getByRole('button', { name: 'Loop evidence' })
-  await expect(opener).toBeVisible({ timeout: 15_000 })
-  await opener.click()
+  // The outline lists the Review's chapters; the Loop evidence row appears only when
+  // evidence exists for the repo (a static label, not the evidence's own title).
+  const outlineRow = page.getByRole('button', { name: 'Loop evidence', exact: true })
+  await expect(outlineRow).toBeVisible({ timeout: 15_000 })
 
-  // Clicking opens an `evidence` tab; evidence-view.tsx gives the iframe the evidence
-  // title as its `title` attribute, so we can target it precisely.
+  // Clicking the row opens the Review document and jumps it to the evidence chapter.
+  await outlineRow.click()
+  await expect(page.getByRole('heading', { name: 'Test evidence' })).toBeVisible({
+    timeout: 15_000,
+  })
+
+  // The chapter body lazily fetches the HTML and gives the iframe the evidence title.
   const iframeEl = page.locator('iframe[title="Test evidence"]')
   await expect(iframeEl).toBeVisible({ timeout: 15_000 })
 
@@ -62,7 +75,9 @@ test('loop evidence opens and renders inside a fully sandboxed iframe', async ({
   // sandbox="" blocks scripts: the canary never ran.
   await expect(frame.locator('body')).not.toContainText('SCRIPT EXECUTED')
 
-  // Clear is the human's erase path for this ephemeral surface.
+  // Clear is the human's erase path for this ephemeral surface: the chapter and the
+  // outline row both drop, while the rest of the Review stays.
   await page.getByRole('button', { name: 'Clear loop evidence' }).click()
-  await expect(page.getByText(/No loop evidence/i)).toBeVisible({ timeout: 15_000 })
+  await expect(outlineRow).not.toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText('The variant hop').first()).toBeVisible()
 })

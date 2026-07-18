@@ -8,8 +8,22 @@ interface VirtualRowsProps<T> {
   rows: readonly T[]
   renderRow: (row: T, index: number) => React.ReactNode
   className?: string
-  /** 1-based line to scroll into view (centered) when it changes. */
+  /** 1-based line to scroll into view (centered by default) when it changes. */
   scrollToLine?: number
+  /**
+   * Bump to re-run the scroll even when `scrollToLine` is unchanged — a repeated
+   * jump to the already-targeted row (the Review outline) must still scroll back.
+   */
+  scrollNonce?: number
+  /** Where the scrolled-to row lands. Default `center` (a code line); the Review's
+   *  chapter jumps use `start` so the section header tops the viewport. */
+  scrollAlign?: 'start' | 'center'
+  /**
+   * Called with the index of the topmost visible row while the user scrolls (and
+   * once on mount). Fires only when that index CHANGES — no per-scroll-event storm.
+   * The Review surface derives its active section/file from it.
+   */
+  onTopRow?: (index: number) => void
   /**
    * Size rows to the viewport width (`w-full`) instead of growing to content
    * (`w-max`). Use for fixed multi-column layouts (split diff) where each column
@@ -36,6 +50,9 @@ export function VirtualRows<T>({
   renderRow,
   className,
   scrollToLine,
+  scrollNonce,
+  scrollAlign = 'center',
+  onTopRow,
   fitWidth = false,
   dynamicHeight = false,
 }: VirtualRowsProps<T>): React.JSX.Element {
@@ -50,11 +67,31 @@ export function VirtualRows<T>({
   const virtualizerRef = useRef(virtualizer)
   virtualizerRef.current = virtualizer
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: scrollNonce deliberately re-fires a jump to the unchanged target line
   useEffect(() => {
     if (scrollToLine !== undefined && scrollToLine >= 1) {
-      virtualizerRef.current.scrollToIndex(scrollToLine - 1, { align: 'center' })
+      virtualizerRef.current.scrollToIndex(scrollToLine - 1, { align: scrollAlign })
     }
-  }, [scrollToLine])
+  }, [scrollToLine, scrollNonce, scrollAlign])
+
+  // Publish the topmost visible row on scroll. The listener stays passive and only
+  // calls out when the index changes; the caller keeps `onTopRow` memoized, so this
+  // effect re-subscribes only when the row set itself changes.
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el || !onTopRow) return
+    let last = -1
+    const publish = (): void => {
+      const item = virtualizerRef.current.getVirtualItems().find((i) => i.end > el.scrollTop)
+      if (item && item.index !== last) {
+        last = item.index
+        onTopRow(item.index)
+      }
+    }
+    publish()
+    el.addEventListener('scroll', publish, { passive: true })
+    return () => el.removeEventListener('scroll', publish)
+  }, [onTopRow])
 
   // Publish the scroll viewport width as a CSS var (written straight to the DOM during
   // resize, like the app's resize handles — no per-frame React render). Lets a wrapping

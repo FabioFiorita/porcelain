@@ -1,8 +1,8 @@
 import { readFileSync, statSync } from 'node:fs'
 import { isAbsolute, resolve } from 'node:path'
 
-// Builtins only — see cli.ts. Shared by `artifact set` / `evidence set` so agents can
-// pass a local file path (--html-file) instead of inlining multi-hundred-KB HTML
+// Builtins only — see cli.ts. Used by `evidence set` so agents can pass a local
+// file path (--html-file) instead of inlining multi-hundred-KB HTML
 // (base64 screenshots) as --html, which is slow and fragile.
 
 /**
@@ -13,7 +13,7 @@ import { isAbsolute, resolve } from 'node:path'
 export const MIN_HTML_BYTES = 512
 
 /**
- * Resolve the document body for `artifact set` / `evidence set`. Exactly one of
+ * Resolve the document body for `evidence set`. Exactly one of
  * `--html` (inline string) or `--html-file` (absolute path the CLI reads locally)
  * is required. Prefer `--html-file` for anything with embedded screenshots — the
  * agent writes the file, then passes the path.
@@ -29,7 +29,7 @@ export function resolveToolHtml(args: Record<string, unknown>, maxBytes: number)
   if (!hasHtml && !hasFile) {
     throw new Error('--html or --html-file is required')
   }
-  // hasHtml — non-empty string; size still enforced by validateArtifact/Evidence.
+  // hasHtml — non-empty string; size still enforced by validateEvidence.
   const content = hasFile ? readHtmlFile(htmlFile, maxBytes) : (html as string)
   assertPlausibleHtml(content)
   return content

@@ -202,5 +202,5 @@ export function buildExploreReading(
   })
 
   const groups: ReadingGroup[] = groupByLayer(files, layers)
-  return { name, groups }
+  return { name, sections: [], groups, evidence: null }
 }

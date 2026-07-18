@@ -18,8 +18,9 @@ import { cn } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useTabsStore } from '@renderer/stores/tabs'
+import { useZenStore } from '@renderer/stores/zen'
 import { PanelLeft, RotateCw, Zap } from 'lucide-react'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { AgentCommands } from '../agent/agent-commands'
 import { CardComposer } from '../board/card-composer'
 import { SettingsDialog } from '../settings/settings-dialog'
@@ -153,6 +154,32 @@ function RepoShell(): React.JSX.Element {
     setLeftOpen: setOpen,
     rightSuppressed: sidebarTab === 'board',
   })
+
+  // Zen mode (Z in the Review document): collapse both sidebars, restoring their
+  // previous open state on the second Z. Consumed HERE because this is the one
+  // place both SidebarProviders are reachable — the left one's setOpen via the
+  // outer useSidebar, the right one via its controlling preference. Desktop-only:
+  // on phone both panels are overlay sheets (`openMobile`), already out of the
+  // way, and toggling the desktop flags would silently flip the stored prefs.
+  const zen = useZenStore((s) => s.zen)
+  const zenRestore = useRef<{ left: boolean; right: boolean } | null>(null)
+  const leftOpenRef = useRef(state === 'expanded')
+  leftOpenRef.current = state === 'expanded'
+  useEffect(() => {
+    if (isMobile) return
+    if (zen) {
+      zenRestore.current = {
+        left: leftOpenRef.current,
+        right: usePreferencesStore.getState().rightSidebarOpen,
+      }
+      setOpen(false)
+      setRightSidebarOpen(false)
+    } else if (zenRestore.current) {
+      setOpen(zenRestore.current.left)
+      setRightSidebarOpen(zenRestore.current.right)
+      zenRestore.current = null
+    }
+  }, [zen, isMobile, setOpen, setRightSidebarOpen])
 
   return (
     <SidebarInset className="h-full min-h-0 min-w-0">

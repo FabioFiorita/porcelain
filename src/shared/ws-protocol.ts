@@ -34,7 +34,6 @@ export const appEventSchema = z.enum([
   'board',
   'actions',
   'layers',
-  'artifact',
   'evidence',
   'chat',
   'working-tree',

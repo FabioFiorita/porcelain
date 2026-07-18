@@ -11,7 +11,11 @@ export function useChatMessages(): { messages: ChatMessage[]; error: string | nu
 }
 
 export function useChatActions(): {
-  post: (from: string, body: string) => Promise<void>
+  post: (
+    from: string,
+    body: string,
+    claim?: { files?: string[]; intent?: string; closes?: boolean },
+  ) => Promise<void>
   clear: () => Promise<void>
 } {
   const repo = useRepoStore((s) => s.repo)
@@ -28,9 +32,9 @@ export function useChatActions(): {
     onError: onMutationError('Clear chat'),
   })
   return {
-    post: async (from, body) => {
+    post: async (from, body, claim) => {
       if (!repo) return
-      await post.mutateAsync({ repoPath: repo.path, from, body })
+      await post.mutateAsync({ repoPath: repo.path, from, body, ...claim })
     },
     clear: async () => {
       if (!repo) return

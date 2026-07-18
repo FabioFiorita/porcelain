@@ -3,7 +3,11 @@ import { onMutationError } from '@renderer/hooks/mutation-error'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 
-export function useFeatureView(): { view: FeatureView | undefined; refresh: () => Promise<void> } {
+/** `view` is `null` when no agent review set exists (the "No review yet" state). */
+export function useFeatureView(): {
+  view: FeatureView | null | undefined
+  refresh: () => Promise<void>
+} {
   const repo = useRepoStore((s) => s.repo)
   const { data: view, refetch } = trpc.featureView.useQuery(repo?.path ?? '', {
     enabled: repo !== null,
@@ -21,9 +25,9 @@ export function useFeatureView(): { view: FeatureView | undefined; refresh: () =
 }
 
 /**
- * Clear the agent review set for the current repo, reverting the feature view to
- * the static baseline. Invalidates both feature surfaces so the list and the
- * inline reading surface refresh.
+ * Clear the agent review set for the current repo — the Review goes back to its
+ * "No review yet" empty state until the agent re-pushes. Invalidates both feature
+ * surfaces so the outline and the Review document refresh.
  */
 export function useClearFeatureReview(): { clear: () => Promise<void>; isClearing: boolean } {
   const repo = useRepoStore((s) => s.repo)

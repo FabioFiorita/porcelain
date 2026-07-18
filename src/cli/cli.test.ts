@@ -14,13 +14,11 @@ const boardFile = join(dir, 'board.json')
 const actionsFile = join(dir, 'actions.json')
 const commentsFile = join(dir, 'comments.json')
 const featureViewFile = join(dir, 'feature-view.json')
-const artifactsFile = join(dir, 'artifacts.json')
 const evidenceFile = join(dir, 'evidence.json')
 const chatFile = join(dir, 'chat.json')
 
 beforeEach(() => {
   process.env.PORCELAIN_REVIEW_SETS = file
-  process.env.PORCELAIN_ARTIFACTS = artifactsFile
   process.env.PORCELAIN_EVIDENCE = evidenceFile
   process.env.PORCELAIN_NOTES = notesFile
   process.env.PORCELAIN_LAYERS = layersFile
@@ -41,7 +39,6 @@ afterEach(() => {
   delete process.env.PORCELAIN_ACTIONS
   delete process.env.PORCELAIN_COMMENTS
   delete process.env.PORCELAIN_FEATURE_VIEW
-  delete process.env.PORCELAIN_ARTIFACTS
   delete process.env.PORCELAIN_EVIDENCE
   delete process.env.PORCELAIN_LOOP_EVIDENCE_DIR
   delete process.env.PORCELAIN_CHAT
@@ -54,8 +51,10 @@ const doc = `<main>${'x'.repeat(600)}</main>`
 // Every command targets --repo /repo unless it's exercising repo resolution itself.
 const repo = ['--repo', '/repo']
 
-const read = (): Record<string, { name: string; files: unknown[] }> =>
-  JSON.parse(readFileSync(file, 'utf8'))
+const read = (): Record<
+  string,
+  { name: string; thesis?: string; files: unknown[]; sections?: unknown[] }
+> => JSON.parse(readFileSync(file, 'utf8'))
 const readBoard = (): Record<string, unknown[]> => JSON.parse(readFileSync(boardFile, 'utf8'))
 const readActions = (): Record<string, unknown[]> => JSON.parse(readFileSync(actionsFile, 'utf8'))
 
@@ -105,10 +104,10 @@ describe('runCli — flag parsing, help, repo resolution', () => {
     expect(await runCli(['layers', 'get', ...repo])).toContain('Pages')
   })
   it('reads --html from stdin when passed "-"', async () => {
+    process.env.PORCELAIN_LOOP_EVIDENCE_DIR = join(dir, 'loop-evidence')
     const readStdin = () => doc
-    await runCli(['artifact', 'set', ...repo, '--title', 'Piped', '--html', '-'], { readStdin })
-    const stored: Record<string, { html: string }> = JSON.parse(readFileSync(artifactsFile, 'utf8'))
-    expect(stored['/repo']?.html).toBe(doc)
+    await runCli(['evidence', 'set', ...repo, '--title', 'Piped', '--html', '-'], { readStdin })
+    expect(await runCli(['evidence', 'get', ...repo])).toContain('Loop evidence "Piped" for /repo')
   })
 })
 
@@ -123,7 +122,77 @@ describe('runCli — review + feature + comments + reviewed', () => {
       '--files',
       JSON.stringify([{ path: 'a.ts' }]),
     ])
-    expect(read()['/repo']).toEqual({ name: 'X', files: [{ path: 'a.ts' }] })
+    expect(read()['/repo']).toEqual({ name: 'X', files: [{ path: 'a.ts' }], sections: [] })
+  })
+  it('review set accepts --thesis and --sections and review get round-trips them', async () => {
+    const sections = [
+      {
+        title: 'Entry',
+        prose: 'starts **here**',
+        anchors: [{ path: 'a.ts', startLine: 1, endLine: 9 }],
+      },
+    ]
+    const out = await runCli([
+      'review',
+      'set',
+      ...repo,
+      '--name',
+      'Login flow',
+      '--thesis',
+      'One round-trip instead of three.',
+      '--files',
+      JSON.stringify([{ path: 'a.ts' }]),
+      '--sections',
+      JSON.stringify(sections),
+    ])
+    expect(out).toContain('1 section(s)')
+    expect(read()['/repo']?.thesis).toBe('One round-trip instead of three.')
+    expect(read()['/repo']?.sections).toEqual(sections)
+    const text = await runCli(['review', 'get', ...repo])
+    expect(text).toContain('1 section(s), thesis set')
+    expect(JSON.parse(text.slice(text.indexOf('{')))).toEqual({
+      thesis: 'One round-trip instead of three.',
+      files: [{ path: 'a.ts' }],
+      sections,
+    })
+  })
+  it('review set reads --sections from stdin when passed "-"', async () => {
+    const readStdin = () => JSON.stringify([{ title: 'Entry', prose: 'piped' }])
+    await runCli(
+      ['review', 'set', ...repo, '--files', JSON.stringify([{ path: 'a.ts' }]), '--sections', '-'],
+      { readStdin },
+    )
+    expect(read()['/repo']?.sections).toEqual([{ title: 'Entry', prose: 'piped', anchors: [] }])
+  })
+  it('review set rejects malformed --sections with an indexed message', async () => {
+    await expect(
+      runCli([
+        'review',
+        'set',
+        ...repo,
+        '--files',
+        JSON.stringify([{ path: 'a.ts' }]),
+        '--sections',
+        JSON.stringify([{ prose: 'no title' }]),
+      ]),
+    ).rejects.toThrow('sections[0].title must be a non-empty string')
+  })
+  it('review add keeps the stored thesis and sections (files-only merge)', async () => {
+    await runCli([
+      'review',
+      'set',
+      ...repo,
+      '--thesis',
+      'The why.',
+      '--files',
+      JSON.stringify([{ path: 'a.ts' }]),
+      '--sections',
+      JSON.stringify([{ title: 'Entry', prose: 'x' }]),
+    ])
+    await runCli(['review', 'add', ...repo, '--files', JSON.stringify([{ path: 'b.ts' }])])
+    expect(read()['/repo']?.thesis).toBe('The why.')
+    expect(read()['/repo']?.sections).toHaveLength(1)
+    expect(read()['/repo']?.files).toHaveLength(2)
   })
   it('review set defaults the name to "Feature view"', async () => {
     await runCli(['review', 'set', ...repo, '--files', JSON.stringify([{ path: 'a.ts' }])])
@@ -224,76 +293,21 @@ describe('runCli — review + feature + comments + reviewed', () => {
   })
 })
 
-describe('runCli — artifact + evidence (html input)', () => {
-  it('artifact set/get/clear round-trips through the channel', async () => {
-    const readArtifacts = (): Record<string, { title: string; html: string }> =>
-      JSON.parse(readFileSync(artifactsFile, 'utf8'))
-    await runCli(['artifact', 'set', ...repo, '--title', 'Overview', '--html', doc])
-    expect(readArtifacts()['/repo']?.title).toBe('Overview')
-    expect(await runCli(['artifact', 'get', ...repo])).toContain(
-      'Feature artifact "Overview" for /repo',
-    )
-    await runCli(['artifact', 'clear', ...repo])
-    expect(readArtifacts()['/repo']).toBeUndefined()
-  })
-  it('artifact set rejects a missing title', async () => {
-    await expect(runCli(['artifact', 'set', ...repo, '--html', doc])).rejects.toThrow(
-      'title must be a non-empty string',
-    )
-  })
-  it('artifact set rejects both --html and --html-file', async () => {
+describe('runCli — evidence (html input)', () => {
+  it('evidence set rejects both --html and --html-file', async () => {
+    process.env.PORCELAIN_LOOP_EVIDENCE_DIR = join(dir, 'loop-evidence')
     mkdirSync(dir, { recursive: true })
-    const htmlPath = join(dir, 'artifact.html')
+    const htmlPath = join(dir, 'evidence.html')
     writeFileSync(htmlPath, doc)
     await expect(
-      runCli(['artifact', 'set', ...repo, '--title', 'X', '--html', doc, '--html-file', htmlPath]),
+      runCli(['evidence', 'set', ...repo, '--title', 'X', '--html', doc, '--html-file', htmlPath]),
     ).rejects.toThrow('not both')
   })
-  it('artifact set rejects neither --html nor --html-file', async () => {
-    await expect(runCli(['artifact', 'set', ...repo, '--title', 'X'])).rejects.toThrow(
+  it('evidence set rejects neither --html nor --html-file', async () => {
+    process.env.PORCELAIN_LOOP_EVIDENCE_DIR = join(dir, 'loop-evidence')
+    await expect(runCli(['evidence', 'set', ...repo, '--title', 'X'])).rejects.toThrow(
       '--html or --html-file is required',
     )
-  })
-  it('artifact set rejects a file path pasted into --html', async () => {
-    await expect(
-      runCli([
-        'artifact',
-        'set',
-        ...repo,
-        '--title',
-        'X',
-        '--html',
-        'filePath:/tmp/x/artifact.html',
-      ]),
-    ).rejects.toThrow(/html-file/)
-  })
-  it('artifact set rejects a missing --html-file', async () => {
-    await expect(
-      runCli(['artifact', 'set', ...repo, '--title', 'X', '--html-file', join(dir, 'nope.html')]),
-    ).rejects.toThrow('not found or unreadable')
-  })
-  it('artifact get includes a content preview of what was stored', async () => {
-    await runCli([
-      'artifact',
-      'set',
-      ...repo,
-      '--title',
-      'Overview',
-      '--html',
-      `<h1>Marker heading</h1>${'x'.repeat(600)}`,
-    ])
-    const text = await runCli(['artifact', 'get', ...repo])
-    expect(text).toContain('Preview:')
-    expect(text).toContain('Marker heading')
-  })
-  it('artifact set accepts --html-file instead of inline --html', async () => {
-    mkdirSync(dir, { recursive: true })
-    const htmlPath = join(dir, 'artifact.html')
-    writeFileSync(htmlPath, doc)
-    const readArtifacts = (): Record<string, { title: string; html: string }> =>
-      JSON.parse(readFileSync(artifactsFile, 'utf8'))
-    await runCli(['artifact', 'set', ...repo, '--title', 'Disk', '--html-file', htmlPath])
-    expect(readArtifacts()['/repo']?.html).toBe(doc)
   })
 
   it('evidence prepare prepares the on-disk directory', async () => {
@@ -510,6 +524,42 @@ describe('runCli — board + chat + actions', () => {
     await runCli(['chat', 'post', ...repo, '--from', 'a', '--body', 'b'])
     await runCli(['chat', 'clear', ...repo])
     expect(await runCli(['chat', 'list', ...repo])).toContain('is empty')
+  })
+  it('chat post --files declares a claim (body optional, synthesized)', async () => {
+    const out = await runCli([
+      'chat',
+      'post',
+      ...repo,
+      '--from',
+      'alice',
+      '--files',
+      'auth.ts, session.ts',
+      '--intent',
+      'wiring login',
+    ])
+    expect(out).toContain('Posted claim')
+    expect(out).toContain('2 file(s)')
+    const list = await runCli(['chat', 'list', ...repo])
+    expect(list).toContain('[CLAIM]')
+    expect(list).toContain('files: auth.ts, session.ts')
+  })
+  it('chat list surfaces an overlap between two agents claims', async () => {
+    await runCli(['chat', 'post', ...repo, '--from', 'alice', '--files', 'session.ts'])
+    await runCli(['chat', 'post', ...repo, '--from', 'bob', '--files', 'session.ts'])
+    const list = await runCli(['chat', 'list', ...repo])
+    expect(list).toContain('⚠ Overlap: alice & bob both touching session.ts')
+  })
+  it('chat post --closes retires the claim and needs no --body', async () => {
+    await runCli(['chat', 'post', ...repo, '--from', 'alice', '--files', 'auth.ts'])
+    await runCli(['chat', 'post', ...repo, '--from', 'alice', '--closes'])
+    const list = await runCli(['chat', 'list', ...repo])
+    expect(list).toContain('[CLOSED]')
+    expect(list).not.toContain('Live claims')
+  })
+  it('chat post with no body and no claim still requires a body', async () => {
+    await expect(runCli(['chat', 'post', ...repo, '--from', 'alice'])).rejects.toThrow(
+      'body is required',
+    )
   })
   it('actions create with title+command writes an action', async () => {
     await runCli(['actions', 'create', ...repo, '--title', 'Dev', '--command', 'pnpm dev'])

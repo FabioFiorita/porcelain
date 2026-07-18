@@ -1,4 +1,5 @@
 import { AgentsQuickAccess } from '@renderer/components/agent/agents-quick-access'
+import { ChatQuickAccess } from '@renderer/components/chat/chat-quick-access'
 import { ActionsGroup } from '@renderer/components/terminal/actions-group'
 import { Sidebar, SidebarContent, SidebarHeader, useSidebar } from '@renderer/components/ui/sidebar'
 import { type SidebarTab, usePreferencesStore } from '@renderer/stores/preferences'
@@ -7,6 +8,7 @@ import { CommitGroup } from './commit-group'
 import { FileTimelineGroup } from './file-timeline-group'
 import { FilesQuickAccess } from './files-quick-access'
 import { QuickCommandsGroup } from './quick-commands-group'
+import { ReviewGroup } from './review-group'
 import { SearchQuickAccess } from './search-quick-access'
 import { RightSidebarResizeHandle } from './sidebar-resize-handle'
 
@@ -19,7 +21,7 @@ const COMPANION_TITLES: Record<SidebarTab, string> = {
   history: 'Review',
   feature: 'Review',
   board: 'Workspace',
-  chat: 'Workspace',
+  chat: 'Coordination',
   terminal: 'Actions',
   search: 'Recent searches',
   // Distinct from the left sidebar's "Agent" tab (the thread roster). This panel is
@@ -56,8 +58,12 @@ export function RightSidebar(): React.JSX.Element {
           <QuickCommandsGroup />
         )}
         {sidebarTab === 'history' && <FileTimelineGroup />}
+        {/* The live companion to the open Review document — above the commit
+            composer, since it follows what's being read right now. */}
+        {sidebarTab === 'feature' && <ReviewGroup />}
         {(sidebarTab === 'changes' || sidebarTab === 'feature') && <CommitGroup />}
         {(sidebarTab === 'changes' || sidebarTab === 'feature') && <CommentsGroup />}
+        {sidebarTab === 'chat' && <ChatQuickAccess />}
         {sidebarTab === 'terminal' && <ActionsGroup />}
         {sidebarTab === 'search' && <SearchQuickAccess />}
         {sidebarTab === 'agent' && <AgentsQuickAccess />}
