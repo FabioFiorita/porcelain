@@ -3,7 +3,7 @@
   "version": "0.29.2",
   "description": "Review changes as a story",
   "main": "./out/main/index.js",
-  "author": "Fabio Fiorita",
+  "author": "Fabio Fiorita <fabiolfp@gmail.com>",
   "license": "MIT",
   "repository": {
     "type": "git",
