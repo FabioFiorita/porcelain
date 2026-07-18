@@ -1,3 +1,9 @@
+## [0.31.1](https://github.com/FabioFiorita/porcelain/compare/v0.31.0...v0.31.1) (2026-07-18)
+
+### Bug Fixes
+
+* pin the Xvfb screen in Linux e2e — default 1280 clamps the 1400x900 window ([650d926](https://github.com/FabioFiorita/porcelain/commit/650d926ca40a5258a32dbaad2a5dcd4d116790c6))
+
 ## [0.31.0](https://github.com/FabioFiorita/porcelain/compare/v0.30.0...v0.31.0) (2026-07-18)
 
 ### Features
