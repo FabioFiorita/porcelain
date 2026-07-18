@@ -11,6 +11,8 @@ standalone record of what shipped.
 
 ## Live docs (not finished — keep)
 
+- **`nova-preset-and-light-dark-mode.md`** — preset switch `b1tNqHXYe` → `b5J4txmSY`
+  (nova/neutral/sky, translucent menus) + persisted light/dark/system theme. PLANNED.
 - **`remote-environments-phase4.md`** — Beelink bring-up runbook. Prep code +
   `npx porcelain-daemon@latest serve` path shipped; preferred remote UX is
   on-demand npx (no scp tarball / no always-on systemd). Its parent spec +
