@@ -1,3 +1,14 @@
+## [0.31.0](https://github.com/FabioFiorita/porcelain/compare/v0.30.0...v0.31.0) (2026-07-18)
+
+### Features
+
+* Linux release leg — AppImage + deb + auto-update published with every release ([00d3e05](https://github.com/FabioFiorita/porcelain/commit/00d3e054aa4db3bc3734dad89a706c98108db750))
+* the Review — one agent-authored document — plus chat claims ([4d727ca](https://github.com/FabioFiorita/porcelain/commit/4d727cafa138891bbcfaae21848eb8d450f5ada1))
+
+### Bug Fixes
+
+* Ctrl+W yields to a focused terminal on Linux — renderer-owned close-tab ([27a8e3b](https://github.com/FabioFiorita/porcelain/commit/27a8e3b0f8e7d983340bf7df46f61fa570a4550c))
+
 ## [0.30.0](https://github.com/FabioFiorita/porcelain/compare/v0.29.2...v0.30.0) (2026-07-18)
 
 ### Features
