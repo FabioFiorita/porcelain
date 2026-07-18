@@ -1,6 +1,6 @@
 import { TanStackDevtools } from '@tanstack/react-devtools'
 import { ReactQueryDevtoolsPanel } from '@tanstack/react-query-devtools'
-import { McpDevtoolsPanel } from './mcp-devtools-panel'
+import { ChannelsDevtoolsPanel } from './channels-devtools-panel'
 import { ProductDevtoolsPanel } from './product-devtools-panel'
 
 /**
@@ -29,10 +29,10 @@ export function DevtoolsShell(): React.JSX.Element {
           name: 'Porcelain',
           render: <ProductDevtoolsPanel />,
         },
-        // Product-specific panel — live mirror of the five MCP agent channels.
+        // Product-specific panel — live mirror of the five agent channels.
         {
-          name: 'Porcelain MCP',
-          render: <McpDevtoolsPanel />,
+          name: 'Porcelain Channels',
+          render: <ChannelsDevtoolsPanel />,
         },
       ]}
     />

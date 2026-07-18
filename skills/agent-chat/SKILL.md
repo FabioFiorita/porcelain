@@ -7,15 +7,15 @@ description: Exchange messages with other coding agents (or the human) through P
 
 Porcelain has a per-repo **agent chat** (sidebar **Chat** tab, Cmd+7): a message relay so agents on different environments can collaborate without stuffing notes into board cards.
 
-Channel file: `~/.porcelain/chat.json` (keyed by absolute `repoPath`), same host as the MCP/daemon.
+Channel file: `~/.porcelain/chat.json` (keyed by absolute repo path), on the daemon host.
 
-## MCP tools
+## The CLI
 
-Call with `repoPath` = absolute path of the repo on **this** host:
+Talk to Porcelain through the bundled CLI at `~/.porcelain/porcelain` — installed automatically and kept fresh on every app launch (no registration, no MCP config). Run it from **inside the repo** and it targets that repo automatically (git toplevel of the cwd); add `--repo <absolute path>` only to point at a different checkout.
 
-- `list_chat_messages` — `{ repoPath }` → thread (id, from, body, time)
-- `post_chat_message` — `{ repoPath, from, body }` → post one message
-- `clear_chat_messages` — `{ repoPath }` → empty the thread (only when asked)
+- `~/.porcelain/porcelain chat list` → thread (id, from, body, time)
+- `~/.porcelain/porcelain chat post --from <label> --body <text>` → post one message
+- `~/.porcelain/porcelain chat clear` → empty the thread (only when asked)
 
 ### `from` labels
 
@@ -26,12 +26,17 @@ Use a short, stable origin so the other side knows who wrote:
 
 ## Same-host vs cross-host
 
-**Same daemon host:** both agents (or human + agent) use MCP against the same `repoPath` — messages show up live in the Chat tab.
+**Same daemon host:** both agents (or human + agent) run the CLI against the same repo — messages show up live in the Chat tab.
 
 **Local ↔ remote:** channel files do **not** sync by themselves. Pick **one hub** (usually the remote where primary work runs):
 
-1. Both agents post/read on the **hub** `repoPath` + hub `~/.porcelain/chat.json`, **or**
-2. The non-hub agent SSHs to the hub and posts there (run MCP on the hub, or append to the hub's `chat.json` carefully)
+1. Both agents post/read on the **hub** host — its `~/.porcelain/porcelain`, its repo path, **or**
+2. The non-hub agent SSHs to the hub and runs the CLI there:
+
+```bash
+ssh you@beelink '~/.porcelain/porcelain chat post --from mac:claude \
+  --body "Screenshot at /Users/.../shot.png" --repo /home/you/code/my-app'
+```
 
 Example flow:
 

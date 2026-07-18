@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 
-// Builtins only — see protocol.ts. The flow-layers channel: the per-repo review-flow
+// Builtins only — see cli.ts. The flow-layers channel: the per-repo review-flow
 // layers the human (Porcelain app, layers-store.ts) and the agent (here) both manage.
 // A layer is an ordered { label, pattern } rule; a changed file belongs to the
 // furthest-right matching layer, and Porcelain renders the groups in declared order
@@ -18,8 +18,8 @@ export interface Layer {
 // Kept in sync with DEFAULT_LAYERS in src/main/flow.ts (the app's source of truth);
 // layers-file.test.ts asserts the two are identical so this copy can't drift. We
 // duplicate rather than import so this server stays a dependency-free island that
-// never reaches into src/main. Shown by get_flow_layers as the starting point when a
-// repo has no custom set, and what reset_flow_layers falls back to.
+// never reaches into src/main. Shown by `porcelain layers get` as the starting point when a
+// repo has no custom set, and what `porcelain layers reset` falls back to.
 export const DEFAULT_LAYERS: Layer[] = [
   { label: 'Pages', pattern: '(^|/)(pages|views|screens|app)/' },
   { label: 'Components', pattern: '(^|/)components?/' },
@@ -92,14 +92,14 @@ function writeAll(all: Layers): void {
 
 /**
  * Coerce arbitrary tool input into a validated, ordered layer set; throws on bad
- * shape so set_flow_layers reports a clear error. Requires at least one layer — an
- * empty set is reset_flow_layers, not a set. Rejects uncompilable patterns up front
+ * shape so `porcelain layers set` reports a clear error. Requires at least one layer — an
+ * empty set is `porcelain layers reset`, not a set. Rejects uncompilable patterns up front
  * (the app would otherwise drop them on read).
  */
 export function toLayers(value: unknown): Layer[] {
   if (!Array.isArray(value)) throw new Error('layers must be an array')
   if (value.length === 0) {
-    throw new Error('layers must have at least one entry (use reset_flow_layers to clear)')
+    throw new Error('layers must have at least one entry (use `porcelain layers reset` to clear)')
   }
   return value.map((item, index) => {
     if (!isRecord(item)) throw new Error(`layers[${index}] must be an object`)
@@ -139,14 +139,14 @@ const renderList = (layers: readonly Layer[]): string =>
   layers.map((l, i) => `  ${i + 1}. ${l.label} — /${l.pattern}/`).join('\n')
 
 /**
- * Render a repo's flow layers for get_flow_layers: the effective ordered set (custom
+ * Render a repo's flow layers for `porcelain layers get`: the effective ordered set (custom
  * if set, else the defaults), shown as a numbered list AND as JSON so an agent can
- * round-trip an idempotent edit (read → modify → set_flow_layers). A file belongs to
+ * round-trip an idempotent edit (read → modify → `porcelain layers set`). A file belongs to
  * the furthest-right matching layer; unmatched files fall into "Other" (rendered last).
  */
 export function describeLayers(repoPath: string, layers: Layer[] | null): string {
   if (!layers) {
-    return `No custom flow layers for ${repoPath}; Porcelain applies its built-in defaults (entry-point → data):\n${renderList(DEFAULT_LAYERS)}\n\nReplace them with set_flow_layers (the full ordered list), tailored to this repo's structure. The defaults as JSON:\n${JSON.stringify(DEFAULT_LAYERS, null, 2)}`
+    return `No custom flow layers for ${repoPath}; Porcelain applies its built-in defaults (entry-point → data):\n${renderList(DEFAULT_LAYERS)}\n\nReplace them with \`porcelain layers set\` (the full ordered list), tailored to this repo's structure. The defaults as JSON:\n${JSON.stringify(DEFAULT_LAYERS, null, 2)}`
   }
-  return `Custom flow layers for ${repoPath} (${layers.length}, entry-point → data):\n${renderList(layers)}\n\nEdit by sending the full ordered list to set_flow_layers, or reset_flow_layers to return to the defaults. As JSON:\n${JSON.stringify(layers, null, 2)}`
+  return `Custom flow layers for ${repoPath} (${layers.length}, entry-point → data):\n${renderList(layers)}\n\nEdit by sending the full ordered list to \`porcelain layers set\`, or \`porcelain layers reset\` to return to the defaults. As JSON:\n${JSON.stringify(layers, null, 2)}`
 }

@@ -24,7 +24,7 @@ export function useFeatureArtifact(): { artifact: ArtifactMeta | null | undefine
 /**
  * The full artifact document for a repo — read only while the artifact view is open.
  * No poll: it's a static document, and the app-event 'artifact' invalidation refreshes
- * it live on an MCP write; polling the (up to 1.5 MB) HTML on a timer would be wasteful.
+ * it live on a CLI write; polling the (up to 1.5 MB) HTML on a timer would be wasteful.
  */
 export function useArtifactHtml(repoPath: string): { artifact: Artifact | null | undefined } {
   const { data: artifact } = trpc.featureArtifactHtml.useQuery(repoPath, {

@@ -11,16 +11,16 @@ import { createHomeChannel } from './home-channel'
  *
  *   ~/.porcelain/loop-evidence/<key>/index.html  (+ optional screenshots, meta.json)
  *
- * Agents write those files with normal Write tools (no MCP payload). The app
+ * Agents write those files with normal Write tools (no CLI payload). The app
  * reads the directory, inlines relative images for the sandboxed viewer, and
- * clears by deleting the directory. Legacy `evidence.json` (HTML embedded by
- * older MCP set_loop_evidence) is still read as a fallback.
+ * clears by deleting the directory. Legacy `evidence.json` (HTML embedded by the
+ * older `evidence set`) is still read as a fallback.
  *
- * See `evidence-paths.ts` for layout; `src/mcp/evidence-file.ts` for the MCP
+ * See `evidence-paths.ts` for layout; `src/cli/evidence-file.ts` for the CLI
  * prepare/write side.
  */
 
-/** Keep in sync with MAX_HTML_BYTES in src/mcp/evidence-file.ts. */
+/** Keep in sync with MAX_HTML_BYTES in src/cli/evidence-file.ts. */
 export const MAX_HTML_BYTES = 1_572_864
 
 const evidenceSchema = z.object({

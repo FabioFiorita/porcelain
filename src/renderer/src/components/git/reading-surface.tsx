@@ -42,7 +42,7 @@ export interface ReadingFileActions {
   showSource?: boolean
 }
 
-// The shared inline reading surface: the MCP feature read (`feature-view.tsx`) and
+// The shared inline reading surface: the feature read (`feature-view.tsx`) and
 // the read-only explore view (`explore-view.tsx`) both render through this. One
 // fixed-height row type per line; everything flattens into a single VirtualRows
 // (the house pattern — same as HunksView flattening hunks) at 20px each.

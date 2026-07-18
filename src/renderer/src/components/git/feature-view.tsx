@@ -3,7 +3,7 @@ import { kbdLabel } from '@renderer/lib/keyboard'
 import { Sparkles } from 'lucide-react'
 import { ReadingSurfaceBody } from './reading-surface'
 
-// The viewer's `feature` tab: the inline reading surface. MCP-only — it renders
+// The viewer's `feature` tab: the inline reading surface. Review-set-only — it renders
 // only when an agent has pushed a review set; the baseline directs you to the
 // Feature sidebar tab (the static list). The slice itself is computed in main.
 export function FeatureView(): React.JSX.Element {
@@ -22,15 +22,15 @@ export function FeatureView(): React.JSX.Element {
         </p>
         <p>
           This view renders the whole feature — just the relevant lines — once your agent pushes a
-          review set over MCP. Until then, the <span className="font-medium">Feature</span> tab (
-          {kbdLabel('mod', '5')}) shows the static baseline list. Connect Porcelain's MCP server
-          from Settings → “Claude Code plugin”.
+          review set via the porcelain CLI. Until then, the{' '}
+          <span className="font-medium">Feature</span> tab ({kbdLabel('mod', '5')}) shows the static
+          baseline list.
         </p>
       </div>
     )
   }
 
-  // No title bar: the tab already names this view and it live-refreshes on MCP
+  // No title bar: the tab already names this view and it live-refreshes on CLI
   // writes, so the inline read is a clean, chromeless reading surface.
   return <ReadingSurfaceBody reading={reading} />
 }

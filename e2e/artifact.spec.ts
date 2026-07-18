@@ -38,7 +38,7 @@ const ARTIFACT_HTML = `<!doctype html>
 `
 
 // Seed the feature-artifact channel for the fixture repo (see helpers/electron.ts).
-// The app finds it at launch, keyed by the fixture repo, exactly as an MCP write would.
+// The app finds it at launch, keyed by the fixture repo, exactly as the porcelain CLI would.
 test.use({ seedArtifact: { title: 'Test artifact', html: ARTIFACT_HTML } })
 
 test('feature artifact opens and renders inside a fully sandboxed iframe', async ({ page }) => {

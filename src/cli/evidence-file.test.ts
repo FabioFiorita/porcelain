@@ -83,7 +83,7 @@ describe('evidence directory channel', () => {
   })
 
   it('describeEvidence without evidence explains the prepare flow', () => {
-    expect(describeEvidence('/repo', null)).toContain('set_loop_evidence')
+    expect(describeEvidence('/repo', null)).toContain('evidence prepare')
     expect(describeEvidence('/repo', null)).toContain('index.html')
   })
 })

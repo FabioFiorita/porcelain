@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 
-// Builtins only — see protocol.ts for why this server must stay dependency-free.
+// Builtins only — see cli.ts for why this server must stay dependency-free.
 // This file owns the agent channel that Porcelain reads (src/main/review-store.ts
 // reads the same path); both honour PORCELAIN_REVIEW_SETS so tests and dev can
 // redirect it. Default lives in ~/.porcelain (the user's home, NOT a work repo).
@@ -142,7 +142,7 @@ export function readReview(repoPath: string): ReviewSet | null {
  */
 export function describeReview(repoPath: string, review: ReviewSet | null): string {
   if (!review || review.files.length === 0) {
-    return `No feature review set for ${repoPath}. Porcelain shows the static baseline (changed files plus the unchanged files they import). Use set_feature_review to define one.`
+    return `No feature review set for ${repoPath}. Porcelain shows the static baseline (changed files plus the unchanged files they import). Use \`porcelain review set\` to define one.`
   }
   const counts = new Map<string, number>()
   for (const file of review.files) {

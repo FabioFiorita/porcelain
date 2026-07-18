@@ -5,7 +5,7 @@ import { createHomeChannel } from './home-channel'
 import { type ReviewSet, type ReviewSets, reviewSetsSchema } from './review-set'
 
 /**
- * True when `entryPath` (a path from the external, MCP-authored review-set file)
+ * True when `entryPath` (a path from the external, CLI-authored review-set file)
  * stays inside `repoPath`. Rejects absolute paths and `..`-escapes — the file is
  * owned by an untrusted external process, so its paths must be repo-contained
  * before they reach `readFile(join(repoPath, entryPath))`.
@@ -17,16 +17,16 @@ export function isRepoContained(repoPath: string, entryPath: string): boolean {
 }
 
 /**
- * The agent channel: review sets the MCP server writes, keyed by absolute repo path.
+ * The agent channel: review sets the porcelain CLI writes, keyed by absolute repo path.
  * Lives in `~/.porcelain/` — the user's home, NOT the work repo (Porcelain never
- * writes into work repos) and NOT `userData` (a plain `node` MCP process can't
+ * writes into work repos) and NOT `userData` (a plain `node` CLI process can't
  * resolve Electron's userData path, so both sides agree on this fixed location).
- * The MCP server AUTHORS the sets; the app READS them — and makes exactly one write,
+ * The CLI AUTHORS the sets; the app READS them — and makes exactly one write,
  * `clearReviewSet` (user-initiated from the Feature tab's Clear button), to delete a
- * repo's entry. No network surface either way (stdio MCP, local file).
+ * repo's entry. No network surface either way (a local CLI, local file).
  */
 export function reviewSetsPath(): string {
-  // Must match src/mcp/review-file.ts (the sole writer). PORCELAIN_REVIEW_SETS lets
+  // Must match src/cli/review-file.ts (the sole writer). PORCELAIN_REVIEW_SETS lets
   // dev/tests redirect both sides to the same throwaway path.
   return process.env.PORCELAIN_REVIEW_SETS ?? join(homedir(), '.porcelain', 'review-sets.json')
 }
@@ -56,9 +56,9 @@ export async function readReviewSet(repoPath: string): Promise<ReviewSet | null>
 
 /**
  * Remove a repo's review set, reverting its feature view to the static baseline.
- * Atomic (tmp + rename) so a concurrent MCP write can't corrupt the shared file;
+ * Atomic (tmp + rename) so a concurrent CLI write can't corrupt the shared file;
  * a no-op if the file is absent/corrupt or the repo has no set. The watcher
- * (`review-watch.ts`) sees the change and refreshes the open view like any MCP write.
+ * (`review-watch.ts`) sees the change and refreshes the open view like any CLI write.
  */
 export async function clearReviewSet(repoPath: string): Promise<void> {
   await channel.mutate((all) => {

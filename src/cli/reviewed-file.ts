@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
-// Builtins only — see protocol.ts. The reviewed-marks channel: the repo-relative file
+// Builtins only — see cli.ts. The reviewed-marks channel: the repo-relative file
 // paths the human has checked off as reviewed in Porcelain (the per-file marks in the
 // Changes / Feature lists, reviewed-store.ts), READ-ONLY here. ONE-WAY, app→agent — the
 // human marks files reviewed in Porcelain; the agent reads them to know what's already

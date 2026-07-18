@@ -5,7 +5,7 @@ import { createHomeChannel } from './home-channel'
 /**
  * Agent chat (relay) channel: messages agents (and the human) post so local and
  * remote agents can exchange context without overloading the project board.
- * Keyed by absolute repo path in `~/.porcelain/chat.json`. TWO-WAY: app + MCP.
+ * Keyed by absolute repo path in `~/.porcelain/chat.json`. TWO-WAY: app + CLI.
  * Cap messages per repo so a runaway agent can't grow the file without bound.
  */
 export const chatMessageSchema = z.object({

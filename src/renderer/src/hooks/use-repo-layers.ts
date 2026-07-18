@@ -18,7 +18,7 @@ export function useSetRepoLayers(): {
   const save = async (layers: Layer[] | null, repoPath?: string): Promise<void> => {
     if (!repoPath) return
     await mutation.mutateAsync({ repoPath, layers })
-    // Refresh every surface that buckets files by layer — same set the MCP-driven
+    // Refresh every surface that buckets files by layer — same set the CLI-driven
     // `layers` app-event invalidates (use-app-events.ts), so a Settings edit and an
     // agent edit refresh identically.
     await Promise.all([

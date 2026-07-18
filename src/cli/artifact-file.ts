@@ -3,11 +3,11 @@ import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { htmlPreview } from './html-input'
 
-// Builtins only — see protocol.ts for why this server must stay dependency-free.
+// Builtins only — see cli.ts for why this server must stay dependency-free.
 // This file owns the feature-artifact channel that Porcelain reads (src/main/
 // artifact-store.ts reads the same path); both honour PORCELAIN_ARTIFACTS so tests
 // and dev can redirect it. Default lives in ~/.porcelain (the user's home, NOT a work
-// repo). The MCP server AUTHORS artifacts; the app READS them — and makes exactly one
+// repo). The CLI AUTHORS artifacts; the app READS them — and makes exactly one
 // write, clearArtifact (user-initiated). Porcelain re-validates + size-caps this file
 // with zod on read, so reads here stay lenient.
 
@@ -115,7 +115,7 @@ export function getArtifact(repoPath: string): Artifact | null {
  */
 export function describeArtifact(repoPath: string, artifact: Artifact | null): string {
   if (!artifact) {
-    return `No feature artifact for ${repoPath}. Use set_feature_artifact to author a self-contained HTML document that explains the feature; Porcelain renders it in the viewer.`
+    return `No feature artifact for ${repoPath}. Use \`porcelain artifact set\` to author a self-contained HTML document that explains the feature; Porcelain renders it in the viewer.`
   }
   const bytes = Buffer.byteLength(artifact.html, 'utf8')
   const when = artifact.updatedAt ? ` (updated ${artifact.updatedAt})` : ''

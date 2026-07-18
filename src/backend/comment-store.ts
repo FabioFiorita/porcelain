@@ -5,13 +5,13 @@ import { createHomeChannel } from './home-channel'
 /**
  * The review-comment channel: the human's notes on lines/files, keyed by absolute
  * repo path, in `~/.porcelain/comments.json` (NOT the work repo, NOT userData — a
- * plain `node` MCP process can't resolve userData, so both sides agree on this fixed
+ * plain `node` CLI process can't resolve userData, so both sides agree on this fixed
  * home-dir path, like the review-set channel). This is a TWO-WAY channel: the app
- * authors comments (add/edit/delete/resolve here) and the MCP server (src/mcp/
+ * authors comments (add/edit/delete/resolve here) and the porcelain CLI (src/cli/
  * comment-file.ts) reads them and may flip `resolved`. Distinct from review-sets, so
  * the "app makes one write to the review-set channel" invariant is untouched. App
  * writes are atomic (tmp + rename) and serialized in-process; a cross-process race
- * with an MCP resolve is rare, low-stakes (a lost resolve just reappears), and the
+ * with a CLI resolve is rare, low-stakes (a lost resolve just reappears), and the
  * watcher re-syncs.
  */
 export const reviewCommentSchema = z.object({
@@ -26,7 +26,7 @@ export const reviewCommentSchema = z.object({
   body: z.string(),
   resolved: z.boolean().default(false),
   createdAt: z.number(),
-  /** The agent's one reply (overwritten on re-answer), set via the MCP answer tool. */
+  /** The agent's one reply (overwritten on re-answer), set via the CLI answer command. */
   agentReply: z.object({ body: z.string(), createdAt: z.number() }).optional(),
 })
 export type ReviewComment = z.infer<typeof reviewCommentSchema>
@@ -41,7 +41,7 @@ const channel = createHomeChannel({
   empty: (): ReviewComments => ({}),
 })
 
-// Must match src/mcp/comment-file.ts. PORCELAIN_COMMENTS redirects both sides for
+// Must match src/cli/comment-file.ts. PORCELAIN_COMMENTS redirects both sides for
 // dev/tests.
 export const commentsPath = channel.path
 

@@ -15,7 +15,7 @@ import { readNotes, writeNotes } from './notes-store'
  * Snapshot of the per-repo companion data agents (or scripts) carry from one
  * environment/path to another (Mac → remote daemon, or remapping after a clone).
  * Channel files are keyed by absolute path on the *daemon host* — never silent.
- * Agents use the `sync-environments` companion skill (MCP list/create + SSH/path
+ * Agents use the `sync-environments` companion skill (porcelain CLI list/create + SSH/path
  * remap); the Settings UI no longer offers a one-click seed.
  *
  * Included: actions (saved commands), notes, board, flow layers, review comments.

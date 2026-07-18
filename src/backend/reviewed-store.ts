@@ -6,9 +6,9 @@ import { createHomeChannel } from './home-channel'
  * The reviewed-marks channel: the repo-relative file paths the human has checked off
  * as reviewed in Porcelain (the per-file marks in the Changes / Feature lists), keyed
  * by absolute repo path, in `~/.porcelain/reviewed.json` (same fixed home-dir rationale
- * as the review-set / comment / board / notes channels — a plain `node` MCP process
+ * as the review-set / comment / board / notes channels — a plain `node` CLI process
  * can't resolve userData). ONE-WAY, app→agent: only the app writes (the human marks
- * files reviewed); the MCP server (src/mcp/reviewed-file.ts) only reads them, so the
+ * files reviewed); the porcelain CLI (src/cli/reviewed-file.ts) only reads them, so the
  * agent knows what the human has already vetted. Like notes, the app is the SOLE
  * writer — there is no review-watch entry and no write tool, nothing pushes back.
  * Atomic (tmp + rename) + in-process-serialized writes.
@@ -23,7 +23,7 @@ import { createHomeChannel } from './home-channel'
  * fingerprint: '' }`); an empty fingerprint never matches, so a legacy mark prunes on
  * its first reconcile (a one-time silent un-tick, acceptable). Marks lived in
  * userData/config.json (`config.repos[*].reviewedPaths`) until they moved here so the
- * MCP could read them (see migrateReviewedFromConfig).
+ * CLI could read them (see migrateReviewedFromConfig).
  */
 const reviewedMarkSchema = z.object({ path: z.string(), fingerprint: z.string() })
 export type ReviewedMark = z.infer<typeof reviewedMarkSchema>
@@ -44,7 +44,7 @@ const channel = createHomeChannel({
   empty: (): Reviewed => ({}),
 })
 
-// Must match src/mcp/reviewed-file.ts. PORCELAIN_REVIEWED redirects both sides for tests.
+// Must match src/cli/reviewed-file.ts. PORCELAIN_REVIEWED redirects both sides for tests.
 export const reviewedPath = channel.path
 
 // Drop an emptied entry so the file stays tidy (matches notes/layers).
@@ -145,7 +145,7 @@ export function reconcileMarks(
  * decision, so a mark added between the snapshot and this serialized write (a new path,
  * or a re-mark with a fresh fingerprint) is never in the snapshot, is never classed
  * stale, and survives untouched. Writes through only when something in the snapshot was
- * pruned (so the JSON stays truthful for the MCP reader without a needless rewrite).
+ * pruned (so the JSON stays truthful for the CLI reader without a needless rewrite).
  *
  * Returns the on-disk paths AFTER reconcile (re-read), not just the snapshot survivors —
  * so a concurrent `markReviewed` that landed while we were fingerprinting is included in
@@ -179,7 +179,7 @@ export async function reconcileReviewed(
 /**
  * One-time migration: reviewed marks used to live in userData/config.json
  * (`config.repos[*].reviewedPaths`). Copy any non-empty legacy marks into reviewed.json
- * so the MCP — which can't resolve userData — can serve them. The legacy strings carry
+ * so the CLI — which can't resolve userData — can serve them. The legacy strings carry
  * no content fingerprint, so they land as `{ path, fingerprint: '' }` and prune on their
  * first reconcile (a one-time silent un-tick). Idempotent: only fills a repo whose
  * reviewed.json entry is absent, so it no-ops once migrated and never clobbers a newer

@@ -33,7 +33,7 @@ const EVIDENCE_HTML = `<!doctype html>
 `
 
 // Seed the loop-evidence channel for the fixture repo (see helpers/electron.ts).
-// The app finds it at launch, keyed by the fixture repo, exactly as an MCP write would.
+// The app finds it at launch, keyed by the fixture repo, exactly as the porcelain CLI would.
 test.use({ seedEvidence: { title: 'Test evidence', html: EVIDENCE_HTML } })
 
 test('loop evidence opens and renders inside a fully sandboxed iframe', async ({ page }) => {

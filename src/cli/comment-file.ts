@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 
-// Builtins only — see protocol.ts for why this server must stay dependency-free.
+// Builtins only — see cli.ts for why this server must stay dependency-free.
 // This is the SECOND agent channel, parallel to review-file.ts but flowing the other
 // way: the Porcelain APP authors review comments (the human's notes on lines/files),
 // the AGENT reads them as context here and may mark one resolved. Both sides honour
@@ -139,7 +139,7 @@ function describeOne(c: Comment, sourceOf?: ReadonlyMap<string, string>): string
  * Render a repo's comments for the read tool: the OPEN comments (what the reviewer
  * still wants addressed) listed with their file/line anchor, the anchored snippet,
  * and the note — followed by a resolved count. Each carries its id so the agent can
- * resolve_review_comment once it has addressed the note. When `sourceOf` is supplied
+ * `porcelain comments resolve` once it has addressed the note. When `sourceOf` is supplied
  * (the feature-view snapshot, path→source), each comment is tagged changed/context/
  * shipped so the agent knows whether the commented file is in the git diff.
  */
@@ -157,5 +157,5 @@ export function describeComments(
     return `No open review comments for ${repoPath} (${resolved} resolved).`
   }
   const body = open.map((c) => describeOne(c, sourceOf)).join('\n')
-  return `${open.length} open review comment(s) for ${repoPath}${resolved ? ` (${resolved} resolved)` : ''}. Answer a question with answer_review_comment, and resolve each with resolve_review_comment once addressed:\n${body}`
+  return `${open.length} open review comment(s) for ${repoPath}${resolved ? ` (${resolved} resolved)` : ''}. Answer a question with \`porcelain comments answer\`, and resolve each with \`porcelain comments resolve\` once addressed:\n${body}`
 }

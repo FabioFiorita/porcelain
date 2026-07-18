@@ -7,21 +7,21 @@ import { createHomeChannel } from './home-channel'
  * The flow-layers channel: the per-repo review-flow layers (the ordered
  * `{ label, pattern }` rules that group changes entry-point → data), keyed by
  * absolute repo path, in `~/.porcelain/layers.json` (same fixed home-dir rationale
- * as the review-set / board / notes channels — a plain `node` MCP process can't
+ * as the review-set / board / notes channels — a plain `node` CLI process can't
  * resolve userData). TWO-WAY: the app authors layers (Settings → Review flow) and
- * the MCP server (src/mcp/layers-file.ts) does the same (get/set/reset_flow_layers),
+ * the porcelain CLI (src/cli/layers-file.ts) does the same (layers get/set/reset),
  * so an agent can tailor the grouping to a repo it understands. Atomic (tmp + rename)
  * + in-process-serialized writes; a cross-process race is rare/low-stakes and the
  * watcher re-syncs. Absence of a repo's entry = Porcelain applies DEFAULT_LAYERS.
  *
  * Layers moved here out of userData/config.json (where they used to live, alongside
- * notes) precisely so the dependency-free MCP can read+write them; see
+ * notes) precisely so the dependency-free CLI can read+write them; see
  * migrateLayersFromConfig.
  */
 const layerSchema = z.object({ label: z.string(), pattern: z.string() })
 export const layersSchema = z.record(z.string(), z.array(layerSchema))
 
-// A pattern the flow grouper can compile. The file is externally owned (the MCP
+// A pattern the flow grouper can compile. The file is externally owned (the CLI
 // writes it), so we drop any layer whose pattern is not a valid regex on read —
 // otherwise `compileLayers` (flow.ts) would throw and break every grouping view.
 function compilable(layer: Layer): boolean {
@@ -52,7 +52,7 @@ const channel = createHomeChannel({
   transform: keepCompilable,
 })
 
-// Must match src/mcp/layers-file.ts. PORCELAIN_LAYERS redirects both sides for tests.
+// Must match src/cli/layers-file.ts. PORCELAIN_LAYERS redirects both sides for tests.
 export const layersPath = channel.path
 
 /** The repo's custom flow layers, or null when none is set (→ Porcelain uses defaults). */
@@ -71,7 +71,7 @@ export async function writeLayers(repoPath: string, layers: Layer[] | null): Pro
 /**
  * One-time migration: layers used to live in userData/config.json
  * (`config.repos[*].layers`). Copy any legacy override into layers.json so the
- * MCP — which can't resolve userData — can read+write it. Idempotent: only fills a
+ * CLI — which can't resolve userData — can read+write it. Idempotent: only fills a
  * repo whose layers.json entry is absent, so it no-ops once migrated and never
  * clobbers a newer in-app edit. Runs at startup, before any window reads layers.
  */

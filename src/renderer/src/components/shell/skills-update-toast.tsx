@@ -1,4 +1,3 @@
-import { useAgentMcpInfo } from '@renderer/hooks/use-agent-mcp'
 import { useSkillsInfo } from '@renderer/hooks/use-skills'
 import { isBrowser } from '@renderer/lib/platform'
 import { usePreferencesStore } from '@renderer/stores/preferences'
@@ -15,26 +14,22 @@ const TOAST_ID = 'skills-update'
  */
 export function SkillsUpdateToast(): null {
   const info = useSkillsInfo()
-  const mcpInfo = useAgentMcpInfo()
   const dismissedVersion = usePreferencesStore((s) => s.skillsDismissedVersion)
   const setDismissedVersion = usePreferencesStore((s) => s.setSkillsDismissedVersion)
-  // Disk probe: any agent with Porcelain MCP written is an engaged user. Client-
-  // local prefs used to false-negative after a prefs clear or external MCP write.
-  const anyMcpConfigured = mcpInfo?.agents.some((a) => a.configured) ?? false
   const shown = useRef<string | null>(null)
 
   const current = info?.version
-  // Only nag about a newer skills bundle once the user has wired up at least one
-  // agent's MCP — a strong signal they use the Porcelain integration (and have
-  // likely run `npx skills add`). Skills.sh installs happen outside the app, so
-  // this is our best "engaged user" proxy. Without it a brand-new user, who has
-  // installed nothing, gets told "update available" on first launch (and the toast
-  // bleeds into every screenshot). Mirrors the old plugin toast's `installed` gate.
-  const needsUpdate = anyMcpConfigured && current !== undefined && dismissedVersion !== current
+  // Nag about a newer bundled skills version once, until the user dismisses it (we
+  // remember the dismissed version). The old "any agent has Porcelain configured"
+  // engaged-user gate is gone with the CLI move — the porcelain CLI now installs for
+  // every user automatically, so there's no per-user setup signal to key off.
+  const needsUpdate = current !== undefined && dismissedVersion !== current
 
   useEffect(() => {
     // Skills installs are shell-only; the browser client has nothing to update.
     if (isBrowser) return
+    // Suppress under the e2e harness — deterministic e2e screenshots.
+    if (window.porcelain?.e2e) return
     if (!needsUpdate || current === undefined) return
     if (shown.current === current) return
     shown.current = current

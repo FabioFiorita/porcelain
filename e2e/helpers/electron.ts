@@ -45,7 +45,7 @@ interface Options {
   /**
    * Seed the feature-artifact channel for the fixture repo (default null → none, so
    * the Feature tab shows no artifact opener). When set, the app finds an authored
-   * artifact keyed by the fixture repo at launch, exactly as if the MCP server had
+   * artifact keyed by the fixture repo at launch, exactly as if the porcelain CLI had
    * written one. `updatedAt` is filled in for you.
    */
   seedArtifact: { title: string; html: string } | null
@@ -115,7 +115,7 @@ export const test = baseTest.extend<Options & Fixtures, WorkerFixtures>({
       ),
     )
     // Loop evidence is a directory of files (index.html + optional assets), not JSON.
-    // Seed the on-disk layout the app/MCP share (see evidence-paths.ts).
+    // Seed the on-disk layout the app/CLI share (see evidence-paths.ts).
     const evidenceRoot = join(udBase, 'loop-evidence')
     await mkdir(evidenceRoot, { recursive: true })
     if (seedEvidence) {

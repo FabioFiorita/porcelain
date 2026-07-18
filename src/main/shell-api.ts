@@ -3,13 +3,6 @@ import { initTRPC } from '@trpc/server'
 import { shell, type WebContents } from 'electron'
 import { z } from 'zod'
 import {
-  AGENT_NAMES,
-  type AgentMcpResult,
-  type AgentName,
-  installMcpForAgents,
-  listAgentMcpInfo,
-} from './agent-mcp'
-import {
   getDefaultEnvironmentId,
   rebindWindowsOnRemovedEnvironment,
   reloadEnvironmentsCache,
@@ -27,7 +20,7 @@ import { checkForUpdates, installUpdate, type UpdateStatus, updateStatus } from 
 import { createWindow, type WindowInit, windowInitFor } from './window'
 
 // The Electron-side half of the router split: everything here needs the shell
-// (native dialogs, window management, the updater, agent MCP installers) or the
+// (native dialogs, window management, the updater) or the
 // calling window. The pure-Node procedures live in src/backend/api.ts.
 export interface ShellTrpcContext {
   sender: WebContents
@@ -99,26 +92,6 @@ export const shellRouter = t.router({
       upgradeCommand: skillsUpgradeCommand(),
     }),
   ),
-
-  // Agent MCP config on the Mac shell (local agents). Prefer the daemon's
-  // installAgentMcp when configuring the active environment — especially remote —
-  // so the host that owns ~/.porcelain channel files is what gets configured.
-  // Kept so a local-only install still works without a round-trip. Server binary
-  // refresh on boot is shared: Mac shell (main/index.ts) and daemon main() both
-  // call ensureMcpServer so local + remote stay current without re-Add MCP.
-  agentMcpInfo: t.procedure.query(
-    async (): Promise<{
-      agents: { name: AgentName; configPath: string; configured: boolean }[]
-    }> => ({
-      agents: await listAgentMcpInfo(),
-    }),
-  ),
-
-  installAgentMcp: t.procedure
-    .input(z.array(z.enum(AGENT_NAMES as [AgentName, ...AgentName[]])).optional())
-    .mutation(async ({ input }): Promise<AgentMcpResult[]> => {
-      return installMcpForAgents(input ?? AGENT_NAMES)
-    }),
 
   // Saved remote environments (remote-envs Phase 4 → per-window 2026-07): keep a
   // list of other machines' Porcelain daemons. Each WINDOW picks its own

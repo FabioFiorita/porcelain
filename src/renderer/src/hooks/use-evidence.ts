@@ -24,7 +24,7 @@ export function useLoopEvidence(): { evidence: EvidenceMeta | null | undefined }
 /**
  * The full evidence document for a repo — read only while the evidence view is open.
  * No poll: it's a static document, and the app-event 'evidence' invalidation refreshes
- * it live on an MCP write; polling the (up to 1.5 MB) HTML on a timer would be wasteful.
+ * it live on a CLI write; polling the (up to 1.5 MB) HTML on a timer would be wasteful.
  */
 export function useEvidenceHtml(repoPath: string): { evidence: Evidence | null | undefined } {
   const { data: evidence } = trpc.loopEvidenceHtml.useQuery(repoPath, {

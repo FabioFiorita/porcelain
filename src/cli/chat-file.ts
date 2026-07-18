@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 
-// Builtins only — see protocol.ts. Agent chat / relay channel: messages local and
+// Builtins only — see cli.ts. Agent chat / relay channel: messages local and
 // remote agents (and the human) post to exchange context. Atomic writes; app
 // re-validates with zod on read. Cap matches chat-store.ts.
 
@@ -92,10 +92,10 @@ export function clearMessages(repoPath: string): boolean {
   return true
 }
 
-/** Render the thread for `list_chat_messages`. */
+/** Render the thread for `porcelain chat list`. */
 export function describeChat(repoPath: string, messages: ChatMessage[]): string {
   if (messages.length === 0) {
-    return `Agent chat for ${repoPath} is empty. Post with post_chat_message (set a clear "from" label like "local" or "beelink") so agents across environments can exchange context.`
+    return `Agent chat for ${repoPath} is empty. Post with \`porcelain chat post\` (set a clear "from" label like "local" or "beelink") so agents across environments can exchange context.`
   }
   const lines: string[] = [`Agent chat for ${repoPath} (${messages.length} message(s)):`]
   for (const m of messages) {

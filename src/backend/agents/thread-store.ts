@@ -16,11 +16,11 @@ import {
  * Per-thread durable JSON under `~/.porcelain/agent-threads/<id>.json`. One file per
  * thread (not one big map) so a large timeline is read/rewritten in isolation, and so
  * a single corrupt thread can be dropped without losing the rest. The daemon is the
- * SOLE writer (unlike the MCP agent-channel files), so no cross-process race — but the
+ * SOLE writer (unlike the CLI-written agent-channel files), so no cross-process race — but the
  * writes are still atomic (tmp + rename) and the reads still zod-validated + size-
  * capped, returning null on corruption instead of throwing, matching the drop-on-
- * invalid posture of the other stores. NOT an MCP channel: the MCP server never reads
- * this (v1).
+ * invalid posture of the other stores. NOT an agent channel: the porcelain CLI never
+ * reads this (v1).
  *
  * `PORCELAIN_AGENT_THREADS` redirects the directory (dev + tests), the same escape
  * hatch shape as `PORCELAIN_REVIEW_SETS` / `PORCELAIN_BOARD`.

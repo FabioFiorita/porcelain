@@ -6,15 +6,15 @@ import { FILE_SOURCES } from './review-set'
  * The feature-view SNAPSHOT channel: Porcelain's COMPUTED feature view for a repo
  * (the files it actually renders, each tagged with its git-truth source and flow
  * layer), keyed by absolute repo path, in `~/.porcelain/feature-view.json`. Same
- * fixed home-dir rationale as the other channels — a plain `node` MCP process can't
+ * fixed home-dir rationale as the other channels — a plain `node` CLI process can't
  * resolve userData.
  *
  * ONE-WAY, app→agent (the 8th channel, same shape as reviewed marks / notes): the
  * APP is the SOLE writer (it computes the view; see api.ts `getFeatureBuild`), and the
- * MCP server (src/mcp/feature-view-file.ts) only READS it — so the agent can see the
+ * porcelain CLI (src/cli/feature-view-file.ts) only READS it — so the agent can see the
  * whole feature (not just the git diff) and, crucially, learn which files are actually
  * `changed` (diffed) vs `context`/`shipped`. That git truth lives only in the main
- * process (the MCP has no git), so the app must hand it over here. Because the app is
+ * process (the CLI has no git), so the app must hand it over here. Because the app is
  * the sole writer there is no review-watch entry and no write tool, and the content is
  * inert (app-supplied repo-relative paths + source/layer labels), so no
  * repo-containment guard is needed — but writes stay atomic + in-process-serialized
@@ -22,7 +22,7 @@ import { FILE_SOURCES } from './review-set'
  *
  * This is a derived snapshot, not source of truth: it's refreshed whenever Porcelain
  * rebuilds the feature view (the Feature tab / inline read polling), so it reflects the
- * view as last rendered. The agent's own pushed set is still `get_feature_review`; this
+ * view as last rendered. The agent's own pushed set is still the CLI `review get`; this
  * is what Porcelain MADE of it after folding in git status and the import baseline.
  */
 export const featureSnapshotFileSchema = z.object({
@@ -47,7 +47,7 @@ const channel = createHomeChannel<FeatureSnapshots>({
 })
 
 export function featureSnapshotPath(): string {
-  // Must match src/mcp/feature-view-file.ts. PORCELAIN_FEATURE_VIEW redirects both sides.
+  // Must match src/cli/feature-view-file.ts. PORCELAIN_FEATURE_VIEW redirects both sides.
   return channel.path()
 }
 

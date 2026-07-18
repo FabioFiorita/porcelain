@@ -17,8 +17,8 @@ export default defineConfig({
     define,
     build: {
       rollupOptions: {
-        // Three main-process bundles: the app entry; the standalone stdio MCP
-        // server the user's agent spawns (`node out/main/mcp/server.js`), which
+        // Three main-process bundles: the app entry; the dependency-free agent CLI
+        // (`node out/main/cli/porcelain.js`) copied to ~/.porcelain/porcelain.js, which
         // imports only Node builtins so it runs under a plain `node`; and the
         // daemon (`out/main/daemon/server.js`), the Electron-free backend the
         // shell spawns with ELECTRON_RUN_AS_NODE — it imports only src/backend,
@@ -26,7 +26,7 @@ export default defineConfig({
         // trash), never electron (Biome-fenced in src/backend).
         input: {
           index: resolve('src/main/index.ts'),
-          'mcp/server': resolve('src/mcp/server.ts'),
+          'cli/porcelain': resolve('src/cli/porcelain.ts'),
           'daemon/server': resolve('src/backend/server.ts'),
         },
         // External ESM-only deps (trash) required from the CJS bundles need the

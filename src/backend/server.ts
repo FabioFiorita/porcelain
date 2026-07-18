@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto'
-import { ensureMcpServer } from './agent-mcp-install'
 import { flushAllThreads } from './agents/agent-manager'
 import { router } from './api'
 import { subscribeAppEvents } from './app-events'
+import { ensureCli } from './cli-install'
 import { initConfigDir, loadConfig } from './config-store'
 import { createDaemonHttp } from './daemon-http'
 import { seedDevConfig } from './dev-config'
@@ -145,26 +145,26 @@ async function main(): Promise<void> {
   if (process.env.PORCELAIN_DEV === '1') await seedDevConfig()
 
   // Move any legacy notes, flow layers, and reviewed marks out of userData/config.json
-  // into their ~/.porcelain agent channels so the MCP can read (and, for layers, write)
+  // into their ~/.porcelain agent channels so the CLI can read (and, for layers, write)
   // them. One-time + idempotent; runs before any client reads notes/layers/reviewed.
   await migrateNotesFromConfig()
   await migrateLayersFromConfig()
   await migrateReviewedFromConfig()
 
-  // Refresh the bundled MCP server agents point at (`node ~/.porcelain/mcp/server.js`).
-  // Same contract as the Mac shell boot path (`src/main/index.ts`): a STABLE path is
-  // baked into agent configs once via Settings → Agents → Add MCP, and every daemon
-  // start re-copies from this package so a daemon upgrade (npx porcelain-daemon@latest
-  // on Linux, or a Mac app update) ships new/fixed tools without re-running Add MCP.
+  // Refresh the bundled CLI agents run (`~/.porcelain/porcelain <noun> <verb>`).
+  // Same contract as the Mac shell boot path (`src/main/index.ts`): every daemon
+  // start re-copies the bundle + wrapper from this package, so a daemon upgrade
+  // (npx porcelain-daemon@latest on Linux, or a Mac app update) ships new commands
+  // automatically — agents run a binary, so there's nothing to re-register.
   // Best-effort: a missing build artifact or home-dir write failure must never block
   // the listener (agents keep whatever copy they already had).
   try {
-    await ensureMcpServer()
+    await ensureCli()
   } catch (error) {
-    console.error('[daemon] MCP server refresh failed:', error)
+    console.error('[daemon] CLI refresh failed:', error)
   }
 
-  // Watch the agent channels so MCP-pushed review sets / resolved comments refresh
+  // Watch the agent channels so CLI-pushed review sets / resolved comments refresh
   // the open views — fanned out to every session over the WS channel.
   await watchAgentChannels()
   subscribeAppEvents(broadcastAppEvent)

@@ -9,7 +9,7 @@ import { useState } from 'react'
 
 /**
  * Compact post form for the human. Default `from` is "you" so agent labels stay
- * distinct; agents set their own label via MCP.
+ * distinct; agents set their own label via the porcelain CLI.
  */
 export function ChatComposer(): React.JSX.Element {
   const { post } = useChatActions()

@@ -6,7 +6,7 @@ import { createHomeChannel } from './home-channel'
  * The project-board channel: todo/doing/done cards the human and the agent both
  * manage, keyed by absolute repo path, in `~/.porcelain/board.json` (same fixed
  * home-dir location rationale as the review-set + comment channels). TWO-WAY: the
- * app authors cards (add/edit/move/delete here) and the MCP server (src/mcp/
+ * app authors cards (add/edit/move/delete here) and the porcelain CLI (src/cli/
  * board-file.ts) does the same — the agent reads the board for what to build and
  * moves cards as it works. Atomic (tmp + rename) + in-process-serialized writes; a
  * cross-process race is rare/low-stakes and the watcher re-syncs.
@@ -36,7 +36,7 @@ const channel = createHomeChannel({
   empty: (): Board => ({}),
 })
 
-// Must match src/mcp/board-file.ts. PORCELAIN_BOARD redirects both sides for tests.
+// Must match src/cli/board-file.ts. PORCELAIN_BOARD redirects both sides for tests.
 export const boardPath = channel.path
 
 /** The cards for a repo, sorted by column order (oldest/first at the top). */

@@ -2,7 +2,7 @@ import { rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-// Relative so this typechecks: the mcp tree uses no path aliases, so this test
+// Relative so this typechecks: the cli tree uses no path aliases, so this test
 // reaches into src/backend relatively; the runtime layers-file.ts never does.
 import { DEFAULT_LAYERS as MAIN_DEFAULT_LAYERS } from '../backend/flow'
 import {
@@ -16,7 +16,7 @@ import {
 
 describe('DEFAULT_LAYERS', () => {
   it('stays identical to the app source of truth (src/main/flow.ts)', () => {
-    // The MCP island duplicates the defaults rather than import from src/main; this
+    // The CLI island duplicates the defaults rather than import from src/main; this
     // guard makes the copy impossible to let drift.
     expect(DEFAULT_LAYERS).toEqual(MAIN_DEFAULT_LAYERS)
   })
@@ -50,7 +50,7 @@ describe('describeLayers', () => {
     const text = describeLayers('/repo', null)
     expect(text).toContain('built-in defaults')
     expect(text).toContain('Pages')
-    expect(text).toContain('set_flow_layers')
+    expect(text).toContain('porcelain layers set')
   })
 
   it('lists a custom set with its JSON for round-tripping', () => {

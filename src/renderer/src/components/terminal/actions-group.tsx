@@ -88,7 +88,7 @@ function ActionRow({
 /**
  * The Actions Quick Access section (shown when the Terminal tab is active): the repo's
  * saved commands, each one click from running in a terminal. The agent can curate these
- * over MCP; the human runs them. Mirrors the Comments/Board sections.
+ * via the porcelain CLI; the human runs them. Mirrors the Comments/Board sections.
  */
 export function ActionsGroup(): React.JSX.Element {
   const actions = useActions()

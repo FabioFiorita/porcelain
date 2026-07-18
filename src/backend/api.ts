@@ -24,13 +24,6 @@ import {
   updateAction,
 } from './actions-store'
 import {
-  AGENT_NAMES,
-  type AgentMcpResult,
-  type AgentName,
-  installMcpForAgents,
-  listAgentMcpInfo,
-} from './agent-mcp-install'
-import {
   agentCommands,
   agentLimits,
   createThread,
@@ -394,8 +387,9 @@ const featureBuildCache = new Map<
 >()
 
 // The (heavier still) inline reading surface, memoized on the same key. Only built
-// when an agent review set is present (MCP-only), so the slice heuristic runs only
-// on curated files; the baseline returns null cheaply from the gather alone.
+// when an agent review set is present (the agent declares it via the porcelain CLI),
+// so the slice heuristic runs only on curated files; the baseline returns null
+// cheaply from the gather alone.
 const featureReadingCache = new Map<string, { key: string; reading: FeatureReading }>()
 
 // Read working-tree sources into `sources`, skipping already-read and oversized
@@ -484,9 +478,9 @@ async function getFeatureBuild(
   const { view, sources } = await buildFeatureFromGather(input, g)
   const entry = { key: g.key, view, sources }
   featureBuildCache.set(input, entry)
-  // Snapshot the computed view to the app→agent channel so the MCP server can tell
-  // the agent which files are actually `changed` (diffed) vs context/shipped — git
-  // truth the dependency-free server can't derive itself. Skipped when unchanged.
+  // Snapshot the computed view to the app→agent channel so the agent can read (via
+  // the porcelain CLI) which files are actually `changed` (diffed) vs context/shipped
+  // — git truth the dependency-free CLI can't derive itself. Skipped when unchanged.
   await writeFeatureSnapshot(input, {
     name: view.name,
     files: view.groups.flatMap((group) =>
@@ -662,7 +656,7 @@ export const router = t.router({
 
   reviewedPaths: t.procedure.input(z.string()).query(async ({ input }): Promise<string[]> => {
     // Only the marked paths need fingerprinting (few files); reconcile prunes stale
-    // marks and writes through so reviewed.json stays truthful for the MCP reader.
+    // marks and writes through so reviewed.json stays truthful for the CLI reader.
     // reconcileReviewed re-reads after prune so a concurrent markReviewed (the UI's
     // optimistic tick) is never omitted from this response — that omission used to
     // overwrite the client cache and make the mark appear to un-toggle a second later.
@@ -946,9 +940,9 @@ export const router = t.router({
     }),
 
   // The feature view: the change under review widened into the whole feature.
-  // No-MCP baseline = changed files + the unchanged files they reach by relative
+  // No-review-set baseline = changed files + the unchanged files they reach by relative
   // import (tagged `context`). When an agent has pushed a review set for this repo
-  // (via the MCP server → ~/.porcelain/review-sets.json), its cross-seam files and
+  // (via the porcelain CLI → ~/.porcelain/review-sets.json), its cross-seam files and
   // invariant notes overlay on top. One render either way.
   featureView: t.procedure.input(z.string()).query(async ({ input }): Promise<FeatureView> => {
     const g = await gatherFeature(input)
@@ -957,7 +951,7 @@ export const router = t.router({
 
   // The inline reading surface: the feature rendered as one flow-ordered document
   // with just the relevant lines (diff hunks for changed files, symbol slices for
-  // context/shipped). MCP-only — returns null when there's no agent review set, so
+  // context/shipped). Review-set-only — returns null when there's no agent review set, so
   // the baseline stays the lightweight Feature list and the slice heuristic only
   // ever runs on the agent's curated, annotated set.
   featureReading: t.procedure
@@ -1031,7 +1025,7 @@ export const router = t.router({
   }),
 
   // Review comments — the human's notes on lines/files, fed to the agent as context
-  // over MCP (`get_review_comments`) and resolvable by it (`resolve_review_comment`).
+  // via the porcelain CLI (`comments list`) and resolvable by it (`comments resolve`).
   // Stored in ~/.porcelain/comments.json (see `comment-store.ts`); a two-way channel.
   reviewComments: t.procedure
     .input(z.string())
@@ -1071,7 +1065,7 @@ export const router = t.router({
 
   // Project board — todo/doing/done cards the human and the agent both manage,
   // stored in ~/.porcelain/board.json (see `board-store.ts`); a two-way channel the
-  // agent reads (list_cards) and mutates (create/update/move/delete_card) over MCP.
+  // agent reads (`board list`) and mutates (`board create/update/move/delete`) via the CLI.
   boardCards: t.procedure
     .input(z.string())
     .query(({ input }): Promise<BoardCard[]> => readCards(input)),
@@ -1141,8 +1135,8 @@ export const router = t.router({
 
   // Saved actions — named commands the human runs in the embedded terminal with one
   // click, stored in ~/.porcelain/actions.json (see `actions-store.ts`); a two-way
-  // channel the agent reads (list_actions) and curates (create/update/delete_action)
-  // over MCP. The agent never EXECUTES one — running is human-only (see the audit skill).
+  // channel the agent reads (`actions list`) and curates (`actions create/update/delete`)
+  // via the CLI. The agent never EXECUTES one — running is human-only (see the audit skill).
   actions: t.procedure
     .input(z.string())
     .query(({ input }): Promise<Action[]> => readActions(input)),
@@ -1292,24 +1286,6 @@ export const router = t.router({
     .mutation(
       ({ input }): Promise<ImportRepoSettingsResult> =>
         copyRepoSettings(input.fromPath, input.toPath),
-    ),
-
-  // Agent MCP install on the *daemon host* (not the Mac shell). When the app is
-  // pointed at a remote daemon, Settings → Agents must configure that machine's
-  // ~/.claude.json etc. so agents there can use the channel tools. `configured`
-  // is probed from disk — never a client-local flag (false-negative trap).
-  agentMcpInfo: t.procedure.query(
-    async (): Promise<{
-      agents: { name: AgentName; configPath: string; configured: boolean }[]
-    }> => ({
-      agents: await listAgentMcpInfo(),
-    }),
-  ),
-
-  installAgentMcp: t.procedure
-    .input(z.array(z.enum(AGENT_NAMES as [AgentName, ...AgentName[]])).optional())
-    .mutation(
-      async ({ input }): Promise<AgentMcpResult[]> => installMcpForAgents(input ?? AGENT_NAMES),
     ),
 
   // Remote access over Tailscale: the daemon can additionally listen on the

@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 
-// Builtins only — see protocol.ts. The project-board channel: todo/doing/done cards
+// Builtins only — see cli.ts. The project-board channel: todo/doing/done cards
 // the human (Porcelain app, board-store.ts) and the agent (here) both manage. The
 // agent reads the board for what to build and moves cards as it works. Atomic writes
 // (tmp + rename); the app re-validates with zod on read.

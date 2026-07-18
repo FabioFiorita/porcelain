@@ -23,7 +23,7 @@ type ShellUtils = ReturnType<typeof shellTrpc.useUtils>
 // is the exhaustiveness guard: a new event that isn't wired here lets the switch
 // fall through to an implicit `return undefined`, which fails the annotated type at
 // `pnpm typecheck` — the same compile-time net the Viewer's tab-kind switch uses. So
-// adding a channel can't silently ship un-refreshed (the bug that left MCP-curated
+// adding a channel can't silently ship un-refreshed (the bug that left agent-curated
 // actions stale until a tab switch remounted the list).
 function handle(
   event: AppEvent | ShellEvent,
@@ -34,7 +34,7 @@ function handle(
     case 'update-status':
       return shellUtils.updateStatus.invalidate()
     case 'feature-view':
-      // the agent pushed a review-set change over MCP — refresh BOTH feature surfaces
+      // the agent pushed a review-set change via the CLI — refresh BOTH feature surfaces
       // (the sidebar list AND the inline reading surface) so they don't disagree until
       // the next 3s poll, matching useClearFeatureReview. Also refresh exploreFeature
       // to match the layers branch, which fans out to all three feature surfaces.
@@ -44,17 +44,17 @@ function handle(
         utils.exploreFeature.invalidate(),
       ])
     case 'comments':
-      // the agent resolved a comment over MCP — refresh the list + gutter markers
+      // the agent resolved a comment via the CLI — refresh the list + gutter markers
       return utils.reviewComments.invalidate()
     case 'board':
-      // the agent created/moved/edited a card over MCP — refresh the board
+      // the agent created/moved/edited a card via the CLI — refresh the board
       return utils.boardCards.invalidate()
     case 'actions':
-      // the agent curated a saved action over MCP — refresh the Actions list so the
+      // the agent curated a saved action via the CLI — refresh the Actions list so the
       // new/edited command shows up live, not on the next remount.
       return utils.actions.invalidate()
     case 'layers':
-      // the agent retuned the flow layers over MCP — refresh the layer config and
+      // the agent retuned the flow layers via the CLI — refresh the layer config and
       // every grouping surface that buckets files by them
       return Promise.all([
         utils.repoLayers.invalidate(),
@@ -66,18 +66,18 @@ function handle(
         utils.exploreFeature.invalidate(),
       ])
     case 'artifact':
-      // the agent authored/cleared a feature artifact over MCP — refresh the Feature
+      // the agent authored/cleared a feature artifact via the CLI — refresh the Feature
       // list opener (metadata) and the open artifact view (full HTML).
       return Promise.all([
         utils.featureArtifact.invalidate(),
         utils.featureArtifactHtml.invalidate(),
       ])
     case 'evidence':
-      // the agent authored/cleared loop evidence over MCP — refresh the Feature list
+      // the agent authored/cleared loop evidence via the CLI — refresh the Feature list
       // opener (metadata) and the open evidence view (full HTML).
       return Promise.all([utils.loopEvidence.invalidate(), utils.loopEvidenceHtml.invalidate()])
     case 'chat':
-      // an agent (or human) posted to the agent-chat relay over MCP
+      // an agent (or human) posted to the agent-chat relay via the CLI
       return utils.chatMessages.invalidate()
     case 'working-tree':
       // a watched file changed on disk outside the app (most often the coding

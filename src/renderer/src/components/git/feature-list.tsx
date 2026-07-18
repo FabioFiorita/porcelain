@@ -198,8 +198,8 @@ export function FeatureList(): React.JSX.Element {
     return <p className="p-3 text-sm text-muted-foreground">Loading…</p>
   }
 
-  // The inline reading surface is MCP-only, so the opener appears only when an
-  // agent has pushed a review set; the baseline stays a plain navigation list.
+  // The inline reading surface needs an agent review set, so the opener appears only
+  // when an agent has pushed one; the baseline stays a plain navigation list.
   const openReading = (): void => {
     openTab({
       id: tabId('feature', repo.path),
@@ -383,7 +383,7 @@ export function FeatureList(): React.JSX.Element {
       {files.length === 0 ? (
         <p className="px-3 py-2 text-sm text-muted-foreground">
           No changes yet. The feature view appears once you have working-tree changes — or when your
-          agent pushes a review set over MCP.
+          agent pushes a review set via the porcelain CLI.
         </p>
       ) : (
         <div className="px-2 pt-1">
@@ -421,8 +421,9 @@ export function FeatureList(): React.JSX.Element {
 
       {!view.fromAgent && files.length > 0 && (
         <p className="mx-2 mt-2 border-t border-border pt-2 text-xs text-muted-foreground/70">
-          Static baseline — changed files plus what they import. Connect Porcelain's MCP server to
-          pull in the rest of the feature (server files, cross-seam contracts).
+          Static baseline — changed files plus what they import. Your agent widens this to the whole
+          feature (server files, cross-seam contracts) by pushing a review set via the porcelain
+          CLI.
         </p>
       )}
     </div>

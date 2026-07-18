@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
-// Builtins only — see protocol.ts. The feature-view SNAPSHOT channel: Porcelain's
+// Builtins only — see cli.ts. The feature-view SNAPSHOT channel: Porcelain's
 // COMPUTED feature view (every file it renders, each tagged with its git-truth source
 // and flow layer), READ-ONLY here. ONE-WAY, app→agent — the app computes the view and
 // writes it (src/main/feature-snapshot-store.ts); the agent reads it to see the whole
@@ -81,18 +81,18 @@ export function sourceByPath(snapshot: FeatureViewSnapshot | null): Map<string, 
 }
 
 /**
- * Render the snapshot for `get_feature_view`: a one-line summary (count + per-source
+ * Render the snapshot for `porcelain feature get`: a one-line summary (count + per-source
  * breakdown, spelling out that `changed` means in the git diff) then the files grouped
  * in flow order. This is what Porcelain MADE of the feature after folding the agent's
  * pushed set into git status and the import baseline — the complement to
- * get_feature_review (which echoes what the agent declared).
+ * `porcelain review get` (which echoes what the agent declared).
  */
 export function describeFeatureView(
   repoPath: string,
   snapshot: FeatureViewSnapshot | null,
 ): string {
   if (!snapshot || snapshot.files.length === 0) {
-    return `No feature view computed for ${repoPath} yet. Open the Feature tab in Porcelain (or push a review set with set_feature_review); Porcelain then renders the feature and this snapshot reports every file with its source (changed = in the git diff, context/shipped = the unchanged rest of the feature) and flow layer.`
+    return `No feature view computed for ${repoPath} yet. Open the Feature tab in Porcelain (or push a review set with \`porcelain review set\`); Porcelain then renders the feature and this snapshot reports every file with its source (changed = in the git diff, context/shipped = the unchanged rest of the feature) and flow layer.`
   }
   const counts = new Map<string, number>()
   for (const file of snapshot.files) counts.set(file.source, (counts.get(file.source) ?? 0) + 1)

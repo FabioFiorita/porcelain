@@ -3,7 +3,7 @@ import { onMutationError } from '@renderer/hooks/mutation-error'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 
-/** Agent-chat messages for the current repo (live-refreshed on MCP post). */
+/** Agent-chat messages for the current repo (live-refreshed on a CLI post). */
 export function useChatMessages(): { messages: ChatMessage[]; error: string | null } {
   const repo = useRepoStore((s) => s.repo)
   const { data, error } = trpc.chatMessages.useQuery(repo?.path ?? '', { enabled: repo !== null })

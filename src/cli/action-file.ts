@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 
-// Builtins only — see protocol.ts. The saved-actions channel: named, runnable
+// Builtins only — see cli.ts. The saved-actions channel: named, runnable
 // commands the human (Porcelain app, actions-store.ts) launches in the embedded
 // terminal, and the agent (here) can curate. The agent CRUDs definitions only — it
 // never executes one (no run tool). Atomic writes (tmp + rename); the app re-validates

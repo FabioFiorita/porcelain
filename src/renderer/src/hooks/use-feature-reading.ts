@@ -4,7 +4,7 @@ import { useRepoStore } from '@renderer/stores/repo'
 
 /**
  * The inline reading surface payload. `null` means no agent review set (the
- * baseline — the surface is MCP-only); `undefined` while loading.
+ * baseline — the surface needs an agent-declared review set); `undefined` while loading.
  */
 export function useFeatureReading(): {
   reading: FeatureReading | null | undefined

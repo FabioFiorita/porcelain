@@ -24,7 +24,7 @@ export function ArtifactView({ repoPath }: { repoPath: string }): React.JSX.Elem
   if (artifact === null) {
     return (
       <p className="p-4 text-sm text-muted-foreground">
-        No feature artifact. Your agent can author one over MCP (set_feature_artifact).
+        No feature artifact. Your agent can author one with the porcelain CLI (artifact set).
       </p>
     )
   }

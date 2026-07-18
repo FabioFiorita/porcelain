@@ -18,8 +18,8 @@ const COLUMN_ICON: Record<CardStatus, React.ComponentType> = {
 }
 
 /**
- * A board card chip with a "⋯" menu: edit, move to another column (the MCP moves
- * cards too — this is the human's equivalent), or delete. Shared by the sidebar
+ * A board card chip with a "⋯" menu: edit, move to another column (the agent moves
+ * cards too via the CLI — this is the human's equivalent), or delete. Shared by the sidebar
  * board list and the wide viewer board.
  */
 export function CardItem({

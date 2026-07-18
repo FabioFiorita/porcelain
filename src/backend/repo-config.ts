@@ -83,8 +83,8 @@ export const appConfigSchema = z.object({
         hiddenPaths: z.array(z.string()).default([]),
         pinnedPaths: z.array(z.string()).default([]),
         // Deprecated: reviewed marks + layers + notes moved to their ~/.porcelain agent
-        // channels (reviewed-store.ts / layers-store.ts / notes-store.ts) so the MCP can
-        // read them. Kept optional only so the one-time startup migrations
+        // channels (reviewed-store.ts / layers-store.ts / notes-store.ts) so the porcelain
+        // CLI can read them. Kept optional only so the one-time startup migrations
         // (migrateReviewedFromConfig / migrateLayersFromConfig / migrateNotesFromConfig)
         // can copy legacy values out — no code writes them anymore.
         reviewedPaths: z.array(z.string()).optional(),

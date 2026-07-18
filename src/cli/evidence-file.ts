@@ -4,16 +4,16 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { htmlPreview } from './html-input'
 
-// Builtins only — see protocol.ts. Loop evidence is a **directory of files**:
+// Builtins only — see cli.ts. Loop evidence is a **directory of files**:
 //
 //   ~/.porcelain/loop-evidence/<sha256(repoPath)[0..16]>/
 //     index.html   — the document Porcelain renders
 //     meta.json    — { title, repoPath, updatedAt }
 //     *.png / …    — screenshots with relative <img src>
 //
-// Agents SHOULD write those files with normal Write tools (no MCP payload limits).
-// set_loop_evidence with title only prepares the dir and returns the path.
-// Optional html / htmlFile still write index.html for small docs / automation.
+// Agents SHOULD write those files with normal Write tools (no CLI payload limits).
+// `porcelain evidence prepare` with a title only makes the dir and returns the path.
+// Optional --html / --html-file still write index.html for small docs / automation.
 // Keep the keying formula in lockstep with src/backend/evidence-paths.ts.
 
 /** Keep in sync with MAX_HTML_BYTES in src/backend/evidence-store.ts. */
@@ -63,7 +63,7 @@ export function validateEvidence(title: unknown, html: unknown): { title: string
   const bytes = Buffer.byteLength(html, 'utf8')
   if (bytes > MAX_HTML_BYTES) {
     throw new Error(
-      `html is ${bytes} bytes, over the ${MAX_HTML_BYTES}-byte limit — write a file to the evidence directory instead (set_loop_evidence with title only returns the path; put screenshots as sibling files).`,
+      `html is ${bytes} bytes, over the ${MAX_HTML_BYTES}-byte limit — write a file to the evidence directory instead (\`porcelain evidence prepare --title\` returns the path; put screenshots as sibling files).`,
     )
   }
   return { title: title.trim(), html }
@@ -172,7 +172,7 @@ export function getEvidence(repoPath: string): Evidence | null {
 export function describeEvidence(repoPath: string, evidence: Evidence | null): string {
   const dir = evidenceDirForRepo(repoPath)
   if (!evidence) {
-    return `No loop evidence for ${repoPath}. Preferred flow: call set_loop_evidence with { repoPath, title } only — it returns a directory path; write index.html (and screenshots as siblings with relative <img src>) there with normal file tools. Porcelain picks it up automatically. Do NOT push large HTML through MCP.`
+    return `No loop evidence for ${repoPath}. Preferred flow: run \`porcelain evidence prepare --title <title>\` — it returns a directory path; write index.html (and screenshots as siblings with relative <img src>) there with normal file tools. Porcelain picks it up automatically. Do NOT push large HTML through the CLI.`
   }
   const bytes = Buffer.byteLength(evidence.html, 'utf8')
   const when = evidence.updatedAt ? ` (updated ${evidence.updatedAt})` : ''

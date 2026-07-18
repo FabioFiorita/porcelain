@@ -5,7 +5,7 @@ import { Compass, RefreshCw } from 'lucide-react'
 import { ReadingSurfaceBody } from './reading-surface'
 
 // The viewer's `explore` tab: a read-only feature flow seeded from a symbol (or a
-// whole file), rendered through the same sliced reading surface as the MCP read.
+// whole file), rendered through the same sliced reading surface as the feature read.
 // Nothing is changed — every file is `context`, flow-ordered entry-point → data.
 export function ExploreView({
   path,

@@ -15,32 +15,35 @@ Porcelain can render **loop evidence**: a self-contained HTML document you autho
 
 The human opens it from the **Feature** tab → **Loop evidence**, then hits **Clear** when done (e.g. before commit/push). You do not need to keep evidence forever.
 
-## Preferred flow — files on disk (NOT MCP payloads)
+The CLI lives at `~/.porcelain/porcelain` — installed automatically and kept fresh on every app launch (no registration, no MCP config). Run it from **inside the repo** and it targets that repo automatically (git toplevel of the cwd); add `--repo <absolute path>` only to point at a different checkout.
 
-**Do not push large HTML or base64 screenshots through `set_loop_evidence`.** That is slow, interruptible, and was the failure mode that made sessions look stuck for minutes.
+## Preferred flow — prepare a directory, then write files into it
 
-The **directory is the source of truth**. Write files with your normal Write tools:
+**Do not push large HTML or base64 screenshots through the CLI.** That is slow, interruptible, and was the failure mode that made sessions look stuck for minutes. Instead, prepare a directory and write the document + screenshots into it with your normal Write tools — the **directory is the source of truth**.
 
-1. Call `set_loop_evidence` with **only** `{ repoPath, title }` (no `html`, no `htmlFile`).
-2. The tool returns an absolute directory path, e.g.  
-   `~/.porcelain/loop-evidence/<key>/`
-3. Write into that directory:
-   - **`index.html`** — the document (required for Porcelain to show the opener)
-   - **screenshots** as real image files next to it (`shot.png`, …) with  
-     `<img src="shot.png">` (relative paths — Porcelain inlines them for the sandboxed viewer; a browser opening `index.html` works too)
-   - optional: you can ignore `meta.json` (the prepare step already wrote title)
-4. Done. Porcelain discovers the directory within a few seconds (Feature tab → **Loop evidence**). No second MCP call with the HTML. You can also open `index.html` from the Files tree (or any `.html` file) — Porcelain has a built-in sandboxed **Preview** for HTML (toggle Source for the raw file).
-
-`repoPath` = absolute path of the repo you're working in (your cwd).
+1. `~/.porcelain/porcelain evidence prepare --title "<title>"` → prints an absolute directory path, e.g.
+   `~/.porcelain/loop-evidence/<key>/` (title-only; no HTML flags on `prepare`).
+2. Write into that directory with your file tools:
+   - **`index.html`** — the document (required for Porcelain to show the opener).
+   - **screenshots** as real image files next to it (`shot.png`, …) referenced with relative `src` — `<img src="shot.png">`. Porcelain inlines them for the sandboxed viewer; a browser opening `index.html` works too.
+3. Done. Porcelain discovers the directory within a few seconds (Feature tab → **Loop evidence**). No second CLI call with the HTML. You can also open `index.html` from the Files tree (or any `.html` file) — Porcelain has a built-in sandboxed **Preview** for HTML (toggle Source for the raw file).
 
 Optional helpers:
 
-- `get_loop_evidence` — confirm the dir / title / size (not the full HTML).
-- `clear_loop_evidence` — remove the directory (prefer letting the human clear after review).
+- `~/.porcelain/porcelain evidence get` → confirm the dir / title / size (not the full HTML).
+- `~/.porcelain/porcelain evidence clear` → remove the directory (prefer letting the human clear after review).
 
-### Optional: small docs only
+### Alternative: small docs only
 
-If the document is tiny (no screenshots), you may still pass `html` or `htmlFile` to `set_loop_evidence` and it will write `index.html` for you. **Never** use that path for multi-screenshot evidence.
+If the document is tiny (no screenshots), skip `prepare` and pass the HTML directly:
+
+```bash
+~/.porcelain/porcelain evidence set --title "Login smoke test" --html-file ./evidence.html
+```
+
+`evidence set` requires the HTML (exactly one of `--html-file <path>` or `--html <s|->`, where `-` reads stdin) — `prepare` is the title-only path, no overloading. **Never** use `evidence set` for multi-screenshot evidence.
+
+Porcelain runs a **plausibility check** on the HTML (and enforces a minimum size and size caps): junk, empty, or too-small documents are rejected loudly — fix and re-run rather than assuming it landed.
 
 ## Authoring the HTML
 
@@ -74,7 +77,7 @@ Keep the whole folder under a few MB after screenshots (shrink images). Porcelai
 
 ## Review before you say you're done
 
-- `index.html` exists in the directory returned by prepare.
+- `index.html` exists in the directory returned by `prepare`.
 - Relative images resolve; pass/fail is obvious.
 - You actually ran the validation — don't invent evidence.
 

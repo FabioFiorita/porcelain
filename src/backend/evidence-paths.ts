@@ -4,8 +4,8 @@ import { join } from 'node:path'
 
 /**
  * Loop evidence lives as a **directory of files on disk**, not as HTML shuttled
- * through MCP. Agents write `index.html` (+ screenshots as sibling files) with
- * normal file tools; Porcelain reads and renders. MCP only needs to return the
+ * through the CLI. Agents write `index.html` (+ screenshots as sibling files) with
+ * normal file tools; Porcelain reads and renders. The CLI only needs to return the
  * directory path (or optionally seed title / copy a small htmlFile).
  *
  * Layout:
@@ -14,8 +14,8 @@ import { join } from 'node:path'
  *     meta.json      — optional { title, repoPath, updatedAt }
  *     *.png / …      — relative assets referenced from index.html
  *
- * Keep this keying formula in lockstep with `src/mcp/evidence-file.ts`
- * (dependency-free MCP cannot import this module).
+ * Keep this keying formula in lockstep with `src/cli/evidence-file.ts`
+ * (the dependency-free CLI cannot import this module).
  */
 
 export function loopEvidenceRoot(): string {

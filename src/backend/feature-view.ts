@@ -102,7 +102,7 @@ export interface FeatureView {
 /**
  * Assemble the feature view from the change under review, the statically-expanded
  * context, and (optionally) an agent-fed review set. One render path for both:
- * the no-MCP baseline passes `reviewSet: null`; the MCP path overlays declared
+ * the no-review-set baseline passes `reviewSet: null`; the review-set path overlays declared
  * files and notes. Git status always wins over a declared source — a file in the
  * working tree is `changed`, no matter what the agent labelled it.
  */
@@ -171,7 +171,7 @@ export function buildFeatureView(params: {
   }
 
   // Two grouping paths by design (see the flow-layers skill + Q from the user):
-  // the no-MCP baseline keeps the repo-wide regex layers (matching the Changes tab),
+  // the no-review-set baseline keeps the repo-wide regex layers (matching the Changes tab),
   // but once the agent pushes a review set it OWNS the feature view's flow — its
   // declared file order and per-file `layer` render verbatim (groupByLayerOrdered),
   // since the agent built the feature and knows its true shape better than a regex.
@@ -239,7 +239,7 @@ export interface FeatureReading {
  * files carry their working-tree diff hunks (passed in — they're async git reads);
  * context/shipped files carry symbol slices (only the lines the in-view files
  * import from them, falling back to all exports for cross-seam files no in-view
- * import resolves to). MCP-only: the caller builds this only when a review set is
+ * import resolves to). Review-set-only: the caller builds this only when a review set is
  * present, so the slice heuristic runs only on the agent's curated, annotated set.
  */
 export function buildFeatureReading(params: {

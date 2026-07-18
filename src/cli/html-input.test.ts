@@ -33,19 +33,19 @@ describe('resolveToolHtml', () => {
   })
 
   it('rejects when neither is provided', () => {
-    expect(() => resolveToolHtml({}, 1000)).toThrow('html or htmlFile is required')
-    expect(() => resolveToolHtml({ html: '' }, 1000)).toThrow('html or htmlFile is required')
+    expect(() => resolveToolHtml({}, 1000)).toThrow('--html or --html-file is required')
+    expect(() => resolveToolHtml({ html: '' }, 1000)).toThrow('--html or --html-file is required')
   })
 
-  it('rejects a file path pasted into the html field, pointing at htmlFile', () => {
+  it('rejects a file path pasted into the html field, pointing at --html-file', () => {
     expect(() => resolveToolHtml({ html: 'filePath:/tmp/x/loop-evidence.html' }, 100_000)).toThrow(
-      /htmlFile/,
+      /html-file/,
     )
   })
 
-  it('rejects an implausibly small html document, pointing at htmlFile', () => {
+  it('rejects an implausibly small html document, pointing at --html-file', () => {
     expect(() => resolveToolHtml({ html: '<p>tiny</p>' }, 100_000)).toThrow(/too small/)
-    expect(() => resolveToolHtml({ html: '<p>tiny</p>' }, 100_000)).toThrow(/htmlFile/)
+    expect(() => resolveToolHtml({ html: '<p>tiny</p>' }, 100_000)).toThrow(/html-file/)
   })
 })
 

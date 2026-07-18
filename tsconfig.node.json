@@ -6,7 +6,7 @@
     "src/shared/**/*",
     "src/main/**/*",
     "src/preload/**/*",
-    "src/mcp/**/*"
+    "src/cli/**/*"
   ],
   "compilerOptions": {
     "composite": true,

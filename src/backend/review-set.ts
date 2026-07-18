@@ -45,6 +45,6 @@ export interface ReviewSet {
   files: ReviewSetFile[]
 }
 
-/** The on-disk shape the MCP server writes: review sets keyed by absolute repo path. */
+/** The on-disk shape the porcelain CLI writes: review sets keyed by absolute repo path. */
 export const reviewSetsSchema = z.record(z.string(), reviewSetSchema)
 export type ReviewSets = z.infer<typeof reviewSetsSchema>

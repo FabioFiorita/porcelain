@@ -7,15 +7,14 @@ import { useSkillsInfo } from '@renderer/hooks/use-skills'
 import { useRepoStore } from '@renderer/stores/repo'
 
 /**
- * A product-specific devtools panel that inspects Porcelain's MCP surface — the
- * five agent channels (review set, comments, board, actions, notes) plus the
- * bundled skills version. Each channel is a `~/.porcelain/*.json` file the
- * standalone MCP server (`src/mcp/`) reads/writes; the renderer sees them through
- * the same domain hooks the UI uses, so this panel is a live mirror of what the
- * agent can currently see/do. Registered as a `plugins` entry in
- * {@link DevtoolsShell}.
+ * A product-specific devtools panel that inspects Porcelain's agent channels — the
+ * five surfaced here (review set, comments, board, actions, notes) plus the bundled
+ * skills version. Each channel is a `~/.porcelain/*.json` file the porcelain CLI
+ * (`src/cli/`) reads/writes; the renderer sees them through the same domain hooks
+ * the UI uses, so this panel is a live mirror of what the agent can currently
+ * see/do. Registered as a `plugins` entry in {@link DevtoolsShell}.
  */
-export function McpDevtoolsPanel(): React.JSX.Element {
+export function ChannelsDevtoolsPanel(): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)
   const skills = useSkillsInfo()
   const { view } = useFeatureView()
@@ -25,7 +24,7 @@ export function McpDevtoolsPanel(): React.JSX.Element {
   const notes = useRepoNotes()
 
   if (!repo) {
-    return <div style={WRAP}>No repo open — the MCP channels are repo-keyed.</div>
+    return <div style={WRAP}>No repo open — the agent channels are repo-keyed.</div>
   }
 
   const reviewFiles = view?.groups.flatMap((g) => g.files) ?? []

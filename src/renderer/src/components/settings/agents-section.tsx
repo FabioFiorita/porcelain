@@ -21,7 +21,6 @@ import type { AgentProvider, ProviderStatus } from '@shared/agent-protocol'
 import { PROVIDER_LABEL } from '@shared/agent-protocol'
 import { ChevronDown, RefreshCw } from 'lucide-react'
 import { useState } from 'react'
-import { AgentMcpSection } from './agent-mcp-section'
 import { SkillsSection } from './skills-section'
 
 // Per-provider setup facts the app can't otherwise surface: the install command, the
@@ -255,7 +254,7 @@ export function AgentsSection(): React.JSX.Element {
       <section className="flex min-w-0 flex-col gap-3">
         <SectionHeading
           title="Skills"
-          blurb="Companion skills teach your agent how to push feature reviews, read comments, manage the board, curate actions, and author artifacts. They ship through skills.sh and update independently of the MCP server."
+          blurb="Companion skills teach your agent how to push feature reviews, read comments, manage the board, curate actions, and author artifacts. They ship through skills.sh and update independently of the bundled CLI."
         />
         <SkillsSection />
       </section>
@@ -264,10 +263,14 @@ export function AgentsSection(): React.JSX.Element {
 
       <section className="flex min-w-0 flex-col gap-3">
         <SectionHeading
-          title="MCP"
-          blurb="Writes the Porcelain MCP server into each agent's config on the active daemon host (this Mac, or a remote like the Beelink). Status is read from each config file on disk — add only the agents you use."
+          title="CLI"
+          blurb="Agents drive Porcelain's channels — feature reviews, comments, the board, actions, artifacts — by running the bundled CLI. Nothing to configure."
         />
-        <AgentMcpSection />
+        <p className="text-xs text-muted-foreground">
+          Agents talk to Porcelain through the bundled CLI at{' '}
+          <code className="font-mono text-xs-minus">~/.porcelain/porcelain</code> — installed
+          automatically, kept fresh on every launch.
+        </p>
       </section>
     </div>
   )

@@ -5,7 +5,7 @@ import { dirname, isAbsolute, normalize, relative, resolve, sep } from 'node:pat
  * Rewrite relative `src="…"` in evidence HTML to data: URIs for files that live
  * in the evidence directory. Keeps the viewer on a fully sandboxed `srcdoc`
  * (CSP: img-src 'self' data:) while letting agents drop real PNG/JPEG siblings
- * next to index.html instead of base64-inlining through MCP.
+ * next to index.html instead of base64-inlining through the porcelain CLI.
  *
  * Paths that escape the evidence dir, or that are absolute / remote / data:, are
  * left alone (remote still blocked by CSP; absolute file paths never load in srcdoc).

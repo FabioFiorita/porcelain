@@ -13,13 +13,26 @@ After you implement a feature, finish a meaningful slice, or are asked to "set u
 
 ## How
 
-Call the `porcelain` MCP tools with `repoPath` set to the ABSOLUTE path of the repo you're working in (your cwd):
+Talk to Porcelain through the bundled CLI at `~/.porcelain/porcelain` — installed automatically and kept fresh on every app launch (no registration, no MCP config). Run it from **inside the repo** and it targets that repo automatically (git toplevel of the cwd); add `--repo <absolute path>` only to point at a different checkout.
 
-- `set_feature_review` — replace the review set: `{ repoPath, name, files: [...] }`. List files in FLOW ORDER (entry point → data) — Porcelain renders them in that order.
-- `add_review_files` — add files to it incrementally while you work
-- `get_feature_review` — read back the current set (name, files, sources, notes, layers); use it to verify what you pushed or to make an idempotent update (read → modify → `set`), and to recover the set if you lose context
-- `get_feature_view` — read back the COMPUTED view: every file Porcelain renders, grouped in flow order, each tagged with its real source (`changed` = in the git diff, `context`/`shipped` = the unchanged rest) and layer. Where `get_feature_review` echoes what you declared, this shows what Porcelain made of it after folding in git status + the import baseline — use it to confirm the view rendered as intended.
-- `clear_feature_review` — remove it
+- `~/.porcelain/porcelain review set --name <name> --files <json|->` → replace the review set. List files in FLOW ORDER (entry point → data) — Porcelain renders them in that order. `--name` defaults to "Feature view".
+- `~/.porcelain/porcelain review add --files <json|->` → add files to it incrementally while you work.
+- `~/.porcelain/porcelain review get` → read back the current set (name, files, sources, notes, layers); use it to verify what you pushed or to make an idempotent update (read → modify → `review set`), and to recover the set if you lose context.
+- `~/.porcelain/porcelain feature get` → read back the COMPUTED view: every file Porcelain renders, grouped in flow order, each tagged with its real source (`changed` = in the git diff, `context`/`shipped` = the unchanged rest) and layer. Where `review get` echoes what you declared, this shows what Porcelain made of it after folding in git status + the import baseline — use it to confirm the view rendered as intended.
+- `~/.porcelain/porcelain review clear` → remove it.
+
+`--files` takes inline JSON, or `-` to read the JSON from stdin — pipe or heredoc it for anything non-trivial:
+
+```bash
+~/.porcelain/porcelain review set --name "Callout templates" --files - <<'JSON'
+[
+  { "path": "src/routes/callouts.ts", "layer": "Routes" },
+  { "path": "src/services/callout-service.ts", "source": "shipped", "layer": "Services",
+    "note": "labels here must match CALLOUT_TEMPLATES in the client" },
+  { "path": "src/shared/callout-types.ts", "source": "context", "layer": "Data" }
+]
+JSON
+```
 
 Each file is `{ path, source?, note?, layer? }`:
 - `path` — repo-relative.
@@ -40,16 +53,16 @@ Keep it tight: the files that make up THIS feature, broad enough that the human 
 
 The human also leaves comments in Porcelain — anchored to specific lines (or a whole file) — as concrete review context for you. They're the counterpart to the review set: app → agent. Check them:
 
-- `get_review_comments` — `{ repoPath }` → the OPEN comments, each with its file/line anchor, the snippet it was attached to, the note, and an id. Each is also tagged with the file's feature-view status — `(changed)` (in the git diff), `(context)`, or `(shipped)` — so you can tell a comment on a file you diffed from one on an unchanged context/cross-seam file the human is asking about. Read these before and during the work: they tell you exactly what to explain, fix, or look at.
-- `resolve_review_comment` — `{ repoPath, id }` → mark one resolved once you've ACTUALLY addressed the note; it then drops off the reviewer's open list.
-- `answer_review_comment` — `{ repoPath, id, answer }` → attach one reply to a review comment (overwritten on re-answer); Porcelain renders it under the comment.
+- `~/.porcelain/porcelain comments list` → the OPEN comments, each with its file/line anchor, the snippet it was attached to, the note, and an id. Each is also tagged with the file's feature-view status — `(changed)` (in the git diff), `(context)`, or `(shipped)` — so you can tell a comment on a file you diffed from one on an unchanged context/cross-seam file the human is asking about. Read these before and during the work: they tell you exactly what to explain, fix, or look at.
+- `~/.porcelain/porcelain comments resolve --id <id>` → mark one resolved once you've ACTUALLY addressed the note; it then drops off the reviewer's open list.
+- `~/.porcelain/porcelain comments answer --id <id> --body <text>` → attach one reply to a review comment (overwritten on re-answer); Porcelain renders it under the comment.
 
-When the human says "look at my comments", "I left some notes", or asks about a specific line/diff, call `get_review_comments` first.
+When the human says "look at my comments", "I left some notes", or asks about a specific line/diff, run `comments list` first.
 
 ## Reviewed files
 
 The human also ticks off files as they review them — a per-file "reviewed" checkbox in Porcelain's Changes/Feature lists. This is the other half of their review state (app → agent, read-only):
 
-- `get_reviewed_files` — `{ repoPath }` → the repo-relative paths the human has marked reviewed. Any changed file NOT in this list is still unreviewed, so focus your explanations and double-checks there and treat the listed ones as already vetted. The marks describe the current working tree and reset when the changes are committed.
+- `~/.porcelain/porcelain reviewed list` → the repo-relative paths the human has marked reviewed. Any changed file NOT in this list is still unreviewed, so focus your explanations and double-checks there and treat the listed ones as already vetted. The marks describe the current working tree and reset when the changes are committed.
 
-When the human asks "what have I reviewed", "where was I", or "what's left to review", call `get_reviewed_files`. It's read-only — "reviewed" is the human's act, so there is no tool to set it; don't mark files reviewed on their behalf.
+When the human asks "what have I reviewed", "where was I", or "what's left to review", run `reviewed list`. It's read-only — "reviewed" is the human's act, so there is no command to set it; don't mark files reviewed on their behalf.

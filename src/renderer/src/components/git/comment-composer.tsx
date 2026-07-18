@@ -33,7 +33,7 @@ function describeAnchor(anchor: CommentAnchor): string {
 
 /**
  * Controlled dialog to write a review comment anchored to a line range (or a whole
- * file when there's no range). Saves to the comment channel the agent reads over MCP.
+ * file when there's no range). Saves to the comment channel the agent reads via the porcelain CLI.
  */
 export function CommentComposer({
   anchor,

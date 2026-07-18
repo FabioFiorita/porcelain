@@ -4,7 +4,7 @@ import { useRepoStore } from '@renderer/stores/repo'
 
 /**
  * Read-only feature-flow exploration seeded from a file (whole-file) or a symbol
- * within it. The result is the same reading-surface payload the MCP read uses, just
+ * within it. The result is the same reading-surface payload the feature read uses, just
  * derived from an import/reference walk instead of the working tree. A snapshot, not
  * live — exploration is of code you're reading, not changing.
  */

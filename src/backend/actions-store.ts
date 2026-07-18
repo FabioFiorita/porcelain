@@ -7,13 +7,13 @@ import { createHomeChannel } from './home-channel'
  * embedded terminal with one click, keyed by absolute repo path, in
  * `~/.porcelain/actions.json` (same fixed home-dir location + rationale as the
  * review-set / comment / board channels). TWO-WAY: the app authors actions (add/
- * edit/delete here) and the MCP server (src/mcp/action-file.ts) does the same — so
+ * edit/delete here) and the porcelain CLI (src/cli/action-file.ts) does the same — so
  * the agent can curate useful commands for the human to run. Atomic (tmp + rename)
  * + in-process-serialized writes; a cross-process race is rare/low-stakes and the
  * watcher re-syncs.
  *
  * SECURITY: an action's `command` is a shell command the HUMAN executes by clicking
- * (never the agent — there is no MCP run tool, and nothing here executes a command).
+ * (never the agent — there is no CLI run command, and nothing here executes a command).
  * The full text is always shown before it runs (see the audit skill). This file only
  * stores definitions.
  */
@@ -39,7 +39,7 @@ const channel = createHomeChannel({
   empty: (): Actions => ({}),
 })
 
-// Must match src/mcp/action-file.ts. PORCELAIN_ACTIONS redirects both sides for tests.
+// Must match src/cli/action-file.ts. PORCELAIN_ACTIONS redirects both sides for tests.
 export const actionsPath = channel.path
 
 /** The actions for a repo, sorted by creation order (oldest first). */

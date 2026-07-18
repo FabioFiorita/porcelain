@@ -12,8 +12,8 @@
 // src/backend/static-server.ts). The five externalized runtime deps are declared
 // in a generated package.json with the EXACT semver ranges read from the root
 // package.json, so `npm install` / npx on the target pulls them (and compiles
-// node-pty for that host). The dependency-free MCP server ships too — the
-// Beelink's coding agent spawns it under plain node with zero deps.
+// node-pty for that host). The dependency-free CLI ships too — the daemon installs
+// it to ~/.porcelain/porcelain on boot and the Beelink's coding agent runs it.
 //
 // Plain-Node ESM, zero dependencies (runs before `npm install`).
 
@@ -70,7 +70,7 @@ mkdirSync(dist, { recursive: true })
 const copies = [
   ['main/daemon/server.js', 'main/daemon/server.js'],
   ['main/chunks', 'main/chunks'],
-  ['main/mcp/server.js', 'main/mcp/server.js'],
+  ['main/cli/porcelain.js', 'main/cli/porcelain.js'],
   ['renderer', 'renderer'],
 ]
 for (const [from, to] of copies) {
@@ -205,23 +205,22 @@ Restart=on-failure
 Prefer a real \`node\` binary over Volta/fnm/nvm shims in \`ExecStart\` when pinning
 a global install instead of npx.
 
-## MCP server (agent channel)
+## Agent CLI (channel access)
 
-The dependency-free MCP server ships at \`main/mcp/server.js\`. On every
-\`serve\`, the daemon re-copies it to the stable path agents invoke:
+The dependency-free CLI ships at \`main/cli/porcelain.js\`. On every \`serve\`, the
+daemon installs it to the stable path agents run:
 
 \`\`\`sh
-node ~/.porcelain/mcp/server.js
+~/.porcelain/porcelain <noun> <verb>
 \`\`\`
 
-So upgrading the daemon (\`npx porcelain-daemon@latest\`) ships new MCP tools
-without re-running Settings → Agents → Add MCP. First-time agent config still
-needs Add MCP once (that writes each CLI's config to point at the stable path).
+So upgrading the daemon (\`npx porcelain-daemon@latest\`) ships new CLI commands
+automatically — agents run a binary, so there's nothing to register.
 
-Direct package path (debug only; agents should use the stable home path):
+Direct package path (debug only; agents should use the installed home path):
 
 \`\`\`sh
-node path/to/package/main/mcp/server.js
+node path/to/package/main/cli/porcelain.js
 \`\`\`
 
 ## Requirements

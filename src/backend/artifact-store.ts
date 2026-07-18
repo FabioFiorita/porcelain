@@ -5,13 +5,13 @@ import { z } from 'zod'
 import { createHomeChannel } from './home-channel'
 
 /**
- * The feature-artifact channel: a self-contained HTML document the MCP server writes
+ * The feature-artifact channel: a self-contained HTML document the porcelain CLI writes
  * to explain a feature, keyed by absolute repo path, in `~/.porcelain/artifacts.json`
  * (same fixed home-dir location + rationale as the review-set channel — the user's
- * home, NOT a work repo, and NOT userData which a plain-`node` MCP process can't
- * resolve). The MCP server (src/mcp/artifact-file.ts) AUTHORS artifacts; the app READS
+ * home, NOT a work repo, and NOT userData which a plain-`node` CLI process can't
+ * resolve). The porcelain CLI (src/cli/artifact-file.ts) AUTHORS artifacts; the app READS
  * them — and makes exactly one write, `clearArtifact` (user-initiated), to delete a
- * repo's entry. No network surface either way (stdio MCP, local file).
+ * repo's entry. No network surface either way (a local CLI, local file).
  *
  * The HTML is agent-authored ACTIVE content, so the renderer shows it ONLY inside a
  * fully sandboxed iframe (`sandbox=""`, `srcdoc`, no allow-scripts/allow-same-origin).
@@ -19,7 +19,7 @@ import { createHomeChannel } from './home-channel'
  * external process owns it (see the audit skill).
  */
 
-/** Keep in sync with MAX_HTML_BYTES in src/mcp/artifact-file.ts (the sole writer). */
+/** Keep in sync with MAX_HTML_BYTES in src/cli/artifact-file.ts (the sole writer). */
 export const MAX_HTML_BYTES = 1_572_864
 
 const artifactSchema = z.object({
@@ -33,7 +33,7 @@ export type Artifact = z.infer<typeof artifactSchema>
 export type ArtifactMeta = Pick<Artifact, 'title' | 'updatedAt'>
 
 export function artifactsPath(): string {
-  // Must match src/mcp/artifact-file.ts. PORCELAIN_ARTIFACTS lets dev/tests redirect
+  // Must match src/cli/artifact-file.ts. PORCELAIN_ARTIFACTS lets dev/tests redirect
   // both sides to the same throwaway path.
   return process.env.PORCELAIN_ARTIFACTS ?? join(homedir(), '.porcelain', 'artifacts.json')
 }
@@ -73,10 +73,10 @@ export async function readArtifactMeta(repoPath: string): Promise<ArtifactMeta |
 }
 
 /**
- * Remove a repo's artifact. Atomic (tmp + rename) so a concurrent MCP write can't
+ * Remove a repo's artifact. Atomic (tmp + rename) so a concurrent CLI write can't
  * corrupt the shared file; a no-op if the file is absent/corrupt or the repo has no
  * artifact. The watcher (`review-watch.ts`) sees the change and refreshes the open
- * view like any MCP write.
+ * view like any CLI write.
  */
 export async function clearArtifact(repoPath: string): Promise<void> {
   await channel.mutate((all) => {

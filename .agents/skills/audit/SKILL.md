@@ -32,19 +32,20 @@ assumed — this skill is the codebase-specific layer beneath them.
   `porcelain-dev` before any config read and seeds recents with
   `~/Code/porcelain-playground` (`src/main/dev-config.ts`). Verification/testing
   happens in the playground, never against the user's work repos.
-- **The MCP agent channel adds NO inbound network surface.** The feature-view MCP
-  server (`src/mcp/`) is a standalone **stdio** process the user's agent spawns — it
-  never opens a port or socket. The app *reads* and *watches* one file,
+- **The agent CLI adds NO inbound network surface.** The porcelain CLI
+  (`src/cli/`, installed at `~/.porcelain/porcelain`) is a short-lived process the
+  user's agent runs per command — it never opens a port or socket, only reads/writes
+  local `~/.porcelain/*.json` files. The app *reads* and *watches* one file,
   `~/.porcelain/review-sets.json` (`review-store.ts` / `review-watch.ts`), which
   it re-validates with zod (`reviewSetsSchema`) on every read because an external
-  process owns it. The MCP server **authors** the sets; the app makes exactly ONE
-  write — `clearReviewSet` (user-initiated from the Feature tab's Clear button), an
-  atomic tmp+rename that deletes a repo's entry (reverting to the baseline). That's a
-  local home-dir file write, NOT a network surface, and the app still never authors a
-  set. Don't add other app-side writes to this file, and don't "upgrade" the MCP
-  channel to an in-app HTTP/MCP listener. The MCP server stays **dependency-free**
-  (Node builtins only) so it runs under a plain `node`; don't add npm imports to
-  `src/mcp/`, and keep tool inputs validated in `toReviewFiles`.
+  process owns it. The CLI **authors** the sets (`review set`/`review add`); the app
+  makes exactly ONE write — `clearReviewSet` (user-initiated from the Feature tab's
+  Clear button), an atomic tmp+rename that deletes a repo's entry (reverting to the
+  baseline). That's a local home-dir file write, NOT a network surface, and the app
+  still never authors a set. Don't add other app-side writes to this file, and don't
+  "upgrade" the CLI channel to an in-app HTTP/MCP listener. The CLI stays
+  **dependency-free** (Node builtins only) so it runs under a plain `node`; don't add
+  npm imports to `src/cli/`, and keep inputs validated in `toReviewFiles`.
 - **The daemon is the ONE sanctioned listener — 127.0.0.1 only, ALWAYS token-gated.**
   Since the daemon split the renderer talks to `src/backend/server.ts` over HTTP + WS
   (`daemon.ts` spawns it), so the old "the app opens no port" claim no longer holds —
@@ -106,10 +107,10 @@ assumed — this skill is the codebase-specific layer beneath them.
   returns ONLY RFC1918 private addresses (never public, never the CGNAT range). Don't add
   per-procedure authorization to "fix" this — repo-scoping
   the file procedures breaks the cross-repo viewer flows and was explicitly rejected.
-  *Verify:* `rg -n "createServer|listen\(|http\.createServer" src/backend src/main src/mcp`
+  *Verify:* `rg -n "createServer|listen\(|http\.createServer" src/backend src/main src/cli`
   hits the loopback listener in `src/backend/server.ts` AND the second-listener factory in
   `src/backend/tailnet-listener.ts` (at most those two `createServer` sites) and nothing in
-  `src/mcp`; the loopback `listen` still passes `'127.0.0.1'`, the factory's `listen` binds only
+  `src/cli`; the loopback `listen` still passes `'127.0.0.1'`, the factory's `listen` binds only
   addresses from `findTailscaleAddress()` / `findLanAddresses()` (never `0.0.0.0`, never public),
   and all listeners share the same
   Bearer + subprotocol checks; `resolveStaticPath`/`rewriteCsp` traversal + connect-src-only
@@ -203,112 +204,113 @@ assumed — this skill is the codebase-specific layer beneath them.
   review set could read arbitrary local files into the feature view. *Verify:*
   new code that reads agent-supplied paths routes through the filtered set.
 - **The review-comment channel is a SECOND, two-way agent channel**
-  (`~/.porcelain/comments.json`, `comment-store.ts` ↔ `src/mcp/comment-file.ts`),
+  (`~/.porcelain/comments.json`, `comment-store.ts` ↔ `src/cli/comment-file.ts`),
   kept SEPARATE from review-sets so the "app makes one write to the review-set
   channel" rule above stays intact. Here the **app** authors comments — so their
   `path`s are app-supplied, never externally injected (no repo-containment guard
-  needed, unlike review-sets) — and the MCP server only reads them and flips
-  `resolved` (`resolve_review_comment`). Both sides write atomically (tmp + rename);
-  the app serializes its own read-modify-write. A cross-process race with an MCP
+  needed, unlike review-sets) — and the CLI only reads them and flips
+  `resolved` (`comments resolve`). Both sides write atomically (tmp + rename);
+  the app serializes its own read-modify-write. A cross-process race with a CLI
   resolve is rare and low-stakes (a lost resolve just reappears; the watcher
-  re-syncs). Still stdio only, no network surface. Don't add an app-side write here
+  re-syncs). Still local-file only, no network surface. Don't add an app-side write here
   that accepts an agent-supplied path, and keep both writers atomic. The **project
-  board** (`~/.porcelain/board.json`, `board-store.ts` ↔ `src/mcp/board-file.ts`) is a
+  board** (`~/.porcelain/board.json`, `board-store.ts` ↔ `src/cli/board-file.ts`) is a
   THIRD channel of the same shape and the same rules apply: app-and-agent-authored
-  *content* (not filesystem paths), atomic writes on both sides, stdio only.
+  *content* (not filesystem paths), atomic writes on both sides, local-file only.
 - **Saved actions are agent-writable but HUMAN-executed.** The 4th channel
-  (`~/.porcelain/actions.json`, `actions-store.ts` ↔ `src/mcp/action-file.ts`) is the
+  (`~/.porcelain/actions.json`, `actions-store.ts` ↔ `src/cli/action-file.ts`) is the
   same shape as the board, but its content is a *shell command* — higher stakes than
   inert card text, because an agent that writes the file could plant a command. The
   safeguards that make this acceptable, all of which must hold: (1) **nothing in the
-  agent channel executes an action** — the MCP server exposes only `list/create/update/
-  delete_action`, NO run tool; running is solely a human click in the app. Don't add a
-  `run_action` MCP tool. (2) The **full command text is always visible** in the Actions
+  agent channel executes an action** — the CLI exposes only `actions list/create/update/
+  delete`, NO run verb; running is solely a human click in the app. Don't add an
+  `actions run` command. (2) The **full command text is always visible** in the Actions
   Quick Access row (and its run tooltip) before the human clicks — never hide or
   truncate-without-recourse the command. (3) It runs in a **visible PTY** (the user sees
   output), via the user's login shell with the command typed in — there's no silent
-  background execution. *Verify:* the MCP tool list has no execute verb; the Action row
+  background execution. *Verify:* the CLI command table has no execute verb; the Action row
   still shows `command`.
 - **Repo notes are a READ-ONLY, app→agent channel.** The 5th channel
-  (`~/.porcelain/notes.json`, `notes-store.ts` ↔ `src/mcp/notes-file.ts`) is the
+  (`~/.porcelain/notes.json`, `notes-store.ts` ↔ `src/cli/notes-file.ts`) is the
   human's freeform per-repo markdown scratchpad. The **app is the SOLE writer** (the
-  Notes card) and the MCP server only reads it (`get_repo_notes` — there is NO
-  notes-write tool, and don't add one; notes are the human's, captured tasks belong on
+  Notes card) and the CLI only reads it (`notes get` — there is NO
+  notes-write command, and don't add one; notes are the human's, captured tasks belong on
   the board). Because nothing else writes it, it has **no `review-watch` entry** —
   don't add a watcher expecting agent pushes. The content is inert markdown (not a
   path, not a command), so no repo-containment or command-injection guard applies, but
   keep the app's writes atomic (tmp + rename) like the others. Notes moved here out of
-  `userData/config.json` only because the dependency-free MCP can't resolve userData;
+  `userData/config.json` only because the dependency-free CLI can't resolve userData;
   `migrateNotesFromConfig` (startup, idempotent) carries legacy notes over and never
-  clobbers a newer in-app edit. *Verify:* the MCP tool list still has only
-  `get_repo_notes` for notes; the app never reads `config.repos[*].notes` except in the
+  clobbers a newer in-app edit. *Verify:* the CLI still has only
+  `notes get` for notes; the app never reads `config.repos[*].notes` except in the
   migration.
 - **Flow layers are a TWO-WAY channel whose content is auto-executed regex.** The 6th
-  channel (`~/.porcelain/layers.json`, `layers-store.ts` ↔ `src/mcp/layers-file.ts`,
-  `get/set/reset_flow_layers`) holds the per-repo review-flow layers. Same two-way shape
+  channel (`~/.porcelain/layers.json`, `layers-store.ts` ↔ `src/cli/layers-file.ts`,
+  `layers get/set/reset`) holds the per-repo review-flow layers. Same two-way shape
   and rules as the board (app-and-agent-authored content, atomic writes both sides,
-  stdio only, a `review-watch` entry → the `layers` app-event). What's DIFFERENT and must
+  local-file only, a `review-watch` entry → the `layers` app-event). What's DIFFERENT and must
   hold: the content is a `pattern` the main process **compiles and runs** on every flow
   build (`compileLayers` in `flow.ts`, `new RegExp(pattern, 'g')`), not inert text — so
   **the app's read MUST drop any layer whose pattern doesn't compile** (`readLayers` in
   `layers-store.ts` filters with `compilable`), or one bad agent-written pattern throws
-  and breaks every grouping view (gitFlow/featureView/exploreFeature). The MCP's
+  and breaks every grouping view (gitFlow/featureView/exploreFeature). The CLI's
   `toLayers` likewise rejects an uncompilable pattern up front. Patterns run against
   short repo-relative paths and the human can already type any valid regex in Settings →
   Review flow, so the ReDoS surface is unchanged — don't add a bespoke complexity guard
   here that the human path lacks; just keep the compile-on-read filter. Layers moved out
-  of `userData/config.json` (like notes) so the dependency-free MCP can read+write them;
+  of `userData/config.json` (like notes) so the dependency-free CLI can read+write them;
   `migrateLayersFromConfig` (startup, idempotent) carries a legacy override over and
-  never clobbers a newer in-app edit. *Verify:* an MCP-written invalid pattern is dropped,
+  never clobbers a newer in-app edit. *Verify:* a CLI-written invalid pattern is dropped,
   not thrown, on the next flow poll; the app reads layers only from the channel (no
   `config.repos[*].layers` read outside the migration).
 - **Reviewed marks are a READ-ONLY, app→agent channel.** The 7th channel
-  (`~/.porcelain/reviewed.json`, `reviewed-store.ts` ↔ `src/mcp/reviewed-file.ts`,
+  (`~/.porcelain/reviewed.json`, `reviewed-store.ts` ↔ `src/cli/reviewed-file.ts`,
   `Record<repoPath, { path, fingerprint }[]>` — legacy bare-string marks still parse as
   `{ path, fingerprint: '' }`) holds the paths the human has ticked as reviewed in the
   Changes/Feature lists, each keyed to a content fingerprint (sha256 of the file's diff
   vs HEAD, computed in api.ts via `reviewedFingerprint`). The app reconciles at read time
   (`reviewedPaths` → `reconcileReviewed`): a mark whose stored fingerprint no longer
   matches the file's current diff hash is pruned (silently un-ticked, written through so
-  the JSON stays truthful for the MCP) — this is what clears marks after external commits,
+  the JSON stays truthful for the CLI) — this is what clears marks after external commits,
   amends, rebases, and post-mark edits; the `gitCommit` clearing stays a fast path. An
   empty fingerprint (legacy mark) never matches, so it prunes on first reconcile. Same
   rules as the notes channel: the **app is the SOLE writer** (`markReviewed`/`unmarkReviewed`,
-  `setReviewedMarks`, `clearReviewedPaths`, and the reconcile write-through) and the MCP
-  server only reads it (`get_reviewed_files` — it can't run git, so it just exposes the
-  path list and trusts the app's write-through; there is NO mark-write tool, and don't add one;
+  `setReviewedMarks`, `clearReviewedPaths`, and the reconcile write-through) and the CLI
+  only reads it (`reviewed list` — the CLI only runs git to resolve the repo root, not to
+  compute fingerprints, so it just exposes the path list and trusts the app's write-through;
+  there is NO mark-write command, and don't add one;
   "reviewed" is the human's act, not the agent's). Because nothing else writes it, it has
   **no `review-watch` entry** — don't add a watcher expecting agent pushes. Paths are
   inert here (the agent reads them as review-progress context; the app already validates
   any path it acts on), so no repo-containment guard applies, but keep the app's writes
   atomic (tmp + rename) and in-process-serialized like the others. Marks moved here out of
   `userData/config.json` (`config.repos[*].reviewedPaths`, now a deprecated optional field
-  kept only for the migration) so the dependency-free MCP can read them;
+  kept only for the migration) so the dependency-free CLI can read them;
   `migrateReviewedFromConfig` (startup, idempotent) carries legacy marks over and never
-  clobbers a newer in-app mark. *Verify:* the MCP tool list has only `get_reviewed_files`
+  clobbers a newer in-app mark. *Verify:* the CLI has only `reviewed list`
   for reviewed state; the app reads marks only from the channel (no
   `config.repos[*].reviewedPaths` read outside the migration).
 - **The feature-view snapshot is a READ-ONLY, app→agent channel.** The 8th channel
   (`~/.porcelain/feature-view.json`, `feature-snapshot-store.ts` ↔
-  `src/mcp/feature-view-file.ts`, `Record<repoPath, { name, files: { path, source, layer }[] }>`,
-  exposed as `get_feature_view`) holds Porcelain's COMPUTED feature view — every file it
+  `src/cli/feature-view-file.ts`, `Record<repoPath, { name, files: { path, source, layer }[] }>`,
+  exposed as `feature get`) holds Porcelain's COMPUTED feature view — every file it
   renders with its **git-truth** source (`changed`/`context`/`shipped`) and flow layer. It
-  exists because that git truth lives only in the main process (the dependency-free MCP has
+  exists because that git truth lives only in the main process (the dependency-free CLI has
   no git), yet the agent needs it to tell a diffed file from a context/cross-seam one — and
-  `get_review_comments` now tags each comment with this source. Same shape and rules as the
+  `comments list` now tags each comment with this source. Same shape and rules as the
   notes/reviewed channels: the **app is the SOLE writer** (`writeFeatureSnapshot`, called from
-  `getFeatureBuild` on every view rebuild), the MCP server only reads it (NO write tool — and
+  `getFeatureBuild` on every view rebuild), the CLI only reads it (NO write command — and
   don't add one; the snapshot is derived, not authored), there is **no `review-watch` entry**
   (nothing pushes back), and writes stay atomic + in-process-serialized. The content is inert
   (app-supplied repo-relative paths + source/layer labels, not externally injected and not a
   filesystem path the app resolves), so no repo-containment guard applies — but it's a derived
   snapshot, refreshed only while the Feature surfaces poll, so treat it as "the view as last
-  rendered," never as source of truth (the agent's own pushed set is still `get_feature_review`).
-  *Verify:* the MCP tool list has only `get_feature_view` for it; the only writer is
-  `writeFeatureSnapshot`; `rg -n "createServer|listen\(|http" src/mcp` still finds nothing.
+  rendered," never as source of truth (the agent's own pushed set is still `review get`).
+  *Verify:* the CLI has only `feature get` for it; the only writer is
+  `writeFeatureSnapshot`; `rg -n "createServer|listen\(|http" src/cli` still finds nothing.
 - **The feature artifact is agent-authored ACTIVE content — render it ONLY in a fully
   sandboxed iframe.** The 9th channel (`~/.porcelain/artifacts.json`, `artifact-store.ts` ↔
-  `src/mcp/artifact-file.ts`, `set/get/clear_feature_artifact`, `Record<repoPath, { title, html,
+  `src/cli/artifact-file.ts`, `artifact set/get/clear`, `Record<repoPath, { title, html,
   updatedAt }>`) lets the agent author a self-contained HTML document that Porcelain renders in
   the viewer. Unlike every other channel's content (inert text/paths), the `html` is executable
   markup, so the safeguards that make it acceptable, all of which must hold: (1) it renders ONLY
@@ -335,55 +337,42 @@ assumed — this skill is the codebase-specific layer beneath them.
   host to `font-src` (a remote font load IS a beacon). Don't widen `img-src`/`default-src`, and keep the CSP rewrite connect-src-only. (3) Reads are zod-validated + size-capped on
   EVERY read (`readArtifact` drops an entry whose html exceeds `MAX_HTML_BYTES` = 1.5 MB, and
   never throws — one bad agent write can't break the viewer), because an external process owns the
-  file. Same two-way shape as review-sets: the MCP server authors it, the app makes exactly ONE
+  file. Same two-way shape as review-sets: the CLI authors it, the app makes exactly ONE
   write — `clearArtifact` (user-initiated), an atomic tmp+rename delete-entry — and it has a
-  `review-watch` entry → the `artifact` event. Still stdio only, no network surface. *Verify:* the
-  iframe keeps `sandbox=""` with no allow-tokens; the CSP is unchanged; `rg -n "createServer|listen\(|http" src/mcp`
+  `review-watch` entry → the `artifact` event. Still local-file only, no network surface. *Verify:* the
+  iframe keeps `sandbox=""` with no allow-tokens; the CSP is unchanged; `rg -n "createServer|listen\(|http" src/cli`
   still finds nothing; the app's only write to `artifacts.json` is `clearArtifact`.
-- **Loop evidence is directory-on-disk, not an MCP HTML payload.** Layout:
+- **Loop evidence is directory-on-disk, not an inline HTML payload.** Layout:
   `~/.porcelain/loop-evidence/<sha256(repoPath)[0..16]>/` with `index.html` (+ sibling
   screenshots, optional `meta.json`). Agents write those files with normal Write tools;
-  `set_loop_evidence` with **title only** prepares the dir and returns the path — large
-  base64 through MCP is the failure mode we designed out. The app (`evidence-store.ts`)
+  `evidence prepare` with **title only** prepares the dir and returns the path — large
+  base64 through a channel arg is the failure mode we designed out. The app (`evidence-store.ts`)
   reads the dir, inlines relative `img` src under that dir into data URIs for the
   sandboxed `srcdoc` viewer (`evidence-assets.ts`), and `clearEvidence` deletes the
   directory. Legacy `evidence.json` is still read as a fallback. Same sandbox invariant
   as artifacts: `evidence-view.tsx` keeps `sandbox=""` + `srcdoc`; never widen
   `img-src`/`default-src`. Watch: recursive on `loop-evidence/` root + Feature list 3s
   poll. *Verify:* disk-first tests in `evidence-store.test.ts`; skill documents prepare +
-  Write; MCP prepare returns a path without requiring html.
-- **`set_feature_artifact` still accepts `html` OR `htmlFile` (absolute path).**
-  Artifacts remain the JSON-channel shape; large artifact HTML can use `htmlFile`
-  (`src/mcp/html-input.ts`). Loop evidence prefers the directory flow above.
-- **A long-lived MCP process exits when its own binary is replaced.** Daemon/app boot
-  re-copies `~/.porcelain/mcp/server.js` (`ensureMcpServer`); the old process still has the
-  previous tool list in memory, and `notifications/tools/list_changed` cannot invent tools
-  that only exist in the new file. `watchServerBinaryForUpgrade` (`src/mcp/self-reload.ts`)
-  watches the script path and `process.exit(0)`s so the agent harness restarts MCP and
-  reloads tools. Do not "fix" upgrades with list_changed alone. *Verify:* self-reload test
-  fires exit on mtime change; server.ts still calls the watcher at boot.
-- **The agent MCP installer is the ONLY non-git file write driven by the renderer, and it takes no user input.**
-  `installAgentMcp` (shell: `src/main/agent-mcp.ts`; daemon host: `src/backend/agent-mcp-install.ts`)
-  copies the bundled `out/main/mcp/server.js` to `~/.porcelain/mcp/server.js` (home, not a
-  work repo) and writes per-agent MCP config files (`~/.claude.json`, `~/.codex/config.toml`,
-  `~/.config/opencode/opencode.json`, `~/.grok/config.toml`). The renderer supplies only the
-  agent list (a fixed enum); no user string reaches the file paths or command args. It's
-  user-initiated from Settings. Don't let any renderer-supplied string reach a file path
-  or command (injection). `git`'s `execFile` (no shell) remains the pattern everywhere
-  else; there are no other shell-outs.
-  Two properties this design leans on, don't regress them: (1) the config points at the
-  **stable** `~/.porcelain/mcp/server.js`, and `ensureMcpServer` re-copies the bundled
-  server there on **every Mac app boot** (`src/main/index.ts`) **and every daemon boot**
-  (`src/backend/server.ts` — best-effort on both) — that's what lets an app *or*
-  standalone/remote daemon upgrade (`npx porcelain-daemon@latest` on Linux) ship new/fixed
-  MCP tools without the user re-running "Add MCP" (skills update separately over skills.sh;
-  without the daemon boot path, a remote host kept a stale MCP binary forever after first
-  install). (2) The config writes are **atomic** (tmp+rename via `writeFileAtomic` in
-  `agent-mcp-config.ts`), create the parent dir, and **preserve the existing file mode** —
-  `~/.claude.json` holds the user's live Claude Code state (projects/history/auth, often
-  0600), so a truncate-and-write or a 0644 rewrite would risk corruption or leak. *Verify:*
-  `ensureMcpServer` is still called at Mac boot *and* daemon `main()`; `agent-mcp-config.ts`
-  writes never call bare `writeFile` on a target path.
+  Write; `evidence prepare` returns a path without requiring html.
+- **`artifact set` still accepts `--html` (inline or `-` for stdin) OR `--html-file` (absolute path).**
+  Artifacts remain the JSON-channel shape; large artifact HTML can use `--html-file`
+  (`src/cli/html-input.ts`). Loop evidence prefers the directory flow above.
+- **CLI install is boot-driven, writes ONLY to `~/.porcelain`, and takes no user input.**
+  `ensureCli` (`src/backend/cli-install.ts`, plus a main-process counterpart — grep the
+  call sites) copies the bundled `out/main/cli/porcelain.js` to `~/.porcelain/porcelain.js`
+  (home, not a work repo) and writes + chmods (`0o755`) the `porcelain` sh wrapper. No user
+  string reaches a path or command, and **no per-agent config files are written** — agents
+  just run the binary, so there's nothing to register (the old `~/.claude.json` /
+  `config.toml` / `opencode.json` writes and their file-mode-preservation trap are GONE with
+  the MCP transport). It runs at **every Mac app boot** (`src/main/index.ts`) **and every
+  daemon boot** (`src/backend/server.ts` — best-effort on both), so an app *or*
+  standalone/remote daemon upgrade (`npx porcelain-daemon@latest` on Linux) ships the current
+  CLI with no Settings step (skills update separately over skills.sh; without the daemon boot
+  path, a remote host kept a stale binary forever after first install). Writes are **atomic**
+  (tmp+rename) and create the parent dir. `git`'s `execFile` (no shell) remains the pattern
+  for the git shell-out surface; there are no other renderer-driven non-git writes.
+  *Verify:* `ensureCli` is called at Mac boot *and* daemon `main()`; no code writes
+  `~/.claude.json` / `~/.codex/config.toml` / `~/.config/opencode/opencode.json`.
 
 ## Config persistence
 

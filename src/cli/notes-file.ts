@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
-// Builtins only — see protocol.ts. The repo-notes channel: the human's freeform
+// Builtins only — see cli.ts. The repo-notes channel: the human's freeform
 // per-repo markdown scratchpad (Porcelain app, notes-store.ts), READ-ONLY here.
 // ONE-WAY, app→agent — the human writes notes in Porcelain (Files → Notes); the agent
 // reads them as standing project context (conventions, gotchas, what to do next).

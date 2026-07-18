@@ -14,13 +14,14 @@ Porcelain can render a **feature artifact**: a self-contained HTML document you 
 
 ## How
 
-Call the `porcelain` MCP tools with `repoPath` set to the ABSOLUTE path of the repo you're working in (your cwd):
+Talk to Porcelain through the bundled CLI at `~/.porcelain/porcelain` — installed automatically and kept fresh on every app launch (no registration, no MCP config). Run it from **inside the repo** and it targets that repo automatically (git toplevel of the cwd); add `--repo <absolute path>` only to point at a different checkout.
 
-- `set_feature_artifact` — `{ repoPath, title, html }` **or** `{ repoPath, title, htmlFile }` → author/replace the artifact.
-  - Prefer **`htmlFile`** (absolute path to a local `.html` file) when the document is large or embeds images — inlining big payloads through the tool channel is slow and fragile. Write the file, then pass the path.
-  - Use inline `html` only for small documents. Provide exactly one of `html` or `htmlFile`.
-- `get_feature_artifact` — `{ repoPath }` → check whether one exists (title, size, when set — not the full HTML).
-- `clear_feature_artifact` — `{ repoPath }` → remove it.
+- `~/.porcelain/porcelain artifact set --title <s>` with exactly one of `--html-file <path>` or `--html <s|->` → author/replace the artifact.
+  - Prefer **`--html-file`** (path to a local `.html` file you wrote) — it's the primary path. Write the document to disk with your normal Write tool, then pass the path; inlining a big payload through argv is slow and fragile.
+  - Use inline `--html "<html>…</html>"` only for small documents (or `--html -` to pipe from stdin). Provide exactly one of `--html` / `--html-file`.
+  - Porcelain validates the HTML (plausibility check + size caps) and rejects junk or oversized documents loudly — fix and re-run.
+- `~/.porcelain/porcelain artifact get` → check whether one exists (title, size, when set — not the full HTML).
+- `~/.porcelain/porcelain artifact clear` → remove it.
 
 ## Authoring the HTML — read this before you write it
 
@@ -50,13 +51,13 @@ So the document must be **ONE self-contained file**:
 
 **Size cap.** The HTML must be under ~1.5 MB. If you're embedding images, keep them small (or prefer inline SVG, which is tiny) — don't paste huge base64 blobs.
 
-Write the whole `<html>…</html>` document (or just the body content — Porcelain renders whatever you send via `srcdoc`). Keep it focused: one feature, one clear explanation the human can read top to bottom.
+Write the whole `<html>…</html>` document (or just the body content — Porcelain renders whatever you send). Keep it focused: one feature, one clear explanation the human can read top to bottom.
 
 ## Review before you say you're done (required)
 
-**Do not tell the human the artifact is ready until you've re-read the HTML you just wrote and fixed anything that fails the checks below.** Prefer a second pass + another `set_feature_artifact` call over shipping a first draft that clips or overflows.
+**Do not tell the human the artifact is ready until you've re-read the HTML you just wrote and fixed anything that fails the checks below.** Prefer a second pass + another `artifact set` over shipping a first draft that clips or overflows.
 
-Porcelain cannot run your scripts in the iframe, so *you* are the QA. Re-open the HTML you produced (from your own message / draft, or rewrite from the same structure if you only have the MCP response metadata) and walk it as a visual layout review — especially every SVG diagram.
+Porcelain cannot run your scripts in the iframe, so *you* are the QA. Re-open the HTML file you produced and walk it as a visual layout review — especially every SVG diagram.
 
 ### Always check
 
@@ -84,7 +85,7 @@ Inline SVG is where most artifacts fail. For **every** box/card/node and label:
 ### If anything fails
 
 1. Fix the HTML (resize boxes, wrap text, bump padding, adjust `viewBox`, shorten labels).
-2. Call `set_feature_artifact` again with the corrected full document (same title is fine — it's a replace).
+2. Run `artifact set` again with the corrected full document (same title is fine — it's a replace).
 3. Re-check the changed spots only, then stop.
 
 Only after that pass: tell the human the artifact is ready and where to open it (Feature list → artifact / the artifact view tab).
