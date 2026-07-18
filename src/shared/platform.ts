@@ -1,8 +1,8 @@
 /**
  * The one platform resolver for main AND preload — which desktop OS the shell is
  * running on. Three cases matter to the renderer seam: macOS (Cmd-primary, native
- * vibrancy), Linux (Ctrl-primary, opaque fallback — the browser client's surface
- * reused), and Windows (Ctrl-primary too, folded in for free). The preload reads
+ * traffic lights), Linux (Ctrl-primary, custom window controls), and Windows
+ * (Ctrl-primary too, folded in for free). The preload reads
  * this once at boot and hands it to the renderer on `window.porcelain.platform`;
  * the renderer's lib/platform.ts keys `isLinuxShell` off it.
  *

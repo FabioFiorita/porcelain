@@ -215,7 +215,7 @@ export function AgentComposer({
       {/* biome-ignore lint/a11y/noStaticElementInteractions: image drop target wrapping the textarea */}
       <div
         className={cn(
-          'glaze-tile flex flex-col gap-2 rounded-xl p-2 [--tile-fill:var(--surface-2)]',
+          'flex flex-col gap-2 rounded-xl border bg-card p-2',
           dragging && 'ring-2 ring-ring/50',
         )}
         onDragOver={(e) => {

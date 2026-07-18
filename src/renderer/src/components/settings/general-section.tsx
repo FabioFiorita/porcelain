@@ -159,7 +159,7 @@ export function GeneralSection(): React.JSX.Element {
                 htmlFor={inputId}
                 className={cn(
                   'flex cursor-pointer items-start gap-2.5 px-3 py-2.5 text-left transition-colors',
-                  selected ? 'bg-(--selected-fill)' : 'hover:bg-(--hover-fill)',
+                  selected ? 'bg-accent' : 'hover:bg-accent',
                 )}
               >
                 <input

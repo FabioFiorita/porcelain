@@ -40,7 +40,7 @@ export const EDITABLE_MAX_LINES = 5000
 const AUTOSAVE_DELAY_MS = 800
 
 // The floating save-status pill in the editor's bottom-right — a borderless Badge
-// on the muted glaze; each state supplies only its own text color.
+// on the muted surface; each state supplies only its own text color.
 const STATUS_PILL =
   'pointer-events-none absolute bottom-2 right-3 rounded-md border-transparent bg-muted/80 text-2xs'
 
@@ -229,7 +229,7 @@ export function EditorSource({
                         className={cn(
                           'flex',
                           (ln === highlightLine || pending) && 'bg-primary/15',
-                          open && 'bg-(--selected-fill)',
+                          open && 'bg-accent',
                         )}
                       >
                         <span className="w-10 shrink-0 select-none pr-3 text-right text-muted-foreground/50">

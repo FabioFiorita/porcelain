@@ -37,10 +37,7 @@ function highlight(
   while (at !== -1) {
     if (at > from) parts.push(<span key={key++}>{text.slice(from, at)}</span>)
     parts.push(
-      <mark
-        key={key++}
-        className="rounded-[2px] bg-(--selected-fill) font-semibold text-foreground"
-      >
+      <mark key={key++} className="rounded-[2px] bg-accent font-semibold text-foreground">
         {text.slice(at, at + needle.length)}
       </mark>,
     )
@@ -93,7 +90,7 @@ function FileGroup({
         render={
           <button
             type="button"
-            className="flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left hover:bg-(--hover-fill)"
+            className="flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left hover:bg-accent"
           >
             <ChevronRight className="size-3 shrink-0 text-muted-foreground transition-transform" />
             <FileTypeIcon name={name} className="size-3.5 shrink-0" />
@@ -124,7 +121,7 @@ function FileGroup({
                     type="button"
                     onClick={() => open(ln.line)}
                     className={cn(
-                      'flex w-full items-baseline gap-2 px-2 py-px text-left font-mono text-xs hover:bg-(--hover-fill)',
+                      'flex w-full items-baseline gap-2 px-2 py-px text-left font-mono text-xs hover:bg-accent',
                       ln.match ? 'text-foreground' : 'text-muted-foreground',
                     )}
                   >

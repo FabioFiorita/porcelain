@@ -155,7 +155,7 @@ function RepoShell(): React.JSX.Element {
   })
 
   return (
-    <SidebarInset className="h-full min-h-0 min-w-0 bg-transparent">
+    <SidebarInset className="h-full min-h-0 min-w-0">
       <SidebarProvider
         open={rightOpen}
         onOpenChange={setRightSidebarOpen}
@@ -163,13 +163,13 @@ function RepoShell(): React.JSX.Element {
         className="h-full min-h-0"
         style={{ '--sidebar-width': `${rightSidebarWidth}px` } as React.CSSProperties}
       >
-        {/* Main tile floats in the void; margins collapse to 0 on sides where a
-            floating sidebar's own padding already provides the 8px gap. On phone
-            both sidebars are overlay sheets (no gap peer), so always keep the
-            8px margin on both sides. */}
+        {/* Main tile; margins collapse to 0 on sides where a floating sidebar's
+            own padding already provides the 8px gap. On phone both sidebars are
+            overlay sheets (no gap peer), so always keep the 8px margin on both
+            sides. */}
         <div
           className={cn(
-            'glaze-tile mb-2 flex min-w-0 flex-1 flex-col overflow-hidden [--tile-fill:var(--surface-1)]',
+            'mb-2 flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card',
             (isMobile || left.collapsed) && 'ml-2',
             (isMobile || !rightOpen) && 'mr-2',
           )}
@@ -229,10 +229,9 @@ export function AppShell(): React.JSX.Element {
   }
 
   return (
-    // No background wash here: the void between the tiles shows raw vibrancy. The
-    // window titlebar (traffic lights + centered search) spans the top; the three
-    // tiles fill the row below it.
-    <div className="dark flex h-dvh flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-foreground">
+    // The window titlebar (traffic lights + centered search) spans the top; the
+    // three tiles fill the row below it over the app background.
+    <div className="dark flex h-dvh flex-col bg-background pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-foreground">
       <TitleBar />
       <SidebarProvider
         // flex-1 fills the row under the titlebar; minHeight:0 overrides the

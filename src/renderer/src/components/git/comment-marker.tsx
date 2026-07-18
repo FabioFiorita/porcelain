@@ -119,7 +119,7 @@ export function LineDecorations({
       {pending ? (
         <div className="pointer-events-none absolute inset-0 bg-primary/15" />
       ) : hasOpen ? (
-        <div className="pointer-events-none absolute inset-0 bg-(--selected-fill)" />
+        <div className="pointer-events-none absolute inset-0 bg-accent" />
       ) : null}
       {comments && comments.length > 0 && (
         <div className="absolute left-0.5 top-1/2 z-10 -translate-y-1/2">

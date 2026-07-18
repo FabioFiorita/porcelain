@@ -31,7 +31,7 @@ function ActionRow({
   const run = useRunAction()
   const { move, remove } = useActionMutations()
   return (
-    <div className="group/action glaze-tile flex items-center gap-1 p-2 [--tile-fill:var(--surface-2)]">
+    <div className="group/action flex items-center gap-1 rounded-xl border bg-card p-2">
       <button
         type="button"
         onClick={() => run(action)}

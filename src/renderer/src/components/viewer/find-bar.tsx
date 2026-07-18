@@ -39,7 +39,7 @@ export function FindBar({
   }, [])
 
   return (
-    <div className="absolute right-3 top-3 z-30 flex items-center gap-1 rounded-lg border bg-popover/95 px-2 py-1 shadow-lg backdrop-blur-xl">
+    <div className="absolute right-3 top-3 z-30 flex items-center gap-1 rounded-lg border bg-popover px-2 py-1 shadow-lg">
       <Search className="size-3.5 shrink-0 text-muted-foreground" />
       <Input
         ref={inputRef}

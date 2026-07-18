@@ -164,7 +164,7 @@ function FlowNodeImpl({
         </ContextMenuContent>
       </ContextMenu>
       {file.note && (
-        <div className="mx-2 mb-1 rounded-lg border border-border/60 bg-black/20 px-2.5 py-2">
+        <div className="mx-2 mb-1 rounded-lg border border-border/60 bg-muted px-2.5 py-2">
           <span className="text-3xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Note
           </span>

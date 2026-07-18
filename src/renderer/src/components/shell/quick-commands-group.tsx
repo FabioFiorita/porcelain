@@ -46,7 +46,7 @@ function ResultCard({
   onDismiss: () => void
 }): React.JSX.Element {
   return (
-    <div className="glaze-tile mt-0.5 overflow-hidden [--tile-fill:var(--surface-2)]">
+    <div className="mt-0.5 overflow-hidden rounded-xl border bg-card">
       <div className="flex items-center gap-2 border-b border-border/60 px-2.5 py-1.5">
         {result.failed ? (
           <CircleX className="size-3.5 shrink-0 text-destructive" />
@@ -100,7 +100,7 @@ export function QuickCommandsGroup(): React.JSX.Element {
 
   return (
     <>
-      {/* Contextual suggestions ride in their own glaze tile above the command
+      {/* Contextual suggestions ride in their own tile above the command
           set — the agent-free heuristic (behind/ahead/stash/dirty) surfaces the
           one command worth running right now. Kept in our card style rather than
           the mockup's accent treatment. */}
@@ -110,7 +110,7 @@ export function QuickCommandsGroup(): React.JSX.Element {
             Suggested
           </SidebarGroupLabel>
           <SidebarGroupContent className="px-1">
-            <div className="glaze-tile flex flex-col gap-0.5 p-1 [--tile-fill:var(--surface-2)]">
+            <div className="flex flex-col gap-0.5 rounded-xl border bg-card p-1">
               {suggestions.map((suggestion) => {
                 const command = QUICK_COMMANDS.find((c) => c.id === suggestion.command)
                 if (!command) return null
@@ -158,7 +158,7 @@ export function QuickCommandsGroup(): React.JSX.Element {
                 size="sm"
                 className={cn(
                   compactButtonClass,
-                  'glaze-chip justify-start gap-1.5 rounded-md font-mono font-normal',
+                  'justify-start gap-1.5 rounded-md border bg-secondary font-mono font-normal text-secondary-foreground',
                 )}
                 disabled={running !== null}
                 onClick={() => run(command)}

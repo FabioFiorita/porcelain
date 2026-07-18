@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { initTRPC } from '@trpc/server'
-import { shell, type WebContents } from 'electron'
+import { BrowserWindow, shell, type WebContents } from 'electron'
 import { z } from 'zod'
 import {
   getDefaultEnvironmentId,
@@ -48,6 +48,31 @@ async function probeDaemon(url: string, token: string): Promise<void> {
 
 export const shellRouter = t.router({
   windowInit: t.procedure.query(({ ctx }): WindowInit => windowInitFor(ctx.sender)),
+
+  // Frameless-chrome window controls (Linux/Windows): the renderer draws its own
+  // min/maximize/close cluster, so these act on the CALLING window via
+  // BrowserWindow.fromWebContents(ctx.sender) — the sanctioned per-call handle to
+  // a shell procedure's own window, same as windowInit. Each null-guards (a window
+  // mid-teardown can return null). macOS keeps native traffic lights and never
+  // calls these.
+  windowMinimize: t.procedure.mutation(({ ctx }) => {
+    BrowserWindow.fromWebContents(ctx.sender)?.minimize()
+  }),
+
+  windowToggleMaximize: t.procedure.mutation(({ ctx }) => {
+    const window = BrowserWindow.fromWebContents(ctx.sender)
+    if (window === null) return
+    if (window.isMaximized()) window.unmaximize()
+    else window.maximize()
+  }),
+
+  windowClose: t.procedure.mutation(({ ctx }) => {
+    BrowserWindow.fromWebContents(ctx.sender)?.close()
+  }),
+
+  windowIsMaximized: t.procedure.query(
+    ({ ctx }): boolean => BrowserWindow.fromWebContents(ctx.sender)?.isMaximized() ?? false,
+  ),
 
   newWindow: t.procedure
     .input(

@@ -180,12 +180,9 @@ export function AppSidebar(): React.JSX.Element {
                           isActive={active}
                           onClick={() => selectTab(tab.id)}
                           aria-label={tab.label}
-                          // Rail tabs speak the porcelain glaze language, not a flat
-                          // white-alpha fill: the selected tab is a lit .glaze-chip
-                          // (frosted surface + hairline + specular), and a resting tab
-                          // warms to that same frosted glass on hover (the .glaze-rail
-                          // rule in main.css) instead of a white tint. Resting icons
-                          // are muted.
+                          // The selected tab is filled with the accent surface; a
+                          // resting tab is muted and warms to the same accent on
+                          // hover.
                           // The vendored sidebarMenuButtonVariants shrink the
                           // button to size-8/p-2 with !important once the outer
                           // sidebar collapses to the rail — re-assert size-10/p-0
@@ -194,7 +191,9 @@ export function AppSidebar(): React.JSX.Element {
                           className={cn(
                             'relative size-10 justify-center p-0 [&_svg]:size-5',
                             'group-data-[collapsible=icon]:size-10! group-data-[collapsible=icon]:p-0!',
-                            active ? 'glaze-chip' : 'glaze-rail text-muted-foreground',
+                            active
+                              ? 'bg-accent text-accent-foreground'
+                              : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
                           )}
                         >
                           <tab.icon />

@@ -61,7 +61,7 @@ function CopyButton({ text }: { text: string }): React.JSX.Element {
             size="icon-xs"
             aria-label="Copy"
             onClick={copy}
-            className="absolute top-1 right-1 bg-popover/70 text-muted-foreground opacity-0 backdrop-blur-sm transition-opacity focus-visible:opacity-100 group-hover/copy:opacity-100"
+            className="absolute top-1 right-1 bg-popover text-muted-foreground opacity-0 transition-opacity focus-visible:opacity-100 group-hover/copy:opacity-100"
           >
             {copied ? <Check /> : <Copy />}
           </Button>
@@ -98,7 +98,7 @@ function UserBubble({
   const thumbnails = item.thumbnails ?? []
   return (
     <div className="flex justify-end">
-      <div className="glaze-chip max-w-[85%] rounded-2xl px-3 py-2 text-sm-minus whitespace-pre-wrap [--tile-fill:var(--surface-2)]">
+      <div className="max-w-[85%] rounded-2xl border bg-secondary px-3 py-2 text-sm-minus whitespace-pre-wrap text-secondary-foreground">
         {item.text}
         {thumbnails.length > 0 ? (
           <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -379,7 +379,7 @@ function ApprovalCard({
   const { approve } = useAgentActions()
   const pending = item.status === 'pending'
   return (
-    <div className="glaze-tile flex flex-col gap-2 rounded-lg p-3 [--tile-fill:var(--surface-2)]">
+    <div className="flex flex-col gap-2 rounded-lg border bg-card p-3">
       <div className="flex items-center justify-between gap-2">
         <span className="text-sm-minus font-medium text-foreground">{item.title}</span>
         {!pending && (
@@ -582,7 +582,7 @@ function QueuedPendingList({
 function PlanItem({ item }: { item: Extract<TimelineItem, { kind: 'plan' }> }): React.JSX.Element {
   const done = item.steps.filter((step) => step.status === 'done').length
   return (
-    <div className="glaze-tile flex flex-col gap-1.5 p-2.5 [--tile-fill:var(--surface-2)]">
+    <div className="flex flex-col gap-1.5 rounded-xl border bg-card p-2.5">
       <div className="flex items-baseline justify-between">
         <span className="text-xs font-medium text-foreground">Plan</span>
         <span className="text-2xs text-muted-foreground">
@@ -663,7 +663,7 @@ function EmptyTimeline({
             key={prompt}
             type="button"
             onClick={() => onPickPrompt(prompt)}
-            className="glaze-chip rounded-lg px-3 py-2 text-left text-xs-minus text-muted-foreground transition-colors hover:text-foreground [--tile-fill:var(--surface-2)]"
+            className="rounded-lg border bg-secondary px-3 py-2 text-left text-xs-minus text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
           >
             {prompt}
           </button>

@@ -2,7 +2,6 @@
 @plugin "@tailwindcss/typography";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
 @import "@fontsource-variable/geist-mono";
 @import "@fontsource-variable/jetbrains-mono";
 
@@ -20,7 +19,9 @@
 
 @theme inline {
     --font-heading: var(--font-mono);
-    --font-sans: 'Geist Variable', sans-serif;
+    /* mira preset: JetBrains Mono is the body font (font jetbrains-mono, fontHeading
+       inherit) — the app renders mono end to end. */
+    --font-sans: 'JetBrains Mono Variable', monospace;
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -99,140 +100,81 @@
 
 :root {
   --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  --foreground: oklch(0.148 0.004 228.8);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.148 0.004 228.8);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.148 0.004 228.8);
+  --primary: oklch(0.5 0.134 242.749);
+  --primary-foreground: oklch(0.977 0.013 236.62);
+  --secondary: oklch(0.967 0.001 286.375);
+  --secondary-foreground: oklch(0.21 0.006 285.885);
+  --muted: oklch(0.963 0.002 197.1);
+  --muted-foreground: oklch(0.56 0.021 213.5);
+  --accent: oklch(0.963 0.002 197.1);
+  --accent-foreground: oklch(0.218 0.008 223.9);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --border: oklch(0.925 0.005 214.3);
+  --input: oklch(0.925 0.005 214.3);
+  --ring: oklch(0.723 0.014 214.4);
+  --chart-1: oklch(0.865 0.127 207.078);
+  --chart-2: oklch(0.715 0.143 215.221);
+  --chart-3: oklch(0.609 0.126 221.723);
+  --chart-4: oklch(0.52 0.105 223.128);
+  --chart-5: oklch(0.45 0.085 224.283);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: oklch(0.987 0.002 197.1);
+  --sidebar-foreground: oklch(0.148 0.004 228.8);
+  --sidebar-primary: oklch(0.588 0.158 241.966);
+  --sidebar-primary-foreground: oklch(0.977 0.013 236.62);
+  --sidebar-accent: oklch(0.963 0.002 197.1);
+  --sidebar-accent-foreground: oklch(0.218 0.008 223.9);
+  --sidebar-border: oklch(0.925 0.005 214.3);
+  --sidebar-ring: oklch(0.723 0.014 214.4);
 }
 
 .dark {
-  /* alpha < 1 so macOS vibrancy shows through the tiles (a vega preset re-apply
-     resets these to opaque — restore the alpha). */
-  --background: oklch(0.145 0 0 / 0.3);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  /* Menus/popovers render as a near-opaque, faintly-warm dark tile (per the
-     Claude Design mockup) rather than the old neutral graphite — see the glass
-     in dropdown-menu.tsx / context-menu.tsx. */
-  --popover: oklch(0.185 0.006 270);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
+  --background: oklch(0.148 0.004 228.8);
+  --foreground: oklch(0.987 0.002 197.1);
+  --card: oklch(0.218 0.008 223.9);
+  --card-foreground: oklch(0.987 0.002 197.1);
+  --popover: oklch(0.218 0.008 223.9);
+  --popover-foreground: oklch(0.987 0.002 197.1);
+  --primary: oklch(0.443 0.11 240.79);
+  --primary-foreground: oklch(0.977 0.013 236.62);
+  --secondary: oklch(0.274 0.006 286.033);
   --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.275 0.011 216.9);
+  --muted-foreground: oklch(0.723 0.014 214.4);
+  --accent: oklch(0.275 0.011 216.9);
+  --accent-foreground: oklch(0.987 0.002 197.1);
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0 / 0.15);
-  --sidebar-foreground: oklch(0.985 0 0);
-  /* neutral graphite — vega ships a blue --sidebar-primary; keep the app accent-free */
-  --sidebar-primary: oklch(0.922 0 0);
-  --sidebar-primary-foreground: oklch(0.205 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.56 0.021 213.5);
+  --chart-1: oklch(0.865 0.127 207.078);
+  --chart-2: oklch(0.715 0.143 215.221);
+  --chart-3: oklch(0.609 0.126 221.723);
+  --chart-4: oklch(0.52 0.105 223.128);
+  --chart-5: oklch(0.45 0.085 224.283);
+  --sidebar: oklch(0.218 0.008 223.9);
+  --sidebar-foreground: oklch(0.987 0.002 197.1);
+  --sidebar-primary: oklch(0.685 0.169 237.323);
+  --sidebar-primary-foreground: oklch(0.293 0.066 243.157);
+  --sidebar-accent: oklch(0.275 0.011 216.9);
+  --sidebar-accent-foreground: oklch(0.987 0.002 197.1);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar-ring: oklch(0.56 0.021 213.5);
 }
 
 /* ────────────────────────────────────────────────────────────────────────
-   Glaze — Porcelain's design system (plans/005-glaze-design-system.md).
-   Floating porcelain tiles over the vibrancy void. Layered on top of the
-   b2D0xPJT8 preset above; the preset blocks stay untouched so a re-apply
-   never destroys these tokens.
-   ──────────────────────────────────────────────────────────────────────── */
-:root {
-  --radius-panel: 1rem;
-  --surface-0: oklch(0.985 0 0 / 0.62);
-  --surface-1: oklch(0.99 0 0 / 0.8);
-  --surface-2: oklch(1 0 0 / 0.86);
-  --surface-3: oklch(1 0 0 / 0.94);
-  --hairline: oklch(0.145 0 0 / 0.1);
-  --hairline-strong: oklch(0.145 0 0 / 0.14);
-  --glaze: oklch(1 0 0 / 0.55);
-  --glaze-strong: oklch(1 0 0 / 0.75);
-  /* The lit glaze-chip edge (hairline + specular top + soft drop) — one token so
-     the rail's hover can reuse the exact chip material the active chip uses. The
-     sub-vars resolve per theme at the use site, so this stays defined once. */
-  --glaze-lit: inset 0 0 0 1px var(--hairline-strong), inset 0 1px 0 0 var(--glaze),
-    0 1px 3px -0.5px oklch(0 0 0 / 0.3);
-  /* Light-theme twins of the glass interaction tokens (black alpha). No light
-     theme ships yet, but keep them defined so a future one themes for free. */
-  --hover-fill: oklch(0.145 0 0 / 0.05);
-  --selected-fill: oklch(0.145 0 0 / 0.1);
-  --shadow-tile: 0 0 0 1px var(--hairline), 0 1px 2px oklch(0.5 0 0 / 0.1),
-    0 8px 24px -6px oklch(0.5 0 0 / 0.16);
-  --shadow-float: 0 0 0 1px var(--hairline-strong), 0 4px 8px oklch(0.5 0 0 / 0.1),
-    0 24px 60px -12px oklch(0.5 0 0 / 0.2);
-  --ease-glaze: cubic-bezier(0.22, 0.61, 0.36, 1);
-  --dur-fast: 120ms;
-  --dur-base: 180ms;
-  --dur-slow: 240ms;
-}
+   Porcelain tokens — app-custom design tokens layered on the mira preset
+   above. The preset owns the :root / .dark color + radius blocks; everything
+   below is Porcelain's own and survives a preset re-apply (the CLI rewrites
+   only the preset-owned blocks). The former "glaze" glass system (surfaces,
+   hairlines, tile shadows, vibrancy void) is intentionally gone — Porcelain
+   is one opaque design now.
 
-.dark {
-  --surface-0: oklch(0.205 0 0 / 0.55);
-  --surface-1: oklch(0.215 0 0 / 0.72);
-  --surface-2: oklch(0.24 0 0 / 0.8);
-  --surface-3: oklch(0.26 0 0 / 0.92);
-  --hairline: oklch(1 0 0 / 0.1);
-  --hairline-strong: oklch(1 0 0 / 0.16);
-  --glaze: oklch(1 0 0 / 0.14);
-  --glaze-strong: oklch(1 0 0 / 0.22);
-  /* Unified glass interaction — the ONE hover/selected language shared by sidebar
-     rows, the icon rail, toggles, ghost buttons and menu items. White alpha (not
-     the old opaque graphite) so selection reads as lit porcelain over the glass.
-     --hover-fill = resting hover; --selected-fill = the lit "on" state. Routing
-     --accent/--sidebar-accent here too (the glaze layer, not the preset block)
-     keeps every shadcn interactive surface glass — and survives a preset re-apply. */
-  --hover-fill: oklch(1 0 0 / 0.06);
-  --selected-fill: oklch(1 0 0 / 0.12);
-  --accent: oklch(1 0 0 / 0.12);
-  --sidebar-accent: oklch(1 0 0 / 0.12);
-  --shadow-tile: 0 0 0 1px var(--hairline), 0 1px 2px oklch(0 0 0 / 0.3),
-    0 8px 24px -6px oklch(0 0 0 / 0.45);
-  --shadow-float: 0 0 0 1px var(--hairline-strong), 0 4px 8px oklch(0 0 0 / 0.3),
-    0 24px 60px -12px oklch(0 0 0 / 0.55);
-}
-
-/* ────────────────────────────────────────────────────────────────────────
    Semantic state, diff tints, and the categorical "ink" palette.
    Every value is defined for BOTH themes so a future light mode (no toggle
    ships yet — `<html class="dark">` is hardwired in index.html) themes for
@@ -293,85 +235,6 @@
   --ink-sky: oklch(0.746 0.16 232.661);
 }
 
-/* A fired porcelain tile: panel radius, glass fill, hairline edge + lifted
-   shadow, and the signature glaze edge (a specular top highlight fading out
-   toward the corners). Unlayered so it outranks preset utility classes; the
-   floating-sidebar selector makes shadcn floating sidebars tiles for free.
-   No backdrop-filter here — it would re-anchor fixed descendants, and blur is
-   a no-op over the native vibrancy void. */
-.glaze-tile,
-[data-variant='floating'] [data-slot='sidebar-inner'] {
-  position: relative;
-  border-radius: var(--radius-panel);
-  background: var(--tile-fill, var(--surface-0));
-  box-shadow: var(--shadow-tile);
-}
-.glaze-tile::before,
-[data-variant='floating'] [data-slot='sidebar-inner']::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  border-radius: inherit;
-  pointer-events: none;
-  background: linear-gradient(180deg, var(--glaze) 0, transparent 3px);
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
-}
-
-/* Capsule segments (tabs) and standalone glass chips share the Glaze hover
-   grammar: the surface warms over --dur-fast; the lit chip — the active segment,
-   or any `.glaze-chip` (e.g. the quick-command buttons) — is a surface tile with
-   a crisp hairline edge, the specular glaze top line, and a soft drop shadow so
-   it floats off the panel. One recipe so the glass material stays uniform. */
-.glaze-segment,
-.glaze-chip {
-  transition:
-    background-color var(--dur-fast) var(--ease-glaze),
-    color var(--dur-fast) var(--ease-glaze);
-}
-.glaze-segment:hover {
-  background-color: var(--hover-fill);
-}
-.glaze-segment[data-active='true'],
-.glaze-chip {
-  background-color: var(--surface-2);
-  box-shadow: var(--glaze-lit);
-}
-.glaze-chip:hover {
-  background-color: var(--surface-3);
-}
-/* Icon-rail tabs warm to the full glaze chip on hover — a frosted surface +
-   hairline edge, NOT a flat white tint — so the rail reads as glass before a tab
-   is even selected. A dedicated rail class on the element (not the shared row
-   tokens, and not an attribute the primitive may or may not emit), so list rows
-   and the viewer tabs keep their subtle --hover-fill tint. The selected tab is a
-   lit .glaze-chip. Unlayered, so it outranks the primitive's hover utility. */
-.glaze-rail {
-  transition: background-color var(--dur-fast) var(--ease-glaze),
-    color var(--dur-fast) var(--ease-glaze);
-}
-.glaze-rail:hover {
-  background-color: var(--surface-2);
-  box-shadow: var(--glaze-lit);
-}
-/* Segmented toggles (ToggleGroupItem — Working/Branch, Unified/Split, Reader/
-   Source…) wear the rail glaze too: a resting segment warms to the frosted chip
-   on hover, the pressed segment is a persistently-lit chip. Keyed on aria-pressed,
-   the attribute base-ui's Toggle emits for the on state, so the selection reads
-   identically to the icon-rail tabs. */
-.glaze-rail[aria-pressed='true'] {
-  background-color: var(--surface-2);
-  box-shadow: var(--glaze-lit);
-}
-/* The chip material owns box-shadow, so route the focus ring through `outline`
-   (a separate property) — otherwise the Tailwind ring box-shadow would be
-   overridden and keyboard focus would go invisible. */
-.glaze-chip:focus-visible {
-  outline: 2px solid color-mix(in oklch, var(--ring) 60%, transparent);
-  outline-offset: 1px;
-}
-
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -388,36 +251,19 @@
     overscroll-behavior: none;
   }
   body {
-    /* transparent so macOS vibrancy shows through; panels paint their own alpha backgrounds */
-    @apply text-foreground;
-    background: transparent;
+    @apply bg-background text-foreground;
   }
   html {
-    @apply font-mono;
-    background: transparent;
+    @apply bg-background;
     /* JetBrains Mono's coding ligatures merge `===`, `!==`, `=>`, `??` into single
        glyphs that read as a solid bar — disable them so operators stay legible. */
     font-variant-ligatures: none;
   }
-  /* Browser client (daemon-served, Phase 3) — no macOS vibrancy behind the window, so
-     the void behind the floating tiles would render as flat browser-default. Paint an
-     opaque fallback on `html` (body stays transparent so tiles keep floating). The void
-     must stay a VOID: deep graphite + two blooms echoing a blurred wallpaper, noise only
-     to kill gradient banding — no picture, no pattern, no motion (deliberate). Electron
-     path is untouched: this rule only applies under `.browser`. */
-  html.browser {
-    background:
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E"),
-      radial-gradient(120% 90% at 18% -10%, rgba(58, 64, 96, 0.55), transparent 60%),
-      radial-gradient(90% 70% at 85% 105%, rgba(52, 46, 78, 0.35), transparent 55%),
-      radial-gradient(140% 140% at 50% 50%, transparent 55%, rgba(10, 10, 12, 0.6) 100%),
-      #0e0e11;
-  }
 }
 
 /* Themed thin scrollbars for native-overflow areas (code viewer, diff, sidebar).
-   A slim translucent pill (hairline → muted on hover) rather than a chunky solid
-   bar, so it reads as glaze chrome and never clashes with the rounded tile corner. */
+   A slim translucent pill (border → muted on hover) rather than a chunky solid
+   bar, so it reads as chrome and never clashes with the rounded panel corner. */
 ::-webkit-scrollbar {
   width: 9px;
   height: 9px;
@@ -427,7 +273,7 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background-color: var(--hairline-strong);
+  background-color: var(--border);
   border-radius: 9999px;
   border: 2px solid transparent;
   background-clip: padding-box;
@@ -440,7 +286,7 @@
    <div> inside `.xterm-scrollable-element`, NOT a native scrollbar — so the global
    `::-webkit-scrollbar` rules above can't reach it, and it rendered as a chunky gray bar.
    It already auto-hides on its own (the `.fade` class); we only need to reshape the slider
-   into the app's slim translucent pill (white → muted on hover). `!important` overrides
+   into the app's slim translucent pill (border → muted on hover). `!important` overrides
    the background xterm sets inline on the slider. */
 .xterm .xterm-scrollable-element > .scrollbar > .slider {
   border-radius: 9999px !important;
@@ -451,7 +297,7 @@
   border-left: 7px solid transparent !important;
   border-right: 2px solid transparent !important;
   background-clip: padding-box !important;
-  background-color: var(--hairline-strong) !important;
+  background-color: var(--border) !important;
 }
 .xterm .xterm-scrollable-element > .scrollbar > .slider:hover {
   background-color: var(--color-muted-foreground) !important;
@@ -498,7 +344,7 @@
   margin-bottom: 0;
 }
 
-/* Respect the OS "reduce motion" setting: collapse the glaze transitions, the
+/* Respect the OS "reduce motion" setting: collapse the transitions, the
    dialog/menu open-close animations (tw-animate-css), the blink caret, and any
    spinner to a near-instant change. The quality floor — motion is decorative
    here, never load-bearing, so nothing breaks when it's gone. */

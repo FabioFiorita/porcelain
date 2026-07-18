@@ -100,8 +100,8 @@ function ThreadRow({ thread }: { thread: ThreadInfo }): React.JSX.Element {
               className={cn(
                 'group/thread flex h-7 items-center gap-2 rounded-md px-2 text-sm-minus',
                 isActive
-                  ? 'bg-(--selected-fill) text-foreground'
-                  : 'text-muted-foreground hover:bg-(--hover-fill)',
+                  ? 'bg-accent text-accent-foreground'
+                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
               )}
             >
               <ProviderGlyph provider={thread.provider} className="size-3.5" />

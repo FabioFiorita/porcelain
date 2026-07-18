@@ -31,7 +31,7 @@ export function CardItem({
 }): React.JSX.Element {
   const { move, remove } = useCardActions()
   return (
-    <div className="group/card glaze-tile flex max-h-48 items-start gap-1 p-2 [--tile-fill:var(--surface-2)]">
+    <div className="group/card flex max-h-48 items-start gap-1 rounded-xl border bg-card p-2">
       <div className="min-h-0 min-w-0 flex-1">
         {/* Title capped so a multi-line title never eats the column; body scrolls. */}
         <p className="max-h-10 overflow-y-auto break-words text-xs font-medium">{card.title}</p>

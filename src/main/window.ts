@@ -3,7 +3,15 @@ import { is } from '@electron-toolkit/utils'
 import { BrowserWindow, shell, type WebContents } from 'electron'
 import icon from '../../resources/icon.png?asset'
 import { isSafeExternalUrl } from '../backend/external-url'
+import { resolvePlatform } from '../shared/platform'
 import { getDefaultEnvironmentId, setWindowEnvironment } from './daemon'
+
+// The opaque dark shell background: the `.dark --background` token from
+// src/renderer/src/assets/main.css — oklch(0.148 0.004 228.8) → #090b0c. Set on
+// the BrowserWindow so it never flashes white before the renderer's first paint.
+// (Porcelain dropped vibrancy for an opaque design, so there's no transparent
+// window to blend anymore.)
+const OPAQUE_BACKGROUND = '#090b0c'
 
 // Playwright e2e launches this built app and drives the renderer over CDP +
 // screenshots the web contents directly, so the OS window never needs to appear.
@@ -33,7 +41,10 @@ export function windowInitFor(sender: WebContents): WindowInit {
 }
 
 export function createWindow(init: WindowInit = { mode: 'restore' }): BrowserWindow {
-  // Create the browser window.
+  const platform = resolvePlatform()
+  // Create the browser window. Chrome is platform-split: macOS keeps its native
+  // traffic lights (hiddenInset + centered position); Linux/Windows are frameless
+  // and the renderer draws its own controls (window-controls.tsx).
   const mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -41,17 +52,24 @@ export function createWindow(init: WindowInit = { mode: 'restore' }): BrowserWin
     minHeight: 500,
     show: false,
     autoHideMenuBar: true,
-    titleBarStyle: 'hiddenInset',
-    // Center the traffic lights in the full-width window titlebar. It's h-12 (48px)
-    // flush with the window top, so its center sits at window-y 24. The buttons'
-    // visual center is ~y+8 (≈16px effective), so 24 − 8 = 16 centers them. GOTCHA:
-    // maximizing or fullscreening the window resets this to the macOS default —
-    // Electron doesn't re-apply trafficLightPosition on window state changes.
-    trafficLightPosition: { x: 19, y: 16 },
-    vibrancy: 'hud',
-    visualEffectState: 'followWindow',
-    backgroundColor: '#00000000',
-    ...(process.platform === 'linux' ? { icon } : {}),
+    backgroundColor: OPAQUE_BACKGROUND,
+    ...(platform === 'darwin'
+      ? {
+          titleBarStyle: 'hiddenInset' as const,
+          // Center the traffic lights in the full-width window titlebar. It's h-12
+          // (48px) flush with the window top, so its center sits at window-y 24. The
+          // buttons' visual center is ~y+8 (≈16px effective), so 24 − 8 = 16 centers
+          // them. GOTCHA: maximizing or fullscreening the window resets this to the
+          // macOS default — Electron doesn't re-apply trafficLightPosition on window
+          // state changes.
+          trafficLightPosition: { x: 19, y: 16 },
+        }
+      : {
+          // Linux/Windows: no native window controls — the renderer draws the
+          // min/maximize/close cluster, so the window is frameless.
+          frame: false,
+          icon,
+        }),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       // Deliberate: the preload imports Node builtins, so the sandbox is off; isolation
@@ -80,6 +98,17 @@ export function createWindow(init: WindowInit = { mode: 'restore' }): BrowserWin
     pendingInits.delete(webContents)
   })
 
+  // The renderer's custom window controls (Linux/Windows frameless chrome) draw a
+  // maximize-vs-restore glyph, so they need to know when the OS flips that state —
+  // e.g. a double-click on a drag region or a window-manager shortcut, not just our
+  // own toggle button. Window-targeted, mirroring the close-tab sender below.
+  mainWindow.on('maximize', () => {
+    mainWindow.webContents.send('shell-event', 'maximized-changed')
+  })
+  mainWindow.on('unmaximize', () => {
+    mainWindow.webContents.send('shell-event', 'maximized-changed')
+  })
+
   // Surface renderer-side errors in the dev terminal so failures are debuggable
   // without opening devtools (a blank window otherwise hides the cause).
   if (is.dev) {
@@ -91,10 +120,21 @@ export function createWindow(init: WindowInit = { mode: 'restore' }): BrowserWin
     console.error(`[renderer gone] reason=${details.reason} exitCode=${details.exitCode}`)
   })
 
-  // Cmd+W closes the active tab in the renderer, not the window; the renderer
-  // calls window.close() itself when no tabs are open.
+  // Cmd/Ctrl+W closes the active tab in the renderer, not the window; the renderer
+  // calls window.close() itself when no tabs are open. Modifier is platform-aware:
+  // Cmd on macOS, Ctrl elsewhere (Linux/Windows need Ctrl+W).
+  const usesMetaClose = platform === 'darwin'
   mainWindow.webContents.on('before-input-event', (event, input) => {
-    if (input.type === 'keyDown' && input.meta && input.key.toLowerCase() === 'w' && !input.shift) {
+    // TRAP: on Linux, Ctrl+W inside a focused embedded terminal should reach the
+    // shell (kill word / close pane), not the tab — that focus-aware refinement is
+    // deliberately out of scope; this intercepts Ctrl+W window-wide for now.
+    const closeModifierDown = usesMetaClose ? input.meta : input.control
+    if (
+      input.type === 'keyDown' &&
+      closeModifierDown &&
+      input.key.toLowerCase() === 'w' &&
+      !input.shift
+    ) {
       event.preventDefault()
       mainWindow.webContents.send('shell-event', 'close-tab')
     }

@@ -1,7 +1,8 @@
 import { expect, openSettings, selectTab, test, waitForShell } from './helpers/electron'
 
-// Screenshot baselines = the regression net. DOM-only (no native chrome /
-// vibrancy), per-platform (`-darwin`). Deliberately NOT screenshotting the
+// Screenshot baselines = the regression net. DOM-only (no native window chrome /
+// traffic lights — the UI is one opaque design, no vibrancy), per-platform
+// (`-darwin`). Deliberately NOT screenshotting the
 // History list — its relative timestamps drift. Regenerate after intentional UI
 // changes with `pnpm test:e2e:update`.
 

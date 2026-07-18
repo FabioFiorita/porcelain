@@ -52,7 +52,7 @@ function CommentRow({ comment }: { comment: ReviewComment }): React.JSX.Element 
   return (
     <div
       className={cn(
-        'group/comment glaze-tile flex flex-col gap-1 p-2 [--tile-fill:var(--surface-2)]',
+        'group/comment flex flex-col gap-1 rounded-xl border bg-card p-2',
         comment.resolved && 'opacity-55',
       )}
     >

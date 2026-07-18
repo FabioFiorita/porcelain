@@ -25,12 +25,7 @@ export function ChatMessageRow({
 }): React.JSX.Element {
   const when = formatTime(message.createdAt)
   return (
-    <div
-      className={cn(
-        'glaze-tile flex flex-col gap-0.5 p-2 [--tile-fill:var(--surface-2)]',
-        compact && 'p-1.5',
-      )}
-    >
+    <div className={cn('flex flex-col gap-0.5 rounded-xl border bg-card p-2', compact && 'p-1.5')}>
       <div className="flex items-baseline justify-between gap-2">
         <span className="truncate text-xs font-medium">{message.from}</span>
         {when !== '' && <span className="shrink-0 text-2xs text-muted-foreground/70">{when}</span>}

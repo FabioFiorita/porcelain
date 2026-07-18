@@ -136,7 +136,7 @@ function PlanGroup({ threadId }: { threadId: string }): React.JSX.Element | null
         Plan
       </SidebarGroupLabel>
       <SidebarGroupContent className="px-1">
-        <div className="glaze-tile flex flex-col gap-1.5 p-2.5 [--tile-fill:var(--surface-2)]">
+        <div className="flex flex-col gap-1.5 rounded-xl border bg-card p-2.5">
           <PlanSteps steps={plan.steps} />
           <p className="text-2xs text-muted-foreground">
             {done} of {plan.steps.length} done
@@ -172,10 +172,7 @@ function ActivityGroup({ threadId }: { threadId: string }): React.JSX.Element | 
       </SidebarGroupLabel>
       <SidebarGroupContent className="flex flex-col gap-1.5 px-1">
         {running.map((item) => (
-          <div
-            key={item.id}
-            className="glaze-tile flex flex-col gap-1 p-2.5 [--tile-fill:var(--surface-2)]"
-          >
+          <div key={item.id} className="flex flex-col gap-1 rounded-xl border bg-card p-2.5">
             <div className="flex items-center gap-2">
               <Loader2 className="size-3.5 shrink-0 animate-spin text-muted-foreground" />
               <span className="truncate text-xs font-medium text-foreground">{item.title}</span>
@@ -267,7 +264,7 @@ function FilesGroup({ threadId }: { threadId: string }): React.JSX.Element | nul
               title={file.path}
               className={cn(
                 'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left',
-                'hover:bg-(--hover-fill) focus-visible:bg-(--hover-fill) focus-visible:outline-none',
+                'hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:outline-none',
               )}
             >
               <Icon

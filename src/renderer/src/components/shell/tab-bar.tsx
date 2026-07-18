@@ -61,7 +61,8 @@ function TabItem({
                 <div
                   ref={ref}
                   className={cn(
-                    'glaze-segment app-no-drag group flex h-7 shrink-0 cursor-default items-center gap-1 rounded-md px-3 text-sm-minus',
+                    'app-no-drag group flex h-7 shrink-0 cursor-default items-center gap-1 rounded-md border border-transparent px-3 text-sm-minus transition-all',
+                    'data-active:bg-background dark:data-active:border-input dark:data-active:bg-input/30',
                     isActive ? 'text-foreground' : 'text-muted-foreground',
                   )}
                   data-active={isActive}

@@ -101,7 +101,7 @@ Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wron
 - **Agent list** — Agent body (`agent-list.tsx`): the roster of **agent threads** (daemon-owned, they survive reloads).
 
 **Inside the viewer:**
-- **Tab bar** — the floating glass capsule of open documents (`tab-bar.tsx`).
+- **Tab bar** — the floating capsule of open documents (`tab-bar.tsx`).
 - **Tab** — one open document. **Preview** = single-click, italic, replaced by the next; **pinned** = double-click/edit, kept.
 - **Split view / pane** — two side-by-side **panes**, each its own tabs (`panes`/`activePaneIndex` in `stores/tabs.ts`); "Open to the Side". Model in `architecture` (Routing).
 - **Tab kinds** — `file view` / `source view` (`source-view.tsx`) / `markdown reader` (`markdown-view.tsx`) / `html preview` (`html-view.tsx`, sandboxed; Preview|Source like markdown) / `diff view` (`diff-view.tsx`) / `commit view` (`commit-view.tsx`) / `search view` (`search-view.tsx`) / `feature view` (`feature-view.tsx`) / `explore view` (`explore-view.tsx`) / `board view` (`board-view.tsx`) / `chat view` (`chat-view.tsx`) / `terminal view` (`terminal-view.tsx`) / `artifact view` (`artifact-view.tsx`) / `evidence view` (`evidence-view.tsx`) / `agent view` (`agent-view.tsx`). What each renders → read the file; the concepts → `product`.
@@ -134,7 +134,7 @@ Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wron
 - **Agent threads / drivers** — daemon-owned conversations with a coding agent, run inside Porcelain; **drivers** spawn the user's installed CLIs (Claude Code, Codex, OpenCode). Entry points: `src/backend/agents/agent-manager.ts` + `src/shared/agent-protocol.ts`. The *what/why* lives in `product`; internals/traps in `architecture`/`audit`.
 - **Daemon** — the headless, Electron-free backend process (`src/backend/server.ts`) the renderer talks to over HTTP + one WebSocket on 127.0.0.1; the shell spawns/babysits it. Entry points: `src/main/daemon.ts` (spawn), `src/backend/server.ts` + `session.ts` (serve). "The daemon" always resolves here.
 - **Repo / worktree / window** — one repo per window; the worktree switcher sits in the sidebar footer.
-- **Glaze / glaze tile / vibrancy void** — the design-system glass surfaces (floating porcelain tiles over the vibrancy void).
+- **Surface language** — the opaque design (shadcn preset `b1tNqHXYe`: mira/mist/sky). Raised surfaces are cards (`rounded-* border bg-card`) over the app background; recessed wells are `border bg-muted`; hover/selected are the opaque `bg-accent`/`bg-accent/50` (and `bg-sidebar-accent`). **No vibrancy/glass/translucency anywhere** — the former glaze system is gone. ONE design serves mac/linux/web.
 
 ## Cursor Cloud specific instructions
 

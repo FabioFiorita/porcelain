@@ -39,10 +39,9 @@ export function ProjectSwitcher(): React.JSX.Element | null {
                 <button
                   type="button"
                   aria-label="Switch project"
-                  // A translucent-white glass chip (not a graphite fill) so the
-                  // avatar reads as lit porcelain over the tile — matches the
-                  // mockup's brighter rail badge.
-                  className="app-no-drag relative flex size-10 items-center justify-center rounded-md border border-white/10 bg-white/[0.08] text-sm font-semibold text-foreground hover:bg-(--hover-fill) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                  // A secondary-surface chip so the avatar reads as a distinct
+                  // badge on the rail.
+                  className="app-no-drag relative flex size-10 items-center justify-center rounded-md border bg-secondary text-sm font-semibold text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                 >
                   {repo.name.charAt(0).toUpperCase()}
                   <span className="absolute -right-0.5 -bottom-0.5 flex size-3.5 items-center justify-center rounded-full border bg-card text-muted-foreground">

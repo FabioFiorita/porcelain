@@ -33,6 +33,10 @@ function handle(
   switch (event) {
     case 'update-status':
       return shellUtils.updateStatus.invalidate()
+    case 'maximized-changed':
+      // the OS maximized/unmaximized the frameless window (Linux/Windows) — refresh
+      // the query so the custom controls flip the maximize/restore glyph
+      return shellUtils.windowIsMaximized.invalidate()
     case 'feature-view':
       // the agent pushed a review-set change via the CLI — refresh BOTH feature surfaces
       // (the sidebar list AND the inline reading surface) so they don't disagree until
