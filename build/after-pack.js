@@ -28,9 +28,18 @@ const path = require('node:path')
  */
 exports.default = async function afterPack(context) {
   const { electronPlatformName, appOutDir } = context
-  if (electronPlatformName !== 'darwin') return
+  // Flip fuses on mac AND linux — the RunAsNode fuse guards the daemon
+  // fork-bomb on every platform, and @electron/fuses is platform-independent.
+  // Windows isn't a build target; bail on anything else.
+  if (electronPlatformName !== 'darwin' && electronPlatformName !== 'linux') return
 
-  const app = path.join(appOutDir, `${context.packager.appInfo.productFilename}.app`)
+  // The fuse target is the packaged Electron executable: `Foo.app` on mac,
+  // the bare `foo` binary in appOutDir on linux.
+  const { productFilename } = context.packager.appInfo
+  const app =
+    electronPlatformName === 'darwin'
+      ? path.join(appOutDir, `${productFilename}.app`)
+      : path.join(appOutDir, context.packager.executableName || productFilename)
 
   await flipFuses(app, {
     version: FuseVersion.V1,

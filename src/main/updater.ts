@@ -31,6 +31,10 @@ const CHECK_INTERVAL = 4 * 60 * 60 * 1000
 /** Wire auto-update against GitHub releases. No-op in dev (no app-update.yml). */
 export function initUpdater(): void {
   if (!app.isPackaged) return
+  // Linux auto-update only exists for the AppImage target (electron-updater
+  // detects it via $APPIMAGE); a deb install has no auto-update path, so bail
+  // rather than error on every check.
+  if (process.platform === 'linux' && !process.env.APPIMAGE) return
 
   autoUpdater.autoDownload = true
   autoUpdater.autoInstallOnAppQuit = true

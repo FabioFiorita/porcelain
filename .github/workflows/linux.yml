@@ -25,11 +25,10 @@ jobs:
       # missing; fetch it explicitly (idempotent, cached) before anything runs it.
       - run: node node_modules/electron/install.js
       - run: pnpm exec playwright install --with-deps chromium
-      # --ignore-snapshots: visual baselines are per-platform and only `-darwin`
-      # baselines exist today. Drop this flag once `*-linux.png` baselines are
-      # generated on real Linux hardware and committed. Runs under a virtual
+      # `*-linux.png` visual baselines are committed as of this release, so the
+      # e2e suite asserts them here (no --ignore-snapshots). Runs under a virtual
       # display; PLAYWRIGHT_FORCE_ASYNC_LOADER=1 is carried by the test:e2e script.
-      - run: xvfb-run --auto-servernum pnpm test:e2e --ignore-snapshots
+      - run: xvfb-run --auto-servernum pnpm test:e2e
       # Reuse the build test:e2e just produced in out/ (electron-builder packages it)
       # instead of rebuilding via dist:linux — same trick as the release:prebuilt
       # script for mac.

@@ -2,7 +2,8 @@ name: Release
 
 # Tag push (pnpm version X && git push --follow-tags) cuts a full release:
 #   1. Mac: lint → test → build → e2e → signed/notarized GitHub Release (draft)
-#   2. Ubuntu: build porcelain-daemon and npm publish via OIDC trusted publishing
+#   2. Linux: e2e (xvfb) → unsigned AppImage + deb + latest-linux.yml into that draft
+#   3. Ubuntu: build porcelain-daemon and npm publish via OIDC trusted publishing
 #
 # npm Trusted Publisher (npmjs.com → porcelain-daemon): GitHub Actions →
 #   FabioFiorita/porcelain → release.yml  (owner casing must match OIDC claims)
@@ -58,6 +59,37 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+  # Unsigned Linux app (AppImage + deb + latest-linux.yml) → the SAME draft the Mac
+  # job pre-created. needs: [release] so that draft already exists — no draft race;
+  # electron-builder --publish always joins it by tag. Only AppImage auto-updates
+  # (latest-linux.yml); deb is manual-install by decision. Linux is unsigned (no
+  # mac signing secrets here). Mirrors linux.yml's proven sequence: e2e under xvfb
+  # builds out/ once, then release:linux:prebuilt packages that same out/ (no rebuild).
+  release-linux:
+    if: ${{ github.event_name == 'push' }}
+    needs: [release]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Electron 42 has no postinstall, so a fresh install leaves the binary
+      # missing; fetch it explicitly (idempotent, cached) before anything runs it.
+      - run: node node_modules/electron/install.js
+      - run: pnpm exec playwright install --with-deps chromium
+      # e2e is the Linux release gate; it builds out/ (asserts the committed
+      # `*-linux.png` baselines) under a virtual display, and that same out/ is
+      # what release:linux:prebuilt packages below.
+      - run: xvfb-run --auto-servernum pnpm test:e2e
+      - name: Build and publish Linux to GitHub Releases
+        run: pnpm release:linux:prebuilt
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # porcelain-daemon@<version> → npm latest (npx porcelain-daemon@latest serve --tailnet).
   # Ubuntu matches npm's documented OIDC path; no registry-url on setup-node (avoids a

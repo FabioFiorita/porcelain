@@ -28,6 +28,7 @@
     "daemon:dist": "node scripts/build-daemon-dist.mjs",
     "release": "npm run build && electron-builder --mac --publish always",
     "release:prebuilt": "electron-builder --mac --publish always",
+    "release:linux:prebuilt": "electron-builder --linux --publish always",
     "lint:fix": "biome check --write .",
     "test": "vitest run",
     "test:watch": "vitest",

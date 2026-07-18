@@ -8,7 +8,8 @@ description: How to cut a Porcelain release — bump/tag, the GitHub Actions rel
 # Porcelain — releasing
 
 Cutting a release publishes a **signed + notarized** macOS build to GitHub Releases
-for `electron-updater`.
+for `electron-updater`, plus an **unsigned** Linux build (AppImage + deb) into the
+same release.
 
 ## Runbook
 
@@ -88,6 +89,21 @@ for `electron-updater`.
    is by design: electron-updater ignores drafts, so you can verify assets before
    going live. The **npm package publishes immediately** on the tag (not draft);
    provenance is generated automatically under trusted publishing.
+6. **The Linux leg rides the same tag.** `release.yml` also runs a `release-linux`
+   job (`ubuntu-latest`, `needs: [release]`) that gates on the full e2e suite under
+   `xvfb-run` — no `--ignore-snapshots`, since the `*-linux.png` baselines are now
+   committed — then `pnpm release:linux:prebuilt` (= `electron-builder --linux
+   --publish always`) uploads the **AppImage**, the **deb**, and `latest-linux.yml`
+   into the *same* draft the Mac job pre-created (`needs: [release]` guarantees the
+   `gh release create` step already ran, so there's no draft race — electron-builder
+   joins the draft by tag). Linux ships **unsigned by decision** (no Apple/CSC
+   secrets in this job). **Only the AppImage auto-updates** — `electron-updater`
+   consumes `latest-linux.yml` and can replace an AppImage in place, but a **deb has
+   no auto-update path**, so `initUpdater()` (`src/main/updater.ts`) returns early on
+   Linux unless `$APPIMAGE` is set (else every check would error). The per-main-push
+   `linux.yml` CI track is the same sequence minus publishing (it *uploads* the
+   AppImage/deb as artifacts); it's where a Linux e2e/baseline regression surfaces
+   before you ever tag.
 
 ## Signing & notarization
 
@@ -106,7 +122,7 @@ Secrets live on the repo (`gh secret list`), passed to `release.yml` via `env`:
 | `APPLE_TEAM_ID` | `9QH8M89WF9` |
 
 `GH_TOKEN` for the upload is the auto `GITHUB_TOKEN` (`permissions: contents: write`).
-`packageManager` is pinned to `pnpm@10.26.1` so `pnpm/action-setup` resolves it.
+`packageManager` is pinned to `pnpm@11.7.0` so `pnpm/action-setup` resolves it.
 
 **GOTCHA:** never map an *empty* `CSC_LINK` secret into env — a defined-but-empty
 value makes electron-builder attempt signing and die with `<projectDir> not a file`.
@@ -161,16 +177,22 @@ regenerate, do it from the pre-tag state.
 ## Local builds
 
 - `pnpm dist` — typecheck + build + signed DMG/ZIP into `dist/`, no publish.
-- `pnpm release` — same + publish to GitHub releases `fabiofiorita/porcelain`
+- `pnpm dist:linux` — typecheck + build + unsigned AppImage/deb into `dist/`, no
+  publish (the AppImage is the only auto-updating target; deb is manual-install).
+- `pnpm release` — same as `dist` + publish to GitHub releases `fabiofiorita/porcelain`
   (needs `GH_TOKEN`; the CI workflow is the normal path).
 
 ## Electron fuses smoke test (required on every packaged build)
 
 `electron-builder.yml` wires `build/after-pack.js` as an `afterPack` hook that
-flips Electron security fuses on the `.app` before signing. The standard gate
-(`pnpm verify`) does NOT exercise fuses — they only take effect in a packaged
-build. After every `pnpm dist` or release build, verify **all four** before
-publishing:
+flips Electron security fuses before signing. It now runs on **linux too** (the
+`RunAsNode` fuse guards the daemon fork-bomb on every platform), targeting the
+`.app` on mac and the bare Electron binary in `appOutDir` on linux; only genuinely
+mac-only steps stay darwin-gated. The standard gate (`pnpm verify`) does NOT
+exercise fuses — they only take effect in a packaged build. After every `pnpm
+dist`, `pnpm dist:linux`, or release build, verify **all four** before publishing
+(the mac commands below have a linux equivalent — e.g. `ELECTRON_RUN_AS_NODE=1
+./Porcelain-*.AppImage` for check 3):
 
 1. **Terminal PTY spawns.** Open a terminal tab in the installed app and run any
    command. A PTY must spawn and show output. This proves the unpacked
