@@ -85,7 +85,9 @@ jobs:
       # e2e is the Linux release gate; it builds out/ (asserts the committed
       # `*-linux.png` baselines) under a virtual display, and that same out/ is
       # what release:linux:prebuilt packages below.
-      - run: xvfb-run --auto-servernum pnpm test:e2e
+      # Pin the Xvfb screen large enough for the window: the default Xvfb screen is
+      # 1280 wide, which clamps the 1400x900 e2e window and breaks the visual baselines.
+      - run: xvfb-run --auto-servernum -s "-screen 0 1600x1000x24" pnpm test:e2e
       - name: Build and publish Linux to GitHub Releases
         run: pnpm release:linux:prebuilt
         env:
