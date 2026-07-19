@@ -1,3 +1,15 @@
+## [0.35.0](https://github.com/FabioFiorita/porcelain/compare/v0.34.0...v0.35.0) (2026-07-19)
+
+### Features
+
+* one-click push after the commit composer ([f6d931f](https://github.com/FabioFiorita/porcelain/commit/f6d931f2858dedb19a8f8edaf0f96a41b58b0db8))
+* structured loop-evidence checks — native pass/fail chapter in the Review ([c78047b](https://github.com/FabioFiorita/porcelain/commit/c78047be72a575bb583b6881c973dac9aec8e1eb))
+* the Glance — phone companion home on the empty viewer ([23f96f5](https://github.com/FabioFiorita/porcelain/commit/23f96f52c1521689a94537155af361c50e5a537d))
+
+### Bug Fixes
+
+* touch polish — split-view entry points hidden on phones, hover actions touch-visible ([5f8725c](https://github.com/FabioFiorita/porcelain/commit/5f8725cff1b5b33621ada474152983f911de1cf3))
+
 ## [0.34.0](https://github.com/FabioFiorita/porcelain/compare/v0.33.0...v0.34.0) (2026-07-19)
 
 ### Features
