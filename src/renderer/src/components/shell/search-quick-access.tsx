@@ -35,7 +35,7 @@ export function SearchQuickAccess(): React.JSX.Element {
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  className="size-5 shrink-0 opacity-0 group-hover/recent:opacity-100"
+                  className="size-5 shrink-0 opacity-0 group-hover/recent:opacity-100 [@media(hover:none)]:opacity-100"
                   aria-label={`Remove “${query}” from recent searches`}
                   onClick={() => forget(query)}
                 >

@@ -31,6 +31,7 @@ import {
   useReadFilePrefetch,
   useTrashPath,
 } from '@renderer/hooks/use-files'
+import { useIsMobile } from '@renderer/hooks/use-mobile'
 import { dirName } from '@renderer/lib/paths'
 import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
@@ -77,6 +78,8 @@ function EntryContextMenu({
   const { hide, unhide, hideSelected, pin, unpin, selectionSize } = useEntryActions(entry)
   const batchSize = selectionSize + (useSelectionStore.getState().selected.has(entry.path) ? 0 : 1)
   const openTabToSide = useTabsStore((s) => s.openTabToSide)
+  // Split panes are unusable at phone width — hide the "Open to the Side" entry there.
+  const isMobile = useIsMobile()
   const { reveal, exploreFlow, copyPath, copyRelativePath } = usePathActions(entry.path)
   const trash = useTrashPath()
   const duplicate = useDuplicatePath()
@@ -108,7 +111,7 @@ function EntryContextMenu({
             New Folder
           </ContextMenuItem>
           <ContextMenuSeparator />
-          {entry.kind === 'file' && (
+          {entry.kind === 'file' && !isMobile && (
             <ContextMenuItem
               onClick={() =>
                 openTabToSide({

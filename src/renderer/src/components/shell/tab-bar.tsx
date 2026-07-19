@@ -10,6 +10,7 @@ import {
 import { Kbd } from '@renderer/components/ui/kbd'
 import { ScrollArea } from '@renderer/components/ui/scroll-area'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
+import { useIsMobile } from '@renderer/hooks/use-mobile'
 import { kbdLabel } from '@renderer/lib/keyboard'
 import { cn } from '@renderer/lib/utils'
 import { type Tab, useTabsStore } from '@renderer/stores/tabs'
@@ -37,6 +38,9 @@ function TabItem({
   const pinTab = useTabsStore((s) => s.pinTab)
   const togglePinned = useTabsStore((s) => s.togglePinned)
   const openTabToSide = useTabsStore((s) => s.openTabToSide)
+  // Split panes are unusable at phone width — hide the entry point there (the store
+  // stays pane-capable). useIsMobile: the top bar isn't inside the sidebar context.
+  const isMobile = useIsMobile()
   const isFirst = tabs[0]?.id === tab.id
   const isActive = tab.id === activeTabId
   const hasUnpinned = tabs.some((t) => !t.pinned)
@@ -137,13 +141,17 @@ function TabItem({
             Close Unpinned
           </ContextMenuItem>
           <ContextMenuItem onClick={closeAllTabs}>Close All</ContextMenuItem>
-          <ContextMenuSeparator />
-          <ContextMenuItem onClick={() => openTabToSide({ ...tab, preview: false })}>
-            Open to the Side
-            <ContextMenuShortcut>
-              <Kbd>{kbdLabel('mod', 'shift', 'S')}</Kbd>
-            </ContextMenuShortcut>
-          </ContextMenuItem>
+          {!isMobile && (
+            <>
+              <ContextMenuSeparator />
+              <ContextMenuItem onClick={() => openTabToSide({ ...tab, preview: false })}>
+                Open to the Side
+                <ContextMenuShortcut>
+                  <Kbd>{kbdLabel('mod', 'shift', 'S')}</Kbd>
+                </ContextMenuShortcut>
+              </ContextMenuItem>
+            </>
+          )}
         </ContextMenuContent>
       </ContextMenu>
       <TooltipContent side="bottom">{tab.title}</TooltipContent>

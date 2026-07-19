@@ -62,7 +62,7 @@ function CopyButton({ text }: { text: string }): React.JSX.Element {
             size="icon-xs"
             aria-label="Copy"
             onClick={copy}
-            className="absolute top-1 right-1 bg-popover text-muted-foreground opacity-0 transition-opacity focus-visible:opacity-100 group-hover/copy:opacity-100"
+            className="absolute top-1 right-1 bg-popover text-muted-foreground opacity-0 transition-opacity focus-visible:opacity-100 group-hover/copy:opacity-100 [@media(hover:none)]:opacity-100"
           >
             {copied ? <Check /> : <Copy />}
           </Button>

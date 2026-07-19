@@ -68,7 +68,7 @@ function CommentRow({ comment }: { comment: ReviewComment }): React.JSX.Element 
         <Button
           variant="ghost"
           size="icon-sm"
-          className="size-5 opacity-0 group-hover/comment:opacity-100"
+          className="size-5 opacity-0 group-hover/comment:opacity-100 [@media(hover:none)]:opacity-100"
           aria-label={comment.resolved ? 'Reopen comment' : 'Resolve comment'}
           onClick={() => setResolved(comment.id, !comment.resolved)}
         >
@@ -77,7 +77,7 @@ function CommentRow({ comment }: { comment: ReviewComment }): React.JSX.Element 
         <Button
           variant="ghost"
           size="icon-sm"
-          className="size-5 opacity-0 group-hover/comment:opacity-100 hover:text-destructive"
+          className="size-5 opacity-0 group-hover/comment:opacity-100 hover:text-destructive [@media(hover:none)]:opacity-100"
           aria-label="Delete comment"
           onClick={() => remove(comment.id)}
         >

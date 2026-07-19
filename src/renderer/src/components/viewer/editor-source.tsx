@@ -285,7 +285,7 @@ export function EditorSource({
             </Badge>
           ) : dirty ? (
             <Badge variant="outline" className={cn(STATUS_PILL, 'text-muted-foreground')}>
-              Unsaved <Kbd>{kbdLabel('mod', 'S')}</Kbd>
+              Unsaved <Kbd className="[@media(hover:none)]:hidden">{kbdLabel('mod', 'S')}</Kbd>
             </Badge>
           ) : null}
         </ContextMenuTrigger>

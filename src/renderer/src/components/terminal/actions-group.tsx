@@ -54,7 +54,7 @@ function ActionRow({
             <Button
               variant="ghost"
               size="icon-sm"
-              className="size-5 shrink-0 opacity-0 group-hover/action:opacity-100"
+              className="size-5 shrink-0 opacity-0 group-hover/action:opacity-100 [@media(hover:none)]:opacity-100"
               aria-label="Action options"
             >
               <MoreHorizontal />
