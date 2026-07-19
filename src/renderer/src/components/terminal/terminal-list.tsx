@@ -119,9 +119,12 @@ export function TerminalList(): React.JSX.Element {
           )
         })}
         {sessions.length === 0 && (
-          <p className="px-1 py-2 text-xs-minus text-muted-foreground/60">
-            No terminals. Add one with +, or run an action from Quick access.
-          </p>
+          <div className="px-3 py-10 text-center">
+            <p className="text-xs font-medium text-foreground">No terminals</p>
+            <p className="mx-auto mt-1 max-w-[15rem] text-xs text-muted-foreground">
+              Add one with +, or run an action from Quick access.
+            </p>
+          </div>
         )}
       </div>
       {renaming && (

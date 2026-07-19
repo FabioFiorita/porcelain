@@ -37,9 +37,12 @@ export function ChatList(): React.JSX.Element {
       )}
       <div className="flex max-h-80 flex-col gap-1.5 overflow-y-auto">
         {recent.length === 0 && error == null && (
-          <p className="px-1 text-xs-minus text-muted-foreground/60">
-            No messages yet. Agents post via the porcelain CLI; you can type below.
-          </p>
+          <div className="px-3 py-8 text-center">
+            <p className="text-xs font-medium text-foreground">No messages yet</p>
+            <p className="mx-auto mt-1 max-w-[15rem] text-xs text-muted-foreground">
+              Agents post via the porcelain CLI; you can type below.
+            </p>
+          </div>
         )}
         {recent.map((m) => (
           <ChatMessageRow key={m.id} message={m} compact />

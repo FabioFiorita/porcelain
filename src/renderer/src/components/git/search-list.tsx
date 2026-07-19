@@ -249,13 +249,23 @@ export function SearchList(): React.JSX.Element {
       {error ? (
         <p className="px-3 py-2 text-xs break-words text-destructive">{error.message}</p>
       ) : query.trim() === '' ? (
-        <p className="px-3 py-2 text-sm-minus text-muted-foreground">
-          Search the repository for text or a regular expression.
-        </p>
+        <div className="px-3 py-10 text-center">
+          <p className="text-xs font-medium text-foreground">Search this repository</p>
+          <p className="mx-auto mt-1 max-w-[15rem] text-xs text-muted-foreground">
+            Search the repository for text or a regular expression.
+          </p>
+        </div>
       ) : !result || result.files.length === 0 ? (
-        <p className="px-3 py-2 text-sm-minus text-muted-foreground">
-          {searching ? 'Searching…' : 'No results'}
-        </p>
+        searching ? (
+          <p className="px-3 py-2 text-sm-minus text-muted-foreground">Searching…</p>
+        ) : (
+          <div className="px-3 py-10 text-center">
+            <p className="text-xs font-medium text-foreground">No results</p>
+            <p className="mx-auto mt-1 max-w-[15rem] text-xs text-muted-foreground">
+              No matches for this search — try different terms or filters.
+            </p>
+          </div>
+        )
       ) : (
         <div className="flex flex-col">
           <p className="px-3 pb-1 text-xs text-muted-foreground">

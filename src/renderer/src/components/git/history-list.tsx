@@ -12,7 +12,14 @@ export function HistoryList(): React.JSX.Element {
   }
 
   if (commits.length === 0) {
-    return <p className="p-3 text-sm text-muted-foreground">No commits yet.</p>
+    return (
+      <div className="px-3 py-10 text-center">
+        <p className="text-xs font-medium text-foreground">No commits yet</p>
+        <p className="mx-auto mt-1 max-w-[15rem] text-xs text-muted-foreground">
+          Commits on this branch will show up here as you work.
+        </p>
+      </div>
+    )
   }
 
   return (

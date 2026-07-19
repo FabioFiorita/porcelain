@@ -384,9 +384,12 @@ export function AgentList(): React.JSX.Element {
       </div>
       <div className="flex flex-col gap-0.5 px-2">
         {threads.length === 0 ? (
-          <p className="px-1 py-6 text-center text-xs-minus text-muted-foreground/60">
-            No threads yet. Start one with +, or open a recent CLI session.
-          </p>
+          <div className="px-3 py-10 text-center">
+            <p className="text-xs font-medium text-foreground">No threads yet</p>
+            <p className="mx-auto mt-1 max-w-[15rem] text-xs text-muted-foreground">
+              Start one with +, or open a recent CLI session.
+            </p>
+          </div>
         ) : (
           threads.map((thread) => <ThreadRow key={thread.id} thread={thread} />)
         )}

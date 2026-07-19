@@ -50,11 +50,16 @@ export function ChatView(): React.JSX.Element {
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
         {messages.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Empty. Agents post with the porcelain CLI (<span className="font-mono">chat post</span>
-            ), or type below. For cross-machine collab, pick one host as the hub (see the agent-chat
-            skill).
-          </p>
+          <div className="flex h-full items-center justify-center p-6">
+            <div className="max-w-sm text-center">
+              <p className="text-sm font-medium text-foreground">No messages yet</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Agents post with the porcelain CLI (<span className="font-mono">chat post</span>),
+                or type below. For cross-machine collab, pick one host as the hub (see the
+                agent-chat skill).
+              </p>
+            </div>
+          </div>
         ) : (
           <div className="mx-auto flex max-w-2xl flex-col gap-2">
             {messages.map((m) => (

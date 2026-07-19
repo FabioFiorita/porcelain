@@ -374,9 +374,12 @@ export function ChangesList(): React.JSX.Element {
         <ChangesScopeToggle />
       </div>
       {total === 0 ? (
-        <p className="px-3 py-2 text-sm-minus text-muted-foreground">
-          No changes to review — your working tree is clean.
-        </p>
+        <div className="px-3 py-10 text-center">
+          <p className="text-xs font-medium text-foreground">No changes to review</p>
+          <p className="mx-auto mt-1 max-w-[15rem] text-xs text-muted-foreground">
+            Your working tree is clean.
+          </p>
+        </div>
       ) : (
         groups.map((group) => (
           <div key={group.layer}>

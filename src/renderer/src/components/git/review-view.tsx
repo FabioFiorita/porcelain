@@ -32,9 +32,18 @@ export function ReviewView({ path }: { path: string }): React.JSX.Element {
   const fileCount = reading.groups.reduce((n, g) => n + g.files.length, 0)
   if (fileCount === 0) {
     return (
-      <p className="p-4 text-sm text-muted-foreground">
-        {scope.type === 'commit' ? 'Empty commit' : 'No changes to review'}
-      </p>
+      <div className="flex h-full items-center justify-center p-6">
+        <div className="max-w-sm text-center">
+          <p className="text-sm font-medium text-foreground">
+            {scope.type === 'commit' ? 'Empty commit' : 'No changes to review'}
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {scope.type === 'commit'
+              ? 'This commit doesn’t touch any files.'
+              : 'Nothing to walk through in this range yet.'}
+          </p>
+        </div>
+      </div>
     )
   }
 

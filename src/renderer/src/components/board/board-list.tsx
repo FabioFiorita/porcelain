@@ -67,7 +67,12 @@ export function BoardList(): React.JSX.Element {
               </div>
               <div className="flex flex-col gap-1.5 px-2">
                 {inColumn.map((card) => (
-                  <CardItem key={card.id} card={card} onEdit={(c) => openDraft(draftFromCard(c))} />
+                  <CardItem
+                    key={card.id}
+                    card={card}
+                    compact
+                    onEdit={(c) => openDraft(draftFromCard(c))}
+                  />
                 ))}
               </div>
             </div>
