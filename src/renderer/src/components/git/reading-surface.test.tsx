@@ -137,6 +137,31 @@ describe('buildRows (Review document)', () => {
     expect(rows.some((r) => r.type === 'sectionHeader')).toBe(false)
   })
 
+  it('emits an embed row after the diagram and before the file rows for a section with html', () => {
+    const withEmbed: FeatureReading = {
+      name: 'Embedded',
+      sections: [
+        {
+          title: 'Summary',
+          prose: 'the numbers',
+          diagram: '<svg />',
+          html: '<table><tr><td>ok</td></tr></table>',
+          htmlHeight: 320,
+          files: [{ path: 'app/page.tsx', source: 'changed', hunks: [] }],
+        },
+      ],
+      groups: [],
+      evidence: null,
+    }
+    const rows = buildRows(withEmbed, null)
+    expect(rows.map((r) => r.type)).toEqual(['sectionHeader', 'prose', 'diagram', 'embed', 'file'])
+    expect(rows.find((r) => r.type === 'embed')).toEqual({
+      type: 'embed',
+      html: '<table><tr><td>ok</td></tr></table>',
+      height: 320,
+    })
+  })
+
   it('skips empty prose and absent diagram/thesis/evidence', () => {
     const bare: FeatureReading = {
       name: 'Bare',

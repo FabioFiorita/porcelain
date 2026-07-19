@@ -291,14 +291,30 @@ describe('buildFeatureReading', () => {
     })
     const reading = buildFeatureReading({
       view: thesisView,
-      sections: [{ title: 'Entry', prose: 'starts here', diagram: '<svg />', anchors: [] }],
+      sections: [
+        {
+          title: 'Entry',
+          prose: 'starts here',
+          diagram: '<svg />',
+          html: '<table><tr><td>ok</td></tr></table>',
+          htmlHeight: 320,
+          anchors: [],
+        },
+      ],
       sources,
       diffs,
       evidence: { title: 'Loop closed', updatedAt: '2026-07-18T00:00:00Z' },
     })
     expect(reading.thesis).toBe('The why.')
     expect(reading.sections).toEqual([
-      { title: 'Entry', prose: 'starts here', diagram: '<svg />', files: [] },
+      {
+        title: 'Entry',
+        prose: 'starts here',
+        diagram: '<svg />',
+        html: '<table><tr><td>ok</td></tr></table>',
+        htmlHeight: 320,
+        files: [],
+      },
     ])
     expect(reading.evidence).toEqual({ title: 'Loop closed', updatedAt: '2026-07-18T00:00:00Z' })
   })

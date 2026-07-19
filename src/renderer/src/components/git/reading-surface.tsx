@@ -68,6 +68,7 @@ export type ReadingRow =
   | { type: 'sectionHeader'; index: number; title: string }
   | { type: 'prose'; md: string }
   | { type: 'diagram'; svg: string }
+  | { type: 'embed'; html: string; height?: number }
   | { type: 'evidenceHeader'; title: string }
   | { type: 'evidenceBody' }
   | { type: 'layer'; label: string }
@@ -144,6 +145,7 @@ export function buildRows(
     rows.push({ type: 'sectionHeader', index, title: section.title })
     if (section.prose.trim()) rows.push({ type: 'prose', md: section.prose })
     if (section.diagram) rows.push({ type: 'diagram', svg: section.diagram })
+    if (section.html) rows.push({ type: 'embed', html: section.html, height: section.htmlHeight })
     for (const file of section.files) pushFileRows(rows, file, highlighter, theme)
   })
   if (reading.sections.length > 0 && reading.groups.length > 0) {
@@ -552,6 +554,21 @@ function DiagramRow({ svg }: { svg: string }): React.JSX.Element {
   )
 }
 
+// The section's self-contained HTML embed (styled tables, metric summaries, small
+// reports) — same fully-sandboxed `sandbox=""` + srcdoc path as evidence/diagrams.
+// The sandboxed iframe is cross-origin and can't be measured from the parent, so the
+// agent's `htmlHeight` hint (schema-capped 160–1600px, default 448) sizes the well and
+// taller content scrolls inside the iframe.
+function EmbedRow({ row }: { row: { html: string; height?: number } }): React.JSX.Element {
+  return (
+    <div className="sticky left-0 max-w-[var(--vrows-vw)] px-3 py-2">
+      <div className="overflow-hidden rounded-md border" style={{ height: row.height ?? 448 }}>
+        <HtmlView html={row.html} title="Section embed" />
+      </div>
+    </div>
+  )
+}
+
 function ReadingRowView({
   row,
   onComment,
@@ -577,6 +594,8 @@ function ReadingRowView({
       )
     case 'diagram':
       return <DiagramRow svg={row.svg} />
+    case 'embed':
+      return <EmbedRow row={row} />
     case 'evidenceHeader':
       return <EvidenceHeaderRow title={row.title} />
     case 'evidenceBody':

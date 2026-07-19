@@ -335,12 +335,13 @@ assumed — this skill is the codebase-specific layer beneath them.
   The review-set channel now carries a `thesis` and `sections[]` — each section a markdown
   `prose` string, an optional inline-SVG `diagram`, and line-range `anchors`. Two of these are
   attacker-reachable (an external process owns `review-sets.json`), so the safeguards that make
-  them acceptable, all of which must hold: (1) a section's `diagram` is executable SVG markup,
-  so it renders ONLY inside the existing `<iframe sandbox="" srcdoc>` path — the reading surface
-  wraps the SVG in a minimal document (`svgDocument`) and hands it to `HtmlView`
-  (`html-view.tsx`), the SAME sandbox as the evidence chapter body — the EMPTY sandbox
-  attribute: no `allow-scripts`, no `allow-same-origin`, no `allow-popups`, ever. Never
-  `dangerouslySetInnerHTML`, never add an `allow-*` token or swap to a `src` URL. (2)
+  them acceptable, all of which must hold: (1) a section's `diagram` (executable SVG markup) and
+  its `html` (a self-contained HTML embed) are BOTH ACTIVE content, so each renders ONLY inside
+  the existing `<iframe sandbox="" srcdoc>` path — the reading surface wraps the SVG in a minimal
+  document (`svgDocument`) and hands the `html` embed straight to `HtmlView` (`html-view.tsx`),
+  the SAME sandbox as the evidence chapter body — the EMPTY sandbox attribute: no `allow-scripts`,
+  no `allow-same-origin`, no `allow-popups`, ever. Never `dangerouslySetInnerHTML`, never add an
+  `allow-*` token or swap to a `src` URL. (2)
   `prose`/`thesis` render through **react-markdown with default escaping — NO `rehype-raw`**
   (`MarkdownBlock` in `reading-surface.tsx`), so a `<script>`/`<img>` in prose is shown as
   text, never parsed as HTML. (3) The parent CSP (`default-src 'self'; img-src 'self' data:` in
@@ -362,8 +363,8 @@ assumed — this skill is the codebase-specific layer beneath them.
   leaves the machine), so it adds no exfil channel — but never add a REMOTE host to `font-src`
   (a remote font load IS a beacon). Don't widen `img-src`/`default-src`, and keep the CSP
   rewrite connect-src-only. (4) Anchor `path`s are **repo-contained on read** (see the
-  review-set-paths invariant above), and the caps (`max` on `sections`/`prose`/`diagram`/
-  `anchors`, `reviewSetSchema`) are enforced by the whole-file zod parse on every read — a
+  review-set-paths invariant above), and the caps (`max` on `sections`/`prose`/`diagram`/`html`/
+  `htmlHeight`/`anchors`, `reviewSetSchema`) are enforced by the whole-file zod parse on every read — a
   section that fails validation is DROPPED, never thrown, so one bad agent write can't break the
   Review. (5) The app's ONLY write to `review-sets.json` remains `clearReviewSet`
   (user-initiated) — thesis/sections are never app-authored. *Verify:* the diagram + evidence

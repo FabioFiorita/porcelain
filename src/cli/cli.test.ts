@@ -129,6 +129,8 @@ describe('runCli — review + feature + comments + reviewed', () => {
       {
         title: 'Entry',
         prose: 'starts **here**',
+        html: '<table><tr><td>ok</td></tr></table>',
+        htmlHeight: 320,
         anchors: [{ path: 'a.ts', startLine: 1, endLine: 9 }],
       },
     ]
@@ -176,6 +178,43 @@ describe('runCli — review + feature + comments + reviewed', () => {
         JSON.stringify([{ prose: 'no title' }]),
       ]),
     ).rejects.toThrow('sections[0].title must be a non-empty string')
+  })
+  it('review set rejects an over-cap or non-string section html', async () => {
+    await expect(
+      runCli([
+        'review',
+        'set',
+        ...repo,
+        '--files',
+        JSON.stringify([{ path: 'a.ts' }]),
+        '--sections',
+        JSON.stringify([{ title: 'Entry', prose: 'x', html: 42 }]),
+      ]),
+    ).rejects.toThrow('sections[0].html must be a string')
+    await expect(
+      runCli([
+        'review',
+        'set',
+        ...repo,
+        '--files',
+        JSON.stringify([{ path: 'a.ts' }]),
+        '--sections',
+        JSON.stringify([{ title: 'Entry', prose: 'x', html: 'a'.repeat(524_289) }]),
+      ]),
+    ).rejects.toThrow('sections[0].html must be at most 524288 characters')
+  })
+  it('review set rejects an out-of-range section htmlHeight', async () => {
+    await expect(
+      runCli([
+        'review',
+        'set',
+        ...repo,
+        '--files',
+        JSON.stringify([{ path: 'a.ts' }]),
+        '--sections',
+        JSON.stringify([{ title: 'Entry', prose: 'x', html: '<p>ok</p>', htmlHeight: 40 }]),
+      ]),
+    ).rejects.toThrow('sections[0].htmlHeight must be an integer between 160 and 1600')
   })
   it('review add keeps the stored thesis and sections (files-only merge)', async () => {
     await runCli([

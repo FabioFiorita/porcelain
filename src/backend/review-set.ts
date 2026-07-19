@@ -45,6 +45,8 @@ export const reviewSectionSchema = z.object({
   title: z.string().min(1).max(200),
   prose: z.string().max(32_768),
   diagram: z.string().max(262_144).optional(),
+  html: z.string().max(524_288).optional(),
+  htmlHeight: z.number().int().min(160).max(1600).optional(),
   anchors: z.array(reviewSectionAnchorSchema).max(40).default([]),
 })
 
@@ -66,6 +68,16 @@ export interface ReviewSection {
    * `<iframe sandbox="" srcdoc>` path, never injected into the app DOM.
    */
   diagram?: string
+  /**
+   * A self-contained HTML fragment/document, agent-authored ACTIVE content —
+   * rendered ONLY via the sandboxed `<iframe sandbox="" srcdoc>` path, never
+   * injected into the app DOM. For content richer than markdown (styled tables,
+   * metric summaries, small reports; embed images as data URIs — external loads
+   * are blocked by the CSP).
+   */
+  html?: string
+  /** Pixel height hint for the embed well (default 448 when omitted; capped 160–1600). */
+  htmlHeight?: number
   /** The code blocks this section walks through, in document order. */
   anchors: ReviewSectionAnchor[]
 }

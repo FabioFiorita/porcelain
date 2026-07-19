@@ -254,6 +254,10 @@ export interface ReviewSectionReading {
   prose: string
   /** Inline SVG — rendered ONLY in the sandboxed `<iframe sandbox="" srcdoc>` path. */
   diagram?: string
+  /** Self-contained HTML embed — rendered ONLY in the sandboxed `<iframe sandbox="" srcdoc>` path. */
+  html?: string
+  /** Pixel height hint for the embed well (default 448 when omitted). */
+  htmlHeight?: number
   files: ReadingFile[]
 }
 
@@ -382,6 +386,8 @@ export function buildFeatureReading(params: {
     title: section.title,
     prose: section.prose,
     diagram: section.diagram,
+    html: section.html,
+    htmlHeight: section.htmlHeight,
     files: section.anchors.map(readAnchor),
   }))
 

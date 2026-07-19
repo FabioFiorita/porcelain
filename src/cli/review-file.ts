@@ -27,6 +27,8 @@ export interface ReviewSection {
   title: string
   prose: string
   diagram?: string
+  html?: string
+  htmlHeight?: number
   anchors: ReviewSectionAnchor[]
 }
 
@@ -44,6 +46,9 @@ const MAX_SECTIONS = 30
 const MAX_TITLE_CHARS = 200
 const MAX_PROSE_CHARS = 32_768
 const MAX_DIAGRAM_CHARS = 262_144
+const MAX_HTML_CHARS = 524_288
+const MIN_HTML_HEIGHT = 160
+const MAX_HTML_HEIGHT = 1600
 const MAX_ANCHORS = 40
 
 type ReviewSets = Record<string, ReviewSet>
@@ -112,6 +117,29 @@ export function toReviewSections(value: unknown): ReviewSection[] {
       }
       section.diagram = item.diagram
     }
+    if (item.html !== undefined) {
+      if (typeof item.html !== 'string') {
+        throw new Error(`sections[${index}].html must be a string (self-contained HTML)`)
+      }
+      if (item.html.length > MAX_HTML_CHARS) {
+        throw new Error(`sections[${index}].html must be at most ${MAX_HTML_CHARS} characters`)
+      }
+      section.html = item.html
+    }
+    if (item.htmlHeight !== undefined) {
+      const height = item.htmlHeight
+      if (
+        typeof height !== 'number' ||
+        !Number.isInteger(height) ||
+        height < MIN_HTML_HEIGHT ||
+        height > MAX_HTML_HEIGHT
+      ) {
+        throw new Error(
+          `sections[${index}].htmlHeight must be an integer between ${MIN_HTML_HEIGHT} and ${MAX_HTML_HEIGHT}`,
+        )
+      }
+      section.htmlHeight = height
+    }
     return section
   })
 }
@@ -168,6 +196,15 @@ function parseReviewSections(value: unknown): ReviewSection[] {
     }
     const section: ReviewSection = { title: item.title, prose: item.prose, anchors: [] }
     if (typeof item.diagram === 'string') section.diagram = item.diagram
+    if (typeof item.html === 'string') section.html = item.html
+    if (
+      typeof item.htmlHeight === 'number' &&
+      Number.isInteger(item.htmlHeight) &&
+      item.htmlHeight >= MIN_HTML_HEIGHT &&
+      item.htmlHeight <= MAX_HTML_HEIGHT
+    ) {
+      section.htmlHeight = item.htmlHeight
+    }
     if (Array.isArray(item.anchors)) {
       for (const anchor of item.anchors) {
         if (!isRecord(anchor) || typeof anchor.path !== 'string') continue

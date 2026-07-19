@@ -49,6 +49,8 @@ Files you list but don't anchor in any section still render, grouped in flow ord
   "title": "string",                    // section heading
   "prose": "string",                    // markdown; the explanation of this step
   "diagram": "string",                  // OPTIONAL inline SVG markup (see below)
+  "html": "string",                     // OPTIONAL self-contained HTML embed (see below)
+  "htmlHeight": 448,                    // OPTIONAL well height in px (160–1600, default 448)
   "anchors": [                          // the code this section walks through, in order
     { "path": "src/routes/callouts.ts", "startLine": 12, "endLine": 40 },
     { "path": "src/services/callout-service.ts" }
@@ -71,6 +73,10 @@ Order sections and their anchors so the Review reads as one story from entry poi
 A section's optional `diagram` is **self-contained inline SVG markup**. Porcelain displays it in a fully sandboxed iframe (no scripts, no external loads), so it must be finished SVG — Porcelain does not run mermaid, a layout engine, or any renderer for you.
 
 If you'd normally reach for a mermaid sequence/state/ER diagram to illuminate the flow, **render the mermaid to SVG yourself** and pass that SVG string as `diagram`. Keep it self-contained: inline any styles, embed nothing remote (no external fonts, images, or stylesheets — they're blocked and would just render blank). Only add a diagram where it genuinely clarifies the step (a request path across the seam, a state machine); skip it otherwise.
+
+### HTML embeds — richer than markdown
+
+A section may also carry a self-contained `html` embed for content richer than markdown prose — a styled comparison table, a metric summary, a small before/after report. Porcelain renders it in the same fully sandboxed iframe as diagrams: scripts don't execute and external loads are blocked, so inline all styles and embed any images as data URIs. `htmlHeight` (px, 160–1600, default 448) sizes the well and taller content scrolls inside it; the whole embed is capped at 512 KB. Reach for it only when a table or laid-out summary carries the step better than prose would.
 
 ### Example
 
