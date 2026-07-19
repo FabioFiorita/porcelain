@@ -1,3 +1,15 @@
+## [0.33.0](https://github.com/FabioFiorita/porcelain/compare/v0.32.0...v0.33.0) (2026-07-19)
+
+### Features
+
+* autonomous marketing-screenshot pipeline (pnpm shots) — seeded demo repo, Retina captures ([baf21b5](https://github.com/FabioFiorita/porcelain/commit/baf21b57de32a22b5c6b61a5b52f46efb9ca6e8b))
+* board sidebar outline + empty-state confidence pass ([65a97aa](https://github.com/FabioFiorita/porcelain/commit/65a97aae12d97c39cf0398fca111fbb8dc0beb3e))
+* composition fixes — board fills canvas, review diagram sizes to SVG, workspace empty state ([5c02d45](https://github.com/FabioFiorita/porcelain/commit/5c02d451ffe934790ea03c098d33a929abefffe9))
+* repo-identity anchor in the title bar — shared project-switcher menu, second trigger ([2e659f3](https://github.com/FabioFiorita/porcelain/commit/2e659f3898ef92ee04f6facbcf1e3e6cc405e218))
+* seat the title bar with a hairline border (design overhaul C2) ([26eae1f](https://github.com/FabioFiorita/porcelain/commit/26eae1fe84251dc56362b62b67b7a4d9b6339127))
+* shots pipeline covers all 13 marketing surfaces; publish redesigned-UI images site-wide ([fe21028](https://github.com/FabioFiorita/porcelain/commit/fe2102899480a771bc62f064d84cb62418c0f264))
+* typography system — Geist sans for UI chrome and prose, mono reserved for codelike content ([d57217a](https://github.com/FabioFiorita/porcelain/commit/d57217a8d1706848d8a76fa53e0ba1c1708fb4ad))
+
 ## [0.32.0](https://github.com/FabioFiorita/porcelain/compare/v0.31.1...v0.32.0) (2026-07-19)
 
 ### Features
