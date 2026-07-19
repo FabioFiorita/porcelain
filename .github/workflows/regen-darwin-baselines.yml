@@ -1,0 +1,27 @@
+name: Regenerate darwin e2e baselines
+
+# Manual recovery/refresh path: after a deliberate UI change authored on the Linux
+# dev host (which can regenerate -browser-linux and -linux baselines but has no
+# macOS), this regenerates the *-darwin.png visual baselines on the SAME macos-14
+# runner release.yml asserts them on, and uploads them as an artifact to commit.
+# Without this, the first tag after a UI change dies on the stale darwin snapshots
+# and burns a version number (failed tags are never rewritten).
+on: workflow_dispatch
+
+jobs:
+  regen:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:e2e:native:update
+      - uses: actions/upload-artifact@v4
+        with:
+          name: darwin-baselines
+          path: e2e/**/*-darwin.png
+          if-no-files-found: error
