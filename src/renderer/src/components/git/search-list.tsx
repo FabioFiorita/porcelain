@@ -94,9 +94,12 @@ function FileGroup({
           >
             <ChevronRight className="size-3 shrink-0 text-muted-foreground transition-transform" />
             <FileTypeIcon name={name} className="size-3.5 shrink-0" />
-            <span className="shrink-0 truncate text-sm-minus">{name}</span>
+            <span className="shrink-0 truncate font-mono text-sm-minus">{name}</span>
             {dir && (
-              <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground" dir="rtl">
+              <span
+                className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground"
+                dir="rtl"
+              >
                 {dir}
               </span>
             )}

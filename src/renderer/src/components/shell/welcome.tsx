@@ -92,7 +92,10 @@ export function Welcome(): React.JSX.Element {
                 <Folder className="size-4 shrink-0 text-muted-foreground" />
                 <span className="flex min-w-0 flex-col items-start">
                   <span className="truncate text-sm">{repo.name}</span>
-                  <span className="max-w-full truncate text-xs text-muted-foreground" dir="rtl">
+                  <span
+                    className="max-w-full truncate font-mono text-xs text-muted-foreground"
+                    dir="rtl"
+                  >
                     {repo.path}
                   </span>
                 </span>

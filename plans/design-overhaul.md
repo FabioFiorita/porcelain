@@ -31,11 +31,16 @@ order:
 
 ## Phases
 
-- **A — Typography system.** Add Geist (sans, same family as the site) as the
-  UI + prose face; mono stays ONLY for: code/diffs, terminal, file paths &
-  names, +/− counts, SHAs/branches, kbd shortcuts, and codelike chips. Blast
-  radius: global font setup + a sweep of hardcoded mono; linux visual baselines
-  regenerate; darwin baselines via the regen workflow before the next release.
+- **A — Typography system. SHIPPED 2026-07-19.** Geist (sans) is the UI + prose
+  face; mono ONLY for: code/diffs, terminal, file paths & names, +/− counts,
+  SHAs/branches, kbd shortcuts, codelike chips, file/diff tab titles. Taste
+  calls decided: model chips sans (friendly catalog labels), commit-message
+  textarea sans, terminal session names sans. Traps: `ui/kbd.tsx` is vendored
+  shadcn with a local `font-sans`→`font-mono` edit — re-applying the preset
+  reverts it (re-graft list); `VirtualRows` hardcodes `font-mono`, which is what
+  keeps all reading surfaces mono under a sans body. Only one linux baseline
+  shifted >2% (`settings-general`); **darwin baselines + a marketing-image
+  refresh still need the macos-14 regen workflow before the next release.**
 - **B — Composition.** Board columns fill/center the canvas; Review diagram
   card sizes to content; top bar slims/integrates; right-panel empty columns
   get real empty states.

@@ -280,7 +280,7 @@ function TreeNodeImpl({
             onDoubleClick={() => pinTab(tabId('file', entry.path))}
           >
             <FileTypeIcon name={entry.name} />
-            <span className="truncate">{entry.name}</span>
+            <span className="truncate font-mono">{entry.name}</span>
           </SidebarMenuButton>
         </EntryContextMenu>
       </SidebarMenuItem>
@@ -391,7 +391,7 @@ function DirNode({
               >
                 <ChevronRight className="transition-transform" />
                 <FolderIcon open={expanded} />
-                <span className="truncate">{entry.name}</span>
+                <span className="truncate font-mono">{entry.name}</span>
               </SidebarMenuButton>
             }
           />

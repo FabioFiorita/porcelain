@@ -34,7 +34,8 @@ export function HistoryList(): React.JSX.Element {
               <div className="flex min-w-0 flex-col items-start">
                 <span className="max-w-full truncate">{commit.subject}</span>
                 <span className="max-w-full truncate text-xs text-muted-foreground">
-                  {commit.author} · {commit.date} · {commit.hash.slice(0, 7)}
+                  {commit.author} · {commit.date} ·{' '}
+                  <span className="font-mono">{commit.hash.slice(0, 7)}</span>
                 </span>
               </div>
             </SidebarMenuButton>

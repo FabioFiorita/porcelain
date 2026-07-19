@@ -134,7 +134,7 @@ function RepoPicker({ onClose }: { onClose: () => void }): React.JSX.Element {
                   ) : (
                     <Folder className="size-4 shrink-0 text-muted-foreground" />
                   )}
-                  <span className="truncate">{entry.name}</span>
+                  <span className="truncate font-mono">{entry.name}</span>
                   {entry.isRepo && (
                     <Badge
                       variant="outline"

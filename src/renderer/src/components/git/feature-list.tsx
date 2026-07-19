@@ -98,7 +98,7 @@ function OutlineFileRowImpl({
             )}
             <span
               className={cn(
-                'truncate text-sm-minus',
+                'truncate font-mono text-sm-minus',
                 (file.source !== 'changed' || isReviewed) && 'text-muted-foreground',
                 isReviewed && 'line-through',
               )}
@@ -115,7 +115,7 @@ function OutlineFileRowImpl({
             )}
           </span>
           {dir && (
-            <span className="max-w-full truncate text-xs text-muted-foreground" dir="rtl">
+            <span className="max-w-full truncate font-mono text-xs text-muted-foreground" dir="rtl">
               {dir}
             </span>
           )}

@@ -52,8 +52,8 @@ export function WorktreeSwitcher(): React.JSX.Element | null {
           {worktrees.map((worktree) => (
             <DropdownMenuItem key={worktree.path} onClick={() => switchTo(worktree.path)}>
               <div className="flex min-w-0 flex-col">
-                <span className="truncate">{worktree.branch}</span>
-                <span className="truncate text-xs text-muted-foreground" dir="rtl">
+                <span className="truncate font-mono">{worktree.branch}</span>
+                <span className="truncate font-mono text-xs text-muted-foreground" dir="rtl">
                   {worktree.path}
                 </span>
               </div>

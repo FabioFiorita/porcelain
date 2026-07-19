@@ -540,7 +540,7 @@ function ReadingRowView({
       return <EvidenceBodyRow />
     case 'layer':
       return (
-        <p className="flex h-5 items-center bg-muted/30 px-2 text-2xs font-medium uppercase tracking-wider text-muted-foreground/80">
+        <p className="flex h-5 items-center bg-muted/30 px-2 font-sans text-2xs font-medium uppercase tracking-wider text-muted-foreground/80">
           {row.label}
         </p>
       )

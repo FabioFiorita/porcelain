@@ -60,6 +60,7 @@
     "@biomejs/biome": "^2.5.0",
     "@electron-toolkit/tsconfig": "^2.0.0",
     "@electron/fuses": "^2.1.2",
+    "@fontsource-variable/geist": "^5.2.9",
     "@fontsource-variable/geist-mono": "^5.2.8",
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "@playwright/test": "^1.61.0",

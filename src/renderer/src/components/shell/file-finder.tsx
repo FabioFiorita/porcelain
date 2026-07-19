@@ -178,9 +178,12 @@ export function FileFinder(): React.JSX.Element {
                     ) : (
                       <FileTypeIcon name={name} className="shrink-0" />
                     )}
-                    <span className="shrink-0 text-sm-minus">{name}</span>
+                    <span className="shrink-0 font-mono text-sm-minus">{name}</span>
                     {dir && (
-                      <span className="min-w-0 truncate text-xs text-muted-foreground" dir="rtl">
+                      <span
+                        className="min-w-0 truncate font-mono text-xs text-muted-foreground"
+                        dir="rtl"
+                      >
                         {dir}
                       </span>
                     )}

@@ -94,7 +94,7 @@ export function ContentSearch(): React.JSX.Element {
                   value={`${match.path}:${match.line}`}
                   onSelect={() => select(match.path, match.line)}
                 >
-                  <span className="shrink-0 text-xs text-muted-foreground">
+                  <span className="shrink-0 font-mono text-xs text-muted-foreground">
                     {match.path}:{match.line}
                   </span>
                   <span className="min-w-0 truncate font-mono text-xs">{match.text.trim()}</span>

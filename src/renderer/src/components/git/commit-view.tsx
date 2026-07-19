@@ -61,7 +61,7 @@ function CommitFileRow({
             type="button"
             onClick={() => onSelect(file.path)}
             className={cn(
-              'block w-full truncate px-3 py-1 text-left text-xs',
+              'block w-full truncate px-3 py-1 text-left font-mono text-xs',
               selected
                 ? 'bg-sidebar-accent text-foreground'
                 : 'text-muted-foreground hover:bg-sidebar-accent/50',

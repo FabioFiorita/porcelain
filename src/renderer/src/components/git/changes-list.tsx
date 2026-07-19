@@ -167,7 +167,7 @@ function FileRowImpl({
                 )}
                 <span
                   className={cn(
-                    'truncate text-sm-minus',
+                    'truncate font-mono text-sm-minus',
                     isReviewed && 'text-muted-foreground line-through',
                   )}
                 >
@@ -184,11 +184,14 @@ function FileRowImpl({
                   </span>
                 )}
               </span>
-              <span className="max-w-full truncate text-xs text-muted-foreground" dir="rtl">
+              <span
+                className="max-w-full truncate font-mono text-xs text-muted-foreground"
+                dir="rtl"
+              >
                 {dirName(file.path)}
               </span>
               {connects && (
-                <span className="max-w-full truncate text-xs text-muted-foreground/70">
+                <span className="max-w-full truncate font-mono text-xs text-muted-foreground/70">
                   → {connects}
                 </span>
               )}

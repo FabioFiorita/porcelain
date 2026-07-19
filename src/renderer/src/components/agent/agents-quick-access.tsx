@@ -273,7 +273,9 @@ function FilesGroup({ threadId }: { threadId: string }): React.JSX.Element | nul
                   file.action === 'read' ? 'text-muted-foreground' : 'text-foreground',
                 )}
               />
-              <span className="min-w-0 flex-1 truncate text-xs text-foreground">{name}</span>
+              <span className="min-w-0 flex-1 truncate font-mono text-xs text-foreground">
+                {name}
+              </span>
               <span className="shrink-0 text-2xs text-muted-foreground capitalize">
                 {file.action}
               </span>
