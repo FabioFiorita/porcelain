@@ -1,6 +1,12 @@
 import type { FeatureReading } from '@backend/feature-view'
 import { describe, expect, it } from 'vitest'
-import { buildRowFocus, buildRows, rowIndexForTarget, svgDocument } from './reading-surface'
+import {
+  buildRowFocus,
+  buildRows,
+  rowIndexForTarget,
+  svgAspectRatio,
+  svgDocument,
+} from './reading-surface'
 
 const reading: FeatureReading = {
   name: 'Feature',
@@ -182,5 +188,26 @@ describe('svgDocument', () => {
     const doc = svgDocument('<svg><title>d</title></svg>')
     expect(doc).toContain('<!doctype html>')
     expect(doc).toContain('<svg><title>d</title></svg>')
+  })
+})
+
+describe('svgAspectRatio', () => {
+  it('reads the viewBox width/height ratio', () => {
+    expect(svgAspectRatio('<svg viewBox="0 0 720 120"><rect /></svg>')).toBeCloseTo(6)
+  })
+
+  it('prefers explicit width/height attributes', () => {
+    expect(svgAspectRatio('<svg width="200" height="100" viewBox="0 0 720 120" />')).toBeCloseTo(2)
+  })
+
+  it('handles px units and comma-separated viewBox', () => {
+    expect(svgAspectRatio('<svg width="300px" height="150px" />')).toBeCloseTo(2)
+    expect(svgAspectRatio('<svg viewBox="0,0,400,100" />')).toBeCloseTo(4)
+  })
+
+  it('returns null for percentage or missing dimensions', () => {
+    expect(svgAspectRatio('<svg width="100%" height="100%" />')).toBeNull()
+    expect(svgAspectRatio('<svg><title>d</title></svg>')).toBeNull()
+    expect(svgAspectRatio('not an svg')).toBeNull()
   })
 })

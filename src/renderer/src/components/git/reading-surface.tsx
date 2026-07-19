@@ -224,7 +224,39 @@ export function rowIndexForTarget(
  * app DOM (an `audit` invariant, same as evidence HTML).
  */
 export function svgDocument(svg: string): string {
-  return `<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;padding:8px;background:transparent;color-scheme:dark}svg{max-width:100%;height:auto}</style></head><body>${svg}</body></html>`
+  return `<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;padding:0;background:transparent;color-scheme:dark}svg{display:block;width:100%;height:auto}</style></head><body>${svg}</body></html>`
+}
+
+/**
+ * Parse an agent-authored inline SVG's intrinsic width/height ratio (width ÷ height)
+ * from its markup — explicit `width`/`height` attributes first, else the `viewBox`.
+ * Pure string parsing on the parent side (the sandboxed iframe is cross-origin and
+ * can't be measured), used to size the diagram container to the SVG's aspect instead
+ * of reserving a fixed tall box. Returns null when neither is a usable number
+ * (percentage/unitless-missing) so the caller can fall back to a fixed height.
+ */
+export function svgAspectRatio(svg: string): number | null {
+  const tag = svg.match(/<svg\b[^>]*>/i)?.[0]
+  if (!tag) return null
+  const width = svgDimension(tag, 'width')
+  const height = svgDimension(tag, 'height')
+  if (width && height) return width / height
+  const viewBox = tag.match(/\bviewBox\s*=\s*["']([^"']+)["']/i)?.[1]
+  if (viewBox) {
+    const parts = viewBox
+      .trim()
+      .split(/[\s,]+/)
+      .map(Number)
+    if (parts.length === 4 && parts[2] > 0 && parts[3] > 0) return parts[2] / parts[3]
+  }
+  return null
+}
+
+function svgDimension(tag: string, name: string): number | null {
+  const raw = tag.match(new RegExp(`\\b${name}\\s*=\\s*["']?\\s*([^"'\\s>]+)`, 'i'))?.[1]
+  if (!raw || raw.endsWith('%')) return null
+  const n = Number.parseFloat(raw)
+  return Number.isFinite(n) && n > 0 ? n : null
 }
 
 // Right-click a feature file (or one of its lines) to leave a review comment without
@@ -503,6 +535,23 @@ function EvidenceBodyRow(): React.JSX.Element {
   )
 }
 
+// The section's inline-SVG diagram, sized to the SVG's intrinsic aspect (parsed from
+// its markup — the sandboxed iframe can't be measured) instead of a fixed tall box, so
+// a short diagram hugs its content. A very tall diagram is capped (max-h) and the outer
+// well scrolls. Same fully-sandboxed `sandbox=""` + srcdoc path as evidence — unchanged.
+function DiagramRow({ svg }: { svg: string }): React.JSX.Element {
+  const ratio = svgAspectRatio(svg)
+  return (
+    <div className="sticky left-0 max-w-[var(--vrows-vw)] px-3 py-2">
+      <div className="max-h-[32rem] overflow-y-auto rounded-md border">
+        <div className="w-full" style={ratio ? { aspectRatio: ratio } : { height: '20rem' }}>
+          <HtmlView html={svgDocument(svg)} title="Diagram" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ReadingRowView({
   row,
   onComment,
@@ -527,13 +576,7 @@ function ReadingRowView({
         </div>
       )
     case 'diagram':
-      return (
-        <div className="sticky left-0 max-w-[var(--vrows-vw)] px-3 py-2">
-          <div className="h-80 overflow-hidden rounded-md border">
-            <HtmlView html={svgDocument(row.svg)} title="Diagram" />
-          </div>
-        </div>
-      )
+      return <DiagramRow svg={row.svg} />
     case 'evidenceHeader':
       return <EvidenceHeaderRow title={row.title} />
     case 'evidenceBody':
