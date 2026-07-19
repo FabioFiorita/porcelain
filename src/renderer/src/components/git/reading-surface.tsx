@@ -18,7 +18,14 @@ import {
 } from '@renderer/hooks/use-comments'
 import { useClearEvidence, useEvidenceHtml } from '@renderer/hooks/use-evidence'
 import { useReviewedPaths, useToggleReviewed } from '@renderer/hooks/use-reviewed'
-import { languageFor, tokenizeLines } from '@renderer/lib/highlight'
+import { useResolvedTheme } from '@renderer/hooks/use-theme'
+import {
+  HIGHLIGHT_THEMES,
+  type HighlightThemeName,
+  languageFor,
+  themeNameFor,
+  tokenizeLines,
+} from '@renderer/lib/highlight'
 import { type LineSelection, lineSelectionForFile } from '@renderer/lib/line-selection'
 import { fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
@@ -85,12 +92,14 @@ function pushFileRows(
   rows: ReadingRow[],
   file: ReadingFile,
   highlighter: ReturnType<typeof useHighlighter>,
+  theme: HighlightThemeName,
 ): void {
   rows.push({ type: 'file', file })
   if (file.note) rows.push({ type: 'note', note: file.note })
   const lang = languageFor(file.path)
   if (file.hunks) {
-    const tokenMap = highlighter && lang ? tokenizeHunks(highlighter, file.hunks, lang) : null
+    const tokenMap =
+      highlighter && lang ? tokenizeHunks(highlighter, file.hunks, lang, theme) : null
     for (const hunk of file.hunks) {
       rows.push({ type: 'hunkHeader', text: hunk.header })
       for (const line of hunk.lines) {
@@ -101,7 +110,7 @@ function pushFileRows(
     for (const range of file.ranges) {
       if (range.gapBefore > 0) rows.push({ type: 'gap', count: range.gapBefore })
       const tokenLines =
-        highlighter && lang ? tokenizeLines(highlighter, range.lines.join('\n'), lang) : null
+        highlighter && lang ? tokenizeLines(highlighter, range.lines.join('\n'), lang, theme) : null
       range.lines.forEach((text, i) => {
         rows.push({
           type: 'code',
@@ -127,6 +136,7 @@ function pushFileRows(
 export function buildRows(
   reading: FeatureReading,
   highlighter: ReturnType<typeof useHighlighter>,
+  theme: HighlightThemeName = HIGHLIGHT_THEMES.dark,
 ): ReadingRow[] {
   const rows: ReadingRow[] = []
   if (reading.thesis) rows.push({ type: 'thesis', md: reading.thesis })
@@ -134,14 +144,14 @@ export function buildRows(
     rows.push({ type: 'sectionHeader', index, title: section.title })
     if (section.prose.trim()) rows.push({ type: 'prose', md: section.prose })
     if (section.diagram) rows.push({ type: 'diagram', svg: section.diagram })
-    for (const file of section.files) pushFileRows(rows, file, highlighter)
+    for (const file of section.files) pushFileRows(rows, file, highlighter, theme)
   })
   if (reading.sections.length > 0 && reading.groups.length > 0) {
     rows.push({ type: 'sectionHeader', index: reading.sections.length, title: 'More files' })
   }
   for (const group of reading.groups) {
     rows.push({ type: 'layer', label: group.layer })
-    for (const file of group.files) pushFileRows(rows, file, highlighter)
+    for (const file of group.files) pushFileRows(rows, file, highlighter, theme)
   }
   if (reading.evidence) {
     rows.push({ type: 'evidenceHeader', title: reading.evidence.title })
@@ -427,7 +437,7 @@ function FileHeaderRow({
 function MarkdownBlock({ md }: { md: string }): React.JSX.Element {
   return (
     <div className="sticky left-0 max-w-[var(--vrows-vw)] px-3 py-2">
-      <article className="prose prose-sm prose-invert max-w-3xl font-sans prose-pre:bg-muted/40 prose-code:before:content-none prose-code:after:content-none">
+      <article className="prose prose-sm dark:prose-invert max-w-3xl font-sans prose-pre:bg-muted/40 prose-code:before:content-none prose-code:after:content-none">
         <Markdown
           remarkPlugins={[remarkGfm]}
           components={{
@@ -641,7 +651,8 @@ export function ReadingSurfaceBody({
   trackFocus?: boolean
 }): React.JSX.Element {
   const highlighter = useHighlighter()
-  const rows = useMemo(() => buildRows(reading, highlighter), [reading, highlighter])
+  const theme = themeNameFor(useResolvedTheme())
+  const rows = useMemo(() => buildRows(reading, highlighter, theme), [reading, highlighter, theme])
   const [anchor, setAnchor] = useState<CommentAnchor | null>(null)
   const comments = useReviewComments()
   const setVisible = useReviewFocusStore((s) => s.setVisible)

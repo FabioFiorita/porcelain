@@ -1,6 +1,6 @@
 # Nova preset (`b5J4txmSY`) + light/dark mode
 
-**Status:** PLANNED — not started. Two commits, gate before each (`pnpm verify`, hook-enforced).
+**Status:** DONE (2026-07-18). Commit 1 = `2051fa0` (nova apply + local-tweak re-graft + docs + regenerated linux baselines); commit 2 = the light/dark/system theme (see git log). Deviations from plan: the shell receives the *resolved* mode (not the raw pref) so OS flips under System retint native chrome; e2e pins `colorScheme: dark` in both harness fixtures so the System default stays deterministic under test; the six `*-darwin.png` baselines still need a Mac regeneration before the next release.
 
 ## Goal
 

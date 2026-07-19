@@ -4,13 +4,19 @@ import { LineDecorations } from '@renderer/components/git/comment-marker'
 import { CodeLine, useHighlighter } from '@renderer/components/viewer/code-line'
 import { VirtualRows } from '@renderer/components/viewer/virtual-rows'
 import type { CommentIndex } from '@renderer/hooks/use-comments'
-import { type HIGHLIGHT_THEME, languageFor, tokenizeLines } from '@renderer/lib/highlight'
+import { useResolvedTheme } from '@renderer/hooks/use-theme'
+import {
+  HIGHLIGHT_THEMES,
+  type Highlighter,
+  type HighlightThemeName,
+  languageFor,
+  themeNameFor,
+  tokenizeLines,
+} from '@renderer/lib/highlight'
 import { cn } from '@renderer/lib/utils'
 import { type CharRange, intraLineEmphasis } from '@renderer/lib/word-diff'
 import { useMemo } from 'react'
-import type { BundledLanguage, HighlighterGeneric, ThemedToken } from 'shiki'
-
-type Highlighter = HighlighterGeneric<BundledLanguage, typeof HIGHLIGHT_THEME>
+import type { BundledLanguage, ThemedToken } from 'shiki'
 
 /** Pre-tokenized spans per diff line, keyed by the DiffLine object identity. */
 type TokenMap = Map<DiffLine, ThemedToken[]>
@@ -42,13 +48,24 @@ export function tokenizeHunks(
   highlighter: Highlighter,
   hunks: readonly DiffHunk[],
   lang: BundledLanguage,
+  theme: HighlightThemeName = HIGHLIGHT_THEMES.dark,
 ): TokenMap {
   const map: TokenMap = new Map()
   for (const hunk of hunks) {
     const oldImage = hunk.lines.filter((l) => l.kind !== 'add')
     const newImage = hunk.lines.filter((l) => l.kind !== 'del')
-    const oldTokens = tokenizeLines(highlighter, oldImage.map((l) => l.text).join('\n'), lang)
-    const newTokens = tokenizeLines(highlighter, newImage.map((l) => l.text).join('\n'), lang)
+    const oldTokens = tokenizeLines(
+      highlighter,
+      oldImage.map((l) => l.text).join('\n'),
+      lang,
+      theme,
+    )
+    const newTokens = tokenizeLines(
+      highlighter,
+      newImage.map((l) => l.text).join('\n'),
+      lang,
+      theme,
+    )
     oldImage.forEach((l, i) => {
       // context lines are shared; take their tokens from the new image below
       if (l.kind === 'del') map.set(l, oldTokens[i] ?? [])
@@ -234,9 +251,10 @@ export function HunksView({
 }): React.JSX.Element {
   const highlighter = useHighlighter()
   const lang = languageFor(filePath)
+  const theme = themeNameFor(useResolvedTheme())
   const tokens = useMemo<TokenMap>(
-    () => (highlighter && lang ? tokenizeHunks(highlighter, hunks, lang) : new Map()),
-    [highlighter, lang, hunks],
+    () => (highlighter && lang ? tokenizeHunks(highlighter, hunks, lang, theme) : new Map()),
+    [highlighter, lang, hunks, theme],
   )
   const emphasis = useMemo<EmphasisMap>(() => intraLineEmphasis(hunks), [hunks])
   const ctx: RenderContext = {

@@ -298,6 +298,10 @@ export const test = baseTest.extend<Options & Fixtures, WorkerOptions & WorkerFi
     if (appMode === 'electron') {
       if (app === null) throw new Error('electron mode without an app fixture')
       const page = await app.firstWindow()
+      // Pin the OS color scheme so the theme preference's System default (the
+      // seeded state) always resolves dark — CI runners and headless displays
+      // otherwise report prefers-color-scheme: light and flip every baseline.
+      await page.emulateMedia({ colorScheme: 'dark' })
       await page.waitForLoadState('domcontentloaded')
       await use(page)
       return
@@ -314,6 +318,13 @@ export const test = baseTest.extend<Options & Fixtures, WorkerOptions & WorkerFi
         // The Electron window's default size (src/main/window.ts) so layouts and
         // visual baselines frame the same way.
         viewport: { width: 1400, height: 900 },
+        // Same reason as the electron fixture's emulateMedia: the theme
+        // preference defaults to System, and headless Chromium reports light.
+        colorScheme: 'dark',
+        // TRAP (headless Chromium): the `.app-drag` titlebar row rasterizes once
+        // and never repaints in screenshots — after a live light/dark flip it
+        // stays the boot color in captures while the DOM (and headed Chromium,
+        // and real clients) are correct. Don't chase it as an app bug.
       })
       await context.addInitScript((token) => {
         localStorage.setItem('porcelain-daemon-token', token)

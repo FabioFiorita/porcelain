@@ -2,11 +2,55 @@ import '@xterm/xterm/css/xterm.css'
 import { type TerminalRenderer, usePreferencesStore } from '@renderer/stores/preferences'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebglAddon } from '@xterm/addon-webgl'
-import { Terminal } from '@xterm/xterm'
+import { type ITheme, Terminal } from '@xterm/xterm'
 import { resizeTerminal, writeTerminal } from './daemon'
 import { isE2E } from './platform'
 import { terminalEditBytes } from './terminal-keys'
 import { attachTouchScroll } from './terminal-touch-scroll'
+import { resolveTheme, subscribeResolvedTheme } from './theme'
+
+/**
+ * The xterm palette per resolved appearance — the single JS source of truth for
+ * the terminal background (terminal-view reads `.background` for its pane fill).
+ * Dark is byte-identical to the old inline literal (solid graphite in the spirit
+ * of the app's neutral surfaces); light is a readable GitHub-Light-style palette
+ * on a near-white ground with dark-enough ANSI colors to stay legible.
+ */
+export const TERMINAL_THEMES: Record<'light' | 'dark', ITheme> = {
+  dark: {
+    background: '#16161a',
+    foreground: '#e4e4e7',
+    cursor: '#e4e4e7',
+    selectionBackground: '#3f3f46',
+  },
+  light: {
+    background: '#ffffff',
+    foreground: '#1f2328',
+    cursor: '#1f2328',
+    selectionBackground: '#b4d4ff',
+    black: '#24292e',
+    red: '#cf222e',
+    green: '#116329',
+    yellow: '#7d4e00',
+    blue: '#0969da',
+    magenta: '#8250df',
+    cyan: '#1b7c83',
+    white: '#6e7781',
+    brightBlack: '#57606a',
+    brightRed: '#a40e26',
+    brightGreen: '#1a7f37',
+    brightYellow: '#633c01',
+    brightBlue: '#218bff',
+    brightMagenta: '#a475f9',
+    brightCyan: '#3192aa',
+    brightWhite: '#8c959f',
+  },
+}
+
+/** Resolved appearance for new/updated terminals (both the store and the OS). */
+function currentTerminalMode(): 'light' | 'dark' {
+  return resolveTheme(usePreferencesStore.getState().theme)
+}
 
 /**
  * The renderer-side home for xterm.js instances. A terminal must outlive its React
@@ -85,6 +129,14 @@ if (typeof window !== 'undefined' && window.visualViewport) {
 usePreferencesStore.subscribe((state, prev) => {
   if (state.terminalRenderer === prev.terminalRenderer) return
   rebuildAllForRendererChange()
+})
+
+// Resolved-appearance change (theme preference or OS flip) → retint every live
+// xterm in place. Deduped by the helper (fires only when the mode truly flips);
+// new terminals read currentTerminalMode() in create().
+subscribeResolvedTheme((mode) => {
+  const theme = TERMINAL_THEMES[mode]
+  for (const instance of instances.values()) instance.term.options.theme = theme
 })
 
 // The terminal faces load via font-display: swap, so term.open() can measure fallback-font
@@ -182,13 +234,9 @@ function create(id: string, opts?: { cols: number; rows: number }): Instance {
     // Preserve geometry across a paint-path rebuild so the PTY isn't SIGWINCH'd to a
     // different size for one frame (and so the restored scrollback lines wrap the same).
     ...(opts ? { cols: opts.cols, rows: opts.rows } : {}),
-    // Solid graphite, in the spirit of the app's neutral dark surfaces.
-    theme: {
-      background: '#16161a',
-      foreground: '#e4e4e7',
-      cursor: '#e4e4e7',
-      selectionBackground: '#3f3f46',
-    },
+    // Themed to the current resolved appearance (subscribeResolvedTheme retints
+    // live instances; new ones read the mode here).
+    theme: TERMINAL_THEMES[currentTerminalMode()],
     scrollback: 10_000,
   })
   const fit = new FitAddon()

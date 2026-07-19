@@ -176,9 +176,10 @@
    is one opaque design now.
 
    Semantic state, diff tints, and the categorical "ink" palette.
-   Every value is defined for BOTH themes so a future light mode (no toggle
-   ships yet — `<html class="dark">` is hardwired in index.html) themes for
-   free. The .dark values reproduce the previous literal Tailwind shades
+   Every value is defined for BOTH themes. The theme toggle now ships
+   (Settings → General → Appearance; System default), so both blocks are live;
+   index.html keeps `<html class="dark">` only as a boot flash-guard that
+   main.tsx corrects pre-paint. The .dark values reproduce the previous literal Tailwind shades
    exactly (state = -500, diff = -950/60, ink = -400) so there is no visual
    change today. These tokens are the single source of truth for status and
    categorical-accent color, replacing scattered `text-emerald-500` /

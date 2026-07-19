@@ -1,8 +1,10 @@
+import { useResolvedTheme } from '@renderer/hooks/use-theme'
 import {
   attachTerminal,
   detachTerminal,
   fitTerminal,
   focusTerminal,
+  TERMINAL_THEMES,
 } from '@renderer/lib/terminal-registry'
 import { useEffect, useRef } from 'react'
 
@@ -14,6 +16,7 @@ import { useEffect, useRef } from 'react'
  */
 export function TerminalView({ sessionId }: { sessionId: string }): React.JSX.Element {
   const ref = useRef<HTMLDivElement>(null)
+  const mode = useResolvedTheme()
 
   useEffect(() => {
     const container = ref.current
@@ -39,7 +42,8 @@ export function TerminalView({ sessionId }: { sessionId: string }): React.JSX.El
   return (
     <div
       ref={ref}
-      className="h-full w-full overflow-hidden bg-[#16161a] py-2 pr-1 pl-2"
+      className="h-full w-full overflow-hidden py-2 pr-1 pl-2"
+      style={{ backgroundColor: TERMINAL_THEMES[mode].background }}
       onPointerDown={() => focusTerminal(sessionId)}
     />
   )

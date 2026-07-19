@@ -2,6 +2,8 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
 export type ChangesScope = 'working' | 'branch'
+/** Appearance preference. `system` follows the OS `prefers-color-scheme`. */
+export type ThemeMode = 'system' | 'light' | 'dark'
 export type DiffMode = 'unified' | 'split'
 export type MarkdownMode = 'reader' | 'source'
 export type HtmlMode = 'preview' | 'source'
@@ -31,6 +33,8 @@ export const SPLIT_MIN_RATIO = 0.2
 export const SPLIT_MAX_RATIO = 0.8
 
 interface PreferencesState {
+  /** Light/dark/system appearance. Applied pre-paint in main.tsx via lib/theme. */
+  theme: ThemeMode
   changesScope: ChangesScope
   diffMode: DiffMode
   markdownMode: MarkdownMode
@@ -65,11 +69,13 @@ interface PreferencesState {
   setNotesHeight: (height: number) => void
   setSplitRatio: (ratio: number) => void
   setSkillsDismissedVersion: (version: string | null) => void
+  setTheme: (theme: ThemeMode) => void
 }
 
 export const usePreferencesStore = create<PreferencesState>()(
   persist(
     (set) => ({
+      theme: 'system',
       changesScope: 'working',
       diffMode: 'unified',
       markdownMode: 'reader',
@@ -102,6 +108,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       setSplitRatio: (ratio) =>
         set({ splitRatio: Math.min(SPLIT_MAX_RATIO, Math.max(SPLIT_MIN_RATIO, ratio)) }),
       setSkillsDismissedVersion: (skillsDismissedVersion) => set({ skillsDismissedVersion }),
+      setTheme: (theme) => set({ theme }),
     }),
     {
       name: 'porcelain-preferences',

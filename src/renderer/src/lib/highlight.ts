@@ -15,11 +15,21 @@ import langTsx from '@shikijs/langs/tsx'
 import langTypescript from '@shikijs/langs/typescript'
 import langYaml from '@shikijs/langs/yaml'
 import themeDarkPlus from '@shikijs/themes/dark-plus'
+import themeLightPlus from '@shikijs/themes/light-plus'
 import type { BundledLanguage, HighlighterGeneric, ThemedToken } from 'shiki'
 import { createHighlighterCore } from 'shiki/core'
 import { createJavaScriptRegexEngine } from 'shiki/engine/javascript'
 
-export const HIGHLIGHT_THEME = 'dark-plus'
+// Both VS Code presets are registered so the viewer can retint per resolved
+// appearance (see hooks/use-theme). Add a theme = one `@shikijs/themes/<x>`
+// import + a map entry — never the `'shiki'` meta bundle.
+export const HIGHLIGHT_THEMES = { light: 'light-plus', dark: 'dark-plus' } as const
+export type HighlightThemeName = (typeof HIGHLIGHT_THEMES)[keyof typeof HIGHLIGHT_THEMES]
+
+/** The Shiki theme name for a resolved appearance. */
+export function themeNameFor(mode: 'light' | 'dark'): HighlightThemeName {
+  return HIGHLIGHT_THEMES[mode]
+}
 
 export const LANGS = [
   'typescript',
@@ -39,14 +49,14 @@ export const LANGS = [
 // consumers that pass this highlighter around compile unchanged — they only
 // ever call `codeToTokensBase`, which the core build provides. The type is
 // import-only (zero bundle weight); the runtime is the fine-grained core.
-type Highlighter = HighlighterGeneric<BundledLanguage, typeof HIGHLIGHT_THEME>
+export type Highlighter = HighlighterGeneric<BundledLanguage, HighlightThemeName>
 
 let highlighterPromise: Promise<Highlighter> | null = null
 
 export function getHighlighter(): Promise<Highlighter> {
   // JS regex engine: the renderer CSP (no 'wasm-unsafe-eval') blocks the default WASM engine
   highlighterPromise ??= createHighlighterCore({
-    themes: [themeDarkPlus],
+    themes: [themeDarkPlus, themeLightPlus],
     langs: [
       langTypescript,
       langTsx,
@@ -136,8 +146,10 @@ export function isTokenizable(content: string): boolean {
  * tab, so a component-local `useMemo` is discarded when you switch away — and
  * revisiting re-pays the full synchronous tokenization for identical content.
  * A module-level cache survives unmounts (the terminal registry solves the same
- * lifecycle problem the same way). Keyed on `${lang} ${code}` so a `.ts` and a
- * `.js` file sharing content don't collide. 8 entries bounds worst-case
+ * lifecycle problem the same way). Keyed on `${theme} ${lang} ${code}` so a
+ * `.ts` and a `.js` file sharing content don't collide — and so the light and
+ * dark tokenizations of the same file are distinct entries. 8 entries bounds
+ * worst-case
  * retained tokens (content ≤ 2 MB by the `isTokenizable` guard) — don't raise
  * it without a memory look. Returned arrays are shared and treated as immutable
  * by every caller (consumers only read/index).
@@ -149,8 +161,9 @@ export function tokenizeLines(
   highlighter: Highlighter,
   code: string,
   lang: BundledLanguage,
+  theme: HighlightThemeName = HIGHLIGHT_THEMES.dark,
 ): ThemedToken[][] {
-  const key = `${lang} ${code}`
+  const key = `${theme} ${lang} ${code}`
   const hit = tokenCache.get(key)
   if (hit) {
     // Re-insert to mark most-recently-used (Map preserves insertion order).
@@ -158,7 +171,7 @@ export function tokenizeLines(
     tokenCache.set(key, hit)
     return hit
   }
-  const tokens = highlighter.codeToTokensBase(code, { lang, theme: HIGHLIGHT_THEME })
+  const tokens = highlighter.codeToTokensBase(code, { lang, theme })
   tokenCache.set(key, tokens)
   if (tokenCache.size > TOKEN_CACHE_MAX) {
     const oldest = tokenCache.keys().next().value

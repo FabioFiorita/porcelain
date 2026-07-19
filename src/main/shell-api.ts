@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { initTRPC } from '@trpc/server'
-import { BrowserWindow, shell, type WebContents } from 'electron'
+import { BrowserWindow, nativeTheme, shell, type WebContents } from 'electron'
 import { z } from 'zod'
 import {
   getDefaultEnvironmentId,
@@ -94,6 +94,23 @@ export const shellRouter = t.router({
           : { mode: 'welcome', environmentId },
       )
     }),
+
+  // Keep the OS chrome in step with the renderer's appearance: set the native
+  // theme source (drives macOS traffic lights / native menus / scrollbars) and
+  // repaint every window's backgroundColor so a theme switch never flashes the
+  // stale color behind the renderer. The renderer sends its RESOLVED mode
+  // ('light'/'dark') on every change; 'system' is accepted too (nativeTheme's
+  // own type) and falls back to shouldUseDarkColors. Dark #090b0c / light
+  // #ffffff match the `--background` tokens (window.ts keeps #090b0c as boot
+  // default). nativeTheme is used only here — keep it contained.
+  setThemeSource: t.procedure.input(z.enum(['system', 'light', 'dark'])).mutation(({ input }) => {
+    nativeTheme.themeSource = input
+    const dark = input === 'system' ? nativeTheme.shouldUseDarkColors : input === 'dark'
+    const backgroundColor = dark ? '#090b0c' : '#ffffff'
+    for (const window of BrowserWindow.getAllWindows()) {
+      if (!window.isDestroyed()) window.setBackgroundColor(backgroundColor)
+    }
+  }),
 
   revealInFinder: t.procedure.input(z.string()).mutation(({ input }) => {
     shell.showItemInFolder(input)

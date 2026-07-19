@@ -75,7 +75,7 @@ function CopyButton({ text }: { text: string }): React.JSX.Element {
 /** Assistant/user prose through the same pipeline as the markdown reader (react-markdown + gfm). */
 function MessageMarkdown({ text }: { text: string }): React.JSX.Element {
   return (
-    <article className="prose prose-sm prose-invert max-w-none prose-pre:bg-muted/40 prose-pre:text-xs prose-code:before:content-none prose-code:after:content-none">
+    <article className="prose prose-sm dark:prose-invert max-w-none prose-pre:bg-muted/40 prose-pre:text-xs prose-code:before:content-none prose-code:after:content-none">
       <Markdown
         remarkPlugins={[remarkGfm]}
         components={{

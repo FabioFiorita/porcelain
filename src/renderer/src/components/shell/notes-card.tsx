@@ -90,7 +90,8 @@ function NotesEditor({
     content: initialMarkdown,
     editorProps: {
       attributes: {
-        class: 'notes-prose prose prose-sm prose-invert max-w-none px-3.5 py-3 focus:outline-none',
+        class:
+          'notes-prose prose prose-sm dark:prose-invert max-w-none px-3.5 py-3 focus:outline-none',
       },
       handleDOMEvents: {
         // Cmd/Ctrl-click a link to open it in the browser. The editor stays editable, so a

@@ -10,6 +10,7 @@ import { useDocumentTitle } from '@renderer/hooks/use-document-title'
 import { useWatchOpenFiles, useWatchTreeDirs } from '@renderer/hooks/use-files'
 import { useResponsiveShell } from '@renderer/hooks/use-responsive-shell'
 import { useTerminalChannel } from '@renderer/hooks/use-terminal-channel'
+import { useThemeSync } from '@renderer/hooks/use-theme'
 import { useInstallUpdate, useUpdateStatus } from '@renderer/hooks/use-updates'
 import { compactButtonClass } from '@renderer/lib/controls'
 import { kbdLabel } from '@renderer/lib/keyboard'
@@ -220,6 +221,7 @@ export function AppShell(): React.JSX.Element {
 
   useAppShortcuts()
   useAppEvents()
+  useThemeSync()
   useDocumentTitle()
   useTerminalChannel()
   useAgentChannel()
@@ -232,7 +234,7 @@ export function AppShell(): React.JSX.Element {
   }, [boot])
 
   if (restoring) {
-    return <div className="dark h-dvh bg-background" />
+    return <div className="h-dvh bg-background" />
   }
 
   // SettingsDialog is mounted on BOTH paths: remote-daemon connect/disconnect lives
@@ -242,7 +244,7 @@ export function AppShell(): React.JSX.Element {
   // (viewport-fit=cover in index.html); inert on desktop Electron (env() → 0).
   if (!repo) {
     return (
-      <div className="dark flex h-dvh flex-col bg-background pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-foreground">
+      <div className="flex h-dvh flex-col bg-background pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-foreground">
         <div className="app-drag h-12 shrink-0" />
         <div className="min-h-0 flex-1">
           <Welcome />
@@ -258,7 +260,7 @@ export function AppShell(): React.JSX.Element {
   return (
     // The window titlebar (traffic lights + centered search) spans the top; the
     // three tiles fill the row below it over the app background.
-    <div className="dark flex h-dvh flex-col bg-background pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-foreground">
+    <div className="flex h-dvh flex-col bg-background pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-foreground">
       <TitleBar />
       <SidebarProvider
         // flex-1 fills the row under the titlebar; minHeight:0 overrides the

@@ -1,15 +1,15 @@
+import { useResolvedTheme } from '@renderer/hooks/use-theme'
 import {
   getHighlighter,
-  type HIGHLIGHT_THEME,
+  type Highlighter,
   isTokenizable,
+  themeNameFor,
   tokenizeLines,
 } from '@renderer/lib/highlight'
 import { cn } from '@renderer/lib/utils'
 import { type CharRange, splitByRanges } from '@renderer/lib/word-diff'
 import { useEffect, useMemo, useState } from 'react'
-import type { BundledLanguage, HighlighterGeneric, ThemedToken } from 'shiki'
-
-type Highlighter = HighlighterGeneric<BundledLanguage, typeof HIGHLIGHT_THEME>
+import type { BundledLanguage, ThemedToken } from 'shiki'
 
 export function useHighlighter(): Highlighter | null {
   const [highlighter, setHighlighter] = useState<Highlighter | null>(null)
@@ -39,12 +39,13 @@ export function useTokenizedLines(
   lang: BundledLanguage | null,
 ): ThemedToken[][] | null {
   const highlighter = useHighlighter()
+  const theme = themeNameFor(useResolvedTheme())
   return useMemo(
     () =>
       highlighter && lang && isTokenizable(content)
-        ? tokenizeLines(highlighter, content, lang)
+        ? tokenizeLines(highlighter, content, lang, theme)
         : null,
-    [highlighter, lang, content],
+    [highlighter, lang, content, theme],
   )
 }
 

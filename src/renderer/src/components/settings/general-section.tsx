@@ -7,6 +7,7 @@ import {
   type MarkdownMode,
   type PullMode,
   type TerminalRenderer,
+  type ThemeMode,
   usePreferencesStore,
 } from '@renderer/stores/preferences'
 
@@ -70,9 +71,31 @@ export function GeneralSection(): React.JSX.Element {
   const setPullMode = usePreferencesStore((s) => s.setPullMode)
   const terminalRenderer = usePreferencesStore((s) => s.terminalRenderer)
   const setTerminalRenderer = usePreferencesStore((s) => s.setTerminalRenderer)
+  const theme = usePreferencesStore((s) => s.theme) ?? 'system'
+  const setTheme = usePreferencesStore((s) => s.setTheme)
 
   return (
     <div className="flex flex-col gap-5">
+      <PreferenceRow label="Appearance" description="Light, dark, or match the system.">
+        <ToggleGroup
+          value={[theme]}
+          onValueChange={(value: string[]) => {
+            const mode = value[0]
+            if (mode === 'system' || mode === 'light' || mode === 'dark')
+              setTheme(mode satisfies ThemeMode)
+          }}
+        >
+          <ToggleGroupItem value="system" size="sm" className={compactButtonClass}>
+            System
+          </ToggleGroupItem>
+          <ToggleGroupItem value="light" size="sm" className={compactButtonClass}>
+            Light
+          </ToggleGroupItem>
+          <ToggleGroupItem value="dark" size="sm" className={compactButtonClass}>
+            Dark
+          </ToggleGroupItem>
+        </ToggleGroup>
+      </PreferenceRow>
       <PreferenceRow label="Diff layout" description="How file diffs are rendered.">
         <ToggleGroup
           value={[diffMode]}
