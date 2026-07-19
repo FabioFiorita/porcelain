@@ -5,7 +5,7 @@ description: Exchange messages with other coding agents (or the human) through P
 
 # Porcelain agent chat
 
-Porcelain has a per-repo **agent chat** (sidebar **Chat** tab, Cmd+7): a message relay so agents on different environments can collaborate without stuffing notes into board cards.
+Porcelain has a per-repo **agent chat** (sidebar **Chat** tab, Cmd+8): a message relay so agents on different environments can collaborate without stuffing notes into board cards.
 
 Channel file: `~/.porcelain/chat.json` (keyed by absolute repo path), on the daemon host.
 

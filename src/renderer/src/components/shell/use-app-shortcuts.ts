@@ -13,13 +13,13 @@ import { useEffect } from 'react'
 const SIDEBAR_TAB_KEYS: Record<string, SidebarTab | undefined> = {
   '1': 'files',
   '2': 'search',
-  '3': 'changes',
-  '4': 'history',
-  '5': 'feature',
-  '6': 'board',
-  '7': 'chat',
-  '8': 'terminal',
-  '9': 'agent',
+  '3': 'agent',
+  '4': 'changes',
+  '5': 'history',
+  '6': 'feature',
+  '7': 'board',
+  '8': 'chat',
+  '9': 'terminal',
 }
 
 /**

@@ -54,13 +54,13 @@ import { SidebarResizeHandle } from './sidebar-resize-handle'
 const TABS: { id: SidebarTab; label: string; icon: typeof Files; shortcut: string }[] = [
   { id: 'files', label: 'Files', icon: Files, shortcut: kbdLabel('mod', '1') },
   { id: 'search', label: 'Search', icon: Search, shortcut: kbdLabel('mod', '2') },
-  { id: 'changes', label: 'Changes', icon: GitCompareArrows, shortcut: kbdLabel('mod', '3') },
-  { id: 'history', label: 'History', icon: History, shortcut: kbdLabel('mod', '4') },
-  { id: 'feature', label: 'Feature', icon: Waypoints, shortcut: kbdLabel('mod', '5') },
-  { id: 'board', label: 'Board', icon: SquareKanban, shortcut: kbdLabel('mod', '6') },
-  { id: 'chat', label: 'Chat', icon: MessagesSquare, shortcut: kbdLabel('mod', '7') },
-  { id: 'terminal', label: 'Terminal', icon: SquareTerminal, shortcut: kbdLabel('mod', '8') },
-  { id: 'agent', label: 'Agent', icon: Bot, shortcut: kbdLabel('mod', '9') },
+  { id: 'agent', label: 'Agent', icon: Bot, shortcut: kbdLabel('mod', '3') },
+  { id: 'changes', label: 'Changes', icon: GitCompareArrows, shortcut: kbdLabel('mod', '4') },
+  { id: 'history', label: 'History', icon: History, shortcut: kbdLabel('mod', '5') },
+  { id: 'feature', label: 'Feature', icon: Waypoints, shortcut: kbdLabel('mod', '6') },
+  { id: 'board', label: 'Board', icon: SquareKanban, shortcut: kbdLabel('mod', '7') },
+  { id: 'chat', label: 'Chat', icon: MessagesSquare, shortcut: kbdLabel('mod', '8') },
+  { id: 'terminal', label: 'Terminal', icon: SquareTerminal, shortcut: kbdLabel('mod', '9') },
 ]
 
 // Uppercase title each left panel opens with — one consistent header pattern

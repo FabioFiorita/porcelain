@@ -214,7 +214,7 @@ Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wron
 - **Viewer** — the central panel (`shell/viewer.tsx`, `components/viewer/`). **Never "editor"** — Porcelain is a viewer.
 - **Quick Access** — the **right** panel (`right-sidebar.tsx`, Cmd+.); its contents follow the active sidebar tab.
 
-**Inside the sidebar** (tabs `Files`·`Search`·`Changes`·`History`·`Feature`·`Board`·`Chat`·`Terminal`·`Agent`; `sidebarTab` pref, Cmd+1–9 — a vertical icon rail, ⌘B collapses to it):
+**Inside the sidebar** (tabs `Files`·`Search`·`Agent`·`Changes`·`History`·`Feature`·`Board`·`Chat`·`Terminal`; `sidebarTab` pref, Cmd+1–9 — a vertical icon rail, ⌘B collapses to it):
 - **File tree** — Files body (`file-tree.tsx` / `tree-node.tsx`).
 - **Search list** — Search body (`search-list.tsx`): repo-wide code search (`gitSearchCode`), distinct from the ⌘⇧F `ContentSearch` overlay (`gitGrep`).
 - **Changes list** — Changes body (`changes-list.tsx`), grouped by flow layer.

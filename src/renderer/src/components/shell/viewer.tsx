@@ -24,7 +24,7 @@ import { TabBar } from './tab-bar'
 const QUICKSTART: { label: string; keys: string }[] = [
   { label: 'Search files', keys: kbdLabel('mod', 'P') },
   { label: 'Browse the tree', keys: kbdLabel('mod', '1') },
-  { label: 'Review changes', keys: kbdLabel('mod', '3') },
+  { label: 'Review changes', keys: kbdLabel('mod', '4') },
 ]
 
 function EmptyViewer(): React.JSX.Element {
