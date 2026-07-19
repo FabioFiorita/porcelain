@@ -41,12 +41,22 @@ order:
   keeps all reading surfaces mono under a sans body. Only one linux baseline
   shifted >2% (`settings-general`); **darwin baselines + a marketing-image
   refresh still need the macos-14 regen workflow before the next release.**
-- **B — Composition.** Board columns fill/center the canvas; Review diagram
-  card sizes to content; top bar slims/integrates; right-panel empty columns
-  get real empty states.
+- **B — Composition. SHIPPED 2026-07-19 (`5c02d45`).** Board columns share the
+  canvas (centered `max-w-[80rem]`, equal flex widths, quiet empty-column
+  placeholder); the Review diagram container sizes to the SVG's intrinsic
+  aspect ratio parsed from markup on the parent side (`svgAspectRatio`, unit
+  tested — the sandboxed iframe can't be measured; `sandbox=""` + srcdoc
+  invariant untouched), capped by a `max-h` scroll well; empty Pinned panel got
+  the centered empty-state treatment. The top bar was split OUT of this phase —
+  it hosts macOS traffic lights/drag regions, needs the `audit` skill and its
+  own pass (still open, below).
 - **C — Complementarity.** When a wide viewer surface duplicates the sidebar
   list, the sidebar complements (or collapses) instead of repeating it; a
   confidence pass over empty states (centered, actioned, one line of copy).
+- **C2 — Top bar (deferred from B).** The floating search pill sits in a
+  full-height band; slim/integrate it without breaking the macOS drag region /
+  traffic lights. Read the `audit` skill first; design decided by the
+  orchestrator, not delegated blind.
 - **D — Re-shoot.** `pnpm shots` regen, swap `marketing/images/`, og:image,
   baseline sync.
 
