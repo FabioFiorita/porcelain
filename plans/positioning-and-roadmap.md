@@ -94,18 +94,26 @@ sibling `<repo>-worktrees/<branch>` checkout), the thread bound to the
 worktree path (binding chip in roster + session strip), the window switching
 there so Changes scope automatically. Durable decisions in the `architecture`
 skill. Explicitly NOT built: auto-PR pipelines.
-- Follow-on (still open): one-click push after the commit composer (PR
-  creation only if users ask — see non-goals).
+- Follow-on (SHIPPED 2026-07-19): one-click push — the commit composer shows a
+  push row when unpushed commits exist (`-u origin HEAD` on the fresh-worktree
+  first push, plain `push` once an upstream exists). PR creation still
+  demand-gated — see non-goals.
 
-### Phase 3 — deepen the moats (inbox SHIPPED 2026-07-19; rest open)
+### Phase 3 — deepen the moats (SHIPPED 2026-07-19)
 - **Review inbox** (SHIPPED): the Feature tab lists every other worktree with
   agent work awaiting review (changed files, bound threads, pushed Review) —
   one click switches there. `worktree-inbox.ts` / `review-inbox.tsx`; the
   cross-worktree surface T3's issue #345 wishes it had.
-- Remote polish for touch/iPad (the Agent tab already made remote first-class;
-  beat T3's mobile app to *usable*, not to an app store).
-- Loop-evidence growth: richer verification chapters (test runs, screenshots)
-  — evidence is the trust currency.
+- Remote polish for touch/iPad (SHIPPED): touch polish (split-view entry points
+  hidden on phones, hover-revealed row actions always shown on touch) plus **the
+  Glance** — a phone-only companion home (threads in flight, Review inbox,
+  checkout signal, board) an empty viewer pane renders below 768px. Beat T3's
+  mobile app to *usable* with zero app store.
+- Loop-evidence growth (SHIPPED): structured verification checks — the `evidence
+  check` CLI verb writes bounded pass/fail/skip checks into the evidence meta,
+  overall status is DERIVED, and the Review's evidence chapter renders them
+  natively as a check list + status badge; read-side headroom raised to 4 MB for
+  screenshots. Evidence is the trust currency.
 
 ### Demand-gated backlog
 More providers (Gemini/Cursor), PR create + PR review, Windows.

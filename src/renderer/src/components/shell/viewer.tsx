@@ -11,10 +11,13 @@ import { TerminalView } from '@renderer/components/terminal/terminal-view'
 import { Kbd } from '@renderer/components/ui/kbd'
 import { FileContent } from '@renderer/components/viewer/file-content'
 import { SearchView } from '@renderer/components/viewer/search-view'
+import { useIsMobile } from '@renderer/hooks/use-mobile'
 import { kbdLabel } from '@renderer/lib/keyboard'
 import { cn } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
+import { useRepoStore } from '@renderer/stores/repo'
 import { useTabsStore } from '@renderer/stores/tabs'
+import { GlanceHome } from './glance-home'
 import { SplitResizeHandle } from './sidebar-resize-handle'
 import { TabBar } from './tab-bar'
 
@@ -28,6 +31,14 @@ const QUICKSTART: { label: string; keys: string }[] = [
 ]
 
 function EmptyViewer(): React.JSX.Element {
+  const isMobile = useIsMobile()
+  const repo = useRepoStore((s) => s.repo)
+
+  // On a phone the empty pane is the Glance — the companion's home surface (a quick
+  // look at work in flight), not the desktop quick-start. Desktop and no-repo states
+  // keep the quick-start below.
+  if (isMobile && repo !== null) return <GlanceHome />
+
   return (
     <div className="flex h-full flex-col items-center justify-center gap-7 px-6 text-center">
       <div className="flex flex-col items-center gap-3">
