@@ -1,70 +1,64 @@
 <div align="center">
   <img src="src/renderer/src/assets/logo.png" alt="Porcelain" width="120" />
   <h1>Porcelain</h1>
-  <p><strong>Review changes as a story.</strong></p>
-  <p>A lightweight macOS code viewer and companion for the age of coding agents.</p>
+  <p><strong>Where agent work becomes trusted work.</strong></p>
+  <p>The hub for agentic coding: run your agents anywhere, review what they built like a senior engineer reads a feature — as a story, not a file list.</p>
 </div>
 
 ---
 
-Your coding agent writes the code now. But the moment you need to *read* the result (skim a diff, trace a change across files, understand what the agent actually did) you reach for Cursor, Zed, or GitHub Desktop. Heavy editors for a job that isn't editing, and none of them talk to your agent.
-
-Porcelain fills that gap. It's a fast, focused **viewer and review surface** (not an editor) built to read code and review changes alongside your coding agent, with a two-way loop straight back to it.
+Coding agents generate faster than anyone can trust. Every tool in this space races to spawn more agents in more worktrees; the pile of unreviewed diffs just grows. Porcelain stands on the other side of that pile: one lightweight window (not an editor) where your agents run **and** their work becomes something you've actually read, understood, and signed off.
 
 ## Why Porcelain
 
-- **Flow-ordered review.** A diff isn't an alphabetical list of files; it's one change rippling through your stack. Porcelain orders and groups changed files along their dependency flow (component → hook → action → mutation → schema), so you read a feature as a story from entry point to database instead of jumping around a file tree.
-- **A two-way loop with your agent.** Bundled Claude Code and Codex plugins run a local MCP server (on your machine, no telemetry). Your review comments become agent context; agent work, resolutions, and the whole-feature manifest flow back to you, on the same feature, in the same order.
-- **Built for huge monorepos.** Stays fast on a ~50 GB repo. Folders can be hidden so only the apps you care about are visible, and pinned for quick access; nothing is indexed until you look at it. No other tool lets you carve a monorepo down to just the part you're working on.
-- **A companion terminal, not your daily driver.** A real embedded terminal sits beside the review surface to run your agent and its tasks; sessions outlive their tabs, so a background dev server keeps running when you close the tab. It complements Ghostty or Warp; it doesn't try to replace them.
-- **Viewer first, lightweight always.** Fast file viewing with Shiki syntax highlighting, no LSP and no extensions. Quick single-file edits are allowed (pencil → edit → save), but no autocomplete, no format-on-save, no multi-file refactors. It never grows into an IDE.
+- **The Review.** Your agent doesn't just hand you a diff — it publishes a walkthrough of the whole feature: a thesis, flow-ordered sections with prose and diagrams, the exact code each section explains inline (including the unchanged files across the client→server seam a diff can't show), and a closing chapter of evidence that it verified its own work. You read a document, not a pile.
+- **Flow-ordered diffs.** Even without a published Review, changed files are ordered and grouped along their dependency flow — component → hook → route → service → schema — so a change reads from entry point to database instead of alphabetically.
+- **A two-way loop.** Review comments on a line or file flow back to your agent as concrete context, and resolutions flow forward. A per-repo project board and agent chat (with file claims, so two agents don't collide) round out the channel. All of it runs through a bundled local CLI — no server, no port, no telemetry.
+- **Run the agents inside.** Agent threads for Claude Code, Codex, OpenCode, and Grok — driven through the CLIs you already installed and pay for — with permission modes, model favorites, and image attachments. Threads persist and keep working while you review.
+- **Anywhere is the same place.** One token-gated daemon, three clients: the Mac app locally, the Mac app pointed at a remote box, or any browser on your LAN or tailnet — iPad included. Terminals and review state live daemon-side, so they survive reconnects and follow you across devices.
+- **Built for huge monorepos.** Stays fast on a ~50 GB repo. Hide the folders that aren't yours, pin the ones that are; nothing is indexed until you look at it.
 
 ## Features
 
-- **Flow-ordered diff review** with per-repo layer definitions you can customize, agent-managed over MCP
-- **Whole-feature review**: widen a diff to the entire feature in flow order (changed · context · shipped files), fed by your agent over a local MCP channel; mark files reviewed as you go
-- **Human ↔ agent loop**: review comments on lines or files sync to your agent as context, resolutions sync back; a per-repo todo/doing/done **project board** the agent reads and updates
-- **Git**: working-tree diffs (unified or split), per-file staging, commit history, worktree switching with a searchable branch picker, in-app commits with conventional-commit chips learned from your history
-- **Embedded terminal & Actions**: real PTYs (xterm.js + node-pty), split-view terminals, sessions that outlive their tabs, and saved **Actions** (named commands your agent curates and you run)
-- **Fast file viewer**: virtualized rendering, Shiki highlighting, image and Markdown support (reader + source modes), drag-resizable split view
+- **Whole-feature review**: agent-authored review sets (thesis → flow-ordered walkthrough sections → loop evidence), an outline sidebar with per-file reviewed marks, J/K section navigation, and a zen reading mode
+- **Flow-ordered diff review** with per-repo layer definitions, plus read-only **flow exploration** of any existing feature (seed from a symbol or file — comprehension without a diff)
+- **Human ↔ agent channels**: review comments with resolutions, a todo/doing/done **project board**, **agent chat** with coordination claims, and saved **Actions** your agent curates but only you run
+- **Agent threads**: Claude Code, Codex, OpenCode, and Grok in one surface — permission modes (approve / auto-edits / full), model favorites, image attachments
+- **Git**: working-tree diffs (unified or split), per-file staging, history, worktree switching with branch create, in-app commits with conventional-commit chips learned from your history
+- **Embedded terminal**: real PTYs, split view, sessions that outlive their tabs and survive client reconnects
+- **Fast file viewer**: virtualized rendering, Shiki highlighting, always-editable text (autosave, no mode toggle), Markdown reader/source, image support, two-pane split
 - **Monorepo navigation**: hide/unhide folders, pin paths, lazy per-directory loading
-- **Search & finders**: repo-wide code search, Cmd+P fuzzy file finder, Cmd+F find-in-file, find-references via `git grep`
-- **Remote access**: the same client three ways — the Mac app on a local daemon, the Mac app pointed at a remote daemon, or any browser on your tailnet served by the daemon; one token-gated surface, with PTYs and review state living daemon-side so they survive reconnects. Headless host:
+- **Search & finders**: repo-wide code search, fuzzy file finder, find-in-file, find references
+- **Remote access**: LAN (same Wi-Fi, no VPN) or tailnet (WireGuard, from anywhere) — one command on the host:
 
   ```bash
   npx porcelain-daemon@latest serve --tailnet --print-token
   ```
 
   Start it when you work, Ctrl+C when you're done — no always-on service required.
-- **Multi-window**: one repo per window
-- **Liquid-glass UI**: native macOS vibrancy, floating sidebars, drag-resizable panels
-- **Auto-updating** signed builds
+- **Light, dark, and system themes**, themed end to end (syntax highlighting, terminal, native window chrome)
+- **Multi-window**: one repo per window, each window free to pick its own environment (local or remote)
+- **Auto-updating** builds (signed and notarized on macOS)
 
 ## Install
 
-> Requires macOS (Apple Silicon).
+**macOS (Apple Silicon)** — download the latest `.dmg` from [Releases](https://github.com/fabiofiorita/porcelain/releases), drag Porcelain to Applications. Updates install automatically.
 
-Download the latest `.dmg` from the [Releases](https://github.com/fabiofiorita/porcelain/releases) page, open it, and drag Porcelain to your Applications folder. The app checks for and installs updates automatically.
+**Linux (x64)** — grab the `.AppImage` (auto-updates) or `.deb` from the same [Releases](https://github.com/fabiofiorita/porcelain/releases) page.
+
+**Any other device** — you don't install Porcelain, you open it: run the daemon on a machine you own (command above) and point a browser at it.
 
 ## Connect your agent
 
-Porcelain talks to your coding agent through a local stdio MCP server and companion skills — the agent channel opens no port and sends no telemetry. Set it up from **Settings → Agents**.
+The agent channel is a bundled CLI — installed to `~/.porcelain/porcelain` automatically on every app launch, always current, no per-agent configuration. It only touches local files: no port, no telemetry.
 
-**Skills** — install the companion skills via [skills.sh](https://www.skills.sh):
+Teach your agents the workflow with the companion skills, via [skills.sh](https://www.skills.sh):
 
 ```bash
 npx skills add FabioFiorita/porcelain
 ```
 
-Run from any repo and choose global or project-local when prompted. Update later with `npx skills upgrade`.
-
-**MCP** — one click per agent in Settings → Agents, or configure by hand:
-
-- **Claude Code** — add to `~/.claude.json`
-- **Codex** — add to `~/.codex/config.toml`
-- **OpenCode** — add to `~/.config/opencode/opencode.json`
-
-Each points to `node ~/.porcelain/mcp/server.js`.
+Run from any repo and choose global or project-local when prompted. Update later with `npx skills upgrade`. Provider setup (install/sign-in status per agent CLI) lives in **Settings → Agents**.
 
 ## Develop
 
@@ -85,12 +79,13 @@ pnpm dev       # run the app in development
 | `pnpm lint` | Biome lint + format check |
 | `pnpm typecheck` | Type-check main and renderer |
 | `pnpm test` | Run the Vitest suite |
+| `pnpm test:e2e` | Playwright e2e (headless browser project) |
 | `pnpm build` | Type-check and build |
 | `pnpm dist` | Build a signed local `.dmg` / `.zip` |
 | `pnpm daemon:dist` | Assemble publishable `dist-daemon/` (`porcelain-daemon` npm package) |
 | `pnpm release` | Build and publish to GitHub Releases |
 
-The verification gate before any commit is `pnpm lint && pnpm typecheck && pnpm test && pnpm build`.
+The verification gate before any commit is `pnpm verify` (lint + test + build; typecheck runs inside build).
 
 ## License
 
