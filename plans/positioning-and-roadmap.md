@@ -97,9 +97,11 @@ skill. Explicitly NOT built: auto-PR pipelines.
 - Follow-on (still open): one-click push after the commit composer (PR
   creation only if users ask — see non-goals).
 
-### Phase 3 — deepen the moats (after)
-- **Review inbox**: with parallel threads, a queue of "agent work awaiting
-  review" across worktrees — the surface T3's issue #345 wishes it had.
+### Phase 3 — deepen the moats (inbox SHIPPED 2026-07-19; rest open)
+- **Review inbox** (SHIPPED): the Feature tab lists every other worktree with
+  agent work awaiting review (changed files, bound threads, pushed Review) —
+  one click switches there. `worktree-inbox.ts` / `review-inbox.tsx`; the
+  cross-worktree surface T3's issue #345 wishes it had.
 - Remote polish for touch/iPad (the Agent tab already made remote first-class;
   beat T3's mobile app to *usable*, not to an app store).
 - Loop-evidence growth: richer verification chapters (test runs, screenshots)

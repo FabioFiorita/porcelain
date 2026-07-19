@@ -179,6 +179,7 @@ import {
 } from './tailnet-listener'
 import { listTerminals, renameTerminal, type TerminalInfo } from './terminal-manager'
 import { clearWorkingTreeSnapshot, workingTreeSnapshot } from './working-tree'
+import { worktreeInbox } from './worktree-inbox'
 
 // No per-connection context: appRouter procedures are pure Node and must never
 // reference a caller (per-connection concerns live shell-side until the Stage 2
@@ -1413,6 +1414,11 @@ export const router = t.router({
     .mutation(({ input }) => gitCreateBranch(input.repoPath, input.branch)),
 
   gitWorktrees: t.procedure.input(z.string()).query(({ input }) => gitWorktrees(input)),
+
+  // The Review inbox: from this checkout, the OTHER worktrees of the family with agent
+  // work awaiting review. A few git spawns per call is fine — worktree counts are small
+  // and the renderer polls at 15s.
+  worktreeInbox: t.procedure.input(z.string()).query(({ input }) => worktreeInbox(input)),
 
   gitAddWorktree: t.procedure
     .input(z.object({ repoPath: z.string(), branch: z.string().min(1) }))

@@ -33,6 +33,7 @@ import {
 } from 'lucide-react'
 import { memo, useState } from 'react'
 import { CommentComposer } from './comment-composer'
+import { ReviewInbox } from './review-inbox'
 
 // The legend marker for a file's source: a filled dot for a changed file, a
 // rotated square for an agent-shipped cross-seam file, a hollow ring for the
@@ -188,11 +189,23 @@ function uniqueFiles(files: readonly ReadingFile[]): ReadingFile[] {
   })
 }
 
-// The Feature sidebar tab: the OUTLINE of the Review document — chapter titles
-// that jump the open Review, each section's anchored files, the unanchored "More
-// files", and the loop-evidence chapter. The viewer's `feature` tab is the
-// document; this is the index you scan, click, and tick reviewed from.
+// The Feature sidebar tab: the Review inbox (cross-worktree work awaiting review)
+// above the OUTLINE of THIS checkout's Review document — chapter titles that jump
+// the open Review, each section's anchored files, the unanchored "More files", and
+// the loop-evidence chapter. The viewer's `feature` tab is the document; this is the
+// index you scan, click, and tick reviewed from.
 export function FeatureList(): React.JSX.Element {
+  return (
+    <div className="flex flex-col gap-1">
+      <ReviewInbox />
+      <FeatureOutline />
+    </div>
+  )
+}
+
+// The outline of this checkout's own Review — the inbox above is rendered by FeatureList
+// so it shows in every state (loading, no-review, and full outline) of the outline below.
+function FeatureOutline(): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)
   const openTab = useTabsStore((s) => s.openTab)
   const { reading, refresh } = useFeatureReading()

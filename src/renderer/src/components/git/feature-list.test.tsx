@@ -33,6 +33,12 @@ vi.mock('@renderer/hooks/use-reviewed', () => ({
   useToggleReviewed: () => ({ mark: markSpy, unmark: unmarkSpy }),
 }))
 
+// FeatureList now renders the Review inbox above the outline; stub its worktree hook
+// (a real tRPC query otherwise) so these outline-focused cases render without a client.
+vi.mock('@renderer/hooks/use-worktrees', () => ({
+  useWorktreeInbox: () => [],
+}))
+
 const reading: FeatureReading = {
   name: 'Crew call-outs',
   thesis: 'One paragraph of intent.',

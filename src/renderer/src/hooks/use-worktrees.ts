@@ -1,5 +1,6 @@
 import type { Worktree } from '@backend/diff'
 import type { BranchRef } from '@backend/git'
+import type { InboxRow } from '@backend/worktree-inbox'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 
@@ -19,6 +20,18 @@ export function useWorktrees(): Worktree[] {
     enabled: repo !== null,
     // worktrees can be added/removed outside the app; poll slowly so the picker
     // self-heals without churning (the list rarely changes, unlike working-tree state)
+    refetchInterval: 15000,
+  })
+  return data
+}
+
+/** The Review inbox: OTHER worktrees of this family with agent work awaiting review.
+ *  Keyed off the open repo's path; polls at 15s like `useWorktrees` (the cross-worktree
+ *  state changes slowly and off-app, so a slow poll self-heals without churn). */
+export function useWorktreeInbox(): InboxRow[] {
+  const repo = useRepoStore((s) => s.repo)
+  const { data = [] } = trpc.worktreeInbox.useQuery(repo?.path ?? '', {
+    enabled: repo !== null,
     refetchInterval: 15000,
   })
   return data

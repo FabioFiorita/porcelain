@@ -1,5 +1,7 @@
+import { writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import type { Page } from '@playwright/test'
-import { expect, selectTab, test, waitForShell } from './helpers/app'
+import { expect, REPO_DIR, selectTab, test, waitForShell } from './helpers/app'
 
 // These exercise the Agent tab against the scripted in-process FAKE driver (enabled by
 // PORCELAIN_AGENT_FAKE=1 in the fixture), so a turn runs deterministically without a real
@@ -100,6 +102,41 @@ test('starts a thread in a fresh worktree and switches to it', async ({ page }) 
   // switch would list zero) and again on the session strip of its open viewer tab.
   await expect(page.getByTitle('Worktree: e2e-wt')).toBeVisible()
   await expect(page.getByRole('main').getByText('e2e-wt')).toBeVisible()
+})
+
+test('surfaces a sibling worktree in the Review inbox and switches to it on click', async ({
+  page,
+}) => {
+  await waitForShell(page)
+  await selectTab(page, 'Agent')
+
+  // Create a worktree + a thread bound to it (same flow as the test above); the window
+  // lands on the new worktree.
+  await page.getByRole('button', { name: 'Choose provider for new thread' }).click()
+  await page.getByRole('menuitem', { name: 'New thread in worktree…' }).click()
+  await page.getByRole('textbox', { name: 'Branch name' }).fill('e2e-inbox')
+  await page.getByRole('button', { name: 'Create', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'e2e-inbox', exact: true })).toBeVisible()
+
+  // Make a working-tree change inside the worktree so the inbox has a changed-file signal
+  // (the branch dir is the sanitized branch name under `<repo>-worktrees/`).
+  await writeFile(join(`${REPO_DIR}-worktrees`, 'e2e-inbox', 'inbox-change.txt'), 'edited\n')
+
+  // Switch BACK to the main checkout via the footer worktree switcher (in place).
+  await page.getByRole('button', { name: /worktrees/ }).click()
+  await page.getByRole('menuitem').filter({ hasText: 'main' }).first().click()
+  await expect(page.getByRole('button', { name: 'main', exact: true })).toBeVisible()
+
+  // From the main checkout, the Feature tab's Review inbox lists the OTHER worktree with
+  // its changed-file count (1). Clicking the row switches this window to that worktree.
+  await selectTab(page, 'Feature')
+  await expect(page.getByText('Review inbox')).toBeVisible()
+  const inboxRow = page.getByRole('button', { name: 'e2e-inbox' })
+  await expect(inboxRow).toBeVisible()
+  await inboxRow.click()
+
+  // The footer branch switcher now reads the worktree's branch — the switch landed on it.
+  await expect(page.getByRole('button', { name: 'e2e-inbox', exact: true })).toBeVisible()
 })
 
 test('gates a turn on an approval and completes on Accept', async ({ page }) => {
