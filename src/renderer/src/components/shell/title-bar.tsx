@@ -33,7 +33,7 @@ export function TitleBar(): React.JSX.Element {
   const openSettings = useSettingsDialogStore((s) => s.openTo)
 
   return (
-    <div className="app-drag flex h-12 shrink-0 items-center px-3">
+    <div className="app-drag flex h-12 shrink-0 items-center border-border/60 border-b px-3">
       {!isBrowser && !isLinuxShell && <div className="w-16 shrink-0" aria-hidden />}
       <div className="flex flex-1 justify-center">
         <button
