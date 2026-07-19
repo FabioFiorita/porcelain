@@ -57,12 +57,12 @@ order:
   full-height band; slim/integrate it without breaking the macOS drag region /
   traffic lights. Read the `audit` skill first; design decided by the
   orchestrator, not delegated blind.
-- **D — Re-shoot. PARTIAL 2026-07-19.** The three surfaces the pipeline
-  produces were swapped into `marketing/images/` (`feature-view.png` = the
-  Review — also the og:image — plus `feat-board.png`, `feat-terminal.png`),
-  alts updated. Still on old-design Mac captures: feat-agent, feat-commit,
-  feat-comment, feat-search, feat-history, grouped-panel, hide-panel,
-  pin-compact — grow the shots spec to cover those crops, then swap.
+- **D — Re-shoot. COMPLETE 2026-07-19 (`fe21028`).** The pipeline now produces
+  all 13 marketing surfaces (full windows + panel/dialog/overlay crops + a
+  seeded Agent-tab thread); every `marketing/images/*.png` shows the
+  redesigned UI, alts updated. Traps live in the marketing skill (sidebar
+  widths pre-seeded via a second context, DOM-Range for the comment dialog,
+  agent thread seeded on disk).
 
 ## Still open
 
