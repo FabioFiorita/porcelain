@@ -25,9 +25,11 @@ import {
 } from './chat-file'
 import { answerComment, describeComments, readComments, resolveComment } from './comment-file'
 import {
+  checkEvidence,
   clearEvidence,
   describeEvidence,
   MAX_HTML_BYTES as EVIDENCE_MAX_HTML_BYTES,
+  evidenceOverallStatus,
   getEvidence,
   prepareEvidence,
   setEvidence,
@@ -142,6 +144,8 @@ const FLAG_DESCRIPTIONS: Record<string, string> = {
   cwd: 'Working directory, repo-relative or absolute (defaults to repo root)',
   layers:
     "Flow layers as JSON: array of {label, pattern} in order (entry point → data); '-' reads stdin",
+  label: 'Short label for the verification check, e.g. "pnpm test"',
+  detail: 'Optional result detail for the check, e.g. "1348 passed"',
 }
 
 interface VerbHelp {
@@ -215,10 +219,18 @@ const COMMANDS: NounHelp[] = [
         args: '--title <s> (--html <s|-> | --html-file <p>)',
         desc: 'Write index.html for a small doc',
       },
+      {
+        verb: 'check',
+        args: '--label <s> --status pass|fail|skip [--detail <s>]',
+        desc: 'Record a verification check (append, or update the same label)',
+      },
       { verb: 'get', args: '', desc: 'Read back the stored evidence (summary + preview)' },
       { verb: 'clear', args: '', desc: 'Remove the evidence' },
     ],
-    flags: ['title', 'html', 'html-file'],
+    flags: ['title', 'html', 'html-file', 'label', 'status', 'detail'],
+    flagOverrides: {
+      status: 'Check result: pass | fail | skip',
+    },
   },
   {
     noun: 'board',
@@ -406,6 +418,12 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
       const html = resolveHtml(EVIDENCE_MAX_HTML_BYTES)
       const evidence = setEvidence(repo, opt('title'), html)
       return `Wrote loop evidence "${evidence.title}" to ${evidence.dir}/index.html for ${repo}. Porcelain renders it as the Review's final chapter. For large docs prefer "evidence prepare" + writing index.html yourself.`
+    }
+    case 'evidence check': {
+      const result = checkEvidence(repo, req('label'), req('status'), opt('detail'))
+      const overall = evidenceOverallStatus(result.checks)
+      const verdict = overall ? ` → ${overall.toUpperCase()}` : ''
+      return `Recorded check "${result.check.label}" = ${result.check.status}; ${result.checks.length} check(s)${verdict} for ${repo}.`
     }
     case 'evidence get':
       return describeEvidence(repo, getEvidence(repo))

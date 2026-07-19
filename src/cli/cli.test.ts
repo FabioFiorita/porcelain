@@ -378,6 +378,31 @@ describe('runCli — evidence (html input)', () => {
       'title must be a non-empty string',
     )
   })
+  it('evidence check records a check (creating meta) and get shows the summary', async () => {
+    process.env.PORCELAIN_LOOP_EVIDENCE_DIR = join(dir, 'loop-evidence')
+    const msg = await runCli([
+      'evidence',
+      'check',
+      ...repo,
+      '--label',
+      'pnpm test',
+      '--status',
+      'pass',
+      '--detail',
+      '1348 passed',
+    ])
+    expect(msg).toContain('Recorded check "pnpm test" = pass')
+    expect(msg).toContain('→ PASS')
+    const got = await runCli(['evidence', 'get', ...repo])
+    expect(got).toContain('Checks: 1')
+    expect(got).toContain('PASS')
+  })
+  it('evidence check rejects an unknown status', async () => {
+    process.env.PORCELAIN_LOOP_EVIDENCE_DIR = join(dir, 'loop-evidence')
+    await expect(
+      runCli(['evidence', 'check', ...repo, '--label', 'x', '--status', 'bogus']),
+    ).rejects.toThrow('pass|fail|skip')
+  })
   it('evidence set rejects a file path pasted into --html', async () => {
     process.env.PORCELAIN_LOOP_EVIDENCE_DIR = join(dir, 'loop-evidence')
     await expect(

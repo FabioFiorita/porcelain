@@ -1,5 +1,6 @@
 import type { DiffLine } from '@backend/diff'
 import type { FeatureReading, ReadingFile } from '@backend/feature-view'
+import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
 import {
   ContextMenu,
@@ -38,7 +39,22 @@ import {
   useReviewFocusStore,
 } from '@renderer/stores/review-focus'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
-import { Eraser, FileText, MessageSquarePlus, ShieldCheck, Square, SquareCheck } from 'lucide-react'
+import {
+  type EvidenceCheck,
+  type EvidenceCheckStatus,
+  evidenceOverallStatus,
+} from '@shared/evidence-check'
+import {
+  CircleCheck,
+  CircleMinus,
+  CircleX,
+  Eraser,
+  FileText,
+  MessageSquarePlus,
+  ShieldCheck,
+  Square,
+  SquareCheck,
+} from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -69,7 +85,8 @@ export type ReadingRow =
   | { type: 'prose'; md: string }
   | { type: 'diagram'; svg: string }
   | { type: 'embed'; html: string; height?: number }
-  | { type: 'evidenceHeader'; title: string }
+  | { type: 'evidenceHeader'; title: string; checks: EvidenceCheck[] }
+  | { type: 'evidenceChecks'; checks: EvidenceCheck[] }
   | { type: 'evidenceBody' }
   | { type: 'layer'; label: string }
   | { type: 'file'; file: ReadingFile }
@@ -156,7 +173,9 @@ export function buildRows(
     for (const file of group.files) pushFileRows(rows, file, highlighter, theme)
   }
   if (reading.evidence) {
-    rows.push({ type: 'evidenceHeader', title: reading.evidence.title })
+    const { title, checks } = reading.evidence
+    rows.push({ type: 'evidenceHeader', title, checks })
+    if (checks.length > 0) rows.push({ type: 'evidenceChecks', checks })
     rows.push({ type: 'evidenceBody' })
   }
   return rows
@@ -188,6 +207,7 @@ export function buildRowFocus(rows: readonly ReadingRow[]): ReadingRowFocus[] {
         path = null
         break
       case 'evidenceHeader':
+      case 'evidenceChecks':
       case 'evidenceBody':
         section = 'evidence'
         path = null
@@ -489,12 +509,30 @@ function MarkdownBlock({ md }: { md: string }): React.JSX.Element {
 // The loop-evidence chapter header: title + the clear action (the evidence
 // lifecycle — once the human has reviewed the proof, they erase it; the agent can
 // always re-push).
-function EvidenceHeaderRow({ title }: { title: string }): React.JSX.Element {
+export function EvidenceHeaderRow({
+  title,
+  checks,
+}: {
+  title: string
+  checks: EvidenceCheck[]
+}): React.JSX.Element {
   const { clear, isClearing } = useClearEvidence()
+  const overall = evidenceOverallStatus(checks)
   return (
     <div className="sticky left-0 flex max-w-[var(--vrows-vw)] items-center gap-2 border-t border-border px-3 pb-1 pt-3">
       <ShieldCheck className="size-3.5 shrink-0 text-info" />
       <h2 className="min-w-0 flex-1 truncate font-sans text-sm font-semibold">{title}</h2>
+      {overall && (
+        <Badge
+          variant="outline"
+          className={cn(
+            'shrink-0 text-2xs',
+            overall === 'pass' ? 'text-success' : 'text-destructive',
+          )}
+        >
+          {overall === 'pass' ? 'Pass' : 'Fail'}
+        </Badge>
+      )}
       <Tooltip>
         <TooltipTrigger
           render={
@@ -516,8 +554,44 @@ function EvidenceHeaderRow({ title }: { title: string }): React.JSX.Element {
   )
 }
 
+// Per-status icon + semantic color for a structured check: green tick (pass), red
+// cross (fail), muted minus (skip). Same success/destructive tokens as the +/- stats.
+const checkStatusStyle: Record<
+  EvidenceCheckStatus,
+  { Icon: typeof CircleCheck; className: string }
+> = {
+  pass: { Icon: CircleCheck, className: 'text-success' },
+  fail: { Icon: CircleX, className: 'text-destructive' },
+  skip: { Icon: CircleMinus, className: 'text-muted-foreground' },
+}
+
+// The structured verification checks, between the evidence header and the document.
+// Plain NATIVE React — react auto-escapes the agent-authored label/detail strings, so
+// (unlike the sandboxed HTML body) there is no dangerouslySetInnerHTML / iframe here.
+export function EvidenceChecksRow({ checks }: { checks: EvidenceCheck[] }): React.JSX.Element {
+  return (
+    <ul className="sticky left-0 flex max-w-[var(--vrows-vw)] flex-col gap-1 px-3 py-1.5">
+      {checks.map((check, index) => {
+        const { Icon, className } = checkStatusStyle[check.status]
+        return (
+          // biome-ignore lint/suspicious/noArrayIndexKey: static per render, never reordered; labels are agent-authored and not deduped
+          <li key={`${index}-${check.label}`} className="flex items-start gap-2">
+            <Icon className={cn('mt-0.5 size-3.5 shrink-0', className)} />
+            <span className="min-w-0 font-sans text-sm leading-snug">
+              {check.label}
+              {check.detail && (
+                <span className="ml-2 text-xs text-muted-foreground">{check.detail}</span>
+              )}
+            </span>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
 // The evidence document itself, fetched lazily — the row only mounts when scrolled
-// near (virtualization), so the (up to 1.5 MB) HTML never rides the 3s reading poll.
+// near (virtualization), so the (up to ~4 MB) HTML never rides the 3s reading poll.
 // Same fully-sandboxed iframe path as the diagram rows; fixed height, scrolls inside.
 function EvidenceBodyRow(): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)
@@ -597,7 +671,9 @@ function ReadingRowView({
     case 'embed':
       return <EmbedRow row={row} />
     case 'evidenceHeader':
-      return <EvidenceHeaderRow title={row.title} />
+      return <EvidenceHeaderRow title={row.title} checks={row.checks} />
+    case 'evidenceChecks':
+      return <EvidenceChecksRow checks={row.checks} />
     case 'evidenceBody':
       return <EvidenceBodyRow />
     case 'layer':

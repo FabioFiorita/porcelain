@@ -3,9 +3,11 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
+  checkEvidence,
   clearEvidence,
   describeEvidence,
   evidenceDirForRepo,
+  evidenceOverallStatus,
   getEvidence,
   MAX_HTML_BYTES,
   prepareEvidence,
@@ -85,5 +87,54 @@ describe('evidence directory channel', () => {
   it('describeEvidence without evidence explains the prepare flow', () => {
     expect(describeEvidence('/repo', null)).toContain('evidence prepare')
     expect(describeEvidence('/repo', null)).toContain('index.html')
+  })
+
+  const readChecks = (repo: string): unknown => {
+    const meta = JSON.parse(readFileSync(join(evidenceDirForRepo(repo), 'meta.json'), 'utf8')) as {
+      checks?: unknown
+    }
+    return meta.checks
+  }
+
+  it('checkEvidence creates the meta when missing (title falls back to Loop evidence)', () => {
+    const result = checkEvidence('/repo', 'pnpm test', 'pass', '1348 passed')
+    expect(result.title).toBe('Loop evidence')
+    expect(result.checks).toEqual([{ label: 'pnpm test', status: 'pass', detail: '1348 passed' }])
+    expect(existsSync(join(evidenceDirForRepo('/repo'), 'meta.json'))).toBe(true)
+  })
+
+  it('checkEvidence appends distinct checks and keeps the prepared title', () => {
+    prepareEvidence('/repo', 'Login smoke test')
+    checkEvidence('/repo', 'pnpm lint', 'pass', undefined)
+    const result = checkEvidence('/repo', 'pnpm build', 'skip', undefined)
+    expect(result.title).toBe('Login smoke test')
+    expect(result.checks.map((c) => c.label)).toEqual(['pnpm lint', 'pnpm build'])
+    expect(readChecks('/repo')).toHaveLength(2)
+  })
+
+  it('checkEvidence replaces a check with the same label instead of duplicating', () => {
+    checkEvidence('/repo', 'pnpm test', 'fail', '2 failed')
+    const result = checkEvidence('/repo', 'pnpm test', 'pass', '1348 passed')
+    expect(result.checks).toEqual([{ label: 'pnpm test', status: 'pass', detail: '1348 passed' }])
+    expect(evidenceOverallStatus(result.checks)).toBe('pass')
+  })
+
+  it('checkEvidence enforces the count cap (33rd distinct check throws)', () => {
+    for (let i = 0; i < 32; i++) checkEvidence('/repo', `check ${i}`, 'pass', undefined)
+    expect(() => checkEvidence('/repo', 'check 32', 'pass', undefined)).toThrow('too many checks')
+  })
+
+  it('checkEvidence rejects an over-long label and an unknown status', () => {
+    expect(() => checkEvidence('/repo', 'x'.repeat(121), 'pass', undefined)).toThrow('over the')
+    expect(() => checkEvidence('/repo', 'ok', 'bogus', undefined)).toThrow('pass|fail|skip')
+  })
+
+  it('describeEvidence includes the checks summary + derived status', () => {
+    setEvidence('/repo', 'Loop', '<h1>ok</h1>')
+    checkEvidence('/repo', 'pnpm test', 'pass', '1348 passed')
+    checkEvidence('/repo', 'pnpm build', 'fail', 'tsc error')
+    const text = describeEvidence('/repo', getEvidence('/repo'))
+    expect(text).toContain('Checks: 2')
+    expect(text).toContain('FAIL')
   })
 })

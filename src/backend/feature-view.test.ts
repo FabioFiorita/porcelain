@@ -303,7 +303,11 @@ describe('buildFeatureReading', () => {
       ],
       sources,
       diffs,
-      evidence: { title: 'Loop closed', updatedAt: '2026-07-18T00:00:00Z' },
+      evidence: {
+        title: 'Loop closed',
+        updatedAt: '2026-07-18T00:00:00Z',
+        checks: [{ label: 'pnpm test', status: 'pass', detail: '1348 passed' }],
+      },
     })
     expect(reading.thesis).toBe('The why.')
     expect(reading.sections).toEqual([
@@ -316,7 +320,11 @@ describe('buildFeatureReading', () => {
         files: [],
       },
     ])
-    expect(reading.evidence).toEqual({ title: 'Loop closed', updatedAt: '2026-07-18T00:00:00Z' })
+    expect(reading.evidence).toEqual({
+      title: 'Loop closed',
+      updatedAt: '2026-07-18T00:00:00Z',
+      checks: [{ label: 'pnpm test', status: 'pass', detail: '1348 passed' }],
+    })
   })
 
   it("gives a rangeless anchor the file's normal reading block and removes it from groups", () => {

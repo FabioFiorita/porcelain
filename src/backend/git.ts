@@ -759,9 +759,9 @@ function splitDiffChunks(combined: string): string[] {
 function attributeDiffChunk(chunk: string): string | null {
   const lines = chunk.split('\n')
   const added = lines.find((line) => line.startsWith('+++ '))?.slice(4)
-  if (added !== undefined && added.startsWith('b/')) return added.slice(2)
+  if (added?.startsWith('b/')) return added.slice(2)
   const removed = lines.find((line) => line.startsWith('--- '))?.slice(4)
-  if (removed !== undefined && removed.startsWith('a/')) return removed.slice(2)
+  if (removed?.startsWith('a/')) return removed.slice(2)
   return null
 }
 

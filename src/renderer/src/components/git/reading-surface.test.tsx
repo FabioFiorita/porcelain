@@ -1,12 +1,22 @@
 import type { FeatureReading } from '@backend/feature-view'
-import { describe, expect, it } from 'vitest'
+import type { EvidenceCheck } from '@shared/evidence-check'
+import { render, screen } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
 import {
   buildRowFocus,
   buildRows,
+  EvidenceChecksRow,
+  EvidenceHeaderRow,
   rowIndexForTarget,
   svgAspectRatio,
   svgDocument,
 } from './reading-surface'
+
+// EvidenceHeaderRow's only hook is useClearEvidence (the Clear button) — stub it so
+// the header renders standalone without a tRPC/query provider.
+vi.mock('@renderer/hooks/use-evidence', () => ({
+  useClearEvidence: () => ({ clear: async () => {}, isClearing: false }),
+}))
 
 const reading: FeatureReading = {
   name: 'Feature',
@@ -103,7 +113,7 @@ const document: FeatureReading = {
       files: [{ path: 'server/svc.ts', source: 'shipped', ranges: [] }],
     },
   ],
-  evidence: { title: 'Loop closed', updatedAt: '2026-07-18T00:00:00.000Z' },
+  evidence: { title: 'Loop closed', updatedAt: '2026-07-18T00:00:00.000Z', checks: [] },
 }
 
 describe('buildRows (Review document)', () => {
@@ -170,6 +180,85 @@ describe('buildRows (Review document)', () => {
       evidence: null,
     }
     expect(buildRows(bare, null).map((r) => r.type)).toEqual(['sectionHeader'])
+  })
+})
+
+describe('buildRows (evidence checks)', () => {
+  const checks: EvidenceCheck[] = [
+    { label: 'pnpm test', status: 'pass', detail: '1348 passed' },
+    { label: 'pnpm build', status: 'fail', detail: 'tsc error' },
+  ]
+  const withChecks = (list: EvidenceCheck[]): FeatureReading => ({
+    name: 'X',
+    sections: [],
+    groups: [],
+    evidence: { title: 'Loop closed', updatedAt: '2026-07-18T00:00:00.000Z', checks: list },
+  })
+
+  it('inserts an evidenceChecks row (carrying the checks) between header and body', () => {
+    const rows = buildRows(withChecks(checks), null)
+    expect(rows.map((r) => r.type)).toEqual(['evidenceHeader', 'evidenceChecks', 'evidenceBody'])
+    const checksRow = rows.find((r) => r.type === 'evidenceChecks')
+    expect(checksRow).toEqual({ type: 'evidenceChecks', checks })
+    const header = rows.find((r) => r.type === 'evidenceHeader')
+    expect(header).toMatchObject({ type: 'evidenceHeader', title: 'Loop closed', checks })
+  })
+
+  it('emits no evidenceChecks row when there are no checks', () => {
+    const rows = buildRows(withChecks([]), null)
+    expect(rows.map((r) => r.type)).toEqual(['evidenceHeader', 'evidenceBody'])
+  })
+
+  it('tags the evidenceChecks row to the evidence chapter', () => {
+    const focus = buildRowFocus(buildRows(withChecks(checks), null))
+    expect(focus.every((meta) => meta.section === 'evidence')).toBe(true)
+  })
+})
+
+describe('EvidenceChecksRow', () => {
+  it('renders one row per check with its status icon, label, and detail', () => {
+    const { container } = render(
+      <EvidenceChecksRow
+        checks={[
+          { label: 'pnpm test', status: 'pass', detail: '1348 passed' },
+          { label: 'pnpm build', status: 'fail', detail: 'tsc error' },
+          { label: 'e2e', status: 'skip' },
+        ]}
+      />,
+    )
+    expect(screen.getByText('pnpm test')).toBeInTheDocument()
+    expect(screen.getByText('1348 passed')).toBeInTheDocument()
+    expect(screen.getByText('e2e')).toBeInTheDocument()
+    expect(container.querySelector('.lucide-circle-check')).not.toBeNull()
+    expect(container.querySelector('.lucide-circle-x')).not.toBeNull()
+    expect(container.querySelector('.lucide-circle-minus')).not.toBeNull()
+  })
+})
+
+describe('EvidenceHeaderRow', () => {
+  it('shows a Fail badge when any check fails', () => {
+    render(
+      <EvidenceHeaderRow
+        title="Loop"
+        checks={[
+          { label: 'a', status: 'pass' },
+          { label: 'b', status: 'fail' },
+        ]}
+      />,
+    )
+    expect(screen.getByText('Fail')).toBeInTheDocument()
+    expect(screen.queryByText('Pass')).not.toBeInTheDocument()
+  })
+
+  it('shows a Pass badge when all checks pass', () => {
+    render(<EvidenceHeaderRow title="Loop" checks={[{ label: 'a', status: 'pass' }]} />)
+    expect(screen.getByText('Pass')).toBeInTheDocument()
+  })
+
+  it('shows no badge with no signal (skip-only or empty)', () => {
+    render(<EvidenceHeaderRow title="Loop" checks={[{ label: 'a', status: 'skip' }]} />)
+    expect(screen.queryByText('Pass')).not.toBeInTheDocument()
+    expect(screen.queryByText('Fail')).not.toBeInTheDocument()
   })
 })
 

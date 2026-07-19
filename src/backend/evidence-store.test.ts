@@ -5,7 +5,9 @@ import { dirname, join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   clearEvidence,
+  type EvidenceCheck,
   evidenceDirForRepo,
+  evidenceOverallStatus,
   MAX_HTML_BYTES,
   readEvidence,
   readEvidenceMeta,
@@ -18,13 +20,13 @@ const diskRoot = join(root, 'loop-evidence')
 const keyFor = (repo: string): string =>
   createHash('sha256').update(repo).digest('hex').slice(0, 16)
 
-const writeDisk = (repo: string, title: string, html: string): string => {
+const writeDisk = (repo: string, title: string, html: string, checks?: unknown): string => {
   const dir = join(diskRoot, keyFor(repo))
   mkdirSync(dir, { recursive: true })
   writeFileSync(join(dir, 'index.html'), html)
   writeFileSync(
     join(dir, 'meta.json'),
-    JSON.stringify({ title, repoPath: repo, updatedAt: '2026-07-17T00:00:00.000Z' }),
+    JSON.stringify({ title, repoPath: repo, updatedAt: '2026-07-17T00:00:00.000Z', checks }),
   )
   return dir
 }
@@ -49,8 +51,32 @@ describe('readEvidence (disk-first)', () => {
       html: '<h1>hi</h1>',
       updatedAt: '2026-07-17T00:00:00.000Z',
       dir,
+      checks: [],
     })
     expect(evidenceDirForRepo('/repo')).toBe(dir)
+  })
+
+  it('reads back valid structured checks', async () => {
+    const checks: EvidenceCheck[] = [
+      { label: 'pnpm test', status: 'pass', detail: '1348 passed' },
+      { label: 'pnpm build', status: 'skip' },
+    ]
+    writeDisk('/repo', 'Loop', '<h1>hi</h1>', checks)
+    expect((await readEvidence('/repo'))?.checks).toEqual(checks)
+    expect((await readEvidenceMeta('/repo'))?.checks).toEqual(checks)
+  })
+
+  it('drops a malformed checks field leniently (meta still read)', async () => {
+    writeDisk('/repo', 'Loop', '<h1>hi</h1>', [{ label: 'x', status: 'bogus' }])
+    const evidence = await readEvidence('/repo')
+    expect(evidence?.title).toBe('Loop')
+    expect(evidence?.checks).toEqual([])
+  })
+
+  it('drops an over-cap checks list leniently', async () => {
+    const tooMany = Array.from({ length: 33 }, (_, i) => ({ label: `c${i}`, status: 'pass' }))
+    writeDisk('/repo', 'Loop', '<h1>hi</h1>', tooMany)
+    expect((await readEvidenceMeta('/repo'))?.checks).toEqual([])
   })
 
   it('inlines sibling screenshots into the html for the viewer', async () => {
@@ -122,5 +148,29 @@ describe('clearEvidence', () => {
 
   it('is a no-op when nothing exists', async () => {
     await expect(clearEvidence('/repo')).resolves.toBeUndefined()
+  })
+})
+
+describe('evidenceOverallStatus', () => {
+  const check = (status: EvidenceCheck['status']): EvidenceCheck => ({ label: status, status })
+
+  it('is null for an empty list (no signal)', () => {
+    expect(evidenceOverallStatus([])).toBeNull()
+  })
+
+  it("is 'pass' when every check passes", () => {
+    expect(evidenceOverallStatus([check('pass'), check('pass')])).toBe('pass')
+  })
+
+  it('lets a single fail win', () => {
+    expect(evidenceOverallStatus([check('pass'), check('fail'), check('skip')])).toBe('fail')
+  })
+
+  it('is null for skip-only', () => {
+    expect(evidenceOverallStatus([check('skip'), check('skip')])).toBeNull()
+  })
+
+  it("is 'pass' for pass + skip with no fail", () => {
+    expect(evidenceOverallStatus([check('pass'), check('skip')])).toBe('pass')
   })
 })

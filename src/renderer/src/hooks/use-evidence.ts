@@ -6,7 +6,7 @@ import { useRepoStore } from '@renderer/stores/repo'
 /**
  * The full evidence document for a repo — read only while the Review's evidence
  * chapter is on screen. No poll: it's a static document, and the app-event 'evidence'
- * invalidation refreshes it live on a CLI write; polling the (up to 1.5 MB) HTML on a
+ * invalidation refreshes it live on a CLI write; polling the (up to ~4 MB) HTML on a
  * timer would be wasteful. (Chapter presence/meta rides on featureReading.)
  */
 export function useEvidenceHtml(repoPath: string): { evidence: Evidence | null | undefined } {

@@ -978,7 +978,9 @@ export const router = t.router({
       // NOT part of the feature key, so a cached reading would otherwise pin a
       // stale/absent final chapter until the working tree changed.
       const meta = await readEvidenceMeta(input)
-      const evidence = meta ? { title: meta.title, updatedAt: meta.updatedAt } : null
+      const evidence = meta
+        ? { title: meta.title, updatedAt: meta.updatedAt, checks: meta.checks }
+        : null
       const cached = featureReadingCache.get(input)
       if (cached && cached.key === g.key) return { ...cached.reading, evidence }
       const { view, sources } = await getFeatureBuild(input, { ...g, reviewSet: g.reviewSet })

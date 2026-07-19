@@ -383,9 +383,20 @@ assumed — this skill is the codebase-specific layer beneath them.
   the section diagrams: loop evidence now renders as the **Review's final chapter** (the
   standalone `evidence-view.tsx` / `evidence` tab kind is GONE) — the reading surface's
   evidence-chapter body hands the html to `HtmlView` (`sandbox=""` + `srcdoc`); never widen
-  `img-src`/`default-src`. Watch: recursive on `loop-evidence/` root + Feature list 3s
+  `img-src`/`default-src`. The chapter also renders **structured checks natively** — plain
+  React with the agent-authored label/detail as **escaped text**, NOT through the iframe — so
+  they add no active-content surface (the sandboxed HTML body stays the deep proof; the sandbox
+  clause above still governs it unchanged). Those checks are agent input in `meta.json`
+  (`evidence check --label --status pass|fail|skip [--detail]`, append-or-replace-by-label),
+  **bounded on read** the same way review-set fields are: ≤32 checks, label ≤120, detail ≤400,
+  and a malformed entry is **dropped, not thrown** (read-side leniency). Overall status is
+  **DERIVED, never stored** (`evidenceOverallStatus` in the dependency-free `src/shared/evidence-check.ts`
+  leaf: any fail → fail, else any pass → pass, else null). The evidence read/write cap is a deliberate
+  **split**: read-side `MAX_HTML_BYTES` is 4 MB (inlined-screenshot headroom) while the CLI `set`
+  write cap stays 1.5 MB. Watch: recursive on `loop-evidence/` root + Feature list 3s
   poll. *Verify:* disk-first tests in `evidence-store.test.ts`; skill documents prepare +
-  Write; `evidence prepare` returns a path without requiring html.
+  Write; `evidence prepare` returns a path without requiring html; overall status is computed by
+  `evidenceOverallStatus`, never read from disk, and check caps drop malformed entries silently.
 - **`evidence set` still accepts `--html` (inline or `-` for stdin) OR `--html-file`
   (absolute path)** (`src/cli/html-input.ts`, now the SOLE caller after the artifact channel
   was removed) — but loop evidence PREFERS the directory flow above (`evidence prepare` +

@@ -1,3 +1,4 @@
+import type { EvidenceCheck } from '../shared/evidence-check'
 import type { ChangedFile, DiffHunk, FileStatus } from './diff'
 import { collectImportedSymbols, type SliceRange, sliceSource } from './feature-slice'
 import {
@@ -270,7 +271,7 @@ export interface FeatureReading {
   /** Files not anchored by any section, flow-grouped ("More files"). */
   groups: ReadingGroup[]
   /** Loop-evidence meta when present (the final chapter); html fetched lazily. */
-  evidence: { title: string; updatedAt: string } | null
+  evidence: { title: string; updatedAt: string; checks: EvidenceCheck[] } | null
 }
 
 // A ranged anchor renders at most this many lines — mirrors feature-slice's
@@ -295,7 +296,7 @@ export function buildFeatureReading(params: {
   sections: readonly ReviewSection[]
   sources: ReadonlyMap<string, string>
   diffs: ReadonlyMap<string, DiffHunk[]>
-  evidence: { title: string; updatedAt: string } | null
+  evidence: { title: string; updatedAt: string; checks: EvidenceCheck[] } | null
 }): FeatureReading {
   const unionPaths = params.view.groups.flatMap((g) => g.files.map((f) => f.path))
   const resolve = (spec: string, importer: string): string | null =>

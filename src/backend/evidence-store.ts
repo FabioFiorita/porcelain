@@ -2,9 +2,24 @@ import { readFile, rm, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod'
+import {
+  type EvidenceCheck,
+  MAX_CHECK_DETAIL,
+  MAX_CHECK_LABEL,
+  MAX_CHECKS,
+} from '../shared/evidence-check'
 import { inlineLocalAssets } from './evidence-assets'
 import { evidenceDirForRepo, evidenceIndexPath, evidenceMetaPath } from './evidence-paths'
 import { createHomeChannel } from './home-channel'
+
+// Structured checks live in the node-free `../shared/evidence-check` leaf so the
+// renderer can import the shape + `evidenceOverallStatus` without pulling this
+// module's fs graph; re-exported here so backend/test callers use one entry.
+export {
+  type EvidenceCheck,
+  type EvidenceCheckStatus,
+  evidenceOverallStatus,
+} from '../shared/evidence-check'
 
 /**
  * Loop evidence — **files on disk are the source of truth.**
@@ -20,8 +35,14 @@ import { createHomeChannel } from './home-channel'
  * prepare/write side.
  */
 
-/** Keep in sync with MAX_HTML_BYTES in src/cli/evidence-file.ts. */
-export const MAX_HTML_BYTES = 1_572_864
+/**
+ * Read-side cap on the inlined HTML. Higher than the CLI `set` payload cap
+ * (`MAX_HTML_BYTES` in src/cli/evidence-file.ts, 1.5 MB) on purpose: agents write
+ * multi-screenshot evidence as sibling files and this module inlines them as
+ * data: URIs, so the read-side document needs headroom the write-side payload
+ * doesn't. Keep the folder itself under a few MB (shrink screenshots).
+ */
+export const MAX_HTML_BYTES = 4_194_304
 
 const evidenceSchema = z.object({
   title: z.string(),
@@ -30,17 +51,28 @@ const evidenceSchema = z.object({
 })
 const evidencesSchema = z.record(z.string(), evidenceSchema)
 
+const checkSchema = z.object({
+  label: z.string().min(1).max(MAX_CHECK_LABEL),
+  status: z.enum(['pass', 'fail', 'skip']),
+  detail: z.string().max(MAX_CHECK_DETAIL).optional(),
+})
+
 const metaSchema = z.object({
   title: z.string().optional(),
   repoPath: z.string().optional(),
   updatedAt: z.string().optional(),
+  // Lenient: a malformed or over-cap checks list is dropped (`.catch([])`) so the
+  // rest of the meta still parses — one bad write never blanks the opener.
+  checks: checkSchema.array().max(MAX_CHECKS).catch([]).optional(),
 })
 
 export type Evidence = z.infer<typeof evidenceSchema> & {
   /** Absolute directory holding index.html (for "open in browser" / Reveal). */
   dir?: string
+  /** Structured verification checks (empty when none were recorded). */
+  checks: EvidenceCheck[]
 }
-export type EvidenceMeta = Pick<Evidence, 'title' | 'updatedAt'> & { dir?: string }
+export type EvidenceMeta = Pick<Evidence, 'title' | 'updatedAt' | 'checks'> & { dir?: string }
 
 /** Legacy channel (HTML embedded in JSON) — fallback + clear of old entries. */
 export function evidencePath(): string {
@@ -91,6 +123,7 @@ export async function readEvidence(repoPath: string): Promise<Evidence | null> {
       html,
       updatedAt,
       dir,
+      checks: meta?.checks ?? [],
     }
   } catch {
     // no index.html — try legacy json
@@ -101,7 +134,7 @@ export async function readEvidence(repoPath: string): Promise<Evidence | null> {
     const evidence = all[repoPath]
     if (!evidence) return null
     if (Buffer.byteLength(evidence.html, 'utf8') > MAX_HTML_BYTES) return null
-    return evidence
+    return { ...evidence, checks: [] }
   } catch {
     return null
   }
@@ -125,6 +158,7 @@ export async function readEvidenceMeta(repoPath: string): Promise<EvidenceMeta |
       title: meta?.title?.trim() || 'Loop evidence',
       updatedAt,
       dir: evidenceDirForRepo(repoPath),
+      checks: meta?.checks ?? [],
     }
   } catch {
     // fall through to legacy
@@ -132,7 +166,12 @@ export async function readEvidenceMeta(repoPath: string): Promise<EvidenceMeta |
 
   const evidence = await readEvidence(repoPath)
   return evidence
-    ? { title: evidence.title, updatedAt: evidence.updatedAt, dir: evidence.dir }
+    ? {
+        title: evidence.title,
+        updatedAt: evidence.updatedAt,
+        dir: evidence.dir,
+        checks: evidence.checks,
+      }
     : null
 }
 

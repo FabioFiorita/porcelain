@@ -29,8 +29,25 @@ The CLI lives at `~/.porcelain/porcelain` — installed automatically and kept f
 
 Optional helpers:
 
-- `~/.porcelain/porcelain evidence get` → confirm the dir / title / size (not the full HTML).
+- `~/.porcelain/porcelain evidence get` → confirm the dir / title / size (not the full HTML), plus the recorded checks summary.
 - `~/.porcelain/porcelain evidence clear` → remove the directory (prefer letting the human clear after review).
+
+## Structured checks — one per verification step
+
+Alongside the HTML, record each verification step as a **structured check** so the Review shows a machine-readable pass/fail list (and a Pass/Fail badge on the evidence header) — not just prose buried in the document:
+
+```bash
+~/.porcelain/porcelain evidence check --label "pnpm lint"  --status pass --detail "0 errors"
+~/.porcelain/porcelain evidence check --label "pnpm test"  --status pass --detail "1348 passed"
+~/.porcelain/porcelain evidence check --label "pnpm build" --status pass --detail "tsc + vite ok"
+~/.porcelain/porcelain evidence check --label "e2e login"  --status skip --detail "no display on this host"
+```
+
+- `--status` is `pass | fail | skip`. Put the **real result** in `--detail` (`1348 passed`, `2 failed`, a URL, a device) — don't invent it.
+- Run one `check` per step you actually verified (lint / tests / build / e2e). It **appends**; re-running with the **same `--label`** updates that check in place (so fixing a failure and re-recording it flips fail → pass, no duplicate).
+- `check` creates the evidence directory + meta on its own, so you can record checks before (or without) writing `index.html`.
+- **Derived overall status:** any `fail` → overall Fail; all `pass` (at least one) → overall Pass; skip-only or empty → no badge.
+- Caps: up to 32 checks, label ≤ 120 chars, detail ≤ 400 chars (over-cap is rejected loudly).
 
 ### Alternative: small docs only
 
@@ -64,7 +81,7 @@ Porcelain renders your HTML in a **FULLY SANDBOXED iframe** (scripts never run; 
 </style>
 ```
 
-Keep the whole folder under a few MB after screenshots (shrink images). Porcelain drops documents over ~1.5 MB of HTML after asset inlining.
+Keep the whole folder under a few MB after screenshots (shrink images). Porcelain reads up to ~4 MB of HTML **after** it inlines the sibling screenshots as data URIs (documents over that are dropped) — so a handful of reasonably-sized screenshots is fine, but don't dump giant unshrunk PNGs.
 
 ## Recommended structure
 
