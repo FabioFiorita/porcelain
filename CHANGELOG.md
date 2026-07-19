@@ -1,3 +1,12 @@
+## [0.34.0](https://github.com/FabioFiorita/porcelain/compare/v0.33.0...v0.34.0) (2026-07-19)
+
+### Features
+
+* move the Agent tab to rail position 3 ([ade188d](https://github.com/FabioFiorita/porcelain/commit/ade188d152fb25f2d94d36bc48b4317acfcb58ec))
+* per-section sandboxed HTML embeds in the Review ([a90ffb0](https://github.com/FabioFiorita/porcelain/commit/a90ffb07ee2c6f0eac30d288cd6aff7900af507d))
+* Review inbox across worktrees (roadmap Phase 3 core) ([46000bc](https://github.com/FabioFiorita/porcelain/commit/46000bc9edb30830279b17e85dc86ed47815b7d8))
+* start an agent thread in a fresh worktree (roadmap Phase 2) ([bd13742](https://github.com/FabioFiorita/porcelain/commit/bd137425ec2fd6c5c872f8f752dd116652e3171e))
+
 ## [0.33.0](https://github.com/FabioFiorita/porcelain/compare/v0.32.0...v0.33.0) (2026-07-19)
 
 ### Features
