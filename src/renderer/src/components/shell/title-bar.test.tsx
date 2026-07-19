@@ -21,6 +21,11 @@ vi.mock('@renderer/lib/platform', () => ({
   isE2E: false,
 }))
 
+// The repo-identity anchor reaches through domain hooks (recents query) that need a
+// QueryClient this test doesn't wire; it has its own coverage, so stub it out here —
+// these tests are scoped to the remote badge.
+vi.mock('./repo-identity-button', () => ({ RepoIdentityButton: () => null }))
+
 const beelink = { id: 'beelink', name: 'Beelink', url: 'http://100.64.1.2:43117' }
 
 const skew: VersionSkew = {

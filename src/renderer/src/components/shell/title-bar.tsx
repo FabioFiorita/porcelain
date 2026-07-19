@@ -8,12 +8,16 @@ import { cn } from '@renderer/lib/utils'
 import { useFileFinderStore } from '@renderer/stores/file-finder'
 import { useSettingsDialogStore } from '@renderer/stores/settings-dialog'
 import { Cloud, Search, TriangleAlert } from 'lucide-react'
+import { RepoIdentityButton } from './repo-identity-button'
 import { WindowControls } from './window-controls'
 
 /**
- * Full-width window titlebar. The macOS traffic lights own the left inset, and a
- * centered search bar raises the Cmd+P file finder — it's just a clickable handle
- * on the same popup, not a separate command palette. Browser clients (iPad/iPhone
+ * Full-width window titlebar. The macOS traffic lights own the left inset, then a
+ * compact repo-identity button (the open repo's base name) anchors the left region —
+ * a second trigger for the shared project switcher (RepoIdentityButton →
+ * ProjectSwitcherMenu, the same surface the rail avatar opens). A centered search
+ * bar raises the Cmd+P file finder — it's just a clickable handle on the same popup,
+ * not a separate command palette. Browser clients (iPad/iPhone
  * Safari) have no traffic lights, so the side spacers are dropped there — on a
  * phone they were eating ~128px of an already-tight bar. The Linux/Windows shell is
  * frameless (no native traffic lights either), so the left spacer is likewise
@@ -35,6 +39,10 @@ export function TitleBar(): React.JSX.Element {
   return (
     <div className="app-drag flex h-12 shrink-0 items-center border-border/60 border-b px-3">
       {!isBrowser && !isLinuxShell && <div className="w-16 shrink-0" aria-hidden />}
+      {/* Repo-identity anchor at the far left (after the traffic-light spacer on
+          macOS). A compact trigger for the shared project switcher — kept narrow so
+          the bar keeps a generous drag area. Renders nothing on the welcome screen. */}
+      <RepoIdentityButton />
       <div className="flex flex-1 justify-center">
         <button
           type="button"
