@@ -57,8 +57,22 @@ order:
   full-height band; slim/integrate it without breaking the macOS drag region /
   traffic lights. Read the `audit` skill first; design decided by the
   orchestrator, not delegated blind.
-- **D — Re-shoot.** `pnpm shots` regen, swap `marketing/images/`, og:image,
-  baseline sync.
+- **D — Re-shoot. PARTIAL 2026-07-19.** The three surfaces the pipeline
+  produces were swapped into `marketing/images/` (`feature-view.png` = the
+  Review — also the og:image — plus `feat-board.png`, `feat-terminal.png`),
+  alts updated. Still on old-design Mac captures: feat-agent, feat-commit,
+  feat-comment, feat-search, feat-history, grouped-panel, hide-panel,
+  pin-compact — grow the shots spec to cover those crops, then swap.
+
+## Still open
+
+- Phase C's sidebar empty states are padded-centered, not `h-full`-centered
+  (the shared SidebarGroup wrapper auto-heights; restructuring was out of
+  scope). Fine for now; revisit only if it grates.
+- **Darwin visual baselines + any native-chrome hero shot** need the macos-14
+  regen workflow before the next release.
+- Optional future taste: content in the title bar (T3 puts thread title +
+  actions there); decide deliberately, it shrinks the drag region.
 
 Verification for every phase: `pnpm shots` before/after compare, lint/test/
 build gate, visual baselines updated deliberately (never blindly).
