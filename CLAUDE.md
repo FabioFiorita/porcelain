@@ -26,6 +26,7 @@ Only each skill's one-line description loads up front; the body loads on demand 
 - `architecture` — stack, repo facts, aliases, conventions, app shell, client architecture, and the app's shared nomenclature. **Read before writing or reviewing any code.**
 - `product` — what Porcelain is, who it's for, core features, product principles. **Read before designing features/UI or prioritizing.**
 - `audit` — the security/correctness/performance/type invariants the codebase must not regress, with file pointers. **Read before changing the main process, IPC, config persistence, git plumbing, file reads, external-URL handling, or packaging — and when reviewing a diff for regressions.**
+- `marketing` — the marketing process the agent owns end-to-end (README, `marketing/` site, autonomous screenshot pipeline, release visibility). **Read before touching README.md, `marketing/`, or producing screenshots/launch copy.**
 - `releasing` — the runbook for cutting a signed + notarized release (bump/tag, the Actions pipeline, secrets, changelog). **Read when publishing a version or touching the release/signing setup.**
 - `shadcn` — vendored UI-primitive skill (also in `.agents/skills/`).
 
