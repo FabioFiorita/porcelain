@@ -1,6 +1,6 @@
 # Plans — record & backlog
 
-The `improve` skill's home. Two live docs sit alongside this index; the completed
+The `improve` skill's home. No live docs at the moment; the completed
 plan files were removed after reconcile (**recoverable from git** — e.g.
 `git show 0a7e59c:plans/025-unify-persistence-factories.md`). This file is the
 standalone record of what shipped.
@@ -9,14 +9,43 @@ standalone record of what shipped.
 > any commit). Commit straight to `main` — the git-guard hook hard-blocks branch
 > creation. Never push without the maintainer.
 
-## Live docs (not finished — keep)
+## Completed — nova preset + light/dark/system theme, 2026-07-18 → v0.32.0
 
-- **`nova-preset-and-light-dark-mode.md`** — preset switch `b1tNqHXYe` → `b5J4txmSY`
-  (nova/neutral/sky, translucent menus) + persisted light/dark/system theme. PLANNED.
-- **`remote-environments-phase4.md`** — Beelink bring-up runbook. Prep code +
-  `npx porcelain-daemon@latest serve` path shipped; preferred remote UX is
-  on-demand npx (no scp tarball / no always-on systemd). Its parent spec +
-  Phase 1 doc shipped and were removed (in git history).
+Plan doc removed after reconcile (`git show d74e559:plans/nova-preset-and-light-dark-mode.md`):
+
+- **Nova preset switch** (`2051fa0`) —
+  shadcn preset `b1tNqHXYe` → `b5J4txmSY` (nova style, neutral base, sky theme,
+  translucent menus — the one sanctioned exception to opaque surfaces). Local
+  tweaks re-grafted (sonner without `next-themes`); linux visual baselines
+  regenerated in the same commit.
+- **Light/dark/system theme** (`6781508`) — persisted 3-way pref
+  (`stores/preferences.ts`, renderer-local zustand persist), pre-paint class
+  application in `main.tsx` (no inline script, CSP untouched), themed Shiki
+  (`light-plus`/`dark-plus`, theme in the token-cache key), xterm, and OS window
+  chrome (shell receives the *resolved* mode so System flips retint native
+  chrome). e2e pins `colorScheme: dark` in both harness fixtures for determinism.
+- **Darwin baseline regen** — manual macos-14 workflow (`33a40a8`) ran before
+  v0.32.0; only 2 of 6 darwin snapshots differed and were committed (`334b732`).
+  If macOS CI ever flakes on the other four, suspect a stale baseline first.
+
+Shipped alongside (board cards, cleared): the **browser-first e2e harness**
+(`8e24203` — one suite, two Playwright projects; Chromium drives the daemon's
+web viewer for day-to-day specs, Electron project keeps native-only behavior).
+Its follow-up — collapsing darwin/linux visual pairs into one headless-Chromium
+snapshot set — was marked done on the board; the darwin pngs still exist for the
+native project's checks.
+
+## Completed — remote environments Phase 4 (Beelink bring-up), reconciled 2026-07-19
+
+Runbook doc removed (`git show d74e559:plans/remote-environments-phase4.md`) —
+the hardware is live and IS the primary dev host now (daemon via systemd user
+unit / `pc` helpers, Tailscale + LAN, agents running on it daily). Prep code
+shipped 2026-07-04 (`05fe1b8` daemon dist, `30cdfb6` remote connection); npx
+publish path shipped 2026-07-16 (`npx porcelain-daemon@latest serve` is the
+on-demand default; systemd needs `--no-watchdog`). Durable traps from the doc:
+node-pty must compile on the target (never copy `node_modules` across arches);
+a DEV renderer against a remote daemon needs `PORCELAIN_ALLOWED_ORIGIN`;
+npm package name is `porcelain-daemon` (`porcelain` was taken).
 
 ## Completed — the Review + chat claims + Linux release leg, 2026-07-18
 
