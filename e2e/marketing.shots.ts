@@ -3,10 +3,18 @@ import { randomBytes } from 'node:crypto'
 import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { chromium, expect, type Page, test } from '@playwright/test'
+import {
+  type Browser,
+  type BrowserContext,
+  chromium,
+  expect,
+  type Locator,
+  type Page,
+  test,
+} from '@playwright/test'
 import { expectTerminalText, selectTab, waitForShell } from './helpers/app'
 import { createDemoRepo } from './helpers/demo-repo'
-import { seedDemoChannels } from './helpers/demo-seed'
+import { seedDemoAgentThread, seedDemoChannels } from './helpers/demo-seed'
 
 // The autonomous marketing-screenshot pipeline (pnpm shots): headless Chromium at
 // Retina density (deviceScaleFactor 2) driving the daemon-served web client — the
@@ -74,6 +82,84 @@ async function shoot(page: Page, name: string): Promise<void> {
   await page.screenshot({ path: join(SHOTS_DIR, name), scale: 'device' })
 }
 
+/** Element-scoped Retina screenshot — the tight crops (dialogs, one panel, one surface). */
+async function shootLocator(locator: Locator, name: string): Promise<void> {
+  await locator.screenshot({ path: join(SHOTS_DIR, name), scale: 'device' })
+}
+
+type Rect = { x: number; y: number; width: number; height: number }
+
+/** Retina screenshot of a CSS-px rectangle — for crops that must span more than one element. */
+async function shootClip(page: Page, name: string, clip: Rect): Promise<void> {
+  await page.screenshot({ path: join(SHOTS_DIR, name), clip, scale: 'device' })
+}
+
+async function boxOf(locator: Locator): Promise<Rect> {
+  const box = await locator.boundingBox()
+  if (!box) throw new Error('element has no bounding box')
+  return box
+}
+
+/** The floating sidebar card (rail + panel for the left; the companion for the right). */
+function sidebarCard(page: Page, side: 'left' | 'right'): Locator {
+  return page.locator(
+    `[data-slot="sidebar-container"][data-side="${side}"] [data-slot="sidebar-inner"]`,
+  )
+}
+
+/**
+ * A clip covering a sidebar card from its top down to the bottom of its content (the
+ * grouped list / companion sections), so a portrait panel crop never trails off into
+ * the empty space above the branch/worktree footer. `contentSelector` picks the element
+ * whose bottom is the crop's floor (defaults to the panel's group content).
+ */
+async function panelClip(
+  page: Page,
+  side: 'left' | 'right',
+  contentSelector = '[data-slot="sidebar-group-content"]',
+  pad = 12,
+): Promise<Rect> {
+  const card = await boxOf(sidebarCard(page, side))
+  const content = await boxOf(
+    page
+      .locator(`[data-slot="sidebar-container"][data-side="${side}"]`)
+      .locator(contentSelector)
+      .last(),
+  )
+  const height = Math.min(card.height, content.y + content.height - card.y + pad)
+  return { x: card.x, y: card.y, width: card.width, height }
+}
+
+/**
+ * A fresh Retina context on the seeded daemon: token + e2e flag planted before first
+ * paint, optional persisted `preferences` (e.g. wider sidebars for the panel crops).
+ * Returns the context (to close) and a ready page (shell restored).
+ */
+async function openShotPage(
+  browser: Browser,
+  port: number,
+  prefs?: Record<string, unknown>,
+): Promise<{ context: BrowserContext; page: Page }> {
+  const context = await browser.newContext({
+    viewport: VIEWPORT,
+    deviceScaleFactor: 2,
+    colorScheme: 'dark',
+  })
+  await context.addInitScript((token) => {
+    localStorage.setItem('porcelain-daemon-token', token)
+    localStorage.setItem('porcelain-e2e', '1')
+  }, DAEMON_TOKEN)
+  if (prefs) {
+    await context.addInitScript((p) => {
+      localStorage.setItem('porcelain-preferences', JSON.stringify({ state: p, version: 0 }))
+    }, prefs)
+  }
+  const page = await context.newPage()
+  await page.goto(`http://127.0.0.1:${port}/`)
+  await waitForShell(page)
+  return { context, page }
+}
+
 test('marketing shots — the seeded demo repo across every surface', async () => {
   test.setTimeout(180_000)
   await mkdir(SHOTS_DIR, { recursive: true })
@@ -87,17 +173,37 @@ test('marketing shots — the seeded demo repo across every surface', async () =
   const udBase = await mkdtemp(join(tmpdir(), 'porcelain-shots-ud-'))
   const userData = `${udBase}-dev`
   await mkdir(userData, { recursive: true })
+  // Seed a pinned folder + file (absolute, under the repo) so the Workspace panel has
+  // real pinned content for pin-compact.png instead of its empty state.
   await writeFile(
     join(userData, 'config.json'),
-    JSON.stringify({ recentRepos: [repoDir], repos: {} }),
+    JSON.stringify({
+      recentRepos: [repoDir],
+      repos: {
+        [repoDir]: {
+          hiddenPaths: [],
+          pinnedPaths: [
+            `${repoDir}/src/hooks`,
+            `${repoDir}/README.md`,
+            `${repoDir}/src/pages/OrdersPage.tsx`,
+            `${repoDir}/src/services/orders.service.ts`,
+          ],
+        },
+      },
+    }),
   )
   const channelEnv = await seedDemoChannels(udBase, repoDir)
+
+  // A completed agent thread (user turn + rendered-markdown answer) so the Agent tab
+  // renders a real conversation for feat-agent.png — no provider CLI needed.
+  const agentThreadsDir = join(udBase, 'agent-threads')
+  await seedDemoAgentThread(agentThreadsDir, repoDir)
 
   const env: Record<string, string> = {
     ...channelEnv,
     PORCELAIN_USER_DATA: userData,
     PORCELAIN_DAEMON_TOKEN: DAEMON_TOKEN,
-    PORCELAIN_AGENT_THREADS: join(udBase, 'agent-threads'),
+    PORCELAIN_AGENT_THREADS: agentThreadsDir,
     // Pin a fast, config-free shell so the terminal shot is deterministic.
     PORCELAIN_SHELL: '/bin/bash',
     // e2e mode installs the terminal-buffer read hook (so we can wait for output
@@ -109,18 +215,8 @@ test('marketing shots — the seeded demo repo across every surface', async () =
   const browser = await chromium.launch()
   const { child, port } = await spawnDaemon(env)
   try {
-    const context = await browser.newContext({
-      viewport: VIEWPORT,
-      deviceScaleFactor: 2,
-      colorScheme: 'dark',
-    })
-    await context.addInitScript((token) => {
-      localStorage.setItem('porcelain-daemon-token', token)
-      localStorage.setItem('porcelain-e2e', '1')
-    }, DAEMON_TOKEN)
-    const page = await context.newPage()
-    await page.goto(`http://127.0.0.1:${port}/`)
-    await waitForShell(page)
+    // ── Phase 1 — the default layout: full-window surfaces + centered overlays. ──
+    const { context, page } = await openShotPage(browser, port)
 
     // review.png — the Feature tab with the Review document opened into the viewer
     // (thesis, walkthrough sections, flow diagram, anchored diff hunks). The outline
@@ -179,7 +275,128 @@ test('marketing shots — the seeded demo repo across every surface', async () =
     await settle(page)
     await shoot(page, 'terminal.png')
 
+    // feat-search.png — the finder overlay with a query showing mixed results
+    // (files + a saved command). Raise it from the titlebar search (not ⌘K over the
+    // terminal, where it's clear-screen), type a query, shoot just the dialog.
+    await selectTab(page, 'Files')
+    await page.getByRole('button', { name: 'Search files, folders, commands, commits' }).click()
+    const finder = page.getByRole('dialog')
+    await finder.getByPlaceholder('Search files, folders, commands, commits…').fill('orders')
+    await expect(finder.getByText('OrdersPage.tsx').first()).toBeVisible({ timeout: 10_000 })
+    await expect(finder.getByText('Run orders tests')).toBeVisible()
+    await settle(page)
+    await shootLocator(finder, 'feat-search.png')
+    await page.keyboard.press('Escape')
+
+    // feat-comment.png — the Add comment dialog over a diff, anchored to a line range.
+    // Open a changed file's diff, select a few lines, right-click → Add comment.
+    await selectTab(page, 'Changes')
+    await expect(page.getByText(/changed files?/)).toBeVisible({ timeout: 15_000 })
+    await sidebarCard(page, 'left').getByText('orders.service.ts', { exact: true }).click()
+    const lines = page.locator('[data-line]')
+    await expect(lines.nth(8)).toBeVisible({ timeout: 15_000 })
+    // Programmatic multi-line selection over the diff rows (robust vs. a pixel drag),
+    // then a real right-click INSIDE it so the context menu reads the line range.
+    await page.evaluate(() => {
+      const rows = Array.from(document.querySelectorAll('[data-line]'))
+      const a = rows[4]
+      const b = rows[8]
+      if (!a || !b) return
+      const range = document.createRange()
+      range.setStart(a, 0)
+      range.setEnd(b, b.childNodes.length)
+      const sel = window.getSelection()
+      sel?.removeAllRanges()
+      sel?.addRange(range)
+    })
+    const anchorRow = await boxOf(lines.nth(6))
+    await page.mouse.click(anchorRow.x + 60, anchorRow.y + anchorRow.height / 2, {
+      button: 'right',
+    })
+    await page.getByRole('menuitem', { name: 'Add comment' }).click()
+    const commentDialog = page.getByRole('dialog')
+    await expect(commentDialog.getByText('Add comment')).toBeVisible({ timeout: 10_000 })
+    await settle(page)
+    await shootLocator(commentDialog, 'feat-comment.png')
+    await page.keyboard.press('Escape')
+
+    // feat-agent.png — the Agent tab with a real thread (seeded on disk). Open it, then
+    // collapse both sidebars so the conversation is the wide, landscape surface.
+    await selectTab(page, 'Agent')
+    await page.getByText('Tour the orders feature').first().click()
+    const agent = page.getByRole('main')
+    await expect(agent.getByText('The orders feature, end to end')).toBeVisible({ timeout: 15_000 })
+    await page.getByRole('button', { name: 'Toggle quick access sidebar' }).click()
+    await page.getByRole('button', { name: 'Toggle sidebar' }).click()
+    await settle(page)
+    await settle(page)
+    // Show the answer from its heading (the timeline sticks to the bottom on mount).
+    await agent
+      .locator('[data-slot="scroll-area-viewport"]')
+      .first()
+      .evaluate((el) => {
+        el.scrollTop = 0
+      })
+    await settle(page)
+    await shootLocator(agent, 'feat-agent.png')
+
     await context.close()
+
+    // ── Phase 2 — widened sidebars: the panel / companion close-up crops. ──
+    const { context: wideContext, page: wide } = await openShotPage(browser, port, {
+      sidebarWidth: 470,
+      rightSidebarWidth: 390,
+    })
+
+    // grouped-panel.png — the Source-control sidebar: the flow-layer-grouped file list.
+    await selectTab(wide, 'Changes')
+    await expect(wide.getByText(/changed files?/)).toBeVisible({ timeout: 15_000 })
+    await settle(wide)
+    await shootClip(wide, 'grouped-panel.png', await panelClip(wide, 'left'))
+
+    // feat-commit.png — the right Commit companion: Suggested + Commands + composer + Comments.
+    await expect(wide.getByText('Commit', { exact: true }).first()).toBeVisible({ timeout: 15_000 })
+    await settle(wide)
+    // Floor the crop at the Comments group (the last section) so it doesn't trail off
+    // into empty space below.
+    await shootClip(wide, 'feat-commit.png', await panelClip(wide, 'right'))
+
+    // feat-history.png — the History sidebar list with the demo repo's commits.
+    await selectTab(wide, 'History')
+    await expect(wide.getByText('relabel the pagination control')).toBeVisible({ timeout: 15_000 })
+    await settle(wide)
+    await shootClip(wide, 'feat-history.png', await panelClip(wide, 'left'))
+
+    // pin-compact.png — the Workspace companion with pinned content (a folder + a file).
+    await selectTab(wide, 'Files')
+    await expect(wide.getByText('Pinned')).toBeVisible({ timeout: 15_000 })
+    // Expand the pinned folder so the crop shows a nested tree (taller, more portrait).
+    await sidebarCard(wide, 'right').getByText('hooks').click()
+    await expect(sidebarCard(wide, 'right').getByText('useOrders.ts')).toBeVisible({
+      timeout: 10_000,
+    })
+    await settle(wide)
+    await shootClip(
+      wide,
+      'pin-compact.png',
+      await panelClip(wide, 'right', '[data-slot="sidebar-group"]'),
+    )
+
+    // hide-panel.png — the Explorer folder context menu (Pin / Hide, DOM menu, not native).
+    const folder = wide.getByRole('button', { name: 'src', exact: true })
+    await folder.click({ button: 'right' })
+    const menu = wide.getByRole('menu')
+    await expect(menu.getByText('Hide', { exact: true })).toBeVisible({ timeout: 10_000 })
+    const leftCard = await boxOf(sidebarCard(wide, 'left'))
+    const menuBox = await boxOf(menu)
+    await shootClip(wide, 'hide-panel.png', {
+      x: leftCard.x,
+      y: leftCard.y,
+      width: menuBox.x + menuBox.width - leftCard.x + 12,
+      height: Math.min(leftCard.height, menuBox.y + menuBox.height - leftCard.y + 16),
+    })
+
+    await wideContext.close()
   } finally {
     const exited = new Promise<void>((resolve) => child.once('exit', () => resolve()))
     child.kill('SIGTERM')

@@ -73,12 +73,51 @@ renders, runnable entirely on the Linux host.
 
 `pnpm shots` (→ `playwright.shots.config.ts` → `e2e/marketing.shots.ts`) builds,
 spawns the daemon against a seeded generic "orders" demo repo
-(`e2e/helpers/demo-repo.ts` + `demo-seed.ts`), drives five surfaces, and writes
-Retina PNGs (2880×1800, `deviceScaleFactor: 2`, dark) to `marketing/shots/`
-(gitignored): `review.png` (Review doc — thesis, sections, flow diagram, diff),
-`changes-flow.png`, `board.png`, `viewer.png`, `terminal.png`. It's excluded from
-the normal e2e run (that config's `*.spec.ts` glob ignores the `.shots.ts` name).
-Add shots by driving more tabs in the same spec. Traps the code won't tell you:
+(`e2e/helpers/demo-repo.ts` + `demo-seed.ts`), drives **13 surfaces**, and writes
+Retina PNGs (`deviceScaleFactor: 2`, dark) to `marketing/shots/` (gitignored).
+Full-window shots (2880×1800): `review.png` (Review doc — thesis, sections, flow
+diagram, diff), `changes-flow.png`, `board.png`, `viewer.png`, `terminal.png`,
+`feat-agent.png`. Element/clip crops that map 1:1 to the `marketing/images/*` the
+site uses: `grouped-panel.png`, `feat-commit.png`, `feat-comment.png`,
+`feat-search.png`, `feat-history.png`, `hide-panel.png`, `pin-compact.png`.
+Excluded from the normal e2e run (that config's `*.spec.ts` glob ignores the
+`.shots.ts` name). Add shots by driving more tabs in the same spec. **The
+regenerated `shots/` are NOT auto-copied to `images/`** — review, then copy the
+ones you're keeping over `marketing/images/`. Traps the code won't tell you:
+
+- **Two phases, two contexts.** Full-window shots want a narrow sidebar (the app
+  default); the panel/companion close-ups (grouped-panel, feat-commit, history,
+  pin, hide) want a *wider* one so filenames breathe. Sidebar width is a global
+  persisted pref, so the spec runs phase 1 at the default width, closes the
+  context, then opens a **second context** seeding `porcelain-preferences` in
+  `localStorage` (`{state:{sidebarWidth,rightSidebarWidth},version:0}`) before
+  first paint. Don't try to resize mid-session — the store isn't exposed and the
+  drag handle is pointer-only.
+- **Panel crops use a computed clip, not `locator.screenshot()` of the card.** A
+  sidebar card is full-window-tall, so an element shot trails off into empty space
+  above the branch/worktree footer. `panelClip()` clips from the card top down to
+  the bottom of its **last `[data-slot="sidebar-group-content"]`** (or the pinned
+  `[data-slot="sidebar-group"]`) so the crop ends at the content. Left/right card =
+  `[data-slot="sidebar-container"][data-side=…] [data-slot="sidebar-inner"]`.
+- **A line-range comment needs a real DOM selection.** feat-comment builds a
+  `Range` over two `[data-line]` rows in `page.evaluate`, then right-clicks *inside*
+  it (so the right-click doesn't collapse the selection) → the diff's context menu
+  reads `lineSelectionFromDom` and the composer shows the range + anchored hunk.
+- **feat-agent seeds a completed thread on disk**, not the fake driver (whose text
+  is a toy "Hello from the fake agent"). Write a `StoredThread` JSON
+  (`backend/agents/thread-store.ts` shape: `{meta, items}`) into
+  `PORCELAIN_AGENT_THREADS/<id>.json`, keyed `meta.repoPath = repoDir`; the daemon
+  hydrates it into the roster (forced idle). `provider:'claude'`, a friendly
+  `model` string (shown verbatim on the chip), `mode:'full'`, `interaction:'build'`.
+- **Pinned/actions are seeded like the other channels.** Pinned folder+file go in
+  `config.json` `repos[repoDir].pinnedPaths` (**absolute** paths). Saved actions go
+  in the `PORCELAIN_ACTIONS` channel keyed by repoDir — they light up both the
+  finder's "Commands" group (feat-search needs a query like `orders` that hits both
+  files *and* a command title) and the terminal tab's Actions companion.
+- **The demo repo carries a real ~9-commit history** (layer-by-layer, recent
+  staggered dates) so History/`git log` have depth. "relabel the pagination
+  control" is kept **newest on purpose** — the terminal pager asserts on it. If you
+  add commits after it, update that assertion.
 
 - **The Review renders in the viewer only after you OPEN it.** Selecting the
   Feature tab fills the *outline* (left sidebar) but leaves the empty quick-start

@@ -16,12 +16,25 @@ const GIT_ENV = {
   GIT_AUTHOR_EMAIL: 'ada@example.com',
   GIT_COMMITTER_NAME: 'Ada Reeves',
   GIT_COMMITTER_EMAIL: 'ada@example.com',
-  GIT_AUTHOR_DATE: '2024-05-02T09:15:00Z',
-  GIT_COMMITTER_DATE: '2024-05-02T09:15:00Z',
 }
 
 function git(cwd: string, ...args: string[]): void {
   execFileSync('git', args, { cwd, env: { ...process.env, ...GIT_ENV }, stdio: 'pipe' })
+}
+
+/** An ISO timestamp `daysAgo` before now — recent dates so the History list reads
+ *  "yesterday / 3 days ago / a week ago", not a wall of "2 years ago". */
+function daysAgo(days: number): string {
+  return new Date(Date.now() - days * 86_400_000).toISOString()
+}
+
+/** Commit the staged tree with a fixed author + a specific date (author and committer both). */
+function commitAt(dir: string, message: string, isoDate: string): void {
+  execFileSync('git', ['commit', '-m', message], {
+    cwd: dir,
+    env: { ...process.env, ...GIT_ENV, GIT_AUTHOR_DATE: isoDate, GIT_COMMITTER_DATE: isoDate },
+    stdio: 'pipe',
+  })
 }
 
 async function write(dir: string, rel: string, body: string): Promise<void> {
@@ -43,6 +56,12 @@ them, and (new) filter by fulfilment status.
 - \`src/routes\` — HTTP handlers
 - \`src/services\` — business logic
 - \`prisma\` — the data model
+`
+
+// The first-commit README, before the layout section is documented (commit 7).
+const README_BRIEF = `# Northwind Orders
+
+A small orders module for the storefront admin.
 `
 
 const PACKAGE_JSON = `{
@@ -225,6 +244,31 @@ export function useOrders(
 }
 `
 
+// The page before pagination existed (commit 6) — a plain list, no page state.
+const PAGE_V0 = `import { useOrders } from '../hooks/useOrders'
+
+export function OrdersPage(): React.JSX.Element {
+  const { orders, loading } = useOrders(1)
+
+  return (
+    <main className="orders">
+      <h1>Orders</h1>
+      {loading ? (
+        <p>Loading…</p>
+      ) : (
+        <ul>
+          {orders.map((order) => (
+            <li key={order.id}>
+              {order.reference} — {order.customer}
+            </li>
+          ))}
+        </ul>
+      )}
+    </main>
+  )
+}
+`
+
 const PAGE_V1 = `import { useState } from 'react'
 import { useOrders } from '../hooks/useOrders'
 
@@ -343,32 +387,81 @@ export const prisma = new PrismaClient()
 `
 
 /**
- * Build the marketing demo repo: two clean commits (scaffold, then pagination)
- * followed by an uncommitted "filter orders by status" feature that threads a new
- * status param from the page down to the data model — so the working-tree diff
- * spans Pages, Hooks, Routes, Services, and Data, plus two brand-new files.
+ * Build the marketing demo repo: a believable multi-commit history that grows the
+ * orders module layer by layer (so the History list and terminal `git log` have real
+ * depth), ending at "relabel the pagination control" — kept newest on purpose so the
+ * terminal shot's pager assertion still lands on screen one. On top of that clean
+ * history sits an uncommitted "filter orders by status" feature that threads a new
+ * status param from the page down to the data model — so the working-tree diff spans
+ * Pages, Hooks, Routes, Services, and Data, plus two brand-new files.
  */
 export async function createDemoRepo(dir: string): Promise<void> {
   await rm(dir, { recursive: true, force: true })
   await mkdir(dir, { recursive: true })
   git(dir, 'init', '-b', 'main')
 
-  // Commit 1 — the scaffolded orders module (list + single-page fetch).
-  await write(dir, 'README.md', README)
-  await write(dir, 'package.json', PACKAGE_JSON)
-  await write(dir, 'prisma/schema.prisma', SCHEMA_V1)
-  await write(dir, 'src/lib/prisma.ts', PRISMA_LIB)
-  await write(dir, 'src/services/orders.service.ts', SERVICE_V1)
-  await write(dir, 'src/routes/orders.route.ts', ROUTE_V1)
-  await write(dir, 'src/hooks/useOrders.ts', HOOK_V1)
-  await write(dir, 'src/pages/OrdersPage.tsx', PAGE_V1)
-  git(dir, 'add', '-A')
-  git(dir, 'commit', '-m', 'feat: scaffold the orders module')
+  // A layer-by-layer history (oldest → newest). Each step stages a slice of the
+  // scaffold and commits it with a recent, spaced-out date. The last two are the
+  // pagination + relabel pair; "relabel" stays newest so `git log -p` shows it first.
+  const steps: { message: string; files: [string, string][]; days: number }[] = [
+    {
+      message: 'chore: initialize the project',
+      files: [
+        ['README.md', README_BRIEF],
+        ['package.json', PACKAGE_JSON],
+      ],
+      days: 21,
+    },
+    {
+      message: 'chore(db): add the Prisma datasource and Order model',
+      files: [
+        ['prisma/schema.prisma', SCHEMA_V1],
+        ['src/lib/prisma.ts', PRISMA_LIB],
+      ],
+      days: 18,
+    },
+    {
+      message: 'feat(orders): add the orders service',
+      files: [['src/services/orders.service.ts', SERVICE_V1]],
+      days: 15,
+    },
+    {
+      message: 'feat(api): expose GET /api/orders',
+      files: [['src/routes/orders.route.ts', ROUTE_V1]],
+      days: 13,
+    },
+    {
+      message: 'feat(orders): add the useOrders data hook',
+      files: [['src/hooks/useOrders.ts', HOOK_V1]],
+      days: 11,
+    },
+    {
+      message: 'feat(orders): render the orders page',
+      files: [['src/pages/OrdersPage.tsx', PAGE_V0]],
+      days: 9,
+    },
+    {
+      message: 'docs: document the module layout in the README',
+      files: [['README.md', README]],
+      days: 6,
+    },
+    {
+      message: 'feat(orders): paginate the orders list',
+      files: [['src/pages/OrdersPage.tsx', PAGE_V1]],
+      days: 3,
+    },
+    {
+      message: 'feat(orders): relabel the pagination control',
+      files: [['src/pages/OrdersPage.tsx', PAGE_V1.replace('Next page', 'Load next page')]],
+      days: 1,
+    },
+  ]
 
-  // Commit 2 — a small earlier feature, so the history has depth.
-  await write(dir, 'src/pages/OrdersPage.tsx', PAGE_V1.replace('Next page', 'Load next page'))
-  git(dir, 'add', '-A')
-  git(dir, 'commit', '-m', 'feat(orders): relabel the pagination control')
+  for (const step of steps) {
+    for (const [rel, body] of step.files) await write(dir, rel, body)
+    git(dir, 'add', '-A')
+    commitAt(dir, step.message, daysAgo(step.days))
+  }
 
   // Uncommitted work — "filter orders by status", threaded through every layer.
   await write(dir, 'prisma/schema.prisma', SCHEMA_V2)

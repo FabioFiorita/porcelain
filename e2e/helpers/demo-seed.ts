@@ -2,6 +2,21 @@ import { createHash } from 'node:crypto'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
+interface Action {
+  id: string
+  title: string
+  command: string
+  order: number
+  createdAt: number
+}
+
+interface TimelineItem {
+  kind: 'user' | 'assistant'
+  id: string
+  text: string
+  streaming?: boolean
+}
+
 // The agent-channel content behind the marketing screenshots: the published Review,
 // the project board, the agent chat, the human's review comments, and loop evidence
 // — written to the same on-disk channels the porcelain CLI writes (keyed by absolute
@@ -227,6 +242,95 @@ export const DEMO_COMMENTS: Comment[] = [
   },
 ]
 
+// Saved actions the human runs one-click in the embedded terminal. Seeded so the
+// Cmd+P finder shows mixed results (files + commands) on a query like "orders", and
+// the terminal tab's Actions companion isn't an empty state.
+export const DEMO_ACTIONS: Action[] = [
+  {
+    id: 'act-dev',
+    title: 'Start dev server',
+    command: 'pnpm dev',
+    order: 1,
+    createdAt: T0,
+  },
+  {
+    id: 'act-orders-tests',
+    title: 'Run orders tests',
+    command: 'pnpm test src/services/orders',
+    order: 2,
+    createdAt: T0 + 1000,
+  },
+  {
+    id: 'act-typecheck',
+    title: 'Typecheck',
+    command: 'pnpm typecheck',
+    order: 3,
+    createdAt: T0 + 2000,
+  },
+]
+
+const AGENT_THREAD_ID = 'demo-orders-tour'
+
+const AGENT_TOUR_MARKDOWN = `## The orders feature, end to end
+
+The status filter threads one \`status\` param from the screen down to the database.
+Reading it in the order the code runs:
+
+1. **\`OrdersPage\`** owns the selected status and renders the \`<select>\`, handing the value to \`useOrders\`.
+2. **\`useOrders\`** appends \`status\` to the query string only when it's set, then fetches \`/api/orders\`.
+3. **\`orders.route\`** parses the untrusted query through \`parseStatus\` before it can reach the service.
+4. **\`orders.service\`** adds a \`where: { status }\` clause only when a status is present.
+5. **\`schema.prisma\`** gains a \`status\` column backed by the shared \`OrderStatus\` enum.
+
+One vocabulary drives all five layers, so the dropdown, the API guard, and the
+database can never drift apart:
+
+\`\`\`ts
+export const ORDER_STATUSES = ['PENDING', 'FULFILLED', 'CANCELLED'] as const
+export type OrderStatus = (typeof ORDER_STATUSES)[number]
+\`\`\`
+
+Want me to add a date-range filter alongside it next?`
+
+const AGENT_TIMELINE: TimelineItem[] = [
+  { kind: 'user', id: 'msg-user', text: 'Give me a tour of the orders feature.' },
+  { kind: 'assistant', id: 'msg-assistant', text: AGENT_TOUR_MARKDOWN, streaming: false },
+]
+
+/**
+ * Seed one completed agent thread on disk (the same per-thread JSON the daemon writes,
+ * see backend/agents/thread-store.ts) so the Agent tab renders a real thread — a user
+ * turn and a rendered-markdown answer — with no provider CLI. Hydrated into the roster
+ * on first read; forced idle. `threadsDir` is the PORCELAIN_AGENT_THREADS directory.
+ */
+export async function seedDemoAgentThread(threadsDir: string, repoDir: string): Promise<void> {
+  await mkdir(threadsDir, { recursive: true })
+  const now = Date.now()
+  const stored = {
+    meta: {
+      id: AGENT_THREAD_ID,
+      repoPath: repoDir,
+      title: 'Tour the orders feature',
+      provider: 'claude',
+      model: 'Claude Sonnet 4.5',
+      mode: 'full',
+      interaction: 'build',
+      usage: {
+        turnInput: 8200,
+        turnOutput: 640,
+        totalInput: 8200,
+        totalOutput: 640,
+        totalCacheRead: 24500,
+        totalCostUsd: 0.06,
+      },
+      createdAt: now - 5 * 60_000,
+      updatedAt: now - 4 * 60_000,
+    },
+    items: AGENT_TIMELINE,
+  }
+  await writeFile(join(threadsDir, `${AGENT_THREAD_ID}.json`), JSON.stringify(stored, null, 2))
+}
+
 const EVIDENCE_TITLE = 'Loop evidence — status filter'
 
 export const DEMO_EVIDENCE_HTML = `<!doctype html>
@@ -277,7 +381,7 @@ export async function seedDemoChannels(
     'board.json': ['PORCELAIN_BOARD', { [repoDir]: DEMO_BOARD }],
     'chat.json': ['PORCELAIN_CHAT', { [repoDir]: DEMO_CHAT }],
     'comments.json': ['PORCELAIN_COMMENTS', { [repoDir]: DEMO_COMMENTS }],
-    'actions.json': ['PORCELAIN_ACTIONS', {}],
+    'actions.json': ['PORCELAIN_ACTIONS', { [repoDir]: DEMO_ACTIONS }],
     'layers.json': ['PORCELAIN_LAYERS', {}],
     'reviewed.json': ['PORCELAIN_REVIEWED', {}],
     'notes.json': ['PORCELAIN_NOTES', {}],
