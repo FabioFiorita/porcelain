@@ -1,3 +1,10 @@
+## [0.32.0](https://github.com/FabioFiorita/porcelain/compare/v0.31.1...v0.32.0) (2026-07-19)
+
+### Features
+
+* light/dark/system theme — persisted preference, themed Shiki + xterm + OS chrome ([6781508](https://github.com/FabioFiorita/porcelain/commit/6781508d62b61395d1c31f2c192c1a80d1dc0376))
+* switch shadcn preset to nova (b5J4txmSY) — neutral base, translucent menus ([2051fa0](https://github.com/FabioFiorita/porcelain/commit/2051fa08c7579c96c6c2f8582e3cbfd24dc58c17))
+
 ## [0.31.1](https://github.com/FabioFiorita/porcelain/compare/v0.31.0...v0.31.1) (2026-07-18)
 
 ### Bug Fixes
