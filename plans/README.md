@@ -1,8 +1,10 @@
 # Plans — record & backlog
 
-The `improve` skill's home. One live doc sits alongside this index:
+The `improve` skill's home. Two live docs sit alongside this index:
 **`positioning-and-roadmap.md`** (identity, competitive landscape, roadmap
-phases — written 2026-07-19, keep until the phases ship). Completed
+phases) and **`design-overhaul.md`** (the UI professionalism gap vs T3
+Code/Synara — diagnosis + phased fixes). Both written 2026-07-19; keep until
+their phases ship. Completed
 plan files were removed after reconcile (**recoverable from git** — e.g.
 `git show 0a7e59c:plans/025-unify-persistence-factories.md`). This file is the
 standalone record of what shipped.
