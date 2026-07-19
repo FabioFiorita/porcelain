@@ -12,6 +12,9 @@ e2e/.artifacts/
 # Agent worktrees (improve/execute isolation) — never track these
 .claude/worktrees/
 
+# Marketing screenshots produced by `pnpm shots` — regenerated, not tracked.
+marketing/shots/
+
 # TypeScript incremental build cache
 *.tsbuildinfo
 

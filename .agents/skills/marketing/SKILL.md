@@ -69,6 +69,30 @@ renders, runnable entirely on the Linux host.
   capture — **batch all such asks into one request** with exact instructions
   (window size, theme, what's on screen).
 
+### The pipeline is built — `pnpm shots`
+
+`pnpm shots` (→ `playwright.shots.config.ts` → `e2e/marketing.shots.ts`) builds,
+spawns the daemon against a seeded generic "orders" demo repo
+(`e2e/helpers/demo-repo.ts` + `demo-seed.ts`), drives five surfaces, and writes
+Retina PNGs (2880×1800, `deviceScaleFactor: 2`, dark) to `marketing/shots/`
+(gitignored): `review.png` (Review doc — thesis, sections, flow diagram, diff),
+`changes-flow.png`, `board.png`, `viewer.png`, `terminal.png`. It's excluded from
+the normal e2e run (that config's `*.spec.ts` glob ignores the `.shots.ts` name).
+Add shots by driving more tabs in the same spec. Traps the code won't tell you:
+
+- **The Review renders in the viewer only after you OPEN it.** Selecting the
+  Feature tab fills the *outline* (left sidebar) but leaves the empty quick-start
+  in the viewer — click the review-name (or a chapter) button to open the
+  document, then shoot.
+- **xterm's WebGL canvas is BLANK in a headless screenshot** for normal
+  scrollback output — the buffer holds the text (so `expectTerminalText` passes)
+  but nothing is captured. A full-screen **pager** (`less` on the alternate
+  screen) does paint, so the terminal shot drives `git -c color.ui=always log -p`.
+  Same reason the e2e suite reads the terminal via a buffer hook, never a shot.
+- **Seed board/chat/comments as channel JSON keyed by the canonical repo path**
+  (realpath the temp dir first) — the daemon reads the same `PORCELAIN_*` files
+  the CLI writes; a mismatched key renders empty.
+
 ## Site mechanics & traps
 
 - `marketing/index.html` is a single self-contained page, styles inline plus
