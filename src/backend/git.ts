@@ -463,6 +463,37 @@ export async function gitQuickCommand(
   }
 }
 
+/** True when the current branch has an upstream tracking ref. */
+async function hasUpstream(repoPath: string): Promise<boolean> {
+  try {
+    await runGit(repoPath, ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'])
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Push the current branch. A branch with no upstream (the fresh-worktree case) pushes
+ * with `-u origin HEAD` so the first push wires tracking; after that a plain `push`.
+ * Output merges stderr+stdout like gitQuickCommand — git logs push progress to stderr.
+ */
+export async function gitPush(repoPath: string): Promise<string> {
+  const args = (await hasUpstream(repoPath)) ? ['push'] : ['push', '-u', 'origin', 'HEAD']
+  try {
+    const { stdout, stderr } = await execFileAsync('git', args, {
+      cwd: repoPath,
+      maxBuffer: 64 * 1024 * 1024,
+    })
+    return [stderr, stdout]
+      .filter((s) => s.trim() !== '')
+      .join('\n')
+      .trim()
+  } catch (error) {
+    throw new Error(gitErrorOutput(error))
+  }
+}
+
 const MAX_GREP_MATCHES = 500
 
 /**

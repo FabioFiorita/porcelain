@@ -109,6 +109,7 @@ import {
   gitListSearchFiles,
   gitLog,
   gitMergeBase,
+  gitPush,
   gitQuickCommand,
   gitRangeChangedFilesFrom,
   gitRangeDiffFile,
@@ -696,6 +697,11 @@ export const router = t.router({
       clearWorkingTreeSnapshot(input.repoPath)
       return out
     }),
+
+  gitPush: t.procedure.input(z.object({ repoPath: z.string() })).mutation(async ({ input }) => {
+    // Push doesn't touch the working tree, so no clearWorkingTreeSnapshot here.
+    return gitPush(input.repoPath)
+  }),
 
   gitStageAll: t.procedure.input(z.object({ repoPath: z.string() })).mutation(async ({ input }) => {
     await gitStageAll(input.repoPath)

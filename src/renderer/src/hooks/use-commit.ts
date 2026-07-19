@@ -20,6 +20,7 @@ export function useCommit(onCommitted?: () => void): {
         utils.gitRangeFlow.invalidate(),
         utils.gitLog.invalidate(),
         utils.gitCommitConventions.invalidate(),
+        utils.gitSuggestions.invalidate(),
         utils.reviewedPaths.invalidate(),
       ])
     },
@@ -30,6 +31,29 @@ export function useCommit(onCommitted?: () => void): {
       mutation.mutate({ repoPath: repo.path, message })
     },
     isCommitting: mutation.isPending,
+    error: mutation.error,
+  }
+}
+
+/** Push the current branch (wiring upstream on first push); returns git's merged output. */
+export function usePush(): {
+  push: () => Promise<string>
+  isPushing: boolean
+  error: { message: string } | null
+} {
+  const repo = useRepoStore((s) => s.repo)
+  const utils = trpc.useUtils()
+  const mutation = trpc.gitPush.useMutation({
+    onSuccess: async () => {
+      await Promise.all([utils.gitSuggestions.invalidate(), utils.gitLog.invalidate()])
+    },
+  })
+  return {
+    push: async () => {
+      if (!repo) return ''
+      return mutation.mutateAsync({ repoPath: repo.path })
+    },
+    isPushing: mutation.isPending,
     error: mutation.error,
   }
 }

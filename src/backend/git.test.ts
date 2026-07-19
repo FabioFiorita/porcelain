@@ -13,6 +13,7 @@ import {
   gitFileInHead,
   gitFileLog,
   gitMergeBase,
+  gitPush,
   gitRangeChangedFiles,
   gitRangeDiffFile,
   gitRangeNumstat,
@@ -461,6 +462,57 @@ describe('gitAddWorktree', () => {
     expect(wt.branch).toBe('feature/x')
     const listed = await gitWorktrees(dir)
     expect(listed.some((w) => w.branch === 'feature/x')).toBe(true)
+  })
+})
+
+describe('gitPush', () => {
+  const dirs: string[] = []
+
+  afterAll(async () => {
+    await Promise.all(dirs.map((d) => rm(d, { recursive: true, force: true })))
+  })
+
+  // A repo wired to a bare "origin" sibling, current branch with NO upstream yet.
+  async function repoWithBareRemote(): Promise<{ dir: string; bare: string }> {
+    const dir = await makeRepo()
+    const bare = await mkdtemp(join(tmpdir(), 'porcelain-bare-'))
+    git(bare, 'init', '--bare', '-b', 'main')
+    git(dir, 'remote', 'add', 'origin', bare)
+    dirs.push(dir, bare)
+    return { dir, bare }
+  }
+
+  it('wires upstream on the first push when the branch has no tracking ref', async () => {
+    const { dir } = await repoWithBareRemote()
+    // No upstream before the push.
+    expect(() => git(dir, 'rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}')).toThrow()
+
+    await gitPush(dir)
+
+    // After a `-u` push the tracking ref resolves.
+    const upstream = git(dir, 'rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}').trim()
+    expect(upstream).toBe('origin/main')
+  })
+
+  it('pushes a later commit with a plain push once upstream is set', async () => {
+    const { dir, bare } = await repoWithBareRemote()
+    await gitPush(dir)
+
+    await writeFile(join(dir, 'second.ts'), 'export const two = 2\n')
+    git(dir, 'add', 'second.ts')
+    git(dir, '-c', 'commit.gpgsign=false', 'commit', '-m', 'add second.ts')
+    await gitPush(dir)
+
+    // The new commit landed on the remote: remote main === local HEAD.
+    const localHead = git(dir, 'rev-parse', 'HEAD').trim()
+    const remoteHead = git(bare, 'rev-parse', 'main').trim()
+    expect(remoteHead).toBe(localHead)
+  })
+
+  it('rejects with git’s error text when no remote is configured', async () => {
+    const dir = await makeRepo()
+    dirs.push(dir)
+    await expect(gitPush(dir)).rejects.toThrow(/origin/)
   })
 })
 
