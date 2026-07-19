@@ -160,3 +160,11 @@ site (above) rides the same pass.
 4. Screenshots regenerated for surfaces that changed (pipeline above).
 5. No personal-setup leaks.
 6. Normal gate: `pnpm verify` + commit (site deploys itself on push).
+
+## Landing-page voice (stakeholder rule, 2026-07-19)
+
+The landing page is a SELLING page, not a changelog: never use update framing
+("X runs inside Porcelain **now**", "new", "no longer") — new users have no
+memory of previous versions. Describe the product timelessly, as it is.
+Industry-shift framing ("Agents write the code now") is fine; product-delta
+framing is not.

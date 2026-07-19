@@ -71,8 +71,16 @@ order:
   scope). Fine for now; revisit only if it grates.
 - **Darwin visual baselines + any native-chrome hero shot** need the macos-14
   regen workflow before the next release.
-- Optional future taste: content in the title bar (T3 puts thread title +
-  actions there); decide deliberately, it shrinks the drag region.
+- ~~Title-bar content~~ SHIPPED 2026-07-19: a compact repo-identity button
+  (repo base name + chevron, left region) sharing the project-switcher menu
+  with the rail avatar (`project-switcher-menu.tsx`). Trap: the titlebar row
+  rasterizes once at boot in headless captures (`e2e/helpers/app.ts` note), so
+  the button never appears in visual baselines — `pnpm shots` is the evidence
+  surface for titlebar changes, not e2e snapshots.
+- Landing page voice rule (from stakeholder, 2026-07-19): NO update framing
+  ("…run inside Porcelain *now*") — the page sells the product timelessly to
+  people with no memory of previous versions. Recorded in the marketing skill's
+  voice rules territory.
 
 Verification for every phase: `pnpm shots` before/after compare, lint/test/
 build gate, visual baselines updated deliberately (never blindly).
