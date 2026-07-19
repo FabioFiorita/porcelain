@@ -272,6 +272,9 @@ export const threadInfoSchema = z.object({
   // stay daemon-side). Absent or empty when nothing is queued. A pre-array thread file
   // is migrated on read by the thread-store (single object → one-element array).
   queued: z.array(queuedMessageInfoSchema).optional(),
+  // The branch of the worktree this thread is bound to (repoPath IS that worktree's path).
+  // Optional — absent for a plain in-repo thread (and for pre-existing thread files).
+  worktreeBranch: z.string().optional(),
   createdAt: z.number(),
   updatedAt: z.number(),
 })

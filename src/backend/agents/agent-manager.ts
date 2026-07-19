@@ -191,6 +191,7 @@ function toStored(thread: Thread): StoredThread {
     usage,
     turnStartedAt,
     lastTurnFailed,
+    worktreeBranch,
     queued,
     createdAt,
     updatedAt,
@@ -209,6 +210,7 @@ function toStored(thread: Thread): StoredThread {
       ...(usage !== undefined ? { usage } : {}),
       ...(turnStartedAt !== undefined ? { turnStartedAt } : {}),
       ...(lastTurnFailed !== undefined ? { lastTurnFailed } : {}),
+      ...(worktreeBranch !== undefined ? { worktreeBranch } : {}),
       createdAt,
       updatedAt,
     },
@@ -457,6 +459,9 @@ export interface CreateThreadOptions {
   // The Build/Plan interaction to start in, when the provider's remembered defaults carry
   // one. Absent = 'build', exactly like a thread created before this field existed.
   interaction?: AgentInteraction
+  // The branch of the worktree this thread is bound to (repoPath IS that worktree's path).
+  // Absent for a plain in-repo thread.
+  worktreeBranch?: string
 }
 
 export async function createThread(opts: CreateThreadOptions): Promise<ThreadInfo> {
@@ -471,6 +476,7 @@ export async function createThread(opts: CreateThreadOptions): Promise<ThreadInf
     mode: opts.mode,
     ...(opts.options !== undefined ? { options: opts.options } : {}),
     ...(opts.interaction !== undefined ? { interaction: opts.interaction } : {}),
+    ...(opts.worktreeBranch !== undefined ? { worktreeBranch: opts.worktreeBranch } : {}),
     status: 'idle',
     createdAt: now,
     updatedAt: now,

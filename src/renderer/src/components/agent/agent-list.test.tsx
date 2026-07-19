@@ -25,6 +25,11 @@ vi.mock('@renderer/hooks/use-agents', () => ({
   useImportAgentSession: vi.fn(),
 }))
 
+// The worktree hook wraps tRPC; mock it too so the list renders without a query client.
+vi.mock('@renderer/hooks/use-worktrees', () => ({
+  useAddWorktree: vi.fn(() => vi.fn()),
+}))
+
 // Base UI's menu positioner/scroll-area polls getAnimations on a timer; jsdom has none.
 Element.prototype.getAnimations ??= (): Animation[] => []
 
@@ -60,5 +65,24 @@ describe('AgentList', () => {
     renderList()
     fireEvent.click(screen.getByRole('button', { name: 'Choose provider for new thread' }))
     expect(await screen.findByText('New thread with…')).toBeInTheDocument()
+  })
+
+  it('renders the worktree branch chip for a bound thread', () => {
+    vi.mocked(useAgentThreads).mockReturnValue([
+      {
+        id: 't1',
+        repoPath: '/repo-worktrees/feature-x',
+        title: 'Bound thread',
+        provider: 'claude',
+        model: 'sonnet',
+        mode: 'full',
+        status: 'idle',
+        worktreeBranch: 'feature/x',
+        createdAt: 0,
+        updatedAt: 0,
+      },
+    ])
+    renderList()
+    expect(screen.getByTitle('Worktree: feature/x')).toBeInTheDocument()
   })
 })

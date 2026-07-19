@@ -86,14 +86,16 @@ Make the Review impossible to miss; it's invisible from a repo README today.
   copyable prompt already does this — audit the welcome screen and Changes tab
   for the same standard).
 
-### Phase 2 — close the one table-stakes gap (next)
+### Phase 2 — close the one table-stakes gap (SHIPPED 2026-07-19)
 **Worktree-per-agent-thread.** The single feature both competitors are winning
 with, and it *feeds* our wedge: more parallel agents ⇒ more review demand.
-Scope: from the Agent tab, start a thread in a fresh worktree (branch picker
-exists since plan 036A); thread ⇄ worktree binding surfaced in the UI; Changes
-scoped to that worktree. Explicitly NOT: auto-PR pipelines.
-- Follow-on: one-click push after the commit composer (PR creation only if
-  users ask — see non-goals).
+Shipped: Agent tab "+" → "New thread in worktree…" (new branch off HEAD,
+sibling `<repo>-worktrees/<branch>` checkout), the thread bound to the
+worktree path (binding chip in roster + session strip), the window switching
+there so Changes scope automatically. Durable decisions in the `architecture`
+skill. Explicitly NOT built: auto-PR pipelines.
+- Follow-on (still open): one-click push after the commit composer (PR
+  creation only if users ask — see non-goals).
 
 ### Phase 3 — deepen the moats (after)
 - **Review inbox**: with parallel threads, a queue of "agent work awaiting

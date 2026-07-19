@@ -52,6 +52,9 @@ export const storedThreadMetaSchema = z.object({
   turnStartedAt: z.number().optional(),
   // Whether the last turn ended in error. Optional/back-compat (absent = last turn was fine).
   lastTurnFailed: z.boolean().optional(),
+  // The branch of the worktree this thread is bound to (repoPath IS that worktree's path).
+  // Optional/back-compat: absent for a plain in-repo thread and for pre-existing thread files.
+  worktreeBranch: z.string().optional(),
   createdAt: z.number(),
   updatedAt: z.number(),
 })

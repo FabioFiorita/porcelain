@@ -49,6 +49,24 @@ export function useCheckout(): (branch: string) => Promise<void> {
   }
 }
 
+/** Add a worktree — a fresh branch off HEAD checked out in a sibling
+ *  `<repo>-worktrees/<branch>` directory — and return it. Resolves with the created
+ *  worktree (its realpath'd path + branch); rejects with git's message (e.g. "already
+ *  exists") so the caller can surface it. Invalidates the worktrees list on success. */
+export function useAddWorktree(): (branch: string) => Promise<Worktree> {
+  const repo = useRepoStore((s) => s.repo)
+  const utils = trpc.useUtils()
+  const mutation = trpc.gitAddWorktree.useMutation()
+  return async (branch) => {
+    if (!repo) throw new Error('No repo open')
+    try {
+      return await mutation.mutateAsync({ repoPath: repo.path, branch })
+    } finally {
+      await utils.gitWorktrees.invalidate()
+    }
+  }
+}
+
 /** Create a branch off the current HEAD and switch to it. Resolves on success;
  *  rejects with git's message (e.g. "already exists") so the caller can surface
  *  it. Same blast radius as checkout — creating-and-switching moves HEAD — so it

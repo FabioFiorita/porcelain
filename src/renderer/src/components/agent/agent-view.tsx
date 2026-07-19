@@ -30,6 +30,7 @@ import {
   Check,
   ChevronRight,
   Copy,
+  GitBranch,
   ImageIcon,
   Loader2,
   X,
@@ -478,6 +479,7 @@ function SessionStrip({
   working,
   startedAt,
   usage,
+  worktreeBranch,
 }: {
   provider: AgentProvider
   model: string
@@ -485,6 +487,7 @@ function SessionStrip({
   working: boolean
   startedAt: number | undefined
   usage: AgentUsage | undefined
+  worktreeBranch: string | undefined
 }): React.JSX.Element {
   const models = useAgentProviders().flatMap((p) => p.models)
   const elapsedRef = useRef<HTMLSpanElement>(null)
@@ -518,6 +521,15 @@ function SessionStrip({
         <>
           <span className="text-muted-foreground/40">·</span>
           <span className="min-w-0 truncate tabular-nums">{formatUsageCompact(usage)}</span>
+        </>
+      )}
+      {worktreeBranch && (
+        <>
+          <span className="text-muted-foreground/40">·</span>
+          <span className="flex min-w-0 items-center gap-1 truncate font-mono">
+            <GitBranch className="size-3 shrink-0" />
+            <span className="truncate">{worktreeBranch}</span>
+          </span>
         </>
       )}
     </div>
@@ -792,6 +804,7 @@ export function AgentView({ threadId }: { threadId: string }): React.JSX.Element
           working={working}
           startedAt={thread.turnStartedAt}
           usage={thread.usage}
+          worktreeBranch={thread.worktreeBranch}
         />
       )}
       <div className="relative min-h-0 flex-1">

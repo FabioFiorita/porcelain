@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { readFile, stat } from 'node:fs/promises'
-import { basename, isAbsolute, join, relative } from 'node:path'
+import { mkdir, readFile, realpath, stat } from 'node:fs/promises'
+import { basename, dirname, isAbsolute, join, relative } from 'node:path'
 import { promisify } from 'node:util'
 import {
   type ChangedFile,
@@ -303,6 +303,25 @@ export async function gitCheckout(repoPath: string, branch: string): Promise<voi
  *  message (e.g. "a branch named 'x' already exists") for the UI to surface. */
 export async function gitCreateBranch(repoPath: string, branch: string): Promise<void> {
   await runGitChecked(repoPath, ['checkout', '-b', branch])
+}
+
+/** Create a new worktree — a fresh branch off the current HEAD checked out in a sibling
+ *  `<repo>-worktrees/<branch>` directory (NEVER inside the repo). git validates the branch
+ *  name and errors on a collision, so there's no pre-validation here — git is the validator,
+ *  same as gitCreateBranch — and its message is rethrown for the UI to surface. */
+export async function gitAddWorktree(repoPath: string, branch: string): Promise<Worktree> {
+  // Flatten the branch into a filesystem-safe directory leaf: `/` and other path-hostile
+  // characters collapse to `-`, so `feature/x` lands in a `feature-x` directory (git keeps
+  // the real branch name; only the on-disk directory is sanitized).
+  const sanitizedBranch = branch.replace(/[/\\:<>"|?*]+/g, '-')
+  const parent = join(dirname(repoPath), `${basename(repoPath)}-worktrees`)
+  const dir = join(parent, sanitizedBranch)
+  await mkdir(parent, { recursive: true })
+  await runGitChecked(repoPath, ['worktree', 'add', '-b', branch, dir])
+  // realpath the created directory: `git worktree list --porcelain` reports realpath-resolved
+  // absolute paths, and agent-thread scoping is an exact string match on repoPath — a symlinked
+  // temp path (e.g. macOS /var → /private/var) would silently split rosters.
+  return { path: await realpath(dir), branch }
 }
 
 function gitErrorOutput(error: unknown): string {

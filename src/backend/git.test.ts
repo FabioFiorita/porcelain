@@ -1,10 +1,11 @@
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
+  gitAddWorktree,
   gitCommit,
   gitCommitNumstat,
   gitCreateBranch,
@@ -21,6 +22,7 @@ import {
   gitStageFile,
   gitUnstageAll,
   gitUnstageFile,
+  gitWorktrees,
   isNoMatchError,
   parseLooseIgnoredFiles,
   quickCommandArgs,
@@ -410,6 +412,55 @@ describe('mutations', () => {
     await expect(gitCreateBranch(dir, '-foo')).rejects.toThrow()
     // HEAD must still be on the original branch (no branch was created/switched).
     expect(git(dir, 'rev-parse', '--abbrev-ref', 'HEAD').trim()).toBe('main')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// gitAddWorktree
+// ---------------------------------------------------------------------------
+
+describe('gitAddWorktree', () => {
+  const dirs: string[] = []
+
+  // Track the repo AND its sibling `<repo>-worktrees` parent (a separate dir, not inside
+  // the repo) so the whole-suite cleanup removes both.
+  async function repo(): Promise<string> {
+    const dir = await makeRepo()
+    dirs.push(dir, join(dirname(dir), `${basename(dir)}-worktrees`))
+    return dir
+  }
+
+  afterAll(async () => {
+    await Promise.all(dirs.map((d) => rm(d, { recursive: true, force: true })))
+  })
+
+  it('creates a worktree in a sibling dir, returns its path + branch, and lists it', async () => {
+    const dir = await repo()
+    const wt = await gitAddWorktree(dir, 'feature-a')
+    expect(wt.branch).toBe('feature-a')
+    expect(existsSync(wt.path)).toBe(true)
+    // Sibling of the repo (in `<repo>-worktrees/`), never inside it.
+    expect(basename(dirname(wt.path))).toBe(`${basename(dir)}-worktrees`)
+    // gitWorktrees now reports it — an exact path match (both are realpath-resolved).
+    const listed = await gitWorktrees(dir)
+    expect(listed.some((w) => w.path === wt.path && w.branch === 'feature-a')).toBe(true)
+  })
+
+  it('rejects a bad branch name with git’s own error', async () => {
+    const dir = await repo()
+    // A leading dash is an invalid ref name (and pins the no-option-injection property).
+    await expect(gitAddWorktree(dir, '-foo')).rejects.toThrow()
+  })
+
+  it('lands a feature/x branch in a sanitized feature-x directory', async () => {
+    const dir = await repo()
+    const wt = await gitAddWorktree(dir, 'feature/x')
+    // The directory leaf is flattened…
+    expect(basename(wt.path)).toBe('feature-x')
+    // …but the real branch name is preserved.
+    expect(wt.branch).toBe('feature/x')
+    const listed = await gitWorktrees(dir)
+    expect(listed.some((w) => w.branch === 'feature/x')).toBe(true)
   })
 })
 

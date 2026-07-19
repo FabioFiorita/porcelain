@@ -66,6 +66,10 @@ export function useCreateAgentThread(): {
     provider?: AgentProvider
     model?: string
     mode?: AgentMode
+    // Override the target repo (defaults to the window's current repo). Used when creating
+    // a thread bound to a fresh worktree — its repoPath IS the worktree path.
+    repoPath?: string
+    worktreeBranch?: string
   }) => Promise<ThreadInfo | undefined>
   isPending: boolean
 } {
@@ -75,9 +79,10 @@ export function useCreateAgentThread(): {
     onSuccess: () => utils.agentThreads.invalidate(),
   })
   return {
-    create: async (input) => {
-      if (!repo) return undefined
-      return mutation.mutateAsync({ repoPath: repo.path, ...input })
+    create: async ({ repoPath, ...input }) => {
+      const targetRepo = repoPath ?? repo?.path
+      if (!targetRepo) return undefined
+      return mutation.mutateAsync({ repoPath: targetRepo, ...input })
     },
     isPending: mutation.isPending,
   }

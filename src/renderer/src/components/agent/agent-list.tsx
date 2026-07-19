@@ -20,11 +20,19 @@ import {
   ContextMenuTrigger,
 } from '@renderer/components/ui/context-menu'
 import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@renderer/components/ui/dialog'
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@renderer/components/ui/dropdown-menu'
 import { Input } from '@renderer/components/ui/input'
@@ -37,12 +45,14 @@ import {
   useImportAgentSession,
   useRenameAgentThread,
 } from '@renderer/hooks/use-agents'
+import { useAddWorktree } from '@renderer/hooks/use-worktrees'
 import { compactInputClass } from '@renderer/lib/controls'
 import { cn } from '@renderer/lib/utils'
+import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import type { AgentProvider, ExternalSession, ThreadInfo } from '@shared/agent-protocol'
 import { agentProviderSchema, PROVIDER_LABEL } from '@shared/agent-protocol'
-import { ChevronDown, History, Loader2, PenLine, Plus, Trash2 } from 'lucide-react'
+import { ChevronDown, GitBranch, History, Loader2, PenLine, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -145,6 +155,15 @@ function ThreadRow({ thread }: { thread: ThreadInfo }): React.JSX.Element {
                   className="size-1.5 shrink-0 rounded-full bg-destructive"
                 />
               )}
+              {!editing && thread.worktreeBranch && (
+                <span
+                  className="flex min-w-0 max-w-24 shrink-0 items-center gap-0.5 font-mono text-2xs text-muted-foreground"
+                  title={`Worktree: ${thread.worktreeBranch}`}
+                >
+                  <GitBranch className="size-3 shrink-0" />
+                  <span className="truncate">{thread.worktreeBranch}</span>
+                </span>
+              )}
               {!editing &&
                 (thread.status === 'working' ? (
                   <Loader2
@@ -220,7 +239,15 @@ export function AgentList(): React.JSX.Element {
   const external = useExternalAgentSessions()
   const { create, isPending } = useCreateAgentThread()
   const { importSession, isPending: isImporting } = useImportAgentSession()
+  const addWorktree = useAddWorktree()
   const openTab = useTabsStore((s) => s.openTab)
+
+  // The "new thread in worktree" dialog: an Input for the branch name (no client-side
+  // validation — git is the validator). `creatingWorktree` guards a double-submit while
+  // `git worktree add` + thread creation + the repo switch run.
+  const [worktreeOpen, setWorktreeOpen] = useState(false)
+  const [worktreeName, setWorktreeName] = useState('')
+  const [creatingWorktree, setCreatingWorktree] = useState(false)
 
   // Coarse re-render tick so each row's relativeTime() label refreshes as time passes (rows
   // compute it at render, so they'd otherwise go stale). One interval for the whole list.
@@ -246,6 +273,38 @@ export function AgentList(): React.JSX.Element {
     // resolves model/mode/options/interaction per provider — no cross-provider mix).
     const thread = await create({ provider })
     if (thread) openThreadTab(thread)
+  }
+
+  const openWorktreeDialog = (): void => {
+    setWorktreeName('')
+    setWorktreeOpen(true)
+  }
+
+  const createInWorktree = async (): Promise<void> => {
+    const branch = worktreeName.trim()
+    if (branch === '' || creatingWorktree) return
+    setCreatingWorktree(true)
+    try {
+      // git is the validator (dirty/collision refusals surface as a toast) — no name regex.
+      const worktree = await addWorktree(branch)
+      // The thread is bound to the worktree: its repoPath IS the worktree path, so it's only
+      // rostered while the window is on that worktree (deliberate — see the architecture skill).
+      const thread = await create({ repoPath: worktree.path, worktreeBranch: worktree.branch })
+      setWorktreeOpen(false)
+      setWorktreeName('')
+      if (!thread) return
+      // switchTo closes tabs + resets agent timelines by design; open the thread's viewer tab
+      // AFTER it resolves so the fresh worktree is the active repo first (works in-place in
+      // both the Electron shell and the browser client — no new-window dependency).
+      await useRepoStore.getState().switchTo(worktree.path)
+      openThreadTab(thread)
+    } catch (error) {
+      toast.error('Couldn’t create worktree', {
+        description: error instanceof Error ? error.message : String(error),
+      })
+    } finally {
+      setCreatingWorktree(false)
+    }
   }
 
   const openExternal = async (session: ExternalSession): Promise<void> => {
@@ -377,6 +436,11 @@ export function AgentList(): React.JSX.Element {
                     )
                   })}
                 </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={openWorktreeDialog}>
+                  <GitBranch className="size-3.5 text-muted-foreground" />
+                  <span className="flex-1">New thread in worktree…</span>
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -394,6 +458,44 @@ export function AgentList(): React.JSX.Element {
           threads.map((thread) => <ThreadRow key={thread.id} thread={thread} />)
         )}
       </div>
+      <Dialog
+        open={worktreeOpen}
+        onOpenChange={(next) => {
+          setWorktreeOpen(next)
+          if (!next) setWorktreeName('')
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>New thread in worktree</DialogTitle>
+          </DialogHeader>
+          <Input
+            autoFocus
+            value={worktreeName}
+            onChange={(e) => setWorktreeName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                createInWorktree()
+              }
+            }}
+            placeholder="Branch name"
+            aria-label="Branch name"
+            className="rounded-md font-mono"
+          />
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setWorktreeOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={worktreeName.trim() === '' || creatingWorktree}
+              onClick={createInWorktree}
+            >
+              Create
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

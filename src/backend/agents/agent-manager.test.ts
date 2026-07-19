@@ -117,6 +117,18 @@ describe('agent-manager', () => {
     expect((await listThreads('/repo')).map((t) => t.id)).toEqual([info.id])
   })
 
+  it('round-trips a worktree-bound thread through persist + read', async () => {
+    const info = await createThread({
+      repoPath: '/repo-worktrees/feature-x',
+      provider: 'claude',
+      model: 'sonnet',
+      mode: 'full',
+      worktreeBranch: 'feature/x',
+    })
+    expect(info.worktreeBranch).toBe('feature/x')
+    expect((await readThread(info.id))?.meta.worktreeBranch).toBe('feature/x')
+  })
+
   it('keeps repos isolated in the roster', async () => {
     await newThread()
     await createThread({ repoPath: '/other', provider: 'claude', model: 'sonnet', mode: 'full' })

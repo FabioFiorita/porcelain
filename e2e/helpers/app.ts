@@ -250,9 +250,14 @@ export const test = baseTest.extend<Options & Fixtures, WorkerOptions & WorkerFi
   repoDir: [
     // biome-ignore lint/correctness/noEmptyPattern: Playwright requires the fixture's first arg to be a destructuring pattern.
     async ({}, use) => {
+      // The worktree flow (Agent → "New thread in worktree…") creates sibling
+      // `<repo>-worktrees/<branch>` dirs; clear them too so a prior run's leftovers
+      // don't make `git worktree add` collide.
+      await rm(`${REPO_DIR}-worktrees`, { recursive: true, force: true })
       await createFixtureRepo(REPO_DIR)
       await use(REPO_DIR)
       await rm(REPO_DIR, { recursive: true, force: true })
+      await rm(`${REPO_DIR}-worktrees`, { recursive: true, force: true })
     },
     { scope: 'worker' },
   ],

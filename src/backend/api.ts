@@ -90,6 +90,7 @@ import { buildFlow, DEFAULT_LAYERS, type FlowGroup, type Layer } from './flow'
 import { uniqueDuplicatePath } from './fs-ops'
 import { directoriesOf, fuzzySearch, type SearchResult } from './fuzzy'
 import {
+  gitAddWorktree,
   gitBranch,
   gitBranches,
   gitCheckout,
@@ -1413,6 +1414,10 @@ export const router = t.router({
 
   gitWorktrees: t.procedure.input(z.string()).query(({ input }) => gitWorktrees(input)),
 
+  gitAddWorktree: t.procedure
+    .input(z.object({ repoPath: z.string(), branch: z.string().min(1) }))
+    .mutation(({ input }) => gitAddWorktree(input.repoPath, input.branch)),
+
   gitLog: t.procedure
     .input(z.object({ repoPath: z.string(), limit: z.number().int().max(500).default(200) }))
     .query(({ input }) => gitLog(input.repoPath, input.limit)),
@@ -1492,6 +1497,9 @@ export const router = t.router({
         model: z.string().optional(),
         mode: agentModeSchema.optional(),
         options: threadOptionsSchema.optional(),
+        // The branch of the worktree this thread is bound to, when created into a fresh
+        // worktree (repoPath IS that worktree's path). Absent for a plain in-repo thread.
+        worktreeBranch: z.string().optional(),
       }),
     )
     .mutation(async ({ input }): Promise<ThreadInfo> => {
@@ -1519,6 +1527,7 @@ export const router = t.router({
         mode: resolved.mode,
         ...(resolved.options !== undefined ? { options: resolved.options } : {}),
         ...(resolved.interaction !== undefined ? { interaction: resolved.interaction } : {}),
+        ...(input.worktreeBranch !== undefined ? { worktreeBranch: input.worktreeBranch } : {}),
       })
     }),
 

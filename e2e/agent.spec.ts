@@ -79,6 +79,29 @@ test('streams a turn into the timeline + Quick Access, and persists across reloa
   await expect(replay.getByText('Ship the feature', { exact: true })).toBeVisible()
 })
 
+test('starts a thread in a fresh worktree and switches to it', async ({ page }) => {
+  await waitForShell(page)
+  await selectTab(page, 'Agent')
+
+  // Open the "+" split-button dropdown and pick the worktree entry.
+  await page.getByRole('button', { name: 'Choose provider for new thread' }).click()
+  await page.getByRole('menuitem', { name: 'New thread in worktree…' }).click()
+
+  // Name the branch and confirm — git makes the worktree, a thread is created bound to it,
+  // and the window switches to the new worktree in place (no new-window dependency).
+  await page.getByRole('textbox', { name: 'Branch name' }).fill('e2e-wt')
+  await page.getByRole('button', { name: 'Create', exact: true }).click()
+
+  // The footer branch button now reads the worktree's branch (the switch landed on it) —
+  // it's the one BUTTON named for the branch; the worktree chips below are spans, not buttons.
+  await expect(page.getByRole('button', { name: 'e2e-wt', exact: true })).toBeVisible()
+  // The thread is rostered under the worktree path — its worktree chip shows on the sidebar
+  // row (that it appears at all proves the roster is now scoped to the worktree; a failed
+  // switch would list zero) and again on the session strip of its open viewer tab.
+  await expect(page.getByTitle('Worktree: e2e-wt')).toBeVisible()
+  await expect(page.getByRole('main').getByText('e2e-wt')).toBeVisible()
+})
+
 test('gates a turn on an approval and completes on Accept', async ({ page }) => {
   await waitForShell(page)
   await newThread(page)
