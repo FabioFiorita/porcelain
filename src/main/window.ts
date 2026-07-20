@@ -40,6 +40,35 @@ export function windowInitFor(sender: WebContents): WindowInit {
   return pendingInits.get(sender) ?? { mode: 'restore' }
 }
 
+/**
+ * Replace the boot intent for an already-open window (e.g. after an environment
+ * switch). Survives `webContents.reload()` the same way create-time init does —
+ * cleaned up only when the window closes.
+ */
+export function setWindowBootIntent(sender: WebContents, init: WindowInit): void {
+  pendingInits.set(sender, init)
+}
+
+/**
+ * Point THIS window at an environment and hard-reload it so the renderer boots
+ * cleanly against the new daemon (new url/token via the preload sync getter).
+ * Lands on the welcome/landing page for that environment — restoring a repo path
+ * from the previous machine would open the wrong disk. Main-process reload is
+ * deliberate: a renderer-side `location.reload()` after invalidate can race or
+ * skip if the mutation onSuccess chain fails, leaving shell chrome on one env
+ * and the appRouter on the other.
+ */
+export function switchWindowEnvironment(
+  webContents: WebContents,
+  environmentId: string | null,
+): void {
+  setWindowEnvironment(webContents, environmentId)
+  setWindowBootIntent(webContents, { mode: 'welcome', environmentId })
+  if (!webContents.isDestroyed()) {
+    webContents.reload()
+  }
+}
+
 export function createWindow(init: WindowInit = { mode: 'restore' }): BrowserWindow {
   const platform = resolvePlatform()
   // Create the browser window. Chrome is platform-split: macOS keeps its native

@@ -9,16 +9,13 @@ import { shellTrpc } from '@renderer/lib/trpc'
  * Beelink. Wraps the SHELL-router procedures (Electron-only — the whole feature
  * is hidden in the browser client).
  *
- * Switch semantics = full reload of THIS window only. Connecting, disconnecting,
- * adding (with connect), and removing the environment THIS window is on all
- * change which daemon the window talks to, so each does `window.location.reload()`:
- * the preload daemon getter now returns the new pair, so the renderer re-boots
- * cleanly against the new daemon and restores ITS recents. Other windows keep
- * their binding. A live re-point would leave repo paths, open tabs, and PTY
- * attachments pointing at the other machine's disk — reload is the bulletproof
- * path. Removing a NON-active-for-this-window environment just invalidates the
- * list. The reload is synchronous (no floating promise); it only ever runs in
- * the Electron client, where this UI exists.
+ * Switch semantics = main-process hard-reload of THIS window onto the new
+ * daemon, landing on the welcome/landing page for that environment (see
+ * `switchWindowEnvironment` in `src/main/window.ts`). The renderer must NOT also
+ * `location.reload()` — main already does, and a double-reload races. Connecting,
+ * disconnecting, adding (with connect), and removing the environment THIS window
+ * is on all take that path. Removing a NON-active-for-this-window environment
+ * just invalidates the list.
  */
 export function useRemoteEnvironments():
   | {
@@ -53,8 +50,9 @@ export function useAddRemoteEnvironment(): {
   const utils = shellTrpc.useUtils()
   const mutation = shellTrpc.addRemoteEnvironment.useMutation({
     onSuccess: async (result) => {
-      await utils.remoteEnvironments.invalidate()
-      if (result.reloaded) window.location.reload()
+      // Main reloads THIS window when connectThisWindow (default); only invalidate
+      // when we stayed put so the list refreshes without a full boot.
+      if (!result.reloaded) await utils.remoteEnvironments.invalidate()
     },
   })
   return {
@@ -68,12 +66,8 @@ export function useConnectRemoteEnvironment(): {
   connect: (id: string) => void
   pendingId: string | null
 } {
-  const utils = shellTrpc.useUtils()
   const mutation = shellTrpc.connectRemoteEnvironment.useMutation({
-    onSuccess: async () => {
-      await utils.remoteEnvironments.invalidate()
-      window.location.reload()
-    },
+    // Main-process reload handles the switch — no renderer reload / invalidate.
     onError: onMutationError('Connect remote daemon'),
   })
   return {
@@ -85,12 +79,8 @@ export function useConnectRemoteEnvironment(): {
 }
 
 export function useDisconnectRemoteEnvironment(): { disconnect: () => void; isPending: boolean } {
-  const utils = shellTrpc.useUtils()
   const mutation = shellTrpc.disconnectRemoteEnvironment.useMutation({
-    onSuccess: async () => {
-      await utils.remoteEnvironments.invalidate()
-      window.location.reload()
-    },
+    // Main-process reload handles the switch — no renderer reload / invalidate.
     // Disconnect has no inline error surface — a failed clear would otherwise be silent.
     onError: onMutationError('Disconnect remote daemon'),
   })

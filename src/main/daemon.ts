@@ -109,7 +109,8 @@ export function resolveEnvironment(envId: string | null | undefined): {
 /**
  * Bind a window to an environment before it loads (or when the human switches
  * this window). Reloads are fine — WebContents identity survives
- * `location.reload()`, so the preload getter still sees the same binding.
+ * `location.reload()` / `webContents.reload()`, so the preload getter still
+ * sees the same binding on the next boot.
  */
 export function setWindowEnvironment(
   webContents: WebContents,
@@ -189,24 +190,6 @@ export function pushLocalDaemonInfo(): void {
     if (remote != null) continue
     window.webContents.send('daemon-url-changed', localDaemonInfo())
   }
-}
-
-/**
- * If any open window was bound to a removed environment, re-bind it to local
- * and reload it so it stops talking to a deleted daemon. Returns the affected
- * webContents (caller may still want to know if *it* was among them).
- */
-export function rebindWindowsOnRemovedEnvironment(removedId: string): WebContents[] {
-  const affected: WebContents[] = []
-  for (const window of BrowserWindow.getAllWindows()) {
-    if (window.isDestroyed()) continue
-    if (windowEnvIds.get(window.webContents.id) === removedId) {
-      setWindowEnvironment(window.webContents, null)
-      window.webContents.reload()
-      affected.push(window.webContents)
-    }
-  }
-  return affected
 }
 
 /** Resolve the first stdout line into the daemon's port (rejects on an exit before ready). */

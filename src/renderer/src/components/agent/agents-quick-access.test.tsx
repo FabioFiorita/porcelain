@@ -150,13 +150,38 @@ describe('AgentsQuickAccess', () => {
     expect(screen.queryByText('read')).toBeNull()
   })
 
-  it('renders nothing when there is no plan, activity, or files', () => {
+  it('still shows the Session identity when there is no plan, activity, or files', () => {
     vi.mocked(useAgentThreads).mockReturnValue([makeThread('t1', 'idle', 1)])
     activateAgentTab('t1')
     seedThread('t1', [{ kind: 'assistant', id: 'a1', text: 'done', streaming: false }])
 
-    const { container } = render(<AgentsQuickAccess />)
-    expect(container).toBeEmptyDOMElement()
+    render(<AgentsQuickAccess />)
+    expect(screen.getByText('Session')).toBeInTheDocument()
+    expect(screen.getByText('t1')).toBeInTheDocument()
+    expect(screen.getByText('Idle')).toBeInTheDocument()
+    expect(screen.queryByText('Plan')).toBeNull()
+    expect(screen.queryByText('Activity')).toBeNull()
+    expect(screen.queryByText('Files')).toBeNull()
+  })
+
+  it('falls back to the most recent idle thread when none are working', () => {
+    vi.mocked(useAgentThreads).mockReturnValue([
+      makeThread('t1', 'idle', 5),
+      makeThread('t2', 'idle', 9),
+    ])
+    seedThread('t2', [planItem])
+
+    render(<AgentsQuickAccess />)
+    expect(screen.getByText('Session')).toBeInTheDocument()
+    expect(screen.getByText('t2')).toBeInTheDocument()
+    expect(screen.getByText('Survey the code')).toBeInTheDocument()
+  })
+
+  it('shows an empty hint when the repo has no threads', () => {
+    vi.mocked(useAgentThreads).mockReturnValue([])
+
+    render(<AgentsQuickAccess />)
+    expect(screen.getByText(/Open or start a thread/)).toBeInTheDocument()
   })
 
   it('renders last-turn + total usage lines with compact counts', () => {
@@ -203,6 +228,8 @@ describe('AgentsQuickAccess', () => {
     seedThread('t1', [{ kind: 'assistant', id: 'a1', text: 'done', streaming: false }])
 
     render(<AgentsQuickAccess />)
+    // Session still shows; Usage stays hidden until the first turn reports tokens.
+    expect(screen.getByText('Session')).toBeInTheDocument()
     expect(screen.queryByText('Usage')).toBeNull()
   })
 

@@ -51,13 +51,15 @@ import { ProjectSwitcher } from './project-switcher'
 import { SidebarHeaderActionsProvider } from './sidebar-header-actions'
 import { SidebarResizeHandle } from './sidebar-resize-handle'
 
+// Rail order follows the agentic loop: navigate → act → review diffs → Review
+// canvas → history → find → plan → collab → shell. Cmd+1–9 match this order.
 const TABS: { id: SidebarTab; label: string; icon: typeof Files; shortcut: string }[] = [
   { id: 'files', label: 'Files', icon: Files, shortcut: kbdLabel('mod', '1') },
-  { id: 'search', label: 'Search', icon: Search, shortcut: kbdLabel('mod', '2') },
-  { id: 'agent', label: 'Agent', icon: Bot, shortcut: kbdLabel('mod', '3') },
-  { id: 'changes', label: 'Changes', icon: GitCompareArrows, shortcut: kbdLabel('mod', '4') },
+  { id: 'agent', label: 'Agent', icon: Bot, shortcut: kbdLabel('mod', '2') },
+  { id: 'changes', label: 'Changes', icon: GitCompareArrows, shortcut: kbdLabel('mod', '3') },
+  { id: 'feature', label: 'Feature', icon: Waypoints, shortcut: kbdLabel('mod', '4') },
   { id: 'history', label: 'History', icon: History, shortcut: kbdLabel('mod', '5') },
-  { id: 'feature', label: 'Feature', icon: Waypoints, shortcut: kbdLabel('mod', '6') },
+  { id: 'search', label: 'Search', icon: Search, shortcut: kbdLabel('mod', '6') },
   { id: 'board', label: 'Board', icon: SquareKanban, shortcut: kbdLabel('mod', '7') },
   { id: 'chat', label: 'Chat', icon: MessagesSquare, shortcut: kbdLabel('mod', '8') },
   { id: 'terminal', label: 'Terminal', icon: SquareTerminal, shortcut: kbdLabel('mod', '9') },

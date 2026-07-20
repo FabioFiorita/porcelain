@@ -4,10 +4,8 @@ import { BrowserWindow, nativeTheme, shell, type WebContents } from 'electron'
 import { z } from 'zod'
 import {
   getDefaultEnvironmentId,
-  rebindWindowsOnRemovedEnvironment,
   reloadEnvironmentsCache,
   setDefaultEnvironmentId,
-  setWindowEnvironment,
   windowEnvironmentId,
 } from './daemon'
 import {
@@ -17,7 +15,7 @@ import {
 } from './remote-daemon'
 import { SKILLS_VERSION, skillsInstallCommand, skillsUpgradeCommand } from './skills-assets'
 import { checkForUpdates, installUpdate, type UpdateStatus, updateStatus } from './updater'
-import { createWindow, type WindowInit, windowInitFor } from './window'
+import { createWindow, switchWindowEnvironment, type WindowInit, windowInitFor } from './window'
 
 // The Electron-side half of the router split: everything here needs the shell
 // (native dialogs, window management, the updater) or the
@@ -193,7 +191,8 @@ export const shellRouter = t.router({
 
       const connectThis = input.connectThisWindow !== false
       if (connectThis) {
-        setWindowEnvironment(ctx.sender, id)
+        // Reloads THIS window onto the new env (welcome page of that daemon).
+        switchWindowEnvironment(ctx.sender, id)
       }
       return { id, reloaded: connectThis }
     }),
@@ -211,7 +210,8 @@ export const shellRouter = t.router({
       state.activeId = env.id
       await saveRemoteEnvironmentState(state)
       await reloadEnvironmentsCache()
-      setWindowEnvironment(ctx.sender, env.id)
+      // Main-process reload onto the remote (welcome) — see switchWindowEnvironment.
+      switchWindowEnvironment(ctx.sender, env.id)
     }),
 
   /** Point THIS window back at the local child (other windows untouched). */
@@ -222,7 +222,8 @@ export const shellRouter = t.router({
     } else {
       await reloadEnvironmentsCache()
     }
-    setWindowEnvironment(ctx.sender, null)
+    // Main-process reload onto This device (welcome) — renderer must not also reload.
+    switchWindowEnvironment(ctx.sender, null)
   }),
 
   /**
@@ -256,10 +257,15 @@ export const shellRouter = t.router({
       }
       await saveRemoteEnvironmentState(state)
       await reloadEnvironmentsCache()
-      // Any open window on the removed env falls back to local and is reloaded
-      // here (including the caller's window). Renderer onSuccess should NOT
-      // reload again when wasActive — the main-process reload already ran.
-      rebindWindowsOnRemovedEnvironment(input.id)
+      // Any open window on the removed env falls back to local + welcome and is
+      // reloaded here (including the caller's window). Renderer onSuccess must
+      // NOT reload again when wasActive — main-process already did.
+      for (const window of BrowserWindow.getAllWindows()) {
+        if (window.isDestroyed()) continue
+        if (windowEnvironmentId(window.webContents) === input.id) {
+          switchWindowEnvironment(window.webContents, null)
+        }
+      }
       return { wasActive: wasThisWindow, reloaded: wasThisWindow }
     }),
 })

@@ -261,9 +261,9 @@ function FeatureOutline(): React.JSX.Element {
     if (target) requestJump(target)
   }
 
-  // Clear discards the agent's whole Review (files, notes, sections), so it's
-  // two-step: the first click arms it, the second confirms. The agent can always
-  // re-push, and blurring the button cancels.
+  // Clear discards the agent's whole Review (files, notes, sections) AND its
+  // loop evidence directory — two-step: first click arms, second confirms. The
+  // agent can always re-push; blurring the button cancels.
   const handleClear = async (): Promise<void> => {
     if (!confirmClear) {
       setConfirmClear(true)
@@ -339,7 +339,9 @@ function FeatureOutline(): React.JSX.Element {
                 onBlur={() => setConfirmClear(false)}
                 disabled={isClearing}
                 aria-label={
-                  confirmClear ? 'Confirm clear agent review set' : 'Clear agent review set'
+                  confirmClear
+                    ? 'Confirm clear review and loop evidence'
+                    : 'Clear review and loop evidence'
                 }
               >
                 <Eraser />
@@ -347,7 +349,7 @@ function FeatureOutline(): React.JSX.Element {
             }
           />
           <TooltipContent>
-            Removes the agent's Review — files, notes, and walkthrough sections.
+            Removes the agent Review (files, notes, walkthrough) and loop evidence from disk.
           </TooltipContent>
         </Tooltip>
       </div>

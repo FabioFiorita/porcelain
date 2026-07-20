@@ -1005,12 +1005,17 @@ export const router = t.router({
       return reading
     }),
 
-  // Clear a repo's agent review set → the Review reverts to its "No review yet"
-  // empty state. The app's one write to the agent channel (see `clearReviewSet`);
-  // the next featureView/featureReading poll reads null (cache key includes the
-  // review set, so it self-busts).
+  // Clear a repo's agent review set AND its loop evidence → the Review reverts to
+  // its "No review yet" empty state with no orphaned ~/.porcelain/loop-evidence
+  // directory. The app's one write to each channel (see `clearReviewSet` /
+  // `clearEvidence`); the next featureView/featureReading poll reads null.
   clearFeatureReview: t.procedure.input(z.string()).mutation(async ({ input }) => {
     await clearReviewSet(input)
+    // Clear evidence too: Feature Clear is the human's "I'm done with this Review"
+    // affordance. Leaving loop-evidence on disk after dropping the review set
+    // orphans files with no UI surface (board card 6281e071). Evidence-only Clear
+    // still lives on the Loop evidence chapter header.
+    await clearEvidence(input)
   }),
 
   // Loop evidence: agent-authored HTML proving the work was validated (browser /

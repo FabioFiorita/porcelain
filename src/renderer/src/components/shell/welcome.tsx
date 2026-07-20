@@ -10,37 +10,74 @@ import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useSettingsDialogStore } from '@renderer/stores/settings-dialog'
-import { Folder, FolderOpen, Unplug, X } from 'lucide-react'
+import { Cloud, Folder, FolderOpen, Laptop, Unplug, X } from 'lucide-react'
 
 /**
- * Banner when THIS window is pointed at a remote daemon: name + switch back to
- * This device so a failed remote (empty disk, unreachable LAN) never traps the
- * user without a way back to local. Electron-only — the browser client already
- * IS its daemon. Other windows keep their own environment.
+ * Always-visible environment identity on the landing page: which daemon this
+ * window talks to, and how to leave a remote. Without this, Disconnect/Use here
+ * can update the shell binding while the recents list still looks like the
+ * previous machine — the human has no clear "where am I" signal.
+ *
+ * Electron-only — the browser client already IS its daemon.
  */
-function RemoteConnectionBanner(): React.JSX.Element | null {
+function EnvironmentBanner(): React.JSX.Element | null {
   const data = useRemoteEnvironments()
   const { disconnect, isPending } = useDisconnectRemoteEnvironment()
-  if (isBrowser || data == null || data.activeId == null) return null
-  const active = data.environments.find((env) => env.id === data.activeId)
-  if (active == null) return null
+  if (isBrowser || data == null) return null
+
+  const active =
+    data.activeId != null
+      ? (data.environments.find((env) => env.id === data.activeId) ?? null)
+      : null
+
+  if (active != null) {
+    return (
+      <div className="flex w-full max-w-sm items-center justify-between gap-3 rounded-md border bg-muted/40 px-3 py-2">
+        <div className="flex min-w-0 items-start gap-2">
+          <Cloud className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+          <div className="min-w-0">
+            <p className="text-xs font-medium">This window → {active.name}</p>
+            <p className="truncate font-mono text-2xs text-muted-foreground">{active.url}</p>
+            <p className="mt-0.5 text-2xs text-muted-foreground">
+              Recent projects and Open repository use this remote.
+            </p>
+          </div>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="shrink-0"
+          disabled={isPending}
+          onClick={() => disconnect()}
+        >
+          <Unplug className="size-3.5" />
+          {isPending ? 'Switching…' : 'This device'}
+        </Button>
+      </div>
+    )
+  }
 
   return (
     <div className="flex w-full max-w-sm items-center justify-between gap-3 rounded-md border bg-muted/40 px-3 py-2">
-      <div className="min-w-0">
-        <p className="text-xs font-medium">This window → {active.name}</p>
-        <p className="truncate font-mono text-2xs text-muted-foreground">{active.url}</p>
+      <div className="flex min-w-0 items-start gap-2">
+        <Laptop className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+        <div className="min-w-0">
+          <p className="text-xs font-medium">This device</p>
+          <p className="text-2xs text-muted-foreground">
+            Local daemon — recent projects are from this machine.
+          </p>
+        </div>
       </div>
-      <Button
-        variant="outline"
-        size="sm"
-        className="shrink-0"
-        disabled={isPending}
-        onClick={() => disconnect()}
-      >
-        <Unplug className="size-3.5" />
-        {isPending ? 'Switching…' : 'This device'}
-      </Button>
+      {data.environments.length > 0 && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="shrink-0"
+          onClick={() => useSettingsDialogStore.getState().openTo('environments')}
+        >
+          Environments
+        </Button>
+      )}
     </div>
   )
 }
@@ -50,6 +87,12 @@ export function Welcome(): React.JSX.Element {
   const openRepoPath = useRepoStore((s) => s.openRepoPath)
   const removeRecent = useRemoveRecentRepo()
   const recents = useRecentRepos()
+  const remote = useRemoteEnvironments()
+  const onRemote = !isBrowser && remote != null && remote.activeId != null
+  const remoteName =
+    onRemote && remote != null
+      ? (remote.environments.find((env) => env.id === remote.activeId)?.name ?? 'remote')
+      : null
 
   return (
     <div className="relative flex h-full flex-col items-center justify-center gap-8 px-6">
@@ -70,15 +113,15 @@ export function Welcome(): React.JSX.Element {
         <h1 className="mt-4 text-3xl font-medium tracking-tight">porcelain</h1>
         <p className="mt-1 text-sm text-muted-foreground">Review changes as a story</p>
       </div>
-      <RemoteConnectionBanner />
+      <EnvironmentBanner />
       <Button onClick={openRepo}>
         <FolderOpen />
-        Open repository
+        {onRemote ? `Open repository on ${remoteName}` : 'Open repository'}
       </Button>
       {recents.length > 0 && (
         <div className="flex w-80 flex-col gap-0.5">
           <p className="px-2 pb-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
-            Recent
+            {onRemote ? `Recent on ${remoteName}` : 'Recent on this device'}
           </p>
           {recents.map((repo) => (
             // A button can't nest a button, so the remove affordance is an overlaid

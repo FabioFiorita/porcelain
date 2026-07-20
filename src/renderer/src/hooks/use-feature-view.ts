@@ -25,9 +25,10 @@ export function useFeatureView(): {
 }
 
 /**
- * Clear the agent review set for the current repo — the Review goes back to its
- * "No review yet" empty state until the agent re-pushes. Invalidates both feature
- * surfaces so the outline and the Review document refresh.
+ * Clear the agent review set AND loop evidence for the current repo — the Review
+ * goes back to its "No review yet" empty state until the agent re-pushes, with no
+ * orphaned evidence directory. Invalidates feature + evidence surfaces so the
+ * outline, canvas, and Loop evidence chapter refresh together.
  */
 export function useClearFeatureReview(): { clear: () => Promise<void>; isClearing: boolean } {
   const repo = useRepoStore((s) => s.repo)
@@ -39,7 +40,12 @@ export function useClearFeatureReview(): { clear: () => Promise<void>; isClearin
     clear: async () => {
       if (!repo) return
       await mutation.mutateAsync(repo.path)
-      await Promise.all([utils.featureView.invalidate(), utils.featureReading.invalidate()])
+      await Promise.all([
+        utils.featureView.invalidate(),
+        utils.featureReading.invalidate(),
+        utils.loopEvidence.invalidate(),
+        utils.loopEvidenceHtml.invalidate(),
+      ])
     },
     isClearing: mutation.isPending,
   }

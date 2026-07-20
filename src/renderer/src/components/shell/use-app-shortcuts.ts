@@ -10,13 +10,15 @@ import { type SidebarTab, usePreferencesStore } from '@renderer/stores/preferenc
 import { useTabsStore } from '@renderer/stores/tabs'
 import { useEffect } from 'react'
 
+// Must match the rail order in app-sidebar.tsx (agentic loop: Files → Agent →
+// Changes → Feature → History → Search → Board → Chat → Terminal).
 const SIDEBAR_TAB_KEYS: Record<string, SidebarTab | undefined> = {
   '1': 'files',
-  '2': 'search',
-  '3': 'agent',
-  '4': 'changes',
+  '2': 'agent',
+  '3': 'changes',
+  '4': 'feature',
   '5': 'history',
-  '6': 'feature',
+  '6': 'search',
   '7': 'board',
   '8': 'chat',
   '9': 'terminal',

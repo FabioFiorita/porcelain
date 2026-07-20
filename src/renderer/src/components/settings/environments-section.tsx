@@ -122,8 +122,9 @@ function ShareToggleRow({
  * one) to them. Environments are per-window: local project in one window, remote
  * in another. Electron-only — hidden in the browser client (which already IS
  * served by its daemon). Adding probes the url+token and surfaces a failure
- * inline. Connect / disconnect / remove-when-this-window reloads THIS window
- * only (see use-remote-daemon).
+ * inline. Connect / disconnect / remove-when-this-window hard-reloads THIS
+ * window onto the welcome page of the new env (main-process
+ * `switchWindowEnvironment` — see use-remote-daemon).
  */
 function SavedEnvironmentsBlock(): React.JSX.Element {
   const data = useRemoteEnvironments()

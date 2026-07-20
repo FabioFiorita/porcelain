@@ -1,4 +1,5 @@
 import { PlanSteps } from '@renderer/components/agent/plan-steps'
+import { ProviderGlyph } from '@renderer/components/agent/provider-glyph'
 import { Button } from '@renderer/components/ui/button'
 import {
   SidebarGroup,
@@ -12,7 +13,8 @@ import { useAgentThreadsStore } from '@renderer/stores/agent-threads'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import type { AgentProvider, TimelineItem } from '@shared/agent-protocol'
-import { FilePenLine, FileText, Loader2, RefreshCw } from 'lucide-react'
+import { PROVIDER_LABEL } from '@shared/agent-protocol'
+import { FilePenLine, FileText, GitBranch, Loader2, RefreshCw } from 'lucide-react'
 import { useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 
@@ -99,8 +101,9 @@ export function formatResetIn(resetsAt: number, now: number): string {
 
 /**
  * The thread this panel narrates: the active viewer tab's thread when an agent tab is
- * focused, otherwise the most recently updated working thread — so the panel follows
- * what you're looking at, and falls back to whatever is busiest.
+ * focused, otherwise the most recently updated working thread, else the most recently
+ * updated thread of any status — so the Session companion is never blank when threads
+ * exist for this repo.
  */
 function useRelevantThreadId(): string | null {
   const threads = useAgentThreads()
@@ -110,9 +113,87 @@ function useRelevantThreadId(): string | null {
     return tab?.kind === 'agent' ? tab.path : null
   })
   if (activeAgentThreadId !== null) return activeAgentThreadId
+  if (threads.length === 0) return null
   const working = threads.filter((t) => t.status === 'working')
-  if (working.length === 0) return null
-  return working.reduce((latest, t) => (t.updatedAt > latest.updatedAt ? t : latest)).id
+  const pool = working.length > 0 ? working : threads
+  return pool.reduce((latest, t) => (t.updatedAt > latest.updatedAt ? t : latest)).id
+}
+
+/** Short "updated" label — coarse buckets, matches agent-list relativeTime. */
+function relativeTime(ms: number): string {
+  const seconds = Math.max(0, Math.round((Date.now() - ms) / 1000))
+  if (seconds < 60) return 'now'
+  const minutes = Math.round(seconds / 60)
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.round(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.round(hours / 24)
+  if (days < 7) return `${days}d ago`
+  return `${Math.round(days / 7)}w ago`
+}
+
+/**
+ * Always-visible session identity for the focused (or busiest) thread: title, provider,
+ * model, live status, worktree, last activity. The Activity/Plan/Files/Usage groups hide
+ * when empty — this card is the Session companion's floor so Quick Access never goes blank
+ * on an idle open thread.
+ */
+function SessionGroup({ threadId }: { threadId: string }): React.JSX.Element | null {
+  const thread = useAgentThreads().find((t) => t.id === threadId)
+  const liveStatus = useAgentThreadsStore((s) => s.threads[threadId]?.status)
+  if (!thread) return null
+  const status = liveStatus ?? thread.status
+  const working = status === 'working'
+  return (
+    <SidebarGroup className="px-3">
+      <SidebarGroupLabel className="px-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
+        Session
+      </SidebarGroupLabel>
+      <SidebarGroupContent className="px-1">
+        <div className="flex flex-col gap-1.5 rounded-xl border bg-card p-2.5">
+          <div className="flex items-start gap-2">
+            <ProviderGlyph provider={thread.provider} className="mt-0.5 size-3.5 shrink-0" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-medium text-foreground">{thread.title}</p>
+              <p className="truncate font-mono text-2xs text-muted-foreground">
+                {PROVIDER_LABEL[thread.provider]}
+                {thread.model !== '' ? ` · ${thread.model}` : ''}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-2xs text-muted-foreground">
+            {working ? (
+              <span className="flex items-center gap-1 font-medium text-foreground">
+                <Loader2 className="size-3 shrink-0 animate-spin" />
+                Working
+              </span>
+            ) : thread.lastTurnFailed ? (
+              <span className="font-medium text-destructive">Last turn failed</span>
+            ) : (
+              <span>Idle</span>
+            )}
+            <span className="text-muted-foreground/40">·</span>
+            <span className="tabular-nums">{relativeTime(thread.updatedAt)}</span>
+            {thread.worktreeBranch && (
+              <>
+                <span className="text-muted-foreground/40">·</span>
+                <span className="flex min-w-0 items-center gap-0.5 truncate font-mono">
+                  <GitBranch className="size-3 shrink-0" />
+                  <span className="truncate">{thread.worktreeBranch}</span>
+                </span>
+              </>
+            )}
+            {thread.queued !== undefined && thread.queued.length > 0 && (
+              <>
+                <span className="text-muted-foreground/40">·</span>
+                <span>{thread.queued.length} queued</span>
+              </>
+            )}
+          </div>
+        </div>
+      </SidebarGroupContent>
+    </SidebarGroup>
+  )
 }
 
 /** The thread's current plan — steps + an N/M progress line. Hidden when there is none. */
@@ -381,17 +462,29 @@ function LimitsGroup({ provider }: { provider: AgentProvider }): React.JSX.Eleme
 }
 
 /**
- * The Agent tab's Session companion (right sidebar): plan, live activity with full
- * command/path, files touched (click to open), usage, and rate limits. Each group hides
- * when empty. The relevant thread is the active agent tab's, else the busiest working
- * thread.
+ * The Agent tab's Session companion (right sidebar): always-on session identity,
+ * then plan, live activity with full command/path, files touched (click to open),
+ * usage, and rate limits. Detail groups hide when empty; Session stays so Quick
+ * Access is never blank for an open or recent thread. The relevant thread is the
+ * active agent tab's, else the busiest working thread, else the most recent idle.
  */
 export function AgentsQuickAccess(): React.JSX.Element | null {
   const threadId = useRelevantThreadId()
   const provider = useAgentThreads().find((t) => t.id === threadId)?.provider ?? null
-  if (threadId === null) return null
+  if (threadId === null) {
+    return (
+      <SidebarGroup className="px-3">
+        <SidebarGroupContent className="px-1">
+          <p className="rounded-xl border border-dashed bg-muted/20 p-2.5 text-2xs text-muted-foreground">
+            Open or start a thread to see session status, plan, files, and usage here.
+          </p>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    )
+  }
   return (
     <>
+      <SessionGroup threadId={threadId} />
       <ActivityGroup threadId={threadId} />
       <PlanGroup threadId={threadId} />
       <FilesGroup threadId={threadId} />
