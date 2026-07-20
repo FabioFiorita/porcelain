@@ -17,12 +17,11 @@ type MenuContentProps = React.ComponentProps<typeof DropdownMenuContent>
 
 /**
  * The shared project-switcher surface — the Projects list + open/new-window
- * actions — behind ONE controlled DropdownMenu. Both triggers reuse it: the icon
- * rail's avatar (`ProjectSwitcher`) and the titlebar's repo-identity button
- * (`RepoIdentityButton`). The `trigger` is rendered as a direct child of the
- * menu (each caller wraps its own `DropdownMenuTrigger`, with or without a
- * tooltip); `contentSide`/`contentAlign` place the panel relative to that trigger
- * (right of the rail vs. below the titlebar). Renders nothing without an open repo.
+ * actions — behind ONE controlled DropdownMenu. Its one trigger is the icon
+ * rail's avatar (`ProjectSwitcher`); the `trigger` is rendered as a direct child
+ * of the menu (the caller wraps its own `DropdownMenuTrigger`, with or without a
+ * tooltip); `contentSide`/`contentAlign` place the panel relative to that
+ * trigger. Renders nothing without an open repo.
  *
  * The menu is controlled (`menuOpen`) so a row's inline button can `stopPropagation`
  * to suppress the row's `switchTo` and still steer the menu (close on open-in-window,

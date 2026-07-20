@@ -5,9 +5,9 @@ import { ChevronsUpDown } from 'lucide-react'
 import { ProjectSwitcherMenu } from './project-switcher-menu'
 
 // The project lives at the top of the icon rail as an avatar (its initial) with a
-// switch-chevron badge — the trigger for the shared ProjectSwitcherMenu (the same
-// Projects surface the titlebar's RepoIdentityButton opens), just a denser trigger
-// that sits above the tab icons. The menu opens to the right of the rail.
+// switch-chevron badge — the one trigger for the ProjectSwitcherMenu (the Projects
+// surface), a dense chip that sits above the tab icons. The menu opens to the
+// right of the rail.
 export function ProjectSwitcher(): React.JSX.Element | null {
   const repo = useRepoStore((s) => s.repo)
 
