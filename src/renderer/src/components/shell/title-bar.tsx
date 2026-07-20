@@ -27,6 +27,10 @@ import { WindowControls } from './window-controls'
  * daemon's build version differs from this app's, the chip gains an amber warning
  * and the tooltip explains the skew — the second surface of the version-skew guard
  * (the first is the DaemonSkewToast).
+ *
+ * No border-b: the floating tiles sit flush under this bar (top: 3rem, paddingTop: 0),
+ * and their own top edges already seat the chrome. A hairline here stacked on the
+ * tile borders as a double line under the search field.
  */
 export function TitleBar(): React.JSX.Element {
   const setFinderOpen = useFileFinderStore((s) => s.setOpen)
@@ -35,7 +39,7 @@ export function TitleBar(): React.JSX.Element {
   const openSettings = useSettingsDialogStore((s) => s.openTo)
 
   return (
-    <div className="app-drag flex h-12 shrink-0 items-center border-border/60 border-b px-3">
+    <div className="app-drag flex h-12 shrink-0 items-center px-3">
       {!isBrowser && !isLinuxShell && <div className="w-16 shrink-0" aria-hidden />}
       <div className="flex flex-1 justify-center">
         <button
