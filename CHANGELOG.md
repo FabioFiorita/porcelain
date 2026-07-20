@@ -1,3 +1,9 @@
+## [0.37.1](https://github.com/FabioFiorita/porcelain/compare/v0.37.0...v0.37.1) (2026-07-20)
+
+### Bug Fixes
+
+* **e2e:** align smoke/visual/agent with Review rail and Glance home ([7ed1a74](https://github.com/FabioFiorita/porcelain/commit/7ed1a74d19bc4e377618e635eef56a0cd02a2f6f))
+
 ## [0.37.0](https://github.com/FabioFiorita/porcelain/compare/v0.36.1...v0.37.0) (2026-07-20)
 
 ### Features
