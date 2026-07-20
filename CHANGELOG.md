@@ -1,3 +1,9 @@
+## [0.35.1](https://github.com/FabioFiorita/porcelain/compare/v0.35.0...v0.35.1) (2026-07-20)
+
+### Bug Fixes
+
+* drop the titlebar repo-identity button — the rail avatar is the one project-switcher trigger ([f4ccedd](https://github.com/FabioFiorita/porcelain/commit/f4ccedd3daf09f5a4136afedf4089c018c3a672f))
+
 ## [0.35.0](https://github.com/FabioFiorita/porcelain/compare/v0.34.0...v0.35.0) (2026-07-19)
 
 ### Features
