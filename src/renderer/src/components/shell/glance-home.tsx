@@ -1,5 +1,6 @@
 import type { InboxRow } from '@backend/worktree-inbox'
 import { ProviderGlyph } from '@renderer/components/agent/provider-glyph'
+import { reviewTabKey } from '@renderer/components/git/review-view'
 import { useAgentThreads } from '@renderer/hooks/use-agents'
 import { useBoardCards } from '@renderer/hooks/use-board'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
@@ -9,7 +10,7 @@ import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import type { ThreadInfo } from '@shared/agent-protocol'
-import { Columns3, FileDiff, GitBranch, Loader2 } from 'lucide-react'
+import { Columns3, FileDiff, GitBranch, Loader2, Waypoints } from 'lucide-react'
 
 // One tap-target recipe for every Glance row: full-width, touch-comfortable
 // height, the app's one hover/pressed fill. Rows stay flat on the viewer
@@ -104,12 +105,8 @@ function InboxGlanceRow({ row }: { row: InboxRow }): React.JSX.Element {
 }
 
 /**
- * The Glance: the phone-only home the viewer lands on when no tab is open — a calm,
- * document-shaped summary of work in flight (Porcelain on a phone is a companion for
- * a quick look, not a workspace). One scrollable column: this repo's agent threads,
- * the cross-worktree Review inbox, this checkout's changed files + Review, and the
- * board. Sections with nothing to show are omitted; when everything is empty, one
- * quiet line. Mounted by `EmptyViewer` (viewer.tsx) under `useIsMobile()`.
+ * The Glance: home when no tab is open — work in flight (threads, inbox, dirty
+ * tree, published Review, board). Phone and desktop empty panes both use it (U6).
  */
 export function GlanceHome(): React.JSX.Element | null {
   const repo = useRepoStore((s) => s.repo)
@@ -131,9 +128,15 @@ export function GlanceHome(): React.JSX.Element | null {
   const showBoard = doing.length > 0 || todo.length > 0
   const empty = threads.length === 0 && inbox.length === 0 && !showCheckout && !showBoard
 
-  // Open the Feature tab (the Review) — the same open every feature-list row makes.
-  const openReview = (): void => {
+  // Agent-published Review canvas (Feature tab).
+  const openFeatureReview = (): void => {
     openTab({ id: tabId('feature', repo.path), kind: 'feature', title: 'Review', path: repo.path })
+  }
+
+  // Continuous stacked diffs for the working tree (U3 — not Feature empty state).
+  const openAllChanges = (): void => {
+    const key = reviewTabKey({ type: 'working' })
+    openTab({ id: tabId('review', key), kind: 'review', title: 'All changes', path: key })
   }
 
   const openBoard = (): void => {
@@ -179,20 +182,28 @@ export function GlanceHome(): React.JSX.Element | null {
             )}
             {showCheckout && (
               <GlanceSection label="This checkout">
-                <button type="button" onClick={openReview} className={rowClass}>
-                  <FileDiff className="size-3.5 shrink-0 text-muted-foreground" />
-                  <span className="min-w-0 flex-1 truncate text-sm">
-                    {changedCount === 1 ? '1 changed file' : `${changedCount} changed files`}
-                  </span>
-                  {hasReview && (
+                {changedCount > 0 && (
+                  <button type="button" onClick={openAllChanges} className={rowClass}>
+                    <FileDiff className="size-3.5 shrink-0 text-muted-foreground" />
+                    <span className="min-w-0 flex-1 truncate text-sm">
+                      {changedCount === 1 ? '1 changed file' : `${changedCount} changed files`}
+                    </span>
+                  </button>
+                )}
+                {hasReview && (
+                  <button type="button" onClick={openFeatureReview} className={rowClass}>
+                    <Waypoints className="size-3.5 shrink-0 text-muted-foreground" />
+                    <span className="min-w-0 flex-1 truncate text-sm">
+                      {reading?.name?.trim() || 'Review'}
+                    </span>
                     <span
                       role="img"
-                      aria-label="Review pushed"
-                      title="Review pushed"
+                      aria-label="Review published"
+                      title="Agent Review published"
                       className="size-1.5 shrink-0 rounded-full bg-info"
                     />
-                  )}
-                </button>
+                  </button>
+                )}
               </GlanceSection>
             )}
             {showBoard && (

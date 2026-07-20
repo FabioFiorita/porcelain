@@ -112,9 +112,9 @@ describe('CommitView', () => {
     expect(screen.getByText('No files changed')).toBeInTheDocument()
   })
 
-  it('opens a continuous review tab for the commit when Review all is clicked', () => {
+  it('opens a continuous review tab for the commit when All changes is clicked', () => {
     renderView()
-    fireEvent.click(screen.getByLabelText('Review all'))
+    fireEvent.click(screen.getByLabelText('All changes'))
 
     const key = `commit:${HASH}`
     const { tabs, activeTabId } = useTabsStore.getState().panes[0]
@@ -128,9 +128,9 @@ describe('CommitView', () => {
     expect(activeTabId).toBe(tabId('review', key))
   })
 
-  it('hides Review all when the commit has no files', () => {
+  it('hides All changes when the commit has no files', () => {
     vi.mocked(useCommitFlow).mockReturnValue({ groups: [] })
     renderView()
-    expect(screen.queryByLabelText('Review all')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('All changes')).not.toBeInTheDocument()
   })
 })

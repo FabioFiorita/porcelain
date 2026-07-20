@@ -146,6 +146,7 @@ export function CommitGroup(): React.JSX.Element {
   // grid) — a second Push under Commit was a duplicate.
   const files = groups?.flatMap((g) => g.files) ?? []
   const allStaged = files.length > 0 && files.every((f) => f.staged && !f.unstaged)
+  const treeClean = files.length === 0
 
   if (!conventions) {
     return (
@@ -160,7 +161,7 @@ export function CommitGroup(): React.JSX.Element {
   // The textarea is the source of truth — the tokens just read/rewrite its prefix,
   // and a freeform message commits with no prefix at all.
   const { type, scope } = parseCommitPrefix(message)
-  const ready = applyCommitPrefix(message, null, null).trim() !== ''
+  const ready = applyCommitPrefix(message, null, null).trim() !== '' && !treeClean
 
   const setType = (next: string | null): void =>
     setMessage(
@@ -197,6 +198,11 @@ export function CommitGroup(): React.JSX.Element {
         Commit
       </SidebarGroupLabel>
       <SidebarGroupContent className="px-1">
+        {treeClean && (
+          <p className="mb-2 px-0.5 text-2xs text-muted-foreground">
+            Working tree clean — nothing to stage or commit.
+          </p>
+        )}
         <div className="flex flex-col gap-2.5 rounded-xl border bg-card p-2.5">
           <div className="flex items-center gap-1.5">
             <CommitTokenSelect
@@ -204,13 +210,14 @@ export function CommitGroup(): React.JSX.Element {
               value={type}
               options={conventions.types}
               onChange={setType}
+              disabled={treeClean}
             />
             <CommitTokenSelect
               kind="scope"
               value={scope}
               options={conventions.scopes}
               onChange={setScope}
-              disabled={!type}
+              disabled={!type || treeClean}
             />
           </div>
           <Textarea
@@ -219,9 +226,12 @@ export function CommitGroup(): React.JSX.Element {
             onKeyDown={(e) => {
               if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') commit()
             }}
-            placeholder={`Commit message — ${kbdLabel('mod', '↵')} to commit`}
+            placeholder={
+              treeClean ? 'Nothing to commit' : `Commit message — ${kbdLabel('mod', '↵')} to commit`
+            }
             aria-label="Commit message"
             rows={3}
+            disabled={treeClean}
             className="min-h-16 resize-none rounded-md text-sm-minus md:text-sm-minus"
           />
           {staged && (
@@ -244,7 +254,7 @@ export function CommitGroup(): React.JSX.Element {
               size="sm"
               variant="outline"
               className={cn(compactButtonClass, 'flex-1 rounded-md')}
-              disabled={isStaging}
+              disabled={isStaging || treeClean}
               onClick={toggleStaging}
             >
               {allStaged ? <FileMinus2 /> : <FilePlus2 />}

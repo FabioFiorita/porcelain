@@ -110,15 +110,19 @@ describe('GlanceHome', () => {
     expect(switchToSpy).toHaveBeenCalledWith('/repo-worktrees/fix-nav')
   })
 
-  it('renders this checkout and tapping opens the Review (feature tab)', () => {
+  it('opens All changes for dirty tree and Review for a published set', () => {
     vi.mocked(useGitFlow).mockReturnValue({ groups: flowGroups, refresh: async () => {} })
     vi.mocked(useFeatureReading).mockReturnValue({ reading, refresh: async () => {} })
     render(<GlanceHome />)
     expect(screen.getByText('This checkout')).toBeInTheDocument()
-    expect(screen.getByLabelText('Review pushed')).toBeInTheDocument()
+    expect(screen.getByLabelText('Review published')).toBeInTheDocument()
     fireEvent.click(screen.getByText('2 changed files'))
-    const { tabs } = useTabsStore.getState().panes[0]
-    expect(tabs[0]).toMatchObject({ id: tabId('feature', '/repo'), kind: 'feature' })
+    let { tabs } = useTabsStore.getState().panes[0]
+    expect(tabs[0]).toMatchObject({ id: tabId('review', 'working'), kind: 'review' })
+    fireEvent.click(screen.getByText('Glance home'))
+    tabs = useTabsStore.getState().panes[0].tabs
+    const feature = tabs.find((t) => t.kind === 'feature')
+    expect(feature).toMatchObject({ id: tabId('feature', '/repo'), kind: 'feature' })
   })
 
   it('renders the board summary with doing titles and tapping opens the board tab', () => {

@@ -29,18 +29,25 @@ export function WorktreeSwitcher(): React.JSX.Element | null {
 
   if (!repo) return null
 
+  const current = worktrees.find((w) => w.path === repo.path)
+  // Which checkout you're on (U20); full count lives in the tooltip.
+  const chipLabel = current?.branch ?? repo.name
+  const chipTitle =
+    worktrees.length <= 1
+      ? 'This checkout'
+      : `${worktrees.length} worktrees — ${current?.path ?? repo.path}`
+
   return (
     <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
       <DropdownMenuTrigger
         render={
           <button
             type="button"
-            className="app-no-drag flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            title={chipTitle}
+            className="app-no-drag flex min-w-0 max-w-36 shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           >
             <Folder className="size-3.5 shrink-0" />
-            <span>
-              {worktrees.length} worktree{worktrees.length === 1 ? '' : 's'}
-            </span>
+            <span className="min-w-0 truncate font-mono">{chipLabel}</span>
             <ChevronsUpDown className="size-3 shrink-0" />
           </button>
         }

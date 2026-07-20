@@ -16,24 +16,20 @@ import { RightSidebarResizeHandle } from './sidebar-resize-handle'
 // panel's contextual header) instead of a generic "Quick access" — the redesign
 // dropped the "Quick Access" / "Quick Commands" labels.
 const COMPANION_TITLES: Record<SidebarTab, string> = {
-  files: 'Workspace',
+  files: 'Pinned & notes',
   changes: 'Commit',
-  history: 'Review',
-  // Feature companion is Review-native (chapter, notes, comments) — not a git clone.
-  feature: 'Reading',
-  board: 'Workspace',
+  history: 'Timeline',
+  // Review companion — not a git clone (P7 / U5).
+  feature: 'Now reading',
+  board: 'Board',
   chat: 'Coordination',
   terminal: 'Actions',
   search: 'Recent searches',
-  // Distinct from the left sidebar's "Agent" tab (the thread roster). This panel is
-  // the live session companion — plan, activity, files touched, usage/limits.
   agent: 'Session',
 }
 
-// Sections follow the left sidebar's active tab: pins for files, git for
-// Changes/History, Review-only for Feature (no fetch/pull/commit clone), saved
-// actions for Terminal. Feature used to mirror Changes — that made the Review
-// moment feel like Source Control (P7).
+// Sections follow the left sidebar's active tab. Board keeps notes/pins so
+// planning doesn't orphan the right rail (U18). Feature stays Review-native.
 export function RightSidebar(): React.JSX.Element {
   const sidebarTab = usePreferencesStore((s) => s.sidebarTab)
   const { isMobile } = useSidebar()
@@ -53,8 +49,12 @@ export function RightSidebar(): React.JSX.Element {
           {COMPANION_TITLES[sidebarTab]}
         </span>
       </SidebarHeader>
-      <SidebarContent className={sidebarTab === 'files' ? 'gap-0 overflow-hidden' : undefined}>
-        {sidebarTab === 'files' && <FilesQuickAccess />}
+      <SidebarContent
+        className={
+          sidebarTab === 'files' || sidebarTab === 'board' ? 'gap-0 overflow-hidden' : undefined
+        }
+      >
+        {(sidebarTab === 'files' || sidebarTab === 'board') && <FilesQuickAccess />}
         {(sidebarTab === 'changes' || sidebarTab === 'history') && <QuickCommandsGroup />}
         {sidebarTab === 'history' && <FileTimelineGroup />}
         {sidebarTab === 'feature' && <ReviewGroup />}

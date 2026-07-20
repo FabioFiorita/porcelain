@@ -350,7 +350,7 @@ function FilesGroup({ threadId }: { threadId: string }): React.JSX.Element | nul
   const openTab = useTabsStore((s) => s.openTab)
   if (files.length === 0) return null
 
-  const open = (path: string): void => {
+  const open = (path: string, action: TouchedFile['action']): void => {
     // Claude usually emits absolute paths; relative ones are joined to the open repo.
     const absolute =
       path.startsWith('/') || /^[A-Za-z]:[\\/]/.test(path)
@@ -358,6 +358,20 @@ function FilesGroup({ threadId }: { threadId: string }): React.JSX.Element | nul
         : repoPath !== null
           ? `${repoPath}/${path}`
           : path
+    // Writes/edits open the working-tree diff (U10); reads open the file.
+    if (action === 'edit' || action === 'write') {
+      const rel =
+        repoPath !== null && absolute.startsWith(`${repoPath}/`)
+          ? absolute.slice(repoPath.length + 1)
+          : path
+      openTab({
+        id: tabId('diff', rel),
+        kind: 'diff',
+        title: fileName(absolute),
+        path: rel,
+      })
+      return
+    }
     openTab({
       id: tabId('file', absolute),
       kind: 'file',
@@ -380,7 +394,7 @@ function FilesGroup({ threadId }: { threadId: string }): React.JSX.Element | nul
             <button
               key={file.path}
               type="button"
-              onClick={() => open(file.path)}
+              onClick={() => open(file.path, file.action)}
               title={file.path}
               className={cn(
                 'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left',

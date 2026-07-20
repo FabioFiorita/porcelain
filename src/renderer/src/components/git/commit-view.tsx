@@ -237,13 +237,13 @@ export function CommitView({ hash }: { hash: string }): React.JSX.Element {
                       size="icon-xs"
                       className="shrink-0 text-muted-foreground"
                       onClick={openReviewAll}
-                      aria-label="Review all"
+                      aria-label="All changes"
                     >
                       <Rows3 />
                     </Button>
                   }
                 />
-                <TooltipContent>Review all</TooltipContent>
+                <TooltipContent>All changes</TooltipContent>
               </Tooltip>
             )}
           </div>

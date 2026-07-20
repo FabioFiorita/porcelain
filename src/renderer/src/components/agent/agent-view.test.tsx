@@ -20,6 +20,12 @@ vi.mock('@renderer/hooks/use-remote-daemon', () => ({
   useActiveRemoteEnvironment: () => null,
   useRemoteEnvironments: () => undefined,
 }))
+vi.mock('@renderer/hooks/use-git-flow', () => ({
+  useGitFlow: () => ({ groups: [] }),
+}))
+vi.mock('@renderer/hooks/use-feature-reading', () => ({
+  useFeatureReading: () => ({ reading: null, refresh: async () => {} }),
+}))
 
 // Repo idiom (see changes-list.test): mock the domain hooks + the channel action
 // surface, never tRPC or lib/daemon. The store is real — we seed the live timeline

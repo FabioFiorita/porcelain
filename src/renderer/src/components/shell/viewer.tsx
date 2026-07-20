@@ -11,7 +11,6 @@ import { TerminalView } from '@renderer/components/terminal/terminal-view'
 import { Kbd } from '@renderer/components/ui/kbd'
 import { FileContent } from '@renderer/components/viewer/file-content'
 import { SearchView } from '@renderer/components/viewer/search-view'
-import { useIsMobile } from '@renderer/hooks/use-mobile'
 import { kbdLabel } from '@renderer/lib/keyboard'
 import { cn } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
@@ -21,29 +20,49 @@ import { GlanceHome } from './glance-home'
 import { SplitResizeHandle } from './sidebar-resize-handle'
 import { TabBar } from './tab-bar'
 
-// The empty viewer is the most-seen blank surface, so it doubles as a quiet
-// quick-start: the three gestures that get you moving, each with its shortcut.
-// On phone the sidebar toggle is the real entry — keyboard chords are secondary.
+// Keyboard quick-start under the Glance (desktop). Chords match the rail order:
+// Files ⌘1 · Agent ⌘2 · Changes ⌘3 · Review ⌘4 (U1).
 const QUICKSTART: { label: string; keys: string }[] = [
+  { label: 'Agent', keys: kbdLabel('mod', '2') },
+  { label: 'Changes', keys: kbdLabel('mod', '3') },
+  { label: 'Review', keys: kbdLabel('mod', '4') },
   { label: 'Search files', keys: kbdLabel('mod', 'P') },
-  { label: 'Browse the tree', keys: kbdLabel('mod', '1') },
-  { label: 'Review changes', keys: kbdLabel('mod', '4') },
 ]
 
 function EmptyViewer(): React.JSX.Element {
-  const isMobile = useIsMobile()
   const repo = useRepoStore((s) => s.repo)
 
-  // On a phone the empty pane is the Glance — the companion's home surface (a quick
-  // look at work in flight), not the desktop quick-start. Desktop and no-repo states
-  // keep the quick-start below.
-  if (isMobile && repo !== null) return <GlanceHome />
+  // With a repo open, empty pane is the Glance (work in flight) on every form
+  // factor — phone already had it; desktop used to show only logo + chords (U6).
+  if (repo !== null) {
+    return (
+      <div className="flex h-full min-h-0 flex-col">
+        <div className="min-h-0 flex-1">
+          <GlanceHome />
+        </div>
+        <div className="hidden shrink-0 border-t border-border/60 px-4 py-3 [@media(hover:hover)]:block">
+          <div className="mx-auto flex max-w-md flex-col">
+            {QUICKSTART.map((item, i) => (
+              <div
+                key={item.keys}
+                className={cn(
+                  'flex items-center justify-between py-1 text-xs text-muted-foreground',
+                  i > 0 && 'border-t border-border/40',
+                )}
+              >
+                <span>{item.label}</span>
+                <Kbd>{item.keys}</Kbd>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex h-full flex-col items-center justify-center gap-7 px-6 text-center">
       <div className="flex flex-col items-center gap-3">
-        {/* The mark sits on the void like a fired tile — a soft drop shadow
-            follows its squircle so it reads as a physical object, not an icon. */}
         <img
           src={logo}
           alt=""
@@ -52,25 +71,11 @@ function EmptyViewer(): React.JSX.Element {
         />
         <div className="space-y-0.5">
           <p className="text-xl font-medium tracking-tight text-foreground">porcelain</p>
-          <p className="text-sm text-muted-foreground">Review changes as a story</p>
+          <p className="text-sm text-muted-foreground">Run agents. Review as a story.</p>
           <p className="mt-2 max-w-xs text-xs text-muted-foreground/80 [@media(hover:hover)]:hidden">
-            Tap the sidebar button to browse files and changes — a quick look, not a full workspace.
+            Open a repository to get started.
           </p>
         </div>
-      </div>
-      <div className="hidden w-56 flex-col [@media(hover:hover)]:flex">
-        {QUICKSTART.map((item, i) => (
-          <div
-            key={item.keys}
-            className={cn(
-              'flex items-center justify-between py-1.5 text-xs text-muted-foreground',
-              i > 0 && 'border-t border-border/60',
-            )}
-          >
-            <span>{item.label}</span>
-            <Kbd>{item.keys}</Kbd>
-          </div>
-        ))}
       </div>
     </div>
   )

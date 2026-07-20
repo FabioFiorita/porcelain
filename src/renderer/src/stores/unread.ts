@@ -7,9 +7,16 @@ import { usePreferencesStore } from './preferences'
  * other tabs (files/search/changes/history) get no agent-push signal (see the
  * event→tab mapping below and plan 035's decisions).
  */
-export type UnreadTab = 'feature' | 'board' | 'chat' | 'terminal'
+export type UnreadTab = 'feature' | 'board' | 'chat' | 'terminal' | 'agent' | 'changes'
 
-const UNREAD_TABS: readonly UnreadTab[] = ['feature', 'board', 'chat', 'terminal']
+const UNREAD_TABS: readonly UnreadTab[] = [
+  'feature',
+  'board',
+  'chat',
+  'terminal',
+  'agent',
+  'changes',
+]
 
 export function isUnreadTab(tab: string): tab is UnreadTab {
   return (UNREAD_TABS as readonly string[]).includes(tab)
@@ -23,7 +30,14 @@ interface UnreadState {
 }
 
 export const useUnreadStore = create<UnreadState>((set) => ({
-  unread: { feature: false, board: false, chat: false, terminal: false },
+  unread: {
+    feature: false,
+    board: false,
+    chat: false,
+    terminal: false,
+    agent: false,
+    changes: false,
+  },
   mark: (tab) => {
     // An event for the CURRENTLY active tab needs no dot — the view live-refreshes
     // in front of the user (plan 035, decision 3). Read the active tab straight
@@ -63,6 +77,13 @@ export function unreadTabFor(event: AppEvent): UnreadTab | null {
       return 'chat'
     case 'actions':
       return 'terminal'
+    case 'agent-threads':
+      // Turn finished / roster flip while you're elsewhere (U9).
+      return 'agent'
+    case 'working-tree':
+    case 'file-tree':
+      // Tree dirty after agent edits — soft cue on Changes (U9).
+      return 'changes'
     default:
       return null
   }

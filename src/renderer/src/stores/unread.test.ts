@@ -6,7 +6,14 @@ import { isUnreadTab, type UnreadTab, unreadTabFor, useUnreadStore } from './unr
 describe('useUnreadStore', () => {
   beforeEach(() => {
     useUnreadStore.setState({
-      unread: { feature: false, board: false, chat: false, terminal: false },
+      unread: {
+        feature: false,
+        board: false,
+        chat: false,
+        terminal: false,
+        agent: false,
+        changes: false,
+      },
     })
     usePreferencesStore.setState({ sidebarTab: 'files' })
   })
@@ -43,9 +50,10 @@ describe('unreadTabFor', () => {
     ['board', 'board'],
     ['chat', 'chat'],
     ['actions', 'terminal'],
+    ['agent-threads', 'agent'],
+    ['working-tree', 'changes'],
+    ['file-tree', 'changes'],
     ['layers', null],
-    ['working-tree', null],
-    ['file-tree', null],
   ]
 
   for (const [event, expected] of cases) {
@@ -65,6 +73,8 @@ describe('isUnreadTab', () => {
     expect(isUnreadTab('board')).toBe(true)
     expect(isUnreadTab('chat')).toBe(true)
     expect(isUnreadTab('terminal')).toBe(true)
+    expect(isUnreadTab('agent')).toBe(true)
+    expect(isUnreadTab('changes')).toBe(true)
   })
 
   it('rejects the other rail tabs', () => {

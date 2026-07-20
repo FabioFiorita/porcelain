@@ -57,23 +57,23 @@ const TABS: { id: SidebarTab; label: string; icon: typeof Files; shortcut: strin
   { id: 'files', label: 'Files', icon: Files, shortcut: kbdLabel('mod', '1') },
   { id: 'agent', label: 'Agent', icon: Bot, shortcut: kbdLabel('mod', '2') },
   { id: 'changes', label: 'Changes', icon: GitCompareArrows, shortcut: kbdLabel('mod', '3') },
-  { id: 'feature', label: 'Feature', icon: Waypoints, shortcut: kbdLabel('mod', '4') },
+  // Product noun is "Review" (the agent-authored canvas) — not "Feature" (U5).
+  { id: 'feature', label: 'Review', icon: Waypoints, shortcut: kbdLabel('mod', '4') },
   { id: 'history', label: 'History', icon: History, shortcut: kbdLabel('mod', '5') },
   { id: 'search', label: 'Search', icon: Search, shortcut: kbdLabel('mod', '6') },
   { id: 'board', label: 'Board', icon: SquareKanban, shortcut: kbdLabel('mod', '7') },
-  { id: 'chat', label: 'Chat', icon: MessagesSquare, shortcut: kbdLabel('mod', '8') },
+  { id: 'chat', label: 'Relay', icon: MessagesSquare, shortcut: kbdLabel('mod', '8') },
   { id: 'terminal', label: 'Terminal', icon: SquareTerminal, shortcut: kbdLabel('mod', '9') },
 ]
 
-// Uppercase title each left panel opens with — one consistent header pattern
-// across all sidebar tabs (the Files panel adds the collapse-all + hide controls).
+// Panel titles match rail labels (U5/U17) so one vocabulary trains across chrome.
 const PANEL_TITLES: Record<SidebarTab, string> = {
-  files: 'Explorer',
-  changes: 'Source control',
+  files: 'Files',
+  changes: 'Changes',
   history: 'History',
-  feature: 'Feature review',
+  feature: 'Review',
   board: 'Board',
-  chat: 'Agent chat',
+  chat: 'Relay',
   terminal: 'Terminal',
   search: 'Search',
   agent: 'Agent',

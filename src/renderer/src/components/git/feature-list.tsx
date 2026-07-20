@@ -62,11 +62,9 @@ export function SourceMarker({ source }: { source: FileSource }): React.JSX.Elem
   return <span className="size-2 shrink-0 rounded-full border border-muted-foreground/70" />
 }
 
-// One file row of the outline, anchored under its section (or a "More files"
-// group). Click opens the **file** (absolute path) with agent-changed lines
-// highlighted when available; the working-tree diff is one gesture away via
-// "Open diff" on the context menu for changed files. Right-click also marks
-// reviewed / starts a file comment.
+// One file row of the outline. Click opens the **diff** for changed files
+// (matches Changes — U11); shipped/context open the file with highlights.
+// "Open file" / "Open diff" stay on the context menu for the other mode.
 function OutlineFileRowImpl({
   file,
   repoPath,
@@ -84,7 +82,7 @@ function OutlineFileRowImpl({
   const name = fileName(file.path)
   const dir = dirName(file.path)
 
-  const open = (): void => {
+  const openFile = (): void => {
     const absolute = `${repoPath}/${file.path}`
     const ranges = highlightRangesForFile(file)
     openTab({
@@ -99,6 +97,12 @@ function OutlineFileRowImpl({
 
   const openDiff = (): void => {
     openTab({ id: tabId('diff', file.path), kind: 'diff', title: name, path: file.path })
+  }
+
+  // Changed → diff first (same as Changes list); context/shipped → file + highlights.
+  const open = (): void => {
+    if (file.source === 'changed') openDiff()
+    else openFile()
   }
 
   return (
@@ -148,7 +152,12 @@ function OutlineFileRowImpl({
           )}
         </ContextMenuTrigger>
         <ContextMenuContent className="w-48">
-          {file.source === 'changed' && (
+          {file.source === 'changed' ? (
+            <ContextMenuItem onClick={openFile}>
+              <FileDiff />
+              Open file
+            </ContextMenuItem>
+          ) : (
             <ContextMenuItem onClick={openDiff}>
               <FileDiff />
               Open diff

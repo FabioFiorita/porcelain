@@ -24,7 +24,8 @@ const worktrees: Worktree[] = [
 const openWindow = vi.fn()
 
 function openMenu(): void {
-  fireEvent.click(screen.getByRole('button', { name: /worktree/i }))
+  // Chip shows the current worktree branch (U20), not a "N worktrees" count.
+  fireEvent.click(screen.getByRole('button', { name: /main/i }))
 }
 
 describe('WorktreeSwitcher', () => {

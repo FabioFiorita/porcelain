@@ -75,7 +75,8 @@ function TopBar({ left }: { left: LeftSidebarHandle }): React.JSX.Element {
   const { toggleSidebar: toggleRight, isMobile, openMobile, open: rightOpen } = useSidebar()
   // The Board tab has no Quick Access section, so its toggle is hidden (the panel
   // itself is suppressed in RepoShell) — see RIGHT_SIDEBAR-less tabs there.
-  const hasQuickAccess = usePreferencesStore((s) => s.sidebarTab !== 'board')
+  // Board keeps the right rail (notes/pins) — no longer suppress it (U18).
+  const hasQuickAccess = true
   // When split, each pane carries its own tab bar inside the viewer; the chrome
   // bar shows the (single) pane's tabs otherwise.
   const isSplit = useTabsStore((s) => s.panes.length > 1)
@@ -136,11 +137,10 @@ function RepoShell(): React.JSX.Element {
   const { state, setOpen, toggleSidebar, isMobile, openMobile } = useSidebar()
   const setRightSidebarOpen = usePreferencesStore((s) => s.setRightSidebarOpen)
   const rightSidebarWidth = usePreferencesStore((s) => s.rightSidebarWidth)
-  const sidebarTab = usePreferencesStore((s) => s.sidebarTab)
-  // The Board tab has no Quick Access content, so the right panel is suppressed
-  // there — independently of the user's open/closed preference, which is restored
+  // Board keeps notes/pins in the right rail (U18); no longer suppress by tab.
+  // which is restored
   // when they switch back to a tab that has a Quick Access section.
-  const rightOpen = usePreferencesStore((s) => s.rightSidebarOpen) && sidebarTab !== 'board'
+  const rightOpen = usePreferencesStore((s) => s.rightSidebarOpen)
   // On phone the left panel is a sheet (`openMobile`), not the desktop expanded flag.
   const left: LeftSidebarHandle = {
     collapsed: isMobile ? !openMobile : state === 'collapsed',
@@ -153,7 +153,7 @@ function RepoShell(): React.JSX.Element {
   useResponsiveShell({
     leftOpen: state === 'expanded',
     setLeftOpen: setOpen,
-    rightSuppressed: sidebarTab === 'board',
+    rightSuppressed: false,
   })
 
   // Zen mode (Z in the Review document): collapse both sidebars, restoring their

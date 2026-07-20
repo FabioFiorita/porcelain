@@ -6,17 +6,23 @@ import {
 } from '@renderer/components/agent/agents-quick-access'
 import { PlanSteps } from '@renderer/components/agent/plan-steps'
 import { ProviderGlyph } from '@renderer/components/agent/provider-glyph'
+import { reviewTabKey } from '@renderer/components/git/review-view'
 import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
 import { ScrollArea } from '@renderer/components/ui/scroll-area'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useAgentActions } from '@renderer/hooks/use-agent-channel'
 import { useAgentProviders, useAgentThreads } from '@renderer/hooks/use-agents'
+import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
+import { useGitFlow } from '@renderer/hooks/use-git-flow'
 import { useActiveRemoteEnvironment } from '@renderer/hooks/use-remote-daemon'
 import { modelChipLabel } from '@renderer/lib/agent-model-label'
 import { isTextEntry } from '@renderer/lib/keyboard'
 import { cn, copyText } from '@renderer/lib/utils'
 import { useAgentThreadsStore } from '@renderer/stores/agent-threads'
+import { usePreferencesStore } from '@renderer/stores/preferences'
+import { useRepoStore } from '@renderer/stores/repo'
+import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import type {
   AgentProvider,
   AgentUsage,
@@ -836,6 +842,16 @@ export function AgentView({ threadId }: { threadId: string }): React.JSX.Element
   const showTurnUsage =
     !working && thread?.usage !== undefined && lastItem?.kind === 'assistant' && !lastItem.streaming
 
+  // Close-the-loop handoff when a turn finishes (U4).
+  const { groups } = useGitFlow()
+  const { reading } = useFeatureReading()
+  const repo = useRepoStore((s) => s.repo)
+  const openTab = useTabsStore((s) => s.openTab)
+  const setSidebarTab = usePreferencesStore((s) => s.setSidebarTab)
+  const changedCount = groups?.reduce((n, g) => n + g.files.length, 0) ?? 0
+  const hasReview = reading !== null && reading !== undefined
+  const showNextSteps = !working && items.length > 0 && (changedCount > 0 || hasReview)
+
   return (
     <div className="flex h-full flex-col">
       {thread && (
@@ -850,6 +866,58 @@ export function AgentView({ threadId }: { threadId: string }): React.JSX.Element
           usage={thread.usage}
           worktreeBranch={thread.worktreeBranch}
         />
+      )}
+      {showNextSteps && repo && (
+        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border/60 bg-muted/20 px-4 py-2 text-2xs">
+          <span className="text-muted-foreground">Next</span>
+          {changedCount > 0 && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs"
+              onClick={() => {
+                setSidebarTab('changes')
+                const key = reviewTabKey({ type: 'working' })
+                openTab({
+                  id: tabId('review', key),
+                  kind: 'review',
+                  title: 'All changes',
+                  path: key,
+                })
+              }}
+            >
+              {changedCount} changed · All changes
+            </Button>
+          )}
+          {hasReview && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs"
+              onClick={() => {
+                setSidebarTab('feature')
+                openTab({
+                  id: tabId('feature', repo.path),
+                  kind: 'feature',
+                  title: 'Review',
+                  path: repo.path,
+                })
+              }}
+            >
+              Open Review
+            </Button>
+          )}
+          {changedCount > 0 && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 text-xs"
+              onClick={() => setSidebarTab('changes')}
+            >
+              Commit
+            </Button>
+          )}
+        </div>
       )}
       <div className="relative min-h-0 flex-1">
         <ScrollArea ref={rootRef} onScroll={onScroll} className="h-full">

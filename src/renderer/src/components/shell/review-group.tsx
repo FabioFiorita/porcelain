@@ -44,6 +44,21 @@ export function ReviewGroup(): React.JSX.Element | null {
   const visiblePath = useReviewFocusStore((s) => s.visiblePath)
   const comments = useReviewComments()
 
+  // Empty Review: companion matches the viewer empty state (U8), not a void.
+  if (reading === null) {
+    return (
+      <SidebarGroup className="px-3">
+        <SidebarGroupLabel className={LABEL_CLASS}>Review</SidebarGroupLabel>
+        <SidebarGroupContent className="px-1">
+          <div className="rounded-xl border border-dashed bg-muted/20 p-2.5 text-2xs text-muted-foreground">
+            No Review published yet. Ask your agent to run the feature-review skill, or copy the
+            prompt from the center canvas empty state.
+          </div>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    )
+  }
+
   if (!reading) return null
 
   const section =

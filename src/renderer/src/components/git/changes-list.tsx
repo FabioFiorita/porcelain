@@ -310,7 +310,7 @@ export function ChangesList(): React.JSX.Element {
     openTab({
       id: tabId('review', key),
       kind: 'review',
-      title: scope.type === 'branch' ? `Review · vs ${base ?? 'base'}` : 'Review all',
+      title: scope.type === 'branch' ? `All changes · vs ${base ?? 'base'}` : 'All changes',
       path: key,
     })
   }
@@ -351,13 +351,13 @@ export function ChangesList(): React.JSX.Element {
                       size="icon-sm"
                       className="shrink-0"
                       onClick={openReviewAll}
-                      aria-label="Review all"
+                      aria-label="All changes"
                     >
                       <Rows3 />
                     </Button>
                   }
                 />
-                <TooltipContent>Review all</TooltipContent>
+                <TooltipContent>All changes</TooltipContent>
               </Tooltip>
             )}
             <Button

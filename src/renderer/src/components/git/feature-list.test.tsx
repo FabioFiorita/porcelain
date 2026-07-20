@@ -163,19 +163,13 @@ describe('FeatureList', () => {
     expect(screen.getByRole('button', { name: 'Open Review' })).toBeInTheDocument()
   })
 
-  it('opens a changed file at its absolute path with agent-changed line highlights', () => {
+  it('opens a changed file as a working-tree diff (matches Changes primary open)', () => {
     renderList()
     screen.getByText('callout.tsx').click()
-    const absolute = '/repo/src/components/callout.tsx'
+    const path = 'src/components/callout.tsx'
     const { tabs } = useTabsStore.getState().panes[0]
     expect(tabs).toHaveLength(1)
-    expect(tabs[0]).toMatchObject({
-      id: tabId('file', absolute),
-      kind: 'file',
-      path: absolute,
-      line: 2,
-      highlight: [{ start: 2, end: 3 }],
-    })
+    expect(tabs[0]).toMatchObject({ id: tabId('diff', path), kind: 'diff', path })
   })
 
   it('opens the file at its absolute path for an unchanged shipped file', () => {
@@ -187,13 +181,17 @@ describe('FeatureList', () => {
     expect(tabs[0]).toMatchObject({ id: tabId('file', absolute), kind: 'file', path: absolute })
   })
 
-  it('offers "Open diff" for a changed file from the context menu', () => {
+  it('offers "Open file" for a changed file from the context menu', () => {
     renderList()
     fireEvent.contextMenu(screen.getByText('callout.tsx'))
-    fireEvent.click(screen.getByText('Open diff'))
-    const path = 'src/components/callout.tsx'
+    fireEvent.click(screen.getByText('Open file'))
+    const absolute = '/repo/src/components/callout.tsx'
     const { tabs } = useTabsStore.getState().panes[0]
-    expect(tabs[0]).toMatchObject({ id: tabId('diff', path), kind: 'diff', path })
+    expect(tabs[0]).toMatchObject({
+      id: tabId('file', absolute),
+      kind: 'file',
+      path: absolute,
+    })
   })
 
   it('offers "Comment on file" from an outline row context menu', () => {

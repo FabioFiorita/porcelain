@@ -227,9 +227,51 @@ export function FeatureView(): React.JSX.Element {
   )
 }
 
-/** Overview: freeform canvas when agent published one; else structured document. */
+/**
+ * Overview: freeform canvas and/or structured document. When both exist, a local
+ * Board | Document toggle keeps the walkthrough reachable (U13) — canvas no longer
+ * hides sections forever.
+ */
 function OverviewBody({ reading }: { reading: FeatureReading }): React.JSX.Element {
-  if (reading.canvas) {
+  const hasCanvas = reading.canvas !== undefined
+  const hasDoc =
+    reading.sections.length > 0 ||
+    reading.groups.length > 0 ||
+    (reading.thesis !== undefined && reading.thesis.trim() !== '')
+  const [mode, setMode] = useState<'board' | 'document'>(hasCanvas ? 'board' : 'document')
+
+  if (hasCanvas && hasDoc) {
+    return (
+      <div className="flex h-full min-h-0 flex-col">
+        <div className="flex shrink-0 items-center gap-1 border-b border-border/60 px-3 py-1.5">
+          <Button
+            size="sm"
+            variant={mode === 'board' ? 'secondary' : 'ghost'}
+            className="h-7 text-xs"
+            onClick={() => setMode('board')}
+          >
+            Board
+          </Button>
+          <Button
+            size="sm"
+            variant={mode === 'document' ? 'secondary' : 'ghost'}
+            className="h-7 text-xs"
+            onClick={() => setMode('document')}
+          >
+            Document
+          </Button>
+        </div>
+        <div className="min-h-0 flex-1">
+          {mode === 'board' && reading.canvas ? (
+            <CanvasBody canvas={reading.canvas} />
+          ) : (
+            <ReadingSurfaceBody reading={reading} trackFocus includeEvidence={false} />
+          )}
+        </div>
+      </div>
+    )
+  }
+  if (hasCanvas && reading.canvas) {
     return <CanvasBody canvas={reading.canvas} />
   }
   return <ReadingSurfaceBody reading={reading} trackFocus includeEvidence={false} />
