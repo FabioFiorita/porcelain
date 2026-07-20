@@ -1,3 +1,10 @@
+## [0.36.0](https://github.com/FabioFiorita/porcelain/compare/v0.35.2...v0.36.0) (2026-07-20)
+
+### Features
+
+* Excalidraw dual medium for Review Overview and Loop evidence ([9451551](https://github.com/FabioFiorita/porcelain/commit/94515518a189a3c1b962691691682f960d030581))
+* Review canvas — tabbed Overview | Loop evidence + changed-line highlights ([2bb07e3](https://github.com/FabioFiorita/porcelain/commit/2bb07e38ef0060e11adbb62a7c44d9b5891a2ef3))
+
 ## [0.35.2](https://github.com/FabioFiorita/porcelain/compare/v0.35.1...v0.35.2) (2026-07-20)
 
 ### Bug Fixes
