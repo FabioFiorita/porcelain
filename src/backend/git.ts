@@ -442,12 +442,15 @@ export function quickCommandArgs(id: string, pullMode: PullMode = 'merge'): stri
 }
 
 /** Run a whitelisted quick command; returns combined output (git logs progress
- *  to stderr — e.g. push — so both streams matter). Throws output on failure. */
+ *  to stderr — e.g. push — so both streams matter). Throws output on failure.
+ *  `push` routes through `gitPush` so a branch with no upstream still wires
+ *  tracking on first push (the Commands/Suggested chip is the only push UI). */
 export async function gitQuickCommand(
   repoPath: string,
   id: string,
   pullMode?: PullMode,
 ): Promise<string> {
+  if (id === 'push') return gitPush(repoPath)
   const args = quickCommandArgs(id, pullMode)
   if (!args) throw new Error(`unknown quick command: ${id}`)
   try {

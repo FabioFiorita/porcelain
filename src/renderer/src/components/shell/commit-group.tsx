@@ -13,21 +13,15 @@ import {
   SidebarGroupLabel,
 } from '@renderer/components/ui/sidebar'
 import { Textarea } from '@renderer/components/ui/textarea'
-import { useCommit, useCommitConventions, usePush, useStageAll } from '@renderer/hooks/use-commit'
-import { useGitFlow, useGitSuggestions } from '@renderer/hooks/use-git-flow'
+import { useCommit, useCommitConventions, useStageAll } from '@renderer/hooks/use-commit'
+import { useGitFlow } from '@renderer/hooks/use-git-flow'
 import { applyCommitPrefix, parseCommitPrefix } from '@renderer/lib/commit-message'
 import { compactButtonClass } from '@renderer/lib/controls'
 import { kbdLabel } from '@renderer/lib/keyboard'
 import { cn } from '@renderer/lib/utils'
 import { useCommitDraftStore } from '@renderer/stores/commit-draft'
 import { useRepoStore } from '@renderer/stores/repo'
-import {
-  ArrowUpFromLine,
-  ChevronsUpDown,
-  FileMinus2,
-  FilePlus2,
-  GitCommitHorizontal,
-} from 'lucide-react'
+import { ChevronsUpDown, FileMinus2, FilePlus2, GitCommitHorizontal } from 'lucide-react'
 import { useState } from 'react'
 
 /**
@@ -144,13 +138,12 @@ export function CommitGroup(): React.JSX.Element {
     setStaged(null)
   })
   const { stageAll, unstageAll, isStaging } = useStageAll()
-  const { push: pushBranch, isPushing, error: pushError } = usePush()
   const { groups } = useGitFlow()
-  const pushSuggestion = useGitSuggestions().find((s) => s.command === 'push')
 
   // "Stage all" flips to "Unstage all" once every change is fully staged with
   // nothing left in the working tree — at that point the only useful action is
-  // to undo the staging.
+  // to undo the staging. Push lives only in Quick Commands (Suggested + Commands
+  // grid) — a second Push under Commit was a duplicate.
   const files = groups?.flatMap((g) => g.files) ?? []
   const allStaged = files.length > 0 && files.every((f) => f.staged && !f.unstaged)
 
@@ -180,15 +173,6 @@ export function CommitGroup(): React.JSX.Element {
   const commit = (): void => {
     if (!ready || isCommitting) return
     runCommit(message.trim())
-  }
-
-  const push = async (): Promise<void> => {
-    if (isPushing) return
-    try {
-      await pushBranch()
-    } catch {
-      // The failure surfaces inline via pushError; nothing else to do here.
-    }
   }
 
   const toggleStaging = async (): Promise<void> => {
@@ -282,26 +266,6 @@ export function CommitGroup(): React.JSX.Element {
               {isCommitting ? 'Committing…' : 'Commit'}
             </Button>
           </div>
-          {pushSuggestion && (
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs text-muted-foreground">{pushSuggestion.reason}</span>
-              <Button
-                size="sm"
-                variant="outline"
-                className={cn(compactButtonClass, 'rounded-md')}
-                disabled={isPushing}
-                onClick={push}
-              >
-                <ArrowUpFromLine />
-                {isPushing ? 'Pushing…' : 'Push'}
-              </Button>
-            </div>
-          )}
-          {pushError && (
-            <p className="whitespace-pre-wrap font-mono text-2xs text-destructive">
-              {pushError.message}
-            </p>
-          )}
         </div>
       </SidebarGroupContent>
     </SidebarGroup>
