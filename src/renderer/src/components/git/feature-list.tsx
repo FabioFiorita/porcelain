@@ -13,6 +13,7 @@ import { useDiffFilePrefetch } from '@renderer/hooks/use-diff'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
 import { useClearFeatureReview } from '@renderer/hooks/use-feature-view'
 import { useReviewedPaths, useToggleReviewed } from '@renderer/hooks/use-reviewed'
+import { highlightRangesForFile } from '@renderer/lib/highlight-ranges'
 import { dirName, fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
@@ -23,8 +24,10 @@ import {
 } from '@renderer/stores/review-focus'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import {
+  ArrowUpRight,
   Check,
   Eraser,
+  FileDiff,
   MessageSquarePlus,
   RefreshCw,
   ShieldCheck,
@@ -45,10 +48,10 @@ export function SourceMarker({ source }: { source: FileSource }): React.JSX.Elem
 }
 
 // One file row of the outline, anchored under its section (or a "More files"
-// group). Same behaviors as the old flow timeline node: click opens the
-// working-tree diff for a changed file (relative path, like the Changes list) or
-// the file itself otherwise (absolute path, like the file tree); right-click
-// marks/unmarks reviewed or starts a file comment.
+// group). Click opens the **file** (absolute path) with agent-changed lines
+// highlighted when available; the working-tree diff is one gesture away via
+// "Open diff" on the context menu for changed files. Right-click also marks
+// reviewed / starts a file comment.
 function OutlineFileRowImpl({
   file,
   repoPath,
@@ -67,12 +70,20 @@ function OutlineFileRowImpl({
   const dir = dirName(file.path)
 
   const open = (): void => {
-    if (file.source === 'changed') {
-      openTab({ id: tabId('diff', file.path), kind: 'diff', title: name, path: file.path })
-    } else {
-      const absolute = `${repoPath}/${file.path}`
-      openTab({ id: tabId('file', absolute), kind: 'file', title: name, path: absolute })
-    }
+    const absolute = `${repoPath}/${file.path}`
+    const ranges = highlightRangesForFile(file)
+    openTab({
+      id: tabId('file', absolute),
+      kind: 'file',
+      title: name,
+      path: absolute,
+      line: ranges?.[0]?.start,
+      highlight: ranges,
+    })
+  }
+
+  const openDiff = (): void => {
+    openTab({ id: tabId('diff', file.path), kind: 'diff', title: name, path: file.path })
   }
 
   return (
@@ -122,6 +133,12 @@ function OutlineFileRowImpl({
           )}
         </ContextMenuTrigger>
         <ContextMenuContent className="w-48">
+          {file.source === 'changed' && (
+            <ContextMenuItem onClick={openDiff}>
+              <FileDiff />
+              Open diff
+            </ContextMenuItem>
+          )}
           {isReviewed ? (
             <ContextMenuItem onClick={async () => unmark(file.path)}>
               <Square />
@@ -284,13 +301,19 @@ function FeatureOutline(): React.JSX.Element {
     <div className="flex flex-col gap-1">
       <div className="flex items-start justify-between gap-1.5 px-2">
         {/* The title is the agent's own name for the Review; clicking it opens the
-            document. It wraps to multiple lines rather than truncating. */}
+            canvas (Overview tab). ArrowUpRight at rest signals it opens something;
+            row hover matches every other clickable outline row. */}
         <button
           type="button"
           onClick={() => openReview()}
-          className="min-w-0 pt-1 text-left text-xs font-medium hover:text-foreground/80"
+          className="group flex min-w-0 items-start gap-1 rounded-md px-1 py-1 text-left text-xs font-medium hover:bg-sidebar-accent/50"
         >
-          {reading.name}
+          <span className="min-w-0 flex-1">{reading.name}</span>
+          <ArrowUpRight
+            className="mt-0.5 size-3.5 shrink-0 text-muted-foreground group-hover:text-foreground"
+            aria-hidden
+          />
+          <span className="sr-only">Open review canvas</span>
         </button>
         <SidebarHeaderActions>
           <Button variant="ghost" size="icon-sm" onClick={refresh} aria-label="Refresh review">

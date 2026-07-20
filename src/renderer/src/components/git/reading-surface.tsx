@@ -143,19 +143,30 @@ function pushFileRows(
   }
 }
 
+export interface BuildRowsOptions {
+  /**
+   * When false, omit the loop-evidence chapter rows (Feature canvas Overview tab).
+   * Default true so Changes/History continuous review and Explore stay identical.
+   */
+  includeEvidence?: boolean
+}
+
 /**
  * Flatten the whole Review document into rows: thesis, then each walkthrough
  * section (header, prose, optional diagram, anchored code blocks), then the
  * unanchored files under a synthetic "More files" chapter (index
  * `sections.length` — only when sections exist; a section-less reading stays the
  * plain flow-grouped list, which is also what the pure-diff review renders), then
- * the loop-evidence chapter.
+ * the loop-evidence chapter (opt-out via `includeEvidence: false` for the Feature
+ * canvas Overview tab).
  */
 export function buildRows(
   reading: FeatureReading,
   highlighter: ReturnType<typeof useHighlighter>,
   theme: HighlightThemeName = HIGHLIGHT_THEMES.dark,
+  options?: BuildRowsOptions,
 ): ReadingRow[] {
+  const includeEvidence = options?.includeEvidence !== false
   const rows: ReadingRow[] = []
   if (reading.thesis) rows.push({ type: 'thesis', md: reading.thesis })
   reading.sections.forEach((section, index) => {
@@ -172,7 +183,7 @@ export function buildRows(
     rows.push({ type: 'layer', label: group.layer })
     for (const file of group.files) pushFileRows(rows, file, highlighter, theme)
   }
-  if (reading.evidence) {
+  if (includeEvidence && reading.evidence) {
     const { title, checks } = reading.evidence
     rows.push({ type: 'evidenceHeader', title, checks })
     if (checks.length > 0) rows.push({ type: 'evidenceChecks', checks })
@@ -777,20 +788,26 @@ function ReadingRowView({
  * `fileActions` adds mark-reviewed / open-file chrome on file-name rows (Changes /
  * History continuous review); Feature/Explore leave it off. `trackFocus` (the Review
  * document only) publishes the topmost visible chapter/file to the review-focus store
- * and consumes its jump requests.
+ * and consumes its jump requests. `includeEvidence` defaults true — Feature Overview
+ * passes false so loop evidence lives in its own canvas tab.
  */
 export function ReadingSurfaceBody({
   reading,
   fileActions,
   trackFocus = false,
+  includeEvidence = true,
 }: {
   reading: FeatureReading
   fileActions?: ReadingFileActions
   trackFocus?: boolean
+  includeEvidence?: boolean
 }): React.JSX.Element {
   const highlighter = useHighlighter()
   const theme = themeNameFor(useResolvedTheme())
-  const rows = useMemo(() => buildRows(reading, highlighter, theme), [reading, highlighter, theme])
+  const rows = useMemo(
+    () => buildRows(reading, highlighter, theme, { includeEvidence }),
+    [reading, highlighter, theme, includeEvidence],
+  )
   const [anchor, setAnchor] = useState<CommentAnchor | null>(null)
   const comments = useReviewComments()
   const setVisible = useReviewFocusStore((s) => s.setVisible)

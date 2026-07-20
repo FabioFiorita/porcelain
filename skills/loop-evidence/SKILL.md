@@ -1,6 +1,6 @@
 ---
 name: loop-evidence
-description: Author "loop evidence" for the Porcelain app — a self-contained HTML document proving you closed the loop (browser, simulator, or other self-validation with screenshots and pass/fail steps), which Porcelain renders as the final chapter of the Review so the human can see the final result and clear it once reviewed.
+description: Author "loop evidence" for the Porcelain app — a self-contained HTML document proving you closed the loop (browser, simulator, or other self-validation with screenshots and pass/fail steps), which Porcelain renders as the Loop evidence tab on the Review canvas so the human can see the final result and clear it once reviewed.
 ---
 
 # Porcelain loop evidence
@@ -12,7 +12,7 @@ Porcelain can render **loop evidence**: a self-contained HTML document you autho
 | **The Review** (`review-with-porcelain`) | The walkthrough — what to read, in flow order, and *how it works* |
 | **Loop evidence** (this skill) | Ephemeral proof — *it works; here is what I ran and saw* |
 
-Loop evidence renders as the **final chapter of the Review**: the human reaches it from the Feature tab — the outline's **Loop evidence** row jumps the open Review document to the chapter — and hits **Clear** when done (e.g. before commit/push). You do not need to keep evidence forever.
+Loop evidence renders as the Review canvas **Loop evidence** tab (full height — not a chapter at the bottom of a long Overview). The human reaches it from the Feature tab — the outline's **Loop evidence** row opens that tab directly — and hits **Clear** when done (e.g. before commit/push). You do not need to keep evidence forever.
 
 The CLI lives at `~/.porcelain/porcelain` — installed automatically and kept fresh on every app launch (no registration, no MCP config). Run it from **inside the repo** and it targets that repo automatically (git toplevel of the cwd); add `--repo <absolute path>` only to point at a different checkout.
 
@@ -25,7 +25,7 @@ The CLI lives at `~/.porcelain/porcelain` — installed automatically and kept f
 2. Write into that directory with your file tools:
    - **`index.html`** — the document (required for Porcelain to show the opener).
    - **screenshots** as real image files next to it (`shot.png`, …) referenced with relative `src` — `<img src="shot.png">`. Porcelain inlines them for the sandboxed viewer; a browser opening `index.html` works too.
-3. Done. Porcelain discovers the directory within a few seconds and appends the chapter to the Review (Feature tab → the outline's **Loop evidence** row). No second CLI call with the HTML. You can also open `index.html` from the Files tree (or any `.html` file) — Porcelain has a built-in sandboxed **Preview** for HTML (toggle Source for the raw file).
+3. Done. Porcelain discovers the directory within a few seconds and adds the **Loop evidence** canvas tab (Feature tab → outline **Loop evidence** row, or Overview | Loop evidence tabs in the viewer). No second CLI call with the HTML. You can also open `index.html` from the Files tree (or any `.html` file) — Porcelain has a built-in sandboxed **Preview** for HTML (toggle Source for the raw file).
 
 Optional helpers:
 
@@ -97,4 +97,4 @@ Keep the whole folder under a few MB after screenshots (shrink images). Porcelai
 - Relative images resolve; pass/fail is obvious.
 - You actually ran the validation — don't invent evidence.
 
-Only after that pass: tell the human the evidence is ready (the final chapter of the Review in the Feature tab, or open `index.html` in a browser). They clear it when finished reviewing.
+Only after that pass: tell the human the evidence is ready (Review canvas → **Loop evidence** tab in the Feature tab, or open `index.html` in a browser). They clear it when finished reviewing.

@@ -5,9 +5,13 @@ description: Push a feature review set to the Porcelain app — and read the hum
 
 # Review with Porcelain
 
-Porcelain is a desktop review companion (macOS and Linux). Its **Feature** tab renders the whole feature as ONE agent-authored document — **the Review**: a thesis, then walkthrough sections in flow order (entry point → data), each explaining a step of the change with its code shown inline, ending with the loop-evidence chapter. You built the feature, so you know its true boundary and how it fits together — hand it over as a narrative the human reads top to bottom, not just the files that happen to have changed.
+Porcelain is a desktop review companion (macOS and Linux). Its **Feature** tab is the **Review**: sidebar **outline** (section titles + files + Loop evidence row) and a viewer **canvas** opened from the review title.
 
-Without a review set the Feature tab shows an empty "No review yet" state — there is no automatic baseline. The Review exists only when you publish one.
+- **Overview** (default canvas tab) — thesis, then walkthrough sections in flow order (entry point → data), each with prose / optional diagram or HTML embed / anchored code, then unanchored **"More files"**.
+- **Loop evidence** (second canvas tab, when present) — full-height proof you closed the loop (see `loop-evidence` skill). Not buried at the bottom of a long scroll.
+- **File rows** in the outline open the **file** with agent-changed lines highlighted (diff is available from the file row's context menu as "Open diff").
+
+You built the feature, so you know its true boundary — hand it over as a narrative the human can read as a story, not just the files that happen to have changed. Without a review set the Feature tab shows "No review yet" — there is no automatic baseline.
 
 ## When to use
 
@@ -112,11 +116,13 @@ The COMPLETE feature, not just your diff:
 
 Keep it tight: the files and steps that make up THIS feature, broad enough that the human can read it as one story from entry point to data.
 
-## Loop evidence — the final chapter
+## Loop evidence — its own canvas tab
 
-The Review ends with proof the loop closed. After you've validated the work yourself (browser, simulator, screenshots, pass/fail), author **loop evidence** with the **`loop-evidence`** skill — Porcelain appends it as the Review's **final chapter** (and the outline gets a "Loop evidence" row that jumps there). It's a separate, ephemeral channel the human clears after review; you don't publish it through `review set`. See the `loop-evidence` skill for the flow.
+After you've validated the work yourself (browser, simulator, screenshots, pass/fail), author **loop evidence** with the **`loop-evidence`** skill. Porcelain shows it on the Review canvas as the **Loop evidence** tab (outline row opens that tab directly — no scrolling). It's a separate, ephemeral channel the human clears after review; you don't publish it through `review set`.
 
 (There is no longer a separate "feature artifact" — the narrative explainer folded into the walkthrough sections above. If you're looking for the old `artifact set` verb, it's gone; write sections instead.)
+
+**Workflow tip:** you can push the review set early as a pre-flight outline (intent + sections), then attach loop evidence last when validation is done.
 
 ## Reviewer comments
 

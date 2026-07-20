@@ -380,10 +380,11 @@ assumed — this skill is the codebase-specific layer beneath them.
   reads the dir, inlines relative `img` src under that dir into data URIs for the
   sandboxed `srcdoc` viewer (`evidence-assets.ts`), and `clearEvidence` deletes the
   directory. Legacy `evidence.json` is still read as a fallback. Same sandbox invariant as
-  the section diagrams: loop evidence now renders as the **Review's final chapter** (the
-  standalone `evidence-view.tsx` / `evidence` tab kind is GONE) — the reading surface's
-  evidence-chapter body hands the html to `HtmlView` (`sandbox=""` + `srcdoc`); never widen
-  `img-src`/`default-src`. The chapter also renders **structured checks natively** — plain
+  the section diagrams: loop evidence now renders as the Review canvas **Loop evidence
+  tab** (the standalone `evidence-view.tsx` / `evidence` tab kind is GONE; it is no longer
+  a final chapter of the flat reading surface) — `EvidencePanel` hands the html to
+  `HtmlView` (`sandbox=""` + `srcdoc`); never widen `img-src`/`default-src`. The panel also
+  renders **structured checks natively** — plain
   React with the agent-authored label/detail as **escaped text**, NOT through the iframe — so
   they add no active-content surface (the sandboxed HTML body stays the deep proof; the sandbox
   clause above still governs it unchanged). Those checks are agent input in `meta.json`

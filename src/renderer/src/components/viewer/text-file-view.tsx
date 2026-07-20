@@ -61,11 +61,14 @@ export function TextFileView({
   path,
   content,
   line,
+  highlightRanges,
   paneIndex,
 }: {
   path: string
   content: string
   line?: number
+  /** Agent-changed line ranges from the Feature outline (tinted in source). */
+  highlightRanges?: { start: number; end: number }[]
   paneIndex: number
 }): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)
@@ -78,8 +81,16 @@ export function TextFileView({
   const reader = markdown && markdownMode === 'reader'
   const preview = html && htmlMode === 'preview'
   const { html: previewHtml, error: previewError } = usePreviewHtml(path, preview)
-  const editable = !reader && !preview && content.split('\n').length <= EDITABLE_MAX_LINES
-  const highlightLine = finding && findLine !== undefined ? findLine : line
+  const lineCount = content.split('\n').length
+  const editable = !reader && !preview && lineCount <= EDITABLE_MAX_LINES
+  // ≥90% coverage = whole-file noise (untracked); drop the tint, keep scroll.
+  const effectiveHighlight =
+    highlightRanges &&
+    highlightRanges.reduce((n, r) => n + (r.end - r.start + 1), 0) / lineCount >= 0.9
+      ? undefined
+      : highlightRanges
+  const scrollLine = line ?? effectiveHighlight?.[0]?.start
+  const highlightLine = finding && findLine !== undefined ? findLine : scrollLine
   // Comments key on repo-relative paths; the viewer holds an absolute one.
   const commentIndex = useCommentIndex(relativeTo(repo?.path, path))
 
@@ -132,6 +143,7 @@ export function TextFileView({
             path={path}
             initialContent={content}
             highlightLine={highlightLine}
+            highlightRanges={effectiveHighlight}
             commentsByLine={commentIndex.byLine}
           />
         ) : (
@@ -140,6 +152,7 @@ export function TextFileView({
               path={path}
               content={content}
               highlightLine={highlightLine}
+              highlightRanges={effectiveHighlight}
               commentsByLine={commentIndex.byLine}
             />
           </SourceContextMenu>

@@ -33,6 +33,11 @@ export interface Tab {
   path: string
   /** 1-based line to scroll to when opening (search results jump here). */
   line?: number
+  /**
+   * Inclusive 1-based line ranges to tint as agent-changed (Feature outline open).
+   * Distinct from `line` (scroll target) and from find-highlight (`bg-primary/15`).
+   */
+  highlight?: { start: number; end: number }[]
   /** Explore tabs only: the seed symbol (omitted ⇒ a whole-file seed). */
   symbol?: string
   /** Diff tabs only: the range base ref. Omitted ⇒ a working-tree diff. */
@@ -93,10 +98,15 @@ const emptyPane = (): Pane => ({ tabs: [], activeTabId: null })
 function addTab(pane: Pane, tab: Tab): Pane {
   const existing = pane.tabs.find((t) => t.id === tab.id)
   if (existing) {
-    // re-opening can carry a new target line; a non-preview re-open pins
+    // re-opening can carry a new target line / highlight ranges; a non-preview re-open pins
     const tabs = pane.tabs.map((t) =>
       t.id === tab.id
-        ? { ...t, line: tab.line ?? t.line, preview: t.preview === true && tab.preview === true }
+        ? {
+            ...t,
+            line: tab.line ?? t.line,
+            highlight: tab.highlight ?? t.highlight,
+            preview: t.preview === true && tab.preview === true,
+          }
         : t,
     )
     return { tabs, activeTabId: tab.id }

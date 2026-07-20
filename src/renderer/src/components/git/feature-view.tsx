@@ -1,6 +1,8 @@
 import type { FeatureReading } from '@backend/feature-view'
 import type { FileSource } from '@backend/review-set'
+import { EvidencePanel } from '@renderer/components/git/evidence-panel'
 import { Button } from '@renderer/components/ui/button'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@renderer/components/ui/tabs'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
 import { isTerminalTarget, isTextEntry } from '@renderer/lib/keyboard'
 import { copyText } from '@renderer/lib/utils'
@@ -22,6 +24,8 @@ const SOURCE_LABEL: Record<FileSource, string> = {
 const AGENT_PROMPT =
   'Publish a review of this feature to Porcelain using the review-with-porcelain skill (porcelain review set --sections ...).'
 
+type CanvasTab = 'overview' | 'evidence'
+
 /** Unique-file counts per source, across sections and groups (a file anchored twice counts once). */
 function sourceCounts(reading: FeatureReading): Record<FileSource, number> {
   const seen = new Map<string, FileSource>()
@@ -38,14 +42,17 @@ function sourceCounts(reading: FeatureReading): Record<FileSource, number> {
 }
 
 // Plain-key document navigation, registered only while the Review is mounted:
-// J/K jump to the next/previous chapter (via the review-focus store, consumed by
-// the reading surface), Z toggles zen mode (both sidebars collapsed — consumed in
-// RepoShell). No modifiers, and never over a text field or a focused terminal.
-function useReviewKeys(reading: FeatureReading | null | undefined): void {
+// J/K jump to the next/previous Overview chapter (via the review-focus store,
+// consumed by the reading surface), Z toggles zen mode. Loop evidence is its own
+// canvas tab — J/K stay scoped to Overview (the evidence iframe would eat keys).
+// No modifiers, and never over a text field or a focused terminal.
+function useReviewKeys(reading: FeatureReading | null | undefined, canvasTab: CanvasTab): void {
   const requestJump = useReviewFocusStore((s) => s.requestJump)
   const toggleZen = useZenStore((s) => s.toggle)
   const readingRef = useRef(reading)
   readingRef.current = reading
+  const canvasTabRef = useRef(canvasTab)
+  canvasTabRef.current = canvasTab
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent): void => {
@@ -58,12 +65,14 @@ function useReviewKeys(reading: FeatureReading | null | undefined): void {
         return
       }
       if (key !== 'j' && key !== 'k') return
+      // Evidence pane is full-height HTML — leave J/K alone there.
+      if (canvasTabRef.current !== 'overview') return
       const doc = readingRef.current
       if (!doc) return
       const targets = jumpTargets({
         sectionCount: doc.sections.length,
         hasMoreFiles: doc.groups.length > 0,
-        hasEvidence: doc.evidence !== null,
+        hasEvidence: false,
       })
       const active = useReviewFocusStore.getState().activeSection
       const target = nextTarget(targets, active, key === 'j' ? 1 : -1)
@@ -109,20 +118,53 @@ function EmptyState(): React.JSX.Element {
 }
 
 /**
- * The viewer's `feature` tab: the Review — the ONE agent-authored document (thesis,
- * walkthrough sections with prose/diagrams/anchored code, unanchored "More files",
- * and the loop-evidence final chapter), rendered through the shared reading surface
- * with focus tracking on (outline + Quick Access follow the scroll).
+ * The viewer's `feature` tab: the Review canvas — header (name + source counts)
+ * over a tabbed body. **Overview** is the walkthrough document (thesis → sections
+ * → More files, no evidence chapter). **Loop evidence** is a full-height panel
+ * when the agent has published proof. Outline jumps pick the tab; J/K stay on
+ * Overview.
  */
 export function FeatureView(): React.JSX.Element {
   const { reading } = useFeatureReading()
-  useReviewKeys(reading)
+  const [canvasTab, setCanvasTab] = useState<CanvasTab>('overview')
+  const jump = useReviewFocusStore((s) => s.jump)
+  const clearJump = useReviewFocusStore((s) => s.clearJump)
+  const setVisible = useReviewFocusStore((s) => s.setVisible)
+  useReviewKeys(reading, canvasTab)
 
   // Leaving the Review resets the published focus so the outline and Quick Access
   // don't keep highlighting a chapter nobody is reading.
   useEffect(() => {
     return () => useReviewFocusStore.getState().setVisible(null, null)
   }, [])
+
+  // Outline / Loop-evidence row jumps: evidence opens the evidence canvas tab
+  // (no scroll). Section/top jumps force Overview; ReadingSurfaceBody still
+  // consumes the jump for virtualizer scroll.
+  useEffect(() => {
+    if (!jump) return
+    if (jump.target.kind === 'evidence') {
+      setCanvasTab('evidence')
+      setVisible('evidence', null)
+      clearJump()
+      return
+    }
+    setCanvasTab('overview')
+  }, [jump, clearJump, setVisible])
+
+  // Evidence cleared while on that tab → fall back to Overview.
+  useEffect(() => {
+    if (reading && reading.evidence === null && canvasTab === 'evidence') {
+      setCanvasTab('overview')
+    }
+  }, [reading, canvasTab])
+
+  // Publish evidence focus while that canvas tab is active (outline highlight).
+  useEffect(() => {
+    if (canvasTab === 'evidence' && reading?.evidence) {
+      setVisible('evidence', null)
+    }
+  }, [canvasTab, reading?.evidence, setVisible])
 
   if (reading === undefined) {
     return <p className="p-4 text-sm text-muted-foreground">Loading…</p>
@@ -131,6 +173,7 @@ export function FeatureView(): React.JSX.Element {
   if (reading === null) return <EmptyState />
 
   const counts = sourceCounts(reading)
+  const hasEvidence = reading.evidence !== null
 
   return (
     <div className="flex h-full flex-col">
@@ -145,9 +188,40 @@ export function FeatureView(): React.JSX.Element {
           ))}
         </div>
       </div>
-      <div className="min-h-0 flex-1">
-        <ReadingSurfaceBody reading={reading} trackFocus />
-      </div>
+      {hasEvidence && reading.evidence ? (
+        <Tabs
+          value={canvasTab}
+          onValueChange={(value) => {
+            if (value === 'overview' || value === 'evidence') setCanvasTab(value)
+          }}
+          className="flex min-h-0 flex-1 flex-col gap-0"
+        >
+          <div className="border-b px-3">
+            <TabsList variant="line" className="h-9 w-full justify-start">
+              <TabsTrigger value="overview" className="flex-none px-3">
+                Overview
+              </TabsTrigger>
+              <TabsTrigger value="evidence" className="flex-none px-3">
+                Loop evidence
+              </TabsTrigger>
+            </TabsList>
+          </div>
+          <TabsContent value="overview" className="min-h-0 flex-1 outline-none">
+            <ReadingSurfaceBody reading={reading} trackFocus includeEvidence={false} />
+          </TabsContent>
+          <TabsContent value="evidence" className="min-h-0 flex-1 outline-none">
+            <EvidencePanel
+              title={reading.evidence.title}
+              updatedAt={reading.evidence.updatedAt}
+              checks={reading.evidence.checks}
+            />
+          </TabsContent>
+        </Tabs>
+      ) : (
+        <div className="min-h-0 flex-1">
+          <ReadingSurfaceBody reading={reading} trackFocus includeEvidence={false} />
+        </div>
+      )}
     </div>
   )
 }

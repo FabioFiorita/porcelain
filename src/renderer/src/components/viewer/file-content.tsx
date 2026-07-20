@@ -5,10 +5,12 @@ import { TextFileView } from './text-file-view'
 export function FileContent({
   path,
   line,
+  highlight,
   paneIndex,
 }: {
   path: string
   line?: number
+  highlight?: { start: number; end: number }[]
   paneIndex: number
 }): React.JSX.Element {
   const { view, error } = useReadFile(path)
@@ -59,5 +61,13 @@ export function FileContent({
     )
   }
 
-  return <TextFileView path={path} content={view.content} line={line} paneIndex={paneIndex} />
+  return (
+    <TextFileView
+      path={path}
+      content={view.content}
+      line={line}
+      highlightRanges={highlight}
+      paneIndex={paneIndex}
+    />
+  )
 }

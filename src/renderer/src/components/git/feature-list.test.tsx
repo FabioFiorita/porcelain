@@ -52,7 +52,16 @@ const reading: FeatureReading = {
           source: 'changed',
           additions: 12,
           deletions: 3,
-          hunks: [],
+          hunks: [
+            {
+              header: '@@ -1 +1,2 @@',
+              lines: [
+                { kind: 'context', oldLine: 1, newLine: 1, text: 'keep' },
+                { kind: 'add', oldLine: null, newLine: 2, text: 'new' },
+                { kind: 'add', oldLine: null, newLine: 3, text: 'lines' },
+              ],
+            },
+          ],
         },
       ],
     },
@@ -130,19 +139,30 @@ describe('FeatureList', () => {
     expect(useReviewFocusStore.getState().jump?.target).toEqual({ kind: 'section', index: 0 })
   })
 
-  it('jumps to the evidence chapter from the Loop evidence row', () => {
+  it('jumps to the evidence canvas tab from the Loop evidence row', () => {
     renderList()
     fireEvent.click(screen.getByText('Loop evidence'))
     expect(useReviewFocusStore.getState().jump?.target).toEqual({ kind: 'evidence' })
   })
 
-  it('opens a working-tree diff tab for a changed file', () => {
+  it('shows an open affordance on the review title', () => {
+    renderList()
+    expect(screen.getByText('Open review canvas')).toBeInTheDocument()
+  })
+
+  it('opens a changed file at its absolute path with agent-changed line highlights', () => {
     renderList()
     screen.getByText('callout.tsx').click()
-    const path = 'src/components/callout.tsx'
+    const absolute = '/repo/src/components/callout.tsx'
     const { tabs } = useTabsStore.getState().panes[0]
     expect(tabs).toHaveLength(1)
-    expect(tabs[0]).toMatchObject({ id: tabId('diff', path), kind: 'diff', path })
+    expect(tabs[0]).toMatchObject({
+      id: tabId('file', absolute),
+      kind: 'file',
+      path: absolute,
+      line: 2,
+      highlight: [{ start: 2, end: 3 }],
+    })
   })
 
   it('opens the file at its absolute path for an unchanged shipped file', () => {
@@ -152,6 +172,15 @@ describe('FeatureList', () => {
     const { tabs } = useTabsStore.getState().panes[0]
     expect(tabs).toHaveLength(1)
     expect(tabs[0]).toMatchObject({ id: tabId('file', absolute), kind: 'file', path: absolute })
+  })
+
+  it('offers "Open diff" for a changed file from the context menu', () => {
+    renderList()
+    fireEvent.contextMenu(screen.getByText('callout.tsx'))
+    fireEvent.click(screen.getByText('Open diff'))
+    const path = 'src/components/callout.tsx'
+    const { tabs } = useTabsStore.getState().panes[0]
+    expect(tabs[0]).toMatchObject({ id: tabId('diff', path), kind: 'diff', path })
   })
 
   it('offers "Comment on file" from an outline row context menu', () => {

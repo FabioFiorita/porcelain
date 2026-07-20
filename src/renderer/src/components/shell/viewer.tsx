@@ -126,6 +126,7 @@ function PaneView({ paneIndex }: { paneIndex: number }): React.JSX.Element {
           key={activeTab.path}
           path={activeTab.path}
           line={activeTab.line}
+          highlight={activeTab.highlight}
           paneIndex={paneIndex}
         />
       )

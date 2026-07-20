@@ -36,6 +36,32 @@ describe('useTabsStore', () => {
     expect(pane().tabs).toHaveLength(1)
   })
 
+  it('refreshes line and highlight when re-opening an already-open file tab', () => {
+    const path = '/repo/src/a.ts'
+    const id = tabId('file', path)
+    useTabsStore.getState().openTab({
+      id,
+      kind: 'file',
+      title: 'a.ts',
+      path,
+      line: 1,
+      highlight: [{ start: 1, end: 2 }],
+    })
+    useTabsStore.getState().openTab({
+      id,
+      kind: 'file',
+      title: 'a.ts',
+      path,
+      line: 10,
+      highlight: [{ start: 10, end: 12 }],
+    })
+    expect(pane().tabs).toHaveLength(1)
+    expect(pane().tabs[0]).toMatchObject({
+      line: 10,
+      highlight: [{ start: 10, end: 12 }],
+    })
+  })
+
   it('keeps a file and a diff of the same path as distinct tabs', () => {
     const path = '/repo/src/a.ts'
     useTabsStore.getState().openTab({ id: tabId('file', path), kind: 'file', title: 'a.ts', path })

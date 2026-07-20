@@ -3,17 +3,21 @@ import { LineDecorations } from '@renderer/components/git/comment-marker'
 import { CodeLine, useTokenizedLines } from '@renderer/components/viewer/code-line'
 import { VirtualRows } from '@renderer/components/viewer/virtual-rows'
 import { languageFor } from '@renderer/lib/highlight'
+import { type HighlightRange, lineInHighlightRanges } from '@renderer/lib/highlight-ranges'
 import { cn } from '@renderer/lib/utils'
 
 export function SourceView({
   path,
   content,
   highlightLine,
+  highlightRanges,
   commentsByLine,
 }: {
   path: string
   content: string
   highlightLine?: number
+  /** Agent-changed lines (Feature outline). Diff-token tint, not find highlight. */
+  highlightRanges?: HighlightRange[]
   commentsByLine?: Map<number, ReviewComment[]>
 }): React.JSX.Element {
   const lang = languageFor(path)
@@ -26,15 +30,23 @@ export function SourceView({
       className="px-4 py-2 leading-5"
       scrollToLine={highlightLine}
       renderRow={(line, i) => {
-        const comments = commentsByLine?.get(i + 1)
+        const lineNo = i + 1
+        const comments = commentsByLine?.get(lineNo)
+        // Comment tint wins over changed-line tint (actionable vs informational).
+        const hasComments = comments !== undefined && comments.length > 0
+        const isChanged = !hasComments && lineInHighlightRanges(lineNo, highlightRanges)
         return (
           <div
-            data-line={i + 1}
-            className={cn('relative flex', i + 1 === highlightLine && 'bg-primary/15')}
+            data-line={lineNo}
+            className={cn(
+              'relative flex',
+              lineNo === highlightLine && 'bg-primary/15',
+              isChanged && 'border-l-2 border-l-diff-add bg-diff-add/10',
+            )}
           >
             <LineDecorations comments={comments} />
             <span className="w-10 shrink-0 select-none pr-3 text-right text-muted-foreground/50">
-              {i + 1}
+              {lineNo}
             </span>
             <CodeLine tokens={tokenLines?.[i] ?? null} text={line} />
           </div>

@@ -14,6 +14,7 @@ import { CodeLine, useTokenizedLines } from '@renderer/components/viewer/code-li
 import { ROW_HEIGHT } from '@renderer/components/viewer/virtual-rows'
 import { useWriteTextFile } from '@renderer/hooks/use-files'
 import { languageFor } from '@renderer/lib/highlight'
+import { lineInHighlightRanges } from '@renderer/lib/highlight-ranges'
 import { kbdLabel } from '@renderer/lib/keyboard'
 import { lineRangeFromOffsets } from '@renderer/lib/line-selection'
 import { cn, copyText } from '@renderer/lib/utils'
@@ -56,11 +57,14 @@ export function EditorSource({
   path,
   initialContent,
   highlightLine,
+  highlightRanges,
   commentsByLine,
 }: {
   path: string
   initialContent: string
   highlightLine?: number
+  /** Agent-changed lines (Feature outline). Diff-token tint, not find highlight. */
+  highlightRanges?: { start: number; end: number }[]
   commentsByLine?: Map<number, ReviewComment[]>
 }): React.JSX.Element {
   const [content, setContent] = useState(initialContent)
@@ -222,6 +226,9 @@ export function EditorSource({
                       (pendingLines?.has(ln) ?? false) || (menuLines?.has(ln) ?? false)
                     const open =
                       !pending && (commentsByLine?.get(ln)?.some((c) => !c.resolved) ?? false)
+                    // Comment / pending tint wins over agent-changed tint.
+                    const isChanged =
+                      !pending && !open && lineInHighlightRanges(ln, highlightRanges)
                     return (
                       <div
                         // biome-ignore lint/suspicious/noArrayIndexKey: lines have no stable identity
@@ -230,6 +237,7 @@ export function EditorSource({
                           'flex',
                           (ln === highlightLine || pending) && 'bg-primary/15',
                           open && 'bg-accent',
+                          isChanged && 'border-l-2 border-l-diff-add bg-diff-add/10',
                         )}
                       >
                         <span className="w-10 shrink-0 select-none pr-3 text-right text-muted-foreground/50">

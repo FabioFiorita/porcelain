@@ -134,6 +134,23 @@ describe('buildRows (Review document)', () => {
     ])
   })
 
+  it('omits the evidence chapter when includeEvidence is false (Overview canvas)', () => {
+    expect(
+      buildRows(document, null, undefined, { includeEvidence: false }).map((r) => r.type),
+    ).toEqual([
+      'thesis',
+      'sectionHeader',
+      'prose',
+      'diagram',
+      'file',
+      'hunkHeader',
+      'diff',
+      'sectionHeader',
+      'layer',
+      'file',
+    ])
+  })
+
   it('indexes the synthetic More files header after the last section', () => {
     const headers = buildRows(document, null).filter((r) => r.type === 'sectionHeader')
     expect(headers).toEqual([
