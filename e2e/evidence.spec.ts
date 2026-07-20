@@ -47,11 +47,10 @@ test('loop evidence renders as the Review chapter in a fully sandboxed iframe', 
   page,
 }) => {
   await waitForShell(page)
-  await selectTab(page, 'Feature')
+  await selectTab(page, 'Review')
 
-  // The outline lists the Review's chapters; the Loop evidence row appears only when
-  // evidence exists for the repo (a static label, not the evidence's own title).
-  const outlineRow = page.getByRole('button', { name: 'Loop evidence', exact: true })
+  // Outline evidence row uses the evidence title when present.
+  const outlineRow = page.getByRole('button', { name: /Test evidence|Loop evidence/ })
   await expect(outlineRow).toBeVisible({ timeout: 15_000 })
 
   // Clicking the row opens the Review document and jumps it to the evidence chapter.

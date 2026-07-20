@@ -44,6 +44,7 @@ export function WorktreeSwitcher(): React.JSX.Element | null {
           <button
             type="button"
             title={chipTitle}
+            aria-label={`Worktrees: ${chipLabel}`}
             className="app-no-drag flex min-w-0 max-w-36 shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           >
             <Folder className="size-3.5 shrink-0" />

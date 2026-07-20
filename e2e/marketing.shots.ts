@@ -221,7 +221,7 @@ test('marketing shots — the seeded demo repo across every surface', async () =
     // review.png — the Feature tab with the Review document opened into the viewer
     // (thesis, walkthrough sections, flow diagram, anchored diff hunks). The outline
     // lives in the sidebar; clicking the review name opens the document at the top.
-    await selectTab(page, 'Feature')
+    await selectTab(page, 'Review')
     await page.getByRole('button', { name: 'Filter orders by status' }).first().click()
     const review = page.getByRole('main')
     await expect(review.getByRole('heading', { name: 'Filter orders by status' })).toBeVisible({

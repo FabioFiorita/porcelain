@@ -2,26 +2,27 @@ import { expect, openSettings, selectTab, test, waitForShell } from './helpers/a
 
 test('boots and restores the seeded repo into the shell', async ({ page }) => {
   await waitForShell(page)
-  // The empty viewer's quick-start is the default landing surface.
-  await expect(page.getByText('Review changes as a story')).toBeVisible()
+  // Empty viewer = Glance (work in flight). Seeded fixture has 2 dirty files.
+  await expect(page.getByText('2 changed files').first()).toBeVisible()
 })
 
 test('Changes tab lists the working-tree changes', async ({ page }) => {
   await waitForShell(page)
   await selectTab(page, 'Changes')
-  await expect(page.getByText('2 changed files')).toBeVisible()
+  // Scope to the Changes panel — Glance can also show "N changed files".
+  const panel = page.locator('[data-slot="sidebar-inner"]').filter({ hasText: 'Changes' }).first()
+  await expect(panel.getByText('2 changed files')).toBeVisible()
   await expect(page.getByText('Home.tsx')).toBeVisible()
   await expect(page.getByText('Card.tsx')).toBeVisible()
 })
 
-test('Board tab hides the Quick Access panel', async ({ page }) => {
+test('Board tab keeps the Quick Access toggle (notes/pins)', async ({ page }) => {
   await waitForShell(page)
-  // The toggle is present on a tab that has Quick Access content…
   await selectTab(page, 'Changes')
   await expect(page.getByRole('button', { name: 'Toggle quick access sidebar' })).toBeVisible()
-  // …and gone on the Board tab, which has none.
+  // Board no longer suppresses the right rail (U18) — toggle stays.
   await selectTab(page, 'Board')
-  await expect(page.getByRole('button', { name: 'Toggle quick access sidebar' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Toggle quick access sidebar' })).toBeVisible()
 })
 
 test('Settings dialog opens to the General section', async ({ page }) => {
@@ -35,6 +36,6 @@ test.describe('without a seeded repo', () => {
 
   test('shows the Welcome screen', async ({ page }) => {
     await expect(page.getByRole('button', { name: 'Open repository' })).toBeVisible()
-    await expect(page.getByText('Review changes as a story')).toBeVisible()
+    await expect(page.getByText('Run agents. Review as a story.')).toBeVisible()
   })
 })

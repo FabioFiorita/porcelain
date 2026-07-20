@@ -8,26 +8,29 @@ import { expect, openSettings, selectTab, test, waitForShell } from './helpers/a
 
 test('empty viewer', async ({ page }) => {
   await waitForShell(page)
-  await expect(page.getByText('Review changes as a story')).toBeVisible()
+  // Desktop empty pane is Glance (dirty-tree summary for the seeded fixture).
+  await expect(page.getByText('2 changed files').first()).toBeVisible()
   await expect(page).toHaveScreenshot('empty-viewer.png')
 })
 
 test('changes tab', async ({ page }) => {
   await waitForShell(page)
   await selectTab(page, 'Changes')
-  await expect(page.getByText('2 changed files')).toBeVisible()
+  const panel = page.locator('[data-slot="sidebar-inner"]').filter({ hasText: 'Changes' }).first()
+  await expect(panel.getByText('2 changed files')).toBeVisible()
   await expect(page).toHaveScreenshot('changes-tab.png')
 })
 
-// Element-scoped baseline for the icon rail (Files…Agent, including Chat). The rail
+// Element-scoped baseline for the icon rail (Files…Agent, including Relay). The rail
 // is a ~56px column, so adding/restyling a tab icon changes far fewer pixels than the
 // full-page 2% tolerance and slips through the page shots untouched — framing just
 // the rail makes such a change actually fail.
 test('sidebar icon rail', async ({ page }) => {
   await waitForShell(page)
   const rail = page.locator('[data-slot="sidebar-menu"]').first()
-  await expect(rail.getByRole('button', { name: 'Chat' })).toBeVisible()
+  await expect(rail.getByRole('button', { name: 'Relay' })).toBeVisible()
   await expect(rail.getByRole('button', { name: 'Agent' })).toBeVisible()
+  await expect(rail.getByRole('button', { name: 'Review' })).toBeVisible()
   await expect(rail).toHaveScreenshot('sidebar-rail.png')
 })
 

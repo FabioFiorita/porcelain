@@ -362,9 +362,11 @@ type TabName =
   | 'Search'
   | 'Changes'
   | 'History'
-  | 'Feature'
+  | 'Review'
+  | 'Feature' // alias — rail label is Review
   | 'Board'
-  | 'Chat'
+  | 'Relay'
+  | 'Chat' // alias — rail label is Relay
   | 'Terminal'
   | 'Agent'
 
@@ -378,7 +380,9 @@ export async function waitForShell(page: Page): Promise<void> {
 
 /** Click a left-rail sidebar tab by its label. */
 export async function selectTab(page: Page, tab: TabName): Promise<void> {
-  await page.getByRole('button', { name: tab, exact: true }).click()
+  // Aliases for renamed rail labels (Review was Feature; Relay was Chat).
+  const label = tab === 'Feature' ? 'Review' : tab === 'Chat' ? 'Relay' : tab
+  await page.getByRole('button', { name: label, exact: true }).click()
 }
 
 /**
