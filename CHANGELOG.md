@@ -1,3 +1,12 @@
+## [0.35.2](https://github.com/FabioFiorita/porcelain/compare/v0.35.1...v0.35.2) (2026-07-20)
+
+### Bug Fixes
+
+* drop the duplicate Push button under Commit ([c9c95f8](https://github.com/FabioFiorita/porcelain/commit/c9c95f86e3e9d58437535dd8ce06183f574254d2))
+* drop the titlebar hairline that doubled under the search bar ([fb717d8](https://github.com/FabioFiorita/porcelain/commit/fb717d85adb61fac9259db5c7a34c70e00fb8798))
+* forward Agent-tab images through the Grok headless driver ([0222b22](https://github.com/FabioFiorita/porcelain/commit/0222b22218b6f3f2e71f99729d031c23e30edf14))
+* preview images in the viewer instead of dumping PNG bytes as text ([b3670e3](https://github.com/FabioFiorita/porcelain/commit/b3670e33559bd42c36548654447f04a055c1d7cc))
+
 ## [0.35.1](https://github.com/FabioFiorita/porcelain/compare/v0.35.0...v0.35.1) (2026-07-20)
 
 ### Bug Fixes
