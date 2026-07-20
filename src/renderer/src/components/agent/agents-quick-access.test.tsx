@@ -23,6 +23,11 @@ vi.mock('@renderer/hooks/use-agents', () => ({
   useRefreshAgentLimits: vi.fn(),
 }))
 
+vi.mock('@renderer/hooks/use-remote-daemon', () => ({
+  useActiveRemoteEnvironment: () => null,
+  useRemoteEnvironments: () => undefined,
+}))
+
 function makeThread(
   id: string,
   status: 'idle' | 'working',

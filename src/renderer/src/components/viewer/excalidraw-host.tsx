@@ -31,20 +31,33 @@ const LazyExcalidraw = lazy(async () => {
   void css
   return {
     default: function ExcalidrawInner({ scene }: { scene: ExcalidrawScene }): React.JSX.Element {
+      // Prefer the app's dark chrome; agent scenes often ship a light export default
+      // that looks washed out / soft against Porcelain's opaque dark shell (P5).
+      const background =
+        typeof scene.appState?.viewBackgroundColor === 'string'
+          ? scene.appState.viewBackgroundColor
+          : '#090b0c'
       return (
         <Excalidraw
+          theme="dark"
           initialData={{
             elements: scene.elements as never,
             appState: {
               ...(scene.appState ?? {}),
+              viewBackgroundColor: background,
               // Read-only canvas — no editing chrome for v1.
               viewModeEnabled: true,
+              // Crisp grid off; zen hides the soft UI chrome that fought our border.
+              zenModeEnabled: true,
             },
             files: (scene.files ?? {}) as never,
             scrollToContent: true,
           }}
           viewModeEnabled
           zenModeEnabled
+          // Let Excalidraw size to the device pixel ratio (sharp on Retina / HiDPI).
+          detectScroll
+          handleKeyboardGlobally={false}
           UIOptions={{
             canvasActions: {
               loadScene: false,
@@ -75,7 +88,12 @@ export function ExcalidrawHost({ scene }: { scene: ExcalidrawScene }): React.JSX
   const remountKey = `${scene.elements.length}:${firstId}`
 
   return (
-    <div className="h-full min-h-0 w-full overflow-hidden rounded-md border bg-background">
+    // No outer border: Excalidraw already paints a full canvas; a nested border +
+    // rounded clip made strokes look soft. Full-bleed keeps pixel edges sharp.
+    <div
+      className="h-full min-h-0 w-full overflow-hidden bg-background [&_.excalidraw]:h-full [&_.excalidraw]:w-full"
+      style={{ WebkitFontSmoothing: 'antialiased' }}
+    >
       <Suspense fallback={<p className="p-4 text-sm text-muted-foreground">Loading canvas…</p>}>
         <LazyExcalidraw key={remountKey} scene={scene} />
       </Suspense>

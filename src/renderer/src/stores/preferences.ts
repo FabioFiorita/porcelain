@@ -56,6 +56,11 @@ interface PreferencesState {
   splitRatio: number
   /** Bundled skills version the user last dismissed the upgrade toast for. */
   skillsDismissedVersion: string | null
+  /**
+   * Agent thread ids the human archived (client-only, per device). Threads stay
+   * on the daemon; archive only hides them from Active/Recent until restored.
+   */
+  archivedAgentThreadIds: string[]
   setChangesScope: (scope: ChangesScope) => void
   setDiffMode: (mode: DiffMode) => void
   setMarkdownMode: (mode: MarkdownMode) => void
@@ -70,6 +75,8 @@ interface PreferencesState {
   setSplitRatio: (ratio: number) => void
   setSkillsDismissedVersion: (version: string | null) => void
   setTheme: (theme: ThemeMode) => void
+  archiveAgentThread: (id: string) => void
+  unarchiveAgentThread: (id: string) => void
 }
 
 export const usePreferencesStore = create<PreferencesState>()(
@@ -89,6 +96,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       notesHeight: 220,
       splitRatio: 0.5,
       skillsDismissedVersion: null,
+      archivedAgentThreadIds: [],
       setChangesScope: (changesScope) => set({ changesScope }),
       setDiffMode: (diffMode) => set({ diffMode }),
       setMarkdownMode: (markdownMode) => set({ markdownMode }),
@@ -109,6 +117,16 @@ export const usePreferencesStore = create<PreferencesState>()(
         set({ splitRatio: Math.min(SPLIT_MAX_RATIO, Math.max(SPLIT_MIN_RATIO, ratio)) }),
       setSkillsDismissedVersion: (skillsDismissedVersion) => set({ skillsDismissedVersion }),
       setTheme: (theme) => set({ theme }),
+      archiveAgentThread: (id) =>
+        set((s) =>
+          s.archivedAgentThreadIds.includes(id)
+            ? s
+            : { archivedAgentThreadIds: [...s.archivedAgentThreadIds, id] },
+        ),
+      unarchiveAgentThread: (id) =>
+        set((s) => ({
+          archivedAgentThreadIds: s.archivedAgentThreadIds.filter((x) => x !== id),
+        })),
     }),
     {
       name: 'porcelain-preferences',

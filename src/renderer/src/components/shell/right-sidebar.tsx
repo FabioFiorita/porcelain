@@ -19,7 +19,8 @@ const COMPANION_TITLES: Record<SidebarTab, string> = {
   files: 'Workspace',
   changes: 'Commit',
   history: 'Review',
-  feature: 'Review',
+  // Feature companion is Review-native (chapter, notes, comments) — not a git clone.
+  feature: 'Reading',
   board: 'Workspace',
   chat: 'Coordination',
   terminal: 'Actions',
@@ -29,10 +30,10 @@ const COMPANION_TITLES: Record<SidebarTab, string> = {
   agent: 'Session',
 }
 
-// Sections follow the left sidebar's active tab: pins belong to browsing
-// files, git actions belong to reviewing changes/history/feature, saved actions
-// belong to the terminal. The Feature tab mirrors Changes (quick commands + commit
-// composer) — you review a feature to commit it.
+// Sections follow the left sidebar's active tab: pins for files, git for
+// Changes/History, Review-only for Feature (no fetch/pull/commit clone), saved
+// actions for Terminal. Feature used to mirror Changes — that made the Review
+// moment feel like Source Control (P7).
 export function RightSidebar(): React.JSX.Element {
   const sidebarTab = usePreferencesStore((s) => s.sidebarTab)
   const { isMobile } = useSidebar()
@@ -54,14 +55,10 @@ export function RightSidebar(): React.JSX.Element {
       </SidebarHeader>
       <SidebarContent className={sidebarTab === 'files' ? 'gap-0 overflow-hidden' : undefined}>
         {sidebarTab === 'files' && <FilesQuickAccess />}
-        {(sidebarTab === 'changes' || sidebarTab === 'history' || sidebarTab === 'feature') && (
-          <QuickCommandsGroup />
-        )}
+        {(sidebarTab === 'changes' || sidebarTab === 'history') && <QuickCommandsGroup />}
         {sidebarTab === 'history' && <FileTimelineGroup />}
-        {/* The live companion to the open Review document — above the commit
-            composer, since it follows what's being read right now. */}
         {sidebarTab === 'feature' && <ReviewGroup />}
-        {(sidebarTab === 'changes' || sidebarTab === 'feature') && <CommitGroup />}
+        {sidebarTab === 'changes' && <CommitGroup />}
         {(sidebarTab === 'changes' || sidebarTab === 'feature') && <CommentsGroup />}
         {sidebarTab === 'chat' && <ChatQuickAccess />}
         {sidebarTab === 'terminal' && <ActionsGroup />}

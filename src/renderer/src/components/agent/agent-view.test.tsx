@@ -16,6 +16,11 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AgentView, groupTimelineItems } from './agent-view'
 
+vi.mock('@renderer/hooks/use-remote-daemon', () => ({
+  useActiveRemoteEnvironment: () => null,
+  useRemoteEnvironments: () => undefined,
+}))
+
 // Repo idiom (see changes-list.test): mock the domain hooks + the channel action
 // surface, never tRPC or lib/daemon. The store is real — we seed the live timeline
 // through it, exactly as an attach snapshot would.
@@ -275,6 +280,20 @@ describe('AgentView', () => {
       { kind: 'tool', id: 't3', title: 'Bash', status: 'ok' },
     ])
     expect(rows.map((r) => r.kind)).toEqual(['single', 'tools', 'single', 'single'])
+    expect(rows[1]?.kind === 'tools' && rows[1].tools).toHaveLength(2)
+  })
+
+  it('groupTimelineItems never folds Task (subagent) into a tools chip', () => {
+    const rows = groupTimelineItems([
+      { kind: 'tool', id: 'task1', title: 'Task', detail: 'Review push', status: 'ok' },
+      { kind: 'tool', id: 't1', title: 'Read', status: 'ok' },
+      { kind: 'tool', id: 't2', title: 'Bash', status: 'ok' },
+      { kind: 'tool', id: 'task2', title: 'Task', detail: 'Other agent', status: 'running' },
+    ])
+    expect(rows.map((r) => r.kind)).toEqual(['single', 'tools', 'single'])
+    expect(rows[0]?.kind === 'single' && rows[0].item.kind === 'tool' && rows[0].item.title).toBe(
+      'Task',
+    )
     expect(rows[1]?.kind === 'tools' && rows[1].tools).toHaveLength(2)
   })
 

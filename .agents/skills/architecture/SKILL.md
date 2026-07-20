@@ -243,8 +243,8 @@ Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wron
 - Changes/Feature → **Commit composer** (`commit-group.tsx`) + **Comments** (`comments-group.tsx`).
 - Terminal → **Actions** (`actions-group.tsx`).
 - Chat → **Coordination** (`chat-quick-access.tsx`): Participants · Claims · Overlaps, derived from the thread at read time (advisory, no locking).
-- Feature (with the Review focused) → a **Review group** (`review-group.tsx`) above the commit composer: the active section + the visible files' invariants + comment count.
-- Agent → **Session** companion (`agents-quick-access.tsx`): live activity, plan, files touched, usage/limits — header is **Session** (not "Agent") so it doesn't collide with the left tab.
+- Feature → **Reading** companion only (`review-group.tsx` + Comments) — not a clone of Changes git commands/commit (decided 2026-07-20, P7). Outline is a header card (Open Review + Loop evidence up top; Clear in … menu + AlertDialog).
+- Agent → **Session** companion (`agents-quick-access.tsx`): session identity (incl. daemon name), subagents (Task tools), live activity, plan, files, usage/limits. Thread roster: Active / Recent / Archived (archive is client-local prefs, not daemon delete).
 
 **Overlays:**
 - **File finder** — Cmd+P fuzzy finder (`file-finder.tsx`).

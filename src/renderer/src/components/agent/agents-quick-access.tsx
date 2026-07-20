@@ -7,6 +7,7 @@ import {
   SidebarGroupLabel,
 } from '@renderer/components/ui/sidebar'
 import { useAgentLimits, useAgentThreads, useRefreshAgentLimits } from '@renderer/hooks/use-agents'
+import { useActiveRemoteEnvironment } from '@renderer/hooks/use-remote-daemon'
 import { fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
 import { useAgentThreadsStore } from '@renderer/stores/agent-threads'
@@ -141,6 +142,17 @@ function relativeTime(ms: number): string {
 function SessionGroup({ threadId }: { threadId: string }): React.JSX.Element | null {
   const thread = useAgentThreads().find((t) => t.id === threadId)
   const liveStatus = useAgentThreadsStore((s) => s.threads[threadId]?.status)
+  const remote = useActiveRemoteEnvironment()
+  // Subagent-shaped tools — select the items array by identity, then derive Tasks
+  // in useMemo (a filtered array every snapshot would infinite-re-render).
+  const items = useAgentThreadsStore((s) => s.threads[threadId]?.items ?? EMPTY_ITEMS)
+  const tasks = useMemo(
+    () =>
+      items.filter(
+        (item): item is ToolTimelineItem => item.kind === 'tool' && item.title === 'Task',
+      ),
+    [items],
+  )
   if (!thread) return null
   const status = liveStatus ?? thread.status
   const working = status === 'working'
@@ -158,6 +170,7 @@ function SessionGroup({ threadId }: { threadId: string }): React.JSX.Element | n
               <p className="truncate font-mono text-2xs text-muted-foreground">
                 {PROVIDER_LABEL[thread.provider]}
                 {thread.model !== '' ? ` · ${thread.model}` : ''}
+                {thread.mode ? ` · ${thread.mode}` : ''}
               </p>
             </div>
           </div>
@@ -174,6 +187,10 @@ function SessionGroup({ threadId }: { threadId: string }): React.JSX.Element | n
             )}
             <span className="text-muted-foreground/40">·</span>
             <span className="tabular-nums">{relativeTime(thread.updatedAt)}</span>
+            <span className="text-muted-foreground/40">·</span>
+            <span title={remote?.url ?? 'Local daemon'}>
+              {remote != null ? remote.name : 'This device'}
+            </span>
             {thread.worktreeBranch && (
               <>
                 <span className="text-muted-foreground/40">·</span>
@@ -190,6 +207,28 @@ function SessionGroup({ threadId }: { threadId: string }): React.JSX.Element | n
               </>
             )}
           </div>
+          {tasks.length > 0 && (
+            <div className="flex flex-col gap-1 border-t border-border/60 pt-1.5">
+              <p className="text-2xs font-medium text-muted-foreground">Subagents</p>
+              {tasks.map((task) => (
+                <div key={task.id} className="flex items-center gap-1.5 text-2xs">
+                  {task.status === 'running' ? (
+                    <Loader2 className="size-3 shrink-0 animate-spin" />
+                  ) : (
+                    <span
+                      className={cn(
+                        'size-1.5 shrink-0 rounded-full',
+                        task.status === 'error' ? 'bg-destructive' : 'bg-success',
+                      )}
+                    />
+                  )}
+                  <span className="min-w-0 flex-1 truncate text-foreground">
+                    {task.detail?.trim() || 'Task'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </SidebarGroupContent>
     </SidebarGroup>

@@ -1,4 +1,5 @@
 import type { FeatureReading } from '@backend/feature-view'
+import { SidebarHeaderActionsProvider } from '@renderer/components/shell/sidebar-header-actions'
 import { SidebarProvider } from '@renderer/components/ui/sidebar'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
 import { useRepoStore } from '@renderer/stores/repo'
@@ -95,10 +96,16 @@ const byTextContent =
     el?.textContent === text
 
 function renderList(): void {
+  // Header actions (Refresh, Review actions …) portal into a slot — without a
+  // provider they render nowhere (same pattern as AgentList tests).
+  const slot = document.createElement('div')
+  document.body.appendChild(slot)
   render(
-    <SidebarProvider>
-      <FeatureList />
-    </SidebarProvider>,
+    <SidebarHeaderActionsProvider value={slot}>
+      <SidebarProvider>
+        <FeatureList />
+      </SidebarProvider>
+    </SidebarHeaderActionsProvider>,
   )
 }
 
@@ -130,7 +137,7 @@ describe('FeatureList', () => {
     expect(screen.getByText('callout.tsx')).toBeInTheDocument()
     expect(screen.getByText('callout-service.ts')).toBeInTheDocument()
     expect(screen.getByText('+12')).toBeInTheDocument()
-    expect(screen.getByText('Loop evidence')).toBeInTheDocument()
+    expect(screen.getByText('Loop closed')).toBeInTheDocument()
     expect(
       screen.getByText(byTextContent('labels must match CALLOUT_TEMPLATES')),
     ).toBeInTheDocument()
@@ -146,13 +153,14 @@ describe('FeatureList', () => {
 
   it('jumps to the evidence canvas tab from the Loop evidence row', () => {
     renderList()
-    fireEvent.click(screen.getByText('Loop evidence'))
+    // Row labels use the evidence title when present (not the generic "Loop evidence").
+    fireEvent.click(screen.getByText('Loop closed'))
     expect(useReviewFocusStore.getState().jump?.target).toEqual({ kind: 'evidence' })
   })
 
-  it('shows an open affordance on the review title', () => {
+  it('shows an explicit Open Review button', () => {
     renderList()
-    expect(screen.getByText('Open review canvas')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Open Review' })).toBeInTheDocument()
   })
 
   it('opens a changed file at its absolute path with agent-changed line highlights', () => {
@@ -210,14 +218,13 @@ describe('FeatureList', () => {
     expect(unmarkSpy).toHaveBeenCalledWith('src/components/callout.tsx')
   })
 
-  it('arms then confirms a clear of the agent review set (two-step)', () => {
+  it('opens Review via Open Review and clears only after AlertDialog confirm', () => {
     renderList()
-    // the label names its scope — the agent set, not the whole view
-    const btn = screen.getByLabelText('Clear review and loop evidence')
-    fireEvent.click(btn) // first click only arms — does not clear
+    expect(screen.getByRole('button', { name: 'Open Review' })).toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('Review actions'))
+    fireEvent.click(screen.getByText('Clear review & evidence'))
     expect(clearSpy).not.toHaveBeenCalled()
-    // arming flips the label to its confirm state
-    fireEvent.click(screen.getByLabelText('Confirm clear review and loop evidence')) // confirm
+    fireEvent.click(screen.getByLabelText('Confirm clear review and loop evidence'))
     expect(clearSpy).toHaveBeenCalledTimes(1)
   })
 })

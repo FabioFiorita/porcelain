@@ -1,6 +1,16 @@
 import type { ReadingFile } from '@backend/feature-view'
 import type { FileSource } from '@backend/review-set'
 import { SidebarHeaderActions } from '@renderer/components/shell/sidebar-header-actions'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@renderer/components/ui/alert-dialog'
 import { Button } from '@renderer/components/ui/button'
 import {
   ContextMenu,
@@ -8,7 +18,12 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from '@renderer/components/ui/context-menu'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@renderer/components/ui/dropdown-menu'
 import { useDiffFilePrefetch } from '@renderer/hooks/use-diff'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
 import { useClearFeatureReview } from '@renderer/hooks/use-feature-view'
@@ -24,11 +39,11 @@ import {
 } from '@renderer/stores/review-focus'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import {
-  ArrowUpRight,
   Check,
   Eraser,
   FileDiff,
   MessageSquarePlus,
+  MoreHorizontal,
   RefreshCw,
   ShieldCheck,
   Square,
@@ -230,7 +245,7 @@ function FeatureOutline(): React.JSX.Element {
   const { clear, isClearing } = useClearFeatureReview()
   const requestJump = useReviewFocusStore((s) => s.requestJump)
   const activeSection = useReviewFocusStore((s) => s.activeSection)
-  const [confirmClear, setConfirmClear] = useState(false)
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false)
   const [clearError, setClearError] = useState<string | null>(null)
   const [commentPath, setCommentPath] = useState<string | null>(null)
 
@@ -262,20 +277,14 @@ function FeatureOutline(): React.JSX.Element {
   }
 
   // Clear discards the agent's whole Review (files, notes, sections) AND its
-  // loop evidence directory — two-step: first click arms, second confirms. The
-  // agent can always re-push; blurring the button cancels.
-  const handleClear = async (): Promise<void> => {
-    if (!confirmClear) {
-      setConfirmClear(true)
-      return
-    }
+  // loop evidence directory. Confirm via AlertDialog (one clear affordance in …).
+  const runClear = async (): Promise<void> => {
     setClearError(null)
     try {
       await clear()
+      setConfirmClearOpen(false)
     } catch (e) {
       setClearError(e instanceof Error ? e.message : String(e))
-    } finally {
-      setConfirmClear(false)
     }
   }
 
@@ -299,60 +308,89 @@ function FeatureOutline(): React.JSX.Element {
 
   return (
     <div className="flex flex-col gap-1">
-      <div className="flex items-start justify-between gap-1.5 px-2">
-        {/* The title is the agent's own name for the Review; clicking it opens the
-            canvas (Overview tab). ArrowUpRight at rest signals it opens something;
-            row hover matches every other clickable outline row. */}
-        <button
-          type="button"
-          onClick={() => openReview()}
-          className="group flex min-w-0 items-start gap-1 rounded-md px-1 py-1 text-left text-xs font-medium hover:bg-sidebar-accent/50"
-        >
-          <span className="min-w-0 flex-1">{reading.name}</span>
-          <ArrowUpRight
-            className="mt-0.5 size-3.5 shrink-0 text-muted-foreground group-hover:text-foreground"
-            aria-hidden
-          />
-          <span className="sr-only">Open review canvas</span>
-        </button>
-        <SidebarHeaderActions>
-          <Button variant="ghost" size="icon-sm" onClick={refresh} aria-label="Refresh review">
-            <RefreshCw />
-          </Button>
-        </SidebarHeaderActions>
+      {/* Header: name + progress; Open is explicit; Clear lives in … menu (P7 —
+          no dual erasers, no "title is a button" confusion). */}
+      <div className="mx-2 mt-0.5 flex flex-col gap-2 rounded-lg border bg-card p-2.5">
+        <div className="flex items-start gap-1.5">
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-xs font-semibold text-foreground">{reading.name}</p>
+            <p className="mt-0.5 text-2xs text-muted-foreground">
+              {allFiles.length > 0
+                ? `${reviewedCount}/${allFiles.length} reviewed`
+                : reading.canvas
+                  ? 'Freeform overview'
+                  : 'Outline'}
+            </p>
+          </div>
+          <SidebarHeaderActions>
+            <Button variant="ghost" size="icon-sm" onClick={refresh} aria-label="Refresh review">
+              <RefreshCw />
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button variant="ghost" size="icon-sm" aria-label="Review actions">
+                    <MoreHorizontal />
+                  </Button>
+                }
+              />
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuItem
+                  variant="destructive"
+                  disabled={isClearing}
+                  onClick={() => setConfirmClearOpen(true)}
+                >
+                  <Eraser />
+                  Clear review & evidence
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </SidebarHeaderActions>
+        </div>
+        <Button size="sm" className="h-7 w-full text-xs" onClick={() => openReview()}>
+          Open Review
+        </Button>
+        {reading.evidence && (
+          <button
+            type="button"
+            onClick={() => openReview({ kind: 'evidence' })}
+            className={cn(
+              'flex w-full items-center gap-1.5 rounded-md border px-2 py-1.5 text-left text-xs hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+              isActive('evidence')
+                ? 'border-border bg-accent/40 text-foreground'
+                : 'border-border/60 text-muted-foreground',
+            )}
+          >
+            <ShieldCheck className="size-3.5 shrink-0 text-info" />
+            <span className="min-w-0 flex-1 truncate">
+              {reading.evidence.title?.trim() || 'Loop evidence'}
+            </span>
+          </button>
+        )}
       </div>
 
-      {/* Progress + the destructive clear: two-step (arm then confirm — the confirm
-          flips it to the destructive variant), and blurring the button disarms. */}
-      <div className="flex items-center justify-between gap-2 px-2">
-        <p className="text-2xs text-muted-foreground">
-          {allFiles.length > 0 ? `${reviewedCount}/${allFiles.length} reviewed` : ''}
-        </p>
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                size="icon-xs"
-                variant={confirmClear ? 'destructive' : 'ghost'}
-                className="text-muted-foreground"
-                onClick={handleClear}
-                onBlur={() => setConfirmClear(false)}
-                disabled={isClearing}
-                aria-label={
-                  confirmClear
-                    ? 'Confirm clear review and loop evidence'
-                    : 'Clear review and loop evidence'
-                }
-              >
-                <Eraser />
-              </Button>
-            }
-          />
-          <TooltipContent>
-            Removes the agent Review (files, notes, walkthrough) and loop evidence from disk.
-          </TooltipContent>
-        </Tooltip>
-      </div>
+      <AlertDialog open={confirmClearOpen} onOpenChange={setConfirmClearOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear review and loop evidence?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Removes the agent Review (files, notes, walkthrough) and the loop-evidence directory
+              for this repo. The agent can re-publish. This cannot be undone from the app.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={isClearing}
+              onClick={() => void runClear()}
+              aria-label="Confirm clear review and loop evidence"
+            >
+              Clear
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {clearError && (
         <p className="mx-2 whitespace-pre-wrap font-mono text-2xs text-destructive">{clearError}</p>
@@ -404,22 +442,6 @@ function FeatureOutline(): React.JSX.Element {
               </div>
             ))}
           </div>
-        )}
-
-        {reading.evidence && (
-          <button
-            type="button"
-            onClick={() => openReview({ kind: 'evidence' })}
-            className={cn(
-              'flex w-full items-center gap-1.5 truncate rounded-md px-2 py-1 text-left text-sm-minus font-medium hover:bg-sidebar-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
-              isActive('evidence')
-                ? 'bg-sidebar-accent/50 text-foreground'
-                : 'text-muted-foreground',
-            )}
-          >
-            <ShieldCheck className="size-3.5 shrink-0 text-info" />
-            <span className="truncate">Loop evidence</span>
-          </button>
         )}
       </div>
 

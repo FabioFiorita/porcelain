@@ -12,6 +12,7 @@ import { ScrollArea } from '@renderer/components/ui/scroll-area'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useAgentActions } from '@renderer/hooks/use-agent-channel'
 import { useAgentProviders, useAgentThreads } from '@renderer/hooks/use-agents'
+import { useActiveRemoteEnvironment } from '@renderer/hooks/use-remote-daemon'
 import { modelChipLabel } from '@renderer/lib/agent-model-label'
 import { isTextEntry } from '@renderer/lib/keyboard'
 import { cn, copyText } from '@renderer/lib/utils'
@@ -220,9 +221,16 @@ function ToolItem({ item }: { item: ToolTimelineItem }): React.JSX.Element {
         ) : (
           <X className="size-3.5 shrink-0 text-destructive" />
         )}
-        <span className="shrink-0 font-medium text-foreground">{item.title}</span>
+        <span className="shrink-0 font-medium text-foreground">
+          {item.title === 'Task' ? 'Subagent' : item.title}
+        </span>
         {item.detail !== undefined && item.detail !== '' && (
-          <span className="min-w-0 flex-1 truncate font-mono text-2xs text-muted-foreground">
+          <span
+            className={cn(
+              'min-w-0 flex-1 truncate text-2xs text-muted-foreground',
+              item.title === 'Task' ? 'font-medium text-foreground/80' : 'font-mono',
+            )}
+          >
             {item.detail}
           </span>
         )}
@@ -327,7 +335,13 @@ type TimelineDisplayRow =
   | { key: string; kind: 'single'; item: TimelineItem }
   | { key: string; kind: 'tools'; tools: ToolTimelineItem[] }
 
-/** Group consecutive tool items so the conversation stays readable. Exported for tests. */
+/**
+ * Group consecutive tool items so the conversation stays readable.
+ * Task tools (Claude subagents) are never folded into an anonymous "N tools"
+ * chip — each Task is its own row (title + description), then nested tools
+ * under that Task are grouped until the next Task / non-tool (P2).
+ * Exported for tests.
+ */
 export function groupTimelineItems(items: TimelineItem[]): TimelineDisplayRow[] {
   const rows: TimelineDisplayRow[] = []
   let toolBuf: ToolTimelineItem[] = []
@@ -344,6 +358,12 @@ export function groupTimelineItems(items: TimelineItem[]): TimelineDisplayRow[] 
   }
   for (const item of items) {
     if (item.kind === 'tool') {
+      // Subagent Task: flush prior tools, emit Task alone (always expanded detail).
+      if (item.title === 'Task') {
+        flushTools()
+        rows.push({ key: item.id, kind: 'single', item })
+        continue
+      }
       toolBuf.push(item)
       continue
     }
@@ -476,6 +496,8 @@ function SessionStrip({
   provider,
   model,
   resolvedModel,
+  mode,
+  interaction,
   working,
   startedAt,
   usage,
@@ -484,12 +506,16 @@ function SessionStrip({
   provider: AgentProvider
   model: string
   resolvedModel: string | undefined
+  mode: string | undefined
+  interaction: string | undefined
   working: boolean
   startedAt: number | undefined
   usage: AgentUsage | undefined
   worktreeBranch: string | undefined
 }): React.JSX.Element {
   const models = useAgentProviders().flatMap((p) => p.models)
+  // Env identity so a Beelink thread is never mistaken for local (P3).
+  const remote = useActiveRemoteEnvironment()
   const elapsedRef = useRef<HTMLSpanElement>(null)
   useEffect(() => {
     if (!working) return
@@ -503,14 +529,26 @@ function SessionStrip({
   }, [working, startedAt])
 
   return (
-    <div className="flex shrink-0 items-center gap-2 border-b border-border/60 px-4 py-2 text-2xs text-muted-foreground">
+    <div className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-border/60 px-4 py-2 text-2xs text-muted-foreground">
       <ProviderGlyph provider={provider} className="size-3.5" />
       <span className="truncate font-medium text-foreground/80">
         {modelChipLabel(model, resolvedModel, models)}
       </span>
+      {mode !== undefined && mode !== '' && (
+        <>
+          <span className="text-muted-foreground/40">·</span>
+          <span className="capitalize">{mode}</span>
+        </>
+      )}
+      {interaction !== undefined && interaction !== '' && interaction !== 'build' && (
+        <>
+          <span className="text-muted-foreground/40">·</span>
+          <span className="capitalize">{interaction}</span>
+        </>
+      )}
       <span className="text-muted-foreground/40">·</span>
       {working ? (
-        <span className="flex items-center gap-1.5">
+        <span className="flex items-center gap-1.5 text-foreground">
           <Loader2 className="size-3 shrink-0 animate-spin" />
           Working <span ref={elapsedRef}>{formatElapsed(0)}</span>
         </span>
@@ -532,6 +570,10 @@ function SessionStrip({
           </span>
         </>
       )}
+      <span className="text-muted-foreground/40">·</span>
+      <span className="truncate" title={remote?.url ?? 'Local daemon on this device'}>
+        {remote != null ? remote.name : 'This device'}
+      </span>
     </div>
   )
 }
@@ -801,6 +843,8 @@ export function AgentView({ threadId }: { threadId: string }): React.JSX.Element
           provider={thread.provider}
           model={thread.model}
           resolvedModel={thread.resolvedModel}
+          mode={thread.mode}
+          interaction={thread.interaction}
           working={working}
           startedAt={thread.turnStartedAt}
           usage={thread.usage}

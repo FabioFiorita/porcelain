@@ -48,13 +48,26 @@ import {
 import { useAddWorktree } from '@renderer/hooks/use-worktrees'
 import { compactInputClass } from '@renderer/lib/controls'
 import { cn } from '@renderer/lib/utils'
+import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import type { AgentProvider, ExternalSession, ThreadInfo } from '@shared/agent-protocol'
 import { agentProviderSchema, PROVIDER_LABEL } from '@shared/agent-protocol'
-import { ChevronDown, GitBranch, History, Loader2, PenLine, Plus, Trash2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import {
+  Archive,
+  ArchiveRestore,
+  ChevronDown,
+  GitBranch,
+  History,
+  Loader2,
+  PenLine,
+  Plus,
+  Trash2,
+} from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
+
+type ThreadFilter = 'active' | 'recent' | 'archived'
 
 /** Short "updated" label for a thread row — coarse buckets, never a live-ticking string. */
 function relativeTime(ms: number): string {
@@ -75,7 +88,13 @@ function relativeTime(ms: number): string {
  * Rename swaps the title for an inline input; Delete confirms through an AlertDialog
  * (a thread's transcript isn't recoverable, unlike a trashed file).
  */
-function ThreadRow({ thread }: { thread: ThreadInfo }): React.JSX.Element {
+function ThreadRow({
+  thread,
+  archived,
+}: {
+  thread: ThreadInfo
+  archived: boolean
+}): React.JSX.Element {
   const openTab = useTabsStore((s) => s.openTab)
   const isActive = useTabsStore((s) => {
     const pane = s.panes[s.activePaneIndex]
@@ -83,6 +102,8 @@ function ThreadRow({ thread }: { thread: ThreadInfo }): React.JSX.Element {
   })
   const { rename } = useRenameAgentThread()
   const { remove } = useDeleteAgentThread()
+  const archive = usePreferencesStore((s) => s.archiveAgentThread)
+  const unarchive = usePreferencesStore((s) => s.unarchiveAgentThread)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(thread.title)
   const [confirming, setConfirming] = useState(false)
@@ -101,6 +122,8 @@ function ThreadRow({ thread }: { thread: ThreadInfo }): React.JSX.Element {
     if (draft.trim() !== '' && draft.trim() !== thread.title) await rename(thread.id, draft)
   }
 
+  const live = thread.status === 'working'
+
   return (
     <>
       <ContextMenu>
@@ -108,13 +131,22 @@ function ThreadRow({ thread }: { thread: ThreadInfo }): React.JSX.Element {
           render={
             <div
               className={cn(
-                'group/thread flex h-7 items-center gap-2 rounded-md px-2 text-sm-minus',
+                'group/thread flex min-h-8 items-center gap-2 rounded-md px-2 py-1 text-sm-minus',
                 isActive
                   ? 'bg-accent text-accent-foreground'
                   : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
               )}
             >
-              <ProviderGlyph provider={thread.provider} className="size-3.5" />
+              {live ? (
+                <span
+                  role="img"
+                  aria-label="Live on daemon"
+                  title="Running on the daemon — survives Mac sleep"
+                  className="size-1.5 shrink-0 rounded-full bg-primary shadow-[0_0_0_3px] shadow-primary/25"
+                />
+              ) : (
+                <ProviderGlyph provider={thread.provider} className="size-3.5 shrink-0" />
+              )}
               {editing ? (
                 <Input
                   autoFocus
@@ -142,9 +174,15 @@ function ThreadRow({ thread }: { thread: ThreadInfo }): React.JSX.Element {
                   type="button"
                   onClick={open}
                   onDoubleClick={startRename}
-                  className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                  className="flex min-w-0 flex-1 flex-col items-start gap-0 text-left"
                 >
-                  <span className="min-w-0 flex-1 truncate">{thread.title}</span>
+                  <span className="min-w-0 w-full truncate text-foreground">{thread.title}</span>
+                  <span className="min-w-0 w-full truncate font-mono text-2xs text-muted-foreground">
+                    {PROVIDER_LABEL[thread.provider]}
+                    {thread.model ? ` · ${thread.model}` : ''}
+                    {live ? ' · live' : ` · ${relativeTime(thread.updatedAt)}`}
+                    {thread.worktreeBranch ? ` · ${thread.worktreeBranch}` : ''}
+                  </span>
                 </button>
               )}
               {!editing && thread.status !== 'working' && thread.lastTurnFailed && (
@@ -155,41 +193,19 @@ function ThreadRow({ thread }: { thread: ThreadInfo }): React.JSX.Element {
                   className="size-1.5 shrink-0 rounded-full bg-destructive"
                 />
               )}
-              {!editing && thread.worktreeBranch && (
-                <span
-                  className="flex min-w-0 max-w-24 shrink-0 items-center gap-0.5 font-mono text-2xs text-muted-foreground"
-                  title={`Worktree: ${thread.worktreeBranch}`}
-                >
-                  <GitBranch className="size-3 shrink-0" />
-                  <span className="truncate">{thread.worktreeBranch}</span>
+              {!editing && live && (
+                <Loader2
+                  className="size-3.5 shrink-0 animate-spin text-muted-foreground"
+                  aria-label="Working"
+                />
+              )}
+              {!editing && !live && thread.usage !== undefined && (
+                <span className="shrink-0 text-2xs tabular-nums text-muted-foreground/60">
+                  {thread.usage.totalCostUsd !== undefined
+                    ? formatCostUsd(thread.usage.totalCostUsd)
+                    : formatTokenCount(thread.usage.turnInput)}
                 </span>
               )}
-              {!editing &&
-                (thread.status === 'working' ? (
-                  <Loader2
-                    className="size-3.5 shrink-0 animate-spin text-muted-foreground"
-                    aria-label="Working"
-                  />
-                ) : (
-                  // Prefer a spend/token chip over relative time when the thread has usage
-                  // so expensive threads are obvious without opening them.
-                  <span className="shrink-0 text-2xs tabular-nums text-muted-foreground/60 group-hover/thread:hidden">
-                    {thread.usage?.totalCostUsd !== undefined
-                      ? formatCostUsd(thread.usage.totalCostUsd)
-                      : thread.usage !== undefined
-                        ? formatTokenCount(thread.usage.turnInput)
-                        : relativeTime(thread.updatedAt)}
-                  </span>
-                ))}
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="hidden size-5 shrink-0 group-hover/thread:flex hover:text-destructive [@media(hover:none)]:flex"
-                aria-label={`Delete ${thread.title}`}
-                onClick={() => setConfirming(true)}
-              >
-                <Trash2 />
-              </Button>
             </div>
           }
         />
@@ -198,10 +214,29 @@ function ThreadRow({ thread }: { thread: ThreadInfo }): React.JSX.Element {
             <PenLine />
             Rename
           </ContextMenuItem>
+          {archived ? (
+            <ContextMenuItem onClick={() => unarchive(thread.id)}>
+              <ArchiveRestore />
+              Unarchive
+            </ContextMenuItem>
+          ) : (
+            <ContextMenuItem
+              onClick={() => {
+                archive(thread.id)
+                toast.message('Archived', {
+                  description:
+                    'Hidden from Active/Recent — still on the daemon. Unarchive anytime.',
+                })
+              }}
+            >
+              <Archive />
+              Archive
+            </ContextMenuItem>
+          )}
           <ContextMenuSeparator />
           <ContextMenuItem variant="destructive" onClick={() => setConfirming(true)}>
             <Trash2 />
-            Delete
+            Delete permanently
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
@@ -211,12 +246,18 @@ function ThreadRow({ thread }: { thread: ThreadInfo }): React.JSX.Element {
             <AlertDialogTitle>Delete thread?</AlertDialogTitle>
             <AlertDialogDescription>
               This deletes “{thread.title}” and its whole transcript, and stops any running turn.
-              This can’t be undone.
+              Prefer Archive if you only want it out of the list. This can’t be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={() => remove(thread.id)}>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                unarchive(thread.id)
+                remove(thread.id)
+              }}
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -248,6 +289,9 @@ export function AgentList(): React.JSX.Element {
   const [worktreeOpen, setWorktreeOpen] = useState(false)
   const [worktreeName, setWorktreeName] = useState('')
   const [creatingWorktree, setCreatingWorktree] = useState(false)
+  const [filter, setFilter] = useState<ThreadFilter>('active')
+  const archivedIds = usePreferencesStore((s) => s.archivedAgentThreadIds)
+  const archivedSet = useMemo(() => new Set(archivedIds), [archivedIds])
 
   // Coarse re-render tick so each row's relativeTime() label refreshes as time passes (rows
   // compute it at render, so they'd otherwise go stale). One interval for the whole list.
@@ -256,6 +300,20 @@ export function AgentList(): React.JSX.Element {
     const id = setInterval(() => setTick((t) => t + 1), 30_000)
     return () => clearInterval(id)
   }, [])
+
+  const visibleThreads = useMemo(() => {
+    const sorted = [...threads].sort((a, b) => b.updatedAt - a.updatedAt)
+    if (filter === 'archived') return sorted.filter((t) => archivedSet.has(t.id))
+    const unarchived = sorted.filter((t) => !archivedSet.has(t.id))
+    if (filter === 'active') {
+      // Live + everything you might still be driving (default home).
+      const working = unarchived.filter((t) => t.status === 'working')
+      const idle = unarchived.filter((t) => t.status !== 'working')
+      return [...working, ...idle]
+    }
+    // Recent: idle only — "continue later" without live rows.
+    return unarchived.filter((t) => t.status !== 'working')
+  }, [threads, filter, archivedSet])
 
   const openThreadTab = (thread: ThreadInfo): void => {
     openTab({ id: tabId('agent', thread.id), kind: 'agent', title: thread.title, path: thread.id })
@@ -446,16 +504,52 @@ export function AgentList(): React.JSX.Element {
           </div>
         </SidebarHeaderActions>
       </div>
+      <div className="flex items-center gap-0.5 px-2 pb-1">
+        {(
+          [
+            ['active', 'Active'],
+            ['recent', 'Recent'],
+            ['archived', 'Archived'],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setFilter(id)}
+            className={cn(
+              'rounded-md px-2 py-1 text-2xs font-medium',
+              filter === id
+                ? 'bg-accent text-accent-foreground'
+                : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
       <div className="flex flex-col gap-0.5 px-2">
         {threads.length === 0 ? (
           <div className="px-3 py-10 text-center">
             <p className="text-xs font-medium text-foreground">No threads yet</p>
             <p className="mx-auto mt-1 max-w-[15rem] text-xs text-muted-foreground">
-              Start one with +, or open a recent CLI session.
+              Start one with +. Threads live on the daemon — Mac sleep does not kill a remote turn.
+              Prefer Archive over Delete.
+            </p>
+          </div>
+        ) : visibleThreads.length === 0 ? (
+          <div className="px-3 py-8 text-center">
+            <p className="text-xs text-muted-foreground">
+              {filter === 'archived'
+                ? 'Nothing archived. Right-click a thread → Archive.'
+                : filter === 'recent'
+                  ? 'No idle threads. Working ones stay under Active.'
+                  : 'No threads here.'}
             </p>
           </div>
         ) : (
-          threads.map((thread) => <ThreadRow key={thread.id} thread={thread} />)
+          visibleThreads.map((thread) => (
+            <ThreadRow key={thread.id} thread={thread} archived={archivedSet.has(thread.id)} />
+          ))
         )}
       </div>
       <Dialog

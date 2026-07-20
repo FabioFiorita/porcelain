@@ -83,6 +83,7 @@ describe('AgentList', () => {
       },
     ])
     renderList()
-    expect(screen.getByTitle('Worktree: feature/x')).toBeInTheDocument()
+    // Worktree branch is on the meta line under the title (not a separate chip title).
+    expect(screen.getByText(/feature\/x/)).toBeInTheDocument()
   })
 })
