@@ -3,6 +3,7 @@ import type { AgentEvent } from '../../../shared/agent-protocol'
 import { PORCELAIN_PREAMBLE } from '../porcelain-preamble'
 import {
   buildGrokArgs,
+  buildGrokTextAndImages,
   GROK_MODELS,
   GrokStreamTranslator,
   mapGrokUsage,
@@ -147,6 +148,37 @@ describe('permissionModeForMode / buildGrokArgs', () => {
       options: { effort: 'not-a-real-effort' },
     })
     expect(args).not.toContain('--reasoning-effort')
+  })
+
+  it('uses --prompt-json instead of -p when promptJson is set (images)', () => {
+    const promptJson = JSON.stringify([
+      { type: 'text', text: 'look' },
+      { type: 'image', mimeType: 'image/png', data: 'AAAA' },
+    ])
+    const args = buildGrokArgs({
+      prompt: 'look',
+      promptJson,
+      model: 'grok-4.5',
+      mode: 'full',
+    })
+    expect(args[0]).toBe('--prompt-json')
+    expect(args[1]).toBe(promptJson)
+    expect(args).not.toContain('-p')
+  })
+})
+
+describe('buildGrokTextAndImages', () => {
+  it('always leads with a text block and appends ACP image blocks', () => {
+    expect(
+      buildGrokTextAndImages('see this', [
+        { mediaType: 'image/png', base64: 'AAAA' },
+        { mediaType: 'image/webp', base64: 'BBBB' },
+      ]),
+    ).toEqual([
+      { type: 'text', text: 'see this' },
+      { type: 'image', mimeType: 'image/png', data: 'AAAA' },
+      { type: 'image', mimeType: 'image/webp', data: 'BBBB' },
+    ])
   })
 })
 

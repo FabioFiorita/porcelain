@@ -132,14 +132,37 @@ export function permissionModeForMode(mode: 'approve' | 'auto-edits' | 'full'): 
 }
 
 /**
+ * ACP content blocks for Grok's `--prompt-json` (Agent Client Protocol shape the CLI
+ * validates): text + image (inline base64) or resource_link (file:// path on the daemon
+ * host). Pure — the I/O shell chooses inline vs temp-file and serializes.
+ */
+export type GrokContentBlock =
+  | { type: 'text'; text: string }
+  | { type: 'image'; mimeType: string; data: string }
+  | { type: 'resource_link'; uri: string; name: string; mimeType: string }
+
+/** Always lead with a text block so an image-only send still has a slot (mirrors Claude). */
+export function buildGrokTextAndImages(
+  text: string,
+  images: { mediaType: string; base64: string }[],
+): GrokContentBlock[] {
+  const blocks: GrokContentBlock[] = [{ type: 'text', text }]
+  for (const image of images) {
+    blocks.push({ type: 'image', mimeType: image.mediaType, data: image.base64 })
+  }
+  return blocks
+}
+
+/**
  * Build the argv for one headless turn. `interaction === 'plan'` replaces the mode-derived
  * permission mode (same rationale as Claude — one permission-mode slot, plan is itself a
- * posture). The prompt is NOT on argv here when using `--prompt-file`/`-p` from the I/O
- * shell — this helper builds the shared flags; `buildGrokArgs` includes `-p` + prompt for
- * the common path.
+ * posture). Text-only turns use `-p`; turns with images (or an explicit promptJson) use
+ * `--prompt-json` so vision content blocks reach the CLI — mutually exclusive with `-p`.
  */
 export function buildGrokArgs(opts: {
   prompt: string
+  /** Pre-built ACP content-blocks JSON. When set, sent via `--prompt-json` instead of `-p`. */
+  promptJson?: string
   model: string
   mode: 'approve' | 'auto-edits' | 'full'
   interaction?: 'build' | 'plan'
@@ -149,14 +172,13 @@ export function buildGrokArgs(opts: {
   // Tell the agent it's running inside Porcelain on every headless turn. `--rules` is Grok's
   // native "extra rules appended to the system prompt"; a constant string keeps the prompt
   // prefix cache-stable across our per-turn spawns (same rationale as Claude's flag).
-  const args = [
-    '-p',
-    opts.prompt,
-    '--output-format',
-    'streaming-json',
-    '--rules',
-    PORCELAIN_PREAMBLE,
-  ]
+  const args: string[] = []
+  if (opts.promptJson !== undefined && opts.promptJson !== '') {
+    args.push('--prompt-json', opts.promptJson)
+  } else {
+    args.push('-p', opts.prompt)
+  }
+  args.push('--output-format', 'streaming-json', '--rules', PORCELAIN_PREAMBLE)
   if (opts.model !== '') args.push('--model', opts.model)
   args.push(
     '--permission-mode',

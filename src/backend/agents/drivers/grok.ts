@@ -1,20 +1,84 @@
 import { type ChildProcess, execFile, spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline'
+import { pathToFileURL } from 'node:url'
+import type { AgentImage } from '../../../shared/agent-protocol'
 import { agentSpawnEnv } from '../../login-shell-env'
 import type { AgentCommand, AgentDriver, StartTurnOptions, TurnHandle } from '../types'
 import { listCommandsAndSkills } from './agent-commands-fs'
 import { importGrokSession, listGrokSessions } from './grok-sessions'
 import {
   buildGrokArgs,
+  buildGrokTextAndImages,
   GROK_MODELS,
+  type GrokContentBlock,
   GrokStreamTranslator,
   readGrokAuth,
   resolveGrokBin,
 } from './grok-stream'
+
+/** Prefer temp files + resource_link once inline base64 would risk ARG_MAX (~2MB on Linux). */
+const INLINE_IMAGE_BUDGET = 1_000_000
+
+function extForMime(mime: string): string {
+  if (mime === 'image/jpeg' || mime === 'image/jpg') return 'jpg'
+  if (mime === 'image/webp') return 'webp'
+  if (mime === 'image/gif') return 'gif'
+  return 'png'
+}
+
+/**
+ * Build the `--prompt-json` payload for a turn with images. Small payloads stay inline
+ * (`type: image` + base64); larger ones write temp files on the daemon host and use
+ * `resource_link` so argv never hits ARG_MAX. Returns a cleanup that unlinks any temps
+ * (best-effort — call after the CLI exits).
+ */
+export function prepareGrokImagePrompt(
+  text: string,
+  images: AgentImage[],
+): { promptJson: string; cleanup: () => void } {
+  if (images.length === 0) {
+    return { promptJson: JSON.stringify(buildGrokTextAndImages(text, [])), cleanup: () => {} }
+  }
+  const total = images.reduce((n, image) => n + image.base64.length, 0)
+  if (total <= INLINE_IMAGE_BUDGET) {
+    return {
+      promptJson: JSON.stringify(buildGrokTextAndImages(text, images)),
+      cleanup: () => {},
+    }
+  }
+  const paths: string[] = []
+  const blocks: GrokContentBlock[] = [{ type: 'text', text }]
+  for (let i = 0; i < images.length; i++) {
+    const image = images[i]
+    if (image === undefined) continue
+    const ext = extForMime(image.mediaType)
+    const path = join(tmpdir(), `porcelain-grok-img-${randomUUID()}.${ext}`)
+    writeFileSync(path, Buffer.from(image.base64, 'base64'))
+    paths.push(path)
+    blocks.push({
+      type: 'resource_link',
+      uri: pathToFileURL(path).href,
+      name: `image-${i + 1}.${ext}`,
+      mimeType: image.mediaType,
+    })
+  }
+  return {
+    promptJson: JSON.stringify(blocks),
+    cleanup: () => {
+      for (const path of paths) {
+        try {
+          unlinkSync(path)
+        } catch {
+          // best-effort — temp dir will reclaim eventually
+        }
+      }
+    },
+  }
+}
 
 /**
  * Grok Build CLI driver — spawns the user's installed `grok` once per turn in headless
@@ -160,15 +224,20 @@ export const grokDriver: AgentDriver = {
         return
       }
 
-      // Images: Grok headless has no documented image content-block path we can trust
-      // across versions. Surface a soft note and still send the text so the turn runs.
-      let prompt = opts.text
+      // Images ride `--prompt-json` (ACP content blocks). Small set stays inline base64;
+      // large set writes temp files + resource_link (remote-daemon safe — base64 already
+      // crossed the WS; files live on the daemon host next to the CLI).
+      let promptJson: string | undefined
+      let cleanupImages = (): void => {}
       if (opts.images.length > 0) {
-        prompt = `${opts.text}\n\n[${opts.images.length} image(s) attached — the Grok headless driver cannot forward images yet.]`
+        const prepared = prepareGrokImagePrompt(opts.text, opts.images)
+        promptJson = prepared.promptJson
+        cleanupImages = prepared.cleanup
       }
 
       const args = buildGrokArgs({
-        prompt,
+        prompt: opts.text,
+        ...(promptJson !== undefined ? { promptJson } : {}),
         model: opts.model,
         mode: opts.mode,
         interaction: opts.interaction,
@@ -178,18 +247,23 @@ export const grokDriver: AgentDriver = {
 
       let proc: ChildProcess
       try {
-        // stdin ignored: headless `-p` takes the prompt on argv (no duplex control channel).
+        // stdin ignored: headless takes the prompt on argv (`-p` or `--prompt-json`).
         proc = spawn(bin, args, {
           cwd: opts.repoPath,
           env,
           stdio: ['ignore', 'pipe', 'pipe'],
         })
       } catch (error) {
+        cleanupImages()
         emitError(`Failed to start grok: ${String(error)}`)
         finish(false)
         return
       }
       child = proc
+      // Drop temp image files once the CLI exits (success, error, or abort).
+      proc.on('exit', () => {
+        cleanupImages()
+      })
       proc.on('error', (error) => {
         if (finished) return
         emitError(`grok process error: ${error.message}`)
