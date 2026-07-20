@@ -79,7 +79,12 @@ const reading: FeatureReading = {
       ],
     },
   ],
-  evidence: { title: 'Loop closed', updatedAt: '2026-07-18T00:00:00.000Z', checks: [] },
+  evidence: {
+    title: 'Loop closed',
+    updatedAt: '2026-07-18T00:00:00.000Z',
+    checks: [],
+    medium: 'html',
+  },
 }
 
 // The note block contains a child element (the label chip), so match on the

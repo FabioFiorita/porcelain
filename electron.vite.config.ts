@@ -1,8 +1,38 @@
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { cpSync, existsSync, mkdirSync, readFileSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'electron-vite'
+import type { Plugin } from 'vite'
+
+/**
+ * Self-host Excalidraw fonts under `excalidraw-assets/fonts` so CSP font-src 'self'
+ * works (no CDN). Copied from the package at dev-server start and production build.
+ */
+function excalidrawAssetsPlugin(): Plugin {
+  const fontsSrc = resolve('node_modules/@excalidraw/excalidraw/dist/prod/fonts')
+  const copyTo = (outDir: string): void => {
+    if (!existsSync(fontsSrc)) return
+    const dest = join(outDir, 'excalidraw-assets', 'fonts')
+    mkdirSync(dest, { recursive: true })
+    cpSync(fontsSrc, dest, { recursive: true })
+  }
+  return {
+    name: 'excalidraw-assets',
+    configureServer(server) {
+      // Dev: materialize under the renderer public-ish out so `/excalidraw-assets/` resolves.
+      const devPublic = resolve('src/renderer/public')
+      mkdirSync(devPublic, { recursive: true })
+      copyTo(devPublic)
+      server.watcher.add(fontsSrc)
+    },
+    writeBundle(_options, _bundle) {
+      // electron-vite writes renderer to out/renderer
+      const outDir = resolve('out/renderer')
+      copyTo(outDir)
+    },
+  }
+}
 
 // Bake package.json's version into BOTH the daemon bundle (so `daemonInfo` can
 // announce it — Electron-free, no runtime package.json read that the differing
@@ -55,6 +85,7 @@ export default defineConfig({
       // and crashes the renderer with "Invalid hook call" / a blank window.
       entries: ['src/**/*.{ts,tsx}', 'index.html'],
     },
-    plugins: [react(), tailwindcss()],
+    plugins: [react(), tailwindcss(), excalidrawAssetsPlugin()],
+    publicDir: resolve('src/renderer/public'),
   },
 })

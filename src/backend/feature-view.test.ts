@@ -307,6 +307,7 @@ describe('buildFeatureReading', () => {
         title: 'Loop closed',
         updatedAt: '2026-07-18T00:00:00Z',
         checks: [{ label: 'pnpm test', status: 'pass', detail: '1348 passed' }],
+        medium: 'html',
       },
     })
     expect(reading.thesis).toBe('The why.')
@@ -324,6 +325,7 @@ describe('buildFeatureReading', () => {
       title: 'Loop closed',
       updatedAt: '2026-07-18T00:00:00Z',
       checks: [{ label: 'pnpm test', status: 'pass', detail: '1348 passed' }],
+      medium: 'html',
     })
   })
 

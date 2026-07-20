@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { EVIDENCE_SCENE_FILENAME } from '../shared/excalidraw-scene'
 
 /**
  * Loop evidence lives as a **directory of files on disk**, not as HTML shuttled
@@ -10,9 +11,10 @@ import { join } from 'node:path'
  *
  * Layout:
  *   ~/.porcelain/loop-evidence/<sha256(repoPath)[0..16]>/
- *     index.html     — required for the opener to appear
- *     meta.json      — optional { title, repoPath, updatedAt }
- *     *.png / …      — relative assets referenced from index.html
+ *     index.html          — HTML body (wins over scene when both exist)
+ *     canvas.excalidraw   — Excalidraw body (when no index.html)
+ *     meta.json           — optional { title, repoPath, updatedAt, checks }
+ *     *.png / …           — relative assets referenced from index.html
  *
  * Keep this keying formula in lockstep with `src/cli/evidence-file.ts`
  * (the dependency-free CLI cannot import this module).
@@ -33,6 +35,10 @@ export function evidenceDirForRepo(repoPath: string): string {
 
 export function evidenceIndexPath(repoPath: string): string {
   return join(evidenceDirForRepo(repoPath), 'index.html')
+}
+
+export function evidenceScenePath(repoPath: string): string {
+  return join(evidenceDirForRepo(repoPath), EVIDENCE_SCENE_FILENAME)
 }
 
 export function evidenceMetaPath(repoPath: string): string {

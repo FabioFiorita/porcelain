@@ -21,3 +21,4 @@ marketing/shots/
 # Claude Design handoff bundle — a local prototype reference, not source. Keep it
 # out of git and out of the lint/typecheck gate (Biome honours .gitignore).
 claude-design/
+src/renderer/public/excalidraw-assets/

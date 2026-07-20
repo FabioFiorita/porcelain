@@ -607,11 +607,18 @@ export function EvidenceChecksRow({ checks }: { checks: EvidenceCheck[] }): Reac
 function EvidenceBodyRow(): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)
   const { evidence } = useEvidenceHtml(repo?.path ?? '')
+  // Kept for non-Feature surfaces that still flatten evidence into rows
+  // (includeEvidence default true). Feature Overview opts out; Loop evidence
+  // tab uses EvidencePanel (full height, HTML | Excalidraw).
   return (
     <div className="sticky left-0 max-w-[var(--vrows-vw)] px-3 py-2">
       <div className="h-[28rem] overflow-hidden rounded-md border">
-        {evidence ? (
+        {evidence?.html ? (
           <HtmlView html={evidence.html} title={evidence.title} />
+        ) : evidence?.medium === 'excalidraw' ? (
+          <p className="p-4 text-sm text-muted-foreground">
+            Excalidraw evidence — open the Loop evidence canvas tab for the full board.
+          </p>
         ) : (
           <p className="p-4 text-sm text-muted-foreground">
             {evidence === undefined ? 'Loading…' : 'Loop evidence was cleared.'}

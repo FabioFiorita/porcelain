@@ -33,6 +33,7 @@ import {
   getEvidence,
   prepareEvidence,
   setEvidence,
+  setEvidenceScene,
 } from './evidence-file'
 import { describeFeatureView, readFeatureView, sourceByPath } from './feature-view-file'
 import { resolveToolHtml } from './html-input'
@@ -41,10 +42,13 @@ import { describeNotes, readNotes } from './notes-file'
 import {
   addReviewFiles,
   clearReview,
+  clearReviewCanvas,
   describeReview,
   type ReviewSet,
   readReview,
   setReview,
+  setReviewCanvas,
+  toReviewCanvas,
   toReviewFiles,
   toReviewSections,
 } from './review-file'
@@ -178,10 +182,20 @@ const COMMANDS: NounHelp[] = [
         desc: 'Replace the review set',
       },
       { verb: 'add', args: '--files <json|->', desc: 'Add files to the existing set' },
+      {
+        verb: 'set-canvas',
+        args: '--medium html|excalidraw (--html-file <p> | --html <s|-> | --file <scene.excalidraw>)',
+        desc: 'Set freeform Overview canvas (html or Excalidraw); outline still uses files/sections',
+      },
+      {
+        verb: 'clear-canvas',
+        args: '',
+        desc: 'Remove the freeform Overview canvas (back to structured document)',
+      },
       { verb: 'get', args: '', desc: 'Read back the declared set' },
       { verb: 'clear', args: '', desc: 'Remove the set (the Review shows its empty state)' },
     ],
-    flags: ['name', 'thesis', 'files', 'sections'],
+    flags: ['name', 'thesis', 'files', 'sections', 'medium', 'html', 'html-file', 'file'],
   },
   {
     noun: 'feature',
@@ -216,8 +230,8 @@ const COMMANDS: NounHelp[] = [
       },
       {
         verb: 'set',
-        args: '--title <s> (--html <s|-> | --html-file <p>)',
-        desc: 'Write index.html for a small doc',
+        args: '--title <s> (--html <s|-> | --html-file <p> | --medium excalidraw --file <scene.excalidraw>)',
+        desc: 'Write index.html (HTML) or canvas.excalidraw (Excalidraw medium)',
       },
       {
         verb: 'check',
@@ -227,9 +241,10 @@ const COMMANDS: NounHelp[] = [
       { verb: 'get', args: '', desc: 'Read back the stored evidence (summary + preview)' },
       { verb: 'clear', args: '', desc: 'Remove the evidence' },
     ],
-    flags: ['title', 'html', 'html-file', 'label', 'status', 'detail'],
+    flags: ['title', 'html', 'html-file', 'label', 'status', 'detail', 'medium', 'file'],
     flagOverrides: {
       status: 'Check result: pass | fail | skip',
+      medium: 'Evidence body medium: html (default) | excalidraw',
     },
   },
   {
@@ -391,6 +406,26 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
     case 'review clear':
       clearReview(repo)
       return `Cleared the feature review for ${repo}`
+    case 'review set-canvas': {
+      const medium = req('medium')
+      if (medium === 'html') {
+        // Overview freeform HTML shares the section-html cap (512 KiB).
+        const html = resolveHtml(524_288)
+        setReviewCanvas(repo, toReviewCanvas('html', { html }))
+        return `Set Overview canvas (html) for ${repo}. Outline still uses thesis/sections/files.`
+      }
+      if (medium === 'excalidraw') {
+        const file = req('file')
+        const sceneRaw = readFileSync(file, 'utf8')
+        setReviewCanvas(repo, toReviewCanvas('excalidraw', { sceneRaw }))
+        return `Set Overview canvas (excalidraw) for ${repo} from ${file}. Outline still uses thesis/sections/files.`
+      }
+      throw new Error('medium must be html or excalidraw')
+    }
+    case 'review clear-canvas':
+      return clearReviewCanvas(repo)
+        ? `Cleared the Overview canvas for ${repo} (structured document restored if sections exist)`
+        : `No Overview canvas set for ${repo}`
     case 'feature get':
       return describeFeatureView(repo, readFeatureView(repo))
     case 'comments list':
@@ -412,12 +447,20 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
       return describeReviewed(repo, readReviewed(repo))
     case 'evidence prepare': {
       const prepared = prepareEvidence(repo, opt('title'))
-      return `Loop evidence directory ready for "${prepared.title}" at:\n${prepared.dir}\n\nWrite index.html there (and screenshots as sibling files with relative <img src="shot.png">). Porcelain picks it up automatically within a few seconds — it renders as the Review's final chapter (Feature tab). For large HTML, write the file yourself rather than passing --html.`
+      return `Loop evidence directory ready for "${prepared.title}" at:\n${prepared.dir}\n\nWrite index.html (HTML body) or canvas.excalidraw (Excalidraw body) there — HTML wins if both exist. Screenshots as sibling files with relative <img src="shot.png">. Porcelain picks it up on the Loop evidence canvas tab. For large HTML, write the file yourself rather than passing --html.`
     }
     case 'evidence set': {
+      const medium = opt('medium') ?? 'html'
+      if (medium === 'excalidraw') {
+        const file = req('file')
+        const sceneRaw = readFileSync(file, 'utf8')
+        const evidence = setEvidenceScene(repo, opt('title'), sceneRaw)
+        return `Wrote loop evidence "${evidence.title}" to ${evidence.dir}/canvas.excalidraw for ${repo}. Porcelain renders it on the Loop evidence canvas tab.`
+      }
+      if (medium !== 'html') throw new Error('medium must be html or excalidraw')
       const html = resolveHtml(EVIDENCE_MAX_HTML_BYTES)
       const evidence = setEvidence(repo, opt('title'), html)
-      return `Wrote loop evidence "${evidence.title}" to ${evidence.dir}/index.html for ${repo}. Porcelain renders it as the Review's final chapter. For large docs prefer "evidence prepare" + writing index.html yourself.`
+      return `Wrote loop evidence "${evidence.title}" to ${evidence.dir}/index.html for ${repo}. Porcelain renders it on the Loop evidence canvas tab. For large docs prefer "evidence prepare" + writing index.html yourself.`
     }
     case 'evidence check': {
       const result = checkEvidence(repo, req('label'), req('status'), opt('detail'))

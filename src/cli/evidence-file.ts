@@ -250,6 +250,53 @@ export function setEvidence(repoPath: string, title: unknown, html: unknown): Ev
   return { ...valid, updatedAt: meta.updatedAt, dir }
 }
 
+/** Max size for canvas.excalidraw (mirrors src/shared/excalidraw-scene.ts). */
+const MAX_SCENE_BYTES = 1_048_576
+const SCENE_FILENAME = 'canvas.excalidraw'
+
+/**
+ * Write canvas.excalidraw into the evidence directory (and meta). Prefer
+ * `evidence prepare` + Write tools for agent-authored scenes when convenient.
+ * HTML index is left alone if present (HTML wins on read when both exist —
+ * remove index.html if you want the scene body).
+ */
+export function setEvidenceScene(
+  repoPath: string,
+  title: unknown,
+  sceneRaw: unknown,
+): { title: string; updatedAt: string; dir: string; medium: 'excalidraw' } {
+  if (typeof title !== 'string' || title.trim().length === 0) {
+    throw new Error('title must be a non-empty string')
+  }
+  if (typeof sceneRaw !== 'string' || sceneRaw.trim().length === 0) {
+    throw new Error('scene must be a non-empty JSON string')
+  }
+  const bytes = Buffer.byteLength(sceneRaw, 'utf8')
+  if (bytes > MAX_SCENE_BYTES) {
+    throw new Error(`scene is ${bytes} bytes, over the ${MAX_SCENE_BYTES}-byte limit`)
+  }
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(sceneRaw)
+  } catch {
+    throw new Error('scene is not valid JSON')
+  }
+  if (
+    typeof parsed !== 'object' ||
+    parsed === null ||
+    !Array.isArray((parsed as { elements?: unknown }).elements)
+  ) {
+    throw new Error('scene must be an Excalidraw export object with an elements array')
+  }
+  const meta = writeMeta(repoPath, title)
+  const dir = evidenceDirForRepo(repoPath)
+  const scenePath = join(dir, SCENE_FILENAME)
+  const tmp = `${scenePath}.tmp`
+  writeFileSync(tmp, sceneRaw)
+  renameSync(tmp, scenePath)
+  return { title: meta.title, updatedAt: meta.updatedAt, dir, medium: 'excalidraw' }
+}
+
 export function clearEvidence(repoPath: string): void {
   rmSync(evidenceDirForRepo(repoPath), { recursive: true, force: true })
   // Also drop a legacy evidence.json entry if present.

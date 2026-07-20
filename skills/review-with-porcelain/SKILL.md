@@ -7,11 +7,30 @@ description: Push a feature review set to the Porcelain app — and read the hum
 
 Porcelain is a desktop review companion (macOS and Linux). Its **Feature** tab is the **Review**: sidebar **outline** (section titles + files + Loop evidence row) and a viewer **canvas** opened from the review title.
 
-- **Overview** (default canvas tab) — thesis, then walkthrough sections in flow order (entry point → data), each with prose / optional diagram or HTML embed / anchored code, then unanchored **"More files"**.
-- **Loop evidence** (second canvas tab, when present) — full-height proof you closed the loop (see `loop-evidence` skill). Not buried at the bottom of a long scroll.
+- **Overview** (default canvas tab) — by default the structured document: thesis, walkthrough sections in flow order (entry point → data), each with prose / optional diagram or HTML embed / anchored code, then unanchored **"More files"**. Optionally a freeform board (HTML or Excalidraw) via `review set-canvas` — when set, Overview shows that board full-height; the outline still uses files/sections.
+- **Loop evidence** (second canvas tab, when present) — full-height proof you closed the loop (see `loop-evidence` skill). Body is **HTML or Excalidraw** (agent chooses). Not buried at the bottom of a long scroll.
 - **File rows** in the outline open the **file** with agent-changed lines highlighted (diff is available from the file row's context menu as "Open diff").
 
 You built the feature, so you know its true boundary — hand it over as a narrative the human can read as a story, not just the files that happen to have changed. Without a review set the Feature tab shows "No review yet" — there is no automatic baseline.
+
+### Choosing a medium (Overview freeform + Loop evidence)
+
+| Prefer **structured document** / **HTML** when… | Prefer **Excalidraw** when… |
+|---|---|
+| Walkthrough with code anchors (default Overview) | Architecture / data-flow whiteboard, box-and-arrow system map |
+| Screenshots, pass/fail reports, tables, metrics (default evidence) | Human needs to *see the shape* of the system at a glance |
+| Content is already a self-contained page | Spatial layout that prose + section SVG can't carry |
+
+**Bias:** structured document for Overview; HTML for evidence. Reach for Excalidraw only when a freeform diagram is clearly better. One body per tab per push — never both HTML and Excalidraw for the same pane (if both evidence files exist, HTML wins).
+
+```bash
+# Freeform Overview (optional — outline still uses --files/--sections)
+~/.porcelain/porcelain review set-canvas --medium html --html-file ./overview.html
+~/.porcelain/porcelain review set-canvas --medium excalidraw --file ./board.excalidraw
+~/.porcelain/porcelain review clear-canvas   # back to structured document
+```
+
+Agents should **not** hand-author Excalidraw JSON — export a `.excalidraw` file from the Excalidraw app (or generate one with a tool) and pass `--file`.
 
 ## When to use
 

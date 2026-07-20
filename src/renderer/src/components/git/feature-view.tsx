@@ -1,5 +1,6 @@
 import type { FeatureReading } from '@backend/feature-view'
 import type { FileSource } from '@backend/review-set'
+import { CanvasBody } from '@renderer/components/git/canvas-body'
 import { EvidencePanel } from '@renderer/components/git/evidence-panel'
 import { Button } from '@renderer/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@renderer/components/ui/tabs'
@@ -207,7 +208,7 @@ export function FeatureView(): React.JSX.Element {
             </TabsList>
           </div>
           <TabsContent value="overview" className="min-h-0 flex-1 outline-none">
-            <ReadingSurfaceBody reading={reading} trackFocus includeEvidence={false} />
+            <OverviewBody reading={reading} />
           </TabsContent>
           <TabsContent value="evidence" className="min-h-0 flex-1 outline-none">
             <EvidencePanel
@@ -219,9 +220,17 @@ export function FeatureView(): React.JSX.Element {
         </Tabs>
       ) : (
         <div className="min-h-0 flex-1">
-          <ReadingSurfaceBody reading={reading} trackFocus includeEvidence={false} />
+          <OverviewBody reading={reading} />
         </div>
       )}
     </div>
   )
+}
+
+/** Overview: freeform canvas when agent published one; else structured document. */
+function OverviewBody({ reading }: { reading: FeatureReading }): React.JSX.Element {
+  if (reading.canvas) {
+    return <CanvasBody canvas={reading.canvas} />
+  }
+  return <ReadingSurfaceBody reading={reading} trackFocus includeEvidence={false} />
 }

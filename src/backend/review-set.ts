@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { MAX_SCENE_BYTES } from '../shared/excalidraw-scene'
 
 /**
  * Where a file in a feature view comes from, relative to the change under review:
@@ -82,11 +83,48 @@ export interface ReviewSection {
   anchors: ReviewSectionAnchor[]
 }
 
+/**
+ * Freeform Overview canvas body (optional). When set, the Feature Overview tab
+ * renders this full-height instead of the structured reading surface; thesis +
+ * sections still drive the sidebar outline. Not a revival of the deleted
+ * feature-artifact channel — a medium on the same Review.
+ */
+export const reviewCanvasSchema = z
+  .discriminatedUnion('medium', [
+    z.object({
+      medium: z.literal('html'),
+      html: z.string().min(1).max(524_288),
+    }),
+    z.object({
+      medium: z.literal('excalidraw'),
+      // Shape gate; byte cap via superRefine (mirrors parseExcalidrawScene).
+      scene: z
+        .object({
+          elements: z.array(z.unknown()),
+        })
+        .passthrough(),
+    }),
+  ])
+  .superRefine((value, ctx) => {
+    if (value.medium !== 'excalidraw') return
+    const bytes = Buffer.byteLength(JSON.stringify(value.scene), 'utf8')
+    if (bytes > MAX_SCENE_BYTES) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `canvas.scene is ${bytes} bytes, over the ${MAX_SCENE_BYTES}-byte limit`,
+        path: ['scene'],
+      })
+    }
+  })
+
+export type ReviewCanvas = z.infer<typeof reviewCanvasSchema>
+
 export const reviewSetSchema = z.object({
   name: z.string().default('Feature view'),
   thesis: z.string().max(4096).optional(),
   files: z.array(reviewSetFileSchema).default([]),
   sections: z.array(reviewSectionSchema).max(30).default([]),
+  canvas: reviewCanvasSchema.optional(),
 })
 
 export interface ReviewSet {
@@ -96,6 +134,8 @@ export interface ReviewSet {
   files: ReviewSetFile[]
   /** The agent-authored walkthrough sections, in flow order. */
   sections: ReviewSection[]
+  /** Optional freeform Overview body (html | excalidraw). */
+  canvas?: ReviewCanvas
 }
 
 /** The on-disk shape the porcelain CLI writes: review sets keyed by absolute repo path. */

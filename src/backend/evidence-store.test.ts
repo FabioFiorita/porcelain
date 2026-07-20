@@ -52,8 +52,49 @@ describe('readEvidence (disk-first)', () => {
       updatedAt: '2026-07-17T00:00:00.000Z',
       dir,
       checks: [],
+      medium: 'html',
     })
     expect(evidenceDirForRepo('/repo')).toBe(dir)
+  })
+
+  it('reads an Excalidraw scene body when index.html is absent', async () => {
+    const dir = join(diskRoot, keyFor('/repo'))
+    mkdirSync(dir, { recursive: true })
+    const scene = {
+      type: 'excalidraw',
+      version: 2,
+      elements: [{ id: '1', type: 'rectangle', x: 0, y: 0, width: 40, height: 20 }],
+      appState: {},
+      files: {},
+    }
+    writeFileSync(join(dir, 'canvas.excalidraw'), JSON.stringify(scene))
+    writeFileSync(
+      join(dir, 'meta.json'),
+      JSON.stringify({
+        title: 'Arch board',
+        repoPath: '/repo',
+        updatedAt: '2026-07-20T00:00:00.000Z',
+      }),
+    )
+    const evidence = await readEvidence('/repo')
+    expect(evidence).toMatchObject({
+      title: 'Arch board',
+      medium: 'excalidraw',
+      dir,
+    })
+    expect(evidence?.scene?.elements).toHaveLength(1)
+    expect(evidence?.html).toBeUndefined()
+  })
+
+  it('prefers HTML over Excalidraw when both bodies exist', async () => {
+    const dir = writeDisk('/repo', 'Both', '<p>html wins</p>')
+    writeFileSync(
+      join(dir, 'canvas.excalidraw'),
+      JSON.stringify({ elements: [{ id: '1', type: 'rectangle' }] }),
+    )
+    const evidence = await readEvidence('/repo')
+    expect(evidence?.medium).toBe('html')
+    expect(evidence?.html).toContain('html wins')
   })
 
   it('reads back valid structured checks', async () => {
@@ -116,6 +157,21 @@ describe('readEvidenceMeta', () => {
     expect(await readEvidenceMeta('/repo')).toMatchObject({
       title: 'Vite loop',
       updatedAt: '2026-07-17T00:00:00.000Z',
+      medium: 'html',
+    })
+  })
+
+  it('returns meta for a scene-only evidence dir', async () => {
+    const dir = join(diskRoot, keyFor('/repo'))
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(join(dir, 'canvas.excalidraw'), JSON.stringify({ elements: [] }))
+    writeFileSync(
+      join(dir, 'meta.json'),
+      JSON.stringify({ title: 'Scene only', updatedAt: '2026-07-20T00:00:00.000Z' }),
+    )
+    expect(await readEvidenceMeta('/repo')).toMatchObject({
+      title: 'Scene only',
+      medium: 'excalidraw',
     })
   })
 

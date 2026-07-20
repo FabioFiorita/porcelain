@@ -8,7 +8,7 @@ import {
   parseImports,
   resolveImport,
 } from './flow'
-import type { FileSource, ReviewSection, ReviewSet } from './review-set'
+import type { FileSource, ReviewCanvas, ReviewSection, ReviewSet } from './review-set'
 
 // Resolution order for an extension-less import. Mirrors the resolver in flow.ts
 // but checks set membership (O(1)) instead of scanning a list — the baseline walks
@@ -270,8 +270,19 @@ export interface FeatureReading {
   sections: ReviewSectionReading[]
   /** Files not anchored by any section, flow-grouped ("More files"). */
   groups: ReadingGroup[]
-  /** Loop-evidence meta when present (the final chapter); html fetched lazily. */
-  evidence: { title: string; updatedAt: string; checks: EvidenceCheck[] } | null
+  /**
+   * Optional freeform Overview body. When set, Feature Overview renders this
+   * full-height instead of the structured reading surface (outline still uses
+   * thesis/sections/files).
+   */
+  canvas?: ReviewCanvas
+  /** Loop-evidence meta when present; full body fetched lazily via loopEvidenceHtml. */
+  evidence: {
+    title: string
+    updatedAt: string
+    checks: EvidenceCheck[]
+    medium: 'html' | 'excalidraw'
+  } | null
 }
 
 // A ranged anchor renders at most this many lines — mirrors feature-slice's
@@ -296,7 +307,8 @@ export function buildFeatureReading(params: {
   sections: readonly ReviewSection[]
   sources: ReadonlyMap<string, string>
   diffs: ReadonlyMap<string, DiffHunk[]>
-  evidence: { title: string; updatedAt: string; checks: EvidenceCheck[] } | null
+  evidence: FeatureReading['evidence']
+  canvas?: FeatureReading['canvas']
 }): FeatureReading {
   const unionPaths = params.view.groups.flatMap((g) => g.files.map((f) => f.path))
   const resolve = (spec: string, importer: string): string | null =>
@@ -404,6 +416,7 @@ export function buildFeatureReading(params: {
     thesis: params.view.thesis,
     sections,
     groups,
+    canvas: params.canvas,
     evidence: params.evidence,
   }
 }

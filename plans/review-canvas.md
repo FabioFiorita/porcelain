@@ -1,9 +1,9 @@
 # Review canvas — live doc
 
 Written 2026-07-20 in a Mac **planning-only** session — execution happens on THIS
-checkout (the Beelink), not the Mac. Status: **A+B SHIPPED** (2026-07-20); **C (Excalidraw medium) still open**
-(maintainer review 2026-07-20: Pieces 1–3 solid; Excalidraw promoted from deferred
-to first-class medium; agent chooses HTML vs Excalidraw per canvas tab).
+checkout (the Beelink), not the Mac. Status: **A+B+C SHIPPED** (2026-07-20)
+(maintainer review 2026-07-20: Pieces 1–3 solid; Excalidraw dual medium in-scope;
+agent chooses HTML vs Excalidraw per canvas tab via skills + CLI).
 
 User feedback on the shipped Review (screenshots in session): the sidebar title
 doesn't read as clickable, and the loop evidence sits at the bottom of a very

@@ -32,11 +32,17 @@ export interface ReviewSection {
   anchors: ReviewSectionAnchor[]
 }
 
+/** Freeform Overview canvas — html or excalidraw scene (mirrors backend review-set). */
+export type ReviewCanvas =
+  | { medium: 'html'; html: string }
+  | { medium: 'excalidraw'; scene: Record<string, unknown> & { elements: unknown[] } }
+
 export interface ReviewSet {
   name: string
   thesis?: string
   files: ReviewFile[]
   sections: ReviewSection[]
+  canvas?: ReviewCanvas
 }
 
 // Caps mirrored from src/backend/review-set.ts (the zod schema Porcelain re-validates
@@ -47,6 +53,7 @@ const MAX_TITLE_CHARS = 200
 const MAX_PROSE_CHARS = 32_768
 const MAX_DIAGRAM_CHARS = 262_144
 const MAX_HTML_CHARS = 524_288
+const MAX_SCENE_BYTES = 1_048_576
 const MIN_HTML_HEIGHT = 160
 const MAX_HTML_HEIGHT = 1600
 const MAX_ANCHORS = 40
@@ -229,6 +236,67 @@ export function mergeReviewFiles(
   return [...byPath.values()]
 }
 
+function parseReviewCanvas(value: unknown): ReviewCanvas | undefined {
+  if (!isRecord(value) || typeof value.medium !== 'string') return undefined
+  if (value.medium === 'html') {
+    if (typeof value.html !== 'string' || value.html.length === 0) return undefined
+    if (value.html.length > MAX_HTML_CHARS) return undefined
+    return { medium: 'html', html: value.html }
+  }
+  if (value.medium === 'excalidraw') {
+    if (!isRecord(value.scene) || !Array.isArray(value.scene.elements)) return undefined
+    const bytes = Buffer.byteLength(JSON.stringify(value.scene), 'utf8')
+    if (bytes > MAX_SCENE_BYTES) return undefined
+    return {
+      medium: 'excalidraw',
+      scene: value.scene as Record<string, unknown> & { elements: unknown[] },
+    }
+  }
+  return undefined
+}
+
+/**
+ * Validate + build a canvas payload from CLI flags. Throws with an actionable
+ * message (never silently drop).
+ */
+export function toReviewCanvas(
+  medium: string,
+  opts: { html?: string; sceneRaw?: string },
+): ReviewCanvas {
+  if (medium === 'html') {
+    if (typeof opts.html !== 'string' || opts.html.length === 0) {
+      throw new Error('html medium requires --html or --html-file with non-empty content')
+    }
+    if (opts.html.length > MAX_HTML_CHARS) {
+      throw new Error(`html is ${opts.html.length} chars, over the ${MAX_HTML_CHARS}-char limit`)
+    }
+    return { medium: 'html', html: opts.html }
+  }
+  if (medium === 'excalidraw') {
+    if (typeof opts.sceneRaw !== 'string' || opts.sceneRaw.trim().length === 0) {
+      throw new Error('excalidraw medium requires --file <scene.excalidraw> with non-empty JSON')
+    }
+    const bytes = Buffer.byteLength(opts.sceneRaw, 'utf8')
+    if (bytes > MAX_SCENE_BYTES) {
+      throw new Error(`scene is ${bytes} bytes, over the ${MAX_SCENE_BYTES}-byte limit`)
+    }
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(opts.sceneRaw)
+    } catch {
+      throw new Error('scene file is not valid JSON')
+    }
+    if (!isRecord(parsed) || !Array.isArray(parsed.elements)) {
+      throw new Error('scene must be an Excalidraw export object with an elements array')
+    }
+    return {
+      medium: 'excalidraw',
+      scene: parsed as Record<string, unknown> & { elements: unknown[] },
+    }
+  }
+  throw new Error('medium must be html or excalidraw')
+}
+
 function readAll(): ReviewSets {
   let parsed: unknown
   try {
@@ -246,6 +314,8 @@ function readAll(): ReviewSets {
       sections: parseReviewSections(value.sections),
     }
     if (typeof value.thesis === 'string') set.thesis = value.thesis
+    const canvas = parseReviewCanvas(value.canvas)
+    if (canvas) set.canvas = canvas
     sets[repoPath] = set
   }
   return sets
@@ -261,7 +331,13 @@ function writeAll(sets: ReviewSets): void {
 
 export function setReview(repoPath: string, set: ReviewSet): void {
   const sets = readAll()
-  sets[repoPath] = set
+  // Preserve a freeform Overview canvas unless the new set explicitly carries one
+  // (set-canvas is the dedicated verb; a plain review set shouldn't wipe it).
+  const prev = sets[repoPath]
+  sets[repoPath] = {
+    ...set,
+    canvas: set.canvas ?? prev?.canvas,
+  }
   writeAll(sets)
 }
 
@@ -273,6 +349,25 @@ export function addReviewFiles(repoPath: string, files: ReviewFile[]): number {
   sets[repoPath] = { ...current, files: merged }
   writeAll(sets)
   return merged.length
+}
+
+/** Attach or replace the freeform Overview canvas on an existing (or empty) set. */
+export function setReviewCanvas(repoPath: string, canvas: ReviewCanvas): void {
+  const sets = readAll()
+  const current = sets[repoPath] ?? { name: 'Feature view', files: [], sections: [] }
+  sets[repoPath] = { ...current, canvas }
+  writeAll(sets)
+}
+
+/** Drop the freeform Overview canvas; thesis/sections/files stay. */
+export function clearReviewCanvas(repoPath: string): boolean {
+  const sets = readAll()
+  const current = sets[repoPath]
+  if (!current?.canvas) return false
+  const { canvas: _drop, ...rest } = current
+  sets[repoPath] = rest
+  writeAll(sets)
+  return true
 }
 
 export function clearReview(repoPath: string): void {
@@ -296,7 +391,7 @@ export function readReview(repoPath: string): ReviewSet | null {
  * it renders, which the summary calls out.
  */
 export function describeReview(repoPath: string, review: ReviewSet | null): string {
-  if (!review || (review.files.length === 0 && review.sections.length === 0)) {
+  if (!review || (review.files.length === 0 && review.sections.length === 0 && !review.canvas)) {
     return `No feature review set for ${repoPath}. Porcelain shows the no-review empty state until one is pushed. Use \`porcelain review set\` to define one.`
   }
   const counts = new Map<string, number>()
@@ -307,7 +402,9 @@ export function describeReview(repoPath: string, review: ReviewSet | null): stri
   const breakdown = [...counts.entries()].map(([source, n]) => `${n} ${source}`).join(', ')
   const roundTrip: Record<string, unknown> = { files: review.files, sections: review.sections }
   if (review.thesis !== undefined) roundTrip.thesis = review.thesis
+  if (review.canvas !== undefined) roundTrip.canvas = { medium: review.canvas.medium }
   const json = JSON.stringify(roundTrip, null, 2)
   const fileCount = `${review.files.length} file(s)${breakdown ? ` (${breakdown})` : ''}`
-  return `Feature review "${review.name}" for ${repoPath}: ${fileCount}, ${review.sections.length} section(s), thesis ${review.thesis ? 'set' : 'not set'}. Working-tree files render as "changed" regardless of declared source.\n${json}`
+  const canvasNote = review.canvas ? `, overview canvas=${review.canvas.medium}` : ''
+  return `Feature review "${review.name}" for ${repoPath}: ${fileCount}, ${review.sections.length} section(s), thesis ${review.thesis ? 'set' : 'not set'}${canvasNote}. Working-tree files render as "changed" regardless of declared source.\n${json}`
 }

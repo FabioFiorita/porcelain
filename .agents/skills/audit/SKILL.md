@@ -382,8 +382,10 @@ assumed — this skill is the codebase-specific layer beneath them.
   directory. Legacy `evidence.json` is still read as a fallback. Same sandbox invariant as
   the section diagrams: loop evidence now renders as the Review canvas **Loop evidence
   tab** (the standalone `evidence-view.tsx` / `evidence` tab kind is GONE; it is no longer
-  a final chapter of the flat reading surface) — `EvidencePanel` hands the html to
-  `HtmlView` (`sandbox=""` + `srcdoc`); never widen `img-src`/`default-src`. The panel also
+  a final chapter of the flat reading surface) — `EvidencePanel` hands HTML to
+  `HtmlView` (`sandbox=""` + `srcdoc`) or an Excalidraw scene to a lazy read-only host
+  (inert JSON, no iframe, self-hosted fonts under `excalidraw-assets/` — never widen
+  `font-src`/`img-src`/`default-src` for a CDN). The panel also
   renders **structured checks natively** — plain
   React with the agent-authored label/detail as **escaped text**, NOT through the iframe — so
   they add no active-content surface (the sandboxed HTML body stays the deep proof; the sandbox

@@ -12,7 +12,13 @@ Porcelain can render **loop evidence**: a self-contained HTML document you autho
 | **The Review** (`review-with-porcelain`) | The walkthrough — what to read, in flow order, and *how it works* |
 | **Loop evidence** (this skill) | Ephemeral proof — *it works; here is what I ran and saw* |
 
-Loop evidence renders as the Review canvas **Loop evidence** tab (full height — not a chapter at the bottom of a long Overview). The human reaches it from the Feature tab — the outline's **Loop evidence** row opens that tab directly — and hits **Clear** when done (e.g. before commit/push). You do not need to keep evidence forever.
+Loop evidence renders as the Review canvas **Loop evidence** tab (full height — not a chapter at the bottom of a long Overview). The body is **HTML** (default) or **Excalidraw** — pick one:
+
+| Prefer **HTML** when… | Prefer **Excalidraw** when… |
+|---|---|
+| Screenshots, pass/fail reports, tables, multi-step browser proof (default) | Proof is itself a spatial diagram (rare — usually HTML) |
+
+Write either `index.html` or `canvas.excalidraw` in the evidence directory (HTML wins if both exist). Structured checks (`evidence check`) always apply. The human reaches the tab from the Feature outline's **Loop evidence** row and hits **Clear** when done.
 
 The CLI lives at `~/.porcelain/porcelain` — installed automatically and kept fresh on every app launch (no registration, no MCP config). Run it from **inside the repo** and it targets that repo automatically (git toplevel of the cwd); add `--repo <absolute path>` only to point at a different checkout.
 
@@ -22,10 +28,10 @@ The CLI lives at `~/.porcelain/porcelain` — installed automatically and kept f
 
 1. `~/.porcelain/porcelain evidence prepare --title "<title>"` → prints an absolute directory path, e.g.
    `~/.porcelain/loop-evidence/<key>/` (title-only; no HTML flags on `prepare`).
-2. Write into that directory with your file tools:
-   - **`index.html`** — the document (required for Porcelain to show the opener).
-   - **screenshots** as real image files next to it (`shot.png`, …) referenced with relative `src` — `<img src="shot.png">`. Porcelain inlines them for the sandboxed viewer; a browser opening `index.html` works too.
-3. Done. Porcelain discovers the directory within a few seconds and adds the **Loop evidence** canvas tab (Feature tab → outline **Loop evidence** row, or Overview | Loop evidence tabs in the viewer). No second CLI call with the HTML. You can also open `index.html` from the Files tree (or any `.html` file) — Porcelain has a built-in sandboxed **Preview** for HTML (toggle Source for the raw file).
+2. Write into that directory with your file tools — **one body**:
+   - **HTML (default):** `index.html` + optional **screenshots** as sibling files (`shot.png`, …) with relative `src` — `<img src="shot.png">`. Porcelain inlines them for the sandboxed viewer.
+   - **Excalidraw (optional):** `canvas.excalidraw` (export from Excalidraw; do not hand-type the JSON). Or `porcelain evidence set --title "…" --medium excalidraw --file ./board.excalidraw`.
+3. Done. Porcelain discovers the directory within a few seconds and adds the **Loop evidence** canvas tab. No second CLI call for large HTML — write the file yourself.
 
 Optional helpers:
 

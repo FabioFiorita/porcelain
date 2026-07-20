@@ -6,8 +6,7 @@ phases), **`design-overhaul.md`** (the UI professionalism gap vs T3
 Code/Synara — diagnosis + phased fixes), and **`review-canvas.md`** (the Review
 tab redesign — clickable-title affordance, tabbed Overview | Loop evidence
 canvas, changed-line highlighting, dual medium HTML|Excalidraw with agent
-choice via skills; written 2026-07-20, **ACCEPTED** with Excalidraw in-scope).
-Keep until their phases ship. Completed
+choice via skills; written 2026-07-20, **A+B+C SHIPPED**). Completed
 plan files were removed after reconcile (**recoverable from git** — e.g.
 `git show 0a7e59c:plans/025-unify-persistence-factories.md`). This file is the
 standalone record of what shipped.

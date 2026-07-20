@@ -113,7 +113,12 @@ const document: FeatureReading = {
       files: [{ path: 'server/svc.ts', source: 'shipped', ranges: [] }],
     },
   ],
-  evidence: { title: 'Loop closed', updatedAt: '2026-07-18T00:00:00.000Z', checks: [] },
+  evidence: {
+    title: 'Loop closed',
+    updatedAt: '2026-07-18T00:00:00.000Z',
+    checks: [],
+    medium: 'html',
+  },
 }
 
 describe('buildRows (Review document)', () => {
@@ -209,7 +214,12 @@ describe('buildRows (evidence checks)', () => {
     name: 'X',
     sections: [],
     groups: [],
-    evidence: { title: 'Loop closed', updatedAt: '2026-07-18T00:00:00.000Z', checks: list },
+    evidence: {
+      title: 'Loop closed',
+      updatedAt: '2026-07-18T00:00:00.000Z',
+      checks: list,
+      medium: 'html',
+    },
   })
 
   it('inserts an evidenceChecks row (carrying the checks) between header and body', () => {

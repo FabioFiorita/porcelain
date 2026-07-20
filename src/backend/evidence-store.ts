@@ -8,8 +8,14 @@ import {
   MAX_CHECK_LABEL,
   MAX_CHECKS,
 } from '../shared/evidence-check'
+import { type ExcalidrawScene, parseExcalidrawScene } from '../shared/excalidraw-scene'
 import { inlineLocalAssets } from './evidence-assets'
-import { evidenceDirForRepo, evidenceIndexPath, evidenceMetaPath } from './evidence-paths'
+import {
+  evidenceDirForRepo,
+  evidenceIndexPath,
+  evidenceMetaPath,
+  evidenceScenePath,
+} from './evidence-paths'
 import { createHomeChannel } from './home-channel'
 
 // Structured checks live in the node-free `../shared/evidence-check` leaf so the
@@ -24,10 +30,14 @@ export {
 /**
  * Loop evidence — **files on disk are the source of truth.**
  *
- *   ~/.porcelain/loop-evidence/<key>/index.html  (+ optional screenshots, meta.json)
+ *   ~/.porcelain/loop-evidence/<key>/
+ *     index.html          — HTML body (wins when both bodies exist)
+ *     canvas.excalidraw   — Excalidraw scene body
+ *     meta.json           — title / checks
+ *     + optional screenshots
  *
  * Agents write those files with normal Write tools (no CLI payload). The app
- * reads the directory, inlines relative images for the sandboxed viewer, and
+ * reads the directory, inlines relative images for the sandboxed HTML viewer, and
  * clears by deleting the directory. Legacy `evidence.json` (HTML embedded by the
  * older `evidence set`) is still read as a fallback.
  *
@@ -66,13 +76,30 @@ const metaSchema = z.object({
   checks: checkSchema.array().max(MAX_CHECKS).catch([]).optional(),
 })
 
-export type Evidence = z.infer<typeof evidenceSchema> & {
-  /** Absolute directory holding index.html (for "open in browser" / Reveal). */
+export type EvidenceMedium = 'html' | 'excalidraw'
+
+export type Evidence = {
+  title: string
+  updatedAt: string
+  /** Absolute directory (for "open in browser" / Reveal). */
   dir?: string
   /** Structured verification checks (empty when none were recorded). */
   checks: EvidenceCheck[]
+  /** Body medium — HTML wins when both index.html and canvas.excalidraw exist. */
+  medium: EvidenceMedium
+  /** Present when medium is html (inlined for the sandboxed iframe). */
+  html?: string
+  /** Present when medium is excalidraw (inert JSON for our host component). */
+  scene?: ExcalidrawScene
 }
-export type EvidenceMeta = Pick<Evidence, 'title' | 'updatedAt' | 'checks'> & { dir?: string }
+
+export type EvidenceMeta = {
+  title: string
+  updatedAt: string
+  checks: EvidenceCheck[]
+  dir?: string
+  medium: EvidenceMedium
+}
 
 /** Legacy channel (HTML embedded in JSON) — fallback + clear of old entries. */
 export function evidencePath(): string {
@@ -80,7 +107,12 @@ export function evidencePath(): string {
 }
 
 // Re-export path helpers so callers (review-watch, e2e) use one place.
-export { evidenceDirForRepo, evidenceIndexPath, loopEvidenceRoot } from './evidence-paths'
+export {
+  evidenceDirForRepo,
+  evidenceIndexPath,
+  evidenceScenePath,
+  loopEvidenceRoot,
+} from './evidence-paths'
 
 const channel = createHomeChannel({
   path: evidencePath,
@@ -96,37 +128,75 @@ async function readDiskMeta(repoPath: string): Promise<z.infer<typeof metaSchema
   }
 }
 
+async function fileExists(path: string): Promise<boolean> {
+  try {
+    await stat(path)
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function resolveUpdatedAt(
+  bodyPath: string,
+  meta: z.infer<typeof metaSchema> | null,
+): Promise<string> {
+  if (meta?.updatedAt) return meta.updatedAt
+  try {
+    return (await stat(bodyPath)).mtime.toISOString()
+  } catch {
+    return ''
+  }
+}
+
 /**
- * Prefer on-disk index.html; fall back to legacy evidence.json. Oversized HTML is
- * treated as absent (never thrown) so one bad write can't break the viewer.
+ * Prefer on-disk index.html (HTML wins); else canvas.excalidraw; else legacy
+ * evidence.json. Oversized / malformed bodies are treated as absent (never thrown).
  */
 export async function readEvidence(repoPath: string): Promise<Evidence | null> {
   const dir = evidenceDirForRepo(repoPath)
   const indexPath = evidenceIndexPath(repoPath)
-  try {
-    const raw = await readFile(indexPath, 'utf8')
-    if (raw.length === 0) return null
-    if (Buffer.byteLength(raw, 'utf8') > MAX_HTML_BYTES) return null
-    const html = await inlineLocalAssets(dir, raw)
-    if (Buffer.byteLength(html, 'utf8') > MAX_HTML_BYTES) return null
-    const meta = await readDiskMeta(repoPath)
-    let updatedAt = meta?.updatedAt ?? ''
-    if (!updatedAt) {
-      try {
-        updatedAt = (await stat(indexPath)).mtime.toISOString()
-      } catch {
-        updatedAt = ''
+  const scenePath = evidenceScenePath(repoPath)
+  const meta = await readDiskMeta(repoPath)
+  const checks = meta?.checks ?? []
+  const title = meta?.title?.trim() || 'Loop evidence'
+
+  if (await fileExists(indexPath)) {
+    try {
+      const raw = await readFile(indexPath, 'utf8')
+      if (raw.length === 0) return null
+      if (Buffer.byteLength(raw, 'utf8') > MAX_HTML_BYTES) return null
+      const html = await inlineLocalAssets(dir, raw)
+      if (Buffer.byteLength(html, 'utf8') > MAX_HTML_BYTES) return null
+      return {
+        title,
+        html,
+        updatedAt: await resolveUpdatedAt(indexPath, meta),
+        dir,
+        checks,
+        medium: 'html',
       }
+    } catch {
+      return null
     }
-    return {
-      title: meta?.title?.trim() || 'Loop evidence',
-      html,
-      updatedAt,
-      dir,
-      checks: meta?.checks ?? [],
+  }
+
+  if (await fileExists(scenePath)) {
+    try {
+      const raw = await readFile(scenePath, 'utf8')
+      const parsed = parseExcalidrawScene(raw)
+      if (!parsed.ok) return null
+      return {
+        title,
+        updatedAt: await resolveUpdatedAt(scenePath, meta),
+        dir,
+        checks,
+        medium: 'excalidraw',
+        scene: parsed.scene,
+      }
+    } catch {
+      return null
     }
-  } catch {
-    // no index.html — try legacy json
   }
 
   try {
@@ -134,45 +204,52 @@ export async function readEvidence(repoPath: string): Promise<Evidence | null> {
     const evidence = all[repoPath]
     if (!evidence) return null
     if (Buffer.byteLength(evidence.html, 'utf8') > MAX_HTML_BYTES) return null
-    return { ...evidence, checks: [] }
+    return {
+      title: evidence.title,
+      html: evidence.html,
+      updatedAt: evidence.updatedAt,
+      checks: [],
+      medium: 'html',
+    }
   } catch {
     return null
   }
 }
 
-/** Metadata only (title + updatedAt + dir), for the Feature list opener. */
+/** Metadata only, for the Feature list opener (no HTML / scene payload). */
 export async function readEvidenceMeta(repoPath: string): Promise<EvidenceMeta | null> {
   const indexPath = evidenceIndexPath(repoPath)
-  try {
-    await stat(indexPath)
+  const scenePath = evidenceScenePath(repoPath)
+  const hasIndex = await fileExists(indexPath)
+  const hasScene = await fileExists(scenePath)
+
+  if (hasIndex || hasScene) {
     const meta = await readDiskMeta(repoPath)
-    let updatedAt = meta?.updatedAt ?? ''
-    if (!updatedAt) {
-      try {
-        updatedAt = (await stat(indexPath)).mtime.toISOString()
-      } catch {
-        updatedAt = ''
-      }
-    }
+    const bodyPath = hasIndex ? indexPath : scenePath
     return {
       title: meta?.title?.trim() || 'Loop evidence',
-      updatedAt,
+      updatedAt: await resolveUpdatedAt(bodyPath, meta),
       dir: evidenceDirForRepo(repoPath),
       checks: meta?.checks ?? [],
+      // HTML wins when both exist (matches readEvidence).
+      medium: hasIndex ? 'html' : 'excalidraw',
     }
-  } catch {
-    // fall through to legacy
   }
 
-  const evidence = await readEvidence(repoPath)
-  return evidence
-    ? {
-        title: evidence.title,
-        updatedAt: evidence.updatedAt,
-        dir: evidence.dir,
-        checks: evidence.checks,
-      }
-    : null
+  // Legacy JSON channel.
+  try {
+    const all = evidencesSchema.parse(JSON.parse(await readFile(evidencePath(), 'utf8')))
+    const evidence = all[repoPath]
+    if (!evidence) return null
+    return {
+      title: evidence.title,
+      updatedAt: evidence.updatedAt,
+      checks: [],
+      medium: 'html',
+    }
+  } catch {
+    return null
+  }
 }
 
 /**

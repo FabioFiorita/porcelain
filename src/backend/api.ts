@@ -967,10 +967,17 @@ export const router = t.router({
       // stale/absent final chapter until the working tree changed.
       const meta = await readEvidenceMeta(input)
       const evidence = meta
-        ? { title: meta.title, updatedAt: meta.updatedAt, checks: meta.checks }
+        ? {
+            title: meta.title,
+            updatedAt: meta.updatedAt,
+            checks: meta.checks,
+            medium: meta.medium,
+          }
         : null
+      const canvas = g.reviewSet.canvas
       const cached = featureReadingCache.get(input)
-      if (cached && cached.key === g.key) return { ...cached.reading, evidence }
+      // Evidence + canvas can change without the feature key; always reattach them.
+      if (cached && cached.key === g.key) return { ...cached.reading, evidence, canvas }
       const { view, sources } = await getFeatureBuild(input, { ...g, reviewSet: g.reviewSet })
       const changed = view.groups
         .flatMap((group) => group.files)
@@ -992,6 +999,7 @@ export const router = t.router({
         sources,
         diffs,
         evidence,
+        canvas,
       })
       featureReadingCache.set(input, { key: g.key, reading })
       return reading
