@@ -29,10 +29,18 @@ export interface DiffHunk {
 /**
  * A single file's diff plus the status that produced it, so a viewer can tell a
  * deleted file (no longer on disk) from a modified one without a second query.
+ *
+ * Images and other binaries never ride `hunks` as UTF-8 text (that produced the
+ * �PNG dump in the viewer). When `image` is set the renderer shows a preview;
+ * when `binary` is set (and no image) it shows a "Binary file" placeholder.
  */
 export interface DiffFileResult {
   hunks: DiffHunk[]
   status: FileStatus
+  /** Working-tree (or commit) image preview as a data URL — set for known image types. */
+  image?: { dataUrl: string }
+  /** True when the file is binary and has no useful text diff (and isn't an image). */
+  binary?: boolean
 }
 
 const statusByCode: Record<string, FileStatus> = {

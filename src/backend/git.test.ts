@@ -10,6 +10,7 @@ import {
   gitCommitNumstat,
   gitCreateBranch,
   gitDefaultBranch,
+  gitDiffFile,
   gitFileInHead,
   gitFileLog,
   gitMergeBase,
@@ -750,5 +751,57 @@ describe('reviewedFingerprints', () => {
     const batch = await reviewedFingerprints(dir, ['a.ts', 'b.ts'])
     expect(batch.get('a.ts')).toBe(await reviewedFingerprint(dir, 'a.ts'))
     expect(batch.get('b.ts')).toBe(await reviewedFingerprint(dir, 'b.ts'))
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Image / binary diffs — never UTF-8-decode a PNG into hunks
+// ---------------------------------------------------------------------------
+
+const TINY_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64',
+)
+
+describe('gitDiffFile image/binary', () => {
+  const repos: string[] = []
+  afterAll(async () => {
+    await Promise.all(repos.map((d) => rm(d, { recursive: true, force: true })))
+  })
+
+  it('previews an untracked PNG instead of synthesizing a text add-diff', async () => {
+    const dir = await makeRepo()
+    repos.push(dir)
+    await writeFile(join(dir, 'shot.png'), TINY_PNG)
+    const result = await gitDiffFile(dir, 'shot.png')
+    expect(result.status).toBe('untracked')
+    expect(result.hunks).toEqual([])
+    expect(result.binary).toBeUndefined()
+    expect(result.image?.dataUrl.startsWith('data:image/png;base64,')).toBe(true)
+    // Must never put PNG bytes into hunk text (the old �PNG dump).
+    expect(JSON.stringify(result.hunks)).not.toContain('PNG')
+  })
+
+  it('marks an untracked binary non-image without dumping bytes as text', async () => {
+    const dir = await makeRepo()
+    repos.push(dir)
+    await writeFile(join(dir, 'blob.bin'), Buffer.from([0x00, 0x01, 0x02, 0xff, 0xfe]))
+    const result = await gitDiffFile(dir, 'blob.bin')
+    expect(result.status).toBe('untracked')
+    expect(result.hunks).toEqual([])
+    expect(result.binary).toBe(true)
+    expect(result.image).toBeUndefined()
+  })
+
+  it('still synthesizes a text add-diff for untracked source files', async () => {
+    const dir = await makeRepo()
+    repos.push(dir)
+    await writeFile(join(dir, 'new.ts'), 'export const n = 1\n')
+    const result = await gitDiffFile(dir, 'new.ts')
+    expect(result.status).toBe('untracked')
+    expect(result.hunks.length).toBeGreaterThan(0)
+    expect(result.hunks[0]?.lines.some((l) => l.text.includes('export const n'))).toBe(true)
+    expect(result.binary).toBeUndefined()
+    expect(result.image).toBeUndefined()
   })
 })

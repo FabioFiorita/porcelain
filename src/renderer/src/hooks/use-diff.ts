@@ -9,6 +9,8 @@ export function useDiffFile(
 ): {
   hunks: DiffHunk[] | undefined
   status: FileStatus | undefined
+  image: { dataUrl: string } | undefined
+  binary: boolean
   error: { message: string } | null
 } {
   const repo = useRepoStore((s) => s.repo)
@@ -30,7 +32,13 @@ export function useDiffFile(
     },
   )
   const active = base === undefined ? working : range
-  return { hunks: active.data?.hunks, status: active.data?.status, error: active.error }
+  return {
+    hunks: active.data?.hunks,
+    status: active.data?.status,
+    image: active.data?.image,
+    binary: active.data?.binary === true,
+    error: active.error,
+  }
 }
 
 /** Prefetch a file's diff (changes-list hover) so opening the diff tab feels instant. */

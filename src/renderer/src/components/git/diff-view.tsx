@@ -36,7 +36,7 @@ export function DiffView({
   const diffMode = isMobile ? 'unified' : prefDiffMode
   const repo = useRepoStore((s) => s.repo)
   const openTab = useTabsStore((s) => s.openTab)
-  const { hunks, status, error } = useDiffFile(filePath, base)
+  const { hunks, status, image, binary, error } = useDiffFile(filePath, base)
   const reviewed = useReviewedPaths()
   const { mark, unmark } = useToggleReviewed()
   const isReviewed = reviewed.has(filePath)
@@ -76,7 +76,13 @@ export function DiffView({
   }
 
   if (error) return <p className="p-4 text-sm text-destructive">{error.message}</p>
-  if (hunks === undefined) return <p className="p-4 text-sm text-muted-foreground">Loading…</p>
+  if (hunks === undefined && image === undefined && !binary) {
+    return <p className="p-4 text-sm text-muted-foreground">Loading…</p>
+  }
+
+  // Image / binary diffs: no text hunks. Show a preview (images) or a quiet
+  // placeholder instead of the old UTF-8 dump of PNG bytes.
+  const nonText = image !== undefined || binary
 
   return (
     <div className="flex h-full flex-col">
@@ -125,46 +131,64 @@ export function DiffView({
               <TooltipContent>Open file</TooltipContent>
             </Tooltip>
           )}
-          <DiffModeToggle />
+          {!nonText && <DiffModeToggle />}
         </div>
       </div>
-      <ContextMenu
-        onOpenChange={(open) => {
-          if (open) setLineSel(lineSelectionFromDom())
-        }}
-      >
-        {/* select-text so the diff stays selectable (the ui trigger defaults to
-            select-none) — selecting lines is how you anchor a comment. */}
-        <ContextMenuTrigger className="block min-h-0 flex-1 select-text">
-          <HunksView
-            hunks={hunks}
-            filePath={filePath}
-            diffMode={diffMode}
-            commentIndex={commentIndex}
-            pendingLines={pendingLines}
+      {image !== undefined ? (
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 overflow-auto p-8">
+          <img
+            src={image.dataUrl}
+            alt={filePath}
+            className="max-h-full max-w-full object-contain"
           />
-        </ContextMenuTrigger>
-        <ContextMenuContent className="w-52">
-          {lineSel ? (
-            <ContextMenuItem
-              onClick={() =>
-                setCommentAnchor({
-                  path: filePath,
-                  startLine: lineSel.startLine,
-                  endLine: lineSel.endLine,
-                  anchorText: lineSel.text.slice(0, 2000),
-                })
-              }
-            >
-              <MessageSquarePlus /> Add comment
-            </ContextMenuItem>
-          ) : (
-            <ContextMenuItem onClick={() => setCommentAnchor({ path: filePath })}>
-              <MessageSquarePlus /> Comment on file
-            </ContextMenuItem>
-          )}
-        </ContextMenuContent>
-      </ContextMenu>
+          <p className="text-2xs text-muted-foreground">
+            {status === 'untracked' || status === 'added' ? 'New image' : 'Image changed'} · binary
+            diff
+          </p>
+        </div>
+      ) : binary ? (
+        <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+          Binary file
+        </div>
+      ) : (
+        <ContextMenu
+          onOpenChange={(open) => {
+            if (open) setLineSel(lineSelectionFromDom())
+          }}
+        >
+          {/* select-text so the diff stays selectable (the ui trigger defaults to
+              select-none) — selecting lines is how you anchor a comment. */}
+          <ContextMenuTrigger className="block min-h-0 flex-1 select-text">
+            <HunksView
+              hunks={hunks ?? []}
+              filePath={filePath}
+              diffMode={diffMode}
+              commentIndex={commentIndex}
+              pendingLines={pendingLines}
+            />
+          </ContextMenuTrigger>
+          <ContextMenuContent className="w-52">
+            {lineSel ? (
+              <ContextMenuItem
+                onClick={() =>
+                  setCommentAnchor({
+                    path: filePath,
+                    startLine: lineSel.startLine,
+                    endLine: lineSel.endLine,
+                    anchorText: lineSel.text.slice(0, 2000),
+                  })
+                }
+              >
+                <MessageSquarePlus /> Add comment
+              </ContextMenuItem>
+            ) : (
+              <ContextMenuItem onClick={() => setCommentAnchor({ path: filePath })}>
+                <MessageSquarePlus /> Comment on file
+              </ContextMenuItem>
+            )}
+          </ContextMenuContent>
+        </ContextMenu>
+      )}
       <CommentComposer
         anchor={commentAnchor}
         open={commentAnchor !== null}

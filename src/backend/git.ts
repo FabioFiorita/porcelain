@@ -23,6 +23,7 @@ import {
   synthesizeAddDiff,
   type Worktree,
 } from './diff'
+import { imageMimeForPath, isBinaryBuffer, isGitBinaryDiff } from './image-mime'
 import { exceedsReadLimit } from './read-limits'
 import { type GitSuggestion, parseSuggestions } from './suggestions'
 
@@ -599,19 +600,57 @@ export async function gitSearchCode(
   }
 }
 
+/**
+ * Read a path as an image data URL when the extension is a known image type and
+ * the file fits the viewer size cap. Returns null when the file is missing,
+ * oversized, or not an image — callers fall through to binary/text handling.
+ */
+async function imagePreview(absPath: string, mime: string): Promise<string | null> {
+  try {
+    const info = await stat(absPath)
+    if (exceedsReadLimit(info.size)) return null
+    const buffer = await readFile(absPath)
+    return `data:${mime};base64,${buffer.toString('base64')}`
+  } catch {
+    return null
+  }
+}
+
 export async function gitDiffFile(repoPath: string, filePath: string): Promise<DiffFileResult> {
   const status = await runGit(repoPath, ['status', '--porcelain=v1', '-uall', '-z', '--', filePath])
   const probed = parseStatus(status)[0]?.status
+  const abs = join(repoPath, filePath)
+  const mime = imageMimeForPath(filePath)
+
   if (probed === 'untracked') {
-    return {
-      hunks: synthesizeAddDiff(await readFile(join(repoPath, filePath), 'utf8')),
-      status: 'untracked',
+    // Images first — never UTF-8-decode a PNG into a synthetic add hunk (that
+    // was the �PNG dump in the Changes→diff viewer).
+    if (mime) {
+      const dataUrl = await imagePreview(abs, mime)
+      if (dataUrl) return { hunks: [], status: 'untracked', image: { dataUrl } }
+      return { hunks: [], status: 'untracked', binary: true }
     }
+    const buffer = await readFile(abs)
+    if (isBinaryBuffer(buffer)) {
+      return { hunks: [], status: 'untracked', binary: true }
+    }
+    return { hunks: synthesizeAddDiff(buffer.toString('utf8')), status: 'untracked' }
   }
-  const hunks = parseUnifiedDiff(
-    await runGit(repoPath, ['diff', 'HEAD', '--no-color', '--', filePath]),
-  )
-  return { hunks, status: probed ?? 'modified' }
+
+  const raw = await runGit(repoPath, ['diff', 'HEAD', '--no-color', '--', filePath])
+  const fileStatus = probed ?? 'modified'
+
+  // Known image types (and git's own "Binary files differ" marker): never try to
+  // render binary bytes as a text diff. Preview the working-tree image when present.
+  if (mime || isGitBinaryDiff(raw)) {
+    if (mime && fileStatus !== 'deleted') {
+      const dataUrl = await imagePreview(abs, mime)
+      if (dataUrl) return { hunks: [], status: fileStatus, image: { dataUrl } }
+    }
+    return { hunks: [], status: fileStatus, binary: true }
+  }
+
+  return { hunks: parseUnifiedDiff(raw), status: fileStatus }
 }
 
 function sha256Hex(input: string | Buffer): string {
@@ -793,7 +832,17 @@ export async function gitRangeDiffFile(
 ): Promise<DiffFileResult> {
   const mergeBase = await gitMergeBase(repoPath, base)
   const raw = await runGit(repoPath, ['diff', '--no-color', `${mergeBase}..HEAD`, '--', filePath])
-  return { hunks: parseUnifiedDiff(raw), status: diffFileStatus(raw) }
+  const status = diffFileStatus(raw)
+  const mime = imageMimeForPath(filePath)
+  if (mime || isGitBinaryDiff(raw)) {
+    // Range review is of committed content; preview HEAD when the image still exists.
+    if (mime && status !== 'deleted') {
+      const dataUrl = await imagePreview(join(repoPath, filePath), mime)
+      if (dataUrl) return { hunks: [], status, image: { dataUrl } }
+    }
+    return { hunks: [], status, binary: true }
+  }
+  return { hunks: parseUnifiedDiff(raw), status }
 }
 
 /**

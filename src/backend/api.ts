@@ -129,6 +129,7 @@ import {
   reviewedFingerprints,
   warmFileList,
 } from './git'
+import { imageMimeForPath, isBinaryBuffer } from './image-mime'
 import { readLayers, writeLayers } from './layers-store'
 import { readNotes, writeNotes } from './notes-store'
 import { exceedsReadLimit } from './read-limits'
@@ -206,18 +207,6 @@ export type FileView =
   | { type: 'binary'; size: number }
   | { type: 'too-large'; size: number }
   | { type: 'not-found' }
-
-const IMAGE_MIME: Record<string, string> = {
-  png: 'image/png',
-  jpg: 'image/jpeg',
-  jpeg: 'image/jpeg',
-  gif: 'image/gif',
-  webp: 'image/webp',
-  svg: 'image/svg+xml',
-  ico: 'image/x-icon',
-  bmp: 'image/bmp',
-  avif: 'image/avif',
-}
 
 const toRepoInfo = (path: string): RepoInfo => ({ path, name: basename(path) })
 
@@ -774,14 +763,13 @@ export const router = t.router({
       if (exceedsReadLimit(info.size)) {
         return { type: 'too-large', size: info.size }
       }
-      const ext = input.split('.').at(-1)?.toLowerCase() ?? ''
-      const imageMime = IMAGE_MIME[ext]
+      const imageMime = imageMimeForPath(input)
       if (imageMime) {
         const buffer = await readFile(input)
         return { type: 'image', dataUrl: `data:${imageMime};base64,${buffer.toString('base64')}` }
       }
       const buffer = await readFile(input)
-      if (buffer.subarray(0, 8000).includes(0)) {
+      if (isBinaryBuffer(buffer)) {
         return { type: 'binary', size: buffer.length }
       }
       return { type: 'text', content: buffer.toString('utf8') }
