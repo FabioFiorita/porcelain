@@ -138,6 +138,31 @@ describe('permissionModeForMode / buildGrokArgs', () => {
     })
     expect(args).toContain('--resume')
     expect(args[args.indexOf('--resume') + 1]).toBe('sess-1')
+    expect(args).not.toContain('--session-id')
+  })
+
+  it('pins a new session id on the first turn (so abort can still resume)', () => {
+    const args = buildGrokArgs({
+      prompt: 'first message',
+      model: '',
+      mode: 'full',
+      newSessionId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+    })
+    expect(args).toContain('--session-id')
+    expect(args[args.indexOf('--session-id') + 1]).toBe('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee')
+    expect(args).not.toContain('--resume')
+  })
+
+  it('prefers resume over newSessionId when both are set', () => {
+    const args = buildGrokArgs({
+      prompt: 'x',
+      model: '',
+      mode: 'full',
+      resumeId: 'existing',
+      newSessionId: 'should-not-appear',
+    })
+    expect(args).toContain('--resume')
+    expect(args).not.toContain('--session-id')
   })
 
   it('drops an unsupported effort', () => {

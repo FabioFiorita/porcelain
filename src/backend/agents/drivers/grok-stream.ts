@@ -166,7 +166,15 @@ export function buildGrokArgs(opts: {
   model: string
   mode: 'approve' | 'auto-edits' | 'full'
   interaction?: 'build' | 'plan'
+  /** Resume an existing Grok session (from a prior turn's `end.sessionId` or a pre-mint). */
   resumeId?: string
+  /**
+   * UUID for a **new** conversation (`--session-id`). Used on the first turn so we own
+   * the resume handle *before* the CLI's `end` event — Stop/abort never emits `end`,
+   * and without a stored sessionId the next turn starts cold (forgets prior messages).
+   * Mutually exclusive with `resumeId` (resume wins if both are set).
+   */
+  newSessionId?: string
   options?: { effort?: string }
 }): string[] {
   // Tell the agent it's running inside Porcelain on every headless turn. `--rules` is Grok's
@@ -191,6 +199,10 @@ export function buildGrokArgs(opts: {
   }
   if (opts.resumeId !== undefined && opts.resumeId !== '') {
     args.push('--resume', opts.resumeId)
+  } else if (opts.newSessionId !== undefined && opts.newSessionId !== '') {
+    // First turn of a Porcelain thread: pin the session id up front so abort still leaves
+    // a resumable conversation (Grok only prints sessionId on the final `end` line).
+    args.push('--session-id', opts.newSessionId)
   }
   // Keep headless stdout clean of update banners (they go to stderr anyway, but be explicit).
   args.push('--no-auto-update')

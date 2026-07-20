@@ -235,13 +235,27 @@ export const grokDriver: AgentDriver = {
         cleanupImages = prepared.cleanup
       }
 
+      // Session continuity trap (2026-07-20): streaming-json only emits `sessionId` on the
+      // final `end` line. Stop/abort kills the process before `end`, so without a pre-minted
+      // id `thread.sessionState` stays empty and the next turn (e.g. "here are the images")
+      // spawns a cold CLI with no prior messages — the agent "doesn't know what was going on."
+      // Mint a UUID for the first turn, pass `--session-id`, and persist it immediately so
+      // abort still leaves a resumable Grok conversation (verified: abort mid-stream +
+      // `--resume <id>` retains the aborted user prompt).
+      const resumeId = resumeSessionId(opts.resume)
+      const newSessionId = resumeId === undefined ? randomUUID() : undefined
+      if (newSessionId !== undefined) {
+        opts.onSessionState({ sessionId: newSessionId })
+      }
+
       const args = buildGrokArgs({
         prompt: opts.text,
         ...(promptJson !== undefined ? { promptJson } : {}),
         model: opts.model,
         mode: opts.mode,
         interaction: opts.interaction,
-        resumeId: resumeSessionId(opts.resume),
+        ...(resumeId !== undefined ? { resumeId } : {}),
+        ...(newSessionId !== undefined ? { newSessionId } : {}),
         options: opts.options,
       })
 
