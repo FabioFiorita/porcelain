@@ -1,3 +1,9 @@
+## [0.36.1](https://github.com/FabioFiorita/porcelain/compare/v0.36.0...v0.36.1) (2026-07-20)
+
+### Bug Fixes
+
+* **agent:** keep Grok context after Stop by pre-minting session id ([dc82db5](https://github.com/FabioFiorita/porcelain/commit/dc82db565de2c75ea3c613cd912db2fc01848780))
+
 ## [0.36.0](https://github.com/FabioFiorita/porcelain/compare/v0.35.2...v0.36.0) (2026-07-20)
 
 ### Features
