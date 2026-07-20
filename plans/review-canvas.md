@@ -386,7 +386,7 @@ phase on the same tabbed surface — not a third tab.
 - `audit` skill: evidence invariant wording ("final chapter" → "Loop evidence
   tab") — state explicitly the sandbox boundary is unchanged; Excalidraw is
   inert JSON (not an iframe), self-hosted fonts, no CSP widen.
-- `review-with-porcelain` + `loop-evidence` companion skills: outline ↔ canvas
+- `feature-review` + `loop-evidence` companion skills: outline ↔ canvas
   click mechanics; **when to choose HTML vs Excalidraw** decision table; CLI
   verbs for freeform canvas.
 - `product` skill: Review = outline + tabbed canvas (Overview | Loop evidence),

@@ -1,9 +1,9 @@
 ---
-name: review-with-porcelain
+name: feature-review
 description: Push a feature review set to the Porcelain app — and read the human's review comments and which files they've marked reviewed — so a human can review the WHOLE feature (including server/cross-seam files that aren't in the git diff) in flow order. Use after implementing, or while working on, a multi-file feature (especially one spanning the client/server seam), and when the human says they left comments or notes on your change or asks what they've reviewed so far.
 ---
 
-# Review with Porcelain
+# Feature review
 
 Porcelain is a desktop review companion (macOS and Linux). Its **Feature** tab is the **Review**: sidebar **outline** (section titles + files + Loop evidence row) and a viewer **canvas** opened from the review title.
 

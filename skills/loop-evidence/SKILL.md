@@ -9,7 +9,7 @@ Porcelain can render **loop evidence**: a self-contained HTML document you autho
 
 | Surface | Role |
 |---|---|
-| **The Review** (`review-with-porcelain`) | The walkthrough — what to read, in flow order, and *how it works* |
+| **The Review** (`feature-review`) | The walkthrough — what to read, in flow order, and *how it works* |
 | **Loop evidence** (this skill) | Ephemeral proof — *it works; here is what I ran and saw* |
 
 Loop evidence renders as the Review canvas **Loop evidence** tab (full height — not a chapter at the bottom of a long Overview). The body is **HTML** (default) or **Excalidraw** — pick one:

@@ -69,7 +69,7 @@ the working docs were removed, **recoverable from git**
   null → "No review yet" empty state; agent-only). The `artifact`/`evidence` tab kinds are
   removed; the Feature list is now the **outline** (J/K section nav, Z zen), and Feature Quick
   Access gained a Review group. Design now lives in the shipped code plus the
-  `review-with-porcelain` companion skill and this shipped record — no separate spec doc.
+  `feature-review` companion skill and this shipped record — no separate spec doc.
 - **Chat coordination claims** — a chat message can carry `--files`/`--intent`/`--closes`
   (a claim); the Chat tab's **Coordination** panel derives live claims + overlaps at read
   time (`lib/chat-claims.ts`), no new channel. Agent-authored claim paths are repo-contained
@@ -81,7 +81,7 @@ the working docs were removed, **recoverable from git**
 Docs reconciled in the same pass: CLAUDE.md nomenclature, `architecture` (channel count
 11→10, tab kinds, reading-surface rows), `audit` (artifact invariant → review-sections
 invariant; chat-claim containment; evidence-as-chapter), `product`, and the
-`review-with-porcelain` / `loop-evidence` / `sync-environments` companion skills.
+`feature-review` / `loop-evidence` / `sync-environments` companion skills.
 
 ## Completed — deep audit, 2026-07-05 → reconciled 2026-07-07 (`2e72017`)
 

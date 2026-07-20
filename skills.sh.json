@@ -5,7 +5,7 @@
     {
       "title": "Review",
       "description": "Push whole-feature review sets and read reviewer state from the Porcelain app.",
-      "skills": ["review-with-porcelain"]
+      "skills": ["feature-review"]
     },
     {
       "title": "Project management",
