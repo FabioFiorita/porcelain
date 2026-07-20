@@ -1,6 +1,6 @@
 {
   "name": "porcelain",
-  "version": "0.36.1",
+  "version": "0.37.0",
   "description": "Run agents. Review as a story.",
   "main": "./out/main/index.js",
   "author": "Fabio Fiorita <fabiolfp@gmail.com>",

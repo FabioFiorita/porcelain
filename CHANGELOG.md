@@ -1,3 +1,14 @@
+## [0.37.0](https://github.com/FabioFiorita/porcelain/compare/v0.36.1...v0.37.0) (2026-07-20)
+
+### Features
+
+* ship agent/review UX batch (P1–P5, P7) ([bb77665](https://github.com/FabioFiorita/porcelain/commit/bb776656c4e829ed12dd2bb8414161b4ad21e0b3))
+* UI/UX waves A–C — loop handoffs, naming, Glance home ([81c88b6](https://github.com/FabioFiorita/porcelain/commit/81c88b632cc4eccffcf3233865448bdc99d4cf16))
+
+### Bug Fixes
+
+* env switch, Feature Clear orphans, rail order, Agent session ([1c7cadc](https://github.com/FabioFiorita/porcelain/commit/1c7cadca6b74612950c6cdd9b08ca57e66d153ac))
+
 ## [0.36.1](https://github.com/FabioFiorita/porcelain/compare/v0.36.0...v0.36.1) (2026-07-20)
 
 ### Bug Fixes
