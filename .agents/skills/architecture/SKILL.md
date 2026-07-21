@@ -221,7 +221,7 @@ Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wron
 - **Search list** — Search body (`search-list.tsx`): repo-wide code search (`gitSearchCode`), distinct from the ⌘⇧F `ContentSearch` overlay (`gitGrep`).
 - **Changes list** — Changes body (`changes-list.tsx`), grouped by flow layer.
 - **History list** — History body (`history-list.tsx`).
-- **Feature list** — Feature body (`feature-list.tsx`): Review chrome + Execution outline — header pills (Intent · Execution · Evidence), Intent/Evidence shortcuts with human-question subtitles, then the inline file list (section titles + files with reviewed marks; changed → diff, context/shipped → file). Viewer is the three-tab canvas.
+- **Feature list** — Feature body (`feature-list.tsx`): header (name + progress + **Open Review** + Clear …) and the file outline (section titles + files with reviewed marks; changed → diff, context/shipped → file). Intent / Execution / Evidence tabs live only in the viewer canvas — not duplicated in the sidebar.
 - **Review inbox** — a `SidebarGroup` at the top of the Feature body (`review-inbox.tsx`, above the outline in every state): the OTHER worktrees of the family with agent work awaiting review; one click switches this window there. Rows assembled by `worktree-inbox.ts`.
 - **Board list** — Board body (`board-list.tsx`): the todo/doing/done cards.
 - **Chat list** — Chat body (`chat-list.tsx`): agent relay messages (local ↔ remote collab); viewer chat view is the full thread.

@@ -142,10 +142,9 @@ describe('FeatureList', () => {
     expect(screen.getByText('callout.tsx')).toBeInTheDocument()
     expect(screen.getByText('callout-service.ts')).toBeInTheDocument()
     expect(screen.getByText('+12')).toBeInTheDocument()
-    expect(screen.getByText('Loop closed')).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: 'Intent' })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: 'Execution' })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: 'Evidence' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Open Review' })).toBeInTheDocument()
+    // Canvas tabs live in the viewer only — not duplicated in the sidebar.
+    expect(screen.queryByRole('tab', { name: 'Intent' })).not.toBeInTheDocument()
     expect(
       screen.getByText(byTextContent('labels must match CALLOUT_TEMPLATES')),
     ).toBeInTheDocument()
@@ -159,18 +158,11 @@ describe('FeatureList', () => {
     expect(useReviewFocusStore.getState().jump?.target).toEqual({ kind: 'section', index: 0 })
   })
 
-  it('jumps to the evidence canvas tab from the Evidence shortcut', () => {
+  it('opens the Review canvas on Intent from Open Review', () => {
     renderList()
-    // Shortcut uses the evidence title when present.
-    fireEvent.click(screen.getByText('Loop closed'))
-    expect(useReviewFocusStore.getState().jump?.target).toEqual({ kind: 'evidence' })
-    expect(useReviewFocusStore.getState().canvasTab).toBe('evidence')
-  })
-
-  it('opens Intent from the Intent shortcut', () => {
-    renderList()
-    // Label only in the chrome; human question lives on the hover tooltip.
-    fireEvent.click(screen.getByRole('button', { name: 'Intent' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Open Review' }))
+    const { tabs } = useTabsStore.getState().panes[0]
+    expect(tabs[0]).toMatchObject({ id: tabId('feature', '/repo'), kind: 'feature' })
     expect(useReviewFocusStore.getState().jump?.target).toEqual({ kind: 'intent' })
   })
 

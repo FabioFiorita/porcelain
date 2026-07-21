@@ -24,16 +24,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@renderer/components/ui/dropdown-menu'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useDiffFilePrefetch } from '@renderer/hooks/use-diff'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
 import { useClearFeatureReview } from '@renderer/hooks/use-feature-view'
 import { useReviewedPaths, useToggleReviewed } from '@renderer/hooks/use-reviewed'
-import {
-  FEATURE_CANVAS_TABS,
-  type FeatureCanvasTab,
-  featureCanvasTabMeta,
-} from '@renderer/lib/feature-canvas'
 import { highlightRangesForFile } from '@renderer/lib/highlight-ranges'
 import { dirName, fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
@@ -48,11 +42,9 @@ import {
   Check,
   Eraser,
   FileDiff,
-  Lightbulb,
   MessageSquarePlus,
   MoreHorizontal,
   RefreshCw,
-  ShieldCheck,
   Square,
   SquareCheck,
 } from 'lucide-react'
@@ -238,8 +230,8 @@ function uniqueFiles(files: readonly ReadingFile[]): ReadingFile[] {
 }
 
 // The Feature sidebar tab: the Review inbox (cross-worktree work awaiting review)
-// above THIS checkout's Review chrome — Intent/Evidence shortcuts + pills, then
-// the inline Execution file outline. Viewer tabs are Intent / Execution / Evidence.
+// above THIS checkout's outline — open the canvas with one button; the list is the
+// Execution file outline. Intent / Execution / Evidence tabs live only in the viewer.
 export function FeatureList(): React.JSX.Element {
   return (
     <div className="flex flex-col gap-1">
@@ -260,7 +252,6 @@ function FeatureOutline(): React.JSX.Element {
   const requestJump = useReviewFocusStore((s) => s.requestJump)
   const activeSection = useReviewFocusStore((s) => s.activeSection)
   const canvasTab = useReviewFocusStore((s) => s.canvasTab)
-  const setCanvasTab = useReviewFocusStore((s) => s.setCanvasTab)
   const [confirmClearOpen, setConfirmClearOpen] = useState(false)
   const [clearError, setClearError] = useState<string | null>(null)
   const [commentPath, setCommentPath] = useState<string | null>(null)
@@ -280,8 +271,9 @@ function FeatureOutline(): React.JSX.Element {
     )
   }
 
-  // Open the Review canvas (one tab per repo) and optionally jump to a canvas tab
-  // or Intent chapter — FeatureView consumes jumps once mounted.
+  // Open the Review canvas (one tab per repo) and optionally jump to an Intent
+  // chapter — FeatureView consumes jumps once mounted. Canvas tabs (Intent /
+  // Execution / Evidence) live only in the viewer, not here.
   const openReview = (target?: ReviewJumpTarget): void => {
     openTab({
       id: tabId('feature', repo.path),
@@ -290,12 +282,6 @@ function FeatureOutline(): React.JSX.Element {
       path: repo.path,
     })
     if (target) requestJump(target)
-  }
-
-  const openCanvasTab = (tab: FeatureCanvasTab): void => {
-    if (tab === 'evidence' && !reading.evidence) return
-    setCanvasTab(tab)
-    openReview({ kind: tab })
   }
 
   // Clear discards the agent's whole Review (files, notes, sections) AND its
@@ -316,9 +302,6 @@ function FeatureOutline(): React.JSX.Element {
   ])
   const reviewedCount = allFiles.filter((file) => reviewed.has(file.path)).length
   const isActive = (section: ReviewFocusSection): boolean => activeSection === section
-  const intentMeta = featureCanvasTabMeta('intent')
-  const evidenceMeta = featureCanvasTabMeta('evidence')
-  const executionMeta = featureCanvasTabMeta('execution')
 
   // Stable list keys from the agent-authored titles (deduped — two sections may
   // share a title; the whole list is replaced on every push, so title#n is stable
@@ -332,8 +315,8 @@ function FeatureOutline(): React.JSX.Element {
 
   return (
     <div className="flex flex-col gap-1">
-      {/* Header: name + progress; pills mirror viewer tabs; Intent/Evidence shortcuts;
-          Clear lives in … menu. Inline file list below is Execution. */}
+      {/* Header: name + progress + one open affordance. Clear lives in … menu.
+          File list below is the Execution outline (not a second set of canvas tabs). */}
       <div className="mx-2 mt-0.5 flex flex-col gap-2 rounded-lg border bg-card p-2.5">
         <div className="flex items-start gap-1.5">
           <div className="min-w-0 flex-1">
@@ -371,96 +354,13 @@ function FeatureOutline(): React.JSX.Element {
             </DropdownMenu>
           </SidebarHeaderActions>
         </div>
-
-        {/* Thin pills — same three tabs as the viewer; question on hover. */}
-        <div
-          className="flex items-center gap-0.5 rounded-md bg-muted/40 p-0.5"
-          role="tablist"
-          aria-label="Review tabs"
+        <Button
+          size="sm"
+          className="h-7 w-full text-xs"
+          onClick={() => openReview({ kind: 'intent' })}
         >
-          {FEATURE_CANVAS_TABS.map((tab) => {
-            const disabled = tab.id === 'evidence' && !reading.evidence
-            const active = canvasTab === tab.id
-            return (
-              <Tooltip key={tab.id}>
-                <TooltipTrigger
-                  render={
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={active}
-                      disabled={disabled}
-                      onClick={() => openCanvasTab(tab.id)}
-                      className={cn(
-                        'min-w-0 flex-1 truncate rounded-sm px-1.5 py-1 text-center text-2xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-40',
-                        active
-                          ? 'bg-background text-foreground shadow-sm'
-                          : 'text-muted-foreground hover:text-foreground',
-                      )}
-                    />
-                  }
-                >
-                  {tab.label}
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  {disabled ? 'No evidence published yet' : tab.question}
-                </TooltipContent>
-              </Tooltip>
-            )
-          })}
-        </div>
-
-        {/* Intent + Evidence shortcuts — labels only; question on hover. */}
-        <div className="flex flex-col gap-1">
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <button
-                  type="button"
-                  onClick={() => openCanvasTab('intent')}
-                  className={cn(
-                    'flex w-full items-center gap-1.5 rounded-md border px-2 py-1.5 text-left text-xs hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
-                    canvasTab === 'intent'
-                      ? 'border-border bg-accent/40 text-foreground'
-                      : 'border-border/60 text-muted-foreground',
-                  )}
-                />
-              }
-            >
-              <Lightbulb className="size-3.5 shrink-0 text-info" />
-              <span className="min-w-0 flex-1 truncate font-medium text-foreground">
-                {intentMeta.label}
-              </span>
-            </TooltipTrigger>
-            <TooltipContent side="right">{intentMeta.question}</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <button
-                  type="button"
-                  onClick={() => openCanvasTab('evidence')}
-                  disabled={!reading.evidence}
-                  className={cn(
-                    'flex w-full items-center gap-1.5 rounded-md border px-2 py-1.5 text-left text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
-                    reading.evidence ? 'hover:bg-accent/50' : 'cursor-not-allowed opacity-50',
-                    canvasTab === 'evidence' && reading.evidence
-                      ? 'border-border bg-accent/40 text-foreground'
-                      : 'border-border/60 text-muted-foreground',
-                  )}
-                />
-              }
-            >
-              <ShieldCheck className="size-3.5 shrink-0 text-info" />
-              <span className="min-w-0 flex-1 truncate font-medium text-foreground">
-                {reading.evidence?.title?.trim() || evidenceMeta.label}
-              </span>
-            </TooltipTrigger>
-            <TooltipContent side="right">
-              {reading.evidence ? evidenceMeta.question : 'No evidence published yet'}
-            </TooltipContent>
-          </Tooltip>
-        </div>
+          Open Review
+        </Button>
       </div>
 
       <AlertDialog open={confirmClearOpen} onOpenChange={setConfirmClearOpen}>
@@ -490,31 +390,7 @@ function FeatureOutline(): React.JSX.Element {
         <p className="mx-2 whitespace-pre-wrap font-mono text-2xs text-destructive">{clearError}</p>
       )}
 
-      {/* Inline Execution — files stay visible while Intent/Evidence fill the viewer. */}
-      <div className="flex items-center justify-between gap-2 px-3 pt-1.5 pb-0.5">
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <p className="text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground" />
-            }
-          >
-            {executionMeta.label}
-          </TooltipTrigger>
-          <TooltipContent side="right">{executionMeta.question}</TooltipContent>
-        </Tooltip>
-        <button
-          type="button"
-          onClick={() => openCanvasTab('execution')}
-          className={cn(
-            'text-2xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
-            canvasTab === 'execution' && 'text-foreground',
-          )}
-        >
-          Open in viewer
-        </button>
-      </div>
-
-      <div className="flex flex-col gap-0.5 px-2">
+      <div className="flex flex-col gap-0.5 px-2 pt-1">
         {sectionEntries.map(({ section, index, key }) => (
           <div key={key}>
             <ChapterButton
