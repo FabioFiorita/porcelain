@@ -28,6 +28,11 @@ import { useDiffFilePrefetch } from '@renderer/hooks/use-diff'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
 import { useClearFeatureReview } from '@renderer/hooks/use-feature-view'
 import { useReviewedPaths, useToggleReviewed } from '@renderer/hooks/use-reviewed'
+import {
+  FEATURE_CANVAS_TABS,
+  type FeatureCanvasTab,
+  featureCanvasTabMeta,
+} from '@renderer/lib/feature-canvas'
 import { highlightRangesForFile } from '@renderer/lib/highlight-ranges'
 import { dirName, fileName } from '@renderer/lib/paths'
 import { cn } from '@renderer/lib/utils'
@@ -42,6 +47,7 @@ import {
   Check,
   Eraser,
   FileDiff,
+  Lightbulb,
   MessageSquarePlus,
   MoreHorizontal,
   RefreshCw,
@@ -231,10 +237,8 @@ function uniqueFiles(files: readonly ReadingFile[]): ReadingFile[] {
 }
 
 // The Feature sidebar tab: the Review inbox (cross-worktree work awaiting review)
-// above the OUTLINE of THIS checkout's Review document — chapter titles that jump
-// the open Review, each section's anchored files, the unanchored "More files", and
-// the loop-evidence chapter. The viewer's `feature` tab is the document; this is the
-// index you scan, click, and tick reviewed from.
+// above THIS checkout's Review chrome — Intent/Evidence shortcuts + pills, then
+// the inline Execution file outline. Viewer tabs are Intent / Execution / Evidence.
 export function FeatureList(): React.JSX.Element {
   return (
     <div className="flex flex-col gap-1">
@@ -254,6 +258,8 @@ function FeatureOutline(): React.JSX.Element {
   const { clear, isClearing } = useClearFeatureReview()
   const requestJump = useReviewFocusStore((s) => s.requestJump)
   const activeSection = useReviewFocusStore((s) => s.activeSection)
+  const canvasTab = useReviewFocusStore((s) => s.canvasTab)
+  const setCanvasTab = useReviewFocusStore((s) => s.setCanvasTab)
   const [confirmClearOpen, setConfirmClearOpen] = useState(false)
   const [clearError, setClearError] = useState<string | null>(null)
   const [commentPath, setCommentPath] = useState<string | null>(null)
@@ -273,8 +279,8 @@ function FeatureOutline(): React.JSX.Element {
     )
   }
 
-  // Open the Review document (pinned place: one tab per repo) and optionally jump
-  // it to a chapter — the reading surface consumes the jump once mounted.
+  // Open the Review canvas (one tab per repo) and optionally jump to a canvas tab
+  // or Intent chapter — FeatureView consumes jumps once mounted.
   const openReview = (target?: ReviewJumpTarget): void => {
     openTab({
       id: tabId('feature', repo.path),
@@ -285,8 +291,14 @@ function FeatureOutline(): React.JSX.Element {
     if (target) requestJump(target)
   }
 
+  const openCanvasTab = (tab: FeatureCanvasTab): void => {
+    if (tab === 'evidence' && !reading.evidence) return
+    setCanvasTab(tab)
+    openReview({ kind: tab })
+  }
+
   // Clear discards the agent's whole Review (files, notes, sections) AND its
-  // loop evidence directory. Confirm via AlertDialog (one clear affordance in …).
+  // evidence directory. Confirm via AlertDialog (one clear affordance in …).
   const runClear = async (): Promise<void> => {
     setClearError(null)
     try {
@@ -302,8 +314,10 @@ function FeatureOutline(): React.JSX.Element {
     ...reading.groups.flatMap((group) => group.files),
   ])
   const reviewedCount = allFiles.filter((file) => reviewed.has(file.path)).length
-  const moreFilesIndex = reading.sections.length
   const isActive = (section: ReviewFocusSection): boolean => activeSection === section
+  const intentMeta = featureCanvasTabMeta('intent')
+  const evidenceMeta = featureCanvasTabMeta('evidence')
+  const executionMeta = featureCanvasTabMeta('execution')
 
   // Stable list keys from the agent-authored titles (deduped — two sections may
   // share a title; the whole list is replaced on every push, so title#n is stable
@@ -317,8 +331,8 @@ function FeatureOutline(): React.JSX.Element {
 
   return (
     <div className="flex flex-col gap-1">
-      {/* Header: name + progress; Open is explicit; Clear lives in … menu (P7 —
-          no dual erasers, no "title is a button" confusion). */}
+      {/* Header: name + progress; pills mirror viewer tabs; Intent/Evidence shortcuts;
+          Clear lives in … menu. Inline file list below is Execution. */}
       <div className="mx-2 mt-0.5 flex flex-col gap-2 rounded-lg border bg-card p-2.5">
         <div className="flex items-start gap-1.5">
           <div className="min-w-0 flex-1">
@@ -327,8 +341,8 @@ function FeatureOutline(): React.JSX.Element {
               {allFiles.length > 0
                 ? `${reviewedCount}/${allFiles.length} reviewed`
                 : reading.canvas
-                  ? 'Freeform overview'
-                  : 'Outline'}
+                  ? 'Freeform Intent'
+                  : 'Review'}
             </p>
           </div>
           <SidebarHeaderActions>
@@ -356,35 +370,87 @@ function FeatureOutline(): React.JSX.Element {
             </DropdownMenu>
           </SidebarHeaderActions>
         </div>
-        <Button size="sm" className="h-7 w-full text-xs" onClick={() => openReview()}>
-          Open Review
-        </Button>
-        {reading.evidence && (
+
+        {/* Thin pills — same three tabs as the viewer. */}
+        <div
+          className="flex items-center gap-0.5 rounded-md bg-muted/40 p-0.5"
+          role="tablist"
+          aria-label="Review tabs"
+        >
+          {FEATURE_CANVAS_TABS.map((tab) => {
+            const disabled = tab.id === 'evidence' && !reading.evidence
+            const active = canvasTab === tab.id
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                disabled={disabled}
+                onClick={() => openCanvasTab(tab.id)}
+                className={cn(
+                  'min-w-0 flex-1 truncate rounded-sm px-1.5 py-1 text-center text-2xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-40',
+                  active
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {tab.label}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Intent + Evidence shortcuts (full label + human question). */}
+        <div className="flex flex-col gap-1">
           <button
             type="button"
-            onClick={() => openReview({ kind: 'evidence' })}
+            onClick={() => openCanvasTab('intent')}
             className={cn(
-              'flex w-full items-center gap-1.5 rounded-md border px-2 py-1.5 text-left text-xs hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
-              isActive('evidence')
+              'flex w-full items-start gap-1.5 rounded-md border px-2 py-1.5 text-left hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+              canvasTab === 'intent'
                 ? 'border-border bg-accent/40 text-foreground'
                 : 'border-border/60 text-muted-foreground',
             )}
           >
-            <ShieldCheck className="size-3.5 shrink-0 text-info" />
-            <span className="min-w-0 flex-1 truncate">
-              {reading.evidence.title?.trim() || 'Loop evidence'}
+            <Lightbulb className="mt-0.5 size-3.5 shrink-0 text-info" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-xs font-medium text-foreground">{intentMeta.label}</span>
+              <span className="block text-2xs text-muted-foreground">{intentMeta.question}</span>
             </span>
           </button>
-        )}
+          <button
+            type="button"
+            onClick={() => openCanvasTab('evidence')}
+            disabled={!reading.evidence}
+            className={cn(
+              'flex w-full items-start gap-1.5 rounded-md border px-2 py-1.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+              reading.evidence ? 'hover:bg-accent/50' : 'cursor-not-allowed opacity-50',
+              canvasTab === 'evidence' && reading.evidence
+                ? 'border-border bg-accent/40 text-foreground'
+                : 'border-border/60 text-muted-foreground',
+            )}
+          >
+            <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-info" />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-xs font-medium text-foreground">
+                {reading.evidence?.title?.trim() || evidenceMeta.label}
+              </span>
+              <span className="block text-2xs text-muted-foreground">
+                {reading.evidence ? evidenceMeta.question : 'No evidence published yet'}
+              </span>
+            </span>
+          </button>
+        </div>
       </div>
 
       <AlertDialog open={confirmClearOpen} onOpenChange={setConfirmClearOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Clear review and loop evidence?</AlertDialogTitle>
+            <AlertDialogTitle>Clear review and evidence?</AlertDialogTitle>
             <AlertDialogDescription>
-              Removes the agent Review (files, notes, walkthrough) and the loop-evidence directory
-              for this repo. The agent can re-publish. This cannot be undone from the app.
+              Removes the agent Review (Intent, files, walkthrough) and the evidence directory for
+              this repo. The agent can re-publish. This cannot be undone from the app.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -393,7 +459,7 @@ function FeatureOutline(): React.JSX.Element {
               variant="destructive"
               disabled={isClearing}
               onClick={() => void runClear()}
-              aria-label="Confirm clear review and loop evidence"
+              aria-label="Confirm clear review and evidence"
             >
               Clear
             </AlertDialogAction>
@@ -405,12 +471,30 @@ function FeatureOutline(): React.JSX.Element {
         <p className="mx-2 whitespace-pre-wrap font-mono text-2xs text-destructive">{clearError}</p>
       )}
 
-      <div className="flex flex-col gap-0.5 px-2 pt-1">
+      {/* Inline Execution — files stay visible while Intent/Evidence fill the viewer. */}
+      <div className="flex items-center justify-between gap-2 px-3 pt-1.5">
+        <p className="text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
+          {executionMeta.label}
+        </p>
+        <button
+          type="button"
+          onClick={() => openCanvasTab('execution')}
+          className={cn(
+            'text-2xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+            canvasTab === 'execution' && 'text-foreground',
+          )}
+        >
+          Open in viewer
+        </button>
+      </div>
+      <p className="px-3 pb-1 text-2xs text-muted-foreground">{executionMeta.question}</p>
+
+      <div className="flex flex-col gap-0.5 px-2">
         {sectionEntries.map(({ section, index, key }) => (
           <div key={key}>
             <ChapterButton
               label={section.title}
-              active={isActive(index)}
+              active={canvasTab === 'intent' && isActive(index)}
               onJump={() => openReview({ kind: 'section', index })}
             />
             {uniqueFiles(section.files).map((file) => (
@@ -428,11 +512,9 @@ function FeatureOutline(): React.JSX.Element {
         {reading.groups.length > 0 && (
           <div>
             {reading.sections.length > 0 && (
-              <ChapterButton
-                label="More files"
-                active={isActive(moreFilesIndex)}
-                onJump={() => openReview({ kind: 'section', index: moreFilesIndex })}
-              />
+              <div className="px-2 pb-0.5 pt-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
+                More files
+              </div>
             )}
             {reading.groups.map((group) => (
               <div key={group.layer}>

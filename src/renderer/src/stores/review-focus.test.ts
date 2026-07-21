@@ -3,7 +3,12 @@ import { jumpTargets, nextTarget, type ReviewJumpTarget, useReviewFocusStore } f
 
 describe('useReviewFocusStore', () => {
   beforeEach(() => {
-    useReviewFocusStore.setState({ activeSection: null, visiblePath: null, jump: null })
+    useReviewFocusStore.setState({
+      canvasTab: 'intent',
+      activeSection: null,
+      visiblePath: null,
+      jump: null,
+    })
   })
 
   it('publishes the visible chapter + file', () => {
@@ -36,24 +41,26 @@ describe('useReviewFocusStore', () => {
     useReviewFocusStore.getState().clearJump()
     expect(useReviewFocusStore.getState().jump).toBeNull()
   })
+
+  it('shares canvasTab between sidebar and viewer', () => {
+    useReviewFocusStore.getState().setCanvasTab('execution')
+    expect(useReviewFocusStore.getState().canvasTab).toBe('execution')
+  })
 })
 
 describe('jumpTargets', () => {
-  it('walks sections, then More files, then evidence', () => {
+  it('walks Intent sections and More files (evidence is its own canvas tab)', () => {
     expect(jumpTargets({ sectionCount: 2, hasMoreFiles: true, hasEvidence: true })).toEqual<
       ReviewJumpTarget[]
     >([
       { kind: 'section', index: 0 },
       { kind: 'section', index: 1 },
       { kind: 'section', index: 2 }, // the synthetic "More files" chapter
-      { kind: 'evidence' },
     ])
   })
 
   it('has no More files stop in a section-less document (no headers to stop at)', () => {
-    expect(jumpTargets({ sectionCount: 0, hasMoreFiles: true, hasEvidence: true })).toEqual([
-      { kind: 'evidence' },
-    ])
+    expect(jumpTargets({ sectionCount: 0, hasMoreFiles: true, hasEvidence: true })).toEqual([])
     expect(jumpTargets({ sectionCount: 0, hasMoreFiles: true, hasEvidence: false })).toEqual([])
   })
 })
@@ -65,13 +72,13 @@ describe('nextTarget', () => {
     expect(nextTarget(targets, null, 1)).toEqual({ kind: 'section', index: 0 })
   })
 
-  it('J walks forward and stops at the last chapter', () => {
-    expect(nextTarget(targets, 1, 1)).toEqual({ kind: 'evidence' })
-    expect(nextTarget(targets, 'evidence', 1)).toBeNull()
+  it('J walks forward and stops at the last Intent chapter', () => {
+    expect(nextTarget(targets, 0, 1)).toEqual({ kind: 'section', index: 1 })
+    expect(nextTarget(targets, 1, 1)).toBeNull()
   })
 
   it('K walks backward and returns to the top from the first section', () => {
-    expect(nextTarget(targets, 'evidence', -1)).toEqual({ kind: 'section', index: 1 })
+    expect(nextTarget(targets, 1, -1)).toEqual({ kind: 'section', index: 0 })
     expect(nextTarget(targets, 0, -1)).toEqual({ kind: 'top' })
     expect(nextTarget(targets, null, -1)).toBeNull()
   })

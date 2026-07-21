@@ -1,13 +1,24 @@
-import type { FeatureReading } from '@backend/feature-view'
+import type { FeatureReading, ReadingFile } from '@backend/feature-view'
 import type { FileSource } from '@backend/review-set'
 import { CanvasBody } from '@renderer/components/git/canvas-body'
 import { EvidencePanel } from '@renderer/components/git/evidence-panel'
 import { Button } from '@renderer/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@renderer/components/ui/tabs'
+import { useDiffFilePrefetch } from '@renderer/hooks/use-diff'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
+import { useReviewedPaths } from '@renderer/hooks/use-reviewed'
+import {
+  FEATURE_CANVAS_TABS,
+  type FeatureCanvasTab,
+  isFeatureCanvasTab,
+} from '@renderer/lib/feature-canvas'
+import { highlightRangesForFile } from '@renderer/lib/highlight-ranges'
 import { isTerminalTarget, isTextEntry } from '@renderer/lib/keyboard'
-import { copyText } from '@renderer/lib/utils'
+import { dirName, fileName } from '@renderer/lib/paths'
+import { cn, copyText } from '@renderer/lib/utils'
+import { useRepoStore } from '@renderer/stores/repo'
 import { jumpTargets, nextTarget, useReviewFocusStore } from '@renderer/stores/review-focus'
+import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { useZenStore } from '@renderer/stores/zen'
 import { Check, Copy, Sparkles } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
@@ -25,8 +36,6 @@ const SOURCE_LABEL: Record<FileSource, string> = {
 const AGENT_PROMPT =
   'Publish a review of this feature to Porcelain using the feature-review skill (porcelain review set --sections ...).'
 
-type CanvasTab = 'overview' | 'evidence'
-
 /** Unique-file counts per source, across sections and groups (a file anchored twice counts once). */
 function sourceCounts(reading: FeatureReading): Record<FileSource, number> {
   const seen = new Map<string, FileSource>()
@@ -42,12 +51,23 @@ function sourceCounts(reading: FeatureReading): Record<FileSource, number> {
   return counts
 }
 
+function uniqueFiles(files: ReadingFile[]): ReadingFile[] {
+  const seen = new Set<string>()
+  const out: ReadingFile[] = []
+  for (const file of files) {
+    if (seen.has(file.path)) continue
+    seen.add(file.path)
+    out.push(file)
+  }
+  return out
+}
+
 // Plain-key document navigation, registered only while the Review is mounted:
-// J/K jump to the next/previous Overview chapter (via the review-focus store,
-// consumed by the reading surface), Z toggles zen mode. Loop evidence is its own
-// canvas tab — J/K stay scoped to Overview (the evidence iframe would eat keys).
-// No modifiers, and never over a text field or a focused terminal.
-function useReviewKeys(reading: FeatureReading | null | undefined, canvasTab: CanvasTab): void {
+// J/K jump Intent chapters, Z toggles zen. Execution/Evidence leave J/K alone.
+function useReviewKeys(
+  reading: FeatureReading | null | undefined,
+  canvasTab: FeatureCanvasTab,
+): void {
   const requestJump = useReviewFocusStore((s) => s.requestJump)
   const toggleZen = useZenStore((s) => s.toggle)
   const readingRef = useRef(reading)
@@ -66,8 +86,7 @@ function useReviewKeys(reading: FeatureReading | null | undefined, canvasTab: Ca
         return
       }
       if (key !== 'j' && key !== 'k') return
-      // Evidence pane is full-height HTML — leave J/K alone there.
-      if (canvasTabRef.current !== 'overview') return
+      if (canvasTabRef.current !== 'intent') return
       const doc = readingRef.current
       if (!doc) return
       const targets = jumpTargets({
@@ -106,8 +125,8 @@ function EmptyState(): React.JSX.Element {
           No review yet
         </p>
         <p className="mb-4 text-sm text-muted-foreground">
-          The Review renders here — thesis, walkthrough sections, code, and loop evidence — once
-          your agent publishes one via the porcelain CLI.
+          The Review renders here — Intent (the idea), Execution (the files), and Evidence (proof) —
+          once your agent publishes one via the porcelain CLI.
         </p>
         <Button variant="outline" size="sm" onClick={copyPrompt}>
           {copied ? <Check className="text-success" /> : <Copy />}
@@ -120,14 +139,14 @@ function EmptyState(): React.JSX.Element {
 
 /**
  * The viewer's `feature` tab: the Review canvas — header (name + source counts)
- * over a tabbed body. **Overview** is the walkthrough document (thesis → sections
- * → More files, no evidence chapter). **Loop evidence** is a full-height panel
- * when the agent has published proof. Outline jumps pick the tab; J/K stay on
- * Overview.
+ * over three tabs: **Intent** (narrative / freeform board), **Execution** (files +
+ * notes), **Evidence** (HTML proof). Human questions sit under each tab label.
+ * Outline jumps pick the tab; J/K stay on Intent.
  */
 export function FeatureView(): React.JSX.Element {
   const { reading } = useFeatureReading()
-  const [canvasTab, setCanvasTab] = useState<CanvasTab>('overview')
+  const canvasTab = useReviewFocusStore((s) => s.canvasTab)
+  const setCanvasTab = useReviewFocusStore((s) => s.setCanvasTab)
   const jump = useReviewFocusStore((s) => s.jump)
   const clearJump = useReviewFocusStore((s) => s.clearJump)
   const setVisible = useReviewFocusStore((s) => s.setVisible)
@@ -139,9 +158,8 @@ export function FeatureView(): React.JSX.Element {
     return () => useReviewFocusStore.getState().setVisible(null, null)
   }, [])
 
-  // Outline / Loop-evidence row jumps: evidence opens the evidence canvas tab
-  // (no scroll). Section/top jumps force Overview; ReadingSurfaceBody still
-  // consumes the jump for virtualizer scroll.
+  // Outline / pill / shortcut jumps: set canvas tab; section/top stay on Intent
+  // and still scroll the narrative virtualizer.
   useEffect(() => {
     if (!jump) return
     if (jump.target.kind === 'evidence') {
@@ -150,15 +168,28 @@ export function FeatureView(): React.JSX.Element {
       clearJump()
       return
     }
-    setCanvasTab('overview')
-  }, [jump, clearJump, setVisible])
+    if (jump.target.kind === 'execution') {
+      setCanvasTab('execution')
+      setVisible(null, null)
+      clearJump()
+      return
+    }
+    if (jump.target.kind === 'intent') {
+      setCanvasTab('intent')
+      setVisible(null, null)
+      clearJump()
+      return
+    }
+    // section | top → Intent (ReadingSurfaceBody consumes the jump for scroll).
+    setCanvasTab('intent')
+  }, [jump, clearJump, setVisible, setCanvasTab])
 
-  // Evidence cleared while on that tab → fall back to Overview.
+  // Evidence cleared while on that tab → fall back to Intent.
   useEffect(() => {
     if (reading && reading.evidence === null && canvasTab === 'evidence') {
-      setCanvasTab('overview')
+      setCanvasTab('intent')
     }
-  }, [reading, canvasTab])
+  }, [reading, canvasTab, setCanvasTab])
 
   // Publish evidence focus while that canvas tab is active (outline highlight).
   useEffect(() => {
@@ -189,55 +220,71 @@ export function FeatureView(): React.JSX.Element {
           ))}
         </div>
       </div>
-      {hasEvidence && reading.evidence ? (
-        <Tabs
-          value={canvasTab}
-          onValueChange={(value) => {
-            if (value === 'overview' || value === 'evidence') setCanvasTab(value)
-          }}
-          className="flex min-h-0 flex-1 flex-col gap-0"
-        >
-          <div className="border-b px-3">
-            <TabsList variant="line" className="h-9 w-full justify-start">
-              <TabsTrigger value="overview" className="flex-none px-3">
-                Overview
-              </TabsTrigger>
-              <TabsTrigger value="evidence" className="flex-none px-3">
-                Loop evidence
-              </TabsTrigger>
-            </TabsList>
-          </div>
-          <TabsContent value="overview" className="min-h-0 flex-1 outline-none">
-            <OverviewBody reading={reading} />
-          </TabsContent>
-          <TabsContent value="evidence" className="min-h-0 flex-1 outline-none">
+      <Tabs
+        value={canvasTab}
+        onValueChange={(value) => {
+          if (isFeatureCanvasTab(value)) {
+            // No evidence yet → keep Intent (or stay) rather than an empty Evidence shell.
+            if (value === 'evidence' && !hasEvidence) return
+            setCanvasTab(value)
+          }
+        }}
+        className="flex min-h-0 flex-1 flex-col gap-0"
+      >
+        <div className="border-b px-3">
+          <TabsList variant="line" className="h-auto w-full justify-start gap-1 py-1.5">
+            {FEATURE_CANVAS_TABS.map((tab) => {
+              const disabled = tab.id === 'evidence' && !hasEvidence
+              return (
+                <TabsTrigger
+                  key={tab.id}
+                  value={tab.id}
+                  disabled={disabled}
+                  className="h-auto flex-none flex-col items-start gap-0.5 px-3 py-1.5 data-disabled:opacity-40"
+                >
+                  <span className="text-sm">{tab.label}</span>
+                  <span className="max-w-48 text-left text-2xs font-normal text-muted-foreground whitespace-normal">
+                    {tab.question}
+                  </span>
+                </TabsTrigger>
+              )
+            })}
+          </TabsList>
+        </div>
+        <TabsContent value="intent" className="min-h-0 flex-1 outline-none">
+          <IntentBody reading={reading} />
+        </TabsContent>
+        <TabsContent value="execution" className="min-h-0 flex-1 outline-none">
+          <ExecutionBody reading={reading} />
+        </TabsContent>
+        <TabsContent value="evidence" className="min-h-0 flex-1 outline-none">
+          {reading.evidence ? (
             <EvidencePanel
               title={reading.evidence.title}
               updatedAt={reading.evidence.updatedAt}
               checks={reading.evidence.checks}
             />
-          </TabsContent>
-        </Tabs>
-      ) : (
-        <div className="min-h-0 flex-1">
-          <OverviewBody reading={reading} />
-        </div>
-      )}
+          ) : (
+            <div className="flex h-full items-center justify-center p-8">
+              <p className="max-w-sm text-center text-sm text-muted-foreground">
+                No evidence yet. When your agent publishes HTML proof, it shows here.
+              </p>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
 
 /**
- * Overview: freeform canvas and/or structured document. When both exist, a local
- * Board | Document toggle keeps the walkthrough reachable (U13) — canvas no longer
- * hides sections forever.
+ * Intent: freeform board and/or narrative document (thesis + section prose —
+ * no code anchors; Execution owns files). Board | Document when both exist.
  */
-function OverviewBody({ reading }: { reading: FeatureReading }): React.JSX.Element {
+function IntentBody({ reading }: { reading: FeatureReading }): React.JSX.Element {
   const hasCanvas = reading.canvas !== undefined
   const hasDoc =
-    reading.sections.length > 0 ||
-    reading.groups.length > 0 ||
-    (reading.thesis !== undefined && reading.thesis.trim() !== '')
+    reading.sections.length > 0 || (reading.thesis !== undefined && reading.thesis.trim() !== '')
   const [mode, setMode] = useState<'board' | 'document'>(hasCanvas ? 'board' : 'document')
 
   if (hasCanvas && hasDoc) {
@@ -265,7 +312,12 @@ function OverviewBody({ reading }: { reading: FeatureReading }): React.JSX.Eleme
           {mode === 'board' && reading.canvas ? (
             <CanvasBody canvas={reading.canvas} />
           ) : (
-            <ReadingSurfaceBody reading={reading} trackFocus includeEvidence={false} />
+            <ReadingSurfaceBody
+              reading={reading}
+              trackFocus
+              includeEvidence={false}
+              includeAnchors={false}
+            />
           )}
         </div>
       </div>
@@ -274,5 +326,165 @@ function OverviewBody({ reading }: { reading: FeatureReading }): React.JSX.Eleme
   if (hasCanvas && reading.canvas) {
     return <CanvasBody canvas={reading.canvas} />
   }
-  return <ReadingSurfaceBody reading={reading} trackFocus includeEvidence={false} />
+  if (!hasDoc) {
+    return (
+      <div className="flex h-full items-center justify-center p-8">
+        <p className="max-w-sm text-center text-sm text-muted-foreground">
+          No Intent narrative yet — thesis, walkthrough sections, or a freeform board. Files live on
+          the Execution tab.
+        </p>
+      </div>
+    )
+  }
+  return (
+    <ReadingSurfaceBody
+      reading={reading}
+      trackFocus
+      includeEvidence={false}
+      includeAnchors={false}
+    />
+  )
+}
+
+/**
+ * Execution: scrollable list of feature files with agent notes — same open
+ * semantics as the sidebar outline (diff for changed, file for context/shipped).
+ */
+function ExecutionBody({ reading }: { reading: FeatureReading }): React.JSX.Element {
+  const repo = useRepoStore((s) => s.repo)
+  const openTab = useTabsStore((s) => s.openTab)
+  const prefetchDiff = useDiffFilePrefetch()
+  const reviewed = useReviewedPaths()
+
+  if (!repo) {
+    return <p className="p-4 text-sm text-muted-foreground">No repo open.</p>
+  }
+
+  const sectionBlocks = reading.sections.map((section, index) => ({
+    key: `section-${index}`,
+    title: section.title,
+    files: uniqueFiles(section.files),
+  }))
+  const hasFiles =
+    sectionBlocks.some((b) => b.files.length > 0) || reading.groups.some((g) => g.files.length > 0)
+
+  if (!hasFiles) {
+    return (
+      <div className="flex h-full items-center justify-center p-8">
+        <p className="max-w-sm text-center text-sm text-muted-foreground">
+          No files in this Review yet. The agent lists them via{' '}
+          <span className="font-mono text-2xs">review set --files</span>.
+        </p>
+      </div>
+    )
+  }
+
+  const openFile = (file: ReadingFile): void => {
+    const absolute = `${repo.path}/${file.path}`
+    const ranges = highlightRangesForFile(file)
+    openTab({
+      id: tabId('file', absolute),
+      kind: 'file',
+      title: fileName(file.path),
+      path: absolute,
+      line: ranges?.[0]?.start,
+      highlight: ranges,
+    })
+  }
+
+  const openDiff = (file: ReadingFile): void => {
+    openTab({
+      id: tabId('diff', file.path),
+      kind: 'diff',
+      title: fileName(file.path),
+      path: file.path,
+    })
+  }
+
+  const primaryOpen = (file: ReadingFile): void => {
+    if (file.source === 'changed') openDiff(file)
+    else openFile(file)
+  }
+
+  const renderFile = (file: ReadingFile): React.JSX.Element => {
+    const isReviewed = reviewed.has(file.path)
+    const name = fileName(file.path)
+    const dir = dirName(file.path)
+    return (
+      <div key={file.path} className="flex flex-col gap-0.5">
+        <button
+          type="button"
+          onClick={() => primaryOpen(file)}
+          onMouseEnter={() => {
+            if (file.source === 'changed') void prefetchDiff(file.path)
+          }}
+          className="flex w-full flex-col gap-0.5 rounded-md px-2 py-1.5 text-left hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+        >
+          <div className="flex min-w-0 items-center gap-1.5">
+            <SourceMarker source={file.source} />
+            {isReviewed && <Check className="size-3 shrink-0 text-success" aria-label="Reviewed" />}
+            <span
+              className={cn(
+                'min-w-0 flex-1 truncate font-mono text-sm-minus',
+                isReviewed && 'line-through text-muted-foreground',
+              )}
+            >
+              {name}
+            </span>
+            {file.additions !== undefined && file.additions > 0 && (
+              <span className="shrink-0 font-mono text-2xs text-success">+{file.additions}</span>
+            )}
+            {file.deletions !== undefined && file.deletions > 0 && (
+              <span className="shrink-0 font-mono text-2xs text-destructive">
+                −{file.deletions}
+              </span>
+            )}
+          </div>
+          {dir && (
+            <span className="truncate pl-3.5 font-mono text-2xs text-muted-foreground/70">
+              {dir}
+            </span>
+          )}
+        </button>
+        {file.note && (
+          <div className="mx-2 mb-1 rounded-lg border border-border/60 bg-muted px-2.5 py-2">
+            <span className="text-3xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+              Note
+            </span>
+            <p className="mt-1 break-words text-xs leading-relaxed text-muted-foreground">
+              {file.note}
+            </p>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="h-full min-h-0 overflow-y-auto p-3">
+      <p className="mb-3 text-2xs text-muted-foreground">
+        {FEATURE_CANVAS_TABS.find((t) => t.id === 'execution')?.question}
+      </p>
+      <div className="flex flex-col gap-3">
+        {sectionBlocks.map((block) =>
+          block.files.length === 0 ? null : (
+            <div key={block.key}>
+              <p className="mb-1 px-2 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
+                {block.title}
+              </p>
+              <div className="flex flex-col gap-0.5">{block.files.map(renderFile)}</div>
+            </div>
+          ),
+        )}
+        {reading.groups.map((group) => (
+          <div key={group.layer}>
+            <p className="mb-1 px-2 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
+              {group.layer}
+            </p>
+            <div className="flex flex-col gap-0.5">{group.files.map(renderFile)}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 }

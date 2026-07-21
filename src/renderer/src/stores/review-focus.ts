@@ -1,40 +1,49 @@
+import type { FeatureCanvasTab } from '@renderer/lib/feature-canvas'
 import { create } from 'zustand'
 
 /**
  * Where the Review document is, and where to send it next. One concern: the review
  * surface publishes the topmost visible chapter + file on scroll, the outline
  * (Feature list) and Quick Access subscribe, and either side can request a jump
- * that the surface consumes by scrolling itself.
+ * that the surface consumes by scrolling itself. Canvas tab (Intent / Execution /
+ * Evidence) is shared so the sidebar pills and the viewer stay in lockstep.
  */
 
 /**
- * The active chapter of the Review document: a section index (where
+ * The active chapter of the Intent document: a section index (where
  * `sections.length` is the synthetic "More files" chapter), `'evidence'` for the
- * loop-evidence chapter, or `null` above the first section header.
+ * evidence tab focus, or `null` above the first section header.
  */
 export type ReviewFocusSection = number | 'evidence' | null
 
 export type ReviewJumpTarget =
   | { kind: 'top' }
   | { kind: 'section'; index: number }
+  | { kind: 'intent' }
+  | { kind: 'execution' }
   | { kind: 'evidence' }
 
 interface ReviewFocusState {
-  /** Topmost visible chapter, published by the review surface on scroll. */
+  /** Active Feature canvas tab (Intent / Execution / Evidence). */
+  canvasTab: FeatureCanvasTab
+  /** Topmost visible chapter, published by the Intent reading surface on scroll. */
   activeSection: ReviewFocusSection
   /** Repo-relative path of the topmost visible file block (null between files). */
   visiblePath: string | null
   /** Pending jump request; the nonce re-fires a jump to the already-active target. */
   jump: { target: ReviewJumpTarget; nonce: number } | null
+  setCanvasTab: (tab: FeatureCanvasTab) => void
   setVisible: (activeSection: ReviewFocusSection, visiblePath: string | null) => void
   requestJump: (target: ReviewJumpTarget) => void
   clearJump: () => void
 }
 
 export const useReviewFocusStore = create<ReviewFocusState>((set) => ({
+  canvasTab: 'intent',
   activeSection: null,
   visiblePath: null,
   jump: null,
+  setCanvasTab: (canvasTab) => set({ canvasTab }),
   // Returning the state object unchanged skips the notify — the scroll handler
   // calls this per top-row change, and subscribers must not re-render otherwise.
   setVisible: (activeSection, visiblePath) =>
@@ -56,9 +65,9 @@ export interface ReviewDocShape {
 }
 
 /**
- * The ordered J/K stops of a Review document: each section, then "More files"
- * (only when sections exist — a section-less document is one flat group list with
- * no headers to stop at), then the evidence chapter.
+ * The ordered J/K stops of the Intent narrative: each section, then "More files"
+ * when it exists as a chapter header. Evidence is its own canvas tab (not a J/K
+ * stop). `hasEvidence` is accepted for call-site stability and ignored.
  */
 export function jumpTargets(doc: ReviewDocShape): ReviewJumpTarget[] {
   const targets: ReviewJumpTarget[] = []
@@ -66,7 +75,7 @@ export function jumpTargets(doc: ReviewDocShape): ReviewJumpTarget[] {
   if (doc.hasMoreFiles && doc.sectionCount > 0) {
     targets.push({ kind: 'section', index: doc.sectionCount })
   }
-  if (doc.hasEvidence) targets.push({ kind: 'evidence' })
+  void doc.hasEvidence
   return targets
 }
 

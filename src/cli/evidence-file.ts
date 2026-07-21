@@ -4,10 +4,10 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { htmlPreview } from './html-input'
 
-// Builtins only — see cli.ts. Loop evidence is a **directory of files**:
+// Builtins only — see cli.ts. Evidence is a **directory of files**:
 //
 //   ~/.porcelain/loop-evidence/<sha256(repoPath)[0..16]>/
-//     index.html   — the document Porcelain renders
+//     index.html   — the HTML document Porcelain renders (Evidence tab)
 //     meta.json    — { title, repoPath, updatedAt }
 //     *.png / …    — screenshots with relative <img src>
 //
@@ -170,7 +170,7 @@ function writeMeta(repoPath: string, title: string): EvidenceMeta {
 /**
  * Append (or update in place, keyed by label) one structured verification check.
  * Creates the evidence dir + meta like `prepare` when missing — the title falls
- * back to 'Loop evidence'. Enforces the caps (throws over the ceiling); re-running
+ * back to 'Evidence'. Enforces the caps (throws over the ceiling); re-running
  * a fixed check with the same label replaces it rather than duplicating.
  */
 export function checkEvidence(
@@ -182,7 +182,7 @@ export function checkEvidence(
   const check = validateCheck(label, status, detail)
   const dir = evidenceDirForRepo(repoPath)
   const path = join(dir, 'meta.json')
-  let title = 'Loop evidence'
+  let title = 'Evidence'
   let existing: EvidenceCheck[] = []
   try {
     const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'))
@@ -250,53 +250,6 @@ export function setEvidence(repoPath: string, title: unknown, html: unknown): Ev
   return { ...valid, updatedAt: meta.updatedAt, dir }
 }
 
-/** Max size for canvas.excalidraw (mirrors src/shared/excalidraw-scene.ts). */
-const MAX_SCENE_BYTES = 1_048_576
-const SCENE_FILENAME = 'canvas.excalidraw'
-
-/**
- * Write canvas.excalidraw into the evidence directory (and meta). Prefer
- * `evidence prepare` + Write tools for agent-authored scenes when convenient.
- * HTML index is left alone if present (HTML wins on read when both exist —
- * remove index.html if you want the scene body).
- */
-export function setEvidenceScene(
-  repoPath: string,
-  title: unknown,
-  sceneRaw: unknown,
-): { title: string; updatedAt: string; dir: string; medium: 'excalidraw' } {
-  if (typeof title !== 'string' || title.trim().length === 0) {
-    throw new Error('title must be a non-empty string')
-  }
-  if (typeof sceneRaw !== 'string' || sceneRaw.trim().length === 0) {
-    throw new Error('scene must be a non-empty JSON string')
-  }
-  const bytes = Buffer.byteLength(sceneRaw, 'utf8')
-  if (bytes > MAX_SCENE_BYTES) {
-    throw new Error(`scene is ${bytes} bytes, over the ${MAX_SCENE_BYTES}-byte limit`)
-  }
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(sceneRaw)
-  } catch {
-    throw new Error('scene is not valid JSON')
-  }
-  if (
-    typeof parsed !== 'object' ||
-    parsed === null ||
-    !Array.isArray((parsed as { elements?: unknown }).elements)
-  ) {
-    throw new Error('scene must be an Excalidraw export object with an elements array')
-  }
-  const meta = writeMeta(repoPath, title)
-  const dir = evidenceDirForRepo(repoPath)
-  const scenePath = join(dir, SCENE_FILENAME)
-  const tmp = `${scenePath}.tmp`
-  writeFileSync(tmp, sceneRaw)
-  renameSync(tmp, scenePath)
-  return { title: meta.title, updatedAt: meta.updatedAt, dir, medium: 'excalidraw' }
-}
-
 export function clearEvidence(repoPath: string): void {
   rmSync(evidenceDirForRepo(repoPath), { recursive: true, force: true })
   // Also drop a legacy evidence.json entry if present.
@@ -319,7 +272,7 @@ export function getEvidence(repoPath: string): Evidence | null {
   try {
     const html = readFileSync(indexPath, 'utf8')
     if (!html) return null
-    let title = 'Loop evidence'
+    let title = 'Evidence'
     let updatedAt = ''
     try {
       const meta = JSON.parse(readFileSync(join(dir, 'meta.json'), 'utf8')) as EvidenceMeta
@@ -359,7 +312,7 @@ export function describeEvidence(repoPath: string, evidence: Evidence | null): s
   const dir = evidenceDirForRepo(repoPath)
   const checks = checksSummary(readChecksForRepo(repoPath))
   if (!evidence) {
-    return `No loop evidence for ${repoPath}. Preferred flow: run \`porcelain evidence prepare --title <title>\` — it returns a directory path; write index.html (and screenshots as siblings with relative <img src>) there with normal file tools. Porcelain picks it up automatically. Do NOT push large HTML through the CLI.${checks}`
+    return `No evidence for ${repoPath}. Preferred flow: run \`porcelain evidence prepare --title <title>\` — it returns a directory path; write index.html (and screenshots as siblings with relative <img src>) there with normal file tools. Porcelain picks it up automatically. Do NOT push large HTML through the CLI.${checks}`
   }
   const bytes = Buffer.byteLength(evidence.html, 'utf8')
   const when = evidence.updatedAt ? ` (updated ${evidence.updatedAt})` : ''
@@ -373,7 +326,7 @@ export function describeEvidence(repoPath: string, evidence: Evidence | null): s
     }
   })()
   if (hasIndex) {
-    return `Loop evidence "${evidence.title}" for ${repoPath}: ${bytes} bytes at ${dir}/index.html${when}. Open that path in a browser, or Feature tab → Loop evidence in Porcelain.${checks}${preview}`
+    return `Evidence "${evidence.title}" for ${repoPath}: ${bytes} bytes at ${dir}/index.html${when}. Open that path in a browser, or Feature tab → Evidence in Porcelain.${checks}${preview}`
   }
-  return `Loop evidence "${evidence.title}" for ${repoPath}: ${bytes} bytes of HTML${when} (legacy channel). Prefer writing ${dir}/index.html next time.${checks}${preview}`
+  return `Evidence "${evidence.title}" for ${repoPath}: ${bytes} bytes of HTML${when} (legacy channel). Prefer writing ${dir}/index.html next time.${checks}${preview}`
 }

@@ -21,7 +21,7 @@
 // Kept short on purpose (P4 token audit): this string is appended every Claude/Grok
 // turn and wraps the first Codex/OpenCode message. Verbose prose here costs real
 // tokens on every turn without changing capability — the CLI `help` is the catalog.
-export const PORCELAIN_PREAMBLE = `You run inside Porcelain. Drive it via ~/.porcelain/porcelain (from the repo; \`help\` lists verbs): review set / evidence prepare (+ write index.html or canvas.excalidraw in the printed dir), board, comments list/answer/resolve, chat list/post, notes get, layers. Finish features with review set + loop evidence. Before big multi-file edits: chat list; claim with chat post --files/--intent; close with --closes.`
+export const PORCELAIN_PREAMBLE = `You run inside Porcelain. Drive it via ~/.porcelain/porcelain (from the repo; \`help\` lists verbs): review set / evidence prepare (+ write index.html in the printed dir), board, comments list/answer/resolve, chat list/post, notes get, layers. Finish features with review set (Intent + Execution files) + evidence (HTML proof). Before big multi-file edits: chat list; claim with chat post --files/--intent; close with --closes.`
 
 /**
  * Wrap the preamble around the user's real message for drivers with no native system-prompt

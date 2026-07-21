@@ -96,9 +96,9 @@ describe('evidence directory channel', () => {
     return meta.checks
   }
 
-  it('checkEvidence creates the meta when missing (title falls back to Loop evidence)', () => {
+  it('checkEvidence creates the meta when missing (title falls back to Evidence)', () => {
     const result = checkEvidence('/repo', 'pnpm test', 'pass', '1348 passed')
-    expect(result.title).toBe('Loop evidence')
+    expect(result.title).toBe('Evidence')
     expect(result.checks).toEqual([{ label: 'pnpm test', status: 'pass', detail: '1348 passed' }])
     expect(existsSync(join(evidenceDirForRepo('/repo'), 'meta.json'))).toBe(true)
   })

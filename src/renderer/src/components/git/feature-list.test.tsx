@@ -117,7 +117,12 @@ describe('FeatureList', () => {
     reviewedPaths.current = new Set()
     useTabsStore.setState({ panes: [{ tabs: [], activeTabId: null }], activePaneIndex: 0 })
     useRepoStore.setState({ repo: { path: '/repo', name: 'repo' } })
-    useReviewFocusStore.setState({ activeSection: null, visiblePath: null, jump: null })
+    useReviewFocusStore.setState({
+      canvasTab: 'intent',
+      activeSection: null,
+      visiblePath: null,
+      jump: null,
+    })
     vi.mocked(useFeatureReading).mockReturnValue({ reading, refresh: async () => {} })
   })
 
@@ -138,6 +143,9 @@ describe('FeatureList', () => {
     expect(screen.getByText('callout-service.ts')).toBeInTheDocument()
     expect(screen.getByText('+12')).toBeInTheDocument()
     expect(screen.getByText('Loop closed')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Intent' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Execution' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Evidence' })).toBeInTheDocument()
     expect(
       screen.getByText(byTextContent('labels must match CALLOUT_TEMPLATES')),
     ).toBeInTheDocument()
@@ -151,16 +159,18 @@ describe('FeatureList', () => {
     expect(useReviewFocusStore.getState().jump?.target).toEqual({ kind: 'section', index: 0 })
   })
 
-  it('jumps to the evidence canvas tab from the Loop evidence row', () => {
+  it('jumps to the evidence canvas tab from the Evidence shortcut', () => {
     renderList()
-    // Row labels use the evidence title when present (not the generic "Loop evidence").
+    // Shortcut uses the evidence title when present.
     fireEvent.click(screen.getByText('Loop closed'))
     expect(useReviewFocusStore.getState().jump?.target).toEqual({ kind: 'evidence' })
+    expect(useReviewFocusStore.getState().canvasTab).toBe('evidence')
   })
 
-  it('shows an explicit Open Review button', () => {
+  it('opens Intent from the Intent shortcut', () => {
     renderList()
-    expect(screen.getByRole('button', { name: 'Open Review' })).toBeInTheDocument()
+    fireEvent.click(screen.getByText('What is this, and what’s the idea?'))
+    expect(useReviewFocusStore.getState().jump?.target).toEqual({ kind: 'intent' })
   })
 
   it('opens a changed file as a working-tree diff (matches Changes primary open)', () => {
@@ -216,13 +226,12 @@ describe('FeatureList', () => {
     expect(unmarkSpy).toHaveBeenCalledWith('src/components/callout.tsx')
   })
 
-  it('opens Review via Open Review and clears only after AlertDialog confirm', () => {
+  it('clears only after AlertDialog confirm', () => {
     renderList()
-    expect(screen.getByRole('button', { name: 'Open Review' })).toBeInTheDocument()
     fireEvent.click(screen.getByLabelText('Review actions'))
     fireEvent.click(screen.getByText('Clear review & evidence'))
     expect(clearSpy).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByLabelText('Confirm clear review and loop evidence'))
+    fireEvent.click(screen.getByLabelText('Confirm clear review and evidence'))
     expect(clearSpy).toHaveBeenCalledTimes(1)
   })
 })

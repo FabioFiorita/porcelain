@@ -26,7 +26,7 @@ export function useClearEvidence(): { clear: () => Promise<void>; isClearing: bo
   const repo = useRepoStore((s) => s.repo)
   const utils = trpc.useUtils()
   const mutation = trpc.clearLoopEvidence.useMutation({
-    onError: onMutationError('Clear loop evidence'),
+    onError: onMutationError('Clear evidence'),
   })
   return {
     clear: async () => {

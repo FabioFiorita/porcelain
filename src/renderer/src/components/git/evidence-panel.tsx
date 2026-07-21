@@ -1,14 +1,13 @@
 import { EvidenceChecksRow, EvidenceHeaderRow } from '@renderer/components/git/reading-surface'
-import { ExcalidrawHost } from '@renderer/components/viewer/excalidraw-host'
 import { HtmlView } from '@renderer/components/viewer/html-view'
 import { useEvidenceHtml } from '@renderer/hooks/use-evidence'
 import { useRepoStore } from '@renderer/stores/repo'
 import type { EvidenceCheck } from '@shared/evidence-check'
 
 /**
- * Full-height Loop evidence canvas pane: header (title + pass/fail + Clear),
- * structured checks, then HTML (sandbox) or Excalidraw body by medium.
- * HTML path unchanged: `sandbox="" srcDoc` — no allow-* tokens.
+ * Full-height Evidence canvas pane: header (title + pass/fail + Clear),
+ * structured checks, then sandboxed HTML body. HTML only — Excalidraw is an
+ * Intent medium, not evidence.
  */
 export function EvidencePanel({
   title,
@@ -27,16 +26,13 @@ export function EvidencePanel({
       <EvidenceHeaderRow title={title} checks={checks} />
       <p className="sticky left-0 max-w-[var(--vrows-vw)] px-3 pb-1 font-sans text-2xs text-muted-foreground">
         Updated {formatUpdatedAt(updatedAt)}
-        {evidence?.medium === 'excalidraw' ? ' · Excalidraw' : ''}
       </p>
       {checks.length > 0 && <EvidenceChecksRow checks={checks} />}
       <div className="min-h-0 flex-1 px-3 pb-3 pt-1">
         {evidence === undefined ? (
           <p className="p-4 text-sm text-muted-foreground">Loading…</p>
         ) : evidence === null ? (
-          <p className="p-4 text-sm text-muted-foreground">Loop evidence was cleared.</p>
-        ) : evidence.medium === 'excalidraw' && evidence.scene ? (
-          <ExcalidrawHost scene={evidence.scene} />
+          <p className="p-4 text-sm text-muted-foreground">Evidence was cleared.</p>
         ) : evidence.html ? (
           <div className="h-full min-h-0 overflow-hidden rounded-md border">
             <HtmlView html={evidence.html} title={evidence.title} />

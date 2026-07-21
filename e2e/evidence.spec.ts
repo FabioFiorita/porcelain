@@ -43,18 +43,18 @@ test.use({
   seedEvidence: { title: 'Test evidence', html: EVIDENCE_HTML },
 })
 
-test('loop evidence renders as the Review chapter in a fully sandboxed iframe', async ({
+test('evidence renders as the Review Evidence tab in a fully sandboxed iframe', async ({
   page,
 }) => {
   await waitForShell(page)
   await selectTab(page, 'Review')
 
-  // Outline evidence row uses the evidence title when present.
-  const outlineRow = page.getByRole('button', { name: /Test evidence|Loop evidence/ })
-  await expect(outlineRow).toBeVisible({ timeout: 15_000 })
+  // Sidebar Evidence shortcut uses the evidence title when present.
+  const outlineRow = page.getByRole('button', { name: /Test evidence|Evidence/ })
+  await expect(outlineRow.first()).toBeVisible({ timeout: 15_000 })
 
-  // Clicking the row opens the Review document and jumps it to the evidence chapter.
-  await outlineRow.click()
+  // Clicking opens the Review canvas on the Evidence tab.
+  await outlineRow.first().click()
   await expect(page.getByRole('heading', { name: 'Test evidence' })).toBeVisible({
     timeout: 15_000,
   })
@@ -74,9 +74,9 @@ test('loop evidence renders as the Review chapter in a fully sandboxed iframe', 
   // sandbox="" blocks scripts: the canary never ran.
   await expect(frame.locator('body')).not.toContainText('SCRIPT EXECUTED')
 
-  // Clear is the human's erase path for this ephemeral surface: the chapter and the
-  // outline row both drop, while the rest of the Review stays.
-  await page.getByRole('button', { name: 'Clear loop evidence' }).click()
-  await expect(outlineRow).not.toBeVisible({ timeout: 15_000 })
+  // Clear is the human's erase path for this ephemeral surface: the Evidence tab and
+  // the outline shortcut both drop, while Intent/Execution stay.
+  await page.getByRole('button', { name: 'Clear evidence' }).click()
+  await expect(outlineRow.first()).not.toBeVisible({ timeout: 15_000 })
   await expect(page.getByText('The variant hop').first()).toBeVisible()
 })

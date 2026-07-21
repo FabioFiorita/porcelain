@@ -271,17 +271,17 @@ export interface FeatureReading {
   /** Files not anchored by any section, flow-grouped ("More files"). */
   groups: ReadingGroup[]
   /**
-   * Optional freeform Overview body. When set, Feature Overview renders this
-   * full-height instead of the structured reading surface (outline still uses
+   * Optional freeform Intent body. When set, Feature Intent can render this
+   * full-height instead of the structured narrative (outline still uses
    * thesis/sections/files).
    */
   canvas?: ReviewCanvas
-  /** Loop-evidence meta when present; full body fetched lazily via loopEvidenceHtml. */
+  /** Evidence meta when present; full body fetched lazily via loopEvidenceHtml. */
   evidence: {
     title: string
     updatedAt: string
     checks: EvidenceCheck[]
-    medium: 'html' | 'excalidraw'
+    medium: 'html'
   } | null
 }
 

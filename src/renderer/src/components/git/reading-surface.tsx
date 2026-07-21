@@ -145,20 +145,24 @@ function pushFileRows(
 
 export interface BuildRowsOptions {
   /**
-   * When false, omit the loop-evidence chapter rows (Feature canvas Overview tab).
-   * Default true so Changes/History continuous review and Explore stay identical.
+   * When false, omit the evidence chapter rows (Feature Intent tab — evidence is
+   * its own canvas tab). Default true so Changes/History continuous review and
+   * Explore stay identical.
    */
   includeEvidence?: boolean
+  /**
+   * When false, omit anchored code / file blocks and "More files" groups (Feature
+   * Intent narrative — Execution owns the file list). Default true.
+   */
+  includeAnchors?: boolean
 }
 
 /**
  * Flatten the whole Review document into rows: thesis, then each walkthrough
- * section (header, prose, optional diagram, anchored code blocks), then the
- * unanchored files under a synthetic "More files" chapter (index
- * `sections.length` — only when sections exist; a section-less reading stays the
- * plain flow-grouped list, which is also what the pure-diff review renders), then
- * the loop-evidence chapter (opt-out via `includeEvidence: false` for the Feature
- * canvas Overview tab).
+ * section (header, prose, optional diagram, optional anchored code), then the
+ * unanchored files under "More files", then the evidence chapter (opt-out via
+ * `includeEvidence: false` for Feature Intent). Intent also opts out of anchors
+ * via `includeAnchors: false`.
  */
 export function buildRows(
   reading: FeatureReading,
@@ -167,6 +171,7 @@ export function buildRows(
   options?: BuildRowsOptions,
 ): ReadingRow[] {
   const includeEvidence = options?.includeEvidence !== false
+  const includeAnchors = options?.includeAnchors !== false
   const rows: ReadingRow[] = []
   if (reading.thesis) rows.push({ type: 'thesis', md: reading.thesis })
   reading.sections.forEach((section, index) => {
@@ -174,14 +179,18 @@ export function buildRows(
     if (section.prose.trim()) rows.push({ type: 'prose', md: section.prose })
     if (section.diagram) rows.push({ type: 'diagram', svg: section.diagram })
     if (section.html) rows.push({ type: 'embed', html: section.html, height: section.htmlHeight })
-    for (const file of section.files) pushFileRows(rows, file, highlighter, theme)
+    if (includeAnchors) {
+      for (const file of section.files) pushFileRows(rows, file, highlighter, theme)
+    }
   })
-  if (reading.sections.length > 0 && reading.groups.length > 0) {
-    rows.push({ type: 'sectionHeader', index: reading.sections.length, title: 'More files' })
-  }
-  for (const group of reading.groups) {
-    rows.push({ type: 'layer', label: group.layer })
-    for (const file of group.files) pushFileRows(rows, file, highlighter, theme)
+  if (includeAnchors) {
+    if (reading.sections.length > 0 && reading.groups.length > 0) {
+      rows.push({ type: 'sectionHeader', index: reading.sections.length, title: 'More files' })
+    }
+    for (const group of reading.groups) {
+      rows.push({ type: 'layer', label: group.layer })
+      for (const file of group.files) pushFileRows(rows, file, highlighter, theme)
+    }
   }
   if (includeEvidence && reading.evidence) {
     const { title, checks } = reading.evidence
@@ -241,12 +250,16 @@ export function rowIndexForTarget(
   rows: readonly ReadingRow[],
   target: ReviewJumpTarget,
 ): number | null {
-  if (target.kind === 'top') return rows.length > 0 ? 0 : null
-  const index = rows.findIndex((row) =>
-    target.kind === 'evidence'
-      ? row.type === 'evidenceHeader'
-      : row.type === 'sectionHeader' && row.index === target.index,
-  )
+  if (target.kind === 'top' || target.kind === 'intent') return rows.length > 0 ? 0 : null
+  // Execution is a canvas tab only (FeatureView) — no row in the reading surface.
+  if (target.kind === 'execution') return null
+  // Evidence: continuous review still embeds an evidence chapter; FeatureView
+  // intercepts the jump for its own Evidence tab first.
+  if (target.kind === 'evidence') {
+    const index = rows.findIndex((row) => row.type === 'evidenceHeader')
+    return index === -1 ? null : index
+  }
+  const index = rows.findIndex((row) => row.type === 'sectionHeader' && row.index === target.index)
   return index === -1 ? null : index
 }
 
@@ -553,13 +566,13 @@ export function EvidenceHeaderRow({
               className="shrink-0 text-muted-foreground"
               onClick={clear}
               disabled={isClearing}
-              aria-label="Clear loop evidence"
+              aria-label="Clear evidence"
             >
               <Eraser />
             </Button>
           }
         />
-        <TooltipContent>Clear loop evidence</TooltipContent>
+        <TooltipContent>Clear evidence</TooltipContent>
       </Tooltip>
     </div>
   )
@@ -604,24 +617,20 @@ export function EvidenceChecksRow({ checks }: { checks: EvidenceCheck[] }): Reac
 // The evidence document itself, fetched lazily — the row only mounts when scrolled
 // near (virtualization), so the (up to ~4 MB) HTML never rides the 3s reading poll.
 // Same fully-sandboxed iframe path as the diagram rows; fixed height, scrolls inside.
+// Kept for non-Feature surfaces that still flatten evidence into rows
+// (includeEvidence default true). Feature Intent opts out; Evidence tab uses
+// EvidencePanel (full height, HTML only).
 function EvidenceBodyRow(): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)
   const { evidence } = useEvidenceHtml(repo?.path ?? '')
-  // Kept for non-Feature surfaces that still flatten evidence into rows
-  // (includeEvidence default true). Feature Overview opts out; Loop evidence
-  // tab uses EvidencePanel (full height, HTML | Excalidraw).
   return (
     <div className="sticky left-0 max-w-[var(--vrows-vw)] px-3 py-2">
       <div className="h-[28rem] overflow-hidden rounded-md border">
         {evidence?.html ? (
           <HtmlView html={evidence.html} title={evidence.title} />
-        ) : evidence?.medium === 'excalidraw' ? (
-          <p className="p-4 text-sm text-muted-foreground">
-            Excalidraw evidence — open the Loop evidence canvas tab for the full board.
-          </p>
         ) : (
           <p className="p-4 text-sm text-muted-foreground">
-            {evidence === undefined ? 'Loading…' : 'Loop evidence was cleared.'}
+            {evidence === undefined ? 'Loading…' : 'Evidence was cleared.'}
           </p>
         )}
       </div>
@@ -795,25 +804,28 @@ function ReadingRowView({
  * `fileActions` adds mark-reviewed / open-file chrome on file-name rows (Changes /
  * History continuous review); Feature/Explore leave it off. `trackFocus` (the Review
  * document only) publishes the topmost visible chapter/file to the review-focus store
- * and consumes its jump requests. `includeEvidence` defaults true — Feature Overview
- * passes false so loop evidence lives in its own canvas tab.
+ * and consumes its jump requests. `includeEvidence` defaults true — Feature Intent
+ * passes false (evidence is its own tab). `includeAnchors` defaults true — Intent
+ * passes false so narrative stays prose/diagrams (Execution owns the files).
  */
 export function ReadingSurfaceBody({
   reading,
   fileActions,
   trackFocus = false,
   includeEvidence = true,
+  includeAnchors = true,
 }: {
   reading: FeatureReading
   fileActions?: ReadingFileActions
   trackFocus?: boolean
   includeEvidence?: boolean
+  includeAnchors?: boolean
 }): React.JSX.Element {
   const highlighter = useHighlighter()
   const theme = themeNameFor(useResolvedTheme())
   const rows = useMemo(
-    () => buildRows(reading, highlighter, theme, { includeEvidence }),
-    [reading, highlighter, theme, includeEvidence],
+    () => buildRows(reading, highlighter, theme, { includeEvidence, includeAnchors }),
+    [reading, highlighter, theme, includeEvidence, includeAnchors],
   )
   const [anchor, setAnchor] = useState<CommentAnchor | null>(null)
   const comments = useReviewComments()

@@ -107,7 +107,7 @@ describe('runCli — flag parsing, help, repo resolution', () => {
     process.env.PORCELAIN_LOOP_EVIDENCE_DIR = join(dir, 'loop-evidence')
     const readStdin = () => doc
     await runCli(['evidence', 'set', ...repo, '--title', 'Piped', '--html', '-'], { readStdin })
-    expect(await runCli(['evidence', 'get', ...repo])).toContain('Loop evidence "Piped" for /repo')
+    expect(await runCli(['evidence', 'get', ...repo])).toContain('Evidence "Piped" for /repo')
   })
 })
 
@@ -352,7 +352,7 @@ describe('runCli — evidence (html input)', () => {
   it('evidence prepare prepares the on-disk directory', async () => {
     process.env.PORCELAIN_LOOP_EVIDENCE_DIR = join(dir, 'loop-evidence')
     const msg = await runCli(['evidence', 'prepare', ...repo, '--title', 'SPA redirect'])
-    expect(msg).toContain('Loop evidence directory ready')
+    expect(msg).toContain('Evidence directory ready')
     expect(msg).toContain('index.html')
     expect(msg).toMatch(/loop-evidence/)
   })
@@ -365,12 +365,10 @@ describe('runCli — evidence (html input)', () => {
   it('evidence set/get/clear with html writes index.html under the dir', async () => {
     process.env.PORCELAIN_LOOP_EVIDENCE_DIR = join(dir, 'loop-evidence')
     await runCli(['evidence', 'set', ...repo, '--title', 'Vite loop', '--html', doc])
-    expect(await runCli(['evidence', 'get', ...repo])).toContain(
-      'Loop evidence "Vite loop" for /repo',
-    )
+    expect(await runCli(['evidence', 'get', ...repo])).toContain('Evidence "Vite loop" for /repo')
     expect(await runCli(['evidence', 'get', ...repo])).toContain('index.html')
     await runCli(['evidence', 'clear', ...repo])
-    expect(await runCli(['evidence', 'get', ...repo])).toContain('No loop evidence')
+    expect(await runCli(['evidence', 'get', ...repo])).toContain('No evidence')
   })
   it('evidence set rejects a missing title', async () => {
     process.env.PORCELAIN_LOOP_EVIDENCE_DIR = join(dir, 'loop-evidence')

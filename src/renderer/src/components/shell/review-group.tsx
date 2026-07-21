@@ -22,7 +22,7 @@ export function firstProseLine(prose: string): string | null {
 }
 
 function chapterTitle(reading: FeatureReading, active: ReviewFocusSection): string {
-  if (active === 'evidence') return reading.evidence?.title ?? 'Loop evidence'
+  if (active === 'evidence') return reading.evidence?.title ?? 'Evidence'
   if (active !== null && active < reading.sections.length) {
     return reading.sections[active]?.title ?? reading.name
   }

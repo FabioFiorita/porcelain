@@ -33,7 +33,6 @@ import {
   getEvidence,
   prepareEvidence,
   setEvidence,
-  setEvidenceScene,
 } from './evidence-file'
 import { describeFeatureView, readFeatureView, sourceByPath } from './feature-view-file'
 import { resolveToolHtml } from './html-input'
@@ -221,7 +220,7 @@ const COMMANDS: NounHelp[] = [
   },
   {
     noun: 'evidence',
-    blurb: 'loop evidence — proof the loop closed (browser/simulator validation)',
+    blurb: 'evidence — proof the loop closed (HTML validation report)',
     verbs: [
       {
         verb: 'prepare',
@@ -230,8 +229,8 @@ const COMMANDS: NounHelp[] = [
       },
       {
         verb: 'set',
-        args: '--title <s> (--html <s|-> | --html-file <p> | --medium excalidraw --file <scene.excalidraw>)',
-        desc: 'Write index.html (HTML) or canvas.excalidraw (Excalidraw medium)',
+        args: '--title <s> (--html <s|-> | --html-file <p>)',
+        desc: 'Write index.html (HTML body)',
       },
       {
         verb: 'check',
@@ -241,10 +240,9 @@ const COMMANDS: NounHelp[] = [
       { verb: 'get', args: '', desc: 'Read back the stored evidence (summary + preview)' },
       { verb: 'clear', args: '', desc: 'Remove the evidence' },
     ],
-    flags: ['title', 'html', 'html-file', 'label', 'status', 'detail', 'medium', 'file'],
+    flags: ['title', 'html', 'html-file', 'label', 'status', 'detail'],
     flagOverrides: {
       status: 'Check result: pass | fail | skip',
-      medium: 'Evidence body medium: html (default) | excalidraw',
     },
   },
   {
@@ -447,20 +445,12 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
       return describeReviewed(repo, readReviewed(repo))
     case 'evidence prepare': {
       const prepared = prepareEvidence(repo, opt('title'))
-      return `Loop evidence directory ready for "${prepared.title}" at:\n${prepared.dir}\n\nWrite index.html (HTML body) or canvas.excalidraw (Excalidraw body) there — HTML wins if both exist. Screenshots as sibling files with relative <img src="shot.png">. Porcelain picks it up on the Loop evidence canvas tab. For large HTML, write the file yourself rather than passing --html.`
+      return `Evidence directory ready for "${prepared.title}" at:\n${prepared.dir}\n\nWrite index.html there (HTML body only). Screenshots as sibling files with relative <img src="shot.png">. Porcelain picks it up on the Evidence canvas tab. For large HTML, write the file yourself rather than passing --html.`
     }
     case 'evidence set': {
-      const medium = opt('medium') ?? 'html'
-      if (medium === 'excalidraw') {
-        const file = req('file')
-        const sceneRaw = readFileSync(file, 'utf8')
-        const evidence = setEvidenceScene(repo, opt('title'), sceneRaw)
-        return `Wrote loop evidence "${evidence.title}" to ${evidence.dir}/canvas.excalidraw for ${repo}. Porcelain renders it on the Loop evidence canvas tab.`
-      }
-      if (medium !== 'html') throw new Error('medium must be html or excalidraw')
       const html = resolveHtml(EVIDENCE_MAX_HTML_BYTES)
       const evidence = setEvidence(repo, opt('title'), html)
-      return `Wrote loop evidence "${evidence.title}" to ${evidence.dir}/index.html for ${repo}. Porcelain renders it on the Loop evidence canvas tab. For large docs prefer "evidence prepare" + writing index.html yourself.`
+      return `Wrote evidence "${evidence.title}" to ${evidence.dir}/index.html for ${repo}. Porcelain renders it on the Evidence canvas tab. For large docs prefer "evidence prepare" + writing index.html yourself.`
     }
     case 'evidence check': {
       const result = checkEvidence(repo, req('label'), req('status'), opt('detail'))
