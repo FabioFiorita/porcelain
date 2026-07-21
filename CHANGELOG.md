@@ -1,3 +1,13 @@
+## [0.39.1](https://github.com/FabioFiorita/porcelain/compare/v0.39.0...v0.39.1) (2026-07-21)
+
+### Features
+
+* **skills:** consolidate companion skills into porcelain-companion ([63a38db](https://github.com/FabioFiorita/porcelain/commit/63a38db43546ec057b8b6fd2d9ea6cbdd3e3474a))
+
+### Bug Fixes
+
+* **e2e:** declare __porcelainSetTerminalFontSize on Window ([4b58d3c](https://github.com/FabioFiorita/porcelain/commit/4b58d3c185d04a47dc603e57f0a81b801a0c3250))
+
 ## [0.39.0](https://github.com/FabioFiorita/porcelain/compare/v0.38.2...v0.39.0) (2026-07-21)
 
 ### Features
