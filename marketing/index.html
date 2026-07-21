@@ -34,7 +34,6 @@
         <a href="#review">Review</a>
         <a href="#loop">Loop</a>
         <a href="#remote">Remote</a>
-        <a href="#pillars">Why</a>
         <a href="#install">Install</a>
       </div>
       <div class="nav-actions">
@@ -77,7 +76,7 @@
     <div data-reveal>
       <p class="eyebrow">The shift</p>
       <h2 class="section-title" style="max-width:780px;">Agents write the code now.<br>Reading it is the job.</h2>
-      <p class="lead" style="max-width:640px;margin-bottom:40px;">The bottleneck moved from generating patches to understanding them. For people shipping real software, trust is not a nicety. It is the work.</p>
+      <p class="lead" style="max-width:640px;margin-bottom:40px;">The tools around agents still assume writing is the hard part. It is not.</p>
     </div>
     <div class="grid-3">
       <div class="card card-pad problem-card" data-reveal>
@@ -310,9 +309,9 @@
   <!-- TOOLKIT GALLERY -->
   <section class="section wrap-wide wrap" id="toolkit">
     <div class="sec-head" data-reveal>
-      <p class="eyebrow">The rest of the room</p>
-      <h2 class="section-title">Terminal, search, history. Still not an IDE.</h2>
-      <p class="lead">Porcelain is a viewer, not an editor. Quick single-file edits are in. Autocomplete, rename, and multi-file refactors stay out. Lean on your real editor for those; keep judgment here.</p>
+      <p class="eyebrow">Also in the window</p>
+      <h2 class="section-title">Terminal, search, history.<br>Not an IDE.</h2>
+      <p class="lead">Quick single-file edits are fine. Autocomplete, rename, and multi-file refactors stay in your real editor.</p>
     </div>
     <div class="gallery-grid">
       <div class="card" data-reveal>
@@ -321,7 +320,7 @@
         </div>
         <div class="card-pad">
           <div style="font-family:var(--mono);font-size:14px;margin-bottom:8px;">Search anything</div>
-          <p class="pillar-body">One bar for files, folders, saved commands, and commits. Jump without leaving the room.</p>
+          <p class="pillar-body">Files, folders, saved commands, and commits in one bar.</p>
         </div>
       </div>
       <div class="card" data-reveal>
@@ -330,7 +329,7 @@
         </div>
         <div class="card-pad">
           <div style="font-family:var(--mono);font-size:14px;margin-bottom:8px;">Git history</div>
-          <p class="pillar-body">Browse commits with full messages and open the diff behind any of them.</p>
+          <p class="pillar-body">Full messages, then open the diff behind any commit.</p>
         </div>
       </div>
       <div class="card gallery-full" data-reveal>
@@ -339,75 +338,8 @@
         </div>
         <div class="card-pad">
           <div style="font-family:var(--mono);font-size:14px;margin-bottom:8px;">Terminal &amp; Actions</div>
-          <p class="pillar-body">Real PTYs that outlive their tabs and survive reconnects. Saved Actions the agent can curate; only you run them.</p>
+          <p class="pillar-body">Real PTYs that survive reconnects. Saved Actions the agent can curate; only you run them.</p>
         </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- PHILOSOPHY / PILLARS -->
-  <section class="section wrap" id="pillars">
-    <div class="sec-head" data-reveal>
-      <p class="eyebrow">What we stand for</p>
-      <h2 class="section-title">Trust over velocity.<br>Depth over dashboards.</h2>
-      <p class="lead">Porcelain started as a companion for reviewing agent output. It became the place agents run <em>and</em> the place you keep your integrity about what they ship. The name still fits: a clean surface over the messy factory floor of agents, shells, remotes, and monorepos.</p>
-    </div>
-    <div class="grid-3">
-      <div class="card card-pad-lg" data-reveal>
-        <p class="pillar-num">Pillar 01</p>
-        <h3 class="pillar-title">Review depth</h3>
-        <p class="pillar-body">Flow-ordered diffs, the Review (Intent · Execution · Evidence), comments both ways, explore-a-flow, monorepo scoping. The moat. No competitor owns this side of the pile.</p>
-      </div>
-      <div class="card card-pad-lg" data-reveal>
-        <p class="pillar-num">Pillar 02</p>
-        <h3 class="pillar-title">Remote as product</h3>
-        <p class="pillar-body">One token-gated daemon, three clients, state daemon-side. Your laptop is a thin client when you want it. Power stays on the machine you own.</p>
-      </div>
-      <div class="card card-pad-lg" data-reveal>
-        <p class="pillar-num">Pillar 03</p>
-        <h3 class="pillar-title">Agents, deliberately narrow</h3>
-        <p class="pillar-body">Four providers done well through the CLIs you already use. We do not race on provider count or automation breadth. Running agents is table stakes; trusting them is the product.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- FEATURE GRID -->
-  <section class="section wrap" id="features">
-    <div data-reveal>
-      <p class="eyebrow">Everything in the box</p>
-      <h2 class="section-title" style="max-width:640px;margin-bottom:40px;">A complete run-and-review surface.</h2>
-    </div>
-    <div class="grid-features">
-      <div class="card card-pad-lg" data-reveal>
-        <p class="feature-label">Review &amp; comprehension</p>
-        <ul class="feature-list">
-          <li>The Review: Intent · Execution · Evidence</li>
-          <li>Flow-ordered diffs, custom layers per repo</li>
-          <li>Explore flow: read any feature read-only</li>
-          <li>Line/file comments, agent-synced</li>
-          <li>Mark reviewed; Review inbox across worktrees</li>
-        </ul>
-      </div>
-      <div class="card card-pad-lg" data-reveal>
-        <p class="feature-label">Agents &amp; loop</p>
-        <ul class="feature-list">
-          <li>Claude Code, Codex, OpenCode, Grok</li>
-          <li>Bundled CLI. No port, no telemetry</li>
-          <li>Project board agents read and update</li>
-          <li>Agent chat with file claims and overlaps</li>
-          <li>Saved Actions (agent curates, you run)</li>
-          <li>Companion skills via skills.sh</li>
-        </ul>
-      </div>
-      <div class="card card-pad-lg" data-reveal>
-        <p class="feature-label">Git &amp; workspace</p>
-        <ul class="feature-list">
-          <li>Diffs, staging, history, worktrees</li>
-          <li>Commit composer with conventional chips</li>
-          <li>Embedded terminal; multi-window</li>
-          <li>Hide / pin for monorepos</li>
-          <li>Light, dark &amp; system themes</li>
-        </ul>
       </div>
     </div>
   </section>
