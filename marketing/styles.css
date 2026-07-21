@@ -1,106 +1,696 @@
-/* Porcelain marketing site — shared base.
-   Per-page design tokens (--ink, --glass, …) live inline on each page's root,
-   exactly as the Claude Design source defined them. This file only carries the
-   reset, keyframes, scroll-reveal, and the hover utilities that replace the
-   design runtime's `style-hover` attribute. */
+/* Porcelain marketing — serious product surface.
+   Matches the app's opaque graphite identity (no glass, no vibrancy).
+   Tokens live on :root; pages use classes, not glass gradients. */
 
-* { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; background: #070818; }
-::selection { background: rgba(147, 164, 255, .32); color: #fff; }
-a { color: inherit; text-decoration: none; }
-img { display: block; max-width: 100%; }
-
-/* The two side-by-side gallery shots (search ~2.09, history ~1.13) have very
-   different native aspect ratios, so at equal column widths one card towered
-   over the other and the shorter card padded out with empty space below its
-   text. Pin both to a uniform band so the cards are naturally equal-height.
-   The band matches the WIDE search shot's own ratio (feat-search.png, 1342×642
-   ≈ 2.09) so that shot is shown in full — a tighter 2/1 band zoomed it just
-   enough to clip its edges. The tall history shot then crops to its top rows
-   (anchored to the top). The full-width terminal card keeps its natural ratio,
-   so it is deliberately not a .gallery-shot. */
-.gallery-shot { width: 100%; aspect-ratio: 2.09 / 1; object-fit: cover; object-position: top; }
-
-@keyframes pcFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
-@keyframes pcDrift { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-2.5%, 2%) scale(1.06); } }
-
-@media (prefers-reduced-motion: reduce) {
-  * { animation: none !important; transition: none !important; }
+:root {
+  --bg: #090b0c;
+  --bg-elevated: #0f1112;
+  --card: #141618;
+  --card-hover: #1a1d1f;
+  --ink: #f4f4f5;
+  --dim: #a1a1aa;
+  --faint: #71717a;
+  --line: rgba(255, 255, 255, 0.09);
+  --line-strong: rgba(255, 255, 255, 0.14);
+  --accent: #7eb8e8;
+  --accent-soft: rgba(126, 184, 232, 0.12);
+  --mint: #6bc4a6;
+  --add: #56d364;
+  --del: #f0796f;
+  --sh: 0 24px 64px rgba(0, 0, 0, 0.45);
+  --shot: 0 32px 80px rgba(0, 0, 0, 0.55), 0 0 0 1px var(--line);
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --sans: "Geist", system-ui, -apple-system, sans-serif;
+  --max: 1120px;
+  --max-wide: 1280px;
+  --radius: 12px;
+  --radius-lg: 16px;
 }
 
-/* Hover states — the design's inline `transition` declarations supply the
-   timing; these supply the end state. */
-.h-ink:hover { color: var(--ink); }
-.h-glass:hover { background: rgba(255, 255, 255, .13); }
-.h-lift1:hover { transform: translateY(-1px); }
-.h-lift2:hover { transform: translateY(-2px); }
-.h-cta:hover { transform: translateY(-2px); box-shadow: 0 14px 34px rgba(150, 170, 255, .42); }
-.h-backhome:hover { color: var(--ink); background: rgba(255, 255, 255, .13); }
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+::selection {
+  background: rgba(126, 184, 232, 0.28);
+  color: #fff;
+}
+a {
+  color: inherit;
+  text-decoration: none;
+}
+img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
 
-/* Scroll reveal. `.reveal-ready` is set on <html> by an inline head script so a
-   no-JS load shows everything; with JS the elements start hidden, then the
-   IntersectionObserver adds `.is-visible`. */
+/* ── Layout ─────────────────────────────────────────────────────────────── */
+.page {
+  min-height: 100vh;
+  position: relative;
+}
+.wrap {
+  width: 100%;
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: 0 28px;
+}
+.wrap-wide {
+  max-width: var(--max-wide);
+}
+
+/* ── Nav ────────────────────────────────────────────────────────────────── */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  padding: 14px 20px;
+  display: flex;
+  justify-content: center;
+  background: rgba(9, 11, 12, 0.88);
+  border-bottom: 1px solid var(--line);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.site-nav {
+  width: 100%;
+  max-width: var(--max-wide);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.brand img {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+}
+.brand-name {
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.nav-links {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--dim);
+}
+.nav-links a:hover {
+  color: var(--ink);
+}
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* ── Buttons ────────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s,
+    transform 0.15s;
+}
+.btn-primary {
+  color: #090b0c;
+  background: var(--ink);
+}
+.btn-primary:hover {
+  background: #fff;
+  transform: translateY(-1px);
+}
+.btn-ghost {
+  color: var(--ink);
+  background: transparent;
+  border-color: var(--line-strong);
+}
+.btn-ghost:hover {
+  background: var(--card);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+.btn-lg {
+  padding: 14px 22px;
+  font-size: 14px;
+  border-radius: 10px;
+}
+.btn-lg svg {
+  width: 17px;
+  height: 17px;
+}
+
+/* ── Typography ─────────────────────────────────────────────────────────── */
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 14px;
+}
+.hero-title {
+  font-family: var(--mono);
+  font-weight: 600;
+  font-size: clamp(36px, 6.5vw, 68px);
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  margin: 0 0 22px;
+}
+.section-title {
+  font-family: var(--mono);
+  font-weight: 600;
+  font-size: clamp(26px, 3.8vw, 40px);
+  line-height: 1.1;
+  letter-spacing: -0.022em;
+  margin: 0 0 18px;
+}
+.section-title-sm {
+  font-family: var(--mono);
+  font-weight: 600;
+  font-size: clamp(22px, 3.2vw, 32px);
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  margin: 0 0 16px;
+}
+.lead {
+  font-size: clamp(16px, 2vw, 19px);
+  line-height: 1.6;
+  color: var(--dim);
+  margin: 0;
+}
+.lead strong,
+.lead .hl {
+  color: var(--ink);
+  font-weight: 500;
+}
+.body {
+  font-size: 16.5px;
+  line-height: 1.65;
+  color: var(--dim);
+  margin: 0 0 22px;
+}
+.body:last-child {
+  margin-bottom: 0;
+}
+.meta {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--faint);
+  letter-spacing: 0.02em;
+  margin: 0;
+}
+
+/* ── Sections ───────────────────────────────────────────────────────────── */
+.section {
+  padding: 96px 0 40px;
+}
+.section-tight {
+  padding: 48px 0 32px;
+}
+.sec-head {
+  text-align: center;
+  max-width: 720px;
+  margin: 0 auto 48px;
+}
+.sec-head .lead {
+  max-width: 640px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ── Cards ──────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+.card-pad {
+  padding: 24px;
+}
+.card-pad-lg {
+  padding: 28px;
+}
+.card-soft {
+  background: var(--bg-elevated);
+}
+.shot-frame {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--shot);
+  background: var(--card);
+}
+.shot-frame img {
+  width: 100%;
+}
+.shot-frame-sm {
+  border-radius: var(--radius);
+  box-shadow: var(--sh);
+}
+
+/* ── Grids ──────────────────────────────────────────────────────────────── */
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 48px;
+  align-items: center;
+}
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.grid-features {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.grid-install {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.gallery-shot {
+  width: 100%;
+  aspect-ratio: 2.09 / 1;
+  object-fit: cover;
+  object-position: top;
+}
+.gallery-full {
+  grid-column: 1 / -1;
+}
+
+/* ── Feature list bullets ───────────────────────────────────────────────── */
+.ticks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ticks li {
+  display: flex;
+  gap: 10px;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--dim);
+}
+.ticks li::before {
+  content: "▹";
+  color: var(--mint);
+  font-family: var(--mono);
+  flex-shrink: 0;
+}
+.feature-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--dim);
+}
+.feature-label {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--accent);
+  margin: 0 0 14px;
+}
+
+/* ── Problem cards ──────────────────────────────────────────────────────── */
+.problem-card h3 {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--accent);
+  margin: 0 0 12px;
+  font-weight: 500;
+}
+.problem-card p {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--dim);
+}
+
+/* ── Flow chain ─────────────────────────────────────────────────────────── */
+.flow-chain {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 40px;
+}
+.flow-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 12px 14px;
+  min-width: 96px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.flow-step.edge {
+  border-color: var(--line-strong);
+  background: var(--bg-elevated);
+}
+.flow-step .layer {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.flow-step.edge .layer {
+  color: var(--mint);
+}
+.flow-step .name {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--ink);
+}
+.flow-arrow {
+  display: grid;
+  place-items: center;
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 14px;
+}
+
+/* ── Loop diagram ───────────────────────────────────────────────────────── */
+.loop-diagram {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 28px 0 52px;
+}
+.loop-node {
+  padding: 16px 22px;
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  text-align: center;
+  min-width: 140px;
+}
+.loop-node .who {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--ink);
+}
+.loop-node .role {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--faint);
+  margin-top: 3px;
+}
+.loop-mid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--accent);
+}
+.loop-mid .sub {
+  color: var(--faint);
+  font-size: 10px;
+}
+
+/* ── Code block ─────────────────────────────────────────────────────────── */
+.code-block {
+  background: #050607;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.85;
+  color: var(--dim);
+  overflow-x: auto;
+}
+.code-block .comment {
+  color: var(--accent);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  margin-bottom: 2px;
+}
+.code-block .prompt {
+  color: var(--mint);
+}
+.code-block .hint {
+  color: var(--faint);
+  margin-top: 4px;
+}
+
+/* ── Pillars (philosophy strip) ─────────────────────────────────────────── */
+.pillar-num {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin: 0 0 10px;
+}
+.pillar-title {
+  font-family: var(--mono);
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 10px;
+  color: var(--ink);
+}
+.pillar-body {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--dim);
+}
+
+/* ── Install / footer ───────────────────────────────────────────────────── */
+.install-step {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin: 0 0 12px;
+}
+.install-title {
+  font-family: var(--mono);
+  font-weight: 600;
+  font-size: 20px;
+  margin: 0 0 12px;
+}
+.oss-bar {
+  margin-top: 16px;
+  padding: 24px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.site-footer {
+  margin-top: 48px;
+  padding: 40px 0 56px;
+  border-top: 1px solid var(--line);
+}
+.footer-grid {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 32px;
+  flex-wrap: wrap;
+}
+.footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.footer-brand img {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+}
+.footer-links {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--dim);
+}
+.footer-links a:hover {
+  color: var(--ink);
+}
+.footer-col-label {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin: 0 0 12px;
+}
+
+/* ── Hero ───────────────────────────────────────────────────────────────── */
+.hero {
+  padding: 56px 0 0;
+  text-align: center;
+}
+.hero .lead {
+  max-width: 640px;
+  margin: 0 auto 32px;
+}
+.hero-ctas {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.hero-shot {
+  margin-top: 48px;
+  padding: 0 20px 0;
+  max-width: var(--max-wide);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ── Reveal ─────────────────────────────────────────────────────────────── */
 .reveal-ready [data-reveal] {
   opacity: 0;
-  transform: translateY(16px);
-  transition: opacity .7s ease, transform .7s ease;
+  transform: translateY(12px);
+  transition:
+    opacity 0.55s ease,
+    transform 0.55s ease;
 }
-.reveal-ready [data-reveal].is-visible { opacity: 1; transform: none; }
+.reveal-ready [data-reveal].is-visible {
+  opacity: 1;
+  transform: none;
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .reveal-ready [data-reveal] { opacity: 1 !important; transform: none !important; }
+  .reveal-ready [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
 }
 
-/* ── Mobile ──────────────────────────────────────────────────────────────
-   The page is otherwise inline-styled for desktop; these are the only
-   responsive rules. They override inline styles with !important on purpose. */
+/* ── Mobile ─────────────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .grid-2 {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+  .grid-3,
+  .grid-features,
+  .grid-install {
+    grid-template-columns: 1fr;
+  }
+  .gallery-grid {
+    grid-template-columns: 1fr;
+  }
+  .grid-2 .shot-first {
+    order: -1;
+  }
+}
+
 @media (max-width: 760px) {
-  /* Nav: drop the center anchor links (they overflow), tighten the bar so the
-     GitHub + Download actions never get clipped off the right edge. */
-  .nav-links { display: none !important; }
-  .site-nav { gap: 10px !important; padding: 8px 10px 8px 12px !important; }
-  .nav-actions { flex: 1; justify-content: flex-end; }
-  .nav-actions a { padding: 8px 12px !important; font-size: 12px !important; }
-  .nav-github { display: none !important; } /* GitHub lives in the page + footer */
-
-  /* Breathing room: trim oversized horizontal padding and tall section gaps. */
-  header { padding: 12px 14px !important; }
-  section { padding-left: 18px !important; padding-right: 18px !important; padding-top: 64px !important; }
-  #top { padding-top: 36px !important; }
-  footer { padding-left: 18px !important; padding-right: 18px !important; }
-
-  /* Hero type scales down a touch more on narrow screens. */
-  h1 { font-size: clamp(32px, 9vw, 84px) !important; }
-
-  /* The feature gallery's 440px min-track forces horizontal scroll — collapse
-     it (and any wide two-up grid) to a single column. */
-  .gallery-grid { grid-template-columns: 1fr !important; }
-
-  /* The human ↔ agent loop diagram wraps into an asymmetric mess on narrow
-     screens. Stack it vertically: You → ⇄ MCP → agent, centered and even. */
-  .loop-diagram { flex-direction: column !important; gap: 12px !important; }
-  .loop-diagram > div { width: 100%; max-width: 280px; }
-
-  /* Centered section intros read badly on a phone — centered ragged wrapping
-     orphans words ("agent,") and clashes with the left-aligned sections.
-     Left-align them and drop the desktop-tuned forced line breaks. */
-  .sec-head { text-align: left !important; }
-  .sec-head br { display: none; }
-
-  /* The flow chain (entry → hook → … → schema) wraps into a grid where the
-     arrows point into empty space. Stack it vertically with downward arrows. */
-  .flow-chain { flex-direction: column !important; gap: 8px !important; }
-  .flow-chain > div:nth-child(odd) { width: 100%; max-width: 240px; }
-  .flow-chain > div:nth-child(even) { transform: rotate(90deg); }
-
-  /* Two-column sections stack on mobile; their desktop 48px column gap then
-     becomes a wasted vertical chasm. Tighten it. */
-  [style*="gap:48px"] { gap: 26px !important; }
-
-  /* Trim the tallest desktop section gaps so the page doesn't feel sparse. */
-  #loop { margin-top: 0 !important; }
+  .nav-links {
+    display: none;
+  }
+  .nav-github {
+    display: none;
+  }
+  .site-header {
+    padding: 10px 14px;
+  }
+  .wrap {
+    padding: 0 18px;
+  }
+  .section {
+    padding: 64px 0 28px;
+  }
+  .hero {
+    padding-top: 36px;
+  }
+  .hero-title {
+    font-size: clamp(30px, 9vw, 68px);
+  }
+  .sec-head {
+    text-align: left;
+    margin-bottom: 32px;
+  }
+  .sec-head br {
+    display: none;
+  }
+  .flow-chain {
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+  }
+  .flow-chain .flow-arrow {
+    transform: rotate(90deg);
+  }
+  .loop-diagram {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .loop-diagram .loop-node {
+    width: 100%;
+    max-width: 280px;
+  }
 }
 
 @media (max-width: 380px) {
-  section { padding-left: 14px !important; padding-right: 14px !important; }
+  .wrap {
+    padding: 0 14px;
+  }
 }

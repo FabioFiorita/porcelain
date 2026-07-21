@@ -6,6 +6,10 @@ Porcelain is *for* in this market, what we deliberately don't chase, and the
 order of work. Update it when a phase ships or the landscape shifts; fold into
 README when it stops being live.
 
+**Launch copy (X, Product Hunt, threads):** see `plans/launch-narrative.md` —
+pitches, philosophy, PH first comment, voice rules. Keep that file in sync when
+the identity statement or pillars change.
+
 ## The landscape (snapshot, 2026-07-19)
 
 Both competitors are **"run many agents" cockpits**. Neither owns review.

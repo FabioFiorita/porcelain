@@ -4,74 +4,69 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Privacy — Porcelain</title>
-<meta name="description" content="Porcelain runs on your Mac. It collects nothing about you or your code. The only network request it ever makes is the update check.">
+<meta name="description" content="Porcelain runs on your machines. It collects nothing about you or your code. The only optional network request is the update check.">
 <link rel="canonical" href="https://fabiofiorita.github.io/porcelain/privacy.html">
+<link rel="icon" href="images/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+<div class="page">
 
-<div style="--ink:#f4f5fc;--dim:#bcc0db;--faint:#8589a9;--accent:#93a4ff;--mint:#83e3cb;--glass:rgba(255,255,255,.045);--glass2:rgba(255,255,255,.075);--line:rgba(255,255,255,.11);--line2:rgba(255,255,255,.2);--sh:0 18px 60px rgba(2,4,20,.5);--mono:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,monospace;--sans:'Geist',system-ui,-apple-system,sans-serif;position:relative;min-height:100vh;background:#070818;color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;overflow-x:hidden;">
-
-  <div style="position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(1200px 820px at 78% -8%,rgba(108,128,255,.5),transparent 60%),radial-gradient(1000px 720px at 12% 2%,rgba(64,84,224,.36),transparent 56%),radial-gradient(1500px 1100px at 92% 26%,rgba(40,58,180,.32),transparent 62%),linear-gradient(180deg,#0a0c24 0%,#080a1c 42%,#06060f 100%);"></div>
-  <div style="position:fixed;inset:-12%;z-index:0;pointer-events:none;background:radial-gradient(900px 700px at 55% 112%,rgba(86,64,176,.4),transparent 60%);animation:pcDrift 20s ease-in-out infinite;"></div>
-  <div style="position:fixed;top:-20%;left:30%;width:60%;height:80%;z-index:0;pointer-events:none;background:linear-gradient(118deg,transparent 44%,rgba(190,205,255,.12) 50%,transparent 56%);filter:blur(8px);transform:rotate(-8deg);"></div>
-
-  <div style="position:relative;z-index:1;">
-
-    <!-- NAV -->
-    <header style="position:sticky;top:0;z-index:50;padding:16px 20px;display:flex;justify-content:center;">
-      <nav style="width:100%;max-width:1200px;display:flex;align-items:center;gap:18px;padding:9px 12px 9px 14px;background:rgba(12,14,34,.55);border:1px solid var(--line);border-radius:15px;backdrop-filter:blur(22px) saturate(150%);-webkit-backdrop-filter:blur(22px) saturate(150%);box-shadow:0 10px 34px rgba(2,4,20,.4);">
-        <a href="index.html" style="display:flex;align-items:center;gap:10px;">
-          <img src="images/logo.png" alt="Porcelain" width="30" height="30" style="display:block;width:30px;height:30px;border-radius:9px;box-shadow:0 3px 8px rgba(2,4,20,.4);" />
-          <span style="font-family:var(--mono);font-size:17px;font-weight:600;letter-spacing:-.01em;">porcelain</span>
-        </a>
-        <div style="flex:1;"></div>
-        <a href="index.html" class="h-backhome" style="display:flex;align-items:center;gap:8px;padding:8px 14px;font-family:var(--mono);font-size:13px;color:var(--dim);background:var(--glass2);border:1px solid var(--line2);border-radius:10px;transition:color .2s,background .2s;">
-          <span style="font-size:15px;">←</span> Back home
-        </a>
-      </nav>
-    </header>
-
-    <!-- HERO -->
-    <section style="max-width:760px;margin:0 auto;padding:80px 32px 0;text-align:center;">
-      <h1 style="font-family:var(--mono);font-weight:600;font-size:clamp(36px,6vw,64px);line-height:1.04;letter-spacing:-.025em;margin:0 0 22px;">Privacy</h1>
-      <p style="font-size:clamp(17px,2.2vw,20px);line-height:1.6;color:var(--dim);margin:0;">Porcelain runs on your Mac and keeps to itself. It has no analytics, no telemetry, and no account to sign into.</p>
-    </section>
-
-    <!-- THE BIG STATEMENT -->
-    <section style="max-width:760px;margin:0 auto;padding:56px 32px 0;">
-      <div style="padding:clamp(32px,5vw,52px);background:var(--glass);border:1px solid var(--line);border-radius:20px;backdrop-filter:blur(22px);box-shadow:var(--sh);text-align:center;">
-        <p style="font-family:var(--mono);font-size:clamp(21px,2.8vw,30px);line-height:1.4;letter-spacing:-.01em;margin:0;">Your code never leaves your machine.</p>
-      </div>
-    </section>
-
-    <!-- THE ONE EXCEPTION -->
-    <section style="max-width:760px;margin:0 auto;padding:18px 32px 0;">
-      <div style="padding:clamp(26px,3.5vw,38px);background:var(--glass);border:1px solid var(--line);border-radius:20px;backdrop-filter:blur(20px);">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
-          <span style="width:7px;height:7px;border-radius:50%;background:var(--mint);box-shadow:0 0 10px var(--mint);"></span>
-          <span style="font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);">The one exception</span>
-        </div>
-        <h3 style="font-family:var(--mono);font-weight:600;font-size:clamp(19px,2.4vw,23px);margin:0 0 12px;letter-spacing:-.01em;">The update check</h3>
-        <p style="margin:0;font-size:clamp(15px,1.8vw,17px);line-height:1.6;color:var(--dim);">Porcelain reaches the internet for one reason: to see whether a newer version is available. It asks the release server what the latest version is. That request carries no information about you or your code.</p>
-      </div>
-    </section>
-
-    <!-- VERIFY -->
-    <section style="max-width:760px;margin:0 auto;padding:24px 32px 0;text-align:center;">
-      <p style="font-size:15px;line-height:1.6;color:var(--faint);margin:0 0 16px;">Porcelain is open source, so you can check any of this for yourself.</p>
-      <a href="https://github.com/FabioFiorita/porcelain" target="_blank" rel="noopener" class="h-glass h-lift2" style="display:inline-flex;align-items:center;gap:9px;padding:13px 22px;font-family:var(--mono);font-size:14px;font-weight:600;color:var(--ink);background:var(--glass2);border:1px solid var(--line2);border-radius:12px;white-space:nowrap;transition:background .2s,transform .2s;">
-        <svg aria-hidden="true" viewBox="0 0 16 16" width="17" height="17" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8a8 8 0 0 0 5.47 7.59c.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.5 7.5 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"></path></svg>
-        Read the source
+  <header class="site-header">
+    <nav class="site-nav" aria-label="Primary">
+      <a href="index.html" class="brand">
+        <img src="images/logo.png" alt="" width="28" height="28" />
+        <span class="brand-name">porcelain</span>
       </a>
-    </section>
+      <div style="flex:1;"></div>
+      <a href="index.html" class="btn btn-ghost">← Back home</a>
+    </nav>
+  </header>
 
-    <div style="height:80px;"></div>
+  <section class="hero wrap" style="max-width:720px;">
+    <h1 class="hero-title" style="font-size:clamp(32px,5vw,48px);">Privacy</h1>
+    <p class="lead">Porcelain runs on machines you control. It has no analytics, no telemetry, and no account to sign into.</p>
+  </section>
 
-  </div>
+  <section class="section-tight wrap" style="max-width:720px;padding-top:40px;">
+    <div class="card card-pad-lg" style="text-align:center;">
+      <p style="font-family:var(--mono);font-size:clamp(20px,2.6vw,28px);line-height:1.4;letter-spacing:-.01em;margin:0;">Your code never leaves your machine.</p>
+    </div>
+  </section>
+
+  <section class="section wrap" style="max-width:720px;padding-top:48px;">
+    <div class="card card-pad-lg" style="margin-bottom:16px;">
+      <h2 class="section-title-sm">What Porcelain does not do</h2>
+      <ul class="ticks">
+        <li>No analytics, crash reporting, or usage tracking</li>
+        <li>No account, login, or cloud sync of your source</li>
+        <li>No third-party trackers in the app or marketing site</li>
+        <li>Agent channels are local files and a local CLI — no Porcelain server in the loop</li>
+      </ul>
+    </div>
+    <div class="card card-pad-lg" style="margin-bottom:16px;">
+      <h2 class="section-title-sm">What it may contact the network for</h2>
+      <p class="body">The only product network request the app makes for itself is the <strong>auto-update check</strong> (GitHub Releases via electron-updater), on launch and periodically. You choose whether to install.</p>
+      <p class="body">If you run coding agents (Claude Code, Codex, OpenCode, Grok), those tools use <strong>your</strong> credentials and their own network paths. Porcelain does not proxy or store those conversations on our servers — we have none for that purpose.</p>
+      <p class="body" style="margin-bottom:0;">If you enable a remote daemon (LAN or tailnet), traffic stays between devices you configure. Token-gated; you own the host.</p>
+    </div>
+    <div class="card card-pad-lg" style="margin-bottom:16px;">
+      <h2 class="section-title-sm">Where data lives</h2>
+      <p class="body" style="margin-bottom:0;">App preferences, review sets, comments, board, chat, and agent-thread metadata live under your user data directories and <code style="font-family:var(--mono);font-size:13px;color:var(--ink);">~/.porcelain/</code> on the machine running the daemon. Repositories stay where you put them. Nothing is uploaded to Porcelain as a service.</p>
+    </div>
+    <div class="card card-pad-lg">
+      <h2 class="section-title-sm">Questions</h2>
+      <p class="body" style="margin-bottom:0;">Open an issue on <a href="https://github.com/FabioFiorita/porcelain" target="_blank" rel="noopener" style="color:var(--accent);">GitHub</a>. The product is open source — you can verify these claims in the code.</p>
+    </div>
+  </section>
+
+  <footer class="site-footer wrap" style="max-width:720px;">
+    <p class="meta">© <span id="y"></span> Fabio Fiorita · MIT · <a href="index.html" style="color:var(--dim);">Home</a></p>
+  </footer>
 </div>
+<script>document.getElementById('y').textContent = String(new Date().getFullYear());</script>
 </body>
 </html>

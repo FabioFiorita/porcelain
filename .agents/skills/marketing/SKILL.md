@@ -25,10 +25,13 @@ App copy is the `product` skill's domain, not this one.
 
 ## Message discipline
 
-- **Source of truth for identity:** `plans/positioning-and-roadmap.md` while it
-  lives (identity statement, three pillars, non-goals, "the reading room"
-  design language). When it's reconciled away, the durable version belongs in
-  the `product` skill — update this pointer then.
+- **Source of truth for identity:** `plans/positioning-and-roadmap.md` (pillars,
+  non-goals, competitive landscape) and `plans/launch-narrative.md` (pitches,
+  X/PH copy, philosophy for public posts). When those fold away, the durable
+  version belongs in the `product` skill — update this pointer then.
+- **Site visual identity:** opaque graphite, solid cards, no glassmorphism —
+  match the app's reading-room redesign (`marketing/styles.css`). Do not
+  reintroduce backdrop-blur glass tiles or purple glow wallpaper.
 - Every marketing claim must be true of the shipped app **today** — verify
   against the code/`product` skill before writing, not from memory. Known
   drift class to check each pass: provider list (currently 4 — Claude Code,
@@ -131,6 +134,9 @@ ones you're keeping over `marketing/images/`. Traps the code won't tell you:
 - **Seed board/chat/comments as channel JSON keyed by the canonical repo path**
   (realpath the temp dir first) — the daemon reads the same `PORCELAIN_*` files
   the CLI writes; a mismatched key renders empty.
+- **Strict-mode locators:** "N changed files" appears on both Changes summary and
+  Glance — use `getByTestId('changes-summary')`. "Pinned" also matches
+  "Pinned & notes" — use `{ exact: true }` on the group label.
 
 ## Site mechanics & traps
 

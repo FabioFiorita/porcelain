@@ -11,40 +11,40 @@ Coding agents generate faster than anyone can trust. Every tool in this space ra
 
 ## Why Porcelain
 
-- **The Review.** Your agent doesn't just hand you a diff — it publishes a walkthrough of the whole feature: a thesis, flow-ordered sections with prose and diagrams, the exact code each section explains inline (including the unchanged files across the client→server seam a diff can't show), and a closing chapter of evidence that it verified its own work. You read a document, not a pile.
+- **The Review.** Your agent doesn't just hand you a diff — it publishes a walkthrough of the whole feature: **Intent** (what and why), **Execution** (flow-ordered files and prose, including unchanged code across the client→server seam a diff can't show), and **Evidence** (proof it verified its own work). You read a document, not a pile.
 - **Flow-ordered diffs.** Even without a published Review, changed files are ordered and grouped along their dependency flow — component → hook → route → service → schema — so a change reads from entry point to database instead of alphabetically.
 - **A two-way loop.** Review comments on a line or file flow back to your agent as concrete context, and resolutions flow forward. A per-repo project board and agent chat (with file claims, so two agents don't collide) round out the channel. All of it runs through a bundled local CLI — no server, no port, no telemetry.
-- **Run the agents inside.** Agent threads for Claude Code, Codex, OpenCode, and Grok — driven through the CLIs you already installed and pay for — with permission modes, model favorites, and image attachments. Threads persist and keep working while you review.
-- **Anywhere is the same place.** One token-gated daemon, three clients: the Mac app locally, the Mac app pointed at a remote box, or any browser on your LAN or tailnet — iPad included. Terminals and review state live daemon-side, so they survive reconnects and follow you across devices.
+- **Run the agents inside.** Agent threads for Claude Code, Codex, OpenCode, and Grok — driven through the CLIs you already installed and pay for — with permission modes, model favorites, and image attachments. Threads persist and keep working while you review. Parallel agents can land in worktrees; the Review inbox surfaces every checkout waiting for you.
+- **Anywhere is the same place.** One token-gated daemon, three clients: the Mac/Linux app locally, the app pointed at a remote daemon, or any browser on your LAN or tailnet — iPad included. Terminals and review state live daemon-side, so they survive reconnects and follow you across devices.
 - **Built for huge monorepos.** Stays fast on a ~50 GB repo. Hide the folders that aren't yours, pin the ones that are; nothing is indexed until you look at it.
 
 ## Features
 
-- **Whole-feature review**: agent-authored review sets (thesis → flow-ordered walkthrough sections → loop evidence), an outline sidebar with per-file reviewed marks, J/K section navigation, and a zen reading mode
-- **Flow-ordered diff review** with per-repo layer definitions, plus read-only **flow exploration** of any existing feature (seed from a symbol or file — comprehension without a diff)
+- **Whole-feature review**: agent-authored Review (Intent · Execution · Evidence), outline with per-file reviewed marks, keyboard navigation, zen reading mode
+- **Flow-ordered diff review** with per-repo layer definitions, plus read-only **flow exploration** of any existing feature (seed from a symbol or file)
 - **Human ↔ agent channels**: review comments with resolutions, a todo/doing/done **project board**, **agent chat** with coordination claims, and saved **Actions** your agent curates but only you run
-- **Agent threads**: Claude Code, Codex, OpenCode, and Grok in one surface — permission modes (approve / auto-edits / full), model favorites, image attachments
-- **Git**: working-tree diffs (unified or split), per-file staging, history, worktree switching with branch create, in-app commits with conventional-commit chips learned from your history
+- **Agent threads**: Claude Code, Codex, OpenCode, and Grok in one surface — permission modes (approve / auto-edits / full), model favorites, image attachments, worktree-per-thread
+- **Git**: working-tree diffs (unified or split), per-file staging, history, worktree switching, in-app commits with conventional-commit chips
 - **Embedded terminal**: real PTYs, split view, sessions that outlive their tabs and survive client reconnects
-- **Fast file viewer**: virtualized rendering, Shiki highlighting, always-editable text (autosave, no mode toggle), Markdown reader/source, image support, two-pane split
+- **Fast file viewer**: virtualized rendering, Shiki highlighting, always-editable text (autosave), Markdown reader/source, image support, two-pane split
 - **Monorepo navigation**: hide/unhide folders, pin paths, lazy per-directory loading
 - **Search & finders**: repo-wide code search, fuzzy file finder, find-in-file, find references
-- **Remote access**: LAN (same Wi-Fi, no VPN) or tailnet (WireGuard, from anywhere) — one command on the host:
+- **Remote access**: LAN (same Wi-Fi) or tailnet (WireGuard) — one command on the host:
 
   ```bash
   npx porcelain-daemon@latest serve --tailnet --print-token
   ```
 
   Start it when you work, Ctrl+C when you're done — no always-on service required.
-- **Light, dark, and system themes**, themed end to end (syntax highlighting, terminal, native window chrome)
+- **Light, dark, and system themes**, themed end to end
 - **Multi-window**: one repo per window, each window free to pick its own environment (local or remote)
 - **Auto-updating** builds (signed and notarized on macOS)
 
 ## Install
 
-**macOS (Apple Silicon)** — download the latest `.dmg` from [Releases](https://github.com/fabiofiorita/porcelain/releases), drag Porcelain to Applications. Updates install automatically.
+**macOS (Apple Silicon)** — download the latest `.dmg` from [Releases](https://github.com/FabioFiorita/porcelain/releases), drag Porcelain to Applications. Updates install automatically.
 
-**Linux (x64)** — grab the `.AppImage` (auto-updates) or `.deb` from the same [Releases](https://github.com/fabiofiorita/porcelain/releases) page.
+**Linux (x64)** — grab the `.AppImage` (auto-updates) or `.deb` from the same [Releases](https://github.com/FabioFiorita/porcelain/releases) page.
 
 **Any other device** — you don't install Porcelain, you open it: run the daemon on a machine you own (command above) and point a browser at it.
 
@@ -60,9 +60,13 @@ npx skills add FabioFiorita/porcelain
 
 Run from any repo and choose global or project-local when prompted. Update later with `npx skills upgrade`. Provider setup (install/sign-in status per agent CLI) lives in **Settings → Agents**.
 
+## Positioning
+
+Porcelain sells **trust and review depth**, not agent count. Design identity is **the reading room** — calm, legible, opaque. Full launch copy, X/Product Hunt drafts, and pillar language live in [`plans/launch-narrative.md`](plans/launch-narrative.md); competitive notes in [`plans/positioning-and-roadmap.md`](plans/positioning-and-roadmap.md). Product site: [fabiofiorita.github.io/porcelain](https://fabiofiorita.github.io/porcelain/).
+
 ## Develop
 
-Porcelain is built with Electron (electron-vite), React 19, TypeScript (strict), shadcn/ui on Base UI, Tailwind v4, tRPC over IPC, TanStack Query, and zustand. State and git access run through a single, deliberately uniform architecture; see [CLAUDE.md](CLAUDE.md) and the skills in [`.agents/skills/`](.agents/skills/).
+Porcelain is built with Electron (electron-vite), React 19, TypeScript (strict), shadcn/ui on Base UI, Tailwind v4, tRPC, TanStack Query, and zustand. State and git access run through a single, deliberately uniform architecture; see [CLAUDE.md](CLAUDE.md) and the skills in [`.agents/skills/`](.agents/skills/).
 
 ```bash
 pnpm install   # install dependencies
@@ -81,6 +85,7 @@ pnpm dev       # run the app in development
 | `pnpm test` | Run the Vitest suite |
 | `pnpm test:e2e` | Playwright e2e (headless browser project) |
 | `pnpm build` | Type-check and build |
+| `pnpm shots` | Regenerate marketing screenshots |
 | `pnpm dist` | Build a signed local `.dmg` / `.zip` |
 | `pnpm daemon:dist` | Assemble publishable `dist-daemon/` (`porcelain-daemon` npm package) |
 | `pnpm release` | Build and publish to GitHub Releases |

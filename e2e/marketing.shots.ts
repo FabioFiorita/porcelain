@@ -235,7 +235,7 @@ test('marketing shots — the seeded demo repo across every surface', async () =
 
     // changes-flow.png — the Changes tab: the uncommitted diff grouped into flow layers.
     await selectTab(page, 'Changes')
-    await expect(page.getByText(/changed files?/)).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByTestId('changes-summary')).toBeVisible({ timeout: 15_000 })
     await settle(page)
     await shoot(page, 'changes-flow.png')
 
@@ -291,7 +291,7 @@ test('marketing shots — the seeded demo repo across every surface', async () =
     // feat-comment.png — the Add comment dialog over a diff, anchored to a line range.
     // Open a changed file's diff, select a few lines, right-click → Add comment.
     await selectTab(page, 'Changes')
-    await expect(page.getByText(/changed files?/)).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByTestId('changes-summary')).toBeVisible({ timeout: 15_000 })
     await sidebarCard(page, 'left').getByText('orders.service.ts', { exact: true }).click()
     const lines = page.locator('[data-line]')
     await expect(lines.nth(8)).toBeVisible({ timeout: 15_000 })
@@ -350,7 +350,7 @@ test('marketing shots — the seeded demo repo across every surface', async () =
 
     // grouped-panel.png — the Source-control sidebar: the flow-layer-grouped file list.
     await selectTab(wide, 'Changes')
-    await expect(wide.getByText(/changed files?/)).toBeVisible({ timeout: 15_000 })
+    await expect(wide.getByTestId('changes-summary')).toBeVisible({ timeout: 15_000 })
     await settle(wide)
     await shootClip(wide, 'grouped-panel.png', await panelClip(wide, 'left'))
 
@@ -369,7 +369,7 @@ test('marketing shots — the seeded demo repo across every surface', async () =
 
     // pin-compact.png — the Workspace companion with pinned content (a folder + a file).
     await selectTab(wide, 'Files')
-    await expect(wide.getByText('Pinned')).toBeVisible({ timeout: 15_000 })
+    await expect(wide.getByText('Pinned', { exact: true })).toBeVisible({ timeout: 15_000 })
     // Expand the pinned folder so the crop shows a nested tree (taller, more portrait).
     await sidebarCard(wide, 'right').getByText('hooks').click()
     await expect(sidebarCard(wide, 'right').getByText('useOrders.ts')).toBeVisible({
