@@ -248,6 +248,23 @@ test('marketing shots — the seeded demo repo across every surface', async () =
     await settle(page)
     await shoot(page, 'board.png')
 
+    // chat.png — Relay/agent chat with multi-agent thread + Coordination (claims).
+    await selectTab(page, 'Chat')
+    await page.getByRole('button', { name: 'Open chat' }).click()
+    const chat = page.getByRole('main')
+    // Claim rows surface intent (not body) when files are set; non-claims show body.
+    await expect(chat.getByText('claude-code').first()).toBeVisible({ timeout: 15_000 })
+    await expect(chat.getByText('codex').first()).toBeVisible({ timeout: 10_000 })
+    await expect(chat.getByText('Export current view as CSV').first()).toBeVisible({
+      timeout: 10_000,
+    })
+    await expect(chat.getByText(/will not touch those files/i)).toBeVisible({ timeout: 10_000 })
+    // Right rail Coordination: live claims from the seeded multi-agent thread.
+    await expect(page.getByText('Participants').first()).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText('Claims').first()).toBeVisible({ timeout: 10_000 })
+    await settle(page)
+    await shoot(page, 'chat.png')
+
     // viewer.png — a source file open with syntax highlighting.
     await selectTab(page, 'Files')
     await page.getByRole('button', { name: 'src', exact: true }).click()

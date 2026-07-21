@@ -13,7 +13,7 @@ Coding agents generate faster than anyone can trust. Every tool in this space ra
 
 - **The Review.** Your agent doesn't just hand you a diff. It publishes a walkthrough of the whole feature: **Intent** (what and why), **Execution** (flow-ordered files and prose, including unchanged code across the client→server seam a diff can't show), and **Evidence** (proof it verified its own work). You read a document, not a pile.
 - **Flow-ordered diffs.** Even without a published Review, changed files are ordered and grouped along their dependency flow (component → hook → route → service → schema) so a change reads from entry point to database instead of alphabetically.
-- **A two-way loop.** Review comments on a line or file flow back to your agent as concrete context, and resolutions flow forward. A per-repo project board and agent chat (with file claims, so two agents don't collide) round out the channel. All of it runs through a bundled local CLI. No server, no port, no telemetry.
+- **A two-way loop.** Review comments on a line or file flow back to your agent as concrete context, and resolutions flow forward. A per-repo project board keeps work queued and moved as agents ship. Agent chat is a shared relay across providers: claims show which files each agent owns, overlaps flag collisions, and you sort it out in the thread. All of it runs through a bundled local CLI. No server, no port, no telemetry.
 - **Run the agents inside.** Agent threads for Claude Code, Codex, OpenCode, and Grok, driven through the CLIs you already installed and pay for, with permission modes, model favorites, and image attachments. Threads persist and keep working while you review. Parallel agents can land in worktrees; the Review inbox surfaces every checkout waiting for you.
 - **Anywhere is the same place.** One token-gated daemon, three clients: the Mac/Linux app locally, the app pointed at a remote daemon, or any browser on your LAN or tailnet (iPad included). Terminals and review state live daemon-side, so they survive reconnects and follow you across devices.
 - **Built for huge monorepos.** Stays fast on a ~50 GB repo. Hide the folders that aren't yours, pin the ones that are; nothing is indexed until you look at it.
@@ -22,7 +22,7 @@ Coding agents generate faster than anyone can trust. Every tool in this space ra
 
 - **Whole-feature review**: agent-authored Review (Intent · Execution · Evidence), outline with per-file reviewed marks, keyboard navigation, zen reading mode
 - **Flow-ordered diff review** with per-repo layer definitions, plus read-only **flow exploration** of any existing feature (seed from a symbol or file)
-- **Human ↔ agent channels**: review comments with resolutions, a todo/doing/done **project board**, **agent chat** with coordination claims, and saved **Actions** your agent curates but only you run
+- **Human ↔ agent channels**: review comments with resolutions, a todo/doing/done **project board**, **agent chat** (multi-agent relay with file claims and overlaps), and saved **Actions** your agent curates but only you run
 - **Agent threads**: Claude Code, Codex, OpenCode, and Grok in one surface. Permission modes (approve / auto-edits / full), model favorites, image attachments, worktree-per-thread
 - **Git**: working-tree diffs (unified or split), per-file staging, history, worktree switching, in-app commits with conventional-commit chips
 - **Embedded terminal**: real PTYs, split view, sessions that outlive their tabs and survive client reconnects

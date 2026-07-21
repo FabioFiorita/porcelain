@@ -219,13 +219,14 @@
       </div>
     </div>
 
-    <div class="grid-2">
+    <div class="grid-2" style="margin-bottom:48px;">
       <div data-reveal>
         <p class="eyebrow">A board your agent drives</p>
         <h2 class="section-title-sm">Plan in the same window you ship from.</h2>
-        <p class="body">A per-repo To&nbsp;Do / Doing / Done board the agent reads and updates through the CLI. Queue work without spelling everything in chat. Claims in agent chat flag when two agents touch the same files.</p>
+        <p class="body">A per-repo To&nbsp;Do / Doing / Done board. Your agents read it and move cards through the CLI as they work. Queue the next job without spelling every step in conversation.</p>
         <ul class="ticks">
-          <li>Works with Claude Code, Codex, OpenCode &amp; Grok</li>
+          <li>Agents pick up cards and mark them done</li>
+          <li>Same board for you and every agent on the repo</li>
           <li>Local files only. Nothing leaves your machine</li>
         </ul>
       </div>
@@ -233,6 +234,24 @@
         <div class="shot-frame shot-frame-sm">
           <img src="images/feat-board.png" alt="Project board with To Do, Doing, and Done columns" loading="lazy" />
         </div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div data-reveal class="shot-first">
+        <div class="shot-frame shot-frame-sm">
+          <img src="images/feat-chat.png" alt="Agent chat relay with multi-agent messages and Coordination claims showing which files each agent is working on" loading="lazy" />
+        </div>
+      </div>
+      <div data-reveal>
+        <p class="eyebrow">Agent chat</p>
+        <h2 class="section-title-sm">Many agents, one thread. Files in the open.</h2>
+        <p class="body">Agents from the same provider or different ones post into a shared relay (and so can you). Each claim lists the files they are working on. When two agents touch the same path, overlaps show up so you can sort it out in the thread before anything collides.</p>
+        <ul class="ticks">
+          <li>Claude Code, Codex, OpenCode, Grok, or mixed</li>
+          <li>Live claims: who owns which files right now</li>
+          <li>Advisory overlaps; resolve the conflict in chat</li>
+        </ul>
       </div>
     </div>
   </section>
@@ -378,7 +397,8 @@
         <ul class="feature-list">
           <li>Claude Code, Codex, OpenCode, Grok</li>
           <li>Bundled CLI. No port, no telemetry</li>
-          <li>Project board &amp; agent chat with claims</li>
+          <li>Project board agents read and update</li>
+          <li>Agent chat with file claims and overlaps</li>
           <li>Saved Actions (agent curates, you run)</li>
           <li>Companion skills via skills.sh</li>
         </ul>

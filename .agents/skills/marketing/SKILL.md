@@ -82,11 +82,14 @@ renders, runnable entirely on the Linux host.
 spawns the daemon against a seeded generic "orders" demo repo
 (`e2e/helpers/demo-repo.ts` + `demo-seed.ts`), drives **13 surfaces**, and writes
 Retina PNGs (`deviceScaleFactor: 2`, dark) to `marketing/shots/` (gitignored).
-Full-window shots (2880×1800): `review.png` (Review doc — thesis, sections, flow
-diagram, diff), `changes-flow.png`, `board.png`, `viewer.png`, `terminal.png`,
-`feat-agent.png`. Element/clip crops that map 1:1 to the `marketing/images/*` the
-site uses: `grouped-panel.png`, `feat-commit.png`, `feat-comment.png`,
-`feat-search.png`, `feat-history.png`, `hide-panel.png`, `pin-compact.png`.
+Full-window shots (2880×1800): `review.png` (Review doc: thesis, sections, flow
+diagram, diff), `changes-flow.png`, `board.png`, `chat.png` (Relay thread +
+Coordination claims), `viewer.png`, `terminal.png`, `feat-agent.png`. Element/clip
+crops that map 1:1 to the `marketing/images/*` the site uses: `grouped-panel.png`,
+`feat-commit.png`, `feat-comment.png`, `feat-search.png`, `feat-history.png`,
+`hide-panel.png`, `pin-compact.png`. Copy mapping: `board.png` → `feat-board.png`,
+`chat.png` → `feat-chat.png`, `review.png` → `feature-view.png`, `terminal.png` →
+`feat-terminal.png`.
 Excluded from the normal e2e run (that config's `*.spec.ts` glob ignores the
 `.shots.ts` name). Add shots by driving more tabs in the same spec. **The
 regenerated `shots/` are NOT auto-copied to `images/`** — review, then copy the
