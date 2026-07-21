@@ -4,6 +4,7 @@
 // below + a `LANGS` entry — never reach back for the meta bundle.
 
 import langCss from '@shikijs/langs/css'
+import langDotenv from '@shikijs/langs/dotenv'
 import langHtml from '@shikijs/langs/html'
 import langJavascript from '@shikijs/langs/javascript'
 import langJson from '@shikijs/langs/json'
@@ -43,6 +44,7 @@ export const LANGS = [
   'yaml',
   'shellscript',
   'swift',
+  'dotenv',
 ] as const satisfies readonly BundledLanguage[]
 
 // Return the broad HighlighterGeneric type (a supertype of the core build) so
@@ -69,6 +71,7 @@ export function getHighlighter(): Promise<Highlighter> {
       langYaml,
       langShellscript,
       langSwift,
+      langDotenv,
     ],
     engine: createJavaScriptRegexEngine(),
   }) as Promise<Highlighter>
@@ -94,10 +97,17 @@ const extToLang: Record<string, BundledLanguage> = {
   zsh: 'shellscript',
   bash: 'shellscript',
   swift: 'swift',
+  // Bare `*.env` (e.g. config.env). Dotfile forms (.env, .env.local, …) are
+  // handled in languageFor — last-segment extension alone is "local"/"example".
+  env: 'dotenv',
 }
 
 export function languageFor(path: string): BundledLanguage | null {
-  const ext = path.split('.').at(-1)?.toLowerCase() ?? ''
+  // Basename so absolute paths and nested dirs don't confuse the check.
+  const base = path.split(/[/\\]/).at(-1)?.toLowerCase() ?? ''
+  // .env, .env.local, .env.production, .env.example, …
+  if (base === '.env' || base.startsWith('.env.')) return 'dotenv'
+  const ext = base.split('.').at(-1) ?? ''
   return extToLang[ext] ?? null
 }
 

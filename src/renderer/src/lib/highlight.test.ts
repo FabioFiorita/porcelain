@@ -14,6 +14,16 @@ describe('languageFor', () => {
     expect(languageFor('App.tsx')).toBe('tsx')
     expect(languageFor('notes.md')).toBe('markdown')
     expect(languageFor('ContentView.swift')).toBe('swift')
+    expect(languageFor('docker-compose.yml')).toBe('yaml')
+  })
+
+  it('maps .env-style files to dotenv', () => {
+    expect(languageFor('.env')).toBe('dotenv')
+    expect(languageFor('repo/.env')).toBe('dotenv')
+    expect(languageFor('.env.local')).toBe('dotenv')
+    expect(languageFor('.env.production')).toBe('dotenv')
+    expect(languageFor('.env.example')).toBe('dotenv')
+    expect(languageFor('config.env')).toBe('dotenv')
   })
 
   it('returns null for unknown extensions', () => {
@@ -29,9 +39,20 @@ describe('tokenizeLines', () => {
     expect(tokens).toHaveLength(2)
   })
 
+  it('colors dotenv keys and comments differently from values', async () => {
+    const h = await getHighlighter()
+    const tokens = tokenizeLines(h, '# secret\nAPI_KEY=abc123', 'dotenv')
+    expect(tokens).toHaveLength(2)
+    // Comment line and the KEY=value line should not be a single monochrome dump.
+    const commentColors = new Set(tokens[0]?.map((t) => t.color).filter(Boolean))
+    const assignmentColors = new Set(tokens[1]?.map((t) => t.color).filter(Boolean))
+    expect(commentColors.size).toBeGreaterThanOrEqual(1)
+    expect(assignmentColors.size).toBeGreaterThanOrEqual(2)
+  })
+
   it('tokenizes every one of the fine-grained bundled languages', async () => {
     const h = await getHighlighter()
-    // Proves all 11 grammars registered by the core highlighter loaded — a
+    // Proves all grammars registered by the core highlighter loaded — a
     // missing @shikijs/langs import would throw here, not just ship a bad theme.
     for (const lang of LANGS) {
       expect(Array.isArray(tokenizeLines(h, 'x', lang))).toBe(true)
