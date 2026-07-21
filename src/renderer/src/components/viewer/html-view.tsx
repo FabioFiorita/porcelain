@@ -1,3 +1,5 @@
+import { TestIds } from '@shared/test-ids'
+
 const HTML_EXTENSIONS = ['html', 'htm']
 
 export function isHtmlPath(path: string): boolean {
@@ -20,6 +22,7 @@ export function HtmlView({
 }): React.JSX.Element {
   return (
     <iframe
+      data-testid={TestIds.evidenceIframe}
       title={title}
       srcDoc={html}
       sandbox=""

@@ -1,4 +1,4 @@
-import { expect, openSettings, test, waitForShell } from './helpers/app'
+import { expect, loc, openSettings, test, waitForShell } from './helpers/app'
 
 // The harness pins the OS color scheme to dark (emulateMedia / context
 // colorScheme), so the default System preference must resolve dark, Light must
@@ -13,17 +13,16 @@ test('Appearance preference switches the resolved theme', async ({ page }) => {
   expect(await rootIsDark()).toBe(true)
 
   await openSettings(page)
-  const appearance = page.getByRole('dialog')
 
-  await appearance.getByRole('button', { name: 'Light', exact: true }).click()
+  await loc.appearance(page, 'light').click()
   await expect.poll(rootIsDark).toBe(false)
   expect(await rootColorScheme()).toBe('light')
 
-  await appearance.getByRole('button', { name: 'Dark', exact: true }).click()
+  await loc.appearance(page, 'dark').click()
   await expect.poll(rootIsDark).toBe(true)
   expect(await rootColorScheme()).toBe('dark')
 
   // Back to System — the pinned-dark OS wins again.
-  await appearance.getByRole('button', { name: 'System', exact: true }).click()
+  await loc.appearance(page, 'system').click()
   await expect.poll(rootIsDark).toBe(true)
 })

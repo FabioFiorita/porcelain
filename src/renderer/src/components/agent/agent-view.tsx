@@ -32,6 +32,7 @@ import type {
   TimelineItem,
 } from '@shared/agent-protocol'
 import { PROVIDER_LABEL, TOOL_OUTPUT_CAP } from '@shared/agent-protocol'
+import { TestIds } from '@shared/test-ids'
 import {
   AlertTriangle,
   ArrowDown,
@@ -107,7 +108,10 @@ function UserBubble({
   const thumbnails = item.thumbnails ?? []
   return (
     <div className="flex justify-end">
-      <div className="group/copy relative max-w-[85%] rounded-2xl border bg-secondary px-3 py-2 text-sm-minus whitespace-pre-wrap text-secondary-foreground">
+      <div
+        data-testid={TestIds.agentUserBubble}
+        className="group/copy relative max-w-[85%] rounded-2xl border bg-secondary px-3 py-2 text-sm-minus whitespace-pre-wrap text-secondary-foreground"
+      >
         {item.text}
         {thumbnails.length > 0 ? (
           <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -152,7 +156,7 @@ function AssistantMessage({
     )
   }
   return (
-    <div className="group/copy relative text-sm">
+    <div data-testid={TestIds.agentAssistantMessage} className="group/copy relative text-sm">
       <MessageMarkdown text={item.text} />
       {item.streaming ? (
         <span className="ml-0.5 inline-block h-4 w-[3px] translate-y-0.5 animate-pulse rounded-full bg-foreground/70 align-text-bottom" />
@@ -222,6 +226,7 @@ function ToolItem({ item }: { item: ToolTimelineItem }): React.JSX.Element {
         type="button"
         disabled={!hasOutput}
         onClick={() => setExpanded((value) => !value)}
+        data-testid={TestIds.agentTool(item.title)}
         className="flex items-center gap-2 text-left text-xs disabled:cursor-default"
       >
         {item.status === 'running' ? (
@@ -453,12 +458,17 @@ function ApprovalCard({
   const { approve } = useAgentActions()
   const pending = item.status === 'pending'
   return (
-    <div className="flex flex-col gap-2 rounded-lg border bg-card p-3">
+    <div
+      data-testid={TestIds.agentApproval}
+      className="flex flex-col gap-2 rounded-lg border bg-card p-3"
+    >
       <div className="flex items-center justify-between gap-2">
         <span className="text-sm-minus font-medium text-foreground">{item.title}</span>
         {!pending && (
           <Badge
             variant="outline"
+            data-testid={TestIds.agentApprovalStatus}
+            data-status={item.status}
             className={cn(
               'shrink-0 rounded-md border-border/60 text-2xs uppercase tracking-[0.08em]',
               item.status === 'accepted' ? 'text-diff-add-emphasis' : 'text-muted-foreground/70',
@@ -485,6 +495,7 @@ function ApprovalCard({
             variant={
               decision === 'accept' ? 'default' : decision === 'decline' ? 'destructive' : 'outline'
             }
+            data-testid={decision === 'accept' ? TestIds.agentApprovalAccept : undefined}
             onClick={() => approve(threadId, item.requestId, decision)}
           >
             {label}
@@ -590,7 +601,10 @@ function SessionStrip({
   const contextPct = usage !== undefined ? estimateContextPercent(usage.turnInput, windowOpt) : null
 
   return (
-    <div className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-border/60 px-4 py-2 text-2xs text-muted-foreground">
+    <div
+      data-testid={TestIds.agentSessionStrip}
+      className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-border/60 px-4 py-2 text-2xs text-muted-foreground"
+    >
       <ProviderGlyph provider={provider} className="size-3.5" />
       <span className="truncate font-medium text-foreground/80">
         {modelChipLabel(model, resolvedModel, models)}
@@ -609,12 +623,18 @@ function SessionStrip({
       )}
       <span className="text-muted-foreground/40">·</span>
       {working ? (
-        <span className="flex items-center gap-1.5 text-foreground">
+        <span
+          data-testid={TestIds.agentSessionStatus}
+          data-status="working"
+          className="flex items-center gap-1.5 text-foreground"
+        >
           <Loader2 className="size-3 shrink-0 animate-spin" />
           Working <span ref={elapsedRef}>{formatElapsed(0)}</span>
         </span>
       ) : (
-        <span>Idle</span>
+        <span data-testid={TestIds.agentSessionStatus} data-status="idle">
+          Idle
+        </span>
       )}
       {usage !== undefined && (
         <>
@@ -708,10 +728,18 @@ function QueuedPendingList({
 function PlanItem({ item }: { item: Extract<TimelineItem, { kind: 'plan' }> }): React.JSX.Element {
   const done = item.steps.filter((step) => step.status === 'done').length
   return (
-    <div className="flex flex-col gap-1.5 rounded-xl border bg-card p-2.5">
+    <div
+      data-testid={TestIds.agentPlan}
+      className="flex flex-col gap-1.5 rounded-xl border bg-card p-2.5"
+    >
       <div className="flex items-baseline justify-between">
         <span className="text-xs font-medium text-foreground">Plan</span>
-        <span className="text-2xs text-muted-foreground">
+        <span
+          data-testid={TestIds.agentPlanProgress}
+          data-done={done}
+          data-total={item.steps.length}
+          className="text-2xs text-muted-foreground"
+        >
           {done}/{item.steps.length} done
         </span>
       </div>
@@ -1011,7 +1039,11 @@ export function AgentView({ threadId }: { threadId: string }): React.JSX.Element
       )}
       <div className="relative min-h-0 flex-1">
         <ScrollArea ref={rootRef} onScroll={onScroll} className="h-full">
-          <div ref={contentRef} className="mx-auto flex max-w-3xl flex-col gap-4 px-4 py-4">
+          <div
+            ref={contentRef}
+            data-testid={TestIds.agentTimeline}
+            className="mx-auto flex max-w-3xl flex-col gap-4 px-4 py-4"
+          >
             {items.length === 0 ? (
               thread ? (
                 <EmptyTimeline

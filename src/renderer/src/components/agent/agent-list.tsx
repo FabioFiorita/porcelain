@@ -53,6 +53,7 @@ import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import type { AgentProvider, ExternalSession, ThreadInfo } from '@shared/agent-protocol'
 import { agentProviderSchema, PROVIDER_LABEL } from '@shared/agent-protocol'
+import { TestIds } from '@shared/test-ids'
 import {
   Archive,
   ArchiveRestore,
@@ -174,6 +175,8 @@ function ThreadRow({
                   type="button"
                   onClick={open}
                   onDoubleClick={startRename}
+                  data-testid={TestIds.agentThreadRow(thread.id)}
+                  data-title={thread.title}
                   className="flex min-w-0 flex-1 flex-col items-start gap-0 text-left"
                 >
                   <span className="min-w-0 w-full truncate text-foreground">{thread.title}</span>
@@ -449,6 +452,7 @@ export function AgentList(): React.JSX.Element {
               size="icon-sm"
               onClick={newThread}
               aria-label="New thread"
+              data-testid={TestIds.agentNewThread}
               disabled={isPending}
             >
               <Plus />
@@ -461,6 +465,7 @@ export function AgentList(): React.JSX.Element {
                     size="icon-sm"
                     className="-ml-1.5 size-5"
                     aria-label="Choose provider for new thread"
+                    data-testid={TestIds.agentProviderMenu}
                     disabled={isPending}
                   >
                     <ChevronDown />
@@ -495,7 +500,10 @@ export function AgentList(): React.JSX.Element {
                   })}
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={openWorktreeDialog}>
+                <DropdownMenuItem
+                  data-testid={TestIds.agentWorktreeMenuItem}
+                  onClick={openWorktreeDialog}
+                >
                   <GitBranch className="size-3.5 text-muted-foreground" />
                   <span className="flex-1">New thread in worktree…</span>
                 </DropdownMenuItem>
@@ -575,6 +583,7 @@ export function AgentList(): React.JSX.Element {
             }}
             placeholder="Branch name"
             aria-label="Branch name"
+            data-testid={TestIds.agentWorktreeBranch}
             className="rounded-md font-mono"
           />
           <DialogFooter>
@@ -583,6 +592,7 @@ export function AgentList(): React.JSX.Element {
             </Button>
             <Button
               disabled={worktreeName.trim() === '' || creatingWorktree}
+              data-testid={TestIds.agentWorktreeCreate}
               onClick={createInWorktree}
             >
               Create

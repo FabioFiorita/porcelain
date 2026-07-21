@@ -20,6 +20,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@renderer/components/ui
 import { useBranch, useBranches, useCheckout, useCreateBranch } from '@renderer/hooks/use-worktrees'
 import { commandGroupHeadingClass } from '@renderer/lib/controls'
 import { useRepoStore } from '@renderer/stores/repo'
+import { TestIds } from '@shared/test-ids'
 import { Check, GitBranch, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -107,6 +108,8 @@ export function BranchSwitcher(): React.JSX.Element | null {
         render={
           <button
             type="button"
+            data-testid={TestIds.branchSwitcher}
+            data-branch={branch ?? ''}
             className="app-no-drag flex min-w-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           >
             <GitBranch className="size-3.5 shrink-0" />

@@ -17,6 +17,7 @@ import {
 } from '@renderer/components/ui/sidebar'
 import { isBrowser } from '@renderer/lib/platform'
 import { type SettingsSection, useSettingsDialogStore } from '@renderer/stores/settings-dialog'
+import { TestIds } from '@shared/test-ids'
 import { Bot, Download, Layers, Network, Settings2, SlidersHorizontal } from 'lucide-react'
 import { AgentsSection } from './agents-section'
 import { EnvironmentsSection } from './environments-section'
@@ -84,13 +85,20 @@ const SECTIONS = ALL_SECTIONS.filter((s) => !(isBrowser && s.shellOnly))
  * share one instance (and the welcome screen can reach Remote daemons without
  * opening a repo first).
  */
-export function SettingsButton({ className }: { className?: string }): React.JSX.Element {
+export function SettingsButton({
+  className,
+  'data-testid': dataTestId,
+}: {
+  className?: string
+  'data-testid'?: string
+}): React.JSX.Element {
   return (
     <Button
       variant="ghost"
       size="icon"
       className={className}
       aria-label="Settings"
+      data-testid={dataTestId}
       onClick={() => useSettingsDialogStore.getState().openTo()}
     >
       <Settings2 />
@@ -116,7 +124,10 @@ export function SettingsDialog(): React.JSX.Element {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-h-[min(600px,90dvh)] overflow-hidden p-0 sm:max-w-[960px]">
+      <DialogContent
+        data-testid={TestIds.settingsDialog}
+        className="max-h-[min(600px,90dvh)] overflow-hidden p-0 sm:max-w-[960px]"
+      >
         <DialogTitle className="sr-only">Settings</DialogTitle>
         <DialogDescription className="sr-only">
           App preferences and repository settings.
@@ -152,7 +163,12 @@ export function SettingsDialog(): React.JSX.Element {
             {/* Fixed header band — the section title/blurb stay put so a long
                 scroll never slides row controls up next to the dialog close X. */}
             <header className="shrink-0 border-b px-6 py-4 pr-12">
-              <h2 className="text-base font-semibold tracking-tight">{active.title}</h2>
+              <h2
+                data-testid={TestIds.settingsHeading}
+                className="text-base font-semibold tracking-tight"
+              >
+                {active.title}
+              </h2>
               <p className="mt-1 text-xs text-muted-foreground">{active.blurb}</p>
             </header>
             <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-6">

@@ -13,6 +13,7 @@ import {
   SidebarGroupLabel,
 } from '@renderer/components/ui/sidebar'
 import { useActionMutations, useActions, useRunAction } from '@renderer/hooks/use-actions'
+import { TestIds } from '@shared/test-ids'
 import { ArrowDown, ArrowUp, MoreHorizontal, PenLine, Play, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { ActionComposer, type ActionDraft, draftFromAction } from './action-composer'
@@ -35,6 +36,7 @@ function ActionRow({
       <button
         type="button"
         onClick={() => run(action)}
+        data-testid={TestIds.actionRun(action.title)}
         className="flex min-w-0 flex-1 items-center gap-2 text-left"
         // The full command is always visible before it runs — an agent can author
         // actions, so the human must see exactly what a click executes (see audit skill).
@@ -103,6 +105,7 @@ export function ActionsGroup(): React.JSX.Element {
           size="icon-sm"
           className="size-5"
           aria-label="Add action"
+          data-testid={TestIds.actionsAdd}
           onClick={() => setDraft({ title: '', command: '', cwd: '' })}
         >
           <Plus />

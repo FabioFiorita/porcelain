@@ -3,6 +3,7 @@ import { HtmlView } from '@renderer/components/viewer/html-view'
 import { useEvidenceHtml } from '@renderer/hooks/use-evidence'
 import { useRepoStore } from '@renderer/stores/repo'
 import type { EvidenceCheck } from '@shared/evidence-check'
+import { TestIds } from '@shared/test-ids'
 
 /**
  * Full-height Evidence canvas pane: header (title + pass/fail + Clear),
@@ -22,7 +23,7 @@ export function EvidencePanel({
   const { evidence } = useEvidenceHtml(repo?.path ?? '')
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div data-testid={TestIds.evidencePanel} className="flex h-full min-h-0 flex-col">
       <EvidenceHeaderRow title={title} checks={checks} />
       <p className="sticky left-0 max-w-[var(--vrows-vw)] px-3 pb-1 font-sans text-2xs text-muted-foreground">
         Updated {formatUpdatedAt(updatedAt)}

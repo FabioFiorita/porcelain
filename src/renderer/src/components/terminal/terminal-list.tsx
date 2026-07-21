@@ -12,6 +12,7 @@ import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { useTerminalsStore } from '@renderer/stores/terminals'
+import { TestIds } from '@shared/test-ids'
 import { PenLine, Plus, SquareTerminal, X } from 'lucide-react'
 import { useState } from 'react'
 
@@ -50,7 +51,7 @@ export function TerminalList(): React.JSX.Element {
   }
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div data-testid={TestIds.terminalList} className="flex flex-col gap-1.5">
       <div className="flex items-center justify-end px-2">
         <SidebarHeaderActions>
           <Button
@@ -58,6 +59,7 @@ export function TerminalList(): React.JSX.Element {
             size="icon-sm"
             onClick={spawnTerminal}
             aria-label="New terminal"
+            data-testid={TestIds.terminalNew}
             disabled={!repo}
           >
             <Plus />

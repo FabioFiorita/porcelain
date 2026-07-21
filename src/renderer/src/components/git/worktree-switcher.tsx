@@ -11,6 +11,7 @@ import { useWorktrees } from '@renderer/hooks/use-worktrees'
 import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
+import { TestIds } from '@shared/test-ids'
 import { Check, ChevronsUpDown, Folder, SquareArrowOutUpRight } from 'lucide-react'
 import { useState } from 'react'
 
@@ -45,6 +46,8 @@ export function WorktreeSwitcher(): React.JSX.Element | null {
             type="button"
             title={chipTitle}
             aria-label={`Worktrees: ${chipLabel}`}
+            data-testid={TestIds.worktreeSwitcher}
+            data-branch={chipLabel}
             className="app-no-drag flex min-w-0 max-w-36 shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           >
             <Folder className="size-3.5 shrink-0" />
@@ -58,7 +61,11 @@ export function WorktreeSwitcher(): React.JSX.Element | null {
         <DropdownMenuGroup>
           <DropdownMenuLabel>Worktrees</DropdownMenuLabel>
           {worktrees.map((worktree) => (
-            <DropdownMenuItem key={worktree.path} onClick={() => switchTo(worktree.path)}>
+            <DropdownMenuItem
+              key={worktree.path}
+              data-testid={TestIds.worktreeMenuItem(worktree.branch)}
+              onClick={() => switchTo(worktree.path)}
+            >
               <div className="flex min-w-0 flex-col">
                 <span className="truncate font-mono">{worktree.branch}</span>
                 <span className="truncate font-mono text-xs text-muted-foreground" dir="rtl">

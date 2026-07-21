@@ -30,11 +30,14 @@ Modeled on no-mistakes' finding taxonomy — automate the objective, escalate th
 
 ## Testing doctrine
 
-Decided 2026-07-18 (recorded per CLAUDE.md rule 1; supersedes "Electron e2e is the default assertion surface"):
+Decided 2026-07-18 (browser-first); e2e harden 2026-07-21 (testids + isolation + pre-tag native):
 
 - **Backend / business logic** (daemon, git plumbing, stores, CLI, drivers) → **Vitest unit tests** are the regression lock. Manual checks are supplements, never the record.
 - **Frontend, day-to-day** → **browser-first**: assert against the **web viewer** — the daemon serves the *same built dist* the Electron window loads, same tRPC + WS data path; the only delta is auth source (preload bridge vs. TokenGate + localStorage). During development, drive a live tab with the Playwright MCP; in CI and locally, `pnpm test:e2e` runs the `browser` Playwright project — headless Chromium on the daemon-served client (one spec suite serves both projects; see `e2e/helpers/app.ts`).
-- **Electron-only surface** (native menu + menu-routed shortcuts, window management/chrome, preload bridge, updater, packaging) → the **native Electron e2e suite** (`pnpm test:e2e:native`, the `electron` Playwright project), run **only at release** — release.yml runs it on macOS and Linux. Never per-push, never as the local dev loop.
-- **Accepted tradeoff**: the browser can't see the Electron shell layer, so a shell regression can hide until the next release's native run. That's the price for fast, low-flake day-to-day CI (measured 2026-07-18: browser suite 23 tests in ~21s headless; the same suite native under a display took ~2.3min) — and the shell layer changes far less often than the renderer.
+- **Electron native suite** (`pnpm test:e2e:native`) → same specs via Playwright's `_electron`. Runs on **tag** in `release.yml` (mac + Linux) **and** on the **pre-tag dry-run** workflow (`e2e-native-dry-run.yml`) after UI/e2e path changes on main — so a release tag is confirmation, not first discovery. Still not part of the per-commit `pnpm verify` gate.
+- **E2e locator contract**: specs use **`data-testid`** from `src/shared/test-ids.ts` via `e2e/helpers/locators.ts`. Prefer test ids over `getByText` / ambiguous roles for automation. Roles and aria-labels stay on the product for humans and a11y; they are not the e2e primary seam. When you add a surface e2e must drive, add a TestIds entry + attribute in the same change.
+- **Isolation**: every e2e test starts from a pristine fixture repo (test-scoped `repoDir` in `e2e/helpers/app.ts`). No shared mutation / afterAll rebuild between specs.
+- **Stress**: `e2e-stress.yml` (manual) re-runs the browser suite N times with `--retries=0` to prove infinite repeatability.
+- **Accepted tradeoff**: the browser can't see the Electron shell layer; native dry-run + tag catch that. Browser CI stays the fast day-to-day path.
 
 Why browser-first also serves the product: Porcelain's direction is a solid daemon with thin viewers (Mac app, Linux app, any browser/iPad tab). Testing through the web viewer keeps that surface first-class instead of an afterthought.

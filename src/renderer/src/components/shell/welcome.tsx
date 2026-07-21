@@ -10,6 +10,7 @@ import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useSettingsDialogStore } from '@renderer/stores/settings-dialog'
+import { TestIds } from '@shared/test-ids'
 import { Cloud, Folder, FolderOpen, Laptop, Unplug, X } from 'lucide-react'
 
 /**
@@ -95,7 +96,10 @@ export function Welcome(): React.JSX.Element {
       : null
 
   return (
-    <div className="relative flex h-full flex-col items-center justify-center gap-8 px-6">
+    <div
+      data-testid={TestIds.welcome}
+      className="relative flex h-full flex-col items-center justify-center gap-8 px-6"
+    >
       {/* Settings must be reachable with no repo open — Remote daemons live there,
           and a stuck remote would otherwise leave no escape hatch. */}
       <div className="absolute top-2 right-3">
@@ -114,7 +118,7 @@ export function Welcome(): React.JSX.Element {
         <p className="mt-1 text-sm text-muted-foreground">Run agents. Review as a story.</p>
       </div>
       <EnvironmentBanner />
-      <Button onClick={openRepo}>
+      <Button data-testid={TestIds.welcomeOpenRepo} onClick={openRepo}>
         <FolderOpen />
         {onRemote ? `Open repository on ${remoteName}` : 'Open repository'}
       </Button>

@@ -21,6 +21,7 @@ import { useRepoStore } from '@renderer/stores/repo'
 import { jumpTargets, nextTarget, useReviewFocusStore } from '@renderer/stores/review-focus'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { useZenStore } from '@renderer/stores/zen'
+import { TestIds } from '@shared/test-ids'
 import { Check, Copy, Sparkles } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { SourceMarker } from './feature-list'
@@ -209,7 +210,7 @@ export function FeatureView(): React.JSX.Element {
   const hasEvidence = reading.evidence !== null
 
   return (
-    <div className="flex h-full flex-col">
+    <div data-testid={TestIds.featureCanvas} className="flex h-full flex-col">
       <div className="flex items-center gap-3 border-b px-3 py-1.5">
         <h1 className="min-w-0 flex-1 truncate text-xs font-medium">{reading.name}</h1>
         <div className="flex shrink-0 items-center gap-3 text-2xs text-muted-foreground">
@@ -243,6 +244,7 @@ export function FeatureView(): React.JSX.Element {
                       <TabsTrigger
                         value={tab.id}
                         disabled={disabled}
+                        data-testid={TestIds.featureCanvasTab(tab.id)}
                         className="flex-none px-3 data-disabled:opacity-40"
                       />
                     }

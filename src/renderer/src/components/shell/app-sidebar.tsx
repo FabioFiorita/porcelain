@@ -31,6 +31,7 @@ import { type SidebarTab, usePreferencesStore } from '@renderer/stores/preferenc
 import { useRepoStore } from '@renderer/stores/repo'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { isUnreadTab, useUnreadStore } from '@renderer/stores/unread'
+import { TestIds } from '@shared/test-ids'
 import {
   Bot,
   ChevronsDownUp,
@@ -167,7 +168,7 @@ export function AppSidebar(): React.JSX.Element {
           <ProjectSwitcher />
         </SidebarHeader>
         <SidebarContent className="overflow-hidden">
-          <SidebarMenu className="items-center gap-1.5 pt-1.5 pb-2.5">
+          <SidebarMenu data-testid={TestIds.rail} className="items-center gap-1.5 pt-1.5 pb-2.5">
             {TABS.map((tab) => {
               const active = sidebarTab === tab.id
               // An agent push while this tab was unvisited lights a dot (feature/
@@ -182,6 +183,7 @@ export function AppSidebar(): React.JSX.Element {
                           isActive={active}
                           onClick={() => selectTab(tab.id)}
                           aria-label={tab.label}
+                          data-testid={TestIds.railTab(tab.id)}
                           // The selected tab is filled with the accent surface; a
                           // resting tab is muted and warms to the same accent on
                           // hover.
@@ -222,7 +224,10 @@ export function AppSidebar(): React.JSX.Element {
             what separates this from the branch/worktree footer beside it. h-12
             still keeps it vertically aligned with that footer. */}
         <SidebarFooter className="h-12 items-center justify-center p-0">
-          <SettingsButton className="app-no-drag size-10 text-muted-foreground [&_svg]:size-5" />
+          <SettingsButton
+            className="app-no-drag size-10 text-muted-foreground [&_svg]:size-5"
+            data-testid={TestIds.railSettings}
+          />
         </SidebarFooter>
       </Sidebar>
 
@@ -237,7 +242,10 @@ export function AppSidebar(): React.JSX.Element {
               state === 'expanded' && 'border-b',
             )}
           >
-            <span className="min-w-0 flex-1 truncate text-xs font-semibold text-foreground">
+            <span
+              data-testid={TestIds.sidebarPanelTitle}
+              className="min-w-0 flex-1 truncate text-xs font-semibold text-foreground"
+            >
               {PANEL_TITLES[sidebarTab]}
             </span>
             {/* One actions region for every tab. Files renders its tree controls
@@ -284,7 +292,7 @@ export function AppSidebar(): React.JSX.Element {
               <div ref={setActionsSlot} className="flex items-center" />
             </div>
           </SidebarHeader>
-          <SidebarContent className="overflow-hidden">
+          <SidebarContent data-testid={TestIds.sidebarPanel} className="overflow-hidden">
             {repo ? (
               <div className="min-h-0 flex-1 overflow-auto">
                 <SidebarGroup>

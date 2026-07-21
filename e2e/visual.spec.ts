@@ -1,68 +1,57 @@
-import { expect, openSettings, selectTab, test, waitForShell } from './helpers/app'
+import { expect, loc, openSettings, selectTab, test, waitForShell } from './helpers/app'
 
 // Screenshot baselines = the regression net. DOM-only (no native window chrome /
-// traffic lights — the UI is one opaque design, no vibrancy), per-platform
-// (`-darwin`). Deliberately NOT screenshotting the
-// History list — its relative timestamps drift. Regenerate after intentional UI
-// changes with `pnpm test:e2e:update`.
+// traffic lights — the UI is one opaque design, no vibrancy), per-platform.
+// Deliberately NOT screenshotting the History list — its relative timestamps drift.
+// Regenerate after intentional UI changes with `pnpm test:e2e:update`.
 
 test('empty viewer', async ({ page }) => {
   await waitForShell(page)
-  // Desktop empty pane is Glance (dirty-tree summary for the seeded fixture).
-  await expect(page.getByText('2 changed files').first()).toBeVisible()
+  await expect(loc.glanceChangedFiles(page)).toHaveAttribute('data-count', '2')
   await expect(page).toHaveScreenshot('empty-viewer.png')
 })
 
 test('changes tab', async ({ page }) => {
   await waitForShell(page)
   await selectTab(page, 'Changes')
-  const panel = page.locator('[data-slot="sidebar-inner"]').filter({ hasText: 'Changes' }).first()
-  await expect(panel.getByText('2 changed files')).toBeVisible()
+  await expect(loc.changesSummary(page)).toHaveAttribute('data-count', '2')
   await expect(page).toHaveScreenshot('changes-tab.png')
 })
 
-// Element-scoped baseline for the icon rail (Files…Agent, including Relay). The rail
-// is a ~56px column, so adding/restyling a tab icon changes far fewer pixels than the
-// full-page 2% tolerance and slips through the page shots untouched — framing just
-// the rail makes such a change actually fail.
+// Element-scoped baseline for the icon rail. Framing just the rail makes a tab
+// restyle fail where full-page 2% tolerance would swallow it.
 test('sidebar icon rail', async ({ page }) => {
   await waitForShell(page)
-  const rail = page.locator('[data-slot="sidebar-menu"]').first()
-  await expect(rail.getByRole('button', { name: 'Relay' })).toBeVisible()
-  await expect(rail.getByRole('button', { name: 'Agent' })).toBeVisible()
-  await expect(rail.getByRole('button', { name: 'Review' })).toBeVisible()
+  const rail = loc.rail(page)
+  await expect(loc.railTab(page, 'chat')).toBeVisible()
+  await expect(loc.railTab(page, 'agent')).toBeVisible()
+  await expect(loc.railTab(page, 'feature')).toBeVisible()
   await expect(rail).toHaveScreenshot('sidebar-rail.png')
 })
 
-// Element-scoped companion to the full-page `changes tab` shot. A restyle
-// confined to the ~270px-wide right Quick Access column changes far fewer pixels
-// than the full-page 2% tolerance, so it slips through that baseline untouched.
-// Framing just the panel makes its buttons fill the shot, so the same restyle
-// exceeds the per-element diff. The Commit composer renders only when the repo
-// has commit conventions — the fixture's conventional-commit history guarantees
-// it — so we assert the Commit button is present before the snapshot.
+// Element-scoped companion to the full-page `changes tab` shot.
 test('quick access — changes', async ({ page }) => {
   await waitForShell(page)
   await selectTab(page, 'Changes')
   const panel = page.locator(
     '[data-slot="sidebar-container"][data-side="right"] [data-slot="sidebar-inner"]',
   )
-  await expect(panel.getByRole('button', { name: 'Commit', exact: true })).toBeVisible()
+  await expect(loc.commitButton(page)).toBeVisible()
   await expect(panel).toHaveScreenshot('quick-access-changes.png')
 })
 
 test('settings dialog', async ({ page }) => {
   await waitForShell(page)
   await openSettings(page)
-  await expect(page.getByRole('heading', { name: 'General' })).toBeVisible()
-  await expect(page.getByRole('dialog')).toHaveScreenshot('settings-general.png')
+  await expect(loc.settingsHeading(page)).toHaveText('General')
+  await expect(loc.settingsDialog(page)).toHaveScreenshot('settings-general.png')
 })
 
 test.describe('without a seeded repo', () => {
   test.use({ seedRepo: false })
 
   test('welcome screen', async ({ page }) => {
-    await expect(page.getByRole('button', { name: 'Open repository' })).toBeVisible()
+    await expect(loc.welcomeOpenRepo(page)).toBeVisible()
     await expect(page).toHaveScreenshot('welcome.png')
   })
 })

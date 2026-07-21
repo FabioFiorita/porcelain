@@ -36,6 +36,7 @@ import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useRevealStore } from '@renderer/stores/reveal'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
+import { TestIds } from '@shared/test-ids'
 import {
   Check,
   FileText,
@@ -109,6 +110,8 @@ function FileRowImpl({
           render={
             <SidebarMenuButton
               className="h-auto py-1"
+              data-testid={TestIds.changesFile(name)}
+              data-path={file.path}
               onClick={() =>
                 openTab({
                   id: tabId('diff', base ? `${base}:${file.path}` : file.path),
@@ -316,7 +319,7 @@ export function ChangesList(): React.JSX.Element {
   }
 
   return (
-    <div className="flex flex-col gap-1">
+    <div data-testid={TestIds.changesList} className="flex flex-col gap-1">
       {/* Two rows so a long "N changed files · vs base · N reviewed" line and the
           Working/Branch picker never fight for width in the narrow panel. */}
       <div className="flex flex-col gap-1 px-2">
@@ -324,12 +327,20 @@ export function ChangesList(): React.JSX.Element {
           {total > 0 && reviewedCount === total ? (
             // Completion moment: the whole change set has been reviewed — the
             // story is read end to end, so the count gives way to a clear signal.
-            <span className="flex min-w-0 items-start gap-1 text-xs text-success">
+            <span
+              data-testid={TestIds.changesSummary}
+              data-count={total}
+              className="flex min-w-0 items-start gap-1 text-xs text-success"
+            >
               <Check className="mt-0.5 size-3 shrink-0" />
               All {total} {total === 1 ? 'file' : 'files'} reviewed{base && ` · vs ${base}`}
             </span>
           ) : (
-            <span className="min-w-0 text-xs text-muted-foreground">
+            <span
+              data-testid={TestIds.changesSummary}
+              data-count={total}
+              className="min-w-0 text-xs text-muted-foreground"
+            >
               {total} changed {total === 1 ? 'file' : 'files'}
               {base && ` · vs ${base}`}
               {reviewedCount > 0 && ` · ${reviewedCount} reviewed`}

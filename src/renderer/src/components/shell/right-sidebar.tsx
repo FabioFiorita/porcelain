@@ -3,6 +3,7 @@ import { ChatQuickAccess } from '@renderer/components/chat/chat-quick-access'
 import { ActionsGroup } from '@renderer/components/terminal/actions-group'
 import { Sidebar, SidebarContent, SidebarHeader, useSidebar } from '@renderer/components/ui/sidebar'
 import { type SidebarTab, usePreferencesStore } from '@renderer/stores/preferences'
+import { TestIds } from '@shared/test-ids'
 import { CommentsGroup } from './comments-group'
 import { CommitGroup } from './commit-group'
 import { FileTimelineGroup } from './file-timeline-group'
@@ -39,6 +40,7 @@ export function RightSidebar(): React.JSX.Element {
       side="right"
       variant="floating"
       collapsible="offcanvas"
+      data-testid={TestIds.rightSidebar}
       // Match the left card: sit below the h-12 titlebar (shadcn pins the floating
       // container to the full viewport otherwise), flush at the titlebar bottom.
       style={{ top: '3rem', height: 'calc(100svh - 3rem)', paddingTop: 0 }}

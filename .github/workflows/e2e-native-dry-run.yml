@@ -1,0 +1,36 @@
+name: E2e native dry-run
+
+# Pre-tag release gate: run the native Electron e2e suite on macos-14 WITHOUT
+# cutting a version tag. Use this after UI-touching commits so release.yml's
+# native e2e is a confirmation, not the first place we discover breakage.
+#
+# Manual: Actions → E2e native dry-run → Run workflow.
+# Automatic: pushes to main that touch renderer, e2e, or electron main/preload.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'src/renderer/**'
+      - 'src/main/**'
+      - 'src/preload/**'
+      - 'e2e/**'
+      - 'playwright.config.ts'
+      - 'package.json'
+      - 'electron.vite.config.ts'
+      - 'electron-builder.yml'
+
+jobs:
+  native:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e:native:prebuilt

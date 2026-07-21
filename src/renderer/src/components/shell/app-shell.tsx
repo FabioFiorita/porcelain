@@ -20,6 +20,7 @@ import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { useZenStore } from '@renderer/stores/zen'
+import { TestIds } from '@shared/test-ids'
 import { PanelLeft, RotateCw, Zap } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { AgentCommands } from '../agent/agent-commands'
@@ -93,6 +94,7 @@ function TopBar({ left }: { left: LeftSidebarHandle }): React.JSX.Element {
               onClick={left.toggle}
               aria-label="Toggle sidebar"
               aria-expanded={!left.collapsed}
+              data-testid={TestIds.toggleLeftSidebar}
               // Collapsing leaves the icon rail in place, so the traffic lights
               // now float over the rail — this toggle never needs to clear them.
               className="app-no-drag m-1 ml-2"
@@ -117,6 +119,7 @@ function TopBar({ left }: { left: LeftSidebarHandle }): React.JSX.Element {
                 onClick={toggleRight}
                 aria-label="Toggle quick access sidebar"
                 aria-expanded={rightActive}
+                data-testid={TestIds.toggleRightSidebar}
                 className="app-no-drag m-1 mr-2"
               >
                 <Zap />

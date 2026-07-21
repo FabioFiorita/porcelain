@@ -21,6 +21,7 @@ import { kbdLabel } from '@renderer/lib/keyboard'
 import { cn } from '@renderer/lib/utils'
 import { useCommitDraftStore } from '@renderer/stores/commit-draft'
 import { useRepoStore } from '@renderer/stores/repo'
+import { TestIds } from '@shared/test-ids'
 import { ChevronsUpDown, FileMinus2, FilePlus2, GitCommitHorizontal } from 'lucide-react'
 import { useState } from 'react'
 
@@ -193,7 +194,7 @@ export function CommitGroup(): React.JSX.Element {
   }
 
   return (
-    <SidebarGroup className="px-3">
+    <SidebarGroup data-testid={TestIds.commitGroup} className="px-3">
       <SidebarGroupLabel className="px-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
         Commit
       </SidebarGroupLabel>
@@ -270,6 +271,7 @@ export function CommitGroup(): React.JSX.Element {
               size="sm"
               className={cn(compactButtonClass, 'flex-1 rounded-md')}
               disabled={!ready || isCommitting}
+              data-testid={TestIds.commitButton}
               onClick={commit}
             >
               <GitCommitHorizontal />

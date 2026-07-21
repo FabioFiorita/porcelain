@@ -44,6 +44,7 @@ import {
   type EvidenceCheckStatus,
   evidenceOverallStatus,
 } from '@shared/evidence-check'
+import { TestIds } from '@shared/test-ids'
 import {
   CircleCheck,
   CircleMinus,
@@ -567,6 +568,7 @@ export function EvidenceHeaderRow({
               onClick={clear}
               disabled={isClearing}
               aria-label="Clear evidence"
+              data-testid={TestIds.evidenceClear}
             >
               <Eraser />
             </Button>

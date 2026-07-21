@@ -28,6 +28,7 @@ import type {
   ThreadOptions,
 } from '@shared/agent-protocol'
 import { PROVIDER_LABEL } from '@shared/agent-protocol'
+import { TestIds } from '@shared/test-ids'
 import type { LucideIcon } from 'lucide-react'
 import {
   ArrowUp,
@@ -277,6 +278,7 @@ export function AgentComposer({
                 : `${PROVIDER_LABEL[provider]} isn’t installed — install its CLI to chat.`
             }
             aria-label="Message the agent"
+            data-testid={TestIds.agentComposer}
             onPaste={async (e) => {
               const files = Array.from(e.clipboardData.files)
               if (files.length > 0) {
@@ -342,6 +344,7 @@ export function AgentComposer({
                         variant="ghost"
                         size="xs"
                         aria-label={MODE_LABEL[mode]}
+                        data-testid={TestIds.agentModeChip}
                         className="gap-1 text-muted-foreground/70 hover:text-muted-foreground"
                       >
                         <ModeIcon className="size-3" />
@@ -428,7 +431,13 @@ export function AgentComposer({
               <Tooltip>
                 <TooltipTrigger
                   render={
-                    <Button size="icon-sm" aria-label="Send" disabled={!canSend} onClick={submit}>
+                    <Button
+                      size="icon-sm"
+                      aria-label="Send"
+                      data-testid={TestIds.agentSend}
+                      disabled={!canSend}
+                      onClick={submit}
+                    >
                       <ArrowUp />
                     </Button>
                   }
@@ -440,7 +449,13 @@ export function AgentComposer({
               </Button>
             </>
           ) : (
-            <Button size="icon-sm" aria-label="Send" disabled={!canSend} onClick={submit}>
+            <Button
+              size="icon-sm"
+              aria-label="Send"
+              data-testid={TestIds.agentSend}
+              disabled={!canSend}
+              onClick={submit}
+            >
               <ArrowUp />
             </Button>
           )}

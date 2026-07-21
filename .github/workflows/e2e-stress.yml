@@ -1,0 +1,39 @@
+name: E2e stress
+
+# Prove the browser e2e suite is infinitely repeatable: same tree, retries=0,
+# multi-run. Manual only — not a per-push cost. Failures mean a real race, not
+# "needs more retries".
+on:
+  workflow_dispatch:
+    inputs:
+      runs:
+        description: 'How many full suite passes (default 5)'
+        required: false
+        default: '5'
+        type: string
+
+jobs:
+  stress:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: node node_modules/electron/install.js
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm build
+      - name: Run browser e2e N times with retries=0
+        env:
+          PLAYWRIGHT_FORCE_ASYNC_LOADER: '1'
+          RUNS: ${{ inputs.runs || '5' }}
+        run: |
+          set -euo pipefail
+          n="${RUNS}"
+          for i in $(seq 1 "$n"); do
+            echo "=== stress pass $i / $n ==="
+            pnpm exec playwright test --project=browser --retries=0
+          done

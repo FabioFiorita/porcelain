@@ -10,6 +10,7 @@ import {
   type ThemeMode,
   usePreferencesStore,
 } from '@renderer/stores/preferences'
+import { TestIds } from '@shared/test-ids'
 
 const TERMINAL_RENDERERS: {
   value: TerminalRenderer
@@ -85,13 +86,28 @@ export function GeneralSection(): React.JSX.Element {
               setTheme(mode satisfies ThemeMode)
           }}
         >
-          <ToggleGroupItem value="system" size="sm" className={compactButtonClass}>
+          <ToggleGroupItem
+            value="system"
+            size="sm"
+            className={compactButtonClass}
+            data-testid={TestIds.settingsAppearanceSystem}
+          >
             System
           </ToggleGroupItem>
-          <ToggleGroupItem value="light" size="sm" className={compactButtonClass}>
+          <ToggleGroupItem
+            value="light"
+            size="sm"
+            className={compactButtonClass}
+            data-testid={TestIds.settingsAppearanceLight}
+          >
             Light
           </ToggleGroupItem>
-          <ToggleGroupItem value="dark" size="sm" className={compactButtonClass}>
+          <ToggleGroupItem
+            value="dark"
+            size="sm"
+            className={compactButtonClass}
+            data-testid={TestIds.settingsAppearanceDark}
+          >
             Dark
           </ToggleGroupItem>
         </ToggleGroup>

@@ -7,6 +7,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useWorktreeInbox } from '@renderer/hooks/use-worktrees'
 import { useRepoStore } from '@renderer/stores/repo'
+import { TestIds } from '@shared/test-ids'
 import { GitBranch, Loader2 } from 'lucide-react'
 
 /** "N changed files · M threads · review pushed/none" — the row's tooltip detail. */
@@ -33,6 +34,7 @@ function InboxRowButton({ row }: { row: InboxRow }): React.JSX.Element {
           <button
             type="button"
             onClick={openWorktree}
+            data-testid={TestIds.reviewInboxRow(row.branch)}
             className="flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left hover:bg-sidebar-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           >
             <GitBranch className="size-3.5 shrink-0 text-muted-foreground" />
@@ -76,7 +78,7 @@ export function ReviewInbox(): React.JSX.Element | null {
   if (rows.length === 0) return null
 
   return (
-    <SidebarGroup className="px-3">
+    <SidebarGroup data-testid={TestIds.reviewInbox} className="px-3">
       <SidebarGroupLabel className="px-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
         Review inbox
       </SidebarGroupLabel>

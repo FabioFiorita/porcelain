@@ -1,4 +1,4 @@
-import { expect, selectTab, test, waitForShell } from './helpers/app'
+import { expect, loc, selectTab, test, waitForShell } from './helpers/app'
 
 // A distinctive heading so an assertion inside the frame can't accidentally match the
 // surrounding app chrome.
@@ -32,8 +32,7 @@ const EVIDENCE_HTML = `<!doctype html>
 </html>
 `
 
-// Evidence renders as the Review's final chapter, so the Review itself has to exist:
-// seed a review set (as `porcelain review set` would write it) alongside the evidence.
+// Evidence is a Review canvas tab — seed a review set alongside the evidence.
 test.use({
   seedReviewSet: {
     name: 'Ghost variant review',
@@ -49,34 +48,26 @@ test('evidence renders as the Review Evidence tab in a fully sandboxed iframe', 
   await waitForShell(page)
   await selectTab(page, 'Review')
 
-  // Sidebar Evidence shortcut uses the evidence title when present.
-  const outlineRow = page.getByRole('button', { name: /Test evidence|Evidence/ })
-  await expect(outlineRow.first()).toBeVisible({ timeout: 15_000 })
+  await expect(loc.featureOpenReview(page)).toBeVisible({ timeout: 15_000 })
+  await loc.featureOpenReview(page).click()
+  await expect(loc.featureCanvas(page)).toBeVisible({ timeout: 15_000 })
 
-  // Clicking opens the Review canvas on the Evidence tab.
-  await outlineRow.first().click()
-  await expect(page.getByRole('heading', { name: 'Test evidence' })).toBeVisible({
-    timeout: 15_000,
-  })
+  await loc.featureCanvasTab(page, 'evidence').click()
+  await expect(loc.evidencePanel(page)).toBeVisible({ timeout: 15_000 })
 
-  // The chapter body lazily fetches the HTML and gives the iframe the evidence title.
-  const iframeEl = page.locator('iframe[title="Test evidence"]')
+  const iframeEl = loc.evidenceIframe(page)
   await expect(iframeEl).toBeVisible({ timeout: 15_000 })
 
-  // The iframe is FULLY sandboxed: `sandbox=""` (no allow-scripts, no allow-same-origin).
+  // Fully sandboxed: sandbox="" (no allow-scripts, no allow-same-origin).
   expect(await iframeEl.getAttribute('sandbox')).toBe('')
 
-  // The srcdoc actually PAINTED under the app's strict CSP.
-  const frame = page.frameLocator('iframe[title="Test evidence"]')
+  const frame = page.frameLocator(`[data-testid="evidence-iframe"]`)
   await expect(frame.getByRole('heading', { name: H1_TEXT })).toBeVisible({ timeout: 15_000 })
   await expect(frame.locator('.pass')).toBeVisible()
-
-  // sandbox="" blocks scripts: the canary never ran.
   await expect(frame.locator('body')).not.toContainText('SCRIPT EXECUTED')
 
-  // Clear is the human's erase path for this ephemeral surface: the Evidence tab and
-  // the outline shortcut both drop, while Intent/Execution stay.
-  await page.getByRole('button', { name: 'Clear evidence' }).click()
-  await expect(outlineRow.first()).not.toBeVisible({ timeout: 15_000 })
-  await expect(page.getByText('The variant hop').first()).toBeVisible()
+  await loc.evidenceClear(page).click()
+  await expect(loc.evidencePanel(page)).not.toBeVisible({ timeout: 15_000 })
+  // Intent canvas still has the review name / sections after clear of evidence only.
+  await expect(loc.featureCanvas(page)).toBeVisible()
 })

@@ -17,6 +17,7 @@ import { useRepoStore } from '@renderer/stores/repo'
 import { useTabsStore } from '@renderer/stores/tabs'
 import type { AgentProvider, TimelineItem } from '@shared/agent-protocol'
 import { PROVIDER_LABEL } from '@shared/agent-protocol'
+import { TestIds } from '@shared/test-ids'
 import { FilePenLine, FileText, GitBranch, Loader2, RefreshCw } from 'lucide-react'
 import { useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
@@ -159,7 +160,7 @@ function SessionGroup({ threadId }: { threadId: string }): React.JSX.Element | n
   const status = liveStatus ?? thread.status
   const working = status === 'working'
   return (
-    <SidebarGroup className="px-3">
+    <SidebarGroup data-testid={TestIds.agentSessionCompanion} className="px-3">
       <SidebarGroupLabel className="px-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
         Session
       </SidebarGroupLabel>
@@ -178,14 +179,26 @@ function SessionGroup({ threadId }: { threadId: string }): React.JSX.Element | n
           </div>
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-2xs text-muted-foreground">
             {working ? (
-              <span className="flex items-center gap-1 font-medium text-foreground">
+              <span
+                data-testid={TestIds.agentSessionCompanionStatus}
+                data-status="working"
+                className="flex items-center gap-1 font-medium text-foreground"
+              >
                 <Loader2 className="size-3 shrink-0 animate-spin" />
                 Working
               </span>
             ) : thread.lastTurnFailed ? (
-              <span className="font-medium text-destructive">Last turn failed</span>
+              <span
+                data-testid={TestIds.agentSessionCompanionStatus}
+                data-status="failed"
+                className="font-medium text-destructive"
+              >
+                Last turn failed
+              </span>
             ) : (
-              <span>Idle</span>
+              <span data-testid={TestIds.agentSessionCompanionStatus} data-status="idle">
+                Idle
+              </span>
             )}
             <span className="text-muted-foreground/40">·</span>
             <span className="tabular-nums">{relativeTime(thread.updatedAt)}</span>
@@ -422,7 +435,10 @@ function UsageGroup({ threadId }: { threadId: string }): React.JSX.Element | nul
         Usage
       </SidebarGroupLabel>
       <SidebarGroupContent className="flex flex-col gap-0.5 px-1">
-        <p className="text-2xs tabular-nums text-muted-foreground">
+        <p
+          data-testid={TestIds.agentUsageLastTurn}
+          className="text-2xs tabular-nums text-muted-foreground"
+        >
           Last turn {formatUsageLine(usage)}
         </p>
         <p className="text-2xs tabular-nums text-muted-foreground/70">

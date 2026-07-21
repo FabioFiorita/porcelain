@@ -10,6 +10,7 @@ import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import type { ThreadInfo } from '@shared/agent-protocol'
+import { TestIds } from '@shared/test-ids'
 import { Columns3, FileDiff, GitBranch, Loader2, Waypoints } from 'lucide-react'
 
 // One tap-target recipe for every Glance row: full-width, touch-comfortable
@@ -151,7 +152,7 @@ export function GlanceHome(): React.JSX.Element | null {
     .join(' · ')
 
   return (
-    <div className="h-full overflow-y-auto">
+    <div data-testid={TestIds.glance} className="h-full overflow-y-auto">
       <div className="mx-auto flex max-w-md flex-col gap-6 px-4 py-6">
         {/* The repo name anchors the page — which repo you're glancing at. */}
         <h1 className="truncate px-2 text-base font-medium tracking-tight text-foreground">
@@ -183,7 +184,13 @@ export function GlanceHome(): React.JSX.Element | null {
             {showCheckout && (
               <GlanceSection label="This checkout">
                 {changedCount > 0 && (
-                  <button type="button" onClick={openAllChanges} className={rowClass}>
+                  <button
+                    type="button"
+                    onClick={openAllChanges}
+                    className={rowClass}
+                    data-testid={TestIds.glanceChangedFiles}
+                    data-count={changedCount}
+                  >
                     <FileDiff className="size-3.5 shrink-0 text-muted-foreground" />
                     <span className="min-w-0 flex-1 truncate text-sm">
                       {changedCount === 1 ? '1 changed file' : `${changedCount} changed files`}

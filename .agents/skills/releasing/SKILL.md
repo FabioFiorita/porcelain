@@ -16,42 +16,31 @@ same release.
 1. Land your changes on `main` and confirm CI is green (`.github/workflows/ci.yml`
    runs on every push to `main` + PRs: `pnpm verify` = lint → test → build —
    typecheck runs inside `build` — then `typecheck:e2e`, on Ubuntu).
-2. **The NATIVE e2e suite is the release gate, and it runs in CI — not on your machine.**
-   `release.yml` (`macos-14`) builds **once** on the tag push, then runs
-   `pnpm test:e2e:native:prebuilt` against that build: Playwright's `_electron`
-   drives the real built app, `-darwin` screenshot baselines included, and the same
-   `out/` is what ships (the Linux release leg does the same under Xvfb with the
-   `-linux` baselines). You do **not** run it locally before tagging. (Native e2e is
-   kept OUT of the per-commit gate, hard rule 3, so commits stay fast; the
-   per-push e2e is the **browser** project — `pnpm test:e2e` in `linux.yml`,
-   headless Chromium on the daemon-served client, asserting the `-browser-linux`
-   baselines.) When you change the UI **on purpose**, regenerate BOTH baseline sets
-   and commit them (`test:`) as part of that change: `pnpm test:e2e:update`
-   (browser, runs anywhere headless) and `pnpm test:e2e:native:update` (Electron,
-   needs a display) — otherwise the stale native snapshot stays hidden until the
-   release workflow fails on the diff. A pure-refactor release needs no baseline
-   change.
+2. **Native e2e before the tag (dry-run), not only after.**
+   - **Per-push browser e2e** (`linux.yml` → `pnpm test:e2e`): headless Chromium on
+     the daemon-served client; asserts `-browser-linux` baselines.
+   - **Pre-tag native dry-run** (`e2e-native-dry-run.yml`): full
+     `pnpm test:e2e:native:prebuilt` on `macos-14` after UI/e2e path changes on
+     main, or via workflow_dispatch. **Do not `pnpm version` after UI-touching
+     commits until this is green** (or you have regenerated baselines and
+     re-run). Locators are `data-testid` (`src/shared/test-ids.ts`); intentional
+     UI still needs baseline updates when visuals change.
+   - **Tag release gate** (`release.yml`): same native suite on mac + Linux xvfb
+     against the artifact that ships — confirmation, not first discovery.
+   - When you change the UI **on purpose**, regenerate baselines in the same
+     change: `pnpm test:e2e:update` (browser) and darwin via
+     `regen-darwin-baselines.yml` / `pnpm test:e2e:native:update` when you have a
+     display. A pure-refactor release needs no baseline change.
 
-   **Why we trust the runner (decided 2026-06-26).** The baselines are authored on the
-   dev machine, but the `macos-14` runner has asserted them green across eight straight
-   releases (0.11.0 → 0.16.2), so dev-machine and runner rendering match in practice —
-   the old "assert locally, the runner isn't where we assert" caveat was disproven by
-   that streak. The tradeoff we accepted: an *unintentional* visual regression now
-   fails the release workflow *after* the tag is pushed, rather than locally before it.
-   Recoverable — fix and bump a NEW patch (see below), just later in the flow.
+   **Why we trust the runner (decided 2026-06-26).** The `macos-14` runner has
+   asserted baselines green across many releases; dry-run uses the same runner so
+   tag-time should match.
 
    **Failed-release recovery: never rewrite pushed history — add a new patch
    (Fabio's rule, 2026-07-12).** When a release run fails after the tag is pushed,
-   do NOT delete, move, or force-push the tag (or any pushed commit): commit the fix
-   on main, `pnpm version patch`, and release the new version. The dead tag stays on
-   origin as an honest record of the attempt (it has no release attached, so
-   electron-updater never sees it; its changelog section stays too — the fixed
-   version's section will just be short). First applied on v0.21.0/v0.21.1 (both died
-   on the same e2e strict-mode locator; v0.21.2 shipped the fix). Corollary: before
-   cutting a release after ANY UI-touching commits, run the full `pnpm
-   test:e2e:native:prebuilt` suite locally — an ambiguous locator is deterministic on the
-   runner even when a local race lets it pass once, and each failed attempt costs a
-   version number.
+   do NOT delete, move, or force-push the tag: commit the fix on main, `pnpm
+   version patch`, and release the new version. The dry-run workflow exists so
+   this path is rare.
 3. **Bump and tag in one step:** `pnpm version <patch|minor|major>` — updates
    `package.json`, **prepends** the new release's section to `CHANGELOG.md` from the
    conventional commits (the `version` lifecycle hook → `pnpm changelog`, staged into

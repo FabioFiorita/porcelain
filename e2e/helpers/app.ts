@@ -13,6 +13,8 @@ import {
   type Page,
 } from '@playwright/test'
 import { createFixtureRepo } from './fixture-repo'
+import { loc } from './locators'
+import { TestIds } from './test-ids'
 
 const MAIN_ENTRY = join(__dirname, '..', '..', 'out', 'main', 'index.js')
 const DAEMON_ENTRY = join(__dirname, '..', '..', 'out', 'main', 'daemon', 'server.js')
@@ -97,6 +99,8 @@ interface Seeded {
 }
 
 interface Fixtures {
+  /** Fresh fixture git repo for this test only (same fixed path, recreated each run). */
+  repoDir: string
   seeded: Seeded
   /** The Electron app under test — null in browser mode. */
   app: ElectronApplication | null
@@ -104,7 +108,6 @@ interface Fixtures {
 }
 
 interface WorkerFixtures {
-  repoDir: string
   /** Worker-shared headless Chromium — null in electron mode (never launched). */
   sharedBrowser: Browser | null
 }
@@ -247,20 +250,17 @@ export const test = baseTest.extend<Options & Fixtures, WorkerOptions & WorkerFi
   // Worker-scoped so the shared Chromium can key off it; set per Playwright project.
   appMode: ['electron', { option: true, scope: 'worker' }],
 
-  repoDir: [
-    // biome-ignore lint/correctness/noEmptyPattern: Playwright requires the fixture's first arg to be a destructuring pattern.
-    async ({}, use) => {
-      // The worktree flow (Agent → "New thread in worktree…") creates sibling
-      // `<repo>-worktrees/<branch>` dirs; clear them too so a prior run's leftovers
-      // don't make `git worktree add` collide.
-      await rm(`${REPO_DIR}-worktrees`, { recursive: true, force: true })
-      await createFixtureRepo(REPO_DIR)
-      await use(REPO_DIR)
-      await rm(REPO_DIR, { recursive: true, force: true })
-      await rm(`${REPO_DIR}-worktrees`, { recursive: true, force: true })
-    },
-    { scope: 'worker' },
-  ],
+  // Per-test isolation: every test starts from a pristine fixture repo at the
+  // same fixed path (stable name for screenshots). No shared mutation across
+  // tests — each run recreates the tree and tears worktrees down after.
+  // biome-ignore lint/correctness/noEmptyPattern: Playwright requires the fixture's first arg to be a destructuring pattern.
+  repoDir: async ({}, use) => {
+    await rm(`${REPO_DIR}-worktrees`, { recursive: true, force: true })
+    await createFixtureRepo(REPO_DIR)
+    await use(REPO_DIR)
+    await rm(REPO_DIR, { recursive: true, force: true })
+    await rm(`${REPO_DIR}-worktrees`, { recursive: true, force: true })
+  },
 
   sharedBrowser: [
     async ({ appMode }, use) => {
@@ -363,26 +363,49 @@ type TabName =
   | 'Changes'
   | 'History'
   | 'Review'
-  | 'Feature' // alias — rail label is Review
+  | 'Feature' // alias — rail id is `feature`, label is Review
   | 'Board'
   | 'Relay'
-  | 'Chat' // alias — rail label is Relay
+  | 'Chat' // alias — rail id is `chat`, label is Relay
   | 'Terminal'
   | 'Agent'
 
-/** Wait until the shell has finished restoring the seeded repo. `exact` matters:
- *  getByRole matches substrings, so the skills-update toast's "Open settings" button
- *  collides with the rail's "Settings" whenever the toast is mounted — a timing
- *  flake. The long timeout covers a cold Electron + daemon boot under load. */
-export async function waitForShell(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'Settings', exact: true }).waitFor({ timeout: 60_000 })
+/** Map human/product tab names to the sidebar store id used in `data-testid`. */
+function railTabId(tab: TabName): string {
+  switch (tab) {
+    case 'Files':
+      return 'files'
+    case 'Agent':
+      return 'agent'
+    case 'Changes':
+      return 'changes'
+    case 'Review':
+    case 'Feature':
+      return 'feature'
+    case 'History':
+      return 'history'
+    case 'Search':
+      return 'search'
+    case 'Board':
+      return 'board'
+    case 'Relay':
+    case 'Chat':
+      return 'chat'
+    case 'Terminal':
+      return 'terminal'
+  }
 }
 
-/** Click a left-rail sidebar tab by its label. */
+/** Wait until the shell has finished restoring the seeded repo.
+ *  Uses the rail Settings test id (not the toast's "Open settings" label).
+ *  The long timeout covers a cold Electron + daemon boot under load. */
+export async function waitForShell(page: Page): Promise<void> {
+  await loc.railSettings(page).waitFor({ timeout: 60_000 })
+}
+
+/** Click a left-rail sidebar tab by its stable test id. */
 export async function selectTab(page: Page, tab: TabName): Promise<void> {
-  // Aliases for renamed rail labels (Review was Feature; Relay was Chat).
-  const label = tab === 'Feature' ? 'Review' : tab === 'Chat' ? 'Relay' : tab
-  await page.getByRole('button', { name: label, exact: true }).click()
+  await loc.railTab(page, railTabId(tab)).click()
 }
 
 /**
@@ -407,6 +430,8 @@ export async function expectTerminalText(
 
 /** Open the Settings dialog and wait for it to appear. */
 export async function openSettings(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'Settings', exact: true }).click()
-  await page.getByRole('dialog').waitFor()
+  await loc.railSettings(page).click()
+  await loc.settingsDialog(page).waitFor()
 }
+
+export { loc, TestIds }

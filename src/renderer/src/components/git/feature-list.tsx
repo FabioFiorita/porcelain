@@ -38,6 +38,7 @@ import {
   useReviewFocusStore,
 } from '@renderer/stores/review-focus'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
+import { TestIds } from '@shared/test-ids'
 import {
   Check,
   Eraser,
@@ -234,7 +235,7 @@ function uniqueFiles(files: readonly ReadingFile[]): ReadingFile[] {
 // Execution file outline. Intent / Execution / Evidence tabs live only in the viewer.
 export function FeatureList(): React.JSX.Element {
   return (
-    <div className="flex flex-col gap-1">
+    <div data-testid={TestIds.featureList} className="flex flex-col gap-1">
       <ReviewInbox />
       <FeatureOutline />
     </div>
@@ -357,6 +358,7 @@ function FeatureOutline(): React.JSX.Element {
         <Button
           size="sm"
           className="h-7 w-full text-xs"
+          data-testid={TestIds.featureOpenReview}
           onClick={() => openReview({ kind: 'intent' })}
         >
           Open Review
