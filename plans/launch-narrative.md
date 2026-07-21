@@ -1,4 +1,4 @@
-# Launch narrative — Porcelain
+# Launch narrative: Porcelain
 
 **Audience:** X threads, Product Hunt, HN, launch emails, podcast intros.  
 **Source of truth for product claims:** shipped app + `product` skill + this file.  
@@ -16,16 +16,16 @@ Do not invent features. Do not use update framing (“we now…”) on the landi
 
 | Context | Line |
 |---------|------|
-| Product Hunt tagline | Run coding agents. Review what they built as a story — not a file list. |
+| Product Hunt tagline | Run coding agents. Review what they built as a story, not a file list. |
 | X bio / short | Hub for agentic coding: run agents, review as a story, trust what ships. |
-| HN title style | Porcelain – lightweight hub to run coding agents and review their work as a feature story |
+| HN title style | Porcelain: lightweight hub to run coding agents and review their work as a feature story |
 | Subtitle | Mac, Linux, or any browser. Your CLIs. Local only. Open source. |
 
 ---
 
 ## 15-second pitch
 
-Everyone is racing to spawn more coding agents. Porcelain stands on the other side of the pile: one lightweight window where you **run** Claude Code, Codex, OpenCode, and Grok — and **review** what they built the way a senior engineer reads a feature: as a story, not an alphabetical dump of files. Trust is the product.
+Everyone is racing to spawn more coding agents. Porcelain stands on the other side of the pile: one lightweight window where you **run** Claude Code, Codex, OpenCode, and Grok, and **review** what they built the way a senior engineer reads a feature: as a story, not an alphabetical dump of files. Trust is the product.
 
 ---
 
@@ -35,10 +35,10 @@ The bottleneck in software moved from writing code to understanding agent-writte
 
 Porcelain is not an IDE. It is the **reading room for agentic coding**:
 
-1. **The Review** — your agent publishes Intent, Execution, and Evidence: thesis, flow-ordered walkthrough (including the other half of the client/server seam), and proof it verified its work.
-2. **Flow-ordered diffs** — even without a Review, changes read from entry point to data.
-3. **A closed human↔agent loop** — line comments, board, claims, local CLI, companion skills. No MCP port, no telemetry.
-4. **Remote as a product** — one daemon; Mac app, remote environment, or any browser (iPad included). State lives on the host you own.
+1. **The Review.** Your agent publishes Intent, Execution, and Evidence: thesis, flow-ordered walkthrough (including the other half of the client/server seam), and proof it verified its work.
+2. **Flow-ordered diffs.** Even without a Review, changes read from entry point to data.
+3. **A closed human↔agent loop.** Line comments, board, claims, local CLI, companion skills. No MCP port, no telemetry.
+4. **Remote as a product.** One daemon; Mac app, remote environment, or any browser (iPad included). State lives on the host you own.
 
 Open source. Free. Your agent subscriptions, your machines.
 
@@ -48,7 +48,7 @@ Open source. Free. Your agent subscriptions, your machines.
 
 ### Origin
 
-Porcelain started as a companion next to Codex, Claude in a terminal, or whatever agent lived outside the window — a place to **see files and diffs** and understand what the agent did. Then came git actions, history, search, a board, a terminal, agents **inside** the app, environments so a Mac and a Linux box work as one system, and finally **the Review**: the whole feature as a document the agent authors and the human signs off.
+Porcelain started as a companion next to Codex, Claude in a terminal, or whatever agent lived outside the window: a place to **see files and diffs** and understand what the agent did. Then came git actions, history, search, a board, a terminal, agents **inside** the app, environments so a Mac and a Linux box work as one system, and finally **the Review**: the whole feature as a document the agent authors and the human signs off.
 
 The product got bigger. The soul did not: **humans must still understand and trust agent work.**
 
@@ -58,15 +58,15 @@ The product got bigger. The soul did not: **humans must still understand and tru
 - **Story over soup.** A feature is a path through the stack, not a sort of `path/to/file`.
 - **Connected homes, not silos.** Deep work has one home (Changes, Feature, Agent, Terminal); other surfaces preview and hand off.
 - **Viewer, not editor.** Lightweight always wins. The IDE stays the IDE.
-- **Legible, not glassy.** Design identity is the reading room — calm, opaque, serious.
+- **Legible, not glassy.** Design identity is the reading room: calm, opaque, serious.
 - **Local by default.** Channels are files + a CLI on your machine. No Porcelain cloud for your code.
 - **Narrow agents, deep review.** Four providers done well beats a nine-provider treadmill.
 
 ### Three pillars (priority order)
 
-1. **Review depth** (moat) — Review, flow, comments, evidence, monorepo hide/pin, explore.
-2. **Remote as product** (second moat) — daemon, three clients, daemon-side state.
-3. **Running agents** (table stakes) — threads, worktrees, permissions — deliberately not the brand.
+1. **Review depth** (moat): Review, flow, comments, evidence, monorepo hide/pin, explore.
+2. **Remote as product** (second moat): daemon, three clients, daemon-side state.
+3. **Running agents** (table stakes): threads, worktrees, permissions. Deliberately not the brand.
 
 ### Non-goals (say this when asked “why not X?”)
 
@@ -75,7 +75,7 @@ The product got bigger. The soul did not: **humans must still understand and tru
 - Scheduled automations / built-in browser as core  
 - Becoming an editor  
 - Windows-native app first (browser covers clients)  
-- Competing with YouTube-driven star counts — compete on **retention of reviewers**
+- Competing with YouTube-driven star counts. Compete on **retention of reviewers**
 
 ### Competitive frame (honest)
 
@@ -111,11 +111,11 @@ The product got bigger. The soul did not: **humans must still understand and tru
 
 ---
 
-## X / Twitter — thread skeleton
+## X / Twitter: thread skeleton
 
 1. **Hook:** Agents write code faster than anyone can trust it. Porcelain is where that work becomes trusted work.  
 2. **Problem:** Editors are heavy for reading. Git UIs are alphabetical. Cockpits spawn more agents → bigger unreviewed pile.  
-3. **Hero:** The Review — Intent · Execution · Evidence. Screenshot.  
+3. **Hero:** The Review (Intent · Execution · Evidence). Screenshot.  
 4. **Flow:** Diffs ordered like the runtime path. Screenshot.  
 5. **Loop:** Comment on a line → agent resolves. Local CLI, no port.  
 6. **Agents:** Same window. Your CLIs. Worktrees + Review inbox.  
@@ -132,29 +132,29 @@ Porcelain is out: where agent work becomes trusted work. Run Claude Code / Codex
 [link]
 
 **Philosophy:**  
-I built Porcelain because I stopped believing “more agents” was the hard part. The hard part is still understanding what shipped. So: a reading room for agentic coding — not another cockpit dashboard.
+I built Porcelain because I stopped believing “more agents” was the hard part. The hard part is still understanding what shipped. So: a reading room for agentic coding, not another cockpit dashboard.
 
 **Remote:**  
 My laptop is a thin client. The agents and terminals live on a box I own. Porcelain is one daemon, three clients (app, remote env, any browser). Same review state after reconnect.
 
 ---
 
-## Product Hunt — assets checklist
+## Product Hunt: assets checklist
 
 | Asset | Content |
 |-------|---------|
 | Name | Porcelain |
 | Tagline | Where agent work becomes trusted work |
-| Description (first 260 chars) | Lightweight hub for agentic coding: run your agents and review what they built as a feature story — Intent, Execution, Evidence — not a file list. Mac, Linux, or any browser. |
+| Description (first 260 chars) | Lightweight hub for agentic coding: run your agents and review what they built as a feature story (Intent, Execution, Evidence), not a file list. Mac, Linux, or any browser. |
 | Gallery | 1) Review hero 2) Flow Changes 3) Agent thread 4) Comment loop 5) Remote/install command 6) Board |
 | First comment | Origin + pillars (short) + link to skills install + honesty: not an IDE |
 | Topics | Developer Tools, AI, Productivity, Open Source, Git |
 
 ### PH first comment (template)
 
-Hey PH — I’m Fabio.
+Hey PH. I’m Fabio.
 
-Porcelain started as a place to **read** what coding agents did. It grew into the place I actually work: agents run inside, remotes connect my Mac to a Linux box, and the agent publishes a **Review** so I can sign off on a whole feature — not an alphabetical diff.
+Porcelain started as a place to **read** what coding agents did. It grew into the place I actually work: agents run inside, remotes connect my Mac to a Linux box, and the agent publishes a **Review** so I can sign off on a whole feature, not an alphabetical diff.
 
 Three beliefs:
 
@@ -168,11 +168,11 @@ Happy to answer anything about the Review loop, remote daemons, or why we stayed
 
 ---
 
-## HN / Reddit — framing
+## HN / Reddit: framing
 
 Lead with **problem + specificity**, not branding poetry.
 
-- “Show HN: Porcelain – review agent-written features as a story (and run the agents in the same window)”  
+- “Show HN: Porcelain: review agent-written features as a story (and run the agents in the same window)”  
 - First paragraph: bottleneck = trust; what the Review is; local CLI; open source.  
 - Expect: “why not Cursor?” → viewer not editor; “why not GitHub?” → whole feature + agent loop + local; “why not T3?” → review depth + remote product.
 
@@ -202,6 +202,6 @@ Lead with **problem + specificity**, not branding poetry.
 
 ## Related docs
 
-- `plans/positioning-and-roadmap.md` — competitive landscape + pillars  
-- `.agents/skills/product/SKILL.md` — feature truth  
-- `.agents/skills/marketing/SKILL.md` — site/screenshot process  
+- `plans/positioning-and-roadmap.md`: competitive landscape + pillars  
+- `.agents/skills/product/SKILL.md`: feature truth  
+- `.agents/skills/marketing/SKILL.md`: site/screenshot process  

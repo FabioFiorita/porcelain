@@ -40,7 +40,11 @@ App copy is the `product` skill's domain, not this one.
   ("hub for agentic coding", not the retired "viewer + companion").
 - Voice: confident, concrete, zero hype adjectives. Sell *legible* (the
   reading room), not "blazing fast AI-powered". Competitors' angle is breadth
-  and velocity; ours is trust and review depth — don't copy their voice.
+  and velocity; ours is trust and review depth. Don't copy their voice.
+- **No em dashes (—) or en dashes (–) as asides.** They read as AI-generated.
+  Prefer short sentences, commas, colons, or parentheses. Reorganize the idea
+  instead of gluing a parenthetical with a dash. Applies to the site, README,
+  and launch copy (`plans/launch-narrative.md`). HTML/CSS comments are fine.
 - **Never leak the personal setup** (CLAUDE.md rule): no beelink, no
   soaphealth, no personal hostnames in anything user-visible. Demo content
   uses generic names.
