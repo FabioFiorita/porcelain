@@ -1,3 +1,17 @@
+## [0.39.0](https://github.com/FabioFiorita/porcelain/compare/v0.38.2...v0.39.0) (2026-07-21)
+
+### Features
+
+* **feature:** Intent / Execution / Evidence Review canvas ([411baa3](https://github.com/FabioFiorita/porcelain/commit/411baa33859bf05c682564b4876e5079e2968d27))
+* **ui:** Review ship handoff, inbox cues, pin language ([0d0d4b2](https://github.com/FabioFiorita/porcelain/commit/0d0d4b229f0c62e47e835924a565131718e23d6c))
+* **viewer:** syntax-highlight .env files ([e5b38e0](https://github.com/FabioFiorita/porcelain/commit/e5b38e09bc3abdaf58db9648502c55b05e242a78))
+
+### Bug Fixes
+
+* **feature:** move Review tab questions to hover tooltips ([8aabfd1](https://github.com/FabioFiorita/porcelain/commit/8aabfd1984d5d34a4acd39adaa55d26f8b3dee6e))
+* **feature:** sidebar opens Review; no duplicate canvas tabs ([88d5768](https://github.com/FabioFiorita/porcelain/commit/88d5768e23eb63b1de115d359fa81c92306d22c5))
+* **ui:** keep destructive menu items red ([4f8da71](https://github.com/FabioFiorita/porcelain/commit/4f8da710df33de6c40199a0acb7ab895aaf4fd90))
+
 ## [0.38.2](https://github.com/FabioFiorita/porcelain/compare/v0.38.1...v0.38.2) (2026-07-21)
 
 ### Bug Fixes
