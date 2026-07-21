@@ -1,3 +1,9 @@
+## [0.38.0](https://github.com/FabioFiorita/porcelain/compare/v0.37.1...v0.38.0) (2026-07-21)
+
+### Features
+
+* **agent:** connected turn folds, changed-files preview, handoffs ([a3263e6](https://github.com/FabioFiorita/porcelain/commit/a3263e68b129343c6fe0097a2e7d610adb48127e))
+
 ## [0.37.1](https://github.com/FabioFiorita/porcelain/compare/v0.37.0...v0.37.1) (2026-07-20)
 
 ### Bug Fixes
