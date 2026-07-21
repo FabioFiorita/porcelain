@@ -4,6 +4,10 @@ Agent-managed foundations. This file owns project agent guidance; skills live in
 
 Porcelain is the hub for agentic coding (Electron, macOS): run your coding agents (Claude Code, Codex, OpenCode) in it *and* review their work. Still lightweight, still not an editor.
 
+## How we work together
+
+The human is **not** the source of truth and not a dictator to obey. Everything he says is open to discussion — including firm-sounding product or design calls. If you genuinely think an approach is wrong, incomplete, fragile, or worse than an alternative, **say so with the concern and a better path** before (or instead of) executing. Rubber-stamping is a failure mode; thoughtful pushback is expected. Hard rules and skills constrain *how* we ship once a direction is chosen; they do not mean “never challenge the human.” (Objective fixes still ship without asking — see the autonomy split in `close-the-loop`.)
+
 ## Hard rules
 
 1. **One architecture — but think freely.** Default to the existing pattern (state, data fetching, IPC shape, component/test style): check the `architecture` skill and match what's there, so the codebase stays uniform. But if you think a genuinely better approach exists, **propose it with the tradeoff before building** — don't silently fork the architecture, and don't be timid about suggesting one. The failure state is *two patterns nobody chose*; a considered switch (recorded in the home skill) is not. Outside-the-box thinking is wanted — it just gets surfaced, not smuggled in.
