@@ -289,6 +289,16 @@ test('marketing shots — the seeded demo repo across every surface', async () =
     await page.keyboard.type('git -c color.ui=always log -p')
     await page.keyboard.press('Enter')
     await expectTerminalText(page, 0, 'relabel the pagination')
+    // App default is 12px; at Retina full-window publish that reads as huge. Shrink
+    // after the pager is up so less reflows denser (e2e-only; not product default).
+    const fontApplied = await page.evaluate(() => {
+      const fn = window.__porcelainSetTerminalFontSize
+      if (typeof fn !== 'function') return false
+      fn(8)
+      return true
+    })
+    expect(fontApplied).toBe(true)
+    await settle(page)
     await settle(page)
     await shoot(page, 'terminal.png')
 

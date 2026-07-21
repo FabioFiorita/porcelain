@@ -47,6 +47,11 @@ declare global {
      * paints to a canvas, so `.xterm-rows` can't be scraped for output.
      */
     __porcelainTerminalText?: (index: number) => string
+    /**
+     * Test/marketing-only: set xterm fontSize on every live instance and re-fit.
+     * Installed by the terminal registry only under e2e.
+     */
+    __porcelainSetTerminalFontSize?: (size: number) => void
   }
 }
 

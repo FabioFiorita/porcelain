@@ -314,6 +314,13 @@ img {
 .gallery-full {
   grid-column: 1 / -1;
 }
+/* Terminal full-bleed: cap height so 12/8px monospaced cells don't dominate the page. */
+.gallery-full img {
+  width: 100%;
+  max-height: min(520px, 70vw);
+  object-fit: cover;
+  object-position: top center;
+}
 
 /* ── Feature list bullets ───────────────────────────────────────────────── */
 .ticks {

@@ -138,6 +138,10 @@ ones you're keeping over `marketing/images/`. Traps the code won't tell you:
   but nothing is captured. A full-screen **pager** (`less` on the alternate
   screen) does paint, so the terminal shot drives `git -c color.ui=always log -p`.
   Same reason the e2e suite reads the terminal via a buffer hook, never a shot.
+- **Terminal marketing font is 8px** (not the app default 12): set via
+  `window.__porcelainSetTerminalFontSize` under e2e after the pager is up, so
+  Retina full-window shots do not look oversized next to UI chrome. Site CSS also
+  caps `.gallery-full img` height so the terminal band does not dominate the page.
 - **Seed board/chat/comments as channel JSON keyed by the canonical repo path**
   (realpath the temp dir first) — the daemon reads the same `PORCELAIN_*` files
   the CLI writes; a mismatched key renders empty.

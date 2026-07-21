@@ -442,6 +442,17 @@ if (isE2E) {
     }
     return lines.join('\n')
   }
+  // Marketing shots only: a 12px cell looks oversized when the full window is
+  // published Retina-wide. Shrink + re-fit so git log -p fills more rows.
+  window.__porcelainSetTerminalFontSize = (size: number): void => {
+    for (const instance of instances.values()) {
+      instance.term.options.fontSize = size
+      instance.fit.fit()
+      // Force a full buffer repaint (WebGL atlas + alternate-screen pagers).
+      instance.term.refresh(0, Math.max(0, instance.term.rows - 1))
+      instance.term.clearTextureAtlas()
+    }
+  }
 }
 
 /** Tear down the xterm instance for good — the session is closing. */
