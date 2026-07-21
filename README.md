@@ -52,13 +52,13 @@ Coding agents generate faster than anyone can trust. Every tool in this space ra
 
 The agent channel is a bundled CLI, installed to `~/.porcelain/porcelain` automatically on every app launch, always current, no per-agent configuration. It only touches local files: no port, no telemetry.
 
-Teach your agents the workflow with the companion skills, via [skills.sh](https://www.skills.sh):
+Teach your agents the workflow with the single **porcelain-companion** skill (Feature Review, board, chat, actions, notes, layers, and more), via [skills.sh](https://www.skills.sh):
 
 ```bash
 npx skills add FabioFiorita/porcelain
 ```
 
-Run from any repo and choose global or project-local when prompted. Update later with `npx skills upgrade`. Provider setup (install/sign-in status per agent CLI) lives in **Settings → Agents**.
+Run from any repo and choose global or project-local when prompted. New surfaces ship as references inside that one skill — update with `npx skills upgrade`. Provider setup (install/sign-in status per agent CLI) lives in **Settings → Agents**.
 
 ## Positioning
 

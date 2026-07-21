@@ -36,7 +36,7 @@ const SOURCE_LABEL: Record<FileSource, string> = {
 // The one-sentence prompt the empty state hands to the clipboard — enough for any
 // agent with the companion skill installed to publish the Review.
 const AGENT_PROMPT =
-  'Publish a review of this feature to Porcelain using the feature-review skill (porcelain review set --sections ...).'
+  'Publish a review of this feature to Porcelain using the porcelain-companion skill (porcelain review set --sections ...).'
 
 /** Unique-file counts per source, across sections and groups (a file anchored twice counts once). */
 function sourceCounts(reading: FeatureReading): Record<FileSource, number> {

@@ -56,7 +56,7 @@ export function ChatView(): React.JSX.Element {
               <p className="mt-1 text-sm text-muted-foreground">
                 Agents post with the porcelain CLI (<span className="font-mono">chat post</span>),
                 or type below. For cross-machine collab, pick one host as the hub (see the
-                agent-chat skill).
+                porcelain-companion skill).
               </p>
             </div>
           </div>

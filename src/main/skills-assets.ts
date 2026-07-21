@@ -1,8 +1,8 @@
-// Skills metadata for the skills.sh-packaged companion skills.
-// The actual SKILL.md files live at the repo root under /skills/<name>/SKILL.md.
+// Skills metadata for the skills.sh-packaged companion skill (porcelain-companion).
+// The SKILL.md + references live at the repo root under /skills/porcelain-companion/.
 
 /** Bump whenever the bundled skills change so the update toast prompts `npx skills upgrade`. */
-export const SKILLS_VERSION = '2.12.0'
+export const SKILLS_VERSION = '3.0.0'
 
 /** Repository slug passed to `npx skills add`. */
 export const SKILLS_REPO = 'FabioFiorita/porcelain'

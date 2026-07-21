@@ -1,8 +1,3 @@
----
-name: sync-environments
-description: Copy Porcelain companion setup (saved actions/commands, board, notes, flow layers, review comments, and hidden/pinned folders) from one environment to another — local Mac ↔ remote daemon (Linux server) — via the Porcelain CLI and SSH. Use when the human asks to seed, share, or mirror Porcelain config/settings between machines, or when a remote clone is missing the project board/actions. Do NOT copy the dynamic Review (review sets), loop evidence, or reviewed marks.
----
-
 # Sync Porcelain environments
 
 Porcelain keeps per-repo companion data on the **daemon host**, keyed by **absolute** repo path. Nothing crosses machines automatically. You (the agent) copy what the human needs — deliberately, with path remapping — instead of a confusing Settings UI seed.
@@ -26,7 +21,7 @@ The CLI lives at `~/.porcelain/porcelain` on **every** daemon host (local Mac an
 - Review sets (`review-sets.json`) — the **Review** is session/work-specific
 - Loop evidence
 - Reviewed marks
-- Agent chat (`chat.json`) — ephemeral relay; use the `agent-chat` skill for live collab instead
+- Agent chat (`chat.json`) — ephemeral relay; use [chat.md](chat.md) for live collab instead
 - Daemon token, environments list, agent threads
 
 ## Paths by host

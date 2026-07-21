@@ -1,9 +1,4 @@
----
-name: feature-review
-description: Publish the whole Feature Review in Porcelain — Intent (idea/plan), Execution (files + notes), and Evidence (HTML proof) — and read the human's review comments and reviewed marks. Use after implementing a multi-file feature (especially across the client/server seam), when asked to set up the review, or when the human left comments / asks what they've reviewed.
----
-
-# Feature Review (Porcelain)
+# Feature Review (the Review)
 
 Porcelain is where agent work becomes trusted work. The **Feature** tab is **the Review**: the three-part story the human uses to understand and sign off after (or during) agent work.
 
@@ -47,14 +42,14 @@ CLI: `~/.porcelain/porcelain` (from inside the repo; `help` lists verbs).
 ~/.porcelain/porcelain evidence check --label "pnpm test" --status pass --detail "…"
 ```
 
-## Tab references (deep dives)
+## Tab deep dives
 
 | Topic | File |
 |-------|------|
-| **Intent** — thesis, sections prose, freeform board | [references/intent.md](references/intent.md) |
-| **Execution** — files, sources, notes, layers | [references/execution.md](references/execution.md) |
-| **Evidence** — HTML proof, checks, sandbox rules | [references/evidence.md](references/evidence.md) |
-| **Excalidraw** — Intent freeform board only | [references/excalidraw.md](references/excalidraw.md) |
+| **Intent** — thesis, sections prose, freeform board | [intent.md](intent.md) |
+| **Execution** — files, sources, notes, layers | [execution.md](execution.md) |
+| **Evidence** — HTML proof, checks, sandbox rules | [evidence.md](evidence.md) |
+| **Excalidraw** — Intent freeform board only | [excalidraw.md](excalidraw.md) |
 
 ## Medium policy
 

@@ -28,7 +28,7 @@ Removed from the tree after reconcile. Recover from git if you need the full tex
 Do not re-open these as live plans.
 
 - **Marketing redo (2026-07-21):** opaque site, trusted-work identity, regenerated shots, launch narrative; product/CLAUDE/README aligned  
-- **Review = Intent · Execution · Evidence (2026-07-21):** Feature tab redesign; Excalidraw on Intent only; feature-review skill + references  
+- **Review = Intent · Execution · Evidence (2026-07-21):** Feature tab redesign; Excalidraw on Intent only; porcelain-companion skill + references  
 - **UI/UX waves A–D (2026-07-20 → 21):** naming, Glance routing, idle Next strip, Session→diff, Review commit handoff, inbox cues, pin language  
 - **Worktrees + Review inbox + Glance + evidence checks (2026-07-19)**  
 - **The Review document model + chat claims + Linux release leg (2026-07-18)**  

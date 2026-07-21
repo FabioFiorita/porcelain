@@ -3,19 +3,9 @@
   "notGrouped": "bottom",
   "groupings": [
     {
-      "title": "Review",
-      "description": "Publish the Feature Review (Intent, Execution, Evidence) and read reviewer state from Porcelain.",
-      "skills": ["feature-review"]
-    },
-    {
-      "title": "Project management",
-      "description": "Manage the repo project board and saved terminal actions.",
-      "skills": ["project-board", "saved-actions"]
-    },
-    {
-      "title": "Repo context",
-      "description": "Read human-written repo notes and tune review-flow layers.",
-      "skills": ["repo-notes", "flow-layers"]
+      "title": "Porcelain",
+      "description": "One companion skill for the whole hub: Feature Review, board, chat, actions, notes, layers, and environment sync.",
+      "skills": ["porcelain-companion"]
     }
   ]
 }

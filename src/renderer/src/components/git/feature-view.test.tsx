@@ -37,6 +37,6 @@ describe('FeatureView', () => {
     vi.mocked(useFeatureReading).mockReturnValue({ reading: null, refresh: async () => {} })
     render(<FeatureView />)
     fireEvent.click(screen.getByRole('button', { name: /Copy agent prompt/ }))
-    expect(copySpy).toHaveBeenCalledWith(expect.stringContaining('feature-review'))
+    expect(copySpy).toHaveBeenCalledWith(expect.stringContaining('porcelain-companion'))
   })
 })

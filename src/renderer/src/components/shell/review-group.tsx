@@ -51,8 +51,8 @@ export function ReviewGroup(): React.JSX.Element | null {
         <SidebarGroupLabel className={LABEL_CLASS}>Review</SidebarGroupLabel>
         <SidebarGroupContent className="px-1">
           <div className="rounded-xl border border-dashed bg-muted/20 p-2.5 text-2xs text-muted-foreground">
-            No Review published yet. Ask your agent to run the feature-review skill, or copy the
-            prompt from the center canvas empty state.
+            No Review published yet. Ask your agent to run the porcelain-companion skill, or copy
+            the prompt from the center canvas empty state.
           </div>
         </SidebarGroupContent>
       </SidebarGroup>

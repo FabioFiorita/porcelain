@@ -39,9 +39,9 @@ Only each skill's one-line description loads up front; the body loads on demand 
 
 Also available, but **not** vendored in this repo (globally installed, listed here only so you know they exist): `improve` (read-only senior-advisor audit harness → plans in `plans/`) and `frontend-design`.
 
-**Distribution split (don't leak internal skills).** The *companion* skills the app ships to users live at repo root `/skills/` and are published via skills.sh (`npx skills add FabioFiorita/porcelain`). Everything in `.agents/skills/` is *internal* (repo guidance + vendored `shadcn`) and must carry `metadata.internal: true` in its frontmatter — the skills.sh CLI scans `.agents/skills` **and** `.claude/skills`, so without that flag an internal skill leaks into users' `npx skills add`. Any new `.agents/skills/` skill needs the flag.
+**Distribution split (don't leak internal skills).** The *companion* skill the app ships to users lives at repo root `/skills/porcelain-companion/` (one skill + `references/` for each surface) and is published via skills.sh (`npx skills add FabioFiorita/porcelain`; later `npx skills upgrade`). Everything in `.agents/skills/` is *internal* (repo guidance + vendored `shadcn`) and must carry `metadata.internal: true` in its frontmatter — the skills.sh CLI scans `.agents/skills` **and** `.claude/skills`, so without that flag an internal skill leaks into users' `npx skills add`. Any new `.agents/skills/` skill needs the flag.
 
-**No personal setup in shipped content.** Anything users see — the `/skills/` companion skills, app copy, published docs — must never use Fabio's personal environment as an example or placeholder (his "beelink" home server, personal hostnames, `soaphealth` repo paths, etc.). Use generic placeholders instead (`you@remote-host`, `/home/you/code/my-app`). Internal `.agents/skills/` guidance may reference the real dev setup.
+**No personal setup in shipped content.** Anything users see — the `/skills/` companion skill, app copy, published docs — must never use Fabio's personal environment as an example or placeholder (his "beelink" home server, personal hostnames, `soaphealth` repo paths, etc.). Use generic placeholders instead (`you@remote-host`, `/home/you/code/my-app`). Internal `.agents/skills/` guidance may reference the real dev setup.
 
 ## Agentic enforcement
 

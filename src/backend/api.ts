@@ -1122,7 +1122,7 @@ export const router = t.router({
 
   // Agent chat — relay messages between agents (and the human) on this daemon host,
   // stored in ~/.porcelain/chat.json. Local↔remote collab needs the same host as the
-  // hub (or the agent-chat skill's SSH path); see the companion skill.
+  // hub (or the porcelain-companion chat reference SSH path); see the companion skill.
   chatMessages: t.procedure
     .input(z.string())
     .query(({ input }): Promise<ChatMessage[]> => readChatMessages(input)),

@@ -50,7 +50,7 @@ Use these when deciding “is this on-brand?”
 | Viewer, not editor | Quick single-file edits OK; no IDE features (autocomplete, multi-file refactor, format-on-save) |
 | Connected homes, not silos | One deep home per concern (Changes / Feature / Agent / Terminal); preview + handoff elsewhere |
 | Local by default | Channels = watched files under `~/.porcelain/` + bundled CLI. No MCP port, no Porcelain cloud for code, no telemetry |
-| CLI + companion skills | `~/.porcelain/porcelain` + `npx skills add FabioFiorita/porcelain` |
+| CLI + porcelain-companion skill | `~/.porcelain/porcelain` + `npx skills add FabioFiorita/porcelain` |
 | Four providers today | Claude Code, Codex, OpenCode, Grok |
 | Board ≠ agent chat | Board = plan/queue; Chat/Relay = multi-agent messages + file claims + overlaps |
 | Open source, free | MIT; BYO agent subscriptions |
