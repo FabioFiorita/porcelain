@@ -354,6 +354,8 @@ declare global {
   interface Window {
     /** Test-only terminal buffer reader installed by the registry under e2e. */
     __porcelainTerminalText?: (index: number) => string
+    /** Marketing shots only: shrink xterm font for Retina full-window captures. */
+    __porcelainSetTerminalFontSize?: (size: number) => void
   }
 }
 
