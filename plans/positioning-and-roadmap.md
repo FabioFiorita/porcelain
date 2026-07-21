@@ -1,133 +1,63 @@
-# Positioning & roadmap — live doc
+# Positioning & roadmap
 
-Written 2026-07-19 from a competitive read of **T3 Code** (pingdotgg) and
-**Synara** (Emanuele Di Pietro). This is the identity + roadmap record: what
-Porcelain is *for* in this market, what we deliberately don't chase, and the
-order of work. Update it when a phase ships or the landscape shifts; fold into
-README when it stops being live.
+Identity, competitive stance, non-goals, and demand-gated backlog.  
+**Product features and pillars (durable):** `.agents/skills/product/SKILL.md`  
+**Public pitches (X, Product Hunt):** `plans/launch-narrative.md`
 
-**Launch copy (X, Product Hunt, threads):** see `plans/launch-narrative.md` —
-pitches, philosophy, PH first comment, voice rules. Keep that file in sync when
-the identity statement or pillars change.
-
-## The landscape (snapshot, 2026-07-19)
-
-Both competitors are **"run many agents" cockpits**. Neither owns review.
-
-- **T3 Code** — MIT, ~14.2k stars, ~60k users (Theo's claim), v0.0.x. Local
-  Node daemon + React client, Electron shells for mac/win/linux + `npx t3`.
-  Codex-first adapters (Claude Code, Cursor, OpenCode; Gemini planned).
-  Flagship: **multi-repo parallel agents in isolated git worktrees**, one-click
-  commit→push→PR with PR-status icons. Remote = SSH port-forward plumbing
-  (desktop probes a host, starts a remote server, forwards a port); React
-  Native mobile app in development. Review surface is a plain diff viewer —
-  richer review comments + an MCP review server are *proposed* (their issue
-  #345), not built. Its real moat is **Theo's distribution**, not the software.
-- **Synara** — MIT, ~1.3k stars, solo dev, v0.5.x shipping near-daily.
-  Electron, mac/win/linux, SQLite local-first, BYO-subscription pitch ("the
-  best place to build with your AI sub"). Breadth is the wedge: **9+ providers**
-  (Claude Code, Codex, OpenCode, Cursor, Antigravity, Grok, Kilo, Pi, Factory
-  Droid) with **cross-provider hand-offs preserving context** (their signature
-  feature), worktrees, one-click PRs, scheduled automations, built-in browser.
-  No remote/mobile story at all; review is diff/PR-shaped, nothing deeper.
-
-What neither has (verified 2026-07-19): flow-ordered review, any agent-authored
-review artifact, review comments that round-trip to the agent, loop evidence,
-monorepo scoping (hide/pin), a first-class remote daemon (PTYs + state
-daemon-side, browser client on any device), or agent channels beyond chat
-(board, actions, claims).
+Update this file when the competitive landscape shifts or a non-goal becomes in-scope. Do not re-list shipped phases as open work.
 
 ## Identity
 
-The market's bottleneck is shifting from *generating* agent work to
-**trusting** it. Everyone is racing to spawn more agents in more worktrees;
-the pile of unreviewed diffs grows on the other side. Porcelain stands on that
-side:
-
 > **Porcelain is where agent work becomes trusted work.** Run your agents
-> anywhere (Mac, home server, browser on desktop or mobile) and review what they built the
-> way a senior engineer reads a feature: as a story, not a file list.
+> anywhere (Mac, Linux, home server, browser on desktop or mobile) and review
+> what they built the way a senior engineer reads a feature: as a story, not a
+> file list.
 
-Three pillars, in priority order:
+### Pillars (priority order)
 
-1. **Review depth** (the moat): flow-ordered diffs, the Review (agent-authored
-   walkthrough with thesis/sections/loop evidence), review comments both ways,
-   explore-a-flow comprehension, monorepo scoping. No competitor has any of it.
-2. **Remote as a product** (the second moat): one token-gated daemon, three
-   clients (Mac app local, Mac app remote, any browser), state daemon-side.
-   T3's SSH forwarding and in-progress mobile app validate the demand; we're
-   ahead — say so.
-3. **Running agents** (table stakes, kept deliberately narrow): 3 providers
-   done well, threads, permissions, favorites. We do NOT compete on provider
-   count or automation breadth.
+1. **Review depth** (moat): the Review (Intent · Execution · Evidence), flow-ordered diffs, comments both ways, explore-a-flow, monorepo hide/pin.
+2. **Remote as a product** (second moat): one token-gated daemon; local app, remote environment, or any browser. State and PTYs daemon-side.
+3. **Running agents** (table stakes, keep narrow): Claude Code, Codex, OpenCode, Grok through the user's installed CLIs. No provider-count race.
 
-Design identity to match: **the reading room**. Calm, typography-first,
-document-shaped review surfaces (the Review, zen mode, opaque quiet chrome with
-the one sanctioned nova translucency). T3 sells "minimal control plane",
-Synara sells "clean and fast"; we sell *legible*. Every new surface should ask
-"does this read like a document?" before "does this look like a dashboard?".
+### Design language (internal)
 
-## Non-goals (so we don't lose the identity)
+Calm, opaque, typography-first chrome. Sans for UI/prose; mono for code. Sell *legible* and *trusted*, not glass or velocity hype. Do not put internal design nicknames on the marketing site.
 
-- **Provider breadth race.** Synara's 9-provider treadmill is a solo-dev
-  reliability trap and off-identity. Add a provider only on real user demand.
-- **Cross-provider hand-offs.** Signature Synara feature; orthogonal to review.
-- **Scheduled automations / built-in browser.** Cockpit features, not review.
-- **Windows.** The browser viewer already covers other OSes as clients; a
-  Windows daemon/app waits for demand.
-- **Becoming an editor.** Unchanged; still the line we don't cross.
-- **PR review** stays demand-gated (spike is GO, `git show f8ef9ef:plans/spike-pr-review.md`).
+## Landscape (snapshot 2026-07-19; re-check before a launch)
 
-## Roadmap
+Competitors (T3 Code, Synara, etc.) are mostly **"run many agents" cockpits**. Neither owned review depth, agent-authored Review documents, two-way comments, loop evidence, monorepo hide/pin, or a first-class remote daemon with browser clients when this was written.
 
-### Phase 1 — sharpen the wedge (now)
-Make the Review impossible to miss; it's invisible from a repo README today.
-- Marketing/README refresh around the identity statement: hero = the Review +
-  flow-ordered diff, GIF/video of an agent publishing a review and the human
-  reading it J/K/zen. (The stale-marketing item rejected in the audit as
-  "low value" is now load-bearing — competitors win on story, not software.)
-- In-app: first-run empty states should *teach* the wedge (the Feature tab's
-  copyable prompt already does this — audit the welcome screen and Changes tab
-  for the same standard).
+Do not benchmark stars against creator distribution. Benchmark **retention of people who review**.
 
-### Phase 2 — close the one table-stakes gap (SHIPPED 2026-07-19)
-**Worktree-per-agent-thread.** The single feature both competitors are winning
-with, and it *feeds* our wedge: more parallel agents ⇒ more review demand.
-Shipped: Agent tab "+" → "New thread in worktree…" (new branch off HEAD,
-sibling `<repo>-worktrees/<branch>` checkout), the thread bound to the
-worktree path (binding chip in roster + session strip), the window switching
-there so Changes scope automatically. Durable decisions in the `architecture`
-skill. Explicitly NOT built: auto-PR pipelines.
-- Follow-on (SHIPPED 2026-07-19): one-click push — the commit composer shows a
-  push row when unpushed commits exist (`-u origin HEAD` on the fresh-worktree
-  first push, plain `push` once an upstream exists). PR creation still
-  demand-gated — see non-goals.
+## Non-goals
 
-### Phase 3 — deepen the moats (SHIPPED 2026-07-19)
-- **Review inbox** (SHIPPED): the Feature tab lists every other worktree with
-  agent work awaiting review (changed files, bound threads, pushed Review) —
-  one click switches there. `worktree-inbox.ts` / `review-inbox.tsx`; the
-  cross-worktree surface T3's issue #345 wishes it had.
-- Remote polish for touch/iPad (SHIPPED): touch polish (split-view entry points
-  hidden on phones, hover-revealed row actions always shown on touch) plus **the
-  Glance** — a phone-only companion home (threads in flight, Review inbox,
-  checkout signal, board) an empty viewer pane renders below 768px. Beat T3's
-  mobile app to *usable* with zero app store.
-- Loop-evidence growth (SHIPPED): structured verification checks — the `evidence
-  check` CLI verb writes bounded pass/fail/skip checks into the evidence meta,
-  overall status is DERIVED, and the Review's evidence chapter renders them
-  natively as a check list + status badge; read-side headroom raised to 4 MB for
-  screenshots. Evidence is the trust currency.
+- Provider breadth race / cross-provider hand-off theater  
+- Scheduled automations / built-in browser as core  
+- Windows-native app first (browser covers clients)  
+- Becoming an editor  
+- PR create / PR review until real demand (spike: `git show f8ef9ef:plans/spike-pr-review.md`)
+
+## Roadmap status
+
+| Phase | Status |
+|-------|--------|
+| Marketing + identity refresh (README, site, shots, launch narrative) | **Shipped** 2026-07-21 |
+| Worktree-per-agent-thread + push row + Review inbox | **Shipped** 2026-07-19 |
+| Glance / touch polish / evidence checks | **Shipped** 2026-07-19 |
+| Review canvas → Intent / Execution / Evidence | **Shipped** 2026-07-21 |
+| UI/UX waves A–D (naming, handoffs, inbox cues) | **Shipped** 2026-07-21 |
+
+### Still open (only if it still hurts)
+
+- Optional P3 polish from the old UI/UX list (find-in-diffs, dirty tab indicator, etc.) — demand-gated, not a live plan doc  
+- Darwin native visual baseline regen when macOS CI needs it  
+- In-app empty states teaching the wedge end-to-end (welcome / Changes) — product skill + first-run copy, not a separate roadmap phase  
 
 ### Demand-gated backlog
-More providers (Gemini/Cursor), PR create + PR review, Windows.
+
+More providers (Gemini/Cursor), PR create + PR review, Windows daemon/app.
 
 ## Traps
 
-- **Velocity optics**: both competitors release near-daily and it *reads* as
-  momentum. Our cadence is fine; our *changelog visibility* is not — make
-  releases legible (notes, images) even when the pace is weekly.
-- Synara rebranded from "DP Code" and may have a token/crypto element
-  (bankr.bot page, unverified) — don't copy positioning from them blindly.
-- T3's numbers are audience-driven; do not benchmark adoption against a
-  creator with a YouTube channel. Benchmark against *retention of reviewers*.
+- Competitors ship near-daily and *look* like momentum; our gap is **legible releases**, not raw cadence  
+- Do not reintroduce glass, provider treadmills, or MCP-as-channel positioning  

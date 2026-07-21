@@ -1,174 +1,50 @@
-# Plans — record & backlog
+# Plans
 
-The `improve` skill's home. Three live docs sit alongside this index:
-**`positioning-and-roadmap.md`** (identity, competitive landscape, roadmap
-phases), **`design-overhaul.md`** (the UI professionalism gap vs T3
-Code/Synara — diagnosis + phased fixes), and **`review-canvas.md`** (the Review
-tab redesign — clickable-title affordance, tabbed Overview | Loop evidence
-canvas, changed-line highlighting, dual medium HTML|Excalidraw with agent
-choice via skills; written 2026-07-20, **A+B+C SHIPPED**). Completed
-plan files were removed after reconcile (**recoverable from git** — e.g.
-`git show 0a7e59c:plans/025-unify-persistence-factories.md`). This file is the
-standalone record of what shipped.
+Working docs and shipped records for Porcelain. Prefer skills for durable truth (`product`, `architecture`, `audit`, `marketing`). Plans are for **live decisions** or a **short ship record** — not a second product wiki.
 
-> Verification gate for every code change: `pnpm verify` (hook-enforced before
-> any commit). Commit straight to `main` — the git-guard hook hard-blocks branch
-> creation. Never push without the maintainer.
+## Live
 
-## Completed — nova preset + light/dark/system theme, 2026-07-18 → v0.32.0
+| Doc | Role |
+|-----|------|
+| [`launch-narrative.md`](launch-narrative.md) | Public pitches: X, Product Hunt, HN, one-liners, voice rules |
+| [`positioning-and-roadmap.md`](positioning-and-roadmap.md) | Identity, pillars, non-goals, competitive stance, open/demand-gated backlog |
 
-Plan doc removed after reconcile (`git show d74e559:plans/nova-preset-and-light-dark-mode.md`):
+## Not here anymore (shipped or superseded)
 
-- **Nova preset switch** (`2051fa0`) —
-  shadcn preset `b1tNqHXYe` → `b5J4txmSY` (nova style, neutral base, sky theme,
-  translucent menus — the one sanctioned exception to opaque surfaces). Local
-  tweaks re-grafted (sonner without `next-themes`); linux visual baselines
-  regenerated in the same commit.
-- **Light/dark/system theme** (`6781508`) — persisted 3-way pref
-  (`stores/preferences.ts`, renderer-local zustand persist), pre-paint class
-  application in `main.tsx` (no inline script, CSP untouched), themed Shiki
-  (`light-plus`/`dark-plus`, theme in the token-cache key), xterm, and OS window
-  chrome (shell receives the *resolved* mode so System flips retint native
-  chrome). e2e pins `colorScheme: dark` in both harness fixtures for determinism.
-- **Darwin baseline regen** — manual macos-14 workflow (`33a40a8`) ran before
-  v0.32.0; only 2 of 6 darwin snapshots differed and were committed (`334b732`).
-  If macOS CI ever flakes on the other four, suspect a stale baseline first.
+Removed from the tree after reconcile. Recover from git if you need the full text.
 
-Shipped alongside (board cards, cleared): the **browser-first e2e harness**
-(`8e24203` — one suite, two Playwright projects; Chromium drives the daemon's
-web viewer for day-to-day specs, Electron project keeps native-only behavior).
-Its follow-up — collapsing darwin/linux visual pairs into one headless-Chromium
-snapshot set — was marked done on the board; the darwin pngs still exist for the
-native project's checks.
+| Former path | Why removed | Recover |
+|-------------|-------------|---------|
+| `review-canvas.md` | Review is Intent · Execution · Evidence; plan was Overview \| Loop evidence and is fully shipped | `git log -- plans/review-canvas.md` |
+| `ui-ux-review-2026-07-20.md` | Waves A–D shipped 2026-07-21; optional P3 polish only | same |
+| `design-overhaul.md` | Typography + composition + marketing re-shoot shipped | same |
+| `agent-ux-mockups.html` | Planning mockups; Agent/Feature loop is in the product | same |
+| Older numbered audits `023`–`037`, remote Phase 4, nova theme, etc. | Long-ago shipped; recorded below or in git | e.g. `git show 0a7e59c:plans/025-unify-persistence-factories.md` |
 
-## Completed — remote environments Phase 4 (Beelink bring-up), reconciled 2026-07-19
+## Shipped record (summary)
 
-Runbook doc removed (`git show d74e559:plans/remote-environments-phase4.md`) —
-the hardware is live and IS the primary dev host now (daemon via systemd user
-unit / `pc` helpers, Tailscale + LAN, agents running on it daily). Prep code
-shipped 2026-07-04 (`05fe1b8` daemon dist, `30cdfb6` remote connection); npx
-publish path shipped 2026-07-16 (`npx porcelain-daemon@latest serve` is the
-on-demand default; systemd needs `--no-watchdog`). Durable traps from the doc:
-node-pty must compile on the target (never copy `node_modules` across arches);
-a DEV renderer against a remote daemon needs `PORCELAIN_ALLOWED_ORIGIN`;
-npm package name is `porcelain-daemon` (`porcelain` was taken).
+Do not re-open these as live plans.
 
-## Completed — the Review + chat claims + Linux release leg, 2026-07-18
-
-Three workstreams shipped together (breaking changes sanctioned for this release);
-the working docs were removed, **recoverable from git**
-(`git show HEAD:plans/feature-view-proposal-notes.md`, `…:plans/chat-coordination-brief.md`,
-`…:plans/linux-rebuild-map.md`):
-
-- **The Review** — the feature view became ONE agent-authored document. The review-set
-  schema gained `thesis` + `sections` (markdown prose, agent-rendered inline-SVG diagrams
-  shown sandboxed, line-range anchors); the viewer renders thesis → flow-ordered walkthrough
-  sections → a "More files" block → the loop-evidence **final chapter**. The
-  **feature-artifact channel is deleted** (store/CLI/verbs/event/tab kind/companion skill),
-  its narrative folded into the sections. The import-graph **baseline is gone** (`featureView`
-  null → "No review yet" empty state; agent-only). The `artifact`/`evidence` tab kinds are
-  removed; the Feature list is now the **outline** (J/K section nav, Z zen), and Feature Quick
-  Access gained a Review group. Design now lives in the shipped code plus the
-  `feature-review` companion skill and this shipped record — no separate spec doc.
-- **Chat coordination claims** — a chat message can carry `--files`/`--intent`/`--closes`
-  (a claim); the Chat tab's **Coordination** panel derives live claims + overlaps at read
-  time (`lib/chat-claims.ts`), no new channel. Agent-authored claim paths are repo-contained
-  before the panel opens one (`isContainedClaimPath` — the audit gap this truth-pass caught
-  and fixed).
-- **Linux release leg** — `release.yml` gained a Linux build/publish job (the port itself —
-  window chrome, Ctrl-primary, opaque design — landed earlier in `b649dc9`).
-
-Docs reconciled in the same pass: CLAUDE.md nomenclature, `architecture` (channel count
-11→10, tab kinds, reading-surface rows), `audit` (artifact invariant → review-sections
-invariant; chat-claim containment; evidence-as-chapter), `product`, and the
-`feature-review` / `sync-environments` companion skills.
-
-## Completed — deep audit, 2026-07-05 → reconciled 2026-07-07 (`2e72017`)
-
-All 15 plans (023–037) executed and spot-checked holding on HEAD at reconcile —
-including the three whose files were touched again after landing (031/037 tailnet
-+LAN listeners re-hardened in `0d1686b`, never-`0.0.0.0` bind invariant intact;
-034's `answer_review_comment` survived the skills.sh plugin overhaul; 024's
-`src/backend` skill pointers still resolve). Nothing drifted or was rejected.
-
-| Plan | Title | Cat | Notes |
-|------|-------|-----|-------|
-| 023 | Failed autosave keeps the buffer dirty (silent data-loss fix) | bug | |
-| 024 | Skills doc-truth pass (src/backend pointers, dead plan refs, "no port") | docs | |
-| 025 | One durable-JSON factory (fold 4 hand-copied stores; cache modes; size cap) | tech-debt | |
-| 026 | One working-tree snapshot per poll tick (dedupe 3s git spawns) | perf | |
-| 027 | Daemon integration harness (auth gate, CORS, WS session) | tests | |
-| 028 | WS-client characterization tests (reconnect, outbox, pending rejection) | tests | |
-| 029 | Verify typechecks once; release builds once, ships the tested artifact | dx | Release path **proven** — v0.20.0–0.20.3 shipped via the build-once pipeline |
-| 030 | Highlighting perf (cross-mount token LRU + fine-grained Shiki) | perf | Renderer assets 17M→8.4M |
-| 031 | Tailnet posture: record the token blast radius; deterministic iface pick | security | |
-| 032 | Clear build-path advisories (undici/form-data); stage Electron 43 | deps | Steps 1–3 shipped; prod audit clean. **Electron 43 staged, not executed** (pinned 42.6.0); override in `pnpm-workspace.yaml`; residual dev-only esbuild low accepted |
-| 033 | Lint-enforce named-exports-only (noDefaultExport) | dx | |
-| 034 | Agent comment replies (answer_review_comment; plugin 2.8.0) | direction | |
-| 035 | Unread dots on the rail when the agent pushes | direction | |
-| 036 | Branch-create in the picker + read-only PR-review spike | direction | Part A shipped; Part B (PR review) deferred — see below |
-| 037 | Share on local network (LAN listener — tailnet without Tailscale) | direction | |
-
-Audit coverage: all nine playbook categories, repo-wide (8 parallel auditors +
-advisor vetting). Not audited: `node_modules`, generated bundles, marketing-site
-copy beyond staleness.
+- **Marketing redo (2026-07-21):** opaque site, trusted-work identity, regenerated shots, launch narrative; product/CLAUDE/README aligned  
+- **Review = Intent · Execution · Evidence (2026-07-21):** Feature tab redesign; Excalidraw on Intent only; feature-review skill + references  
+- **UI/UX waves A–D (2026-07-20 → 21):** naming, Glance routing, idle Next strip, Session→diff, Review commit handoff, inbox cues, pin language  
+- **Worktrees + Review inbox + Glance + evidence checks (2026-07-19)**  
+- **The Review document model + chat claims + Linux release leg (2026-07-18)**  
+- **Nova preset + light/dark/system theme → v0.32.0**  
+- **Remote environments / `porcelain-daemon` npx serve**  
+- **Deep audit plans 023–037 (2026-07-05 → 07)**  
 
 ## Deferred until requested
 
-- **Read-only PR review** (plan 036 Part B). Full GO analysis — minimal shape,
-  the exact reuse of the range-flow path, the two new helpers, costs, and 5 open
-  questions with recommended answers — was written as a spike, verdict **GO / ~M
-  effort**. **Decision: not building it until a user actually requests it** — the
-  maintainer commits straight to `main` and doesn't use PRs, so the value is
-  entirely for PR-using Porcelain users, of whom none have asked. Recoverable in
-  full: `git show f8ef9ef:plans/spike-pr-review.md`. When a request lands, start
-  there — don't re-analyze.
+- **Read-only PR review** (old plan 036 Part B). Spike: `git show f8ef9ef:plans/spike-pr-review.md`. Not building until a user asks.  
+- Optional UI P3 polish (dirty tabs, find-in-diffs, …) — only if it still hurts in daily use.
 
-## Findings considered and rejected (don't re-audit these)
+## Rejected (do not re-audit)
 
-- **Truncated-numstat rename drop** (`diff.ts` guard): the proposed trigger can't
-  occur — `execFile` rejects on `maxBuffer` overflow rather than delivering
-  truncated output, and git doesn't emit partial `-z` records. Hardening-only.
-- **Tailnet listener start/stop race** (`tailnet-listener.ts`): the error handler
-  closes the listener (state stays consistent); the stop-before-listen window is
-  milliseconds on a user-driven toggle. Not worth fixing.
-- **`gitDiffFile` rename-probe misread** (LOW-confidence): needs a
-  working-tree-rename repro before any fix; investigate only if a blank
-  rename-diff is ever reported.
-- **Terminal-roster hydrate clobber of an optimistic create**: documented,
-  self-healing ≤5s, and the naive fix resurrects killed rows. Leave as-is.
-- **Repo-scoping the daemon's file procedures**: breaks legitimate cross-repo
-  viewer flows; the token holder IS the user. Recorded as an accepted decision
-  (plan 031).
-- **Consolidating the two markdown pipelines** (react-markdown vs
-  tiptap-markdown): one renders, one edits — both load-bearing; consolidation
-  costs more than it saves.
-- **CONTRIBUTING.md / .env.example**: CLAUDE.md is the contributor contract; no
-  `.env` is read (the `PORCELAIN_*` vars are dev/test harness flags).
-- **node-pty 1.1.0 / tiptap-markdown 0.9**: pin-and-watch. node-pty's ABI
-  compatibility gates every Electron major (checked in plan 032); tiptap-markdown
-  is contained to one file — revisit at the next tiptap major.
-- **Dev-tooling majors** (vite 8, @vitejs/plugin-react 6, @types/node 26,
-  conventional-changelog 8, @base-ui/react 1.6): no security/EOL cost today;
-  batch in a later maintenance pass.
-- **`useNamingConvention` / explicit-return-type lint rules**: Biome 2.5 can't
-  express the `handleX` ban or return-type requirement cleanly; they stay prose
-  (recorded in plan 033).
-- **`api.ts` split into nested tRPC routers** (~1068 lines, 76 procedures): real,
-  but nesting renames every client call path (`trpc.gitCommit` → `trpc.git.commit`)
-  — a wide mechanical diff the solo maintainer should opt into deliberately, not
-  receive from an audit. Raise again if the file keeps growing.
-- **Channel-store test-scaffolding dedup**: only sensible after 025 soaks; deferred.
-- **`resolveImport`'s O(N²·M) scans in `flow.ts`**: only bites on cache-miss
-  rebuilds of very large change sets; the fix needs an index that preserves
-  ends-with semantics (MED risk). Reopen if large-repo flow builds measurably lag.
-- **Marketing-site refresh + icon-regen script + daemon-deploy tooling**: real but
-  low/uncertain value; the Beelink deploy tooling should wait until the hardware
-  day proves what's actually painful.
-- **e2e additions** (reconnect-after-crash, stage→commit flow) and **daemon
-  spawn/restart state-machine tests** (`src/main/daemon.ts`): worthy test gaps
-  ranked below 027/028; queue for the next round.
-- **Feature-artifact multi-artifact + share/export**: MOOT — the feature-artifact
-  channel was deleted on 2026-07-18 (folded into the Review's walkthrough sections).
-  Any future "share a review" feature still inherits the unresolved auth boundary
-  (the static server is deliberately unauthenticated); design that boundary first.
+See git history of this file pre-2026-07-21 for the long rejected list (numstat rename, markdown pipeline merge, api.ts router split, etc.). Still stands unless evidence changes.
+
+## Working rules
+
+- Verification gate: `pnpm verify` before commit; commit on `main` only  
+- When a plan ships: delete or archive it here in the same pass; update skills, not leave a second source of truth  
+- Marketing claims must match the shipped app and the `product` skill  
