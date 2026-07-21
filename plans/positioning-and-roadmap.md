@@ -45,7 +45,7 @@ the pile of unreviewed diffs grows on the other side. Porcelain stands on that
 side:
 
 > **Porcelain is where agent work becomes trusted work.** Run your agents
-> anywhere — Mac, home server, browser, iPad — and review what they built the
+> anywhere (Mac, home server, browser on desktop or mobile) and review what they built the
 > way a senior engineer reads a feature: as a story, not a file list.
 
 Three pillars, in priority order:

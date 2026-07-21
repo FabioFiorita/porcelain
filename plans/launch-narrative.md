@@ -38,7 +38,7 @@ Porcelain is not an IDE. It is the **reading room for agentic coding**:
 1. **The Review.** Your agent publishes Intent, Execution, and Evidence: thesis, flow-ordered walkthrough (including the other half of the client/server seam), and proof it verified its work.
 2. **Flow-ordered diffs.** Even without a Review, changes read from entry point to data.
 3. **A closed human↔agent loop.** Line comments, board, claims, local CLI, companion skills. No MCP port, no telemetry.
-4. **Remote as a product.** One daemon; Mac app, remote environment, or any browser (iPad included). State lives on the host you own.
+4. **Remote as a product.** One daemon; Mac app, remote environment, or any browser (including on mobile). State lives on the host you own.
 
 Open source. Free. Your agent subscriptions, your machines.
 
@@ -92,7 +92,7 @@ The product got bigger. The soul did not: **humans must still understand and tru
 
 **Primary:** Engineers already serious about Claude Code / Codex / OpenCode who feel the new bottleneck is **reading and trusting**, often in monorepos, often with a second machine.
 
-**Secondary:** People who want a home server or cloud box as compute and a Mac/iPad as the seat.
+**Secondary:** People who want a home server or cloud box as compute and a laptop or phone browser as the seat.
 
 **Not yet:** Non-engineers, Enterprise PR-as-center-of-gravity teams, “AI that writes so I don’t have to look.”
 
@@ -119,7 +119,7 @@ The product got bigger. The soul did not: **humans must still understand and tru
 4. **Flow:** Diffs ordered like the runtime path. Screenshot.  
 5. **Loop:** Comment on a line → agent resolves. Local CLI, no port.  
 6. **Agents:** Same window. Your CLIs. Worktrees + Review inbox.  
-7. **Remote:** `npx porcelain-daemon@latest serve` → browser/iPad/Mac to a machine you own.  
+7. **Remote:** `npx porcelain-daemon@latest serve` → Mac app or any browser (including mobile) to a machine you own.  
 8. **Close:** Open source · MIT · macOS + Linux · no telemetry. Link + install skills one-liner.  
 9. **CTA:** Star, download, or tell us what you review first.
 
