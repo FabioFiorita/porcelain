@@ -81,7 +81,7 @@ the working docs were removed, **recoverable from git**
 Docs reconciled in the same pass: CLAUDE.md nomenclature, `architecture` (channel count
 11→10, tab kinds, reading-surface rows), `audit` (artifact invariant → review-sections
 invariant; chat-claim containment; evidence-as-chapter), `product`, and the
-`feature-review` / `loop-evidence` / `sync-environments` companion skills.
+`feature-review` / `sync-environments` companion skills.
 
 ## Completed — deep audit, 2026-07-05 → reconciled 2026-07-07 (`2e72017`)
 
