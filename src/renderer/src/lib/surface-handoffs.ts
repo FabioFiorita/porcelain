@@ -35,11 +35,16 @@ export function openChanges(options: OpenChangesOptions = {}): void {
   }
 }
 
+/** Sidebar → Feature (Review list + inbox). Does not open the canvas tab. */
+export function openReviewSidebar(): void {
+  usePreferencesStore.getState().setSidebarTab('feature')
+}
+
 /** Sidebar → Feature and open the Review canvas for the current repo. */
 export function openFeatureReview(): void {
   const repoPath = useRepoStore.getState().repo?.path
   if (repoPath === undefined) return
-  usePreferencesStore.getState().setSidebarTab('feature')
+  openReviewSidebar()
   useTabsStore.getState().openTab({
     id: tabId('feature', repoPath),
     kind: 'feature',

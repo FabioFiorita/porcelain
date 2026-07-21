@@ -49,7 +49,11 @@ export const TestIds = {
   reviewInboxRow: (branch: string): string => `review-inbox-row-${branch}`,
   featureList: 'feature-list',
   featureOpenReview: 'feature-open-review',
+  /** Ship handoff: open Changes (commit home) after review progress. */
+  featureCommitChanges: 'feature-commit-changes',
   featureOutlineEvidence: 'feature-outline-evidence',
+  /** Agent-list cue that hands off to the Review sidebar (inbox home). */
+  agentReviewInboxCue: 'agent-review-inbox-cue',
   featureCanvas: 'feature-canvas',
   featureCanvasTab: (tab: 'intent' | 'execution' | 'evidence'): string =>
     `feature-canvas-tab-${tab}`,

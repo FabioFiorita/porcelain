@@ -5,10 +5,13 @@ import {
   SidebarGroupLabel,
 } from '@renderer/components/ui/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
+import { useNewWindow } from '@renderer/hooks/use-repo'
 import { useWorktreeInbox } from '@renderer/hooks/use-worktrees'
+import { isBrowser } from '@renderer/lib/platform'
+import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { TestIds } from '@shared/test-ids'
-import { GitBranch, Loader2 } from 'lucide-react'
+import { GitBranch, Loader2, SquareArrowOutUpRight } from 'lucide-react'
 
 /** "N changed files · M threads · review pushed/none" — the row's tooltip detail. */
 function inboxSummary(row: InboxRow): string {
@@ -19,9 +22,11 @@ function inboxSummary(row: InboxRow): string {
 }
 
 /** One inbox row: click switches THIS window to that worktree (in place, via switchTo —
- *  the same call the worktree-switcher rows make), landing on its Review. */
+ *  the same call the worktree-switcher rows make), landing on its Review. Trailing
+ *  open-in-new-window keeps this window (and its agent threads) put — shell only. */
 function InboxRowButton({ row }: { row: InboxRow }): React.JSX.Element {
   const switchTo = useRepoStore((s) => s.switchTo)
+  const newWindow = useNewWindow()
 
   const openWorktree = (): void => {
     switchTo(row.path)
@@ -31,33 +36,55 @@ function InboxRowButton({ row }: { row: InboxRow }): React.JSX.Element {
     <Tooltip>
       <TooltipTrigger
         render={
-          <button
-            type="button"
-            onClick={openWorktree}
-            data-testid={TestIds.reviewInboxRow(row.branch)}
-            className="flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left hover:bg-sidebar-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-          >
-            <GitBranch className="size-3.5 shrink-0 text-muted-foreground" />
-            <span className="min-w-0 flex-1 truncate font-mono text-sm-minus">{row.branch}</span>
-            {row.hasReview && (
-              <span
-                role="img"
-                aria-label="Review pushed"
-                title="Review pushed"
-                className="size-1.5 shrink-0 rounded-full bg-info"
-              />
+          <div className="group/inbox flex w-full items-center gap-0.5 rounded-md hover:bg-sidebar-accent/50">
+            <button
+              type="button"
+              onClick={openWorktree}
+              data-testid={TestIds.reviewInboxRow(row.branch)}
+              className="flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-2 py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            >
+              <GitBranch className="size-3.5 shrink-0 text-muted-foreground" />
+              <span className="min-w-0 flex-1 truncate font-mono text-sm-minus">{row.branch}</span>
+              {row.hasReview && (
+                <span
+                  role="img"
+                  aria-label="Review pushed"
+                  title="Review pushed"
+                  className="size-1.5 shrink-0 rounded-full bg-info"
+                />
+              )}
+              {row.workingThreads > 0 ? (
+                <Loader2
+                  className="size-3.5 shrink-0 animate-spin text-muted-foreground"
+                  aria-label="Working"
+                />
+              ) : (
+                <span className="shrink-0 text-2xs tabular-nums text-muted-foreground/60">
+                  {row.changedCount}
+                </span>
+              )}
+            </button>
+            {!isBrowser && (
+              <button
+                type="button"
+                aria-label={`Open ${row.branch} in new window`}
+                title="Open in new window"
+                className={cn(
+                  'mr-1 flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground',
+                  'opacity-0 group-hover/inbox:opacity-100 focus-visible:opacity-100',
+                  '[@media(hover:none)]:opacity-100',
+                  'hover:bg-accent/50 hover:text-foreground',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+                )}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  newWindow.openWindow(row.path)
+                }}
+              >
+                <SquareArrowOutUpRight className="size-3.5" />
+              </button>
             )}
-            {row.workingThreads > 0 ? (
-              <Loader2
-                className="size-3.5 shrink-0 animate-spin text-muted-foreground"
-                aria-label="Working"
-              />
-            ) : (
-              <span className="shrink-0 text-2xs tabular-nums text-muted-foreground/60">
-                {row.changedCount}
-              </span>
-            )}
-          </button>
+          </div>
         }
       />
       <TooltipContent side="right">

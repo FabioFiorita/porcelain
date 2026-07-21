@@ -2,7 +2,13 @@ import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { openChanges, openDiff, openFeatureReview, openFile } from './surface-handoffs'
+import {
+  openChanges,
+  openDiff,
+  openFeatureReview,
+  openFile,
+  openReviewSidebar,
+} from './surface-handoffs'
 
 describe('surface-handoffs', () => {
   beforeEach(() => {
@@ -48,5 +54,11 @@ describe('surface-handoffs', () => {
     expect(usePreferencesStore.getState().sidebarTab).toBe('feature')
     const pane = useTabsStore.getState().panes[0]
     expect(pane?.tabs.some((t) => t.kind === 'feature' && t.path === '/repo')).toBe(true)
+  })
+
+  it('openReviewSidebar only switches the sidebar (no canvas tab)', () => {
+    openReviewSidebar()
+    expect(usePreferencesStore.getState().sidebarTab).toBe('feature')
+    expect(useTabsStore.getState().panes[0]?.tabs).toHaveLength(0)
   })
 })

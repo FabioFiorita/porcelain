@@ -8,6 +8,8 @@ import {
   useImportAgentSession,
   useRenameAgentThread,
 } from '@renderer/hooks/use-agents'
+import { useWorktreeInbox } from '@renderer/hooks/use-worktrees'
+import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -28,6 +30,7 @@ vi.mock('@renderer/hooks/use-agents', () => ({
 // The worktree hook wraps tRPC; mock it too so the list renders without a query client.
 vi.mock('@renderer/hooks/use-worktrees', () => ({
   useAddWorktree: vi.fn(() => vi.fn()),
+  useWorktreeInbox: vi.fn(() => []),
 }))
 
 // Base UI's menu positioner/scroll-area polls getAnimations on a timer; jsdom has none.
@@ -49,6 +52,7 @@ describe('AgentList', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     useTabsStore.setState({ panes: [{ tabs: [], activeTabId: null }], activePaneIndex: 0 })
+    usePreferencesStore.setState({ sidebarTab: 'agent' })
     vi.mocked(useAgentThreads).mockReturnValue([])
     vi.mocked(useAgentProviders).mockReturnValue([])
     vi.mocked(useCreateAgentThread).mockReturnValue({ create: vi.fn(), isPending: false })
@@ -59,6 +63,7 @@ describe('AgentList', () => {
       importSession: vi.fn(),
       isPending: false,
     })
+    vi.mocked(useWorktreeInbox).mockReturnValue([])
   })
 
   it('opens the provider menu without throwing (GroupLabel needs a Group)', async () => {
@@ -85,5 +90,21 @@ describe('AgentList', () => {
     renderList()
     // Worktree branch is on the meta line under the title (not a separate chip title).
     expect(screen.getByText(/feature\/x/)).toBeInTheDocument()
+  })
+
+  it('hands off to the Review sidebar when the inbox cue is clicked', () => {
+    vi.mocked(useWorktreeInbox).mockReturnValue([
+      {
+        path: '/repo-worktrees/feat',
+        branch: 'feature/x',
+        changedCount: 2,
+        workingThreads: 0,
+        idleThreads: 1,
+        hasReview: true,
+      },
+    ])
+    renderList()
+    fireEvent.click(screen.getByText(/Review inbox/))
+    expect(usePreferencesStore.getState().sidebarTab).toBe('feature')
   })
 })

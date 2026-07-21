@@ -30,6 +30,7 @@ import { useClearFeatureReview } from '@renderer/hooks/use-feature-view'
 import { useReviewedPaths, useToggleReviewed } from '@renderer/hooks/use-reviewed'
 import { highlightRangesForFile } from '@renderer/lib/highlight-ranges'
 import { dirName, fileName } from '@renderer/lib/paths'
+import { openChanges } from '@renderer/lib/surface-handoffs'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import {
@@ -43,6 +44,7 @@ import {
   Check,
   Eraser,
   FileDiff,
+  GitCompareArrows,
   MessageSquarePlus,
   MoreHorizontal,
   RefreshCw,
@@ -302,6 +304,10 @@ function FeatureOutline(): React.JSX.Element {
     ...reading.groups.flatMap((group) => group.files),
   ])
   const reviewedCount = allFiles.filter((file) => reviewed.has(file.path)).length
+  // Ship handoff (U12): once half the outline is reviewed, offer Commit → Changes
+  // (canonical commit home). Full progress gets the stronger primary CTA.
+  const shipReady = allFiles.length > 0 && reviewedCount * 2 >= allFiles.length
+  const shipDone = allFiles.length > 0 && reviewedCount === allFiles.length
   const isActive = (section: ReviewFocusSection): boolean => activeSection === section
 
   // Stable list keys from the agent-authored titles (deduped — two sections may
@@ -363,6 +369,18 @@ function FeatureOutline(): React.JSX.Element {
         >
           Open Review
         </Button>
+        {shipReady && (
+          <Button
+            size="sm"
+            variant={shipDone ? 'default' : 'outline'}
+            className="h-7 w-full gap-1.5 text-xs"
+            data-testid={TestIds.featureCommitChanges}
+            onClick={() => openChanges()}
+          >
+            <GitCompareArrows className="size-3.5" />
+            Commit changes
+          </Button>
+        )}
       </div>
 
       <AlertDialog open={confirmClearOpen} onOpenChange={setConfirmClearOpen}>

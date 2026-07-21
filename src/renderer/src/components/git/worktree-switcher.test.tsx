@@ -1,6 +1,7 @@
 import type { Worktree } from '@backend/diff'
+import type { InboxRow } from '@backend/worktree-inbox'
 import { useNewWindow } from '@renderer/hooks/use-repo'
-import { useWorktrees } from '@renderer/hooks/use-worktrees'
+import { useWorktreeInbox, useWorktrees } from '@renderer/hooks/use-worktrees'
 import { useRepoStore } from '@renderer/stores/repo'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -14,7 +15,10 @@ vi.mock('@renderer/lib/platform', () => ({ isBrowser: false, isE2E: false }))
 // Components read through domain hooks, so mock the hook modules and never touch
 // the tRPC proxy. Worktree is the real @main/diff type, so shape drift breaks here.
 vi.mock('@renderer/hooks/use-repo', () => ({ useNewWindow: vi.fn() }))
-vi.mock('@renderer/hooks/use-worktrees', () => ({ useWorktrees: vi.fn() }))
+vi.mock('@renderer/hooks/use-worktrees', () => ({
+  useWorktrees: vi.fn(),
+  useWorktreeInbox: vi.fn(),
+}))
 
 const worktrees: Worktree[] = [
   { path: '/Users/me/code/app', branch: 'main' },
@@ -35,6 +39,7 @@ describe('WorktreeSwitcher', () => {
       switchTo: vi.fn(),
     })
     vi.mocked(useWorktrees).mockReturnValue(worktrees)
+    vi.mocked(useWorktreeInbox).mockReturnValue([])
     vi.mocked(useNewWindow).mockReturnValue({ openWindow })
   })
 
@@ -61,5 +66,22 @@ describe('WorktreeSwitcher', () => {
     // The controlled menu closes after the click (the button's stopPropagation
     // suppresses Base UI's row-level handling).
     expect(screen.queryByRole('menuitem', { name: /feature/i })).toBeNull()
+  })
+
+  it('badges the chip when other worktrees need review', () => {
+    const inbox: InboxRow[] = [
+      {
+        path: '/Users/me/code/app-feature',
+        branch: 'feature',
+        changedCount: 3,
+        workingThreads: 0,
+        idleThreads: 0,
+        hasReview: true,
+      },
+    ]
+    vi.mocked(useWorktreeInbox).mockReturnValue(inbox)
+    render(<WorktreeSwitcher />)
+    const chip = screen.getByRole('button', { name: /Worktrees:.*need review/i })
+    expect(chip).toHaveAttribute('data-inbox-count', '1')
   })
 })

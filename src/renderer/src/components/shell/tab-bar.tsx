@@ -118,8 +118,12 @@ function TabItem({
           }
         />
         <ContextMenuContent>
+          {/* Preview (italic, replaceable) vs sticky left pin — different jobs, different nouns (U16). */}
+          {tab.preview && (
+            <ContextMenuItem onClick={() => pinTab(tab.id)}>Keep open</ContextMenuItem>
+          )}
           <ContextMenuItem onClick={() => togglePinned(paneIndex, tab.id)}>
-            {tab.pinned ? 'Unpin Tab' : 'Pin Tab'}
+            {tab.pinned ? 'Unpin left' : 'Pin left'}
           </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem onClick={() => closeTab(paneIndex, tab.id)}>
@@ -141,7 +145,7 @@ function TabItem({
             Close to the Right
           </ContextMenuItem>
           <ContextMenuItem disabled={!hasUnpinned} onClick={() => closeUnpinnedTabs(paneIndex)}>
-            Close Unpinned
+            Close unpinned left
           </ContextMenuItem>
           <ContextMenuItem onClick={closeAllTabs}>Close All</ContextMenuItem>
           {!isMobile && (
@@ -160,7 +164,9 @@ function TabItem({
           )}
         </ContextMenuContent>
       </ContextMenu>
-      <TooltipContent side="bottom">{tab.title}</TooltipContent>
+      <TooltipContent side="bottom">
+        {tab.preview ? `${tab.title} · Preview — double-click to keep open` : tab.title}
+      </TooltipContent>
     </Tooltip>
   )
 }

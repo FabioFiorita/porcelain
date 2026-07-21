@@ -112,13 +112,15 @@ U16–U20, then P3 polish by pain.
 
 ---
 
-## Implementation status (2026-07-20 session)
+## Implementation status
 
 | Wave | Status |
 |------|--------|
-| **A** U1–U3 | **Shipped** — empty-viewer chords fixed; Glance dual rows; desktop Glance; naming start |
-| **B** U4–U10 | **Shipped** — idle Next strip; Review noun on rail; Agent/Changes unread; Session→diff; companion empty; tagline |
-| **C** | **Partial** — outline opens diff; continuous review chrome; Board/Document toggle; worktree identity; board right rail kept |
-| **D** | **Partial** — commit soft when clean; companion title cleanup; Relay rename |
+| **A** U1–U3 | **Shipped** (2026-07-20) — empty-viewer chords; Glance dual rows; desktop Glance; naming start |
+| **B** U4–U10 | **Shipped** (2026-07-20) — idle Next strip; Review noun on rail; Agent/Changes unread; Session→diff; companion empty; tagline |
+| **C** | **Shipped** — outline→diff; continuous chrome; Board\|Document under Intent; **U12** Commit handoff from Review at ≥50% reviewed; **U15** worktree-chip badge + Agent cue (hands off to Review) + inbox open-in-new-window |
+| **D** | **Shipped** — commit soft when clean; board right rail; worktree identity; **U16** Keep open / Pin left |
 
-Remaining lower-priority P3 (find-in-diffs, zen discoverability, dirty tabs, etc.) for later polish passes.
+Product model after 2026-07-21: Review canvas is **Intent / Execution / Evidence** (not Overview \| Loop evidence). Sidebar = Open Review + file outline only.
+
+P3 (find-in-diffs, zen discoverability, dirty tabs, etc.) remains optional polish.

@@ -2,6 +2,7 @@ import type { FeatureReading } from '@backend/feature-view'
 import { SidebarHeaderActionsProvider } from '@renderer/components/shell/sidebar-header-actions'
 import { SidebarProvider } from '@renderer/components/ui/sidebar'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
+import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useReviewFocusStore } from '@renderer/stores/review-focus'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
@@ -117,6 +118,7 @@ describe('FeatureList', () => {
     reviewedPaths.current = new Set()
     useTabsStore.setState({ panes: [{ tabs: [], activeTabId: null }], activePaneIndex: 0 })
     useRepoStore.setState({ repo: { path: '/repo', name: 'repo' } })
+    usePreferencesStore.setState({ sidebarTab: 'feature' })
     useReviewFocusStore.setState({
       canvasTab: 'intent',
       activeSection: null,
@@ -226,5 +228,26 @@ describe('FeatureList', () => {
     expect(clearSpy).not.toHaveBeenCalled()
     fireEvent.click(screen.getByLabelText('Confirm clear review and evidence'))
     expect(clearSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('hides Commit changes until half the outline is reviewed', () => {
+    renderList()
+    expect(screen.queryByRole('button', { name: 'Commit changes' })).not.toBeInTheDocument()
+  })
+
+  it('offers Commit changes at half progress and hands off to Changes', () => {
+    // 1 of 2 reviewed → shipReady
+    reviewedPaths.current = new Set(['src/components/callout.tsx'])
+    renderList()
+    const commit = screen.getByRole('button', { name: 'Commit changes' })
+    fireEvent.click(commit)
+    expect(usePreferencesStore.getState().sidebarTab).toBe('changes')
+  })
+
+  it('offers a primary Commit changes when every file is reviewed', () => {
+    reviewedPaths.current = new Set(['src/components/callout.tsx', 'server/callout-service.ts'])
+    renderList()
+    expect(screen.getByRole('button', { name: 'Commit changes' })).toBeInTheDocument()
+    expect(screen.getByText('2/2 reviewed')).toBeInTheDocument()
   })
 })

@@ -45,8 +45,9 @@ import {
   useImportAgentSession,
   useRenameAgentThread,
 } from '@renderer/hooks/use-agents'
-import { useAddWorktree } from '@renderer/hooks/use-worktrees'
+import { useAddWorktree, useWorktreeInbox } from '@renderer/hooks/use-worktrees'
 import { compactInputClass } from '@renderer/lib/controls'
+import { openReviewSidebar } from '@renderer/lib/surface-handoffs'
 import { cn } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
@@ -284,6 +285,7 @@ export function AgentList(): React.JSX.Element {
   const { create, isPending } = useCreateAgentThread()
   const { importSession, isPending: isImporting } = useImportAgentSession()
   const addWorktree = useAddWorktree()
+  const inbox = useWorktreeInbox()
   const openTab = useTabsStore((s) => s.openTab)
 
   // The "new thread in worktree" dialog: an Input for the branch name (no client-side
@@ -396,7 +398,24 @@ export function AgentList(): React.JSX.Element {
   }
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div data-testid={TestIds.agentList} className="flex flex-col gap-1.5">
+      {/* Inbox home is Review (U15) — Agent only previews and hands off. */}
+      {inbox.length > 0 && (
+        <div className="px-2 pt-0.5">
+          <button
+            type="button"
+            data-testid={TestIds.agentReviewInboxCue}
+            onClick={() => openReviewSidebar()}
+            className="flex w-full items-center gap-2 rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5 text-left hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          >
+            <GitBranch className="size-3.5 shrink-0 text-muted-foreground" />
+            <span className="min-w-0 flex-1 text-2xs text-foreground">
+              Review inbox · {inbox.length} worktree{inbox.length === 1 ? '' : 's'}
+            </span>
+            <span className="size-1.5 shrink-0 rounded-full bg-info" aria-hidden />
+          </button>
+        </div>
+      )}
       <div className="flex items-center justify-end px-2">
         <SidebarHeaderActions>
           <div className="flex items-center">
