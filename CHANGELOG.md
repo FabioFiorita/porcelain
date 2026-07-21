@@ -1,3 +1,9 @@
+## [0.38.2](https://github.com/FabioFiorita/porcelain/compare/v0.38.1...v0.38.2) (2026-07-21)
+
+### Bug Fixes
+
+* **agent:** biome format for turn-fold stay-visible changes ([3c0a684](https://github.com/FabioFiorita/porcelain/commit/3c0a684c1f191033ece13d0f5011df319f0054b2))
+
 ## [0.38.1](https://github.com/FabioFiorita/porcelain/compare/v0.38.0...v0.38.1) (2026-07-21)
 
 ### Bug Fixes
