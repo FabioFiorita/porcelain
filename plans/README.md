@@ -2,12 +2,14 @@
 
 Working docs and shipped records for Porcelain. Prefer skills for durable truth (`product`, `architecture`, `audit`, `marketing`). Plans are for **live decisions** or a **short ship record** — not a second product wiki.
 
-## Live
+## Live (ground truth from 2026-07-21 strategy pass)
 
 | Doc | Role |
 |-----|------|
-| [`launch-narrative.md`](launch-narrative.md) | Public pitches: X, Product Hunt, HN, one-liners, voice rules |
-| [`positioning-and-roadmap.md`](positioning-and-roadmap.md) | Identity, pillars, non-goals, competitive stance, open/demand-gated backlog |
+| [`launch-narrative.md`](launch-narrative.md) | **What to say:** pitches, philosophy story, X/PH, voice, benefits, board vs chat |
+| [`positioning-and-roadmap.md`](positioning-and-roadmap.md) | **What we decide:** identity, pillars, competitive stance, non-goals, marketing principles, roadmap status |
+
+Together with the `product` skill, these are the bar for identity. Older plan files do not override them.
 
 ## Not here anymore (shipped or superseded)
 
