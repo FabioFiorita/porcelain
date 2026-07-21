@@ -5,7 +5,7 @@ description: Publish the whole Feature Review in Porcelain — Intent (idea/plan
 
 # Feature Review (Porcelain)
 
-Porcelain's **Feature** tab is **the Review**: a three-part story the human reads after (or during) agent work.
+Porcelain is where agent work becomes trusted work. The **Feature** tab is **the Review**: the three-part story the human uses to understand and sign off after (or during) agent work.
 
 | Tab | Job | Human question |
 |-----|-----|----------------|

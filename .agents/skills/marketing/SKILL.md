@@ -25,10 +25,10 @@ App copy is the `product` skill's domain, not this one.
 
 ## Message discipline
 
-- **Source of truth for identity:** `plans/positioning-and-roadmap.md` (pillars,
-  non-goals, competitive landscape) and `plans/launch-narrative.md` (pitches,
-  X/PH copy, philosophy for public posts). When those fold away, the durable
-  version belongs in the `product` skill — update this pointer then.
+- **Source of truth for identity:** the `product` skill (identity line, pillars,
+  audience) plus `plans/launch-narrative.md` (pitches, X/PH copy) and
+  `plans/positioning-and-roadmap.md` (competitive landscape, non-goals). Keep
+  README, site, and CLAUDE.md one-liners in the same era.
 - **Site visual identity:** opaque graphite, solid cards, no glassmorphism —
   match the app's reading-room redesign (`marketing/styles.css`). Do not
   reintroduce backdrop-blur glass tiles or purple glow wallpaper.

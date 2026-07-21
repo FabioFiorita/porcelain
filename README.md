@@ -62,7 +62,7 @@ Run from any repo and choose global or project-local when prompted. Update later
 
 ## Positioning
 
-Porcelain sells **trust and review depth**, not agent count. Design identity is **the reading room**: calm, legible, opaque. Full launch copy, X/Product Hunt drafts, and pillar language live in [`plans/launch-narrative.md`](plans/launch-narrative.md); competitive notes in [`plans/positioning-and-roadmap.md`](plans/positioning-and-roadmap.md). Product site: [fabiofiorita.github.io/porcelain](https://fabiofiorita.github.io/porcelain/).
+Porcelain sells **trust and review depth**, not agent count. Run agents, review the whole feature as a story, keep the human↔agent loop local. Full launch copy (X, Product Hunt, pitches) lives in [`plans/launch-narrative.md`](plans/launch-narrative.md); competitive notes in [`plans/positioning-and-roadmap.md`](plans/positioning-and-roadmap.md). Product site: [fabiofiorita.github.io/porcelain](https://fabiofiorita.github.io/porcelain/).
 
 ## Develop
 

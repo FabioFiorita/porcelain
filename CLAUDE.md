@@ -2,7 +2,7 @@
 
 Agent-managed foundations. This file owns project agent guidance; skills live in `.agents/skills/` and are symlinked into `.claude/skills/` for Claude discovery. Keep them accurate and never let the codebase diverge from them. `AGENTS.md` is a symlink to this file. **Keep this file slim — it loads into every session. Detail belongs in skills (loaded on demand).**
 
-Porcelain is the hub for agentic coding (Electron, macOS): run your coding agents (Claude Code, Codex, OpenCode) in it *and* review their work. Still lightweight, still not an editor.
+Porcelain is **where agent work becomes trusted work**: the hub for agentic coding (Electron apps + daemon browser client). Run your coding agents (Claude Code, Codex, OpenCode, Grok) *and* review what they built as a story, not a file list. Lightweight, not an editor. Product identity and pillars live in the `product` skill; public pitches in `plans/launch-narrative.md`.
 
 ## How we work together
 
