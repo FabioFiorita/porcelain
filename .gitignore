@@ -15,6 +15,10 @@ e2e/.artifacts/
 # Marketing screenshots produced by `pnpm shots` — regenerated, not tracked.
 marketing/shots/
 
+# Ephemeral agent automation (one-off shot scripts, local harnesses, tmp PNG dumps).
+# See CLAUDE.md / AGENTS.md — agents may write freely under scripts/agent-scratch/.
+scripts/agent-scratch/
+
 # TypeScript incremental build cache
 *.tsbuildinfo
 

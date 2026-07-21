@@ -19,6 +19,8 @@ Porcelain is the hub for agentic coding (Electron, macOS): run your coding agent
 
 **Verifying live with computer-use:** run `pnpm dev` (opens the dev Electron on `~/Code/porcelain-playground` with isolated config) and request computer-use access for the **dev app — it shows up as "Electron"**, bundle id `com.github.Electron`. NEVER request the installed **"Porcelain"** app: that's the user's real work (their day-job repo) and it doesn't have your changes anyway. Screenshot/drive the dev "Electron" window.
 
+**Agent scratch scripts:** `scripts/agent-scratch/` is **gitignored**. When you need throwaway automation (browser screenshot harnesses, seed helpers, one-off verify scripts, local PNG dumps), put it there — not under tracked `scripts/` or the repo root. Feel free to add as many files as you need for the session; nothing under that path is committed. Prefer reusing a named harness over re-inventing the same daemon+Chromium bootstrap each time.
+
 ## Skills (in `.agents/skills/`, symlinked at `.claude/skills/`)
 
 Only each skill's one-line description loads up front; the body loads on demand when you read it. Read the relevant skill *before* acting in its area.
