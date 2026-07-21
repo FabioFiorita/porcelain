@@ -273,7 +273,7 @@ export function AgentComposer({
             disabled={!installed}
             placeholder={
               installed
-                ? `Message ${PROVIDER_LABEL[provider]}…`
+                ? `Message ${PROVIDER_LABEL[provider]}… (@ files, / commands)`
                 : `${PROVIDER_LABEL[provider]} isn’t installed — install its CLI to chat.`
             }
             aria-label="Message the agent"

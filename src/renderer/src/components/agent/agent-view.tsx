@@ -6,7 +6,7 @@ import {
 } from '@renderer/components/agent/agents-quick-access'
 import { PlanSteps } from '@renderer/components/agent/plan-steps'
 import { ProviderGlyph } from '@renderer/components/agent/provider-glyph'
-import { reviewTabKey } from '@renderer/components/git/review-view'
+import { TurnChangedFiles } from '@renderer/components/agent/turn-changed-files'
 import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
 import { ScrollArea } from '@renderer/components/ui/scroll-area'
@@ -16,13 +16,14 @@ import { useAgentProviders, useAgentThreads } from '@renderer/hooks/use-agents'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'
 import { useActiveRemoteEnvironment } from '@renderer/hooks/use-remote-daemon'
+import { estimateContextPercent } from '@renderer/lib/agent-context-window'
 import { modelChipLabel } from '@renderer/lib/agent-model-label'
+import { buildAgentTimeline } from '@renderer/lib/agent-timeline'
 import { isTextEntry } from '@renderer/lib/keyboard'
+import { openChanges, openFeatureReview } from '@renderer/lib/surface-handoffs'
 import { cn, copyText } from '@renderer/lib/utils'
 import { useAgentThreadsStore } from '@renderer/stores/agent-threads'
-import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
-import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import type {
   AgentProvider,
   AgentUsage,
@@ -42,7 +43,7 @@ import {
   Loader2,
   X,
 } from 'lucide-react'
-import { memo, useCallback, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
@@ -106,7 +107,7 @@ function UserBubble({
   const thumbnails = item.thumbnails ?? []
   return (
     <div className="flex justify-end">
-      <div className="max-w-[85%] rounded-2xl border bg-secondary px-3 py-2 text-sm-minus whitespace-pre-wrap text-secondary-foreground">
+      <div className="group/copy relative max-w-[85%] rounded-2xl border bg-secondary px-3 py-2 text-sm-minus whitespace-pre-wrap text-secondary-foreground">
         {item.text}
         {thumbnails.length > 0 ? (
           <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -129,6 +130,7 @@ function UserBubble({
             </span>
           )
         )}
+        {item.text !== '' && <CopyButton text={item.text} />}
       </div>
     </div>
   )
@@ -203,6 +205,8 @@ function ReasoningItem({
 }
 
 type ToolTimelineItem = Extract<TimelineItem, { kind: 'tool' }>
+
+// (ToolTimelineItem also used when materializing consecutive tools outside folds.)
 
 /** Compact tool call — status dot + title + dim detail; a chevron reveals capped output. */
 function ToolItem({ item }: { item: ToolTimelineItem }): React.JSX.Element {
@@ -380,6 +384,49 @@ export function groupTimelineItems(items: TimelineItem[]): TimelineDisplayRow[] 
   return rows
 }
 
+/**
+ * Settled-turn chrome: collapses tools/reasoning/plan behind a “Worked for…” row
+ * (T3-style). Expand to inspect the fold body; Task/subagent rows live inside.
+ */
+function TurnFoldRow({
+  items,
+  elapsedMs,
+  threadId,
+}: {
+  items: TimelineItem[]
+  elapsedMs: number | null
+  threadId: string
+}): React.JSX.Element {
+  const [expanded, setExpanded] = useState(false)
+  const bodyRows = useMemo(() => groupTimelineItems(items), [items])
+  const label = elapsedMs !== null ? `Worked for ${formatElapsed(elapsedMs)}` : 'Worked'
+  return (
+    <div className="flex flex-col gap-2">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="flex w-full items-center gap-1.5 text-left text-xs text-muted-foreground hover:text-foreground"
+      >
+        <ChevronRight
+          className={cn('size-3 shrink-0 transition-transform', expanded && 'rotate-90')}
+        />
+        <span className="font-medium">{label}</span>
+      </button>
+      {expanded && (
+        <div className="ml-2 flex flex-col gap-3 border-l border-border/60 pl-3">
+          {bodyRows.map((row) =>
+            row.kind === 'tools' ? (
+              <ToolGroup key={row.key} tools={row.tools} />
+            ) : (
+              <TimelineRow key={row.key} item={row.item} threadId={threadId} />
+            ),
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 const DECISIONS: { label: string; decision: ApprovalDecision }[] = [
   { label: 'Accept', decision: 'accept' },
   { label: 'Accept for session', decision: 'accept-session' },
@@ -508,6 +555,7 @@ function SessionStrip({
   startedAt,
   usage,
   worktreeBranch,
+  contextWindow,
 }: {
   provider: AgentProvider
   model: string
@@ -518,6 +566,8 @@ function SessionStrip({
   startedAt: number | undefined
   usage: AgentUsage | undefined
   worktreeBranch: string | undefined
+  /** Selected context-window option (e.g. `200k`) for approximate context %. */
+  contextWindow: string | undefined
 }): React.JSX.Element {
   const models = useAgentProviders().flatMap((p) => p.models)
   // Env identity so a Beelink thread is never mistaken for local (P3).
@@ -533,6 +583,11 @@ function SessionStrip({
     const id = setInterval(tick, 1000)
     return () => clearInterval(id)
   }, [working, startedAt])
+
+  const modelInfo = models.find((m) => m.id === model || m.id === resolvedModel)
+  const windowOpt =
+    contextWindow ?? modelInfo?.contextWindows?.default ?? modelInfo?.contextWindows?.values[0]
+  const contextPct = usage !== undefined ? estimateContextPercent(usage.turnInput, windowOpt) : null
 
   return (
     <div className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-border/60 px-4 py-2 text-2xs text-muted-foreground">
@@ -565,6 +620,17 @@ function SessionStrip({
         <>
           <span className="text-muted-foreground/40">·</span>
           <span className="min-w-0 truncate tabular-nums">{formatUsageCompact(usage)}</span>
+        </>
+      )}
+      {contextPct !== null && (
+        <>
+          <span className="text-muted-foreground/40">·</span>
+          <span
+            className="tabular-nums"
+            title="Approximate share of the selected context window used by the last turn's input"
+          >
+            ~{contextPct}% context
+          </span>
         </>
       )}
       {worktreeBranch && (
@@ -750,9 +816,56 @@ export function AgentView({ threadId }: { threadId: string }): React.JSX.Element
   const thread = useAgentThreads().find((t) => t.id === threadId)
   const state = useAgentThreadsStore((s) => s.threads[threadId])
   const items = state?.items ?? []
-  const displayRows = groupTimelineItems(items)
   const status = state?.status ?? thread?.status ?? 'idle'
   const working = status === 'working'
+  const timelineRows = useMemo(
+    () =>
+      buildAgentTimeline(items, {
+        working,
+        turnStartedAt: thread?.turnStartedAt,
+      }),
+    [items, working, thread?.turnStartedAt],
+  )
+  // Re-collapse consecutive tools on expanded segments (live turns / no-assistant
+  // timelines) so we keep the existing "N tools · Bash · Read" chrome outside folds.
+  const displayTimeline = useMemo(() => {
+    type Row =
+      | { kind: 'turn-fold'; key: string; items: TimelineItem[]; elapsedMs: number | null }
+      | { kind: 'changed-files'; key: string; writePaths: string[] }
+      | { kind: 'single'; key: string; item: TimelineItem }
+      | { kind: 'tools'; key: string; tools: ToolTimelineItem[] }
+    const out: Row[] = []
+    let toolBuf: ToolTimelineItem[] = []
+    const flushTools = (): void => {
+      if (toolBuf.length === 0) return
+      for (const g of groupTimelineItems(toolBuf)) {
+        if (g.kind === 'tools') out.push({ kind: 'tools', key: g.key, tools: g.tools })
+        else out.push({ kind: 'single', key: g.key, item: g.item })
+      }
+      toolBuf = []
+    }
+    for (const row of timelineRows) {
+      if (row.kind === 'item' && row.item.kind === 'tool') {
+        toolBuf.push(row.item)
+        continue
+      }
+      flushTools()
+      if (row.kind === 'item') {
+        out.push({ kind: 'single', key: row.key, item: row.item })
+      } else if (row.kind === 'turn-fold') {
+        out.push({
+          kind: 'turn-fold',
+          key: row.key,
+          items: row.items,
+          elapsedMs: row.elapsedMs,
+        })
+      } else {
+        out.push({ kind: 'changed-files', key: row.key, writePaths: row.writePaths })
+      }
+    }
+    flushTools()
+    return out
+  }, [timelineRows])
 
   const rootRef = useRef<HTMLDivElement>(null)
   const viewportRef = useRef<HTMLElement | null>(null)
@@ -842,12 +955,10 @@ export function AgentView({ threadId }: { threadId: string }): React.JSX.Element
   const showTurnUsage =
     !working && thread?.usage !== undefined && lastItem?.kind === 'assistant' && !lastItem.streaming
 
-  // Close-the-loop handoff when a turn finishes (U4).
+  // Close-the-loop handoff when a turn finishes (U4) — shared surface-handoffs helpers.
   const { groups } = useGitFlow()
   const { reading } = useFeatureReading()
   const repo = useRepoStore((s) => s.repo)
-  const openTab = useTabsStore((s) => s.openTab)
-  const setSidebarTab = usePreferencesStore((s) => s.setSidebarTab)
   const changedCount = groups?.reduce((n, g) => n + g.files.length, 0) ?? 0
   const hasReview = reading !== null && reading !== undefined
   const showNextSteps = !working && items.length > 0 && (changedCount > 0 || hasReview)
@@ -865,6 +976,7 @@ export function AgentView({ threadId }: { threadId: string }): React.JSX.Element
           startedAt={thread.turnStartedAt}
           usage={thread.usage}
           worktreeBranch={thread.worktreeBranch}
+          contextWindow={thread.options?.contextWindow}
         />
       )}
       {showNextSteps && repo && (
@@ -875,16 +987,7 @@ export function AgentView({ threadId }: { threadId: string }): React.JSX.Element
               size="sm"
               variant="outline"
               className="h-7 text-xs"
-              onClick={() => {
-                setSidebarTab('changes')
-                const key = reviewTabKey({ type: 'working' })
-                openTab({
-                  id: tabId('review', key),
-                  kind: 'review',
-                  title: 'All changes',
-                  path: key,
-                })
-              }}
+              onClick={() => openChanges({ continuousReview: true })}
             >
               {changedCount} changed · All changes
             </Button>
@@ -894,26 +997,13 @@ export function AgentView({ threadId }: { threadId: string }): React.JSX.Element
               size="sm"
               variant="outline"
               className="h-7 text-xs"
-              onClick={() => {
-                setSidebarTab('feature')
-                openTab({
-                  id: tabId('feature', repo.path),
-                  kind: 'feature',
-                  title: 'Review',
-                  path: repo.path,
-                })
-              }}
+              onClick={() => openFeatureReview()}
             >
               Open Review
             </Button>
           )}
           {changedCount > 0 && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 text-xs"
-              onClick={() => setSidebarTab('changes')}
-            >
+            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => openChanges()}>
               Commit
             </Button>
           )}
@@ -932,13 +1022,27 @@ export function AgentView({ threadId }: { threadId: string }): React.JSX.Element
                 />
               ) : null
             ) : (
-              displayRows.map((row) =>
-                row.kind === 'tools' ? (
-                  <ToolGroup key={row.key} tools={row.tools} />
-                ) : (
-                  <TimelineRow key={row.key} item={row.item} threadId={threadId} />
-                ),
-              )
+              displayTimeline.map((row) => {
+                if (row.kind === 'turn-fold') {
+                  return (
+                    <TurnFoldRow
+                      key={row.key}
+                      items={row.items}
+                      elapsedMs={row.elapsedMs}
+                      threadId={threadId}
+                    />
+                  )
+                }
+                if (row.kind === 'changed-files') {
+                  return (
+                    <TurnChangedFiles key={row.key} writePaths={row.writePaths} groups={groups} />
+                  )
+                }
+                if (row.kind === 'tools') {
+                  return <ToolGroup key={row.key} tools={row.tools} />
+                }
+                return <TimelineRow key={row.key} item={row.item} threadId={threadId} />
+              })
             )}
             {working && <WorkingIndicator startedAt={thread?.turnStartedAt} />}
             {showTurnUsage && thread.usage !== undefined && (

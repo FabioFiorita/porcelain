@@ -8,11 +8,13 @@ import {
 } from '@renderer/components/ui/sidebar'
 import { useAgentLimits, useAgentThreads, useRefreshAgentLimits } from '@renderer/hooks/use-agents'
 import { useActiveRemoteEnvironment } from '@renderer/hooks/use-remote-daemon'
+import { type TouchedFile, touchedFilesFromItems } from '@renderer/lib/agent-touched-files'
 import { fileName } from '@renderer/lib/paths'
+import { openChanges, openFile } from '@renderer/lib/surface-handoffs'
 import { cn } from '@renderer/lib/utils'
 import { useAgentThreadsStore } from '@renderer/stores/agent-threads'
 import { useRepoStore } from '@renderer/stores/repo'
-import { tabId, useTabsStore } from '@renderer/stores/tabs'
+import { useTabsStore } from '@renderer/stores/tabs'
 import type { AgentProvider, TimelineItem } from '@shared/agent-protocol'
 import { PROVIDER_LABEL } from '@shared/agent-protocol'
 import { FilePenLine, FileText, GitBranch, Loader2, RefreshCw } from 'lucide-react'
@@ -209,22 +211,34 @@ function SessionGroup({ threadId }: { threadId: string }): React.JSX.Element | n
           </div>
           {tasks.length > 0 && (
             <div className="flex flex-col gap-1 border-t border-border/60 pt-1.5">
-              <p className="text-2xs font-medium text-muted-foreground">Subagents</p>
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="text-2xs font-medium text-muted-foreground">Subagents</p>
+                <p className="text-2xs tabular-nums text-muted-foreground/70">
+                  {tasks.filter((t) => t.status === 'running').length} running ·{' '}
+                  {tasks.filter((t) => t.status === 'ok').length} done
+                  {tasks.some((t) => t.status === 'error')
+                    ? ` · ${tasks.filter((t) => t.status === 'error').length} failed`
+                    : ''}
+                </p>
+              </div>
               {tasks.map((task) => (
-                <div key={task.id} className="flex items-center gap-1.5 text-2xs">
+                <div key={task.id} className="flex items-start gap-1.5 text-2xs">
                   {task.status === 'running' ? (
-                    <Loader2 className="size-3 shrink-0 animate-spin" />
+                    <Loader2 className="mt-0.5 size-3 shrink-0 animate-spin" />
                   ) : (
                     <span
                       className={cn(
-                        'size-1.5 shrink-0 rounded-full',
+                        'mt-1 size-1.5 shrink-0 rounded-full',
                         task.status === 'error' ? 'bg-destructive' : 'bg-success',
                       )}
                     />
                   )}
-                  <span className="min-w-0 flex-1 truncate text-foreground">
-                    {task.detail?.trim() || 'Task'}
-                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium text-foreground">
+                      {task.detail?.trim() || 'Task'}
+                    </p>
+                    <p className="text-muted-foreground capitalize">{task.status}</p>
+                  </div>
                 </div>
               ))}
             </div>
@@ -309,37 +323,14 @@ function ActivityGroup({ threadId }: { threadId: string }): React.JSX.Element | 
   )
 }
 
-/** Titles whose `detail` is a file path the user can open in the viewer. */
-const FILE_TOOL_TITLES = new Set(['Read', 'Edit', 'Write', 'Edit notebook'])
-
-export type TouchedFile = {
-  path: string
-  /** Last action against this path in timeline order (Write/Edit beat a prior Read). */
-  action: 'read' | 'edit' | 'write'
-}
+// Re-export for tests / callers that imported from this module before the lib move.
+export type { TouchedFile }
+export { touchedFilesFromItems }
 
 /**
- * Deduped file paths the agent has Read/Edit/Written in this thread (timeline order,
- * last action wins). Pure so it's unit-testable without mounting the sidebar.
- */
-export function touchedFilesFromItems(items: TimelineItem[]): TouchedFile[] {
-  const byPath = new Map<string, TouchedFile>()
-  for (const item of items) {
-    if (item.kind !== 'tool') continue
-    if (!FILE_TOOL_TITLES.has(item.title)) continue
-    const path = item.detail?.trim()
-    if (path === undefined || path === '') continue
-    const action: TouchedFile['action'] =
-      item.title === 'Write' ? 'write' : item.title === 'Read' ? 'read' : 'edit'
-    // Later ops replace earlier ones so an Edit after a Read lands as "edit".
-    byPath.set(path, { path, action })
-  }
-  return [...byPath.values()]
-}
-
-/**
- * Files the agent has touched in this thread — click a row to open it in the viewer.
- * The main timeline collapses tools; this is where you jump into what changed.
+ * Files the agent has touched in this thread — click a row to open it in the viewer
+ * (and hand off to Changes for writes). The main timeline collapses tools; this is the
+ * Session companion jump list (connected preview → canonical surfaces).
  */
 function FilesGroup({ threadId }: { threadId: string }): React.JSX.Element | null {
   // Select the items array by identity (not a mapped TouchedFile[] — that would allocate
@@ -347,7 +338,6 @@ function FilesGroup({ threadId }: { threadId: string }): React.JSX.Element | nul
   const items = useAgentThreadsStore((s) => s.threads[threadId]?.items ?? EMPTY_ITEMS)
   const files = useMemo(() => touchedFilesFromItems(items), [items])
   const repoPath = useRepoStore((s) => s.repo?.path ?? null)
-  const openTab = useTabsStore((s) => s.openTab)
   if (files.length === 0) return null
 
   const open = (path: string, action: TouchedFile['action']): void => {
@@ -358,27 +348,16 @@ function FilesGroup({ threadId }: { threadId: string }): React.JSX.Element | nul
         : repoPath !== null
           ? `${repoPath}/${path}`
           : path
-    // Writes/edits open the working-tree diff (U10); reads open the file.
+    // Writes/edits → Changes + diff tab (canonical review home); reads → file preview.
     if (action === 'edit' || action === 'write') {
       const rel =
         repoPath !== null && absolute.startsWith(`${repoPath}/`)
           ? absolute.slice(repoPath.length + 1)
           : path
-      openTab({
-        id: tabId('diff', rel),
-        kind: 'diff',
-        title: fileName(absolute),
-        path: rel,
-      })
+      openChanges({ path: rel })
       return
     }
-    openTab({
-      id: tabId('file', absolute),
-      kind: 'file',
-      title: fileName(absolute),
-      path: absolute,
-      preview: true,
-    })
+    openFile(absolute, true)
   }
 
   return (
@@ -413,6 +392,9 @@ function FilesGroup({ threadId }: { threadId: string }): React.JSX.Element | nul
               <span className="shrink-0 text-2xs text-muted-foreground capitalize">
                 {file.action}
               </span>
+              {(file.action === 'edit' || file.action === 'write') && (
+                <span className="sr-only">Opens Changes</span>
+              )}
             </button>
           )
         })}
