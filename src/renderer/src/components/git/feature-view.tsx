@@ -4,6 +4,7 @@ import { CanvasBody } from '@renderer/components/git/canvas-body'
 import { EvidencePanel } from '@renderer/components/git/evidence-panel'
 import { Button } from '@renderer/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@renderer/components/ui/tabs'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useDiffFilePrefetch } from '@renderer/hooks/use-diff'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
 import { useReviewedPaths } from '@renderer/hooks/use-reviewed'
@@ -140,7 +141,7 @@ function EmptyState(): React.JSX.Element {
 /**
  * The viewer's `feature` tab: the Review canvas — header (name + source counts)
  * over three tabs: **Intent** (narrative / freeform board), **Execution** (files +
- * notes), **Evidence** (HTML proof). Human questions sit under each tab label.
+ * notes), **Evidence** (HTML proof). Human questions appear as tab hover tooltips.
  * Outline jumps pick the tab; J/K stay on Intent.
  */
 export function FeatureView(): React.JSX.Element {
@@ -232,21 +233,26 @@ export function FeatureView(): React.JSX.Element {
         className="flex min-h-0 flex-1 flex-col gap-0"
       >
         <div className="border-b px-3">
-          <TabsList variant="line" className="h-auto w-full justify-start gap-1 py-1.5">
+          <TabsList variant="line" className="h-9 w-full justify-start">
             {FEATURE_CANVAS_TABS.map((tab) => {
               const disabled = tab.id === 'evidence' && !hasEvidence
               return (
-                <TabsTrigger
-                  key={tab.id}
-                  value={tab.id}
-                  disabled={disabled}
-                  className="h-auto flex-none flex-col items-start gap-0.5 px-3 py-1.5 data-disabled:opacity-40"
-                >
-                  <span className="text-sm">{tab.label}</span>
-                  <span className="max-w-48 text-left text-2xs font-normal text-muted-foreground whitespace-normal">
-                    {tab.question}
-                  </span>
-                </TabsTrigger>
+                <Tooltip key={tab.id}>
+                  <TooltipTrigger
+                    render={
+                      <TabsTrigger
+                        value={tab.id}
+                        disabled={disabled}
+                        className="flex-none px-3 data-disabled:opacity-40"
+                      />
+                    }
+                  >
+                    {tab.label}
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    {disabled ? 'No evidence published yet' : tab.question}
+                  </TooltipContent>
+                </Tooltip>
               )
             })}
           </TabsList>
@@ -462,9 +468,6 @@ function ExecutionBody({ reading }: { reading: FeatureReading }): React.JSX.Elem
 
   return (
     <div className="h-full min-h-0 overflow-y-auto p-3">
-      <p className="mb-3 text-2xs text-muted-foreground">
-        {FEATURE_CANVAS_TABS.find((t) => t.id === 'execution')?.question}
-      </p>
       <div className="flex flex-col gap-3">
         {sectionBlocks.map((block) =>
           block.files.length === 0 ? null : (

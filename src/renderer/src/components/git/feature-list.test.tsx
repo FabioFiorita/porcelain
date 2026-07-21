@@ -169,7 +169,8 @@ describe('FeatureList', () => {
 
   it('opens Intent from the Intent shortcut', () => {
     renderList()
-    fireEvent.click(screen.getByText('What is this, and what’s the idea?'))
+    // Label only in the chrome; human question lives on the hover tooltip.
+    fireEvent.click(screen.getByRole('button', { name: 'Intent' }))
     expect(useReviewFocusStore.getState().jump?.target).toEqual({ kind: 'intent' })
   })
 

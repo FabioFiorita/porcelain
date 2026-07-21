@@ -24,6 +24,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@renderer/components/ui/dropdown-menu'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useDiffFilePrefetch } from '@renderer/hooks/use-diff'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
 import { useClearFeatureReview } from '@renderer/hooks/use-feature-view'
@@ -371,7 +372,7 @@ function FeatureOutline(): React.JSX.Element {
           </SidebarHeaderActions>
         </div>
 
-        {/* Thin pills — same three tabs as the viewer. */}
+        {/* Thin pills — same three tabs as the viewer; question on hover. */}
         <div
           className="flex items-center gap-0.5 rounded-md bg-muted/40 p-0.5"
           role="tablist"
@@ -381,66 +382,84 @@ function FeatureOutline(): React.JSX.Element {
             const disabled = tab.id === 'evidence' && !reading.evidence
             const active = canvasTab === tab.id
             return (
-              <button
-                key={tab.id}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                disabled={disabled}
-                onClick={() => openCanvasTab(tab.id)}
-                className={cn(
-                  'min-w-0 flex-1 truncate rounded-sm px-1.5 py-1 text-center text-2xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-40',
-                  active
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {tab.label}
-              </button>
+              <Tooltip key={tab.id}>
+                <TooltipTrigger
+                  render={
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={active}
+                      disabled={disabled}
+                      onClick={() => openCanvasTab(tab.id)}
+                      className={cn(
+                        'min-w-0 flex-1 truncate rounded-sm px-1.5 py-1 text-center text-2xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-40',
+                        active
+                          ? 'bg-background text-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground',
+                      )}
+                    />
+                  }
+                >
+                  {tab.label}
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  {disabled ? 'No evidence published yet' : tab.question}
+                </TooltipContent>
+              </Tooltip>
             )
           })}
         </div>
 
-        {/* Intent + Evidence shortcuts (full label + human question). */}
+        {/* Intent + Evidence shortcuts — labels only; question on hover. */}
         <div className="flex flex-col gap-1">
-          <button
-            type="button"
-            onClick={() => openCanvasTab('intent')}
-            className={cn(
-              'flex w-full items-start gap-1.5 rounded-md border px-2 py-1.5 text-left hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
-              canvasTab === 'intent'
-                ? 'border-border bg-accent/40 text-foreground'
-                : 'border-border/60 text-muted-foreground',
-            )}
-          >
-            <Lightbulb className="mt-0.5 size-3.5 shrink-0 text-info" />
-            <span className="min-w-0 flex-1">
-              <span className="block text-xs font-medium text-foreground">{intentMeta.label}</span>
-              <span className="block text-2xs text-muted-foreground">{intentMeta.question}</span>
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => openCanvasTab('evidence')}
-            disabled={!reading.evidence}
-            className={cn(
-              'flex w-full items-start gap-1.5 rounded-md border px-2 py-1.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
-              reading.evidence ? 'hover:bg-accent/50' : 'cursor-not-allowed opacity-50',
-              canvasTab === 'evidence' && reading.evidence
-                ? 'border-border bg-accent/40 text-foreground'
-                : 'border-border/60 text-muted-foreground',
-            )}
-          >
-            <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-info" />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-xs font-medium text-foreground">
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <button
+                  type="button"
+                  onClick={() => openCanvasTab('intent')}
+                  className={cn(
+                    'flex w-full items-center gap-1.5 rounded-md border px-2 py-1.5 text-left text-xs hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+                    canvasTab === 'intent'
+                      ? 'border-border bg-accent/40 text-foreground'
+                      : 'border-border/60 text-muted-foreground',
+                  )}
+                />
+              }
+            >
+              <Lightbulb className="size-3.5 shrink-0 text-info" />
+              <span className="min-w-0 flex-1 truncate font-medium text-foreground">
+                {intentMeta.label}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="right">{intentMeta.question}</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <button
+                  type="button"
+                  onClick={() => openCanvasTab('evidence')}
+                  disabled={!reading.evidence}
+                  className={cn(
+                    'flex w-full items-center gap-1.5 rounded-md border px-2 py-1.5 text-left text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+                    reading.evidence ? 'hover:bg-accent/50' : 'cursor-not-allowed opacity-50',
+                    canvasTab === 'evidence' && reading.evidence
+                      ? 'border-border bg-accent/40 text-foreground'
+                      : 'border-border/60 text-muted-foreground',
+                  )}
+                />
+              }
+            >
+              <ShieldCheck className="size-3.5 shrink-0 text-info" />
+              <span className="min-w-0 flex-1 truncate font-medium text-foreground">
                 {reading.evidence?.title?.trim() || evidenceMeta.label}
               </span>
-              <span className="block text-2xs text-muted-foreground">
-                {reading.evidence ? evidenceMeta.question : 'No evidence published yet'}
-              </span>
-            </span>
-          </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              {reading.evidence ? evidenceMeta.question : 'No evidence published yet'}
+            </TooltipContent>
+          </Tooltip>
         </div>
       </div>
 
@@ -472,10 +491,17 @@ function FeatureOutline(): React.JSX.Element {
       )}
 
       {/* Inline Execution — files stay visible while Intent/Evidence fill the viewer. */}
-      <div className="flex items-center justify-between gap-2 px-3 pt-1.5">
-        <p className="text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
-          {executionMeta.label}
-        </p>
+      <div className="flex items-center justify-between gap-2 px-3 pt-1.5 pb-0.5">
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <p className="text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground" />
+            }
+          >
+            {executionMeta.label}
+          </TooltipTrigger>
+          <TooltipContent side="right">{executionMeta.question}</TooltipContent>
+        </Tooltip>
         <button
           type="button"
           onClick={() => openCanvasTab('execution')}
@@ -487,7 +513,6 @@ function FeatureOutline(): React.JSX.Element {
           Open in viewer
         </button>
       </div>
-      <p className="px-3 pb-1 text-2xs text-muted-foreground">{executionMeta.question}</p>
 
       <div className="flex flex-col gap-0.5 px-2">
         {sectionEntries.map(({ section, index, key }) => (
