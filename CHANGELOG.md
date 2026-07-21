@@ -1,3 +1,9 @@
+## [0.38.1](https://github.com/FabioFiorita/porcelain/compare/v0.38.0...v0.38.1) (2026-07-21)
+
+### Bug Fixes
+
+* **agent:** keep plan and approvals outside turn folds ([dc01828](https://github.com/FabioFiorita/porcelain/commit/dc0182804ebae512753e7b8a3d9ee4b709d2b4f3))
+
 ## [0.38.0](https://github.com/FabioFiorita/porcelain/compare/v0.37.1...v0.38.0) (2026-07-21)
 
 ### Features
