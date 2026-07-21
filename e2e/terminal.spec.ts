@@ -42,8 +42,8 @@ test('splits two terminals side by side, both rendering', async ({ page }) => {
   await page.keyboard.press('Enter')
   await expectTerminalText(page, 1, 'SPLIT_TWO')
 
-  await page.getByRole('tab', { name: 'Terminal 2' }).click({ button: 'right' })
-  await page.getByRole('menuitem', { name: 'Open to the Side' }).click()
+  await loc.viewerTab(page, 'Terminal 2').click({ button: 'right' })
+  await loc.viewerTabOpenToSide(page).click()
 
   await expect(page.locator('.xterm')).toHaveCount(2)
   await expectTerminalText(page, 0, 'SPLIT_ONE')
@@ -79,9 +79,9 @@ test('runs a saved action in a terminal', async ({ page }) => {
   await selectTab(page, 'Terminal')
 
   await loc.actionsAdd(page).click()
-  await page.getByLabel('Action title').fill('Compute')
-  await page.getByLabel('Action command').fill('echo ACTION_$((6*7))')
-  await page.getByRole('button', { name: 'Add action' }).click()
+  await loc.actionTitleInput(page).fill('Compute')
+  await loc.actionCommandInput(page).fill('echo ACTION_$((6*7))')
+  await loc.actionSave(page).click()
 
   await loc.actionRun(page, 'Compute').click()
   await expectTerminalText(page, 0, 'ACTION_42')

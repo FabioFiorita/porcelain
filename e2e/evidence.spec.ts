@@ -61,8 +61,10 @@ test('evidence renders as the Review Evidence tab in a fully sandboxed iframe', 
   // Fully sandboxed: sandbox="" (no allow-scripts, no allow-same-origin).
   expect(await iframeEl.getAttribute('sandbox')).toBe('')
 
-  const frame = page.frameLocator(`[data-testid="evidence-iframe"]`)
-  await expect(frame.getByRole('heading', { name: H1_TEXT })).toBeVisible({ timeout: 15_000 })
+  // Sandboxed evidence HTML is authored by the agent (or this canary) — assert
+  // its body content, not app chrome roles. The iframe root is testid-keyed.
+  const frame = loc.evidenceIframe(page).contentFrame()
+  await expect(frame.locator('h1')).toHaveText(H1_TEXT, { timeout: 15_000 })
   await expect(frame.locator('.pass')).toBeVisible()
   await expect(frame.locator('body')).not.toContainText('SCRIPT EXECUTED')
 

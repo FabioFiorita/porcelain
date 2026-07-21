@@ -345,6 +345,7 @@ export function AgentComposer({
                         size="xs"
                         aria-label={MODE_LABEL[mode]}
                         data-testid={TestIds.agentModeChip}
+                        data-mode={mode}
                         className="gap-1 text-muted-foreground/70 hover:text-muted-foreground"
                       >
                         <ModeIcon className="size-3" />
@@ -366,7 +367,12 @@ export function AgentComposer({
                 {(Object.keys(MODE_LABEL) as AgentMode[]).map((value) => {
                   const Icon = MODE_ICON[value]
                   return (
-                    <DropdownMenuRadioItem key={value} value={value} className="whitespace-nowrap">
+                    <DropdownMenuRadioItem
+                      key={value}
+                      value={value}
+                      data-testid={TestIds.agentModeOption(value)}
+                      className="whitespace-nowrap"
+                    >
                       <Icon className="size-3.5 text-muted-foreground" />
                       {MODE_LABEL[value]}
                     </DropdownMenuRadioItem>
@@ -385,6 +391,8 @@ export function AgentComposer({
                         variant="ghost"
                         size="xs"
                         aria-label="Interaction mode"
+                        data-testid={TestIds.agentInteractionChip}
+                        data-interaction={interaction}
                         className="gap-1 text-muted-foreground/70 hover:text-muted-foreground"
                       >
                         <InteractionIcon className="size-3" />
@@ -413,7 +421,12 @@ export function AgentComposer({
                 {(Object.keys(INTERACTION_LABEL) as AgentInteraction[]).map((value) => {
                   const Icon = INTERACTION_ICON[value]
                   return (
-                    <DropdownMenuRadioItem key={value} value={value} className="whitespace-nowrap">
+                    <DropdownMenuRadioItem
+                      key={value}
+                      value={value}
+                      data-testid={TestIds.agentInteractionOption(value)}
+                      className="whitespace-nowrap"
+                    >
                       <Icon className="size-3.5 text-muted-foreground" />
                       {INTERACTION_LABEL[value]}
                     </DropdownMenuRadioItem>

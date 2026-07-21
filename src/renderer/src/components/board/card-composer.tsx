@@ -11,6 +11,7 @@ import { Textarea } from '@renderer/components/ui/textarea'
 import { useCardActions } from '@renderer/hooks/use-board'
 import { kbdLabel } from '@renderer/lib/keyboard'
 import { useCardDraftStore } from '@renderer/stores/card-draft'
+import { TestIds } from '@shared/test-ids'
 import { useEffect, useState } from 'react'
 
 /**
@@ -65,7 +66,10 @@ export function CardComposer(): React.JSX.Element {
     >
       {/* Cap height so a long description can't push title/footer off-screen;
           title stays fixed; body scrolls inside the dialog. */}
-      <DialogContent className="flex max-h-[min(600px,90dvh)] flex-col gap-4 overflow-hidden sm:max-w-lg">
+      <DialogContent
+        data-testid={TestIds.cardComposer}
+        className="flex max-h-[min(600px,90dvh)] flex-col gap-4 overflow-hidden sm:max-w-lg"
+      >
         <DialogHeader className="shrink-0">
           <DialogTitle>{draft?.id ? 'Edit card' : 'New card'}</DialogTitle>
         </DialogHeader>
@@ -75,6 +79,7 @@ export function CardComposer(): React.JSX.Element {
           onKeyDown={onKeyDown}
           placeholder="Title"
           aria-label="Card title"
+          data-testid={TestIds.cardTitleInput}
           className="max-h-20 shrink-0 overflow-y-auto rounded-md"
         />
         <Textarea
@@ -90,7 +95,11 @@ export function CardComposer(): React.JSX.Element {
           <Button variant="ghost" onClick={close}>
             Cancel
           </Button>
-          <Button disabled={title.trim() === '' || saving} onClick={save}>
+          <Button
+            disabled={title.trim() === '' || saving}
+            data-testid={TestIds.cardComposerSave}
+            onClick={save}
+          >
             {saving ? 'Saving…' : draft?.id ? 'Save' : 'Add card'}
           </Button>
         </DialogFooter>

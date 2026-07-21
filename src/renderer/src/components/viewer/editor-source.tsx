@@ -20,6 +20,7 @@ import { lineRangeFromOffsets } from '@renderer/lib/line-selection'
 import { cn, copyText } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
+import { TestIds } from '@shared/test-ids'
 import {
   ClipboardPaste,
   Compass,
@@ -279,6 +280,7 @@ export function EditorSource({
                 spellCheck={false}
                 wrap="off"
                 aria-label={`Edit ${path}`}
+                data-testid={TestIds.fileEditor}
                 className="relative z-10 block min-h-full min-w-full resize-none whitespace-pre bg-transparent py-2 pl-14 pr-4 font-mono text-xs leading-5 text-transparent caret-foreground outline-none field-sizing-content"
               />
             </div>

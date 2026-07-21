@@ -11,6 +11,7 @@ import { Input } from '@renderer/components/ui/input'
 import { Textarea } from '@renderer/components/ui/textarea'
 import { useActionMutations } from '@renderer/hooks/use-actions'
 import { kbdLabel } from '@renderer/lib/keyboard'
+import { TestIds } from '@shared/test-ids'
 import { useEffect, useState } from 'react'
 
 export interface ActionDraft {
@@ -87,6 +88,7 @@ export function ActionComposer({
           onKeyDown={onKeyDown}
           placeholder="Title (e.g. Run Tests)"
           aria-label="Action title"
+          data-testid={TestIds.actionTitleInput}
           className="rounded-md"
         />
         <Textarea
@@ -95,6 +97,7 @@ export function ActionComposer({
           onKeyDown={onKeyDown}
           placeholder={`Command — runs in a terminal. ${kbdLabel('mod', '↵')} to save`}
           aria-label="Action command"
+          data-testid={TestIds.actionCommandInput}
           rows={3}
           className="resize-none font-mono text-xs"
         />
@@ -110,7 +113,11 @@ export function ActionComposer({
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button disabled={title.trim() === '' || command.trim() === '' || saving} onClick={save}>
+          <Button
+            disabled={title.trim() === '' || command.trim() === '' || saving}
+            data-testid={TestIds.actionSave}
+            onClick={save}
+          >
             {saving ? 'Saving…' : draft?.id ? 'Save' : 'Add action'}
           </Button>
         </DialogFooter>

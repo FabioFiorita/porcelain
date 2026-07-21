@@ -64,6 +64,7 @@ export const loc = {
   agentComposer: (page: Page): Locator => byId(page, TestIds.agentComposer),
   agentSend: (page: Page): Locator => byId(page, TestIds.agentSend),
   agentModeChip: (page: Page): Locator => byId(page, TestIds.agentModeChip),
+  agentModeOption: (page: Page, mode: string): Locator => byId(page, TestIds.agentModeOption(mode)),
   agentTimeline: (page: Page): Locator => byId(page, TestIds.agentTimeline),
   agentPlan: (page: Page): Locator => byId(page, TestIds.agentPlan),
   agentPlanProgress: (page: Page): Locator => byId(page, TestIds.agentPlanProgress),
@@ -80,4 +81,19 @@ export const loc = {
   terminalNew: (page: Page): Locator => byId(page, TestIds.terminalNew),
   actionsAdd: (page: Page): Locator => byId(page, TestIds.actionsAdd),
   actionRun: (page: Page, title: string): Locator => byId(page, TestIds.actionRun(title)),
+  actionTitleInput: (page: Page): Locator => byId(page, TestIds.actionTitleInput),
+  actionCommandInput: (page: Page): Locator => byId(page, TestIds.actionCommandInput),
+  actionSave: (page: Page): Locator => byId(page, TestIds.actionSave),
+
+  viewerTab: (page: Page, title: string): Locator => byId(page, TestIds.viewerTab(title)),
+  viewerTabOpenToSide: (page: Page): Locator => byId(page, TestIds.viewerTabOpenToSide),
+
+  treeEntry: (page: Page, name: string): Locator => byId(page, TestIds.treeEntry(name)),
+  filePromptName: (page: Page): Locator => byId(page, TestIds.filePromptName),
+  fileEditor: (page: Page): Locator => byId(page, TestIds.fileEditor),
+
+  boardCard: (page: Page, title: string): Locator => byId(page, TestIds.boardCard(title)),
+  cardTitleInput: (page: Page): Locator => byId(page, TestIds.cardTitleInput),
+  cardComposer: (page: Page): Locator => byId(page, TestIds.cardComposer),
+  cardComposerSave: (page: Page): Locator => byId(page, TestIds.cardComposerSave),
 }

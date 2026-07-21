@@ -43,6 +43,7 @@ import { useRevealStore } from '@renderer/stores/reveal'
 import { useSelectionStore } from '@renderer/stores/selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { useTreeDirsStore } from '@renderer/stores/tree-dirs'
+import { TestIds } from '@shared/test-ids'
 import {
   ChevronRight,
   Columns2,
@@ -260,6 +261,8 @@ function TreeNodeImpl({
         <EntryContextMenu entry={entry}>
           <SidebarMenuButton
             ref={ref}
+            data-testid={TestIds.treeEntry(entry.name)}
+            data-path={entry.path}
             className={cn(
               'text-sm-minus',
               entry.hidden && 'opacity-50',
@@ -378,6 +381,8 @@ function DirNode({
             render={
               <SidebarMenuButton
                 ref={ref}
+                data-testid={TestIds.treeEntry(entry.name)}
+                data-path={entry.path}
                 className={cn(
                   'text-sm-minus',
                   entry.hidden && 'opacity-50',

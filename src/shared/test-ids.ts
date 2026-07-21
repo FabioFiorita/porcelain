@@ -72,6 +72,10 @@ export const TestIds = {
   agentComposer: 'agent-composer',
   agentSend: 'agent-send',
   agentModeChip: 'agent-mode-chip',
+  /** Permission-mode radio row (`approve` | `auto-edits` | `full`). */
+  agentModeOption: (mode: string): string => `agent-mode-${mode}`,
+  agentInteractionChip: 'agent-interaction-chip',
+  agentInteractionOption: (interaction: string): string => `agent-interaction-${interaction}`,
   agentTimeline: 'agent-timeline',
   agentPlan: 'agent-plan',
   agentPlanProgress: 'agent-plan-progress',
@@ -94,9 +98,24 @@ export const TestIds = {
   actionsAdd: 'actions-add',
   actionRun: (title: string): string =>
     `action-run-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+  actionTitleInput: 'action-title-input',
+  actionCommandInput: 'action-command-input',
+  actionSave: 'action-save',
+
+  // --- Viewer tabs ---
+  viewerTab: (title: string): string =>
+    `viewer-tab-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+  viewerTabOpenToSide: 'viewer-tab-open-to-side',
+
+  // --- Files tree / prompt ---
+  treeEntry: (name: string): string => `tree-entry-${name}`,
+  filePromptName: 'file-prompt-name',
+  fileEditor: 'file-editor',
 
   // --- Board ---
   boardCard: (title: string): string =>
     `board-card-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
   cardTitleInput: 'card-title-input',
+  cardComposerSave: 'card-composer-save',
+  cardComposer: 'card-composer',
 } as const

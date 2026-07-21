@@ -10,6 +10,7 @@ import { Input } from '@renderer/components/ui/input'
 import { useCreateFile, useCreateFolder, useRenamePath } from '@renderer/hooks/use-files'
 import { dirName } from '@renderer/lib/paths'
 import { type FilePromptKind, useFilePromptStore } from '@renderer/stores/file-prompt'
+import { TestIds } from '@shared/test-ids'
 import { useState } from 'react'
 
 const TITLE = { 'new-file': 'New file', 'new-folder': 'New folder', rename: 'Rename' } as const
@@ -105,6 +106,7 @@ function FilePrompt({
           }}
           placeholder={kind === 'new-folder' ? 'Folder name' : 'File name'}
           aria-label="Name"
+          data-testid={TestIds.filePromptName}
           className="rounded-md"
         />
         {error && <p className="text-xs text-destructive">{error}</p>}

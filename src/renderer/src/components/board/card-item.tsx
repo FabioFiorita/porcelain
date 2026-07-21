@@ -9,6 +9,7 @@ import {
 } from '@renderer/components/ui/dropdown-menu'
 import { BOARD_COLUMNS, useCardActions } from '@renderer/hooks/use-board'
 import { cn } from '@renderer/lib/utils'
+import { TestIds } from '@shared/test-ids'
 import { CheckCircle2, Circle, CircleDot, MoreHorizontal, PenLine, Trash2 } from 'lucide-react'
 
 /** Icon per column, so a "Move to …" row reads at a glance. */
@@ -37,6 +38,7 @@ export function CardItem({
   const { move, remove } = useCardActions()
   return (
     <div
+      data-testid={TestIds.boardCard(card.title)}
       className={cn(
         'group/card flex items-start gap-1 rounded-xl border bg-card p-2',
         !compact && 'max-h-48',

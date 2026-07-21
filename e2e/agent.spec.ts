@@ -104,13 +104,12 @@ test('gates a turn on an approval and completes on Accept', async ({ page }) => 
   await waitForShell(page)
   await newThread(page)
 
-  // Flip permission posture via the mode chip (default Full access → Ask to approve).
+  // Flip permission posture via the mode chip (default full → approve).
   await loc.agentModeChip(page).click()
-  // Menu items still use roles — menus are not e2e seams in the product chrome list.
-  await page.getByRole('menuitemradio', { name: 'Ask to approve' }).click()
+  await loc.agentModeOption(page, 'approve').click()
   await page.keyboard.press('Escape')
-  await expect(page.getByRole('menuitemradio', { name: 'Ask to approve' })).toBeHidden()
-  await expect(loc.agentModeChip(page)).toHaveAttribute('aria-label', 'Ask to approve')
+  await expect(loc.agentModeOption(page, 'approve')).toBeHidden()
+  await expect(loc.agentModeChip(page)).toHaveAttribute('data-mode', 'approve')
 
   const composer = loc.agentComposer(page)
   await composer.fill('Delete the build dir')

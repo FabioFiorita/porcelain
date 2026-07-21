@@ -14,6 +14,7 @@ import { useIsMobile } from '@renderer/hooks/use-mobile'
 import { kbdLabel } from '@renderer/lib/keyboard'
 import { cn } from '@renderer/lib/utils'
 import { type Tab, useTabsStore } from '@renderer/stores/tabs'
+import { TestIds } from '@shared/test-ids'
 import { Pin, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 
@@ -78,6 +79,8 @@ function TabItem({
                   role="tab"
                   tabIndex={0}
                   aria-selected={isActive}
+                  data-testid={TestIds.viewerTab(tab.title)}
+                  data-tab-kind={tab.kind}
                 >
                   {tab.pinned ? (
                     <Pin className="size-3 shrink-0 text-muted-foreground" aria-hidden />
@@ -144,7 +147,10 @@ function TabItem({
           {!isMobile && (
             <>
               <ContextMenuSeparator />
-              <ContextMenuItem onClick={() => openTabToSide({ ...tab, preview: false })}>
+              <ContextMenuItem
+                data-testid={TestIds.viewerTabOpenToSide}
+                onClick={() => openTabToSide({ ...tab, preview: false })}
+              >
                 Open to the Side
                 <ContextMenuShortcut>
                   <Kbd>{kbdLabel('mod', 'shift', 'S')}</Kbd>

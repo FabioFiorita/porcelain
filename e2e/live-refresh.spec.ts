@@ -1,6 +1,6 @@
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { expect, selectTab, test, waitForShell } from './helpers/app'
+import { expect, loc, selectTab, test, waitForShell } from './helpers/app'
 
 // Per-test fixture isolation recreates the repo for every test — no afterAll restore.
 
@@ -11,14 +11,11 @@ test('viewer live-refreshes when an open file is edited on disk', async ({ page,
   await waitForShell(page)
   await selectTab(page, 'Files')
 
-  const treeRow = (name: string): ReturnType<typeof page.getByRole> =>
-    page.getByRole('button', { name, exact: true })
+  await loc.treeEntry(page, 'src').click()
+  await loc.treeEntry(page, 'components').click()
+  await loc.treeEntry(page, 'Button.tsx').click()
 
-  await treeRow('src').click()
-  await treeRow('components').click()
-  await treeRow('Button.tsx').click()
-
-  const editor = page.locator('textarea[aria-label^="Edit "]')
+  const editor = loc.fileEditor(page)
   await expect(editor).toHaveValue(/props\.label/, { timeout: 15_000 })
 
   // Give the main-process dir watcher a beat to register before we write.
