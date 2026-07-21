@@ -92,13 +92,7 @@ describe('buildAgentTimeline', () => {
       assistant('a1', 'waiting'),
     ]
     const rows = buildAgentTimeline(items, { working: false })
-    expect(rows.map((r) => r.kind)).toEqual([
-      'item',
-      'turn-fold',
-      'item',
-      'item',
-      'item',
-    ])
+    expect(rows.map((r) => r.kind)).toEqual(['item', 'turn-fold', 'item', 'item', 'item'])
     expect(rows[2]).toMatchObject({ kind: 'item', item: { kind: 'plan', id: 'plan' } })
     expect(rows[3]).toMatchObject({ kind: 'item', item: { kind: 'approval', id: 'ap1' } })
   })

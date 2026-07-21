@@ -125,9 +125,7 @@ export function buildAgentTimeline(
     if (turn === undefined) continue
     const isLatest = t === turns.length - 1
     const settled = !(options.working && isLatest)
-    const { foldable, stayVisible, terminalAssistant, trailing } = partitionTurnBody(
-      turn.body,
-    )
+    const { foldable, stayVisible, terminalAssistant, trailing } = partitionTurnBody(turn.body)
 
     if (turn.user) {
       rows.push({ kind: 'item', key: turn.user.id, item: turn.user })
