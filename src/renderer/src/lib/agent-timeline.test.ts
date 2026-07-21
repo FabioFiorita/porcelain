@@ -68,10 +68,19 @@ describe('buildAgentTimeline', () => {
     expect(rows.some((r) => r.kind === 'item' && r.item.id === 't2')).toBe(true)
   })
 
-  it('keeps pending approvals outside the fold', () => {
+  it('keeps pending approvals and plans outside the fold', () => {
     const items: TimelineItem[] = [
       user('u1'),
       tool('t1', 'Bash', 'rm -rf /'),
+      {
+        kind: 'plan',
+        id: 'plan',
+        steps: [
+          { text: 'A', status: 'done' },
+          { text: 'B', status: 'pending' },
+          { text: 'C', status: 'pending' },
+        ],
+      },
       {
         kind: 'approval',
         id: 'ap1',
@@ -83,8 +92,15 @@ describe('buildAgentTimeline', () => {
       assistant('a1', 'waiting'),
     ]
     const rows = buildAgentTimeline(items, { working: false })
-    expect(rows.map((r) => r.kind)).toEqual(['item', 'turn-fold', 'item', 'item'])
-    expect(rows[2]).toMatchObject({ kind: 'item', item: { kind: 'approval', id: 'ap1' } })
+    expect(rows.map((r) => r.kind)).toEqual([
+      'item',
+      'turn-fold',
+      'item',
+      'item',
+      'item',
+    ])
+    expect(rows[2]).toMatchObject({ kind: 'item', item: { kind: 'plan', id: 'plan' } })
+    expect(rows[3]).toMatchObject({ kind: 'item', item: { kind: 'approval', id: 'ap1' } })
   })
 
   it('omits changed-files when the turn only read files', () => {

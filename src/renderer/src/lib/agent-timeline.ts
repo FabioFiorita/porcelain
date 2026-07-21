@@ -53,9 +53,16 @@ function splitTurns(items: readonly TimelineItem[]): Turn[] {
  * assistant, or last assistant if all streaming). Approvals stay outside the fold
  * so the human can still act — they attach after the fold / before the terminal reply.
  */
+/**
+ * Kinds that stay *outside* a turn fold so the human still sees them after the
+ * turn settles (pending approvals to act on; plan checklist for orientation).
+ * Tools/reasoning/intermediate assistants remain foldable under “Worked for…”.
+ */
+const STAY_VISIBLE = new Set(['approval', 'plan'])
+
 function partitionTurnBody(body: readonly TimelineItem[]): {
   foldable: TimelineItem[]
-  approvals: TimelineItem[]
+  stayVisible: TimelineItem[]
   terminalAssistant: Extract<TimelineItem, { kind: 'assistant' }> | null
   trailing: TimelineItem[]
 } {
@@ -68,21 +75,26 @@ function partitionTurnBody(body: readonly TimelineItem[]): {
     }
   }
   if (lastAssistantIndex === -1) {
-    const approvals = body.filter((i) => i.kind === 'approval')
-    const foldable = body.filter((i) => i.kind !== 'approval')
-    return { foldable, approvals, terminalAssistant: null, trailing: [] }
+    const stayVisible = body.filter((i) => STAY_VISIBLE.has(i.kind))
+    const foldable = body.filter((i) => !STAY_VISIBLE.has(i.kind))
+    return { foldable, stayVisible, terminalAssistant: null, trailing: [] }
   }
   const terminal = body[lastAssistantIndex]
   if (terminal === undefined || terminal.kind !== 'assistant') {
-    return { foldable: [...body], approvals: [], terminalAssistant: null, trailing: [] }
+    return {
+      foldable: [...body],
+      stayVisible: [],
+      terminalAssistant: null,
+      trailing: [],
+    }
   }
   const before = body.slice(0, lastAssistantIndex)
   const after = body.slice(lastAssistantIndex + 1)
-  const approvals = before.filter((i) => i.kind === 'approval')
-  const foldable = before.filter((i) => i.kind !== 'approval')
+  const stayVisible = before.filter((i) => STAY_VISIBLE.has(i.kind))
+  const foldable = before.filter((i) => !STAY_VISIBLE.has(i.kind))
   return {
     foldable,
-    approvals,
+    stayVisible,
     terminalAssistant: terminal,
     trailing: after,
   }
@@ -113,7 +125,9 @@ export function buildAgentTimeline(
     if (turn === undefined) continue
     const isLatest = t === turns.length - 1
     const settled = !(options.working && isLatest)
-    const { foldable, approvals, terminalAssistant, trailing } = partitionTurnBody(turn.body)
+    const { foldable, stayVisible, terminalAssistant, trailing } = partitionTurnBody(
+      turn.body,
+    )
 
     if (turn.user) {
       rows.push({ kind: 'item', key: turn.user.id, item: turn.user })
@@ -142,7 +156,8 @@ export function buildAgentTimeline(
       }
     }
 
-    for (const item of approvals) {
+    // Plan + approvals stay visible outside the fold (orientation / action).
+    for (const item of stayVisible) {
       rows.push({ kind: 'item', key: item.id, item })
     }
 
