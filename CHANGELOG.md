@@ -1,3 +1,10 @@
+## [0.39.2](https://github.com/FabioFiorita/porcelain/compare/v0.39.1...v0.39.2) (2026-07-22)
+
+### Bug Fixes
+
+* **agents:** block CI babysit in headless Agent-tab turns ([004d6da](https://github.com/FabioFiorita/porcelain/commit/004d6da9e1230fe11fc0eb481c7cf9c8a50ec275))
+* **evidence:** show too-large instead of cleared when over 4 MB cap ([4d7865b](https://github.com/FabioFiorita/porcelain/commit/4d7865bb0c0a97b45bc72fd2d2696db62703848d))
+
 ## [0.39.1](https://github.com/FabioFiorita/porcelain/compare/v0.39.0...v0.39.1) (2026-07-21)
 
 ### Features
