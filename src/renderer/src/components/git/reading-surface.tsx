@@ -62,7 +62,7 @@ import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { ThemedToken } from 'shiki'
 import { type CommentAnchor, CommentComposer } from './comment-composer'
-import { LineDecorations } from './comment-marker'
+import { commentRowClass, LineDecorations } from './comment-marker'
 import { SourceMarker } from './feature-list'
 import { tokenizeHunks } from './hunks-view'
 
@@ -736,6 +736,7 @@ function ReadingRowView({
         anchorLine !== undefined
           ? commentIndexByPath.get(row.path)?.byLine.get(anchorLine)
           : undefined
+      const tint = commentRowClass(comments, isPending(pendingAnchor, row.path, anchorLine))
       return (
         <CommentMenu
           path={row.path}
@@ -747,12 +748,9 @@ function ReadingRowView({
           <div
             data-file={row.path}
             data-line={anchorLine}
-            className={cn('relative flex h-5 leading-5', diffLineClass[row.line.kind])}
+            className={cn('relative flex h-5 leading-5', tint ?? diffLineClass[row.line.kind])}
           >
-            <LineDecorations
-              comments={comments}
-              pending={isPending(pendingAnchor, row.path, anchorLine)}
-            />
+            <LineDecorations comments={comments} />
             <span className="w-12 shrink-0 select-none pr-2 text-right text-muted-foreground/40">
               {row.line.newLine ?? row.line.oldLine ?? ''}
             </span>
@@ -775,17 +773,19 @@ function ReadingRowView({
       )
     case 'code': {
       const comments = commentIndexByPath.get(row.path)?.byLine.get(row.lineNo)
+      const tint = commentRowClass(comments, isPending(pendingAnchor, row.path, row.lineNo))
       return (
         <CommentMenu
           path={row.path}
           line={{ lineNo: row.lineNo, text: row.text }}
           onComment={onComment}
         >
-          <div data-file={row.path} data-line={row.lineNo} className="relative flex h-5 leading-5">
-            <LineDecorations
-              comments={comments}
-              pending={isPending(pendingAnchor, row.path, row.lineNo)}
-            />
+          <div
+            data-file={row.path}
+            data-line={row.lineNo}
+            className={cn('relative flex h-5 leading-5', tint)}
+          >
+            <LineDecorations comments={comments} />
             <span className="w-12 shrink-0 select-none pr-2 text-right text-muted-foreground/35">
               {row.lineNo}
             </span>

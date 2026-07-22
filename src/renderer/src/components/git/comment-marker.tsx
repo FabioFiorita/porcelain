@@ -99,33 +99,39 @@ export function CommentMarker({
 }
 
 /**
- * The comment overlay for one code/diff line: a full-row tint (white-alpha for an
- * existing open comment; the primary highlight while the composer is anchored here)
- * plus a gutter glyph opening the comment popover. Both are absolutely positioned so a
- * fixed-height virtualized row never changes height. A line with only resolved comments
- * gets the dimmed glyph and no tint. The host row must be `relative`.
+ * Host-row background class for a commented or pending line. Apply on the same
+ * element that holds the line text — never as an absolute overlay.
+ *
+ * Why: after the opaque redesign, `bg-accent` is fully opaque. An
+ * `absolute inset-0` tint paints *above* in-flow code (positioned descendants
+ * stack after non-positioned content), blanking the line while the z-10 gutter
+ * glyph still shows — the "gray block, code gone" bug. Row background keeps
+ * the tint under the text, matching `EditorSource`.
+ */
+export function commentRowClass(
+  comments: readonly ReviewComment[] | undefined,
+  pending = false,
+): string | undefined {
+  if (pending) return 'bg-primary/15'
+  if (comments?.some((c) => !c.resolved)) return 'bg-accent'
+  return undefined
+}
+
+/**
+ * Gutter glyph for a code/diff line's comments. The host row must be `relative`
+ * and should also take `commentRowClass(comments, pending)` so open/pending
+ * lines tint without covering the text. A line with only resolved comments gets
+ * the dimmed glyph and no tint.
  */
 export function LineDecorations({
   comments,
-  pending = false,
 }: {
   comments: readonly ReviewComment[] | undefined
-  pending?: boolean
 }): React.JSX.Element | null {
-  if (!comments && !pending) return null
-  const hasOpen = comments?.some((c) => !c.resolved) ?? false
+  if (!comments || comments.length === 0) return null
   return (
-    <>
-      {pending ? (
-        <div className="pointer-events-none absolute inset-0 bg-primary/15" />
-      ) : hasOpen ? (
-        <div className="pointer-events-none absolute inset-0 bg-accent" />
-      ) : null}
-      {comments && comments.length > 0 && (
-        <div className="absolute left-0.5 top-1/2 z-10 -translate-y-1/2">
-          <CommentMarker comments={comments} />
-        </div>
-      )}
-    </>
+    <div className="absolute left-0.5 top-1/2 z-10 -translate-y-1/2">
+      <CommentMarker comments={comments} />
+    </div>
   )
 }

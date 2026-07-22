@@ -1,5 +1,5 @@
 import type { ReviewComment } from '@backend/comment-store'
-import { LineDecorations } from '@renderer/components/git/comment-marker'
+import { commentRowClass, LineDecorations } from '@renderer/components/git/comment-marker'
 import { CodeLine, useTokenizedLines } from '@renderer/components/viewer/code-line'
 import { VirtualRows } from '@renderer/components/viewer/virtual-rows'
 import { languageFor } from '@renderer/lib/highlight'
@@ -32,15 +32,16 @@ export function SourceView({
       renderRow={(line, i) => {
         const lineNo = i + 1
         const comments = commentsByLine?.get(lineNo)
-        // Comment tint wins over changed-line tint (actionable vs informational).
-        const hasComments = comments !== undefined && comments.length > 0
-        const isChanged = !hasComments && lineInHighlightRanges(lineNo, highlightRanges)
+        // Comment tint wins over changed-line / find-highlight (actionable vs informational).
+        const tint = commentRowClass(comments)
+        const isChanged = !tint && lineInHighlightRanges(lineNo, highlightRanges)
         return (
           <div
             data-line={lineNo}
             className={cn(
               'relative flex',
-              lineNo === highlightLine && 'bg-primary/15',
+              !tint && lineNo === highlightLine && 'bg-primary/15',
+              tint,
               isChanged && 'border-l-2 border-l-diff-add bg-diff-add/10',
             )}
           >

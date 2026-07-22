@@ -34,6 +34,7 @@ import {
 } from 'lucide-react'
 import { memo, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { type CommentAnchor, CommentComposer } from '../git/comment-composer'
+import { commentRowClass } from '../git/comment-marker'
 import { usePathActions } from './use-path-actions'
 
 // Above this many lines the viewer falls back to the read-only virtualized
@@ -225,19 +226,20 @@ export function EditorSource({
                     const ln = i + 1
                     const pending =
                       (pendingLines?.has(ln) ?? false) || (menuLines?.has(ln) ?? false)
-                    const open =
-                      !pending && (commentsByLine?.get(ln)?.some((c) => !c.resolved) ?? false)
-                    // Comment / pending tint wins over agent-changed tint.
-                    const isChanged =
-                      !pending && !open && lineInHighlightRanges(ln, highlightRanges)
+                    // Comment / pending / menu tint wins over agent-changed tint.
+                    // Row background (not an absolute overlay) so opaque accent
+                    // never covers the mirror text — see commentRowClass.
+                    const tint =
+                      commentRowClass(commentsByLine?.get(ln), pending) ??
+                      (ln === highlightLine ? 'bg-primary/15' : undefined)
+                    const isChanged = !tint && lineInHighlightRanges(ln, highlightRanges)
                     return (
                       <div
                         // biome-ignore lint/suspicious/noArrayIndexKey: lines have no stable identity
                         key={i}
                         className={cn(
                           'flex',
-                          (ln === highlightLine || pending) && 'bg-primary/15',
-                          open && 'bg-accent',
+                          tint,
                           isChanged && 'border-l-2 border-l-diff-add bg-diff-add/10',
                         )}
                       >

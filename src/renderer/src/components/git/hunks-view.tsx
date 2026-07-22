@@ -1,6 +1,6 @@
 import type { ReviewComment } from '@backend/comment-store'
 import type { DiffHunk, DiffLine } from '@backend/diff'
-import { LineDecorations } from '@renderer/components/git/comment-marker'
+import { commentRowClass, LineDecorations } from '@renderer/components/git/comment-marker'
 import { CodeLine, useHighlighter } from '@renderer/components/viewer/code-line'
 import { VirtualRows } from '@renderer/components/viewer/virtual-rows'
 import type { CommentIndex } from '@renderer/hooks/use-comments'
@@ -143,9 +143,14 @@ function DiffRowView({ row, ctx }: { row: DiffRow; ctx: RenderContext }): React.
     const ranges = ctx.emphasis.get(row.line)
     const comments = anchorLine !== undefined ? ctx.commentsByLine.get(anchorLine) : undefined
     const pending = anchorLine !== undefined && ctx.pendingLines.has(anchorLine)
+    // Comment/pending tint wins over add/del fill (row bg, not an overlay — see commentRowClass).
+    const tint = commentRowClass(comments, pending)
     return (
-      <div data-line={anchorLine} className={cn('relative flex px-2', lineClass[row.line.kind])}>
-        <LineDecorations comments={comments} pending={pending} />
+      <div
+        data-line={anchorLine}
+        className={cn('relative flex px-2', tint ?? lineClass[row.line.kind])}
+      >
+        <LineDecorations comments={comments} />
         <LineNo value={row.line.oldLine} />
         <LineNo value={row.line.newLine} />
         <CodeLine
@@ -206,15 +211,16 @@ function SplitCell({
   const anchorLine = line ? cellAnchorLine(line, side) : undefined
   const comments = anchorLine !== undefined ? ctx.commentsByLine.get(anchorLine) : undefined
   const pending = anchorLine !== undefined && ctx.pendingLines.has(anchorLine)
+  const tint = commentRowClass(comments, pending)
   return (
     <div
       data-line={anchorLine}
       className={cn(
         'relative flex min-w-0 flex-1 overflow-hidden',
-        line ? lineClass[line.kind] : '',
+        tint ?? (line ? lineClass[line.kind] : ''),
       )}
     >
-      <LineDecorations comments={comments} pending={pending} />
+      <LineDecorations comments={comments} />
       <LineNo value={line ? (line.kind === 'add' ? line.newLine : line.oldLine) : null} />
       {line ? (
         <CodeLine
