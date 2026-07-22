@@ -1,3 +1,9 @@
+## [0.39.3](https://github.com/FabioFiorita/porcelain/compare/v0.39.2...v0.39.3) (2026-07-22)
+
+### Bug Fixes
+
+* keep code visible under open comment tint ([ef766c2](https://github.com/FabioFiorita/porcelain/commit/ef766c27abe39b43cdfb3176686e66fceade2a31))
+
 ## [0.39.2](https://github.com/FabioFiorita/porcelain/compare/v0.39.1...v0.39.2) (2026-07-22)
 
 ### Bug Fixes
