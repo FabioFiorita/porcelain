@@ -396,9 +396,15 @@ assumed — this skill is the codebase-specific layer beneath them.
   **DERIVED, never stored** (`evidenceOverallStatus` in the dependency-free `src/shared/evidence-check.ts`
   leaf: any fail → fail, else any pass → pass, else null). The evidence read/write cap is a deliberate
   **split**: read-side `MAX_HTML_BYTES` is 4 MB (inlined-screenshot headroom) while the CLI `set`
-  write cap stays 1.5 MB. Watch: recursive on `loop-evidence/` root + Feature list 3s
-  poll. *Verify:* disk-first tests in `evidence-store.test.ts`; skill documents prepare +
-  Write; `evidence prepare` returns a path without requiring html; overall status is computed by
+  write cap stays 1.5 MB. **Over-cap is not "cleared":** when raw or post-inline HTML exceeds
+  4 MB, `readEvidence` still returns title/checks/dir with `htmlUnavailable: { reason:
+  'too-large', bytes, maxBytes }` (no `html`) — the UI says "Evidence too large…", never
+  the cleared empty-state. `updatedAt` is the later of `meta.updatedAt` and `index.html`
+  mtime so in-place agent edits invalidate without a re-`evidence check`. CLI `evidence get`
+  estimates inlined size and WARNs over the same ceiling (`READ_MAX_HTML_BYTES`). Watch:
+  recursive on `loop-evidence/` root + Feature list 3s poll. *Verify:* disk-first tests in
+  `evidence-store.test.ts` (too-large + mtime); skill documents prepare + Write; `evidence
+  prepare` returns a path without requiring html; overall status is computed by
   `evidenceOverallStatus`, never read from disk, and check caps drop malformed entries silently.
 - **`evidence set` still accepts `--html` (inline or `-` for stdin) OR `--html-file`
   (absolute path)** (`src/cli/html-input.ts`, now the SOLE caller after the artifact channel

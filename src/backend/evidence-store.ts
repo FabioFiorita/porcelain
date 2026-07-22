@@ -45,6 +45,9 @@ export {
  * multi-screenshot evidence as sibling files and this module inlines them as
  * data: URIs, so the read-side document needs headroom the write-side payload
  * doesn't. Keep the folder itself under a few MB (shrink screenshots).
+ *
+ * Keep in lockstep with `READ_MAX_HTML_BYTES` in `src/cli/evidence-file.ts`
+ * (CLI `evidence get` warns against the same ceiling).
  */
 export const MAX_HTML_BYTES = 4_194_304
 
@@ -72,6 +75,17 @@ const metaSchema = z.object({
 
 export type EvidenceMedium = 'html'
 
+/**
+ * Why the HTML body exists on disk but is not served to the sandboxed viewer.
+ * Distinct from `null` evidence (cleared / never published).
+ */
+export type EvidenceHtmlUnavailable = {
+  reason: 'too-large'
+  /** Byte size that exceeded the cap (raw index.html or post-inline). */
+  bytes: number
+  maxBytes: number
+}
+
 export type Evidence = {
   title: string
   updatedAt: string
@@ -81,8 +95,13 @@ export type Evidence = {
   checks: EvidenceCheck[]
   /** Always HTML for evidence (Excalidraw is Intent-only). */
   medium: EvidenceMedium
-  /** Inlined for the sandboxed iframe. */
+  /** Inlined for the sandboxed iframe. Absent when over-cap or empty. */
   html?: string
+  /**
+   * Present when the pack exists (title/checks still valid) but the HTML body
+   * cannot be served — never collapse this into `null` (that looks "cleared").
+   */
+  htmlUnavailable?: EvidenceHtmlUnavailable
 }
 
 export type EvidenceMeta = {
@@ -124,22 +143,35 @@ async function fileExists(path: string): Promise<boolean> {
   }
 }
 
+/**
+ * Effective stamp for the evidence pack: the later of meta.updatedAt and
+ * index.html mtime. In-place edits (sed, agent Write of screenshots + HTML)
+ * must invalidate even when `evidence check` never re-bumped meta.
+ */
 async function resolveUpdatedAt(
   bodyPath: string,
   meta: z.infer<typeof metaSchema> | null,
 ): Promise<string> {
-  if (meta?.updatedAt) return meta.updatedAt
+  let bodyMtime = ''
   try {
-    return (await stat(bodyPath)).mtime.toISOString()
+    bodyMtime = (await stat(bodyPath)).mtime.toISOString()
   } catch {
-    return ''
+    // missing body
   }
+  const metaAt = meta?.updatedAt?.trim() || ''
+  if (metaAt && bodyMtime) return metaAt > bodyMtime ? metaAt : bodyMtime
+  return metaAt || bodyMtime || ''
+}
+
+function tooLarge(bytes: number): EvidenceHtmlUnavailable {
+  return { reason: 'too-large', bytes, maxBytes: MAX_HTML_BYTES }
 }
 
 /**
- * Prefer on-disk index.html; else legacy evidence.json. Oversized / malformed
- * bodies are treated as absent (never thrown). A scene-only dir (old Excalidraw
- * evidence) is not treated as evidence — rewrite as HTML.
+ * Prefer on-disk index.html; else legacy evidence.json. Oversized bodies keep
+ * title/checks and surface `htmlUnavailable` (never silent null — that looked
+ * like "cleared"). Malformed / empty index → null. A scene-only dir (old
+ * Excalidraw evidence) is not treated as evidence — rewrite as HTML.
  */
 export async function readEvidence(repoPath: string): Promise<Evidence | null> {
   const dir = evidenceDirForRepo(repoPath)
@@ -152,17 +184,24 @@ export async function readEvidence(repoPath: string): Promise<Evidence | null> {
     try {
       const raw = await readFile(indexPath, 'utf8')
       if (raw.length === 0) return null
-      if (Buffer.byteLength(raw, 'utf8') > MAX_HTML_BYTES) return null
-      const html = await inlineLocalAssets(dir, raw)
-      if (Buffer.byteLength(html, 'utf8') > MAX_HTML_BYTES) return null
-      return {
+      const updatedAt = await resolveUpdatedAt(indexPath, meta)
+      const base = {
         title,
-        html,
-        updatedAt: await resolveUpdatedAt(indexPath, meta),
+        updatedAt,
         dir,
         checks,
-        medium: 'html',
+        medium: 'html' as const,
       }
+      const rawBytes = Buffer.byteLength(raw, 'utf8')
+      if (rawBytes > MAX_HTML_BYTES) {
+        return { ...base, htmlUnavailable: tooLarge(rawBytes) }
+      }
+      const html = await inlineLocalAssets(dir, raw)
+      const inlinedBytes = Buffer.byteLength(html, 'utf8')
+      if (inlinedBytes > MAX_HTML_BYTES) {
+        return { ...base, htmlUnavailable: tooLarge(inlinedBytes) }
+      }
+      return { ...base, html }
     } catch {
       return null
     }
@@ -172,7 +211,16 @@ export async function readEvidence(repoPath: string): Promise<Evidence | null> {
     const all = evidencesSchema.parse(JSON.parse(await readFile(evidencePath(), 'utf8')))
     const evidence = all[repoPath]
     if (!evidence) return null
-    if (Buffer.byteLength(evidence.html, 'utf8') > MAX_HTML_BYTES) return null
+    const htmlBytes = Buffer.byteLength(evidence.html, 'utf8')
+    if (htmlBytes > MAX_HTML_BYTES) {
+      return {
+        title: evidence.title,
+        updatedAt: evidence.updatedAt,
+        checks: [],
+        medium: 'html',
+        htmlUnavailable: tooLarge(htmlBytes),
+      }
+    }
     return {
       title: evidence.title,
       html: evidence.html,

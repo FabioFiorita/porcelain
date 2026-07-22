@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -20,14 +20,21 @@ const diskRoot = join(root, 'loop-evidence')
 const keyFor = (repo: string): string =>
   createHash('sha256').update(repo).digest('hex').slice(0, 16)
 
+const META_AT = '2026-07-17T00:00:00.000Z'
+
 const writeDisk = (repo: string, title: string, html: string, checks?: unknown): string => {
   const dir = join(diskRoot, keyFor(repo))
   mkdirSync(dir, { recursive: true })
-  writeFileSync(join(dir, 'index.html'), html)
+  const indexPath = join(dir, 'index.html')
+  writeFileSync(indexPath, html)
   writeFileSync(
     join(dir, 'meta.json'),
-    JSON.stringify({ title, repoPath: repo, updatedAt: '2026-07-17T00:00:00.000Z', checks }),
+    JSON.stringify({ title, repoPath: repo, updatedAt: META_AT, checks }),
   )
+  // Pin body mtime to the meta stamp so tests assert the fixed value unless they
+  // deliberately bump mtime (resolveUpdatedAt takes the later of the two).
+  const pinned = new Date(META_AT)
+  utimesSync(indexPath, pinned, pinned)
   return dir
 }
 
@@ -49,7 +56,7 @@ describe('readEvidence (disk-first)', () => {
     expect(await readEvidence('/repo')).toEqual({
       title: 'Vite loop',
       html: '<h1>hi</h1>',
-      updatedAt: '2026-07-17T00:00:00.000Z',
+      updatedAt: META_AT,
       dir,
       checks: [],
       medium: 'html',
@@ -123,9 +130,50 @@ describe('readEvidence (disk-first)', () => {
     })
   })
 
-  it('drops oversized index.html as absent', async () => {
+  it('surfaces htmlUnavailable when index.html alone exceeds the cap (not null)', async () => {
     writeDisk('/repo', 'Big', 'x'.repeat(MAX_HTML_BYTES + 1))
-    expect(await readEvidence('/repo')).toBeNull()
+    const evidence = await readEvidence('/repo')
+    expect(evidence).toMatchObject({
+      title: 'Big',
+      medium: 'html',
+      htmlUnavailable: {
+        reason: 'too-large',
+        bytes: MAX_HTML_BYTES + 1,
+        maxBytes: MAX_HTML_BYTES,
+      },
+    })
+    expect(evidence?.html).toBeUndefined()
+  })
+
+  it('surfaces htmlUnavailable when post-inline size exceeds the cap', async () => {
+    const dir = writeDisk('/repo', 'Big shots', '<img src="shot.png">')
+    // ~3.2 MB binary → base64 data-URI pushes the inlined document over 4 MB.
+    writeFileSync(join(dir, 'shot.png'), Buffer.alloc(3_200_000, 1))
+    const evidence = await readEvidence('/repo')
+    expect(evidence).toMatchObject({
+      title: 'Big shots',
+      htmlUnavailable: { reason: 'too-large', maxBytes: MAX_HTML_BYTES },
+    })
+    expect(evidence?.html).toBeUndefined()
+    expect(evidence?.htmlUnavailable?.bytes).toBeGreaterThan(MAX_HTML_BYTES)
+  })
+
+  it('uses the later of meta.updatedAt and index.html mtime', async () => {
+    const dir = writeDisk('/repo', 'Vite', '<h1>hi</h1>')
+    const later = new Date('2026-07-21T12:00:00.000Z')
+    utimesSync(join(dir, 'index.html'), later, later)
+    const evidence = await readEvidence('/repo')
+    expect(evidence?.updatedAt).toBe(later.toISOString())
+    // meta still wins when it is newer than the body mtime
+    expect((await readEvidenceMeta('/repo'))?.updatedAt).toBe(later.toISOString())
+  })
+
+  it('keeps meta.updatedAt when it is newer than the body mtime', async () => {
+    const dir = writeDisk('/repo', 'Vite', '<h1>hi</h1>')
+    // writeDisk stamps meta at 2026-07-17; push body mtime into the past
+    const earlier = new Date('2020-01-01T00:00:00.000Z')
+    utimesSync(join(dir, 'index.html'), earlier, earlier)
+    expect((await readEvidence('/repo'))?.updatedAt).toBe(META_AT)
   })
 })
 
@@ -134,7 +182,7 @@ describe('readEvidenceMeta', () => {
     writeDisk('/repo', 'Vite loop', '<h1>hi</h1>')
     expect(await readEvidenceMeta('/repo')).toMatchObject({
       title: 'Vite loop',
-      updatedAt: '2026-07-17T00:00:00.000Z',
+      updatedAt: META_AT,
       medium: 'html',
     })
   })

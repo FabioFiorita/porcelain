@@ -24,6 +24,13 @@ import { htmlPreview } from './html-input'
  */
 export const MAX_HTML_BYTES = 1_572_864
 
+/**
+ * Viewer read-side ceiling after data-URI inlining (lockstep with
+ * `MAX_HTML_BYTES` in `src/backend/evidence-store.ts`). Exceeding it makes the
+ * app show "Evidence too large" instead of the HTML body.
+ */
+export const READ_MAX_HTML_BYTES = 4_194_304
+
 export interface Evidence {
   title: string
   html: string
@@ -308,6 +315,30 @@ export function getEvidence(repoPath: string): Evidence | null {
   }
 }
 
+/** Rough post-inline size: HTML bytes + base64 expansion (~4/3) of local sibling images. */
+function estimateInlinedBytes(dir: string, html: string): number {
+  let total = Buffer.byteLength(html, 'utf8')
+  const re = /\bsrc\s*=\s*(["'])(?!data:|https?:|\/\/|blob:|about:)([^"']+)\1/gi
+  const seen = new Set<string>()
+  for (const match of html.matchAll(re)) {
+    const raw = match[2]?.trim()
+    if (!raw || seen.has(raw) || raw.includes('..') || raw.startsWith('/')) continue
+    seen.add(raw)
+    try {
+      const size = statSync(join(dir, raw)).size
+      // base64 expands ~4/3; data: URL prefix is small enough to ignore for the warn.
+      total += Math.ceil((size * 4) / 3)
+    } catch {
+      // missing sibling — leave out of the estimate
+    }
+  }
+  return total
+}
+
+function formatMb(bytes: number): string {
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
 export function describeEvidence(repoPath: string, evidence: Evidence | null): string {
   const dir = evidenceDirForRepo(repoPath)
   const checks = checksSummary(readChecksForRepo(repoPath))
@@ -325,8 +356,15 @@ export function describeEvidence(repoPath: string, evidence: Evidence | null): s
       return false
     }
   })()
+  const estimated = hasIndex ? estimateInlinedBytes(dir, evidence.html) : bytes
+  const sizeNote =
+    estimated > READ_MAX_HTML_BYTES
+      ? `\nWARNING: estimated inlined size ~${formatMb(estimated)} exceeds the viewer cap (${formatMb(READ_MAX_HTML_BYTES)}). Porcelain will show "Evidence too large" instead of the HTML body — shrink screenshots (e.g. JPEG ~540px) and rewrite index.html.`
+      : bytes > READ_MAX_HTML_BYTES
+        ? `\nWARNING: index.html is ${formatMb(bytes)} over the viewer cap (${formatMb(READ_MAX_HTML_BYTES)}). Porcelain will show "Evidence too large" — shrink the document.`
+        : ''
   if (hasIndex) {
-    return `Evidence "${evidence.title}" for ${repoPath}: ${bytes} bytes at ${dir}/index.html${when}. Open that path in a browser, or Feature tab → Evidence in Porcelain.${checks}${preview}`
+    return `Evidence "${evidence.title}" for ${repoPath}: ${bytes} bytes at ${dir}/index.html${when}. Open that path in a browser, or Feature tab → Evidence in Porcelain.${checks}${sizeNote}${preview}`
   }
-  return `Evidence "${evidence.title}" for ${repoPath}: ${bytes} bytes of HTML${when} (legacy channel). Prefer writing ${dir}/index.html next time.${checks}${preview}`
+  return `Evidence "${evidence.title}" for ${repoPath}: ${bytes} bytes of HTML${when} (legacy channel). Prefer writing ${dir}/index.html next time.${checks}${sizeNote}${preview}`
 }

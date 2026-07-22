@@ -129,6 +129,17 @@ describe('evidence directory channel', () => {
     expect(() => checkEvidence('/repo', 'ok', 'bogus', undefined)).toThrow('pass|fail|skip')
   })
 
+  it('describeEvidence warns when estimated inlined size exceeds the viewer cap', () => {
+    const { dir } = prepareEvidence('/repo', 'Big shots')
+    writeFileSync(join(dir, 'index.html'), '<img src="shot.png">')
+    // ~3.2 MB sibling → base64 estimate over 4 MB
+    writeFileSync(join(dir, 'shot.png'), Buffer.alloc(3_200_000, 1))
+    const text = describeEvidence('/repo', getEvidence('/repo'))
+    expect(text).toContain('WARNING')
+    expect(text).toContain('Evidence too large')
+    expect(text).toContain('viewer cap')
+  })
+
   it('describeEvidence includes the checks summary + derived status', () => {
     setEvidence('/repo', 'Loop', '<h1>ok</h1>')
     checkEvidence('/repo', 'pnpm test', 'pass', '1348 passed')

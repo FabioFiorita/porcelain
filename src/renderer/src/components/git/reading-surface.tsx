@@ -20,6 +20,7 @@ import {
 import { useClearEvidence, useEvidenceHtml } from '@renderer/hooks/use-evidence'
 import { useReviewedPaths, useToggleReviewed } from '@renderer/hooks/use-reviewed'
 import { useResolvedTheme } from '@renderer/hooks/use-theme'
+import { evidenceHtmlEmptyMessage } from '@renderer/lib/evidence-message'
 import {
   HIGHLIGHT_THEMES,
   type HighlightThemeName,
@@ -625,16 +626,15 @@ export function EvidenceChecksRow({ checks }: { checks: EvidenceCheck[] }): Reac
 function EvidenceBodyRow(): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)
   const { evidence } = useEvidenceHtml(repo?.path ?? '')
+  const empty = evidenceHtmlEmptyMessage(evidence)
   return (
     <div className="sticky left-0 max-w-[var(--vrows-vw)] px-3 py-2">
       <div className="h-[28rem] overflow-hidden rounded-md border">
-        {evidence?.html ? (
+        {empty ? (
+          <p className="p-4 text-sm text-muted-foreground">{empty}</p>
+        ) : evidence?.html ? (
           <HtmlView html={evidence.html} title={evidence.title} />
-        ) : (
-          <p className="p-4 text-sm text-muted-foreground">
-            {evidence === undefined ? 'Loading…' : 'Evidence was cleared.'}
-          </p>
-        )}
+        ) : null}
       </div>
     </div>
   )

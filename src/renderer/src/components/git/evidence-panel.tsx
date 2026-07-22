@@ -1,6 +1,7 @@
 import { EvidenceChecksRow, EvidenceHeaderRow } from '@renderer/components/git/reading-surface'
 import { HtmlView } from '@renderer/components/viewer/html-view'
 import { useEvidenceHtml } from '@renderer/hooks/use-evidence'
+import { evidenceHtmlEmptyMessage } from '@renderer/lib/evidence-message'
 import { useRepoStore } from '@renderer/stores/repo'
 import type { EvidenceCheck } from '@shared/evidence-check'
 import { TestIds } from '@shared/test-ids'
@@ -21,6 +22,7 @@ export function EvidencePanel({
 }): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)
   const { evidence } = useEvidenceHtml(repo?.path ?? '')
+  const empty = evidenceHtmlEmptyMessage(evidence)
 
   return (
     <div data-testid={TestIds.evidencePanel} className="flex h-full min-h-0 flex-col">
@@ -30,17 +32,13 @@ export function EvidencePanel({
       </p>
       {checks.length > 0 && <EvidenceChecksRow checks={checks} />}
       <div className="min-h-0 flex-1 px-3 pb-3 pt-1">
-        {evidence === undefined ? (
-          <p className="p-4 text-sm text-muted-foreground">Loading…</p>
-        ) : evidence === null ? (
-          <p className="p-4 text-sm text-muted-foreground">Evidence was cleared.</p>
-        ) : evidence.html ? (
+        {empty ? (
+          <p className="p-4 text-sm text-muted-foreground">{empty}</p>
+        ) : evidence?.html ? (
           <div className="h-full min-h-0 overflow-hidden rounded-md border">
             <HtmlView html={evidence.html} title={evidence.title} />
           </div>
-        ) : (
-          <p className="p-4 text-sm text-muted-foreground">No evidence body.</p>
-        )}
+        ) : null}
       </div>
     </div>
   )

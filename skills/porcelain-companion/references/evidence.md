@@ -39,7 +39,7 @@ Fully **sandboxed** iframe (`sandbox=""` — scripts never run; no remote assets
 - Inline all CSS in `<style>`.
 - Screenshots = sibling files + relative `src` (or data URIs if you must).
 - System fonts; dark styling to match Porcelain.
-- Keep the folder under a few MB after screenshots (read cap ~4 MB after inlining).
+- Keep the folder under a few MB after screenshots (read cap **4 MB after data-URI inlining**). Over that, the Evidence tab shows **"Evidence too large (X MB > 4.0 MB)"** (title/checks still visible) — not "cleared". Shrink screenshots (e.g. JPEG ~540px) and rewrite `index.html`. `evidence get` prints a WARNING when the estimated inlined size is over the cap.
 
 ### Recommended structure
 
