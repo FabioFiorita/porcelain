@@ -83,6 +83,23 @@ same release.
    is by design: electron-updater ignores drafts, so you can verify assets before
    going live. The **npm package publishes immediately** on the tag (not draft);
    provenance is generated automatically under trusted publishing.
+
+   **Agent-tab babysit (do this, not a fire-and-forget monitor).** When the human asks
+   you to watch the release CI and mark as latest from the **Agent tab**, the turn is
+   headless: it ends when you stop, and background `monitor` tools die with it (v0.39.1
+   stayed draft after a "watching… I'll report back" turn). In one turn:
+
+   ```bash
+   # block until the workflow finishes (long timeout on the shell tool)
+   gh run watch <run-id> --exit-status
+   # then publish the draft + set latest in the SAME turn
+   gh release edit vX.Y.Z --draft=false --latest
+   gh release view vX.Y.Z
+   ```
+
+   Prefer `gh run watch` over sleep-polls. Never: start `monitor` / background shell →
+   reply "I'll report back" → end the turn. A plain Terminal-tab `grok` TUI *can* park
+   on monitors (long-lived process); the Agent tab cannot.
 6. **The Linux leg rides the same tag.** `release.yml` also runs a `release-linux`
    job (`ubuntu-latest`, `needs: [release]`) that gates on the full e2e suite under
    `xvfb-run` — no `--ignore-snapshots`, since the `*-linux.png` baselines are now
