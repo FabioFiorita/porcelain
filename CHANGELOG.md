@@ -1,3 +1,13 @@
+## [0.39.4](https://github.com/FabioFiorita/porcelain/compare/v0.39.3...v0.39.4) (2026-07-23)
+
+### Features
+
+* remove provider usage limits from the Agent panel ([a7a7836](https://github.com/FabioFiorita/porcelain/commit/a7a7836732bccd00d44ff6c825bcef271b36530a))
+
+### Bug Fixes
+
+* **agent:** Active is live-only; hide archived from Glance ([8b3141d](https://github.com/FabioFiorita/porcelain/commit/8b3141d272858ffd35d55fde3d0161ce6782a129))
+
 ## [0.39.3](https://github.com/FabioFiorita/porcelain/compare/v0.39.2...v0.39.3) (2026-07-22)
 
 ### Bug Fixes
