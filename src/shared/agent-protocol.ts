@@ -198,28 +198,6 @@ export const agentUsageSchema = z.object({
 })
 export type AgentUsage = z.infer<typeof agentUsageSchema>
 
-// One quota window a provider exposes (Claude's five_hour/seven_day/…, Codex's
-// primary/secondary). `id` is a stable key ('5h'|'weekly'|'monthly'|'weekly-opus'|…) and
-// `label` its human name; `usedPercent` is 0–100 utilization; `resetsAt` is the epoch-ms
-// reset time when known. Only DERIVED percentages/labels cross the daemon boundary — never
-// a provider auth token (see the audit skill's agent-driver invariant).
-export const providerLimitWindowSchema = z.object({
-  id: z.string(),
-  label: z.string(),
-  usedPercent: z.number(),
-  resetsAt: z.number().optional(),
-})
-export type ProviderLimitWindow = z.infer<typeof providerLimitWindowSchema>
-
-// A provider's live rate-limit picture: its quota windows plus an optional plan label. The
-// daemon's `agentLimits` procedure returns this (or null when the provider exposes no
-// limits API, isn't subscription-authed, or the probe fails).
-export const providerLimitsSchema = z.object({
-  windows: z.array(providerLimitWindowSchema),
-  plan: z.string().optional(),
-})
-export type ProviderLimits = z.infer<typeof providerLimitsSchema>
-
 // The lightweight, client-facing view of ONE queued message (a mid-turn send held to
 // auto-run when the current turn ends). Only the text preview + image count cross to the
 // renderer (the composer's "Queued" chips) — the FULL image payloads stay daemon-only on

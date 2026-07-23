@@ -7,7 +7,6 @@ import { delimiter, join } from 'node:path'
 import type {
   AgentEvent,
   ApprovalDecision,
-  ProviderLimits,
   ProviderStatus,
   TimelineItem,
 } from '../../../shared/agent-protocol'
@@ -22,24 +21,19 @@ import {
   buildThreadStartParams,
   buildTurnStartParams,
   buildUserInput,
-  type CodexRateLimitSnapshot,
   encodeMessage,
   type Incoming,
   isLegacyApprovalMethod,
   LineDecoder,
-  mergeRateLimitSnapshot,
   modeToPolicy,
   parseAccountLabel,
   parseAuthenticated,
   parseIncoming,
   parseModelList,
-  parseRateLimitsResponse,
-  parseRateLimitsUpdated,
   parseThreadId,
   parseTurnId,
   type RpcId,
   routingKeys,
-  snapshotToLimits,
   toLegacyDecision,
   toV2Decision,
   translateNotification,
@@ -150,10 +144,6 @@ class CodexServer {
   // (the manager enforces it), so a thread id uniquely routes a notification/approval.
   private readonly turns = new Map<string, CodexTurn>()
   private ready: Promise<void> | null = null
-  // The last known rate-limit snapshot: seeded by `account/rateLimits/read` and kept fresh
-  // by merging sparse `account/rateLimits/updated` pushes (see handleNotification). `at` is
-  // when it was last touched, so `readRateLimits` can serve a recent push without a round-trip.
-  private rateLimits: { snapshot: CodexRateLimitSnapshot; at: number } | null = null
 
   constructor(
     private readonly bin: string,
@@ -254,19 +244,8 @@ class CodexServer {
   }
 
   private handleNotification(method: string, params: unknown): void {
-    // Rate-limit pushes are account-scoped (no thread/turn id): merge them into the cached
-    // snapshot so `readRateLimits` can serve them without a round-trip. Handle before the
-    // thread routing below, which would drop them for lacking a threadId.
-    if (method === 'account/rateLimits/updated') {
-      const update = parseRateLimitsUpdated(params)
-      if (update) {
-        this.rateLimits = {
-          snapshot: mergeRateLimitSnapshot(this.rateLimits?.snapshot ?? null, update),
-          at: Date.now(),
-        }
-      }
-      return
-    }
+    // Account-scoped notifications (e.g. rate-limit pushes) have no thread id — drop them
+    // before routing so they don't log as "unknown turn".
     const { threadId, turnId } = routingKeys(params)
     const turn = threadId ? this.turns.get(threadId) : undefined
     if (!turn) return
@@ -310,26 +289,7 @@ class CodexServer {
     }
     this.turns.delete(turn.threadId ?? '')
   }
-
-  /**
-   * The current rate-limit snapshot: serve a recent push-merged snapshot without a
-   * round-trip (`freshMs`), else fetch a fresh `account/rateLimits/read` and cache it.
-   * Returns null when the read fails or the account exposes no snapshot.
-   */
-  async readRateLimits(freshMs: number): Promise<CodexRateLimitSnapshot | null> {
-    if (this.rateLimits && Date.now() - this.rateLimits.at < freshMs)
-      return this.rateLimits.snapshot
-    const result = await this.request('account/rateLimits/read', {})
-    const snapshot = parseRateLimitsResponse(result)
-    if (snapshot) this.rateLimits = { snapshot, at: Date.now() }
-    return snapshot
-  }
 }
-
-// A push-merged snapshot newer than this is returned without a fresh read (the app layer
-// caches `agentLimits` for 60s anyway, so this only avoids a redundant round-trip within a
-// burst of pushes).
-const RATE_LIMITS_FRESH_MS = 60_000
 
 // ── The shared server singleton ────────────────────────────────────────────────────
 
@@ -428,22 +388,6 @@ export const codexDriver: AgentDriver = {
 
   importSession(repoPath: string, externalId: string) {
     return importCodexSession(repoPath, externalId)
-  },
-
-  // Codex exposes rate limits first-class on the shared app-server: `account/rateLimits/read`
-  // seeds a snapshot, and mid-turn `account/rateLimits/updated` pushes keep it fresh (merged
-  // in handleNotification). Returns null on any failure or for an account with no windows
-  // (API key). No secrets involved — Codex's own OAuth stays inside the app-server process.
-  async limits(): Promise<ProviderLimits | null> {
-    const active = await ensureServer()
-    if (!active) return null
-    try {
-      await active.ensureReady()
-      const snapshot = await active.readRateLimits(RATE_LIMITS_FRESH_MS)
-      return snapshot ? snapshotToLimits(snapshot) : null
-    } catch {
-      return null
-    }
   },
 
   // A cheap one-shot title via `codex exec`: `--ephemeral` (no session file), read-only

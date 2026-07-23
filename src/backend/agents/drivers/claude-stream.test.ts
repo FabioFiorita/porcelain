@@ -7,8 +7,6 @@ import {
   CLAUDE_MODELS,
   ClaudeStreamTranslator,
   mapClaudeResultUsage,
-  mapClaudeUsage,
-  parseClaudeOAuthToken,
   permissionModeForMode,
   planStepsFromTodos,
   readClaudeAuthFromJson,
@@ -667,21 +665,6 @@ describe('ClaudeStreamTranslator', () => {
   })
 })
 
-describe('parseClaudeOAuthToken', () => {
-  it('extracts the access token from a stored credential', () => {
-    const raw = JSON.stringify({
-      claudeAiOauth: { accessToken: 'sk-oauth-xyz', refreshToken: 'r', subscriptionType: 'max' },
-    })
-    expect(parseClaudeOAuthToken(raw)).toBe('sk-oauth-xyz')
-  })
-
-  it('returns null for an api-key credential, empty token, or malformed JSON', () => {
-    expect(parseClaudeOAuthToken(JSON.stringify({ apiKey: 'x' }))).toBeNull()
-    expect(parseClaudeOAuthToken(JSON.stringify({ claudeAiOauth: { accessToken: '' } }))).toBeNull()
-    expect(parseClaudeOAuthToken('not json')).toBeNull()
-  })
-})
-
 describe('mapClaudeResultUsage', () => {
   it('sums new + cache tokens into inputTokens and exposes the cached subset', () => {
     expect(
@@ -727,36 +710,5 @@ describe('mapClaudeResultUsage', () => {
       outputTokens: 2,
       cacheReadTokens: 150,
     })
-  })
-})
-
-describe('mapClaudeUsage', () => {
-  it('maps the known windows with epoch-seconds→ms resets', () => {
-    const limits = mapClaudeUsage({
-      five_hour: { used_percentage: 18, resets_at: 1_800_000_000 },
-      seven_day: { used_percentage: 55, resets_at: 1_800_500_000 },
-      seven_day_opus: { used_percentage: 70, resets_at: 1_800_500_000 },
-      overageStatus: 'ok',
-    })
-    expect(limits).toEqual({
-      windows: [
-        { id: '5h', label: '5-hour', usedPercent: 18, resetsAt: 1_800_000_000_000 },
-        { id: 'weekly', label: 'Weekly', usedPercent: 55, resetsAt: 1_800_500_000_000 },
-        { id: 'weekly-opus', label: 'Weekly (Opus)', usedPercent: 70, resetsAt: 1_800_500_000_000 },
-      ],
-    })
-  })
-
-  it('keeps a window with no reset time and skips unparseable ones', () => {
-    const limits = mapClaudeUsage({
-      five_hour: { used_percentage: 5 },
-      seven_day: { nope: true },
-    })
-    expect(limits).toEqual({ windows: [{ id: '5h', label: '5-hour', usedPercent: 5 }] })
-  })
-
-  it('returns null when no known window is present (api-key account)', () => {
-    expect(mapClaudeUsage({ overageStatus: 'ok' })).toBeNull()
-    expect(mapClaudeUsage('nope')).toBeNull()
   })
 })

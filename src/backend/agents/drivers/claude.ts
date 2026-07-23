@@ -1,12 +1,10 @@
 import { type ChildProcessWithoutNullStreams, execFile, spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
-import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline'
-import { promisify } from 'node:util'
-import type { ApprovalDecision, ProviderLimits } from '../../../shared/agent-protocol'
+import type { ApprovalDecision } from '../../../shared/agent-protocol'
 import { agentSpawnEnv } from '../../login-shell-env'
 import type { AgentCommand, AgentDriver, StartTurnOptions, TurnHandle } from '../types'
 import { listCommandsAndSkills } from './agent-commands-fs'
@@ -16,51 +14,10 @@ import {
   buildUserMessage,
   CLAUDE_MODELS,
   ClaudeStreamTranslator,
-  mapClaudeUsage,
-  parseClaudeOAuthToken,
   readClaudeAuthFromJson,
   resolveClaudeBin,
   titleForTool,
 } from './claude-stream'
-import { codexbarLimits, resolveCodexbarBin } from './codexbar'
-
-const execFileAsync = promisify(execFile)
-
-// The Claude subscription OAuth token's two storage locations + the endpoint the CLI's
-// `/usage` view reads. The token is a subscription auth secret: it leaves the daemon ONLY
-// in the Authorization header to exactly this host, and is never logged, cached, or put in
-// an error/event (see the audit skill's agent-driver invariant).
-const CLAUDE_KEYCHAIN_SERVICE = 'Claude Code-credentials'
-const CLAUDE_USAGE_URL = 'https://api.anthropic.com/api/oauth/usage'
-const CLAUDE_LIMITS_TIMEOUT_MS = 5_000
-
-/**
- * Read the stored Claude OAuth access token: the macOS Keychain first (may prompt once —
- * acceptable, `limits()` is lazy), then `~/.claude/.credentials.json` (Linux / standalone
- * daemon). Returns null (never throws, never logs the token) when neither yields one — an
- * API-key user has no such credential, which is how they're skipped.
- */
-async function readClaudeOAuthToken(): Promise<string | null> {
-  if (process.platform === 'darwin') {
-    try {
-      const { stdout } = await execFileAsync(
-        'security',
-        ['find-generic-password', '-s', CLAUDE_KEYCHAIN_SERVICE, '-w'],
-        { env: await agentSpawnEnv() },
-      )
-      const token = parseClaudeOAuthToken(stdout)
-      if (token !== null) return token
-    } catch {
-      // No Keychain entry, or the user denied access — fall through to the file.
-    }
-  }
-  try {
-    const raw = await readFile(join(homedir(), '.claude', '.credentials.json'), 'utf8')
-    return parseClaudeOAuthToken(raw)
-  } catch {
-    return null
-  }
-}
 
 /**
  * Claude Code driver — spawns the user's installed `claude` CLI (v2.1.207+) once per
@@ -126,42 +83,6 @@ export const claudeDriver: AgentDriver = {
       authenticated: auth.authenticated,
       ...(auth.account ? { account: auth.account } : {}),
       models: CLAUDE_MODELS,
-    }
-  },
-
-  // Claude's quota windows aren't on the headless stream, so we replicate the CLI's own
-  // `GET /api/oauth/usage` with the stored subscription OAuth token (Keychain → file). Only
-  // subscription (claude.ai) auth has such a token AND populated windows; an API-key user
-  // has neither, so this returns null and the group hides. Any failure (no token, timeout,
-  // non-200, bad JSON) degrades to null quietly — never surfacing the token. Wrapped in a
-  // ~5s timeout so a hung request can't stall the poll.
-  async limits(): Promise<ProviderLimits | null> {
-    // Prefer the user-installed codexbar CLI when present: it reads Claude's quota through its
-    // own sources more reliably than our Keychain probe, AND the subscription OAuth token never
-    // enters Porcelain on that path (codexbar holds its own auth). Fall through to the native
-    // probe below when codexbar isn't installed or returns nothing.
-    const codexbarBin = resolveCodexbarBin(binLookup())
-    if (codexbarBin !== null) {
-      const limits = await codexbarLimits('claude', codexbarBin)
-      if (limits !== null) return limits
-    }
-    const token = await readClaudeOAuthToken()
-    if (token === null) return null
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), CLAUDE_LIMITS_TIMEOUT_MS)
-    try {
-      const response = await fetch(CLAUDE_USAGE_URL, {
-        headers: { Authorization: `Bearer ${token}`, 'anthropic-beta': 'oauth-2025-04-20' },
-        signal: controller.signal,
-      })
-      if (!response.ok) return null
-      return mapClaudeUsage(await response.json())
-    } catch {
-      // Network error / abort / malformed body — degrade to null. The token is confined to
-      // this scope and never appears in what we return or throw.
-      return null
-    } finally {
-      clearTimeout(timer)
     }
   },
 

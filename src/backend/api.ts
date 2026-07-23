@@ -5,12 +5,10 @@ import { initTRPC } from '@trpc/server'
 import trash from 'trash'
 import { z } from 'zod'
 import {
-  type AgentProvider,
   agentInteractionSchema,
   agentModeSchema,
   agentProviderSchema,
   type ExternalSession,
-  type ProviderLimits,
   type ProviderStatus,
   type ThreadInfo,
   threadOptionsSchema,
@@ -25,7 +23,6 @@ import {
 } from './actions-store'
 import {
   agentCommands,
-  agentLimits,
   createThread,
   deleteThread,
   importExternalSession,
@@ -135,8 +132,6 @@ import { readNotes, writeNotes } from './notes-store'
 import { exceedsReadLimit } from './read-limits'
 import {
   hiddenPathsFor,
-  type LimitsRefresh,
-  limitsRefreshSchema,
   pinnedPathsFor,
   resolveCreationDefaults,
   toggleModelFavorite,
@@ -240,11 +235,6 @@ function kickProviderReprobe(): void {
 // Slash-command lists are scanned from disk per (repo, provider); cache them for the same
 // short TTL so the composer's command menu doesn't re-walk the filesystem per keystroke.
 const agentCommandsCache = new Map<string, { at: number; value: AgentCommand[] }>()
-
-// Provider limit probes hit the network (Claude) / an RPC round-trip (Codex), so cache the
-// result per provider for a longer TTL — the Quick Access poll only needs coarse freshness.
-const AGENT_LIMITS_TTL_MS = 60_000
-const agentLimitsCache = new Map<AgentProvider, { at: number; value: ProviderLimits | null }>()
 
 function isValidPattern(pattern: string): boolean {
   try {
@@ -1660,47 +1650,6 @@ export const router = t.router({
       const value = await agentCommands(input.repoPath, input.provider)
       agentCommandsCache.set(key, { at: now, value })
       return value
-    }),
-
-  // A provider's live quota windows + plan (Codex rate limits, Claude OAuth `/usage`), or
-  // null when it exposes none / isn't subscription-authed / the probe failed. Cached 60s per
-  // provider — the Agent Quick Access polls it. Only DERIVED percentages/labels cross here;
-  // no provider auth token ever does (see the audit skill's agent-driver invariant).
-  agentLimits: t.procedure
-    .input(z.object({ provider: agentProviderSchema }))
-    .query(async ({ input }): Promise<ProviderLimits | null> => {
-      const cached = agentLimitsCache.get(input.provider)
-      const now = Date.now()
-      if (cached && now - cached.at < AGENT_LIMITS_TTL_MS) return cached.value
-      const value = await agentLimits(input.provider)
-      agentLimitsCache.set(input.provider, { at: now, value })
-      return value
-    }),
-
-  // Manual on-demand refresh (the Limits group's reload button): fetch fresh limits,
-  // bypassing the TTL cache, and OVERWRITE the cache entry so the next auto poll sees the
-  // new value. The renderer invalidates `agentLimits` on success (hooks own invalidation).
-  // The driver fetch is itself bounded (~30s worst case), so this can't stampede the cache.
-  agentLimitsRefresh: t.procedure
-    .input(z.object({ provider: agentProviderSchema }))
-    .mutation(async ({ input }): Promise<ProviderLimits | null> => {
-      const value = await agentLimits(input.provider)
-      agentLimitsCache.set(input.provider, { at: Date.now(), value })
-      return value
-    }),
-
-  // How often the Agent Limits group re-polls (global config). Null when unset — the
-  // renderer resolves the DEFAULT_LIMITS_REFRESH default in one place (see useAgentLimits).
-  limitsRefresh: t.procedure.query(async (): Promise<LimitsRefresh | null> => {
-    const config = await loadConfig()
-    return config.limitsRefresh ?? null
-  }),
-
-  setLimitsRefresh: t.procedure
-    .input(limitsRefreshSchema)
-    .mutation(async ({ input }): Promise<LimitsRefresh> => {
-      await updateConfig((config) => ({ ...config, limitsRefresh: input }))
-      return input
     }),
 
   // The Agent tab's favorited models (`provider:modelId` keys), stored global in the

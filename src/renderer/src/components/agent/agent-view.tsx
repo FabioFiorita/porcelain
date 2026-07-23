@@ -554,7 +554,7 @@ function TurnUsageFooter({ usage }: { usage: AgentUsage }): React.JSX.Element {
 
 /**
  * Thin session chrome above the timeline: provider + model, live status, compact usage.
- * Orientation + metering only — Plan/Activity/Files/Limits stay in Quick Access.
+ * Orientation + metering only — Plan/Activity/Files stay in Quick Access.
  */
 function SessionStrip({
   provider,

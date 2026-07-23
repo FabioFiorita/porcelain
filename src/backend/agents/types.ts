@@ -5,7 +5,6 @@ import type {
   AgentMode,
   AgentProvider,
   ApprovalDecision,
-  ProviderLimits,
   ProviderStatus,
   TimelineItem,
 } from '../../shared/agent-protocol'
@@ -86,14 +85,6 @@ export interface AgentDriver {
    * `.md` files (repo-local + user-global). Optional — absent = no commands. Read-only.
    */
   listCommands?(repoPath: string): Promise<AgentCommand[]>
-  /**
-   * The provider's live quota windows + plan (Codex's rate-limit snapshot, Claude's OAuth
-   * `/usage`). Optional — OpenCode has no limits API and omits it. Returns null when limits
-   * are unavailable (not subscription-authed, the probe failed, …) rather than throwing;
-   * the manager and api layer treat a throw as null too. Only DERIVED percentages/labels
-   * are returned — an implementation must never surface a provider auth token here.
-   */
-  limits?(): Promise<ProviderLimits | null>
   /**
    * Recent on-disk CLI sessions for `repoPath` (sessions started in a terminal, IDE, or
    * elsewhere). Optional — absent = provider doesn't support import. Never throws; returns

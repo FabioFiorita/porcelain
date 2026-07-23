@@ -11,7 +11,6 @@ import {
   applyAgentEvent,
   type ExternalSession,
   MAX_QUEUED_MESSAGES,
-  type ProviderLimits,
   type ProviderStatus,
   type QueuedMessageInfo,
   type ThreadInfo,
@@ -812,20 +811,6 @@ export async function agentCommands(
     return (await drivers[provider].listCommands?.(repoPath)) ?? []
   } catch {
     return []
-  }
-}
-
-/**
- * A provider's live quota windows + plan (Codex's rate-limit snapshot, Claude's OAuth
- * `/usage`), or null when the driver exposes no limits (OpenCode), isn't subscription-authed,
- * or the probe fails. Tolerant of a driver without the hook and of a thrown probe. The api
- * layer caches this per provider like provider statuses.
- */
-export async function agentLimits(provider: AgentProvider): Promise<ProviderLimits | null> {
-  try {
-    return (await drivers[provider].limits?.()) ?? null
-  } catch {
-    return null
   }
 }
 

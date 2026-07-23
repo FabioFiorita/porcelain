@@ -1,14 +1,13 @@
-import { useAgentLimits, useAgentThreads, useRefreshAgentLimits } from '@renderer/hooks/use-agents'
+import { useAgentThreads } from '@renderer/hooks/use-agents'
 import { useAgentThreadsStore } from '@renderer/stores/agent-threads'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import type { AgentUsage, ThreadInfo, TimelineItem } from '@shared/agent-protocol'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   AgentsQuickAccess,
   formatCostUsd,
   formatElapsed,
-  formatResetIn,
   formatTokenCount,
   formatUsageCompact,
   formatUsageLine,
@@ -19,8 +18,6 @@ import {
 // tabs store (the active-tab resolution) and the agent-threads store (the timelines).
 vi.mock('@renderer/hooks/use-agents', () => ({
   useAgentThreads: vi.fn(),
-  useAgentLimits: vi.fn(),
-  useRefreshAgentLimits: vi.fn(),
 }))
 
 vi.mock('@renderer/hooks/use-remote-daemon', () => ({
@@ -79,8 +76,6 @@ describe('AgentsQuickAccess', () => {
     useAgentThreadsStore.setState({ threads: {} })
     useTabsStore.setState({ panes: [{ tabs: [], activeTabId: null }], activePaneIndex: 0 })
     vi.mocked(useAgentThreads).mockReturnValue([])
-    vi.mocked(useAgentLimits).mockReturnValue(null)
-    vi.mocked(useRefreshAgentLimits).mockReturnValue({ refresh: vi.fn(), isPending: false })
   })
 
   it('shows the active agent tab thread plan with its progress line', () => {
@@ -253,46 +248,6 @@ describe('AgentsQuickAccess', () => {
     render(<AgentsQuickAccess />)
     expect(screen.getByText(/\$0\.42 est\./)).toBeInTheDocument()
   })
-
-  it('renders the Limits group with a bar, percent, and relative reset per window', () => {
-    const resetsAt = Date.now() + 3 * 3_600_000 + 25 * 60_000 + 30_000
-    vi.mocked(useAgentThreads).mockReturnValue([makeThread('t1', 'idle', 1)])
-    vi.mocked(useAgentLimits).mockReturnValue({
-      windows: [{ id: '5h', label: '5-hour', usedPercent: 42, resetsAt }],
-    })
-    activateAgentTab('t1')
-
-    render(<AgentsQuickAccess />)
-    expect(screen.getByText('Limits')).toBeInTheDocument()
-    expect(screen.getByText('5-hour')).toBeInTheDocument()
-    expect(screen.getByText('42%')).toBeInTheDocument()
-    expect(screen.getByText('resets in 3h 25m')).toBeInTheDocument()
-    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '42')
-  })
-
-  it('fires an on-demand refresh for the provider when the reload button is clicked', () => {
-    const refresh = vi.fn()
-    vi.mocked(useRefreshAgentLimits).mockReturnValue({ refresh, isPending: false })
-    vi.mocked(useAgentThreads).mockReturnValue([makeThread('t1', 'idle', 1)])
-    vi.mocked(useAgentLimits).mockReturnValue({
-      windows: [{ id: '5h', label: '5-hour', usedPercent: 42 }],
-    })
-    activateAgentTab('t1')
-
-    render(<AgentsQuickAccess />)
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh limits' }))
-    expect(refresh).toHaveBeenCalledWith('claude')
-  })
-
-  it('hides the Limits group when the provider returns null limits', () => {
-    vi.mocked(useAgentThreads).mockReturnValue([makeThread('t1', 'idle', 1)])
-    vi.mocked(useAgentLimits).mockReturnValue(null)
-    activateAgentTab('t1')
-    seedThread('t1', [{ kind: 'assistant', id: 'a1', text: 'done', streaming: false }])
-
-    render(<AgentsQuickAccess />)
-    expect(screen.queryByText('Limits')).toBeNull()
-  })
 })
 
 describe('formatCostUsd', () => {
@@ -300,20 +255,6 @@ describe('formatCostUsd', () => {
     expect(formatCostUsd(0.42)).toBe('$0.42')
     expect(formatCostUsd(12.5)).toBe('$12.50')
     expect(formatCostUsd(0)).toBe('$0.00')
-  })
-})
-
-describe('formatResetIn', () => {
-  const now = 1_000_000_000_000
-  it('formats hours and minutes, dropping a zero component', () => {
-    expect(formatResetIn(now + 3 * 3_600_000 + 25 * 60_000, now)).toBe('resets in 3h 25m')
-    expect(formatResetIn(now + 3 * 3_600_000, now)).toBe('resets in 3h')
-    expect(formatResetIn(now + 42 * 60_000, now)).toBe('resets in 42m')
-  })
-
-  it('reads "resets soon" for a sub-minute or past reset', () => {
-    expect(formatResetIn(now + 30_000, now)).toBe('resets soon')
-    expect(formatResetIn(now - 60_000, now)).toBe('resets soon')
   })
 })
 

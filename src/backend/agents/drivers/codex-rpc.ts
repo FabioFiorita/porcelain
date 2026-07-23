@@ -6,8 +6,6 @@ import {
   type AgentMode,
   type ApprovalDecision,
   type ModelInfo,
-  type ProviderLimits,
-  type ProviderLimitWindow,
   type TimelineItem,
   TOOL_OUTPUT_CAP,
 } from '../../../shared/agent-protocol'
@@ -358,102 +356,6 @@ export function parseAccountLabel(result: unknown): string | undefined {
   if (!parsed.success || !parsed.data.account) return undefined
   const { email, planType, type } = parsed.data.account
   return email ?? planType ?? type
-}
-
-// ── Rate limits ───────────────────────────────────────────────────────────────────────
-
-/**
- * A single Codex rate-limit window. Codex doesn't name windows "5h/weekly/monthly" — it
- * gives `windowDurationMins` on `primary`/`secondary`, so we derive the id/label from the
- * duration (300→5h, 10080→weekly, 43200→monthly; anything else → "Xd" by days). `usedPercent`
- * is 0–100; `resetsAt` is epoch SECONDS (we convert to ms below). Read leniently.
- */
-const rateLimitWindowSchema = z.object({
-  usedPercent: z.number(),
-  windowDurationMins: z.number().nullish(),
-  resetsAt: z.number().nullish(),
-})
-const rateLimitSnapshotSchema = z.object({
-  primary: rateLimitWindowSchema.nullish(),
-  secondary: rateLimitWindowSchema.nullish(),
-  planType: z.string().nullish(),
-})
-export type CodexRateLimitSnapshot = z.infer<typeof rateLimitSnapshotSchema>
-
-// `account/rateLimits/read` → the current snapshot (the `rateLimits` back-compat bucket).
-const getRateLimitsResponseSchema = z.object({ rateLimits: rateLimitSnapshotSchema })
-// `account/rateLimits/updated` → a sparse rolling snapshot to merge into the last read.
-const rateLimitsUpdatedSchema = z.object({ rateLimits: rateLimitSnapshotSchema })
-
-/** Parse `account/rateLimits/read`'s result into a snapshot, or null if the shape is off. */
-export function parseRateLimitsResponse(result: unknown): CodexRateLimitSnapshot | null {
-  const parsed = getRateLimitsResponseSchema.safeParse(result)
-  return parsed.success ? parsed.data.rateLimits : null
-}
-
-/** Parse an `account/rateLimits/updated` notification's params into a snapshot, or null. */
-export function parseRateLimitsUpdated(params: unknown): CodexRateLimitSnapshot | null {
-  const parsed = rateLimitsUpdatedSchema.safeParse(params)
-  return parsed.success ? parsed.data.rateLimits : null
-}
-
-/**
- * Merge a sparse rolling `account/rateLimits/updated` snapshot into the last full read:
- * each field is taken from the update when present, else kept from the base. Codex sends
- * these mid-turn ("merge into the last read snapshot"), so a push that only carries
- * `primary` mustn't wipe a previously-read `secondary`.
- */
-export function mergeRateLimitSnapshot(
-  base: CodexRateLimitSnapshot | null,
-  update: CodexRateLimitSnapshot,
-): CodexRateLimitSnapshot {
-  if (!base) return update
-  return {
-    primary: update.primary ?? base.primary,
-    secondary: update.secondary ?? base.secondary,
-    planType: update.planType ?? base.planType,
-  }
-}
-
-/** Derive a normalized window id + label from Codex's `windowDurationMins` (minutes). */
-function windowIdentity(durationMins: number | null | undefined): { id: string; label: string } {
-  switch (durationMins) {
-    case 300:
-      return { id: '5h', label: '5-hour' }
-    case 10080:
-      return { id: 'weekly', label: 'Weekly' }
-    case 43200:
-      return { id: 'monthly', label: 'Monthly' }
-    default: {
-      // Unknown duration → label by whole days when we can, else a generic id.
-      if (durationMins == null || durationMins <= 0) return { id: 'window', label: 'Usage' }
-      const days = Math.round(durationMins / 1440)
-      return days >= 1 ? { id: `${days}d`, label: `${days}d` } : { id: 'window', label: 'Usage' }
-    }
-  }
-}
-
-/**
- * Map a Codex rate-limit snapshot into the normalized `ProviderLimits`. `primary` (short
- * window) and `secondary` (long window) become windows labeled by their duration, with
- * `resetsAt` converted from epoch seconds to ms. A null window is skipped; `planType`
- * carries through as the plan label. Returns null when there are no windows at all (an
- * API-key account reports empty windows, so there's nothing to show).
- */
-export function snapshotToLimits(snapshot: CodexRateLimitSnapshot): ProviderLimits | null {
-  const windows: ProviderLimitWindow[] = []
-  for (const window of [snapshot.primary, snapshot.secondary]) {
-    if (!window) continue
-    const { id, label } = windowIdentity(window.windowDurationMins)
-    windows.push({
-      id,
-      label,
-      usedPercent: window.usedPercent,
-      ...(window.resetsAt != null ? { resetsAt: window.resetsAt * 1000 } : {}),
-    })
-  }
-  if (windows.length === 0) return null
-  return { windows, ...(snapshot.planType != null ? { plan: snapshot.planType } : {}) }
 }
 
 // ── Thread / turn handshake results ───────────────────────────────────────────────────

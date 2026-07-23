@@ -1,12 +1,11 @@
 import { PlanSteps } from '@renderer/components/agent/plan-steps'
 import { ProviderGlyph } from '@renderer/components/agent/provider-glyph'
-import { Button } from '@renderer/components/ui/button'
 import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
 } from '@renderer/components/ui/sidebar'
-import { useAgentLimits, useAgentThreads, useRefreshAgentLimits } from '@renderer/hooks/use-agents'
+import { useAgentThreads } from '@renderer/hooks/use-agents'
 import { useActiveRemoteEnvironment } from '@renderer/hooks/use-remote-daemon'
 import { type TouchedFile, touchedFilesFromItems } from '@renderer/lib/agent-touched-files'
 import { fileName } from '@renderer/lib/paths'
@@ -15,10 +14,10 @@ import { cn } from '@renderer/lib/utils'
 import { useAgentThreadsStore } from '@renderer/stores/agent-threads'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useTabsStore } from '@renderer/stores/tabs'
-import type { AgentProvider, TimelineItem } from '@shared/agent-protocol'
+import type { TimelineItem } from '@shared/agent-protocol'
 import { PROVIDER_LABEL } from '@shared/agent-protocol'
 import { TestIds } from '@shared/test-ids'
-import { FilePenLine, FileText, GitBranch, Loader2, RefreshCw } from 'lucide-react'
+import { FilePenLine, FileText, GitBranch, Loader2 } from 'lucide-react'
 import { useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 
@@ -85,22 +84,6 @@ export function formatUsageCompact(usage: { turnInput: number; totalCostUsd?: nu
     return `${formatCostUsd(usage.totalCostUsd)} est. · ${formatTokenCount(usage.turnInput)} in`
   }
   return `${formatTokenCount(usage.turnInput)} in`
-}
-
-/**
- * A quota window's reset as a relative "resets in Xh Ym" phrase (dropping a zero hour/minute:
- * "resets in 42m", "resets in 3h"). A reset in the past — or under a minute away — reads
- * "resets soon". `now` is injected so the mapping is deterministic to test.
- */
-export function formatResetIn(resetsAt: number, now: number): string {
-  const ms = resetsAt - now
-  if (ms < 60_000) return 'resets soon'
-  const totalMinutes = Math.floor(ms / 60_000)
-  const hours = Math.floor(totalMinutes / 60)
-  const minutes = totalMinutes % 60
-  if (hours === 0) return `resets in ${minutes}m`
-  if (minutes === 0) return `resets in ${hours}h`
-  return `resets in ${hours}h ${minutes}m`
 }
 
 /**
@@ -452,76 +435,14 @@ function UsageGroup({ threadId }: { threadId: string }): React.JSX.Element | nul
 }
 
 /**
- * The running provider's quota windows — one row each: label, a thin fill bar, the used
- * percent, and a dim "resets in Xh Ym". Hidden when the provider exposes no limits (returns
- * null: OpenCode, or a non-subscription Claude/Codex account). `now` is read once per render
- * for the relative reset labels.
- */
-function LimitsGroup({ provider }: { provider: AgentProvider }): React.JSX.Element | null {
-  const limits = useAgentLimits(provider)
-  const { refresh, isPending } = useRefreshAgentLimits()
-  if (!limits || limits.windows.length === 0) return null
-  const now = Date.now()
-  return (
-    <SidebarGroup className="px-3">
-      <div className="flex items-center justify-between gap-1 pr-1">
-        <SidebarGroupLabel className="px-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
-          Limits
-        </SidebarGroupLabel>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Refresh limits"
-          disabled={isPending}
-          onClick={() => refresh(provider)}
-        >
-          <RefreshCw className={isPending ? 'animate-spin' : undefined} />
-        </Button>
-      </div>
-      <SidebarGroupContent className="flex flex-col gap-2 px-1">
-        {limits.windows.map((window) => {
-          const percent = Math.max(0, Math.min(100, window.usedPercent))
-          return (
-            <div key={window.id} className="flex flex-col gap-1">
-              <div className="flex items-baseline justify-between gap-2">
-                <span className="text-2xs font-medium text-foreground">{window.label}</span>
-                <span className="text-2xs tabular-nums text-muted-foreground">
-                  {Math.round(percent)}%
-                </span>
-              </div>
-              <div
-                className="h-1.5 overflow-hidden rounded-full bg-muted-foreground/15"
-                role="progressbar"
-                aria-valuenow={Math.round(percent)}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-label={window.label}
-              >
-                <div className="h-full rounded-full bg-primary" style={{ width: `${percent}%` }} />
-              </div>
-              {window.resetsAt !== undefined && (
-                <span className="text-2xs text-muted-foreground">
-                  {formatResetIn(window.resetsAt, now)}
-                </span>
-              )}
-            </div>
-          )
-        })}
-      </SidebarGroupContent>
-    </SidebarGroup>
-  )
-}
-
-/**
  * The Agent tab's Session companion (right sidebar): always-on session identity,
  * then plan, live activity with full command/path, files touched (click to open),
- * usage, and rate limits. Detail groups hide when empty; Session stays so Quick
- * Access is never blank for an open or recent thread. The relevant thread is the
- * active agent tab's, else the busiest working thread, else the most recent idle.
+ * and token usage. Detail groups hide when empty; Session stays so Quick Access is
+ * never blank for an open or recent thread. The relevant thread is the active agent
+ * tab's, else the busiest working thread, else the most recent idle.
  */
 export function AgentsQuickAccess(): React.JSX.Element | null {
   const threadId = useRelevantThreadId()
-  const provider = useAgentThreads().find((t) => t.id === threadId)?.provider ?? null
   if (threadId === null) {
     return (
       <SidebarGroup className="px-3">
@@ -540,7 +461,6 @@ export function AgentsQuickAccess(): React.JSX.Element | null {
       <PlanGroup threadId={threadId} />
       <FilesGroup threadId={threadId} />
       <UsageGroup threadId={threadId} />
-      {provider !== null && <LimitsGroup provider={provider} />}
     </>
   )
 }

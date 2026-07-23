@@ -10,18 +10,14 @@ import {
   encodeMessage,
   isLegacyApprovalMethod,
   LineDecoder,
-  mergeRateLimitSnapshot,
   modeToPolicy,
   parseAccountLabel,
   parseAuthenticated,
   parseIncoming,
   parseModelList,
-  parseRateLimitsResponse,
-  parseRateLimitsUpdated,
   parseThreadId,
   parseTurnId,
   routingKeys,
-  snapshotToLimits,
   toLegacyDecision,
   toV2Decision,
   translateNotification,
@@ -653,75 +649,5 @@ describe('approval request → item → response round trip', () => {
     expect(toV2Decision('accept-session')).toBe('acceptForSession')
     // legacy request → ReviewDecision.
     expect(toLegacyDecision('accept-session')).toBe('approved_for_session')
-  })
-})
-
-describe('rate limits', () => {
-  it('parses a rateLimits/read response into a snapshot', () => {
-    const snapshot = parseRateLimitsResponse({
-      rateLimits: {
-        primary: { usedPercent: 12, windowDurationMins: 300, resetsAt: 1_800_000_000 },
-        secondary: { usedPercent: 40, windowDurationMins: 10080, resetsAt: 1_800_100_000 },
-        planType: 'pro',
-      },
-    })
-    expect(snapshot?.primary?.usedPercent).toBe(12)
-    expect(snapshot?.secondary?.windowDurationMins).toBe(10080)
-    expect(snapshot?.planType).toBe('pro')
-  })
-
-  it('returns null for a shape that is not a rate-limits response', () => {
-    expect(parseRateLimitsResponse({ nope: true })).toBeNull()
-    expect(parseRateLimitsUpdated({ rateLimits: 'x' })).toBeNull()
-  })
-
-  it('merges a sparse update into the last read without wiping other windows', () => {
-    const base = {
-      primary: { usedPercent: 12, windowDurationMins: 300, resetsAt: 1 },
-      secondary: { usedPercent: 40, windowDurationMins: 10080, resetsAt: 2 },
-      planType: 'pro',
-    }
-    const merged = mergeRateLimitSnapshot(base, {
-      primary: { usedPercent: 20, windowDurationMins: 300, resetsAt: 3 },
-      secondary: null,
-      planType: null,
-    })
-    expect(merged.primary?.usedPercent).toBe(20)
-    // secondary + planType were absent in the update → kept from the base.
-    expect(merged.secondary?.usedPercent).toBe(40)
-    expect(merged.planType).toBe('pro')
-  })
-
-  it('takes the update wholesale when there is no base', () => {
-    const update = { primary: { usedPercent: 5, windowDurationMins: 300, resetsAt: 9 } }
-    expect(mergeRateLimitSnapshot(null, update)).toBe(update)
-  })
-
-  it('maps a snapshot to labeled windows with epoch-seconds→ms reset and plan', () => {
-    const limits = snapshotToLimits({
-      primary: { usedPercent: 12.4, windowDurationMins: 300, resetsAt: 1_800_000_000 },
-      secondary: { usedPercent: 40, windowDurationMins: 43200, resetsAt: null },
-      planType: 'pro',
-    })
-    expect(limits).toEqual({
-      windows: [
-        { id: '5h', label: '5-hour', usedPercent: 12.4, resetsAt: 1_800_000_000_000 },
-        { id: 'monthly', label: 'Monthly', usedPercent: 40 },
-      ],
-      plan: 'pro',
-    })
-  })
-
-  it('derives a day label for an unknown window duration and skips null windows', () => {
-    const limits = snapshotToLimits({
-      primary: null,
-      secondary: { usedPercent: 3, windowDurationMins: 4320, resetsAt: null },
-      planType: null,
-    })
-    expect(limits).toEqual({ windows: [{ id: '3d', label: '3d', usedPercent: 3 }] })
-  })
-
-  it('returns null when the snapshot has no windows', () => {
-    expect(snapshotToLimits({ primary: null, secondary: null, planType: 'free' })).toBeNull()
   })
 })
