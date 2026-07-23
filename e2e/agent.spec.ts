@@ -36,7 +36,8 @@ test('streams a turn into the timeline + Quick Access, and persists across reloa
   await expect(loc.agentSessionStatus(page)).toHaveAttribute('data-status', 'idle')
   await expect(loc.agentSend(page)).toBeVisible()
 
-  // Thread list shows the fake auto-title after the turn.
+  // Idle threads live under Recent (Active = working only).
+  await loc.agentThreadFilter(page, 'recent').click()
   await expect(loc.agentThreadByTitle(page, 'Fake thread title')).toBeVisible()
 
   // Reload the renderer only — the daemon keeps the thread.
@@ -45,6 +46,8 @@ test('streams a turn into the timeline + Quick Access, and persists across reloa
   await waitForShell(page)
   await selectTab(page, 'Agent')
 
+  // Filter resets to Active on reload; switch back to Recent for the idle row.
+  await loc.agentThreadFilter(page, 'recent').click()
   const row = loc.agentThreadByTitle(page, 'Fake thread title')
   await expect(row).toBeVisible()
   await row.click()

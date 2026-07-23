@@ -543,6 +543,8 @@ export function AgentList(): React.JSX.Element {
           <button
             key={id}
             type="button"
+            data-testid={TestIds.agentThreadFilter(id)}
+            data-active={filter === id ? 'true' : 'false'}
             onClick={() => setFilter(id)}
             className={cn(
               'rounded-md px-2 py-1 text-2xs font-medium',
