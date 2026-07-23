@@ -1,3 +1,9 @@
+## [0.39.5](https://github.com/FabioFiorita/porcelain/compare/v0.39.4...v0.39.5) (2026-07-23)
+
+### Bug Fixes
+
+* **e2e:** look for idle agent threads under Recent ([b178459](https://github.com/FabioFiorita/porcelain/commit/b178459d000b9bbc1a48f0af391e8db8fb567ee6))
+
 ## [0.39.4](https://github.com/FabioFiorita/porcelain/compare/v0.39.3...v0.39.4) (2026-07-23)
 
 ### Features
