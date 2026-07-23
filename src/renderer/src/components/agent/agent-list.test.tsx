@@ -52,7 +52,7 @@ describe('AgentList', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     useTabsStore.setState({ panes: [{ tabs: [], activeTabId: null }], activePaneIndex: 0 })
-    usePreferencesStore.setState({ sidebarTab: 'agent' })
+    usePreferencesStore.setState({ sidebarTab: 'agent', archivedAgentThreadIds: [] })
     vi.mocked(useAgentThreads).mockReturnValue([])
     vi.mocked(useAgentProviders).mockReturnValue([])
     vi.mocked(useCreateAgentThread).mockReturnValue({ create: vi.fn(), isPending: false })
@@ -88,6 +88,8 @@ describe('AgentList', () => {
       },
     ])
     renderList()
+    // Idle threads live under Recent (Active is live-only).
+    fireEvent.click(screen.getByRole('button', { name: 'Recent' }))
     // Worktree branch is on the meta line under the title (not a separate chip title).
     expect(screen.getByText(/feature\/x/)).toBeInTheDocument()
   })
@@ -106,5 +108,60 @@ describe('AgentList', () => {
     renderList()
     fireEvent.click(screen.getByText(/Review inbox/))
     expect(usePreferencesStore.getState().sidebarTab).toBe('feature')
+  })
+
+  it('Active shows only live threads; Recent idle; Archived the rest', () => {
+    usePreferencesStore.setState({ archivedAgentThreadIds: ['archived-1'] })
+    vi.mocked(useAgentThreads).mockReturnValue([
+      {
+        id: 'live-1',
+        repoPath: '/repo',
+        title: 'Live turn',
+        provider: 'grok',
+        model: 'grok-4.5',
+        mode: 'full',
+        status: 'working',
+        createdAt: 3,
+        updatedAt: 3,
+      },
+      {
+        id: 'idle-1',
+        repoPath: '/repo',
+        title: 'Idle continue',
+        provider: 'grok',
+        model: 'grok-4.5',
+        mode: 'full',
+        status: 'idle',
+        createdAt: 2,
+        updatedAt: 2,
+      },
+      {
+        id: 'archived-1',
+        repoPath: '/repo',
+        title: 'Done forever',
+        provider: 'claude',
+        model: 'sonnet',
+        mode: 'full',
+        status: 'idle',
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    ])
+    renderList()
+
+    // Default filter = Active: live only (idle is NOT "active").
+    expect(screen.getByText('Live turn')).toBeInTheDocument()
+    expect(screen.queryByText('Idle continue')).not.toBeInTheDocument()
+    expect(screen.queryByText('Done forever')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Recent' }))
+    expect(screen.queryByText('Live turn')).not.toBeInTheDocument()
+    expect(screen.getByText('Idle continue')).toBeInTheDocument()
+    expect(screen.queryByText('Done forever')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    expect(screen.queryByText('Live turn')).not.toBeInTheDocument()
+    expect(screen.queryByText('Idle continue')).not.toBeInTheDocument()
+    expect(screen.getByText('Done forever')).toBeInTheDocument()
   })
 })

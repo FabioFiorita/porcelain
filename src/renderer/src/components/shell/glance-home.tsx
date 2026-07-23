@@ -7,11 +7,13 @@ import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'
 import { useWorktreeInbox } from '@renderer/hooks/use-worktrees'
 import { cn } from '@renderer/lib/utils'
+import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import type { ThreadInfo } from '@shared/agent-protocol'
 import { TestIds } from '@shared/test-ids'
 import { Columns3, FileDiff, GitBranch, Loader2, Waypoints } from 'lucide-react'
+import { useMemo } from 'react'
 
 // One tap-target recipe for every Glance row: full-width, touch-comfortable
 // height, the app's one hover/pressed fill. Rows stay flat on the viewer
@@ -113,6 +115,20 @@ export function GlanceHome(): React.JSX.Element | null {
   const repo = useRepoStore((s) => s.repo)
   const openTab = useTabsStore((s) => s.openTab)
   const threads = useAgentThreads()
+  // Archive is client-local prefs (same as the Agent list) — Glance is "work in
+  // flight", so archived threads must not reappear here as if still active.
+  const archivedIds = usePreferencesStore((s) => s.archivedAgentThreadIds)
+  const visibleThreads = useMemo(() => {
+    const archived = new Set(archivedIds)
+    return threads
+      .filter((t) => !archived.has(t.id))
+      .sort((a, b) => {
+        // Live first, then most-recently updated idle.
+        if (a.status === 'working' && b.status !== 'working') return -1
+        if (b.status === 'working' && a.status !== 'working') return 1
+        return b.updatedAt - a.updatedAt
+      })
+  }, [threads, archivedIds])
   const inbox = useWorktreeInbox()
   const { groups } = useGitFlow()
   const { reading } = useFeatureReading()
@@ -127,7 +143,7 @@ export function GlanceHome(): React.JSX.Element | null {
 
   const showCheckout = changedCount > 0 || hasReview
   const showBoard = doing.length > 0 || todo.length > 0
-  const empty = threads.length === 0 && inbox.length === 0 && !showCheckout && !showBoard
+  const empty = visibleThreads.length === 0 && inbox.length === 0 && !showCheckout && !showBoard
 
   // Agent-published Review canvas (Feature tab).
   const openFeatureReview = (): void => {
@@ -167,9 +183,9 @@ export function GlanceHome(): React.JSX.Element | null {
           </div>
         ) : (
           <>
-            {threads.length > 0 && (
+            {visibleThreads.length > 0 && (
               <GlanceSection label="Agent threads">
-                {threads.map((thread) => (
+                {visibleThreads.map((thread) => (
                   <ThreadGlanceRow key={thread.id} thread={thread} />
                 ))}
               </GlanceSection>

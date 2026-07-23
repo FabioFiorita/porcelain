@@ -7,6 +7,7 @@ import { useBoardCards } from '@renderer/hooks/use-board'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'
 import { useWorktreeInbox } from '@renderer/hooks/use-worktrees'
+import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import type { ThreadInfo } from '@shared/agent-protocol'
@@ -82,6 +83,7 @@ describe('GlanceHome', () => {
     switchToSpy.mockClear()
     useTabsStore.setState({ panes: [{ tabs: [], activeTabId: null }], activePaneIndex: 0 })
     useRepoStore.setState({ repo: { path: '/repo', name: 'repo' }, switchTo: switchToSpy })
+    usePreferencesStore.setState({ archivedAgentThreadIds: [] })
     mockEmpty()
   })
 
@@ -159,5 +161,16 @@ describe('GlanceHome', () => {
     const { tabs } = useTabsStore.getState().panes[0]
     expect(tabs).toHaveLength(1)
     expect(tabs[0]).toMatchObject({ id: tabId('agent', 't1'), kind: 'agent', path: 't1' })
+  })
+
+  it('omits archived threads from the work-in-flight list', () => {
+    usePreferencesStore.setState({ archivedAgentThreadIds: ['old'] })
+    vi.mocked(useAgentThreads).mockReturnValue([
+      thread({ id: 'live', title: 'Still going', status: 'working', updatedAt: 2 }),
+      thread({ id: 'old', title: 'Archived already', updatedAt: 1 }),
+    ])
+    render(<GlanceHome />)
+    expect(screen.getByText('Still going')).toBeInTheDocument()
+    expect(screen.queryByText('Archived already')).not.toBeInTheDocument()
   })
 })

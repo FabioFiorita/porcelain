@@ -306,17 +306,18 @@ export function AgentList(): React.JSX.Element {
     return () => clearInterval(id)
   }, [])
 
+  // Three mutually exclusive segments (archive is client-local prefs):
+  //   Active  = live turns still running on the daemon
+  //   Recent  = idle, not archived (continue later)
+  //   Archived = hidden from Active/Recent until restored
+  // Earlier Active also dumped every idle unarchived row into the default
+  // home, so archiving felt like a no-op — the leftover idle list still looked
+  // "active". Keep Active = working only so the three tabs don't overlap.
   const visibleThreads = useMemo(() => {
     const sorted = [...threads].sort((a, b) => b.updatedAt - a.updatedAt)
     if (filter === 'archived') return sorted.filter((t) => archivedSet.has(t.id))
     const unarchived = sorted.filter((t) => !archivedSet.has(t.id))
-    if (filter === 'active') {
-      // Live + everything you might still be driving (default home).
-      const working = unarchived.filter((t) => t.status === 'working')
-      const idle = unarchived.filter((t) => t.status !== 'working')
-      return [...working, ...idle]
-    }
-    // Recent: idle only — "continue later" without live rows.
+    if (filter === 'active') return unarchived.filter((t) => t.status === 'working')
     return unarchived.filter((t) => t.status !== 'working')
   }, [threads, filter, archivedSet])
 
@@ -570,7 +571,7 @@ export function AgentList(): React.JSX.Element {
                 ? 'Nothing archived. Right-click a thread → Archive.'
                 : filter === 'recent'
                   ? 'No idle threads. Working ones stay under Active.'
-                  : 'No threads here.'}
+                  : 'No live threads. Idle ones are under Recent.'}
             </p>
           </div>
         ) : (

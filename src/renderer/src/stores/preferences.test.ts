@@ -26,3 +26,17 @@ describe('usePreferencesStore — terminalRenderer', () => {
     expect(usePreferencesStore.getState().terminalRenderer).toBe('dom')
   })
 })
+
+describe('usePreferencesStore — agent archive', () => {
+  beforeEach(() => usePreferencesStore.setState({ archivedAgentThreadIds: [] }))
+
+  it('archives ids once and unarchives cleanly', () => {
+    const { archiveAgentThread, unarchiveAgentThread } = usePreferencesStore.getState()
+    archiveAgentThread('a')
+    archiveAgentThread('a')
+    archiveAgentThread('b')
+    expect(usePreferencesStore.getState().archivedAgentThreadIds).toEqual(['a', 'b'])
+    unarchiveAgentThread('a')
+    expect(usePreferencesStore.getState().archivedAgentThreadIds).toEqual(['b'])
+  })
+})
