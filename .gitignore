@@ -9,6 +9,10 @@ test-results/
 playwright-report/
 e2e/.artifacts/
 
+# Playwright MCP (agent browser drive) dumps page-*.yml / console logs at repo root.
+# Never commit; delete the dir when the drive is done (see CLAUDE.md).
+.playwright-mcp/
+
 # Agent worktrees (improve/execute isolation) — never track these
 .claude/worktrees/
 
