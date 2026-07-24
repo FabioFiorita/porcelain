@@ -39,6 +39,11 @@ on:
         required: false
         type: string
         default: ''
+      npm_only:
+        description: 'Only publish porcelain-daemon for tag (no rebuild). Requires tag=.'
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: porcelain-release
@@ -68,6 +73,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           INPUT_BUMP: ${{ inputs.bump }}
           INPUT_TAG: ${{ inputs.tag }}
+          INPUT_NPM_ONLY: ${{ inputs.npm_only }}
         run: |
           set -euo pipefail
 
@@ -79,16 +85,17 @@ jobs:
               *) TAG="v$TAG" ;;
             esac
             VERSION="${TAG#v}"
-            # Idempotent skip if already fully published (re-dispatch of a done release).
+            if [ "${INPUT_NPM_ONLY}" = "true" ]; then
+              echo "kind=npm_only" >> "$GITHUB_OUTPUT"
+              echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+              echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            # Idempotent note if already fully published.
             if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
               META=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,assets)
-              IS_DRAFT=$(echo "$META" | jq -r '.isDraft')
               ASSET_COUNT=$(echo "$META" | jq -r '.assets | length')
-              if [ "$IS_DRAFT" = "false" ] && [ "$ASSET_COUNT" -ge 4 ]; then
-                # Still allow forced retry by checking a repo variable? Keep simple:
-                # re-dispatch always re-packages unless you cancel. Comment only.
-                echo "Note: $TAG already has $ASSET_COUNT published assets — continuing retry will overwrite"
-              fi
+              echo "Note: $TAG already has $ASSET_COUNT assets — retry will overwrite"
             fi
             echo "kind=retry" >> "$GITHUB_OUTPUT"
             echo "version=$VERSION" >> "$GITHUB_OUTPUT"
@@ -167,8 +174,8 @@ jobs:
         run: |
           set -euo pipefail
           case "$KIND" in
-            retry)
-              echo "mode=retry" >> "$GITHUB_OUTPUT"
+            retry|npm_only)
+              echo "mode=$KIND" >> "$GITHUB_OUTPUT"
               echo "skip=false" >> "$GITHUB_OUTPUT"
               echo "version=$MODE_VERSION" >> "$GITHUB_OUTPUT"
               echo "tag=$MODE_TAG" >> "$GITHUB_OUTPUT"
@@ -195,7 +202,7 @@ jobs:
   # ---------------------------------------------------------------------------
   package-mac:
     needs: [prepare]
-    if: ${{ needs.prepare.outputs.skip != 'true' }}
+    if: ${{ needs.prepare.outputs.skip != 'true' && needs.prepare.outputs.mode != 'npm_only' }}
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v5
@@ -245,7 +252,7 @@ jobs:
   # ---------------------------------------------------------------------------
   package-linux:
     needs: [prepare]
-    if: ${{ needs.prepare.outputs.skip != 'true' }}
+    if: ${{ needs.prepare.outputs.skip != 'true' && needs.prepare.outputs.mode != 'npm_only' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -287,7 +294,7 @@ jobs:
   # ---------------------------------------------------------------------------
   publish:
     needs: [prepare, package-mac, package-linux]
-    if: ${{ needs.prepare.outputs.skip != 'true' && needs.package-mac.result == 'success' && needs.package-linux.result == 'success' }}
+    if: ${{ needs.prepare.outputs.skip != 'true' && needs.prepare.outputs.mode != 'npm_only' && needs.package-mac.result == 'success' && needs.package-linux.result == 'success' }}
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ needs.prepare.outputs.tag }}
@@ -390,7 +397,8 @@ jobs:
   # ---------------------------------------------------------------------------
   publish-npm:
     needs: [prepare, publish]
-    if: ${{ needs.prepare.outputs.skip != 'true' && needs.publish.result == 'success' }}
+    # Full cut/retry: after publish. npm_only recovery: alone (publish skipped).
+    if: ${{ always() && needs.prepare.outputs.skip != 'true' && (needs.publish.result == 'success' || (needs.prepare.outputs.mode == 'npm_only' && needs.publish.result == 'skipped')) }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
