@@ -25,7 +25,10 @@ import { useRepoStore } from '@renderer/stores/repo'
 import { TestIds } from '@shared/test-ids'
 import { CheckCircle2, ChevronDown, Circle, CircleDot, PenLine, Trash2 } from 'lucide-react'
 
-const COLUMN_ICON: Record<CardStatus, React.ComponentType> = {
+const COLUMN_ICON: Record<
+  CardStatus,
+  React.ComponentType<{ className?: string; 'aria-hidden'?: boolean }>
+> = {
   todo: Circle,
   doing: CircleDot,
   done: CheckCircle2,
@@ -98,8 +101,9 @@ function CardDetail({
     >
       <SidebarGroup className="min-h-0 flex-1 p-0">
         <SidebarGroupLabel className="px-3 pt-2">
-          <span className="flex items-center gap-1.5 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
-            <StatusIcon />
+          <span className="flex items-center gap-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
+            {/* Lucide defaults to 24px; pin to the label’s text size so To do / Doing don’t dwarf the word. */}
+            <StatusIcon className="size-3 shrink-0" aria-hidden />
             {STATUS_LABEL[card.status]}
           </span>
         </SidebarGroupLabel>
@@ -138,7 +142,7 @@ function CardDetail({
                       key={column.status}
                       onClick={() => move(card.id, column.status)}
                     >
-                      <Icon />
+                      <Icon className="size-3.5" aria-hidden />
                       {column.label}
                     </DropdownMenuItem>
                   )
@@ -148,10 +152,7 @@ function CardDetail({
             <Button
               variant="ghost"
               size="sm"
-              className={cn(
-                compactButtonClass,
-                'ml-auto text-muted-foreground hover:text-destructive',
-              )}
+              className={cn(compactButtonClass, 'ml-auto text-destructive hover:text-destructive')}
               onClick={() => remove(card.id)}
               aria-label="Delete card"
             >
