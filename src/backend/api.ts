@@ -129,6 +129,7 @@ import {
 import { imageMimeForPath, isBinaryBuffer } from './image-mime'
 import { readLayers, writeLayers } from './layers-store'
 import { readNotes, writeNotes } from './notes-store'
+import { expandUserPath } from './path-expand'
 import { exceedsReadLimit } from './read-limits'
 import {
   hiddenPathsFor,
@@ -748,17 +749,20 @@ export const router = t.router({
     }),
 
   readFile: t.procedure.input(z.string()).query(async ({ input }): Promise<FileView> => {
+    // Agents (and humans pasting paths) use ~/… and file://…; expand on the daemon
+    // host so a remote environment resolves its own home, not the client's.
+    const path = expandUserPath(input)
     try {
-      const info = await stat(input)
+      const info = await stat(path)
       if (exceedsReadLimit(info.size)) {
         return { type: 'too-large', size: info.size }
       }
-      const imageMime = imageMimeForPath(input)
+      const imageMime = imageMimeForPath(path)
       if (imageMime) {
-        const buffer = await readFile(input)
+        const buffer = await readFile(path)
         return { type: 'image', dataUrl: `data:${imageMime};base64,${buffer.toString('base64')}` }
       }
-      const buffer = await readFile(input)
+      const buffer = await readFile(path)
       if (isBinaryBuffer(buffer)) {
         return { type: 'binary', size: buffer.length }
       }

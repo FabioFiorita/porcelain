@@ -7,6 +7,7 @@ import {
   useToggleAgentModelFavorite,
   useUpdateAgentThread,
 } from '@renderer/hooks/use-agents'
+import { useReadFile } from '@renderer/hooks/use-files'
 import { useFileSearch } from '@renderer/hooks/use-search'
 import { copyText } from '@renderer/lib/utils'
 import { useAgentThreadsStore } from '@renderer/stores/agent-threads'
@@ -26,6 +27,8 @@ vi.mock('@renderer/hooks/use-git-flow', () => ({
 vi.mock('@renderer/hooks/use-feature-reading', () => ({
   useFeatureReading: () => ({ reading: null, refresh: async () => {} }),
 }))
+// Local markdown images resolve through readFile → data URL (CSP blocks path srcs).
+vi.mock('@renderer/hooks/use-files', () => ({ useReadFile: vi.fn() }))
 
 // Repo idiom (see changes-list.test): mock the domain hooks + the channel action
 // surface, never tRPC or lib/daemon. The store is real — we seed the live timeline
@@ -120,6 +123,7 @@ describe('AgentView', () => {
     vi.mocked(useToggleAgentModelFavorite).mockReturnValue({ toggle: vi.fn() })
     vi.mocked(useAgentCommands).mockReturnValue([])
     vi.mocked(useFileSearch).mockReturnValue({ results: [], isFetching: false })
+    vi.mocked(useReadFile).mockReturnValue({ view: undefined, error: null })
   })
 
   it('renders a user bubble with its image-count badge', () => {
@@ -133,6 +137,40 @@ describe('AgentView', () => {
     seed([{ kind: 'assistant', id: 'a1', text: 'a **bold** reply', streaming: false }])
     render(<AgentView threadId={THREAD_ID} />)
     expect(screen.getByText('bold')).toBeInTheDocument()
+  })
+
+  it('renders a local markdown image via the daemon data URL', () => {
+    vi.mocked(useReadFile).mockReturnValue({
+      view: { type: 'image', dataUrl: 'data:image/png;base64,AAAA' },
+      error: null,
+    })
+    seed([
+      {
+        kind: 'assistant',
+        id: 'a1',
+        text: 'Shot:\n\n![Board Focus default](/tmp/board-focus-shot/default.png)',
+        streaming: false,
+      },
+    ])
+    render(<AgentView threadId={THREAD_ID} />)
+    const img = screen.getByRole('img', { name: 'Board Focus default' })
+    expect(img).toHaveAttribute('src', 'data:image/png;base64,AAAA')
+    expect(useReadFile).toHaveBeenCalledWith('/tmp/board-focus-shot/default.png', true)
+  })
+
+  it('falls back to a chip when a local markdown image is missing', () => {
+    vi.mocked(useReadFile).mockReturnValue({ view: { type: 'not-found' }, error: null })
+    seed([
+      {
+        kind: 'assistant',
+        id: 'a1',
+        text: '![Gone shot](/tmp/missing.png)',
+        streaming: false,
+      },
+    ])
+    render(<AgentView threadId={THREAD_ID} />)
+    expect(screen.getByText('Gone shot')).toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: 'Gone shot' })).not.toBeInTheDocument()
   })
 
   it('renders reasoning collapsed with a Thinking… lead-in', () => {

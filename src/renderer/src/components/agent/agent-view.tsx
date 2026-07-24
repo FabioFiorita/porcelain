@@ -14,12 +14,14 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui
 import { useAgentActions } from '@renderer/hooks/use-agent-channel'
 import { useAgentProviders, useAgentThreads } from '@renderer/hooks/use-agents'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
+import { useReadFile } from '@renderer/hooks/use-files'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'
 import { useActiveRemoteEnvironment } from '@renderer/hooks/use-remote-daemon'
 import { estimateContextPercent } from '@renderer/lib/agent-context-window'
 import { modelChipLabel } from '@renderer/lib/agent-model-label'
 import { buildAgentTimeline } from '@renderer/lib/agent-timeline'
 import { isTextEntry } from '@renderer/lib/keyboard'
+import { classifyMarkdownImageSrc } from '@renderer/lib/markdown-image-src'
 import { openChanges, openFeatureReview } from '@renderer/lib/surface-handoffs'
 import { cn, copyText } from '@renderer/lib/utils'
 import { useAgentThreadsStore } from '@renderer/stores/agent-threads'
@@ -82,6 +84,78 @@ function CopyButton({ text }: { text: string }): React.JSX.Element {
   )
 }
 
+/**
+ * Chip shown when a markdown image can't be resolved (remote URL under CSP, missing
+ * file, non-image path). Matches the old "paperclip + alt" failure look, but intentional.
+ */
+function MarkdownImageFallback({
+  alt,
+  detail,
+}: {
+  alt: string
+  detail?: string
+}): React.JSX.Element {
+  const label = alt !== '' ? alt : (detail ?? 'Image unavailable')
+  return (
+    <span
+      className="my-1 inline-flex max-w-full items-center gap-1.5 rounded-md border bg-muted/40 px-2 py-1 text-xs text-muted-foreground not-prose"
+      title={detail}
+    >
+      <ImageIcon className="size-3.5 shrink-0" />
+      <span className="truncate">{label}</span>
+    </span>
+  )
+}
+
+/**
+ * Agent-timeline markdown images. Local paths (`/tmp/…`, `~/…`, `file://…`) are read
+ * through the daemon as data URLs so they render under CSP (`img-src 'self' data:`);
+ * raw absolute paths as `<img src>` never load (they resolve as same-origin and 404).
+ */
+function AgentMarkdownImage({ src, alt }: { src?: string; alt?: string }): React.JSX.Element {
+  const classified = classifyMarkdownImageSrc(src)
+  const localPath = classified.kind === 'local' ? classified.path : ''
+  const { view, error } = useReadFile(localPath, classified.kind === 'local')
+  const altText = alt ?? ''
+
+  if (classified.kind === 'data') {
+    return (
+      <img
+        src={classified.src}
+        alt={altText}
+        className="my-2 max-h-[28rem] max-w-full rounded-md border border-border object-contain"
+      />
+    )
+  }
+
+  if (classified.kind === 'unsupported') {
+    return <MarkdownImageFallback alt={altText} detail={classified.raw || undefined} />
+  }
+
+  if (error) {
+    return <MarkdownImageFallback alt={altText} detail={localPath} />
+  }
+  if (view === undefined) {
+    return (
+      <div
+        role="status"
+        className="my-2 h-32 max-w-md animate-pulse rounded-md border bg-muted/40 not-prose"
+        aria-label="Loading image"
+      />
+    )
+  }
+  if (view.type === 'image') {
+    return (
+      <img
+        src={view.dataUrl}
+        alt={altText}
+        className="my-2 max-h-[28rem] max-w-full rounded-md border border-border object-contain"
+      />
+    )
+  }
+  return <MarkdownImageFallback alt={altText} detail={localPath} />
+}
+
 /** Assistant/user prose through the same pipeline as the markdown reader (react-markdown + gfm). */
 function MessageMarkdown({ text }: { text: string }): React.JSX.Element {
   return (
@@ -90,6 +164,9 @@ function MessageMarkdown({ text }: { text: string }): React.JSX.Element {
         remarkPlugins={[remarkGfm]}
         components={{
           a: ({ node: _node, ...props }) => <a {...props} target="_blank" rel="noreferrer" />,
+          img: ({ node: _node, src, alt }) => (
+            <AgentMarkdownImage src={typeof src === 'string' ? src : undefined} alt={alt} />
+          ),
         }}
       >
         {text}

@@ -18,11 +18,18 @@ export function useReadDir(path: string, enabled = true): DirEntry[] | undefined
   return data
 }
 
-export function useReadFile(path: string): {
+export function useReadFile(
+  path: string,
+  enabled = true,
+): {
   view: FileView | undefined
   error: { message: string } | null
 } {
-  const { data: view, error } = trpc.readFile.useQuery(path)
+  const { data: view, error } = trpc.readFile.useQuery(path, {
+    // Agent markdown images call this with enabled=false for data:/remote srcs so
+    // we never hit the daemon with an empty path or a URL it can't open.
+    enabled: enabled && path !== '',
+  })
   return { view, error }
 }
 
