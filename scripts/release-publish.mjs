@@ -104,17 +104,36 @@ if (!releaseExists(tag)) {
   sh('gh', ['release', 'upload', tag, ...files, '--clobber'], { inherit: true })
 }
 
-// Confirm latest + non-draft.
-const meta = JSON.parse(sh('gh', ['release', 'view', tag, '--json', 'isDraft,isLatest,assets,url']))
+// Confirm non-draft + assets. (isLatest is not on all gh CLI versions' --json
+// field set — Actions runners often ship an older gh — so use the REST "latest"
+// endpoint instead of `gh release view --json isLatest`.)
+const meta = JSON.parse(sh('gh', ['release', 'view', tag, '--json', 'isDraft,assets,url']))
 if (meta.isDraft) {
   console.error('release:publish ✗ release is still draft after publish')
   process.exit(1)
 }
-if (!meta.isLatest) {
-  console.error('release:publish ✗ release is not marked latest')
+if (!meta.assets?.length) {
+  console.error('release:publish ✗ release has no assets')
   process.exit(1)
 }
-console.log(`release:publish ✓ ${meta.url} (${meta.assets.length} assets, latest)`)
+let latestTag = ''
+try {
+  latestTag = sh('gh', [
+    'api',
+    `repos/${process.env.GITHUB_REPOSITORY ?? 'FabioFiorita/porcelain'}/releases/latest`,
+    '--jq',
+    '.tag_name',
+  ])
+} catch {
+  // no "latest" release yet
+}
+if (latestTag && latestTag !== tag) {
+  console.error(`release:publish ✗ latest is ${latestTag}, expected ${tag}`)
+  process.exit(1)
+}
+console.log(
+  `release:publish ✓ ${meta.url} (${meta.assets.length} assets${latestTag === tag ? ', latest' : ''})`,
+)
 
 if (values['cleanup-drafts']) {
   /** @type {Array<{ tagName: string, isDraft: boolean }>} */
