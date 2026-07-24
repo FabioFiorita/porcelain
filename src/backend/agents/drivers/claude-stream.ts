@@ -65,12 +65,12 @@ export function resolveClaudeBin(lookup: BinLookup): string | null {
  *
  * `--effort` accepts low/medium/high/xhigh/max; a model advertises only the subset it
  * supports (so buildClaudeArgs drops an unsupported one). `contextWindows` is present ONLY
- * for models that toggle 200k↔1M via the `[1m]` id suffix — Opus 4.8/4.7 are always 1M
+ * for models that toggle 200k↔1M via the `[1m]` id suffix — Opus 5/4.8/4.7 are always 1M
  * (no toggle) and Haiku has neither control.
  */
-// The two standard effort sets. xhigh is only on the newest tier (fable-5, opus-4-8/4-7,
-// sonnet-5); the rest top out at max without an xhigh rung. Default is `high` everywhere
-// except Opus 4.7, which the research pins at `xhigh`.
+// The two standard effort sets. xhigh is only on the newest tier (fable-5, opus-5,
+// opus-4-8/4-7, sonnet-5); the rest top out at max without an xhigh rung. Default is
+// `high` everywhere except Opus 4.7, which the research pins at `xhigh`.
 const EFFORTS_WITH_XHIGH = ['low', 'medium', 'high', 'xhigh', 'max']
 const EFFORTS_NO_XHIGH = ['low', 'medium', 'high', 'max']
 // The 200k/1M toggle offered by the models that aren't hard-wired to one window.
@@ -86,10 +86,18 @@ export const CLAUDE_MODELS: ModelInfo[] = [
     contextWindows: CONTEXT_WINDOWS,
   },
   {
+    id: 'claude-opus-5',
+    label: 'Claude Opus 5',
+    provider: 'claude',
+    description: 'Most capable, for hard tasks',
+    efforts: { values: EFFORTS_WITH_XHIGH, default: 'high' },
+    // Always 1M — no contextWindows toggle (CLI: claude-opus-5, 1M context).
+  },
+  {
     id: 'claude-opus-4-8',
     label: 'Claude Opus 4.8',
     provider: 'claude',
-    description: 'Most capable, for hard tasks',
+    description: 'Previous flagship Opus',
     efforts: { values: EFFORTS_WITH_XHIGH, default: 'high' },
     // Always 1M — no contextWindows toggle.
   },
@@ -97,7 +105,7 @@ export const CLAUDE_MODELS: ModelInfo[] = [
     id: 'claude-opus-4-7',
     label: 'Claude Opus 4.7',
     provider: 'claude',
-    description: 'Previous flagship Opus',
+    description: 'Older high-capability Opus',
     efforts: { values: EFFORTS_WITH_XHIGH, default: 'xhigh' },
     // Always 1M — no contextWindows toggle.
   },
@@ -105,7 +113,7 @@ export const CLAUDE_MODELS: ModelInfo[] = [
     id: 'claude-opus-4-6',
     label: 'Claude Opus 4.6',
     provider: 'claude',
-    description: 'Older high-capability Opus',
+    description: 'Legacy high-capability Opus',
     efforts: { values: EFFORTS_NO_XHIGH, default: 'high' },
     contextWindows: CONTEXT_WINDOWS,
   },

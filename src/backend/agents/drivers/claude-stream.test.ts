@@ -210,6 +210,14 @@ describe('CLAUDE_MODELS catalog', () => {
     expect(haiku?.contextWindows).toBeUndefined()
   })
 
+  it('includes Opus 5 always-1M (no context toggle) with xhigh effort', () => {
+    const opus = CLAUDE_MODELS.find((m) => m.id === 'claude-opus-5')
+    expect(opus).toMatchObject({ label: 'Claude Opus 5', provider: 'claude' })
+    expect(opus?.contextWindows).toBeUndefined()
+    expect(opus?.efforts?.values).toContain('xhigh')
+    expect(opus?.efforts?.default).toBe('high')
+  })
+
   it('marks Opus 4.8 always-1M (no context toggle) but effort-capable', () => {
     const opus = CLAUDE_MODELS.find((m) => m.id === 'claude-opus-4-8')
     expect(opus?.contextWindows).toBeUndefined()
