@@ -295,9 +295,12 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          # Need release-publish.mjs + full history for notes/merge.
+          # Run publish scripts from the workflow revision (github.sha = the branch
+          # selected on dispatch, usually main). Do NOT check out the tag here —
+          # a same-tag retry would otherwise re-run a broken script frozen on the
+          # tag. Release target is still steps.target.sha (pending branch / tag).
           fetch-depth: 0
-          ref: ${{ needs.prepare.outputs.ref }}
+          ref: ${{ github.sha }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download mac artifacts
