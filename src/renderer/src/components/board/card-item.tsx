@@ -7,8 +7,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@renderer/components/ui/dropdown-menu'
-import { BOARD_COLUMNS, useCardActions } from '@renderer/hooks/use-board'
+import { BOARD_COLUMNS, useBoardCards, useCardActions } from '@renderer/hooks/use-board'
 import { cn } from '@renderer/lib/utils'
+import { resolveBoardFocus, useBoardSelectionStore } from '@renderer/stores/board-selection'
+import { useRepoStore } from '@renderer/stores/repo'
 import { TestIds } from '@shared/test-ids'
 import { CheckCircle2, Circle, CircleDot, MoreHorizontal, PenLine, Trash2 } from 'lucide-react'
 
@@ -25,6 +27,9 @@ const COLUMN_ICON: Record<CardStatus, React.ComponentType> = {
  * board list and the wide viewer board. In `compact` mode (the sidebar outline, beside the
  * wide board) the body clamps to one preview line so the narrow list reads as an index, not a
  * second copy of the board; the wide viewer keeps the full scrollable body.
+ *
+ * Primary click on the body selects the card for the Focus companion (right rail).
+ * Edit stays on the ⋯ menu (and the Focus rail's Edit button).
  */
 export function CardItem({
   card,
@@ -36,15 +41,31 @@ export function CardItem({
   compact?: boolean
 }): React.JSX.Element {
   const { move, remove } = useCardActions()
+  const { cards } = useBoardCards()
+  const repoPath = useRepoStore((s) => s.repo?.path)
+  const focusKey = useBoardSelectionStore((s) => s.focus)
+  const select = useBoardSelectionStore((s) => s.select)
+  const selected = resolveBoardFocus(cards, repoPath, focusKey)?.id === card.id
+
   return (
     <div
       data-testid={TestIds.boardCard(card.title)}
+      data-selected={selected ? 'true' : undefined}
       className={cn(
-        'group/card flex items-start gap-1 rounded-xl border bg-card p-2',
+        'group/card flex items-start gap-1 rounded-xl border bg-card p-2 transition-colors',
+        selected && 'bg-accent',
+        !selected && 'hover:bg-accent/50',
         !compact && 'max-h-48',
       )}
     >
-      <div className="min-h-0 min-w-0 flex-1">
+      <button
+        type="button"
+        onClick={() => {
+          if (repoPath) select(repoPath, card.id)
+        }}
+        aria-pressed={selected}
+        className="min-h-0 min-w-0 flex-1 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+      >
         {/* Title capped so a multi-line title never eats the column; body scrolls (or,
             in the compact outline, clamps to a single preview line). */}
         <p
@@ -65,7 +86,7 @@ export function CardItem({
             {card.body}
           </p>
         )}
-      </div>
+      </button>
       <DropdownMenu>
         <DropdownMenuTrigger
           render={

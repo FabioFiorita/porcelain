@@ -14,11 +14,11 @@ test('Changes tab lists the working-tree changes', async ({ page }) => {
   await expect(loc.changesFile(page, 'Card.tsx')).toBeVisible()
 })
 
-test('Board tab keeps the Quick Access toggle (notes/pins)', async ({ page }) => {
+test('Board tab keeps the Quick Access toggle (Focus card detail)', async ({ page }) => {
   await waitForShell(page)
   await selectTab(page, 'Changes')
   await expect(loc.toggleRightSidebar(page)).toBeVisible()
-  // Board no longer suppresses the right rail (U18) — toggle stays.
+  // Board Focus companion (selected card detail) keeps the right rail.
   await selectTab(page, 'Board')
   await expect(loc.toggleRightSidebar(page)).toBeVisible()
 })

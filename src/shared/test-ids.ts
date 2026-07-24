@@ -121,6 +121,8 @@ export const TestIds = {
   // --- Board ---
   boardCard: (title: string): string =>
     `board-card-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+  /** Right-rail Focus companion (selected / default Doing card detail). */
+  boardFocus: 'board-focus',
   cardTitleInput: 'card-title-input',
   cardComposerSave: 'card-composer-save',
   cardComposer: 'card-composer',

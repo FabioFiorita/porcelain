@@ -74,9 +74,7 @@ function UpdateButton(): React.JSX.Element | null {
 // `openMobile` (the sheet); writing the preference alone leaves the sheet closed.
 function TopBar({ left }: { left: LeftSidebarHandle }): React.JSX.Element {
   const { toggleSidebar: toggleRight, isMobile, openMobile, open: rightOpen } = useSidebar()
-  // The Board tab has no Quick Access section, so its toggle is hidden (the panel
-  // itself is suppressed in RepoShell) — see RIGHT_SIDEBAR-less tabs there.
-  // Board keeps the right rail (notes/pins) — no longer suppress it (U18).
+  // Every sidebar tab has a companion rail (Board = Focus card detail).
   const hasQuickAccess = true
   // When split, each pane carries its own tab bar inside the viewer; the chrome
   // bar shows the (single) pane's tabs otherwise.

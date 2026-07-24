@@ -244,6 +244,7 @@ Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wron
 - Changes/Feature → **Commit composer** (`commit-group.tsx`) + **Comments** (`comments-group.tsx`).
 - Terminal → **Actions** (`actions-group.tsx`).
 - Chat → **Coordination** (`chat-quick-access.tsx`): Participants · Claims · Overlaps, derived from the thread at read time (advisory, no locking).
+- Board → **Focus** (`board-quick-access.tsx`): full detail of the selected card (default = first Doing, then Todo, then Done). Click any card in the list or wide kanban to focus it; Edit / Move / Delete live on the rail. Selection is client-only (`stores/board-selection.ts`) — not a second kanban and not Files pins/notes (that was the retired U18 borrow).
 - Feature → **Reading** companion only (`review-group.tsx` + Comments) — not a clone of Changes git commands/commit (decided 2026-07-20, P7). Outline is a header card (Intent/Evidence shortcuts + pills; Clear in … menu + AlertDialog; inline Execution files).
 - Agent → **Session** companion (`agents-quick-access.tsx`): session identity (incl. daemon name), subagents (Task tools), live activity, plan, files, token usage. Provider rate/quota limits are intentionally not surfaced — users check those in their CLI or menubar tools. Thread roster: **Active** (live/`working` only) / **Recent** (idle unarchived) / **Archived** (client-local prefs, not daemon delete). Glance omits archived too — same prefs set.
 

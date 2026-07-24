@@ -1,4 +1,5 @@
 import { AgentsQuickAccess } from '@renderer/components/agent/agents-quick-access'
+import { BoardQuickAccess } from '@renderer/components/board/board-quick-access'
 import { ChatQuickAccess } from '@renderer/components/chat/chat-quick-access'
 import { ActionsGroup } from '@renderer/components/terminal/actions-group'
 import { Sidebar, SidebarContent, SidebarHeader, useSidebar } from '@renderer/components/ui/sidebar'
@@ -15,22 +16,23 @@ import { RightSidebarResizeHandle } from './sidebar-resize-handle'
 
 // The companion panel retitles itself to what you're doing (matching the left
 // panel's contextual header) instead of a generic "Quick access" — the redesign
-// dropped the "Quick Access" / "Quick Commands" labels.
+// dropped the "Quick Access" / "Quick Commands" labels. Left vs right must never
+// share the same title for one tab (Board list vs Focus detail).
 const COMPANION_TITLES: Record<SidebarTab, string> = {
   files: 'Pinned & notes',
   changes: 'Commit',
   history: 'Timeline',
   // Review companion — not a git clone (P7 / U5).
   feature: 'Now reading',
-  board: 'Board',
+  board: 'Focus',
   chat: 'Coordination',
   terminal: 'Actions',
   search: 'Recent searches',
   agent: 'Session',
 }
 
-// Sections follow the left sidebar's active tab. Board keeps notes/pins so
-// planning doesn't orphan the right rail (U18). Feature stays Review-native.
+// Sections follow the left sidebar's active tab. Board Focus is the selected
+// card detail (default first Doing); Files keeps pins/notes. Feature stays Review-native.
 export function RightSidebar(): React.JSX.Element {
   const sidebarTab = usePreferencesStore((s) => s.sidebarTab)
   const { isMobile } = useSidebar()
@@ -56,7 +58,8 @@ export function RightSidebar(): React.JSX.Element {
           sidebarTab === 'files' || sidebarTab === 'board' ? 'gap-0 overflow-hidden' : undefined
         }
       >
-        {(sidebarTab === 'files' || sidebarTab === 'board') && <FilesQuickAccess />}
+        {sidebarTab === 'files' && <FilesQuickAccess />}
+        {sidebarTab === 'board' && <BoardQuickAccess />}
         {(sidebarTab === 'changes' || sidebarTab === 'history') && <QuickCommandsGroup />}
         {sidebarTab === 'history' && <FileTimelineGroup />}
         {sidebarTab === 'feature' && <ReviewGroup />}
