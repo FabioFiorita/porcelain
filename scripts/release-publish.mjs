@@ -40,11 +40,20 @@ const title = values.title ?? `Porcelain ${tag.replace(/^v/, '')}`
 const target = values.target
 
 function sh(cmd, args, opts = {}) {
-  return execFileSync(cmd, args, {
+  const out = execFileSync(cmd, args, {
     encoding: 'utf8',
     stdio: opts.inherit ? 'inherit' : ['ignore', 'pipe', 'pipe'],
+    env: {
+      ...process.env,
+      NO_COLOR: '1',
+      FORCE_COLOR: '0',
+      CLICOLOR: '0',
+      GH_FORCE_TTY: '0',
+    },
     ...opts,
   })
+  // inherit returns null; callers that need text always use pipe mode.
+  return typeof out === 'string' ? out.trim() : out
 }
 
 function releaseExists(t) {
