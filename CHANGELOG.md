@@ -1,3 +1,20 @@
+## [0.40.0](https://github.com/FabioFiorita/porcelain/compare/v0.39.5...v0.40.0) (2026-07-24)
+
+### Features
+
+* **agent:** render local markdown images in the timeline ([6f83227](https://github.com/FabioFiorita/porcelain/commit/6f83227c705a6db9c0d9ce52828c40ed83703ad4))
+* **agents:** add Claude Opus 5 to the model picker catalog ([d23186d](https://github.com/FabioFiorita/porcelain/commit/d23186d871ff4cb571647b4928716ad19007b20e))
+* **board:** Focus companion shows selected card detail ([412f3ad](https://github.com/FabioFiorita/porcelain/commit/412f3add4bc082bd18a7cf7f2fb99e58aa8537c3))
+* **ci:** gate-then-cut releases with atomic multi-platform publish ([2bc91e1](https://github.com/FabioFiorita/porcelain/commit/2bc91e166ac89be73e9fd98fa89a790946af4d06))
+
+### Bug Fixes
+
+* **agents:** keep Claude process across turns, per-repo defaults, Active roster ([4a72b5a](https://github.com/FabioFiorita/porcelain/commit/4a72b5a5da4c8911f70f2ad1ba2281ce677dfcb8))
+* **board:** Focus status icons match label size; Delete is red ([4343dc4](https://github.com/FabioFiorita/porcelain/commit/4343dc44ca6d7606e5354d35a9915dd81ed263b6))
+* **ci:** strip color from gh JSON in release:check ([47fff1f](https://github.com/FabioFiorita/porcelain/commit/47fff1f5533d7ccbb5853419be0d2a9c25a891cc))
+* seed dev playground under ~/code, not ~/Code ([d7a75e1](https://github.com/FabioFiorita/porcelain/commit/d7a75e1d2c702e5503624c5f11fd3c21fea22780))
+* **ui:** denser flow-layers Pattern Builder type scale ([ee978f7](https://github.com/FabioFiorita/porcelain/commit/ee978f7fbff5e250222769ae1629cd9558545178))
+
 ## [0.39.5](https://github.com/FabioFiorita/porcelain/compare/v0.39.4...v0.39.5) (2026-07-23)
 
 ### Bug Fixes
