@@ -1,58 +1,224 @@
 name: Release
 
-# Tag push (pnpm version X && git push --follow-tags) cuts a full release:
-#   1. Mac: lint → test → build → e2e → signed/notarized GitHub Release (draft)
-#   2. Linux: e2e (xvfb) → unsigned AppImage + deb + latest-linux.yml into that draft
-#   3. Ubuntu: build porcelain-daemon and npm publish via OIDC trusted publishing
+# Professional release pipeline (2026-07-24 overhaul):
 #
-# npm Trusted Publisher (npmjs.com → porcelain-daemon): GitHub Actions →
-#   FabioFiorita/porcelain → release.yml  (owner casing must match OIDC claims)
+#   PRIMARY — workflow_dispatch with bump=patch|minor|major
+#     1. prepare: bump version + changelog on a temporary branch (no tag yet)
+#     2. package-mac + package-linux in parallel (e2e → package --publish never)
+#     3. publish: only if BOTH green → promote pending → main, then assemble
+#        GitHub Release (published + latest) with all assets, npm publish,
+#        delete leftover drafts
+#     Failure before promote = no version on main, no tag, no half-release.
 #
-# workflow_dispatch is a recovery path only (re-publish npm for an existing tag
-# without re-running the Mac pipeline). Normal releases do not need it.
+#   RETRY — workflow_dispatch with tag=vX.Y.Z
+#     Rebuild/repackage that ref and re-upload; idempotent. Use for infra flakes
+#     (notarize/GH/npm) WITHOUT burning a new patch. Do NOT use for product bugs
+#     (those need a new fix commit + new cut).
+#
+# Tag push is intentionally NOT a trigger (avoids double-build races). Retry is
+# always workflow_dispatch -f tag=vX.Y.Z.
+#
+# npm Trusted Publisher: FabioFiorita/porcelain → release.yml (owner casing).
+#
+# Local: pnpm release:check && pnpm release:cut [patch|minor|major]
+
 on:
-  push:
-    tags: ['v*']
   workflow_dispatch:
     inputs:
-      tag:
-        description: 'Existing tag to re-publish porcelain-daemon for (e.g. v0.25.0)'
+      bump:
+        description: 'Semver bump for a new cut (ignored when tag is set).'
         required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: patch
+      tag:
+        description: 'Retry/republish an existing tag (e.g. v0.40.0). When set, bump is ignored.'
+        required: false
         type: string
+        default: ''
+
+concurrency:
+  group: porcelain-release
+  cancel-in-progress: false
 
 permissions:
   contents: write
   id-token: write
 
 jobs:
-  # Signed + notarized Mac app → draft GitHub Release (publish manually as Latest).
-  release:
-    if: ${{ github.event_name == 'push' }}
+  # ---------------------------------------------------------------------------
+  # prepare — decide mode, optionally bump onto a pending branch (no tag push)
+  # ---------------------------------------------------------------------------
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      mode: ${{ steps.final.outputs.mode }}
+      version: ${{ steps.final.outputs.version }}
+      tag: ${{ steps.final.outputs.tag }}
+      ref: ${{ steps.final.outputs.ref }}
+      pending_branch: ${{ steps.final.outputs.pending_branch }}
+      skip: ${{ steps.final.outputs.skip }}
+    steps:
+      - name: Resolve mode
+        id: mode
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_BUMP: ${{ inputs.bump }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+
+          # Only workflow_dispatch (tag push is not a trigger).
+          if [ -n "${INPUT_TAG:-}" ]; then
+            TAG="$INPUT_TAG"
+            case "$TAG" in
+              v*) ;;
+              *) TAG="v$TAG" ;;
+            esac
+            VERSION="${TAG#v}"
+            # Idempotent skip if already fully published (re-dispatch of a done release).
+            if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              META=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,assets)
+              IS_DRAFT=$(echo "$META" | jq -r '.isDraft')
+              ASSET_COUNT=$(echo "$META" | jq -r '.assets | length')
+              if [ "$IS_DRAFT" = "false" ] && [ "$ASSET_COUNT" -ge 4 ]; then
+                # Still allow forced retry by checking a repo variable? Keep simple:
+                # re-dispatch always re-packages unless you cancel. Comment only.
+                echo "Note: $TAG already has $ASSET_COUNT published assets — continuing retry will overwrite"
+              fi
+            fi
+            echo "kind=retry" >> "$GITHUB_OUTPUT"
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          BUMP="${INPUT_BUMP:-patch}"
+          if [ -z "$BUMP" ]; then
+            BUMP=patch
+          fi
+          echo "kind=cut" >> "$GITHUB_OUTPUT"
+          echo "bump=$BUMP" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v5
+        if: ${{ steps.mode.outputs.kind == 'cut' }}
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: pnpm/action-setup@v5
+        if: ${{ steps.mode.outputs.kind == 'cut' }}
+
+      - uses: actions/setup-node@v5
+        if: ${{ steps.mode.outputs.kind == 'cut' }}
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Bump version onto pending branch (no tag push)
+        if: ${{ steps.mode.outputs.kind == 'cut' }}
+        id: bump
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BUMP: ${{ steps.mode.outputs.bump || 'patch' }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git checkout main
+          git pull --ff-only origin main
+
+          # pnpm version: bumps package.json, runs changelog hook, commits, local annotated tag
+          pnpm install --frozen-lockfile
+          pnpm version "$BUMP" -m "chore: release v%s"
+
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="v${VERSION}"
+          BRANCH="release/pending-${TAG}"
+
+          # Drop the local tag — only push it after both packages are green.
+          git tag -d "$TAG" || true
+
+          git push origin "HEAD:refs/heads/${BRANCH}" --force
+
+          {
+            echo "version=$VERSION"
+            echo "tag=$TAG"
+            echo "ref=$BRANCH"
+            echo "pending_branch=$BRANCH"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Prepared $TAG on branch $BRANCH (not yet on main, no tag pushed)"
+
+      - name: Export job outputs
+        id: final
+        env:
+          KIND: ${{ steps.mode.outputs.kind }}
+          MODE_VERSION: ${{ steps.mode.outputs.version }}
+          MODE_TAG: ${{ steps.mode.outputs.tag }}
+          BUMP_VERSION: ${{ steps.bump.outputs.version }}
+          BUMP_TAG: ${{ steps.bump.outputs.tag }}
+          BUMP_REF: ${{ steps.bump.outputs.ref }}
+          BUMP_BRANCH: ${{ steps.bump.outputs.pending_branch }}
+        run: |
+          set -euo pipefail
+          case "$KIND" in
+            retry)
+              echo "mode=retry" >> "$GITHUB_OUTPUT"
+              echo "skip=false" >> "$GITHUB_OUTPUT"
+              echo "version=$MODE_VERSION" >> "$GITHUB_OUTPUT"
+              echo "tag=$MODE_TAG" >> "$GITHUB_OUTPUT"
+              echo "ref=$MODE_TAG" >> "$GITHUB_OUTPUT"
+              echo "pending_branch=" >> "$GITHUB_OUTPUT"
+              ;;
+            cut)
+              echo "mode=cut" >> "$GITHUB_OUTPUT"
+              echo "skip=false" >> "$GITHUB_OUTPUT"
+              echo "version=$BUMP_VERSION" >> "$GITHUB_OUTPUT"
+              echo "tag=$BUMP_TAG" >> "$GITHUB_OUTPUT"
+              echo "ref=$BUMP_REF" >> "$GITHUB_OUTPUT"
+              echo "pending_branch=$BUMP_BRANCH" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "Unknown kind: $KIND"
+              exit 1
+              ;;
+          esac
+          echo "Prepared mode=$KIND tag=$(grep ^tag= "$GITHUB_OUTPUT" | cut -d= -f2-)"
+
+  # ---------------------------------------------------------------------------
+  # package-mac — e2e + signed/notarized artifacts (no GH publish)
+  # ---------------------------------------------------------------------------
+  package-mac:
+    needs: [prepare]
+    if: ${{ needs.prepare.outputs.skip != 'true' }}
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.prepare.outputs.ref }}
+
       - uses: pnpm/action-setup@v5
       - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: pnpm
+
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm test
       - run: pnpm build
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e:native:prebuilt
-      # Pre-create the draft so dmg + zip uploaders share one release (not two drafts).
-      - name: Ensure draft release exists
+
+      - name: Package mac (sign + notarize, no publish)
+        run: pnpm package:mac
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 \
-            || gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
-                 --draft --title "Porcelain ${GITHUB_REF_NAME#v}" --generate-notes
-      - name: Build and publish to GitHub Releases
-        run: pnpm release:prebuilt
-        env:
+          # publish never — assemble job owns the GitHub Release
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
@@ -60,46 +226,168 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
-  # Unsigned Linux app (AppImage + deb + latest-linux.yml) → the SAME draft the Mac
-  # job pre-created. needs: [release] so that draft already exists — no draft race;
-  # electron-builder --publish always joins it by tag. Only AppImage auto-updates
-  # (latest-linux.yml); deb is manual-install by decision. Linux is unsigned (no
-  # mac signing secrets here). Mirrors linux.yml's proven sequence: e2e under xvfb
-  # builds out/ once, then release:linux:prebuilt packages that same out/ (no rebuild).
-  release-linux:
-    if: ${{ github.event_name == 'push' }}
-    needs: [release]
+      - name: Packaging smoke
+        run: node scripts/release-fuse-smoke.mjs --platform mac --dir dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-mac-${{ needs.prepare.outputs.tag }}
+          path: |
+            dist/*.dmg
+            dist/*.zip
+            dist/*.blockmap
+            dist/latest-mac.yml
+          if-no-files-found: error
+          retention-days: 14
+
+  # ---------------------------------------------------------------------------
+  # package-linux — e2e + unsigned AppImage/deb (no GH publish)
+  # ---------------------------------------------------------------------------
+  package-linux:
+    needs: [prepare]
+    if: ${{ needs.prepare.outputs.skip != 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.prepare.outputs.ref }}
+
       - uses: pnpm/action-setup@v5
       - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: pnpm
+
       - run: pnpm install --frozen-lockfile
-      # Electron 42 has no postinstall, so a fresh install leaves the binary
-      # missing; fetch it explicitly (idempotent, cached) before anything runs it.
       - run: node node_modules/electron/install.js
       - run: pnpm exec playwright install --with-deps chromium
-      # e2e is the Linux release gate; it builds out/ (asserts the committed
-      # `*-linux.png` baselines) under a virtual display, and that same out/ is
-      # what release:linux:prebuilt packages below.
-      # Pin the Xvfb screen large enough for the window: the default Xvfb screen is
-      # 1280 wide, which clamps the 1400x900 e2e window and breaks the visual baselines.
+      # Pin Xvfb screen large enough for the 1400x900 e2e window (default 1280 clamps baselines).
       - run: xvfb-run --auto-servernum -s "-screen 0 1600x1000x24" pnpm test:e2e:native
-      - name: Build and publish Linux to GitHub Releases
-        run: pnpm release:linux:prebuilt
+      - name: Package linux (no publish)
+        run: pnpm package:linux
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # porcelain-daemon@<version> → npm latest (npx porcelain-daemon@latest serve --tailnet).
-  # Ubuntu matches npm's documented OIDC path; no registry-url on setup-node (avoids a
-  # dummy NODE_AUTH_TOKEN that blocks trusted publishing).
+      - name: Packaging smoke
+        run: node scripts/release-fuse-smoke.mjs --platform linux --dir dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-linux-${{ needs.prepare.outputs.tag }}
+          path: |
+            dist/*.AppImage
+            dist/*.deb
+            dist/*.blockmap
+            dist/latest-linux.yml
+          if-no-files-found: error
+          retention-days: 14
+
+  # ---------------------------------------------------------------------------
+  # publish — atomic assemble: only when BOTH platforms green
+  # ---------------------------------------------------------------------------
+  publish:
+    needs: [prepare, package-mac, package-linux]
+    if: ${{ needs.prepare.outputs.skip != 'true' && needs.package-mac.result == 'success' && needs.package-linux.result == 'success' }}
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ needs.prepare.outputs.tag }}
+      version: ${{ needs.prepare.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # Need release-publish.mjs + full history for notes/merge.
+          fetch-depth: 0
+          ref: ${{ needs.prepare.outputs.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download mac artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-mac-${{ needs.prepare.outputs.tag }}
+          path: dist-mac
+
+      - name: Download linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-linux-${{ needs.prepare.outputs.tag }}
+          path: dist-linux
+
+      - name: Resolve release target commit
+        id: target
+        env:
+          MODE: ${{ needs.prepare.outputs.mode }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+          BRANCH: ${{ needs.prepare.outputs.pending_branch }}
+        run: |
+          set -euo pipefail
+          git fetch origin --tags --force
+          if [ "$MODE" = "cut" ]; then
+            git fetch origin "$BRANCH"
+            SHA=$(git rev-parse "origin/${BRANCH}")
+          else
+            git fetch origin "refs/tags/${TAG}:refs/tags/${TAG}" || true
+            if ! git rev-parse "$TAG" >/dev/null 2>&1; then
+              echo "::error::tag $TAG not found — cannot retry"
+              exit 1
+            fi
+            SHA=$(git rev-parse "$TAG^{commit}")
+          fi
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "Release target $TAG @ $SHA"
+
+      # Promote BEFORE publishing so a live "latest" release never exists without
+      # the version commit on main. If promote fails, nothing is published.
+      - name: Promote cut commit to main
+        if: ${{ needs.prepare.outputs.mode == 'cut' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+          BRANCH: ${{ needs.prepare.outputs.pending_branch }}
+          SHA: ${{ steps.target.outputs.sha }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git fetch origin main "$BRANCH"
+          git checkout main
+          git pull --ff-only origin main
+
+          if ! git merge --ff-only "origin/${BRANCH}"; then
+            echo "::error::main moved during the release build."
+            echo "Do NOT re-cut the same version. Manually: git merge --ff-only origin/${BRANCH} && git push"
+            echo "Then: gh workflow run release.yml -f tag=${TAG}  (after creating the tag if needed)"
+            exit 1
+          fi
+
+          git push origin main
+          git push origin --delete "$BRANCH" || true
+          echo "Promoted ${TAG} (${SHA}) to main; deleted ${BRANCH}"
+
+      - name: Create/update GitHub Release (published + latest)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          TARGET: ${{ steps.target.outputs.sha }}
+        run: |
+          set -euo pipefail
+          # Creates the annotated-equivalent git tag via --target if missing, then
+          # uploads all assets and marks the release latest (not draft).
+          node scripts/release-publish.mjs \
+            --tag "$TAG" \
+            --title "Porcelain ${VERSION}" \
+            --target "$TARGET" \
+            --assets dist-mac \
+            --assets dist-linux \
+            --cleanup-drafts
+
+  # ---------------------------------------------------------------------------
+  # publish-npm — porcelain-daemon@version (OIDC trusted publishing)
+  # ---------------------------------------------------------------------------
   publish-npm:
-    needs: [release]
-    # Tag push: after Mac success. Dispatch: alone (release is skipped).
-    if: ${{ always() && (needs.release.result == 'success' || (github.event_name == 'workflow_dispatch' && needs.release.result == 'skipped')) }}
+    needs: [prepare, publish]
+    if: ${{ needs.prepare.outputs.skip != 'true' && needs.publish.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -107,12 +395,14 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+          ref: ${{ needs.prepare.outputs.tag }}
+
       - uses: pnpm/action-setup@v5
       - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: pnpm
+
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - name: Publish porcelain-daemon to npm
@@ -122,11 +412,34 @@ jobs:
           npm install -g npm@11.5.2
           pnpm daemon:dist
           cd dist-daemon
-          # Clean userconfig: no always-auth / dummy token from setup-node.
           PUBLISH_NPMRC="$(mktemp)"
           printf 'registry=https://registry.npmjs.org/\n' > "$PUBLISH_NPMRC"
           unset NODE_AUTH_TOKEN || true
           export NPM_CONFIG_USERCONFIG="$PUBLISH_NPMRC"
-          # Provenance is automatic under trusted publishing.
-          npm publish --access public
+          # Idempotent: if this version is already on npm (retry), skip cleanly.
+          if npm view "porcelain-daemon@$(node -p "require('./package.json').version")" version >/dev/null 2>&1; then
+            echo "porcelain-daemon@$(node -p "require('./package.json').version") already published — skip"
+          else
+            npm publish --access public
+          fi
           rm -f "$PUBLISH_NPMRC"
+
+  # ---------------------------------------------------------------------------
+  # cleanup-failed — drop pending branch if package/publish failed on a cut
+  # ---------------------------------------------------------------------------
+  cleanup-failed:
+    # Only when packaging failed/cancelled — version was never proven. If publish
+    # failed after creating the GH Release, keep the pending branch so main can
+    # still receive the version commit manually.
+    needs: [prepare, package-mac, package-linux, publish]
+    if: ${{ always() && needs.prepare.outputs.mode == 'cut' && needs.prepare.outputs.pending_branch != '' && (needs.package-mac.result == 'failure' || needs.package-linux.result == 'failure' || needs.package-mac.result == 'cancelled' || needs.package-linux.result == 'cancelled') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete pending release branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ needs.prepare.outputs.pending_branch }}
+        run: |
+          set -euo pipefail
+          echo "Packaging failed — deleting pending branch $BRANCH (no version burned on main)"
+          gh api -X DELETE "repos/${GITHUB_REPOSITORY}/git/refs/heads/${BRANCH}" || true

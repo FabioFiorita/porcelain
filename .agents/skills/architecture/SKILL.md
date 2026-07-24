@@ -201,6 +201,8 @@ The Agent tab runs coding agents inside Porcelain. It's modeled on the terminal 
 
 Durable config facts (the step-by-step runbook is the `releasing` skill): `electron-builder.yml` — appId `com.fabiofiorita.porcelain`, mac targets dmg + zip (arm64; the **zip** is what electron-updater downloads), hardened runtime, signs with the "Developer ID Application" identity. Auto-update is wired in `src/main/updater.ts` (no-op unless `app.isPackaged`; checks on launch + every 4h, installs on quit) and surfaced by the TopBar `UpdateButton` + the Settings Updates section (same backend). The porcelain CLI is a **second main build input** (`electron.vite.config.ts`) emitting `out/main/cli/porcelain.js`, importing only Node builtins so a plain `node` can run it. Icons regenerate from `build/icon.png` (1024 master) via iconutil + ImageMagick. **Dep placement** (main/preload deps in `dependencies`, renderer-only in `devDependencies`) and the **empty-`CSC_LINK`** trap are `audit` invariants.
 
+**Release pipeline shape (2026-07-24):** gate-then-cut, not tag-then-discover. `pnpm release:check` requires CI + Linux + native dry-run green on `origin/main` HEAD; `pnpm release:cut` dispatches `release.yml`, which bumps on a pending branch, packages mac+linux in parallel with `--publish never`, then **atomically** assembles one GitHub Release (published + **latest**, no draft) only if both legs green, promotes to main, publishes npm. Retry the same tag for infra flakes; never rewrite tags for product bugs. Details live only in the `releasing` skill — don't re-duplicate the runbook here.
+
 ## Conventions
 
 - **shadcn primitives only**: never hand-roll a primitive (sidebar, tabs, dialog, tree, …); search shadcn/registries first; a new primitive requires user approval.
