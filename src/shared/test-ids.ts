@@ -73,7 +73,7 @@ export const TestIds = {
   agentWorktreeBranch: 'agent-worktree-branch',
   agentWorktreeCreate: 'agent-worktree-create',
   agentThreadRow: (id: string): string => `agent-thread-row-${id}`,
-  /** Roster segment filter (`active` | `recent` | `archived`). */
+  /** Roster segment filter (`active` | `archived`). */
   agentThreadFilter: (filter: string): string => `agent-thread-filter-${filter}`,
   agentComposer: 'agent-composer',
   agentSend: 'agent-send',

@@ -69,7 +69,7 @@ import {
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
-type ThreadFilter = 'active' | 'recent' | 'archived'
+type ThreadFilter = 'active' | 'archived'
 
 /** Short "updated" label for a thread row — coarse buckets, never a live-ticking string. */
 function relativeTime(ms: number): string {
@@ -228,8 +228,7 @@ function ThreadRow({
               onClick={() => {
                 archive(thread.id)
                 toast.message('Archived', {
-                  description:
-                    'Hidden from Active/Recent — still on the daemon. Unarchive anytime.',
+                  description: 'Hidden from Active — still on the daemon. Unarchive anytime.',
                 })
               }}
             >
@@ -306,19 +305,16 @@ export function AgentList(): React.JSX.Element {
     return () => clearInterval(id)
   }, [])
 
-  // Three mutually exclusive segments (archive is client-local prefs):
-  //   Active  = live turns still running on the daemon
-  //   Recent  = idle, not archived (continue later)
-  //   Archived = hidden from Active/Recent until restored
-  // Earlier Active also dumped every idle unarchived row into the default
-  // home, so archiving felt like a no-op — the leftover idle list still looked
-  // "active". Keep Active = working only so the three tabs don't overlap.
+  // Two mutually exclusive segments (archive is client-local prefs):
+  //   Active   = all unarchived threads (working + idle) — the roster home
+  //   Archived = hidden from Active until restored
+  // Idle vs working is a Session companion status (right sidebar), not a left-list
+  // segment: a live-only Active left the default home empty between turns and forced
+  // constant Recent clicks. Prefer Archive over Delete for finished work.
   const visibleThreads = useMemo(() => {
     const sorted = [...threads].sort((a, b) => b.updatedAt - a.updatedAt)
     if (filter === 'archived') return sorted.filter((t) => archivedSet.has(t.id))
-    const unarchived = sorted.filter((t) => !archivedSet.has(t.id))
-    if (filter === 'active') return unarchived.filter((t) => t.status === 'working')
-    return unarchived.filter((t) => t.status !== 'working')
+    return sorted.filter((t) => !archivedSet.has(t.id))
   }, [threads, filter, archivedSet])
 
   const openThreadTab = (thread: ThreadInfo): void => {
@@ -536,7 +532,6 @@ export function AgentList(): React.JSX.Element {
         {(
           [
             ['active', 'Active'],
-            ['recent', 'Recent'],
             ['archived', 'Archived'],
           ] as const
         ).map(([id, label]) => (
@@ -571,9 +566,7 @@ export function AgentList(): React.JSX.Element {
             <p className="text-xs text-muted-foreground">
               {filter === 'archived'
                 ? 'Nothing archived. Right-click a thread → Archive.'
-                : filter === 'recent'
-                  ? 'No idle threads. Working ones stay under Active.'
-                  : 'No live threads. Idle ones are under Recent.'}
+                : 'No active threads. Archived ones are under Archived.'}
             </p>
           </div>
         ) : (

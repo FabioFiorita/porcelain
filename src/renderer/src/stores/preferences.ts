@@ -58,7 +58,7 @@ interface PreferencesState {
   skillsDismissedVersion: string | null
   /**
    * Agent thread ids the human archived (client-only, per device). Threads stay
-   * on the daemon; archive only hides them from Active/Recent until restored.
+   * on the daemon; archive only hides them from Active until restored.
    */
   archivedAgentThreadIds: string[]
   setChangesScope: (scope: ChangesScope) => void

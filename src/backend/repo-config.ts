@@ -40,20 +40,15 @@ export const appConfigSchema = z.object({
   // `provider:modelId` key. Daemon-side so the favorites follow the user to the
   // iPad/browser client. Optional so pre-existing configs stay valid.
   agentModelFavorites: z.array(z.string()).optional(),
-  // Global (not per-repo): the provider a thread was last created/switched to, so a bare
-  // "+" new thread reopens in the provider the user last worked in. Optional until the
-  // first selection is recorded.
+  // Legacy GLOBAL last-provider / per-provider defaults (pre per-repo). No code writes
+  // these anymore — kept so old configs still parse, and resolveCreationDefaults falls
+  // back to them when a repo has no remembered defaults yet.
   lastAgentProvider: agentProviderSchema.optional(),
-  // Global (not per-repo): the last-used config PER provider (see agentProviderDefaultSchema),
-  // so a new thread — bare "+" or explicit-provider pick — resumes how that provider was
-  // last left, independent of the others. A partial record: a provider absent from the map
-  // simply has no remembered defaults yet. Optional so pre-existing configs stay valid.
   agentProviderDefaults: z
     .partialRecord(agentProviderSchema, agentProviderDefaultSchema)
     .optional(),
-  // Legacy (superseded by lastAgentProvider + agentProviderDefaults): the single last-used
-  // provider/model/options. No code writes it anymore — kept in the schema so pre-existing
-  // configs still parse, and read back once by resolveCreationDefaults as a fallback seed.
+  // Legacy (superseded by lastAgentProvider + agentProviderDefaults, then by per-repo):
+  // the single last-used provider/model/options. Read-only fallback seed.
   lastAgentSelection: z
     .object({
       provider: agentProviderSchema,
@@ -72,6 +67,13 @@ export const appConfigSchema = z.object({
       z.object({
         hiddenPaths: z.array(z.string()).default([]),
         pinnedPaths: z.array(z.string()).default([]),
+        // Per-repo: the provider a thread was last created/switched to in THIS repo, so a
+        // bare "+" reopens that provider only for this project (soaphealth ≠ porcelain).
+        lastAgentProvider: agentProviderSchema.optional(),
+        // Per-repo: last-used model/mode/interaction/options PER provider for this repo.
+        agentProviderDefaults: z
+          .partialRecord(agentProviderSchema, agentProviderDefaultSchema)
+          .optional(),
         // Deprecated: reviewed marks + layers + notes moved to their ~/.porcelain agent
         // channels (reviewed-store.ts / layers-store.ts / notes-store.ts) so the porcelain
         // CLI can read them. Kept optional only so the one-time startup migrations
@@ -194,23 +196,32 @@ export function toggleModelFavorite(config: AppConfig, key: string): AppConfig {
 }
 
 /**
- * Remember the config a thread was last created/switched to for its provider — `model`
- * plus whichever of mode/interaction/options the caller knows — and mark that provider as
- * the last-used one. The patch is MERGED into the provider's existing entry (a field the
- * caller omits keeps its remembered value), and never crosses into another provider.
+ * Remember the config a thread was last created/switched to for its provider **in this
+ * repo** — `model` plus whichever of mode/interaction/options the caller knows — and mark
+ * that provider as the last-used one for the repo. The patch is MERGED into the provider's
+ * existing per-repo entry (a field the caller omits keeps its remembered value), and never
+ * crosses into another provider or another repo.
  */
 export function withAgentDefaults(
   config: AppConfig,
+  repoPath: string,
   provider: AgentProvider,
   patch: Partial<AgentProviderDefault> & { model: string },
 ): AppConfig {
-  const existing = config.agentProviderDefaults?.[provider]
+  const repo = config.repos[repoPath] ?? emptyRepo()
+  const existing = repo.agentProviderDefaults?.[provider]
   return {
     ...config,
-    lastAgentProvider: provider,
-    agentProviderDefaults: {
-      ...config.agentProviderDefaults,
-      [provider]: { ...existing, ...patch },
+    repos: {
+      ...config.repos,
+      [repoPath]: {
+        ...repo,
+        lastAgentProvider: provider,
+        agentProviderDefaults: {
+          ...repo.agentProviderDefaults,
+          [provider]: { ...existing, ...patch },
+        },
+      },
     },
   }
 }
@@ -222,19 +233,20 @@ export function withAgentProviderCache(config: AppConfig, cache: ProviderStatus[
 
 /**
  * Resolve the full config a new thread is created with, drawn from the chosen provider's
- * remembered defaults so an explicit-provider create still inherits how that provider was
- * last left (a non-empty caller value always wins). The provider is the caller's, else the
- * last-used one, else the legacy selection's provider, else 'claude'; then per that provider:
+ * remembered defaults **for this repo** so an explicit-provider create still inherits how
+ * that provider was last left here (a non-empty caller value always wins). Lookups prefer
+ * per-repo state, then the legacy global `lastAgentProvider`/`agentProviderDefaults`, then
+ * the single `lastAgentSelection` seed — so pre-existing configs keep working with no
+ * startup migration. The provider is the caller's, else the repo's last-used one, else
+ * the global/legacy last-used, else 'claude'; then per that provider:
  *   - model: the caller's non-empty model, else the provider default's model, else '' (the CLI's own default)
  *   - mode: the caller's, else the provider default's, else 'full'
  *   - options: the caller's, else the provider default's
  *   - interaction: the provider default's (absent = build)
- * With no per-provider defaults yet, the legacy single `lastAgentSelection` seeds the last
- * provider and — for its own provider — that provider's model/options: a one-way READ
- * fallback so pre-existing configs keep working with no startup migration.
  */
 export function resolveCreationDefaults(
   config: AppConfig,
+  repoPath: string,
   input: { provider?: AgentProvider; model?: string; mode?: AgentMode; options?: ThreadOptions },
 ): {
   provider: AgentProvider
@@ -243,9 +255,16 @@ export function resolveCreationDefaults(
   options?: ThreadOptions
   interaction?: AgentInteraction
 } {
+  const repo = config.repos[repoPath]
   const legacy = config.lastAgentSelection
-  const provider = input.provider ?? config.lastAgentProvider ?? legacy?.provider ?? 'claude'
+  const provider =
+    input.provider ??
+    repo?.lastAgentProvider ??
+    config.lastAgentProvider ??
+    legacy?.provider ??
+    'claude'
   const defaults =
+    repo?.agentProviderDefaults?.[provider] ??
     config.agentProviderDefaults?.[provider] ??
     (legacy?.provider === provider
       ? {

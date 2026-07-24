@@ -20,6 +20,7 @@ import {
 import { emitAppEvent } from '../app-events'
 import type { TerminalSender } from '../terminal-manager'
 import { drivers as defaultDrivers } from './drivers'
+import { releaseAllClaudeSessions, releaseClaudeSession } from './drivers/claude'
 import { resumeKey } from './session-import'
 import {
   deleteThreadFile,
@@ -560,6 +561,9 @@ export async function deleteThread(id: string): Promise<void> {
   // the file last. Otherwise a debounced/in-flight write could recreate the file we deleted.
   thread.turnToken = null
   thread.turn?.abort()
+  // Claude keeps its CLI process alive between turns so Task subagents survive chat;
+  // release that idle process on delete (abort only runs while a turn handle exists).
+  if (thread.meta.provider === 'claude') releaseClaudeSession(thread.sessionState)
   if (thread.persistTimer !== null) {
     clearTimeout(thread.persistTimer)
     thread.persistTimer = null
@@ -769,6 +773,8 @@ export async function flushThread(id: string): Promise<void> {
 export async function flushAllThreads(): Promise<void> {
   // A pending usage-broadcast tick has nothing left to notify once we're shutting down.
   clearUsageBroadcast()
+  // Claude multi-turn processes outlive individual turns — reclaim them on daemon exit.
+  releaseAllClaudeSessions()
   await Promise.all([...threads.values()].map((thread) => persistNow(thread).catch(() => {})))
 }
 

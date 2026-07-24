@@ -88,8 +88,7 @@ describe('AgentList', () => {
       },
     ])
     renderList()
-    // Idle threads live under Recent (Active is live-only).
-    fireEvent.click(screen.getByRole('button', { name: 'Recent' }))
+    // Idle threads stay under Active (no Recent segment).
     // Worktree branch is on the meta line under the title (not a separate chip title).
     expect(screen.getByText(/feature\/x/)).toBeInTheDocument()
   })
@@ -110,7 +109,7 @@ describe('AgentList', () => {
     expect(usePreferencesStore.getState().sidebarTab).toBe('feature')
   })
 
-  it('Active shows only live threads; Recent idle; Archived the rest', () => {
+  it('Active shows working + idle; Archived the rest; no Recent segment', () => {
     usePreferencesStore.setState({ archivedAgentThreadIds: ['archived-1'] })
     vi.mocked(useAgentThreads).mockReturnValue([
       {
@@ -149,15 +148,12 @@ describe('AgentList', () => {
     ])
     renderList()
 
-    // Default filter = Active: live only (idle is NOT "active").
+    // Default filter = Active: all unarchived (working + idle). Idle status lives in
+    // the Session companion on the right, not as a left-list segment.
     expect(screen.getByText('Live turn')).toBeInTheDocument()
-    expect(screen.queryByText('Idle continue')).not.toBeInTheDocument()
-    expect(screen.queryByText('Done forever')).not.toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Recent' }))
-    expect(screen.queryByText('Live turn')).not.toBeInTheDocument()
     expect(screen.getByText('Idle continue')).toBeInTheDocument()
     expect(screen.queryByText('Done forever')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Recent' })).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
     expect(screen.queryByText('Live turn')).not.toBeInTheDocument()

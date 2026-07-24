@@ -97,6 +97,7 @@ describe('withAgentDefaults', () => {
     const parsed = appConfigSchema.parse({ recentRepos: [], repos: {} })
     expect(parsed.lastAgentProvider).toBeUndefined()
     expect(parsed.agentProviderDefaults).toBeUndefined()
+    expect(parsed.repos['/x']?.lastAgentProvider).toBeUndefined()
   })
 
   it('still parses a legacy lastAgentSelection (kept for the read fallback)', () => {
@@ -112,39 +113,64 @@ describe('withAgentDefaults', () => {
     })
   })
 
-  it("records a provider's defaults and marks it the last-used provider", () => {
-    const config = withAgentDefaults(emptyConfig, 'codex', {
+  it("records a provider's defaults on the repo and marks it the last-used provider", () => {
+    const config = withAgentDefaults(emptyConfig, '/repo-a', 'codex', {
       model: 'gpt-5',
       mode: 'auto-edits',
       interaction: 'plan',
       options: { effort: 'high' },
     })
-    expect(config.lastAgentProvider).toBe('codex')
-    expect(config.agentProviderDefaults?.codex).toEqual({
+    expect(config.repos['/repo-a']?.lastAgentProvider).toBe('codex')
+    expect(config.repos['/repo-a']?.agentProviderDefaults?.codex).toEqual({
       model: 'gpt-5',
       mode: 'auto-edits',
       interaction: 'plan',
       options: { effort: 'high' },
     })
+    // Global slots stay untouched (legacy read-only).
+    expect(config.lastAgentProvider).toBeUndefined()
+    expect(config.agentProviderDefaults).toBeUndefined()
   })
 
   it('keeps each provider independent (no cross-provider mix)', () => {
-    let config = withAgentDefaults(emptyConfig, 'codex', { model: 'gpt-5' })
-    config = withAgentDefaults(config, 'claude', { model: 'opus', mode: 'full' })
-    expect(config.lastAgentProvider).toBe('claude')
-    expect(config.agentProviderDefaults?.codex).toEqual({ model: 'gpt-5' })
-    expect(config.agentProviderDefaults?.claude).toEqual({ model: 'opus', mode: 'full' })
+    let config = withAgentDefaults(emptyConfig, '/repo', 'codex', { model: 'gpt-5' })
+    config = withAgentDefaults(config, '/repo', 'claude', { model: 'opus', mode: 'full' })
+    expect(config.repos['/repo']?.lastAgentProvider).toBe('claude')
+    expect(config.repos['/repo']?.agentProviderDefaults?.codex).toEqual({ model: 'gpt-5' })
+    expect(config.repos['/repo']?.agentProviderDefaults?.claude).toEqual({
+      model: 'opus',
+      mode: 'full',
+    })
+  })
+
+  it('scopes defaults per repo (soaphealth ≠ porcelain)', () => {
+    let config = withAgentDefaults(emptyConfig, '/soaphealth', 'claude', {
+      model: 'opus',
+      options: { effort: 'xhigh' },
+    })
+    config = withAgentDefaults(config, '/porcelain', 'claude', {
+      model: 'sonnet',
+      options: { effort: 'low' },
+    })
+    expect(config.repos['/soaphealth']?.agentProviderDefaults?.claude).toEqual({
+      model: 'opus',
+      options: { effort: 'xhigh' },
+    })
+    expect(config.repos['/porcelain']?.agentProviderDefaults?.claude).toEqual({
+      model: 'sonnet',
+      options: { effort: 'low' },
+    })
   })
 
   it('merges a patch into the existing entry, keeping omitted fields', () => {
-    let config = withAgentDefaults(emptyConfig, 'claude', {
+    let config = withAgentDefaults(emptyConfig, '/repo', 'claude', {
       model: 'opus',
       interaction: 'plan',
       options: { effort: 'high' },
     })
     // A later mode-only change keeps the remembered interaction + options.
-    config = withAgentDefaults(config, 'claude', { model: 'opus', mode: 'approve' })
-    expect(config.agentProviderDefaults?.claude).toEqual({
+    config = withAgentDefaults(config, '/repo', 'claude', { model: 'opus', mode: 'approve' })
+    expect(config.repos['/repo']?.agentProviderDefaults?.claude).toEqual({
       model: 'opus',
       mode: 'approve',
       interaction: 'plan',
@@ -165,13 +191,13 @@ describe('withAgentProviderCache', () => {
 
 describe('resolveCreationDefaults', () => {
   it('inherits a provider’s remembered defaults on an explicit-provider create', () => {
-    const config = withAgentDefaults(emptyConfig, 'codex', {
+    const config = withAgentDefaults(emptyConfig, '/repo', 'codex', {
       model: 'gpt-5',
       mode: 'auto-edits',
       interaction: 'plan',
       options: { effort: 'high' },
     })
-    expect(resolveCreationDefaults(config, { provider: 'codex' })).toEqual({
+    expect(resolveCreationDefaults(config, '/repo', { provider: 'codex' })).toEqual({
       provider: 'codex',
       model: 'gpt-5',
       mode: 'auto-edits',
@@ -181,16 +207,26 @@ describe('resolveCreationDefaults', () => {
   })
 
   it('lets a non-empty caller value win over the remembered default', () => {
-    const config = withAgentDefaults(emptyConfig, 'codex', { model: 'gpt-5', mode: 'auto-edits' })
+    const config = withAgentDefaults(emptyConfig, '/repo', 'codex', {
+      model: 'gpt-5',
+      mode: 'auto-edits',
+    })
     expect(
-      resolveCreationDefaults(config, { provider: 'codex', model: 'gpt-5-mini', mode: 'full' }),
+      resolveCreationDefaults(config, '/repo', {
+        provider: 'codex',
+        model: 'gpt-5-mini',
+        mode: 'full',
+      }),
     ).toEqual({ provider: 'codex', model: 'gpt-5-mini', mode: 'full' })
   })
 
-  it('resumes the last-used provider (and its defaults) on a bare create', () => {
-    let config = withAgentDefaults(emptyConfig, 'claude', { model: 'opus' })
-    config = withAgentDefaults(config, 'codex', { model: 'gpt-5', options: { effort: 'high' } })
-    expect(resolveCreationDefaults(config, {})).toEqual({
+  it('resumes the last-used provider (and its defaults) on a bare create for that repo', () => {
+    let config = withAgentDefaults(emptyConfig, '/repo', 'claude', { model: 'opus' })
+    config = withAgentDefaults(config, '/repo', 'codex', {
+      model: 'gpt-5',
+      options: { effort: 'high' },
+    })
+    expect(resolveCreationDefaults(config, '/repo', {})).toEqual({
       provider: 'codex',
       model: 'gpt-5',
       mode: 'full',
@@ -198,8 +234,27 @@ describe('resolveCreationDefaults', () => {
     })
   })
 
+  it('does not leak another repo’s last provider into this one', () => {
+    let config = withAgentDefaults(emptyConfig, '/soaphealth', 'codex', {
+      model: 'gpt-5',
+      options: { effort: 'high' },
+    })
+    config = withAgentDefaults(config, '/porcelain', 'claude', { model: 'opus' })
+    expect(resolveCreationDefaults(config, '/soaphealth', {})).toEqual({
+      provider: 'codex',
+      model: 'gpt-5',
+      mode: 'full',
+      options: { effort: 'high' },
+    })
+    expect(resolveCreationDefaults(config, '/porcelain', {})).toEqual({
+      provider: 'claude',
+      model: 'opus',
+      mode: 'full',
+    })
+  })
+
   it('uses the legacy default (claude + empty model + full) with nothing recorded', () => {
-    expect(resolveCreationDefaults(emptyConfig, {})).toEqual({
+    expect(resolveCreationDefaults(emptyConfig, '/repo', {})).toEqual({
       provider: 'claude',
       model: '',
       mode: 'full',
@@ -208,10 +263,27 @@ describe('resolveCreationDefaults', () => {
 
   it('keeps an explicit provider fallback when no defaults are recorded', () => {
     const config: AppConfig = { recentRepos: [], repos: {} }
-    expect(resolveCreationDefaults(config, { provider: 'opencode' })).toEqual({
+    expect(resolveCreationDefaults(config, '/repo', { provider: 'opencode' })).toEqual({
       provider: 'opencode',
       model: '',
       mode: 'full',
+    })
+  })
+
+  it('falls back to legacy global agentProviderDefaults when the repo has none', () => {
+    const config: AppConfig = {
+      recentRepos: [],
+      repos: {},
+      lastAgentProvider: 'codex',
+      agentProviderDefaults: {
+        codex: { model: 'gpt-5', options: { effort: 'high' } },
+      },
+    }
+    expect(resolveCreationDefaults(config, '/new-repo', {})).toEqual({
+      provider: 'codex',
+      model: 'gpt-5',
+      mode: 'full',
+      options: { effort: 'high' },
     })
   })
 
@@ -222,14 +294,14 @@ describe('resolveCreationDefaults', () => {
       lastAgentSelection: { provider: 'codex', model: 'gpt-5', options: { effort: 'high' } },
     }
     // Bare create: legacy provider becomes the last-used one, its model/options seed defaults.
-    expect(resolveCreationDefaults(config, {})).toEqual({
+    expect(resolveCreationDefaults(config, '/repo', {})).toEqual({
       provider: 'codex',
       model: 'gpt-5',
       mode: 'full',
       options: { effort: 'high' },
     })
     // Explicit different provider: no legacy seed for it → provider default model.
-    expect(resolveCreationDefaults(config, { provider: 'claude' })).toEqual({
+    expect(resolveCreationDefaults(config, '/repo', { provider: 'claude' })).toEqual({
       provider: 'claude',
       model: '',
       mode: 'full',

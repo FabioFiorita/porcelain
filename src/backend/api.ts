@@ -1513,7 +1513,7 @@ export const router = t.router({
     )
     .mutation(async ({ input }): Promise<ThreadInfo> => {
       const config = await loadConfig()
-      const resolved = resolveCreationDefaults(config, {
+      const resolved = resolveCreationDefaults(config, input.repoPath, {
         provider: input.provider,
         model: input.model,
         mode: input.mode,
@@ -1521,7 +1521,7 @@ export const router = t.router({
       })
       if (resolved.model !== '') {
         await updateConfig((c) =>
-          withAgentDefaults(c, resolved.provider, {
+          withAgentDefaults(c, input.repoPath, resolved.provider, {
             model: resolved.model,
             mode: resolved.mode,
             ...(resolved.options !== undefined ? { options: resolved.options } : {}),
@@ -1565,8 +1565,8 @@ export const router = t.router({
       })
       // Whenever the switch touched any remembered field (model/mode/interaction/options —
       // not just the model), record the thread's resulting config as that provider's
-      // defaults (the provider may have followed the model), so the next new thread for
-      // this provider resumes exactly how it was left.
+      // defaults for THIS repo (the provider may have followed the model), so the next new
+      // thread for this provider in the same project resumes exactly how it was left.
       if (
         updated &&
         (input.model !== undefined ||
@@ -1575,7 +1575,7 @@ export const router = t.router({
           input.options !== undefined)
       ) {
         await updateConfig((c) =>
-          withAgentDefaults(c, updated.provider, {
+          withAgentDefaults(c, updated.repoPath, updated.provider, {
             model: updated.model,
             mode: updated.mode,
             ...(updated.interaction !== undefined ? { interaction: updated.interaction } : {}),

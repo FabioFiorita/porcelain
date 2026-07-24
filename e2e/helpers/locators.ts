@@ -61,7 +61,7 @@ export const loc = {
   agentWorktreeCreate: (page: Page): Locator => byId(page, TestIds.agentWorktreeCreate),
   agentThreadByTitle: (page: Page, title: string): Locator =>
     page.locator(`[data-testid^="agent-thread-row-"][data-title="${title}"]`),
-  agentThreadFilter: (page: Page, filter: 'active' | 'recent' | 'archived'): Locator =>
+  agentThreadFilter: (page: Page, filter: 'active' | 'archived'): Locator =>
     byId(page, TestIds.agentThreadFilter(filter)),
   agentComposer: (page: Page): Locator => byId(page, TestIds.agentComposer),
   agentSend: (page: Page): Locator => byId(page, TestIds.agentSend),
