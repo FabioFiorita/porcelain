@@ -4,10 +4,18 @@
 export const compactButtonClass = 'h-7 text-xs'
 
 // The compact scale for inputs on cards/rows: shrinks the vendored Input from its
-// default h-9 to h-8 and drops to text-xs, so a field never visually outweighs the
-// label it serves. Compose with font-mono where the field holds a regex/command
+// default h-8 and drops to text-xs, so a field never visually outweighs the label
+// it serves. md:text-* is required because the vendored Input carries md:text-sm
+// (iOS zoom-safe text-base → sm at md+); without the md: twin, desktop keeps sm.
+// Compose with font-mono where the field holds a regex/command
 // (cn(compactInputClass, 'font-mono')).
-export const compactInputClass = 'h-8 text-xs'
+export const compactInputClass = 'h-8 text-xs md:text-xs'
+
+// Dense technical multi-row editors (regex layer lists, etc.): same height as
+// compact buttons / icon-sm (h-7) and one step smaller type so mono patterns stay
+// scannable in long stacks. Prefer over compactInputClass when the field is one
+// of many stacked technical rows. Same md: override as compactInputClass.
+export const denseInputClass = 'h-7 text-xs-minus md:text-xs-minus'
 
 // Row actions further mute their label until hover — secondary to the row's name.
 export const rowActionClass = `${compactButtonClass} px-2.5 text-muted-foreground hover:text-foreground`

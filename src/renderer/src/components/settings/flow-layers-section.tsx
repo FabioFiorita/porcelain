@@ -5,7 +5,7 @@ import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-gro
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'
 import { useRepoLayers, useSetRepoLayers } from '@renderer/hooks/use-repo-layers'
-import { compactButtonClass, compactInputClass } from '@renderer/lib/controls'
+import { compactButtonClass, denseInputClass } from '@renderer/lib/controls'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { ChevronDown, ChevronUp, Plus, X } from 'lucide-react'
@@ -98,12 +98,12 @@ function PatternBuilder({
   }
 
   return (
-    <div className="flex flex-col gap-2.5 rounded-md border bg-muted/40 p-3">
+    <div className="flex flex-col gap-2 rounded-md border bg-muted/40 p-2.5">
       <p className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
         Pattern builder
       </p>
-      <div className="flex items-center gap-2.5">
-        <span className="w-14 shrink-0 text-xs text-muted-foreground">Match</span>
+      <div className="flex items-center gap-2">
+        <span className="w-14 shrink-0 text-2xs text-muted-foreground">Match</span>
         <ToggleGroup
           value={[matchType]}
           onValueChange={(value: string[]) => {
@@ -122,14 +122,14 @@ function PatternBuilder({
           </ToggleGroupItem>
         </ToggleGroup>
       </div>
-      <div className="flex items-center gap-2.5">
-        <span className="w-14 shrink-0 text-xs text-muted-foreground">Names</span>
+      <div className="flex items-center gap-2">
+        <span className="w-14 shrink-0 text-2xs text-muted-foreground">Names</span>
         <Input
           value={names}
           onChange={(e) => setNames(e.target.value)}
           placeholder={PLACEHOLDERS[matchType]}
           aria-label="Pattern names"
-          className={cn(compactInputClass, 'flex-1')}
+          className={cn(denseInputClass, 'flex-1')}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               e.preventDefault()
@@ -138,9 +138,9 @@ function PatternBuilder({
           }}
         />
       </div>
-      <div className="flex items-center gap-2.5">
-        <span className="w-14 shrink-0 text-xs text-muted-foreground">Pattern</span>
-        <code className="min-w-0 flex-1 truncate rounded-md bg-muted px-2.5 py-1.5 font-mono text-xs text-ink-green">
+      <div className="flex items-center gap-2">
+        <span className="w-14 shrink-0 text-2xs text-muted-foreground">Pattern</span>
+        <code className="min-w-0 flex-1 truncate rounded-md bg-muted px-2 py-1 font-mono text-xs-minus text-ink-green">
           {preview || '—'}
         </code>
         <Button
@@ -152,15 +152,15 @@ function PatternBuilder({
           <Plus /> Add
         </Button>
       </div>
-      <p className="text-xs text-muted-foreground">{MATCH_HELP[matchType]}</p>
+      <p className="text-2xs text-muted-foreground">{MATCH_HELP[matchType]}</p>
       {parsed.length > 0 && (
-        <div className="flex flex-col gap-1 rounded-md bg-muted px-2.5 py-2">
+        <div className="flex flex-col gap-0.5 rounded-md bg-muted px-2 py-1.5">
           {changedPaths.length === 0 ? (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-2xs text-muted-foreground">
               No changed files to preview against right now.
             </p>
           ) : matches.length === 0 ? (
-            <p className="text-xs text-amber-500/90">
+            <p className="text-2xs text-amber-500/90">
               No changed files match this pattern — try a different match type above.
             </p>
           ) : (
@@ -169,12 +169,12 @@ function PatternBuilder({
                 Matches {matches.length} changed {matches.length === 1 ? 'file' : 'files'}
               </p>
               {matches.slice(0, EXAMPLE_LIMIT).map((p) => (
-                <code key={p} className="block truncate font-mono text-xs text-ink-green">
+                <code key={p} className="block truncate font-mono text-xs-minus text-ink-green">
                   {p}
                 </code>
               ))}
               {matches.length > EXAMPLE_LIMIT && (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-2xs text-muted-foreground">
                   +{matches.length - EXAMPLE_LIMIT} more
                 </p>
               )}
@@ -182,7 +182,7 @@ function PatternBuilder({
           )}
         </div>
       )}
-      <p className="text-xs text-muted-foreground">
+      <p className="text-2xs text-muted-foreground">
         Furthest-right match wins; unmatched files fall into{' '}
         <span className="text-foreground">Other</span>. You can still edit any pattern by hand
         below.
@@ -209,13 +209,13 @@ function LayerRow({
   const error = patternError(layer.pattern)
 
   return (
-    <div className="flex items-start gap-1.5">
+    <div className="flex items-start gap-1">
       <Input
         value={layer.label}
         onChange={(e) => onChange({ ...layer, label: e.target.value })}
         placeholder="Label"
         aria-label={`Layer ${index + 1} label`}
-        className={cn(compactInputClass, 'w-32 shrink-0')}
+        className={cn(denseInputClass, 'w-28 shrink-0')}
       />
       <div className="min-w-0 flex-1">
         <Input
@@ -224,9 +224,9 @@ function LayerRow({
           placeholder="Pattern (regex)"
           aria-label={`Layer ${index + 1} pattern`}
           aria-invalid={error !== null}
-          className={cn(compactInputClass, 'font-mono')}
+          className={cn(denseInputClass, 'font-mono')}
         />
-        {error && <p className="mt-0.5 text-xs text-destructive">{error}</p>}
+        {error && <p className="mt-0.5 text-2xs text-destructive">{error}</p>}
       </div>
       <Tooltip>
         <TooltipTrigger
@@ -328,7 +328,7 @@ export function FlowLayersSection({ onSaved }: { onSaved: () => void }): React.J
         changedPaths={changedPaths}
         onAdd={(layer) => setDraft([...draft, { ...layer, id: nextDraftId++ }])}
       />
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1">
         {draft.map((layer, index) => (
           <LayerRow
             key={layer.id}
