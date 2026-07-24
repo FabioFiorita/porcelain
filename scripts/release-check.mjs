@@ -36,10 +36,21 @@ Required green workflows on the target SHA: CI, Linux, E2e native dry-run.`)
   process.exit(0)
 }
 
+/** Env for machine-readable CLI output (FORCE_COLOR in agent shells breaks gh --json). */
+const CLEAN_ENV = {
+  ...process.env,
+  NO_COLOR: '1',
+  FORCE_COLOR: '0',
+  CLICOLOR: '0',
+  CLICOLOR_FORCE: '0',
+  GH_FORCE_TTY: '0',
+}
+
 function sh(cmd, args, opts = {}) {
   return execFileSync(cmd, args, {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
+    env: CLEAN_ENV,
     ...opts,
   }).trim()
 }
