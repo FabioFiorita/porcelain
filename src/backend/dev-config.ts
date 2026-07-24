@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { updateConfig } from './config-store'
 import { withRecentRepo } from './repo-config'
 
-const DEV_REPO = join(homedir(), 'Code', 'porcelain-playground')
+const DEV_REPO = join(homedir(), 'code', 'porcelain-playground')
 
 /**
  * First run of `pnpm dev` starts with an empty dev config; seed it with the

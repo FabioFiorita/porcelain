@@ -35,7 +35,7 @@ const BROWSER_TOKEN = randomBytes(16).toString('hex')
 export const REPO_DIR = join(tmpdir(), 'porcelain-e2e-fixture')
 
 // For the no-repo (Welcome) case: a path that never exists. A NON-EMPTY recents
-// list stops the dev seed from auto-adding ~/Code/porcelain-playground, and the
+// list stops the dev seed from auto-adding ~/code/porcelain-playground, and the
 // `recentRepos` query then prunes this dead path away → genuinely empty → the
 // app lands on Welcome regardless of what's on the host machine.
 const ABSENT_REPO = join(tmpdir(), 'porcelain-e2e-no-such-repo')

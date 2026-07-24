@@ -30,7 +30,7 @@ assumed — this skill is the codebase-specific layer beneath them.
   under `userData` (`~/Library/Application Support/porcelain`), keyed by repo path.
 - **Dev never opens or mutates real repos.** `pnpm dev` sets `userData` to
   `porcelain-dev` before any config read and seeds recents with
-  `~/Code/porcelain-playground` (`src/backend/dev-config.ts`). Verification/testing
+  `~/code/porcelain-playground` (`src/backend/dev-config.ts`). Verification/testing
   happens in the playground, never against the user's work repos.
 - **The agent CLI adds NO inbound network surface.** The porcelain CLI
   (`src/cli/`, installed at `~/.porcelain/porcelain`) is a short-lived process the
