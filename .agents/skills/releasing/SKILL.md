@@ -103,8 +103,13 @@ When packaging was green but publish/notarize/npm/GH flaked, or you need to
 re-upload assets for an existing tag:
 
 ```bash
+# Full rebuild + re-upload + npm (publish scripts run from the dispatch branch SHA,
+# so bugfixes on main apply even when re-targeting an older tag)
 gh workflow run release.yml -f tag=v0.40.0
-# bump is ignored when tag is set
+
+# npm only — when the GitHub Release is already complete and only porcelain-daemon
+# is missing (post-check flake after promote, etc.)
+gh workflow run release.yml -f tag=v0.40.0 -f npm_only=true
 ```
 
 Or re-run the failed jobs on the existing workflow run (`gh run rerun <id> --failed`).
@@ -114,6 +119,12 @@ then `pnpm release:cut` for a **new** patch.
 
 Tag push is **not** a workflow trigger (avoids double-build races). Retry is always
 `workflow_dispatch` with `tag=`.
+
+**Traps learned on the first cut (v0.40.0):**
+- CI's `gh` may lack `isLatest` on `gh release view --json` — we assert latest via
+  `GET …/releases/latest` instead.
+- Always `.trim()` gh stdout (and neutralize `FORCE_COLOR`) before string compares.
+- `release:check` must pass a clean env to `gh --json` for the same reason.
 
 ## Recovery rules
 
