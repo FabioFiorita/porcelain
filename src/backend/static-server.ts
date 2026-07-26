@@ -42,6 +42,9 @@ const CONTENT_TYPES: Record<string, string> = {
   jpeg: 'image/jpeg',
   gif: 'image/gif',
   ico: 'image/x-icon',
+  // Safari ignores a manifest served as octet-stream, so the home-screen name/icons
+  // silently fall back to the page title + a screenshot.
+  webmanifest: 'application/manifest+json',
   woff2: 'font/woff2',
   woff: 'font/woff',
   ttf: 'font/ttf',

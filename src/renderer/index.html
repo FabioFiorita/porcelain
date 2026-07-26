@@ -11,6 +11,21 @@
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content"
     />
     <title>Porcelain</title>
+    <!-- Browser-client chrome (inert in Electron, which uses the packaged app icon).
+         apple-touch-icon is what iOS/iPadOS Safari shows for a bookmark, a Favorite
+         and Add to Home Screen — WITHOUT it Safari falls back to a screenshot of the
+         page, which is the blank-tile look. It must be opaque and full-bleed: iOS
+         composites transparency to black and then applies its own squircle mask.
+         The manifest covers Android/desktop installs and names the home-screen app.
+         All of public/*.png is derived from resources/icon.png — regenerate on an
+         app-icon change (the touch icon is scaled 1.12x and center-cropped so the
+         source's own rounded corners fall outside the opaque frame). -->
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="Porcelain" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#0a0a0a" />
     <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
     <meta
       http-equiv="Content-Security-Policy"

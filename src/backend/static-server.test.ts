@@ -1,6 +1,9 @@
-import { sep } from 'node:path'
-import { describe, expect, it } from 'vitest'
-import { resolveStaticPath, rewriteCsp } from './static-server'
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import type { IncomingMessage, ServerResponse } from 'node:http'
+import { tmpdir } from 'node:os'
+import { join, sep } from 'node:path'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { resolveStaticPath, rewriteCsp, serveStatic } from './static-server'
 
 // A POSIX-style root for readable assertions; the helper is separator-aware.
 const ROOT = `${sep}app${sep}out${sep}renderer`
@@ -97,5 +100,41 @@ describe('rewriteCsp', () => {
   it('is a no-op when there is no matching connect-src to rewrite', () => {
     const noMatch = "connect-src 'self' ws://host:1234 wss://host:1234"
     expect(rewriteCsp(META(noMatch), 'host:1234')).toBe(META(noMatch))
+  })
+})
+
+describe('serveStatic content types', () => {
+  const dist = join(tmpdir(), 'porcelain-static-server-test')
+
+  beforeEach(() => {
+    mkdirSync(dist, { recursive: true })
+    writeFileSync(join(dist, 'manifest.webmanifest'), '{"name":"Porcelain"}')
+    writeFileSync(join(dist, 'apple-touch-icon.png'), 'png-bytes')
+  })
+
+  afterEach(() => rmSync(dist, { recursive: true, force: true }))
+
+  // HEAD is enough to assert the type mapping and keeps the test off streams.
+  const headType = async (url: string): Promise<string | undefined> => {
+    let headers: Record<string, string> | undefined
+    const res = {
+      writeHead: (_status: number, h?: Record<string, string>) => {
+        headers = h
+      },
+      end: () => {},
+      headersSent: false,
+    } as unknown as ServerResponse
+    await serveStatic({ url, method: 'HEAD', headers: {} } as IncomingMessage, res, dist)
+    return headers?.['content-type']
+  }
+
+  // Safari ignores a manifest served as octet-stream, so the home-screen name and
+  // icons silently fall back to the page title + a screenshot.
+  it('serves the web app manifest as application/manifest+json', async () => {
+    expect(await headType('/manifest.webmanifest')).toBe('application/manifest+json')
+  })
+
+  it('serves the apple touch icon as image/png', async () => {
+    expect(await headType('/apple-touch-icon.png')).toBe('image/png')
   })
 })
