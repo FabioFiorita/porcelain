@@ -52,6 +52,35 @@ test('settings dialog', async ({ page }) => {
   await expect(loc.settingsDialog(page)).toHaveScreenshot('settings-general.png')
 })
 
+// Phone Settings: horizontal section chips + stacked preference rows (not the
+// dual-pane rail that left ~200px for toggles). Boot at desktop so the shell is
+// visible, then shrink — rail Settings lives in the mobile sheet when closed.
+test('settings dialog — phone', async ({ page }) => {
+  await waitForShell(page)
+  await page.setViewportSize({ width: 390, height: 844 })
+  // Dual-rail sheet closes at the mobile breakpoint; open it for the gear.
+  if (!(await loc.railSettings(page).isVisible())) {
+    await loc.toggleLeftSidebar(page).click()
+    await expect(loc.railSettings(page)).toBeVisible({ timeout: 10_000 })
+  }
+  await openSettings(page)
+  const dialog = loc.settingsDialog(page)
+  await expect(loc.settingsHeading(page)).toHaveText('General')
+  // Mobile nav is chips, not the desktop sidebar list.
+  await expect(dialog.getByRole('navigation', { name: 'Settings sections' })).toBeVisible()
+  await expect(dialog.getByRole('button', { name: 'Share' })).toBeVisible()
+  // Preference rows stack: Appearance label above the System segment.
+  const appearance = dialog.getByText('Appearance', { exact: true })
+  const system = loc.appearance(page, 'system')
+  await expect(appearance).toBeVisible()
+  await expect(system).toBeVisible()
+  const aBox = await appearance.boundingBox()
+  const sBox = await system.boundingBox()
+  if (aBox === null || sBox === null) throw new Error('expected Appearance and System boxes')
+  expect(sBox.y).toBeGreaterThan(aBox.y + aBox.height - 4)
+  await expect(dialog).toHaveScreenshot('settings-general-mobile.png')
+})
+
 test.describe('without a seeded repo', () => {
   test.use({ seedRepo: false })
 
