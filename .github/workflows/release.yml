@@ -147,9 +147,39 @@ jobs:
           unset NODE_AUTH_TOKEN || true
           export NPM_CONFIG_USERCONFIG="$PUBLISH_NPMRC"
           VER=$(node -p "require('./package.json').version")
+          TARBALL_URL="https://registry.npmjs.org/porcelain-daemon/-/porcelain-daemon-${VER}.tgz"
+
+          # Only skip if the version exists AND its tarball is actually downloadable.
+          # A metadata-only / flaky publish previously left latest pointing at a 404
+          # tarball and crash-looped every `npx porcelain-daemon@latest` host.
           if npm view "porcelain-daemon@${VER}" version >/dev/null 2>&1; then
-            echo "porcelain-daemon@${VER} already published — skip"
+            CODE=$(curl -sS -o /dev/null -w '%{http_code}' -L "$TARBALL_URL" || echo 000)
+            if [ "$CODE" = "200" ]; then
+              echo "porcelain-daemon@${VER} already published (tarball 200) — skip"
+            else
+              echo "porcelain-daemon@${VER} is on the registry but tarball HTTP $CODE — refusing to trust it"
+              echo "Fix manually (unpublish/deprecate ${VER}) or bump and re-publish."
+              exit 1
+            fi
           else
             npm publish --access public
+            # Wait for the tarball to be fetchable before the job succeeds.
+            ok=0
+            for i in 1 2 3 4 5 6 7 8 9 10; do
+              CODE=$(curl -sS -o /dev/null -w '%{http_code}' -L "$TARBALL_URL" || echo 000)
+              echo "tarball probe attempt $i → HTTP $CODE"
+              if [ "$CODE" = "200" ]; then
+                ok=1
+                break
+              fi
+              sleep 6
+            done
+            if [ "$ok" != "1" ]; then
+              echo "npm publish of porcelain-daemon@${VER} did not produce a downloadable tarball"
+              exit 1
+            fi
+            # Smoke: install exactly this version and run --help
+            npx --yes "porcelain-daemon@${VER}" --help >/dev/null
+            echo "porcelain-daemon@${VER} publish verified"
           fi
           rm -f "$PUBLISH_NPMRC"

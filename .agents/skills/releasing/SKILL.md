@@ -98,9 +98,15 @@ Identity in `electron-builder.yml`. Secrets on the repo for **package-mac** only
 
 ## npm (`porcelain-daemon`)
 
-Published after the GitHub Release via **npm Trusted Publishing (OIDC)** — no long-lived `NPM_TOKEN`. Trusted publisher: owner **FabioFiorita**, repo `porcelain`, workflow **`release.yml`**. Idempotent skip if that version is already on the registry.
+Published after the GitHub Release via **npm Trusted Publishing (OIDC)** — no long-lived `NPM_TOKEN`. Trusted publisher: owner **FabioFiorita**, repo `porcelain`, workflow **`release.yml`**.
 
-After publish, the Linux **production** systemd unit still runs `npx porcelain-daemon@latest` — restart the unit when you want the new daemon.
+**Post-publish gate (hard-won, 2026-07-27):** after `npm publish`, CI must `curl` the tarball URL until HTTP 200 and smoke `npx porcelain-daemon@VER --help`. A metadata-only / laggy publish once left `latest → 0.43.5` with a **404 tarball**, which crash-looped every host running `npx porcelain-daemon@latest`. "Version already exists" alone is **not** enough to skip — the tarball must be downloadable.
+
+**Do not cut many patches in a short window** without watching each npm job finish green. Prefer one verified cut.
+
+**CLI install layout** (`ensureCli`): installs `~/.porcelain/cli/porcelain.js` + `~/.porcelain/chunks/*` + wrapper (not a flat `porcelain.js` — the bundle `require`s `../chunks/…`).
+
+After a good publish, the Linux **production** unit may still pin a version (e.g. `@0.43.3`) after a registry incident — only move it back to `@latest` once you've confirmed the tarball is 200.
 
 ## Electron fuses smoke (packaging-touching releases)
 
