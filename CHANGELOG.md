@@ -1,3 +1,12 @@
+## [0.43.1](https://github.com/FabioFiorita/porcelain/compare/v0.43.0...v0.43.1) (2026-07-27)
+
+### Bug Fixes
+
+* **release:** don't trim null stdout when stdio is inherit ([b24b74a](https://github.com/FabioFiorita/porcelain/commit/b24b74a3338cfef018dd025b7412a7a5a3d1eefc))
+* **shell:** move Update button into the window titlebar ([ea4f9a3](https://github.com/FabioFiorita/porcelain/commit/ea4f9a382aedf04e5ac7ac7ad9d47649e94eb3e9))
+* **shell:** polish titlebar Update chip to match env control ([22e26ca](https://github.com/FabioFiorita/porcelain/commit/22e26ca672b6ccb40cdabcc7721403119a021c37))
+* **terminal,shell:** iPad key bar + env detail alignment ([e997e50](https://github.com/FabioFiorita/porcelain/commit/e997e50ce4371bb3e2244131bfac322e0eef9011))
+
 ## [0.43.0](https://github.com/FabioFiorita/porcelain/compare/v0.42.3...v0.43.0) (2026-07-27)
 
 ### Features
