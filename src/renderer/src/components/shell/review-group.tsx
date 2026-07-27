@@ -151,7 +151,7 @@ export function ReviewGroup(): React.JSX.Element | null {
           type="button"
           variant="outline"
           size="sm"
-          className={cn(rowActionClass, 'h-7 w-full justify-start gap-1.5 text-destructive')}
+          className={cn(rowActionClass, 'w-full justify-start text-destructive')}
           disabled={isClearing}
           data-testid={TestIds.featureClearReview}
           onClick={() => setConfirmClearOpen(true)}

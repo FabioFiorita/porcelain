@@ -8,6 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui
 import { useDiffFilePrefetch } from '@renderer/hooks/use-diff'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
 import { useReviewedPaths } from '@renderer/hooks/use-reviewed'
+import { compactButtonClass } from '@renderer/lib/controls'
 import {
   FEATURE_CANVAS_TABS,
   type FeatureCanvasTab,
@@ -302,7 +303,7 @@ function IntentBody({ reading }: { reading: FeatureReading }): React.JSX.Element
           <Button
             size="sm"
             variant={mode === 'board' ? 'secondary' : 'ghost'}
-            className="h-7 text-xs"
+            className={compactButtonClass}
             onClick={() => setMode('board')}
           >
             Board
@@ -310,7 +311,7 @@ function IntentBody({ reading }: { reading: FeatureReading }): React.JSX.Element
           <Button
             size="sm"
             variant={mode === 'document' ? 'secondary' : 'ghost'}
-            className="h-7 text-xs"
+            className={compactButtonClass}
             onClick={() => setMode('document')}
           >
             Document

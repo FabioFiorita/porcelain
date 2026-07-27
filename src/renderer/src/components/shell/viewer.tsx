@@ -66,7 +66,7 @@ function EmptyViewer(): React.JSX.Element {
           draggable={false}
           className="size-16 [filter:drop-shadow(0_10px_22px_rgb(0_0_0/0.45))]"
         />
-        <div className="space-y-0.5">
+        <div className="flex flex-col gap-0.5">
           <p className="text-xl font-medium tracking-tight text-foreground">porcelain</p>
           <p className="text-sm text-muted-foreground">Run agents. Review as a story.</p>
           <p className="mt-2 max-w-xs text-xs text-muted-foreground/80 [@media(hover:hover)]:hidden">

@@ -10,6 +10,7 @@ import {
 import { useDiffFilePrefetch } from '@renderer/hooks/use-diff'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
 import { useReviewedPaths, useToggleReviewed } from '@renderer/hooks/use-reviewed'
+import { compactButtonClass } from '@renderer/lib/controls'
 import { highlightRangesForFile } from '@renderer/lib/highlight-ranges'
 import { dirName, fileName } from '@renderer/lib/paths'
 import { openChanges } from '@renderer/lib/surface-handoffs'
@@ -303,7 +304,7 @@ function FeatureOutline(): React.JSX.Element {
         </div>
         <Button
           size="sm"
-          className="h-7 w-full text-xs"
+          className={cn(compactButtonClass, 'w-full')}
           data-testid={TestIds.featureOpenReview}
           onClick={() => openReview({ kind: 'intent' })}
         >
@@ -313,11 +314,11 @@ function FeatureOutline(): React.JSX.Element {
           <Button
             size="sm"
             variant={shipDone ? 'default' : 'outline'}
-            className="h-7 w-full gap-1.5 text-xs"
+            className={cn(compactButtonClass, 'w-full')}
             data-testid={TestIds.featureCommitChanges}
             onClick={() => openChanges()}
           >
-            <GitCompareArrows className="size-3.5" />
+            <GitCompareArrows data-icon="inline-start" />
             Commit changes
           </Button>
         )}
