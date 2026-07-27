@@ -1,3 +1,9 @@
+## [0.43.3](https://github.com/FabioFiorita/porcelain/compare/v0.43.2...v0.43.3) (2026-07-27)
+
+### Bug Fixes
+
+* **terminal:** make finger pan scroll work on iPhone/iPad ([b11d0a3](https://github.com/FabioFiorita/porcelain/commit/b11d0a357fc3b3941e0d57ad754ea808c0e5777f))
+
 ## [0.43.2](https://github.com/FabioFiorita/porcelain/compare/v0.43.1...v0.43.2) (2026-07-27)
 
 ### Features
