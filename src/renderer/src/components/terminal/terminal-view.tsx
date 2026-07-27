@@ -65,7 +65,9 @@ export function TerminalView({ sessionId }: { sessionId: string }): React.JSX.El
           (chip coords are resolved against this box via the wrapper's parent). */}
       <div
         ref={ref}
-        className="relative min-h-0 flex-1 overflow-hidden py-2 pr-1 pl-2"
+        // touch-none: Safari must not claim the pan for page rubber-band; the registry's
+        // attachTouchScroll owns vertical pan (see terminal-touch-scroll.ts + .xterm CSS).
+        className="relative min-h-0 flex-1 touch-none overflow-hidden py-2 pr-1 pl-2"
         style={{ backgroundColor: TERMINAL_THEMES[mode].background }}
         onPointerDown={(e) => {
           if (!isCoarseTouch()) {

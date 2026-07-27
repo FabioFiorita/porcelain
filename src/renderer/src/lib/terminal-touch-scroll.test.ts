@@ -36,7 +36,7 @@ describe('applyTouchScrollDelta', () => {
 })
 
 describe('attachTouchScroll', () => {
-  function fire(el: HTMLElement, type: string, touches: { clientY: number }[]): void {
+  function fireTouch(el: HTMLElement, type: string, touches: { clientY: number }[]): void {
     const list = touches.map((t, i) => ({
       identifier: i,
       clientY: t.clientY,
@@ -57,18 +57,59 @@ describe('attachTouchScroll', () => {
     el.dispatchEvent(event)
   }
 
-  it('scrolls whole lines and preventDefaults move', () => {
+  function firePointer(
+    el: HTMLElement,
+    type: string,
+    init: { clientY: number; pointerId?: number; pointerType?: string },
+  ): void {
+    const event = new Event(type, { bubbles: true, cancelable: true }) as PointerEvent
+    Object.defineProperty(event, 'clientY', { value: init.clientY })
+    Object.defineProperty(event, 'clientX', { value: 0 })
+    Object.defineProperty(event, 'pointerId', { value: init.pointerId ?? 1 })
+    Object.defineProperty(event, 'pointerType', { value: init.pointerType ?? 'touch' })
+    Object.defineProperty(event, 'isPrimary', { value: true })
+    el.dispatchEvent(event)
+  }
+
+  it('scrolls whole lines from touch events and preventDefaults move', () => {
     const el = document.createElement('div')
     const scrollLines = vi.fn()
     const dispose = attachTouchScroll(scrollLines, () => 12, el)
 
-    fire(el, 'touchstart', [{ clientY: 100 }])
-    fire(el, 'touchmove', [{ clientY: 76 }]) // dy = -24 → +2 lines
+    fireTouch(el, 'touchstart', [{ clientY: 100 }])
+    fireTouch(el, 'touchmove', [{ clientY: 76 }]) // dy = -24 → +2 lines
     expect(scrollLines).toHaveBeenCalledWith(2)
 
     scrollLines.mockClear()
-    fire(el, 'touchmove', [{ clientY: 100 }]) // dy = +24 → -2 lines
+    fireTouch(el, 'touchmove', [{ clientY: 100 }]) // dy = +24 → -2 lines
     expect(scrollLines).toHaveBeenCalledWith(-2)
+
+    dispose()
+  })
+
+  it('scrolls from pointer events (primary path on modern iOS)', () => {
+    const el = document.createElement('div')
+    // jsdom has no setPointerCapture — stub so the handler doesn't throw.
+    el.setPointerCapture = vi.fn()
+    const scrollLines = vi.fn()
+    const dispose = attachTouchScroll(scrollLines, () => 12, el)
+
+    firePointer(el, 'pointerdown', { clientY: 100 })
+    firePointer(el, 'pointermove', { clientY: 76 })
+    expect(scrollLines).toHaveBeenCalledWith(2)
+
+    dispose()
+  })
+
+  it('ignores mouse pointers (desktop keeps the wheel path)', () => {
+    const el = document.createElement('div')
+    el.setPointerCapture = vi.fn()
+    const scrollLines = vi.fn()
+    const dispose = attachTouchScroll(scrollLines, () => 12, el)
+
+    firePointer(el, 'pointerdown', { clientY: 100, pointerType: 'mouse' })
+    firePointer(el, 'pointermove', { clientY: 50, pointerType: 'mouse' })
+    expect(scrollLines).not.toHaveBeenCalled()
 
     dispose()
   })
@@ -78,13 +119,13 @@ describe('attachTouchScroll', () => {
     const scrollLines = vi.fn()
     const dispose = attachTouchScroll(scrollLines, () => 12, el)
 
-    fire(el, 'touchstart', [{ clientY: 100 }, { clientY: 110 }])
-    fire(el, 'touchmove', [{ clientY: 50 }])
+    fireTouch(el, 'touchstart', [{ clientY: 100 }, { clientY: 110 }])
+    fireTouch(el, 'touchmove', [{ clientY: 50 }])
     expect(scrollLines).not.toHaveBeenCalled()
 
-    fire(el, 'touchstart', [{ clientY: 100 }])
+    fireTouch(el, 'touchstart', [{ clientY: 100 }])
     dispose()
-    fire(el, 'touchmove', [{ clientY: 50 }])
+    fireTouch(el, 'touchmove', [{ clientY: 50 }])
     expect(scrollLines).not.toHaveBeenCalled()
   })
 })

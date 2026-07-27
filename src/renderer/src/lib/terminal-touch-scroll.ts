@@ -1,15 +1,21 @@
 /**
- * Pure math for converting finger pans into whole-line terminal scrolls.
+ * Finger pan → terminal scroll for xterm 6.
  *
- * xterm 6 scrolls via VS Code's SmoothScrollableElement, which only listens for
- * wheel events — iOS Safari never fires those for finger pans. The registry turns
- * touchmove deltas into `term.scrollLines` via this accumulator so fractional
- * pixel moves don't get rounded away until they accumulate a full cell.
+ * xterm scrolls via SmoothScrollableElement (wheel only) — iOS Safari never fires
+ * wheel for finger pans, so without this adapter the buffer never moves. We convert
+ * pointer/touch deltas into whole-line steps and apply them via a caller-supplied
+ * `scrollLines` (registry chooses buffer scroll vs. alt-buffer cursor keys).
  *
  * Convention matches xterm: positive lines = newer (scroll down), negative =
  * older scrollback (scroll up). Finger-down (dy > 0) therefore yields negative
  * lines; finger-up yields positive.
+ *
+ * Capture-phase listeners + touch-action:none (CSS on `.xterm` + wrapper) are
+ * load-bearing: without capture, an inner handler can swallow the event; without
+ * touch-action:none Safari steals the gesture for page rubber-band and our
+ * preventDefault on move is ignored.
  */
+
 export function applyTouchScrollDelta(
   residual: number,
   dy: number,
@@ -23,49 +29,105 @@ export function applyTouchScrollDelta(
 }
 
 /**
- * Attach touch listeners that pan the xterm buffer and swallow the gesture so
- * the browser page can't rubber-band. Returns a disposer. Only meaningful on
+ * Attach pan listeners that scroll the terminal and swallow the gesture so the
+ * browser page can't rubber-band. Returns a disposer. Only meaningful on
  * multi-touch devices; desktop keeps the wheel path untouched.
+ *
+ * Prefers Pointer Events (setPointerCapture keeps moves even off-element); falls
+ * back to Touch Events for environments without pointer capture. Both use capture
+ * so they win over xterm-internal handlers.
  */
 export function attachTouchScroll(
   scrollLines: (lines: number) => void,
   cellHeight: () => number,
   el: HTMLElement,
 ): () => void {
+  el.style.touchAction = 'none'
+
   let lastY = 0
   let tracking = false
   let residual = 0
+  let activePointerId: number | null = null
 
-  const onStart = (e: TouchEvent): void => {
-    if (e.touches.length !== 1) return
-    tracking = true
-    lastY = e.touches[0].clientY
-    residual = 0
-  }
-  const onMove = (e: TouchEvent): void => {
-    if (!tracking || e.touches.length !== 1) return
-    // Must be non-passive so we can stop the page pan.
-    e.preventDefault()
-    const y = e.touches[0].clientY
+  const applyDy = (y: number): void => {
     const dy = y - lastY
     lastY = y
     const applied = applyTouchScrollDelta(residual, dy, cellHeight())
     residual = applied.residual
     if (applied.lines !== 0) scrollLines(applied.lines)
   }
-  const onEnd = (): void => {
-    tracking = false
+
+  const onPointerDown = (e: PointerEvent): void => {
+    // Mouse still uses the native wheel path on desktop; only touch/pen pans.
+    if (e.pointerType === 'mouse') return
+    if (!e.isPrimary) return
+    tracking = true
+    activePointerId = e.pointerId
+    lastY = e.clientY
+    residual = 0
+    try {
+      el.setPointerCapture(e.pointerId)
+    } catch {
+      // Capture can fail if the element left the tree mid-gesture — tracking still works
+      // while the pointer stays over el.
+    }
   }
 
-  el.addEventListener('touchstart', onStart, { passive: true })
-  el.addEventListener('touchmove', onMove, { passive: false })
-  el.addEventListener('touchend', onEnd, { passive: true })
-  el.addEventListener('touchcancel', onEnd, { passive: true })
+  const onPointerMove = (e: PointerEvent): void => {
+    if (!tracking || e.pointerId !== activePointerId) return
+    // Required so Safari doesn't page-pan over us (needs touch-action:none too).
+    e.preventDefault()
+    applyDy(e.clientY)
+  }
+
+  const onPointerEnd = (e: PointerEvent): void => {
+    if (e.pointerId !== activePointerId) return
+    tracking = false
+    activePointerId = null
+    residual = 0
+  }
+
+  // Touch Event fallback: some WebViews still deliver touch* more reliably than pointer*.
+  // Skip when a pointer session is already tracking so we don't double-apply.
+  const onTouchStart = (e: TouchEvent): void => {
+    if (activePointerId !== null) return
+    if (e.touches.length !== 1) return
+    tracking = true
+    lastY = e.touches[0].clientY
+    residual = 0
+  }
+  const onTouchMove = (e: TouchEvent): void => {
+    if (activePointerId !== null) return
+    if (!tracking || e.touches.length !== 1) return
+    e.preventDefault()
+    applyDy(e.touches[0].clientY)
+  }
+  const onTouchEnd = (): void => {
+    if (activePointerId !== null) return
+    tracking = false
+    residual = 0
+  }
+
+  const optsCapture = { capture: true } as const
+  const optsMove = { capture: true, passive: false } as const
+
+  el.addEventListener('pointerdown', onPointerDown, optsCapture)
+  el.addEventListener('pointermove', onPointerMove, optsMove)
+  el.addEventListener('pointerup', onPointerEnd, optsCapture)
+  el.addEventListener('pointercancel', onPointerEnd, optsCapture)
+  el.addEventListener('touchstart', onTouchStart, { capture: true, passive: true })
+  el.addEventListener('touchmove', onTouchMove, optsMove)
+  el.addEventListener('touchend', onTouchEnd, optsCapture)
+  el.addEventListener('touchcancel', onTouchEnd, optsCapture)
 
   return () => {
-    el.removeEventListener('touchstart', onStart)
-    el.removeEventListener('touchmove', onMove)
-    el.removeEventListener('touchend', onEnd)
-    el.removeEventListener('touchcancel', onEnd)
+    el.removeEventListener('pointerdown', onPointerDown, optsCapture)
+    el.removeEventListener('pointermove', onPointerMove, optsMove)
+    el.removeEventListener('pointerup', onPointerEnd, optsCapture)
+    el.removeEventListener('pointercancel', onPointerEnd, optsCapture)
+    el.removeEventListener('touchstart', onTouchStart, { capture: true })
+    el.removeEventListener('touchmove', onTouchMove, optsMove)
+    el.removeEventListener('touchend', onTouchEnd, optsCapture)
+    el.removeEventListener('touchcancel', onTouchEnd, optsCapture)
   }
 }

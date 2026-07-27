@@ -17,6 +17,28 @@ import { attachTouchScroll } from './terminal-touch-scroll'
 import { resolveTheme, subscribeResolvedTheme } from './theme'
 
 /**
+ * Apply a finger-pan line delta to an xterm instance. Normal buffer → scrollback via
+ * scrollLines. Alternate buffer (TUIs) has no scrollback, so scrollLines is a no-op —
+ * send application/normal cursor keys the way xterm's wheel handler does for no-scrollback
+ * buffers, so Claude Code / vim actually move.
+ */
+function scrollTerminalTouch(term: Terminal, lines: number): void {
+  if (lines === 0) return
+  term.scrollLines(lines)
+  if (term.buffer.active.type !== 'alternate') return
+  // xterm wheel fallback: deltaY < 0 → CSI A (up), deltaY > 0 → CSI B (down).
+  // Our lines: negative = older = finger-down ≈ content moves down ≈ deltaY < 0 → A.
+  const key = lines < 0 ? 'A' : 'B'
+  const prefix = term.modes.applicationCursorKeysMode ? '\x1bO' : '\x1b['
+  const seq = `${prefix}${key}`
+  const n = Math.abs(lines)
+  for (let i = 0; i < n; i++) {
+    // wasUserInput=false: don't clear selection / steal focus as a real key would.
+    term.input(seq, false)
+  }
+}
+
+/**
  * The xterm palette per resolved appearance — the single JS source of truth for
  * the terminal background (terminal-view reads `.background` for its pane fill).
  * Dark is byte-identical to the old inline literal (solid graphite in the spirit
@@ -251,14 +273,22 @@ function create(id: string): Instance {
     }
   }
 
-  // xterm 6 scrolls via SmoothScrollableElement, which only listens for wheel events —
-  // iOS Safari never fires those for finger pans, so the page steals the gesture. Convert
-  // vertical touch pans into scrollLines and preventDefault so the browser client can't
-  // rubber-band the shell. Desktop keeps the wheel path (no listeners attached).
+  // xterm 6 scrolls via SmoothScrollableElement (wheel only) — iOS Safari never fires
+  // wheel for finger pans. Convert vertical pans into line steps. On the NORMAL buffer
+  // that's term.scrollLines; on the ALTERNATE buffer (Claude Code / vim fullscreen)
+  // scrollLines is a no-op (no scrollback), so we also feed cursor-up/down like xterm's
+  // own wheel fallback — otherwise a remote Claude session looks frozen to touch.
   const disposeTouchScroll = isCoarseTouch()
     ? attachTouchScroll(
-        (lines) => term.scrollLines(lines),
-        () => (term.options.fontSize ?? 12) * (term.options.lineHeight ?? 1),
+        (lines) => scrollTerminalTouch(term, lines),
+        () => {
+          const el = term.element
+          if (el && term.rows > 0) {
+            const h = el.clientHeight / term.rows
+            if (h > 0) return h
+          }
+          return (term.options.fontSize ?? 12) * (term.options.lineHeight ?? 1)
+        },
         wrapper,
       )
     : undefined
