@@ -10,9 +10,17 @@ import {
   windowEnvironmentId,
 } from './daemon'
 import {
+  type EndpointKind,
+  endpointKind,
+  endpointsOf,
   loadRemoteEnvironmentState,
   normalizeDaemonUrl,
-  saveRemoteEnvironmentState,
+  orderedEndpoints,
+  type RemoteEnvironment,
+  updateRemoteEnvironmentState,
+  withActiveUrl,
+  withEndpoint,
+  withoutEndpoint,
 } from './remote-daemon'
 import { SKILLS_VERSION, skillsInstallCommand, skillsUpgradeCommand } from './skills-assets'
 import { checkForUpdates, installUpdate, type UpdateStatus, updateStatus } from './updater'
@@ -57,6 +65,8 @@ export interface EnvironmentStatus {
   /** null = This device (the local child daemon). */
   id: string | null
   state: EnvironmentState
+  /** Which of the environment's endpoints answered; null when none did (phase 5). */
+  endpoint: string | null
   /** Reported identity; null when the daemon is too old to announce it, or is down. */
   host: string | null
   platform: string | null
@@ -96,7 +106,7 @@ const UNKNOWN_IDENTITY = { host: null, platform: null, version: null }
 async function probeEnvironment(
   url: string,
   token: string,
-): Promise<Omit<EnvironmentStatus, 'id'>> {
+): Promise<Omit<EnvironmentStatus, 'id' | 'endpoint'>> {
   const authed = { authorization: `Bearer ${token}` }
   let res: Response
   try {
@@ -135,6 +145,88 @@ async function probeEnvironment(
     platform: info.platform ?? null,
     version: info.version,
   }
+}
+
+/**
+ * Status for an environment across ALL its endpoints (phase 5). Sequential within one
+ * environment (same machine — see `resolveLiveEndpoint`) but the caller fans environments
+ * out in parallel, so the worst case is one sleeping machine's endpoints, not everyone's.
+ *
+ * `unauthorized` short-circuits: the token is the same on every address, so re-probing the
+ * rest would just spend four seconds each to learn the same thing.
+ */
+async function probeEnvironmentEndpoints(
+  env: RemoteEnvironment,
+): Promise<Omit<EnvironmentStatus, 'id'>> {
+  let firstFailure: Omit<EnvironmentStatus, 'id' | 'endpoint'> | null = null
+  for (const url of orderedEndpoints(env)) {
+    const status = await probeEnvironment(url, env.token)
+    if (status.state === 'online') return { ...status, endpoint: url }
+    if (status.state === 'unauthorized') return { ...status, endpoint: null }
+    firstFailure ??= status
+  }
+  return { ...(firstFailure ?? { state: 'offline', ...UNKNOWN_IDENTITY }), endpoint: null }
+}
+
+/**
+ * Find an endpoint of this environment that answers, in preference order (phase 5).
+ *
+ * Sequential on purpose, unlike `environmentStatuses`' parallel fan-out: these are the same
+ * machine, so racing them would just pick whichever route replied first — which on the home
+ * LAN is often the tailnet address, the slower one. Preference decides; reachability only
+ * breaks ties. The probe is the same authed `recentRepos` hit `probeDaemon` uses, so a live
+ * box that rejects the token still fails fast rather than being retried on every address.
+ *
+ * Returns null when nothing answered. Never throws — callers decide what a dead environment
+ * means for them.
+ */
+async function resolveLiveEndpoint(env: RemoteEnvironment): Promise<string | null> {
+  for (const url of orderedEndpoints(env)) {
+    try {
+      await probeDaemon(url, env.token)
+      return url
+    } catch (error) {
+      // A rejected token is the same on every address — re-probing the rest is pointless
+      // and only delays the error the human needs to see.
+      if (error instanceof Error && error.message.includes('401')) return null
+    }
+  }
+  return null
+}
+
+/**
+ * Is `url` the same machine as an environment we already have? Proven by the environment's
+ * OWN credential authenticating there — a self-reported hostname is a label, not an
+ * identity, and this is the guard that keeps two machines' addresses out of one entry (and
+ * therefore one machine's token off another machine's wire). Never throws.
+ */
+async function sameMachine(url: string, env: RemoteEnvironment): Promise<boolean> {
+  try {
+    await probeDaemon(url, env.token)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Point an environment at whichever endpoint answered and persist it, so the next window
+ * binds straight to the live address. Returns the url to use (the live one, or the stored
+ * one when nothing answered — the caller's own probe then produces the real error message).
+ */
+async function refreshActiveEndpoint(id: string): Promise<string | null> {
+  const env = (await loadRemoteEnvironmentState()).environments.find((e) => e.id === id)
+  if (env === undefined) return null
+  const live = await resolveLiveEndpoint(env)
+  if (live === null || live === env.url) return live
+  // Re-read inside the serializer: the probe above took seconds, and an add/remove that
+  // landed meanwhile must not be undone by a stale snapshot.
+  await updateRemoteEnvironmentState((state) => ({
+    ...state,
+    environments: state.environments.map((e) => (e.id === id ? withActiveUrl(e, live) : e)),
+  }))
+  await reloadEnvironmentsCache()
+  return live
 }
 
 export const shellRouter = t.router({
@@ -239,13 +331,28 @@ export const shellRouter = t.router({
     }): Promise<{
       activeId: string | null
       defaultId: string | null
-      environments: { id: string; name: string; url: string }[]
+      environments: {
+        id: string
+        name: string
+        url: string
+        /** Every known address for this machine, with its derived kind (phase 5). */
+        endpoints: { url: string; kind: EndpointKind; preferred: boolean }[]
+      }[]
     }> => {
       const state = await loadRemoteEnvironmentState()
       return {
         activeId: windowEnvironmentId(ctx.sender),
         defaultId: state.activeId,
-        environments: state.environments.map(({ id, name, url }) => ({ id, name, url })),
+        environments: state.environments.map((env) => ({
+          id: env.id,
+          name: env.name,
+          url: env.url,
+          endpoints: endpointsOf(env).map((url) => ({
+            url,
+            kind: endpointKind(url),
+            preferred: env.preferredKind !== undefined && endpointKind(url) === env.preferredKind,
+          })),
+        })),
       }
     },
   ),
@@ -264,9 +371,34 @@ export const shellRouter = t.router({
     const state = await loadRemoteEnvironmentState()
     const local = localDaemonPair()
     const [localStatus, ...remoteStatuses] = await Promise.all([
-      probeEnvironment(local.url, local.token),
-      ...state.environments.map((env) => probeEnvironment(env.url, env.token)),
+      probeEnvironment(local.url, local.token).then((status) => ({
+        ...status,
+        endpoint: local.url,
+      })),
+      ...state.environments.map(probeEnvironmentEndpoints),
     ])
+    // Self-heal: this query runs on focus, so a machine that moved networks since the last
+    // switch is already pointing at the live address by the time the human clicks it.
+    // Keyed BY ID through the serializer, never by index into `state` — the probes above
+    // took seconds, and an environment added or removed meanwhile would otherwise be
+    // clobbered by this snapshot (a removed one would come back, token and all).
+    const healed = new Map(
+      state.environments
+        .map((env, index) => [env.id, remoteStatuses[index].endpoint] as const)
+        .filter(([, endpoint]) => endpoint !== null),
+    )
+    if (healed.size > 0) {
+      await updateRemoteEnvironmentState((current) => ({
+        ...current,
+        environments: current.environments.map((env) => {
+          const endpoint = healed.get(env.id)
+          return endpoint === undefined || endpoint === null || endpoint === env.url
+            ? env
+            : withActiveUrl(env, endpoint)
+        }),
+      }))
+      await reloadEnvironmentsCache()
+    }
     return [
       { id: null, ...localStatus },
       ...remoteStatuses.map((status, index) => ({ id: state.environments[index].id, ...status })),
@@ -283,55 +415,168 @@ export const shellRouter = t.router({
         connectThisWindow: z.boolean().optional(),
       }),
     )
-    .mutation(async ({ ctx, input }): Promise<{ id: string; reloaded: boolean }> => {
-      const url = normalizeDaemonUrl(input.url)
-      await probeDaemon(url, input.token)
-
-      // Name it after the machine, not the address. The daemon reports its own host
-      // (daemon-identity.ts), so leaving the field blank yields "beelink" rather than
-      // "100.94.12.3" — the whole point of phase 1. Falls back to the url's hostname
-      // for a daemon too old to announce identity.
-      let name = input.name.trim()
-      if (name === '') {
+    .mutation(
+      async ({ ctx, input }): Promise<{ id: string; reloaded: boolean; merged: boolean }> => {
+        const url = normalizeDaemonUrl(input.url)
+        await probeDaemon(url, input.token)
         const { host } = await probeEnvironment(url, input.token)
-        name = host ?? ''
-      }
-      if (name === '') {
-        try {
-          name = new URL(url).hostname || url
-        } catch {
-          name = url
+
+        // ONE IDENTITY, MANY ENDPOINTS (phase 5). Pairing the same machine a second time —
+        // over the LAN at home after doing it over the tailnet away — used to produce two
+        // rows with the same name and no hint that they were one box. If this address is
+        // the SAME MACHINE as one we already saved, it joins that environment instead.
+        //
+        // "Same machine" is NOT the reported hostname alone: that's a short label
+        // (`shortHostname`), and `ubuntu` / `raspberrypi` / `MacBook-Pro` collide constantly
+        // with no malice involved. A wrong merge would put two boxes' addresses in one entry
+        // and then send one box's token to the other's address — exactly what the entry
+        // boundary exists to prevent. So the host match only NOMINATES a twin; the proof is
+        // that the twin's existing credential also authenticates at this new address. If it
+        // doesn't, we make a separate environment: a duplicate row is a cosmetic annoyance,
+        // a merged pair of machines is a leaked credential.
+        if (host !== null && host !== '') {
+          const twin = (await loadRemoteEnvironmentState()).environments.find(
+            (env) => env.host === host,
+          )
+          if (twin !== undefined && (await sameMachine(url, twin))) {
+            // The twin's token is kept, not replaced: it already works at this address (we
+            // just proved it), and overwriting it would discard a credential the OTHER
+            // endpoints may be the only ones still using.
+            await updateRemoteEnvironmentState((state) => ({
+              ...state,
+              activeId: twin.id,
+              environments: state.environments.map((env) =>
+                env.id === twin.id ? withActiveUrl(withEndpoint(env, url), url) : env,
+              ),
+            }))
+            await reloadEnvironmentsCache()
+            const connectTwin = input.connectThisWindow !== false
+            if (connectTwin) switchWindowEnvironment(ctx.sender, twin.id)
+            return { id: twin.id, reloaded: connectTwin, merged: true }
+          }
         }
-      }
 
-      const id = randomUUID()
-      const state = await loadRemoteEnvironmentState()
-      state.environments.push({ id, name, url, token: input.token })
-      // New env becomes the default for future bare New Window / app restore.
-      state.activeId = id
-      await saveRemoteEnvironmentState(state)
+        // Name it after the machine, not the address. The daemon reports its own host
+        // (daemon-identity.ts), so leaving the field blank yields "beelink" rather than
+        // "100.94.12.3" — the whole point of phase 1. Falls back to the url's hostname
+        // for a daemon too old to announce identity.
+        let name = input.name.trim()
+        if (name === '') {
+          name = host ?? ''
+        }
+        if (name === '') {
+          try {
+            name = new URL(url).hostname || url
+          } catch {
+            name = url
+          }
+        }
+
+        const id = randomUUID()
+        await updateRemoteEnvironmentState((state) => ({
+          ...state,
+          // New env becomes the default for future bare New Window / app restore.
+          activeId: id,
+          environments: [
+            ...state.environments,
+            {
+              id,
+              name,
+              url,
+              token: input.token,
+              endpoints: [url],
+              ...(host !== null && host !== '' ? { host } : {}),
+            },
+          ],
+        }))
+        await reloadEnvironmentsCache()
+
+        const connectThis = input.connectThisWindow !== false
+        if (connectThis) {
+          // Reloads THIS window onto the new env (welcome page of that daemon).
+          switchWindowEnvironment(ctx.sender, id)
+        }
+        return { id, reloaded: connectThis, merged: false }
+      },
+    ),
+
+  /**
+   * Teach an existing environment another way in (phase 5) — the manual counterpart to the
+   * identity merge in `addRemoteEnvironment`, for a machine whose daemon is too old to
+   * report a host, or an address the human knows about before ever connecting over it.
+   * Probed with the environment's OWN token before it is saved, so a typo can't silently
+   * become a dead endpoint the failover walk wastes four seconds on — AND, when both sides
+   * report a host, the answering daemon must BE this machine. Without that check one wrong
+   * digit would persist a stranger's address inside the entry, and every later failover
+   * walk and status refresh would re-send this environment's token to it. The first probe
+   * is unavoidable (you cannot authenticate before authenticating); persisting the mistake
+   * is not.
+   */
+  addEnvironmentEndpoint: t.procedure
+    .input(z.object({ id: z.string(), url: z.string() }))
+    .mutation(async ({ input }): Promise<void> => {
+      const url = normalizeDaemonUrl(input.url)
+      const env = (await loadRemoteEnvironmentState()).environments.find((e) => e.id === input.id)
+      if (env === undefined) throw new Error('That environment no longer exists')
+      await probeDaemon(url, env.token)
+      const { host } = await probeEnvironment(url, env.token)
+      if (env.host !== undefined && host !== null && host !== env.host) {
+        throw new Error(`That address answered as "${host}", not "${env.host}"`)
+      }
+      await updateRemoteEnvironmentState((state) => ({
+        ...state,
+        environments: state.environments.map((e) => (e.id === input.id ? withEndpoint(e, url) : e)),
+      }))
       await reloadEnvironmentsCache()
+    }),
 
-      const connectThis = input.connectThisWindow !== false
-      if (connectThis) {
-        // Reloads THIS window onto the new env (welcome page of that daemon).
-        switchWindowEnvironment(ctx.sender, id)
-      }
-      return { id, reloaded: connectThis }
+  removeEnvironmentEndpoint: t.procedure
+    .input(z.object({ id: z.string(), url: z.string() }))
+    .mutation(async ({ input }): Promise<void> => {
+      await updateRemoteEnvironmentState((state) => ({
+        ...state,
+        environments: state.environments.map((e) =>
+          e.id === input.id ? withoutEndpoint(e, input.url) : e,
+        ),
+      }))
+      await reloadEnvironmentsCache()
+    }),
+
+  /**
+   * Pin which KIND of address this environment prefers — the setting that survives a
+   * network change, unlike pinning the address itself (a DHCP lease is not a preference).
+   * Failover still applies: preferring the LAN just means try it first, not only.
+   */
+  preferEnvironmentEndpoint: t.procedure
+    .input(z.object({ id: z.string(), url: z.string() }))
+    .mutation(async ({ input }): Promise<void> => {
+      await updateRemoteEnvironmentState((state) => ({
+        ...state,
+        environments: state.environments.map((e) =>
+          e.id === input.id ? { ...e, preferredKind: endpointKind(input.url) } : e,
+        ),
+      }))
+      await reloadEnvironmentsCache()
     }),
 
   /** Point THIS window at a saved environment (other windows untouched). */
   connectRemoteEnvironment: t.procedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }): Promise<void> => {
+      // Failover first (phase 5): the saved LAN address is unreachable from a café, so try
+      // every known endpoint in preference order before telling the human it's down. It
+      // persists the winner, so re-read the state afterwards rather than before.
+      const live = await refreshActiveEndpoint(input.id)
       const state = await loadRemoteEnvironmentState()
       const env = state.environments.find((e) => e.id === input.id)
       if (env === undefined) throw new Error('That environment no longer exists')
 
-      await probeDaemon(env.url, env.token)
+      // The walk already probed every address; re-probing the winner is a wasted round trip
+      // and re-probing a dead environment doubles a wait that is already seconds long. Only
+      // probe when the walk found nothing — that call is purely to raise the real error.
+      if (live === null) await probeDaemon(env.url, env.token)
       // Remember as default for new windows / app restore.
-      state.activeId = env.id
-      await saveRemoteEnvironmentState(state)
+      await updateRemoteEnvironmentState((current) => ({ ...current, activeId: env.id }))
       await reloadEnvironmentsCache()
       // Main-process reload onto the remote (welcome) — see switchWindowEnvironment.
       switchWindowEnvironment(ctx.sender, env.id)
@@ -371,14 +616,11 @@ export const shellRouter = t.router({
   removeRemoteEnvironment: t.procedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }): Promise<{ wasActive: boolean; reloaded: boolean }> => {
-      const state = await loadRemoteEnvironmentState()
-      const wasDefault = state.activeId === input.id
       const wasThisWindow = windowEnvironmentId(ctx.sender) === input.id
-      state.environments = state.environments.filter((e) => e.id !== input.id)
-      if (wasDefault) {
-        state.activeId = null
-      }
-      await saveRemoteEnvironmentState(state)
+      await updateRemoteEnvironmentState((state) => ({
+        activeId: state.activeId === input.id ? null : state.activeId,
+        environments: state.environments.filter((e) => e.id !== input.id),
+      }))
       await reloadEnvironmentsCache()
       // Any open window on the removed env falls back to local + welcome and is
       // reloaded here (including the caller's window). Renderer onSuccess must

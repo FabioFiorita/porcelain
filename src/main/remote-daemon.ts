@@ -20,11 +20,32 @@ import { z } from 'zod'
  * this app at. Never log them.
  */
 
+/**
+ * Where an environment can be reached. One machine is usually SEVERAL of these — the
+ * Beelink is a LAN address at home and a tailnet address away — and phase 5 of
+ * plans/environments-v2.md makes that one environment with many endpoints instead of two
+ * confusingly-named rows.
+ *
+ * The kind is DERIVED from the address (see `endpointKind`), never stored: a DHCP lease
+ * changes the address, and a stored kind would then describe the wrong thing. The human's
+ * preference is persisted BY KIND for the same reason — "I prefer the LAN here" survives a
+ * router handing out a different number tomorrow; "I prefer 192.168.1.50" does not.
+ */
+export const endpointKinds = ['tailnet', 'lan', 'other'] as const
+export type EndpointKind = (typeof endpointKinds)[number]
+
 const environmentSchema = z.object({
   id: z.string(),
   name: z.string(),
+  /** The last known good endpoint — always one of `endpoints`. What a window binds to. */
   url: z.string(),
   token: z.string(),
+  /** The daemon's reported hostname, so a second pairing of the same machine merges. */
+  host: z.string().optional(),
+  /** Every known address for this machine, most-recently-added last. */
+  endpoints: z.array(z.string()).optional(),
+  /** Which KIND to try first; absent = try `endpoints` in order. */
+  preferredKind: z.enum(endpointKinds).optional(),
 })
 export type RemoteEnvironment = z.infer<typeof environmentSchema>
 
@@ -92,6 +113,31 @@ export async function saveRemoteEnvironmentState(state: RemoteEnvironmentState):
 }
 
 /**
+ * Serialized read-modify-write — the ONLY sanctioned way to change this file.
+ *
+ * A bare `load → mutate → save` is a lost update here, and phase 5 made that concrete:
+ * `environmentStatuses` loads the state, spends SECONDS probing endpoints over the network,
+ * then writes its snapshot back. An add or remove that lands inside that window would be
+ * silently undone — including resurrecting a removed environment together with its
+ * plaintext token, which is the direction that actually matters. Read inside the callback,
+ * key edits by environment id (never by an index into a snapshot taken before an await).
+ */
+let writeChain: Promise<void> = Promise.resolve()
+
+export function updateRemoteEnvironmentState(
+  mutate: (state: RemoteEnvironmentState) => RemoteEnvironmentState,
+): Promise<void> {
+  const run = writeChain.then(async () => {
+    await saveRemoteEnvironmentState(mutate(await loadRemoteEnvironmentState()))
+  })
+  writeChain = run.then(
+    () => undefined,
+    () => undefined,
+  )
+  return run
+}
+
+/**
  * Resolve the active environment to the `{ url, token }` pair the daemon module
  * needs. Null when nothing is active, or when `activeId` dangles (points at an
  * environment that no longer exists). Pure — unit-tested.
@@ -100,6 +146,79 @@ export function activeRemoteDaemon(state: RemoteEnvironmentState): RemoteDaemon 
   if (state.activeId === null) return null
   const active = state.environments.find((env) => env.id === state.activeId)
   return active ? { url: active.url, token: active.token } : null
+}
+
+/**
+ * Classify an address so the human's preference can be remembered by KIND. Tailscale hands
+ * out CGNAT 100.64/10 (the same range-based match `tailnet.ts` uses daemon-side, and for
+ * the same reason: the interface name is not dependable); RFC1918 is the home LAN. Anything
+ * else — a hostname, a public address — is `other`, which is fine: it just doesn't get to
+ * be the thing "prefer the LAN" refers to. Pure.
+ */
+export function endpointKind(url: string): EndpointKind {
+  let host: string
+  try {
+    host = new URL(url).hostname
+  } catch {
+    return 'other'
+  }
+  const octets = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.\d{1,3}$/.exec(host)
+  if (octets === null) return 'other'
+  const [a, b] = [Number(octets[1]), Number(octets[2])]
+  // 100.64.0.0/10 — Tailscale's range. Note 100.0–100.63 and 100.128+ are NOT in it.
+  if (a === 100 && b >= 64 && b <= 127) return 'tailnet'
+  if (a === 10) return 'lan'
+  if (a === 172 && b >= 16 && b <= 31) return 'lan'
+  if (a === 192 && b === 168) return 'lan'
+  return 'other'
+}
+
+/** Every known address for an environment; migrates a pre-phase-5 entry (url only). */
+export function endpointsOf(env: RemoteEnvironment): string[] {
+  const stored = env.endpoints ?? []
+  return stored.length > 0 ? stored : [env.url]
+}
+
+/**
+ * The order to TRY an environment's endpoints in: the preferred kind first, then the last
+ * known good url, then the rest as stored. Deduped, so a caller can just walk it.
+ *
+ * Ordering matters more than it looks: on the home LAN the tailnet address usually still
+ * *works*, just slower (out to the WireGuard relay and back), so "first one that answers"
+ * would quietly pick the worse route. Preference decides, reachability only breaks ties.
+ * Pure — unit-tested.
+ */
+export function orderedEndpoints(env: RemoteEnvironment): string[] {
+  const all = endpointsOf(env)
+  const preferred = env.preferredKind
+  const byPreference =
+    preferred === undefined ? [] : all.filter((u) => endpointKind(u) === preferred)
+  return [...new Set([...byPreference, env.url, ...all])].filter((url) => all.includes(url))
+}
+
+/** Add an address to an environment's endpoint list (idempotent). Pure. */
+export function withEndpoint(env: RemoteEnvironment, url: string): RemoteEnvironment {
+  const endpoints = endpointsOf(env)
+  return endpoints.includes(url)
+    ? { ...env, endpoints }
+    : { ...env, endpoints: [...endpoints, url] }
+}
+
+/**
+ * Record the endpoint that just answered as the last known good one. Deliberately does NOT
+ * touch `preferredKind`: reachability is not a preference. A LAN-preferring human who
+ * opens the laptop on a train should come back home to the LAN, not to the tailnet address
+ * that happened to work in transit — only an explicit choice moves the preference.
+ */
+export function withActiveUrl(env: RemoteEnvironment, url: string): RemoteEnvironment {
+  return withEndpoint({ ...env, url }, url)
+}
+
+/** Drop an address; a no-op if it is the only one left (an environment needs a way in). */
+export function withoutEndpoint(env: RemoteEnvironment, url: string): RemoteEnvironment {
+  const endpoints = endpointsOf(env).filter((u) => u !== url)
+  if (endpoints.length === 0) return env
+  return { ...env, endpoints, url: endpoints.includes(env.url) ? env.url : endpoints[0] }
 }
 
 /**

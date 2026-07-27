@@ -1,6 +1,18 @@
+import type { EndpointKind } from '@main/remote-daemon'
 import { onMutationError } from '@renderer/hooks/mutation-error'
 import { isBrowser } from '@renderer/lib/platform'
 import { shellTrpc } from '@renderer/lib/trpc'
+
+/**
+ * One address of an environment (phase 5: one identity, many endpoints). `preferred`
+ * is per KIND, not per address — a DHCP lease is not a preference — so every LAN
+ * address of an environment reads as preferred once the LAN is the preferred kind.
+ */
+export interface EnvironmentEndpoint {
+  url: string
+  kind: EndpointKind
+  preferred: boolean
+}
 
 /**
  * Saved remote environments: list other machines' Porcelain daemons and bind
@@ -21,7 +33,7 @@ export function useRemoteEnvironments():
   | {
       activeId: string | null
       defaultId: string | null
-      environments: { id: string; name: string; url: string }[]
+      environments: { id: string; name: string; url: string; endpoints: EnvironmentEndpoint[] }[]
     }
   | undefined {
   const { data } = shellTrpc.remoteEnvironments.useQuery(undefined, { enabled: !isBrowser })
@@ -59,6 +71,92 @@ export function useAddRemoteEnvironment(): {
     add: (input) => mutation.mutate(input),
     isPending: mutation.isPending,
     error: mutation.error?.message ?? null,
+    // The procedure also returns `merged` (this address joined a machine we already had,
+    // phase 5). Deliberately NOT surfaced: every caller adds with connectThisWindow, so the
+    // window hard-reloads onto that environment and any "added as another address" line
+    // would flash for one frame. The reload IS the feedback — it lands on the merged
+    // environment. Re-expose it the day a non-connecting add path exists, not before.
+  }
+}
+
+/**
+ * Teach an environment another way in (phase 5). Inline `error` like add-environment:
+ * a mistyped or unreachable address is a normal, correctable mistake, not a toast.
+ * Resolves true only when the address actually landed, so the caller clears its field
+ * on success and keeps what the human typed when it didn't.
+ */
+export function useAddEnvironmentEndpoint(): {
+  addEndpoint: (input: { id: string; url: string }) => Promise<boolean>
+  isPending: boolean
+  error: string | null
+} {
+  const utils = shellTrpc.useUtils()
+  const mutation = shellTrpc.addEnvironmentEndpoint.useMutation({
+    // Statuses too: the new address may be the one that answers, and the live marker
+    // is read from `environmentStatuses`, not from the environment list.
+    onSuccess: async () => {
+      await Promise.all([
+        utils.remoteEnvironments.invalidate(),
+        utils.environmentStatuses.invalidate(),
+      ])
+    },
+  })
+  return {
+    addEndpoint: async (input) => {
+      try {
+        await mutation.mutateAsync(input)
+        return true
+      } catch {
+        return false
+      }
+    },
+    isPending: mutation.isPending,
+    error: mutation.error?.message ?? null,
+  }
+}
+
+export function useRemoveEnvironmentEndpoint(): {
+  removeEndpoint: (input: { id: string; url: string }) => void
+  pendingUrl: string | null
+} {
+  const utils = shellTrpc.useUtils()
+  const mutation = shellTrpc.removeEnvironmentEndpoint.useMutation({
+    onSuccess: async () => {
+      await Promise.all([
+        utils.remoteEnvironments.invalidate(),
+        utils.environmentStatuses.invalidate(),
+      ])
+    },
+    onError: onMutationError('Remove address'),
+  })
+  return {
+    removeEndpoint: (input) => mutation.mutate(input),
+    // Keyed by url, not by environment: several endpoint rows of the SAME environment
+    // are on screen at once, and only the one being removed should look busy.
+    pendingUrl: mutation.isPending ? (mutation.variables?.url ?? null) : null,
+  }
+}
+
+/** Pin the KIND of that address as the one to try first — failover still applies. */
+export function usePreferEnvironmentEndpoint(): {
+  preferEndpoint: (input: { id: string; url: string }) => void
+  pendingUrl: string | null
+} {
+  const utils = shellTrpc.useUtils()
+  const mutation = shellTrpc.preferEnvironmentEndpoint.useMutation({
+    // Preference reorders the failover walk, so a different address can become the
+    // live one — the statuses query owns that marker.
+    onSuccess: async () => {
+      await Promise.all([
+        utils.remoteEnvironments.invalidate(),
+        utils.environmentStatuses.invalidate(),
+      ])
+    },
+    onError: onMutationError('Prefer address'),
+  })
+  return {
+    preferEndpoint: (input) => mutation.mutate(input),
+    pendingUrl: mutation.isPending ? (mutation.variables?.url ?? null) : null,
   }
 }
 

@@ -104,8 +104,16 @@ assumed — this skill is the codebase-specific layer beneath them.
   already knows it), **or a spawned PTY's env** (see the terminal-env invariant below).
   The saved remote environments (Phase 4) store each entry's token in **plaintext** at
   `userData/remote-daemon.json` — user-owned dir, same trust as the token file — the
-  connect probe sends a token **only** to its own entry's url over the tailnet, and the
-  `remoteEnvironments` query strips tokens before the renderer; never log them.
+  connect probe sends a token **only** to an address of its OWN entry, and the
+  `remoteEnvironments` query strips tokens before the renderer; never log them. Since phase 5
+  an entry holds SEVERAL endpoints for one machine and the failover walk tries each in turn,
+  so **an entry must never come to hold two different machines' addresses** — that is what
+  would put one machine's token on another's wire (in cleartext, on a LAN). Two guards keep
+  it true, and both must stay: the identity merge in `addRemoteEnvironment` requires the
+  existing entry's credential to authenticate at the new address (a reported hostname is a
+  short label — `ubuntu`, `raspberrypi` — and collides without any malice), and
+  `addEnvironmentEndpoint` rejects an address whose daemon reports a different host. A
+  duplicate entry is cosmetic; a merged pair of machines is a leaked credential.
   (4) **CORS is scoped, never `*`** — only the dev Vite origin (`PORCELAIN_ALLOWED_ORIGIN`)
   or the packaged `null` origin is echoed; the preflight carries nothing sensitive (the
   Bearer check on the real request is the gate). Don't relax any of these to "make local

@@ -54,6 +54,7 @@ const status = (id: string | null, state: EnvironmentStatus['state']): Environme
   host: null,
   platform: null,
   version: null,
+  endpoint: null,
 })
 
 beforeEach(() => {

@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
   activeRemoteDaemon,
+  endpointKind,
   normalizeDaemonUrl,
+  orderedEndpoints,
   parseRemoteEnvironmentState,
+  type RemoteEnvironment,
+  withActiveUrl,
+  withEndpoint,
+  withoutEndpoint,
 } from './remote-daemon'
 
 describe('normalizeDaemonUrl', () => {
@@ -100,5 +106,86 @@ describe('activeRemoteDaemon', () => {
       environments: [{ id: 'a', name: 'Beelink', url: 'http://beelink:43117', token: 't1' }],
     }
     expect(activeRemoteDaemon(state)).toBeNull()
+  })
+})
+
+const LAN = 'http://192.168.1.50:43117'
+const TAILNET = 'http://100.94.12.3:43117'
+const NAMED = 'http://beelink:43117'
+
+const env = (overrides: Partial<RemoteEnvironment> = {}): RemoteEnvironment => ({
+  id: 'e1',
+  name: 'Beelink',
+  url: LAN,
+  token: 't',
+  endpoints: [LAN, TAILNET],
+  ...overrides,
+})
+
+describe('endpointKind', () => {
+  it('recognizes the tailnet CGNAT range and the RFC1918 ranges', () => {
+    expect(endpointKind(TAILNET)).toBe('tailnet')
+    expect(endpointKind(LAN)).toBe('lan')
+    expect(endpointKind('http://10.0.0.4:43117')).toBe('lan')
+    expect(endpointKind('http://172.20.0.4:43117')).toBe('lan')
+  })
+
+  it('does not mistake neighbours of 100.64/10 for the tailnet', () => {
+    expect(endpointKind('http://100.63.0.1:43117')).toBe('other')
+    expect(endpointKind('http://100.128.0.1:43117')).toBe('other')
+    // 172.32 is outside 172.16/12 — a classic off-by-one in private-range checks.
+    expect(endpointKind('http://172.32.0.1:43117')).toBe('other')
+  })
+
+  it('treats a hostname or garbage as other rather than guessing', () => {
+    expect(endpointKind(NAMED)).toBe('other')
+    expect(endpointKind('not a url')).toBe('other')
+  })
+})
+
+describe('orderedEndpoints', () => {
+  it('migrates a pre-phase-5 environment that only has a url', () => {
+    expect(orderedEndpoints({ id: 'e', name: 'n', url: NAMED, token: 't' })).toEqual([NAMED])
+  })
+
+  it('tries the preferred KIND first, not whichever answered last', () => {
+    expect(orderedEndpoints(env({ url: TAILNET, preferredKind: 'lan' }))).toEqual([LAN, TAILNET])
+  })
+
+  it('falls back to the last known good url when no kind is preferred', () => {
+    expect(orderedEndpoints(env({ url: TAILNET }))).toEqual([TAILNET, LAN])
+  })
+
+  it('never yields an address the environment no longer knows', () => {
+    const stale = env({ url: 'http://192.168.9.9:43117', endpoints: [TAILNET] })
+    expect(orderedEndpoints(stale)).toEqual([TAILNET])
+  })
+})
+
+describe('endpoint edits', () => {
+  it('adds an address once', () => {
+    expect(withEndpoint(env(), TAILNET).endpoints).toEqual([LAN, TAILNET])
+    expect(withEndpoint(env(), NAMED).endpoints).toEqual([LAN, TAILNET, NAMED])
+  })
+
+  it('records the live address WITHOUT moving the preference — reachability is not a choice', () => {
+    const moved = withActiveUrl(env({ preferredKind: 'lan' }), TAILNET)
+    expect(moved.url).toBe(TAILNET)
+    expect(moved.preferredKind).toBe('lan')
+  })
+
+  it('adds an unknown live address to the list rather than dangling', () => {
+    expect(withActiveUrl(env({ endpoints: [LAN] }), TAILNET).endpoints).toEqual([LAN, TAILNET])
+  })
+
+  it('removes an address and re-points the url when it was the active one', () => {
+    const dropped = withoutEndpoint(env({ url: LAN }), LAN)
+    expect(dropped.endpoints).toEqual([TAILNET])
+    expect(dropped.url).toBe(TAILNET)
+  })
+
+  it('refuses to remove the last way in', () => {
+    const only = env({ endpoints: [LAN] })
+    expect(withoutEndpoint(only, LAN)).toEqual(only)
   })
 })

@@ -72,6 +72,9 @@ export function usePairEnvironment(): {
         try {
           // Blank name: the daemon reports its own host, so the environment names
           // itself (phase 1). connectThisWindow defaults true — main reloads us onto it.
+          // A `merged: true` result (pairing a machine we already saved, over its other
+          // address — phase 5) takes that same reload, so there is nothing extra to say
+          // here: this hook shows no success copy that could claim a row was created.
           await addEnvironment.mutateAsync({ name: '', url: parsed.url, token: outcome.token })
           await utils.remoteEnvironments.invalidate()
         } catch (cause) {

@@ -25,6 +25,7 @@ import { platformLabel } from '@shared/platform'
 import { X } from 'lucide-react'
 import { useState } from 'react'
 import { ConnectedDevicesCard } from './connected-devices-card'
+import { EnvironmentEndpoints } from './environment-endpoints'
 import { PairingCard } from './pairing-card'
 
 /** Copy the daemon token to the clipboard — the affordance a peer needs to connect. */
@@ -221,58 +222,66 @@ function SavedEnvironmentsBlock(): React.JSX.Element {
         {environments.map((env) => {
           const isActive = env.id === activeId
           return (
-            <li key={env.id} className="flex items-center justify-between gap-3 p-3">
-              <div className="min-w-0">
-                <p className="text-sm-minus font-medium">{env.name}</p>
-                <p className="truncate font-mono text-xs text-muted-foreground">{env.url}</p>
-                <p className="text-xs text-muted-foreground">
-                  {describeStatus(statuses.get(env.id))}
-                </p>
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                {isActive ? (
-                  <Badge
-                    variant="outline"
-                    className="rounded-md border-border/60 text-2xs text-muted-foreground"
-                  >
-                    This window
-                  </Badge>
-                ) : (
+            <li key={env.id} className="flex flex-col gap-2 p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm-minus font-medium">{env.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {describeStatus(statuses.get(env.id))}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  {isActive ? (
+                    <Badge
+                      variant="outline"
+                      className="rounded-md border-border/60 text-2xs text-muted-foreground"
+                    >
+                      This window
+                    </Badge>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={rowActionClass}
+                      disabled={connectingId === env.id}
+                      onClick={() => connect(env.id)}
+                    >
+                      {connectingId === env.id ? 'Switching…' : 'Use here'}
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"
                     className={rowActionClass}
-                    disabled={connectingId === env.id}
-                    onClick={() => connect(env.id)}
+                    onClick={() => openInEnv({ environmentId: env.id })}
                   >
-                    {connectingId === env.id ? 'Switching…' : 'Use here'}
+                    New window
                   </Button>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={rowActionClass}
-                  onClick={() => openInEnv({ environmentId: env.id })}
-                >
-                  New window
-                </Button>
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        disabled={removingId === env.id}
-                        onClick={() => remove(env.id)}
-                        aria-label="Remove"
-                      >
-                        <X />
-                      </Button>
-                    }
-                  />
-                  <TooltipContent>Remove</TooltipContent>
-                </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          disabled={removingId === env.id}
+                          onClick={() => remove(env.id)}
+                          aria-label="Remove"
+                        >
+                          <X />
+                        </Button>
+                      }
+                    />
+                    <TooltipContent>Remove</TooltipContent>
+                  </Tooltip>
+                </div>
               </div>
+              {/* Secondary detail under the headline row: an environment is one machine
+                  with several addresses, and which one answered is worth seeing. */}
+              <EnvironmentEndpoints
+                environmentId={env.id}
+                endpoints={env.endpoints}
+                liveEndpoint={statuses.get(env.id)?.endpoint ?? null}
+              />
             </li>
           )
         })}
@@ -309,13 +318,13 @@ function SavedEnvironmentsBlock(): React.JSX.Element {
             or enter manually
           </p>
           <Input
-            placeholder="Name (e.g. Beelink)"
+            placeholder="Name (e.g. Workshop)"
             value={name}
             onChange={(e) => setName(e.target.value)}
             disabled={isAdding}
           />
           <Input
-            placeholder="URL (e.g. http://beelink.tailnet.ts.net:43117)"
+            placeholder="URL (e.g. http://my-server.tailnet.ts.net:43117)"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             disabled={isAdding}

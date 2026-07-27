@@ -22,6 +22,8 @@ export const TestIds = {
   toggleRightSidebar: 'toggle-right-sidebar',
   environmentSwitcher: 'environment-switcher',
   environmentRow: (id: string): string => `environment-row-${id}`,
+  /** One address of a saved environment — an environment has many (phase 5). */
+  environmentEndpoint: (url: string): string => `environment-endpoint-${url}`,
 
   // --- Welcome / glance ---
   welcome: 'welcome',
