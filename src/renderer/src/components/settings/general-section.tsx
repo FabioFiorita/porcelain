@@ -1,6 +1,7 @@
 import { Switch } from '@renderer/components/ui/switch'
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
 import { compactButtonClass } from '@renderer/lib/controls'
+import { isCoarseTouch } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import {
   type DiffMode,
@@ -183,17 +184,21 @@ export function GeneralSection(): React.JSX.Element {
           </ToggleGroupItem>
         </ToggleGroup>
       </PreferenceRow>
-      <PreferenceRow
-        label="Terminal key bar"
-        description="A row of Esc, Tab, Ctrl, arrow, and keyboard keys under each terminal — the keys a software keyboard doesn't have."
-      >
-        <Switch
-          checked={terminalKeyBar}
-          onCheckedChange={setTerminalKeyBar}
-          className="shrink-0"
-          data-testid={TestIds.settingsTerminalKeyBar}
-        />
-      </PreferenceRow>
+      {/* Touch only, matching where the bar itself renders (terminal-view.tsx) — on a
+          desktop pointer this switch would toggle something that never appears. */}
+      {isCoarseTouch() && (
+        <PreferenceRow
+          label="Terminal key bar"
+          description="A row of Esc, Tab, Ctrl, arrow, and keyboard keys under each terminal — the keys a software keyboard doesn't have."
+        >
+          <Switch
+            checked={terminalKeyBar}
+            onCheckedChange={setTerminalKeyBar}
+            className="shrink-0"
+            data-testid={TestIds.settingsTerminalKeyBar}
+          />
+        </PreferenceRow>
+      )}
       <div className="flex flex-col gap-2">
         <div>
           <p className="text-sm-minus font-medium">Terminal display</p>

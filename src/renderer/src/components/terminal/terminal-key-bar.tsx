@@ -85,10 +85,11 @@ function KeyButton({
  * The key row under a terminal pane: the keys a shell needs that a software keyboard
  * doesn't have (Esc, Tab, Ctrl chords, arrows) plus a keyboard show/dismiss toggle.
  *
- * Shown on every platform, not just touch — a compact Electron window has the same reach
- * problem, and one component for both means the touch path isn't a second-class variant
- * that rots. It's a preference (`terminalKeyBar`, Settings → General) for anyone who wants
- * the rows back.
+ * Touch devices only — `terminal-view` owns that gate. It shipped on every platform first,
+ * on the theory that a compact desktop window has the same reach problem; it doesn't. A
+ * desktop keyboard already has every key here, so the row was pure chrome on a Mac. The
+ * `terminalKeyBar` preference (Settings → General) survives as the opt-OUT for people who
+ * don't want it on their tablet, and its row hides on non-touch rather than sit there dead.
  */
 export function TerminalKeyBar({ sessionId }: { sessionId: string }): React.JSX.Element {
   const ctrlArmed = useTerminalInputStore((s) => s.pendingCtrlId === sessionId)

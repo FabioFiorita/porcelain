@@ -1,4 +1,12 @@
-import { expect, expectTerminalText, loc, selectTab, test, waitForShell } from './helpers/app'
+import {
+  expect,
+  expectTerminalText,
+  loc,
+  openSettings,
+  selectTab,
+  test,
+  waitForShell,
+} from './helpers/app'
 
 // Real PTY round-trip: node-pty + bash (PORCELAIN_SHELL). Locators for chrome use
 // data-testid; xterm still uses the buffer hook (WebGL has no scrapeable DOM).
@@ -87,46 +95,80 @@ test('runs a saved action in a terminal', async ({ page }) => {
   await expectTerminalText(page, 0, 'ACTION_42')
 })
 
-test('key bar drives the PTY: arrows recall history, sticky Ctrl and ^C interrupt', async ({
+// The key bar is touch-only: it supplies the keys a SOFTWARE keyboard lacks, so on a
+// desktop pointer (what both runtimes are by default) it's chrome that costs a terminal
+// row. Its setting hides with it rather than toggling something that never appears.
+test('no key bar on a desktop pointer — the row and its setting are touch-only', async ({
   page,
 }) => {
   await waitForShell(page)
   await selectTab(page, 'Terminal')
   await loc.terminalNew(page).click()
 
-  const input = page.locator('.xterm-helper-textarea').first()
-  await input.waitFor()
-  await input.focus()
+  await page.locator('.xterm-helper-textarea').first().waitFor()
   await expectTerminalText(page, 0, '$')
-  await expect(loc.terminalKeyBar(page)).toBeVisible()
+  await expect(loc.terminalKeyBar(page)).toBeHidden()
 
-  // A command in history for the arrow keys to recall.
-  await page.keyboard.type('echo BAR_$((6*7))')
-  await page.keyboard.press('Enter')
-  await expectTerminalText(page, 0, 'BAR_42')
+  await openSettings(page)
+  await expect(loc.settingsTerminalKeyBar(page)).toBeHidden()
+})
 
-  // Up arrow recalls the previous command; Enter re-runs it — proving the bar's arrows
-  // reach readline, not the page.
-  await loc.terminalKey(page, 'Up').click()
-  await page.keyboard.press('Enter')
-  await expectTerminalText(page, 0, 'BAR_42')
+test.describe('on a touch device', () => {
+  test.use({ touchDevice: true })
 
-  // Sticky Ctrl + a typed letter = the control byte: ^C abandons a half-typed line, so
-  // the following command runs on its own instead of being appended to the junk.
-  await page.keyboard.type('junk that must never run')
-  await loc.terminalKey(page, 'ctrl').click()
-  await expect(loc.terminalKey(page, 'ctrl')).toHaveAttribute('aria-pressed', 'true')
-  await input.focus()
-  await page.keyboard.press('c')
-  await expect(loc.terminalKey(page, 'ctrl')).toHaveAttribute('aria-pressed', 'false')
-  await page.keyboard.type('echo CLEAN_$((6*7))')
-  await page.keyboard.press('Enter')
-  await expectTerminalText(page, 0, 'CLEAN_42')
+  test('key bar drives the PTY: arrows recall history, sticky Ctrl and ^C interrupt', async ({
+    page,
+  }) => {
+    await waitForShell(page)
+    await selectTab(page, 'Terminal')
+    await loc.terminalNew(page).click()
 
-  // The ^C shortcut key does the same in one tap.
-  await page.keyboard.type('more junk')
-  await loc.terminalKey(page, 'ctrl-c').click()
-  await page.keyboard.type('echo ONETAP_$((6*7))')
-  await page.keyboard.press('Enter')
-  await expectTerminalText(page, 0, 'ONETAP_42')
+    const input = page.locator('.xterm-helper-textarea').first()
+    await input.waitFor()
+    await input.focus()
+    await expectTerminalText(page, 0, '$')
+    await expect(loc.terminalKeyBar(page)).toBeVisible()
+
+    // A command in history for the arrow keys to recall.
+    await page.keyboard.type('echo BAR_$((6*7))')
+    await page.keyboard.press('Enter')
+    await expectTerminalText(page, 0, 'BAR_42')
+
+    // Up arrow recalls the previous command; Enter re-runs it — proving the bar's arrows
+    // reach readline, not the page.
+    await loc.terminalKey(page, 'Up').click()
+    await page.keyboard.press('Enter')
+    await expectTerminalText(page, 0, 'BAR_42')
+
+    // Sticky Ctrl + a typed letter = the control byte: ^C abandons a half-typed line, so
+    // the following command runs on its own instead of being appended to the junk.
+    await page.keyboard.type('junk that must never run')
+    await loc.terminalKey(page, 'ctrl').click()
+    await expect(loc.terminalKey(page, 'ctrl')).toHaveAttribute('aria-pressed', 'true')
+    await input.focus()
+    await page.keyboard.press('c')
+    await expect(loc.terminalKey(page, 'ctrl')).toHaveAttribute('aria-pressed', 'false')
+    await page.keyboard.type('echo CLEAN_$((6*7))')
+    await page.keyboard.press('Enter')
+    await expectTerminalText(page, 0, 'CLEAN_42')
+
+    // The ^C shortcut key does the same in one tap.
+    await page.keyboard.type('more junk')
+    await loc.terminalKey(page, 'ctrl-c').click()
+    await page.keyboard.type('echo ONETAP_$((6*7))')
+    await page.keyboard.press('Enter')
+    await expectTerminalText(page, 0, 'ONETAP_42')
+  })
+
+  test('the setting is there to turn the bar off on the device that has it', async ({ page }) => {
+    await waitForShell(page)
+    await selectTab(page, 'Terminal')
+    await loc.terminalNew(page).click()
+    await expect(loc.terminalKeyBar(page)).toBeVisible()
+
+    await openSettings(page)
+    await loc.settingsTerminalKeyBar(page).click()
+    await page.keyboard.press('Escape')
+    await expect(loc.terminalKeyBar(page)).toBeHidden()
+  })
 })

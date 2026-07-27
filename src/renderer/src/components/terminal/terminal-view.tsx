@@ -1,5 +1,6 @@
 import { TerminalKeyBar } from '@renderer/components/terminal/terminal-key-bar'
 import { useResolvedTheme } from '@renderer/hooks/use-theme'
+import { isCoarseTouch } from '@renderer/lib/platform'
 import {
   attachTerminal,
   detachTerminal,
@@ -19,7 +20,13 @@ import { useEffect, useRef } from 'react'
 export function TerminalView({ sessionId }: { sessionId: string }): React.JSX.Element {
   const ref = useRef<HTMLDivElement>(null)
   const mode = useResolvedTheme()
-  const keyBar = usePreferencesStore((s) => s.terminalKeyBar) ?? true
+  // Touch devices only. The bar supplies the keys a SOFTWARE keyboard lacks, so on a
+  // desktop pointer it's chrome that costs a terminal row and buys nothing. The gate is
+  // `isCoarseTouch`, NOT the `useIsMobile` width breakpoint: an iPad is coarse-touch at
+  // desktop width, so a width test would drop the bar in landscape — the one orientation
+  // where the on-screen keyboard eats the most of the screen.
+  // ?? true: the preference postdates persisted stores that never wrote the key.
+  const keyBar = (usePreferencesStore((s) => s.terminalKeyBar) ?? true) && isCoarseTouch()
 
   useEffect(() => {
     const container = ref.current

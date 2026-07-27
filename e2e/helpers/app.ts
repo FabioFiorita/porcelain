@@ -84,6 +84,22 @@ interface Options {
    * review set the Review shows only its empty state).
    */
   seedEvidence: { title: string; html: string } | null
+  /**
+   * Present the renderer with a multi-touch screen (default false → a desktop
+   * pointer, which is what both runtimes really are). Set it for the surfaces
+   * that only exist on a tablet/phone — the terminal key bar and its setting.
+   */
+  touchDevice: boolean
+}
+
+/**
+ * The touch seam as `isCoarseTouch()` reads it: `navigator.maxTouchPoints > 1`.
+ * Overriding the property beats Playwright's `hasTouch`, which reports a SINGLE
+ * point — deliberately "a pen, not a multi-touch screen" on our side of the check.
+ * Runs as an init script so it lands before any renderer module evaluates.
+ */
+function installTouch(): void {
+  Object.defineProperty(navigator, 'maxTouchPoints', { get: () => 5 })
 }
 
 interface WorkerOptions {
@@ -252,6 +268,7 @@ export const test = baseTest.extend<Options & Fixtures, WorkerOptions & WorkerFi
   seedRepo: [true, { option: true }],
   seedReviewSet: [null, { option: true }],
   seedEvidence: [null, { option: true }],
+  touchDevice: [false, { option: true }],
   // Worker-scoped so the shared Chromium can key off it; set per Playwright project.
   appMode: ['electron', { option: true, scope: 'worker' }],
 
@@ -304,7 +321,7 @@ export const test = baseTest.extend<Options & Fixtures, WorkerOptions & WorkerFi
     await app.close()
   },
 
-  page: async ({ appMode, app, sharedBrowser, seeded }, use) => {
+  page: async ({ appMode, app, sharedBrowser, seeded, touchDevice }, use) => {
     if (appMode === 'electron') {
       if (app === null) throw new Error('electron mode without an app fixture')
       const page = await app.firstWindow()
@@ -312,6 +329,12 @@ export const test = baseTest.extend<Options & Fixtures, WorkerOptions & WorkerFi
       // seeded state) always resolves dark — CI runners and headless displays
       // otherwise report prefers-color-scheme: light and flip every baseline.
       await page.emulateMedia({ colorScheme: 'dark' })
+      // The window is already open here (no context to pre-seed, unlike browser
+      // mode), so the init script only takes effect on the reload that follows.
+      if (touchDevice) {
+        await page.addInitScript(installTouch)
+        await page.reload()
+      }
       await page.waitForLoadState('domcontentloaded')
       await use(page)
       return
@@ -340,6 +363,7 @@ export const test = baseTest.extend<Options & Fixtures, WorkerOptions & WorkerFi
         localStorage.setItem('porcelain-daemon-token', token)
         localStorage.setItem('porcelain-e2e', '1')
       }, BROWSER_TOKEN)
+      if (touchDevice) await context.addInitScript(installTouch)
       const page = await context.newPage()
       await page.goto(`http://127.0.0.1:${port}/`)
       await use(page)
