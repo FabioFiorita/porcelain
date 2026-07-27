@@ -1,3 +1,10 @@
+## [0.42.0](https://github.com/FabioFiorita/porcelain/compare/v0.41.0...v0.42.0) (2026-07-27)
+
+### Bug Fixes
+
+* **pairing:** mint links against the numeric address, not the .local name ([397c78c](https://github.com/FabioFiorita/porcelain/commit/397c78c34cc97874acfb1e5254841bd5a0558811))
+* **terminal:** show the key bar on touch devices only ([067c9ec](https://github.com/FabioFiorita/porcelain/commit/067c9ecba1f5240e27902bea6be6d83e1ae79740))
+
 ## [0.41.0](https://github.com/FabioFiorita/porcelain/compare/v0.40.0...v0.41.0) (2026-07-27)
 
 ### Features
