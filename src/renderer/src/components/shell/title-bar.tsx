@@ -1,11 +1,39 @@
+import { Button } from '@renderer/components/ui/button'
 import { Kbd } from '@renderer/components/ui/kbd'
+import { useInstallUpdate, useUpdateStatus } from '@renderer/hooks/use-updates'
+import { compactButtonClass } from '@renderer/lib/controls'
 import { kbdLabel } from '@renderer/lib/keyboard'
 import { isBrowser, isLinuxShell } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { useFileFinderStore } from '@renderer/stores/file-finder'
-import { Search } from 'lucide-react'
+import { RotateCw, Search } from 'lucide-react'
 import { EnvironmentSwitcher } from './environment-switcher'
 import { WindowControls } from './window-controls'
+
+/**
+ * Install a downloaded app update. Lives in the window titlebar (next to the
+ * environment chip) — not the viewer TopBar — because it's shell/app chrome,
+ * not document chrome. Hidden until a release is ready; no-op in the browser.
+ */
+function UpdateButton(): React.JSX.Element | null {
+  const status = useUpdateStatus()
+  const { install, isInstalling } = useInstallUpdate()
+
+  if (isBrowser) return null
+  if (status?.state !== 'downloaded') return null
+
+  return (
+    <Button
+      size="sm"
+      variant="secondary"
+      className={cn(compactButtonClass, 'app-no-drag')}
+      disabled={isInstalling}
+      onClick={install}
+    >
+      <RotateCw /> Update to {status.version}
+    </Button>
+  )
+}
 
 /**
  * Full-width window titlebar. The macOS traffic lights own the left inset; a
@@ -27,7 +55,8 @@ import { WindowControls } from './window-controls'
  * control that only appears once you're remote can't be how you go remote (this
  * replaced a Remote-only chip). It owns the machine identity, the reachability dots,
  * and the version-skew warning (the second surface of that guard; the first is the
- * DaemonSkewToast).
+ * DaemonSkewToast). When an update is downloaded, `UpdateButton` sits to its left —
+ * app-level chrome belongs here, not in the viewer's document TopBar.
  *
  * No border-b: the floating tiles sit flush under this bar (top: 3rem, paddingTop: 0),
  * and their own top edges already seat the chrome. A hairline here stacked on the
@@ -60,10 +89,11 @@ export function TitleBar(): React.JSX.Element {
       <div className="min-w-0 flex-1" aria-hidden />
       <div
         className={cn(
-          'app-no-drag relative z-10 flex shrink-0 items-center justify-end gap-1',
+          'app-no-drag relative z-10 flex shrink-0 items-center justify-end gap-1.5',
           isLinuxShell ? 'min-w-24 pl-2' : 'min-w-16 pl-2',
         )}
       >
+        <UpdateButton />
         <EnvironmentSwitcher />
         {isLinuxShell && <WindowControls />}
       </div>

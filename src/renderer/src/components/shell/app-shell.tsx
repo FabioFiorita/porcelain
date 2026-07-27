@@ -10,17 +10,14 @@ import { useAnnounceSession } from '@renderer/hooks/use-repo'
 import { useResponsiveShell } from '@renderer/hooks/use-responsive-shell'
 import { useTerminalChannel } from '@renderer/hooks/use-terminal-channel'
 import { useThemeSync } from '@renderer/hooks/use-theme'
-import { useInstallUpdate, useUpdateStatus } from '@renderer/hooks/use-updates'
-import { compactButtonClass } from '@renderer/lib/controls'
 import { kbdLabel } from '@renderer/lib/keyboard'
-import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { useZenStore } from '@renderer/stores/zen'
 import { TestIds } from '@shared/test-ids'
-import { PanelLeft, RotateCw, Zap } from 'lucide-react'
+import { PanelLeft, Zap } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { CardComposer } from '../board/card-composer'
 import { SettingsDialog } from '../settings/settings-dialog'
@@ -44,32 +41,11 @@ interface LeftSidebarHandle {
   toggle: () => void
 }
 
-/** Appears only once a new release is downloaded and ready to install. */
-function UpdateButton(): React.JSX.Element | null {
-  const status = useUpdateStatus()
-  const { install, isInstalling } = useInstallUpdate()
-
-  // The Electron auto-updater doesn't exist in the browser client.
-  if (isBrowser) return null
-  if (status?.state !== 'downloaded') return null
-
-  return (
-    <Button
-      size="sm"
-      variant="secondary"
-      className={cn(compactButtonClass, 'app-no-drag m-1 self-center')}
-      disabled={isInstalling}
-      onClick={install}
-    >
-      <RotateCw /> Update to {status.version}
-    </Button>
-  )
-}
-
 // TopBar renders inside the right sidebar's provider, so the left sidebar's
 // state/toggle come in as props captured from the outer provider. The right
 // toggle MUST go through this provider's `toggleSidebar` — on phone that flips
 // `openMobile` (the sheet); writing the preference alone leaves the sheet closed.
+// App-update install lives in TitleBar (shell chrome), not here (document chrome).
 function TopBar({ left }: { left: LeftSidebarHandle }): React.JSX.Element {
   const { toggleSidebar: toggleRight, isMobile, openMobile, open: rightOpen } = useSidebar()
   // Every sidebar tab has a companion rail (Board = Focus card detail).
@@ -104,7 +80,6 @@ function TopBar({ left }: { left: LeftSidebarHandle }): React.JSX.Element {
         </TooltipContent>
       </Tooltip>
       {isSplit ? <div className="min-w-0 flex-1 self-stretch" /> : <TabBar paneIndex={0} />}
-      <UpdateButton />
       {hasQuickAccess && (
         <Tooltip>
           <TooltipTrigger
