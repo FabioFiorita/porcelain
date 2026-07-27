@@ -1,3 +1,13 @@
+## [0.43.2](https://github.com/FabioFiorita/porcelain/compare/v0.43.1...v0.43.2) (2026-07-27)
+
+### Features
+
+* **terminal:** floating Copy chip on selection ([0777ddc](https://github.com/FabioFiorita/porcelain/commit/0777ddca0daa0496669277d87f289ed47cc8e8ca))
+
+### Bug Fixes
+
+* **terminal:** honor OSC 52 so remote Claude Code copy works ([4dc26e6](https://github.com/FabioFiorita/porcelain/commit/4dc26e62ab0b89d729ae2cf7d8e1e8351595c6b8))
+
 ## [0.43.1](https://github.com/FabioFiorita/porcelain/compare/v0.43.0...v0.43.1) (2026-07-27)
 
 ### Bug Fixes
