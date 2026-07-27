@@ -7,7 +7,13 @@
  * client has any credential, against a url it was handed rather than the one it's bound
  * to. `content-type: application/json` is mandatory on the daemon side (it forces the
  * CORS preflight that keeps drive-by pages out), so it is not optional here either.
+ *
+ * The body also carries a `label` — this client's self-description for the daemon's device
+ * roster. It is derived here rather than passed in so both callers get it for free; the
+ * daemon sanitizes it and never uses it as an identifier, so there is nothing to override.
  */
+
+import { deviceLabel } from './device-label'
 
 /** Distinguishes the states a human acts on differently; anything else is a plain failure. */
 export type PairFailure = 'expired' | 'invalid' | 'none' | 'unreachable'
@@ -23,7 +29,7 @@ export async function exchangePairingCode(daemonUrl: string, code: string): Prom
     res = await fetch(`${daemonUrl.replace(/\/$/, '')}/pair`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ code }),
+      body: JSON.stringify({ code, label: deviceLabel() }),
       signal: AbortSignal.timeout(PAIR_TIMEOUT_MS),
     })
   } catch {

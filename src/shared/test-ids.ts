@@ -35,6 +35,8 @@ export const TestIds = {
   settingsAppearanceLight: 'settings-appearance-light',
   settingsAppearanceDark: 'settings-appearance-dark',
   settingsAppearanceSystem: 'settings-appearance-system',
+  connectedDevices: 'connected-devices',
+  connectedDeviceRow: (id: string): string => `connected-device-${id}`,
 
   // --- Changes ---
   changesList: 'changes-list',

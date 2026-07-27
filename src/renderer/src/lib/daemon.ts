@@ -124,6 +124,9 @@ const attachedThreadIds = new Set<string>()
 const outbox: ClientMessage[] = []
 let lastWatchedFiles: string[] | null = null
 let lastWatchedDirs: string[] | null = null
+// Boxed because `undefined` is a MEANINGFUL announce (this client has no repo open, so the
+// roster row must clear) — `null` is the distinct "never announced, nothing to replay".
+let lastAnnouncedRepo: { repo: string | undefined } | null = null
 
 let socket: WebSocket | null = null
 let everConnected = false
@@ -255,10 +258,12 @@ function ensureSession(): void {
   ws.onopen = () => {
     if (socket !== ws) return
     retryDelay = 500
-    // The daemon keys watchers by session, so a fresh socket starts blank —
-    // replay the current watch sets before anything else.
+    // The daemon keys watchers (and the roster's what-is-this-device-doing state) by
+    // session, so a fresh socket starts blank — replay the current watch sets and the
+    // announced repo before anything else.
     if (lastWatchedFiles !== null) push({ t: 'watch:files', paths: lastWatchedFiles })
     if (lastWatchedDirs !== null) push({ t: 'watch:dirs', paths: lastWatchedDirs })
+    if (lastAnnouncedRepo !== null) push({ t: 'session:hello', repo: lastAnnouncedRepo.repo })
     // On a genuine REconnect, re-attach every terminal this client was streaming: the
     // daemon's attached-sender set died with the old socket, so a fresh attach
     // re-registers us and its scrollback reply replays into the registry (dispatch →
@@ -386,6 +391,17 @@ export function watchFiles(paths: string[]): void {
   lastWatchedFiles = paths
   ensureSession()
   push({ t: 'watch:files', paths })
+}
+
+/**
+ * Tell the daemon which repo this client is looking at, so the device roster
+ * (Settings → Environments) can say what each paired device is DOING. Pass `undefined` when
+ * no repo is open — the row must clear, not keep the last one. Replayed on reconnect.
+ */
+export function announceSession(repo: string | undefined): void {
+  lastAnnouncedRepo = { repo }
+  ensureSession()
+  push({ t: 'session:hello', repo })
 }
 
 /** Register the expanded-dir set to watch; replayed automatically on reconnect. */

@@ -21,6 +21,11 @@ export const loc = {
 
   settingsDialog: (page: Page): Locator => byId(page, TestIds.settingsDialog),
   settingsHeading: (page: Page): Locator => byId(page, TestIds.settingsHeading),
+  connectedDevices: (page: Page): Locator => byId(page, TestIds.connectedDevices),
+  // The roster's rows are keyed by a daemon-minted device id the spec never knows up
+  // front, so this is a prefix match rather than the usual exact test id.
+  connectedDeviceRows: (page: Page): Locator =>
+    page.locator(`[data-testid^="${TestIds.connectedDeviceRow('')}"]`),
   appearance: (page: Page, mode: 'light' | 'dark' | 'system'): Locator =>
     byId(
       page,

@@ -26,8 +26,9 @@ vi.mock('./terminal-manager', () => ({
 import { router } from './api'
 import { initConfigDir } from './config-store'
 import { createDaemonHttp } from './daemon-http'
+import { listDevices, loadDevices, matchDevice, registerDevice, revokeDevice } from './devices'
 import { cancelPairing, pendingPairing, redeemPairing, startPairing } from './pairing'
-import { createSession } from './session'
+import { closeSessionsForDevice, createSession, listSessions } from './session'
 import { createIfaceListener, initIfaceHandlers } from './tailnet-listener'
 import { attachTerminal } from './terminal-manager'
 
@@ -52,12 +53,18 @@ let base: string
 let daemon: ReturnType<typeof createDaemonHttp>
 
 beforeAll(async () => {
-  initConfigDir(await mkdtemp(join(tmpdir(), 'porcelain-daemon-http-')))
+  const dir = await mkdtemp(join(tmpdir(), 'porcelain-daemon-http-'))
+  initConfigDir(dir)
+  // The real device store too — a pairing here mints a real credential into a temp file,
+  // so the gate tests below prove the actual phase-4 auth path, not a stand-in.
+  process.env.PORCELAIN_DEVICES = join(dir, 'devices.json')
+  await loadDevices()
   const tokenHash = createHash('sha256').update(TOKEN).digest()
   daemon = createDaemonHttp({
     tokenHash,
     allowedOrigin: ORIGIN,
     router,
+    matchDevice,
     onSession: createSession,
     serveStatic: async (_req, res) => {
       res.writeHead(404)
@@ -67,9 +74,11 @@ beforeAll(async () => {
     // (404-at-rest, single-use, attempt burn) rather than a stub's idea of them.
     pairing: {
       hasPending: () => pendingPairing() !== null,
-      redeem: (code) => {
+      redeem: async (code, label) => {
         const result = redeemPairing(code)
-        return result === 'ok' ? { result, token: TOKEN } : { result }
+        if (result !== 'ok') return { result }
+        const { credential } = await registerDevice(label)
+        return { result, token: credential }
       },
     },
   })
@@ -221,6 +230,25 @@ describe('daemon ws surface — the /session upgrade gate + dispatch', () => {
     await expect(connect('porcelain.wrong-token')).rejects.toBeDefined()
   })
 
+  it('accepts a device credential, and attributes the session to that device', async () => {
+    const { credential, device } = await registerDevice('Studio')
+    const ws = await connect(`porcelain.${credential}`)
+    const session = listSessions().find((s) => s.deviceId === device.id)
+    expect(session).toBeDefined()
+    ws.close()
+  })
+
+  it('closes a revoked device s live socket — the gate only runs at upgrade time', async () => {
+    const { credential, device } = await registerDevice('Doomed')
+    const ws = await connect(`porcelain.${credential}`)
+    await revokeDevice(device.id)
+    closeSessionsForDevice(device.id)
+    // The client's 'close' can land before the daemon has reaped its own end, so poll the
+    // roster rather than racing the handshake.
+    await vi.waitFor(() => expect(listSessions().some((s) => s.deviceId === device.id)).toBe(false))
+    expect(ws.readyState).not.toBe(WebSocket.OPEN)
+  })
+
   it('rejects the right subprotocol on the wrong path', async () => {
     const ws = new WebSocket(`${base.replace('http', 'ws')}/nope`, `porcelain.${TOKEN}`)
     await expect(
@@ -293,11 +321,39 @@ describe('POST /pair', () => {
     expect(res.status).toBe(404)
   })
 
-  it('hands over the token for the pending code', async () => {
+  it('mints the device its OWN credential — never the shared token', async () => {
     const { code } = startPairing()
-    const res = await post({ code })
+    const res = await post({ code, label: 'iPad' })
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual({ token: TOKEN })
+    const { token } = (await res.json()) as { token: string }
+    expect(token).not.toBe(TOKEN)
+    // ...and that credential really opens the gate.
+    const authed = await fetch(`${base}/trpc/recentRepos`, {
+      headers: { authorization: `Bearer ${token}` },
+    })
+    expect(authed.status).toBe(200)
+    expect(listDevices().map((device) => device.label)).toContain('iPad')
+  })
+
+  it('stops authenticating a revoked device, while the others keep working', async () => {
+    const pair = async (): Promise<string> => {
+      const { code } = startPairing()
+      const res = await post({ code })
+      return ((await res.json()) as { token: string }).token
+    }
+    const first = await pair()
+    const second = await pair()
+    const revoked = listDevices().at(-2)
+    expect(revoked).toBeDefined()
+    if (revoked !== undefined) await revokeDevice(revoked.id)
+    const denied = await fetch(`${base}/trpc/recentRepos`, {
+      headers: { authorization: `Bearer ${first}` },
+    })
+    expect(denied.status).toBe(401)
+    const allowed = await fetch(`${base}/trpc/recentRepos`, {
+      headers: { authorization: `Bearer ${second}` },
+    })
+    expect(allowed.status).toBe(200)
   })
 
   it('accepts the code as the human retyped it (no separator, lower case)', async () => {

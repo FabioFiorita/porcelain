@@ -1,10 +1,28 @@
 import type { RepoInfo } from '@backend/api'
+import { announceSession } from '@renderer/lib/daemon'
 import { shellTrpc, trpc } from '@renderer/lib/trpc'
+import { useRepoStore } from '@renderer/stores/repo'
+import { useEffect } from 'react'
 
 /** Recent repos for the welcome screen + project switcher; pass `enabled` to gate. */
 export function useRecentRepos(enabled = true): RepoInfo[] {
   const { data = [] } = trpc.recentRepos.useQuery(undefined, { enabled })
   return data
+}
+
+/**
+ * Tell the daemon which repo this window is looking at, so the device roster
+ * (Settings → Environments) shows what each paired device is DOING. Mounted once in
+ * `AppShell` above its welcome-screen early return, the twin of `useWatchOpenFiles`: the
+ * announce rides the WS session (per-connection state, so it lives there, not on the
+ * router) and re-fires on a repo switch — including back to no repo, which clears the row.
+ */
+export function useAnnounceSession(): void {
+  const repoPath = useRepoStore((s) => s.repo?.path)
+
+  useEffect(() => {
+    announceSession(repoPath)
+  }, [repoPath])
 }
 
 /**

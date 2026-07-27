@@ -24,6 +24,7 @@ import { cn, copyText } from '@renderer/lib/utils'
 import { platformLabel } from '@shared/platform'
 import { X } from 'lucide-react'
 import { useState } from 'react'
+import { ConnectedDevicesCard } from './connected-devices-card'
 import { PairingCard } from './pairing-card'
 
 /** Copy the daemon token to the clipboard — the affordance a peer needs to connect. */
@@ -424,6 +425,17 @@ export function EnvironmentsSection(): React.JSX.Element {
             }
           />
         </div>
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <div>
+          <h3 className="text-sm font-semibold tracking-tight">Connected devices</h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Devices paired with this daemon, what each is doing right now, and access you can take
+            back one device at a time.
+          </p>
+        </div>
+        <ConnectedDevicesCard />
       </section>
 
       {!isBrowser && (

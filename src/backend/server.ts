@@ -6,6 +6,7 @@ import { ensureCli } from './cli-install'
 import { initConfigDir, loadConfig } from './config-store'
 import { createDaemonHttp } from './daemon-http'
 import { seedDevConfig } from './dev-config'
+import { flushDevices, loadDevices, matchDevice, registerDevice } from './devices'
 import { migrateLayersFromConfig } from './layers-store'
 import { resolveLoginShellPath } from './login-shell-env'
 import { migrateNotesFromConfig } from './notes-store'
@@ -39,10 +40,14 @@ import { ensureDaemonToken } from './token-file'
  *   <token>`; the WS upgrade carries the token as the `porcelain.<token>`
  *   subprotocol (chosen over `?token=` because query strings leak into logs and
  *   proxies; the subprotocol header does not). Comparisons are constant-time
- *   over sha256 digests. The ONE exception is `POST /pair`, which cannot be
- *   token-gated (obtaining a token is its whole job) and is instead bounded by
- *   only existing while a human has an open pairing window — see pairing.ts and
- *   handlePair in daemon-http.ts for the full set of guards.
+ *   over sha256 digests. TWO credentials pass that gate: the shared secret, and
+ *   any per-device credential minted by pairing (devices.ts, phase 4 — kept
+ *   alongside the shared token so existing setups don't all have to re-pair, and
+ *   the reason revoking a single device is now possible). The ONE exception is
+ *   `POST /pair`, which cannot be token-gated (obtaining a credential is its
+ *   whole job) and is instead bounded by only existing while a human has an open
+ *   pairing window — see pairing.ts and handlePair in daemon-http.ts for the full
+ *   set of guards.
  *
  * Contract with the shell: exactly ONE stdout line, `{"port": N}`, once
  * listening (everything else logs to stderr — and the token is NEVER printed:
@@ -73,6 +78,9 @@ async function shutdown(): Promise<void> {
   if (shuttingDown) return
   shuttingDown = true
   await flushAllThreads()
+  // `lastSeenAt` is stamped in memory and flushed at most once a minute — write the
+  // pending stamp out so the roster doesn't lose the last minute on every restart.
+  await flushDevices()
   process.exit(0)
 }
 // utilityProcess.kill() (the shell's teardown) sends SIGTERM; a standalone `node` daemon at
@@ -112,11 +120,17 @@ let daemon: ReturnType<typeof createDaemonHttp>
 async function main(): Promise<void> {
   // Resolve the shared token (env or ~/.porcelain/daemon-token) and precompute its
   // digest BEFORE any listener accepts a connection — the factory closes over the
-  // hash, so it must be built first (both listeners start below). The plaintext is
-  // held too, because a successful pairing exchange hands it to the new device; it's
-  // the same secret the parent passed in, and it is never logged.
-  const token = await resolveToken()
-  const tokenHash = createHash('sha256').update(token).digest()
+  // hash, so it must be built first (both listeners start below). Only the digest is
+  // kept: since phase 4 a pairing mints the new device its own credential, so nothing
+  // here needs the plaintext after this line, and it is never logged.
+  const tokenHash = createHash('sha256')
+    .update(await resolveToken())
+    .digest()
+
+  // The per-device credential roster (phase 4). MUST be awaited before either listener
+  // accepts: `matchDevice` is sync and fails closed until the file is in memory, so a
+  // listener started first would 401 a legitimately-paired device for a moment.
+  await loadDevices()
 
   // CORS is scoped, not `*`: the shell passes the dev renderer's origin via
   // PORCELAIN_ALLOWED_ORIGIN (the Vite server); the packaged file:// renderer
@@ -129,11 +143,20 @@ async function main(): Promise<void> {
     serveStatic,
     // The pairing exchange. The route only exists while `hasPending()` is true, so a
     // daemon nobody is pairing with answers 404 — see handlePair + pairing.ts.
+    // Phase 4: a device credential authenticates alongside the shared token. The store is
+    // already loaded (above), so the gate never has to wait on a disk read.
+    matchDevice,
     pairing: {
       hasPending: () => pendingPairing() !== null,
-      redeem: (code) => {
+      // A successful exchange now mints the device its OWN credential rather than handing
+      // over the shared secret — that is what makes per-device revoke mean anything
+      // (plans/environments-v2.md phase 4). The shared token stays valid for the clients
+      // that already hold it; it is simply no longer what pairing gives out.
+      redeem: async (code, label) => {
         const result = redeemPairing(code)
-        return result === 'ok' ? { result, token } : { result }
+        if (result !== 'ok') return { result }
+        const { credential } = await registerDevice(label)
+        return { result, token: credential }
       },
     },
   })

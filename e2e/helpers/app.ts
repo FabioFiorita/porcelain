@@ -149,6 +149,10 @@ async function seedState(
   await writeFile(comments, '{}')
   const chat = join(udBase, 'chat.json')
   await writeFile(chat, '{}')
+  // The paired-device roster. Left uncreated (the store treats an absent file as "nobody
+  // has paired"), but ALWAYS redirected: a test that pairs would otherwise write a device
+  // into the developer's real ~/.porcelain/devices.json — and that file is auth state.
+  const devices = join(udBase, 'devices.json')
   const featureView = join(udBase, 'feature-view.json')
   await writeFile(featureView, '{}')
   // Loop evidence is a directory of files (index.html + optional assets), not JSON.
@@ -189,6 +193,7 @@ async function seedState(
       PORCELAIN_NOTES: notes,
       PORCELAIN_COMMENTS: comments,
       PORCELAIN_CHAT: chat,
+      PORCELAIN_DEVICES: devices,
       PORCELAIN_FEATURE_VIEW: featureView,
       PORCELAIN_EVIDENCE: evidence,
       PORCELAIN_LOOP_EVIDENCE_DIR: evidenceRoot,

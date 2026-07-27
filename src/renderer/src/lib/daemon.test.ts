@@ -204,6 +204,31 @@ describe('daemon WS client', () => {
     })
   })
 
+  it('replays the announced repo on reconnect, including the no-repo announce', () => {
+    daemon.announceSession('/repo')
+    const ws1 = latest()
+    ws1.open()
+    expect(sentMessages(ws1).filter((f) => f.t === 'session:hello')).toEqual([
+      { t: 'session:hello', repo: '/repo' },
+    ])
+
+    ws1.drop()
+    vi.advanceTimersByTime(500)
+    const ws2 = latest()
+    ws2.open()
+    expect(sentMessages(ws2)).toContainEqual({ t: 'session:hello', repo: '/repo' })
+
+    // Closing the repo announces `undefined` — the replay must carry the CLEARED state,
+    // not the last repo, or the roster row would keep showing a repo nobody has open.
+    daemon.announceSession(undefined)
+    ws2.drop()
+    vi.advanceTimersByTime(500)
+    const ws3 = latest()
+    ws3.open()
+    const hellos = sentMessages(ws3).filter((f) => f.t === 'session:hello')
+    expect(hellos).toEqual([{ t: 'session:hello' }])
+  })
+
   it('fires reconnect listeners only on REconnect, never on the first connect', () => {
     const spy = vi.fn()
     daemon.onDaemonReconnect(spy)

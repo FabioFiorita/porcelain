@@ -8,6 +8,7 @@ import { useReconcileAgentTabTitles } from '@renderer/hooks/use-agents'
 import { useAppEvents } from '@renderer/hooks/use-app-events'
 import { useDocumentTitle } from '@renderer/hooks/use-document-title'
 import { useWatchOpenFiles, useWatchTreeDirs } from '@renderer/hooks/use-files'
+import { useAnnounceSession } from '@renderer/hooks/use-repo'
 import { useResponsiveShell } from '@renderer/hooks/use-responsive-shell'
 import { useTerminalChannel } from '@renderer/hooks/use-terminal-channel'
 import { useThemeSync } from '@renderer/hooks/use-theme'
@@ -229,6 +230,7 @@ export function AppShell(): React.JSX.Element {
   useReconcileAgentTabTitles()
   useWatchOpenFiles()
   useWatchTreeDirs()
+  useAnnounceSession()
 
   useEffect(() => {
     boot()

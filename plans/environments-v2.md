@@ -14,7 +14,7 @@
 - **The chip is the switcher, and it is always visible** — including on This device. A control that only appears once you are *already* remote cannot be the thing you reach for to *go* remote. (Reverses the "chip only when remote" call from the per-window pass.)
 - **Pairing replaces token archaeology.** A short-lived pairing code, transportable as a link or QR, exchanged for a per-device credential. The long-lived token stops being a thing the human ever reads.
 - **Per-device credentials, so revoke means something.** One shared secret cannot be revoked per device.
-- **The shared token keeps working alongside them** (decided 2026-07-26). Phase 4 issues each newly-paired device its own credential, but `~/.porcelain/daemon-token` stays valid as a fallback so existing iPad/Mac setups don't all have to be re-paired at once. Revoke applies per device; migration is invisible. The clean-break alternative (retire the shared token, re-pair everything) was considered and rejected as not worth the one-time disruption. **Phase 3 currently hands the shared token to a paired device** — that is the piece phase 4 replaces.
+- **The shared token keeps working alongside them** (decided 2026-07-26). Phase 4 issues each newly-paired device its own credential, but `~/.porcelain/daemon-token` stays valid as a fallback so existing iPad/Mac setups don't all have to be re-paired at once. Revoke applies per device; migration is invisible. The clean-break alternative (retire the shared token, re-pair everything) was considered and rejected as not worth the one-time disruption. Shipped: a paired device now gets its own credential, and a client still using the shared token shows in the roster as unattributable rather than being hidden or refused.
 - **No scope matrix.** T3 splits credentials across view/operate/terminals/write-reviews/manage-access/relay. That is enterprise shape on a solo-dev tool: a device is trusted or it is gone.
 - **An environment has many endpoints, one identity.** The same Beelink is a LAN address at home and a tailnet address away. Store endpoints per environment and fail over; persist the preference by endpoint *kind*, not raw IP, so it survives a network change. (Borrowed wholesale from T3's `AccessEndpoint` — the one piece of their model that is straightforwardly better than ours.)
 - **No SSH launch.** T3 needs it because their server may not be running on the target. Ours is a lingered systemd unit or an `npx porcelain-daemon serve` the human already started.
@@ -26,17 +26,15 @@
 | 1 | **Identity + status** — daemon reports identity; environments auto-name; saved envs carry a live reachable/unreachable status | shipped |
 | 2 | **Chip becomes the switcher** — always-visible top-bar control; Use here / New window per env; Add + Manage | shipped |
 | 3 | **Pairing** — daemon mints short-lived codes; pairing link + QR in Share; single-paste add | shipped |
-| 4 | **Connected devices** — per-device credentials, roster (device, repo, threads, terminals, last seen), per-device revoke | planned |
+| 4 | **Connected devices** — per-device credentials, roster (device, repo, threads, terminals, last seen), per-device revoke | shipped |
 | 5 | **Multi-endpoint** — endpoints per environment, ordered failover, preference by kind | planned |
 
-### Phase 4, when it's picked up
+### Phase 4, as built
 
-The shape is settled; what's left is the work. Sketch, so the next session doesn't re-derive it:
-
-1. A device store (`~/.porcelain/devices.json`): `{ id, label, credentialHash, createdAt, lastSeenAt }`. Hashes only — the credential itself is shown once, at pairing.
-2. `tokenOk` in `daemon-http.ts` widens to accept the shared token **or** any live device credential, still constant-time, and stamps `lastSeenAt`. **This is the security-critical edit in the whole plan** — it is the gate every request and every WS upgrade passes through, so it wants a careful session and its own adversarial read, not a tired one.
-3. `POST /pair` returns a freshly-minted device credential instead of the shared token (the phase-3 behaviour it replaces).
-4. Sessions carry identity: the client announces its device on the WS handshake so the roster can say *what each device is doing* (repo, agent threads, attached terminals) — the thing that makes this a trust surface rather than a generic session table.
+1. A device store (`devices.ts` → `~/.porcelain/devices.json`, 0600): `{ id, label, credentialHash, createdAt, lastSeenAt }`. Hashes only — the credential exists exactly twice, in the `/pair` response and on the device.
+2. `tokenOk` became **`authenticate()`**, one gate for `/trpc` and the `/session` upgrade, accepting the shared token **or** a device credential. It returns the device id alongside `ok`, which is what makes a session attributable.
+3. `POST /pair` mints a fresh device credential (and takes a peer-supplied `label` — display only).
+4. Sessions carry identity **from the credential the upgrade authenticated with**, not from a client announcement — that was a late change to the sketch and a better one: a device can't claim to be another. `session:hello` still exists, but only to carry the repo path for the roster.
 5. Settings → Environments grows a Connected devices list with per-device Revoke.
 
 Deliberately NOT doing: T3's scope matrix (view / operate / terminals / write reviews / manage access / relay). A device is trusted or it is gone.
@@ -47,4 +45,9 @@ Deliberately NOT doing: T3's scope matrix (view / operate / terminals / write re
 - **`application/json` on `/pair` is load-bearing, not tidiness.** It forces a CORS preflight that our scoped CORS fails, which is what stops drive-by web content (which *can* reach 127.0.0.1) from ever sending the request. A `text/plain` POST would skip preflight entirely.
 - **Respond 413, don't destroy the socket.** The first cut killed an oversized request mid-flight; the caller then saw a connection reset and couldn't distinguish "too large" from "daemon crashed". Drain past the cap instead — memory stays bounded either way.
 - **Probing every saved environment on every render is a network stampede.** `environmentStatuses` fans out with a short timeout and the hook throttles; do not lower `staleTime` "for freshness".
+- **Revoking a credential is not revoking a device.** The gate runs at upgrade time, so an already-connected socket keeps streaming terminals and agent turns after its credential is gone. `revokeDevice` therefore closes the device's live sessions too — the work (PTYs, threads) survives, since it is daemon-owned; only that device's access to it ends.
+- **`matchDevice` is sync, so the store must be loaded before the first listener accepts.** It fails closed until then, which would 401 a legitimately-paired device during the boot window. `server.ts` awaits `loadDevices()` before `createDaemonHttp`; keep that ordering structural, not incidental.
+- **Re-pairing the same device adds a ROW, it does not replace one.** Deliberate: the label is peer-supplied, so folding a new pairing into an existing row by label would let one device take over another's identity by claiming its name. Duplicates are the human's to revoke.
+- **The roster's writes must be serialized, with a unique tmp path.** A `lastSeenAt` flush can be in flight while a pairing or a revoke writes; sharing one `${path}.tmp` lets the second writer truncate the first's file (the loser's `rename` then fails ENOENT — on the pairing path that 500s the exchange *after* the code was burned), and interleaving can land malformed JSON, which by design de-authenticates everyone. Chain the writes.
+- **`lastSeenAt` is a field a REQUEST writes** — stamped in memory on every authenticated hit, flushed at most once a minute (and on shutdown). A disk write per request would be absurd; the roster only needs "roughly when".
 - **A remote daemon may be OLDER than this app.** Any new procedure used during probing must be optional — fall back to the reachability probe (`recentRepos`) and treat a missing identity as unknown, never as unreachable. This is the same skew class the `DaemonSkewToast` guards.

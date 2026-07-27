@@ -52,9 +52,18 @@ const agentEventArgs = z.tuple([z.string(), agentEventSchema])
 
 class Session {
   private readonly socket: WebSocket
+  /** The paired device this socket authenticated as; null = the shared token. */
+  readonly deviceId: string | null
+  readonly connectedAt = Date.now()
+  /** What this connection is doing, for the device roster (Settings → Environments). */
+  readonly terminals = new Set<string>()
+  readonly threads = new Set<string>()
+  /** The repo this connection is looking at, if it announced one (`session:hello`). */
+  repo: string | undefined
 
-  constructor(socket: WebSocket) {
+  constructor(socket: WebSocket, deviceId: string | null) {
     this.socket = socket
+    this.deviceId = deviceId
     sessions.add(this)
     // Some handlers (agent attach/send/…) hit the disk-backed thread store, so
     // handleMessage is async; the socket callback can't await it, so swallow a
@@ -98,6 +107,11 @@ class Session {
     return this.socket.readyState !== WebSocket.OPEN
   }
 
+  /** End this connection (the device was revoked). 'close' fires → dispose() cleans up. */
+  close(): void {
+    this.socket.close(4001, 'revoked')
+  }
+
   private push(message: ServerMessage): void {
     if (this.socket.readyState === WebSocket.OPEN) this.socket.send(JSON.stringify(message))
   }
@@ -115,6 +129,10 @@ class Session {
     if (!parsed.success) return
     const message = parsed.data
     switch (message.t) {
+      case 'session:hello':
+        // Display data for the device roster; never trusted for identity (see ws-protocol).
+        this.repo = message.repo
+        break
       case 'terminal:create': {
         const id = createTerminal(this, {
           name: message.name,
@@ -123,6 +141,7 @@ class Session {
           cols: message.cols,
           rows: message.rows,
         })
+        this.terminals.add(id)
         this.push({ t: 'terminal:created', reqId: message.reqId, id })
         break
       }
@@ -130,6 +149,7 @@ class Session {
         // null (unknown id) → reply found=false with an empty snapshot so the client's
         // pending attach still settles instead of hanging.
         const result = attachTerminal(message.id, this)
+        if (result !== null) this.terminals.add(message.id)
         this.push({
           t: 'terminal:attached',
           reqId: message.reqId,
@@ -143,6 +163,7 @@ class Session {
       }
       case 'terminal:detach':
         detachTerminal(message.id, this)
+        this.terminals.delete(message.id)
         break
       case 'terminal:write':
         writeTerminal(message.id, message.data)
@@ -152,6 +173,7 @@ class Session {
         break
       case 'terminal:kill':
         killTerminal(message.id)
+        this.terminals.delete(message.id)
         break
       case 'watch:files':
         setWatchedFiles(this, message.paths)
@@ -163,6 +185,7 @@ class Session {
         // Mirror terminal:attach — found=false with an empty snapshot for an unknown
         // id so the client's pending attach still settles.
         const result = await attachThread(message.threadId, this)
+        if (result.found) this.threads.add(message.threadId)
         this.push({
           t: 'agent:attached',
           reqId: message.reqId,
@@ -175,6 +198,7 @@ class Session {
       }
       case 'agent:detach':
         detachThread(message.threadId, this)
+        this.threads.delete(message.threadId)
         break
       case 'agent:send':
         await sendMessage(message.threadId, {
@@ -207,8 +231,40 @@ class Session {
   }
 }
 
-export function createSession(socket: WebSocket): void {
-  new Session(socket)
+export function createSession(socket: WebSocket, deviceId: string | null = null): void {
+  new Session(socket, deviceId)
+}
+
+/** One live connection, as the device roster sees it. */
+export interface SessionInfo {
+  deviceId: string | null
+  connectedAt: number
+  repo?: string
+  terminals: number
+  threads: number
+}
+
+/** Every live connection — the "what is this device doing right now" half of the roster. */
+export function listSessions(): SessionInfo[] {
+  return [...sessions].map((session) => ({
+    deviceId: session.deviceId,
+    connectedAt: session.connectedAt,
+    repo: session.repo,
+    terminals: session.terminals.size,
+    threads: session.threads.size,
+  }))
+}
+
+/**
+ * Drop every live connection belonging to a revoked device. Without this, revoking would
+ * only stop the NEXT request: an already-upgraded socket keeps streaming terminals and
+ * agent turns, because the gate ran at upgrade time. Its PTYs and threads live on (they're
+ * daemon-owned) — this ends the device's access to them, not the work.
+ */
+export function closeSessionsForDevice(deviceId: string): void {
+  for (const session of sessions) {
+    if (session.deviceId === deviceId) session.close()
+  }
 }
 
 /**

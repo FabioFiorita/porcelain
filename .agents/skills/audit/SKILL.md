@@ -67,14 +67,39 @@ assumed — this skill is the codebase-specific layer beneath them.
   accept it — for a trusted home network — BUT ONLY because the LAN bind is (a) opt-in and
   default-off, (b) recorded here, and (c) never silently widened past the enumerated private
   addresses. (2) **Auth is never optional:** every `/trpc`
-  request needs `authorization: Bearer <token>` (constant-time compare over sha256
-  digests, 401 otherwise) and the WS upgrade needs the `porcelain.<token>` subprotocol
+  request needs `authorization: Bearer <credential>` (constant-time compare over sha256
+  digests, 401 otherwise) and the WS upgrade needs the `porcelain.<credential>` subprotocol
   (rejected handshake without it) — loopback is reachable from any webpage the user's
   browser has open (fetch to 127.0.0.1; WebSockets carry no CORS at all), so an
   unauthenticated `/session` would hand `terminal:create` — a shell — to drive-by web
   content. (The token gate is the whole boundary: a holder can already open/read any
   path via `openRepoPath`/`readFile`, so the daemon-side repo browser `browseDirs` —
-  directory names only — widens nothing.) (3) **The token never appears in argv** (`ps`-visible), **stdout** (the
+  directory names only — widens nothing.)
+  **(2b) TWO credentials pass that gate, through ONE function** (2026-07-26, phase 4):
+  the shared secret (`~/.porcelain/daemon-token`) **or** any live per-device credential
+  minted by pairing (`devices.ts`). `authenticate()` in `daemon-http.ts` is the single
+  gate for BOTH `/trpc` and the `/session` upgrade — never add a second gate, a
+  per-credential-kind branch, or a "device credentials only need to be checked on
+  cheap procedures" shortcut. What must hold: **(a) it fails CLOSED before the device
+  store is loaded** — `matchDevice` is sync (it runs inside the gate) and answers null
+  until `loadDevices()` has resolved, which `server.ts` awaits BEFORE any listener
+  accepts; **(b) only hashes on disk** (`devices.json`, 0600, sha256 hex) — the
+  credential exists exactly twice, in the `/pair` response and on the device; **(c)
+  constant-time compare** per candidate, same shape as the shared token; **(d) a corrupt
+  `devices.json` de-authenticates every device** (backed up, treated as empty) rather
+  than authenticating a stranger; **(e) revoking closes live sockets too**
+  (`closeSessionsForDevice`) — the gate runs at upgrade time, so dropping the credential
+  alone would leave an already-upgraded session streaming terminals and agent turns.
+  The shared token deliberately KEEPS working alongside device credentials so existing
+  setups don't all have to re-pair; it is simply no longer what pairing hands out, and a
+  shared-token client is unattributable in the roster (`deviceId: null`), which the UI
+  says out loud. A session's device identity comes from the credential the upgrade
+  authenticated with — NEVER from anything the client announces (`session:hello` carries
+  the repo path for display only). *Verify:* `devices.test.ts` (hash-only file, fail-closed
+  before load, revoke isolation, corrupt-file de-auth) and the device-credential cases in
+  `daemon-http.test.ts` (a minted credential opens `/trpc` and `/session`; a revoked one
+  401s while its neighbour still works; revoke closes the live socket) stay green.
+  (3) **The token never appears in argv** (`ps`-visible), **stdout** (the
   daemon's only stdout line is the port; the parent passed the token via env so it
   already knows it), **or a spawned PTY's env** (see the terminal-env invariant below).
   The saved remote environments (Phase 4) store each entry's token in **plaintext** at
@@ -95,7 +120,10 @@ assumed — this skill is the codebase-specific layer beneath them.
   **(5b) `POST /pair` is the ONE unauthenticated DYNAMIC route — a deliberate, narrow
   exception to (2)** (2026-07-26, `pairing.ts` + `handlePair` in `daemon-http.ts`). It
   exists so a new device can obtain a credential without the human copying the long-lived
-  token by hand. It is only defensible while ALL of these hold: **(a) it 404s unless a
+  token by hand — and since phase 4 it hands over a freshly-minted PER-DEVICE credential,
+  never the shared token (see 2b). The `label` in its body is peer-supplied display data:
+  sanitized + capped in `devices.ts`, and never an identifier. It is only defensible
+  while ALL of these hold: **(a) it 404s unless a
   human has an open pairing window** — no pending code means the route does not exist, so
   there is nothing to probe or grind at rest, and the window is minutes long and always
   human-initiated from the machine's own UI (the three `pairing*` procedures that open it
