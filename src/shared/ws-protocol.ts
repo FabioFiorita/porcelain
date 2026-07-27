@@ -29,6 +29,7 @@ export const appEventSchema = z.enum([
   'actions',
   'layers',
   'evidence',
+  'scope',
   'working-tree',
   'file-tree',
 ])

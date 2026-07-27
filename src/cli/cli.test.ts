@@ -15,6 +15,7 @@ const actionsFile = join(dir, 'actions.json')
 const commentsFile = join(dir, 'comments.json')
 const featureViewFile = join(dir, 'feature-view.json')
 const evidenceFile = join(dir, 'evidence.json')
+const scopeFile = join(dir, 'scope.json')
 
 beforeEach(() => {
   process.env.PORCELAIN_REVIEW_SETS = file
@@ -26,6 +27,7 @@ beforeEach(() => {
   process.env.PORCELAIN_ACTIONS = actionsFile
   process.env.PORCELAIN_COMMENTS = commentsFile
   process.env.PORCELAIN_FEATURE_VIEW = featureViewFile
+  process.env.PORCELAIN_SCOPE = scopeFile
   rmSync(dir, { recursive: true, force: true })
 })
 afterEach(() => {
@@ -39,6 +41,7 @@ afterEach(() => {
   delete process.env.PORCELAIN_FEATURE_VIEW
   delete process.env.PORCELAIN_EVIDENCE
   delete process.env.PORCELAIN_LOOP_EVIDENCE_DIR
+  delete process.env.PORCELAIN_SCOPE
   rmSync(dir, { recursive: true, force: true })
 })
 // A plausible self-contained document: has a `<` tag and clears the MIN_HTML_BYTES floor,
@@ -620,5 +623,15 @@ describe('runCli — board + actions', () => {
     const result = await runCli(['actions', 'delete', ...repo, '--id', id])
     expect(result).toContain('Deleted action')
     expect((readActions()['/repo'] as unknown[]).length).toBe(0)
+  })
+  it('scope hide/pin list and clear', async () => {
+    await runCli(['scope', 'hide', ...repo, '--path', 'apps/legacy'])
+    await runCli(['scope', 'pin', ...repo, '--path', 'apps/web'])
+    const list = await runCli(['scope', 'list', ...repo])
+    expect(list).toContain('apps/legacy')
+    expect(list).toContain('apps/web')
+    await runCli(['scope', 'clear', ...repo])
+    const empty = await runCli(['scope', 'list', ...repo])
+    expect(empty).toContain('(none)')
   })
 })

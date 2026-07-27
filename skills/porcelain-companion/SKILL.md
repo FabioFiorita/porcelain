@@ -29,6 +29,7 @@ Installed automatically on every app/daemon launch (no MCP, no registration). Ru
 | Starting work; "check my notes" | `notes get` (human scratchpad — **read-only**) | [notes.md](references/notes.md) |
 | Common commands should be one click for the human | Curate **actions** (you define; human runs) | [actions.md](references/actions.md) |
 | Changes tab grouping wrong; monorepo layout; too many files in Other | Tune **flow layers** (repo-wide regex) | [layers.md](references/layers.md) |
+| Monorepo tree too noisy; hide sibling apps / pin the one you care about | **Scope** hide/pin | [scope.md](references/scope.md) |
 | Seed Mac ↔ remote companion data (board, actions, notes, layers, hide/pin) | Copy deliberately with path remap | [sync-environments.md](references/sync-environments.md) |
 
 ## Everyday CLI cheatsheet
@@ -60,6 +61,11 @@ Installed automatically on every app/daemon launch (no MCP, no registration). Ru
 ~/.porcelain/porcelain layers set --layers - <<'JSON'
 [ { "label": "…", "pattern": "…" } ]
 JSON
+
+# Monorepo hide / pin (repo-relative paths)
+~/.porcelain/porcelain scope list
+~/.porcelain/porcelain scope hide --path apps/legacy
+~/.porcelain/porcelain scope pin --path apps/web
 ```
 
 ## Standing rules
@@ -68,7 +74,7 @@ JSON
 2. **Close the loop with evidence** — after a meaningful feature, publish Intent + Execution, then real Evidence (what you actually ran). Don't invent proof.
 3. **Notes are the human's** — read only; put actionable work on the board.
 4. **Actions are human-executed** — never invent an `actions run`; you only CRUD definitions.
-5. **Hide/pin** live in daemon `config.json` today (not CLI yet) — see [sync-environments.md](references/sync-environments.md) when remapping across hosts.
+5. **Hide/pin via `scope`** — same channel the app uses (`~/.porcelain/scope.json`); remap paths when syncing hosts ([scope.md](references/scope.md), [sync-environments.md](references/sync-environments.md)).
 6. **No secrets** in board, notes, or evidence.
 
 ## Finish a feature (default path)

@@ -25,24 +25,31 @@ export function ExploreView({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between gap-3 border-b px-3 py-1">
-        <span className="flex min-w-0 items-center gap-2">
-          <span className="truncate text-sm font-medium">{reading.name}</span>
-          <Badge
-            variant="outline"
-            className="shrink-0 rounded-md border-border/60 text-2xs text-muted-foreground"
-          >
-            <Compass className="size-3" />
-            explore · {total} {total === 1 ? 'file' : 'files'}
-          </Badge>
-        </span>
+      <div className="flex flex-col gap-1 border-b px-3 py-1.5">
+        <div className="flex items-center justify-between gap-3">
+          <span className="flex min-w-0 items-center gap-2">
+            <span className="truncate text-sm font-medium">{reading.name}</span>
+            <Badge
+              variant="outline"
+              className="shrink-0 rounded-md border-border/60 text-2xs text-muted-foreground"
+            >
+              <Compass className="size-3" />
+              explore · {total} {total === 1 ? 'file' : 'files'}
+            </Badge>
+          </span>
+        </div>
+        <p className="text-2xs text-muted-foreground">
+          Read-only flow · relative imports only · won&apos;t cross client→server seams (use the
+          agent&apos;s shipped files for that)
+        </p>
       </div>
       <div className="min-h-0 flex-1">
         {total === 0 ? (
           <p className="p-4 text-sm text-muted-foreground">
             No connected files traced from this {symbol ? 'symbol' : 'file'}. The walk follows
-            relative imports only — a cross-seam reference (a route string, an aliased import) won't
-            trace here.
+            relative imports only — a cross-seam reference (a route string, an aliased import) won
+            &apos;t trace here. Seed from the file tree, a Changes row, or a selection in the source
+            view (Explore flow).
           </p>
         ) : (
           <ReadingSurfaceBody reading={reading} />

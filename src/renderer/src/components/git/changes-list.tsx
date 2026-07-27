@@ -39,6 +39,7 @@ import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { TestIds } from '@shared/test-ids'
 import {
   Check,
+  Compass,
   FileText,
   MessageSquarePlus,
   Minus,
@@ -217,6 +218,21 @@ function FileRowImpl({
             <ContextMenuItem onClick={openFile}>
               <FileText />
               Open file
+            </ContextMenuItem>
+          )}
+          {file.status !== 'deleted' && (
+            <ContextMenuItem
+              onClick={() => {
+                openTab({
+                  id: tabId('explore', file.path),
+                  kind: 'explore',
+                  title: `Flow: ${name}`,
+                  path: file.path,
+                })
+              }}
+            >
+              <Compass />
+              Explore flow
             </ContextMenuItem>
           )}
           {/* file.path is repo-relative — exactly what a comment anchors to. */}

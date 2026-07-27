@@ -10,6 +10,7 @@ import {
 import type { Layer } from './flow'
 import { readLayers, writeLayers } from './layers-store'
 import { readNotes, writeNotes } from './notes-store'
+import { hidePath, pinPath, type RepoScope, readRepoScope } from './scope-store'
 
 /**
  * Snapshot of the per-repo companion data agents (or scripts) carry from one
@@ -18,10 +19,9 @@ import { readNotes, writeNotes } from './notes-store'
  * Agents use the porcelain-companion skill's sync-environments reference (porcelain CLI list/create + SSH/path
  * remap); the Settings UI no longer offers a one-click seed.
  *
- * Included: actions (saved commands), notes, board, flow layers, review comments.
+ * Included: actions, notes, board, flow layers, review comments, monorepo scope (hide/pin).
  * Deliberately NOT included: reviewed marks, feature-view snapshot, loop evidence,
- * review sets (dynamic feature view).
- * Hidden/pinned folders live in daemon config.json — see the skill, not this snapshot.
+ * review sets (dynamic Review).
  */
 export const repoSettingsSchema = z.object({
   actions: z.array(actionSchema).optional(),
@@ -29,22 +29,29 @@ export const repoSettingsSchema = z.object({
   board: z.array(boardCardSchema).optional(),
   layers: z.array(z.object({ label: z.string(), pattern: z.string() })).optional(),
   comments: z.array(reviewCommentSchema).optional(),
+  scope: z
+    .object({
+      hiddenPaths: z.array(z.string()).default([]),
+      pinnedPaths: z.array(z.string()).default([]),
+    })
+    .optional(),
 })
 export type RepoSettings = z.infer<typeof repoSettingsSchema>
 
 export interface ImportRepoSettingsResult {
   /** Channel names that were written (empty when the snapshot had nothing). */
-  imported: Array<'actions' | 'notes' | 'board' | 'layers' | 'comments'>
+  imported: Array<'actions' | 'notes' | 'board' | 'layers' | 'comments' | 'scope'>
 }
 
 /** Read the current channel snapshot for a repo on this daemon host. */
 export async function exportRepoSettings(repoPath: string): Promise<RepoSettings> {
-  const [actions, notes, board, layers, comments] = await Promise.all([
+  const [actions, notes, board, layers, comments, scope] = await Promise.all([
     readActions(repoPath),
     readNotes(repoPath),
     readCards(repoPath),
     readLayers(repoPath),
     readComments(repoPath),
+    readRepoScope(repoPath),
   ])
   const settings: RepoSettings = {}
   if (actions.length > 0) settings.actions = actions
@@ -52,6 +59,9 @@ export async function exportRepoSettings(repoPath: string): Promise<RepoSettings
   if (board.length > 0) settings.board = board
   if (layers !== null && layers.length > 0) settings.layers = layers
   if (comments.length > 0) settings.comments = comments
+  if (scope.hiddenPaths.length > 0 || scope.pinnedPaths.length > 0) {
+    settings.scope = scope
+  }
   return settings
 }
 
@@ -87,8 +97,22 @@ export async function importRepoSettings(
     await writeComments(repoPath, parsed.comments as ReviewComment[])
     imported.push('comments')
   }
+  if (parsed.scope !== undefined) {
+    const scope = parsed.scope as RepoScope
+    // Apply each path (idempotent hide/pin). Callers remapping hosts should rewrite
+    // absolute prefixes before import (copyRepoSettings does that on one daemon).
+    for (const p of scope.hiddenPaths) await hidePath(repoPath, p)
+    for (const p of scope.pinnedPaths) await pinPath(repoPath, p)
+    imported.push('scope')
+  }
 
   return { imported }
+}
+
+function remapUnderRoot(path: string, fromRoot: string, toRoot: string): string {
+  if (path === fromRoot) return toRoot
+  if (path.startsWith(`${fromRoot}/`)) return `${toRoot}${path.slice(fromRoot.length)}`
+  return path
 }
 
 /**
@@ -103,5 +127,11 @@ export async function copyRepoSettings(
     return { imported: [] }
   }
   const settings = await exportRepoSettings(fromPath)
+  if (settings.scope !== undefined) {
+    settings.scope = {
+      hiddenPaths: settings.scope.hiddenPaths.map((p) => remapUnderRoot(p, fromPath, toPath)),
+      pinnedPaths: settings.scope.pinnedPaths.map((p) => remapUnderRoot(p, fromPath, toPath)),
+    }
+  }
   return importRepoSettings(toPath, settings)
 }

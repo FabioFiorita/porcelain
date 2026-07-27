@@ -13,8 +13,8 @@ The CLI lives at `~/.porcelain/porcelain` on **every** daemon host (local Mac an
 | **Repo notes** | `porcelain notes get` (read-only) + write notes via the app or file | Human scratchpad |
 | **Flow layers** | `porcelain layers get` / `layers set` | Regex rules; paths inside patterns are usually relative |
 | **Review comments** | `porcelain comments list` | Only if the human still wants open notes on the other host |
-| **Hidden folders** | Daemon `config.json` → `repos[absPath].hiddenPaths` | Absolute paths — **must remap** |
-| **Pinned folders** | Daemon `config.json` → `repos[absPath].pinnedPaths` | Absolute paths — **must remap** |
+| **Hidden folders** | `porcelain scope list` / `scope hide` or `~/.porcelain/scope.json` | Absolute paths in the file — **must remap** (CLI accepts relative on the target host) |
+| **Pinned folders** | `porcelain scope pin` / same `scope.json` | Same as hidden |
 
 **Do not copy:**
 
@@ -30,23 +30,23 @@ Channel files (board, actions, notes, layers, comments, …):
 - Always: `~/.porcelain/<name>.json` on the machine where the **daemon** runs
 - Override for tests: `PORCELAIN_*` env vars (see channel modules)
 
-Hidden/pinned live in the **daemon config**, not `~/.porcelain`:
+Hidden/pinned live in the **scope channel** (same home as board/layers):
 
-- **Mac app:** `~/Library/Application Support/porcelain/config.json` (dev: `…/porcelain-dev/config.json`)
-- **Linux / standalone daemon:** `~/.local/share/porcelain/config.json` (or `$PORCELAIN_USER_DATA/config.json` if set)
+- Always: `~/.porcelain/scope.json` on the machine where the **daemon** runs
+- Override for tests: `PORCELAIN_SCOPE`
 
 Shape:
 
 ```json
 {
-  "repos": {
-    "/absolute/path/to/repo": {
-      "hiddenPaths": ["/absolute/path/to/repo/apps/legacy"],
-      "pinnedPaths": ["/absolute/path/to/repo/apps/web"]
-    }
+  "/absolute/path/to/repo": {
+    "hiddenPaths": ["/absolute/path/to/repo/apps/legacy"],
+    "pinnedPaths": ["/absolute/path/to/repo/apps/web"]
   }
 }
 ```
+
+Legacy: older installs stored hide/pin under daemon `config.json` `repos[*]`; the daemon migrates into `scope.json` on boot.
 
 ## Local → remote workflow (typical)
 
@@ -69,7 +69,7 @@ Shape:
      ```
    - **B. SSH + edit channel JSON**: merge under the remote absolute path key in each `~/.porcelain/*.json` (atomic write: write `.tmp` then rename). Preserve other repos' keys
    - **C. Same host path remap only**: if both paths are on one daemon, the app still has `exportRepoSettings` / `importRepoSettings` / `copyRepoSettings` tRPC procedures for scripts — not the Settings UI
-5. **Hidden/pinned on remote**: edit remote `config.json` `repos[remotePath]` (merge, don't wipe other repos). Remap every absolute path string.
+5. **Hidden/pinned on remote**: prefer `porcelain scope hide|pin --path … --repo <remotePath>` over SSH (paths relative to the remote checkout). Or merge remote `~/.porcelain/scope.json` under the remote absolute key — remap every absolute path string.
 
 ## Remote → local
 

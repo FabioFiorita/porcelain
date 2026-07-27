@@ -47,6 +47,15 @@ import {
   toReviewSections,
 } from './review-file'
 import { describeReviewed, readReviewed } from './reviewed-file'
+import {
+  clearScope,
+  describeScope,
+  hidePath as hideScopePath,
+  pinPath as pinScopePath,
+  readScope,
+  unhidePath as unhideScopePath,
+  unpinPath as unpinScopePath,
+} from './scope-file'
 
 // Porcelain's agent CLI: a dependency-free command that reads and writes the watched
 // JSON channels under ~/.porcelain (review sets, board, actions, notes, layers,
@@ -147,6 +156,7 @@ const FLAG_DESCRIPTIONS: Record<string, string> = {
     "Where the human's click runs the command: primary (this window's machine, default) | local (This device, when the window is remote)",
   layers:
     "Flow layers as JSON: array of {label, pattern} in order (entry point → data); '-' reads stdin",
+  path: 'Repo-relative folder or file path (absolute under the repo also accepted)',
   label: 'Short label for the verification check, e.g. "pnpm test"',
   detail: 'Optional result detail for the check, e.g. "1348 passed"',
 }
@@ -299,6 +309,19 @@ const COMMANDS: NounHelp[] = [
       { verb: 'reset', args: '', desc: 'Drop the custom set (back to the defaults)' },
     ],
     flags: ['layers'],
+  },
+  {
+    noun: 'scope',
+    blurb: 'monorepo hide/pin — folders hidden from the tree or pinned in Quick Access',
+    verbs: [
+      { verb: 'list', args: '', desc: 'List hidden and pinned paths' },
+      { verb: 'hide', args: '--path <p>', desc: 'Hide a folder/file from the tree' },
+      { verb: 'unhide', args: '--path <p>', desc: 'Stop hiding a path' },
+      { verb: 'pin', args: '--path <p>', desc: 'Pin a path in Quick Access' },
+      { verb: 'unpin', args: '--path <p>', desc: 'Remove a pin' },
+      { verb: 'clear', args: '', desc: 'Drop all hidden and pinned paths for this repo' },
+    ],
+    flags: ['path'],
   },
 ]
 
@@ -516,6 +539,31 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
     case 'layers reset':
       clearLayers(repo)
       return `Reset flow layers to the built-in defaults for ${repo}`
+    case 'scope list':
+      return describeScope(repo, readScope(repo))
+    case 'scope hide': {
+      const path = req('path')
+      hideScopePath(repo, path)
+      return `Hidden ${path} for ${repo}`
+    }
+    case 'scope unhide': {
+      const path = req('path')
+      unhideScopePath(repo, path)
+      return `Unhid ${path} for ${repo}`
+    }
+    case 'scope pin': {
+      const path = req('path')
+      pinScopePath(repo, path)
+      return `Pinned ${path} for ${repo}`
+    }
+    case 'scope unpin': {
+      const path = req('path')
+      unpinScopePath(repo, path)
+      return `Unpinned ${path} for ${repo}`
+    }
+    case 'scope clear':
+      clearScope(repo)
+      return `Cleared hide/pin scope for ${repo}`
     default:
       throw new Error(`unknown command: "${noun} ${verb}" — try "porcelain help"`)
   }

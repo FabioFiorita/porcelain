@@ -74,6 +74,15 @@ function handle(
         utils.featureReading.invalidate(),
         utils.exploreFeature.invalidate(),
       ])
+    case 'scope':
+      // the agent hid/pinned folders via the CLI — refresh the tree, pins, and any
+      // listing that filters hidden paths (flow + search)
+      return Promise.all([
+        utils.readDir.invalidate(),
+        utils.pinnedEntries.invalidate(),
+        utils.gitFlow.invalidate(),
+        utils.searchFiles.invalidate(),
+      ])
     case 'evidence':
       // the agent authored/cleared loop evidence — refresh the Review document (its
       // evidence chapter meta rides on featureReading) and the chapter's full HTML.

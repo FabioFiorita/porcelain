@@ -70,6 +70,10 @@ export function unreadTabFor(event: AppEvent): UnreadTab | null {
     case 'file-tree':
       // Tree dirty after agent edits — soft cue on Changes (U9).
       return 'changes'
+    case 'scope':
+    case 'layers':
+      // Nav/grouping config — live-refresh without a rail unread dot.
+      return null
     default:
       return null
   }

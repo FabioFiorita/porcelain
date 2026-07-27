@@ -320,8 +320,8 @@ export async function gitAddWorktree(repoPath: string, branch: string): Promise<
   await mkdir(parent, { recursive: true })
   await runGitChecked(repoPath, ['worktree', 'add', '-b', branch, dir])
   // realpath the created directory: `git worktree list --porcelain` reports realpath-resolved
-  // absolute paths, and agent-thread scoping is an exact string match on repoPath — a symlinked
-  // temp path (e.g. macOS /var → /private/var) would silently split rosters.
+  // absolute paths, and worktree/inbox scoping is an exact string match on repoPath — a
+  // symlinked temp path (e.g. macOS /var → /private/var) would silently split rosters.
   return { path: await realpath(dir), branch }
 }
 

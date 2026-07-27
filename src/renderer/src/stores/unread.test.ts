@@ -50,6 +50,7 @@ describe('unreadTabFor', () => {
     ['working-tree', 'changes'],
     ['file-tree', 'changes'],
     ['layers', null],
+    ['scope', null],
   ]
 
   for (const [event, expected] of cases) {

@@ -9,6 +9,7 @@ import { migrateLayersFromConfig } from './layers-store'
 import { migrateNotesFromConfig } from './notes-store'
 import { watchAgentChannels } from './review-watch'
 import { migrateReviewedFromConfig } from './reviewed-store'
+import { migrateScopeFromConfig } from './scope-store'
 import { broadcastAppEvent, createSession } from './session'
 import { rendererDistExists, serveStatic } from './static-server'
 import { initIfaceHandlers, startLanListener, startTailnetListener } from './tailnet-listener'
@@ -148,6 +149,7 @@ async function main(): Promise<void> {
   await migrateNotesFromConfig()
   await migrateLayersFromConfig()
   await migrateReviewedFromConfig()
+  await migrateScopeFromConfig()
 
   // Refresh the bundled CLI agents run (`~/.porcelain/porcelain <noun> <verb>`).
   // Same contract as the Mac shell boot path (`src/main/index.ts`): every daemon

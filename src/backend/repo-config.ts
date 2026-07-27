@@ -2,8 +2,8 @@ import { z } from 'zod'
 
 // Plain `z.object` (never `.strict()`): this schema parses a config file written by older
 // builds, and home-channel treats a parse failure as corruption — it renames the file aside
-// and starts from empty. Stripping unknown keys is what lets a dropped field (e.g. the old
-// agent-runner slots) disappear without taking the user's recents/hidden/pinned paths with it.
+// and starts from empty. Stripping unknown keys is what lets a dropped field disappear
+// without taking the user's recents (and legacy hidden/pinned until scope migration).
 export const appConfigSchema = z.object({
   recentRepos: z.array(z.string()).default([]),
   // Global (not per-repo): when true the daemon additionally listens on the
@@ -21,11 +21,11 @@ export const appConfigSchema = z.object({
       z.object({
         hiddenPaths: z.array(z.string()).default([]),
         pinnedPaths: z.array(z.string()).default([]),
-        // Deprecated: reviewed marks + layers + notes moved to their ~/.porcelain agent
-        // channels (reviewed-store.ts / layers-store.ts / notes-store.ts) so the porcelain
-        // CLI can read them. Kept optional only so the one-time startup migrations
-        // (migrateReviewedFromConfig / migrateLayersFromConfig / migrateNotesFromConfig)
-        // can copy legacy values out — no code writes them anymore.
+        // Deprecated: reviewed / layers / notes / hide+pin moved to ~/.porcelain agent
+        // channels so the porcelain CLI can read them. Kept optional (or still present for
+        // hide/pin defaults) so one-time migrations can copy legacy values out —
+        // migrateReviewedFromConfig / migrateLayersFromConfig / migrateNotesFromConfig /
+        // migrateScopeFromConfig. App hide/pin writes go to scope-store only.
         reviewedPaths: z.array(z.string()).optional(),
         layers: z.array(z.object({ label: z.string(), pattern: z.string() })).optional(),
         notes: z.string().optional(),

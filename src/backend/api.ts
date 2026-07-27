@@ -105,17 +105,7 @@ import { readLayers, writeLayers } from './layers-store'
 import { readNotes, writeNotes } from './notes-store'
 import { expandUserPath } from './path-expand'
 import { exceedsReadLimit } from './read-limits'
-import {
-  hiddenPathsFor,
-  pinnedPathsFor,
-  visibleFilePaths,
-  withHiddenPath,
-  withoutHiddenPath,
-  withoutPinnedPath,
-  withoutRecentRepo,
-  withPinnedPath,
-  withRecentRepo,
-} from './repo-config'
+import { visibleFilePaths, withoutRecentRepo, withRecentRepo } from './repo-config'
 import {
   copyRepoSettings,
   exportRepoSettings,
@@ -134,6 +124,14 @@ import {
   setReviewedMarks,
   unmarkReviewed,
 } from './reviewed-store'
+import {
+  hiddenPathsForRepo,
+  hidePath as hideScopePath,
+  pinnedPathsForRepo,
+  pinPath as pinScopePath,
+  unhidePath as unhideScopePath,
+  unpinPath as unpinScopePath,
+} from './scope-store'
 import { sessionCount } from './session'
 import {
   ifaceListenerPort,
@@ -497,9 +495,9 @@ export const router = t.router({
     return existing.filter((p): p is string => p !== null).map(toRepoInfo)
   }),
 
-  // Drop a repo from the recents list. Removes only the recents entry — the repo's
-  // per-repo config under `repos` (hidden/pinned paths) survives, so re-opening it
-  // restores those settings.
+  // Drop a repo from the recents list. Removes only the recents entry — scope
+  // (hidden/pinned) lives in ~/.porcelain/scope.json and is keyed by path, so it
+  // survives remove + re-open the same way legacy config.repos did.
   removeRecentRepo: t.procedure.input(z.string()).mutation(async ({ input }) => {
     await updateConfig((config) => withoutRecentRepo(config, input))
   }),
@@ -516,9 +514,11 @@ export const router = t.router({
   readDir: t.procedure
     .input(z.object({ repoPath: z.string(), path: z.string(), showHidden: z.boolean() }))
     .query(async ({ input }): Promise<DirEntry[]> => {
-      const config = await loadConfig()
-      const hidden = hiddenPathsFor(config, input.repoPath)
-      const pinned = new Set(pinnedPathsFor(config, input.repoPath))
+      const [hidden, pinnedList] = await Promise.all([
+        hiddenPathsForRepo(input.repoPath),
+        pinnedPathsForRepo(input.repoPath),
+      ])
+      const pinned = new Set(pinnedList)
       const entries = await readdir(input.path, { withFileTypes: true })
       return entries
         .filter((entry) => entry.name !== '.DS_Store')
@@ -540,32 +540,34 @@ export const router = t.router({
   hidePath: t.procedure
     .input(z.object({ repoPath: z.string(), path: z.string() }))
     .mutation(async ({ input }) => {
-      await updateConfig((config) => withHiddenPath(config, input.repoPath, input.path))
+      await hideScopePath(input.repoPath, input.path)
     }),
 
   unhidePath: t.procedure
     .input(z.object({ repoPath: z.string(), path: z.string() }))
     .mutation(async ({ input }) => {
-      await updateConfig((config) => withoutHiddenPath(config, input.repoPath, input.path))
+      await unhideScopePath(input.repoPath, input.path)
     }),
 
   pinPath: t.procedure
     .input(z.object({ repoPath: z.string(), path: z.string() }))
     .mutation(async ({ input }) => {
-      await updateConfig((config) => withPinnedPath(config, input.repoPath, input.path))
+      await pinScopePath(input.repoPath, input.path)
     }),
 
   unpinPath: t.procedure
     .input(z.object({ repoPath: z.string(), path: z.string() }))
     .mutation(async ({ input }) => {
-      await updateConfig((config) => withoutPinnedPath(config, input.repoPath, input.path))
+      await unpinScopePath(input.repoPath, input.path)
     }),
 
   pinnedEntries: t.procedure.input(z.string()).query(async ({ input }): Promise<DirEntry[]> => {
-    const config = await loadConfig()
-    const hidden = hiddenPathsFor(config, input)
+    const [hidden, pinned] = await Promise.all([
+      hiddenPathsForRepo(input),
+      pinnedPathsForRepo(input),
+    ])
     const entries = await Promise.all(
-      pinnedPathsFor(config, input).map(async (path): Promise<DirEntry | null> => {
+      pinned.map(async (path): Promise<DirEntry | null> => {
         try {
           const info = await stat(path)
           return {
@@ -576,7 +578,7 @@ export const router = t.router({
             pinned: true,
           }
         } catch {
-          return null // pinned path no longer exists; keep the config, skip the row
+          return null // pinned path no longer exists; keep the scope entry, skip the row
         }
       }),
     )
@@ -1399,8 +1401,10 @@ export const router = t.router({
     .input(z.object({ repoPath: z.string(), query: z.string() }))
     .query(async ({ input }): Promise<SearchResult[]> => {
       if (input.query.trim() === '') return []
-      const [files, config] = await Promise.all([gitListSearchFiles(input.repoPath), loadConfig()])
-      const hidden = hiddenPathsFor(config, input.repoPath)
+      const [files, hidden] = await Promise.all([
+        gitListSearchFiles(input.repoPath),
+        hiddenPathsForRepo(input.repoPath),
+      ])
       const { paths, dirs } = searchCandidates(input.repoPath, files, hidden)
       return fuzzySearch(input.query, paths, 50).map((r) => ({
         path: r.path,
