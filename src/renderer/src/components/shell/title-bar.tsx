@@ -18,6 +18,11 @@ import { WindowControls } from './window-controls'
  * frameless (no native traffic lights either), so the left spacer is likewise
  * dropped and a custom WindowControls cluster sits at the right edge.
  *
+ * Search is **absolutely centered** in the full bar (not in the leftover flex
+ * space). The environment chip / window controls sit on the right and must not
+ * shove the search left — on a phone the named env chip alone was enough to make
+ * the field look off-center.
+ *
  * The top-right carries the `EnvironmentSwitcher` — ALWAYS, local or remote, since a
  * control that only appears once you're remote can't be how you go remote (this
  * replaced a Remote-only chip). It owns the machine identity, the reachability dots,
@@ -32,28 +37,30 @@ export function TitleBar(): React.JSX.Element {
   const setFinderOpen = useFileFinderStore((s) => s.setOpen)
 
   return (
-    <div className="app-drag flex h-12 shrink-0 items-center px-3">
-      {!isBrowser && !isLinuxShell && <div className="w-16 shrink-0" aria-hidden />}
-      <div className="flex flex-1 justify-center">
+    <div className="app-drag relative flex h-12 shrink-0 items-center px-3">
+      {/* True window center — independent of asymmetric left/right chrome widths. */}
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-14">
         <button
           type="button"
           onClick={() => setFinderOpen(true)}
           aria-label="Search files, folders, commands, commits"
-          className="app-no-drag flex h-8 w-full max-w-[440px] items-center gap-2 rounded-lg border border-border/60 bg-muted px-3 text-xs text-muted-foreground transition-colors hover:border-ring/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          className="app-no-drag pointer-events-auto flex h-8 w-full max-w-[440px] items-center gap-2 rounded-lg border border-border/60 bg-muted px-3 text-xs text-muted-foreground transition-colors hover:border-ring/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
         >
           <Search className="size-3.5 shrink-0" />
-          <span className="flex-1 truncate text-left">
+          <span className="min-w-0 flex-1 truncate text-left">
             Search files, folders, commands, commits…
           </span>
           {/* Keyboard chords are noise on a phone soft-keyboard; keep them for pointer. */}
           <Kbd className="[@media(hover:none)]:hidden">{kbdLabel('mod', 'K')}</Kbd>
         </button>
       </div>
-      {/* The switcher is always present, so this inset no longer collapses back to a
-          bare traffic-light mirror; Linux/Windows widen further for the window controls. */}
+
+      {!isBrowser && !isLinuxShell && <div className="w-16 shrink-0" aria-hidden />}
+      {/* Spacer so the absolute search isn't the only flex child; keeps height/layout. */}
+      <div className="min-w-0 flex-1" aria-hidden />
       <div
         className={cn(
-          'app-no-drag flex shrink-0 items-center justify-end gap-1',
+          'app-no-drag relative z-10 flex shrink-0 items-center justify-end gap-1',
           isLinuxShell ? 'min-w-24 pl-2' : 'min-w-16 pl-2',
         )}
       >

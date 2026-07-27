@@ -39,6 +39,10 @@ vi.mock('@renderer/lib/platform', () => ({
   isE2E: false,
 }))
 
+vi.mock('@renderer/hooks/use-mobile', () => ({
+  useIsMobile: () => false,
+}))
+
 const beelink = { id: 'beelink', name: 'Beelink', url: 'http://100.64.1.2:43117' }
 
 const skew: VersionSkew = {

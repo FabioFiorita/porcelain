@@ -11,6 +11,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { useDaemonSkew } from '@renderer/hooks/use-daemon-skew'
 import { useEnvironmentStatuses } from '@renderer/hooks/use-environment-status'
+import { useIsMobile } from '@renderer/hooks/use-mobile'
 import {
   useConnectRemoteEnvironment,
   useDisconnectRemoteEnvironment,
@@ -51,6 +52,7 @@ export function EnvironmentSwitcher(): React.JSX.Element | null {
   const environments = useRemoteEnvironments()
   const statuses = useEnvironmentStatuses()
   const skew = useDaemonSkew()
+  const isMobile = useIsMobile()
   const { connect, pendingId } = useConnectRemoteEnvironment()
   const { disconnect, isPending: isDisconnecting } = useDisconnectRemoteEnvironment()
   const { open: openInEnv } = useOpenWindowInEnvironment()
@@ -79,20 +81,24 @@ export function EnvironmentSwitcher(): React.JSX.Element | null {
         : 'This machine'
   // Chip: remote env name when bound remote; otherwise this machine's host.
   const label = active?.name ?? localName
+  // Phone titlebar is tight — icon carries local vs remote; name lives in aria/tooltip.
+  const compact = isMobile
 
   const chip = (
     <span
       className={cn(
-        'flex max-w-48 items-center gap-1.5 rounded-md border border-border bg-secondary px-2 py-1',
+        'flex items-center rounded-md border border-border bg-secondary',
         'text-xs font-medium text-secondary-foreground',
+        compact ? 'size-8 justify-center' : 'max-w-48 gap-1.5 px-2 py-1',
       )}
+      title={compact ? label : undefined}
     >
       {active ? (
         <Cloud className="size-3.5 shrink-0 opacity-80" aria-hidden />
       ) : (
         <Monitor className="size-3.5 shrink-0 opacity-80" aria-hidden />
       )}
-      <span className="truncate">{label}</span>
+      {!compact && <span className="truncate">{label}</span>}
       {skew && <TriangleAlert className="size-3.5 shrink-0 text-warning" aria-hidden />}
     </span>
   )
@@ -101,7 +107,9 @@ export function EnvironmentSwitcher(): React.JSX.Element | null {
   if (isBrowser) {
     return (
       <div className="app-no-drag" data-testid={TestIds.environmentSwitcher}>
-        {chip}
+        <span role="img" aria-label={`Environment: ${label}`}>
+          {chip}
+        </span>
       </div>
     )
   }
@@ -151,7 +159,12 @@ export function EnvironmentSwitcher(): React.JSX.Element | null {
         </TooltipContent>
       </Tooltip>
 
-      <DropdownMenuContent align="end" side="bottom" className="w-72">
+      {/*
+        align=end keeps the menu's trailing edge on the chip (same corner language as
+        the rail project menu opening from its avatar). collisionPadding keeps the
+        panel on-screen instead of sliding past the window edge on a short Mac chrome.
+      */}
+      <DropdownMenuContent align="end" side="bottom" sideOffset={6} className="w-72">
         <DropdownMenuGroup>
           <DropdownMenuLabel>Environments</DropdownMenuLabel>
           <EnvironmentRow
