@@ -86,3 +86,47 @@ test('runs a saved action in a terminal', async ({ page }) => {
   await loc.actionRun(page, 'Compute').click()
   await expectTerminalText(page, 0, 'ACTION_42')
 })
+
+test('key bar drives the PTY: arrows recall history, sticky Ctrl and ^C interrupt', async ({
+  page,
+}) => {
+  await waitForShell(page)
+  await selectTab(page, 'Terminal')
+  await loc.terminalNew(page).click()
+
+  const input = page.locator('.xterm-helper-textarea').first()
+  await input.waitFor()
+  await input.focus()
+  await expectTerminalText(page, 0, '$')
+  await expect(loc.terminalKeyBar(page)).toBeVisible()
+
+  // A command in history for the arrow keys to recall.
+  await page.keyboard.type('echo BAR_$((6*7))')
+  await page.keyboard.press('Enter')
+  await expectTerminalText(page, 0, 'BAR_42')
+
+  // Up arrow recalls the previous command; Enter re-runs it — proving the bar's arrows
+  // reach readline, not the page.
+  await loc.terminalKey(page, 'Up').click()
+  await page.keyboard.press('Enter')
+  await expectTerminalText(page, 0, 'BAR_42')
+
+  // Sticky Ctrl + a typed letter = the control byte: ^C abandons a half-typed line, so
+  // the following command runs on its own instead of being appended to the junk.
+  await page.keyboard.type('junk that must never run')
+  await loc.terminalKey(page, 'ctrl').click()
+  await expect(loc.terminalKey(page, 'ctrl')).toHaveAttribute('aria-pressed', 'true')
+  await input.focus()
+  await page.keyboard.press('c')
+  await expect(loc.terminalKey(page, 'ctrl')).toHaveAttribute('aria-pressed', 'false')
+  await page.keyboard.type('echo CLEAN_$((6*7))')
+  await page.keyboard.press('Enter')
+  await expectTerminalText(page, 0, 'CLEAN_42')
+
+  // The ^C shortcut key does the same in one tap.
+  await page.keyboard.type('more junk')
+  await loc.terminalKey(page, 'ctrl-c').click()
+  await page.keyboard.type('echo ONETAP_$((6*7))')
+  await page.keyboard.press('Enter')
+  await expectTerminalText(page, 0, 'ONETAP_42')
+})

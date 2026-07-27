@@ -1,11 +1,17 @@
 import '@xterm/xterm/css/xterm.css'
 import { type TerminalRenderer, usePreferencesStore } from '@renderer/stores/preferences'
+import { useTerminalInputStore } from '@renderer/stores/terminal-input'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebglAddon } from '@xterm/addon-webgl'
 import { type ITheme, Terminal } from '@xterm/xterm'
 import { resizeTerminal, writeTerminal } from './daemon'
-import { isE2E } from './platform'
-import { terminalEditBytes } from './terminal-keys'
+import { isCoarseTouch, isE2E } from './platform'
+import {
+  type ArrowDirection,
+  controlByte,
+  terminalArrowBytes,
+  terminalEditBytes,
+} from './terminal-keys'
 import { attachTouchScroll } from './terminal-touch-scroll'
 import { resolveTheme, subscribeResolvedTheme } from './theme'
 
@@ -80,6 +86,9 @@ interface Instance {
   disposeTouchScroll?: () => void
 }
 
+/** Keys whose own keydown is a modifier press, never "the next keystroke". */
+const MODIFIER_KEYS = new Set(['Shift', 'Control', 'Alt', 'Meta'])
+
 const instances = new Map<string, Instance>()
 const buffers = new Map<string, string[]>()
 // Ids whose replay scrollback has already been seeded into their xterm (or buffered for
@@ -95,7 +104,7 @@ function resolveRenderer(): TerminalRenderer {
   // Multi-touch Apple devices (iPad/iPhone Safari) evict WebGL contexts under memory
   // pressure — a blanked/garbled terminal is the norm there. Always take DOM on those
   // devices regardless of the preference (the Settings copy explains this).
-  if (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 1) return 'dom'
+  if (isCoarseTouch()) return 'dom'
   return pref
 }
 
@@ -280,8 +289,7 @@ function create(id: string, opts?: { cols: number; rows: number }): Instance {
   // iOS Safari never fires those for finger pans, so the page steals the gesture. Convert
   // vertical touch pans into scrollLines and preventDefault so the browser client can't
   // rubber-band the shell. Desktop keeps the wheel path (no listeners attached).
-  const coarseTouch = typeof navigator !== 'undefined' && navigator.maxTouchPoints > 1
-  const disposeTouchScroll = coarseTouch
+  const disposeTouchScroll = isCoarseTouch()
     ? attachTouchScroll(
         (lines) => term.scrollLines(lines),
         () => (term.options.fontSize ?? 12) * (term.options.lineHeight ?? 1),
@@ -301,6 +309,22 @@ function create(id: string, opts?: { cols: number; rows: number }): Instance {
   // Enter chords were broken.) preventDefault cancels the keypress, so only our bytes go.
   term.attachCustomKeyEventHandler((event) => {
     if (event.type !== 'keydown') return true
+    // A modifier's own keydown is not "the next keystroke" — pressing Shift to type an
+    // uppercase letter must not consume an armed Ctrl before the letter arrives.
+    if (MODIFIER_KEYS.has(event.key)) return true
+    // Sticky Ctrl from the key bar (a soft keyboard has no Ctrl): the armed session turns
+    // its next keystroke into a control byte. Disarms on ANY key, so a non-chord key
+    // (Enter, an arrow) cancels rather than staying armed for something later.
+    const input = useTerminalInputStore.getState()
+    if (input.pendingCtrlId === id) {
+      input.clearCtrl()
+      const ctrlBytes = controlByte(event.key)
+      if (ctrlBytes !== null) {
+        event.preventDefault()
+        writeTerminal(id, ctrlBytes)
+        return false
+      }
+    }
     // ⌘K clears the viewport (macOS terminal convention). Meta only — never Ctrl-K,
     // which is readline's kill-to-end-of-line and must still reach the shell.
     if (
@@ -396,7 +420,13 @@ export function attachTerminal(id: string, container: HTMLElement): void {
   // Re-parenting on a tab switch can leave the WebGL atlas painting stale cells; clear it
   // so the re-shown terminal re-rasterizes cleanly.
   instance.term.clearTextureAtlas()
-  instance.term.focus()
+  // Focus is DELIBERATELY skipped on touch: focusing xterm's hidden textarea is what raises
+  // the iOS software keyboard, and this runs on every mount — opening a terminal tab,
+  // switching tabs, moving a terminal between panes — so an iPad could never just *read*
+  // scrollback without the keyboard eating half the pane. `TerminalView`'s `onPointerDown`
+  // focuses on a real tap, and the touch toolbar has an explicit Keyboard button, so
+  // focus stays reachable; it's just no longer a side effect of opening a tab.
+  if (!isCoarseTouch()) instance.term.focus()
 }
 
 /**
@@ -424,6 +454,48 @@ export function fitTerminal(id: string): void {
 
 export function focusTerminal(id: string): void {
   instances.get(id)?.term.focus()
+}
+
+/** Drop focus (on touch this is what dismisses the software keyboard). */
+export function blurTerminal(id: string): void {
+  instances.get(id)?.term.blur()
+}
+
+/**
+ * Whether this session's xterm currently holds focus — i.e. whether the software keyboard
+ * is up. The key bar's Keyboard button reads it at click time to decide show-vs-dismiss;
+ * xterm's focus lives on its hidden helper textarea, not the wrapper.
+ */
+export function isTerminalFocused(id: string): boolean {
+  const wrapper = instances.get(id)?.wrapper
+  if (!wrapper) return false
+  const helper = wrapper.querySelector('.xterm-helper-textarea')
+  return helper !== null && document.activeElement === helper
+}
+
+/**
+ * Write bytes to the PTY as if typed — the key bar's path for keys a soft keyboard can't
+ * send. Deliberately NOT `term.input()`: these bytes must reach the shell exactly as
+ * composed (the same door `attachCustomKeyEventHandler` uses). Scrolls to the prompt like
+ * a real keypress does, so a key tapped after scrolling back up doesn't type off-screen.
+ */
+export function sendTerminalInput(id: string, data: string): void {
+  writeTerminal(id, data)
+  instances.get(id)?.term.scrollToBottom()
+}
+
+/**
+ * Send an arrow key, honoring the terminal's live DECCKM state — a full-screen TUI (vim,
+ * less) puts the terminal in application-cursor mode, where the normal `ESC [ A` form is
+ * inserted as literal text instead of moving the cursor.
+ */
+export function sendTerminalArrow(id: string, direction: ArrowDirection): void {
+  const instance = instances.get(id)
+  if (!instance) return
+  sendTerminalInput(
+    id,
+    terminalArrowBytes(direction, instance.term.modes.applicationCursorKeysMode),
+  )
 }
 
 // Test-only: the WebGL renderer paints glyphs to a canvas and never fills `.xterm-rows`,

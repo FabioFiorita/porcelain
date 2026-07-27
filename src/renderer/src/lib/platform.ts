@@ -42,3 +42,20 @@ export const isLinuxShell = typeof window !== 'undefined' && window.porcelain?.p
 export const isE2E =
   typeof window !== 'undefined' &&
   (window.porcelain?.e2e === true || window.localStorage.getItem('porcelain-e2e') === '1')
+
+/**
+ * True on a multi-touch device (iPad / iPhone Safari, touch laptops) — the seam for
+ * "a finger is the pointer here", NOT for "this is a phone" (that's the `useIsMobile`
+ * width breakpoint; an iPad is coarse-touch at desktop width). Three terminal
+ * behaviours key off it: force the DOM paint path (WebGL contexts get evicted under
+ * memory pressure on Apple devices), convert touch pans into `scrollLines` (iOS Safari
+ * fires no wheel events), and DON'T steal focus when a terminal mounts — focusing
+ * xterm's hidden textarea raises the software keyboard, so on touch that has to be an
+ * explicit tap, not a side effect of opening a tab.
+ *
+ * A function, not a const: it reads `navigator` at call time so a test can stub the
+ * device without re-importing the module.
+ */
+export function isCoarseTouch(): boolean {
+  return typeof navigator !== 'undefined' && navigator.maxTouchPoints > 1
+}

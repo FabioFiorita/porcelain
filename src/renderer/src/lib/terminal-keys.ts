@@ -63,3 +63,41 @@ export function terminalEditBytes({
 
   return null
 }
+
+/**
+ * The byte a Ctrl chord sends, for the key bar's sticky Ctrl (tap Ctrl, then a letter).
+ * A soft keyboard has no Ctrl at all, so on a phone this is the ONLY way to reach ^C/^D/
+ * ^Z/^R/^A/^E — the chords a shell is unusable without.
+ *
+ * The mapping is the tty's own: Ctrl clears the top bits of the ASCII code, so `@A-Z[\]^_`
+ * (0x40–0x5F) become 0x00–0x1F. Two conventional extras the range misses: `?` sends DEL
+ * (0x7F) and Space sends NUL (0x00). Case-insensitive — a soft keyboard's autocapitalized
+ * `C` must still be ^C. Returns null for anything else (arrows, Enter, a named key), so the
+ * caller lets xterm handle the key normally instead of swallowing it.
+ */
+export function controlByte(key: string): string | null {
+  if (key.length !== 1) return null
+  if (key === '?') return '\x7f'
+  if (key === ' ') return '\x00'
+  const code = key.toUpperCase().charCodeAt(0)
+  if (code >= 0x40 && code <= 0x5f) return String.fromCharCode(code - 0x40)
+  return null
+}
+
+export type ArrowDirection = 'up' | 'down' | 'left' | 'right'
+
+const ARROW_FINAL: Record<ArrowDirection, string> = { up: 'A', down: 'B', right: 'C', left: 'D' }
+
+/**
+ * The bytes an arrow key sends — the key bar writes to the PTY directly, so unlike a real
+ * keypress it has to honor DECCKM itself. In application-cursor mode (vim, less, most
+ * full-screen TUIs set it) arrows are `ESC O A`; in normal mode they're `ESC [ A`. Sending
+ * the normal form unconditionally is the classic bug: arrows insert a literal `[A` in vim
+ * instead of moving. The caller reads the live mode off the xterm instance.
+ */
+export function terminalArrowBytes(
+  direction: ArrowDirection,
+  applicationCursorKeys: boolean,
+): string {
+  return `\x1b${applicationCursorKeys ? 'O' : '['}${ARROW_FINAL[direction]}`
+}

@@ -86,6 +86,8 @@ export const loc = {
   agentAssistantMessage: (page: Page): Locator => byId(page, TestIds.agentAssistantMessage),
 
   terminalNew: (page: Page): Locator => byId(page, TestIds.terminalNew),
+  terminalKeyBar: (page: Page): Locator => byId(page, TestIds.terminalKeyBar),
+  terminalKey: (page: Page, label: string): Locator => byId(page, TestIds.terminalKey(label)),
   actionsAdd: (page: Page): Locator => byId(page, TestIds.actionsAdd),
   actionRun: (page: Page, title: string): Locator => byId(page, TestIds.actionRun(title)),
   actionTitleInput: (page: Page): Locator => byId(page, TestIds.actionTitleInput),

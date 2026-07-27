@@ -107,6 +107,11 @@ export const TestIds = {
   // --- Terminal ---
   terminalNew: 'terminal-new',
   terminalList: 'terminal-list',
+  /** The key bar under a terminal pane (Esc/Tab/Ctrl/arrows a soft keyboard lacks). */
+  terminalKeyBar: 'terminal-key-bar',
+  terminalKey: (label: string): string =>
+    `terminal-key-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+  settingsTerminalKeyBar: 'settings-terminal-key-bar',
   actionsAdd: 'actions-add',
   actionRun: (title: string): string =>
     `action-run-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,

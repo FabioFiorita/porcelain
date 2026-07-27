@@ -1,3 +1,4 @@
+import { TerminalKeyBar } from '@renderer/components/terminal/terminal-key-bar'
 import { useResolvedTheme } from '@renderer/hooks/use-theme'
 import {
   attachTerminal,
@@ -6,6 +7,7 @@ import {
   focusTerminal,
   TERMINAL_THEMES,
 } from '@renderer/lib/terminal-registry'
+import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useEffect, useRef } from 'react'
 
 /**
@@ -17,6 +19,7 @@ import { useEffect, useRef } from 'react'
 export function TerminalView({ sessionId }: { sessionId: string }): React.JSX.Element {
   const ref = useRef<HTMLDivElement>(null)
   const mode = useResolvedTheme()
+  const keyBar = usePreferencesStore((s) => s.terminalKeyBar) ?? true
 
   useEffect(() => {
     const container = ref.current
@@ -39,12 +42,18 @@ export function TerminalView({ sessionId }: { sessionId: string }): React.JSX.El
     }
   }, [sessionId])
 
+  // The pane is a column so the key bar can take its own row: the xterm host must be sized
+  // by the flex box (min-h-0 + flex-1), not by the pane, or the ResizeObserver keeps
+  // fitting cols/rows to a height that includes the bar and the last line hides under it.
   return (
-    <div
-      ref={ref}
-      className="h-full w-full overflow-hidden py-2 pr-1 pl-2"
-      style={{ backgroundColor: TERMINAL_THEMES[mode].background }}
-      onPointerDown={() => focusTerminal(sessionId)}
-    />
+    <div className="flex h-full w-full flex-col overflow-hidden">
+      <div
+        ref={ref}
+        className="min-h-0 flex-1 overflow-hidden py-2 pr-1 pl-2"
+        style={{ backgroundColor: TERMINAL_THEMES[mode].background }}
+        onPointerDown={() => focusTerminal(sessionId)}
+      />
+      {keyBar && <TerminalKeyBar sessionId={sessionId} />}
+    </div>
   )
 }

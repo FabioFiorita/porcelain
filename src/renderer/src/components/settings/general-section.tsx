@@ -1,3 +1,4 @@
+import { Switch } from '@renderer/components/ui/switch'
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
 import { compactButtonClass } from '@renderer/lib/controls'
 import { cn } from '@renderer/lib/utils'
@@ -72,6 +73,9 @@ export function GeneralSection(): React.JSX.Element {
   const setPullMode = usePreferencesStore((s) => s.setPullMode)
   const terminalRenderer = usePreferencesStore((s) => s.terminalRenderer)
   const setTerminalRenderer = usePreferencesStore((s) => s.setTerminalRenderer)
+  // ?? true: the preference postdates persisted stores that never wrote the key.
+  const terminalKeyBar = usePreferencesStore((s) => s.terminalKeyBar) ?? true
+  const setTerminalKeyBar = usePreferencesStore((s) => s.setTerminalKeyBar)
   const theme = usePreferencesStore((s) => s.theme) ?? 'system'
   const setTheme = usePreferencesStore((s) => s.setTheme)
 
@@ -178,6 +182,17 @@ export function GeneralSection(): React.JSX.Element {
             Rebase
           </ToggleGroupItem>
         </ToggleGroup>
+      </PreferenceRow>
+      <PreferenceRow
+        label="Terminal key bar"
+        description="A row of Esc, Tab, Ctrl, arrow, and keyboard keys under each terminal — the keys a software keyboard doesn't have."
+      >
+        <Switch
+          checked={terminalKeyBar}
+          onCheckedChange={setTerminalKeyBar}
+          className="shrink-0"
+          data-testid={TestIds.settingsTerminalKeyBar}
+        />
       </PreferenceRow>
       <div className="flex flex-col gap-2">
         <div>
