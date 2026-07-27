@@ -7,8 +7,18 @@ import { expect, loc, openSettings, test, waitForShell } from './helpers/app'
  * The pairing half runs through `fetch` from inside the page rather than the UI, because
  * the UI's half of it lives on the OTHER device — this client is the one being paired
  * from. What's under test here is the roster and revoke, which are this client's surface.
+ *
+ * That `fetch` is also why this is the suite's one browser-only spec (the design is ONE
+ * spec suite, two runtimes — see playwright.config.ts). Pairing is an HTTP-origin flow:
+ * the code is redeemed by POSTing to the daemon's own origin, which only exists for the
+ * daemon-served client. The Electron renderer isn't loaded from an HTTP origin at all —
+ * it talks to the backend over IPC — so `window.location.origin` there has nothing to
+ * redeem a code against, and the exchange can't be expressed, let alone fail meaningfully.
+ * The daemon-served client IS the surface that pairs devices, so browser-only is the
+ * honest scope here, not a skipped Electron gap.
  */
-test('pairs a device, shows it in the roster, and revokes it', async ({ page }) => {
+test('pairs a device, shows it in the roster, and revokes it', async ({ page, appMode }) => {
+  test.skip(appMode === 'electron', 'Pairing needs an HTTP origin; the renderer has none')
   await waitForShell(page)
 
   const gotOwnCredential = await page.evaluate(async () => {
