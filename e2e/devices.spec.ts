@@ -40,9 +40,20 @@ test('pairs with the shared token and revokes everyone', async ({ page, appMode 
   // At least this browser tab is a live session.
   await expect(loc.shareStatus(page)).toContainText(/client/)
 
+  // Wait for the rotate mutation to land before asserting auth — Revoke all is async
+  // (tRPC + localStorage adopt); a bare click races the gate update.
+  const rotated = page.waitForResponse(
+    (res) => res.url().includes('rotateDaemonToken') && res.ok(),
+    { timeout: 10_000 },
+  )
   await loc.shareRevokeAll(page).click()
   await expect(page.getByText(/rotates the daemon token/i)).toBeVisible()
   await page.getByRole('button', { name: 'Revoke all', exact: true }).last().click()
+  await rotated
+
+  await expect
+    .poll(async () => page.evaluate(() => localStorage.getItem('porcelain-daemon-token') ?? ''))
+    .not.toBe(tokens.shared)
 
   // After rotation the old token must 401; the page adopted the new one so Share still works.
   const stillValid = await page.evaluate(async (oldToken) => {
