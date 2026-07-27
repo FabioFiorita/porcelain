@@ -1,5 +1,30 @@
 ## [0.42.0](https://github.com/FabioFiorita/porcelain/compare/v0.41.0...v0.42.0) (2026-07-27)
 
+Porcelain is now **the review layer for agentic coding**: your agents run in your
+terminal, Porcelain is where you review what they built. Three things were removed
+to get there. (Conventional Commits only surfaces `feat`/`fix` below, so the
+headline of this release is written out here.)
+
+### Removed
+
+* **The in-app agent runner.** The Agent tab, agent threads, the four provider
+  drivers, and Settings → Agents are gone. Run Claude Code, Codex, OpenCode, Grok
+  or anything else in the embedded terminal (or any other terminal) — they publish
+  the same Review through the bundled `porcelain` CLI, so the Review inbox works
+  exactly as before. Existing thread transcripts in `~/.porcelain/agent-threads/`
+  are left on disk untouched.
+* **The agent chat relay.** The Relay tab, agent-to-agent messages, and file claims.
+  Coordinating parallel agents is not a problem Porcelain claims to solve.
+* **The Linux desktop app.** The unsigned AppImage/deb build is no longer produced.
+  **Linux is not dropped** — it stays first-class as a *daemon host*
+  (`npx porcelain-daemon@latest serve`, published to npm as usual), with any
+  browser as its seat. Only the desktop package went.
+
+The sidebar is now 7 tabs (Files, Changes, Review, History, Search, Board,
+Terminal); ⌘1–7 renumber accordingly, and a last-open Agent or Relay tab reopens
+on Files. The `npx skills add` / `upgrade` commands moved to Settings → General →
+Companion.
+
 ### Bug Fixes
 
 * **pairing:** mint links against the numeric address, not the .local name ([397c78c](https://github.com/FabioFiorita/porcelain/commit/397c78c34cc97874acfb1e5254841bd5a0558811))
