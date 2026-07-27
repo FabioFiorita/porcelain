@@ -242,10 +242,20 @@ describe('runCli — review + feature + comments + reviewed', () => {
     await runCli(['review', 'add', ...repo, '--files', JSON.stringify([{ path: 'b.ts' }])])
     expect(read()['/repo']?.files).toEqual([{ path: 'a.ts' }, { path: 'b.ts' }])
   })
-  it('review clear removes the set', async () => {
+  it('review clear removes the set and the loop-evidence directory', async () => {
+    process.env.PORCELAIN_LOOP_EVIDENCE_DIR = join(dir, 'loop-evidence')
     await runCli(['review', 'set', ...repo, '--files', JSON.stringify([{ path: 'a.ts' }])])
-    await runCli(['review', 'clear', ...repo])
+    await runCli(['evidence', 'set', ...repo, '--title', 'Old', '--html', doc])
+    const evidenceDir = join(dir, 'loop-evidence')
+    const msg = await runCli(['review', 'clear', ...repo])
+    expect(msg).toContain('loop evidence')
     expect(read()['/repo']).toBeUndefined()
+    // evidenceDirForRepo hashes the path; whole loop-evidence root may still exist for other repos
+    const { readdirSync, existsSync } = await import('node:fs')
+    if (existsSync(evidenceDir)) {
+      const leftover = readdirSync(evidenceDir, { recursive: true }) as string[]
+      expect(leftover.filter((n) => String(n).endsWith('index.html'))).toEqual([])
+    }
   })
   it('review get describes the stored set', async () => {
     await runCli([

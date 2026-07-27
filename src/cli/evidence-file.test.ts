@@ -54,6 +54,25 @@ describe('evidence directory channel', () => {
     expect(existsSync(join(dir, 'index.html'))).toBe(false)
   })
 
+  it('prepareEvidence wipes prior HTML and screenshots (no stale files)', () => {
+    const { dir } = prepareEvidence('/repo', 'Old')
+    writeFileSync(join(dir, 'index.html'), '<p>old</p>')
+    writeFileSync(join(dir, 'shot.png'), 'fake-png')
+    const next = prepareEvidence('/repo', 'New feature')
+    expect(next.title).toBe('New feature')
+    expect(existsSync(join(next.dir, 'index.html'))).toBe(false)
+    expect(existsSync(join(next.dir, 'shot.png'))).toBe(false)
+    expect(existsSync(join(next.dir, 'meta.json'))).toBe(true)
+  })
+
+  it('setEvidence replaces the directory so old screenshots cannot linger', () => {
+    const first = setEvidence('/repo', 'A', '<p>a</p>')
+    writeFileSync(join(first.dir, 'old.png'), 'png')
+    const second = setEvidence('/repo', 'B', '<p>b</p>')
+    expect(readFileSync(join(second.dir, 'index.html'), 'utf8')).toBe('<p>b</p>')
+    expect(existsSync(join(second.dir, 'old.png'))).toBe(false)
+  })
+
   it('setEvidence writes index.html into the directory', () => {
     const evidence = setEvidence('/repo', 'Vite loop', '<h1>Pass</h1>')
     expect(evidence.dir).toBe(evidenceDirForRepo('/repo'))

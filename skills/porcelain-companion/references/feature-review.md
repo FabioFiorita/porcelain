@@ -16,27 +16,32 @@ Without a review set the Feature tab shows **No review yet** — there is no aut
 
 ## Publish flow (agent)
 
-1. **Intent + Execution** — one `review set` (thesis, sections, files) and optionally `review set-canvas` for a freeform Intent board.
-2. **Evidence** — after you validate, `evidence prepare` + write `index.html` (HTML only).
-3. Confirm with `review get` / `feature get` / `evidence get`.
+0. **`review clear` first** — always. Removes the previous feature's review set **and** its loop-evidence directory (HTML + images). Matches the app Feature → Clear button. Skipping this is how a later agent leaves an old Excalidraw board under a new Intent document.
+1. **Intent + Execution** — one `review set` (thesis, sections, files). A full `review set` replaces the structured set and does **not** keep a previous freeform canvas.
+2. **Optional Intent board** — only if *this* feature needs one: `review set-canvas` (html or Excalidraw). Never set-canvas alone for a new feature without step 0–1.
+3. **Evidence** — after you validate, `evidence prepare` + write `index.html` (HTML only). Prepare/set start from an empty evidence dir (no leftover screenshots).
+4. Confirm with `review get` / `feature get` / `evidence get`.
 
 CLI: `~/.porcelain/porcelain` (from inside the repo; `help` lists verbs).
 
 ### Quick reference
 
 ```bash
-# Intent + Execution (structured)
+# Always start clean (set + evidence HTML/images)
+~/.porcelain/porcelain review clear
+
+# Intent + Execution (structured) — full replace, no leftover Board
 ~/.porcelain/porcelain review set --name "Feature name" \
   --thesis "One paragraph: what this is and the key idea." \
   --files '[{ "path": "src/…", "note": "invariant" }, …]' \
   --sections '[{ "title": "…", "prose": "…", "anchors": [{ "path": "…" }] }, …]'
 
-# Intent freeform (optional — board HTML or Excalidraw; outline still uses files/sections)
+# Intent freeform (optional — only for THIS feature)
 ~/.porcelain/porcelain review set-canvas --medium html --html-file ./intent.html
 ~/.porcelain/porcelain review set-canvas --medium excalidraw --file ./board.excalidraw
 ~/.porcelain/porcelain review clear-canvas
 
-# Evidence (HTML only — never Excalidraw here)
+# Evidence (HTML only — never Excalidraw here; dir is wiped on prepare/set)
 ~/.porcelain/porcelain evidence prepare --title "Smoke: …"
 # then Write index.html (+ screenshots) into the printed directory
 ~/.porcelain/porcelain evidence check --label "pnpm test" --status pass --detail "…"
@@ -72,7 +77,9 @@ After a meaningful implement, or when asked to "set up the review" — especiall
 
 ## What not to do
 
+- Don't publish a new Review without `review clear` first — old Board/Evidence will mix with the new story.
 - Don't invent evidence — only publish what you actually ran.
 - Don't use `evidence set --medium excalidraw` (removed). Freeform boards → Intent canvas.
 - Don't push multi-MB HTML through `evidence set`; use `prepare` + Write tools.
 - Don't re-implement a second file browser in Intent; Execution + sidebar own the files.
+- Don't `set-canvas` alone as a "feature review" — that keeps the previous files/thesis.

@@ -42,8 +42,10 @@ Installed automatically on every app/daemon launch (no MCP, no registration). Ru
 # Context
 ~/.porcelain/porcelain notes get
 
-# The Review
+# The Review — ALWAYS clear first so the previous feature's Board/Evidence/images go away
+~/.porcelain/porcelain review clear
 ~/.porcelain/porcelain review set --name "…" --thesis "…" --files '[…]' --sections '[…]'
+~/.porcelain/porcelain review set-canvas --medium html --html-file ./intent.html   # optional; only for THIS feature
 ~/.porcelain/porcelain evidence prepare --title "…"   # then Write index.html in the printed dir
 ~/.porcelain/porcelain comments list
 ~/.porcelain/porcelain comments resolve --id <id>
@@ -62,17 +64,18 @@ JSON
 
 ## Standing rules
 
-1. **Close the loop with evidence** — after a meaningful feature, publish Intent + Execution, then real Evidence (what you actually ran). Don't invent proof.
-2. **Notes are the human's** — read only; put actionable work on the board.
-3. **Actions are human-executed** — never invent an `actions run`; you only CRUD definitions.
-4. **Hide/pin** live in daemon `config.json` today (not CLI yet) — see [sync-environments.md](references/sync-environments.md) when remapping across hosts.
-5. **No secrets** in board, notes, or evidence.
+1. **Clear before you publish a Review** — `review clear` first (drops the previous set **and** the loop-evidence directory: HTML, screenshots, meta). Then `review set` for **this** feature only. Never leave another agent's Intent board or old evidence under a new document.
+2. **Close the loop with evidence** — after a meaningful feature, publish Intent + Execution, then real Evidence (what you actually ran). Don't invent proof.
+3. **Notes are the human's** — read only; put actionable work on the board.
+4. **Actions are human-executed** — never invent an `actions run`; you only CRUD definitions.
+5. **Hide/pin** live in daemon `config.json` today (not CLI yet) — see [sync-environments.md](references/sync-environments.md) when remapping across hosts.
+6. **No secrets** in board, notes, or evidence.
 
 ## Finish a feature (default path)
 
 1. `board move` → doing (if you started from a card).
 2. Implement; keep the board honest.
-3. Publish Review: `review set` (+ optional Intent canvas) — details in [feature-review.md](references/feature-review.md).
-4. Validate → `evidence prepare` + write HTML + `evidence check`.
+3. **`review clear`** then publish Review: `review set` (+ optional `review set-canvas` only for this feature) — details in [feature-review.md](references/feature-review.md).
+4. Validate → `evidence prepare` + write HTML + `evidence check` (`prepare`/`set` start from an empty evidence dir).
 5. Handle `comments list`; resolve when addressed.
 6. `board move` → done.

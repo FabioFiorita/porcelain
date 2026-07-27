@@ -171,6 +171,25 @@ describe('file round-trip', () => {
     expect(existsSync(file)).toBe(true)
   })
 
+  it('setReview does not keep a previous freeform canvas (no stale Board)', () => {
+    setReview('/repo', {
+      name: 'Old',
+      files: [{ path: 'a.ts' }],
+      sections: [],
+      canvas: { medium: 'html', html: '<main>old board</main>' },
+    })
+    setReview('/repo', {
+      name: 'New feature',
+      thesis: 'New idea',
+      files: [{ path: 'b.ts' }],
+      sections: [{ title: 'Step', prose: '…', anchors: [] }],
+    })
+    const stored = readReview('/repo')
+    expect(stored?.name).toBe('New feature')
+    expect(stored?.canvas).toBeUndefined()
+    expect(stored?.thesis).toBe('New idea')
+  })
+
   it('readReview returns the stored set, or null when none exists', () => {
     expect(readReview('/repo')).toBeNull()
     setReview('/repo', {

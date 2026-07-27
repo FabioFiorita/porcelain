@@ -10,6 +10,7 @@ Intent is the **narrative** of the feature: purpose, plan, rationale. It is not 
 ## CLI
 
 ```bash
+~/.porcelain/porcelain review clear   # always before a new feature (drops old Board + evidence too)
 ~/.porcelain/porcelain review set --name "…" --thesis "…" --sections '[…]' --files '[…]'
 ~/.porcelain/porcelain review set-canvas --medium html --html-file ./intent.html
 ~/.porcelain/porcelain review set-canvas --medium excalidraw --file ./board.excalidraw

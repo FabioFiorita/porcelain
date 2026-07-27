@@ -183,7 +183,11 @@ const COMMANDS: NounHelp[] = [
         desc: 'Remove the freeform Overview canvas (back to structured document)',
       },
       { verb: 'get', args: '', desc: 'Read back the declared set' },
-      { verb: 'clear', args: '', desc: 'Remove the set (the Review shows its empty state)' },
+      {
+        verb: 'clear',
+        args: '',
+        desc: 'Clear the Review and loop evidence (set + on-disk HTML/images) — matches the app Clear button',
+      },
     ],
     flags: ['name', 'thesis', 'files', 'sections', 'medium', 'html', 'html-file', 'file'],
   },
@@ -375,8 +379,11 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
     case 'review get':
       return describeReview(repo, readReview(repo))
     case 'review clear':
+      // Match app `clearFeatureReview`: drop the set AND the loop-evidence directory
+      // (index.html, screenshots, meta) so nothing from an old feature lingers on disk.
       clearReview(repo)
-      return `Cleared the feature review for ${repo}`
+      clearEvidence(repo)
+      return `Cleared the feature review and loop evidence for ${repo}`
     case 'review set-canvas': {
       const medium = req('medium')
       if (medium === 'html') {

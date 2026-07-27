@@ -231,23 +231,27 @@ function checksSummary(checks: EvidenceCheck[]): string {
 }
 
 /**
- * Prepare (or refresh title for) a repo's loop-evidence directory.
- * Does not require HTML — agents write index.html themselves.
+ * Prepare a fresh loop-evidence directory for a repo.
+ * Wipes any previous dir (HTML, screenshots, checks) first so agents never stack
+ * stale images from an older feature under a new title. Agents then write index.html.
  */
 export function prepareEvidence(repoPath: string, title: unknown): { dir: string; title: string } {
   if (typeof title !== 'string' || title.trim().length === 0) {
     throw new Error('title must be a non-empty string')
   }
+  clearEvidence(repoPath)
   const meta = writeMeta(repoPath, title)
   return { dir: evidenceDirForRepo(repoPath), title: meta.title }
 }
 
 /**
- * Write index.html into the evidence directory (and meta). Prefer prepareEvidence +
- * agent Write tools for large documents.
+ * Write index.html into a clean evidence directory (and meta). Prefer prepareEvidence +
+ * agent Write tools for large documents. Clears prior dir contents first so old
+ * screenshots cannot linger beside a new body.
  */
 export function setEvidence(repoPath: string, title: unknown, html: unknown): Evidence {
   const valid = validateEvidence(title, html)
+  clearEvidence(repoPath)
   const meta = writeMeta(repoPath, valid.title)
   const dir = evidenceDirForRepo(repoPath)
   const indexPath = join(dir, 'index.html')

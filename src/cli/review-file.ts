@@ -331,13 +331,12 @@ function writeAll(sets: ReviewSets): void {
 
 export function setReview(repoPath: string, set: ReviewSet): void {
   const sets = readAll()
-  // Preserve a freeform Overview canvas unless the new set explicitly carries one
-  // (set-canvas is the dedicated verb; a plain review set shouldn't wipe it).
-  const prev = sets[repoPath]
-  sets[repoPath] = {
-    ...set,
-    canvas: set.canvas ?? prev?.canvas,
-  }
+  // Full replace of the structured set. Do NOT keep a previous freeform canvas —
+  // that was an old feature's Board (Excalidraw/HTML) sitting under a new document.
+  // Want a board for THIS feature? `review set-canvas` after set. Want a clean
+  // slate including evidence? `review clear` first (skill: always clear before a
+  // new feature Review).
+  sets[repoPath] = { ...set }
   writeAll(sets)
 }
 
