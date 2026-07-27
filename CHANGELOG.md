@@ -1,3 +1,9 @@
+## [0.43.5](https://github.com/FabioFiorita/porcelain/compare/v0.43.4...v0.43.5) (2026-07-27)
+
+### Bug Fixes
+
+* **terminal:** typecheck touch-scroll unit tests ([e9aee83](https://github.com/FabioFiorita/porcelain/commit/e9aee833b70e7b8335cba4f06f49959c4ef56f47))
+
 ## [0.43.4](https://github.com/FabioFiorita/porcelain/compare/v0.43.3...v0.43.4) (2026-07-27)
 
 ### Bug Fixes
