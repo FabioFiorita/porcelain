@@ -1,3 +1,9 @@
+## [0.43.4](https://github.com/FabioFiorita/porcelain/compare/v0.43.3...v0.43.4) (2026-07-27)
+
+### Bug Fixes
+
+* **terminal:** stop sending arrow keys for touch scroll ([7b99648](https://github.com/FabioFiorita/porcelain/commit/7b99648d179b5d63750ad37992e52561995e8401))
+
 ## [0.43.3](https://github.com/FabioFiorita/porcelain/compare/v0.43.2...v0.43.3) (2026-07-27)
 
 ### Bug Fixes
