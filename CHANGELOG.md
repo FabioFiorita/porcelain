@@ -1,3 +1,9 @@
+## [0.42.3](https://github.com/FabioFiorita/porcelain/compare/v0.42.2...v0.42.3) (2026-07-27)
+
+### Bug Fixes
+
+* **environments:** label This device from the local probe, not the bound daemon ([e846c5c](https://github.com/FabioFiorita/porcelain/commit/e846c5c317f3ec3ad7a451fd359eafc2c7707011))
+
 ## [0.42.2](https://github.com/FabioFiorita/porcelain/compare/v0.42.1...v0.42.2) (2026-07-27)
 
 ## [0.42.1](https://github.com/FabioFiorita/porcelain/compare/v0.42.0...v0.42.1) (2026-07-27)
