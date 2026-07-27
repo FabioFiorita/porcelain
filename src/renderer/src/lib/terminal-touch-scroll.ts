@@ -35,23 +35,42 @@ export function applyTouchScrollDelta(
 export interface TerminalTouchScrollTarget {
   bufferType: 'normal' | 'alternate'
   mouseTrackingMode: 'none' | 'x10' | 'vt200' | 'drag' | 'any'
+  cols: number
   rows: number
-  /** Cell height in CSS px — one wheel tick / line. */
-  cellHeight: number
   scrollLines: (lines: number) => void
-  /** Write bytes into the PTY as input (PageUp/PageDown sequences). */
+  /** Write bytes into the PTY as input (SGR wheel or PageUp/PageDown). */
   input: (data: string) => void
-  /** Fire a synthetic wheel event at the terminal element (mouse-protocol path). */
-  dispatchWheel: (deltaY: number) => void
+}
+
+/**
+ * SGR mouse wheel report (DECSET 1006). Button 64 = wheel up, 65 = wheel down.
+ * col/row are 1-based. One report per notch — Claude Code treats these as "mouse wheel".
+ *
+ * We write these bytes ourselves instead of dispatching a synthetic WheelEvent: a
+ * non-trusted wheel can fall through xterm's no-scrollback handler and become arrow
+ * keys, which Claude rejects with "Scroll wheel is sending arrow keys".
+ */
+export function encodeSgrWheel(lines: number, col: number, row: number): string {
+  if (lines === 0) return ''
+  // lines < 0 → older content → wheel up (64); lines > 0 → newer → wheel down (65)
+  const code = lines < 0 ? 64 : 65
+  const c = Math.max(1, col)
+  const r = Math.max(1, row)
+  const one = `\x1b[<${code};${c};${r}M`
+  return one.repeat(Math.abs(lines))
+}
+
+/** Whether this mouse mode's protocol includes wheel events (X10 is press-only). */
+export function mouseModeHasWheel(mode: TerminalTouchScrollTarget['mouseTrackingMode']): boolean {
+  return mode === 'vt200' || mode === 'drag' || mode === 'any'
 }
 
 /**
  * Apply a pan line-delta to a terminal.
  *
  * - Normal buffer: xterm scrollback via scrollLines only.
- * - Alternate buffer + mouse tracking: synthetic wheel events so the app gets real
- *   SGR wheel reports (what Claude Code wants for "mouse wheel scrolls a few lines").
- * - Alternate buffer, no mouse: PageUp/PageDown — never arrows (Claude rejects those).
+ * - Alternate + wheel-capable mouse: SGR wheel reports into the PTY (Claude fullscreen).
+ * - Alternate otherwise: PageUp/PageDown — never arrow keys (Claude rejects those).
  */
 export function applyTerminalTouchScroll(target: TerminalTouchScrollTarget, lines: number): void {
   if (lines === 0) return
@@ -61,15 +80,13 @@ export function applyTerminalTouchScroll(target: TerminalTouchScrollTarget, line
     return
   }
 
-  // lines < 0 → older content → wheel up (deltaY < 0) / PageUp
-  // lines > 0 → newer content → wheel down (deltaY > 0) / PageDown
-  const count = Math.abs(lines)
-  const deltaY = lines < 0 ? -target.cellHeight : target.cellHeight
-
-  if (target.mouseTrackingMode !== 'none') {
-    for (let i = 0; i < count; i++) {
-      target.dispatchWheel(deltaY)
-    }
+  // lines < 0 → older content → wheel up / PageUp
+  // lines > 0 → newer content → wheel down / PageDown
+  if (mouseModeHasWheel(target.mouseTrackingMode)) {
+    const col = Math.max(1, Math.floor(target.cols / 2) + 1)
+    const row = Math.max(1, Math.floor(target.rows / 2) + 1)
+    const report = encodeSgrWheel(lines, col, row)
+    if (report !== '') target.input(report)
     return
   }
 
@@ -77,7 +94,7 @@ export function applyTerminalTouchScroll(target: TerminalTouchScrollTarget, line
   // travel so a flick isn't N half-screens.
   const pageSeq = lines < 0 ? '\x1b[5~' : '\x1b[6~'
   const chunk = Math.max(3, Math.floor(target.rows / 4) || 3)
-  const steps = Math.max(1, Math.round(count / chunk))
+  const steps = Math.max(1, Math.round(Math.abs(lines) / chunk))
   for (let i = 0; i < steps; i++) {
     target.input(pageSeq)
   }

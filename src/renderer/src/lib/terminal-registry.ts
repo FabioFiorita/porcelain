@@ -18,36 +18,16 @@ import { resolveTheme, subscribeResolvedTheme } from './theme'
 
 /** Wire an xterm instance into the pure touch-scroll applier (see terminal-touch-scroll). */
 function scrollTerminalTouch(term: Terminal, lines: number): void {
-  const el = term.element
-  const cellHeight =
-    el && term.rows > 0
-      ? Math.max(1, el.clientHeight / term.rows)
-      : (term.options.fontSize ?? 12) * (term.options.lineHeight ?? 1)
-
   applyTerminalTouchScroll(
     {
       bufferType: term.buffer.active.type === 'alternate' ? 'alternate' : 'normal',
       mouseTrackingMode: term.modes.mouseTrackingMode,
+      cols: term.cols,
       rows: term.rows,
-      cellHeight,
       scrollLines: (n) => term.scrollLines(n),
+      // Direct PTY bytes — not synthetic WheelEvent (that can fall through to xterm's
+      // arrow-key no-scrollback path and trip Claude's "sending arrow keys" guard).
       input: (data) => term.input(data, false),
-      dispatchWheel: (deltaY) => {
-        if (!el) return
-        // Target the element xterm listens on; include a center position so mouse
-        // protocol reports a sensible cell (required for SGR wheel).
-        const rect = el.getBoundingClientRect()
-        el.dispatchEvent(
-          new WheelEvent('wheel', {
-            deltaY,
-            deltaMode: WheelEvent.DOM_DELTA_PIXEL,
-            bubbles: true,
-            cancelable: true,
-            clientX: rect.left + rect.width / 2,
-            clientY: rect.top + rect.height / 2,
-          }),
-        )
-      },
     },
     lines,
   )
@@ -289,9 +269,9 @@ function create(id: string): Instance {
   }
 
   // xterm 6 scrolls via SmoothScrollableElement (wheel only) — iOS Safari never fires
-  // wheel for finger pans. Convert vertical pans into line steps. Normal buffer →
-  // scrollLines; alternate (Claude fullscreen) → synthetic wheel / PageUp-PageDown —
-  // never arrow keys (Claude rejects those with "scroll wheel is sending arrow keys").
+  // wheel for finger pans. Normal buffer → scrollLines; alternate (Claude fullscreen)
+  // → SGR wheel bytes or PageUp/PageDown into the PTY — never arrow keys and never a
+  // synthetic WheelEvent (both trip Claude's "sending arrow keys" guard).
   const disposeTouchScroll = isCoarseTouch()
     ? attachTouchScroll(
         (lines) => scrollTerminalTouch(term, lines),
