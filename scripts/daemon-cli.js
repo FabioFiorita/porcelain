@@ -26,10 +26,10 @@ Usage:
   porcelain-daemon [options]              (same as serve)
 
 Options:
-  --port <n>           Listen port (default ${DEFAULT_PORT})
+  --port <n>           Listen port for loopback AND LAN/tailnet (default ${DEFAULT_PORT})
   --user-data <path>   Config dir (default ${DEFAULT_USER_DATA})
-  --tailnet            Also bind the Tailscale interface (port ${DEFAULT_PORT})
-  --lan                Also bind RFC1918 LAN addresses (port ${DEFAULT_PORT})
+  --tailnet            Also bind the Tailscale interface (same --port)
+  --lan                Also bind RFC1918 LAN addresses (same --port)
   --no-watchdog        Disable stdin parent-death watchdog (required under systemd)
   --print-token        Print the daemon token to stderr (for pairing a new client)
   -h, --help           Show this help
@@ -37,6 +37,7 @@ Options:
 Examples:
   npx porcelain-daemon@latest serve --tailnet
   npx porcelain-daemon@latest serve --tailnet --lan --print-token
+  npx porcelain-daemon@latest serve --port 43118 --lan
 
 Env (same as the raw daemon; flags set these when passed):
   PORCELAIN_USER_DATA, PORCELAIN_DAEMON_PORT, PORCELAIN_DAEMON_TOKEN,
@@ -44,7 +45,7 @@ Env (same as the raw daemon; flags set these when passed):
 
 Notes:
   • Always binds 127.0.0.1; --tailnet / --lan add private interfaces only
-    (never 0.0.0.0). Same token gate on every listener.
+    (never 0.0.0.0). Same token gate and same --port on every listener.
   • Token lives at ~/.porcelain/daemon-token (0600). Created on first run.
   • Use @latest so each invoke can pick up a newer published package.
   • First install compiles node-pty for this host (needs a C toolchain).

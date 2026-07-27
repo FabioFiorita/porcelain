@@ -1,7 +1,13 @@
 import { createServer, type Server } from 'node:http'
 import { type AddressInfo, createServer as createNetServer } from 'node:net'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { createIfaceListener, type IfaceListener, initIfaceHandlers } from './tailnet-listener'
+import {
+  createIfaceListener,
+  type IfaceListener,
+  ifaceListenerPort,
+  initIfaceHandlers,
+  LISTENER_PORT,
+} from './tailnet-listener'
 
 // The ephemeral port every listener in this suite binds (picked in beforeAll).
 let testPort: number
@@ -174,5 +180,33 @@ describe('createIfaceListener reconcile()', () => {
     expect(await listener.start()).toBeNull()
     expect(listener.addresses()).toEqual([])
     expect(listener.url()).toBeNull()
+  })
+})
+
+describe('ifaceListenerPort', () => {
+  const prev = process.env.PORCELAIN_DAEMON_PORT
+  afterEach(() => {
+    if (prev === undefined) delete process.env.PORCELAIN_DAEMON_PORT
+    else process.env.PORCELAIN_DAEMON_PORT = prev
+  })
+
+  it('defaults to 43117 when unset', () => {
+    delete process.env.PORCELAIN_DAEMON_PORT
+    expect(ifaceListenerPort()).toBe(LISTENER_PORT)
+    expect(ifaceListenerPort()).toBe(43117)
+  })
+
+  it('follows a valid PORCELAIN_DAEMON_PORT', () => {
+    process.env.PORCELAIN_DAEMON_PORT = '43118'
+    expect(ifaceListenerPort()).toBe(43118)
+  })
+
+  it('falls back on invalid values', () => {
+    process.env.PORCELAIN_DAEMON_PORT = 'nope'
+    expect(ifaceListenerPort()).toBe(LISTENER_PORT)
+    process.env.PORCELAIN_DAEMON_PORT = '0'
+    expect(ifaceListenerPort()).toBe(LISTENER_PORT)
+    process.env.PORCELAIN_DAEMON_PORT = '70000'
+    expect(ifaceListenerPort()).toBe(LISTENER_PORT)
   })
 })

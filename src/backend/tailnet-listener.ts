@@ -22,15 +22,35 @@ import { findTailscaleAddress } from './tailnet'
  * without importing server.ts (which would drag in the daemon's `main()` side
  * effects).
  *
+ * **Port = the daemon port.** Loopback and iface listeners share one port from
+ * `PORCELAIN_DAEMON_PORT` (default **43117**). That way `serve --port 9999 --lan`
+ * and the dev stack on 43118 are reachable at the same port on every bind — the
+ * old "iface always 43117" split made a non-default loopback port unreachable
+ * over LAN/tailnet. The Electron-spawned local child leaves the env unset
+ * (loopback gets an OS port; Share still binds the default 43117).
+ *
  * **Reconcile, not bind-once.** Addresses appear after boot (DHCP race, resume,
  * Tailscale up, Wi-Fi join). `start()` is a reconcile: bind newly-appeared
  * addresses, close sockets whose address disappeared, safe to call repeatedly.
  * While enabled, a short interval re-scans `os.networkInterfaces()` so a boot
  * race or network change is recovered without a daemon restart.
  */
+/** Default share/daemon port when `PORCELAIN_DAEMON_PORT` is unset or invalid. */
 export const LISTENER_PORT = 43117
-/** Back-compat alias — the fixed port both second listeners bind. */
+/** Back-compat alias for the default port. */
 export const TAILNET_PORT = LISTENER_PORT
+
+/**
+ * Port LAN/tailnet listeners bind. Same as the pinned loopback port when
+ * `PORCELAIN_DAEMON_PORT` is set; otherwise the default 43117.
+ */
+export function ifaceListenerPort(): number {
+  const raw = process.env.PORCELAIN_DAEMON_PORT
+  if (raw === undefined || raw === '') return LISTENER_PORT
+  const n = Number(raw)
+  if (!Number.isInteger(n) || n <= 0 || n > 65535) return LISTENER_PORT
+  return n
+}
 
 /** How often an enabled listener re-scans interfaces and reconciles binds. */
 export const IFACE_RECONCILE_MS = 5_000
@@ -83,16 +103,16 @@ export interface IfaceListener {
  * `reconcileMs` is injectable so tests can exercise the interval without waiting
  * the production 5s (or set 0 to disable the timer entirely).
  *
- * `port` defaults to the fixed `LISTENER_PORT` — the production tailnet/LAN
- * singletons always bind it. It's injectable only so tests can own an ephemeral
- * port on a host whose live daemon is already squatting the fixed one.
+ * `port` is optional: omit it to follow `ifaceListenerPort()` at each bind
+ * (production singletons); pass an explicit number in tests so the suite owns
+ * an ephemeral port on a host whose live daemon may already squat 43117.
  */
 export function createIfaceListener(
   pickAddresses: () => string[],
   formatUrl: (addresses: string[]) => string | null,
   label: string,
   reconcileMs: number = IFACE_RECONCILE_MS,
-  port: number = LISTENER_PORT,
+  port?: number,
 ): IfaceListener {
   let servers: Server[] = []
   let bound: string[] = []
@@ -104,6 +124,10 @@ export function createIfaceListener(
   let chain: Promise<unknown> = Promise.resolve()
   /** Avoid spamming stderr every interval while addresses are still missing. */
   let loggedEmpty = false
+
+  function resolvePort(): number {
+    return port ?? ifaceListenerPort()
+  }
 
   function url(): string | null {
     return servers.length > 0 ? formatUrl(bound) : null
@@ -151,17 +175,17 @@ export function createIfaceListener(
       const listener = createServer(request)
       listener.on('upgrade', upgrade)
       listener.once('error', (error) => {
-        // EADDRINUSE = the bound port is squatted (in production the fixed port,
-        // typically a stale daemon that outlived its parent) — remember it so
-        // error() can distinguish "port in use" from "no interface found" when
-        // nothing binds.
+        // EADDRINUSE = the bound port is squatted (typically a stale daemon that
+        // outlived its parent) — remember it so error() can distinguish "port in
+        // use" from "no interface found" when nothing binds.
         const inUse = (error as NodeJS.ErrnoException).code === 'EADDRINUSE'
         console.error(`[daemon] ${label} listener failed on ${addr}:`, error)
         listener.close()
         resolve({ failed: inUse ? 'in-use' : 'other' })
       })
-      listener.listen(port, addr, () => {
-        console.error(`[daemon] ${label} listener bound on ${addr}:${port}`)
+      const listenPort = resolvePort()
+      listener.listen(listenPort, addr, () => {
+        console.error(`[daemon] ${label} listener bound on ${addr}:${listenPort}`)
         resolve({ server: listener, addr })
       })
     })
@@ -260,13 +284,15 @@ export function createIfaceListener(
 }
 
 // The tailnet instance: a single Tailscale address, formatted numerically (the
-// CGNAT address is stable, so no hostname trick).
+// CGNAT address is stable, so no hostname trick). Port resolved at bind/URL time
+// so PORCELAIN_DAEMON_PORT is respected without recreating the singleton.
 const tailnet = createIfaceListener(
   () => {
     const found = findTailscaleAddress()
     return found === null ? [] : [found]
   },
-  (addresses) => (addresses[0] !== undefined ? `http://${addresses[0]}:${LISTENER_PORT}` : null),
+  (addresses) =>
+    addresses[0] !== undefined ? `http://${addresses[0]}:${ifaceListenerPort()}` : null,
   'tailnet',
 )
 
@@ -276,7 +302,7 @@ const lan = createIfaceListener(
   findLanAddresses,
   (addresses) => {
     const displayHost = lanDisplayHost(addresses)
-    return displayHost === null ? null : `http://${displayHost}:${LISTENER_PORT}`
+    return displayHost === null ? null : `http://${displayHost}:${ifaceListenerPort()}`
   },
   'lan',
 )
@@ -294,5 +320,5 @@ export const lanBindError = lan.error
 /** The LAN listener's numeric url (first bound address), for the UI's fallback line. */
 export function lanNumericUrl(): string | null {
   const [first] = lan.addresses()
-  return first !== undefined ? `http://${first}:${LISTENER_PORT}` : null
+  return first !== undefined ? `http://${first}:${ifaceListenerPort()}` : null
 }

@@ -55,9 +55,12 @@ export function devEnv(extra = {}) {
     PORCELAIN_DAEMON_TOKEN_FILE: DEV_TOKEN_FILE,
     PORCELAIN_DAEMON_TOKEN: token,
     PORCELAIN_NO_STDIN_WATCHDOG: '1',
-    // Explicitly clear prod network binds so a shell export can't leak them.
-    PORCELAIN_TAILNET_BIND: '',
-    PORCELAIN_LAN_BIND: '',
+    // LAN on the same port as loopback (43118) so Mac/browser on the home
+    // network can hit http://beelink.local:43118 (or the numeric LAN IP).
+    // Tailnet stays off by default — prod already owns 43117 on the tailnet;
+    // set PORCELAIN_TAILNET_BIND=1 in the shell if you also want 43118 there.
+    PORCELAIN_LAN_BIND: process.env.PORCELAIN_LAN_BIND || '1',
+    PORCELAIN_TAILNET_BIND: process.env.PORCELAIN_TAILNET_BIND || '',
     ...extra,
   }
 }
@@ -74,6 +77,7 @@ export function printDevEnv() {
   start daemon:  pnpm dev:daemon
   CLI (dev):     pnpm porcelain -- <noun> <verb>
   browser URL:   http://127.0.0.1:${DEV_PORT}/
+                 http://<host>.local:${DEV_PORT}/  (LAN; same token)
   token file:    ${DEV_TOKEN_FILE}
   agent channel: porcelain CLI only — no MCP
 

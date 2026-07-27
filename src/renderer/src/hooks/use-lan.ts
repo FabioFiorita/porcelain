@@ -5,10 +5,12 @@ export interface LanStatus {
   enabled: boolean
   url: string | null
   numericUrl: string | null
-  /** Why nothing bound: 'in-use' = port 43117 squatted (likely a stale daemon). */
+  /** Why nothing bound: 'in-use' = share port squatted (likely a stale daemon). */
   error: 'in-use' | null
   /** True when PORCELAIN_LAN_BIND=1 force-enabled the bind at boot (not togglable). */
   envForced: boolean
+  /** Port this daemon binds for LAN share (PORCELAIN_DAEMON_PORT or 43117). */
+  port: number
 }
 
 /** The persisted LAN-bind flag (or env force) plus the live listener urls (null when not up). */

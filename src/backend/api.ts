@@ -136,6 +136,7 @@ import {
 } from './reviewed-store'
 import { sessionCount } from './session'
 import {
+  ifaceListenerPort,
   lanBindError,
   lanNumericUrl,
   lanUrl,
@@ -1243,6 +1244,8 @@ export const router = t.router({
       url: string | null
       error: 'in-use' | null
       envForced: boolean
+      /** Port LAN/tailnet bind (same as PORCELAIN_DAEMON_PORT when set). */
+      port: number
     }> => {
       const config = await loadConfig()
       const envForced = process.env.PORCELAIN_TAILNET_BIND === '1'
@@ -1251,6 +1254,7 @@ export const router = t.router({
         url: tailnetUrl(),
         error: tailnetBindError(),
         envForced,
+        port: ifaceListenerPort(),
       }
     },
   ),
@@ -1263,6 +1267,7 @@ export const router = t.router({
       url: string | null
       error: 'in-use' | null
       envForced: boolean
+      port: number
     }> => {
       await updateConfig((config) => ({ ...config, tailnetBind: input }))
       // Apply the change live: start the second listener (null url ⇒ no Tailscale
@@ -1275,16 +1280,17 @@ export const router = t.router({
         url: tailnetUrl(),
         error: tailnetBindError(),
         envForced,
+        port: ifaceListenerPort(),
       }
     },
   ),
 
   // Remote access over the home LAN: the daemon can additionally listen on the
-  // machine's RFC1918 private addresses (same token, same fixed port; see
+  // machine's RFC1918 private addresses (same token, same daemon port; see
   // lan.ts + tailnet-listener.ts). `url` prefers the `<host>.local` Bonjour name;
   // `numericUrl` is the numeric fallback. Both are non-null only while the LAN
   // listener is actually up; `enabled`/`envForced` (PORCELAIN_LAN_BIND=1) and
-  // `error` ('in-use' = the fixed port is squatted) mirror tailnetStatus above.
+  // `error` ('in-use' = the port is squatted) mirror tailnetStatus above.
   lanStatus: t.procedure.query(
     async (): Promise<{
       enabled: boolean
@@ -1292,6 +1298,7 @@ export const router = t.router({
       numericUrl: string | null
       error: 'in-use' | null
       envForced: boolean
+      port: number
     }> => {
       const config = await loadConfig()
       const envForced = process.env.PORCELAIN_LAN_BIND === '1'
@@ -1301,6 +1308,7 @@ export const router = t.router({
         numericUrl: lanNumericUrl(),
         error: lanBindError(),
         envForced,
+        port: ifaceListenerPort(),
       }
     },
   ),
@@ -1314,6 +1322,7 @@ export const router = t.router({
       numericUrl: string | null
       error: 'in-use' | null
       envForced: boolean
+      port: number
     }> => {
       await updateConfig((config) => ({ ...config, lanBind: input }))
       // Apply the change live: start the LAN listener(s) (null url ⇒ no private
@@ -1327,6 +1336,7 @@ export const router = t.router({
         numericUrl: lanNumericUrl(),
         error: lanBindError(),
         envForced,
+        port: ifaceListenerPort(),
       }
     },
   ),

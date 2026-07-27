@@ -221,7 +221,7 @@ export function ShareSection(): React.JSX.Element {
             numericUrl={lan?.numericUrl}
             emptyHint={
               lan?.error === 'in-use'
-                ? 'Port 43117 is in use — another daemon may still be running.'
+                ? `Port ${lan.port} is in use — another daemon may still be running.`
                 : 'No local network interface found'
             }
           />
@@ -237,7 +237,7 @@ export function ShareSection(): React.JSX.Element {
             url={tailnet?.url}
             emptyHint={
               tailnet?.error === 'in-use'
-                ? 'Port 43117 is in use — another daemon may still be running.'
+                ? `Port ${tailnet.port} is in use — another daemon may still be running.`
                 : 'No Tailscale interface found'
             }
           />
