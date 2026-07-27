@@ -1,5 +1,8 @@
 import { SidebarHeaderActions } from '@renderer/components/shell/sidebar-header-actions'
-import { LocalPathDialog } from '@renderer/components/terminal/local-path-dialog'
+import {
+  LocalPathDialog,
+  type LocalPathDialogMode,
+} from '@renderer/components/terminal/local-path-dialog'
 import { TerminalRenameDialog } from '@renderer/components/terminal/terminal-rename-dialog'
 import { Button } from '@renderer/components/ui/button'
 import {
@@ -12,17 +15,19 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@renderer/components/ui/dropdown-menu'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { useLocalDaemon, useLocalTerminalPath } from '@renderer/hooks/use-local-terminal'
+import { rowActionClass } from '@renderer/lib/controls'
 import { spawnLocalTerminal, spawnTerminal } from '@renderer/lib/terminal-actions'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { useTerminalsStore } from '@renderer/stores/terminals'
 import { TestIds } from '@shared/test-ids'
-import { Cloud, Monitor, PenLine, Plus, SquareTerminal, X } from 'lucide-react'
+import { Cloud, FolderPen, Monitor, PenLine, Plus, SquareTerminal, X } from 'lucide-react'
 import { useState } from 'react'
 
 /**
@@ -31,6 +36,10 @@ import { useState } from 'react'
  * Sessions are independent of tabs — closing a tab keeps the session here (a background
  * dev server keeps running), so this roster is how you get back to it. Mirrors the
  * Board/Feature tabs: a list here, the live surface in the viewer.
+ *
+ * When the window is bound to a remote daemon, the list also surfaces the "This device"
+ * folder mapping (where local shells open for this repo). The map is set on first spawn;
+ * the card here is how you fix a wrong path without re-discovering the dialog.
  */
 export function TerminalList(): React.JSX.Element {
   const sessions = useTerminalsStore((s) => s.sessions)
@@ -53,13 +62,13 @@ export function TerminalList(): React.JSX.Element {
   const canSpawnLocal = localDaemon !== undefined && !localDaemon.isLocal && repo !== null
   const mappedLocalPath = useLocalTerminalPath(repo?.path ?? null)
   const identity = useDaemonIdentity()
-  // Open only when the human asked for a local terminal and no folder is mapped yet.
-  const [mappingPath, setMappingPath] = useState(false)
+  // Path dialog: 'spawn' also opens a terminal after save; 'edit' only updates the map.
+  const [mappingMode, setMappingMode] = useState<LocalPathDialogMode | null>(null)
 
   const spawnLocal = async (): Promise<void> => {
     if (!repo) return
     if (mappedLocalPath == null || mappedLocalPath === '') {
-      setMappingPath(true)
+      setMappingMode('spawn')
       return
     }
     await spawnLocalTerminal(mappedLocalPath)
@@ -75,6 +84,8 @@ export function TerminalList(): React.JSX.Element {
     renameTerminal(id, trimmed)
     retitleTerminalTab(id, trimmed)
   }
+
+  const hasMappedPath = mappedLocalPath != null && mappedLocalPath !== ''
 
   return (
     <div data-testid={TestIds.terminalList} className="flex flex-col gap-1.5">
@@ -102,6 +113,11 @@ export function TerminalList(): React.JSX.Element {
                 <DropdownMenuItem onClick={spawnLocal} data-testid={TestIds.terminalNewLocal}>
                   <Monitor />
                   This device
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setMappingMode('edit')}>
+                  <FolderPen />
+                  {hasMappedPath ? 'Change this device folder…' : 'Set this device folder…'}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -193,6 +209,39 @@ export function TerminalList(): React.JSX.Element {
           </div>
         )}
       </div>
+      {canSpawnLocal && (
+        <div className="mt-1 border-t border-border/60 px-2 pt-2">
+          <div
+            className="rounded-md border bg-muted/40 p-2.5"
+            data-testid={TestIds.localTerminalPathCard}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-xs font-medium">This device folder</p>
+                <p
+                  className={cn(
+                    'mt-0.5 truncate font-mono text-2xs',
+                    hasMappedPath ? 'text-muted-foreground' : 'text-muted-foreground/70 italic',
+                  )}
+                  title={hasMappedPath ? mappedLocalPath : undefined}
+                >
+                  {hasMappedPath ? mappedLocalPath : 'Not set — needed for This device terminals'}
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn(rowActionClass, 'shrink-0')}
+                onClick={() => setMappingMode('edit')}
+                aria-label={hasMappedPath ? 'Change this device folder' : 'Set this device folder'}
+                data-testid={TestIds.localTerminalPathChange}
+              >
+                {hasMappedPath ? 'Change' : 'Set'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
       {renaming && (
         <TerminalRenameDialog
           key={renaming.id}
@@ -201,14 +250,19 @@ export function TerminalList(): React.JSX.Element {
           onClose={() => setRenaming(null)}
         />
       )}
-      {mappingPath && repo && (
+      {mappingMode && repo && (
         <LocalPathDialog
+          key={`${mappingMode}:${mappedLocalPath ?? ''}`}
           repoPath={repo.path}
           initialPath={mappedLocalPath ?? null}
-          // Spawn straight from the dialog's saved value: the query invalidation it
-          // triggers hasn't landed yet, and the human asked for a terminal, not a setting.
-          onSaved={(localPath) => spawnLocalTerminal(localPath)}
-          onClose={() => setMappingPath(false)}
+          mode={mappingMode}
+          // Spawn mode opens a terminal from the just-saved value (query invalidation
+          // hasn't landed yet). Edit mode only updates the map — the human asked for a
+          // setting, not a shell.
+          onSaved={(localPath) => {
+            if (mappingMode === 'spawn') spawnLocalTerminal(localPath)
+          }}
+          onClose={() => setMappingMode(null)}
         />
       )}
     </div>

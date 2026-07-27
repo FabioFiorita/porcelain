@@ -13,6 +13,9 @@ import { cn } from '@renderer/lib/utils'
 import { TestIds } from '@shared/test-ids'
 import { useState } from 'react'
 
+/** Why the dialog opened — drives the primary button label and what happens after save. */
+export type LocalPathDialogMode = 'spawn' | 'edit'
+
 /**
  * Where a "This device" terminal should open for this repo.
  *
@@ -25,15 +28,20 @@ import { useState } from 'react'
  * Deliberately a plain path field rather than the daemon-backed directory browser the repo
  * picker uses: that browser is wired to this window's daemon, so it would browse the wrong
  * machine — the exact confusion this feature exists to remove.
+ *
+ * `mode: 'spawn'` is the first-time flow (Save also opens a terminal). `mode: 'edit'` is
+ * the Terminal-tab settings path when the human mistyped or the local clone moved.
  */
 export function LocalPathDialog({
   repoPath,
   initialPath,
+  mode,
   onSaved,
   onClose,
 }: {
   repoPath: string
   initialPath: string | null
+  mode: LocalPathDialogMode
   onSaved: (localPath: string) => void
   onClose: () => void
 }): React.JSX.Element {
@@ -88,7 +96,7 @@ export function LocalPathDialog({
             data-testid={TestIds.localTerminalPathSave}
             onClick={submit}
           >
-            {isPending ? 'Saving…' : 'Open terminal'}
+            {isPending ? 'Saving…' : mode === 'spawn' ? 'Open terminal' : 'Save'}
           </Button>
         </DialogFooter>
       </DialogContent>

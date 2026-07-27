@@ -83,6 +83,9 @@ export const TestIds = {
   terminalNewLocal: 'terminal-new-local',
   localTerminalPathInput: 'local-terminal-path-input',
   localTerminalPathSave: 'local-terminal-path-save',
+  /** Terminal-tab card for the "This device" cwd mapping (remote-bound windows only). */
+  localTerminalPathCard: 'local-terminal-path-card',
+  localTerminalPathChange: 'local-terminal-path-change',
   actionsAdd: 'actions-add',
   actionRun: (title: string): string =>
     `action-run-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
