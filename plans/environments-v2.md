@@ -24,11 +24,14 @@
 |---|-------|-------|
 | 1 | **Identity + status** — daemon reports identity; environments auto-name; saved envs carry a live reachable/unreachable status | shipped |
 | 2 | **Chip becomes the switcher** — always-visible top-bar control; Use here / New window per env; Add + Manage | shipped |
-| 3 | **Pairing** — daemon mints short-lived codes; pairing link + QR in Share; single-paste add | planned |
+| 3 | **Pairing** — daemon mints short-lived codes; pairing link + QR in Share; single-paste add | shipped |
 | 4 | **Connected devices** — per-device credentials, roster (device, repo, threads, terminals, last seen), per-device revoke | planned |
 | 5 | **Multi-endpoint** — endpoints per environment, ordered failover, preference by kind | planned |
 
 ## Traps found while building
 
+- **The pairing link is the daemon's own url with the code in the HASH** (`<url>/#pair=<CODE>`), not a custom `porcelain://` scheme. One string then serves both consumers: a phone browser opens it, gets the app shell from that very daemon, and redeems on boot; the Mac app parses the same paste back into `{ url, code }`. The hash is never sent to a server, so the code can't land in an access log — and the client strips it from the address bar immediately, whatever the outcome, because it's single-use and would otherwise sit in history and screenshots.
+- **`application/json` on `/pair` is load-bearing, not tidiness.** It forces a CORS preflight that our scoped CORS fails, which is what stops drive-by web content (which *can* reach 127.0.0.1) from ever sending the request. A `text/plain` POST would skip preflight entirely.
+- **Respond 413, don't destroy the socket.** The first cut killed an oversized request mid-flight; the caller then saw a connection reset and couldn't distinguish "too large" from "daemon crashed". Drain past the cap instead — memory stays bounded either way.
 - **Probing every saved environment on every render is a network stampede.** `environmentStatuses` fans out with a short timeout and the hook throttles; do not lower `staleTime` "for freshness".
 - **A remote daemon may be OLDER than this app.** Any new procedure used during probing must be optional — fall back to the reachability probe (`recentRepos`) and treat a missing identity as unknown, never as unreachable. This is the same skew class the `DaemonSkewToast` guards.

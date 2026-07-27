@@ -1,4 +1,6 @@
 import { setBrowserDaemonToken } from '@renderer/lib/daemon'
+import { exchangePairingCode } from '@renderer/lib/pair-exchange'
+import { pairingCodeFromLocation } from '@renderer/lib/pairing-link'
 import { isBrowser } from '@renderer/lib/platform'
 import { trpcClient } from '@renderer/lib/trpc'
 import { useCallback, useEffect, useState } from 'react'
@@ -43,10 +45,25 @@ export function useTokenGate(): TokenGate {
   useEffect(() => {
     if (!isBrowser) return
     let active = true
-    probe().then((ok) => {
+    void (async () => {
+      // Opened from a pairing link (a scanned QR, a pasted url)? Redeem the code for a
+      // token before probing, so the gate never appears — the point of pairing is that
+      // nobody types a token on a phone keyboard. The hash is stripped IMMEDIATELY,
+      // whatever the outcome: the code is single-use, and leaving it in the address bar
+      // puts it in history and in any screenshot of the window.
+      const code = pairingCodeFromLocation(window.location.hash)
+      if (code !== null) {
+        history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
+        const outcome = await exchangePairingCode(window.location.origin, code)
+        if (!active) return
+        // On failure fall through to the normal probe: a persisted token from an earlier
+        // session may still be perfectly good, and the lock screen is the honest fallback.
+        if (outcome.ok) setBrowserDaemonToken(outcome.token)
+      }
+      const ok = await probe()
       if (!active) return
       setStatus(ok ? 'open' : 'locked')
-    })
+    })()
     return () => {
       active = false
     }

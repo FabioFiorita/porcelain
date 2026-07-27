@@ -8,6 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui
 import { useDaemonToken } from '@renderer/hooks/use-daemon-token'
 import { useEnvironmentStatuses } from '@renderer/hooks/use-environment-status'
 import { useLanStatus, useSetLanBind } from '@renderer/hooks/use-lan'
+import { usePairEnvironment } from '@renderer/hooks/use-pairing'
 import {
   useAddRemoteEnvironment,
   useConnectRemoteEnvironment,
@@ -23,6 +24,7 @@ import { cn, copyText } from '@renderer/lib/utils'
 import { platformLabel } from '@shared/platform'
 import { X } from 'lucide-react'
 import { useState } from 'react'
+import { PairingCard } from './pairing-card'
 
 /** Copy the daemon token to the clipboard — the affordance a peer needs to connect. */
 function CopyTokenButton(): React.JSX.Element {
@@ -70,7 +72,8 @@ function ShareReveal({
         <p className="font-mono text-xs text-muted-foreground">{numericUrl}</p>
       )}
       <p className="text-xs text-muted-foreground">
-        The token lives at <span className="font-mono">~/.porcelain/daemon-token</span>.
+        Pairing below is easier; the raw token is still at{' '}
+        <span className="font-mono">~/.porcelain/daemon-token</span> if you need it.
       </p>
     </div>
   )
@@ -115,6 +118,9 @@ function ShareToggleRow({
       </div>
       {envForcedLabel != null && <p className="text-xs text-muted-foreground">{envForcedLabel}</p>}
       {url != null && <ShareReveal url={url} numericUrl={numericUrl} />}
+      {/* Pairing needs a url the OTHER device can reach, which is exactly the url this
+          row just revealed — so the card lives here rather than once per section. */}
+      {url != null && <PairingCard url={url} />}
       {checked && url == null && <p className="text-xs text-muted-foreground">{emptyHint}</p>}
     </div>
   )
@@ -157,6 +163,8 @@ function SavedEnvironmentsBlock(): React.JSX.Element {
   const [url, setUrl] = useState('')
   const [token, setToken] = useState('')
   const [showAdd, setShowAdd] = useState(false)
+  const [pasted, setPasted] = useState('')
+  const { pair, isPending: isPairing, error: pairError } = usePairEnvironment()
 
   const environments = data?.environments ?? []
   const activeId = data?.activeId ?? null
@@ -273,6 +281,31 @@ function SavedEnvironmentsBlock(): React.JSX.Element {
         <div className="flex flex-col gap-2 rounded-md border border-border/60 p-3">
           <p className="text-2xs font-medium tracking-wider text-muted-foreground uppercase">
             Add environment
+          </p>
+          {/* The fast path: paste the link the other machine's Pair a device produced and
+              everything below is filled in for you. The manual fields stay as the fallback
+              for a daemon too old to pair, or one you already hold a token for. */}
+          <div className="flex items-center gap-2">
+            <Input
+              placeholder="Paste a pairing link"
+              value={pasted}
+              onChange={(e) => setPasted(e.target.value)}
+              disabled={isAdding || isPairing}
+              aria-label="Pairing link"
+            />
+            <Button
+              variant="default"
+              size="sm"
+              className={compactButtonClass}
+              disabled={isAdding || isPairing || pasted.trim() === ''}
+              onClick={() => pair(pasted)}
+            >
+              {isPairing ? 'Pairing…' : 'Pair'}
+            </Button>
+          </div>
+          {pairError != null && <p className="text-xs text-destructive">{pairError}</p>}
+          <p className="text-2xs tracking-wider text-muted-foreground uppercase">
+            or enter manually
           </p>
           <Input
             placeholder="Name (e.g. Beelink)"
