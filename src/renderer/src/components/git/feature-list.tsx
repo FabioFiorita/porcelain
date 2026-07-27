@@ -1,16 +1,5 @@
 import type { ReadingFile } from '@backend/feature-view'
 import type { FileSource } from '@backend/review-set'
-import { SidebarHeaderActions } from '@renderer/components/shell/sidebar-header-actions'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@renderer/components/ui/alert-dialog'
 import { Button } from '@renderer/components/ui/button'
 import {
   ContextMenu,
@@ -18,15 +7,8 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from '@renderer/components/ui/context-menu'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@renderer/components/ui/dropdown-menu'
 import { useDiffFilePrefetch } from '@renderer/hooks/use-diff'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
-import { useClearFeatureReview } from '@renderer/hooks/use-feature-view'
 import { useReviewedPaths, useToggleReviewed } from '@renderer/hooks/use-reviewed'
 import { highlightRangesForFile } from '@renderer/lib/highlight-ranges'
 import { dirName, fileName } from '@renderer/lib/paths'
@@ -42,11 +24,9 @@ import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { TestIds } from '@shared/test-ids'
 import {
   Check,
-  Eraser,
   FileDiff,
   GitCompareArrows,
   MessageSquarePlus,
-  MoreHorizontal,
   Square,
   SquareCheck,
 } from 'lucide-react'
@@ -251,12 +231,9 @@ function FeatureOutline(): React.JSX.Element {
   // featureView / reading poll + agent channel events — no manual refresh.
   const { reading } = useFeatureReading()
   const reviewed = useReviewedPaths()
-  const { clear, isClearing } = useClearFeatureReview()
   const requestJump = useReviewFocusStore((s) => s.requestJump)
   const activeSection = useReviewFocusStore((s) => s.activeSection)
   const canvasTab = useReviewFocusStore((s) => s.canvasTab)
-  const [confirmClearOpen, setConfirmClearOpen] = useState(false)
-  const [clearError, setClearError] = useState<string | null>(null)
   const [commentPath, setCommentPath] = useState<string | null>(null)
 
   if (!repo || reading === undefined) {
@@ -287,18 +264,6 @@ function FeatureOutline(): React.JSX.Element {
     if (target) requestJump(target)
   }
 
-  // Clear discards the agent's whole Review (files, notes, sections) AND its
-  // evidence directory. Confirm via AlertDialog (one clear affordance in …).
-  const runClear = async (): Promise<void> => {
-    setClearError(null)
-    try {
-      await clear()
-      setConfirmClearOpen(false)
-    } catch (e) {
-      setClearError(e instanceof Error ? e.message : String(e))
-    }
-  }
-
   const allFiles = uniqueFiles([
     ...reading.sections.flatMap((section) => section.files),
     ...reading.groups.flatMap((group) => group.files),
@@ -322,41 +287,19 @@ function FeatureOutline(): React.JSX.Element {
 
   return (
     <div className="flex flex-col gap-1">
-      {/* Header: name + progress + one open affordance. Clear lives in … menu.
-          File list below is the Execution outline (not a second set of canvas tabs). */}
+      {/* Header: name + progress + open affordance. Clear review lives on the
+          right sidebar (ReviewGroup) as an inline button — it was the only … menu
+          item. File list below is the Execution outline (not canvas tabs). */}
       <div className="mx-2 mt-0.5 flex flex-col gap-2 rounded-lg border bg-card p-2.5">
-        <div className="flex items-start gap-1.5">
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-semibold text-foreground">{reading.name}</p>
-            <p className="mt-0.5 text-2xs text-muted-foreground">
-              {allFiles.length > 0
-                ? `${reviewedCount}/${allFiles.length} reviewed`
-                : reading.canvas
-                  ? 'Freeform Intent'
-                  : 'Review'}
-            </p>
-          </div>
-          <SidebarHeaderActions>
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button variant="ghost" size="icon-sm" aria-label="Review actions">
-                    <MoreHorizontal />
-                  </Button>
-                }
-              />
-              <DropdownMenuContent align="end" className="w-52">
-                <DropdownMenuItem
-                  variant="destructive"
-                  disabled={isClearing}
-                  onClick={() => setConfirmClearOpen(true)}
-                >
-                  <Eraser />
-                  Clear review & evidence
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </SidebarHeaderActions>
+        <div className="min-w-0">
+          <p className="truncate text-xs font-semibold text-foreground">{reading.name}</p>
+          <p className="mt-0.5 text-2xs text-muted-foreground">
+            {allFiles.length > 0
+              ? `${reviewedCount}/${allFiles.length} reviewed`
+              : reading.canvas
+                ? 'Freeform Intent'
+                : 'Review'}
+          </p>
         </div>
         <Button
           size="sm"
@@ -379,33 +322,6 @@ function FeatureOutline(): React.JSX.Element {
           </Button>
         )}
       </div>
-
-      <AlertDialog open={confirmClearOpen} onOpenChange={setConfirmClearOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Clear review and evidence?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Removes the agent Review (Intent, files, walkthrough) and the evidence directory for
-              this repo. The agent can re-publish. This cannot be undone from the app.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              disabled={isClearing}
-              onClick={() => void runClear()}
-              aria-label="Confirm clear review and evidence"
-            >
-              Clear
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {clearError && (
-        <p className="mx-2 whitespace-pre-wrap font-mono text-2xs text-destructive">{clearError}</p>
-      )}
 
       <div className="flex flex-col gap-0.5 px-2 pt-1">
         {sectionEntries.map(({ section, index, key }) => (

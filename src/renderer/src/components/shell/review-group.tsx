@@ -1,13 +1,30 @@
 import type { FeatureReading } from '@backend/feature-view'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@renderer/components/ui/alert-dialog'
+import { Button } from '@renderer/components/ui/button'
+import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
 } from '@renderer/components/ui/sidebar'
 import { useReviewComments } from '@renderer/hooks/use-comments'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
+import { useClearFeatureReview } from '@renderer/hooks/use-feature-view'
+import { rowActionClass } from '@renderer/lib/controls'
 import { fileName } from '@renderer/lib/paths'
+import { cn } from '@renderer/lib/utils'
 import { type ReviewFocusSection, useReviewFocusStore } from '@renderer/stores/review-focus'
+import { TestIds } from '@shared/test-ids'
+import { Eraser } from 'lucide-react'
+import { useState } from 'react'
 
 const LABEL_CLASS = 'px-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground'
 
@@ -35,14 +52,18 @@ function chapterTitle(reading: FeatureReading, active: ReviewFocusSection): stri
 /**
  * The Feature tab's live companion to the Review document: the chapter under the
  * reader's eyes (published by the reading surface on scroll), the note invariants
- * of the visible file, and its open-comment count. Renders nothing without a
- * review set — the companion follows the document.
+ * of the visible file, its open-comment count, and Clear review (inline — was a
+ * lone … menu item on the Feature list). Renders nothing without a review set —
+ * the companion follows the document.
  */
 export function ReviewGroup(): React.JSX.Element | null {
   const { reading } = useFeatureReading()
   const activeSection = useReviewFocusStore((s) => s.activeSection)
   const visiblePath = useReviewFocusStore((s) => s.visiblePath)
   const comments = useReviewComments()
+  const { clear, isClearing } = useClearFeatureReview()
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false)
+  const [clearError, setClearError] = useState<string | null>(null)
 
   // Empty Review: companion matches the viewer empty state (U8), not a void.
   if (reading === null) {
@@ -83,6 +104,16 @@ export function ReviewGroup(): React.JSX.Element | null {
     ? comments.filter((c) => c.path === visiblePath && !c.resolved).length
     : 0
 
+  const runClear = async (): Promise<void> => {
+    setClearError(null)
+    try {
+      await clear()
+      setConfirmClearOpen(false)
+    } catch (e) {
+      setClearError(e instanceof Error ? e.message : String(e))
+    }
+  }
+
   return (
     <SidebarGroup className="px-3">
       <SidebarGroupLabel className={LABEL_CLASS}>Now reading</SidebarGroupLabel>
@@ -115,7 +146,46 @@ export function ReviewGroup(): React.JSX.Element | null {
             )}
           </div>
         )}
+        {/* Single destructive action for the Review — inline, not buried in … */}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className={cn(rowActionClass, 'h-7 w-full justify-start gap-1.5 text-destructive')}
+          disabled={isClearing}
+          data-testid={TestIds.featureClearReview}
+          onClick={() => setConfirmClearOpen(true)}
+        >
+          <Eraser />
+          Clear review & evidence
+        </Button>
+        {clearError && (
+          <p className="whitespace-pre-wrap font-mono text-2xs text-destructive">{clearError}</p>
+        )}
       </SidebarGroupContent>
+
+      <AlertDialog open={confirmClearOpen} onOpenChange={setConfirmClearOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear review and evidence?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Removes the agent Review (Intent, files, walkthrough) and the evidence directory for
+              this repo. The agent can re-publish. This cannot be undone from the app.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={isClearing}
+              onClick={() => void runClear()}
+              aria-label="Confirm clear review and evidence"
+            >
+              Clear
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SidebarGroup>
   )
 }

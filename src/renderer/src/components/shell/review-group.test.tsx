@@ -1,0 +1,85 @@
+import type { FeatureReading } from '@backend/feature-view'
+import { SidebarProvider } from '@renderer/components/ui/sidebar'
+import { useReviewComments } from '@renderer/hooks/use-comments'
+import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
+import { useReviewFocusStore } from '@renderer/stores/review-focus'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { firstProseLine, ReviewGroup } from './review-group'
+
+vi.mock('@renderer/hooks/use-feature-reading', () => ({
+  useFeatureReading: vi.fn(),
+}))
+vi.mock('@renderer/hooks/use-comments', () => ({
+  useReviewComments: vi.fn(),
+}))
+const clearSpy = vi.hoisted(() => vi.fn(async () => {}))
+vi.mock('@renderer/hooks/use-feature-view', () => ({
+  useClearFeatureReview: () => ({ clear: clearSpy, isClearing: false }),
+}))
+
+const reading: FeatureReading = {
+  name: 'Crew call-outs',
+  thesis: 'One paragraph of intent.',
+  sections: [
+    {
+      title: 'Entry point',
+      prose: '## Where it starts\n\nBody.',
+      files: [],
+    },
+  ],
+  groups: [],
+  evidence: null,
+}
+
+function renderGroup(): void {
+  render(
+    <SidebarProvider>
+      <ReviewGroup />
+    </SidebarProvider>,
+  )
+}
+
+describe('firstProseLine', () => {
+  it('returns the first non-empty line without a heading marker', () => {
+    expect(firstProseLine('## Title\n\nBody')).toBe('Title')
+    expect(firstProseLine('  plain  ')).toBe('plain')
+    expect(firstProseLine('\n\n')).toBeNull()
+  })
+})
+
+describe('ReviewGroup', () => {
+  beforeEach(() => {
+    clearSpy.mockClear()
+    useReviewFocusStore.setState({
+      canvasTab: 'intent',
+      activeSection: null,
+      visiblePath: null,
+      jump: null,
+    })
+    vi.mocked(useReviewComments).mockReturnValue([])
+    vi.mocked(useFeatureReading).mockReturnValue({ reading, refresh: async () => {} })
+  })
+
+  it('shows the empty companion when no review is published', () => {
+    vi.mocked(useFeatureReading).mockReturnValue({ reading: null, refresh: async () => {} })
+    renderGroup()
+    expect(screen.getByText(/No Review published yet/)).toBeInTheDocument()
+    expect(screen.queryByText('Clear review & evidence')).not.toBeInTheDocument()
+  })
+
+  it('shows Now reading and the inline Clear review button', () => {
+    renderGroup()
+    expect(screen.getByText('Now reading')).toBeInTheDocument()
+    expect(screen.getByText('Crew call-outs')).toBeInTheDocument()
+    expect(screen.getByTestId('feature-clear-review')).toBeInTheDocument()
+  })
+
+  it('clears only after AlertDialog confirm', () => {
+    renderGroup()
+    fireEvent.click(screen.getByTestId('feature-clear-review'))
+    expect(clearSpy).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByLabelText('Confirm clear review and evidence'))
+    expect(clearSpy).toHaveBeenCalledTimes(1)
+  })
+})

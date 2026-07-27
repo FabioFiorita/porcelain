@@ -1,5 +1,4 @@
 import type { FeatureReading } from '@backend/feature-view'
-import { SidebarHeaderActionsProvider } from '@renderer/components/shell/sidebar-header-actions'
 import { SidebarProvider } from '@renderer/components/ui/sidebar'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
 import { usePreferencesStore } from '@renderer/stores/preferences'
@@ -14,10 +13,6 @@ import { FeatureList } from './feature-list'
 // hands back a FeatureReading shaped exactly like the real featureReading query.
 vi.mock('@renderer/hooks/use-feature-reading', () => ({
   useFeatureReading: vi.fn(),
-}))
-const clearSpy = vi.hoisted(() => vi.fn(async () => {}))
-vi.mock('@renderer/hooks/use-feature-view', () => ({
-  useClearFeatureReview: () => ({ clear: clearSpy, isClearing: false }),
 }))
 vi.mock('@renderer/hooks/use-diff', () => ({ useDiffFilePrefetch: () => async () => {} }))
 // FeatureList mounts CommentComposer (right-click → "Comment on file"), which uses the
@@ -97,22 +92,15 @@ const byTextContent =
     el?.textContent === text
 
 function renderList(): void {
-  // Header actions (Refresh, Review actions …) portal into a slot — without a
-  // provider they render nowhere (same pattern as AgentList tests).
-  const slot = document.createElement('div')
-  document.body.appendChild(slot)
   render(
-    <SidebarHeaderActionsProvider value={slot}>
-      <SidebarProvider>
-        <FeatureList />
-      </SidebarProvider>
-    </SidebarHeaderActionsProvider>,
+    <SidebarProvider>
+      <FeatureList />
+    </SidebarProvider>,
   )
 }
 
 describe('FeatureList', () => {
   beforeEach(() => {
-    clearSpy.mockClear()
     markSpy.mockClear()
     unmarkSpy.mockClear()
     reviewedPaths.current = new Set()
@@ -221,13 +209,10 @@ describe('FeatureList', () => {
     expect(unmarkSpy).toHaveBeenCalledWith('src/components/callout.tsx')
   })
 
-  it('clears only after AlertDialog confirm', () => {
+  it('does not host Clear review (that lives on the right-rail companion)', () => {
     renderList()
-    fireEvent.click(screen.getByLabelText('Review actions'))
-    fireEvent.click(screen.getByText('Clear review & evidence'))
-    expect(clearSpy).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByLabelText('Confirm clear review and evidence'))
-    expect(clearSpy).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText('Clear review & evidence')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Review actions')).not.toBeInTheDocument()
   })
 
   it('hides Commit changes until half the outline is reviewed', () => {

@@ -32,6 +32,10 @@ export const TestIds = {
   welcomeOpenRepo: 'welcome-open-repo',
   glance: 'glance',
   glanceChangedFiles: 'glance-changed-files',
+  glanceJumpChanges: 'glance-jump-changes',
+  glanceJumpReview: 'glance-jump-review',
+  glanceJumpBoard: 'glance-jump-board',
+  glanceJumpTerminal: 'glance-jump-terminal',
 
   // --- Settings ---
   settingsDialog: 'settings-dialog',
@@ -58,6 +62,8 @@ export const TestIds = {
   reviewInboxRow: (branch: string): string => `review-inbox-row-${branch}`,
   featureList: 'feature-list',
   featureOpenReview: 'feature-open-review',
+  /** Right-rail companion: clear the published Review + evidence (confirm first). */
+  featureClearReview: 'feature-clear-review',
   /** Ship handoff: open Changes (commit home) after review progress. */
   featureCommitChanges: 'feature-commit-changes',
   featureOutlineEvidence: 'feature-outline-evidence',

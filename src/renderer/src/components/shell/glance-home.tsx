@@ -1,14 +1,23 @@
 import type { InboxRow } from '@backend/worktree-inbox'
 import { reviewTabKey } from '@renderer/components/git/review-view'
 import { useBoardCards } from '@renderer/hooks/use-board'
+import { useReviewComments } from '@renderer/hooks/use-comments'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'
-import { useWorktreeInbox } from '@renderer/hooks/use-worktrees'
+import { useBranch, useWorktreeInbox } from '@renderer/hooks/use-worktrees'
 import { cn } from '@renderer/lib/utils'
+import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { TestIds } from '@shared/test-ids'
-import { Columns3, FileDiff, GitBranch, Waypoints } from 'lucide-react'
+import {
+  Columns3,
+  FileDiff,
+  GitBranch,
+  MessageSquare,
+  SquareTerminal,
+  Waypoints,
+} from 'lucide-react'
 
 // One tap-target recipe for every Glance row: full-width, touch-comfortable
 // height, the app's one hover/pressed fill. Rows stay flat on the viewer
@@ -65,15 +74,20 @@ function InboxGlanceRow({ row }: { row: InboxRow }): React.JSX.Element {
 
 /**
  * The Glance: home when no tab is open — work in flight (inbox, dirty tree,
- * published Review, board). Phone and desktop empty panes both use it (U6).
+ * published Review, board, open comments) plus always-visible jump rows so an
+ * empty checkout is still a useful landing page. Phone and desktop empty panes
+ * both use it (U6).
  */
 export function GlanceHome(): React.JSX.Element | null {
   const repo = useRepoStore((s) => s.repo)
   const openTab = useTabsStore((s) => s.openTab)
+  const setSidebarTab = usePreferencesStore((s) => s.setSidebarTab)
   const inbox = useWorktreeInbox()
+  const branch = useBranch()
   const { groups } = useGitFlow()
   const { reading } = useFeatureReading()
   const { cards } = useBoardCards()
+  const comments = useReviewComments()
 
   if (!repo) return null
 
@@ -81,24 +95,36 @@ export function GlanceHome(): React.JSX.Element | null {
   const hasReview = reading !== null && reading !== undefined
   const doing = cards.filter((card) => card.status === 'doing')
   const todo = cards.filter((card) => card.status === 'todo')
+  const openComments = comments.filter((c) => !c.resolved)
 
-  const showCheckout = changedCount > 0 || hasReview
+  const showCheckout = changedCount > 0 || hasReview || openComments.length > 0
   const showBoard = doing.length > 0 || todo.length > 0
-  const empty = inbox.length === 0 && !showCheckout && !showBoard
+  const hasWork = inbox.length > 0 || showCheckout || showBoard
 
   // Agent-published Review canvas (Feature tab).
   const openFeatureReview = (): void => {
+    setSidebarTab('feature')
     openTab({ id: tabId('feature', repo.path), kind: 'feature', title: 'Review', path: repo.path })
   }
 
   // Continuous stacked diffs for the working tree (U3 — not Feature empty state).
   const openAllChanges = (): void => {
+    setSidebarTab('changes')
     const key = reviewTabKey({ type: 'working' })
     openTab({ id: tabId('review', key), kind: 'review', title: 'All changes', path: key })
   }
 
   const openBoard = (): void => {
+    setSidebarTab('board')
     openTab({ id: tabId('board', repo.path), kind: 'board', title: 'Board', path: repo.path })
+  }
+
+  const openTerminal = (): void => {
+    setSidebarTab('terminal')
+  }
+
+  const openCommentsRail = (): void => {
+    setSidebarTab(hasReview ? 'feature' : 'changes')
   }
 
   const boardSummary = [
@@ -108,85 +134,179 @@ export function GlanceHome(): React.JSX.Element | null {
     .filter(Boolean)
     .join(' · ')
 
+  const reviewSubtitle = (() => {
+    if (!hasReview || !reading) return null
+    const fileCount =
+      reading.sections.reduce((n, s) => n + s.files.length, 0) +
+      reading.groups.reduce((n, g) => n + g.files.length, 0)
+    const parts = [
+      fileCount > 0 && `${fileCount} file${fileCount === 1 ? '' : 's'}`,
+      reading.evidence && 'Evidence',
+    ].filter(Boolean)
+    return parts.length > 0 ? parts.join(' · ') : 'Published Review'
+  })()
+
   return (
     <div data-testid={TestIds.glance} className="h-full overflow-y-auto">
       <div className="mx-auto flex max-w-md flex-col gap-6 px-4 py-6">
-        {/* The repo name anchors the page — which repo you're glancing at. */}
-        <h1 className="truncate px-2 text-base font-medium tracking-tight text-foreground">
-          {repo.name}
-        </h1>
-        {empty ? (
-          <div className="py-14 text-center">
-            <p className="text-sm text-muted-foreground">Nothing in flight</p>
-            <p className="mx-auto mt-1 max-w-xs text-xs text-muted-foreground/70">
-              Reviews and board work will show up here.
+        {/* Repo identity + branch so the Glance orients you before any work rows. */}
+        <header className="flex flex-col gap-1 px-2">
+          <h1 className="truncate text-base font-medium tracking-tight text-foreground">
+            {repo.name}
+          </h1>
+          {branch && (
+            <p className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
+              <GitBranch className="size-3 shrink-0" />
+              <span className="truncate">{branch}</span>
             </p>
-          </div>
-        ) : (
-          <>
-            {inbox.length > 0 && (
-              <GlanceSection label="Review inbox">
-                {inbox.map((row) => (
-                  <InboxGlanceRow key={row.path} row={row} />
-                ))}
-              </GlanceSection>
-            )}
-            {showCheckout && (
-              <GlanceSection label="This checkout">
-                {changedCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={openAllChanges}
-                    className={rowClass}
-                    data-testid={TestIds.glanceChangedFiles}
-                    data-count={changedCount}
-                  >
-                    <FileDiff className="size-3.5 shrink-0 text-muted-foreground" />
-                    <span className="min-w-0 flex-1 truncate text-sm">
-                      {changedCount === 1 ? '1 changed file' : `${changedCount} changed files`}
-                    </span>
-                  </button>
-                )}
-                {hasReview && (
-                  <button type="button" onClick={openFeatureReview} className={rowClass}>
-                    <Waypoints className="size-3.5 shrink-0 text-muted-foreground" />
-                    <span className="min-w-0 flex-1 truncate text-sm">
-                      {reading?.name?.trim() || 'Review'}
-                    </span>
-                    <span
-                      role="img"
-                      aria-label="Review published"
-                      title="Agent Review published"
-                      className="size-1.5 shrink-0 rounded-full bg-info"
-                    />
-                  </button>
-                )}
-              </GlanceSection>
-            )}
-            {showBoard && (
-              <GlanceSection label="Board">
-                <button
-                  type="button"
-                  onClick={openBoard}
-                  className={cn(rowClass, 'flex-col items-stretch gap-1')}
-                >
-                  <span className="flex items-center gap-2">
-                    <Columns3 className="size-3.5 shrink-0 text-muted-foreground" />
-                    <span className="min-w-0 flex-1 truncate text-sm">{boardSummary}</span>
-                  </span>
-                  {doing.slice(0, 2).map((card) => (
-                    <span
-                      key={card.id}
-                      className="truncate pl-[1.375rem] text-xs text-muted-foreground"
-                    >
-                      {card.title}
-                    </span>
-                  ))}
-                </button>
-              </GlanceSection>
-            )}
-          </>
+          )}
+          {!hasWork && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Nothing in flight — open Changes, the Review, or a terminal when you start.
+            </p>
+          )}
+        </header>
+
+        {inbox.length > 0 && (
+          <GlanceSection label="Review inbox">
+            {inbox.map((row) => (
+              <InboxGlanceRow key={row.path} row={row} />
+            ))}
+          </GlanceSection>
         )}
+
+        {showCheckout && (
+          <GlanceSection label="This checkout">
+            {changedCount > 0 && (
+              <button
+                type="button"
+                onClick={openAllChanges}
+                className={rowClass}
+                data-testid={TestIds.glanceChangedFiles}
+                data-count={changedCount}
+              >
+                <FileDiff className="size-3.5 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 flex-1 truncate text-sm">
+                  {changedCount === 1 ? '1 changed file' : `${changedCount} changed files`}
+                </span>
+                <span className="shrink-0 text-2xs tabular-nums text-muted-foreground/60">
+                  Review
+                </span>
+              </button>
+            )}
+            {hasReview && (
+              <button type="button" onClick={openFeatureReview} className={rowClass}>
+                <Waypoints className="size-3.5 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 flex-1 truncate text-sm">
+                  {reading?.name?.trim() || 'Review'}
+                </span>
+                <span
+                  role="img"
+                  aria-label="Review published"
+                  title="Agent Review published"
+                  className="size-1.5 shrink-0 rounded-full bg-info"
+                />
+                {reviewSubtitle && (
+                  <span className="hidden shrink-0 text-2xs text-muted-foreground/60 sm:inline">
+                    {reviewSubtitle}
+                  </span>
+                )}
+              </button>
+            )}
+            {openComments.length > 0 && (
+              <button type="button" onClick={openCommentsRail} className={rowClass}>
+                <MessageSquare className="size-3.5 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 flex-1 truncate text-sm">
+                  {openComments.length === 1
+                    ? '1 open review comment'
+                    : `${openComments.length} open review comments`}
+                </span>
+              </button>
+            )}
+          </GlanceSection>
+        )}
+
+        {showBoard && (
+          <GlanceSection label="Board">
+            <button
+              type="button"
+              onClick={openBoard}
+              className={cn(rowClass, 'flex-col items-stretch gap-1')}
+            >
+              <span className="flex items-center gap-2">
+                <Columns3 className="size-3.5 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 flex-1 truncate text-sm">{boardSummary}</span>
+              </span>
+              {doing.slice(0, 3).map((card) => (
+                <span
+                  key={card.id}
+                  className="truncate pl-[1.375rem] text-xs text-muted-foreground"
+                >
+                  {card.title}
+                </span>
+              ))}
+              {doing.length === 0 &&
+                todo.slice(0, 2).map((card) => (
+                  <span
+                    key={card.id}
+                    className="truncate pl-[1.375rem] text-xs text-muted-foreground"
+                  >
+                    {card.title}
+                  </span>
+                ))}
+            </button>
+          </GlanceSection>
+        )}
+
+        {/* Always-on shortcuts so the landing page is useful even when clean. */}
+        <GlanceSection label="Jump to">
+          <button
+            type="button"
+            onClick={openAllChanges}
+            className={rowClass}
+            data-testid={TestIds.glanceJumpChanges}
+          >
+            <FileDiff className="size-3.5 shrink-0 text-muted-foreground" />
+            <span className="min-w-0 flex-1 truncate text-sm">Changes</span>
+            <span className="shrink-0 text-2xs text-muted-foreground/60">
+              {changedCount > 0 ? `${changedCount}` : 'Working tree'}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={openFeatureReview}
+            className={rowClass}
+            data-testid={TestIds.glanceJumpReview}
+          >
+            <Waypoints className="size-3.5 shrink-0 text-muted-foreground" />
+            <span className="min-w-0 flex-1 truncate text-sm">Review</span>
+            <span className="shrink-0 text-2xs text-muted-foreground/60">
+              {hasReview ? 'Open canvas' : 'No review yet'}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={openBoard}
+            className={rowClass}
+            data-testid={TestIds.glanceJumpBoard}
+          >
+            <Columns3 className="size-3.5 shrink-0 text-muted-foreground" />
+            <span className="min-w-0 flex-1 truncate text-sm">Board</span>
+            <span className="shrink-0 text-2xs text-muted-foreground/60">
+              {boardSummary || 'Plan'}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={openTerminal}
+            className={rowClass}
+            data-testid={TestIds.glanceJumpTerminal}
+          >
+            <SquareTerminal className="size-3.5 shrink-0 text-muted-foreground" />
+            <span className="min-w-0 flex-1 truncate text-sm">Terminal</span>
+            <span className="shrink-0 text-2xs text-muted-foreground/60">Agents & shells</span>
+          </button>
+        </GlanceSection>
       </div>
     </div>
   )
