@@ -90,8 +90,28 @@ assumed — this skill is the codebase-specific layer beneath them.
   shell is not secret). It MUST stay this narrow: it only ever reads files INSIDE the
   renderer dist root (`resolveStaticPath` decodes/normalizes then rejects any path escaping
   the root — traversal, encoded `%2e%2e`, absolute, backslashes; unit-tested), NEVER reads
-  user files, and adds NO write surface. `/trpc` + `/session` remain the ONLY dynamic
-  endpoints and keep the token gate — static assets being open doesn't loosen them. The
+  user files, and adds NO write surface. Static assets being open doesn't loosen `/trpc`
+  + `/session`, which keep the token gate.
+  **(5b) `POST /pair` is the ONE unauthenticated DYNAMIC route — a deliberate, narrow
+  exception to (2)** (2026-07-26, `pairing.ts` + `handlePair` in `daemon-http.ts`). It
+  exists so a new device can obtain a credential without the human copying the long-lived
+  token by hand. It is only defensible while ALL of these hold: **(a) it 404s unless a
+  human has an open pairing window** — no pending code means the route does not exist, so
+  there is nothing to probe or grind at rest, and the window is minutes long and always
+  human-initiated from the machine's own UI (the three `pairing*` procedures that open it
+  are themselves token-gated on `/trpc`); **(b) the code is 40 bits** (8 Crockford-base32
+  chars), **single-use, TTL-bounded (10 min), and burned after 5 wrong attempts**, compared
+  constant-time over sha256 digests like the token gate; **(c) `application/json` is
+  REQUIRED** — this is load-bearing, not tidiness: it forces a CORS preflight for any
+  cross-origin browser caller, and that preflight fails against the scoped CORS, so
+  drive-by web content (which CAN reach 127.0.0.1) cannot even send the request; a
+  `text/plain` POST would skip preflight, so never relax the content-type check; **(d) the
+  body is bounded** (1 KB, drained not buffered past the cap — and it must respond 413
+  rather than destroying the socket, or the caller can't tell "too large" from "daemon
+  crashed"); **(e) neither the code nor the token is ever logged.** *Verify:*
+  `daemon-http.test.ts`'s `POST /pair` block (404-at-rest, single-use, wrong-code-leaks-
+  nothing, 415 on non-JSON, 405, 400, 413, no CORS echo to an unlisted origin) and
+  `pairing.test.ts` (entropy alphabet, TTL, attempt burn, re-mint resets) stay green. The
   index.html CSP rewrite (`rewriteCsp`) touches **only `connect-src`** (same-origin WS for
   the request Host); `img-src`/`default-src` stay the sandboxed-HTML backstop, byte-identical.
   Don't relax any of these to "make local dev easier." (6) **The token is the whole boundary

@@ -9,6 +9,7 @@ import { seedDevConfig } from './dev-config'
 import { migrateLayersFromConfig } from './layers-store'
 import { resolveLoginShellPath } from './login-shell-env'
 import { migrateNotesFromConfig } from './notes-store'
+import { pendingPairing, redeemPairing } from './pairing'
 import { watchAgentChannels } from './review-watch'
 import { migrateReviewedFromConfig } from './reviewed-store'
 import { broadcastAppEvent, createSession } from './session'
@@ -38,7 +39,10 @@ import { ensureDaemonToken } from './token-file'
  *   <token>`; the WS upgrade carries the token as the `porcelain.<token>`
  *   subprotocol (chosen over `?token=` because query strings leak into logs and
  *   proxies; the subprotocol header does not). Comparisons are constant-time
- *   over sha256 digests.
+ *   over sha256 digests. The ONE exception is `POST /pair`, which cannot be
+ *   token-gated (obtaining a token is its whole job) and is instead bounded by
+ *   only existing while a human has an open pairing window — see pairing.ts and
+ *   handlePair in daemon-http.ts for the full set of guards.
  *
  * Contract with the shell: exactly ONE stdout line, `{"port": N}`, once
  * listening (everything else logs to stderr — and the token is NEVER printed:
@@ -108,10 +112,11 @@ let daemon: ReturnType<typeof createDaemonHttp>
 async function main(): Promise<void> {
   // Resolve the shared token (env or ~/.porcelain/daemon-token) and precompute its
   // digest BEFORE any listener accepts a connection — the factory closes over the
-  // hash, so it must be built first (both listeners start below).
-  const tokenHash = createHash('sha256')
-    .update(await resolveToken())
-    .digest()
+  // hash, so it must be built first (both listeners start below). The plaintext is
+  // held too, because a successful pairing exchange hands it to the new device; it's
+  // the same secret the parent passed in, and it is never logged.
+  const token = await resolveToken()
+  const tokenHash = createHash('sha256').update(token).digest()
 
   // CORS is scoped, not `*`: the shell passes the dev renderer's origin via
   // PORCELAIN_ALLOWED_ORIGIN (the Vite server); the packaged file:// renderer
@@ -122,6 +127,15 @@ async function main(): Promise<void> {
     router,
     onSession: createSession,
     serveStatic,
+    // The pairing exchange. The route only exists while `hasPending()` is true, so a
+    // daemon nobody is pairing with answers 404 — see handlePair + pairing.ts.
+    pairing: {
+      hasPending: () => pendingPairing() !== null,
+      redeem: (code) => {
+        const result = redeemPairing(code)
+        return result === 'ok' ? { result, token } : { result }
+      },
+    },
   })
 
   // Hand the shared handlers to the second-listener module so its optional

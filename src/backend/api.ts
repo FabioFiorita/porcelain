@@ -130,6 +130,7 @@ import {
 import { imageMimeForPath, isBinaryBuffer } from './image-mime'
 import { readLayers, writeLayers } from './layers-store'
 import { readNotes, writeNotes } from './notes-store'
+import { cancelPairing, pendingPairing, startPairing } from './pairing'
 import { expandUserPath } from './path-expand'
 import { exceedsReadLimit } from './read-limits'
 import {
@@ -522,6 +523,20 @@ export const router = t.router({
     version: daemonVersion(),
     ...daemonIdentity(),
   })),
+
+  // Pairing (plans/environments-v2.md phase 3). These three are token-gated like every
+  // other procedure — only a client ALREADY trusted by this daemon may open a pairing
+  // window. The unauthenticated half is `POST /pair` (daemon-http.ts), which can do
+  // nothing until one of these has been called.
+  pairingStatus: t.procedure.query((): { code: string; expiresAt: number } | null =>
+    pendingPairing(),
+  ),
+
+  startPairing: t.procedure.mutation((): { code: string; expiresAt: number } => startPairing()),
+
+  cancelPairing: t.procedure.mutation((): void => {
+    cancelPairing()
+  }),
 
   openRepoPath: t.procedure.input(z.string()).mutation(async ({ input }): Promise<RepoInfo> => {
     await stat(input)
