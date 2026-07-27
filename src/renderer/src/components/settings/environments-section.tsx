@@ -19,6 +19,7 @@ import {
 } from '@renderer/hooks/use-remote-daemon'
 import { useSetTailnetBind, useTailnetStatus } from '@renderer/hooks/use-tailnet'
 import { compactButtonClass, rowActionClass } from '@renderer/lib/controls'
+import { pairingUrl } from '@renderer/lib/pairing-link'
 import { isBrowser } from '@renderer/lib/platform'
 import { cn, copyText } from '@renderer/lib/utils'
 import { platformLabel } from '@shared/platform'
@@ -120,9 +121,11 @@ function ShareToggleRow({
       </div>
       {envForcedLabel != null && <p className="text-xs text-muted-foreground">{envForcedLabel}</p>}
       {url != null && <ShareReveal url={url} numericUrl={numericUrl} />}
-      {/* Pairing needs a url the OTHER device can reach, which is exactly the url this
-          row just revealed — so the card lives here rather than once per section. */}
-      {url != null && <PairingCard url={url} />}
+      {/* Pairing needs a url the OTHER device can reach, so the card lives here rather
+          than once per section — but it takes the NUMERIC address, not the `.local` name
+          this row displays: see `pairingUrl` for why a name that reads well can still
+          resolve to nothing on the device doing the scanning. */}
+      {url != null && <PairingCard url={pairingUrl(url, numericUrl)} />}
       {checked && url == null && <p className="text-xs text-muted-foreground">{emptyHint}</p>}
     </div>
   )

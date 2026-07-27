@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { buildPairingLink, pairingCodeFromLocation, parsePairingLink } from './pairing-link'
+import {
+  buildPairingLink,
+  pairingCodeFromLocation,
+  pairingUrl,
+  parsePairingLink,
+} from './pairing-link'
 
 describe('buildPairingLink', () => {
   it('puts the code in the hash of the daemon url', () => {
@@ -12,6 +17,32 @@ describe('buildPairingLink', () => {
     expect(buildPairingLink('http://beelink:43117/', 'ABCD-EFGH')).toBe(
       'http://beelink:43117/#pair=ABCD-EFGH',
     )
+  })
+})
+
+describe('pairingUrl', () => {
+  it('prefers the numeric address over the .local name a peer may resolve to nothing', () => {
+    expect(pairingUrl('http://beelink.local:43117', 'http://192.168.15.64:43117')).toBe(
+      'http://192.168.15.64:43117',
+    )
+  })
+
+  it('keeps the display url when there is no numeric one — the tailnet row', () => {
+    expect(pairingUrl('http://100.64.1.2:43117')).toBe('http://100.64.1.2:43117')
+    expect(pairingUrl('http://100.64.1.2:43117', null)).toBe('http://100.64.1.2:43117')
+  })
+
+  it('does not hand out a blank url when the numeric one is empty', () => {
+    expect(pairingUrl('http://beelink.local:43117', '   ')).toBe('http://beelink.local:43117')
+  })
+
+  it('builds a link a peer can reach, not one that merely reads well', () => {
+    const link = buildPairingLink(
+      pairingUrl('http://beelink.local:43117', 'http://192.168.15.64:43117'),
+      'ABCD-EFGH',
+    )
+    expect(link).toBe('http://192.168.15.64:43117/#pair=ABCD-EFGH')
+    expect(parsePairingLink(link)?.url).toBe('http://192.168.15.64:43117')
   })
 })
 

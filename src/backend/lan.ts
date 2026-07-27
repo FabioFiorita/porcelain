@@ -38,6 +38,14 @@ export function findLanAddresses(
  * over a bare numeric address (which can change with DHCP). Appends `.local`
  * when the hostname lacks it; falls back to the first numeric address when the
  * hostname is unusable; returns null when there are no addresses at all.
+ *
+ * TRAP — this is a DISPLAY host, not a reachable one. The macOS-publishes-it
+ * reasoning does not carry to a Linux daemon host: avahi answers `.local` with
+ * AAAA records, the listeners here are IPv4-only (`findLanAddresses` filters to
+ * `family === 'IPv4'`), and a peer that prefers IPv6 therefore resolves the name
+ * and connects to nothing. Anything a *different* device must reach — above all
+ * the pairing link — takes `lanNumericUrl()` instead; see `pairingUrl` in
+ * `renderer/src/lib/pairing-link.ts`.
  */
 export function lanDisplayHost(addresses: string[]): string | null {
   if (addresses.length === 0) return null

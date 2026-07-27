@@ -25,6 +25,26 @@ export function buildPairingLink(daemonUrl: string, code: string): string {
 }
 
 /**
+ * Which of a listener's addresses a pairing link should point at: the numeric one whenever
+ * there is one. Pure — unit-tested.
+ *
+ * The LAN row's display url is `<hostname>.local` (`backend/lan.ts`), preferred there
+ * because it survives a DHCP lease change. That reasoning holds for a line of text a human
+ * reads and fails for a link a *different* device has to resolve: the name is only as good
+ * as that device's mDNS answer. On a **Linux** daemon host avahi answers it with AAAA
+ * records — and the daemon binds IPv4 only — so a Mac resolves `.local`, connects over
+ * IPv6, and reaches nothing; the pairing card handed out an address it was never listening
+ * on. The numeric url is the address the listener is provably bound to.
+ *
+ * DHCP churn costs nothing here: a code lives ten minutes (`PAIRING_TTL_MS`), so the link
+ * cannot outlive the lease it was minted under. Callers whose display url is already
+ * numeric (the tailnet row) pass nothing and keep theirs.
+ */
+export function pairingUrl(displayUrl: string, numericUrl?: string | null): string {
+  return numericUrl != null && numericUrl.trim() !== '' ? numericUrl : displayUrl
+}
+
+/**
  * Parse a pasted pairing link back into its parts, or null if it isn't one. Pure —
  * unit-tested. Lenient about surrounding whitespace (people paste with a trailing
  * newline) and about a missing trailing slash, strict about everything else: an
