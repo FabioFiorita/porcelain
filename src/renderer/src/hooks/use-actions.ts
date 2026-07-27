@@ -1,5 +1,6 @@
-import type { Action } from '@backend/actions-store'
+import type { Action, ActionWhere } from '@backend/actions-store'
 import { onMutationError } from '@renderer/hooks/mutation-error'
+import { spawnLocalTerminal } from '@renderer/lib/terminal-actions'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
@@ -15,7 +16,7 @@ export function useActions(enabled = true): Action[] {
 export interface NewActionInput {
   title: string
   command: string
-  cwd?: string
+  where?: ActionWhere
 }
 
 /** Add/edit/delete saved actions. Each mutation refreshes the list. */
@@ -66,28 +67,47 @@ export function useActionMutations(): {
   }
 }
 
-/** Resolve an action's working directory against the repo root (relative ⇒ joined). */
+/** Resolve a legacy action cwd against the repo root (relative ⇒ joined). */
 function resolveCwd(repoPath: string, cwd: string | undefined): string {
   if (!cwd) return repoPath
   return cwd.startsWith('/') ? cwd : `${repoPath}/${cwd}`
 }
 
+export type RunActionResult = 'ran' | 'needs-local-path'
+
 /**
  * Run an action: spawn a terminal named after it with the command typed in, and open
  * its tab. The shell stays live after the command (Ctrl-C, re-run, keep working). The
  * human triggers this — there is no agent path that executes an action (see audit).
+ *
+ * `where: local` runs on This device (mapped local path). When that map is missing,
+ * returns `needs-local-path` so the caller can open the path dialog and retry with
+ * `localPath` set. Legacy `cwd` is still honored for primary actions only.
  */
-export function useRunAction(): (action: Action) => Promise<void> {
+export function useRunAction(): (
+  action: Action,
+  opts?: { localPath?: string | null },
+) => Promise<RunActionResult> {
   const repo = useRepoStore((s) => s.repo)
   const createTerminal = useTerminalsStore((s) => s.create)
   const openTab = useTabsStore((s) => s.openTab)
-  return async (action) => {
-    if (!repo) return
+  return async (action, opts) => {
+    if (!repo) return 'ran'
+    if (action.where === 'local') {
+      const localPath = opts?.localPath
+      if (localPath == null || localPath === '') return 'needs-local-path'
+      await spawnLocalTerminal(localPath, {
+        name: action.title,
+        initialInput: action.command,
+      })
+      return 'ran'
+    }
     const id = await createTerminal({
       cwd: resolveCwd(repo.path, action.cwd),
       name: action.title,
       initialInput: action.command,
     })
     openTab({ id: tabId('terminal', id), kind: 'terminal', title: action.title, path: id })
+    return 'ran'
   }
 }

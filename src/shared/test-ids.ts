@@ -83,14 +83,17 @@ export const TestIds = {
   terminalNewLocal: 'terminal-new-local',
   localTerminalPathInput: 'local-terminal-path-input',
   localTerminalPathSave: 'local-terminal-path-save',
-  /** Terminal-tab card for the "This device" cwd mapping (remote-bound windows only). */
-  localTerminalPathCard: 'local-terminal-path-card',
-  localTerminalPathChange: 'local-terminal-path-change',
+  /**
+   * Header icon left of "+" on a remote-bound Terminal tab — set/change the local
+   * clone path used by "This device" shells and local-targeted actions.
+   */
+  localTerminalPathButton: 'local-terminal-path-button',
   actionsAdd: 'actions-add',
   actionRun: (title: string): string =>
     `action-run-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
   actionTitleInput: 'action-title-input',
   actionCommandInput: 'action-command-input',
+  actionWhere: 'action-where',
   actionSave: 'action-save',
 
   // --- Viewer tabs ---

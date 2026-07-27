@@ -19,40 +19,57 @@ describe('ActionComposer', () => {
     vi.mocked(useActionMutations).mockReturnValue({ add, update, move, remove })
   })
 
-  function renderEdit(): void {
+  function renderEdit(where: 'primary' | 'local' = 'primary'): void {
     render(
       <ActionComposer
         open
-        draft={{ id: 'a1', title: 'Dev', command: 'pnpm dev', cwd: 'apps/web' }}
+        showWhere
+        draft={{ id: 'a1', title: 'Dev', command: 'pnpm dev', where }}
         onOpenChange={vi.fn()}
       />,
     )
   }
 
-  it('pre-fills the working-directory input from the draft', () => {
+  it('has no working-directory field', () => {
     renderEdit()
-    expect(screen.getByLabelText<HTMLInputElement>('Action working directory').value).toBe(
-      'apps/web',
+    expect(screen.queryByLabelText('Action working directory')).toBeNull()
+  })
+
+  it('shows the where toggle when showWhere is true', () => {
+    renderEdit()
+    expect(screen.getByTestId('action-where')).toBeInTheDocument()
+    expect(screen.getByLabelText('Run on this window’s machine')).toBeInTheDocument()
+    expect(screen.getByLabelText('Run on this device')).toBeInTheDocument()
+  })
+
+  it('hides the where toggle when showWhere is false', () => {
+    render(
+      <ActionComposer
+        open
+        showWhere={false}
+        draft={{ id: 'a1', title: 'Dev', command: 'pnpm dev', where: 'primary' }}
+        onOpenChange={vi.fn()}
+      />,
+    )
+    expect(screen.queryByTestId('action-where')).toBeNull()
+  })
+
+  it('saves where: local when selected on edit', async () => {
+    renderEdit('primary')
+    fireEvent.click(screen.getByLabelText('Run on this device'))
+    await fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(update).toHaveBeenCalledWith(
+      'a1',
+      expect.objectContaining({ title: 'Dev', command: 'pnpm dev', where: 'local' }),
     )
   })
 
-  it('clears cwd as an empty string (not undefined) so the old cwd is actually cleared', async () => {
-    renderEdit()
-    fireEvent.change(screen.getByLabelText('Action working directory'), { target: { value: '' } })
+  it('sends where: primary when toggling back from local', async () => {
+    renderEdit('local')
+    fireEvent.click(screen.getByLabelText('Run on this window’s machine'))
     await fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
-    // The regression guard: an empty string must survive serialization. undefined would be
-    // dropped over tRPC/IPC and the main process would keep the stale cwd.
-    expect(update).toHaveBeenCalledWith('a1', expect.objectContaining({ cwd: '' }))
-  })
-
-  it('passes a normal cwd value straight through on edit', async () => {
-    renderEdit()
-    fireEvent.change(screen.getByLabelText('Action working directory'), {
-      target: { value: 'pkgs/x' },
-    })
-    await fireEvent.click(screen.getByRole('button', { name: 'Save' }))
-
-    expect(update).toHaveBeenCalledWith('a1', expect.objectContaining({ cwd: 'pkgs/x' }))
+    expect(update).toHaveBeenCalledWith('a1', expect.objectContaining({ where: 'primary' }))
   })
 })

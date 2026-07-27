@@ -43,6 +43,19 @@ describe('LocalPathDialog', () => {
     expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument()
   })
 
+  it('labels the primary action "Run" when mapping for a local action', () => {
+    render(
+      <LocalPathDialog
+        repoPath="/home/you/code/app"
+        initialPath={null}
+        mode="run"
+        onSaved={onSaved}
+        onClose={onClose}
+      />,
+    )
+    expect(screen.getByRole('button', { name: 'Run' })).toBeInTheDocument()
+  })
+
   it('prefills the field and persists the trimmed path on save', async () => {
     render(
       <LocalPathDialog

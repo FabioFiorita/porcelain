@@ -1089,7 +1089,7 @@ export const router = t.router({
         repoPath: z.string(),
         title: z.string().trim().min(1),
         command: z.string().trim().min(1),
-        cwd: z.string().optional(),
+        where: z.enum(['primary', 'local']).optional(),
       }),
     )
     .mutation(({ input }): Promise<Action> => {
@@ -1104,14 +1104,14 @@ export const router = t.router({
         id: z.string(),
         title: z.string().trim().min(1).optional(),
         command: z.string().trim().min(1).optional(),
-        cwd: z.string().optional(),
+        where: z.enum(['primary', 'local']).optional(),
       }),
     )
     .mutation(({ input }) =>
       updateAction(input.repoPath, input.id, {
         title: input.title,
         command: input.command,
-        cwd: input.cwd,
+        where: input.where,
       }),
     ),
 

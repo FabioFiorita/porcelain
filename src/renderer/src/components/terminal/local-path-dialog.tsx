@@ -13,8 +13,11 @@ import { cn } from '@renderer/lib/utils'
 import { TestIds } from '@shared/test-ids'
 import { useState } from 'react'
 
-/** Why the dialog opened — drives the primary button label and what happens after save. */
-export type LocalPathDialogMode = 'spawn' | 'edit'
+/**
+ * Why the dialog opened — drives the primary button label. The caller decides what
+ * happens after save via `onSaved` (open a shell, run an action, or just keep the map).
+ */
+export type LocalPathDialogMode = 'spawn' | 'edit' | 'run'
 
 /**
  * Where a "This device" terminal should open for this repo.
@@ -29,8 +32,10 @@ export type LocalPathDialogMode = 'spawn' | 'edit'
  * picker uses: that browser is wired to this window's daemon, so it would browse the wrong
  * machine — the exact confusion this feature exists to remove.
  *
- * `mode: 'spawn'` is the first-time flow (Save also opens a terminal). `mode: 'edit'` is
- * the Terminal-tab settings path when the human mistyped or the local clone moved.
+ * `mode: 'spawn'` is the first-time flow for a new shell (primary button opens a
+ * terminal). `mode: 'edit'` is the header folder-icon path when the human mistyped or
+ * the local clone moved. `mode: 'run'` is a local-targeted action that needs the map
+ * before it can spawn (primary button runs the action after save).
  */
 export function LocalPathDialog({
   repoPath,
@@ -96,7 +101,13 @@ export function LocalPathDialog({
             data-testid={TestIds.localTerminalPathSave}
             onClick={submit}
           >
-            {isPending ? 'Saving…' : mode === 'spawn' ? 'Open terminal' : 'Save'}
+            {isPending
+              ? 'Saving…'
+              : mode === 'spawn'
+                ? 'Open terminal'
+                : mode === 'run'
+                  ? 'Run'
+                  : 'Save'}
           </Button>
         </DialogFooter>
       </DialogContent>

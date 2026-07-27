@@ -15,15 +15,22 @@ describe('describeActions', () => {
     expect(describeActions('/repo', [])).toContain('No saved actions')
   })
 
-  it('lists each action with id, command, and cwd', () => {
+  it('lists each action with id, command, and where', () => {
     const text = describeActions('/repo', [
       { id: 'a1', title: 'Storybook', command: 'pnpm storybook', order: 1, createdAt: 1 },
-      { id: 'a2', title: 'Dev', command: 'pnpm dev', cwd: 'apps/web', order: 2, createdAt: 2 },
+      {
+        id: 'a2',
+        title: 'iOS',
+        command: 'xcodebuild',
+        where: 'local',
+        order: 2,
+        createdAt: 2,
+      },
     ])
     expect(text).toContain('[a1] Storybook')
     expect(text).toContain('$ pnpm storybook')
-    expect(text).toContain('[a2] Dev')
-    expect(text).toContain('cwd: apps/web')
+    expect(text).toContain('[a2] iOS')
+    expect(text).toContain('where: local')
   })
 })
 
@@ -46,6 +53,13 @@ describe('action-file round-trip', () => {
     expect(readActions('/repo')[0]?.command).toBe('pnpm sb')
     expect(deleteAction('/repo', action.id)).toBe(true)
     expect(readActions('/repo')).toEqual([])
+  })
+
+  it('persists where: local and clears it back to primary', () => {
+    const action = createAction('/repo', 'iOS', 'xcodebuild', 'local')
+    expect(readActions('/repo')[0]?.where).toBe('local')
+    expect(updateAction('/repo', action.id, { where: 'primary' })).toBe(true)
+    expect(readActions('/repo')[0]?.where).toBeUndefined()
   })
 
   it('returns false updating or deleting an unknown id', () => {

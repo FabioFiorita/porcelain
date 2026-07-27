@@ -17,6 +17,7 @@ import { useFileSearch } from '@renderer/hooks/use-search'
 import { commandGroupHeadingClass } from '@renderer/lib/controls'
 import { isTerminalTarget } from '@renderer/lib/keyboard'
 import { dirName, fileName } from '@renderer/lib/paths'
+import { useActionRunStore } from '@renderer/stores/action-run'
 import { useFileFinderStore } from '@renderer/stores/file-finder'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
@@ -117,10 +118,17 @@ export function FileFinder(): React.JSX.Element {
     setQuery('')
   }
 
-  const runCommand = (action: Action): Promise<void> => {
+  const requestLocalRun = useActionRunStore((s) => s.requestLocalRun)
+  const runCommand = async (action: Action): Promise<void> => {
     setOpen(false)
     setQuery('')
-    return runAction(action)
+    const result = await runAction(action)
+    if (result === 'needs-local-path') {
+      // ActionsGroup owns the path dialog — flip to Terminal so it mounts, and hand
+      // the pending action through the compose-intent store.
+      setSidebarTab('terminal')
+      requestLocalRun(action)
+    }
   }
 
   const openCommit = (commit: Commit): void => {

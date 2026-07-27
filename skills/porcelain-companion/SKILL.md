@@ -53,7 +53,7 @@ Installed automatically on every app/daemon launch (no MCP, no registration). Ru
 
 # Terminal actions (definitions only)
 ~/.porcelain/porcelain actions list
-~/.porcelain/porcelain actions create --title "…" --command "…"
+~/.porcelain/porcelain actions create --title "…" --command "…" [--where primary|local]
 
 # Changes-tab flow grouping
 ~/.porcelain/porcelain layers get

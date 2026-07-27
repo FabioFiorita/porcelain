@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { isAbsolute } from 'node:path'
 import {
+  type ActionWhere,
   createAction,
   deleteAction,
   describeActions,
@@ -119,6 +120,13 @@ function resolveRepo(flags: Map<string, string>, cwd: string): string {
   }
 }
 
+/** `primary` | `local`, or undefined when the flag is absent. */
+function parseActionWhere(raw: string | undefined): ActionWhere | undefined {
+  if (raw === undefined || raw === '') return undefined
+  if (raw === 'primary' || raw === 'local') return raw
+  throw new Error('where must be one of primary|local')
+}
+
 const FLAG_DESCRIPTIONS: Record<string, string> = {
   repo: 'Absolute repo path (default: the git repo containing the current directory)',
   name: 'Feature name shown in Porcelain (default "Feature view")',
@@ -135,7 +143,8 @@ const FLAG_DESCRIPTIONS: Record<string, string> = {
   id: 'The item id (from the matching list/get command)',
   status: 'Column: todo | doing | done',
   command: 'The shell command to run',
-  cwd: 'Working directory, repo-relative or absolute (defaults to repo root)',
+  where:
+    "Where the human's click runs the command: primary (this window's machine, default) | local (This device, when the window is remote)",
   layers:
     "Flow layers as JSON: array of {label, pattern} in order (entry point → data); '-' reads stdin",
   label: 'Short label for the verification check, e.g. "pnpm test"',
@@ -261,15 +270,19 @@ const COMMANDS: NounHelp[] = [
     blurb: 'saved actions — named shell commands the human runs in the terminal',
     verbs: [
       { verb: 'list', args: '', desc: 'List saved actions' },
-      { verb: 'create', args: '--title <s> --command <s> [--cwd <p>]', desc: 'Add an action' },
+      {
+        verb: 'create',
+        args: '--title <s> --command <s> [--where primary|local]',
+        desc: 'Add an action',
+      },
       {
         verb: 'update',
-        args: '--id <s> [--title <s>] [--command <s>] [--cwd <p>]',
+        args: '--id <s> [--title <s>] [--command <s>] [--where primary|local]',
         desc: "Edit an action's fields",
       },
       { verb: 'delete', args: '--id <s>', desc: 'Remove an action' },
     ],
-    flags: ['title', 'command', 'cwd', 'id'],
+    flags: ['title', 'command', 'where', 'id'],
   },
   {
     noun: 'notes',
@@ -473,7 +486,7 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
     case 'actions create': {
       const title = req('title')
       const command = req('command')
-      const action = createAction(repo, title, command, opt('cwd'))
+      const action = createAction(repo, title, command, parseActionWhere(opt('where')))
       return `Created action ${action.id} "${title}" for ${repo}`
     }
     case 'actions update': {
@@ -481,7 +494,7 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
       const found = updateAction(repo, id, {
         title: opt('title'),
         command: opt('command'),
-        cwd: opt('cwd'),
+        where: parseActionWhere(opt('where')),
       })
       return found ? `Updated action ${id} for ${repo}` : `No action ${id} for ${repo}`
     }

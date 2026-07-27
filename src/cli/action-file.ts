@@ -9,10 +9,18 @@ import { porcelainHomePath } from '../shared/porcelain-home'
 // never executes one (no run tool). Atomic writes (tmp + rename); the app re-validates
 // with zod on read.
 
+export type ActionWhere = 'primary' | 'local'
+
 export interface Action {
   id: string
   title: string
   command: string
+  /** Which machine runs the command. Omitted ⇒ primary (this window's daemon). */
+  where?: ActionWhere
+  /**
+   * @deprecated Prefer repo root + `where`. Still listed when present on older files;
+   * the CLI no longer writes it.
+   */
   cwd?: string
   order: number
   createdAt: number
@@ -26,6 +34,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 export function actionsPath(): string {
   return process.env.PORCELAIN_ACTIONS ?? porcelainHomePath('actions.json')
+}
+
+function parseWhere(value: unknown): ActionWhere | undefined {
+  if (value === 'primary' || value === 'local') return value
+  return undefined
 }
 
 function parseActions(value: unknown): Action[] {
@@ -47,6 +60,8 @@ function parseActions(value: unknown): Action[] {
       order: typeof item.order === 'number' ? item.order : 0,
       createdAt: typeof item.createdAt === 'number' ? item.createdAt : 0,
     }
+    const where = parseWhere(item.where)
+    if (where !== undefined && where !== 'primary') action.where = where
     if (typeof item.cwd === 'string') action.cwd = item.cwd
     actions.push(action)
   }
@@ -83,11 +98,11 @@ export function createAction(
   repoPath: string,
   title: string,
   command: string,
-  cwd: string | undefined,
+  where: ActionWhere | undefined,
 ): Action {
   const now = Date.now()
   const action: Action = { id: randomUUID(), title, command, order: now, createdAt: now }
-  if (cwd !== undefined) action.cwd = cwd
+  if (where !== undefined && where !== 'primary') action.where = where
   const all = readAll()
   all[repoPath] = [...(all[repoPath] ?? []), action]
   writeAll(all)
@@ -97,14 +112,17 @@ export function createAction(
 export function updateAction(
   repoPath: string,
   id: string,
-  fields: { title?: string; command?: string; cwd?: string },
+  fields: { title?: string; command?: string; where?: ActionWhere },
 ): boolean {
   const all = readAll()
   const action = all[repoPath]?.find((a) => a.id === id)
   if (!action) return false
   if (fields.title !== undefined) action.title = fields.title
   if (fields.command !== undefined) action.command = fields.command
-  if (fields.cwd !== undefined) action.cwd = fields.cwd || undefined
+  if (fields.where !== undefined) {
+    if (fields.where === 'primary') delete action.where
+    else action.where = fields.where
+  }
   writeAll(all)
   return true
 }
@@ -118,16 +136,16 @@ export function deleteAction(repoPath: string, id: string): boolean {
   return true
 }
 
-/** Render the actions for `list_actions`: each with id, title, command, and cwd. */
+/** Render the actions for `list_actions`: each with id, title, command, and where. */
 export function describeActions(repoPath: string, actions: Action[]): string {
   if (actions.length === 0) {
     return `No saved actions for ${repoPath}. Actions are named commands the human runs in Porcelain's embedded terminal with one click; add useful ones (dev server, storybook, test watcher) here and they appear in the app.`
   }
   const lines: string[] = [`Saved actions for ${repoPath} (${actions.length}):`]
   for (const action of actions) {
-    lines.push(
-      `- [${action.id}] ${action.title}\n    $ ${action.command}${action.cwd ? `  (cwd: ${action.cwd})` : ''}`,
-    )
+    const where = action.where === 'local' ? '  (where: local / this device)' : ''
+    const legacyCwd = action.cwd ? `  (cwd: ${action.cwd})` : ''
+    lines.push(`- [${action.id}] ${action.title}\n    $ ${action.command}${where}${legacyCwd}`)
   }
   return lines.join('\n')
 }

@@ -16,12 +16,27 @@ import { createHomeChannel } from './home-channel'
  * (never the agent — there is no CLI run command, and nothing here executes a command).
  * The full text is always shown before it runs (see the audit skill). This file only
  * stores definitions.
+ *
+ * `where` picks the machine: `primary` (default) = the daemon this window is bound to;
+ * `local` = This device (the machine running the app) when the window is remote. Legacy
+ * `cwd` is still read for old files but is no longer written by the app or CLI.
  */
+export const actionWhereSchema = z.enum(['primary', 'local'])
+export type ActionWhere = z.infer<typeof actionWhereSchema>
+
 export const actionSchema = z.object({
   id: z.string(),
   title: z.string(),
   command: z.string(),
-  /** Working directory for the command; repo-relative or absolute. Omitted ⇒ repo root. */
+  /**
+   * Which machine runs the command. Omitted ⇒ primary (this window's daemon).
+   * `local` only applies when the window is remote-bound (Electron); otherwise ignored.
+   */
+  where: actionWhereSchema.optional(),
+  /**
+   * @deprecated Prefer repo root + `where`. Still honored on run for older actions.json
+   * entries; the UI and CLI no longer write it.
+   */
   cwd: z.string().optional(),
   /** Sort key; set on create so newer actions land at the end. */
   order: z.number().default(0),
@@ -51,7 +66,7 @@ export async function readActions(repoPath: string): Promise<Action[]> {
 export interface NewAction {
   title: string
   command: string
-  cwd?: string
+  where?: ActionWhere
 }
 
 export async function addAction(repoPath: string, input: NewAction): Promise<Action> {
@@ -62,7 +77,7 @@ export async function addAction(repoPath: string, input: NewAction): Promise<Act
     command: input.command,
     order: now,
     createdAt: now,
-    ...(input.cwd !== undefined ? { cwd: input.cwd } : {}),
+    ...(input.where !== undefined && input.where !== 'primary' ? { where: input.where } : {}),
   }
   await channel.mutate((all) => {
     all[repoPath] = [...(all[repoPath] ?? []), action]
@@ -73,14 +88,18 @@ export async function addAction(repoPath: string, input: NewAction): Promise<Act
 export async function updateAction(
   repoPath: string,
   id: string,
-  fields: { title?: string; command?: string; cwd?: string },
+  fields: { title?: string; command?: string; where?: ActionWhere },
 ): Promise<void> {
   await channel.mutate((all) => {
     const action = all[repoPath]?.find((a) => a.id === id)
     if (!action) return
     if (fields.title !== undefined) action.title = fields.title
     if (fields.command !== undefined) action.command = fields.command
-    if (fields.cwd !== undefined) action.cwd = fields.cwd || undefined
+    if (fields.where !== undefined) {
+      // primary is the default — drop the field so the file stays small.
+      if (fields.where === 'primary') delete action.where
+      else action.where = fields.where
+    }
   })
 }
 

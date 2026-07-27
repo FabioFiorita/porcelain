@@ -20,30 +20,65 @@ describe('actions-store CRUD', () => {
   it('adds an action and reads it back', async () => {
     const action = await addAction('/repo', { title: 'Storybook', command: 'pnpm storybook' })
     expect(action).toMatchObject({ title: 'Storybook', command: 'pnpm storybook' })
+    expect(action.where).toBeUndefined()
     const actions = await readActions('/repo')
     expect(actions).toHaveLength(1)
     expect(actions[0]).toMatchObject({ id: action.id, title: 'Storybook' })
   })
 
-  it('keeps an optional cwd', async () => {
-    const action = await addAction('/repo', { title: 'Dev', command: 'pnpm dev', cwd: 'apps/web' })
-    expect(action.cwd).toBe('apps/web')
+  it('keeps where: local when set', async () => {
+    const action = await addAction('/repo', {
+      title: 'iOS',
+      command: 'xcodebuild',
+      where: 'local',
+    })
+    expect(action.where).toBe('local')
+    expect((await readActions('/repo'))[0]?.where).toBe('local')
   })
 
-  it('updates title, command, and cwd', async () => {
+  it('omits where when primary (the default)', async () => {
+    const action = await addAction('/repo', {
+      title: 'Dev',
+      command: 'pnpm dev',
+      where: 'primary',
+    })
+    expect(action.where).toBeUndefined()
+  })
+
+  it('updates title, command, and where', async () => {
     const { id } = await addAction('/repo', { title: 'old', command: 'echo old' })
-    await updateAction('/repo', id, { title: 'new', command: 'echo new', cwd: 'sub' })
+    await updateAction('/repo', id, { title: 'new', command: 'echo new', where: 'local' })
     expect((await readActions('/repo'))[0]).toMatchObject({
       title: 'new',
       command: 'echo new',
-      cwd: 'sub',
+      where: 'local',
     })
   })
 
-  it('clears cwd when updated to an empty string', async () => {
-    const { id } = await addAction('/repo', { title: 'x', command: 'y', cwd: 'sub' })
-    await updateAction('/repo', id, { cwd: '' })
-    expect((await readActions('/repo'))[0]?.cwd).toBeUndefined()
+  it('clears where back to primary by dropping the field', async () => {
+    const { id } = await addAction('/repo', { title: 'x', command: 'y', where: 'local' })
+    await updateAction('/repo', id, { where: 'primary' })
+    expect((await readActions('/repo'))[0]?.where).toBeUndefined()
+  })
+
+  it('still reads legacy cwd from older files', async () => {
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(
+      file,
+      JSON.stringify({
+        '/repo': [
+          {
+            id: 'legacy',
+            title: 'Dev',
+            command: 'pnpm dev',
+            cwd: 'apps/web',
+            order: 1,
+            createdAt: 1,
+          },
+        ],
+      }),
+    )
+    expect((await readActions('/repo'))[0]?.cwd).toBe('apps/web')
   })
 
   it('deletes an action', async () => {

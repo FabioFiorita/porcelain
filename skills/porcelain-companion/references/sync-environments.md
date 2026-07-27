@@ -95,7 +95,7 @@ cat ~/.local/share/porcelain/config.json
 ## Principles
 
 - **Never silent merge of feature review sets** — those are live review state
-- **Remap absolute paths**; relative action `cwd` may also need adjustment
-- Prefer **commands the remote can run**; drop or rewrite Mac-only tooling
+- **Remap absolute paths** (hidden/pinned keys and values)
+- Prefer **commands the remote can run**; drop or rewrite Mac-only tooling, or create them with `--where local` so they only run on This device when the human is remote-bound
 - Prefer the CLI over hand-editing JSON when you can reach the target host
 - Tell the human what you copied and what you skipped

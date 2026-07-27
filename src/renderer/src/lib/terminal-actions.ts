@@ -42,11 +42,18 @@ export async function spawnTerminal(): Promise<void> {
  * mapped local directory for this repo; the caller (the Terminal list) collects it first,
  * since the remote repo's path rarely exists locally.
  */
-export async function spawnLocalTerminal(localPath: string): Promise<void> {
-  await spawn(localPath, 'local')
+export async function spawnLocalTerminal(
+  localPath: string,
+  opts?: { name?: string; initialInput?: string },
+): Promise<void> {
+  await spawn(localPath, 'local', opts)
 }
 
-async function spawn(cwd: string, origin: TerminalOrigin): Promise<void> {
+async function spawn(
+  cwd: string,
+  origin: TerminalOrigin,
+  opts?: { name?: string; initialInput?: string },
+): Promise<void> {
   const { sessions, create } = useTerminalsStore.getState()
   terminalNumberFloor = nextTerminalNumber(
     sessions.map((s) => s.name),
@@ -54,8 +61,9 @@ async function spawn(cwd: string, origin: TerminalOrigin): Promise<void> {
   )
   // The number is shared across machines on purpose: the roster is one list, so two
   // "Terminal 3"s in it — one local, one remote — would be the confusing outcome.
-  const name = `Terminal ${terminalNumberFloor}`
-  const id = await create({ cwd, name, origin })
+  // Named spawns (saved actions) keep the action title instead.
+  const name = opts?.name ?? `Terminal ${terminalNumberFloor}`
+  const id = await create({ cwd, name, origin, initialInput: opts?.initialInput })
   useTabsStore
     .getState()
     .openTab({ id: tabId('terminal', id), kind: 'terminal', title: name, path: id })

@@ -1,4 +1,4 @@
-import type { Action } from '@backend/actions-store'
+import type { Action, ActionWhere } from '@backend/actions-store'
 import { Button } from '@renderer/components/ui/button'
 import {
   Dialog,
@@ -9,9 +9,11 @@ import {
 } from '@renderer/components/ui/dialog'
 import { Input } from '@renderer/components/ui/input'
 import { Textarea } from '@renderer/components/ui/textarea'
+import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
 import { useActionMutations } from '@renderer/hooks/use-actions'
 import { kbdLabel } from '@renderer/lib/keyboard'
 import { TestIds } from '@shared/test-ids'
+import { Cloud, Monitor } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 export interface ActionDraft {
@@ -19,35 +21,43 @@ export interface ActionDraft {
   id?: string
   title: string
   command: string
-  cwd: string
+  where: ActionWhere
 }
 
 /** Build an edit draft from an existing action. */
 export function draftFromAction(action: Action): ActionDraft {
-  return { id: action.id, title: action.title, command: action.command, cwd: action.cwd ?? '' }
+  return {
+    id: action.id,
+    title: action.title,
+    command: action.command,
+    where: action.where === 'local' ? 'local' : 'primary',
+  }
 }
 
-/** Controlled dialog to create or edit a saved action (title + command + optional cwd). */
+/** Controlled dialog to create or edit a saved action (title + command + optional where). */
 export function ActionComposer({
   draft,
   open,
   onOpenChange,
+  /** When true (remote-bound Electron window), show the primary / This device toggle. */
+  showWhere,
 }: {
   draft: ActionDraft | null
   open: boolean
   onOpenChange: (open: boolean) => void
+  showWhere: boolean
 }): React.JSX.Element {
   const { add, update } = useActionMutations()
   const [title, setTitle] = useState('')
   const [command, setCommand] = useState('')
-  const [cwd, setCwd] = useState('')
+  const [where, setWhere] = useState<ActionWhere>('primary')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     if (open && draft) {
       setTitle(draft.title)
       setCommand(draft.command)
-      setCwd(draft.cwd)
+      setWhere(draft.where)
     }
   }, [open, draft])
 
@@ -55,12 +65,16 @@ export function ActionComposer({
     if (!draft || title.trim() === '' || command.trim() === '' || saving) return
     setSaving(true)
     try {
-      // Editing sends cwd as a plain string so clearing it (empty) actually clears it —
-      // undefined is dropped over IPC and would leave the old cwd untouched. Create omits empty.
+      // Always send where on edit so switching back to primary clears a stored local.
+      const payload = {
+        title: title.trim(),
+        command: command.trim(),
+        where: showWhere ? where : 'primary',
+      }
       if (draft.id) {
-        await update(draft.id, { title: title.trim(), command: command.trim(), cwd: cwd.trim() })
+        await update(draft.id, payload)
       } else {
-        await add({ title: title.trim(), command: command.trim(), cwd: cwd.trim() || undefined })
+        await add(payload)
       }
       onOpenChange(false)
     } finally {
@@ -101,14 +115,29 @@ export function ActionComposer({
           rows={3}
           className="resize-none font-mono text-xs"
         />
-        <Input
-          value={cwd}
-          onChange={(e) => setCwd(e.target.value)}
-          onKeyDown={onKeyDown}
-          placeholder="Working directory (optional, relative to repo)"
-          aria-label="Action working directory"
-          className="rounded-md font-mono text-xs"
-        />
+        {showWhere && (
+          <div className="flex flex-col gap-1.5">
+            <span className="text-xs text-muted-foreground">Run on</span>
+            <ToggleGroup
+              value={[where]}
+              onValueChange={(value: string[]) => {
+                const next = value[0]
+                if (next === 'primary' || next === 'local') setWhere(next)
+              }}
+              data-testid={TestIds.actionWhere}
+              className="justify-start"
+            >
+              <ToggleGroupItem value="primary" size="sm" aria-label="Run on this window’s machine">
+                <Cloud className="size-3.5" />
+                This window’s machine
+              </ToggleGroupItem>
+              <ToggleGroupItem value="local" size="sm" aria-label="Run on this device">
+                <Monitor className="size-3.5" />
+                This device
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+        )}
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel

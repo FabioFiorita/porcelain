@@ -15,12 +15,10 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@renderer/components/ui/dropdown-menu'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { useLocalDaemon, useLocalTerminalPath } from '@renderer/hooks/use-local-terminal'
-import { rowActionClass } from '@renderer/lib/controls'
 import { spawnLocalTerminal, spawnTerminal } from '@renderer/lib/terminal-actions'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
@@ -37,9 +35,9 @@ import { useState } from 'react'
  * dev server keeps running), so this roster is how you get back to it. Mirrors the
  * Board/Feature tabs: a list here, the live surface in the viewer.
  *
- * When the window is bound to a remote daemon, the list also surfaces the "This device"
- * folder mapping (where local shells open for this repo). The map is set on first spawn;
- * the card here is how you fix a wrong path without re-discovering the dialog.
+ * When the window is bound to a remote daemon, the header gains a folder icon (set the
+ * local clone path for "This device" shells) and "+" becomes a menu (this window's
+ * machine vs This device). Local windows keep a plain "+" that just opens a shell.
  */
 export function TerminalList(): React.JSX.Element {
   const sessions = useTerminalsStore((s) => s.sessions)
@@ -91,6 +89,23 @@ export function TerminalList(): React.JSX.Element {
     <div data-testid={TestIds.terminalList} className="flex flex-col gap-1.5">
       <div className="flex items-center justify-end px-2">
         <SidebarHeaderActions>
+          {canSpawnLocal && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setMappingMode('edit')}
+              aria-label={hasMappedPath ? 'Change this device folder' : 'Set this device folder'}
+              title={
+                hasMappedPath
+                  ? `This device folder: ${mappedLocalPath}`
+                  : 'Set this device folder (local clone of this repo)'
+              }
+              data-testid={TestIds.localTerminalPathButton}
+              disabled={!repo}
+            >
+              <FolderPen />
+            </Button>
+          )}
           {canSpawnLocal ? (
             <DropdownMenu>
               <DropdownMenuTrigger
@@ -113,11 +128,6 @@ export function TerminalList(): React.JSX.Element {
                 <DropdownMenuItem onClick={spawnLocal} data-testid={TestIds.terminalNewLocal}>
                   <Monitor />
                   This device
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setMappingMode('edit')}>
-                  <FolderPen />
-                  {hasMappedPath ? 'Change this device folder…' : 'Set this device folder…'}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -209,39 +219,6 @@ export function TerminalList(): React.JSX.Element {
           </div>
         )}
       </div>
-      {canSpawnLocal && (
-        <div className="mt-1 border-t border-border/60 px-2 pt-2">
-          <div
-            className="rounded-md border bg-muted/40 p-2.5"
-            data-testid={TestIds.localTerminalPathCard}
-          >
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="text-xs font-medium">This device folder</p>
-                <p
-                  className={cn(
-                    'mt-0.5 truncate font-mono text-2xs',
-                    hasMappedPath ? 'text-muted-foreground' : 'text-muted-foreground/70 italic',
-                  )}
-                  title={hasMappedPath ? mappedLocalPath : undefined}
-                >
-                  {hasMappedPath ? mappedLocalPath : 'Not set — needed for This device terminals'}
-                </p>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className={cn(rowActionClass, 'shrink-0')}
-                onClick={() => setMappingMode('edit')}
-                aria-label={hasMappedPath ? 'Change this device folder' : 'Set this device folder'}
-                data-testid={TestIds.localTerminalPathChange}
-              >
-                {hasMappedPath ? 'Change' : 'Set'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
       {renaming && (
         <TerminalRenameDialog
           key={renaming.id}
