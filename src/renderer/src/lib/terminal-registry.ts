@@ -12,6 +12,7 @@ import {
   terminalArrowBytes,
   terminalEditBytes,
 } from './terminal-keys'
+import { attachOsc52Clipboard } from './terminal-osc52'
 import { attachTouchScroll } from './terminal-touch-scroll'
 import { resolveTheme, subscribeResolvedTheme } from './theme'
 
@@ -215,6 +216,9 @@ function create(id: string): Instance {
   })
   const fit = new FitAddon()
   term.loadAddon(fit)
+  // Remote TUIs (Claude Code, vim, tmux) copy via OSC 52; without this the sequence
+  // is ignored and the host clipboard never updates. Write-only — see terminal-osc52.
+  attachOsc52Clipboard(term)
   const wrapper = document.createElement('div')
   wrapper.style.height = '100%'
   wrapper.style.width = '100%'
