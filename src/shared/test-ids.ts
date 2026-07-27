@@ -79,6 +79,9 @@ export const TestIds = {
   terminalKeyBar: 'terminal-key-bar',
   terminalKey: (label: string): string =>
     `terminal-key-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+  /** Floating Copy chip over a non-empty terminal selection. */
+  terminalSelectionToolbar: 'terminal-selection-toolbar',
+  terminalSelectionCopy: 'terminal-selection-copy',
   /** Machine picker items shown when the window is bound to a REMOTE daemon. */
   terminalNewRemote: 'terminal-new-remote',
   terminalNewLocal: 'terminal-new-local',

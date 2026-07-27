@@ -1,4 +1,5 @@
 import { TerminalKeyBar } from '@renderer/components/terminal/terminal-key-bar'
+import { TerminalSelectionToolbar } from '@renderer/components/terminal/terminal-selection-toolbar'
 import { useResolvedTheme } from '@renderer/hooks/use-theme'
 import { isCoarseTouch } from '@renderer/lib/platform'
 import {
@@ -56,12 +57,15 @@ export function TerminalView({ sessionId }: { sessionId: string }): React.JSX.El
   // reason the bar exists. Top keeps Esc/Ctrl/^C reachable above the keyboard.
   // The xterm host must be sized by flex (min-h-0 + flex-1), not the full pane, or the
   // ResizeObserver fits cols/rows to a height that includes the bar and the last line hides.
+  // Selection Copy chip is absolute over the host (sibling of the xterm wrapper).
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
       {keyBar && <TerminalKeyBar sessionId={sessionId} />}
+      {/* Host is `relative` so the selection Copy chip can sit over the xterm
+          (chip coords are resolved against this box via the wrapper's parent). */}
       <div
         ref={ref}
-        className="min-h-0 flex-1 overflow-hidden py-2 pr-1 pl-2"
+        className="relative min-h-0 flex-1 overflow-hidden py-2 pr-1 pl-2"
         style={{ backgroundColor: TERMINAL_THEMES[mode].background }}
         onPointerDown={(e) => {
           if (!isCoarseTouch()) {
@@ -82,7 +86,9 @@ export function TerminalView({ sessionId }: { sessionId: string }): React.JSX.El
         onPointerCancel={() => {
           pointerStart.current = null
         }}
-      />
+      >
+        <TerminalSelectionToolbar sessionId={sessionId} />
+      </div>
     </div>
   )
 }

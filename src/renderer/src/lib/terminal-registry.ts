@@ -388,6 +388,71 @@ export function isTerminalFocused(id: string): boolean {
   return helper !== null && document.activeElement === helper
 }
 
+/** Current selection text, or '' when empty / no instance. */
+export function getTerminalSelection(id: string): string {
+  return instances.get(id)?.term.getSelection() ?? ''
+}
+
+export function clearTerminalSelection(id: string): void {
+  instances.get(id)?.term.clearSelection()
+}
+
+/**
+ * Subscribe to selection changes. Returns null when the xterm instance isn't up yet
+ * (common: child toolbar effect runs before TerminalView's attach effect) — callers
+ * should retry. Dispose stops the listener.
+ */
+export function subscribeTerminalSelection(id: string, cb: () => void): (() => void) | null {
+  const term = instances.get(id)?.term
+  if (!term) return null
+  const disposable = term.onSelectionChange(cb)
+  return () => disposable.dispose()
+}
+
+/**
+ * Pixel position for a selection Copy chip, relative to the terminal *host*
+ * (the container that wraps the xterm element — includes its padding). Placed just
+ * above the selection start, or below if there isn't room. Null when empty / gone.
+ */
+export function getTerminalSelectionAnchor(
+  id: string,
+): { left: number; top: number; text: string } | null {
+  const instance = instances.get(id)
+  if (!instance) return null
+  const { term, wrapper } = instance
+  const text = term.getSelection()
+  if (text === '') return null
+  const range = term.getSelectionPosition()
+  const el = term.element
+  // Host is the React container we attach into (padding lives there).
+  const host = wrapper.parentElement
+  if (!range || !el || !host) return null
+
+  const cols = Math.max(term.cols, 1)
+  const rows = Math.max(term.rows, 1)
+  const cellW = el.clientWidth / cols
+  const cellH = el.clientHeight / rows
+  // xterm documents buffer coords as 1-based.
+  const col = Math.max(0, range.start.x - 1)
+  const row = range.start.y - 1 - term.buffer.active.viewportY
+
+  const hostRect = host.getBoundingClientRect()
+  const termRect = el.getBoundingClientRect()
+  const originLeft = termRect.left - hostRect.left
+  const originTop = termRect.top - hostRect.top
+
+  const chipH = 36
+  const chipW = 88
+  let left = originLeft + col * cellW
+  let top = originTop + row * cellH - chipH - 4
+  if (top < originTop + 4) top = originTop + Math.max(4, (row + 1) * cellH + 4)
+  // Keep the chip inside the host so overflow-hidden on the pane doesn't clip it.
+  left = Math.max(4, Math.min(left, host.clientWidth - chipW - 4))
+  top = Math.max(4, Math.min(top, host.clientHeight - chipH - 4))
+
+  return { left, top, text }
+}
+
 /**
  * Write bytes to the PTY as if typed — the key bar's path for keys a soft keyboard can't
  * send. Deliberately NOT `term.input()`: these bytes must reach the shell exactly as
