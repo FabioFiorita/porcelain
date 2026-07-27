@@ -71,6 +71,27 @@ interface TerminalsState {
   reset: () => void
 }
 
+/**
+ * Ids the human closed (X) that a stale `terminalSessions` poll must not resurrect.
+ * Cleared once the daemon no longer lists them (or after TOMBSTONE_MS). Without this,
+ * close → optimistic drop → 5s poll still lists the PTY → hydrate REPLACES and the
+ * row pops back (often as "exited" when kill's onExit races in).
+ */
+const closedTombstones = new Map<string, number>()
+const TOMBSTONE_MS = 15_000
+
+/** Test-only: clear tombstones between cases. */
+export function __resetTerminalTombstonesForTests(): void {
+  closedTombstones.clear()
+}
+
+function pruneTombstones(daemonIds: Set<string>): void {
+  const now = Date.now()
+  for (const [id, at] of closedTombstones) {
+    if (!daemonIds.has(id) || now - at > TOMBSTONE_MS) closedTombstones.delete(id)
+  }
+}
+
 export const useTerminalsStore = create<TerminalsState>((set, get) => ({
   sessions: [],
   // The daemon owns the roster, so hydrate REPLACES: the incoming repo-filtered list is
@@ -79,8 +100,14 @@ export const useTerminalsStore = create<TerminalsState>((set, get) => ({
   // narrow window where an in-flight `terminalSessions` snapshot predating that create
   // clobbers the fresh row self-heals on the next poll (≤5s) — the daemon session really
   // exists (create awaited its id), so it comes back for real. Not worth a stateful merge
-  // that would instead resurrect a cross-window-killed row forever.
-  hydrate: (sessions) => set({ sessions }),
+  // that would instead resurrect a cross-window-killed row forever — except we DO filter
+  // closedTombstones so a stale poll can't undo this window's close click.
+  hydrate: (incoming) => {
+    const daemonIds = new Set(incoming.map((s) => s.id))
+    pruneTombstones(daemonIds)
+    const sessions = incoming.filter((s) => !closedTombstones.has(s.id))
+    set({ sessions })
+  },
   create: async ({ cwd, name, initialInput, origin = 'primary' }) => {
     const session = origin === 'local' ? localDaemonSession() : primary
     if (session === null) {
@@ -94,6 +121,7 @@ export const useTerminalsStore = create<TerminalsState>((set, get) => ({
     // Register BEFORE the row exists: the registry may write to this id (an initialInput
     // action, the first keystroke) as soon as the view mounts, and it routes by this map.
     if (origin === 'local') markLocalTerminal(id)
+    closedTombstones.delete(id)
     set((state) => ({ sessions: [...state.sessions, { id, name, status: 'running', origin }] }))
     return id
   },
@@ -111,12 +139,21 @@ export const useTerminalsStore = create<TerminalsState>((set, get) => ({
   },
   // A PTY that exits on its own (the shell was `exit`ed, or an action's command ran and
   // the shell closed) stays in the roster marked "exited" so its final output is still
-  // readable; the human dismisses it with `close`.
-  markExited: (id, exitCode) =>
-    set((state) => ({
-      sessions: state.sessions.map((s) => (s.id === id ? { ...s, status: 'exited', exitCode } : s)),
-    })),
+  // readable; the human dismisses it with `close`. Never re-add a row for an id the
+  // human already closed (tombstone / not in the list).
+  markExited: (id, exitCode) => {
+    if (closedTombstones.has(id)) return
+    set((state) => {
+      if (!state.sessions.some((s) => s.id === id)) return state
+      return {
+        sessions: state.sessions.map((s) =>
+          s.id === id ? { ...s, status: 'exited' as const, exitCode } : s,
+        ),
+      }
+    })
+  },
   close: (id) => {
+    closedTombstones.set(id, Date.now())
     sessionForTerminal(id).killTerminal(id)
     forgetLocalTerminal(id)
     disposeTerminal(id)

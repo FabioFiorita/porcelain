@@ -147,8 +147,13 @@ export function createTerminal(sender: TerminalSender, opts: CreateTerminalOptio
     // A session that exits before the initialInput write must never fire it.
     if (initialTimer !== undefined) clearTimeout(initialTimer)
     sendInitialInput = null
-    // Keep the entry (its final output stays readable across reloads) — only an explicit
-    // killTerminal removes it. Mark it exited so a re-attach shows the exited state.
+    // Explicit killTerminal deletes the map entry BEFORE pty.kill() — don't fan out
+    // exit for those (the renderer already dropped the row; a late terminal:exit was
+    // racing hydrate and briefly resurfacing the session as "exited").
+    if (!sessions.has(id)) return
+    // Natural exit (shell `exit`, Ctrl-D, …): keep the entry so final output stays
+    // readable across reloads — only killTerminal removes it. Mark exited so a
+    // re-attach shows the exited state.
     session.status = 'exited'
     session.exitCode = exitCode
     fanOut(session, 'terminal:exit', id, exitCode)
