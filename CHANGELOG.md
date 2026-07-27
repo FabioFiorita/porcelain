@@ -1,3 +1,10 @@
+## [0.43.6](https://github.com/FabioFiorita/porcelain/compare/v0.43.5...v0.43.6) (2026-07-27)
+
+### Bug Fixes
+
+* **daemon:** CLI install layout + verify npm tarball after publish ([7f193f4](https://github.com/FabioFiorita/porcelain/commit/7f193f4c68ea3fedad955c468227d1ed26ecdcb9))
+* **terminal:** SGR wheel bytes for Claude touch scroll ([1bd5bcf](https://github.com/FabioFiorita/porcelain/commit/1bd5bcfae7b4d9efd2cd30fc71d1d628fda28768))
+
 ## [0.43.5](https://github.com/FabioFiorita/porcelain/compare/v0.43.4...v0.43.5) (2026-07-27)
 
 ### Bug Fixes
