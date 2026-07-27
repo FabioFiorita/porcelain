@@ -163,8 +163,6 @@ async function seedState(
   await writeFile(notes, '{}')
   const comments = join(udBase, 'comments.json')
   await writeFile(comments, '{}')
-  const chat = join(udBase, 'chat.json')
-  await writeFile(chat, '{}')
   // The paired-device roster. Left uncreated (the store treats an absent file as "nobody
   // has paired"), but ALWAYS redirected: a test that pairs would otherwise write a device
   // into the developer's real ~/.porcelain/devices.json — and that file is auth state.
@@ -192,11 +190,6 @@ async function seedState(
   // Legacy empty json so env redirect still isolates any leftover json readers.
   const evidence = join(udBase, 'evidence.json')
   await writeFile(evidence, '{}')
-  // Agent threads persist to their own directory (the same PORCELAIN_AGENT_THREADS escape
-  // hatch dev/tests use), so a thread never touches the user's real ~/.porcelain, and it
-  // survives a window reload the way the daemon-owned thread does. Left uncreated — the
-  // store treats an absent dir as "no threads yet".
-  const agentThreads = join(udBase, 'agent-threads')
   return {
     udBase,
     userData,
@@ -208,15 +201,10 @@ async function seedState(
       PORCELAIN_REVIEWED: reviewed,
       PORCELAIN_NOTES: notes,
       PORCELAIN_COMMENTS: comments,
-      PORCELAIN_CHAT: chat,
       PORCELAIN_DEVICES: devices,
       PORCELAIN_FEATURE_VIEW: featureView,
       PORCELAIN_EVIDENCE: evidence,
       PORCELAIN_LOOP_EVIDENCE_DIR: evidenceRoot,
-      PORCELAIN_AGENT_THREADS: agentThreads,
-      // Swap every agent provider slot for the scripted in-process fake driver so the
-      // Agent tab has a deterministic turn to drive (no real CLI / auth / network).
-      PORCELAIN_AGENT_FAKE: '1',
       // Pins a fast, config-free shell so the terminal tests are deterministic and
       // don't source the runner's zsh profile.
       PORCELAIN_SHELL: '/bin/bash',
@@ -396,18 +384,13 @@ type TabName =
   | 'Review'
   | 'Feature' // alias — rail id is `feature`, label is Review
   | 'Board'
-  | 'Relay'
-  | 'Chat' // alias — rail id is `chat`, label is Relay
   | 'Terminal'
-  | 'Agent'
 
 /** Map human/product tab names to the sidebar store id used in `data-testid`. */
 function railTabId(tab: TabName): string {
   switch (tab) {
     case 'Files':
       return 'files'
-    case 'Agent':
-      return 'agent'
     case 'Changes':
       return 'changes'
     case 'Review':
@@ -419,9 +402,6 @@ function railTabId(tab: TabName): string {
       return 'search'
     case 'Board':
       return 'board'
-    case 'Relay':
-    case 'Chat':
-      return 'chat'
     case 'Terminal':
       return 'terminal'
   }

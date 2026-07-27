@@ -10,17 +10,10 @@ interface Action {
   createdAt: number
 }
 
-interface TimelineItem {
-  kind: 'user' | 'assistant'
-  id: string
-  text: string
-  streaming?: boolean
-}
-
 // The agent-channel content behind the marketing screenshots: the published Review,
-// the project board, the agent chat, the human's review comments, and loop evidence
-// — written to the same on-disk channels the porcelain CLI writes (keyed by absolute
-// repo path), so every seeded surface renders exactly as a real agent hand-off would.
+// the project board, the human's review comments, and loop evidence — written to the
+// same on-disk channels the porcelain CLI writes (keyed by absolute repo path), so
+// every seeded surface renders exactly as a real agent hand-off would.
 // Shapes mirror src/cli/*-file.ts (re-validated by the app's zod on read).
 
 interface ReviewFile {
@@ -51,15 +44,6 @@ interface BoardCard {
   status: 'todo' | 'doing' | 'done'
   order: number
   createdAt: number
-}
-
-interface ChatMessage {
-  id: string
-  from: string
-  body: string
-  createdAt: number
-  files?: string[]
-  intent?: string
 }
 
 interface Comment {
@@ -205,50 +189,6 @@ export const DEMO_BOARD: BoardCard[] = [
   },
 ]
 
-/**
- * Agent-relay demo for marketing + e2e. Timestamps are relative to seed time so
- * live claims (6h TTL) still light up in Coordination when `pnpm shots` runs.
- */
-export function buildDemoChat(now: number = Date.now()): ChatMessage[] {
-  return [
-    {
-      id: 'msg-1',
-      from: 'claude-code',
-      body: 'Published the status-filter Review. Flow is OrdersPage → useOrders → route → service → schema. Leaving the CSV export card in To do.',
-      createdAt: now - 50 * 60_000,
-      files: [
-        'src/services/orders.service.ts',
-        'src/routes/orders.route.ts',
-        'src/hooks/useOrders.ts',
-      ],
-      intent: 'Filter orders by status',
-    },
-    {
-      id: 'msg-2',
-      from: 'codex',
-      body: 'Clean seam. Picking up CSV export so we do not both edit the service. Claiming the page + export helper only.',
-      createdAt: now - 35 * 60_000,
-      files: ['src/pages/OrdersPage.tsx', 'src/lib/export-csv.ts'],
-      intent: 'Export current view as CSV',
-    },
-    {
-      id: 'msg-3',
-      from: 'grok',
-      body: 'On the Linux host if you need a browser smoke after either lands. I will not touch those files until claims clear.',
-      createdAt: now - 20 * 60_000,
-    },
-    {
-      id: 'msg-4',
-      from: 'claude-code',
-      body: 'Sounds good. I will stay on the service/route layer and hand off when Evidence is ready.',
-      createdAt: now - 12 * 60_000,
-    },
-  ]
-}
-
-/** Fixed-era chat (legacy e2e that does not need live claims). Prefer buildDemoChat for shots. */
-export const DEMO_CHAT: ChatMessage[] = buildDemoChat(T0 + 5000)
-
 export const DEMO_COMMENTS: Comment[] = [
   {
     id: 'cmt-1',
@@ -295,68 +235,6 @@ export const DEMO_ACTIONS: Action[] = [
     createdAt: T0 + 2000,
   },
 ]
-
-const AGENT_THREAD_ID = 'demo-orders-tour'
-
-const AGENT_TOUR_MARKDOWN = `## The orders feature, end to end
-
-The status filter threads one \`status\` param from the screen down to the database.
-Reading it in the order the code runs:
-
-1. **\`OrdersPage\`** owns the selected status and renders the \`<select>\`, handing the value to \`useOrders\`.
-2. **\`useOrders\`** appends \`status\` to the query string only when it's set, then fetches \`/api/orders\`.
-3. **\`orders.route\`** parses the untrusted query through \`parseStatus\` before it can reach the service.
-4. **\`orders.service\`** adds a \`where: { status }\` clause only when a status is present.
-5. **\`schema.prisma\`** gains a \`status\` column backed by the shared \`OrderStatus\` enum.
-
-One vocabulary drives all five layers, so the dropdown, the API guard, and the
-database can never drift apart:
-
-\`\`\`ts
-export const ORDER_STATUSES = ['PENDING', 'FULFILLED', 'CANCELLED'] as const
-export type OrderStatus = (typeof ORDER_STATUSES)[number]
-\`\`\`
-
-Want me to add a date-range filter alongside it next?`
-
-const AGENT_TIMELINE: TimelineItem[] = [
-  { kind: 'user', id: 'msg-user', text: 'Give me a tour of the orders feature.' },
-  { kind: 'assistant', id: 'msg-assistant', text: AGENT_TOUR_MARKDOWN, streaming: false },
-]
-
-/**
- * Seed one completed agent thread on disk (the same per-thread JSON the daemon writes,
- * see backend/agents/thread-store.ts) so the Agent tab renders a real thread — a user
- * turn and a rendered-markdown answer — with no provider CLI. Hydrated into the roster
- * on first read; forced idle. `threadsDir` is the PORCELAIN_AGENT_THREADS directory.
- */
-export async function seedDemoAgentThread(threadsDir: string, repoDir: string): Promise<void> {
-  await mkdir(threadsDir, { recursive: true })
-  const now = Date.now()
-  const stored = {
-    meta: {
-      id: AGENT_THREAD_ID,
-      repoPath: repoDir,
-      title: 'Tour the orders feature',
-      provider: 'claude',
-      model: 'Claude Sonnet 4.5',
-      mode: 'full',
-      interaction: 'build',
-      usage: {
-        turnInput: 8200,
-        turnOutput: 640,
-        totalInput: 8200,
-        totalOutput: 640,
-        totalCacheRead: 24500,
-        totalCostUsd: 0.06,
-      },
-      createdAt: now - 5 * 60_000,
-      updatedAt: now - 4 * 60_000,
-    },
-    items: AGENT_TIMELINE,
-  }
-  await writeFile(join(threadsDir, `${AGENT_THREAD_ID}.json`), JSON.stringify(stored, null, 2))
-}
 
 const EVIDENCE_TITLE = 'Loop evidence — status filter'
 
@@ -406,7 +284,6 @@ export async function seedDemoChannels(
   const files: Record<string, [string, unknown]> = {
     'review-sets.json': ['PORCELAIN_REVIEW_SETS', { [repoDir]: DEMO_REVIEW_SET }],
     'board.json': ['PORCELAIN_BOARD', { [repoDir]: DEMO_BOARD }],
-    'chat.json': ['PORCELAIN_CHAT', { [repoDir]: buildDemoChat() }],
     'comments.json': ['PORCELAIN_COMMENTS', { [repoDir]: DEMO_COMMENTS }],
     'actions.json': ['PORCELAIN_ACTIONS', { [repoDir]: DEMO_ACTIONS }],
     'layers.json': ['PORCELAIN_LAYERS', {}],

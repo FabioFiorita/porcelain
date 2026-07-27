@@ -18,8 +18,7 @@ import {
 import { isBrowser } from '@renderer/lib/platform'
 import { type SettingsSection, useSettingsDialogStore } from '@renderer/stores/settings-dialog'
 import { TestIds } from '@shared/test-ids'
-import { Bot, Download, Layers, Network, Settings2, SlidersHorizontal } from 'lucide-react'
-import { AgentsSection } from './agents-section'
+import { Download, Layers, Network, Settings2, SlidersHorizontal } from 'lucide-react'
 import { EnvironmentsSection } from './environments-section'
 import { FlowLayersSection } from './flow-layers-section'
 import { GeneralSection } from './general-section'
@@ -58,14 +57,6 @@ const ALL_SECTIONS: {
     icon: Layers,
     title: 'Review layers',
     blurb: 'Group changed files into a story, entry point to data. Saved per repository.',
-  },
-  {
-    id: 'agents',
-    label: 'Agents',
-    icon: Bot,
-    title: 'Agents',
-    blurb: 'Connect Porcelain to the coding agent you drive it from.',
-    shellOnly: true,
   },
   {
     id: 'updates',
@@ -116,9 +107,10 @@ export function SettingsDialog(): React.JSX.Element {
   const setOpen = useSettingsDialogStore((s) => s.setOpen)
   const section = useSettingsDialogStore((s) => s.section)
   const setSection = useSettingsDialogStore((s) => s.setSection)
-  // A persisted section that's hidden in this client (e.g. 'updates' opened in
-  // Electron, then the same prefs viewed in a browser) falls back to General so
-  // the header and body never disagree.
+  // A section that's hidden in this client (e.g. 'updates' opened in Electron, then
+  // the same prefs viewed in a browser) — or one that no longer exists at all (the
+  // removed 'agents' panel, which SkillsUpdateToast still opens to) — falls back to
+  // General so the header and body never disagree.
   const active = SECTIONS.find((s) => s.id === section) ?? SECTIONS[0]
   const activeId = active.id
 
@@ -175,7 +167,6 @@ export function SettingsDialog(): React.JSX.Element {
               {activeId === 'general' && <GeneralSection />}
               {activeId === 'environments' && <EnvironmentsSection />}
               {activeId === 'flow' && <FlowLayersSection onSaved={() => setOpen(false)} />}
-              {activeId === 'agents' && <AgentsSection />}
               {activeId === 'updates' && <UpdatesSection />}
             </main>
           </div>

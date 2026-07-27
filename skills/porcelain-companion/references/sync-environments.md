@@ -21,12 +21,11 @@ The CLI lives at `~/.porcelain/porcelain` on **every** daemon host (local Mac an
 - Review sets (`review-sets.json`) — the **Review** is session/work-specific
 - Loop evidence
 - Reviewed marks
-- Agent chat (`chat.json`) — ephemeral relay; use [chat.md](chat.md) for live collab instead
-- Daemon token, environments list, agent threads
+- Daemon token, environments list
 
 ## Paths by host
 
-Channel files (board, actions, notes, layers, comments, chat, …):
+Channel files (board, actions, notes, layers, comments, …):
 
 - Always: `~/.porcelain/<name>.json` on the machine where the **daemon** runs
 - Override for tests: `PORCELAIN_*` env vars (see channel modules)

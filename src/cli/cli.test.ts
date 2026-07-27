@@ -15,7 +15,6 @@ const actionsFile = join(dir, 'actions.json')
 const commentsFile = join(dir, 'comments.json')
 const featureViewFile = join(dir, 'feature-view.json')
 const evidenceFile = join(dir, 'evidence.json')
-const chatFile = join(dir, 'chat.json')
 
 beforeEach(() => {
   process.env.PORCELAIN_REVIEW_SETS = file
@@ -27,7 +26,6 @@ beforeEach(() => {
   process.env.PORCELAIN_ACTIONS = actionsFile
   process.env.PORCELAIN_COMMENTS = commentsFile
   process.env.PORCELAIN_FEATURE_VIEW = featureViewFile
-  process.env.PORCELAIN_CHAT = chatFile
   rmSync(dir, { recursive: true, force: true })
 })
 afterEach(() => {
@@ -41,7 +39,6 @@ afterEach(() => {
   delete process.env.PORCELAIN_FEATURE_VIEW
   delete process.env.PORCELAIN_EVIDENCE
   delete process.env.PORCELAIN_LOOP_EVIDENCE_DIR
-  delete process.env.PORCELAIN_CHAT
   rmSync(dir, { recursive: true, force: true })
 })
 // A plausible self-contained document: has a `<` tag and clears the MIN_HTML_BYTES floor,
@@ -509,7 +506,7 @@ describe('runCli — notes + layers', () => {
   })
 })
 
-describe('runCli — board + chat + actions', () => {
+describe('runCli — board + actions', () => {
   it('board create with a title writes a card in todo by default', async () => {
     await runCli(['board', 'create', ...repo, '--title', 'Ship it'])
     const cards = readBoard()['/repo'] as Array<{ title: string; status: string }>
@@ -575,53 +572,6 @@ describe('runCli — board + chat + actions', () => {
   it('board list groups by column', async () => {
     await runCli(['board', 'create', ...repo, '--title', 'Task'])
     expect(await runCli(['board', 'list', ...repo])).toContain('Task')
-  })
-  it('chat post + list round-trip', async () => {
-    await runCli(['chat', 'post', ...repo, '--from', 'local', '--body', 'need sim shot'])
-    const text = await runCli(['chat', 'list', ...repo])
-    expect(text).toContain('local')
-    expect(text).toContain('need sim shot')
-  })
-  it('chat clear empties the thread', async () => {
-    await runCli(['chat', 'post', ...repo, '--from', 'a', '--body', 'b'])
-    await runCli(['chat', 'clear', ...repo])
-    expect(await runCli(['chat', 'list', ...repo])).toContain('is empty')
-  })
-  it('chat post --files declares a claim (body optional, synthesized)', async () => {
-    const out = await runCli([
-      'chat',
-      'post',
-      ...repo,
-      '--from',
-      'alice',
-      '--files',
-      'auth.ts, session.ts',
-      '--intent',
-      'wiring login',
-    ])
-    expect(out).toContain('Posted claim')
-    expect(out).toContain('2 file(s)')
-    const list = await runCli(['chat', 'list', ...repo])
-    expect(list).toContain('[CLAIM]')
-    expect(list).toContain('files: auth.ts, session.ts')
-  })
-  it('chat list surfaces an overlap between two agents claims', async () => {
-    await runCli(['chat', 'post', ...repo, '--from', 'alice', '--files', 'session.ts'])
-    await runCli(['chat', 'post', ...repo, '--from', 'bob', '--files', 'session.ts'])
-    const list = await runCli(['chat', 'list', ...repo])
-    expect(list).toContain('⚠ Overlap: alice & bob both touching session.ts')
-  })
-  it('chat post --closes retires the claim and needs no --body', async () => {
-    await runCli(['chat', 'post', ...repo, '--from', 'alice', '--files', 'auth.ts'])
-    await runCli(['chat', 'post', ...repo, '--from', 'alice', '--closes'])
-    const list = await runCli(['chat', 'list', ...repo])
-    expect(list).toContain('[CLOSED]')
-    expect(list).not.toContain('Live claims')
-  })
-  it('chat post with no body and no claim still requires a body', async () => {
-    await expect(runCli(['chat', 'post', ...repo, '--from', 'alice'])).rejects.toThrow(
-      'body is required',
-    )
   })
   it('actions create with title+command writes an action', async () => {
     await runCli(['actions', 'create', ...repo, '--title', 'Dev', '--command', 'pnpm dev'])

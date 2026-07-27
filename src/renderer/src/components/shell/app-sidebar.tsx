@@ -1,6 +1,4 @@
-import { AgentList } from '@renderer/components/agent/agent-list'
 import { BoardList } from '@renderer/components/board/board-list'
-import { ChatList } from '@renderer/components/chat/chat-list'
 import { BranchSwitcher } from '@renderer/components/git/branch-switcher'
 import { ChangesList } from '@renderer/components/git/changes-list'
 import { FeatureList } from '@renderer/components/git/feature-list'
@@ -33,14 +31,12 @@ import { useTabsStore } from '@renderer/stores/tabs'
 import { isUnreadTab, useUnreadStore } from '@renderer/stores/unread'
 import { TestIds } from '@shared/test-ids'
 import {
-  Bot,
   ChevronsDownUp,
   Eye,
   EyeOff,
   Files,
   GitCompareArrows,
   History,
-  MessagesSquare,
   Search,
   SquareKanban,
   SquareTerminal,
@@ -52,19 +48,17 @@ import { ProjectSwitcher } from './project-switcher'
 import { SidebarHeaderActionsProvider } from './sidebar-header-actions'
 import { SidebarResizeHandle } from './sidebar-resize-handle'
 
-// Rail order follows the agentic loop: navigate → act → review diffs → Review
-// canvas → history → find → plan → collab → shell. Cmd+1–9 match this order.
+// Rail order follows the agentic loop: navigate → review diffs → Review canvas →
+// history → find → plan → shell. Cmd+1–7 match this order.
 const TABS: { id: SidebarTab; label: string; icon: typeof Files; shortcut: string }[] = [
   { id: 'files', label: 'Files', icon: Files, shortcut: kbdLabel('mod', '1') },
-  { id: 'agent', label: 'Agent', icon: Bot, shortcut: kbdLabel('mod', '2') },
-  { id: 'changes', label: 'Changes', icon: GitCompareArrows, shortcut: kbdLabel('mod', '3') },
+  { id: 'changes', label: 'Changes', icon: GitCompareArrows, shortcut: kbdLabel('mod', '2') },
   // Product noun is "Review" (the agent-authored canvas) — not "Feature" (U5).
-  { id: 'feature', label: 'Review', icon: Waypoints, shortcut: kbdLabel('mod', '4') },
-  { id: 'history', label: 'History', icon: History, shortcut: kbdLabel('mod', '5') },
-  { id: 'search', label: 'Search', icon: Search, shortcut: kbdLabel('mod', '6') },
-  { id: 'board', label: 'Board', icon: SquareKanban, shortcut: kbdLabel('mod', '7') },
-  { id: 'chat', label: 'Relay', icon: MessagesSquare, shortcut: kbdLabel('mod', '8') },
-  { id: 'terminal', label: 'Terminal', icon: SquareTerminal, shortcut: kbdLabel('mod', '9') },
+  { id: 'feature', label: 'Review', icon: Waypoints, shortcut: kbdLabel('mod', '3') },
+  { id: 'history', label: 'History', icon: History, shortcut: kbdLabel('mod', '4') },
+  { id: 'search', label: 'Search', icon: Search, shortcut: kbdLabel('mod', '5') },
+  { id: 'board', label: 'Board', icon: SquareKanban, shortcut: kbdLabel('mod', '6') },
+  { id: 'terminal', label: 'Terminal', icon: SquareTerminal, shortcut: kbdLabel('mod', '7') },
 ]
 
 // Panel titles match rail labels (U5/U17) so one vocabulary trains across chrome.
@@ -74,10 +68,8 @@ const PANEL_TITLES: Record<SidebarTab, string> = {
   history: 'History',
   feature: 'Review',
   board: 'Board',
-  chat: 'Relay',
   terminal: 'Terminal',
   search: 'Search',
-  agent: 'Agent',
 }
 
 export function AppSidebar(): React.JSX.Element {
@@ -308,10 +300,8 @@ export function AppSidebar(): React.JSX.Element {
                     {sidebarTab === 'history' && <HistoryList />}
                     {sidebarTab === 'feature' && <FeatureList />}
                     {sidebarTab === 'board' && <BoardList />}
-                    {sidebarTab === 'chat' && <ChatList />}
                     {sidebarTab === 'terminal' && <TerminalList />}
                     {sidebarTab === 'search' && <SearchList />}
-                    {sidebarTab === 'agent' && <AgentList />}
                   </SidebarGroupContent>
                 </SidebarGroup>
               </div>

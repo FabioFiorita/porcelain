@@ -34,10 +34,11 @@ App copy is the `product` skill's domain, not this one.
   reintroduce backdrop-blur glass tiles or purple glow wallpaper.
 - Every marketing claim must be true of the shipped app **today** — verify
   against the code/`product` skill before writing, not from memory. Known
-  drift class to check each pass: provider list (currently 4 — Claude Code,
-  Codex, OpenCode, Grok — `src/shared/agent-protocol.ts` is the truth), the
-  agent channel (bundled porcelain CLI, **no MCP, no port**), positioning era
-  ("hub for agentic coding", not the retired "viewer + companion").
+  drift class to check each pass: the agent channel (bundled porcelain CLI,
+  **no MCP, no port**) and the positioning era ("the review layer for agentic
+  coding" — agents run in the user's terminal; Porcelain does not run them).
+  Naming providers is fine as examples of what people run in that terminal;
+  never imply Porcelain drives, authenticates, or ships support for them.
 - Voice: confident, concrete, zero hype adjectives. Sell *legible* (the
   reading room), not "blazing fast AI-powered". Competitors' angle is breadth
   and velocity; ours is trust and review depth. Don't copy their voice.
@@ -80,15 +81,12 @@ renders, runnable entirely on the Linux host.
 
 `pnpm shots` (→ `playwright.shots.config.ts` → `e2e/marketing.shots.ts`) builds,
 spawns the daemon against a seeded generic "orders" demo repo
-(`e2e/helpers/demo-repo.ts` + `demo-seed.ts`), drives **13 surfaces**, and writes
-Retina PNGs (`deviceScaleFactor: 2`, dark) to `marketing/shots/` (gitignored).
-Full-window shots (2880×1800): `review.png` (Review doc: thesis, sections, flow
-diagram, diff), `changes-flow.png`, `board.png`, `chat.png` (Relay thread +
-Coordination claims), `viewer.png`, `terminal.png`, `feat-agent.png`. Element/clip
-crops that map 1:1 to the `marketing/images/*` the site uses: `grouped-panel.png`,
-`feat-commit.png`, `feat-comment.png`, `feat-search.png`, `feat-history.png`,
-`hide-panel.png`, `pin-compact.png`. Copy mapping: `board.png` → `feat-board.png`,
-`chat.png` → `feat-chat.png`, `review.png` → `feature-view.png`, `terminal.png` →
+(`e2e/helpers/demo-repo.ts` + `demo-seed.ts`), and writes Retina PNGs
+(`deviceScaleFactor: 2`, dark) to `marketing/shots/` (gitignored). Read the spec
+for the current surface list; the durable part is the split: **full-window** shots
+(2880×1800) vs **element/clip crops** that map 1:1 to the `marketing/images/*` the
+site uses. A few outputs are renamed on the way into `images/`: `board.png` →
+`feat-board.png`, `review.png` → `feature-view.png`, `terminal.png` →
 `feat-terminal.png`.
 Excluded from the normal e2e run (that config's `*.spec.ts` glob ignores the
 `.shots.ts` name). Add shots by driving more tabs in the same spec. **The
@@ -113,12 +111,6 @@ ones you're keeping over `marketing/images/`. Traps the code won't tell you:
   `Range` over two `[data-line]` rows in `page.evaluate`, then right-clicks *inside*
   it (so the right-click doesn't collapse the selection) → the diff's context menu
   reads `lineSelectionFromDom` and the composer shows the range + anchored hunk.
-- **feat-agent seeds a completed thread on disk**, not the fake driver (whose text
-  is a toy "Hello from the fake agent"). Write a `StoredThread` JSON
-  (`backend/agents/thread-store.ts` shape: `{meta, items}`) into
-  `PORCELAIN_AGENT_THREADS/<id>.json`, keyed `meta.repoPath = repoDir`; the daemon
-  hydrates it into the roster (forced idle). `provider:'claude'`, a friendly
-  `model` string (shown verbatim on the chip), `mode:'full'`, `interaction:'build'`.
 - **Pinned/actions are seeded like the other channels.** Pinned folder+file go in
   `config.json` `repos[repoDir].pinnedPaths` (**absolute** paths). Saved actions go
   in the `PORCELAIN_ACTIONS` channel keyed by repoDir — they light up both the
@@ -142,7 +134,7 @@ ones you're keeping over `marketing/images/`. Traps the code won't tell you:
   `window.__porcelainSetTerminalFontSize` under e2e after the pager is up, so
   Retina full-window shots do not look oversized next to UI chrome. Site CSS also
   caps `.gallery-full img` height so the terminal band does not dominate the page.
-- **Seed board/chat/comments as channel JSON keyed by the canonical repo path**
+- **Seed board/comments as channel JSON keyed by the canonical repo path**
   (realpath the temp dir first) — the daemon reads the same `PORCELAIN_*` files
   the CLI writes; a mismatched key renders empty.
 - **Strict-mode locators:** "N changed files" appears on both Changes summary and

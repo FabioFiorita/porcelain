@@ -9,6 +9,9 @@ export function byId(page: Page | Locator, id: string): Locator {
 export const loc = {
   rail: (page: Page): Locator => byId(page, TestIds.rail),
   railTab: (page: Page, tab: string): Locator => byId(page, TestIds.railTab(tab)),
+  // Every rail tab at once, for asserting the rail's shape. Prefix match — a count
+  // has no single id to ask for, unlike `railTab`.
+  railTabs: (page: Page): Locator => page.locator(`[data-testid^="${TestIds.railTab('')}"]`),
   railSettings: (page: Page): Locator => byId(page, TestIds.railSettings),
   sidebarPanel: (page: Page): Locator => byId(page, TestIds.sidebarPanel),
   rightSidebar: (page: Page): Locator => byId(page, TestIds.rightSidebar),
@@ -59,32 +62,6 @@ export const loc = {
 
   commitButton: (page: Page): Locator => byId(page, TestIds.commitButton),
   commitGroup: (page: Page): Locator => byId(page, TestIds.commitGroup),
-
-  agentNewThread: (page: Page): Locator => byId(page, TestIds.agentNewThread),
-  agentProviderMenu: (page: Page): Locator => byId(page, TestIds.agentProviderMenu),
-  agentWorktreeMenuItem: (page: Page): Locator => byId(page, TestIds.agentWorktreeMenuItem),
-  agentWorktreeBranch: (page: Page): Locator => byId(page, TestIds.agentWorktreeBranch),
-  agentWorktreeCreate: (page: Page): Locator => byId(page, TestIds.agentWorktreeCreate),
-  agentThreadByTitle: (page: Page, title: string): Locator =>
-    page.locator(`[data-testid^="agent-thread-row-"][data-title="${title}"]`),
-  agentThreadFilter: (page: Page, filter: 'active' | 'archived'): Locator =>
-    byId(page, TestIds.agentThreadFilter(filter)),
-  agentComposer: (page: Page): Locator => byId(page, TestIds.agentComposer),
-  agentSend: (page: Page): Locator => byId(page, TestIds.agentSend),
-  agentModeChip: (page: Page): Locator => byId(page, TestIds.agentModeChip),
-  agentModeOption: (page: Page, mode: string): Locator => byId(page, TestIds.agentModeOption(mode)),
-  agentTimeline: (page: Page): Locator => byId(page, TestIds.agentTimeline),
-  agentPlan: (page: Page): Locator => byId(page, TestIds.agentPlan),
-  agentPlanProgress: (page: Page): Locator => byId(page, TestIds.agentPlanProgress),
-  agentTool: (page: Page, title: string): Locator => byId(page, TestIds.agentTool(title)),
-  agentApprovalAccept: (page: Page): Locator => byId(page, TestIds.agentApprovalAccept),
-  agentApprovalStatus: (page: Page): Locator => byId(page, TestIds.agentApprovalStatus),
-  agentSessionStatus: (page: Page): Locator => byId(page, TestIds.agentSessionStatus),
-  agentSessionCompanionStatus: (page: Page): Locator =>
-    byId(page, TestIds.agentSessionCompanionStatus),
-  agentUsageLastTurn: (page: Page): Locator => byId(page, TestIds.agentUsageLastTurn),
-  agentUserBubble: (page: Page): Locator => byId(page, TestIds.agentUserBubble),
-  agentAssistantMessage: (page: Page): Locator => byId(page, TestIds.agentAssistantMessage),
 
   terminalNew: (page: Page): Locator => byId(page, TestIds.terminalNew),
   terminalKeyBar: (page: Page): Locator => byId(page, TestIds.terminalKeyBar),

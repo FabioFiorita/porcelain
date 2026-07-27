@@ -9,9 +9,7 @@ describe('useUnreadStore', () => {
       unread: {
         feature: false,
         board: false,
-        chat: false,
         terminal: false,
-        agent: false,
         changes: false,
       },
     })
@@ -48,9 +46,7 @@ describe('unreadTabFor', () => {
     ['evidence', 'feature'],
     ['comments', 'feature'],
     ['board', 'board'],
-    ['chat', 'chat'],
     ['actions', 'terminal'],
-    ['agent-threads', 'agent'],
     ['working-tree', 'changes'],
     ['file-tree', 'changes'],
     ['layers', null],
@@ -71,9 +67,7 @@ describe('isUnreadTab', () => {
   it('accepts the unread-capable tabs', () => {
     expect(isUnreadTab('feature')).toBe(true)
     expect(isUnreadTab('board')).toBe(true)
-    expect(isUnreadTab('chat')).toBe(true)
     expect(isUnreadTab('terminal')).toBe(true)
-    expect(isUnreadTab('agent')).toBe(true)
     expect(isUnreadTab('changes')).toBe(true)
   })
 

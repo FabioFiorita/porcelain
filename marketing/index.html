@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Porcelain: Where agent work becomes trusted work</title>
-<meta name="description" content="Porcelain is the hub for agentic coding. Run Claude Code, Codex, OpenCode, and Grok in one lightweight window on your Mac, Linux box, or any browser, and review what they built as a story, not a file list.">
+<meta name="description" content="Porcelain is the review layer for agentic coding. Your agents run in your terminal; Porcelain is where you review what they built as a story, not a file list, on your Mac, Linux box, or any browser.">
 <link rel="canonical" href="https://fabiofiorita.github.io/porcelain/">
 <link rel="icon" href="images/logo.png">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Porcelain: Where agent work becomes trusted work">
-<meta property="og:description" content="Run your coding agents anywhere. Review what they built the way a senior engineer reads a feature: as a story, not a file list.">
+<meta property="og:description" content="Your agents run in your terminal. Porcelain is where you review what they built, the way a senior engineer reads a feature: as a story, not a file list.">
 <meta property="og:image" content="https://fabiofiorita.github.io/porcelain/images/feature-view.png">
 <meta property="og:url" content="https://fabiofiorita.github.io/porcelain/">
 <meta name="twitter:card" content="summary_large_image">
@@ -48,9 +48,9 @@
 
   <!-- HERO -->
   <section id="top" class="hero wrap">
-    <p class="eyebrow">The hub for agentic coding</p>
+    <p class="eyebrow">The review layer for agentic coding</p>
     <h1 class="hero-title">Where agent work<br>becomes trusted work.</h1>
-    <p class="lead">Everyone is racing to spawn more agents. Porcelain stands on the other side of the pile. <span class="hl">Run</span> Claude&nbsp;Code, Codex, OpenCode, and Grok in one lightweight window on Mac, Linux, or any browser. Then <span class="hl">review</span> what they built the way a senior engineer reads a feature: as a story, not a file list.</p>
+    <p class="lead">Everyone is racing to spawn more agents. Porcelain stands on the other side of the pile. Your agents keep running where they always have, in your terminal, on your own CLIs. Porcelain is where you <span class="hl">review</span> what they built the way a senior engineer reads a feature: as a story, not a file list. On Mac, Linux, or any browser.</p>
     <div class="hero-ctas">
       <a href="https://github.com/FabioFiorita/porcelain/releases/latest" target="_blank" rel="noopener" class="btn btn-primary btn-lg">
         <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M16.4 1.6c.1 1-.3 2-1 2.8-.7.8-1.7 1.4-2.7 1.3-.1-1 .4-2 1-2.7.7-.8 1.8-1.4 2.7-1.4ZM19 17c-.5 1.2-.8 1.7-1.4 2.7-.9 1.4-2.2 3.1-3.8 3.1-1.4 0-1.8-.9-3.7-.9s-2.3.9-3.7.9c-1.6 0-2.8-1.6-3.7-3C-.1 16.4-.6 11 1.6 8.2 2.6 6.8 4.3 6 5.9 6c1.5 0 2.5 1 3.7 1 1.2 0 1.9-1 3.7-1 1.3 0 2.7.7 3.7 2-3.2 1.8-2.7 6.4 0 9Z"/></svg>
@@ -157,22 +157,22 @@
     </div>
   </section>
 
-  <!-- RUN AGENTS -->
+  <!-- TERMINAL -->
   <section class="section-tight wrap">
     <div class="grid-2">
       <div data-reveal>
         <p class="eyebrow">Agents in the same window</p>
-        <h2 class="section-title-sm">Run your coding agents in the same place you review them.</h2>
-        <p class="body">Threads for Claude&nbsp;Code, Codex, OpenCode, and Grok, driven through the CLIs you already installed and pay for. Permission modes, model favorites, image attachments. Threads persist and keep working while you read. Parallel agents land in worktrees; the Review inbox shows every checkout waiting for you.</p>
+        <h2 class="section-title-sm">Run your agents where they already run.</h2>
+        <p class="body">A real terminal sits next to the review surfaces. Start Claude&nbsp;Code, Codex, or whatever you use, and read the result without leaving the window. Sessions live on the daemon, so they survive reloads and reconnects and follow you to any browser.</p>
         <ul class="ticks">
           <li>Your subscriptions, your CLIs. No second auth stack</li>
-          <li>Threads survive reloads; worktree-per-thread when you need isolation</li>
-          <li>Session strip: tools, plan, files, usage. Hand off to Changes when ready</li>
+          <li>PTYs survive reconnects; pick one back up from any device</li>
+          <li>Saved Actions your agent curates and only you run</li>
         </ul>
       </div>
       <div data-reveal>
         <div class="shot-frame shot-frame-sm">
-          <img src="images/feat-agent.png" alt="Agent thread inside Porcelain with session companion" loading="lazy" />
+          <img src="images/feat-terminal.png" alt="Embedded terminal in Porcelain with saved Actions" loading="lazy" />
         </div>
       </div>
     </div>
@@ -218,7 +218,7 @@
       </div>
     </div>
 
-    <div class="grid-2" style="margin-bottom:48px;">
+    <div class="grid-2">
       <div data-reveal>
         <p class="eyebrow">A board your agent drives</p>
         <h2 class="section-title-sm">Plan in the same window you ship from.</h2>
@@ -233,24 +233,6 @@
         <div class="shot-frame shot-frame-sm">
           <img src="images/feat-board.png" alt="Project board with To Do, Doing, and Done columns" loading="lazy" />
         </div>
-      </div>
-    </div>
-
-    <div class="grid-2">
-      <div data-reveal class="shot-first">
-        <div class="shot-frame shot-frame-sm">
-          <img src="images/feat-chat.png" alt="Agent chat relay with multi-agent messages and Coordination claims showing which files each agent is working on" loading="lazy" />
-        </div>
-      </div>
-      <div data-reveal>
-        <p class="eyebrow">Agent chat</p>
-        <h2 class="section-title-sm">Many agents, one thread. Files in the open.</h2>
-        <p class="body">Agents from the same provider or different ones post into a shared relay (and so can you). Each claim lists the files they are working on. When two agents touch the same path, overlaps show up so you can sort it out in the thread before anything collides.</p>
-        <ul class="ticks">
-          <li>Claude Code, Codex, OpenCode, Grok, or mixed</li>
-          <li>Live claims: who owns which files right now</li>
-          <li>Advisory overlaps; resolve the conflict in chat</li>
-        </ul>
       </div>
     </div>
   </section>
@@ -310,7 +292,7 @@
   <section class="section wrap-wide wrap" id="toolkit">
     <div class="sec-head" data-reveal>
       <p class="eyebrow">Also in the window</p>
-      <h2 class="section-title">Terminal, search, history.<br>Not an IDE.</h2>
+      <h2 class="section-title">Search and history.<br>Not an IDE.</h2>
       <p class="lead">Quick single-file edits are fine. Autocomplete, rename, and multi-file refactors stay in your real editor.</p>
     </div>
     <div class="gallery-grid">
@@ -330,15 +312,6 @@
         <div class="card-pad">
           <div style="font-family:var(--mono);font-size:14px;margin-bottom:8px;">Git history</div>
           <p class="pillar-body">Full messages, then open the diff behind any commit.</p>
-        </div>
-      </div>
-      <div class="card gallery-full" data-reveal>
-        <div style="border-bottom:1px solid var(--line);overflow:hidden;">
-          <img src="images/feat-terminal.png" alt="Embedded terminal with saved Actions" loading="lazy" />
-        </div>
-        <div class="card-pad">
-          <div style="font-family:var(--mono);font-size:14px;margin-bottom:8px;">Terminal &amp; Actions</div>
-          <p class="pillar-body">Real PTYs that survive reconnects. Saved Actions the agent can curate; only you run them.</p>
         </div>
       </div>
     </div>
@@ -369,7 +342,6 @@
           <div><span class="prompt">$</span> npx skills add FabioFiorita/porcelain</div>
           <div class="hint">Claude Code · Codex · OpenCode · Grok</div>
         </div>
-        <p class="meta" style="margin-top:14px;">Provider status lives in Settings → Agents.</p>
       </div>
       <div class="card card-pad-lg" data-reveal>
         <p class="install-step">Or skip both</p>
@@ -403,7 +375,7 @@
           <img src="images/logo.png" alt="" width="26" height="26" />
           <span class="brand-name">porcelain</span>
         </div>
-        <p class="pillar-body">Where agent work becomes trusted work. The hub for agentic coding, for people who still read code.</p>
+        <p class="pillar-body">Where agent work becomes trusted work. The review layer for agentic coding, for people who still read code.</p>
         <p class="meta" style="margin-top:16px;">© <span id="y"></span> Fabio Fiorita · MIT</p>
       </div>
       <div>

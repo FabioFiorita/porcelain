@@ -2,22 +2,18 @@ import type { BoardCard } from '@backend/board-store'
 import type { FeatureReading } from '@backend/feature-view'
 import type { FlowGroup } from '@backend/flow'
 import type { InboxRow } from '@backend/worktree-inbox'
-import { useAgentThreads } from '@renderer/hooks/use-agents'
 import { useBoardCards } from '@renderer/hooks/use-board'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'
 import { useWorktreeInbox } from '@renderer/hooks/use-worktrees'
-import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
-import type { ThreadInfo } from '@shared/agent-protocol'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { GlanceHome } from './glance-home'
 
 // Same convention as changes-list/feature-list: mock the domain hooks, never the
 // tRPC proxy. Each returns exactly the shape its real query hands back.
-vi.mock('@renderer/hooks/use-agents', () => ({ useAgentThreads: vi.fn() }))
 vi.mock('@renderer/hooks/use-worktrees', () => ({ useWorktreeInbox: vi.fn() }))
 vi.mock('@renderer/hooks/use-git-flow', () => ({ useGitFlow: vi.fn() }))
 vi.mock('@renderer/hooks/use-feature-reading', () => ({ useFeatureReading: vi.fn() }))
@@ -25,23 +21,10 @@ vi.mock('@renderer/hooks/use-board', () => ({ useBoardCards: vi.fn() }))
 
 const switchToSpy = vi.fn(async () => {})
 
-const thread = (over: Partial<ThreadInfo> & { id: string; title: string }): ThreadInfo => ({
-  repoPath: '/repo',
-  provider: 'claude',
-  model: 'sonnet',
-  mode: 'full',
-  status: 'idle',
-  createdAt: 0,
-  updatedAt: 0,
-  ...over,
-})
-
 const inboxRow: InboxRow = {
   path: '/repo-worktrees/fix-nav',
   branch: 'fix-nav',
   changedCount: 4,
-  workingThreads: 0,
-  idleThreads: 1,
   hasReview: true,
 }
 
@@ -71,7 +54,6 @@ const card = (over: Partial<BoardCard> & { id: string; title: string }): BoardCa
 
 /** Reset every mock to a fully empty repo; tests layer their data on top. */
 function mockEmpty(): void {
-  vi.mocked(useAgentThreads).mockReturnValue([])
   vi.mocked(useWorktreeInbox).mockReturnValue([])
   vi.mocked(useGitFlow).mockReturnValue({ groups: [], refresh: async () => {} })
   vi.mocked(useFeatureReading).mockReturnValue({ reading: null, refresh: async () => {} })
@@ -83,31 +65,16 @@ describe('GlanceHome', () => {
     switchToSpy.mockClear()
     useTabsStore.setState({ panes: [{ tabs: [], activeTabId: null }], activePaneIndex: 0 })
     useRepoStore.setState({ repo: { path: '/repo', name: 'repo' }, switchTo: switchToSpy })
-    usePreferencesStore.setState({ archivedAgentThreadIds: [] })
     mockEmpty()
   })
 
-  it('renders thread rows with their status', () => {
-    vi.mocked(useAgentThreads).mockReturnValue([
-      thread({ id: 't1', title: 'Fix the nav', status: 'working' }),
-      thread({ id: 't2', title: 'Polish copy', worktreeBranch: 'copy-pass' }),
-    ])
-    render(<GlanceHome />)
-    expect(screen.getByText('repo')).toBeInTheDocument()
-    expect(screen.getByText('Agent threads')).toBeInTheDocument()
-    expect(screen.getByText('Fix the nav')).toBeInTheDocument()
-    expect(screen.getByText('Polish copy')).toBeInTheDocument()
-    // working → spinner; idle stays quiet (exactly one spinner across both rows)
-    expect(screen.getAllByLabelText('Working')).toHaveLength(1)
-    // the worktree chip on the bound thread
-    expect(screen.getByText('copy-pass')).toBeInTheDocument()
-  })
-
-  it('renders inbox rows and tapping one switches to that worktree', () => {
+  it('renders inbox rows with their changed count, and tapping one switches to that worktree', () => {
     vi.mocked(useWorktreeInbox).mockReturnValue([inboxRow])
     render(<GlanceHome />)
+    expect(screen.getByText('repo')).toBeInTheDocument()
     expect(screen.getByText('Review inbox')).toBeInTheDocument()
     expect(screen.getByLabelText('Review pushed')).toBeInTheDocument()
+    expect(screen.getByText('4')).toBeInTheDocument()
     fireEvent.click(screen.getByText('fix-nav'))
     expect(switchToSpy).toHaveBeenCalledWith('/repo-worktrees/fix-nav')
   })
@@ -150,27 +117,7 @@ describe('GlanceHome', () => {
   it('shows one quiet line when everything is empty', () => {
     render(<GlanceHome />)
     expect(screen.getByText('Nothing in flight')).toBeInTheDocument()
-    expect(screen.queryByText('Agent threads')).not.toBeInTheDocument()
+    expect(screen.queryByText('Review inbox')).not.toBeInTheDocument()
     expect(screen.queryByText('This checkout')).not.toBeInTheDocument()
-  })
-
-  it('tapping a thread opens its agent tab', () => {
-    vi.mocked(useAgentThreads).mockReturnValue([thread({ id: 't1', title: 'Fix the nav' })])
-    render(<GlanceHome />)
-    fireEvent.click(screen.getByText('Fix the nav'))
-    const { tabs } = useTabsStore.getState().panes[0]
-    expect(tabs).toHaveLength(1)
-    expect(tabs[0]).toMatchObject({ id: tabId('agent', 't1'), kind: 'agent', path: 't1' })
-  })
-
-  it('omits archived threads from the work-in-flight list', () => {
-    usePreferencesStore.setState({ archivedAgentThreadIds: ['old'] })
-    vi.mocked(useAgentThreads).mockReturnValue([
-      thread({ id: 'live', title: 'Still going', status: 'working', updatedAt: 2 }),
-      thread({ id: 'old', title: 'Archived already', updatedAt: 1 }),
-    ])
-    render(<GlanceHome />)
-    expect(screen.getByText('Still going')).toBeInTheDocument()
-    expect(screen.queryByText('Archived already')).not.toBeInTheDocument()
   })
 })

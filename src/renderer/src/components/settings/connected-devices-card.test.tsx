@@ -18,7 +18,6 @@ const device = (over: Partial<ConnectedDevices['devices'][number]> = {}) => ({
   lastSeenAt: Date.now(),
   connections: 0,
   terminals: 0,
-  threads: 0,
   ...over,
 })
 
@@ -30,14 +29,23 @@ beforeEach(() => {
 describe('ConnectedDevicesCard', () => {
   it('says what a connected device is doing, not just that it is here', () => {
     devicesMock.mockReturnValue({
-      devices: [device({ connections: 1, terminals: 2, threads: 1, repo: '~/code/porcelain' })],
+      devices: [device({ connections: 1, terminals: 2, repo: '~/code/porcelain' })],
       sharedTokenConnections: 0,
     })
     render(<ConnectedDevicesCard />)
     expect(screen.getByText('Safari on iPad')).toBeTruthy()
-    expect(
-      screen.getByText('Connected · 2 terminals · 1 agent thread · ~/code/porcelain'),
-    ).toBeTruthy()
+    expect(screen.getByText('Connected · 2 terminals · ~/code/porcelain')).toBeTruthy()
+  })
+
+  // A device can be connected and doing nothing nameable yet; the summary must stop at
+  // "Connected" rather than trailing a separator into an empty activity part.
+  it('reads as bare "Connected" when there is no activity to report', () => {
+    devicesMock.mockReturnValue({
+      devices: [device({ connections: 1 })],
+      sharedTokenConnections: 0,
+    })
+    render(<ConnectedDevicesCard />)
+    expect(screen.getByText('Connected')).toBeTruthy()
   })
 
   it('falls back to last seen for a paired but disconnected device', () => {

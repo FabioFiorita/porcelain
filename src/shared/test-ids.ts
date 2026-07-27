@@ -6,7 +6,7 @@
  * the product for humans and a11y tooling; tests do not depend on copy that
  * churns with intentional UI work.
  *
- * Naming: kebab-case, surface-first (`agent-timeline`, `rail-tab-changes`).
+ * Naming: kebab-case, surface-first (`feature-canvas`, `rail-tab-changes`).
  * Dynamic IDs use a function so both product and e2e share one spelling.
  */
 
@@ -58,8 +58,6 @@ export const TestIds = {
   /** Ship handoff: open Changes (commit home) after review progress. */
   featureCommitChanges: 'feature-commit-changes',
   featureOutlineEvidence: 'feature-outline-evidence',
-  /** Agent-list cue that hands off to the Review sidebar (inbox home). */
-  agentReviewInboxCue: 'agent-review-inbox-cue',
   featureCanvas: 'feature-canvas',
   featureCanvasTab: (tab: 'intent' | 'execution' | 'evidence'): string =>
     `feature-canvas-tab-${tab}`,
@@ -70,39 +68,6 @@ export const TestIds = {
   // --- Commit companion ---
   commitButton: 'commit-button',
   commitGroup: 'commit-group',
-
-  // --- Agent ---
-  agentList: 'agent-list',
-  agentNewThread: 'agent-new-thread',
-  agentProviderMenu: 'agent-provider-menu',
-  agentWorktreeMenuItem: 'agent-worktree-menu-item',
-  agentWorktreeBranch: 'agent-worktree-branch',
-  agentWorktreeCreate: 'agent-worktree-create',
-  agentThreadRow: (id: string): string => `agent-thread-row-${id}`,
-  /** Roster segment filter (`active` | `archived`). */
-  agentThreadFilter: (filter: string): string => `agent-thread-filter-${filter}`,
-  agentComposer: 'agent-composer',
-  agentSend: 'agent-send',
-  agentModeChip: 'agent-mode-chip',
-  /** Permission-mode radio row (`approve` | `auto-edits` | `full`). */
-  agentModeOption: (mode: string): string => `agent-mode-${mode}`,
-  agentInteractionChip: 'agent-interaction-chip',
-  agentInteractionOption: (interaction: string): string => `agent-interaction-${interaction}`,
-  agentTimeline: 'agent-timeline',
-  agentPlan: 'agent-plan',
-  agentPlanProgress: 'agent-plan-progress',
-  agentTool: (title: string): string =>
-    `agent-tool-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
-  agentApproval: 'agent-approval',
-  agentApprovalAccept: 'agent-approval-accept',
-  agentApprovalStatus: 'agent-approval-status',
-  agentSessionStrip: 'agent-session-strip',
-  agentSessionStatus: 'agent-session-status',
-  agentSessionCompanion: 'agent-session-companion',
-  agentSessionCompanionStatus: 'agent-session-companion-status',
-  agentUsageLastTurn: 'agent-usage-last-turn',
-  agentUserBubble: 'agent-user-bubble',
-  agentAssistantMessage: 'agent-assistant-message',
 
   // --- Terminal ---
   terminalNew: 'terminal-new',

@@ -13,7 +13,7 @@ type Utils = ReturnType<typeof trpc.useUtils>
 type ShellUtils = ReturnType<typeof shellTrpc.useUtils>
 
 // The renderer's push inbox, fed by TWO sources since the daemon split: the
-// daemon's WS session (agent-channel refreshes + the watcher events, via
+// daemon's WS session (CLI agent-push refreshes + the watcher events, via
 // lib/daemon.ts) and the tiny Electron shell-event channel (Cmd+W close-tab,
 // updater status — `window.porcelain.onShellEvent`). One handler serves both
 // under one union type so an event can't fall between the transports.
@@ -82,9 +82,6 @@ function handle(
         utils.loopEvidence.invalidate(),
         utils.loopEvidenceHtml.invalidate(),
       ])
-    case 'chat':
-      // an agent (or human) posted to the agent-chat relay via the CLI
-      return utils.chatMessages.invalidate()
     case 'working-tree':
       // a watched file changed on disk outside the app (most often the coding
       // agent editing in the terminal) — re-read the open documents and diffs so
@@ -94,10 +91,6 @@ function handle(
         utils.previewHtml.invalidate(),
         utils.gitDiffFile.invalidate(),
       ])
-    case 'agent-threads':
-      // the Agent thread roster changed (create/rename/delete, or a status/model
-      // flip) — refresh the roster query. (Phase E fills in the rest of the tab.)
-      return utils.agentThreads.invalidate()
     case 'file-tree':
       // a watched dir changed on disk outside the app (the coding agent adding or
       // removing files in the terminal) — refresh the lazy tree rows, the pinned

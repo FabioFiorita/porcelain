@@ -5,15 +5,6 @@ import { initTRPC } from '@trpc/server'
 import trash from 'trash'
 import { z } from 'zod'
 import {
-  agentInteractionSchema,
-  agentModeSchema,
-  agentProviderSchema,
-  type ExternalSession,
-  type ProviderStatus,
-  type ThreadInfo,
-  threadOptionsSchema,
-} from '../shared/agent-protocol'
-import {
   type Action,
   addAction,
   deleteAction,
@@ -21,18 +12,6 @@ import {
   readActions,
   updateAction,
 } from './actions-store'
-import {
-  agentCommands,
-  createThread,
-  deleteThread,
-  importExternalSession,
-  listExternalSessions,
-  listThreads,
-  providerStatuses,
-  renameThread,
-  updateThread,
-} from './agents/agent-manager'
-import type { AgentCommand } from './agents/types'
 import {
   addCard,
   type BoardCard,
@@ -44,12 +23,6 @@ import {
   updateCard,
 } from './board-store'
 import { type BrowseResult, browseDirs } from './browse'
-import {
-  type ChatMessage,
-  clearMessages as clearChatMessages,
-  postMessage as postChatMessage,
-  readMessages as readChatMessages,
-} from './chat-store'
 import {
   addComment,
   clearResolvedComments,
@@ -137,11 +110,7 @@ import { exceedsReadLimit } from './read-limits'
 import {
   hiddenPathsFor,
   pinnedPathsFor,
-  resolveCreationDefaults,
-  toggleModelFavorite,
   visibleFilePaths,
-  withAgentDefaults,
-  withAgentProviderCache,
   withHiddenPath,
   withoutHiddenPath,
   withoutPinnedPath,
@@ -209,37 +178,6 @@ export type FileView =
   | { type: 'not-found' }
 
 const toRepoInfo = (path: string): RepoInfo => ({ path, name: basename(path) })
-
-// Probing each provider CLI's status shells out (or will, once the drivers land), so
-// cache the roster of statuses for a short TTL — the model picker polls it and doesn't
-// need per-keystroke freshness.
-const PROVIDER_STATUS_TTL_MS = 30_000
-let providerStatusCache: { at: number; value: ProviderStatus[] } | null = null
-
-// Stale-while-revalidate for agentProviders across launches: a single background re-probe
-// refreshes both the in-memory cache and the persisted `agentProviderCache`. The in-flight
-// flag stops a burst of first-open queries from stampeding the CLI probe.
-let providerReprobeInFlight = false
-async function reprobeProviders(): Promise<void> {
-  if (providerReprobeInFlight) return
-  providerReprobeInFlight = true
-  try {
-    const value = await providerStatuses()
-    providerStatusCache = { at: Date.now(), value }
-    await updateConfig((c) => withAgentProviderCache(c, value))
-  } finally {
-    providerReprobeInFlight = false
-  }
-}
-function kickProviderReprobe(): void {
-  // Fire-and-forget: the persisted cache is already serving this request; errors are
-  // swallowed so a failed re-probe just leaves the stale value in place.
-  reprobeProviders().catch(() => {})
-}
-
-// Slash-command lists are scanned from disk per (repo, provider); cache them for the same
-// short TTL so the composer's command menu doesn't re-walk the filesystem per keystroke.
-const agentCommandsCache = new Map<string, { at: number; value: AgentCommand[] }>()
 
 function isValidPattern(pattern: string): boolean {
   try {
@@ -514,7 +452,6 @@ export interface ConnectedDevice extends DeviceInfo {
   connections: number
   repo?: string
   terminals: number
-  threads: number
 }
 
 export interface ConnectedDevices {
@@ -569,7 +506,6 @@ export const router = t.router({
           connections: own.length,
           repo: own.find((session) => session.repo !== undefined)?.repo,
           terminals: own.reduce((total, session) => total + session.terminals, 0),
-          threads: own.reduce((total, session) => total + session.threads, 0),
         }
       }),
       sharedTokenConnections: sessions.filter((session) => session.deviceId === null).length,
@@ -578,12 +514,12 @@ export const router = t.router({
 
   // Cutting a device off has to do BOTH: drop the credential so nothing new authenticates,
   // and close the sockets that already did (the gate runs at upgrade time, so a live
-  // session would otherwise keep streaming). The device's PTYs and threads live on.
+  // session would otherwise keep streaming). The device's PTYs live on.
   revokeDevice: t.procedure.input(z.string()).mutation(async ({ input }): Promise<void> => {
     // Close FIRST. `revokeDevice` drops the credential from memory and then awaits the
     // disk write; if that write fails, awaiting it before closing would leave the revoked
-    // device's live socket streaming terminals and agent turns (audit 2b(e)). An unknown
-    // id closes nothing, so this is safe to call unconditionally.
+    // device's live socket streaming terminals (audit 2b(e)). An unknown id closes
+    // nothing, so this is safe to call unconditionally.
     closeSessionsForDevice(input)
     await revokeDevice(input)
   }),
@@ -1189,40 +1125,6 @@ export const router = t.router({
     .input(z.object({ repoPath: z.string(), status: z.enum(CARD_STATUSES) }))
     .mutation(({ input }) => clearCards(input.repoPath, input.status)),
 
-  // Agent chat — relay messages between agents (and the human) on this daemon host,
-  // stored in ~/.porcelain/chat.json. Local↔remote collab needs the same host as the
-  // hub (or the porcelain-companion chat reference SSH path); see the companion skill.
-  chatMessages: t.procedure
-    .input(z.string())
-    .query(({ input }): Promise<ChatMessage[]> => readChatMessages(input)),
-
-  postChatMessage: t.procedure
-    .input(
-      z.object({
-        repoPath: z.string(),
-        from: z.string().trim().min(1),
-        body: z.string().trim().min(1),
-        // Coordination claim fields (optional). Trimmed + capped to match chat-store's schema.
-        files: z.array(z.string().trim().min(1)).max(50).optional(),
-        intent: z.string().trim().max(280).optional(),
-        closes: z.boolean().optional(),
-      }),
-    )
-    .mutation(
-      ({ input }): Promise<ChatMessage> =>
-        postChatMessage(input.repoPath, {
-          from: input.from,
-          body: input.body,
-          files: input.files,
-          intent: input.intent,
-          closes: input.closes,
-        }),
-    ),
-
-  clearChatMessages: t.procedure
-    .input(z.object({ repoPath: z.string() }))
-    .mutation(({ input }) => clearChatMessages(input.repoPath)),
-
   // Saved actions — named commands the human runs in the embedded terminal with one
   // click, stored in ~/.porcelain/actions.json (see `actions-store.ts`); a two-way
   // channel the agent reads (`actions list`) and curates (`actions create/update/delete`)
@@ -1557,192 +1459,6 @@ export const router = t.router({
     .input(z.object({ id: z.string(), name: z.string() }))
     .mutation(({ input }) => {
       renameTerminal(input.id, input.name)
-    }),
-
-  // The daemon-owned Agent thread roster for a repo — like the terminal roster, the
-  // renderer hydrates its Agent list from this and re-reads it on the `agent-threads`
-  // app event. Turn streaming + approvals ride the WS session; the roster is plain
-  // request/response, so it lives here.
-  agentThreads: t.procedure
-    .input(z.object({ repoPath: z.string() }))
-    .query(({ input }): Promise<ThreadInfo[]> => listThreads(input.repoPath)),
-
-  // Create a thread. Every field except repoPath is optional: whatever the caller omits is
-  // filled from the chosen provider's remembered defaults — model, access mode, effort/
-  // context options, and Build/Plan interaction — so a bare "+" reopens the last-used
-  // provider exactly how it was left, and an explicit-provider pick inherits THAT provider's
-  // defaults (see resolveCreationDefaults). A create resolving to a non-empty model records
-  // the resolved config as that provider's new defaults.
-  createAgentThread: t.procedure
-    .input(
-      z.object({
-        repoPath: z.string(),
-        provider: agentProviderSchema.optional(),
-        model: z.string().optional(),
-        mode: agentModeSchema.optional(),
-        options: threadOptionsSchema.optional(),
-        // The branch of the worktree this thread is bound to, when created into a fresh
-        // worktree (repoPath IS that worktree's path). Absent for a plain in-repo thread.
-        worktreeBranch: z.string().optional(),
-      }),
-    )
-    .mutation(async ({ input }): Promise<ThreadInfo> => {
-      const config = await loadConfig()
-      const resolved = resolveCreationDefaults(config, input.repoPath, {
-        provider: input.provider,
-        model: input.model,
-        mode: input.mode,
-        options: input.options,
-      })
-      if (resolved.model !== '') {
-        await updateConfig((c) =>
-          withAgentDefaults(c, input.repoPath, resolved.provider, {
-            model: resolved.model,
-            mode: resolved.mode,
-            ...(resolved.options !== undefined ? { options: resolved.options } : {}),
-            ...(resolved.interaction !== undefined ? { interaction: resolved.interaction } : {}),
-          }),
-        )
-      }
-      return createThread({
-        repoPath: input.repoPath,
-        provider: resolved.provider,
-        model: resolved.model,
-        mode: resolved.mode,
-        ...(resolved.options !== undefined ? { options: resolved.options } : {}),
-        ...(resolved.interaction !== undefined ? { interaction: resolved.interaction } : {}),
-        ...(input.worktreeBranch !== undefined ? { worktreeBranch: input.worktreeBranch } : {}),
-      })
-    }),
-
-  renameAgentThread: t.procedure
-    .input(z.object({ id: z.string(), title: z.string().min(1) }))
-    .mutation(({ input }) => renameThread(input.id, input.title)),
-
-  updateAgentThread: t.procedure
-    .input(
-      z.object({
-        id: z.string(),
-        model: z.string().optional(),
-        mode: agentModeSchema.optional(),
-        provider: agentProviderSchema.optional(),
-        interaction: agentInteractionSchema.optional(),
-        options: threadOptionsSchema.optional(),
-      }),
-    )
-    .mutation(async ({ input }) => {
-      const updated = await updateThread(input.id, {
-        model: input.model,
-        mode: input.mode,
-        provider: input.provider,
-        interaction: input.interaction,
-        options: input.options,
-      })
-      // Whenever the switch touched any remembered field (model/mode/interaction/options —
-      // not just the model), record the thread's resulting config as that provider's
-      // defaults for THIS repo (the provider may have followed the model), so the next new
-      // thread for this provider in the same project resumes exactly how it was left.
-      if (
-        updated &&
-        (input.model !== undefined ||
-          input.mode !== undefined ||
-          input.interaction !== undefined ||
-          input.options !== undefined)
-      ) {
-        await updateConfig((c) =>
-          withAgentDefaults(c, updated.repoPath, updated.provider, {
-            model: updated.model,
-            mode: updated.mode,
-            ...(updated.interaction !== undefined ? { interaction: updated.interaction } : {}),
-            ...(updated.options !== undefined ? { options: updated.options } : {}),
-          }),
-        )
-      }
-    }),
-
-  deleteAgentThread: t.procedure
-    .input(z.object({ id: z.string() }))
-    .mutation(({ input }) => deleteThread(input.id)),
-
-  // Recent on-disk CLI sessions for the repo (Grok/Claude/Codex/OpenCode) that can be
-  // opened as Agent threads. Sessions already imported carry `threadId` so the UI reopens
-  // instead of duplicating. Not cached — the store is local and the scan is cheap enough.
-  agentExternalSessions: t.procedure
-    .input(
-      z.object({ repoPath: z.string(), limit: z.number().int().positive().max(100).optional() }),
-    )
-    .query(
-      ({ input }): Promise<ExternalSession[]> => listExternalSessions(input.repoPath, input.limit),
-    ),
-
-  // Import a CLI session into a Porcelain thread (or return the existing one if already
-  // linked). The transcript becomes the timeline; the next send resumes that CLI session.
-  importAgentSession: t.procedure
-    .input(
-      z.object({
-        repoPath: z.string(),
-        provider: agentProviderSchema,
-        externalId: z.string().min(1),
-      }),
-    )
-    .mutation(async ({ input }): Promise<ThreadInfo> => {
-      const thread = await importExternalSession(input.repoPath, input.provider, input.externalId)
-      if (thread === null) {
-        throw new Error(
-          `Could not import ${input.provider} session ${input.externalId} for this repo.`,
-        )
-      }
-      return thread
-    }),
-
-  // Install/auth state + model catalog per provider, probed from the installed CLIs
-  // (tolerant of a missing one — see providerStatuses). Cached 30s (see the TTL above).
-  agentProviders: t.procedure.query(async (): Promise<ProviderStatus[]> => {
-    const now = Date.now()
-    if (providerStatusCache && now - providerStatusCache.at < PROVIDER_STATUS_TTL_MS) {
-      return providerStatusCache.value
-    }
-    // Stale-while-revalidate across launches: a persisted probe returns instantly (so the
-    // model picker's favorites render on first open) while a single background re-probe
-    // refreshes both caches. With nothing persisted, probe inline as before and store it.
-    const config = await loadConfig()
-    if (config.agentProviderCache) {
-      kickProviderReprobe()
-      providerStatusCache = { at: now, value: config.agentProviderCache }
-      return config.agentProviderCache
-    }
-    const value = await providerStatuses()
-    providerStatusCache = { at: now, value }
-    await updateConfig((c) => withAgentProviderCache(c, value))
-    return value
-  }),
-
-  // The custom slash commands a provider's CLI exposes for a repo (scanned from its command
-  // `.md` files). Cached 30s per (repo, provider) like agentProviders.
-  agentCommands: t.procedure
-    .input(z.object({ repoPath: z.string(), provider: agentProviderSchema }))
-    .query(async ({ input }): Promise<AgentCommand[]> => {
-      const key = `${input.provider}:${input.repoPath}`
-      const cached = agentCommandsCache.get(key)
-      const now = Date.now()
-      if (cached && now - cached.at < PROVIDER_STATUS_TTL_MS) return cached.value
-      const value = await agentCommands(input.repoPath, input.provider)
-      agentCommandsCache.set(key, { at: now, value })
-      return value
-    }),
-
-  // The Agent tab's favorited models (`provider:modelId` keys), stored global in the
-  // daemon config so they follow the user to the iPad/browser client.
-  agentModelFavorites: t.procedure.query(async (): Promise<string[]> => {
-    const config = await loadConfig()
-    return config.agentModelFavorites ?? []
-  }),
-
-  toggleAgentModelFavorite: t.procedure
-    .input(z.object({ key: z.string() }))
-    .mutation(async ({ input }): Promise<string[]> => {
-      const updated = await updateConfig((config) => toggleModelFavorite(config, input.key))
-      return updated.agentModelFavorites ?? []
     }),
 })
 

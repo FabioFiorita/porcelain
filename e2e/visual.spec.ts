@@ -18,14 +18,19 @@ test('changes tab', async ({ page }) => {
   await expect(page).toHaveScreenshot('changes-tab.png')
 })
 
+// The rail is exactly these seven, in this order — the ⌘1–7 contract.
+const RAIL_TABS = ['files', 'changes', 'feature', 'history', 'search', 'board', 'terminal']
+
 // Element-scoped baseline for the icon rail. Framing just the rail makes a tab
 // restyle fail where full-page 2% tolerance would swallow it.
 test('sidebar icon rail', async ({ page }) => {
   await waitForShell(page)
   const rail = loc.rail(page)
-  await expect(loc.railTab(page, 'chat')).toBeVisible()
-  await expect(loc.railTab(page, 'agent')).toBeVisible()
-  await expect(loc.railTab(page, 'feature')).toBeVisible()
+  for (const tab of RAIL_TABS) {
+    await expect(loc.railTab(page, tab)).toBeVisible()
+  }
+  // Count too: a tab coming back would still pass the per-id loop above.
+  await expect(loc.railTabs(page)).toHaveCount(RAIL_TABS.length)
   await expect(rail).toHaveScreenshot('sidebar-rail.png')
 })
 

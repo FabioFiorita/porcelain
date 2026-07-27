@@ -11,19 +11,19 @@ import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { TestIds } from '@shared/test-ids'
-import { GitBranch, Loader2, SquareArrowOutUpRight } from 'lucide-react'
+import { GitBranch, SquareArrowOutUpRight } from 'lucide-react'
 
-/** "N changed files · M threads · review pushed/none" — the row's tooltip detail. */
+/** "N changed files · review pushed/none" — the row's tooltip detail. Spells out both
+ *  signals a row is built from (assembleWorktreeInbox); the row itself shows only the
+ *  count badge and a dot. */
 function inboxSummary(row: InboxRow): string {
-  const threads = row.workingThreads + row.idleThreads
   const files = `${row.changedCount} changed file${row.changedCount === 1 ? '' : 's'}`
-  const threadLabel = `${threads} thread${threads === 1 ? '' : 's'}`
-  return `${files} · ${threadLabel} · review ${row.hasReview ? 'pushed' : 'none'}`
+  return `${files} · review ${row.hasReview ? 'pushed' : 'none'}`
 }
 
 /** One inbox row: click switches THIS window to that worktree (in place, via switchTo —
  *  the same call the worktree-switcher rows make), landing on its Review. Trailing
- *  open-in-new-window keeps this window (and its agent threads) put — shell only. */
+ *  open-in-new-window keeps this window put — shell only. */
 function InboxRowButton({ row }: { row: InboxRow }): React.JSX.Element {
   const switchTo = useRepoStore((s) => s.switchTo)
   const newWindow = useNewWindow()
@@ -53,16 +53,9 @@ function InboxRowButton({ row }: { row: InboxRow }): React.JSX.Element {
                   className="size-1.5 shrink-0 rounded-full bg-info"
                 />
               )}
-              {row.workingThreads > 0 ? (
-                <Loader2
-                  className="size-3.5 shrink-0 animate-spin text-muted-foreground"
-                  aria-label="Working"
-                />
-              ) : (
-                <span className="shrink-0 text-2xs tabular-nums text-muted-foreground/60">
-                  {row.changedCount}
-                </span>
-              )}
+              <span className="shrink-0 text-2xs tabular-nums text-muted-foreground/60">
+                {row.changedCount}
+              </span>
             </button>
             {!isBrowser && (
               <button
@@ -95,10 +88,10 @@ function InboxRowButton({ row }: { row: InboxRow }): React.JSX.Element {
 }
 
 /**
- * The Review inbox: from this checkout, every OTHER worktree of the family that has agent
- * work awaiting review (a changed-file count, live/idle threads, or a pushed Review). One
- * click switches this window there — the cross-worktree surface that lets per-worktree
- * thread scoping stay strict. Renders nothing until the inbox has rows.
+ * The Review inbox: from this checkout, every OTHER worktree of the family that has work
+ * awaiting review (a changed-file count or a pushed Review). One click switches this
+ * window there — the cross-worktree surface that keeps sibling branches from going
+ * unnoticed while you work in one. Renders nothing until the inbox has rows.
  */
 export function ReviewInbox(): React.JSX.Element | null {
   const rows = useWorktreeInbox()

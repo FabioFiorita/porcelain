@@ -74,8 +74,6 @@ describe('WorktreeSwitcher', () => {
         path: '/Users/me/code/app-feature',
         branch: 'feature',
         changedCount: 3,
-        workingThreads: 0,
-        idleThreads: 0,
         hasReview: true,
       },
     ]

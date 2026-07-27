@@ -1,6 +1,4 @@
-import { AgentsQuickAccess } from '@renderer/components/agent/agents-quick-access'
 import { BoardQuickAccess } from '@renderer/components/board/board-quick-access'
-import { ChatQuickAccess } from '@renderer/components/chat/chat-quick-access'
 import { ActionsGroup } from '@renderer/components/terminal/actions-group'
 import { Sidebar, SidebarContent, SidebarHeader, useSidebar } from '@renderer/components/ui/sidebar'
 import { type SidebarTab, usePreferencesStore } from '@renderer/stores/preferences'
@@ -25,10 +23,8 @@ const COMPANION_TITLES: Record<SidebarTab, string> = {
   // Review companion — not a git clone (P7 / U5).
   feature: 'Now reading',
   board: 'Focus',
-  chat: 'Coordination',
   terminal: 'Actions',
   search: 'Recent searches',
-  agent: 'Session',
 }
 
 // Sections follow the left sidebar's active tab. Board Focus is the selected
@@ -65,10 +61,8 @@ export function RightSidebar(): React.JSX.Element {
         {sidebarTab === 'feature' && <ReviewGroup />}
         {sidebarTab === 'changes' && <CommitGroup />}
         {(sidebarTab === 'changes' || sidebarTab === 'feature') && <CommentsGroup />}
-        {sidebarTab === 'chat' && <ChatQuickAccess />}
         {sidebarTab === 'terminal' && <ActionsGroup />}
         {sidebarTab === 'search' && <SearchQuickAccess />}
-        {sidebarTab === 'agent' && <AgentsQuickAccess />}
       </SidebarContent>
     </Sidebar>
   )

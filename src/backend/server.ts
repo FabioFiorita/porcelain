@@ -1,5 +1,4 @@
 import { createHash } from 'node:crypto'
-import { flushAllThreads } from './agents/agent-manager'
 import { router } from './api'
 import { subscribeAppEvents } from './app-events'
 import { ensureCli } from './cli-install'
@@ -8,7 +7,6 @@ import { createDaemonHttp } from './daemon-http'
 import { seedDevConfig } from './dev-config'
 import { flushDevices, loadDevices, matchDevice, registerDevice } from './devices'
 import { migrateLayersFromConfig } from './layers-store'
-import { resolveLoginShellPath } from './login-shell-env'
 import { migrateNotesFromConfig } from './notes-store'
 import { pendingPairing, redeemPairing } from './pairing'
 import { watchAgentChannels } from './review-watch'
@@ -67,17 +65,14 @@ if (userData === undefined || userData === '') {
 }
 initConfigDir(userData)
 
-// The single daemon shutdown path. Agent turn events persist on a ~500ms trailing debounce,
-// so a bare exit could drop the last un-written slice of a timeline — flush every thread
-// first (best-effort), THEN exit. `process.exit(0)` fires 'exit' handlers, which is what
-// reaps the opencode child servers (opencode.ts registers `process.on('exit')`), so every
-// shutdown route (SIGTERM from the shell's utilityProcess.kill, SIGINT at a TTY, or the
-// stdin-EOF watchdog) converges here and both flushes threads and reaps children.
+// The single daemon shutdown path. Some daemon state is held in memory and written lazily,
+// so a bare exit could drop it — flush first (best-effort), THEN exit. Every shutdown route
+// (SIGTERM from the shell's utilityProcess.kill, SIGINT at a TTY, or the stdin-EOF watchdog)
+// converges here so there is exactly one place that has to remember to do it.
 let shuttingDown = false
 async function shutdown(): Promise<void> {
   if (shuttingDown) return
   shuttingDown = true
-  await flushAllThreads()
   // `lastSeenAt` is stamped in memory and flushed at most once a minute — write the
   // pending stamp out so the roster doesn't lose the last minute on every restart.
   await flushDevices()
@@ -85,7 +80,7 @@ async function shutdown(): Promise<void> {
 }
 // utilityProcess.kill() (the shell's teardown) sends SIGTERM; a standalone `node` daemon at
 // a TTY gets SIGINT. Registering a listener suppresses the default terminate, so we must exit
-// ourselves (shutdown does — and it can't reject, flushAllThreads is best-effort).
+// ourselves (shutdown does — and it can't reject, flushDevices is best-effort).
 process.on('SIGTERM', () => shutdown().catch(() => process.exit(0)))
 process.on('SIGINT', () => shutdown().catch(() => process.exit(0)))
 
@@ -206,11 +201,6 @@ async function main(): Promise<void> {
   await watchAgentChannels()
   subscribeAppEvents(broadcastAppEvent)
 
-  // Prewarm the login-shell PATH resolution (login-shell-env.ts) so the first agent turn
-  // doesn't pay the shell-startup latency. Fire-and-forget — a failed probe just leaves the
-  // drivers on the plain scrubbed env (same accepted pattern as api.ts's provider reprobe).
-  resolveLoginShellPath().catch(() => {})
-
   // Port 0 = OS-assigned (the default); PORCELAIN_DAEMON_PORT pins it (e2e/debugging).
   const requestedPort = Number(process.env.PORCELAIN_DAEMON_PORT ?? '') || 0
   daemon.server.listen(requestedPort, '127.0.0.1', () => {
@@ -245,7 +235,7 @@ async function main(): Promise<void> {
   // so the shell (which never sets it) keeps the orphan protection.
   if (process.env.PORCELAIN_NO_STDIN_WATCHDOG !== '1') {
     process.stdin.resume()
-    // Flush threads before exiting on parent death too (same shutdown path as the signals).
+    // Parent death takes the same shutdown path as the signals, so it flushes too.
     process.stdin.on('end', () => shutdown().catch(() => process.exit(0)))
     process.stdin.on('close', () => shutdown().catch(() => process.exit(0)))
     // Companion check: reap orphans whose stdin never EOFs (e.g. a standalone/dev

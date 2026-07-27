@@ -4,7 +4,6 @@ import { basename, dirname } from 'node:path'
 import { actionsPath } from './actions-store'
 import { type AppEvent, emitAppEvent } from './app-events'
 import { boardPath } from './board-store'
-import { chatPath } from './chat-store'
 import { commentsPath } from './comment-store'
 import { evidencePath, loopEvidenceRoot } from './evidence-store'
 import { layersPath } from './layers-store'
@@ -13,8 +12,8 @@ import { reviewSetsPath } from './review-store'
 /**
  * Watch the agent channels in `~/.porcelain` — `review-sets.json` (→ `feature-view`),
  * `comments.json` (→ `comments`), `board.json` (→ `board`), `actions.json`
- * (→ `actions`), `layers.json` (→ `layers`), `evidence.json` + `loop-evidence/`
- * (→ `evidence`), and `chat.json` (→ `chat`) —
+ * (→ `actions`), `layers.json` (→ `layers`), and `evidence.json` + `loop-evidence/`
+ * (→ `evidence`) —
  * and push an app-event when any changes, so an agent write live-refreshes the open
  * view. We watch the DIRECTORY, not the file: writes are atomic (tmp + rename),
  * which replaces the inode and breaks a direct file watch. The paths usually share a
@@ -29,7 +28,6 @@ export async function watchAgentChannels(): Promise<void> {
     { path: actionsPath(), event: 'actions' },
     { path: layersPath(), event: 'layers' },
     { path: evidencePath(), event: 'evidence' },
-    { path: chatPath(), event: 'chat' },
   ]
   const byDir = new Map<string, Map<string, AppEvent>>()
   for (const target of targets) {

@@ -42,7 +42,6 @@ function describeDevice(device: ConnectedDevice): string {
   if (device.connections === 0) return `Last seen ${relativeTime(device.lastSeenAt)}`
   const parts = ['Connected']
   if (device.terminals > 0) parts.push(plural(device.terminals, 'terminal'))
-  if (device.threads > 0) parts.push(plural(device.threads, 'agent thread'))
   if (device.repo !== undefined) parts.push(device.repo)
   return parts.join(' · ')
 }

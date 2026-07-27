@@ -4,7 +4,7 @@
   "groupings": [
     {
       "title": "Porcelain",
-      "description": "One companion skill for the whole hub: Feature Review, board, chat, actions, notes, layers, and environment sync.",
+      "description": "One companion skill for the whole review layer: the Review, board, actions, notes, layers, and environment sync.",
       "skills": ["porcelain-companion"]
     }
   ]

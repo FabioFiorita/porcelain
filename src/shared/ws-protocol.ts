@@ -1,10 +1,4 @@
 import { z } from 'zod'
-import {
-  agentEventSchema,
-  agentStatusSchema,
-  approvalDecisionSchema,
-  timelineItemSchema,
-} from './agent-protocol'
 
 /**
  * The daemon's WS session protocol (`ws://127.0.0.1:<port>/session`) — one socket
@@ -35,12 +29,8 @@ export const appEventSchema = z.enum([
   'actions',
   'layers',
   'evidence',
-  'chat',
   'working-tree',
   'file-tree',
-  // Broadcast when the Agent thread roster changes (create/rename/delete, or a
-  // thread's status/model flips) → the renderer invalidates its roster query.
-  'agent-threads',
 ])
 
 export type AppEvent = z.infer<typeof appEventSchema>
@@ -63,19 +53,6 @@ export const serverMessageSchema = z.discriminatedUnion('t', [
     status: z.enum(['running', 'exited']),
     exitCode: z.number().optional(),
     found: z.boolean(),
-  }),
-  // One live turn event for a thread, fanned out ONLY to senders attached to it.
-  z.object({ t: z.literal('agent:event'), threadId: z.string(), event: agentEventSchema }),
-  // Answers an `agent:attach`; carries the reduced timeline snapshot + current status.
-  // `found=false` (empty items) means the id is unknown to the daemon; it precedes any
-  // subsequent `agent:event` so the client seeds its state before live events follow.
-  z.object({
-    t: z.literal('agent:attached'),
-    reqId: z.string(),
-    threadId: z.string(),
-    found: z.boolean(),
-    items: z.array(timelineItemSchema),
-    status: agentStatusSchema,
   }),
 ])
 
@@ -113,42 +90,6 @@ export const clientMessageSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('terminal:kill'), id: z.string() }),
   z.object({ t: z.literal('watch:files'), paths: z.array(z.string()) }),
   z.object({ t: z.literal('watch:dirs'), paths: z.array(z.string()) }),
-  // Attach to a daemon-owned thread (reconnect, second client, or opening a thread
-  // hydrated from the roster); the daemon replies `agent:attached` with the snapshot.
-  z.object({ t: z.literal('agent:attach'), threadId: z.string(), reqId: z.string() }),
-  // Stop streaming a thread's events to this client (the thread lives on).
-  z.object({ t: z.literal('agent:detach'), threadId: z.string() }),
-  // Start a turn — or, if the thread is already working, APPEND this message to the FIFO
-  // queue to auto-run when the current turn ends. The caps bound an external input: text
-  // length, image count, and each image's base64 size (~10MB) so a hostile socket can't
-  // exhaust daemon memory. `thumbnails` are the renderer-downscaled previews persisted in the
-  // timeline (small: ~256px JPEG); the full `images` go to the CLI live and are never stored.
-  z.object({
-    t: z.literal('agent:send'),
-    threadId: z.string(),
-    text: z.string().max(200_000),
-    images: z
-      .array(z.object({ mediaType: z.string(), base64: z.string().max(10 * 1024 * 1024) }))
-      .max(8)
-      .optional(),
-    thumbnails: z
-      .array(z.object({ mediaType: z.string(), base64: z.string().max(512 * 1024) }))
-      .max(8)
-      .optional(),
-  }),
-  z.object({ t: z.literal('agent:abort'), threadId: z.string() }),
-  // Drop queued message(s) (composer chip ×). `index` removes one; omit to clear the queue.
-  z.object({
-    t: z.literal('agent:cancel-queued'),
-    threadId: z.string(),
-    index: z.number().int().nonnegative().optional(),
-  }),
-  z.object({
-    t: z.literal('agent:approve'),
-    threadId: z.string(),
-    requestId: z.string(),
-    decision: approvalDecisionSchema,
-  }),
 ])
 
 export type ClientMessage = z.infer<typeof clientMessageSchema>

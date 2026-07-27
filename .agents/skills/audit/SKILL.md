@@ -89,7 +89,7 @@ assumed — this skill is the codebase-specific layer beneath them.
   `devices.json` de-authenticates every device** (backed up, treated as empty) rather
   than authenticating a stranger; **(e) revoking closes live sockets too**
   (`closeSessionsForDevice`) — the gate runs at upgrade time, so dropping the credential
-  alone would leave an already-upgraded session streaming terminals and agent turns.
+  alone would leave an already-upgraded session streaming terminal output.
   The shared token deliberately KEEPS working alongside device credentials so existing
   setups don't all have to re-pair; it is simply no longer what pairing hands out, and a
   shared-token client is unattributable in the roster (`deviceId: null`), which the UI
@@ -198,75 +198,6 @@ assumed — this skill is the codebase-specific layer beneath them.
   strip list is testable. *Verify:* a new daemon env var that must not leak is added to
   `DAEMON_ONLY_ENV`; `terminal-env.test.ts` still asserts the token, `RUN_AS_NODE`, and
   `_VOLTA_TOOL_RECURSION` are absent from a spawned env.
-- **Agent drivers spawn the user's CLIs safely — scrubbed env, arg arrays, enumerated
-  binaries.** The Agent tab's drivers (`src/backend/agents/drivers/`) launch the installed
-  `claude`/`codex`/`opencode` CLIs, so they carry the same spawn discipline as PTYs plus a
-  few of their own: (1) every child spawn passes a scrubbed env — now `agentSpawnEnv()`
-  (`login-shell-env.ts`), which is `terminalEnv(process.env)` with the **login-shell-resolved
-  PATH merged in** (login segments first, current appended, deduped) plus **`PORCELAIN=1`**
-  so agent children can detect they're inside Porcelain — deliberately set here, NOT in
-  `terminalEnv` (embedded-terminal PTYs are a plain shell, not an agent session), and it is
-  not a scrubbed var. The daemon token and
-  `ELECTRON_RUN_AS_NODE` must never reach an agent CLI any more than a shell — the merge only
-  touches PATH, never re-adds a scrubbed var. *Why the PATH merge:* a Dock-launched daemon
-  inherits launchd's minimal PATH, so a CLI's own `npx foo` / `node …` / `bun …` MCP servers
-  couldn't resolve (worked in a terminal, failed packaged); `agentSpawnEnv` resolves the
-  login shell's PATH ONCE per daemon lifetime by spawning it non-interactively (`$SHELL -l -c
-  'printf %s "$PATH"'`) — and that resolver's OWN child env is `terminalEnv(process.env)` too,
-  so the user's rc files never see the token. Prewarmed fire-and-forget at daemon startup
-  (`server.ts`). (2)
-  Spawns use **arg arrays** (`spawn`/`execFile`, no shell), never an interpolated shell
-  string. (3) The **binary is resolved from an enumerated set** — an explicit
-  `PORCELAIN_{CLAUDE,CODEX,OPENCODE}_BIN` override, then each `PATH` dir, then hard-coded
-  well-known install locations — the renderer only ever picks a **provider enum + a model
-  string**, NEVER a filesystem path, so no renderer-supplied string reaches the spawn path.
-  The `PATH` those dirs come from is the **merged login PATH** (`agentSpawnEnv`), so a
-  Homebrew-installed CLI is found by PATH like in a terminal — but the hard-coded
-  well-known-paths probe stays the fallback (a GUI-launched daemon can still have a minimal
-  PATH, and the login-shell resolve can fail). (4) Thread files (`~/.porcelain/agent-threads/<id>.json`, `thread-store.ts`) are
-  **zod-validated + size-capped on every read** and return null (drop the thread) on
-  corruption rather than throwing — the daemon is the sole writer, but a corrupt/oversized
-  file still can't break hydration. (5) Timeline writes are **atomic tmp+rename**
-  (`writeThread`). (6) **The Claude subscription OAuth token is read, used once, and never
-  surfaced.** The Claude driver's `limits()` (`claude.ts`) FIRST tries the user-installed
-  **codexbar** CLI (`codexbar.ts` — same spawn discipline: `terminalEnv`, an arg array, an
-  enumerated binary resolution incl. `PORCELAIN_CODEXBAR_BIN`; its stdout is NEVER logged
-  because it carries the account email, and every failure falls back to the native probe). The
-  codexbar path is strictly safer — the OAuth token never enters Porcelain at all (codexbar
-  holds its own auth). When codexbar is absent or returns nothing, it falls through to the
-  native probe: `limits()` replicates the CLI's `GET
-  /api/oauth/usage` to show quota windows, which needs the stored subscription token: it's
-  read lazily (only when the Limits Quick Access group is visible → `agentLimits` is called)
-  from the macOS **Keychain** (`security find-generic-password -s 'Claude Code-credentials'
-  -w`, an arg array — a one-time OS prompt is acceptable) or `~/.claude/.credentials.json`
-  (Linux/standalone), parsed by the pure `parseClaudeOAuthToken`. The token then leaves the
-  daemon **only** in the `Authorization: Bearer` header to **exactly** `https://api.anthropic.com`
-  (a hard-coded URL, wrapped in a ~5s timeout) — it is **never logged, never cached beyond the
-  in-flight call, never put in an error message/event, and never crosses the tRPC-WS boundary**;
-  only the derived percentages/labels (`ProviderLimits`) are returned to the renderer. Any
-  failure (no token, non-200, timeout, bad JSON) returns null quietly, which is also how an
-  API-key user — who has no such token and no subscription windows — is skipped. *Why:* an
-  agent CLI is arbitrary code with the user's auth; the failure modes are a leaked token, a
-  shell-injection via an interpolated arg, a renderer-chosen binary path, or one bad thread
-  file taking down the roster. *Verify:* driver spawns pass `terminalEnv` and an arg array;
-  binary resolution never consumes a renderer-supplied string; `readThread` still validates +
-  caps and returns null on bad input; `writeThread` is tmp+rename; the Claude token appears
-  only in the api.anthropic.com Authorization header and in no log/error/event/tRPC payload,
-  and is not held past the fetch. **Accepted tradeoff — the OpenCode driver spawns a third-party
-  unauthenticated loopback listener.** `opencode serve` (one per repo, `opencode.ts`) is an
-  HTTP+SSE server Porcelain starts on `127.0.0.1` with `--port 0` (random ephemeral port).
-  Live-verified on opencode 1.17.18 (2026-07-11): it boots warning `OPENCODE_SERVER_PASSWORD
-  is not set; server is unsecured`, and with no password a state-changing `POST /session`
-  (and every other route, incl. `GET /config/providers` which returns provider **API keys** in
-  cleartext) is served with **no auth token at all**; the daemon's Bearer/subprotocol gate
-  cannot cover it (it's a separate process we don't control). CORS is the one mitigation
-  present: the `OPTIONS` preflight returns no `Access-Control-Allow-Origin`, so browser JS
-  can't read its responses cross-origin — but any LOCAL process that discovers the port can
-  drive it. This is accepted the SAME way the LAN-cleartext bind above is: (a) it binds
-  loopback only (never `--mdns`/`0.0.0.0`), (b) the port is random and never advertised, (c)
-  the child is killed on daemon exit (`process.on('exit')` reaper), and (d) it's recorded here,
-  not hidden. Do NOT expose the opencode port to the renderer, bind it to a non-loopback
-  interface, or pass `--mdns`; if opencode ever gains a usable token flag, set it.
 - **Agent-channel review-set paths are repo-contained on read — files AND section anchors.**
   `readReviewSet` (`src/backend/review-store.ts`) drops any review-set FILE whose
   path is absolute or escapes `repoPath`, and likewise filters every SECTION's `anchors`
@@ -277,21 +208,6 @@ assumed — this skill is the codebase-specific layer beneath them.
   *Why:* without it, a malicious/injected review set could read arbitrary local files
   into the Review. *Verify:* new code that reads an agent-supplied path (file or anchor)
   routes through the filtered set.
-- **Agent chat claim paths are repo-contained before the app opens one.** The chat/relay
-  channel (`~/.porcelain/chat.json`, `chat-store.ts` ↔ `src/cli/chat-file.ts`) is two-way,
-  and a message's body/intent is inert text — BUT a message can carry a `--files` footprint
-  (a **claim**), and those paths are **agent-authored** (any local/remote agent posts them —
-  unlike the app-authored comment paths, which need no guard). The Coordination panel
-  resolves each claim path app-side: `ClaimFileChip` joins it to the repo root and opens a
-  file tab (`chat-quick-access.tsx` → `readFile`, which is NOT itself repo-scoped). So a
-  claim path is exactly as dangerous as a review-set path and must be **repo-contained
-  before it can reach a read**. `deriveChatClaims`
-  (`src/renderer/src/lib/chat-claims.ts`) drops any claim file that is absolute or
-  `..`-escapes (`isContainedClaimPath`), and a claim whose whole footprint is escapes yields
-  no live claim (no chip). *Why:* without it, a claim `{"files":["../../etc/passwd"]}` would
-  open an out-of-repo file the moment the human clicked its chip. *Verify:*
-  `isContainedClaimPath` filters the derived footprint (unit-tested in `chat-claims.test.ts`);
-  no renderer builds a file path from a raw `message.files` entry outside the filtered claim.
 - **The review-comment channel is a SECOND, two-way agent channel**
   (`~/.porcelain/comments.json`, `comment-store.ts` ↔ `src/cli/comment-file.ts`),
   kept SEPARATE from review-sets so the "app makes one write to the review-set
@@ -532,7 +448,7 @@ assumed — this skill is the codebase-specific layer beneath them.
   (Biome `noRestrictedImports` override on `components/**`, now lint-enforced for
   both). All server access goes through domain hooks (`hooks/use-<domain>.ts`)
   that own their post-mutation invalidation; the daemon WS session is reached only
-  through `use-app-events` / `use-terminal-channel` / `use-files` / `use-agent-channel`. The vanilla
+  through `use-app-events` / `use-terminal-channel` / `use-files`. The vanilla
   tRPC client is sanctioned only in `stores/repo.ts` and `use-app-events.ts`.
 - **Never `void` a promise** to silence a floating-promise lint — use `async`/`await`
   or `await Promise.all([...])` for invalidation/prefetch/clipboard.

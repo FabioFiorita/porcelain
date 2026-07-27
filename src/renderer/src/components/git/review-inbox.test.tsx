@@ -24,8 +24,6 @@ function row(overrides: Partial<InboxRow> = {}): InboxRow {
     path: '/repo-worktrees/feat',
     branch: 'feature/x',
     changedCount: 3,
-    workingThreads: 0,
-    idleThreads: 0,
     hasReview: false,
     ...overrides,
   }
@@ -73,11 +71,14 @@ describe('ReviewInbox', () => {
     expect(screen.getByText('7')).toBeInTheDocument()
   })
 
-  it('shows a working spinner instead of a count while a thread runs', () => {
-    vi.mocked(useWorktreeInbox).mockReturnValue([row({ workingThreads: 1, changedCount: 2 })])
+  it('marks the row whose Review the agent already pushed', () => {
+    vi.mocked(useWorktreeInbox).mockReturnValue([
+      row({ hasReview: true }),
+      row({ path: '/repo-worktrees/other', branch: 'feature/y', hasReview: false }),
+    ])
     renderInbox()
-    expect(screen.getByLabelText('Working')).toBeInTheDocument()
-    expect(screen.queryByText('2')).not.toBeInTheDocument()
+    // Only the pushed row carries the cue — a changed-file count alone must not.
+    expect(screen.getAllByLabelText('Review pushed')).toHaveLength(1)
   })
 
   it('switches this window to the worktree when a row is clicked', () => {

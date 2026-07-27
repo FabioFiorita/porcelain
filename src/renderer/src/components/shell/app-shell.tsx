@@ -3,8 +3,6 @@ import { Kbd } from '@renderer/components/ui/kbd'
 import { SidebarInset, SidebarProvider, useSidebar } from '@renderer/components/ui/sidebar'
 import { Toaster } from '@renderer/components/ui/sonner'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
-import { useAgentChannel } from '@renderer/hooks/use-agent-channel'
-import { useReconcileAgentTabTitles } from '@renderer/hooks/use-agents'
 import { useAppEvents } from '@renderer/hooks/use-app-events'
 import { useDocumentTitle } from '@renderer/hooks/use-document-title'
 import { useWatchOpenFiles, useWatchTreeDirs } from '@renderer/hooks/use-files'
@@ -24,7 +22,6 @@ import { useZenStore } from '@renderer/stores/zen'
 import { TestIds } from '@shared/test-ids'
 import { PanelLeft, RotateCw, Zap } from 'lucide-react'
 import { useEffect, useRef } from 'react'
-import { AgentCommands } from '../agent/agent-commands'
 import { CardComposer } from '../board/card-composer'
 import { SettingsDialog } from '../settings/settings-dialog'
 import { AppSidebar } from './app-sidebar'
@@ -226,8 +223,6 @@ export function AppShell(): React.JSX.Element {
   useThemeSync()
   useDocumentTitle()
   useTerminalChannel()
-  useAgentChannel()
-  useReconcileAgentTabTitles()
   useWatchOpenFiles()
   useWatchTreeDirs()
   useAnnounceSession()
@@ -282,7 +277,6 @@ export function AppShell(): React.JSX.Element {
         <FileFinder />
         <ContentSearch />
         <FileCommands />
-        <AgentCommands />
         <FilePromptDialog />
         <RepoPickerDialog />
         <CardComposer />

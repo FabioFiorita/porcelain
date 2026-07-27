@@ -81,7 +81,7 @@ Infra flake after a good package = **retry the same tag** (no new patch).
      other leftover **draft** releases (tags kept — never rewrite tags).
    - If packaging fails: deletes the pending branch; main and tags unchanged.
 
-4. **Watch the run to completion** (Agent tab: block in one turn — do not fire-and-forget):
+4. **Watch the run to completion** (block in one turn — do not fire-and-forget):
 
    ```bash
    gh run watch --exit-status   # or gh run watch <id> --exit-status
@@ -205,11 +205,12 @@ change, also verify on a real install:
 If any check fails, do not treat the auto-published release as good — cut a fix
 patch immediately.
 
-## Agent-tab babysit
+## Babysitting the run
 
-Agent-tab turns are headless per message: never start a background monitor and
-end the turn with "I'll report back." Block on `gh run watch --exit-status` in
-**one** turn. Auto-latest means the follow-up is usually just verifying the
+A headless agent turn ends when the turn ends: a background monitor started
+mid-turn dies with the process, so "I'll report back when CI is green" reports
+nothing. Never fire-and-forget the watch. Block on `gh run watch --exit-status`
+in **one** turn. Auto-latest means the follow-up is usually just verifying the
 release JSON, not manually undrafting.
 
 ## See also

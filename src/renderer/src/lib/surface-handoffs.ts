@@ -6,8 +6,8 @@ import { tabId, useTabsStore } from '@renderer/stores/tabs'
 
 /**
  * Connected-app handoffs: open the *canonical* surface for a concern.
- * Previews (Agent tree, Next strip, Session Files, Glance) must call these so
- * destinations never drift into a second Diff panel / commit UX / etc.
+ * Previews (Next strip, Glance, board cards) must call these so destinations
+ * never drift into a second Diff panel / commit UX / etc.
  */
 
 export type OpenChangesOptions = {
@@ -72,9 +72,4 @@ export function openFile(absolutePath: string, preview = true): void {
     path: absolutePath,
     preview,
   })
-}
-
-/** Sidebar → Agent (roster); does not open a specific thread tab. */
-export function openAgentSidebar(): void {
-  usePreferencesStore.getState().setSidebarTab('agent')
 }

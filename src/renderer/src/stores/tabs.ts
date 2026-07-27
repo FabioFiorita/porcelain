@@ -9,9 +9,7 @@ export type TabKind =
   | 'feature'
   | 'explore'
   | 'board'
-  | 'chat'
   | 'terminal'
-  | 'agent'
 
 // The tabs store is the router: a tab id is its kind plus its key (file path,
 // commit hash, or search query). Every opener must build ids through this so
@@ -25,11 +23,8 @@ export interface Tab {
   kind: TabKind
   title: string
   /** File path for file/diff tabs, commit hash for commit tabs, query for search tabs,
-   *  terminal session id for terminal tabs, thread id for agent tabs, review scope key
-   *  (`working` / `branch` / `commit:<hash>`) for review tabs. (Agent tabs use the generic clone/preview path — unlike a
-   *  terminal's single xterm DOM node, an agent view's state lives in the store, so it
-   *  can render in both panes at once and needs no special-casing in `openTab`/
-   *  `openTabToSide`.) */
+   *  terminal session id for terminal tabs, review scope key (`working` / `branch` /
+   *  `commit:<hash>`) for review tabs. */
   path: string
   /** 1-based line to scroll to when opening (search results jump here). */
   line?: number
@@ -82,9 +77,6 @@ interface TabsState {
   /** Retitle every open terminal tab for a session (its `path` holds the session id)
    *  across both panes — kept in sync when the session is renamed in the roster. */
   retitleTerminalTab: (sessionId: string, title: string) => void
-  /** Retitle every open agent tab for a thread (its `path` holds the thread id) across
-   *  both panes — kept in sync when the thread's auto-title lands or it's renamed. */
-  retitleAgentTab: (threadId: string, title: string) => void
   closeAllTabs: () => void
   activateTab: (paneIndex: number, id: string) => void
   setActivePane: (paneIndex: number) => void
@@ -283,13 +275,6 @@ export const useTabsStore = create<TabsState>((set) => ({
         tabs: p.tabs.map((t) =>
           t.kind === 'terminal' && t.path === sessionId ? { ...t, title } : t,
         ),
-      })),
-    })),
-  retitleAgentTab: (threadId, title) =>
-    set((state) => ({
-      panes: state.panes.map((p) => ({
-        ...p,
-        tabs: p.tabs.map((t) => (t.kind === 'agent' && t.path === threadId ? { ...t, title } : t)),
       })),
     })),
   closeAllTabs: () => set({ panes: [emptyPane()], activePaneIndex: 0 }),

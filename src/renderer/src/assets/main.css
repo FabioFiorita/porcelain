@@ -21,7 +21,7 @@
 @theme inline {
     --font-heading: var(--font-sans);
     /* Typography system (design overhaul, Phase A): Geist is the default sans face
-       for all UI chrome and prose (panels, buttons, menus, board cards, chat,
+       for all UI chrome and prose (panels, buttons, menus, board cards,
        Review/markdown prose). Mono (JetBrains Mono, --font-mono below) is reserved
        for codelike content only — code/diffs, file paths & names, +/− diff counts,
        SHAs, branch/worktree names, kbd shortcuts, and code chips. */

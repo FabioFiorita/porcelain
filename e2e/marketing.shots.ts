@@ -12,16 +12,17 @@ import {
   type Page,
   test,
 } from '@playwright/test'
-import { expectTerminalText, selectTab, waitForShell } from './helpers/app'
+import { expectTerminalText, selectTab, TestIds, waitForShell } from './helpers/app'
 import { createDemoRepo } from './helpers/demo-repo'
-import { seedDemoAgentThread, seedDemoChannels } from './helpers/demo-seed'
+import { seedDemoChannels } from './helpers/demo-seed'
+import { byId } from './helpers/locators'
 
 // The autonomous marketing-screenshot pipeline (pnpm shots): headless Chromium at
 // Retina density (deviceScaleFactor 2) driving the daemon-served web client — the
 // SAME renderer bundle the Mac app loads — against a seeded demo repo with a full
-// agent hand-off (published Review, board, chat, comments, loop evidence). NOT a
-// baseline test: it's excluded from the normal e2e run (playwright.shots.config.ts
-// matches only this file) and writes PNGs to marketing/shots/ (gitignored).
+// agent hand-off (published Review, board, comments, loop evidence). NOT a baseline
+// test: it's excluded from the normal e2e run (playwright.shots.config.ts matches
+// only this file) and writes PNGs to marketing/shots/ (gitignored).
 //
 // Determinism matters less than looks here — the goal is one repeatable command that
 // produces publishable, non-empty product shots.
@@ -194,22 +195,15 @@ test('marketing shots — the seeded demo repo across every surface', async () =
   )
   const channelEnv = await seedDemoChannels(udBase, repoDir)
 
-  // A completed agent thread (user turn + rendered-markdown answer) so the Agent tab
-  // renders a real conversation for feat-agent.png — no provider CLI needed.
-  const agentThreadsDir = join(udBase, 'agent-threads')
-  await seedDemoAgentThread(agentThreadsDir, repoDir)
-
   const env: Record<string, string> = {
     ...channelEnv,
     PORCELAIN_USER_DATA: userData,
     PORCELAIN_DAEMON_TOKEN: DAEMON_TOKEN,
-    PORCELAIN_AGENT_THREADS: agentThreadsDir,
     // Pin a fast, config-free shell so the terminal shot is deterministic.
     PORCELAIN_SHELL: '/bin/bash',
-    // e2e mode installs the terminal-buffer read hook (so we can wait for output
-    // before shooting) and swaps agent providers for the in-process fake driver.
+    // e2e mode installs the terminal-buffer read hook, so we can wait for output
+    // before shooting.
     PORCELAIN_E2E: '1',
-    PORCELAIN_AGENT_FAKE: '1',
   }
 
   const browser = await chromium.launch()
@@ -242,28 +236,15 @@ test('marketing shots — the seeded demo repo across every surface', async () =
     // board.png — the wide kanban in the viewer.
     await selectTab(page, 'Board')
     await page.getByRole('button', { name: 'Open board' }).click()
+    // Test ids scoped to the viewer, not getByText on <main>: the Focus companion
+    // repeats the selected card's title, and the Board panel repeats every card.
     const board = page.getByRole('main')
-    await expect(board.getByText('Filter orders by status')).toBeVisible({ timeout: 15_000 })
-    await expect(board.getByText('Export the current view as CSV')).toBeVisible()
+    await expect(byId(board, TestIds.boardCard('Filter orders by status'))).toBeVisible({
+      timeout: 15_000,
+    })
+    await expect(byId(board, TestIds.boardCard('Export the current view as CSV'))).toBeVisible()
     await settle(page)
     await shoot(page, 'board.png')
-
-    // chat.png — Relay/agent chat with multi-agent thread + Coordination (claims).
-    await selectTab(page, 'Chat')
-    await page.getByRole('button', { name: 'Open chat' }).click()
-    const chat = page.getByRole('main')
-    // Claim rows surface intent (not body) when files are set; non-claims show body.
-    await expect(chat.getByText('claude-code').first()).toBeVisible({ timeout: 15_000 })
-    await expect(chat.getByText('codex').first()).toBeVisible({ timeout: 10_000 })
-    await expect(chat.getByText('Export current view as CSV').first()).toBeVisible({
-      timeout: 10_000,
-    })
-    await expect(chat.getByText(/will not touch those files/i)).toBeVisible({ timeout: 10_000 })
-    // Right rail Coordination: live claims from the seeded multi-agent thread.
-    await expect(page.getByText('Participants').first()).toBeVisible({ timeout: 10_000 })
-    await expect(page.getByText('Claims').first()).toBeVisible({ timeout: 10_000 })
-    await settle(page)
-    await shoot(page, 'chat.png')
 
     // viewer.png — a source file open with syntax highlighting.
     await selectTab(page, 'Files')
@@ -346,26 +327,6 @@ test('marketing shots — the seeded demo repo across every surface', async () =
     await settle(page)
     await shootLocator(commentDialog, 'feat-comment.png')
     await page.keyboard.press('Escape')
-
-    // feat-agent.png — the Agent tab with a real thread (seeded on disk). Open it, then
-    // collapse both sidebars so the conversation is the wide, landscape surface.
-    await selectTab(page, 'Agent')
-    await page.getByText('Tour the orders feature').first().click()
-    const agent = page.getByRole('main')
-    await expect(agent.getByText('The orders feature, end to end')).toBeVisible({ timeout: 15_000 })
-    await page.getByRole('button', { name: 'Toggle quick access sidebar' }).click()
-    await page.getByRole('button', { name: 'Toggle sidebar' }).click()
-    await settle(page)
-    await settle(page)
-    // Show the answer from its heading (the timeline sticks to the bottom on mount).
-    await agent
-      .locator('[data-slot="scroll-area-viewport"]')
-      .first()
-      .evaluate((el) => {
-        el.scrollTop = 0
-      })
-    await settle(page)
-    await shootLocator(agent, 'feat-agent.png')
 
     await context.close()
 

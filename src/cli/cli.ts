@@ -17,12 +17,6 @@ import {
   readCards,
   updateCard,
 } from './board-file'
-import {
-  clearMessages as clearChatMessages,
-  describeChat,
-  postMessage as postChatMessage,
-  readMessages as readChatMessages,
-} from './chat-file'
 import { answerComment, describeComments, readComments, resolveComment } from './comment-file'
 import {
   checkEvidence,
@@ -55,7 +49,7 @@ import { describeReviewed, readReviewed } from './reviewed-file'
 
 // Porcelain's agent CLI: a dependency-free command that reads and writes the watched
 // JSON channels under ~/.porcelain (review sets, board, actions, notes, layers,
-// evidence, comments, reviewed marks, chat). It replaces the old stdio MCP
+// evidence, comments, reviewed marks). It replaces the old stdio MCP
 // server — a fresh process per invocation doing one synchronous read-modify-write, so
 // there is no ordering machinery to keep. Node builtins only, hand-rolled flag parsing:
 // the built bundle is copied to ~/.porcelain/porcelain.js and run under a plain `node`,
@@ -68,7 +62,7 @@ interface CliDeps {
   readStdin?: () => string
 }
 
-const BOOLEAN_FLAGS = new Set(['help', 'version', 'closes'])
+const BOOLEAN_FLAGS = new Set(['help', 'version'])
 
 interface ParsedArgs {
   positionals: string[]
@@ -140,9 +134,6 @@ const FLAG_DESCRIPTIONS: Record<string, string> = {
     'Absolute path to a local HTML file to read (prefer over --html for large docs with embedded screenshots)',
   id: 'The item id (from the matching list/get command)',
   status: 'Column: todo | doing | done',
-  from: 'Origin label (environment or agent id), e.g. "local" or "beelink"',
-  intent: 'One line on what you are doing, e.g. "refactoring auth"',
-  closes: 'Retire your open claim (pair with --body to note what finished)',
   command: 'The shell command to run',
   cwd: 'Working directory, repo-relative or absolute (defaults to repo root)',
   layers:
@@ -165,7 +156,7 @@ interface NounHelp {
   flags: string[]
   /**
    * Per-noun descriptions that override the shared FLAG_DESCRIPTIONS — for a flag whose
-   * meaning differs by noun (e.g. chat's `--files` is a CSV claim, review's is a JSON array).
+   * meaning differs by noun (e.g. evidence's `--status` is a check result, board's a column).
    */
   flagOverrides?: Record<string, string>
 }
@@ -260,24 +251,6 @@ const COMMANDS: NounHelp[] = [
       { verb: 'delete', args: '--id <s>', desc: 'Remove a card' },
     ],
     flags: ['title', 'body', 'status', 'id'],
-  },
-  {
-    noun: 'chat',
-    blurb: 'the agent chat / relay (local ↔ remote collab)',
-    verbs: [
-      { verb: 'list', args: '', desc: 'List messages, live claims, and overlaps' },
-      {
-        verb: 'post',
-        args: '--from <s> --body <s> [--files <csv>] [--intent <s>] [--closes]',
-        desc: 'Post a message or a file claim',
-      },
-      { verb: 'clear', args: '', desc: 'Clear the thread' },
-    ],
-    flags: ['from', 'body', 'files', 'intent', 'closes'],
-    flagOverrides: {
-      files:
-        'Repo-relative paths you are working on, comma-separated — declares a claim so other agents see overlaps',
-    },
   },
   {
     noun: 'actions',
@@ -488,40 +461,6 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
       const id = req('id')
       return deleteCard(repo, id) ? `Deleted card ${id} for ${repo}` : `No card ${id} for ${repo}`
     }
-    case 'chat list':
-      return describeChat(repo, readChatMessages(repo))
-    case 'chat post': {
-      const from = req('from')
-      // Chat's --files is a plain CSV claim (agents shouldn't hand-write JSON for a quick
-      // claim), independent of review's JSON --files (readJson). See the noun flagOverride.
-      const filesRaw = opt('files')
-      const files = filesRaw
-        ? filesRaw
-            .split(',')
-            .map((s) => s.trim())
-            .filter(Boolean)
-        : undefined
-      const intent = opt('intent')?.trim() || undefined
-      const closes = flags.has('closes')
-      const isClaim = files !== undefined && files.length > 0
-      // Body is required for a plain message; for a claim or close it can be synthesized from
-      // the intent/footprint so the message still carries readable text (the app schema needs
-      // a non-empty body). Lets an agent post a quick claim without repeating itself in --body.
-      let body = opt('body')?.trim()
-      if (!body) {
-        if (files && files.length > 0) body = intent ?? `Working on ${files.join(', ')}`
-        else if (closes) body = intent ?? 'Closed claim'
-        else throw new Error('body is required')
-      }
-      const message = postChatMessage(repo, { from, body, files, intent, closes })
-      return isClaim
-        ? `Posted claim ${message.id} as "${from}" — ${files?.length ?? 0} file(s) for ${repo}`
-        : `Posted chat message ${message.id} as "${from}" for ${repo}`
-    }
-    case 'chat clear':
-      return clearChatMessages(repo)
-        ? `Cleared agent chat for ${repo}`
-        : `Agent chat for ${repo} was already empty`
     case 'actions list':
       return describeActions(repo, readActions(repo))
     case 'actions create': {

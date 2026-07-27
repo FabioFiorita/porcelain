@@ -1,19 +1,14 @@
 import type { InboxRow } from '@backend/worktree-inbox'
-import { ProviderGlyph } from '@renderer/components/agent/provider-glyph'
 import { reviewTabKey } from '@renderer/components/git/review-view'
-import { useAgentThreads } from '@renderer/hooks/use-agents'
 import { useBoardCards } from '@renderer/hooks/use-board'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'
 import { useWorktreeInbox } from '@renderer/hooks/use-worktrees'
 import { cn } from '@renderer/lib/utils'
-import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
-import type { ThreadInfo } from '@shared/agent-protocol'
 import { TestIds } from '@shared/test-ids'
-import { Columns3, FileDiff, GitBranch, Loader2, Waypoints } from 'lucide-react'
-import { useMemo } from 'react'
+import { Columns3, FileDiff, GitBranch, Waypoints } from 'lucide-react'
 
 // One tap-target recipe for every Glance row: full-width, touch-comfortable
 // height, the app's one hover/pressed fill. Rows stay flat on the viewer
@@ -40,38 +35,6 @@ function GlanceSection({
   )
 }
 
-/** One agent thread: provider mark + title, the worktree chip when bound, and a
- *  spinner while working (idle stays quiet). Tap opens the thread's agent tab. */
-function ThreadGlanceRow({ thread }: { thread: ThreadInfo }): React.JSX.Element {
-  const openTab = useTabsStore((s) => s.openTab)
-
-  const openThread = (): void => {
-    openTab({ id: tabId('agent', thread.id), kind: 'agent', title: thread.title, path: thread.id })
-  }
-
-  return (
-    <button type="button" onClick={openThread} className={rowClass}>
-      <ProviderGlyph provider={thread.provider} className="size-3.5 text-muted-foreground" />
-      <span className="min-w-0 flex-1 truncate text-sm">{thread.title}</span>
-      {thread.worktreeBranch && (
-        <span
-          className="flex min-w-0 max-w-24 shrink-0 items-center gap-0.5 font-mono text-2xs text-muted-foreground"
-          title={`Worktree: ${thread.worktreeBranch}`}
-        >
-          <GitBranch className="size-3 shrink-0" />
-          <span className="truncate">{thread.worktreeBranch}</span>
-        </span>
-      )}
-      {thread.status === 'working' && (
-        <Loader2
-          className="size-3.5 shrink-0 animate-spin text-muted-foreground"
-          aria-label="Working"
-        />
-      )}
-    </button>
-  )
-}
-
 /** One inbox row — the review-inbox row content on the Glance's tap-target recipe.
  *  Tap switches THIS window to that worktree (same call as review-inbox rows). */
 function InboxGlanceRow({ row }: { row: InboxRow }): React.JSX.Element {
@@ -93,42 +56,20 @@ function InboxGlanceRow({ row }: { row: InboxRow }): React.JSX.Element {
           className="size-1.5 shrink-0 rounded-full bg-info"
         />
       )}
-      {row.workingThreads > 0 ? (
-        <Loader2
-          className="size-3.5 shrink-0 animate-spin text-muted-foreground"
-          aria-label="Working"
-        />
-      ) : (
-        <span className="shrink-0 text-2xs tabular-nums text-muted-foreground/60">
-          {row.changedCount}
-        </span>
-      )}
+      <span className="shrink-0 text-2xs tabular-nums text-muted-foreground/60">
+        {row.changedCount}
+      </span>
     </button>
   )
 }
 
 /**
- * The Glance: home when no tab is open — work in flight (threads, inbox, dirty
- * tree, published Review, board). Phone and desktop empty panes both use it (U6).
+ * The Glance: home when no tab is open — work in flight (inbox, dirty tree,
+ * published Review, board). Phone and desktop empty panes both use it (U6).
  */
 export function GlanceHome(): React.JSX.Element | null {
   const repo = useRepoStore((s) => s.repo)
   const openTab = useTabsStore((s) => s.openTab)
-  const threads = useAgentThreads()
-  // Archive is client-local prefs (same as the Agent list) — Glance is "work in
-  // flight", so archived threads must not reappear here as if still active.
-  const archivedIds = usePreferencesStore((s) => s.archivedAgentThreadIds)
-  const visibleThreads = useMemo(() => {
-    const archived = new Set(archivedIds)
-    return threads
-      .filter((t) => !archived.has(t.id))
-      .sort((a, b) => {
-        // Live first, then most-recently updated idle.
-        if (a.status === 'working' && b.status !== 'working') return -1
-        if (b.status === 'working' && a.status !== 'working') return 1
-        return b.updatedAt - a.updatedAt
-      })
-  }, [threads, archivedIds])
   const inbox = useWorktreeInbox()
   const { groups } = useGitFlow()
   const { reading } = useFeatureReading()
@@ -143,7 +84,7 @@ export function GlanceHome(): React.JSX.Element | null {
 
   const showCheckout = changedCount > 0 || hasReview
   const showBoard = doing.length > 0 || todo.length > 0
-  const empty = visibleThreads.length === 0 && inbox.length === 0 && !showCheckout && !showBoard
+  const empty = inbox.length === 0 && !showCheckout && !showBoard
 
   // Agent-published Review canvas (Feature tab).
   const openFeatureReview = (): void => {
@@ -178,18 +119,11 @@ export function GlanceHome(): React.JSX.Element | null {
           <div className="py-14 text-center">
             <p className="text-sm text-muted-foreground">Nothing in flight</p>
             <p className="mx-auto mt-1 max-w-xs text-xs text-muted-foreground/70">
-              Agent threads, reviews and board work will show up here.
+              Reviews and board work will show up here.
             </p>
           </div>
         ) : (
           <>
-            {visibleThreads.length > 0 && (
-              <GlanceSection label="Agent threads">
-                {visibleThreads.map((thread) => (
-                  <ThreadGlanceRow key={thread.id} thread={thread} />
-                ))}
-              </GlanceSection>
-            )}
             {inbox.length > 0 && (
               <GlanceSection label="Review inbox">
                 {inbox.map((row) => (

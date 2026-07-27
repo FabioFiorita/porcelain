@@ -1,21 +1,11 @@
 import { WebSocket } from 'ws'
 import { z } from 'zod'
-import { agentEventSchema } from '../shared/agent-protocol'
 import {
   type AppEvent,
   appEventSchema,
   clientMessageSchema,
   type ServerMessage,
 } from '../shared/ws-protocol'
-import {
-  abortTurn,
-  attachThread,
-  cancelQueued,
-  detachAgentSender,
-  detachThread,
-  respondApproval,
-  sendMessage,
-} from './agents/agent-manager'
 import { clearWatchedDirs, clearWatchedFiles, setWatchedDirs, setWatchedFiles } from './file-watch'
 import {
   attachTerminal,
@@ -48,7 +38,6 @@ const sessions = new Set<Session>()
 // WebContents.send); re-validate the args into the typed protocol messages.
 const terminalDataArgs = z.tuple([z.string(), z.string()])
 const terminalExitArgs = z.tuple([z.string(), z.number()])
-const agentEventArgs = z.tuple([z.string(), agentEventSchema])
 
 class Session {
   private readonly socket: WebSocket
@@ -57,7 +46,6 @@ class Session {
   readonly connectedAt = Date.now()
   /** What this connection is doing, for the device roster (Settings → Environments). */
   readonly terminals = new Set<string>()
-  readonly threads = new Set<string>()
   /** The repo this connection is looking at, if it announced one (`session:hello`). */
   repo: string | undefined
 
@@ -65,12 +53,7 @@ class Session {
     this.socket = socket
     this.deviceId = deviceId
     sessions.add(this)
-    // Some handlers (agent attach/send/…) hit the disk-backed thread store, so
-    // handleMessage is async; the socket callback can't await it, so swallow a
-    // rejection rather than crash the daemon on an unhandled promise.
-    socket.on('message', (raw) => {
-      this.handleMessage(raw.toString()).catch(() => {})
-    })
+    socket.on('message', (raw) => this.handleMessage(raw.toString()))
     // 'close' always follows 'error'; the empty error listener just keeps an
     // abruptly-dropped socket from crashing the daemon with an unhandled 'error'.
     socket.on('error', () => {})
@@ -94,11 +77,6 @@ class Session {
         this.push({ t: 'terminal:exit', id, exitCode })
         break
       }
-      case 'agent:event': {
-        const [threadId, event] = agentEventArgs.parse(args)
-        this.push({ t: 'agent:event', threadId, event })
-        break
-      }
     }
   }
 
@@ -116,7 +94,7 @@ class Session {
     if (this.socket.readyState === WebSocket.OPEN) this.socket.send(JSON.stringify(message))
   }
 
-  private async handleMessage(raw: string): Promise<void> {
+  private handleMessage(raw: string): void {
     let json: unknown
     try {
       json = JSON.parse(raw)
@@ -181,41 +159,6 @@ class Session {
       case 'watch:dirs':
         setWatchedDirs(this, message.paths)
         break
-      case 'agent:attach': {
-        // Mirror terminal:attach — found=false with an empty snapshot for an unknown
-        // id so the client's pending attach still settles.
-        const result = await attachThread(message.threadId, this)
-        if (result.found) this.threads.add(message.threadId)
-        this.push({
-          t: 'agent:attached',
-          reqId: message.reqId,
-          threadId: message.threadId,
-          found: result.found,
-          items: result.items,
-          status: result.status,
-        })
-        break
-      }
-      case 'agent:detach':
-        detachThread(message.threadId, this)
-        this.threads.delete(message.threadId)
-        break
-      case 'agent:send':
-        await sendMessage(message.threadId, {
-          text: message.text,
-          images: message.images,
-          thumbnails: message.thumbnails,
-        })
-        break
-      case 'agent:abort':
-        await abortTurn(message.threadId)
-        break
-      case 'agent:cancel-queued':
-        await cancelQueued(message.threadId, message.index)
-        break
-      case 'agent:approve':
-        await respondApproval(message.threadId, message.requestId, message.decision)
-        break
     }
   }
 
@@ -227,7 +170,6 @@ class Session {
     clearWatchedFiles(this)
     clearWatchedDirs(this)
     detachSender(this)
-    detachAgentSender(this)
   }
 }
 
@@ -241,7 +183,6 @@ export interface SessionInfo {
   connectedAt: number
   repo?: string
   terminals: number
-  threads: number
 }
 
 /** Every live connection — the "what is this device doing right now" half of the roster. */
@@ -251,15 +192,14 @@ export function listSessions(): SessionInfo[] {
     connectedAt: session.connectedAt,
     repo: session.repo,
     terminals: session.terminals.size,
-    threads: session.threads.size,
   }))
 }
 
 /**
  * Drop every live connection belonging to a revoked device. Without this, revoking would
- * only stop the NEXT request: an already-upgraded socket keeps streaming terminals and
- * agent turns, because the gate ran at upgrade time. Its PTYs and threads live on (they're
- * daemon-owned) — this ends the device's access to them, not the work.
+ * only stop the NEXT request: an already-upgraded socket keeps streaming terminals, because
+ * the gate ran at upgrade time. Its PTYs live on (they're daemon-owned) — this ends the
+ * device's access to them, not the work.
  */
 export function closeSessionsForDevice(deviceId: string): void {
   for (const session of sessions) {
