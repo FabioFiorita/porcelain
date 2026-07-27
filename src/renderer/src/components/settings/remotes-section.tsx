@@ -54,6 +54,9 @@ export function RemotesSection(): React.JSX.Element {
 
   const environments = data?.environments ?? []
   const activeId = data?.activeId ?? null
+  const localStatus = statuses.get(null)
+  const localName =
+    localStatus?.host != null && localStatus.host !== '' ? localStatus.host : 'This device'
 
   return (
     <div className="flex flex-col gap-3">
@@ -70,8 +73,8 @@ export function RemotesSection(): React.JSX.Element {
           data-testid={TestIds.environmentRow('local')}
         >
           <div className="min-w-0">
-            <p className="text-sm-minus font-medium">This device</p>
-            <p className="text-xs text-muted-foreground">{describeStatus(statuses.get(null))}</p>
+            <p className="text-sm-minus font-medium">{localName}</p>
+            <p className="text-xs text-muted-foreground">{describeStatus(localStatus)}</p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {activeId == null ? (

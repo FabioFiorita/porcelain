@@ -20,6 +20,7 @@ import {
 import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { useSettingsDialogStore } from '@renderer/stores/settings-dialog'
+import { platformLabel } from '@shared/platform'
 import { TestIds } from '@shared/test-ids'
 import {
   Check,
@@ -59,10 +60,25 @@ export function EnvironmentSwitcher(): React.JSX.Element | null {
   const activeId = environments?.activeId ?? null
   const active =
     activeId === null ? null : environments?.environments.find((e) => e.id === activeId)
-  // Remote windows show the name the human gave the environment; local windows show
-  // the machine the daemon reported, falling back before it answers.
-  const label =
-    active?.name ?? (identity.host !== null && identity.host !== '' ? identity.host : 'This device')
+  // Local-machine identity must come from the LOCAL status probe (or identity only when
+  // this window is actually bound local). `useDaemonIdentity` is the BOUND daemon — when
+  // you're on Beelink it reports "beelink", which must never label the This device row.
+  const localStatus = statuses.get(null)
+  const localHost =
+    localStatus?.host != null && localStatus.host !== ''
+      ? localStatus.host
+      : activeId === null && identity.host !== null && identity.host !== ''
+        ? identity.host
+        : null
+  const localName = localHost ?? 'This device'
+  const localDetail =
+    localStatus?.platform != null && localStatus.platform !== ''
+      ? platformLabel(localStatus.platform)
+      : activeId === null && identity.platform !== null && identity.platform !== ''
+        ? platformLabel(identity.platform)
+        : 'This machine'
+  // Chip: remote env name when bound remote; otherwise this machine's host.
+  const label = active?.name ?? localName
 
   const chip = (
     <span
@@ -137,13 +153,13 @@ export function EnvironmentSwitcher(): React.JSX.Element | null {
 
       <DropdownMenuContent align="end" side="bottom" className="w-72">
         <DropdownMenuGroup>
-          <DropdownMenuLabel>Remotes</DropdownMenuLabel>
+          <DropdownMenuLabel>Environments</DropdownMenuLabel>
           <EnvironmentRow
             id={null}
-            name={identity.host !== null && identity.host !== '' ? identity.host : 'This device'}
-            detail="Local daemon"
+            name={localName}
+            detail={localDetail}
             isActive={activeId === null}
-            state={statuses.get(null)?.state}
+            state={localStatus?.state}
             disabled={switching}
             onUse={() => disconnect()}
             onNewWindow={() => {

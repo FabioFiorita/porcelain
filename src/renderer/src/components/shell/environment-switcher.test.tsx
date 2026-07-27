@@ -48,11 +48,16 @@ const skew: VersionSkew = {
   message: 'Daemon v0.28.2 · app v0.29.2 — restart the remote daemon to update',
 }
 
-const status = (id: string | null, state: EnvironmentStatus['state']): EnvironmentStatus => ({
+const status = (
+  id: string | null,
+  state: EnvironmentStatus['state'],
+  host: string | null = null,
+  platform: string | null = null,
+): EnvironmentStatus => ({
   id,
   state,
-  host: null,
-  platform: null,
+  host,
+  platform,
   version: null,
   endpoint: null,
 })
@@ -60,7 +65,8 @@ const status = (id: string | null, state: EnvironmentStatus['state']): Environme
 beforeEach(() => {
   identityMock.mockReturnValue({ host: 'studio', platform: 'darwin', version: '0.40.0' })
   skewMock.mockReturnValue(null)
-  statusesMock.mockReturnValue(new Map())
+  // Local status probe reports this Mac — independent of the bound daemon identity.
+  statusesMock.mockReturnValue(new Map([[null, status(null, 'online', 'studio', 'darwin')]]))
   environmentsMock.mockReturnValue({ activeId: null, defaultId: null, environments: [] })
   connect.mockClear()
   disconnect.mockClear()
@@ -81,11 +87,21 @@ describe('EnvironmentSwitcher chip', () => {
 
   it('falls back to "This device" before the daemon answers with its host', () => {
     identityMock.mockReturnValue({ host: null, platform: null, version: null })
+    statusesMock.mockReturnValue(new Map())
     render(<EnvironmentSwitcher />)
     expect(screen.getByLabelText('Environment: This device')).toBeTruthy()
   })
 
   it('shows the environment name when this window is on a remote daemon', () => {
+    // Bound daemon identity is the remote box — must not rename the chip's local fallback
+    // (chip uses the env name) or the This device row (uses local status host).
+    identityMock.mockReturnValue({ host: 'beelink', platform: 'linux', version: '0.42.0' })
+    statusesMock.mockReturnValue(
+      new Map([
+        [null, status(null, 'online', 'MacBook-Pro', 'darwin')],
+        ['beelink', status('beelink', 'online', 'beelink', 'linux')],
+      ]),
+    )
     environmentsMock.mockReturnValue({
       activeId: 'beelink',
       defaultId: 'beelink',
@@ -114,7 +130,29 @@ describe('EnvironmentSwitcher menu', () => {
     render(<EnvironmentSwitcher />)
     fireEvent.click(screen.getByLabelText('Environment: studio'))
     expect(screen.getByText('Beelink')).toBeTruthy()
-    expect(screen.getByText('Local daemon')).toBeTruthy()
+    expect(screen.getByText('macOS')).toBeTruthy()
+  })
+
+  it('names the local row from the local probe, not the bound remote identity', () => {
+    // The bug: window on Beelink → identity.host is "beelink" → menu showed beelink twice.
+    identityMock.mockReturnValue({ host: 'beelink', platform: 'linux', version: '0.42.0' })
+    statusesMock.mockReturnValue(
+      new Map([
+        [null, status(null, 'online', 'MacBook-Pro', 'darwin')],
+        ['beelink', status('beelink', 'online', 'beelink', 'linux')],
+      ]),
+    )
+    environmentsMock.mockReturnValue({
+      activeId: 'beelink',
+      defaultId: 'beelink',
+      environments: [beelink],
+    })
+    render(<EnvironmentSwitcher />)
+    fireEvent.click(screen.getByLabelText('Environment: Beelink'))
+    expect(screen.getByText('MacBook-Pro')).toBeTruthy()
+    expect(screen.getByText('macOS')).toBeTruthy()
+    // Remote row still present under its own name.
+    expect(screen.getAllByText('Beelink').length).toBeGreaterThanOrEqual(1)
   })
 
   it('binds this window to a saved environment when its row is clicked', () => {
@@ -144,6 +182,13 @@ describe('EnvironmentSwitcher menu', () => {
   })
 
   it('goes back to the local daemon from the This device row', () => {
+    identityMock.mockReturnValue({ host: 'beelink', platform: 'linux', version: '0.42.0' })
+    statusesMock.mockReturnValue(
+      new Map([
+        [null, status(null, 'online', 'MacBook-Pro', 'darwin')],
+        ['beelink', status('beelink', 'online', 'beelink', 'linux')],
+      ]),
+    )
     environmentsMock.mockReturnValue({
       activeId: 'beelink',
       defaultId: 'beelink',
@@ -151,7 +196,7 @@ describe('EnvironmentSwitcher menu', () => {
     })
     render(<EnvironmentSwitcher />)
     fireEvent.click(screen.getByLabelText('Environment: Beelink'))
-    fireEvent.click(screen.getByText('Local daemon'))
+    fireEvent.click(screen.getByText('MacBook-Pro'))
     expect(disconnect).toHaveBeenCalled()
   })
 
@@ -170,7 +215,12 @@ describe('EnvironmentSwitcher menu', () => {
       defaultId: null,
       environments: [beelink],
     })
-    statusesMock.mockReturnValue(new Map([['beelink', status('beelink', 'offline')]]))
+    statusesMock.mockReturnValue(
+      new Map([
+        [null, status(null, 'online', 'studio', 'darwin')],
+        ['beelink', status('beelink', 'offline')],
+      ]),
+    )
     render(<EnvironmentSwitcher />)
     fireEvent.click(screen.getByLabelText('Environment: studio'))
     expect(screen.getByText('Beelink')).toBeTruthy()
