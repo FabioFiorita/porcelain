@@ -1,3 +1,23 @@
+## [0.41.0](https://github.com/FabioFiorita/porcelain/compare/v0.40.0...v0.41.0) (2026-07-27)
+
+### Features
+
+* **browser-client:** serve an app icon for iOS bookmarks and home screen ([ca6f7ef](https://github.com/FabioFiorita/porcelain/commit/ca6f7ef2438db232138c9f405685dce60030106c))
+* **devices:** per-device credentials, a live roster, and per-device revoke ([17b303e](https://github.com/FabioFiorita/porcelain/commit/17b303ea05d6f54bb298f708f1850eff2901a940))
+* **environments:** many endpoints per machine, with preference-ordered failover ([2a15165](https://github.com/FabioFiorita/porcelain/commit/2a15165a5dec128d491e11fe9aa48dcb57b58eb7))
+* **environments:** report daemon identity and make the top-bar chip the switcher ([2eb2569](https://github.com/FabioFiorita/porcelain/commit/2eb2569cd2ac24dba6ad06647d5b74ac786afefe))
+* **pairing:** pairing link + QR, browser auto-pair, and paste-to-add ([1266020](https://github.com/FabioFiorita/porcelain/commit/1266020a928c54bf72df4fa0239903ed4818801e))
+* **pairing:** short-lived pairing codes and a guarded POST /pair exchange ([54172d4](https://github.com/FabioFiorita/porcelain/commit/54172d4cdc44e572ef3af3cd781a03e816db20cd))
+* **terminal:** a key bar on every pane, and no keyboard until you ask for it ([d071659](https://github.com/FabioFiorita/porcelain/commit/d071659c49194ba92848bca1096df966d3711fa0))
+* **terminal:** run a shell on this device while the window works on another ([89b3926](https://github.com/FabioFiorita/porcelain/commit/89b3926f8cbe34d765b8a73200bec8d7669e95f5))
+
+### Bug Fixes
+
+* **ci:** do not use isLatest in gh release view JSON ([d2e520c](https://github.com/FabioFiorita/porcelain/commit/d2e520c44d40e86c8e1935ce2d4b408c1a63b602))
+* **ci:** npm_only recovery path + trim gh output in publish ([e740160](https://github.com/FabioFiorita/porcelain/commit/e740160e433488144b83f0149d3ff4ee2be751c6))
+* **ci:** run publish scripts from workflow SHA on tag retry ([0b72b20](https://github.com/FabioFiorita/porcelain/commit/0b72b201fbe921e4ece9fbf2a3cf468ee19acdd5))
+* **ci:** trim gh stdout in release-publish ([3c7d3e2](https://github.com/FabioFiorita/porcelain/commit/3c7d3e2dc0735377c551914893f6457d88d440b6))
+
 ## [0.40.0](https://github.com/FabioFiorita/porcelain/compare/v0.39.5...v0.40.0) (2026-07-24)
 
 ### Features
