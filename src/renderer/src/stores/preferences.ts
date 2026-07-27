@@ -8,11 +8,6 @@ export type DiffMode = 'unified' | 'split'
 export type MarkdownMode = 'reader' | 'source'
 export type HtmlMode = 'preview' | 'source'
 export type PullMode = 'merge' | 'rebase'
-/**
- * How the embedded terminal paints cells (xterm.js renderer).
- * Canvas was removed upstream in xterm v6 — only WebGL and DOM remain.
- */
-export type TerminalRenderer = 'webgl' | 'dom'
 export type SidebarTab =
   | 'files'
   | 'changes'
@@ -41,11 +36,6 @@ interface PreferencesState {
   /** Strategy the `git pull` quick command uses (`--no-rebase` vs `--rebase`). */
   pullMode: PullMode
   /**
-   * Embedded terminal paint path. Default `webgl` for crisp block glyphs; switch
-   * to `dom` if text ever garbles (WebGL atlas corruption). Applied live.
-   */
-  terminalRenderer: TerminalRenderer
-  /**
    * Show the key bar under each terminal pane (Esc/Tab/Ctrl/arrows + keyboard toggle).
    * On by default everywhere: a software keyboard has no Ctrl at all, and a narrow
    * desktop window benefits too. Turn it off to reclaim the rows.
@@ -65,7 +55,6 @@ interface PreferencesState {
   setMarkdownMode: (mode: MarkdownMode) => void
   setHtmlMode: (mode: HtmlMode) => void
   setPullMode: (mode: PullMode) => void
-  setTerminalRenderer: (renderer: TerminalRenderer) => void
   setTerminalKeyBar: (show: boolean) => void
   setSidebarTab: (tab: SidebarTab) => void
   setRightSidebarOpen: (open: boolean) => void
@@ -86,7 +75,6 @@ export const usePreferencesStore = create<PreferencesState>()(
       markdownMode: 'reader',
       htmlMode: 'preview',
       pullMode: 'merge',
-      terminalRenderer: 'webgl',
       terminalKeyBar: true,
       rightSidebarOpen: true,
       rightSidebarWidth: 272,
@@ -100,7 +88,6 @@ export const usePreferencesStore = create<PreferencesState>()(
       setMarkdownMode: (markdownMode) => set({ markdownMode }),
       setHtmlMode: (htmlMode) => set({ htmlMode }),
       setPullMode: (pullMode) => set({ pullMode }),
-      setTerminalRenderer: (terminalRenderer) => set({ terminalRenderer }),
       setTerminalKeyBar: (terminalKeyBar) => set({ terminalKeyBar }),
       setSidebarTab: (sidebarTab) => set({ sidebarTab }),
       setRightSidebarOpen: (rightSidebarOpen) => set({ rightSidebarOpen }),

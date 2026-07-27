@@ -14,19 +14,6 @@ describe('usePreferencesStore — pullMode', () => {
   })
 })
 
-describe('usePreferencesStore — terminalRenderer', () => {
-  beforeEach(() => usePreferencesStore.setState({ terminalRenderer: 'webgl' }))
-
-  it('defaults to webgl', () => {
-    expect(usePreferencesStore.getState().terminalRenderer).toBe('webgl')
-  })
-
-  it('setTerminalRenderer switches the paint path', () => {
-    usePreferencesStore.getState().setTerminalRenderer('dom')
-    expect(usePreferencesStore.getState().terminalRenderer).toBe('dom')
-  })
-})
-
 // Rehydration is the ONLY place a dead `sidebarTab` can enter the store: the union
 // is narrowed at compile time, but localStorage holds untyped JSON written by an
 // older build. Drive the real persist hook rather than asserting on the migration

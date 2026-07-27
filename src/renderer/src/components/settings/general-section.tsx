@@ -2,40 +2,16 @@ import { Switch } from '@renderer/components/ui/switch'
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
 import { compactButtonClass } from '@renderer/lib/controls'
 import { isBrowser, isCoarseTouch } from '@renderer/lib/platform'
-import { cn } from '@renderer/lib/utils'
 import {
   type DiffMode,
   type HtmlMode,
   type MarkdownMode,
   type PullMode,
-  type TerminalRenderer,
   type ThemeMode,
   usePreferencesStore,
 } from '@renderer/stores/preferences'
 import { TestIds } from '@shared/test-ids'
 import { SkillsSection } from './skills-section'
-
-const TERMINAL_RENDERERS: {
-  value: TerminalRenderer
-  label: string
-  badge?: string
-  description: string
-}[] = [
-  {
-    value: 'webgl',
-    label: 'WebGL',
-    badge: 'Default',
-    description:
-      'GPU-accelerated. Crisp Claude Code logo and powerline block glyphs. Can occasionally garble text (texture-atlas corruption) — switch tabs, hide the window, or pick DOM to recover.',
-  },
-  {
-    value: 'dom',
-    label: 'DOM',
-    badge: 'Most stable',
-    description:
-      'Renders with ordinary HTML. Never garbles. Slightly slower on heavy output; block-drawing art shows thin gaps between cells. Prefer this if WebGL has been glitching.',
-  },
-]
 
 /**
  * Settings type scale (page title lives on the dialog header):
@@ -73,8 +49,6 @@ export function GeneralSection(): React.JSX.Element {
   const setHtmlMode = usePreferencesStore((s) => s.setHtmlMode)
   const pullMode = usePreferencesStore((s) => s.pullMode)
   const setPullMode = usePreferencesStore((s) => s.setPullMode)
-  const terminalRenderer = usePreferencesStore((s) => s.terminalRenderer)
-  const setTerminalRenderer = usePreferencesStore((s) => s.setTerminalRenderer)
   // ?? true: the preference postdates persisted stores that never wrote the key.
   const terminalKeyBar = usePreferencesStore((s) => s.terminalKeyBar) ?? true
   const setTerminalKeyBar = usePreferencesStore((s) => s.setTerminalKeyBar)
@@ -200,53 +174,6 @@ export function GeneralSection(): React.JSX.Element {
           />
         </PreferenceRow>
       )}
-      <div className="flex flex-col gap-2">
-        <div>
-          <p className="text-sm-minus font-medium">Terminal display</p>
-          <p className="text-xs text-muted-foreground">
-            How the embedded terminal paints cells. Applies immediately to open sessions (history
-            colors reset on switch; the shell keeps running). Canvas is no longer available —
-            xterm.js removed it in v6. On iPad, WebGL always falls back to DOM.
-          </p>
-        </div>
-        <div className="divide-y divide-border/60 overflow-hidden rounded-md border border-border/60">
-          {TERMINAL_RENDERERS.map((option) => {
-            const selected = terminalRenderer === option.value
-            const inputId = `terminal-renderer-${option.value}`
-            return (
-              <label
-                key={option.value}
-                htmlFor={inputId}
-                className={cn(
-                  'flex cursor-pointer items-start gap-2.5 px-3 py-2.5 text-left transition-colors',
-                  selected ? 'bg-accent' : 'hover:bg-accent',
-                )}
-              >
-                <input
-                  id={inputId}
-                  type="radio"
-                  name="terminal-renderer"
-                  value={option.value}
-                  checked={selected}
-                  onChange={() => setTerminalRenderer(option.value)}
-                  className="mt-0.5 size-3.5 shrink-0 accent-foreground"
-                />
-                <span className="flex min-w-0 flex-col gap-0.5">
-                  <span className="flex items-center gap-2">
-                    <span className="text-xs font-medium">{option.label}</span>
-                    {option.badge != null && (
-                      <span className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
-                        {option.badge}
-                      </span>
-                    )}
-                  </span>
-                  <span className="text-xs text-muted-foreground">{option.description}</span>
-                </span>
-              </label>
-            )
-          })}
-        </div>
-      </div>
       {/* Shell only, like the Agents panel that used to host it: the commands and the
           bundled version come from the shell router, so the browser client would render
           two empty boxes. */}
