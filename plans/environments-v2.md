@@ -13,7 +13,8 @@
 - **Identity is reported, not typed.** The daemon announces `hostname / platform / arch / version`. Names auto-fill; the human may still rename.
 - **The chip is the switcher, and it is always visible** — including on This device. A control that only appears once you are *already* remote cannot be the thing you reach for to *go* remote. (Reverses the "chip only when remote" call from the per-window pass.)
 - **Pairing replaces token archaeology.** A short-lived pairing code, transportable as a link or QR, exchanged for a per-device credential. The long-lived token stops being a thing the human ever reads.
-- **Per-device credentials, so revoke means something.** One shared secret cannot be revoked per device. This is the same change as pairing, which is why they land together.
+- **Per-device credentials, so revoke means something.** One shared secret cannot be revoked per device.
+- **The shared token keeps working alongside them** (decided 2026-07-26). Phase 4 issues each newly-paired device its own credential, but `~/.porcelain/daemon-token` stays valid as a fallback so existing iPad/Mac setups don't all have to be re-paired at once. Revoke applies per device; migration is invisible. The clean-break alternative (retire the shared token, re-pair everything) was considered and rejected as not worth the one-time disruption. **Phase 3 currently hands the shared token to a paired device** — that is the piece phase 4 replaces.
 - **No scope matrix.** T3 splits credentials across view/operate/terminals/write-reviews/manage-access/relay. That is enterprise shape on a solo-dev tool: a device is trusted or it is gone.
 - **An environment has many endpoints, one identity.** The same Beelink is a LAN address at home and a tailnet address away. Store endpoints per environment and fail over; persist the preference by endpoint *kind*, not raw IP, so it survives a network change. (Borrowed wholesale from T3's `AccessEndpoint` — the one piece of their model that is straightforwardly better than ours.)
 - **No SSH launch.** T3 needs it because their server may not be running on the target. Ours is a lingered systemd unit or an `npx porcelain-daemon serve` the human already started.
@@ -27,6 +28,18 @@
 | 3 | **Pairing** — daemon mints short-lived codes; pairing link + QR in Share; single-paste add | shipped |
 | 4 | **Connected devices** — per-device credentials, roster (device, repo, threads, terminals, last seen), per-device revoke | planned |
 | 5 | **Multi-endpoint** — endpoints per environment, ordered failover, preference by kind | planned |
+
+### Phase 4, when it's picked up
+
+The shape is settled; what's left is the work. Sketch, so the next session doesn't re-derive it:
+
+1. A device store (`~/.porcelain/devices.json`): `{ id, label, credentialHash, createdAt, lastSeenAt }`. Hashes only — the credential itself is shown once, at pairing.
+2. `tokenOk` in `daemon-http.ts` widens to accept the shared token **or** any live device credential, still constant-time, and stamps `lastSeenAt`. **This is the security-critical edit in the whole plan** — it is the gate every request and every WS upgrade passes through, so it wants a careful session and its own adversarial read, not a tired one.
+3. `POST /pair` returns a freshly-minted device credential instead of the shared token (the phase-3 behaviour it replaces).
+4. Sessions carry identity: the client announces its device on the WS handshake so the roster can say *what each device is doing* (repo, agent threads, attached terminals) — the thing that makes this a trust surface rather than a generic session table.
+5. Settings → Environments grows a Connected devices list with per-device Revoke.
+
+Deliberately NOT doing: T3's scope matrix (view / operate / terminals / write reviews / manage access / relay). A device is trusted or it is gone.
 
 ## Traps found while building
 
