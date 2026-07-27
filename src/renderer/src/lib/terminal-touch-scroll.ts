@@ -53,10 +53,7 @@ export interface TerminalTouchScrollTarget {
  *   SGR wheel reports (what Claude Code wants for "mouse wheel scrolls a few lines").
  * - Alternate buffer, no mouse: PageUp/PageDown — never arrows (Claude rejects those).
  */
-export function applyTerminalTouchScroll(
-  target: TerminalTouchScrollTarget,
-  lines: number,
-): void {
+export function applyTerminalTouchScroll(target: TerminalTouchScrollTarget, lines: number): void {
   if (lines === 0) return
 
   if (target.bufferType !== 'alternate') {
