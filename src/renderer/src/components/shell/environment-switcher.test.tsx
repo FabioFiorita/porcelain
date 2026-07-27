@@ -204,10 +204,11 @@ describe('EnvironmentSwitcher menu', () => {
     expect(disconnect).toHaveBeenCalled()
   })
 
-  it('routes Add remote to Settings → Remotes', () => {
+  it('routes Manage remotes to Settings → Remotes (add lives there, not in the menu)', () => {
     render(<EnvironmentSwitcher />)
     fireEvent.click(screen.getByLabelText('Environment: studio'))
-    fireEvent.click(screen.getByText('Add remote…'))
+    expect(screen.queryByText('Add remote…')).toBeNull()
+    fireEvent.click(screen.getByText('Manage remotes…'))
     const state = useSettingsDialogStore.getState()
     expect(state.open).toBe(true)
     expect(state.section).toBe('remotes')

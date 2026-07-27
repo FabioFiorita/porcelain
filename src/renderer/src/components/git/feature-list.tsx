@@ -47,7 +47,6 @@ import {
   GitCompareArrows,
   MessageSquarePlus,
   MoreHorizontal,
-  RefreshCw,
   Square,
   SquareCheck,
 } from 'lucide-react'
@@ -249,7 +248,8 @@ export function FeatureList(): React.JSX.Element {
 function FeatureOutline(): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)
   const openTab = useTabsStore((s) => s.openTab)
-  const { reading, refresh } = useFeatureReading()
+  // featureView / reading poll + agent channel events — no manual refresh.
+  const { reading } = useFeatureReading()
   const reviewed = useReviewedPaths()
   const { clear, isClearing } = useClearFeatureReview()
   const requestJump = useReviewFocusStore((s) => s.requestJump)
@@ -337,9 +337,6 @@ function FeatureOutline(): React.JSX.Element {
             </p>
           </div>
           <SidebarHeaderActions>
-            <Button variant="ghost" size="icon-sm" onClick={refresh} aria-label="Refresh review">
-              <RefreshCw />
-            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={

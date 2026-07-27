@@ -1,12 +1,13 @@
 import { Badge } from '@renderer/components/ui/badge'
-import { Button } from '@renderer/components/ui/button'
 import { useExplore } from '@renderer/hooks/use-explore'
-import { Compass, RefreshCw } from 'lucide-react'
+import { Compass } from 'lucide-react'
 import { ReadingSurfaceBody } from './reading-surface'
 
 // The viewer's `explore` tab: a read-only feature flow seeded from a symbol (or a
 // whole file), rendered through the same sliced reading surface as the feature read.
 // Nothing is changed — every file is `context`, flow-ordered entry-point → data.
+// Re-traces when the seed changes or watched files invalidate the query (no manual
+// reload control — same doctrine as Changes / Review).
 export function ExploreView({
   path,
   symbol,
@@ -14,7 +15,7 @@ export function ExploreView({
   path: string
   symbol?: string
 }): React.JSX.Element {
-  const { reading, refresh } = useExplore(path, symbol)
+  const { reading } = useExplore(path, symbol)
 
   if (reading === undefined) {
     return <p className="p-4 text-sm text-muted-foreground">Tracing the flow…</p>
@@ -35,9 +36,6 @@ export function ExploreView({
             explore · {total} {total === 1 ? 'file' : 'files'}
           </Badge>
         </span>
-        <Button variant="ghost" size="icon-sm" onClick={refresh} aria-label="Re-trace feature flow">
-          <RefreshCw />
-        </Button>
       </div>
       <div className="min-h-0 flex-1">
         {total === 0 ? (

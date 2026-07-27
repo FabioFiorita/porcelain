@@ -21,23 +21,32 @@ export function useResolvedTheme(): 'light' | 'dark' {
 
 /**
  * Mount ONCE (in AppShell, beside the other one-shot hooks): keep the document
- * and the Electron shell in step with the resolved appearance. main.tsx already
- * applied it pre-paint; this re-applies on every later change (preference edit or
- * OS flip) and, on every resolved-mode change including the initial mount, tells
- * the shell so it can retint the native chrome + window background. Guarded with
- * `isBrowser` — the browser client has no shell bridge, so nothing may throw.
+ * and the Electron shell in step with the appearance preference.
+ *
+ * IMPORTANT: the shell gets the raw preference (`system` | `light` | `dark`), not
+ * the resolved mode. Sending only light/dark pinned Electron's `nativeTheme` and
+ * made Settings → System a no-op for window chrome (and looked broken when the
+ * resolved mode didn't flip). The document still applies the resolved class.
  */
 export function useThemeSync(): void {
   useEffect(() => {
-    const push = (mode: 'light' | 'dark'): void => {
-      applyResolvedTheme(mode)
-      // Bare fire-and-forget mutate (like stores/terminals.ts) — nothing awaits
-      // the OS chrome update.
-      if (!isBrowser) shellTrpcClient.setThemeSource.mutate(mode)
+    const push = (): void => {
+      const pref = usePreferencesStore.getState().theme
+      applyResolvedTheme(resolveTheme(pref))
+      if (!isBrowser) shellTrpcClient.setThemeSource.mutate(pref)
     }
-    // Initial mount: notify for the current resolved mode (main.tsx already
-    // applied the class, but the shell hasn't been told yet).
-    push(resolvedSnapshot())
-    return subscribeResolvedTheme(push)
+    push()
+    // Preference edits must always push (even system→dark when OS is already dark)
+    // so the shell re-enters themeSource: 'system'.
+    const unsubStore = usePreferencesStore.subscribe(push)
+    const media =
+      typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+        ? window.matchMedia('(prefers-color-scheme: dark)')
+        : null
+    media?.addEventListener('change', push)
+    return () => {
+      unsubStore()
+      media?.removeEventListener('change', push)
+    }
   }, [])
 }

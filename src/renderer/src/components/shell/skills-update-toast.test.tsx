@@ -25,8 +25,8 @@ interface ToastAction {
 
 const skillsInfo = (version: string): ReturnType<typeof useSkillsInfo> => ({
   version,
-  installCommand: 'npx skills add FabioFiorita/porcelain',
-  upgradeCommand: 'npx skills upgrade',
+  installCommand: 'npx skills add FabioFiorita/porcelain -g',
+  upgradeCommand: 'npx skills upgrade -g',
 })
 
 const lastToast = (): NonNullable<Parameters<typeof toast.info>[1]> => {
@@ -74,15 +74,15 @@ describe('SkillsUpdateToast', () => {
     expect(toast.info).not.toHaveBeenCalled()
   })
 
-  // General is where the Companion block (and the copyable upgrade command) lives —
-  // the action has to land on a section that actually shows it.
-  it('opens Settings to General and records the dismissal from the action', () => {
+  // Companion is where the copyable upgrade command lives — the action has to land
+  // on a section that actually shows it.
+  it('opens Settings to Companion and records the dismissal from the action', () => {
     useSettingsDialogStore.setState({ section: 'flow' })
     render(<SkillsUpdateToast />)
     const action = lastToast().action as ToastAction
     action.onClick()
     expect(useSettingsDialogStore.getState().open).toBe(true)
-    expect(useSettingsDialogStore.getState().section).toBe('general')
+    expect(useSettingsDialogStore.getState().section).toBe('companion')
     expect(usePreferencesStore.getState().skillsDismissedVersion).toBe('2.9.0')
   })
 

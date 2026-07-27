@@ -368,9 +368,9 @@ export const shellRouter = t.router({
     installUpdate()
   }),
 
-  // Skills are distributed via skills.sh (`npx skills add FabioFiorita/porcelain`).
+  // Skills are distributed via skills.sh (`npx skills add FabioFiorita/porcelain -g`).
   // The app does not install them directly; it only tells the user the command and
-  // tracks the bundled skills version to prompt for `npx skills upgrade`.
+  // tracks the bundled skills version to prompt for `npx skills upgrade -g`.
   skillsInfo: t.procedure.query(
     (): { version: string; installCommand: string; upgradeCommand: string } => ({
       version: SKILLS_VERSION,

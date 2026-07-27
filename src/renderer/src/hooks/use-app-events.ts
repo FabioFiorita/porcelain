@@ -86,10 +86,13 @@ function handle(
       // a watched file changed on disk outside the app (most often the coding
       // agent editing in the terminal) — re-read the open documents and diffs so
       // the viewer isn't showing a stale version. (gitFlow self-polls every 3s.)
+      // exploreFeature too: the explore tab has no manual reload; a re-trace when
+      // the seed file's imports change is the live path.
       return Promise.all([
         utils.readFile.invalidate(),
         utils.previewHtml.invalidate(),
         utils.gitDiffFile.invalidate(),
+        utils.exploreFeature.invalidate(),
       ])
     case 'file-tree':
       // a watched dir changed on disk outside the app (the coding agent adding or

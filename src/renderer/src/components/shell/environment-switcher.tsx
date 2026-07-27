@@ -27,7 +27,6 @@ import {
   Check,
   Cloud,
   Monitor,
-  Plus,
   Settings2,
   SquareArrowOutUpRight,
   TriangleAlert,
@@ -200,10 +199,6 @@ export function EnvironmentSwitcher(): React.JSX.Element | null {
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuItem onClick={() => openSettings('remotes')}>
-            <Plus className="shrink-0" />
-            Add remote…
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => openSettings('remotes')}>
             <Settings2 className="shrink-0" />
             Manage remotes…
           </DropdownMenuItem>
@@ -238,12 +233,17 @@ function EnvironmentRow({
   onUse: () => void
   onNewWindow: () => void
 }): React.JSX.Element {
+  // Match project-switcher rows: the active row stays interactive (so the open-
+  // in-new-window control isn't greyed by data-disabled), and only the row body
+  // re-binds — never disable the whole item just because it's current.
   return (
     <DropdownMenuItem
       data-testid={TestIds.environmentRow(id ?? 'local')}
-      // Re-binding the window you're already on would reload it for nothing.
-      disabled={disabled || isActive}
-      onClick={onUse}
+      disabled={disabled}
+      onClick={() => {
+        if (isActive) return
+        onUse()
+      }}
     >
       <StatusDot state={state} />
       <div className="flex min-w-0 flex-col">
@@ -254,21 +254,25 @@ function EnvironmentRow({
       </div>
       <div className="ml-auto flex shrink-0 items-center gap-1">
         {isActive && <Check className="shrink-0 text-success" />}
-        <button
-          type="button"
-          aria-label={`Open ${name} in new window`}
-          className={cn(
-            'flex size-6 items-center justify-center rounded-md text-muted-foreground',
-            'hover:bg-accent/50 hover:text-foreground',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
-          )}
-          onClick={(e) => {
-            e.stopPropagation()
-            onNewWindow()
-          }}
-        >
-          <SquareArrowOutUpRight className="size-3.5" />
-        </button>
+        {/* Shell-only: browser client can't spawn Electron windows. stopPropagation
+            keeps the row's switch from firing — same as the project picker's control. */}
+        {!isBrowser && (
+          <button
+            type="button"
+            aria-label={`Open ${name} in new window`}
+            className={cn(
+              'flex size-6 items-center justify-center rounded-md text-muted-foreground',
+              'hover:bg-accent/50 hover:text-foreground',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+            )}
+            onClick={(e) => {
+              e.stopPropagation()
+              onNewWindow()
+            }}
+          >
+            <SquareArrowOutUpRight className="size-3.5" />
+          </button>
+        )}
       </div>
     </DropdownMenuItem>
   )

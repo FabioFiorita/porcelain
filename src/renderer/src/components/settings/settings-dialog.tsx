@@ -18,7 +18,16 @@ import {
 import { isBrowser } from '@renderer/lib/platform'
 import { type SettingsSection, useSettingsDialogStore } from '@renderer/stores/settings-dialog'
 import { TestIds } from '@shared/test-ids'
-import { Cloud, Download, Layers, Settings2, Share2, SlidersHorizontal } from 'lucide-react'
+import {
+  BookOpen,
+  Cloud,
+  Download,
+  Layers,
+  Settings2,
+  Share2,
+  SlidersHorizontal,
+} from 'lucide-react'
+import { CompanionSection } from './companion-section'
 import { FlowLayersSection } from './flow-layers-section'
 import { GeneralSection } from './general-section'
 import { RemotesSection } from './remotes-section'
@@ -44,6 +53,14 @@ const ALL_SECTIONS: {
     icon: SlidersHorizontal,
     title: 'General',
     blurb: 'Viewer preferences, saved on this machine.',
+  },
+  {
+    id: 'companion',
+    label: 'Companion',
+    icon: BookOpen,
+    title: 'Companion',
+    blurb: 'Install and upgrade the porcelain-companion skill for your coding agents.',
+    shellOnly: true,
   },
   {
     id: 'share',
@@ -174,6 +191,7 @@ export function SettingsDialog(): React.JSX.Element {
             </header>
             <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-6">
               {activeId === 'general' && <GeneralSection />}
+              {activeId === 'companion' && <CompanionSection />}
               {activeId === 'share' && <ShareSection />}
               {activeId === 'remotes' && <RemotesSection />}
               {activeId === 'flow' && <FlowLayersSection onSaved={() => setOpen(false)} />}

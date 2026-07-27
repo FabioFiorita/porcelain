@@ -43,7 +43,6 @@ import {
   MessageSquarePlus,
   Minus,
   Plus,
-  RefreshCw,
   Rows3,
   Square,
   SquareCheck,
@@ -289,7 +288,8 @@ export function ChangesList(): React.JSX.Element {
   const working = useGitFlow()
   const branch = useBranchFlow(changesScope === 'branch')
 
-  const { groups, refresh } = changesScope === 'branch' ? branch : working
+  // Polls live (gitFlow / branch flow) — no manual refresh control.
+  const { groups } = changesScope === 'branch' ? branch : working
   const base = changesScope === 'branch' ? branch.base : undefined
 
   const reviewed = useReviewedPaths()
@@ -371,15 +371,6 @@ export function ChangesList(): React.JSX.Element {
                 <TooltipContent>All changes</TooltipContent>
               </Tooltip>
             )}
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="shrink-0"
-              onClick={refresh}
-              aria-label="Refresh changes"
-            >
-              <RefreshCw />
-            </Button>
           </SidebarHeaderActions>
         </div>
         <ChangesScopeToggle />

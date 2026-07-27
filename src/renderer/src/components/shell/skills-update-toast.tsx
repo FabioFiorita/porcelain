@@ -9,8 +9,8 @@ const TOAST_ID = 'skills-update'
 
 /**
  * Watches for a newer bundled skills version than the one the user last dismissed
- * and raises a single persistent toast pointing them at Settings → General, whose
- * Companion block has the upgrade command copyable. Renders nothing.
+ * and raises a single persistent toast pointing them at Settings → Companion,
+ * where the upgrade command is copyable. Renders nothing.
  */
 export function SkillsUpdateToast(): null {
   const info = useSkillsInfo()
@@ -36,14 +36,14 @@ export function SkillsUpdateToast(): null {
 
     toast.info('Skills update available', {
       id: TOAST_ID,
-      description: `Porcelain skills v${current} are bundled. Run \`npx skills upgrade\` to update.`,
+      description: `Porcelain skills v${current} are bundled. Run \`npx skills upgrade -g\` to update.`,
       duration: Number.POSITIVE_INFINITY,
       closeButton: true,
       action: {
         label: 'Open settings',
         onClick: () => {
           setDismissedVersion(current)
-          useSettingsDialogStore.getState().openTo('general')
+          useSettingsDialogStore.getState().openTo('companion')
         },
       },
       onDismiss: () => {
