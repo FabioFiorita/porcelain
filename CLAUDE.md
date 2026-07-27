@@ -60,11 +60,10 @@ Rankings, higher = better. Intelligence is how hard a problem you can hand the m
 | model           | cost | intelligence | taste |
 |-----------------|------|--------------|-------|
 | sonnet-5        | 5    | 5            | 7     |
-| opus-4.8        | 4    | 7            | 8     |
-| opus-4.8 xhigh  | 3    | 8            | 8     |
+| grok-4.5        | 5    | 7            | 7     |
+| opus-5          | 4    | 7            | 8     |
+| opus-5 xhigh    | 3    | 8            | 8     |
 | fable-5         | 2    | 9            | 9     |
-
-Availability note: fable-5 is a limited preview (roughly until 2026-07-09). While it's available, it's the top pick for orchestration and hard sub-agent work. When it's gone, **opus-4.8 with `effort: 'xhigh'` is the replacement** everywhere this file says fable.
 
 How to apply:
 
