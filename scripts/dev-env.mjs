@@ -11,6 +11,8 @@
  * Setting PORCELAIN_HOME redirects channels, token, and CLI install together.
  * Never point a product-work session at the production paths.
  */
+import { randomBytes } from 'node:crypto'
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -19,15 +21,39 @@ export const DEV_PORT = 43118
 export const DEV_USER_DATA = join(homedir(), '.local', 'share', 'porcelain-dev')
 export const DEV_HOME = join(homedir(), '.porcelain-dev')
 export const DEV_PLAYGROUND = join(homedir(), 'code', 'porcelain-playground')
+export const DEV_TOKEN_FILE = join(DEV_HOME, 'daemon-token')
+
+/**
+ * Mint or load the dev-stack shared token at ~/.porcelain-dev/daemon-token.
+ * The daemon entry refuses to auto-read the file when stdin is a TTY (so a
+ * bare `node out/main/daemon/server.js` doesn't silently mint); the launcher
+ * must pass PORCELAIN_DAEMON_TOKEN via env — same pattern as daemon-cli.js.
+ */
+export function ensureDevToken() {
+  mkdirSync(DEV_HOME, { recursive: true })
+  try {
+    const existing = readFileSync(DEV_TOKEN_FILE, 'utf8').trim()
+    if (existing !== '') return existing
+  } catch {
+    // absent — mint
+  }
+  const token = randomBytes(32).toString('hex')
+  const tmp = `${DEV_TOKEN_FILE}.tmp`
+  writeFileSync(tmp, token, { encoding: 'utf8', mode: 0o600 })
+  renameSync(tmp, DEV_TOKEN_FILE)
+  return token
+}
 
 /** Env block for the dev daemon + CLI. Does not enable LAN/tailnet. */
 export function devEnv(extra = {}) {
+  const token = process.env.PORCELAIN_DAEMON_TOKEN || ensureDevToken()
   return {
     ...process.env,
     PORCELAIN_HOME: DEV_HOME,
     PORCELAIN_USER_DATA: DEV_USER_DATA,
     PORCELAIN_DAEMON_PORT: String(DEV_PORT),
-    PORCELAIN_DAEMON_TOKEN_FILE: join(DEV_HOME, 'daemon-token'),
+    PORCELAIN_DAEMON_TOKEN_FILE: DEV_TOKEN_FILE,
+    PORCELAIN_DAEMON_TOKEN: token,
     PORCELAIN_NO_STDIN_WATCHDOG: '1',
     // Explicitly clear prod network binds so a shell export can't leak them.
     PORCELAIN_TAILNET_BIND: '',
@@ -48,7 +74,11 @@ export function printDevEnv() {
   start daemon:  pnpm dev:daemon
   CLI (dev):     pnpm porcelain -- <noun> <verb>
   browser URL:   http://127.0.0.1:${DEV_PORT}/
+  token file:    ${DEV_TOKEN_FILE}
   agent channel: porcelain CLI only — no MCP
+
+  Rebuild when daemon/renderer code changes:  pnpm build && pnpm dev:daemon
+  (plain \`pnpm dev:daemon\` is enough if out/ is already warm.)
 `)
 }
 

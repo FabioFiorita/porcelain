@@ -4,6 +4,10 @@
  *
  * Requires `pnpm build` first (or a warm out/main/daemon/server.js).
  * Does not touch the production systemd daemon on 43117.
+ *
+ * Mints/loads ~/.porcelain-dev/daemon-token and passes it via env — the daemon
+ * refuses to auto-read the file when stdin is a TTY (see resolveToken in
+ * server.ts), so a bare launch would otherwise exit with "token is required".
  */
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync } from 'node:fs'
