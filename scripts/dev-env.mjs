@@ -10,6 +10,9 @@
  *
  * Setting PORCELAIN_HOME redirects channels, token, and CLI install together.
  * Never point a product-work session at the production paths.
+ *
+ * The launcher is scripts/dev-daemon.mjs (`pnpm dev:daemon -- …`). This module
+ * only builds the env block + token; flags live on the launcher.
  */
 import { randomBytes } from 'node:crypto'
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
@@ -44,7 +47,10 @@ export function ensureDevToken() {
   return token
 }
 
-/** Env block for the dev daemon + CLI. Does not enable LAN/tailnet. */
+/**
+ * Env block for the dev daemon + CLI.
+ * Callers (dev-daemon.mjs) pass LAN/tailnet/port overrides via `extra`.
+ */
 export function devEnv(extra = {}) {
   const token = process.env.PORCELAIN_DAEMON_TOKEN || ensureDevToken()
   return {
@@ -55,12 +61,9 @@ export function devEnv(extra = {}) {
     PORCELAIN_DAEMON_TOKEN_FILE: DEV_TOKEN_FILE,
     PORCELAIN_DAEMON_TOKEN: token,
     PORCELAIN_NO_STDIN_WATCHDOG: '1',
-    // LAN on the same port as loopback (43118) so Mac/browser on the home
-    // network can hit http://beelink.local:43118 (or the numeric LAN IP).
-    // Tailnet stays off by default — prod already owns 43117 on the tailnet;
-    // set PORCELAIN_TAILNET_BIND=1 in the shell if you also want 43118 there.
-    PORCELAIN_LAN_BIND: process.env.PORCELAIN_LAN_BIND || '1',
-    PORCELAIN_TAILNET_BIND: process.env.PORCELAIN_TAILNET_BIND || '',
+    // Defaults; launcher flags override via `extra`.
+    PORCELAIN_LAN_BIND: '1',
+    PORCELAIN_TAILNET_BIND: '',
     ...extra,
   }
 }
@@ -74,15 +77,18 @@ export function printDevEnv() {
   channels    ${DEV_HOME}  (PORCELAIN_HOME)
   playground  ${DEV_PLAYGROUND}
 
-  start daemon:  pnpm dev:daemon
-  CLI (dev):     pnpm porcelain -- <noun> <verb>
-  browser URL:   http://127.0.0.1:${DEV_PORT}/
-                 http://<host>.local:${DEV_PORT}/  (LAN; same token)
-  token file:    ${DEV_TOKEN_FILE}
-  agent channel: porcelain CLI only — no MCP
+  start:      pnpm dev:daemon
+              pnpm dev:daemon -- --host          # LAN (default)
+              pnpm dev:daemon -- --loopback      # this machine only
+              pnpm dev:daemon -- --port 43119
+              pnpm dev:daemon -- --print-token
+  CLI:        pnpm porcelain -- <noun> <verb>
+  browser:    http://127.0.0.1:${DEV_PORT}/
+              http://<host>.local:${DEV_PORT}/   # with --host
+  token:      ${DEV_TOKEN_FILE}
 
-  Rebuild when daemon/renderer code changes:  pnpm build && pnpm dev:daemon
-  (plain \`pnpm dev:daemon\` is enough if out/ is already warm.)
+  Not the published package — that is:  npx porcelain-daemon@latest serve
+  Rebuild after code changes:           pnpm build && pnpm dev:daemon
 `)
 }
 
