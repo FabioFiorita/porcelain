@@ -112,6 +112,11 @@ export const TestIds = {
   terminalKey: (label: string): string =>
     `terminal-key-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
   settingsTerminalKeyBar: 'settings-terminal-key-bar',
+  /** Machine picker items shown when the window is bound to a REMOTE daemon. */
+  terminalNewRemote: 'terminal-new-remote',
+  terminalNewLocal: 'terminal-new-local',
+  localTerminalPathInput: 'local-terminal-path-input',
+  localTerminalPathSave: 'local-terminal-path-save',
   actionsAdd: 'actions-add',
   actionRun: (title: string): string =>
     `action-run-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,

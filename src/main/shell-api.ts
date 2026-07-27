@@ -10,6 +10,11 @@ import {
   windowEnvironmentId,
 } from './daemon'
 import {
+  loadLocalTerminalPaths,
+  localTerminalPathKey,
+  updateLocalTerminalPaths,
+} from './local-terminal-paths'
+import {
   type EndpointKind,
   endpointKind,
   endpointsOf,
@@ -231,6 +236,50 @@ async function refreshActiveEndpoint(id: string): Promise<string | null> {
 
 export const shellRouter = t.router({
   windowInit: t.procedure.query(({ ctx }): WindowInit => windowInitFor(ctx.sender)),
+
+  /**
+   * The LOCAL child daemon's pair, plus whether this window is already bound to it.
+   *
+   * Handing the renderer the local token is not a widening: the preload already gives it
+   * to every LOCAL-bound window (`window.porcelain.daemon.token`), and an Electron window
+   * always loads our own renderer dist from disk (`loadFile` in window.ts) — never a
+   * remote daemon's HTML — so a remote-bound window is running exactly the same trusted
+   * code on the same machine. It exists so that window can ALSO open a terminal here: the
+   * repo is on the Beelink, but the iOS simulator is on this Mac. `isLocal` lets the UI
+   * hide the whole affordance when the window is already local, where it would just be a
+   * second way to spawn the same shell. The browser client never reaches this — the shell
+   * router throws there — which is correct: an iPad has no local daemon.
+   */
+  localDaemon: t.procedure.query(({ ctx }): { url: string; token: string; isLocal: boolean } => ({
+    ...localDaemonPair(),
+    isLocal: windowEnvironmentId(ctx.sender) === null,
+  })),
+
+  /**
+   * The local directory a "This device" terminal should open in for `repoPath` on THIS
+   * window's environment, or null when the human hasn't mapped it yet (the UI then asks).
+   */
+  localTerminalPath: t.procedure
+    .input(z.object({ repoPath: z.string() }))
+    .query(async ({ ctx, input }): Promise<string | null> => {
+      const state = await loadLocalTerminalPaths()
+      const key = localTerminalPathKey(windowEnvironmentId(ctx.sender), input.repoPath)
+      return state.paths[key] ?? null
+    }),
+
+  /** Remember (or, with an empty path, forget) the local cwd for a repo on this environment. */
+  setLocalTerminalPath: t.procedure
+    .input(z.object({ repoPath: z.string(), localPath: z.string() }))
+    .mutation(async ({ ctx, input }): Promise<void> => {
+      const key = localTerminalPathKey(windowEnvironmentId(ctx.sender), input.repoPath)
+      const localPath = input.localPath.trim()
+      await updateLocalTerminalPaths((state) => {
+        const paths = { ...state.paths }
+        if (localPath === '') delete paths[key]
+        else paths[key] = localPath
+        return { paths }
+      })
+    }),
 
   // Frameless-chrome window controls (Linux/Windows): the renderer draws its own
   // min/maximize/close cluster, so these act on the CALLING window via

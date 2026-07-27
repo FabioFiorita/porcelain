@@ -1,4 +1,5 @@
 import { SidebarHeaderActions } from '@renderer/components/shell/sidebar-header-actions'
+import { LocalPathDialog } from '@renderer/components/terminal/local-path-dialog'
 import { TerminalRenameDialog } from '@renderer/components/terminal/terminal-rename-dialog'
 import { Button } from '@renderer/components/ui/button'
 import {
@@ -7,13 +8,21 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from '@renderer/components/ui/context-menu'
-import { spawnTerminal } from '@renderer/lib/terminal-actions'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@renderer/components/ui/dropdown-menu'
+import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
+import { useLocalDaemon, useLocalTerminalPath } from '@renderer/hooks/use-local-terminal'
+import { spawnLocalTerminal, spawnTerminal } from '@renderer/lib/terminal-actions'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { useTerminalsStore } from '@renderer/stores/terminals'
 import { TestIds } from '@shared/test-ids'
-import { PenLine, Plus, SquareTerminal, X } from 'lucide-react'
+import { Cloud, Monitor, PenLine, Plus, SquareTerminal, X } from 'lucide-react'
 import { useState } from 'react'
 
 /**
@@ -38,6 +47,23 @@ export function TerminalList(): React.JSX.Element {
   // rename is in flight. Single-surface, so it's plain component state (unlike the
   // file prompt, which is opened from two surfaces and lives in a store).
   const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null)
+  // "This device" terminals exist only when this window is on ANOTHER machine; on a local
+  // window the option would just be a second way to spawn the same shell.
+  const localDaemon = useLocalDaemon()
+  const canSpawnLocal = localDaemon !== undefined && !localDaemon.isLocal && repo !== null
+  const mappedLocalPath = useLocalTerminalPath(repo?.path ?? null)
+  const identity = useDaemonIdentity()
+  // Open only when the human asked for a local terminal and no folder is mapped yet.
+  const [mappingPath, setMappingPath] = useState(false)
+
+  const spawnLocal = async (): Promise<void> => {
+    if (!repo) return
+    if (mappedLocalPath == null || mappedLocalPath === '') {
+      setMappingPath(true)
+      return
+    }
+    await spawnLocalTerminal(mappedLocalPath)
+  }
 
   const open = (id: string, name: string): void => {
     openTab({ id: tabId('terminal', id), kind: 'terminal', title: name, path: id })
@@ -54,16 +80,43 @@ export function TerminalList(): React.JSX.Element {
     <div data-testid={TestIds.terminalList} className="flex flex-col gap-1.5">
       <div className="flex items-center justify-end px-2">
         <SidebarHeaderActions>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={spawnTerminal}
-            aria-label="New terminal"
-            data-testid={TestIds.terminalNew}
-            disabled={!repo}
-          >
-            <Plus />
-          </Button>
+          {canSpawnLocal ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="New terminal"
+                    data-testid={TestIds.terminalNew}
+                  >
+                    <Plus />
+                  </Button>
+                }
+              />
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={spawnTerminal} data-testid={TestIds.terminalNewRemote}>
+                  <Cloud />
+                  {identity.host ?? 'This window’s machine'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={spawnLocal} data-testid={TestIds.terminalNewLocal}>
+                  <Monitor />
+                  This device
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={spawnTerminal}
+              aria-label="New terminal"
+              data-testid={TestIds.terminalNew}
+              disabled={!repo}
+            >
+              <Plus />
+            </Button>
+          )}
         </SidebarHeaderActions>
       </div>
       <div className="flex flex-col gap-0.5 px-2">
@@ -85,9 +138,20 @@ export function TerminalList(): React.JSX.Element {
                       type="button"
                       onClick={() => open(session.id, session.name)}
                       onDoubleClick={() => setRenaming({ id: session.id, name: session.name })}
+                      title={
+                        session.origin === 'local' ? `${session.name} — this device` : session.name
+                      }
                       className="flex min-w-0 flex-1 items-center gap-2 text-left"
                     >
-                      <SquareTerminal className="size-3.5 shrink-0" />
+                      {/* The icon carries local-vs-remote (same Monitor/Cloud language as
+                          the environment switcher). A text badge said it more loudly but
+                          squeezed the name to "Termina…" in a 192px panel — the row's job
+                          is the name. */}
+                      {session.origin === 'local' ? (
+                        <Monitor className="size-3.5 shrink-0" />
+                      ) : (
+                        <SquareTerminal className="size-3.5 shrink-0" />
+                      )}
                       <span className="min-w-0 flex-1 truncate">{session.name}</span>
                     </button>
                     {session.status === 'exited' ? (
@@ -135,6 +199,16 @@ export function TerminalList(): React.JSX.Element {
           initialName={renaming.name}
           onRename={(name) => rename(renaming.id, name)}
           onClose={() => setRenaming(null)}
+        />
+      )}
+      {mappingPath && repo && (
+        <LocalPathDialog
+          repoPath={repo.path}
+          initialPath={mappedLocalPath ?? null}
+          // Spawn straight from the dialog's saved value: the query invalidation it
+          // triggers hasn't landed yet, and the human asked for a terminal, not a setting.
+          onSaved={(localPath) => spawnLocalTerminal(localPath)}
+          onClose={() => setMappingPath(false)}
         />
       )}
     </div>

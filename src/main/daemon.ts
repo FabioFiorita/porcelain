@@ -197,7 +197,13 @@ export function pushLocalDaemonInfo(): void {
   for (const window of BrowserWindow.getAllWindows()) {
     if (window.isDestroyed()) continue
     const remote = windowDaemons.get(window.webContents.id)
-    if (remote != null) continue
+    if (remote != null) {
+      // A remote-bound window keeps its remote pair — but it may ALSO hold a second
+      // connection to the local daemon ("This device" terminals), which just moved to a
+      // new port. Tell it to re-read `localDaemon` rather than talk to a dead port.
+      window.webContents.send('shell-event', 'local-daemon-changed')
+      continue
+    }
     window.webContents.send('daemon-url-changed', localDaemonInfo())
   }
 }

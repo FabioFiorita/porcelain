@@ -37,6 +37,11 @@ function handle(
       // the OS maximized/unmaximized the frameless window (Linux/Windows) — refresh
       // the query so the custom controls flip the maximize/restore glyph
       return shellUtils.windowIsMaximized.invalidate()
+    case 'local-daemon-changed':
+      // the local child daemon restarted on a new port and this window is bound to a
+      // REMOTE one — refresh the endpoint so its "This device" terminal session
+      // re-points instead of talking to the dead port (useLocalDaemon re-points on data)
+      return shellUtils.localDaemon.invalidate()
     case 'feature-view':
       // the agent pushed a review-set change via the CLI — refresh BOTH feature surfaces
       // (the sidebar list AND the inline reading surface) so they don't disagree until

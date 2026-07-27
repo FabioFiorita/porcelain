@@ -1,6 +1,6 @@
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
-import { useTerminalsStore } from '@renderer/stores/terminals'
+import { type TerminalOrigin, useTerminalsStore } from '@renderer/stores/terminals'
 
 /**
  * The next "Terminal N": one past the highest N in the roster (pure — the caller owns
@@ -33,13 +33,29 @@ let terminalNumberFloor = 0
 export async function spawnTerminal(): Promise<void> {
   const repo = useRepoStore.getState().repo
   if (!repo) return
+  await spawn(repo.path, 'primary')
+}
+
+/**
+ * Spawn a shell on the machine running the app (not the daemon this window is bound to)
+ * and open it as a terminal tab — the "This device" path. `localPath` is the human's
+ * mapped local directory for this repo; the caller (the Terminal list) collects it first,
+ * since the remote repo's path rarely exists locally.
+ */
+export async function spawnLocalTerminal(localPath: string): Promise<void> {
+  await spawn(localPath, 'local')
+}
+
+async function spawn(cwd: string, origin: TerminalOrigin): Promise<void> {
   const { sessions, create } = useTerminalsStore.getState()
   terminalNumberFloor = nextTerminalNumber(
     sessions.map((s) => s.name),
     terminalNumberFloor,
   )
+  // The number is shared across machines on purpose: the roster is one list, so two
+  // "Terminal 3"s in it — one local, one remote — would be the confusing outcome.
   const name = `Terminal ${terminalNumberFloor}`
-  const id = await create({ cwd: repo.path, name })
+  const id = await create({ cwd, name, origin })
   useTabsStore
     .getState()
     .openTab({ id: tabId('terminal', id), kind: 'terminal', title: name, path: id })

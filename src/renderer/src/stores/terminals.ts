@@ -1,4 +1,11 @@
-import { createTerminal, detachTerminal, killTerminal } from '@renderer/lib/daemon'
+import { primary } from '@renderer/lib/daemon'
+import {
+  forgetLocalTerminal,
+  localDaemonClient,
+  localDaemonSession,
+  markLocalTerminal,
+  sessionForTerminal,
+} from '@renderer/lib/local-daemon'
 import { disposeTerminal } from '@renderer/lib/terminal-registry'
 import { trpcClient } from '@renderer/lib/trpc'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
@@ -20,20 +27,38 @@ import { create } from 'zustand'
  * can't leave a black, dead terminal tab behind. `reset` (repo switch) is LOCAL-ONLY now
  * — it clears this window's view without killing the PTYs, which survive the switch (a
  * different repo just filters them out of the hydrated list).
+ *
+ * A session also carries WHICH machine it runs on (`origin`). Almost always that's
+ * `primary` — the daemon this window is bound to — but a window on a remote daemon can
+ * also spawn one on `local`, the machine running the app (see lib/local-daemon.ts). The
+ * store keeps the distinction so the roster can label it and every lifecycle call
+ * (create/kill/rename/detach) reaches the right daemon; `sessionForTerminal` is the router.
  */
+export type TerminalOrigin = 'primary' | 'local'
+
 export interface TerminalSession {
   id: string
   name: string
   status: 'running' | 'exited'
   exitCode?: number
+  origin: TerminalOrigin
 }
 
 interface TerminalsState {
   sessions: TerminalSession[]
   /** Replace the roster with the daemon-owned sessions for the current repo (idempotent). */
   hydrate: (sessions: TerminalSession[]) => void
-  /** Spawn a PTY in `cwd` (optionally typing a command into it) and add it to the roster. */
-  create: (opts: { cwd: string; name: string; initialInput?: string }) => Promise<string>
+  /**
+   * Spawn a PTY in `cwd` (optionally typing a command into it) and add it to the roster.
+   * `origin` picks the machine — omitted means this window's daemon; `local` requires the
+   * local session to already exist (the caller establishes it from the shell's endpoint).
+   */
+  create: (opts: {
+    cwd: string
+    name: string
+    initialInput?: string
+    origin?: TerminalOrigin
+  }) => Promise<string>
   /** Rename a session's roster label (trimmed; empty and unknown ids are ignored). The
    *  caller retitles any open terminal tab(s) — this store doesn't reach into tabs. */
   rename: (id: string, name: string) => void
@@ -56,19 +81,30 @@ export const useTerminalsStore = create<TerminalsState>((set, get) => ({
   // exists (create awaited its id), so it comes back for real. Not worth a stateful merge
   // that would instead resurrect a cross-window-killed row forever.
   hydrate: (sessions) => set({ sessions }),
-  create: async ({ cwd, name, initialInput }) => {
+  create: async ({ cwd, name, initialInput, origin = 'primary' }) => {
+    const session = origin === 'local' ? localDaemonSession() : primary
+    if (session === null) {
+      // Only reachable if a caller asks for a local terminal before the endpoint resolved
+      // — the UI awaits it, so this is a programming error, not a user-facing state.
+      throw new Error('The local daemon connection is not ready yet.')
+    }
     // The daemon stores the name (roster is daemon-owned); we still append locally so the
     // row shows immediately, before the next hydrate confirms it.
-    const id = await createTerminal({ cwd, name, initialInput })
-    set((state) => ({ sessions: [...state.sessions, { id, name, status: 'running' }] }))
+    const id = await session.createTerminal({ cwd, name, initialInput })
+    // Register BEFORE the row exists: the registry may write to this id (an initialInput
+    // action, the first keystroke) as soon as the view mounts, and it routes by this map.
+    if (origin === 'local') markLocalTerminal(id)
+    set((state) => ({ sessions: [...state.sessions, { id, name, status: 'running', origin }] }))
     return id
   },
   rename: (id, name) => {
     const trimmed = name.trim()
     if (trimmed === '') return
-    // Write through to the daemon so the rename survives a reload (the roster is
-    // daemon-owned); optimistically update the local row too.
-    trpcClient.renameTerminal.mutate({ id, name: trimmed })
+    // Write through to the daemon that OWNS this session so the rename survives a reload
+    // (the roster is daemon-owned); optimistically update the row too.
+    const client =
+      get().sessions.find((s) => s.id === id)?.origin === 'local' ? localDaemonClient() : trpcClient
+    client?.renameTerminal.mutate({ id, name: trimmed })
     set((state) => ({
       sessions: state.sessions.map((s) => (s.id === id ? { ...s, name: trimmed } : s)),
     }))
@@ -81,7 +117,8 @@ export const useTerminalsStore = create<TerminalsState>((set, get) => ({
       sessions: state.sessions.map((s) => (s.id === id ? { ...s, status: 'exited', exitCode } : s)),
     })),
   close: (id) => {
-    killTerminal(id)
+    sessionForTerminal(id).killTerminal(id)
+    forgetLocalTerminal(id)
     disposeTerminal(id)
     // The PTY and its xterm are gone; close any viewer tab still pointing at it so
     // the pane doesn't render a dead terminal. (Cross-store getState() from a store
@@ -95,7 +132,7 @@ export const useTerminalsStore = create<TerminalsState>((set, get) => ({
     // the PTYs survive the switch (explicit kill only). Detaching also frees the id to
     // re-attach (and replay scrollback into a fresh xterm) if the repo comes back.
     for (const session of get().sessions) {
-      detachTerminal(session.id)
+      sessionForTerminal(session.id).detachTerminal(session.id)
       disposeTerminal(session.id)
     }
     set({ sessions: [] })

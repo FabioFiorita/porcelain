@@ -4,7 +4,7 @@ import { useTerminalInputStore } from '@renderer/stores/terminal-input'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebglAddon } from '@xterm/addon-webgl'
 import { type ITheme, Terminal } from '@xterm/xterm'
-import { resizeTerminal, writeTerminal } from './daemon'
+import { sessionForTerminal } from './local-daemon'
 import { isCoarseTouch, isE2E } from './platform'
 import {
   type ArrowDirection,
@@ -298,8 +298,8 @@ function create(id: string, opts?: { cols: number; rows: number }): Instance {
     : undefined
   // Keystrokes and fit-driven resizes flow back to this session's PTY over the
   // daemon WS session (lib/daemon.ts).
-  term.onData((data) => writeTerminal(id, data))
-  term.onResize(({ cols, rows }) => resizeTerminal(id, cols, rows))
+  term.onData((data) => sessionForTerminal(id).writeTerminal(id, data))
+  term.onResize(({ cols, rows }) => sessionForTerminal(id).resizeTerminal(id, cols, rows))
   // macOS editing chords xterm doesn't send on its own. We `preventDefault()` + return
   // false to fully own the key. The preventDefault is LOAD-BEARING for ⏎-based chords:
   // xterm's keydown path bails on a `false` return WITHOUT calling preventDefault, so the
@@ -321,7 +321,7 @@ function create(id: string, opts?: { cols: number; rows: number }): Instance {
       const ctrlBytes = controlByte(event.key)
       if (ctrlBytes !== null) {
         event.preventDefault()
-        writeTerminal(id, ctrlBytes)
+        sessionForTerminal(id).writeTerminal(id, ctrlBytes)
         return false
       }
     }
@@ -342,7 +342,7 @@ function create(id: string, opts?: { cols: number; rows: number }): Instance {
     const bytes = terminalEditBytes(event)
     if (bytes !== null) {
       event.preventDefault()
-      writeTerminal(id, bytes)
+      sessionForTerminal(id).writeTerminal(id, bytes)
       return false
     }
     return true
@@ -480,7 +480,7 @@ export function isTerminalFocused(id: string): boolean {
  * a real keypress does, so a key tapped after scrolling back up doesn't type off-screen.
  */
 export function sendTerminalInput(id: string, data: string): void {
-  writeTerminal(id, data)
+  sessionForTerminal(id).writeTerminal(id, data)
   instances.get(id)?.term.scrollToBottom()
 }
 

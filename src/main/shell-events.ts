@@ -6,7 +6,15 @@ import { BrowserWindow } from 'electron'
 // Everything else pushes from the daemon over the WS session
 // (src/shared/ws-protocol.ts); the renderer consumes both in use-app-events.ts
 // under one union type.
-export type ShellEvent = 'close-tab' | 'update-status' | 'maximized-changed'
+export type ShellEvent =
+  | 'close-tab'
+  | 'update-status'
+  | 'maximized-changed'
+  // The local child daemon came back on a NEW port. Local-bound windows are re-pointed
+  // directly (`daemon-url-changed`); this is for the REMOTE-bound ones, which hold a
+  // second connection to the local daemon for "This device" terminals and would
+  // otherwise keep talking to a dead port (daemon.ts, pushLocalDaemonInfo).
+  | 'local-daemon-changed'
 
 /**
  * Broadcast a shell event to every open window (update-status is repo-agnostic,

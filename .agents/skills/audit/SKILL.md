@@ -105,7 +105,18 @@ assumed — this skill is the codebase-specific layer beneath them.
   The saved remote environments (Phase 4) store each entry's token in **plaintext** at
   `userData/remote-daemon.json` — user-owned dir, same trust as the token file — the
   connect probe sends a token **only** to an address of its OWN entry, and the
-  `remoteEnvironments` query strips tokens before the renderer; never log them. Since phase 5
+  `remoteEnvironments` query strips tokens before the renderer; never log them.
+  **The one token that DOES reach the renderer is the LOCAL daemon's** — the preload has
+  always handed it to local-bound windows, and since "This device" terminals (2026-07-27)
+  the `localDaemon` shell procedure hands it to REMOTE-bound ones too, so they can open a
+  second connection to the machine the app runs on. That is not a widening, and the reason
+  is worth keeping: an Electron window always loads our own renderer dist from disk
+  (`loadFile` in `window.ts`, with `will-navigate` guarded), so a remote-bound window runs
+  the same trusted code on the same machine — a remote daemon never serves it HTML. If that
+  ever changes (loading a window FROM a remote daemon's static server), this procedure
+  becomes a real credential leak and must go first. It also stays Electron-only: the shell
+  router throws in the browser client, so an iPad can't ask for a local token that would be
+  meaningless there anyway. Since phase 5
   an entry holds SEVERAL endpoints for one machine and the failover walk tries each in turn,
   so **an entry must never come to hold two different machines' addresses** — that is what
   would put one machine's token on another's wire (in cleartext, on a LAN). Two guards keep

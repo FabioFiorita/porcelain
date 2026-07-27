@@ -11,7 +11,12 @@ vi.mock('@renderer/lib/trpc', () => ({
   trpcClient: { renameTerminal: { mutate: vi.fn().mockResolvedValue(undefined) } },
 }))
 
-const session = (id: string, name: string): TerminalSession => ({ id, name, status: 'running' })
+const session = (id: string, name: string): TerminalSession => ({
+  id,
+  name,
+  status: 'running',
+  origin: 'primary',
+})
 
 const seed = (...sessions: TerminalSession[]): void => useTerminalsStore.setState({ sessions })
 

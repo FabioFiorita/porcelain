@@ -63,24 +63,41 @@ declare global {
 // tRPC's httpBatchLink either way.
 const DAEMON_PLACEHOLDER = 'http://daemon.invalid'
 
-function rebaseToDaemon(input: RequestInfo | URL): string {
+function rebaseTo(input: RequestInfo | URL, baseUrl: string): string {
   const url =
     typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
-  return url.replace(DAEMON_PLACEHOLDER, daemonBaseUrl())
+  return url.replace(DAEMON_PLACEHOLDER, baseUrl)
 }
 
-function appLinks(): TRPCLink<AppRouter>[] {
+/**
+ * appRouter links pointed at ONE daemon, resolved per request. Parameterized by session
+ * (rather than hardwired to `primary`) so a window bound to a remote daemon can also hold
+ * a client for the local one — see `lib/local-daemon.ts`. Both getters are read per
+ * request, so a re-pointed session applies without rebuilding the link.
+ */
+function appLinksFor(baseUrl: () => string, token: () => string): TRPCLink<AppRouter>[] {
   return [
     httpBatchLink({
       url: `${DAEMON_PLACEHOLDER}/trpc`,
       // Every daemon request carries the session token — the daemon 401s
       // without it (loopback is reachable by any local webpage; see the
-      // security note in backend/server.ts). Resolved per request like the
-      // url, so a pushed refresh applies without rebuilding the link.
-      headers: () => ({ authorization: `Bearer ${daemonToken()}` }),
-      fetch: (input, init) => fetch(rebaseToDaemon(input), init),
+      // security note in backend/server.ts).
+      headers: () => ({ authorization: `Bearer ${token()}` }),
+      fetch: (input, init) => fetch(rebaseTo(input, baseUrl()), init),
     }),
   ]
+}
+
+function appLinks(): TRPCLink<AppRouter>[] {
+  return appLinksFor(daemonBaseUrl, daemonToken)
+}
+
+/** A vanilla appRouter client for a NON-primary daemon session (the local one). */
+export function createAppClientFor(session: {
+  baseUrl: () => string
+  token: () => string
+}): ReturnType<typeof createTRPCClient<AppRouter>> {
+  return createTRPCClient<AppRouter>({ links: appLinksFor(session.baseUrl, session.token) })
 }
 
 // The shell link keeps the Stage-1 IPC shuttle: the request is serialized over
