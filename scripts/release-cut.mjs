@@ -44,13 +44,15 @@ const CLEAN_ENV = {
 }
 
 function sh(cmd, args, opts = {}) {
-  return execFileSync(cmd, args, {
+  const out = execFileSync(cmd, args, {
     cwd: root,
     encoding: 'utf8',
     stdio: opts.inherit ? 'inherit' : ['ignore', 'pipe', 'pipe'],
     env: CLEAN_ENV,
     ...opts,
-  }).trim()
+  })
+  // inherit stdio returns null (stdout not piped); don't .trim() it
+  return typeof out === 'string' ? out.trim() : ''
 }
 
 function fail(msg) {
