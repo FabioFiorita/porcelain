@@ -1,3 +1,20 @@
+## [0.43.0](https://github.com/FabioFiorita/porcelain/compare/v0.42.3...v0.43.0) (2026-07-27)
+
+### Features
+
+* **daemon:** LAN/tailnet share uses the same configurable port ([6e190ec](https://github.com/FabioFiorita/porcelain/commit/6e190ec40b9c5228f4be53defe9f038355732089))
+* **terminal:** dual-machine actions and header local-path control ([817c564](https://github.com/FabioFiorita/porcelain/commit/817c56467e212f08ced24203f33c2d6678dfa3f0))
+* **terminal:** let users change the This device folder mapping ([5f4bfc8](https://github.com/FabioFiorita/porcelain/commit/5f4bfc85933b84ae0629b4a6992a4d717120b469))
+
+### Bug Fixes
+
+* **dev:** mint and pass daemon token for interactive dev:daemon ([e409cad](https://github.com/FabioFiorita/porcelain/commit/e409cad4518a477e5c6f1753bb1336ef0f491e08))
+* **dev:** real flags, port-in-use help, and clarify dev vs published daemon ([2f5eab7](https://github.com/FabioFiorita/porcelain/commit/2f5eab7dc5be9995069ccc2747d176a3676548c3))
+* **review:** clear evidence fully and stop stale Intent boards ([9471825](https://github.com/FabioFiorita/porcelain/commit/9471825412ad1e75e2c752f91700c7f0c1523b67))
+* **shell:** center titlebar search and compact env chip on phone ([88a35bd](https://github.com/FabioFiorita/porcelain/commit/88a35bdcabf6dd2eaef407c52e9fc13d159dae24))
+* **terminal:** stop closed sessions from resurfacing as EXITED ([e8b5b23](https://github.com/FabioFiorita/porcelain/commit/e8b5b235685d83bbedb1a1030cfc24bd73eb4d17))
+* **ui:** system theme, Companion tab, live lists, env menu polish ([e048eb6](https://github.com/FabioFiorita/porcelain/commit/e048eb6387770903b668b3c33eeb4bb827b20657))
+
 ## [0.42.3](https://github.com/FabioFiorita/porcelain/compare/v0.42.2...v0.42.3) (2026-07-27)
 
 ### Bug Fixes
