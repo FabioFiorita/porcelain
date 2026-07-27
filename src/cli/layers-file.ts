@@ -15,10 +15,10 @@ export interface Layer {
   pattern: string
 }
 
-// Kept in sync with DEFAULT_LAYERS in src/main/flow.ts (the app's source of truth);
+// Kept in sync with DEFAULT_LAYERS in src/backend/flow.ts (the app's source of truth);
 // layers-file.test.ts asserts the two are identical so this copy can't drift. We
-// duplicate rather than import so this server stays a dependency-free island that
-// never reaches into src/main. Shown by `porcelain layers get` as the starting point when a
+// duplicate rather than import so this server stays a dependency-free island that never
+// reaches into src/backend. Shown by `porcelain layers get` as the starting point when a
 // repo has no custom set, and what `porcelain layers reset` falls back to.
 export const DEFAULT_LAYERS: Layer[] = [
   { label: 'Pages', pattern: '(^|/)(pages|views|screens|app)/' },

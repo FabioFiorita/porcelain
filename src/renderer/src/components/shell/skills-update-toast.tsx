@@ -9,8 +9,8 @@ const TOAST_ID = 'skills-update'
 
 /**
  * Watches for a newer bundled skills version than the one the user last dismissed
- * and raises a single persistent toast pointing them at Settings → Agents, where
- * the upgrade command is copyable. Renders nothing.
+ * and raises a single persistent toast pointing them at Settings → General, whose
+ * Companion block has the upgrade command copyable. Renders nothing.
  */
 export function SkillsUpdateToast(): null {
   const info = useSkillsInfo()
@@ -43,7 +43,7 @@ export function SkillsUpdateToast(): null {
         label: 'Open settings',
         onClick: () => {
           setDismissedVersion(current)
-          useSettingsDialogStore.getState().openTo('agents')
+          useSettingsDialogStore.getState().openTo('general')
         },
       },
       onDismiss: () => {

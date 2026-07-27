@@ -22,9 +22,8 @@ import { z } from 'zod'
 
 /**
  * Where an environment can be reached. One machine is usually SEVERAL of these — the
- * Beelink is a LAN address at home and a tailnet address away — and phase 5 of
- * plans/environments-v2.md makes that one environment with many endpoints instead of two
- * confusingly-named rows.
+ * Beelink is a LAN address at home and a tailnet address away — and environments v2 phase 5
+ * makes that one environment with many endpoints instead of two confusingly-named rows.
  *
  * The kind is DERIVED from the address (see `endpointKind`), never stored: a DHCP lease
  * changes the address, and a stored kind would then describe the wrong thing. The human's

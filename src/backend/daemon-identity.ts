@@ -7,7 +7,7 @@ import { hostname } from 'node:os'
  * the URL, and nothing ever confirmed the window was actually on the Beelink. The
  * daemon announcing its own identity is what lets the app auto-name an environment,
  * label "This device" correctly on every platform, and show a machine in the top-bar
- * switcher rather than a nickname (plans/environments-v2.md, phase 1).
+ * switcher rather than a nickname.
  *
  * Rides the EXISTING `daemonInfo` procedure rather than a new one: that procedure is
  * already the version-skew probe every client calls, and widening its result is

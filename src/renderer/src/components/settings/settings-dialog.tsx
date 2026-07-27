@@ -108,9 +108,9 @@ export function SettingsDialog(): React.JSX.Element {
   const section = useSettingsDialogStore((s) => s.section)
   const setSection = useSettingsDialogStore((s) => s.setSection)
   // A section that's hidden in this client (e.g. 'updates' opened in Electron, then
-  // the same prefs viewed in a browser) — or one that no longer exists at all (the
-  // removed 'agents' panel, which SkillsUpdateToast still opens to) — falls back to
-  // General so the header and body never disagree.
+  // the same prefs viewed in a browser) — or one that no longer exists at all (a
+  // section id kept from an older build, like the removed 'agents' panel) — falls
+  // back to General so the header and body never disagree.
   const active = SECTIONS.find((s) => s.id === section) ?? SECTIONS[0]
   const activeId = active.id
 

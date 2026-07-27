@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path'
 import { z } from 'zod'
 
 /**
- * Per-device credentials, so "revoke" means something (plans/environments-v2.md phase 4).
+ * Per-device credentials, so "revoke" means something (environments v2 phase 4).
  *
  * Before this, one shared secret (`~/.porcelain/daemon-token`) authenticated every client,
  * so the only way to cut off an iPad was to rotate that token and re-pair EVERYTHING. Each

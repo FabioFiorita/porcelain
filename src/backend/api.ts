@@ -477,7 +477,7 @@ export const router = t.router({
     ...daemonIdentity(),
   })),
 
-  // Pairing (plans/environments-v2.md phase 3). These three are token-gated like every
+  // Pairing (environments v2 phase 3). These three are token-gated like every
   // other procedure — only a client ALREADY trusted by this daemon may open a pairing
   // window. The unauthenticated half is `POST /pair` (daemon-http.ts), which can do
   // nothing until one of these has been called.

@@ -2,8 +2,7 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
 
 /**
  * Short-lived pairing codes, so adding an environment stops meaning "go find
- * `~/.porcelain/daemon-token` on the other machine and paste 64 hex characters"
- * (plans/environments-v2.md, phase 3).
+ * `~/.porcelain/daemon-token` on the other machine and paste 64 hex characters".
  *
  * SECURITY — this backs the daemon's ONE unauthenticated endpoint (`POST /pair`, see
  * daemon-http.ts), which is a deliberate exception to "auth is never optional" and is

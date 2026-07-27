@@ -84,8 +84,8 @@ export function createDaemonHttp(opts: DaemonHttpOptions): DaemonHttp {
    *
    * Two credentials are accepted, and the order matters only for cost, not for trust:
    * the shared secret (`~/.porcelain/daemon-token` — kept working so existing setups don't
-   * all have to re-pair at once, plans/environments-v2.md), or any live per-device
-   * credential (phase 4). Both are compared constant-time over fixed-length sha256 digests
+   * all have to re-pair at once), or any live per-device credential (environments v2
+   * phase 4). Both are compared constant-time over fixed-length sha256 digests
    * (timingSafeEqual demands equal lengths, and hashing removes any length signal from the
    * secret itself). A shared-token holder is `{ ok: true, deviceId: null }` — authenticated
    * but unattributable, which is exactly what the roster shows.

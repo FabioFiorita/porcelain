@@ -1,7 +1,7 @@
 import { Switch } from '@renderer/components/ui/switch'
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
 import { compactButtonClass } from '@renderer/lib/controls'
-import { isCoarseTouch } from '@renderer/lib/platform'
+import { isBrowser, isCoarseTouch } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import {
   type DiffMode,
@@ -13,6 +13,7 @@ import {
   usePreferencesStore,
 } from '@renderer/stores/preferences'
 import { TestIds } from '@shared/test-ids'
+import { SkillsSection } from './skills-section'
 
 const TERMINAL_RENDERERS: {
   value: TerminalRenderer
@@ -246,6 +247,22 @@ export function GeneralSection(): React.JSX.Element {
           })}
         </div>
       </div>
+      {/* Shell only, like the Agents panel that used to host it: the commands and the
+          bundled version come from the shell router, so the browser client would render
+          two empty boxes. */}
+      {!isBrowser && (
+        <div className="flex flex-col gap-2">
+          <div>
+            <p className="text-sm-minus font-medium">Companion</p>
+            <p className="text-xs text-muted-foreground">
+              Companion skills teach your agent how to push feature reviews (Intent, Execution,
+              Evidence), read comments, manage the board, and curate actions. They ship through
+              skills.sh and update independently of the bundled CLI.
+            </p>
+          </div>
+          <SkillsSection />
+        </div>
+      )}
     </div>
   )
 }

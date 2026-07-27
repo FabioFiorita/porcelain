@@ -38,8 +38,8 @@ import { useState } from 'react'
  *
  * It is ALWAYS rendered, including on This device — the previous Remote-only chip
  * could not be the thing you reach for to *go* remote, since it only existed once you
- * already were (plans/environments-v2.md, phase 2). The icon carries local-vs-remote
- * (Monitor / Cloud) so a permanently-present chip still reads at a glance.
+ * already were. The icon carries local-vs-remote (Monitor / Cloud) so a permanently-present
+ * chip still reads at a glance.
  *
  * In the browser client it degrades to a static label: that client IS served by its
  * daemon, so there is nothing to switch to and no shell router to ask — but naming the

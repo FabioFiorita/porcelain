@@ -134,7 +134,8 @@ Calm, opaque, typography-first. Sans (Geist) for UI + prose; mono for code-like 
 
 | Work | Status |
 |------|--------|
-| Remove the in-app agent runner + the chat/relay feature; re-anchor on the review layer | **Shipped** 2026-07-27 |
+| Remove the in-app agent runner, the chat/relay feature, and the packaged Linux desktop app; re-anchor on the review layer | **Shipped** 2026-07-27 |
+| Environments v2 (identity + status, switcher chip, pairing, per-device credentials, multi-endpoint failover) | **Shipped** 2026-07-27 |
 | Marketing + identity refresh (site, shots, README, launch narrative, skills align) | **Shipped** 2026-07-21 |
 | Review inbox (cross-worktree review signals) | **Shipped** 2026-07-19 |
 | Glance, touch polish, structured evidence checks | **Shipped** 2026-07-19 |
@@ -157,7 +158,7 @@ PR create + PR review, Windows daemon/app. (Provider support is not a backlog it
 ## Traps
 
 - Competitors ship near-daily and *look* like momentum; our gap is **legible releases**, not raw cadence  
-- Do not reintroduce glass, MCP positioning, provider treadmills, an in-app agent runner, or an agent chat relay  
+- Do not reintroduce glass, MCP positioning, provider treadmills, an in-app agent runner, an agent chat relay, or a packaged Linux desktop app (the daemon + browser are the Linux seat)  
 - “Review layer” is not “viewer companion only”: the embedded terminal, board, comments, and actions stay  
 - Do not leave finished plans in `plans/` labeled live — delete or archive in the same pass  
 - Solo maintainer: commit on `main` after `pnpm verify`; push is deliberate  

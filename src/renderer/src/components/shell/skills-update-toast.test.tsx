@@ -74,12 +74,15 @@ describe('SkillsUpdateToast', () => {
     expect(toast.info).not.toHaveBeenCalled()
   })
 
-  it('opens Settings to Agents and records the dismissal from the action', () => {
+  // General is where the Companion block (and the copyable upgrade command) lives —
+  // the action has to land on a section that actually shows it.
+  it('opens Settings to General and records the dismissal from the action', () => {
+    useSettingsDialogStore.setState({ section: 'flow' })
     render(<SkillsUpdateToast />)
     const action = lastToast().action as ToastAction
     action.onClick()
     expect(useSettingsDialogStore.getState().open).toBe(true)
-    expect(useSettingsDialogStore.getState().section).toBe('agents')
+    expect(useSettingsDialogStore.getState().section).toBe('general')
     expect(usePreferencesStore.getState().skillsDismissedVersion).toBe('2.9.0')
   })
 

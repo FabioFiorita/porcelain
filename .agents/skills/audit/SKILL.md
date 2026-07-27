@@ -89,7 +89,17 @@ assumed — this skill is the codebase-specific layer beneath them.
   `devices.json` de-authenticates every device** (backed up, treated as empty) rather
   than authenticating a stranger; **(e) revoking closes live sockets too**
   (`closeSessionsForDevice`) — the gate runs at upgrade time, so dropping the credential
-  alone would leave an already-upgraded session streaming terminal output.
+  alone would leave an already-upgraded session streaming terminal output;
+  **(f) writes to `devices.json` are CHAINED, on a unique tmp path** — `lastSeenAt` is
+  stamped in memory per authenticated request and flushed at most once a minute (a disk
+  write per request would be absurd; the roster only needs "roughly when"), so a flush is
+  routinely in flight while a pairing or a revoke writes. Sharing one `${path}.tmp` lets
+  the second writer truncate the first's file — the loser's `rename` then fails ENOENT,
+  which on the pairing path 500s the exchange *after* the code was burned — and
+  interleaving can land malformed JSON, which by (d) de-authenticates everyone. For the
+  same reason re-pairing an existing device adds a ROW instead of replacing one: the label
+  is peer-supplied, so folding by label would let a device claim another's identity;
+  duplicates are the human's to revoke.
   The shared token deliberately KEEPS working alongside device credentials so existing
   setups don't all have to re-pair; it is simply no longer what pairing hands out, and a
   shared-token client is unattributable in the roster (`deviceId: null`), which the UI

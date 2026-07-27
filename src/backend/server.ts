@@ -144,9 +144,9 @@ async function main(): Promise<void> {
     pairing: {
       hasPending: () => pendingPairing() !== null,
       // A successful exchange now mints the device its OWN credential rather than handing
-      // over the shared secret — that is what makes per-device revoke mean anything
-      // (plans/environments-v2.md phase 4). The shared token stays valid for the clients
-      // that already hold it; it is simply no longer what pairing gives out.
+      // over the shared secret — that is what makes per-device revoke mean anything. The
+      // shared token stays valid for the clients that already hold it; it is simply no
+      // longer what pairing gives out.
       redeem: async (code, label) => {
         const result = redeemPairing(code)
         if (result !== 'ok') return { result }

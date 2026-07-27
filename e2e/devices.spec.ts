@@ -1,7 +1,7 @@
 import { expect, loc, openSettings, test, waitForShell } from './helpers/app'
 
 /**
- * The device roster end to end (plans/environments-v2.md phase 4): pair a device against
+ * The device roster end to end (environments v2 phase 4): pair a device against
  * the live daemon, see it appear with its self-chosen label, revoke it, watch it go.
  *
  * The pairing half runs through `fetch` from inside the page rather than the UI, because

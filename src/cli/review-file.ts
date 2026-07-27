@@ -3,7 +3,7 @@ import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 
 // Builtins only — see cli.ts for why this server must stay dependency-free.
-// This file owns the agent channel that Porcelain reads (src/main/review-store.ts
+// This file owns the agent channel that Porcelain reads (src/backend/review-store.ts
 // reads the same path); both honour PORCELAIN_REVIEW_SETS so tests and dev can
 // redirect it. Default lives in ~/.porcelain (the user's home, NOT a work repo).
 // Porcelain re-validates this file with zod on read, so reads here stay lenient.

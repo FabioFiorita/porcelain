@@ -79,6 +79,7 @@ There is no third. Running agents was one until 2026-07-27; the in-app runner is
 - Cross-provider hand-off theater  
 - Scheduled automations / built-in browser as core  
 - Becoming an editor  
+- A desktop download beyond macOS: on Linux (or Windows) you run the daemon on the machine that holds the code and open it in a browser — same client, no install  
 - Windows-native app first (browser covers other clients)  
 - Shipping “iPad app” messaging (there is none: **browser on mobile**)  
 - Competing on YouTube-driven star counts. Compete on **retention of reviewers**  

@@ -2,13 +2,12 @@
 
 Working docs and shipped records for Porcelain. Prefer skills for durable truth (`product`, `architecture`, `audit`, `marketing`). Plans are for **live decisions** or a **short ship record** — not a second product wiki.
 
-## Live (ground truth from 2026-07-21 strategy pass)
+## Live (ground truth from the 2026-07-21 strategy pass, kept current)
 
 | Doc | Role |
 |-----|------|
-| [`launch-narrative.md`](launch-narrative.md) | **What to say:** pitches, philosophy story, X/PH, voice, benefits, board vs chat |
+| [`launch-narrative.md`](launch-narrative.md) | **What to say:** pitches, philosophy story, X/PH, voice, benefits, board vs review comments |
 | [`positioning-and-roadmap.md`](positioning-and-roadmap.md) | **What we decide:** identity, pillars, competitive stance, non-goals, marketing principles, roadmap status |
-| [`environments-v2.md`](environments-v2.md) | **In flight (2026-07-26):** making environments recognizable, pairable, accountable — phases 1–2 shipped, 3–5 planned |
 
 Together with the `product` skill, these are the bar for identity. Older plan files do not override them.
 
@@ -21,18 +20,21 @@ Removed from the tree after reconcile. Recover from git if you need the full tex
 | `review-canvas.md` | Review is Intent · Execution · Evidence; plan was Overview \| Loop evidence and is fully shipped | `git log -- plans/review-canvas.md` |
 | `ui-ux-review-2026-07-20.md` | Waves A–D shipped 2026-07-21; optional P3 polish only | same |
 | `design-overhaul.md` | Typography + composition + marketing re-shoot shipped | same |
-| `agent-ux-mockups.html` | Planning mockups; Agent/Feature loop is in the product | same |
+| `agent-ux-mockups.html` | Planning mockups; the Review loop is in the product (the in-app agent runner is gone) | same |
+| `environments-v2.md` | All five phases shipped (identity+status, chip-as-switcher, pairing, per-device credentials, multi-endpoint); its decisions and traps now live in the `architecture` + `audit` skills | `git log -- plans/environments-v2.md` |
 | Older numbered audits `023`–`037`, remote Phase 4, nova theme, etc. | Long-ago shipped; recorded below or in git | e.g. `git show 0a7e59c:plans/025-unify-persistence-factories.md` |
 
 ## Shipped record (summary)
 
 Do not re-open these as live plans.
 
+- **Review layer re-anchor (2026-07-27):** removed the in-app agent runner, the agent-to-agent chat/relay channel, and the packaged Linux desktop app (AppImage/deb + the `package-linux` release job). Linux stays first-class as a **daemon host** (npm `porcelain-daemon`) with the browser as its seat — only the desktop *package* went  
+- **Environments v2 (2026-07-26 → 27):** reported identity + live status, the always-visible switcher chip, pairing codes (link + QR), per-device credentials with revoke, one environment / many endpoints with preference-ordered failover  
 - **Marketing redo (2026-07-21):** opaque site, trusted-work identity, regenerated shots, launch narrative; product/CLAUDE/README aligned  
 - **Review = Intent · Execution · Evidence (2026-07-21):** Feature tab redesign; Excalidraw on Intent only; porcelain-companion skill + references  
 - **UI/UX waves A–D (2026-07-20 → 21):** naming, Glance routing, idle Next strip, Session→diff, Review commit handoff, inbox cues, pin language  
 - **Worktrees + Review inbox + Glance + evidence checks (2026-07-19)**  
-- **The Review document model + chat claims + Linux release leg (2026-07-18)**  
+- **The Review document model (2026-07-18)** — shipped alongside two legs that have since been removed: agent chat claims and the Linux desktop release target (both cut 2026-07-27, above). The document model itself is the Review we ship  
 - **Nova preset + light/dark/system theme → v0.32.0**  
 - **Remote environments / `porcelain-daemon` npx serve**  
 - **Deep audit plans 023–037 (2026-07-05 → 07)**  

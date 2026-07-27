@@ -6,8 +6,8 @@ import { Check, Copy } from 'lucide-react'
 import { useState } from 'react'
 
 /**
- * Command blocks only — the parent Agents "Skills" group owns the section title
- * and blurb so this doesn't re-introduce the same-weight heading underneath.
+ * Command blocks only — the General "Companion" block owns the title and blurb so
+ * this doesn't re-introduce the same-weight heading underneath.
  */
 export function SkillsSection(): React.JSX.Element {
   const info = useSkillsInfo()

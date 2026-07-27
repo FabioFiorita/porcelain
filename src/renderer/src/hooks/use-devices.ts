@@ -5,7 +5,7 @@ import { trpc } from '@renderer/lib/trpc'
 /**
  * The roster of devices paired with THIS daemon, and the per-device revoke.
  *
- * Phase 4 of environments-v2: pairing mints each device its own credential, so
+ * Environments v2 phase 4: pairing mints each device its own credential, so
  * "revoke" finally means one device rather than rotating the shared token and
  * re-pairing everything.
  */

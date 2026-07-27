@@ -15,8 +15,8 @@ import {
 } from './layers-file'
 
 describe('DEFAULT_LAYERS', () => {
-  it('stays identical to the app source of truth (src/main/flow.ts)', () => {
-    // The CLI island duplicates the defaults rather than import from src/main; this
+  it('stays identical to the app source of truth (src/backend/flow.ts)', () => {
+    // The CLI island duplicates the defaults rather than import from src/backend; this
     // guard makes the copy impossible to let drift.
     expect(DEFAULT_LAYERS).toEqual(MAIN_DEFAULT_LAYERS)
   })
