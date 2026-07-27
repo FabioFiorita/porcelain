@@ -8,8 +8,10 @@ import {
   focusTerminal,
   TERMINAL_THEMES,
 } from '@renderer/lib/terminal-registry'
-import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useEffect, useRef } from 'react'
+
+/** Squared px movement above this = pan (scroll), not a tap that should raise the keyboard. */
+const TAP_SLOP_SQ = 10 * 10
 
 /**
  * One terminal in the viewer. The xterm instance lives in the registry (it outlives
@@ -20,13 +22,13 @@ import { useEffect, useRef } from 'react'
 export function TerminalView({ sessionId }: { sessionId: string }): React.JSX.Element {
   const ref = useRef<HTMLDivElement>(null)
   const mode = useResolvedTheme()
-  // Touch devices only. The bar supplies the keys a SOFTWARE keyboard lacks, so on a
-  // desktop pointer it's chrome that costs a terminal row and buys nothing. The gate is
-  // `isCoarseTouch`, NOT the `useIsMobile` width breakpoint: an iPad is coarse-touch at
-  // desktop width, so a width test would drop the bar in landscape — the one orientation
-  // where the on-screen keyboard eats the most of the screen.
-  // ?? true: the preference postdates persisted stores that never wrote the key.
-  const keyBar = (usePreferencesStore((s) => s.terminalKeyBar) ?? true) && isCoarseTouch()
+  // Touch / software-keyboard devices only — always on, not a Settings preference.
+  // Gate is `isCoarseTouch`, NOT width: iPad landscape is desktop-width and still needs
+  // Esc/Tab/Ctrl the soft keyboard doesn't provide.
+  const keyBar = isCoarseTouch()
+  // Tap-vs-pan: pointerdown alone raises the iOS keyboard even when the finger was only
+  // scrolling. Sample the start point and focus only if the gesture stayed within slop.
+  const pointerStart = useRef<{ x: number; y: number } | null>(null)
 
   useEffect(() => {
     const container = ref.current
@@ -49,18 +51,38 @@ export function TerminalView({ sessionId }: { sessionId: string }): React.JSX.El
     }
   }, [sessionId])
 
-  // The pane is a column so the key bar can take its own row: the xterm host must be sized
-  // by the flex box (min-h-0 + flex-1), not by the pane, or the ResizeObserver keeps
-  // fitting cols/rows to a height that includes the bar and the last line hides under it.
+  // Column: key bar ABOVE the xterm host on touch. The soft keyboard covers the bottom of
+  // the visual viewport, so a bottom bar was hidden whenever you were typing — the whole
+  // reason the bar exists. Top keeps Esc/Ctrl/^C reachable above the keyboard.
+  // The xterm host must be sized by flex (min-h-0 + flex-1), not the full pane, or the
+  // ResizeObserver fits cols/rows to a height that includes the bar and the last line hides.
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
+      {keyBar && <TerminalKeyBar sessionId={sessionId} />}
       <div
         ref={ref}
         className="min-h-0 flex-1 overflow-hidden py-2 pr-1 pl-2"
         style={{ backgroundColor: TERMINAL_THEMES[mode].background }}
-        onPointerDown={() => focusTerminal(sessionId)}
+        onPointerDown={(e) => {
+          if (!isCoarseTouch()) {
+            focusTerminal(sessionId)
+            return
+          }
+          pointerStart.current = { x: e.clientX, y: e.clientY }
+        }}
+        onPointerUp={(e) => {
+          if (!isCoarseTouch()) return
+          const start = pointerStart.current
+          pointerStart.current = null
+          if (!start) return
+          const dx = e.clientX - start.x
+          const dy = e.clientY - start.y
+          if (dx * dx + dy * dy <= TAP_SLOP_SQ) focusTerminal(sessionId)
+        }}
+        onPointerCancel={() => {
+          pointerStart.current = null
+        }}
       />
-      {keyBar && <TerminalKeyBar sessionId={sessionId} />}
     </div>
   )
 }

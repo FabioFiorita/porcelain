@@ -35,12 +35,6 @@ interface PreferencesState {
   htmlMode: HtmlMode
   /** Strategy the `git pull` quick command uses (`--no-rebase` vs `--rebase`). */
   pullMode: PullMode
-  /**
-   * Show the key bar under each terminal pane (Esc/Tab/Ctrl/arrows + keyboard toggle).
-   * On by default everywhere: a software keyboard has no Ctrl at all, and a narrow
-   * desktop window benefits too. Turn it off to reclaim the rows.
-   */
-  terminalKeyBar: boolean
   rightSidebarOpen: boolean
   rightSidebarWidth: number
   sidebarTab: SidebarTab
@@ -55,7 +49,6 @@ interface PreferencesState {
   setMarkdownMode: (mode: MarkdownMode) => void
   setHtmlMode: (mode: HtmlMode) => void
   setPullMode: (mode: PullMode) => void
-  setTerminalKeyBar: (show: boolean) => void
   setSidebarTab: (tab: SidebarTab) => void
   setRightSidebarOpen: (open: boolean) => void
   setRightSidebarWidth: (width: number) => void
@@ -75,7 +68,6 @@ export const usePreferencesStore = create<PreferencesState>()(
       markdownMode: 'reader',
       htmlMode: 'preview',
       pullMode: 'merge',
-      terminalKeyBar: true,
       rightSidebarOpen: true,
       rightSidebarWidth: 272,
       sidebarTab: 'files',
@@ -88,7 +80,6 @@ export const usePreferencesStore = create<PreferencesState>()(
       setMarkdownMode: (markdownMode) => set({ markdownMode }),
       setHtmlMode: (htmlMode) => set({ htmlMode }),
       setPullMode: (pullMode) => set({ pullMode }),
-      setTerminalKeyBar: (terminalKeyBar) => set({ terminalKeyBar }),
       setSidebarTab: (sidebarTab) => set({ sidebarTab }),
       setRightSidebarOpen: (rightSidebarOpen) => set({ rightSidebarOpen }),
       setRightSidebarWidth: (width) =>

@@ -248,7 +248,15 @@ function EnvironmentRow({
       <StatusDot state={state} />
       <div className="flex min-w-0 flex-col">
         <span className="truncate">{name}</span>
-        <span className="truncate font-mono text-2xs-plus text-muted-foreground" dir="rtl">
+        {/*
+          dir=rtl is only for path/URL details: it keeps the useful end (port, basename)
+          visible when truncated. Short platform labels like "macOS" must stay LTR —
+          rtl on a full-width flex child right-aligns them and they look "far" from the name.
+        */}
+        <span
+          className="truncate font-mono text-2xs-plus text-muted-foreground"
+          dir={looksLikePathOrUrl(detail) ? 'rtl' : 'ltr'}
+        >
           {detail}
         </span>
       </div>
@@ -276,6 +284,11 @@ function EnvironmentRow({
       </div>
     </DropdownMenuItem>
   )
+}
+
+/** Paths and URLs benefit from rtl truncation; platform labels like "macOS" do not. */
+function looksLikePathOrUrl(detail: string): boolean {
+  return detail.startsWith('http://') || detail.startsWith('https://') || detail.includes('/')
 }
 
 /**

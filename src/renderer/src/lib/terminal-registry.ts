@@ -335,9 +335,8 @@ export function attachTerminal(id: string, container: HTMLElement): void {
   // Focus is DELIBERATELY skipped on touch: focusing xterm's hidden textarea is what raises
   // the iOS software keyboard, and this runs on every mount — opening a terminal tab,
   // switching tabs, moving a terminal between panes — so an iPad could never just *read*
-  // scrollback without the keyboard eating half the pane. `TerminalView`'s `onPointerDown`
-  // focuses on a real tap, and the touch toolbar has an explicit Keyboard button, so
-  // focus stays reachable; it's just no longer a side effect of opening a tab.
+  // scrollback without the keyboard eating half the pane. `TerminalView` focuses only on
+  // a real tap (not a scroll pan), and the touch key bar has an explicit Keyboard button.
   if (!isCoarseTouch()) instance.term.focus()
 }
 

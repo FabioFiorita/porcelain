@@ -73,11 +73,10 @@ export const TestIds = {
   // --- Terminal ---
   terminalNew: 'terminal-new',
   terminalList: 'terminal-list',
-  /** The key bar under a terminal pane (Esc/Tab/Ctrl/arrows a soft keyboard lacks). */
+  /** The key bar above a terminal pane on touch (Esc/Tab/Ctrl/arrows a soft keyboard lacks). */
   terminalKeyBar: 'terminal-key-bar',
   terminalKey: (label: string): string =>
     `terminal-key-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
-  settingsTerminalKeyBar: 'settings-terminal-key-bar',
   /** Machine picker items shown when the window is bound to a REMOTE daemon. */
   terminalNewRemote: 'terminal-new-remote',
   terminalNewLocal: 'terminal-new-local',

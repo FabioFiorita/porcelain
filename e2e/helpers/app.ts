@@ -87,7 +87,7 @@ interface Options {
   /**
    * Present the renderer with a multi-touch screen (default false → a desktop
    * pointer, which is what both runtimes really are). Set it for the surfaces
-   * that only exist on a tablet/phone — the terminal key bar and its setting.
+   * that only exist on a tablet/phone — the terminal key bar.
    */
   touchDevice: boolean
 }
