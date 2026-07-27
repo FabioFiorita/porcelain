@@ -1,3 +1,4 @@
+import type { EnvironmentStatus } from '@main/shell-api'
 import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
 import { Input } from '@renderer/components/ui/input'
@@ -5,6 +6,7 @@ import { Separator } from '@renderer/components/ui/separator'
 import { Switch } from '@renderer/components/ui/switch'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useDaemonToken } from '@renderer/hooks/use-daemon-token'
+import { useEnvironmentStatuses } from '@renderer/hooks/use-environment-status'
 import { useLanStatus, useSetLanBind } from '@renderer/hooks/use-lan'
 import {
   useAddRemoteEnvironment,
@@ -18,6 +20,7 @@ import { useSetTailnetBind, useTailnetStatus } from '@renderer/hooks/use-tailnet
 import { compactButtonClass, rowActionClass } from '@renderer/lib/controls'
 import { isBrowser } from '@renderer/lib/platform'
 import { cn, copyText } from '@renderer/lib/utils'
+import { platformLabel } from '@shared/platform'
 import { X } from 'lucide-react'
 import { useState } from 'react'
 
@@ -118,6 +121,22 @@ function ShareToggleRow({
 }
 
 /**
+ * One line of prose for a probed environment: what it is when we reached it, why it
+ * isn't usable when we didn't. `unauthorized` says the token — the fix there is
+ * re-pairing, not waking the box.
+ */
+function describeStatus(status: EnvironmentStatus | undefined): string {
+  if (status === undefined) return 'Checking…'
+  if (status.state === 'offline') return 'Not reachable'
+  if (status.state === 'unauthorized') return 'Reachable, but the saved token was rejected'
+  const machine =
+    status.host !== null && status.platform !== null
+      ? `${status.host} · ${platformLabel(status.platform)}`
+      : (status.host ?? 'Online')
+  return status.version !== null ? `${machine} · daemon ${status.version}` : machine
+}
+
+/**
  * Save other machines' Porcelain daemons and bind THIS window (or open a new
  * one) to them. Environments are per-window: local project in one window, remote
  * in another. Electron-only — hidden in the browser client (which already IS
@@ -128,6 +147,7 @@ function ShareToggleRow({
  */
 function SavedEnvironmentsBlock(): React.JSX.Element {
   const data = useRemoteEnvironments()
+  const statuses = useEnvironmentStatuses()
   const { add, isPending: isAdding, error } = useAddRemoteEnvironment()
   const { connect, pendingId: connectingId } = useConnectRemoteEnvironment()
   const { disconnect, isPending: isDisconnecting } = useDisconnectRemoteEnvironment()
@@ -155,7 +175,10 @@ function SavedEnvironmentsBlock(): React.JSX.Element {
         <li className="flex items-center justify-between gap-3 p-3">
           <div className="min-w-0">
             <p className="text-sm-minus font-medium">This device</p>
-            <p className="text-xs text-muted-foreground">Local daemon on this Mac</p>
+            {/* The daemon reports its own host + OS, so this row names the actual
+                machine instead of the old hardcoded "this Mac" (wrong on the Linux
+                shell, and useless when several boxes are saved). */}
+            <p className="text-xs text-muted-foreground">{describeStatus(statuses.get(null))}</p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {activeId == null ? (
@@ -193,6 +216,9 @@ function SavedEnvironmentsBlock(): React.JSX.Element {
               <div className="min-w-0">
                 <p className="text-sm-minus font-medium">{env.name}</p>
                 <p className="truncate font-mono text-xs text-muted-foreground">{env.url}</p>
+                <p className="text-xs text-muted-foreground">
+                  {describeStatus(statuses.get(env.id))}
+                </p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 {isActive ? (

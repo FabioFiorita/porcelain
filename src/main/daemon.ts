@@ -87,6 +87,16 @@ const windowDaemons = new Map<number, RemoteDaemon | null>()
 /** webContents ids that already have a destroyed cleanup listener. */
 const windowCleanupBound = new Set<number>()
 
+/**
+ * The local child daemon's pair. Exported so the shell can probe "This device"
+ * through the SAME code path as a saved remote (see `environmentStatuses`) — the
+ * url is '' until the child reports its port, which reads as unreachable, exactly
+ * the state the switcher should show while the daemon is still coming up.
+ */
+export function localDaemonPair(): { url: string; token: string } {
+  return localDaemonInfo()
+}
+
 function localDaemonInfo(): { url: string; token: string } {
   return { url: port === null ? '' : `http://127.0.0.1:${port}`, token }
 }

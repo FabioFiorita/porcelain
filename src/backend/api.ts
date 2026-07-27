@@ -61,6 +61,7 @@ import {
 } from './comment-store'
 import { loadConfig, updateConfig } from './config-store'
 import { type CommitConventions, parseConventions } from './conventions'
+import { type DaemonIdentity, daemonIdentity } from './daemon-identity'
 import { daemonVersion } from './daemon-version'
 import type { ChangedFile, DiffHunk, DiffStat } from './diff'
 import { inlineLocalAssets } from './evidence-assets'
@@ -511,7 +512,16 @@ export const router = t.router({
   // of a cryptic per-procedure "No procedure found" failure. A daemon older than
   // 0.30 has no such procedure, so the client's query 404s (NOT_FOUND) — it treats
   // that as a definitely-older 'pre-0.30' rather than surfacing the raw error.
-  daemonInfo: t.procedure.query((): { version: string } => ({ version: daemonVersion() })),
+  //
+  // It also carries this daemon's IDENTITY (host/platform/arch — see daemon-identity.ts)
+  // so a client can name and recognize the machine it reached instead of relying on a
+  // nickname the human typed. Widened rather than split into a second procedure: this
+  // is already the probe every client calls, and a daemon older than that widening
+  // returns `{ version }` alone — clients must read the identity fields as OPTIONAL.
+  daemonInfo: t.procedure.query((): { version: string } & DaemonIdentity => ({
+    version: daemonVersion(),
+    ...daemonIdentity(),
+  })),
 
   openRepoPath: t.procedure.input(z.string()).mutation(async ({ input }): Promise<RepoInfo> => {
     await stat(input)

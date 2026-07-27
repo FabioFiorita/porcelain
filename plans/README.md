@@ -8,6 +8,7 @@ Working docs and shipped records for Porcelain. Prefer skills for durable truth 
 |-----|------|
 | [`launch-narrative.md`](launch-narrative.md) | **What to say:** pitches, philosophy story, X/PH, voice, benefits, board vs chat |
 | [`positioning-and-roadmap.md`](positioning-and-roadmap.md) | **What we decide:** identity, pillars, competitive stance, non-goals, marketing principles, roadmap status |
+| [`environments-v2.md`](environments-v2.md) | **In flight (2026-07-26):** making environments recognizable, pairable, accountable — phases 1–2 shipped, 3–5 planned |
 
 Together with the `product` skill, these are the bar for identity. Older plan files do not override them.
 

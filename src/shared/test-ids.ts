@@ -20,6 +20,8 @@ export const TestIds = {
   rightSidebar: 'right-sidebar',
   toggleLeftSidebar: 'toggle-left-sidebar',
   toggleRightSidebar: 'toggle-right-sidebar',
+  environmentSwitcher: 'environment-switcher',
+  environmentRow: (id: string): string => `environment-row-${id}`,
 
   // --- Welcome / glance ---
   welcome: 'welcome',

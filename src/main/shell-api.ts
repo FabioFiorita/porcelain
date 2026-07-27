@@ -4,6 +4,7 @@ import { BrowserWindow, nativeTheme, shell, type WebContents } from 'electron'
 import { z } from 'zod'
 import {
   getDefaultEnvironmentId,
+  localDaemonPair,
   reloadEnvironmentsCache,
   setDefaultEnvironmentId,
   windowEnvironmentId,
@@ -42,6 +43,98 @@ async function probeDaemon(url: string, token: string): Promise<void> {
   }
   if (res.status === 401) throw new Error('The daemon rejected that token (401)')
   if (!res.ok) throw new Error(`The daemon at ${url} responded with ${res.status}`)
+}
+
+/**
+ * How a saved environment is doing right now. `unauthorized` is deliberately NOT
+ * folded into `offline`: a box that answers but rejects the token needs a different
+ * fix (re-pair) than one that's asleep, and collapsing them sends the human to the
+ * wrong remedy.
+ */
+export type EnvironmentState = 'online' | 'unauthorized' | 'offline'
+
+export interface EnvironmentStatus {
+  /** null = This device (the local child daemon). */
+  id: string | null
+  state: EnvironmentState
+  /** Reported identity; null when the daemon is too old to announce it, or is down. */
+  host: string | null
+  platform: string | null
+  version: string | null
+}
+
+// tRPC's HTTP GET envelope for a query result. Validated because it's an external
+// response — a saved url could be answering with anything.
+const daemonInfoResponseSchema = z.object({
+  result: z.object({
+    data: z.object({
+      version: z.string(),
+      // Optional: a daemon older than the identity widening returns version alone.
+      host: z.string().optional(),
+      platform: z.string().optional(),
+      arch: z.string().optional(),
+    }),
+  }),
+})
+
+// Short enough that a sleeping box doesn't stall the switcher behind the app's own
+// boot, long enough for a tailnet round-trip on a phone hotspot.
+const STATUS_PROBE_TIMEOUT_MS = 4000
+
+const UNKNOWN_IDENTITY = { host: null, platform: null, version: null }
+
+/**
+ * Ask one daemon who it is. Never throws — a switcher row must render for an
+ * environment that is asleep, and an unreachable box is a *state*, not an error.
+ *
+ * The old-daemon path is the subtle one: `daemonInfo` doesn't exist before 0.30, so
+ * that url answers 404 while being a perfectly reachable Porcelain daemon. Falling
+ * straight to `offline` there would grey out a working environment, so a non-401
+ * failure re-probes with `recentRepos` (which every daemon has) and reports `online`
+ * with an unknown identity.
+ */
+async function probeEnvironment(
+  url: string,
+  token: string,
+): Promise<Omit<EnvironmentStatus, 'id'>> {
+  const authed = { authorization: `Bearer ${token}` }
+  let res: Response
+  try {
+    res = await fetch(`${url}/trpc/daemonInfo`, {
+      headers: authed,
+      signal: AbortSignal.timeout(STATUS_PROBE_TIMEOUT_MS),
+    })
+  } catch {
+    return { state: 'offline', ...UNKNOWN_IDENTITY }
+  }
+  if (res.status === 401) return { state: 'unauthorized', ...UNKNOWN_IDENTITY }
+
+  if (!res.ok) {
+    // Reachable, but this procedure is missing (pre-0.30) or erroring. Confirm it's
+    // really a live daemon before claiming online.
+    try {
+      await probeDaemon(url, token)
+      return { state: 'online', ...UNKNOWN_IDENTITY }
+    } catch {
+      return { state: 'offline', ...UNKNOWN_IDENTITY }
+    }
+  }
+
+  let body: unknown
+  try {
+    body = await res.json()
+  } catch {
+    return { state: 'online', ...UNKNOWN_IDENTITY }
+  }
+  const parsed = daemonInfoResponseSchema.safeParse(body)
+  if (!parsed.success) return { state: 'online', ...UNKNOWN_IDENTITY }
+  const info = parsed.data.result.data
+  return {
+    state: 'online',
+    host: info.host ?? null,
+    platform: info.platform ?? null,
+    version: info.version,
+  }
 }
 
 export const shellRouter = t.router({
@@ -157,6 +250,29 @@ export const shellRouter = t.router({
     },
   ),
 
+  /**
+   * Live state + reported identity for This device and every saved environment, in
+   * that order (local first, then `remoteEnvironments` order) so the switcher renders
+   * one list without a second join.
+   *
+   * Probes fan out in parallel with a short timeout, so the slowest sleeping box
+   * bounds the query instead of summing. It IS a network call per environment —
+   * the consuming hook throttles it (see use-environment-status); don't call it
+   * per render or drop its staleTime chasing freshness.
+   */
+  environmentStatuses: t.procedure.query(async (): Promise<EnvironmentStatus[]> => {
+    const state = await loadRemoteEnvironmentState()
+    const local = localDaemonPair()
+    const [localStatus, ...remoteStatuses] = await Promise.all([
+      probeEnvironment(local.url, local.token),
+      ...state.environments.map((env) => probeEnvironment(env.url, env.token)),
+    ])
+    return [
+      { id: null, ...localStatus },
+      ...remoteStatuses.map((status, index) => ({ id: state.environments[index].id, ...status })),
+    ]
+  }),
+
   addRemoteEnvironment: t.procedure
     .input(
       z.object({
@@ -171,8 +287,15 @@ export const shellRouter = t.router({
       const url = normalizeDaemonUrl(input.url)
       await probeDaemon(url, input.token)
 
-      const trimmedName = input.name.trim()
-      let name = trimmedName
+      // Name it after the machine, not the address. The daemon reports its own host
+      // (daemon-identity.ts), so leaving the field blank yields "beelink" rather than
+      // "100.94.12.3" — the whole point of phase 1. Falls back to the url's hostname
+      // for a daemon too old to announce identity.
+      let name = input.name.trim()
+      if (name === '') {
+        const { host } = await probeEnvironment(url, input.token)
+        name = host ?? ''
+      }
       if (name === '') {
         try {
           name = new URL(url).hostname || url

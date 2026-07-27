@@ -16,6 +16,21 @@
  */
 export type Platform = 'darwin' | 'linux' | 'win32'
 
+/**
+ * Human label for a raw `process.platform` value; an unrecognized platform renders
+ * as-is rather than being guessed at.
+ *
+ * Lives here rather than beside `daemonIdentity` (which reports the value) because
+ * the RENDERER displays it — and `daemon-identity.ts` imports `node:os`, so importing
+ * it from the renderer would drag a Node builtin into the browser bundle.
+ */
+export function platformLabel(platform: string): string {
+  if (platform === 'darwin') return 'macOS'
+  if (platform === 'linux') return 'Linux'
+  if (platform === 'win32') return 'Windows'
+  return platform
+}
+
 export function resolvePlatform(): Platform {
   if (process.env.PORCELAIN_FORCE_LINUX === '1') return 'linux'
   if (process.platform === 'darwin') return 'darwin'

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { resolvePlatform } from './platform'
+import { platformLabel, resolvePlatform } from './platform'
 
 // `process.platform` is read-only, so stub it per case with defineProperty and
 // restore after. `PORCELAIN_FORCE_LINUX` is a plain env var we set/delete.
@@ -42,5 +42,17 @@ describe('resolvePlatform', () => {
   it('ignores PORCELAIN_FORCE_LINUX when it is not exactly "1"', () => {
     vi.stubEnv('PORCELAIN_FORCE_LINUX', '0')
     withPlatform('darwin', () => expect(resolvePlatform()).toBe('darwin'))
+  })
+})
+
+describe('platformLabel', () => {
+  it('labels the three shipped platforms', () => {
+    expect(platformLabel('darwin')).toBe('macOS')
+    expect(platformLabel('linux')).toBe('Linux')
+    expect(platformLabel('win32')).toBe('Windows')
+  })
+
+  it('renders an unrecognized platform as-is rather than guessing', () => {
+    expect(platformLabel('freebsd')).toBe('freebsd')
   })
 })
