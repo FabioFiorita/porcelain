@@ -69,13 +69,13 @@ describe('DaemonSkewToast', () => {
     expect(toast.warning).toHaveBeenCalledTimes(2)
   })
 
-  it('opens Settings → Environments from the toast action', () => {
+  it('opens Settings → Remotes from the toast action', () => {
     vi.mocked(useDaemonSkew).mockReturnValue(skew())
     render(<DaemonSkewToast />)
     const action = lastToast().action as ToastAction
     action.onClick()
     const state = useSettingsDialogStore.getState()
     expect(state.open).toBe(true)
-    expect(state.section).toBe('environments')
+    expect(state.section).toBe('remotes')
   })
 })

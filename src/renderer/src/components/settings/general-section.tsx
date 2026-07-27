@@ -63,7 +63,7 @@ function PreferenceRow({
   )
 }
 
-/** Viewer + git prefs only. Share / remote daemons live under Environments. */
+/** Viewer + git prefs only. Share / Remotes are their own Settings tabs. */
 export function GeneralSection(): React.JSX.Element {
   const diffMode = usePreferencesStore((s) => s.diffMode)
   const setDiffMode = usePreferencesStore((s) => s.setDiffMode)

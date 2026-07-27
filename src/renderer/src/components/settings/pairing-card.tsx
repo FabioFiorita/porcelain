@@ -6,16 +6,9 @@ import { cn, copyText } from '@renderer/lib/utils'
 import { useEffect, useState } from 'react'
 
 /**
- * "Pair a device" — the replacement for telling someone to `cat
- * ~/.porcelain/daemon-token` and retype 64 hex characters on a phone.
- *
- * Opening a window mints a short-lived code on THIS daemon; the QR and the link both
- * carry `<url>/#pair=<code>`, so scanning it on a phone lands on this daemon's browser
- * client, which redeems the code and connects with no typing at all (see
- * `use-token-gate`). The code is shown too, for pasting into another desktop app.
- *
- * The url must be one the OTHER device can reach — a loopback address pairs nothing —
- * so the caller passes the tailnet/LAN url and renders nothing when neither is on.
+ * "Pair a device" — short-lived code + QR that hands out THIS daemon's shared token
+ * (no per-device credentials). Scanning lands on the browser client already connected
+ * (see `use-token-gate`). The url must be one the OTHER device can reach.
  */
 export function PairingCard({ url }: { url: string }): React.JSX.Element {
   const pending = usePairingStatus()
@@ -36,7 +29,7 @@ export function PairingCard({ url }: { url: string }): React.JSX.Element {
           {isStarting ? 'Starting…' : 'Pair a device'}
         </Button>
         <p className="text-xs text-muted-foreground">
-          Opens a short-lived code another device can scan or paste — no token to copy.
+          Opens a short-lived code another device can scan or paste.
         </p>
       </div>
     )

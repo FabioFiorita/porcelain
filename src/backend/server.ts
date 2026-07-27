@@ -5,7 +5,6 @@ import { ensureCli } from './cli-install'
 import { initConfigDir, loadConfig } from './config-store'
 import { createDaemonHttp } from './daemon-http'
 import { seedDevConfig } from './dev-config'
-import { flushDevices, loadDevices, matchDevice, registerDevice } from './devices'
 import { migrateLayersFromConfig } from './layers-store'
 import { migrateNotesFromConfig } from './notes-store'
 import { pendingPairing, redeemPairing } from './pairing'
@@ -14,6 +13,7 @@ import { migrateReviewedFromConfig } from './reviewed-store'
 import { broadcastAppEvent, createSession } from './session'
 import { rendererDistExists, serveStatic } from './static-server'
 import { initIfaceHandlers, startLanListener, startTailnetListener } from './tailnet-listener'
+import { bindAuthToken, currentAuthToken } from './token-control'
 import { ensureDaemonToken } from './token-file'
 
 /**
@@ -38,14 +38,13 @@ import { ensureDaemonToken } from './token-file'
  *   <token>`; the WS upgrade carries the token as the `porcelain.<token>`
  *   subprotocol (chosen over `?token=` because query strings leak into logs and
  *   proxies; the subprotocol header does not). Comparisons are constant-time
- *   over sha256 digests. TWO credentials pass that gate: the shared secret, and
- *   any per-device credential minted by pairing (devices.ts, phase 4 — kept
- *   alongside the shared token so existing setups don't all have to re-pair, and
- *   the reason revoking a single device is now possible). The ONE exception is
- *   `POST /pair`, which cannot be token-gated (obtaining a credential is its
- *   whole job) and is instead bounded by only existing while a human has an open
- *   pairing window — see pairing.ts and handlePair in daemon-http.ts for the full
- *   set of guards.
+ *   over sha256 digests. ONE credential passes that gate: the shared secret
+ *   (`~/.porcelain/daemon-token`). Pairing hands out that same secret (a short-lived
+ *   code so humans don't retype 64 hex chars); Revoke all rotates it and closes
+ *   every live session. The ONE exception is `POST /pair`, which cannot be
+ *   token-gated (obtaining the token is its whole job) and is instead bounded by
+ *   only existing while a human has an open pairing window — see pairing.ts and
+ *   handlePair in daemon-http.ts for the full set of guards.
  *
  * Contract with the shell: exactly ONE stdout line, `{"port": N}`, once
  * listening (everything else logs to stderr — and the token is NEVER printed:
@@ -65,24 +64,19 @@ if (userData === undefined || userData === '') {
 }
 initConfigDir(userData)
 
-// The single daemon shutdown path. Some daemon state is held in memory and written lazily,
-// so a bare exit could drop it — flush first (best-effort), THEN exit. Every shutdown route
-// (SIGTERM from the shell's utilityProcess.kill, SIGINT at a TTY, or the stdin-EOF watchdog)
-// converges here so there is exactly one place that has to remember to do it.
+// The single daemon shutdown path. Every shutdown route (SIGTERM from the shell's
+// utilityProcess.kill, SIGINT at a TTY, or the stdin-EOF watchdog) converges here.
 let shuttingDown = false
-async function shutdown(): Promise<void> {
+function shutdown(): void {
   if (shuttingDown) return
   shuttingDown = true
-  // `lastSeenAt` is stamped in memory and flushed at most once a minute — write the
-  // pending stamp out so the roster doesn't lose the last minute on every restart.
-  await flushDevices()
   process.exit(0)
 }
 // utilityProcess.kill() (the shell's teardown) sends SIGTERM; a standalone `node` daemon at
 // a TTY gets SIGINT. Registering a listener suppresses the default terminate, so we must exit
-// ourselves (shutdown does — and it can't reject, flushDevices is best-effort).
-process.on('SIGTERM', () => shutdown().catch(() => process.exit(0)))
-process.on('SIGINT', () => shutdown().catch(() => process.exit(0)))
+// ourselves.
+process.on('SIGTERM', () => shutdown())
+process.on('SIGINT', () => shutdown())
 
 // The session token, now a persistent shared secret (remote-environments Phase 2,
 // replacing the per-app-run token the shell used to mint). The shell
@@ -115,17 +109,10 @@ let daemon: ReturnType<typeof createDaemonHttp>
 async function main(): Promise<void> {
   // Resolve the shared token (env or ~/.porcelain/daemon-token) and precompute its
   // digest BEFORE any listener accepts a connection — the factory closes over the
-  // hash, so it must be built first (both listeners start below). Only the digest is
-  // kept: since phase 4 a pairing mints the new device its own credential, so nothing
-  // here needs the plaintext after this line, and it is never logged.
-  const tokenHash = createHash('sha256')
-    .update(await resolveToken())
-    .digest()
-
-  // The per-device credential roster (phase 4). MUST be awaited before either listener
-  // accepts: `matchDevice` is sync and fails closed until the file is in memory, so a
-  // listener started first would 401 a legitimately-paired device for a moment.
-  await loadDevices()
+  // hash, so it must be built first (both listeners start below). The plaintext is
+  // kept for pairing (which hands out the same secret) and is never logged.
+  const token = await resolveToken()
+  const tokenHash = createHash('sha256').update(token).digest()
 
   // CORS is scoped, not `*`: the shell passes the dev renderer's origin via
   // PORCELAIN_ALLOWED_ORIGIN (the Vite server); the packaged file:// renderer
@@ -137,24 +124,19 @@ async function main(): Promise<void> {
     onSession: createSession,
     serveStatic,
     // The pairing exchange. The route only exists while `hasPending()` is true, so a
-    // daemon nobody is pairing with answers 404 — see handlePair + pairing.ts.
-    // Phase 4: a device credential authenticates alongside the shared token. The store is
-    // already loaded (above), so the gate never has to wait on a disk read.
-    matchDevice,
+    // daemon nobody is pairing with answers 404 — see handlePair + pairing.ts. A
+    // successful exchange hands out the SHARED token (one secret for every client);
+    // Revoke all rotates it for everyone.
     pairing: {
       hasPending: () => pendingPairing() !== null,
-      // A successful exchange now mints the device its OWN credential rather than handing
-      // over the shared secret — that is what makes per-device revoke mean anything. The
-      // shared token stays valid for the clients that already hold it; it is simply no
-      // longer what pairing gives out.
-      redeem: async (code, label) => {
+      redeem: async (code) => {
         const result = redeemPairing(code)
         if (result !== 'ok') return { result }
-        const { credential } = await registerDevice(label)
-        return { result, token: credential }
+        return { result, token: currentAuthToken() }
       },
     },
   })
+  bindAuthToken(token, daemon.setTokenHash)
 
   // Hand the shared handlers to the second-listener module so its optional
   // tailnet + LAN listeners (started/stopped live from the API) behave identically
@@ -235,9 +217,8 @@ async function main(): Promise<void> {
   // so the shell (which never sets it) keeps the orphan protection.
   if (process.env.PORCELAIN_NO_STDIN_WATCHDOG !== '1') {
     process.stdin.resume()
-    // Parent death takes the same shutdown path as the signals, so it flushes too.
-    process.stdin.on('end', () => shutdown().catch(() => process.exit(0)))
-    process.stdin.on('close', () => shutdown().catch(() => process.exit(0)))
+    process.stdin.on('end', () => shutdown())
+    process.stdin.on('close', () => shutdown())
     // Companion check: reap orphans whose stdin never EOFs (e.g. a standalone/dev
     // daemon whose spawning shell died) so they can't squat the fixed second-listener
     // port forever. On Unix `ppid` changes ONLY when the original parent dies (the
@@ -248,7 +229,7 @@ async function main(): Promise<void> {
     // anyway and skip this whole block — their supervisor owns the lifecycle.)
     const initialPpid = process.ppid
     const orphanPoll = setInterval(() => {
-      if (process.ppid !== initialPpid) shutdown().catch(() => process.exit(0))
+      if (process.ppid !== initialPpid) shutdown()
     }, 5000)
     orphanPoll.unref()
   }

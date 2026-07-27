@@ -75,40 +75,20 @@ assumed — this skill is the codebase-specific layer beneath them.
   content. (The token gate is the whole boundary: a holder can already open/read any
   path via `openRepoPath`/`readFile`, so the daemon-side repo browser `browseDirs` —
   directory names only — widens nothing.)
-  **(2b) TWO credentials pass that gate, through ONE function** (2026-07-26, phase 4):
-  the shared secret (`~/.porcelain/daemon-token`) **or** any live per-device credential
-  minted by pairing (`devices.ts`). `authenticate()` in `daemon-http.ts` is the single
-  gate for BOTH `/trpc` and the `/session` upgrade — never add a second gate, a
-  per-credential-kind branch, or a "device credentials only need to be checked on
-  cheap procedures" shortcut. What must hold: **(a) it fails CLOSED before the device
-  store is loaded** — `matchDevice` is sync (it runs inside the gate) and answers null
-  until `loadDevices()` has resolved, which `server.ts` awaits BEFORE any listener
-  accepts; **(b) only hashes on disk** (`devices.json`, 0600, sha256 hex) — the
-  credential exists exactly twice, in the `/pair` response and on the device; **(c)
-  constant-time compare** per candidate, same shape as the shared token; **(d) a corrupt
-  `devices.json` de-authenticates every device** (backed up, treated as empty) rather
-  than authenticating a stranger; **(e) revoking closes live sockets too**
-  (`closeSessionsForDevice`) — the gate runs at upgrade time, so dropping the credential
-  alone would leave an already-upgraded session streaming terminal output;
-  **(f) writes to `devices.json` are CHAINED, on a unique tmp path** — `lastSeenAt` is
-  stamped in memory per authenticated request and flushed at most once a minute (a disk
-  write per request would be absurd; the roster only needs "roughly when"), so a flush is
-  routinely in flight while a pairing or a revoke writes. Sharing one `${path}.tmp` lets
-  the second writer truncate the first's file — the loser's `rename` then fails ENOENT,
-  which on the pairing path 500s the exchange *after* the code was burned — and
-  interleaving can land malformed JSON, which by (d) de-authenticates everyone. For the
-  same reason re-pairing an existing device adds a ROW instead of replacing one: the label
-  is peer-supplied, so folding by label would let a device claim another's identity;
-  duplicates are the human's to revoke.
-  The shared token deliberately KEEPS working alongside device credentials so existing
-  setups don't all have to re-pair; it is simply no longer what pairing hands out, and a
-  shared-token client is unattributable in the roster (`deviceId: null`), which the UI
-  says out loud. A session's device identity comes from the credential the upgrade
-  authenticated with — NEVER from anything the client announces (`session:hello` carries
-  the repo path for display only). *Verify:* `devices.test.ts` (hash-only file, fail-closed
-  before load, revoke isolation, corrupt-file de-auth) and the device-credential cases in
-  `daemon-http.test.ts` (a minted credential opens `/trpc` and `/session`; a revoked one
-  401s while its neighbour still works; revoke closes the live socket) stay green.
+  **(2b) ONE shared secret passes that gate** (simplified 2026-07-27 — per-device
+  credentials deleted): `authenticate()` in `daemon-http.ts` compares only
+  `~/.porcelain/daemon-token` (constant-time over sha256 digests) for BOTH `/trpc` and
+  the `/session` upgrade — never add a second credential kind or a second gate.
+  Pairing (`POST /pair`) hands out **that same shared token** (a short-lived code so
+  humans don't retype 64 hex chars), not a per-device secret. **Revoke all**
+  (`rotateAuthToken` / `token-control.ts`) overwrites the token file (0600, atomic),
+  swaps the live hash via `setTokenHash`, and `closeAllSessions()` — the gate only runs
+  at upgrade time, so sockets must be closed or they keep streaming. The initiator
+  adopts the new token (browser localStorage / shell `adoptRotatedToken`); every other
+  client must re-pair. Token path is overridable via `PORCELAIN_DAEMON_TOKEN_FILE` so
+  e2e never touches the developer's real file. *Verify:* `token-file.test.ts` (rotate
+  overwrites), `daemon-http.test.ts` (setTokenHash rejects old token; pairing returns
+  shared token; closeAllSessions drops live sockets).
   (3) **The token never appears in argv** (`ps`-visible), **stdout** (the
   daemon's only stdout line is the port; the parent passed the token via env so it
   already knows it), **or a spawned PTY's env** (see the terminal-env invariant below).
@@ -148,12 +128,11 @@ assumed — this skill is the codebase-specific layer beneath them.
   + `/session`, which keep the token gate.
   **(5b) `POST /pair` is the ONE unauthenticated DYNAMIC route — a deliberate, narrow
   exception to (2)** (2026-07-26, `pairing.ts` + `handlePair` in `daemon-http.ts`). It
-  exists so a new device can obtain a credential without the human copying the long-lived
-  token by hand — and since phase 4 it hands over a freshly-minted PER-DEVICE credential,
-  never the shared token (see 2b). The `label` in its body is peer-supplied display data:
-  sanitized + capped in `devices.ts`, and never an identifier. It is only defensible
-  while ALL of these hold: **(a) it 404s unless a
-  human has an open pairing window** — no pending code means the route does not exist, so
+  exists so a new device can obtain the shared token without the human copying 64 hex
+  chars by hand — it hands out the SAME secret as `~/.porcelain/daemon-token` (see 2b),
+  not a per-device credential. The optional `label` in its body is accepted for older
+  clients and ignored. It is only defensible while ALL of these hold: **(a) it 404s unless
+  a human has an open pairing window** — no pending code means the route does not exist, so
   there is nothing to probe or grind at rest, and the window is minutes long and always
   human-initiated from the machine's own UI (the three `pairing*` procedures that open it
   are themselves token-gated on `/trpc`); **(b) the code is 40 bits** (8 Crockford-base32
@@ -166,9 +145,10 @@ assumed — this skill is the codebase-specific layer beneath them.
   body is bounded** (1 KB, drained not buffered past the cap — and it must respond 413
   rather than destroying the socket, or the caller can't tell "too large" from "daemon
   crashed"); **(e) neither the code nor the token is ever logged.** *Verify:*
-  `daemon-http.test.ts`'s `POST /pair` block (404-at-rest, single-use, wrong-code-leaks-
-  nothing, 415 on non-JSON, 405, 400, 413, no CORS echo to an unlisted origin) and
-  `pairing.test.ts` (entropy alphabet, TTL, attempt burn, re-mint resets) stay green. The
+  `daemon-http.test.ts`'s `POST /pair` block (404-at-rest, hands-out-shared-token,
+  single-use, wrong-code-leaks-nothing, 415 on non-JSON, 405, 400, 413, no CORS echo to an
+  unlisted origin) and `pairing.test.ts` (entropy alphabet, TTL, attempt burn, re-mint
+  resets) stay green. The
   index.html CSP rewrite (`rewriteCsp`) touches **only `connect-src`** (same-origin WS for
   the request Host); `img-src`/`default-src` stay the sandboxed-HTML backstop, byte-identical.
   Don't relax any of these to "make local dev easier." (6) **The token is the whole boundary

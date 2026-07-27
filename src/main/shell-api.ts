@@ -3,6 +3,7 @@ import { initTRPC } from '@trpc/server'
 import { BrowserWindow, nativeTheme, shell, type WebContents } from 'electron'
 import { z } from 'zod'
 import {
+  adoptRotatedToken,
   getDefaultEnvironmentId,
   localDaemonPair,
   reloadEnvironmentsCache,
@@ -254,6 +255,17 @@ export const shellRouter = t.router({
     ...localDaemonPair(),
     isLocal: windowEnvironmentId(ctx.sender) === null,
   })),
+
+  /**
+   * After the bound daemon's Revoke all rotation: adopt the new shared token so THIS
+   * window (and local siblings, when the child rotated) keep working. Other clients
+   * that still hold the old token are intentionally cut off.
+   */
+  adoptRotatedToken: t.procedure
+    .input(z.object({ token: z.string().min(1) }))
+    .mutation(async ({ ctx, input }): Promise<void> => {
+      await adoptRotatedToken(ctx.sender, input.token)
+    }),
 
   /**
    * The local directory a "This device" terminal should open in for `repoPath` on THIS

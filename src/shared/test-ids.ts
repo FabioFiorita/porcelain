@@ -37,8 +37,9 @@ export const TestIds = {
   settingsAppearanceLight: 'settings-appearance-light',
   settingsAppearanceDark: 'settings-appearance-dark',
   settingsAppearanceSystem: 'settings-appearance-system',
-  connectedDevices: 'connected-devices',
-  connectedDeviceRow: (id: string): string => `connected-device-${id}`,
+  /** Settings → Share: client count + Revoke all. */
+  shareStatus: 'share-status',
+  shareRevokeAll: 'share-revoke-all',
 
   // --- Changes ---
   changesList: 'changes-list',

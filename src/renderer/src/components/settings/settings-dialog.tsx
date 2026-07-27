@@ -18,10 +18,11 @@ import {
 import { isBrowser } from '@renderer/lib/platform'
 import { type SettingsSection, useSettingsDialogStore } from '@renderer/stores/settings-dialog'
 import { TestIds } from '@shared/test-ids'
-import { Download, Layers, Network, Settings2, SlidersHorizontal } from 'lucide-react'
-import { EnvironmentsSection } from './environments-section'
+import { Cloud, Download, Layers, Settings2, Share2, SlidersHorizontal } from 'lucide-react'
 import { FlowLayersSection } from './flow-layers-section'
 import { GeneralSection } from './general-section'
+import { RemotesSection } from './remotes-section'
+import { ShareSection } from './share-section'
 import { UpdatesSection } from './updates-section'
 
 // Each section's title + blurb live here so the dialog can render a fixed header
@@ -33,8 +34,8 @@ const ALL_SECTIONS: {
   icon: typeof Layers
   title: string
   blurb: string
-  // Drives shell-only procedures (plugin/codex install, the Electron auto-updater),
-  // so it's hidden in the browser client — there's no shell to run them.
+  // Drives shell-only procedures (plugin/codex install, the Electron auto-updater,
+  // remote-daemon.json), so it's hidden in the browser client — no shell there.
   shellOnly?: boolean
 }[] = [
   {
@@ -45,11 +46,19 @@ const ALL_SECTIONS: {
     blurb: 'Viewer preferences, saved on this machine.',
   },
   {
-    id: 'environments',
-    label: 'Environments',
-    icon: Network,
-    title: 'Environments',
-    blurb: 'Share this daemon and bind windows to remote machines.',
+    id: 'share',
+    label: 'Share',
+    icon: Share2,
+    title: 'Share',
+    blurb: 'Let other devices reach this daemon. One token for every client.',
+  },
+  {
+    id: 'remotes',
+    label: 'Remotes',
+    icon: Cloud,
+    title: 'Remotes',
+    blurb: 'Machines this app can open windows against.',
+    shellOnly: true,
   },
   {
     id: 'flow',
@@ -73,8 +82,8 @@ const SECTIONS = ALL_SECTIONS.filter((s) => !(isBrowser && s.shellOnly))
 /**
  * Gear that opens Settings via the store. Used from the sidebar rail and the
  * welcome screen — the dialog itself is mounted once in AppShell so both paths
- * share one instance (and the welcome screen can reach Remote daemons without
- * opening a repo first).
+ * share one instance (and the welcome screen can reach Remotes without opening
+ * a repo first).
  */
 export function SettingsButton({
   className,
@@ -99,8 +108,8 @@ export function SettingsButton({
 
 /**
  * The Settings dialog body — store-driven open state, no trigger. Mounted once
- * in AppShell (welcome + repo shell both need it; remote-daemon disconnect lives
- * here and must stay reachable when no repo is open).
+ * in AppShell (welcome + repo shell both need it; remote disconnect lives here
+ * and must stay reachable when no repo is open).
  */
 export function SettingsDialog(): React.JSX.Element {
   const open = useSettingsDialogStore((s) => s.open)
@@ -109,8 +118,8 @@ export function SettingsDialog(): React.JSX.Element {
   const setSection = useSettingsDialogStore((s) => s.setSection)
   // A section that's hidden in this client (e.g. 'updates' opened in Electron, then
   // the same prefs viewed in a browser) — or one that no longer exists at all (a
-  // section id kept from an older build, like the removed 'agents' panel) — falls
-  // back to General so the header and body never disagree.
+  // section id kept from an older build, like the removed 'environments' panel) —
+  // falls back to General so the header and body never disagree.
   const active = SECTIONS.find((s) => s.id === section) ?? SECTIONS[0]
   const activeId = active.id
 
@@ -165,7 +174,8 @@ export function SettingsDialog(): React.JSX.Element {
             </header>
             <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-6">
               {activeId === 'general' && <GeneralSection />}
-              {activeId === 'environments' && <EnvironmentsSection />}
+              {activeId === 'share' && <ShareSection />}
+              {activeId === 'remotes' && <RemotesSection />}
               {activeId === 'flow' && <FlowLayersSection onSaved={() => setOpen(false)} />}
               {activeId === 'updates' && <UpdatesSection />}
             </main>

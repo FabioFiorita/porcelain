@@ -16,12 +16,11 @@ import { type WebSocket, WebSocketServer } from 'ws'
  *
  * SECURITY INVARIANTS (audit skill): every /trpc request is token-gated (Bearer),
  * every /session WS upgrade is token-gated (the `porcelain.<token>` subprotocol),
- * both through the ONE `authenticate` function below — which accepts either the
- * shared secret or a per-device credential (phase 4), always constant-time over
- * sha256 digests, never one gate per credential kind; static assets are served
- * UNAUTHENTICATED by design; CORS is scoped (echo only the allowed origin or the
- * file:// renderer's `null`), never `*`. The behaviour here must stay identical to
- * what `server.ts` did inline — the test tier exists to make a regression bite.
+ * both through the ONE `authenticate` function below — shared secret only,
+ * constant-time over sha256 digests; static assets are served UNAUTHENTICATED by
+ * design; CORS is scoped (echo only the allowed origin or the file:// renderer's
+ * `null`), never `*`. The behaviour here must stay identical to what `server.ts`
+ * did inline — the test tier exists to make a regression bite.
  */
 export interface DaemonHttpOptions {
   /** sha256 digest of the shared secret (resolved by the entry file before boot). */
@@ -30,20 +29,8 @@ export interface DaemonHttpOptions {
   allowedOrigin: string
   /** The appRouter, served over tRPC's fetch adapter. */
   router: AnyRouter
-  /**
-   * The SECOND thing that can authenticate a request (phase 4): a per-device credential
-   * minted by pairing. Returns the device id, or null. Injected — like `pairing` — so the
-   * gate stays store-free and a test can boot it without a devices file.
-   *
-   * MUST be constant-time and MUST fail closed before its store is loaded (`devices.ts`).
-   * Omitted ⇒ the shared token is the only credential, i.e. exactly pre-phase-4 behaviour.
-   */
-  matchDevice?: (provided: string) => string | null
-  /**
-   * Called with the upgraded socket for each authenticated /session connection, plus the
-   * device it authenticated as (null ⇒ the shared token, i.e. an unattributable client).
-   */
-  onSession: (ws: WebSocket, deviceId: string | null) => void
+  /** Called with the upgraded socket for each authenticated /session connection. */
+  onSession: (ws: WebSocket) => void
   /** Serves the renderer dist for non-/trpc GET/HEAD (unauthenticated). */
   serveStatic: (req: IncomingMessage, res: ServerResponse) => Promise<void>
   /**
@@ -56,9 +43,8 @@ export interface DaemonHttpOptions {
     /** Whether a human has a pairing window open right now. */
     hasPending: () => boolean
     /**
-     * Exchange a code for a credential; the token is returned ONLY on 'ok'. `label` is the
-     * name the redeeming device gave itself (peer-supplied — the store sanitizes it).
-     * Async since phase 4: minting a device credential writes the roster to disk.
+     * Exchange a code for the shared daemon token; the token is returned ONLY on 'ok'.
+     * `label` is accepted for older clients and ignored — one token for every client.
      */
     redeem: (code: string, label: string) => Promise<{ result: string; token?: string }>
   }
@@ -71,32 +57,33 @@ export interface DaemonHttp {
   requestListener: (req: IncomingMessage, res: ServerResponse) => void
   /** The upgrade handler; shared with the optional tailnet listener. */
   handleUpgrade: (req: IncomingMessage, socket: Duplex, head: Buffer) => void
+  /**
+   * Swap the live shared-token hash (Revoke all / rotate). Copies the buffer so the
+   * caller can reuse theirs; subsequent authenticate() calls use the new digest.
+   */
+  setTokenHash: (hash: Buffer) => void
 }
 
 const WS_PROTOCOL_PREFIX = 'porcelain.'
 
 export function createDaemonHttp(opts: DaemonHttpOptions): DaemonHttp {
-  const { tokenHash, allowedOrigin, router, onSession, serveStatic, pairing, matchDevice } = opts
+  const { allowedOrigin, router, onSession, serveStatic, pairing } = opts
+  // Mutable: Revoke all writes a new secret and swaps this digest without restarting.
+  // Copied on set so a caller reusing their buffer can't race a concurrent compare.
+  let tokenHash = Buffer.from(opts.tokenHash)
 
   /**
    * THE gate. Every /trpc request and every /session upgrade passes through here, so it is
    * the single most security-critical function in the daemon.
    *
-   * Two credentials are accepted, and the order matters only for cost, not for trust:
-   * the shared secret (`~/.porcelain/daemon-token` — kept working so existing setups don't
-   * all have to re-pair at once), or any live per-device credential (environments v2
-   * phase 4). Both are compared constant-time over fixed-length sha256 digests
-   * (timingSafeEqual demands equal lengths, and hashing removes any length signal from the
-   * secret itself). A shared-token holder is `{ ok: true, deviceId: null }` — authenticated
-   * but unattributable, which is exactly what the roster shows.
+   * One credential: the shared secret (`~/.porcelain/daemon-token`). Compared constant-time
+   * over a fixed-length sha256 digest (timingSafeEqual demands equal lengths, and hashing
+   * removes any length signal from the secret itself). Per-device credentials were removed
+   * deliberately — one token, revoke-all rotates it for everyone.
    */
-  function authenticate(provided: string | undefined): { ok: boolean; deviceId: string | null } {
-    if (provided === undefined || provided === '') return { ok: false, deviceId: null }
-    if (timingSafeEqual(tokenHash, createHash('sha256').update(provided).digest())) {
-      return { ok: true, deviceId: null }
-    }
-    const deviceId = matchDevice?.(provided) ?? null
-    return { ok: deviceId !== null, deviceId }
+  function authenticate(provided: string | undefined): boolean {
+    if (provided === undefined || provided === '') return false
+    return timingSafeEqual(tokenHash, createHash('sha256').update(provided).digest())
   }
 
   function bearerToken(req: IncomingMessage): string | undefined {
@@ -225,8 +212,7 @@ export function createDaemonHttp(opts: DaemonHttpOptions): DaemonHttp {
       res.end()
       return
     }
-    // The device names itself. Peer-supplied, so it is sanitized + capped downstream
-    // (devices.ts) — it is a display string, never an identifier.
+    // Label is accepted for older clients and ignored — pairing hands out the shared token.
     const { result, token } = await pairing.redeem(code, typeof label === 'string' ? label : '')
     if (result !== 'ok' || token === undefined) {
       res.writeHead(401, json)
@@ -278,7 +264,7 @@ export function createDaemonHttp(opts: DaemonHttpOptions): DaemonHttp {
         res.end()
         return
       }
-      if (!authenticate(bearerToken(req)).ok) {
+      if (!authenticate(bearerToken(req))) {
         res.writeHead(401, cors)
         res.end()
         return
@@ -324,18 +310,13 @@ export function createDaemonHttp(opts: DaemonHttpOptions): DaemonHttp {
       .split(',')
       .map((protocol) => protocol.trim())
     const candidate = offered.find((protocol) => protocol.startsWith(WS_PROTOCOL_PREFIX))
-    const auth =
-      candidate === undefined
-        ? { ok: false, deviceId: null }
-        : authenticate(candidate.slice(WS_PROTOCOL_PREFIX.length))
-    if (req.url !== '/session' || !auth.ok) {
+    const ok = candidate !== undefined && authenticate(candidate.slice(WS_PROTOCOL_PREFIX.length))
+    if (req.url !== '/session' || !ok) {
       socket.write('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n')
       socket.destroy()
       return
     }
-    // The session carries the device the socket authenticated as, so the roster can say
-    // what each paired device is doing — and so revoking one can close its live sockets.
-    wss.handleUpgrade(req, socket, head, (ws) => onSession(ws, auth.deviceId))
+    wss.handleUpgrade(req, socket, head, (ws) => onSession(ws))
   }
 
   // Bridge the async request handler to the sync (req, res) signature http.Server
@@ -350,5 +331,12 @@ export function createDaemonHttp(opts: DaemonHttpOptions): DaemonHttp {
   const server = createServer(requestListener)
   server.on('upgrade', handleUpgrade)
 
-  return { server, requestListener, handleUpgrade }
+  return {
+    server,
+    requestListener,
+    handleUpgrade,
+    setTokenHash: (hash) => {
+      tokenHash = Buffer.from(hash)
+    },
+  }
 }

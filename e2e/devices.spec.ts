@@ -1,33 +1,25 @@
 import { expect, loc, openSettings, test, waitForShell } from './helpers/app'
 
 /**
- * The device roster end to end (environments v2 phase 4): pair a device against
- * the live daemon, see it appear with its self-chosen label, revoke it, watch it go.
+ * Settings → Share end to end: pairing still hands out the SHARED token (one secret
+ * for every client), the Access block shows a client count, and Revoke all rotates
+ * the token so the old one stops authenticating.
  *
- * The pairing half runs through `fetch` from inside the page rather than the UI, because
- * the UI's half of it lives on the OTHER device — this client is the one being paired
- * from. What's under test here is the roster and revoke, which are this client's surface.
- *
- * That `fetch` is also why this is the suite's one browser-only spec (the design is ONE
- * spec suite, two runtimes — see playwright.config.ts). Pairing is an HTTP-origin flow:
- * the code is redeemed by POSTing to the daemon's own origin, which only exists for the
- * daemon-served client. The Electron renderer isn't loaded from an HTTP origin at all —
- * it talks to the backend over IPC — so `window.location.origin` there has nothing to
- * redeem a code against, and the exchange can't be expressed, let alone fail meaningfully.
- * The daemon-served client IS the surface that pairs devices, so browser-only is the
- * honest scope here, not a skipped Electron gap.
+ * Pairing runs through `fetch` from inside the page rather than the UI, because the
+ * UI's half of it lives on the OTHER device. Browser-only: pairing is an HTTP-origin
+ * flow (POST to the daemon's own origin), which the Electron renderer does not have.
  */
-test('pairs a device, shows it in the roster, and revokes it', async ({ page, appMode }) => {
+test('pairs with the shared token and revokes everyone', async ({ page, appMode }) => {
   test.skip(appMode === 'electron', 'Pairing needs an HTTP origin; the renderer has none')
   await waitForShell(page)
 
-  const gotOwnCredential = await page.evaluate(async () => {
-    const token = localStorage.getItem('porcelain-daemon-token') ?? ''
+  const tokens = await page.evaluate(async () => {
+    const shared = localStorage.getItem('porcelain-daemon-token') ?? ''
     const base = window.location.origin
     const started = await (
       await fetch(`${base}/trpc/startPairing`, {
         method: 'POST',
-        headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+        headers: { authorization: `Bearer ${shared}`, 'content-type': 'application/json' },
         body: '{}',
       })
     ).json()
@@ -36,22 +28,35 @@ test('pairs a device, shows it in the roster, and revokes it', async ({ page, ap
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ code: started.result.data.code, label: 'Safari on iPhone' }),
     })
-    // The whole point of phase 4: pairing mints a NEW credential, never the shared token.
-    return (await paired.json()).token !== token
+    // One shared secret: pairing hands out the same token this client already holds.
+    const minted = ((await paired.json()) as { token: string }).token
+    return { shared, minted, same: minted === shared }
   })
-  expect(gotOwnCredential).toBe(true)
+  expect(tokens.same).toBe(true)
 
   await openSettings(page)
-  await page.getByRole('button', { name: 'Environments' }).click()
-  await expect(loc.connectedDevices(page)).toBeVisible()
+  await page.getByRole('button', { name: 'Share' }).click()
+  await expect(loc.shareStatus(page)).toBeVisible()
+  // At least this browser tab is a live session.
+  await expect(loc.shareStatus(page)).toContainText(/client/)
 
-  const row = loc.connectedDeviceRows(page)
-  await expect(row).toHaveCount(1)
-  await expect(row).toContainText('Safari on iPhone')
+  await loc.shareRevokeAll(page).click()
+  await expect(page.getByText(/rotates the daemon token/i)).toBeVisible()
+  await page.getByRole('button', { name: 'Revoke all', exact: true }).last().click()
 
-  await row.getByRole('button', { name: 'Revoke' }).click()
-  // Confirmed, not immediate — revoking is irreversible from this side.
-  await expect(page.getByText(/pair it from scratch/)).toBeVisible()
-  await page.getByRole('button', { name: 'Revoke', exact: true }).last().click()
-  await expect(loc.connectedDeviceRows(page)).toHaveCount(0)
+  // After rotation the old token must 401; the page adopted the new one so Share still works.
+  const stillValid = await page.evaluate(async (oldToken) => {
+    const base = window.location.origin
+    const denied = await fetch(`${base}/trpc/recentRepos`, {
+      headers: { authorization: `Bearer ${oldToken}` },
+    })
+    const current = localStorage.getItem('porcelain-daemon-token') ?? ''
+    const ok = await fetch(`${base}/trpc/recentRepos`, {
+      headers: { authorization: `Bearer ${current}` },
+    })
+    return { denied: denied.status, currentOk: ok.status, rotated: current !== oldToken }
+  }, tokens.shared)
+  expect(stillValid.denied).toBe(401)
+  expect(stillValid.currentOk).toBe(200)
+  expect(stillValid.rotated).toBe(true)
 })

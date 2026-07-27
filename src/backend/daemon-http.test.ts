@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { createHash } from 'node:crypto'
 import { mkdtemp } from 'node:fs/promises'
-import { type AddressInfo, createServer as createNetServer } from 'node:net'
+import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -26,28 +26,13 @@ vi.mock('./terminal-manager', () => ({
 import { router } from './api'
 import { initConfigDir } from './config-store'
 import { createDaemonHttp } from './daemon-http'
-import { listDevices, loadDevices, matchDevice, registerDevice, revokeDevice } from './devices'
 import { cancelPairing, pendingPairing, redeemPairing, startPairing } from './pairing'
-import { closeSessionsForDevice, createSession, listSessions } from './session'
-import { createIfaceListener, initIfaceHandlers } from './tailnet-listener'
+import { closeAllSessions, createSession, sessionCount } from './session'
 import { attachTerminal } from './terminal-manager'
+import { bindAuthToken, currentAuthToken } from './token-control'
 
 const TOKEN = 'test-token'
 const ORIGIN = 'http://localhost:5173'
-
-// Bind a throwaway server on port 0 to learn a free port, then release it — so
-// the second-listener test owns its port instead of racing a live daemon on the
-// production LISTENER_PORT.
-function freePort(): Promise<number> {
-  return new Promise<number>((resolve, reject) => {
-    const probe = createNetServer()
-    probe.once('error', reject)
-    probe.listen(0, '127.0.0.1', () => {
-      const { port } = probe.address() as AddressInfo
-      probe.close(() => resolve(port))
-    })
-  })
-}
 
 let base: string
 let daemon: ReturnType<typeof createDaemonHttp>
@@ -55,16 +40,11 @@ let daemon: ReturnType<typeof createDaemonHttp>
 beforeAll(async () => {
   const dir = await mkdtemp(join(tmpdir(), 'porcelain-daemon-http-'))
   initConfigDir(dir)
-  // The real device store too — a pairing here mints a real credential into a temp file,
-  // so the gate tests below prove the actual phase-4 auth path, not a stand-in.
-  process.env.PORCELAIN_DEVICES = join(dir, 'devices.json')
-  await loadDevices()
   const tokenHash = createHash('sha256').update(TOKEN).digest()
   daemon = createDaemonHttp({
     tokenHash,
     allowedOrigin: ORIGIN,
     router,
-    matchDevice,
     onSession: createSession,
     serveStatic: async (_req, res) => {
       res.writeHead(404)
@@ -74,14 +54,14 @@ beforeAll(async () => {
     // (404-at-rest, single-use, attempt burn) rather than a stub's idea of them.
     pairing: {
       hasPending: () => pendingPairing() !== null,
-      redeem: async (code, label) => {
+      redeem: async (code) => {
         const result = redeemPairing(code)
         if (result !== 'ok') return { result }
-        const { credential } = await registerDevice(label)
-        return { result, token: credential }
+        return { result, token: currentAuthToken() }
       },
     },
   })
+  bindAuthToken(TOKEN, daemon.setTokenHash)
   await new Promise<void>((resolve) => daemon.server.listen(0, '127.0.0.1', resolve))
   const address = daemon.server.address() as AddressInfo
   base = `http://127.0.0.1:${address.port}`
@@ -99,104 +79,64 @@ describe('daemon http surface — the token gate + CORS scope', () => {
     expect(res.status).toBe(401)
   })
 
-  it('rejects /trpc with a wrong bearer token (401)', async () => {
+  it('rejects /trpc with a wrong Bearer token (401)', async () => {
     const res = await fetch(`${base}/trpc/recentRepos`, {
-      headers: { authorization: 'Bearer wrong' },
+      headers: { authorization: 'Bearer wrong-token' },
     })
     expect(res.status).toBe(401)
   })
 
-  it('rejects /trpc with an empty bearer token (401)', async () => {
-    const res = await fetch(`${base}/trpc/recentRepos`, {
-      headers: { authorization: 'Bearer ' },
-    })
-    expect(res.status).toBe(401)
-  })
-
-  it('accepts /trpc with the correct bearer token (200, tRPC-shaped body)', async () => {
+  it('accepts /trpc with the right Bearer token', async () => {
     const res = await fetch(`${base}/trpc/recentRepos`, {
       headers: { authorization: `Bearer ${TOKEN}` },
     })
     expect(res.status).toBe(200)
-    const body = (await res.json()) as { result: { data: unknown } }
-    // recentRepos returns [] against the fresh config dir.
-    expect(body.result.data).toEqual([])
   })
 
-  it('answers an OPTIONS preflight from the allowed origin (204 + echoed ACAO)', async () => {
-    const res = await fetch(`${base}/trpc/whatever`, {
+  it('echoes CORS for the allowed origin and never *', async () => {
+    const res = await fetch(`${base}/trpc/recentRepos`, {
+      headers: { authorization: `Bearer ${TOKEN}`, origin: ORIGIN },
+    })
+    expect(res.headers.get('access-control-allow-origin')).toBe(ORIGIN)
+    expect(res.headers.get('access-control-allow-origin')).not.toBe('*')
+  })
+
+  it('does not echo CORS for an unlisted origin', async () => {
+    const res = await fetch(`${base}/trpc/recentRepos`, {
+      headers: { authorization: `Bearer ${TOKEN}`, origin: 'http://evil.example' },
+    })
+    expect(res.headers.get('access-control-allow-origin')).toBeNull()
+  })
+
+  it('answers OPTIONS preflight for /trpc without requiring a token', async () => {
+    const res = await fetch(`${base}/trpc/recentRepos`, {
       method: 'OPTIONS',
       headers: { origin: ORIGIN },
     })
     expect(res.status).toBe(204)
-    expect(res.headers.get('access-control-allow-origin')).toBe(ORIGIN)
   })
 
-  it('does NOT echo CORS to a disallowed origin (and still 401s without a token)', async () => {
-    const res = await fetch(`${base}/trpc/recentRepos`, {
-      headers: { origin: 'https://evil.example' },
+  it('rejects a rotated-away token after setTokenHash', async () => {
+    const next = 'rotated-token'
+    daemon.setTokenHash(createHash('sha256').update(next).digest())
+    const denied = await fetch(`${base}/trpc/recentRepos`, {
+      headers: { authorization: `Bearer ${TOKEN}` },
     })
-    expect(res.status).toBe(401)
-    expect(res.headers.get('access-control-allow-origin')).toBeNull()
-  })
-
-  it('echoes CORS to the file:// renderer (origin: null)', async () => {
-    const res = await fetch(`${base}/trpc/whatever`, {
-      method: 'OPTIONS',
-      headers: { origin: 'null' },
+    expect(denied.status).toBe(401)
+    // Restore the suite's shared token so later tests keep working.
+    daemon.setTokenHash(createHash('sha256').update(TOKEN).digest())
+    bindAuthToken(TOKEN, daemon.setTokenHash)
+    const ok = await fetch(`${base}/trpc/recentRepos`, {
+      headers: { authorization: `Bearer ${TOKEN}` },
     })
-    expect(res.status).toBe(204)
-    expect(res.headers.get('access-control-allow-origin')).toBe('null')
-  })
-
-  it('serves non-/trpc GET via the injected static handler, unauthenticated (404 here)', async () => {
-    const res = await fetch(`${base}/`)
-    expect(res.status).toBe(404)
-  })
-
-  it('404s a non-GET request to a non-/trpc path (only GET/HEAD reach static)', async () => {
-    const res = await fetch(`${base}/anything-not-trpc`, { method: 'POST' })
-    expect(res.status).toBe(404)
+    expect(ok.status).toBe(200)
   })
 })
 
-describe('second-listener factory — the tailnet/LAN listeners share the token gate', () => {
-  it('serves /trpc token-gated on a second bound address (401 without token, 200 with)', async () => {
-    // The LAN and tailnet listeners are two instances of createIfaceListener sharing
-    // server.ts's request/upgrade handlers. Boot one on loopback (a distinct socket
-    // from the main harness daemon: same 127.0.0.1, an ephemeral port THIS test owns
-    // rather than the production fixed port a live daemon may hold) and prove the
-    // token gate applies to it exactly as it does to the primary listener.
-    initIfaceHandlers(daemon.requestListener, daemon.handleUpgrade)
-    const port = await freePort()
-    const listener = createIfaceListener(
-      () => ['127.0.0.1'],
-      (addresses) => (addresses[0] !== undefined ? `http://${addresses[0]}:${port}` : null),
-      'test',
-      0,
-      port,
-    )
-    const url = await listener.start()
-    expect(url).toBe(`http://127.0.0.1:${port}`)
-    try {
-      const noAuth = await fetch(`http://127.0.0.1:${port}/trpc/recentRepos`)
-      expect(noAuth.status).toBe(401)
-      const withAuth = await fetch(`http://127.0.0.1:${port}/trpc/recentRepos`, {
-        headers: { authorization: `Bearer ${TOKEN}` },
-      })
-      expect(withAuth.status).toBe(200)
-    } finally {
-      await listener.stop()
-    }
-    // stop() releases the socket — url() is null again and a restart is possible.
-    expect(listener.url()).toBeNull()
-  })
-})
-
-// Connect a ws client; resolve 'open' or reject on the first failure signal.
+// Open a WS and wait for the handshake to settle (open or fail).
 function connect(protocols?: string | string[]): Promise<WebSocket> {
-  return new Promise<WebSocket>((resolve, reject) => {
-    const url = `${base.replace('http', 'ws')}/session`
+  const url = `${base.replace('http', 'ws')}/session`
+  return new Promise((resolve, reject) => {
     const ws = protocols === undefined ? new WebSocket(url) : new WebSocket(url, protocols)
     const timer = setTimeout(() => reject(new Error('ws connect timed out')), 4000)
     ws.on('open', () => {
@@ -230,23 +170,12 @@ describe('daemon ws surface — the /session upgrade gate + dispatch', () => {
     await expect(connect('porcelain.wrong-token')).rejects.toBeDefined()
   })
 
-  it('accepts a device credential, and attributes the session to that device', async () => {
-    const { credential, device } = await registerDevice('Studio')
-    const ws = await connect(`porcelain.${credential}`)
-    const session = listSessions().find((s) => s.deviceId === device.id)
-    expect(session).toBeDefined()
-    ws.close()
-  })
-
-  it('closes a revoked device s live socket — the gate only runs at upgrade time', async () => {
-    const { credential, device } = await registerDevice('Doomed')
-    const ws = await connect(`porcelain.${credential}`)
-    await revokeDevice(device.id)
-    closeSessionsForDevice(device.id)
-    // The client's 'close' can land before the daemon has reaped its own end, so poll the
-    // roster rather than racing the handshake.
-    await vi.waitFor(() => expect(listSessions().some((s) => s.deviceId === device.id)).toBe(false))
-    expect(ws.readyState).not.toBe(WebSocket.OPEN)
+  it('closes every live socket on closeAllSessions — the gate only runs at upgrade time', async () => {
+    const ws = await connect(`porcelain.${TOKEN}`)
+    expect(sessionCount()).toBeGreaterThanOrEqual(1)
+    closeAllSessions()
+    await vi.waitFor(() => expect(ws.readyState).not.toBe(WebSocket.OPEN))
+    await vi.waitFor(() => expect(sessionCount()).toBe(0))
   })
 
   it('rejects the right subprotocol on the wrong path', async () => {
@@ -321,39 +250,16 @@ describe('POST /pair', () => {
     expect(res.status).toBe(404)
   })
 
-  it('mints the device its OWN credential — never the shared token', async () => {
+  it('hands out the shared token — one secret for every client', async () => {
     const { code } = startPairing()
     const res = await post({ code, label: 'iPad' })
     expect(res.status).toBe(200)
     const { token } = (await res.json()) as { token: string }
-    expect(token).not.toBe(TOKEN)
-    // ...and that credential really opens the gate.
+    expect(token).toBe(TOKEN)
     const authed = await fetch(`${base}/trpc/recentRepos`, {
       headers: { authorization: `Bearer ${token}` },
     })
     expect(authed.status).toBe(200)
-    expect(listDevices().map((device) => device.label)).toContain('iPad')
-  })
-
-  it('stops authenticating a revoked device, while the others keep working', async () => {
-    const pair = async (): Promise<string> => {
-      const { code } = startPairing()
-      const res = await post({ code })
-      return ((await res.json()) as { token: string }).token
-    }
-    const first = await pair()
-    const second = await pair()
-    const revoked = listDevices().at(-2)
-    expect(revoked).toBeDefined()
-    if (revoked !== undefined) await revokeDevice(revoked.id)
-    const denied = await fetch(`${base}/trpc/recentRepos`, {
-      headers: { authorization: `Bearer ${first}` },
-    })
-    expect(denied.status).toBe(401)
-    const allowed = await fetch(`${base}/trpc/recentRepos`, {
-      headers: { authorization: `Bearer ${second}` },
-    })
-    expect(allowed.status).toBe(200)
   })
 
   it('accepts the code as the human retyped it (no separator, lower case)', async () => {

@@ -155,13 +155,13 @@ describe('EnvironmentSwitcher menu', () => {
     expect(disconnect).toHaveBeenCalled()
   })
 
-  it('routes Add environment to Settings → Environments', () => {
+  it('routes Add remote to Settings → Remotes', () => {
     render(<EnvironmentSwitcher />)
     fireEvent.click(screen.getByLabelText('Environment: studio'))
-    fireEvent.click(screen.getByText('Add environment…'))
+    fireEvent.click(screen.getByText('Add remote…'))
     const state = useSettingsDialogStore.getState()
     expect(state.open).toBe(true)
-    expect(state.section).toBe('environments')
+    expect(state.section).toBe('remotes')
   })
 
   it('renders a row for an environment that is asleep rather than hiding it', () => {

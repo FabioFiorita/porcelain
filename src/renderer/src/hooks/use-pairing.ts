@@ -56,7 +56,7 @@ export function usePairEnvironment(): {
       const parsed = parsePairingLink(link)
       if (parsed === null) {
         setError(
-          'That does not look like a pairing link. Copy it from Settings → Environments on the other machine.',
+          'That does not look like a pairing link. Copy it from Settings → Share on the other machine.',
         )
         return
       }

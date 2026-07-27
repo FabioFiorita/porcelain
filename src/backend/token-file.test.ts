@@ -3,7 +3,7 @@ import { mkdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { ensureDaemonToken } from './token-file'
+import { ensureDaemonToken, rotateDaemonToken } from './token-file'
 
 const dir = join(tmpdir(), 'porcelain-token-file-test')
 const file = join(dir, 'daemon-token')
@@ -42,5 +42,16 @@ describe('ensureDaemonToken', () => {
   it('returns the same token on a second call', async () => {
     const first = await ensureDaemonToken(file)
     expect(await ensureDaemonToken(file)).toBe(first)
+  })
+})
+
+describe('rotateDaemonToken', () => {
+  it('overwrites the file with a new 64-hex token', async () => {
+    const first = await ensureDaemonToken(file)
+    const next = await rotateDaemonToken(file)
+    expect(next).toMatch(/^[0-9a-f]{64}$/)
+    expect(next).not.toBe(first)
+    expect(await ensureDaemonToken(file)).toBe(next)
+    expect(statSync(file).mode & 0o777).toBe(0o600)
   })
 })

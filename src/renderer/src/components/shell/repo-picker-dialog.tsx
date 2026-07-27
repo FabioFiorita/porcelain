@@ -176,7 +176,7 @@ function RepoPicker({ onClose }: { onClose: () => void }): React.JSX.Element {
                 className="self-start text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
                 onClick={() => {
                   onClose()
-                  useSettingsDialogStore.getState().openTo('environments')
+                  useSettingsDialogStore.getState().openTo('remotes')
                 }}
               >
                 Open remote daemon settings

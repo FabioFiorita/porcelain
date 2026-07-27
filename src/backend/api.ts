@@ -36,7 +36,6 @@ import { loadConfig, updateConfig } from './config-store'
 import { type CommitConventions, parseConventions } from './conventions'
 import { type DaemonIdentity, daemonIdentity } from './daemon-identity'
 import { daemonVersion } from './daemon-version'
-import { type DeviceInfo, listDevices, revokeDevice } from './devices'
 import type { ChangedFile, DiffHunk, DiffStat } from './diff'
 import { inlineLocalAssets } from './evidence-assets'
 import {
@@ -136,7 +135,7 @@ import {
   setReviewedMarks,
   unmarkReviewed,
 } from './reviewed-store'
-import { closeSessionsForDevice, listSessions } from './session'
+import { sessionCount } from './session'
 import {
   lanBindError,
   lanNumericUrl,
@@ -149,6 +148,7 @@ import {
   tailnetUrl,
 } from './tailnet-listener'
 import { listTerminals, renameTerminal, type TerminalInfo } from './terminal-manager'
+import { rotateAuthToken } from './token-control'
 import { clearWorkingTreeSnapshot, workingTreeSnapshot } from './working-tree'
 import { worktreeInbox } from './worktree-inbox'
 
@@ -447,19 +447,6 @@ function searchCandidates(
   return candidates
 }
 
-/** A paired device plus what it is doing on this daemon right now (`connectedDevices`). */
-export interface ConnectedDevice extends DeviceInfo {
-  connections: number
-  repo?: string
-  terminals: number
-}
-
-export interface ConnectedDevices {
-  devices: ConnectedDevice[]
-  /** Live connections authenticated by the shared token — legitimate, but un-revokable. */
-  sharedTokenConnections: number
-}
-
 export const router = t.router({
   // The daemon's build version, so the client can detect and surface skew (a client
   // on a newer/older build than the daemon it's bound to) once and clearly, instead
@@ -491,37 +478,15 @@ export const router = t.router({
     cancelPairing()
   }),
 
-  // The device roster (phase 4): who has been paired, and what each one is doing right
-  // now. The credential hashes never leave devices.ts — this is display data only.
-  // `sharedTokenConnections` counts clients authenticated by the long-lived shared token
-  // instead of a per-device credential: they are legitimate (that's the compatibility
-  // path) but unattributable and un-revokable, which the UI says out loud.
-  connectedDevices: t.procedure.query((): ConnectedDevices => {
-    const sessions = listSessions()
-    return {
-      devices: listDevices().map((device) => {
-        const own = sessions.filter((session) => session.deviceId === device.id)
-        return {
-          ...device,
-          connections: own.length,
-          repo: own.find((session) => session.repo !== undefined)?.repo,
-          terminals: own.reduce((total, session) => total + session.terminals, 0),
-        }
-      }),
-      sharedTokenConnections: sessions.filter((session) => session.deviceId === null).length,
-    }
-  }),
+  // How many clients currently hold a live /session on this daemon. Settings → Share
+  // shows the count only — no per-device roster. One shared token; Revoke all rotates it.
+  shareStatus: t.procedure.query((): { clients: number } => ({ clients: sessionCount() })),
 
-  // Cutting a device off has to do BOTH: drop the credential so nothing new authenticates,
-  // and close the sockets that already did (the gate runs at upgrade time, so a live
-  // session would otherwise keep streaming). The device's PTYs live on.
-  revokeDevice: t.procedure.input(z.string()).mutation(async ({ input }): Promise<void> => {
-    // Close FIRST. `revokeDevice` drops the credential from memory and then awaits the
-    // disk write; if that write fails, awaiting it before closing would leave the revoked
-    // device's live socket streaming terminals (audit 2b(e)). An unknown id closes
-    // nothing, so this is safe to call unconditionally.
-    closeSessionsForDevice(input)
-    await revokeDevice(input)
+  // Rotate the shared secret, close every live socket, return the new token so the
+  // caller (the window that pressed Revoke all) can keep talking without re-pairing.
+  rotateDaemonToken: t.procedure.mutation(async (): Promise<{ token: string }> => {
+    const token = await rotateAuthToken()
+    return { token }
   }),
 
   openRepoPath: t.procedure.input(z.string()).mutation(async ({ input }): Promise<RepoInfo> => {

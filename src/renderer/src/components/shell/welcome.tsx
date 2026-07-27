@@ -74,9 +74,9 @@ function EnvironmentBanner(): React.JSX.Element | null {
           variant="outline"
           size="sm"
           className="shrink-0"
-          onClick={() => useSettingsDialogStore.getState().openTo('environments')}
+          onClick={() => useSettingsDialogStore.getState().openTo('remotes')}
         >
-          Environments
+          Remotes
         </Button>
       )}
     </div>
@@ -168,7 +168,7 @@ export function Welcome(): React.JSX.Element {
         <button
           type="button"
           className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-          onClick={() => useSettingsDialogStore.getState().openTo('environments')}
+          onClick={() => useSettingsDialogStore.getState().openTo('remotes')}
         >
           Remote daemon settings
         </button>

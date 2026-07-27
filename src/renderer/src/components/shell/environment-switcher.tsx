@@ -137,7 +137,7 @@ export function EnvironmentSwitcher(): React.JSX.Element | null {
 
       <DropdownMenuContent align="end" side="bottom" className="w-72">
         <DropdownMenuGroup>
-          <DropdownMenuLabel>Environments</DropdownMenuLabel>
+          <DropdownMenuLabel>Remotes</DropdownMenuLabel>
           <EnvironmentRow
             id={null}
             name={identity.host !== null && identity.host !== '' ? identity.host : 'This device'}
@@ -170,13 +170,13 @@ export function EnvironmentSwitcher(): React.JSX.Element | null {
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem onClick={() => openSettings('environments')}>
+          <DropdownMenuItem onClick={() => openSettings('remotes')}>
             <Plus className="shrink-0" />
-            Add environment…
+            Add remote…
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => openSettings('environments')}>
+          <DropdownMenuItem onClick={() => openSettings('remotes')}>
             <Settings2 className="shrink-0" />
-            Manage environments…
+            Manage remotes…
           </DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>

@@ -59,12 +59,9 @@ export const serverMessageSchema = z.discriminatedUnion('t', [
 export type ServerMessage = z.infer<typeof serverMessageSchema>
 
 export const clientMessageSchema = z.discriminatedUnion('t', [
-  // What this connection is looking at, so the device roster (Settings → Environments) can
-  // say what each paired device is DOING, not just that it exists. Advisory display data
-  // only — identity itself comes from the credential the upgrade authenticated with, which
-  // the client cannot choose. Re-sent on repo switch and replayed on reconnect.
-  // Capped like the pairing label: it is peer-supplied display data, and an uncapped
-  // string on a message the daemon holds per session is a free memory sink.
+  // Optional display data (which repo this client is looking at). Identity is the
+  // shared token the upgrade already authenticated — never anything the client says.
+  // Capped: peer-supplied string held per session must not be a free memory sink.
   z.object({ t: z.literal('session:hello'), repo: z.string().max(1024).optional() }),
   z.object({
     t: z.literal('terminal:create'),

@@ -28,8 +28,8 @@ export function DaemonSkewToast(): null {
       duration: Number.POSITIVE_INFINITY,
       closeButton: true,
       action: {
-        label: 'Environments',
-        onClick: () => useSettingsDialogStore.getState().openTo('environments'),
+        label: 'Remotes',
+        onClick: () => useSettingsDialogStore.getState().openTo('remotes'),
       },
     })
   }, [skew])

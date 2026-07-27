@@ -16,6 +16,7 @@ import {
   type RemoteEnvironment,
   type RemoteEnvironmentState,
   saveRemoteEnvironmentState,
+  updateRemoteEnvironmentState,
 } from './remote-daemon'
 
 /**
@@ -95,6 +96,30 @@ const windowCleanupBound = new Set<number>()
  */
 export function localDaemonPair(): { url: string; token: string } {
   return localDaemonInfo()
+}
+
+/**
+ * Adopt a freshly rotated shared token for THIS machine's local child (or for a
+ * saved remote that just rotated under this window). Used after Settings → Share
+ * → Revoke all so the initiator keeps working; every other client must re-pair.
+ */
+export async function adoptRotatedToken(webContents: WebContents, newToken: string): Promise<void> {
+  const envId = windowEnvironmentId(webContents)
+  if (envId == null) {
+    token = newToken
+    pushLocalDaemonInfo()
+    return
+  }
+  await updateRemoteEnvironmentState((state) => ({
+    ...state,
+    environments: state.environments.map((env) =>
+      env.id === envId ? { ...env, token: newToken } : env,
+    ),
+  }))
+  await reloadEnvironmentsCache()
+  // Re-bind so windowDaemons holds the new token, then push to this window only.
+  setWindowEnvironment(webContents, envId)
+  pushDaemonInfoTo(webContents)
 }
 
 function localDaemonInfo(): { url: string; token: string } {
@@ -249,6 +274,10 @@ function awaitReadyLine(proc: UtilityProcess): Promise<number> {
 
 async function launch(): Promise<void> {
   const startedAt = Date.now()
+  // Re-read the token file on every spawn: Revoke all may have rotated it while a
+  // previous child was still running, and a crash-restart must not re-hand the old
+  // secret to a daemon that already wrote the new one.
+  token = await ensureDaemonToken()
   // utilityProcess.fork — never child_process with the run-as-Node env switch:
   // see the fork-bomb note in the module doc above.
   const proc = utilityProcess.fork(join(__dirname, 'daemon', 'server.js'), [], {

@@ -41,17 +41,13 @@ const terminalExitArgs = z.tuple([z.string(), z.number()])
 
 class Session {
   private readonly socket: WebSocket
-  /** The paired device this socket authenticated as; null = the shared token. */
-  readonly deviceId: string | null
   readonly connectedAt = Date.now()
-  /** What this connection is doing, for the device roster (Settings → Environments). */
   readonly terminals = new Set<string>()
   /** The repo this connection is looking at, if it announced one (`session:hello`). */
   repo: string | undefined
 
-  constructor(socket: WebSocket, deviceId: string | null) {
+  constructor(socket: WebSocket) {
     this.socket = socket
-    this.deviceId = deviceId
     sessions.add(this)
     socket.on('message', (raw) => this.handleMessage(raw.toString()))
     // 'close' always follows 'error'; the empty error listener just keeps an
@@ -85,7 +81,7 @@ class Session {
     return this.socket.readyState !== WebSocket.OPEN
   }
 
-  /** End this connection (the device was revoked). 'close' fires → dispose() cleans up. */
+  /** End this connection (token rotated / Revoke all). 'close' fires → dispose() cleans up. */
   close(): void {
     this.socket.close(4001, 'revoked')
   }
@@ -108,7 +104,8 @@ class Session {
     const message = parsed.data
     switch (message.t) {
       case 'session:hello':
-        // Display data for the device roster; never trusted for identity (see ws-protocol).
+        // Optional display data (which repo this client is looking at). Identity is the
+        // shared token the upgrade already authenticated — never anything the client says.
         this.repo = message.repo
         break
       case 'terminal:create': {
@@ -173,38 +170,22 @@ class Session {
   }
 }
 
-export function createSession(socket: WebSocket, deviceId: string | null = null): void {
-  new Session(socket, deviceId)
+export function createSession(socket: WebSocket): void {
+  new Session(socket)
 }
 
-/** One live connection, as the device roster sees it. */
-export interface SessionInfo {
-  deviceId: string | null
-  connectedAt: number
-  repo?: string
-  terminals: number
-}
-
-/** Every live connection — the "what is this device doing right now" half of the roster. */
-export function listSessions(): SessionInfo[] {
-  return [...sessions].map((session) => ({
-    deviceId: session.deviceId,
-    connectedAt: session.connectedAt,
-    repo: session.repo,
-    terminals: session.terminals.size,
-  }))
+/** How many clients currently hold a live /session socket on this daemon. */
+export function sessionCount(): number {
+  return sessions.size
 }
 
 /**
- * Drop every live connection belonging to a revoked device. Without this, revoking would
- * only stop the NEXT request: an already-upgraded socket keeps streaming terminals, because
- * the gate ran at upgrade time. Its PTYs live on (they're daemon-owned) — this ends the
- * device's access to them, not the work.
+ * Drop every live connection. Used by Revoke all after the shared token rotates: the
+ * gate only runs at upgrade time, so an already-upgraded socket would otherwise keep
+ * streaming. PTYs live on (daemon-owned) — this ends access, not the work.
  */
-export function closeSessionsForDevice(deviceId: string): void {
-  for (const session of sessions) {
-    if (session.deviceId === deviceId) session.close()
-  }
+export function closeAllSessions(): void {
+  for (const session of sessions) session.close()
 }
 
 /**

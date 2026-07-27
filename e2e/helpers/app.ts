@@ -163,12 +163,12 @@ async function seedState(
   await writeFile(notes, '{}')
   const comments = join(udBase, 'comments.json')
   await writeFile(comments, '{}')
-  // The paired-device roster. Left uncreated (the store treats an absent file as "nobody
-  // has paired"), but ALWAYS redirected: a test that pairs would otherwise write a device
-  // into the developer's real ~/.porcelain/devices.json — and that file is auth state.
-  const devices = join(udBase, 'devices.json')
   const featureView = join(udBase, 'feature-view.json')
   await writeFile(featureView, '{}')
+  // Shared-token file for Revoke all — isolated so rotation never overwrites the
+  // developer's real ~/.porcelain/daemon-token.
+  const tokenFile = join(udBase, 'daemon-token')
+  await writeFile(tokenFile, BROWSER_TOKEN, { mode: 0o600 })
   // Loop evidence is a directory of files (index.html + optional assets), not JSON.
   // Seed the on-disk layout the app/CLI share (see evidence-paths.ts).
   const evidenceRoot = join(udBase, 'loop-evidence')
@@ -201,10 +201,10 @@ async function seedState(
       PORCELAIN_REVIEWED: reviewed,
       PORCELAIN_NOTES: notes,
       PORCELAIN_COMMENTS: comments,
-      PORCELAIN_DEVICES: devices,
       PORCELAIN_FEATURE_VIEW: featureView,
       PORCELAIN_EVIDENCE: evidence,
       PORCELAIN_LOOP_EVIDENCE_DIR: evidenceRoot,
+      PORCELAIN_DAEMON_TOKEN_FILE: tokenFile,
       // Pins a fast, config-free shell so the terminal tests are deterministic and
       // don't source the runner's zsh profile.
       PORCELAIN_SHELL: '/bin/bash',
