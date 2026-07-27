@@ -1,6 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { porcelainHomePath } from '../shared/porcelain-home'
 
 // Builtins only — see cli.ts. The feature-view SNAPSHOT channel: Porcelain's
 // COMPUTED feature view (every file it renders, each tagged with its git-truth source
@@ -30,7 +29,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export function featureViewPath(): string {
-  return process.env.PORCELAIN_FEATURE_VIEW ?? join(homedir(), '.porcelain', 'feature-view.json')
+  return process.env.PORCELAIN_FEATURE_VIEW ?? porcelainHomePath('feature-view.json')
 }
 
 function parseFiles(value: unknown): FeatureViewFile[] {

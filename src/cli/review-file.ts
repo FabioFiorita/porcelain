@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
-import { homedir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname } from 'node:path'
+import { porcelainHomePath } from '../shared/porcelain-home'
 
 // Builtins only — see cli.ts for why this server must stay dependency-free.
 // This file owns the agent channel that Porcelain reads (src/backend/review-store.ts
@@ -65,7 +65,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export function reviewSetsPath(): string {
-  return process.env.PORCELAIN_REVIEW_SETS ?? join(homedir(), '.porcelain', 'review-sets.json')
+  return process.env.PORCELAIN_REVIEW_SETS ?? porcelainHomePath('review-sets.json')
 }
 
 /** Coerce arbitrary tool input into validated review files; throws on bad shape. */

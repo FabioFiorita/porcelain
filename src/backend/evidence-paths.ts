@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
-import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { EVIDENCE_SCENE_FILENAME } from '../shared/excalidraw-scene'
+import { porcelainHomePath } from '../shared/porcelain-home'
 
 /**
  * Loop evidence lives as a **directory of files on disk**, not as HTML shuttled
@@ -21,7 +21,7 @@ import { EVIDENCE_SCENE_FILENAME } from '../shared/excalidraw-scene'
  */
 
 export function loopEvidenceRoot(): string {
-  return process.env.PORCELAIN_LOOP_EVIDENCE_DIR ?? join(homedir(), '.porcelain', 'loop-evidence')
+  return process.env.PORCELAIN_LOOP_EVIDENCE_DIR ?? porcelainHomePath('loop-evidence')
 }
 
 /** Stable short directory name for an absolute repo path. */

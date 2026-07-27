@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
-import { homedir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname } from 'node:path'
+import { porcelainHomePath } from '../shared/porcelain-home'
 
 // Builtins only — see cli.ts. The flow-layers channel: the per-repo review-flow
 // layers the human (Porcelain app, layers-store.ts) and the agent (here) both manage.
@@ -49,7 +49,7 @@ function isValidPattern(pattern: string): boolean {
 }
 
 export function layersPath(): string {
-  return process.env.PORCELAIN_LAYERS ?? join(homedir(), '.porcelain', 'layers.json')
+  return process.env.PORCELAIN_LAYERS ?? porcelainHomePath('layers.json')
 }
 
 // Lenient parse of our own file: skip malformed/uncompilable layers, never throw.

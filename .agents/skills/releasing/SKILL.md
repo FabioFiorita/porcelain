@@ -2,224 +2,121 @@
 name: releasing
 metadata:
   internal: true
-description: How to cut a Porcelain release — gate-then-cut, atomic publish, auto-latest, signing secrets, changelog, and retry-without-bump. Read when publishing a version, debugging the release workflow, or changing signing/notarization.
+description: How to cut a Porcelain release — simple main+tag path, Mac package + npm, always patch unless asked. Read when publishing a version or changing signing/notarization.
 ---
 
 # Porcelain — releasing
 
-Cutting a release publishes a **signed + notarized** macOS build to GitHub Releases
-for `electron-updater`, marks it **latest** automatically, and publishes
-`porcelain-daemon` to npm via OIDC.
+Side project, solo, **no real external users yet**. Shipping is occasional — when the human asks, not after every polish commit. Waiting ~10–15 minutes for a signed Mac build is fine.
 
-**The desktop app ships for macOS only** (2026-07-27): the unsigned Linux
-AppImage/deb leg was deleted because nobody ran it and its packaging job could
-fail a Mac release that was otherwise good. Linux is still first-class as a
-*daemon* host — that ships via npm (`porcelain-daemon`), which is unaffected, and
-Linux humans use the daemon-served browser client. Do not re-add a `linux:` block
-to `electron-builder.yml` without a real user asking for it.
+**The desktop app ships for macOS only** (2026-07-27). Linux is first-class as a *daemon* host via npm (`porcelain-daemon`); humans use the daemon-served browser client. Do not re-add a `linux:` block to `electron-builder.yml` without a real user asking.
 
-## Design (2026-07-24 overhaul)
+**1.0.0 is far away** — only when the human feels the product is “done.” Until then: **always patch** unless they explicitly ask for minor/major.
 
-**Problem we fixed:** tag-then-discover burned versions (~35% of tag pushes failed on
-e2e/lint/packaging). Recovery was always a new patch. Drafts and half-releases
-(npm without assets) littered the release list.
-
-**Shape now:**
+## Shape (2026-07-27 — simple path)
 
 ```
-main always green (CI + E2E + native dry-run on every push)
+main is good enough for daily use (web + daemon)
         │
+        │  human: “release” / pnpm release
         ▼
-  pnpm release:check && pnpm release:cut [patch|minor|major]
-        │  (or: Actions → Release → bump=…)
+  pnpm release:cut [patch|minor|major]   # default patch
+        │  clean main == origin/main
+        │  pnpm version → commit + tag on main
+        │  git push --follow-tags
+        │  dispatch release.yml -f tag=vX.Y.Z
         ▼
-  prepare: version bump on release/pending-vX only (no tag, not on main yet)
-        │
+  package-mac (build + sign + notarize, publish never)
         ▼
-  package-mac (e2e → sign/notarize → artifacts, publish never)
-        │
-        ▼ only if green
-  publish: promote pending → main
-        → GH Release (published + latest) with all assets + tag
-        → npm publish
-        → delete leftover drafts
+  GH Release (published + latest) + npm porcelain-daemon
 ```
 
-Failure before promote = **no version on main, no tag, no half-release**.
-Promote-before-publish so a live "latest" never exists without the version commit on main.
-Infra flake after a good package = **retry the same tag** (no new patch).
+**No pending branches.** No multi-workflow pre-cut gate. No cut/retry/npm_only mode soup.
 
-## Runbook (primary path)
+Day-to-day proof is `pnpm verify` + browser e2e on the **dev** stack — not this workflow.
 
-1. Land changes on `main` and wait for **all three** required workflows to go green
-   on that exact SHA:
-   - `ci.yml` — `pnpm verify` + `typecheck:e2e`
-   - `e2e.yml` — the browser e2e suite (the only per-push run of it)
-   - `e2e-native-dry-run.yml` — full native Electron e2e on `macos-14`
-     (**every** push to main, not path-filtered)
+## Runbook
 
-2. **Pre-cut gate (local):**
+1. Land work on `main`, clean tree, `HEAD == origin/main`.
+2. Cut:
 
    ```bash
-   pnpm release:check
+   pnpm release:cut          # patch (default)
+   pnpm release:cut minor    # only when the human asks
+   # or: pnpm release
    ```
 
-   Fails closed unless HEAD is on clean `main`, matches `origin/main`, and all three
-   workflows above are **success** for that SHA. Do not cut until this is green.
-
-3. **Cut (does not bump locally):**
+3. Watch:
 
    ```bash
-   pnpm release:cut          # patch
-   pnpm release:cut minor
-   # or: gh workflow run release.yml -f bump=patch
+   gh run watch --exit-status
+   gh release view --json tagName,isDraft,assets
    ```
 
-   This only dispatches `.github/workflows/release.yml`. The workflow:
+4. Optional: after packaging-touching changes, smoke the Mac install (PTY, updater, fuses) — see below.
 
-   - Bumps `package.json` + prepends `CHANGELOG.md` via `pnpm version` onto
-     `release/pending-vX.Y.Z` (force-pushed; **not** merged to main yet; **no tag**).
-   - Runs **package-mac** against that ref (lint/test/build/e2e →
-     `electron-builder --publish never` → upload artifacts).
-   - **Only if it succeeds:** promotes the pending branch to `main`, then
-     assembles one GitHub Release with **all** assets **published and marked
-     latest** (not draft; creates the tag at that commit), publishes npm, deletes
-     other leftover **draft** releases (tags kept — never rewrite tags).
-   - If packaging fails: deletes the pending branch; main and tags unchanged.
+## Retry
 
-4. **Watch the run to completion** (block in one turn — do not fire-and-forget):
-
-   ```bash
-   gh run watch --exit-status   # or gh run watch <id> --exit-status
-   gh release view --json tagName,isDraft,isLatest,assets
-   ```
-
-   Auto-latest means you should **not** need `gh release edit --draft=false --latest`
-   anymore. If a run fails, read the failed job; do not burn a new version for
-   notarize/GH/npm flakes — use **retry** below.
-
-5. **Electron fuses smoke** (still required for a human when you have a machine):
-   after the first cut of a packaging-touching change, verify the four checks in
-   the fuses section below. Day-to-day CI has packaging layout smoke + native e2e;
-   it does not fully replace a local install smoke on a real Mac.
-
-## Retry (same tag — infra only)
-
-When packaging was green but publish/notarize/npm/GH flaked, or you need to
-re-upload assets for an existing tag:
+Re-run the failed GitHub job, or:
 
 ```bash
-# Full rebuild + re-upload + npm (publish scripts run from the dispatch branch SHA,
-# so bugfixes on main apply even when re-targeting an older tag)
-gh workflow run release.yml -f tag=v0.40.0
-
-# npm only — when the GitHub Release is already complete and only porcelain-daemon
-# is missing (post-check flake after promote, etc.)
-gh workflow run release.yml -f tag=v0.40.0 -f npm_only=true
+gh workflow run release.yml -f tag=v0.42.4
 ```
 
-Or re-run the failed jobs on the existing workflow run (`gh run rerun <id> --failed`).
+Do **not** invent a new patch for infra flake if the tag already exists and only packaging/publish failed. For product bugs: fix on main, then a **new** patch cut.
 
-**Do not** retry-same-tag for product/e2e bugs — fix on main, `pnpm release:check`,
-then `pnpm release:cut` for a **new** patch.
-
-Tag push is **not** a workflow trigger (avoids double-build races). Retry is always
-`workflow_dispatch` with `tag=`.
-
-**Traps learned on the first cut (v0.40.0):**
-- CI's `gh` may lack `isLatest` on `gh release view --json` — we assert latest via
-  `GET …/releases/latest` instead.
-- Always `.trim()` gh stdout (and neutralize `FORCE_COLOR`) before string compares.
-- `release:check` must pass a clean env to `gh --json` for the same reason.
-
-## Recovery rules
-
-| Failure | Recovery |
-|---|---|
-| `release:check` red | Wait for / fix CI, E2E, or native dry-run on HEAD |
-| package-mac red | Fix on main (no version burned), re-cut |
-| publish / notarize / npm infra | Retry same tag or `gh run rerun --failed` |
-| Product bug after a live release | New patch cut (never rewrite a pushed tag) |
-
-**Never rewrite pushed tags** (Fabio's rule). Failed *drafts* from the old pipeline
-are deleted automatically on the next successful publish (`--cleanup-drafts`).
+**Never rewrite pushed tags.**
 
 ## Local scripts
 
 | Script | Role |
 |---|---|
-| `pnpm release:check` | `scripts/release-check.mjs` — pre-cut gate |
-| `pnpm release:cut` | `scripts/release-cut.mjs` — check + dispatch |
+| `pnpm release` / `pnpm release:cut` | Bump + tag + push + dispatch |
 | `pnpm package:mac` | `electron-builder --mac --publish never` |
-| `pnpm release:publish` | `scripts/release-publish.mjs` — assemble GH release (CI uses this) |
-| `pnpm release:fuse-smoke` | packaging layout smoke (dmg/zip/latest-mac.yml) |
+| `pnpm release:publish` | Assemble GH release (CI uses this) |
+| `pnpm release:fuse-smoke` | Artifact layout smoke |
 
-Do **not** run `pnpm version` + `git push --follow-tags` as the normal path — that
-was the old tag-then-discover flow. Prefer `release:cut`. Emergency local bump is
-still possible but then you rely on the tag-push retry path and accept that the
-version commit is already on main before packaging proves out.
+`pnpm release:check` is a no-op pointer at the new path (old multi-gate removed).
 
 ## Changelog
 
-Unchanged: `pnpm changelog` =
-`conventional-changelog -p conventionalcommits -i CHANGELOG.md -r 1` (newest
-section only; never `-r 0`). The `version` lifecycle hook runs it during the
-workflow's `pnpm version` on the pending branch. Only `feat`/`fix`/breaking surface.
+`pnpm version` runs the `version` lifecycle → `pnpm changelog` (newest section only). Only `feat`/`fix`/breaking surface. Empty-ish notes for tiny patches are fine; write a real blurb when the release *matters*.
 
 ## Signing & notarization
 
-Identity pinned in `electron-builder.yml` (`notarize: true` + Developer ID name).
-Secrets on the repo (`gh secret list`), passed to **package-mac** only:
+Identity in `electron-builder.yml`. Secrets on the repo for **package-mac** only:
 
 | Secret | What |
 |---|---|
 | `CSC_LINK` | base64 Developer ID `.p12` |
-| `CSC_KEY_PASSWORD` | the p12 password |
+| `CSC_KEY_PASSWORD` | p12 password |
 | `APPLE_ID` | Apple account for notarytool |
 | `APPLE_APP_SPECIFIC_PASSWORD` | app-specific password |
 | `APPLE_TEAM_ID` | `9QH8M89WF9` |
 
-`GH_TOKEN` is the auto `GITHUB_TOKEN` (`permissions: contents: write`).
-`packageManager` is pinned to `pnpm@11.7.0`.
-
-**GOTCHA:** never map an *empty* `CSC_LINK` into env — omit or set real.
-**Native module (`node-pty`):** `asarUnpack` + signed under hardened runtime; CI
-`pnpm install` runs `electron-builder install-app-deps` (don't `--ignore-scripts`).
+**GOTCHA:** never map an empty `CSC_LINK` into env. Native `node-pty`: `asarUnpack` + signed under hardened runtime.
 
 ## npm (`porcelain-daemon`)
 
-Published in `publish-npm` after the GitHub Release succeeds, via **npm Trusted
-Publishing (OIDC)** — no long-lived `NPM_TOKEN`. Configure once on
-[npmjs.com/package/porcelain-daemon](https://www.npmjs.com/package/porcelain-daemon)
-→ Trusted Publisher: GitHub Actions, owner **`FabioFiorita`** (casing must match
-OIDC), repo `porcelain`, workflow **`release.yml`**. Retry is idempotent (skips if
-that version is already on the registry).
+Published after the GitHub Release via **npm Trusted Publishing (OIDC)** — no long-lived `NPM_TOKEN`. Trusted publisher: owner **FabioFiorita**, repo `porcelain`, workflow **`release.yml`**. Idempotent skip if that version is already on the registry.
 
-## Electron fuses smoke test (required on packaging-touching releases)
+After publish, the Linux **production** systemd unit still runs `npx porcelain-daemon@latest` — restart the unit when you want the new daemon.
 
-`electron-builder.yml` wires `build/after-pack.js` (`afterPack`) before signing.
-CI runs `scripts/release-fuse-smoke.mjs` (artifact layout only). After a packaging
-change, also verify on a real install:
+## Electron fuses smoke (packaging-touching releases)
 
-1. **Terminal PTY spawns** in the installed app.
-2. **Updater launches without crash.**
-3. **`RunAsNode` is disabled:** `ELECTRON_RUN_AS_NODE=1 open -a Porcelain` must
-   open the GUI, not a Node REPL.
-4. **Daemon serves** (file tree loads; process count stays sane — utilityProcess
-   fork, never re-spawn the app binary with `ELECTRON_RUN_AS_NODE`).
+CI runs layout smoke only. On a real Mac install when packaging changed:
 
-If any check fails, do not treat the auto-published release as good — cut a fix
-patch immediately.
+1. Terminal PTY spawns.
+2. Updater launches without crash.
+3. `ELECTRON_RUN_AS_NODE=1 open -a Porcelain` opens the GUI, not a Node REPL.
+4. Daemon serves; process count stays sane.
 
-## Babysitting the run
+## Prod vs dev (not a release concern)
 
-A headless agent turn ends when the turn ends: a background monitor started
-mid-turn dies with the process, so "I'll report back when CI is green" reports
-nothing. Never fire-and-forget the watch. Block on `gh run watch --exit-status`
-in **one** turn. Auto-latest means the follow-up is usually just verifying the
-release JSON, not manually undrafting.
+Product work uses the **dev** daemon (`pnpm dev:daemon`, port **43118**, `~/.porcelain-dev`). The always-on Linux daemon (port **43117**, `~/.porcelain`) is production for the human’s day job — agents never touch it while polishing Porcelain. Details in `close-the-loop` / `architecture`.
 
 ## See also
 
-- `architecture` skill, "Packaging, signing, updates"
-- `audit` skill — empty-`CSC_LINK`, dep-placement, node-pty unpack
+- `architecture` skill — packaging facts
+- `audit` skill — empty-`CSC_LINK`, node-pty unpack
+- `close-the-loop` — day-to-day loop (not release)

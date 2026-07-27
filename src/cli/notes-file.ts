@@ -1,6 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { porcelainHomePath } from '../shared/porcelain-home'
 
 // Builtins only — see cli.ts. The repo-notes channel: the human's freeform
 // per-repo markdown scratchpad (Porcelain app, notes-store.ts), READ-ONLY here.
@@ -16,7 +15,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export function notesPath(): string {
-  return process.env.PORCELAIN_NOTES ?? join(homedir(), '.porcelain', 'notes.json')
+  return process.env.PORCELAIN_NOTES ?? porcelainHomePath('notes.json')
 }
 
 function readAll(): Notes {

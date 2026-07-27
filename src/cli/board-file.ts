@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
-import { homedir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname } from 'node:path'
+import { porcelainHomePath } from '../shared/porcelain-home'
 
 // Builtins only — see cli.ts. The project-board channel: todo/doing/done cards
 // the human (Porcelain app, board-store.ts) and the agent (here) both manage. The
@@ -28,7 +28,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export function boardPath(): string {
-  return process.env.PORCELAIN_BOARD ?? join(homedir(), '.porcelain', 'board.json')
+  return process.env.PORCELAIN_BOARD ?? porcelainHomePath('board.json')
 }
 
 function parseCards(value: unknown): BoardCard[] {

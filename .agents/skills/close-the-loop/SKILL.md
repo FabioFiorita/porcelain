@@ -2,42 +2,67 @@
 name: close-the-loop
 metadata:
   internal: true
-description: The development loop every session must complete — intent, paths, execute, test, verify with evidence, sync docs, gate, commit — plus the testing doctrine (unit tests for the daemon, browser-first for the UI) and the autonomy split (fix objective findings yourself, escalate judgment calls). Read at the start of any session that will change code.
+description: The development loop every session must complete — intent, paths, execute, test, verify with evidence, sync docs, gate, commit — plus the testing doctrine (unit tests for the daemon, browser-first for the UI) and the autonomy split. Read at the start of any session that will change code.
 ---
 
 # Close the loop
 
-Porcelain is a solo side project developed almost entirely by agents. The human's goal is to interact less, not more — a session that ends with "implemented, should work" forces him to do the verification himself, which defeats the point. So every session closes the **full loop**, and the loop's meaning never varies. (Adapted from the no-mistakes philosophy — "the bottleneck isn't writing code, it's validating it" — minus the PR/CI tail a solo repo doesn't need.)
+Porcelain is a solo side project developed almost entirely by agents. The human's goal is to interact less, not more — a session that ends with "implemented, should work" forces him to do the verification himself, which defeats the point. So every session closes the **full loop**, and the loop's meaning never varies.
+
+## Prod vs dev (hard rule)
+
+| | **Production** (human’s day job) | **Development** (building Porcelain) |
+|--|--|--|
+| When | Always on | On demand during product work |
+| Port | **43117** | **43118** |
+| User data | `~/.local/share/porcelain` | `~/.local/share/porcelain-dev` |
+| Channels / CLI home | `~/.porcelain` | `~/.porcelain-dev` (`PORCELAIN_HOME`) |
+| Binary | systemd `npx porcelain-daemon@latest` | Local tree: `pnpm build` + `pnpm dev:daemon` |
+| Network | LAN + tailnet | Loopback only |
+| Default repo | Real work (e.g. monorepos) | **`~/code/porcelain-playground` only** |
+| Agents | **Never** for product work | **Always** for product work |
+
+**Never** hide/pin, board, review, or token-write against the production daemon while improving Porcelain. Earlier mistakes mixed the two — do not repeat.
+
+Agent channels are the **porcelain CLI only** (`~/.porcelain/porcelain` in prod, `pnpm porcelain -- …` in dev). There is **no Porcelain MCP** — it was removed in favor of the CLI. Do not reintroduce or call a porcelain MCP server.
+
+```bash
+pnpm build              # warm out/ when needed
+pnpm dev:daemon         # DEV stack on 43118
+pnpm porcelain -- help  # CLI against ~/.porcelain-dev
+# browser client: http://127.0.0.1:43118/  (token in ~/.porcelain-dev/daemon-token)
+```
 
 ## The loop
 
-1. **Intent** — one or two sentences, written before touching code: what will be true when this is done, and how you'll prove it. Every later phase verifies against this, not against "it compiles."
-2. **Paths** — if more than one plausible approach exists, list them with tradeoffs and pick one. An obvious fix needs no ceremony; a fork of the architecture needs a proposal first (CLAUDE.md rule 1).
-3. **Execute** — under the standing rules: one architecture, shadcn primitives, type-safety-driven design.
-4. **Test** — regression protection, per the testing doctrine below. New behavior gets a test in the tier that owns it.
-5. **Verify with evidence** — prove the *intent*, not the tests: exercise the real flow and capture something the human could look at. UI change → drive the running app (see doctrine) and screenshot, or author loop evidence for a bigger feature. Backend change → the failing-then-passing test run, or a real CLI/daemon invocation's output. If evidence genuinely can't be produced (no display, missing credential), end the session saying exactly that — **blocked beats bluffed**.
-6. **Docs sync** — update the owning skill *in the same commit* for any decision changed or trap discovered (CLAUDE.md rule 4). While there, cut any skill prose that merely paraphrases the code — mechanics rot, decisions don't.
-7. **Gate & commit** — `pnpm verify` (hook-enforced), then commit straight to `main`.
+1. **Intent** — one or two sentences: what will be true when this is done, and how you'll prove it.
+2. **Paths** — if more than one plausible approach exists, list tradeoffs and pick one (architecture forks need a proposal first).
+3. **Execute** — one architecture, shadcn primitives, type-safety-driven design. **Main only** (no feature branches).
+4. **Test** — per the testing doctrine below.
+5. **Verify with evidence** — prove the *intent*. UI → browser against the **dev** daemon (Playwright MCP or `pnpm test:e2e`). Backend → unit test / CLI on **dev** channels. Never drive the installed **Porcelain** app or the prod daemon for product work.
+6. **Docs sync** — update the owning skill in the same commit for decisions/traps changed; cut skill prose that only paraphrases code.
+7. **Gate & commit** — `pnpm verify`, commit straight to `main`, leave the worktree clean.
 
-Scale the ceremony to the change: a typo fix is intent + gate; a feature is all seven. What never scales away is phase 5 — no change ships on "should work."
+Scale ceremony to the change. Phase 5 never scales away — no "should work."
 
 ## Autonomy split
 
-Modeled on no-mistakes' finding taxonomy — automate the objective, escalate the judgment call:
-
-- **Just fix, don't ask**: lint/type errors, failing tests, stale docs and dead pointers, broken paths, flaky assertions, anything with one objectively correct resolution.
-- **Escalate to the human**: product scope changes, a new dependency, forking an established pattern, UI/UX design that isn't settled by existing surfaces, anything destructive or outward-facing (push is deliberately left prompting).
+- **Just fix:** lint/type errors, failing tests, stale docs, broken paths, flaky assertions.
+- **Escalate:** product scope, new dependency, forking architecture, unsettled UI/UX, destructive or outward-facing actions (push stays prompted).
 
 ## Testing doctrine
 
-Decided 2026-07-18 (browser-first); e2e harden 2026-07-21 (testids + isolation + pre-tag native):
+Decided 2026-07-18 (browser-first); simplified 2026-07-27 (no required native on every push):
 
-- **Backend / business logic** (daemon, git plumbing, stores, CLI) → **Vitest unit tests** are the regression lock. Manual checks are supplements, never the record.
-- **Frontend, day-to-day** → **browser-first**: assert against the **web viewer** — the daemon serves the *same built dist* the Electron window loads, same tRPC + WS data path; the only delta is auth source (preload bridge vs. TokenGate + localStorage). During development, drive a live tab with the Playwright MCP; in CI and locally, `pnpm test:e2e` runs the `browser` Playwright project — headless Chromium on the daemon-served client (one spec suite serves both projects; see `e2e/helpers/app.ts`).
-- **Electron native suite** (`pnpm test:e2e:native`) → same specs via Playwright's `_electron`. Runs on **every push to main** via `e2e-native-dry-run.yml` (pre-cut gate, required by `pnpm release:check`) **and** again inside `release.yml`'s package-mac before artifacts ship — so a cut never discovers native breakage first. Still not part of the per-commit `pnpm verify` gate.
-- **E2e locator contract**: specs use **`data-testid`** from `src/shared/test-ids.ts` via `e2e/helpers/locators.ts`. Prefer test ids over `getByText` / ambiguous roles for automation. Roles and aria-labels stay on the product for humans and a11y; they are not the e2e primary seam. When you add a surface e2e must drive, add a TestIds entry + attribute in the same change.
-- **Isolation**: every e2e test starts from a pristine fixture repo (test-scoped `repoDir` in `e2e/helpers/app.ts`). No shared mutation / afterAll rebuild between specs.
-- **Stress**: `e2e-stress.yml` (manual) re-runs the browser suite N times with `--retries=0` to prove infinite repeatability.
-- **Accepted tradeoff**: the browser can't see the Electron shell layer; always-on native dry-run + the release package job catch that. Browser CI stays the fast day-to-day path.
+- **Backend / business logic** (daemon, git, stores, CLI) → **Vitest**.
+- **Frontend, day-to-day** → **browser-first** against the daemon-served web client (same renderer dist as Electron). Dev: Playwright MCP or live tab on **dev** daemon. CI/local suite: `pnpm test:e2e` (`browser` project).
+- **Electron native** (`pnpm test:e2e:native`) → **optional** (manual workflow or pre-ship when packaging/shell may have broken). Not part of `pnpm verify` and not required on every push.
+- **E2e locator contract:** `data-testid` via `src/shared/test-ids.ts` + `e2e/helpers/locators.ts`.
+- **Isolation:** each e2e test gets a pristine fixture repo (not the human’s work repos; not production channels).
+- **Stress:** `e2e-stress.yml` (manual).
 
-Why browser-first also serves the product: Porcelain's direction is a solid daemon with thin viewers (Mac app, any browser/iPad tab). Since the desktop app is macOS-only (2026-07-27), the browser suite is also the *only* per-push proof the client works on a non-Mac seat — `e2e.yml` is the single workflow that runs it.
+Accepted tradeoff: browser cannot see Electron shell chrome. Catch shell-only bugs with optional native e2e or a real Mac install smoke when packaging changed.
+
+## Release is not the day-to-day loop
+
+Ship only when the human asks. Default bump is **patch** until 1.0 (far away). See the `releasing` skill — simple main + tag + package, no pending branches.

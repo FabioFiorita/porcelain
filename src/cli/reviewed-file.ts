@@ -1,6 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { porcelainHomePath } from '../shared/porcelain-home'
 
 // Builtins only — see cli.ts. The reviewed-marks channel: the repo-relative file
 // paths the human has checked off as reviewed in Porcelain (the per-file marks in the
@@ -22,7 +21,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export function reviewedPath(): string {
-  return process.env.PORCELAIN_REVIEWED ?? join(homedir(), '.porcelain', 'reviewed.json')
+  return process.env.PORCELAIN_REVIEWED ?? porcelainHomePath('reviewed.json')
 }
 
 // A mark's path from either the object shape or a legacy bare string; null when neither.

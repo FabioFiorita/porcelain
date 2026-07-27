@@ -14,7 +14,10 @@ const { dirname, join } = require('node:path')
 
 const DEFAULT_PORT = 43117
 const DEFAULT_USER_DATA = join(homedir(), '.local', 'share', 'porcelain')
-const TOKEN_PATH = join(homedir(), '.porcelain', 'daemon-token')
+// PORCELAIN_HOME redirects token + channels (dev stack uses ~/.porcelain-dev).
+const porcelainHome = () => process.env.PORCELAIN_HOME ?? join(homedir(), '.porcelain')
+const TOKEN_PATH = () =>
+  process.env.PORCELAIN_DAEMON_TOKEN_FILE ?? join(porcelainHome(), 'daemon-token')
 
 const HELP = `porcelain-daemon — headless Porcelain backend (plain Node, no Electron)
 
@@ -129,7 +132,7 @@ function parseArgs(argv) {
 }
 
 /** Same semantics as src/backend/token-file.ts ensureDaemonToken (plain CJS copy). */
-function ensureDaemonToken(path = TOKEN_PATH) {
+function ensureDaemonToken(path = TOKEN_PATH()) {
   try {
     const existing = readFileSync(path, 'utf8').trim()
     if (existing !== '') return existing
@@ -178,7 +181,7 @@ function main() {
   console.error(`[porcelain-daemon] user data  ${userData}`)
   console.error(`[porcelain-daemon] port       ${port}`)
   console.error(`[porcelain-daemon] binds      ${binds.join(', ')}`)
-  console.error(`[porcelain-daemon] token file ${TOKEN_PATH}`)
+  console.error(`[porcelain-daemon] token file ${TOKEN_PATH()}`)
   if (opts.printToken) {
     console.error(`[porcelain-daemon] token      ${token}`)
   } else {

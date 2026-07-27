@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
-import { homedir } from 'node:os'
-import { isAbsolute, join, relative, resolve } from 'node:path'
+import { isAbsolute, relative, resolve } from 'node:path'
 import { z } from 'zod'
+import { porcelainHomePath } from '../shared/porcelain-home'
 import { createHomeChannel } from './home-channel'
 import {
   type ReviewSection,
@@ -34,7 +34,7 @@ export function isRepoContained(repoPath: string, entryPath: string): boolean {
 export function reviewSetsPath(): string {
   // Must match src/cli/review-file.ts (the sole writer). PORCELAIN_REVIEW_SETS lets
   // dev/tests redirect both sides to the same throwaway path.
-  return process.env.PORCELAIN_REVIEW_SETS ?? join(homedir(), '.porcelain', 'review-sets.json')
+  return process.env.PORCELAIN_REVIEW_SETS ?? porcelainHomePath('review-sets.json')
 }
 
 // Read-side leniency for sections: parse them per-item (below) so ONE invalid

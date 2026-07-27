@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
-import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { porcelainHomePath } from '../shared/porcelain-home'
 import { htmlPreview } from './html-input'
 
 // Builtins only — see cli.ts. Evidence is a **directory of files**:
@@ -123,7 +123,7 @@ function readChecksForRepo(repoPath: string): EvidenceCheck[] {
 }
 
 export function loopEvidenceRoot(): string {
-  return process.env.PORCELAIN_LOOP_EVIDENCE_DIR ?? join(homedir(), '.porcelain', 'loop-evidence')
+  return process.env.PORCELAIN_LOOP_EVIDENCE_DIR ?? porcelainHomePath('loop-evidence')
 }
 
 export function repoEvidenceKey(repoPath: string): string {
@@ -136,7 +136,7 @@ export function evidenceDirForRepo(repoPath: string): string {
 
 /** Legacy JSON channel path (read fallback only; new writes go to the directory). */
 export function evidencePath(): string {
-  return process.env.PORCELAIN_EVIDENCE ?? join(homedir(), '.porcelain', 'evidence.json')
+  return process.env.PORCELAIN_EVIDENCE ?? porcelainHomePath('evidence.json')
 }
 
 export function validateEvidence(title: unknown, html: unknown): { title: string; html: string } {

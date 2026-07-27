@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 /**
- * Trigger a CI-driven release cut after the local pre-gate passes.
+ * Cut a release: bump version on main, tag, push, dispatch packaging.
  *
- * Does NOT bump/tag locally — version is burned only after package-mac is
- * green (see .github/workflows/release.yml).
+ * Side-project path (2026-07-27): no pending branches, no multi-workflow gate.
+ * Default bump is patch. Use minor/major only when the human asks.
  *
  * Usage:
  *   node scripts/release-cut.mjs              # patch
  *   node scripts/release-cut.mjs minor
  *   node scripts/release-cut.mjs major
- *   node scripts/release-cut.mjs patch --skip-check
+ *   node scripts/release-cut.mjs patch --skip-push  # local bump+tag only
  */
 import { execFileSync, spawnSync } from 'node:child_process'
 import path from 'node:path'
@@ -19,7 +19,7 @@ import { parseArgs } from 'node:util'
 const { values, positionals } = parseArgs({
   allowPositionals: true,
   options: {
-    'skip-check': { type: 'boolean', default: false },
+    'skip-push': { type: 'boolean', default: false },
     help: { type: 'boolean', default: false },
   },
   strict: true,
@@ -27,38 +27,70 @@ const { values, positionals } = parseArgs({
 
 const bump = positionals[0] ?? 'patch'
 if (values.help || !['patch', 'minor', 'major'].includes(bump)) {
-  console.log(`Usage: node scripts/release-cut.mjs [patch|minor|major] [--skip-check]
-Runs release:check (unless --skip-check), then dispatches release.yml.`)
+  console.log(`Usage: node scripts/release-cut.mjs [patch|minor|major] [--skip-push]
+Bumps package.json + CHANGELOG on main, tags vX.Y.Z, pushes, dispatches release.yml.`)
   process.exit(values.help ? 0 : 1)
 }
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
-function run(cmd, args, opts = {}) {
-  const r = spawnSync(cmd, args, {
+const CLEAN_ENV = {
+  ...process.env,
+  NO_COLOR: '1',
+  FORCE_COLOR: '0',
+  CLICOLOR: '0',
+  CLICOLOR_FORCE: '0',
+  GH_FORCE_TTY: '0',
+}
+
+function sh(cmd, args, opts = {}) {
+  return execFileSync(cmd, args, {
     cwd: root,
     encoding: 'utf8',
-    stdio: 'inherit',
+    stdio: opts.inherit ? 'inherit' : ['ignore', 'pipe', 'pipe'],
+    env: CLEAN_ENV,
     ...opts,
-  })
-  if (r.status !== 0) {
-    process.exit(r.status ?? 1)
-  }
+  }).trim()
 }
 
-if (!values['skip-check']) {
-  run(process.execPath, [path.join(root, 'scripts/release-check.mjs')])
+function fail(msg) {
+  console.error(`release:cut ✗ ${msg}`)
+  process.exit(1)
 }
 
-console.log(`release:cut → dispatching release.yml (bump=${bump})`)
-run('gh', ['workflow', 'run', 'release.yml', '-f', `bump=${bump}`])
+const branch = sh('git', ['rev-parse', '--abbrev-ref', 'HEAD'])
+if (branch !== 'main') fail(`must be on main (currently ${branch})`)
 
-// Best-effort: print the new run URL after a short delay for the API to index it.
-try {
-  execFileSync('sleep', ['2'])
-  const url = execFileSync(
-    'gh',
-    [
+const dirty = sh('git', ['status', '--porcelain'])
+if (dirty) fail('working tree is dirty — commit or stash first')
+
+sh('git', ['fetch', 'origin', 'main', '--quiet'])
+const local = sh('git', ['rev-parse', 'HEAD'])
+const remote = sh('git', ['rev-parse', 'origin/main'])
+if (local !== remote) {
+  fail(`HEAD (${local.slice(0, 7)}) ≠ origin/main (${remote.slice(0, 7)}) — push or pull first`)
+}
+
+console.log(`release:cut → pnpm version ${bump}`)
+const ver = spawnSync('pnpm', ['version', bump, '-m', 'chore: release v%s'], {
+  cwd: root,
+  encoding: 'utf8',
+  stdio: 'inherit',
+  env: CLEAN_ENV,
+})
+if (ver.status !== 0) process.exit(ver.status ?? 1)
+
+const version = sh('node', ['-p', "require('./package.json').version"])
+const tag = `v${version}`
+console.log(`release:cut → ${tag}`)
+
+if (!values['skip-push']) {
+  sh('git', ['push', 'origin', 'main', '--follow-tags'], { inherit: true })
+  console.log(`release:cut → dispatching release.yml for ${tag}`)
+  sh('gh', ['workflow', 'run', 'release.yml', '-f', `tag=${tag}`], { inherit: true })
+  try {
+    execFileSync('sleep', ['2'])
+    const url = sh('gh', [
       'run',
       'list',
       '--workflow',
@@ -69,13 +101,14 @@ try {
       'url',
       '--jq',
       '.[0].url',
-    ],
-    { encoding: 'utf8', cwd: root },
-  ).trim()
-  if (url) {
-    console.log(`release:cut → ${url}`)
-    console.log('Watch: gh run watch  (or open the URL)')
+    ])
+    if (url) {
+      console.log(`release:cut → ${url}`)
+      console.log('Watch: gh run watch --exit-status')
+    }
+  } catch {
+    console.log('release:cut → dispatched (open Actions → Release)')
   }
-} catch {
-  console.log('release:cut → dispatched (open Actions → Release for the run)')
+} else {
+  console.log('release:cut → skipped push (local tag only)')
 }

@@ -1,13 +1,13 @@
 import { chmod, copyFile, mkdir, rename, writeFile } from 'node:fs/promises'
-import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { porcelainHome } from '../shared/porcelain-home'
 
 /**
- * Install the bundled Porcelain CLI into `~/.porcelain/` so the user's agents can
- * run it as `~/.porcelain/porcelain <noun> <verb>` to drive the review/board/
- * action/note/layer/evidence/comment channels. No per-agent config
- * writing — a CLI needs no registration to be runnable, so all the old Add-MCP
- * machinery is gone.
+ * Install the bundled Porcelain CLI into `PORCELAIN_HOME` (default `~/.porcelain/`)
+ * so agents can run `porcelain <noun> <verb>` against the channel files there.
+ * No per-agent config writing — CLI only; MCP is gone. Dev stack sets
+ * `PORCELAIN_HOME=~/.porcelain-dev` so product work never overwrites the
+ * production install.
  *
  * Layout: the daemon bundle lives at `out/main/daemon/server.js` (and the same
  * relative layout in dist-daemon); the CLI bundle is the sibling
@@ -19,7 +19,7 @@ import { join, resolve } from 'node:path'
 
 /** Directory the CLI is installed into. */
 function porcelainDir(): string {
-  return join(homedir(), '.porcelain')
+  return porcelainHome()
 }
 
 /** Bundled dependency-free CLI path (next to the daemon chunk). */

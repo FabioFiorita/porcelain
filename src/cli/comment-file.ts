@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
-import { homedir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname } from 'node:path'
+import { porcelainHomePath } from '../shared/porcelain-home'
 
 // Builtins only — see cli.ts for why this server must stay dependency-free.
 // This is the SECOND agent channel, parallel to review-file.ts but flowing the other
@@ -28,7 +28,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export function commentsPath(): string {
-  return process.env.PORCELAIN_COMMENTS ?? join(homedir(), '.porcelain', 'comments.json')
+  return process.env.PORCELAIN_COMMENTS ?? porcelainHomePath('comments.json')
 }
 
 /** Lenient parse of our own file: skip malformed rows, never throw. */

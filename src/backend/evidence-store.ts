@@ -1,6 +1,4 @@
 import { readFile, rm, stat } from 'node:fs/promises'
-import { homedir } from 'node:os'
-import { join } from 'node:path'
 import { z } from 'zod'
 import {
   type EvidenceCheck,
@@ -8,6 +6,7 @@ import {
   MAX_CHECK_LABEL,
   MAX_CHECKS,
 } from '../shared/evidence-check'
+import { porcelainHomePath } from '../shared/porcelain-home'
 import { inlineLocalAssets } from './evidence-assets'
 import { evidenceDirForRepo, evidenceIndexPath, evidenceMetaPath } from './evidence-paths'
 import { createHomeChannel } from './home-channel'
@@ -114,7 +113,7 @@ export type EvidenceMeta = {
 
 /** Legacy channel (HTML embedded in JSON) — fallback + clear of old entries. */
 export function evidencePath(): string {
-  return process.env.PORCELAIN_EVIDENCE ?? join(homedir(), '.porcelain', 'evidence.json')
+  return process.env.PORCELAIN_EVIDENCE ?? porcelainHomePath('evidence.json')
 }
 
 // Re-export path helpers so callers (review-watch, e2e) use one place.

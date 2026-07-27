@@ -1,7 +1,7 @@
 import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
-import { homedir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname } from 'node:path'
 import type { ZodType } from 'zod'
+import { porcelainHomePath } from '../shared/porcelain-home'
 
 export interface HomeChannel<T> {
   path(): string
@@ -45,9 +45,7 @@ export function createHomeChannel<T>(
   },
 ): HomeChannel<T> {
   const path = (): string =>
-    'path' in opts
-      ? opts.path()
-      : (process.env[opts.envVar] ?? join(homedir(), '.porcelain', opts.fileName))
+    'path' in opts ? opts.path() : (process.env[opts.envVar] ?? porcelainHomePath(opts.fileName))
 
   const cacheMode = opts.cache ?? 'none'
   // 'mtime': keyed on the file's stat stamp; 'memory': read-once. Both invalidate

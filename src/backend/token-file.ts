@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
-import { homedir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname } from 'node:path'
+import { porcelainHomePath } from '../shared/porcelain-home'
 
 /**
  * The daemon's session token, persisted at `~/.porcelain/daemon-token`.
@@ -25,7 +25,7 @@ import { dirname, join } from 'node:path'
  * (and any sandbox) never touch the human's real `~/.porcelain/daemon-token`.
  */
 export const daemonTokenPath = (): string =>
-  process.env.PORCELAIN_DAEMON_TOKEN_FILE ?? join(homedir(), '.porcelain', 'daemon-token')
+  process.env.PORCELAIN_DAEMON_TOKEN_FILE ?? porcelainHomePath('daemon-token')
 
 /**
  * Return the shared daemon token, creating it on first run. Reads the file if it

@@ -1,15 +1,11 @@
 name: E2e native dry-run
 
-# Pre-cut release gate: full native Electron e2e on macos-14 WITHOUT burning a
-# version. Required by `pnpm release:check` on origin/main HEAD — always runs on
-# every push to main (not path-filtered) so a release cut never discovers native
-# breakage for the first time.
+# Optional macOS Electron e2e. Not on every push — day-to-day proof is browser e2e.
+# Run manually before a packaging-sensitive ship, or when debugging shell-only bugs.
 #
 # Manual: Actions → E2e native dry-run → Run workflow.
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
 
 jobs:
   native:
