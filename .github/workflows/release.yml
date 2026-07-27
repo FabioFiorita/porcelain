@@ -147,39 +147,82 @@ jobs:
           unset NODE_AUTH_TOKEN || true
           export NPM_CONFIG_USERCONFIG="$PUBLISH_NPMRC"
           VER=$(node -p "require('./package.json').version")
-          TARBALL_URL="https://registry.npmjs.org/porcelain-daemon/-/porcelain-daemon-${VER}.tgz"
+          PKG=porcelain-daemon
+          tarball_url() { echo "https://registry.npmjs.org/${PKG}/-/${PKG}-${1}.tgz"; }
+          tarball_code() {
+            curl -sS -o /dev/null -w '%{http_code}' -L "$(tarball_url "$1")" || echo 000
+          }
+          # Probe until HTTP 200 (registry can lag after a successful publish).
+          wait_tarball() {
+            local ver="$1" attempts="${2:-30}" sleep_s="${3:-10}"
+            local i code
+            for i in $(seq 1 "$attempts"); do
+              code=$(tarball_code "$ver")
+              echo "tarball probe ${ver} attempt ${i}/${attempts} → HTTP ${code}"
+              if [ "$code" = "200" ]; then
+                return 0
+              fi
+              sleep "$sleep_s"
+            done
+            return 1
+          }
+          # OIDC trusted publish can leave metadata with a missing blob. Unpublish
+          # so `latest` is not stuck on a 404 (hosts running @latest crash-loop).
+          unpublish_broken() {
+            local ver="$1"
+            echo "unpublishing broken ${PKG}@${ver} (metadata without downloadable tarball)"
+            npm unpublish "${PKG}@${ver}" --force
+          }
 
-          # Only skip if the version exists AND its tarball is actually downloadable.
-          # A metadata-only / flaky publish previously left latest pointing at a 404
-          # tarball and crash-looped every `npx porcelain-daemon@latest` host.
-          if npm view "porcelain-daemon@${VER}" version >/dev/null 2>&1; then
-            CODE=$(curl -sS -o /dev/null -w '%{http_code}' -L "$TARBALL_URL" || echo 000)
+          # Heal: if `latest` currently points at a 404 tarball, drop that version
+          # so the registry retargets latest at the previous good release.
+          CURRENT_LATEST=$(npm view "$PKG" dist-tags.latest 2>/dev/null || true)
+          if [ -n "$CURRENT_LATEST" ]; then
+            CODE=$(tarball_code "$CURRENT_LATEST")
+            if [ "$CODE" != "200" ]; then
+              echo "latest → ${CURRENT_LATEST} has tarball HTTP ${CODE} — healing"
+              unpublish_broken "$CURRENT_LATEST" || true
+              sleep 5
+              HEALED=$(npm view "$PKG" dist-tags.latest 2>/dev/null || true)
+              echo "latest after heal → ${HEALED:-unknown}"
+              if [ -n "$HEALED" ] && [ "$(tarball_code "$HEALED")" != "200" ]; then
+                echo "heal incomplete — latest still not downloadable" >&2
+                exit 1
+              fi
+            fi
+          fi
+
+          # Only skip if this version already exists AND its tarball is downloadable.
+          if npm view "${PKG}@${VER}" version >/dev/null 2>&1; then
+            CODE=$(tarball_code "$VER")
             if [ "$CODE" = "200" ]; then
-              echo "porcelain-daemon@${VER} already published (tarball 200) — skip"
+              echo "${PKG}@${VER} already published (tarball 200) — skip"
             else
-              echo "porcelain-daemon@${VER} is on the registry but tarball HTTP $CODE — refusing to trust it"
-              echo "Fix manually (unpublish/deprecate ${VER}) or bump and re-publish."
-              exit 1
+              echo "${PKG}@${VER} exists but tarball HTTP ${CODE} — unpublish + re-publish"
+              unpublish_broken "$VER"
+              sleep 5
+              if npm view "${PKG}@${VER}" version >/dev/null 2>&1; then
+                echo "unpublish did not remove ${PKG}@${VER} — cannot re-publish same version" >&2
+                exit 1
+              fi
+              npm publish --access public
+              if ! wait_tarball "$VER"; then
+                unpublish_broken "$VER" || true
+                echo "npm re-publish of ${PKG}@${VER} did not produce a downloadable tarball" >&2
+                exit 1
+              fi
+              npx --yes "${PKG}@${VER}" --help >/dev/null
+              echo "${PKG}@${VER} re-publish verified"
             fi
           else
             npm publish --access public
-            # Wait for the tarball to be fetchable before the job succeeds.
-            ok=0
-            for i in 1 2 3 4 5 6 7 8 9 10; do
-              CODE=$(curl -sS -o /dev/null -w '%{http_code}' -L "$TARBALL_URL" || echo 000)
-              echo "tarball probe attempt $i → HTTP $CODE"
-              if [ "$CODE" = "200" ]; then
-                ok=1
-                break
-              fi
-              sleep 6
-            done
-            if [ "$ok" != "1" ]; then
-              echo "npm publish of porcelain-daemon@${VER} did not produce a downloadable tarball"
+            if ! wait_tarball "$VER"; then
+              # Roll back so latest is not left on a 404 version.
+              unpublish_broken "$VER" || true
+              echo "npm publish of ${PKG}@${VER} did not produce a downloadable tarball (rolled back if possible)" >&2
               exit 1
             fi
-            # Smoke: install exactly this version and run --help
-            npx --yes "porcelain-daemon@${VER}" --help >/dev/null
-            echo "porcelain-daemon@${VER} publish verified"
+            npx --yes "${PKG}@${VER}" --help >/dev/null
+            echo "${PKG}@${VER} publish verified"
           fi
           rm -f "$PUBLISH_NPMRC"
