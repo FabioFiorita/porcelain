@@ -21,6 +21,8 @@ export const TestIds = {
   toggleLeftSidebar: 'toggle-left-sidebar',
   toggleRightSidebar: 'toggle-right-sidebar',
   environmentSwitcher: 'environment-switcher',
+  /** Titlebar install chip — only present when an update is downloaded (Electron). */
+  updateButton: 'update-button',
   environmentRow: (id: string): string => `environment-row-${id}`,
   /** One address of a saved environment — an environment has many (phase 5). */
   environmentEndpoint: (url: string): string => `environment-endpoint-${url}`,
