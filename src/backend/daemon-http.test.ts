@@ -4,13 +4,12 @@ import { mkdtemp } from 'node:fs/promises'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import WebSocket from 'ws'
 
 // The session and the router statically import terminal-manager, which imports
 // node-pty — a native module built for Electron's ABI that won't load under
-// plain-Node Vitest. Mock it (hoisted) so the import graph never touches it. The
-// full export set mirrors what session.ts and api.ts import.
+// plain-Node Vitest. Mock it (hoisted) so the import graph never touches it.
 vi.mock('./terminal-manager', () => ({
   listTerminals: () => [],
   renameTerminal: vi.fn(),
@@ -26,10 +25,9 @@ vi.mock('./terminal-manager', () => ({
 import { router } from './api'
 import { initConfigDir } from './config-store'
 import { createDaemonHttp } from './daemon-http'
-import { cancelPairing, pendingPairing, redeemPairing, startPairing } from './pairing'
 import { closeAllSessions, createSession, sessionCount } from './session'
 import { attachTerminal } from './terminal-manager'
-import { bindAuthToken, currentAuthToken } from './token-control'
+import { bindAuthToken } from './token-control'
 
 const TOKEN = 'test-token'
 const ORIGIN = 'http://localhost:5173'
@@ -49,16 +47,6 @@ beforeAll(async () => {
     serveStatic: async (_req, res) => {
       res.writeHead(404)
       res.end()
-    },
-    // The real pairing module, so the endpoint tests exercise the actual guards
-    // (404-at-rest, single-use, attempt burn) rather than a stub's idea of them.
-    pairing: {
-      hasPending: () => pendingPairing() !== null,
-      redeem: async (code) => {
-        const result = redeemPairing(code)
-        if (result !== 'ok') return { result }
-        return { result, token: currentAuthToken() }
-      },
     },
   })
   bindAuthToken(TOKEN, daemon.setTokenHash)
@@ -116,6 +104,15 @@ describe('daemon http surface — the token gate + CORS scope', () => {
     expect(res.status).toBe(204)
   })
 
+  it('has no unauthenticated /pair route — connect is URL + token only', async () => {
+    const res = await fetch(`${base}/pair`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ code: 'ANYT-HING' }),
+    })
+    expect(res.status).toBe(404)
+  })
+
   it('rejects a rotated-away token after setTokenHash', async () => {
     const next = 'rotated-token'
     daemon.setTokenHash(createHash('sha256').update(next).digest())
@@ -123,7 +120,6 @@ describe('daemon http surface — the token gate + CORS scope', () => {
       headers: { authorization: `Bearer ${TOKEN}` },
     })
     expect(denied.status).toBe(401)
-    // Restore the suite's shared token so later tests keep working.
     daemon.setTokenHash(createHash('sha256').update(TOKEN).digest())
     bindAuthToken(TOKEN, daemon.setTokenHash)
     const ok = await fetch(`${base}/trpc/recentRepos`, {
@@ -133,7 +129,6 @@ describe('daemon http surface — the token gate + CORS scope', () => {
   })
 })
 
-// Open a WS and wait for the handshake to settle (open or fail).
 function connect(protocols?: string | string[]): Promise<WebSocket> {
   const url = `${base.replace('http', 'ws')}/session`
   return new Promise((resolve, reject) => {
@@ -154,7 +149,6 @@ function connect(protocols?: string | string[]): Promise<WebSocket> {
   })
 }
 
-// The next server message as parsed JSON.
 function nextMessage(ws: WebSocket): Promise<Record<string, unknown>> {
   return new Promise((resolve) => {
     ws.once('message', (raw: Buffer) => resolve(JSON.parse(raw.toString())))
@@ -170,7 +164,7 @@ describe('daemon ws surface — the /session upgrade gate + dispatch', () => {
     await expect(connect('porcelain.wrong-token')).rejects.toBeDefined()
   })
 
-  it('closes every live socket on closeAllSessions — the gate only runs at upgrade time', async () => {
+  it('closes every live socket on closeAllSessions', async () => {
     const ws = await connect(`porcelain.${TOKEN}`)
     expect(sessionCount()).toBeGreaterThanOrEqual(1)
     closeAllSessions()
@@ -225,96 +219,5 @@ describe('daemon ws surface — the /session upgrade gate + dispatch', () => {
     ws.send(JSON.stringify({ t: 'terminal:create', reqId: 'r3', name: 't', cwd: '/tmp' }))
     expect(await reply).toEqual({ t: 'terminal:created', reqId: 'r3', id: 'term-1' })
     ws.close()
-  })
-})
-
-/**
- * `POST /pair` is the daemon's ONE unauthenticated dynamic route, so its guards are
- * the tests that matter most in this file: it must not exist at rest, must refuse
- * anything that isn't a JSON POST (the preflight lever that keeps drive-by web content
- * out), and must never hand the token to a wrong or replayed code.
- */
-describe('POST /pair', () => {
-  const post = (body: unknown, init?: RequestInit): Promise<Response> =>
-    fetch(`${base}/pair`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
-      ...init,
-    })
-
-  afterEach(() => cancelPairing())
-
-  it('does not exist while nobody is pairing — nothing to probe at rest', async () => {
-    const res = await post({ code: 'ANYT-HING' })
-    expect(res.status).toBe(404)
-  })
-
-  it('hands out the shared token — one secret for every client', async () => {
-    const { code } = startPairing()
-    const res = await post({ code, label: 'iPad' })
-    expect(res.status).toBe(200)
-    const { token } = (await res.json()) as { token: string }
-    expect(token).toBe(TOKEN)
-    const authed = await fetch(`${base}/trpc/recentRepos`, {
-      headers: { authorization: `Bearer ${token}` },
-    })
-    expect(authed.status).toBe(200)
-  })
-
-  it('accepts the code as the human retyped it (no separator, lower case)', async () => {
-    const { code } = startPairing()
-    const res = await post({ code: code.replace('-', '').toLowerCase() })
-    expect(res.status).toBe(200)
-  })
-
-  it('refuses a wrong code without leaking the token', async () => {
-    startPairing()
-    const res = await post({ code: 'WRON-GWRO' })
-    expect(res.status).toBe(401)
-    expect(await res.text()).not.toContain(TOKEN)
-  })
-
-  it('is single-use — the same code cannot be replayed', async () => {
-    const { code } = startPairing()
-    expect((await post({ code })).status).toBe(200)
-    // The window closed with the redemption, so the route is gone again.
-    expect((await post({ code })).status).toBe(404)
-  })
-
-  it('rejects a non-JSON content type, so a cross-origin POST must preflight', async () => {
-    const { code } = startPairing()
-    const res = await fetch(`${base}/pair`, {
-      method: 'POST',
-      headers: { 'content-type': 'text/plain' },
-      body: JSON.stringify({ code }),
-    })
-    expect(res.status).toBe(415)
-  })
-
-  it('rejects a non-POST method', async () => {
-    startPairing()
-    const res = await fetch(`${base}/pair`, { method: 'GET' })
-    expect(res.status).toBe(405)
-  })
-
-  it('rejects a body that is not a pairing exchange', async () => {
-    startPairing()
-    expect((await post({ code: 42 })).status).toBe(400)
-  })
-
-  it('rejects an oversized body instead of buffering it', async () => {
-    startPairing()
-    const res = await post({ code: 'x'.repeat(4096) })
-    expect(res.status).toBe(413)
-  })
-
-  it('does not echo the allowed origin to an unlisted one', async () => {
-    startPairing()
-    const res = await post(
-      { code: 'WRON-GWRO' },
-      { headers: { 'content-type': 'application/json', origin: 'http://evil.example' } },
-    )
-    expect(res.headers.get('access-control-allow-origin')).toBeNull()
   })
 })

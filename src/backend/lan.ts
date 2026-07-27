@@ -44,8 +44,8 @@ export function findLanAddresses(
  * AAAA records, the listeners here are IPv4-only (`findLanAddresses` filters to
  * `family === 'IPv4'`), and a peer that prefers IPv6 therefore resolves the name
  * and connects to nothing. Anything a *different* device must reach — above all
- * the pairing link — takes `lanNumericUrl()` instead; see `pairingUrl` in
- * `renderer/src/lib/pairing-link.ts`.
+ * connecting clients — prefer `lanNumericUrl()` over the `.local` display name
+ * when handing out a URL (mDNS can answer IPv6 while listeners are IPv4-only).
  */
 export function lanDisplayHost(addresses: string[]): string | null {
   if (addresses.length === 0) return null

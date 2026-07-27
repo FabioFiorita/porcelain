@@ -7,13 +7,12 @@ import { createDaemonHttp } from './daemon-http'
 import { seedDevConfig } from './dev-config'
 import { migrateLayersFromConfig } from './layers-store'
 import { migrateNotesFromConfig } from './notes-store'
-import { pendingPairing, redeemPairing } from './pairing'
 import { watchAgentChannels } from './review-watch'
 import { migrateReviewedFromConfig } from './reviewed-store'
 import { broadcastAppEvent, createSession } from './session'
 import { rendererDistExists, serveStatic } from './static-server'
 import { initIfaceHandlers, startLanListener, startTailnetListener } from './tailnet-listener'
-import { bindAuthToken, currentAuthToken } from './token-control'
+import { bindAuthToken } from './token-control'
 import { ensureDaemonToken } from './token-file'
 
 /**
@@ -39,12 +38,9 @@ import { ensureDaemonToken } from './token-file'
  *   subprotocol (chosen over `?token=` because query strings leak into logs and
  *   proxies; the subprotocol header does not). Comparisons are constant-time
  *   over sha256 digests. ONE credential passes that gate: the shared secret
- *   (`~/.porcelain/daemon-token`). Pairing hands out that same secret (a short-lived
- *   code so humans don't retype 64 hex chars); Revoke all rotates it and closes
- *   every live session. The ONE exception is `POST /pair`, which cannot be
- *   token-gated (obtaining the token is its whole job) and is instead bounded by
- *   only existing while a human has an open pairing window — see pairing.ts and
- *   handlePair in daemon-http.ts for the full set of guards.
+ *   (`~/.porcelain/daemon-token`). Clients connect with a share URL (LAN or
+ *   Tailscale) plus that token — no pairing ceremony. Revoke all rotates it and
+ *   closes every live session.
  *
  * Contract with the shell: exactly ONE stdout line, `{"port": N}`, once
  * listening (everything else logs to stderr — and the token is NEVER printed:
@@ -110,7 +106,7 @@ async function main(): Promise<void> {
   // Resolve the shared token (env or ~/.porcelain/daemon-token) and precompute its
   // digest BEFORE any listener accepts a connection — the factory closes over the
   // hash, so it must be built first (both listeners start below). The plaintext is
-  // kept for pairing (which hands out the same secret) and is never logged.
+  // never logged.
   const token = await resolveToken()
   const tokenHash = createHash('sha256').update(token).digest()
 
@@ -123,18 +119,6 @@ async function main(): Promise<void> {
     router,
     onSession: createSession,
     serveStatic,
-    // The pairing exchange. The route only exists while `hasPending()` is true, so a
-    // daemon nobody is pairing with answers 404 — see handlePair + pairing.ts. A
-    // successful exchange hands out the SHARED token (one secret for every client);
-    // Revoke all rotates it for everyone.
-    pairing: {
-      hasPending: () => pendingPairing() !== null,
-      redeem: async (code) => {
-        const result = redeemPairing(code)
-        if (result !== 'ok') return { result }
-        return { result, token: currentAuthToken() }
-      },
-    },
   })
   bindAuthToken(token, daemon.setTokenHash)
 

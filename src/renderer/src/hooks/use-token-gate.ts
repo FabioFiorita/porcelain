@@ -1,6 +1,4 @@
 import { setBrowserDaemonToken } from '@renderer/lib/daemon'
-import { exchangePairingCode } from '@renderer/lib/pair-exchange'
-import { pairingCodeFromLocation } from '@renderer/lib/pairing-link'
 import { isBrowser } from '@renderer/lib/platform'
 import { trpcClient } from '@renderer/lib/trpc'
 import { useCallback, useEffect, useState } from 'react'
@@ -36,6 +34,9 @@ async function probe(): Promise<boolean> {
  * persisted token (localStorage) and, until that succeeds, the caller renders a
  * lock screen instead of the app. In the packaged Electron app there's no gate —
  * the token rides the preload bridge, so `status` starts 'open' and stays there.
+ *
+ * Connection is deliberately plain: open the LAN/Tailscale URL, paste the shared
+ * token once. No pairing codes or QR.
  */
 export function useTokenGate(): TokenGate {
   const [status, setStatus] = useState<GateStatus>(isBrowser ? 'checking' : 'open')
@@ -46,20 +47,6 @@ export function useTokenGate(): TokenGate {
     if (!isBrowser) return
     let active = true
     void (async () => {
-      // Opened from a pairing link (a scanned QR, a pasted url)? Redeem the code for a
-      // token before probing, so the gate never appears — the point of pairing is that
-      // nobody types a token on a phone keyboard. The hash is stripped IMMEDIATELY,
-      // whatever the outcome: the code is single-use, and leaving it in the address bar
-      // puts it in history and in any screenshot of the window.
-      const code = pairingCodeFromLocation(window.location.hash)
-      if (code !== null) {
-        history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
-        const outcome = await exchangePairingCode(window.location.origin, code)
-        if (!active) return
-        // On failure fall through to the normal probe: a persisted token from an earlier
-        // session may still be perfectly good, and the lock screen is the honest fallback.
-        if (outcome.ok) setBrowserDaemonToken(outcome.token)
-      }
       const ok = await probe()
       if (!active) return
       setStatus(ok ? 'open' : 'locked')

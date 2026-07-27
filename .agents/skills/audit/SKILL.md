@@ -76,19 +76,18 @@ assumed — this skill is the codebase-specific layer beneath them.
   path via `openRepoPath`/`readFile`, so the daemon-side repo browser `browseDirs` —
   directory names only — widens nothing.)
   **(2b) ONE shared secret passes that gate** (simplified 2026-07-27 — per-device
-  credentials deleted): `authenticate()` in `daemon-http.ts` compares only
+  credentials and pairing deleted): `authenticate()` in `daemon-http.ts` compares only
   `~/.porcelain/daemon-token` (constant-time over sha256 digests) for BOTH `/trpc` and
-  the `/session` upgrade — never add a second credential kind or a second gate.
-  Pairing (`POST /pair`) hands out **that same shared token** (a short-lived code so
-  humans don't retype 64 hex chars), not a per-device secret. **Revoke all**
-  (`rotateAuthToken` / `token-control.ts`) overwrites the token file (0600, atomic),
-  swaps the live hash via `setTokenHash`, and `closeAllSessions()` — the gate only runs
-  at upgrade time, so sockets must be closed or they keep streaming. The initiator
-  adopts the new token (browser localStorage / shell `adoptRotatedToken`); every other
-  client must re-pair. Token path is overridable via `PORCELAIN_DAEMON_TOKEN_FILE` so
-  e2e never touches the developer's real file. *Verify:* `token-file.test.ts` (rotate
-  overwrites), `daemon-http.test.ts` (setTokenHash rejects old token; pairing returns
-  shared token; closeAllSessions drops live sockets).
+  the `/session` upgrade — never add a second credential kind, a second gate, or an
+  unauthenticated `/pair` route. Clients connect with a LAN/Tailscale URL + that token.
+  **Revoke all** (`rotateAuthToken` / `token-control.ts`) overwrites the token file
+  (0600, atomic), swaps the live hash via `setTokenHash`, and `closeAllSessions()` —
+  the gate only runs at upgrade time, so sockets must be closed or they keep streaming.
+  The initiator adopts the new token (browser localStorage / shell `adoptRotatedToken`);
+  every other client pastes the new token. Token path is overridable via
+  `PORCELAIN_DAEMON_TOKEN_FILE` so e2e never touches the developer's real file.
+  *Verify:* `token-file.test.ts` (rotate overwrites), `daemon-http.test.ts`
+  (setTokenHash rejects old token; `/pair` is 404; closeAllSessions drops live sockets).
   (3) **The token never appears in argv** (`ps`-visible), **stdout** (the
   daemon's only stdout line is the port; the parent passed the token via env so it
   already knows it), **or a spawned PTY's env** (see the terminal-env invariant below).
@@ -126,29 +125,9 @@ assumed — this skill is the codebase-specific layer beneath them.
   the root — traversal, encoded `%2e%2e`, absolute, backslashes; unit-tested), NEVER reads
   user files, and adds NO write surface. Static assets being open doesn't loosen `/trpc`
   + `/session`, which keep the token gate.
-  **(5b) `POST /pair` is the ONE unauthenticated DYNAMIC route — a deliberate, narrow
-  exception to (2)** (2026-07-26, `pairing.ts` + `handlePair` in `daemon-http.ts`). It
-  exists so a new device can obtain the shared token without the human copying 64 hex
-  chars by hand — it hands out the SAME secret as `~/.porcelain/daemon-token` (see 2b),
-  not a per-device credential. The optional `label` in its body is accepted for older
-  clients and ignored. It is only defensible while ALL of these hold: **(a) it 404s unless
-  a human has an open pairing window** — no pending code means the route does not exist, so
-  there is nothing to probe or grind at rest, and the window is minutes long and always
-  human-initiated from the machine's own UI (the three `pairing*` procedures that open it
-  are themselves token-gated on `/trpc`); **(b) the code is 40 bits** (8 Crockford-base32
-  chars), **single-use, TTL-bounded (10 min), and burned after 5 wrong attempts**, compared
-  constant-time over sha256 digests like the token gate; **(c) `application/json` is
-  REQUIRED** — this is load-bearing, not tidiness: it forces a CORS preflight for any
-  cross-origin browser caller, and that preflight fails against the scoped CORS, so
-  drive-by web content (which CAN reach 127.0.0.1) cannot even send the request; a
-  `text/plain` POST would skip preflight, so never relax the content-type check; **(d) the
-  body is bounded** (1 KB, drained not buffered past the cap — and it must respond 413
-  rather than destroying the socket, or the caller can't tell "too large" from "daemon
-  crashed"); **(e) neither the code nor the token is ever logged.** *Verify:*
-  `daemon-http.test.ts`'s `POST /pair` block (404-at-rest, hands-out-shared-token,
-  single-use, wrong-code-leaks-nothing, 415 on non-JSON, 405, 400, 413, no CORS echo to an
-  unlisted origin) and `pairing.test.ts` (entropy alphabet, TTL, attempt burn, re-mint
-  resets) stay green. The
+  **(5b) No unauthenticated dynamic routes.** Pairing (`POST /pair`) was deleted
+  2026-07-27 — connect is LAN/Tailscale URL + the shared token only. Do not reintroduce
+  an unauthenticated exchange without reopening this skill. The
   index.html CSP rewrite (`rewriteCsp`) touches **only `connect-src`** (same-origin WS for
   the request Host); `img-src`/`default-src` stay the sandboxed-HTML backstop, byte-identical.
   Don't relax any of these to "make local dev easier." (6) **The token is the whole boundary

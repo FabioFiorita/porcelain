@@ -4,7 +4,6 @@ import { Button } from '@renderer/components/ui/button'
 import { Input } from '@renderer/components/ui/input'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useEnvironmentStatuses } from '@renderer/hooks/use-environment-status'
-import { usePairEnvironment } from '@renderer/hooks/use-pairing'
 import {
   useAddRemoteEnvironment,
   useConnectRemoteEnvironment,
@@ -22,8 +21,8 @@ import { useState } from 'react'
 
 /**
  * One line of prose for a probed environment: what it is when we reached it, why it
- * isn't usable when we didn't. `unauthorized` says the token — the fix there is
- * re-pairing, not waking the box.
+ * isn't usable when we didn't. `unauthorized` means the saved token is wrong — get a
+ * fresh one from Settings → Share on that machine.
  */
 function describeStatus(status: EnvironmentStatus | undefined): string {
   if (status === undefined) return 'Checking…'
@@ -37,9 +36,8 @@ function describeStatus(status: EnvironmentStatus | undefined): string {
 }
 
 /**
- * Machines this app can open windows against. Electron-only (hidden in the browser
- * client, which already IS served by its daemon). Multi-endpoint failover stays under
- * the hood — no Prefer / Add address UI.
+ * Machines this app can open windows against. Electron-only. Add with URL + token
+ * from the other machine's Settings → Share (LAN or Tailscale address).
  */
 export function RemotesSection(): React.JSX.Element {
   const data = useRemoteEnvironments()
@@ -53,8 +51,6 @@ export function RemotesSection(): React.JSX.Element {
   const [url, setUrl] = useState('')
   const [token, setToken] = useState('')
   const [showAdd, setShowAdd] = useState(false)
-  const [pasted, setPasted] = useState('')
-  const { pair, isPending: isPairing, error: pairError } = usePairEnvironment()
 
   const environments = data?.environments ?? []
   const activeId = data?.activeId ?? null
@@ -64,8 +60,7 @@ export function RemotesSection(): React.JSX.Element {
       <div>
         <h3 className="text-sm font-semibold tracking-tight">Remotes</h3>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Each window can use a different daemon — local project in one, remote in another. Use here
-          reloads this window; New window opens a fresh one on that environment.
+          Each window can use a different daemon. Add one with its share URL and token.
         </p>
       </div>
 
@@ -183,50 +178,29 @@ export function RemotesSection(): React.JSX.Element {
           <p className="text-2xs font-medium tracking-wider text-muted-foreground uppercase">
             Add remote
           </p>
-          <div className="flex items-center gap-2">
-            <Input
-              placeholder="Paste a pairing link"
-              value={pasted}
-              onChange={(e) => setPasted(e.target.value)}
-              disabled={isAdding || isPairing}
-              aria-label="Pairing link"
-            />
-            <Button
-              variant="default"
-              size="sm"
-              className={compactButtonClass}
-              disabled={isAdding || isPairing || pasted.trim() === ''}
-              onClick={() => pair(pasted)}
-            >
-              {isPairing ? 'Pairing…' : 'Pair'}
-            </Button>
-          </div>
-          {pairError != null && <p className="text-xs text-destructive">{pairError}</p>}
-          <p className="text-2xs tracking-wider text-muted-foreground uppercase">
-            or enter manually
-          </p>
           <Input
-            placeholder="Name (e.g. Workshop)"
+            placeholder="Name (optional)"
             value={name}
             onChange={(e) => setName(e.target.value)}
             disabled={isAdding}
           />
           <Input
-            placeholder="URL (e.g. http://my-server.tailnet.ts.net:43117)"
+            placeholder="URL (LAN or Tailscale, e.g. http://100.x.x.x:43117)"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             disabled={isAdding}
+            className="font-mono"
           />
           <Input
             type="password"
-            placeholder="Daemon token"
+            placeholder="Token"
             value={token}
             onChange={(e) => setToken(e.target.value)}
             disabled={isAdding}
+            className="font-mono"
           />
           <p className="text-xs text-muted-foreground">
-            On the other machine: Settings → Share → Pair, or{' '}
-            <span className="font-mono">cat ~/.porcelain/daemon-token</span>.
+            From the other machine: Settings → Share — copy the URL and token.
           </p>
           <div className="flex items-center gap-2">
             <Button

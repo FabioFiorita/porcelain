@@ -7,8 +7,7 @@ import { rotateDaemonToken } from './token-file'
  *
  * The HTTP factory closes over a mutable hash (daemon-http `setTokenHash`); the entry
  * file binds that setter here at boot so API procedures can rotate without importing
- * the server. Pairing redeems against `currentAuthToken()` so a just-rotated secret is
- * what a new device receives — never a stale copy from process env.
+ * the server.
  */
 
 type HashSetter = (hash: Buffer) => void
@@ -22,7 +21,7 @@ export function bindAuthToken(token: string, setter: HashSetter): void {
   setHash = setter
 }
 
-/** The shared secret pairing hands out. Empty only before bind (nothing listens yet). */
+/** Current shared secret. Empty only before bind (nothing listens yet). */
 export function currentAuthToken(): string {
   return currentToken
 }
@@ -30,7 +29,7 @@ export function currentAuthToken(): string {
 /**
  * Write a new token, swap the live hash, and drop every open session. Returns the
  * plaintext so the client that initiated Revoke all can keep talking (browser
- * localStorage / shell binding) without a full re-pair dance for itself.
+ * localStorage / shell binding).
  */
 export async function rotateAuthToken(): Promise<string> {
   const token = await rotateDaemonToken()

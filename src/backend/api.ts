@@ -103,7 +103,6 @@ import {
 import { imageMimeForPath, isBinaryBuffer } from './image-mime'
 import { readLayers, writeLayers } from './layers-store'
 import { readNotes, writeNotes } from './notes-store'
-import { cancelPairing, pendingPairing, startPairing } from './pairing'
 import { expandUserPath } from './path-expand'
 import { exceedsReadLimit } from './read-limits'
 import {
@@ -464,26 +463,12 @@ export const router = t.router({
     ...daemonIdentity(),
   })),
 
-  // Pairing (environments v2 phase 3). These three are token-gated like every
-  // other procedure — only a client ALREADY trusted by this daemon may open a pairing
-  // window. The unauthenticated half is `POST /pair` (daemon-http.ts), which can do
-  // nothing until one of these has been called.
-  pairingStatus: t.procedure.query((): { code: string; expiresAt: number } | null =>
-    pendingPairing(),
-  ),
-
-  startPairing: t.procedure.mutation((): { code: string; expiresAt: number } => startPairing()),
-
-  cancelPairing: t.procedure.mutation((): void => {
-    cancelPairing()
-  }),
-
   // How many clients currently hold a live /session on this daemon. Settings → Share
-  // shows the count only — no per-device roster. One shared token; Revoke all rotates it.
+  // shows the count only. One shared token; Revoke all rotates it.
   shareStatus: t.procedure.query((): { clients: number } => ({ clients: sessionCount() })),
 
   // Rotate the shared secret, close every live socket, return the new token so the
-  // caller (the window that pressed Revoke all) can keep talking without re-pairing.
+  // caller (the window that pressed Revoke all) can keep talking.
   rotateDaemonToken: t.procedure.mutation(async (): Promise<{ token: string }> => {
     const token = await rotateAuthToken()
     return { token }

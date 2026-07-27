@@ -33,21 +33,6 @@ export interface DaemonHttpOptions {
   onSession: (ws: WebSocket) => void
   /** Serves the renderer dist for non-/trpc GET/HEAD (unauthenticated). */
   serveStatic: (req: IncomingMessage, res: ServerResponse) => Promise<void>
-  /**
-   * Backs `POST /pair` — the daemon's one unauthenticated dynamic route. The entry
-   * file supplies it (it owns the token that a successful exchange yields); omitting
-   * it disables the route entirely (it 404s), which is what tests that don't care
-   * about pairing get.
-   */
-  pairing?: {
-    /** Whether a human has a pairing window open right now. */
-    hasPending: () => boolean
-    /**
-     * Exchange a code for the shared daemon token; the token is returned ONLY on 'ok'.
-     * `label` is accepted for older clients and ignored — one token for every client.
-     */
-    redeem: (code: string, label: string) => Promise<{ result: string; token?: string }>
-  }
 }
 
 export interface DaemonHttp {
@@ -67,7 +52,7 @@ export interface DaemonHttp {
 const WS_PROTOCOL_PREFIX = 'porcelain.'
 
 export function createDaemonHttp(opts: DaemonHttpOptions): DaemonHttp {
-  const { allowedOrigin, router, onSession, serveStatic, pairing } = opts
+  const { allowedOrigin, router, onSession, serveStatic } = opts
   // Mutable: Revoke all writes a new secret and swaps this digest without restarting.
   // Copied on set so a caller reusing their buffer can't race a concurrent compare.
   let tokenHash = Buffer.from(opts.tokenHash)
@@ -119,110 +104,6 @@ export function createDaemonHttp(opts: DaemonHttpOptions): DaemonHttp {
     })
   }
 
-  // A pairing exchange is a tiny JSON object; anything larger is not one. Bounded so
-  // an unauthenticated caller can't stream unbounded bytes into daemon memory.
-  const MAX_PAIR_BODY_BYTES = 1024
-
-  /**
-   * Buffer at most `max` bytes; past that, STOP BUFFERING but keep draining, and
-   * resolve null. Memory stays bounded either way — the reason we drain instead of
-   * destroying the socket is that a destroyed request never delivers our 413, so the
-   * caller sees a connection reset and can't tell "too large" from "daemon crashed"
-   * (caught by the oversized-body test).
-   */
-  function readBoundedBody(req: IncomingMessage, max: number): Promise<Buffer | null> {
-    return new Promise<Buffer | null>((resolve, reject) => {
-      const chunks: Buffer[] = []
-      let size = 0
-      let overflowed = false
-      req.on('data', (chunk: Buffer) => {
-        size += chunk.length
-        if (size > max) {
-          overflowed = true
-          chunks.length = 0
-          return
-        }
-        chunks.push(chunk)
-      })
-      req.on('end', () => resolve(overflowed ? null : Buffer.concat(chunks)))
-      req.on('error', reject)
-    })
-  }
-
-  /**
-   * `POST /pair` — the ONE unauthenticated dynamic route, and a deliberate exception to
-   * "auth is never optional" (audit skill). It's the exchange that lets a new device get
-   * a credential without the human ferrying the long-lived token by hand. What keeps it
-   * narrow, all of which must hold together:
-   *
-   * - **404 unless a human has a pairing window open.** At rest the route does not exist,
-   *   so there is nothing to probe or grind; `pairing.ts` owns the 40-bit code, the TTL,
-   *   single-use, and the 5-attempt burn.
-   * - **`application/json` is REQUIRED.** That forces a CORS preflight for any
-   *   cross-origin browser caller, and the preflight fails against our scoped CORS — so
-   *   drive-by web content (which can reach 127.0.0.1) cannot even send the request. A
-   *   simple `text/plain` POST would skip preflight, so rejecting it is load-bearing, not
-   *   tidiness.
-   * - **Bounded body, no logging.** Neither the code nor the token is ever printed.
-   *
-   * Responses are deliberately coarse — the caller learns refused vs accepted, and
-   * `reason` only distinguishes the states a human needs to act on differently.
-   */
-  async function handlePair(
-    req: IncomingMessage,
-    res: ServerResponse,
-    cors: Record<string, string>,
-  ): Promise<void> {
-    const json = { ...cors, 'content-type': 'application/json' }
-    if (pairing === undefined || !pairing.hasPending()) {
-      res.writeHead(404, cors)
-      res.end()
-      return
-    }
-    if (req.method !== 'POST') {
-      res.writeHead(405, cors)
-      res.end()
-      return
-    }
-    // Load-bearing: see the preflight note above.
-    if (!(req.headers['content-type'] ?? '').includes('application/json')) {
-      res.writeHead(415, cors)
-      res.end()
-      return
-    }
-    const body = await readBoundedBody(req, MAX_PAIR_BODY_BYTES)
-    if (body === null) {
-      res.writeHead(413, cors)
-      res.end()
-      return
-    }
-    let code: unknown
-    let label: unknown
-    try {
-      const parsed = JSON.parse(body.toString('utf8')) as { code?: unknown; label?: unknown }
-      code = parsed.code
-      label = parsed.label
-    } catch {
-      res.writeHead(400, cors)
-      res.end()
-      return
-    }
-    if (typeof code !== 'string') {
-      res.writeHead(400, cors)
-      res.end()
-      return
-    }
-    // Label is accepted for older clients and ignored — pairing hands out the shared token.
-    const { result, token } = await pairing.redeem(code, typeof label === 'string' ? label : '')
-    if (result !== 'ok' || token === undefined) {
-      res.writeHead(401, json)
-      res.end(JSON.stringify({ error: result }))
-      return
-    }
-    res.writeHead(200, json)
-    res.end(JSON.stringify({ token }))
-  }
-
   // Rebuild a fetch Request from the Node request and hand it to tRPC's official
   // fetch adapter — all protocol logic (batching, input decoding, error shapes)
   // stays in tRPC, exactly like the Stage-1 IPC shuttle. The appRouter context is
@@ -241,16 +122,10 @@ export function createDaemonHttp(opts: DaemonHttpOptions): DaemonHttp {
           res.end()
           return
         }
-        // The pairing exchange — unauthenticated by necessity, and narrow by design
-        // (it 404s unless a human has a pairing window open). See handlePair.
-        if (url.split('?')[0] === '/pair') {
-          await handlePair(req, res, cors)
-          return
-        }
-        // Everything that isn't /trpc or /pair (and isn't the /session WS upgrade, which
-        // never reaches here) is the renderer dist — the browser client's app shell.
-        // Static assets are UNAUTHENTICATED by design (the shell is not secret; the
-        // token gate stays on /trpc + /session — see static-server.ts). GET/HEAD only.
+        // Everything that isn't /trpc (and isn't the /session WS upgrade, which never
+        // reaches here) is the renderer dist — the browser client's app shell. Static
+        // assets are UNAUTHENTICATED by design (the shell is not secret; the token gate
+        // stays on /trpc + /session — see static-server.ts). GET/HEAD only.
         if (req.method === 'GET' || req.method === 'HEAD') {
           await serveStatic(req, res)
         } else {
