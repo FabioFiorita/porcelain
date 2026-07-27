@@ -26,9 +26,7 @@ App copy is the `product` skill's domain, not this one.
 ## Message discipline
 
 - **Source of truth for identity:** the `product` skill (identity line, pillars,
-  audience) plus `plans/launch-narrative.md` (pitches, X/PH copy) and
-  `plans/positioning-and-roadmap.md` (competitive landscape, non-goals). Keep
-  README, site, and CLAUDE.md one-liners in the same era.
+  audience). Keep README, site, and CLAUDE.md one-liners in the same era.
 - **Site visual identity:** opaque graphite, solid cards, no glassmorphism —
   match the app's reading-room redesign (`marketing/styles.css`). Do not
   reintroduce backdrop-blur glass tiles or purple glow wallpaper.
@@ -45,7 +43,7 @@ App copy is the `product` skill's domain, not this one.
 - **No em dashes (—) or en dashes (–) as asides.** They read as AI-generated.
   Prefer short sentences, commas, colons, or parentheses. Reorganize the idea
   instead of gluing a parenthetical with a dash. Applies to the site, README,
-  and launch copy (`plans/launch-narrative.md`). HTML/CSS comments are fine.
+  and launch copy. HTML/CSS comments are fine.
 - **Never leak the personal setup** (CLAUDE.md rule): no beelink, no
   soaphealth, no personal hostnames in anything user-visible. Demo content
   uses generic names.

@@ -2,7 +2,7 @@
 
 Agent-managed foundations. This file owns project agent guidance; skills live in `.agents/skills/` and are symlinked into `.claude/skills/` for Claude discovery. Keep them accurate and never let the codebase diverge from them. `AGENTS.md` is a symlink to this file. **Keep this file slim — it loads into every session. Detail belongs in skills (loaded on demand).**
 
-Porcelain is **where agent work becomes trusted work**: the review layer for agentic coding (Electron apps + daemon browser client). Your agents run in your terminal (Porcelain's embedded one or any other); Porcelain is where you review what they built as a story, not a file list. Lightweight, not an editor. Product identity and pillars live in the `product` skill; public pitches in `plans/launch-narrative.md`.
+Porcelain is **where agent work becomes trusted work**: the review layer for agentic coding (Electron apps + daemon browser client). Your agents run in your terminal (Porcelain's embedded one or any other); Porcelain is where you review what they built as a story, not a file list. Lightweight, not an editor. Product identity and pillars live in the `product` skill.
 
 ## How we work together
 
@@ -37,7 +37,7 @@ Only each skill's one-line description loads up front; the body loads on demand 
 - `releasing` — the runbook for cutting a signed + notarized release (bump/tag, the Actions pipeline, secrets, changelog). **Read when publishing a version or touching the release/signing setup.**
 - `shadcn` — vendored UI-primitive skill (also in `.agents/skills/`).
 
-Also available, but **not** vendored in this repo (globally installed, listed here only so you know they exist): `improve` (read-only senior-advisor audit harness → plans in `plans/`) and `frontend-design`.
+Also available, but **not** vendored in this repo (globally installed, listed here only so you know they exist): `improve` (read-only senior-advisor audit harness) and `frontend-design`.
 
 **Distribution split (don't leak internal skills).** The *companion* skill the app ships to users lives at repo root `/skills/porcelain-companion/` (one skill + `references/` for each surface) and is published via skills.sh (`npx skills add FabioFiorita/porcelain`; later `npx skills upgrade`). Everything in `.agents/skills/` is *internal* (repo guidance + vendored `shadcn`) and must carry `metadata.internal: true` in its frontmatter — the skills.sh CLI scans `.agents/skills` **and** `.claude/skills`, so without that flag an internal skill leaks into users' `npx skills add`. Any new `.agents/skills/` skill needs the flag.
 

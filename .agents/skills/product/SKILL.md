@@ -11,8 +11,6 @@ description: What Porcelain is (where agent work becomes trusted work), who it's
 
 Porcelain is the lightweight **review layer for agentic coding** (a macOS app, plus a browser viewer served by the daemon — which runs anywhere Node does, Linux hosts very much included). Not an editor: your agents run in your terminal, and Porcelain is where you review what they built. Agents write faster than anyone can trust; Porcelain stands on the trust side of that pile.
 
-Public pitches and launch copy live in `plans/launch-narrative.md`. Competitive notes and roadmap in `plans/positioning-and-roadmap.md`.
-
 ## Who it is for
 
 Engineers already serious about coding agents (Claude Code, Codex, OpenCode, Grok) who feel the bottleneck is **reading and trusting** what shipped, often in monorepos, often with a second machine as compute. Not an "AI for non-engineers" product; not an IDE replacement.
