@@ -13,29 +13,44 @@ import {
   terminalEditBytes,
 } from './terminal-keys'
 import { attachOsc52Clipboard } from './terminal-osc52'
-import { attachTouchScroll } from './terminal-touch-scroll'
+import { applyTerminalTouchScroll, attachTouchScroll } from './terminal-touch-scroll'
 import { resolveTheme, subscribeResolvedTheme } from './theme'
 
-/**
- * Apply a finger-pan line delta to an xterm instance. Normal buffer → scrollback via
- * scrollLines. Alternate buffer (TUIs) has no scrollback, so scrollLines is a no-op —
- * send application/normal cursor keys the way xterm's wheel handler does for no-scrollback
- * buffers, so Claude Code / vim actually move.
- */
+/** Wire an xterm instance into the pure touch-scroll applier (see terminal-touch-scroll). */
 function scrollTerminalTouch(term: Terminal, lines: number): void {
-  if (lines === 0) return
-  term.scrollLines(lines)
-  if (term.buffer.active.type !== 'alternate') return
-  // xterm wheel fallback: deltaY < 0 → CSI A (up), deltaY > 0 → CSI B (down).
-  // Our lines: negative = older = finger-down ≈ content moves down ≈ deltaY < 0 → A.
-  const key = lines < 0 ? 'A' : 'B'
-  const prefix = term.modes.applicationCursorKeysMode ? '\x1bO' : '\x1b['
-  const seq = `${prefix}${key}`
-  const n = Math.abs(lines)
-  for (let i = 0; i < n; i++) {
-    // wasUserInput=false: don't clear selection / steal focus as a real key would.
-    term.input(seq, false)
-  }
+  const el = term.element
+  const cellHeight =
+    el && term.rows > 0
+      ? Math.max(1, el.clientHeight / term.rows)
+      : (term.options.fontSize ?? 12) * (term.options.lineHeight ?? 1)
+
+  applyTerminalTouchScroll(
+    {
+      bufferType: term.buffer.active.type === 'alternate' ? 'alternate' : 'normal',
+      mouseTrackingMode: term.modes.mouseTrackingMode,
+      rows: term.rows,
+      cellHeight,
+      scrollLines: (n) => term.scrollLines(n),
+      input: (data) => term.input(data, false),
+      dispatchWheel: (deltaY) => {
+        if (!el) return
+        // Target the element xterm listens on; include a center position so mouse
+        // protocol reports a sensible cell (required for SGR wheel).
+        const rect = el.getBoundingClientRect()
+        el.dispatchEvent(
+          new WheelEvent('wheel', {
+            deltaY,
+            deltaMode: WheelEvent.DOM_DELTA_PIXEL,
+            bubbles: true,
+            cancelable: true,
+            clientX: rect.left + rect.width / 2,
+            clientY: rect.top + rect.height / 2,
+          }),
+        )
+      },
+    },
+    lines,
+  )
 }
 
 /**
@@ -274,10 +289,9 @@ function create(id: string): Instance {
   }
 
   // xterm 6 scrolls via SmoothScrollableElement (wheel only) — iOS Safari never fires
-  // wheel for finger pans. Convert vertical pans into line steps. On the NORMAL buffer
-  // that's term.scrollLines; on the ALTERNATE buffer (Claude Code / vim fullscreen)
-  // scrollLines is a no-op (no scrollback), so we also feed cursor-up/down like xterm's
-  // own wheel fallback — otherwise a remote Claude session looks frozen to touch.
+  // wheel for finger pans. Convert vertical pans into line steps. Normal buffer →
+  // scrollLines; alternate (Claude fullscreen) → synthetic wheel / PageUp-PageDown —
+  // never arrow keys (Claude rejects those with "scroll wheel is sending arrow keys").
   const disposeTouchScroll = isCoarseTouch()
     ? attachTouchScroll(
         (lines) => scrollTerminalTouch(term, lines),

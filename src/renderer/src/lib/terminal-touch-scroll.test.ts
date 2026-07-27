@@ -1,5 +1,71 @@
 import { describe, expect, it, vi } from 'vitest'
-import { applyTouchScrollDelta, attachTouchScroll } from './terminal-touch-scroll'
+import {
+  applyTerminalTouchScroll,
+  applyTouchScrollDelta,
+  attachTouchScroll,
+  type TerminalTouchScrollTarget,
+} from './terminal-touch-scroll'
+
+function mockTarget(
+  partial: Partial<TerminalTouchScrollTarget> &
+    Pick<TerminalTouchScrollTarget, 'bufferType' | 'mouseTrackingMode'>,
+): TerminalTouchScrollTarget & {
+  scrollLines: ReturnType<typeof vi.fn>
+  input: ReturnType<typeof vi.fn>
+  dispatchWheel: ReturnType<typeof vi.fn>
+} {
+  const scrollLines = vi.fn()
+  const input = vi.fn()
+  const dispatchWheel = vi.fn()
+  return {
+    rows: 24,
+    cellHeight: 12,
+    scrollLines,
+    input,
+    dispatchWheel,
+    ...partial,
+  }
+}
+
+describe('applyTerminalTouchScroll', () => {
+  it('normal buffer only uses scrollLines — never keys or wheel', () => {
+    const t = mockTarget({ bufferType: 'normal', mouseTrackingMode: 'none' })
+    applyTerminalTouchScroll(t, -3)
+    expect(t.scrollLines).toHaveBeenCalledWith(-3)
+    expect(t.input).not.toHaveBeenCalled()
+    expect(t.dispatchWheel).not.toHaveBeenCalled()
+  })
+
+  it('alternate + mouse tracking dispatches wheel, never arrows', () => {
+    const t = mockTarget({ bufferType: 'alternate', mouseTrackingMode: 'any' })
+    applyTerminalTouchScroll(t, -2) // older → negative deltaY
+    expect(t.scrollLines).not.toHaveBeenCalled()
+    expect(t.input).not.toHaveBeenCalled()
+    expect(t.dispatchWheel).toHaveBeenCalledTimes(2)
+    expect(t.dispatchWheel).toHaveBeenCalledWith(-12)
+  })
+
+  it('alternate without mouse uses PageUp/PageDown, never arrows', () => {
+    const t = mockTarget({ bufferType: 'alternate', mouseTrackingMode: 'none', rows: 24 })
+    applyTerminalTouchScroll(t, -6)
+    expect(t.scrollLines).not.toHaveBeenCalled()
+    expect(t.dispatchWheel).not.toHaveBeenCalled()
+    // PageUp, not CSI A / ESC O A
+    expect(t.input).toHaveBeenCalled()
+    for (const [seq] of t.input.mock.calls) {
+      expect(seq).toBe('\x1b[5~')
+      expect(seq).not.toMatch(/[AB]$/)
+    }
+  })
+
+  it('alternate without mouse PageDown for newer content', () => {
+    const t = mockTarget({ bufferType: 'alternate', mouseTrackingMode: 'none' })
+    applyTerminalTouchScroll(t, 4)
+    for (const [seq] of t.input.mock.calls) {
+      expect(seq).toBe('\x1b[6~')
+    }
+  })
+})
 
 describe('applyTouchScrollDelta', () => {
   it('accumulates sub-cell moves without scrolling', () => {

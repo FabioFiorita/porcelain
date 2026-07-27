@@ -3,8 +3,7 @@
  *
  * xterm scrolls via SmoothScrollableElement (wheel only) — iOS Safari never fires
  * wheel for finger pans, so without this adapter the buffer never moves. We convert
- * pointer/touch deltas into whole-line steps and apply them via a caller-supplied
- * `scrollLines` (registry chooses buffer scroll vs. alt-buffer cursor keys).
+ * pointer/touch deltas into whole-line steps and apply them via applyTerminalTouchScroll.
  *
  * Convention matches xterm: positive lines = newer (scroll down), negative =
  * older scrollback (scroll up). Finger-down (dy > 0) therefore yields negative
@@ -14,6 +13,10 @@
  * load-bearing: without capture, an inner handler can swallow the event; without
  * touch-action:none Safari steals the gesture for page rubber-band and our
  * preventDefault on move is ignored.
+ *
+ * Alternate-buffer apps (Claude Code fullscreen) own their own scroll. NEVER send
+ * arrow keys — Claude detects that as "scroll wheel is sending arrow keys" and
+ * refuses to scroll. Prefer real wheel events (mouse protocol) or PageUp/PageDown.
  */
 
 export function applyTouchScrollDelta(
@@ -26,6 +29,61 @@ export function applyTouchScrollDelta(
   // Math.trunc(-0.4) is -0; normalize so callers never see negative zero.
   const lines = Math.trunc(next / cellHeight) || 0
   return { residual: next - lines * cellHeight, lines }
+}
+
+/** What the touch-pan adapter needs from an xterm instance (testable without xterm). */
+export interface TerminalTouchScrollTarget {
+  bufferType: 'normal' | 'alternate'
+  mouseTrackingMode: 'none' | 'x10' | 'vt200' | 'drag' | 'any'
+  rows: number
+  /** Cell height in CSS px — one wheel tick / line. */
+  cellHeight: number
+  scrollLines: (lines: number) => void
+  /** Write bytes into the PTY as input (PageUp/PageDown sequences). */
+  input: (data: string) => void
+  /** Fire a synthetic wheel event at the terminal element (mouse-protocol path). */
+  dispatchWheel: (deltaY: number) => void
+}
+
+/**
+ * Apply a pan line-delta to a terminal.
+ *
+ * - Normal buffer: xterm scrollback via scrollLines only.
+ * - Alternate buffer + mouse tracking: synthetic wheel events so the app gets real
+ *   SGR wheel reports (what Claude Code wants for "mouse wheel scrolls a few lines").
+ * - Alternate buffer, no mouse: PageUp/PageDown — never arrows (Claude rejects those).
+ */
+export function applyTerminalTouchScroll(
+  target: TerminalTouchScrollTarget,
+  lines: number,
+): void {
+  if (lines === 0) return
+
+  if (target.bufferType !== 'alternate') {
+    target.scrollLines(lines)
+    return
+  }
+
+  // lines < 0 → older content → wheel up (deltaY < 0) / PageUp
+  // lines > 0 → newer content → wheel down (deltaY > 0) / PageDown
+  const count = Math.abs(lines)
+  const deltaY = lines < 0 ? -target.cellHeight : target.cellHeight
+
+  if (target.mouseTrackingMode !== 'none') {
+    for (let i = 0; i < count; i++) {
+      target.dispatchWheel(deltaY)
+    }
+    return
+  }
+
+  // PageUp = CSI 5 ~, PageDown = CSI 6 ~. One page step per ~¼ viewport of finger
+  // travel so a flick isn't N half-screens.
+  const pageSeq = lines < 0 ? '\x1b[5~' : '\x1b[6~'
+  const chunk = Math.max(3, Math.floor(target.rows / 4) || 3)
+  const steps = Math.max(1, Math.round(count / chunk))
+  for (let i = 0; i < steps; i++) {
+    target.input(pageSeq)
+  }
 }
 
 /**
