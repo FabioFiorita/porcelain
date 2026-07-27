@@ -15,7 +15,7 @@ Coding agents generate faster than anyone can trust. Every tool in this space ra
 - **Flow-ordered diffs.** Even without a published Review, changed files are ordered and grouped along their dependency flow (component → hook → route → service → schema) so a change reads from entry point to database instead of alphabetically.
 - **A two-way loop.** Review comments on a line or file flow back to your agent as concrete context, and resolutions flow forward. A per-repo project board keeps work queued and moved as agents ship. All of it runs through a bundled local CLI. No server, no port, no telemetry.
 - **Run agents in the terminal.** A real PTY next to the review surfaces, so Claude Code, Codex, or whatever you use runs in the same window you read in. Sessions are daemon-owned: they survive reloads and follow you to any browser.
-- **Anywhere is the same place.** One token-gated daemon, three clients: the Mac/Linux app locally, the app pointed at a remote daemon, or any browser on your LAN or tailnet, including on mobile. Terminals and review state live daemon-side, so they survive reconnects and follow you across devices.
+- **Anywhere is the same place.** One token-gated daemon, three clients: the Mac app on a local daemon, the same app pointed at a remote daemon (a Linux box, a home server, a cloud VM), or any browser on your LAN or tailnet, including on mobile. Terminals and review state live daemon-side, so they survive reconnects and follow you across devices.
 - **Built for huge monorepos.** Stays fast on a ~50 GB repo. Hide the folders that aren't yours, pin the ones that are; nothing is indexed until you look at it.
 
 ## Features
@@ -43,9 +43,7 @@ Coding agents generate faster than anyone can trust. Every tool in this space ra
 
 **macOS (Apple Silicon):** download the latest `.dmg` from [Releases](https://github.com/FabioFiorita/porcelain/releases), drag Porcelain to Applications. Updates install automatically.
 
-**Linux (x64):** grab the `.AppImage` (auto-updates) or `.deb` from the same [Releases](https://github.com/FabioFiorita/porcelain/releases) page.
-
-**Any other device:** you don't install Porcelain, you open it. Run the daemon on a machine you own (command above) and point a browser at it.
+**Everything else — Linux, Windows, iPad, phone:** you don't install Porcelain, you open it. Run the daemon on the machine that holds your code (the command above works anywhere Node does) and point a browser at it. Same client the Mac app ships, same review surfaces, no install.
 
 ## Connect your agent
 

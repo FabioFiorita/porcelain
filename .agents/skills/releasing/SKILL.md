@@ -2,26 +2,32 @@
 name: releasing
 metadata:
   internal: true
-description: How to cut a Porcelain release — gate-then-cut, atomic multi-platform publish, auto-latest, signing secrets, changelog, and retry-without-bump. Read when publishing a version, debugging the release workflow, or changing signing/notarization.
+description: How to cut a Porcelain release — gate-then-cut, atomic publish, auto-latest, signing secrets, changelog, and retry-without-bump. Read when publishing a version, debugging the release workflow, or changing signing/notarization.
 ---
 
 # Porcelain — releasing
 
 Cutting a release publishes a **signed + notarized** macOS build to GitHub Releases
-for `electron-updater`, plus an **unsigned** Linux build (AppImage + deb) into the
-**same** release, marks it **latest** automatically, and publishes
+for `electron-updater`, marks it **latest** automatically, and publishes
 `porcelain-daemon` to npm via OIDC.
+
+**The desktop app ships for macOS only** (2026-07-27): the unsigned Linux
+AppImage/deb leg was deleted because nobody ran it and its packaging job could
+fail a Mac release that was otherwise good. Linux is still first-class as a
+*daemon* host — that ships via npm (`porcelain-daemon`), which is unaffected, and
+Linux humans use the daemon-served browser client. Do not re-add a `linux:` block
+to `electron-builder.yml` without a real user asking for it.
 
 ## Design (2026-07-24 overhaul)
 
 **Problem we fixed:** tag-then-discover burned versions (~35% of tag pushes failed on
 e2e/lint/packaging). Recovery was always a new patch. Drafts and half-releases
-(Mac without Linux, npm without assets) littered the release list.
+(npm without assets) littered the release list.
 
 **Shape now:**
 
 ```
-main always green (CI + Linux + native dry-run on every push)
+main always green (CI + E2E + native dry-run on every push)
         │
         ▼
   pnpm release:check && pnpm release:cut [patch|minor|major]
@@ -29,10 +35,10 @@ main always green (CI + Linux + native dry-run on every push)
         ▼
   prepare: version bump on release/pending-vX only (no tag, not on main yet)
         │
-        ├─ package-mac  (e2e → sign/notarize → artifacts, publish never)
-        └─ package-linux (e2e → package → artifacts, publish never)
+        ▼
+  package-mac (e2e → sign/notarize → artifacts, publish never)
         │
-        ▼ only if BOTH green
+        ▼ only if green
   publish: promote pending → main
         → GH Release (published + latest) with all assets + tag
         → npm publish
@@ -48,7 +54,7 @@ Infra flake after a good package = **retry the same tag** (no new patch).
 1. Land changes on `main` and wait for **all three** required workflows to go green
    on that exact SHA:
    - `ci.yml` — `pnpm verify` + `typecheck:e2e`
-   - `linux.yml` — browser e2e + Linux package (artifact only)
+   - `e2e.yml` — the browser e2e suite (the only per-push run of it)
    - `e2e-native-dry-run.yml` — full native Electron e2e on `macos-14`
      (**every** push to main, not path-filtered)
 
@@ -73,9 +79,9 @@ Infra flake after a good package = **retry the same tag** (no new patch).
 
    - Bumps `package.json` + prepends `CHANGELOG.md` via `pnpm version` onto
      `release/pending-vX.Y.Z` (force-pushed; **not** merged to main yet; **no tag**).
-   - Runs **package-mac** and **package-linux** in parallel against that ref
-     (lint/test/build/e2e → `electron-builder --publish never` → upload artifacts).
-   - **Only if both succeed:** promotes the pending branch to `main`, then
+   - Runs **package-mac** against that ref (lint/test/build/e2e →
+     `electron-builder --publish never` → upload artifacts).
+   - **Only if it succeeds:** promotes the pending branch to `main`, then
      assembles one GitHub Release with **all** assets **published and marked
      latest** (not draft; creates the tag at that commit), publishes npm, deletes
      other leftover **draft** releases (tags kept — never rewrite tags).
@@ -130,8 +136,8 @@ Tag push is **not** a workflow trigger (avoids double-build races). Retry is alw
 
 | Failure | Recovery |
 |---|---|
-| `release:check` red | Wait for / fix CI, Linux, or native dry-run on HEAD |
-| package-mac / package-linux red | Fix on main (no version burned), re-cut |
+| `release:check` red | Wait for / fix CI, E2E, or native dry-run on HEAD |
+| package-mac red | Fix on main (no version burned), re-cut |
 | publish / notarize / npm infra | Retry same tag or `gh run rerun --failed` |
 | Product bug after a live release | New patch cut (never rewrite a pushed tag) |
 
@@ -144,9 +150,9 @@ are deleted automatically on the next successful publish (`--cleanup-drafts`).
 |---|---|
 | `pnpm release:check` | `scripts/release-check.mjs` — pre-cut gate |
 | `pnpm release:cut` | `scripts/release-cut.mjs` — check + dispatch |
-| `pnpm package:mac` / `package:linux` | `electron-builder --publish never` |
+| `pnpm package:mac` | `electron-builder --mac --publish never` |
 | `pnpm release:publish` | `scripts/release-publish.mjs` — assemble GH release (CI uses this) |
-| `pnpm release:fuse-smoke` | packaging layout smoke (dmg/zip/yml or AppImage/deb/yml) |
+| `pnpm release:fuse-smoke` | packaging layout smoke (dmg/zip/latest-mac.yml) |
 
 Do **not** run `pnpm version` + `git push --follow-tags` as the normal path — that
 was the old tag-then-discover flow. Prefer `release:cut`. Emergency local bump is

@@ -13,7 +13,7 @@ Update when the landscape shifts, a non-goal becomes in-scope, or identity/pilla
 
 > **Porcelain is where agent work becomes trusted work.**
 
-One lightweight **review layer** for agentic coding (macOS + Linux apps + daemon-served browser). Not an editor. Your agents run in your terminal; Porcelain is where you review what they built as a **story**, not a file list.
+One lightweight **review layer** for agentic coding (a macOS app + a daemon-served browser client; the daemon itself runs anywhere Node does). Not an editor. Your agents run in your terminal; Porcelain is where you review what they built as a **story**, not a file list.
 
 **Soul (does not change when features grow):** humans must still understand and trust agent work. The product started as a review companion next to external agents, spent sixteen days trying to be the place agents run too, and came back to what it is best at: **the place judgment lives**. Features stacked faster than the story for a while. The story is now clear: **trust, not velocity.**
 
@@ -93,6 +93,7 @@ Most peers are **“run many agents” cockpits**. Our wedge is the other side: 
 - **An agent-to-agent chat relay** (removed 2026-07-27 — messages, file claims, overlap detection). Coordinating parallel agents is not our problem to solve  
 - Provider breadth race / cross-provider hand-off as a flagship  
 - Scheduled automations / built-in browser as core  
+- **A packaged Linux desktop app** (removed 2026-07-27 — AppImage + deb targets, the `package-linux` release job). Never used by the maintainer, and its packaging job gated the Mac release we actually ship. Linux stays first-class as a **daemon host** (npm `porcelain-daemon`) with the browser as its seat  
 - Windows-native app first (browser covers clients)  
 - Becoming an editor  
 - PR create / PR review until real user demand (spike still in git: `git show f8ef9ef:plans/spike-pr-review.md`)  

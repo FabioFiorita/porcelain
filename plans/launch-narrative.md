@@ -20,7 +20,7 @@ Do not invent features. Claims must be true of the app **today**. Website copy i
 | Product Hunt tagline | Your agents run in your terminal. Review what they built as a story, not a file list. |
 | X bio / short | The review layer for agentic coding: read what your agents built as a story, trust what ships. |
 | HN | Porcelain: review agent-written features as a story, not an alphabetical diff |
-| Subtitle | Mac, Linux, or any browser. Your CLIs. Local only. Open source. |
+| Subtitle | Mac app or any browser. Your CLIs. Local only. Open source. |
 
 ---
 
@@ -39,7 +39,7 @@ Porcelain is not an IDE and not a cockpit. It is the place agent work turns into
 1. **The Review** — Intent, Execution, Evidence: idea, flow-ordered walkthrough (including the other half of the client/server seam), proof it verified its work.
 2. **Flow-ordered diffs** — even without a Review, changes read from entry point to data.
 3. **A closed human↔agent loop** — line comments, board, local CLI and companion skills. No MCP port, no telemetry.
-4. **Remote as a product** — one daemon; Mac or Linux app, remote environment, or any browser including on mobile. State lives on the host you own.
+4. **Remote as a product** — one daemon; the Mac app local, the Mac app pointed at a remote environment, or any browser including on mobile. State lives on the host you own.
 
 Your agents run in a terminal, yours or the one embedded next to the review surfaces. Open source. Free. Your agent subscriptions, your machines.
 
@@ -140,7 +140,7 @@ Porcelain runs none. Claude Code, Codex, OpenCode, Grok, or anything else runs i
 6. **Board:** Plan in the same window you ship from; agents move cards via the CLI.  
 7. **Terminal:** Your agent runs right next to the review surfaces. Your CLIs, your subscriptions.  
 8. **Remote:** `npx porcelain-daemon@latest serve` → app or any browser (including mobile) to a machine you own.  
-9. **Close:** Open source · MIT · macOS + Linux · no telemetry. Link + `npx skills add FabioFiorita/porcelain`.  
+9. **Close:** Open source · MIT · macOS app + any browser · no telemetry. Link + `npx skills add FabioFiorita/porcelain`.  
 10. **CTA:** Star, download, or say what you review first.
 
 Tone: calm, concrete, zero hype. Screenshots of the **current opaque** UI.
@@ -165,7 +165,7 @@ My laptop is a thin client. Terminals and review state live on a box I own. Porc
 |-------|---------|
 | Name | Porcelain |
 | Tagline | Where agent work becomes trusted work |
-| Description (~260 chars) | The review layer for agentic coding: your agents run in your terminal, Porcelain is where you read what they built as a feature story (Intent, Execution, Evidence), not a file list. Mac, Linux, or any browser. |
+| Description (~260 chars) | The review layer for agentic coding: your agents run in your terminal, Porcelain is where you read what they built as a feature story (Intent, Execution, Evidence), not a file list. Mac app or any browser. |
 | Gallery | 1) Review hero 2) Flow Changes 3) Comment 4) Board 5) Terminal + Actions 6) Remote install one-liner |
 | First comment | Origin + three beliefs + skills install + not an IDE |
 | Topics | Developer Tools, AI, Productivity, Open Source, Git |
@@ -182,7 +182,7 @@ Three beliefs:
 2. Story over file soup  
 3. Your machines, your subscriptions, no telemetry  
 
-Open source (MIT). Download for Mac/Linux, or `npx porcelain-daemon@latest serve` and open a browser. Teach your agent with `npx skills add FabioFiorita/porcelain`.
+Open source (MIT). Download for Mac, or `npx porcelain-daemon@latest serve` on any machine and open a browser. Teach your agent with `npx skills add FabioFiorita/porcelain`.
 
 Happy to answer anything about the Review loop, remote daemons, or why Porcelain deliberately does not run your agents for you.
 

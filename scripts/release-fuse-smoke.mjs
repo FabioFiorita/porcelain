@@ -8,7 +8,6 @@
  *
  * Usage:
  *   node scripts/release-fuse-smoke.mjs --platform mac --dir dist
- *   node scripts/release-fuse-smoke.mjs --platform linux --dir dist
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -23,8 +22,8 @@ const { values } = parseArgs({
   strict: true,
 })
 
-if (values.help || !values.platform || !['mac', 'linux'].includes(values.platform)) {
-  console.log('Usage: node scripts/release-fuse-smoke.mjs --platform mac|linux [--dir dist]')
+if (values.help || values.platform !== 'mac') {
+  console.log('Usage: node scripts/release-fuse-smoke.mjs --platform mac [--dir dist]')
   process.exit(values.help ? 0 : 1)
 }
 
@@ -44,26 +43,16 @@ if (!fs.existsSync(root)) {
 }
 
 const entries = fs.readdirSync(root)
-if (values.platform === 'mac') {
-  const dmg = entries.find((e) => e.endsWith('.dmg'))
-  const zip = entries.find((e) => e.endsWith('.zip'))
-  const yml = entries.find((e) => e === 'latest-mac.yml')
-  if (!dmg) fail('missing .dmg in dist')
-  if (!zip) fail('missing .zip in dist (electron-updater needs it)')
-  if (!yml) fail('missing latest-mac.yml')
-  ok(`mac artifacts: ${dmg}, ${zip}, ${yml}`)
-} else {
-  const appImage = entries.find((e) => e.endsWith('.AppImage'))
-  const deb = entries.find((e) => e.endsWith('.deb'))
-  const yml = entries.find((e) => e === 'latest-linux.yml')
-  if (!appImage) fail('missing .AppImage in dist')
-  if (!deb) fail('missing .deb in dist')
-  if (!yml) fail('missing latest-linux.yml')
-  ok(`linux artifacts: ${appImage}, ${deb}, ${yml}`)
-}
+const dmg = entries.find((e) => e.endsWith('.dmg'))
+const zip = entries.find((e) => e.endsWith('.zip'))
+const latestYml = entries.find((e) => e === 'latest-mac.yml')
+if (!dmg) fail('missing .dmg in dist')
+if (!zip) fail('missing .zip in dist (electron-updater needs it)')
+if (!latestYml) fail('missing latest-mac.yml')
+ok(`mac artifacts: ${dmg}, ${zip}, ${latestYml}`)
 
-// electron-builder leaves unpacked app under dist/mac or dist/linux-* for some
-// targets; also check any *.app if present (mac unpack).
+// electron-builder leaves the unpacked app under dist/mac* for some targets;
+// also check any *.app if present (mac unpack).
 function walkFind(dir, pred, depth = 0) {
   if (depth > 6 || !fs.existsSync(dir)) return null
   let names
@@ -93,9 +82,7 @@ if (ptyNode) {
 } else {
   // Not always left on disk after dmg/zip only packaging — warn, don't fail.
   // asarUnpack is enforced by electron-builder.yml; e2e terminal is the runtime proof.
-  console.log(
-    'release:fuse-smoke · pty.node not found under dist (ok if only dmg/zip/AppImage remain)',
-  )
+  console.log('release:fuse-smoke · pty.node not found under dist (ok if only dmg/zip remain)')
 }
 
 ok('packaging smoke passed')

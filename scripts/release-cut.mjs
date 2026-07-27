@@ -2,8 +2,8 @@
 /**
  * Trigger a CI-driven release cut after the local pre-gate passes.
  *
- * Does NOT bump/tag locally — version is burned only after package-mac and
- * package-linux are green (see .github/workflows/release.yml).
+ * Does NOT bump/tag locally — version is burned only after package-mac is
+ * green (see .github/workflows/release.yml).
  *
  * Usage:
  *   node scripts/release-cut.mjs              # patch

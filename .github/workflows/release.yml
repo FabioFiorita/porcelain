@@ -4,8 +4,8 @@ name: Release
 #
 #   PRIMARY — workflow_dispatch with bump=patch|minor|major
 #     1. prepare: bump version + changelog on a temporary branch (no tag yet)
-#     2. package-mac + package-linux in parallel (e2e → package --publish never)
-#     3. publish: only if BOTH green → promote pending → main, then assemble
+#     2. package-mac (e2e → sign/notarize → package --publish never)
+#     3. publish: only if green → promote pending → main, then assemble
 #        GitHub Release (published + latest) with all assets, npm publish,
 #        delete leftover drafts
 #     Failure before promote = no version on main, no tag, no half-release.
@@ -248,53 +248,11 @@ jobs:
           retention-days: 14
 
   # ---------------------------------------------------------------------------
-  # package-linux — e2e + unsigned AppImage/deb (no GH publish)
-  # ---------------------------------------------------------------------------
-  package-linux:
-    needs: [prepare]
-    if: ${{ needs.prepare.outputs.skip != 'true' && needs.prepare.outputs.mode != 'npm_only' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          ref: ${{ needs.prepare.outputs.ref }}
-
-      - uses: pnpm/action-setup@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - run: pnpm install --frozen-lockfile
-      - run: node node_modules/electron/install.js
-      - run: pnpm exec playwright install --with-deps chromium
-      # Pin Xvfb screen large enough for the 1400x900 e2e window (default 1280 clamps baselines).
-      - run: xvfb-run --auto-servernum -s "-screen 0 1600x1000x24" pnpm test:e2e:native
-      - name: Package linux (no publish)
-        run: pnpm package:linux
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Packaging smoke
-        run: node scripts/release-fuse-smoke.mjs --platform linux --dir dist
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: release-linux-${{ needs.prepare.outputs.tag }}
-          path: |
-            dist/*.AppImage
-            dist/*.deb
-            dist/*.blockmap
-            dist/latest-linux.yml
-          if-no-files-found: error
-          retention-days: 14
-
-  # ---------------------------------------------------------------------------
-  # publish — atomic assemble: only when BOTH platforms green
+  # publish — atomic assemble: only when packaging is green
   # ---------------------------------------------------------------------------
   publish:
-    needs: [prepare, package-mac, package-linux]
-    if: ${{ needs.prepare.outputs.skip != 'true' && needs.prepare.outputs.mode != 'npm_only' && needs.package-mac.result == 'success' && needs.package-linux.result == 'success' }}
+    needs: [prepare, package-mac]
+    if: ${{ needs.prepare.outputs.skip != 'true' && needs.prepare.outputs.mode != 'npm_only' && needs.package-mac.result == 'success' }}
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ needs.prepare.outputs.tag }}
@@ -315,12 +273,6 @@ jobs:
         with:
           name: release-mac-${{ needs.prepare.outputs.tag }}
           path: dist-mac
-
-      - name: Download linux artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: release-linux-${{ needs.prepare.outputs.tag }}
-          path: dist-linux
 
       - name: Resolve release target commit
         id: target
@@ -389,7 +341,6 @@ jobs:
             --title "Porcelain ${VERSION}" \
             --target "$TARGET" \
             --assets dist-mac \
-            --assets dist-linux \
             --cleanup-drafts
 
   # ---------------------------------------------------------------------------
@@ -442,8 +393,8 @@ jobs:
     # Only when packaging failed/cancelled — version was never proven. If publish
     # failed after creating the GH Release, keep the pending branch so main can
     # still receive the version commit manually.
-    needs: [prepare, package-mac, package-linux, publish]
-    if: ${{ always() && needs.prepare.outputs.mode == 'cut' && needs.prepare.outputs.pending_branch != '' && (needs.package-mac.result == 'failure' || needs.package-linux.result == 'failure' || needs.package-mac.result == 'cancelled' || needs.package-linux.result == 'cancelled') }}
+    needs: [prepare, package-mac, publish]
+    if: ${{ always() && needs.prepare.outputs.mode == 'cut' && needs.prepare.outputs.pending_branch != '' && (needs.package-mac.result == 'failure' || needs.package-mac.result == 'cancelled') }}
     runs-on: ubuntu-latest
     steps:
       - name: Delete pending release branch

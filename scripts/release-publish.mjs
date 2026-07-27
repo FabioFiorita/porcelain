@@ -8,7 +8,7 @@
  *
  * Usage:
  *   node scripts/release-publish.mjs --tag v0.40.0 --title "Porcelain 0.40.0" \
- *     --assets dist-mac --assets dist-linux
+ *     --assets dist-mac
  *   node scripts/release-publish.mjs --tag v0.40.0 --assets dist-mac --cleanup-drafts
  */
 import { execFileSync } from 'node:child_process'

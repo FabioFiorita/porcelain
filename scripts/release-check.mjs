@@ -16,7 +16,7 @@ import { parseArgs } from 'node:util'
 
 const REQUIRED_WORKFLOWS = [
   { file: 'ci.yml', name: 'CI' },
-  { file: 'linux.yml', name: 'Linux' },
+  { file: 'e2e.yml', name: 'E2E' },
   { file: 'e2e-native-dry-run.yml', name: 'E2e native dry-run' },
 ]
 
@@ -32,7 +32,7 @@ const { values } = parseArgs({
 
 if (values.help) {
   console.log(`Usage: node scripts/release-check.mjs [--sha SHA] [--allow-dirty] [--skip-sync]
-Required green workflows on the target SHA: CI, Linux, E2e native dry-run.`)
+Required green workflows on the target SHA: CI, E2E, E2e native dry-run.`)
   process.exit(0)
 }
 
@@ -166,7 +166,7 @@ if (failures.length > 0) {
     console.error(`  • ${f}`)
   }
   console.error('')
-  console.error('Tip: after landing on main, wait for CI + Linux + native dry-run,')
+  console.error('Tip: after landing on main, wait for CI + E2E + native dry-run,')
   console.error('then: pnpm release:cut  (or gh workflow run release.yml -f bump=patch)')
   process.exit(1)
 }

@@ -7,7 +7,8 @@ import type { AppMode } from './e2e/helpers/app'
 //   browser client — the daemon serves the SAME built renderer dist the Electron
 //   window loads, over the same tRPC + WS data path, so this asserts everything
 //   except the Electron shell layer, with no display server needed.
-// - `electron` (release only, macOS + Linux in release.yml): the BUILT app via
+// - `electron` (macOS only: e2e-native-dry-run.yml per push + release.yml's
+//   package-mac): the BUILT app via
 //   Playwright's `_electron`, so the real preload, native menu, and window
 //   management are present.
 //
@@ -32,7 +33,7 @@ export default defineConfig<{ appMode: AppMode }>({
     timeout: 10_000,
     // Snapshots are DOM-only (no native window chrome / vibrancy); a small ratio
     // tolerates sub-pixel font rendering. Baselines are per-project + per-platform
-    // (electron keeps the legacy `-darwin`/`-linux` names; browser adds `-browser`).
+    // (electron keeps the legacy `-darwin` name; browser adds `-browser`).
     toHaveScreenshot: { maxDiffPixelRatio: 0.02, animations: 'disabled' },
   },
   use: { trace: 'on-first-retry' },
@@ -46,8 +47,10 @@ export default defineConfig<{ appMode: AppMode }>({
     {
       name: 'electron',
       use: { appMode: 'electron' },
-      // The pre-projects template, so the committed `-darwin`/`-linux` baselines
-      // keep matching (the default would insert the project name).
+      // The pre-projects template, so the committed `-darwin` baselines keep
+      // matching (the default would insert the project name). Running this
+      // project on Linux has no committed baseline — it's a macOS-only lane
+      // since the Linux desktop build was dropped (2026-07-27).
       snapshotPathTemplate:
         '{snapshotDir}/{testFileDir}/{testFileName}-snapshots/{arg}-{platform}{ext}',
     },
