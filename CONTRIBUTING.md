@@ -16,6 +16,10 @@ pnpm dev
 
 `pnpm dev` uses a throwaway playground repo and isolated config, so it does not touch your real repositories.
 
+If Electron is missing after install (`Error: Electron uninstall`), run `node node_modules/electron/install.js` once (Electron may not download in `postinstall` on every platform).
+
+**Agents and this clone:** project hooks block feature branches and require `pnpm verify` before commit. Work on a fork, open a PR, and keep changes focused. Day-to-day product work uses the **dev** daemon (`pnpm dev:daemon`, port 43118, `~/.porcelain-dev`) — not a production install. See [AGENTS.md](AGENTS.md) and the `close-the-loop` skill.
+
 ## Verification
 
 Every change must pass the gate before commit:

@@ -7,7 +7,7 @@ description: The development loop every session must complete — intent, paths,
 
 # Close the loop
 
-Porcelain is a solo side project developed almost entirely by agents. The human's goal is to interact less, not more — a session that ends with "implemented, should work" forces him to do the verification himself, which defeats the point. So every session closes the **full loop**, and the loop's meaning never varies.
+Porcelain is developed heavily by agents. The human's goal is to interact less, not more — a session that ends with "implemented, should work" forces them to do the verification themselves, which defeats the point. So every session closes the **full loop**, and the loop's meaning never varies.
 
 ## Prod vs dev (hard rule)
 
@@ -37,11 +37,11 @@ pnpm porcelain -- help  # CLI against ~/.porcelain-dev
 
 1. **Intent** — one or two sentences: what will be true when this is done, and how you'll prove it.
 2. **Paths** — if more than one plausible approach exists, list tradeoffs and pick one (architecture forks need a proposal first).
-3. **Execute** — one architecture, shadcn primitives, type-safety-driven design. **Main only** (no feature branches).
+3. **Execute** — one architecture, shadcn primitives (UI only), type-safety-driven design. Agents in this clone: **main only** (no feature branches; fork + PR for external contributors).
 4. **Test** — per the testing doctrine below.
 5. **Verify with evidence** — prove the *intent*. UI → browser against the **dev** daemon (Playwright MCP or `pnpm test:e2e`). Backend → unit test / CLI on **dev** channels. Never drive the installed **Porcelain** app or the prod daemon for product work.
 6. **Docs sync** — update the owning skill in the same commit for decisions/traps changed; cut skill prose that only paraphrases code.
-7. **Gate & commit** — `pnpm verify`, commit straight to `main`, leave the worktree clean.
+7. **Gate & commit** — `pnpm verify`, commit (agents: straight to `main`), leave the worktree clean.
 
 Scale ceremony to the change. Phase 5 never scales away — no "should work."
 

@@ -121,7 +121,7 @@ CI runs layout smoke only. On a real Mac install when packaging changed:
 
 ## Prod vs dev (not a release concern)
 
-Product work uses the **dev** daemon (`pnpm dev:daemon`, port **43118**, `~/.porcelain-dev`). The always-on Linux daemon (port **43117**, `~/.porcelain`) is production for the human’s day job — agents never touch it while polishing Porcelain. Details in `close-the-loop` / `architecture`.
+Product work uses the **dev** daemon (`pnpm dev:daemon`, port **43118**, `~/.porcelain-dev`). The production home (port **43117**, `~/.porcelain`) is for real day-job work — agents never touch it while polishing Porcelain. Details in `close-the-loop` / `architecture`.
 
 ## See also
 

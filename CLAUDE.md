@@ -1,119 +1,104 @@
 # Porcelain
 
-Agent-managed foundations. This file owns project agent guidance; skills live in `.agents/skills/` and are symlinked into `.claude/skills/` for Claude discovery. Keep them accurate and never let the codebase diverge from them. `AGENTS.md` is a symlink to this file. **Keep this file slim — it loads into every session. Detail belongs in skills (loaded on demand).**
+Agent-managed foundations. This file is the **always-on** project brief for every agent session. Skills live in `.agents/skills/` (symlinked into `.claude/skills/` for discovery). **Keep this file slim** — it loads into every session, including backend-only work. Detail, UI recipes, release runbooks, and surface maps belong in skills (loaded on demand). `AGENTS.md` is a symlink to this file.
 
-Porcelain is **where agent work becomes trusted work**: the focused **review layer for agentic coding** (Electron app + daemon browser client). A companion, not a cockpit: agents run in the human's preferred host or terminal (Porcelain's embedded one or any other); Porcelain is where you review what they built as a story, not a file list. Lightweight, not an editor, not an agent host. Product identity and pillars live in the `product` skill.
+Porcelain is **where agent work becomes trusted work**: the focused **review layer for agentic coding** (Mac app + daemon browser client). A companion, not a cockpit: agents run in the human's preferred host or terminal; Porcelain is where you review what they built as a story, not a file list. Identity and pillars live in the `product` skill.
 
-**Solo side project.** Polish existing surfaces; no feature branches; ship only when asked (always **patch** unless minor/major is requested; 1.0 is far away). Agent channels = **porcelain CLI** writing local channel files (do not reintroduce a Porcelain MCP server — implementer note, not a marketing claim).
+Ship discipline: polish existing surfaces; default release is **patch** unless minor/major is asked; 1.0 is far away. Agent channels = the **porcelain CLI** writing local channel files (do not reintroduce a Porcelain MCP server — implementer note, not a marketing claim).
 
 ## How we work together
 
-The human is **not** the source of truth and not a dictator to obey. Everything he says is open to discussion — including firm-sounding product or design calls. If you genuinely think an approach is wrong, incomplete, fragile, or worse than an alternative, **say so with the concern and a better path** before (or instead of) executing. Rubber-stamping is a failure mode; thoughtful pushback is expected. Hard rules and skills constrain *how* we ship once a direction is chosen; they do not mean “never challenge the human.” (Objective fixes still ship without asking — see the autonomy split in `close-the-loop`.)
+The human is **not** the source of truth and not a dictator to obey. Everything they say is open to discussion — including firm-sounding product or design calls. If you think an approach is wrong, incomplete, fragile, or worse than an alternative, **say so with the concern and a better path** before (or instead of) executing. Rubber-stamping is a failure mode; thoughtful pushback is expected. Hard rules and skills constrain *how* we ship once a direction is chosen; they do not mean "never challenge the human." Objective fixes still ship without asking (autonomy split in `close-the-loop`).
 
 ## Hard rules
 
-1. **One architecture — but think freely.** Default to the existing pattern (state, data fetching, IPC shape, component/test style): check the `architecture` skill and match what's there, so the codebase stays uniform. But if you think a genuinely better approach exists, **propose it with the tradeoff before building** — don't silently fork the architecture, and don't be timid about suggesting one. The failure state is *two patterns nobody chose*; a considered switch (recorded in the home skill) is not. Outside-the-box thinking is wanted — it just gets surfaced, not smuggled in.
-2. **Match the local idiom.** When you write code, make it read like the code around it — naming, test shape, file layout, commit format. This is small-scale consistency (so the result looks like one author), not a constraint on *what* you build.
-3. **Verification gate before any commit:** `pnpm verify` (= `pnpm lint && pnpm test && pnpm build`; typecheck runs inside `build`). **Hook-enforced** — the `PreToolUse` git-guard (`.claude/settings.json`) blocks any commit until the gate passes, so a failing gate is a loop to fix, not a suggestion to skip.
-4. **Docs say what the code can't.** A skill carries decisions, the *why*, the deliberately-absent, and the traps — **not** a paraphrase of how a file works today. For current mechanics, read the file (it never goes stale); the skill points you to the entry file and tells you what a fresh read won't. So: when you change a decision or hit a new trap, update its home skill in the same commit; when you find a skill describing mechanics the code already shows, *cut it*; and prefer enforcing a rule in Biome over writing it in prose (a lint rule can't rot or be ignored). No decision log, no redundant guides.
-5. **shadcn primitives only — and load the `shadcn` skill first.** Always use shadcn components for UI primitives; never hand-roll one (sidebar, tabs, dialogs, trees, etc.). **Before any UI work, load the `shadcn` skill** and check whether shadcn/registries already provide something that fits — search there before building. If a needed primitive doesn't exist in shadcn/registries, **get the user's approval before building it**.
-6. **Let type-safety drive the design.** When types fight you, change the design — don't escape it. `any` is already a Biome error (the gate enforces it), so this rule is the half lint can't: reach for the safer shape (e.g. tRPC over a hand-rolled bridge) instead of an `as unknown as` cast (banned repo-wide).
-7. **No `void` on promises.** Never write `void somePromise()` to silence floating promises — use `async`/`await` (or `await Promise.all([...])` when batching). Bare calls like `utils.foo.invalidate()` in sync handlers are fine when you truly don't need to wait.
-8. **Commit straight to `main` — never create branches.** Solo developer; `main` is the only branch and committing directly to it (after the verification gate, hard rule 3) is safe and expected. Do NOT open `feat/*`/`fix/*` branches or PRs for changes, and do NOT branch just because you're on the default branch — keep everything on `main`. (This deliberately overrides the generic "branch off the default branch first" default.) The git-guard hook **hard-blocks** branch creation, so this is enforced, not just convention.
-9. **Close the loop — every session.** Intent → paths → execute → test → verify **with evidence** → docs sync → gate → commit; the `close-the-loop` skill owns the phases, the testing doctrine (unit tests for the daemon, browser-first for the UI), and the autonomy split (fix objective findings without asking; escalate judgment calls). Never end at "implemented, should work" — ship verified, or report blocked with exactly what's missing.
-10. **Connected app — one home per concern, previews hand off.** Each concern has a **canonical home** for deep work (Changes = diffs/stage/commit, Review = the Review canvas, Files = tree, Board = plan, Terminal/Actions = run). Other surfaces may **preview** related state when useful (e.g. the Review inbox surfacing another worktree's changed files) and must **hand off** to that home via shared helpers (`lib/surface-handoffs.ts`) — never a second Diff panel, second commit UX, or walls that hide cross-surface info "to protect identity." Identity is *where deep work lives* + quality of that home, not exclusive visibility. Full principle in the `product` skill; do not silo when integrating competitor UX ideas.
+1. **One architecture — but think freely.** Default to the existing pattern (state, data fetching, IPC shape, component/test style): check the `architecture` skill and match what's there. If you think a genuinely better approach exists, **propose the tradeoff before building** — don't silently fork the architecture. The failure state is *two patterns nobody chose*.
+2. **Match the local idiom.** Naming, test shape, file layout, commit format: read like the code around it.
+3. **Verification gate before any commit:** `pnpm verify` (= `pnpm lint && pnpm test && pnpm build`; typecheck runs inside `build`). **Hook-enforced** — the `PreToolUse` git-guard (`.claude/settings.json`) blocks any commit until the gate passes.
+4. **Docs say what the code can't.** A skill carries decisions, the *why*, the deliberately-absent, and the traps — **not** a paraphrase of how a file works today. Read the file for mechanics. When you change a decision or hit a new trap, update its home skill in the same commit; when a skill only restates code, *cut it*. Prefer Biome over prose when a lint can enforce the rule.
+5. **UI primitives: shadcn only.** Never hand-roll sidebar, tabs, dialogs, trees, etc. **Before any UI work**, load the `shadcn` skill and search shadcn/registries first. A needed primitive that doesn't exist needs the human's approval before building. (Backend/daemon work does not load this skill.)
+6. **Let type-safety drive the design.** When types fight you, change the design — don't escape it. `any` is a Biome error; avoid `as unknown as` (banned). Prefer safer shapes (e.g. tRPC over a hand-rolled bridge).
+7. **No `void` on promises.** Use `async`/`await` (or `await Promise.all([...])`). Bare fire-and-forget like `utils.foo.invalidate()` in a sync handler is fine when you truly don't need to wait.
+8. **Agents commit on `main`; no feature branches in this clone.** The git-guard **hard-blocks** branch creation. Agent sessions commit straight to `main` after the verify gate. External contributors work on a **fork** and open a PR; maintainers merge to `main`. Do not open long-lived `feat/*` / `fix/*` branches in this repository.
+9. **Close the loop — every session.** Intent → paths → execute → test → verify **with evidence** → docs sync → gate → commit. The `close-the-loop` skill owns the phases, testing doctrine, and autonomy split. Never end at "implemented, should work."
+10. **Connected app — one home per concern, previews hand off.** Canonical homes: Changes (diffs/stage/commit), Review (Review canvas), Files (tree), Board (plan), Terminal/Actions (run). Other surfaces may **preview** related state and must **hand off** via `lib/surface-handoffs.ts` — never a second Diff panel or second commit UX. Full principle in the `product` skill.
 
-**Prod vs dev daemons (hard split on this Linux host):**
+## Prod vs dev daemons
 
-| | Production (human’s work) | Development (building Porcelain) |
+Never mix production and development data when building Porcelain. Short form:
+
+| | Production (real work) | Development (this product) |
 |--|--|--|
-| Port | **43117** (systemd, always on) | **43118** (`pnpm dev:daemon`) |
-| Data | `~/.local/share/porcelain` · `~/.porcelain` | `~/.local/share/porcelain-dev` · `~/.porcelain-dev` |
-| Agents | **Never** for product work | **Always** for product work |
-| Repo under test | Real monorepos | `~/code/porcelain-playground` only |
+| Port | **43117** | **43118** (`pnpm dev:daemon`) |
+| Data / channels | `~/.local/share/porcelain` · `~/.porcelain` | `~/.local/share/porcelain-dev` · `~/.porcelain-dev` |
+| Agents on product work | **Never** | **Always** |
+| Repos | Real worktrees | Playground (e.g. `~/code/porcelain-playground`) only |
 
 ```bash
-pnpm build && pnpm dev:daemon    # local-tree daemon on 43118
-pnpm porcelain -- <noun> <verb>  # CLI → ~/.porcelain-dev (not prod ~/.porcelain)
+pnpm build && pnpm dev:daemon    # dev daemon on 43118
+pnpm porcelain -- <noun> <verb>  # CLI → ~/.porcelain-dev
 # browser: http://127.0.0.1:43118/  token: ~/.porcelain-dev/daemon-token
 ```
 
-Day-to-day proof = **browser** against the **dev** daemon (Playwright MCP or `pnpm test:e2e`). Do **not** drive the installed **Porcelain** app or the production daemon. Optional native Electron e2e is manual/pre-ship only.
+Day-to-day proof = **browser** against the **dev** daemon (`pnpm test:e2e` or a live tab). Do not drive the installed app or the production daemon for product work. Full loop and testing doctrine: `close-the-loop`.
 
-**Agent scratch + test debris:** `scripts/agent-scratch/` is **gitignored** for throwaway automation. **Clean up after yourself before you stop:** delete session-local debris (notably **`.playwright-mcp/`**, `test-results/`, `playwright-report/`, `e2e/.artifacts/`, or `scripts/agent-scratch/` when no longer needed). Leave a **clean worktree** after every task (commit each discrete ask after `pnpm verify`).
+**Scratch + debris:** `scripts/agent-scratch/` is gitignored. Before you stop, delete session-local debris (`.playwright-mcp/`, `test-results/`, `playwright-report/`, `e2e/.artifacts/`, throwaway scratch). Leave a clean worktree (commit each discrete ask after `pnpm verify`).
 
-## Skills (in `.agents/skills/`, symlinked at `.claude/skills/`)
+## Skills (load on demand)
 
-Only each skill's one-line description loads up front; the body loads on demand when you read it. Read the relevant skill *before* acting in its area.
+Only each skill's one-line description is ambient; **read the body before acting in its area.** Do not preload UI/marketing/release skills for unrelated work.
 
-- `close-the-loop` — the development loop every session must complete, the testing doctrine (unit tests for the daemon, browser-first for the UI), and the autonomy split. **Read at the start of any session that will change code.**
-- `architecture` — stack, repo facts, aliases, conventions, app shell, client architecture, and the app's shared nomenclature. **Read before writing or reviewing any code.**
-- `product` — what Porcelain is, who it's for, core features, product principles. **Read before designing features/UI or prioritizing.**
-- `audit` — the security/correctness/performance/type invariants the codebase must not regress, with file pointers. **Read before changing the main process, IPC, config persistence, git plumbing, file reads, external-URL handling, or packaging — and when reviewing a diff for regressions.**
-- `marketing` — the marketing process the agent owns end-to-end (README, `marketing/` site, autonomous screenshot pipeline, release visibility). **Read before touching README.md, `marketing/`, or producing screenshots/launch copy.**
-- `releasing` — the runbook for cutting a signed + notarized release (bump/tag, the Actions pipeline, secrets, changelog). **Read when publishing a version or touching the release/signing setup.**
-- `shadcn` — vendored UI-primitive skill (also in `.agents/skills/`).
+| Skill | When |
+|-------|------|
+| `close-the-loop` | Any session that will change code (start here) |
+| `architecture` | Writing or reviewing code; nomenclature lookup |
+| `product` | Designing features/UI or prioritizing |
+| `audit` | Main process, IPC, config, git plumbing, file reads, external URLs, packaging; regression review |
+| `marketing` | README, `marketing/`, screenshots, launch copy |
+| `releasing` | Cutting a release or changing signing/notarization |
+| `shadcn` | Any UI primitive work |
 
-Also available, but **not** vendored in this repo (globally installed, listed here only so you know they exist): `improve` (read-only senior-advisor audit harness) and `frontend-design`.
+**Distribution split.** User-facing companion skill: `/skills/porcelain-companion/` via skills.sh (`npx skills add FabioFiorita/porcelain`). Internal skills under `.agents/skills/` must set `metadata.internal: true` so they do not leak into `npx skills add`.
 
-**Distribution split (don't leak internal skills).** The *companion* skill the app ships to users lives at repo root `/skills/porcelain-companion/` (one skill + `references/` for each surface) and is published via skills.sh (`npx skills add FabioFiorita/porcelain`; later `npx skills upgrade`). Everything in `.agents/skills/` is *internal* (repo guidance + vendored `shadcn`) and must carry `metadata.internal: true` in its frontmatter — the skills.sh CLI scans `.agents/skills` **and** `.claude/skills`, so without that flag an internal skill leaks into users' `npx skills add`. Any new `.agents/skills/` skill needs the flag.
-
-**No personal setup in shipped content.** Anything users see — the `/skills/` companion skill, app copy, published docs — must never use Fabio's personal environment as an example or placeholder (his "beelink" home server, personal hostnames, `soaphealth` repo paths, etc.). Use generic placeholders instead (`you@remote-host`, `/home/you/code/my-app`). Internal `.agents/skills/` guidance may reference the real dev setup.
+**No personal setup in shipped content.** Companion skill, app copy, and public docs use generic placeholders (`you@remote-host`, `/home/you/code/my-app`) — never a maintainer's hostname or private repo paths.
 
 ## Agentic enforcement
 
-The advisory layer above (CLAUDE.md + skills) is backed by a deterministic layer in `.claude/` so the project can run unattended:
-- **`.claude/settings.json`** — a `PreToolUse` git-guard hook (`.claude/hooks/git-guard.sh`) that hard-blocks branch creation (rule 8) and runs the `pnpm verify` gate before any commit (rule 3), plus a dev-loop permission allowlist (lint/typecheck/test/build + local git). `git push` is deliberately left to prompt (the one outward-facing action).
-- **`invariant-reviewer` agent** (`.claude/agents/`) — read-only; reviews a diff against the `audit` invariants and the one architecture. Delegate to it before committing non-trivial changes ("use the invariant-reviewer on this diff").
+- **`.claude/settings.json`** — `PreToolUse` git-guard blocks branch creation (rule 8) and runs `pnpm verify` before commit (rule 3). `git push` stays prompted.
+- **`invariant-reviewer` agent** (`.claude/agents/`) — read-only review against `audit` invariants and the one architecture. Use before committing non-trivial changes.
 
 ## Orchestrator + sub-agents
 
-The main loop is the **orchestrator**: it plans, scopes, verifies, and decides. Work is delegated to sub-agents (Agent tool / Workflow) whenever it's parallelizable, mechanical, or exploratory.
+The main loop is the **orchestrator**: it plans, scopes, verifies, and decides. Delegate work that is parallelizable, mechanical, or exploratory to sub-agents (Agent tool / Workflow). Keep orchestrator context for judgment; don't burn it on bulk edits.
 
-### Picking models
+### Picking models (when the host supports choice)
 
-Rankings, higher = better. Intelligence is how hard a problem you can hand the model unsupervised. Taste covers UI/UX, code quality, API design, and copy.
+Rankings, higher = better. Intelligence = how hard a problem you can hand off unsupervised. Taste = UI/UX, code quality, API design, copy.
 
-| model           | cost | intelligence | taste |
-|-----------------|------|--------------|-------|
-| sonnet-5        | 5    | 5            | 7     |
-| grok-4.5        | 5    | 7            | 7     |
-| opus-5          | 4    | 7            | 8     |
-| opus-5 xhigh    | 3    | 8            | 8     |
-| fable-5         | 2    | 9            | 9     |
+| model        | cost | intelligence | taste |
+|--------------|------|--------------|-------|
+| sonnet-5     | 5    | 5            | 7     |
+| grok-4.5     | 5    | 7            | 7     |
+| opus-5       | 4    | 7            | 8     |
+| opus-5 xhigh | 3    | 8            | 8     |
+| fable-5      | 2    | 9            | 9     |
 
-How to apply:
-
-- Defaults, not limits. Standing permission to escalate: if a cheaper model's output doesn't meet the bar, rerun with a smarter model without asking. Judge the output, not the price tag.
-- Cost is a tie-breaker only; for anything that ships, intelligence > taste > cost.
-- Bulk/mechanical work (clear-spec implementation, mechanical edits, spec fixes, migrations, exploration/search): orchestrator's judgment call per task, biased toward **opus at `effort: 'low'`** (or medium) when in doubt. Sonnet-high is fine for small, clear-cut jobs it won't struggle with — and it can delegate to its own subagents, which adds reliability. But sonnet's failure mode is going in circles when it can't get something right, burning more time and tokens than opus-low would have upfront — so if you foresee any struggle (ambiguity, tricky types, fiddly tests), send opus low/medium instead. Never sonnet at low effort.
-- Anything user-facing (UI, copy, API design) needs taste ≥ 7: **opus** or **fable**.
-- Reviews of plans/implementations, adversarial verification, hard debugging: **fable**, or **opus at `effort: 'xhigh'`**.
-- Never use Haiku.
-- Pass the model via the Agent/Workflow `model` parameter; omit it only when the session model is the right choice anyway.
+- Defaults, not limits: escalate if output is weak. Intelligence > taste > cost for anything that ships.
+- Mechanical / clear-spec work: bias **opus low/medium** when struggle is likely; small clear jobs can use a cheaper model. Never Haiku.
+- User-facing UI/copy/API: taste ≥ 7 (**opus** or **fable**).
+- Hard review / adversarial verify / deep debug: **fable**, or **opus xhigh**.
+- Pass `model` on Agent/Workflow when choosing; omit when the session model is already right.
 
 ### Delegation rules
 
-- Orchestrator scopes and verifies; sub-agents execute. Don't burn orchestrator context on mechanical edits — hand them to a sub-agent (sonnet-high if clearly within its reach, opus low/medium if it might struggle) with a self-contained prompt (files, exact change, verification command).
-- **This is unconditional in fable sessions (any effort level) and xhigh sessions: never type mechanical edits yourself.** Small task size is not an excuse — the value is the fable-written prompt: I don't trust a cheaper model to get an edit 100% right from my prompt, but I trust your prompt to make it do it right. Only exception: a single one-line edit in one file.
-- Independent sub-agents launch in parallel (one message, multiple Agent calls).
-- Delegated prompts must be self-contained: the sub-agent doesn't see this conversation. Include file paths, the applicable hard rules above (one architecture, shadcn primitives only, no `any` / no `as unknown as`, no `void` on promises), and how to verify.
-- Spot-check every sub-agent result (read the diff, run the targeted test) before reporting done. Never relay "it works" unverified; verify review findings adversarially — no plausible-but-unchecked findings.
-- For multi-step fan-out (audits, migrations, reviews across many files), prefer a Workflow over ad-hoc Agent calls when I've asked for orchestration.
-
-### Hardware constraint
-
-Dev usually runs on the Beelink Linux host (Ryzen 7 255, 8c/16t, **32GB RAM**) — 4-6 concurrent sub-agents running local commands (builds/tests) are fine there. If the session is on the MacBook Pro (M1 Pro, **16GB**), keep it to 2-3 — heavy parallel work swaps and everything crawls. Read-only/search sub-agents can fan out freely on either. If a command seems stuck or the machine is thrashing, suspect memory pressure before suspecting the code.
+- Orchestrator scopes and verifies; sub-agents execute. Hand mechanical edits to a sub-agent with a **self-contained** prompt (files, exact change, verification command).
+- **In fable sessions (any effort) and xhigh sessions: never type mechanical edits yourself** (exception: a single one-line edit in one file). The value is the high-quality prompt; the cheaper model executes it.
+- Launch independent sub-agents in parallel (one message, multiple Agent calls).
+- Sub-agents do not see this conversation: include paths, the hard rules that apply (one architecture, shadcn if UI, no `any` / no `as unknown as`, no `void` on promises), and how to verify.
+- Spot-check every result (read the diff, run the targeted test) before reporting done. Never relay "it works" unverified; verify review findings adversarially.
+- Multi-step fan-out (audits, migrations, many-file reviews): prefer a Workflow when orchestration was requested.
+- Cap parallel local build/test agents by machine memory: if the host thrashes or commands hang, reduce concurrency and suspect memory before the code.
 
 ## Nomenclature
 
-The shared vocabulary — shell regions (top bar, sidebar, viewer, Quick Access), the seven sidebar tabs (**Files ⌘1 · Changes ⌘2 · Review ⌘3 · History ⌘4 · Search ⌘5 · Board ⌘6 · Terminal ⌘7**) and their lists, viewer tab kinds, overlays, and the cross-cutting terms (flow layers, the Review, loop evidence, agent channels, the daemon) — lives in the `architecture` skill's **Nomenclature** section: a lookup table mapping each term to its entry file. When the user says a bare noun ("improve the viewer", "the Changes tab is wrong"), resolve it there and act on the named region — don't re-ask which one.
-
-## Cursor Cloud specific instructions
-
-Porcelain is a macOS app, but it runs headlessly in the Linux Cloud VM for dev + manual testing. Commands (`pnpm dev/lint/typecheck/test/build/verify`) are in `package.json`; this section only records the non-obvious cloud caveats.
-
-- **Electron 42 has no `postinstall`** — `pnpm install` does NOT download the Electron binary, so `pnpm dev`/`pnpm start` fail with `Error: Electron uninstall` on a fresh checkout. Fix: `node node_modules/electron/install.js` (idempotent, cached). The startup update script already runs this; only re-run it by hand if dev errors with `Electron uninstall`.
-- **Run the dev app under Xvfb:** `DISPLAY=:1 pnpm dev`. The repeated `Failed to connect to the bus` (dbus) errors in the log are harmless on this headless VM. Drive/screenshot the window via computer-use as the **"Electron"** app.
-- **Dev stack:** `pnpm dev:daemon` (port 43118, `porcelain-dev` data) + playground at `~/code/porcelain-playground` (`dev-config.ts` seeds it when present). Create the playground as a git repo if missing.
-- **macOS packaging** (`pnpm package:mac` / release workflow) is not expected on the Linux host. Per-commit gate: `pnpm verify`. Day-to-day e2e: `pnpm test:e2e` (browser). Native Electron e2e is optional/manual.
+Shared app vocabulary — shell regions (top bar, sidebar, viewer, Quick Access), the seven sidebar tabs (**Files · Changes · Review · History · Search · Board · Terminal**, ⌘1–7), viewer tab kinds, overlays, and cross-cutting terms (flow layers, the Review, loop evidence, agent channels, the daemon) — lives in the **`architecture` skill → Nomenclature** section (term → entry file). When the human uses a bare noun ("improve the viewer", "the Changes tab is wrong"), resolve it there and act on that region. Do not re-ask which one, and do not paste the full map into session context unless you need it.
