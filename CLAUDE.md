@@ -67,37 +67,7 @@ Only each skill's one-line description is ambient; **read the body before acting
 - **`.claude/settings.json`** — `PreToolUse` git-guard blocks branch creation (rule 8) and runs `pnpm verify` before commit (rule 3). `git push` stays prompted.
 - **`invariant-reviewer` agent** (`.claude/agents/`) — read-only review against `audit` invariants and the one architecture. Use before committing non-trivial changes.
 
-## Orchestrator + sub-agents
-
-The main loop is the **orchestrator**: it plans, scopes, verifies, and decides. Delegate work that is parallelizable, mechanical, or exploratory to sub-agents (Agent tool / Workflow). Keep orchestrator context for judgment; don't burn it on bulk edits.
-
-### Picking models (when the host supports choice)
-
-Rankings, higher = better. Intelligence = how hard a problem you can hand off unsupervised. Taste = UI/UX, code quality, API design, copy.
-
-| model        | cost | intelligence | taste |
-|--------------|------|--------------|-------|
-| sonnet-5     | 5    | 5            | 7     |
-| grok-4.5     | 5    | 7            | 7     |
-| opus-5       | 4    | 7            | 8     |
-| opus-5 xhigh | 3    | 8            | 8     |
-| fable-5      | 2    | 9            | 9     |
-
-- Defaults, not limits: escalate if output is weak. Intelligence > taste > cost for anything that ships.
-- Mechanical / clear-spec work: bias **opus low/medium** when struggle is likely; small clear jobs can use a cheaper model. Never Haiku.
-- User-facing UI/copy/API: taste ≥ 7 (**opus** or **fable**).
-- Hard review / adversarial verify / deep debug: **fable**, or **opus xhigh**.
-- Pass `model` on Agent/Workflow when choosing; omit when the session model is already right.
-
-### Delegation rules
-
-- Orchestrator scopes and verifies; sub-agents execute. Hand mechanical edits to a sub-agent with a **self-contained** prompt (files, exact change, verification command).
-- **In fable sessions (any effort) and xhigh sessions: never type mechanical edits yourself** (exception: a single one-line edit in one file). The value is the high-quality prompt; the cheaper model executes it.
-- Launch independent sub-agents in parallel (one message, multiple Agent calls).
-- Sub-agents do not see this conversation: include paths, the hard rules that apply (one architecture, shadcn if UI, no `any` / no `as unknown as`, no `void` on promises), and how to verify.
-- Spot-check every result (read the diff, run the targeted test) before reporting done. Never relay "it works" unverified; verify review findings adversarially.
-- Multi-step fan-out (audits, migrations, many-file reviews): prefer a Workflow when orchestration was requested.
-- Cap parallel local build/test agents by machine memory: if the host thrashes or commands hang, reduce concurrency and suspect memory before the code.
+Claude-only multi-model orchestration (model table, delegation) lives in **`CLAUDE.local.md`** (gitignored; not part of AGENTS.md). Other hosts ignore it.
 
 ## Nomenclature
 
