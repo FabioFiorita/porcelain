@@ -143,6 +143,14 @@ ones you're keeping over `marketing/images/`. Traps the code won't tell you:
 - **Strict-mode locators:** "N changed files" appears on both Changes summary and
   Glance — use `getByTestId('changes-summary')`. "Pinned" also matches
   "Pinned & notes" — use `{ exact: true }` on the group label.
+- **Host chip leaks the real machine name.** The env switcher shows
+  `daemonIdentity().host` (`os.hostname()`). Shots set `PORCELAIN_DAEMON_HOST=dev-box`
+  so published images never show a personal hostname (beelink, …). Keep that env
+  when re-running; review every full-window shot's top-right chip before copying
+  to `marketing/images/`.
+- **Terminal prompt leaks user@host:cwd.** The terminal shot runs
+  `export PS1='$ '` + `clear` before `git log -p` for the same reason. Re-check
+  the bottom of `terminal.png` for a real username, hostname, or `/tmp/porcelain-shots-*`.
 
 ## Site mechanics & traps
 

@@ -36,4 +36,15 @@ describe('daemonIdentity', () => {
       arch: 'x64',
     })
   })
+
+  it('honours PORCELAIN_DAEMON_HOST when no host arg is passed', () => {
+    const prev = process.env.PORCELAIN_DAEMON_HOST
+    process.env.PORCELAIN_DAEMON_HOST = 'dev-box.local'
+    try {
+      expect(daemonIdentity().host).toBe('dev-box')
+    } finally {
+      if (prev === undefined) delete process.env.PORCELAIN_DAEMON_HOST
+      else process.env.PORCELAIN_DAEMON_HOST = prev
+    }
+  })
 })

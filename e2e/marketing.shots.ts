@@ -204,6 +204,8 @@ test('marketing shots — the seeded demo repo across every surface', async () =
     // e2e mode installs the terminal-buffer read hook, so we can wait for output
     // before shooting.
     PORCELAIN_E2E: '1',
+    // Generic host for the env chip — never ship a personal hostname in marketing.
+    PORCELAIN_DAEMON_HOST: 'dev-box',
   }
 
   const browser = await chromium.launch()
@@ -262,6 +264,13 @@ test('marketing shots — the seeded demo repo across every surface', async () =
     await input.waitFor()
     await input.focus()
     await expectTerminalText(page, 0, '$')
+    // Generic prompt: bash's default is user@hostname:cwd$, which would leak the
+    // maintainer's account and host (and a /tmp shots path) into the published PNG.
+    await page.keyboard.type("export PS1='$ '")
+    await page.keyboard.press('Enter')
+    await expectTerminalText(page, 0, '$')
+    await page.keyboard.type('clear')
+    await page.keyboard.press('Enter')
     // TRAP: the xterm WebGL renderer paints to a canvas that headless Chromium leaves
     // BLANK in a screenshot for normal scrollback output — the buffer holds the text
     // (expectTerminalText still passes) but nothing is captured. A full-screen pager

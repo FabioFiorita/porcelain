@@ -44,9 +44,15 @@ export function shortHostname(raw: string): string {
   return trimmed.split('.')[0]
 }
 
-/** This daemon's identity. Args are injectable for tests. */
+/**
+ * This daemon's identity. Args are injectable for tests.
+ *
+ * `PORCELAIN_DAEMON_HOST` overrides `os.hostname()` when set (marketing shots /
+ * hermetic e2e) so published screenshots never leak a personal machine name.
+ * Blank/whitespace falls through to the real hostname.
+ */
 export function daemonIdentity(
-  host = hostname(),
+  host = process.env.PORCELAIN_DAEMON_HOST?.trim() || hostname(),
   platform = process.platform,
   arch = process.arch,
 ): DaemonIdentity {
