@@ -147,6 +147,7 @@ import {
 } from './tailnet-listener'
 import { listTerminals, renameTerminal, type TerminalInfo } from './terminal-manager'
 import { rotateAuthToken } from './token-control'
+import { displayDaemonTokenPath } from './token-file'
 import { clearWorkingTreeSnapshot, workingTreeSnapshot } from './working-tree'
 import { worktreeInbox } from './worktree-inbox'
 
@@ -462,9 +463,13 @@ export const router = t.router({
     ...daemonIdentity(),
   })),
 
-  // How many clients currently hold a live /session on this daemon. Settings → Share
-  // shows the count only. One shared token; Revoke all rotates it.
-  shareStatus: t.procedure.query((): { clients: number } => ({ clients: sessionCount() })),
+  // How many clients currently hold a live /session on this daemon, plus where
+  // the shared token file lives on THIS host (respects PORCELAIN_HOME / overrides).
+  // Settings → Share shows both. One shared token; Revoke all rotates it.
+  shareStatus: t.procedure.query((): { clients: number; tokenPath: string } => ({
+    clients: sessionCount(),
+    tokenPath: displayDaemonTokenPath(),
+  })),
 
   // Rotate the shared secret, close every live socket, return the new token so the
   // caller (the window that pressed Revoke all) can keep talking.

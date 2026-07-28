@@ -3,7 +3,7 @@ import { mkdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { ensureDaemonToken, rotateDaemonToken } from './token-file'
+import { displayDaemonTokenPath, ensureDaemonToken, rotateDaemonToken } from './token-file'
 
 const dir = join(tmpdir(), 'porcelain-token-file-test')
 const file = join(dir, 'daemon-token')
@@ -53,5 +53,24 @@ describe('rotateDaemonToken', () => {
     expect(next).not.toBe(first)
     expect(await ensureDaemonToken(file)).toBe(next)
     expect(statSync(file).mode & 0o777).toBe(0o600)
+  })
+})
+
+describe('displayDaemonTokenPath', () => {
+  it('tilde-shortens paths under the current home', () => {
+    const home = process.env.HOME ?? process.env.USERPROFILE
+    if (home == null || home === '') return
+    expect(displayDaemonTokenPath(`${home}/.porcelain/daemon-token`)).toBe(
+      '~/.porcelain/daemon-token',
+    )
+    expect(displayDaemonTokenPath(`${home}/.porcelain-dev/daemon-token`)).toBe(
+      '~/.porcelain-dev/daemon-token',
+    )
+  })
+
+  it('leaves absolute paths outside home unchanged (e2e overrides)', () => {
+    expect(displayDaemonTokenPath('/tmp/porcelain-e2e/daemon-token')).toBe(
+      '/tmp/porcelain-e2e/daemon-token',
+    )
   })
 })

@@ -8,7 +8,7 @@ import { shellTrpc, trpc } from '@renderer/lib/trpc'
  * single Revoke all action that rotates the shared token for everyone.
  */
 
-export function useShareStatus(): { clients: number } | undefined {
+export function useShareStatus(): { clients: number; tokenPath: string } | undefined {
   const { data } = trpc.shareStatus.useQuery(undefined, {
     // Count changes without this client doing anything (a phone connects, a tab
     // closes), so a trust surface that only refreshed on mount would quietly lie.

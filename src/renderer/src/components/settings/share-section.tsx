@@ -109,6 +109,9 @@ function ShareToggleRow({
  */
 function TokenBlock(): React.JSX.Element {
   const token = useDaemonToken()
+  // Path comes from the daemon (PORCELAIN_HOME / PORCELAIN_DAEMON_TOKEN_FILE) —
+  // never hardcode ~/.porcelain; the dev stack uses ~/.porcelain-dev.
+  const tokenPath = useShareStatus()?.tokenPath
   return (
     <div className="flex flex-col gap-3">
       <div>
@@ -124,9 +127,11 @@ function TokenBlock(): React.JSX.Element {
         </p>
         <CopyButton value={token} label="Copy token" />
       </div>
-      <p className="text-xs text-muted-foreground">
-        Also stored at <span className="font-mono">~/.porcelain/daemon-token</span>.
-      </p>
+      {tokenPath != null && tokenPath !== '' && (
+        <p className="text-xs text-muted-foreground">
+          Also stored at <span className="font-mono">{tokenPath}</span>.
+        </p>
+      )}
     </div>
   )
 }

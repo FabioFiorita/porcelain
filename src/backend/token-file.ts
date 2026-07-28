@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto'
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
+import { homedir } from 'node:os'
 import { dirname } from 'node:path'
 import { porcelainHomePath } from '../shared/porcelain-home'
 
@@ -23,9 +24,24 @@ import { porcelainHomePath } from '../shared/porcelain-home'
 /**
  * Where the shared secret lives. Overridable via PORCELAIN_DAEMON_TOKEN_FILE so e2e
  * (and any sandbox) never touch the human's real `~/.porcelain/daemon-token`.
+ * Respects `PORCELAIN_HOME` (dev stack → `~/.porcelain-dev/daemon-token`).
  */
 export const daemonTokenPath = (): string =>
   process.env.PORCELAIN_DAEMON_TOKEN_FILE ?? porcelainHomePath('daemon-token')
+
+/**
+ * Token path for Settings → Share: tilde-shorten when under this host's home so
+ * prod shows `~/.porcelain/daemon-token` and the dev stack shows
+ * `~/.porcelain-dev/daemon-token` (not a hardcoded prod path). Absolute when
+ * outside home (e2e `PORCELAIN_DAEMON_TOKEN_FILE` override).
+ */
+export function displayDaemonTokenPath(path = daemonTokenPath()): string {
+  const home = homedir()
+  if (home !== '' && (path === home || path.startsWith(`${home}/`))) {
+    return `~${path.slice(home.length)}`
+  }
+  return path
+}
 
 /**
  * Return the shared daemon token, creating it on first run. Reads the file if it
