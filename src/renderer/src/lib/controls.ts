@@ -11,10 +11,10 @@ export const compactButtonClass = 'h-7 text-xs'
 // (cn(compactInputClass, 'font-mono')).
 export const compactInputClass = 'h-8 text-xs md:text-xs'
 
-// Dense technical multi-row editors (regex layer lists, etc.): same height as
-// compact buttons / icon-sm (h-7) and one step smaller type so mono patterns stay
-// scannable in long stacks. Prefer over compactInputClass when the field is one
-// of many stacked technical rows. Same md: override as compactInputClass.
+// Dense technical multi-row editors: same height as compact buttons / icon-sm
+// (h-7) and one step smaller type. Prefer compactInputClass in Settings so type
+// matches General/Share/Remotes; reach for dense only when a long stack truly
+// needs the tighter mono scale. Same md: override as compactInputClass.
 export const denseInputClass = 'h-7 text-xs-minus md:text-xs-minus'
 
 // Row actions further mute their label until hover — secondary to the row's name.

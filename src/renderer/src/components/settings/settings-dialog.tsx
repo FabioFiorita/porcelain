@@ -69,14 +69,14 @@ const ALL_SECTIONS: {
     label: 'Share',
     icon: Share2,
     title: 'Share',
-    blurb: 'Let other devices reach this daemon. One token for every client.',
+    blurb: 'Let other devices reach this daemon. One URL and one token is enough.',
   },
   {
     id: 'remotes',
     label: 'Remotes',
     icon: Cloud,
     title: 'Remotes',
-    blurb: 'Machines this app can open windows against.',
+    blurb: 'Each window can use a different daemon. Add one with its share URL and token.',
     shellOnly: true,
   },
   {

@@ -35,6 +35,10 @@ function describeStatus(status: EnvironmentStatus | undefined): string {
   return status.version !== null ? `${machine} · daemon ${status.version}` : machine
 }
 
+/** Primary action slot — Badge ("This window") and Button ("Use here") share a
+ *  fixed min width so "New window" lines up on every row. */
+const primaryActionSlotClass = 'flex min-w-[5.75rem] justify-end'
+
 /**
  * Machines this app can open windows against. Electron-only. Add with URL + token
  * from the other machine's Settings → Share (LAN or Tailscale address).
@@ -60,13 +64,7 @@ export function RemotesSection(): React.JSX.Element {
 
   return (
     <div className="flex flex-col gap-3">
-      <div>
-        <h3 className="text-sm font-semibold tracking-tight">Remotes</h3>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          Each window can use a different daemon. Add one with its share URL and token.
-        </p>
-      </div>
-
+      {/* Title lives on the dialog header — don't restate "Remotes" here. */}
       <ul className="divide-y divide-border/60 overflow-hidden rounded-md border border-border/60">
         <li
           className="flex items-center justify-between gap-3 p-3"
@@ -77,24 +75,26 @@ export function RemotesSection(): React.JSX.Element {
             <p className="text-xs text-muted-foreground">{describeStatus(localStatus)}</p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            {activeId == null ? (
-              <Badge
-                variant="outline"
-                className="rounded-md border-border/60 text-2xs text-muted-foreground"
-              >
-                This window
-              </Badge>
-            ) : (
-              <Button
-                variant="outline"
-                size="sm"
-                className={rowActionClass}
-                disabled={isDisconnecting}
-                onClick={() => disconnect()}
-              >
-                {isDisconnecting ? 'Switching…' : 'Use here'}
-              </Button>
-            )}
+            <div className={primaryActionSlotClass}>
+              {activeId == null ? (
+                <Badge
+                  variant="outline"
+                  className="rounded-md border-border/60 text-2xs text-muted-foreground"
+                >
+                  This window
+                </Badge>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={rowActionClass}
+                  disabled={isDisconnecting}
+                  onClick={() => disconnect()}
+                >
+                  {isDisconnecting ? 'Switching…' : 'Use here'}
+                </Button>
+              )}
+            </div>
             <Button
               variant="outline"
               size="sm"
@@ -103,6 +103,9 @@ export function RemotesSection(): React.JSX.Element {
             >
               New window
             </Button>
+            {/* Reserve the same slot as the remove control on remote rows so
+                "New window" lines up across every environment. */}
+            <span className="size-7 shrink-0" aria-hidden />
           </div>
         </li>
         {environments.map((env) => {
@@ -128,24 +131,26 @@ export function RemotesSection(): React.JSX.Element {
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                {isActive ? (
-                  <Badge
-                    variant="outline"
-                    className="rounded-md border-border/60 text-2xs text-muted-foreground"
-                  >
-                    This window
-                  </Badge>
-                ) : (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className={rowActionClass}
-                    disabled={connectingId === env.id}
-                    onClick={() => connect(env.id)}
-                  >
-                    {connectingId === env.id ? 'Switching…' : 'Use here'}
-                  </Button>
-                )}
+                <div className={primaryActionSlotClass}>
+                  {isActive ? (
+                    <Badge
+                      variant="outline"
+                      className="rounded-md border-border/60 text-2xs text-muted-foreground"
+                    >
+                      This window
+                    </Badge>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={rowActionClass}
+                      disabled={connectingId === env.id}
+                      onClick={() => connect(env.id)}
+                    >
+                      {connectingId === env.id ? 'Switching…' : 'Use here'}
+                    </Button>
+                  )}
+                </div>
                 <Button
                   variant="outline"
                   size="sm"

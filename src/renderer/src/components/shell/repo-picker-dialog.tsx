@@ -27,7 +27,7 @@ function browseErrorMessage(error: { message: string }, remoteName: string | nul
   // have succeeded, so point the human at the remote settings escape hatch.
   if (/failed to fetch|networkerror|load failed|econnrefused|enotfound/i.test(raw)) {
     if (remoteName != null) {
-      return `Can't reach ${remoteName}. Check that the daemon is running and Share on local network / Tailscale is on, or disconnect in Settings.`
+      return `Can't reach ${remoteName}. Check that the daemon is running and Local network / Tailscale sharing is on, or disconnect in Settings.`
     }
     return "Can't reach the Porcelain daemon. Try again in a moment."
   }

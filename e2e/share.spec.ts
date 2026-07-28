@@ -23,7 +23,7 @@ test('revokes all by rotating the shared token', async ({ page, appMode }) => {
     { timeout: 10_000 },
   )
   await loc.shareRevokeAll(page).click()
-  await expect(page.getByText(/rotates the daemon token/i)).toBeVisible()
+  await expect(page.getByText(/issues a new token/i)).toBeVisible()
   await page.getByRole('button', { name: 'Revoke all', exact: true }).last().click()
   await rotated
 

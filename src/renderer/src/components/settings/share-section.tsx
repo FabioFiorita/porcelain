@@ -51,7 +51,7 @@ function ShareToggleRow({
   checked,
   disabled,
   onCheckedChange,
-  envForcedLabel,
+  envForcedHint,
   url,
   numericUrl,
   emptyHint,
@@ -61,7 +61,8 @@ function ShareToggleRow({
   checked: boolean
   disabled: boolean
   onCheckedChange: (checked: boolean) => void
-  envForcedLabel?: string
+  /** Shown when the bind is locked on at daemon startup (env / unit file). */
+  envForcedHint?: string
   url: string | null | undefined
   numericUrl?: string | null
   emptyHint: string
@@ -85,7 +86,7 @@ function ShareToggleRow({
           className="shrink-0"
         />
       </div>
-      {envForcedLabel != null && <p className="text-xs text-muted-foreground">{envForcedLabel}</p>}
+      {envForcedHint != null && <p className="text-xs text-muted-foreground">{envForcedHint}</p>}
       {connectUrl != null && (
         <div className="flex min-w-0 items-center gap-2">
           <p className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">
@@ -113,8 +114,8 @@ function TokenBlock(): React.JSX.Element {
       <div>
         <h3 className="text-sm font-semibold tracking-tight">Token</h3>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          One secret for every client. Open a share URL in a browser and paste this, or add a remote
-          with URL + token.
+          One secret for every client. Paste it when a browser asks, or when adding a remote with
+          URL + token.
         </p>
       </div>
       <div className="flex items-center justify-between gap-3 rounded-md border border-border/60 p-3">
@@ -124,7 +125,7 @@ function TokenBlock(): React.JSX.Element {
         <CopyButton value={token} label="Copy token" />
       </div>
       <p className="text-xs text-muted-foreground">
-        Also at <span className="font-mono">~/.porcelain/daemon-token</span>.
+        Also stored at <span className="font-mono">~/.porcelain/daemon-token</span>.
       </p>
     </div>
   )
@@ -147,7 +148,7 @@ function ClientsAndRevoke(): React.JSX.Element {
       <div>
         <h3 className="text-sm font-semibold tracking-tight">Access</h3>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Revoke all rotates the token — every connection stops until clients get the new one.
+          Revoke all issues a new token. Connected clients stop until they paste the new one.
         </p>
       </div>
       <div className="flex items-center justify-between gap-3 rounded-md border border-border/60 p-3">
@@ -168,8 +169,8 @@ function ClientsAndRevoke(): React.JSX.Element {
           <AlertDialogHeader>
             <AlertDialogTitle>Revoke all access?</AlertDialogTitle>
             <AlertDialogDescription>
-              This rotates the daemon token. Every connected client loses access immediately. This
-              window keeps the new token; other devices need the new token to reconnect.
+              This issues a new token. Every connected client loses access immediately. This window
+              keeps the new token; other devices need the new token to reconnect.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -204,41 +205,48 @@ export function ShareSection(): React.JSX.Element {
     <div className="flex flex-col gap-8">
       <section className="flex flex-col gap-3">
         <div>
-          <h3 className="text-sm font-semibold tracking-tight">Share this device</h3>
+          {/* Dialog title is already "Share" — this is the network list, not a second title. */}
+          <h3 className="text-sm font-semibold tracking-tight">Networks</h3>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Turn on a network, copy its URL and the token. That is all another device needs.
+            Turn one on, copy its URL and the token. That’s all another device needs.
           </p>
         </div>
         <div className="divide-y divide-border/60 overflow-hidden rounded-md border border-border/60">
           <ShareToggleRow
-            label="Share on local network"
-            description="Same Wi‑Fi / LAN — token-gated, traffic is unencrypted on the wire."
+            label="Local network"
+            description="Same Wi‑Fi or LAN. Token-gated; traffic is not encrypted on the wire."
             checked={lan?.enabled ?? false}
             disabled={lan?.envForced ?? false}
             onCheckedChange={(checked) => setLanEnabled(checked)}
-            envForcedLabel={lan?.envForced === true ? 'Enabled via PORCELAIN_LAN_BIND' : undefined}
+            envForcedHint={
+              lan?.envForced === true
+                ? 'Locked on at daemon startup — turn off by unsetting PORCELAIN_LAN_BIND.'
+                : undefined
+            }
             url={lan?.url}
             numericUrl={lan?.numericUrl}
             emptyHint={
               lan?.error === 'in-use'
                 ? `Port ${lan.port} is in use — another daemon may still be running.`
-                : 'No local network interface found'
+                : 'No local network interface found.'
             }
           />
           <ShareToggleRow
-            label="Share over Tailscale"
-            description="Other devices on your tailnet — WireGuard-encrypted."
+            label="Tailscale"
+            description="Other devices on your tailnet. WireGuard-encrypted."
             checked={tailnet?.enabled ?? false}
             disabled={tailnet?.envForced ?? false}
             onCheckedChange={(checked) => setTailnetEnabled(checked)}
-            envForcedLabel={
-              tailnet?.envForced === true ? 'Enabled via PORCELAIN_TAILNET_BIND (env)' : undefined
+            envForcedHint={
+              tailnet?.envForced === true
+                ? 'Locked on at daemon startup — turn off by unsetting PORCELAIN_TAILNET_BIND.'
+                : undefined
             }
             url={tailnet?.url}
             emptyHint={
               tailnet?.error === 'in-use'
                 ? `Port ${tailnet.port} is in use — another daemon may still be running.`
-                : 'No Tailscale interface found'
+                : 'No Tailscale interface found.'
             }
           />
         </div>
