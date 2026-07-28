@@ -65,6 +65,8 @@ gh workflow run release.yml -f tag=v0.42.4
 
 Do **not** invent a new patch for infra flake if the tag already exists and only packaging/publish failed. For product bugs: fix on main, then a **new** patch cut.
 
+**One cut, watch it green, then stop.** Rapid successive patches correlate with npm tarball lag — don’t stack releases to “fix” packaging.
+
 **Never rewrite pushed tags.**
 
 ## Local scripts
@@ -100,11 +102,9 @@ Identity in `electron-builder.yml`. Secrets on the repo for **package-mac** only
 
 Published after the GitHub Release via **npm Trusted Publishing (OIDC)** — no long-lived `NPM_TOKEN`. Trusted publisher: owner **FabioFiorita**, repo `porcelain`, workflow **`release.yml`**.
 
-**Post-publish gate (hard-won, 2026-07-27):** after `npm publish`, CI must `curl` the tarball URL until HTTP 200 and smoke `npx porcelain-daemon@VER --help`. A metadata-only publish once left `latest` on a **404 tarball**, which crash-looped every host on `npx porcelain-daemon@latest`. "Version already exists" alone is **not** enough to skip — the tarball must be downloadable.
+**Post-publish gate (hard-won, 2026-07-27):** after `npm publish`, CI curls the tarball until HTTP 200 (~10 min) and smokes `npx porcelain-daemon@VER --help`. A metadata-only / laggy publish once left `latest` on a **404 tarball**, which crash-looped every host on `npx porcelain-daemon@latest`. "Version already exists" alone is **not** enough to skip — the tarball must be downloadable.
 
-**Rollback on bad publish:** if the tarball never becomes 200, CI **unpublishes** that version (OIDC) so `latest` is not left poisoned. Same path recovers a version that already exists with a 404 blob (unpublish → re-publish). If unpublish fails, the job fails loudly — fix on npmjs.com or cut a new patch.
-
-**Do not cut many patches in a short window** without watching each npm job finish green. Prefer one verified cut. Rapid successive publishes correlate with missing tarball blobs.
+**No CI unpublish.** OIDC publish often returns success while the CDN stays 404 for minutes; auto-rollback caused false reds and unreliable state. If the probe times out: job fails and tells you to **re-run the same tag** later. If a version stays 404 for hours and poisons `latest`, unpublish **by hand** on npmjs.com (or pin the prod unit to a known-good version).
 
 **CLI install layout** (`ensureCli`): installs `~/.porcelain/cli/porcelain.js` + `~/.porcelain/chunks/*` + wrapper (not a flat `porcelain.js` — the bundle `require`s `../chunks/…`).
 
