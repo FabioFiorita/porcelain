@@ -28,13 +28,7 @@ Coding agents generate faster than anyone can trust. Every tool in this space ra
 - **Fast file viewer**: virtualized rendering, Shiki highlighting, always-editable text (autosave), Markdown reader/source, image support, two-pane split
 - **Focus navigation**: hide folders, pin paths, lazy per-directory loading. Built for large repos and monorepos alike
 - **Search & finders**: repo-wide code search, fuzzy file finder, find-in-file, find references
-- **Share over LAN or Tailscale**: run the daemon on the machine with your code, open from the Mac app or any browser:
-
-  ```bash
-  npx porcelain-daemon@latest serve --tailnet --print-token
-  ```
-
-  Start it when you work, Ctrl+C when you're done. No always-on service required.
+- **Share over LAN or Tailscale**: run the daemon on the machine with your code, open from the Mac app or any browser. Start when you work, stop when you're done. No always-on service required (command under Install)
 - **Light, dark, and system themes**, themed end to end
 - **Multi-window**: one repo per window, each window free to pick its own environment (local or remote)
 - **Auto-updating** builds (signed and notarized on macOS)
@@ -59,7 +53,7 @@ Teach your agents the Porcelain workflow with the single **porcelain-companion**
 npx skills add FabioFiorita/porcelain -g
 ```
 
-`-g` installs it globally so every project sees it. Agents publish and read review state through a small local command that installs with the app (`~/.porcelain/porcelain`), kept current on every launch. New surfaces ship as references inside that one skill. Update with:
+Agents publish and read review state through a small local command that installs with the app (`~/.porcelain/porcelain`), kept current on every launch. New surfaces ship as references inside that one skill. Update with:
 
 ```bash
 npx skills upgrade -g
