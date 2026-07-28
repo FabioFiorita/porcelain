@@ -232,10 +232,10 @@ img {
 
 /* ── Sections ───────────────────────────────────────────────────────────── */
 .section {
-  padding: 96px 0 40px;
+  padding-block: 96px 40px;
 }
 .section-tight {
-  padding: 48px 0 32px;
+  padding-block: 48px 32px;
 }
 /* All major section intros: centered, same width rhythm as the hero. */
 .sec-head {
@@ -599,7 +599,7 @@ img {
 
 /* ── Hero ───────────────────────────────────────────────────────────────── */
 .hero {
-  padding: 56px 0 0;
+  padding-block: 56px 0;
   text-align: center;
 }
 .hero .lead {
@@ -688,10 +688,10 @@ img {
     padding: 10px 14px;
   }
   .wrap {
-    padding: 0 18px;
+    padding-inline: 24px;
   }
   .section {
-    padding: 64px 0 28px;
+    padding-block: 64px 28px;
   }
   .hero {
     padding-top: 36px;
@@ -726,6 +726,6 @@ img {
 
 @media (max-width: 380px) {
   .wrap {
-    padding: 0 14px;
+    padding-inline: 20px;
   }
 }
