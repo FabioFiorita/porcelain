@@ -13,6 +13,11 @@ import { useReviewedPaths, useToggleReviewed } from '@renderer/hooks/use-reviewe
 import { compactButtonClass } from '@renderer/lib/controls'
 import { highlightRangesForFile } from '@renderer/lib/highlight-ranges'
 import { dirName, fileName } from '@renderer/lib/paths'
+import {
+  lifecycleBadgeLabel,
+  reviewLifecyclePhase,
+  reviewOutlineFiles,
+} from '@renderer/lib/review-lifecycle'
 import { openChanges } from '@renderer/lib/surface-handoffs'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
@@ -241,14 +246,17 @@ function FeatureOutline(): React.JSX.Element {
     return <p className="p-3 text-sm text-muted-foreground">Loading…</p>
   }
 
-  // No agent review set → no Review at all. The viewer's empty state carries the
-  // copy-a-prompt affordance; the outline stays a one-liner.
+  // No agent review set → start-of-unit. The viewer empty state carries the begin
+  // prompt; the outline points agents (and humans) at Intent-first publish.
   if (reading === null) {
     return (
-      <p className="px-3 py-2 text-sm text-muted-foreground">
-        No review yet. The outline fills in when your agent publishes the Review via the porcelain
-        CLI.
-      </p>
+      <div className="mx-2 mt-0.5 rounded-lg border border-dashed bg-muted/20 p-2.5">
+        <p className="text-xs font-medium text-foreground">Start a Review</p>
+        <p className="mt-1 text-2xs text-muted-foreground">
+          Open the canvas for the begin-unit agent prompt (name + thesis). Clear any previous unit
+          first. Outline fills when Intent is published.
+        </p>
+      </div>
     )
   }
 
@@ -265,11 +273,11 @@ function FeatureOutline(): React.JSX.Element {
     if (target) requestJump(target)
   }
 
-  const allFiles = uniqueFiles([
-    ...reading.sections.flatMap((section) => section.files),
-    ...reading.groups.flatMap((group) => group.files),
-  ])
+  const allFiles = reviewOutlineFiles(reading)
   const reviewedCount = allFiles.filter((file) => reviewed.has(file.path)).length
+  const reviewedFraction = allFiles.length === 0 ? 0 : reviewedCount / allFiles.length
+  const phase = reviewLifecyclePhase({ reading, reviewedFraction })
+  const phaseBadge = lifecycleBadgeLabel(phase)
   // Ship handoff (U12): once half the outline is reviewed, offer Commit → Changes
   // (canonical commit home). Full progress gets the stronger primary CTA.
   const shipReady = allFiles.length > 0 && reviewedCount * 2 >= allFiles.length
@@ -295,11 +303,12 @@ function FeatureOutline(): React.JSX.Element {
         <div className="min-w-0">
           <p className="truncate text-xs font-semibold text-foreground">{reading.name}</p>
           <p className="mt-0.5 text-2xs text-muted-foreground">
+            {phaseBadge ? `${phaseBadge} · ` : ''}
             {allFiles.length > 0
               ? `${reviewedCount}/${allFiles.length} reviewed`
               : reading.canvas
                 ? 'Freeform Intent'
-                : 'Review'}
+                : 'Intent published — previous unit still up'}
           </p>
         </div>
         <Button

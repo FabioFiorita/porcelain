@@ -2,6 +2,8 @@
 
 Evidence is **ephemeral HTML proof** that you closed the loop: browser, simulator, screenshots, pass/fail. Complements Intent (idea) and Execution (code). The human clears it after review.
 
+**End of session:** do not claim a unit done without real Evidence of what you ran. Don't invent proof. Required alongside complete Execution.
+
 **HTML only.** Excalidraw is **not** an evidence medium (use Intent freeform for boards).
 
 ## Preferred flow — prepare, then write files
@@ -56,4 +58,4 @@ Fully **sandboxed** iframe (`sandbox=""` — scripts never run; no remote assets
 ~/.porcelain/porcelain evidence clear   # prefer letting the human clear after review
 ```
 
-Porcelain shows Evidence on the Feature canvas **Evidence** tab; sidebar shortcut uses the title.
+Porcelain shows Evidence on the Review canvas **Evidence** tab.

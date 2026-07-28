@@ -56,6 +56,13 @@ describe('surface-handoffs', () => {
     expect(pane?.tabs.some((t) => t.kind === 'feature' && t.path === '/repo')).toBe(true)
   })
 
+  it('openFeatureReview with suggestedName stores a Board→Review prefill', async () => {
+    const { useReviewStartStore } = await import('@renderer/stores/review-start')
+    useReviewStartStore.setState({ suggestedName: null })
+    openFeatureReview({ suggestedName: 'Fix null deref' })
+    expect(useReviewStartStore.getState().suggestedName).toBe('Fix null deref')
+  })
+
   it('openReviewSidebar only switches the sidebar (no canvas tab)', () => {
     openReviewSidebar()
     expect(usePreferencesStore.getState().sidebarTab).toBe('feature')

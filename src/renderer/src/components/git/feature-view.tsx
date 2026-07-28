@@ -17,13 +17,24 @@ import {
 import { highlightRangesForFile } from '@renderer/lib/highlight-ranges'
 import { isTerminalTarget, isTextEntry } from '@renderer/lib/keyboard'
 import { dirName, fileName } from '@renderer/lib/paths'
+import {
+  lifecycleBadgeLabel,
+  lifecycleDetail,
+  reviewContinuePrompt,
+  reviewEndPrompt,
+  reviewLifecyclePhase,
+  reviewOutlineFiles,
+  reviewStartPrompt,
+} from '@renderer/lib/review-lifecycle'
+import { openChanges } from '@renderer/lib/surface-handoffs'
 import { cn, copyText } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { jumpTargets, nextTarget, useReviewFocusStore } from '@renderer/stores/review-focus'
+import { useReviewStartStore } from '@renderer/stores/review-start'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { useZenStore } from '@renderer/stores/zen'
 import { TestIds } from '@shared/test-ids'
-import { Check, Copy, Sparkles } from 'lucide-react'
+import { Check, Copy, GitCompareArrows, Sparkles } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { SourceMarker } from './feature-list'
 import { ReadingSurfaceBody } from './reading-surface'
@@ -33,11 +44,6 @@ const SOURCE_LABEL: Record<FileSource, string> = {
   context: 'context',
   shipped: 'shipped',
 }
-
-// The one-sentence prompt the empty state hands to the clipboard — enough for any
-// agent with the companion skill installed to publish the Review.
-const AGENT_PROMPT =
-  'Publish a review of this feature to Porcelain using the porcelain-companion skill (porcelain review set --sections ...).'
 
 /** Unique-file counts per source, across sections and groups (a file anchored twice counts once). */
 function sourceCounts(reading: FeatureReading): Record<FileSource, number> {
@@ -109,32 +115,113 @@ function useReviewKeys(
   }, [requestJump, toggleZen])
 }
 
-// The "No review yet" empty state: no baseline, no fallback — the Review exists
-// only when an agent publishes one. The copy button hands the exact ask to the
-// clipboard (copyText — never navigator.clipboard, absent on the tailnet client).
+// Empty canvas: start-of-unit home. No baseline — the Review exists only when an
+// agent publishes one. Clipboard uses copyText (never navigator.clipboard).
 function EmptyState(): React.JSX.Element {
   const [copied, setCopied] = useState(false)
+  // Board → Review may prefill a name once; keep it local so the prompt stays stable.
+  const [suggestedName] = useState(() => useReviewStartStore.getState().consumeSuggestedName())
 
-  const copyPrompt = async (): Promise<void> => {
-    await copyText(AGENT_PROMPT)
+  const copyStartPrompt = async (): Promise<void> => {
+    await copyText(reviewStartPrompt({ name: suggestedName ?? undefined }))
     setCopied(true)
   }
 
   return (
-    <div className="flex h-full items-center justify-center p-8">
+    <div data-testid={TestIds.featureEmpty} className="flex h-full items-center justify-center p-8">
       <div className="max-w-md">
         <p className="mb-2 flex items-center gap-2 text-sm font-medium text-foreground">
           <Sparkles className="size-4 text-info" />
-          No review yet
+          Start this unit of work
         </p>
-        <p className="mb-4 text-sm text-muted-foreground">
-          The Review renders here — Intent (the idea), Execution (the files), and Evidence (proof) —
-          once your agent publishes one via the porcelain CLI.
+        <p className="mb-3 text-sm text-muted-foreground">
+          The Review is where a unit begins and ends — bug, feature, chore, or investigation. Ask
+          your agent to publish Intent first (name + thesis); Execution and Evidence grow as work
+          finishes. Clear any previous unit before starting a new one.
         </p>
-        <Button variant="outline" size="sm" onClick={copyPrompt}>
+        {suggestedName && (
+          <p className="mb-3 rounded-md border border-border/60 bg-muted/40 px-2.5 py-1.5 text-xs text-foreground">
+            Suggested name: <span className="font-medium">{suggestedName}</span>
+          </p>
+        )}
+        <Button variant="outline" size="sm" onClick={() => void copyStartPrompt()}>
           {copied ? <Check className="text-success" /> : <Copy />}
-          {copied ? 'Copied' : 'Copy agent prompt'}
+          {copied ? 'Copied' : 'Copy begin-unit prompt'}
         </Button>
+      </div>
+    </div>
+  )
+}
+
+function LifecycleBanner({
+  reading,
+  reviewedFraction,
+}: {
+  reading: FeatureReading
+  reviewedFraction: number
+}): React.JSX.Element {
+  const [copied, setCopied] = useState(false)
+  const phase = reviewLifecyclePhase({ reading, reviewedFraction })
+  // Caller only mounts this when a reading exists; treat empty as in_progress.
+  const effectivePhase = phase === 'empty' ? 'in_progress' : phase
+  const badge = lifecycleBadgeLabel(effectivePhase)
+  const detail = lifecycleDetail(reading, effectivePhase)
+
+  const copyAgentPrompt = async (): Promise<void> => {
+    const text =
+      effectivePhase === 'ready_to_close'
+        ? reviewEndPrompt(reading.name)
+        : reviewContinuePrompt(reading.name)
+    await copyText(text)
+    setCopied(true)
+  }
+
+  return (
+    <div
+      data-testid={TestIds.featureLifecycle}
+      data-phase={effectivePhase}
+      className={cn(
+        'flex flex-wrap items-center gap-2 border-b px-3 py-1.5 text-2xs',
+        effectivePhase === 'ready_to_close'
+          ? 'border-success/30 bg-success/5 text-foreground'
+          : 'border-border/60 bg-muted/30 text-muted-foreground',
+      )}
+    >
+      {badge && (
+        <span
+          className={cn(
+            'shrink-0 rounded-md px-1.5 py-0.5 text-3xs font-semibold uppercase tracking-[0.06em]',
+            effectivePhase === 'ready_to_close'
+              ? 'bg-success/15 text-success'
+              : 'bg-muted text-muted-foreground',
+          )}
+        >
+          {badge}
+        </span>
+      )}
+      <span className="min-w-0 flex-1 leading-snug">{detail}</span>
+      <div className="flex shrink-0 items-center gap-1.5">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 gap-1 px-1.5 text-2xs"
+          onClick={() => void copyAgentPrompt()}
+        >
+          {copied ? <Check className="size-3 text-success" /> : <Copy className="size-3" />}
+          {effectivePhase === 'ready_to_close' ? 'Copy end prompt' : 'Copy continue prompt'}
+        </Button>
+        {effectivePhase === 'ready_to_close' && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-6 gap-1 px-1.5 text-2xs"
+            data-testid={TestIds.featureCommitChanges}
+            onClick={() => openChanges()}
+          >
+            <GitCompareArrows className="size-3" />
+            Changes
+          </Button>
+        )}
       </div>
     </div>
   )
@@ -148,6 +235,7 @@ function EmptyState(): React.JSX.Element {
  */
 export function FeatureView(): React.JSX.Element {
   const { reading } = useFeatureReading()
+  const reviewed = useReviewedPaths()
   const canvasTab = useReviewFocusStore((s) => s.canvasTab)
   const setCanvasTab = useReviewFocusStore((s) => s.setCanvasTab)
   const jump = useReviewFocusStore((s) => s.jump)
@@ -209,11 +297,19 @@ export function FeatureView(): React.JSX.Element {
 
   const counts = sourceCounts(reading)
   const hasEvidence = reading.evidence !== null
+  const outline = reviewOutlineFiles(reading)
+  const reviewedCount = outline.filter((f) => reviewed.has(f.path)).length
+  const reviewedFraction = outline.length === 0 ? 0 : reviewedCount / outline.length
 
   return (
     <div data-testid={TestIds.featureCanvas} className="flex h-full flex-col">
       <div className="flex items-center gap-3 border-b px-3 py-1.5">
-        <h1 className="min-w-0 flex-1 truncate text-xs font-medium">{reading.name}</h1>
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-xs font-medium">{reading.name}</h1>
+          <p className="mt-0.5 truncate text-2xs text-muted-foreground">
+            Previous unit still up — Clear in the Review list or right rail when this story is done.
+          </p>
+        </div>
         <div className="flex shrink-0 items-center gap-3 text-2xs text-muted-foreground">
           {(['changed', 'context', 'shipped'] as const).map((source) => (
             <span key={source} className="flex items-center gap-1.5">
@@ -223,6 +319,7 @@ export function FeatureView(): React.JSX.Element {
           ))}
         </div>
       </div>
+      <LifecycleBanner reading={reading} reviewedFraction={reviewedFraction} />
       <Tabs
         value={canvasTab}
         onValueChange={(value) => {

@@ -18,12 +18,21 @@ import {
   useCardActions,
 } from '@renderer/hooks/use-board'
 import { compactButtonClass } from '@renderer/lib/controls'
+import { openFeatureReview } from '@renderer/lib/surface-handoffs'
 import { cn } from '@renderer/lib/utils'
 import { resolveBoardFocus, useBoardSelectionStore } from '@renderer/stores/board-selection'
 import { draftFromCard, useCardDraftStore } from '@renderer/stores/card-draft'
 import { useRepoStore } from '@renderer/stores/repo'
 import { TestIds } from '@shared/test-ids'
-import { CheckCircle2, ChevronDown, Circle, CircleDot, PenLine, Trash2 } from 'lucide-react'
+import {
+  CheckCircle2,
+  ChevronDown,
+  Circle,
+  CircleDot,
+  PenLine,
+  Sparkles,
+  Trash2,
+} from 'lucide-react'
 
 const COLUMN_ICON: Record<
   CardStatus,
@@ -126,6 +135,18 @@ function CardDetail({
             >
               <PenLine /> Edit
             </Button>
+            {(card.status === 'doing' || card.status === 'todo') && (
+              <Button
+                variant="outline"
+                size="sm"
+                className={compactButtonClass}
+                data-testid={TestIds.boardStartReview}
+                onClick={() => openFeatureReview({ suggestedName: card.title })}
+                aria-label="Start Review from this card"
+              >
+                <Sparkles className="size-3.5" /> Start Review
+              </Button>
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={

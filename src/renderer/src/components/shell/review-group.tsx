@@ -18,8 +18,15 @@ import {
 import { useReviewComments } from '@renderer/hooks/use-comments'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
 import { useClearFeatureReview } from '@renderer/hooks/use-feature-view'
+import { useReviewedPaths } from '@renderer/hooks/use-reviewed'
 import { rowActionClass } from '@renderer/lib/controls'
 import { fileName } from '@renderer/lib/paths'
+import {
+  lifecycleBadgeLabel,
+  lifecycleDetail,
+  reviewLifecyclePhase,
+  reviewOutlineFiles,
+} from '@renderer/lib/review-lifecycle'
 import { cn } from '@renderer/lib/utils'
 import { type ReviewFocusSection, useReviewFocusStore } from '@renderer/stores/review-focus'
 import { TestIds } from '@shared/test-ids'
@@ -50,30 +57,29 @@ function chapterTitle(reading: FeatureReading, active: ReviewFocusSection): stri
 }
 
 /**
- * The Feature tab's live companion to the Review document: the chapter under the
- * reader's eyes (published by the reading surface on scroll), the note invariants
- * of the visible file, its open-comment count, and Clear review (inline — was a
- * lone … menu item on the Feature list). Renders nothing without a review set —
- * the companion follows the document.
+ * The Feature tab's live companion to the Review document: lifecycle status,
+ * Clear review (inline companion home — not a buried … menu), the chapter under
+ * the reader's eyes, notes, and open-comment count.
  */
 export function ReviewGroup(): React.JSX.Element | null {
   const { reading } = useFeatureReading()
   const activeSection = useReviewFocusStore((s) => s.activeSection)
   const visiblePath = useReviewFocusStore((s) => s.visiblePath)
   const comments = useReviewComments()
+  const reviewed = useReviewedPaths()
   const { clear, isClearing } = useClearFeatureReview()
   const [confirmClearOpen, setConfirmClearOpen] = useState(false)
   const [clearError, setClearError] = useState<string | null>(null)
 
-  // Empty Review: companion matches the viewer empty state (U8), not a void.
+  // Empty Review: companion matches the viewer start-of-unit empty state.
   if (reading === null) {
     return (
       <SidebarGroup className="px-3">
         <SidebarGroupLabel className={LABEL_CLASS}>Review</SidebarGroupLabel>
         <SidebarGroupContent className="px-1">
           <div className="rounded-xl border border-dashed bg-muted/20 p-2.5 text-2xs text-muted-foreground">
-            No Review published yet. Ask your agent to run the porcelain-companion skill, or copy
-            the prompt from the center canvas empty state.
+            Start a unit: open the canvas and copy the begin-unit prompt (name + thesis). Agents use
+            porcelain-companion — Intent first; clear any previous unit before a new one.
           </div>
         </SidebarGroupContent>
       </SidebarGroup>
@@ -81,6 +87,13 @@ export function ReviewGroup(): React.JSX.Element | null {
   }
 
   if (!reading) return null
+
+  const outline = reviewOutlineFiles(reading)
+  const reviewedCount = outline.filter((f) => reviewed.has(f.path)).length
+  const reviewedFraction = outline.length === 0 ? 0 : reviewedCount / outline.length
+  const phase = reviewLifecyclePhase({ reading, reviewedFraction })
+  const badge = lifecycleBadgeLabel(phase)
+  const detail = lifecycleDetail(reading, phase)
 
   const section =
     typeof activeSection === 'number' && activeSection < reading.sections.length
@@ -118,6 +131,23 @@ export function ReviewGroup(): React.JSX.Element | null {
     <SidebarGroup className="px-3">
       <SidebarGroupLabel className={LABEL_CLASS}>Now reading</SidebarGroupLabel>
       <SidebarGroupContent className="flex flex-col gap-1.5 px-1">
+        <div
+          className={cn(
+            'rounded-xl border p-2',
+            phase === 'ready_to_close' ? 'border-success/30 bg-success/5' : 'bg-card',
+          )}
+        >
+          <div className="min-w-0">
+            <span className="block truncate text-xs font-medium">{reading.name}</span>
+            {badge && (
+              <span className="mt-0.5 block text-3xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                {badge}
+                {outline.length === 0 ? ' · previous unit still up' : ''}
+              </span>
+            )}
+          </div>
+          <p className="mt-1 text-2xs leading-snug text-muted-foreground">{detail}</p>
+        </div>
         <div className="rounded-xl border bg-card p-2">
           <span className="block truncate text-xs font-medium">
             {chapterTitle(reading, activeSection)}

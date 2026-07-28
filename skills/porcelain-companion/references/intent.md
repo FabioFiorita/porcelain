@@ -1,6 +1,8 @@
 # Intent — "What is this, and what's the idea?"
 
-Intent is the **narrative** of the feature: purpose, plan, rationale. It is not the file inventory (that's Execution) and not the proof (that's Evidence).
+Intent is the **narrative** of the unit of work (feature, bug, chore, investigation): purpose, plan, rationale. It is not the file inventory (that's Execution) and not the proof (that's Evidence).
+
+**Start of session:** publish Intent first (`review set` with name + thesis). Execution may still be thin; grow it during the session.
 
 ## What Porcelain shows
 
@@ -10,7 +12,7 @@ Intent is the **narrative** of the feature: purpose, plan, rationale. It is not 
 ## CLI
 
 ```bash
-~/.porcelain/porcelain review clear   # always before a new feature (drops old Board + evidence too)
+~/.porcelain/porcelain review clear   # always before a new unit (drops old Board + evidence too)
 ~/.porcelain/porcelain review set --name "…" --thesis "…" --sections '[…]' --files '[…]'
 ~/.porcelain/porcelain review set-canvas --medium html --html-file ./intent.html
 ~/.porcelain/porcelain review set-canvas --medium excalidraw --file ./board.excalidraw
@@ -19,7 +21,7 @@ Intent is the **narrative** of the feature: purpose, plan, rationale. It is not 
 
 ### Thesis
 
-`--thesis` — one short markdown paragraph: what this feature is and the single most important thing to understand. Opening line a senior engineer would give before the walkthrough.
+`--thesis` — one short markdown paragraph: what this unit is and the single most important thing to understand (for a bug: symptom + suspected cause). Opening line a senior engineer would give before the walkthrough.
 
 ### Sections (walkthrough prose)
 

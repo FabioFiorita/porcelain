@@ -116,16 +116,16 @@ describe('FeatureList', () => {
     vi.mocked(useFeatureReading).mockReturnValue({ reading, refresh: async () => {} })
   })
 
-  it('shows the empty state when no review set exists', () => {
+  it('shows the start-a-Review empty state when no review set exists', () => {
     vi.mocked(useFeatureReading).mockReturnValue({ reading: null, refresh: async () => {} })
     renderList()
-    expect(screen.getByText(/No review yet/)).toBeInTheDocument()
+    expect(screen.getByText(/Start a Review/)).toBeInTheDocument()
   })
 
   it('renders the outline: name, progress, chapters, files, and the note', () => {
     renderList()
     expect(screen.getByText('Crew call-outs')).toBeInTheDocument()
-    expect(screen.getByText('0/2 reviewed')).toBeInTheDocument()
+    expect(screen.getByText(/0\/2 reviewed/)).toBeInTheDocument()
     expect(screen.getByText('Entry point')).toBeInTheDocument()
     expect(screen.getByText('More files')).toBeInTheDocument()
     expect(screen.getByText('Services')).toBeInTheDocument()
@@ -233,6 +233,6 @@ describe('FeatureList', () => {
     reviewedPaths.current = new Set(['src/components/callout.tsx', 'server/callout-service.ts'])
     renderList()
     expect(screen.getByRole('button', { name: 'Commit changes' })).toBeInTheDocument()
-    expect(screen.getByText('2/2 reviewed')).toBeInTheDocument()
+    expect(screen.getByText(/2\/2 reviewed/)).toBeInTheDocument()
   })
 })

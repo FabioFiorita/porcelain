@@ -2,6 +2,7 @@ import { reviewTabKey } from '@renderer/components/git/review-view'
 import { fileName } from '@renderer/lib/paths'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
+import { useReviewStartStore } from '@renderer/stores/review-start'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 
 /**
@@ -15,6 +16,14 @@ export type OpenChangesOptions = {
   path?: string
   /** Also open the continuous "All changes" reading surface. */
   continuousReview?: boolean
+}
+
+export type OpenFeatureReviewOptions = {
+  /**
+   * Prefill the empty-canvas start prompt (Board Doing → Review handoff).
+   * Does not publish a Review — agents still run `review set`.
+   */
+  suggestedName?: string
 }
 
 /** Sidebar → Changes; optional continuous review and/or a single-file diff tab. */
@@ -41,9 +50,12 @@ export function openReviewSidebar(): void {
 }
 
 /** Sidebar → Feature and open the Review canvas for the current repo. */
-export function openFeatureReview(): void {
+export function openFeatureReview(options: OpenFeatureReviewOptions = {}): void {
   const repoPath = useRepoStore.getState().repo?.path
   if (repoPath === undefined) return
+  if (options.suggestedName !== undefined && options.suggestedName.trim() !== '') {
+    useReviewStartStore.getState().setSuggestedName(options.suggestedName.trim())
+  }
   openReviewSidebar()
   useTabsStore.getState().openTab({
     id: tabId('feature', repoPath),
