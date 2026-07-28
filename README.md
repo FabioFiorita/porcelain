@@ -43,25 +43,31 @@ Coding agents generate faster than anyone can trust. Every tool in this space ra
 
 **macOS (Apple Silicon):** download the latest `.dmg` from [Releases](https://github.com/FabioFiorita/porcelain/releases), drag Porcelain to Applications. Updates install automatically.
 
-**Everything else — Linux, Windows, iPad, phone:** you don't install Porcelain, you open it. Run the daemon on the machine that holds your code (the command above works anywhere Node does) and point a browser at it. Same client the Mac app ships, same review surfaces, no install.
+**Everything else (Linux, Windows, iPad, phone):** you don't install Porcelain, you open it. Run the daemon on the machine that holds your code and point a browser at it:
+
+```bash
+npx porcelain-daemon@latest serve --tailnet --print-token
+```
+
+Works anywhere Node does. Same client the Mac app ships, same review surfaces, no install.
 
 ## Connect your agent
 
 Teach your agents the Porcelain workflow with the single **porcelain-companion** skill (the Review, board, actions, notes, layers, and more), via [skills.sh](https://www.skills.sh):
 
 ```bash
-npx skills add FabioFiorita/porcelain
+npx skills add FabioFiorita/porcelain -g
 ```
 
-Run from any repo and choose global or project-local when prompted. Agents publish and read review state through a small local command that installs with the app (`~/.porcelain/porcelain`), kept current on every launch. New surfaces ship as references inside that one skill — update with `npx skills upgrade`.
+`-g` installs it globally so every project sees it. Agents publish and read review state through a small local command that installs with the app (`~/.porcelain/porcelain`), kept current on every launch. New surfaces ship as references inside that one skill. Update with:
 
-## Positioning
-
-Porcelain sells **trust and review depth**, not agent count and not cockpit breadth. Agents write; Porcelain is where you read, annotate, and sign off. Product site: [fabiofiorita.github.io/porcelain](https://fabiofiorita.github.io/porcelain/).
+```bash
+npx skills upgrade -g
+```
 
 ## Develop
 
-Porcelain is built with Electron (electron-vite), React 19, TypeScript (strict), shadcn/ui on Base UI, Tailwind v4, tRPC, TanStack Query, and zustand. State and git access run through a single, deliberately uniform architecture; see [CLAUDE.md](CLAUDE.md) and the skills in [`.agents/skills/`](.agents/skills/).
+Porcelain is built with Electron (electron-vite), React 19, TypeScript (strict), shadcn/ui on Base UI, Tailwind v4, tRPC, TanStack Query, and zustand. State and git access run through a single, deliberately uniform architecture; see [AGENTS.md](AGENTS.md) and the [agent skills](.agents/skills/).
 
 ```bash
 pnpm install   # install dependencies
@@ -86,6 +92,10 @@ pnpm dev       # run the app in development
 | `pnpm release` | Build and publish to GitHub Releases |
 
 The verification gate before any commit is `pnpm verify` (lint + test + build; typecheck runs inside build).
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
