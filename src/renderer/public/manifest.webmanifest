@@ -1,7 +1,7 @@
 {
   "name": "Porcelain",
   "short_name": "Porcelain",
-  "description": "The hub for agentic coding — run your agents and review what they built.",
+  "description": "Where agent work becomes trusted work. The review layer for agentic coding.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

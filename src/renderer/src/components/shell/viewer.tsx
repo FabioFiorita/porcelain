@@ -68,7 +68,7 @@ function EmptyViewer(): React.JSX.Element {
         />
         <div className="flex flex-col gap-0.5">
           <p className="text-xl font-medium tracking-tight text-foreground">porcelain</p>
-          <p className="text-sm text-muted-foreground">Run agents. Review as a story.</p>
+          <p className="text-sm text-muted-foreground">Where agent work becomes trusted work.</p>
           <p className="mt-2 max-w-xs text-xs text-muted-foreground/80 [@media(hover:hover)]:hidden">
             Open a repository to get started.
           </p>

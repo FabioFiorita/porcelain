@@ -115,7 +115,7 @@ export function Welcome(): React.JSX.Element {
           className="size-20 [filter:drop-shadow(0_14px_30px_rgb(0_0_0/0.5))]"
         />
         <h1 className="mt-4 text-3xl font-medium tracking-tight">porcelain</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Run agents. Review as a story.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Where agent work becomes trusted work.</p>
       </div>
       <EnvironmentBanner />
       <Button data-testid={TestIds.welcomeOpenRepo} onClick={openRepo}>

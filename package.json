@@ -1,7 +1,7 @@
 {
   "name": "porcelain",
   "version": "0.43.7",
-  "description": "Run agents. Review as a story.",
+  "description": "Where agent work becomes trusted work.",
   "main": "./out/main/index.js",
   "author": "Fabio Fiorita <fabiolfp@gmail.com>",
   "license": "MIT",
