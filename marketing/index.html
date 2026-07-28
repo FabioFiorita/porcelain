@@ -9,7 +9,7 @@
 <link rel="icon" href="images/logo.png">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Porcelain: Where agent work becomes trusted work">
-<meta property="og:description" content="A focused companion for agentic coding. Keep the tools you already use; Porcelain is where you review what they built as a story, not a file list.">
+<meta property="og:description" content="A focused companion for agentic coding. Agents publish a Review you can trust; you comment; they resolve. Story, not file list. Mac or any browser.">
 <meta property="og:image" content="https://fabiofiorita.github.io/porcelain/images/feature-view.png">
 <meta property="og:url" content="https://fabiofiorita.github.io/porcelain/">
 <meta name="twitter:card" content="summary_large_image">
@@ -31,6 +31,7 @@
         <span class="brand-name">porcelain</span>
       </a>
       <div class="nav-links">
+        <a href="#why">Why</a>
         <a href="#review">Review</a>
         <a href="#loop">Loop</a>
         <a href="#remote">Remote</a>
@@ -50,16 +51,13 @@
   <section id="top" class="hero wrap">
     <p class="eyebrow">The review layer for agentic coding</p>
     <h1 class="hero-title">Where agent work<br>becomes trusted work.</h1>
-    <p class="lead">Everyone is racing to spawn more agents. Porcelain stands on the other side of the pile: a place to <span class="hl">focus</span> and <span class="hl">review</span>, not another place to run everything. Your agents keep running where they already run. Porcelain is where you read what they built the way a senior engineer reads a feature: as a story, not a file list. On your Mac, or any browser.</p>
+    <p class="lead">Everyone is racing to spawn more agents. Porcelain stands on the other side of the pile: a place to <span class="hl">focus</span> and <span class="hl">review</span>, not another place to run everything. Your agents keep running where they already run. Porcelain is where you review what they built as a story, not a file list. On your Mac, or any browser.</p>
     <div class="hero-ctas">
       <a href="https://github.com/FabioFiorita/porcelain/releases/latest" target="_blank" rel="noopener" class="btn btn-primary btn-lg">
         <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M16.4 1.6c.1 1-.3 2-1 2.8-.7.8-1.7 1.4-2.7 1.3-.1-1 .4-2 1-2.7.7-.8 1.8-1.4 2.7-1.4ZM19 17c-.5 1.2-.8 1.7-1.4 2.7-.9 1.4-2.2 3.1-3.8 3.1-1.4 0-1.8-.9-3.7-.9s-2.3.9-3.7.9c-1.6 0-2.8-1.6-3.7-3C-.1 16.4-.6 11 1.6 8.2 2.6 6.8 4.3 6 5.9 6c1.5 0 2.5 1 3.7 1 1.2 0 1.9-1 3.7-1 1.3 0 2.7.7 3.7 2-3.2 1.8-2.7 6.4 0 9Z"/></svg>
         Download
       </a>
-      <a href="https://github.com/FabioFiorita/porcelain" target="_blank" rel="noopener" class="btn btn-ghost btn-lg">
-        <svg aria-hidden="true" viewBox="0 0 16 16" width="17" height="17" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8a8 8 0 0 0 5.47 7.59c.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.5 7.5 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
-        View source
-      </a>
+      <a href="#review" class="btn btn-ghost btn-lg">See the Review</a>
     </div>
     <!-- Only place the version is hard-coded. Bump on each release. -->
     <p class="meta">macOS (Apple Silicon) · any browser · v0.43.7</p>
@@ -67,65 +65,111 @@
 
   <div class="hero-shot" data-reveal>
     <div class="shot-frame">
-      <img src="images/feature-view.png" alt="The Review in Porcelain: Intent, Execution, and Evidence. An agent-authored walkthrough with thesis, flow-ordered sections, and proof" width="2560" height="1600" loading="eager" />
+      <img src="images/feature-view.png" alt="The Review in Porcelain: Intent, Execution, and Evidence. An agent-authored walkthrough of a unit of work" width="2560" height="1600" loading="eager" />
     </div>
+    <p class="meta" style="text-align:center;margin-top:16px;">The Review: Intent · Execution · Evidence. This is the product.</p>
   </div>
 
-  <!-- THE SHIFT -->
-  <section class="section wrap" id="problem">
+  <!-- WHY / THE SHIFT -->
+  <section class="section wrap" id="why">
     <div data-reveal>
-      <p class="eyebrow">The shift</p>
+      <p class="eyebrow">Why Porcelain exists</p>
       <h2 class="section-title" style="max-width:780px;">Agents write the code now.<br>Reading it is the job.</h2>
-      <p class="lead" style="max-width:640px;margin-bottom:40px;">The tools around agents still assume writing is the hard part. It is not.</p>
+      <p class="lead" style="max-width:640px;margin-bottom:40px;">Coding agents generate faster than anyone can trust. The pile of unreviewed diffs just grows. The tools around agents still assume writing is the hard part. It is not.</p>
     </div>
     <div class="grid-3">
       <div class="card card-pad problem-card" data-reveal>
         <h3>Editors</h3>
-        <p>Cursor, Zed, VS&nbsp;Code are built for authoring: LSP, extensions, refactors. Heavy when you only need to read, annotate, and decide.</p>
+        <p>Built for authoring: LSP, extensions, refactors. Heavy when you only need to read, annotate, and decide.</p>
       </div>
       <div class="card card-pad problem-card" data-reveal>
         <h3>Git GUIs</h3>
-        <p>They show diffs as an alphabetical list of files, with no sense of how a change actually runs through the stack.</p>
+        <p>Diffs as an alphabetical list of files, with no sense of how a change actually runs through your stack.</p>
       </div>
       <div class="card card-pad problem-card" data-reveal>
         <h3>Agent cockpits</h3>
-        <p>The new tools race to spawn more agents in more worktrees. The pile of unreviewed diffs grows. None of them help you trust what came out.</p>
+        <p>Race to spawn more agents in more worktrees. The pile grows. None of them help you trust what came out.</p>
       </div>
     </div>
-    <p class="lead" style="max-width:640px;margin-top:36px;" data-reveal>Porcelain is the fourth path: a review companion. It does not replace your agent host or your editor. It is where those tools hand off work you still have to read.</p>
+    <p class="lead" style="max-width:680px;margin-top:36px;" data-reveal>Porcelain is the fourth path: a <strong>review companion</strong>. Not an editor. Not an agent host. Agents publish into it. You read, comment, and sign off. They resolve. That loop is why it exists.</p>
   </section>
 
-  <!-- THE REVIEW -->
+  <!-- DIFFERENTIATORS STRIP -->
+  <section class="section-tight wrap" id="pillars">
+    <div class="sec-head" data-reveal style="margin-bottom:28px;">
+      <p class="eyebrow">What you download it for</p>
+      <h2 class="section-title-sm" style="max-width:640px;">The moat is review depth and a real agent loop. Everything else supports that.</h2>
+    </div>
+    <div class="grid-3">
+      <div class="card card-pad" data-reveal>
+        <p class="feature-label">The Review</p>
+        <p class="pillar-body">Intent, Execution, Evidence for every unit of work. A document your agent authors, not a dump of every dirty path.</p>
+      </div>
+      <div class="card card-pad" data-reveal>
+        <p class="feature-label">Flow for your repo</p>
+        <p class="pillar-body">Changes grouped by agent-managed layers for <em>this</em> tree. Not a fixed React stack. Entry point toward data.</p>
+      </div>
+      <div class="card card-pad" data-reveal>
+        <p class="feature-label">Two-way loop</p>
+        <p class="pillar-body">Comments become agent context. Resolutions come back. Board, layers, hide/pin: agents connect to the product.</p>
+      </div>
+      <div class="card card-pad" data-reveal>
+        <p class="feature-label">Focus</p>
+        <p class="pillar-body">Hide what you will never touch. Pin what you live in. Large trees stay fast: nothing indexed until you open it.</p>
+      </div>
+      <div class="card card-pad" data-reveal>
+        <p class="feature-label">Anywhere</p>
+        <p class="pillar-body">Share over LAN or Tailscale. Mac app, remote window, or any browser. Terminals and review state stay on the host.</p>
+      </div>
+      <div class="card card-pad" data-reveal>
+        <p class="feature-label">Companion</p>
+        <p class="pillar-body">Keep the tools you already prefer. Run any agent CLI next to the review, or outside the app. Same Review either way.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- THE REVIEW (main sell) -->
   <section class="section wrap-wide wrap" id="review">
     <div class="sec-head" data-reveal>
       <p class="eyebrow">The Review</p>
-      <h2 class="section-title">A feature, end to end,<br>in the order it runs.</h2>
-      <p class="lead">Your agent built the feature, so it publishes <strong>the Review</strong>: Intent (what and why), Execution (what it touched, in flow order), and Evidence (proof it verified its own work). You read a document, not a pile of diffs. That includes the unchanged files across the client→server seam a diff cannot show.</p>
+      <h2 class="section-title">The home for a unit of work.<br>From first Intent to sign-off.</h2>
+      <p class="lead">Your agent does not just hand you a diff. It publishes <strong>the Review</strong>: the one active story for this repo (feature, bug, chore, investigation). You read a document. You mark files reviewed. You clear when the unit is done.</p>
+    </div>
+
+    <div class="grid-3" style="margin-bottom:40px;">
+      <div class="card card-pad" data-reveal>
+        <p class="feature-label">Intent</p>
+        <p class="pillar-body"><em>What is this, and what's the idea?</em> Thesis and walkthrough prose. Optional freeform board when the shape of the idea needs space.</p>
+      </div>
+      <div class="card card-pad" data-reveal>
+        <p class="feature-label">Execution</p>
+        <p class="pillar-body"><em>What did the agent touch, and is the code right?</em> Only the files it listed, in the order the change runs, with notes. Includes unchanged code a plain diff would hide.</p>
+      </div>
+      <div class="card card-pad" data-reveal>
+        <p class="feature-label">Evidence</p>
+        <p class="pillar-body"><em>Did it actually work?</em> Proof the agent verified its own work: HTML, checks, screenshots. Not a claim without a trail.</p>
+      </div>
     </div>
 
     <div class="flow-chain" data-reveal aria-hidden="true">
-      <div class="flow-step edge"><span class="layer">entry</span><span class="name">component</span></div>
+      <div class="flow-step edge"><span class="layer">start</span><span class="name">Intent</span></div>
       <div class="flow-arrow">→</div>
-      <div class="flow-step"><span class="layer">layer</span><span class="name">hook</span></div>
+      <div class="flow-step"><span class="layer">code</span><span class="name">Execution</span></div>
       <div class="flow-arrow">→</div>
-      <div class="flow-step"><span class="layer">layer</span><span class="name">route</span></div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-step"><span class="layer">layer</span><span class="name">service</span></div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-step edge"><span class="layer">data</span><span class="name">schema</span></div>
+      <div class="flow-step edge"><span class="layer">proof</span><span class="name">Evidence</span></div>
     </div>
   </section>
 
-  <!-- FLOW DIFFS -->
-  <section class="section-tight wrap">
+  <!-- FLOW LAYERS -->
+  <section class="section-tight wrap" id="flow">
     <div class="grid-2">
       <div data-reveal>
-        <p class="eyebrow">Grouped, not alphabetical</p>
-        <h2 class="section-title-sm">Changed files, ordered by how the change flows.</h2>
-        <p class="body">Even without a published Review, Porcelain groups the working tree along your architecture (pages, components, hooks, routes, services, data) so related work sits together and you review in passes that make sense.</p>
+        <p class="eyebrow">Agent-shaped flow</p>
+        <h2 class="section-title-sm">Changed files, ordered for how your change runs.</h2>
+        <p class="body">Even without a published Review, the Changes tab groups the working tree along flow layers. Those layers are not a fixed stack (no assumed components → hooks → routes). Your agent learns how <em>this</em> project is laid out and groups entry-point toward data. Alphabetical is never the real story.</p>
         <ul class="ticks">
+          <li>Per-repo layers, agent-managed through the companion skill</li>
           <li>Unified or split diffs, with per-file staging</li>
-          <li>Layers are per-repo, customizable, and agent-managed</li>
           <li>Mark files reviewed as you work through them</li>
         </ul>
       </div>
@@ -137,54 +181,12 @@
     </div>
   </section>
 
-  <!-- COMMIT -->
-  <section class="section-tight wrap">
-    <div class="grid-2">
-      <div data-reveal class="shot-first">
-        <div class="shot-frame shot-frame-sm" style="max-width:360px;margin:0 auto;">
-          <img src="images/feat-commit.png" alt="Commit composer with conventional-commit chips, git commands, and open review comments" loading="lazy" />
-        </div>
-      </div>
-      <div data-reveal>
-        <p class="eyebrow">Finish where you read</p>
-        <h2 class="section-title-sm">Stage, commit, and push without leaving the window.</h2>
-        <p class="body">When the read is done, finish the job in place. Conventional-commit type and scope chips, suggested next steps, status, pull, push, fetch, and stash. Comments stay visible while you ship.</p>
-        <ul class="ticks">
-          <li>Conventional-commit chips learned from your history</li>
-          <li>Suggested commands from the working-tree state</li>
-          <li>Open review comments stay in view as you commit</li>
-        </ul>
-      </div>
-    </div>
-  </section>
-
-  <!-- TERMINAL -->
-  <section class="section-tight wrap">
-    <div class="grid-2">
-      <div data-reveal>
-        <p class="eyebrow">Optional terminal</p>
-        <h2 class="section-title-sm">Keep your agents. Sit them next to the review if you want.</h2>
-        <p class="body">Porcelain does not host agents of its own. Run yours in the terminal you already use, or in the one embedded here. Same Review either way. Sessions on the daemon survive reloads and follow you to any browser.</p>
-        <ul class="ticks">
-          <li>Your subscriptions, your CLIs. No second auth stack</li>
-          <li>PTYs survive reconnects; pick one back up from any device</li>
-          <li>Saved Actions your agent curates and only you run</li>
-        </ul>
-      </div>
-      <div data-reveal>
-        <div class="shot-frame shot-frame-sm">
-          <img src="images/feat-terminal.png" alt="Embedded terminal in Porcelain with saved Actions" loading="lazy" />
-        </div>
-      </div>
-    </div>
-  </section>
-
   <!-- HUMAN ↔ AGENT LOOP -->
   <section class="section wrap" id="loop">
     <div class="sec-head" data-reveal>
       <p class="eyebrow">The human ↔ agent loop</p>
-      <h2 class="section-title">Review with your agent,<br>not just your code.</h2>
-      <p class="lead">Your comments become its context; its work and resolutions flow back to you, on the same feature, in the same order. The loop stays on machines you control. No account. No telemetry.</p>
+      <h2 class="section-title">Agents actually connect.<br>Not just run nearby.</h2>
+      <p class="lead">Most harnesses host an agent and stop there. Porcelain is the product agents write into and read back from: Review, comments, board, layers, hide/pin. On machines you control. No account. No telemetry.</p>
     </div>
 
     <div class="loop-diagram" data-reveal>
@@ -211,7 +213,7 @@
       <div data-reveal>
         <p class="eyebrow">Comments as context</p>
         <h2 class="section-title-sm">Tell the agent exactly what you need.</h2>
-        <p class="body">Select a line range or right-click a file. Leave a note: what should the agent know? Comments travel as review context so it fixes the right thing and marks each one resolved.</p>
+        <p class="body">Select a line range or right-click a file. Leave a note. Comments travel as review context so it fixes the right thing and marks each one resolved.</p>
         <ul class="ticks">
           <li>Line range or whole-file comments</li>
           <li>Notes sync to the agent; resolutions sync back</li>
@@ -223,7 +225,7 @@
       <div data-reveal>
         <p class="eyebrow">A board your agent drives</p>
         <h2 class="section-title-sm">Plan in the same window you ship from.</h2>
-        <p class="body">A per-repo To&nbsp;Do / Doing / Done board. Your agents read it and move cards through the CLI as they work. Queue the next job without spelling every step in conversation.</p>
+        <p class="body">A per-repo To&nbsp;Do / Doing / Done board. Agents read it and move cards as they work. Queue the next job without spelling every step in conversation. Board is the queue; Review is the one active story.</p>
         <ul class="ticks">
           <li>Agents pick up cards and mark them done</li>
           <li>Same board for you and every agent on the repo</li>
@@ -238,47 +240,17 @@
     </div>
   </section>
 
-  <!-- REMOTE -->
-  <section class="section wrap" id="remote">
-    <div class="sec-head" data-reveal>
-      <p class="eyebrow">Remote as a product</p>
-      <h2 class="section-title">One daemon. Three ways in.<br>Anywhere is the same place.</h2>
-      <p class="lead">Run the heavy work on a machine you own: a home server, a Linux box, a cloud VM. Open Porcelain from the Mac app, a second window pointed at that host, or any browser on your LAN or tailnet, including on mobile. Terminals and review state live daemon-side, so they survive reconnects and follow you across devices.</p>
-    </div>
-    <div class="grid-3" style="margin-bottom:28px;">
-      <div class="card card-pad" data-reveal>
-        <p class="feature-label">Local app</p>
-        <p class="pillar-body">Native macOS app on a local daemon. Full chrome, auto-updates, the everyday seat.</p>
-      </div>
-      <div class="card card-pad" data-reveal>
-        <p class="feature-label">Remote environment</p>
-        <p class="pillar-body">Point a window at a saved remote daemon. Per-window binding: local monorepo in one window, remote power in another.</p>
-      </div>
-      <div class="card card-pad" data-reveal>
-        <p class="feature-label">Any browser</p>
-        <p class="pillar-body">The same client the app ships, served by the daemon. Token-gated. Start when you work, Ctrl+C when done.</p>
-      </div>
-    </div>
-    <div class="card card-pad-lg" data-reveal>
-      <div class="code-block">
-        <div class="comment"># On the host (LAN or tailnet, token-gated)</div>
-        <div><span class="prompt">$</span> npx porcelain-daemon@latest serve --tailnet --print-token</div>
-        <div class="hint">No always-on service required. State and PTYs stay on the host.</div>
-      </div>
-    </div>
-  </section>
-
-  <!-- MONOREPO -->
-  <section class="section-tight wrap">
+  <!-- FOCUS -->
+  <section class="section-tight wrap" id="focus">
     <div class="grid-2">
       <div data-reveal>
-        <p class="eyebrow">Built for huge repos</p>
+        <p class="eyebrow">Focus</p>
         <h2 class="section-title-sm">Hide what you will never touch. Pin what you live in.</h2>
-        <p class="body">Right-click a folder to hide it. It dims and stops loading. Pin the paths you care about. Nothing is indexed until you look at it, so even ~50&nbsp;GB monorepos stay instant.</p>
+        <p class="body">Works on large repos and monorepos alike. Right-click to hide a folder: it dims and stops loading. Pin the paths you care about. Your agent can set that up for you. Nothing is indexed until you open it.</p>
         <ul class="ticks">
           <li>Hidden folders dim out and stop loading</li>
           <li>Pin files or folders to the workspace</li>
-          <li>Lazy loads only what you open</li>
+          <li>Agent-managed via the companion skill</li>
         </ul>
       </div>
       <div data-reveal>
@@ -289,20 +261,85 @@
     </div>
   </section>
 
-  <!-- TOOLKIT GALLERY -->
-  <section class="section wrap-wide wrap" id="toolkit">
+  <!-- REMOTE -->
+  <section class="section wrap" id="remote">
+    <div class="sec-head" data-reveal>
+      <p class="eyebrow">Anywhere is the same place</p>
+      <h2 class="section-title">Share over LAN or Tailscale.<br>Same client everywhere.</h2>
+      <p class="lead">Run the daemon on the machine that holds your code: a home server, a Linux box, a cloud VM. Open from the Mac app, a window pointed at that host, or any browser (including on a phone). Terminals and review state live on the host, so reloads and reconnects pick up where you left off.</p>
+    </div>
+    <div class="grid-3" style="margin-bottom:28px;">
+      <div class="card card-pad" data-reveal>
+        <p class="feature-label">Local app</p>
+        <p class="pillar-body">Native macOS app on a local daemon. Full chrome, auto-updates, the everyday seat.</p>
+      </div>
+      <div class="card card-pad" data-reveal>
+        <p class="feature-label">Remote environment</p>
+        <p class="pillar-body">Point a window at a saved remote. Per-window: local monorepo in one window, remote power in another.</p>
+      </div>
+      <div class="card card-pad" data-reveal>
+        <p class="feature-label">Any browser</p>
+        <p class="pillar-body">The same client the app ships, served by the daemon. Start when you work, Ctrl+C when done.</p>
+      </div>
+    </div>
+    <div class="card card-pad-lg" data-reveal>
+      <div class="code-block">
+        <div class="comment"># On the host (LAN or Tailscale)</div>
+        <div><span class="prompt">$</span> npx porcelain-daemon@latest serve --tailnet --print-token</div>
+        <div class="hint">No always-on service required. State and PTYs stay on the host.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TERMINAL (supporting, still a differentiator for remote) -->
+  <section class="section-tight wrap" id="terminal">
+    <div class="grid-2">
+      <div data-reveal>
+        <p class="eyebrow">Terminal next to review</p>
+        <h2 class="section-title-sm">Keep your agents. Sit them next to the Review if you want.</h2>
+        <p class="body">Porcelain does not host agents of its own. Run yours in the terminal you already use, or in the one embedded here. On a remote environment you can open shells on the host and on This device, and each saved Action chooses which side it runs on.</p>
+        <ul class="ticks">
+          <li>Your CLIs, your subscriptions. No second auth stack</li>
+          <li>PTYs survive reconnects and follow you across devices</li>
+          <li>Actions: agent curates, only you run</li>
+        </ul>
+      </div>
+      <div data-reveal>
+        <div class="shot-frame shot-frame-sm">
+          <img src="images/feat-terminal.png" alt="Embedded terminal in Porcelain with saved Actions" loading="lazy" />
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- NICE TO HAVES -->
+  <section class="section wrap-wide wrap" id="more">
     <div class="sec-head" data-reveal>
       <p class="eyebrow">Also in the window</p>
-      <h2 class="section-title">Search and history.<br>Not an IDE.</h2>
-      <p class="lead">Quick single-file edits are fine. Autocomplete, rename, and multi-file refactors stay in your real editor.</p>
+      <h2 class="section-title">Useful. Not the reason you switch.</h2>
+      <p class="lead">Ship without leaving the seat. Search and history when you need them. Still not an IDE: autocomplete, rename, and multi-file refactors stay in your real editor.</p>
     </div>
+
+    <div class="grid-2" style="margin-bottom:40px;">
+      <div data-reveal class="shot-first">
+        <div class="shot-frame shot-frame-sm" style="max-width:360px;margin:0 auto;">
+          <img src="images/feat-commit.png" alt="Commit composer with conventional-commit chips and open review comments" loading="lazy" />
+        </div>
+      </div>
+      <div data-reveal>
+        <p class="eyebrow">Finish where you read</p>
+        <h2 class="section-title-sm">Stage, commit, and push in place.</h2>
+        <p class="body">When the read is done, finish the job without bouncing to another app. Conventional-commit chips, suggested commands, open comments still in view. Nice when you live in the Review. Not the moat.</p>
+      </div>
+    </div>
+
     <div class="gallery-grid">
       <div class="card" data-reveal>
         <div style="border-bottom:1px solid var(--line);overflow:hidden;">
           <img class="gallery-shot" src="images/feat-search.png" alt="Quick finder matching files, folders, commands, and commits" loading="lazy" />
         </div>
         <div class="card-pad">
-          <div style="font-family:var(--mono);font-size:14px;margin-bottom:8px;">Search anything</div>
+          <div style="font-family:var(--mono);font-size:14px;margin-bottom:8px;">Search</div>
           <p class="pillar-body">Files, folders, saved commands, and commits in one bar.</p>
         </div>
       </div>
@@ -311,7 +348,7 @@
           <img class="gallery-shot" src="images/feat-history.png" alt="Commit history with messages, author, and dates" loading="lazy" />
         </div>
         <div class="card-pad">
-          <div style="font-family:var(--mono);font-size:14px;margin-bottom:8px;">Git history</div>
+          <div style="font-family:var(--mono);font-size:14px;margin-bottom:8px;">History</div>
           <p class="pillar-body">Full messages, then open the diff behind any commit.</p>
         </div>
       </div>
@@ -328,7 +365,7 @@
       <div class="card card-pad-lg" data-reveal>
         <p class="install-step">Step 01</p>
         <h3 class="install-title">Download Porcelain</h3>
-        <p class="body">macOS on Apple Silicon. Auto-updating. No account. No telemetry. Free forever. On any other device, you don't install it — run the daemon and open a browser.</p>
+        <p class="body">macOS on Apple Silicon. Auto-updating. No account. No telemetry. Free forever. On any other device, you don't install it: run the daemon and open a browser.</p>
         <div style="display:flex;flex-wrap:wrap;gap:10px;">
           <a href="https://github.com/FabioFiorita/porcelain/releases/latest" target="_blank" rel="noopener" class="btn btn-primary">Download for macOS</a>
           <a href="#remote" class="btn btn-ghost">Open in a browser</a>
@@ -337,11 +374,11 @@
       <div class="card card-pad-lg" data-reveal>
         <p class="install-step">Step 02</p>
         <h3 class="install-title">Connect your agent</h3>
-        <p class="body">Teach your agents the Porcelain workflow with one companion skill. They publish the Review the same way every time:</p>
+        <p class="body">Teach your agents the Porcelain workflow with one companion skill. Global install so every project sees it:</p>
         <div class="code-block">
           <div class="comment"># Companion skill, via skills.sh</div>
-          <div><span class="prompt">$</span> npx skills add FabioFiorita/porcelain</div>
-          <div class="hint">Works with the agents you already use</div>
+          <div><span class="prompt">$</span> npx skills add FabioFiorita/porcelain -g</div>
+          <div class="hint">Update later with: npx skills upgrade -g</div>
         </div>
       </div>
       <div class="card card-pad-lg" data-reveal>
@@ -382,7 +419,9 @@
       <div>
         <p class="footer-col-label">Product</p>
         <div class="footer-links">
+          <a href="#why">Why</a>
           <a href="#review">The Review</a>
+          <a href="#loop">Loop</a>
           <a href="#remote">Remote</a>
           <a href="#install">Install</a>
           <a href="privacy.html">Privacy</a>
