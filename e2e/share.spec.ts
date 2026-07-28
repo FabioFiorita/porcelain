@@ -23,8 +23,10 @@ test('revokes all by rotating the shared token', async ({ page, appMode }) => {
     { timeout: 10_000 },
   )
   await loc.shareRevokeAll(page).click()
-  await expect(page.getByText(/issues a new token/i)).toBeVisible()
-  await page.getByRole('button', { name: 'Revoke all', exact: true }).last().click()
+  // Scope to the confirm dialog — the Access blurb also mentions issuing a new token.
+  const confirm = page.getByRole('alertdialog')
+  await expect(confirm.getByRole('heading', { name: 'Revoke all access?' })).toBeVisible()
+  await confirm.getByRole('button', { name: 'Revoke all', exact: true }).click()
   await rotated
 
   await expect
