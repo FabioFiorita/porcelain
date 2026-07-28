@@ -1,3 +1,18 @@
+## [0.44.0](https://github.com/FabioFiorita/porcelain/compare/v0.43.7...v0.44.0) (2026-07-28)
+
+### Features
+
+* agent-shaped starter flow layers with dismissible setup tips ([2f86b3c](https://github.com/FabioFiorita/porcelain/commit/2f86b3c772f998dd168bf6f31f4f8c6b9c036b5b))
+
+### Bug Fixes
+
+* **release:** drop CI npm unpublish; wait longer and re-run same tag ([f1d649a](https://github.com/FabioFiorita/porcelain/commit/f1d649aec4795aaf7765f03beb0dc30e53540e5e))
+* **review:** show only agent-declared files in Execution ([5f32ebd](https://github.com/FabioFiorita/porcelain/commit/5f32ebd97e15cc1c84f29116573382d26abb6eda))
+* **settings:** tighten Remotes layout, type scale, and Share copy ([ae3dc51](https://github.com/FabioFiorita/porcelain/commit/ae3dc5130cae70fdf98ce150054751d90a64239b))
+* **share:** show the real daemon token path for this host ([aefc3c7](https://github.com/FabioFiorita/porcelain/commit/aefc3c761032092b3125d7a17a63a59c9f25dc44))
+* **shots:** clean modal crops for search and comment ([4cba009](https://github.com/FabioFiorita/porcelain/commit/4cba009b63e7612aa0139c48769c3ed460cc40b1))
+* **shots:** demo repo basename northwind-orders ([3b2b037](https://github.com/FabioFiorita/porcelain/commit/3b2b037f36a3e93841c12dc5bde19f53551211ea))
+
 ## [0.43.7](https://github.com/FabioFiorita/porcelain/compare/v0.43.6...v0.43.7) (2026-07-28)
 
 ### Features
