@@ -2,7 +2,7 @@
   <img src="src/renderer/src/assets/logo.png" alt="Porcelain" width="120" />
   <h1>Porcelain</h1>
   <p><strong>Where agent work becomes trusted work.</strong></p>
-  <p>The review layer for agentic coding: a focused companion, not a second cockpit. Your agents stay in Claude Code, Codex, T3 Code, or whatever you already use. Porcelain is where you review what they built like a senior engineer reads a feature: as a story, not a file list.</p>
+  <p>The review layer for agentic coding: a focused companion, not a second cockpit. Your agents keep running where they already run. Porcelain is where you review what they built like a senior engineer reads a feature: as a story, not a file list.</p>
 </div>
 
 ---
@@ -15,7 +15,7 @@ Coding agents generate faster than anyone can trust. Every tool in this space ra
 - **Flow-ordered diffs.** Even without a published Review, changed files are ordered and grouped along their dependency flow (component → hook → route → service → schema) so a change reads from entry point to database instead of alphabetically.
 - **A two-way loop.** Review comments on a line or file flow back to your agent as concrete context, and resolutions flow forward. A per-repo project board keeps work queued and moved as agents ship. All of it runs through a bundled local CLI. No server, no port, no telemetry.
 - **Focus on the work in front of you.** Hide monorepo folders that aren't yours, pin the ones that are, and keep one active Review per repo. Built to stay fast on a ~50 GB tree: nothing is indexed until you look at it.
-- **Companion, not replacement.** Porcelain does not reimplement Claude Code, Codex, OpenCode, Grok, T3 Code, or your editor. Keep those tools. Optional: run them in Porcelain's embedded terminal next to the review surfaces (or keep them in Ghostty, Warp, or SSH). Sessions are daemon-owned: they survive reloads and follow you to any browser.
+- **Companion, not replacement.** Porcelain is not an agent host and not an IDE. Keep the tools you already prefer. Optional: run them in Porcelain's embedded terminal next to the review surfaces (or keep them in your own terminal). Sessions are daemon-owned: they survive reloads and follow you to any browser.
 - **Anywhere is the same place.** One token-gated daemon, three clients: the Mac app on a local daemon, the same app pointed at a remote daemon (a Linux box, a home server, a cloud VM), or any browser on your LAN or tailnet, including on mobile. Terminals and review state live daemon-side, so they survive reconnects and follow you across devices.
 
 ## Features

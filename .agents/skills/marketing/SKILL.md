@@ -38,10 +38,11 @@ App copy is the `product` skill's domain, not this one.
   host; Porcelain does not run them); and short taglines in `package.json`,
   the welcome/empty-viewer subtitles, `manifest.webmanifest`, and the GitHub
   repo description (they have shipped hub-era copy like "Run agents" / "Hub
-  for agentic coding" before). Naming providers is fine as examples of what
-  people already use; never imply Porcelain drives, authenticates, ships
-  support for, or **replaces** Claude Code / Codex / T3 Code / OpenCode /
-  Grok / the editor.
+  for agentic coding" before). **Do not list third-party agent product names**
+  in taglines, heroes, or GitHub description — it reads as insecure
+  name-dropping and steals focus from Porcelain's own surfaces. Say "your
+  agents" / "the tools you already use." Never imply Porcelain drives,
+  authenticates, ships support for, or replaces those tools.
 - Voice: confident, concrete, zero hype adjectives. Sell *legible* (the
   reading room), not "blazing fast AI-powered". Competitors' angle is breadth
   and velocity; ours is trust and review depth. Don't copy their voice.

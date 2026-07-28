@@ -5,7 +5,7 @@ description: Drive Porcelain — the review layer for agentic coding — via the
 
 # Porcelain companion
 
-Porcelain is where agent work becomes **trusted** work. It is a **review companion**, not your host and not a replacement for Claude Code, Codex, T3 Code, OpenCode, Grok, or the human's editor — you keep running there; you publish the Review here. You talk to Porcelain through one CLI; this skill is the manual. Read a **reference** only when you need depth for that surface — keep this index in mind always.
+Porcelain is where agent work becomes **trusted** work. It is a **review companion**, not the agent host and not the editor: you keep writing where you already write; you publish the Review here. You talk to Porcelain through one CLI; this skill is the manual. Read a **reference** only when you need depth for that surface — keep this index in mind always.
 
 **The Review is the home for a unit of work** — not only a post-hoc dump after shipping. Humans and agents **start** (Intent) and **end** (Execution + Evidence) here. Board is the queue of cards; Review is the **one active story** per repo.
 
