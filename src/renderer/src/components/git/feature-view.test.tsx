@@ -7,6 +7,9 @@ import { FeatureView } from './feature-view'
 vi.mock('@renderer/hooks/use-feature-reading', () => ({
   useFeatureReading: vi.fn(),
 }))
+vi.mock('@renderer/hooks/use-reviewed', () => ({
+  useReviewedPaths: () => new Set<string>(),
+}))
 // copyText goes through the utils helper (navigator.clipboard is absent on the
 // tailnet client AND in jsdom); spy on it instead of the clipboard.
 const copySpy = vi.hoisted(() => vi.fn(async () => {}))
@@ -26,17 +29,18 @@ describe('FeatureView', () => {
     expect(screen.getByText('Loading…')).toBeInTheDocument()
   })
 
-  it('renders the "No review yet" empty state when no review set exists', () => {
+  it('renders the start-unit empty state when no review set exists', () => {
     vi.mocked(useFeatureReading).mockReturnValue({ reading: null, refresh: async () => {} })
     render(<FeatureView />)
-    expect(screen.getByText('No review yet')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Copy agent prompt/ })).toBeInTheDocument()
+    expect(screen.getByText('Start this unit of work')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Copy begin-unit prompt/ })).toBeInTheDocument()
   })
 
-  it('copies the agent prompt from the empty state', () => {
+  it('copies the begin-unit agent prompt from the empty state', () => {
     vi.mocked(useFeatureReading).mockReturnValue({ reading: null, refresh: async () => {} })
     render(<FeatureView />)
-    fireEvent.click(screen.getByRole('button', { name: /Copy agent prompt/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Copy begin-unit prompt/ }))
+    expect(copySpy).toHaveBeenCalledWith(expect.stringContaining('START of the unit'))
     expect(copySpy).toHaveBeenCalledWith(expect.stringContaining('porcelain-companion'))
   })
 })

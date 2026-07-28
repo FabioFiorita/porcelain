@@ -62,11 +62,19 @@ export const TestIds = {
   featureCommitChanges: 'feature-commit-changes',
   featureOutlineEvidence: 'feature-outline-evidence',
   featureCanvas: 'feature-canvas',
+  /** Empty Review canvas — start-of-unit affordance. */
+  featureEmpty: 'feature-empty',
+  /** Lifecycle banner on the canvas (in progress / ready to close). */
+  featureLifecycle: 'feature-lifecycle',
   featureCanvasTab: (tab: 'intent' | 'execution' | 'evidence'): string =>
     `feature-canvas-tab-${tab}`,
   evidencePanel: 'evidence-panel',
   evidenceClear: 'evidence-clear',
   evidenceIframe: 'evidence-iframe',
+  /** Right-rail Clear review (companion home for clear). */
+  reviewClear: 'review-clear',
+  /** Board Focus → open Review with title prefilled for the start prompt. */
+  boardStartReview: 'board-start-review',
 
   // --- Commit companion ---
   commitButton: 'commit-button',

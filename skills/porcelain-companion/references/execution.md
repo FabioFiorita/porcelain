@@ -1,6 +1,8 @@
 # Execution — "What did the agent touch, and is the code right?"
 
-Execution is the **code surface** of the Review: every file in the feature, agent notes, source tags (changed / context / shipped), and open-as-diff / open-as-file. The Feature **sidebar** always shows this list so the human can jump files while reading Intent or Evidence in the viewer.
+Execution is the **code surface** of the Review: every file in the unit (feature, bug, chore, …), agent notes, source tags (changed / context / shipped), and open-as-diff / open-as-file. The Review **sidebar** outline shows this list so the human can jump files while reading Intent or Evidence in the viewer.
+
+**Mid / end of session:** grow `--files` as you work; full Execution is required before claiming done (with Evidence). Intent-only / empty files is fine at **start**.
 
 ## What Porcelain shows
 
@@ -35,7 +37,7 @@ Files listed but not anchored still appear under **More files** / layer groups �
 
 ## What to include
 
-The **complete feature**, not just the diff:
+The **complete unit**, not just the diff:
 
 - Files you changed.
 - Cross-seam `shipped` (server route/service a client change calls).

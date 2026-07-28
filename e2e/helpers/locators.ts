@@ -48,13 +48,18 @@ export const loc = {
   reviewInbox: (page: Page): Locator => byId(page, TestIds.reviewInbox),
   reviewInboxRow: (page: Page, branch: string): Locator =>
     byId(page, TestIds.reviewInboxRow(branch)),
+  featureList: (page: Page): Locator => byId(page, TestIds.featureList),
   featureOpenReview: (page: Page): Locator => byId(page, TestIds.featureOpenReview),
   featureCanvas: (page: Page): Locator => byId(page, TestIds.featureCanvas),
+  featureEmpty: (page: Page): Locator => byId(page, TestIds.featureEmpty),
+  featureLifecycle: (page: Page): Locator => byId(page, TestIds.featureLifecycle),
   featureCanvasTab: (page: Page, tab: 'intent' | 'execution' | 'evidence'): Locator =>
     byId(page, TestIds.featureCanvasTab(tab)),
   evidencePanel: (page: Page): Locator => byId(page, TestIds.evidencePanel),
   evidenceClear: (page: Page): Locator => byId(page, TestIds.evidenceClear),
   evidenceIframe: (page: Page): Locator => byId(page, TestIds.evidenceIframe),
+  reviewClear: (page: Page): Locator => byId(page, TestIds.reviewClear),
+  boardStartReview: (page: Page): Locator => byId(page, TestIds.boardStartReview),
 
   commitButton: (page: Page): Locator => byId(page, TestIds.commitButton),
   commitGroup: (page: Page): Locator => byId(page, TestIds.commitGroup),

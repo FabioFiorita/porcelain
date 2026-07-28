@@ -1,13 +1,37 @@
 import type { FeatureReading } from '@backend/feature-view'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@renderer/components/ui/alert-dialog'
+import { Button } from '@renderer/components/ui/button'
+import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
 } from '@renderer/components/ui/sidebar'
 import { useReviewComments } from '@renderer/hooks/use-comments'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
+import { useClearFeatureReview } from '@renderer/hooks/use-feature-view'
+import { useReviewedPaths } from '@renderer/hooks/use-reviewed'
+import { compactButtonClass } from '@renderer/lib/controls'
 import { fileName } from '@renderer/lib/paths'
+import {
+  lifecycleBadgeLabel,
+  lifecycleDetail,
+  reviewLifecyclePhase,
+  reviewOutlineFiles,
+} from '@renderer/lib/review-lifecycle'
+import { cn } from '@renderer/lib/utils'
 import { type ReviewFocusSection, useReviewFocusStore } from '@renderer/stores/review-focus'
+import { TestIds } from '@shared/test-ids'
+import { Eraser } from 'lucide-react'
+import { useState } from 'react'
 
 const LABEL_CLASS = 'px-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground'
 
@@ -33,26 +57,29 @@ function chapterTitle(reading: FeatureReading, active: ReviewFocusSection): stri
 }
 
 /**
- * The Feature tab's live companion to the Review document: the chapter under the
- * reader's eyes (published by the reading surface on scroll), the note invariants
- * of the visible file, and its open-comment count. Renders nothing without a
- * review set — the companion follows the document.
+ * The Feature tab's live companion to the Review document: lifecycle status,
+ * clear (companion home — not only a buried … menu), the chapter under the
+ * reader's eyes, notes, and open-comment count.
  */
 export function ReviewGroup(): React.JSX.Element | null {
   const { reading } = useFeatureReading()
   const activeSection = useReviewFocusStore((s) => s.activeSection)
   const visiblePath = useReviewFocusStore((s) => s.visiblePath)
   const comments = useReviewComments()
+  const reviewed = useReviewedPaths()
+  const { clear, isClearing } = useClearFeatureReview()
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false)
+  const [clearError, setClearError] = useState<string | null>(null)
 
-  // Empty Review: companion matches the viewer empty state (U8), not a void.
+  // Empty Review: companion matches the viewer start-of-unit empty state.
   if (reading === null) {
     return (
       <SidebarGroup className="px-3">
         <SidebarGroupLabel className={LABEL_CLASS}>Review</SidebarGroupLabel>
         <SidebarGroupContent className="px-1">
           <div className="rounded-xl border border-dashed bg-muted/20 p-2.5 text-2xs text-muted-foreground">
-            No Review published yet. Ask your agent to run the porcelain-companion skill, or copy
-            the prompt from the center canvas empty state.
+            Start a unit: open the canvas and copy the begin-unit prompt (name + thesis). Agents use
+            porcelain-companion — Intent first; clear any previous unit before a new one.
           </div>
         </SidebarGroupContent>
       </SidebarGroup>
@@ -60,6 +87,13 @@ export function ReviewGroup(): React.JSX.Element | null {
   }
 
   if (!reading) return null
+
+  const outline = reviewOutlineFiles(reading)
+  const reviewedCount = outline.filter((f) => reviewed.has(f.path)).length
+  const reviewedFraction = outline.length === 0 ? 0 : reviewedCount / outline.length
+  const phase = reviewLifecyclePhase({ reading, reviewedFraction })
+  const badge = lifecycleBadgeLabel(phase)
+  const detail = lifecycleDetail(reading, phase)
 
   const section =
     typeof activeSection === 'number' && activeSection < reading.sections.length
@@ -83,10 +117,58 @@ export function ReviewGroup(): React.JSX.Element | null {
     ? comments.filter((c) => c.path === visiblePath && !c.resolved).length
     : 0
 
+  const runClear = async (): Promise<void> => {
+    setClearError(null)
+    try {
+      await clear()
+      setConfirmClearOpen(false)
+    } catch (e) {
+      setClearError(e instanceof Error ? e.message : String(e))
+    }
+  }
+
   return (
     <SidebarGroup className="px-3">
       <SidebarGroupLabel className={LABEL_CLASS}>Now reading</SidebarGroupLabel>
       <SidebarGroupContent className="flex flex-col gap-1.5 px-1">
+        <div
+          className={cn(
+            'rounded-xl border p-2',
+            phase === 'ready_to_close' ? 'border-success/30 bg-success/5' : 'bg-card',
+          )}
+        >
+          <div className="flex items-start gap-1.5">
+            <div className="min-w-0 flex-1">
+              <span className="block truncate text-xs font-medium">{reading.name}</span>
+              {badge && (
+                <span className="mt-0.5 block text-3xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                  {badge}
+                  {outline.length === 0 ? ' · previous unit still up' : ''}
+                </span>
+              )}
+            </div>
+          </div>
+          <p className="mt-1 text-2xs leading-snug text-muted-foreground">{detail}</p>
+          <Button
+            variant="outline"
+            size="sm"
+            className={cn(
+              compactButtonClass,
+              'mt-2 w-full text-destructive hover:text-destructive',
+            )}
+            data-testid={TestIds.reviewClear}
+            disabled={isClearing}
+            onClick={() => setConfirmClearOpen(true)}
+          >
+            <Eraser className="size-3.5" />
+            Clear review
+          </Button>
+          {clearError && (
+            <p className="mt-1 whitespace-pre-wrap font-mono text-2xs text-destructive">
+              {clearError}
+            </p>
+          )}
+        </div>
         <div className="rounded-xl border bg-card p-2">
           <span className="block truncate text-xs font-medium">
             {chapterTitle(reading, activeSection)}
@@ -116,6 +198,29 @@ export function ReviewGroup(): React.JSX.Element | null {
           </div>
         )}
       </SidebarGroupContent>
+
+      <AlertDialog open={confirmClearOpen} onOpenChange={setConfirmClearOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear review and evidence?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Removes the agent Review (Intent, files, walkthrough) and the evidence directory for
+              this repo. The agent can re-publish. This cannot be undone from the app.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={isClearing}
+              onClick={() => void runClear()}
+              aria-label="Confirm clear review and evidence"
+            >
+              Clear
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SidebarGroup>
   )
 }
