@@ -83,9 +83,60 @@ async function shoot(page: Page, name: string): Promise<void> {
   await page.screenshot({ path: join(SHOTS_DIR, name), scale: 'device' })
 }
 
-/** Element-scoped Retina screenshot — the tight crops (dialogs, one panel, one surface). */
-async function shootLocator(locator: Locator, name: string): Promise<void> {
-  await locator.screenshot({ path: join(SHOTS_DIR, name), scale: 'device' })
+/**
+ * Modal crops: element screenshots are rectangles, so rounded corners would show
+ * app chrome (selection teal, etc.) through transparent corners. Solidify the
+ * dialog overlay to product dark, drop the soft shadow, then clip a 1px inset.
+ */
+async function shootModal(page: Page, locator: Locator, name: string): Promise<void> {
+  await page.evaluate(() => {
+    document.getElementById('porcelain-shot-modal-mask')?.remove()
+    const mask = document.createElement('div')
+    mask.id = 'porcelain-shot-modal-mask'
+    mask.style.cssText = 'position:fixed;inset:0;z-index:49;background:#090b0c;pointer-events:none'
+    document.body.appendChild(mask)
+    for (const el of document.querySelectorAll<HTMLElement>(
+      '[data-slot="dialog-overlay"], [data-slot="dialog-content"]',
+    )) {
+      el.dataset.porcelainShotOverlay = '1'
+      if (el.getAttribute('data-slot') === 'dialog-overlay') {
+        el.style.setProperty('background', '#090b0c', 'important')
+        el.style.setProperty('backdrop-filter', 'none', 'important')
+        el.style.setProperty('-webkit-backdrop-filter', 'none', 'important')
+      } else {
+        el.style.setProperty('box-shadow', 'none', 'important')
+      }
+    }
+  })
+  try {
+    const box = await locator.boundingBox()
+    if (!box) throw new Error('modal has no bounding box')
+    const pad = 1
+    await page.screenshot({
+      path: join(SHOTS_DIR, name),
+      clip: {
+        x: box.x + pad,
+        y: box.y + pad,
+        width: Math.max(1, box.width - pad * 2),
+        height: Math.max(1, box.height - pad * 2),
+      },
+      scale: 'device',
+    })
+  } finally {
+    await page.evaluate(() => {
+      document.getElementById('porcelain-shot-modal-mask')?.remove()
+      for (const el of document.querySelectorAll<HTMLElement>(
+        '[data-slot="dialog-overlay"], [data-slot="dialog-content"]',
+      )) {
+        if (el.dataset.porcelainShotOverlay !== '1') continue
+        delete el.dataset.porcelainShotOverlay
+        el.style.removeProperty('background')
+        el.style.removeProperty('backdrop-filter')
+        el.style.removeProperty('-webkit-backdrop-filter')
+        el.style.removeProperty('box-shadow')
+      }
+    })
+  }
 }
 
 type Rect = { x: number; y: number; width: number; height: number }
@@ -312,7 +363,7 @@ test('marketing shots — the seeded demo repo across every surface', async () =
     await expect(finder.getByText('OrdersPage.tsx').first()).toBeVisible({ timeout: 10_000 })
     await expect(finder.getByText('Run orders tests')).toBeVisible()
     await settle(page)
-    await shootLocator(finder, 'feat-search.png')
+    await shootModal(page, finder, 'feat-search.png')
     await page.keyboard.press('Escape')
 
     // feat-comment.png — the Add comment dialog over a diff, anchored to a line range.
@@ -344,7 +395,7 @@ test('marketing shots — the seeded demo repo across every surface', async () =
     const commentDialog = page.getByRole('dialog')
     await expect(commentDialog.getByText('Add comment')).toBeVisible({ timeout: 10_000 })
     await settle(page)
-    await shootLocator(commentDialog, 'feat-comment.png')
+    await shootModal(page, commentDialog, 'feat-comment.png')
     await page.keyboard.press('Escape')
 
     await context.close()
