@@ -167,7 +167,11 @@ test('marketing shots — the seeded demo repo across every surface', async () =
 
   // The demo repo + its isolated config/channel dirs. Canonicalize the repo path so
   // the channels (keyed by absolute path) match whatever Porcelain resolves it to.
-  const repoRaw = await mkdtemp(join(tmpdir(), 'porcelain-shots-repo-'))
+  // Fixed basename "northwind-orders" (not a mkdtemp prefix): the project switcher
+  // and Glance show path.basename — never ship "porcelain-shots-repo-XXXX" in PNGs.
+  const shotsRoot = await mkdtemp(join(tmpdir(), 'porcelain-shots-'))
+  const repoRaw = join(shotsRoot, 'northwind-orders')
+  await mkdir(repoRaw, { recursive: true })
   await createDemoRepo(repoRaw)
   const repoDir = await realpath(repoRaw)
 
@@ -405,7 +409,7 @@ test('marketing shots — the seeded demo repo across every surface', async () =
     child.kill('SIGTERM')
     await exited
     await browser.close()
-    await rm(repoRaw, { recursive: true, force: true })
+    await rm(shotsRoot, { recursive: true, force: true })
     await rm(udBase, { recursive: true, force: true })
     await rm(userData, { recursive: true, force: true })
   }
