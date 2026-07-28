@@ -2,33 +2,33 @@
   <img src="src/renderer/src/assets/logo.png" alt="Porcelain" width="120" />
   <h1>Porcelain</h1>
   <p><strong>Where agent work becomes trusted work.</strong></p>
-  <p>The review layer for agentic coding: a focused companion, not a second cockpit. Your agents keep running where they already run. Porcelain is where you review what they built like a senior engineer reads a feature: as a story, not a file list.</p>
+  <p>The review layer for agentic coding: a focused companion, not a second cockpit. Your agents keep running where they already run. Porcelain is where you review what they built as a story, not a file list.</p>
 </div>
 
 ---
 
-Coding agents generate faster than anyone can trust. Every tool in this space races to spawn more agents in more worktrees; the pile of unreviewed diffs just grows. Porcelain stands on the other side of that pile: one lightweight window (not an editor, not an agent host) where agent work becomes something you've actually read, understood, and signed off.
+Coding agents generate faster than anyone can trust. Every tool in this space races to spawn more agents in more worktrees. The pile of unreviewed diffs just grows. Porcelain stands on the other side of that pile: one lightweight window where agent work becomes something you've actually read, understood, and signed off. Not an editor. Not an agent host.
 
 ## Why Porcelain
 
-- **The Review.** Your agent doesn't just hand you a diff. It publishes a walkthrough of the whole unit of work: **Intent** (what and why), **Execution** (flow-ordered files and prose, including unchanged code across the client→server seam a diff can't show), and **Evidence** (proof it verified its own work). You read a document, not a pile.
-- **Flow-ordered diffs.** Even without a published Review, changed files are ordered and grouped along their dependency flow (component → hook → route → service → schema) so a change reads from entry point to database instead of alphabetically.
-- **A two-way loop.** Leave a comment on a line or a file; it becomes concrete context for your agent, and resolutions flow back. A per-repo project board keeps work queued as agents ship. The whole loop stays on machines you control.
-- **Focus on the work in front of you.** Hide monorepo folders that aren't yours, pin the ones that are, and keep one active Review per repo. Built to stay fast on a ~50 GB tree: nothing is indexed until you look at it.
-- **Companion, not replacement.** Porcelain is not an agent host and not an IDE. Keep the tools you already prefer. Optional: run them in Porcelain's embedded terminal next to the review surfaces (or keep them in your own terminal). Sessions are daemon-owned: they survive reloads and follow you to any browser.
-- **Anywhere is the same place.** One token-gated daemon, three clients: the Mac app on a local daemon, the same app pointed at a remote daemon (a Linux box, a home server, a cloud VM), or any browser on your LAN or tailnet, including on mobile. Terminals and review state live daemon-side, so they survive reconnects and follow you across devices.
+- **The Review.** The home for a unit of work (feature, bug, chore, investigation), from first Intent to sign-off. Your agent publishes three parts: **Intent** (what this is and why), **Execution** (only the files it wants you to read, in the order the change runs, with notes, including unchanged code a plain diff would hide), and **Evidence** (proof it verified its own work). One active story per repo. You read a document, not a pile.
+- **Flow that fits *your* repo.** On Changes, files group along flow layers. Those layers are not a fixed stack (no assumed components → hooks → routes layout). They are agent-managed rules for this project: your agent learns how the tree is shaped and groups changes entry-point toward data. Alphabetical is never the real story.
+- **A two-way loop.** Leave a comment on a line or a file. It becomes context for your agent, and resolutions come back. A per-repo board keeps work queued as agents ship. Everything stays on machines you control.
+- **Focus on the work in front of you.** Hide folders you will not touch. Pin the paths you live in. Your agent can set that up for you. One active Review per repo. Large trees stay fast: nothing is indexed until you open it.
+- **Companion, not replacement.** Porcelain is not an agent host and not an IDE. Keep the tools you already prefer. Run any agent CLI in Porcelain's terminal next to the review surfaces, or keep using your own terminal. Sessions live on the daemon. They survive reloads and follow you to any browser.
+- **Anywhere is the same place.** Share Porcelain over your LAN or Tailscale. Use the Mac app on this machine, point a window at a remote box that holds the code, or open the same client in any browser (including on a phone). Terminals and review state stay on the host, so reconnects pick up where you left off.
 
 ## Features
 
-- **Whole-feature review**: agent-authored Review (Intent · Execution · Evidence), outline with per-file reviewed marks, keyboard navigation, zen reading mode
-- **Flow-ordered diff review** with per-repo layer definitions, plus read-only **flow exploration** of any existing feature (seed from a symbol or file)
-- **Human ↔ agent loop**: review comments with resolutions, a todo/doing/done **project board**, repo notes, and per-repo flow layers
-- **Embedded terminal**: real PTYs that survive reconnects, plus saved Actions your agent curates and only you run (optional convenience next to review, not an agent product)
+- **The Review**: Intent · Execution · Evidence as the start-to-end home for a unit of work. Agent-authored story, outline with per-file reviewed marks, keyboard navigation, zen reading mode
+- **Agent-shaped flow**: per-repo flow layers your agent defines for *this* layout, flow-ordered Changes and History, plus read-only **flow exploration** of any existing feature (seed from a symbol or file)
+- **Human ↔ agent loop**: line and file comments with resolutions, a todo/doing/done **project board**, repo notes, flow layers, and hide/pin. All of it is readable and writable by your agent through the companion skill
+- **Embedded terminal**: real PTYs that survive reconnects and follow you across devices, plus saved Actions your agent curates and only you run
 - **Git**: working-tree diffs (unified or split), per-file staging, history, worktree switching, in-app commits with conventional-commit chips
 - **Fast file viewer**: virtualized rendering, Shiki highlighting, always-editable text (autosave), Markdown reader/source, image support, two-pane split
-- **Monorepo navigation**: hide/unhide folders, pin paths, lazy per-directory loading
+- **Focus navigation**: hide folders, pin paths, lazy per-directory loading. Built for large repos and monorepos alike
 - **Search & finders**: repo-wide code search, fuzzy file finder, find-in-file, find references
-- **Remote access**: LAN (same Wi-Fi) or tailnet (WireGuard). One command on the host:
+- **Share over LAN or Tailscale**: run the daemon on the machine with your code, open from the Mac app or any browser:
 
   ```bash
   npx porcelain-daemon@latest serve --tailnet --print-token
