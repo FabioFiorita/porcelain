@@ -12,7 +12,7 @@ Porcelain groups a change into **flow layers** — an ordered list of `{ label, 
 
 ## How
 
-Talk to Porcelain through the bundled CLI at `~/.porcelain/porcelain` — installed automatically and kept fresh on every app launch (no registration, no MCP config). Run it from **inside the repo** and it targets that repo automatically (git toplevel of the cwd); add `--repo <absolute path>` only to point at a different checkout. This is a **whole-set replace** — there is no per-layer add/delete; you always send the COMPLETE ordered list.
+Talk to Porcelain through the bundled CLI at `~/.porcelain/porcelain` — installed automatically and kept fresh on every app launch. Run it from **inside the repo** and it targets that repo automatically (git toplevel of the cwd); add `--repo <absolute path>` only to point at a different checkout. This is a **whole-set replace** — there is no per-layer add/delete; you always send the COMPLETE ordered list.
 
 - `~/.porcelain/porcelain layers get` → the effective layers (the repo's custom set, or the built-in defaults), as a numbered list AND JSON. **Always read this first**, then modify and set — that's how you add, edit, remove, or reorder.
 - `~/.porcelain/porcelain layers set --layers <json>` → replace the whole set with your new ordered list (at least one layer). `--layers` takes inline JSON, or `-` to read the JSON from stdin — pipe or heredoc it for anything non-trivial:

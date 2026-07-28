@@ -4,7 +4,7 @@ Porcelain shows a per-repo todo/doing/done board of cards (features, bugs, chore
 
 **Board vs Review:** Board = queue of cards. Review = **one active story** per repo. When you pick up a Doing card, start the Review with that title (`review set --name "…"`) — the app can hand off "Start Review" with the title prefilled for the agent prompt. Do **not** turn Review into a second kanban.
 
-Talk to Porcelain through the bundled CLI at `~/.porcelain/porcelain` — installed automatically and kept fresh on every app launch (no registration, no MCP config). Run it from **inside the repo** and it targets that repo automatically (git toplevel of the cwd); add `--repo <absolute path>` only to point at a different checkout.
+Talk to Porcelain through the bundled CLI at `~/.porcelain/porcelain` — installed automatically and kept fresh on every app launch. Run it from **inside the repo** and it targets that repo automatically (git toplevel of the cwd); add `--repo <absolute path>` only to point at a different checkout.
 
 - `~/.porcelain/porcelain board list` → the board grouped by column, each card with an id, title, and body. Check it to pick up queued work.
 - `~/.porcelain/porcelain board create --title <s> [--body <s>] [--status todo|doing|done]` → capture a task (defaults to the "todo" column).

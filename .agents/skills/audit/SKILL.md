@@ -44,9 +44,9 @@ assumed — this skill is the codebase-specific layer beneath them.
   tab to its "No review yet" empty state — there is no baseline anymore). That's a local
   home-dir file write, NOT a network surface, and the app still never authors a set. Don't
   add other app-side writes to this file, and don't "upgrade" the CLI channel to an in-app
-  HTTP/MCP listener. The CLI stays **dependency-free** (Node builtins only) so it runs under
-  a plain `node`; don't add npm imports to `src/cli/`, and keep inputs validated in
-  `toReviewFiles`/`toReviewSections`.
+  HTTP listener or long-lived agent server. The CLI stays **dependency-free** (Node builtins
+  only) so it runs under a plain `node`; don't add npm imports to `src/cli/`, and keep inputs
+  validated in `toReviewFiles`/`toReviewSections`.
 - **The daemon is the ONE sanctioned listener — 127.0.0.1 only, ALWAYS token-gated.**
   Since the daemon split the renderer talks to `src/backend/server.ts` over HTTP + WS
   (`daemon.ts` spawns it), so the old "the app opens no port" claim no longer holds —
@@ -367,9 +367,9 @@ assumed — this skill is the codebase-specific layer beneath them.
   call sites) copies the bundled `out/main/cli/porcelain.js` to `~/.porcelain/porcelain.js`
   (home, not a work repo) and writes + chmods (`0o755`) the `porcelain` sh wrapper. No user
   string reaches a path or command, and **no per-agent config files are written** — agents
-  just run the binary, so there's nothing to register (the old `~/.claude.json` /
-  `config.toml` / `opencode.json` writes and their file-mode-preservation trap are GONE with
-  the MCP transport). It runs at **every Mac app boot** (`src/main/index.ts`) **and every
+  just run the binary, so there's nothing to register (the old per-agent config writes into
+  `~/.claude.json` / `config.toml` / `opencode.json` and their file-mode-preservation trap
+  are gone). It runs at **every Mac app boot** (`src/main/index.ts`) **and every
   daemon boot** (`src/backend/server.ts` — best-effort on both), so an app *or*
   standalone/remote daemon upgrade (`npx porcelain-daemon@latest` on Linux) ships the current
   CLI with no Settings step (skills update separately over skills.sh; without the daemon boot

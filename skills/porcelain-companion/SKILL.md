@@ -15,7 +15,7 @@ Porcelain is where agent work becomes **trusted** work. It is a **review compani
 ~/.porcelain/porcelain
 ```
 
-Installed automatically on every app/daemon launch (no MCP, no registration). Run from **inside the repo** (git toplevel of cwd); use `--repo <absolute path>` only for another checkout. `help` / `<noun> --help` list verbs.
+Installed automatically on every app/daemon launch. Run from **inside the repo** (git toplevel of cwd); use `--repo <absolute path>` only for another checkout. `help` / `<noun> --help` list verbs.
 
 ```bash
 ~/.porcelain/porcelain help

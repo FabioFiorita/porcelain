@@ -30,7 +30,7 @@ describe('validateEvidence', () => {
 })
 
 describe('evidence directory channel', () => {
-  const root = join(tmpdir(), 'porcelain-mcp-evidence-test')
+  const root = join(tmpdir(), 'porcelain-cli-evidence-test')
   const diskRoot = join(root, 'loop-evidence')
   const legacy = join(root, 'evidence.json')
 

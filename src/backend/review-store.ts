@@ -29,7 +29,7 @@ export function isRepoContained(repoPath: string, entryPath: string): boolean {
  * resolve Electron's userData path, so both sides agree on this fixed location).
  * The CLI AUTHORS the sets; the app READS them — and makes exactly one write,
  * `clearReviewSet` (user-initiated from the Feature tab's Clear button), to delete a
- * repo's entry. No network surface either way (a local CLI, local file).
+ * repo's entry. No network surface either way (local CLI process, local file).
  */
 export function reviewSetsPath(): string {
   // Must match src/cli/review-file.ts (the sole writer). PORCELAIN_REVIEW_SETS lets

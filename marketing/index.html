@@ -164,7 +164,7 @@
       <div data-reveal>
         <p class="eyebrow">Optional terminal</p>
         <h2 class="section-title-sm">Keep your agents. Sit them next to the review if you want.</h2>
-        <p class="body">Porcelain does not host agents of its own. Run yours in the terminal you already use, or in the one embedded here. Same Review either way: agents publish through the local CLI. Sessions on the daemon survive reloads and follow you to any browser.</p>
+        <p class="body">Porcelain does not host agents of its own. Run yours in the terminal you already use, or in the one embedded here. Same Review either way. Sessions on the daemon survive reloads and follow you to any browser.</p>
         <ul class="ticks">
           <li>Your subscriptions, your CLIs. No second auth stack</li>
           <li>PTYs survive reconnects; pick one back up from any device</li>
@@ -184,7 +184,7 @@
     <div class="sec-head" data-reveal>
       <p class="eyebrow">The human ↔ agent loop</p>
       <h2 class="section-title">Review with your agent,<br>not just your code.</h2>
-      <p class="lead">A bundled local CLI your agents already know how to use, plus companion skills. <strong>Local files only. No server, no port, no telemetry.</strong> Your comments become its context; its work and resolutions flow back to you, on the same feature, in the same order.</p>
+      <p class="lead">Your comments become its context; its work and resolutions flow back to you, on the same feature, in the same order. The loop stays on machines you control. No account. No telemetry.</p>
     </div>
 
     <div class="loop-diagram" data-reveal>
@@ -193,8 +193,8 @@
         <div class="role">review &amp; comment</div>
       </div>
       <div class="loop-mid">
-        <span>⇄ local CLI</span>
-        <span class="sub">two-way · no MCP port</span>
+        <span>⇄ same feature</span>
+        <span class="sub">comments · board · Review</span>
       </div>
       <div class="loop-node">
         <div class="who">Your agent</div>
@@ -337,9 +337,9 @@
       <div class="card card-pad-lg" data-reveal>
         <p class="install-step">Step 02</p>
         <h3 class="install-title">Connect your agent</h3>
-        <p class="body">The agent channel is a bundled CLI that installs on every launch. <strong>No server, no port, no config.</strong> Teach the workflow with companion skills:</p>
+        <p class="body">Teach your agents the Porcelain workflow with one companion skill. They publish the Review the same way every time:</p>
         <div class="code-block">
-          <div class="comment"># Skills for every agent, via skills.sh</div>
+          <div class="comment"># Companion skill, via skills.sh</div>
           <div><span class="prompt">$</span> npx skills add FabioFiorita/porcelain</div>
           <div class="hint">Works with the agents you already use</div>
         </div>

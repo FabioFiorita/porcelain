@@ -106,7 +106,7 @@ describe('mergeReviewFiles', () => {
 })
 
 describe('file round-trip', () => {
-  const dir = join(tmpdir(), 'porcelain-mcp-test')
+  const dir = join(tmpdir(), 'porcelain-cli-test')
   const file = join(dir, 'review-sets.json')
 
   beforeEach(() => {

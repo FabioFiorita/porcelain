@@ -5,7 +5,7 @@ import { porcelainHome } from '../shared/porcelain-home'
 /**
  * Install the bundled Porcelain CLI into `PORCELAIN_HOME` (default `~/.porcelain/`)
  * so agents can run `porcelain <noun> <verb>` against the channel files there.
- * No per-agent config writing — CLI only; MCP is gone. Dev stack sets
+ * No per-agent config writing — agents just run the binary. Dev stack sets
  * `PORCELAIN_HOME=~/.porcelain-dev` so product work never overwrites the
  * production install.
  *

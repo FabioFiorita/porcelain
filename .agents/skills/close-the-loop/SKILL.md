@@ -24,7 +24,7 @@ Porcelain is a solo side project developed almost entirely by agents. The human'
 
 **Never** hide/pin, board, review, or token-write against the production daemon while improving Porcelain. Earlier mistakes mixed the two — do not repeat.
 
-Agent channels are the **porcelain CLI only** (`~/.porcelain/porcelain` in prod, `pnpm porcelain -- …` in dev). There is **no Porcelain MCP** — it was removed in favor of the CLI. Do not reintroduce or call a porcelain MCP server.
+Agent channels are the **porcelain CLI** (`~/.porcelain/porcelain` in prod, `pnpm porcelain -- …` in dev) writing local channel files. Do not reintroduce a Porcelain MCP server.
 
 ```bash
 pnpm build              # warm out/ when needed

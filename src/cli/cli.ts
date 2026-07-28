@@ -59,11 +59,11 @@ import {
 
 // Porcelain's agent CLI: a dependency-free command that reads and writes the watched
 // JSON channels under ~/.porcelain (review sets, board, actions, notes, layers,
-// evidence, comments, reviewed marks). It replaces the old stdio MCP
-// server — a fresh process per invocation doing one synchronous read-modify-write, so
-// there is no ordering machinery to keep. Node builtins only, hand-rolled flag parsing:
-// the built bundle is copied to ~/.porcelain/porcelain.js and run under a plain `node`,
-// which cannot resolve anything from node_modules inside app.asar.
+// evidence, comments, reviewed marks). One fresh process per invocation does a single
+// synchronous read-modify-write, so there is no long-lived server or ordering machinery.
+// Node builtins only, hand-rolled flag parsing: the built bundle is copied to
+// ~/.porcelain/porcelain.js and run under a plain `node`, which cannot resolve anything
+// from node_modules inside app.asar.
 
 interface CliDeps {
   /** Directory to resolve the repo from when --repo is absent. Default: process.cwd(). */
@@ -357,8 +357,8 @@ function renderHelp(nounName?: string): string {
 }
 
 /**
- * Run one CLI invocation and return the output string (throws on error). Adapts the
- * old MCP `callTool` dispatch: parse flags, resolve the repo, run one channel op.
+ * Run one CLI invocation and return the output string (throws on error).
+ * Parse flags, resolve the repo, run one channel op.
  */
 export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string> {
   const cwd = deps.cwd ?? process.cwd()

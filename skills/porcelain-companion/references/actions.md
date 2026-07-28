@@ -2,7 +2,7 @@
 
 Porcelain has saved **actions** — named shell commands the human runs in the embedded terminal with one click (dev server, storybook, test watcher, …). Curate them so the project's common commands are one click away for the human.
 
-Talk to Porcelain through the bundled CLI at `~/.porcelain/porcelain` — installed automatically and kept fresh on every app launch (no registration, no MCP config). Run it from **inside the repo** and it targets that repo automatically (git toplevel of the cwd); add `--repo <absolute path>` only to point at a different checkout.
+Talk to Porcelain through the bundled CLI at `~/.porcelain/porcelain` — installed automatically and kept fresh on every app launch. Run it from **inside the repo** and it targets that repo automatically (git toplevel of the cwd); add `--repo <absolute path>` only to point at a different checkout.
 
 - `~/.porcelain/porcelain actions list` → the saved actions, each with an id, title, command, and optional `where`.
 - `~/.porcelain/porcelain actions create --title <s> --command <s> [--where primary|local]` → add one (e.g. `--title "Storybook" --command "pnpm --filter web storybook"`).

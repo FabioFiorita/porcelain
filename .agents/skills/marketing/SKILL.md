@@ -32,17 +32,18 @@ App copy is the `product` skill's domain, not this one.
   reintroduce backdrop-blur glass tiles or purple glow wallpaper.
 - Every marketing claim must be true of the shipped app **today** — verify
   against the code/`product` skill before writing, not from memory. Known
-  drift class to check each pass: the agent channel (bundled porcelain CLI,
-  **no MCP, no port**); the positioning era (**focused review companion**, not
-  hub / cockpit / "have it all" — agents run in the user's terminal or agent
-  host; Porcelain does not run them); and short taglines in `package.json`,
-  the welcome/empty-viewer subtitles, `manifest.webmanifest`, and the GitHub
-  repo description (they have shipped hub-era copy like "Run agents" / "Hub
-  for agentic coding" before). **Do not list third-party agent product names**
-  in taglines, heroes, or GitHub description — it reads as insecure
-  name-dropping and steals focus from Porcelain's own surfaces. Say "your
-  agents" / "the tools you already use." Never imply Porcelain drives,
-  authenticates, ships support for, or replaces those tools.
+  drift class to check each pass: the positioning era (**focused review
+  companion**, not hub / cockpit / "have it all" — agents run where the user
+  already runs them; Porcelain does not host them); short taglines in
+  `package.json`, welcome/empty-viewer subtitles, `manifest.webmanifest`, and
+  the GitHub repo description (they have shipped hub-era copy like "Run
+  agents" / "Hub for agentic coding" before). **Sell Porcelain's surfaces**,
+  not transport: no "Local CLI, not MCP", no protocol wars, no
+  "no port" as a hero claim. Privacy is "on your machines / no cloud / no
+  telemetry" when it matters. Install can name the companion skill and the
+  local `porcelain` command once. **Do not list third-party agent product
+  names** in taglines, heroes, or GitHub description. Say "your agents" /
+  "the tools you already use."
 - Voice: confident, concrete, zero hype adjectives. Sell *legible* (the
   reading room), not "blazing fast AI-powered". Competitors' angle is breadth
   and velocity; ours is trust and review depth. Don't copy their voice.
@@ -175,8 +176,8 @@ site (above) rides the same pass.
 
 ## Definition of done for a marketing pass
 
-1. Claims verified against shipped code (provider list, channel, era).
-2. README ↔ site ↔ product skill tell one story.
+1. Claims verified against shipped code (product surfaces, era).
+2. README ↔ site ↔ product skill tell one story; no transport wars, no brand lists.
 3. Site version string current; og:image still the best shot.
 4. Screenshots regenerated for surfaces that changed (pipeline above).
 5. No personal-setup leaks.
