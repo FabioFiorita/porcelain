@@ -23,7 +23,7 @@ Coding agents generate faster than anyone can trust. Every tool in this space ra
 - **The Review**: Intent · Execution · Evidence as the start-to-end home for a unit of work. Agent-authored story, outline with per-file reviewed marks, keyboard navigation, zen reading mode
 - **Agent-shaped flow**: per-repo flow layers your agent defines for *this* layout, flow-ordered Changes and History, plus read-only **flow exploration** of any existing feature (seed from a symbol or file)
 - **Human ↔ agent loop**: line and file comments with resolutions, a todo/doing/done **project board**, repo notes, flow layers, and hide/pin. All of it is readable and writable by your agent through the companion skill
-- **Embedded terminal**: real PTYs that survive reconnects and follow you across devices, plus saved Actions your agent curates and only you run
+- **Embedded terminal**: real PTYs that survive reconnects and follow you across devices. On a remote environment you can open shells on the host and on This device (map a local clone path), and each saved Action chooses which side it runs on. Your agent curates Actions; only you run them
 - **Git**: working-tree diffs (unified or split), per-file staging, history, worktree switching, in-app commits with conventional-commit chips
 - **Fast file viewer**: virtualized rendering, Shiki highlighting, always-editable text (autosave), Markdown reader/source, image support, two-pane split
 - **Focus navigation**: hide folders, pin paths, lazy per-directory loading. Built for large repos and monorepos alike
