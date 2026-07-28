@@ -359,35 +359,35 @@
     <div class="sec-head" data-reveal>
       <p class="eyebrow">Install</p>
       <h2 class="section-title">Two minutes to your first Review.</h2>
+      <p class="lead">Pick a seat, then connect your agent. The skill is required either way: without it, agents never publish the Review.</p>
     </div>
     <div class="grid-install">
       <div class="card card-pad-lg" data-reveal>
-        <p class="install-step">Step 01</p>
-        <h3 class="install-title">Download Porcelain</h3>
-        <p class="body">macOS on Apple Silicon. Auto-updating. No account. No telemetry. Free forever. On any other device, you don't install it: run the daemon and open a browser.</p>
+        <p class="install-step">Seat · Mac</p>
+        <h3 class="install-title">Download the app</h3>
+        <p class="body">macOS on Apple Silicon. Auto-updating. No account. No telemetry. Free forever.</p>
         <div style="display:flex;flex-wrap:wrap;gap:10px;">
           <a href="https://github.com/FabioFiorita/porcelain/releases/latest" target="_blank" rel="noopener" class="btn btn-primary">Download for macOS</a>
-          <a href="#remote" class="btn btn-ghost">Open in a browser</a>
         </div>
       </div>
       <div class="card card-pad-lg" data-reveal>
-        <p class="install-step">Step 02</p>
+        <p class="install-step">Seat · Browser</p>
+        <h3 class="install-title">Run the daemon</h3>
+        <p class="body">Linux, Windows, iPad, phone: no app install. Start the daemon on the machine that holds your code and open the URL in any browser. Same client as the Mac app.</p>
+        <div class="code-block">
+          <div class="comment"># On the host (LAN or Tailscale)</div>
+          <div><span class="prompt">$</span> npx porcelain-daemon@latest serve --tailnet --print-token</div>
+          <div class="hint">Start when you work · Ctrl+C when done</div>
+        </div>
+      </div>
+      <div class="card card-pad-lg" data-reveal>
+        <p class="install-step">Everyone · required</p>
         <h3 class="install-title">Connect your agent</h3>
-        <p class="body">Teach your agents the Porcelain workflow with one companion skill. Global install so every project sees it:</p>
+        <p class="body">Whether you use the Mac app or a browser, teach your agents the Porcelain workflow with one companion skill. Global install so every project sees it:</p>
         <div class="code-block">
           <div class="comment"># Companion skill, via skills.sh</div>
           <div><span class="prompt">$</span> npx skills add FabioFiorita/porcelain -g</div>
-          <div class="hint">Update later with: npx skills upgrade -g</div>
-        </div>
-      </div>
-      <div class="card card-pad-lg" data-reveal>
-        <p class="install-step">Or skip both</p>
-        <h3 class="install-title">Open it in a browser</h3>
-        <p class="body">Run the daemon on any machine you own. Every device with a browser becomes a client.</p>
-        <div class="code-block">
-          <div class="comment"># On the host</div>
-          <div><span class="prompt">$</span> npx porcelain-daemon@latest serve --tailnet --print-token</div>
-          <div class="hint">Start when you work · Ctrl+C when done</div>
+          <div class="hint">Update later: npx skills upgrade -g</div>
         </div>
       </div>
     </div>
