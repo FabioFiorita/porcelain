@@ -11,16 +11,16 @@ import {
 import type { FileSource, ReviewCanvas, ReviewSection, ReviewSet } from './review-set'
 
 // Resolution order for an extension-less import. Mirrors the resolver in flow.ts
-// but checks set membership (O(1)) instead of scanning a list — the baseline walks
-// every changed file's imports against the full repo file list on each poll.
+// but checks set membership (O(1)) instead of scanning a list. Used by Explore's
+// relative-import walk (and connect edges inside the agent-declared Execution set).
 const RESOLVE_EXTS = ['', '.ts', '.tsx', '.js', '.jsx', '.mts', '.cts', '.mjs', '.cjs']
 
 /**
  * Resolve a RELATIVE import specifier to a real repo file. Only relative specs are
- * resolved for the baseline: they are unambiguous and cheap. Alias/bare specs (which
- * is how a client reaches a server route — e.g. `@acme/shared/...`) are deliberately
- * not followed; those cross-seam edges are exactly what the import graph can't see,
- * and what the agent-fed review set exists to supply.
+ * resolved: they are unambiguous and cheap. Alias/bare specs (which is how a client
+ * reaches a server route — e.g. `@acme/shared/...`) are deliberately not followed;
+ * those cross-seam edges are exactly what the import graph can't see, and what the
+ * agent-fed review set's `shipped` files exist to supply.
  */
 export function resolveRelativeImport(
   spec: string,
@@ -43,33 +43,6 @@ export function resolveRelativeImport(
     if (repoFiles.has(`${base}/index${ext}`)) return `${base}/index${ext}`
   }
   return null
-}
-
-/**
- * Walk one hop out from the changed files along their relative imports, collecting
- * unchanged repo files as review context. Bounded by `limit` so a hub file with many
- * imports can't balloon the view.
- */
-export function expandContext(
-  changedPaths: readonly string[],
-  sources: ReadonlyMap<string, string>,
-  repoFiles: ReadonlySet<string>,
-  limit = 60,
-): string[] {
-  const changed = new Set(changedPaths)
-  const context = new Set<string>()
-  for (const importer of changedPaths) {
-    const source = sources.get(importer)
-    if (!source) continue
-    for (const spec of parseImports(source)) {
-      const resolved = resolveRelativeImport(spec, importer, repoFiles)
-      if (resolved && !changed.has(resolved)) {
-        context.add(resolved)
-        if (context.size >= limit) return [...context]
-      }
-    }
-  }
-  return [...context]
 }
 
 export interface FeatureFile {
@@ -100,9 +73,7 @@ export interface FeatureSectionOutline {
 
 export interface FeatureView {
   name: string
-  /** True when an agent-fed review set contributed (cross-seam files + notes).
-   *  Always true now that the view is review-set-only; kept until the renderer
-   *  rebuild sweeps its consumers. */
+  /** Always true — the view is agent-curated only; kept until renderer consumers drop it. */
   fromAgent: boolean
   /** One-paragraph markdown thesis shown at the top of the Review. */
   thesis?: string
@@ -112,66 +83,44 @@ export interface FeatureView {
 }
 
 /**
- * Assemble the feature view from the change under review, the statically-expanded
- * context, and the agent-fed review set (review-set-only — the caller returns null
- * to the renderer when no set exists). The set's declared files and notes overlay
- * the git truth. Git status always wins over a declared source — a file in the
- * working tree is `changed`, no matter what the agent labelled it.
+ * Assemble the Execution outline from the agent-fed review set only. Membership and
+ * order are exactly `reviewSet.files` (first occurrence wins on duplicates). Git is
+ * consulted only to tag a listed file as `changed` (and attach status/stats) when it
+ * is dirty in the working tree — incidental unlisted changes never appear here (they
+ * stay on the Changes tab). The caller returns null when no set exists.
  */
 export function buildFeatureView(params: {
   name: string
   changed: readonly ChangedFile[]
-  contextPaths: readonly string[]
   reviewSet: ReviewSet
   sources: ReadonlyMap<string, string>
   stats: ReadonlyMap<string, { additions: number; deletions: number }>
   layers: readonly Layer[]
 }): FeatureView {
   const changedByPath = new Map(params.changed.map((f) => [f.path, f]))
-  const files = new Map<string, FeatureFile>()
+  const files: FeatureFile[] = []
+  const seen = new Set<string>()
 
-  const add = (
-    path: string,
-    source: FileSource,
-    opts: { explicit?: boolean; note?: string; layer?: string } = {},
-  ): void => {
-    const existing = files.get(path)
-    if (existing) {
-      if (opts.note && !existing.note) existing.note = opts.note
-      // The agent's layer applies to a changed file too (git owns the source, the
-      // agent owns where it sits in the flow), so set it regardless of source.
-      if (opts.layer && !existing.layer) existing.layer = opts.layer
-      // An explicit (agent-declared) source can promote context→shipped, but
-      // nothing overrides a file that git says is changed.
-      if (opts.explicit && existing.source !== 'changed') existing.source = source
-      return
-    }
-    const changedFile = changedByPath.get(path)
-    const stat = params.stats.get(path)
-    files.set(path, {
-      path,
-      source: changedFile ? 'changed' : source,
+  for (const file of params.reviewSet.files) {
+    if (seen.has(file.path)) continue
+    seen.add(file.path)
+    const changedFile = changedByPath.get(file.path)
+    const stat = params.stats.get(file.path)
+    files.push({
+      path: file.path,
+      // Git wins on source for listed dirty files; otherwise the agent label (or shipped).
+      source: changedFile ? 'changed' : (file.source ?? 'shipped'),
       status: changedFile?.status,
-      note: opts.note,
-      layer: opts.layer,
+      note: file.note,
+      layer: file.layer,
       additions: stat?.additions,
       deletions: stat?.deletions,
       connects: [],
     })
   }
 
-  for (const file of params.changed) add(file.path, 'changed')
-  for (const path of params.contextPaths) add(path, 'context')
-  for (const file of params.reviewSet.files) {
-    add(file.path, file.source ?? 'shipped', {
-      explicit: true,
-      note: file.note,
-      layer: file.layer,
-    })
-  }
-
-  const unionPaths = [...files.keys()]
-  for (const file of files.values()) {
+  const unionPaths = files.map((f) => f.path)
+  for (const file of files) {
     const source = params.sources.get(file.path)
     if (!source) continue
     const connects = parseImports(source)
@@ -180,14 +129,9 @@ export function buildFeatureView(params: {
     file.connects = [...new Set(connects)]
   }
 
-  // The agent OWNS the feature view's flow — its declared file order and per-file
-  // `layer` render verbatim (groupByLayerOrdered), since the agent built the feature
-  // and knows its true shape better than a regex. (The repo-wide regex layers still
-  // group the Changes/History tabs via `groupByLayer` in flow.ts.)
-  const groups = groupByLayerOrdered(
-    orderByDeclared([...files.values()], params.reviewSet),
-    params.layers,
-  )
+  // Agent order + per-file `layer` render verbatim (groupByLayerOrdered). Repo-wide
+  // regex layers still group Changes/History via `groupByLayer` in flow.ts.
+  const groups = groupByLayerOrdered(files, params.layers)
 
   return {
     name: params.name,
@@ -199,27 +143,6 @@ export function buildFeatureView(params: {
     })),
     groups,
   }
-}
-
-/**
- * Reorder the feature's files into the agent's DECLARED order: files listed in the
- * review set come first in review-set order, the rest (auto-added context, changed
- * files the agent didn't list) keep their original insertion order after. Stable, so
- * `groupByLayerOrdered` can render the agent's flow exactly as pushed.
- */
-function orderByDeclared(files: readonly FeatureFile[], reviewSet: ReviewSet): FeatureFile[] {
-  const declared = new Map(reviewSet.files.map((file, index) => [file.path, index]))
-  return files
-    .map((file, index) => ({ file, index }))
-    .sort((a, b) => {
-      const ad = declared.get(a.file.path)
-      const bd = declared.get(b.file.path)
-      if (ad !== undefined && bd !== undefined) return ad - bd
-      if (ad !== undefined) return -1
-      if (bd !== undefined) return 1
-      return a.index - b.index // both undeclared — keep insertion order
-    })
-    .map((entry) => entry.file)
 }
 
 /** One file in the inline reading surface: changed files carry diff hunks, the
@@ -297,10 +220,9 @@ const MAX_ANCHOR_LINES = 400
  * import resolves to). Anchored files render inside their section — an anchor
  * without a range gets the file's normal reading block, a ranged anchor gets the
  * intersecting hunks (changed) or a single clamped slice (otherwise) — and do not
- * repeat in `groups`; files in no section land in `groups` in the declared-order
- * flow grouping, so nothing is silently dropped. Review-set-only: the caller builds
- * this only when a review set is present, so the slice heuristic runs only on the
- * agent's curated, annotated set.
+ * repeat in `groups`; agent-declared files in no section land in `groups` in the
+ * declared-order flow grouping. Review-set-only: the caller builds this only when
+ * a review set is present.
  */
 export function buildFeatureReading(params: {
   view: FeatureView

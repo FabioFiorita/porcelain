@@ -385,9 +385,9 @@ export function readReview(repoPath: string): ReviewSet | null {
  * Render a repo's stored review set for the read tool: a one-line summary (name,
  * counts, per-source breakdown) followed by the thesis, files, and sections as one
  * JSON object so an agent can verify what it pushed and round-trip an idempotent
- * update (`review set --thesis --files --sections`). The stored source is what the
- * agent declared; Porcelain still auto-detects working-tree files as `changed` when
- * it renders, which the summary calls out.
+ * update (`review set --thesis --files --sections`). Execution shows exactly these
+ * files in this order; listed paths that are dirty in the working tree render as
+ * `changed` regardless of the declared source.
  */
 export function describeReview(repoPath: string, review: ReviewSet | null): string {
   if (!review || (review.files.length === 0 && review.sections.length === 0 && !review.canvas)) {
@@ -405,5 +405,5 @@ export function describeReview(repoPath: string, review: ReviewSet | null): stri
   const json = JSON.stringify(roundTrip, null, 2)
   const fileCount = `${review.files.length} file(s)${breakdown ? ` (${breakdown})` : ''}`
   const canvasNote = review.canvas ? `, overview canvas=${review.canvas.medium}` : ''
-  return `Feature review "${review.name}" for ${repoPath}: ${fileCount}, ${review.sections.length} section(s), thesis ${review.thesis ? 'set' : 'not set'}${canvasNote}. Working-tree files render as "changed" regardless of declared source.\n${json}`
+  return `Feature review "${review.name}" for ${repoPath}: ${fileCount}, ${review.sections.length} section(s), thesis ${review.thesis ? 'set' : 'not set'}${canvasNote}. Execution shows only these listed files (in this order); listed dirty paths render as "changed".\n${json}`
 }

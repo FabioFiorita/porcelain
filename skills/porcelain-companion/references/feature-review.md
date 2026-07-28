@@ -5,7 +5,7 @@ Porcelain is where agent work becomes trusted work. The **Review** sidebar tab i
 | Tab | Job | Human question |
 |-----|-----|----------------|
 | **Intent** | Why / plan / shape of the unit | *What is this, and what's the idea?* |
-| **Execution** | What changed (files, notes, diffs) | *What did the agent touch, and is the code right?* |
+| **Execution** | Agent-curated files, notes, diffs (not every dirty path) | *What did the agent touch, and is the code right?* |
 | **Evidence** | Proof the loop closed | *Did it actually work?* |
 
 **Viewer:** the same three tabs, each with the human question as a tooltip.
@@ -79,7 +79,7 @@ CLI: `~/.porcelain/porcelain` (from inside the repo; `help` lists verbs).
 | Surface | Allowed mediums |
 |---------|-----------------|
 | **Intent** | Structured document (thesis + section prose/diagrams) **or** freeform HTML **or** Excalidraw |
-| **Execution** | Native app UI (files from `--files` / anchors) — not a freeform medium |
+| **Execution** | Native app UI (exactly the files from `--files`, agent order; anchors group chapters) — not a freeform medium |
 | **Evidence** | **HTML only** (`index.html` + optional screenshots) |
 
 **Bias:** structured Intent + HTML Evidence. Reach for Excalidraw only when a spatial board is clearly better for Intent (architecture map, data-flow whiteboard). Never put Excalidraw on Evidence.

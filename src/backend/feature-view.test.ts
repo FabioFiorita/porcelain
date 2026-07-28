@@ -4,7 +4,6 @@ import {
   buildDiffReading,
   buildFeatureReading,
   buildFeatureView,
-  expandContext,
   resolveRelativeImport,
 } from './feature-view'
 import { DEFAULT_LAYERS, type FlowGroup } from './flow'
@@ -15,8 +14,6 @@ const changed = (path: string, status: ChangedFile['status'] = 'modified'): Chan
   status,
 })
 
-// The view is review-set-only now; an empty set is the minimal input (declared
-// files/sections just widen it).
 const emptySet = (name = 'Feature view'): ReviewSet => ({ name, files: [], sections: [] })
 
 describe('resolveRelativeImport', () => {
@@ -48,75 +45,65 @@ describe('resolveRelativeImport', () => {
   })
 })
 
-describe('expandContext', () => {
-  it('pulls in unchanged files reachable by a relative import from a changed file', () => {
-    const repoFiles = new Set(['app/card.tsx', 'app/use-crew.ts', 'app/types.ts'])
-    const sources = new Map([['app/card.tsx', "import { useCrew } from './use-crew'"]])
-    expect(expandContext(['app/card.tsx'], sources, repoFiles)).toEqual(['app/use-crew.ts'])
-  })
-
-  it('never includes a file that is itself changed', () => {
-    const repoFiles = new Set(['app/card.tsx', 'app/use-crew.ts'])
-    const sources = new Map([['app/card.tsx', "import { x } from './use-crew'"]])
-    expect(expandContext(['app/card.tsx', 'app/use-crew.ts'], sources, repoFiles)).toEqual([])
-  })
-
-  it('honours the limit', () => {
-    const repoFiles = new Set(['a.ts', 'b.ts', 'c.ts', 'hub.ts'])
-    const sources = new Map([
-      ['hub.ts', "import a from './a'\nimport b from './b'\nimport c from './c'"],
-    ])
-    expect(expandContext(['hub.ts'], sources, repoFiles, 2)).toHaveLength(2)
-  })
-})
-
 describe('buildFeatureView', () => {
   const layers = DEFAULT_LAYERS
   const noStats = new Map<string, { additions: number; deletions: number }>()
 
-  it('groups changed files in flow order with an empty review set', () => {
+  it('is empty when the agent listed no files, even if the working tree is dirty', () => {
     const view = buildFeatureView({
       name: 'Feature view',
       changed: [changed('app/screens/crew/tab.tsx'), changed('app/hooks/use-crew.ts')],
-      contextPaths: [],
       reviewSet: emptySet(),
       sources: new Map(),
       stats: noStats,
       layers,
     })
-    expect(view.groups.map((g) => g.layer)).toEqual(['Pages', 'Hooks'])
-    expect(view.groups[0]?.files[0]?.source).toBe('changed')
+    expect(view.groups).toEqual([])
     expect(view.sections).toEqual([])
     expect(view.thesis).toBeUndefined()
   })
 
-  it('tags context files and keeps them in their own layer', () => {
+  it('does not auto-include unlisted working-tree or import-context files', () => {
+    // The incidental e2e config fix that isn't part of the feature story.
+    const reviewSet: ReviewSet = {
+      name: 'Feature X',
+      files: [{ path: 'app/screens/crew/tab.tsx', note: 'entry' }],
+      sections: [],
+    }
     const view = buildFeatureView({
-      name: 'Feature view',
-      changed: [changed('app/screens/crew/tab.tsx')],
-      contextPaths: ['app/hooks/use-crew.ts'],
-      reviewSet: emptySet(),
+      name: 'Feature X',
+      changed: [
+        changed('app/screens/crew/tab.tsx'),
+        changed('e2e/helpers/ui-config.ts'),
+        changed('app/hooks/use-crew.ts'),
+      ],
+      reviewSet,
       sources: new Map(),
       stats: noStats,
       layers,
     })
-    const hooks = view.groups.find((g) => g.layer === 'Hooks')
-    expect(hooks?.files[0]).toMatchObject({ path: 'app/hooks/use-crew.ts', source: 'context' })
+    const paths = view.groups.flatMap((g) => g.files.map((f) => f.path))
+    expect(paths).toEqual(['app/screens/crew/tab.tsx'])
+    expect(view.groups[0]?.files[0]).toMatchObject({
+      path: 'app/screens/crew/tab.tsx',
+      source: 'changed',
+      note: 'entry',
+    })
   })
 
-  it('overlays an agent review set: shipped files + notes, git status still wins', () => {
+  it('tags agent-listed files with git truth and keeps declared notes/sources', () => {
     const reviewSet: ReviewSet = {
       name: 'Call-outs',
       files: [
         { path: 'server/services/crew.service.ts', source: 'shipped', note: 'owns the labels' },
         { path: 'app/hooks/use-crew.ts', note: 'maps ISO date' },
+        { path: 'app/types.ts', source: 'context' },
       ],
       sections: [],
     }
     const view = buildFeatureView({
       name: 'fallback',
       changed: [changed('app/hooks/use-crew.ts')],
-      contextPaths: [],
       reviewSet,
       sources: new Map(),
       stats: noStats,
@@ -124,19 +111,23 @@ describe('buildFeatureView', () => {
     })
     expect(view.fromAgent).toBe(true)
     expect(view.name).toBe('fallback')
-    const service = view.groups
-      .flatMap((g) => g.files)
-      .find((f) => f.path === 'server/services/crew.service.ts')
-    expect(service).toMatchObject({ source: 'shipped', note: 'owns the labels' })
-    // declared as a plain file but git says it's changed → stays 'changed', note attaches
-    const hook = view.groups.flatMap((g) => g.files).find((f) => f.path === 'app/hooks/use-crew.ts')
-    expect(hook).toMatchObject({ source: 'changed', note: 'maps ISO date' })
+    const byPath = new Map(view.groups.flatMap((g) => g.files.map((f) => [f.path, f] as const)))
+    expect(byPath.get('server/services/crew.service.ts')).toMatchObject({
+      source: 'shipped',
+      note: 'owns the labels',
+    })
+    // declared without source but git says changed → stays 'changed', note attaches
+    expect(byPath.get('app/hooks/use-crew.ts')).toMatchObject({
+      source: 'changed',
+      note: 'maps ISO date',
+    })
+    expect(byPath.get('app/types.ts')).toMatchObject({ source: 'context' })
   })
 
-  it('lets the agent drive the feature view grouping + order via per-file layers', () => {
-    // `app/` would regex into Pages, `store/`/`infra/` would fall into Other; the
-    // agent's explicit layers + declared order win for the feature view (the Changes
-    // tab still uses the regex layers). This is the user's Q2 outcome.
+  it('lets the agent drive grouping + order via per-file layers and --files order', () => {
+    // `app/` would regex into Pages, `store/`/`infra/` into Other; the agent's
+    // explicit layers + declared order win for the feature view (Changes still
+    // uses the regex layers).
     const reviewSet: ReviewSet = {
       name: 'Account access',
       files: [
@@ -149,7 +140,6 @@ describe('buildFeatureView', () => {
     const view = buildFeatureView({
       name: 'Account access',
       changed: [],
-      contextPaths: [],
       reviewSet,
       sources: new Map(),
       stats: noStats,
@@ -163,7 +153,7 @@ describe('buildFeatureView', () => {
     ])
   })
 
-  it('honours declared order and regex-fills an un-layered file in agent mode', () => {
+  it('honours declared order and regex-fills an un-layered file', () => {
     const reviewSet: ReviewSet = {
       name: 'X',
       files: [
@@ -175,7 +165,6 @@ describe('buildFeatureView', () => {
     const view = buildFeatureView({
       name: 'X',
       changed: [changed('app/screens/crew/tab.tsx')],
-      contextPaths: [],
       reviewSet,
       sources: new Map(),
       stats: noStats,
@@ -184,12 +173,44 @@ describe('buildFeatureView', () => {
     expect(view.groups.map((g) => g.layer)).toEqual(['Pages', 'Services'])
   })
 
-  it('connects files within the view via their imports', () => {
+  it('keeps the first occurrence when the agent lists a path twice', () => {
+    const reviewSet: ReviewSet = {
+      name: 'X',
+      files: [
+        { path: 'app/a.ts', note: 'first' },
+        { path: 'app/b.ts' },
+        { path: 'app/a.ts', note: 'second' },
+      ],
+      sections: [],
+    }
+    const view = buildFeatureView({
+      name: 'X',
+      changed: [],
+      reviewSet,
+      sources: new Map(),
+      stats: noStats,
+      layers,
+    })
+    const paths = view.groups.flatMap((g) => g.files.map((f) => f.path))
+    expect(paths).toEqual(['app/a.ts', 'app/b.ts'])
+    expect(view.groups.flatMap((g) => g.files).find((f) => f.path === 'app/a.ts')?.note).toBe(
+      'first',
+    )
+  })
+
+  it('connects files within the agent-declared set via their imports', () => {
+    const reviewSet: ReviewSet = {
+      name: 'Feature view',
+      files: [
+        { path: 'app/screens/crew/tab.tsx' },
+        { path: 'app/hooks/use-crew.ts', source: 'context' },
+      ],
+      sections: [],
+    }
     const view = buildFeatureView({
       name: 'Feature view',
       changed: [changed('app/screens/crew/tab.tsx')],
-      contextPaths: ['app/hooks/use-crew.ts'],
-      reviewSet: emptySet(),
+      reviewSet,
       sources: new Map([
         ['app/screens/crew/tab.tsx', "import { useCrew } from '../../hooks/use-crew'"],
       ]),
@@ -200,12 +221,16 @@ describe('buildFeatureView', () => {
     expect(tab?.connects).toEqual(['app/hooks/use-crew.ts'])
   })
 
-  it('attaches numstat additions/deletions to changed files', () => {
+  it('attaches numstat additions/deletions to listed changed files', () => {
+    const reviewSet: ReviewSet = {
+      name: 'Feature view',
+      files: [{ path: 'app/hooks/use-crew.ts' }],
+      sections: [],
+    }
     const view = buildFeatureView({
       name: 'Feature view',
       changed: [changed('app/hooks/use-crew.ts')],
-      contextPaths: [],
-      reviewSet: emptySet(),
+      reviewSet,
       sources: new Map(),
       stats: new Map([['app/hooks/use-crew.ts', { additions: 74, deletions: 3 }]]),
       layers,
@@ -226,7 +251,6 @@ describe('buildFeatureView', () => {
     const view = buildFeatureView({
       name: 'Login flow',
       changed: [changed('app/login.tsx')],
-      contextPaths: [],
       reviewSet,
       sources: new Map(),
       stats: noStats,
@@ -245,11 +269,15 @@ describe('buildFeatureReading', () => {
     ['app/page.tsx', "import { greet } from './svc'"],
     ['app/svc.ts', 'export function greet() {\n  return 1\n}\nexport const UNUSED = 2'],
   ])
+  const reviewSet: ReviewSet = {
+    name: 'Feature',
+    files: [{ path: 'app/page.tsx' }, { path: 'app/svc.ts', source: 'context' }],
+    sections: [],
+  }
   const view = buildFeatureView({
     name: 'Feature',
     changed: [changed('app/page.tsx')],
-    contextPaths: ['app/svc.ts'],
-    reviewSet: emptySet('Feature'),
+    reviewSet,
     sources,
     stats: new Map(),
     layers: DEFAULT_LAYERS,
@@ -283,7 +311,6 @@ describe('buildFeatureReading', () => {
     const thesisView = buildFeatureView({
       name: 'Feature',
       changed: [changed('app/page.tsx')],
-      contextPaths: [],
       reviewSet: { name: 'Feature', thesis: 'The why.', files: [], sections: [] },
       sources,
       stats: new Map(),

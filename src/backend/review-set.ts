@@ -2,13 +2,12 @@ import { z } from 'zod'
 import { MAX_SCENE_BYTES } from '../shared/excalidraw-scene'
 
 /**
- * Where a file in a feature view comes from, relative to the change under review:
- * - `changed` — in the working tree (what the reviewer is actually changing).
- * - `context` — unchanged, but reachable from the change; included so the flow reads
- *   as a story. The static baseline reaches these by walking relative imports.
- * - `shipped` — already landed (on the branch or main); the half of the feature the
- *   reviewer didn't touch. Only the agent can declare these — they cross seams (a
- *   tRPC route string, a runtime contract) that the import graph cannot follow.
+ * Where a file in Execution comes from, relative to the unit under review. The
+ * agent alone chooses membership; these tags only label listed files:
+ * - `changed` — dirty in the working tree (Porcelain auto-tags listed dirty files).
+ * - `context` — unchanged, listed so the flow still reads as a story.
+ * - `shipped` — already landed (on the branch or main); cross-seam half of the unit
+ *   the agent wants the human to see (a tRPC route, a runtime contract).
  */
 export const FILE_SOURCES = ['changed', 'context', 'shipped'] as const
 export type FileSource = (typeof FILE_SOURCES)[number]

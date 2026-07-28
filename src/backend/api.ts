@@ -53,7 +53,6 @@ import {
   buildDiffReading,
   buildFeatureReading,
   buildFeatureView,
-  expandContext,
   type FeatureReading,
   type FeatureView,
 } from './feature-view'
@@ -332,27 +331,27 @@ async function readSourcesInto(
 
 // Cheap phase shared by both feature procedures: the working-tree snapshot, agent
 // set, and layers → the memo key. Each procedure checks its own cache on this key
-// before doing the expensive source reads.
+// before doing the expensive source reads. (Git status is only used to tag listed
+// files as `changed`; membership of Execution is the review set alone.)
 async function gatherFeature(input: string) {
-  const [{ files, stats }, stored, repoFiles, reviewSet] = await Promise.all([
+  const [{ files, stats }, stored, reviewSet] = await Promise.all([
     workingTreeSnapshot(input),
     readLayers(input),
-    gitListFiles(input),
     readReviewSet(input),
   ])
   const layers = stored ?? DEFAULT_LAYERS
   const key = featureKey(files, stats, layers, reviewSet)
-  return { files, stats, layers, reviewSet, repoFiles, key }
+  return { files, stats, layers, reviewSet, key }
 }
 
 // A gather narrowed to "an agent review set exists" — the only state the feature
 // build runs in now (both procedures return null to the renderer without one).
 type ReviewGather = Awaited<ReturnType<typeof gatherFeature>> & { reviewSet: ReviewSet }
 
-// Expensive phase shared on a cache miss: read changed + context + agent-declared
-// sources (including section-anchor targets — a section may anchor a file the set
-// never listed), then build the feature view. Returns the view AND the sources
-// (the reading surface needs them to slice context/shipped files).
+// Expensive phase shared on a cache miss: read only agent-declared file sources
+// (plus section-anchor targets — Intent may anchor a path not listed in --files),
+// then build the feature view. Returns the view AND the sources (the reading
+// surface needs them to slice context/shipped files).
 async function buildFeatureFromGather(
   input: string,
   g: ReviewGather,
@@ -360,18 +359,7 @@ async function buildFeatureFromGather(
   const sources = new Map<string, string>()
   await readSourcesInto(
     input,
-    g.files.slice(0, 200).map((file) => file.path),
-    sources,
-  )
-  const contextPaths = expandContext(
-    g.files.map((file) => file.path),
-    sources,
-    new Set(g.repoFiles),
-  )
-  await readSourcesInto(
-    input,
     [
-      ...contextPaths,
       ...g.reviewSet.files.map((file) => file.path),
       ...g.reviewSet.sections.flatMap((section) => section.anchors.map((anchor) => anchor.path)),
     ],
@@ -383,7 +371,6 @@ async function buildFeatureFromGather(
   const view = buildFeatureView({
     name: g.reviewSet.name,
     changed: g.files,
-    contextPaths,
     reviewSet: g.reviewSet,
     sources,
     stats: statByPath,
@@ -901,11 +888,11 @@ export const router = t.router({
       return buildDiffReading({ name, groups, diffs })
     }),
 
-  // The feature view (the Review's outline): the change under review widened into
-  // the whole feature by the agent's review set (porcelain CLI →
-  // ~/.porcelain/review-sets.json) — its cross-seam files, invariant notes, thesis,
-  // and section outline. Review-set-only: null without a set (the renderer shows
-  // the "No review yet" empty state; there is no import-graph baseline anymore).
+  // The feature view (the Review's Execution outline): exactly the files the agent
+  // listed in the review set (porcelain CLI → ~/.porcelain/review-sets.json), in
+  // agent order, with notes/layers/thesis/sections. Null without a set (the
+  // renderer shows the "No review yet" empty state). Working-tree changes that
+  // the agent did not list never appear here.
   featureView: t.procedure
     .input(z.string())
     .query(async ({ input }): Promise<FeatureView | null> => {
