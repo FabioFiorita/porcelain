@@ -128,6 +128,8 @@ import {
   hidePath as hideScopePath,
   pinnedPathsForRepo,
   pinPath as pinScopePath,
+  type RepoScope,
+  readRepoScope,
   unhidePath as unhideScopePath,
   unpinPath as unpinScopePath,
 } from './scope-store'
@@ -1179,7 +1181,7 @@ export const router = t.router({
     .input(
       z.object({
         repoPath: z.string(),
-        // null clears the override back to the defaults
+        // null clears the override back to the Docs + Agents starters
         layers: z
           .array(
             z.object({
@@ -1194,6 +1196,11 @@ export const router = t.router({
     .mutation(async ({ input }) => {
       await writeLayers(input.repoPath, input.layers)
     }),
+
+  /** Monorepo hide/pin lists for this repo (empty arrays when never configured). */
+  repoScope: t.procedure.input(z.string()).query(async ({ input }): Promise<RepoScope> => {
+    return readRepoScope(input)
+  }),
 
   repoNotes: t.procedure.input(z.string()).query(({ input }): Promise<string> => readNotes(input)),
 

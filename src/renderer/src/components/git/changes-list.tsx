@@ -1,5 +1,6 @@
 import type { FileStatus } from '@backend/diff'
 import type { FlowFile } from '@backend/flow'
+import { SetupTip } from '@renderer/components/shell/setup-tip'
 import { SidebarHeaderActions } from '@renderer/components/shell/sidebar-header-actions'
 import {
   AlertDialog,
@@ -29,18 +30,24 @@ import { useBranchFlow } from '@renderer/hooks/use-branch-flow'
 import { useDiscardFile, useFileStaging } from '@renderer/hooks/use-commit'
 import { useDiffFilePrefetch } from '@renderer/hooks/use-diff'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'
+import { useRepoLayers } from '@renderer/hooks/use-repo-layers'
 import { useReviewedPaths, useToggleReviewed } from '@renderer/hooks/use-reviewed'
+import { layersSetupPrompt } from '@renderer/lib/agent-setup-prompts'
 import { dirName, fileName } from '@renderer/lib/paths'
-import { cn } from '@renderer/lib/utils'
+import { cn, copyText } from '@renderer/lib/utils'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useRevealStore } from '@renderer/stores/reveal'
+import { useSettingsDialogStore } from '@renderer/stores/settings-dialog'
+import { useSetupTipsStore } from '@renderer/stores/setup-tips'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { TestIds } from '@shared/test-ids'
 import {
   Check,
   Compass,
+  Copy,
   FileText,
+  Layers,
   MessageSquarePlus,
   Minus,
   Plus,
@@ -297,6 +304,12 @@ export function ChangesList(): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)
   const changesScope = usePreferencesStore((s) => s.changesScope)
   const openTab = useTabsStore((s) => s.openTab)
+  const layers = useRepoLayers()
+  const layersKickoffDismissed = useSetupTipsStore((s) =>
+    repo ? s.dismissed[repo.path]?.['layers-kickoff'] === true : true,
+  )
+  const dismissTip = useSetupTipsStore((s) => s.dismiss)
+  const [setupCopied, setSetupCopied] = useState(false)
 
   // Always call both hooks — hooks can't be conditional. Branch hook is disabled
   // when scope is 'working' (no wasted fetch); working hook always fetches (it
@@ -319,6 +332,14 @@ export function ChangesList(): React.JSX.Element {
     (n, g) => n + g.files.filter((f) => reviewed.has(f.path)).length,
     0,
   )
+  // Quiet kickoff while still on Docs+Agents starters (also dismissible; gone after layers set).
+  const showLayersKickoff =
+    layers !== undefined && !layers.custom && total > 0 && !layersKickoffDismissed
+
+  const copyLayersSetup = async (): Promise<void> => {
+    await copyText(layersSetupPrompt())
+    setSetupCopied(true)
+  }
 
   // Opens the continuous stacked-diff surface for the active scope (working or
   // branch) — same flow order as this list, one scrollable document.
@@ -391,6 +412,45 @@ export function ChangesList(): React.JSX.Element {
         </div>
         <ChangesScopeToggle />
       </div>
+      {showLayersKickoff && (
+        <SetupTip
+          testId={TestIds.changesLayersSetup}
+          dismissTestId={TestIds.changesLayersSetupDismiss}
+          className="mx-2"
+          onDismiss={() => dismissTip(repo.path, 'layers-kickoff')}
+          actions={
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-6 gap-1 px-2 text-2xs"
+                onClick={() => void copyLayersSetup()}
+              >
+                {setupCopied ? (
+                  <Check className="size-3 text-success" />
+                ) : (
+                  <Copy className="size-3" />
+                )}
+                {setupCopied ? 'Copied' : 'Copy setup prompt'}
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="h-6 gap-1 px-2 text-2xs"
+                onClick={() => useSettingsDialogStore.getState().openTo('flow')}
+              >
+                <Layers className="size-3" />
+                Open Review layers
+              </Button>
+            </>
+          }
+        >
+          <p className="text-2xs leading-snug text-muted-foreground">
+            Starter layers only (Docs · Agents). Product files sit in Other until configured for
+            this tree.
+          </p>
+        </SetupTip>
+      )}
       {total === 0 ? (
         <div className="px-3 py-10 text-center">
           <p className="text-xs font-medium text-foreground">No changes to review</p>

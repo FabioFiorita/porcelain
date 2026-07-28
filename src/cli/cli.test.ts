@@ -480,8 +480,11 @@ describe('runCli — notes + layers', () => {
     expect(await runCli(['notes', 'get', ...repo])).toContain('# conventions')
     expect(await runCli(['notes', 'get', '--repo', '/other'])).toContain('No project notes')
   })
-  it('layers get shows the defaults when none are custom', async () => {
-    expect(await runCli(['layers', 'get', ...repo])).toContain('built-in defaults')
+  it('layers get shows the starters when none are custom', async () => {
+    const text = await runCli(['layers', 'get', ...repo])
+    expect(text).toContain('starter groups')
+    expect(text).toContain('Docs')
+    expect(text).toContain('Agents')
   })
   it('layers set writes a repo-keyed ordered set', async () => {
     await runCli([
@@ -515,7 +518,7 @@ describe('runCli — notes + layers', () => {
       JSON.stringify([{ label: 'Pages', pattern: '(^|/)pages/' }]),
     ])
     await runCli(['layers', 'reset', ...repo])
-    expect(await runCli(['layers', 'get', ...repo])).toContain('built-in defaults')
+    expect(await runCli(['layers', 'get', ...repo])).toContain('starter groups')
   })
 })
 

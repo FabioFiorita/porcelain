@@ -80,6 +80,7 @@ function handle(
       return Promise.all([
         utils.readDir.invalidate(),
         utils.pinnedEntries.invalidate(),
+        utils.repoScope.invalidate(),
         utils.gitFlow.invalidate(),
         utils.searchFiles.invalidate(),
       ])

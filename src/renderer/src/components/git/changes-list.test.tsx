@@ -2,10 +2,12 @@ import type { FlowGroup } from '@backend/flow'
 import { SidebarProvider } from '@renderer/components/ui/sidebar'
 import { useBranchFlow } from '@renderer/hooks/use-branch-flow'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'
+import { useRepoLayers } from '@renderer/hooks/use-repo-layers'
 import { useReviewedPaths, useToggleReviewed } from '@renderer/hooks/use-reviewed'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useRevealStore } from '@renderer/stores/reveal'
+import { useSetupTipsStore } from '@renderer/stores/setup-tips'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -16,6 +18,7 @@ import { ChangesList } from './changes-list'
 // diff-prefetch hook is a no-op since hover prefetching is irrelevant here.
 vi.mock('@renderer/hooks/use-git-flow', () => ({ useGitFlow: vi.fn() }))
 vi.mock('@renderer/hooks/use-branch-flow', () => ({ useBranchFlow: vi.fn() }))
+vi.mock('@renderer/hooks/use-repo-layers', () => ({ useRepoLayers: vi.fn() }))
 vi.mock('@renderer/hooks/use-diff', () => ({ useDiffFilePrefetch: () => async () => {} }))
 vi.mock('@renderer/hooks/use-commit', () => ({
   useFileStaging: () => ({ stageFile: async () => {}, unstageFile: async () => {} }),
@@ -95,8 +98,36 @@ describe('ChangesList', () => {
       base: undefined,
       refresh: async () => {},
     })
+    // custom layers → no starter kickoff banner in the default suite
+    vi.mocked(useRepoLayers).mockReturnValue({ layers: [], custom: true })
     vi.mocked(useReviewedPaths).mockReturnValue(new Set())
     vi.mocked(useToggleReviewed).mockReturnValue({ mark: markFn, unmark: unmarkFn })
+    useSetupTipsStore.setState({ dismissed: {} })
+  })
+
+  it('shows a layers setup kickoff while still on starters', () => {
+    vi.mocked(useRepoLayers).mockReturnValue({
+      layers: [
+        { label: 'Docs', pattern: 'docs' },
+        { label: 'Agents', pattern: 'agents' },
+      ],
+      custom: false,
+    })
+    renderList()
+    expect(screen.getByTestId('changes-layers-setup')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Copy setup prompt/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Open Review layers/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Dismiss/i })).toBeInTheDocument()
+  })
+
+  it('hides the layers kickoff after dismiss', () => {
+    vi.mocked(useRepoLayers).mockReturnValue({
+      layers: [{ label: 'Docs', pattern: 'docs' }],
+      custom: false,
+    })
+    renderList()
+    fireEvent.click(screen.getByTestId('changes-layers-setup-dismiss'))
+    expect(screen.queryByTestId('changes-layers-setup')).not.toBeInTheDocument()
   })
 
   it('renders each layer group with its files and +adds/−dels', () => {

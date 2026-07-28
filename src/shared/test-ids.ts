@@ -46,11 +46,24 @@ export const TestIds = {
   /** Settings → Share: client count + Revoke all. */
   shareStatus: 'share-status',
   shareRevokeAll: 'share-revoke-all',
+  /** Settings → Review layers: copy agent setup prompt (shown while starters only). */
+  layersCopySetup: 'layers-copy-setup',
+  /** Settings → Review layers: starter/unconfigured explainer. */
+  layersStarterBanner: 'layers-starter-banner',
+  layersStarterDismiss: 'layers-starter-dismiss',
 
   // --- Changes ---
   changesList: 'changes-list',
   changesSummary: 'changes-summary',
   changesFile: (fileName: string): string => `changes-file-${fileName}`,
+  /** Quiet kickoff when layers are still starters (not agent-configured). */
+  changesLayersSetup: 'changes-layers-setup',
+  changesLayersSetupDismiss: 'changes-layers-setup-dismiss',
+
+  // --- Files ---
+  /** Quiet kickoff when monorepo scope is empty and the root looks noisy. */
+  filesScopeSetup: 'files-scope-setup',
+  filesScopeSetupDismiss: 'files-scope-setup-dismiss',
 
   // --- Worktree / branch footer ---
   worktreeSwitcher: 'worktree-switcher',

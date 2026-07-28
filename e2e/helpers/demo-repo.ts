@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path'
 // The demo repo behind the marketing screenshots (pnpm shots). Same idiom as
 // fixture-repo.ts, but richer and NOT a test baseline: a small, generic "orders"
 // TypeScript web app whose flow reads Pages → Components → Hooks → Routes →
-// Services → Data (matching DEFAULT_LAYERS in src/backend/flow.ts), with a clean
+// Services → Data (custom layers for shots — not the Docs/Agents starters), with a clean
 // history plus an uncommitted status-filter feature so the flow-ordered Changes
 // tab and the published Review both have real, multi-layer content to render.
 //

@@ -5,32 +5,60 @@ import {
   DEFAULT_LAYERS,
   groupByLayer,
   groupByLayerOrdered,
+  type Layer,
   layerFor,
   OTHER_LABEL,
   parseImports,
   resolveImport,
 } from './flow'
 
+/** A small product-shaped stack for tests that need multi-layer story order. */
+const STORY_LAYERS: Layer[] = [
+  { label: 'Components', pattern: '(^|/)components?/' },
+  { label: 'Services', pattern: '(^|/)services?/' },
+  { label: 'Data', pattern: '(^|/)(prisma|schema|models?)/' },
+  { label: 'Tests', pattern: '\\.(test|spec)\\.[a-z]+$' },
+]
+
+describe('DEFAULT_LAYERS (starters)', () => {
+  it('is only Docs + Agents — not a fat framework stack', () => {
+    expect(DEFAULT_LAYERS.map((l) => l.label)).toEqual(['Docs', 'Agents'])
+    expect(DEFAULT_LAYERS.some((l) => l.label === 'Components')).toBe(false)
+    expect(DEFAULT_LAYERS.some((l) => l.label === 'Pages')).toBe(false)
+  })
+
+  it('buckets docs and agent paths; product code falls to Other', () => {
+    expect(layerFor('README.md', DEFAULT_LAYERS)).toBe('Docs')
+    expect(layerFor('docs/guide.md', DEFAULT_LAYERS)).toBe('Docs')
+    expect(layerFor('CONTRIBUTING.md', DEFAULT_LAYERS)).toBe('Docs')
+    expect(layerFor('AGENTS.md', DEFAULT_LAYERS)).toBe('Agents')
+    expect(layerFor('CLAUDE.md', DEFAULT_LAYERS)).toBe('Agents')
+    expect(layerFor('.agents/skills/foo/SKILL.md', DEFAULT_LAYERS)).toBe('Agents')
+    expect(layerFor('.claude/settings.json', DEFAULT_LAYERS)).toBe('Agents')
+    expect(layerFor('src/components/Widget.tsx', DEFAULT_LAYERS)).toBe(OTHER_LABEL)
+    expect(layerFor('prisma/schema.prisma', DEFAULT_LAYERS)).toBe(OTHER_LABEL)
+  })
+})
+
 describe('layerFor', () => {
-  it('maps paths to layers', () => {
-    expect(layerFor('src/components/Widget.tsx', DEFAULT_LAYERS)).toBe('Components')
-    expect(layerFor('apps/api/controllers/user.ts', DEFAULT_LAYERS)).toBe('Controllers')
-    expect(layerFor('libs/core/services/billing.ts', DEFAULT_LAYERS)).toBe('Services')
-    expect(layerFor('prisma/schema.prisma', DEFAULT_LAYERS)).toBe('Data')
+  it('maps paths to layers on a custom set', () => {
+    expect(layerFor('src/components/Widget.tsx', STORY_LAYERS)).toBe('Components')
+    expect(layerFor('libs/core/services/billing.ts', STORY_LAYERS)).toBe('Services')
+    expect(layerFor('prisma/schema.prisma', STORY_LAYERS)).toBe('Data')
   })
 
   it('classifies tests by filename over directory', () => {
-    expect(layerFor('src/components/Widget.spec.tsx', DEFAULT_LAYERS)).toBe('Tests')
+    expect(layerFor('src/components/Widget.spec.tsx', STORY_LAYERS)).toBe('Tests')
   })
 
   it('lets a custom filename layer win over the containing directory', () => {
-    const layers = [...DEFAULT_LAYERS, { label: 'Stories', pattern: '\\.stories\\.[a-z]+$' }]
+    const layers = [...STORY_LAYERS, { label: 'Stories', pattern: '\\.stories\\.[a-z]+$' }]
     expect(layerFor('src/components/Widget.stories.tsx', layers)).toBe('Stories')
     expect(layerFor('src/components/Widget.tsx', layers)).toBe('Components')
   })
 
   it('falls back to Other', () => {
-    expect(layerFor('README.md', DEFAULT_LAYERS)).toBe('Other')
+    expect(layerFor('package.json', STORY_LAYERS)).toBe(OTHER_LABEL)
   })
 })
 
@@ -79,9 +107,18 @@ describe('buildFlow', () => {
       ['src/components/Profile.tsx', "import { getUser } from '../services/user'"],
     ])
 
-    const groups = buildFlow(files, sources, DEFAULT_LAYERS)
+    const groups = buildFlow(files, sources, STORY_LAYERS)
     expect(groups.map((g) => g.layer)).toEqual(['Components', 'Services', 'Data'])
     expect(groups[0]?.files[0]?.connects).toEqual(['src/services/user.ts'])
+  })
+
+  it('with starters, product files sit in Other', () => {
+    const files: ChangedFile[] = [
+      { path: 'README.md', status: 'modified' },
+      { path: 'src/app.ts', status: 'modified' },
+    ]
+    const groups = buildFlow(files, new Map(), DEFAULT_LAYERS)
+    expect(groups.map((g) => g.layer)).toEqual(['Docs', OTHER_LABEL])
   })
 })
 
@@ -93,7 +130,7 @@ describe('groupByLayer', () => {
       { path: 'README.md' },
       { path: 'src/components/c.tsx' },
     ]
-    const groups = groupByLayer(items, DEFAULT_LAYERS)
+    const groups = groupByLayer(items, STORY_LAYERS)
     expect(groups.map((g) => g.layer)).toEqual(['Components', 'Services', OTHER_LABEL])
     expect(groups[0]?.files.map((f) => f.path)).toEqual([
       'src/components/a.tsx',
@@ -104,8 +141,6 @@ describe('groupByLayer', () => {
 
 describe('groupByLayerOrdered', () => {
   it('honours an explicit per-item layer over the regex match', () => {
-    // `app/` would regex-match Pages and `store/` would fall into Other; the explicit
-    // layers win, so the agent can place files the repo-wide regex can't.
     const items = [
       { path: 'app/core/AppAccessProvider.tsx', layer: 'Bootstrap' },
       { path: 'store/registration/index.tsx', layer: 'Store' },
@@ -120,7 +155,7 @@ describe('groupByLayerOrdered', () => {
       { path: 'src/components/a.tsx' },
       { path: 'src/components/m.tsx' },
     ]
-    const groups = groupByLayerOrdered(items, DEFAULT_LAYERS)
+    const groups = groupByLayerOrdered(items, STORY_LAYERS)
     expect(groups[0]?.files.map((f) => f.path)).toEqual([
       'src/components/z.tsx',
       'src/components/a.tsx',
@@ -130,18 +165,18 @@ describe('groupByLayerOrdered', () => {
 
   it('emits groups in first-appearance order and falls back to Other for un-layered misses', () => {
     const items = [
-      { path: 'src/services/b.ts' }, // regex → Services
-      { path: 'README.md' }, // no match → Other
-      { path: 'src/components/a.tsx', layer: 'UI' }, // explicit
+      { path: 'src/services/b.ts' },
+      { path: 'README.md' },
+      { path: 'src/components/a.tsx', layer: 'UI' },
     ]
-    const groups = groupByLayerOrdered(items, DEFAULT_LAYERS)
+    const groups = groupByLayerOrdered(items, STORY_LAYERS)
     expect(groups.map((g) => g.layer)).toEqual(['Services', OTHER_LABEL, 'UI'])
   })
 })
 
 describe('compileLayers + layerFor parity', () => {
   it('layerFor matches a precompiled scan', () => {
-    const path = 'apps/api/controllers/x.ts'
-    expect(layerFor(path, DEFAULT_LAYERS)).toBe('Controllers')
+    const path = 'libs/core/services/billing.ts'
+    expect(layerFor(path, STORY_LAYERS)).toBe('Services')
   })
 })

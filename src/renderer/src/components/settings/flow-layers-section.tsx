@@ -1,14 +1,18 @@
 import type { Layer } from '@backend/flow'
+import { SetupTip } from '@renderer/components/shell/setup-tip'
 import { Button } from '@renderer/components/ui/button'
 import { Input } from '@renderer/components/ui/input'
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'
 import { useRepoLayers, useSetRepoLayers } from '@renderer/hooks/use-repo-layers'
+import { layersSetupPrompt } from '@renderer/lib/agent-setup-prompts'
 import { compactButtonClass, compactInputClass } from '@renderer/lib/controls'
-import { cn } from '@renderer/lib/utils'
+import { cn, copyText } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
-import { ChevronDown, ChevronUp, Plus, X } from 'lucide-react'
+import { useSetupTipsStore } from '@renderer/stores/setup-tips'
+import { TestIds } from '@shared/test-ids'
+import { Check, ChevronDown, ChevronUp, Copy, Plus, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 const patternError = (pattern: string): string | null => {
@@ -293,10 +297,17 @@ const toDraft = (layers: Layer[]): DraftLayer[] =>
 export function FlowLayersSection({ onSaved }: { onSaved: () => void }): React.JSX.Element | null {
   const repo = useRepoStore((s) => s.repo)
   const [draft, setDraft] = useState<DraftLayer[]>([])
+  const [copied, setCopied] = useState(false)
   const data = useRepoLayers()
   const { groups } = useGitFlow()
   const changedPaths = (groups ?? []).flatMap((g) => g.files.map((f) => f.path))
   const { save: saveLayers, isSaving } = useSetRepoLayers()
+  const settingsTipDismissed = useSetupTipsStore((s) =>
+    repo ? s.dismissed[repo.path]?.['layers-settings'] === true : true,
+  )
+  const dismissTip = useSetupTipsStore((s) => s.dismiss)
+  // custom=false → still on Docs + Agents starters; tip is dismissible and goes away after save
+  const showSetup = data !== undefined && !data.custom && !settingsTipDismissed
 
   // seed the draft from the saved layers each time the section mounts/refetches
   useEffect(() => {
@@ -323,8 +334,42 @@ export function FlowLayersSection({ onSaved }: { onSaved: () => void }): React.J
     onSaved()
   }
 
+  const copySetup = async (): Promise<void> => {
+    await copyText(layersSetupPrompt())
+    setCopied(true)
+  }
+
   return (
     <div className="flex flex-col gap-3">
+      {showSetup && (
+        <SetupTip
+          testId={TestIds.layersStarterBanner}
+          dismissTestId={TestIds.layersStarterDismiss}
+          className="border bg-muted/40 p-3 pr-9"
+          onDismiss={() => dismissTip(repo.path, 'layers-settings')}
+          actions={
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn(compactButtonClass, 'self-start')}
+              data-testid={TestIds.layersCopySetup}
+              onClick={() => void copySetup()}
+            >
+              {copied ? <Check className="text-success" /> : <Copy />}
+              {copied ? 'Copied' : 'Copy setup prompt'}
+            </Button>
+          }
+        >
+          <p className="text-xs font-medium text-foreground">Starter groups for this tree</p>
+          <p className="text-xs text-muted-foreground">
+            Every project starts with <span className="text-foreground">Docs</span> and{' '}
+            <span className="text-foreground">Agents</span> only — not a framework stack. Layers are
+            agent-managed for <em>this</em> repository; product code lands in Other until you or
+            your agent tune the set. Dismiss this tip anytime; it also leaves after layers are
+            saved.
+          </p>
+        </SetupTip>
+      )}
       <PatternBuilder
         changedPaths={changedPaths}
         onAdd={(layer) => setDraft([...draft, { ...layer, id: nextDraftId++ }])}
@@ -351,8 +396,14 @@ export function FlowLayersSection({ onSaved }: { onSaved: () => void }): React.J
         </Button>
       </div>
       <div className="flex items-center justify-between">
-        <Button variant="ghost" size="sm" className={compactButtonClass} onClick={() => save(null)}>
-          Reset to defaults
+        <Button
+          variant="ghost"
+          size="sm"
+          className={compactButtonClass}
+          disabled={showSetup}
+          onClick={() => save(null)}
+        >
+          Reset to starters
         </Button>
         <Button
           size="sm"

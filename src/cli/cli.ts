@@ -538,7 +538,7 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
     }
     case 'layers reset':
       clearLayers(repo)
-      return `Reset flow layers to the built-in defaults for ${repo}`
+      return `Reset flow layers to the Docs + Agents starters for ${repo}`
     case 'scope list':
       return describeScope(repo, readScope(repo))
     case 'scope hide': {

@@ -18,19 +18,19 @@ export interface Layer {
 // Kept in sync with DEFAULT_LAYERS in src/backend/flow.ts (the app's source of truth);
 // layers-file.test.ts asserts the two are identical so this copy can't drift. We
 // duplicate rather than import so this server stays a dependency-free island that never
-// reaches into src/backend. Shown by `porcelain layers get` as the starting point when a
-// repo has no custom set, and what `porcelain layers reset` falls back to.
+// reaches into src/backend. Starter Docs + Agents groups only — not a fat framework
+// stack. Shown by `porcelain layers get` when a repo has no custom set; what
+// `porcelain layers reset` falls back to.
 export const DEFAULT_LAYERS: Layer[] = [
-  { label: 'Pages', pattern: '(^|/)(pages|views|screens|app)/' },
-  { label: 'Components', pattern: '(^|/)components?/' },
-  { label: 'Hooks', pattern: '(^|/)hooks?/' },
-  { label: 'Queries', pattern: '(^|/)(queries|mutations|api-client|client)/' },
-  { label: 'Routes', pattern: '(^|/)(routes?|router|api)/' },
-  { label: 'Controllers', pattern: '(^|/)controllers?/' },
-  { label: 'Services', pattern: '(^|/)services?/' },
-  { label: 'Modules', pattern: '(^|/)modules?/' },
-  { label: 'Data', pattern: '(^|/)(prisma|schema|models?|entities|repositories)/' },
-  { label: 'Tests', pattern: '\\.(test|spec)\\.[a-z]+$' },
+  {
+    label: 'Docs',
+    pattern: '(^|/)(README|CONTRIBUTING|LICENSE|CHANGELOG)(\\.md)?$|(^|/)docs/',
+  },
+  {
+    label: 'Agents',
+    pattern:
+      '(^|/)(AGENTS|CLAUDE|CLAUDE\\.local)\\.md$|(^|/)\\.agents/|(^|/)\\.claude/|(^|/)skills/',
+  },
 ]
 
 type Layers = Record<string, Layer[]>
@@ -117,7 +117,7 @@ export function toLayers(value: unknown): Layer[] {
   })
 }
 
-/** The repo's custom flow layers, or null when none is set (→ Porcelain uses defaults). */
+/** The repo's custom flow layers, or null when none is set (→ Porcelain uses starters). */
 export function readLayers(repoPath: string): Layer[] | null {
   return readAll()[repoPath] ?? null
 }
@@ -140,13 +140,13 @@ const renderList = (layers: readonly Layer[]): string =>
 
 /**
  * Render a repo's flow layers for `porcelain layers get`: the effective ordered set (custom
- * if set, else the defaults), shown as a numbered list AND as JSON so an agent can
- * round-trip an idempotent edit (read → modify → `porcelain layers set`). A file belongs to
- * the furthest-right matching layer; unmatched files fall into "Other" (rendered last).
+ * if set, else the Docs + Agents starters), shown as a numbered list AND as JSON so an agent
+ * can round-trip an idempotent edit (read → modify → `porcelain layers set`). A file belongs
+ * to the furthest-right matching layer; unmatched files fall into "Other" (rendered last).
  */
 export function describeLayers(repoPath: string, layers: Layer[] | null): string {
   if (!layers) {
-    return `No custom flow layers for ${repoPath}; Porcelain applies its built-in defaults (entry-point → data):\n${renderList(DEFAULT_LAYERS)}\n\nReplace them with \`porcelain layers set\` (the full ordered list), tailored to this repo's structure. The defaults as JSON:\n${JSON.stringify(DEFAULT_LAYERS, null, 2)}`
+    return `No custom flow layers for ${repoPath}; Porcelain applies starter groups (Docs + Agents — not a framework stack):\n${renderList(DEFAULT_LAYERS)}\n\nProduct code lands in Other until you tailor layers for this tree. Inspect the repo layout, propose ordered layers entry-point → data (or docs/agents first if only those are dirty), then replace the whole set with \`porcelain layers set\`. Confirm with \`layers get\` and that Changes grouping looks right. Starters as JSON:\n${JSON.stringify(DEFAULT_LAYERS, null, 2)}`
   }
-  return `Custom flow layers for ${repoPath} (${layers.length}, entry-point → data):\n${renderList(layers)}\n\nEdit by sending the full ordered list to \`porcelain layers set\`, or \`porcelain layers reset\` to return to the defaults. As JSON:\n${JSON.stringify(layers, null, 2)}`
+  return `Custom flow layers for ${repoPath} (${layers.length}, entry-point → data):\n${renderList(layers)}\n\nEdit by sending the full ordered list to \`porcelain layers set\`, or \`porcelain layers reset\` to return to the Docs + Agents starters. As JSON:\n${JSON.stringify(layers, null, 2)}`
 }

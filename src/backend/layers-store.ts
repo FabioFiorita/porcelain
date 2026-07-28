@@ -12,7 +12,8 @@ import { createHomeChannel } from './home-channel'
  * the porcelain CLI (src/cli/layers-file.ts) does the same (layers get/set/reset),
  * so an agent can tailor the grouping to a repo it understands. Atomic (tmp + rename)
  * + in-process-serialized writes; a cross-process race is rare/low-stakes and the
- * watcher re-syncs. Absence of a repo's entry = Porcelain applies DEFAULT_LAYERS.
+ * watcher re-syncs. Absence of a repo's entry = Porcelain applies DEFAULT_LAYERS
+ * (Docs + Agents starters — not a fat framework stack).
  *
  * Layers moved here out of userData/config.json (where they used to live, alongside
  * notes) precisely so the dependency-free CLI can read+write them; see
@@ -55,12 +56,12 @@ const channel = createHomeChannel({
 // Must match src/cli/layers-file.ts. PORCELAIN_LAYERS redirects both sides for tests.
 export const layersPath = channel.path
 
-/** The repo's custom flow layers, or null when none is set (→ Porcelain uses defaults). */
+/** The repo's custom flow layers, or null when none is set (→ Docs + Agents starters). */
 export async function readLayers(repoPath: string): Promise<Layer[] | null> {
   return (await channel.readAll())[repoPath] ?? null
 }
 
-/** Set a repo's flow layers; `null` clears the override back to the defaults. */
+/** Set a repo's flow layers; `null` clears the override back to the starters. */
 export async function writeLayers(repoPath: string, layers: Layer[] | null): Promise<void> {
   await channel.mutate((all) => {
     if (layers === null) delete all[repoPath]

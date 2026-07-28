@@ -32,9 +32,17 @@ Use `--repo <absolute path>` when not inside the checkout. Prefer **relative** `
 
 ## When to use
 
+- Human copied the **focus setup prompt** (Files tab when the root looks large and nothing is hidden/pinned yet).
 - Human’s monorepo tree is noisy → hide sibling apps that are not in play.
 - Remote environment setup → remap and re-apply hide/pin via this CLI (no hand-edit of `config.json`).
-- Agent onboarding a huge repo → hide irrelevant packages after surveying layout.
+- Agent onboarding a huge repo → hide irrelevant packages after surveying layout (tsconfig / package roots / recent commits help).
+
+## Setup path (from the focus prompt)
+
+1. Inspect layout: top-level packages/apps, project boundaries, recent commits; optional git author for “what this human usually touches.”
+2. Propose hide paths (siblings not in play) and pin paths (active product roots).
+3. `scope list` → `scope hide --path …` / `scope pin --path …` (repo-relative preferred).
+4. Confirm list + Files tree (show-hidden reveals hidden rows).
 
 ## Rules
 

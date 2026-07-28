@@ -84,7 +84,8 @@ const ALL_SECTIONS: {
     label: 'Review',
     icon: Layers,
     title: 'Review layers',
-    blurb: 'Group changed files into a story, entry point to data. Saved per repository.',
+    blurb:
+      'Agent-managed grouping for this tree. Starts with Docs + Agents; product code is Other until configured.',
   },
   {
     id: 'updates',

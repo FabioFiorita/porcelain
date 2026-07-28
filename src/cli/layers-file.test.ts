@@ -20,6 +20,10 @@ describe('DEFAULT_LAYERS', () => {
     // guard makes the copy impossible to let drift.
     expect(DEFAULT_LAYERS).toEqual(MAIN_DEFAULT_LAYERS)
   })
+
+  it('is starter Docs + Agents only', () => {
+    expect(DEFAULT_LAYERS.map((l) => l.label)).toEqual(['Docs', 'Agents'])
+  })
 })
 
 describe('toLayers', () => {
@@ -46,10 +50,12 @@ describe('toLayers', () => {
 })
 
 describe('describeLayers', () => {
-  it('shows the defaults (with JSON) when no custom set exists', () => {
+  it('shows the starters (with JSON) when no custom set exists', () => {
     const text = describeLayers('/repo', null)
-    expect(text).toContain('built-in defaults')
-    expect(text).toContain('Pages')
+    expect(text).toContain('starter groups')
+    expect(text).toContain('Docs')
+    expect(text).toContain('Agents')
+    expect(text).not.toContain('Pages')
     expect(text).toContain('porcelain layers set')
   })
 
@@ -58,6 +64,7 @@ describe('describeLayers', () => {
     expect(text).toContain('Custom flow layers')
     expect(text).toContain('Routes')
     expect(text).toContain('(^|/)routes/')
+    expect(text).toContain('Docs + Agents starters')
   })
 })
 
@@ -73,7 +80,7 @@ describe('layers-file round-trip', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  it('sets, reads, and resets a repo (custom → defaults)', () => {
+  it('sets, reads, and resets a repo (custom → starters)', () => {
     const layers = [{ label: 'Hooks', pattern: '(^|/)hooks?/' }]
     expect(readLayers('/repo')).toBeNull()
     setLayers('/repo', layers)

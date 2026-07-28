@@ -6,20 +6,23 @@ export interface Layer {
 }
 
 /**
- * Default review-flow layers, ordered entry-point → database. A changed file
- * belongs to the first layer whose pattern matches its path.
+ * Default (starter) review-flow layers for any unconfigured repo — Docs + Agents
+ * only, never a fat framework stack (Pages/Components/Hooks/…). Ordered so agent
+ * tooling and prose sit above product code when dirty; everything else lands in
+ * Other until the human/agent runs `layers set` for this tree. Reset / no custom
+ * entry both resolve here. Keep in sync with the CLI copy in layers-file.ts
+ * (guarded by layers-file.test.ts).
  */
 export const DEFAULT_LAYERS: Layer[] = [
-  { label: 'Pages', pattern: '(^|/)(pages|views|screens|app)/' },
-  { label: 'Components', pattern: '(^|/)components?/' },
-  { label: 'Hooks', pattern: '(^|/)hooks?/' },
-  { label: 'Queries', pattern: '(^|/)(queries|mutations|api-client|client)/' },
-  { label: 'Routes', pattern: '(^|/)(routes?|router|api)/' },
-  { label: 'Controllers', pattern: '(^|/)controllers?/' },
-  { label: 'Services', pattern: '(^|/)services?/' },
-  { label: 'Modules', pattern: '(^|/)modules?/' },
-  { label: 'Data', pattern: '(^|/)(prisma|schema|models?|entities|repositories)/' },
-  { label: 'Tests', pattern: '\\.(test|spec)\\.[a-z]+$' },
+  {
+    label: 'Docs',
+    pattern: '(^|/)(README|CONTRIBUTING|LICENSE|CHANGELOG)(\\.md)?$|(^|/)docs/',
+  },
+  {
+    label: 'Agents',
+    pattern:
+      '(^|/)(AGENTS|CLAUDE|CLAUDE\\.local)\\.md$|(^|/)\\.agents/|(^|/)\\.claude/|(^|/)skills/',
+  },
 ]
 
 export const OTHER_LABEL = 'Other'

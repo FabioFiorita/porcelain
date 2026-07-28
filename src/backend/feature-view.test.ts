@@ -6,7 +6,7 @@ import {
   buildFeatureView,
   resolveRelativeImport,
 } from './feature-view'
-import { DEFAULT_LAYERS, type FlowGroup } from './flow'
+import type { FlowGroup, Layer } from './flow'
 import type { ReviewSet } from './review-set'
 
 const changed = (path: string, status: ChangedFile['status'] = 'modified'): ChangedFile => ({
@@ -15,6 +15,15 @@ const changed = (path: string, status: ChangedFile['status'] = 'modified'): Chan
 })
 
 const emptySet = (name = 'Feature view'): ReviewSet => ({ name, files: [], sections: [] })
+
+/** Product-shaped layers for tests that assert regex fallback grouping (not repo starters). */
+const STORY_LAYERS: Layer[] = [
+  { label: 'Pages', pattern: '(^|/)(pages|views|screens|app)/' },
+  { label: 'Components', pattern: '(^|/)components?/' },
+  { label: 'Hooks', pattern: '(^|/)hooks?/' },
+  { label: 'Services', pattern: '(^|/)services?/' },
+  { label: 'Data', pattern: '(^|/)(prisma|schema|models?)/' },
+]
 
 describe('resolveRelativeImport', () => {
   const files = new Set([
@@ -46,7 +55,7 @@ describe('resolveRelativeImport', () => {
 })
 
 describe('buildFeatureView', () => {
-  const layers = DEFAULT_LAYERS
+  const layers = STORY_LAYERS
   const noStats = new Map<string, { additions: number; deletions: number }>()
 
   it('is empty when the agent listed no files, even if the working tree is dirty', () => {
@@ -280,7 +289,7 @@ describe('buildFeatureReading', () => {
     reviewSet,
     sources,
     stats: new Map(),
-    layers: DEFAULT_LAYERS,
+    layers: STORY_LAYERS,
   })
   const diffs = new Map<string, DiffHunk[]>([
     [
@@ -314,7 +323,7 @@ describe('buildFeatureReading', () => {
       reviewSet: { name: 'Feature', thesis: 'The why.', files: [], sections: [] },
       sources,
       stats: new Map(),
-      layers: DEFAULT_LAYERS,
+      layers: STORY_LAYERS,
     })
     const reading = buildFeatureReading({
       view: thesisView,

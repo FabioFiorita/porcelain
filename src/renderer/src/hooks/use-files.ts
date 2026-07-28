@@ -136,6 +136,13 @@ export function usePinnedEntries(): DirEntry[] | undefined {
   return data
 }
 
+/** Monorepo hide/pin lists; empty arrays when the repo has never configured scope. */
+export function useRepoScope(): { hiddenPaths: string[]; pinnedPaths: string[] } | undefined {
+  const repo = useRepoStore((s) => s.repo)
+  const { data } = trpc.repoScope.useQuery(repo?.path ?? '', { enabled: repo !== null })
+  return data
+}
+
 export function useRevealInFinder(): (path: string) => void {
   const mutation = shellTrpc.revealInFinder.useMutation()
   return (path) => mutation.mutate(path)
@@ -246,7 +253,11 @@ export function useEntryActions(entry: DirEntry): {
       await mutation.mutateAsync({ repoPath: repo.path, path })
     }
     clearSelection()
-    await Promise.all([utils.readDir.invalidate(), utils.pinnedEntries.invalidate()])
+    await Promise.all([
+      utils.readDir.invalidate(),
+      utils.pinnedEntries.invalidate(),
+      utils.repoScope.invalidate(),
+    ])
   }
 
   return {
