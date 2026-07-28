@@ -237,15 +237,35 @@ img {
 .section-tight {
   padding: 48px 0 32px;
 }
+/* All major section intros: centered, same width rhythm as the hero. */
 .sec-head {
   text-align: center;
   max-width: 720px;
   margin: 0 auto 48px;
 }
-.sec-head .lead {
-  max-width: 640px;
+.sec-head .section-title,
+.sec-head .section-title-sm {
+  max-width: none;
   margin-left: auto;
   margin-right: auto;
+}
+.sec-head .lead {
+  max-width: 560px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.sec-head .eyebrow {
+  margin-left: auto;
+  margin-right: auto;
+}
+/* Two-column feature rows: left-aligned copy next to a shot. */
+.feature-copy .eyebrow,
+.feature-copy .section-title-sm,
+.feature-copy .body {
+  text-align: left;
+}
+.feature-copy .section-title-sm {
+  max-width: none;
 }
 
 /* ── Cards ──────────────────────────────────────────────────────────────── */
@@ -289,6 +309,12 @@ img {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
+  align-items: stretch;
+}
+.grid-3 > .card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 .grid-features {
   display: grid;
@@ -593,6 +619,19 @@ img {
   max-width: var(--max-wide);
   margin-left: auto;
   margin-right: auto;
+}
+.hero-shot .shot-caption,
+.shot-caption {
+  text-align: center;
+  margin-top: 16px;
+}
+/* Full-width product shot under a centered section head (e.g. The Review). */
+.section-shot {
+  margin: 0 auto 40px;
+  max-width: var(--max-wide);
+}
+.section-shot .shot-frame {
+  margin: 0 auto;
 }
 
 /* ── Reveal ─────────────────────────────────────────────────────────────── */

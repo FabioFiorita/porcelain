@@ -214,6 +214,12 @@ test('marketing shots — the seeded demo repo across every surface', async () =
     // ── Phase 1 — the default layout: full-window surfaces + centered overlays. ──
     const { context, page } = await openShotPage(browser, port)
 
+    // glance.png — empty viewer = the Glance (work in flight + jump rows). Landing
+    // home for a repo with no tab open; the marketing hero app shot.
+    await expect(byId(page, TestIds.glance)).toBeVisible({ timeout: 20_000 })
+    await settle(page)
+    await shoot(page, 'glance.png')
+
     // review.png — the Feature tab with the Review document opened into the viewer
     // (thesis, walkthrough sections, flow diagram, anchored diff hunks). The outline
     // lives in the sidebar; clicking the review name opens the document at the top.
