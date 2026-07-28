@@ -13,6 +13,9 @@ vi.mock('@renderer/hooks/use-feature-reading', () => ({
 vi.mock('@renderer/hooks/use-comments', () => ({
   useReviewComments: vi.fn(),
 }))
+vi.mock('@renderer/hooks/use-reviewed', () => ({
+  useReviewedPaths: () => new Set<string>(),
+}))
 const clearSpy = vi.hoisted(() => vi.fn(async () => {}))
 vi.mock('@renderer/hooks/use-feature-view', () => ({
   useClearFeatureReview: () => ({ clear: clearSpy, isClearing: false }),
@@ -64,14 +67,15 @@ describe('ReviewGroup', () => {
   it('shows the empty companion when no review is published', () => {
     vi.mocked(useFeatureReading).mockReturnValue({ reading: null, refresh: async () => {} })
     renderGroup()
-    expect(screen.getByText(/No Review published yet/)).toBeInTheDocument()
+    expect(screen.getByText(/Start a unit/)).toBeInTheDocument()
     expect(screen.queryByText('Clear review & evidence')).not.toBeInTheDocument()
   })
 
-  it('shows Now reading and the inline Clear review button', () => {
+  it('shows Now reading, lifecycle, and the inline Clear review button', () => {
     renderGroup()
     expect(screen.getByText('Now reading')).toBeInTheDocument()
-    expect(screen.getByText('Crew call-outs')).toBeInTheDocument()
+    expect(screen.getAllByText('Crew call-outs').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText(/In progress/i).length).toBeGreaterThanOrEqual(1)
     expect(screen.getByTestId('feature-clear-review')).toBeInTheDocument()
   })
 
