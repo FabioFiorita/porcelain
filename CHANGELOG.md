@@ -1,3 +1,15 @@
+## [0.43.7](https://github.com/FabioFiorita/porcelain/compare/v0.43.6...v0.43.7) (2026-07-28)
+
+### Features
+
+* **review:** make Review the start → end home for a unit of work ([d2ad4be](https://github.com/FabioFiorita/porcelain/commit/d2ad4be0f7766f1068058a90081a8a6693eb7660))
+* **scope:** CLI hide/pin channel, Explore affordances, dual-machine gate ([1b6c88e](https://github.com/FabioFiorita/porcelain/commit/1b6c88e3b14c814c0775dfabf912cf9463155ddf))
+
+### Bug Fixes
+
+* **release:** unpublish broken npm versions so latest stays downloadable ([cd9171a](https://github.com/FabioFiorita/porcelain/commit/cd9171a2271b4df3da4a8a2e522a5807fd0f234d))
+* **ui:** phone Settings layout, Clear review rail, richer Glance ([ba9b448](https://github.com/FabioFiorita/porcelain/commit/ba9b448139d339f0b3a88c7915ede54925273e8b))
+
 ## [0.43.6](https://github.com/FabioFiorita/porcelain/compare/v0.43.5...v0.43.6) (2026-07-27)
 
 ### Bug Fixes
