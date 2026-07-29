@@ -55,7 +55,10 @@ assumed — this skill is the codebase-specific layer beneath them.
   behind the same gate** — `server.listen(port, '127.0.0.1')` ALWAYS, and when the user
   enables a setting, second listener(s) at fixed port 43117 on either the detected Tailscale
   address (100.64/10, `findTailscaleAddress`) OR the machine's RFC1918 private addresses
-  (10/8, 172.16/12, 192.168/16, `findLanAddresses` — the home-LAN path) — both are two
+  (10/8, 172.16/12, 192.168/16 **on a non-virtual interface**, `findLanAddresses` — the
+  home-LAN path; range alone was not enough, since binding a Docker bridge address serves
+  the daemon — and therefore a shell — to every container on that bridge, so the enumeration
+  also denies virtual/container/VPN interface-name prefixes) — both are two
   instances of the one `createIfaceListener` factory in `tailnet-listener.ts` sharing the
   same handlers, so the token gate applies unchanged; **never `0.0.0.0` and never any other
   interface** (the enumerated-addresses rule is the guard against accidentally serving a
@@ -147,7 +150,9 @@ assumed — this skill is the codebase-specific layer beneath them.
   range-based BY DESIGN (name-independent; see `tailnet.ts`'s comment), with the residual risk
   that non-Tailscale CGNAT interfaces exist; `findTailscaleAddress` therefore refuses ambiguous
   multi-candidate setups (logs and returns null) rather than guessing; the LAN's `findLanAddresses`
-  returns ONLY RFC1918 private addresses (never public, never the CGNAT range). Funnel is
+  returns ONLY RFC1918 private addresses (never public, never the CGNAT range) on interfaces
+  that pass its virtual/container/VPN name deny list — deny, not allow, because physical NIC
+  names are unenumerable and the range check already fail-closes on public addresses. Funnel is
   intentionally public HTTPS, so possession of a device credential is its entire product
   boundary; the pairing surface leaks no grant in the request URL. Keep admin-only procedures
   separate, but do not repo-scope ordinary file procedures — that breaks cross-repo flows.

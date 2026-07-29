@@ -78,6 +78,45 @@ describe('findLanAddresses', () => {
   it('returns [] when no interface qualifies', () => {
     expect(findLanAddresses({})).toEqual([])
   })
+
+  it('excludes Docker bridges even though they are RFC1918', () => {
+    expect(findLanAddresses({ docker0: [v4('172.17.0.1')] })).toEqual([])
+    // The observed real-world case on the maintainer's host: a user-defined
+    // bridge got a real listener, serving the daemon to every container on it.
+    expect(findLanAddresses({ 'br-e6c014ebe2d8': [v4('172.18.0.1')] })).toEqual([])
+  })
+
+  it('excludes VPN tunnels (WireGuard, OpenVPN)', () => {
+    expect(findLanAddresses({ wg0: [v4('10.8.0.51')] })).toEqual([])
+    expect(findLanAddresses({ tun0: [v4('10.9.0.2')] })).toEqual([])
+  })
+
+  it('excludes container veth pairs and libvirt bridges', () => {
+    expect(findLanAddresses({ veth1a2b3c: [v4('172.20.0.3')] })).toEqual([])
+    expect(findLanAddresses({ virbr0: [v4('192.168.122.1')] })).toEqual([])
+  })
+
+  it('includes physical NICs whatever the platform names them', () => {
+    expect(findLanAddresses({ wls1: [v4('192.168.15.64')] })).toEqual(['192.168.15.64'])
+    expect(findLanAddresses({ eth0: [v4('10.0.0.5')] })).toEqual(['10.0.0.5'])
+    expect(findLanAddresses({ en0: [v4('192.168.1.20')] })).toEqual(['192.168.1.20'])
+    expect(findLanAddresses({ enp3s0: [v4('172.16.4.9')] })).toEqual(['172.16.4.9'])
+  })
+
+  it('includes macOS bridge0 — the `br-` deny prefix must not over-match it', () => {
+    expect(findLanAddresses({ bridge0: [v4('192.168.2.1')] })).toEqual(['192.168.2.1'])
+  })
+
+  it('keeps enumeration order when several physical NICs match alongside virtual ones', () => {
+    const interfaces: Interfaces = {
+      docker0: [v4('172.17.0.1')],
+      en0: [v4('192.168.1.20')],
+      eth0: [v4('10.0.0.5')],
+      wg0: [v4('10.8.0.51')],
+      enp3s0: [v4('172.16.4.9')],
+    }
+    expect(findLanAddresses(interfaces)).toEqual(['192.168.1.20', '10.0.0.5', '172.16.4.9'])
+  })
 })
 
 describe('lanDisplayHost', () => {
