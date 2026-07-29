@@ -133,6 +133,9 @@ assumed — this skill is the codebase-specific layer beneath them.
   dynamic route or broaden this exchange. The
   index.html CSP rewrite (`rewriteCsp`) touches **only `connect-src`** (same-origin WS for
   the request Host); `img-src`/`default-src` stay the sandboxed-HTML backstop, byte-identical.
+  The rewritten shell MUST remain `no-cache` (it is host-specific and points at release-hashed
+  assets); only fingerprinted `/assets/*` may receive `immutable`, and compressed variants
+  keep `Vary: Accept-Encoding`.
   Don't relax any of these to "make local dev easier." (6) **A client credential is the
   user boundary across every network — accepted:** a peer presenting one gets everything
   loopback gets, including arbitrary-path `readFile`/`writeTextFile`/`renamePath`/`trashPath`

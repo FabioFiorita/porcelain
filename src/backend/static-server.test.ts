@@ -1,9 +1,22 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
-import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
+import {
+  createServer,
+  get,
+  type IncomingHttpHeaders,
+  type IncomingMessage,
+  type ServerResponse,
+} from 'node:http'
 import { tmpdir } from 'node:os'
 import { join, sep } from 'node:path'
+import { brotliDecompressSync, gunzipSync } from 'node:zlib'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { resolveStaticPath, rewriteCsp, serveStatic } from './static-server'
+import {
+  isImmutableAsset,
+  preferredContentEncoding,
+  resolveStaticPath,
+  rewriteCsp,
+  serveStatic,
+} from './static-server'
 
 // A POSIX-style root for readable assertions; the helper is separator-aware.
 const ROOT = `${sep}app${sep}out${sep}renderer`
@@ -101,14 +114,49 @@ describe('rewriteCsp', () => {
   })
 })
 
+describe('preferredContentEncoding', () => {
+  it('prefers Brotli when the client gives it equal priority', () => {
+    expect(preferredContentEncoding('gzip, deflate, br')).toBe('br')
+  })
+
+  it('honors quality weights and disabled encodings', () => {
+    expect(preferredContentEncoding('br;q=0.5, gzip;q=0.9')).toBe('gzip')
+    expect(preferredContentEncoding('br;q=0, gzip')).toBe('gzip')
+    expect(preferredContentEncoding('br;q=0, gzip;q=0')).toBeNull()
+  })
+
+  it('uses an accepted wildcard but never compresses without negotiation', () => {
+    expect(preferredContentEncoding('*;q=0.5')).toBe('br')
+    expect(preferredContentEncoding(undefined)).toBeNull()
+  })
+})
+
+describe('isImmutableAsset', () => {
+  it('recognizes Vite content-hashed assets', () => {
+    expect(isImmutableAsset('/assets/index-BPRkBP7Q.js')).toBe(true)
+    expect(isImmutableAsset('/assets/font-DDncdh2F.woff2?v=1')).toBe(true)
+  })
+
+  it('keeps stable filenames and the app shell revalidating', () => {
+    expect(isImmutableAsset('/assets/index.js')).toBe(false)
+    expect(isImmutableAsset('/assets/descriptive-longfilename.js')).toBe(false)
+    expect(isImmutableAsset('/manifest.webmanifest')).toBe(false)
+    expect(isImmutableAsset('/')).toBe(false)
+  })
+})
+
 describe('serveStatic content types', () => {
   const dist = join(tmpdir(), 'porcelain-static-server-test')
+  const javascript = `const porcelain = ${JSON.stringify('trusted-work-'.repeat(8_000))};`
 
   beforeEach(() => {
     mkdirSync(dist, { recursive: true })
+    mkdirSync(join(dist, 'assets'), { recursive: true })
     writeFileSync(join(dist, 'index.html'), '<html><body>Porcelain</body></html>')
     writeFileSync(join(dist, 'manifest.webmanifest'), '{"name":"Porcelain"}')
     writeFileSync(join(dist, 'apple-touch-icon.png'), 'png-bytes')
+    writeFileSync(join(dist, 'assets', 'index-BPRkBP7Q.js'), javascript)
+    writeFileSync(join(dist, 'assets', 'index.js'), javascript)
   })
 
   afterEach(() => rmSync(dist, { recursive: true, force: true }))
@@ -158,5 +206,72 @@ describe('serveStatic content types', () => {
         })
       })
     }
+  })
+
+  const request = async (
+    url: string,
+    headers: IncomingHttpHeaders = {},
+  ): Promise<{ body: Buffer; headers: IncomingHttpHeaders; status: number | undefined }> => {
+    const server = createServer(async (req, res) => {
+      await serveStatic(req, res, dist)
+    })
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+
+    try {
+      const address = server.address()
+      if (address === null || typeof address === 'string') throw new Error('missing test port')
+      return await new Promise((resolve, reject) => {
+        get({ host: '127.0.0.1', port: address.port, path: url, headers }, (response) => {
+          const chunks: Buffer[] = []
+          response.on('data', (chunk: Buffer) => chunks.push(chunk))
+          response.once('end', () => {
+            resolve({
+              body: Buffer.concat(chunks),
+              headers: response.headers,
+              status: response.statusCode,
+            })
+          })
+          response.once('error', reject)
+        }).once('error', reject)
+      })
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => {
+          if (error) reject(error)
+          else resolve()
+        })
+      })
+    }
+  }
+
+  it('serves Brotli-compressed text assets and marks hashed files immutable', async () => {
+    const response = await request('/assets/index-BPRkBP7Q.js', {
+      'accept-encoding': 'gzip, br',
+    })
+
+    expect(response.status).toBe(200)
+    expect(response.headers['content-encoding']).toBe('br')
+    expect(response.headers.vary).toBe('Accept-Encoding')
+    expect(response.headers['cache-control']).toBe('public, max-age=31536000, immutable')
+    expect(brotliDecompressSync(response.body).toString()).toBe(javascript)
+    expect(response.body.byteLength).toBeLessThan(Buffer.byteLength(javascript) / 5)
+  })
+
+  it('falls back to gzip when Brotli is unavailable', async () => {
+    const response = await request('/assets/index-BPRkBP7Q.js', {
+      'accept-encoding': 'gzip',
+    })
+
+    expect(response.headers['content-encoding']).toBe('gzip')
+    expect(gunzipSync(response.body).toString()).toBe(javascript)
+  })
+
+  it('keeps the host-rewritten app shell and stable assets fresh', async () => {
+    const shell = await request('/pair', { 'accept-encoding': 'br' })
+    const stableAsset = await request('/assets/index.js', { 'accept-encoding': 'br' })
+
+    expect(shell.headers['cache-control']).toBe('no-cache')
+    expect(shell.headers['content-encoding']).toBeUndefined()
+    expect(stableAsset.headers['cache-control']).toBe('no-cache')
   })
 })
