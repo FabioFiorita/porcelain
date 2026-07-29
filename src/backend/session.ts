@@ -30,7 +30,8 @@ import {
  * change when the transport did. On socket close the session clears its file/dir
  * watchers and DETACHES from every terminal — but the PTYs live on (Phase 2:
  * sessions outlive connections, so a renderer reload re-attaches and replays
- * scrollback). Only an explicit `terminal:kill` ends a PTY.
+ * scrollback). A detach never ends a PTY — but "outlives the connection" is not
+ * "forever": `terminal-manager.ts` bounds an unwatched session (idle TTL + cap).
  */
 
 const sessions = new Set<Session>()
@@ -113,14 +114,29 @@ class Session {
         this.repo = message.repo
         break
       case 'terminal:create': {
-        const id = createTerminal(this, {
-          name: message.name,
-          cwd: message.cwd,
-          initialInput: message.initialInput,
-          cols: message.cols,
-          rows: message.rows,
-        })
-        this.terminals.add(id)
+        // createTerminal throws when the daemon is at its session cap with nothing safe
+        // to evict. Two things must not happen: the exception escaping this socket's
+        // 'message' handler (that takes the daemon down), and the client's pending create
+        // never settling. `terminal:created` carries no error channel, so we still answer
+        // — with the empty id, the only "there is no session" value it can express (the
+        // spirit of `terminal:attached { found: false }`) — and log the reason daemon-side.
+        // The client's optimistic row self-heals on the next roster hydrate, since the
+        // daemon has no such session. Surfacing the message to the human would need an
+        // error field on `terminal:created` (a protocol change), not a new message type.
+        let id: string
+        try {
+          id = createTerminal(this, {
+            name: message.name,
+            cwd: message.cwd,
+            initialInput: message.initialInput,
+            cols: message.cols,
+            rows: message.rows,
+          })
+          this.terminals.add(id)
+        } catch (error) {
+          console.error('[daemon] terminal:create refused:', error)
+          id = ''
+        }
         this.push({ t: 'terminal:created', reqId: message.reqId, id })
         break
       }
@@ -165,7 +181,8 @@ class Session {
 
   // Phase-2 socket-close semantics: the session's watchers are cleared, but its PTYs
   // are only DETACHED — they live on so a reconnecting renderer re-attaches and replays
-  // scrollback. A PTY ends only on an explicit `terminal:kill` (or the daemon dying).
+  // scrollback. This detach starts the idle clock in terminal-manager.ts: the PTY ends on
+  // an explicit `terminal:kill`, the daemon dying, or the unwatched-session bounds.
   private dispose(): void {
     sessions.delete(this)
     clearWatchedFiles(this)

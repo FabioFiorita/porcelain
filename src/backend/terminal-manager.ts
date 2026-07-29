@@ -11,10 +11,26 @@ import { terminalEnv } from './terminal-env'
 // and resumes streaming. So a session has no single owner sender — it has a SET of
 // attached senders and output fans out to all of them. The daemon also owns the roster
 // (name/cwd/status): the renderer hydrates its sidebar list from `listTerminals`, so a
-// renamed or still-running session reappears after a reload. Only an explicit
-// `killTerminal` (the Terminal list's close button) or the daemon process dying ends a
-// PTY — a dropped socket just detaches. Output past the scrollback cap is forgotten
-// (see scrollback-buffer.ts) so a long-lived shell can't grow daemon memory unbounded.
+// renamed or still-running session reappears after a reload. A dropped socket just
+// detaches. Output past the scrollback cap is forgotten (see scrollback-buffer.ts) so a
+// long-lived shell can't grow daemon memory unbounded.
+//
+// Decoupled is not unbounded — and for two releases it WAS. A long-lived daemon reached
+// 228 sessions and an 8.7 GB peak with a pile of orphaned `zsh -l` processes: nothing
+// ever removed a naturally-exited entry, nothing capped concurrent sessions, and a
+// running session nobody was attached to lived until the daemon died. So the decoupling
+// now comes with three bounds, all swept by `sweepTerminals`:
+//   - EXITED_RETENTION_MS — a dead session's final output stays readable across a
+//     reload, which is the whole point of keeping the entry; it does not stay forever.
+//   - DETACHED_IDLE_MS — deliberately a generous 12h, because a background dev server
+//     you come back to tomorrow must survive; a forgotten login shell must not.
+//   - MAX_SESSIONS — the backstop against a runaway creator, spending the cheapest
+//     sacrifice first (exited entries, then the oldest unwatched shell) and refusing
+//     rather than killing a session a human is looking at.
+// The bounds only ever touch a session with NO attached client, so nothing here can
+// reap a terminal someone is watching. Every path that can empty `attached` must start
+// the idle clock (`markDetachedIfEmpty`) — including `fanOut`, which drops destroyed
+// senders — or a session detaches invisibly and never expires.
 
 /**
  * The minimal slice of `WebContents` we need: send terminal output and check the
@@ -43,9 +59,99 @@ interface Session {
   // close) removes one without touching the PTY. Empty is fine — a background dev server
   // keeps running with nobody watching until someone re-attaches.
   attached: Set<TerminalSender>
+  /** When the PTY exited on its own. Set by `onExit`; undefined while running. */
+  exitedAt?: number
+  /** When `attached` last became empty. Undefined whenever at least one client streams. */
+  detachedSince?: number
 }
 
 const sessions = new Map<string, Session>()
+
+/** How long an exited session's final output stays replayable before it's forgotten. */
+export const EXITED_RETENTION_MS = 10 * 60_000
+/** How long a running session with nobody attached is kept before it's killed. */
+export const DETACHED_IDLE_MS = 12 * 60 * 60_000
+/** Hard ceiling on concurrent sessions in one daemon. */
+export const MAX_SESSIONS = 64
+const SWEEP_INTERVAL_MS = 60_000
+
+let sweepTimer: ReturnType<typeof setInterval> | undefined
+
+/**
+ * Start the reaper on the first `createTerminal` — never at import, or every unit test
+ * that pulls this module in leaks a timer. `unref` so the sweep can't be the reason the
+ * daemon (or a test worker) stays alive.
+ */
+function startSweeping(): void {
+  if (sweepTimer !== undefined) return
+  sweepTimer = setInterval(() => sweepTerminals(), SWEEP_INTERVAL_MS)
+  sweepTimer.unref()
+}
+
+/** Start the idle clock if `session` just lost its last attached client (idempotent). */
+function markDetachedIfEmpty(session: Session, now = Date.now()): void {
+  if (session.attached.size === 0) session.detachedSince ??= now
+}
+
+/** Matching sessions, oldest `createdAt` first — the eviction order under the cap. */
+function oldestFirst(match: (session: Session) => boolean): [string, Session][] {
+  return [...sessions]
+    .filter(([, session]) => match(session))
+    .sort(([, a], [, b]) => a.meta.createdAt - b.meta.createdAt)
+}
+
+/** Delete the entry BEFORE killing, so `onExit`'s guard skips the exit fan-out. */
+function evict(id: string, session: Session): void {
+  sessions.delete(id)
+  if (session.status === 'running') session.pty.kill()
+}
+
+/**
+ * Drop the sessions the bounds say are expired: an exited one whose grace period is up,
+ * and a running one nobody has been attached to for `DETACHED_IDLE_MS`. Anything with an
+ * attached client is left alone — an exited session someone is still reading is reaped
+ * on the sweep after they detach. Takes `now` so tests drive it with explicit
+ * timestamps instead of fake timers.
+ */
+export function sweepTerminals(now: number = Date.now()): void {
+  for (const [id, session] of sessions) {
+    if (session.attached.size > 0) continue
+    if (session.status === 'exited') {
+      if (session.exitedAt !== undefined && now - session.exitedAt > EXITED_RETENTION_MS) {
+        sessions.delete(id)
+      }
+      continue
+    }
+    if (session.detachedSince !== undefined && now - session.detachedSince > DETACHED_IDLE_MS) {
+      evict(id, session)
+    }
+  }
+}
+
+/**
+ * Make room for one more PTY under `MAX_SESSIONS`, cheapest sacrifice first: the normal
+ * sweep, then exited entries ahead of their grace period (their process is already gone,
+ * so this only forgets scrollback), then the oldest running session nobody is watching.
+ * Throws when every remaining session has an attached client — refusing beats killing a
+ * terminal a human is looking at.
+ */
+function makeRoom(now: number): void {
+  if (sessions.size < MAX_SESSIONS) return
+  sweepTerminals(now)
+  for (const [id] of oldestFirst((s) => s.status === 'exited' && s.attached.size === 0)) {
+    if (sessions.size < MAX_SESSIONS) break
+    sessions.delete(id)
+  }
+  const [oldestIdle] = oldestFirst((s) => s.status === 'running' && s.attached.size === 0)
+  if (sessions.size >= MAX_SESSIONS && oldestIdle !== undefined) {
+    evict(oldestIdle[0], oldestIdle[1])
+  }
+  if (sessions.size >= MAX_SESSIONS) {
+    throw new Error(
+      `Cannot open another terminal: all ${MAX_SESSIONS} sessions are in use by a connected client. Close one first.`,
+    )
+  }
+}
 
 /** One roster row: the daemon-owned metadata the renderer's sidebar list renders. */
 export interface TerminalInfo {
@@ -83,6 +189,9 @@ function fanOut(session: Session, channel: string, ...args: unknown[]): void {
     if (sender.isDestroyed()) session.attached.delete(sender)
     else sender.send(channel, ...args)
   }
+  // Dropping the last destroyed sender is a detach too — a socket that died without a
+  // close (the common remote case) must start the idle clock, not stall it forever.
+  markDetachedIfEmpty(session)
 }
 
 /**
@@ -91,8 +200,11 @@ function fanOut(session: Session, channel: string, ...args: unknown[]): void {
  * typing its command into this same shell (`initialInput`), so the terminal stays live
  * afterwards — Ctrl-C, re-run, keep working — instead of dying when the command exits.
  * The creator is auto-attached; the returned id is how any client re-attaches later.
+ * Throws when the daemon is at `MAX_SESSIONS` and nothing is safe to evict.
  */
 export function createTerminal(sender: TerminalSender, opts: CreateTerminalOptions): string {
+  makeRoom(Date.now())
+  startSweeping()
   const id = randomUUID()
   const pty = spawn(defaultShell(), ['-l'], {
     name: 'xterm-256color',
@@ -152,10 +264,11 @@ export function createTerminal(sender: TerminalSender, opts: CreateTerminalOptio
     // racing hydrate and briefly resurfacing the session as "exited").
     if (!sessions.has(id)) return
     // Natural exit (shell `exit`, Ctrl-D, …): keep the entry so final output stays
-    // readable across reloads — only killTerminal removes it. Mark exited so a
-    // re-attach shows the exited state.
+    // readable across reloads — the sweep forgets it EXITED_RETENTION_MS later (or
+    // killTerminal removes it now). Mark exited so a re-attach shows the exited state.
     session.status = 'exited'
     session.exitCode = exitCode
+    session.exitedAt = Date.now()
     fanOut(session, 'terminal:exit', id, exitCode)
   })
 
@@ -175,6 +288,9 @@ export function attachTerminal(
   const session = sessions.get(id)
   if (!session) return null
   session.attached.add(sender)
+  // Somebody is watching again: stop the idle-detach clock (a session re-attached before
+  // the TTL must survive, and the next detach starts a fresh 12h).
+  session.detachedSince = undefined
   return {
     scrollback: session.scrollback.snapshot(),
     status: session.status,
@@ -184,12 +300,18 @@ export function attachTerminal(
 
 /** Stop streaming ONE session to `sender` WITHOUT killing it (the PTY lives on). */
 export function detachTerminal(id: string, sender: TerminalSender): void {
-  sessions.get(id)?.attached.delete(sender)
+  const session = sessions.get(id)
+  if (session === undefined) return
+  session.attached.delete(sender)
+  markDetachedIfEmpty(session)
 }
 
 /** Remove `sender` from every session WITHOUT killing — called when its socket closes. */
 export function detachSender(sender: TerminalSender): void {
-  for (const session of sessions.values()) session.attached.delete(sender)
+  for (const session of sessions.values()) {
+    session.attached.delete(sender)
+    markDetachedIfEmpty(session)
+  }
 }
 
 /** The roster the renderer hydrates its sidebar list from. */
@@ -225,11 +347,11 @@ export function resizeTerminal(id: string, cols: number, rows: number): void {
 /**
  * Explicitly end a session — the Terminal list's close button. Kills the PTY if it's
  * still running and removes the entry entirely; killing an already-exited entry just
- * removes it. This is the ONLY thing (besides the daemon process dying) that ends a PTY.
+ * removes it. The only OTHER things that end a PTY are the daemon process dying and the
+ * bounds at the top of this file, neither of which can touch an attached session.
  */
 export function killTerminal(id: string): void {
   const session = sessions.get(id)
   if (!session) return
-  sessions.delete(id)
-  if (session.status === 'running') session.pty.kill()
+  evict(id, session)
 }
