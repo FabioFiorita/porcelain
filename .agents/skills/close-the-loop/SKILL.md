@@ -30,7 +30,7 @@ Agent channels are the **porcelain CLI** (`~/.porcelain/porcelain` in prod, `pnp
 pnpm build              # warm out/ when needed
 pnpm dev:daemon         # DEV stack on 43118
 pnpm porcelain -- help  # CLI against ~/.porcelain-dev
-# browser client: http://127.0.0.1:43118/  (token in ~/.porcelain-dev/daemon-token)
+# browser client: http://127.0.0.1:43118/  (token in ~/.porcelain-dev/admin-token)
 ```
 
 ## The loop
