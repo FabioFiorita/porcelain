@@ -1,3 +1,9 @@
+## [0.45.2](https://github.com/FabioFiorita/porcelain/compare/v0.45.1...v0.45.2) (2026-07-29)
+
+### Bug Fixes
+
+* restore mobile remote usability ([4bbdf93](https://github.com/FabioFiorita/porcelain/commit/4bbdf932d46af981028f29f2659b253921e38e5f))
+
 ## [0.45.1](https://github.com/FabioFiorita/porcelain/compare/v0.45.0...v0.45.1) (2026-07-29)
 
 ### Bug Fixes

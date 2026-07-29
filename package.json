@@ -1,6 +1,6 @@
 {
   "name": "porcelain",
-  "version": "0.45.1",
+  "version": "0.45.2",
   "description": "Where agent work becomes trusted work.",
   "main": "./out/main/index.js",
   "author": "Fabio Fiorita <fabiolfp@gmail.com>",
