@@ -20,7 +20,7 @@ This skill is the **durable layer**: the stack, the single architecture every fe
 | Git backend | Shell out to `git` CLI from the main process; parse porcelain-format output; no git libraries |
 | Per-repo config | App-side JSON store under `~/Library/Application Support/porcelain`, keyed by repo path; never write into work repos |
 | Package manager | **pnpm** |
-| Lint/format | **Biome** (no ESLint/Prettier) |
+| Lint/format | **Biome** (no ESLint/Prettier) — `noUnusedImports` / `noUnusedVariables` are **errors**; plus `scripts/lint-control-recipes.mjs` (compact control classes) and **knip** (`pnpm lint:knip`: unused files, deps, unlisted, binaries, duplicates — not a full unused-exports sweep; many schemas/helpers are deliberately public for tests and the CLI island) |
 | Tests | **Vitest** (unit/component, `src/**/*.test.{ts,tsx}`) + **Playwright** (Electron e2e in `e2e/`, `*.spec.ts`) |
 
 ## The one architecture
@@ -227,8 +227,26 @@ Durable config facts (the step-by-step runbook is the `releasing` skill): `elect
 - **shadcn primitives only**: never hand-roll a primitive (sidebar, tabs, dialog, tree, …); search shadcn/registries first; a new primitive requires user approval.
 - Strict TS, no `any`, no `as unknown as`, no dead code, no commented-out code.
 - Conventional Commits (`feat:`, `fix:`, `chore:`, `refactor:`, `test:`, `docs:`).
-- Verification gate before any commit: `pnpm lint && pnpm typecheck && pnpm test && pnpm build` must all pass.
+- Verification gate before any commit: `pnpm verify` (= lint [Biome + control recipes + knip] && test && build; typecheck runs inside build) must all pass.
 - **Related skills**: `audit` = the security/correctness/perf/type invariants to preserve (read before main-process/IPC/config/git/packaging changes); `releasing` = the release runbook; `product` = what/why for features. This skill is the *what* for code structure.
+
+## Compat retirement policy (on-disk / upgrade shims)
+
+**Not agent trash — user-disk safety.** Code that only exists to read an older on-disk shape stays until a deliberate **version floor** is chosen (release note: “upgrade from ≥ 0.X”). Do not delete a migration because “we never had many users” without that floor.
+
+| Shim | Lives | Retire when |
+|------|--------|-------------|
+| `migrateNotesFromConfig` / `migrateLayersFromConfig` / `migrateReviewedFromConfig` / `migrateScopeFromConfig` | channel stores, boot | No supported install still has notes/layers/reviewed/scope only in `userData/config.json` |
+| Legacy bare-string reviewed marks | `reviewed-store` / CLI | Same floor; empty fingerprint already prunes on reconcile |
+| Legacy `evidence.json` read | evidence store + CLI | All installs use `loop-evidence/` dirs |
+| Action `cwd` (read-only, deprecated) | `actions-store` | No old `actions.json` with `cwd` in the wild |
+| Single `{ url, token }` remote-daemon file | `remote-daemon.ts` | No pre-multi-env `remote-daemon.json` left |
+| Prefs remap `agent` / `chat` → Files | `preferences.ts` | Harmless forever; optional delete after floor |
+| CSP rewrite for loopback-only `connect-src` | `static-server` | Old packaged `index.html` no longer in any supported build |
+
+**Still product, not compat:** WebGL→DOM terminal fallback; dual primary+local daemon sessions; `exportRepoSettings`/`importRepoSettings` (script/companion, no Settings seed UI); Linux shell chrome; `feature` internal ids while UI says Review (rename is a Phase 4 project, not silent delete).
+
+**Do not reintroduce:** Porcelain MCP server, in-app agent runner / chat relay, glaze/vibrancy, pairing/`POST /pair`, standalone artifact/evidence tab kinds.
 
 ## Nomenclature
 

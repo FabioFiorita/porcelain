@@ -37,8 +37,6 @@ import { findTailscaleAddress } from './tailnet'
  */
 /** Default share/daemon port when `PORCELAIN_DAEMON_PORT` is unset or invalid. */
 export const LISTENER_PORT = 43117
-/** Back-compat alias for the default port. */
-export const TAILNET_PORT = LISTENER_PORT
 
 /**
  * Port LAN/tailnet listeners bind. Same as the pinned loopback port when

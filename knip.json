@@ -1,0 +1,34 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "src/main/index.ts!",
+    "src/preload/index.ts!",
+    "src/backend/server.ts!",
+    "src/cli/porcelain.ts!",
+    "src/renderer/src/main.tsx!",
+    "scripts/*.{mjs,js}",
+    "e2e/**/*.{ts,tsx}",
+    "playwright.config.ts",
+    "playwright.shots.config.ts",
+    "vitest.config.ts",
+    "electron.vite.config.ts",
+    "src/test-setup.ts"
+  ],
+  "project": ["src/**/*.{ts,tsx}", "scripts/**/*.{mjs,js}", "e2e/**/*.{ts,tsx}"],
+  "ignore": ["src/renderer/src/components/ui/**"],
+  "ignoreBinaries": ["ss"],
+  "ignoreDependencies": [
+    "@fontsource-variable/geist",
+    "@fontsource-variable/geist-mono",
+    "@fontsource-variable/jetbrains-mono",
+    "tw-animate-css",
+    "shadcn",
+    "@electron/fuses",
+    "@shikijs/langs",
+    "@shikijs/themes",
+    "@tiptap/pm",
+    "@tailwindcss/typography",
+    "tailwindcss",
+    "conventional-changelog-conventionalcommits"
+  ]
+}

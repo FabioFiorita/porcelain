@@ -45,8 +45,8 @@ const ALL_SECTIONS: {
   icon: typeof Layers
   title: string
   blurb: string
-  // Drives shell-only procedures (plugin/codex install, the Electron auto-updater,
-  // remote-daemon.json), so it's hidden in the browser client — no shell there.
+  // Shell-only: Companion (skills install), Remotes (remote-daemon.json), Updates
+  // (electron-updater). Hidden in the browser client — no shell router there.
   shellOnly?: boolean
 }[] = [
   {

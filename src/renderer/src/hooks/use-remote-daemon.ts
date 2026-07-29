@@ -40,20 +40,6 @@ export function useRemoteEnvironments():
   return data
 }
 
-/**
- * The remote environment THIS window is bound to, or null when on This device
- * (local daemon). Electron-only — always null in the browser client.
- */
-export function useActiveRemoteEnvironment(): {
-  id: string
-  name: string
-  url: string
-} | null {
-  const data = useRemoteEnvironments()
-  if (data === undefined || data.activeId === null) return null
-  return data.environments.find((env) => env.id === data.activeId) ?? null
-}
-
 export function useAddRemoteEnvironment(): {
   add: (input: { name: string; url: string; token: string; connectThisWindow?: boolean }) => void
   isPending: boolean
@@ -79,86 +65,10 @@ export function useAddRemoteEnvironment(): {
   }
 }
 
-/**
- * Teach an environment another way in (phase 5). Inline `error` like add-environment:
- * a mistyped or unreachable address is a normal, correctable mistake, not a toast.
- * Resolves true only when the address actually landed, so the caller clears its field
- * on success and keeps what the human typed when it didn't.
- */
-export function useAddEnvironmentEndpoint(): {
-  addEndpoint: (input: { id: string; url: string }) => Promise<boolean>
-  isPending: boolean
-  error: string | null
-} {
-  const utils = shellTrpc.useUtils()
-  const mutation = shellTrpc.addEnvironmentEndpoint.useMutation({
-    // Statuses too: the new address may be the one that answers, and the live marker
-    // is read from `environmentStatuses`, not from the environment list.
-    onSuccess: async () => {
-      await Promise.all([
-        utils.remoteEnvironments.invalidate(),
-        utils.environmentStatuses.invalidate(),
-      ])
-    },
-  })
-  return {
-    addEndpoint: async (input) => {
-      try {
-        await mutation.mutateAsync(input)
-        return true
-      } catch {
-        return false
-      }
-    },
-    isPending: mutation.isPending,
-    error: mutation.error?.message ?? null,
-  }
-}
-
-export function useRemoveEnvironmentEndpoint(): {
-  removeEndpoint: (input: { id: string; url: string }) => void
-  pendingUrl: string | null
-} {
-  const utils = shellTrpc.useUtils()
-  const mutation = shellTrpc.removeEnvironmentEndpoint.useMutation({
-    onSuccess: async () => {
-      await Promise.all([
-        utils.remoteEnvironments.invalidate(),
-        utils.environmentStatuses.invalidate(),
-      ])
-    },
-    onError: onMutationError('Remove address'),
-  })
-  return {
-    removeEndpoint: (input) => mutation.mutate(input),
-    // Keyed by url, not by environment: several endpoint rows of the SAME environment
-    // are on screen at once, and only the one being removed should look busy.
-    pendingUrl: mutation.isPending ? (mutation.variables?.url ?? null) : null,
-  }
-}
-
-/** Pin the KIND of that address as the one to try first — failover still applies. */
-export function usePreferEnvironmentEndpoint(): {
-  preferEndpoint: (input: { id: string; url: string }) => void
-  pendingUrl: string | null
-} {
-  const utils = shellTrpc.useUtils()
-  const mutation = shellTrpc.preferEnvironmentEndpoint.useMutation({
-    // Preference reorders the failover walk, so a different address can become the
-    // live one — the statuses query owns that marker.
-    onSuccess: async () => {
-      await Promise.all([
-        utils.remoteEnvironments.invalidate(),
-        utils.environmentStatuses.invalidate(),
-      ])
-    },
-    onError: onMutationError('Prefer address'),
-  })
-  return {
-    preferEndpoint: (input) => mutation.mutate(input),
-    pendingUrl: mutation.isPending ? (mutation.variables?.url ?? null) : null,
-  }
-}
+// Endpoint add/remove/prefer live on the shell router (multi-address environments,
+// phase 5) and are driven by addRemoteEnvironment's merge path + status failover —
+// no Settings UI exposes them today. When a multi-address editor lands, wrap those
+// procedures here again rather than calling shellTrpc from components.
 
 export function useConnectRemoteEnvironment(): {
   connect: (id: string) => void

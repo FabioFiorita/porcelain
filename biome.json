@@ -19,7 +19,11 @@
     "rules": {
       "preset": "recommended",
       "suspicious": { "noExplicitAny": "error" },
-      "style": { "noDefaultExport": "error" }
+      "style": { "noDefaultExport": "error" },
+      "correctness": {
+        "noUnusedImports": "error",
+        "noUnusedVariables": "error"
+      }
     }
   },
   "assist": { "actions": { "source": { "organizeImports": "on" } } },
