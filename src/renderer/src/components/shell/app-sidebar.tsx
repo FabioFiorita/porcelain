@@ -116,20 +116,16 @@ export function AppSidebar(): React.JSX.Element {
     <Sidebar
       variant="floating"
       collapsible="icon"
-      className="overflow-hidden *:data-[sidebar=sidebar]:flex-row"
-      // shadcn pins the floating container to the full viewport (fixed inset-y-0
-      // h-svh); offset it below the h-12 titlebar so the card sits UNDER the top
-      // bar instead of riding up over the traffic lights. paddingTop:0 drops the
-      // floating top gap so the tile is flush with the titlebar bottom — the search
-      // then has an even 8px above (window edge) and below (to the tiles).
+      className="overflow-hidden md:top-[calc(3rem+env(safe-area-inset-top))] md:h-[calc(100dvh-3rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] md:pt-0 *:data-[sidebar=sidebar]:flex-row"
+      // shadcn pins the desktop floating container to the full viewport. Offset
+      // it below the h-12 titlebar and both safe areas so its card shares the
+      // viewer's exact vertical frame. These are responsive classes, not inline
+      // styles: the phone Sheet must remain full-height.
       // --sidebar-width-icon = the rail width: 4rem (64px) matches the mockup's
       // spacious rail (a preset re-apply resets the vendored 3rem default — set it
       // here, on the non-vendored shell, so it survives).
       style={
         {
-          top: '3rem',
-          height: 'calc(100svh - 3rem)',
-          paddingTop: 0,
           '--sidebar-width-icon': '4rem',
         } as React.CSSProperties
       }

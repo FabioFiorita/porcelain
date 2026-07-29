@@ -39,9 +39,9 @@ export function RightSidebar(): React.JSX.Element {
       variant="floating"
       collapsible="offcanvas"
       data-testid={TestIds.rightSidebar}
-      // Match the left card: sit below the h-12 titlebar (shadcn pins the floating
-      // container to the full viewport otherwise), flush at the titlebar bottom.
-      style={{ top: '3rem', height: 'calc(100svh - 3rem)', paddingTop: 0 }}
+      // Match the viewer and left card below the titlebar + safe areas. Keeping
+      // this responsive prevents the phone Sheet from inheriting a desktop offset.
+      className="md:top-[calc(3rem+env(safe-area-inset-top))] md:h-[calc(100dvh-3rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] md:pt-0"
     >
       {!isMobile && <RightSidebarResizeHandle />}
       <SidebarHeader className="app-drag h-12 flex-row items-center border-b py-0 pr-1 pl-3">

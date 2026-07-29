@@ -200,8 +200,9 @@ function Sidebar({
           className={cn(
             "gap-0 bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden",
             "w-(--sidebar-width) data-[side=left]:sm:max-w-none data-[side=right]:sm:max-w-none",
-            // Home-indicator clearance on notched iPhones.
-            "pb-[env(safe-area-inset-bottom)]"
+            // Paint edge-to-edge while keeping controls clear of the notch and
+            // home indicator. Desktop shell offsets must never leak into here.
+            "pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
           )}
           style={
             {

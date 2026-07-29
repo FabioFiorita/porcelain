@@ -15,6 +15,7 @@ export const loc = {
   railSettings: (page: Page): Locator => byId(page, TestIds.railSettings),
   sidebarPanel: (page: Page): Locator => byId(page, TestIds.sidebarPanel),
   rightSidebar: (page: Page): Locator => byId(page, TestIds.rightSidebar),
+  viewerCard: (page: Page): Locator => byId(page, TestIds.viewerCard),
   toggleLeftSidebar: (page: Page): Locator => byId(page, TestIds.toggleLeftSidebar),
   toggleRightSidebar: (page: Page): Locator => byId(page, TestIds.toggleRightSidebar),
 

@@ -45,6 +45,29 @@ test('quick access — changes', async ({ page }) => {
   await expect(panel).toHaveScreenshot('quick-access-changes.png')
 })
 
+test('shell cards share one vertical frame', async ({ page }) => {
+  await waitForShell(page)
+  const left = page.locator(
+    '[data-slot="sidebar-container"][data-side="left"] [data-slot="sidebar-inner"]',
+  )
+  const right = page.locator(
+    '[data-slot="sidebar-container"][data-side="right"] [data-slot="sidebar-inner"]',
+  )
+  const viewer = loc.viewerCard(page)
+  const [leftBox, viewerBox, rightBox] = await Promise.all([
+    left.boundingBox(),
+    viewer.boundingBox(),
+    right.boundingBox(),
+  ])
+  if (leftBox === null || viewerBox === null || rightBox === null) {
+    throw new Error('expected all three shell cards')
+  }
+  expect(leftBox.y).toBe(viewerBox.y)
+  expect(rightBox.y).toBe(viewerBox.y)
+  expect(leftBox.y + leftBox.height).toBe(viewerBox.y + viewerBox.height)
+  expect(rightBox.y + rightBox.height).toBe(viewerBox.y + viewerBox.height)
+})
+
 test('settings dialog', async ({ page }) => {
   await waitForShell(page)
   await openSettings(page)
@@ -63,6 +86,11 @@ test('settings dialog — phone', async ({ page, appMode }) => {
     await loc.toggleLeftSidebar(page).click()
     await expect(loc.railSettings(page)).toBeVisible({ timeout: 10_000 })
   }
+  const mobileSidebar = page.locator('[data-slot="sidebar"][data-mobile="true"]')
+  const mobileSidebarBox = await mobileSidebar.boundingBox()
+  if (mobileSidebarBox === null) throw new Error('expected the mobile sidebar')
+  expect(mobileSidebarBox.y).toBe(0)
+  expect(mobileSidebarBox.height).toBe(844)
   await openSettings(page)
   const dialog = loc.settingsDialog(page)
   await expect(loc.settingsHeading(page)).toHaveText('General')
@@ -82,6 +110,24 @@ test('settings dialog — phone', async ({ page, appMode }) => {
   const sBox = await system.boundingBox()
   if (aBox === null || sBox === null) throw new Error('expected Appearance and System boxes')
   expect(sBox.y).toBeGreaterThan(aBox.y + aBox.height - 4)
+  await dialog.getByRole('button', { name: 'Review', exact: true }).click()
+  await expect(loc.settingsHeading(page)).toHaveText('Review layers')
+  // Force the same constrained-height case as a long user-defined layer list.
+  await page.setViewportSize({ width: 390, height: 600 })
+  const body = dialog.locator('main')
+  await expect
+    .poll(() => body.evaluate((element) => element.scrollHeight > element.clientHeight))
+    .toBe(true)
+  await body.evaluate((element) => {
+    element.scrollTop = element.scrollHeight
+  })
+  await expect(dialog.getByRole('button', { name: 'Save' })).toBeVisible()
+  await page.setViewportSize({ width: 390, height: 844 })
+  await dialog.getByRole('button', { name: 'General' }).click()
+  await expect(loc.settingsHeading(page)).toHaveText('General')
+  await body.evaluate((element) => {
+    element.scrollTop = 0
+  })
   await expect(dialog).toHaveScreenshot('settings-general-mobile.png')
 })
 
@@ -90,6 +136,7 @@ test.describe('without a seeded repo', () => {
 
   test('welcome screen', async ({ page }) => {
     await expect(loc.welcomeOpenRepo(page)).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Remote daemon settings' })).toHaveCount(0)
     await expect(page).toHaveScreenshot('welcome.png')
   })
 })

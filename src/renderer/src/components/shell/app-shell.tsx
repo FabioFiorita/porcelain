@@ -170,6 +170,7 @@ function RepoShell(): React.JSX.Element {
             overlay sheets (no gap peer), so always keep the 8px margin on both
             sides. */}
         <div
+          data-testid={TestIds.viewerCard}
           className={cn(
             'mb-2 flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card',
             (isMobile || left.collapsed) && 'ml-2',

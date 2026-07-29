@@ -162,7 +162,7 @@ export function SettingsDialog(): React.JSX.Element {
           // Phone: nearly full viewport (safe for status bar / home indicator via dvh).
           // Desktop: wide dual-pane card, capped height.
           isMobile
-            ? 'top-auto bottom-0 left-0 right-0 max-h-[min(92dvh,100%)] w-full max-w-none translate-x-0 translate-y-0 rounded-b-none sm:max-w-none'
+            ? 'top-auto bottom-0 left-0 right-0 h-[min(92dvh,100%)] max-h-none w-full max-w-none translate-x-0 translate-y-0 rounded-b-none sm:max-w-none'
             : 'max-h-[min(600px,90dvh)] sm:max-w-[960px]',
         )}
       >
@@ -171,7 +171,7 @@ export function SettingsDialog(): React.JSX.Element {
           App preferences and repository settings.
         </DialogDescription>
         {isMobile ? (
-          <div className="flex max-h-[min(92dvh,100%)] min-h-0 flex-col overflow-hidden">
+          <div className="flex h-full min-h-0 flex-col overflow-hidden">
             <nav
               aria-label="Settings sections"
               className="shrink-0 overflow-x-auto border-b px-3 py-2 pr-12"
@@ -205,7 +205,7 @@ export function SettingsDialog(): React.JSX.Element {
               </h2>
               <p className="mt-1 text-xs text-muted-foreground">{active.blurb}</p>
             </header>
-            <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-4">
+            <main className="min-h-0 min-w-0 flex-1 overscroll-contain overflow-x-hidden overflow-y-auto p-4 pb-[calc(2rem+env(safe-area-inset-bottom))]">
               <SettingsSectionBody activeId={activeId} onFlowSaved={() => setOpen(false)} />
             </main>
           </div>
@@ -249,7 +249,7 @@ export function SettingsDialog(): React.JSX.Element {
                 </h2>
                 <p className="mt-1 text-xs text-muted-foreground">{active.blurb}</p>
               </header>
-              <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-6">
+              <main className="min-h-0 min-w-0 flex-1 overscroll-contain overflow-x-hidden overflow-y-auto p-6 pb-10">
                 <SettingsSectionBody activeId={activeId} onFlowSaved={() => setOpen(false)} />
               </main>
             </div>

@@ -18,6 +18,7 @@ export const TestIds = {
   sidebarPanel: 'sidebar-panel',
   sidebarPanelTitle: 'sidebar-panel-title',
   rightSidebar: 'right-sidebar',
+  viewerCard: 'viewer-card',
   toggleLeftSidebar: 'toggle-left-sidebar',
   toggleRightSidebar: 'toggle-right-sidebar',
   environmentSwitcher: 'environment-switcher',
