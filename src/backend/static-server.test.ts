@@ -1,5 +1,5 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
-import type { IncomingMessage, ServerResponse } from 'node:http'
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join, sep } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -11,6 +11,11 @@ const ROOT = `${sep}app${sep}out${sep}renderer`
 describe('resolveStaticPath', () => {
   it("maps '/' to index.html", () => {
     expect(resolveStaticPath(ROOT, '/')).toBe(`${ROOT}${sep}index.html`)
+  })
+
+  it('maps the browser pairing route to the app shell', () => {
+    expect(resolveStaticPath(ROOT, '/pair')).toBe(`${ROOT}${sep}index.html`)
+    expect(resolveStaticPath(ROOT, '/pair?grant=secret')).toBe(`${ROOT}${sep}index.html`)
   })
 
   it('maps a trailing-slash dir request to its index.html', () => {
@@ -101,6 +106,7 @@ describe('serveStatic content types', () => {
 
   beforeEach(() => {
     mkdirSync(dist, { recursive: true })
+    writeFileSync(join(dist, 'index.html'), '<html><body>Porcelain</body></html>')
     writeFileSync(join(dist, 'manifest.webmanifest'), '{"name":"Porcelain"}')
     writeFileSync(join(dist, 'apple-touch-icon.png'), 'png-bytes')
   })
@@ -129,5 +135,28 @@ describe('serveStatic content types', () => {
 
   it('serves the apple touch icon as image/png', async () => {
     expect(await headType('/apple-touch-icon.png')).toBe('image/png')
+  })
+
+  it('serves the app shell for a direct browser pairing request', async () => {
+    const server = createServer(async (req, res) => {
+      await serveStatic(req, res, dist)
+    })
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+
+    try {
+      const address = server.address()
+      if (address === null || typeof address === 'string') throw new Error('missing test port')
+      const response = await fetch(`http://127.0.0.1:${address.port}/pair`)
+
+      expect(response.status).toBe(200)
+      expect(await response.text()).toContain('Porcelain')
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => {
+          if (error) reject(error)
+          else resolve()
+        })
+      })
+    }
   })
 })

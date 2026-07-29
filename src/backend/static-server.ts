@@ -64,6 +64,7 @@ function contentType(filePath: string): string {
  * - The query string (and hash) is stripped — only the path names a file.
  * - The path is percent-decoded so `%2e%2e` can't smuggle a `..` past the check.
  * - '/' (and any path ending in '/') maps to index.html.
+ * - The browser pairing entry route (`/pair`) maps to the same app shell.
  * - After join+normalize the result MUST stay within `root` (prefix check with a
  *   trailing separator, so a sibling dir sharing a prefix can't sneak through).
  */
@@ -83,8 +84,16 @@ export function resolveStaticPath(root: string, urlPath: string): string | null 
   // normalize them to forward slashes before we reason about the path.
   const unixish = decoded.replace(/\\/g, '/')
 
-  // A directory request ('/', or a trailing slash) serves the SPA entry.
-  const relative = unixish === '' || unixish.endsWith('/') ? `${unixish}index.html` : unixish
+  // A directory request ('/', or a trailing slash) serves the SPA entry. Pairing
+  // is the one client-side entry route opened directly from an external link, so
+  // it must also receive the shell instead of looking for a literal `pair` file.
+  // Keep this explicit rather than turning every missing path into a SPA route.
+  const relative =
+    unixish === '/pair' || unixish === 'pair'
+      ? 'index.html'
+      : unixish === '' || unixish.endsWith('/')
+        ? `${unixish}index.html`
+        : unixish
 
   // An absolute request path can't be trusted to stay under root once joined.
   // Strip a leading slash so join treats it as relative to root; a still-absolute

@@ -102,7 +102,9 @@ Identity in `electron-builder.yml`. Secrets on the repo for **package-mac** only
 
 Published after the GitHub Release via **npm Trusted Publishing (OIDC)** — no long-lived `NPM_TOKEN`. Trusted publisher: owner **FabioFiorita**, repo `porcelain`, workflow **`release.yml`**.
 
-**Post-publish gate (hard-won, 2026-07-27):** after `npm publish`, CI curls the tarball until HTTP 200 (~10 min) and smokes `npx porcelain-daemon@VER --help`. A metadata-only / laggy publish once left `latest` on a **404 tarball**, which crash-looped every host on `npx porcelain-daemon@latest`. "Version already exists" alone is **not** enough to skip — the tarball must be downloadable.
+**Post-publish gate (hard-won, 2026-07-29):** after `npm publish`, CI quietly curls the tarball until HTTP 200 (~10 min) and smokes `npx porcelain-daemon@VER --help` from a clean temporary consumer directory. A metadata-only / laggy publish once left `latest` on a **404 tarball**, which crash-looped every host on `npx porcelain-daemon@latest`. The registry commonly exposes metadata several minutes before its tarball CDN converges; those intermediate 404s are expected propagation, not separate release failures. "Version already exists" alone is **not** enough to skip — retries wait for the tarball and run the same consumer smoke.
+
+**Never run that npx smoke inside `dist-daemon`.** Because the directory's package has the same name, npx can select the local package-under-build whose bin is not linked and fail with `porcelain-daemon: not found` even though npm is healthy. The smoke proves the published artifact only when its cwd has no local `porcelain-daemon`.
 
 **No CI unpublish.** OIDC publish often returns success while the CDN stays 404 for minutes; auto-rollback caused false reds and unreliable state. If the probe times out: job fails and tells you to **re-run the same tag** later. If a version stays 404 for hours and poisons `latest`, unpublish **by hand** on npmjs.com (or pin the prod unit to a known-good version).
 

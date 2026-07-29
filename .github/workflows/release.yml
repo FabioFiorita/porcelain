@@ -143,6 +143,12 @@ jobs:
           pnpm daemon:dist
           cd dist-daemon
           PUBLISH_NPMRC="$(mktemp)"
+          SMOKE_DIR="$(mktemp -d)"
+          cleanup() {
+            rm -f "$PUBLISH_NPMRC"
+            rm -rf "$SMOKE_DIR"
+          }
+          trap cleanup EXIT
           printf 'registry=https://registry.npmjs.org/\n' > "$PUBLISH_NPMRC"
           unset NODE_AUTH_TOKEN || true
           export NPM_CONFIG_USERCONFIG="$PUBLISH_NPMRC"
@@ -150,47 +156,55 @@ jobs:
           PKG=porcelain-daemon
           TARBALL_URL="https://registry.npmjs.org/${PKG}/-/${PKG}-${VER}.tgz"
           tarball_code() {
-            curl -sS -o /dev/null -w '%{http_code}' -L "$TARBALL_URL" || echo 000
+            local code
+            if ! code=$(curl -sS -o /dev/null -w '%{http_code}' -L "$TARBALL_URL"); then
+              code=000
+            fi
+            printf '%s' "$code"
           }
           # Registry can lag after a successful OIDC publish (large tarball).
-          # Wait for HTTP 200; do not unpublish — lag is often temporary and
-          # auto-rollback caused false failures. Re-run the same tag if needed.
+          # Wait quietly for HTTP 200; a temporary 404 is normal propagation,
+          # not a new failure on every probe.
           wait_tarball() {
             local attempts=60 sleep_s=10
             local i code
+            echo "Waiting up to 10 minutes for ${PKG}@${VER} tarball propagation..."
             for i in $(seq 1 "$attempts"); do
               code=$(tarball_code)
-              echo "tarball probe ${VER} attempt ${i}/${attempts} → HTTP ${code}"
               if [ "$code" = "200" ]; then
+                echo "${PKG}@${VER} tarball is available after ${i} check(s)"
                 return 0
               fi
-              sleep "$sleep_s"
+              if [ $((i % 6)) -eq 0 ]; then
+                echo "Still propagating after $((i * sleep_s))s..."
+              fi
+              if [ "$i" -lt "$attempts" ]; then
+                sleep "$sleep_s"
+              fi
             done
+            echo "Last tarball response was HTTP ${code}" >&2
             return 1
           }
 
-          # Only skip if this version already exists AND its tarball is downloadable.
           if npm view "${PKG}@${VER}" version >/dev/null 2>&1; then
-            CODE=$(tarball_code)
-            if [ "$CODE" = "200" ]; then
-              echo "${PKG}@${VER} already published (tarball 200) — skip"
-            else
-              echo "${PKG}@${VER} exists but tarball HTTP ${CODE}" >&2
-              echo "Often CDN lag after a prior publish. Re-run this workflow for the same tag later:" >&2
-              echo "  gh workflow run release.yml -f tag=v${VER}" >&2
-              echo "If it stays 404 for hours, unpublish by hand on npmjs.com (no CI unpublish)." >&2
-              exit 1
-            fi
+            echo "${PKG}@${VER} already published — verifying availability"
           else
             npm publish --access public
-            if ! wait_tarball; then
-              echo "npm publish of ${PKG}@${VER} succeeded but tarball still not HTTP 200 after ~10m" >&2
-              echo "Do not cut a new patch. Re-run the same tag when the registry catches up:" >&2
-              echo "  gh workflow run release.yml -f tag=v${VER}" >&2
-              echo "If latest is stuck on a 404 for hours, unpublish that version by hand." >&2
-              exit 1
-            fi
-            npx --yes "${PKG}@${VER}" --help >/dev/null
-            echo "${PKG}@${VER} publish verified"
           fi
-          rm -f "$PUBLISH_NPMRC"
+
+          if ! wait_tarball; then
+            echo "${PKG}@${VER} metadata exists, but its tarball is still unavailable." >&2
+            echo "Do not cut a new patch. Re-run this same tag after npm finishes propagating:" >&2
+            echo "  gh workflow run release.yml -f tag=v${VER}" >&2
+            echo "If latest stays unavailable for hours, inspect it manually on npmjs.com." >&2
+            exit 1
+          fi
+
+          # Run outside dist-daemon: inside a package with the same name, npx can
+          # select the local package whose bin is not linked instead of fetching
+          # the just-published consumer artifact.
+          (
+            cd "$SMOKE_DIR"
+            npx --yes "${PKG}@${VER}" --help >/dev/null
+          )
+          echo "${PKG}@${VER} publish verified from a clean consumer directory"
