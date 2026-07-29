@@ -1,3 +1,9 @@
+## [0.45.1](https://github.com/FabioFiorita/porcelain/compare/v0.45.0...v0.45.1) (2026-07-29)
+
+### Bug Fixes
+
+* restore browser pairing and npm release checks ([1a6c5e3](https://github.com/FabioFiorita/porcelain/commit/1a6c5e37556830eaccc2a26a80ce4a339e48a49c))
+
 ## [0.45.0](https://github.com/FabioFiorita/porcelain/compare/v0.44.0...v0.45.0) (2026-07-29)
 
 ### Features
