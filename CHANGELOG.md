@@ -1,3 +1,13 @@
+## [0.45.0](https://github.com/FabioFiorita/porcelain/compare/v0.44.0...v0.45.0) (2026-07-29)
+
+### Features
+
+* add per-device remote access ([d377b93](https://github.com/FabioFiorita/porcelain/commit/d377b939a04185b78d855524a8094a0ca0c874cb))
+
+### Bug Fixes
+
+* **marketing:** restore mobile page gutters ([f173424](https://github.com/FabioFiorita/porcelain/commit/f1734247dffeae53b8b02fb9e93e908ccecebabc))
+
 ## [0.44.0](https://github.com/FabioFiorita/porcelain/compare/v0.43.7...v0.44.0) (2026-07-28)
 
 ### Features
