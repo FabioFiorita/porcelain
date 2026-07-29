@@ -4,6 +4,7 @@ import type { Duplex } from 'node:stream'
 import type { AnyRouter } from '@trpc/server'
 import { fetchRequestHandler } from '@trpc/server/adapters/fetch'
 import { type WebSocket, WebSocketServer } from 'ws'
+import type { AuthIdentity } from './access-store'
 
 /**
  * The daemon's HTTP + WS surface, factored out of `server.ts` so it can be booted
@@ -16,21 +17,27 @@ import { type WebSocket, WebSocketServer } from 'ws'
  *
  * SECURITY INVARIANTS (audit skill): every /trpc request is token-gated (Bearer),
  * every /session WS upgrade is token-gated (the `porcelain.<token>` subprotocol),
- * both through the ONE `authenticate` function below — shared secret only,
- * constant-time over sha256 digests; static assets are served UNAUTHENTICATED by
- * design; CORS is scoped (echo only the allowed origin or the file:// renderer's
- * `null`), never `*`. The behaviour here must stay identical to what `server.ts`
- * did inline — the test tier exists to make a regression bite.
+ * both through the ONE `authenticate` function below. The host administrator is
+ * compared constant-time over a sha256 digest; paired devices are validated
+ * individually by the access store. POST /pair is the only unauthenticated
+ * mutation, and accepts rate-limited, size-capped one-time credentials. Static
+ * assets are public by design; CORS is scoped, never `*`.
  */
 export interface DaemonHttpOptions {
-  /** sha256 digest of the shared secret (resolved by the entry file before boot). */
-  tokenHash: Buffer
+  /** sha256 digest of the local host administrator credential. */
+  adminTokenHash: Buffer
+  /** Validate an individually issued client token. */
+  authenticateClient: (token: string) => Promise<AuthIdentity | null>
+  /** Atomically consume a one-time pairing grant and issue a client token. */
+  exchangePairing: (
+    credential: string,
+  ) => Promise<{ token: string; client: { id: string; label: string; createdAt: string } } | null>
   /** The single origin CORS echoes (dev Vite server); '' disables the echo. */
   allowedOrigin: string
   /** The appRouter, served over tRPC's fetch adapter. */
   router: AnyRouter
-  /** Called with the upgraded socket for each authenticated /session connection. */
-  onSession: (ws: WebSocket) => void
+  /** Called with the upgraded socket and authenticated identity. */
+  onSession: (ws: WebSocket, identity: AuthIdentity) => void
   /** Serves the renderer dist for non-/trpc GET/HEAD (unauthenticated). */
   serveStatic: (req: IncomingMessage, res: ServerResponse) => Promise<void>
 }
@@ -42,33 +49,26 @@ export interface DaemonHttp {
   requestListener: (req: IncomingMessage, res: ServerResponse) => void
   /** The upgrade handler; shared with the optional tailnet listener. */
   handleUpgrade: (req: IncomingMessage, socket: Duplex, head: Buffer) => void
-  /**
-   * Swap the live shared-token hash (Revoke all / rotate). Copies the buffer so the
-   * caller can reuse theirs; subsequent authenticate() calls use the new digest.
-   */
-  setTokenHash: (hash: Buffer) => void
 }
 
 const WS_PROTOCOL_PREFIX = 'porcelain.'
 
 export function createDaemonHttp(opts: DaemonHttpOptions): DaemonHttp {
   const { allowedOrigin, router, onSession, serveStatic } = opts
-  // Mutable: Revoke all writes a new secret and swaps this digest without restarting.
-  // Copied on set so a caller reusing their buffer can't race a concurrent compare.
-  let tokenHash = Buffer.from(opts.tokenHash)
+  const adminTokenHash = Buffer.from(opts.adminTokenHash)
 
   /**
    * THE gate. Every /trpc request and every /session upgrade passes through here, so it is
    * the single most security-critical function in the daemon.
    *
-   * One credential: the shared secret (`~/.porcelain/daemon-token`). Compared constant-time
-   * over a fixed-length sha256 digest (timingSafeEqual demands equal lengths, and hashing
-   * removes any length signal from the secret itself). Per-device credentials were removed
-   * deliberately — one token, revoke-all rotates it for everyone.
+   * The local administrator credential is checked constant-time over a fixed sha256
+   * digest. Otherwise the access store validates an individually revocable client token.
    */
-  function authenticate(provided: string | undefined): boolean {
-    if (provided === undefined || provided === '') return false
-    return timingSafeEqual(tokenHash, createHash('sha256').update(provided).digest())
+  async function authenticate(provided: string | undefined): Promise<AuthIdentity | null> {
+    if (provided === undefined || provided === '') return null
+    const digest = createHash('sha256').update(provided).digest()
+    if (timingSafeEqual(adminTokenHash, digest)) return { kind: 'admin' }
+    return opts.authenticateClient(provided)
   }
 
   function bearerToken(req: IncomingMessage): string | undefined {
@@ -95,13 +95,98 @@ export function createDaemonHttp(opts: DaemonHttpOptions): DaemonHttp {
     }
   }
 
-  function readBody(req: IncomingMessage): Promise<Buffer> {
-    return new Promise<Buffer>((resolve, reject) => {
+  function readBody(req: IncomingMessage): Promise<Buffer>
+  function readBody(req: IncomingMessage, maxBytes: number): Promise<Buffer | null>
+  function readBody(
+    req: IncomingMessage,
+    maxBytes = Number.POSITIVE_INFINITY,
+  ): Promise<Buffer | null> {
+    return new Promise<Buffer | null>((resolve, reject) => {
       const chunks: Buffer[] = []
-      req.on('data', (chunk: Buffer) => chunks.push(chunk))
-      req.on('end', () => resolve(Buffer.concat(chunks)))
+      let size = 0
+      let tooLarge = false
+      req.on('data', (chunk: Buffer) => {
+        size += chunk.byteLength
+        if (size <= maxBytes) chunks.push(chunk)
+        else tooLarge = true
+      })
+      req.on('end', () => resolve(tooLarge ? null : Buffer.concat(chunks)))
       req.on('error', reject)
     })
+  }
+
+  const pairingAttempts = new Map<string, { windowStartedAt: number; count: number }>()
+
+  function pairingRateLimited(req: IncomingMessage): boolean {
+    const key = req.socket.remoteAddress ?? 'unknown'
+    const now = Date.now()
+    const current = pairingAttempts.get(key)
+    if (current === undefined || now - current.windowStartedAt >= 60_000) {
+      pairingAttempts.set(key, { windowStartedAt: now, count: 1 })
+      return false
+    }
+    current.count += 1
+    return current.count > 12
+  }
+
+  async function handlePairing(
+    req: IncomingMessage,
+    res: ServerResponse,
+    cors: Record<string, string>,
+  ): Promise<void> {
+    if (req.method !== 'POST') {
+      res.writeHead(405, { ...cors, allow: 'POST' })
+      res.end()
+      return
+    }
+    if (pairingRateLimited(req)) {
+      res.writeHead(429, { ...cors, 'retry-after': '60' })
+      res.end()
+      return
+    }
+    const contentLength = Number(req.headers['content-length'] ?? '0')
+    if (!Number.isFinite(contentLength) || contentLength > 8_192) {
+      res.writeHead(413, cors)
+      res.end()
+      return
+    }
+    const raw = await readBody(req, 8_192)
+    if (raw === null) {
+      res.writeHead(413, cors)
+      res.end()
+      return
+    }
+    let credential: string
+    try {
+      const parsed: unknown = JSON.parse(raw.toString('utf8'))
+      if (
+        typeof parsed !== 'object' ||
+        parsed === null ||
+        !('credential' in parsed) ||
+        typeof parsed.credential !== 'string'
+      ) {
+        throw new Error('invalid pairing body')
+      }
+      credential = parsed.credential
+    } catch {
+      res.writeHead(400, cors)
+      res.end()
+      return
+    }
+    const exchanged = await opts.exchangePairing(credential)
+    if (exchanged === null) {
+      res.writeHead(401, cors)
+      res.end()
+      return
+    }
+    const body = Buffer.from(JSON.stringify(exchanged))
+    res.writeHead(200, {
+      ...cors,
+      'cache-control': 'no-store',
+      'content-type': 'application/json',
+      'content-length': String(body.byteLength),
+    })
+    res.end(body)
   }
 
   // Rebuild a fetch Request from the Node request and hand it to tRPC's official
@@ -115,6 +200,15 @@ export function createDaemonHttp(opts: DaemonHttpOptions): DaemonHttp {
     const cors = corsHeaders(req)
     try {
       const url = req.url ?? '/'
+      if (url === '/pair' && req.method === 'OPTIONS') {
+        res.writeHead(204, cors)
+        res.end()
+        return
+      }
+      if (url === '/pair' && req.method === 'POST') {
+        await handlePairing(req, res, cors)
+        return
+      }
       if (!url.startsWith('/trpc')) {
         // OPTIONS anywhere is a CORS preflight — answer it, don't fall to static.
         if (req.method === 'OPTIONS') {
@@ -139,7 +233,8 @@ export function createDaemonHttp(opts: DaemonHttpOptions): DaemonHttp {
         res.end()
         return
       }
-      if (!authenticate(bearerToken(req))) {
+      const identity = await authenticate(bearerToken(req))
+      if (identity === null) {
         res.writeHead(401, cors)
         res.end()
         return
@@ -157,7 +252,7 @@ export function createDaemonHttp(opts: DaemonHttpOptions): DaemonHttp {
       const response = await fetchRequestHandler({
         endpoint: '/trpc',
         router,
-        createContext: () => ({}),
+        createContext: () => ({ auth: identity }),
         req: new Request(`http://127.0.0.1${url}`, { method, headers, body }),
       })
       res.writeHead(response.status, {
@@ -185,13 +280,25 @@ export function createDaemonHttp(opts: DaemonHttpOptions): DaemonHttp {
       .split(',')
       .map((protocol) => protocol.trim())
     const candidate = offered.find((protocol) => protocol.startsWith(WS_PROTOCOL_PREFIX))
-    const ok = candidate !== undefined && authenticate(candidate.slice(WS_PROTOCOL_PREFIX.length))
-    if (req.url !== '/session' || !ok) {
+    if (req.url !== '/session' || candidate === undefined) {
       socket.write('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n')
       socket.destroy()
       return
     }
-    wss.handleUpgrade(req, socket, head, (ws) => onSession(ws))
+    authenticate(candidate.slice(WS_PROTOCOL_PREFIX.length))
+      .then((identity) => {
+        if (identity === null || socket.destroyed) {
+          if (!socket.destroyed) {
+            socket.write('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n')
+            socket.destroy()
+          }
+          return
+        }
+        wss.handleUpgrade(req, socket, head, (ws) => onSession(ws, identity))
+      })
+      .catch(() => {
+        if (!socket.destroyed) socket.destroy()
+      })
   }
 
   // Bridge the async request handler to the sync (req, res) signature http.Server
@@ -210,8 +317,5 @@ export function createDaemonHttp(opts: DaemonHttpOptions): DaemonHttp {
     server,
     requestListener,
     handleUpgrade,
-    setTokenHash: (hash) => {
-      tokenHash = Buffer.from(hash)
-    },
   }
 }

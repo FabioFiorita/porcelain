@@ -269,7 +269,7 @@ describe('daemon WS client', () => {
     daemon.setBrowserDaemonToken('tok') // closes ws0, reconnects immediately
     const ws = latest()
     expect(ws.protocols).toEqual(['porcelain.tok'])
-    expect(localStorage.getItem('porcelain-daemon-token')).toBe('tok')
+    expect(localStorage.getItem('porcelain-client-token')).toBe('tok')
 
     ws.open()
     // recoveryPending makes this first successful connect fire the refetch listeners.

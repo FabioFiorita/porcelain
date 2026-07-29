@@ -26,7 +26,6 @@ export const loc = {
   settingsDialog: (page: Page): Locator => byId(page, TestIds.settingsDialog),
   settingsHeading: (page: Page): Locator => byId(page, TestIds.settingsHeading),
   shareStatus: (page: Page): Locator => byId(page, TestIds.shareStatus),
-  shareRevokeAll: (page: Page): Locator => byId(page, TestIds.shareRevokeAll),
   appearance: (page: Page, mode: 'light' | 'dark' | 'system'): Locator =>
     byId(
       page,

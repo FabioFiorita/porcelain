@@ -1,45 +1,61 @@
 import { onMutationError } from '@renderer/hooks/mutation-error'
-import { setBrowserDaemonToken } from '@renderer/lib/daemon'
-import { isBrowser } from '@renderer/lib/platform'
-import { shellTrpc, trpc } from '@renderer/lib/trpc'
+import { trpc } from '@renderer/lib/trpc'
 
-/**
- * Settings → Share: how many clients hold a live session on THIS daemon, and the
- * single Revoke all action that rotates the shared token for everyone.
- */
-
-export function useShareStatus(): { clients: number; tokenPath: string } | undefined {
-  const { data } = trpc.shareStatus.useQuery(undefined, {
-    // Count changes without this client doing anything (a phone connects, a tab
-    // closes), so a trust surface that only refreshed on mount would quietly lie.
+export function useAccessStatus() {
+  const { data } = trpc.accessStatus.useQuery(undefined, {
     refetchInterval: 15_000,
     staleTime: 0,
   })
   return data
 }
 
-export function useRotateDaemonToken(): {
-  rotate: () => void
+export function useIssuePairingLink(): {
+  issue: (input: { label: string; baseUrl: string }) => Promise<{ url: string }>
   isPending: boolean
 } {
   const utils = trpc.useUtils()
-  const adopt = shellTrpc.adoptRotatedToken.useMutation()
-  const mutation = trpc.rotateDaemonToken.useMutation({
-    onSuccess: async (result) => {
-      // The initiator keeps the new secret so THIS window doesn't lock itself out.
-      // Browser: localStorage + reconnect. Electron: shell updates local token or the
-      // saved remote entry and pushes daemon-url-changed.
-      if (isBrowser) {
-        setBrowserDaemonToken(result.token)
-      } else {
-        await adopt.mutateAsync({ token: result.token })
-      }
-      await utils.shareStatus.invalidate()
+  const mutation = trpc.issuePairingLink.useMutation({
+    onSuccess: async () => {
+      await utils.accessStatus.invalidate()
     },
-    onError: onMutationError('Revoke all'),
+    onError: onMutationError('Create connection link'),
   })
   return {
-    rotate: () => mutation.mutate(),
-    isPending: mutation.isPending || adopt.isPending,
+    issue: async (input) => mutation.mutateAsync(input),
+    isPending: mutation.isPending,
+  }
+}
+
+export function useRevokePairingLink(): {
+  revoke: (id: string) => void
+  pendingId: string | null
+} {
+  const utils = trpc.useUtils()
+  const mutation = trpc.revokePairingLink.useMutation({
+    onSuccess: async () => {
+      await utils.accessStatus.invalidate()
+    },
+    onError: onMutationError('Revoke connection link'),
+  })
+  return {
+    revoke: (id) => mutation.mutate(id),
+    pendingId: mutation.isPending ? (mutation.variables ?? null) : null,
+  }
+}
+
+export function useRevokeAuthorizedClient(): {
+  revoke: (id: string) => void
+  pendingId: string | null
+} {
+  const utils = trpc.useUtils()
+  const mutation = trpc.revokeAuthorizedClient.useMutation({
+    onSuccess: async () => {
+      await utils.accessStatus.invalidate()
+    },
+    onError: onMutationError('Revoke device'),
+  })
+  return {
+    revoke: (id) => mutation.mutate(id),
+    pendingId: mutation.isPending ? (mutation.variables ?? null) : null,
   }
 }

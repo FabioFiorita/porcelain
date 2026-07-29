@@ -11,7 +11,6 @@
  *   pnpm dev:daemon -- --host
  *   pnpm dev:daemon -- --port 43119 --host
  *   pnpm dev:daemon -- --loopback
- *   pnpm dev:daemon -- --print-token
  */
 import { execSync, spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync } from 'node:fs'
@@ -19,13 +18,13 @@ import { createServer } from 'node:net'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
+  DEV_ADMIN_TOKEN_FILE,
   DEV_HOME,
   DEV_PLAYGROUND,
   DEV_PORT,
-  DEV_TOKEN_FILE,
   DEV_USER_DATA,
   devEnv,
-  ensureDevToken,
+  ensureDevAdminToken,
 } from './dev-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -43,7 +42,6 @@ Options:
                        Loopback only (127.0.0.1) — no LAN share
   --tailnet            Also bind Tailscale (100.64/10) on the same port
   --port <n>           Listen port (default ${DEV_PORT})
-  --print-token        Print the dev token to stderr after start
   -h, --help           Show this help
 
 Notes:
@@ -55,7 +53,7 @@ Notes:
 
 Examples:
   pnpm dev:daemon
-  pnpm dev:daemon -- --host --print-token
+  pnpm dev:daemon -- --host
   pnpm dev:daemon -- --port 43119 --loopback
 `
 
@@ -64,7 +62,6 @@ function parseArgs(argv) {
     host: true, // LAN on by default for Mac ↔ Beelink dev
     tailnet: false,
     port: DEV_PORT,
-    printToken: false,
     help: false,
   }
   let i = 0
@@ -87,11 +84,6 @@ function parseArgs(argv) {
     }
     if (arg === '--tailnet') {
       opts.tailnet = true
-      i += 1
-      continue
-    }
-    if (arg === '--print-token') {
-      opts.printToken = true
       i += 1
       continue
     }
@@ -163,7 +155,7 @@ function assertPortFree(port) {
   })
 }
 
-function printBanner(opts, token) {
+function printBanner(opts) {
   const lanLine = opts.host
     ? `  host        LAN on  (http://<this-host>.local:${opts.port}/ or numeric LAN IP)`
     : '  host        loopback only'
@@ -177,16 +169,12 @@ function printBanner(opts, token) {
 ${lanLine}
 ${tailnetLine}
   browser     http://127.0.0.1:${opts.port}/
-  token file  ${DEV_TOKEN_FILE}
-  CLI         pnpm porcelain -- <noun> <verb>
+  admin file  ${DEV_ADMIN_TOKEN_FILE}
+  CLI         pnpm porcelain <noun> <verb>
+  pair        node scripts/daemon-cli.js access issue --name "Dev browser" --base-url http://127.0.0.1:${opts.port}
 
   Rebuild after code changes:  pnpm build && pnpm dev:daemon -- …
 `)
-  if (opts.printToken) {
-    console.error(`[dev:daemon] token  ${token}`)
-  } else {
-    console.error(`[dev:daemon] token  cat ${DEV_TOKEN_FILE}   (or pass --print-token)`)
-  }
 }
 
 async function main() {
@@ -214,21 +202,20 @@ async function main() {
 
   await assertPortFree(opts.port)
 
-  const token = ensureDevToken()
-  // Prefer file on disk if print-token races a concurrent mint (same path either way).
+  const token = ensureDevAdminToken()
   let tokenOut = token
   try {
-    const fromFile = readFileSync(DEV_TOKEN_FILE, 'utf8').trim()
+    const fromFile = readFileSync(DEV_ADMIN_TOKEN_FILE, 'utf8').trim()
     if (fromFile !== '') tokenOut = fromFile
   } catch {
     // use minted
   }
 
-  printBanner(opts, tokenOut)
+  printBanner(opts)
 
   const env = devEnv({
     PORCELAIN_DAEMON_PORT: String(opts.port),
-    PORCELAIN_DAEMON_TOKEN: tokenOut,
+    PORCELAIN_ADMIN_TOKEN: tokenOut,
     PORCELAIN_LAN_BIND: opts.host ? '1' : '',
     PORCELAIN_TAILNET_BIND: opts.tailnet ? '1' : '',
   })

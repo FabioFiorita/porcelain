@@ -19,14 +19,12 @@ import { TestIds } from './test-ids'
 const MAIN_ENTRY = join(__dirname, '..', '..', 'out', 'main', 'index.js')
 const DAEMON_ENTRY = join(__dirname, '..', '..', 'out', 'main', 'daemon', 'server.js')
 
-// Browser-mode session token: the daemon takes it via env (PORCELAIN_DAEMON_TOKEN),
-// the page presents it from localStorage — the same slot the TokenGate screen
-// persists to — planted by addInitScript before any script runs, so no gate UI is
-// involved and the client connects same-origin on first load. Minted per run, NOT
-// a committed constant: the daemon is a real loopback listener during the test,
-// and the audit invariant's whole point is that any webpage the user has open can
-// reach 127.0.0.1 — a public token would make the gate decorative.
-const BROWSER_TOKEN = randomBytes(16).toString('hex')
+// Seed one browser client identity directly in the isolated access store, then
+// plant its plaintext token in the same localStorage slot TokenGate uses. Minted
+// per run because the fixture exposes a real loopback listener.
+const BROWSER_SECRET = randomBytes(32).toString('hex')
+const BROWSER_TOKEN = `pc_client_e2e-client_${BROWSER_SECRET}`
+const ADMIN_TOKEN = randomBytes(32).toString('hex')
 
 // A fixed basename so the project switcher shows a stable repo name in
 // screenshots (mkdtemp's random suffix would change every run). workers=1 makes
@@ -165,10 +163,25 @@ async function seedState(
   await writeFile(comments, '{}')
   const featureView = join(udBase, 'feature-view.json')
   await writeFile(featureView, '{}')
-  // Shared-token file for Revoke all — isolated so rotation never overwrites the
-  // developer's real ~/.porcelain/daemon-token.
-  const tokenFile = join(udBase, 'daemon-token')
-  await writeFile(tokenFile, BROWSER_TOKEN, { mode: 0o600 })
+  const adminTokenFile = join(udBase, 'admin-token')
+  await writeFile(adminTokenFile, ADMIN_TOKEN, { mode: 0o600 })
+  const accessFile = join(udBase, 'access.json')
+  await writeFile(
+    accessFile,
+    JSON.stringify({
+      version: 1,
+      pairings: [],
+      clients: [
+        {
+          id: 'e2e-client',
+          label: 'E2E browser',
+          secretHash: createHash('sha256').update(BROWSER_SECRET).digest('hex'),
+          createdAt: '2024-01-01T00:00:00.000Z',
+        },
+      ],
+    }),
+    { mode: 0o600 },
+  )
   // Loop evidence is a directory of files (index.html + optional assets), not JSON.
   // Seed the on-disk layout the app/CLI share (see evidence-paths.ts).
   const evidenceRoot = join(udBase, 'loop-evidence')
@@ -200,7 +213,8 @@ async function seedState(
       PORCELAIN_COMMENTS: comments,
       PORCELAIN_FEATURE_VIEW: featureView,
       PORCELAIN_LOOP_EVIDENCE_DIR: evidenceRoot,
-      PORCELAIN_DAEMON_TOKEN_FILE: tokenFile,
+      PORCELAIN_ADMIN_TOKEN_FILE: adminTokenFile,
+      PORCELAIN_ACCESS_FILE: accessFile,
       // Pins a fast, config-free shell so the terminal tests are deterministic and
       // don't source the runner's zsh profile.
       PORCELAIN_SHELL: '/bin/bash',
@@ -215,7 +229,7 @@ async function spawnDaemon(seeded: Seeded): Promise<{ child: ChildProcess; port:
     env: launchEnv({
       ...seeded.env,
       PORCELAIN_USER_DATA: seeded.userData,
-      PORCELAIN_DAEMON_TOKEN: BROWSER_TOKEN,
+      PORCELAIN_ADMIN_TOKEN: ADMIN_TOKEN,
       // Playwright hands the child /dev/null stdin (EOF at once) — without the
       // opt-out the parent-death watchdog would kill the daemon on boot.
       PORCELAIN_NO_STDIN_WATCHDOG: '1',
@@ -344,7 +358,7 @@ export const test = baseTest.extend<Options & Fixtures, WorkerOptions & WorkerFi
         // and real clients) are correct. Don't chase it as an app bug.
       })
       await context.addInitScript((token) => {
-        localStorage.setItem('porcelain-daemon-token', token)
+        localStorage.setItem('porcelain-client-token', token)
         localStorage.setItem('porcelain-e2e', '1')
       }, BROWSER_TOKEN)
       if (touchDevice) await context.addInitScript(installTouch)

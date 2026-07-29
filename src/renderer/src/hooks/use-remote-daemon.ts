@@ -41,7 +41,7 @@ export function useRemoteEnvironments():
 }
 
 export function useAddRemoteEnvironment(): {
-  add: (input: { name: string; url: string; token: string; connectThisWindow?: boolean }) => void
+  add: (input: { connectionLink: string; connectThisWindow?: boolean }) => void
   isPending: boolean
   error: string | null
 } {

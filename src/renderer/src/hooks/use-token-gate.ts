@@ -3,7 +3,7 @@ import { isBrowser } from '@renderer/lib/platform'
 import { trpcClient } from '@renderer/lib/trpc'
 import { useCallback, useEffect, useState } from 'react'
 
-type GateStatus = 'checking' | 'locked' | 'open'
+type GateStatus = 'checking' | 'pairing' | 'locked' | 'open'
 
 interface TokenGate {
   status: GateStatus
@@ -11,8 +11,8 @@ interface TokenGate {
   connecting: boolean
   /** Set after a failed probe/submit so the form can show a muted error line. */
   error: boolean
-  /** Persist + adopt a token and re-probe; on success the gate opens. */
-  connect: (token: string) => void
+  /** Navigate to a complete pairing link pasted by the human. */
+  connect: (link: string) => void
 }
 
 // A cheap authenticated probe: recentRepos is a plain daemon query that 401s
@@ -30,13 +30,13 @@ async function probe(): Promise<boolean> {
 }
 
 /**
- * Guards the browser client behind the daemon token: on mount it probes with the
- * persisted token (localStorage) and, until that succeeds, the caller renders a
+ * Guards the browser client behind its device credential: on mount it probes with
+ * the persisted credential (localStorage) and, until that succeeds, the caller renders a
  * lock screen instead of the app. In the packaged Electron app there's no gate —
  * the token rides the preload bridge, so `status` starts 'open' and stays there.
  *
- * Connection is deliberately plain: open the LAN/Tailscale URL, paste the shared
- * token once. No pairing codes or QR.
+ * A `/pair#token=…` link exchanges its one-time fragment credential for this
+ * browser's individually revocable client token, then removes the fragment.
  */
 export function useTokenGate(): TokenGate {
   const [status, setStatus] = useState<GateStatus>(isBrowser ? 'checking' : 'open')
@@ -47,6 +47,38 @@ export function useTokenGate(): TokenGate {
     if (!isBrowser) return
     let active = true
     void (async () => {
+      const pairingCredential = new URLSearchParams(window.location.hash.slice(1)).get('token')
+      if (window.location.pathname === '/pair' && pairingCredential !== null) {
+        setStatus('pairing')
+        try {
+          const response = await fetch('/pair', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ credential: pairingCredential }),
+          })
+          if (!response.ok) throw new Error(`pairing failed (${response.status})`)
+          const body: unknown = await response.json()
+          if (
+            typeof body !== 'object' ||
+            body === null ||
+            !('token' in body) ||
+            typeof body.token !== 'string'
+          ) {
+            throw new Error('invalid pairing response')
+          }
+          setBrowserDaemonToken(body.token)
+          window.history.replaceState(null, '', '/')
+          if (active) setStatus('open')
+          return
+        } catch {
+          window.history.replaceState(null, '', '/')
+          if (active) {
+            setError(true)
+            setStatus('locked')
+          }
+          return
+        }
+      }
       const ok = await probe()
       if (!active) return
       setStatus(ok ? 'open' : 'locked')
@@ -56,16 +88,25 @@ export function useTokenGate(): TokenGate {
     }
   }, [])
 
-  const connect = useCallback((token: string) => {
+  const connect = useCallback((link: string) => {
     setConnecting(true)
     setError(false)
-    // Adopt the token first so the probe request carries it, then verify.
-    setBrowserDaemonToken(token)
-    probe().then((ok) => {
+    try {
+      const url = new URL(link)
+      const credential = new URLSearchParams(url.hash.slice(1)).get('token')
+      if (
+        (url.protocol !== 'http:' && url.protocol !== 'https:') ||
+        url.pathname !== '/pair' ||
+        credential === null ||
+        credential === ''
+      ) {
+        throw new Error('invalid link')
+      }
+      window.location.assign(url)
+    } catch {
       setConnecting(false)
-      if (ok) setStatus('open')
-      else setError(true)
-    })
+      setError(true)
+    }
   }, [])
 
   return { status, connecting, error, connect }

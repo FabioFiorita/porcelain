@@ -1,16 +1,17 @@
 import { createHash } from 'node:crypto'
+import { authenticateClientToken, exchangePairingGrant } from './access-store'
+import { ensureAdminToken } from './admin-token'
 import { router } from './api'
 import { subscribeAppEvents } from './app-events'
 import { ensureCli } from './cli-install'
 import { initConfigDir, loadConfig } from './config-store'
 import { createDaemonHttp } from './daemon-http'
 import { seedDevConfig } from './dev-config'
+import { setFunnelDaemonPort, startFunnel } from './funnel'
 import { watchAgentChannels } from './review-watch'
 import { broadcastAppEvent, createSession } from './session'
 import { rendererDistExists, serveStatic } from './static-server'
 import { initIfaceHandlers, startLanListener, startTailnetListener } from './tailnet-listener'
-import { bindAuthToken } from './token-control'
-import { ensureDaemonToken } from './token-file'
 
 /**
  * The daemon entry point — the Electron-free half of Porcelain, spawned by the
@@ -27,17 +28,17 @@ import { ensureDaemonToken } from './token-file'
  *   any other interface. Those second listeners share this listener's handlers,
  *   so the same token gate applies to them automatically (LAN traffic is
  *   cleartext, an accepted opt-in tradeoff — see the audit skill).
- * - Every request is token-gated, ALWAYS. Loopback is reachable from any webpage
+ * - Every privileged request is token-gated, ALWAYS. Loopback is reachable from any webpage
  *   the user's browser has open (fetch to 127.0.0.1, and WebSockets have no CORS
  *   at all), so an unauthenticated listener would hand `terminal:create` — a
  *   shell — to drive-by web content. /trpc requires `authorization: Bearer
  *   <token>`; the WS upgrade carries the token as the `porcelain.<token>`
  *   subprotocol (chosen over `?token=` because query strings leak into logs and
  *   proxies; the subprotocol header does not). Comparisons are constant-time
- *   over sha256 digests. ONE credential passes that gate: the shared secret
- *   (`~/.porcelain/daemon-token`). Clients connect with a share URL (LAN or
- *   Tailscale) plus that token — no pairing ceremony. Revoke all rotates it and
- *   closes every live session.
+ *   over sha256 digests for the host administrator; paired devices use separate
+ *   hashed client credentials. POST /pair alone is unauthenticated: it atomically
+ *   consumes one short-lived grant and returns one individually revocable client
+ *   credential. Client identities cannot call access/network administration.
  *
  * Contract with the shell: exactly ONE stdout line, `{"port": N}`, once
  * listening (everything else logs to stderr — and the token is NEVER printed:
@@ -71,24 +72,20 @@ function shutdown(): void {
 process.on('SIGTERM', () => shutdown())
 process.on('SIGINT', () => shutdown())
 
-// The session token, now a persistent shared secret (remote-environments Phase 2,
-// replacing the per-app-run token the shell used to mint). The shell
-// always passes one via env (PORCELAIN_DAEMON_TOKEN); when it's absent we read
-// the same `~/.porcelain/daemon-token` file the shell reads (ensureDaemonToken
-// creates it 0600 on first run) so a standalone/non-interactive spawn agrees on
-// the same token instead of running with a throwaway nobody knows. An INTERACTIVE
-// run without the env var still exits with instructions rather than silently
-// minting — a human at a TTY should be told, not surprised.
-async function resolveToken(): Promise<string> {
-  const fromEnv = process.env.PORCELAIN_DAEMON_TOKEN
+// The administrator token is local-only. The shell passes it via env; a
+// non-interactive standalone daemon can load/create the same 0600 file for its
+// host CLI. Interactive raw-server runs must opt in explicitly so a mistyped
+// launch cannot silently mint an administrator credential.
+async function resolveAdminToken(): Promise<string> {
+  const fromEnv = process.env.PORCELAIN_ADMIN_TOKEN
   if (fromEnv !== undefined && fromEnv !== '') return fromEnv
   if (process.stdin.isTTY) {
     console.error(
-      '[daemon] PORCELAIN_DAEMON_TOKEN is required — set it or create ~/.porcelain/daemon-token before starting the daemon',
+      '[daemon] PORCELAIN_ADMIN_TOKEN is required — set it or create ~/.porcelain/admin-token before starting the daemon',
     )
     process.exit(1)
   }
-  return ensureDaemonToken()
+  return ensureAdminToken()
 }
 
 // The whole request/upgrade pipeline lives in the factory (daemon-http.ts) so it
@@ -100,24 +97,23 @@ async function resolveToken(): Promise<string> {
 let daemon: ReturnType<typeof createDaemonHttp>
 
 async function main(): Promise<void> {
-  // Resolve the shared token (env or ~/.porcelain/daemon-token) and precompute its
-  // digest BEFORE any listener accepts a connection — the factory closes over the
-  // hash, so it must be built first (both listeners start below). The plaintext is
-  // never logged.
-  const token = await resolveToken()
+  // Resolve the local administrator credential and precompute its digest BEFORE
+  // any listener accepts a connection. The plaintext is never logged.
+  const token = await resolveAdminToken()
   const tokenHash = createHash('sha256').update(token).digest()
 
   // CORS is scoped, not `*`: the shell passes the dev renderer's origin via
   // PORCELAIN_ALLOWED_ORIGIN (the Vite server); the packaged file:// renderer
   // sends a literal "null" origin the factory always echoes. See daemon-http.ts.
   daemon = createDaemonHttp({
-    tokenHash,
+    adminTokenHash: tokenHash,
+    authenticateClient: authenticateClientToken,
+    exchangePairing: exchangePairingGrant,
     allowedOrigin: process.env.PORCELAIN_ALLOWED_ORIGIN ?? '',
     router,
     onSession: createSession,
     serveStatic,
   })
-  bindAuthToken(token, daemon.setTokenHash)
 
   // Hand the shared handlers to the second-listener module so its optional
   // tailnet + LAN listeners (started/stopped live from the API) behave identically
@@ -159,13 +155,16 @@ async function main(): Promise<void> {
 
   // Port 0 = OS-assigned (the default); PORCELAIN_DAEMON_PORT pins it (e2e/debugging).
   const requestedPort = Number(process.env.PORCELAIN_DAEMON_PORT ?? '') || 0
-  daemon.server.listen(requestedPort, '127.0.0.1', () => {
-    const address = daemon.server.address()
-    if (address !== null && typeof address === 'object') {
-      // The one stdout line the shell parses for the port — keep stdout otherwise silent.
-      process.stdout.write(`${JSON.stringify({ port: address.port })}\n`)
-    }
+  const listeningPort = await new Promise<number>((resolve) => {
+    daemon.server.listen(requestedPort, '127.0.0.1', () => {
+      const address = daemon.server.address()
+      if (address !== null && typeof address === 'object') {
+        process.stdout.write(`${JSON.stringify({ port: address.port })}\n`)
+        resolve(address.port)
+      }
+    })
   })
+  setFunnelDaemonPort(listeningPort)
 
   // If the user has the tailnet and/or LAN bind enabled — persisted config OR the
   // boot env override (PORCELAIN_TAILNET_BIND / PORCELAIN_LAN_BIND = '1', so a
@@ -180,6 +179,11 @@ async function main(): Promise<void> {
   }
   if (bootConfig.lanBind === true || process.env.PORCELAIN_LAN_BIND === '1') {
     await startLanListener()
+  }
+  if (bootConfig.funnelBind === true || process.env.PORCELAIN_FUNNEL_BIND === '1') {
+    await startFunnel().catch((error) => {
+      console.error('[daemon] Tailscale Funnel failed to start:', error)
+    })
   }
 
   // Parent-death watchdog: the shell holds our stdin pipe open for our lifetime,

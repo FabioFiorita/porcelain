@@ -25,11 +25,12 @@ vi.mock('./terminal-manager', () => ({
 import { router } from './api'
 import { initConfigDir } from './config-store'
 import { createDaemonHttp } from './daemon-http'
-import { closeAllSessions, createSession, sessionCount } from './session'
+import { closeAllSessions, closeClientSessions, createSession, sessionCount } from './session'
 import { attachTerminal } from './terminal-manager'
-import { bindAuthToken } from './token-control'
 
 const TOKEN = 'test-token'
+const CLIENT_TOKEN = 'client-token'
+const PAIRING_TOKEN = 'pairing-token'
 const ORIGIN = 'http://localhost:5173'
 
 let base: string
@@ -40,16 +41,30 @@ beforeAll(async () => {
   initConfigDir(dir)
   const tokenHash = createHash('sha256').update(TOKEN).digest()
   daemon = createDaemonHttp({
-    tokenHash,
+    adminTokenHash: tokenHash,
+    authenticateClient: async (provided) =>
+      provided === CLIENT_TOKEN
+        ? { kind: 'client', clientId: 'client-1', label: 'Test phone' }
+        : null,
+    exchangePairing: async (provided) =>
+      provided === PAIRING_TOKEN
+        ? {
+            token: CLIENT_TOKEN,
+            client: {
+              id: 'client-1',
+              label: 'Test phone',
+              createdAt: new Date(0).toISOString(),
+            },
+          }
+        : null,
     allowedOrigin: ORIGIN,
     router,
     onSession: createSession,
-    serveStatic: async (_req, res) => {
-      res.writeHead(404)
+    serveStatic: async (req, res) => {
+      res.writeHead(req.url === '/pair' ? 200 : 404)
       res.end()
     },
   })
-  bindAuthToken(TOKEN, daemon.setTokenHash)
   await new Promise<void>((resolve) => daemon.server.listen(0, '127.0.0.1', resolve))
   const address = daemon.server.address() as AddressInfo
   base = `http://127.0.0.1:${address.port}`
@@ -104,28 +119,51 @@ describe('daemon http surface — the token gate + CORS scope', () => {
     expect(res.status).toBe(204)
   })
 
-  it('has no unauthenticated /pair route — connect is URL + token only', async () => {
+  it('exchanges a valid one-time pairing credential without authentication', async () => {
     const res = await fetch(`${base}/pair`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ code: 'ANYT-HING' }),
+      body: JSON.stringify({ credential: PAIRING_TOKEN }),
     })
-    expect(res.status).toBe(404)
+    expect(res.status).toBe(200)
+    expect(await res.json()).toMatchObject({ token: CLIENT_TOKEN })
   })
 
-  it('rejects a rotated-away token after setTokenHash', async () => {
-    const next = 'rotated-token'
-    daemon.setTokenHash(createHash('sha256').update(next).digest())
-    const denied = await fetch(`${base}/trpc/recentRepos`, {
-      headers: { authorization: `Bearer ${TOKEN}` },
+  it('serves the app shell for a pairing-link navigation', async () => {
+    const res = await fetch(`${base}/pair`)
+    expect(res.status).toBe(200)
+  })
+
+  it('rejects an invalid pairing credential', async () => {
+    const res = await fetch(`${base}/pair`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ credential: 'wrong-pairing-token' }),
     })
-    expect(denied.status).toBe(401)
-    daemon.setTokenHash(createHash('sha256').update(TOKEN).digest())
-    bindAuthToken(TOKEN, daemon.setTokenHash)
+    expect(res.status).toBe(401)
+  })
+
+  it('rejects an oversized pairing body before parsing it', async () => {
+    const res = await fetch(`${base}/pair`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ credential: 'x'.repeat(8_192) }),
+    })
+    expect(res.status).toBe(413)
+  })
+
+  it('accepts a client token for ordinary procedures', async () => {
     const ok = await fetch(`${base}/trpc/recentRepos`, {
-      headers: { authorization: `Bearer ${TOKEN}` },
+      headers: { authorization: `Bearer ${CLIENT_TOKEN}` },
     })
     expect(ok.status).toBe(200)
+  })
+
+  it('forbids a client token from access administration', async () => {
+    const forbidden = await fetch(`${base}/trpc/accessStatus`, {
+      headers: { authorization: `Bearer ${CLIENT_TOKEN}` },
+    })
+    expect(forbidden.status).toBe(403)
   })
 })
 
@@ -170,6 +208,17 @@ describe('daemon ws surface — the /session upgrade gate + dispatch', () => {
     closeAllSessions()
     await vi.waitFor(() => expect(ws.readyState).not.toBe(WebSocket.OPEN))
     await vi.waitFor(() => expect(sessionCount()).toBe(0))
+  })
+
+  it('closes only sockets belonging to a revoked client', async () => {
+    const client = await connect(`porcelain.${CLIENT_TOKEN}`)
+    const admin = await connect(`porcelain.${TOKEN}`)
+
+    closeClientSessions('client-1')
+
+    await vi.waitFor(() => expect(client.readyState).not.toBe(WebSocket.OPEN))
+    expect(admin.readyState).toBe(WebSocket.OPEN)
+    admin.close()
   })
 
   it('rejects the right subprotocol on the wrong path', async () => {

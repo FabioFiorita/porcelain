@@ -21,8 +21,8 @@ import { useState } from 'react'
 
 /**
  * One line of prose for a probed environment: what it is when we reached it, why it
- * isn't usable when we didn't. `unauthorized` means the saved token is wrong — get a
- * fresh one from Settings → Share on that machine.
+ * isn't usable when we didn't. `unauthorized` means the saved device credential
+ * was revoked — create a fresh connection link on that machine.
  */
 function describeStatus(status: EnvironmentStatus | undefined): string {
   if (status === undefined) return 'Checking…'
@@ -40,8 +40,8 @@ function describeStatus(status: EnvironmentStatus | undefined): string {
 const primaryActionSlotClass = 'flex min-w-[5.75rem] justify-end'
 
 /**
- * Machines this app can open windows against. Electron-only. Add with URL + token
- * from the other machine's Settings → Share (LAN or Tailscale address).
+ * Machines this app can open windows against. Electron-only. Add with a one-time
+ * connection link from the other machine's Settings → Share or host CLI.
  */
 export function RemotesSection(): React.JSX.Element {
   const data = useRemoteEnvironments()
@@ -51,9 +51,7 @@ export function RemotesSection(): React.JSX.Element {
   const { disconnect, isPending: isDisconnecting } = useDisconnectRemoteEnvironment()
   const { open: openInEnv } = useOpenWindowInEnvironment()
   const { remove, pendingId: removingId } = useRemoveRemoteEnvironment()
-  const [name, setName] = useState('')
-  const [url, setUrl] = useState('')
-  const [token, setToken] = useState('')
+  const [connectionLink, setConnectionLink] = useState('')
   const [showAdd, setShowAdd] = useState(false)
 
   const environments = data?.environments ?? []
@@ -187,36 +185,23 @@ export function RemotesSection(): React.JSX.Element {
             Add remote
           </p>
           <Input
-            placeholder="Name (optional)"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            disabled={isAdding}
-          />
-          <Input
-            placeholder="URL (LAN or Tailscale, e.g. http://100.x.x.x:43117)"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            disabled={isAdding}
-            className="font-mono"
-          />
-          <Input
             type="password"
-            placeholder="Token"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
+            placeholder="Connection link (https://…/pair#token=…)"
+            value={connectionLink}
+            onChange={(e) => setConnectionLink(e.target.value)}
             disabled={isAdding}
             className="font-mono"
           />
           <p className="text-xs text-muted-foreground">
-            From the other machine: Settings → Share — copy the URL and token.
+            Create this one-time link from Settings → Share or the host CLI.
           </p>
           <div className="flex items-center gap-2">
             <Button
               variant="default"
               size="sm"
               className={compactButtonClass}
-              disabled={isAdding || url.trim() === '' || token.trim() === ''}
-              onClick={() => add({ name, url, token })}
+              disabled={isAdding || connectionLink.trim() === ''}
+              onClick={() => add({ connectionLink })}
             >
               {isAdding ? 'Adding…' : 'Add & use here'}
             </Button>
@@ -227,9 +212,7 @@ export function RemotesSection(): React.JSX.Element {
               disabled={isAdding}
               onClick={() => {
                 setShowAdd(false)
-                setName('')
-                setUrl('')
-                setToken('')
+                setConnectionLink('')
               }}
             >
               Cancel

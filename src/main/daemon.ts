@@ -9,14 +9,13 @@ import {
   type WebContents,
 } from 'electron'
 import { z } from 'zod'
-import { ensureDaemonToken } from '../backend/token-file'
+import { ensureAdminToken } from '../backend/admin-token'
 import {
   loadRemoteEnvironmentState,
   type RemoteDaemon,
   type RemoteEnvironment,
   type RemoteEnvironmentState,
   saveRemoteEnvironmentState,
-  updateRemoteEnvironmentState,
 } from './remote-daemon'
 
 /**
@@ -46,14 +45,12 @@ import {
  * at all, so the shell disables the watchdog via PORCELAIN_NO_STDIN_WATCHDOG
  * (standalone daemons under plain `node` keep it).
  *
- * Auth: every daemon request is gated on a persistent session token (see the
+ * Auth: every daemon request is gated on a persistent credential (see the
  * security note in backend/server.ts — loopback is reachable from any webpage,
- * so the listener must never run open). The token now lives in a shared file,
- * `~/.porcelain/daemon-token` (0600); the shell reads/creates it once at startup
- * (ensureDaemonToken) and hands it to the daemon via env (never argv — argv is
- * visible in `ps`) and to the renderer via the preload getter. A persistent
- * shared token means a restarted daemon — and a standalone/remote daemon that
- * reads the same file — accepts the credentials every open window already holds.
+ * so the listener must never run open). The local shell gets the host
+ * administrator credential from `~/.porcelain/admin-token` (0600) and passes it
+ * via env (never argv) to the child and preload. Remote devices receive separate
+ * credentials through one-time pairing links.
  *
  * Environments are PER WINDOW: each BrowserWindow can point at the local child
  * or a saved remote daemon. The local child always keeps running (instant
@@ -63,7 +60,7 @@ import {
 
 const readyLineSchema = z.object({ port: z.number().int().positive() })
 
-// Set once in startDaemon (before any window boots) from the shared token file.
+// Set once before any window boots from the local administrator token file.
 let token = ''
 
 const MAX_RAPID_FAILURES = 3
@@ -96,30 +93,6 @@ const windowCleanupBound = new Set<number>()
  */
 export function localDaemonPair(): { url: string; token: string } {
   return localDaemonInfo()
-}
-
-/**
- * Adopt a freshly rotated shared token for THIS machine's local child (or for a
- * saved remote that just rotated under this window). Used after Settings → Share
- * → Revoke all so the initiator keeps working; every other client must re-pair.
- */
-export async function adoptRotatedToken(webContents: WebContents, newToken: string): Promise<void> {
-  const envId = windowEnvironmentId(webContents)
-  if (envId == null) {
-    token = newToken
-    pushLocalDaemonInfo()
-    return
-  }
-  await updateRemoteEnvironmentState((state) => ({
-    ...state,
-    environments: state.environments.map((env) =>
-      env.id === envId ? { ...env, token: newToken } : env,
-    ),
-  }))
-  await reloadEnvironmentsCache()
-  // Re-bind so windowDaemons holds the new token, then push to this window only.
-  setWindowEnvironment(webContents, envId)
-  pushDaemonInfoTo(webContents)
 }
 
 function localDaemonInfo(): { url: string; token: string } {
@@ -274,10 +247,9 @@ function awaitReadyLine(proc: UtilityProcess): Promise<number> {
 
 async function launch(): Promise<void> {
   const startedAt = Date.now()
-  // Re-read the token file on every spawn: Revoke all may have rotated it while a
-  // previous child was still running, and a crash-restart must not re-hand the old
-  // secret to a daemon that already wrote the new one.
-  token = await ensureDaemonToken()
+  // Re-read the administrator file on every spawn so a repaired/replaced local
+  // credential is picked up after a child crash.
+  token = await ensureAdminToken()
   // utilityProcess.fork — never child_process with the run-as-Node env switch:
   // see the fork-bomb note in the module doc above.
   const proc = utilityProcess.fork(join(__dirname, 'daemon', 'server.js'), [], {
@@ -285,7 +257,7 @@ async function launch(): Promise<void> {
       ...process.env,
       PORCELAIN_USER_DATA: app.getPath('userData'),
       PORCELAIN_DEV: is.dev ? '1' : '',
-      PORCELAIN_DAEMON_TOKEN: token,
+      PORCELAIN_ADMIN_TOKEN: token,
       // A utility child gets NO stdin, so the daemon's stdin parent-death
       // watchdog would insta-exit it; Electron ties the child's lifetime to
       // this app, which supersedes the watchdog here (standalone daemons under
@@ -344,11 +316,9 @@ async function launch(): Promise<void> {
 
 /** Spawn the daemon and register its url getter + quit teardown. Called once, before the first window. */
 export async function startDaemon(): Promise<void> {
-  // Resolve the shared token before launching the daemon or exposing the getter —
-  // ensureDaemonToken reads ~/.porcelain/daemon-token (creating it 0600 on first
-  // run), so both the daemon (via env, below) and every window (via the getter)
-  // agree on the same secret. Runs once, before the first window exists.
-  token = await ensureDaemonToken()
+  // Resolve the host administrator token before launching the daemon or exposing
+  // the getter. Both child and local windows receive the same secret.
+  token = await ensureAdminToken()
 
   // Load saved environments so createWindow can resolve defaultEnvironmentId
   // (and explicit environmentId) before the preload's sync daemon-url getter runs.

@@ -61,7 +61,7 @@ export type ServerMessage = z.infer<typeof serverMessageSchema>
 
 export const clientMessageSchema = z.discriminatedUnion('t', [
   // Optional display data (which repo this client is looking at). Identity is the
-  // shared token the upgrade already authenticated — never anything the client says.
+  // credential the upgrade already authenticated — never anything the client says.
   // Capped: peer-supplied string held per session must not be a free memory sink.
   z.object({ t: z.literal('session:hello'), repo: z.string().max(1024).optional() }),
   z.object({

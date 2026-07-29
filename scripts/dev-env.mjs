@@ -8,7 +8,7 @@
  * Development (agents building Porcelain):
  *   port 43118 · ~/.local/share/porcelain-dev · ~/.porcelain-dev
  *
- * Setting PORCELAIN_HOME redirects channels, token, and CLI install together.
+ * Setting PORCELAIN_HOME redirects channels, access state, and CLI install together.
  * Never point a product-work session at the production paths.
  *
  * The launcher is scripts/dev-daemon.mjs (`pnpm dev:daemon -- …`). This module
@@ -24,26 +24,26 @@ export const DEV_PORT = 43118
 export const DEV_USER_DATA = join(homedir(), '.local', 'share', 'porcelain-dev')
 export const DEV_HOME = join(homedir(), '.porcelain-dev')
 export const DEV_PLAYGROUND = join(homedir(), 'code', 'porcelain-playground')
-export const DEV_TOKEN_FILE = join(DEV_HOME, 'daemon-token')
+export const DEV_ADMIN_TOKEN_FILE = join(DEV_HOME, 'admin-token')
 
 /**
- * Mint or load the dev-stack shared token at ~/.porcelain-dev/daemon-token.
+ * Mint or load the dev-stack administrator token at ~/.porcelain-dev/admin-token.
  * The daemon entry refuses to auto-read the file when stdin is a TTY (so a
  * bare `node out/main/daemon/server.js` doesn't silently mint); the launcher
- * must pass PORCELAIN_DAEMON_TOKEN via env — same pattern as daemon-cli.js.
+ * must pass PORCELAIN_ADMIN_TOKEN via env — same pattern as daemon-cli.js.
  */
-export function ensureDevToken() {
+export function ensureDevAdminToken() {
   mkdirSync(DEV_HOME, { recursive: true })
   try {
-    const existing = readFileSync(DEV_TOKEN_FILE, 'utf8').trim()
+    const existing = readFileSync(DEV_ADMIN_TOKEN_FILE, 'utf8').trim()
     if (existing !== '') return existing
   } catch {
     // absent — mint
   }
   const token = randomBytes(32).toString('hex')
-  const tmp = `${DEV_TOKEN_FILE}.tmp`
+  const tmp = `${DEV_ADMIN_TOKEN_FILE}.tmp`
   writeFileSync(tmp, token, { encoding: 'utf8', mode: 0o600 })
-  renameSync(tmp, DEV_TOKEN_FILE)
+  renameSync(tmp, DEV_ADMIN_TOKEN_FILE)
   return token
 }
 
@@ -52,14 +52,14 @@ export function ensureDevToken() {
  * Callers (dev-daemon.mjs) pass LAN/tailnet/port overrides via `extra`.
  */
 export function devEnv(extra = {}) {
-  const token = process.env.PORCELAIN_DAEMON_TOKEN || ensureDevToken()
+  const token = process.env.PORCELAIN_ADMIN_TOKEN || ensureDevAdminToken()
   return {
     ...process.env,
     PORCELAIN_HOME: DEV_HOME,
     PORCELAIN_USER_DATA: DEV_USER_DATA,
     PORCELAIN_DAEMON_PORT: String(DEV_PORT),
-    PORCELAIN_DAEMON_TOKEN_FILE: DEV_TOKEN_FILE,
-    PORCELAIN_DAEMON_TOKEN: token,
+    PORCELAIN_ADMIN_TOKEN_FILE: DEV_ADMIN_TOKEN_FILE,
+    PORCELAIN_ADMIN_TOKEN: token,
     PORCELAIN_NO_STDIN_WATCHDOG: '1',
     // Defaults; launcher flags override via `extra`.
     PORCELAIN_LAN_BIND: '1',
@@ -81,11 +81,10 @@ export function printDevEnv() {
               pnpm dev:daemon -- --host          # LAN (default)
               pnpm dev:daemon -- --loopback      # this machine only
               pnpm dev:daemon -- --port 43119
-              pnpm dev:daemon -- --print-token
-  CLI:        pnpm porcelain -- <noun> <verb>
+  CLI:        pnpm porcelain <noun> <verb>
   browser:    http://127.0.0.1:${DEV_PORT}/
               http://<host>.local:${DEV_PORT}/   # with --host
-  token:      ${DEV_TOKEN_FILE}
+  pair:       node scripts/daemon-cli.js access issue --name "Dev browser" --base-url http://127.0.0.1:${DEV_PORT}
 
   Not the published package — that is:  npx porcelain-daemon@latest serve
   Rebuild after code changes:           pnpm build && pnpm dev:daemon

@@ -36,8 +36,8 @@ Never mix production and development data when building Porcelain. Short form:
 
 ```bash
 pnpm build && pnpm dev:daemon    # dev daemon on 43118
-pnpm porcelain -- <noun> <verb>  # CLI → ~/.porcelain-dev
-# browser: http://127.0.0.1:43118/  token: ~/.porcelain-dev/daemon-token
+pnpm porcelain <noun> <verb>  # CLI → ~/.porcelain-dev
+# pair browser: node scripts/daemon-cli.js access issue --name "Dev browser" --base-url http://127.0.0.1:43118
 ```
 
 Day-to-day proof = **browser** against the **dev** daemon (`pnpm test:e2e` or a live tab). Do not drive the installed app or the production daemon for product work. Full loop and testing doctrine: `close-the-loop`.

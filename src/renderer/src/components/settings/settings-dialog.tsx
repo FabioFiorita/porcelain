@@ -16,6 +16,7 @@ import {
   SidebarProvider,
 } from '@renderer/components/ui/sidebar'
 import { useIsMobile } from '@renderer/hooks/use-mobile'
+import { useRemoteEnvironments } from '@renderer/hooks/use-remote-daemon'
 import { isBrowser } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { type SettingsSection, useSettingsDialogStore } from '@renderer/stores/settings-dialog'
@@ -69,14 +70,14 @@ const ALL_SECTIONS: {
     label: 'Share',
     icon: Share2,
     title: 'Share',
-    blurb: 'Let other devices reach this daemon. One URL and one token is enough.',
+    blurb: 'Choose a network, pair devices, and revoke access individually.',
   },
   {
     id: 'remotes',
     label: 'Remotes',
     icon: Cloud,
     title: 'Remotes',
-    blurb: 'Each window can use a different daemon. Add one with its share URL and token.',
+    blurb: 'Each window can use a different daemon. Add one with a connection link.',
     shellOnly: true,
   },
   {
@@ -96,8 +97,6 @@ const ALL_SECTIONS: {
     shellOnly: true,
   },
 ]
-
-const SECTIONS = ALL_SECTIONS.filter((s) => !(isBrowser && s.shellOnly))
 
 /**
  * Gear that opens Settings via the store. Used from the sidebar rail and the
@@ -141,11 +140,17 @@ export function SettingsDialog(): React.JSX.Element {
   const section = useSettingsDialogStore((s) => s.section)
   const setSection = useSettingsDialogStore((s) => s.setSection)
   const isMobile = useIsMobile()
+  const remotes = useRemoteEnvironments()
+  const sections = ALL_SECTIONS.filter((candidate) => {
+    if (isBrowser) return candidate.shellOnly !== true && candidate.id !== 'share'
+    if (candidate.id === 'share') return remotes?.activeId === null
+    return true
+  })
   // A section that's hidden in this client (e.g. 'updates' opened in Electron, then
   // the same prefs viewed in a browser) — or one that no longer exists at all (a
   // section id kept from an older build, like the removed 'environments' panel) —
   // falls back to General so the header and body never disagree.
-  const active = SECTIONS.find((s) => s.id === section) ?? SECTIONS[0]
+  const active = sections.find((s) => s.id === section) ?? sections[0]
   const activeId = active.id
 
   return (
@@ -172,7 +177,7 @@ export function SettingsDialog(): React.JSX.Element {
               className="shrink-0 overflow-x-auto border-b px-3 py-2 pr-12"
             >
               <div className="flex w-max gap-1">
-                {SECTIONS.map((s) => {
+                {sections.map((s) => {
                   const selected = activeId === s.id
                   return (
                     <Button
@@ -216,10 +221,10 @@ export function SettingsDialog(): React.JSX.Element {
                 <SidebarGroup>
                   <SidebarGroupContent>
                     <SidebarMenu>
-                      {SECTIONS.map((s) => (
+                      {sections.map((s) => (
                         <SidebarMenuItem key={s.id}>
                           <SidebarMenuButton
-                            isActive={section === s.id}
+                            isActive={activeId === s.id}
                             onClick={() => setSection(s.id)}
                             className="text-sm-minus"
                           >

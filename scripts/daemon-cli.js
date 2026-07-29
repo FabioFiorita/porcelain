@@ -8,45 +8,65 @@
 // instead of scp'ing a dist tarball and wiring systemd.
 
 const { randomBytes } = require('node:crypto')
-const { mkdirSync, readFileSync, renameSync, writeFileSync, existsSync } = require('node:fs')
+const {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  writeFileSync,
+} = require('node:fs')
 const { homedir } = require('node:os')
 const { dirname, join } = require('node:path')
+const { createTRPCUntypedClient, httpLink } = require('@trpc/client')
 
 const DEFAULT_PORT = 43117
 const DEFAULT_USER_DATA = join(homedir(), '.local', 'share', 'porcelain')
 // PORCELAIN_HOME redirects token + channels (dev stack uses ~/.porcelain-dev).
 const porcelainHome = () => process.env.PORCELAIN_HOME ?? join(homedir(), '.porcelain')
-const TOKEN_PATH = () =>
-  process.env.PORCELAIN_DAEMON_TOKEN_FILE ?? join(porcelainHome(), 'daemon-token')
+const ADMIN_TOKEN_PATH = () =>
+  process.env.PORCELAIN_ADMIN_TOKEN_FILE ?? join(porcelainHome(), 'admin-token')
 
 const HELP = `porcelain-daemon — headless Porcelain backend (plain Node, no Electron)
 
 Usage:
   porcelain-daemon serve [options]
   porcelain-daemon [options]              (same as serve)
+  porcelain-daemon access issue --name <device> [--base-url <url>]
+  porcelain-daemon access list
+  porcelain-daemon access revoke <id>
+  porcelain-daemon share status
+  porcelain-daemon share lan|tailnet|funnel on|off
 
 Options:
   --port <n>           Listen port for loopback AND LAN/tailnet (default ${DEFAULT_PORT})
   --user-data <path>   Config dir (default ${DEFAULT_USER_DATA})
   --tailnet            Also bind the Tailscale interface (same --port)
   --lan                Also bind RFC1918 LAN addresses (same --port)
+  --funnel             Publish loopback over public Tailscale Funnel HTTPS
   --no-watchdog        Disable stdin parent-death watchdog (required under systemd)
-  --print-token        Print the daemon token to stderr (for pairing a new client)
   -h, --help           Show this help
+
+Host-management options:
+  --daemon-url <url>   Loopback daemon URL when not using the default port
+  --base-url <url>     Reachable URL to embed in a new connection link
 
 Examples:
   npx porcelain-daemon@latest serve --tailnet
-  npx porcelain-daemon@latest serve --tailnet --lan --print-token
+  npx porcelain-daemon@latest serve --tailnet --funnel
+  npx porcelain-daemon@latest access issue --name "My iPhone"
   npx porcelain-daemon@latest serve --port 43118 --lan
 
 Env (same as the raw daemon; flags set these when passed):
-  PORCELAIN_USER_DATA, PORCELAIN_DAEMON_PORT, PORCELAIN_DAEMON_TOKEN,
-  PORCELAIN_TAILNET_BIND, PORCELAIN_LAN_BIND, PORCELAIN_NO_STDIN_WATCHDOG
+  PORCELAIN_USER_DATA, PORCELAIN_DAEMON_PORT, PORCELAIN_ADMIN_TOKEN,
+  PORCELAIN_TAILNET_BIND, PORCELAIN_LAN_BIND, PORCELAIN_FUNNEL_BIND,
+  PORCELAIN_NO_STDIN_WATCHDOG
 
 Notes:
   • Always binds 127.0.0.1; --tailnet / --lan add private interfaces only
-    (never 0.0.0.0). Same token gate and same --port on every listener.
-  • Token lives at ~/.porcelain/daemon-token (0600). Created on first run.
+    (never 0.0.0.0). Funnel proxies only the loopback listener.
+  • Host administration lives at ~/.porcelain/admin-token (0600) and is never shared.
+  • Pairing links are one-time credentials; clients receive individually revocable access.
   • Use @latest so each invoke can pick up a newer published package.
   • First install compiles node-pty for this host (needs a C toolchain).
 `
@@ -67,8 +87,8 @@ function parseArgs(argv) {
     userData: DEFAULT_USER_DATA,
     tailnet: false,
     lan: false,
+    funnel: false,
     noWatchdog: false,
-    printToken: false,
     help: false,
   }
 
@@ -98,13 +118,13 @@ function parseArgs(argv) {
       i += 1
       continue
     }
-    if (arg === '--no-watchdog') {
-      opts.noWatchdog = true
+    if (arg === '--funnel') {
+      opts.funnel = true
       i += 1
       continue
     }
-    if (arg === '--print-token') {
-      opts.printToken = true
+    if (arg === '--no-watchdog') {
+      opts.noWatchdog = true
       i += 1
       continue
     }
@@ -132,11 +152,14 @@ function parseArgs(argv) {
   return opts
 }
 
-/** Same semantics as src/backend/token-file.ts ensureDaemonToken (plain CJS copy). */
-function ensureDaemonToken(path = TOKEN_PATH()) {
+/** Same semantics as src/backend/admin-token.ts (plain CJS copy). */
+function ensureAdminToken(path = ADMIN_TOKEN_PATH()) {
   try {
     const existing = readFileSync(path, 'utf8').trim()
-    if (existing !== '') return existing
+    if (existing !== '') {
+      chmodSync(path, 0o600)
+      return existing
+    }
   } catch {
     // absent — mint
   }
@@ -148,8 +171,121 @@ function ensureDaemonToken(path = TOKEN_PATH()) {
   return token
 }
 
-function main() {
-  const opts = parseArgs(process.argv.slice(2))
+function adminClient(daemonUrl, token) {
+  return createTRPCUntypedClient({
+    links: [
+      httpLink({
+        url: `${daemonUrl}/trpc`,
+        headers: { authorization: `Bearer ${token}` },
+      }),
+    ],
+  })
+}
+
+function adminCommandOptions(argv) {
+  const result = {
+    args: [],
+    daemonUrl: `http://127.0.0.1:${process.env.PORCELAIN_DAEMON_PORT || DEFAULT_PORT}`,
+    baseUrl: null,
+    name: null,
+  }
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i]
+    if (arg === '--daemon-url' || arg === '--base-url' || arg === '--name') {
+      const value = argv[i + 1]
+      if (!value) fail(`${arg} requires a value`)
+      if (arg === '--daemon-url') result.daemonUrl = value.replace(/\/+$/, '')
+      else if (arg === '--base-url') result.baseUrl = value
+      else result.name = value
+      i += 1
+    } else {
+      result.args.push(arg)
+    }
+  }
+  return result
+}
+
+async function suggestedBaseUrl(client) {
+  const funnel = await client.query('funnelStatus').catch(() => null)
+  if (funnel?.url) return funnel.url
+  const tailnet = await client.query('tailnetStatus').catch(() => null)
+  if (tailnet?.url) return tailnet.url
+  const lan = await client.query('lanStatus').catch(() => null)
+  return lan?.numericUrl || lan?.url || null
+}
+
+async function runAccessCommand(argv) {
+  const options = adminCommandOptions(argv)
+  const [action, id] = options.args
+  const client = adminClient(options.daemonUrl, ensureAdminToken())
+  if (action === 'issue') {
+    if (!options.name) fail('access issue requires --name <device>')
+    const baseUrl = options.baseUrl || (await suggestedBaseUrl(client))
+    if (!baseUrl) fail('no reachable endpoint is enabled; pass --base-url explicitly')
+    const result = await client.mutation('issuePairingLink', {
+      label: options.name,
+      baseUrl,
+    })
+    process.stdout.write(`${result.url}\n`)
+    return
+  }
+  if (action === 'list') {
+    const status = await client.query('accessStatus')
+    process.stdout.write(`${JSON.stringify(status, null, 2)}\n`)
+    return
+  }
+  if (action === 'revoke' && id) {
+    const status = await client.query('accessStatus')
+    if (status.clients.some((entry) => entry.id === id)) {
+      await client.mutation('revokeAuthorizedClient', id)
+    } else if (status.pairings.some((entry) => entry.id === id)) {
+      await client.mutation('revokePairingLink', id)
+    } else {
+      fail(`no device or pairing link has id ${id}`)
+    }
+    process.stdout.write(`Revoked ${id}\n`)
+    return
+  }
+  fail('usage: porcelain-daemon access issue --name <device> | list | revoke <id>')
+}
+
+async function runShareCommand(argv) {
+  const options = adminCommandOptions(argv)
+  const [target, value] = options.args
+  const client = adminClient(options.daemonUrl, ensureAdminToken())
+  if (target === 'status') {
+    const [lan, tailnet, funnel] = await Promise.all([
+      client.query('lanStatus'),
+      client.query('tailnetStatus'),
+      client.query('funnelStatus'),
+    ])
+    process.stdout.write(`${JSON.stringify({ lan, tailnet, funnel }, null, 2)}\n`)
+    return
+  }
+  const procedures = {
+    lan: 'setLanBind',
+    tailnet: 'setTailnetBind',
+    funnel: 'setFunnelBind',
+  }
+  const procedure = procedures[target]
+  if (!procedure || (value !== 'on' && value !== 'off')) {
+    fail('usage: porcelain-daemon share status | lan|tailnet|funnel on|off')
+  }
+  const status = await client.mutation(procedure, value === 'on')
+  process.stdout.write(`${JSON.stringify(status, null, 2)}\n`)
+}
+
+async function main() {
+  const argv = process.argv.slice(2)
+  if (argv[0] === 'access') {
+    await runAccessCommand(argv.slice(1))
+    return
+  }
+  if (argv[0] === 'share') {
+    await runShareCommand(argv.slice(1))
+    return
+  }
+  const opts = parseArgs(argv)
   if (opts.help) {
     process.stdout.write(HELP)
     process.exit(0)
@@ -164,30 +300,25 @@ function main() {
   }
   if (opts.tailnet) process.env.PORCELAIN_TAILNET_BIND = '1'
   if (opts.lan) process.env.PORCELAIN_LAN_BIND = '1'
+  if (opts.funnel) process.env.PORCELAIN_FUNNEL_BIND = '1'
   if (opts.noWatchdog) process.env.PORCELAIN_NO_STDIN_WATCHDOG = '1'
 
-  // Mint/load the shared token and pass it via env so an interactive TTY does not
-  // hit the daemon's "token required" exit (server.ts only auto-reads the file
-  // when stdin is non-TTY).
-  const token = process.env.PORCELAIN_DAEMON_TOKEN || ensureDaemonToken()
-  process.env.PORCELAIN_DAEMON_TOKEN = token
+  const token = process.env.PORCELAIN_ADMIN_TOKEN || ensureAdminToken()
+  process.env.PORCELAIN_ADMIN_TOKEN = token
 
   const userData = process.env.PORCELAIN_USER_DATA
   const port = process.env.PORCELAIN_DAEMON_PORT
   const binds = ['127.0.0.1']
   if (process.env.PORCELAIN_TAILNET_BIND === '1') binds.push('tailnet')
   if (process.env.PORCELAIN_LAN_BIND === '1') binds.push('lan')
+  if (process.env.PORCELAIN_FUNNEL_BIND === '1') binds.push('funnel')
 
   // Human-facing status on stderr; the daemon still owns the one stdout port line.
   console.error(`[porcelain-daemon] user data  ${userData}`)
   console.error(`[porcelain-daemon] port       ${port}`)
   console.error(`[porcelain-daemon] binds      ${binds.join(', ')}`)
-  console.error(`[porcelain-daemon] token file ${TOKEN_PATH()}`)
-  if (opts.printToken) {
-    console.error(`[porcelain-daemon] token      ${token}`)
-  } else {
-    console.error('[porcelain-daemon] (pass --print-token to show the token for pairing)')
-  }
+  console.error(`[porcelain-daemon] admin file ${ADMIN_TOKEN_PATH()}`)
+  console.error('[porcelain-daemon] pair with: porcelain-daemon access issue --name <device>')
   console.error('[porcelain-daemon] starting…  Ctrl+C to stop')
 
   const serverEntry = join(__dirname, '..', 'main', 'daemon', 'server.js')
@@ -198,4 +329,4 @@ function main() {
   require(serverEntry)
 }
 
-main()
+main().catch((error) => fail(error instanceof Error ? error.message : String(error)))

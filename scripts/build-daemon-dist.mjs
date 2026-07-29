@@ -7,9 +7,9 @@
 //   npx porcelain-daemon@latest serve --tailnet
 //
 // It mirrors the `out/` layout exactly so the daemon's two relative resolutions
-// keep working unchanged: the chunk require `../chunks/token-file-*.js` (from
+// keep working unchanged: the shared chunk require from
 // main/daemon/server.js) and RENDERER_ROOT (`__dirname/../../renderer`, see
-// src/backend/static-server.ts). The five externalized runtime deps are declared
+// src/backend/static-server.ts). Externalized runtime deps are declared
 // in a generated package.json with the EXACT semver ranges read from the root
 // package.json, so `npm install` / npx on the target pulls them (and compiles
 // node-pty for that host). The dependency-free CLI ships too — the daemon installs
@@ -41,10 +41,9 @@ if (!existsSync(daemonEntry)) {
   process.exit(1)
 }
 
-// The five externalized runtime deps the daemon bundle `require`s (see the
-// electron.vite.config.ts comment + `grep require out/main/daemon/server.js`).
+// Externalized runtime deps used by the daemon bundle and host-management CLI.
 // node-pty is native — `npm install` on the target compiles it for that host.
-const RUNTIME_DEPS = ['@trpc/server', 'node-pty', 'trash', 'ws', 'zod']
+const RUNTIME_DEPS = ['@trpc/client', '@trpc/server', 'node-pty', 'trash', 'ws', 'zod']
 
 const rootPkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
 
@@ -128,16 +127,16 @@ writeFileSync(join(dist, 'package.json'), `${JSON.stringify(distPkg, null, 2)}\n
 writeFileSync(join(dist, 'README.md'), readme(rootPkg.version))
 
 console.log(`[daemon:dist] assembled dist-daemon/ (porcelain-daemon@${rootPkg.version})`)
+console.log('[daemon:dist] try:   cd dist-daemon && npm install && npx porcelain-daemon serve')
 console.log(
-  '[daemon:dist] try:   cd dist-daemon && npm install && npx porcelain-daemon serve --print-token',
+  '[daemon:dist] pair:  npx porcelain-daemon access issue --name "My phone" --base-url http://127.0.0.1:43117',
 )
-console.log('[daemon:dist] or:    npx porcelain-daemon@latest serve --tailnet  (after npm publish)')
 
 function readme(version) {
   return `# porcelain-daemon (${version})
 
 Headless **Porcelain** backend — the Electron-free daemon + renderer, packaged for
-plain Node on any machine (Linux mini-PC, cloud VM, laptop). Same token-gated
+plain Node on any machine (Linux mini-PC, cloud VM, laptop). Same credential-gated
 HTTP/WS surface the Mac app and browser clients already talk to.
 
 ## Quick start (recommended)
@@ -145,7 +144,7 @@ HTTP/WS surface the Mac app and browser clients already talk to.
 On the remote host (Node ≥ 22, git, and a C toolchain for \`node-pty\`):
 
 \`\`\`sh
-npx porcelain-daemon@latest serve --tailnet --print-token
+npx porcelain-daemon@latest serve --tailnet --funnel
 \`\`\`
 
 That:
@@ -153,40 +152,49 @@ That:
 1. Fetches the **latest** published package (use \`@latest\` so you don't stick on a
    stale npx cache of an older version).
 2. Compiles \`node-pty\` for this host on first install.
-3. Starts the daemon on port **43117**, binding loopback + Tailscale when
-   \`--tailnet\` is set.
-4. Prints the shared token (only with \`--print-token\`) so you can paste it into
-   the Mac app: **Settings → General → Remote daemons**.
+3. Starts the daemon on port **43117**, with private Tailscale access and opt-in
+   public HTTPS through Tailscale Funnel.
+4. Keeps host administration local; it never prints the administrator credential.
 
 Leave the process in the foreground while you work (Termius / tmux / SSH session).
 Ctrl+C stops it — **no systemd required**. Start it when you sit down; stop it
 when you're done.
 
-### Pair a client
+### Pair a device
 
-- **Mac app:** Settings → General → Remote daemons → add
-  \`http://<tailscale-name-or-ip>:43117\` + the token.
-- **Browser:** open the same URL, paste the token once (remembered per origin).
+\`\`\`sh
+npx porcelain-daemon@latest access issue --name "My phone"
+\`\`\`
 
-Token file on the host: \`~/.porcelain/daemon-token\` (mode \`0600\`). Copy that file
-(or the same token string) to every client you pair — one secret across the fleet.
+Open the printed connection link in a browser, or paste it into the Mac app's
+**Settings → Remotes**. The link expires in 15 minutes, works once, and becomes
+an individually revocable device credential. Manage access only on the host:
+
+\`\`\`sh
+npx porcelain-daemon@latest access list
+npx porcelain-daemon@latest access revoke <id>
+npx porcelain-daemon@latest share status
+\`\`\`
 
 ## CLI
 
 \`\`\`text
 porcelain-daemon serve [options]
+porcelain-daemon access issue --name <device> [--base-url <url>]
+porcelain-daemon access list | revoke <id>
+porcelain-daemon share status | lan|tailnet|funnel on|off
 
   --port <n>           Port (default 43117)
   --user-data <path>   Config dir (default ~/.local/share/porcelain)
   --tailnet            Bind Tailscale interface too
   --lan                Bind RFC1918 LAN addresses too
+  --funnel             Publish loopback over Tailscale Funnel HTTPS
   --no-watchdog        For systemd / supervisors (stdin is /dev/null)
-  --print-token        Print the pairing token on stderr
 \`\`\`
 
-Security posture is unchanged: always bind \`127.0.0.1\`; optional private-interface
-listeners only; **never** \`0.0.0.0\`. Every \`/trpc\` + \`/session\` request is
-token-gated.
+Porcelain always binds loopback, never \`0.0.0.0\`. Private listeners are explicit.
+Funnel is public HTTPS but still credential-gated, and Porcelain refuses to replace
+or disable a Funnel target it does not own.
 
 ## Always-on (optional)
 

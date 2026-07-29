@@ -264,8 +264,8 @@
   <section class="section wrap" id="remote">
     <div class="sec-head" data-reveal>
       <p class="eyebrow">Anywhere is the same place</p>
-      <h2 class="section-title">Share over LAN or Tailscale.<br>Same client everywhere.</h2>
-      <p class="lead">Run the daemon on the machine that holds your code: a home server, a Linux box, a cloud VM. Open from the Mac app, a window pointed at that host, or any browser (including on a phone). Terminals and review state live on the host, so reloads and reconnects pick up where you left off.</p>
+      <h2 class="section-title">Pair once. Work from anywhere.<br>Same client everywhere.</h2>
+      <p class="lead">Run the daemon on the machine that holds your code, then reach it over your LAN, private Tailscale network, or public HTTPS with Tailscale Funnel. Each Mac, phone, or tablet gets its own revocable access. Terminals and review state live on the host, so reconnects pick up where you left off.</p>
     </div>
     <div class="grid-3" style="margin-bottom:28px;">
       <div class="card card-pad" data-reveal>
@@ -283,9 +283,11 @@
     </div>
     <div class="card card-pad-lg" data-reveal>
       <div class="code-block">
-        <div class="comment"># On the host (LAN or Tailscale)</div>
-        <div><span class="prompt">$</span> npx porcelain-daemon@latest serve --tailnet --print-token</div>
-        <div class="hint">No always-on service required. State and PTYs stay on the host.</div>
+        <div class="comment"># On the host</div>
+        <div><span class="prompt">$</span> npx porcelain-daemon@latest serve --tailnet --funnel</div>
+        <div class="comment"># In another terminal</div>
+        <div><span class="prompt">$</span> npx porcelain-daemon@latest access issue --name "My phone"</div>
+        <div class="hint">Open the one-time link. Revoke only that device whenever you want.</div>
       </div>
     </div>
   </section>
@@ -375,9 +377,11 @@
         <h3 class="install-title">Run the daemon</h3>
         <p class="body">Linux, Windows, iPad, phone: no app install. Start the daemon on the machine that holds your code and open the URL in any browser. Same client as the Mac app.</p>
         <div class="code-block">
-          <div class="comment"># On the host (LAN or Tailscale)</div>
-          <div><span class="prompt">$</span> npx porcelain-daemon@latest serve --tailnet --print-token</div>
-          <div class="hint">Start when you work · Ctrl+C when done</div>
+          <div class="comment"># On the host</div>
+          <div><span class="prompt">$</span> npx porcelain-daemon@latest serve --tailnet --funnel</div>
+          <div class="comment"># In another terminal</div>
+          <div><span class="prompt">$</span> npx porcelain-daemon@latest access issue --name "My browser"</div>
+          <div class="hint">Open the one-time link · no account required</div>
         </div>
       </div>
       <div class="card card-pad-lg" data-reveal>

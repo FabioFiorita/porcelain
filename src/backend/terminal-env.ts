@@ -5,7 +5,7 @@
  *
  * SECURITY: the daemon's process env carries secrets and process-mode flags
  * that must NEVER leak into a user shell — `env` in the terminal would print
- * the session token, and ELECTRON_RUN_AS_NODE=1 would make any Electron-based
+ * the administrator token, and ELECTRON_RUN_AS_NODE=1 would make any Electron-based
  * binary launched from the terminal silently run as plain Node. Everything the
  * shell spawn passed for the DAEMON's benefit is stripped; the user's real
  * environment passes through untouched.
@@ -13,8 +13,13 @@
 const DAEMON_ONLY_ENV = [
   // Would flip any Electron binary the user launches into plain-Node mode.
   'ELECTRON_RUN_AS_NODE',
-  // The session token — a secret; `env` prints the environment.
+  // Credentials and their daemon-owned storage locations.
   'PORCELAIN_DAEMON_TOKEN',
+  'PORCELAIN_ADMIN_TOKEN',
+  'PORCELAIN_ADMIN_TOKEN_FILE',
+  'PORCELAIN_ACCESS_FILE',
+  'PORCELAIN_FUNNEL_BIND',
+  'PORCELAIN_FUNNEL_FILE',
   // Daemon configuration knobs, meaningless (or misleading) inside a shell.
   'PORCELAIN_DAEMON_PORT',
   'PORCELAIN_USER_DATA',

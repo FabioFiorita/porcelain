@@ -8,18 +8,18 @@ import { useState } from 'react'
 /**
  * The browser client's lock screen. Porcelain's renderer ships as both the
  * Electron window (token from the preload bridge) and a plain browser client the
- * daemon serves — the browser has no bridge, so the human enters the daemon token
- * once here; it's persisted (localStorage) and the WS reconnects with it. In the
+ * daemon serves — the browser has no bridge, so it exchanges a one-time connection
+ * link here; its device credential is persisted and the WS reconnects with it. In the
  * packaged app the gate is a no-op (status starts 'open'), so children render
  * directly. Renders BEFORE the app so nothing queries the daemon un-gated.
  */
 export function TokenGate({ children }: { children: React.ReactNode }): React.JSX.Element {
   const { status, connecting, error, connect } = useTokenGate()
-  const [token, setToken] = useState('')
+  const [link, setLink] = useState('')
 
   // While the initial probe runs, hold on the same blank surface AppShell shows
   // during restore — no flash of the form before we know we even need it.
-  if (status === 'checking') {
+  if (status === 'checking' || status === 'pairing') {
     return <div className="dark h-dvh bg-background" />
   }
 
@@ -35,30 +35,31 @@ export function TokenGate({ children }: { children: React.ReactNode }): React.JS
           className="size-20 [filter:drop-shadow(0_14px_30px_rgb(0_0_0/0.5))]"
         />
         <h1 className="mt-4 text-3xl font-medium tracking-tight">porcelain</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Enter your daemon token to connect</p>
+        <p className="mt-1 max-w-80 text-sm text-muted-foreground">
+          Open a connection link created on the Porcelain host
+        </p>
       </div>
       <form
         className="flex w-full max-w-80 flex-col gap-3"
         onSubmit={(e) => {
           e.preventDefault()
-          if (token.trim() !== '') connect(token.trim())
+          if (link.trim() !== '') connect(link.trim())
         }}
       >
         <Input
-          type="password"
-          value={token}
-          onChange={(e) => setToken(e.target.value)}
-          placeholder="Daemon token"
-          aria-label="Daemon token"
+          value={link}
+          onChange={(e) => setLink(e.target.value)}
+          placeholder="https://…/pair#token=…"
+          aria-label="Connection link"
           autoFocus
           aria-invalid={error}
         />
         {error && (
           <p className="text-xs text-muted-foreground">
-            That token was rejected. Check the token and try again.
+            That link is invalid, expired, already used, or for another host.
           </p>
         )}
-        <Button type="submit" disabled={connecting || token.trim() === ''}>
+        <Button type="submit" disabled={connecting || link.trim() === ''}>
           {connecting && <Loader2 className="animate-spin" />}
           {connecting ? 'Connecting…' : 'Connect'}
         </Button>

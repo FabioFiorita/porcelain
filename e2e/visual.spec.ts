@@ -55,7 +55,7 @@ test('settings dialog', async ({ page }) => {
 // Phone Settings: horizontal section chips + stacked preference rows (not the
 // dual-pane rail that left ~200px for toggles). Boot at desktop so the shell is
 // visible, then shrink — rail Settings lives in the mobile sheet when closed.
-test('settings dialog — phone', async ({ page }) => {
+test('settings dialog — phone', async ({ page, appMode }) => {
   await waitForShell(page)
   await page.setViewportSize({ width: 390, height: 844 })
   // Dual-rail sheet closes at the mobile breakpoint; open it for the gear.
@@ -68,7 +68,11 @@ test('settings dialog — phone', async ({ page }) => {
   await expect(loc.settingsHeading(page)).toHaveText('General')
   // Mobile nav is chips, not the desktop sidebar list.
   await expect(dialog.getByRole('navigation', { name: 'Settings sections' })).toBeVisible()
-  await expect(dialog.getByRole('button', { name: 'Share' })).toBeVisible()
+  if (appMode === 'browser') {
+    await expect(dialog.getByRole('button', { name: 'Share' })).toHaveCount(0)
+  } else {
+    await expect(dialog.getByRole('button', { name: 'Share' })).toBeVisible()
+  }
   // Preference rows stack: Appearance label above the System segment.
   const appearance = dialog.getByText('Appearance', { exact: true })
   const system = loc.appearance(page, 'system')

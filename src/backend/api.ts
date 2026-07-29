@@ -1,9 +1,16 @@
 import { existsSync } from 'node:fs'
 import { cp, mkdir, readdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
-import { initTRPC } from '@trpc/server'
+import { initTRPC, TRPCError } from '@trpc/server'
 import trash from 'trash'
 import { z } from 'zod'
+import {
+  type AuthIdentity,
+  accessSnapshot,
+  issuePairingGrant,
+  revokeAuthorizedClient,
+  revokePairingGrant,
+} from './access-store'
 import {
   type Action,
   addAction,
@@ -12,6 +19,7 @@ import {
   readActions,
   updateAction,
 } from './actions-store'
+import { displayAdminTokenPath } from './admin-token'
 import {
   addCard,
   type BoardCard,
@@ -58,6 +66,7 @@ import {
 } from './feature-view'
 import { buildFlow, DEFAULT_LAYERS, type FlowGroup, type Layer } from './flow'
 import { uniqueDuplicatePath } from './fs-ops'
+import { funnelStatus, startFunnel, stopFunnel } from './funnel'
 import { directoriesOf, fuzzySearch, type SearchResult } from './fuzzy'
 import {
   gitAddWorktree,
@@ -133,7 +142,7 @@ import {
   unhidePath as unhideScopePath,
   unpinPath as unpinScopePath,
 } from './scope-store'
-import { sessionCount } from './session'
+import { clientSessionCount, closeClientSessions } from './session'
 import {
   ifaceListenerPort,
   lanBindError,
@@ -147,15 +156,20 @@ import {
   tailnetUrl,
 } from './tailnet-listener'
 import { listTerminals, renameTerminal, type TerminalInfo } from './terminal-manager'
-import { rotateAuthToken } from './token-control'
-import { displayDaemonTokenPath } from './token-file'
 import { clearWorkingTreeSnapshot, workingTreeSnapshot } from './working-tree'
 import { worktreeInbox } from './worktree-inbox'
 
-// No per-connection context: appRouter procedures are pure Node and must never
-// reference a caller (per-connection concerns live shell-side until the Stage 2
-// WS session exists). The Electron-native procedures live in src/main/shell-api.ts.
-const t = initTRPC.create({ isServer: true })
+export interface DaemonTrpcContext {
+  auth: AuthIdentity
+}
+
+const t = initTRPC.context<DaemonTrpcContext>().create({ isServer: true })
+const adminProcedure = t.procedure.use(({ ctx, next }) => {
+  if (ctx.auth.kind !== 'admin') {
+    throw new TRPCError({ code: 'FORBIDDEN', message: 'Host administrator access required' })
+  }
+  return next()
+})
 
 export interface RepoInfo {
   path: string
@@ -452,19 +466,52 @@ export const router = t.router({
     ...daemonIdentity(),
   })),
 
-  // How many clients currently hold a live /session on this daemon, plus where
-  // the shared token file lives on THIS host (respects PORCELAIN_HOME / overrides).
-  // Settings → Share shows both. One shared token; Revoke all rotates it.
-  shareStatus: t.procedure.query((): { clients: number; tokenPath: string } => ({
-    clients: sessionCount(),
-    tokenPath: displayDaemonTokenPath(),
+  // Host access administration. These procedures are callable only with the
+  // administrator credential held by the local Electron shell / host CLI.
+  // Paired devices receive client identities and are rejected by the middleware.
+  accessStatus: adminProcedure.query(async () => ({
+    ...(await accessSnapshot()),
+    connected: clientSessionCount(),
+    adminTokenPath: displayAdminTokenPath(),
   })),
 
-  // Rotate the shared secret, close every live socket, return the new token so the
-  // caller (the window that pressed Revoke all) can keep talking.
-  rotateDaemonToken: t.procedure.mutation(async (): Promise<{ token: string }> => {
-    const token = await rotateAuthToken()
-    return { token }
+  issuePairingLink: adminProcedure
+    .input(
+      z.object({
+        label: z.string().trim().min(1).max(80),
+        baseUrl: z.string().url(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const base = new URL(input.baseUrl)
+      if (base.protocol !== 'http:' && base.protocol !== 'https:') {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Pairing requires HTTP or HTTPS' })
+      }
+      if (base.username !== '' || base.password !== '' || base.search !== '' || base.hash !== '') {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Pairing endpoint must not contain credentials, query, or fragment',
+        })
+      }
+      base.pathname = '/pair'
+      const grant = await issuePairingGrant(input.label)
+      base.hash = new URLSearchParams([['token', grant.credential]]).toString()
+      return { ...grant, url: base.toString() }
+    }),
+
+  revokePairingLink: adminProcedure.input(z.string()).mutation(async ({ input }) => {
+    await revokePairingGrant(input)
+  }),
+
+  revokeAuthorizedClient: adminProcedure.input(z.string()).mutation(async ({ input }) => {
+    if (await revokeAuthorizedClient(input)) closeClientSessions(input)
+  }),
+
+  revokeCurrentClient: t.procedure.mutation(async ({ ctx }) => {
+    if (ctx.auth.kind !== 'client') {
+      throw new TRPCError({ code: 'FORBIDDEN', message: 'No paired-device credential to revoke' })
+    }
+    if (await revokeAuthorizedClient(ctx.auth.clientId)) closeClientSessions(ctx.auth.clientId)
   }),
 
   openRepoPath: t.procedure.input(z.string()).mutation(async ({ input }): Promise<RepoInfo> => {
@@ -1239,7 +1286,7 @@ export const router = t.router({
   // GUI shows it on but not togglable); `url` is non-null only while the second
   // listener is actually up, and `error` says why nothing bound ('in-use' = the
   // fixed port is squatted) so the UI can distinguish that from "no tailnet here".
-  tailnetStatus: t.procedure.query(
+  tailnetStatus: adminProcedure.query(
     async (): Promise<{
       enabled: boolean
       url: string | null
@@ -1260,7 +1307,7 @@ export const router = t.router({
     },
   ),
 
-  setTailnetBind: t.procedure.input(z.boolean()).mutation(
+  setTailnetBind: adminProcedure.input(z.boolean()).mutation(
     async ({
       input,
     }): Promise<{
@@ -1292,7 +1339,7 @@ export const router = t.router({
   // `numericUrl` is the numeric fallback. Both are non-null only while the LAN
   // listener is actually up; `enabled`/`envForced` (PORCELAIN_LAN_BIND=1) and
   // `error` ('in-use' = the port is squatted) mirror tailnetStatus above.
-  lanStatus: t.procedure.query(
+  lanStatus: adminProcedure.query(
     async (): Promise<{
       enabled: boolean
       url: string | null
@@ -1314,7 +1361,7 @@ export const router = t.router({
     },
   ),
 
-  setLanBind: t.procedure.input(z.boolean()).mutation(
+  setLanBind: adminProcedure.input(z.boolean()).mutation(
     async ({
       input,
     }): Promise<{
@@ -1341,6 +1388,17 @@ export const router = t.router({
       }
     },
   ),
+
+  funnelStatus: adminProcedure.query(async () => ({
+    ...(await funnelStatus()),
+    envForced: process.env.PORCELAIN_FUNNEL_BIND === '1',
+  })),
+
+  setFunnelBind: adminProcedure.input(z.boolean()).mutation(async ({ input }) => {
+    const status = input ? await startFunnel() : await stopFunnel()
+    await updateConfig((config) => ({ ...config, funnelBind: input }))
+    return { ...status, envForced: process.env.PORCELAIN_FUNNEL_BIND === '1' }
+  }),
 
   gitBranch: t.procedure.input(z.string()).query(({ input }) => gitBranch(input)),
 

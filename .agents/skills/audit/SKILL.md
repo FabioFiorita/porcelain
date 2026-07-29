@@ -47,12 +47,12 @@ assumed — this skill is the codebase-specific layer beneath them.
   HTTP listener or long-lived agent server. The CLI stays **dependency-free** (Node builtins
   only) so it runs under a plain `node`; don't add npm imports to `src/cli/`, and keep inputs
   validated in `toReviewFiles`/`toReviewSections`.
-- **The daemon is the ONE sanctioned listener — 127.0.0.1 only, ALWAYS token-gated.**
+- **The daemon is the ONE sanctioned listener — loopback-first, ALWAYS credential-gated.**
   Since the daemon split the renderer talks to `src/backend/server.ts` over HTTP + WS
   (`daemon.ts` spawns it), so the old "the app opens no port" claim no longer holds —
   but the surface is deliberately hostile-input-hardened, and these must ALL stay true:
   (1) **The bind is loopback PLUS, optionally, enumerated private interfaces
-  behind the same token** — `server.listen(port, '127.0.0.1')` ALWAYS, and when the user
+  behind the same gate** — `server.listen(port, '127.0.0.1')` ALWAYS, and when the user
   enables a setting, second listener(s) at fixed port 43117 on either the detected Tailscale
   address (100.64/10, `findTailscaleAddress`) OR the machine's RFC1918 private addresses
   (10/8, 172.16/12, 192.168/16, `findLanAddresses` — the home-LAN path) — both are two
@@ -61,12 +61,16 @@ assumed — this skill is the codebase-specific layer beneath them.
   interface** (the enumerated-addresses rule is the guard against accidentally serving a
   coffee-shop network — anyone proposing to "just bind 0.0.0.0 since we bind everything
   anyway" is wrong: `findLanAddresses` returns ONLY private-range addresses, never a public
-  one). **Cleartext-token-on-LAN is an accepted tradeoff:** on the tailnet WireGuard encrypts
-  the traffic, but on a plain home LAN the bearer token crosses the wire in cleartext (a
+  one). **Cleartext-credential-on-LAN is an accepted tradeoff:** on the tailnet WireGuard encrypts
+  the traffic, but on a plain home LAN the bearer credential crosses the wire in cleartext (a
   sniffer on that network can capture it). This is accepted the way countless local dev tools
   accept it — for a trusted home network — BUT ONLY because the LAN bind is (a) opt-in and
   default-off, (b) recorded here, and (c) never silently widened past the enumerated private
-  addresses. (2) **Auth is never optional:** every `/trpc`
+  addresses. **Tailscale Funnel is a proxy, not another app listener:** it may publicly
+  expose loopback over HTTPS only by explicit config/env/CLI action. `funnel.ts` must use
+  `execFile` without a shell, refuse a nonempty conflicting or unowned configuration, and
+  turn Funnel off only when the 0600 Porcelain marker owns this exact daemon target.
+  Never adopt or erase another local service's Funnel. (2) **Auth is never optional:** every `/trpc`
   request needs `authorization: Bearer <credential>` (constant-time compare over sha256
   digests, 401 otherwise) and the WS upgrade needs the `porcelain.<credential>` subprotocol
   (rejected handshake without it) — loopback is reachable from any webpage the user's
@@ -75,27 +79,24 @@ assumed — this skill is the codebase-specific layer beneath them.
   content. (The token gate is the whole boundary: a holder can already open/read any
   path via `openRepoPath`/`readFile`, so the daemon-side repo browser `browseDirs` —
   directory names only — widens nothing.)
-  **(2b) ONE shared secret passes that gate** (simplified 2026-07-27 — per-device
-  credentials and pairing deleted): `authenticate()` in `daemon-http.ts` compares only
-  `~/.porcelain/daemon-token` (constant-time over sha256 digests) for BOTH `/trpc` and
-  the `/session` upgrade — never add a second credential kind, a second gate, or an
-  unauthenticated `/pair` route. Clients connect with a LAN/Tailscale URL + that token.
-  **Revoke all** (`rotateAuthToken` / `token-control.ts`) overwrites the token file
-  (0600, atomic), swaps the live hash via `setTokenHash`, and `closeAllSessions()` —
-  the gate only runs at upgrade time, so sockets must be closed or they keep streaming.
-  The initiator adopts the new token (browser localStorage / shell `adoptRotatedToken`);
-  every other client pastes the new token. Token path is overridable via
-  `PORCELAIN_DAEMON_TOKEN_FILE` so e2e never touches the developer's real file.
-  *Verify:* `token-file.test.ts` (rotate overwrites), `daemon-http.test.ts`
-  (setTokenHash rejects old token; `/pair` is 404; closeAllSessions drops live sockets).
-  (3) **The token never appears in argv** (`ps`-visible), **stdout** (the
-  daemon's only stdout line is the port; the parent passed the token via env so it
-  already knows it), **or a spawned PTY's env** (see the terminal-env invariant below).
-  The saved remote environments (Phase 4) store each entry's token in **plaintext** at
-  `userData/remote-daemon.json` — user-owned dir, same trust as the token file — the
-  connect probe sends a token **only** to an address of its OWN entry, and the
-  `remoteEnvironments` query strips tokens before the renderer; never log them.
-  **The one token that DOES reach the renderer is the LOCAL daemon's** — the preload has
+  **(2b) Two credential scopes, one gate:** `authenticate()` in `daemon-http.ts`
+  accepts the local administrator credential (`~/.porcelain/admin-token`, 0600,
+  constant-time sha256 comparison) or an individually issued client token whose sha256
+  hash is in `~/.porcelain/access.json` (0600). The plaintext administrator credential
+  only reaches the local Electron renderer and host CLI. Access/network/Funnel procedures
+  use `adminProcedure`; never make them ordinary client procedures. Revoking a client
+  removes only its hash and closes only that client's live WS sessions — the gate runs
+  at upgrade time, so removing the stored hash alone is insufficient.
+  *Verify:* `admin-token.test.ts`, `access-store.test.ts`, `daemon-http.test.ts`
+  (admin/client authorization + pairing + selective live-session closure).
+  (3) **No credential appears in argv** (`ps`-visible), daemon logs/stdout (the only
+  stdout line is the port), or a spawned PTY's env. A connection link contains the
+  one-time secret only in the URL **fragment**, which browsers never send on GET;
+  never move it to the query/path or log/render it beyond the explicit copy surface.
+  Saved remote environments store each client token in plaintext at
+  `userData/remote-daemon.json` — a user-owned directory — and strip tokens from
+  renderer query results. A token is sent only to a verified endpoint of its own entry.
+  **The administrator token that DOES reach the renderer is the LOCAL daemon's** — the preload has
   always handed it to local-bound windows, and since "This device" terminals (2026-07-27)
   the `localDaemon` shell procedure hands it to REMOTE-bound ones too, so they can open a
   second connection to the machine the app runs on. That is not a widening, and the reason
@@ -125,13 +126,15 @@ assumed — this skill is the codebase-specific layer beneath them.
   the root — traversal, encoded `%2e%2e`, absolute, backslashes; unit-tested), NEVER reads
   user files, and adds NO write surface. Static assets being open doesn't loosen `/trpc`
   + `/session`, which keep the token gate.
-  **(5b) No unauthenticated dynamic routes.** Pairing (`POST /pair`) was deleted
-  2026-07-27 — connect is LAN/Tailscale URL + the shared token only. Do not reintroduce
-  an unauthenticated exchange without reopening this skill. The
+  **(5b) Pairing is the one narrow unauthenticated mutation.** `POST /pair` accepts
+  only an ≤8KB JSON body, is rate-limited per remote address, and atomically consumes a
+  15-minute single-use `pc_pair_*` grant; plaintext pair/client secrets are never stored.
+  GET `/pair` still serves the static app shell. Do not add another unauthenticated
+  dynamic route or broaden this exchange. The
   index.html CSP rewrite (`rewriteCsp`) touches **only `connect-src`** (same-origin WS for
   the request Host); `img-src`/`default-src` stay the sandboxed-HTML backstop, byte-identical.
-  Don't relax any of these to "make local dev easier." (6) **The token is the whole boundary
-  ACROSS THE TAILNET TOO — accepted:** a tailnet peer presenting the token gets everything
+  Don't relax any of these to "make local dev easier." (6) **A client credential is the
+  user boundary across every network — accepted:** a peer presenting one gets everything
   loopback gets, including arbitrary-path `readFile`/`writeTextFile`/`renamePath`/`trashPath`
   and `terminal:create` (a shell). That's the design (the token holder IS the user); the
   consequences are (a) the token file and `remote-daemon.json` are exactly as sensitive as
@@ -141,9 +144,10 @@ assumed — this skill is the codebase-specific layer beneath them.
   range-based BY DESIGN (name-independent; see `tailnet.ts`'s comment), with the residual risk
   that non-Tailscale CGNAT interfaces exist; `findTailscaleAddress` therefore refuses ambiguous
   multi-candidate setups (logs and returns null) rather than guessing; the LAN's `findLanAddresses`
-  returns ONLY RFC1918 private addresses (never public, never the CGNAT range). Don't add
-  per-procedure authorization to "fix" this — repo-scoping
-  the file procedures breaks the cross-repo viewer flows and was explicitly rejected.
+  returns ONLY RFC1918 private addresses (never public, never the CGNAT range). Funnel is
+  intentionally public HTTPS, so possession of a device credential is its entire product
+  boundary; the pairing surface leaks no grant in the request URL. Keep admin-only procedures
+  separate, but do not repo-scope ordinary file procedures — that breaks cross-repo flows.
   *Verify:* `rg -n "createServer|listen\(|http\.createServer" src/backend src/main src/cli`
   hits the loopback listener in `src/backend/server.ts` AND the second-listener factory in
   `src/backend/tailnet-listener.ts` (at most those two `createServer` sites) and nothing in
@@ -154,8 +158,10 @@ assumed — this skill is the codebase-specific layer beneath them.
   tests in `static-server.test.ts` stay green.
 - **A spawned PTY's env is scrubbed of the daemon's internals** (`terminalEnv` in
   `src/backend/terminal-env.ts`, unit-tested). The daemon process env carries the session
-  token and process-mode flags that must NEVER reach a user shell: `PORCELAIN_DAEMON_TOKEN`
-  (a secret — `env` in the terminal would print it) and `ELECTRON_RUN_AS_NODE` (would make
+  credentials and process-mode flags that must NEVER reach a user shell:
+  `PORCELAIN_ADMIN_TOKEN` (a secret — `env` would print it),
+  `PORCELAIN_ADMIN_TOKEN_FILE`, `PORCELAIN_ACCESS_FILE`, Funnel controls, and
+  `ELECTRON_RUN_AS_NODE` (would make
   any Electron-based binary the user launches from the terminal silently run as plain
   Node), plus the other daemon-only `PORCELAIN_*` knobs, and **`_VOLTA_TOOL_RECURSION`**
   (Volta's shim sets this on the real node process when the daemon is started via

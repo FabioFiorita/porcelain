@@ -48,7 +48,7 @@ type Sender = { send: (channel: string, ...args: unknown[]) => void }
 // Drive a fresh session over a fake socket and hand back both ends.
 function openSession(): { socket: FakeSocket; session: Sender } {
   const socket = new FakeSocket()
-  createSession(socket as WebSocket)
+  createSession(socket as WebSocket, { kind: 'admin' })
   // The session registers itself with file-watch on the first watch message; emit
   // one so we capture the live instance (its `.send` is the TerminalSender shuttle).
   socket.emit('message', Buffer.from(JSON.stringify({ t: 'watch:files', paths: [] })))
@@ -67,7 +67,7 @@ afterEach(() => {
 describe('session dispatch', () => {
   it('routes watch:files to setWatchedFiles with the session and paths', () => {
     const socket = new FakeSocket()
-    createSession(socket as WebSocket)
+    createSession(socket as WebSocket, { kind: 'admin' })
     socket.emit(
       'message',
       Buffer.from(JSON.stringify({ t: 'watch:files', paths: ['/a.ts', '/b.ts'] })),
@@ -81,8 +81,8 @@ describe('session dispatch', () => {
   it('broadcasts an app-event to open sessions and skips a non-OPEN one', () => {
     const open = new FakeSocket()
     const closed = new FakeSocket()
-    createSession(open as WebSocket)
-    createSession(closed as WebSocket)
+    createSession(open as WebSocket, { kind: 'admin' })
+    createSession(closed as WebSocket, { kind: 'admin' })
     // Still in the sessions set (never emitted 'close'), but the socket is not OPEN:
     // the push guard must no-op for it.
     closed.readyState = WebSocket.CLOSED
@@ -99,7 +99,7 @@ describe('session dispatch', () => {
 
   it('on close clears watchers and detaches — but never kills the PTY', () => {
     const socket = new FakeSocket()
-    createSession(socket as WebSocket)
+    createSession(socket as WebSocket, { kind: 'admin' })
 
     socket.emit('close')
 

@@ -40,7 +40,7 @@ import { randomId } from './utils'
 // under (Phase 3): the packaged app gets its token from the preload bridge, but a
 // plain browser has no bridge, so the human types it once on the TokenGate screen
 // and it's persisted here.
-const BROWSER_TOKEN_KEY = 'porcelain-daemon-token'
+const BROWSER_TOKEN_KEY = 'porcelain-client-token'
 
 // The bridge is absent both in the browser client AND under vitest/jsdom. In the
 // browser we read the persisted token from localStorage; under jsdom localStorage

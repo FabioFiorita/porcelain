@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto'
+import { createTRPCUntypedClient, httpLink } from '@trpc/client'
 import { initTRPC } from '@trpc/server'
 import { BrowserWindow, nativeTheme, shell, type WebContents } from 'electron'
 import { z } from 'zod'
 import {
-  adoptRotatedToken,
   getDefaultEnvironmentId,
   localDaemonPair,
   reloadEnvironmentsCache,
@@ -40,6 +40,63 @@ export interface ShellTrpcContext {
 }
 const t = initTRPC.context<ShellTrpcContext>().create({ isServer: true })
 
+const pairingResponseSchema = z.object({
+  token: z.string().min(1),
+  client: z.object({
+    id: z.string(),
+    label: z.string(),
+    createdAt: z.string(),
+  }),
+})
+
+async function exchangePairingLink(link: string): Promise<{ url: string; token: string }> {
+  let parsed: URL
+  try {
+    parsed = new URL(link.trim())
+  } catch {
+    throw new Error('That is not a valid Porcelain connection link')
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new Error('Connection links must use HTTP or HTTPS')
+  }
+  if (parsed.username !== '' || parsed.password !== '') {
+    throw new Error('Connection links cannot contain URL credentials')
+  }
+  if (parsed.pathname !== '/pair' || parsed.search !== '') {
+    throw new Error('That is not a valid Porcelain connection link')
+  }
+  const credential = new URLSearchParams(parsed.hash.slice(1)).get('token')
+  if (credential === null || credential === '') {
+    throw new Error('That connection link has no pairing credential')
+  }
+  parsed.hash = ''
+  parsed.search = ''
+  parsed.pathname = ''
+  const url = normalizeDaemonUrl(parsed.toString())
+  let response: Response
+  try {
+    response = await fetch(`${url}/pair`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ credential }),
+      signal: AbortSignal.timeout(5000),
+    })
+  } catch {
+    throw new Error(`Could not reach the daemon in that connection link`)
+  }
+  if (response.status === 401) {
+    throw new Error('That connection link is expired, already used, or revoked')
+  }
+  if (!response.ok) throw new Error(`Pairing failed with status ${response.status}`)
+  let body: unknown
+  try {
+    body = await response.json()
+  } catch {
+    throw new Error('The daemon returned an invalid pairing response')
+  }
+  return { url, token: pairingResponseSchema.parse(body).token }
+}
+
 /**
  * Probe a daemon before pointing windows at it: hit a cheap authed query so we
  * distinguish a wrong/dead url from a rejected token. The token is sent ONLY to
@@ -57,6 +114,18 @@ async function probeDaemon(url: string, token: string): Promise<void> {
   }
   if (res.status === 401) throw new Error('The daemon rejected that token (401)')
   if (!res.ok) throw new Error(`The daemon at ${url} responded with ${res.status}`)
+}
+
+async function revokeClientCredential(url: string, token: string): Promise<void> {
+  const client = createTRPCUntypedClient({
+    links: [
+      httpLink({
+        url: `${url}/trpc`,
+        headers: { authorization: `Bearer ${token}` },
+      }),
+    ],
+  })
+  await client.mutation('revokeCurrentClient')
 }
 
 /**
@@ -255,17 +324,6 @@ export const shellRouter = t.router({
     ...localDaemonPair(),
     isLocal: windowEnvironmentId(ctx.sender) === null,
   })),
-
-  /**
-   * After the bound daemon's Revoke all rotation: adopt the new shared token so THIS
-   * window (and local siblings, when the child rotated) keep working. Other clients
-   * that still hold the old token are intentionally cut off.
-   */
-  adoptRotatedToken: t.procedure
-    .input(z.object({ token: z.string().min(1) }))
-    .mutation(async ({ ctx, input }): Promise<void> => {
-      await adoptRotatedToken(ctx.sender, input.token)
-    }),
 
   /**
    * The local directory a "This device" terminal should open in for `repoPath` on THIS
@@ -469,18 +527,16 @@ export const shellRouter = t.router({
   addRemoteEnvironment: t.procedure
     .input(
       z.object({
-        name: z.string(),
-        url: z.string(),
-        token: z.string(),
+        connectionLink: z.string(),
         /** When true (default), point THIS window at the new env and reload it. */
         connectThisWindow: z.boolean().optional(),
       }),
     )
     .mutation(
       async ({ ctx, input }): Promise<{ id: string; reloaded: boolean; merged: boolean }> => {
-        const url = normalizeDaemonUrl(input.url)
-        await probeDaemon(url, input.token)
-        const { host } = await probeEnvironment(url, input.token)
+        const { url, token } = await exchangePairingLink(input.connectionLink)
+        await probeDaemon(url, token)
+        const { host } = await probeEnvironment(url, token)
 
         // ONE IDENTITY, MANY ENDPOINTS (phase 5). Pairing the same machine a second time —
         // over the LAN at home after doing it over the tailnet away — used to produce two
@@ -500,9 +556,10 @@ export const shellRouter = t.router({
             (env) => env.host === host,
           )
           if (twin !== undefined && (await sameMachine(url, twin))) {
-            // The twin's token is kept, not replaced: it already works at this address (we
-            // just proved it), and overwriting it would discard a credential the OTHER
-            // endpoints may be the only ones still using.
+            // The twin's token is kept: we proved it works at this address. Revoke the
+            // newly issued credential before merging so repeated endpoint discovery never
+            // leaves an invisible authorized-device entry behind.
+            await revokeClientCredential(url, token)
             await updateRemoteEnvironmentState((state) => ({
               ...state,
               activeId: twin.id,
@@ -521,10 +578,7 @@ export const shellRouter = t.router({
         // (daemon-identity.ts), so leaving the field blank yields "beelink" rather than
         // "100.94.12.3" — the whole point of phase 1. Falls back to the url's hostname
         // for a daemon too old to announce identity.
-        let name = input.name.trim()
-        if (name === '') {
-          name = host ?? ''
-        }
+        let name = host ?? ''
         if (name === '') {
           try {
             name = new URL(url).hostname || url
@@ -544,7 +598,7 @@ export const shellRouter = t.router({
               id,
               name,
               url,
-              token: input.token,
+              token,
               endpoints: [url],
               ...(host !== null && host !== '' ? { host } : {}),
             },

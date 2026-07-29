@@ -16,7 +16,7 @@ Coding agents generate faster than anyone can trust. Every tool in this space ra
 - **A two-way loop.** Leave a comment on a line or a file. It becomes context for your agent, and resolutions come back. A per-repo board keeps work queued as agents ship. Everything stays on machines you control.
 - **Focus on the work in front of you.** Hide folders you will not touch. Pin the paths you live in. Your agent can set that up for you. Large trees stay fast: nothing is indexed until you open it.
 - **Companion, not replacement.** Porcelain is not an agent host and not an IDE. Keep the tools you already prefer. Run any agent CLI in Porcelain's terminal next to the review surfaces, or keep using your own terminal outside the app.
-- **Anywhere is the same place.** Share Porcelain over your LAN or Tailscale. Use the Mac app on this machine, point a window at a remote box that holds the code, or open the same client in any browser (including on a phone). Terminals and review state live on the host, so reloads and reconnects pick up where you left off.
+- **Anywhere is the same place.** Share Porcelain over your LAN, private Tailscale network, or public HTTPS with Tailscale Funnel. Pair each Mac, phone, or tablet with a one-time link and revoke it independently. Terminals and review state stay on the host, so reconnects pick up where you left off.
 
 ## Features
 
@@ -28,7 +28,7 @@ Coding agents generate faster than anyone can trust. Every tool in this space ra
 - **Fast file viewer**: virtualized rendering, Shiki highlighting, always-editable text (autosave), Markdown reader/source, image support, two-pane split
 - **Focus navigation**: hide folders, pin paths, lazy per-directory loading. Built for large repos and monorepos alike
 - **Search & finders**: repo-wide code search, fuzzy file finder, find-in-file, find references
-- **Share over LAN or Tailscale**: run the daemon on the machine with your code, open from the Mac app or any browser. Start when you work, stop when you're done.
+- **Secure remote access**: LAN, private Tailscale, or Tailscale Funnel; one-time connection links and individually revocable devices
 - **Light, dark, and system themes**, themed end to end
 - **Multi-window**: one repo per window, each window free to pick its own environment (local or remote)
 - **Auto-updating** builds (signed and notarized on macOS)
@@ -40,10 +40,16 @@ Coding agents generate faster than anyone can trust. Every tool in this space ra
 **Everything else (Linux, Windows, iPad, phone):** you don't install Porcelain, you open it. Run the daemon on the machine that holds your code and point a browser at it:
 
 ```bash
-npx porcelain-daemon@latest serve --tailnet --print-token
+npx porcelain-daemon@latest serve --tailnet --funnel
 ```
 
-Works anywhere Node does. Same client the Mac app ships, same review surfaces, no install.
+Then, from another terminal on that host:
+
+```bash
+npx porcelain-daemon@latest access issue --name "My phone"
+```
+
+Open the one-time link it prints. It expires in 15 minutes and becomes a credential for only that device. The same link can add a remote to the Mac app under **Settings → Remotes**. Network and access administration stays on the host through the CLI; a local Mac app also exposes it under **Settings → Share**.
 
 ## Connect your agent
 

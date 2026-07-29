@@ -14,10 +14,9 @@ import { z } from 'zod'
  * Each open window has its OWN binding in memory (daemon.ts) — so one window can
  * be on This device while another is on the Beelink.
  *
- * The tokens are stored in plaintext. That's the same trust level as
- * `~/.porcelain/daemon-token` (the local daemon's own token file): a
- * user-owned dir, and each secret only gates a daemon the user themselves pointed
- * this app at. Never log them.
+ * Device tokens are stored in plaintext in Electron's user-owned data directory.
+ * Each token is individually revocable and only gates the daemon the human paired.
+ * Never log them.
  */
 
 /**

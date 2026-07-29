@@ -1,49 +1,22 @@
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@renderer/components/ui/alert-dialog'
+import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
+import { Input } from '@renderer/components/ui/input'
 import { Switch } from '@renderer/components/ui/switch'
-import { useDaemonToken } from '@renderer/hooks/use-daemon-token'
+import { useFunnelStatus, useSetFunnelBind } from '@renderer/hooks/use-funnel'
 import { useLanStatus, useSetLanBind } from '@renderer/hooks/use-lan'
-import { useRotateDaemonToken, useShareStatus } from '@renderer/hooks/use-share'
+import {
+  useAccessStatus,
+  useIssuePairingLink,
+  useRevokeAuthorizedClient,
+  useRevokePairingLink,
+} from '@renderer/hooks/use-share'
 import { useSetTailnetBind, useTailnetStatus } from '@renderer/hooks/use-tailnet'
 import { compactButtonClass, rowActionClass } from '@renderer/lib/controls'
 import { copyText } from '@renderer/lib/utils'
 import { TestIds } from '@shared/test-ids'
 import { useState } from 'react'
 
-/** Copy any short secret or URL — works in insecure browser contexts too. */
-function CopyButton({
-  value,
-  label = 'Copy',
-}: {
-  value: string
-  label?: string
-}): React.JSX.Element {
-  const [copied, setCopied] = useState(false)
-  return (
-    <Button
-      variant="outline"
-      size="sm"
-      className={compactButtonClass}
-      disabled={value === ''}
-      onClick={async () => {
-        await copyText(value)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 1500)
-      }}
-    >
-      {copied ? 'Copied' : label}
-    </Button>
-  )
-}
+type ShareEndpoint = { label: string; url: string }
 
 function ShareToggleRow({
   label,
@@ -61,14 +34,11 @@ function ShareToggleRow({
   checked: boolean
   disabled: boolean
   onCheckedChange: (checked: boolean) => void
-  /** Shown when the bind is locked on at daemon startup (env / unit file). */
   envForcedHint?: string
   url: string | null | undefined
   numericUrl?: string | null
   emptyHint: string
 }): React.JSX.Element {
-  // Prefer the numeric LAN address when present — `.local` names are flaky on some
-  // hosts (IPv6 AAAA while the daemon is IPv4-only).
   const connectUrl =
     numericUrl != null && numericUrl !== '' && numericUrl !== url ? numericUrl : (url ?? null)
 
@@ -88,12 +58,7 @@ function ShareToggleRow({
       </div>
       {envForcedHint != null && <p className="text-xs text-muted-foreground">{envForcedHint}</p>}
       {connectUrl != null && (
-        <div className="flex min-w-0 items-center gap-2">
-          <p className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">
-            {connectUrl}
-          </p>
-          <CopyButton value={connectUrl} label="Copy URL" />
-        </div>
+        <p className="truncate font-mono text-xs text-muted-foreground">{connectUrl}</p>
       )}
       {checked && connectUrl == null && (
         <p className="text-xs text-muted-foreground">{emptyHint}</p>
@@ -102,163 +67,236 @@ function ShareToggleRow({
   )
 }
 
-/**
- * How to reach this daemon from another device: the share URLs (above) plus the one
- * shared token. No pairing codes, no QR — open the URL in a browser or paste URL +
- * token into Settings → Remotes on another Mac.
- */
-function TokenBlock(): React.JSX.Element {
-  const token = useDaemonToken()
-  // Path comes from the daemon (PORCELAIN_HOME / PORCELAIN_DAEMON_TOKEN_FILE) —
-  // never hardcode ~/.porcelain; the dev stack uses ~/.porcelain-dev.
-  const tokenPath = useShareStatus()?.tokenPath
+function PairDevice({ endpoints }: { endpoints: ShareEndpoint[] }): React.JSX.Element {
+  const [label, setLabel] = useState('')
+  const [createdUrl, setCreatedUrl] = useState('')
+  const { issue, isPending } = useIssuePairingLink()
+
   return (
-    <div className="flex flex-col gap-3">
+    <section className="flex flex-col gap-3">
       <div>
-        <h3 className="text-sm font-semibold tracking-tight">Token</h3>
+        <h3 className="text-sm font-semibold tracking-tight">Pair a device</h3>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          One secret for every client. Paste it when a browser asks, or when adding a remote with
-          URL + token.
+          Create a one-time link. It expires in 15 minutes and can be used once.
         </p>
       </div>
-      <div className="flex items-center justify-between gap-3 rounded-md border border-border/60 p-3">
-        <p className="min-w-0 truncate font-mono text-xs text-muted-foreground">
-          {token === '' ? '…' : `${token.slice(0, 8)}…${token.slice(-8)}`}
-        </p>
-        <CopyButton value={token} label="Copy token" />
+      <div className="flex flex-col gap-2 rounded-md border border-border/60 p-3">
+        <Input
+          value={label}
+          onChange={(event) => setLabel(event.target.value)}
+          placeholder="Device name, e.g. My iPhone"
+          maxLength={80}
+          disabled={isPending}
+        />
+        <div className="flex flex-wrap gap-2">
+          {endpoints.map((endpoint) => (
+            <Button
+              key={`${endpoint.label}:${endpoint.url}`}
+              variant="outline"
+              size="sm"
+              className={compactButtonClass}
+              disabled={isPending || label.trim() === ''}
+              onClick={async () => {
+                try {
+                  const result = await issue({ label, baseUrl: endpoint.url })
+                  setCreatedUrl(result.url)
+                  await copyText(result.url)
+                } catch {
+                  // The mutation's shared error handler already explains the failure.
+                }
+              }}
+            >
+              {isPending ? 'Creating…' : `Create ${endpoint.label} link`}
+            </Button>
+          ))}
+        </div>
+        {endpoints.length === 0 && (
+          <p className="text-xs text-muted-foreground">
+            Turn on a reachable network before creating a link.
+          </p>
+        )}
+        {createdUrl !== '' && (
+          <div className="flex min-w-0 items-center gap-2 rounded-md bg-muted/50 p-2">
+            <p className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">
+              {createdUrl}
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className={rowActionClass}
+              onClick={async () => copyText(createdUrl)}
+            >
+              Copy
+            </Button>
+          </div>
+        )}
       </div>
-      {tokenPath != null && tokenPath !== '' && (
-        <p className="text-xs text-muted-foreground">
-          Also stored at <span className="font-mono">{tokenPath}</span>.
-        </p>
-      )}
-    </div>
+    </section>
   )
 }
 
-function ClientsAndRevoke(): React.JSX.Element {
-  const status = useShareStatus()
-  const { rotate, isPending } = useRotateDaemonToken()
-  const [confirming, setConfirming] = useState(false)
-  const clients = status?.clients ?? 0
-  const label =
-    clients === 0
-      ? 'No clients connected'
-      : clients === 1
-        ? '1 client connected'
-        : `${clients} clients connected`
+function AccessList(): React.JSX.Element {
+  const status = useAccessStatus()
+  const pairingRevoke = useRevokePairingLink()
+  const clientRevoke = useRevokeAuthorizedClient()
+  const clients = status?.clients ?? []
+  const pairings = status?.pairings ?? []
 
   return (
-    <div className="flex flex-col gap-3" data-testid={TestIds.shareStatus}>
+    <section className="flex flex-col gap-3" data-testid={TestIds.shareStatus}>
       <div>
         <h3 className="text-sm font-semibold tracking-tight">Access</h3>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Revoke all issues a new token. Connected clients stop until they paste the new one.
+          Each paired device has its own credential. Revoking one leaves every other device alone.
         </p>
       </div>
-      <div className="flex items-center justify-between gap-3 rounded-md border border-border/60 p-3">
-        <p className="text-sm-minus font-medium">{label}</p>
-        <Button
-          variant="outline"
-          size="sm"
-          className={rowActionClass}
-          disabled={isPending}
-          onClick={() => setConfirming(true)}
-          data-testid={TestIds.shareRevokeAll}
-        >
-          Revoke all
-        </Button>
-      </div>
-      <AlertDialog open={confirming} onOpenChange={setConfirming}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Revoke all access?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This issues a new token. Every connected client loses access immediately. This window
-              keeps the new token; other devices need the new token to reconnect.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={() => {
-                rotate()
-                setConfirming(false)
-              }}
+      <div className="divide-y divide-border/60 overflow-hidden rounded-md border border-border/60">
+        {clients.map((client) => (
+          <div key={client.id} className="flex items-center justify-between gap-3 p-3">
+            <div className="min-w-0">
+              <p className="truncate text-sm-minus font-medium">{client.label}</p>
+              <p className="text-xs text-muted-foreground">
+                Paired {new Date(client.createdAt).toLocaleString()}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className={rowActionClass}
+              disabled={clientRevoke.pendingId === client.id}
+              onClick={() => clientRevoke.revoke(client.id)}
             >
-              Revoke all
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
+              Revoke
+            </Button>
+          </div>
+        ))}
+        {pairings.map((pairing) => (
+          <div key={pairing.id} className="flex items-center justify-between gap-3 p-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <p className="truncate text-sm-minus font-medium">{pairing.label}</p>
+                <Badge variant="outline">Pending</Badge>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Expires {new Date(pairing.expiresAt).toLocaleString()}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className={rowActionClass}
+              disabled={pairingRevoke.pendingId === pairing.id}
+              onClick={() => pairingRevoke.revoke(pairing.id)}
+            >
+              Revoke
+            </Button>
+          </div>
+        ))}
+        {clients.length === 0 && pairings.length === 0 && (
+          <p className="p-3 text-xs text-muted-foreground">No paired devices yet.</p>
+        )}
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {status?.connected ?? 0} live {status?.connected === 1 ? 'connection' : 'connections'}.
+        Administration stays on this host.
+      </p>
+    </section>
   )
 }
 
-/**
- * Share this daemon on the LAN / tailnet. Connection = open a share URL + the token.
- * Remotes (machines this app opens windows against) live in the Remotes tab.
- */
 export function ShareSection(): React.JSX.Element {
   const tailnet = useTailnetStatus()
   const { setEnabled: setTailnetEnabled } = useSetTailnetBind()
   const lan = useLanStatus()
   const { setEnabled: setLanEnabled } = useSetLanBind()
+  const funnel = useFunnelStatus()
+  const { setEnabled: setFunnelEnabled, isPending: funnelPending } = useSetFunnelBind()
+
+  const lanUrl =
+    lan?.numericUrl != null && lan.numericUrl !== '' ? lan.numericUrl : (lan?.url ?? null)
+  const endpoints: ShareEndpoint[] = [
+    ...(lanUrl == null ? [] : [{ label: 'local network', url: lanUrl }]),
+    ...(tailnet?.url == null ? [] : [{ label: 'Tailscale', url: tailnet.url }]),
+    ...(funnel?.url == null ? [] : [{ label: 'Internet', url: funnel.url }]),
+  ]
 
   return (
     <div className="flex flex-col gap-8">
       <section className="flex flex-col gap-3">
         <div>
-          {/* Dialog title is already "Share" — this is the network list, not a second title. */}
           <h3 className="text-sm font-semibold tracking-tight">Networks</h3>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Turn one on, copy its URL and the token. That’s all another device needs.
+            Choose where devices can reach this local daemon.
           </p>
         </div>
         <div className="divide-y divide-border/60 overflow-hidden rounded-md border border-border/60">
           <ShareToggleRow
             label="Local network"
-            description="Same Wi‑Fi or LAN. Token-gated; traffic is not encrypted on the wire."
+            description="Same Wi‑Fi or LAN. Traffic is not encrypted on the wire."
             checked={lan?.enabled ?? false}
             disabled={lan?.envForced ?? false}
-            onCheckedChange={(checked) => setLanEnabled(checked)}
+            onCheckedChange={setLanEnabled}
             envForcedHint={
               lan?.envForced === true
-                ? 'Locked on at daemon startup — turn off by unsetting PORCELAIN_LAN_BIND.'
+                ? 'Locked on at daemon startup — change it from the host CLI or service.'
                 : undefined
             }
             url={lan?.url}
             numericUrl={lan?.numericUrl}
             emptyHint={
               lan?.error === 'in-use'
-                ? `Port ${lan.port} is in use — another daemon may still be running.`
+                ? `Port ${lan.port} is in use.`
                 : 'No local network interface found.'
             }
           />
           <ShareToggleRow
             label="Tailscale"
-            description="Other devices on your tailnet. WireGuard-encrypted."
+            description="Private, WireGuard-encrypted access for devices on your tailnet."
             checked={tailnet?.enabled ?? false}
             disabled={tailnet?.envForced ?? false}
-            onCheckedChange={(checked) => setTailnetEnabled(checked)}
+            onCheckedChange={setTailnetEnabled}
             envForcedHint={
               tailnet?.envForced === true
-                ? 'Locked on at daemon startup — turn off by unsetting PORCELAIN_TAILNET_BIND.'
+                ? 'Locked on at daemon startup — change it from the host CLI or service.'
                 : undefined
             }
             url={tailnet?.url}
             emptyHint={
               tailnet?.error === 'in-use'
-                ? `Port ${tailnet.port} is in use — another daemon may still be running.`
+                ? `Port ${tailnet.port} is in use.`
                 : 'No Tailscale interface found.'
+            }
+          />
+          <ShareToggleRow
+            label="Internet"
+            description="Public HTTPS through Tailscale Funnel. Anyone can reach the sign-in surface."
+            checked={funnel?.enabled ?? false}
+            disabled={
+              funnelPending ||
+              funnel?.envForced === true ||
+              (funnel?.enabled === true && funnel.managed === false)
+            }
+            onCheckedChange={setFunnelEnabled}
+            envForcedHint={
+              funnel?.envForced === true
+                ? 'Locked on at daemon startup — change it from the host CLI or service.'
+                : funnel?.error === 'conflict'
+                  ? 'Another Funnel target is already configured; Porcelain left it untouched.'
+                  : funnel?.enabled === true && funnel.managed === false
+                    ? 'This Funnel was not created by Porcelain and cannot be changed here.'
+                    : undefined
+            }
+            url={funnel?.url}
+            emptyHint={
+              funnel?.error === 'unavailable'
+                ? 'Tailscale Funnel is unavailable on this machine.'
+                : 'Funnel is not configured.'
             }
           />
         </div>
       </section>
-
-      <TokenBlock />
-      <ClientsAndRevoke />
+      <PairDevice endpoints={endpoints} />
+      <AccessList />
     </div>
   )
 }

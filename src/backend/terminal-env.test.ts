@@ -14,6 +14,11 @@ describe('terminalEnv', () => {
       PATH: '/usr/bin',
       ELECTRON_RUN_AS_NODE: '1',
       PORCELAIN_DAEMON_TOKEN: 'secret',
+      PORCELAIN_ADMIN_TOKEN: 'admin-secret',
+      PORCELAIN_ADMIN_TOKEN_FILE: '/tmp/admin-token',
+      PORCELAIN_ACCESS_FILE: '/tmp/access.json',
+      PORCELAIN_FUNNEL_BIND: '1',
+      PORCELAIN_FUNNEL_FILE: '/tmp/funnel.json',
       PORCELAIN_DAEMON_PORT: '4242',
       PORCELAIN_USER_DATA: '/tmp/ud',
       PORCELAIN_DEV: '1',
@@ -29,6 +34,11 @@ describe('terminalEnv', () => {
     expect(env.PATH).toBe('/usr/bin')
     expect('ELECTRON_RUN_AS_NODE' in env).toBe(false)
     expect('PORCELAIN_DAEMON_TOKEN' in env).toBe(false)
+    expect('PORCELAIN_ADMIN_TOKEN' in env).toBe(false)
+    expect('PORCELAIN_ADMIN_TOKEN_FILE' in env).toBe(false)
+    expect('PORCELAIN_ACCESS_FILE' in env).toBe(false)
+    expect('PORCELAIN_FUNNEL_BIND' in env).toBe(false)
+    expect('PORCELAIN_FUNNEL_FILE' in env).toBe(false)
     expect('PORCELAIN_DAEMON_PORT' in env).toBe(false)
     expect('PORCELAIN_USER_DATA' in env).toBe(false)
     expect('PORCELAIN_DEV' in env).toBe(false)

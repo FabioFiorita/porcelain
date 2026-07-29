@@ -20,6 +20,6 @@ describe('porcelainHome', () => {
   it('honours PORCELAIN_HOME for the dev stack', () => {
     process.env.PORCELAIN_HOME = '/tmp/porcelain-dev-test'
     expect(porcelainHome()).toBe('/tmp/porcelain-dev-test')
-    expect(porcelainHomePath('daemon-token')).toBe('/tmp/porcelain-dev-test/daemon-token')
+    expect(porcelainHomePath('admin-token')).toBe('/tmp/porcelain-dev-test/admin-token')
   })
 })

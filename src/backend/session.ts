@@ -6,6 +6,7 @@ import {
   clientMessageSchema,
   type ServerMessage,
 } from '../shared/ws-protocol'
+import type { AuthIdentity } from './access-store'
 import { clearWatchedDirs, clearWatchedFiles, setWatchedDirs, setWatchedFiles } from './file-watch'
 import {
   attachTerminal,
@@ -46,8 +47,11 @@ class Session {
   /** The repo this connection is looking at, if it announced one (`session:hello`). */
   repo: string | undefined
 
-  constructor(socket: WebSocket) {
+  readonly identity: AuthIdentity
+
+  constructor(socket: WebSocket, identity: AuthIdentity) {
     this.socket = socket
+    this.identity = identity
     sessions.add(this)
     socket.on('message', (raw) => this.handleMessage(raw.toString()))
     // 'close' always follows 'error'; the empty error listener just keeps an
@@ -81,7 +85,7 @@ class Session {
     return this.socket.readyState !== WebSocket.OPEN
   }
 
-  /** End this connection (token rotated / Revoke all). 'close' fires → dispose() cleans up. */
+  /** End this connection after its credential is revoked. 'close' → dispose() cleans up. */
   close(): void {
     this.socket.close(4001, 'revoked')
   }
@@ -105,7 +109,7 @@ class Session {
     switch (message.t) {
       case 'session:hello':
         // Optional display data (which repo this client is looking at). Identity is the
-        // shared token the upgrade already authenticated — never anything the client says.
+        // credential the upgrade already authenticated — never anything the client says.
         this.repo = message.repo
         break
       case 'terminal:create': {
@@ -170,8 +174,8 @@ class Session {
   }
 }
 
-export function createSession(socket: WebSocket): void {
-  new Session(socket)
+export function createSession(socket: WebSocket, identity: AuthIdentity): void {
+  new Session(socket, identity)
 }
 
 /** How many clients currently hold a live /session socket on this daemon. */
@@ -179,13 +183,27 @@ export function sessionCount(): number {
   return sessions.size
 }
 
-/**
- * Drop every live connection. Used by Revoke all after the shared token rotates: the
- * gate only runs at upgrade time, so an already-upgraded socket would otherwise keep
- * streaming. PTYs live on (daemon-owned) — this ends access, not the work.
- */
+/** How many paired-device sockets are live (the local administrator is excluded). */
+export function clientSessionCount(): number {
+  let count = 0
+  for (const session of sessions) {
+    if (session.identity.kind === 'client') count += 1
+  }
+  return count
+}
+
+/** Drop every live connection. PTYs remain daemon-owned and continue running. */
 export function closeAllSessions(): void {
   for (const session of sessions) session.close()
+}
+
+/** Drop only sockets authenticated by one revoked client credential. */
+export function closeClientSessions(clientId: string): void {
+  for (const session of sessions) {
+    if (session.identity.kind === 'client' && session.identity.clientId === clientId) {
+      session.close()
+    }
+  }
 }
 
 /**

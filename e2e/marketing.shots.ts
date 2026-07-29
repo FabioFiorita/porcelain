@@ -1,5 +1,5 @@
 import { type ChildProcess, spawn } from 'node:child_process'
-import { randomBytes } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -29,7 +29,9 @@ import { byId } from './helpers/locators'
 
 const DAEMON_ENTRY = join(__dirname, '..', 'out', 'main', 'daemon', 'server.js')
 const SHOTS_DIR = join(__dirname, '..', 'marketing', 'shots')
-const DAEMON_TOKEN = randomBytes(16).toString('hex')
+const DAEMON_SECRET = randomBytes(32).toString('hex')
+const DAEMON_TOKEN = `pc_client_marketing_${DAEMON_SECRET}`
+const ADMIN_TOKEN = randomBytes(32).toString('hex')
 
 // Retina-density full window; the Electron window's default size (src/main/window.ts)
 // so the seeded layouts frame the same way the shipped app does.
@@ -198,7 +200,7 @@ async function openShotPage(
     colorScheme: 'dark',
   })
   await context.addInitScript((token) => {
-    localStorage.setItem('porcelain-daemon-token', token)
+    localStorage.setItem('porcelain-client-token', token)
     localStorage.setItem('porcelain-e2e', '1')
   }, DAEMON_TOKEN)
   if (prefs) {
@@ -249,11 +251,29 @@ test('marketing shots — the seeded demo repo across every surface', async () =
     }),
   )
   const channelEnv = await seedDemoChannels(udBase, repoDir)
+  const accessFile = join(udBase, 'access.json')
+  await writeFile(
+    accessFile,
+    JSON.stringify({
+      version: 1,
+      pairings: [],
+      clients: [
+        {
+          id: 'marketing',
+          label: 'Marketing browser',
+          secretHash: createHash('sha256').update(DAEMON_SECRET).digest('hex'),
+          createdAt: '2024-01-01T00:00:00.000Z',
+        },
+      ],
+    }),
+    { mode: 0o600 },
+  )
 
   const env: Record<string, string> = {
     ...channelEnv,
     PORCELAIN_USER_DATA: userData,
-    PORCELAIN_DAEMON_TOKEN: DAEMON_TOKEN,
+    PORCELAIN_ADMIN_TOKEN: ADMIN_TOKEN,
+    PORCELAIN_ACCESS_FILE: accessFile,
     // Pin a fast, config-free shell so the terminal shot is deterministic.
     PORCELAIN_SHELL: '/bin/bash',
     // e2e mode installs the terminal-buffer read hook, so we can wait for output

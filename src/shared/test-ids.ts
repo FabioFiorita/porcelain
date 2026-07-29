@@ -43,9 +43,8 @@ export const TestIds = {
   settingsAppearanceLight: 'settings-appearance-light',
   settingsAppearanceDark: 'settings-appearance-dark',
   settingsAppearanceSystem: 'settings-appearance-system',
-  /** Settings → Share: client count + Revoke all. */
+  /** Settings → Share: authorized and pending devices. */
   shareStatus: 'share-status',
-  shareRevokeAll: 'share-revoke-all',
   /** Settings → Review layers: copy agent setup prompt (shown while starters only). */
   layersCopySetup: 'layers-copy-setup',
   /** Settings → Review layers: starter/unconfigured explainer. */
