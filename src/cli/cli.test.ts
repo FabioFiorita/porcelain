@@ -14,12 +14,10 @@ const boardFile = join(dir, 'board.json')
 const actionsFile = join(dir, 'actions.json')
 const commentsFile = join(dir, 'comments.json')
 const featureViewFile = join(dir, 'feature-view.json')
-const evidenceFile = join(dir, 'evidence.json')
 const scopeFile = join(dir, 'scope.json')
 
 beforeEach(() => {
   process.env.PORCELAIN_REVIEW_SETS = file
-  process.env.PORCELAIN_EVIDENCE = evidenceFile
   process.env.PORCELAIN_NOTES = notesFile
   process.env.PORCELAIN_LAYERS = layersFile
   process.env.PORCELAIN_REVIEWED = reviewedFile
@@ -39,7 +37,6 @@ afterEach(() => {
   delete process.env.PORCELAIN_ACTIONS
   delete process.env.PORCELAIN_COMMENTS
   delete process.env.PORCELAIN_FEATURE_VIEW
-  delete process.env.PORCELAIN_EVIDENCE
   delete process.env.PORCELAIN_LOOP_EVIDENCE_DIR
   delete process.env.PORCELAIN_SCOPE
   rmSync(dir, { recursive: true, force: true })
@@ -332,7 +329,15 @@ describe('runCli — review + feature + comments + reviewed', () => {
   })
   it('reviewed list lists the human-reviewed paths', async () => {
     mkdirSync(dir, { recursive: true })
-    writeFileSync(reviewedFile, JSON.stringify({ '/repo': ['src/a.ts', 'src/b.ts'] }))
+    writeFileSync(
+      reviewedFile,
+      JSON.stringify({
+        '/repo': [
+          { path: 'src/a.ts', fingerprint: 'a' },
+          { path: 'src/b.ts', fingerprint: 'b' },
+        ],
+      }),
+    )
     const text = await runCli(['reviewed', 'list', ...repo])
     expect(text).toContain('src/a.ts')
     expect(text).toContain('src/b.ts')

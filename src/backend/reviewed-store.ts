@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import { loadConfig } from './config-store'
 import { createHomeChannel } from './home-channel'
 
 /**
@@ -19,22 +18,12 @@ import { createHomeChannel } from './home-channel'
  * fingerprint no longer matches the file's current diff hash is pruned (silently
  * un-ticked), so external commits, amends, rebases, and post-mark edits all clear stale
  * ticks with no watcher or commit hook. `gitCommit` still clears committed files' marks
- * as a fast path. Legacy plain-string marks are still accepted on read (as `{ path,
- * fingerprint: '' }`); an empty fingerprint never matches, so a legacy mark prunes on
- * its first reconcile (a one-time silent un-tick, acceptable). Marks lived in
- * userData/config.json (`config.repos[*].reviewedPaths`) until they moved here so the
- * CLI could read them (see migrateReviewedFromConfig).
+ * as a fast path. An empty fingerprint is invalid and always prunes on reconcile.
  */
 const reviewedMarkSchema = z.object({ path: z.string(), fingerprint: z.string() })
 export type ReviewedMark = z.infer<typeof reviewedMarkSchema>
 
-// Accept the current object shape AND legacy plain strings, normalizing a bare string
-// to a fingerprint-less mark (which always reconciles as stale).
-const reviewedEntrySchema = z.union([
-  reviewedMarkSchema,
-  z.string().transform((path): ReviewedMark => ({ path, fingerprint: '' })),
-])
-export const reviewedSchema = z.record(z.string(), z.array(reviewedEntrySchema))
+export const reviewedSchema = z.record(z.string(), z.array(reviewedMarkSchema))
 export type Reviewed = z.infer<typeof reviewedSchema>
 
 const channel = createHomeChannel({
@@ -121,17 +110,16 @@ export async function setReviewedMarks(repoPath: string, marks: ReviewedMark[]):
 /**
  * Pure reconcile: keep a mark when its stored fingerprint still matches the current one
  * for its path. A path ABSENT from `currentFingerprints` means "not fingerprinted this
- * round" — NOT "stale" — so a non-legacy absent mark is kept, never pruned (this is what
- * lets a mark added concurrently, after the snapshot the fingerprints were computed for,
- * survive). A legacy mark (empty stored fingerprint) still always prunes. Reports whether
- * anything was pruned so the caller can skip the write when nothing changed.
+ * round" — NOT "stale" — so an absent mark is kept, never pruned (this is what lets a
+ * mark added concurrently, after the snapshot the fingerprints were computed for,
+ * survive). An empty stored fingerprint always prunes (invalid mark).
  */
 export function reconcileMarks(
   marks: ReviewedMark[],
   currentFingerprints: Map<string, string>,
 ): { marks: ReviewedMark[]; pruned: boolean } {
   const survivors = marks.filter((m) => {
-    if (m.fingerprint === '') return false // legacy mark: always prune
+    if (m.fingerprint === '') return false
     const current = currentFingerprints.get(m.path)
     return current === undefined || current === m.fingerprint // absent = keep, present = match
   })
@@ -149,8 +137,7 @@ export function reconcileMarks(
  *
  * Returns the on-disk paths AFTER reconcile (re-read), not just the snapshot survivors —
  * so a concurrent `markReviewed` that landed while we were fingerprinting is included in
- * the response. Returning only the snapshot used to make the client poll overwrite an
- * optimistic tick with a pre-mark list, and the mark appeared to "un-toggle" a moment later.
+ * the response.
  */
 export async function reconcileReviewed(
   repoPath: string,
@@ -174,26 +161,4 @@ export async function reconcileReviewed(
     })
   }
   return readReviewedPaths(repoPath)
-}
-
-/**
- * One-time migration: reviewed marks used to live in userData/config.json
- * (`config.repos[*].reviewedPaths`). Copy any non-empty legacy marks into reviewed.json
- * so the CLI — which can't resolve userData — can serve them. The legacy strings carry
- * no content fingerprint, so they land as `{ path, fingerprint: '' }` and prune on their
- * first reconcile (a one-time silent un-tick). Idempotent: only fills a repo whose
- * reviewed.json entry is absent, so it no-ops once migrated and never clobbers a newer
- * in-app mark. Runs at startup, before any window reads the marks.
- */
-export async function migrateReviewedFromConfig(): Promise<void> {
-  const config = await loadConfig()
-  const legacy = Object.entries(config.repos).filter(([, repo]) => repo.reviewedPaths?.length)
-  if (legacy.length === 0) return
-  await channel.mutate((all) => {
-    for (const [repoPath, repo] of legacy) {
-      if (all[repoPath] === undefined && repo.reviewedPaths?.length) {
-        all[repoPath] = repo.reviewedPaths.map((path) => ({ path, fingerprint: '' }))
-      }
-    }
-  })
 }

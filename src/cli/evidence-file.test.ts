@@ -32,17 +32,14 @@ describe('validateEvidence', () => {
 describe('evidence directory channel', () => {
   const root = join(tmpdir(), 'porcelain-cli-evidence-test')
   const diskRoot = join(root, 'loop-evidence')
-  const legacy = join(root, 'evidence.json')
 
   beforeEach(() => {
     process.env.PORCELAIN_LOOP_EVIDENCE_DIR = diskRoot
-    process.env.PORCELAIN_EVIDENCE = legacy
     rmSync(root, { recursive: true, force: true })
     mkdirSync(root, { recursive: true })
   })
   afterEach(() => {
     delete process.env.PORCELAIN_LOOP_EVIDENCE_DIR
-    delete process.env.PORCELAIN_EVIDENCE
     rmSync(root, { recursive: true, force: true })
   })
 

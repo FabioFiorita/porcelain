@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import { loadConfig } from './config-store'
 import type { Layer } from './flow'
 import { createHomeChannel } from './home-channel'
 
@@ -14,10 +13,6 @@ import { createHomeChannel } from './home-channel'
  * + in-process-serialized writes; a cross-process race is rare/low-stakes and the
  * watcher re-syncs. Absence of a repo's entry = Porcelain applies DEFAULT_LAYERS
  * (Docs + Agents starters — not a fat framework stack).
- *
- * Layers moved here out of userData/config.json (where they used to live, alongside
- * notes) precisely so the dependency-free CLI can read+write them; see
- * migrateLayersFromConfig.
  */
 const layerSchema = z.object({ label: z.string(), pattern: z.string() })
 export const layersSchema = z.record(z.string(), z.array(layerSchema))
@@ -66,23 +61,5 @@ export async function writeLayers(repoPath: string, layers: Layer[] | null): Pro
   await channel.mutate((all) => {
     if (layers === null) delete all[repoPath]
     else all[repoPath] = layers
-  })
-}
-
-/**
- * One-time migration: layers used to live in userData/config.json
- * (`config.repos[*].layers`). Copy any legacy override into layers.json so the
- * CLI — which can't resolve userData — can read+write it. Idempotent: only fills a
- * repo whose layers.json entry is absent, so it no-ops once migrated and never
- * clobbers a newer in-app edit. Runs at startup, before any window reads layers.
- */
-export async function migrateLayersFromConfig(): Promise<void> {
-  const config = await loadConfig()
-  const legacy = Object.entries(config.repos).filter(([, repo]) => repo.layers?.length)
-  if (legacy.length === 0) return
-  await channel.mutate((all) => {
-    for (const [repoPath, repo] of legacy) {
-      if (all[repoPath] === undefined && repo.layers?.length) all[repoPath] = repo.layers
-    }
   })
 }

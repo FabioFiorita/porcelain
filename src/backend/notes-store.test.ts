@@ -1,13 +1,8 @@
 import { rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { migrateNotesFromConfig, readNotes, writeNotes } from './notes-store'
-
-// config-store imports electron (no real module under vitest), and the migration
-// reads it — mock it so we control the legacy config without booting electron.
-const { loadConfig } = vi.hoisted(() => ({ loadConfig: vi.fn() }))
-vi.mock('./config-store', () => ({ loadConfig }))
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { readNotes, writeNotes } from './notes-store'
 
 const dir = join(tmpdir(), 'porcelain-notes-store-test')
 const file = join(dir, 'notes.json')
@@ -15,7 +10,6 @@ const file = join(dir, 'notes.json')
 beforeEach(() => {
   process.env.PORCELAIN_NOTES = file
   rmSync(dir, { recursive: true, force: true })
-  loadConfig.mockReset()
 })
 afterEach(() => {
   delete process.env.PORCELAIN_NOTES
@@ -42,36 +36,6 @@ describe('notes-store', () => {
   it('drops the entry when notes are cleared to empty', async () => {
     await writeNotes('/repo', 'hi')
     await writeNotes('/repo', '')
-    expect(await readNotes('/repo')).toBe('')
-  })
-})
-
-describe('migrateNotesFromConfig', () => {
-  it('copies legacy config notes into the notes channel', async () => {
-    loadConfig.mockResolvedValue({
-      recentRepos: [],
-      repos: { '/repo': { hiddenPaths: [], pinnedPaths: [], reviewedPaths: [], notes: 'legacy' } },
-    })
-    await migrateNotesFromConfig()
-    expect(await readNotes('/repo')).toBe('legacy')
-  })
-
-  it('never clobbers a newer in-app edit already in the channel', async () => {
-    await writeNotes('/repo', 'new')
-    loadConfig.mockResolvedValue({
-      recentRepos: [],
-      repos: { '/repo': { hiddenPaths: [], pinnedPaths: [], reviewedPaths: [], notes: 'old' } },
-    })
-    await migrateNotesFromConfig()
-    expect(await readNotes('/repo')).toBe('new')
-  })
-
-  it('no-ops when no repo has legacy notes', async () => {
-    loadConfig.mockResolvedValue({
-      recentRepos: [],
-      repos: { '/repo': { hiddenPaths: [], pinnedPaths: [], reviewedPaths: [] } },
-    })
-    await migrateNotesFromConfig()
     expect(await readNotes('/repo')).toBe('')
   })
 })

@@ -290,7 +290,6 @@ export async function seedDemoChannels(
     'reviewed.json': ['PORCELAIN_REVIEWED', {}],
     'notes.json': ['PORCELAIN_NOTES', {}],
     'feature-view.json': ['PORCELAIN_FEATURE_VIEW', {}],
-    'evidence.json': ['PORCELAIN_EVIDENCE', {}],
   }
   const env: Record<string, string> = {}
   for (const [name, [envVar, value]] of Object.entries(files)) {

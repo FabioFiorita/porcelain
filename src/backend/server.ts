@@ -5,11 +5,7 @@ import { ensureCli } from './cli-install'
 import { initConfigDir, loadConfig } from './config-store'
 import { createDaemonHttp } from './daemon-http'
 import { seedDevConfig } from './dev-config'
-import { migrateLayersFromConfig } from './layers-store'
-import { migrateNotesFromConfig } from './notes-store'
 import { watchAgentChannels } from './review-watch'
-import { migrateReviewedFromConfig } from './reviewed-store'
-import { migrateScopeFromConfig } from './scope-store'
 import { broadcastAppEvent, createSession } from './session'
 import { rendererDistExists, serveStatic } from './static-server'
 import { initIfaceHandlers, startLanListener, startTailnetListener } from './tailnet-listener'
@@ -142,14 +138,6 @@ async function main(): Promise<void> {
   // gated on dev (the shell sets PORCELAIN_DEV from `is.dev`) and a no-op once
   // any recent exists.
   if (process.env.PORCELAIN_DEV === '1') await seedDevConfig()
-
-  // Move any legacy notes, flow layers, and reviewed marks out of userData/config.json
-  // into their ~/.porcelain agent channels so the CLI can read (and, for layers, write)
-  // them. One-time + idempotent; runs before any client reads notes/layers/reviewed.
-  await migrateNotesFromConfig()
-  await migrateLayersFromConfig()
-  await migrateReviewedFromConfig()
-  await migrateScopeFromConfig()
 
   // Refresh the bundled CLI agents run (`~/.porcelain/porcelain <noun> <verb>`).
   // Same contract as the Mac shell boot path (`src/main/index.ts`): every daemon

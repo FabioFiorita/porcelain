@@ -57,36 +57,17 @@ export type RemoteEnvironmentState = z.infer<typeof stateSchema>
 /** The resolved daemon pair a window can be pointed at. */
 export type RemoteDaemon = { url: string; token: string }
 
-// The pre-list shape: a single `{ url, token }` override meant "connected to
-// exactly this daemon". Kept only so an existing file migrates forward once.
-const legacySchema = z.object({ url: z.string(), token: z.string() })
-
 const EMPTY_STATE: RemoteEnvironmentState = { activeId: null, environments: [] }
 
 const filePath = (): string => join(app.getPath('userData'), 'remote-daemon.json')
 
 /**
- * Parse persisted JSON into the v2 state. PURE (exported for tests): tries the v2
- * schema first; failing that, migrates a legacy `{ url, token }` override into one
- * ACTIVE environment (preserving today's "a persisted override means connected"
- * behavior); anything else falls back to the empty state.
+ * Parse persisted JSON into the multi-environment state. PURE (exported for tests):
+ * valid v2 state is returned as-is; anything else falls back to the empty state.
  */
 export function parseRemoteEnvironmentState(json: unknown): RemoteEnvironmentState {
   const v2 = stateSchema.safeParse(json)
   if (v2.success) return v2.data
-
-  const legacy = legacySchema.safeParse(json)
-  if (legacy.success) {
-    const { url, token } = legacy.data
-    let name = url
-    try {
-      name = new URL(url).hostname || url
-    } catch {
-      // Not a parseable URL — the raw string is still a fine display name.
-    }
-    return { activeId: 'legacy', environments: [{ id: 'legacy', name, url, token }] }
-  }
-
   return EMPTY_STATE
 }
 

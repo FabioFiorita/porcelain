@@ -187,9 +187,6 @@ async function seedState(
       }),
     )
   }
-  // Legacy empty json so env redirect still isolates any leftover json readers.
-  const evidence = join(udBase, 'evidence.json')
-  await writeFile(evidence, '{}')
   return {
     udBase,
     userData,
@@ -202,7 +199,6 @@ async function seedState(
       PORCELAIN_NOTES: notes,
       PORCELAIN_COMMENTS: comments,
       PORCELAIN_FEATURE_VIEW: featureView,
-      PORCELAIN_EVIDENCE: evidence,
       PORCELAIN_LOOP_EVIDENCE_DIR: evidenceRoot,
       PORCELAIN_DAEMON_TOKEN_FILE: tokenFile,
       // Pins a fast, config-free shell so the terminal tests are deterministic and

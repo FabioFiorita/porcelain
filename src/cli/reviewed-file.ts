@@ -10,9 +10,9 @@ import { porcelainHomePath } from '../shared/porcelain-home'
 // skip malformed entries, never throw.
 //
 // A mark is `{ path, fingerprint }` (the fingerprint content-keys the reviewed diff so
-// the app can prune stale ticks); a legacy mark is a bare path string. We can't run git,
-// so we expose only the path list — the app's reconcile+write-through keeps this file
-// truthful (stale marks are already gone from disk by the time we read).
+// the app can prune stale ticks). We can't run git, so we expose only the path list —
+// the app's reconcile+write-through keeps this file truthful (stale marks are already
+// gone from disk by the time we read).
 
 type Reviewed = Record<string, string[]>
 
@@ -24,9 +24,7 @@ export function reviewedPath(): string {
   return process.env.PORCELAIN_REVIEWED ?? porcelainHomePath('reviewed.json')
 }
 
-// A mark's path from either the object shape or a legacy bare string; null when neither.
 function entryPath(entry: unknown): string | null {
-  if (typeof entry === 'string') return entry
   if (isRecord(entry) && typeof entry.path === 'string') return entry.path
   return null
 }

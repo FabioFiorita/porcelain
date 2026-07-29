@@ -2,13 +2,8 @@ import { rmSync, writeFileSync } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { migrateLayersFromConfig, readLayers, writeLayers } from './layers-store'
-
-// config-store imports electron (no real module under vitest), and the migration
-// reads it — mock it so we control the legacy config without booting electron.
-const { loadConfig } = vi.hoisted(() => ({ loadConfig: vi.fn() }))
-vi.mock('./config-store', () => ({ loadConfig }))
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { readLayers, writeLayers } from './layers-store'
 
 const dir = join(tmpdir(), 'porcelain-layers-store-test')
 const file = join(dir, 'layers.json')
@@ -20,7 +15,6 @@ const layers = [
 beforeEach(() => {
   process.env.PORCELAIN_LAYERS = file
   rmSync(dir, { recursive: true, force: true })
-  loadConfig.mockReset()
 })
 afterEach(() => {
   delete process.env.PORCELAIN_LAYERS
@@ -68,35 +62,6 @@ describe('layers-store', () => {
   it('treats a repo whose layers all drop as having none', async () => {
     await mkdir(dirname(file), { recursive: true })
     writeFileSync(file, JSON.stringify({ '/repo': [{ label: 'Bad', pattern: '(' }] }))
-    expect(await readLayers('/repo')).toBeNull()
-  })
-})
-
-describe('migrateLayersFromConfig', () => {
-  const repo = (extra: object) => ({
-    hiddenPaths: [],
-    pinnedPaths: [],
-    reviewedPaths: [],
-    ...extra,
-  })
-
-  it('copies legacy config layers into the layers channel', async () => {
-    loadConfig.mockResolvedValue({ recentRepos: [], repos: { '/repo': repo({ layers }) } })
-    await migrateLayersFromConfig()
-    expect(await readLayers('/repo')).toEqual(layers)
-  })
-
-  it('never clobbers a newer in-app edit already in the channel', async () => {
-    const current = [{ label: 'New', pattern: '(^|/)new/' }]
-    await writeLayers('/repo', current)
-    loadConfig.mockResolvedValue({ recentRepos: [], repos: { '/repo': repo({ layers }) } })
-    await migrateLayersFromConfig()
-    expect(await readLayers('/repo')).toEqual(current)
-  })
-
-  it('no-ops when no repo has legacy layers', async () => {
-    loadConfig.mockResolvedValue({ recentRepos: [], repos: { '/repo': repo({}) } })
-    await migrateLayersFromConfig()
     expect(await readLayers('/repo')).toBeNull()
   })
 })

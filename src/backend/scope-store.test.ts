@@ -1,11 +1,10 @@
 import { rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   hiddenPathsForRepo,
   hidePath,
-  migrateScopeFromConfig,
   pinnedPathsForRepo,
   pinPath,
   readRepoScope,
@@ -14,16 +13,12 @@ import {
   unpinPath,
 } from './scope-store'
 
-const { loadConfig } = vi.hoisted(() => ({ loadConfig: vi.fn() }))
-vi.mock('./config-store', () => ({ loadConfig }))
-
 const dir = join(tmpdir(), 'porcelain-scope-store-test')
 const file = join(dir, 'scope.json')
 
 beforeEach(() => {
   process.env.PORCELAIN_SCOPE = file
   rmSync(dir, { recursive: true, force: true })
-  loadConfig.mockReset()
 })
 afterEach(() => {
   delete process.env.PORCELAIN_SCOPE
@@ -66,39 +61,5 @@ describe('scope-store mutations', () => {
     await pinPath('/b', 'y')
     expect((await readRepoScope('/a')).hiddenPaths).toEqual(['/a/x'])
     expect((await readRepoScope('/b')).pinnedPaths).toEqual(['/b/y'])
-  })
-})
-
-describe('migrateScopeFromConfig', () => {
-  it('copies legacy hidden/pinned into the channel', async () => {
-    loadConfig.mockResolvedValue({
-      recentRepos: [],
-      repos: {
-        '/repo': {
-          hiddenPaths: ['/repo/legacy'],
-          pinnedPaths: ['/repo/web'],
-        },
-      },
-    })
-    await migrateScopeFromConfig()
-    expect(await hiddenPathsForRepo('/repo')).toEqual(new Set(['/repo/legacy']))
-    expect(await pinnedPathsForRepo('/repo')).toEqual(['/repo/web'])
-  })
-
-  it('does not clobber existing channel lists with empty legacy merge of same side', async () => {
-    await hidePath('/repo', 'keep-me')
-    loadConfig.mockResolvedValue({
-      recentRepos: [],
-      repos: {
-        '/repo': {
-          hiddenPaths: ['/repo/old'],
-          pinnedPaths: ['/repo/pin'],
-        },
-      },
-    })
-    await migrateScopeFromConfig()
-    // hidden already present → keep channel; pinned was empty → fill from legacy
-    expect(await hiddenPathsForRepo('/repo')).toEqual(new Set(['/repo/keep-me']))
-    expect(await pinnedPathsForRepo('/repo')).toEqual(['/repo/pin'])
   })
 })

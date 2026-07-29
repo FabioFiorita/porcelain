@@ -61,14 +61,14 @@ describe('actions-store CRUD', () => {
     expect((await readActions('/repo'))[0]?.where).toBeUndefined()
   })
 
-  it('still reads legacy cwd from older files', async () => {
+  it('strips unknown fields (e.g. retired cwd) on read', async () => {
     mkdirSync(dir, { recursive: true })
     writeFileSync(
       file,
       JSON.stringify({
         '/repo': [
           {
-            id: 'legacy',
+            id: 'x',
             title: 'Dev',
             command: 'pnpm dev',
             cwd: 'apps/web',
@@ -78,7 +78,9 @@ describe('actions-store CRUD', () => {
         ],
       }),
     )
-    expect((await readActions('/repo'))[0]?.cwd).toBe('apps/web')
+    const action = (await readActions('/repo'))[0]
+    expect(action?.title).toBe('Dev')
+    expect(action).not.toHaveProperty('cwd')
   })
 
   it('deletes an action', async () => {

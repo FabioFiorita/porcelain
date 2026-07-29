@@ -6,10 +6,8 @@ import {
   MAX_CHECK_LABEL,
   MAX_CHECKS,
 } from '../shared/evidence-check'
-import { porcelainHomePath } from '../shared/porcelain-home'
 import { inlineLocalAssets } from './evidence-assets'
 import { evidenceDirForRepo, evidenceIndexPath, evidenceMetaPath } from './evidence-paths'
-import { createHomeChannel } from './home-channel'
 
 // Structured checks live in the node-free `../shared/evidence-check` leaf so the
 // renderer can import the shape + `evidenceOverallStatus` without pulling this
@@ -30,9 +28,8 @@ export {
  *
  * Agents write those files with normal Write tools (no CLI payload). The app
  * reads the directory, inlines relative images for the sandboxed HTML viewer, and
- * clears by deleting the directory. Legacy `evidence.json` (HTML embedded by the
- * older `evidence set`) is still read as a fallback. Excalidraw is **not** an
- * evidence medium (use Intent freeform canvas via `review set-canvas` instead).
+ * clears by deleting the directory. Excalidraw is **not** an evidence medium
+ * (use Intent freeform canvas via `review set-canvas` instead).
  *
  * See `evidence-paths.ts` for layout; `src/cli/evidence-file.ts` for the CLI
  * prepare/write side.
@@ -49,13 +46,6 @@ export {
  * (CLI `evidence get` warns against the same ceiling).
  */
 export const MAX_HTML_BYTES = 4_194_304
-
-const evidenceSchema = z.object({
-  title: z.string(),
-  html: z.string(),
-  updatedAt: z.string(),
-})
-const evidencesSchema = z.record(z.string(), evidenceSchema)
 
 const checkSchema = z.object({
   label: z.string().min(1).max(MAX_CHECK_LABEL),
@@ -111,19 +101,8 @@ export type EvidenceMeta = {
   medium: EvidenceMedium
 }
 
-/** Legacy channel (HTML embedded in JSON) — fallback + clear of old entries. */
-export function evidencePath(): string {
-  return process.env.PORCELAIN_EVIDENCE ?? porcelainHomePath('evidence.json')
-}
-
 // Re-export path helpers so callers (review-watch, e2e) use one place.
 export { evidenceDirForRepo, evidenceIndexPath, loopEvidenceRoot } from './evidence-paths'
-
-const channel = createHomeChannel({
-  path: evidencePath,
-  schema: evidencesSchema,
-  empty: (): z.infer<typeof evidencesSchema> => ({}),
-})
 
 async function readDiskMeta(repoPath: string): Promise<z.infer<typeof metaSchema> | null> {
   try {
@@ -167,66 +146,41 @@ function tooLarge(bytes: number): EvidenceHtmlUnavailable {
 }
 
 /**
- * Prefer on-disk index.html; else legacy evidence.json. Oversized bodies keep
- * title/checks and surface `htmlUnavailable` (never silent null — that looked
- * like "cleared"). Malformed / empty index → null. A scene-only dir (old
- * Excalidraw evidence) is not treated as evidence — rewrite as HTML.
+ * Prefer on-disk index.html. Oversized bodies keep title/checks and surface
+ * `htmlUnavailable` (never silent null — that looked like "cleared"). Malformed
+ * / empty index → null. A scene-only dir (old Excalidraw evidence) is not treated
+ * as evidence — rewrite as HTML.
  */
 export async function readEvidence(repoPath: string): Promise<Evidence | null> {
   const dir = evidenceDirForRepo(repoPath)
   const indexPath = evidenceIndexPath(repoPath)
+  if (!(await fileExists(indexPath))) return null
+
   const meta = await readDiskMeta(repoPath)
   const checks = meta?.checks ?? []
   const title = meta?.title?.trim() || 'Evidence'
 
-  if (await fileExists(indexPath)) {
-    try {
-      const raw = await readFile(indexPath, 'utf8')
-      if (raw.length === 0) return null
-      const updatedAt = await resolveUpdatedAt(indexPath, meta)
-      const base = {
-        title,
-        updatedAt,
-        dir,
-        checks,
-        medium: 'html' as const,
-      }
-      const rawBytes = Buffer.byteLength(raw, 'utf8')
-      if (rawBytes > MAX_HTML_BYTES) {
-        return { ...base, htmlUnavailable: tooLarge(rawBytes) }
-      }
-      const html = await inlineLocalAssets(dir, raw)
-      const inlinedBytes = Buffer.byteLength(html, 'utf8')
-      if (inlinedBytes > MAX_HTML_BYTES) {
-        return { ...base, htmlUnavailable: tooLarge(inlinedBytes) }
-      }
-      return { ...base, html }
-    } catch {
-      return null
-    }
-  }
-
   try {
-    const all = evidencesSchema.parse(JSON.parse(await readFile(evidencePath(), 'utf8')))
-    const evidence = all[repoPath]
-    if (!evidence) return null
-    const htmlBytes = Buffer.byteLength(evidence.html, 'utf8')
-    if (htmlBytes > MAX_HTML_BYTES) {
-      return {
-        title: evidence.title,
-        updatedAt: evidence.updatedAt,
-        checks: [],
-        medium: 'html',
-        htmlUnavailable: tooLarge(htmlBytes),
-      }
+    const raw = await readFile(indexPath, 'utf8')
+    if (raw.length === 0) return null
+    const updatedAt = await resolveUpdatedAt(indexPath, meta)
+    const base = {
+      title,
+      updatedAt,
+      dir,
+      checks,
+      medium: 'html' as const,
     }
-    return {
-      title: evidence.title,
-      html: evidence.html,
-      updatedAt: evidence.updatedAt,
-      checks: [],
-      medium: 'html',
+    const rawBytes = Buffer.byteLength(raw, 'utf8')
+    if (rawBytes > MAX_HTML_BYTES) {
+      return { ...base, htmlUnavailable: tooLarge(rawBytes) }
     }
+    const html = await inlineLocalAssets(dir, raw)
+    const inlinedBytes = Buffer.byteLength(html, 'utf8')
+    if (inlinedBytes > MAX_HTML_BYTES) {
+      return { ...base, htmlUnavailable: tooLarge(inlinedBytes) }
+    }
+    return { ...base, html }
   } catch {
     return null
   }
@@ -235,42 +189,22 @@ export async function readEvidence(repoPath: string): Promise<Evidence | null> {
 /** Metadata only, for the Feature list opener (no HTML payload). */
 export async function readEvidenceMeta(repoPath: string): Promise<EvidenceMeta | null> {
   const indexPath = evidenceIndexPath(repoPath)
-  const hasIndex = await fileExists(indexPath)
+  if (!(await fileExists(indexPath))) return null
 
-  if (hasIndex) {
-    const meta = await readDiskMeta(repoPath)
-    return {
-      title: meta?.title?.trim() || 'Evidence',
-      updatedAt: await resolveUpdatedAt(indexPath, meta),
-      dir: evidenceDirForRepo(repoPath),
-      checks: meta?.checks ?? [],
-      medium: 'html',
-    }
-  }
-
-  // Legacy JSON channel.
-  try {
-    const all = evidencesSchema.parse(JSON.parse(await readFile(evidencePath(), 'utf8')))
-    const evidence = all[repoPath]
-    if (!evidence) return null
-    return {
-      title: evidence.title,
-      updatedAt: evidence.updatedAt,
-      checks: [],
-      medium: 'html',
-    }
-  } catch {
-    return null
+  const meta = await readDiskMeta(repoPath)
+  return {
+    title: meta?.title?.trim() || 'Evidence',
+    updatedAt: await resolveUpdatedAt(indexPath, meta),
+    dir: evidenceDirForRepo(repoPath),
+    checks: meta?.checks ?? [],
+    medium: 'html',
   }
 }
 
 /**
- * Remove a repo's loop evidence: delete the on-disk directory and any legacy
- * evidence.json entry. Atomic enough for the UI (watcher + poll refresh).
+ * Remove a repo's loop evidence by deleting the on-disk directory.
+ * Atomic enough for the UI (watcher + poll refresh).
  */
 export async function clearEvidence(repoPath: string): Promise<void> {
   await rm(evidenceDirForRepo(repoPath), { recursive: true, force: true }).catch(() => {})
-  await channel.mutate((all) => {
-    if (repoPath in all) delete all[repoPath]
-  })
 }

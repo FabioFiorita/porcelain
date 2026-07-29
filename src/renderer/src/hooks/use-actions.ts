@@ -67,12 +67,6 @@ export function useActionMutations(): {
   }
 }
 
-/** Resolve a legacy action cwd against the repo root (relative ⇒ joined). */
-function resolveCwd(repoPath: string, cwd: string | undefined): string {
-  if (!cwd) return repoPath
-  return cwd.startsWith('/') ? cwd : `${repoPath}/${cwd}`
-}
-
 export type RunActionResult = 'ran' | 'needs-local-path'
 
 /**
@@ -82,7 +76,7 @@ export type RunActionResult = 'ran' | 'needs-local-path'
  *
  * `where: local` runs on This device (mapped local path). When that map is missing,
  * returns `needs-local-path` so the caller can open the path dialog and retry with
- * `localPath` set. Legacy `cwd` is still honored for primary actions only.
+ * `localPath` set. Primary actions always use the open repo root as cwd.
  */
 export function useRunAction(): (
   action: Action,
@@ -103,7 +97,7 @@ export function useRunAction(): (
       return 'ran'
     }
     const id = await createTerminal({
-      cwd: resolveCwd(repo.path, action.cwd),
+      cwd: repo.path,
       name: action.title,
       initialInput: action.command,
     })

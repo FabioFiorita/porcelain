@@ -18,8 +18,8 @@ import { createHomeChannel } from './home-channel'
  * stores definitions.
  *
  * `where` picks the machine: `primary` (default) = the daemon this window is bound to;
- * `local` = This device (the machine running the app) when the window is remote. Legacy
- * `cwd` is still read for old files but is no longer written by the app or CLI.
+ * `local` = This device (the machine running the app) when the window is remote.
+ * Commands always run with the repo root (or mapped local path) as cwd.
  */
 export const actionWhereSchema = z.enum(['primary', 'local'])
 export type ActionWhere = z.infer<typeof actionWhereSchema>
@@ -33,11 +33,6 @@ export const actionSchema = z.object({
    * `local` only applies when the window is remote-bound (Electron); otherwise ignored.
    */
   where: actionWhereSchema.optional(),
-  /**
-   * @deprecated Prefer repo root + `where`. Still honored on run for older actions.json
-   * entries; the UI and CLI no longer write it.
-   */
-  cwd: z.string().optional(),
   /** Sort key; set on create so newer actions land at the end. */
   order: z.number().default(0),
   createdAt: z.number().default(0),

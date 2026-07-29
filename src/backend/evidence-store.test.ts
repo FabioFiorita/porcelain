@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   clearEvidence,
@@ -14,7 +14,6 @@ import {
 } from './evidence-store'
 
 const root = join(tmpdir(), 'porcelain-evidence-store-test')
-const legacyFile = join(root, 'evidence.json')
 const diskRoot = join(root, 'loop-evidence')
 
 const keyFor = (repo: string): string =>
@@ -39,13 +38,11 @@ const writeDisk = (repo: string, title: string, html: string, checks?: unknown):
 }
 
 beforeEach(() => {
-  process.env.PORCELAIN_EVIDENCE = legacyFile
   process.env.PORCELAIN_LOOP_EVIDENCE_DIR = diskRoot
   rmSync(root, { recursive: true, force: true })
   mkdirSync(root, { recursive: true })
 })
 afterEach(() => {
-  delete process.env.PORCELAIN_EVIDENCE
   delete process.env.PORCELAIN_LOOP_EVIDENCE_DIR
   rmSync(root, { recursive: true, force: true })
 })
@@ -114,20 +111,6 @@ describe('readEvidence (disk-first)', () => {
 
   it('returns null when there is no index.html', async () => {
     expect(await readEvidence('/repo')).toBeNull()
-  })
-
-  it('falls back to legacy evidence.json', async () => {
-    mkdirSync(dirname(legacyFile), { recursive: true })
-    writeFileSync(
-      legacyFile,
-      JSON.stringify({
-        '/repo': { title: 'Legacy', html: '<p>old</p>', updatedAt: '2026-01-01T00:00:00Z' },
-      }),
-    )
-    expect(await readEvidence('/repo')).toMatchObject({
-      title: 'Legacy',
-      html: '<p>old</p>',
-    })
   })
 
   it('surfaces htmlUnavailable when index.html alone exceeds the cap (not null)', async () => {
@@ -209,20 +192,6 @@ describe('clearEvidence', () => {
     await clearEvidence('/repo')
     expect(await readEvidence('/repo')).toBeNull()
     expect(() => readFileSync(join(dir, 'index.html'))).toThrow()
-  })
-
-  it('also clears a legacy json entry', async () => {
-    writeFileSync(
-      legacyFile,
-      JSON.stringify({
-        '/repo': { title: 'A', html: '<p>a</p>', updatedAt: '' },
-        '/other': { title: 'B', html: '<p>b</p>', updatedAt: '' },
-      }),
-    )
-    await clearEvidence('/repo')
-    const all = JSON.parse(readFileSync(legacyFile, 'utf8')) as Record<string, unknown>
-    expect(all['/repo']).toBeUndefined()
-    expect(all['/other']).toBeDefined()
   })
 
   it('is a no-op when nothing exists', async () => {

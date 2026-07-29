@@ -103,14 +103,18 @@ export const usePreferencesStore = create<PreferencesState>()(
         if (!state) return
         state.setSidebarWidth(state.sidebarWidth)
         state.setRightSidebarWidth(state.rightSidebarWidth)
-        // The Agent and Relay rail tabs are gone (agents run in your own terminal now;
-        // the chat relay was retired), but the stored JSON is untyped — narrowing
-        // `SidebarTab` does nothing at runtime, so a device that last had one of them
-        // open would boot into a tab that renders nothing. Read it as a plain string
-        // (the narrowed union can no longer be compared to either) and send it home
-        // to Files.
-        const storedTab: string = state.sidebarTab
-        if (storedTab === 'agent' || storedTab === 'chat') state.setSidebarTab('files')
+        // Persisted JSON is untyped — an unknown/retired sidebarTab id would leave the
+        // left panel blank. Fall back to Files when the value is not a live tab.
+        const known: readonly string[] = [
+          'files',
+          'changes',
+          'history',
+          'feature',
+          'board',
+          'terminal',
+          'search',
+        ]
+        if (!known.includes(state.sidebarTab)) state.setSidebarTab('files')
       },
     },
   ),

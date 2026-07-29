@@ -3,7 +3,7 @@ import { z } from 'zod'
 // Plain `z.object` (never `.strict()`): this schema parses a config file written by older
 // builds, and home-channel treats a parse failure as corruption — it renames the file aside
 // and starts from empty. Stripping unknown keys is what lets a dropped field disappear
-// without taking the user's recents (and legacy hidden/pinned until scope migration).
+// without taking the user's recents the first time they open a build that dropped a key.
 export const appConfigSchema = z.object({
   recentRepos: z.array(z.string()).default([]),
   // Global (not per-repo): when true the daemon additionally listens on the
@@ -15,33 +15,11 @@ export const appConfigSchema = z.object({
   // devices on the home LAN can reach it, gated on the same token. Cleartext on
   // the LAN — opt-in, default off (see the audit skill). Toggled from Settings.
   lanBind: z.boolean().optional(),
-  repos: z
-    .record(
-      z.string(),
-      z.object({
-        hiddenPaths: z.array(z.string()).default([]),
-        pinnedPaths: z.array(z.string()).default([]),
-        // Deprecated: reviewed / layers / notes / hide+pin moved to ~/.porcelain agent
-        // channels so the porcelain CLI can read them. Kept optional (or still present for
-        // hide/pin defaults) so one-time migrations can copy legacy values out —
-        // migrateReviewedFromConfig / migrateLayersFromConfig / migrateNotesFromConfig /
-        // migrateScopeFromConfig. App hide/pin writes go to scope-store only.
-        reviewedPaths: z.array(z.string()).optional(),
-        layers: z.array(z.object({ label: z.string(), pattern: z.string() })).optional(),
-        notes: z.string().optional(),
-      }),
-    )
-    .default({}),
 })
 
 export type AppConfig = z.infer<typeof appConfigSchema>
 
-export const emptyConfig: AppConfig = { recentRepos: [], repos: {} }
-
-const emptyRepo = (): AppConfig['repos'][string] => ({
-  hiddenPaths: [],
-  pinnedPaths: [],
-})
+export const emptyConfig: AppConfig = { recentRepos: [] }
 
 const MAX_RECENTS = 10
 
@@ -59,38 +37,11 @@ export function withoutRecentRepo(config: AppConfig, repoPath: string): AppConfi
   return { ...config, recentRepos: config.recentRepos.filter((p) => p !== repoPath) }
 }
 
-export function withHiddenPath(config: AppConfig, repoPath: string, path: string): AppConfig {
-  const repo = config.repos[repoPath] ?? emptyRepo()
-  if (repo.hiddenPaths.includes(path)) return config
-  return {
-    ...config,
-    repos: {
-      ...config.repos,
-      [repoPath]: { ...repo, hiddenPaths: [...repo.hiddenPaths, path] },
-    },
-  }
-}
-
-export function withoutHiddenPath(config: AppConfig, repoPath: string, path: string): AppConfig {
-  const repo = config.repos[repoPath]
-  if (!repo) return config
-  return {
-    ...config,
-    repos: {
-      ...config.repos,
-      [repoPath]: { ...repo, hiddenPaths: repo.hiddenPaths.filter((p) => p !== path) },
-    },
-  }
-}
-
-export function hiddenPathsFor(config: AppConfig, repoPath: string): Set<string> {
-  return new Set(config.repos[repoPath]?.hiddenPaths ?? [])
-}
-
 /**
  * Repo-relative file paths with hidden entries removed. Hidden paths may be
  * absolute (under repoPath) or already repo-relative; a hidden directory hides
  * its whole subtree but never a sibling that merely shares a name prefix.
+ * Used with the scope channel (`scope-store`), not config.json.
  */
 export function visibleFilePaths(
   repoPath: string,
@@ -105,32 +56,4 @@ export function visibleFilePaths(
     }
     return true
   })
-}
-
-export function withPinnedPath(config: AppConfig, repoPath: string, path: string): AppConfig {
-  const repo = config.repos[repoPath] ?? emptyRepo()
-  if (repo.pinnedPaths.includes(path)) return config
-  return {
-    ...config,
-    repos: {
-      ...config.repos,
-      [repoPath]: { ...repo, pinnedPaths: [...repo.pinnedPaths, path] },
-    },
-  }
-}
-
-export function withoutPinnedPath(config: AppConfig, repoPath: string, path: string): AppConfig {
-  const repo = config.repos[repoPath]
-  if (!repo) return config
-  return {
-    ...config,
-    repos: {
-      ...config.repos,
-      [repoPath]: { ...repo, pinnedPaths: repo.pinnedPaths.filter((p) => p !== path) },
-    },
-  }
-}
-
-export function pinnedPathsFor(config: AppConfig, repoPath: string): string[] {
-  return config.repos[repoPath]?.pinnedPaths ?? []
 }

@@ -22,34 +22,34 @@ function seed(reviewed: Record<string, unknown>): void {
 }
 
 describe('reviewed-file', () => {
-  it('reads a repo-keyed list of paths', () => {
-    seed({ '/repo': ['src/a.ts', 'src/b.ts'] })
-    expect(readReviewed('/repo')).toEqual(['src/a.ts', 'src/b.ts'])
-  })
-
   it('reads the fingerprinted object shape, exposing only the path', () => {
     seed({
       '/repo': [
         { path: 'src/a.ts', fingerprint: 'abc' },
-        { path: 'src/b.ts', fingerprint: '' },
+        { path: 'src/b.ts', fingerprint: 'def' },
       ],
     })
     expect(readReviewed('/repo')).toEqual(['src/a.ts', 'src/b.ts'])
   })
 
-  it('reads a mix of legacy string and object marks', () => {
-    seed({ '/repo': ['legacy.ts', { path: 'src/a.ts', fingerprint: 'abc' }] })
-    expect(readReviewed('/repo')).toEqual(['legacy.ts', 'src/a.ts'])
-  })
-
   it('returns an empty list when the file or repo entry is absent', () => {
     expect(readReviewed('/repo')).toEqual([])
-    seed({ '/other': ['x.ts'] })
+    seed({ '/other': [{ path: 'x.ts', fingerprint: 'x' }] })
     expect(readReviewed('/repo')).toEqual([])
   })
 
   it('skips malformed entries and non-array values rather than throwing', () => {
-    seed({ '/repo': ['ok.ts', 42, null, {}, { fingerprint: 'x' }], '/bad': 'nope' })
+    seed({
+      '/repo': [
+        { path: 'ok.ts', fingerprint: 'a' },
+        42,
+        null,
+        {},
+        { fingerprint: 'x' },
+        'bare-string',
+      ],
+      '/bad': 'nope',
+    })
     expect(readReviewed('/repo')).toEqual(['ok.ts'])
     expect(readReviewed('/bad')).toEqual([])
   })

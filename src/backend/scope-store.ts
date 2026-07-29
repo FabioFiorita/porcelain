@@ -1,6 +1,5 @@
 import { join } from 'node:path'
 import { z } from 'zod'
-import { loadConfig } from './config-store'
 import { createHomeChannel } from './home-channel'
 
 /**
@@ -11,9 +10,8 @@ import { createHomeChannel } from './home-channel'
  * (tree Hide/Pin) and the porcelain CLI (`scope hide|unhide|pin|unpin|list`) both
  * author; atomic tmp+rename writes; the watcher emits `scope` so the tree refreshes.
  *
- * Paths are stored absolute (matching the pre-channel config.json shape). The CLI
- * accepts repo-relative paths and joins them to the repo root before writing.
- * Migrated out of userData/config.json via migrateScopeFromConfig.
+ * Paths are stored absolute. The CLI accepts repo-relative paths and joins them to
+ * the repo root before writing.
  */
 const repoScopeSchema = z.object({
   hiddenPaths: z.array(z.string()).default([]),
@@ -53,7 +51,7 @@ export function resolveScopePath(repoPath: string, path: string): string {
   const trimmed = path.trim()
   if (trimmed === '') throw new Error('path must be non-empty')
   if (trimmed.startsWith(`${repoPath}/`) || trimmed === repoPath) return trimmed
-  // Absolute but outside repo — still store as given (legacy config could); prefer join for relative.
+  // Absolute path outside the repo — store as given; relative paths join under the repo.
   if (trimmed.startsWith('/')) return trimmed
   return join(repoPath, trimmed)
 }
@@ -96,35 +94,6 @@ export async function unpinPath(repoPath: string, path: string): Promise<void> {
     all[repoPath] = {
       ...repo,
       pinnedPaths: repo.pinnedPaths.filter((p) => p !== absolute),
-    }
-  })
-}
-
-/**
- * One-time migration: hidden/pinned used to live only in userData/config.json.
- * Copy into scope.json so the CLI can manage them. Idempotent: only fills a repo
- * whose scope entry is absent (or empty of both lists).
- */
-export async function migrateScopeFromConfig(): Promise<void> {
-  const config = await loadConfig()
-  const legacy = Object.entries(config.repos).filter(
-    ([, repo]) => repo.hiddenPaths.length > 0 || repo.pinnedPaths.length > 0,
-  )
-  if (legacy.length === 0) return
-  await channel.mutate((all) => {
-    for (const [repoPath, repo] of legacy) {
-      const existing = all[repoPath]
-      if (existing !== undefined) {
-        // Merge missing sides only when the channel entry exists but is partial.
-        const hidden = existing.hiddenPaths.length > 0 ? existing.hiddenPaths : repo.hiddenPaths
-        const pinned = existing.pinnedPaths.length > 0 ? existing.pinnedPaths : repo.pinnedPaths
-        all[repoPath] = { hiddenPaths: hidden, pinnedPaths: pinned }
-        continue
-      }
-      all[repoPath] = {
-        hiddenPaths: [...repo.hiddenPaths],
-        pinnedPaths: [...repo.pinnedPaths],
-      }
     }
   })
 }

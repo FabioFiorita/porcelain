@@ -17,11 +17,6 @@ export interface Action {
   command: string
   /** Which machine runs the command. Omitted ⇒ primary (this window's daemon). */
   where?: ActionWhere
-  /**
-   * @deprecated Prefer repo root + `where`. Still listed when present on older files;
-   * the CLI no longer writes it.
-   */
-  cwd?: string
   order: number
   createdAt: number
 }
@@ -62,7 +57,6 @@ function parseActions(value: unknown): Action[] {
     }
     const where = parseWhere(item.where)
     if (where !== undefined && where !== 'primary') action.where = where
-    if (typeof item.cwd === 'string') action.cwd = item.cwd
     actions.push(action)
   }
   return actions
@@ -144,8 +138,7 @@ export function describeActions(repoPath: string, actions: Action[]): string {
   const lines: string[] = [`Saved actions for ${repoPath} (${actions.length}):`]
   for (const action of actions) {
     const where = action.where === 'local' ? '  (where: local / this device)' : ''
-    const legacyCwd = action.cwd ? `  (cwd: ${action.cwd})` : ''
-    lines.push(`- [${action.id}] ${action.title}\n    $ ${action.command}${where}${legacyCwd}`)
+    lines.push(`- [${action.id}] ${action.title}\n    $ ${action.command}${where}`)
   }
   return lines.join('\n')
 }

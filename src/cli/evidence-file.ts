@@ -134,11 +134,6 @@ export function evidenceDirForRepo(repoPath: string): string {
   return join(loopEvidenceRoot(), repoEvidenceKey(repoPath))
 }
 
-/** Legacy JSON channel path (read fallback only; new writes go to the directory). */
-export function evidencePath(): string {
-  return process.env.PORCELAIN_EVIDENCE ?? porcelainHomePath('evidence.json')
-}
-
 export function validateEvidence(title: unknown, html: unknown): { title: string; html: string } {
   if (typeof title !== 'string' || title.trim().length === 0) {
     throw new Error('title must be a non-empty string')
@@ -263,18 +258,6 @@ export function setEvidence(repoPath: string, title: unknown, html: unknown): Ev
 
 export function clearEvidence(repoPath: string): void {
   rmSync(evidenceDirForRepo(repoPath), { recursive: true, force: true })
-  // Also drop a legacy evidence.json entry if present.
-  try {
-    const path = evidencePath()
-    const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'))
-    if (!isRecord(parsed) || !(repoPath in parsed)) return
-    delete parsed[repoPath]
-    const tmp = `${path}.tmp`
-    writeFileSync(tmp, JSON.stringify(parsed, null, 2))
-    renameSync(tmp, path)
-  } catch {
-    // no legacy file
-  }
 }
 
 export function getEvidence(repoPath: string): Evidence | null {
@@ -297,23 +280,6 @@ export function getEvidence(repoPath: string): Evidence | null {
       }
     }
     return { title, html, updatedAt, dir }
-  } catch {
-    // fall through to legacy
-  }
-
-  try {
-    const parsed: unknown = JSON.parse(readFileSync(evidencePath(), 'utf8'))
-    if (!isRecord(parsed)) return null
-    const value = parsed[repoPath]
-    if (!isRecord(value)) return null
-    const { title, html, updatedAt } = value
-    if (typeof title !== 'string' || typeof html !== 'string') return null
-    return {
-      title,
-      html,
-      updatedAt: typeof updatedAt === 'string' ? updatedAt : '',
-      dir,
-    }
   } catch {
     return null
   }
@@ -352,23 +318,12 @@ export function describeEvidence(repoPath: string, evidence: Evidence | null): s
   const bytes = Buffer.byteLength(evidence.html, 'utf8')
   const when = evidence.updatedAt ? ` (updated ${evidence.updatedAt})` : ''
   const preview = `\nPreview: ${htmlPreview(evidence.html)}`
-  const hasIndex = (() => {
-    try {
-      statSync(join(dir, 'index.html'))
-      return true
-    } catch {
-      return false
-    }
-  })()
-  const estimated = hasIndex ? estimateInlinedBytes(dir, evidence.html) : bytes
+  const estimated = estimateInlinedBytes(dir, evidence.html)
   const sizeNote =
     estimated > READ_MAX_HTML_BYTES
       ? `\nWARNING: estimated inlined size ~${formatMb(estimated)} exceeds the viewer cap (${formatMb(READ_MAX_HTML_BYTES)}). Porcelain will show "Evidence too large" instead of the HTML body — shrink screenshots (e.g. JPEG ~540px) and rewrite index.html.`
       : bytes > READ_MAX_HTML_BYTES
         ? `\nWARNING: index.html is ${formatMb(bytes)} over the viewer cap (${formatMb(READ_MAX_HTML_BYTES)}). Porcelain will show "Evidence too large" — shrink the document.`
         : ''
-  if (hasIndex) {
-    return `Evidence "${evidence.title}" for ${repoPath}: ${bytes} bytes at ${dir}/index.html${when}. Open that path in a browser, or Feature tab → Evidence in Porcelain.${checks}${sizeNote}${preview}`
-  }
-  return `Evidence "${evidence.title}" for ${repoPath}: ${bytes} bytes of HTML${when} (legacy channel). Prefer writing ${dir}/index.html next time.${checks}${sizeNote}${preview}`
+  return `Evidence "${evidence.title}" for ${repoPath}: ${bytes} bytes at ${dir}/index.html${when}. Open that path in a browser, or Feature tab → Evidence in Porcelain.${checks}${sizeNote}${preview}`
 }

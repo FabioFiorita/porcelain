@@ -1,11 +1,10 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   clearReviewedPaths,
   markReviewed,
-  migrateReviewedFromConfig,
   readReviewedMarks,
   readReviewedPaths,
   reconcileMarks,
@@ -14,29 +13,17 @@ import {
   unmarkReviewed,
 } from './reviewed-store'
 
-// config-store imports electron (no real module under vitest), and the migration
-// reads it — mock it so we control the legacy config without booting electron.
-const { loadConfig } = vi.hoisted(() => ({ loadConfig: vi.fn() }))
-vi.mock('./config-store', () => ({ loadConfig }))
-
 const dir = join(tmpdir(), 'porcelain-reviewed-store-test')
 const file = join(dir, 'reviewed.json')
 
 beforeEach(() => {
   process.env.PORCELAIN_REVIEWED = file
   rmSync(dir, { recursive: true, force: true })
-  loadConfig.mockReset()
 })
 afterEach(() => {
   delete process.env.PORCELAIN_REVIEWED
   rmSync(dir, { recursive: true, force: true })
 })
-
-// Seed the channel file directly to exercise on-disk shapes (legacy strings, objects).
-function seed(reviewed: Record<string, unknown>): void {
-  mkdirSync(dir, { recursive: true })
-  writeFileSync(file, JSON.stringify(reviewed))
-}
 
 describe('reviewed-store', () => {
   it('marks paths reviewed with a fingerprint and reads them back', async () => {
@@ -114,12 +101,10 @@ describe('reviewed-store', () => {
     ])
   })
 
-  it('accepts legacy plain-string marks on read as fingerprint-less marks', async () => {
-    seed({ '/repo': ['src/legacy.ts', { path: 'src/a.ts', fingerprint: 'fp-a' }] })
-    expect(await readReviewedMarks('/repo')).toEqual([
-      { path: 'src/legacy.ts', fingerprint: '' },
-      { path: 'src/a.ts', fingerprint: 'fp-a' },
-    ])
+  it('drops a corrupt channel file (bare-string marks) rather than half-parsing', async () => {
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(file, JSON.stringify({ '/repo': ['src/legacy.ts'] }))
+    expect(await readReviewedMarks('/repo')).toEqual([])
   })
 })
 
@@ -145,20 +130,20 @@ describe('reconcileMarks (pure)', () => {
     expect(reconcileMarks(marks, current)).toEqual({ marks, pruned: false })
   })
 
-  it('always prunes a legacy (empty-fingerprint) mark', () => {
+  it('always prunes an empty-fingerprint mark (invalid)', () => {
     const marks = [{ path: 'a.ts', fingerprint: '' }]
     const current = new Map([['a.ts', '']])
     expect(reconcileMarks(marks, current)).toEqual({ marks: [], pruned: true })
   })
 
-  it('keeps a non-legacy mark whose path has no current fingerprint (absence ≠ stale)', () => {
+  it('keeps a mark whose path has no current fingerprint (absence ≠ stale)', () => {
     // A path missing from the fingerprint map means "not fingerprinted this round" (e.g.
     // a mark added concurrently, after the snapshot), NOT stale — so it must be kept.
     const marks = [{ path: 'a.ts', fingerprint: 'fp-a' }]
     expect(reconcileMarks(marks, new Map())).toEqual({ marks, pruned: false })
   })
 
-  it('still prunes a legacy (empty-fingerprint) mark whose path is absent', () => {
+  it('still prunes an empty-fingerprint mark whose path is absent', () => {
     const marks = [{ path: 'a.ts', fingerprint: '' }]
     expect(reconcileMarks(marks, new Map())).toEqual({ marks: [], pruned: true })
   })
@@ -212,36 +197,5 @@ describe('reconcileReviewed (write-through)', () => {
     // No stale fingerprints → no write-through, but the return value still re-reads disk.
     const survivors = await reconcileReviewed('/repo', snapshot, new Map([['a.ts', 'fp-a']]))
     expect(survivors).toEqual(['a.ts', 'new.ts'])
-  })
-})
-
-describe('migrateReviewedFromConfig', () => {
-  it('copies legacy config reviewed marks into the channel as fingerprint-less marks', async () => {
-    loadConfig.mockResolvedValue({
-      recentRepos: [],
-      repos: { '/repo': { hiddenPaths: [], pinnedPaths: [], reviewedPaths: ['src/a.ts'] } },
-    })
-    await migrateReviewedFromConfig()
-    expect(await readReviewedMarks('/repo')).toEqual([{ path: 'src/a.ts', fingerprint: '' }])
-    expect(await readReviewedPaths('/repo')).toEqual(['src/a.ts'])
-  })
-
-  it('never clobbers newer in-app marks already in the channel', async () => {
-    await markReviewed('/repo', 'src/new.ts', 'fp-new')
-    loadConfig.mockResolvedValue({
-      recentRepos: [],
-      repos: { '/repo': { hiddenPaths: [], pinnedPaths: [], reviewedPaths: ['src/old.ts'] } },
-    })
-    await migrateReviewedFromConfig()
-    expect(await readReviewedPaths('/repo')).toEqual(['src/new.ts'])
-  })
-
-  it('no-ops when no repo has legacy marks', async () => {
-    loadConfig.mockResolvedValue({
-      recentRepos: [],
-      repos: { '/repo': { hiddenPaths: [], pinnedPaths: [], reviewedPaths: [] } },
-    })
-    await migrateReviewedFromConfig()
-    expect(await readReviewedPaths('/repo')).toEqual([])
   })
 })

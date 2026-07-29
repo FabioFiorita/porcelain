@@ -5,7 +5,7 @@ import { actionsPath } from './actions-store'
 import { type AppEvent, emitAppEvent } from './app-events'
 import { boardPath } from './board-store'
 import { commentsPath } from './comment-store'
-import { evidencePath, loopEvidenceRoot } from './evidence-store'
+import { loopEvidenceRoot } from './evidence-store'
 import { layersPath } from './layers-store'
 import { reviewSetsPath } from './review-store'
 import { scopePath } from './scope-store'
@@ -14,11 +14,11 @@ import { scopePath } from './scope-store'
  * Watch the agent channels in `~/.porcelain` — `review-sets.json` (→ `feature-view`),
  * `comments.json` (→ `comments`), `board.json` (→ `board`), `actions.json`
  * (→ `actions`), `layers.json` (→ `layers`), `scope.json` (→ `scope` hide/pin),
- * and `evidence.json` + `loop-evidence/` (→ `evidence`) —
+ * and `loop-evidence/` (→ `evidence`) —
  * and push an app-event when any changes, so an agent write live-refreshes the open
  * view. We watch the DIRECTORY, not the file: writes are atomic (tmp + rename),
  * which replaces the inode and breaks a direct file watch. The paths usually share a
- * directory, watched once. Loop evidence is primarily a **tree** of files under
+ * directory, watched once. Loop evidence is a **tree** of files under
  * `loop-evidence/<key>/` (index.html + screenshots); that root is watched recursively.
  */
 export async function watchAgentChannels(): Promise<void> {
@@ -29,7 +29,6 @@ export async function watchAgentChannels(): Promise<void> {
     { path: actionsPath(), event: 'actions' },
     { path: layersPath(), event: 'layers' },
     { path: scopePath(), event: 'scope' },
-    { path: evidencePath(), event: 'evidence' },
   ]
   const byDir = new Map<string, Map<string, AppEvent>>()
   for (const target of targets) {

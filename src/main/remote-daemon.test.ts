@@ -49,34 +49,18 @@ describe('parseRemoteEnvironmentState', () => {
     expect(parseRemoteEnvironmentState(state)).toEqual(state)
   })
 
-  it('migrates a legacy override to one active environment named by hostname', () => {
-    const legacy = { url: 'http://beelink.tailnet.ts.net:43117', token: 'secret' }
-    expect(parseRemoteEnvironmentState(legacy)).toEqual({
-      activeId: 'legacy',
-      environments: [
-        {
-          id: 'legacy',
-          name: 'beelink.tailnet.ts.net',
-          url: 'http://beelink.tailnet.ts.net:43117',
-          token: 'secret',
-        },
-      ],
-    })
-  })
-
-  it('falls back to the raw url when the legacy url is not parseable', () => {
-    const legacy = { url: 'beelink', token: 'secret' }
-    expect(parseRemoteEnvironmentState(legacy)).toEqual({
-      activeId: 'legacy',
-      environments: [{ id: 'legacy', name: 'beelink', url: 'beelink', token: 'secret' }],
-    })
-  })
-
-  it('returns the empty state for garbage or null', () => {
+  it('returns the empty state for garbage, null, or pre-v2 shapes', () => {
     const empty = { activeId: null, environments: [] }
     expect(parseRemoteEnvironmentState(null)).toEqual(empty)
     expect(parseRemoteEnvironmentState({ nope: true })).toEqual(empty)
     expect(parseRemoteEnvironmentState('string')).toEqual(empty)
+    // Pre-multi-env single { url, token } is not upgraded — re-add the remote.
+    expect(
+      parseRemoteEnvironmentState({
+        url: 'http://beelink.tailnet.ts.net:43117',
+        token: 'secret',
+      }),
+    ).toEqual(empty)
   })
 })
 

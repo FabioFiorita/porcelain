@@ -212,12 +212,9 @@ assumed — this skill is the codebase-specific layer beneath them.
   the board). Because nothing else writes it, it has **no `review-watch` entry** —
   don't add a watcher expecting agent pushes. The content is inert markdown (not a
   path, not a command), so no repo-containment or command-injection guard applies, but
-  keep the app's writes atomic (tmp + rename) like the others. Notes moved here out of
-  `userData/config.json` only because the dependency-free CLI can't resolve userData;
-  `migrateNotesFromConfig` (startup, idempotent) carries legacy notes over and never
-  clobbers a newer in-app edit. *Verify:* the CLI still has only
-  `notes get` for notes; the app never reads `config.repos[*].notes` except in the
-  migration.
+  keep the app's writes atomic (tmp + rename) like the others. Notes live here (not
+  `userData/config.json`) so the dependency-free CLI can read them. *Verify:* the CLI
+  still has only `notes get` for notes; the app does not read notes from config.
 - **Flow layers are a TWO-WAY channel whose content is auto-executed regex.** The 6th
   channel (`~/.porcelain/layers.json`, `layers-store.ts` ↔ `src/cli/layers-file.ts`,
   `layers get/set/reset`) holds the per-repo review-flow layers. Same two-way shape
@@ -232,22 +229,19 @@ assumed — this skill is the codebase-specific layer beneath them.
   short repo-relative paths and the human can already type any valid regex in Settings →
   Review flow, so the ReDoS surface is unchanged — don't add a bespoke complexity guard
   here that the human path lacks; just keep the compile-on-read filter. Layers moved out
-  of `userData/config.json` (like notes) so the dependency-free CLI can read+write them;
-  `migrateLayersFromConfig` (startup, idempotent) carries a legacy override over and
-  never clobbers a newer in-app edit. *Verify:* a CLI-written invalid pattern is dropped,
-  not thrown, on the next flow poll; the app reads layers only from the channel (no
-  `config.repos[*].layers` read outside the migration).
+  of `userData/config.json` (like notes) so the dependency-free CLI can read+write them.
+  *Verify:* a CLI-written invalid pattern is dropped, not thrown, on the next flow poll;
+  the app reads layers only from the channel.
 - **Reviewed marks are a READ-ONLY, app→agent channel.** The 7th channel
   (`~/.porcelain/reviewed.json`, `reviewed-store.ts` ↔ `src/cli/reviewed-file.ts`,
-  `Record<repoPath, { path, fingerprint }[]>` — legacy bare-string marks still parse as
-  `{ path, fingerprint: '' }`) holds the paths the human has ticked as reviewed in the
+  `Record<repoPath, { path, fingerprint }[]>`) holds the paths the human has ticked as reviewed in the
   Changes/Feature lists, each keyed to a content fingerprint (sha256 of the file's diff
   vs HEAD, computed in api.ts via `reviewedFingerprint`). The app reconciles at read time
   (`reviewedPaths` → `reconcileReviewed`): a mark whose stored fingerprint no longer
   matches the file's current diff hash is pruned (silently un-ticked, written through so
   the JSON stays truthful for the CLI) — this is what clears marks after external commits,
   amends, rebases, and post-mark edits; the `gitCommit` clearing stays a fast path. An
-  empty fingerprint (legacy mark) never matches, so it prunes on first reconcile. Same
+  empty fingerprint never matches, so it prunes on first reconcile. Same
   rules as the notes channel: the **app is the SOLE writer** (`markReviewed`/`unmarkReviewed`,
   `setReviewedMarks`, `clearReviewedPaths`, and the reconcile write-through) and the CLI
   only reads it (`reviewed list` — the CLI only runs git to resolve the repo root, not to
@@ -257,13 +251,9 @@ assumed — this skill is the codebase-specific layer beneath them.
   **no `review-watch` entry** — don't add a watcher expecting agent pushes. Paths are
   inert here (the agent reads them as review-progress context; the app already validates
   any path it acts on), so no repo-containment guard applies, but keep the app's writes
-  atomic (tmp + rename) and in-process-serialized like the others. Marks moved here out of
-  `userData/config.json` (`config.repos[*].reviewedPaths`, now a deprecated optional field
-  kept only for the migration) so the dependency-free CLI can read them;
-  `migrateReviewedFromConfig` (startup, idempotent) carries legacy marks over and never
-  clobbers a newer in-app mark. *Verify:* the CLI has only `reviewed list`
-  for reviewed state; the app reads marks only from the channel (no
-  `config.repos[*].reviewedPaths` read outside the migration).
+  atomic (tmp + rename) and in-process-serialized like the others. Marks live here (not
+  `userData/config.json`) so the dependency-free CLI can read them. *Verify:* the CLI has
+  only `reviewed list` for reviewed state; the app reads marks only from the channel.
 - **The feature-view snapshot is a READ-ONLY, app→agent channel.** The 8th channel
   (`~/.porcelain/feature-view.json`, `feature-snapshot-store.ts` ↔
   `src/cli/feature-view-file.ts`, `Record<repoPath, { name, files: { path, source, layer }[] }>`,
@@ -331,7 +321,7 @@ assumed — this skill is the codebase-specific layer beneath them.
   base64 through a channel arg is the failure mode we designed out. The app (`evidence-store.ts`)
   reads the dir, inlines relative `img` src under that dir into data URIs for the
   sandboxed `srcdoc` viewer (`evidence-assets.ts`), and `clearEvidence` deletes the
-  directory. Legacy `evidence.json` is still read as a fallback. Same sandbox invariant as
+  directory. Same sandbox invariant as
   the section diagrams: loop evidence now renders as the Review canvas **Loop evidence
   tab** (the standalone `evidence-view.tsx` / `evidence` tab kind is GONE; it is no longer
   a final chapter of the flat reading surface) — `EvidencePanel` hands HTML to

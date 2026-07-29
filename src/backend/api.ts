@@ -491,7 +491,7 @@ export const router = t.router({
 
   // Drop a repo from the recents list. Removes only the recents entry — scope
   // (hidden/pinned) lives in ~/.porcelain/scope.json and is keyed by path, so it
-  // survives remove + re-open the same way legacy config.repos did.
+  // survives remove + re-open.
   removeRecentRepo: t.procedure.input(z.string()).mutation(async ({ input }) => {
     await updateConfig((config) => withoutRecentRepo(config, input))
   }),
