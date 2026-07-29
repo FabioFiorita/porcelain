@@ -1,3 +1,9 @@
+## [0.45.3](https://github.com/FabioFiorita/porcelain/compare/v0.45.2...v0.45.3) (2026-07-29)
+
+### Bug Fixes
+
+* compress and cache remote assets ([3999b71](https://github.com/FabioFiorita/porcelain/commit/3999b711a30bde6afe2e22a135c5bc1f6053328e))
+
 ## [0.45.2](https://github.com/FabioFiorita/porcelain/compare/v0.45.1...v0.45.2) (2026-07-29)
 
 ### Bug Fixes
