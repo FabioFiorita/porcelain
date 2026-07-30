@@ -10,7 +10,7 @@ description: Porcelain's hard-won invariants — the security, correctness, perf
 A "don't regress these" checklist. These are constraints the codebase **earned**
 — most were a bug, a crash, or a security gap before the fix landed. Breaking one
 rarely fails a test; it fails in production. Before touching the listed area, read
-the invariant; after, verify it still holds. The hard rules in `CLAUDE.md` are
+the invariant; after, verify it still holds. The hard rules in `AGENTS.md` are
 assumed — this skill is the codebase-specific layer beneath them.
 
 ## Security & process boundary

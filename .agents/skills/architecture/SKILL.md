@@ -7,7 +7,7 @@ description: Porcelain's stack, the one client architecture every feature follow
 
 # Porcelain architecture
 
-This skill is the **durable layer**: the stack, the single architecture every feature follows, and the decisions, "why"s, and traps you can't recover by reading one file. It deliberately does **not** paraphrase how a feature is wired today — for that, open the entry file named in this skill's **Nomenclature** section and read it. The code is always current; this skill tells you what a fresh read won't. `CLAUDE.md` / `AGENTS.md` only points here so every session stays slim.
+This skill is the **durable layer**: the stack, the single architecture every feature follows, and the decisions, "why"s, and traps you can't recover by reading one file. It deliberately does **not** paraphrase how a feature is wired today — for that, open the entry file named in this skill's **Nomenclature** section and read it. The code is always current; this skill tells you what a fresh read won't. Canonical `AGENTS.md` (with `CLAUDE.md` as a compatibility symlink) only points here so every session stays slim.
 
 ## Stack
 

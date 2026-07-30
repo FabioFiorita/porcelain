@@ -1,10 +1,9 @@
 #!/bin/sh
-# Tracked pre-commit hook — the human half of CLAUDE.md rule 3 (verification
-# gate before ANY commit). Agents are gated by the Claude Code PreToolUse
-# git-guard (.claude/hooks/git-guard.sh); this closes the same gap for a human
-# committing from a plain terminal, so the gate no longer depends on which
-# client made the commit. Activated per clone by `core.hooksPath=githooks`,
-# which `pnpm install` wires via the `prepare` script.
+# Tracked pre-commit hook — the client-independent AGENTS.md rule-3 gate before
+# ANY commit. Claude Code and Grok Build also run the shared PreToolUse guard
+# through .claude/settings.json; Codex and plain terminals arrive here directly.
+# Activated per clone by `core.hooksPath=githooks`, which `pnpm install` wires
+# via the `prepare` script.
 #
 # Like git-guard.sh this fails CLOSED: if it can't run the gate, it refuses the
 # commit rather than waving it through.
@@ -13,8 +12,9 @@ set -u
 # Hooks run without the interactive shell's PATH; make pnpm/node resolvable.
 export PATH="$HOME/Library/pnpm:$HOME/.volta/bin:$HOME/.local/share/pnpm:/opt/homebrew/bin:/usr/local/bin:$PATH"
 
-# Claude Code sessions already ran `pnpm verify` in the PreToolUse git-guard.
-# Running it again here would double a gate that includes a full build.
+# Claude Code already ran `pnpm verify` in its guaranteed PreToolUse guard.
+# Grok does NOT skip here: its session id cannot prove this checkout's project
+# hook was trusted, discovered, and successful, so the tracked gate stays authoritative.
 if [ -n "${CLAUDECODE:-}" ]; then
   echo "pre-commit: verify skipped: already gated by git-guard (CLAUDECODE set)."
   exit 0
@@ -38,7 +38,7 @@ if pnpm verify >"$out" 2>&1; then
 fi
 
 {
-  echo "Verification gate FAILED — commit blocked (CLAUDE.md rule 3: lint · typecheck · test · build)."
+  echo "Verification gate FAILED — commit blocked (AGENTS.md rule 3: lint · typecheck · test · build)."
   echo "Fix the failures, then retry the commit. For lint/format issues run: pnpm lint:fix"
   echo "----- last 40 lines of 'pnpm verify' -----"
   tail -n 40 "$out"
