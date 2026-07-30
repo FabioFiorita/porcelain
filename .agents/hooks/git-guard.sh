@@ -2,8 +2,9 @@
 # Shared PreToolUse(Bash) guard for Porcelain's autonomous operation.
 # Claude Code and Grok Build both load it through .claude/settings.json.
 #
-#   1. Blocks branch creation        -> AGENTS.md rule 8 (commit straight to main).
-#   2. Runs the verification gate     -> AGENTS.md rule 3 (before ANY commit) and
+#   1. Blocks unmanaged branch/worktree creation -> use `pnpm worktree create`.
+#   2. Blocks direct commits on main  -> task worktrees commit on `work/*`.
+#   3. Runs the verification gate     -> AGENTS.md rule 3 (before ANY task commit) and
 #      blocks the commit on failure, feeding the failing output back to the agent
 #      so it can fix and retry without a human in the loop.
 #
@@ -18,7 +19,7 @@ set -u
 # Hooks run without the interactive shell's PATH; make pnpm/node resolvable.
 export PATH="$HOME/Library/pnpm:/opt/homebrew/bin:/usr/local/bin:$PATH"
 
-# Classify the Bash command: prints BLOCK_BRANCH, GATE, or OK.
+# Classify the Bash command: prints BLOCK_CREATE, COMMIT, or OK.
 decision="$(node -e '
   let s = "";
   process.stdin.on("data", d => s += d).on("end", () => {
@@ -47,23 +48,52 @@ decision="$(node -e '
         const isCreate =
           (verb === "checkout" && rest.some(r => r === "-b" || r === "-B")) ||
           (verb === "switch" && rest.some(r => r === "-c" || r === "-C" || r === "--create")) ||
-          (verb === "branch" && ((rest[0] && !rest[0].startsWith("-")) || rest.some(r => r === "-c" || r === "-C" || r === "--copy")));
-        if (isCreate) decision = "BLOCK_BRANCH";
-        else if (verb === "commit" && decision !== "BLOCK_BRANCH") decision = "GATE";
+          (verb === "branch" && ((rest[0] && !rest[0].startsWith("-")) || rest.some(r => r === "-c" || r === "-C" || r === "--copy"))) ||
+          (verb === "worktree" && rest[0] === "add");
+        if (isCreate) decision = "BLOCK_CREATE";
+        else if (verb === "commit" && decision !== "BLOCK_CREATE") decision = "COMMIT";
         break;
       }
-      if (decision === "BLOCK_BRANCH") break;
+      if (decision === "BLOCK_CREATE") break;
     }
     process.stdout.write(decision);
   });
 ')"
 
 case "$decision" in
-  BLOCK_BRANCH)
-    echo "Blocked (AGENTS.md rule 8): never create branches — commit straight to main." >&2
+  BLOCK_CREATE)
+    echo "Blocked (AGENTS.md rule 8): create isolated task branches with 'pnpm worktree create <slug>'." >&2
     exit 2
     ;;
-  GATE)
+  COMMIT)
+    branch="$(git branch --show-current 2>/dev/null || true)"
+    if [ "$branch" = "main" ]; then
+      echo "Blocked (AGENTS.md rule 8): main is integration-only; commit inside a managed worktree." >&2
+      exit 2
+    fi
+    case "$branch" in
+      work/*)
+        profile_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+        if ! node -e '
+          const fs = require("node:fs");
+          const branch = process.argv[1];
+          try {
+            const c = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+            const ok = c.version === 1 && c.branch === branch &&
+              branch === `work/${c.slug}` && Number.isInteger(c.port) &&
+              c.port >= 43200 && c.port <= 43999;
+            process.exit(ok ? 0 : 1);
+          } catch { process.exit(1); }
+        ' "$branch" "$profile_root/.porcelain-worktree.json"; then
+          echo "Blocked (AGENTS.md rule 8): $branch is missing a valid managed worktree profile." >&2
+          exit 2
+        fi
+        ;;
+      *)
+        echo "Blocked (AGENTS.md rule 8): agent commits require a managed work/* branch." >&2
+        exit 2
+        ;;
+    esac
     if ! command -v pnpm >/dev/null 2>&1; then
       echo "git-guard: pnpm not found on PATH — REFUSING the commit (the rule-3 gate can't run)." >&2
       echo "Fix PATH / install pnpm, or commit from an environment where 'pnpm verify' works." >&2

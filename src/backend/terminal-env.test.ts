@@ -22,6 +22,7 @@ describe('terminalEnv', () => {
       PORCELAIN_DAEMON_PORT: '4242',
       PORCELAIN_USER_DATA: '/tmp/ud',
       PORCELAIN_DEV: '1',
+      PORCELAIN_DEV_PLAYGROUND: '/tmp/playground',
       PORCELAIN_ALLOWED_ORIGIN: 'http://localhost:5173',
       PORCELAIN_TAILNET_BIND: '1',
       PORCELAIN_LAN_BIND: '1',
@@ -42,6 +43,7 @@ describe('terminalEnv', () => {
     expect('PORCELAIN_DAEMON_PORT' in env).toBe(false)
     expect('PORCELAIN_USER_DATA' in env).toBe(false)
     expect('PORCELAIN_DEV' in env).toBe(false)
+    expect('PORCELAIN_DEV_PLAYGROUND' in env).toBe(false)
     expect('PORCELAIN_ALLOWED_ORIGIN' in env).toBe(false)
     expect('PORCELAIN_TAILNET_BIND' in env).toBe(false)
     expect('PORCELAIN_LAN_BIND' in env).toBe(false)

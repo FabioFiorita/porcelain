@@ -13,7 +13,19 @@
  *   pnpm dev:daemon -- --loopback
  */
 import { execSync, spawn } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync } from 'node:fs'
+import {
+  closeSync,
+  existsSync,
+  fsyncSync,
+  linkSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  readlinkSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { createServer } from 'node:net'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -22,6 +34,7 @@ import {
   DEV_HOME,
   DEV_PLAYGROUND,
   DEV_PORT,
+  DEV_PROFILE,
   DEV_USER_DATA,
   devEnv,
   ensureDevAdminToken,
@@ -155,12 +168,85 @@ function assertPortFree(port) {
   })
 }
 
+function isThisProfileLauncher(pid) {
+  if (!Number.isInteger(pid) || pid <= 1) return false
+  try {
+    process.kill(pid, 0)
+    if (process.platform === 'linux') {
+      const cwd = resolve(readlinkSync(`/proc/${pid}/cwd`))
+      const command = readFileSync(`/proc/${pid}/cmdline`, 'utf8').replaceAll('\0', ' ')
+      return cwd === root && command.includes('scripts/dev-daemon.mjs')
+    }
+    const command = execSync(`ps -p ${pid} -o command=`, { encoding: 'utf8' })
+    const cwd = execSync(`lsof -a -p ${pid} -d cwd -Fn`, { encoding: 'utf8' })
+      .split('\n')
+      .find((line) => line.startsWith('n'))
+      ?.slice(1)
+    return command.includes('scripts/dev-daemon.mjs') && resolve(cwd ?? '') === root
+  } catch {
+    return false
+  }
+}
+
+function acquireDaemonRecord(path, value) {
+  const acquisitionLock = `${path}.acquire-lock`
+  try {
+    mkdirSync(acquisitionLock)
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && error.code === 'EEXIST') {
+      throw new Error(
+        `daemon record acquisition is already in progress; retry, or remove stale lock ${acquisitionLock}`,
+      )
+    }
+    throw error
+  }
+
+  const candidate = `${path}.candidate-${process.pid}-${Date.now()}`
+  try {
+    const fd = openSync(candidate, 'wx', 0o600)
+    try {
+      writeFileSync(fd, `${JSON.stringify(value)}\n`)
+      fsyncSync(fd)
+    } finally {
+      closeSync(fd)
+    }
+
+    for (;;) {
+      try {
+        linkSync(candidate, path)
+        return
+      } catch (error) {
+        if (!(error instanceof Error) || !('code' in error) || error.code !== 'EEXIST') throw error
+      }
+
+      try {
+        const existing = JSON.parse(readFileSync(path, 'utf8'))
+        if (isThisProfileLauncher(existing.pid)) {
+          throw new Error(
+            `profile already has a running dev daemon (pid ${existing.pid}); stop it before launching another`,
+          )
+        }
+        const stalePath = `${path}.stale-${process.pid}-${Date.now()}`
+        renameSync(path, stalePath)
+        rmSync(stalePath, { force: true })
+      } catch (error) {
+        if (error instanceof Error && error.message.startsWith('profile already has')) throw error
+        // Another launcher may have replaced the stale record first; retry exclusive acquisition.
+      }
+    }
+  } finally {
+    rmSync(candidate, { force: true })
+    rmSync(acquisitionLock, { recursive: true, force: true })
+  }
+}
+
 function printBanner(opts) {
+  const profile = DEV_PROFILE.slug ? `worktree ${DEV_PROFILE.slug}` : 'primary checkout'
   const lanLine = opts.host
     ? `  host        LAN on  (http://<this-host>.local:${opts.port}/ or numeric LAN IP)`
     : '  host        loopback only'
   const tailnetLine = opts.tailnet ? '  tailnet     on' : '  tailnet     off'
-  console.log(`Porcelain DEV stack (do not use prod 43117 / ~/.porcelain for product work)
+  console.log(`Porcelain DEV stack · ${profile} (never prod 43117 / ~/.porcelain)
 
   port        ${opts.port}
   user data   ${DEV_USER_DATA}
@@ -213,6 +299,17 @@ async function main() {
 
   printBanner(opts)
 
+  const daemonRecord = join(DEV_HOME, 'dev-daemon.json')
+  acquireDaemonRecord(daemonRecord, { pid: process.pid, worktreeRoot: root, port: opts.port })
+  const clearDaemonRecord = () => {
+    try {
+      const current = JSON.parse(readFileSync(daemonRecord, 'utf8'))
+      if (current.pid === process.pid) rmSync(daemonRecord, { force: true })
+    } catch {
+      // A missing or replaced record belongs to no cleanup action from this launcher.
+    }
+  }
+
   const env = devEnv({
     PORCELAIN_DAEMON_PORT: String(opts.port),
     PORCELAIN_ADMIN_TOKEN: tokenOut,
@@ -227,7 +324,12 @@ async function main() {
   })
 
   child.on('exit', (code, signal) => {
-    if (signal) process.kill(process.pid, signal)
+    clearDaemonRecord()
+    if (signal) {
+      process.removeAllListeners(signal)
+      process.kill(process.pid, signal)
+      return
+    }
     process.exit(code ?? 1)
   })
 

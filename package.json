@@ -24,6 +24,7 @@
     "agents:sync": "node scripts/sync-agent-foundations.mjs --write",
     "agents:doctor": "node scripts/agent-doctor.mjs",
     "agents:setup": "pnpm agents:sync && git config core.hooksPath githooks && pnpm agents:doctor",
+    "worktree": "node scripts/worktree.mjs",
     "lint:knip": "knip --include files,dependencies,unlisted,binaries,duplicates --no-config-hints",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",

@@ -15,6 +15,7 @@ e2e/.artifacts/
 
 # Agent worktrees (improve/execute isolation) — never track these
 .claude/worktrees/
+.porcelain-worktree.json
 
 # Claude-only local orchestration (models, delegation). Not part of AGENTS.md.
 CLAUDE.local.md

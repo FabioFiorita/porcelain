@@ -1,12 +1,19 @@
 #!/usr/bin/env node
+import { execFileSync } from 'node:child_process'
 /**
  * Shared env for the Porcelain *development* stack.
  *
  * Production (always-on work daemon on Linux):
  *   port 43117 · ~/.local/share/porcelain · ~/.porcelain
  *
- * Development (agents building Porcelain):
+ * Primary development checkout:
  *   port 43118 · ~/.local/share/porcelain-dev · ~/.porcelain-dev
+ *
+ * Managed task worktree:
+ *   port from .porcelain-worktree.json (43200–43999)
+ *   ~/.local/share/porcelain-dev-worktrees/<slug>
+ *   ~/.porcelain-dev-worktrees/<slug>
+ *   ~/code/porcelain-playgrounds/<slug>
  *
  * Setting PORCELAIN_HOME redirects channels, access state, and CLI install together.
  * Never point a product-work session at the production paths.
@@ -15,15 +22,64 @@
  * only builds the env block + token; flags live on the launcher.
  */
 import { randomBytes } from 'node:crypto'
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-export const DEV_PORT = 43118
-export const DEV_USER_DATA = join(homedir(), '.local', 'share', 'porcelain-dev')
-export const DEV_HOME = join(homedir(), '.porcelain-dev')
-export const DEV_PLAYGROUND = join(homedir(), 'code', 'porcelain-playground')
+const PRIMARY_PROFILE = {
+  slug: null,
+  port: 43118,
+  userData: join(homedir(), '.local', 'share', 'porcelain-dev'),
+  home: join(homedir(), '.porcelain-dev'),
+  playground: join(homedir(), 'code', 'porcelain-playground'),
+}
+
+function worktreeRoot() {
+  try {
+    return execFileSync('git', ['rev-parse', '--show-toplevel'], {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim()
+  } catch {
+    return null
+  }
+}
+
+export function resolveDevProfile() {
+  const root = worktreeRoot()
+  if (!root) return PRIMARY_PROFILE
+  const configPath = join(root, '.porcelain-worktree.json')
+  if (!existsSync(configPath)) return PRIMARY_PROFILE
+
+  const config = JSON.parse(readFileSync(configPath, 'utf8'))
+  if (
+    config.version !== 1 ||
+    typeof config.slug !== 'string' ||
+    !/^[a-z0-9][a-z0-9-]{1,47}$/.test(config.slug) ||
+    config.branch !== `work/${config.slug}` ||
+    !Number.isInteger(config.port) ||
+    config.port < 43200 ||
+    config.port > 43999
+  ) {
+    throw new Error(`${configPath} is invalid; recreate this managed worktree`)
+  }
+
+  return {
+    slug: config.slug,
+    port: config.port,
+    userData: join(homedir(), '.local', 'share', 'porcelain-dev-worktrees', config.slug),
+    home: join(homedir(), '.porcelain-dev-worktrees', config.slug),
+    playground: join(homedir(), 'code', 'porcelain-playgrounds', config.slug),
+  }
+}
+
+export const DEV_PROFILE = resolveDevProfile()
+export const DEV_PORT = DEV_PROFILE.port
+export const DEV_USER_DATA = DEV_PROFILE.userData
+export const DEV_HOME = DEV_PROFILE.home
+export const DEV_PLAYGROUND = DEV_PROFILE.playground
 export const DEV_ADMIN_TOKEN_FILE = join(DEV_HOME, 'admin-token')
 
 /**
@@ -58,6 +114,7 @@ export function devEnv(extra = {}) {
     PORCELAIN_HOME: DEV_HOME,
     PORCELAIN_USER_DATA: DEV_USER_DATA,
     PORCELAIN_DAEMON_PORT: String(DEV_PORT),
+    PORCELAIN_DEV_PLAYGROUND: DEV_PLAYGROUND,
     PORCELAIN_ADMIN_TOKEN_FILE: DEV_ADMIN_TOKEN_FILE,
     PORCELAIN_ADMIN_TOKEN: token,
     PORCELAIN_NO_STDIN_WATCHDOG: '1',
@@ -70,7 +127,8 @@ export function devEnv(extra = {}) {
 
 /** Print a short cheat sheet (used by pnpm dev:env). */
 export function printDevEnv() {
-  console.log(`Porcelain DEV stack (do not use prod 43117 / ~/.porcelain for product work)
+  const profile = DEV_PROFILE.slug ? `worktree ${DEV_PROFILE.slug}` : 'primary checkout'
+  console.log(`Porcelain DEV stack · ${profile} (never prod 43117 / ~/.porcelain)
 
   port        ${DEV_PORT}
   user data   ${DEV_USER_DATA}

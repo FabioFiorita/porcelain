@@ -14,12 +14,12 @@ Porcelain is developed heavily by agents. The human's goal is to interact less, 
 | | **Production** (human’s day job) | **Development** (building Porcelain) |
 |--|--|--|
 | When | Always on | On demand during product work |
-| Port | **43117** | **43118** |
-| User data | `~/.local/share/porcelain` | `~/.local/share/porcelain-dev` |
-| Channels / CLI home | `~/.porcelain` | `~/.porcelain-dev` (`PORCELAIN_HOME`) |
+| Port | **43117** | Primary **43118**; worktrees **43200–43999** |
+| User data | `~/.local/share/porcelain` | Primary `porcelain-dev`; worktrees `porcelain-dev-worktrees/<slug>` |
+| Channels / CLI home | `~/.porcelain` | Primary `.porcelain-dev`; worktrees `.porcelain-dev-worktrees/<slug>` |
 | Binary | systemd `npx porcelain-daemon@latest` | Local tree: `pnpm build` + `pnpm dev:daemon` |
 | Network | LAN + tailnet | Loopback only |
-| Default repo | Real work (e.g. monorepos) | **`~/code/porcelain-playground` only** |
+| Default repo | Real work (e.g. monorepos) | Primary playground or **per-worktree playground only** |
 | Agents | **Never** for product work | **Always** for product work |
 
 **Never** hide/pin, board, review, or token-write against the production daemon while improving Porcelain. Earlier mistakes mixed the two — do not repeat.
@@ -37,15 +37,28 @@ pnpm porcelain -- help  # CLI against ~/.porcelain-dev
 
 1. **Intent** — one or two sentences: what will be true when this is done, and how you'll prove it.
 2. **Paths** — if more than one plausible approach exists, list tradeoffs and pick one (architecture forks need a proposal first).
-3. **Execute** — one architecture, shadcn primitives (UI only), type-safety-driven design. Agents in this clone: **main only** (no feature branches; fork + PR for external contributors).
+3. **Execute** — one architecture, shadcn primitives (UI only), type-safety-driven design. Agent tasks live in managed `work/<slug>` worktrees created by `pnpm worktree create <slug>`.
 4. **Test** — per the testing doctrine below.
 5. **Verify with evidence** — prove the *intent*. UI → browser against the **dev** daemon (Playwright MCP or `pnpm test:e2e`). Backend → unit test / CLI on **dev** channels. Never drive the installed **Porcelain** app or the prod daemon for product work.
 6. **Docs sync** — update the owning skill in the same commit for decisions/traps changed; cut skill prose that only paraphrases code.
-7. **Gate & commit** — `pnpm verify`, commit (agents: straight to `main`), leave the worktree clean.
+7. **Gate & commit** — `pnpm verify`, commit on the managed task branch, push, and open a PR into `main`. After merge and a local main update, `pnpm worktree remove <slug>` closes the task by deleting its checkout, branch, channels, user data, and playground.
 
 **One gate, every host (2026-07-30).** The gate must not depend on which client made the commit. The tracked `githooks/pre-commit` is authoritative and is activated per clone by `core.hooksPath=githooks` through `prepare` (guarded so an install outside this checkout cannot touch another repo). Claude Code and Grok Build also load the shared `.agents/hooks/git-guard.sh` through the Claude-compatible settings adapter, so they receive failures before invoking Git; Codex and plain terminals reach the tracked hook. Claude Code keeps its host-guaranteed duplicate skip. **Grok deliberately runs the tracked gate again:** `GROK_SESSION_ID` proves only that Grok launched Git, not that this checkout's project hook was trusted, discovered, and successful, so using it as a skip would fail open. `PORCELAIN_SKIP_VERIFY=1` remains the deliberate escape hatch after a verified manual run. Anything else — including a missing `pnpm` — fails closed and refuses the commit. `pnpm agents:check` guards adapter drift; `pnpm agents:doctor` proves local discovery and hook activation.
 
 Scale ceremony to the change. Phase 5 never scales away — no "should work."
+
+## Managed worktree lifecycle
+
+`main` is the clean integration/release checkout, not an agent editing surface.
+
+1. From primary main: `pnpm worktree create <slug>`.
+2. Work only inside `<repo>-worktrees/<slug>` on `work/<slug>`.
+3. `pnpm dev:daemon` and `pnpm porcelain` automatically read `.porcelain-worktree.json`, so every task gets a stable unique port, channel home, user-data home, administrator token, and seeded disposable playground.
+4. Push the task branch and open a PR. Porcelain remains the review story; the PR is the CI/merge boundary.
+5. Squash-merge, update the primary main checkout, then run `pnpm worktree remove <slug>`. It fails closed on dirty or unmerged work. `--force` is only for explicitly abandoned work.
+6. `pnpm worktree cleanup` removes all other clean managed worktrees already merged into local main.
+
+The metadata file is ignored and contains only `{version, slug, branch, port}`. Runtime paths are derived from the validated slug instead of trusting deletable paths from the checkout. Cleanup stops only a recorded daemon whose PID, command, and working directory still identify that exact worktree; it never kills an unverified process.
 
 ## Autonomy split
 

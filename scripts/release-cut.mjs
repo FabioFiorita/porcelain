@@ -41,6 +41,9 @@ const CLEAN_ENV = {
   CLICOLOR: '0',
   CLICOLOR_FORCE: '0',
   GH_FORCE_TTY: '0',
+  // The tracked pre-commit hook otherwise (correctly) rejects direct main commits.
+  // release:cut is the one narrow exception: it already requires clean, synchronized main.
+  PORCELAIN_RELEASE_CUT: '1',
 }
 
 function sh(cmd, args, opts = {}) {

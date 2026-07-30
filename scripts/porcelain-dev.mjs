@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Run the bundled porcelain CLI against the DEV channel dir (~/.porcelain-dev).
- * Usage: pnpm porcelain -- board list --repo ~/code/porcelain-playground
+ * Run the bundled porcelain CLI against this checkout's isolated DEV channel dir.
+ * Primary uses ~/.porcelain-dev; managed worktrees resolve their own profile.
  */
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'

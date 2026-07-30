@@ -12,10 +12,40 @@ set -u
 # Hooks run without the interactive shell's PATH; make pnpm/node resolvable.
 export PATH="$HOME/Library/pnpm:$HOME/.volta/bin:$HOME/.local/share/pnpm:/opt/homebrew/bin:/usr/local/bin:$PATH"
 
+branch="$(git branch --show-current 2>/dev/null || true)"
+if [ "$branch" = "main" ] && [ "${PORCELAIN_RELEASE_CUT:-}" != "1" ]; then
+  echo "pre-commit: main is integration-only; commit in a managed work/* worktree." >&2
+  exit 1
+fi
+case "$branch" in
+  main) ;;
+  work/*)
+    profile_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+    if ! node -e '
+      const fs = require("node:fs");
+      const branch = process.argv[1];
+      try {
+        const c = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+        const ok = c.version === 1 && c.branch === branch &&
+          branch === `work/${c.slug}` && Number.isInteger(c.port) &&
+          c.port >= 43200 && c.port <= 43999;
+        process.exit(ok ? 0 : 1);
+      } catch { process.exit(1); }
+    ' "$branch" "$profile_root/.porcelain-worktree.json"; then
+      echo "pre-commit: $branch is missing a valid managed worktree profile." >&2
+      exit 1
+    fi
+    ;;
+  *)
+    echo "pre-commit: unmanaged branch '$branch'; use 'pnpm worktree create <slug>'." >&2
+    exit 1
+    ;;
+esac
+
 # Claude Code already ran `pnpm verify` in its guaranteed PreToolUse guard.
 # Grok does NOT skip here: its session id cannot prove this checkout's project
 # hook was trusted, discovered, and successful, so the tracked gate stays authoritative.
-if [ -n "${CLAUDECODE:-}" ]; then
+if [ -n "${CLAUDECODE:-}" ] && [ "${PORCELAIN_RELEASE_CUT:-}" != "1" ]; then
   echo "pre-commit: verify skipped: already gated by git-guard (CLAUDECODE set)."
   exit 0
 fi

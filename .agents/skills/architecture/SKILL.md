@@ -228,6 +228,7 @@ Durable config facts (the step-by-step runbook is the `releasing` skill): `elect
 - **shadcn primitives only**: never hand-roll a primitive (sidebar, tabs, dialog, tree, …); search shadcn/registries first; a new primitive requires user approval.
 - Strict TS, no `any`, no `as unknown as`, no dead code, no commented-out code.
 - Conventional Commits (`feat:`, `fix:`, `chore:`, `refactor:`, `test:`, `docs:`).
+- **Development worktrees are runtime-isolated** (`scripts/worktree.mjs` + `scripts/dev-env.mjs`): primary keeps port 43118 and the original dev homes; every managed `work/<slug>` checkout has `.porcelain-worktree.json` with a unique 43200–43999 port and derives per-slug channels, user data, and playground. `PORCELAIN_DEV_PLAYGROUND` carries that seed into the daemon and is scrubbed from spawned PTYs. Cleanup owns the whole disposable unit after merge.
 - Verification gate before any commit: `pnpm verify` (= lint [Biome + control recipes + knip] && test && build; typecheck runs inside build) must all pass.
 - **Related skills**: `audit` = the security/correctness/perf/type invariants to preserve (read before main-process/IPC/config/git/packaging changes); `releasing` = the release runbook; `product` = what/why for features. This skill is the *what* for code structure.
 

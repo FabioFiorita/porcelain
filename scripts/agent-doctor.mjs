@@ -47,6 +47,32 @@ report(
   hooksPath.stdout.trim() || 'core.hooksPath is unset',
 )
 
+const branch = command('git', ['branch', '--show-current']).stdout.trim()
+if (branch === 'main') {
+  report('PASS', 'worktree policy', 'primary integration checkout')
+} else if (branch.startsWith('work/')) {
+  const configPath = join(root, '.porcelain-worktree.json')
+  try {
+    const config = JSON.parse(readFileSync(configPath, 'utf8'))
+    const valid =
+      config.version === 1 &&
+      branch === config.branch &&
+      branch === `work/${config.slug}` &&
+      Number.isInteger(config.port) &&
+      config.port >= 43200 &&
+      config.port <= 43999
+    report(
+      valid ? 'PASS' : 'FAIL',
+      'worktree policy',
+      valid ? `${branch} · port ${config.port}` : `${configPath} does not match ${branch}`,
+    )
+  } catch {
+    report('FAIL', 'worktree policy', `${branch} has no readable managed profile`)
+  }
+} else {
+  report('FAIL', 'worktree policy', `unmanaged branch ${branch || '(detached)'}`)
+}
+
 const claude = command('sh', ['-c', 'command -v claude'])
 report(
   claude.status === 0 ? 'PASS' : 'WARN',

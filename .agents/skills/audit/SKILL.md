@@ -31,10 +31,13 @@ assumed — this skill is the codebase-specific layer beneath them.
   runtime-import main code. *Why:* runtime coupling leaks Node into the bundle.
 - **Never write into the user's work repos.** Per-repo state lives in the app config
   under `userData` (`~/Library/Application Support/porcelain`), keyed by repo path.
-- **Dev never opens or mutates real repos.** `pnpm dev` sets `userData` to
-  `porcelain-dev` before any config read and seeds recents with
-  `~/code/porcelain-playground` (`src/backend/dev-config.ts`). Verification/testing
-  happens in the playground, never against the user's work repos.
+- **Dev never opens or mutates real repos.** The primary development stack uses
+  `porcelain-dev` and seeds `~/code/porcelain-playground`; a managed worktree derives
+  its own per-slug user data/channels and passes `PORCELAIN_DEV_PLAYGROUND` for its
+  disposable `~/code/porcelain-playgrounds/<slug>` seed (`scripts/dev-env.mjs`,
+  `src/backend/dev-config.ts`). Verification/testing happens in that checkout's
+  playground, never against the user's work repos. The playground override is a
+  daemon-only knob and must remain in `terminal-env.ts`'s scrub list.
 - **The agent CLI adds NO inbound network surface.** The porcelain CLI
   (`src/cli/`, installed at `~/.porcelain/porcelain`) is a short-lived process the
   user's agent runs per command — it never opens a port or socket, only reads/writes
