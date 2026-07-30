@@ -14,7 +14,7 @@ The human is **not** the source of truth and not a dictator to obey. Everything 
 
 1. **One architecture — but think freely.** Default to the existing pattern (state, data fetching, IPC shape, component/test style): check the `architecture` skill and match what's there. If you think a genuinely better approach exists, **propose the tradeoff before building** — don't silently fork the architecture. The failure state is *two patterns nobody chose*.
 2. **Match the local idiom.** Naming, test shape, file layout, commit format: read like the code around it.
-3. **Verification gate before any commit:** `pnpm verify` (= `pnpm lint && pnpm test && pnpm build`; typecheck runs inside `build`). **Hook-enforced** — the `PreToolUse` git-guard (`.claude/settings.json`) blocks any commit until the gate passes.
+3. **Verification gate before any commit:** `pnpm verify` (= `pnpm lint && pnpm test && pnpm build`; typecheck runs inside `build`). **Hook-enforced for humans and agents alike** — agents via the `PreToolUse` git-guard (`.claude/settings.json`), humans via the tracked `githooks/pre-commit` (`core.hooksPath`, wired by the `prepare` script). Either one blocks the commit until the gate passes.
 4. **Docs say what the code can't.** A skill carries decisions, the *why*, the deliberately-absent, and the traps — **not** a paraphrase of how a file works today. Read the file for mechanics. When you change a decision or hit a new trap, update its home skill in the same commit; when a skill only restates code, *cut it*. Prefer Biome over prose when a lint can enforce the rule.
 5. **UI primitives: shadcn only.** Never hand-roll sidebar, tabs, dialogs, trees, etc. **Before any UI work**, load the `shadcn` skill and search shadcn/registries first. A needed primitive that doesn't exist needs the human's approval before building. (Obvious hand-rolls are lint-flagged by `scripts/lint-shadcn-heuristics.mjs`; the `invariant-reviewer` stays the judgment layer. Backend/daemon work does not load this skill.)
 6. **Let type-safety drive the design.** When types fight you, change the design — don't escape it: a structural interface at the seam, a zod parse, a narrowing guard. Prefer safer shapes (e.g. tRPC over a hand-rolled bridge). The escapes are lint-enforced, not prose (`any` → Biome, `as unknown as` → `scripts/lint-escapes.mjs`), so this rule states the intent only.
@@ -64,7 +64,8 @@ Only each skill's one-line description is ambient; **read the body before acting
 
 ## Agentic enforcement
 
-- **`.claude/settings.json`** — `PreToolUse` git-guard blocks branch creation (rule 8) and runs `pnpm verify` before commit (rule 3). `git push` stays prompted.- **`invariant-reviewer` agent** (`.claude/agents/`) — read-only review against `audit` invariants and the one architecture. Use before committing non-trivial changes.
+- **`.claude/settings.json`** — `PreToolUse` git-guard blocks branch creation (rule 8) and runs `pnpm verify` before commit (rule 3). `git push` stays prompted.
+- **`githooks/pre-commit`** — same rule-3 gate for commits made outside Claude Code; skips when `CLAUDECODE` is set (git-guard already ran it) or `PORCELAIN_SKIP_VERIFY=1`.- **`invariant-reviewer` agent** (`.claude/agents/`) — read-only review against `audit` invariants and the one architecture. Use before committing non-trivial changes.
 
 Claude-only multi-model orchestration (model table, delegation) lives in **`CLAUDE.local.md`** (gitignored; not part of AGENTS.md). Other hosts ignore it.
 

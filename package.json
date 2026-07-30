@@ -30,6 +30,7 @@
     "dev:env": "node scripts/dev-env.mjs",
     "porcelain": "node scripts/porcelain-dev.mjs",
     "build": "npm run typecheck && electron-vite build",
+    "prepare": "[ \"$(git rev-parse --show-toplevel 2>/dev/null)\" = \"$PWD\" ] && git config core.hooksPath githooks || true",
     "postinstall": "electron-builder install-app-deps",
     "dist": "npm run build && electron-builder --mac --publish never",
     "daemon:dist": "node scripts/build-daemon-dist.mjs",

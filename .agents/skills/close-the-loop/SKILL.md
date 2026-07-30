@@ -43,6 +43,8 @@ pnpm porcelain -- help  # CLI against ~/.porcelain-dev
 6. **Docs sync** — update the owning skill in the same commit for decisions/traps changed; cut skill prose that only paraphrases code.
 7. **Gate & commit** — `pnpm verify`, commit (agents: straight to `main`), leave the worktree clean.
 
+**One gate, both hands (2026-07-29).** The gate must not depend on which client made the commit: agents are blocked by the Claude Code `PreToolUse` git-guard, humans by the tracked `githooks/pre-commit` (activated per clone by `core.hooksPath=githooks`, wired by `prepare` so a fresh `pnpm install` opts in — guarded so it can never fail an install outside a git clone). The hook **skips when `CLAUDECODE` is set**: the git-guard already ran verify, and verify includes a full build, so without the skip every agent commit would pay for it twice. `PORCELAIN_SKIP_VERIFY=1` is the deliberate human escape hatch (you just ran verify by hand). Anything else — including a missing `pnpm` — fails closed and refuses the commit.
+
 Scale ceremony to the change. Phase 5 never scales away — no "should work."
 
 ## Autonomy split

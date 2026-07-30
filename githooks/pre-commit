@@ -1,0 +1,47 @@
+#!/bin/sh
+# Tracked pre-commit hook — the human half of CLAUDE.md rule 3 (verification
+# gate before ANY commit). Agents are gated by the Claude Code PreToolUse
+# git-guard (.claude/hooks/git-guard.sh); this closes the same gap for a human
+# committing from a plain terminal, so the gate no longer depends on which
+# client made the commit. Activated per clone by `core.hooksPath=githooks`,
+# which `pnpm install` wires via the `prepare` script.
+#
+# Like git-guard.sh this fails CLOSED: if it can't run the gate, it refuses the
+# commit rather than waving it through.
+
+set -u
+# Hooks run without the interactive shell's PATH; make pnpm/node resolvable.
+export PATH="$HOME/Library/pnpm:$HOME/.volta/bin:$HOME/.local/share/pnpm:/opt/homebrew/bin:/usr/local/bin:$PATH"
+
+# Claude Code sessions already ran `pnpm verify` in the PreToolUse git-guard.
+# Running it again here would double a gate that includes a full build.
+if [ -n "${CLAUDECODE:-}" ]; then
+  echo "pre-commit: verify skipped: already gated by git-guard (CLAUDECODE set)."
+  exit 0
+fi
+
+if [ "${PORCELAIN_SKIP_VERIFY:-}" = "1" ]; then
+  echo "pre-commit: verify skipped: PORCELAIN_SKIP_VERIFY=1 (escape hatch)."
+  exit 0
+fi
+
+if ! command -v pnpm >/dev/null 2>&1; then
+  echo "pre-commit: pnpm not found on PATH — REFUSING the commit (the rule-3 gate can't run)." >&2
+  echo "Fix PATH / install pnpm, or set PORCELAIN_SKIP_VERIFY=1 if you know the gate already passed." >&2
+  exit 1
+fi
+
+out="$(mktemp)"
+if pnpm verify >"$out" 2>&1; then
+  rm -f "$out"
+  exit 0
+fi
+
+{
+  echo "Verification gate FAILED — commit blocked (CLAUDE.md rule 3: lint · typecheck · test · build)."
+  echo "Fix the failures, then retry the commit. For lint/format issues run: pnpm lint:fix"
+  echo "----- last 40 lines of 'pnpm verify' -----"
+  tail -n 40 "$out"
+} >&2
+rm -f "$out"
+exit 1
