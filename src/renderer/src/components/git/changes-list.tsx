@@ -424,7 +424,9 @@ export function ChangesList(): React.JSX.Element {
                 variant="outline"
                 size="sm"
                 className="h-6 gap-1 px-2 text-2xs"
-                onClick={() => void copyLayersSetup()}
+                onClick={async () => {
+                  await copyLayersSetup()
+                }}
               >
                 {setupCopied ? (
                   <Check className="size-3 text-success" />

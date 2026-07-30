@@ -208,7 +208,9 @@ export function ReviewGroup(): React.JSX.Element | null {
             <AlertDialogAction
               variant="destructive"
               disabled={isClearing}
-              onClick={() => void runClear()}
+              onClick={async () => {
+                await runClear()
+              }}
               aria-label="Confirm clear review and evidence"
             >
               Clear

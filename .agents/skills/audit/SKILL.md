@@ -19,7 +19,10 @@ assumed — this skill is the codebase-specific layer beneath them.
   http/https/mailto allowlist). Every `shell.openExternal` / `setWindowOpenHandler`
   path is gated. Extend `ALLOWED_PROTOCOLS` deliberately; never drop the guard.
   *Why:* an unfiltered `openExternal` runs `file://`/custom-scheme URLs from
-  rendered content. *Verify:* new external-link code calls the guard.
+  rendered content. *Verify:* lint-enforced — `scripts/lint-audit.mjs` fails any
+  file that reaches `shell.openExternal` / `setWindowOpenHandler` without naming
+  the guard (a proxy: it can't tell a gated call from an ungated one *inside* a
+  file that already imports it, so still read a change to `window.ts` itself).
 - **`readFile` stats before it reads** and returns `{type:'too-large'}` above
   `MAX_READ_BYTES` (10 MB, `src/backend/read-limits.ts`). Never read the bytes of an
   oversized file. *Why:* a multi-GB file in a 50 GB monorepo OOMs the main process.
@@ -401,6 +404,13 @@ assumed — this skill is the codebase-specific layer beneath them.
   under a lock, racing the user's own `pull`/`commit` and failing it with
   `fatal: Unable to write index.`. The flag disables only optional refreshes;
   required locks for real mutations are untouched. Don't remove it.
+  *Verify:* lint-enforced — `scripts/lint-audit.mjs` asserts the flag is still in
+  `git.ts` and that no other shipped `src/backend` / `src/main` module spawns
+  `git` around `runGit`. Tests (temp-repo fixtures) and `src/cli`'s one-shot
+  `rev-parse` are out of scope on purpose — neither polls a live user repo.
+  `git.ts` itself is exempt from the spawn half (it holds `gitQuickCommand`'s bare
+  spawn), so a new in-file bypass of `runGit` is invisible to the lint — still read
+  a change to `git.ts` itself.
 - **Commit never auto-stages.** `gitCommit` = `git commit -m` on **staged** changes
   only; staging is explicit (`gitStageAll` / `gitStageFile` / `gitUnstageFile`).
   Porcelain is a review tool — silently `git add -A` on commit is surprising.
@@ -536,6 +546,8 @@ assumed — this skill is the codebase-specific layer beneath them.
 
 - The gate before any commit: `pnpm lint && pnpm typecheck && pnpm test && pnpm build`
   must all pass (hard rule 3).
-- Invariants above that the gate does **not** catch (security guards, git env flags,
-  dep placement) need a human/agent read of the diff — that's what this
+- Two invariants are now lint-enforced by `scripts/lint-audit.mjs` (the
+  `isSafeExternalUrl` gate, `GIT_OPTIONAL_LOCKS=0`) — they fail `pnpm lint`, not a
+  review. Everything else above (dep placement, IPC shape, read limits, the bind
+  rules, packaging) still needs a human/agent read of the diff — that's what this
   skill is for. When reviewing, walk this list against the changed files.

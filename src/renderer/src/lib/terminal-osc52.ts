@@ -53,7 +53,7 @@ export function attachOsc52Clipboard(term: Terminal): void {
     if (text === null) return true
     // Fire-and-forget: the OSC handler can't usefully await UI clipboard prompts.
     // copyText itself is best-effort (execCommand fallback on insecure contexts).
-    void copyText(text)
+    copyText(text)
     return true
   })
 }

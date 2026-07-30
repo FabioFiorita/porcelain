@@ -61,7 +61,9 @@ export function FileTree({ rootPath }: { rootPath: string }): React.JSX.Element 
               variant="outline"
               size="sm"
               className="h-6 gap-1 px-2 text-2xs"
-              onClick={() => void copyScopeSetup()}
+              onClick={async () => {
+                await copyScopeSetup()
+              }}
             >
               {copied ? <Check className="size-3 text-success" /> : <Copy className="size-3" />}
               {copied ? 'Copied' : 'Copy focus setup prompt'}

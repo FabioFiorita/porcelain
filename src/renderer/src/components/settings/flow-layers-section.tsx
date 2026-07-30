@@ -353,7 +353,9 @@ export function FlowLayersSection({ onSaved }: { onSaved: () => void }): React.J
               size="sm"
               className={cn(compactButtonClass, 'self-start')}
               data-testid={TestIds.layersCopySetup}
-              onClick={() => void copySetup()}
+              onClick={async () => {
+                await copySetup()
+              }}
             >
               {copied ? <Check className="text-success" /> : <Copy />}
               {copied ? 'Copied' : 'Copy setup prompt'}

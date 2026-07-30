@@ -1,12 +1,18 @@
 #!/usr/bin/env node
 /**
- * Enforce the `as unknown as` ban (CLAUDE.md hard rule 6: let type-safety drive
- * the design — when types fight you, change the design).
+ * Enforce the escape-hatch bans Biome can't express:
+ *   - `as unknown as` (hard rule 6: let type-safety drive the design — when
+ *     types fight you, change the design).
+ *   - `void`-prefixed calls (hard rule 7: no `void` on promises).
  *
- * Biome has no rule for this (`noExplicitAny` covers `any`, nothing covers a
- * double cast), so it runs as part of `pnpm lint`. It was prose-only until
- * 2026-07-29 and had held to two test-only escapes — this makes it real so the
- * rule can stop being restated in CLAUDE.md.
+ * Biome has no rule for either (`noExplicitAny` covers `any`, nothing covers a
+ * double cast or a `void`-swallowed promise), so this runs as part of
+ * `pnpm lint`. Both were prose-only until 2026-07-29 — making them real is what
+ * lets CLAUDE.md stop restating them.
+ *
+ * The `void` regex requires an identifier followed by `.` or `(`, so it catches
+ * `void foo()` / `void utils.x.invalidate()` and leaves type-position `: void`
+ * (and `Promise<void>`) alone.
  *
  * Comment lines are skipped: the ban is *documented* in `file-watch.ts` and
  * `menu.ts`, and a naive grep counts those as violations.
@@ -28,6 +34,11 @@ const FORBIDDEN = [
   {
     re: /\bas\s+unknown\s+as\b/,
     label: 'as unknown as (change the design or use a structural interface)',
+  },
+  {
+    re: /\bvoid\s+[a-zA-Z_$][a-zA-Z0-9_$]*[.(]/,
+    label:
+      'void on a promise (use async/await, or await Promise.all([...]); a bare fire-and-forget call without `void` is fine)',
   },
 ]
 
@@ -66,15 +77,17 @@ for (const file of walk(scanRoot)) {
 }
 
 if (hits.length > 0) {
-  console.error('Type-escape drift — `as unknown as` is banned (CLAUDE.md rule 6):\n')
+  console.error(
+    'Escape-hatch drift — `as unknown as` (rule 6) and `void` on promises (rule 7) are banned:\n',
+  )
   for (const h of hits) {
     console.error(`  ${h.file}:${h.line}  ${h.label}`)
     console.error(`    ${h.snippet}`)
   }
   console.error(
-    `\n${hits.length} hit(s). Prefer a structural interface at the seam, a zod parse, or a narrowing type guard.`,
+    `\n${hits.length} hit(s). Prefer a structural interface at the seam, a zod parse, or a narrowing type guard; for promises, await them.`,
   )
   process.exit(1)
 }
 
-console.log('lint-type-escapes: ok')
+console.log('lint-escapes: ok')

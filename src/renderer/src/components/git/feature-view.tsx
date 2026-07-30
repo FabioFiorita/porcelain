@@ -144,7 +144,13 @@ function EmptyState(): React.JSX.Element {
             Suggested name: <span className="font-medium">{suggestedName}</span>
           </p>
         )}
-        <Button variant="outline" size="sm" onClick={() => void copyStartPrompt()}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={async () => {
+            await copyStartPrompt()
+          }}
+        >
           {copied ? <Check className="text-success" /> : <Copy />}
           {copied ? 'Copied' : 'Copy begin-unit prompt'}
         </Button>
@@ -205,7 +211,9 @@ function LifecycleBanner({
           variant="ghost"
           size="sm"
           className="h-6 gap-1 px-1.5 text-2xs"
-          onClick={() => void copyAgentPrompt()}
+          onClick={async () => {
+            await copyAgentPrompt()
+          }}
         >
           {copied ? <Check className="size-3 text-success" /> : <Copy className="size-3" />}
           {effectivePhase === 'ready_to_close' ? 'Copy end prompt' : 'Copy continue prompt'}
@@ -521,8 +529,8 @@ function ExecutionBody({ reading }: { reading: FeatureReading }): React.JSX.Elem
         <button
           type="button"
           onClick={() => primaryOpen(file)}
-          onMouseEnter={() => {
-            if (file.source === 'changed') void prefetchDiff(file.path)
+          onMouseEnter={async () => {
+            if (file.source === 'changed') await prefetchDiff(file.path)
           }}
           className="flex w-full flex-col gap-0.5 rounded-md px-2 py-1.5 text-left hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
         >

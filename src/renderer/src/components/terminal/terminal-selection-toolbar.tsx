@@ -85,8 +85,8 @@ export function TerminalSelectionToolbar({
           )}
           // Don't let the press clear xterm's selection before onClick runs.
           onMouseDown={(e) => e.preventDefault()}
-          onClick={() => {
-            void copy()
+          onClick={async () => {
+            await copy()
           }}
         >
           {copied ? <Check data-icon="inline-start" /> : <Copy data-icon="inline-start" />}

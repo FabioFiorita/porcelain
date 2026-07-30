@@ -75,7 +75,6 @@ export function jumpTargets(doc: ReviewDocShape): ReviewJumpTarget[] {
   if (doc.hasMoreFiles && doc.sectionCount > 0) {
     targets.push({ kind: 'section', index: doc.sectionCount })
   }
-  void doc.hasEvidence
   return targets
 }
 
