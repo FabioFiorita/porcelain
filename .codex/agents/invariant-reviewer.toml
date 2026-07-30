@@ -1,3 +1,4 @@
+# Mirrors .claude/agents/invariant-reviewer.md (canonical) and must be kept in sync.
 name = "invariant-reviewer"
 description = "Reviews the current working-tree diff against Porcelain's earned invariants (the audit skill), the one client architecture, and the AGENTS.md hard rules. Use before committing a non-trivial change, or whenever asked to check a diff for regressions. Read-only — reports findings, never edits."
 developer_instructions = """
