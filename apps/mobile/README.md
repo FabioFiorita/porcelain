@@ -28,6 +28,42 @@ To expose Expo's local development MCP server while Metro is running:
 pnpm mobile:start:mcp
 ```
 
+## Running it on the Mac's iOS simulator
+
+The repo lives on the Linux host; the simulator lives on the Mac. Metro runs on
+the host and the simulator loads the bundle over the LAN, so the only Mac-side
+step is installing the dev client — and only when the native fingerprint moved.
+
+```bash
+# 1. On the host — build a SIMULATOR dev client (arm64 .app, not an .ipa).
+cd apps/mobile && npx eas-cli@latest build -p ios --profile development-simulator
+
+# 2. On the Mac, from its checkout — download, install, and launch it.
+#    `build:run` does the tarball + `simctl install` dance for you.
+cd apps/mobile && npx eas-cli@latest build:run -p ios --profile development-simulator --latest
+
+# 3. Back on the host — Metro. Repeat only this for JS changes.
+pnpm mobile:start
+```
+
+Both of the first two are saved **Porcelain actions** on this repo: *iOS sim:
+build dev client (EAS)* and *iOS sim: install on this Mac*. The install action is
+`where: local`, so it runs on the Mac even though the window is bound to the host
+daemon.
+
+Two things that bite:
+
+- **`development-simulator` is a separate profile** (`eas.json`) because a
+  simulator build is an unsigned arm64 `.app`; the plain `development` profile
+  produces a device `.ipa` the simulator cannot install.
+- **Step 1 is only needed when the native fingerprint changes** — a new native
+  module, an `app.json` change, an SDK bump. Pure JS/TS edits reach the running
+  app through Fast Refresh, and step 2 would just reinstall the same binary.
+
+To pair the app with the dev daemon, use the host's **LAN address**, never
+`127.0.0.1` — on the simulator that resolves to the Mac. See
+`docs/plans/README.md` → *Shared verification recipe*.
+
 ## Shell: four tabs
 
 The client has four stable native tabs — **Files · Changes · Review ·

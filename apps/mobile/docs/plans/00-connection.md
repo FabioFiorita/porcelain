@@ -598,8 +598,8 @@ Two things this plan in particular must not get wrong. The `PORCELAIN_HOME` /
 **production** daemon. And the pairing `--base-url` must be this machine's LAN name or IP — a
 simulator resolving `127.0.0.1` reaches the *Mac*, so **do not** use `--loopback` here: this plan is
 the one that proves cross-machine pairing works. First run on a fresh simulator needs the dev client
-installed once from the Mac (`eas build -p ios --profile development-simulator`, then
-`xcrun simctl install booted <App>.app`); after that `pnpm mobile:start` is enough.
+installed once from the Mac (`eas build -p ios --profile development-simulator` here, then `eas build:run -p ios
+--profile development-simulator --latest` on the Mac); after that `pnpm mobile:start` is enough.
 
 Then, in the app: Settings → Environments → **Pair a daemon** → paste the printed link → pair →
 the environment appears active → the repo sheet lists the dev playground's recents → open one →

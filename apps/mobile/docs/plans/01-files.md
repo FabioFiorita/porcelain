@@ -388,7 +388,7 @@ python3 ~/.claude/skills/serve-sim-remote/scripts/shot.py /tmp/files-<journey>.j
 The `PORCELAIN_HOME` / `PORCELAIN_DAEMON_PORT` prefix is not optional — without it
 `daemon-cli.js` issues the link against the **production** daemon on 43117. First
 run on a fresh simulator needs the dev client installed once from the Mac
-(`eas build -p ios --profile development-simulator`, then `xcrun simctl install booted <App>.app`).
+`eas build -p ios --profile development-simulator` on the host, then `eas build:run -p ios --profile development-simulator --latest` on the Mac, which downloads, installs, and launches it).
 §2.7's iPad columns need an **iPad** simulator booted, not the iPhone one.
 
 Point the dev daemon at a repo with a real nested tree and at least one hidden

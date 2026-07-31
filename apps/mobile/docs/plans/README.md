@@ -99,11 +99,14 @@ Two prefixes/values that look optional and are not:
   against the **production** daemon. A managed worktree substitutes its own 43200–43999 port
   everywhere 43118 appears.
 
-First run on a fresh simulator needs the dev client installed once, and that is a **Mac** step: build
-it (`eas build -p ios --profile development-simulator`), then `xcrun simctl install booted <App>.app`
-there. After that, Metro from this box plus Fast Refresh is the whole loop — but note the route
-cannot force a reload or rebuild natively (no ⌘R, no Xcode), so a new native module or permission
-means another Mac session.
+First run on a fresh simulator needs the dev client installed once — two commands, two machines:
+`eas build -p ios --profile development-simulator` here, then, from the Mac's checkout,
+`eas build:run -p ios --profile development-simulator --latest`, which downloads the artifact,
+installs it, and launches it (no manual tarball or `simctl`). Both are saved Porcelain actions on
+this repo — *iOS sim: build dev client (EAS)* and *iOS sim: install on this Mac* (the latter is
+`where: local`, so it runs on the Mac). After that, Metro from this box plus Fast Refresh is the
+whole loop — but note the route cannot force a reload or rebuild natively (no ⌘R, no Xcode), so a
+new native module or permission means another Mac session.
 
 Pair once, open a repo from the dev playground, then exercise the tab under test and attach the
 screenshots to the Review. Repos opened this way are daemon-side paths on the dev stack only.

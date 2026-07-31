@@ -425,7 +425,7 @@ Pair the simulator against `http://<this-host>.local:43118` with the link that c
 real worktree, never the production daemon. The `PORCELAIN_HOME` / `PORCELAIN_DAEMON_PORT` prefix is
 not optional: without it `daemon-cli.js` reads `~/.porcelain/admin-token` and issues the link against
 43117. First run on a fresh simulator needs the dev client installed once from the Mac
-(`eas build -p ios --profile development-simulator`, then `xcrun simctl install booted <App>.app`).
+`eas build -p ios --profile development-simulator` on the host, then `eas build:run -p ios --profile development-simulator --latest` on the Mac, which downloads, installs, and launches it).
 
 **This tab is the one the remote-simulator route serves worst.** `serve-sim-remote` cannot send
 ⌘/⌃ chords, so a ^C typed by the driver never arrives — exercise the key bar's own sticky-Ctrl path

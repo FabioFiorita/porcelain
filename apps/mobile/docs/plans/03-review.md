@@ -402,7 +402,7 @@ Pair the simulator against `http://<this-host>.local:43118` with the link that c
 `~/.porcelain/admin-token` and issues the link against **production**.
 **Port 43117 / `~/.porcelain` is production — do not point the app at it.** First run on a
 fresh simulator needs the dev client installed once from the Mac
-(`eas build -p ios --profile development-simulator`, then `xcrun simctl install booted <App>.app`).
+`eas build -p ios --profile development-simulator` on the host, then `eas build:run -p ios --profile development-simulator --latest` on the Mac, which downloads, installs, and launches it).
 
 Seed a full unit of work on the dev channels (playground repo only):
 
