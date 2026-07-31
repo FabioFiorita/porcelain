@@ -215,14 +215,10 @@ const MAX_ANCHOR_LINES = 400
 /**
  * Assemble the Review document from an already-built feature view. Changed files
  * carry their working-tree diff hunks (passed in — they're async git reads);
- * context/shipped files carry symbol slices (only the lines the in-view files
- * import from them, falling back to all exports for cross-seam files no in-view
- * import resolves to). Anchored files render inside their section — an anchor
- * without a range gets the file's normal reading block, a ranged anchor gets the
- * intersecting hunks (changed) or a single clamped slice (otherwise) — and do not
- * repeat in `groups`; agent-declared files in no section land in `groups` in the
- * declared-order flow grouping. Review-set-only: the caller builds this only when
- * a review set is present.
+ * context/shipped files carry symbol slices. Anchored files render inside their
+ * section (a ranged anchor clamps to the intersecting hunks or one slice) and do
+ * not repeat in `groups`; agent-declared files in no section land in `groups`.
+ * Built only when a review set is present.
  */
 export function buildFeatureReading(params: {
   view: FeatureView

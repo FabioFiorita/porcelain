@@ -129,16 +129,11 @@ function responseHeaders(
 
 /**
  * Resolve a request URL path to an absolute file under `root`, or `null` if it
- * escapes the root (directory traversal) or is otherwise unsafe. Pure so it's
- * unit-tested against `../`, encoded `%2e%2e`, absolute paths, backslashes, and
- * query strings.
- *
- * - The query string (and hash) is stripped — only the path names a file.
- * - The path is percent-decoded so `%2e%2e` can't smuggle a `..` past the check.
- * - '/' (and any path ending in '/') maps to index.html.
- * - The browser pairing entry route (`/pair`) maps to the same app shell.
- * - After join+normalize the result MUST stay within `root` (prefix check with a
- *   trailing separator, so a sibling dir sharing a prefix can't sneak through).
+ * escapes the root (directory traversal) or is otherwise unsafe. Query and hash are
+ * stripped, the path is percent-decoded so `%2e%2e` can't smuggle a `..` past the
+ * check, `/` (and any trailing slash) and the `/pair` entry route map to index.html,
+ * and after join+normalize the result MUST stay within `root` — a prefix check with a
+ * trailing separator, so a sibling dir sharing a prefix can't sneak through.
  */
 export function resolveStaticPath(root: string, urlPath: string): string | null {
   // Drop query + hash: only the path selects a file.
@@ -187,17 +182,11 @@ export function resolveStaticPath(root: string, urlPath: string): string | null 
 
 /**
  * Rewrite index.html's CSP meta so the browser client can reach the daemon it was
- * served from. The Electron CSP allows the loopback daemon plus scheme-wide
- * `http:/https:/ws:/wss:` so a remote daemon (LAN/tailnet) is reachable from the
- * packaged app; over the tailnet the browser origin is a real host, so we narrow
- * `connect-src` to same-origin WS. We replace ONLY the connect-src directive with
- * `ws://<host> wss://<host>` (<host> = the request's Host header, host:port).
- * Same-origin HTTP is covered by 'self'; the explicit ws entries cover Safari's
- * stricter ws origin matching.
- *
- * Pure + tested. It touches connect-src ONLY — never default-src/img-src, which
- * are the agent-HTML-exfil backstop (audit invariant). Idempotent-ish: a host with
- * no matching connect-src left is a no-op.
+ * served from: `connect-src` becomes `'self' ws://<host> wss://<host>` (<host> = the
+ * request's Host header). Same-origin HTTP is covered by 'self'; the explicit ws
+ * entries cover Safari's stricter ws origin matching. It touches connect-src ONLY —
+ * never default-src/img-src, which are the agent-HTML-exfil backstop (audit
+ * invariant). Pure + tested; a host with no matching connect-src left is a no-op.
  */
 export function rewriteCsp(html: string, host: string): string {
   return html.replace(
@@ -207,13 +196,10 @@ export function rewriteCsp(html: string, host: string): string {
 }
 
 /**
- * Serve a GET/HEAD request for a static asset from the renderer dist. Returns
- * true if it handled the request (2xx or 404), false only when the request isn't
- * a GET/HEAD it should own (the caller then does its own thing). index.html is
- * read and its CSP rewritten for the request Host; everything else streams.
- *
- * Missing dist dir (the dev daemon runs before any build) surfaces as a 404 per
- * request — logged once by the caller, never a crash.
+ * Serve a GET/HEAD request for a static asset from the renderer dist. index.html is
+ * read and its CSP rewritten for the request Host; everything else streams. A missing
+ * dist dir (the dev daemon runs before any build) surfaces as a 404 per request —
+ * logged once by the caller, never a crash.
  */
 export async function serveStatic(
   req: IncomingMessage,

@@ -19,43 +19,23 @@ import {
 } from './remote-daemon'
 
 /**
- * Fork and babysit the daemon child (`out/main/daemon/server.js`) — the
- * Electron-free backend the renderer talks to over HTTP/WS on 127.0.0.1.
+ * Fork and babysit the daemon child (`out/main/daemon/server.js`) — the Electron-free
+ * backend the renderer talks to over HTTP/WS on 127.0.0.1. The fork goes through
+ * `utilityProcess.fork` and must NEVER go back to child_process + the run-as-Node env
+ * switch; the audit skill's fork rule records what that costs.
  *
- * The fork goes through `utilityProcess.fork`, which runs the script in a real
- * Node.js environment inside Electron — node-pty's Electron-ABI build stays
- * valid — and behaves identically in dev and packaged builds. It must NEVER go
- * back to child_process-spawning our own binary with the run-as-Node env
- * switch: packaged builds fuse RunAsNode OFF (build/after-pack.js) and the fuse
- * silently IGNORES that env var, so the child boots as a second full GUI app
- * whose own startDaemon() spawns another — a fork bomb (caught in the v0.19.0
- * pre-publish fuse check).
- * The daemon resolves userData from PORCELAIN_USER_DATA (the shell owns the dev
- * `-dev` suffix, so the config file location never changes) and runs the dev
- * seeding under PORCELAIN_DEV. The rest of the env is inherited — that's how
- * the e2e fixture's PORCELAIN_E2E / PORCELAIN_REVIEW_SETS / PORCELAIN_SHELL
- * overrides reach the daemon-side stores and terminal manager.
+ * The daemon resolves userData from PORCELAIN_USER_DATA (the shell owns the dev `-dev`
+ * suffix) and runs dev seeding under PORCELAIN_DEV; the rest of the env is inherited, so
+ * the e2e fixture's PORCELAIN_* overrides reach the daemon-side stores and terminals.
  *
- * Lifecycle: the ready line (`{"port": N}` on stdout) resolves the port; a crash
- * restarts the daemon with a capped backoff (give up after 3 rapid failures) and
- * pushes the NEW url to every LOCAL-bound window over `daemon-url-changed` (the
- * renderer's WS client reconnects and queries refetch); quit kills the child.
- * Electron ties a utility child's lifetime to the app, which supersedes the
- * daemon's stdin parent-death watchdog here — utilityProcess provides no stdin
- * at all, so the shell disables the watchdog via PORCELAIN_NO_STDIN_WATCHDOG
- * (standalone daemons under plain `node` keep it).
+ * Lifecycle: the ready line (`{"port": N}` on stdout) resolves the port; a crash restarts
+ * with a capped backoff (give up after 3 rapid failures) and pushes the NEW url to every
+ * LOCAL-bound window over `daemon-url-changed`; quit kills the child. A utility child has
+ * no stdin, so the shell disables the daemon's parent-death watchdog via
+ * PORCELAIN_NO_STDIN_WATCHDOG (standalone daemons under plain `node` keep it).
  *
- * Auth: every daemon request is gated on a persistent credential (see the
- * security note in backend/server.ts — loopback is reachable from any webpage,
- * so the listener must never run open). The local shell gets the host
- * administrator credential from `~/.porcelain/admin-token` (0600) and passes it
- * via env (never argv) to the child and preload. Remote devices receive separate
- * credentials through one-time pairing links.
- *
- * Environments are PER WINDOW: each BrowserWindow can point at the local child
- * or a saved remote daemon. The local child always keeps running (instant
- * switch-back and multi-env simultaneous use — local project in one window,
- * Beelink in another). See setWindowEnvironment / daemonInfoFor.
+ * Environments are PER WINDOW — each BrowserWindow points at the local child or a saved
+ * remote daemon; the local child keeps running so switch-back is instant.
  */
 
 const readyLineSchema = z.object({ port: z.number().int().positive() })

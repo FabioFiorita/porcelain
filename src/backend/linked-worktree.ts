@@ -17,15 +17,12 @@ export async function isLinkedWorktree(repoPath: string): Promise<boolean> {
 }
 
 /**
- * The primary checkout a linked worktree belongs to, or null when `repoPath` is
- * not a linked worktree (or its administrative files are missing/unreadable —
- * callers treat that as "nothing to do", never as an error).
- *
- * Resolved from git's own administrative files instead of a spawn:
- * `.git` holds `gitdir: <repo>/.git/worktrees/<name>`, and that directory's
- * `commondir` points back at the common `.git` dir, whose parent is the primary
- * checkout. A bare-repo family therefore yields a directory that holds no
- * settings — a harmless no-op rather than a wrong answer.
+ * The primary checkout a linked worktree belongs to, or null when `repoPath` is not
+ * one (or its administrative files are unreadable — callers treat that as "nothing
+ * to do", never an error). Read from git's own files instead of a spawn: `.git` holds
+ * `gitdir: <repo>/.git/worktrees/<name>`, and that directory's `commondir` points at
+ * the common `.git` dir, whose parent is the primary checkout. A bare-repo family
+ * yields a directory holding no settings — a harmless no-op, not a wrong answer.
  */
 export async function primaryCheckoutPath(repoPath: string): Promise<string | null> {
   try {

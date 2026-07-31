@@ -9,21 +9,13 @@ import { porcelainHome } from '../shared/porcelain-home'
  * `PORCELAIN_HOME=~/.porcelain-dev` so product work never overwrites the
  * production install.
  *
- * Build layout (preserved on install):
- *   out/main/cli/porcelain.js
- *   out/main/chunks/*          ← required by the CLI's `require("../chunks/…")`
- *
- * Install layout (must match those relative requires):
+ * The install MUST preserve the build's `cli/porcelain.js` + sibling `chunks/`
+ * pair, because the CLI's own `require("../chunks/…")` is relative:
  *   ~/.porcelain/cli/porcelain.js
  *   ~/.porcelain/chunks/*
  *   ~/.porcelain/porcelain     ← wrapper → node cli/porcelain.js
- *
- * Copying only porcelain.js to ~/.porcelain/porcelain.js was a latent bug: the
- * require becomes ~/chunks/… which does not exist. A daemon upgrade that shipped
- * a chunk-splitting CLI broke every agent that ran `~/.porcelain/porcelain`.
- *
- * The daemon (and the Mac shell) re-run this on every boot, so a daemon/app
- * upgrade ships new CLI commands automatically without any user action.
+ * Flattening to `~/.porcelain/porcelain.js` resolves the require to `~/chunks/…`,
+ * which does not exist, and silently breaks every agent that runs the CLI.
  */
 
 /** Directory the CLI is installed into. */

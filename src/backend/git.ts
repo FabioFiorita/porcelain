@@ -697,15 +697,11 @@ async function untrackedFingerprintInput(repoPath: string, path: string): Promis
 
 /**
  * A content fingerprint for a reviewed mark: sha256 hex of the file's diff vs HEAD, so
- * a mark stops matching once the reviewed content changes — an external commit/amend
- * empties or reshapes the diff, a post-mark edit reshapes it, and reconcile prunes the
- * stale mark. An untracked file has no diff vs HEAD, so it's fingerprinted by its bytes
- * instead (see untrackedFingerprintInput). A clean/missing tracked file, and a repo
- * with no HEAD yet (unborn branch), hash the empty diff — that can't match a fingerprint
- * taken when the file had changes, so the mark prunes, which is the intent.
- *
+ * the mark stops matching (and prunes) once the reviewed content changes. An untracked
+ * file hashes its bytes instead; a clean/missing tracked file and an unborn branch hash
+ * the empty diff, which never matches a mark taken when the file had changes.
  * `--no-renames` keeps this byte-identical to the batched `reviewedFingerprints`, whose
- * multi-path diff would otherwise pair a rename that a single-path diff can't see.
+ * multi-path diff would otherwise pair a rename a single-path diff can't see.
  */
 export async function reviewedFingerprint(repoPath: string, path: string): Promise<string> {
   let diff: string | null = null
@@ -724,17 +720,12 @@ export async function reviewedFingerprint(repoPath: string, path: string): Promi
 }
 
 /**
- * Batched `reviewedFingerprint` for many paths at a constant spawn count (one `git diff`,
- * plus one `git status` only when some path has an empty diff) instead of one diff (and
- * maybe one status) per path — the reviewed-marks reconcile polls this every few seconds.
- * Each path gets exactly the fingerprint the single-file `reviewedFingerprint` would.
- *
- * The combined diff is split into per-file chunks on `diff --git ` header lines (never a
- * content line, which git prefixes with a space/±); each chunk is byte-identical to that
- * path's single-file diff, so its sha256 matches. A chunk is attributed to a path by its
- * `+++ b/<path>` line, or `--- a/<path>` when the file was deleted (`+++ /dev/null`).
- * Anything we can't attribute confidently (quoted/escaped headers, binary, mode-only)
- * falls back to a per-path `reviewedFingerprint` — correctness over spawn count.
+ * Batched `reviewedFingerprint` at a constant spawn count (one `git diff`, plus a
+ * `git status` only when some path has an empty diff) — the reconcile polls this every
+ * few seconds. The combined diff splits on `diff --git ` header lines (never a content
+ * line, which git prefixes with a space/±) so each chunk is byte-identical to that
+ * path's single-file diff; a chunk is attributed by `+++ b/<path>`, or `--- a/<path>`
+ * when deleted. Anything unattributable falls back to a per-path fingerprint.
  */
 export async function reviewedFingerprints(
   repoPath: string,

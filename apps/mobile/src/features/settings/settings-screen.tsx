@@ -18,15 +18,7 @@ export function SettingsScreen() {
   return (
     <>
       <Host seedColor={colors.tint} style={{ flex: 1 }} useViewportSizeMeasurement>
-        {/*
-          `Button` wrapping a `VStack` is the SwiftUI title+subtitle row. There is
-          no `NavigationLink` here on purpose: expo-router owns navigation, so the
-          row only needs to fire `router.push`.
-
-          `buttonStyle('plain')` is NOT optional: a default SwiftUI `Button` tints
-          its whole label with the accent color, so every row renders as blue link
-          text instead of a settings row (caught on the simulator, 2026-07-31).
-        */}
+        {/* `buttonStyle('plain')` is required — a default SwiftUI Button tints its whole label with the accent color. */}
         <List modifiers={[listStyle('insetGrouped')]}>
           {ROWS.map(({ href, subtitle, title }) => (
             <Button

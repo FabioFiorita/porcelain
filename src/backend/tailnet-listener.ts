@@ -4,37 +4,26 @@ import { findLanAddresses, lanDisplayHost } from './lan'
 import { findTailscaleAddress } from './tailnet'
 
 /**
- * The optional SECOND daemon listeners — bound to non-loopback private interfaces
- * so other devices the user trusts can reach the daemon, always behind the same
- * token gate as loopback and never 0.0.0.0 (see the audit skill + server.ts):
- *
- * - the **tailnet** listener binds the Tailscale interface (100.64/10) — the
- *   away-from-home path, WireGuard-encrypted at the network layer.
- * - the **LAN** listener binds the machine's RFC1918 private addresses — the
- *   at-home path (same Wi-Fi, no Tailscale hop); traffic is cleartext on the LAN
- *   (accepted, opt-in, default off — see the audit skill's recorded tradeoff).
- *
- * Both are the same shape, so they're two instances of one factory
- * (`createIfaceListener`). The request/upgrade handlers live in server.ts (they
- * close over the token digest and the WS session plumbing); the module is handed
- * them once via `initIfaceHandlers` at boot, then owns the second http.Server(s)
- * so the API's setTailnetBind/setLanBind mutations can start/stop them live
- * without importing server.ts (which would drag in the daemon's `main()` side
- * effects).
+ * The optional SECOND daemon listeners — bound to non-loopback private interfaces so
+ * other devices the user trusts can reach the daemon, always behind the same token
+ * gate as loopback and never 0.0.0.0 (audit skill + server.ts): the **tailnet**
+ * listener binds the Tailscale interface (100.64/10), the **LAN** listener binds the
+ * machine's RFC1918 addresses. Same shape, so they are two instances of one factory
+ * (`createIfaceListener`). The request/upgrade handlers live in server.ts and are
+ * handed over once via `initIfaceHandlers`, so start/stop can go live without
+ * importing server.ts (which would drag in the daemon's `main()` side effects).
  *
  * **Port = the daemon port.** Loopback and iface listeners share one port from
- * `PORCELAIN_DAEMON_PORT` (default **43117**). That way `serve --port 9999 --lan`
- * and the dev stack on 43118 are reachable at the same port on every bind — the
- * old "iface always 43117" split made a non-default loopback port unreachable
- * over LAN/tailnet. The Electron-spawned local child leaves the env unset
- * (loopback gets an OS port; Share still binds the default 43117).
+ * `PORCELAIN_DAEMON_PORT` (default 43117), so `serve --port 9999 --lan` and the dev
+ * stack on 43118 stay reachable at that port on every bind. The Electron-spawned local
+ * child leaves the env unset (loopback gets an OS port; Share still binds 43117).
  *
  * **Reconcile, not bind-once.** Addresses appear after boot (DHCP race, resume,
- * Tailscale up, Wi-Fi join). `start()` is a reconcile: bind newly-appeared
- * addresses, close sockets whose address disappeared, safe to call repeatedly.
- * While enabled, a short interval re-scans `os.networkInterfaces()` so a boot
- * race or network change is recovered without a daemon restart.
+ * Tailscale up, Wi-Fi join), so `start()` binds newly-appeared addresses and closes
+ * sockets whose address vanished, safe to call repeatedly; while enabled an interval
+ * re-scans `os.networkInterfaces()`.
  */
+
 /** Default share/daemon port when `PORCELAIN_DAEMON_PORT` is unset or invalid. */
 export const LISTENER_PORT = 43117
 
@@ -68,12 +57,11 @@ export function initIfaceHandlers(request: RequestHandler, upgrade: UpgradeHandl
 export interface IfaceListener {
   /**
    * Enable the listener and reconcile binds against the current interfaces.
-   * Resolves the formatted url, or `null` when there's no matching interface
-   * (caller reports "unavailable"). Safe to call repeatedly — diffs bound
-   * sockets vs. desired addresses (bind new, close stale). A per-address listen
-   * error is logged to stderr and that address is skipped — it must NEVER take
-   * the loopback listener (a separate server) down. While enabled, a background
-   * interval re-runs the reconcile so addresses that appear later are picked up.
+   * Resolves the formatted url, or `null` when there's no matching interface.
+   * Safe to call repeatedly — bind new addresses, close stale ones. A per-address
+   * listen error is logged and that address skipped; it must NEVER take the
+   * loopback listener (a separate server) down. While enabled a background
+   * interval re-runs the reconcile so later-appearing addresses are picked up.
    */
   start: () => Promise<string | null>
   /** Disable the listener and tear down every bound server (no-op otherwise). */
@@ -93,17 +81,12 @@ export interface IfaceListener {
 }
 
 /**
- * One second-listener instance. `pickAddresses` returns the interfaces to bind
- * (a one-element array for the tailnet, possibly several for the LAN);
- * `formatUrl` turns the bound addresses into the url the UI shows. `label` names
- * the instance in stderr on a listen error.
- *
- * `reconcileMs` is injectable so tests can exercise the interval without waiting
- * the production 5s (or set 0 to disable the timer entirely).
- *
- * `port` is optional: omit it to follow `ifaceListenerPort()` at each bind
- * (production singletons); pass an explicit number in tests so the suite owns
- * an ephemeral port on a host whose live daemon may already squat 43117.
+ * One second-listener instance. `pickAddresses` returns the interfaces to bind (one
+ * for the tailnet, possibly several for the LAN); `formatUrl` turns them into the url
+ * the UI shows; `label` names the instance in stderr on a listen error. `reconcileMs`
+ * is injectable so tests don't wait the production 5s (0 disables the timer). `port`
+ * defaults to `ifaceListenerPort()` at each bind; tests pass an ephemeral one so the
+ * suite doesn't collide with a live daemon squatting 43117.
  */
 export function createIfaceListener(
   pickAddresses: () => string[],

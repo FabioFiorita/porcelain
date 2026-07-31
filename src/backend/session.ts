@@ -118,11 +118,9 @@ class Session {
         // to evict. Two things must not happen: the exception escaping this socket's
         // 'message' handler (that takes the daemon down), and the client's pending create
         // never settling. `terminal:created` carries no error channel, so we still answer
-        // — with the empty id, the only "there is no session" value it can express (the
-        // spirit of `terminal:attached { found: false }`) — and log the reason daemon-side.
-        // The client's optimistic row self-heals on the next roster hydrate, since the
-        // daemon has no such session. Surfacing the message to the human would need an
-        // error field on `terminal:created` (a protocol change), not a new message type.
+        // — with the empty id, the only "there is no session" value it can express — and
+        // log the reason daemon-side. The client's optimistic row self-heals on the next
+        // roster hydrate. Surfacing it would need an error field on `terminal:created`.
         let id: string
         try {
           id = createTerminal(this, {

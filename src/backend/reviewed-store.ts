@@ -127,17 +127,12 @@ export function reconcileMarks(
 }
 
 /**
- * Reconcile a repo's marks against the fingerprints freshly computed for a SNAPSHOT of
- * those marks — the caller in api.ts reads the marks, then fingerprints exactly those
- * paths. Pass that same snapshot in; this does NOT re-read the marks for the prune
- * decision, so a mark added between the snapshot and this serialized write (a new path,
- * or a re-mark with a fresh fingerprint) is never in the snapshot, is never classed
- * stale, and survives untouched. Writes through only when something in the snapshot was
- * pruned (so the JSON stays truthful for the CLI reader without a needless rewrite).
- *
- * Returns the on-disk paths AFTER reconcile (re-read), not just the snapshot survivors —
- * so a concurrent `markReviewed` that landed while we were fingerprinting is included in
- * the response.
+ * Reconcile a repo's marks against fingerprints freshly computed for a SNAPSHOT of
+ * those marks (api.ts reads the marks, then fingerprints exactly those paths — pass
+ * that same snapshot in). This does NOT re-read the marks for the prune decision, so a
+ * mark added between the snapshot and this serialized write is never classed stale and
+ * survives untouched. Writes through only when the snapshot lost something. Returns the
+ * on-disk paths AFTER reconcile, so a concurrent `markReviewed` is included.
  */
 export async function reconcileReviewed(
   repoPath: string,

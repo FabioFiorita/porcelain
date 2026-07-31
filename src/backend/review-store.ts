@@ -23,13 +23,11 @@ export function isRepoContained(repoPath: string, entryPath: string): boolean {
 }
 
 /**
- * The agent channel: review sets the porcelain CLI writes, keyed by absolute repo path.
- * Lives in `~/.porcelain/` — the user's home, NOT the work repo (Porcelain never
- * writes into work repos) and NOT `userData` (a plain `node` CLI process can't
- * resolve Electron's userData path, so both sides agree on this fixed location).
- * The CLI AUTHORS the sets; the app READS them — and makes exactly one write,
- * `clearReviewSet` (user-initiated from the Feature tab's Clear button), to delete a
- * repo's entry. No network surface either way (local CLI process, local file).
+ * The agent channel: review sets the porcelain CLI writes, keyed by absolute repo
+ * path. Lives in `~/.porcelain/` — the user's home, NOT the work repo (Porcelain never
+ * writes into work repos) and NOT `userData` (a plain `node` CLI process can't resolve
+ * Electron's userData path, so both sides agree on this fixed location). The CLI
+ * AUTHORS the sets; the app READS them and makes exactly one write, `clearReviewSet`.
  */
 export function reviewSetsPath(): string {
   // Must match src/cli/review-file.ts (the sole writer). PORCELAIN_REVIEW_SETS lets

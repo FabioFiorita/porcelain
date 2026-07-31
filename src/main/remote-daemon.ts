@@ -20,14 +20,12 @@ import { z } from 'zod'
  */
 
 /**
- * Where an environment can be reached. One machine is usually SEVERAL of these — the
- * Beelink is a LAN address at home and a tailnet address away — and environments v2 phase 5
- * makes that one environment with many endpoints instead of two confusingly-named rows.
- *
- * The kind is DERIVED from the address (see `endpointKind`), never stored: a DHCP lease
- * changes the address, and a stored kind would then describe the wrong thing. The human's
- * preference is persisted BY KIND for the same reason — "I prefer the LAN here" survives a
- * router handing out a different number tomorrow; "I prefer 192.168.1.50" does not.
+ * Where an environment can be reached. One machine is usually SEVERAL of these — a LAN
+ * address at home and a tailnet address away — so ONE environment holds many endpoints
+ * instead of appearing as two confusingly-named rows. The kind is DERIVED from the
+ * address (see `endpointKind`), never stored: a DHCP lease changes the address and a
+ * stored kind would then describe the wrong thing. The human's preference is persisted
+ * BY KIND for the same reason.
  */
 export const endpointKinds = ['tailnet', 'lan', 'other'] as const
 export type EndpointKind = (typeof endpointKinds)[number]
@@ -92,14 +90,12 @@ export async function saveRemoteEnvironmentState(state: RemoteEnvironmentState):
 }
 
 /**
- * Serialized read-modify-write — the ONLY sanctioned way to change this file.
- *
- * A bare `load → mutate → save` is a lost update here, and phase 5 made that concrete:
- * `environmentStatuses` loads the state, spends SECONDS probing endpoints over the network,
- * then writes its snapshot back. An add or remove that lands inside that window would be
- * silently undone — including resurrecting a removed environment together with its
- * plaintext token, which is the direction that actually matters. Read inside the callback,
- * key edits by environment id (never by an index into a snapshot taken before an await).
+ * Serialized read-modify-write — the ONLY sanctioned way to change this file. A bare
+ * `load → mutate → save` is a lost update: `environmentStatuses` loads the state, spends
+ * SECONDS probing endpoints, then writes its snapshot back, so an add or remove landing
+ * inside that window is silently undone — including resurrecting a removed environment
+ * with its plaintext token, the direction that actually matters. Read inside the callback
+ * and key edits by environment id, never by an index into a pre-await snapshot.
  */
 let writeChain: Promise<void> = Promise.resolve()
 
@@ -160,12 +156,10 @@ export function endpointsOf(env: RemoteEnvironment): string[] {
 
 /**
  * The order to TRY an environment's endpoints in: the preferred kind first, then the last
- * known good url, then the rest as stored. Deduped, so a caller can just walk it.
- *
- * Ordering matters more than it looks: on the home LAN the tailnet address usually still
- * *works*, just slower (out to the WireGuard relay and back), so "first one that answers"
- * would quietly pick the worse route. Preference decides, reachability only breaks ties.
- * Pure — unit-tested.
+ * known good url, then the rest as stored, deduped. Ordering matters more than it looks:
+ * on the home LAN the tailnet address usually still *works*, just slower (out to the
+ * WireGuard relay and back), so "first one that answers" would quietly pick the worse
+ * route. Preference decides; reachability only breaks ties. Pure — unit-tested.
  */
 export function orderedEndpoints(env: RemoteEnvironment): string[] {
   const all = endpointsOf(env)

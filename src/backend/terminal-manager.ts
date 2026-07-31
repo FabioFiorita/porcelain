@@ -5,32 +5,25 @@ import { ScrollbackBuffer } from './scrollback-buffer'
 import { terminalEnv } from './terminal-env'
 
 // The embedded terminal's PTY layer. PTYs are OS resources, so they live here in the
-// daemon process (one Map for the whole app). As of Phase 2 a PTY's lifetime is
-// DECOUPLED from any WS connection: sessions survive a renderer reload, and a
-// re-connecting (or a second) client attaches to the live PTY, replays its scrollback,
-// and resumes streaming. So a session has no single owner sender — it has a SET of
-// attached senders and output fans out to all of them. The daemon also owns the roster
-// (name/cwd/status): the renderer hydrates its sidebar list from `listTerminals`, so a
-// renamed or still-running session reappears after a reload. A dropped socket just
-// detaches. Output past the scrollback cap is forgotten (see scrollback-buffer.ts) so a
-// long-lived shell can't grow daemon memory unbounded.
+// daemon process (one Map for the whole app). A PTY's lifetime is DECOUPLED from any WS
+// connection: sessions survive a renderer reload, and a re-connecting (or a second)
+// client attaches to the live PTY, replays its scrollback, and resumes streaming. So a
+// session has no single owner sender — it has a SET of attached senders and output fans
+// out to all of them. The daemon also owns the roster (name/cwd/status), so a renamed or
+// still-running session reappears after a reload; a dropped socket just detaches, and
+// output past the scrollback cap is forgotten (see scrollback-buffer.ts).
 //
-// Decoupled is not unbounded — and for two releases it WAS. A long-lived daemon reached
-// 228 sessions and an 8.7 GB peak with a pile of orphaned `zsh -l` processes: nothing
-// ever removed a naturally-exited entry, nothing capped concurrent sessions, and a
-// running session nobody was attached to lived until the daemon died. So the decoupling
-// now comes with three bounds, all swept by `sweepTerminals`:
-//   - EXITED_RETENTION_MS — a dead session's final output stays readable across a
-//     reload, which is the whole point of keeping the entry; it does not stay forever.
-//   - DETACHED_IDLE_MS — deliberately a generous 12h, because a background dev server
-//     you come back to tomorrow must survive; a forgotten login shell must not.
+// Decoupled is not unbounded: without the three bounds below a long-lived daemon reached
+// 228 sessions and an 8.7 GB peak of orphaned `zsh -l`. All are swept by `sweepTerminals`:
+//   - EXITED_RETENTION_MS — a dead session's final output stays readable across a reload,
+//     which is the point of keeping the entry, but not forever.
+//   - DETACHED_IDLE_MS — a generous 12h: a background dev server you come back to
+//     tomorrow must survive; a forgotten login shell must not.
 //   - MAX_SESSIONS — the backstop against a runaway creator, spending the cheapest
-//     sacrifice first (exited entries, then the oldest unwatched shell) and refusing
-//     rather than killing a session a human is looking at.
-// The bounds only ever touch a session with NO attached client, so nothing here can
-// reap a terminal someone is watching. Every path that can empty `attached` must start
-// the idle clock (`markDetachedIfEmpty`) — including `fanOut`, which drops destroyed
-// senders — or a session detaches invisibly and never expires.
+//     sacrifice first and refusing rather than killing a session a human is watching.
+// The bounds only ever touch a session with NO attached client. Every path that can empty
+// `attached` must start the idle clock (`markDetachedIfEmpty`) — including `fanOut`, which
+// drops destroyed senders — or a session detaches invisibly and never expires.
 
 /**
  * The minimal slice of `WebContents` we need: send terminal output and check the
@@ -226,15 +219,11 @@ export function createTerminal(sender: TerminalSender, opts: CreateTerminalOptio
 
   // Race: initialInput written before the shell's readline has prepped the tty is echoed
   // at the tty level but SWALLOWED (readline's prep flushes queued typeahead) — the
-  // command never runs. Writing at spawn failed two release gates (v0.17.1, v0.19.0),
-  // and writing on the shell's FIRST output failed a third: the first chunk is bash's
-  // "default shell is zsh" banner, still pre-readline on a slow runner. So the write is
-  // a quiet-period debounce keyed on the output's shape (see initial-input.ts): a
-  // prompt-shaped chunk (no trailing newline) arms a short window, a newline-terminated
-  // one a long window, and the same long window from spawn covers a shell that prints
-  // nothing at all. A one-shot closure that whichever timer fires calls-and-nulls;
-  // killTerminal/onExit null it so a session gone before the write never fires it. The
-  // onData scrollback/fan-out below is untouched — this rides in front.
+  // command never runs. `initial-input.ts` owns the quiet-window rule and the failures
+  // behind it; here the write is a one-shot closure that whichever timer fires
+  // calls-and-nulls, with killTerminal/onExit nulling it so a session gone before the
+  // write never fires it. The onData scrollback/fan-out below is untouched — this rides
+  // in front.
   let initialTimer: ReturnType<typeof setTimeout> | undefined
   let sendInitialInput: (() => void) | null = null
   if (opts.initialInput !== undefined && opts.initialInput !== '') {

@@ -1,7 +1,7 @@
 /**
  * Stable `data-testid` values for e2e (and any automation).
  *
- * Contract (decided 2026-07-21): Playwright e2e locators prefer these IDs over
+ * Contract: Playwright e2e locators prefer these IDs over
  * getByText / ambiguous getByRole. Accessibility roles and aria-labels stay on
  * the product for humans and a11y tooling; tests do not depend on copy that
  * churns with intentional UI work.

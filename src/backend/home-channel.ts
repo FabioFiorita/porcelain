@@ -18,22 +18,12 @@ export interface HomeChannel<T> {
 type PathOpts = { path: () => string } | { envVar: string; fileName: string }
 
 /**
- * The single durable-JSON engine for the agent-channel files under ~/.porcelain
- * (and, via the `path` form, userData/config.json): a resolvable path,
- * schema-validated read (empty on absent/invalid), corrupt-file backup, atomic
- * tmp+rename write, and an in-process serialized read-modify-write so two quick
- * mutations never drop a write. Each channel layers its domain functions on top.
- *
- * Optional behaviors:
- * - `transform` — post-parse hook (e.g. layers' compilable-pattern filter); runs
- *   inside the read, before the value is cached.
- * - `cache` — `'none'` (default; every read hits disk), `'mtime'` (stat-guarded,
- *   safe with an external writer: re-parse only when mtime/size changed), or
- *   `'memory'` (read once, then always serve memory — ONLY for an app-sole-writer
- *   file like config.json).
- * - `maxBytes` — files larger than this are treated as empty (with a one-line
- *   stderr warning) instead of read; a `mutate` on such a file therefore rewrites
- *   it from empty, matching the drop-on-invalid posture of the channels.
+ * The single durable-JSON engine for the agent channels under ~/.porcelain (and, via
+ * the `path` form, userData/config.json): schema-validated read (empty on
+ * absent/invalid), corrupt-file backup, atomic tmp+rename, serialized read-modify-write.
+ * Options: `transform` (post-parse hook inside the read); `cache` = `'none'` (default),
+ * `'mtime'` (stat-guarded, safe with an external writer) or `'memory'` (ONLY for an
+ * app-sole-writer file like config.json); `maxBytes`, above which a file reads as empty.
  */
 export function createHomeChannel<T>(
   opts: PathOpts & {

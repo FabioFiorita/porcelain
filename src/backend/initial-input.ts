@@ -3,7 +3,7 @@
  * before the shell's readline has prepped the tty is echoed by the kernel but DISCARDED
  * when readline takes over (its terminal prep flushes queued typeahead) — so the command
  * never runs. Writing at spawn failed two release gates (v0.17.1, v0.19.0), and writing
- * on the shell's FIRST output failed a third (2026-07-05): the first chunk is bash's
+ * on the shell's FIRST output failed a third: the first chunk is bash's
  * startup banner, printed before readline is up, so the write was still swallowed on a
  * slow runner.
  *

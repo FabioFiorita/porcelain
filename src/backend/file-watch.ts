@@ -2,29 +2,23 @@ import { type FSWatcher, watch } from 'node:fs'
 import { basename, dirname } from 'node:path'
 
 /**
- * Watch the files currently open in the viewer so an external write — most often
- * the user's coding agent editing a file in the embedded terminal — live-refreshes
- * the open document. The renderer pushes its open file paths via the `watchFiles`
- * procedure (one call whenever the set changes); we reconcile the directory
- * watchers to match and emit a `working-tree` app-event on a relevant change.
+ * Watch the files currently open in the viewer so an external write — usually the
+ * user's coding agent editing in the embedded terminal — live-refreshes the open
+ * document. The renderer pushes its open paths via `watchFiles`; we reconcile the
+ * directory watchers to match and emit a `working-tree` app-event.
  *
  * We watch each file's DIRECTORY, not the file: tools write atomically (tmp +
  * rename), which swaps the inode and breaks a direct file watch (same reason
- * `review-watch` watches dirs). We then filter the directory's events down to the
- * basenames we actually care about, so a noisy directory only fires when an OPEN
- * file changes. Watching just the open files' dirs — never the whole tree — keeps
- * this cheap on a 50 GB monorepo and sidesteps `.git`/`node_modules` churn.
+ * `review-watch` watches dirs). Events are then filtered down to the basenames we
+ * care about. Never the whole tree — see the audit skill's perf invariant.
  *
  * The event carries no path (the app-event channel is a bare enum), so the
- * renderer re-reads every open document; there are only a handful, so a blanket
- * `readFile` invalidation is cheap and keeps the channel simple. Watching adds no
- * new capability over `readFile` (which already takes an arbitrary path) and the
- * event leaks nothing — so it's not a new security surface.
+ * renderer re-reads every open document — cheap at a handful of tabs. It adds no
+ * capability over `readFile`, which already takes an arbitrary path.
  *
- * Watchers are keyed per window (the calling WebContents): each window watches its
- * own open files, and a directory change fires `working-tree` only on the owning
- * window (guarded by `isDestroyed`), never broadcast across windows. A window's
- * watchers are reaped when it closes via `clearWatchedFiles`.
+ * Watchers are keyed per window (the calling WebContents) and a change fires only
+ * on the owning window (guarded by `isDestroyed`), never broadcast; a window's
+ * watchers are reaped on close via `clearWatchedFiles`.
  */
 
 /**
@@ -97,18 +91,12 @@ export function clearWatchedFiles(sender: FileWatchSender): void {
 }
 
 /**
- * Watch the DIRECTORIES currently expanded in the Files tree (the renderer pushes
- * them via `watchDirs` whenever the expanded set changes) so an external add/remove
- * — the coding agent creating files in the terminal — live-refreshes the tree,
- * instead of waiting for the next 3s-stale tab switch. This is the tree twin of the
- * open-files watcher above; same per-sender keying and same reap-on-window-close
- * path (`clearWatchedDirs`, called next to `clearWatchedFiles`).
- *
- * PERF INVARIANT (audit skill): each expanded dir gets ONE non-recursive `fs.watch`,
- * so this stays O(expanded dirs) — never a recursive watch on the repo (a 50 GB
- * monorepo would drown in `.git`/`node_modules` churn). We drop `.git` events so
- * git's own index churn doesn't spam refetches, cap the watcher count per sender,
- * and debounce a burst of events into ONE window-targeted `file-tree` app-event.
+ * Watch the DIRECTORIES currently expanded in the Files tree (pushed via
+ * `watchDirs`) so an external add/remove live-refreshes the tree. Tree twin of the
+ * open-files watcher above; same per-sender keying and reap-on-window-close
+ * (`clearWatchedDirs`). PERF INVARIANT (audit skill): ONE non-recursive `fs.watch` per
+ * expanded dir — never a recursive watch on the repo. `.git` events are dropped,
+ * watchers are capped per sender, bursts debounce into ONE `file-tree` app-event.
  */
 const DIR_DEBOUNCE_MS = 200
 // A sane upper bound: a human rarely has this many folders open at once, and the

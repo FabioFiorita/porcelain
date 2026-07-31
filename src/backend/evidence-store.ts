@@ -19,31 +19,19 @@ export {
 } from '../shared/evidence-check'
 
 /**
- * Evidence — **files on disk are the source of truth.**
- *
- *   ~/.porcelain/loop-evidence/<key>/
- *     index.html          — HTML body (required)
- *     meta.json           — title / checks
- *     + optional screenshots
- *
- * Agents write those files with normal Write tools (no CLI payload). The app
- * reads the directory, inlines relative images for the sandboxed HTML viewer, and
- * clears by deleting the directory. Excalidraw is **not** an evidence medium
- * (use Intent freeform canvas via `review set-canvas` instead).
- *
- * See `evidence-paths.ts` for layout; `src/cli/evidence-file.ts` for the CLI
- * prepare/write side.
+ * Evidence — **files on disk are the source of truth**:
+ * `~/.porcelain/loop-evidence/<key>/` holds `index.html` (required), `meta.json`
+ * (title / checks) and optional screenshots. Agents write them with normal Write
+ * tools; the app inlines relative images for the sandboxed viewer and clears by
+ * deleting the directory. Excalidraw is NOT an evidence medium — the Intent
+ * freeform canvas (`review set-canvas`) is. See `evidence-paths.ts`.
  */
 
 /**
- * Read-side cap on the inlined HTML. Higher than the CLI `set` payload cap
- * (`MAX_HTML_BYTES` in src/cli/evidence-file.ts, 1.5 MB) on purpose: agents write
- * multi-screenshot evidence as sibling files and this module inlines them as
- * data: URIs, so the read-side document needs headroom the write-side payload
- * doesn't. Keep the folder itself under a few MB (shrink screenshots).
- *
- * Keep in lockstep with `READ_MAX_HTML_BYTES` in `src/cli/evidence-file.ts`
- * (CLI `evidence get` warns against the same ceiling).
+ * Read-side cap on the inlined HTML — deliberately higher than the CLI `set`
+ * payload cap (1.5 MB), because sibling screenshots are inlined as data: URIs
+ * here. Keep in lockstep with `READ_MAX_HTML_BYTES` in
+ * `src/cli/evidence-file.ts`, which warns against the same ceiling.
  */
 export const MAX_HTML_BYTES = 4_194_304
 

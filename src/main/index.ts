@@ -17,19 +17,12 @@ if (is.dev) {
 
 // Porcelain is ONE process hosting N windows (File → New Window / ⌘⌥N add windows
 // *within* it), so a second OS instance is always a bug: it would boot its own
-// createWindow({ mode: 'restore' }) and a duplicate window pops up "on its own" when
-// something relaunches the binary. Hold a single-instance lock — a duplicate launch
-// fails it, quits before whenReady can spawn a window, and the holder focuses an
-// existing window via 'second-instance' instead. The lock only stops a second
-// PROCESS; multi-window is untouched.
-//
-// This MUST run after the is.dev setPath above: the lock is scoped to userData, and
-// that scoping is exactly what keeps things isolated — `pnpm dev` (…-dev userData)
-// never contends with the packaged app, and each Playwright e2e instance (its own
-// --user-data-dir → its own …-dev userData) holds a DISTINCT lock, so parallel e2e
-// launches all acquire it and none quit. No isPackaged/env gate needed — the prior
-// band-aid gated on !app.isPackaged, leaving the lock live only in the one build dev
-// and e2e never exercise, so it shipped untested and quit the first packaged instance.
+// createWindow and a duplicate window pops up "on its own". A duplicate launch fails
+// the single-instance lock and quits before whenReady, and the holder focuses an
+// existing window via 'second-instance'. This MUST run after the is.dev setPath above:
+// the lock is scoped to userData, so `pnpm dev` never contends with the packaged app
+// and each Playwright e2e instance (own --user-data-dir) holds a DISTINCT lock. Never
+// gate it on isPackaged — that leaves it live only in the build dev and e2e never run.
 const gotInstanceLock = app.requestSingleInstanceLock()
 if (!gotInstanceLock) {
   // A duplicate launch: the first instance owns the lock and focuses its window below.

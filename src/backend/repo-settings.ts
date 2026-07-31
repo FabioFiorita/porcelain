@@ -138,14 +138,12 @@ export async function copyRepoSettings(
 }
 
 /**
- * Copy settings onto a checkout that has NONE of its own, for the automatic paths
- * (a new worktree, or opening one that predates this seeding). Three properties the
- * explicit `copyRepoSettings` deliberately does not have, because a human asked for
- * that one and nobody asked for this one:
- * - an existing entry is never overwritten (empty = `exportRepoSettings` returns {}),
- * - a same-path or missing source is a no-op,
- * - it never throws: seeding is a courtesy, and the create/open it hangs off must
- *   not fail because a channel file was unreadable.
+ * Copy settings onto a checkout that has NONE of its own, for the automatic paths (a
+ * new worktree, or opening one that predates this seeding). Three properties the
+ * explicit `copyRepoSettings` deliberately lacks: an existing entry is never
+ * overwritten, a same-path or missing source is a no-op, and it never throws —
+ * seeding is a courtesy, and the create/open it hangs off must not fail because a
+ * channel file was unreadable.
  */
 export async function seedRepoSettings(
   fromPath: string,

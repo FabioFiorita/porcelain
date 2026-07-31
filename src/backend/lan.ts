@@ -3,25 +3,21 @@ import { hostname, networkInterfaces } from 'node:os'
 /**
  * Interface-name prefixes we never bind, matched case-insensitively.
  *
- * A DENY list, not an allow list, and that direction is the decision: physical
- * NIC names vary far too much to enumerate (`en0`, `eth0`, `wls1`, `enp3s0`,
- * `eno1`, `wlp2s0`, vendor-renamed oddities), so an allow list would silently
- * kill LAN access on a legitimate-but-unrecognised NIC. The RFC1918 range check
- * in `findLanAddresses` is the fail-closed half (a public address can never get
- * through however the interface is named); this list only has to cover the
- * real-world virtual/container/VPN families.
+ * A DENY list, not an allow list: physical NIC names vary far too much to
+ * enumerate (`en0`, `eth0`, `wls1`, `enp3s0`, vendor-renamed oddities), so an
+ * allow list would silently kill LAN access on a legitimate NIC. The RFC1918
+ * range check in `findLanAddresses` is the fail-closed half; this list only has
+ * to cover the real-world virtual/container/VPN families. Reading the
+ * default-route interface instead was rejected — it needs platform-specific route
+ * parsing or a spawn inside a security-sensitive bind path.
  *
  * TRAP — `br-` keeps its hyphen on purpose. It targets Docker's user-defined
  * bridges (`br-e6c014ebe2d8`); macOS `bridge0` is a REAL Thunderbolt/Ethernet
  * bridge and must keep working, so never shorten this to `br`.
  *
- * `tailscale*` / `utun*` are excluded because `findTailscaleAddress` owns that
- * path — the overlap would be harmless, but excluding it stops a non-default
- * Tailscale setup from getting two listeners on one address.
- *
- * Considered and rejected: picking the default-route interface instead. That
- * needs platform-specific route parsing or spawning a process inside the bind
- * path — too much machinery for a security-sensitive code path.
+ * `tailscale*` / `utun*` are here because `findTailscaleAddress` owns that path —
+ * the overlap would be harmless, but excluding them stops a non-default Tailscale
+ * setup from getting two listeners on one address.
  */
 const DENIED_IFACE_PREFIXES = [
   'docker',
@@ -55,25 +51,12 @@ function isDeniedIface(name: string): boolean {
 }
 
 /**
- * Find this machine's private-range (RFC 1918) IPv4 addresses so the daemon can
- * additionally listen on the home LAN — the same token-gated surface as the
- * tailnet listener, for the at-home case where the iPad and the Mac are already
- * on the same Wi-Fi and Tailscale would be an unnecessary hop (see the audit
- * skill's listener/bind invariant + the LAN block in server.ts).
- *
- * The three private ranges are 10.0.0.0/8, 172.16.0.0/12, and 192.168.0.0/16.
- * The Tailscale CGNAT range 100.64.0.0/10 is deliberately NOT here — that's the
- * tailnet's, handled by `findTailscaleAddress`; a private-range match never
- * overlaps it. Wi-Fi and Ethernet can both be up, so we return ALL matches (in
- * enumeration order) rather than guessing one. `interfaces` is injectable for
- * tests, mirroring `tailnet.ts`.
- *
- * Range alone is NOT enough, and that was a real bug: Docker bridges, WireGuard
- * and OpenVPN tunnels, veth pairs and libvirt bridges all live in RFC1918, so an
- * address-only filter bound the daemon — which hands a shell to any credential
- * holder — to every container on `docker0`/`br-*`, a surface the user never
- * opted into (plus listener churn as bridges come and go). `DENIED_IFACE_PREFIXES`
- * above carries the filter and the deny-vs-allow reasoning.
+ * This machine's private-range (RFC 1918) IPv4 addresses, so the daemon can also
+ * listen on the home LAN behind the same token gate (audit skill's bind rule).
+ * 10/8, 172.16/12, 192.168/16 only — Tailscale's CGNAT 100.64/10 belongs to
+ * `findTailscaleAddress` and never overlaps. Wi-Fi and Ethernet can both be up, so
+ * ALL matches return in enumeration order rather than guessing one. Range alone is
+ * NOT enough — `DENIED_IFACE_PREFIXES` above carries the interface filter and why.
  */
 export function findLanAddresses(
   interfaces: ReturnType<typeof networkInterfaces> = networkInterfaces(),
@@ -96,19 +79,12 @@ export function findLanAddresses(
 }
 
 /**
- * The Bonjour name other LAN devices can resolve without any advertisement —
- * macOS publishes `<hostname>.local` natively, so the URL we surface prefers it
- * over a bare numeric address (which can change with DHCP). Appends `.local`
- * when the hostname lacks it; falls back to the first numeric address when the
- * hostname is unusable; returns null when there are no addresses at all.
- *
- * TRAP — this is a DISPLAY host, not a reachable one. The macOS-publishes-it
- * reasoning does not carry to a Linux daemon host: avahi answers `.local` with
- * AAAA records, the listeners here are IPv4-only (`findLanAddresses` filters to
- * `family === 'IPv4'`), and a peer that prefers IPv6 therefore resolves the name
- * and connects to nothing. Anything a *different* device must reach — above all
- * connecting clients — prefer `lanNumericUrl()` over the `.local` display name
- * when handing out a URL (mDNS can answer IPv6 while listeners are IPv4-only).
+ * The Bonjour name LAN devices resolve without advertisement — macOS publishes
+ * `<hostname>.local`, so a surfaced URL prefers it over a DHCP-mutable numeric
+ * address; falls back to the first numeric address, else null. TRAP — a DISPLAY
+ * host, not a reachable one: on a Linux daemon host avahi answers `.local` with
+ * AAAA while these listeners are IPv4-only, so an IPv6-preferring peer resolves
+ * the name and connects to nothing. Clients get `lanNumericUrl()` instead.
  */
 export function lanDisplayHost(addresses: string[]): string | null {
   if (addresses.length === 0) return null

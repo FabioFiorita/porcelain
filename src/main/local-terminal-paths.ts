@@ -4,7 +4,7 @@ import { app } from 'electron'
 import { z } from 'zod'
 
 /**
- * Shell-side persistence for LOCAL terminal working directories (2026-07-26).
+ * Shell-side persistence for LOCAL terminal working directories.
  *
  * When a window is bound to a remote daemon, the human can still open a terminal on the
  * machine running the app — the Mac in front of them, to test an iOS build while the repo

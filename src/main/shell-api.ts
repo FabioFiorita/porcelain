@@ -174,12 +174,10 @@ const UNKNOWN_IDENTITY = { host: null, platform: null, version: null }
 /**
  * Ask one daemon who it is. Never throws — a switcher row must render for an
  * environment that is asleep, and an unreachable box is a *state*, not an error.
- *
- * The old-daemon path is the subtle one: `daemonInfo` doesn't exist before 0.30, so
- * that url answers 404 while being a perfectly reachable Porcelain daemon. Falling
- * straight to `offline` there would grey out a working environment, so a non-401
- * failure re-probes with `recentRepos` (which every daemon has) and reports `online`
- * with an unknown identity.
+ * The subtle path is an old daemon: `daemonInfo` doesn't exist before 0.30, so its url
+ * answers 404 while being a perfectly reachable Porcelain daemon. Falling straight to
+ * `offline` would grey out a working environment, so a non-401 failure re-probes with
+ * `recentRepos` (which every daemon has) and reports `online` with unknown identity.
  */
 async function probeEnvironment(
   url: string,
@@ -247,16 +245,12 @@ async function probeEnvironmentEndpoints(
 }
 
 /**
- * Find an endpoint of this environment that answers, in preference order (phase 5).
- *
- * Sequential on purpose, unlike `environmentStatuses`' parallel fan-out: these are the same
- * machine, so racing them would just pick whichever route replied first — which on the home
- * LAN is often the tailnet address, the slower one. Preference decides; reachability only
- * breaks ties. The probe is the same authed `recentRepos` hit `probeDaemon` uses, so a live
- * box that rejects the token still fails fast rather than being retried on every address.
- *
- * Returns null when nothing answered. Never throws — callers decide what a dead environment
- * means for them.
+ * Find an endpoint of this environment that answers, in preference order. Sequential on
+ * purpose, unlike `environmentStatuses`' parallel fan-out: these are the same machine, so
+ * racing would just pick whichever route replied first — on the home LAN often the slower
+ * tailnet address. Preference decides; reachability only breaks ties. The probe is the
+ * authed `recentRepos` hit `probeDaemon` uses, so a live box that rejects the token fails
+ * fast instead of being retried on every address. Null when nothing answered; never throws.
  */
 async function resolveLiveEndpoint(env: RemoteEnvironment): Promise<string | null> {
   for (const url of orderedEndpoints(env)) {
@@ -312,16 +306,11 @@ export const shellRouter = t.router({
 
   /**
    * The LOCAL child daemon's pair, plus whether this window is already bound to it.
-   *
-   * Handing the renderer the local token is not a widening: the preload already gives it
-   * to every LOCAL-bound window (`window.porcelain.daemon.token`), and an Electron window
-   * always loads our own renderer dist from disk (`loadFile` in window.ts) — never a
-   * remote daemon's HTML — so a remote-bound window is running exactly the same trusted
-   * code on the same machine. It exists so that window can ALSO open a terminal here: the
-   * repo is on the Beelink, but the iOS simulator is on this Mac. `isLocal` lets the UI
-   * hide the whole affordance when the window is already local, where it would just be a
-   * second way to spawn the same shell. The browser client never reaches this — the shell
-   * router throws there — which is correct: an iPad has no local daemon.
+   * Handing the renderer the local token is not a widening — the preload already gives
+   * it to every LOCAL-bound window, and an Electron window always loads our own dist from
+   * disk (the audit skill records what would break that). It exists so a remote-bound
+   * window can ALSO open a terminal here: repo on the Beelink, simulator on this Mac.
+   * `isLocal` hides the affordance when the window is already local.
    */
   localDaemon: t.procedure.query(({ ctx }): { url: string; token: string; isLocal: boolean } => ({
     ...localDaemonPair(),
@@ -480,14 +469,12 @@ export const shellRouter = t.router({
   ),
 
   /**
-   * Live state + reported identity for This device and every saved environment, in
-   * that order (local first, then `remoteEnvironments` order) so the switcher renders
-   * one list without a second join.
-   *
-   * Probes fan out in parallel with a short timeout, so the slowest sleeping box
-   * bounds the query instead of summing. It IS a network call per environment —
-   * the consuming hook throttles it (see use-environment-status); don't call it
-   * per render or drop its staleTime chasing freshness.
+   * Live state + reported identity for This device and every saved environment, in that
+   * order (local first, then `remoteEnvironments` order) so the switcher renders one list
+   * without a second join. Probes fan out in parallel with a short timeout, so the slowest
+   * sleeping box bounds the query instead of summing. It IS a network call per environment
+   * — the consuming hook throttles it (see use-environment-status); don't call it per
+   * render or drop its staleTime chasing freshness.
    */
   environmentStatuses: t.procedure.query(async (): Promise<EnvironmentStatus[]> => {
     const state = await loadRemoteEnvironmentState()
@@ -544,19 +531,13 @@ export const shellRouter = t.router({
         await probeDaemon(url, token)
         const { host } = await probeEnvironment(url, token)
 
-        // ONE IDENTITY, MANY ENDPOINTS (phase 5). Pairing the same machine a second time —
-        // over the LAN at home after doing it over the tailnet away — used to produce two
-        // rows with the same name and no hint that they were one box. If this address is
-        // the SAME MACHINE as one we already saved, it joins that environment instead.
-        //
-        // "Same machine" is NOT the reported hostname alone: that's a short label
-        // (`shortHostname`), and `ubuntu` / `raspberrypi` / `MacBook-Pro` collide constantly
-        // with no malice involved. A wrong merge would put two boxes' addresses in one entry
-        // and then send one box's token to the other's address — exactly what the entry
-        // boundary exists to prevent. So the host match only NOMINATES a twin; the proof is
-        // that the twin's existing credential also authenticates at this new address. If it
-        // doesn't, we make a separate environment: a duplicate row is a cosmetic annoyance,
-        // a merged pair of machines is a leaked credential.
+        // ONE IDENTITY, MANY ENDPOINTS: if this address is the SAME MACHINE as one we
+        // already saved, it joins that environment instead of adding a second row.
+        // "Same machine" is NOT the reported hostname alone — `ubuntu` / `raspberrypi`
+        // collide constantly with no malice — so the host match only NOMINATES a twin;
+        // the proof is that the twin's existing credential also authenticates at this new
+        // address. If it doesn't, make a separate environment: a duplicate row is
+        // cosmetic, a merged pair of machines is a leaked credential (audit skill).
         if (host !== null && host !== '') {
           const twin = (await loadRemoteEnvironmentState()).environments.find(
             (env) => env.host === host,
@@ -622,16 +603,12 @@ export const shellRouter = t.router({
     ),
 
   /**
-   * Teach an existing environment another way in (phase 5) — the manual counterpart to the
-   * identity merge in `addRemoteEnvironment`, for a machine whose daemon is too old to
-   * report a host, or an address the human knows about before ever connecting over it.
-   * Probed with the environment's OWN token before it is saved, so a typo can't silently
-   * become a dead endpoint the failover walk wastes four seconds on — AND, when both sides
-   * report a host, the answering daemon must BE this machine. Without that check one wrong
-   * digit would persist a stranger's address inside the entry, and every later failover
-   * walk and status refresh would re-send this environment's token to it. The first probe
-   * is unavoidable (you cannot authenticate before authenticating); persisting the mistake
-   * is not.
+   * Teach an existing environment another way in — the manual counterpart to the identity
+   * merge in `addRemoteEnvironment`, for a daemon too old to report a host, or an address
+   * the human knows before ever connecting over it. Probed with the environment's OWN
+   * token before it is saved, and when both sides report a host the answering daemon must
+   * BE this machine (audit skill). Without that, one wrong digit persists a stranger's
+   * address inside the entry and every later failover walk re-sends this token to it.
    */
   addEnvironmentEndpoint: t.procedure
     .input(z.object({ id: z.string(), url: z.string() }))

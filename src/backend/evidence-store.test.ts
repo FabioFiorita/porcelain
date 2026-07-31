@@ -153,7 +153,7 @@ describe('readEvidence (disk-first)', () => {
 
   it('keeps meta.updatedAt when it is newer than the body mtime', async () => {
     const dir = writeDisk('/repo', 'Vite', '<h1>hi</h1>')
-    // writeDisk stamps meta at 2026-07-17; push body mtime into the past
+    // writeDisk stamps meta at META_AT; push the body mtime into the past
     const earlier = new Date('2020-01-01T00:00:00.000Z')
     utimesSync(join(dir, 'index.html'), earlier, earlier)
     expect((await readEvidence('/repo'))?.updatedAt).toBe(META_AT)

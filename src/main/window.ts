@@ -50,13 +50,12 @@ export function setWindowBootIntent(sender: WebContents, init: WindowInit): void
 }
 
 /**
- * Point THIS window at an environment and hard-reload it so the renderer boots
- * cleanly against the new daemon (new url/token via the preload sync getter).
- * Lands on the welcome/landing page for that environment — restoring a repo path
- * from the previous machine would open the wrong disk. Main-process reload is
- * deliberate: a renderer-side `location.reload()` after invalidate can race or
- * skip if the mutation onSuccess chain fails, leaving shell chrome on one env
- * and the appRouter on the other.
+ * Point THIS window at an environment and hard-reload it so the renderer boots cleanly
+ * against the new daemon (new url/token via the preload sync getter). Lands on the
+ * welcome page for that environment — restoring a repo path from the previous machine
+ * would open the wrong disk. Main-process reload is deliberate: a renderer-side
+ * `location.reload()` after invalidate can race or skip if the mutation onSuccess chain
+ * fails, leaving shell chrome on one env and the appRouter on the other.
  */
 export function switchWindowEnvironment(
   webContents: WebContents,

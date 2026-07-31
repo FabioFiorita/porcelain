@@ -14,38 +14,23 @@ import { rendererDistExists, serveStatic } from './static-server'
 import { initIfaceHandlers, startLanListener, startTailnetListener } from './tailnet-listener'
 
 /**
- * The daemon entry point — the Electron-free half of Porcelain, spawned by the
- * shell (`src/main/daemon.ts`) as `ELECTRON_RUN_AS_NODE` child and built as its
- * own bundle (`out/main/daemon/server.js`, see electron.vite.config.ts). It
- * serves the appRouter over HTTP (`/trpc`, tRPC's fetch adapter — the same
- * pattern the Stage-1 IPC shuttle used) and the per-window session channel over
- * one WebSocket (`/session`, see session.ts / shared/ws-protocol.ts).
+ * The daemon entry point — the Electron-free half of Porcelain, forked by the shell
+ * (`src/main/daemon.ts`) and built as its own bundle (`out/main/daemon/server.js`,
+ * see electron.vite.config.ts). It serves the appRouter over HTTP (`/trpc`, tRPC's
+ * fetch adapter) and the per-window session channel over one WebSocket (`/session`,
+ * see session.ts / shared/ws-protocol.ts).
  *
- * SECURITY INVARIANTS (audit skill):
- * - The daemon binds 127.0.0.1 ALWAYS, and additionally enumerated private
- *   interfaces when the user opts in: the detected Tailscale address (100.64/10)
- *   and/or the machine's RFC1918 addresses for the home LAN — never 0.0.0.0 or
- *   any other interface. Those second listeners share this listener's handlers,
- *   so the same token gate applies to them automatically (LAN traffic is
- *   cleartext, an accepted opt-in tradeoff — see the audit skill).
- * - Every privileged request is token-gated, ALWAYS. Loopback is reachable from any webpage
- *   the user's browser has open (fetch to 127.0.0.1, and WebSockets have no CORS
- *   at all), so an unauthenticated listener would hand `terminal:create` — a
- *   shell — to drive-by web content. /trpc requires `authorization: Bearer
- *   <token>`; the WS upgrade carries the token as the `porcelain.<token>`
- *   subprotocol (chosen over `?token=` because query strings leak into logs and
- *   proxies; the subprotocol header does not). Comparisons are constant-time
- *   over sha256 digests for the host administrator; paired devices use separate
- *   hashed client credentials. POST /pair alone is unauthenticated: it atomically
- *   consumes one short-lived grant and returns one individually revocable client
- *   credential. Client identities cannot call access/network administration.
+ * SECURITY INVARIANTS live in the audit skill's listener rule and must hold here:
+ * binds are 127.0.0.1 ALWAYS plus, on opt-in, the enumerated Tailscale/RFC1918
+ * addresses through these same handlers — never 0.0.0.0; every privileged request is
+ * token-gated ALWAYS (`authorization: Bearer` on /trpc, the `porcelain.<token>`
+ * subprotocol on the WS upgrade — chosen over `?token=`, which would leak the token
+ * into logs and proxies); `POST /pair` is the one unauthenticated route.
  *
- * Contract with the shell: exactly ONE stdout line, `{"port": N}`, once
- * listening (everything else logs to stderr — and the token is NEVER printed:
- * the parent passed it via env, so it already knows it), and self-exit when
- * stdin ends OR the parent pid changes (the parent died — don't linger as an
- * orphan squatting the second-listener port; both checks live in the
- * PORCELAIN_NO_STDIN_WATCHDOG block below).
+ * Contract with the shell: exactly ONE stdout line, `{"port": N}`, once listening
+ * (everything else goes to stderr, and the token is NEVER printed), and self-exit
+ * when stdin ends OR the parent pid changes — never linger as an orphan squatting
+ * the second-listener port (PORCELAIN_NO_STDIN_WATCHDOG block below).
  */
 
 // The shell resolves userData (it owns the dev `-dev` suffix) and hands the

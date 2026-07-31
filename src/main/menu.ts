@@ -17,17 +17,13 @@ export function installAppMenu(): void {
       ]
     : []
 
-  // Close (Cmd/Ctrl+W). WHY the accelerator is main-owned only on macOS: menu
-  // accelerators fire in the main process before the renderer's keydown, so a
-  // registered CmdOrCtrl+W here would close the WINDOW before the page sees the
-  // key — killing the renderer's close-tab handler (use-app-shortcuts.ts) and, on
-  // Linux, its yield of Ctrl+W to a focused embedded terminal (readline kill-word).
-  //   - macOS: keep the native `{ role: 'close' }` — its Cmd+W is intercepted in
-  //     window.ts (before-input-event) and routed to the renderer, so the menu
-  //     accelerator never actually reaches the OS close. Behavior is unchanged.
-  //   - Linux/Windows: NO intercept in window.ts, so the accelerator must NOT be
-  //     registered — `registerAccelerator: false` (honored on Linux/Windows only)
-  //     keeps the menu item but lets the Ctrl+W keydown fall through to the page.
+  // Close (Cmd/Ctrl+W). Menu accelerators fire in the main process before the
+  // renderer's keydown, so a registered CmdOrCtrl+W here would close the WINDOW before
+  // the page sees the key — killing the renderer's close-tab handler
+  // (use-app-shortcuts.ts) and, on Linux, its yield of Ctrl+W to a focused embedded
+  // terminal (readline kill-word). macOS keeps the native `{ role: 'close' }` because
+  // window.ts intercepts Cmd+W (before-input-event) and routes it to the renderer;
+  // Linux/Windows have no such intercept, so the accelerator must NOT be registered.
   const closeItem: MenuItemConstructorOptions = isMac
     ? { role: 'close' }
     : { role: 'close', registerAccelerator: false }

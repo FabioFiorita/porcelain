@@ -5,25 +5,17 @@ import { FILE_SOURCES } from './review-set'
 /**
  * The feature-view SNAPSHOT channel: Porcelain's COMPUTED feature view for a repo
  * (the files it actually renders, each tagged with its git-truth source and flow
- * layer), keyed by absolute repo path, in `~/.porcelain/feature-view.json`. Same
- * fixed home-dir rationale as the other channels — a plain `node` CLI process can't
- * resolve userData.
+ * layer), keyed by absolute repo path, in `~/.porcelain/feature-view.json` — the
+ * fixed home dir, because a plain `node` CLI process can't resolve userData.
  *
- * ONE-WAY, app→agent (the 8th channel, same shape as reviewed marks / notes): the
- * APP is the SOLE writer (it computes the view; see feature-build.ts `getFeatureBuild`), and the
- * porcelain CLI (src/cli/feature-view-file.ts) only READS it — so the agent can see the
- * whole feature (not just the git diff) and, crucially, learn which files are actually
- * `changed` (diffed) vs `context`/`shipped`. That git truth lives only in the main
- * process (the CLI has no git), so the app must hand it over here. Because the app is
- * the sole writer there is no review-watch entry and no write tool, and the content is
- * inert (app-supplied repo-relative paths + source/layer labels), so no
- * repo-containment guard is needed — but writes stay atomic + in-process-serialized
- * like every other channel.
+ * ONE-WAY, app→agent: the APP is the SOLE writer (`feature-build.ts`) and the CLI
+ * (`src/cli/feature-view-file.ts`) only READS, so the agent learns which files are
+ * `changed` (diffed) vs `context`/`shipped` — git truth the CLI cannot compute.
+ * Content is app-supplied and inert, so no repo-containment guard; writes stay
+ * atomic + in-process-serialized like every other channel.
  *
- * This is a derived snapshot, not source of truth: it's refreshed whenever Porcelain
- * rebuilds the feature view (the Feature tab / inline read polling), so it reflects the
- * view as last rendered. The agent's own pushed set is still the CLI `review get`; this
- * is what Porcelain MADE of it after folding in git status and the import baseline.
+ * A DERIVED snapshot, never source of truth: it reflects the view as last rendered.
+ * The agent's own pushed set is still `review get`.
  */
 export const featureSnapshotFileSchema = z.object({
   path: z.string(),
