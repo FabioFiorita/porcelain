@@ -1,6 +1,6 @@
 name: Release
 
-# Side-project release (2026-07-27): simple path.
+# Side-project release: simple path.
 #   1. Tag already exists on main (pnpm release:cut bumps + tags + pushes).
 #   2. This workflow packages macOS, publishes the GH Release, publishes npm.
 # No pending branches. No multi-mode cut/retry soup.

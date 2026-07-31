@@ -49,8 +49,7 @@ export default defineConfig<{ appMode: AppMode }>({
       use: { appMode: 'electron' },
       // The pre-projects template, so the committed `-darwin` baselines keep
       // matching (the default would insert the project name). Running this
-      // project on Linux has no committed baseline — it's a macOS-only lane
-      // since the Linux desktop build was dropped (2026-07-27).
+      // project on Linux has no committed baseline — it's a macOS-only lane.
       snapshotPathTemplate:
         '{snapshotDir}/{testFileDir}/{testFileName}-snapshots/{arg}-{platform}{ext}',
     },

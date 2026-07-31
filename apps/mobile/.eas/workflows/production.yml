@@ -1,9 +1,7 @@
 # Production release — SHAPE ONLY, DELIBERATELY NOT AUTOMATIC YET.
-#
 # Porcelain's native client is not in the App Store, so there is nothing to
 # submit to and nothing on the `production` channel to update. This file exists
 # so the release path is decided rather than improvised on the day it matters.
-#
 # Disabled how: no `push` / tag trigger. It runs only when a human types
 # `eas workflow:run .eas/workflows/production.yml`, and submission is off unless
 # that human passes `-F submit_to_app_store=true`. When the app does ship, swap
@@ -17,7 +15,6 @@
 # moved, otherwise send an over-the-air update to the `production` channel — with
 # App Store submission bolted on the build branch only. An OTA never needs review;
 # a new binary always does.
-#
 # iOS-only, matching the rest of the mobile pipeline — the app has no Android target.
 
 name: Production release

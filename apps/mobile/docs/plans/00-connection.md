@@ -533,7 +533,7 @@ Tests (pure modules only, no react-native imports): `pairing.test.ts` · `enviro
   `@trpc/server` (devDependency, type-only)
 - `apps/mobile/README.md` — a short "Connection" section: environments, pairing, the simulator recipe
 - `vitest.config.ts` (root) — add `apps/mobile/src/**/*.test.ts` to `include`
-- `.agents/skills/architecture/SKILL.md` — record the transport decision from §2 (hard rule 4: same
+- `.agents/skills/architecture/reference/mobile.md` — record the transport decision from §2 (hard rule 4: same
   commit). The paste-only/no-QR bullet is **already** accurate there; don't rewrite it.
 
 **Already done — do not re-do**

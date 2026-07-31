@@ -2,24 +2,17 @@
 import { execFileSync } from 'node:child_process'
 /**
  * Shared env for the Porcelain *development* stack.
- *
- * Production (always-on work daemon on Linux):
- *   port 43117 · ~/.local/share/porcelain · ~/.porcelain
- *
- * Primary development checkout:
- *   port 43118 · ~/.local/share/porcelain-dev · ~/.porcelain-dev
- *
- * Managed task worktree:
- *   port from .porcelain-worktree.json (43200–43999)
- *   ~/.local/share/porcelain-dev-worktrees/<slug>
- *   ~/.porcelain-dev-worktrees/<slug>
+ * Production (always-on Linux daemon): port 43117 · ~/.local/share/porcelain · ~/.porcelain
+ * Primary development checkout: port 43118 · ~/.local/share/porcelain-dev · ~/.porcelain-dev
+ * Managed task worktree: port from .porcelain-worktree.json (43200–43999) ·
+ *   ~/.local/share/porcelain-dev-worktrees/<slug> · ~/.porcelain-dev-worktrees/<slug> ·
  *   ~/code/porcelain-playgrounds/<slug>
  *
  * Setting PORCELAIN_HOME redirects channels, access state, and CLI install together.
  * Never point a product-work session at the production paths.
  *
- * The launcher is scripts/dev-daemon.mjs (`pnpm dev:daemon -- …`). This module
- * only builds the env block + token; flags live on the launcher.
+ * The launcher is scripts/dev-daemon.mjs (`pnpm dev:daemon -- …`); this module only
+ *   builds the env block + token.
  */
 import { randomBytes } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'

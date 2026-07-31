@@ -21,14 +21,14 @@ plans use comes from there: `useDaemonQuery` · `useDaemonMutation` · `useDaemo
 | `03-review.md` | Review tab: the Review canvas, comments, loop evidence, and the pushed Board screen |
 | `04-terminal.md` | Terminal tab: the daemon-owned PTY roster, attach/detach over the WS, saved actions |
 
-## Rule-5 exceptions already granted (2026-07-31)
+## Rule-5 exceptions already granted
 
 Settled by the human — don't re-open them, and don't extend them either. Canonical list lives in
-`.agents/skills/architecture/SKILL.md` → *Native mobile client*.
+`.agents/skills/architecture/reference/mobile.md` → *Native mobile client*.
 
 - **WebView** is sanctioned in exactly two places: daemon-authored Evidence HTML (`03` §2.5) and the
   xterm.js terminal bundle (`04` §2.1). Any third use still needs approval.
-- **SwiftUI-only, platform splits moot** (2026-07-31): the app is iOS-only, so there is no second
+- **SwiftUI-only, platform splits moot**: the app is iOS-only, so there is no second
   platform to split against and no reason for a portability layer. Every plan builds with
   `@expo/ui/swift-ui` + `@expo/ui/swift-ui/modifiers`; the universal `@expo/ui` root is **lint-banned**
   (`scripts/lint-escapes.mjs`). Review's segmented face switcher (`03` §2.1) is one file, not a pair.
@@ -78,7 +78,7 @@ tests for pure modules run under the **root** vitest — `00` widens its `includ
 Runtime proof runs on an **iOS simulator on the Mac**, driven from this box over the LAN (the
 `serve-sim-remote` skill owns bring-up, screenshots, taps and the route's limits), against the
 **dev** daemon — never production on 43117. The Android emulator loop is gone with the Android
-target (2026-07-31), so iOS is the only runtime.
+target, so iOS is the only runtime.
 
 ```bash
 pnpm build && pnpm dev:daemon                      # dev daemon on 43118, LAN-bound by default

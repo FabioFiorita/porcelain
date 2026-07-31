@@ -387,12 +387,10 @@ export const prisma = new PrismaClient()
 `
 
 /**
- * Build the marketing demo repo: a believable multi-commit history that grows the
- * orders module layer by layer (so the History list and terminal `git log` have real
- * depth), ending at "relabel the pagination control" — kept newest on purpose so the
- * terminal shot's pager assertion still lands on screen one. On top of that clean
- * history sits an uncommitted "filter orders by status" feature that threads a new
- * status param from the page down to the data model — so the working-tree diff spans
+ * Build the marketing demo repo: a multi-commit history that grows the orders module
+ * layer by layer (so the History list and terminal `git log` have real depth), ending
+ * at "relabel the pagination control" — kept newest so the pager assertion lands on
+ * screen one. On top sits an uncommitted "filter orders by status" feature spanning
  * Pages, Hooks, Routes, Services, and Data, plus two brand-new files.
  */
 export async function createDemoRepo(dir: string): Promise<void> {

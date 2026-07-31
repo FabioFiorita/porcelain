@@ -3,28 +3,17 @@
  * Partial heuristics for CLAUDE.md hard rule 5 (UI primitives: shadcn only —
  * never hand-roll sidebar, tabs, dialogs, trees, overlays).
  *
- * The rule can't be fully mechanized: "is this a hand-rolled tree?" needs
- * judgment. But two shapes are unambiguous *tells* of hand-rolling and cost
- * nothing to catch at lint time:
+ * Flags two unambiguous tells of hand-rolling, outside `components/ui`:
+ *   1. Raw `role="tablist" | "dialog" | "menu" | "tree"` in app JSX. Not
+ *      flagged: role="tab" (tab-bar.tsx's viewer tabs), "img", "presentation",
+ *      "toolbar", "group".
+ *   2. `fixed` + `inset-0` in one className — the hand-rolled modal-backdrop
+ *      tell. `absolute inset-0` (in-flow tints/measure layers) is not matched.
  *
- * 1. Raw `role="tablist" | "dialog" | "menu" | "tree"` in app JSX. The vendored
- *    Base-UI/shadcn primitives set those roles themselves; writing one by hand
- *    outside components/ui means re-implementing the primitive's a11y contract.
- *    Deliberately NOT flagged: role="tab" (tab-bar.tsx renders viewer tabs, a
- *    Porcelain surface, not a shadcn Tabs), role="img", role="presentation",
- *    role="toolbar", role="group" — none of those imply a hand-rolled primitive.
- * 2. `fixed` + `inset-0` in one className: the classic hand-rolled modal
- *    backdrop. Only shadcn's Dialog/AlertDialog/Sheet overlays legitimately own
- *    that pair, and they live under components/ui. `absolute inset-0` is fine
- *    (in-flow tints/measure layers) and is not matched.
+ * Scope: `src/renderer/src`, minus vendored `components/ui` — same `SKIP_DIRS`
+ * convention as `lint-escapes.mjs` / `lint-control-recipes.mjs`.
  *
- * Scope: src/renderer/src, minus the vendored shadcn dir (components/ui) — same
- * `SKIP_DIRS` convention as lint-escapes.mjs / lint-control-recipes.mjs.
- * Wrappers that compose a primitive stay clean by construction: they render
- * <Dialog>/<Tabs> and never restate the role or the backdrop classes, so a
- * path-based exclusion of components/ui is the only one needed.
- *
- * Allowed: (none — the first repo-wide run was clean; keep it that way)
+ * Allowed: none.
  */
 
 import { readdirSync, readFileSync, statSync } from 'node:fs'

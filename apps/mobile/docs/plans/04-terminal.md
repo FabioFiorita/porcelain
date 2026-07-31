@@ -33,8 +33,7 @@ itself, being an SSH client.
 
 ### 2.1 The rendering decision — **xterm.js inside `react-native-webview`**
 
-**Decision: option (a) — APPROVED by the human 2026-07-31** (the rule-5 exception is
-granted; no need to re-ask). One `WebView` per visible session, hosting the same xterm.js
+**Decision: option (a)** (the rule-5 exception is granted; no need to re-ask). One `WebView` per visible session, hosting the same xterm.js
 the desktop renderer uses, driven entirely over the RN↔WebView bridge. The WebView never
 opens a socket, never sees the daemon token, never navigates.
 
@@ -158,11 +157,10 @@ single **Close** (kill removes it from the roster).
   regression, already paid for once).
 - **Cols reality check.** Portrait at 12 px is ~45 cols; a lot of CLI output assumes 80.
   We send the true size — lying to the PTY breaks wrapping worse than a narrow terminal
-  does. Mitigations available to the human: font size S, and landscape. **Resolved
-  2026-07-31:** `app.json` is now `"orientation": "default"` app-wide — the shell-level
-  change was made and approved (terminal columns and landscape diff reading motivated it),
-  so nothing to propose and no portrait-only v1. Rotation is unlocked on every tab: this
-  screen must re-fit on orientation change, and no screen may assume portrait.
+  does. Mitigations available to the human: font size S, and landscape. `app.json` is now
+  `"orientation": "default"` app-wide, so nothing to propose and no portrait-only v1.
+  Rotation is unlocked on every tab: this screen must re-fit on orientation change, and no
+  screen may assume portrait.
 
 ### 2.5 Creating and running
 
@@ -174,7 +172,7 @@ single **Close** (kill removes it from the roster).
 - **Run an Action** — exactly the desktop semantics, deliberately: create a **new** terminal
   named after the action, `cwd` = repo root, `initialInput` = `action.command`, then push
   its screen. The daemon types the command into the live shell once its readline is up (see
-  `src/backend/initial-input.ts`) and the shell **stays live** afterwards, so you can ^C it,
+  `src/backend/terminal/initial-input.ts`) and the shell **stays live** afterwards, so you can ^C it,
   re-run it, keep working. The daemon never executes an action itself — a human tap is the
   only path, and that stays true on mobile. Always a new session (no "reuse a matching
   one"), matching desktop.
@@ -341,7 +339,7 @@ matching the root layout's sheet options).
   xterm bump can't leave a stale vendored bundle in the app. Call this out in the PR.
 - `biome.json` — add `"!apps/mobile/src/features/terminal/webview/*.generated.ts"` to
   `files.includes` (a one-line 1 MB string literal must not be linted or formatted).
-- `.agents/skills/architecture/SKILL.md` → *Native mobile client* — add one bullet: the
+- `.agents/skills/architecture/reference/mobile.md` → *Native mobile client* — add one bullet: the
   terminal renders through xterm.js in a WebView, why the two alternatives lost, and that
   the WebView is a dumb renderer holding no credentials. Same commit as the code (rule 4).
 - `apps/mobile/README.md` — one line under the tab table pointing at this doc.

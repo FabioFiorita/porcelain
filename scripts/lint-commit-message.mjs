@@ -2,26 +2,17 @@
 /**
  * The commit-message gate, run from `.husky/commit-msg`.
  *
- * The hard rule is external: EAS caps a workflow's `message` / `changelog`
- * param at 1024 characters, and `apps/mobile/.eas/workflows/preview.yml` feeds
- * `github.commit_message` into both. A longer commit message on `main` fails
- * the whole delivery run with `Failed to start job — String must contain at
- * most 1024 character(s)`, so preview delivery silently stops instead of
- * shipping. The workflows also truncate defensively (a squash-merge composed in
- * GitHub's UI never reaches this hook), but the message is worth keeping under
- * the limit at the source: a truncated changelog is a worse changelog.
+ * The 1024-char cap matches EAS's limit on a workflow's `message` / `changelog`
+ * param — `apps/mobile/.eas/workflows/preview.yml` feeds `github.commit_message`
+ * into both, and a longer commit message fails that job. Length is measured
+ * after reproducing `git commit --cleanup=default`, since that's what Git
+ * actually stores (this hook otherwise sees the raw editor file, comment block
+ * and all).
  *
- * The rest are house style, and are only here because every commit in this
- * repository's history already follows them — the hook stops drift, it does not
- * introduce a convention. `git log --format=%s` is the reference.
+ * The rest is house style already followed by every commit in this repo's
+ * history; `git log --format=%s` is the reference.
  *
- * Length is measured AFTER reproducing `git commit --cleanup=default`, because
- * that is what Git will actually store: this hook receives the raw editor file,
- * comment block and all, and measuring that would reject messages that are
- * comfortably inside the limit once Git is done with them.
- *
- * Self-checked by decoys at the bottom, matching `lint-audit.mjs`: `pnpm test`
- * only collects `src/**`, so a `scripts/` checker proves itself or nothing does.
+ * Self-checked by decoys at the bottom, matching `lint-audit.mjs`.
  */
 
 import { readFileSync } from 'node:fs'

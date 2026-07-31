@@ -9,11 +9,11 @@ description: How to cut a Porcelain release — simple main+tag path, Mac packag
 
 Side project, solo, **no real external users yet**. Shipping is occasional — when the human asks, not after every polish commit. Waiting ~10–15 minutes for a signed Mac build is fine.
 
-**The desktop app ships for macOS only** (2026-07-27). Linux is first-class as a *daemon* host via npm (`porcelain-daemon`); humans use the daemon-served browser client. Do not re-add a `linux:` block to `electron-builder.yml` without a real user asking.
+**The desktop app ships for macOS only.** Linux is first-class as a *daemon* host via npm (`porcelain-daemon`); humans use the daemon-served browser client. Do not re-add a `linux:` block to `electron-builder.yml` without a real user asking.
 
 **1.0.0 is far away** — only when the human feels the product is “done.” Until then: **always patch** unless they explicitly ask for minor/major.
 
-## Shape (2026-07-27 — simple path)
+## Shape (simple path)
 
 ```
 main is good enough for daily use (web + daemon)
@@ -108,7 +108,7 @@ Identity in `electron-builder.yml`. Secrets on the repo for **package-mac** only
 
 Published after the GitHub Release via **npm Trusted Publishing (OIDC)** — no long-lived `NPM_TOKEN`. Trusted publisher: owner **FabioFiorita**, repo `porcelain`, workflow **`release.yml`**.
 
-**Post-publish gate (hard-won, 2026-07-29):** after `npm publish`, CI quietly curls the tarball until HTTP 200 (~10 min) and smokes `npx porcelain-daemon@VER --help` from a clean temporary consumer directory. A metadata-only / laggy publish once left `latest` on a **404 tarball**, which crash-looped every host on `npx porcelain-daemon@latest`. The registry commonly exposes metadata several minutes before its tarball CDN converges; those intermediate 404s are expected propagation, not separate release failures. "Version already exists" alone is **not** enough to skip — retries wait for the tarball and run the same consumer smoke.
+**Post-publish gate (hard-won):** after `npm publish`, CI quietly curls the tarball until HTTP 200 (~10 min) and smokes `npx porcelain-daemon@VER --help` from a clean temporary consumer directory. A metadata-only / laggy publish once left `latest` on a **404 tarball**, which crash-looped every host on `npx porcelain-daemon@latest`. The registry commonly exposes metadata several minutes before its tarball CDN converges; those intermediate 404s are expected propagation, not separate release failures. "Version already exists" alone is **not** enough to skip — retries wait for the tarball and run the same consumer smoke.
 
 **Never run that npx smoke inside `dist-daemon`.** Because the directory's package has the same name, npx can select the local package-under-build whose bin is not linked and fail with `porcelain-daemon: not found` even though npm is healthy. The smoke proves the published artifact only when its cwd has no local `porcelain-daemon`.
 

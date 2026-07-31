@@ -2,12 +2,12 @@
 
 Plan for the native Review tab: the phone half of Porcelain's moat surface. Written to be
 executed by a fresh agent in a managed worktree with no other context than this file plus
-the sources it names. **Verified against the daemon on 2026-07-31.**
+the sources it names.
 
 Required reading before writing code: `apps/mobile/docs/daemon-api.md` (Review-tab
 catalog), `apps/mobile/README.md`, `.agents/skills/product/SKILL.md` (the Review feature —
 Intent · Execution · Evidence, lifecycle, Board↔Review coupling),
-`.agents/skills/architecture/SKILL.md` → "Native mobile client", `.claude/skills/expo-ui/`
+`.agents/skills/architecture/reference/mobile.md` → "Native mobile client", `.claude/skills/expo-ui/`
 (+ `references/swift-ui.md`),
 `.claude/skills/expo-router/` (+ `references/form-sheet.md`, `toolbar-and-headers.md`).
 
@@ -173,7 +173,7 @@ returns `false` for everything else — a tapped link inside the proof does noth
 route it to `Linking`; the desktop can't navigate out of `sandbox=""` either).
 
 **Why no network, and the one honest gap.** `loopEvidenceHtml` already inlines every local
-asset as a `data:` URL (`src/backend/evidence-assets.ts`: relative `src="…"` inside the
+asset as a `data:` URL (`src/backend/fs/evidence-assets.ts`: relative `src="…"` inside the
 evidence dir → `data:<mime>;base64,…`), so screenshots need zero network. Absolute
 `http(s)://` sources are deliberately left alone by the daemon, and the desktop blocks
 those anyway because the sandboxed `srcDoc` iframe inherits the renderer CSP (`img-src

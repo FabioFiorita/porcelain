@@ -1,0 +1,56 @@
+{
+  "docBudget": {
+    "agentsMd": 1200,
+    "skillMd": 1200,
+    "reference": 2500,
+    "authoredTotal": 27617
+  },
+  "fileSize": {
+    "max": 500,
+    "allow": {
+      "src/renderer/src/components/git/reading-surface.tsx": 906,
+      "src/backend/git/git.ts": 890,
+      "src/main/shell-api.ts": 736,
+      "src/renderer/src/components/git/feature-view.tsx": 603,
+      "src/cli/cli.ts": 571,
+      "src/renderer/src/lib/terminal-registry.ts": 524
+    }
+  },
+  "hookTests": {
+    "allow": [
+      "src/renderer/src/hooks/mutation-error.ts",
+      "src/renderer/src/hooks/use-actions.ts",
+      "src/renderer/src/hooks/use-app-events.ts",
+      "src/renderer/src/hooks/use-branch-flow.ts",
+      "src/renderer/src/hooks/use-browse.ts",
+      "src/renderer/src/hooks/use-commit.ts",
+      "src/renderer/src/hooks/use-daemon-identity.ts",
+      "src/renderer/src/hooks/use-daemon-skew.ts",
+      "src/renderer/src/hooks/use-diff-reading.ts",
+      "src/renderer/src/hooks/use-document-title.ts",
+      "src/renderer/src/hooks/use-environment-status.ts",
+      "src/renderer/src/hooks/use-evidence.ts",
+      "src/renderer/src/hooks/use-explore.ts",
+      "src/renderer/src/hooks/use-feature-view.ts",
+      "src/renderer/src/hooks/use-files.ts",
+      "src/renderer/src/hooks/use-funnel.ts",
+      "src/renderer/src/hooks/use-lan.ts",
+      "src/renderer/src/hooks/use-local-terminal.ts",
+      "src/renderer/src/hooks/use-mobile.ts",
+      "src/renderer/src/hooks/use-remote-daemon.ts",
+      "src/renderer/src/hooks/use-repo-layers.ts",
+      "src/renderer/src/hooks/use-repo-notes.ts",
+      "src/renderer/src/hooks/use-responsive-shell.ts",
+      "src/renderer/src/hooks/use-reviewed.ts",
+      "src/renderer/src/hooks/use-search.ts",
+      "src/renderer/src/hooks/use-share.ts",
+      "src/renderer/src/hooks/use-skills.ts",
+      "src/renderer/src/hooks/use-tailnet.ts",
+      "src/renderer/src/hooks/use-terminal-channel.ts",
+      "src/renderer/src/hooks/use-theme.ts",
+      "src/renderer/src/hooks/use-token-gate.ts",
+      "src/renderer/src/hooks/use-updates.ts",
+      "src/renderer/src/hooks/use-window-controls.ts"
+    ]
+  }
+}

@@ -2,7 +2,7 @@
 /**
  * Cut a release: bump version on main, tag, push, dispatch packaging.
  *
- * Side-project path (2026-07-27): no pending branches, no multi-workflow gate.
+ * Side-project path: no pending branches, no multi-workflow gate.
  * Default bump is patch. Use minor/major only when the human asks.
  *
  * Usage:

@@ -165,7 +165,7 @@ repo picker, a second empty-state component, or its own reading of
 
 `useActiveRepo()` (00 §2) is the only source of the repo path this slice reads.
 
-### 2.7 iPad: the split view this slice owns (approved 2026-07-31, build it here)
+### 2.7 iPad: the split view this slice owns (build it here)
 
 The pushed drill-down of 2.1 is a **phone** decision, and it stays the phone
 decision. On iPad it wastes the axis the phone didn't have: a 13" screen showing
