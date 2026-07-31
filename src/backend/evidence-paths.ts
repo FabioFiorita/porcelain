@@ -10,8 +10,7 @@ import { porcelainHomePath } from '../shared/porcelain-home'
  *
  * Layout:
  *   ~/.porcelain/loop-evidence/<sha256(repoPath)[0..16]>/
- *     index.html          — HTML body (wins over scene when both exist)
- *     canvas.excalidraw   — Excalidraw body (when no index.html)
+ *     index.html          — HTML body
  *     meta.json           — optional { title, repoPath, updatedAt, checks }
  *     *.png / …           — relative assets referenced from index.html
  *
