@@ -23,6 +23,7 @@ import {
   synthesizeAddDiff,
   type Worktree,
 } from './diff'
+import { gitEnv } from './git-env'
 import { imageMimeForPath, isBinaryBuffer, isGitBinaryDiff } from './image-mime'
 import { exceedsReadLimit } from './read-limits'
 import { type GitSuggestion, parseSuggestions } from './suggestions'
@@ -38,7 +39,9 @@ async function runGit(repoPath: string, args: string[]): Promise<string> {
     // writes (pull/commit) and fails them with "fatal: Unable to write index.".
     // It disables only the optional index refresh — required locks for real
     // mutations (pull/commit/checkout) are untouched.
-    env: { ...process.env, GIT_OPTIONAL_LOCKS: '0' },
+    // gitEnv drops any inherited GIT_DIR/GIT_INDEX_FILE/… so `cwd` above stays
+    // the only thing that decides which repository this acts on.
+    env: gitEnv(process.env, { GIT_OPTIONAL_LOCKS: '0' }),
   })
   return stdout
 }
@@ -457,6 +460,7 @@ export async function gitQuickCommand(
     const { stdout, stderr } = await execFileAsync('git', args, {
       cwd: repoPath,
       maxBuffer: 64 * 1024 * 1024,
+      env: gitEnv(process.env),
     })
     return [stderr, stdout]
       .filter((s) => s.trim() !== '')
@@ -488,6 +492,7 @@ export async function gitPush(repoPath: string): Promise<string> {
     const { stdout, stderr } = await execFileAsync('git', args, {
       cwd: repoPath,
       maxBuffer: 64 * 1024 * 1024,
+      env: gitEnv(process.env),
     })
     return [stderr, stdout]
       .filter((s) => s.trim() !== '')

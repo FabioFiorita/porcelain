@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import {
   gitAddWorktree,
   gitCommit,
@@ -32,6 +32,7 @@ import {
   reviewedFingerprint,
   reviewedFingerprints,
 } from './git'
+import { gitEnv } from './git-env'
 
 describe('isNoMatchError', () => {
   it('treats exit code 1 as no-match', () => {
@@ -129,7 +130,9 @@ const GIT_ENV = {
 function git(cwd: string, ...args: string[]): string {
   return execFileSync('git', args, {
     cwd,
-    env: { ...process.env, ...GIT_ENV },
+    // gitEnv, not a bare `...process.env`: an inherited GIT_DIR would override
+    // `cwd` and point every fixture command at the real repository.
+    env: gitEnv(process.env, GIT_ENV),
     stdio: 'pipe',
   }).toString()
 }
@@ -803,5 +806,58 @@ describe('gitDiffFile image/binary', () => {
     expect(result.hunks[0]?.lines.some((l) => l.text.includes('export const n'))).toBe(true)
     expect(result.binary).toBeUndefined()
     expect(result.image).toBeUndefined()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Inherited repository env — the fixture repos must stay in their own cwd
+// ---------------------------------------------------------------------------
+//
+// Git exports its repository-local variables (GIT_DIR, GIT_INDEX_FILE, …) to
+// every hook it runs, and those variables OVERRIDE cwd. `githooks/pre-commit`
+// runs `pnpm verify`, so without a scrub this whole suite inherits a pointer at
+// the repository being committed: fixture repos silently commit, branch, and
+// `init --bare` the real checkout instead of their temp dir. That happened on
+// 2026-07-30 — it left the repo bare (core.bare=true) with fixture commits on
+// the task branch. The hook scrubs, and this pins the second half: a fixture
+// repo is immune on its own, whoever spawned the tests.
+
+describe('inherited repository env', () => {
+  const dirs: string[] = []
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  afterAll(async () => {
+    await Promise.all(dirs.map((d) => rm(d, { recursive: true, force: true })))
+  })
+
+  it('ignores an ambient GIT_DIR so fixture repos and production helpers keep to their cwd', async () => {
+    // The repo a hook would have pointed us at; nothing here may touch it.
+    const decoy = await makeRepo()
+    const fixture = await makeRepo()
+    dirs.push(decoy, fixture)
+    const decoyHead = git(decoy, 'rev-parse', 'HEAD').trim()
+    const decoyBranches = git(decoy, 'branch', '--format=%(refname:short)')
+
+    // Exactly what git hands a hook.
+    vi.stubEnv('GIT_DIR', join(decoy, '.git'))
+    vi.stubEnv('GIT_INDEX_FILE', join(decoy, '.git', 'index'))
+
+    // The fixture helper and the production helpers both act on `fixture`…
+    git(fixture, 'checkout', '-b', 'fixture-branch')
+    await writeFile(join(fixture, 'added.ts'), 'export const added = 1\n')
+    await gitStageAll(fixture)
+    await gitCommit(fixture, 'commit in the fixture repo')
+    expect(git(fixture, 'log', '-1', '--format=%s').trim()).toBe('commit in the fixture repo')
+    expect(git(fixture, 'branch', '--show-current').trim()).toBe('fixture-branch')
+
+    // …and the decoy is byte-for-byte where it was: no commit, no branch, no
+    // staged index, no reinit as bare.
+    expect(git(decoy, 'rev-parse', 'HEAD').trim()).toBe(decoyHead)
+    expect(git(decoy, 'branch', '--format=%(refname:short)')).toBe(decoyBranches)
+    expect(git(decoy, 'status', '--porcelain').trim()).toBe('')
+    expect(git(decoy, 'config', '--get', 'core.bare').trim()).toBe('false')
   })
 })

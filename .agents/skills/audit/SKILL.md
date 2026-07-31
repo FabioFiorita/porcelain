@@ -412,6 +412,24 @@ assumed — this skill is the codebase-specific layer beneath them.
   before the scrub; verification runs after it. *Verify:* `lint-audit` enforces
   the scrub, and a normal managed-worktree commit completes without changing
   branch or producing fixture commits.
+- **`cwd` decides which repository a spawned git acts on — never an inherited
+  variable.** Every git spawn builds its env with `gitEnv` (`src/backend/git-env.ts`,
+  the pure strip list; same split as `terminal-env.ts`), which drops the
+  repository-local variables `git rev-parse --local-env-vars` names and passes the
+  rest of the user's environment through — `GIT_SSH_COMMAND`/`GIT_ASKPASS` say HOW
+  git works, not WHICH repo, and stripping those would break push auth. *Why:* this
+  is the runtime half of the hook scrub above, and it's what makes the property
+  hold for callers that never went through the hook (CI, a terminal that exported
+  `GIT_DIR`, a daemon started from a hook). The failure is silent and total: on
+  2026-07-30 the suite's fixture `git init --bare` inherited a hook's `GIT_DIR`,
+  reinitialized the real checkout as bare (`core.bare=true`, so Porcelain rendered
+  the primary worktree as `(detached)`) and wrote fixture commits onto the task
+  branch. The test helper in `git.test.ts` scrubs for the same reason — a fixture
+  repo must be immune on its own, whoever spawned the tests. *Verify:* lint-enforced
+  (every gateway spawn passes `env: gitEnv(`); `git-env.test.ts` pins the strip
+  list, and `git.test.ts` → "inherited repository env" runs a fixture repo under a
+  decoy `GIT_DIR` and asserts the decoy keeps its HEAD, branches, index, and
+  `core.bare=false`.
 - **Every git invocation sets `GIT_OPTIONAL_LOCKS=0`** (`runGit` in `src/backend/git.ts`).
   *Why:* the 3s `gitStatus`/`gitFlow` background polls otherwise rewrite `.git/index`
   under a lock, racing the user's own `pull`/`commit` and failing it with

@@ -19,6 +19,11 @@
  *   3. The tracked pre-commit hook clears Git's exported repository-local env
  *      before verification. Otherwise fixture git commands ignore cwd and
  *      commit into the worktree whose hook is running.
+ *   4. Every git spawn in the gateway builds its env with `gitEnv` — the
+ *      runtime half of 3. An inherited `GIT_DIR` overrides `cwd`, so a spawn
+ *      that passes the raw `process.env` acts on whatever repository the
+ *      parent pointed at instead of `repoPath`. Count-based proxy: it can't
+ *      tell WHICH spawn kept the raw env, only that one did.
  *
  * Comment lines are skipped for the same reason as `lint-escapes.mjs`: both
  * invariants are *documented* in prose next to the code they guard.
@@ -44,6 +49,8 @@ const GIT_LOCKS_FLAG = 'GIT_OPTIONAL_LOCKS'
 const GIT_LOCKS_SET = /GIT_OPTIONAL_LOCKS\s*:\s*['"]0['"]/
 const GIT_SPAWN =
   /\b(?:exec|execSync|execFile|execFileSync|execFileAsync|spawn|spawnSync)\s*\(\s*(['"`])git\1/
+const GIT_SPAWN_ALL = new RegExp(GIT_SPAWN.source, 'g')
+const GIT_ENV_SCRUB = /env:\s*gitEnv\(/g
 const GIT_SPAWN_ROOTS = [join(scanRoot, 'backend'), join(scanRoot, 'main')]
 const PRE_COMMIT_HOOK = join(root, 'githooks', 'pre-commit')
 const GIT_LOCAL_ENV_LIST = /git rev-parse --local-env-vars/
@@ -172,6 +179,20 @@ if (!codeLines(GIT_GATEWAY).some(({ line }) => GIT_LOCKS_SET.test(line))) {
     line: 0,
     label: `runGit no longer sets ${GIT_LOCKS_FLAG}=0 — background polls will fail the user's own pull/commit`,
     snippet: '(flag absent from the file)',
+  })
+}
+
+const gatewayCode = codeLines(GIT_GATEWAY)
+  .map(({ line }) => line)
+  .join('\n')
+const gatewaySpawns = gatewayCode.match(GIT_SPAWN_ALL)?.length ?? 0
+const scrubbedSpawns = gatewayCode.match(GIT_ENV_SCRUB)?.length ?? 0
+if (scrubbedSpawns < gatewaySpawns) {
+  failures.push({
+    file: relative(root, GIT_GATEWAY),
+    line: 0,
+    label: `${gatewaySpawns - scrubbedSpawns} git spawn(s) in the gateway don't build their env with gitEnv (src/backend/git-env.ts) — an inherited GIT_DIR would override cwd and redirect them to another repository`,
+    snippet: `(${scrubbedSpawns} gitEnv env for ${gatewaySpawns} spawns)`,
   })
 }
 
