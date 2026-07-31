@@ -10,6 +10,7 @@
     "platforms": ["ios"],
     "ios": {
       "bundleIdentifier": "com.fabiofiorita.porcelain",
+      "supportsTablet": true,
       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true

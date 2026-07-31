@@ -67,7 +67,9 @@ Three things that bite:
   needs a second build.
 - **Step 1 is only needed when the native fingerprint changes** — a new native
   module, an `app.json` change, an SDK bump. Pure JS/TS edits reach the running
-  app through Fast Refresh, and step 2 would just reinstall the same binary.
+  app through Fast Refresh, and step 2 would just reinstall the same binary. The
+  corollary bites: `ios.supportsTablet` is an `app.json` flag, so an iPad fix
+  cannot arrive over Fast Refresh no matter how many times you reinstall.
 
 To pair the app with the dev daemon, use the host's **LAN address**, never
 `127.0.0.1` — on the simulator that resolves to the Mac. See
@@ -92,6 +94,13 @@ with this device over LAN or Tailscale) · Appearance · About.
 The same four triggers drive both presentations: iPhone gets the bottom tab
 bar, and `sidebarAdaptable` lets iPadOS/macOS promote them to the system side
 tab bar and sidebar. There is one tab list, never a second iPad-only one.
+
+That promotion needs **`ios.supportsTablet: true`** (`app.json`), which was
+missing until 2026-07-31. Without it Expo emits `UIDeviceFamily = [1]` and the
+app runs on iPad in iPhone **compatibility mode** — a fixed portrait window that
+will not rotate and never reaches the regular horizontal size class the sidebar
+depends on. If iPad looks like a scaled phone, check that flag first, and
+remember it is native: it needs a rebuild, not a reload.
 
 ## Delivery
 
