@@ -33,7 +33,6 @@
     "expo-mcp",
     "@trpc/client",
     "@tanstack/react-query",
-    "expo-network",
-    "@react-native-vector-icons/get-image"
+    "expo-network"
   ]
 }

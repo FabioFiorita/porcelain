@@ -1,7 +1,12 @@
 # Porcelain mobile
 
-The native Porcelain client is an Expo SDK 57 app. Its starter shell uses Expo
-Router native tabs and universal `@expo/ui` components.
+The native Porcelain client is an **iOS-only** Expo SDK 57 app. Its starter
+shell uses Expo Router native tabs and universal `@expo/ui` components.
+
+`app.json` declares `"platforms": ["ios"]`, so prebuild, EAS, and Metro only
+ever consider iOS. There is no Android target and no Play Store account behind
+one — write iOS code directly and never add a `Platform.OS` branch, an
+`.android.tsx` twin, or a raster twin of an SF Symbol.
 
 From the repository root:
 
@@ -34,7 +39,7 @@ of becoming tabs. Mobile deliberately carries fewer tabs than the desktop app:
 | History | pushed from the **Changes** header (commit history reads as part of the working tree story) |
 | Board | pushed from the **Review** header (a board card starts a review; the two are coupled) |
 | Search | the **Files** header search bar, not a tab |
-| Settings | a root-level route presented as a form sheet on iOS (full screen on Android), reachable from every tab's header gear |
+| Settings | a root-level route presented as a form sheet, reachable from every tab's header gear |
 
 Settings itself is a nested stack: root list → Environments (daemons paired
 with this device over LAN or Tailscale) · Appearance · About.
@@ -45,8 +50,7 @@ tab bar and sidebar. There is one tab list, never a second iPad-only one.
 
 ## Delivery
 
-Two EAS workflows in `.eas/workflows/`, both iOS-only (Android runs through the
-local emulator loop):
+Two EAS workflows in `.eas/workflows/`:
 
 | File | Trigger | What it does |
 | --- | --- | --- |

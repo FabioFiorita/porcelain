@@ -28,8 +28,10 @@ Settled by the human — don't re-open them, and don't extend them either. Canon
 
 - **WebView** is sanctioned in exactly two places: daemon-authored Evidence HTML (`03` §2.5) and the
   xterm.js terminal bundle (`04` §2.1). Any third use still needs approval.
-- **One platform-split component**: Review's segmented face switcher (`03` §2.1). Every other
-  `.ios.tsx`/`.android.tsx` pair needs approval.
+- **Platform splits are moot** (2026-07-31): the app is iOS-only, so there is no second platform to
+  split against. `@expo/ui/swift-ui` is reachable directly wherever universal `@expo/ui` falls
+  short — Review's segmented face switcher (`03` §2.1) is now one file, not a pair. Universal stays
+  the default because it is the simpler API, not because of Android.
 - **`Alert.alert`** is fine for destructive confirms (platform API, no universal `@expo/ui` alert).
 - **Rotation is unlocked** — `app.json` is `"orientation": "default"`. Every screen must tolerate
   rotation; no screen may assume portrait.
@@ -58,9 +60,9 @@ The few files more than one worktree touches. Keep edits here minimal and additi
   (`01`). Whichever of `01`/`02`/`03` lands first creates it to that shape; the others fill in their
   own target. No second handoff helper.
 - `src/lib/daemon/procedures/` — one file per tab, no barrel (a barrel is a guaranteed conflict).
-- `src/components/toolbar-icon.ts` and `assets/toolbar/` — any tab adding a header button. Existing
-  names: `settings`, `board`, `history`; `00` adds `repo`. An SF Symbol alone renders **nothing** on
-  Android, so every new name needs a PNG too.
+- `src/components/toolbar-icon.ts` — any tab adding a header button. Existing names: `settings`,
+  `board`, `history`; `00` adds `repo`. iOS-only means one SF Symbol string per name; there is no
+  `assets/toolbar/` PNG twin any more.
 - `src/theme/colors.ts` — `02` adds the diff/status palette and the monospace helper.
 - `apps/mobile/package.json` — any tab adding a dependency (`00` adds `zod`, `zustand`,
   `expo-clipboard`, `expo-crypto`, and `@trpc/server` type-only).
@@ -73,23 +75,35 @@ Static gate for every worktree, from the repo root: `pnpm verify` (`lint` → `t
 tests for pure modules run under the **root** vitest — `00` widens its `include` to
 `apps/mobile/src/**/*.test.ts`; no test runner is added to the `apps/mobile` package.
 
-Runtime proof runs on the `porcelain-dev` Android AVD against the **dev** daemon — never production
-on 43117:
+Runtime proof runs on an **iOS simulator on the Mac**, driven from this box over the LAN (the
+`serve-sim-remote` skill owns bring-up, screenshots, taps and the route's limits), against the
+**dev** daemon — never production on 43117. The Android emulator loop is gone with the Android
+target (2026-07-31), so iOS is the only runtime.
 
 ```bash
-pnpm build && pnpm dev:daemon                      # dev daemon on 43118 — never production 43117
-emulator -avd porcelain-dev &                      # AVD: porcelain-dev
-adb reverse tcp:43118 tcp:43118                    # emulator 127.0.0.1:43118 → host dev daemon
+pnpm build && pnpm dev:daemon                      # dev daemon on 43118, LAN-bound by default
 PORCELAIN_HOME=~/.porcelain-dev PORCELAIN_DAEMON_PORT=43118 \
-  node scripts/daemon-cli.js access issue --name "Emulator" --base-url http://127.0.0.1:43118
-pnpm mobile:start                                  # Metro for the dev client — never Expo Go
+  node scripts/daemon-cli.js access issue --name "Simulator" \
+    --base-url http://<this-host>.local:43118      # LAN URL — see below
+pnpm mobile:start                                  # Metro here; the sim loads the bundle over the LAN
 ```
 
-The `PORCELAIN_HOME` / `PORCELAIN_DAEMON_PORT` prefix is **not optional**: without it
-`daemon-cli.js` reads `~/.porcelain/admin-token` and talks to `127.0.0.1:43117` — i.e. it issues the
-pairing link against the **production** daemon. A managed worktree substitutes its own 43200–43999
-port everywhere 43118 appears, including `adb reverse`. First run on a fresh emulator needs the dev
-client installed once (`pnpm --dir apps/mobile android`).
+Two prefixes/values that look optional and are not:
+
+- **The pairing `--base-url` must be this machine's LAN name or IP, never `127.0.0.1`.** The
+  simulator is on the *Mac*; `127.0.0.1` there is the Mac. This is the one thing the Android recipe
+  hid — `adb reverse` made loopback work, and nothing replaces it. `pnpm dev:daemon` binds the LAN
+  by default (`--loopback` turns it off) precisely so this route works.
+- **`PORCELAIN_HOME` / `PORCELAIN_DAEMON_PORT`**: without them `daemon-cli.js` reads
+  `~/.porcelain/admin-token` and talks to `127.0.0.1:43117` — i.e. it issues the pairing link
+  against the **production** daemon. A managed worktree substitutes its own 43200–43999 port
+  everywhere 43118 appears.
+
+First run on a fresh simulator needs the dev client installed once, and that is a **Mac** step: build
+it (`eas build -p ios --profile development-simulator`), then `xcrun simctl install booted <App>.app`
+there. After that, Metro from this box plus Fast Refresh is the whole loop — but note the route
+cannot force a reload or rebuild natively (no ⌘R, no Xcode), so a new native module or permission
+means another Mac session.
 
 Pair once, open a repo from the dev playground, then exercise the tab under test and attach the
 screenshots to the Review. Repos opened this way are daemon-side paths on the dev stack only.

@@ -7,6 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "porcelain",
     "userInterfaceStyle": "automatic",
+    "platforms": ["ios"],
     "ios": {
       "bundleIdentifier": "com.fabiofiorita.porcelain",
       "infoPlist": {
@@ -16,14 +17,6 @@
         "NSLocalNetworkUsageDescription": "Porcelain talks to your daemon over the local network or Tailscale, usually at a plain http address.",
         "ITSAppUsesNonExemptEncryption": false
       }
-    },
-    "android": {
-      "package": "com.fabiofiorita.porcelain",
-      "adaptiveIcon": {
-        "backgroundColor": "#090B0C",
-        "foregroundImage": "./assets/images/android-icon-foreground.png"
-      },
-      "predictiveBackGestureEnabled": false
     },
     "plugins": [
       "expo-router",
@@ -36,16 +29,7 @@
         }
       ],
       "expo-secure-store",
-      "expo-sqlite",
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "usesCleartextTraffic": true
-          }
-        }
-      ],
-      "@react-native-vector-icons/material-design-icons"
+      "expo-sqlite"
     ],
     "experiments": {
       "typedRoutes": true,

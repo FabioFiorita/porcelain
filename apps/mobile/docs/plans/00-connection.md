@@ -329,9 +329,8 @@ platforms, and `@expo/ui` `Picker` inside a header is not a native pattern).
   button labelled by the active repo's `name` (or "Choose repo"). It must **not** compose
   `SettingsToolbar` — per the note in that file, toolbar children have to be created inside the
   component that renders the toolbar. Tabs render both components side by side.
-- Android toolbar buttons are dropped without an image icon, so add `assets/toolbar/repo.png` and a
-  `'repo'` entry to `ToolbarIconName` in `src/components/toolbar-icon.ts` (SF Symbol
-  `folder.badge.gearshape` or `shippingbox`; keep the existing branch shape).
+- Add a `'repo'` entry to `ToolbarIconName` in `src/components/toolbar-icon.ts` (SF Symbol
+  `folder.badge.gearshape` or `shippingbox`). iOS-only: one symbol string, no PNG twin.
 
 **The sheet** (`/repo`, a nested stack like `/settings`):
 
@@ -434,7 +433,8 @@ that poll is cellular data and battery, and the socket already carries the truth
 
 ### Secure-store schema
 
-`expo-secure-store` values are size-constrained (Android warns past ~2 KB), so the list is split:
+`expo-secure-store` values are size-constrained (keep entries well under a couple of KB), so the
+list is split:
 
 | Key | Value |
 |---|---|
@@ -528,14 +528,14 @@ Tests (pure modules only, no react-native imports): `pairing.test.ts` · `enviro
 - `src/components/toolbar-icon.ts` — add the `'repo'` icon
 - `apps/mobile/package.json` — add `zod`, `zustand`, `expo-clipboard`, `expo-crypto`; add
   `@trpc/server` (devDependency, type-only)
-- `apps/mobile/README.md` — a short "Connection" section: environments, pairing, the emulator recipe
+- `apps/mobile/README.md` — a short "Connection" section: environments, pairing, the simulator recipe
 - `vitest.config.ts` (root) — add `apps/mobile/src/**/*.test.ts` to `include`
 - `.agents/skills/architecture/SKILL.md` — record the transport decision from §2 (hard rule 4: same
   commit). The paste-only/no-QR bullet is **already** accurate there; don't rewrite it.
 
 **Already done — do not re-do**
 
-`expo-camera` and the Android `CAMERA` / `RECORD_AUDIO` permissions were removed from
+`expo-camera` and its camera/microphone permissions were removed from
 `apps/mobile/package.json` and `app.json` in a committed change *before* this plan starts. The
 paste-only decision below is already reflected in the tree and in the architecture skill; there is
 no camera cleanup left to perform.
@@ -548,14 +548,14 @@ no camera cleanup left to perform.
 | `src/lib/daemon/app-events.ts` | every tab appends its procedure names |
 | `src/app/settings/**` | Appearance/About plans may land here |
 | `apps/mobile/package.json` | any tab adding a dependency |
-| `src/components/toolbar-icon.ts` (+ `assets/toolbar/*.png`) | any tab adding a header button — `settings`, `board`, `history` already exist |
+| `src/components/toolbar-icon.ts` | any tab adding a header button — `settings`, `board`, `history` already exist |
 | `src/lib/surface-handoffs.ts` | **not created by this plan** — `03-review` specifies it (typed `openDiff` / `openFile` pushes into Changes/Files); whichever tab worktree lands first creates it, to 03's shape |
 
 Everything else is per-slice by construction (`src/features/<tab>/`, `src/lib/daemon/procedures/<tab>.ts`).
 
 ## 6. Out of scope
 
-- **QR / camera.** Paste-a-link only. The camera dependency and its Android permissions are already
+- **QR / camera.** Paste-a-link only. The camera dependency and its permissions are already
   gone from the tree (see "Already done" above) — don't reintroduce them for a scanner.
 - **Any admin surface.** Issuing pairing links, `accessStatus`, revoking *other* clients, and the
   LAN / tailnet / Funnel binds are host-side and `FORBIDDEN` for a paired client. The app never
@@ -581,23 +581,25 @@ prefix, non-http scheme), the storage schemas (round-trip, corrupt file), `APP_E
 exhaustiveness, and `serverMessageSchema` against one frame of each `t`. Keep react-native and
 `expo-*` imports out of these files — that's what makes them testable at all.
 
-**Runtime proof — Android emulator, dev daemon only.**
+**Runtime proof — iOS simulator on the Mac, dev daemon only** (`serve-sim-remote` skill; full recipe
+and traps in `README.md` → *Shared verification recipe*).
 
 ```bash
-pnpm build && pnpm dev:daemon                      # dev daemon on 43118 — never production 43117
-emulator -avd porcelain-dev &                      # AVD: porcelain-dev
-adb reverse tcp:43118 tcp:43118                    # emulator 127.0.0.1:43118 → host dev daemon
+pnpm build && pnpm dev:daemon                      # dev daemon on 43118, LAN-bound by default
 PORCELAIN_HOME=~/.porcelain-dev PORCELAIN_DAEMON_PORT=43118 \
-  node scripts/daemon-cli.js access issue --name "Emulator" --base-url http://127.0.0.1:43118
-pnpm mobile:start                                  # Metro for the dev client — never Expo Go
+  node scripts/daemon-cli.js access issue --name "Simulator" \
+    --base-url http://<this-host>.local:43118      # LAN URL — the sim is on the Mac, not here
+pnpm mobile:start                                  # Metro here; the sim loads the bundle over the LAN
 ```
 
-The `PORCELAIN_HOME` / `PORCELAIN_DAEMON_PORT` prefix on the CLI is **not optional**: without it
-`daemon-cli.js` reads `~/.porcelain/admin-token` and talks to `127.0.0.1:43117`, i.e. it would issue
-a link against the **production** daemon. First run on a fresh emulator needs the dev client
-installed once (`pnpm --dir apps/mobile android`, or `npx expo run:android`); after that
-`pnpm mobile:start` is enough. `pnpm dev:daemon -- --loopback` if you'd rather the dev stack not
-bind LAN while you work.
+Two things this plan in particular must not get wrong. The `PORCELAIN_HOME` /
+`PORCELAIN_DAEMON_PORT` prefix on the CLI is **not optional**: without it `daemon-cli.js` reads
+`~/.porcelain/admin-token` and talks to `127.0.0.1:43117`, i.e. it would issue a link against the
+**production** daemon. And the pairing `--base-url` must be this machine's LAN name or IP — a
+simulator resolving `127.0.0.1` reaches the *Mac*, so **do not** use `--loopback` here: this plan is
+the one that proves cross-machine pairing works. First run on a fresh simulator needs the dev client
+installed once from the Mac (`eas build -p ios --profile development-simulator`, then
+`xcrun simctl install booted <App>.app`); after that `pnpm mobile:start` is enough.
 
 Then, in the app: Settings → Environments → **Pair a daemon** → paste the printed link → pair →
 the environment appears active → the repo sheet lists the dev playground's recents → open one →

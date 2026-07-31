@@ -18,7 +18,7 @@
 # App Store submission bolted on the build branch only. An OTA never needs review;
 # a new binary always does.
 #
-# iOS-only, matching the rest of the mobile pipeline.
+# iOS-only, matching the rest of the mobile pipeline — the app has no Android target.
 
 name: Production release
 

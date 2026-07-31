@@ -4,12 +4,9 @@
   "version": "0.1.0",
   "dependencies": {
     "@expo/ui": "~57.0.8",
-    "@react-native-vector-icons/get-image": "^13.0.0",
-    "@react-native-vector-icons/material-design-icons": "^13.1.2",
     "@tanstack/react-query": "^5.101.0",
     "@trpc/client": "^11.17.0",
     "expo": "~57.0.9",
-    "expo-build-properties": "~57.0.8",
     "expo-constants": "~57.0.8",
     "expo-dev-client": "~57.0.10",
     "expo-linking": "~57.0.4",
@@ -19,7 +16,6 @@
     "expo-secure-store": "~57.0.1",
     "expo-splash-screen": "~57.0.5",
     "expo-sqlite": "~57.0.1",
-    "expo-system-ui": "~57.0.2",
     "expo-updates": "~57.0.11",
     "react": "19.2.3",
     "react-native": "0.86.2",
@@ -38,7 +34,6 @@
   "scripts": {
     "start": "expo start",
     "start:mcp": "EXPO_UNSTABLE_MCP_SERVER=1 expo start",
-    "android": "expo start --android",
     "ios": "expo start --ios",
     "typecheck": "tsc --noEmit"
   },

@@ -25,8 +25,8 @@ folder; the native back gesture / back button walks out.
 
 Why, against the desktop's expanding tree:
 
-- Both platform idioms agree. iOS Files.app, Android Files, and every native
-  file browser drill down; an indented tree spends the phone's scarcest axis
+- The platform idiom agrees. iOS Files.app, and every native
+  file browser, drills down; an indented tree spends the phone's scarcest axis
   (width) on indentation and its deepest rows end up 10 characters wide.
 - Free correctness: the native stack gives back-swipe, per-screen large titles,
   scroll position restoration per level, and a `Link.Preview` peek — all of
@@ -199,8 +199,8 @@ exactly what 01 builds. Constraints on whoever takes it:
 - Confirm `topColumnForCollapsing` behaviour for a compact-width iPad window
   (Stage Manager, Slide Over) — the app must still be usable when the split view
   collapses, and that is the state the original screenshot was actually in.
-- Proof needs an **iPad** simulator on the Mac, not the Android emulator loop of
-  §6. Attach a landscape iPad screenshot with all three columns populated and a
+- Proof needs an **iPad** simulator specifically, not the iPhone simulator §6
+  defaults to. Attach a landscape iPad screenshot with all three columns populated and a
   compact-window screenshot to the Review, or the change is not verified.
 
 ## 3. Data layer
@@ -311,12 +311,9 @@ will collide on:
 - `src/lib/daemon/app-events.ts` — append `readFile` to the seeded
   `working-tree` row. One line, alphabetical, nothing else.
 - `src/components/toolbar-icon.ts` — add one icon name (`more`) to
-  `ToolbarIconName`, `SF_SYMBOLS` (`ellipsis`), and `ANDROID_IMAGES`
-  (`settings`, `board`, `history` are already there; 00 adds `repo`).
-- `apps/mobile/assets/toolbar/more.png` — new monochrome 24 dp PNG (Android
-  renders it through Compose's `Icon`, so it must be a flat tint-able glyph).
-  Skipping this silently kills the menu on Android — the exact bug the existing
-  comment in `toolbar-icon.ts` records.
+  `ToolbarIconName` and `SF_SYMBOLS` (`ellipsis`). `settings`, `board`, `history`
+  are already there; 00 adds `repo`. iOS-only, so that is the whole edit — no
+  raster twin.
 - `apps/mobile/README.md` — one short paragraph on what the Files tab does and
   that it is read-only. Docs sync in the same commit (hard rule 4).
 - `src/lib/surface-handoffs.ts` — the tiny shared module `03-review.md` §2.4
@@ -372,23 +369,24 @@ vitest `include` to `apps/mobile/src/**/*.test.ts`, so the one pure module worth
 covering here (`file-paths.ts`: relative ↔ absolute, href building, basename) can
 have a small test under the root runner. Everything else is proved at runtime.
 
-Runtime proof — Android emulator AVD `porcelain-dev`, against the **dev** daemon
-on **43118**. Never 43117.
+Runtime proof — **iOS simulator on the Mac**, driven from here over the LAN
+(`serve-sim-remote` skill), against the **dev** daemon on **43118**. Never 43117.
+Full recipe and traps: `README.md` → *Shared verification recipe*.
 
 ```bash
-pnpm build && pnpm dev:daemon                      # dev daemon on 43118 — never production 43117
-emulator -avd porcelain-dev &                      # AVD: porcelain-dev
-adb reverse tcp:43118 tcp:43118                    # emulator 127.0.0.1:43118 → host dev daemon
+pnpm build && pnpm dev:daemon                      # dev daemon on 43118, LAN-bound by default
 PORCELAIN_HOME=~/.porcelain-dev PORCELAIN_DAEMON_PORT=43118 \
-  node scripts/daemon-cli.js access issue --name "Android dev" --base-url http://127.0.0.1:43118
-pnpm mobile:start                                  # Metro for the dev client — never Expo Go
-adb exec-out screencap -p > /tmp/files-<journey>.png
+  node scripts/daemon-cli.js access issue --name "Simulator" \
+    --base-url http://<this-host>.local:43118      # LAN URL — the sim is on the Mac, not here
+pnpm mobile:start                                  # Metro here; the sim loads the bundle over the LAN
+python3 ~/.claude/skills/serve-sim-remote/scripts/shot.py /tmp/files-<journey>.jpg
 ```
 
 The `PORCELAIN_HOME` / `PORCELAIN_DAEMON_PORT` prefix is not optional — without it
 `daemon-cli.js` issues the link against the **production** daemon on 43117. First
-run on a fresh emulator needs the dev client installed once
-(`pnpm --dir apps/mobile android`).
+run on a fresh simulator needs the dev client installed once from the Mac
+(`eas build -p ios --profile development-simulator`, then `xcrun simctl install booted <App>.app`).
+§2.7's iPad columns need an **iPad** simulator booted, not the iPhone one.
 
 Point the dev daemon at a repo with a real nested tree and at least one hidden
 path (set one with `pnpm porcelain -- scope hide --path <path>` if none exists).
@@ -414,13 +412,13 @@ disappear without a manual refresh (proves the `scope` app-event wiring).
 - **Starts after `00-connection.md` is merged to `main`.** Create the worktree
   from an up-to-date `main`; if 00-connection lands mid-flight, rebase before
   finishing rather than duplicating a client.
-- The managed worktree gets its own daemon port from the 43200–43999 pool —
-  `adb reverse` **that** port, not 43118, and pair the emulator against it.
+- The managed worktree gets its own daemon port from the 43200–43999 pool — pair
+  the simulator against **that** port, not 43118.
 - The seams Files needs all exist in 00 §2: `useActiveRepo`, `useDaemonQuery` /
   `useDaemonMutation` / `useDaemonInvalidate`, `useDaemonSession().watch`,
   `usePreference`, and `DaemonGate`. If something genuinely missing turns up, add
   it **in the connection layer** and say so in the PR — do not grow a second
   client inside `features/files`.
 - Close the loop: PR into `main` with the Review's evidence attached, then
-  `pnpm worktree remove files-tab`. Delete emulator screenshots and scratch
+  `pnpm worktree remove files-tab`. Delete simulator screenshots and scratch
   before stopping.

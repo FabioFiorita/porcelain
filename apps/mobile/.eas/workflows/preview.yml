@@ -17,8 +17,9 @@
 # not the branch) — waiting if it is still running — and publishes an update
 # instead of buying a second binary.
 #
-# iOS-only by design: TestFlight is the delivery target and Android runs through
-# the local emulator dev loop (see docs/plans/README.md).
+# iOS-only because the app is: `app.json` declares `"platforms": ["ios"]`
+# (2026-07-31 — the Play Store account is closed and Android was dropped as a
+# target), so there is no second platform to fan out to here.
 #
 # Force a build when the fingerprint did NOT change: apply the GitHub label
 # `eas-build-ios:preview` to the PR. That is EAS's own built-in label trigger

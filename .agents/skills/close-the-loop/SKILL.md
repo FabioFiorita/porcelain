@@ -18,7 +18,7 @@ Porcelain is developed heavily by agents. The human's goal is to interact less, 
 | User data | `~/.local/share/porcelain` | Primary `porcelain-dev`; worktrees `porcelain-dev-worktrees/<slug>` |
 | Channels / CLI home | `~/.porcelain` | Primary `.porcelain-dev`; worktrees `.porcelain-dev-worktrees/<slug>` |
 | Binary | systemd `npx porcelain-daemon@latest` | Local tree: `pnpm build` + `pnpm dev:daemon` |
-| Network | LAN + tailnet | Loopback only |
+| Network | LAN + tailnet | LAN by default (`pnpm dev:daemon -- --loopback` to opt out) — the Mac's iOS simulator has to reach it |
 | Default repo | Real work (e.g. monorepos) | Primary playground or **per-worktree playground only** |
 | Agents | **Never** for product work | **Always** for product work |
 

@@ -10,9 +10,7 @@ web-build/
 expo-env.d.ts
 
 # Native
-.kotlin/
 *.orig.*
-*.jks
 *.p8
 *.p12
 *.key
@@ -38,6 +36,5 @@ yarn-error.*
 
 example
 
-# generated native folders
+# generated native folder (iOS only — app.json `platforms` is `["ios"]`)
 /ios
-/android

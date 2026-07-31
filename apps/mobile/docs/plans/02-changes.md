@@ -8,16 +8,16 @@ Make the phone the place where you *read what the agent did and decide it's good
 
 ## 2. UX shape
 
-All UI is universal `@expo/ui` (`Host`, `List`, `ListItem`, `Column`, `Row`, `Text`, `Checkbox`, `Button`, `Picker`, `TextInput`, `Spacer`, `Icon`, `ScrollView`) plus Expo Router (`Stack`, `Stack.Toolbar`, `Link`, `router`). No shadcn, no Tailwind, no DOM components, no `@expo/ui/swift-ui` or `/jetpack-compose` imports (those force `.ios.tsx`/`.android.tsx` splits and crash if imported on the wrong platform). Two deliberate exceptions, both platform *APIs* rather than UI primitives, so they don't violate hard rule 5:
+All UI is universal `@expo/ui` (`Host`, `List`, `ListItem`, `Column`, `Row`, `Text`, `Checkbox`, `Button`, `Picker`, `TextInput`, `Spacer`, `Icon`, `ScrollView`) plus Expo Router (`Stack`, `Stack.Toolbar`, `Link`, `router`). No shadcn, no Tailwind, no DOM components. `@expo/ui/swift-ui` is reachable (the app is iOS-only, so it no longer forces a platform split) but universal stays the default here — this tab needs nothing SwiftUI-specific, and the universal API is the simpler one. Two deliberate exceptions, both platform *APIs* rather than UI primitives, so they don't violate hard rule 5:
 
-- `Alert.alert` from `react-native` for destructive confirms (universal `@expo/ui` ships no Alert/ConfirmationDialog; the platform-specific ones are iOS-only).
+- `Alert.alert` from `react-native` for destructive confirms (universal `@expo/ui` ships no Alert/ConfirmationDialog).
 - `ActivityIndicator`/`RefreshControl` are **not** used — `List` has a native `onRefresh` prop, and loading states are text rows (§2.6). Do not add a spinner library.
 
 ### 2.1 Working-tree list (`index`, the tab home)
 
 Source of truth is **`gitFlow`** alone — it returns `FlowGroup[] = { layer, files: FlowFile[] }[]` where each `FlowFile` already carries `path`, `status`, `staged?`, `unstaged?`, `additions?`, `deletions?`, `connects[]`. Do **not** also fetch `gitStatus` for the list; it's the same data minus grouping and stats. (`gitStatus` may be used later for a cheap dirty/clean probe elsewhere; not here.)
 
-Layout, top to bottom, inside one `Host style={{flex:1}}` + `List` (native `List` = SwiftUI `List` on iOS, `LazyColumn` on Android, so it virtualizes):
+Layout, top to bottom, inside one `Host style={{flex:1}}` + `List` (native `List` = SwiftUI `List`, so it virtualizes):
 
 1. **Summary row** — `<branch> · N files · +A −D · M reviewed`. Branch from `gitHead` (`headLabel`-equivalent: branch name, else `detached @ sha`). Tapping it does nothing in v1 (no branch switcher — §5).
 2. **Suggestion strip** (only when `gitSuggestions` returns the `push` command) — one line, `reason` text (e.g. "2 commits ahead"), trailing `Push` button → §2.5. Every other suggested command (`pull`, `stash`, `fetch`, …) is ignored in v1. **Note:** `gitSuggestions` is *quick-command* advice derived from branch-sync + stash state — it is **not** commit-message suggestion. Commit-message help comes from `gitCommitConventions`. The desktop code (`src/backend/suggestions.ts`) is authoritative here; don't wire it into the composer.
@@ -38,7 +38,7 @@ Pull-to-refresh via `List`'s `onRefresh` → refetch `gitFlow` + `reviewedPaths`
 **Decision: render diffs as native text rows. No WebView. No syntax highlighting in v1.**
 
 - A WebView would buy CSS control and highlighting, but it is a DOM surface — against hard rule 5 and `apps/mobile/README.md` for ordinary UI — and it would duplicate theming, break native scroll/handoff into the stack, and put the app's core reading surface outside the native toolkit. `react-native-webview` stays reserved for the two places the app can't render natively at all: daemon-authored HTML we don't own (`loopEvidenceHtml`, `03-review` §2.5) and the terminal emulator (`04-terminal` §2.1, a decision that plan records in the architecture skill). A diff is not one of those.
-- Syntax highlighting is deliberately dropped: universal `@expo/ui` `Text` accepts **`children?: string`** only — no nested spans — so per-token coloring is impossible without building each line out of a `Row` of many `Text` nodes, and a tokenizer on top. T3 Code needed a custom shiki engine to do this well; we're not paying that for v1. Diff legibility on a phone comes from the three things we *can* do natively: monospace (`textStyle.fontFamily`: `Menlo` on iOS, `monospace` on Android — one helper in `theme/`), a per-line background tint for add/del, and a compact line-number gutter.
+- Syntax highlighting is deliberately dropped: universal `@expo/ui` `Text` accepts **`children?: string`** only — no nested spans — so per-token coloring is impossible without building each line out of a `Row` of many `Text` nodes, and a tokenizer on top. T3 Code needed a custom shiki engine to do this well; we're not paying that for v1. Diff legibility on a phone comes from the three things we *can* do natively: monospace (`textStyle.fontFamily`: `Menlo` — one helper in `theme/`), a per-line background tint for add/del, and a compact line-number gutter.
 - Line rendering: one `Row` per diff line = `Text` gutter (old/new line number, fixed width, secondary) + `Text` content (`numberOfLines={1}`, `fontSize` 12, monospace). **Unified diff only, no side-by-side, no intra-line word diff.** Long lines truncate rather than wrap — a horizontally scrolling nested `ScrollView` per line is a performance trap; a single truncated line with the option to open the file is the phone-correct tradeoff.
 
 **Reading screen (`/reading?scope=working` | `?scope=commit&hash=…`)**: flatten `FeatureReading` (`{ name, groups: { layer, files: ReadingFile[] }[] }`, each `ReadingFile` carrying `path`, `status`, `additions/deletions`, `hunks?: DiffHunk[]`) into **one precomputed flat row array** (`lib/diff-rows.ts`) — `layer-header | file-header | hunk-header | line | file-footer | truncation-notice` — and feed it to a single virtualized `List`. Never nest a `List` inside a `List`. Row identity is a stable string key (`${path}:${hunkIndex}:${lineIndex}`).
@@ -57,14 +57,14 @@ Caps (non-negotiable — the daemon builds up to 200 files of hunks):
 
 ### 2.4 Staging and discard
 
-- **Stage/unstage: the row's trailing `Checkbox`.** Decision, and the reason: universal `@expo/ui` has no swipe actions (`SwipeActions` is SwiftUI-only) and no context menu (`ContextMenu` iOS-only / `combinedClickable` Android-only) — a gesture-based design would force a platform split for the app's most-used control. A checkbox is visible, discoverable, and honest about the tri-state: checked = fully staged, unchecked = nothing staged, **partial** (`staged && unstaged`) renders as a checked box with a "partly staged" supporting note; tapping it stages the rest. No hunk-level staging (§5).
+- **Stage/unstage: the row's trailing `Checkbox`.** Decision, and the reason: universal `@expo/ui` has no swipe actions or context menu (`SwipeActions` and `ContextMenu` live in `@expo/ui/swift-ui`) — reachable now that the app is iOS-only, but a gesture is invisible and this is the app's most-used control, so it stays a checkbox on purpose, not for lack of an API. A checkbox is visible, discoverable, and honest about the tri-state: checked = fully staged, unchecked = nothing staged, **partial** (`staged && unstaged`) renders as a checked box with a "partly staged" supporting note; tapping it stages the rest. No hunk-level staging (§5).
 - `gitStageFile` / `gitUnstageFile` are optimistic on the row, then invalidate `gitFlow`.
 - **Stage all / Unstage all** in the bottom toolbar (`gitStageAll` / `gitUnstageAll`).
 - **Discard** lives only on the file diff screen (never on a list row — an accidental tap must not destroy work), behind `Alert.alert('Discard changes to <basename>?', …, [{style:'destructive'}])`. On success: invalidate `gitFlow` + the file's diff + `diffReading`, then `router.back()` — the screen's subject no longer exists. (The daemon reverts a tracked file to HEAD and *trashes* an untracked one; say so in the confirm body: "Tracked files revert to HEAD; new files move to the Trash.")
 
 ### 2.5 Commit composer
 
-A route presented as a **form sheet** (`presentation: 'formSheet'`, `sheetAllowedDetents: [0.6, 1.0]`, `sheetGrabberVisible: true` on iOS; plain card on Android) inside the Changes stack, matching the existing Settings sheet idiom in `src/app/_layout.tsx`. Contents:
+A route presented as a **form sheet** (`presentation: 'formSheet'`, `sheetAllowedDetents: [0.6, 1.0]`, `sheetGrabberVisible: true`) inside the Changes stack, matching the existing Settings sheet idiom in `src/app/_layout.tsx`. Contents:
 
 1. Staged summary: "N files staged · +A −D" and a warning line when unstaged files remain.
 2. **Type** and **Scope** `Picker`s fed by `gitCommitConventions` → `{ types, scopes }` (learned from the repo's last 200 subjects, `DEFAULT_COMMIT_TYPES` fallback). Selecting rewrites the message's `type(scope): ` prefix; the message stays the source of truth, and a freeform message with no prefix commits fine. Port the ~25-line prefix parse/apply into `features/changes/lib/commit-message.ts` — the desktop's `src/renderer/src/lib/commit-message.ts` is renderer-scoped and must not be imported across the app boundary; keep the behavior identical (same architecture, separate client).
@@ -178,9 +178,9 @@ apps/mobile/src/lib/daemon/procedures/changes.ts
 
 Change:
 
-- `apps/mobile/src/app/(tabs)/(changes)/_layout.tsx` — register the four new screens; titles (`Read`, file basename, `Commit`, short hash); `presentation: 'formSheet'` + detents for `commit-sheet`, matching the root layout's iOS/Android branch.
+- `apps/mobile/src/app/(tabs)/(changes)/_layout.tsx` — register the four new screens; titles (`Read`, file basename, `Commit`, short hash); `presentation: 'formSheet'` + detents for `commit-sheet`, matching the root layout's sheet options.
 - `apps/mobile/src/app/(tabs)/(changes)/index.tsx`, `history.tsx` — unchanged one-line re-exports.
-- `apps/mobile/src/components/toolbar-icon.ts` — add `read`, `reviewed`, `stage`, `discard`, `push` to `ToolbarIconName`, with SF Symbols **and** matching Android PNGs in `apps/mobile/assets/toolbar/` (an SF Symbol string renders nothing on Android — this file documents the trap; honor it).
+- `apps/mobile/src/components/toolbar-icon.ts` — add `read`, `reviewed`, `stage`, `discard`, `push` to `ToolbarIconName` and `SF_SYMBOLS`. iOS-only, so a symbol string is the whole entry — no raster twin.
 - `apps/mobile/src/theme/colors.ts` — add the diff/status palette (`addBg`, `delBg`, `gutter`, `secondaryText`, per-status tints) and the monospace family helper. One home; no hex literals in components.
 - `apps/mobile/README.md` — replace the Changes placeholder description with what the tab now is (list → read → stage → commit → history), including the "diffs are native text, no highlighting in v1" decision.
 - `apps/mobile/docs/daemon-api.md` — only if implementation proves a documented shape wrong (the code wins; fix the doc in the same commit).
@@ -218,24 +218,23 @@ pnpm verify                          # lint + test + build — the commit gate
 
 **Do not** add vitest/jest to the `apps/mobile` package. 00-connection extends the **root** vitest `include` to `apps/mobile/src/**/*.test.ts`, so the pure modules (`lib/diff-rows.ts`, `lib/commit-message.ts`) can carry small tests under the root runner — keep react-native and `expo-*` imports out of them, which is what makes them testable. Everything else is proved by the runtime journey below.
 
-Runtime (Android emulator against the **development** daemon — never production 43117):
+Runtime — **iOS simulator on the Mac**, driven from here over the LAN (`serve-sim-remote` skill), against the **development** daemon — never production 43117. Full recipe and traps: `README.md` → *Shared verification recipe*.
 
 ```bash
-pnpm build && pnpm dev:daemon                      # dev daemon on 43118 — never production 43117
-emulator -avd porcelain-dev &                      # AVD: porcelain-dev
-adb reverse tcp:43118 tcp:43118                    # emulator 127.0.0.1:43118 → host dev daemon
+pnpm build && pnpm dev:daemon                      # dev daemon on 43118, LAN-bound by default
 PORCELAIN_HOME=~/.porcelain-dev PORCELAIN_DAEMON_PORT=43118 \
-  node scripts/daemon-cli.js access issue --name "Dev phone" --base-url http://127.0.0.1:43118
-pnpm mobile:start                                  # Metro for the dev client — never Expo Go
+  node scripts/daemon-cli.js access issue --name "Simulator" \
+    --base-url http://<this-host>.local:43118      # LAN URL — the sim is on the Mac, not here
+pnpm mobile:start                                  # Metro here; the sim loads the bundle over the LAN
 ```
 
-The `PORCELAIN_HOME` / `PORCELAIN_DAEMON_PORT` prefix is not optional — without it `daemon-cli.js` reads the production admin token and issues a link against 43117. In a managed worktree, substitute its own 43200–43999 port everywhere 43118 appears, including `adb reverse`. First run on a fresh emulator needs the dev client installed once (`pnpm --dir apps/mobile android`).
+The `PORCELAIN_HOME` / `PORCELAIN_DAEMON_PORT` prefix is not optional — without it `daemon-cli.js` reads the production admin token and issues a link against 43117. In a managed worktree, substitute its own 43200–43999 port everywhere 43118 appears. First run on a fresh simulator needs the dev client installed once from the Mac (`eas build -p ios --profile development-simulator`, then `xcrun simctl install booted <App>.app`).
 
-Pair the device to `http://127.0.0.1:43118` using the environment flow from 00-connection (Settings → Environments → Pair a daemon → paste the printed link). Point it at a **playground** repo (`~/code/porcelain-playgrounds/<slug>`), never a real worktree.
+Pair the simulator to `http://<this-host>.local:43118` using the environment flow from 00-connection (Settings → Environments → Pair a daemon → paste the printed link) — **not** `127.0.0.1`, which on the simulator means the Mac. Point it at a **playground** repo (`~/code/porcelain-playgrounds/<slug>`), never a real worktree.
 
 Fixture: make the playground dirty across at least two layers — e.g. edit `README.md` (Docs) and `src/example.ts` (Other) and add one new file — so grouping, statuses, and stats are all visible.
 
-Journeys (each is a screenshot for the Review's evidence; `adb exec-out screencap -p > shot.png`):
+Journeys (each is a screenshot for the Review's evidence; `python3 ~/.claude/skills/serve-sim-remote/scripts/shot.py shot.jpg`):
 
 1. **Grouped list** — dirty playground → Changes shows layer sections in daemon order (not alphabetical), correct statuses, `+A −D`, staged/unstaged checkbox states.
 2. **Read the change** — tap Read → one continuous scroll through every file's hunks in the same flow order; monospace, add/del tinting, line numbers; per-file Mark reviewed toggles and the check appears on the list row after going back.
@@ -245,13 +244,13 @@ Journeys (each is a screenshot for the Review's evidence; `adb exec-out screenca
 6. **Guards** — discard confirm (cancel and confirm), push confirm, clean-tree empty state, large-change interstitial (generate a wide change to trip it), airplane-mode/daemon-down error + Retry.
 7. **Live update** — with Changes open, edit a file on the host: the list updates from the `working-tree` app-event within a second (kill the WS to confirm the 10 s `backstopMs` poll then takes over and still catches it).
 
-iOS: if a Mac/simulator is reachable, repeat journeys 1–5 there (the `serve-sim-remote` skill covers driving the MacBook's simulator from this host); otherwise state Android-only proof explicitly in the Review — don't claim untested iOS.
+If the Mac is unreachable, say so in the Review and mark the runtime journeys unproved — there is no second platform to fall back to any more, so do not claim a flow works off the static gate alone.
 
 Close the loop: publish a Review (Intent · Execution · Evidence) with these screenshots attached before the commit lands, per `close-the-loop`.
 
 ## 7. Worktree notes
 
-- Slug: **`mobile-changes`** — `pnpm worktree create mobile-changes` → `work/mobile-changes` + isolated daemon port (43200–43999, printed by the tool) + `~/code/porcelain-playgrounds/mobile-changes`. Use that port everywhere 43118 appears above, including `adb reverse`.
+- Slug: **`mobile-changes`** — `pnpm worktree create mobile-changes` → `work/mobile-changes` + isolated daemon port (43200–43999, printed by the tool) + `~/code/porcelain-playgrounds/mobile-changes`. Use that port everywhere 43118 appears above.
 - **Start only after `00-connection` merges into `main`**, then `git pull --ff-only` before creating the worktree (or rebase the worktree onto main). This slice consumes the daemon client/query/app-event seams; building against a guessed API means a rewrite.
 - Touch only the changes slice, its routes, and the four named merge points. If a needed shared primitive is missing (a spinner, an image view, a menu), do **not** hand-roll it — universal `@expo/ui` gaps need the human's approval per hard rule 5; raise it instead of inventing one.
 - Finish with `pnpm verify`, PR into `main` with the Review's evidence attached, squash-merge, then `pnpm worktree remove mobile-changes`. Delete session debris (`.playwright-mcp/`, `test-results/`, screenshots you didn't attach) before you stop.

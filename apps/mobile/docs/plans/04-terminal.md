@@ -70,12 +70,12 @@ going stale (§4.3).
 
 **Fallback notes** (do not build these now; build them only if the named symptom appears):
 
-- *Keyboard focus or IME proves unreliable on Android WebView* → flip the default input
+- *Keyboard focus or IME proves unreliable in WKWebView* → flip the default input
   path to the RN composer (§2.4) and treat WebView focus as opt-in ("Raw keys" toggle).
   The composer already exists for long text, so this is a default change, not new code.
 - *WebView is OOM-killed under long output* → lower xterm `scrollback` (start at 5 000
   lines) and the pending-buffer cap before considering anything structural.
-- *xterm-in-WebView is unusable on Android specifically* → the escape hatch is option (c)
+- *xterm-in-WebView proves unusable outright* → the escape hatch is option (c)
   as a **read-only fallback view** for exited sessions only, never as the primary renderer.
 - WebGL/canvas addons are **not** used — DOM renderer only (§5).
 
@@ -145,8 +145,8 @@ single **Close** (kill removes it from the roster).
   `Esc` = `\x1b`, `Tab` = `\t`, `^C` = `\x03`, sticky Ctrl = `controlByte(nextKey)`.
 - **IME / composition** — xterm's composition helper handles CJK and dictation inside the
   WebView; the key bar never intercepts printable keys, so composition is untouched.
-- **Font sizing** — xterm `fontFamily: 'ui-monospace, Menlo, monospace'` (Android resolves
-  to its `monospace`), `fontSize` from a 3-step preference (10 / 12 / 14, default 12)
+- **Font sizing** — xterm `fontFamily: 'ui-monospace, Menlo, monospace'`,
+  `fontSize` from a 3-step preference (10 / 12 / 14, default 12)
   persisted per device through 00's preference seam
   (`usePreference('terminal.fontSize', …)` in `src/lib/daemon/preferences.ts`, 00 §2 — not
   secure-store, this isn't a secret). Changing it re-fits and re-sends resize.
@@ -324,16 +324,15 @@ stating rather than pretending otherwise.
 
 Changed: `src/app/(tabs)/(terminal)/_layout.tsx` (exists today with the `index` screen) —
 add the two `Stack.Screen`s (`new` as `presentation: 'formSheet'`, `sheetGrabberVisible`,
-matching the root layout's iOS/Android branch).
+matching the root layout's sheet options).
 
 ### 4.3 Changed — shared merge points (touch narrowly, expect conflicts)
 
 - `apps/mobile/src/app/(tabs)/(terminal)/index.tsx` — already re-exports `TerminalScreen`; unchanged if the export name holds.
-- `apps/mobile/src/components/toolbar-icon.ts` + `apps/mobile/assets/toolbar/*.png` — the roster's
-  `+` button needs an `add` icon name with **both** an SF Symbol (`plus`) and an Android PNG; an SF
-  Symbol alone renders nothing on Android (the comment in that file records the bug). `03-review`
-  wants the same `add` name — first worktree in adds it, the second reuses it rather than
-  introducing `plus`/`new`.
+- `apps/mobile/src/components/toolbar-icon.ts` — the roster's `+` button needs an `add` icon name
+  with an SF Symbol (`plus`). iOS-only, so that is the whole entry. `03-review` wants the same
+  `add` name — first worktree in adds it, the second reuses it rather than introducing
+  `plus`/`new`.
 - `scripts/build-terminal-webview.mjs` **(new, repo root)** — inlines root
   `@xterm/xterm` + `@xterm/addon-fit` dist + glue → the generated module. `--check` mode
   exits non-zero when the committed output is stale.
@@ -410,22 +409,28 @@ run under the root runner — keep react-native and `expo-*` imports out of them
 add a test runner to the `apps/mobile` package. (If for any reason the widening didn't land,
 add the `include` entry in this PR and note it in the body.)
 
-**Runtime proof — Android emulator against the DEV daemon.**
+**Runtime proof — iOS simulator on the Mac against the DEV daemon** (`serve-sim-remote` skill;
+full recipe and traps in `README.md` → *Shared verification recipe*).
 
 ```bash
-pnpm build && pnpm dev:daemon                      # dev daemon on 43118 — never production 43117
-emulator -avd porcelain-dev &                      # AVD: porcelain-dev
-adb reverse tcp:43118 tcp:43118                    # emulator 127.0.0.1:43118 → host dev daemon
+pnpm build && pnpm dev:daemon                      # dev daemon on 43118, LAN-bound by default
 PORCELAIN_HOME=~/.porcelain-dev PORCELAIN_DAEMON_PORT=43118 \
-  node scripts/daemon-cli.js access issue --name "Emulator" --base-url http://127.0.0.1:43118
-pnpm mobile:start                                  # Metro for the dev client — never Expo Go
+  node scripts/daemon-cli.js access issue --name "Simulator" \
+    --base-url http://<this-host>.local:43118      # LAN URL — the sim is on the Mac, not here
+pnpm mobile:start                                  # Metro here; the sim loads the bundle over the LAN
 ```
 
-Pair the emulator against `http://127.0.0.1:43118` with the link that command prints, then
-open a **playground** repo — never a real worktree, never the production daemon. The
-`PORCELAIN_HOME` / `PORCELAIN_DAEMON_PORT` prefix is not optional: without it
-`daemon-cli.js` reads `~/.porcelain/admin-token` and issues the link against 43117. First
-run on a fresh emulator needs the dev client installed once (`pnpm --dir apps/mobile android`).
+Pair the simulator against `http://<this-host>.local:43118` with the link that command prints —
+**not** `127.0.0.1`, which on the simulator means the Mac — then open a **playground** repo, never a
+real worktree, never the production daemon. The `PORCELAIN_HOME` / `PORCELAIN_DAEMON_PORT` prefix is
+not optional: without it `daemon-cli.js` reads `~/.porcelain/admin-token` and issues the link against
+43117. First run on a fresh simulator needs the dev client installed once from the Mac
+(`eas build -p ios --profile development-simulator`, then `xcrun simctl install booted <App>.app`).
+
+**This tab is the one the remote-simulator route serves worst.** `serve-sim-remote` cannot send
+⌘/⌃ chords, so a ^C typed by the driver never arrives — exercise the key bar's own sticky-Ctrl path
+instead (which is the thing under test anyway), and hand the soft-keyboard and IME checks to the
+human on a real device. Say in the Review which journeys were driven and which were done by hand.
 
 Journeys (each is loop evidence; screenshot or screen-record the ones marked ★):
 
@@ -451,8 +456,7 @@ Journeys (each is loop evidence; screenshot or screen-record the ones marked ★
 12. `terminal:create` refusal path (simulate by capping locally, or assert in a unit test on
     the `id: ''` branch) → the 64-limit alert.
 
-An iOS pass is nice-to-have via the `serve-sim-remote` route; Android is the required
-evidence for this worktree.
+iOS is the only platform, so the simulator pass **is** the required evidence for this worktree.
 
 Before stopping: delete session debris, leave the worktree clean, and publish the Review
 (Intent · Execution · Evidence) with the screenshots attached (`close-the-loop`).
@@ -463,7 +467,7 @@ Before stopping: delete session debris, leave the worktree clean, and publish th
 
 - Slug: **`mobile-terminal`** → `pnpm worktree create mobile-terminal` → branch
   `work/mobile-terminal`, isolated daemon in 43200–43999 (use it instead of 43118 if you
-  are running in parallel with another worktree; `adb reverse` that port instead),
+  are running in parallel with another worktree; pair the simulator against that port instead),
   playground at `~/code/porcelain-playgrounds/mobile-terminal`.
 - **Start after 00-connection merges to `main`.** The stream hook has nothing to ride
   otherwise. If you must start early, stub 00's seam behind the §4.4 interface in a single

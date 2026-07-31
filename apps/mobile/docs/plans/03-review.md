@@ -8,7 +8,7 @@ Required reading before writing code: `apps/mobile/docs/daemon-api.md` (Review-t
 catalog), `apps/mobile/README.md`, `.agents/skills/product/SKILL.md` (the Review feature —
 Intent · Execution · Evidence, lifecycle, Board↔Review coupling),
 `.agents/skills/architecture/SKILL.md` → "Native mobile client", `.claude/skills/expo-ui/`
-(+ `references/universal.md`, `swift-ui.md`, `jetpack-compose.md`),
+(+ `references/universal.md`, `swift-ui.md`),
 `.claude/skills/expo-router/` (+ `references/form-sheet.md`, `toolbar-and-headers.md`).
 
 Depends on plan `00-connection.md`, which **merges first**: it owns the daemon client, the
@@ -45,17 +45,17 @@ back must leave Review rather than step backwards through faces.
 
 Universal `@expo/ui` `Picker` only offers `appearance: 'menu' | 'wheel'` — a menu hides the
 product's spine behind a tap, so this is the one place the expo-ui ladder says to drop to
-the platform layer (still `@expo/ui`, not a hand-roll). **APPROVED by the human 2026-07-31**
-as the app's first platform-split component; the exception is granted per-component, not a
-general license to split, so any *other* `.ios.tsx`/`.android.tsx` pair still needs asking:
+the platform layer (still `@expo/ui`, not a hand-roll). The app is iOS-only, so this is
+**one file, not a platform-split pair** (the 2026-07-31 split approval is moot — there is
+no second platform to split against):
 
-- `features/review/face-switcher.ios.tsx` — `@expo/ui/swift-ui` `Picker` with
-  `modifiers={[pickerStyle('segmented')]}` and `Text` children carrying `tag('intent'|…)`.
-- `features/review/face-switcher.android.tsx` — `@expo/ui/jetpack-compose`
-  `SingleChoiceSegmentedButtonRow` + three `SegmentedButton`s.
-- `features/review/face-switcher.types.ts` — the shared prop type
-  (`{ face: ReviewFace; onChange(face: ReviewFace): void; evidenceEnabled: boolean }`).
-  Platform extensions are fine here because the file lives outside `src/app`.
+- `features/review/face-switcher.tsx` — `@expo/ui/swift-ui` `Picker` with
+  `modifiers={[pickerStyle('segmented')]}` and `Text` children carrying `tag('intent'|…)`,
+  taking `{ face: ReviewFace; onChange(face: ReviewFace): void; evidenceEnabled: boolean }`.
+
+Universal `@expo/ui` stays the default everywhere else in this slice: dropping to
+`@expo/ui/swift-ui` is now cheap, but it is still the more verbose API, so reach for it
+only where universal genuinely can't express the control.
 
 Evidence is **disabled when `reading.evidence === null`** (mirrors the desktop's disabled
 tab); if evidence disappears while Evidence is active, fall back to Intent.
@@ -311,9 +311,7 @@ Create — feature slice `apps/mobile/src/features/review/`:
 
 ```
 review-screen.tsx           (replace placeholder) faces + segmented switcher + states
-face-switcher.types.ts      shared props for the platform split
-face-switcher.ios.tsx       @expo/ui/swift-ui Picker + pickerStyle('segmented')
-face-switcher.android.tsx   @expo/ui/jetpack-compose SingleChoiceSegmentedButtonRow
+face-switcher.tsx           @expo/ui/swift-ui Picker + pickerStyle('segmented')
 intent-face.tsx             thesis + chapter outline + canvas note
 chapter-screen.tsx          one chapter: prose, diagram/embed, files, prev/next
 execution-face.tsx          layer groups, file rows, reviewed toggle, comment badges
@@ -342,9 +340,8 @@ Create — the slice's daemon procedure descriptors (its own file, no barrel):
 
 Shared merge points (coordinate — other worktrees touch these):
 
-- `src/components/toolbar-icon.ts` + `assets/toolbar/*.png` — new icon names need **both**
-  an SF Symbol and an Android PNG. Android toolbar buttons render nothing without an image
-  (see the comment in that file). Existing names: `settings`, `board`, `history` (00 adds
+- `src/components/toolbar-icon.ts` — a new icon name is one SF Symbol string (iOS-only;
+  there is no PNG twin). Existing names: `settings`, `board`, `history` (00 adds
   `repo`). Needed here: `comment`, `add`, `evidence` (or reuse existing). `04-terminal` also
   wants `add` for its roster `+` — first worktree in adds it, the second reuses that exact
   name rather than introducing `plus`/`new`.
@@ -391,23 +388,24 @@ Hard-rule reminders for the implementer: no `any`, no `as unknown as` (parse or 
 the seam), no `void` on promises, universal `@expo/ui` before the platform layer, routes
 stay one-liners under `src/app`.
 
-Runtime proof — **Android emulator against the dev daemon, never production**:
+Runtime proof — **iOS simulator on the Mac against the dev daemon, never production**
+(`serve-sim-remote` skill; full recipe and traps in `README.md` → *Shared verification recipe*):
 
 ```bash
-pnpm build && pnpm dev:daemon                      # dev daemon on 43118 — never production 43117
-emulator -avd porcelain-dev &                      # AVD: porcelain-dev
-adb reverse tcp:43118 tcp:43118                    # emulator 127.0.0.1:43118 → host dev daemon
+pnpm build && pnpm dev:daemon                      # dev daemon on 43118, LAN-bound by default
 PORCELAIN_HOME=~/.porcelain-dev PORCELAIN_DAEMON_PORT=43118 \
-  node scripts/daemon-cli.js access issue --name "Emulator" --base-url http://127.0.0.1:43118
-pnpm mobile:start                                  # Metro for the dev client — never Expo Go
+  node scripts/daemon-cli.js access issue --name "Simulator" \
+    --base-url http://<this-host>.local:43118      # LAN URL — the sim is on the Mac, not here
+pnpm mobile:start                                  # Metro here; the sim loads the bundle over the LAN
 ```
 
-Pair the emulator against `http://127.0.0.1:43118` with the link that command prints.
-The `PORCELAIN_HOME` / `PORCELAIN_DAEMON_PORT` prefix is not optional — without it
-`daemon-cli.js` reads `~/.porcelain/admin-token` and issues the link against **production**.
+Pair the simulator against `http://<this-host>.local:43118` with the link that command prints —
+**not** `127.0.0.1`, which on the simulator means the Mac. The `PORCELAIN_HOME` /
+`PORCELAIN_DAEMON_PORT` prefix is not optional — without it `daemon-cli.js` reads
+`~/.porcelain/admin-token` and issues the link against **production**.
 **Port 43117 / `~/.porcelain` is production — do not point the app at it.** First run on a
-fresh emulator needs the dev client installed once (`pnpm --dir apps/mobile android`, or
-`npx expo run:android`).
+fresh simulator needs the dev client installed once from the Mac
+(`eas build -p ios --profile development-simulator`, then `xcrun simctl install booted <App>.app`).
 
 Seed a full unit of work on the dev channels (playground repo only):
 
@@ -422,7 +420,7 @@ pnpm porcelain -- evidence check --label "e2e" --status fail
 pnpm porcelain -- board create --title "Follow-up" --status todo
 ```
 
-Journeys to prove (screenshot each: `adb exec-out screencap -p > e2e/.artifacts/<name>.png`,
+Journeys to prove (screenshot each: `python3 ~/.claude/skills/serve-sim-remote/scripts/shot.py e2e/.artifacts/<name>.jpg`,
 and delete the artifacts before you stop):
 
 1. **Read Intent** — thesis renders, chapters list, open chapter 2, Next/Previous walk the
@@ -449,13 +447,13 @@ Publish the Review for this work with those screenshots as evidence (`close-the-
 ## 7. Worktree notes
 
 - Slug: `pnpm worktree create mobile-review` → branch `work/mobile-review`, isolated dev
-  daemon in 43200–43999 (use **that** port in place of 43118 in §6, and in
-  `adb reverse`), per-slug channels and playground.
+  daemon in 43200–43999 (use **that** port in place of 43118 in §6), per-slug channels and
+  playground.
 - **Start after `00-connection` merges to `main`** — this plan has no fallback client and
   must not stub one. Rebase on `main` first; if the daemon seam's names differ from
   `@/lib/daemon/…` above, adapt to what merged.
 - Only three files outside the review slice and its routes are expected to change or appear:
-  `src/components/toolbar-icon.ts` (+ assets), `src/lib/surface-handoffs.ts`, and this
+  `src/components/toolbar-icon.ts`, `src/lib/surface-handoffs.ts`, and this
   slice's own `src/lib/daemon/procedures/review.ts` (plus a one-line append to
   `src/lib/daemon/app-events.ts` if — and only if — a procedure name 00 didn't seed shows
   up). If a fourth shared file starts changing, stop and reconsider — that is the signal a
