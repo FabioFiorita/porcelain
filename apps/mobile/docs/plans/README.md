@@ -28,11 +28,11 @@ Settled by the human — don't re-open them, and don't extend them either. Canon
 
 - **WebView** is sanctioned in exactly two places: daemon-authored Evidence HTML (`03` §2.5) and the
   xterm.js terminal bundle (`04` §2.1). Any third use still needs approval.
-- **Platform splits are moot** (2026-07-31): the app is iOS-only, so there is no second platform to
-  split against. `@expo/ui/swift-ui` is reachable directly wherever universal `@expo/ui` falls
-  short — Review's segmented face switcher (`03` §2.1) is now one file, not a pair. Universal stays
-  the default because it is the simpler API, not because of Android.
-- **`Alert.alert`** is fine for destructive confirms (platform API, no universal `@expo/ui` alert).
+- **SwiftUI-only, platform splits moot** (2026-07-31): the app is iOS-only, so there is no second
+  platform to split against and no reason for a portability layer. Every plan builds with
+  `@expo/ui/swift-ui` + `@expo/ui/swift-ui/modifiers`; the universal `@expo/ui` root is **lint-banned**
+  (`scripts/lint-escapes.mjs`). Review's segmented face switcher (`03` §2.1) is one file, not a pair.
+- **Destructive confirms use `@expo/ui/swift-ui`'s `Alert` / `ConfirmationDialog`** — the old `Alert.alert` exception existed only because the universal layer had no alert, and is withdrawn.
 - **Rotation is unlocked** — `app.json` is `"orientation": "default"`. Every screen must tolerate
   rotation; no screen may assume portrait.
 

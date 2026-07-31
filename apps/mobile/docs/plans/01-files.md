@@ -56,11 +56,11 @@ else in the slice does string surgery on paths.
 Each pushed screen sets its own title (`Stack.Screen.Title` = the entry's
 basename). `headerLargeTitle` stays on the root screen only.
 
-**List rendering.** `@expo/ui`'s `List` is documented as unsuitable for large
-lists (every `ListItem` is a JS-thread JSX node), and a monorepo directory can
+**List rendering.** A JSX-node-per-row list is unsuitable for large lists
+whatever the layer (each row is a JS-thread node), and a monorepo directory can
 hold thousands of entries. Use React Native's `FlatList` (virtualized) with
-`@expo/ui` primitives inside the row, wrapped per the repo's existing `Host`
-pattern; keep `contentInsetAdjustmentBehavior="automatic"` so the large title
+`@expo/ui/swift-ui` primitives inside the row, wrapped per the repo's existing
+`Host` pattern; keep `contentInsetAdjustmentBehavior="automatic"` so the large title
 and the search bar behave. If a directory returns more than ~2,000 entries,
 render them all through the virtualized list — do not paginate; `readDir` is a
 single cheap call and slicing would hide files from the user.
@@ -110,10 +110,13 @@ available immediately from the route params, so the screen never looks blank.
 
 **Decision: neither in this release.** `readFile` returns raw text and the app
 has no markdown renderer or highlighter; adding one means either a new
-dependency with a hand-rolled component layer (against "universal `@expo/ui`
-first") or an HTML/WebView path whose sanitization is an `audit`-skill concern
-worth its own change. Markdown files show their source, which is honest and
-readable. The desktop's Reader/Source toggle is a deliberate absence here,
+dependency with a hand-rolled component layer (against rule 5's
+`@expo/ui/swift-ui`-only) or an HTML/WebView path whose sanitization is an `audit`-skill concern
+worth its own change. **Do not mistake `Text`'s `markdownEnabled` for a way out:**
+it renders SwiftUI `LocalizedStringKey` markdown, which is inline-only (emphasis,
+code spans, links) with no headings, lists, tables, or code blocks — a README
+would come out as one run-on paragraph, which is worse than the source.
+Markdown files show their source, which is honest and readable. The desktop's Reader/Source toggle is a deliberate absence here,
 recorded in section 5 with the WebView path as the eventual route.
 
 ### 2.5 Hide / pin

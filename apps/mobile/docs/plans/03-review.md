@@ -8,7 +8,7 @@ Required reading before writing code: `apps/mobile/docs/daemon-api.md` (Review-t
 catalog), `apps/mobile/README.md`, `.agents/skills/product/SKILL.md` (the Review feature —
 Intent · Execution · Evidence, lifecycle, Board↔Review coupling),
 `.agents/skills/architecture/SKILL.md` → "Native mobile client", `.claude/skills/expo-ui/`
-(+ `references/universal.md`, `swift-ui.md`),
+(+ `references/swift-ui.md`),
 `.claude/skills/expo-router/` (+ `references/form-sheet.md`, `toolbar-and-headers.md`).
 
 Depends on plan `00-connection.md`, which **merges first**: it owns the daemon client, the
@@ -43,19 +43,15 @@ switched by a native **segmented control** pinned under the header, above the sc
 body. Face is local `useState<ReviewFace>` — not a route: a face is not a destination, and
 back must leave Review rather than step backwards through faces.
 
-Universal `@expo/ui` `Picker` only offers `appearance: 'menu' | 'wheel'` — a menu hides the
-product's spine behind a tap, so this is the one place the expo-ui ladder says to drop to
-the platform layer (still `@expo/ui`, not a hand-roll). The app is iOS-only, so this is
-**one file, not a platform-split pair** (the 2026-07-31 split approval is moot — there is
-no second platform to split against):
+A menu-style picker hides the product's spine behind a tap, so the switcher is a **segmented**
+control. With `@expo/ui/swift-ui` as the app's only UI layer (rule 5) this is ordinary code, and
+one file rather than a platform-split pair:
 
 - `features/review/face-switcher.tsx` — `@expo/ui/swift-ui` `Picker` with
   `modifiers={[pickerStyle('segmented')]}` and `Text` children carrying `tag('intent'|…)`,
   taking `{ face: ReviewFace; onChange(face: ReviewFace): void; evidenceEnabled: boolean }`.
 
-Universal `@expo/ui` stays the default everywhere else in this slice: dropping to
-`@expo/ui/swift-ui` is now cheap, but it is still the more verbose API, so reach for it
-only where universal genuinely can't express the control.
+Everything else in this slice is the same layer — there is no ladder to climb any more.
 
 Evidence is **disabled when `reading.evidence === null`** (mirrors the desktop's disabled
 tab); if evidence disappears while Evidence is active, fall back to Intent.
@@ -84,9 +80,9 @@ desktop clipboard affordance for feeding an agent), and "Ready to close" links t
 SVG), html?, htmlHeight?, files }`, and an optional `canvas`.
 
 Decision: **Intent is an outline, chapters are pushed screens.** The desktop's J/K chapter
-stepping has no phone analogue (no keyboard, and universal `@expo/ui` `ScrollView` exposes
-no ref/`scrollTo`, so a jump-to-anchor scroll is not implementable without leaving the
-sanctioned primitives). So:
+stepping has no phone analogue (no keyboard, and `@expo/ui/swift-ui` `ScrollView` exposes no
+ref/`scrollTo` — check `scrollPosition`/`scrollTargetLayout` in the modifiers before assuming,
+but do not grow the scope of this plan for it). So:
 
 - Intent face = lifecycle badge · review **name** · **thesis** card · a `List` of chapters
   (`1. Title`, supporting text = file count) · a final "More files" row when
@@ -128,7 +124,7 @@ and a comment count badge.
   not care. Whichever of the three worktrees lands first creates the module to this shape;
   the other two only fill in their own target.
 - Long-press / trailing "…" opens the row's action sheet: **Comment on this file**, Open
-  diff, Mark reviewed. (Use `@expo/ui` `BottomSheet` or a `Stack` formSheet route —
+  diff, Mark reviewed. (Use `@expo/ui/swift-ui` `BottomSheet`/`ConfirmationDialog` or a `Stack` formSheet route —
   formSheet preferred, see 2.6.)
 - **Why no minimal in-tab viewer:** a phone-sized "just the hunks" panel is precisely the
   second Diff panel rule 10 forbids, and it would immediately want staging, syntax
@@ -198,8 +194,8 @@ screen, add per-hunk comments — `startLine`/`endLine` from the hunk's new-file
 
 - **Compose:** `(review)/comment` presented as a **formSheet** (`presentation: 'formSheet'`,
   `sheetAllowedDetents: [0.5, 1]`, `sheetGrabberVisible: true`), taking `?path=`. Body is
-  `@expo/ui` `TextInput` with `multiline` + `useNativeState` (its `value` takes an
-  `ObservableState`, not a string — see `references/universal.md`). Submit → `addReviewComment`,
+  `@expo/ui/swift-ui` `TextField` with `axis="vertical"` + `text={useNativeState('')}` (the prop
+  is `text` and takes an `ObservableState`, not a string — see `references/swift-ui.md`). Submit → `addReviewComment`,
   dismiss, invalidate.
 - **In context:** each walkthrough row shows its comment count; expanding shows the bodies
   plus any `agentReply` (`{ body, createdAt }`) — the loop visibly closing is the single
@@ -216,8 +212,9 @@ Kanban as a phone list: one `List` with three sections in fixed order — **To d
 Done** (`CARD_STATUSES = ['todo','doing','done']`) — cards sorted by `order` ascending, as
 the daemon returns them.
 
-- Tap a card → `(review)/card?id=` formSheet: title + body `TextInput`s, a **status
-  `Picker`** (universal, `appearance="menu"` — three options), Delete. Save →
+- Tap a card → `(review)/card?id=` formSheet: title + body `TextField`s, a **status
+  `Picker`** (`@expo/ui/swift-ui`; three `Text` children carrying `tag(...)`, styled with the
+  `pickerStyle('menu')` modifier — there is no `appearance` prop on this layer), Delete. Save →
   `updateBoardCard` and/or `moveBoardCard`; the daemon re-bumps `order` to `Date.now()` on
   move, so a moved card lands at the end of its column. No drag-reorder (the desktop has
   none either — move is status-only).
@@ -385,8 +382,8 @@ pnpm verify                  # the gate
 ```
 
 Hard-rule reminders for the implementer: no `any`, no `as unknown as` (parse or narrow at
-the seam), no `void` on promises, universal `@expo/ui` before the platform layer, routes
-stay one-liners under `src/app`.
+the seam), no `void` on promises, `@expo/ui/swift-ui` only (the universal root is lint-banned),
+routes stay one-liners under `src/app`.
 
 Runtime proof — **iOS simulator on the Mac against the dev daemon, never production**
 (`serve-sim-remote` skill; full recipe and traps in `README.md` → *Shared verification recipe*):

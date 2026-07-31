@@ -28,6 +28,15 @@
  * escapes come back. (The other custom gates stay Electron-only on purpose:
  * control recipes and the shadcn heuristics are renderer-surface rules — mobile
  * bans shadcn outright — and lint-audit guards daemon/main invariants.)
+ *
+ * One rule is mobile-ONLY: importing from the universal `@expo/ui` root
+ * (hard rule 5, 2026-07-31). The native client is iOS-only and SwiftUI-only, so
+ * components come from `@expo/ui/swift-ui` and modifiers from
+ * `@expo/ui/swift-ui/modifiers`. The universal layer is a portability shim we no
+ * longer need and a thinner API (19 components vs 51, `Text` takes a plain
+ * string so it can't do spans); leaving both reachable is how you end up with
+ * two idioms nobody chose. The regex matches the bare root only — the
+ * `/swift-ui` subpaths are the point.
  */
 
 import { readdirSync, readFileSync, statSync } from 'node:fs'
@@ -47,6 +56,14 @@ const FORBIDDEN = [
     re: /\bvoid\s+[a-zA-Z_$][a-zA-Z0-9_$]*[.(]/,
     label:
       'void on a promise (use async/await, or await Promise.all([...]); a bare fire-and-forget call without `void` is fine)',
+  },
+]
+
+const MOBILE_FORBIDDEN = [
+  {
+    re: /(?:from|require\()\s*['"]@expo\/ui['"]/,
+    label:
+      'universal @expo/ui root import (rule 5: the native client is SwiftUI-only — import components from @expo/ui/swift-ui and modifiers from @expo/ui/swift-ui/modifiers, Host included)',
   },
 ]
 
@@ -73,14 +90,17 @@ function walk(dir, out = []) {
 
 const hits = []
 
-for (const file of [...walk(scanRoot), ...walk(mobileRoot)]) {
+const mobileFiles = new Set(walk(mobileRoot))
+
+for (const file of [...walk(scanRoot), ...mobileFiles]) {
   if (ALLOWED_FILES.has(file)) continue
   const rel = relative(root, file)
+  const rules = mobileFiles.has(file) ? [...FORBIDDEN, ...MOBILE_FORBIDDEN] : FORBIDDEN
   const lines = readFileSync(file, 'utf8').split('\n')
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
     if (/^\s*(\/\/|\/\*|\*)/.test(line)) continue
-    for (const { re, label } of FORBIDDEN) {
+    for (const { re, label } of rules) {
       if (re.test(line)) {
         hits.push({ file: rel, line: i + 1, label, snippet: line.trim().slice(0, 120) })
       }
@@ -90,7 +110,7 @@ for (const file of [...walk(scanRoot), ...walk(mobileRoot)]) {
 
 if (hits.length > 0) {
   console.error(
-    'Escape-hatch drift — `as unknown as` (rule 6) and `void` on promises (rule 7) are banned:\n',
+    'Escape-hatch drift — `as unknown as` (rule 6), `void` on promises (rule 7), and the universal `@expo/ui` root on mobile (rule 5) are banned:\n',
   )
   for (const h of hits) {
     console.error(`  ${h.file}:${h.line}  ${h.label}`)

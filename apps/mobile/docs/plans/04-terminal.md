@@ -81,7 +81,7 @@ going stale (§4.3).
 
 ### 2.2 Screen 1 — the roster (`(terminal)/index.tsx`)
 
-Large-title "Terminal", `@expo/ui` `Host` + `List`.
+Large-title "Terminal", `@expo/ui/swift-ui` `Host` + `List`.
 
 - **Sessions section** — one row per `terminalSessions` entry whose `cwd` is the open repo
   path or under it (same filter as desktop `use-terminal-channel`). Row: name (title),

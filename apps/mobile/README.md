@@ -1,7 +1,7 @@
 # Porcelain mobile
 
 The native Porcelain client is an **iOS-only** Expo SDK 57 app. Its starter
-shell uses Expo Router native tabs and universal `@expo/ui` components.
+shell uses Expo Router native tabs and `@expo/ui/swift-ui` components.
 
 `app.json` declares `"platforms": ["ios"]`, so prebuild, EAS, and Metro only
 ever consider iOS. There is no Android target and no Play Store account behind
@@ -93,5 +93,10 @@ directory holds routes and `_layout` files and nothing else. A new screen means
 a file in `src/features/<feature>/<name>-screen.tsx` plus a one-line route file
 that default-exports it. File names are kebab-case.
 
-UI primitives are universal `@expo/ui` (`Host`, `List`, `Column`, `Text`, …)
-and Expo Router navigation — no shadcn, Tailwind, or DOM components here.
+UI primitives are `@expo/ui/swift-ui` (`Host`, `List`, `Section`, `VStack`,
+`Text`, …) with styling from `@expo/ui/swift-ui/modifiers`, plus Expo Router
+navigation. The **universal `@expo/ui` root is banned** and `pnpm lint` fails on
+it (`scripts/lint-escapes.mjs`): the app is iOS-only, so the portability layer
+buys nothing and costs components — universal has 19 to SwiftUI's 51, and its
+`Text` takes a plain string, which is what blocked syntax highlighting in the
+diff reader. No shadcn, Tailwind, or DOM components here either.

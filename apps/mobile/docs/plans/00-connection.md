@@ -275,7 +275,7 @@ states — tab worktrees write zero empty-state UI.
 
 ## 3. UX shape
 
-`@expo/ui` universal components and expo-router only. No shadcn, no Tailwind, no DOM. `List` is
+`@expo/ui/swift-ui` components (the universal root is lint-banned) and expo-router only. No shadcn, no Tailwind, no DOM. `List` is
 JS-thread-bound per row — fine for environments and recents (tens of rows), and the reason
 `browseDirs` results get a row cap (see below).
 
@@ -323,7 +323,7 @@ left of every tab, mirroring the existing Settings gear on the right.**
 Rejected alternatives: a fifth tab (the shell is four tabs, deliberately — architecture skill); a
 Files-tab-only picker (all four tabs are repo-scoped, so Changes would depend on Files); a
 header-title dropdown (`NativeTabs` + native stack headers give no portable menu affordance on both
-platforms, and `@expo/ui` `Picker` inside a header is not a native pattern).
+platforms, and an `@expo/ui/swift-ui` `Picker` inside a header is not a native pattern).
 
 - New `src/components/repo-toolbar.tsx` renders its own `Stack.Toolbar placement="left"` with a
   button labelled by the active repo's `name` (or "Choose repo"). It must **not** compose
