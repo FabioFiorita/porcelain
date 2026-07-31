@@ -44,7 +44,7 @@ import { loadConfig, updateConfig } from './config-store'
 import { type CommitConventions, parseConventions } from './conventions'
 import { type DaemonIdentity, daemonIdentity } from './daemon-identity'
 import { daemonVersion } from './daemon-version'
-import type { ChangedFile, DiffHunk, DiffStat } from './diff'
+import type { DiffHunk } from './diff'
 import { inlineLocalAssets } from './evidence-assets'
 import {
   clearEvidence,
@@ -54,20 +54,24 @@ import {
   readEvidence,
   readEvidenceMeta,
 } from './evidence-store'
+import {
+  cachedFeatureReading,
+  gatherFeature,
+  getFeatureBuild,
+  storeFeatureReading,
+} from './feature-build'
 import { buildExploreReading, walkExplore } from './feature-explore'
-import { featureKey, flowKey } from './feature-key'
-import { writeFeatureSnapshot } from './feature-snapshot-store'
 import {
   buildDiffReading,
   buildFeatureReading,
-  buildFeatureView,
   type FeatureReading,
   type FeatureView,
 } from './feature-view'
-import { buildFlow, DEFAULT_LAYERS, type FlowGroup, type Layer } from './flow'
+import { DEFAULT_LAYERS, type FlowGroup, type Layer } from './flow'
+import { loadCommitFlow, loadRangeFlow, loadWorkingFlow } from './flow-build'
 import { uniqueDuplicatePath } from './fs-ops'
 import { funnelStatus, startFunnel, stopFunnel } from './funnel'
-import { directoriesOf, fuzzySearch, type SearchResult } from './fuzzy'
+import { fuzzySearch, type SearchResult } from './fuzzy'
 import {
   gitAddWorktree,
   gitBranches,
@@ -76,9 +80,7 @@ import {
   gitCommitDiff,
   gitCommitFiles,
   gitCommitMessage,
-  gitCommitNumstat,
   gitCreateBranch,
-  gitDefaultBranch,
   gitDiffFile,
   gitFileInHead,
   gitFileLog,
@@ -87,12 +89,9 @@ import {
   gitListFiles,
   gitListSearchFiles,
   gitLog,
-  gitMergeBase,
   gitPush,
   gitQuickCommand,
-  gitRangeChangedFilesFrom,
   gitRangeDiffFile,
-  gitRangeNumstatFrom,
   gitResetPath,
   gitRestoreFromHead,
   gitSearchCode,
@@ -114,7 +113,7 @@ import { isLinkedWorktree } from './linked-worktree'
 import { readNotes, writeNotes } from './notes-store'
 import { expandUserPath } from './path-expand'
 import { exceedsReadLimit } from './read-limits'
-import { visibleFilePaths, withoutRecentRepo, withRecentRepo } from './repo-config'
+import { withoutRecentRepo, withRecentRepo } from './repo-config'
 import {
   copyRepoSettings,
   exportRepoSettings,
@@ -125,8 +124,7 @@ import {
   seedRepoSettings,
   seedWorktreeSettings,
 } from './repo-settings'
-import type { ReviewSet } from './review-set'
-import { clearReviewSet, readReviewSet } from './review-store'
+import { clearReviewSet } from './review-store'
 import {
   clearReviewedPaths,
   markReviewed,
@@ -145,6 +143,7 @@ import {
   unhidePath as unhideScopePath,
   unpinPath as unpinScopePath,
 } from './scope-store'
+import { searchCandidates } from './search-candidates'
 import { clientSessionCount, closeClientSessions } from './session'
 import {
   ifaceListenerPort,
@@ -159,7 +158,7 @@ import {
   tailnetUrl,
 } from './tailnet-listener'
 import { listTerminals, renameTerminal, type TerminalInfo } from './terminal-manager'
-import { clearWorkingTreeSnapshot, workingTreeSnapshot } from './working-tree'
+import { clearWorkingTreeSnapshot } from './working-tree'
 import { worktreeInbox } from './worktree-inbox'
 
 export interface DaemonTrpcContext {
@@ -207,249 +206,6 @@ function isValidPattern(pattern: string): boolean {
 
 async function recordRecent(path: string): Promise<void> {
   await updateConfig((config) => withRecentRepo(config, path))
-}
-
-// Read up to 200 files' working-tree contents, run buildFlow, and attach
-// additions/deletions from the stat map. Shared by gitFlow, gitRangeFlow, and
-// gitCommitFlow — each procedure owns its own file/stat gathering, cache key,
-// and cache store; this helper is the common "sources → groups" pipeline.
-async function readSourcesAndBuildFlow(
-  repoPath: string,
-  files: ChangedFile[],
-  stats: DiffStat[],
-  layers: Layer[],
-): Promise<FlowGroup[]> {
-  const sources = new Map<string, string>()
-  await Promise.all(
-    files.slice(0, 200).map(async (file) => {
-      try {
-        const content = await readFile(join(repoPath, file.path), 'utf8')
-        if (content.length < 1024 * 1024) sources.set(file.path, content)
-      } catch {
-        // deleted / no-longer-in-working-tree files have no source to parse
-      }
-    }),
-  )
-  const statByPath = new Map(stats.map((s) => [s.path, s]))
-  return buildFlow(files, sources, layers).map((group) => ({
-    ...group,
-    files: group.files.map((file) => ({
-      ...file,
-      additions: statByPath.get(file.path)?.additions,
-      deletions: statByPath.get(file.path)?.deletions,
-    })),
-  }))
-}
-
-// gitFlow polls every 3s; re-reading up to 200 changed files each tick is the
-// single heaviest recurring cost. Memoize on the parsed status+numstat+layers —
-// file contents are only re-read when the working tree actually changes.
-const flowCache = new Map<string, { key: string; groups: FlowGroup[] }>()
-
-// Same memoization as flowCache for the branch-range flow: keyed on the base ref
-// + range numstat + layers. The range is static until the next commit, so the
-// cache is invalidated only on commit (gitRangeFlow.invalidate in use-commit).
-const rangeFlowCache = new Map<string, { key: string; groups: FlowGroup[] }>()
-
-// Commit hashes are immutable, so this cache never busts for the same commit.
-// Keyed by `repoPath\nhash` so different repos' commits don't collide.
-const commitFlowCache = new Map<string, { key: string; groups: FlowGroup[] }>()
-
-/** Working-tree flow groups (shared by gitFlow + diffReading). */
-async function loadWorkingFlow(repoPath: string): Promise<FlowGroup[]> {
-  const [{ files, stats }, stored] = await Promise.all([
-    workingTreeSnapshot(repoPath),
-    readLayers(repoPath),
-  ])
-  const layers = stored ?? DEFAULT_LAYERS
-  const key = flowKey(files, stats, layers)
-  const cached = flowCache.get(repoPath)
-  if (cached && cached.key === key) return cached.groups
-  const groups = await readSourcesAndBuildFlow(repoPath, files, stats, layers)
-  flowCache.set(repoPath, { key, groups })
-  return groups
-}
-
-/** Branch-range flow groups + base label (shared by gitRangeFlow + diffReading). */
-async function loadRangeFlow(repoPath: string): Promise<{ groups: FlowGroup[]; base: string }> {
-  const base = await gitDefaultBranch(repoPath)
-  try {
-    const mergeBase = await gitMergeBase(repoPath, base)
-    const [files, stored, stats] = await Promise.all([
-      gitRangeChangedFilesFrom(repoPath, mergeBase),
-      readLayers(repoPath),
-      gitRangeNumstatFrom(repoPath, mergeBase),
-    ])
-    const layers = stored ?? DEFAULT_LAYERS
-    const key = `${base}\n${flowKey(files, stats, layers)}`
-    const cached = rangeFlowCache.get(repoPath)
-    if (cached && cached.key === key) return { groups: cached.groups, base }
-    const groups = await readSourcesAndBuildFlow(repoPath, files, stats, layers)
-    rangeFlowCache.set(repoPath, { key, groups })
-    return { groups, base }
-  } catch {
-    return { groups: [], base }
-  }
-}
-
-/** Historical commit flow groups (shared by gitCommitFlow + diffReading). */
-async function loadCommitFlow(repoPath: string, hash: string): Promise<FlowGroup[]> {
-  try {
-    const [files, stored, stats] = await Promise.all([
-      gitCommitFiles(repoPath, hash),
-      readLayers(repoPath),
-      gitCommitNumstat(repoPath, hash),
-    ])
-    const layers = stored ?? DEFAULT_LAYERS
-    const cacheKey = `${repoPath}\n${hash}`
-    const key = `${hash}\n${flowKey(files, stats, layers)}`
-    const cached = commitFlowCache.get(cacheKey)
-    if (cached && cached.key === key) return cached.groups
-    const groups = await readSourcesAndBuildFlow(repoPath, files, stats, layers)
-    commitFlowCache.set(cacheKey, { key, groups })
-    return groups
-  } catch {
-    return []
-  }
-}
-
-// One shared build per snapshot — both feature procedures reuse it instead of each
-// re-reading ≤200 sources and rebuilding the view for the identical key. Keyed on
-// repoPath; the key encodes status+numstat+layers+reviewSet so it self-busts on any
-// working-tree change that affects the feature view.
-const featureBuildCache = new Map<
-  string,
-  { key: string; view: FeatureView; sources: Map<string, string> }
->()
-
-// The (heavier still) inline reading surface, memoized on the same key. Only built
-// when an agent review set is present (the agent declares it via the porcelain CLI),
-// so the slice heuristic runs only on curated files; the baseline returns null
-// cheaply from the gather alone.
-const featureReadingCache = new Map<string, { key: string; reading: FeatureReading }>()
-
-// Read working-tree sources into `sources`, skipping already-read and oversized
-// files. Shared by both feature procedures (they parse imports off the contents).
-async function readSourcesInto(
-  repoPath: string,
-  paths: readonly string[],
-  sources: Map<string, string>,
-): Promise<void> {
-  await Promise.all(
-    paths.map(async (path) => {
-      if (sources.has(path)) return
-      try {
-        const content = await readFile(join(repoPath, path), 'utf8')
-        if (content.length < 1024 * 1024) sources.set(path, content)
-      } catch {
-        // deleted / unreadable files have no working-tree source to parse
-      }
-    }),
-  )
-}
-
-// Cheap phase shared by both feature procedures: the working-tree snapshot, agent
-// set, and layers → the memo key. Each procedure checks its own cache on this key
-// before doing the expensive source reads. (Git status is only used to tag listed
-// files as `changed`; membership of Execution is the review set alone.)
-async function gatherFeature(input: string) {
-  const [{ files, stats }, stored, reviewSet] = await Promise.all([
-    workingTreeSnapshot(input),
-    readLayers(input),
-    readReviewSet(input),
-  ])
-  const layers = stored ?? DEFAULT_LAYERS
-  const key = featureKey(files, stats, layers, reviewSet)
-  return { files, stats, layers, reviewSet, key }
-}
-
-// A gather narrowed to "an agent review set exists" — the only state the feature
-// build runs in now (both procedures return null to the renderer without one).
-type ReviewGather = Awaited<ReturnType<typeof gatherFeature>> & { reviewSet: ReviewSet }
-
-// Expensive phase shared on a cache miss: read only agent-declared file sources
-// (plus section-anchor targets — Intent may anchor a path not listed in --files),
-// then build the feature view. Returns the view AND the sources (the reading
-// surface needs them to slice context/shipped files).
-async function buildFeatureFromGather(
-  input: string,
-  g: ReviewGather,
-): Promise<{ view: FeatureView; sources: Map<string, string> }> {
-  const sources = new Map<string, string>()
-  await readSourcesInto(
-    input,
-    [
-      ...g.reviewSet.files.map((file) => file.path),
-      ...g.reviewSet.sections.flatMap((section) => section.anchors.map((anchor) => anchor.path)),
-    ],
-    sources,
-  )
-  const statByPath = new Map(
-    g.stats.map((s) => [s.path, { additions: s.additions, deletions: s.deletions }]),
-  )
-  const view = buildFeatureView({
-    name: g.reviewSet.name,
-    changed: g.files,
-    reviewSet: g.reviewSet,
-    sources,
-    stats: statByPath,
-    layers: g.layers,
-  })
-  return { view, sources }
-}
-
-// Shared cache accessor — returns the memoized build for the current snapshot,
-// or runs buildFeatureFromGather once and stores the result. Both feature
-// procedures call this so the expensive source-read + view-build runs at most
-// once per snapshot regardless of which procedure polls first.
-async function getFeatureBuild(
-  input: string,
-  g: ReviewGather,
-): Promise<{ key: string; view: FeatureView; sources: Map<string, string> }> {
-  const cached = featureBuildCache.get(input)
-  if (cached && cached.key === g.key) return cached
-  const { view, sources } = await buildFeatureFromGather(input, g)
-  const entry = { key: g.key, view, sources }
-  featureBuildCache.set(input, entry)
-  // Snapshot the computed view to the app→agent channel so the agent can read (via
-  // the porcelain CLI) which files are actually `changed` (diffed) vs context/shipped
-  // — git truth the dependency-free CLI can't derive itself. Skipped when unchanged.
-  await writeFeatureSnapshot(input, {
-    name: view.name,
-    files: view.groups.flatMap((group) =>
-      group.files.map((file) => ({ path: file.path, source: file.source, layer: group.layer })),
-    ),
-  })
-  return entry
-}
-
-// The finder searches visible files PLUS their ancestor folders. Both the
-// hidden-path filtering and the directory derivation run over the full file
-// list, so they're recomputed only when the list or the hidden set changes —
-// never on every search keystroke (only the fuzzy scoring runs per keystroke).
-interface SearchCandidates {
-  paths: readonly string[]
-  dirs: ReadonlySet<string>
-}
-
-const searchCandidatesCache = new Map<
-  string,
-  { files: readonly string[]; hiddenKey: string; candidates: SearchCandidates }
->()
-
-function searchCandidates(
-  repoPath: string,
-  files: string[],
-  hidden: ReadonlySet<string>,
-): SearchCandidates {
-  const hiddenKey = [...hidden].sort().join('\0')
-  const cached = searchCandidatesCache.get(repoPath)
-  if (cached && cached.files === files && cached.hiddenKey === hiddenKey) return cached.candidates
-  const visible = visibleFilePaths(repoPath, files, hidden)
-  const dirs = directoriesOf(visible)
-  const candidates: SearchCandidates = { paths: [...visible, ...dirs], dirs: new Set(dirs) }
-  searchCandidatesCache.set(repoPath, { files, hiddenKey, candidates })
-  return candidates
 }
 
 export const router = t.router({
@@ -988,9 +744,9 @@ export const router = t.router({
           }
         : null
       const canvas = g.reviewSet.canvas
-      const cached = featureReadingCache.get(input)
+      const cached = cachedFeatureReading(input, g.key)
       // Evidence + canvas can change without the feature key; always reattach them.
-      if (cached && cached.key === g.key) return { ...cached.reading, evidence, canvas }
+      if (cached) return { ...cached, evidence, canvas }
       const { view, sources } = await getFeatureBuild(input, { ...g, reviewSet: g.reviewSet })
       const changed = view.groups
         .flatMap((group) => group.files)
@@ -1014,7 +770,7 @@ export const router = t.router({
         evidence,
         canvas,
       })
-      featureReadingCache.set(input, { key: g.key, reading })
+      storeFeatureReading(input, g.key, reading)
       return reading
     }),
 

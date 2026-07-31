@@ -10,7 +10,7 @@ import { FILE_SOURCES } from './review-set'
  * resolve userData.
  *
  * ONE-WAY, app→agent (the 8th channel, same shape as reviewed marks / notes): the
- * APP is the SOLE writer (it computes the view; see api.ts `getFeatureBuild`), and the
+ * APP is the SOLE writer (it computes the view; see feature-build.ts `getFeatureBuild`), and the
  * porcelain CLI (src/cli/feature-view-file.ts) only READS it — so the agent can see the
  * whole feature (not just the git diff) and, crucially, learn which files are actually
  * `changed` (diffed) vs `context`/`shipped`. That git truth lives only in the main
