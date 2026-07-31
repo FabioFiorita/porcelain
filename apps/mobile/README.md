@@ -40,22 +40,31 @@ cd apps/mobile && npx eas-cli@latest build -p ios --profile development-simulato
 
 # 2. On the Mac, from its checkout — download, install, and launch it.
 #    `build:run` does the tarball + `simctl install` dance for you.
-cd apps/mobile && npx eas-cli@latest build:run -p ios --profile development-simulator --latest
+#    ALWAYS name the target; see below.
+cd apps/mobile && npx eas-cli@latest build:run -p ios \
+  --profile development-simulator --latest --simulator 'iPhone 17 Pro'
 
 # 3. Back on the host — Metro. Repeat only this for JS changes.
 pnpm mobile:start
 ```
 
-Both of the first two are saved **Porcelain actions** on this repo: *iOS sim:
-build dev client (EAS)* and *iOS sim: install on this Mac*. The install action is
-`where: local`, so it runs on the Mac even though the window is bound to the host
-daemon.
+Steps 1 and 2 are saved **Porcelain actions** on this repo: *iOS sim: build dev
+client (EAS)*, *iPhone sim: install on this Mac*, and *iPad sim: install on this
+Mac*. The install actions are `where: local`, so they run on the Mac even though
+the window is bound to the host daemon.
 
-Two things that bite:
+Three things that bite:
 
 - **`development-simulator` is a separate profile** (`eas.json`) because a
   simulator build is an unsigned arm64 `.app`; the plain `development` profile
   produces a device `.ipa` the simulator cannot install.
+- **`--simulator` is effectively required.** The flag's help says you are
+  prompted when it is omitted, but with a simulator already booted `build:run`
+  silently installs to that one — so omitting it on a Mac running both an iPhone
+  and an iPad sim always lands on whichever booted first. Pass the exact name
+  from `xcrun simctl list devices`. One `.app` installs on every simulator (it is
+  an arm64 simulator slice, not device-specific), so targeting a second one never
+  needs a second build.
 - **Step 1 is only needed when the native fingerprint changes** — a new native
   module, an `app.json` change, an SDK bump. Pure JS/TS edits reach the running
   app through Fast Refresh, and step 2 would just reinstall the same binary.
