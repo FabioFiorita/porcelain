@@ -1,21 +1,29 @@
+# PR preview workflow — OTA-only by design.
+#
+# Automatic path (cheap): on a mobile PR, if an existing preview build's
+# fingerprint matches, publish an EAS Update to the preview channel — the
+# installed TestFlight build picks it up on next launch. No build credits.
+#
+# Expensive path (manual, deliberate): when the native fingerprint changed
+# (new native dep / config), this workflow does NOT auto-build. Add the
+# GitHub label `eas-build-ios:preview` to the PR to trigger the build —
+# that keeps credit spend an explicit human choice.
+#
+# iOS-only: TestFlight is the delivery target; Android runs through the
+# local emulator dev loop (see plans/README.md).
+
 name: PR preview
 
 on:
   pull_request:
     branches: ['main']
+    paths: ['apps/mobile/**']
 
 jobs:
   fingerprint:
     name: Fingerprint
     type: fingerprint
     environment: preview
-  get_android_build:
-    name: Check for existing Android build
-    needs: [fingerprint]
-    type: get-build
-    params:
-      fingerprint_hash: ${{ needs.fingerprint.outputs.android_fingerprint_hash }}
-      profile: preview
   get_ios_build:
     name: Check for existing iOS build
     needs: [fingerprint]
@@ -23,14 +31,6 @@ jobs:
     params:
       fingerprint_hash: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
       profile: preview
-  publish_android_update:
-    name: Publish Android preview update
-    needs: [get_android_build]
-    if: ${{ needs.get_android_build.outputs.build_id }}
-    type: update
-    params:
-      channel: preview
-      platform: android
   publish_ios_update:
     name: Publish iOS preview update
     needs: [get_ios_build]
@@ -39,19 +39,3 @@ jobs:
     params:
       channel: preview
       platform: ios
-  build_android:
-    name: Build Android preview
-    needs: [get_android_build]
-    if: ${{ !needs.get_android_build.outputs.build_id }}
-    type: build
-    params:
-      platform: android
-      profile: preview
-  build_ios:
-    name: Build iOS preview
-    needs: [get_ios_build]
-    if: ${{ !needs.get_ios_build.outputs.build_id }}
-    type: build
-    params:
-      platform: ios
-      profile: preview
