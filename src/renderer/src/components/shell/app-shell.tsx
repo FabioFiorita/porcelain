@@ -139,7 +139,9 @@ function RepoShell(): React.JSX.Element {
   const zen = useZenStore((s) => s.zen)
   const zenRestore = useRef<{ left: boolean; right: boolean } | null>(null)
   const leftOpenRef = useRef(state === 'expanded')
-  leftOpenRef.current = state === 'expanded'
+  useEffect(() => {
+    leftOpenRef.current = state === 'expanded'
+  })
   useEffect(() => {
     if (isMobile) return
     if (zen) {

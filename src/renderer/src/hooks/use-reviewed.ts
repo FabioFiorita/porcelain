@@ -1,6 +1,7 @@
 import { onMutationError } from '@renderer/hooks/mutation-error'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
+import { useMemo } from 'react'
 
 /** Returns the set of repo-relative paths the user has marked as reviewed for the current repo. */
 export function useReviewedPaths(): Set<string> {
@@ -12,7 +13,7 @@ export function useReviewedPaths(): Set<string> {
     staleTime: 0,
     refetchInterval: 3000,
   })
-  return new Set(data ?? [])
+  return useMemo(() => new Set(data ?? []), [data])
 }
 
 /** Returns mark/unmark functions that persist the reviewed state and invalidate the query. */

@@ -32,7 +32,7 @@ import {
   Scissors,
   Search,
 } from 'lucide-react'
-import { memo, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useDeferredValue, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import { type CommentAnchor, CommentComposer } from '../git/comment-composer'
 import { commentRowClass } from '../git/comment-marker'
 import { usePathActions } from './use-path-actions'
@@ -110,8 +110,7 @@ export function EditorSource({
     return lines
   }, [menuOpen, selection, lineRange])
 
-  const saveRef = useRef<() => void>(() => {})
-  saveRef.current = (): void => {
+  const flushSave = useEffectEvent((): void => {
     if (timerRef.current) clearTimeout(timerRef.current)
     if (content === savedContent) return
     // Advance the watermark only once the write settles, pinned to the snapshot
@@ -120,21 +119,21 @@ export function EditorSource({
     // unmount flush retries and the external-adopt effect refuses to clobber.
     const snapshot = content
     save(snapshot, () => setSavedContent(snapshot))
-  }
+  })
 
   const edit = (next: string): void => {
     setContent(next)
     // an edited preview tab must not be silently replaced
     useTabsStore.getState().pinTab(tabId('file', path))
     if (timerRef.current) clearTimeout(timerRef.current)
-    timerRef.current = setTimeout(() => saveRef.current(), AUTOSAVE_DELAY_MS)
+    timerRef.current = setTimeout(() => flushSave(), AUTOSAVE_DELAY_MS)
   }
 
   // flush pending changes when the tab unmounts (close, switch, mode change)
   useEffect(() => {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
-      saveRef.current()
+      flushSave()
     }
   }, [])
 
@@ -276,7 +275,7 @@ export function EditorSource({
                 onKeyDown={(e) => {
                   if (e.key === 's' && (e.metaKey || e.ctrlKey)) {
                     e.preventDefault()
-                    saveRef.current()
+                    flushSave()
                   }
                 }}
                 spellCheck={false}

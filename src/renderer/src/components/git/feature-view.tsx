@@ -80,9 +80,11 @@ function useReviewKeys(
   const requestJump = useReviewFocusStore((s) => s.requestJump)
   const toggleZen = useZenStore((s) => s.toggle)
   const readingRef = useRef(reading)
-  readingRef.current = reading
   const canvasTabRef = useRef(canvasTab)
-  canvasTabRef.current = canvasTab
+  useEffect(() => {
+    readingRef.current = reading
+    canvasTabRef.current = canvasTab
+  })
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent): void => {

@@ -65,7 +65,9 @@ export function VirtualRows<T>({
   })
 
   const virtualizerRef = useRef(virtualizer)
-  virtualizerRef.current = virtualizer
+  useEffect(() => {
+    virtualizerRef.current = virtualizer
+  })
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: scrollNonce deliberately re-fires a jump to the unchanged target line
   useEffect(() => {

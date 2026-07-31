@@ -1,6 +1,7 @@
 import type { EnvironmentStatus } from '@main/shell-api'
 import { isBrowser } from '@renderer/lib/platform'
 import { shellTrpc } from '@renderer/lib/trpc'
+import { useMemo } from 'react'
 
 /**
  * Live state (online / unauthorized / offline) + reported identity for This device
@@ -20,5 +21,8 @@ export function useEnvironmentStatuses(): Map<string | null, EnvironmentStatus> 
     staleTime: 30_000,
     refetchOnWindowFocus: true,
   })
-  return new Map((data ?? []).map((status) => [status.id, status]))
+  return useMemo<Map<string | null, EnvironmentStatus>>(
+    () => new Map((data ?? []).map((status) => [status.id, status])),
+    [data],
+  )
 }

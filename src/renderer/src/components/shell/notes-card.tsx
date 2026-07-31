@@ -13,7 +13,7 @@ import Placeholder from '@tiptap/extension-placeholder'
 import { type Editor, EditorContent, useEditor, useEditorState } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { Bold, Code, Heading, Italic, List, ListOrdered } from 'lucide-react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useEffectEvent, useRef } from 'react'
 import { Markdown, type MarkdownStorage } from 'tiptap-markdown'
 
 const AUTOSAVE_DELAY_MS = 800
@@ -68,15 +68,14 @@ function NotesEditor({
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const savedRef = useRef(initialMarkdown)
 
-  // Latest save closure, read from the timer/unmount without re-creating the editor.
-  const saveRef = useRef<(editor: Editor) => void>(() => {})
-  saveRef.current = (editor: Editor): void => {
+  // Sees the latest props without re-creating the editor when they change.
+  const flushSave = useEffectEvent((editor: Editor): void => {
     if (timerRef.current) clearTimeout(timerRef.current)
     const next = markdownOf(editor)
     if (next === savedRef.current) return
     savedRef.current = next
     save(repoPath, next)
-  }
+  })
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -112,7 +111,7 @@ function NotesEditor({
     },
     onUpdate: ({ editor }) => {
       if (timerRef.current) clearTimeout(timerRef.current)
-      timerRef.current = setTimeout(() => saveRef.current(editor), AUTOSAVE_DELAY_MS)
+      timerRef.current = setTimeout(() => flushSave(editor), AUTOSAVE_DELAY_MS)
     },
   })
 
@@ -120,7 +119,7 @@ function NotesEditor({
   useEffect(() => {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
-      if (editor) saveRef.current(editor)
+      if (editor) flushSave(editor)
     }
   }, [editor])
 
