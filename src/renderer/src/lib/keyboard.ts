@@ -17,7 +17,7 @@ import { isBrowser, isLinuxShell } from './platform'
  * baseline; the label/predicate helpers are exercised for BOTH modes via their `mac`/`ctrl`
  * params, so the default doesn't skew coverage.
  */
-export const ctrlIsPrimary = isBrowser || isLinuxShell
+export const ctrlIsPrimary: boolean = isBrowser || isLinuxShell
 
 /**
  * True when a keystroke landed in a real text field we shouldn't hijack with an app
@@ -46,30 +46,22 @@ export function isTerminalTarget(target: EventTarget | null): boolean {
 type ModEvent = { metaKey: boolean; ctrlKey: boolean }
 
 /**
- * The primary modifier is down AND the foreign one (the OTHER of Cmd/Ctrl) is NOT — the
- * exclusive case where a shortcut must not fire on the wrong modifier (tab switch ⌘1–7,
- * split ⌘⇧S). Its cousin, the LOOSE `e.metaKey || e.ctrlKey` sites scattered through the
- * components, already accept Ctrl, so they fire in the browser client unchanged — only
- * the exclusive checks needed routing through here.
- *
- * `ctrlPrimary` defaults to the live mode (Ctrl in the browser client, Cmd in the Electron
- * shell) but is a param so the pure logic is testable for both modes without stubbing the
- * bridge. In shell mode it's byte-identical to the old `e.metaKey && !e.ctrlKey`.
+ * True when the primary modifier is down and the OTHER one isn't — for shortcuts that
+ * must not double-fire on the wrong modifier (tab switch ⌘1–7, split ⌘⇧S). Loose
+ * `e.metaKey || e.ctrlKey` checks elsewhere already accept Ctrl and don't need this.
+ * `ctrlPrimary` is a param (not read from the live mode) so this stays unit-testable
+ * without stubbing the bridge; in shell mode it's identical to `e.metaKey && !e.ctrlKey`.
  */
 export function isModExclusive(e: ModEvent, ctrlPrimary: boolean = ctrlIsPrimary): boolean {
   return ctrlPrimary ? e.ctrlKey && !e.metaKey : e.metaKey && !e.ctrlKey
 }
 
 /**
- * The pure token→label mapping behind `kbdLabel`, split out so tests can drive every mode
- * by param. The tokens 'mod' | 'alt' | 'shift' become the mode label; any other token (a
- * letter, ⌫, ↵, ←) passes through verbatim. Three modes:
- *   - Electron shell on macOS: ⌘/⌥/⇧ joined tight (⌘⇧F) — the native Mac glyphs.
- *   - browser client: ⌃/Alt/⇧ joined with '+' (⌃+⇧+F). Ctrl-primary (Safari/Chrome own ⌘),
- *     but glyphs not words because the OS may be macOS (iPad/Mac Safari), where ⌃ is native.
- *   - Linux Electron shell (`linux`): the WORDS Ctrl/Alt/Shift joined with '+' (Ctrl+Shift+F,
- *     Alt+Backspace) — the desktop-Linux convention, since there's no glyph keyboard here.
- * `linux` implies `ctrlPrimary` in the live wiring, and takes precedence when both are set.
+ * The pure token→label mapping behind `kbdLabel` (split out for per-mode testing). Tokens
+ * 'mod'/'alt'/'shift' map to the mode's label; anything else (a letter, ⌫, ↵, ←) passes
+ * through. Electron/macOS: ⌘/⌥/⇧ joined tight. Browser client: ⌃/Alt/⇧ with '+' — glyphs, not
+ * words, since the OS may still be macOS. Linux shell (`linux`): words Ctrl/Alt/Shift with
+ * '+' (no glyph keyboard there); `linux` implies `ctrlPrimary` and wins when both are set.
  */
 export function formatKbd(tokens: string[], ctrlPrimary: boolean, linux: boolean = false): string {
   if (linux) {

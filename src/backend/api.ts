@@ -680,17 +680,20 @@ export const router = t.router({
       if (scope.type === 'working') {
         groups = await loadWorkingFlow(repoPath)
         name = 'Changes'
-        fetchHunks = async (path) => (await gitDiffFile(repoPath, path)).hunks
+        fetchHunks = async (path: string): Promise<DiffHunk[]> =>
+          (await gitDiffFile(repoPath, path)).hunks
       } else if (scope.type === 'branch') {
         const range = await loadRangeFlow(repoPath)
         groups = range.groups
         name = `vs ${range.base}`
-        fetchHunks = async (path) => (await gitRangeDiffFile(repoPath, range.base, path)).hunks
+        fetchHunks = async (path: string): Promise<DiffHunk[]> =>
+          (await gitRangeDiffFile(repoPath, range.base, path)).hunks
       } else {
         groups = await loadCommitFlow(repoPath, scope.hash)
         const message = await gitCommitMessage(repoPath, scope.hash)
         name = message.split('\n')[0]?.trim() || scope.hash.slice(0, 12)
-        fetchHunks = (path) => gitCommitDiff(repoPath, scope.hash, path)
+        fetchHunks = (path: string): Promise<DiffHunk[]> =>
+          gitCommitDiff(repoPath, scope.hash, path)
       }
 
       const files = groups.flatMap((group) => group.files)

@@ -131,11 +131,11 @@ function PatternBuilder({
         <span className="w-16 shrink-0 text-xs text-muted-foreground">Names</span>
         <Input
           value={names}
-          onChange={(e) => setNames(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>): void => setNames(e.target.value)}
           placeholder={PLACEHOLDERS[matchType]}
           aria-label="Pattern names"
           className={cn(compactInputClass, 'flex-1')}
-          onKeyDown={(e) => {
+          onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>): void => {
             if (e.key === 'Enter') {
               e.preventDefault()
               add()
@@ -217,7 +217,9 @@ function LayerRow({
     <div className="flex items-start gap-1.5">
       <Input
         value={layer.label}
-        onChange={(e) => onChange({ ...layer, label: e.target.value })}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>): void =>
+          onChange({ ...layer, label: e.target.value })
+        }
         placeholder="Label"
         aria-label={`Layer ${index + 1} label`}
         className={cn(compactInputClass, 'w-28 shrink-0')}
@@ -225,7 +227,9 @@ function LayerRow({
       <div className="min-w-0 flex-1">
         <Input
           value={layer.pattern}
-          onChange={(e) => onChange({ ...layer, pattern: e.target.value })}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>): void =>
+            onChange({ ...layer, pattern: e.target.value })
+          }
           placeholder="Pattern (regex)"
           aria-label={`Layer ${index + 1} pattern`}
           aria-invalid={error !== null}
@@ -374,7 +378,7 @@ export function FlowLayersSection({ onSaved }: { onSaved: () => void }): React.J
       )}
       <PatternBuilder
         changedPaths={changedPaths}
-        onAdd={(layer) => setDraft([...draft, { ...layer, id: nextDraftId++ }])}
+        onAdd={(layer: Layer): void => setDraft([...draft, { ...layer, id: nextDraftId++ }])}
       />
       <div className="flex flex-col gap-1">
         {draft.map((layer, index) => (
@@ -383,8 +387,8 @@ export function FlowLayersSection({ onSaved }: { onSaved: () => void }): React.J
             layer={layer}
             index={index}
             count={draft.length}
-            onChange={(l) => update(index, l)}
-            onMove={(d) => move(index, d)}
+            onChange={(l: Layer): void => update(index, l)}
+            onMove={(d: 1 | -1): void => move(index, d)}
             onRemove={() => setDraft(draft.filter((_, i) => i !== index))}
           />
         ))}

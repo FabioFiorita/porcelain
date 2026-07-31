@@ -126,13 +126,11 @@ export function SettingsButton({
 }
 
 /**
- * The Settings dialog body — store-driven open state, no trigger. Mounted once
- * in AppShell (welcome + repo shell both need it; remote disconnect lives here
- * and must stay reachable when no repo is open).
+ * The Settings dialog body — store-driven open state, no trigger. Mounted once in
+ * AppShell so remote disconnect stays reachable with no repo open.
  *
- * Phone layout (≤767px): horizontal section chips + full-width body. The desktop
- * dual-pane (14rem nav rail + body) left only ~200px for controls on iPhone, so
- * labels and toggle groups collided. Desktop keeps the side nav.
+ * Phone (≤767px): horizontal section chips + full-width body — the desktop dual-pane
+ * (14rem nav rail + body) left too little width for controls. Desktop keeps the side nav.
  */
 export function SettingsDialog(): React.JSX.Element | null {
   const open = useSettingsDialogStore((s) => s.open)

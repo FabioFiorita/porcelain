@@ -11,7 +11,7 @@ export function PlaceholderScreen({
   description: string
   details: readonly string[]
   title: string
-}) {
+}): React.JSX.Element {
   return (
     <Host seedColor={colors.tint} style={{ flex: 1 }} useViewportSizeMeasurement>
       <ScrollView>

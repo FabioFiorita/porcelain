@@ -85,7 +85,7 @@ function FilePrompt({
   return (
     <Dialog
       open
-      onOpenChange={(open) => {
+      onOpenChange={(open: boolean): void => {
         if (!open) onClose()
       }}
     >
@@ -96,9 +96,9 @@ function FilePrompt({
         <Input
           autoFocus
           value={name}
-          onChange={(e) => setName(e.target.value)}
-          onFocus={(e) => e.target.select()}
-          onKeyDown={async (e) => {
+          onChange={(e: React.ChangeEvent<HTMLInputElement>): void => setName(e.target.value)}
+          onFocus={(e: React.FocusEvent<HTMLInputElement>): void => e.target.select()}
+          onKeyDown={async (e: React.KeyboardEvent<HTMLInputElement>): Promise<void> => {
             if (e.key === 'Enter') {
               e.preventDefault()
               await submit()

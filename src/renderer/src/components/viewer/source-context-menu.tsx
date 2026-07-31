@@ -55,7 +55,7 @@ export function SourceContextMenu({
   return (
     <>
       <ContextMenu
-        onOpenChange={(open) => {
+        onOpenChange={(open: boolean): void => {
           if (open) {
             setSelection(window.getSelection()?.toString() ?? '')
             setLineSel(lineSelectionFromDom())
@@ -119,7 +119,7 @@ export function SourceContextMenu({
       <CommentComposer
         anchor={commentAnchor}
         open={commentAnchor !== null}
-        onOpenChange={(open) => {
+        onOpenChange={(open: boolean): void => {
           if (!open) setCommentAnchor(null)
         }}
       />

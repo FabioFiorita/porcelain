@@ -3,7 +3,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-naviga
 import { Stack } from 'expo-router/stack'
 import { useColorScheme } from 'react-native'
 
-function RootLayout() {
+function RootLayout(): React.JSX.Element {
   const colorScheme = useColorScheme()
 
   return (

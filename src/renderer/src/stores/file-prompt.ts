@@ -34,11 +34,11 @@ export const useFilePromptStore = create<FilePromptState>((set) => ({
   dir: '',
   target: '',
   initialName: '',
-  newFile: (dir) =>
+  newFile: (dir: string) =>
     set((s) => ({ kind: 'new-file', dir, target: '', initialName: '', openSeq: s.openSeq + 1 })),
-  newFolder: (dir) =>
+  newFolder: (dir: string) =>
     set((s) => ({ kind: 'new-folder', dir, target: '', initialName: '', openSeq: s.openSeq + 1 })),
-  rename: (target, currentName) =>
+  rename: (target: string, currentName: string) =>
     set((s) => ({
       kind: 'rename',
       target,

@@ -60,7 +60,7 @@ export function CardComposer(): React.JSX.Element {
   return (
     <Dialog
       open={draft !== null}
-      onOpenChange={(open) => {
+      onOpenChange={(open: boolean): void => {
         if (!open) close()
       }}
     >
@@ -75,7 +75,7 @@ export function CardComposer(): React.JSX.Element {
         </DialogHeader>
         <Input
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>): void => setTitle(e.target.value)}
           onKeyDown={onKeyDown}
           placeholder="Title"
           aria-label="Card title"
@@ -84,7 +84,7 @@ export function CardComposer(): React.JSX.Element {
         />
         <Textarea
           value={body}
-          onChange={(e) => setBody(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>): void => setBody(e.target.value)}
           onKeyDown={onKeyDown}
           placeholder={`Details (optional) — ${kbdLabel('mod', '↵')} to save`}
           aria-label="Card details"

@@ -23,6 +23,6 @@ interface TerminalInputState {
 
 export const useTerminalInputStore = create<TerminalInputState>((set) => ({
   pendingCtrlId: null,
-  toggleCtrl: (id) => set((s) => ({ pendingCtrlId: s.pendingCtrlId === id ? null : id })),
+  toggleCtrl: (id: string) => set((s) => ({ pendingCtrlId: s.pendingCtrlId === id ? null : id })),
   clearCtrl: () => set({ pendingCtrlId: null }),
 }))

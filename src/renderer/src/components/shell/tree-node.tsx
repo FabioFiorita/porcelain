@@ -215,7 +215,7 @@ function EntryContextMenu({
       <CommentComposer
         anchor={commentAnchor}
         open={commentAnchor !== null}
-        onOpenChange={(open) => {
+        onOpenChange={(open: boolean): void => {
           if (!open) setCommentAnchor(null)
         }}
       />
@@ -269,7 +269,7 @@ function TreeNodeImpl({
               (isSelected || isRevealed) && 'bg-sidebar-accent',
             )}
             onMouseEnter={() => prefetchFile(entry.path)}
-            onClick={(e) => {
+            onClick={(e: React.MouseEvent<HTMLButtonElement>): void => {
               setActive({ path: entry.path, kind: 'file' })
               if (e.metaKey || e.ctrlKey) {
                 toggleSelection(entry.path)
@@ -374,7 +374,7 @@ function DirNode({
       <Collapsible
         className="group/collapsible [&[data-state=open]>button>svg:first-child]:rotate-90"
         open={expanded}
-        onOpenChange={(open) => (open ? setExpanded(true) : collapseSubtree())}
+        onOpenChange={(open: boolean): void => (open ? setExpanded(true) : collapseSubtree())}
       >
         <EntryContextMenu entry={entry}>
           <CollapsibleTrigger
@@ -388,7 +388,7 @@ function DirNode({
                   entry.hidden && 'opacity-50',
                   (isSelected || isRevealed) && 'bg-sidebar-accent',
                 )}
-                onClick={(e) => {
+                onClick={(e: React.MouseEvent<HTMLButtonElement>): void => {
                   setActive({ path: entry.path, kind: 'dir' })
                   if (e.metaKey || e.ctrlKey) {
                     e.preventDefault()

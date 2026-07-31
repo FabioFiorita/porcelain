@@ -1,3 +1,4 @@
+import type { BoardCard } from '@backend/board-store'
 import { SidebarHeaderActions } from '@renderer/components/shell/sidebar-header-actions'
 import { Button } from '@renderer/components/ui/button'
 import { BOARD_COLUMNS, useBoardCards } from '@renderer/hooks/use-board'
@@ -71,7 +72,7 @@ export function BoardList(): React.JSX.Element {
                     key={card.id}
                     card={card}
                     compact
-                    onEdit={(c) => openDraft(draftFromCard(c))}
+                    onEdit={(c: BoardCard): void => openDraft(draftFromCard(c))}
                   />
                 ))}
               </div>

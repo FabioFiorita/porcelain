@@ -40,21 +40,12 @@ export function viewerWidth(widths: ShellWidths, leftOpen: boolean, rightOpen: b
 }
 
 /**
- * Decide the next panel layout.
- *
- * - **Narrowing** (or the first measurement, `prevWidth === null`): panels give
- *   way in order — the right Quick Access closes first, then the left sidebar
- *   collapses to its rail — until the viewer meets its minimum or nothing is
- *   left to give (a tiny window then squeezes the viewer; we don't fight the OS
- *   minimum). Each panel the system closes is flagged so it can be restored.
- * - **Widening**: only panels the system flagged are restored (a panel the user
- *   closed stays closed), most-important-first — the left panel before the right
- *   Quick Access, the reverse of the give-way order — and only while the viewer
- *   keeps its minimum.
- * - **Same width** (a re-evaluation triggered by a panel toggle or a width-var
- *   change, not a window resize): no automatic change. This is what makes
- *   auto-collapse polite — a panel the user opens while the window is narrow is
- *   respected and only re-collapses on a *further width decrease*.
+ * Decide the next panel layout. Narrowing (or first measurement, `prevWidth === null`):
+ * give way in order — right Quick Access closes, then left sidebar collapses — until the
+ * viewer meets its minimum, flagging each auto-closed panel for later restore. Widening:
+ * restore only flagged panels, left before right, only while the viewer keeps its minimum.
+ * Same width (a toggle or width-var change, not a resize): no automatic change — a panel
+ * opened while narrow stays open until a further decrease.
  */
 export function decideResponsiveLayout(
   widths: ShellWidths,

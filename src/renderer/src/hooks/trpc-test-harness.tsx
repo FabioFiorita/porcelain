@@ -1,7 +1,12 @@
 import type { AppRouter } from '@backend/api'
 import { trpc } from '@renderer/lib/trpc'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { type Operation, TRPCClientError, type TRPCLink } from '@trpc/client'
+import {
+  type Operation,
+  type OperationResultObservable,
+  TRPCClientError,
+  type TRPCLink,
+} from '@trpc/client'
 import { observable } from '@trpc/server/observable'
 
 /**
@@ -13,7 +18,7 @@ import { observable } from '@trpc/server/observable'
  */
 function stubLink(handle: (op: Operation) => Promise<unknown>): TRPCLink<AppRouter> {
   return () =>
-    ({ op }) =>
+    ({ op }: { op: Operation }): OperationResultObservable<AppRouter, unknown> =>
       observable((observer) => {
         handle(op).then(
           (data) => {
@@ -35,7 +40,7 @@ export function trpcWrapper(
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
   const client = trpc.createClient({ links: [stubLink(handle)] })
-  return ({ children }) => (
+  return ({ children }: { children: React.ReactNode }): React.JSX.Element => (
     <trpc.Provider client={client} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     </trpc.Provider>

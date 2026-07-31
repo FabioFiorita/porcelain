@@ -19,14 +19,14 @@ export const useTreeDirsStore = create<TreeDirsState>((set) => ({
   dirs: new Set<string>(),
   // Return the unchanged state on a no-op so subscribers (the pushing hook) don't
   // re-run for a set that didn't actually change.
-  add: (path) =>
+  add: (path: string) =>
     set((s) => {
       if (s.dirs.has(path)) return s
       const dirs = new Set(s.dirs)
       dirs.add(path)
       return { dirs }
     }),
-  remove: (path) =>
+  remove: (path: string) =>
     set((s) => {
       if (!s.dirs.has(path)) return s
       const dirs = new Set(s.dirs)

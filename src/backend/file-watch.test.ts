@@ -1,4 +1,4 @@
-import { watch } from 'node:fs'
+import { type FSWatcher, type WatchListener, watch } from 'node:fs'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   clearWatchedDirs,
@@ -22,18 +22,19 @@ vi.mock('node:fs', () => {
 
 // Two fake senders that satisfy FileWatchSender with NO cast — the structural
 // type is exactly what a plain object literal can provide.
-const a = { send: vi.fn(), isDestroyed: () => false }
-const b = { send: vi.fn(), isDestroyed: () => false }
+const a = { send: vi.fn(), isDestroyed: (): boolean => false }
+const b = { send: vi.fn(), isDestroyed: (): boolean => false }
 
 // POSIX absolute paths so dirname/basename are predictable: '/ra' + 'a-open.txt'.
 const fileA = '/ra/a-open.txt'
 const fileB = '/rb/b-open.txt'
 
 // The change-callback the production code registered for `dir`.
-const listenerFor = (dir: string) => vi.mocked(watch).mock.calls.find(([d]) => d === dir)?.[1]
+const listenerFor = (dir: string): WatchListener<string> | undefined =>
+  vi.mocked(watch).mock.calls.find(([d]) => d === dir)?.[1]
 
 // The fake watcher object production code stored for `dir`.
-const watcherFor = (dir: string) => {
+const watcherFor = (dir: string): FSWatcher | undefined => {
   const i = vi.mocked(watch).mock.calls.findIndex(([d]) => d === dir)
   return vi.mocked(watch).mock.results[i]?.value
 }
@@ -86,8 +87,8 @@ describe('per-sender file watching', () => {
 
     clearWatchedFiles(a)
 
-    expect(wa.close).toHaveBeenCalled()
-    expect(wb.close).not.toHaveBeenCalled()
+    expect(wa?.close).toHaveBeenCalled()
+    expect(wb?.close).not.toHaveBeenCalled()
   })
 
   it('drops a sender watchers when set to an empty path list', () => {
@@ -96,7 +97,7 @@ describe('per-sender file watching', () => {
 
     setWatchedFiles(a, [])
 
-    expect(wa.close).toHaveBeenCalled()
+    expect(wa?.close).toHaveBeenCalled()
   })
 
   it('does not send to a destroyed sender', () => {
@@ -125,8 +126,9 @@ describe('isGitChurn', () => {
 })
 
 describe('per-sender tree-dir watching', () => {
-  const dirListenerFor = (dir: string) => vi.mocked(watch).mock.calls.find(([d]) => d === dir)?.[1]
-  const dirWatcherFor = (dir: string) => {
+  const dirListenerFor = (dir: string): WatchListener<string> | undefined =>
+    vi.mocked(watch).mock.calls.find(([d]) => d === dir)?.[1]
+  const dirWatcherFor = (dir: string): FSWatcher | undefined => {
     const i = vi.mocked(watch).mock.calls.findIndex(([d]) => d === dir)
     return vi.mocked(watch).mock.results[i]?.value
   }
@@ -179,7 +181,7 @@ describe('per-sender tree-dir watching', () => {
 
     setWatchedDirs(a, ['/ra/lib'])
 
-    expect(wSrc.close).toHaveBeenCalled()
+    expect(wSrc?.close).toHaveBeenCalled()
   })
 
   it('closes a sender dir watchers on clearWatchedDirs, leaving others', () => {
@@ -190,8 +192,8 @@ describe('per-sender tree-dir watching', () => {
 
     clearWatchedDirs(a)
 
-    expect(wa.close).toHaveBeenCalled()
-    expect(wb.close).not.toHaveBeenCalled()
+    expect(wa?.close).toHaveBeenCalled()
+    expect(wb?.close).not.toHaveBeenCalled()
   })
 
   it('does not send file-tree to a destroyed sender', () => {

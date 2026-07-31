@@ -1,6 +1,6 @@
 import { PlaceholderScreen } from '@/components/placeholder-screen'
 
-export function BoardScreen() {
+export function BoardScreen(): React.JSX.Element {
   return (
     <PlaceholderScreen
       title="Board"

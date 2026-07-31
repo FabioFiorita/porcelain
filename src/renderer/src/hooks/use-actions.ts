@@ -48,19 +48,19 @@ export function useActionMutations(): {
     onError: onMutationError('Delete action'),
   })
   return {
-    add: async (input) => {
+    add: async (input: NewActionInput): Promise<void> => {
       if (!repo) return
       await add.mutateAsync({ repoPath: repo.path, ...input })
     },
-    update: async (id, fields) => {
+    update: async (id: string, fields: NewActionInput): Promise<void> => {
       if (!repo) return
       await update.mutateAsync({ repoPath: repo.path, id, ...fields })
     },
-    move: async (id, direction) => {
+    move: async (id: string, direction: 'up' | 'down'): Promise<void> => {
       if (!repo) return
       await move.mutateAsync({ repoPath: repo.path, id, direction })
     },
-    remove: async (id) => {
+    remove: async (id: string): Promise<void> => {
       if (!repo) return
       await remove.mutateAsync({ repoPath: repo.path, id })
     },
@@ -71,12 +71,11 @@ export type RunActionResult = 'ran' | 'needs-local-path'
 
 /**
  * Run an action: spawn a terminal named after it with the command typed in, and open
- * its tab. The shell stays live after the command (Ctrl-C, re-run, keep working). The
- * human triggers this — there is no agent path that executes an action (see audit).
+ * its tab; the shell stays live after (Ctrl-C, re-run, keep working). Human-only — no
+ * agent path executes an action (see audit).
  *
- * `where: local` runs on This device (mapped local path). When that map is missing,
- * returns `needs-local-path` so the caller can open the path dialog and retry with
- * `localPath` set. Primary actions always use the open repo root as cwd.
+ * `where: local` runs on This device. When the local path map is missing, returns
+ * `needs-local-path` so the caller can open the path dialog and retry with `localPath` set.
  */
 export function useRunAction(): (
   action: Action,
@@ -85,7 +84,7 @@ export function useRunAction(): (
   const repo = useRepoStore((s) => s.repo)
   const createTerminal = useTerminalsStore((s) => s.create)
   const openTab = useTabsStore((s) => s.openTab)
-  return async (action, opts) => {
+  return async (action: Action, opts?: { localPath?: string | null }): Promise<RunActionResult> => {
     if (!repo) return 'ran'
     if (action.where === 'local') {
       const localPath = opts?.localPath

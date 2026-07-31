@@ -27,7 +27,7 @@ describe('TerminalSelectionToolbar', () => {
     // Instance is ready — subscribe immediately and fire the initial callback path via refresh.
     subscribe.mockImplementation((_id: string, cb: () => void) => {
       cb()
-      return () => {}
+      return (): void => {}
     })
   })
 
@@ -63,7 +63,7 @@ describe('TerminalSelectionToolbar', () => {
       calls += 1
       if (calls === 1) return null
       listeners.push(cb)
-      return () => {}
+      return (): void => {}
     })
     anchor.mockReturnValue({ left: 0, top: 0, text: 'late' })
 

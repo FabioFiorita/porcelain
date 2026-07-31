@@ -58,7 +58,7 @@ function CommitTokenSelect({
   return (
     <Popover
       open={open}
-      onOpenChange={(next) => {
+      onOpenChange={(next: boolean): void => {
         setOpen(next)
         if (!next) setQuery('')
       }}
@@ -223,8 +223,10 @@ export function CommitGroup(): React.JSX.Element {
           </div>
           <Textarea
             value={message}
-            onChange={(e) => setMessage(repoPath, e.target.value)}
-            onKeyDown={(e) => {
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>): void =>
+              setMessage(repoPath, e.target.value)
+            }
+            onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
               if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') commit()
             }}
             placeholder={

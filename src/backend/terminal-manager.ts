@@ -228,7 +228,7 @@ export function createTerminal(sender: TerminalSender, opts: CreateTerminalOptio
   let sendInitialInput: (() => void) | null = null
   if (opts.initialInput !== undefined && opts.initialInput !== '') {
     const input = opts.initialInput
-    sendInitialInput = () => {
+    sendInitialInput = (): void => {
       if (initialTimer !== undefined) clearTimeout(initialTimer)
       sendInitialInput = null
       if (sessions.has(id)) pty.write(`${input}\r`)

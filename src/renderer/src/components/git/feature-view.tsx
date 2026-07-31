@@ -332,7 +332,7 @@ export function FeatureView(): React.JSX.Element {
       <LifecycleBanner reading={reading} reviewedFraction={reviewedFraction} />
       <Tabs
         value={canvasTab}
-        onValueChange={(value) => {
+        onValueChange={(value: string): void => {
           if (isFeatureCanvasTab(value)) {
             // No evidence yet → keep Intent (or stay) rather than an empty Evidence shell.
             if (value === 'evidence' && !hasEvidence) return

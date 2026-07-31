@@ -75,31 +75,32 @@ export const usePreferencesStore = create<PreferencesState>()(
       notesHeight: 220,
       splitRatio: 0.5,
       skillsDismissedVersion: null,
-      setChangesScope: (changesScope) => set({ changesScope }),
-      setDiffMode: (diffMode) => set({ diffMode }),
-      setMarkdownMode: (markdownMode) => set({ markdownMode }),
-      setHtmlMode: (htmlMode) => set({ htmlMode }),
-      setPullMode: (pullMode) => set({ pullMode }),
-      setSidebarTab: (sidebarTab) => set({ sidebarTab }),
-      setRightSidebarOpen: (rightSidebarOpen) => set({ rightSidebarOpen }),
-      setRightSidebarWidth: (width) =>
+      setChangesScope: (changesScope: ChangesScope) => set({ changesScope }),
+      setDiffMode: (diffMode: DiffMode) => set({ diffMode }),
+      setMarkdownMode: (markdownMode: MarkdownMode) => set({ markdownMode }),
+      setHtmlMode: (htmlMode: HtmlMode) => set({ htmlMode }),
+      setPullMode: (pullMode: PullMode) => set({ pullMode }),
+      setSidebarTab: (sidebarTab: SidebarTab) => set({ sidebarTab }),
+      setRightSidebarOpen: (rightSidebarOpen: boolean) => set({ rightSidebarOpen }),
+      setRightSidebarWidth: (width: number) =>
         set({
           rightSidebarWidth: Math.min(SIDEBAR_MAX_WIDTH, Math.max(RIGHT_SIDEBAR_MIN_WIDTH, width)),
         }),
-      setSidebarWidth: (width) =>
+      setSidebarWidth: (width: number) =>
         set({ sidebarWidth: Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, width)) }),
-      setNotesHeight: (height) =>
+      setNotesHeight: (height: number) =>
         set({ notesHeight: Math.min(NOTES_MAX_HEIGHT, Math.max(NOTES_MIN_HEIGHT, height)) }),
-      setSplitRatio: (ratio) =>
+      setSplitRatio: (ratio: number) =>
         set({ splitRatio: Math.min(SPLIT_MAX_RATIO, Math.max(SPLIT_MIN_RATIO, ratio)) }),
-      setSkillsDismissedVersion: (skillsDismissedVersion) => set({ skillsDismissedVersion }),
-      setTheme: (theme) => set({ theme }),
+      setSkillsDismissedVersion: (skillsDismissedVersion: string | null) =>
+        set({ skillsDismissedVersion }),
+      setTheme: (theme: ThemeMode) => set({ theme }),
     }),
     {
       name: 'porcelain-preferences',
       // Re-clamp persisted widths in case the min/max floor changed since they
       // were stored — otherwise an old too-narrow width would survive on load.
-      onRehydrateStorage: () => (state) => {
+      onRehydrateStorage: () => (state: PreferencesState | undefined) => {
         if (!state) return
         state.setSidebarWidth(state.sidebarWidth)
         state.setRightSidebarWidth(state.rightSidebarWidth)

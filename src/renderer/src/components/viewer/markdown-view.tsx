@@ -1,4 +1,4 @@
-import Markdown from 'react-markdown'
+import Markdown, { type ExtraProps } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
 const MARKDOWN_EXTENSIONS = ['md', 'mdx', 'markdown']
@@ -17,7 +17,12 @@ export function MarkdownView({ content }: { content: string }): React.JSX.Elemen
           remarkPlugins={[remarkGfm]}
           components={{
             // window.open routes through main's setWindowOpenHandler → shell.openExternal
-            a: ({ node: _node, ...props }) => <a {...props} target="_blank" rel="noreferrer" />,
+            a: ({
+              node: _node,
+              ...props
+            }: React.JSX.IntrinsicElements['a'] & ExtraProps): React.JSX.Element => (
+              <a {...props} target="_blank" rel="noreferrer" />
+            ),
           }}
         >
           {content}

@@ -65,12 +65,19 @@ describe('buildCommentIndex', () => {
 
 const REPO = '/repo'
 
+type CommentsHookResult = { list: ReviewComment[] } & ReturnType<typeof useCommentActions>
+
 /**
  * The list loads once; the reconciling refetch `onSettled` fires stays pending until the
  * test releases it, so nothing but the rollback can put a pre-mutation value back in the
  * cache. `write` answers the mutation itself.
  */
-function comments(served: ReviewComment[]) {
+function comments(served: ReviewComment[]): {
+  inputs: unknown[]
+  write: ReturnType<typeof deferred<unknown>>
+  refetch: ReturnType<typeof deferred<ReviewComment[]>>
+  mounted: () => Promise<{ current: CommentsHookResult }>
+} {
   const write = deferred<unknown>()
   const refetch = deferred<ReviewComment[]>()
   const inputs: unknown[] = []
@@ -83,7 +90,7 @@ function comments(served: ReviewComment[]) {
     inputs.push(op.input)
     return write.promise
   })
-  const mounted = async () => {
+  const mounted = async (): Promise<{ current: CommentsHookResult }> => {
     const hook = renderHook(() => ({ list: useReviewComments(), ...useCommentActions() }), {
       wrapper,
     })

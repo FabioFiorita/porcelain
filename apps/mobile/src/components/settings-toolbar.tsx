@@ -7,13 +7,13 @@ import { toolbarIcon } from '@/components/toolbar-icon'
  * to be created inside the component that renders `Stack.Toolbar`, so tabs that
  * need extra header buttons declare their own toolbar instead of composing this.
  */
-export function SettingsToolbar() {
+export function SettingsToolbar(): React.JSX.Element {
   return (
     <Stack.Toolbar placement="right">
       <Stack.Toolbar.Button
         accessibilityLabel="Settings"
         icon={toolbarIcon('settings')}
-        onPress={() => router.push('/settings')}
+        onPress={(): void => router.push('/settings')}
       />
     </Stack.Toolbar>
   )

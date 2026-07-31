@@ -11,11 +11,11 @@ function deps(config: {
 }): WorktreeInboxDeps {
   return {
     listWorktrees: async () => config.worktrees,
-    changedCount: async (path) => {
+    changedCount: async (path: string) => {
       if (config.throwOn?.has(path)) throw new Error('broken worktree dir')
       return config.changed?.[path] ?? 0
     },
-    hasReview: async (path) => config.review?.[path] ?? false,
+    hasReview: async (path: string) => config.review?.[path] ?? false,
   }
 }
 

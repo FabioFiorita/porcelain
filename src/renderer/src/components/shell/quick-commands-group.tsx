@@ -25,7 +25,11 @@ import {
 import { useState } from 'react'
 
 // mirrors the QUICK_COMMANDS whitelist in src/main/git.ts — only these ids run.
-const QUICK_COMMANDS = [
+const QUICK_COMMANDS: {
+  id: string
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+}[] = [
   { id: 'status', label: 'status', icon: Info },
   { id: 'pull', label: 'pull', icon: ArrowDownToLine },
   { id: 'push', label: 'push', icon: ArrowUpFromLine },

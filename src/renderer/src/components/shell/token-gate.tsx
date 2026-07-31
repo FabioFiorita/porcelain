@@ -41,14 +41,14 @@ export function TokenGate({ children }: { children: React.ReactNode }): React.JS
       </div>
       <form
         className="flex w-full max-w-80 flex-col gap-3"
-        onSubmit={(e) => {
+        onSubmit={(e: React.FormEvent<HTMLFormElement>): void => {
           e.preventDefault()
           if (link.trim() !== '') connect(link.trim())
         }}
       >
         <Input
           value={link}
-          onChange={(e) => setLink(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>): void => setLink(e.target.value)}
           placeholder="https://…/pair#token=…"
           aria-label="Connection link"
           autoFocus

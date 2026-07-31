@@ -37,7 +37,7 @@ const channel = createHomeChannel({
 })
 
 // Must match src/cli/board-file.ts. PORCELAIN_BOARD redirects both sides for tests.
-export const boardPath = channel.path
+export const boardPath: () => string = channel.path
 
 /** The cards for a repo, sorted by column order (oldest/first at the top). */
 export async function readCards(repoPath: string): Promise<BoardCard[]> {

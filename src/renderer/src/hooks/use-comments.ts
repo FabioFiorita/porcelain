@@ -59,6 +59,22 @@ export interface NewCommentInput {
   body: string
 }
 
+/** Optimistic-update rollback context: the pre-mutation cache snapshot for one repo. */
+type MutationContext = { previous: ReviewComment[] | undefined; repoPath: string }
+
+type AddCommentVars = {
+  repoPath: string
+  path: string
+  startLine?: number
+  endLine?: number
+  anchorText?: string
+  body: string
+}
+type EditCommentVars = { repoPath: string; id: string; body: string }
+type DeleteCommentVars = { repoPath: string; id: string }
+type ResolveCommentVars = { repoPath: string; id: string; resolved: boolean }
+type ClearResolvedVars = { repoPath: string }
+
 /** The id an optimistically-added comment carries until the server's real one arrives on
  *  the reconciling refetch. Never sent to the daemon, never written to the channel. */
 function temporaryId(): string {
@@ -86,20 +102,28 @@ export function useCommentActions(): {
   const patch = (repoPath: string, next: (comments: ReviewComment[]) => ReviewComment[]): void => {
     utils.reviewComments.setData(repoPath, (comments) => (comments ? next(comments) : undefined))
   }
-  const begin = async (repoPath: string, next: (comments: ReviewComment[]) => ReviewComment[]) => {
+  const begin = async (
+    repoPath: string,
+    next: (comments: ReviewComment[]) => ReviewComment[],
+  ): Promise<MutationContext> => {
     await utils.reviewComments.cancel(repoPath)
     const previous = utils.reviewComments.getData(repoPath)
     patch(repoPath, next)
     return { previous, repoPath }
   }
-  const rollback = (
-    context: { previous: ReviewComment[] | undefined; repoPath: string } | undefined,
-  ): void => {
+  const rollback = (context: MutationContext | undefined): void => {
     if (context) utils.reviewComments.setData(context.repoPath, context.previous)
   }
 
   const add = trpc.addReviewComment.useMutation({
-    onMutate: ({ repoPath, path, startLine, endLine, anchorText, body }) => {
+    onMutate: ({
+      repoPath,
+      path,
+      startLine,
+      endLine,
+      anchorText,
+      body,
+    }: AddCommentVars): Promise<MutationContext> => {
       const comment: ReviewComment = {
         id: temporaryId(),
         path,
@@ -113,80 +137,120 @@ export function useCommentActions(): {
       // Newest first, matching readComments' sort.
       return begin(repoPath, (comments) => [comment, ...comments])
     },
-    onError: (error, _vars, context) => {
+    onError: (
+      error: { message: string },
+      _vars: unknown,
+      context: MutationContext | undefined,
+    ): void => {
       rollback(context)
       onMutationError('Add comment')(error)
     },
-    onSettled: async (_data, _error, { repoPath }) => {
+    onSettled: async (
+      _data: unknown,
+      _error: unknown,
+      { repoPath }: AddCommentVars,
+    ): Promise<void> => {
       await utils.reviewComments.invalidate(repoPath)
     },
   })
   const edit = trpc.editReviewComment.useMutation({
-    onMutate: ({ repoPath, id, body }) =>
+    onMutate: ({ repoPath, id, body }: EditCommentVars): Promise<MutationContext> =>
       begin(repoPath, (comments) =>
         comments.map((comment) => (comment.id === id ? { ...comment, body } : comment)),
       ),
-    onError: (error, _vars, context) => {
+    onError: (
+      error: { message: string },
+      _vars: unknown,
+      context: MutationContext | undefined,
+    ): void => {
       rollback(context)
       onMutationError('Edit comment')(error)
     },
-    onSettled: async (_data, _error, { repoPath }) => {
+    onSettled: async (
+      _data: unknown,
+      _error: unknown,
+      { repoPath }: EditCommentVars,
+    ): Promise<void> => {
       await utils.reviewComments.invalidate(repoPath)
     },
   })
   const remove = trpc.deleteReviewComment.useMutation({
-    onMutate: ({ repoPath, id }) =>
+    onMutate: ({ repoPath, id }: DeleteCommentVars): Promise<MutationContext> =>
       begin(repoPath, (comments) => comments.filter((comment) => comment.id !== id)),
-    onError: (error, _vars, context) => {
+    onError: (
+      error: { message: string },
+      _vars: unknown,
+      context: MutationContext | undefined,
+    ): void => {
       rollback(context)
       onMutationError('Delete comment')(error)
     },
-    onSettled: async (_data, _error, { repoPath }) => {
+    onSettled: async (
+      _data: unknown,
+      _error: unknown,
+      { repoPath }: DeleteCommentVars,
+    ): Promise<void> => {
       await utils.reviewComments.invalidate(repoPath)
     },
   })
   const resolve = trpc.resolveReviewComment.useMutation({
-    onMutate: ({ repoPath, id, resolved }) =>
+    onMutate: ({ repoPath, id, resolved }: ResolveCommentVars): Promise<MutationContext> =>
       begin(repoPath, (comments) =>
         comments.map((comment) => (comment.id === id ? { ...comment, resolved } : comment)),
       ),
-    onError: (error, _vars, context) => {
+    onError: (
+      error: { message: string },
+      _vars: unknown,
+      context: MutationContext | undefined,
+    ): void => {
       rollback(context)
       onMutationError('Resolve comment')(error)
     },
-    onSettled: async (_data, _error, { repoPath }) => {
+    onSettled: async (
+      _data: unknown,
+      _error: unknown,
+      { repoPath }: ResolveCommentVars,
+    ): Promise<void> => {
       await utils.reviewComments.invalidate(repoPath)
     },
   })
   const clearResolved = trpc.clearResolvedReviewComments.useMutation({
-    onMutate: ({ repoPath }) =>
+    onMutate: ({ repoPath }: ClearResolvedVars): Promise<MutationContext> =>
       begin(repoPath, (comments) => comments.filter((comment) => !comment.resolved)),
-    onError: (error, _vars, context) => {
+    onError: (
+      error: { message: string },
+      _vars: unknown,
+      context: MutationContext | undefined,
+    ): void => {
       rollback(context)
       onMutationError('Clear closed comments')(error)
     },
-    onSettled: async (_data, _error, { repoPath }) => {
+    onSettled: async (
+      _data: unknown,
+      _error: unknown,
+      { repoPath }: ClearResolvedVars,
+    ): Promise<void> => {
       await utils.reviewComments.invalidate(repoPath)
     },
   })
   return {
-    add: async (input) => {
+    add: async (input: NewCommentInput): Promise<void> => {
       if (!repo) return
       await add.mutateAsync({ repoPath: repo.path, ...input })
     },
-    edit: async (id, body) => {
+    edit: async (id: string, body: string): Promise<void> => {
       if (!repo) return
       await edit.mutateAsync({ repoPath: repo.path, id, body })
     },
-    remove: async (id) => {
+    remove: async (id: string): Promise<void> => {
       if (!repo) return
       await remove.mutateAsync({ repoPath: repo.path, id })
     },
-    setResolved: async (id, resolved) => {
+    setResolved: async (id: string, resolved: boolean): Promise<void> => {
       if (!repo) return
       await resolve.mutateAsync({ repoPath: repo.path, id, resolved })
     },
-    clearResolved: async () => {
+    clearResolved: async (): Promise<void> => {
       if (!repo) return
       await clearResolved.mutateAsync({ repoPath: repo.path })
     },

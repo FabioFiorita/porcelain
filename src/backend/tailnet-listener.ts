@@ -288,15 +288,15 @@ const lan = createIfaceListener(
   'lan',
 )
 
-export const startTailnetListener = tailnet.start
-export const stopTailnetListener = tailnet.stop
-export const tailnetUrl = tailnet.url
-export const tailnetBindError = tailnet.error
+export const startTailnetListener: () => Promise<string | null> = tailnet.start
+export const stopTailnetListener: () => Promise<void> = tailnet.stop
+export const tailnetUrl: () => string | null = tailnet.url
+export const tailnetBindError: () => 'in-use' | null = tailnet.error
 
-export const startLanListener = lan.start
-export const stopLanListener = lan.stop
-export const lanUrl = lan.url
-export const lanBindError = lan.error
+export const startLanListener: () => Promise<string | null> = lan.start
+export const stopLanListener: () => Promise<void> = lan.stop
+export const lanUrl: () => string | null = lan.url
+export const lanBindError: () => 'in-use' | null = lan.error
 
 /** The LAN listener's numeric url (first bound address), for the UI's fallback line. */
 export function lanNumericUrl(): string | null {

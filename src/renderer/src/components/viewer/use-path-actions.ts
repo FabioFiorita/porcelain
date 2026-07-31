@@ -23,7 +23,7 @@ export function usePathActions(path: string): {
       await copyText(relativeTo(repo?.path, path))
     },
     reveal: () => reveal(path),
-    findReferences: (text) => {
+    findReferences: (text: string) => {
       const query = text.trim()
       if (query === '') return
       openTab({ id: tabId('search', query), kind: 'search', title: query, path: query })
@@ -31,7 +31,7 @@ export function usePathActions(path: string): {
     // Open a read-only feature-flow explore seeded from this file (whole-file) or a
     // symbol in it. The seed path is repo-relative — the walk resolves against the
     // repo file list, not absolute paths.
-    exploreFlow: (symbol) => {
+    exploreFlow: (symbol?: string) => {
       const relative = relativeTo(repo?.path, path)
       const seed = symbol?.trim()
       openTab({

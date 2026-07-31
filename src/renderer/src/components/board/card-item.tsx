@@ -22,14 +22,12 @@ const COLUMN_ICON: Record<CardStatus, React.ComponentType> = {
 }
 
 /**
- * A board card chip with a "⋯" menu: edit, move to another column (the agent moves
- * cards too via the CLI — this is the human's equivalent), or delete. Shared by the sidebar
- * board list and the wide viewer board. In `compact` mode (the sidebar outline, beside the
- * wide board) the body clamps to one preview line so the narrow list reads as an index, not a
- * second copy of the board; the wide viewer keeps the full scrollable body.
+ * A board card chip with a "⋯" menu: edit, move column (the CLI does this for
+ * agents too), or delete. Shared by the sidebar list and the wide viewer board;
+ * `compact` clamps the body to one line so the sidebar reads as an index, not a
+ * second board copy.
  *
- * Primary click on the body selects the card for the Focus companion (right rail).
- * Edit stays on the ⋯ menu (and the Focus rail's Edit button).
+ * Primary click selects the card for the Focus companion; edit stays on the menu.
  */
 export function CardItem({
   card,

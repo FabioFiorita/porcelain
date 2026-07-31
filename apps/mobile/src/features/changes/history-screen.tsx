@@ -1,6 +1,6 @@
 import { PlaceholderScreen } from '@/components/placeholder-screen'
 
-export function HistoryScreen() {
+export function HistoryScreen(): React.JSX.Element {
   return (
     <PlaceholderScreen
       title="History"

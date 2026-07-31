@@ -21,9 +21,9 @@ export const useCommitDraftStore = create<CommitDraftState>()(
   persist(
     (set) => ({
       messages: {},
-      setMessage: (repoPath, message) =>
+      setMessage: (repoPath: string, message: string) =>
         set((state) => ({ messages: { ...state.messages, [repoPath]: message } })),
-      clearMessage: (repoPath) =>
+      clearMessage: (repoPath: string) =>
         set((state) => {
           if (!(repoPath in state.messages)) return state
           const { [repoPath]: _removed, ...rest } = state.messages

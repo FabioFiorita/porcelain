@@ -30,13 +30,11 @@ async function probe(): Promise<boolean> {
 }
 
 /**
- * Guards the browser client behind its device credential: on mount it probes with
- * the persisted credential (localStorage) and, until that succeeds, the caller renders a
- * lock screen instead of the app. In the packaged Electron app there's no gate —
- * the token rides the preload bridge, so `status` starts 'open' and stays there.
- *
- * A `/pair#token=…` link exchanges its one-time fragment credential for this
- * browser's individually revocable client token, then removes the fragment.
+ * Guards the browser client behind its device credential: on mount it probes with the
+ * persisted credential (localStorage), and until that succeeds the caller renders a
+ * lock screen instead of the app. Electron has no gate — the token rides the preload
+ * bridge, so `status` starts 'open' and stays there. A `/pair#token=…` link exchanges
+ * its one-time fragment credential for this browser's revocable client token.
  */
 export function useTokenGate(): TokenGate {
   const [status, setStatus] = useState<GateStatus>(isBrowser ? 'checking' : 'open')

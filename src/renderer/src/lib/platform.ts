@@ -16,45 +16,34 @@
 export const isBrowser = typeof window !== 'undefined' && window.porcelain === undefined
 
 /**
- * True in the Electron shell running on a Linux (or forced-Linux) desktop — the
- * preload IS present, so `isBrowser` is false, but `window.porcelain.platform`
- * is 'linux'. This is the third seam case: like the browser client it wants
- * Ctrl as the primary modifier and the opaque fallback surface, but with
- * desktop-Linux word labels (Ctrl+Shift+F), not the browser's glyphs. Keyboard
- * and main.tsx fan out from here.
+ * True in the Electron shell on Linux (or forced-Linux) desktop: the preload IS present
+ * (`isBrowser` is false) but `window.porcelain.platform` is 'linux' — wants Ctrl as the
+ * primary modifier like the browser client, but desktop-Linux word labels (Ctrl+Shift+F)
+ * instead of glyphs. Keyboard and main.tsx fan out from here.
  *
- * vitest/jsdom note: no preload bridge, so `window.porcelain?.platform` is
- * undefined and this is `false` under test — the browser default stays the
- * baseline, unchanged by this flag.
+ * vitest/jsdom: no bridge, so this is `false` under test (browser default stays baseline).
  */
 export const isLinuxShell = typeof window !== 'undefined' && window.porcelain?.platform === 'linux'
 
 /**
- * True under the Playwright e2e harness, in EITHER runtime: the Electron shell
- * (the preload sets `porcelain.e2e` from PORCELAIN_E2E) or the browser client
- * (no preload — the harness plants a localStorage flag via addInitScript before
- * any script runs). Gates test-only affordances (the terminal buffer hook,
- * skills-toast suppression). Never set in real runs — and harmless if a user
- * sets the flag by hand.
+ * True under the Playwright e2e harness, in EITHER runtime: the Electron shell (preload
+ * sets `porcelain.e2e`) or the browser client (the harness plants a localStorage flag via
+ * addInitScript). Gates test-only affordances (terminal buffer hook, skills-toast
+ * suppression); harmless if a user sets the flag by hand.
  *
- * vitest/jsdom note: localStorage exists and returns null → `false` under test.
+ * vitest/jsdom: `false` under test (localStorage returns null).
  */
 export const isE2E =
   typeof window !== 'undefined' &&
   (window.porcelain?.e2e === true || window.localStorage.getItem('porcelain-e2e') === '1')
 
 /**
- * True on a multi-touch device (iPad / iPhone Safari, touch laptops) — the seam for
- * "a finger is the pointer here", NOT for "this is a phone" (that's the `useIsMobile`
- * width breakpoint; an iPad is coarse-touch at desktop width). Three terminal
- * behaviours key off it: force the DOM paint path (WebGL contexts get evicted under
- * memory pressure on Apple devices), convert touch pans into `scrollLines` (iOS Safari
- * fires no wheel events), and DON'T steal focus when a terminal mounts — focusing
- * xterm's hidden textarea raises the software keyboard, so on touch that has to be an
- * explicit tap, not a side effect of opening a tab.
- *
- * A function, not a const: it reads `navigator` at call time so a test can stub the
- * device without re-importing the module.
+ * True on a multi-touch device (iPad/iPhone Safari, touch laptops) — "a finger is the
+ * pointer here", not "this is a phone" (an iPad is coarse-touch at desktop width; see
+ * `useIsMobile`). Drives terminal behavior: force the DOM paint path (WebGL is evicted
+ * under memory pressure on Apple devices), convert touch pans into `scrollLines` (iOS
+ * Safari fires no wheel events), and skip auto-focus on mount (it would raise the
+ * keyboard) — a function, not a const, so tests can stub `navigator` at call time.
  */
 export function isCoarseTouch(): boolean {
   return typeof navigator !== 'undefined' && navigator.maxTouchPoints > 1

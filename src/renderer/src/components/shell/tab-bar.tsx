@@ -74,8 +74,12 @@ function TabItem({
                   data-pinned={tab.pinned ? 'true' : undefined}
                   onClick={() => activateTab(paneIndex, tab.id)}
                   onDoubleClick={() => pinTab(tab.id)}
-                  onAuxClick={(e) => e.button === 1 && closeTab(paneIndex, tab.id)}
-                  onKeyDown={(e) => e.key === 'Enter' && activateTab(paneIndex, tab.id)}
+                  onAuxClick={(e: React.MouseEvent<HTMLDivElement>): void => {
+                    if (e.button === 1) closeTab(paneIndex, tab.id)
+                  }}
+                  onKeyDown={(e: React.KeyboardEvent<HTMLDivElement>): void => {
+                    if (e.key === 'Enter') activateTab(paneIndex, tab.id)
+                  }}
                   role="tab"
                   tabIndex={0}
                   aria-selected={isActive}
@@ -104,7 +108,7 @@ function TabItem({
                     // Hover-revealed on pointer devices; always visible where hover doesn't
                     // exist (touch — iPad Safari), so the close button stays tappable there.
                     className="size-5 opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
-                    onClick={(e) => {
+                    onClick={(e: React.MouseEvent<HTMLButtonElement>): void => {
                       e.stopPropagation()
                       closeTab(paneIndex, tab.id)
                     }}

@@ -195,7 +195,7 @@ const editPane =
 export const useTabsStore = create<TabsState>((set) => ({
   panes: [emptyPane()],
   activePaneIndex: 0,
-  openTab: (tab) =>
+  openTab: (tab: Tab) =>
     set((state) => {
       // A terminal is a single xterm instance — it can't be cloned into a second pane.
       // If it's already open somewhere, activate it in place instead of duplicating it.
@@ -212,7 +212,7 @@ export const useTabsStore = create<TabsState>((set) => ({
         panes: state.panes.map((p, i) => (i === state.activePaneIndex ? addTab(p, tab) : p)),
       }
     }),
-  openTabToSide: (tab) =>
+  openTabToSide: (tab: Tab) =>
     set((state) => {
       // Terminals MOVE to the other pane (one xterm can't render in two places); a
       // generic tab is cloned. Stripping the terminal from its source pane first is
@@ -243,7 +243,7 @@ export const useTabsStore = create<TabsState>((set) => ({
         activePaneIndex: target,
       }
     }),
-  pinTab: (id) =>
+  pinTab: (id: string) =>
     set((state) => ({
       // a file can sit in both panes; pin every copy so edit-mode pinning is consistent
       panes: state.panes.map((p) =>
@@ -252,7 +252,7 @@ export const useTabsStore = create<TabsState>((set) => ({
           : p,
       ),
     })),
-  togglePinned: (paneIndex, id) =>
+  togglePinned: (paneIndex: number, id: string) =>
     set(
       editPane(paneIndex, (p) => {
         const tab = p.tabs.find((t) => t.id === id)
@@ -260,19 +260,22 @@ export const useTabsStore = create<TabsState>((set) => ({
         return setPinned(p, id, !tab.pinned)
       }),
     ),
-  closeTab: (paneIndex, id) => set(editPane(paneIndex, (p) => removeTab(p, id))),
-  closeOtherTabs: (paneIndex, id) => set(editPane(paneIndex, (p) => keepOnlyAnchor(p, id))),
-  closeTabsToLeft: (paneIndex, id) => set(editPane(paneIndex, (p) => keepFromAnchor(p, id))),
-  closeTabsToRight: (paneIndex, id) => set(editPane(paneIndex, (p) => keepThroughAnchor(p, id))),
-  closeUnpinnedTabs: (paneIndex) => set(editPane(paneIndex, dropUnpinned)),
-  closeTabEverywhere: (id) =>
+  closeTab: (paneIndex: number, id: string) => set(editPane(paneIndex, (p) => removeTab(p, id))),
+  closeOtherTabs: (paneIndex: number, id: string) =>
+    set(editPane(paneIndex, (p) => keepOnlyAnchor(p, id))),
+  closeTabsToLeft: (paneIndex: number, id: string) =>
+    set(editPane(paneIndex, (p) => keepFromAnchor(p, id))),
+  closeTabsToRight: (paneIndex: number, id: string) =>
+    set(editPane(paneIndex, (p) => keepThroughAnchor(p, id))),
+  closeUnpinnedTabs: (paneIndex: number) => set(editPane(paneIndex, dropUnpinned)),
+  closeTabEverywhere: (id: string) =>
     set((state) =>
       normalize(
         state.panes.map((p) => removeTab(p, id)),
         state.activePaneIndex,
       ),
     ),
-  retitleTerminalTab: (sessionId, title) =>
+  retitleTerminalTab: (sessionId: string, title: string) =>
     set((state) => ({
       panes: state.panes.map((p) => ({
         ...p,
@@ -282,14 +285,14 @@ export const useTabsStore = create<TabsState>((set) => ({
       })),
     })),
   closeAllTabs: () => set({ panes: [emptyPane()], activePaneIndex: 0 }),
-  activateTab: (paneIndex, id) =>
+  activateTab: (paneIndex: number, id: string) =>
     set((state) => ({
       panes: state.panes.map((p, i) => (i === paneIndex ? { ...p, activeTabId: id } : p)),
       activePaneIndex: paneIndex,
     })),
-  setActivePane: (paneIndex) =>
+  setActivePane: (paneIndex: number) =>
     set((state) => (state.panes[paneIndex] ? { activePaneIndex: paneIndex } : state)),
-  cycleTab: (direction) =>
+  cycleTab: (direction: 1 | -1) =>
     set((state) => {
       const pane = state.panes[state.activePaneIndex]
       if (!pane || pane.tabs.length < 2) return state

@@ -25,7 +25,7 @@ const channel = createHomeChannel<AppConfig>({
   cache: 'memory',
 })
 
-export const loadConfig = channel.readAll
+export const loadConfig: () => Promise<AppConfig> = channel.readAll
 
 export async function updateConfig(fn: (current: AppConfig) => AppConfig): Promise<AppConfig> {
   let updated = emptyConfig

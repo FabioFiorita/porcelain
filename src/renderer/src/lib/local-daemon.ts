@@ -7,23 +7,20 @@ import { createAppClientFor } from './trpc'
  * The SECOND daemon connection: the machine running the app, while the window works on a
  * remote one.
  *
- * Why it exists: the repo lives on the box you're bound to (a Linux server), but some work
- * only the machine in front of you can do — running an iOS build on the Mac. Before this,
- * the Terminal tab could only reach the daemon the window was bound to, so that meant
- * leaving Porcelain entirely. Now a terminal can be spawned on "This device" alongside the
- * remote ones.
+ * Why: the repo lives on the box you're bound to (a Linux server), but some work only the
+ * machine in front of you can do — an iOS build on the Mac. A terminal can spawn on "This
+ * device" alongside the remote ones instead of leaving Porcelain entirely.
  *
- * Deliberately NARROW. This is not a general multi-daemon layer: the window's repo, its
- * git state, its agents, and every repo-scoped query still live on `primary`, and a
- * feature that reaches for a second session for anything other than "work on the OTHER
- * machine" is doing it wrong. What lives here is one session, one appRouter client for its
- * terminal roster, and the id bookkeeping that lets the shared terminal plumbing route a
- * write to the right daemon.
+ * Deliberately NARROW — not a general multi-daemon layer. The window's repo, git state,
+ * agents, and every repo-scoped query still live on `primary`; reaching for a second session
+ * for anything but "work on the OTHER machine" is doing it wrong. What lives here: one
+ * session, one appRouter client for its terminal roster, and the id bookkeeping that routes
+ * a write to the right daemon.
  *
- * Lifetime: created lazily the first time a local terminal is wanted (nothing connects
- * otherwise, so a purely-local window pays nothing) and re-pointed — never rebuilt — when
- * the local daemon restarts on a new port (`local-daemon-changed`, see main/daemon.ts).
- * Re-pointing keeps the live PTY attachments, which a rebuild would silently drop.
+ * Lifetime: created lazily on first local-terminal use (a purely-local window pays nothing)
+ * and re-pointed — never rebuilt — when the local daemon restarts on a new port
+ * (`local-daemon-changed`, see main/daemon.ts). Re-pointing keeps live PTY attachments, which
+ * a rebuild would silently drop.
  */
 let session: DaemonSession | null = null
 let client: ReturnType<typeof createTRPCClient<AppRouter>> | null = null

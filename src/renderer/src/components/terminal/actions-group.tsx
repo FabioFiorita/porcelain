@@ -124,13 +124,12 @@ function ActionRow({
 }
 
 /**
- * The Actions Quick Access section (shown when the Terminal tab is active): the repo's
- * saved commands, each one click from running in a terminal. The agent can curate these
- * via the porcelain CLI; the human runs them. Mirrors the Comments/Board sections.
+ * The Actions Quick Access section (Terminal tab active): the repo's saved
+ * commands, one click from running. The agent curates these via the porcelain
+ * CLI; the human runs them. Mirrors the Comments/Board sections.
  *
- * On a remote-bound Electron window, each action can target This device (the machine
- * running the app) instead of the primary daemon — same dual-machine model as the
- * Terminal list's + menu.
+ * On a remote-bound window, each action can target This device instead of the
+ * primary daemon — same dual-machine model as the Terminal list's + menu.
  */
 export function ActionsGroup(): React.JSX.Element {
   const actions = useActions()
@@ -191,7 +190,7 @@ export function ActionsGroup(): React.JSX.Element {
             <ActionRow
               key={action.id}
               action={action}
-              onEdit={(a) => setDraft(draftFromAction(a))}
+              onEdit={(a: Action): void => setDraft(draftFromAction(a))}
               onRun={run}
               showWhere={canSpawnLocal}
               isFirst={index === 0}
@@ -204,7 +203,7 @@ export function ActionsGroup(): React.JSX.Element {
         draft={draft}
         open={draft !== null}
         showWhere={canSpawnLocal}
-        onOpenChange={(open) => {
+        onOpenChange={(open: boolean): void => {
           if (!open) setDraft(null)
         }}
       />
@@ -214,7 +213,7 @@ export function ActionsGroup(): React.JSX.Element {
           repoPath={repo.path}
           initialPath={mappedLocalPath ?? null}
           mode={mappingMode}
-          onSaved={(localPath) => {
+          onSaved={(localPath: string): void => {
             const action = pendingLocal
             setPendingLocal(null)
             setMappingMode(null)

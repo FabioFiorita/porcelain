@@ -18,7 +18,7 @@ vi.mock('@renderer/hooks/use-mobile', () => ({
 }))
 
 vi.mock('@renderer/lib/platform', () => ({
-  get isBrowser() {
+  get isBrowser(): boolean {
     return browser
   },
 }))

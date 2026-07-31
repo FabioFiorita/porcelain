@@ -16,6 +16,12 @@ export function useReviewedPaths(): Set<string> {
   return useMemo(() => new Set(data ?? []), [data])
 }
 
+/** Optimistic-update rollback context: the pre-mutation reviewed-paths snapshot for one repo. */
+type MutationContext = { previous: string[] | undefined; repoPath: string }
+
+type MarkVars = { repoPath: string; path: string }
+type SetReviewedVars = { repoPath: string; paths: string[] }
+
 /** Returns mark/unmark functions that persist the reviewed state and invalidate the query. */
 export function useToggleReviewed(): {
   mark: (path: string) => Promise<void>
@@ -28,22 +34,26 @@ export function useToggleReviewed(): {
   // the server also re-reads after reconcile so a poll that started before the mark still
   // returns the new path once it finishes (see reconcileReviewed).
   const markMutation = trpc.markReviewed.useMutation({
-    onMutate: async ({ repoPath, path }) => {
+    onMutate: async ({ repoPath, path }: MarkVars): Promise<MutationContext> => {
       await utils.reviewedPaths.cancel(repoPath)
       const previous = utils.reviewedPaths.getData(repoPath)
       utils.reviewedPaths.setData(repoPath, [...new Set([...(previous ?? []), path])])
       return { previous, repoPath }
     },
-    onError: (error, _vars, context) => {
+    onError: (
+      error: { message: string },
+      _vars: unknown,
+      context: MutationContext | undefined,
+    ): void => {
       if (context) utils.reviewedPaths.setData(context.repoPath, context.previous)
       onMutationError('Mark reviewed')(error)
     },
-    onSettled: async (_data, _error, { repoPath }) => {
+    onSettled: async (_data: unknown, _error: unknown, { repoPath }: MarkVars): Promise<void> => {
       await utils.reviewedPaths.invalidate(repoPath)
     },
   })
   const unmarkMutation = trpc.unmarkReviewed.useMutation({
-    onMutate: async ({ repoPath, path }) => {
+    onMutate: async ({ repoPath, path }: MarkVars): Promise<MutationContext> => {
       await utils.reviewedPaths.cancel(repoPath)
       const previous = utils.reviewedPaths.getData(repoPath)
       utils.reviewedPaths.setData(
@@ -52,20 +62,24 @@ export function useToggleReviewed(): {
       )
       return { previous, repoPath }
     },
-    onError: (error, _vars, context) => {
+    onError: (
+      error: { message: string },
+      _vars: unknown,
+      context: MutationContext | undefined,
+    ): void => {
       if (context) utils.reviewedPaths.setData(context.repoPath, context.previous)
       onMutationError('Unmark reviewed')(error)
     },
-    onSettled: async (_data, _error, { repoPath }) => {
+    onSettled: async (_data: unknown, _error: unknown, { repoPath }: MarkVars): Promise<void> => {
       await utils.reviewedPaths.invalidate(repoPath)
     },
   })
   return {
-    mark: async (path) => {
+    mark: async (path: string): Promise<void> => {
       if (!repo) return
       await markMutation.mutateAsync({ repoPath: repo.path, path })
     },
-    unmark: async (path) => {
+    unmark: async (path: string): Promise<void> => {
       if (!repo) return
       await unmarkMutation.mutateAsync({ repoPath: repo.path, path })
     },
@@ -80,21 +94,29 @@ export function useSetReviewed(): (paths: string[]) => Promise<void> {
   const repo = useRepoStore((s) => s.repo)
   const utils = trpc.useUtils()
   const mutation = trpc.setReviewed.useMutation({
-    onMutate: async ({ repoPath, paths }) => {
+    onMutate: async ({ repoPath, paths }: SetReviewedVars): Promise<MutationContext> => {
       await utils.reviewedPaths.cancel(repoPath)
       const previous = utils.reviewedPaths.getData(repoPath)
       utils.reviewedPaths.setData(repoPath, paths)
       return { previous, repoPath }
     },
-    onError: (error, _vars, context) => {
+    onError: (
+      error: { message: string },
+      _vars: unknown,
+      context: MutationContext | undefined,
+    ): void => {
       if (context) utils.reviewedPaths.setData(context.repoPath, context.previous)
       onMutationError('Update reviewed')(error)
     },
-    onSettled: async (_data, _error, { repoPath }) => {
+    onSettled: async (
+      _data: unknown,
+      _error: unknown,
+      { repoPath }: SetReviewedVars,
+    ): Promise<void> => {
       await utils.reviewedPaths.invalidate(repoPath)
     },
   })
-  return async (paths) => {
+  return async (paths: string[]): Promise<void> => {
     if (!repo) return
     await mutation.mutateAsync({ repoPath: repo.path, paths })
   }

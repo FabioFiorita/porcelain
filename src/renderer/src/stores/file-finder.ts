@@ -13,5 +13,5 @@ interface FileFinderState {
 
 export const useFileFinderStore = create<FileFinderState>((set) => ({
   open: false,
-  setOpen: (open) => set({ open }),
+  setOpen: (open: boolean) => set({ open }),
 }))

@@ -14,7 +14,7 @@ interface ReviewStartState {
 
 export const useReviewStartStore = create<ReviewStartState>((set, get) => ({
   suggestedName: null,
-  setSuggestedName: (name) => set({ suggestedName: name }),
+  setSuggestedName: (name: string | null) => set({ suggestedName: name }),
   consumeSuggestedName: () => {
     const name = get().suggestedName
     set({ suggestedName: null })

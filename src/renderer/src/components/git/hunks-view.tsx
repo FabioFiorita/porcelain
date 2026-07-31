@@ -279,7 +279,7 @@ export function HunksView({
       rows={toRows(hunks, diffMode)}
       className="leading-5"
       fitWidth={diffMode === 'split'}
-      renderRow={(row) => <DiffRowView row={row} ctx={ctx} />}
+      renderRow={(row: DiffRow): React.JSX.Element => <DiffRowView row={row} ctx={ctx} />}
     />
   )
 }

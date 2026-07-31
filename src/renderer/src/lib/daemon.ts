@@ -7,33 +7,22 @@ import {
 import { randomId } from './utils'
 
 /**
- * The renderer's connection to a daemon: the base url for the appRouter's HTTP
- * transport (lib/trpc.ts) and ONE WebSocket session (`/session`) carrying
- * everything that isn't request/response — app-event pushes in, terminal bytes
- * both ways, watch registrations out (see `@shared/ws-protocol`).
+ * The renderer's connection to a daemon: the appRouter's HTTP base url
+ * (lib/trpc.ts) plus ONE WebSocket session (`/session`) carrying everything
+ * that isn't request/response — app-events, terminal bytes both ways, watch
+ * registrations (see `@shared/ws-protocol`).
  *
- * **A session is an INSTANCE, and `primary` is the one every surface uses.** This was a
- * module singleton until 2026-07-26; it became a factory so a window bound to a REMOTE
- * daemon can additionally hold a connection to the local one and run a terminal there
- * (the Mac in front of you, while the repo lives on a Linux box). Everything below the
- * factory is the unchanged singleton API, delegating to `primary` — so no call site
- * changed, and `primary` remains the answer to "the daemon" everywhere except the
- * deliberate second connection. Don't reach for a second session for anything a repo-
- * scoped procedure can do: the window's repo lives on `primary`'s machine.
+ * A session is an INSTANCE; `primary` is the one every surface uses — a window
+ * bound to a remote daemon can also hold a connection to the local one (see
+ * `local-daemon.ts`). Lives in lib only (hooks, the terminal registry/store,
+ * lib/trpc — components never import it directly; Biome-enforced).
  *
- * Lives in lib (consumed ONLY by hook files, the terminal registry/store, and lib/trpc —
- * components never import it; that's Biome-enforced).
- *
- * Reconnect story: the socket retries with capped backoff for as long as the
- * daemon is down; the shell pushes a NEW url over `daemon.onUrlChanged` when it
- * restarts a crashed daemon on a fresh port. On every reconnect the client
- * re-registers the last watch sets AND re-attaches every terminal it was streaming
- * (server-side session state died with the old socket — the daemon keys attached
- * senders by connection). The fresh scrollback from each re-attach is pushed through
- * the `onTerminalScrollback` listeners so the registry can replay it into the xterm;
- * inbound `terminal:data` is otherwise dispatched by id to the same listeners
- * regardless of which socket delivered it. `onDaemonReconnect` subscribers are also
- * notified (use-app-events refetches queries).
+ * Reconnect: retries with capped backoff while the daemon is down; a restart
+ * pushes a new url via `daemon.onUrlChanged`. Every reconnect re-registers the
+ * last watch sets and re-attaches every streamed terminal (server-side session
+ * state died with the old socket), replaying scrollback through
+ * `onTerminalScrollback` before live data resumes; `onDaemonReconnect`
+ * subscribers are notified so queries refetch.
  */
 
 // The localStorage key the browser client stores its user-entered daemon token
@@ -240,7 +229,7 @@ export function createDaemonSession(initial: DaemonEndpoint): DaemonSession {
       token !== '' ? [`porcelain.${token}`] : [],
     )
     socket = ws
-    ws.onopen = () => {
+    ws.onopen = (): void => {
       if (socket !== ws) return
       retryDelay = 500
       // The daemon keys watchers (and the roster's what-is-this-device-doing state) by
@@ -266,7 +255,7 @@ export function createDaemonSession(initial: DaemonEndpoint): DaemonSession {
       recoveryPending = false
       everConnected = true
     }
-    ws.onmessage = (event) => {
+    ws.onmessage = (event: MessageEvent): void => {
       if (typeof event.data !== 'string') return
       let json: unknown
       try {
@@ -279,7 +268,7 @@ export function createDaemonSession(initial: DaemonEndpoint): DaemonSession {
       const parsed = serverMessageSchema.safeParse(json)
       if (parsed.success) dispatch(parsed.data)
     }
-    ws.onclose = () => {
+    ws.onclose = (): void => {
       // Creates addressed to THIS socket can never be answered — fail them even
       // if a newer socket has already taken over (their reqIds died with ws).
       failPendingCreates(
@@ -320,30 +309,33 @@ export function createDaemonSession(initial: DaemonEndpoint): DaemonSession {
     baseUrl: resolvedBaseUrl,
     token: () => token,
     endpoint: () => ({ url: baseUrl, token }),
-    setEndpoint: (next) => {
+    setEndpoint: (next: DaemonEndpoint): void => {
       baseUrl = next.url
       token = next.token
       reconnectNow()
     },
-    onDaemonEvent: (listener) => subscribe(eventListeners, listener),
-    onTerminalData: (listener) => subscribe(dataListeners, listener),
-    onTerminalExit: (listener) => subscribe(exitListeners, listener),
+    onDaemonEvent: (listener: (event: AppEvent) => void) => subscribe(eventListeners, listener),
+    onTerminalData: (listener: (id: string, data: string) => void) =>
+      subscribe(dataListeners, listener),
+    onTerminalExit: (listener: (id: string, exitCode: number) => void) =>
+      subscribe(exitListeners, listener),
     /**
      * Fires with a session's replay scrollback on attach (both the initial attach and every
      * reconnect re-attach). The registry replays it into the xterm before live data follows.
      */
-    onTerminalScrollback: (listener) => subscribe(scrollbackListeners, listener),
+    onTerminalScrollback: (listener: (id: string, scrollback: string) => void) =>
+      subscribe(scrollbackListeners, listener),
     /** Fires after the session comes BACK (never on the first connect) — queries are stale, refetch. */
-    onDaemonReconnect: (listener) => subscribe(reconnectListeners, listener),
+    onDaemonReconnect: (listener: () => void) => subscribe(reconnectListeners, listener),
 
     /** Register the open-file set to watch; replayed automatically on reconnect. */
-    watchFiles: (paths) => {
+    watchFiles: (paths: string[]): void => {
       lastWatchedFiles = paths
       ensureSession()
       push({ t: 'watch:files', paths })
     },
     /** Register the expanded-dir set to watch; replayed automatically on reconnect. */
-    watchDirs: (paths) => {
+    watchDirs: (paths: string[]): void => {
       lastWatchedDirs = paths
       ensureSession()
       push({ t: 'watch:dirs', paths })
@@ -353,7 +345,7 @@ export function createDaemonSession(initial: DaemonEndpoint): DaemonSession {
      * (Settings → Environments) can say what each paired device is DOING. Pass `undefined`
      * when no repo is open — the row must clear, not keep the last one. Replayed on reconnect.
      */
-    announceSession: (repo) => {
+    announceSession: (repo: string | undefined): void => {
       lastAnnouncedRepo = { repo }
       ensureSession()
       push({ t: 'session:hello', repo })
@@ -365,14 +357,20 @@ export function createDaemonSession(initial: DaemonEndpoint): DaemonSession {
      * close fails all in-flight creates) — callers surface the error instead of
      * hanging on a promise that can never settle.
      */
-    createTerminal: (opts) => {
+    createTerminal: (opts: {
+      name: string
+      cwd: string
+      initialInput?: string
+      cols?: number
+      rows?: number
+    }): Promise<string> => {
       ensureSession()
       return new Promise<string>((resolve, reject) => {
         const reqId = randomId()
         pendingCreates.set(reqId, {
           // The creator is auto-attached daemon-side — track the id so a later reconnect
           // re-attaches it like any other streaming terminal.
-          resolve: (id) => {
+          resolve: (id: string): void => {
             attachedIds.add(id)
             resolve(id)
           },
@@ -389,7 +387,7 @@ export function createDaemonSession(initial: DaemonEndpoint): DaemonSession {
      * (e.g. an already-exited session). Rejects if the socket drops before the daemon
      * answers, like create. Re-attaches automatically on every reconnect thereafter.
      */
-    attachTerminal: (id) => {
+    attachTerminal: (id: string): Promise<AttachResult> => {
       ensureSession()
       attachedIds.add(id)
       return new Promise<AttachResult>((resolve, reject) => {
@@ -399,7 +397,7 @@ export function createDaemonSession(initial: DaemonEndpoint): DaemonSession {
           // A socket drop before the reply rejects this — drop the id so `isTerminalAttached`
           // reports false and the next roster hydrate re-attaches (the reconnect re-attach
           // loop only fires once everConnected, so an initial-connect failure needs this).
-          reject: (error) => {
+          reject: (error: Error): void => {
             attachedIds.delete(id)
             reject(error)
           },
@@ -408,15 +406,16 @@ export function createDaemonSession(initial: DaemonEndpoint): DaemonSession {
       })
     },
     /** Stop streaming a PTY to this client without killing it (fire-and-forget). */
-    detachTerminal: (id) => {
+    detachTerminal: (id: string): void => {
       attachedIds.delete(id)
       push({ t: 'terminal:detach', id })
     },
     /** Whether this client is currently streaming `id` — so a caller doesn't re-attach it. */
-    isTerminalAttached: (id) => attachedIds.has(id),
-    writeTerminal: (id, data) => push({ t: 'terminal:write', id, data }),
-    resizeTerminal: (id, cols, rows) => push({ t: 'terminal:resize', id, cols, rows }),
-    killTerminal: (id) => {
+    isTerminalAttached: (id: string) => attachedIds.has(id),
+    writeTerminal: (id: string, data: string) => push({ t: 'terminal:write', id, data }),
+    resizeTerminal: (id: string, cols: number, rows: number) =>
+      push({ t: 'terminal:resize', id, cols, rows }),
+    killTerminal: (id: string): void => {
       attachedIds.delete(id)
       push({ t: 'terminal:kill', id })
     },
@@ -454,20 +453,21 @@ export function setBrowserDaemonToken(newToken: string): void {
 // The singleton API every surface uses, bound to `primary`. Keep these delegating
 // one-liners — a call site that wants a specific machine names its session explicitly
 // instead of reaching through here.
-export const daemonBaseUrl = primary.baseUrl
-export const daemonToken = primary.token
-export const onDaemonEvent = primary.onDaemonEvent
-export const onTerminalData = primary.onTerminalData
-export const onTerminalExit = primary.onTerminalExit
-export const onTerminalScrollback = primary.onTerminalScrollback
-export const onDaemonReconnect = primary.onDaemonReconnect
-export const watchFiles = primary.watchFiles
-export const watchDirs = primary.watchDirs
-export const announceSession = primary.announceSession
-export const createTerminal = primary.createTerminal
-export const attachTerminal = primary.attachTerminal
-export const detachTerminal = primary.detachTerminal
-export const isTerminalAttached = primary.isTerminalAttached
-export const writeTerminal = primary.writeTerminal
-export const resizeTerminal = primary.resizeTerminal
-export const killTerminal = primary.killTerminal
+export const daemonBaseUrl: DaemonSession['baseUrl'] = primary.baseUrl
+export const daemonToken: DaemonSession['token'] = primary.token
+export const onDaemonEvent: DaemonSession['onDaemonEvent'] = primary.onDaemonEvent
+export const onTerminalData: DaemonSession['onTerminalData'] = primary.onTerminalData
+export const onTerminalExit: DaemonSession['onTerminalExit'] = primary.onTerminalExit
+export const onTerminalScrollback: DaemonSession['onTerminalScrollback'] =
+  primary.onTerminalScrollback
+export const onDaemonReconnect: DaemonSession['onDaemonReconnect'] = primary.onDaemonReconnect
+export const watchFiles: DaemonSession['watchFiles'] = primary.watchFiles
+export const watchDirs: DaemonSession['watchDirs'] = primary.watchDirs
+export const announceSession: DaemonSession['announceSession'] = primary.announceSession
+export const createTerminal: DaemonSession['createTerminal'] = primary.createTerminal
+export const attachTerminal: DaemonSession['attachTerminal'] = primary.attachTerminal
+export const detachTerminal: DaemonSession['detachTerminal'] = primary.detachTerminal
+export const isTerminalAttached: DaemonSession['isTerminalAttached'] = primary.isTerminalAttached
+export const writeTerminal: DaemonSession['writeTerminal'] = primary.writeTerminal
+export const resizeTerminal: DaemonSession['resizeTerminal'] = primary.resizeTerminal
+export const killTerminal: DaemonSession['killTerminal'] = primary.killTerminal

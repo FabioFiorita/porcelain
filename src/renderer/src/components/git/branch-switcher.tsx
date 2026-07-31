@@ -99,7 +99,7 @@ export function BranchSwitcher(): React.JSX.Element | null {
   return (
     <Popover
       open={open}
-      onOpenChange={(next) => {
+      onOpenChange={(next: boolean): void => {
         setOpen(next)
         if (!next) setQuery('')
       }}
@@ -178,7 +178,7 @@ export function BranchSwitcher(): React.JSX.Element | null {
       </PopoverContent>
       <Dialog
         open={createOpen}
-        onOpenChange={(next) => {
+        onOpenChange={(next: boolean): void => {
           setCreateOpen(next)
           if (!next) setNewName('')
         }}
@@ -190,8 +190,8 @@ export function BranchSwitcher(): React.JSX.Element | null {
           <Input
             autoFocus
             value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            onKeyDown={(e) => {
+            onChange={(e: React.ChangeEvent<HTMLInputElement>): void => setNewName(e.target.value)}
+            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>): void => {
               if (e.key === 'Enter') {
                 e.preventDefault()
                 create()

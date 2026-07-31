@@ -91,18 +91,18 @@ describe('runCli — flag parsing, help, repo resolution', () => {
     )
   })
   it('reads --files from stdin when passed "-"', async () => {
-    const readStdin = () => JSON.stringify([{ path: 'a.ts' }])
+    const readStdin = (): string => JSON.stringify([{ path: 'a.ts' }])
     await runCli(['review', 'set', ...repo, '--files', '-'], { readStdin })
     expect(read()['/repo']?.files).toEqual([{ path: 'a.ts' }])
   })
   it('reads --layers from stdin when passed "-"', async () => {
-    const readStdin = () => JSON.stringify([{ label: 'Pages', pattern: '(^|/)pages/' }])
+    const readStdin = (): string => JSON.stringify([{ label: 'Pages', pattern: '(^|/)pages/' }])
     await runCli(['layers', 'set', ...repo, '--layers', '-'], { readStdin })
     expect(await runCli(['layers', 'get', ...repo])).toContain('Pages')
   })
   it('reads --html from stdin when passed "-"', async () => {
     process.env.PORCELAIN_LOOP_EVIDENCE_DIR = join(dir, 'loop-evidence')
-    const readStdin = () => doc
+    const readStdin = (): string => doc
     await runCli(['evidence', 'set', ...repo, '--title', 'Piped', '--html', '-'], { readStdin })
     expect(await runCli(['evidence', 'get', ...repo])).toContain('Evidence "Piped" for /repo')
   })
@@ -156,7 +156,7 @@ describe('runCli — review + feature + comments + reviewed', () => {
     })
   })
   it('review set reads --sections from stdin when passed "-"', async () => {
-    const readStdin = () => JSON.stringify([{ title: 'Entry', prose: 'piped' }])
+    const readStdin = (): string => JSON.stringify([{ title: 'Entry', prose: 'piped' }])
     await runCli(
       ['review', 'set', ...repo, '--files', JSON.stringify([{ path: 'a.ts' }]), '--sections', '-'],
       { readStdin },

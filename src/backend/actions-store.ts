@@ -50,7 +50,7 @@ const channel = createHomeChannel({
 })
 
 // Must match src/cli/action-file.ts. PORCELAIN_ACTIONS redirects both sides for tests.
-export const actionsPath = channel.path
+export const actionsPath: () => string = channel.path
 
 /** The actions for a repo, sorted by creation order (oldest first). */
 export async function readActions(repoPath: string): Promise<Action[]> {

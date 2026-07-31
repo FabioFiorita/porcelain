@@ -74,10 +74,10 @@ export const useRepoStore = create<RepoState>((set, get) => ({
     // The dialog confirms through openRepoPath (records the recent + warms files).
     useRepoPickerStore.getState().show()
   },
-  openRepoPath: async (path) => {
+  openRepoPath: async (path: string) => {
     set({ repo: await trpcClient.openRepoPath.mutate(path) })
   },
-  switchTo: async (path) => {
+  switchTo: async (path: string) => {
     if (path === get().repo?.path) return
     // cross-store getState() from a store action is the sanctioned pattern. `reset` only
     // clears this window's terminal views — the PTYs survive the switch (explicit kill

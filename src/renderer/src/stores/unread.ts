@@ -29,14 +29,14 @@ export const useUnreadStore = create<UnreadState>((set) => ({
     terminal: false,
     changes: false,
   },
-  mark: (tab) => {
+  mark: (tab: UnreadTab) => {
     // An event for the CURRENTLY active tab needs no dot — the view live-refreshes
     // in front of the user (plan 035, decision 3). Read the active tab straight
     // from the preferences store (sanctioned cross-store getState()).
     if (usePreferencesStore.getState().sidebarTab === tab) return
     set((s) => ({ unread: { ...s.unread, [tab]: true } }))
   },
-  clear: (tab) => set((s) => ({ unread: { ...s.unread, [tab]: false } })),
+  clear: (tab: UnreadTab) => set((s) => ({ unread: { ...s.unread, [tab]: false } })),
 }))
 
 // The ONE clearing site: visiting a tab clears its dot. Both the rail click

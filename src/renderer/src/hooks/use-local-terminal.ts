@@ -59,7 +59,7 @@ export function useSetLocalTerminalPath(): {
     onError: onMutationError('Save local terminal path'),
   })
   return {
-    save: async (input) => {
+    save: async (input: { repoPath: string; localPath: string }): Promise<void> => {
       await mutation.mutateAsync(input)
     },
     isPending: mutation.isPending,
@@ -75,16 +75,12 @@ export interface LocalTerminalRow {
 }
 
 /**
- * The local daemon's terminal roster, scoped to the mapped directory — the local twin of
- * the `terminalSessions` query in `use-terminal-channel`, on the same 5s poll so a session
- * killed elsewhere reconciles here too.
- *
- * It goes through the vanilla client (`localDaemonClient`) inside a plain react-query
- * `useQuery` rather than `trpc.terminalSessions.useQuery`: the tRPC React hooks are bound
- * to ONE client via their provider, and a third `createTRPCReact` instance + provider (with
- * its own context — see the shared-context trap in lib/trpc) would be a lot of machinery
- * for one query on a second machine. Sanctioned the same way the vanilla client is in
- * `stores/repo.ts` and `use-app-events.ts`.
+ * The local daemon's terminal roster, scoped to the mapped directory — the local twin
+ * of `terminalSessions` in `use-terminal-channel` (same 5s poll, so a session killed
+ * elsewhere reconciles here too). Goes through the vanilla client (`localDaemonClient`)
+ * via plain react-query, not `trpc.terminalSessions.useQuery`: tRPC hooks bind to ONE
+ * client/provider, and a second `createTRPCReact` instance (own context — the
+ * shared-context trap in lib/trpc) is too much for one query on a second machine.
  */
 export function useLocalTerminalSessions(localPath: string | null): LocalTerminalRow[] {
   const { data } = useQuery({

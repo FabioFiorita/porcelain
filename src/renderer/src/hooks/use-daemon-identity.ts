@@ -9,14 +9,11 @@ export interface DaemonIdentityView {
 
 /**
  * Who the daemon on the other end of this window's connection is (`daemonInfo`).
+ * Shares the query key with `useDaemonSkew` — keep the options identical, or
+ * TanStack's dedup splits into two boot requests.
  *
- * Shares the query key with `useDaemonSkew` — same procedure, same options, so
- * TanStack serves both from one request. Keep the options identical if you touch
- * either: diverging them would double the boot request for no gain.
- *
- * Every field is nullable on purpose: a daemon older than the identity widening
- * returns `{ version }` alone, and the fallback for a missing host is the caller's
- * (the switcher shows "This device", the settings row shows the url).
+ * Every field is nullable: an older daemon returns `{ version }` alone, so the
+ * caller supplies the missing-host fallback ("This device", or the url).
  */
 export function useDaemonIdentity(): DaemonIdentityView {
   const { data } = trpc.daemonInfo.useQuery(undefined, {

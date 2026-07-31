@@ -4,7 +4,7 @@ import { type Href, router, Stack } from 'expo-router'
 
 import { colors } from '@/theme/colors'
 
-const ROWS = [
+const ROWS: readonly { href: Href; subtitle: string; title: string }[] = [
   {
     href: '/settings/environments',
     subtitle: 'Daemons paired with this device',
@@ -14,7 +14,7 @@ const ROWS = [
   { href: '/settings/about', subtitle: 'Version and links', title: 'About' },
 ] as const satisfies readonly { href: Href; subtitle: string; title: string }[]
 
-export function SettingsScreen() {
+export function SettingsScreen(): React.JSX.Element {
   return (
     <>
       <Host seedColor={colors.tint} style={{ flex: 1 }} useViewportSizeMeasurement>
@@ -24,7 +24,7 @@ export function SettingsScreen() {
             <Button
               key={title}
               modifiers={[buttonStyle('plain')]}
-              onPress={() => router.push(href)}
+              onPress={(): void => router.push(href)}
             >
               <VStack alignment="leading" spacing={2}>
                 <Text>{title}</Text>
@@ -43,7 +43,7 @@ export function SettingsScreen() {
       </Host>
       {/* The form sheet has no navigation bar, so this is its dismiss affordance. */}
       <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button onPress={() => router.back()} variant="done">
+        <Stack.Toolbar.Button onPress={(): void => router.back()} variant="done">
           Done
         </Stack.Toolbar.Button>
       </Stack.Toolbar>

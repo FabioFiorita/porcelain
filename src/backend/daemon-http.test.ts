@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { createHash } from 'node:crypto'
 import { mkdtemp } from 'node:fs/promises'
+import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -42,11 +43,11 @@ beforeAll(async () => {
   const tokenHash = createHash('sha256').update(TOKEN).digest()
   daemon = createDaemonHttp({
     adminTokenHash: tokenHash,
-    authenticateClient: async (provided) =>
+    authenticateClient: async (provided: string) =>
       provided === CLIENT_TOKEN
         ? { kind: 'client', clientId: 'client-1', label: 'Test phone' }
         : null,
-    exchangePairing: async (provided) =>
+    exchangePairing: async (provided: string) =>
       provided === PAIRING_TOKEN
         ? {
             token: CLIENT_TOKEN,
@@ -60,7 +61,7 @@ beforeAll(async () => {
     allowedOrigin: ORIGIN,
     router,
     onSession: createSession,
-    serveStatic: async (req, res) => {
+    serveStatic: async (req: IncomingMessage, res: ServerResponse) => {
       res.writeHead(req.url === '/pair' ? 200 : 404)
       res.end()
     },

@@ -94,7 +94,7 @@ export function CommentComposer({
         )}
         <Textarea
           value={body}
-          onChange={(e) => setBody(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>): void => setBody(e.target.value)}
           onKeyDown={onKeyDown}
           placeholder={`What should the agent know about this? — ${kbdLabel('mod', '↵')} to save`}
           aria-label="Comment"

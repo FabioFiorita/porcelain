@@ -45,7 +45,7 @@ export function useDiffFile(
 export function useDiffFilePrefetch(): (filePath: string, base?: string) => Promise<void> {
   const repo = useRepoStore((s) => s.repo)
   const utils = trpc.useUtils()
-  return async (filePath, base) => {
+  return async (filePath: string, base?: string): Promise<void> => {
     if (!repo) return
     if (base !== undefined) {
       await utils.gitRangeDiffFile.prefetch(

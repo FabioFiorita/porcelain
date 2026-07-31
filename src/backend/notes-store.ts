@@ -21,7 +21,7 @@ const channel = createHomeChannel({
 })
 
 // Must match src/cli/notes-file.ts. PORCELAIN_NOTES redirects both sides for tests.
-export const notesPath = channel.path
+export const notesPath: () => string = channel.path
 
 /** The human's notes for a repo ('' when none / file absent). */
 export async function readNotes(repoPath: string): Promise<string> {

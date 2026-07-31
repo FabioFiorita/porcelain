@@ -20,22 +20,12 @@ import { useState } from 'react'
 export type LocalPathDialogMode = 'spawn' | 'edit' | 'run'
 
 /**
- * Where a "This device" terminal should open for this repo.
- *
- * The window is working on another machine, so the repo's path there
- * (`/home/you/code/app`) usually doesn't exist here (`~/code/app`) — the human maps it
- * once and we remember it per repo + environment (main/local-terminal-paths.ts). It's
- * prefilled with the remote path because the two often DO match, and matching is the case
- * worth making one keystroke.
- *
- * Deliberately a plain path field rather than the daemon-backed directory browser the repo
- * picker uses: that browser is wired to this window's daemon, so it would browse the wrong
- * machine — the exact confusion this feature exists to remove.
- *
- * `mode: 'spawn'` is the first-time flow for a new shell (primary button opens a
- * terminal). `mode: 'edit'` is the header folder-icon path when the human mistyped or
- * the local clone moved. `mode: 'run'` is a local-targeted action that needs the map
- * before it can spawn (primary button runs the action after save).
+ * Where a "This device" terminal opens for this repo. The window runs on another
+ * machine, so its repo path usually doesn't exist here; the human maps it once,
+ * prefilled with the remote path since they often match. A plain field, not the
+ * daemon-backed picker: that browser is wired to THIS window's daemon and would
+ * browse the wrong machine. `mode: 'spawn'` opens a shell; `'edit'` fixes a stale
+ * mapping; `'run'` maps before running a pending local-targeted action.
  */
 export function LocalPathDialog({
   repoPath,
@@ -64,7 +54,7 @@ export function LocalPathDialog({
   return (
     <Dialog
       open
-      onOpenChange={(open) => {
+      onOpenChange={(open: boolean): void => {
         if (!open) onClose()
       }}
     >
@@ -80,9 +70,9 @@ export function LocalPathDialog({
         <Input
           autoFocus
           value={path}
-          onChange={(e) => setPath(e.target.value)}
-          onFocus={(e) => e.target.select()}
-          onKeyDown={async (e) => {
+          onChange={(e: React.ChangeEvent<HTMLInputElement>): void => setPath(e.target.value)}
+          onFocus={(e: React.FocusEvent<HTMLInputElement>): void => e.target.select()}
+          onKeyDown={async (e: React.KeyboardEvent<HTMLInputElement>): Promise<void> => {
             if (e.key !== 'Enter') return
             e.preventDefault()
             await submit()

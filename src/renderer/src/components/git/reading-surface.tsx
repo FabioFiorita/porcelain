@@ -58,7 +58,7 @@ import {
   SquareCheck,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import Markdown from 'react-markdown'
+import Markdown, { type ExtraProps } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { ThemedToken } from 'shiki'
 import { type CommentAnchor, CommentComposer } from './comment-composer'
@@ -350,7 +350,9 @@ function CommentMenu({
       : null
   const spanned = selection ? selection.endLine - selection.startLine + 1 : 0
   return (
-    <ContextMenu onOpenChange={(open) => setSelection(open ? lineSelectionForFile(path) : null)}>
+    <ContextMenu
+      onOpenChange={(open: boolean): void => setSelection(open ? lineSelectionForFile(path) : null)}
+    >
       <ContextMenuTrigger className="block select-text">{children}</ContextMenuTrigger>
       <ContextMenuContent className="w-48">
         {lineAnchor && (
@@ -462,7 +464,7 @@ function FileHeaderRow({
                 <Button
                   variant="ghost"
                   size="icon-xs"
-                  onClick={async (e) => {
+                  onClick={async (e: React.MouseEvent<HTMLButtonElement>): Promise<void> => {
                     e.stopPropagation()
                     await toggleReviewed()
                   }}
@@ -490,7 +492,7 @@ function FileHeaderRow({
                 <Button
                   variant="ghost"
                   size="icon-xs"
-                  onClick={(e) => {
+                  onClick={(e: React.MouseEvent<HTMLButtonElement>): void => {
                     e.stopPropagation()
                     openFile()
                   }}
@@ -523,7 +525,12 @@ function MarkdownBlock({ md }: { md: string }): React.JSX.Element {
           remarkPlugins={[remarkGfm]}
           components={{
             // window.open routes through main's setWindowOpenHandler → shell.openExternal
-            a: ({ node: _node, ...props }) => <a {...props} target="_blank" rel="noreferrer" />,
+            a: ({
+              node: _node,
+              ...props
+            }: React.JSX.IntrinsicElements['a'] & ExtraProps): React.JSX.Element => (
+              <a {...props} target="_blank" rel="noreferrer" />
+            ),
           }}
         >
           {md}
@@ -799,17 +806,12 @@ function ReadingRowView({
 }
 
 /**
- * The scrollable body: flattens a FeatureReading into one virtualized row list. Rows
- * are normally 20px, but the note/prose/iframe rows wrap or fix their own height, so
- * this surface opts into VirtualRows' dynamic measurement (it's small + sliced — the
- * perf invariant that keeps full files fixed-height still holds for the file/diff
- * viewers). One shared CommentComposer renders the dialog any row's context menu opens.
- * `fileActions` adds mark-reviewed / open-file chrome on file-name rows (Changes /
- * History continuous review); Feature/Explore leave it off. `trackFocus` (the Review
- * document only) publishes the topmost visible chapter/file to the review-focus store
- * and consumes its jump requests. `includeEvidence` defaults true — Feature Intent
- * passes false (evidence is its own tab). `includeAnchors` defaults true — Intent
- * passes false so narrative stays prose/diagrams (Execution owns the files).
+ * The scrollable body: flattens a FeatureReading into one virtualized row list.
+ * Note/prose/iframe rows opt into VirtualRows' dynamic measurement instead of the
+ * fixed `ROW_HEIGHT` (fine here — this list is short and sliced, unlike the full
+ * file/diff viewers). `fileActions` adds mark-reviewed/open-file chrome
+ * (Changes/History only); `trackFocus` (Review doc only) drives the
+ * review-focus store; Feature Intent passes `includeEvidence`/`includeAnchors` false.
  */
 export function ReadingSurfaceBody({
   reading,
@@ -882,7 +884,7 @@ export function ReadingSurfaceBody({
         scrollNonce={scrollTo?.nonce}
         scrollAlign="start"
         onTopRow={onTopRow}
-        renderRow={(row) => (
+        renderRow={(row: ReadingRow): React.JSX.Element => (
           <ReadingRowView
             row={row}
             onComment={setAnchor}
@@ -895,7 +897,7 @@ export function ReadingSurfaceBody({
       <CommentComposer
         anchor={anchor}
         open={anchor !== null}
-        onOpenChange={(open) => {
+        onOpenChange={(open: boolean): void => {
           if (!open) setAnchor(null)
         }}
       />

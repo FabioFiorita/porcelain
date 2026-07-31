@@ -35,7 +35,7 @@ export function TerminalRenameDialog({
   return (
     <Dialog
       open
-      onOpenChange={(open) => {
+      onOpenChange={(open: boolean): void => {
         if (!open) onClose()
       }}
     >
@@ -46,9 +46,9 @@ export function TerminalRenameDialog({
         <Input
           autoFocus
           value={name}
-          onChange={(e) => setName(e.target.value)}
-          onFocus={(e) => e.target.select()}
-          onKeyDown={(e) => {
+          onChange={(e: React.ChangeEvent<HTMLInputElement>): void => setName(e.target.value)}
+          onFocus={(e: React.FocusEvent<HTMLInputElement>): void => e.target.select()}
+          onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>): void => {
             if (e.key === 'Enter') {
               e.preventDefault()
               submit()

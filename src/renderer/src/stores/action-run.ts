@@ -15,6 +15,6 @@ interface ActionRunState {
 
 export const useActionRunStore = create<ActionRunState>((set) => ({
   pendingLocal: null,
-  requestLocalRun: (action) => set({ pendingLocal: action }),
+  requestLocalRun: (action: Action) => set({ pendingLocal: action }),
   clearPendingLocal: () => set({ pendingLocal: null }),
 }))

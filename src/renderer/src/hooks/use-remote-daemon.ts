@@ -15,19 +15,12 @@ export interface EnvironmentEndpoint {
 }
 
 /**
- * Saved remote environments: list other machines' Porcelain daemons and bind
- * THIS window (or open a new window) to one of them. Environments are
- * per-window — a local project can stay open while another window uses the
- * Beelink. Wraps the SHELL-router procedures (Electron-only — the whole feature
- * is hidden in the browser client).
- *
- * Switch semantics = main-process hard-reload of THIS window onto the new
- * daemon, landing on the welcome/landing page for that environment (see
- * `switchWindowEnvironment` in `src/main/window.ts`). The renderer must NOT also
- * `location.reload()` — main already does, and a double-reload races. Connecting,
- * disconnecting, adding (with connect), and removing the environment THIS window
- * is on all take that path. Removing a NON-active-for-this-window environment
- * just invalidates the list.
+ * Saved remote environments: list other Porcelain daemons and bind THIS window (or
+ * a new one) to one. Per-window, so one project can stay open while another window
+ * uses a different machine. Wraps the SHELL router (Electron-only).
+ * Switch = main-process hard-reload of THIS window (see `switchWindowEnvironment` in
+ * `src/main/window.ts`); the renderer must NOT also `location.reload()` — that
+ * double-reload races. Removing a non-active environment just invalidates the list.
  */
 export function useRemoteEnvironments():
   | {
@@ -47,14 +40,19 @@ export function useAddRemoteEnvironment(): {
 } {
   const utils = shellTrpc.useUtils()
   const mutation = shellTrpc.addRemoteEnvironment.useMutation({
-    onSuccess: async (result) => {
+    onSuccess: async (result: {
+      id: string
+      reloaded: boolean
+      merged: boolean
+    }): Promise<void> => {
       // Main reloads THIS window when connectThisWindow (default); only invalidate
       // when we stayed put so the list refreshes without a full boot.
       if (!result.reloaded) await utils.remoteEnvironments.invalidate()
     },
   })
   return {
-    add: (input) => mutation.mutate(input),
+    add: (input: { connectionLink: string; connectThisWindow?: boolean }): void =>
+      mutation.mutate(input),
     isPending: mutation.isPending,
     error: mutation.error?.message ?? null,
     // The procedure also returns `merged` (this address joined a machine we already had,
@@ -79,7 +77,7 @@ export function useConnectRemoteEnvironment(): {
     onError: onMutationError('Connect remote daemon'),
   })
   return {
-    connect: (id) => mutation.mutate({ id }),
+    connect: (id: string): void => mutation.mutate({ id }),
     // `variables` holds the in-flight input while pending, so the connecting row
     // can show its own spinner text instead of every row spinning at once.
     pendingId: mutation.isPending ? (mutation.variables?.id ?? null) : null,
@@ -102,7 +100,8 @@ export function useOpenWindowInEnvironment(): {
     onError: onMutationError('Open window in environment'),
   })
   return {
-    open: (input) => mutation.mutate(input),
+    open: (input: { environmentId: string | null; repoPath?: string }): void =>
+      mutation.mutate(input),
   }
 }
 
@@ -120,7 +119,7 @@ export function useRemoveRemoteEnvironment(): {
     onError: onMutationError('Remove remote daemon'),
   })
   return {
-    remove: (id) => removeMutation.mutate({ id }),
+    remove: (id: string): void => removeMutation.mutate({ id }),
     pendingId: removeMutation.isPending ? (removeMutation.variables?.id ?? null) : null,
   }
 }

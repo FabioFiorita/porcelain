@@ -1,6 +1,6 @@
 import { Stack } from 'expo-router/stack'
 
-export default function ReviewLayout() {
+export default function ReviewLayout(): React.JSX.Element {
   return (
     <Stack screenOptions={{ headerBackButtonDisplayMode: 'minimal' }}>
       <Stack.Screen name="index" options={{ headerLargeTitle: true, title: 'Review' }} />

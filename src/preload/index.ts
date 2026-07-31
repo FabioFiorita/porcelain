@@ -2,6 +2,7 @@ import { electronAPI } from '@electron-toolkit/preload'
 import { contextBridge, ipcRenderer } from 'electron'
 import type { ShellEvent } from '../main/shell-events'
 import { resolvePlatform } from '../shared/platform'
+import type { PorcelainBridge } from './bridge'
 
 // The daemon's base url + session token, fetched synchronously at window boot
 // (the shell spawns the daemon before the first window, so both are known). A
@@ -23,13 +24,7 @@ function toDaemonInfo(value: unknown): DaemonInfo {
 
 const initialDaemon = toDaemonInfo(ipcRenderer.sendSync('daemon-url'))
 
-// The Electron bridge after the daemon split: `trpcShell` is the surviving
-// request/response shuttle for the SHELL router only (the appRouter is real HTTP
-// to the daemon now — see renderer lib/trpc.ts), `onShellEvent` is the tiny
-// shell-side push channel (close-tab, update-status), and `daemon` hands the
-// renderer the daemon's url. The terminal and app-event channels moved to the
-// daemon's WS session (renderer lib/daemon.ts).
-const porcelain = {
+const porcelain: PorcelainBridge = {
   trpcShell: (request: {
     url: string
     method: string

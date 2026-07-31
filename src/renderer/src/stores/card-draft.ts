@@ -29,6 +29,6 @@ interface CardDraftState {
 
 export const useCardDraftStore = create<CardDraftState>((set) => ({
   draft: null,
-  open: (draft) => set({ draft }),
+  open: (draft: CardDraft) => set({ draft }),
   close: () => set({ draft: null }),
 }))

@@ -14,17 +14,12 @@
  */
 
 /**
- * "Insert a newline, don't submit" as `ESC CR` (`\x1b\r`) — the exact bytes macOS sends
- * for Meta/Option+Enter, which Claude Code (and readline-style TUIs) accept as a newline
- * in their default LEGACY keyboard mode, no setup required. We send it for both ⇧↵ and ⌘↵.
- *
- * What does NOT work, and why:
- * - A bare LF (`\n`) or CR (`\r`) both SUBMIT. `\n` only *looked* like a newline on an
- *   empty prompt because an empty submit is a no-op — with text present it sends.
- * - The CSI-u / Kitty sequence `ESC [ 13 ; 2 u` (what Ghostty/iTerm2 emit for ⇧↵) is
- *   ignored here: Claude Code parses CSI-u only after negotiating the Kitty keyboard
- *   protocol, and xterm.js never advertises it, so Claude Code stays in legacy mode.
- *   We intercept the key and write bytes ourselves, so legacy `ESC CR` is the right tool.
+ * "Insert a newline, don't submit" as `ESC CR` (`\x1b\r`) — what macOS sends for Meta/
+ * Option+Enter, accepted by Claude Code / readline-style TUIs in default LEGACY keyboard
+ * mode. Sent for both ⇧↵ and ⌘↵. A bare LF/CR both SUBMIT (an empty prompt disguises this —
+ * an empty submit is a no-op). The CSI-u/Kitty form (`ESC [ 13 ; 2 u`, Ghostty/iTerm2's
+ * emit) isn't an alternative: it needs Kitty-protocol negotiation, which xterm.js never
+ * advertises — legacy `ESC CR` is the only route in.
  */
 const NEWLINE = '\x1b\r'
 
@@ -65,15 +60,12 @@ export function terminalEditBytes({
 }
 
 /**
- * The byte a Ctrl chord sends, for the key bar's sticky Ctrl (tap Ctrl, then a letter).
- * A soft keyboard has no Ctrl at all, so on a phone this is the ONLY way to reach ^C/^D/
- * ^Z/^R/^A/^E — the chords a shell is unusable without.
- *
- * The mapping is the tty's own: Ctrl clears the top bits of the ASCII code, so `@A-Z[\]^_`
- * (0x40–0x5F) become 0x00–0x1F. Two conventional extras the range misses: `?` sends DEL
- * (0x7F) and Space sends NUL (0x00). Case-insensitive — a soft keyboard's autocapitalized
- * `C` must still be ^C. Returns null for anything else (arrows, Enter, a named key), so the
- * caller lets xterm handle the key normally instead of swallowing it.
+ * The byte a Ctrl chord sends, for the key bar's sticky Ctrl (tap Ctrl, then a letter) —
+ * a soft keyboard's only route to ^C/^D/^Z/^R/^A/^E. Mirrors the tty's own mapping: Ctrl
+ * clears the top bits of the ASCII code, so `@A-Z[\]^_` (0x40–0x5F) become 0x00–0x1F, plus
+ * two conventional extras the range misses (`?` → DEL 0x7F, Space → NUL 0x00).
+ * Case-insensitive (an autocapitalized `C` must still be ^C). Null for anything else, so
+ * the caller lets xterm handle the key.
  */
 export function controlByte(key: string): string | null {
   if (key.length !== 1) return null

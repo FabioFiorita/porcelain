@@ -26,7 +26,7 @@ export function useCommit(onCommitted?: () => void): {
     },
   })
   return {
-    commit: (message) => {
+    commit: (message: string): void => {
       if (!repo) return
       mutation.mutate({ repoPath: repo.path, message })
     },
@@ -70,12 +70,12 @@ export function useFileStaging(): {
   const stage = trpc.gitStageFile.useMutation({ onError: onMutationError('Stage file') })
   const unstage = trpc.gitUnstageFile.useMutation({ onError: onMutationError('Unstage file') })
   return {
-    stageFile: async (path) => {
+    stageFile: async (path: string): Promise<void> => {
       if (!repo) return
       await stage.mutateAsync({ repoPath: repo.path, path })
       await utils.gitFlow.invalidate()
     },
-    unstageFile: async (path) => {
+    unstageFile: async (path: string): Promise<void> => {
       if (!repo) return
       await unstage.mutateAsync({ repoPath: repo.path, path })
       await utils.gitFlow.invalidate()
@@ -102,7 +102,7 @@ export function useDiscardFile(): (path: string) => Promise<void> {
     },
     onError: onMutationError('Discard file'),
   })
-  return async (path) => {
+  return async (path: string): Promise<void> => {
     if (!repo) return
     await mutation.mutateAsync({ repoPath: repo.path, path })
     // The working-tree diff for this file no longer exists (reverted or trashed), so
@@ -122,7 +122,7 @@ export function useQuickCommand(): (commandId: string) => Promise<string> {
   const repo = useRepoStore((s) => s.repo)
   const utils = trpc.useUtils()
   const mutation = trpc.gitQuickCommand.useMutation()
-  return async (commandId) => {
+  return async (commandId: string): Promise<string> => {
     if (!repo) return ''
     try {
       return await mutation.mutateAsync({

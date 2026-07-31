@@ -39,17 +39,17 @@ function makePty(): FakePty {
   let data: (chunk: string) => void = () => {}
   let exit: (event: { exitCode: number }) => void = () => {}
   const pty: FakePty = {
-    onData: (listener) => {
+    onData: (listener: (data: string) => void) => {
       data = listener
     },
-    onExit: (listener) => {
+    onExit: (listener: (event: { exitCode: number }) => void) => {
       exit = listener
     },
     write: vi.fn(),
     resize: vi.fn(),
     kill: vi.fn(),
-    emitData: (chunk) => data(chunk),
-    emitExit: (exitCode) => exit({ exitCode }),
+    emitData: (chunk: string) => data(chunk),
+    emitExit: (exitCode: number) => exit({ exitCode }),
   }
   ptys.push(pty)
   return pty

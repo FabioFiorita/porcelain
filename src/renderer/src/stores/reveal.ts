@@ -21,6 +21,6 @@ interface RevealState {
 
 export const useRevealStore = create<RevealState>((set) => ({
   path: null,
-  reveal: (path) => set({ path }),
+  reveal: (path: string) => set({ path }),
   clear: () => set({ path: null }),
 }))

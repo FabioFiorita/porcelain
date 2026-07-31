@@ -223,7 +223,7 @@ export function TerminalList(): React.JSX.Element {
         <TerminalRenameDialog
           key={renaming.id}
           initialName={renaming.name}
-          onRename={(name) => rename(renaming.id, name)}
+          onRename={(name: string): void => rename(renaming.id, name)}
           onClose={() => setRenaming(null)}
         />
       )}
@@ -236,7 +236,7 @@ export function TerminalList(): React.JSX.Element {
           // Spawn mode opens a terminal from the just-saved value (query invalidation
           // hasn't landed yet). Edit mode only updates the map — the human asked for a
           // setting, not a shell.
-          onSaved={(localPath) => {
+          onSaved={(localPath: string): void => {
             if (mappingMode === 'spawn') spawnLocalTerminal(localPath)
           }}
           onClose={() => setMappingMode(null)}

@@ -36,7 +36,7 @@ import { initIfaceHandlers, startLanListener, startTailnetListener } from './tai
 // The shell resolves userData (it owns the dev `-dev` suffix) and hands the
 // config dir down; refusing to start without it beats writing config.json
 // somewhere surprising.
-const userData = process.env.PORCELAIN_USER_DATA
+const userData: string | undefined = process.env.PORCELAIN_USER_DATA
 if (userData === undefined || userData === '') {
   console.error('[daemon] PORCELAIN_USER_DATA is required')
   process.exit(1)

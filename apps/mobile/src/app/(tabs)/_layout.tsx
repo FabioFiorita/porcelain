@@ -2,7 +2,7 @@ import { NativeTabs } from 'expo-router/unstable-native-tabs'
 
 import { colors } from '@/theme/colors'
 
-export default function TabsLayout() {
+export default function TabsLayout(): React.JSX.Element {
   return (
     // `sidebarAdaptable` is iPad/macOS-only (iOS 18+, no effect on iPhone): it lets the system
     // promote the tab bar to the side tab bar / sidebar instead of pinning a phone-sized bottom

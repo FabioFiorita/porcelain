@@ -1,7 +1,15 @@
+import type { AuthorizedClient, PairingGrant } from '@backend/access-store'
 import { onMutationError } from '@renderer/hooks/mutation-error'
 import { trpc } from '@renderer/lib/trpc'
 
-export function useAccessStatus() {
+export interface AccessStatus {
+  pairings: PairingGrant[]
+  clients: AuthorizedClient[]
+  connected: number
+  adminTokenPath: string
+}
+
+export function useAccessStatus(): AccessStatus | undefined {
   const { data } = trpc.accessStatus.useQuery(undefined, {
     refetchInterval: 15_000,
     staleTime: 0,
@@ -21,7 +29,8 @@ export function useIssuePairingLink(): {
     onError: onMutationError('Create connection link'),
   })
   return {
-    issue: async (input) => mutation.mutateAsync(input),
+    issue: async (input: { label: string; baseUrl: string }): Promise<{ url: string }> =>
+      mutation.mutateAsync(input),
     isPending: mutation.isPending,
   }
 }
@@ -38,7 +47,7 @@ export function useRevokePairingLink(): {
     onError: onMutationError('Revoke connection link'),
   })
   return {
-    revoke: (id) => mutation.mutate(id),
+    revoke: (id: string): void => mutation.mutate(id),
     pendingId: mutation.isPending ? (mutation.variables ?? null) : null,
   }
 }
@@ -55,7 +64,7 @@ export function useRevokeAuthorizedClient(): {
     onError: onMutationError('Revoke device'),
   })
   return {
-    revoke: (id) => mutation.mutate(id),
+    revoke: (id: string): void => mutation.mutate(id),
     pendingId: mutation.isPending ? (mutation.variables ?? null) : null,
   }
 }

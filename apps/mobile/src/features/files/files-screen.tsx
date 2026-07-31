@@ -4,7 +4,7 @@ import { Stack } from 'expo-router'
 import { PlaceholderScreen } from '@/components/placeholder-screen'
 import { SettingsToolbar } from '@/components/settings-toolbar'
 
-export function FilesScreen() {
+export function FilesScreen(): React.JSX.Element {
   return (
     <>
       <PlaceholderScreen

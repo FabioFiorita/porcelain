@@ -49,7 +49,7 @@ const channel = createHomeChannel({
 })
 
 // Must match src/cli/layers-file.ts. PORCELAIN_LAYERS redirects both sides for tests.
-export const layersPath = channel.path
+export const layersPath: () => string = channel.path
 
 /** The repo's custom flow layers, or null when none is set (→ Docs + Agents starters). */
 export async function readLayers(repoPath: string): Promise<Layer[] | null> {

@@ -36,17 +36,17 @@ export const useSearchStore = create<SearchState>((set) => ({
   include: '',
   exclude: '',
   recent: [],
-  setQuery: (query) => set({ query }),
+  setQuery: (query: string) => set({ query }),
   toggleRegex: () => set((s) => ({ regex: !s.regex })),
   toggleCaseSensitive: () => set((s) => ({ caseSensitive: !s.caseSensitive })),
   toggleFilters: () => set((s) => ({ showFilters: !s.showFilters })),
-  setInclude: (include) => set({ include }),
-  setExclude: (exclude) => set({ exclude }),
-  remember: (query) =>
+  setInclude: (include: string) => set({ include }),
+  setExclude: (exclude: string) => set({ exclude }),
+  remember: (query: string) =>
     set((s) => {
       const trimmed = query.trim()
       if (trimmed === '') return s
       return { recent: [trimmed, ...s.recent.filter((q) => q !== trimmed)].slice(0, MAX_RECENT) }
     }),
-  forget: (query) => set((s) => ({ recent: s.recent.filter((q) => q !== query) })),
+  forget: (query: string) => set((s) => ({ recent: s.recent.filter((q) => q !== query) })),
 }))

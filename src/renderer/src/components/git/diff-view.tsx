@@ -152,7 +152,7 @@ export function DiffView({
         </div>
       ) : (
         <ContextMenu
-          onOpenChange={(open) => {
+          onOpenChange={(open: boolean): void => {
             if (open) setLineSel(lineSelectionFromDom())
           }}
         >
@@ -192,7 +192,7 @@ export function DiffView({
       <CommentComposer
         anchor={commentAnchor}
         open={commentAnchor !== null}
-        onOpenChange={(open) => {
+        onOpenChange={(open: boolean): void => {
           if (!open) setCommentAnchor(null)
         }}
       />

@@ -1,9 +1,10 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import type { ChangedFile, DiffStat } from './diff'
 import { featureKey } from './feature-key'
 import { writeFeatureSnapshot } from './feature-snapshot-store'
 import { buildFeatureView, type FeatureReading, type FeatureView } from './feature-view'
-import { DEFAULT_LAYERS } from './flow'
+import { DEFAULT_LAYERS, type Layer } from './flow'
 import { readLayers } from './layers-store'
 import type { ReviewSet } from './review-set'
 import { readReviewSet } from './review-store'
@@ -48,7 +49,13 @@ export async function readSourcesInto(
 // set, and layers → the memo key. Each procedure checks its own cache on this key
 // before doing the expensive source reads. (Git status is only used to tag listed
 // files as `changed`; membership of Execution is the review set alone.)
-export async function gatherFeature(input: string) {
+export async function gatherFeature(input: string): Promise<{
+  files: ChangedFile[]
+  stats: DiffStat[]
+  layers: Layer[]
+  reviewSet: ReviewSet | null
+  key: string
+}> {
   const [{ files, stats }, stored, reviewSet] = await Promise.all([
     workingTreeSnapshot(input),
     readLayers(input),

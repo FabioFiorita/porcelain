@@ -4,7 +4,7 @@ import { router, Stack } from 'expo-router'
 import { PlaceholderScreen } from '@/components/placeholder-screen'
 import { toolbarIcon } from '@/components/toolbar-icon'
 
-export function ChangesScreen() {
+export function ChangesScreen(): React.JSX.Element {
   return (
     <>
       <PlaceholderScreen
@@ -21,12 +21,12 @@ export function ChangesScreen() {
         <Stack.Toolbar.Button
           accessibilityLabel="History"
           icon={toolbarIcon('history')}
-          onPress={() => router.push('/history')}
+          onPress={(): void => router.push('/history')}
         />
         <Stack.Toolbar.Button
           accessibilityLabel="Settings"
           icon={toolbarIcon('settings')}
-          onPress={() => router.push('/settings')}
+          onPress={(): void => router.push('/settings')}
         />
       </Stack.Toolbar>
       <ObserveInteractiveMarker />

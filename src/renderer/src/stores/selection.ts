@@ -14,13 +14,13 @@ interface SelectionState {
 export const useSelectionStore = create<SelectionState>((set) => ({
   selected: new Set<string>(),
   active: null,
-  toggle: (path) =>
+  toggle: (path: string) =>
     set((s) => {
       const selected = new Set(s.selected)
       if (selected.has(path)) selected.delete(path)
       else selected.add(path)
       return { selected }
     }),
-  setActive: (entry) => set({ active: entry }),
+  setActive: (entry: { path: string; kind: 'file' | 'dir' } | null) => set({ active: entry }),
   clear: () => set({ selected: new Set<string>() }),
 }))

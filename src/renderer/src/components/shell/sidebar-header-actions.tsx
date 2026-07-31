@@ -7,7 +7,8 @@ import { createPortal } from 'react-dom'
 // (matching the Files tab) while letting each list keep its own hooks/state.
 const SidebarHeaderActionsContext = createContext<HTMLElement | null>(null)
 
-export const SidebarHeaderActionsProvider = SidebarHeaderActionsContext.Provider
+export const SidebarHeaderActionsProvider: React.Provider<HTMLElement | null> =
+  SidebarHeaderActionsContext.Provider
 
 /** Renders its children into the panel header's actions region (or nowhere yet). */
 export function SidebarHeaderActions({

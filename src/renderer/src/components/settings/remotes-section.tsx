@@ -188,7 +188,9 @@ export function RemotesSection(): React.JSX.Element {
             type="password"
             placeholder="Connection link (https://…/pair#token=…)"
             value={connectionLink}
-            onChange={(e) => setConnectionLink(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>): void =>
+              setConnectionLink(e.target.value)
+            }
             disabled={isAdding}
             className="font-mono"
           />

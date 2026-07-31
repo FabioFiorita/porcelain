@@ -43,16 +43,17 @@ export const useReviewFocusStore = create<ReviewFocusState>((set) => ({
   activeSection: null,
   visiblePath: null,
   jump: null,
-  setCanvasTab: (canvasTab) => set({ canvasTab }),
+  setCanvasTab: (canvasTab: FeatureCanvasTab) => set({ canvasTab }),
   // Returning the state object unchanged skips the notify — the scroll handler
   // calls this per top-row change, and subscribers must not re-render otherwise.
-  setVisible: (activeSection, visiblePath) =>
+  setVisible: (activeSection: ReviewFocusSection, visiblePath: string | null) =>
     set((s) =>
       s.activeSection === activeSection && s.visiblePath === visiblePath
         ? s
         : { activeSection, visiblePath },
     ),
-  requestJump: (target) => set((s) => ({ jump: { target, nonce: (s.jump?.nonce ?? 0) + 1 } })),
+  requestJump: (target: ReviewJumpTarget) =>
+    set((s) => ({ jump: { target, nonce: (s.jump?.nonce ?? 0) + 1 } })),
   clearJump: () => set({ jump: null }),
 }))
 

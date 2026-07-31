@@ -14,25 +14,20 @@ import { create } from 'zustand'
 /**
  * The terminal-session roster: the sidebar's list of open PTYs (id, roster label, and
  * whether it's still running). The PTY itself lives in the daemon (terminal-manager) and
- * its xterm instance in the registry — this store is just the list the sidebar renders
- * and the lifecycle the app drives.
+ * its xterm instance in the registry — this store is just the list the sidebar renders.
  *
- * As of Phase 2 the roster is DAEMON-OWNED and sessions survive a renderer reload: the
- * daemon holds the authoritative name/cwd/status (terminalSessions query), and a hook
- * (`use-terminals`) hydrates this store from it on repo open and daemon reconnect. So a
- * still-running session (a background dev server) reappears after a reload, and a
- * renamed one keeps its name (rename writes through to the daemon). A session is
- * independent of its viewer tab: closing the tab leaves the PTY running; `close` is the
- * explicit kill — it ends the PTY and closes its viewer tab too, so a killed session
- * can't leave a black, dead terminal tab behind. `reset` (repo switch) is LOCAL-ONLY now
- * — it clears this window's view without killing the PTYs, which survive the switch (a
- * different repo just filters them out of the hydrated list).
+ * The roster is DAEMON-OWNED and sessions survive a renderer reload: the daemon holds the
+ * authoritative name/cwd/status, and `use-terminals` hydrates this store from it on repo
+ * open and daemon reconnect. A session is independent of its viewer tab: closing the tab
+ * leaves the PTY running; `close` is the explicit kill — it ends the PTY and closes its
+ * viewer tab too, so a killed session can't leave a black, dead terminal tab behind.
+ * `reset` (repo switch) is LOCAL-ONLY — it clears this window's view without killing the
+ * PTYs, which survive the switch (a different repo just filters them out of the list).
  *
  * A session also carries WHICH machine it runs on (`origin`). Almost always that's
  * `primary` — the daemon this window is bound to — but a window on a remote daemon can
- * also spawn one on `local`, the machine running the app (see lib/local-daemon.ts). The
- * store keeps the distinction so the roster can label it and every lifecycle call
- * (create/kill/rename/detach) reaches the right daemon; `sessionForTerminal` is the router.
+ * also spawn one on `local` (see lib/local-daemon.ts); `sessionForTerminal` routes every
+ * lifecycle call (create/kill/rename/detach) to the right daemon.
  */
 export type TerminalOrigin = 'primary' | 'local'
 
@@ -102,13 +97,23 @@ export const useTerminalsStore = create<TerminalsState>((set, get) => ({
   // exists (create awaited its id), so it comes back for real. Not worth a stateful merge
   // that would instead resurrect a cross-window-killed row forever — except we DO filter
   // closedTombstones so a stale poll can't undo this window's close click.
-  hydrate: (incoming) => {
+  hydrate: (incoming: TerminalSession[]) => {
     const daemonIds = new Set(incoming.map((s) => s.id))
     pruneTombstones(daemonIds)
     const sessions = incoming.filter((s) => !closedTombstones.has(s.id))
     set({ sessions })
   },
-  create: async ({ cwd, name, initialInput, origin = 'primary' }) => {
+  create: async ({
+    cwd,
+    name,
+    initialInput,
+    origin = 'primary',
+  }: {
+    cwd: string
+    name: string
+    initialInput?: string
+    origin?: TerminalOrigin
+  }) => {
     const session = origin === 'local' ? localDaemonSession() : primary
     if (session === null) {
       // Only reachable if a caller asks for a local terminal before the endpoint resolved
@@ -125,7 +130,7 @@ export const useTerminalsStore = create<TerminalsState>((set, get) => ({
     set((state) => ({ sessions: [...state.sessions, { id, name, status: 'running', origin }] }))
     return id
   },
-  rename: (id, name) => {
+  rename: (id: string, name: string) => {
     const trimmed = name.trim()
     if (trimmed === '') return
     // Write through to the daemon that OWNS this session so the rename survives a reload
@@ -141,7 +146,7 @@ export const useTerminalsStore = create<TerminalsState>((set, get) => ({
   // the shell closed) stays in the roster marked "exited" so its final output is still
   // readable; the human dismisses it with `close`. Never re-add a row for an id the
   // human already closed (tombstone / not in the list).
-  markExited: (id, exitCode) => {
+  markExited: (id: string, exitCode: number) => {
     if (closedTombstones.has(id)) return
     set((state) => {
       if (!state.sessions.some((s) => s.id === id)) return state
@@ -152,7 +157,7 @@ export const useTerminalsStore = create<TerminalsState>((set, get) => ({
       }
     })
   },
-  close: (id) => {
+  close: (id: string) => {
     closedTombstones.set(id, Date.now())
     sessionForTerminal(id).killTerminal(id)
     forgetLocalTerminal(id)

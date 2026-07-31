@@ -57,7 +57,7 @@ export function useCheckout(): (branch: string) => Promise<void> {
   const repo = useRepoStore((s) => s.repo)
   const utils = trpc.useUtils()
   const mutation = trpc.gitCheckout.useMutation()
-  return async (branch) => {
+  return async (branch: string): Promise<void> => {
     if (!repo) return
     try {
       await mutation.mutateAsync({ repoPath: repo.path, branch })
@@ -75,7 +75,7 @@ export function useCreateBranch(): (branch: string) => Promise<void> {
   const repo = useRepoStore((s) => s.repo)
   const utils = trpc.useUtils()
   const mutation = trpc.gitCreateBranch.useMutation()
-  return async (branch) => {
+  return async (branch: string): Promise<void> => {
     if (!repo) return
     try {
       await mutation.mutateAsync({ repoPath: repo.path, branch })

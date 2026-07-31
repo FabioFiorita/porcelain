@@ -34,7 +34,7 @@ const channel = createHomeChannel({
 })
 
 // Must match src/cli/reviewed-file.ts. PORCELAIN_REVIEWED redirects both sides for tests.
-export const reviewedPath = channel.path
+export const reviewedPath: () => string = channel.path
 
 // Drop an emptied entry so the file stays tidy (matches notes/layers).
 function setMarks(all: Reviewed, repoPath: string, marks: ReviewedMark[]): void {

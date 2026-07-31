@@ -29,7 +29,7 @@ export function SourceView({
       rows={lines}
       className="px-4 py-2 leading-5"
       scrollToLine={highlightLine}
-      renderRow={(line, i) => {
+      renderRow={(line: string, i: number): React.JSX.Element => {
         const lineNo = i + 1
         const comments = commentsByLine?.get(lineNo)
         // Comment tint wins over changed-line / find-highlight (actionable vs informational).

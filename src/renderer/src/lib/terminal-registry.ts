@@ -24,10 +24,10 @@ function scrollTerminalTouch(term: Terminal, lines: number): void {
       mouseTrackingMode: term.modes.mouseTrackingMode,
       cols: term.cols,
       rows: term.rows,
-      scrollLines: (n) => term.scrollLines(n),
+      scrollLines: (n: number) => term.scrollLines(n),
       // Direct PTY bytes — not synthetic WheelEvent (that can fall through to xterm's
       // arrow-key no-scrollback path and trip Claude's "sending arrow keys" guard).
-      input: (data) => term.input(data, false),
+      input: (data: string) => term.input(data, false),
     },
     lines,
   )
@@ -77,23 +77,12 @@ function currentTerminalMode(): 'light' | 'dark' {
 }
 
 /**
- * The renderer-side home for xterm.js instances. A terminal must outlive its React
- * view: the viewer only mounts the ACTIVE tab, so switching away from (or closing)
- * a terminal tab unmounts its component — but the PTY keeps running (a background
- * dev server) and its scrollback must survive. So each session's `Terminal` lives
- * here in a module-level registry, opened into a detached wrapper element the view
- * merely re-parents on mount; nothing is disposed until the session is truly closed.
- *
- * The dedicated terminal bridge is routed in by `useTerminalChannel` (mounted once in
- * AppShell, like `useAppEvents`): PTY output → `receiveData` writes the matching xterm
- * (buffered until the instance exists, so nothing is lost in the gap between spawn and
- * first mount), and an exit → `receiveExit` writes a dim footer line. Keystrokes and
- * fit-driven resizes flow back out per instance.
- *
- * Paint path is one product decision: **WebGL by default** (crisp block glyphs for
- * Claude Code logos / powerline). DOM is automatic only — multi-touch devices force
- * it (WebGL contexts get killed under memory pressure), and load failure / context
- * loss degrades to DOM silently. No Settings toggle (one architecture).
+ * Module-level home for xterm.js instances: a terminal must outlive its React view (the
+ * viewer only mounts the ACTIVE tab), so each session's `Terminal` lives in a detached
+ * wrapper the view re-parents on mount — nothing disposes until the session closes.
+ * `useTerminalChannel` routes PTY output/exit into `receiveData`/`receiveExit`, buffered
+ * until the instance exists. Paint path: WebGL by default; DOM only on multi-touch or
+ * WebGL failure/context loss — no Settings toggle (one architecture).
  */
 interface Instance {
   term: Terminal
@@ -147,15 +136,11 @@ subscribeResolvedTheme((mode) => {
   for (const instance of instances.values()) instance.term.options.theme = theme
 })
 
-// The terminal faces load via font-display: swap, so term.open() can measure fallback-font
-// cell metrics before Geist Mono swaps in — glyphs then paint at a different advance width
-// inside stale cells (floating/misaligned on the DOM renderer, tofu in the WebGL atlas). Load
-// both faces explicitly, then re-measure against the real metrics: the WebGL renderer re-
-// rasterizes its offscreen atlas (clearTextureAtlas), while the DOM renderer caches char size
-// in its CharSizeService — reassigning fontFamily to its current value is the only public lever
-// that invalidates that cache, so follow it with a refit. Runs again on document.fonts.ready
-// because the swap can land after our explicit load resolves. document.fonts is absent in the
-// test env — skip the guard there.
+// Fonts load via font-display: swap, so term.open() measures fallback-font metrics before
+// Geist Mono swaps in, leaving stale cells (misaligned DOM glyphs, tofu in WebGL). Re-measure
+// once the real faces load: WebGL re-rasterizes its atlas; DOM only invalidates its cached
+// char size when fontFamily is reassigned, so follow with a refit. Re-runs on
+// document.fonts.ready (the swap can land late); document.fonts is absent in tests.
 function remeasureFonts(instance: Instance, usesWebgl: boolean): void {
   if (typeof document === 'undefined' || !document.fonts) return
   const apply = (): void => {

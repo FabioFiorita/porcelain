@@ -14,12 +14,19 @@ function card(overrides: Partial<BoardCard> = {}): BoardCard {
   return { id: 'c1', title: 'One', status: 'todo', order: 1, createdAt: 1, ...overrides }
 }
 
+type BoardHookResult = ReturnType<typeof useBoardCards> & ReturnType<typeof useCardActions>
+
 /**
  * The board loads once; the reconciling refetch `onSettled` fires stays pending until the
  * test releases it, so nothing but the rollback can put a pre-mutation value back in the
  * cache. `write` answers the mutation itself.
  */
-function board(served: BoardCard[]) {
+function board(served: BoardCard[]): {
+  inputs: unknown[]
+  write: ReturnType<typeof deferred<unknown>>
+  refetch: ReturnType<typeof deferred<BoardCard[]>>
+  mounted: () => Promise<{ current: BoardHookResult }>
+} {
   const write = deferred<unknown>()
   const refetch = deferred<BoardCard[]>()
   const inputs: unknown[] = []
@@ -32,7 +39,7 @@ function board(served: BoardCard[]) {
     inputs.push(op.input)
     return write.promise
   })
-  const mounted = async () => {
+  const mounted = async (): Promise<{ current: BoardHookResult }> => {
     const hook = renderHook(() => ({ ...useBoardCards(), ...useCardActions() }), { wrapper })
     await waitFor(() => expect(hook.result.current.cards).toEqual(served))
     return hook.result

@@ -1,6 +1,6 @@
 import { PlaceholderScreen } from '@/components/placeholder-screen'
 
-export function AppearanceScreen() {
+export function AppearanceScreen(): React.JSX.Element {
   return (
     <PlaceholderScreen
       title="Appearance"

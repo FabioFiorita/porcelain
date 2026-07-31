@@ -1,3 +1,4 @@
+import type { BoardCard } from '@backend/board-store'
 import { Button } from '@renderer/components/ui/button'
 import { BOARD_COLUMNS, useBoardCards } from '@renderer/hooks/use-board'
 import { draftFromCard, useCardDraftStore } from '@renderer/stores/card-draft'
@@ -49,7 +50,11 @@ export function BoardView(): React.JSX.Element {
               </div>
               <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
                 {inColumn.map((card) => (
-                  <CardItem key={card.id} card={card} onEdit={(c) => openDraft(draftFromCard(c))} />
+                  <CardItem
+                    key={card.id}
+                    card={card}
+                    onEdit={(c: BoardCard): void => openDraft(draftFromCard(c))}
+                  />
                 ))}
                 {inColumn.length === 0 && (
                   <div className="flex flex-1 items-center justify-center p-4">

@@ -1,42 +1,10 @@
 import type { AppRouter } from '@backend/api'
 import type { ShellRouter } from '@main/shell-api'
-import type { ShellEvent } from '@main/shell-events'
 import { createTRPCClient, httpBatchLink, type TRPCLink } from '@trpc/client'
 import { createTRPCReact } from '@trpc/react-query'
 import { createContext } from 'react'
+import type { PorcelainBridge } from '../../../preload/bridge'
 import { daemonBaseUrl, daemonToken } from './daemon'
-
-/** The serialized-HTTP shuttle the shell tRPC channel rides over Electron IPC. */
-type TrpcShuttle = (request: {
-  url: string
-  method: string
-  headers: Record<string, string>
-  body?: string
-}) => Promise<{ status: number; headers: Record<string, string>; body: string }>
-
-/**
- * The preload bridge after the daemon split: `trpcShell` carries a serialized
- * HTTP request across IPC for the SHELL router (Electron-native procedures —
- * the appRouter is real HTTP to the daemon, below), `onShellEvent` is the tiny
- * shell push channel (close-tab, update-status; everything else arrives over
- * the daemon WS session — lib/daemon.ts), and `daemon` hands over the daemon's
- * url plus restart notifications. See `src/preload/index.ts` for the matching
- * implementation.
- */
-interface PorcelainBridge {
-  trpcShell: TrpcShuttle
-  onShellEvent: (callback: (event: ShellEvent) => void) => () => void
-  daemon: {
-    url: string
-    /** The session token gating every daemon request (see backend/server.ts). */
-    token: string
-    onUrlChanged: (callback: (info: { url: string; token: string }) => void) => () => void
-  }
-  /** True only under the e2e harness; gates the terminal buffer-read test hook. */
-  e2e: boolean
-  /** The desktop OS the shell runs on (resolvePlatform in the preload). Absent on the browser client — read via `window.porcelain?.platform`. */
-  platform: 'darwin' | 'linux' | 'win32'
-}
 
 declare global {
   interface Window {
@@ -83,7 +51,8 @@ function appLinksFor(baseUrl: () => string, token: () => string): TRPCLink<AppRo
       // without it (loopback is reachable by any local webpage; see the
       // security note in backend/server.ts).
       headers: () => ({ authorization: `Bearer ${token()}` }),
-      fetch: (input, init) => fetch(rebaseTo(input, baseUrl()), init),
+      fetch: (input: RequestInfo | URL, init?: RequestInit) =>
+        fetch(rebaseTo(input, baseUrl()), init),
     }),
   ]
 }
@@ -109,7 +78,7 @@ function shellLinks(): TRPCLink<ShellRouter>[] {
   return [
     httpBatchLink({
       url: 'http://localhost/trpc-shell',
-      fetch: async (input, init) => {
+      fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
         // The shell router rides the Electron preload bridge; in the browser client
         // there is no bridge. Fail loudly and instantly rather than hang — every
         // shell-only call site is supposed to be gated out (lib/platform isBrowser),

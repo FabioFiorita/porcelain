@@ -9,8 +9,16 @@ import { Toggle } from '@renderer/components/ui/toggle'
 import { useRepoNotes, useSetRepoNotes } from '@renderer/hooks/use-repo-notes'
 import { isModExclusive } from '@renderer/lib/keyboard'
 import { cn } from '@renderer/lib/utils'
+import type { EditorEvents } from '@tiptap/core'
 import Placeholder from '@tiptap/extension-placeholder'
-import { type Editor, EditorContent, useEditor, useEditorState } from '@tiptap/react'
+import type { EditorView } from '@tiptap/pm/view'
+import {
+  type Editor,
+  EditorContent,
+  type EditorStateSnapshot,
+  useEditor,
+  useEditorState,
+} from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { Bold, Code, Heading, Italic, List, ListOrdered } from 'lucide-react'
 import { useEffect, useEffectEvent, useRef } from 'react'
@@ -99,7 +107,7 @@ function NotesEditor({
         // browser client). window.open routes through main's setWindowOpenHandler →
         // isSafeExternalUrl → shell.openExternal — the one gated external path, same as the
         // markdown reader; in the browser client it just opens a new tab.
-        click: (_view, event) => {
+        click: (_view: EditorView, event: MouseEvent): boolean => {
           if (!isModExclusive(event)) return false
           const href = (event.target as HTMLElement | null)?.closest('a')?.getAttribute('href')
           if (!href) return false
@@ -109,7 +117,7 @@ function NotesEditor({
         },
       },
     },
-    onUpdate: ({ editor }) => {
+    onUpdate: ({ editor }: EditorEvents['update']): void => {
       if (timerRef.current) clearTimeout(timerRef.current)
       timerRef.current = setTimeout(() => flushSave(editor), AUTOSAVE_DELAY_MS)
     },
@@ -136,7 +144,18 @@ function NotesEditor({
 function NotesToolbar({ editor }: { editor: Editor }): React.JSX.Element {
   const state = useEditorState({
     editor,
-    selector: ({ editor }) => ({
+    selector: ({
+      editor,
+    }: EditorStateSnapshot<Editor>): {
+      bold: boolean
+      italic: boolean
+      code: boolean
+      bullet: boolean
+      ordered: boolean
+      h1: boolean
+      h2: boolean
+      h3: boolean
+    } => ({
       bold: editor.isActive('bold'),
       italic: editor.isActive('italic'),
       code: editor.isActive('code'),

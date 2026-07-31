@@ -4,7 +4,7 @@ import { router, Stack } from 'expo-router'
 import { PlaceholderScreen } from '@/components/placeholder-screen'
 import { toolbarIcon } from '@/components/toolbar-icon'
 
-export function ReviewScreen() {
+export function ReviewScreen(): React.JSX.Element {
   return (
     <>
       <PlaceholderScreen
@@ -21,12 +21,12 @@ export function ReviewScreen() {
         <Stack.Toolbar.Button
           accessibilityLabel="Board"
           icon={toolbarIcon('board')}
-          onPress={() => router.push('/board')}
+          onPress={(): void => router.push('/board')}
         />
         <Stack.Toolbar.Button
           accessibilityLabel="Settings"
           icon={toolbarIcon('settings')}
-          onPress={() => router.push('/settings')}
+          onPress={(): void => router.push('/settings')}
         />
       </Stack.Toolbar>
       <ObserveInteractiveMarker />

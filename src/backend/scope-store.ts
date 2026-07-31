@@ -32,7 +32,7 @@ const channel = createHomeChannel({
 })
 
 // Must match src/cli/scope-file.ts. PORCELAIN_SCOPE redirects both sides for tests.
-export const scopePath = channel.path
+export const scopePath: () => string = channel.path
 
 export async function readRepoScope(repoPath: string): Promise<RepoScope> {
   return (await channel.readAll())[repoPath] ?? emptyRepo()

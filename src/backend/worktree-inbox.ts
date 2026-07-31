@@ -68,7 +68,7 @@ export async function assembleWorktreeInbox(
 export async function worktreeInbox(repoPath: string): Promise<InboxRow[]> {
   return assembleWorktreeInbox(repoPath, {
     listWorktrees: gitWorktrees,
-    changedCount: async (path) => (await gitStatus(path)).length,
-    hasReview: async (path) => (await readReviewSet(path)) !== null,
+    changedCount: async (path: string) => (await gitStatus(path)).length,
+    hasReview: async (path: string) => (await readReviewSet(path)) !== null,
   })
 }

@@ -32,6 +32,15 @@ export interface NewCardInput {
   status?: CardStatus
 }
 
+/** Optimistic-update rollback context: the pre-mutation cache snapshot for one repo. */
+type MutationContext = { previous: BoardCard[] | undefined; repoPath: string }
+
+type AddCardVars = { repoPath: string; title: string; body?: string; status?: CardStatus }
+type UpdateCardVars = { repoPath: string; id: string; title?: string; body?: string }
+type MoveCardVars = { repoPath: string; id: string; status: CardStatus }
+type DeleteCardVars = { repoPath: string; id: string }
+type ClearCardsVars = { repoPath: string; status: CardStatus }
+
 /** The id an optimistically-added card carries until the server's real one arrives on
  *  the reconciling refetch. Never sent to the daemon, never written to the channel. */
 function temporaryId(): string {
@@ -58,20 +67,21 @@ export function useCardActions(): {
   const patch = (repoPath: string, next: (cards: BoardCard[]) => BoardCard[]): void => {
     utils.boardCards.setData(repoPath, (cards) => (cards ? next(cards) : undefined))
   }
-  const begin = async (repoPath: string, next: (cards: BoardCard[]) => BoardCard[]) => {
+  const begin = async (
+    repoPath: string,
+    next: (cards: BoardCard[]) => BoardCard[],
+  ): Promise<MutationContext> => {
     await utils.boardCards.cancel(repoPath)
     const previous = utils.boardCards.getData(repoPath)
     patch(repoPath, next)
     return { previous, repoPath }
   }
-  const rollback = (
-    context: { previous: BoardCard[] | undefined; repoPath: string } | undefined,
-  ): void => {
+  const rollback = (context: MutationContext | undefined): void => {
     if (context) utils.boardCards.setData(context.repoPath, context.previous)
   }
 
   const add = trpc.addBoardCard.useMutation({
-    onMutate: ({ repoPath, title, body, status }) => {
+    onMutate: ({ repoPath, title, body, status }: AddCardVars): Promise<MutationContext> => {
       const now = Date.now()
       const card: BoardCard = {
         id: temporaryId(),
@@ -83,16 +93,24 @@ export function useCardActions(): {
       }
       return begin(repoPath, (cards) => [...cards, card])
     },
-    onError: (error, _vars, context) => {
+    onError: (
+      error: { message: string },
+      _vars: unknown,
+      context: MutationContext | undefined,
+    ): void => {
       rollback(context)
       onMutationError('Add card')(error)
     },
-    onSettled: async (_data, _error, { repoPath }) => {
+    onSettled: async (
+      _data: unknown,
+      _error: unknown,
+      { repoPath }: AddCardVars,
+    ): Promise<void> => {
       await utils.boardCards.invalidate(repoPath)
     },
   })
   const update = trpc.updateBoardCard.useMutation({
-    onMutate: ({ repoPath, id, title, body }) =>
+    onMutate: ({ repoPath, id, title, body }: UpdateCardVars): Promise<MutationContext> =>
       begin(repoPath, (cards) =>
         cards.map((card) =>
           card.id === id
@@ -104,16 +122,24 @@ export function useCardActions(): {
             : card,
         ),
       ),
-    onError: (error, _vars, context) => {
+    onError: (
+      error: { message: string },
+      _vars: unknown,
+      context: MutationContext | undefined,
+    ): void => {
       rollback(context)
       onMutationError('Update card')(error)
     },
-    onSettled: async (_data, _error, { repoPath }) => {
+    onSettled: async (
+      _data: unknown,
+      _error: unknown,
+      { repoPath }: UpdateCardVars,
+    ): Promise<void> => {
       await utils.boardCards.invalidate(repoPath)
     },
   })
   const move = trpc.moveBoardCard.useMutation({
-    onMutate: ({ repoPath, id, status }) =>
+    onMutate: ({ repoPath, id, status }: MoveCardVars): Promise<MutationContext> =>
       // Mirrors moveCard: the order bump re-sorts the card to the end of its new column.
       begin(repoPath, (cards) => {
         const moved = cards.find((card) => card.id === id)
@@ -121,55 +147,79 @@ export function useCardActions(): {
         const rest = cards.filter((card) => card.id !== id)
         return [...rest, { ...moved, status, order: Date.now() }]
       }),
-    onError: (error, _vars, context) => {
+    onError: (
+      error: { message: string },
+      _vars: unknown,
+      context: MutationContext | undefined,
+    ): void => {
       rollback(context)
       onMutationError('Move card')(error)
     },
-    onSettled: async (_data, _error, { repoPath }) => {
+    onSettled: async (
+      _data: unknown,
+      _error: unknown,
+      { repoPath }: MoveCardVars,
+    ): Promise<void> => {
       await utils.boardCards.invalidate(repoPath)
     },
   })
   const remove = trpc.deleteBoardCard.useMutation({
-    onMutate: ({ repoPath, id }) =>
+    onMutate: ({ repoPath, id }: DeleteCardVars): Promise<MutationContext> =>
       begin(repoPath, (cards) => cards.filter((card) => card.id !== id)),
-    onError: (error, _vars, context) => {
+    onError: (
+      error: { message: string },
+      _vars: unknown,
+      context: MutationContext | undefined,
+    ): void => {
       rollback(context)
       onMutationError('Delete card')(error)
     },
-    onSettled: async (_data, _error, { repoPath }) => {
+    onSettled: async (
+      _data: unknown,
+      _error: unknown,
+      { repoPath }: DeleteCardVars,
+    ): Promise<void> => {
       await utils.boardCards.invalidate(repoPath)
     },
   })
   const clear = trpc.clearBoardCards.useMutation({
-    onMutate: ({ repoPath, status }) =>
+    onMutate: ({ repoPath, status }: ClearCardsVars): Promise<MutationContext> =>
       begin(repoPath, (cards) => cards.filter((card) => card.status !== status)),
-    onError: (error, _vars, context) => {
+    onError: (
+      error: { message: string },
+      _vars: unknown,
+      context: MutationContext | undefined,
+    ): void => {
       rollback(context)
       onMutationError('Clear cards')(error)
     },
-    onSettled: async (_data, _error, { repoPath }) => {
+    onSettled: async (
+      _data: unknown,
+      _error: unknown,
+      { repoPath }: ClearCardsVars,
+    ): Promise<void> => {
       await utils.boardCards.invalidate(repoPath)
     },
   })
 
   return {
-    add: async (input) => {
+    add: async (input: NewCardInput): Promise<void> => {
       if (!repo) return
       await add.mutateAsync({ repoPath: repo.path, ...input })
     },
-    update: async (id, fields) => {
+    update: async (id: string, fields: { title?: string; body?: string }): Promise<void> => {
       if (!repo) return
       await update.mutateAsync({ repoPath: repo.path, id, ...fields })
     },
-    move: async (id, status) => {
+    move: async (id: string, status: CardStatus): Promise<void> => {
       if (!repo) return
       await move.mutateAsync({ repoPath: repo.path, id, status })
     },
-    remove: async (id) => {
+    remove: async (id: string): Promise<void> => {
       if (!repo) return
       await remove.mutateAsync({ repoPath: repo.path, id })
     },
-    clear: async (status) => {
+    clear: async (status: CardStatus): Promise<void> => {
       if (!repo) return
       await clear.mutateAsync({ repoPath: repo.path, status })
     },

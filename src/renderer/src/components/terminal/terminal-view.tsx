@@ -69,14 +69,14 @@ export function TerminalView({ sessionId }: { sessionId: string }): React.JSX.El
         // attachTouchScroll owns vertical pan (see terminal-touch-scroll.ts + .xterm CSS).
         className="relative min-h-0 flex-1 touch-none overflow-hidden py-2 pr-1 pl-2"
         style={{ backgroundColor: TERMINAL_THEMES[mode].background }}
-        onPointerDown={(e) => {
+        onPointerDown={(e: React.PointerEvent<HTMLDivElement>): void => {
           if (!isCoarseTouch()) {
             focusTerminal(sessionId)
             return
           }
           pointerStart.current = { x: e.clientX, y: e.clientY }
         }}
-        onPointerUp={(e) => {
+        onPointerUp={(e: React.PointerEvent<HTMLDivElement>): void => {
           if (!isCoarseTouch()) return
           const start = pointerStart.current
           pointerStart.current = null

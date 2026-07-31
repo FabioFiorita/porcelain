@@ -9,7 +9,7 @@ import { toast } from 'sonner'
  * mutation's `onError` slot.
  */
 export function onMutationError(action: string): (error: { message: string }) => void {
-  return (error) => {
+  return (error: { message: string }): void => {
     toast.error(`${action} failed`, { description: error.message })
   }
 }

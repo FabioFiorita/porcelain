@@ -84,7 +84,7 @@ export function TerminalSelectionToolbar({
             'hover:bg-accent hover:text-accent-foreground',
           )}
           // Don't let the press clear xterm's selection before onClick runs.
-          onMouseDown={(e) => e.preventDefault()}
+          onMouseDown={(e: React.MouseEvent<HTMLButtonElement>): void => e.preventDefault()}
           onClick={async () => {
             await copy()
           }}

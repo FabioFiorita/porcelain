@@ -71,7 +71,8 @@ describe('createHomeChannel', () => {
   it('applies a transform on read', async () => {
     await writeFile(filePath(), JSON.stringify({ keep: 1, drop: -1 }), 'utf8')
     const ch = make({
-      transform: (parsed) => Object.fromEntries(Object.entries(parsed).filter(([, v]) => v >= 0)),
+      transform: (parsed: Doc) =>
+        Object.fromEntries(Object.entries(parsed).filter(([, v]) => v >= 0)),
     })
     expect(await ch.readAll()).toEqual({ keep: 1 })
   })

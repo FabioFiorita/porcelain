@@ -1,6 +1,6 @@
 import { Stack } from 'expo-router/stack'
 
-export default function ChangesLayout() {
+export default function ChangesLayout(): React.JSX.Element {
   return (
     <Stack screenOptions={{ headerBackButtonDisplayMode: 'minimal' }}>
       <Stack.Screen name="index" options={{ headerLargeTitle: true, title: 'Changes' }} />

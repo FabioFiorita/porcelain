@@ -43,7 +43,7 @@ const channel = createHomeChannel({
 
 // Must match src/cli/comment-file.ts. PORCELAIN_COMMENTS redirects both sides for
 // dev/tests.
-export const commentsPath = channel.path
+export const commentsPath: () => string = channel.path
 
 /** The review comments for a repo, newest first. */
 export async function readComments(repoPath: string): Promise<ReviewComment[]> {

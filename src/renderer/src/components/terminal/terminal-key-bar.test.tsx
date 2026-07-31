@@ -14,9 +14,15 @@ vi.mock('@renderer/lib/terminal-registry', () => ({
   isTerminalFocused: (): boolean => focused.value,
 }))
 
-const { sendTerminalInput, sendTerminalArrow, focusTerminal, blurTerminal } = await import(
-  '@renderer/lib/terminal-registry'
-)
+const {
+  sendTerminalInput,
+  sendTerminalArrow,
+  focusTerminal,
+  blurTerminal,
+}: Pick<
+  typeof import('@renderer/lib/terminal-registry'),
+  'sendTerminalInput' | 'sendTerminalArrow' | 'focusTerminal' | 'blurTerminal'
+> = await import('@renderer/lib/terminal-registry')
 
 /** A tap: pointerdown (where focus is sampled) then the click that acts on it. */
 function tap(testId: string): void {

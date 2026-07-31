@@ -100,13 +100,9 @@ export function CommentMarker({
 
 /**
  * Host-row background class for a commented or pending line. Apply on the same
- * element that holds the line text — never as an absolute overlay.
- *
- * Why: after the opaque redesign, `bg-accent` is fully opaque. An
- * `absolute inset-0` tint paints *above* in-flow code (positioned descendants
- * stack after non-positioned content), blanking the line while the z-10 gutter
- * glyph still shows — the "gray block, code gone" bug. Row background keeps
- * the tint under the text, matching `EditorSource`.
+ * element as the line text — never as an absolute overlay: `bg-accent` is opaque,
+ * and an `absolute inset-0` tint paints above in-flow code (the "gray block, code
+ * gone" bug, gutter glyph still visible). Matches `EditorSource`.
  */
 export function commentRowClass(
   comments: readonly ReviewComment[] | undefined,

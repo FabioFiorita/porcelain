@@ -17,13 +17,11 @@ export interface VersionSkew {
 }
 
 /**
- * Compare this app's build version against the daemon's. Returns null when they
- * match (the trivial local case, and a fresh browser client served by the same
- * daemon dist), or a `VersionSkew` describing any mismatch — the daemon can be
- * older (the motivating incident) OR newer (a stale app), phrased for each.
- *
- * Pure and total: an unparseable daemon version (only our `pre-0.30` sentinel in
- * practice) is treated as older, since that's the one case that produces it.
+ * Compare this app's build version against the daemon's. Returns null when they match
+ * (local, or a fresh browser client served by the same daemon dist), or a `VersionSkew`
+ * describing any mismatch — the daemon can be older (the motivating incident) or newer
+ * (a stale app), phrased for each. Pure and total: an unparseable daemon version (only
+ * our `pre-0.30` sentinel in practice) is treated as older, the one case that produces it.
  */
 export function computeVersionSkew(appVersion: string, daemonVersion: string): VersionSkew | null {
   if (daemonVersion === appVersion) return null

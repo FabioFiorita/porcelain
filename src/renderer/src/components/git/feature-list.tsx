@@ -389,7 +389,7 @@ function FeatureOutline(): React.JSX.Element {
       <CommentComposer
         anchor={commentPath ? { path: commentPath } : null}
         open={commentPath !== null}
-        onOpenChange={(open) => {
+        onOpenChange={(open: boolean): void => {
           if (!open) setCommentPath(null)
         }}
       />

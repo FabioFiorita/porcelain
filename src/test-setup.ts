@@ -22,16 +22,16 @@ if (typeof window !== 'undefined') {
   if (typeof window.localStorage?.setItem !== 'function') {
     const store = new Map<string, string>()
     const memoryStorage: Storage = {
-      get length() {
+      get length(): number {
         return store.size
       },
-      clear: () => store.clear(),
-      getItem: (key) => store.get(key) ?? null,
-      key: (index) => Array.from(store.keys())[index] ?? null,
-      removeItem: (key) => {
+      clear: (): void => store.clear(),
+      getItem: (key: string): string | null => store.get(key) ?? null,
+      key: (index: number): string | null => Array.from(store.keys())[index] ?? null,
+      removeItem: (key: string): void => {
         store.delete(key)
       },
-      setItem: (key, value) => {
+      setItem: (key: string, value: string): void => {
         store.set(key, String(value))
       },
     }

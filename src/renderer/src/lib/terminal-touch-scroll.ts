@@ -101,13 +101,11 @@ export function applyTerminalTouchScroll(target: TerminalTouchScrollTarget, line
 }
 
 /**
- * Attach pan listeners that scroll the terminal and swallow the gesture so the
- * browser page can't rubber-band. Returns a disposer. Only meaningful on
- * multi-touch devices; desktop keeps the wheel path untouched.
- *
- * Prefers Pointer Events (setPointerCapture keeps moves even off-element); falls
- * back to Touch Events for environments without pointer capture. Both use capture
- * so they win over xterm-internal handlers.
+ * Attach pan listeners that scroll the terminal and swallow the gesture so the browser
+ * page can't rubber-band. Returns a disposer. Only meaningful on multi-touch devices;
+ * desktop keeps the wheel path untouched. Prefers Pointer Events (setPointerCapture keeps
+ * moves even off-element), falling back to Touch Events without pointer capture — both
+ * use capture so they win over xterm-internal handlers.
  */
 export function attachTouchScroll(
   scrollLines: (lines: number) => void,

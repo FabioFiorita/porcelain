@@ -290,7 +290,7 @@ function FileRowImpl({
       <CommentComposer
         anchor={commentAnchor}
         open={commentAnchor !== null}
-        onOpenChange={(open) => {
+        onOpenChange={(open: boolean): void => {
           if (!open) setCommentAnchor(null)
         }}
       />

@@ -35,17 +35,12 @@ function browseErrorMessage(error: { message: string }, remoteName: string | nul
 }
 
 /**
- * The daemon-side directory browser that opens a repo — mounted once in AppShell so it
- * covers both the welcome screen and the repo shell. Replaces the native open-folder
- * dialog: repos are daemon paths, so with a remote daemon the picker must browse ITS
- * filesystem (remote-envs decision 5), giving local and remote one code path.
+ * The daemon-side directory browser that opens a repo — mounted once in AppShell
+ * for both the welcome screen and repo shell. With a remote daemon it must browse
+ * ITS filesystem (remote-envs decision 5), giving local/remote one code path.
  *
- * Open/closed intent lives in the repo-picker store (the file-prompt "compose intent"
- * pattern); the browsing path lives here and resets on each open (start at the daemon
- * home, `null`). Clicking a plain dir navigates in; the up row goes to the parent;
- * a repo row navigates too but its primary action opens it. "Open this folder" opens
- * the CURRENT path (any-directory semantics, like the old dialog — openRepoPath handles
- * non-repos as it always has).
+ * Browsing path resets on each open (starts at daemon home, `null`); "Open this
+ * folder" opens the CURRENT path even for a non-repo (any-directory semantics).
  */
 export function RepoPickerDialog(): React.JSX.Element | null {
   const open = useRepoPickerStore((s) => s.open)
@@ -77,7 +72,7 @@ function RepoPicker({ onClose }: { onClose: () => void }): React.JSX.Element {
   return (
     <Dialog
       open
-      onOpenChange={(next) => {
+      onOpenChange={(next: boolean): void => {
         if (!next) onClose()
       }}
     >

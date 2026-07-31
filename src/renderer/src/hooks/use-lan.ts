@@ -32,7 +32,7 @@ export function useSetLanBind(): {
     onError: onMutationError('Toggle local network sharing'),
   })
   return {
-    setEnabled: (enabled) => mutation.mutate(enabled),
+    setEnabled: (enabled: boolean): void => mutation.mutate(enabled),
     isPending: mutation.isPending,
   }
 }

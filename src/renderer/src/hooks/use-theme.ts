@@ -23,10 +23,9 @@ export function useResolvedTheme(): 'light' | 'dark' {
  * Mount ONCE (in AppShell, beside the other one-shot hooks): keep the document
  * and the Electron shell in step with the appearance preference.
  *
- * IMPORTANT: the shell gets the raw preference (`system` | `light` | `dark`), not
- * the resolved mode. Sending only light/dark pinned Electron's `nativeTheme` and
- * made Settings → System a no-op for window chrome (and looked broken when the
- * resolved mode didn't flip). The document still applies the resolved class.
+ * The shell gets the raw preference (`system` | `light` | `dark`), not the resolved
+ * mode — sending only light/dark pinned Electron's `nativeTheme`, making Settings →
+ * System a no-op for window chrome. The document still applies the resolved class.
  */
 export function useThemeSync(): void {
   useEffect(() => {

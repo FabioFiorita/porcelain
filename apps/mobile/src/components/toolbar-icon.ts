@@ -11,7 +11,7 @@ type ToolbarIcon = NonNullable<StackToolbarButtonProps['icon']>
  * sites name the icon, this file owns the symbol — so the set of header icons
  * stays readable in one place and a symbol rename is one edit.
  */
-const SF_SYMBOLS = {
+const SF_SYMBOLS: Record<ToolbarIconName, ToolbarIcon> = {
   settings: 'gearshape',
   board: 'rectangle.3.group',
   history: 'clock.arrow.circlepath',

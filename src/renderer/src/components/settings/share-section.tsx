@@ -83,7 +83,9 @@ function PairDevice({ endpoints }: { endpoints: ShareEndpoint[] }): React.JSX.El
       <div className="flex flex-col gap-2 rounded-md border border-border/60 p-3">
         <Input
           value={label}
-          onChange={(event) => setLabel(event.target.value)}
+          onChange={(event: React.ChangeEvent<HTMLInputElement>): void =>
+            setLabel(event.target.value)
+          }
           placeholder="Device name, e.g. My iPhone"
           maxLength={80}
           disabled={isPending}

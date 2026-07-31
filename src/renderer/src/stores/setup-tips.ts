@@ -19,14 +19,14 @@ export const useSetupTipsStore = create<SetupTipsState>()(
   persist(
     (set, get) => ({
       dismissed: {},
-      dismiss: (repoPath, tip) =>
+      dismiss: (repoPath: string, tip: SetupTipId) =>
         set((state) => ({
           dismissed: {
             ...state.dismissed,
             [repoPath]: { ...state.dismissed[repoPath], [tip]: true },
           },
         })),
-      isDismissed: (repoPath, tip) => get().dismissed[repoPath]?.[tip] === true,
+      isDismissed: (repoPath: string, tip: SetupTipId) => get().dismissed[repoPath]?.[tip] === true,
     }),
     { name: 'porcelain-setup-tips' },
   ),

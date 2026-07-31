@@ -192,7 +192,7 @@ export function EditorSource({
   return (
     <>
       <ContextMenu
-        onOpenChange={(open) => {
+        onOpenChange={(open: boolean): void => {
           // capture on open: nothing re-renders this component when the user
           // selects text, so reading the selection at render time goes stale
           setMenuOpen(open)
@@ -271,8 +271,8 @@ export function EditorSource({
               <textarea
                 ref={textareaRef}
                 value={content}
-                onChange={(e) => edit(e.target.value)}
-                onKeyDown={(e) => {
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>): void => edit(e.target.value)}
+                onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
                   if (e.key === 's' && (e.metaKey || e.ctrlKey)) {
                     e.preventDefault()
                     flushSave()
@@ -369,7 +369,7 @@ export function EditorSource({
       <CommentComposer
         anchor={commentAnchor}
         open={commentAnchor !== null}
-        onOpenChange={(open) => {
+        onOpenChange={(open: boolean): void => {
           if (!open) setCommentAnchor(null)
         }}
       />

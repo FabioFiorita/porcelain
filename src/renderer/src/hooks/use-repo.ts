@@ -37,7 +37,7 @@ export function useRemoveRecentRepo(): { remove: (repoPath: string) => void } {
       await utils.recentRepos.invalidate()
     },
   })
-  return { remove: (repoPath) => mutation.mutate(repoPath) }
+  return { remove: (repoPath: string): void => mutation.mutate(repoPath) }
 }
 
 /**
@@ -48,5 +48,7 @@ export function useRemoveRecentRepo(): { remove: (repoPath: string) => void } {
  */
 export function useNewWindow(): { openWindow: (repoPath?: string) => void } {
   const mutation = shellTrpc.newWindow.useMutation()
-  return { openWindow: (repoPath) => mutation.mutate(repoPath ? { repoPath } : undefined) }
+  return {
+    openWindow: (repoPath?: string): void => mutation.mutate(repoPath ? { repoPath } : undefined),
+  }
 }

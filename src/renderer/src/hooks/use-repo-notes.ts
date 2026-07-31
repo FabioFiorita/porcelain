@@ -18,7 +18,7 @@ export function useSetRepoNotes(): { save: (repoPath: string | undefined, notes:
     onError: onMutationError('Save notes'),
   })
   return {
-    save: (repoPath, notes) => {
+    save: (repoPath: string | undefined, notes: string): void => {
       if (!repoPath) return
       mutation.mutate({ repoPath, notes })
     },

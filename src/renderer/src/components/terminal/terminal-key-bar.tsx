@@ -67,7 +67,7 @@ function KeyButton({
       aria-label={label}
       title={title}
       data-testid={testId}
-      onMouseDown={(event) => event.preventDefault()}
+      onMouseDown={(event: React.MouseEvent<HTMLButtonElement>): void => event.preventDefault()}
       onPointerDown={() => {
         wasFocused.current = isTerminalFocused(sessionId)
       }}
@@ -156,7 +156,7 @@ export function TerminalKeyBar({ sessionId }: { sessionId: string }): React.JSX.
         label="Toggle keyboard"
         title="Show or dismiss the keyboard"
         restoreFocus={false}
-        onActivate={(wasFocused) => {
+        onActivate={(wasFocused: boolean): void => {
           if (wasFocused) blurTerminal(sessionId)
           else focusTerminal(sessionId)
         }}

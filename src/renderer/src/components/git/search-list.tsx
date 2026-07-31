@@ -198,7 +198,7 @@ export function SearchList(): React.JSX.Element {
           <InputGroupInput
             placeholder="Search"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>): void => setQuery(e.target.value)}
             className="text-sm-minus"
           />
           <InputGroupAddon align="inline-end" className="gap-0.5 text-muted-foreground">
@@ -233,13 +233,17 @@ export function SearchList(): React.JSX.Element {
             <Input
               placeholder="files to include (e.g. src/**, *.ts)"
               value={include}
-              onChange={(e) => setInclude(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>): void =>
+                setInclude(e.target.value)
+              }
               className={compactInputClass}
             />
             <Input
               placeholder="files to exclude"
               value={exclude}
-              onChange={(e) => setExclude(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>): void =>
+                setExclude(e.target.value)
+              }
               className={compactInputClass}
             />
           </CollapsibleContent>

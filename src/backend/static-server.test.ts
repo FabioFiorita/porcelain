@@ -80,7 +80,7 @@ describe('resolveStaticPath', () => {
 })
 
 describe('rewriteCsp', () => {
-  const META = (connect: string) =>
+  const META = (connect: string): string =>
     `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; ${connect}" />`
 
   // Matches the Electron index.html CSP: loopback entries + scheme-wide sources so a

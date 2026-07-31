@@ -128,7 +128,7 @@ function CommitFileDiff({ hash, filePath }: { hash: string; filePath: string }):
   return (
     <div className="flex h-full flex-col">
       <ContextMenu
-        onOpenChange={(open) => {
+        onOpenChange={(open: boolean): void => {
           if (open) setLineSel(lineSelectionFromDom())
         }}
       >
@@ -167,7 +167,7 @@ function CommitFileDiff({ hash, filePath }: { hash: string; filePath: string }):
       <CommentComposer
         anchor={commentAnchor}
         open={commentAnchor !== null}
-        onOpenChange={(open) => {
+        onOpenChange={(open: boolean): void => {
           if (!open) setCommentAnchor(null)
         }}
       />
@@ -261,7 +261,7 @@ export function CommitView({ hash }: { hash: string }): React.JSX.Element {
                 repoPath={repo.path}
                 selected={file.path === selectedFile}
                 onSelect={setSelected}
-                onComment={(path) => setCommentAnchor({ path })}
+                onComment={(path: string): void => setCommentAnchor({ path })}
               />
             ))}
           </div>
@@ -306,7 +306,7 @@ export function CommitView({ hash }: { hash: string }): React.JSX.Element {
       <CommentComposer
         anchor={commentAnchor}
         open={commentAnchor !== null}
-        onOpenChange={(open) => {
+        onOpenChange={(open: boolean): void => {
           if (!open) setCommentAnchor(null)
         }}
       />

@@ -18,7 +18,7 @@ interface BoardSelectionState {
 
 export const useBoardSelectionStore = create<BoardSelectionState>((set) => ({
   focus: null,
-  select: (repoPath, cardId) => set({ focus: { repoPath, cardId } }),
+  select: (repoPath: string, cardId: string) => set({ focus: { repoPath, cardId } }),
   clear: () => set({ focus: null }),
 }))
 

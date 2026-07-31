@@ -12,29 +12,23 @@ import { type TerminalSession, useTerminalsStore } from '@renderer/stores/termin
 import { useEffect } from 'react'
 
 /**
- * Consumes the inbound half of the terminal stream on the daemon WS session
- * (lib/daemon.ts) AND hydrates the daemon-owned roster, mounted once in AppShell — the
- * inbound twin of `useAppEvents`. PTY output routes to the matching xterm (via the
- * registry, which buffers until the view mounts); an exit writes the footer and marks
- * the roster session "exited"; a re-attach's scrollback replays into the xterm.
+ * Consumes the inbound half of the terminal stream on the daemon WS session AND
+ * hydrates the daemon-owned roster, mounted once in AppShell — the inbound twin of
+ * `useAppEvents`. PTY output routes to the matching xterm (buffered via the registry
+ * until the view mounts); an exit marks the roster session "exited"; a re-attach's
+ * scrollback replays into the xterm.
  *
- * Roster hydration (Phase 2 — sessions survive reload): `terminalSessions` lists every
- * daemon-owned PTY; we filter to the ones whose cwd is inside the current repo and
- * hydrate the store. React-query refetches this on daemon reconnect (the blanket
- * invalidate in useAppEvents) so the roster recovers a reload/restart, and on a 5s poll
- * so a session killed in ANOTHER window (or an exit) reconciles here without waiting for
- * a reconnect. Each not-yet-attached session is attached once so its
- * scrollback replays into a freshly-created xterm; ids already attached (created this
- * session, or attached on a prior hydrate) are skipped — lib/daemon re-attaches those
- * itself on reconnect. `isTerminalAttached` is the single source of truth, so the poll is
- * idempotent and a repo switch back (which detaches on `reset`) re-attaches cleanly.
+ * Roster hydration: `terminalSessions` lists every daemon-owned PTY; filter to the
+ * current repo and hydrate the store. Refetches on daemon reconnect and on a 5s
+ * poll, so a session killed in ANOTHER window reconciles without waiting for a
+ * reconnect. Each not-yet-attached session attaches once (scrollback into a fresh
+ * xterm); already-attached ids are skipped — lib/daemon re-attaches those itself.
+ * `isTerminalAttached` is the single source of truth, so the poll is idempotent.
  *
- * TWO daemons since 2026-07-26: the same treatment runs against the local session when the
- * window is remote-bound and the repo has a mapped local directory ("This device"
- * terminals — lib/local-daemon.ts). Both rosters hydrate the store in ONE call, because
- * `hydrate` REPLACES; a second call per daemon would leave whichever ran last as the
- * whole list. Local ids are re-registered on every hydrate so a reload knows where a
- * surviving session lives before anything writes to it.
+ * TWO daemons: the same treatment runs against the local session when remote-bound
+ * with a mapped local directory ("This device" — lib/local-daemon.ts). Both rosters
+ * hydrate in ONE call, because `hydrate` REPLACES; local ids re-register on every
+ * hydrate so a reload knows where a surviving session lives first.
  */
 export function useTerminalChannel(): void {
   const markExited = useTerminalsStore((s) => s.markExited)

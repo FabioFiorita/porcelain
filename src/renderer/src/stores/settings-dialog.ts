@@ -19,7 +19,7 @@ interface SettingsDialogState {
 export const useSettingsDialogStore = create<SettingsDialogState>((set) => ({
   open: false,
   section: 'general',
-  openTo: (section) => set(section ? { open: true, section } : { open: true }),
-  setOpen: (open) => set({ open }),
-  setSection: (section) => set({ section }),
+  openTo: (section?: SettingsSection) => set(section ? { open: true, section } : { open: true }),
+  setOpen: (open: boolean) => set({ open }),
+  setSection: (section: SettingsSection) => set({ section }),
 }))

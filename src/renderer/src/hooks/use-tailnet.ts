@@ -31,7 +31,7 @@ export function useSetTailnetBind(): {
     onError: onMutationError('Toggle Tailscale sharing'),
   })
   return {
-    setEnabled: (enabled) => mutation.mutate(enabled),
+    setEnabled: (enabled: boolean): void => mutation.mutate(enabled),
     isPending: mutation.isPending,
   }
 }

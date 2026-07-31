@@ -47,12 +47,10 @@ export function usePreviewHtml(
 
 /**
  * Tell the daemon which files are open in the viewer so it can watch them for
- * external writes (the coding agent editing in the terminal). Mounted once in
- * `AppShell`, the twin of `useAppEvents`: this pushes the open-file set out over
- * the WS session (`watch:files` — per-connection state, so it lives there, not
- * on the router), the `working-tree` app-event comes back and invalidates
- * `readFile`. We re-send only when the set of open file paths actually changes,
- * not on every tab activation.
+ * external writes (the coding agent editing in the terminal). The twin of
+ * `useAppEvents`: pushes the open-file set over the WS session (`watch:files` —
+ * per-connection state, not on the router); `working-tree` comes back and
+ * invalidates `readFile`. Re-sends only when the path set actually changes.
  */
 export function useWatchOpenFiles(): void {
   const panes = useTabsStore((s) => s.panes)
@@ -101,7 +99,7 @@ export function useWatchTreeDirs(): void {
 /** Prefetch a file's contents (tree hover) so opening it feels instant. */
 export function useReadFilePrefetch(): (path: string) => Promise<void> {
   const utils = trpc.useUtils()
-  return (path) => utils.readFile.prefetch(path)
+  return (path: string): Promise<void> => utils.readFile.prefetch(path)
 }
 
 export function useWriteTextFile(path: string): {
@@ -111,7 +109,10 @@ export function useWriteTextFile(path: string): {
 } {
   const utils = trpc.useUtils()
   const mutation = trpc.writeTextFile.useMutation({
-    onSuccess: async (_data, variables) => {
+    onSuccess: async (
+      _data: unknown,
+      variables: { path: string; content: string },
+    ): Promise<void> => {
       // the edit changes git state too, not just the file
       await Promise.all([
         utils.readFile.invalidate(variables.path),
@@ -124,7 +125,8 @@ export function useWriteTextFile(path: string): {
   return {
     // Per-call onSuccess runs *in addition to* the hook-level one (TanStack v5);
     // it lets the caller advance its saved-watermark only once the write settles.
-    save: (content, onSaved) => mutation.mutate({ path, content }, { onSuccess: onSaved }),
+    save: (content: string, onSaved?: () => void): void =>
+      mutation.mutate({ path, content }, { onSuccess: onSaved }),
     isSaving: mutation.isPending,
     error: mutation.error,
   }
@@ -145,7 +147,7 @@ export function useRepoScope(): { hiddenPaths: string[]; pinnedPaths: string[] }
 
 export function useRevealInFinder(): (path: string) => void {
   const mutation = shellTrpc.revealInFinder.useMutation()
-  return (path) => mutation.mutate(path)
+  return (path: string): void => mutation.mutate(path)
 }
 
 /** Drop stale tree + pinned rows after a file vanished from disk (external delete). */
@@ -173,7 +175,7 @@ export function useTrashPath(): (path: string) => Promise<void> {
     // in place with no feedback — surface why (permission denied, locked file, …).
     onError: onMutationError('Delete'),
   })
-  return async (path) => {
+  return async (path: string): Promise<void> => {
     try {
       await mutation.mutateAsync(path)
       // The file is gone from disk; close any open view of it so the viewer doesn't
@@ -203,7 +205,10 @@ export function useCreateFile(): {
 } {
   const utils = trpc.useUtils()
   const mutation = trpc.createFile.useMutation({ onSuccess: () => invalidateTree(utils) })
-  return { create: (path) => mutation.mutateAsync({ path }), error: mutation.error }
+  return {
+    create: (path: string): Promise<void> => mutation.mutateAsync({ path }),
+    error: mutation.error,
+  }
 }
 
 export function useCreateFolder(): {
@@ -212,7 +217,10 @@ export function useCreateFolder(): {
 } {
   const utils = trpc.useUtils()
   const mutation = trpc.createFolder.useMutation({ onSuccess: () => invalidateTree(utils) })
-  return { create: (path) => mutation.mutateAsync({ path }), error: mutation.error }
+  return {
+    create: (path: string): Promise<void> => mutation.mutateAsync({ path }),
+    error: mutation.error,
+  }
 }
 
 export function useRenamePath(): {
@@ -221,13 +229,16 @@ export function useRenamePath(): {
 } {
   const utils = trpc.useUtils()
   const mutation = trpc.renamePath.useMutation({ onSuccess: () => invalidateTree(utils) })
-  return { rename: (from, to) => mutation.mutateAsync({ from, to }), error: mutation.error }
+  return {
+    rename: (from: string, to: string): Promise<void> => mutation.mutateAsync({ from, to }),
+    error: mutation.error,
+  }
 }
 
 export function useDuplicatePath(): (path: string) => Promise<string> {
   const utils = trpc.useUtils()
   const mutation = trpc.duplicatePath.useMutation({ onSuccess: () => invalidateTree(utils) })
-  return (path) => mutation.mutateAsync({ path })
+  return (path: string): Promise<string> => mutation.mutateAsync({ path })
 }
 
 export function useEntryActions(entry: DirEntry): {

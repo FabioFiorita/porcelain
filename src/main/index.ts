@@ -48,7 +48,7 @@ const isE2E = process.env.PORCELAIN_E2E === '1'
 function extensionsCompatSession(): Session {
   const target = session.defaultSession
   return new Proxy(target, {
-    get(ses, prop) {
+    get(ses: Session, prop: string | symbol): unknown {
       if (prop === 'getAllExtensions') return () => ses.extensions.getAllExtensions()
       if (prop === 'loadExtension')
         return (...args: Parameters<typeof ses.extensions.loadExtension>) =>

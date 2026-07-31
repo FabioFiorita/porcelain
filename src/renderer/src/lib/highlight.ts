@@ -32,7 +32,7 @@ export function themeNameFor(mode: 'light' | 'dark'): HighlightThemeName {
   return HIGHLIGHT_THEMES[mode]
 }
 
-export const LANGS = [
+export const LANGS: readonly BundledLanguage[] = [
   'typescript',
   'tsx',
   'javascript',
@@ -45,7 +45,7 @@ export const LANGS = [
   'shellscript',
   'swift',
   'dotenv',
-] as const satisfies readonly BundledLanguage[]
+] as const
 
 // Return the broad HighlighterGeneric type (a supertype of the core build) so
 // consumers that pass this highlighter around compile unchanged — they only
@@ -146,23 +146,11 @@ export function isTokenizable(content: string): boolean {
 }
 
 /**
- * Tokenize a whole multi-line string into one token array per line, carrying
- * grammar state across line breaks. Tokenizing line-by-line (the old approach)
- * loses that state, so continuation lines of a multiline block comment or
- * template literal were highlighted as code. The returned array has exactly one
- * entry per `\n`-split line, so callers can index it by line number.
- *
- * Bounded LRU over whole-file tokenization. The viewer mounts only the ACTIVE
- * tab, so a component-local `useMemo` is discarded when you switch away — and
- * revisiting re-pays the full synchronous tokenization for identical content.
- * A module-level cache survives unmounts (the terminal registry solves the same
- * lifecycle problem the same way). Keyed on `${theme} ${lang} ${code}` so a
- * `.ts` and a `.js` file sharing content don't collide — and so the light and
- * dark tokenizations of the same file are distinct entries. 8 entries bounds
- * worst-case
- * retained tokens (content ≤ 2 MB by the `isTokenizable` guard) — don't raise
- * it without a memory look. Returned arrays are shared and treated as immutable
- * by every caller (consumers only read/index).
+ * Tokenizes a whole file at once so grammar state (an open block comment or
+ * template literal) survives line breaks; one entry per `\n`-split line.
+ * Cached (bounded LRU, keyed by `${theme} ${lang} ${code}`) since the viewer
+ * only mounts the active tab. Returned arrays are shared — never mutate them;
+ * don't raise TOKEN_CACHE_MAX without checking retained-memory impact.
  */
 const TOKEN_CACHE_MAX = 8
 const tokenCache = new Map<string, ThemedToken[][]>()

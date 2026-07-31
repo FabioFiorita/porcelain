@@ -98,7 +98,7 @@ export function ActionComposer({
         </DialogHeader>
         <Input
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>): void => setTitle(e.target.value)}
           onKeyDown={onKeyDown}
           placeholder="Title (e.g. Run Tests)"
           aria-label="Action title"
@@ -107,7 +107,7 @@ export function ActionComposer({
         />
         <Textarea
           value={command}
-          onChange={(e) => setCommand(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>): void => setCommand(e.target.value)}
           onKeyDown={onKeyDown}
           placeholder={`Command — runs in a terminal. ${kbdLabel('mod', '↵')} to save`}
           aria-label="Action command"

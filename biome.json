@@ -30,7 +30,8 @@
       "correctness": {
         "noUnusedImports": "error",
         "noUnusedVariables": "error"
-      }
+      },
+      "nursery": { "useExplicitType": "error" }
     }
   },
   "assist": { "actions": { "source": { "organizeImports": "on" } } },
@@ -44,6 +45,10 @@
         "playwright.config.ts"
       ],
       "linter": { "rules": { "style": { "noDefaultExport": "off" } } }
+    },
+    {
+      "includes": ["e2e/**", "**/*.config.ts", "scripts/**"],
+      "linter": { "rules": { "nursery": { "useExplicitType": "off" } } }
     },
     {
       "includes": ["src/backend/**", "src/shared/**", "src/renderer/**"],

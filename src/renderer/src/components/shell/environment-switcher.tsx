@@ -273,7 +273,7 @@ function EnvironmentRow({
               'hover:bg-accent/50 hover:text-foreground',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
             )}
-            onClick={(e) => {
+            onClick={(e: React.MouseEvent<HTMLButtonElement>): void => {
               e.stopPropagation()
               onNewWindow()
             }}

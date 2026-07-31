@@ -33,13 +33,12 @@ interface VirtualRowsProps<T> {
    */
   fitWidth?: boolean
   /**
-   * Measure each row's real height instead of locking every row to `ROW_HEIGHT`.
-   * Default `false` — the big file/diff viewers stay fixed-height (the perf
-   * invariant). Opt in ONLY for small, sliced surfaces that need a tall row (the
-   * reading surface's wrapping note). When on, the scroll viewport's width is
-   * published as the `--vrows-vw` CSS var on the scroll element, so a row that must
-   * wrap to the VIEWPORT (not the horizontally-scrolling `w-max` content) can size
-   * itself with `max-w-[var(--vrows-vw)]`.
+   * Measure each row's real height instead of locking to `ROW_HEIGHT`. Default
+   * `false` — big file/diff viewers stay fixed-height (the perf invariant); opt in
+   * only for small, sliced surfaces needing a tall row (the reading surface's
+   * wrapping note). When on, the scroll viewport width publishes as `--vrows-vw`
+   * so a row wrapping to the VIEWPORT (not the scrolling `w-max` content) can size
+   * with `max-w-[var(--vrows-vw)]`.
    */
   dynamicHeight?: boolean
 }

@@ -48,7 +48,7 @@ const session = (
 
 const seed = (...sessions: TerminalSession[]): void => useTerminalsStore.setState({ sessions })
 
-const sessions = () => useTerminalsStore.getState().sessions
+const sessions = (): TerminalSession[] => useTerminalsStore.getState().sessions
 
 describe('useTerminalsStore.rename', () => {
   beforeEach(() => {

@@ -44,11 +44,11 @@ export function FindBar({
       <Input
         ref={inputRef}
         value={query}
-        onChange={(e) => {
+        onChange={(e: React.ChangeEvent<HTMLInputElement>): void => {
           setQuery(e.target.value)
           setStep(0)
         }}
-        onKeyDown={(e) => {
+        onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>): void => {
           if (e.key === 'Escape') onClose()
           if (e.key === 'Enter') setStep((s) => s + (e.shiftKey ? -1 : 1))
         }}

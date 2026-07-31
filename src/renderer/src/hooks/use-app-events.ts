@@ -12,19 +12,13 @@ type Utils = ReturnType<typeof trpc.useUtils>
 /** Same proxy for the shell router (updateStatus lives shell-side). */
 type ShellUtils = ReturnType<typeof shellTrpc.useUtils>
 
-// The renderer's push inbox, fed by TWO sources since the daemon split: the
-// daemon's WS session (CLI agent-push refreshes + the watcher events, via
-// lib/daemon.ts) and the tiny Electron shell-event channel (Cmd+W close-tab,
-// updater status — `window.porcelain.onShellEvent`). One handler serves both
-// under one union type so an event can't fall between the transports.
+// Fed by TWO sources since the daemon split — the daemon WS session (agent-push
+// refreshes + watcher events) and the Electron shell-event channel (Cmd+W, updater
+// status) — one handler serves both under one union type.
 //
-// `handle` maps each event to the work it triggers (a query invalidation, or for
-// close-tab a store action). Its `Promise<unknown>` return type with no `default`
-// is the exhaustiveness guard: a new event that isn't wired here lets the switch
-// fall through to an implicit `return undefined`, which fails the annotated type at
-// `pnpm typecheck` — the same compile-time net the Viewer's tab-kind switch uses. So
-// adding a channel can't silently ship un-refreshed (the bug that left agent-curated
-// actions stale until a tab switch remounted the list).
+// `handle`'s `Promise<unknown>` return with NO `default` case is deliberate: an
+// unwired event falls through to an implicit `return undefined`, which fails the
+// annotated type at `pnpm typecheck` — so a new channel can't silently ship un-refreshed.
 function handle(
   event: AppEvent | ShellEvent,
   utils: Utils,
@@ -134,7 +128,7 @@ export function useAppEvents(): void {
     // in the browser client there's no preload bridge, so skip it — the daemon WS
     // events below keep working untouched.
     const offShell = isBrowser
-      ? () => {}
+      ? (): void => {}
       : window.porcelain.onShellEvent(async (event) => {
           await handle(event, utils, shellUtils)
         })
