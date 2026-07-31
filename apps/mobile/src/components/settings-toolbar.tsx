@@ -1,5 +1,7 @@
 import { router, Stack } from 'expo-router'
 
+import { toolbarIcon } from '@/components/toolbar-icon'
+
 /**
  * Header gear that opens the Settings sheet. Every `Stack.Toolbar.*` element has
  * to be created inside the component that renders `Stack.Toolbar`, so tabs that
@@ -10,7 +12,7 @@ export function SettingsToolbar() {
     <Stack.Toolbar placement="right">
       <Stack.Toolbar.Button
         accessibilityLabel="Settings"
-        icon="gearshape"
+        icon={toolbarIcon('settings')}
         onPress={() => router.push('/settings')}
       />
     </Stack.Toolbar>

@@ -1,5 +1,6 @@
 import { Host, List, ListItem } from '@expo/ui'
 import { router, Stack } from 'expo-router'
+import { Platform } from 'react-native'
 
 import { colors } from '@/theme/colors'
 
@@ -28,11 +29,18 @@ export function SettingsScreen() {
           </ListItem>
         </List>
       </Host>
-      <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button onPress={() => router.back()} variant="done">
-          Done
-        </Stack.Toolbar.Button>
-      </Stack.Toolbar>
+      {/*
+        iOS only: this is the sheet's dismiss affordance. Android toolbar buttons
+        render nothing without an image icon (label-only buttons are dropped), and
+        the platform already gives this screen a native up arrow.
+      */}
+      {Platform.OS === 'ios' ? (
+        <Stack.Toolbar placement="right">
+          <Stack.Toolbar.Button onPress={() => router.back()} variant="done">
+            Done
+          </Stack.Toolbar.Button>
+        </Stack.Toolbar>
+      ) : null}
     </>
   )
 }

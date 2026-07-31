@@ -1,6 +1,7 @@
 import { router, Stack } from 'expo-router'
 
 import { PlaceholderScreen } from '@/components/placeholder-screen'
+import { toolbarIcon } from '@/components/toolbar-icon'
 
 export function ChangesScreen() {
   return (
@@ -18,12 +19,12 @@ export function ChangesScreen() {
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
           accessibilityLabel="History"
-          icon="clock.arrow.circlepath"
+          icon={toolbarIcon('history')}
           onPress={() => router.push('/history')}
         />
         <Stack.Toolbar.Button
           accessibilityLabel="Settings"
-          icon="gearshape"
+          icon={toolbarIcon('settings')}
           onPress={() => router.push('/settings')}
         />
       </Stack.Toolbar>

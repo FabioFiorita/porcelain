@@ -1,6 +1,7 @@
 import { router, Stack } from 'expo-router'
 
 import { PlaceholderScreen } from '@/components/placeholder-screen'
+import { toolbarIcon } from '@/components/toolbar-icon'
 
 export function ReviewScreen() {
   return (
@@ -18,12 +19,12 @@ export function ReviewScreen() {
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
           accessibilityLabel="Board"
-          icon="rectangle.3.group"
+          icon={toolbarIcon('board')}
           onPress={() => router.push('/board')}
         />
         <Stack.Toolbar.Button
           accessibilityLabel="Settings"
-          icon="gearshape"
+          icon={toolbarIcon('settings')}
           onPress={() => router.push('/settings')}
         />
       </Stack.Toolbar>
