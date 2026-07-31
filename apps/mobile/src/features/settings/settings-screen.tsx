@@ -1,5 +1,5 @@
 import { Button, Host, List, Text, VStack } from '@expo/ui/swift-ui'
-import { font, foregroundStyle, listStyle } from '@expo/ui/swift-ui/modifiers'
+import { buttonStyle, font, foregroundStyle, listStyle } from '@expo/ui/swift-ui/modifiers'
 import { type Href, router, Stack } from 'expo-router'
 
 import { colors } from '@/theme/colors'
@@ -22,10 +22,18 @@ export function SettingsScreen() {
           `Button` wrapping a `VStack` is the SwiftUI title+subtitle row. There is
           no `NavigationLink` here on purpose: expo-router owns navigation, so the
           row only needs to fire `router.push`.
+
+          `buttonStyle('plain')` is NOT optional: a default SwiftUI `Button` tints
+          its whole label with the accent color, so every row renders as blue link
+          text instead of a settings row (caught on the simulator, 2026-07-31).
         */}
         <List modifiers={[listStyle('insetGrouped')]}>
           {ROWS.map(({ href, subtitle, title }) => (
-            <Button key={title} onPress={() => router.push(href)}>
+            <Button
+              key={title}
+              modifiers={[buttonStyle('plain')]}
+              onPress={() => router.push(href)}
+            >
               <VStack alignment="leading" spacing={2}>
                 <Text>{title}</Text>
                 <Text
