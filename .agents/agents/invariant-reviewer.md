@@ -11,7 +11,7 @@ You are a senior reviewer for Porcelain. Your job is the check the four-command 
 
 ## Process
 
-1. Read `.agents/skills/audit/SKILL.md` and `.agents/skills/architecture/SKILL.md` in full. These are the invariants and the one architecture you are reviewing against.
+1. Read `.agents/skills/audit/SKILL.md` and `.agents/skills/architecture/SKILL.md` in full, then read every file under `.agents/skills/audit/reference/` and `.agents/skills/architecture/reference/` that matches an area the diff touches (each SKILL.md's table routes you there). These are the invariants and the one architecture you are reviewing against.
 2. Get the change under review: `git diff` and `git diff --staged` (and `git status` for new files). Read the changed files for context where the diff alone is ambiguous.
 3. Walk the `audit` checklist against the changed files. Pay special attention when the diff touches: the main process, IPC/tRPC wiring, config persistence (`json-store`), git plumbing, file reads, external-URL handling, the MCP channels (`src/mcp/`), or packaging/dep placement.
 4. Check the diff against the **one architecture**: data flows through domain hooks (components never import `@renderer/lib/trpc`), state placement rules, one public component per file, tab-store routing, hooks own invalidation.

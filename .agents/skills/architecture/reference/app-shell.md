@@ -1,0 +1,93 @@
+# App shell — traps & decisions
+
+- **Multi-window, one repo per window.** Each window is an independent renderer over the ONE
+  *stateless* daemon router — every procedure takes `repoPath`, so the backend holds no "current
+  repo" and appRouter context is **empty**. Per-connection concerns live on the WS **session** (one
+  socket per window) keyed by a structural sender, not a `WebContents`. The lone procedure needing
+  the calling window (`windowInit`) lives on the shellRouter.
+- **Window-targeted vs broadcast:** watcher events target the session that registered the watch;
+  agent-channel app-events **broadcast**, because each window invalidates only its own repo-keyed
+  query so cross-window delivery is a harmless no-op refetch. **Don't add a window→repo registry to
+  "fix" it.** `close-tab` / `update-status` / `maximized-changed` are shell events, never daemon
+  events; the last is window-targeted because it's about ONE window's state.
+- **TRAP — `windowInitFor` must stay an IDEMPOTENT read (do NOT delete-on-read):** the boot effect
+  runs under `StrictMode`, so a one-shot read lets the second boot fall back to `restore` and clone
+  the last repo. Pending init is cleaned up on window *close*.
+- **macOS menu:** keep the `editMenu` role (a custom menu strips ⌘C/V from inputs) and keep
+  reload/devtools **dev-gated** (prod deliberately ignores ⌘R). `electron-devtools-installer` stays a
+  **devDependency** — it must not ship.
+- **Chrome heights are coupled.** Titlebar, rail/panel headers, viewer header, right-sidebar header
+  are all `h-12`, and `trafficLightPosition` is tuned to that 48px titlebar. Change it and the traffic
+  lights drift.
+- **The two floating sidebars are pushed below the titlebar with `md:` classes, never an inline
+  style** — shadcn pins their container to the full viewport, and the mobile Sheet reuses the same
+  props, so an inline offset makes the drawer begin 3rem below the viewport. The center
+  `SidebarInset` is `h-full`, not `h-screen` (which overflowed 48px past the bottom).
+- **Window chrome is platform-split; traffic lights are macOS-only.** Linux/Windows get
+  `frame: false` and a renderer-drawn `WindowControls` calling shell procedures that act on the
+  calling window. The maximize glyph must track OS-driven state (WM shortcut, drag-region
+  double-click), hence the `maximized-changed` event.
+- **Collapse-all is a nonce, not a store of expanded paths.** Expansion is per-`DirNode` local state
+  because the tree reads lazily, so collapse-all bumps `collapseNonce` and nodes collapse in an effect
+  keyed on it (skipping mount, so a reveal-expanded node isn't snapped shut). **Don't add a central
+  expansion store to "fix" this.**
+- **Resize handles write the CSS variable directly during the drag and commit to the store only on
+  mouseup** — a store write per `mousemove` re-renders the whole app.
+- **`VirtualRows` is fixed-height by default — the perf invariant.** File/diff/source viewers MUST
+  stay fixed-height (measuring every row is what the virtualizer exists to avoid). The lone opt-in is
+  `dynamicHeight`, used only by the small, sliced reading surface; it also publishes the viewport
+  width as `--vrows-vw` straight to the DOM in a `ResizeObserver` (the resize-handle trick) so a
+  wrapping row sizes to the viewport, not the `w-max` content. Don't enable it on a large surface.
+- **Two nested SidebarProviders**; the inner takes `shortcut="."` so both don't grab ⌘B. The two
+  `TopBar` toggle icons are **deliberately different** (`PanelLeft` / `Zap`) — never mirror-image
+  icons. **Both toggles must call that provider's `toggleSidebar`**, not write the open preference
+  alone: below the mobile breakpoint the shell is a Sheet driven by `openMobile`, and flipping only
+  the desktop flag leaves it closed.
+- **Phone is "quick look", not a full workspace** (iPad ≥768 keeps the desktop floating layout).
+  Below 768px the Sidebar becomes a Sheet, and because our left shell is a dual-rail the mobile body
+  must be **`flex-row`** (the default `flex-col` stacked the rail on the list). Also: auto-close the
+  left sheet when the active viewer tab changes; force unified diffs (split needs two columns); drop
+  traffic-light spacers in the browser titlebar; safe-area padding. Deliberately **not** a touch
+  redesign of every surface — glanceable review, not an iPhone IDE.
+- **One opaque design — the glaze glass system is DELETED.** The app targets a plain browser as a
+  first-class client, and neither it nor Linux Electron can do macOS vibrancy — a glass design that
+  works on one target isn't one design. `.glaze-*`, the `--surface-*`/`--hover-fill`/`--selected-fill`
+  tokens, and window vibrancy are gone; don't reintroduce a `Surface` wrapper or a glass material.
+  **One carve-out:** the preset ships translucent menus and was taken as-is; that licenses no new
+  glass elsewhere. The Porcelain tokens block layers ONLY semantic/diff/ink colors, so it survives a
+  preset re-apply.
+- **Surface recipes.** Raised = `rounded-* border bg-card`; recessed wells = `rounded-lg border
+  border-border/60` + `bg-muted`; settings groups = `rounded-md border bg-muted/40` (never per-row
+  `bg-card` pills). Row/card action classes come from `lib/controls.ts` — **an inline `h-7 text-xs`
+  outside it fails `pnpm lint`.** Don't inline the constant into `ui/button.tsx`; vendored files are
+  overwritten on re-apply. **TRAP — always pair a text size with its `md:` twin** when overriding the
+  vendored Input: it ships `md:text-sm` for the iOS zoom-safe base, so without the twin desktop keeps
+  `sm`.
+- **One interaction language:** `bg-accent` (or `bg-sidebar-accent`) = lit/selected, `bg-accent/50` =
+  resting hover, everywhere. These are the preset's own tokens, **not** re-pointed by the Porcelain
+  block, so a re-apply is safe. Never invent a fresh opaque shade. `--muted` backs *static* surfaces.
+- **No decorative accent — color only for meaning.** The only surviving color is functional: git +/−,
+  file-type icons, folder/status hues, terminal ANSI. Don't reintroduce a CTA accent.
+- **TipTap is a scoped exception, allowed ONLY in the Notes card.** The file viewer stays a plain
+  textarea over a Shiki backdrop — no CodeMirror/Monaco, no autocomplete/rename/format (those make it
+  an editor).
+- **The editor adopts external file changes ONLY when clean** — `EditorSource` reloads from a changed
+  prop only if there are no unsaved edits; mid-edit the user's text wins. Don't make it always adopt
+  (clobbers edits) or never adopt (the stale-view bug this fixed).
+- **Markdown reader is NOT virtualized** — never route code files through it. Reader links get
+  `target="_blank"` → `setWindowOpenHandler`, gated by `isSafeExternalUrl`.
+- **HTML files open in a built-in sandboxed preview**, same `sandbox=""` as the Review's diagram and
+  evidence iframes — never add allow-* tokens.
+- Base UI requires `DropdownMenuLabel` inside `DropdownMenuGroup`, or it throws `MenuGroupContext
+  missing`.
+- **Tree Delete = the `trash` npm package** (recoverable), never a permanent unlink; the one
+  destructive tree action, so it confirms via an `AlertDialog`.
+- **Agent channels are watched JSON under `PORCELAIN_HOME`, driven by the dependency-free porcelain
+  CLI.** Read `src/cli/` and the stores it mirrors for the current set — an enumeration here rots.
+  **Do not re-add a Porcelain MCP server** without reopening the channel design. Channel write-safety
+  rules live in `audit` — read it before touching any channel file.
+- **TRAP — the CLI's `DEFAULT_LAYERS` is a deliberate duplicate of `flow.ts`'s**, because the CLI may
+  not import backend code. The duplication is *guarded* by a test asserting the two are identical, so
+  edit both together.
+- **Explore's flow reading is a heuristic, not an index** — relative imports only, so it won't cross
+  the client→server seam. That gap is what the agent's `shipped` files fill.
