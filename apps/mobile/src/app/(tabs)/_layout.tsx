@@ -4,7 +4,10 @@ import { colors } from '@/theme/colors'
 
 export default function TabsLayout() {
   return (
-    <NativeTabs minimizeBehavior="onScrollDown" tintColor={colors.tint}>
+    // `sidebarAdaptable` is iPad/macOS-only (iOS 18+, no effect on iPhone): it lets the system
+    // promote the tab bar to the side tab bar / sidebar instead of pinning a phone-sized bottom
+    // bar to a 13" screen. Every trigger below feeds both presentations, so there is one tab list.
+    <NativeTabs minimizeBehavior="onScrollDown" sidebarAdaptable tintColor={colors.tint}>
       <NativeTabs.Trigger name="(files)">
         <NativeTabs.Trigger.Icon sf="folder.fill" md="folder" />
         <NativeTabs.Trigger.Label>Files</NativeTabs.Trigger.Label>

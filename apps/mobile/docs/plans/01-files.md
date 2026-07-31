@@ -162,6 +162,47 @@ repo picker, a second empty-state component, or its own reading of
 
 `useActiveRepo()` (00 §2) is the only source of the repo path this slice reads.
 
+### 2.7 iPad: the split view this slice owns (approved 2026-07-31, build it here)
+
+The pushed drill-down of 2.1 is a **phone** decision, and it stays the phone
+decision. On iPad it wastes the axis the phone didn't have: a 13" screen showing
+one directory at a time, one tap deep, is the complaint that opened this section.
+The target is the Notes/Mail idiom — sidebar, list, detail — which is also what
+the desktop client already is.
+
+**The constraint that decides the shape.** `expo-router`'s `SplitView`
+(`expo-router/unstable-split-view`, alpha, iOS-only) throws
+`SplitView cannot be used inside another navigator, except for Slot` — it checks
+`IsWithinLayoutContext` at render. So a split view **cannot** live inside the
+Files tab. Reaching Notes-like Files on iPad means the **root** layout branches:
+iPhone keeps `NativeTabs`, iPad renders `SplitView` whose primary column carries
+the four destinations (replacing the tab bar the way Notes has no tab bar),
+supplementary = the directory listing, secondary = the viewer. `sidebarAdaptable`
+on `NativeTabs` — already shipped — is the *interim* answer, not this one.
+
+Why it lands in **this** plan rather than as its own change: columns over
+`PlaceholderScreen` prove nothing. The split view is only reviewable once there
+is a real tree, a real viewer, and a real selection to keep in sync — which is
+exactly what 01 builds. Constraints on whoever takes it:
+
+- **One route table, two presentations.** The routes of 2.1 (`/(files)`,
+  `/(files)/dir/[...path]`, `/(files)/file/[...path]`) do not change. The iPad
+  shell selects *where* a route renders; it must not introduce iPad-only routes,
+  an iPad-only path format, or a second copy of the listing screen. Two shells
+  are already the cost being paid — two route tables would be a second
+  architecture (hard rule 1) and is not approved.
+- **The fork is at the root layout only** (`src/app/_layout.tsx`), sized with the
+  runtime idiom check, not a hard-coded width. Nothing under `src/features/files/`
+  may branch on iPad.
+- **Selection state is the URL.** The secondary column reflects the current
+  route; do not add a parallel "selected file" store the router doesn't know about.
+- Confirm `topColumnForCollapsing` behaviour for a compact-width iPad window
+  (Stage Manager, Slide Over) — the app must still be usable when the split view
+  collapses, and that is the state the original screenshot was actually in.
+- Proof needs an **iPad** simulator on the Mac, not the Android emulator loop of
+  §6. Attach a landscape iPad screenshot with all three columns populated and a
+  compact-window screenshot to the Review, or the change is not verified.
+
 ## 3. Data layer
 
 All procedures are on the flat daemon router; reach them through the seams
@@ -286,7 +327,10 @@ will collide on:
   second helper. Until this slice's viewer route exists, `openFile` falls back
   to the Files tab root, which is exactly what 03 assumes.
 
-No other tab, no `src/theme`, no root `_layout` change.
+No other tab and no `src/theme` change. **One root change, and only for §2.7:**
+`src/app/_layout.tsx` gains the iPad `SplitView` branch (00 owns that file's
+providers and sheet routes — add the branch, don't restructure them). If §2.7
+is deferred past this worktree, the root layout stays untouched.
 
 ## 5. Out of scope (deliberately absent)
 
@@ -306,8 +350,10 @@ No other tab, no `src/theme`, no root `_layout` change.
   `react-native-webview`, planned separately.
 - **Content search** — `searchText` / `searchCode`. The header search bar is
   filename-fuzzy only, matching the desktop finder.
-- **Split view / two panes**, multi-select, drag-and-drop, per-type file icons
-  beyond folder/document, git-status badges on rows, pinch-zoom on images.
+- **Two panes on a phone** — an iPhone shows one column, and §2.7's iPad split
+  view is the *only* sanctioned multi-column Files. Also out: multi-select,
+  drag-and-drop, per-type file icons beyond folder/document, git-status badges on
+  rows, pinch-zoom on images.
 - **Repo and environment switching** — owned by the connection layer; Files
   only hands off to it.
 

@@ -39,6 +39,23 @@ of becoming tabs. Mobile deliberately carries fewer tabs than the desktop app:
 Settings itself is a nested stack: root list → Environments (daemons paired
 with this device over LAN or Tailscale) · Appearance · About.
 
+The same four triggers drive both presentations: iPhone gets the bottom tab
+bar, and `sidebarAdaptable` lets iPadOS/macOS promote them to the system side
+tab bar and sidebar. There is one tab list, never a second iPad-only one.
+
+## Delivery
+
+Two EAS workflows in `.eas/workflows/`, both iOS-only (Android runs through the
+local emulator loop):
+
+| File | Trigger | What it does |
+| --- | --- | --- |
+| `preview.yml` | mobile PRs into `main`, mobile pushes to `main` | Fingerprint matches an existing `preview` build → EAS Update (free). Fingerprint moved → new build → TestFlight. |
+| `production.yml` | manual `eas workflow:run` only | The same build-or-update shape plus App Store submission, deliberately not automatic while the app is out of the store. |
+
+The TestFlight job needs App Store Connect credentials configured on EAS before
+it can run non-interactively; until then a native change builds but stops there.
+
 ## Where code goes
 
 ```

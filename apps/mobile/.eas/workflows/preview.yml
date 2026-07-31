@@ -1,0 +1,92 @@
+# Preview delivery — the TestFlight build is always current, cheaply.
+#
+# Runs on mobile PRs into main AND on mobile pushes to main, because both are
+# real ship paths here: small changes go straight to main, bigger ones take a
+# worktree and a PR (AGENTS.md hard rule 8). Either way the tester's TestFlight
+# build has to end up running that code.
+#
+# One decision decides the cost:
+#   fingerprint unchanged -> EAS Update to the `preview` channel. No credits.
+#                            The installed TestFlight build picks it up on relaunch.
+#   fingerprint changed   -> a `preview` build (native deps/config moved, so no OTA
+#                            can reach the old binary — its runtimeVersion no longer
+#                            matches), then straight to TestFlight.
+#
+# `wait_for_in_progress` is what keeps the merge cheap: when a PR already paid for
+# a build, main's run finds that same fingerprint (get-build matches on the hash,
+# not the branch) — waiting if it is still running — and publishes an update
+# instead of buying a second binary.
+#
+# iOS-only by design: TestFlight is the delivery target and Android runs through
+# the local emulator dev loop (see docs/plans/README.md).
+#
+# Force a build when the fingerprint did NOT change: apply the GitHub label
+# `eas-build-ios:preview` to the PR. That is EAS's own built-in label trigger
+# (Project settings > GitHub), not this workflow — don't reimplement it here.
+#
+# Prerequisite: App Store Connect credentials must exist on EAS for the TestFlight
+# job to run non-interactively (`eas credentials:configure-build -p ios -e preview`
+# plus an App Store Connect API key). Until then the build lands in EAS and the
+# TestFlight job is the step that fails.
+
+name: Preview delivery
+
+on:
+  push:
+    branches: ['main']
+    paths: ['apps/mobile/**']
+  pull_request:
+    branches: ['main']
+    paths: ['apps/mobile/**']
+
+concurrency:
+  cancel_in_progress: true
+  # Custom groups are not supported yet; this is the placeholder value the docs
+  # ask for so the file stays compatible when they are.
+  group: ${{ workflow.filename }}-${{ github.ref }}
+
+jobs:
+  fingerprint:
+    name: Fingerprint
+    type: fingerprint
+    # Must match the build profile's environment or the hashes never line up.
+    environment: preview
+
+  get_ios_build:
+    name: Check for a matching iOS build
+    needs: [fingerprint]
+    type: get-build
+    params:
+      platform: ios
+      profile: preview
+      fingerprint_hash: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
+      wait_for_in_progress: true
+
+  publish_ios_update:
+    name: Publish iOS preview update
+    needs: [get_ios_build]
+    if: ${{ needs.get_ios_build.outputs.build_id }}
+    type: update
+    params:
+      channel: preview
+      platform: ios
+      message: ${{ github.event.pull_request.title || github.commit_message }}
+
+  build_ios:
+    name: Build iOS preview
+    needs: [get_ios_build]
+    if: ${{ !needs.get_ios_build.outputs.build_id }}
+    type: build
+    params:
+      platform: ios
+      profile: preview
+      message: ${{ github.event.pull_request.title || github.commit_message }}
+
+  testflight_ios:
+    name: Send iOS preview to TestFlight
+    needs: [build_ios]
+    type: testflight
+    params:
+      build_id: ${{ needs.build_ios.outputs.build_id }}
+      profile: preview
+      changelog: ${{ github.event.pull_request.title || github.commit_message }}
