@@ -23,6 +23,35 @@ To expose Expo's local development MCP server while Metro is running:
 pnpm mobile:start:mcp
 ```
 
-The starter has five stable native tabs: Files, Changes, Review, Board, and
-Terminal. Each tab owns a navigation stack so deeper screens can be added
-without turning every destination into a tab.
+## Shell: four tabs
+
+The client has four stable native tabs — **Files · Changes · Review ·
+Terminal** — and each owns its own stack, so deeper screens are pushed instead
+of becoming tabs. Mobile deliberately carries fewer tabs than the desktop app:
+
+| Desktop surface | Where it lives on mobile |
+| --- | --- |
+| History | pushed from the **Changes** header (commit history reads as part of the working tree story) |
+| Board | pushed from the **Review** header (a board card starts a review; the two are coupled) |
+| Search | the **Files** header search bar, not a tab |
+| Settings | a root-level route presented as a form sheet on iOS (full screen on Android), reachable from every tab's header gear |
+
+Settings itself is a nested stack: root list → Environments (daemons paired
+with this device over LAN or Tailscale) · Appearance · About.
+
+## Where code goes
+
+```
+src/app/        route table only — thin files that re-export a feature screen
+src/features/   one folder per feature (files, changes, review, terminal, settings)
+src/components/ shared presentational components (placeholder-screen, settings-toolbar)
+src/theme/      shared design values (colors.tint is the single accent)
+```
+
+Never co-locate components, types, or utilities under `src/app` — that
+directory holds routes and `_layout` files and nothing else. A new screen means
+a file in `src/features/<feature>/<name>-screen.tsx` plus a one-line route file
+that default-exports it. File names are kebab-case.
+
+UI primitives are universal `@expo/ui` (`Host`, `List`, `Column`, `Text`, …)
+and Expo Router navigation — no shadcn, Tailwind, or DOM components here.

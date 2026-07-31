@@ -30,6 +30,9 @@
     "@tailwindcss/typography",
     "tailwindcss",
     "conventional-changelog-conventionalcommits",
-    "expo-mcp"
+    "expo-mcp",
+    "@trpc/client",
+    "@tanstack/react-query",
+    "expo-network"
   ]
 }

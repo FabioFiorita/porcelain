@@ -21,6 +21,13 @@
  * Our own seams use structural interfaces instead (see `FileWatchSender` in
  * file-watch.ts, `TerminalSender` in terminal-manager.ts), so this list should
  * not grow for Porcelain-owned types. Adding to it is a deliberate act.
+ *
+ * Scope is BOTH TypeScript clients — the Electron/browser tree and the native
+ * app (`apps/mobile/src`, added 2026-07-30). Hard rules 6 and 7 are about the
+ * language, not about one renderer, so a fourth client must not be a place the
+ * escapes come back. (The other custom gates stay Electron-only on purpose:
+ * control recipes and the shadcn heuristics are renderer-surface rules — mobile
+ * bans shadcn outright — and lint-audit guards daemon/main invariants.)
  */
 
 import { readdirSync, readFileSync, statSync } from 'node:fs'
@@ -29,6 +36,7 @@ import { fileURLToPath } from 'node:url'
 
 const root = join(fileURLToPath(new URL('.', import.meta.url)), '..')
 const scanRoot = join(root, 'src')
+const mobileRoot = join(root, 'apps', 'mobile', 'src')
 
 const FORBIDDEN = [
   {
@@ -42,7 +50,10 @@ const FORBIDDEN = [
   },
 ]
 
-const SKIP_DIRS = new Set(['ui', 'node_modules', 'dist', 'out'])
+const SKIP_DIRS = new Set(['node_modules', 'dist', 'out'])
+// The vendored shadcn dir, excluded by PATH, not by name: a name-based `ui`
+// skip would silently drop a native `ui` slice under apps/mobile/src too.
+const VENDORED_UI = join(scanRoot, 'renderer', 'src', 'components', 'ui')
 const ALLOWED_FILES = new Set([
   join(scanRoot, 'backend', 'static-server.test.ts'), // fakes node:http ServerResponse
   join(scanRoot, 'renderer', 'src', 'lib', 'terminal-touch-scroll.test.ts'), // fakes DOM Touch[]
@@ -52,6 +63,7 @@ function walk(dir, out = []) {
   for (const name of readdirSync(dir)) {
     if (SKIP_DIRS.has(name)) continue
     const path = join(dir, name)
+    if (path === VENDORED_UI) continue
     const st = statSync(path)
     if (st.isDirectory()) walk(path, out)
     else if (/\.(tsx?|jsx?)$/.test(name)) out.push(path)
@@ -61,7 +73,7 @@ function walk(dir, out = []) {
 
 const hits = []
 
-for (const file of walk(scanRoot)) {
+for (const file of [...walk(scanRoot), ...walk(mobileRoot)]) {
   if (ALLOWED_FILES.has(file)) continue
   const rel = relative(root, file)
   const lines = readFileSync(file, 'utf8').split('\n')
