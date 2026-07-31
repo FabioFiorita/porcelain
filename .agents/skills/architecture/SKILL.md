@@ -169,6 +169,16 @@ so they can't drift, and pointing the client at a remote daemon needed no new tr
   bites the tailnet client. Use `randomId()` / `copyText()` in `lib/utils.ts`. `clipboard.readText`
   has no polyfill (context-menu Paste no-ops; native Cmd/Ctrl+V still works).
 - **`ws-protocol.ts` is the single `AppEvent` source** — add an event once, there; both ends validate.
+- **`packages/contracts` vs `src/shared` is a boundary, not a folder preference.** `@porcelain/contracts`
+  holds shapes that cross a **client** boundary (the WS protocol; `AppRouter` behind
+  `@porcelain/contracts/router`) so the renderer, `apps/mobile`, and the CLI share one definition;
+  `src/shared` is code shared between the **desktop processes**, which a sibling workspace can't
+  reach and doesn't need. Don't migrate `src/shared` wholesale — move a module only when a second
+  client actually needs it. *Traps:* the package is resolved by **alias**, never a root
+  `dependencies` entry — electron-vite externalizes declared deps, which would put a bare
+  `require("@porcelain/contracts")` inside the dependency-free CLI bundle. And the default entry
+  stays zod-only: the router type drags the daemon's type graph (Node typings,
+  `__PORCELAIN_VERSION__`) into anything that imports the barrel, which Expo's tsconfig rejects.
 
 ### Routing — the tabs store IS the router
 

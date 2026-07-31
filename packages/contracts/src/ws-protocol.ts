@@ -9,10 +9,10 @@ import { z } from 'zod'
  * resume), and the watch registrations (per-connection state, so they live on the
  * session, not the router).
  * Both ends validate every message with these schemas: the daemon because the
- * socket is an external input, the renderer so a protocol drift fails loudly
- * instead of silently mis-shaping data. Shared by src/backend (runtime) and the
- * renderer (`@shared/ws-protocol`), so this module must stay dependency-light
- * (zod only) and Electron-free.
+ * socket is an external input, the client so a protocol drift fails loudly
+ * instead of silently mis-shaping data. Crosses the client boundary
+ * (`@porcelain/contracts`), so this module must stay dependency-light (zod only)
+ * and Electron-free.
  */
 
 /**

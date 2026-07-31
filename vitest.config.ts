@@ -17,11 +17,12 @@ export default defineConfig({
       '@main': resolve('src/main'),
       '@backend': resolve('src/backend'),
       '@shared': resolve('src/shared'),
+      '@porcelain/contracts': resolve('packages/contracts/src'),
     },
   },
   test: {
     environment: 'jsdom',
-    include: ['src/**/*.test.{ts,tsx}'],
+    include: ['src/**/*.test.{ts,tsx}', 'packages/*/src/**/*.test.{ts,tsx}'],
     setupFiles: ['src/test-setup.ts'],
   },
 })

@@ -1,4 +1,4 @@
-import type { AppEvent } from '@shared/ws-protocol'
+import type { AppEvent } from '@porcelain/contracts'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { usePreferencesStore } from './preferences'
 import { isUnreadTab, type UnreadTab, unreadTabFor, useUnreadStore } from './unread'

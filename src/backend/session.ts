@@ -1,11 +1,11 @@
-import { WebSocket } from 'ws'
-import { z } from 'zod'
 import {
   type AppEvent,
   appEventSchema,
   clientMessageSchema,
   type ServerMessage,
-} from '../shared/ws-protocol'
+} from '@porcelain/contracts'
+import { WebSocket } from 'ws'
+import { z } from 'zod'
 import type { AuthIdentity } from './access-store'
 import { clearWatchedDirs, clearWatchedFiles, setWatchedDirs, setWatchedFiles } from './file-watch'
 import {

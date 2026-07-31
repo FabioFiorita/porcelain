@@ -1,4 +1,4 @@
-import type { AppRouter } from '@backend/api'
+import type { AppRouter } from '@porcelain/contracts/router'
 import { trpc } from '@renderer/lib/trpc'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {

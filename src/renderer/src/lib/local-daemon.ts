@@ -1,4 +1,4 @@
-import type { AppRouter } from '@backend/api'
+import type { AppRouter } from '@porcelain/contracts/router'
 import type { createTRPCClient } from '@trpc/client'
 import { createDaemonSession, type DaemonEndpoint, type DaemonSession, primary } from './daemon'
 import { createAppClientFor } from './trpc'

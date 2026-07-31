@@ -1,4 +1,4 @@
-import type { AppEvent } from '@shared/ws-protocol'
+import type { AppEvent } from '@porcelain/contracts'
 import { create } from 'zustand'
 import { usePreferencesStore } from './preferences'
 

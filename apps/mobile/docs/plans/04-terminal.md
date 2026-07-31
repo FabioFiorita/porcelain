@@ -241,7 +241,7 @@ note. Every descriptor carries a zod schema for its output.
 - Inbound: `terminal:data` → the coalescer; `terminal:exit` → footer + roster patch;
   `terminal:attached` → reset + scrollback.
 
-Frames arrive already validated: 00's `ws-protocol.ts` zod-parses every inbound `/session`
+Frames arrive already validated: `@porcelain/contracts` zod-parses every inbound `/session`
 frame against `serverMessageSchema` before it reaches a subscriber, so this hook narrows on
 the discriminant — never a cast. Hard rule 6, and `as unknown as` is lint-blocked in
 `apps/mobile/src` by `scripts/lint-escapes.mjs`. State lives in the hook + React Query;
@@ -347,7 +347,7 @@ matching the root layout's sheet options).
 - `apps/mobile/README.md` — one line under the tab table pointing at this doc.
 - **Do not** add `zod` here on your own — 00-connection lands it as an `apps/mobile`
   dependency. Use it for the bridge parses (`webview/bridge-protocol.ts`); the `/session`
-  frames are already parsed by 00's `ws-protocol.ts`.
+  frames are already parsed by `@porcelain/contracts`.
 - `apps/mobile/src/lib/daemon/procedures/terminal.ts` **(new)** — this slice's descriptors
   (`terminalSessions`, `renameTerminal`, `actions`). Its own file, so it isn't a merge point.
 - `apps/mobile/src/lib/daemon/app-events.ts` — nothing to append: 00 seeds `actions`, and
@@ -359,8 +359,7 @@ These five are the only coupling. All five are in `00-connection.md` §2 (`sessi
 `environments-store.ts`, `repo.ts`, `preferences.ts`) — verified, not assumed:
 
 1. `useDaemonSession().send(message)`, typed against the daemon's `ClientMessage` shapes
-   (00's `ws-protocol.ts` re-declares the zod schemas locally and pins them to the shared
-   types — one copy, in the connection layer).
+   (from `@porcelain/contracts` — one definition, shared with the daemon and the renderer).
 2. `useDaemonSession().subscribe(listener)` for inbound frames, returning an unsubscribe;
    frames are `serverMessageSchema`-parsed before they arrive. Feature code must not reach
    into the raw socket, and there are no per-kind callbacks by design.

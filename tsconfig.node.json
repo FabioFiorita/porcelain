@@ -2,6 +2,7 @@
   "extends": "@electron-toolkit/tsconfig/tsconfig.node.json",
   "include": [
     "electron.vite.config.*",
+    "packages/contracts/src/**/*",
     "src/backend/**/*",
     "src/shared/**/*",
     "src/main/**/*",
@@ -9,6 +10,12 @@
     "src/cli/**/*"
   ],
   "compilerOptions": {
+    // `paths` without `baseUrl` resolves relative to this file — baseUrl is
+    // deprecated in TS 6 and only tsconfig.web.json still needs it (shadcn CLI).
+    "paths": {
+      "@porcelain/contracts": ["./packages/contracts/src/index.ts"],
+      "@porcelain/contracts/*": ["./packages/contracts/src/*"]
+    },
     "noImplicitAny": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,

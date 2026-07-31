@@ -33,7 +33,6 @@ one after merge means changing four plans.
 | `procedures/connection.ts` | this layer's procedures (`daemonInfo`, `recentRepos`, …) |
 | `errors.ts` | `DaemonError`, `DaemonErrorKind`, `toDaemonError` |
 | `queries.ts` | `daemonKeys`, `useDaemonQuery`, `useDaemonMutation`, `useDaemonInvalidate` |
-| `ws-protocol.ts` | runtime zod mirrors of the daemon's `/session` frames |
 | `session.ts` | `useDaemonSession`, `DaemonSession`, `SessionStatus` |
 | `app-events.ts` | `APP_EVENT_INVALIDATIONS` — the event → procedure-name map |
 | `preferences.ts` | `usePreference` — device-local, non-secret UI preferences |
@@ -231,18 +230,22 @@ Preference keys are namespaced strings owned by the calling slice (`files.showHi
 `terminal.fontSize`) — deliberately **no shared key registry**, so this never becomes a
 second file every worktree appends to.
 
-`ClientMessage` / `ServerMessage` are **type-only** imports from
-`../../../../src/shared/ws-protocol` (verified: it depends on zod alone and typechecks cleanly from
-`apps/mobile`). Metro does not bundle files outside the project root, so `ws-protocol.ts` re-declares
-the zod schemas locally and pins them to the shared types:
+**Superseded:** this layer no longer owns a `ws-protocol.ts`. The schemas moved to the
+`@porcelain/contracts` workspace package, which `apps/mobile` imports directly:
 
 ```ts
-const serverMessageSchema: z.ZodType<ServerMessage> = z.discriminatedUnion('t', [ /* … */ ])
+import { type ServerMessage, serverMessageSchema } from '@porcelain/contracts'
 ```
 
-Drift in the daemon protocol then becomes a **mobile compile error**, not a runtime surprise. (Adding
-`metro.config.js` `watchFolders` to import the shared module directly is the tempting alternative —
-deliberately not done here; see Out of scope.)
+Add `"@porcelain/contracts": "workspace:*"` to `apps/mobile/package.json` when the first import
+lands (an undeclared or unused workspace dep fails knip either way). No `metro.config.js` is needed —
+Expo's default config already watches the pnpm workspace root, and the package resolves through its
+`main` to TypeScript source (verified: `expo export --platform ios` bundles it, +82 modules for the
+schemas and zod). Drift in the daemon protocol is now a **mobile compile error** *and* one runtime
+definition, not a hand-maintained mirror — do not re-declare these schemas locally.
+
+Only import the bare `@porcelain/contracts`. `@porcelain/contracts/router` (the daemon's `AppRouter`)
+pulls the whole backend type graph in and does **not** typecheck under Expo's tsconfig.
 
 ### Provider wiring — `src/app/_layout.tsx`
 
@@ -509,10 +512,10 @@ settings, warms the file cache) → open the socket and `session:hello`.
 
 **Create — `apps/mobile/src/lib/daemon/`**
 `environment.ts` · `environments-store.ts` · `repo.ts` · `pairing.ts` · `client.ts` · `procedure.ts` ·
-`procedures/connection.ts` · `errors.ts` · `queries.ts` · `ws-protocol.ts` · `session.ts` ·
+`procedures/connection.ts` · `errors.ts` · `queries.ts` · `session.ts` ·
 `app-events.ts` · `preferences.ts` · `provider.tsx`
 Tests (pure modules only, no react-native imports): `pairing.test.ts` · `environment.test.ts` ·
-`app-events.test.ts` · `ws-protocol.test.ts`
+`app-events.test.ts`
 
 **Create — components / features / routes**
 - `src/components/empty-state.tsx`, `src/components/daemon-gate.tsx`, `src/components/repo-toolbar.tsx`
@@ -562,8 +565,9 @@ Everything else is per-slice by construction (`src/features/<tab>/`, `src/lib/da
   offers to turn on a bind; the error copy points at the host instead.
 - **Daemon autodiscovery** (mDNS/Bonjour scanning, port sweeps). The pairing link carries the
   base URL; guessing endpoints is a security smell and a support nightmare.
-- **`metro.config.js` workspace `watchFolders`** to import `src/shared/*` at runtime. Tempting, and
-  possibly right later — but it changes how the whole app bundles, and this layer only needs types.
+- **Reaching into `src/shared/*`** (desktop-process code) from the app. The WS protocol now crosses
+  the boundary properly through `@porcelain/contracts`; nothing else in `src/shared` is a client
+  contract, and a relative hop out of the project root is not the way to get one.
 - **Offline persistence** of the React Query cache, background fetch, and push notifications.
 - **Multiple simultaneously-connected environments.** One active at a time; switching tears down.
 - **Appearance / About settings**, and any tab's actual content.

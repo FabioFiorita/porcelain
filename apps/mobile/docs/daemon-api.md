@@ -7,7 +7,7 @@ Verified against the daemon source on 2026-07-31. The native app is a fourth cli
 | Path | Method | Auth | Notes |
 |---|---|---|---|
 | `/trpc/*` | GET/POST | `authorization: Bearer <token>` (401 otherwise) | tRPC `fetchRequestHandler`, endpoint `/trpc`, standard `httpBatchLink` batching |
-| `/session` | WS upgrade | token as WS subprotocol `porcelain.<token>` | Hand-rolled JSON protocol in `src/shared/ws-protocol.ts` — app events, terminal streams, watch registrations. Not tRPC |
+| `/session` | WS upgrade | token as WS subprotocol `porcelain.<token>` | Hand-rolled JSON protocol in `packages/contracts` (`@porcelain/contracts`) — app events, terminal streams, watch registrations. Not tRPC |
 | `/pair` | POST | **unauthenticated** (the only such mutation) | `{"credential":"pc_pair_<id>_<secret>"}` → `{"token":"pc_client_<id>_<secret>","client":{id,label,createdAt}}`. Rate-limited 12/min/IP, 8 KB body cap |
 
 No cookies, no CSRF, no session state. CORS: requests without an `Origin` header get no CORS headers and are allowed — a native app passes; WS upgrades have no origin check. The Bearer token is the real gate.

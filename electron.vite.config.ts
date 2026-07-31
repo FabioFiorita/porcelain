@@ -42,9 +42,17 @@ function excalidrawAssetsPlugin(): Plugin {
 const { version } = JSON.parse(readFileSync(resolve('package.json'), 'utf8')) as { version: string }
 const define = { __PORCELAIN_VERSION__: JSON.stringify(version) }
 
+// The cross-client wire contract (packages/contracts) is a workspace package with
+// no build step, resolved by alias rather than by a root `dependencies` entry:
+// electron-vite externalizes declared deps, so declaring it would emit a bare
+// `require("@porcelain/contracts")` into the dependency-free CLI and the
+// standalone daemon bundle. The alias keeps it bundled from source everywhere.
+const contractsAlias = { '@porcelain/contracts': resolve('packages/contracts/src') }
+
 export default defineConfig({
   main: {
     define,
+    resolve: { alias: contractsAlias },
     build: {
       rollupOptions: {
         // Three main-process bundles: the app entry; the dependency-free agent CLI
@@ -76,6 +84,7 @@ export default defineConfig({
         '@main': resolve('src/main'),
         '@backend': resolve('src/backend'),
         '@shared': resolve('src/shared'),
+        ...contractsAlias,
       },
     },
     optimizeDeps: {

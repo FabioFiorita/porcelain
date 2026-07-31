@@ -1,4 +1,4 @@
-import { type ClientMessage, clientMessageSchema } from '@shared/ws-protocol'
+import { type ClientMessage, clientMessageSchema } from '@porcelain/contracts'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**

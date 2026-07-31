@@ -3,7 +3,7 @@ import {
   type ClientMessage,
   type ServerMessage,
   serverMessageSchema,
-} from '@shared/ws-protocol'
+} from '@porcelain/contracts'
 import { randomId } from './utils'
 
 /**

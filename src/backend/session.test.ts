@@ -1,8 +1,8 @@
 // @vitest-environment node
 import { EventEmitter } from 'node:events'
+import { serverMessageSchema } from '@porcelain/contracts'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { WebSocket } from 'ws'
-import { serverMessageSchema } from '../shared/ws-protocol'
 
 // Same node-pty wall as daemon-http.test.ts: session.ts statically imports
 // terminal-manager (→ node-pty). Mock it (hoisted) so the import never loads the

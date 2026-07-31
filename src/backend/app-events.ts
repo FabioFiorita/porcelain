@@ -1,4 +1,4 @@
-import type { AppEvent } from '../shared/ws-protocol'
+import type { AppEvent } from '@porcelain/contracts'
 
 // The daemon's process-wide event bus. The event union lives in the shared WS
 // protocol (the session channel is how events reach the renderer); `close-tab`
