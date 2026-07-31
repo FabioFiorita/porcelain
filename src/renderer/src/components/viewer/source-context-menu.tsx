@@ -42,7 +42,7 @@ export function SourceContextMenu({
   const relativePath =
     repo && path.startsWith(`${repo.path}/`) ? path.slice(repo.path.length + 1) : path
 
-  const commentOnSelection = (): void => {
+  const handleCommentOnSelection = (): void => {
     if (!lineSel) return
     setCommentAnchor({
       path: relativePath,
@@ -86,7 +86,7 @@ export function SourceContextMenu({
                 <Compass /> Explore flow from “{selection.trim().slice(0, 24)}”
               </ContextMenuItem>
               {lineSel && (
-                <ContextMenuItem onClick={commentOnSelection}>
+                <ContextMenuItem onClick={handleCommentOnSelection}>
                   <MessageSquarePlus /> Add comment
                 </ContextMenuItem>
               )}

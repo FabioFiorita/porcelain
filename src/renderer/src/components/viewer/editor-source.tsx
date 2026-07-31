@@ -121,7 +121,7 @@ export function EditorSource({
     save(snapshot, () => setSavedContent(snapshot))
   })
 
-  const edit = (next: string): void => {
+  const handleEdit = (next: string): void => {
     setContent(next)
     // an edited preview tab must not be silently replaced
     useTabsStore.getState().pinTab(tabId('file', path))
@@ -166,7 +166,7 @@ export function EditorSource({
     const el = textareaRef.current
     if (!el) return
     const { selectionStart, selectionEnd, value } = el
-    edit(value.slice(0, selectionStart) + text + value.slice(selectionEnd))
+    handleEdit(value.slice(0, selectionStart) + text + value.slice(selectionEnd))
     requestAnimationFrame(() => {
       el.focus()
       el.selectionStart = el.selectionEnd = selectionStart + text.length
@@ -179,7 +179,7 @@ export function EditorSource({
     return el.value.slice(el.selectionStart, el.selectionEnd)
   }
 
-  const paste = async (): Promise<void> => {
+  const handlePaste = async (): Promise<void> => {
     // readText has no insecure-context polyfill (tailnet browser client). When it's
     // absent, no-op: the browser's native paste event still delivers the text and
     // Cmd/Ctrl+V keeps working — only this context-menu Paste item goes quiet.
@@ -271,7 +271,9 @@ export function EditorSource({
               <textarea
                 ref={textareaRef}
                 value={content}
-                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>): void => edit(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>): void =>
+                  handleEdit(e.target.value)
+                }
                 onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
                   if (e.key === 's' && (e.metaKey || e.ctrlKey)) {
                     e.preventDefault()
@@ -319,7 +321,7 @@ export function EditorSource({
               <Kbd>{kbdLabel('mod', 'C')}</Kbd>
             </ContextMenuShortcut>
           </ContextMenuItem>
-          <ContextMenuItem onClick={() => paste()}>
+          <ContextMenuItem onClick={() => handlePaste()}>
             <ClipboardPaste /> Paste
             <ContextMenuShortcut>
               <Kbd>{kbdLabel('mod', 'V')}</Kbd>

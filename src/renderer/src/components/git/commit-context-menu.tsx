@@ -21,7 +21,7 @@ export function CommitContextMenu({
 }): React.JSX.Element {
   const fetchMessage = useFetchCommitMessage()
 
-  const copyMessage = async (): Promise<void> => {
+  const handleCopyMessage = async (): Promise<void> => {
     await copyText(await fetchMessage(commit.hash))
   }
 
@@ -33,7 +33,7 @@ export function CommitContextMenu({
           <Copy />
           Copy SHA
         </ContextMenuItem>
-        <ContextMenuItem onClick={copyMessage}>
+        <ContextMenuItem onClick={handleCopyMessage}>
           <MessageSquare />
           Copy commit message
         </ContextMenuItem>

@@ -75,7 +75,7 @@ export function FileFinder(): React.JSX.Element {
   }, [open])
 
   useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent): void => {
+    const handleKeyDown = (e: KeyboardEvent): void => {
       if (!(e.metaKey || e.ctrlKey)) return
       // ⌘P always; ⌘K mirrors the titlebar search bar, but over a focused terminal
       // ⌘K stays the shell's clear-screen (handled in the xterm registry).
@@ -84,8 +84,8 @@ export function FileFinder(): React.JSX.Element {
         setOpen(!useFileFinderStore.getState().open)
       }
     }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
   }, [setOpen])
 
   const { results: files, isFetching } = useFileSearch(debouncedQuery, open)
@@ -101,7 +101,7 @@ export function FileFinder(): React.JSX.Element {
     (files.length > 0 ? 1 : 0) + (commands.length > 0 ? 1 : 0) + (commits.length > 0 ? 1 : 0)
   const labelled = kinds > 1
 
-  const openFile = (result: SearchResult): void => {
+  const handleOpenFile = (result: SearchResult): void => {
     if (!repo) return
     const absolute = `${repo.path}/${result.path}`
     if (result.kind === 'dir') {
@@ -119,7 +119,7 @@ export function FileFinder(): React.JSX.Element {
   }
 
   const requestLocalRun = useActionRunStore((s) => s.requestLocalRun)
-  const runCommand = async (action: Action): Promise<void> => {
+  const handleRunCommand = async (action: Action): Promise<void> => {
     setOpen(false)
     setQuery('')
     const result = await runAction(action)
@@ -131,7 +131,7 @@ export function FileFinder(): React.JSX.Element {
     }
   }
 
-  const openCommit = (commit: Commit): void => {
+  const handleOpenCommit = (commit: Commit): void => {
     // "Go to the History tab and find it": surface the History tab + open the commit view.
     setSidebarTab('history')
     openTab({
@@ -179,7 +179,7 @@ export function FileFinder(): React.JSX.Element {
                   <CommandItem
                     key={`${kind}:${path}`}
                     value={`${kind}:${path}`}
-                    onSelect={() => openFile(result)}
+                    onSelect={() => handleOpenFile(result)}
                   >
                     {kind === 'dir' ? (
                       <FolderIcon className="shrink-0" />
@@ -209,7 +209,7 @@ export function FileFinder(): React.JSX.Element {
                 <CommandItem
                   key={`command:${action.id}`}
                   value={`command:${action.id}`}
-                  onSelect={() => runCommand(action)}
+                  onSelect={() => handleRunCommand(action)}
                 >
                   <Play className="shrink-0 text-muted-foreground" />
                   <span className="shrink-0 text-sm-minus">{action.title}</span>
@@ -229,7 +229,7 @@ export function FileFinder(): React.JSX.Element {
                 <CommandItem
                   key={`commit:${commit.hash}`}
                   value={`commit:${commit.hash}`}
-                  onSelect={() => openCommit(commit)}
+                  onSelect={() => handleOpenCommit(commit)}
                 >
                   <GitCommitHorizontal className="shrink-0 text-muted-foreground" />
                   <span className="min-w-0 flex-1 truncate text-sm-minus">{commit.subject}</span>

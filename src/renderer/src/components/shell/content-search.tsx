@@ -35,20 +35,20 @@ export function ContentSearch(): React.JSX.Element {
   }, [open])
 
   useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent): void => {
+    const handleKeyDown = (e: KeyboardEvent): void => {
       if (e.code === 'KeyF' && e.shiftKey && (e.metaKey || e.ctrlKey)) {
         e.preventDefault()
         setOpen((o) => !o)
       }
     }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
   const { matches, error, isFetching } = useTextSearch(debouncedQuery, open)
   const searching = isFetching || query !== debouncedQuery
 
-  const select = (path: string, line: number): void => {
+  const handleSelect = (path: string, line: number): void => {
     if (!repo) return
     const name = fileName(path)
     openTab({
@@ -92,7 +92,7 @@ export function ContentSearch(): React.JSX.Element {
                 <CommandItem
                   key={`${match.path}:${match.line}`}
                   value={`${match.path}:${match.line}`}
-                  onSelect={() => select(match.path, match.line)}
+                  onSelect={() => handleSelect(match.path, match.line)}
                 >
                   <span className="shrink-0 font-mono text-xs text-muted-foreground">
                     {match.path}:{match.line}

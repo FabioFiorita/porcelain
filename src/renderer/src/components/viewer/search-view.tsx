@@ -14,7 +14,7 @@ export function SearchView({ query }: { query: string }): React.JSX.Element {
     return <p className="p-4 text-sm text-muted-foreground">Searching…</p>
   }
 
-  const open = (path: string, line: number): void => {
+  const handleOpen = (path: string, line: number): void => {
     if (!repo) return
     const name = fileName(path)
     openTab({
@@ -36,7 +36,7 @@ export function SearchView({ query }: { query: string }): React.JSX.Element {
         <button
           key={`${match.path}:${match.line}`}
           type="button"
-          onClick={() => open(match.path, match.line)}
+          onClick={() => handleOpen(match.path, match.line)}
           className="block w-full truncate rounded-sm px-1 py-0.5 text-left font-mono text-xs hover:bg-accent/50"
         >
           <span className="text-muted-foreground">

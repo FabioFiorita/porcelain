@@ -35,9 +35,3 @@ export const FEATURE_CANVAS_TABS: readonly FeatureCanvasTabMeta[] = [
 export function isFeatureCanvasTab(value: string): value is FeatureCanvasTab {
   return value === 'intent' || value === 'execution' || value === 'evidence'
 }
-
-export function featureCanvasTabMeta(id: FeatureCanvasTab): FeatureCanvasTabMeta {
-  const found = FEATURE_CANVAS_TABS.find((t) => t.id === id)
-  if (!found) throw new Error(`unknown Feature canvas tab: ${id}`)
-  return found
-}

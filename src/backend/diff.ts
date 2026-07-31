@@ -14,7 +14,7 @@ export interface ChangedFile {
   unstaged?: boolean
 }
 
-export type DiffLineKind = 'context' | 'add' | 'del'
+type DiffLineKind = 'context' | 'add' | 'del'
 
 export interface DiffLine {
   kind: DiffLineKind
@@ -197,7 +197,7 @@ export interface CodeSearchLine {
   match: boolean
 }
 
-export interface CodeSearchHunk {
+interface CodeSearchHunk {
   lines: CodeSearchLine[]
 }
 

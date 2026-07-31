@@ -57,7 +57,7 @@ export function BranchSwitcher(): React.JSX.Element | null {
     (b) => b.remote !== null && `${b.remote}/${b.name}`.toLowerCase().includes(q),
   )
 
-  const switchBranch = async (target: string): Promise<void> => {
+  const handleSwitchBranch = async (target: string): Promise<void> => {
     setOpen(false)
     setQuery('')
     if (target === branch) return
@@ -71,14 +71,14 @@ export function BranchSwitcher(): React.JSX.Element | null {
     }
   }
 
-  const openCreate = (): void => {
+  const handleOpenCreate = (): void => {
     setOpen(false)
     setQuery('')
     setNewName('')
     setCreateOpen(true)
   }
 
-  const create = async (): Promise<void> => {
+  const handleCreate = async (): Promise<void> => {
     const name = newName.trim()
     if (name === '' || creating) return
     setCreating(true)
@@ -135,7 +135,7 @@ export function BranchSwitcher(): React.JSX.Element | null {
                   <CommandItem
                     key={b.name}
                     value={b.name}
-                    onSelect={() => switchBranch(b.name)}
+                    onSelect={() => handleSwitchBranch(b.name)}
                     className="text-xs-plus"
                   >
                     {b.name === branch ? (
@@ -154,7 +154,7 @@ export function BranchSwitcher(): React.JSX.Element | null {
                   <CommandItem
                     key={`${b.remote}/${b.name}`}
                     value={`${b.remote}/${b.name}`}
-                    onSelect={() => switchBranch(b.name)}
+                    onSelect={() => handleSwitchBranch(b.name)}
                     className="text-xs-plus"
                   >
                     <span className="size-4 shrink-0" />
@@ -168,7 +168,11 @@ export function BranchSwitcher(): React.JSX.Element | null {
             )}
             <CommandSeparator />
             <CommandGroup>
-              <CommandItem value="__new-branch__" onSelect={openCreate} className="text-xs-plus">
+              <CommandItem
+                value="__new-branch__"
+                onSelect={handleOpenCreate}
+                className="text-xs-plus"
+              >
                 <Plus className="shrink-0" />
                 <span className="truncate">New branch…</span>
               </CommandItem>
@@ -194,7 +198,7 @@ export function BranchSwitcher(): React.JSX.Element | null {
             onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>): void => {
               if (e.key === 'Enter') {
                 e.preventDefault()
-                create()
+                handleCreate()
               }
             }}
             placeholder="Branch name"
@@ -205,7 +209,7 @@ export function BranchSwitcher(): React.JSX.Element | null {
             <Button variant="ghost" onClick={() => setCreateOpen(false)}>
               Cancel
             </Button>
-            <Button disabled={newName.trim() === '' || creating} onClick={create}>
+            <Button disabled={newName.trim() === '' || creating} onClick={handleCreate}>
               Create
             </Button>
           </DialogFooter>

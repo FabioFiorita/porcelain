@@ -15,7 +15,7 @@ import { createHomeChannel } from './home-channel'
  * (Docs + Agents starters — not a fat framework stack).
  */
 const layerSchema = z.object({ label: z.string(), pattern: z.string() })
-export const layersSchema = z.record(z.string(), z.array(layerSchema))
+const layersSchema = z.record(z.string(), z.array(layerSchema))
 
 // A pattern the flow grouper can compile. The file is externally owned (the CLI
 // writes it), so we drop any layer whose pattern is not a valid regex on read —

@@ -76,7 +76,7 @@ function FileGroup({
   const name = fileName(file.path)
   const dir = dirName(file.path)
 
-  const open = (line: number): void => {
+  const handleOpen = (line: number): void => {
     const absolute = `${repoPath}/${file.path}`
     openTab({ id: tabId('file', absolute), kind: 'file', title: name, path: absolute, line })
   }
@@ -122,7 +122,7 @@ function FileGroup({
                   <button
                     key={ln.line}
                     type="button"
-                    onClick={() => open(ln.line)}
+                    onClick={() => handleOpen(ln.line)}
                     className={cn(
                       'flex w-full items-baseline gap-2 px-2 py-px text-left font-mono text-xs hover:bg-accent',
                       ln.match ? 'text-foreground' : 'text-muted-foreground',

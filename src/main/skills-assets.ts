@@ -5,7 +5,7 @@
 export const SKILLS_VERSION = '3.0.0'
 
 /** Repository slug passed to `npx skills add`. */
-export const SKILLS_REPO = 'FabioFiorita/porcelain'
+const SKILLS_REPO = 'FabioFiorita/porcelain'
 
 /** Global install so every agent project sees the companion skill, not just one cwd. */
 export function skillsInstallCommand(): string {

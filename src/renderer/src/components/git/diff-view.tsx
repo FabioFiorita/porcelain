@@ -63,7 +63,7 @@ export function DiffView({
   // Jump from the diff to the whole file (a preview tab, like the Changes list's
   // "Open file"). Hidden for a deleted file — it no longer exists on disk, so
   // there's nothing to open.
-  const openFile = (): void => {
+  const handleOpenFile = (): void => {
     if (!repo) return
     const absolute = `${repo.path}/${filePath}`
     openTab({
@@ -121,7 +121,7 @@ export function DiffView({
                     variant="ghost"
                     size="icon-xs"
                     className="text-muted-foreground"
-                    onClick={openFile}
+                    onClick={handleOpenFile}
                     aria-label="Open file"
                   >
                     <FileText />

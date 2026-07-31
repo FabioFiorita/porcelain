@@ -104,7 +104,7 @@ export function AppSidebar(): React.JSX.Element {
   // Picking a tab always reveals its panel — switching while collapsed to the
   // rail would otherwise change the selection with nothing visible to show for it.
   // On phone the panel is a sheet (`openMobile`), not the desktop `open` flag.
-  const selectTab = (tab: SidebarTab): void => {
+  const handleSelectTab = (tab: SidebarTab): void => {
     setSidebarTab(tab)
     if (isMobile) setOpenMobile(true)
     else setOpen(true)
@@ -169,7 +169,7 @@ export function AppSidebar(): React.JSX.Element {
                       render={
                         <SidebarMenuButton
                           isActive={active}
-                          onClick={() => selectTab(tab.id)}
+                          onClick={() => handleSelectTab(tab.id)}
                           aria-label={tab.label}
                           data-testid={TestIds.railTab(tab.id)}
                           // The selected tab is filled with the accent surface; a

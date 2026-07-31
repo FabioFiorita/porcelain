@@ -63,7 +63,7 @@ export function TerminalList(): React.JSX.Element {
   // Path dialog: 'spawn' also opens a terminal after save; 'edit' only updates the map.
   const [mappingMode, setMappingMode] = useState<LocalPathDialogMode | null>(null)
 
-  const spawnLocal = async (): Promise<void> => {
+  const handleSpawnLocal = async (): Promise<void> => {
     if (!repo) return
     if (mappedLocalPath == null || mappedLocalPath === '') {
       setMappingMode('spawn')
@@ -72,11 +72,11 @@ export function TerminalList(): React.JSX.Element {
     await spawnLocalTerminal(mappedLocalPath)
   }
 
-  const open = (id: string, name: string): void => {
+  const handleOpen = (id: string, name: string): void => {
     openTab({ id: tabId('terminal', id), kind: 'terminal', title: name, path: id })
   }
 
-  const rename = (id: string, name: string): void => {
+  const handleRename = (id: string, name: string): void => {
     const trimmed = name.trim()
     if (trimmed === '') return
     renameTerminal(id, trimmed)
@@ -125,7 +125,7 @@ export function TerminalList(): React.JSX.Element {
                   <Cloud />
                   {identity.host ?? 'This window’s machine'}
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={spawnLocal} data-testid={TestIds.terminalNewLocal}>
+                <DropdownMenuItem onClick={handleSpawnLocal} data-testid={TestIds.terminalNewLocal}>
                   <Monitor />
                   This device
                 </DropdownMenuItem>
@@ -162,7 +162,7 @@ export function TerminalList(): React.JSX.Element {
                   >
                     <button
                       type="button"
-                      onClick={() => open(session.id, session.name)}
+                      onClick={() => handleOpen(session.id, session.name)}
                       onDoubleClick={() => setRenaming({ id: session.id, name: session.name })}
                       title={
                         session.origin === 'local' ? `${session.name} — this device` : session.name
@@ -223,7 +223,7 @@ export function TerminalList(): React.JSX.Element {
         <TerminalRenameDialog
           key={renaming.id}
           initialName={renaming.name}
-          onRename={(name: string): void => rename(renaming.id, name)}
+          onRename={(name: string): void => handleRename(renaming.id, name)}
           onClose={() => setRenaming(null)}
         />
       )}

@@ -34,7 +34,7 @@ export function CardComposer(): React.JSX.Element {
     }
   }, [draft])
 
-  const save = async (): Promise<void> => {
+  const handleSave = async (): Promise<void> => {
     if (!draft || title.trim() === '' || saving) return
     setSaving(true)
     try {
@@ -50,10 +50,10 @@ export function CardComposer(): React.JSX.Element {
   }
 
   // ⌘↵ and ⌘S both save, from either field.
-  const onKeyDown = async (e: React.KeyboardEvent): Promise<void> => {
+  const handleKeyDown = async (e: React.KeyboardEvent): Promise<void> => {
     if ((e.metaKey || e.ctrlKey) && (e.key === 'Enter' || e.key.toLowerCase() === 's')) {
       e.preventDefault()
-      await save()
+      await handleSave()
     }
   }
 
@@ -76,7 +76,7 @@ export function CardComposer(): React.JSX.Element {
         <Input
           value={title}
           onChange={(e: React.ChangeEvent<HTMLInputElement>): void => setTitle(e.target.value)}
-          onKeyDown={onKeyDown}
+          onKeyDown={handleKeyDown}
           placeholder="Title"
           aria-label="Card title"
           data-testid={TestIds.cardTitleInput}
@@ -85,7 +85,7 @@ export function CardComposer(): React.JSX.Element {
         <Textarea
           value={body}
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>): void => setBody(e.target.value)}
-          onKeyDown={onKeyDown}
+          onKeyDown={handleKeyDown}
           placeholder={`Details (optional) — ${kbdLabel('mod', '↵')} to save`}
           aria-label="Card details"
           rows={4}
@@ -98,7 +98,7 @@ export function CardComposer(): React.JSX.Element {
           <Button
             disabled={title.trim() === '' || saving}
             data-testid={TestIds.cardComposerSave}
-            onClick={save}
+            onClick={handleSave}
           >
             {saving ? 'Saving…' : draft?.id ? 'Save' : 'Add card'}
           </Button>

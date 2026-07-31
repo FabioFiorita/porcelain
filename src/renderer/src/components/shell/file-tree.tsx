@@ -43,7 +43,7 @@ export function FileTree({ rootPath }: { rootPath: string }): React.JSX.Element 
   const showScopeKickoff =
     repo !== null && scopeEmpty && rootDirs >= NOISY_ROOT_DIR_THRESHOLD && !scopeKickoffDismissed
 
-  const copyScopeSetup = async (): Promise<void> => {
+  const handleCopyScopeSetup = async (): Promise<void> => {
     await copyText(scopeSetupPrompt())
     setCopied(true)
   }
@@ -62,7 +62,7 @@ export function FileTree({ rootPath }: { rootPath: string }): React.JSX.Element 
               size="sm"
               className="h-6 gap-1 px-2 text-2xs"
               onClick={async () => {
-                await copyScopeSetup()
+                await handleCopyScopeSetup()
               }}
             >
               {copied ? <Check className="size-3 text-success" /> : <Copy className="size-3" />}

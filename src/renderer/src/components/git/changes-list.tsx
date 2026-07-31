@@ -100,7 +100,7 @@ function FileRowImpl({
   // for reading it whole), flips the sidebar to Files, and reveals the file in
   // the tree (expand down to it + scroll + highlight). Like feature-list, the
   // file tab is keyed by the absolute path.
-  const openFile = (): void => {
+  const handleOpenFile = (): void => {
     const absolute = `${repoPath}/${file.path}`
     openTab({ id: tabId('file', absolute), kind: 'file', title: name, path: absolute })
     setSidebarTab('files')
@@ -222,7 +222,7 @@ function FileRowImpl({
           )}
           {/* Deleted files no longer exist on disk, so opening them would error. */}
           {file.status !== 'deleted' && (
-            <ContextMenuItem onClick={openFile}>
+            <ContextMenuItem onClick={handleOpenFile}>
               <FileText />
               Open file
             </ContextMenuItem>
@@ -336,14 +336,14 @@ export function ChangesList(): React.JSX.Element {
   const showLayersKickoff =
     layers !== undefined && !layers.custom && total > 0 && !layersKickoffDismissed
 
-  const copyLayersSetup = async (): Promise<void> => {
+  const handleCopyLayersSetup = async (): Promise<void> => {
     await copyText(layersSetupPrompt())
     setSetupCopied(true)
   }
 
   // Opens the continuous stacked-diff surface for the active scope (working or
   // branch) — same flow order as this list, one scrollable document.
-  const openReviewAll = (): void => {
+  const handleOpenReviewAll = (): void => {
     const scope =
       changesScope === 'branch' ? ({ type: 'branch' } as const) : ({ type: 'working' } as const)
     const key = reviewTabKey(scope)
@@ -398,7 +398,7 @@ export function ChangesList(): React.JSX.Element {
                       variant="ghost"
                       size="icon-sm"
                       className="shrink-0"
-                      onClick={openReviewAll}
+                      onClick={handleOpenReviewAll}
                       aria-label="All changes"
                     >
                       <Rows3 />
@@ -425,7 +425,7 @@ export function ChangesList(): React.JSX.Element {
                 size="sm"
                 className="h-6 gap-1 px-2 text-2xs"
                 onClick={async () => {
-                  await copyLayersSetup()
+                  await handleCopyLayersSetup()
                 }}
               >
                 {setupCopied ? (

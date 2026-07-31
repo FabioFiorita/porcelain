@@ -28,7 +28,7 @@ function InboxRowButton({ row }: { row: InboxRow }): React.JSX.Element {
   const switchTo = useRepoStore((s) => s.switchTo)
   const newWindow = useNewWindow()
 
-  const openWorktree = (): void => {
+  const handleOpenWorktree = (): void => {
     switchTo(row.path)
   }
 
@@ -39,7 +39,7 @@ function InboxRowButton({ row }: { row: InboxRow }): React.JSX.Element {
           <div className="group/inbox flex w-full items-center gap-0.5 rounded-md hover:bg-sidebar-accent/50">
             <button
               type="button"
-              onClick={openWorktree}
+              onClick={handleOpenWorktree}
               data-testid={TestIds.reviewInboxRow(row.branch)}
               className="flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-2 py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
             >

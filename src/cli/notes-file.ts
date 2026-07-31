@@ -14,7 +14,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
 
-export function notesPath(): string {
+function notesPath(): string {
   return process.env.PORCELAIN_NOTES ?? porcelainHomePath('notes.json')
 }
 

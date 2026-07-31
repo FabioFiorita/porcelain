@@ -17,18 +17,17 @@ import { FILE_SOURCES } from './review-set'
  * A DERIVED snapshot, never source of truth: it reflects the view as last rendered.
  * The agent's own pushed set is still `review get`.
  */
-export const featureSnapshotFileSchema = z.object({
+const featureSnapshotFileSchema = z.object({
   path: z.string(),
   source: z.enum(FILE_SOURCES),
   layer: z.string(),
 })
-export type FeatureSnapshotFile = z.infer<typeof featureSnapshotFileSchema>
 
-export const featureSnapshotSchema = z.record(
+const featureSnapshotSchema = z.record(
   z.string(),
   z.object({ name: z.string(), files: z.array(featureSnapshotFileSchema) }),
 )
-export type FeatureSnapshots = z.infer<typeof featureSnapshotSchema>
+type FeatureSnapshots = z.infer<typeof featureSnapshotSchema>
 export type FeatureSnapshot = FeatureSnapshots[string]
 
 const channel = createHomeChannel<FeatureSnapshots>({

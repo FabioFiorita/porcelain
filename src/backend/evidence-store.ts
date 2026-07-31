@@ -12,11 +12,7 @@ import { evidenceDirForRepo, evidenceIndexPath, evidenceMetaPath } from './evide
 // Structured checks live in the node-free `../shared/evidence-check` leaf so the
 // renderer can import the shape + `evidenceOverallStatus` without pulling this
 // module's fs graph; re-exported here so backend/test callers use one entry.
-export {
-  type EvidenceCheck,
-  type EvidenceCheckStatus,
-  evidenceOverallStatus,
-} from '../shared/evidence-check'
+export { type EvidenceCheck, evidenceOverallStatus } from '../shared/evidence-check'
 
 /**
  * Evidence — **files on disk are the source of truth**:
@@ -50,13 +46,13 @@ const metaSchema = z.object({
   checks: checkSchema.array().max(MAX_CHECKS).catch([]).optional(),
 })
 
-export type EvidenceMedium = 'html'
+type EvidenceMedium = 'html'
 
 /**
  * Why the HTML body exists on disk but is not served to the sandboxed viewer.
  * Distinct from `null` evidence (cleared / never published).
  */
-export type EvidenceHtmlUnavailable = {
+type EvidenceHtmlUnavailable = {
   reason: 'too-large'
   /** Byte size that exceeded the cap (raw index.html or post-inline). */
   bytes: number
@@ -90,7 +86,7 @@ export type EvidenceMeta = {
 }
 
 // Re-export path helpers so callers (review-watch, e2e) use one place.
-export { evidenceDirForRepo, evidenceIndexPath, loopEvidenceRoot } from './evidence-paths'
+export { evidenceDirForRepo, loopEvidenceRoot } from './evidence-paths'
 
 async function readDiskMeta(repoPath: string): Promise<z.infer<typeof metaSchema> | null> {
   try {

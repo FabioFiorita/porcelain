@@ -46,7 +46,7 @@ function CommitFileRow({
 
   // Opens the FULL file (not the diff the row's click shows), flips the sidebar to
   // Files, and reveals the file in the tree — identical to the Changes list.
-  const openFile = (): void => {
+  const handleOpenFile = (): void => {
     const absolute = `${repoPath}/${file.path}`
     openTab({ id: tabId('file', absolute), kind: 'file', title: name, path: absolute })
     setSidebarTab('files')
@@ -74,7 +74,7 @@ function CommitFileRow({
       <ContextMenuContent>
         {/* Deleted files no longer exist on disk, so opening them would error. */}
         {file.status !== 'deleted' && (
-          <ContextMenuItem onClick={openFile}>
+          <ContextMenuItem onClick={handleOpenFile}>
             <FileText />
             Open file
           </ContextMenuItem>
@@ -195,7 +195,7 @@ export function CommitView({ hash }: { hash: string }): React.JSX.Element {
 
   // Jump from the diff to the whole file (a preview tab, like DiffView's toolbar
   // button). Hidden for a deleted file — it no longer exists on disk.
-  const openFile = (): void => {
+  const handleOpenFile = (): void => {
     if (!selectedFile) return
     const absolute = `${repo.path}/${selectedFile}`
     openTab({
@@ -209,7 +209,7 @@ export function CommitView({ hash }: { hash: string }): React.JSX.Element {
 
   // Same continuous stacked-diff surface as Changes — one scroll for every file
   // in this commit, in the same flow order as the list below.
-  const openReviewAll = (): void => {
+  const handleOpenReviewAll = (): void => {
     const key = reviewTabKey({ type: 'commit', hash })
     const title = (message ?? hash.slice(0, 12)).split('\n')[0]?.trim() || hash.slice(0, 12)
     openTab({
@@ -236,7 +236,7 @@ export function CommitView({ hash }: { hash: string }): React.JSX.Element {
                       variant="ghost"
                       size="icon-xs"
                       className="shrink-0 text-muted-foreground"
-                      onClick={openReviewAll}
+                      onClick={handleOpenReviewAll}
                       aria-label="All changes"
                     >
                       <Rows3 />
@@ -282,7 +282,7 @@ export function CommitView({ hash }: { hash: string }): React.JSX.Element {
                       variant="ghost"
                       size="icon-xs"
                       className="text-muted-foreground"
-                      onClick={openFile}
+                      onClick={handleOpenFile}
                       aria-label="Open file"
                     >
                       <FileText />

@@ -80,7 +80,7 @@ function localDaemonInfo(): { url: string; token: string } {
 }
 
 /** Resolve a saved environment id to its daemon pair (null id → local). */
-export function resolveEnvironment(envId: string | null | undefined): {
+function resolveEnvironment(envId: string | null | undefined): {
   environmentId: string | null
   daemon: RemoteDaemon | null
 } {
@@ -126,7 +126,7 @@ export function windowEnvironmentId(webContents: WebContents): string | null {
 }
 
 /** url/token this window should talk to (local child or a remote). */
-export function daemonInfoFor(webContents: WebContents): { url: string; token: string } {
+function daemonInfoFor(webContents: WebContents): { url: string; token: string } {
   const remote = windowDaemons.get(webContents.id)
   if (remote != null) return remote
   return localDaemonInfo()
@@ -135,10 +135,6 @@ export function daemonInfoFor(webContents: WebContents): { url: string; token: s
 /** Default environment for new windows that don't specify one. */
 export function getDefaultEnvironmentId(): string | null {
   return defaultEnvironmentId
-}
-
-export function getEnvironmentsCache(): RemoteEnvironment[] {
-  return environmentsCache
 }
 
 /** Refresh the in-memory environment list from disk (after add/remove). */
@@ -160,18 +156,11 @@ export async function setDefaultEnvironmentId(id: string | null): Promise<void> 
   await saveRemoteEnvironmentState(state)
 }
 
-/** Push daemon info to ONE window (used after a per-window env switch if needed). */
-export function pushDaemonInfoTo(webContents: WebContents): void {
-  if (!webContents.isDestroyed()) {
-    webContents.send('daemon-url-changed', daemonInfoFor(webContents))
-  }
-}
-
 /**
  * After a local daemon restart, only re-point windows that are on the local
  * child — remote-bound windows must keep their remote pair.
  */
-export function pushLocalDaemonInfo(): void {
+function pushLocalDaemonInfo(): void {
   for (const window of BrowserWindow.getAllWindows()) {
     if (window.isDestroyed()) continue
     const remote = windowDaemons.get(window.webContents.id)

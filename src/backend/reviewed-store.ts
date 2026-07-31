@@ -23,8 +23,8 @@ import { createHomeChannel } from './home-channel'
 const reviewedMarkSchema = z.object({ path: z.string(), fingerprint: z.string() })
 export type ReviewedMark = z.infer<typeof reviewedMarkSchema>
 
-export const reviewedSchema = z.record(z.string(), z.array(reviewedMarkSchema))
-export type Reviewed = z.infer<typeof reviewedSchema>
+const reviewedSchema = z.record(z.string(), z.array(reviewedMarkSchema))
+type Reviewed = z.infer<typeof reviewedSchema>
 
 const channel = createHomeChannel({
   envVar: 'PORCELAIN_REVIEWED',
@@ -32,9 +32,6 @@ const channel = createHomeChannel({
   schema: reviewedSchema,
   empty: (): Reviewed => ({}),
 })
-
-// Must match src/cli/reviewed-file.ts. PORCELAIN_REVIEWED redirects both sides for tests.
-export const reviewedPath: () => string = channel.path
 
 // Drop an emptied entry so the file stays tidy (matches notes/layers).
 function setMarks(all: Reviewed, repoPath: string, marks: ReviewedMark[]): void {

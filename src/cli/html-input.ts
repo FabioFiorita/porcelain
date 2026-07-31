@@ -10,7 +10,7 @@ import { isAbsolute, resolve } from 'node:path'
  * agent pasted into the flag (the "filePath:/tmp/…" junk-write bug), not a real
  * self-contained document. The guard catches that before it's stored verbatim.
  */
-export const MIN_HTML_BYTES = 512
+const MIN_HTML_BYTES = 512
 
 /**
  * Resolve the document body for `evidence set`. Exactly one of
@@ -41,7 +41,7 @@ export function resolveToolHtml(args: Record<string, unknown>, maxBytes: number)
  * real document. Guards the silent junk-write where an agent passes a path/prefix
  * (e.g. "filePath:/tmp/…") in --html and it gets stored verbatim.
  */
-export function assertPlausibleHtml(html: string): void {
+function assertPlausibleHtml(html: string): void {
   if (!html.slice(0, 256).includes('<')) {
     throw new Error(
       'html doesn\'t look like an HTML document (no "<" tag near the start). If you meant to point at a file on disk, pass its ABSOLUTE path with --html-file — a path does not belong in --html.',

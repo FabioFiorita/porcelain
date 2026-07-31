@@ -50,7 +50,7 @@ function CommitTokenSelect({
   const filtered = options.filter((o) => o.toLowerCase().includes(q.toLowerCase()))
   const canCreate = q !== '' && !options.includes(q)
   const display = value ? (kind === 'scope' ? `(${value})` : value) : kind
-  const choose = (next: string | null): void => {
+  const handleChoose = (next: string | null): void => {
     onChange(next)
     setOpen(false)
     setQuery('')
@@ -93,7 +93,7 @@ function CommitTokenSelect({
             {value && (
               <CommandItem
                 value="__clear__"
-                onSelect={() => choose(null)}
+                onSelect={() => handleChoose(null)}
                 className="text-xs text-muted-foreground"
               >
                 Clear {kind}
@@ -103,14 +103,14 @@ function CommitTokenSelect({
               <CommandItem
                 key={o}
                 value={o}
-                onSelect={() => choose(o)}
+                onSelect={() => handleChoose(o)}
                 className="font-mono text-xs"
               >
                 {kind === 'scope' ? `(${o})` : o}
               </CommandItem>
             ))}
             {canCreate && (
-              <CommandItem value={q} onSelect={() => choose(q)} className="font-mono text-xs">
+              <CommandItem value={q} onSelect={() => handleChoose(q)} className="font-mono text-xs">
                 Add “{q}”
               </CommandItem>
             )}
@@ -164,20 +164,20 @@ export function CommitGroup(): React.JSX.Element {
   const { type, scope } = parseCommitPrefix(message)
   const ready = applyCommitPrefix(message, null, null).trim() !== '' && !treeClean
 
-  const setType = (next: string | null): void =>
+  const handleSetType = (next: string | null): void =>
     setMessage(
       repoPath,
       applyCommitPrefix(message, next, next ? parseCommitPrefix(message).scope : null),
     )
-  const setScope = (next: string | null): void =>
+  const handleSetScope = (next: string | null): void =>
     setMessage(repoPath, applyCommitPrefix(message, parseCommitPrefix(message).type, next))
 
-  const commit = (): void => {
+  const handleCommit = (): void => {
     if (!ready || isCommitting) return
     runCommit(message.trim())
   }
 
-  const toggleStaging = async (): Promise<void> => {
+  const handleToggleStaging = async (): Promise<void> => {
     if (isStaging) return
     setStaged(null)
     try {
@@ -210,14 +210,14 @@ export function CommitGroup(): React.JSX.Element {
               kind="type"
               value={type}
               options={conventions.types}
-              onChange={setType}
+              onChange={handleSetType}
               disabled={treeClean}
             />
             <CommitTokenSelect
               kind="scope"
               value={scope}
               options={conventions.scopes}
-              onChange={setScope}
+              onChange={handleSetScope}
               disabled={!type || treeClean}
             />
           </div>
@@ -227,7 +227,7 @@ export function CommitGroup(): React.JSX.Element {
               setMessage(repoPath, e.target.value)
             }
             onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
-              if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') commit()
+              if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') handleCommit()
             }}
             placeholder={
               treeClean ? 'Nothing to commit' : `Commit message — ${kbdLabel('mod', '↵')} to commit`
@@ -258,7 +258,7 @@ export function CommitGroup(): React.JSX.Element {
               variant="outline"
               className={cn(compactButtonClass, 'flex-1 rounded-md')}
               disabled={isStaging || treeClean}
-              onClick={toggleStaging}
+              onClick={handleToggleStaging}
             >
               {allStaged ? <FileMinus2 /> : <FilePlus2 />}
               {isStaging
@@ -274,7 +274,7 @@ export function CommitGroup(): React.JSX.Element {
               className={cn(compactButtonClass, 'flex-1 rounded-md')}
               disabled={!ready || isCommitting}
               data-testid={TestIds.commitButton}
-              onClick={commit}
+              onClick={handleCommit}
             >
               <GitCommitHorizontal />
               {isCommitting ? 'Committing…' : 'Commit'}

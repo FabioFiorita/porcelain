@@ -12,14 +12,14 @@ import { MAX_SCENE_BYTES } from '../shared/excalidraw-scene'
 export const FILE_SOURCES = ['changed', 'context', 'shipped'] as const
 export type FileSource = (typeof FILE_SOURCES)[number]
 
-export const reviewSetFileSchema = z.object({
+const reviewSetFileSchema = z.object({
   path: z.string().min(1),
   source: z.enum(FILE_SOURCES).optional(),
   note: z.string().optional(),
   layer: z.string().optional(),
 })
 
-export interface ReviewSetFile {
+interface ReviewSetFile {
   /** Repo-relative path. */
   path: string
   /** Defaults to `shipped` when the file isn't in the working tree (see `FileSource`). */
@@ -35,7 +35,7 @@ export interface ReviewSetFile {
   layer?: string
 }
 
-export const reviewSectionAnchorSchema = z.object({
+const reviewSectionAnchorSchema = z.object({
   path: z.string().min(1),
   startLine: z.number().int().positive().optional(),
   endLine: z.number().int().positive().optional(),
@@ -50,7 +50,7 @@ export const reviewSectionSchema = z.object({
   anchors: z.array(reviewSectionAnchorSchema).max(40).default([]),
 })
 
-export interface ReviewSectionAnchor {
+interface ReviewSectionAnchor {
   /** Repo-relative path (must pass `isRepoContained` — it flows into file reads). */
   path: string
   /** 1-based inclusive range; omit both to anchor the file's normal reading block. */
@@ -88,7 +88,7 @@ export interface ReviewSection {
  * sections still drive the sidebar outline. Not a revival of the deleted
  * feature-artifact channel — a medium on the same Review.
  */
-export const reviewCanvasSchema = z
+const reviewCanvasSchema = z
   .discriminatedUnion('medium', [
     z.object({
       medium: z.literal('html'),
@@ -136,7 +136,3 @@ export interface ReviewSet {
   /** Optional freeform Overview body (html | excalidraw). */
   canvas?: ReviewCanvas
 }
-
-/** The on-disk shape the porcelain CLI writes: review sets keyed by absolute repo path. */
-export const reviewSetsSchema = z.record(z.string(), reviewSetSchema)
-export type ReviewSets = z.infer<typeof reviewSetsSchema>

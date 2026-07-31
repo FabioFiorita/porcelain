@@ -29,7 +29,7 @@ export const MAX_HTML_BYTES = 1_572_864
  * `MAX_HTML_BYTES` in `src/backend/evidence-store.ts`). Exceeding it makes the
  * app show "Evidence too large" instead of the HTML body.
  */
-export const READ_MAX_HTML_BYTES = 4_194_304
+const READ_MAX_HTML_BYTES = 4_194_304
 
 export interface Evidence {
   title: string
@@ -41,7 +41,7 @@ export interface Evidence {
 // Structured verification checks. This CLI is dependency-free (Node builtins only,
 // no zod), so it DUPLICATES the shape + caps that src/shared/evidence-check.ts owns
 // — same deliberate duplication as the path/key helpers above. Keep them in lockstep.
-export type EvidenceCheckStatus = 'pass' | 'fail' | 'skip'
+type EvidenceCheckStatus = 'pass' | 'fail' | 'skip'
 
 export interface EvidenceCheck {
   label: string
@@ -53,7 +53,7 @@ const MAX_CHECKS = 32
 const MAX_CHECK_LABEL = 120
 const MAX_CHECK_DETAIL = 400
 
-export interface EvidenceMeta {
+interface EvidenceMeta {
   title: string
   repoPath: string
   updatedAt: string
@@ -122,11 +122,11 @@ function readChecksForRepo(repoPath: string): EvidenceCheck[] {
   }
 }
 
-export function loopEvidenceRoot(): string {
+function loopEvidenceRoot(): string {
   return process.env.PORCELAIN_LOOP_EVIDENCE_DIR ?? porcelainHomePath('loop-evidence')
 }
 
-export function repoEvidenceKey(repoPath: string): string {
+function repoEvidenceKey(repoPath: string): string {
   return createHash('sha256').update(repoPath).digest('hex').slice(0, 16)
 }
 

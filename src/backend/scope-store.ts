@@ -19,8 +19,8 @@ const repoScopeSchema = z.object({
 })
 export type RepoScope = z.infer<typeof repoScopeSchema>
 
-export const scopeSchema = z.record(z.string(), repoScopeSchema)
-export type ScopeMap = z.infer<typeof scopeSchema>
+const scopeSchema = z.record(z.string(), repoScopeSchema)
+type ScopeMap = z.infer<typeof scopeSchema>
 
 const emptyRepo = (): RepoScope => ({ hiddenPaths: [], pinnedPaths: [] })
 

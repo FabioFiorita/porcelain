@@ -27,7 +27,7 @@ import { z } from 'zod'
  * stored kind would then describe the wrong thing. The human's preference is persisted
  * BY KIND for the same reason.
  */
-export const endpointKinds = ['tailnet', 'lan', 'other'] as const
+const endpointKinds = ['tailnet', 'lan', 'other'] as const
 export type EndpointKind = (typeof endpointKinds)[number]
 
 const environmentSchema = z.object({

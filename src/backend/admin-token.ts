@@ -12,7 +12,7 @@ import { porcelainHomePath } from '../shared/porcelain-home'
  * Electron shell and host CLI receive the administrator credential. Ordinary
  * devices exchange one-time pairing grants for individual client tokens.
  */
-export const adminTokenPath = (): string =>
+const adminTokenPath = (): string =>
   process.env.PORCELAIN_ADMIN_TOKEN_FILE ?? porcelainHomePath('admin-token')
 
 /**

@@ -25,7 +25,7 @@ export function TerminalRenameDialog({
 }): React.JSX.Element {
   const [name, setName] = useState(initialName)
 
-  const submit = (): void => {
+  const handleSubmit = (): void => {
     const trimmed = name.trim()
     if (trimmed === '') return
     onRename(trimmed)
@@ -51,7 +51,7 @@ export function TerminalRenameDialog({
           onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>): void => {
             if (e.key === 'Enter') {
               e.preventDefault()
-              submit()
+              handleSubmit()
             }
           }}
           placeholder="Terminal name"
@@ -62,7 +62,7 @@ export function TerminalRenameDialog({
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button disabled={name.trim() === ''} onClick={submit}>
+          <Button disabled={name.trim() === ''} onClick={handleSubmit}>
             Rename
           </Button>
         </DialogFooter>

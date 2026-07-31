@@ -19,7 +19,7 @@ export function FileCommands(): null {
   const trash = useTrashPath()
 
   useEffect(() => {
-    const onKeyDown = async (e: KeyboardEvent): Promise<void> => {
+    const handleKeyDown = async (e: KeyboardEvent): Promise<void> => {
       if (usePreferencesStore.getState().sidebarTab !== 'files') return
       if (!(e.metaKey || e.ctrlKey) || e.altKey) return
       if (isTextEntry(e.target) || isTerminalTarget(e.target)) return
@@ -55,8 +55,8 @@ export function FileCommands(): null {
         useSelectionStore.getState().clear()
       }
     }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
   }, [duplicate, trash])
 
   return null

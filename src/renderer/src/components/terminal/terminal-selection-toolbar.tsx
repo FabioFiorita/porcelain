@@ -58,7 +58,7 @@ export function TerminalSelectionToolbar({
 
   if (!anchor) return null
 
-  const copy = async (): Promise<void> => {
+  const handleCopy = async (): Promise<void> => {
     await copyText(anchor.text)
     clearTerminalSelection(sessionId)
     setCopied(true)
@@ -86,7 +86,7 @@ export function TerminalSelectionToolbar({
           // Don't let the press clear xterm's selection before onClick runs.
           onMouseDown={(e: React.MouseEvent<HTMLButtonElement>): void => e.preventDefault()}
           onClick={async () => {
-            await copy()
+            await handleCopy()
           }}
         >
           {copied ? <Check data-icon="inline-start" /> : <Copy data-icon="inline-start" />}

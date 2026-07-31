@@ -33,7 +33,7 @@ interface CompiledLayer {
 }
 
 /** Compile a layer set's patterns once (reuse across many `layerForCompiled` calls). */
-export function compileLayers(layers: readonly Layer[]): CompiledLayer[] {
+function compileLayers(layers: readonly Layer[]): CompiledLayer[] {
   return layers.map((layer) => ({ label: layer.label, re: new RegExp(layer.pattern, 'g') }))
 }
 

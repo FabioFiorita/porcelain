@@ -95,7 +95,7 @@ export function TextFileView({
   const commentIndex = useCommentIndex(relativeTo(repo?.path, path))
 
   useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent): void => {
+    const handleKeyDown = (e: KeyboardEvent): void => {
       if (useTabsStore.getState().activePaneIndex !== paneIndex) return
       if (e.key === 'f' && (e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey) {
         // Find is source-only; skip over reader/preview surfaces.
@@ -104,8 +104,8 @@ export function TextFileView({
         setFinding(true)
       }
     }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
   }, [paneIndex, reader, preview])
 
   return (

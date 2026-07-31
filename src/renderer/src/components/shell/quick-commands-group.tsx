@@ -85,7 +85,7 @@ export function QuickCommandsGroup(): React.JSX.Element {
   const runCommand = useQuickCommand()
   const suggestions = useGitSuggestions()
 
-  const run = async (command: { id: string; label: string }): Promise<void> => {
+  const handleRun = async (command: { id: string; label: string }): Promise<void> => {
     if (running) return
     setRunning(command.id)
     try {
@@ -124,7 +124,7 @@ export function QuickCommandsGroup(): React.JSX.Element {
                     variant="ghost"
                     className="h-auto justify-start gap-2.5 rounded-md px-2 py-1.5 text-left"
                     disabled={running !== null}
-                    onClick={() => run(command)}
+                    onClick={() => handleRun(command)}
                   >
                     {running === command.id ? (
                       <Loader2 className="size-3.5 shrink-0 animate-spin text-muted-foreground" />
@@ -165,7 +165,7 @@ export function QuickCommandsGroup(): React.JSX.Element {
                   'justify-start gap-1.5 rounded-md border bg-secondary font-mono font-normal text-secondary-foreground',
                 )}
                 disabled={running !== null}
-                onClick={() => run(command)}
+                onClick={() => handleRun(command)}
               >
                 {running === command.id ? (
                   <Loader2 className="size-3.5 shrink-0 animate-spin text-muted-foreground" />

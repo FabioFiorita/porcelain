@@ -1,5 +1,5 @@
 /** Fallback types offered only when the history has no conventional commits. */
-export const DEFAULT_COMMIT_TYPES = ['feat', 'fix', 'chore', 'refactor', 'docs', 'test']
+const DEFAULT_COMMIT_TYPES = ['feat', 'fix', 'chore', 'refactor', 'docs', 'test']
 
 export interface CommitConventions {
   /** Commit types the repo actually uses, most-used first. */

@@ -1,6 +1,5 @@
 import { createHash } from 'node:crypto'
 import { join } from 'node:path'
-import { EVIDENCE_SCENE_FILENAME } from '../shared/excalidraw-scene'
 import { porcelainHomePath } from '../shared/porcelain-home'
 
 /**
@@ -25,7 +24,7 @@ export function loopEvidenceRoot(): string {
 }
 
 /** Stable short directory name for an absolute repo path. */
-export function repoEvidenceKey(repoPath: string): string {
+function repoEvidenceKey(repoPath: string): string {
   return createHash('sha256').update(repoPath).digest('hex').slice(0, 16)
 }
 
@@ -35,10 +34,6 @@ export function evidenceDirForRepo(repoPath: string): string {
 
 export function evidenceIndexPath(repoPath: string): string {
   return join(evidenceDirForRepo(repoPath), 'index.html')
-}
-
-export function evidenceScenePath(repoPath: string): string {
-  return join(evidenceDirForRepo(repoPath), EVIDENCE_SCENE_FILENAME)
 }
 
 export function evidenceMetaPath(repoPath: string): string {

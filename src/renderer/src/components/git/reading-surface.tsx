@@ -411,7 +411,7 @@ function FileHeaderRow({
   const canOpenFile = file.status !== 'deleted'
   const showSource = fileActions?.showSource !== false
 
-  const openFile = (): void => {
+  const handleOpenFile = (): void => {
     if (!repo || !canOpenFile) return
     const absolute = `${repo.path}/${file.path}`
     openTab({
@@ -425,7 +425,7 @@ function FileHeaderRow({
     reveal(absolute)
   }
 
-  const toggleReviewed = async (): Promise<void> => {
+  const handleToggleReviewed = async (): Promise<void> => {
     if (isReviewed) await unmark(file.path)
     else await mark(file.path)
   }
@@ -436,8 +436,8 @@ function FileHeaderRow({
       onComment={onComment}
       fileActions={fileActions}
       isReviewed={isReviewed}
-      onToggleReviewed={fileActions?.reviewed ? toggleReviewed : undefined}
-      onOpenFile={fileActions?.openFile ? openFile : undefined}
+      onToggleReviewed={fileActions?.reviewed ? handleToggleReviewed : undefined}
+      onOpenFile={fileActions?.openFile ? handleOpenFile : undefined}
       canOpenFile={canOpenFile}
     >
       <div className="flex h-5 items-center gap-2 border-t border-border bg-card px-2">
@@ -466,7 +466,7 @@ function FileHeaderRow({
                   size="icon-xs"
                   onClick={async (e: React.MouseEvent<HTMLButtonElement>): Promise<void> => {
                     e.stopPropagation()
-                    await toggleReviewed()
+                    await handleToggleReviewed()
                   }}
                   className={cn(
                     'shrink-0',
@@ -494,7 +494,7 @@ function FileHeaderRow({
                   size="icon-xs"
                   onClick={(e: React.MouseEvent<HTMLButtonElement>): void => {
                     e.stopPropagation()
-                    openFile()
+                    handleOpenFile()
                   }}
                   className="shrink-0 text-muted-foreground hover:text-foreground"
                   aria-label="Open file"
@@ -843,7 +843,7 @@ export function ReadingSurfaceBody({
   // top-row CHANGE (VirtualRows already dedupes), and the store setter no-ops on
   // equal values — no per-scroll-event re-render storm.
   const rowFocus = useMemo(() => (trackFocus ? buildRowFocus(rows) : null), [trackFocus, rows])
-  const onTopRow = useMemo(() => {
+  const handleTopRow = useMemo(() => {
     if (!rowFocus) return undefined
     return (index: number): void => {
       const meta = rowFocus[index]
@@ -883,7 +883,7 @@ export function ReadingSurfaceBody({
         scrollToLine={scrollTo?.line}
         scrollNonce={scrollTo?.nonce}
         scrollAlign="start"
-        onTopRow={onTopRow}
+        onTopRow={handleTopRow}
         renderRow={(row: ReadingRow): React.JSX.Element => (
           <ReadingRowView
             row={row}

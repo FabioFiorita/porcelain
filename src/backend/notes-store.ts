@@ -10,8 +10,8 @@ import { createHomeChannel } from './home-channel'
  * `review-watch` entry for it — the app is the SOLE writer, nothing pushes back.
  * Atomic (tmp + rename) + in-process-serialized writes.
  */
-export const notesSchema = z.record(z.string(), z.string())
-export type Notes = z.infer<typeof notesSchema>
+const notesSchema = z.record(z.string(), z.string())
+type Notes = z.infer<typeof notesSchema>
 
 const channel = createHomeChannel({
   envVar: 'PORCELAIN_NOTES',
@@ -19,9 +19,6 @@ const channel = createHomeChannel({
   schema: notesSchema,
   empty: (): Notes => ({}),
 })
-
-// Must match src/cli/notes-file.ts. PORCELAIN_NOTES redirects both sides for tests.
-export const notesPath: () => string = channel.path
 
 /** The human's notes for a repo ('' when none / file absent). */
 export async function readNotes(repoPath: string): Promise<string> {

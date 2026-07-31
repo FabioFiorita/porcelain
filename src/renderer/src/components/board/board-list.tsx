@@ -20,7 +20,7 @@ export function BoardList(): React.JSX.Element {
   const openTab = useTabsStore((s) => s.openTab)
   const openDraft = useCardDraftStore((s) => s.open)
 
-  const openBoard = (): void => {
+  const handleOpenBoard = (): void => {
     if (!repo) return
     openTab({ id: tabId('board', repo.path), kind: 'board', title: 'Board', path: repo.path })
   }
@@ -29,7 +29,7 @@ export function BoardList(): React.JSX.Element {
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-end px-2">
         <SidebarHeaderActions>
-          <Button variant="ghost" size="icon-sm" onClick={openBoard} aria-label="Open board">
+          <Button variant="ghost" size="icon-sm" onClick={handleOpenBoard} aria-label="Open board">
             <Columns3 />
           </Button>
         </SidebarHeaderActions>

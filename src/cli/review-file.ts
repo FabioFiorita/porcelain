@@ -17,7 +17,7 @@ export interface ReviewFile {
   layer?: string
 }
 
-export interface ReviewSectionAnchor {
+interface ReviewSectionAnchor {
   path: string
   startLine?: number
   endLine?: number
@@ -64,7 +64,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
 
-export function reviewSetsPath(): string {
+function reviewSetsPath(): string {
   return process.env.PORCELAIN_REVIEW_SETS ?? porcelainHomePath('review-sets.json')
 }
 

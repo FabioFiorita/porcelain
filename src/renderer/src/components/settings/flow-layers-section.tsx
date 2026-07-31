@@ -95,7 +95,7 @@ function PatternBuilder({
   const preview = buildPattern(matchType, parsed)
   const matches = matchingPaths(preview, changedPaths)
 
-  const add = (): void => {
+  const handleAdd = (): void => {
     if (parsed.length === 0) return
     onAdd({ label: deriveLabel(parsed), pattern: preview })
     setNames('')
@@ -138,7 +138,7 @@ function PatternBuilder({
           onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>): void => {
             if (e.key === 'Enter') {
               e.preventDefault()
-              add()
+              handleAdd()
             }
           }}
         />
@@ -152,7 +152,7 @@ function PatternBuilder({
           size="sm"
           className={compactButtonClass}
           disabled={parsed.length === 0}
-          onClick={add}
+          onClick={handleAdd}
         >
           <Plus /> Add
         </Button>
@@ -322,23 +322,23 @@ export function FlowLayersSection({ onSaved }: { onSaved: () => void }): React.J
 
   const valid = draft.every((l) => l.label.trim() !== '' && patternError(l.pattern) === null)
 
-  const update = (index: number, layer: Layer): void => {
+  const handleUpdate = (index: number, layer: Layer): void => {
     setDraft(draft.map((l, i) => (i === index ? { ...l, ...layer } : l)))
   }
 
-  const move = (index: number, direction: 1 | -1): void => {
+  const handleMove = (index: number, direction: 1 | -1): void => {
     const next = [...draft]
     const [layer] = next.splice(index, 1)
     if (layer) next.splice(index + direction, 0, layer)
     setDraft(next)
   }
 
-  const save = async (layers: DraftLayer[] | null): Promise<void> => {
+  const handleSave = async (layers: DraftLayer[] | null): Promise<void> => {
     await saveLayers(layers?.map(({ label, pattern }) => ({ label, pattern })) ?? null)
     onSaved()
   }
 
-  const copySetup = async (): Promise<void> => {
+  const handleCopySetup = async (): Promise<void> => {
     await copyText(layersSetupPrompt())
     setCopied(true)
   }
@@ -358,7 +358,7 @@ export function FlowLayersSection({ onSaved }: { onSaved: () => void }): React.J
               className={cn(compactButtonClass, 'self-start')}
               data-testid={TestIds.layersCopySetup}
               onClick={async () => {
-                await copySetup()
+                await handleCopySetup()
               }}
             >
               {copied ? <Check className="text-success" /> : <Copy />}
@@ -387,8 +387,8 @@ export function FlowLayersSection({ onSaved }: { onSaved: () => void }): React.J
             layer={layer}
             index={index}
             count={draft.length}
-            onChange={(l: Layer): void => update(index, l)}
-            onMove={(d: 1 | -1): void => move(index, d)}
+            onChange={(l: Layer): void => handleUpdate(index, l)}
+            onMove={(d: 1 | -1): void => handleMove(index, d)}
             onRemove={() => setDraft(draft.filter((_, i) => i !== index))}
           />
         ))}
@@ -407,7 +407,7 @@ export function FlowLayersSection({ onSaved }: { onSaved: () => void }): React.J
           size="sm"
           className={compactButtonClass}
           disabled={showSetup}
-          onClick={() => save(null)}
+          onClick={() => handleSave(null)}
         >
           Reset to starters
         </Button>
@@ -415,7 +415,7 @@ export function FlowLayersSection({ onSaved }: { onSaved: () => void }): React.J
           size="sm"
           className={compactButtonClass}
           disabled={!valid || isSaving}
-          onClick={() => save(draft)}
+          onClick={() => handleSave(draft)}
         >
           Save
         </Button>

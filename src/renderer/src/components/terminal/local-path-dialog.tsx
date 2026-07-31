@@ -43,7 +43,7 @@ export function LocalPathDialog({
   const [path, setPath] = useState(initialPath ?? repoPath)
   const { save, isPending } = useSetLocalTerminalPath()
 
-  const submit = async (): Promise<void> => {
+  const handleSubmit = async (): Promise<void> => {
     const trimmed = path.trim()
     if (trimmed === '') return
     await save({ repoPath, localPath: trimmed })
@@ -75,7 +75,7 @@ export function LocalPathDialog({
           onKeyDown={async (e: React.KeyboardEvent<HTMLInputElement>): Promise<void> => {
             if (e.key !== 'Enter') return
             e.preventDefault()
-            await submit()
+            await handleSubmit()
           }}
           placeholder="/Users/you/code/app"
           aria-label="Local folder"
@@ -89,7 +89,7 @@ export function LocalPathDialog({
           <Button
             disabled={path.trim() === '' || isPending}
             data-testid={TestIds.localTerminalPathSave}
-            onClick={submit}
+            onClick={handleSubmit}
           >
             {isPending
               ? 'Saving…'

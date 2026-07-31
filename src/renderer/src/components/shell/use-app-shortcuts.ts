@@ -31,7 +31,7 @@ const SIDEBAR_TAB_KEYS: Record<string, SidebarTab | undefined> = {
  */
 export function useAppShortcuts(): void {
   useEffect(() => {
-    const onKeyDown = async (e: KeyboardEvent): Promise<void> => {
+    const handleKeyDown = async (e: KeyboardEvent): Promise<void> => {
       if (e.key === 'Tab' && e.ctrlKey) {
         e.preventDefault()
         useTabsStore.getState().cycleTab(e.shiftKey ? -1 : 1)
@@ -101,8 +101,8 @@ export function useAppShortcuts(): void {
         }
       }
     }
-    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('keydown', handleKeyDown)
 
-    return () => window.removeEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 }

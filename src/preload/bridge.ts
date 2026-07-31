@@ -1,7 +1,7 @@
 import type { ShellEvent } from '../main/shell-events'
 
 /** The serialized-HTTP shuttle the shell tRPC channel rides over Electron IPC. */
-export type TrpcShuttle = (request: {
+type TrpcShuttle = (request: {
   url: string
   method: string
   headers: Record<string, string>

@@ -397,11 +397,6 @@ export function isTerminalFocused(id: string): boolean {
   return helper !== null && document.activeElement === helper
 }
 
-/** Current selection text, or '' when empty / no instance. */
-export function getTerminalSelection(id: string): string {
-  return instances.get(id)?.term.getSelection() ?? ''
-}
-
 export function clearTerminalSelection(id: string): void {
   instances.get(id)?.term.clearSelection()
 }

@@ -45,7 +45,7 @@ export function resolveRelativeImport(
   return null
 }
 
-export interface FeatureFile {
+interface FeatureFile {
   path: string
   source: FileSource
   /** Git status, only for `changed` files. */
@@ -60,13 +60,13 @@ export interface FeatureFile {
   connects: string[]
 }
 
-export interface FeatureGroup {
+interface FeatureGroup {
   layer: string
   files: FeatureFile[]
 }
 
 /** Outline entry for one walkthrough section (the full section lives in the reading). */
-export interface FeatureSectionOutline {
+interface FeatureSectionOutline {
   title: string
   anchorCount: number
 }
@@ -172,7 +172,7 @@ export interface ReadingGroup {
 
 /** One walkthrough section of the Review document: prose (+ optional diagram)
  *  followed by the anchored code blocks, one `ReadingFile` per anchor. */
-export interface ReviewSectionReading {
+interface ReviewSectionReading {
   title: string
   /** Markdown, rendered via react-markdown with default escaping (no raw HTML). */
   prose: string

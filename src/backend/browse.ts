@@ -3,7 +3,7 @@ import { readdir } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 
-export interface BrowseEntry {
+interface BrowseEntry {
   name: string
   path: string
   /** The directory holds a `.git` entry (a repo checkout or a worktree). */

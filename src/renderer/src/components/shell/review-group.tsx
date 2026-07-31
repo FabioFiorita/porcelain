@@ -117,7 +117,7 @@ export function ReviewGroup(): React.JSX.Element | null {
     ? comments.filter((c) => c.path === visiblePath && !c.resolved).length
     : 0
 
-  const runClear = async (): Promise<void> => {
+  const handleRunClear = async (): Promise<void> => {
     setClearError(null)
     try {
       await clear()
@@ -209,7 +209,7 @@ export function ReviewGroup(): React.JSX.Element | null {
               variant="destructive"
               disabled={isClearing}
               onClick={async () => {
-                await runClear()
+                await handleRunClear()
               }}
               aria-label="Confirm clear review and evidence"
             >

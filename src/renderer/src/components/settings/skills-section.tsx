@@ -17,7 +17,7 @@ export function SkillsSection(): React.JSX.Element {
   const installCommand = info?.installCommand ?? ''
   const upgradeCommand = info?.upgradeCommand ?? ''
 
-  const copy = async (text: string, setCopied: (value: boolean) => void): Promise<void> => {
+  const handleCopy = async (text: string, setCopied: (value: boolean) => void): Promise<void> => {
     await copyText(text)
     setCopied(true)
     setTimeout(() => setCopied(false), 1500)
@@ -38,7 +38,7 @@ export function SkillsSection(): React.JSX.Element {
             variant="ghost"
             size="sm"
             className={compactButtonClass}
-            onClick={() => copy(installCommand, setCopiedInstall)}
+            onClick={() => handleCopy(installCommand, setCopiedInstall)}
             disabled={installCommand.length === 0}
           >
             {copiedInstall ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
@@ -59,7 +59,7 @@ export function SkillsSection(): React.JSX.Element {
             variant="ghost"
             size="sm"
             className={compactButtonClass}
-            onClick={() => copy(upgradeCommand, setCopiedUpgrade)}
+            onClick={() => handleCopy(upgradeCommand, setCopiedUpgrade)}
             disabled={upgradeCommand.length === 0}
           >
             {copiedUpgrade ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}

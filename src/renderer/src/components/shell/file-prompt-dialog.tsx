@@ -65,7 +65,7 @@ function FilePrompt({
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
-  const submit = async (): Promise<void> => {
+  const handleSubmit = async (): Promise<void> => {
     const trimmed = name.trim()
     if (trimmed === '' || busy) return
     setBusy(true)
@@ -101,7 +101,7 @@ function FilePrompt({
           onKeyDown={async (e: React.KeyboardEvent<HTMLInputElement>): Promise<void> => {
             if (e.key === 'Enter') {
               e.preventDefault()
-              await submit()
+              await handleSubmit()
             }
           }}
           placeholder={kind === 'new-folder' ? 'Folder name' : 'File name'}
@@ -114,7 +114,7 @@ function FilePrompt({
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button disabled={name.trim() === '' || busy} onClick={submit}>
+          <Button disabled={name.trim() === '' || busy} onClick={handleSubmit}>
             {kind === 'rename' ? 'Rename' : 'Create'}
           </Button>
         </DialogFooter>

@@ -87,7 +87,7 @@ function useReviewKeys(
   })
 
   useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent): void => {
+    const handleKeyDown = (e: KeyboardEvent): void => {
       if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return
       if (isTextEntry(e.target) || isTerminalTarget(e.target)) return
       const key = e.key.toLowerCase()
@@ -112,8 +112,8 @@ function useReviewKeys(
         requestJump(target)
       }
     }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
   }, [requestJump, toggleZen])
 }
 
@@ -124,7 +124,7 @@ function EmptyState(): React.JSX.Element {
   // Board → Review may prefill a name once; keep it local so the prompt stays stable.
   const [suggestedName] = useState(() => useReviewStartStore.getState().consumeSuggestedName())
 
-  const copyStartPrompt = async (): Promise<void> => {
+  const handleCopyStartPrompt = async (): Promise<void> => {
     await copyText(reviewStartPrompt({ name: suggestedName ?? undefined }))
     setCopied(true)
   }
@@ -150,7 +150,7 @@ function EmptyState(): React.JSX.Element {
           variant="outline"
           size="sm"
           onClick={async () => {
-            await copyStartPrompt()
+            await handleCopyStartPrompt()
           }}
         >
           {copied ? <Check className="text-success" /> : <Copy />}
@@ -175,7 +175,7 @@ function LifecycleBanner({
   const badge = lifecycleBadgeLabel(effectivePhase)
   const detail = lifecycleDetail(reading, effectivePhase)
 
-  const copyAgentPrompt = async (): Promise<void> => {
+  const handleCopyAgentPrompt = async (): Promise<void> => {
     const text =
       effectivePhase === 'ready_to_close'
         ? reviewEndPrompt(reading.name)
@@ -214,7 +214,7 @@ function LifecycleBanner({
           size="sm"
           className="h-6 gap-1 px-1.5 text-2xs"
           onClick={async () => {
-            await copyAgentPrompt()
+            await handleCopyAgentPrompt()
           }}
         >
           {copied ? <Check className="size-3 text-success" /> : <Copy className="size-3" />}
@@ -495,7 +495,7 @@ function ExecutionBody({ reading }: { reading: FeatureReading }): React.JSX.Elem
     )
   }
 
-  const openFile = (file: ReadingFile): void => {
+  const handleOpenFile = (file: ReadingFile): void => {
     const absolute = `${repo.path}/${file.path}`
     const ranges = highlightRangesForFile(file)
     openTab({
@@ -508,7 +508,7 @@ function ExecutionBody({ reading }: { reading: FeatureReading }): React.JSX.Elem
     })
   }
 
-  const openDiff = (file: ReadingFile): void => {
+  const handleOpenDiff = (file: ReadingFile): void => {
     openTab({
       id: tabId('diff', file.path),
       kind: 'diff',
@@ -517,9 +517,9 @@ function ExecutionBody({ reading }: { reading: FeatureReading }): React.JSX.Elem
     })
   }
 
-  const primaryOpen = (file: ReadingFile): void => {
-    if (file.source === 'changed') openDiff(file)
-    else openFile(file)
+  const handlePrimaryOpen = (file: ReadingFile): void => {
+    if (file.source === 'changed') handleOpenDiff(file)
+    else handleOpenFile(file)
   }
 
   const renderFile = (file: ReadingFile): React.JSX.Element => {
@@ -530,7 +530,7 @@ function ExecutionBody({ reading }: { reading: FeatureReading }): React.JSX.Elem
       <div key={file.path} className="flex flex-col gap-0.5">
         <button
           type="button"
-          onClick={() => primaryOpen(file)}
+          onClick={() => handlePrimaryOpen(file)}
           onMouseEnter={async () => {
             if (file.source === 'changed') await prefetchDiff(file.path)
           }}

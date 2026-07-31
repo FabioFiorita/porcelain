@@ -48,7 +48,7 @@ function isValidPattern(pattern: string): boolean {
   }
 }
 
-export function layersPath(): string {
+function layersPath(): string {
   return process.env.PORCELAIN_LAYERS ?? porcelainHomePath('layers.json')
 }
 

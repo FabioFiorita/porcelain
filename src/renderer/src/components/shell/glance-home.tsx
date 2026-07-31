@@ -49,12 +49,12 @@ function GlanceSection({
 function InboxGlanceRow({ row }: { row: InboxRow }): React.JSX.Element {
   const switchTo = useRepoStore((s) => s.switchTo)
 
-  const openWorktree = (): void => {
+  const handleOpenWorktree = (): void => {
     switchTo(row.path)
   }
 
   return (
-    <button type="button" onClick={openWorktree} className={rowClass}>
+    <button type="button" onClick={handleOpenWorktree} className={rowClass}>
       <GitBranch className="size-3.5 shrink-0 text-muted-foreground" />
       <span className="min-w-0 flex-1 truncate font-mono text-sm-minus">{row.branch}</span>
       {row.hasReview && (
@@ -102,28 +102,28 @@ export function GlanceHome(): React.JSX.Element | null {
   const hasWork = inbox.length > 0 || showCheckout || showBoard
 
   // Agent-published Review canvas (Feature tab).
-  const openFeatureReview = (): void => {
+  const handleOpenFeatureReview = (): void => {
     setSidebarTab('feature')
     openTab({ id: tabId('feature', repo.path), kind: 'feature', title: 'Review', path: repo.path })
   }
 
   // Continuous stacked diffs for the working tree (U3 — not Feature empty state).
-  const openAllChanges = (): void => {
+  const handleOpenAllChanges = (): void => {
     setSidebarTab('changes')
     const key = reviewTabKey({ type: 'working' })
     openTab({ id: tabId('review', key), kind: 'review', title: 'All changes', path: key })
   }
 
-  const openBoard = (): void => {
+  const handleOpenBoard = (): void => {
     setSidebarTab('board')
     openTab({ id: tabId('board', repo.path), kind: 'board', title: 'Board', path: repo.path })
   }
 
-  const openTerminal = (): void => {
+  const handleOpenTerminal = (): void => {
     setSidebarTab('terminal')
   }
 
-  const openCommentsRail = (): void => {
+  const handleOpenCommentsRail = (): void => {
     setSidebarTab(hasReview ? 'feature' : 'changes')
   }
 
@@ -180,7 +180,7 @@ export function GlanceHome(): React.JSX.Element | null {
             {changedCount > 0 && (
               <button
                 type="button"
-                onClick={openAllChanges}
+                onClick={handleOpenAllChanges}
                 className={rowClass}
                 data-testid={TestIds.glanceChangedFiles}
                 data-count={changedCount}
@@ -195,7 +195,7 @@ export function GlanceHome(): React.JSX.Element | null {
               </button>
             )}
             {hasReview && (
-              <button type="button" onClick={openFeatureReview} className={rowClass}>
+              <button type="button" onClick={handleOpenFeatureReview} className={rowClass}>
                 <Waypoints className="size-3.5 shrink-0 text-muted-foreground" />
                 <span className="min-w-0 flex-1 truncate text-sm">
                   {reading?.name?.trim() || 'Review'}
@@ -214,7 +214,7 @@ export function GlanceHome(): React.JSX.Element | null {
               </button>
             )}
             {openComments.length > 0 && (
-              <button type="button" onClick={openCommentsRail} className={rowClass}>
+              <button type="button" onClick={handleOpenCommentsRail} className={rowClass}>
                 <MessageSquare className="size-3.5 shrink-0 text-muted-foreground" />
                 <span className="min-w-0 flex-1 truncate text-sm">
                   {openComments.length === 1
@@ -230,7 +230,7 @@ export function GlanceHome(): React.JSX.Element | null {
           <GlanceSection label="Board">
             <button
               type="button"
-              onClick={openBoard}
+              onClick={handleOpenBoard}
               className={cn(rowClass, 'flex-col items-stretch gap-1')}
             >
               <span className="flex items-center gap-2">
@@ -262,7 +262,7 @@ export function GlanceHome(): React.JSX.Element | null {
         <GlanceSection label="Jump to">
           <button
             type="button"
-            onClick={openAllChanges}
+            onClick={handleOpenAllChanges}
             className={rowClass}
             data-testid={TestIds.glanceJumpChanges}
           >
@@ -274,7 +274,7 @@ export function GlanceHome(): React.JSX.Element | null {
           </button>
           <button
             type="button"
-            onClick={openFeatureReview}
+            onClick={handleOpenFeatureReview}
             className={rowClass}
             data-testid={TestIds.glanceJumpReview}
           >
@@ -286,7 +286,7 @@ export function GlanceHome(): React.JSX.Element | null {
           </button>
           <button
             type="button"
-            onClick={openBoard}
+            onClick={handleOpenBoard}
             className={rowClass}
             data-testid={TestIds.glanceJumpBoard}
           >
@@ -298,7 +298,7 @@ export function GlanceHome(): React.JSX.Element | null {
           </button>
           <button
             type="button"
-            onClick={openTerminal}
+            onClick={handleOpenTerminal}
             className={rowClass}
             data-testid={TestIds.glanceJumpTerminal}
           >

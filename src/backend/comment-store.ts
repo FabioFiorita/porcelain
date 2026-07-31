@@ -31,8 +31,8 @@ export const reviewCommentSchema = z.object({
 })
 export type ReviewComment = z.infer<typeof reviewCommentSchema>
 
-export const reviewCommentsSchema = z.record(z.string(), z.array(reviewCommentSchema))
-export type ReviewComments = z.infer<typeof reviewCommentsSchema>
+const reviewCommentsSchema = z.record(z.string(), z.array(reviewCommentSchema))
+type ReviewComments = z.infer<typeof reviewCommentsSchema>
 
 const channel = createHomeChannel({
   envVar: 'PORCELAIN_COMMENTS',

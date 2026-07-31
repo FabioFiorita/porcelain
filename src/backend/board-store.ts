@@ -26,8 +26,8 @@ export const boardCardSchema = z.object({
 })
 export type BoardCard = z.infer<typeof boardCardSchema>
 
-export const boardSchema = z.record(z.string(), z.array(boardCardSchema))
-export type Board = z.infer<typeof boardSchema>
+const boardSchema = z.record(z.string(), z.array(boardCardSchema))
+type Board = z.infer<typeof boardSchema>
 
 const channel = createHomeChannel({
   envVar: 'PORCELAIN_BOARD',

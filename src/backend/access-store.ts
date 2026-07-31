@@ -42,7 +42,7 @@ type AccessFile = z.infer<typeof accessSchema>
 
 const emptyAccess = (): AccessFile => ({ version: 1, pairings: [], clients: [] })
 
-export const accessPath = (): string =>
+const accessPath = (): string =>
   process.env.PORCELAIN_ACCESS_FILE ?? porcelainHomePath('access.json')
 
 function token(prefix: 'pc_pair' | 'pc_client', id: string, secret: string): string {

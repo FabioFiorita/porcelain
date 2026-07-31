@@ -69,7 +69,7 @@ function OutlineFileRowImpl({
   const name = fileName(file.path)
   const dir = dirName(file.path)
 
-  const openFile = (): void => {
+  const handleOpenFile = (): void => {
     const absolute = `${repoPath}/${file.path}`
     const ranges = highlightRangesForFile(file)
     openTab({
@@ -82,14 +82,14 @@ function OutlineFileRowImpl({
     })
   }
 
-  const openDiff = (): void => {
+  const handleOpenDiff = (): void => {
     openTab({ id: tabId('diff', file.path), kind: 'diff', title: name, path: file.path })
   }
 
   // Changed → diff first (same as Changes list); context/shipped → file + highlights.
-  const open = (): void => {
-    if (file.source === 'changed') openDiff()
-    else openFile()
+  const handleOpen = (): void => {
+    if (file.source === 'changed') handleOpenDiff()
+    else handleOpenFile()
   }
 
   return (
@@ -102,7 +102,7 @@ function OutlineFileRowImpl({
           render={
             <button
               type="button"
-              onClick={open}
+              onClick={handleOpen}
               onMouseEnter={() => {
                 if (file.source === 'changed') prefetchDiff(file.path)
               }}
@@ -140,12 +140,12 @@ function OutlineFileRowImpl({
         </ContextMenuTrigger>
         <ContextMenuContent className="w-48">
           {file.source === 'changed' ? (
-            <ContextMenuItem onClick={openFile}>
+            <ContextMenuItem onClick={handleOpenFile}>
               <FileDiff />
               Open file
             </ContextMenuItem>
           ) : (
-            <ContextMenuItem onClick={openDiff}>
+            <ContextMenuItem onClick={handleOpenDiff}>
               <FileDiff />
               Open diff
             </ContextMenuItem>
@@ -263,7 +263,7 @@ function FeatureOutline(): React.JSX.Element {
   // Open the Review canvas (one tab per repo) and optionally jump to an Intent
   // chapter — FeatureView consumes jumps once mounted. Canvas tabs (Intent /
   // Execution / Evidence) live only in the viewer, not here.
-  const openReview = (target?: ReviewJumpTarget): void => {
+  const handleOpenReview = (target?: ReviewJumpTarget): void => {
     openTab({
       id: tabId('feature', repo.path),
       kind: 'feature',
@@ -315,7 +315,7 @@ function FeatureOutline(): React.JSX.Element {
           size="sm"
           className={cn(compactButtonClass, 'w-full')}
           data-testid={TestIds.featureOpenReview}
-          onClick={() => openReview({ kind: 'intent' })}
+          onClick={() => handleOpenReview({ kind: 'intent' })}
         >
           Open Review
         </Button>
@@ -339,7 +339,7 @@ function FeatureOutline(): React.JSX.Element {
             <ChapterButton
               label={section.title}
               active={canvasTab === 'intent' && isActive(index)}
-              onJump={() => openReview({ kind: 'section', index })}
+              onJump={() => handleOpenReview({ kind: 'section', index })}
             />
             {uniqueFiles(section.files).map((file) => (
               <OutlineFileRow

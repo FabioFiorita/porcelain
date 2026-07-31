@@ -61,7 +61,7 @@ export function ActionComposer({
     }
   }, [open, draft])
 
-  const save = async (): Promise<void> => {
+  const handleSave = async (): Promise<void> => {
     if (!draft || title.trim() === '' || command.trim() === '' || saving) return
     setSaving(true)
     try {
@@ -83,10 +83,10 @@ export function ActionComposer({
   }
 
   // ⌘↵ and ⌘S both save, from any field.
-  const onKeyDown = async (e: React.KeyboardEvent): Promise<void> => {
+  const handleKeyDown = async (e: React.KeyboardEvent): Promise<void> => {
     if ((e.metaKey || e.ctrlKey) && (e.key === 'Enter' || e.key.toLowerCase() === 's')) {
       e.preventDefault()
-      await save()
+      await handleSave()
     }
   }
 
@@ -99,7 +99,7 @@ export function ActionComposer({
         <Input
           value={title}
           onChange={(e: React.ChangeEvent<HTMLInputElement>): void => setTitle(e.target.value)}
-          onKeyDown={onKeyDown}
+          onKeyDown={handleKeyDown}
           placeholder="Title (e.g. Run Tests)"
           aria-label="Action title"
           data-testid={TestIds.actionTitleInput}
@@ -108,7 +108,7 @@ export function ActionComposer({
         <Textarea
           value={command}
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>): void => setCommand(e.target.value)}
-          onKeyDown={onKeyDown}
+          onKeyDown={handleKeyDown}
           placeholder={`Command — runs in a terminal. ${kbdLabel('mod', '↵')} to save`}
           aria-label="Action command"
           data-testid={TestIds.actionCommandInput}
@@ -145,7 +145,7 @@ export function ActionComposer({
           <Button
             disabled={title.trim() === '' || command.trim() === '' || saving}
             data-testid={TestIds.actionSave}
-            onClick={save}
+            onClick={handleSave}
           >
             {saving ? 'Saving…' : draft?.id ? 'Save' : 'Add action'}
           </Button>

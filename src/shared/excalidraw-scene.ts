@@ -10,9 +10,6 @@
 /** Hard cap on serialized scene JSON (1 MiB). */
 export const MAX_SCENE_BYTES = 1_048_576
 
-/** Evidence-dir filename for an Excalidraw body (sibling of index.html). */
-export const EVIDENCE_SCENE_FILENAME = 'canvas.excalidraw'
-
 /**
  * Minimal shape we accept. Elements must be an array; appState/files optional.
  * We do not deeply validate element fields — Excalidraw is the renderer and

@@ -45,7 +45,7 @@ export function windowInitFor(sender: WebContents): WindowInit {
  * switch). Survives `webContents.reload()` the same way create-time init does —
  * cleaned up only when the window closes.
  */
-export function setWindowBootIntent(sender: WebContents, init: WindowInit): void {
+function setWindowBootIntent(sender: WebContents, init: WindowInit): void {
   pendingInits.set(sender, init)
 }
 

@@ -161,7 +161,7 @@ import { listTerminals, renameTerminal, type TerminalInfo } from './terminal-man
 import { clearWorkingTreeSnapshot } from './working-tree'
 import { worktreeInbox } from './worktree-inbox'
 
-export interface DaemonTrpcContext {
+interface DaemonTrpcContext {
   auth: AuthIdentity
 }
 

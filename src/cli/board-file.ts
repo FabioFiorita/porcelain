@@ -8,7 +8,7 @@ import { porcelainHomePath } from '../shared/porcelain-home'
 // agent reads the board for what to build and moves cards as it works. Atomic writes
 // (tmp + rename); the app re-validates with zod on read.
 
-export const CARD_STATUSES = ['todo', 'doing', 'done'] as const
+const CARD_STATUSES = ['todo', 'doing', 'done'] as const
 type CardStatus = (typeof CARD_STATUSES)[number]
 const STATUS_SET = new Set<string>(CARD_STATUSES)
 
@@ -27,7 +27,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
 
-export function boardPath(): string {
+function boardPath(): string {
   return process.env.PORCELAIN_BOARD ?? porcelainHomePath('board.json')
 }
 

@@ -53,7 +53,7 @@ export function CommentComposer({
     if (open) setBody('')
   }, [open])
 
-  const save = async (): Promise<void> => {
+  const handleSave = async (): Promise<void> => {
     if (!anchor || body.trim() === '' || saving) return
     setSaving(true)
     try {
@@ -69,10 +69,10 @@ export function CommentComposer({
   }
 
   // ⌘↵ and ⌘S both save.
-  const onKeyDown = async (e: React.KeyboardEvent): Promise<void> => {
+  const handleKeyDown = async (e: React.KeyboardEvent): Promise<void> => {
     if ((e.metaKey || e.ctrlKey) && (e.key === 'Enter' || e.key.toLowerCase() === 's')) {
       e.preventDefault()
-      await save()
+      await handleSave()
     }
   }
 
@@ -95,7 +95,7 @@ export function CommentComposer({
         <Textarea
           value={body}
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>): void => setBody(e.target.value)}
-          onKeyDown={onKeyDown}
+          onKeyDown={handleKeyDown}
           placeholder={`What should the agent know about this? — ${kbdLabel('mod', '↵')} to save`}
           aria-label="Comment"
           rows={4}
@@ -105,7 +105,7 @@ export function CommentComposer({
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button disabled={body.trim() === '' || saving} onClick={save}>
+          <Button disabled={body.trim() === '' || saving} onClick={handleSave}>
             {saving ? 'Saving…' : 'Comment'}
           </Button>
         </DialogFooter>

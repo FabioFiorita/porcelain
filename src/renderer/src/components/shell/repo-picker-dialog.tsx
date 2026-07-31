@@ -62,7 +62,7 @@ function RepoPicker({ onClose }: { onClose: () => void }): React.JSX.Element {
 
   // openRepoPath is a store action (the sanctioned cross-store call from a component);
   // it records the recent + warms the file list daemon-side, then this dialog closes.
-  const open = async (target: string): Promise<void> => {
+  const handleOpen = async (target: string): Promise<void> => {
     await useRepoStore.getState().openRepoPath(target)
     onClose()
   }
@@ -146,7 +146,7 @@ function RepoPicker({ onClose }: { onClose: () => void }): React.JSX.Element {
                       rowActionClass,
                       'shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100',
                     )}
-                    onClick={() => open(entry.path)}
+                    onClick={() => handleOpen(entry.path)}
                   >
                     Open
                   </Button>
@@ -184,7 +184,10 @@ function RepoPicker({ onClose }: { onClose: () => void }): React.JSX.Element {
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button disabled={!result || isFetching} onClick={() => currentPath && open(currentPath)}>
+          <Button
+            disabled={!result || isFetching}
+            onClick={() => currentPath && handleOpen(currentPath)}
+          >
             Open this folder
           </Button>
         </DialogFooter>

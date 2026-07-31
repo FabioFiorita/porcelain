@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises'
-import { dirname, isAbsolute, normalize, relative, resolve, sep } from 'node:path'
+import { isAbsolute, normalize, relative, resolve, sep } from 'node:path'
 
 /**
  * Rewrite relative `src="…"` in evidence HTML to data: URIs for files that live
@@ -75,9 +75,4 @@ export async function inlineLocalAssets(dir: string, html: string): Promise<stri
     if (!uri) return full
     return `${attr}=${quote}${uri}${quote}`
   })
-}
-
-/** Directory containing the HTML file (for asset resolution). */
-export function evidenceHtmlDir(indexHtmlPath: string): string {
-  return dirname(indexHtmlPath)
 }

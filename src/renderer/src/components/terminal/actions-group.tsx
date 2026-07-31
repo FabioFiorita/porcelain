@@ -154,7 +154,7 @@ export function ActionsGroup(): React.JSX.Element {
     clearStorePending()
   }, [storePending, clearStorePending])
 
-  const run = async (action: Action, localPath?: string | null): Promise<void> => {
+  const handleRun = async (action: Action, localPath?: string | null): Promise<void> => {
     const result = await runAction(action, {
       localPath: localPath ?? mappedLocalPath,
     })
@@ -191,7 +191,7 @@ export function ActionsGroup(): React.JSX.Element {
               key={action.id}
               action={action}
               onEdit={(a: Action): void => setDraft(draftFromAction(a))}
-              onRun={run}
+              onRun={handleRun}
               showWhere={canSpawnLocal}
               isFirst={index === 0}
               isLast={index === actions.length - 1}
@@ -217,7 +217,7 @@ export function ActionsGroup(): React.JSX.Element {
             const action = pendingLocal
             setPendingLocal(null)
             setMappingMode(null)
-            run(action, localPath)
+            handleRun(action, localPath)
           }}
           onClose={() => {
             setPendingLocal(null)

@@ -35,7 +35,7 @@ import { createWindow, switchWindowEnvironment, type WindowInit, windowInitFor }
 // The Electron-side half of the router split: everything here needs the shell
 // (native dialogs, window management, the updater) or the
 // calling window. The pure-Node procedures live in src/backend/api.ts.
-export interface ShellTrpcContext {
+interface ShellTrpcContext {
   sender: WebContents
 }
 const t = initTRPC.context<ShellTrpcContext>().create({ isServer: true })
@@ -137,7 +137,7 @@ async function revokeClientCredential(url: string, token: string): Promise<void>
  * fix (re-pair) than one that's asleep, and collapsing them sends the human to the
  * wrong remedy.
  */
-export type EnvironmentState = 'online' | 'unauthorized' | 'offline'
+type EnvironmentState = 'online' | 'unauthorized' | 'offline'
 
 export interface EnvironmentStatus {
   /** null = This device (the local child daemon). */

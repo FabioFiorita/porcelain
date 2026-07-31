@@ -40,7 +40,7 @@ export function ifaceListenerPort(): number {
 }
 
 /** How often an enabled listener re-scans interfaces and reconciles binds. */
-export const IFACE_RECONCILE_MS = 5_000
+const IFACE_RECONCILE_MS = 5_000
 
 type RequestHandler = (req: IncomingMessage, res: ServerResponse) => void
 type UpgradeHandler = (req: IncomingMessage, socket: Duplex, head: Buffer) => void

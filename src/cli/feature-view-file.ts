@@ -11,7 +11,7 @@ import { porcelainHomePath } from '../shared/porcelain-home'
 
 const FILE_SOURCES = new Set(['changed', 'context', 'shipped'])
 
-export interface FeatureViewFile {
+interface FeatureViewFile {
   path: string
   source: string
   layer: string
@@ -28,7 +28,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
 
-export function featureViewPath(): string {
+function featureViewPath(): string {
   return process.env.PORCELAIN_FEATURE_VIEW ?? porcelainHomePath('feature-view.json')
 }
 

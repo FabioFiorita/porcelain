@@ -37,7 +37,7 @@ function CommentRow({ comment }: { comment: ReviewComment }): React.JSX.Element 
   const openTab = useTabsStore((s) => s.openTab)
   const { remove, setResolved } = useCommentActions()
 
-  const open = (): void => {
+  const handleOpen = (): void => {
     if (!repo) return
     const absolute = `${repo.path}/${comment.path}`
     openTab({
@@ -59,7 +59,7 @@ function CommentRow({ comment }: { comment: ReviewComment }): React.JSX.Element 
       <div className="flex items-center gap-1">
         <button
           type="button"
-          onClick={open}
+          onClick={handleOpen}
           className="min-w-0 flex-1 truncate text-left font-mono text-xs-minus text-muted-foreground hover:text-foreground"
           title={`${comment.path}${comment.startLine ? `:${comment.startLine}` : ''}`}
         >
@@ -86,7 +86,7 @@ function CommentRow({ comment }: { comment: ReviewComment }): React.JSX.Element 
       </div>
       <button
         type="button"
-        onClick={open}
+        onClick={handleOpen}
         className={cn(
           'line-clamp-3 text-left text-xs',
           comment.resolved && 'text-muted-foreground line-through',
