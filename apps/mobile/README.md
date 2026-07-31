@@ -120,8 +120,18 @@ Two EAS workflows in `.eas/workflows/`:
 | `preview.yml` | mobile PRs into `main`, mobile pushes to `main` | Fingerprint matches an existing `preview` build → EAS Update (free). Fingerprint moved → new build → TestFlight. |
 | `production.yml` | manual `eas workflow:run` only | The same build-or-update shape plus App Store submission, deliberately not automatic while the app is out of the store. |
 
-The TestFlight job needs App Store Connect credentials configured on EAS before
-it can run non-interactively; until then a native change builds but stops there.
+The submit job needs App Store Connect credentials configured on EAS before it
+can run non-interactively; until then a native change builds but stops there.
+
+Delivery uses the `submit` job, not the richer `testflight` one: a `testflight`
+job that takes an EAS `build_id` is paid-plan only, so on the current plan it
+fails to start (seen 2026-07-31). The build still reaches TestFlight and
+auto-distributes to internal groups that have auto-distribute enabled — what is
+deliberately absent is the per-build **"What to Test" note**, along with explicit
+group targeting and Beta App Review submission. The free way to get notes back is
+to connect App Store Connect under Project settings > Connections and add a
+second workflow triggered on `app_store_connect.build_upload` that runs
+`testflight` with `asc_build_id`; that variant is not plan-gated.
 
 ## Startup metrics
 

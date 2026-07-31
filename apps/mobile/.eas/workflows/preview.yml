@@ -25,18 +25,31 @@
 # `eas-build-ios:preview` to the PR. That is EAS's own built-in label trigger
 # (Project settings > GitHub), not this workflow — don't reimplement it here.
 #
-# Every `message` / `changelog` below is truncated to 1024: that is EAS's hard
-# limit on the field, and a longer value fails the job before it starts with
-# "String must contain at most 1024 character(s)" — the whole delivery run, not
-# just the changelog. On a push there is no PR title to fall back on, so the raw
-# commit body goes straight in. `.husky/commit-msg` keeps locally-authored
-# messages under the limit at the source; this truncation covers what that hook
-# can never see — a squash-merge composed in GitHub's UI, or `--no-verify`.
+# Every `message` below is truncated to 1024: that is EAS's hard limit on the
+# field, and a longer value fails the job before it starts with "String must
+# contain at most 1024 character(s)" — the whole delivery run, not just that job.
+# On a push there is no PR title to fall back on, so the raw commit body goes
+# straight in. `.husky/commit-msg` keeps locally-authored messages under the
+# limit at the source; this truncation covers what that hook can never see — a
+# squash-merge composed in GitHub's UI, or `--no-verify`.
 #
-# Prerequisite: App Store Connect credentials must exist on EAS for the TestFlight
+# Delivery is `type: submit`, not `type: testflight`, because the `testflight`
+# job with a `build_id` is paid-plan only ("TestFlight jobs that submit an EAS
+# build (build_id) require a paid plan", 2026-07-31). `submit` is the plain
+# upload and is what production.yml already uses; `testflight` only buys the
+# advanced options — explicit internal/external groups, a "What to Test"
+# changelog, and Beta App Review submission. The cost of this is real and
+# deliberate: **testers get no per-build release notes.** The build still reaches
+# TestFlight and auto-distributes to internal groups that have auto-distribute
+# enabled. To get notes back without paying, App Store Connect has to be
+# connected under Project settings > Connections, and a second workflow triggered
+# on `app_store_connect.build_upload` runs `testflight` with `asc_build_id` —
+# that variant is free. Not built yet; it is two moving parts for a changelog.
+#
+# Prerequisite: App Store Connect credentials must exist on EAS for the submit
 # job to run non-interactively (`eas credentials:configure-build -p ios -e preview`
 # plus an App Store Connect API key). Until then the build lands in EAS and the
-# TestFlight job is the step that fails.
+# submit job is the step that fails.
 
 name: Preview delivery
 
@@ -91,11 +104,10 @@ jobs:
       profile: preview
       message: ${{ substring(github.event.pull_request.title || github.commit_message, 0, 1024) }}
 
-  testflight_ios:
+  submit_ios:
     name: Send iOS preview to TestFlight
     needs: [build_ios]
-    type: testflight
+    type: submit
     params:
       build_id: ${{ needs.build_ios.outputs.build_id }}
       profile: preview
-      changelog: ${{ substring(github.event.pull_request.title || github.commit_message, 0, 1024) }}
