@@ -61,11 +61,41 @@ esac
 common="$(cd "$common" && pwd -P)" || fail "cannot resolve the shared git directory"
 primary="$(cd "$common/.." && pwd -P)" || fail "cannot resolve the primary checkout"
 
+cd "$primary"
+parent="$(dirname "$primary")/$(basename "$primary")-worktrees"
+
+# Two sessions can slugify to the same name. `create` refuses an existing branch
+# or path, so pick a free `<slug>`, `<slug>-2` … `<slug>-9` BEFORE calling it —
+# cheaper and more reliable than parsing which failure came back on stderr.
+# Every existence check `pnpm worktree create` itself makes: checkout path,
+# branch, and the three managed runtime paths (see managedPaths in worktree.mjs).
+taken() {
+  if [ -e "$parent/$1" ]; then return 0; fi
+  if [ -n "$(git branch --list "work/$1" 2>/dev/null)" ]; then return 0; fi
+  if [ -e "$HOME/.porcelain-dev-worktrees/$1" ]; then return 0; fi
+  if [ -e "$HOME/.local/share/porcelain-dev-worktrees/$1" ]; then return 0; fi
+  if [ -e "$HOME/code/porcelain-playgrounds/$1" ]; then return 0; fi
+  return 1
+}
+
+# `-N` must still fit the 48-char slug limit scripts/worktree.mjs enforces.
+base="${slug:0:46}"
+base="${base%%-}"
+candidate="$slug"
+suffix=2
+while taken "$candidate"; do
+  if [ "$suffix" -gt 9 ]; then
+    fail "no free slug for '$slug' (tried $base-2 through $base-9)"
+  fi
+  candidate="$base-$suffix"
+  suffix=$((suffix + 1))
+done
+slug="$candidate"
+
 # `pnpm worktree create` is chatty; its output belongs on stderr so stdout stays
 # the single path Claude parses.
-cd "$primary"
 pnpm worktree create "$slug" >&2 || fail "pnpm worktree create $slug failed"
 
-path="$(dirname "$primary")/$(basename "$primary")-worktrees/$slug"
+path="$parent/$slug"
 [ -d "$path" ] || fail "expected worktree directory is missing: $path"
 cd "$path" && pwd -P

@@ -26,6 +26,40 @@ const BRANCH_PREFIX = 'work/'
 const PORT_MIN = 43200
 const PORT_MAX = 43999
 
+/**
+ * Git's repository-local variables OVERRIDE `cwd`, and git exports them to every
+ * hook it runs — so a script invoked from a hook inherits a pointer at the repo
+ * being committed. This file always addresses a repository by `cwd`, and its
+ * passes are destructive (cleanup prune, `worktree remove --force`, adopt
+ * rollback), so cwd must stay authoritative. Same strip list and rationale as
+ * `src/backend/git-env.ts` (mirrors `git rev-parse --local-env-vars`); other
+ * `GIT_*` vars are the user's real config and pass through. Used for EVERY child
+ * spawn here, git or not.
+ */
+const REPO_LOCAL_ENV = [
+  'GIT_ALTERNATE_OBJECT_DIRECTORIES',
+  'GIT_CONFIG',
+  'GIT_CONFIG_PARAMETERS',
+  'GIT_CONFIG_COUNT',
+  'GIT_OBJECT_DIRECTORY',
+  'GIT_DIR',
+  'GIT_WORK_TREE',
+  'GIT_IMPLICIT_WORK_TREE',
+  'GIT_GRAFT_FILE',
+  'GIT_INDEX_FILE',
+  'GIT_NO_REPLACE_OBJECTS',
+  'GIT_REPLACE_REF_BASE',
+  'GIT_PREFIX',
+  'GIT_SHALLOW_FILE',
+  'GIT_COMMON_DIR',
+]
+
+const ENV = (() => {
+  const env = { ...process.env }
+  for (const key of REPO_LOCAL_ENV) delete env[key]
+  return env
+})()
+
 function fail(message) {
   console.error(`worktree ✗ ${message}`)
   process.exit(1)
@@ -37,6 +71,7 @@ function run(cwd, command, args, options = {}) {
       cwd,
       encoding: 'utf8',
       stdio: options.inherit ? 'inherit' : ['ignore', 'pipe', 'pipe'],
+      env: ENV,
       ...options,
     })?.trim()
   } catch (error) {
@@ -55,7 +90,7 @@ function checked(cwd, command, args, options = {}) {
     cwd,
     encoding: 'utf8',
     stdio: options.inherit ? 'inherit' : ['ignore', 'pipe', 'pipe'],
-    env: process.env,
+    env: ENV,
   })
   if (result.status !== 0) {
     throw new Error(result.stderr?.trim() || `${command} ${args.join(' ')} failed`)
@@ -279,8 +314,11 @@ function collectIncludeFiles(root, relPath, out) {
 
 function isGitIgnored(root, relPath) {
   return (
-    spawnSync('git', ['check-ignore', '-q', '--', relPath], { cwd: root, stdio: 'ignore' })
-      .status === 0
+    spawnSync('git', ['check-ignore', '-q', '--', relPath], {
+      cwd: root,
+      stdio: 'ignore',
+      env: ENV,
+    }).status === 0
   )
 }
 
@@ -326,7 +364,7 @@ function installDependencies(path) {
   const result = spawnSync('pnpm', ['install', '--frozen-lockfile'], {
     cwd: path,
     stdio: 'inherit',
-    env: process.env,
+    env: ENV,
   })
   if (result.status !== 0) throw new Error(`dependency install failed in ${path}`)
 }
@@ -367,8 +405,12 @@ function create(slugArg, options) {
     if (!options.skipInstall) installDependencies(path)
   } catch (error) {
     console.error('worktree · setup failed; rolling back the partial checkout')
-    spawnSync('git', ['worktree', 'remove', '--force', path], { cwd: root, stdio: 'ignore' })
-    spawnSync('git', ['branch', '-D', branch], { cwd: root, stdio: 'ignore' })
+    spawnSync('git', ['worktree', 'remove', '--force', path], {
+      cwd: root,
+      stdio: 'ignore',
+      env: ENV,
+    })
+    spawnSync('git', ['branch', '-D', branch], { cwd: root, stdio: 'ignore', env: ENV })
     for (const target of Object.values(paths)) {
       if (existsSync(target)) rmSync(target, { recursive: true, force: true })
     }
@@ -403,6 +445,7 @@ function isAncestorMerged(root, branch) {
     spawnSync('git', ['merge-base', '--is-ancestor', branch, 'main'], {
       cwd: root,
       stdio: 'ignore',
+      env: ENV,
     }).status === 0
   )
 }
@@ -414,18 +457,37 @@ function statusOrNull(path) {
     cwd: path,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
+    env: ENV,
   })
   if (result.status !== 0) return null
   return (result.stdout ?? '').trim()
 }
 
 /**
+ * Directories a harness creates worktrees in. Keep in sync with
+ * `is_harness_worktree` in githooks/pre-commit — same allowlist, same order.
+ */
+function isHarnessPath(path) {
+  const home = homedir()
+  return (
+    path.startsWith(join(home, '.t3', 'worktrees') + sep) ||
+    path.startsWith(join(home, '.codex', 'worktrees') + sep) ||
+    path.startsWith(join(home, '.grok', 'worktrees') + sep) ||
+    path.includes(`${sep}.claude${sep}worktrees${sep}`)
+  )
+}
+
+/**
  * Linked worktrees this script does not manage — Codex (`~/.codex/worktrees/…`),
  * Grok Build (`~/.grok/worktrees/…`), or a hand-made detached checkout. They
  * register in `git worktree list` for this repo and clutter the switcher, and no
- * harness reliably removes them. Only a DETACHED, clean, already-merged entry is
- * `prunable`; anything on a branch, dirty, or carrying unreachable commits is
- * reported but never touched.
+ * harness reliably removes them.
+ *
+ * Only a DETACHED, clean, already-merged entry UNDER a recognized harness root is
+ * `prunable`. Anything on a branch, dirty, or carrying unreachable commits is
+ * reported but never touched — and neither is a hand-made checkout outside those
+ * roots: `git status` cannot see gitignored files, so "clean" does not prove
+ * "worthless" for a directory a human made deliberately.
  */
 function harnessWorktrees(root) {
   return parseWorktrees(root)
@@ -439,11 +501,17 @@ function harnessWorktrees(root) {
     .map((entry) => {
       const status = statusOrNull(entry.path)
       const clean = status === ''
+      const harnessPath = isHarnessPath(entry.path)
       return {
         path: entry.path,
         head: entry.head,
         clean,
-        prunable: clean && typeof entry.head === 'string' && isAncestorMerged(root, entry.head),
+        harnessPath,
+        prunable:
+          harnessPath &&
+          clean &&
+          typeof entry.head === 'string' &&
+          isAncestorMerged(root, entry.head),
       }
     })
 }
@@ -465,7 +533,7 @@ function mergedPullRequest(root, branch) {
       '--json',
       'number,mergedAt,headRefOid',
     ],
-    { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
+    { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], env: ENV },
   )
   if (result.status !== 0) return null
   try {
@@ -490,6 +558,7 @@ function assertLocalMainContainsOrigin(root) {
   const current = spawnSync('git', ['merge-base', '--is-ancestor', 'origin/main', 'main'], {
     cwd: root,
     stdio: 'ignore',
+    env: ENV,
   })
   if (current.status !== 0) {
     fail('local main is behind origin/main; update the primary checkout before cleanup')
@@ -541,6 +610,7 @@ function processIsManagedDaemon(pid, worktreePath) {
 
   const command = spawnSync('ps', ['-p', String(pid), '-o', 'command='], {
     encoding: 'utf8',
+    env: ENV,
   }).stdout
   return command.includes('scripts/dev-daemon.mjs') && command.includes(worktreePath)
 }
@@ -633,6 +703,7 @@ function channelKeys(worktreePath) {
     cwd: worktreePath,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'ignore'],
+    env: ENV,
   })
   const top = (result.stdout ?? '').trim()
   if (result.status === 0 && top !== '') keys.add(top)
@@ -725,7 +796,7 @@ function prBody(root, branch, worktreePath, home) {
 }
 
 function requireGh(root) {
-  const result = spawnSync('gh', ['--version'], { cwd: root, stdio: 'ignore' })
+  const result = spawnSync('gh', ['--version'], { cwd: root, stdio: 'ignore', env: ENV })
   if (result.error || result.status !== 0) {
     fail('the GitHub CLI (gh) is required for this command; install it and run `gh auth login`')
   }
@@ -748,7 +819,7 @@ function openPullRequest(root, branch) {
       '--json',
       'url',
     ],
-    { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
+    { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], env: ENV },
   )
   if (result.status !== 0) return null
   try {
@@ -844,8 +915,12 @@ function adopt(pathArg, slugArg, options) {
     if (!options.skipInstall) installDependencies(target)
   } catch (error) {
     console.error('worktree · adoption failed; restoring the detached checkout')
-    spawnSync('git', ['switch', '--detach', entry.head], { cwd: target, stdio: 'ignore' })
-    spawnSync('git', ['branch', '-D', branch], { cwd: root, stdio: 'ignore' })
+    spawnSync('git', ['switch', '--detach', entry.head], {
+      cwd: target,
+      stdio: 'ignore',
+      env: ENV,
+    })
+    spawnSync('git', ['branch', '-D', branch], { cwd: root, stdio: 'ignore', env: ENV })
     rmSync(join(target, CONFIG_FILE), { force: true })
     for (const runtime of Object.values(paths)) {
       if (existsSync(runtime)) rmSync(runtime, { recursive: true, force: true })
@@ -903,16 +978,19 @@ function list() {
   for (const entry of harness) {
     const head = typeof entry.head === 'string' ? entry.head.slice(0, 8) : 'unknown'
     const state = entry.clean ? 'clean ' : 'dirty '
-    console.log(
-      `  detached@${head} ${state} ${entry.prunable ? 'prunable' : 'keep    '} ${entry.path}`,
-    )
+    const disposition = entry.prunable
+      ? 'prunable'
+      : entry.harnessPath
+        ? 'keep    '
+        : 'keep (not a harness path)'
+    console.log(`  detached@${head} ${state} ${disposition} ${entry.path}`)
   }
   console.log(
     '  `pnpm worktree cleanup` removes the prunable ones; `pnpm worktree adopt <path> <slug>` keeps one.',
   )
 }
 
-/** Second cleanup pass: detached, clean, already-merged harness checkouts. */
+/** Second cleanup pass: detached, clean, already-merged checkouts under a harness root. */
 function pruneHarnessWorktrees(root) {
   const prunable = harnessWorktrees(root).filter((entry) => entry.prunable)
   if (prunable.length === 0) return
@@ -960,14 +1038,14 @@ adopt:
 
 .worktreeinclude:
   create and adopt both copy the gitignored files this file lists (one relative
-  path per line, ` *
-      ` within a segment) from the primary checkout into the new
+  path per line, \` * \` within a segment) from the primary checkout into the new
   worktree, never overwriting an existing file. Agent harnesses apply that file
   inconsistently; this script is the one mechanism.
 
 list:
   Managed worktrees first, then any unmanaged detached checkouts a harness left
-  behind, marked prunable when they are clean and already merged into main.
+  behind, marked prunable when they sit under a harness root (~/.t3, ~/.codex,
+  ~/.grok, */.claude/worktrees) and are clean and already merged into main.
 
 pr:
   Pushes work/<slug> to origin and opens a PR into main via gh. Title defaults to
@@ -984,8 +1062,9 @@ remove:
 cleanup:
   Removes every clean managed worktree already merged into local main, then
   prunes unmanaged detached harness checkouts that are clean and whose HEAD is
-  reachable from main. Never touches a worktree on a branch, a dirty one, or one
-  holding commits main does not have.
+  reachable from main. Never touches a worktree on a branch, a dirty one, one
+  holding commits main does not have, or a hand-made checkout outside a harness
+  root.
 `,
   )
 }
