@@ -1,6 +1,7 @@
 import type { ReviewComment } from '@backend/comment-store'
 import { onMutationError } from '@renderer/hooks/mutation-error'
 import { trpc } from '@renderer/lib/trpc'
+import { randomId } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import { useMemo } from 'react'
 
@@ -58,7 +59,17 @@ export interface NewCommentInput {
   body: string
 }
 
-/** Add/edit/delete/resolve review comments. Each mutation refreshes the list. */
+/** The id an optimistically-added comment carries until the server's real one arrives on
+ *  the reconciling refetch. Never sent to the daemon, never written to the channel. */
+function temporaryId(): string {
+  return `optimistic-${randomId()}`
+}
+
+/**
+ * Add/edit/delete/resolve review comments. Each mutation writes the cache optimistically
+ * and reconciles on settle. The comment channel has no poll (only the `comments` app event
+ * refreshes it), so the optimistic value stands until real data replaces it.
+ */
 export function useCommentActions(): {
   add: (input: NewCommentInput) => Promise<void>
   edit: (id: string, body: string) => Promise<void>
@@ -69,28 +80,94 @@ export function useCommentActions(): {
 } {
   const repo = useRepoStore((s) => s.repo)
   const utils = trpc.useUtils()
-  const refresh = async (): Promise<void> => {
-    await utils.reviewComments.invalidate()
+
+  // No-op until the list has loaded — seeding a cache entry from a single write would
+  // publish a list that is missing every comment the query has not fetched yet.
+  const patch = (repoPath: string, next: (comments: ReviewComment[]) => ReviewComment[]): void => {
+    utils.reviewComments.setData(repoPath, (comments) => (comments ? next(comments) : undefined))
   }
+  const begin = async (repoPath: string, next: (comments: ReviewComment[]) => ReviewComment[]) => {
+    await utils.reviewComments.cancel(repoPath)
+    const previous = utils.reviewComments.getData(repoPath)
+    patch(repoPath, next)
+    return { previous, repoPath }
+  }
+  const rollback = (
+    context: { previous: ReviewComment[] | undefined; repoPath: string } | undefined,
+  ): void => {
+    if (context) utils.reviewComments.setData(context.repoPath, context.previous)
+  }
+
   const add = trpc.addReviewComment.useMutation({
-    onSuccess: refresh,
-    onError: onMutationError('Add comment'),
+    onMutate: ({ repoPath, path, startLine, endLine, anchorText, body }) => {
+      const comment: ReviewComment = {
+        id: temporaryId(),
+        path,
+        body,
+        resolved: false,
+        createdAt: Date.now(),
+        ...(startLine !== undefined ? { startLine } : {}),
+        ...(endLine !== undefined ? { endLine } : {}),
+        ...(anchorText !== undefined ? { anchorText } : {}),
+      }
+      // Newest first, matching readComments' sort.
+      return begin(repoPath, (comments) => [comment, ...comments])
+    },
+    onError: (error, _vars, context) => {
+      rollback(context)
+      onMutationError('Add comment')(error)
+    },
+    onSettled: async (_data, _error, { repoPath }) => {
+      await utils.reviewComments.invalidate(repoPath)
+    },
   })
   const edit = trpc.editReviewComment.useMutation({
-    onSuccess: refresh,
-    onError: onMutationError('Edit comment'),
+    onMutate: ({ repoPath, id, body }) =>
+      begin(repoPath, (comments) =>
+        comments.map((comment) => (comment.id === id ? { ...comment, body } : comment)),
+      ),
+    onError: (error, _vars, context) => {
+      rollback(context)
+      onMutationError('Edit comment')(error)
+    },
+    onSettled: async (_data, _error, { repoPath }) => {
+      await utils.reviewComments.invalidate(repoPath)
+    },
   })
   const remove = trpc.deleteReviewComment.useMutation({
-    onSuccess: refresh,
-    onError: onMutationError('Delete comment'),
+    onMutate: ({ repoPath, id }) =>
+      begin(repoPath, (comments) => comments.filter((comment) => comment.id !== id)),
+    onError: (error, _vars, context) => {
+      rollback(context)
+      onMutationError('Delete comment')(error)
+    },
+    onSettled: async (_data, _error, { repoPath }) => {
+      await utils.reviewComments.invalidate(repoPath)
+    },
   })
   const resolve = trpc.resolveReviewComment.useMutation({
-    onSuccess: refresh,
-    onError: onMutationError('Resolve comment'),
+    onMutate: ({ repoPath, id, resolved }) =>
+      begin(repoPath, (comments) =>
+        comments.map((comment) => (comment.id === id ? { ...comment, resolved } : comment)),
+      ),
+    onError: (error, _vars, context) => {
+      rollback(context)
+      onMutationError('Resolve comment')(error)
+    },
+    onSettled: async (_data, _error, { repoPath }) => {
+      await utils.reviewComments.invalidate(repoPath)
+    },
   })
   const clearResolved = trpc.clearResolvedReviewComments.useMutation({
-    onSuccess: refresh,
-    onError: onMutationError('Clear closed comments'),
+    onMutate: ({ repoPath }) =>
+      begin(repoPath, (comments) => comments.filter((comment) => !comment.resolved)),
+    onError: (error, _vars, context) => {
+      rollback(context)
+      onMutationError('Clear closed comments')(error)
+    },
+    onSettled: async (_data, _error, { repoPath }) => {
+      await utils.reviewComments.invalidate(repoPath)
+    },
   })
   return {
     add: async (input) => {
