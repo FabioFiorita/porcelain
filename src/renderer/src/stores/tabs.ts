@@ -222,7 +222,9 @@ export const useTabsStore = create<TabsState>((set) => ({
           p.tabs.some((t) => t.id === tab.id) ? removeTab(p, tab.id) : p,
         )
         if (stripped.length === 1) {
-          return normalize([stripped[0], addTab(emptyPane(), tab)], 1)
+          const pane = stripped[0]
+          if (!pane) return state
+          return normalize([pane, addTab(emptyPane(), tab)], 1)
         }
         const target = state.activePaneIndex === 0 ? 1 : 0
         return normalize(
@@ -231,7 +233,9 @@ export const useTabsStore = create<TabsState>((set) => ({
         )
       }
       if (state.panes.length === 1) {
-        return { panes: [state.panes[0], addTab(emptyPane(), tab)], activePaneIndex: 1 }
+        const pane = state.panes[0]
+        if (!pane) return state
+        return { panes: [pane, addTab(emptyPane(), tab)], activePaneIndex: 1 }
       }
       const target = state.activePaneIndex === 0 ? 1 : 0
       return {

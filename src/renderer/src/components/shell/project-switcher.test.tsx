@@ -57,9 +57,13 @@ describe('ProjectSwitcher', () => {
     openMenu()
 
     const buttons = await screen.findAllByLabelText('Open in new window')
-    fireEvent.click(buttons[0])
+    const button = buttons[0]
+    if (button === undefined) throw new Error('expected a button')
+    fireEvent.click(button)
 
-    expect(openWindow).toHaveBeenCalledWith(recents[0].path)
+    const alpha = recents[0]
+    if (alpha === undefined) throw new Error('expected recents[0]')
+    expect(openWindow).toHaveBeenCalledWith(alpha.path)
     expect(useRepoStore.getState().switchTo).not.toHaveBeenCalled()
     // The controlled open state closes the menu after the click (the button's
     // stopPropagation used to suppress Base UI's auto-close).
@@ -74,9 +78,13 @@ describe('ProjectSwitcher', () => {
     const removeButtons = await screen.findAllByLabelText('Remove from projects')
     expect(removeButtons).toHaveLength(1)
 
-    fireEvent.click(removeButtons[0])
+    const removeButton = removeButtons[0]
+    if (removeButton === undefined) throw new Error('expected a remove button')
+    fireEvent.click(removeButton)
 
-    expect(remove).toHaveBeenCalledWith(recents[1].path)
+    const beta = recents[1]
+    if (beta === undefined) throw new Error('expected recents[1]')
+    expect(remove).toHaveBeenCalledWith(beta.path)
     expect(useRepoStore.getState().switchTo).not.toHaveBeenCalled()
     // The menu stays open so several projects can be pruned in a row.
     expect(screen.queryByRole('menuitem', { name: /new window/i })).not.toBeNull()

@@ -53,6 +53,12 @@ const mirrorRows = (container: HTMLElement): HTMLElement[] => {
   return Array.from(mirror?.children ?? []) as HTMLElement[]
 }
 
+const rowAt = (rows: readonly HTMLElement[], index: number): HTMLElement => {
+  const row = rows[index]
+  if (row === undefined) throw new Error(`expected mirror row ${index}`)
+  return row
+}
+
 // The autosave debounce (AUTOSAVE_DELAY_MS = 800) plus a margin.
 const AUTOSAVE_DELAY_MS = 800
 
@@ -63,8 +69,8 @@ test('right-clicking a selection tints the selected lines while the menu is open
     container.querySelector('[data-slot="context-menu-trigger"]') as HTMLElement,
   )
   const rows = mirrorRows(container)
-  expect(rows[1].className).toContain('bg-primary/15') // selected line stays visible under the menu
-  expect(rows[0].className).not.toContain('bg-primary/15') // unselected line untouched
+  expect(rowAt(rows, 1).className).toContain('bg-primary/15') // selected line stays visible under the menu
+  expect(rowAt(rows, 0).className).not.toContain('bg-primary/15') // unselected line untouched
 })
 
 test('a plain right-click (collapsed cursor) tints nothing', () => {
@@ -73,7 +79,7 @@ test('a plain right-click (collapsed cursor) tints nothing', () => {
   fireEvent.contextMenu(
     container.querySelector('[data-slot="context-menu-trigger"]') as HTMLElement,
   )
-  expect(mirrorRows(container)[1].className).not.toContain('bg-primary/15')
+  expect(rowAt(mirrorRows(container), 1).className).not.toContain('bg-primary/15')
 })
 
 test('clean adoption still works (regression guard): external rewrite on a clean buffer', () => {
@@ -138,7 +144,9 @@ test('successful save marks clean and allows adopt', () => {
   })
   // Simulate the write settling successfully by invoking the captured onSaved.
   act(() => {
-    save.mock.calls[0][1]()
+    const call = save.mock.calls[0]
+    if (!call) throw new Error('expected save to have been called')
+    call[1]()
   })
   expect(screen.queryByText('Unsaved')).not.toBeInTheDocument()
   // Now that the buffer is clean, an external rewrite is adopted.
@@ -158,7 +166,9 @@ test('typing during an in-flight save stays dirty after it lands', () => {
   fireEvent.change(ta(), { target: { value: 'ab' } })
   // The "a" save lands: watermark advances to the snapshot ("a"), not to "ab".
   act(() => {
-    save.mock.calls[0][1]()
+    const call = save.mock.calls[0]
+    if (!call) throw new Error('expected save to have been called')
+    call[1]()
   })
   // "ab" !== saved "a" → still dirty.
   expect(screen.getByText('Unsaved')).toBeInTheDocument()

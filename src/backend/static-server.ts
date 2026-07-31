@@ -74,7 +74,7 @@ export function preferredContentEncoding(
   for (const value of values) {
     for (const entry of value.split(',')) {
       const [rawName, ...parameters] = entry.trim().toLowerCase().split(';')
-      if (rawName === '') continue
+      if (rawName === undefined || rawName === '') continue
 
       let quality = 1
       for (const parameter of parameters) {
@@ -109,7 +109,7 @@ function isCompressible(type: string): boolean {
  * so a release can replace them.
  */
 export function isImmutableAsset(urlPath: string): boolean {
-  const pathOnly = urlPath.split('?')[0].split('#')[0]
+  const pathOnly = urlPath.split('?')[0]?.split('#')[0] ?? ''
   return /^\/assets\/.+-[a-zA-Z0-9_-]{8}\.[^/]+$/.test(pathOnly)
 }
 
@@ -142,7 +142,7 @@ function responseHeaders(
  */
 export function resolveStaticPath(root: string, urlPath: string): string | null {
   // Drop query + hash: only the path selects a file.
-  const pathOnly = urlPath.split('?')[0].split('#')[0]
+  const pathOnly = urlPath.split('?')[0]?.split('#')[0] ?? ''
 
   let decoded: string
   try {

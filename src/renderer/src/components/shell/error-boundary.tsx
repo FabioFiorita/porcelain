@@ -6,17 +6,17 @@ interface ErrorBoundaryState {
 
 /** Catches render crashes and shows the error instead of a blank window. */
 export class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryState> {
-  state: ErrorBoundaryState = { error: null }
+  override state: ErrorBoundaryState = { error: null }
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { error }
   }
 
-  componentDidCatch(error: Error): void {
+  override componentDidCatch(error: Error): void {
     console.error('renderer crash:', error)
   }
 
-  render(): ReactNode {
+  override render(): ReactNode {
     if (this.state.error) {
       return (
         <div className="dark flex h-screen flex-col items-center justify-center gap-3 bg-background p-8 text-foreground">

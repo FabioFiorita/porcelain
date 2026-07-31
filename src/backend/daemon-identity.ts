@@ -41,7 +41,7 @@ const IPV4 = /^\d{1,3}(?:\.\d{1,3}){3}$/
 export function shortHostname(raw: string): string {
   const trimmed = raw.trim()
   if (trimmed === '' || IPV4.test(trimmed)) return trimmed
-  return trimmed.split('.')[0]
+  return trimmed.split('.')[0] ?? trimmed
 }
 
 /**

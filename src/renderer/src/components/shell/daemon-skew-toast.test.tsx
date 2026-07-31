@@ -47,7 +47,9 @@ describe('DaemonSkewToast', () => {
     vi.mocked(useDaemonSkew).mockReturnValue(skew())
     render(<DaemonSkewToast />)
     expect(toast.warning).toHaveBeenCalledTimes(1)
-    const [title, opts] = vi.mocked(toast.warning).mock.calls[0]
+    const call = vi.mocked(toast.warning).mock.calls[0]
+    if (!call) throw new Error('expected a toast to have been raised')
+    const [title, opts] = call
     expect(title).toBe('Daemon version mismatch')
     expect(opts?.description).toBe(
       'Daemon v0.28.2 · app v0.29.2 — restart the remote daemon to update',

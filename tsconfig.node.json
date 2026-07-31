@@ -9,6 +9,10 @@
     "src/cli/**/*"
   ],
   "compilerOptions": {
+    "noImplicitAny": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
     "composite": true,
     "types": ["electron-vite/node"]
   }

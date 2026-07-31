@@ -89,6 +89,7 @@ function parseArgs(argv: string[]): ParsedArgs {
   const flags = new Map<string, string>()
   for (let i = 0; i < argv.length; i++) {
     const token = argv[i]
+    if (token === undefined) continue
     if (token.startsWith('--')) {
       const name = token.slice(2)
       if (BOOLEAN_FLAGS.has(name)) {

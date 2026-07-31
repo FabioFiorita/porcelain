@@ -50,7 +50,9 @@ describe('SkillsUpdateToast', () => {
   it('raises a toast when a newer bundle ships', () => {
     render(<SkillsUpdateToast />)
     expect(toast.info).toHaveBeenCalledTimes(1)
-    const [title, opts] = vi.mocked(toast.info).mock.calls[0]
+    const call = vi.mocked(toast.info).mock.calls[0]
+    if (!call) throw new Error('expected a toast to have been raised')
+    const [title, opts] = call
     expect(title).toBe('Skills update available')
     expect(opts?.description).toContain('v2.9.0')
     expect(opts?.description).toContain('npx skills upgrade')

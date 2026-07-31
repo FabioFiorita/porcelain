@@ -105,12 +105,14 @@ describe('GlanceHome', () => {
     expect(screen.getByText('This checkout')).toBeInTheDocument()
     expect(screen.getByLabelText('Review published')).toBeInTheDocument()
     fireEvent.click(screen.getByText('2 changed files'))
-    let { tabs } = useTabsStore.getState().panes[0]
-    expect(tabs[0]).toMatchObject({ id: tabId('review', 'working'), kind: 'review' })
+    const paneBefore = useTabsStore.getState().panes[0]
+    if (paneBefore === undefined) throw new Error('expected pane 0')
+    expect(paneBefore.tabs[0]).toMatchObject({ id: tabId('review', 'working'), kind: 'review' })
     expect(usePreferencesStore.getState().sidebarTab).toBe('changes')
     fireEvent.click(screen.getByText('Glance home'))
-    tabs = useTabsStore.getState().panes[0].tabs
-    const feature = tabs.find((t) => t.kind === 'feature')
+    const paneAfter = useTabsStore.getState().panes[0]
+    if (paneAfter === undefined) throw new Error('expected pane 0')
+    const feature = paneAfter.tabs.find((t) => t.kind === 'feature')
     expect(feature).toMatchObject({ id: tabId('feature', '/repo'), kind: 'feature' })
     expect(usePreferencesStore.getState().sidebarTab).toBe('feature')
   })
@@ -133,8 +135,9 @@ describe('GlanceHome', () => {
     // queued titles are not listed under doing — only doing cards expand
     expect(screen.queryByText('Later thing')).not.toBeInTheDocument()
     fireEvent.click(screen.getByText('Ship the Glance'))
-    const { tabs } = useTabsStore.getState().panes[0]
-    expect(tabs[0]).toMatchObject({ id: tabId('board', '/repo'), kind: 'board' })
+    const pane = useTabsStore.getState().panes[0]
+    if (pane === undefined) throw new Error('expected pane 0')
+    expect(pane.tabs[0]).toMatchObject({ id: tabId('board', '/repo'), kind: 'board' })
   })
 
   it('shows a quiet empty line when nothing is in flight, but keeps Jump to', () => {

@@ -295,7 +295,8 @@ export function svgAspectRatio(svg: string): number | null {
       .trim()
       .split(/[\s,]+/)
       .map(Number)
-    if (parts.length === 4 && parts[2] > 0 && parts[3] > 0) return parts[2] / parts[3]
+    const [, , w, h] = parts
+    if (parts.length === 4 && w !== undefined && h !== undefined && w > 0 && h > 0) return w / h
   }
   return null
 }

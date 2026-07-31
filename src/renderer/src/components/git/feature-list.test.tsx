@@ -143,7 +143,9 @@ describe('FeatureList', () => {
   it('opens the Review and jumps to a section from its chapter title', () => {
     renderList()
     fireEvent.click(screen.getByText('Entry point'))
-    const { tabs } = useTabsStore.getState().panes[0]
+    const pane = useTabsStore.getState().panes[0]
+    if (pane === undefined) throw new Error('expected pane 0')
+    const { tabs } = pane
     expect(tabs[0]).toMatchObject({ id: tabId('feature', '/repo'), kind: 'feature' })
     expect(useReviewFocusStore.getState().jump?.target).toEqual({ kind: 'section', index: 0 })
   })
@@ -151,7 +153,9 @@ describe('FeatureList', () => {
   it('opens the Review canvas on Intent from Open Review', () => {
     renderList()
     fireEvent.click(screen.getByRole('button', { name: 'Open Review' }))
-    const { tabs } = useTabsStore.getState().panes[0]
+    const pane = useTabsStore.getState().panes[0]
+    if (pane === undefined) throw new Error('expected pane 0')
+    const { tabs } = pane
     expect(tabs[0]).toMatchObject({ id: tabId('feature', '/repo'), kind: 'feature' })
     expect(useReviewFocusStore.getState().jump?.target).toEqual({ kind: 'intent' })
   })
@@ -160,7 +164,9 @@ describe('FeatureList', () => {
     renderList()
     screen.getByText('callout.tsx').click()
     const path = 'src/components/callout.tsx'
-    const { tabs } = useTabsStore.getState().panes[0]
+    const pane = useTabsStore.getState().panes[0]
+    if (pane === undefined) throw new Error('expected pane 0')
+    const { tabs } = pane
     expect(tabs).toHaveLength(1)
     expect(tabs[0]).toMatchObject({ id: tabId('diff', path), kind: 'diff', path })
   })
@@ -169,7 +175,9 @@ describe('FeatureList', () => {
     renderList()
     screen.getByText('callout-service.ts').click()
     const absolute = '/repo/server/callout-service.ts'
-    const { tabs } = useTabsStore.getState().panes[0]
+    const pane = useTabsStore.getState().panes[0]
+    if (pane === undefined) throw new Error('expected pane 0')
+    const { tabs } = pane
     expect(tabs).toHaveLength(1)
     expect(tabs[0]).toMatchObject({ id: tabId('file', absolute), kind: 'file', path: absolute })
   })
@@ -179,7 +187,9 @@ describe('FeatureList', () => {
     fireEvent.contextMenu(screen.getByText('callout.tsx'))
     fireEvent.click(screen.getByText('Open file'))
     const absolute = '/repo/src/components/callout.tsx'
-    const { tabs } = useTabsStore.getState().panes[0]
+    const pane = useTabsStore.getState().panes[0]
+    if (pane === undefined) throw new Error('expected pane 0')
+    const { tabs } = pane
     expect(tabs[0]).toMatchObject({
       id: tabId('file', absolute),
       kind: 'file',

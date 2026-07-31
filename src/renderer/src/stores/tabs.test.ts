@@ -1,12 +1,16 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { type Tab, tabId, useTabsStore } from './tabs'
+import { type Pane, type Tab, tabId, useTabsStore } from './tabs'
 
 const tab = (id: string): Tab => ({ id, kind: 'file', title: id, path: `/repo/${id}` })
 
 const reset = (): void =>
   useTabsStore.setState({ panes: [{ tabs: [], activeTabId: null }], activePaneIndex: 0 })
 
-const pane = (index = 0) => useTabsStore.getState().panes[index]
+const pane = (index = 0): Pane => {
+  const p = useTabsStore.getState().panes[index]
+  if (!p) throw new Error('unreachable')
+  return p
+}
 
 describe('tabId', () => {
   it('namespaces a key by kind', () => {

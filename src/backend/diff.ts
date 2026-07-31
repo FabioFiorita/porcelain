@@ -238,7 +238,7 @@ export function parseCodeSearch(out: string): CodeSearchFile[] {
         file.hunks.push(hunk)
       }
       const match = content[2] === ':'
-      hunk.lines.push({ line: Number(content[1]), text: content[3], match })
+      hunk.lines.push({ line: Number(content[1]), text: content[3] ?? '', match })
       if (match) file.matchCount++
       continue
     }

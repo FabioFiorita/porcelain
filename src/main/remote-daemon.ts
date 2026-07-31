@@ -197,7 +197,11 @@ export function withActiveUrl(env: RemoteEnvironment, url: string): RemoteEnviro
 export function withoutEndpoint(env: RemoteEnvironment, url: string): RemoteEnvironment {
   const endpoints = endpointsOf(env).filter((u) => u !== url)
   if (endpoints.length === 0) return env
-  return { ...env, endpoints, url: endpoints.includes(env.url) ? env.url : endpoints[0] }
+  return {
+    ...env,
+    endpoints,
+    url: endpoints.includes(env.url) ? env.url : (endpoints[0] ?? env.url),
+  }
 }
 
 /**

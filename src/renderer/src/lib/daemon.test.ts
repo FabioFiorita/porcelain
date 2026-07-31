@@ -56,7 +56,11 @@ function sentMessages(ws: FakeWebSocket): ClientMessage[] {
   return ws.sent.map((s) => clientMessageSchema.parse(JSON.parse(s)))
 }
 
-const latest = (): FakeWebSocket => FakeWebSocket.instances[FakeWebSocket.instances.length - 1]
+const latest = (): FakeWebSocket => {
+  const ws = FakeWebSocket.instances[FakeWebSocket.instances.length - 1]
+  if (!ws) throw new Error('expected a FakeWebSocket instance')
+  return ws
+}
 
 let daemon: typeof import('@renderer/lib/daemon')
 
@@ -178,7 +182,7 @@ describe('daemon WS client', () => {
     const firstAttaches = sentMessages(ws1).filter((f) => f.t === 'terminal:attach')
     expect(firstAttaches).toHaveLength(1)
     const attach = firstAttaches[0]
-    if (attach.t !== 'terminal:attach') throw new Error('unreachable')
+    if (attach === undefined || attach.t !== 'terminal:attach') throw new Error('unreachable')
 
     ws1.receive({
       t: 'terminal:attached',
@@ -294,13 +298,14 @@ describe('daemon WS client', () => {
     expect(daemon.isTerminalAttached('t2')).toBe(true)
     const attaches = sentMessages(ws2).filter((f) => f.t === 'terminal:attach')
     expect(attaches).toHaveLength(1)
-    if (attaches[0].t !== 'terminal:attach') throw new Error('unreachable')
-    expect(attaches[0].id).toBe('t2')
+    const attach = attaches[0]
+    if (attach === undefined || attach.t !== 'terminal:attach') throw new Error('unreachable')
+    expect(attach.id).toBe('t2')
 
     // settle it so the pending attach doesn't leak past the test
     ws2.receive({
       t: 'terminal:attached',
-      reqId: attaches[0].reqId,
+      reqId: attach.reqId,
       id: 't2',
       scrollback: '',
       status: 'running',

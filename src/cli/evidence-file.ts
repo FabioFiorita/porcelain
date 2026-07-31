@@ -269,7 +269,8 @@ export function getEvidence(repoPath: string): Evidence | null {
     let title = 'Evidence'
     let updatedAt = ''
     try {
-      const meta = JSON.parse(readFileSync(join(dir, 'meta.json'), 'utf8')) as EvidenceMeta
+      const parsed: unknown = JSON.parse(readFileSync(join(dir, 'meta.json'), 'utf8'))
+      const meta = isRecord(parsed) ? parsed : {}
       if (typeof meta.title === 'string' && meta.title.trim()) title = meta.title.trim()
       if (typeof meta.updatedAt === 'string') updatedAt = meta.updatedAt
     } catch {

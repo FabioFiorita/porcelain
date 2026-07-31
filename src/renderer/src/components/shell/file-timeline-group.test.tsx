@@ -63,7 +63,9 @@ describe('FileTimelineGroup', () => {
     renderGroup()
     screen.getByText('feat: add the widget').click()
 
-    const { tabs, activeTabId } = useTabsStore.getState().panes[0]
+    const pane = useTabsStore.getState().panes[0]
+    if (pane === undefined) throw new Error('expected pane 0')
+    const { tabs, activeTabId } = pane
     expect(tabs.some((t) => t.id === tabId('commit', 'aaa1111'))).toBe(true)
     expect(activeTabId).toBe(tabId('commit', 'aaa1111'))
   })

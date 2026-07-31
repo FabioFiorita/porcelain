@@ -28,6 +28,7 @@ export function findTailscaleAddress(
     for (const addr of addrs ?? []) {
       if (addr.internal || addr.family !== 'IPv4') continue
       const [first, second] = addr.address.split('.').map(Number)
+      if (first === undefined || second === undefined) continue
       if (first === 100 && second >= 64 && second <= 127)
         matches.push({ name, address: addr.address })
     }
@@ -35,11 +36,11 @@ export function findTailscaleAddress(
 
   const distinct = [...new Set(matches.map((m) => m.address))]
   if (distinct.length === 0) return null
-  if (distinct.length === 1) return distinct[0]
+  if (distinct.length === 1) return distinct[0] ?? null
 
   const named = matches.filter((m) => m.name.startsWith('tailscale'))
   const namedDistinct = [...new Set(named.map((m) => m.address))]
-  if (namedDistinct.length === 1) return namedDistinct[0]
+  if (namedDistinct.length === 1) return namedDistinct[0] ?? null
 
   console.error(
     `findTailscaleAddress: ambiguous multiple 100.64/10 candidates, refusing to bind: ${matches

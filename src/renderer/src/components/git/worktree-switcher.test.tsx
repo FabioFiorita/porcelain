@@ -59,7 +59,9 @@ describe('WorktreeSwitcher', () => {
 
     // Two rows → two "Open in new window" buttons; the second is the feature worktree.
     const buttons = await screen.findAllByLabelText('Open in new window')
-    fireEvent.click(buttons[1])
+    const button = buttons[1]
+    if (button === undefined) throw new Error('expected a second button')
+    fireEvent.click(button)
 
     expect(openWindow).toHaveBeenCalledWith('/Users/me/code/app-feature')
     expect(useRepoStore.getState().switchTo).not.toHaveBeenCalled()

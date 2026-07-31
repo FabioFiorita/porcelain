@@ -117,6 +117,7 @@ export async function moveAction(
     if (target < 0 || target >= sorted.length) return
     const current = sorted[index]
     const neighbour = sorted[target]
+    if (!current || !neighbour) return
     const tmp = current.order
     current.order = neighbour.order
     neighbour.order = tmp

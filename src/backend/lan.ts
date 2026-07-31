@@ -84,6 +84,7 @@ export function findLanAddresses(
     for (const addr of addrs ?? []) {
       if (addr.internal || addr.family !== 'IPv4') continue
       const [first, second] = addr.address.split('.').map(Number)
+      if (first === undefined || second === undefined) continue
       const isPrivate =
         first === 10 ||
         (first === 172 && second >= 16 && second <= 31) ||
@@ -115,5 +116,5 @@ export function lanDisplayHost(addresses: string[]): string | null {
   if (host !== '' && host !== 'localhost') {
     return host.endsWith('.local') ? host : `${host}.local`
   }
-  return addresses[0]
+  return addresses[0] ?? null
 }

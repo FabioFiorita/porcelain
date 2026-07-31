@@ -97,6 +97,9 @@ async function exchangePairingLink(link: string): Promise<{ url: string; token: 
   return { url, token: pairingResponseSchema.parse(body).token }
 }
 
+/** Thrown by `probeDaemon` when the daemon is reachable but rejects the token. */
+class DaemonUnauthorizedError extends Error {}
+
 /**
  * Probe a daemon before pointing windows at it: hit a cheap authed query so we
  * distinguish a wrong/dead url from a rejected token. The token is sent ONLY to
@@ -112,7 +115,7 @@ async function probeDaemon(url: string, token: string): Promise<void> {
   } catch {
     throw new Error(`Could not reach a daemon at ${url}`)
   }
-  if (res.status === 401) throw new Error('The daemon rejected that token (401)')
+  if (res.status === 401) throw new DaemonUnauthorizedError('The daemon rejected that token (401)')
   if (!res.ok) throw new Error(`The daemon at ${url} responded with ${res.status}`)
 }
 
@@ -263,7 +266,7 @@ async function resolveLiveEndpoint(env: RemoteEnvironment): Promise<string | nul
     } catch (error) {
       // A rejected token is the same on every address — re-probing the rest is pointless
       // and only delays the error the human needs to see.
-      if (error instanceof Error && error.message.includes('401')) return null
+      if (error instanceof DaemonUnauthorizedError) return null
     }
   }
   return null
@@ -503,7 +506,7 @@ export const shellRouter = t.router({
     // clobbered by this snapshot (a removed one would come back, token and all).
     const healed = new Map(
       state.environments
-        .map((env, index) => [env.id, remoteStatuses[index].endpoint] as const)
+        .map((env, index) => [env.id, remoteStatuses[index]?.endpoint ?? null] as const)
         .filter(([, endpoint]) => endpoint !== null),
     )
     if (healed.size > 0) {
@@ -520,7 +523,10 @@ export const shellRouter = t.router({
     }
     return [
       { id: null, ...localStatus },
-      ...remoteStatuses.map((status, index) => ({ id: state.environments[index].id, ...status })),
+      ...remoteStatuses.map((status, index) => ({
+        id: state.environments[index]?.id ?? null,
+        ...status,
+      })),
     ]
   }),
 

@@ -9,6 +9,10 @@
     "src/test-setup.ts"
   ],
   "compilerOptions": {
+    "noImplicitAny": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
     "composite": true,
     "jsx": "react-jsx",
     // baseUrl is retained for the shadcn CLI's alias resolution; TS 6 deprecates it

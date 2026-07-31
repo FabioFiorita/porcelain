@@ -164,15 +164,19 @@ export function attachTouchScroll(
   const onTouchStart = (e: TouchEvent): void => {
     if (activePointerId !== null) return
     if (e.touches.length !== 1) return
+    const touch = e.touches[0]
+    if (!touch) return
     tracking = true
-    lastY = e.touches[0].clientY
+    lastY = touch.clientY
     residual = 0
   }
   const onTouchMove = (e: TouchEvent): void => {
     if (activePointerId !== null) return
     if (!tracking || e.touches.length !== 1) return
+    const touch = e.touches[0]
+    if (!touch) return
     e.preventDefault()
-    applyDy(e.touches[0].clientY)
+    applyDy(touch.clientY)
   }
   const onTouchEnd = (): void => {
     if (activePointerId !== null) return

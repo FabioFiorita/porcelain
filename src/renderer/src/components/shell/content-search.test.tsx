@@ -114,7 +114,9 @@ describe('ContentSearch', () => {
     const item = await screen.findByText('src/foo/bar.ts:42')
     item.click()
 
-    const { tabs, activeTabId } = useTabsStore.getState().panes[0]
+    const pane = useTabsStore.getState().panes[0]
+    if (pane === undefined) throw new Error('expected pane 0')
+    const { tabs, activeTabId } = pane
     expect(tabs).toHaveLength(1)
     expect(tabs[0]).toMatchObject({
       id: tabId('file', '/myrepo/src/foo/bar.ts'),

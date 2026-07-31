@@ -154,7 +154,9 @@ describe('ChangesList', () => {
     screen.getByText('widget.tsx').click()
 
     const path = 'src/components/widget.tsx'
-    const { tabs, activeTabId } = useTabsStore.getState().panes[0]
+    const pane = useTabsStore.getState().panes[0]
+    if (pane === undefined) throw new Error('expected pane 0')
+    const { tabs, activeTabId } = pane
     expect(tabs).toHaveLength(1)
     expect(tabs[0]).toMatchObject({ id: tabId('diff', path), kind: 'diff', path })
     expect(activeTabId).toBe(tabId('diff', path))
@@ -166,7 +168,9 @@ describe('ChangesList', () => {
     fireEvent.click(await screen.findByText('Open file'))
 
     const absolute = '/repo/src/components/widget.tsx'
-    const { tabs, activeTabId } = useTabsStore.getState().panes[0]
+    const pane = useTabsStore.getState().panes[0]
+    if (pane === undefined) throw new Error('expected pane 0')
+    const { tabs, activeTabId } = pane
     expect(tabs).toHaveLength(1)
     expect(tabs[0]).toMatchObject({ id: tabId('file', absolute), kind: 'file', path: absolute })
     expect(activeTabId).toBe(tabId('file', absolute))
@@ -256,10 +260,14 @@ describe('ChangesList', () => {
     screen.getByText('widget.tsx').click()
 
     const path = 'src/components/widget.tsx'
-    const { tabs, activeTabId } = useTabsStore.getState().panes[0]
+    const pane = useTabsStore.getState().panes[0]
+    if (pane === undefined) throw new Error('expected pane 0')
+    const { tabs, activeTabId } = pane
     expect(tabs).toHaveLength(1)
-    expect(tabs[0]).toMatchObject({ kind: 'diff', path, base: 'main' })
-    expect(tabs[0].id).toBe(tabId('diff', `main:${path}`))
+    const tab = tabs[0]
+    if (tab === undefined) throw new Error('expected tab 0')
+    expect(tab).toMatchObject({ kind: 'diff', path, base: 'main' })
+    expect(tab.id).toBe(tabId('diff', `main:${path}`))
     expect(activeTabId).toBe(tabId('diff', `main:${path}`))
   })
 })

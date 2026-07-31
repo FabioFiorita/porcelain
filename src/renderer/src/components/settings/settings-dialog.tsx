@@ -134,7 +134,7 @@ export function SettingsButton({
  * dual-pane (14rem nav rail + body) left only ~200px for controls on iPhone, so
  * labels and toggle groups collided. Desktop keeps the side nav.
  */
-export function SettingsDialog(): React.JSX.Element {
+export function SettingsDialog(): React.JSX.Element | null {
   const open = useSettingsDialogStore((s) => s.open)
   const setOpen = useSettingsDialogStore((s) => s.setOpen)
   const section = useSettingsDialogStore((s) => s.section)
@@ -151,6 +151,7 @@ export function SettingsDialog(): React.JSX.Element {
   // section id kept from an older build, like the removed 'environments' panel) —
   // falls back to General so the header and body never disagree.
   const active = sections.find((s) => s.id === section) ?? sections[0]
+  if (active === undefined) return null
   const activeId = active.id
 
   return (

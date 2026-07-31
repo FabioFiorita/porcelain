@@ -70,7 +70,7 @@ export function CodeLine({
   const base =
     tokens && tokens.length > 0
       ? tokens.map((t) => ({ content: t.content, color: t.color }))
-      : [{ content: text }]
+      : [{ content: text, color: undefined }]
   const segments = ranges?.length
     ? splitByRanges(base, ranges)
     : base.map((s) => ({ ...s, emphasized: false }))

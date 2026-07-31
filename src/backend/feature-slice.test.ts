@@ -78,18 +78,19 @@ describe('sliceSource', () => {
     const slice = sliceSource(SOURCE, new Set(['greet']))
     expect(slice.whole).toBe(false)
     expect(slice.ranges).toHaveLength(1)
-    const [range] = slice.ranges
-    expect(range.startLine).toBe(4) // the /** */ doc line, not the `export function`
-    expect(range.lines.join('\n')).toContain('export function greet')
-    expect(range.lines.join('\n')).toContain('return `Hello')
+    const range = slice.ranges[0]
+    expect(range).toBeDefined()
+    expect(range?.startLine).toBe(4) // the /** */ doc line, not the `export function`
+    expect(range?.lines.join('\n')).toContain('export function greet')
+    expect(range?.lines.join('\n')).toContain('return `Hello')
     // the closing brace is the last line; `const internal` is not included
-    expect(range.lines.join('\n')).not.toContain('internal')
+    expect(range?.lines.join('\n')).not.toContain('internal')
   })
 
   it('captures a brace-balanced multi-line object const', () => {
     const slice = sliceSource(SOURCE, new Set(['TEMPLATES']))
     expect(slice.ranges).toHaveLength(1)
-    const body = slice.ranges[0].lines.join('\n')
+    const body = slice.ranges[0]?.lines.join('\n') ?? ''
     expect(body).toContain('export const TEMPLATES = {')
     expect(body).toContain('b: 2,')
     expect(body.trimEnd().endsWith('}')).toBe(true)
@@ -109,16 +110,16 @@ describe('sliceSource', () => {
     const slice = sliceSource(SOURCE, new Set(['greet', 'Mode']))
     expect(slice.ranges).toHaveLength(2)
     // first range starts at line 4 → 3 lines elided before it (1-3)
-    expect(slice.ranges[0].gapBefore).toBe(3)
+    expect(slice.ranges[0]?.gapBefore).toBe(3)
     // there is a real gap between greet's close and the Mode declaration
-    expect(slice.ranges[1].gapBefore).toBeGreaterThan(0)
+    expect(slice.ranges[1]?.gapBefore).toBeGreaterThan(0)
   })
 
   it('falls back to the whole file when no symbol is located', () => {
     const slice = sliceSource('const a = 1\nconst b = 2\n', new Set(['nope']))
     expect(slice.whole).toBe(true)
     expect(slice.ranges).toHaveLength(1)
-    expect(slice.ranges[0].lines).toEqual(['const a = 1', 'const b = 2'])
+    expect(slice.ranges[0]?.lines).toEqual(['const a = 1', 'const b = 2'])
   })
 
   // Adversarial: brace inside a string literal
@@ -131,7 +132,7 @@ describe('sliceSource', () => {
     expect(slice.whole).toBe(false)
     expect(slice.ranges).toHaveLength(1)
     // Only `after`'s line — `s` is not included
-    const body = slice.ranges[0].lines.join('\n')
+    const body = slice.ranges[0]?.lines.join('\n') ?? ''
     expect(body).toContain('export const after = 1')
     expect(body).not.toContain('export const s')
   })
@@ -155,7 +156,7 @@ describe('sliceSource', () => {
     const slice = sliceSource(src, new Set(['a']))
     expect(slice.whole).toBe(false)
     // Because the comment-brace inflates depth, `after` bleeds into `a`'s span
-    const body = slice.ranges[0].lines.join('\n')
+    const body = slice.ranges[0]?.lines.join('\n') ?? ''
     expect(body).toContain('export const a =')
     // Pin the bleed: `after` is included in `a`'s span due to the comment-brace skew
     expect(body).toContain('export const after = 1')
@@ -172,7 +173,7 @@ describe('sliceSource', () => {
     expect(slice.whole).toBe(false)
     expect(slice.ranges).toHaveLength(1)
     // The span is capped — it cannot exceed MAX_SYMBOL_LINES lines
-    expect(slice.ranges[0].lines.length).toBeLessThanOrEqual(MAX_SYMBOL_LINES)
+    expect(slice.ranges[0]?.lines.length).toBeLessThanOrEqual(MAX_SYMBOL_LINES)
   })
 
   // Adversarial: anonymous `export default` — declNameAt returns null, not undefined.
@@ -183,7 +184,7 @@ describe('sliceSource', () => {
     const slice = sliceSource(src, new Set())
     expect(slice.whole).toBe(false)
     expect(slice.ranges).toHaveLength(1)
-    const body = slice.ranges[0].lines.join('\n')
+    const body = slice.ranges[0]?.lines.join('\n') ?? ''
     expect(body).toContain('export default')
   })
 
@@ -193,7 +194,7 @@ describe('sliceSource', () => {
     const slice = sliceSource(src, new Set(['hidden']))
     expect(slice.whole).toBe(true)
     expect(slice.ranges).toHaveLength(1)
-    const body = slice.ranges[0].lines.join('\n')
+    const body = slice.ranges[0]?.lines.join('\n') ?? ''
     expect(body).toContain('const hidden = 1')
     expect(body).toContain('function internal')
   })
