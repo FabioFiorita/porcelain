@@ -4,6 +4,8 @@
   "version": "0.1.0",
   "dependencies": {
     "@expo/ui": "~57.0.8",
+    "@react-native-vector-icons/get-image": "^13.0.0",
+    "@react-native-vector-icons/material-design-icons": "^13.1.2",
     "@tanstack/react-query": "^5.101.0",
     "@trpc/client": "^11.17.0",
     "expo": "~57.0.9",
