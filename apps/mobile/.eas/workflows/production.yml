@@ -58,7 +58,7 @@ jobs:
     params:
       channel: production
       platform: ios
-      message: ${{ github.commit_message || 'Manual production update' }}
+      message: ${{ substring(github.commit_message || 'Manual production update', 0, 1024) }}
 
   build_ios:
     name: Build iOS production

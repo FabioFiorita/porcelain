@@ -25,6 +25,14 @@
 # `eas-build-ios:preview` to the PR. That is EAS's own built-in label trigger
 # (Project settings > GitHub), not this workflow — don't reimplement it here.
 #
+# Every `message` / `changelog` below is truncated to 1024: that is EAS's hard
+# limit on the field, and a longer value fails the job before it starts with
+# "String must contain at most 1024 character(s)" — the whole delivery run, not
+# just the changelog. On a push there is no PR title to fall back on, so the raw
+# commit body goes straight in. `.husky/commit-msg` keeps locally-authored
+# messages under the limit at the source; this truncation covers what that hook
+# can never see — a squash-merge composed in GitHub's UI, or `--no-verify`.
+#
 # Prerequisite: App Store Connect credentials must exist on EAS for the TestFlight
 # job to run non-interactively (`eas credentials:configure-build -p ios -e preview`
 # plus an App Store Connect API key). Until then the build lands in EAS and the
@@ -71,7 +79,7 @@ jobs:
     params:
       channel: preview
       platform: ios
-      message: ${{ github.event.pull_request.title || github.commit_message }}
+      message: ${{ substring(github.event.pull_request.title || github.commit_message, 0, 1024) }}
 
   build_ios:
     name: Build iOS preview
@@ -81,7 +89,7 @@ jobs:
     params:
       platform: ios
       profile: preview
-      message: ${{ github.event.pull_request.title || github.commit_message }}
+      message: ${{ substring(github.event.pull_request.title || github.commit_message, 0, 1024) }}
 
   testflight_ios:
     name: Send iOS preview to TestFlight
@@ -90,4 +98,4 @@ jobs:
     params:
       build_id: ${{ needs.build_ios.outputs.build_id }}
       profile: preview
-      changelog: ${{ github.event.pull_request.title || github.commit_message }}
+      changelog: ${{ substring(github.event.pull_request.title || github.commit_message, 0, 1024) }}

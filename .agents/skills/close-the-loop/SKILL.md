@@ -45,9 +45,28 @@ pnpm porcelain -- help  # CLI against ~/.porcelain-dev
 
 **A main commit is not a shortcut past the loop.** The gate runs identically on every branch, and an agent-authored commit on `main` still ends with a **published Porcelain Review** (Intent · Execution · Evidence) — that Review is what a PR would otherwise carry, and nothing enforces it but you.
 
-**One gate, every host (2026-07-30).** The gate must not depend on which client made the commit. The tracked `githooks/pre-commit` is authoritative and is activated per clone by `core.hooksPath=githooks` through `prepare` (guarded so an install outside this checkout cannot touch another repo). Claude Code and Grok Build also load the shared `.agents/hooks/git-guard.sh` through the Claude-compatible settings adapter, so they receive failures before invoking Git; Codex and plain terminals reach the tracked hook. Claude Code keeps its host-guaranteed duplicate skip. **Grok deliberately runs the tracked gate again:** `GROK_SESSION_ID` proves only that Grok launched Git, not that this checkout's project hook was trusted, discovered, and successful, so using it as a skip would fail open. `PORCELAIN_SKIP_VERIFY=1` remains the deliberate escape hatch after a verified manual run. Anything else — including a missing `pnpm` — fails closed and refuses the commit. `pnpm agents:check` guards adapter drift; `pnpm agents:doctor` proves local discovery and hook activation.
+**One gate, every host (2026-07-30).** The gate must not depend on which client made the commit. The tracked `.husky/pre-commit` is authoritative and is activated per clone through `prepare` (guarded so an install outside this checkout cannot touch another repo). Claude Code and Grok Build also load the shared `.agents/hooks/git-guard.sh` through the Claude-compatible settings adapter, so they receive failures before invoking Git; Codex and plain terminals reach the tracked hook. Claude Code keeps its host-guaranteed duplicate skip. **Grok deliberately runs the tracked gate again:** `GROK_SESSION_ID` proves only that Grok launched Git, not that this checkout's project hook was trusted, discovered, and successful, so using it as a skip would fail open. `PORCELAIN_SKIP_VERIFY=1` remains the deliberate escape hatch after a verified manual run. Anything else — including a missing `pnpm` — fails closed and refuses the commit. `pnpm agents:check` guards adapter drift; `pnpm agents:doctor` proves local discovery and hook activation.
+
+**Husky runs the hooks, but does not own them (2026-07-31).** Moved from a hand-wired `core.hooksPath=githooks` to husky so activation is a dependency's job rather than a shell one-liner in `prepare`. What did *not* change: the hook bodies are still tracked (`.husky/pre-commit`, `.husky/commit-msg`) and are still the authoritative gate for every client. What did: husky's generated `.husky/_` shims are gitignored and only exist after an install — `pnpm agents:doctor` now checks the shim and the body separately, because a missing shim silently ungates commits and looks identical to a healthy repo from the outside. Two husky behaviours are inherited and cannot be turned off: it sources `~/.config/husky/init.sh` if present (machine-local, never project rules), and `HUSKY=0` skips every hook — an alias for `--no-verify`, not a sanctioned escape. Hook bodies run under `sh -e`, so an intentional failure must stay inside `if`/`||`.
 
 Scale ceremony to the change. Phase 5 never scales away — no "should work."
+
+## Commit messages
+
+Enforced by `.husky/commit-msg` → `scripts/lint-commit-message.mjs`. Read the script for the exact rules; what follows is the part the script can't tell you.
+
+```
+type(scope): imperative summary            <= 72, no trailing period
+                                           <- line 2 blank
+Why this change, what it invalidates, the trap it leaves behind.
+Wrap at 100.                               whole message <= 1024
+```
+
+**The 1024 ceiling is external and load-bearing (2026-07-31).** EAS caps a workflow `message`/`changelog` at 1024 characters, and `apps/mobile/.eas/workflows/preview.yml` feeds `github.commit_message` into the update, build, and TestFlight jobs. On a push to `main` there is no PR title to fall back on, so an over-long commit body fails the run with `Failed to start job — String must contain at most 1024 character(s)`: TestFlight silently stops tracking `main`. This is not a style preference with a stylistic cost. The workflows also truncate defensively via `substring(…, 0, 1024)` — that covers a squash-merge composed in GitHub's UI, which never reaches a local hook — but truncation makes a worse changelog, so keep it short at the source. Budget ~60 characters for a `Claude-Session:` trailer.
+
+**What the body is for.** The diff already says what changed; a body that narrates it is wasted budget. Spend it on: why this path over the alternative, what earlier decision or doc this invalidates, what trap the next person will hit, and what runtime proof was taken. `git log` here is the record of *decisions* — several entries are the only place a finding lives.
+
+**Deliberately not enforced:** body presence (a one-line `chore(deps)` needs none) and imperative mood (no honest lint for it — reviewers catch it). Merge, revert, and `fixup!`/`squash!` messages are skipped entirely: Git composes them.
 
 ## Managed worktree lifecycle (opt-in)
 

@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { lstatSync, readFileSync, readlinkSync } from 'node:fs'
+import { existsSync, lstatSync, readFileSync, readlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -40,12 +40,30 @@ checkSymlink('CLAUDE.md', 'AGENTS.md')
 checkSymlink('.claude/agents/invariant-reviewer.md', '../../.agents/agents/invariant-reviewer.md')
 checkSymlink('.claude/hooks/git-guard.sh', '../../.agents/hooks/git-guard.sh')
 
+// husky points core.hooksPath at its generated `.husky/_` shims, which are
+// gitignored — so a fresh clone has the tracked hook bodies but no wiring until
+// `prepare` runs. Check both halves; either one missing means commits are
+// ungated, and the failure looks identical from the outside.
 const hooksPath = command('git', ['config', '--get', 'core.hooksPath'])
 report(
-  hooksPath.status === 0 && hooksPath.stdout.trim() === 'githooks' ? 'PASS' : 'FAIL',
-  'tracked commit hook',
-  hooksPath.stdout.trim() || 'core.hooksPath is unset',
+  hooksPath.status === 0 && hooksPath.stdout.trim() === '.husky/_' ? 'PASS' : 'FAIL',
+  'husky wiring',
+  hooksPath.stdout.trim() || 'core.hooksPath is unset — run `pnpm install`',
 )
+
+for (const hook of ['pre-commit', 'commit-msg']) {
+  const shim = existsSync(join(root, '.husky', '_', hook))
+  const body = existsSync(join(root, '.husky', hook))
+  report(
+    shim && body ? 'PASS' : 'FAIL',
+    `hook ${hook}`,
+    shim && body
+      ? '.husky/' + hook + ' via .husky/_'
+      : [!body && '.husky/' + hook + ' missing', !shim && 'shim missing (run `pnpm install`)']
+          .filter(Boolean)
+          .join('; '),
+  )
+}
 
 const branch = command('git', ['branch', '--show-current']).stdout.trim()
 if (branch === 'main') {

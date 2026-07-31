@@ -16,9 +16,9 @@
  *      Out of scope on purpose: tests spawn git to *build* fixtures in a temp
  *      repo (no poll, no user repo), and `src/cli` is the dependency-free CLI
  *      island with its own one-shot `rev-parse` — neither polls a live repo.
- *   3. The tracked pre-commit hook clears Git's exported repository-local env
- *      before verification. Otherwise fixture git commands ignore cwd and
- *      commit into the worktree whose hook is running.
+ *   3. The tracked pre-commit hook (`.husky/pre-commit`) clears Git's exported
+ *      repository-local env before verification. Otherwise fixture git commands
+ *      ignore cwd and commit into the worktree whose hook is running.
  *   4. Every git spawn in the gateway builds its env with `gitEnv` — the
  *      runtime half of 3. An inherited `GIT_DIR` overrides `cwd`, so a spawn
  *      that passes the raw `process.env` acts on whatever repository the
@@ -52,7 +52,7 @@ const GIT_SPAWN =
 const GIT_SPAWN_ALL = new RegExp(GIT_SPAWN.source, 'g')
 const GIT_ENV_SCRUB = /env:\s*gitEnv\(/g
 const GIT_SPAWN_ROOTS = [join(scanRoot, 'backend'), join(scanRoot, 'main')]
-const PRE_COMMIT_HOOK = join(root, 'githooks', 'pre-commit')
+const PRE_COMMIT_HOOK = join(root, '.husky', 'pre-commit')
 const GIT_LOCAL_ENV_LIST = /git rev-parse --local-env-vars/
 const GIT_LOCAL_ENV_UNSET =
   /for git_local_var in \$git_local_env; do\s+unset "\$git_local_var"\s+done/

@@ -465,7 +465,7 @@ function statusOrNull(path) {
 
 /**
  * Directories a harness creates worktrees in. Keep in sync with
- * `is_harness_worktree` in githooks/pre-commit — same allowlist, same order.
+ * `is_harness_worktree` in .husky/pre-commit — same allowlist, same order.
  */
 function isHarnessPath(path) {
   const home = homedir()

@@ -857,7 +857,7 @@ describe('gitDiffFile image/binary', () => {
 // ---------------------------------------------------------------------------
 //
 // Git exports its repository-local variables (GIT_DIR, GIT_INDEX_FILE, …) to
-// every hook it runs, and those variables OVERRIDE cwd. `githooks/pre-commit`
+// every hook it runs, and those variables OVERRIDE cwd. `.husky/pre-commit`
 // runs `pnpm verify`, so without a scrub this whole suite inherits a pointer at
 // the repository being committed: fixture repos silently commit, branch, and
 // `init --bare` the real checkout instead of their temp dir. That happened on

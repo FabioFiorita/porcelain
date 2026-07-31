@@ -1,0 +1,27 @@
+#!/bin/sh
+# Tracked commit-msg hook — the commit-message gate for every client.
+#
+# Exists because EAS caps a workflow `message` / `changelog` at 1024 characters
+# and apps/mobile/.eas/workflows/*.yml feed `github.commit_message` straight in.
+# A longer message on `main` fails the delivery run outright. The rest of the
+# rules are the house style this repository's history already follows.
+#
+# Cheap on purpose (regex over one file, no pnpm, no network): this runs on
+# every commit, including the ones where `pre-commit` skipped `pnpm verify`.
+# Escape hatch is Git's own `--no-verify`; there is no project-specific one,
+# because a message that can't pass is a message EAS can't accept.
+
+set -u
+# Hooks run without the interactive shell's PATH; make node resolvable.
+export PATH="$HOME/Library/pnpm:$HOME/.volta/bin:$HOME/.local/share/pnpm:/opt/homebrew/bin:/usr/local/bin:$PATH"
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "commit-msg: node not found on PATH — REFUSING the commit (the message gate can't run)." >&2
+  exit 1
+fi
+
+# Resolve from the worktree root rather than `$0`: husky invokes this hook by a
+# path relative to the cwd Git happened to choose, and a linked worktree makes
+# that assumption wrong in exactly the case we care least to debug.
+root="$(git rev-parse --show-toplevel)"
+exec node "$root/scripts/lint-commit-message.mjs" "$1"

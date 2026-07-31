@@ -404,7 +404,7 @@ assumed — this skill is the codebase-specific layer beneath them.
 
 - **The pre-commit verification process clears Git's hook-local environment.**
   Git exports repository variables such as `GIT_INDEX_FILE` to hooks; before
-  `pnpm verify`, `githooks/pre-commit` must enumerate
+  `pnpm verify`, `.husky/pre-commit` must enumerate
   `git rev-parse --local-env-vars` and unset each one. Otherwise tests that
   create temporary Git repositories inherit the real worktree's index/object
   paths, ignore their `cwd`, and can create fixture commits or switch branches

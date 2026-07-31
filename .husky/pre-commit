@@ -2,13 +2,19 @@
 # Tracked pre-commit hook — the client-independent AGENTS.md rule-3 gate before
 # ANY commit. Claude Code and Grok Build also run the shared PreToolUse guard
 # through .claude/settings.json; Codex and plain terminals arrive here directly.
-# Activated per clone by `core.hooksPath=githooks`, which `pnpm install` wires
-# via the `prepare` script.
+# Activated per clone by `core.hooksPath=.husky/_`, which `pnpm install` wires
+# through the `prepare` script (husky). Husky owns the wiring only — the hook
+# body is tracked here and is what every client actually runs.
 #
 # Commits are allowed on `main` (solo main-first flow), on managed `work/*`
 # branches, and in harness-native worktrees; any other branch is unmanaged and
 # rejected. Like git-guard.sh this fails CLOSED: if it can't run the gate, it
 # refuses the commit rather than waving it through.
+#
+# Husky's shim runs this with `sh -e`, so an unguarded non-zero command aborts
+# the hook (and blocks the commit). That is the direction we want to fail, but
+# it means every intentional failure below stays inside `if`/`||` — do not add a
+# bare test at the top level expecting it to just fall through.
 
 set -u
 # Hooks run without the interactive shell's PATH; make pnpm/node resolvable.
