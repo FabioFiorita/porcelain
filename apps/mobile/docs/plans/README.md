@@ -21,6 +21,19 @@ plans use comes from there: `useDaemonQuery` · `useDaemonMutation` · `useDaemo
 | `03-review.md` | Review tab: the Review canvas, comments, loop evidence, and the pushed Board screen |
 | `04-terminal.md` | Terminal tab: the daemon-owned PTY roster, attach/detach over the WS, saved actions |
 
+## Rule-5 exceptions already granted (2026-07-31)
+
+Settled by the human — don't re-open them, and don't extend them either. Canonical list lives in
+`.agents/skills/architecture/SKILL.md` → *Native mobile client*.
+
+- **WebView** is sanctioned in exactly two places: daemon-authored Evidence HTML (`03` §2.5) and the
+  xterm.js terminal bundle (`04` §2.1). Any third use still needs approval.
+- **One platform-split component**: Review's segmented face switcher (`03` §2.1). Every other
+  `.ios.tsx`/`.android.tsx` pair needs approval.
+- **`Alert.alert`** is fine for destructive confirms (platform API, no universal `@expo/ui` alert).
+- **Rotation is unlocked** — `app.json` is `"orientation": "default"`. Every screen must tolerate
+  rotation; no screen may assume portrait.
+
 ## Dependency rule
 
 **`00-connection` merges before any of `01`–`04` starts.** Every tab plan imports `useDaemonQuery`,

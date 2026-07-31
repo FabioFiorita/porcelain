@@ -33,9 +33,10 @@ itself, being an SSH client.
 
 ### 2.1 The rendering decision — **xterm.js inside `react-native-webview`**
 
-**Decision: option (a).** One `WebView` per visible session, hosting the same xterm.js the
-desktop renderer uses, driven entirely over the RN↔WebView bridge. The WebView never opens
-a socket, never sees the daemon token, never navigates.
+**Decision: option (a) — APPROVED by the human 2026-07-31** (the rule-5 exception is
+granted; no need to re-ask). One `WebView` per visible session, hosting the same xterm.js
+the desktop renderer uses, driven entirely over the RN↔WebView bridge. The WebView never
+opens a socket, never sees the daemon token, never navigates.
 
 Why, honestly:
 
@@ -157,10 +158,11 @@ single **Close** (kill removes it from the roster).
   regression, already paid for once).
 - **Cols reality check.** Portrait at 12 px is ~45 cols; a lot of CLI output assumes 80.
   We send the true size — lying to the PTY breaks wrapping worse than a narrow terminal
-  does. Mitigations available to the human: font size S, and landscape. `app.json` is
-  currently `"orientation": "portrait"` app-wide; **do not flip it in this worktree** —
-  propose it to the human as a shell-level change (it affects every tab), and ship v1
-  portrait-only.
+  does. Mitigations available to the human: font size S, and landscape. **Resolved
+  2026-07-31:** `app.json` is now `"orientation": "default"` app-wide — the shell-level
+  change was made and approved (terminal columns and landscape diff reading motivated it),
+  so nothing to propose and no portrait-only v1. Rotation is unlocked on every tab: this
+  screen must re-fit on orientation change, and no screen may assume portrait.
 
 ### 2.5 Creating and running
 
@@ -383,7 +385,8 @@ The WS manager stays terminal-agnostic: no terminal state, no attachment bookkee
 - Text selection/copy toolbar, OSC-52 clipboard, search-in-scrollback, link previews.
 - A daemon directory browser in the create sheet (`browseDirs`), unless 00 already ships one.
 - Push/background notifications for "your agent finished".
-- Landscape-specific layout and the app-wide orientation change (§2.4).
+- Landscape-*specific* layout. (The app-wide orientation unlock already shipped — §2.4 — so
+  the screen must tolerate rotation and re-fit; it just doesn't get a bespoke landscape UI.)
 - Any change to the daemon, the WS protocol, or the desktop renderer. If you think the
   protocol needs a change (e.g. flow control), stop and raise it — don't fork it.
 

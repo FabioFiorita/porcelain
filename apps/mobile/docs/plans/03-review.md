@@ -45,8 +45,9 @@ back must leave Review rather than step backwards through faces.
 
 Universal `@expo/ui` `Picker` only offers `appearance: 'menu' | 'wheel'` — a menu hides the
 product's spine behind a tap, so this is the one place the expo-ui ladder says to drop to
-the platform layer (still `@expo/ui`, not a hand-roll, so hard rule 5 is satisfied without
-asking):
+the platform layer (still `@expo/ui`, not a hand-roll). **APPROVED by the human 2026-07-31**
+as the app's first platform-split component; the exception is granted per-component, not a
+general license to split, so any *other* `.ios.tsx`/`.android.tsx` pair still needs asking:
 
 - `features/review/face-switcher.ios.tsx` — `@expo/ui/swift-ui` `Picker` with
   `modifiers={[pickerStyle('segmented')]}` and `Text` children carrying `tag('intent'|…)`.
