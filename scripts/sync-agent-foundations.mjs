@@ -95,10 +95,9 @@ async function main() {
     join(root, '.claude', 'agents', 'invariant-reviewer.md'),
     '../../.agents/agents/invariant-reviewer.md',
   )
-  await expectSymlink(
-    join(root, '.claude', 'hooks', 'git-guard.sh'),
-    '../../.agents/hooks/git-guard.sh',
-  )
+  for (const hook of ['git-guard.sh', 'worktree-create.sh', 'worktree-remove.sh']) {
+    await expectSymlink(join(root, '.claude', 'hooks', hook), `../../.agents/hooks/${hook}`)
+  }
   await checkSkillAdapters()
 
   const canonical = parseAgent(await readFile(canonicalAgent, 'utf8'))
@@ -117,6 +116,15 @@ async function main() {
   const settingsText = JSON.stringify(settings)
   if (!settingsText.includes('.claude/hooks/git-guard.sh')) {
     fail('.claude/settings.json does not load the shared Git guard')
+  }
+  const worktreeHooks = [
+    ['WorktreeCreate', 'worktree-create.sh'],
+    ['WorktreeRemove', 'worktree-remove.sh'],
+  ]
+  for (const [event, hook] of worktreeHooks) {
+    if (!settingsText.includes(`.claude/hooks/${hook}`) || !settingsText.includes(`"${event}"`)) {
+      fail(`.claude/settings.json does not bridge ${event} to the managed worktree lifecycle`)
+    }
   }
 
   if (!process.exitCode) {

@@ -57,7 +57,9 @@ export const useRepoStore = create<RepoState>((set, get) => ({
   },
   restoreLastRepo: async () => {
     try {
-      const [last] = await trpcClient.recentRepos.query()
+      // includeWorktrees: the project switcher hides linked worktrees, but the last
+      // repo the human had open may well BE one — restore has to land back in it.
+      const [last] = await trpcClient.recentRepos.query({ includeWorktrees: true })
       if (last) set({ repo: await trpcClient.openRepoPath.mutate(last.path) })
     } catch {
       // last repo may no longer exist; fall through to the welcome screen

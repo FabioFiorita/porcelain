@@ -3,15 +3,20 @@ import type { BranchRef } from '@backend/git'
 import type { InboxRow } from '@backend/worktree-inbox'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
+import { headLabel } from '@shared/head'
 
+/** The current HEAD as a label: a branch name, or `detached @ <short sha>`. The daemon
+ *  reports the branch identity and the sha separately (`gitHead`); the label is built
+ *  here so nothing downstream mistakes a detached HEAD for a checkout target — a
+ *  branch-list comparison against this string simply never matches while detached. */
 export function useBranch(): string | undefined {
   const repo = useRepoStore((s) => s.repo)
-  const { data } = trpc.gitBranch.useQuery(repo?.path ?? '', {
+  const { data } = trpc.gitHead.useQuery(repo?.path ?? '', {
     enabled: repo !== null,
     staleTime: 0,
     refetchInterval: 5000,
   })
-  return data
+  return data === undefined ? undefined : headLabel(data)
 }
 
 export function useWorktrees(): Worktree[] {

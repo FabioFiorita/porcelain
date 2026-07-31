@@ -49,7 +49,7 @@ report(
 
 const branch = command('git', ['branch', '--show-current']).stdout.trim()
 if (branch === 'main') {
-  report('PASS', 'worktree policy', 'primary integration checkout')
+  report('PASS', 'worktree policy', 'primary main checkout (commits allowed)')
 } else if (branch.startsWith('work/')) {
   const configPath = join(root, '.porcelain-worktree.json')
   try {

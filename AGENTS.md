@@ -19,7 +19,7 @@ The human is **not** the source of truth and not a dictator to obey. Everything 
 5. **UI primitives follow the client.** The Electron/browser renderer uses shadcn only: never hand-roll sidebar, tabs, dialogs, trees, etc.; load the `shadcn` skill and search shadcn/registries first. The native client under `apps/mobile` uses Expo Router navigation and universal `@expo/ui` first — no shadcn, Tailwind, or DOM components. Load the relevant `expo-*` skill before mobile work. A needed renderer primitive that shadcn does not provide, or a native primitive that universal `@expo/ui` does not provide, needs the human's approval before building. (Obvious renderer hand-rolls are lint-flagged by `scripts/lint-shadcn-heuristics.mjs`; the `invariant-reviewer` stays the judgment layer. Backend/daemon work loads neither UI skill.)
 6. **Let type-safety drive the design.** When types fight you, change the design — don't escape it: a structural interface at the seam, a zod parse, a narrowing guard. Prefer safer shapes (e.g. tRPC over a hand-rolled bridge). The escapes are lint-enforced, not prose (`any` → Biome, `as unknown as` → `scripts/lint-escapes.mjs`), so this rule states the intent only.
 7. **No `void` on promises.** Use `async`/`await` — a bare fire-and-forget call *without* `void` is fine when you truly don't need to wait. Lint-enforced by `scripts/lint-escapes.mjs`.
-8. **Managed worktrees; main is integration-only.** Agent work starts with `pnpm worktree create <slug>` from the primary `main` checkout and commits only on the created `work/<slug>` branch. Push that branch, open a PR into `main`, and squash-merge after review/CI. Direct main commits and unmanaged branch/worktree creation are hook-blocked; `release:cut` is the sole narrow main-commit exception. After merging and updating local main, `pnpm worktree remove <slug>` deletes the checkout, branch, isolated daemon state, and playground. No long-lived task branches.
+8. **Main-first solo flow; worktrees for parallel work.** Default path: work on `main`, pass the rule-3 gate, commit, push. Parallel or riskier tasks opt into `pnpm worktree create <slug>` → commit on `work/<slug>` → PR into `main` with the Review's evidence attached → squash-merge → `pnpm worktree remove <slug>` (deletes checkout, branch, isolated daemon state, playground). Unmanaged branch/worktree creation and commits on unmanaged branches stay hook-blocked. Harness-native worktrees (T3 Code, Codex, Grok, Claude) may commit on their own branches or a detached HEAD, still verify-gated; integrate via PR or handoff. Agent commits on main still close the loop with a published Review (`close-the-loop`) — expectation, not a hook. No long-lived task branches.
 9. **Close the loop — every session.** Intent → paths → execute → test → verify **with evidence** → docs sync → gate → commit. The `close-the-loop` skill owns the phases, testing doctrine, and autonomy split. Never end at "implemented, should work."
 10. **Connected app — one home per concern, previews hand off.** Canonical homes: Changes (diffs/stage/commit), Review (Review canvas), Files (tree), Board (plan), Terminal/Actions (run). Other surfaces may **preview** related state and must **hand off** via `lib/surface-handoffs.ts` — never a second Diff panel or second commit UX. Full principle in the `product` skill.
 
@@ -40,7 +40,7 @@ pnpm porcelain <noun> <verb>  # CLI → ~/.porcelain-dev
 # pair browser: node scripts/daemon-cli.js access issue --name "Dev browser" --base-url http://127.0.0.1:43118
 ```
 
-Managed task lifecycle:
+Managed task lifecycle (opt-in, for parallel work):
 
 ```bash
 pnpm worktree create fix-review     # work/fix-review + isolated runtime + playground
@@ -87,7 +87,7 @@ The shared rule is simple: **vendor-neutral sources are canonical; host director
 | Early Git guard | `.agents/hooks/git-guard.sh` | `.claude/settings.json` | no native adapter; tracked hook is authoritative | reads `.claude/settings.json` after project trust |
 | Commit gate | `githooks/pre-commit` | yes | yes | yes |
 
-- **`.agents/hooks/git-guard.sh`** — blocks unmanaged branch/worktree creation and direct main commits, then runs `pnpm verify` before managed task commits. `.claude/settings.json` is the shared Claude/Grok adapter; `git push` stays prompted.
+- **`.agents/hooks/git-guard.sh`** — blocks unmanaged branch/worktree creation and commits on unmanaged branches, then runs `pnpm verify` before any commit on `main` or a managed `work/*` branch. `.claude/settings.json` is the shared Claude/Grok adapter; `git push` stays prompted.
 - **`githooks/pre-commit`** — authoritative client-independent rule-3 gate, activated by `pnpm install`; Grok always reaches it even after the early guard because session presence alone cannot prove the trusted project hook succeeded. Claude Code retains its host-guaranteed duplicate skip; `PORCELAIN_SKIP_VERIFY=1` is the explicit manual escape.
 - **`pnpm agents:check`** — fails when instruction/reviewer/hook/skill adapters drift.
 - **`pnpm agents:doctor`** — reports local hook activation and installed-host discovery. Grok project hooks additionally require `/hooks-trust` once per checkout.

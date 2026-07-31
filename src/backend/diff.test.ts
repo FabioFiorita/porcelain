@@ -151,11 +151,18 @@ describe('parseNameStatus', () => {
 describe('parseWorktrees', () => {
   it('parses worktree blocks with branches and detached heads', () => {
     const out =
-      'worktree /repo\nHEAD abc\nbranch refs/heads/main\n\nworktree /repo-wt/fix\nHEAD def\nbranch refs/heads/fix-1\n\nworktree /repo-wt/detached\nHEAD eee\ndetached\n'
+      'worktree /repo\nHEAD abc\nbranch refs/heads/main\n\nworktree /repo-wt/fix\nHEAD def\nbranch refs/heads/fix-1\n\nworktree /repo-wt/detached\nHEAD 0123456789abcdef\ndetached\n'
     expect(parseWorktrees(out)).toEqual([
       { path: '/repo', branch: 'main' },
       { path: '/repo-wt/fix', branch: 'fix-1' },
-      { path: '/repo-wt/detached', branch: '(detached)' },
+      // A detached row names the commit it sits on, not a bare "(detached)".
+      { path: '/repo-wt/detached', branch: 'detached @ 0123456' },
+    ])
+  })
+
+  it('labels a bare repository block as bare, never as detached', () => {
+    expect(parseWorktrees('worktree /repo.git\nbare\n')).toEqual([
+      { path: '/repo.git', branch: 'bare' },
     ])
   })
 })

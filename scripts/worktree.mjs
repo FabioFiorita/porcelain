@@ -1,8 +1,13 @@
 #!/usr/bin/env node
 import { execFileSync, spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import {
+  copyFileSync,
   existsSync,
+  lstatSync,
   mkdirSync,
+  mkdtempSync,
+  readdirSync,
   readFileSync,
   readlinkSync,
   realpathSync,
@@ -10,11 +15,13 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs'
-import { homedir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { basename, dirname, join, resolve, sep } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 
 const CONFIG_FILE = '.porcelain-worktree.json'
+const INCLUDE_FILE = '.worktreeinclude'
+const MAX_INCLUDED_FILES = 200
 const BRANCH_PREFIX = 'work/'
 const PORT_MIN = 43200
 const PORT_MAX = 43999
@@ -74,11 +81,35 @@ function validateSlug(value) {
   return slug
 }
 
+/** `--flag value` or `--flag=value`; undefined when absent, fails on an empty value. */
+function flagValue(args, name) {
+  const index = args.indexOf(`--${name}`)
+  if (index !== -1) {
+    const value = args[index + 1]
+    if (value === undefined || value.startsWith('--')) fail(`--${name} needs a value`)
+    return value
+  }
+  const inline = args.find((arg) => arg.startsWith(`--${name}=`))
+  if (inline === undefined) return undefined
+  const value = inline.slice(name.length + 3)
+  if (value === '') fail(`--${name} needs a value`)
+  return value
+}
+
 function managedPaths(slug) {
   return {
     home: join(homedir(), '.porcelain-dev-worktrees', slug),
     userData: join(homedir(), '.local', 'share', 'porcelain-dev-worktrees', slug),
     playground: join(homedir(), 'code', 'porcelain-playgrounds', slug),
+  }
+}
+
+/** realpath when the directory still exists; the recorded path otherwise (prunable entries). */
+function realPathOrSelf(path) {
+  try {
+    return realpathSync(path)
+  } catch {
+    return path
   }
 }
 
@@ -89,7 +120,15 @@ function parseWorktrees(root) {
       const lines = block.split('\n')
       const path = lines.find((line) => line.startsWith('worktree '))?.slice(9)
       const branch = lines.find((line) => line.startsWith('branch refs/heads/'))?.slice(18)
-      return path ? { path: realpathSync(path), branch: branch ?? null } : null
+      const head = lines.find((line) => line.startsWith('HEAD '))?.slice(5)
+      return path
+        ? {
+            path: realPathOrSelf(path),
+            branch: branch ?? null,
+            head: head ?? null,
+            detached: lines.includes('detached'),
+          }
+        : null
     })
     .filter(Boolean)
 }
@@ -156,6 +195,133 @@ function createPlayground(path, slug) {
   ])
 }
 
+/**
+ * `.worktreeinclude` — the gitignored files a fresh checkout needs (`.env`,
+ * `.npmrc`, local certs). Claude Code skips this file entirely once a
+ * WorktreeCreate hook is configured, and Codex only honours it for worktrees it
+ * manages itself, so this script applies it for EVERY entry point (create and
+ * adopt) and stays the one mechanism.
+ *
+ * Deliberate pattern SUBSET (not gitignore semantics): one relative path per
+ * line, `#` comments and blank lines skipped, an optional trailing `/`, and `*`
+ * matching within a single path segment. No `**`, no negation, no anchoring
+ * rules — an unsupported form simply matches nothing. A pattern that lands on a
+ * directory contributes the files beneath it.
+ */
+function segmentMatcher(segment) {
+  const source = segment
+    .split('*')
+    .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join('[^/]*')
+  return new RegExp(`^${source}$`)
+}
+
+function expandIncludePattern(root, pattern) {
+  const segments = pattern
+    .replace(/^\/+/, '')
+    .replace(/\/+$/, '')
+    .split('/')
+    .filter((segment) => segment !== '' && segment !== '.')
+  if (segments.length === 0 || segments.includes('..') || pattern.includes('**')) return []
+
+  let matches = ['']
+  for (const segment of segments) {
+    const next = []
+    for (const prefix of matches) {
+      const dir = join(root, prefix)
+      if (!segment.includes('*')) {
+        if (existsSync(join(dir, segment)))
+          next.push(prefix === '' ? segment : `${prefix}/${segment}`)
+        continue
+      }
+      const matcher = segmentMatcher(segment)
+      let entries = []
+      try {
+        entries = readdirSync(dir)
+      } catch {
+        continue
+      }
+      for (const entry of entries) {
+        if (matcher.test(entry)) next.push(prefix === '' ? entry : `${prefix}/${entry}`)
+      }
+    }
+    matches = next
+  }
+  return matches
+}
+
+/** Files under `relPath` (itself, or its contents when it is a directory). Symlinks are skipped. */
+function collectIncludeFiles(root, relPath, out) {
+  if (out.size >= MAX_INCLUDED_FILES || relPath === '.git') return
+  let stats
+  try {
+    stats = lstatSync(join(root, relPath))
+  } catch {
+    return
+  }
+  if (stats.isSymbolicLink()) return
+  if (stats.isFile()) {
+    out.add(relPath)
+    return
+  }
+  if (!stats.isDirectory()) return
+  let entries = []
+  try {
+    entries = readdirSync(join(root, relPath))
+  } catch {
+    return
+  }
+  for (const entry of entries) {
+    if (entry === '.git') continue
+    collectIncludeFiles(root, `${relPath}/${entry}`, out)
+  }
+}
+
+function isGitIgnored(root, relPath) {
+  return (
+    spawnSync('git', ['check-ignore', '-q', '--', relPath], { cwd: root, stdio: 'ignore' })
+      .status === 0
+  )
+}
+
+/**
+ * Copy the primary checkout's `.worktreeinclude` files into a new worktree.
+ * Only gitignored, existing, non-symlink files are copied, and an existing file
+ * in the target is never overwritten — this seeds local secrets, it never
+ * rewrites the checkout.
+ */
+function copyIncludedFiles(root, target) {
+  const includePath = join(root, INCLUDE_FILE)
+  if (!existsSync(includePath)) return
+  let contents = ''
+  try {
+    contents = readFileSync(includePath, 'utf8')
+  } catch {
+    return
+  }
+
+  const candidates = new Set()
+  for (const line of contents.split('\n')) {
+    const pattern = line.trim()
+    if (pattern === '' || pattern.startsWith('#')) continue
+    for (const match of expandIncludePattern(root, pattern)) {
+      collectIncludeFiles(root, match, candidates)
+    }
+  }
+  if (candidates.size >= MAX_INCLUDED_FILES) {
+    console.error(`worktree · ${INCLUDE_FILE} matched over ${MAX_INCLUDED_FILES} files; truncated`)
+  }
+
+  for (const relPath of [...candidates].sort()) {
+    if (!isGitIgnored(root, relPath)) continue
+    const destination = join(target, relPath)
+    if (existsSync(destination)) continue
+    mkdirSync(dirname(destination), { recursive: true })
+    copyFileSync(join(root, relPath), destination)
+    console.log(`worktree · copied ${relPath}`)
+  }
+}
+
 function installDependencies(path) {
   const result = spawnSync('pnpm', ['install', '--frozen-lockfile'], {
     cwd: path,
@@ -196,6 +362,7 @@ function create(slugArg, options) {
 
   try {
     writeConfig(path, { version: 1, slug, branch, port })
+    copyIncludedFiles(root, path)
     createPlayground(paths.playground, slug)
     if (!options.skipInstall) installDependencies(path)
   } catch (error) {
@@ -238,6 +405,47 @@ function isAncestorMerged(root, branch) {
       stdio: 'ignore',
     }).status === 0
   )
+}
+
+/** Porcelain status of a worktree, or null when the directory is gone/unreadable. */
+function statusOrNull(path) {
+  if (!existsSync(path)) return null
+  const result = spawnSync('git', ['status', '--porcelain', '--untracked-files=all'], {
+    cwd: path,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  })
+  if (result.status !== 0) return null
+  return (result.stdout ?? '').trim()
+}
+
+/**
+ * Linked worktrees this script does not manage — Codex (`~/.codex/worktrees/…`),
+ * Grok Build (`~/.grok/worktrees/…`), or a hand-made detached checkout. They
+ * register in `git worktree list` for this repo and clutter the switcher, and no
+ * harness reliably removes them. Only a DETACHED, clean, already-merged entry is
+ * `prunable`; anything on a branch, dirty, or carrying unreachable commits is
+ * reported but never touched.
+ */
+function harnessWorktrees(root) {
+  return parseWorktrees(root)
+    .filter(
+      (entry) =>
+        entry.path !== root &&
+        entry.branch === null &&
+        entry.detached &&
+        !existsSync(join(entry.path, CONFIG_FILE)),
+    )
+    .map((entry) => {
+      const status = statusOrNull(entry.path)
+      const clean = status === ''
+      return {
+        path: entry.path,
+        head: entry.head,
+        clean,
+        prunable: clean && typeof entry.head === 'string' && isAncestorMerged(root, entry.head),
+      }
+    })
 }
 
 function mergedPullRequest(root, branch) {
@@ -401,6 +609,266 @@ async function remove(slugArg, options = {}) {
 `)
 }
 
+function readJsonFile(path) {
+  try {
+    const value = JSON.parse(readFileSync(path, 'utf8'))
+    return value !== null && typeof value === 'object' ? value : null
+  } catch {
+    return null
+  }
+}
+
+function text(value, max) {
+  return typeof value === 'string' ? value.trim().slice(0, max) : ''
+}
+
+/**
+ * Keys a published Review could be filed under. The porcelain CLI keys channels by
+ * `git rev-parse --show-toplevel` from the session cwd, which may or may not be the
+ * realpath we get from `git worktree list`; try both.
+ */
+function channelKeys(worktreePath) {
+  const keys = new Set([worktreePath])
+  const result = spawnSync('git', ['rev-parse', '--show-toplevel'], {
+    cwd: worktreePath,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+  })
+  const top = (result.stdout ?? '').trim()
+  if (result.status === 0 && top !== '') keys.add(top)
+  return [...keys]
+}
+
+/** The worktree's review set from its isolated channel home (see src/backend/review-store.ts). */
+function readReviewSet(home, keys) {
+  const all = readJsonFile(join(home, 'review-sets.json'))
+  if (!all) return null
+  for (const key of keys) {
+    const set = all[key]
+    if (set !== null && typeof set === 'object') return set
+  }
+  return null
+}
+
+/** The worktree's loop evidence pack (see src/backend/evidence-paths.ts for the keying). */
+function readEvidence(home, keys) {
+  for (const key of keys) {
+    const dir = join(
+      home,
+      'loop-evidence',
+      createHash('sha256').update(key).digest('hex').slice(0, 16),
+    )
+    if (!existsSync(join(dir, 'index.html'))) continue
+    const meta = readJsonFile(join(dir, 'meta.json')) ?? {}
+    return {
+      dir,
+      title: text(meta.title, 120) || 'Evidence',
+      updatedAt: text(meta.updatedAt, 64),
+      checks: Array.isArray(meta.checks) ? meta.checks.slice(0, 40) : [],
+    }
+  }
+  return null
+}
+
+const CHECK_MARKS = { pass: '✓', fail: '✗', skip: '–' }
+
+function renderReviewBody(review, evidence) {
+  const lines = []
+  if (review) {
+    const thesis = text(review.thesis, 4000)
+    lines.push('## Intent', '', thesis || `_${text(review.name, 120) || 'Feature view'}_`, '')
+    const sections = Array.isArray(review.sections) ? review.sections.slice(0, 30) : []
+    if (sections.length > 0) {
+      lines.push('Walkthrough:', '')
+      for (const section of sections) {
+        const title = text(section?.title, 200)
+        if (title !== '') lines.push(`- **${title}**`)
+      }
+      lines.push('')
+    }
+    const files = Array.isArray(review.files) ? review.files : []
+    if (files.length > 0) {
+      lines.push(`Execution: ${files.length} file(s) in the Review.`, '')
+    }
+  }
+  if (evidence) {
+    const when = evidence.updatedAt === '' ? '' : ` · updated ${evidence.updatedAt}`
+    lines.push('## Evidence', '', `**${evidence.title}**${when}`, '')
+    for (const check of evidence.checks) {
+      const label = text(check?.label, 200)
+      if (label === '') continue
+      const mark = CHECK_MARKS[check?.status] ?? '·'
+      const detail = text(check?.detail, 400)
+      lines.push(`- ${mark} ${label}${detail === '' ? '' : ` — \`${detail}\``}`)
+    }
+    lines.push('', `Pack: \`${join(evidence.dir, 'index.html')}\``, '')
+  }
+  return lines.join('\n')
+}
+
+function prBody(root, branch, worktreePath, home) {
+  const keys = channelKeys(worktreePath)
+  const review = readReviewSet(home, keys)
+  const evidence = readEvidence(home, keys)
+  const commits = git(root, ['log', `main..${branch}`, '--oneline'])
+  const commitSection = ['## Commits', '', '```', commits, '```', ''].join('\n')
+  if (!review && !evidence) {
+    return [
+      `_No published Review found for \`${worktreePath}\`._`,
+      '',
+      'Publish one with `pnpm porcelain review set` / `porcelain evidence prepare`.',
+      '',
+      commitSection,
+    ].join('\n')
+  }
+  return `${renderReviewBody(review, evidence)}\n${commitSection}`
+}
+
+function requireGh(root) {
+  const result = spawnSync('gh', ['--version'], { cwd: root, stdio: 'ignore' })
+  if (result.error || result.status !== 0) {
+    fail('the GitHub CLI (gh) is required for this command; install it and run `gh auth login`')
+  }
+}
+
+function openPullRequest(root, branch) {
+  const result = spawnSync(
+    'gh',
+    [
+      'pr',
+      'list',
+      '--head',
+      branch,
+      '--base',
+      'main',
+      '--state',
+      'open',
+      '--limit',
+      '1',
+      '--json',
+      'url',
+    ],
+    { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
+  )
+  if (result.status !== 0) return null
+  try {
+    const url = JSON.parse(result.stdout)[0]?.url
+    return typeof url === 'string' && url !== '' ? url : null
+  } catch {
+    return null
+  }
+}
+
+function pullRequest(slugArg, options) {
+  const root = primaryRoot()
+  const worktree = findManaged(root, slugArg)
+  const { slug, branch } = worktree.config
+
+  if (git(root, ['rev-list', '--count', `main..${branch}`]) === '0') {
+    fail(`${branch} has no commits ahead of main; commit the unit before opening a PR`)
+  }
+
+  if (options.dryRun) {
+    console.log(`title: ${options.title ?? git(root, ['log', '-1', '--format=%s', branch])}\n`)
+    console.log(prBody(root, branch, worktree.path, managedPaths(slug).home))
+    return
+  }
+
+  requireGh(root)
+  const existing = openPullRequest(root, branch)
+  if (existing) {
+    console.log(`worktree ✓ pull request already open for ${branch}\n  ${existing}\n`)
+    return
+  }
+
+  git(root, ['push', '-u', 'origin', branch], { inherit: true })
+
+  const title = options.title ?? git(root, ['log', '-1', '--format=%s', branch])
+  const body = prBody(root, branch, worktree.path, managedPaths(slug).home)
+  const dir = mkdtempSync(join(tmpdir(), 'porcelain-pr-'))
+  const bodyFile = join(dir, 'body.md')
+  try {
+    writeFileSync(bodyFile, `${body}\n`)
+    const args = [
+      'pr',
+      'create',
+      '--head',
+      branch,
+      '--base',
+      'main',
+      '--title',
+      title,
+      '--body-file',
+      bodyFile,
+    ]
+    if (options.draft) args.push('--draft')
+    const created = checked(root, 'gh', args)
+    console.log(`worktree ✓ opened ${options.draft ? 'draft ' : ''}pull request for ${branch}
+  ${created.split('\n').filter(Boolean).pop() ?? ''}
+`)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
+
+function adopt(pathArg, slugArg, options) {
+  if (!pathArg) fail('adopt needs the harness worktree path')
+  const root = primaryRoot()
+  const target = realPathOrSelf(resolve(pathArg))
+  const slug = validateSlug(slugArg)
+  const branch = `${BRANCH_PREFIX}${slug}`
+  const paths = managedPaths(slug)
+
+  if (target === root) fail('refusing to adopt the primary checkout')
+  const entry = parseWorktrees(root).find((worktree) => worktree.path === target)
+  if (!entry) fail(`not a linked worktree of this repository: ${target}`)
+  if (entry.branch !== null) {
+    fail(`${target} is already on ${entry.branch}; adopt only converts a detached worktree`)
+  }
+  if (typeof entry.head !== 'string' || entry.head === '') {
+    fail(`${target} has no resolvable HEAD commit`)
+  }
+  if (existsSync(join(target, CONFIG_FILE))) fail(`${target} is already a managed worktree`)
+  if (git(root, ['branch', '--list', branch]) !== '') fail(`branch already exists: ${branch}`)
+  for (const runtime of Object.values(paths)) {
+    if (existsSync(runtime)) fail(`managed runtime path already exists: ${runtime}`)
+  }
+
+  const port = allocatePort(root)
+  git(target, ['switch', '-c', branch])
+
+  try {
+    writeConfig(target, { version: 1, slug, branch, port })
+    copyIncludedFiles(root, target)
+    createPlayground(paths.playground, slug)
+    if (!options.skipInstall) installDependencies(target)
+  } catch (error) {
+    console.error('worktree · adoption failed; restoring the detached checkout')
+    spawnSync('git', ['switch', '--detach', entry.head], { cwd: target, stdio: 'ignore' })
+    spawnSync('git', ['branch', '-D', branch], { cwd: root, stdio: 'ignore' })
+    rmSync(join(target, CONFIG_FILE), { force: true })
+    for (const runtime of Object.values(paths)) {
+      if (existsSync(runtime)) rmSync(runtime, { recursive: true, force: true })
+    }
+    throw error
+  }
+
+  console.log(`worktree ✓ adopted ${branch}
+
+  checkout    ${target}  (adopted in place — not moved)
+  port        ${port}
+  channels    ${paths.home}
+  user data   ${paths.userData}
+  playground  ${paths.playground}
+
+  cd ${target}
+  pnpm build && pnpm dev:daemon -- --loopback
+
+The checkout stays where its harness created it; \`pnpm worktree remove ${slug}\`
+deletes that directory along with the branch and managed runtime state.
+`)
+}
+
 function list() {
   const root = primaryRoot()
   const rows = parseWorktrees(root)
@@ -422,13 +890,37 @@ function list() {
 
   if (rows.length === 0) {
     console.log('No managed worktrees.')
-    return
   }
   for (const row of rows) {
     console.log(
       `${row.slug.padEnd(24)} ${String(row.port).padEnd(6)} ${row.merged ? 'merged ' : 'active '} ${row.path}`,
     )
   }
+
+  const harness = harnessWorktrees(root)
+  if (harness.length === 0) return
+  console.log('\nunmanaged (harness) worktrees:')
+  for (const entry of harness) {
+    const head = typeof entry.head === 'string' ? entry.head.slice(0, 8) : 'unknown'
+    const state = entry.clean ? 'clean ' : 'dirty '
+    console.log(
+      `  detached@${head} ${state} ${entry.prunable ? 'prunable' : 'keep    '} ${entry.path}`,
+    )
+  }
+  console.log(
+    '  `pnpm worktree cleanup` removes the prunable ones; `pnpm worktree adopt <path> <slug>` keeps one.',
+  )
+}
+
+/** Second cleanup pass: detached, clean, already-merged harness checkouts. */
+function pruneHarnessWorktrees(root) {
+  const prunable = harnessWorktrees(root).filter((entry) => entry.prunable)
+  if (prunable.length === 0) return
+  for (const entry of prunable) {
+    git(root, ['worktree', 'remove', entry.path])
+    console.log(`worktree ✓ pruned harness checkout ${entry.path}`)
+  }
+  console.log(`worktree ✓ pruned ${prunable.length} unmanaged detached checkout(s)`)
 }
 
 async function cleanup() {
@@ -438,17 +930,20 @@ async function cleanup() {
     .filter((config) => config && mergeStatus(root, config.branch).merged)
   if (merged.length === 0) {
     console.log('worktree ✓ no merged managed worktrees to clean')
-    return
   }
   for (const config of merged) await remove(config.slug)
+  pruneHarnessWorktrees(root)
 }
 
 function help() {
-  console.log(`Porcelain managed worktrees
+  console.log(
+    `Porcelain managed worktrees
 
 Usage:
   pnpm worktree create <slug> [--skip-install]
+  pnpm worktree adopt <path> <slug> [--skip-install]
   pnpm worktree list
+  pnpm worktree pr <slug> [--draft] [--dry-run] [--title <title>]
   pnpm worktree remove <slug> [--force]
   pnpm worktree cleanup
 
@@ -457,14 +952,42 @@ create:
   <repo>-worktrees/<slug> directory with an isolated port, channels, user data,
   and disposable playground. Installs dependencies unless --skip-install is set.
 
+adopt:
+  Converts a detached harness worktree (Codex, Grok Build, hand-made) into a
+  managed one: branches work/<slug> at its current HEAD, writes the managed
+  config, allocates a port, and creates the playground. The checkout stays where
+  the harness put it; remove <slug> later deletes that directory.
+
+.worktreeinclude:
+  create and adopt both copy the gitignored files this file lists (one relative
+  path per line, ` *
+      ` within a segment) from the primary checkout into the new
+  worktree, never overwriting an existing file. Agent harnesses apply that file
+  inconsistently; this script is the one mechanism.
+
+list:
+  Managed worktrees first, then any unmanaged detached checkouts a harness left
+  behind, marked prunable when they are clean and already merged into main.
+
+pr:
+  Pushes work/<slug> to origin and opens a PR into main via gh. Title defaults to
+  the branch's latest commit subject; the body carries the worktree's published
+  Review (Intent + Evidence) when one exists, plus the commit list. Prints the URL
+  and exits when a PR is already open for the branch. --dry-run prints the title
+  and body it would send and touches neither origin nor gh.
+
 remove:
   Requires a clean worktree whose branch is merged into local main. Stops its
   recorded dev daemon, removes the checkout and branch, and permanently deletes
   its channels, user data, and playground. --force is only for abandoned work.
 
 cleanup:
-  Removes every clean managed worktree already merged into local main.
-`)
+  Removes every clean managed worktree already merged into local main, then
+  prunes unmanaged detached harness checkouts that are clean and whose HEAD is
+  reachable from main. Never touches a worktree on a branch, a dirty one, or one
+  holding commits main does not have.
+`,
+  )
 }
 
 async function main() {
@@ -477,8 +1000,21 @@ async function main() {
     create(name, { skipInstall: rest.includes('--skip-install') })
     return
   }
+  if (verb === 'adopt') {
+    const positional = rest.filter((arg) => !arg.startsWith('--'))
+    adopt(name, positional[0], { skipInstall: rest.includes('--skip-install') })
+    return
+  }
   if (verb === 'list') {
     list()
+    return
+  }
+  if (verb === 'pr') {
+    pullRequest(name, {
+      draft: rest.includes('--draft'),
+      dryRun: rest.includes('--dry-run'),
+      title: flagValue(rest, 'title'),
+    })
     return
   }
   if (verb === 'remove') {

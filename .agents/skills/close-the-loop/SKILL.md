@@ -37,19 +37,24 @@ pnpm porcelain -- help  # CLI against ~/.porcelain-dev
 
 1. **Intent** — one or two sentences: what will be true when this is done, and how you'll prove it.
 2. **Paths** — if more than one plausible approach exists, list tradeoffs and pick one (architecture forks need a proposal first).
-3. **Execute** — one architecture, shadcn primitives (UI only), type-safety-driven design. Agent tasks live in managed `work/<slug>` worktrees created by `pnpm worktree create <slug>`.
+3. **Execute** — one architecture, shadcn primitives (UI only), type-safety-driven design. Work on `main` by default; opt into a managed `work/<slug>` worktree when the task runs in parallel with another one or is risky enough to want a PR boundary.
 4. **Test** — per the testing doctrine below.
 5. **Verify with evidence** — prove the *intent*. UI → browser against the **dev** daemon (Playwright MCP or `pnpm test:e2e`). Backend → unit test / CLI on **dev** channels. Never drive the installed **Porcelain** app or the prod daemon for product work.
 6. **Docs sync** — update the owning skill in the same commit for decisions/traps changed; cut skill prose that only paraphrases code.
-7. **Gate & commit** — `pnpm verify`, commit on the managed task branch, push, and open a PR into `main`. After merge and a local main update, `pnpm worktree remove <slug>` closes the task by deleting its checkout, branch, channels, user data, and playground.
+7. **Gate & commit** — `pnpm verify`, then commit. On `main` (the default): push. On a managed task branch: push and open a PR into `main` carrying the Review's evidence; after merge and a local main update, `pnpm worktree remove <slug>` closes the task by deleting its checkout, branch, channels, user data, and playground.
+
+**A main commit is not a shortcut past the loop.** The gate runs identically on every branch, and an agent-authored commit on `main` still ends with a **published Porcelain Review** (Intent · Execution · Evidence) — that Review is what a PR would otherwise carry, and nothing enforces it but you.
 
 **One gate, every host (2026-07-30).** The gate must not depend on which client made the commit. The tracked `githooks/pre-commit` is authoritative and is activated per clone by `core.hooksPath=githooks` through `prepare` (guarded so an install outside this checkout cannot touch another repo). Claude Code and Grok Build also load the shared `.agents/hooks/git-guard.sh` through the Claude-compatible settings adapter, so they receive failures before invoking Git; Codex and plain terminals reach the tracked hook. Claude Code keeps its host-guaranteed duplicate skip. **Grok deliberately runs the tracked gate again:** `GROK_SESSION_ID` proves only that Grok launched Git, not that this checkout's project hook was trusted, discovered, and successful, so using it as a skip would fail open. `PORCELAIN_SKIP_VERIFY=1` remains the deliberate escape hatch after a verified manual run. Anything else — including a missing `pnpm` — fails closed and refuses the commit. `pnpm agents:check` guards adapter drift; `pnpm agents:doctor` proves local discovery and hook activation.
 
 Scale ceremony to the change. Phase 5 never scales away — no "should work."
 
-## Managed worktree lifecycle
+## Managed worktree lifecycle (opt-in)
 
-`main` is the clean integration/release checkout, not an agent editing surface.
+The maintainer works solo, so serialized work lands straight on `main` — a PR round-trip
+per change would be ceremony for an audience of one. Take a worktree when isolation
+actually buys something: a second task running concurrently, a long-lived experiment, or a
+change you want CI to judge before it touches `main`.
 
 1. From primary main: `pnpm worktree create <slug>`.
 2. Work only inside `<repo>-worktrees/<slug>` on `work/<slug>`.

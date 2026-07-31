@@ -52,6 +52,30 @@
           }
         ]
       }
+    ],
+    "WorktreeCreate": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PROJECT_DIR:-${GROK_WORKSPACE_ROOT:-$PWD}}/.claude/hooks/worktree-create.sh\"",
+            "timeout": 900,
+            "statusMessage": "worktree: pnpm worktree create"
+          }
+        ]
+      }
+    ],
+    "WorktreeRemove": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PROJECT_DIR:-${GROK_WORKSPACE_ROOT:-$PWD}}/.claude/hooks/worktree-remove.sh\"",
+            "timeout": 300,
+            "statusMessage": "worktree: pnpm worktree remove"
+          }
+        ]
+      }
     ]
   }
 }

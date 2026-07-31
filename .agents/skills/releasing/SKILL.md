@@ -31,13 +31,13 @@ main is good enough for daily use (web + daemon)
   GH Release (published + latest) + npm porcelain-daemon
 ```
 
-**No pending task branches at cut time.** Day-to-day work now lands through short-lived
-managed `work/*` PRs, but release remains the same simple main+tag path. The tracked
-pre-commit hook blocks ordinary main commits; `release-cut.mjs` sets the narrow
-`PORCELAIN_RELEASE_CUT=1` exception only after it has required clean `main == origin/main`.
-That exception bypasses only the branch-policy rejection; the tracked hook still runs
-`pnpm verify` because the outer Claude/Grok hook cannot see `pnpm version`'s nested commit.
-No multi-workflow pre-cut gate. No cut/retry/npm_only mode soup.
+**No pending task branches at cut time.** Day-to-day work lands on `main` (or through a
+short-lived managed `work/*` PR), and release stays the same simple main+tag path after
+`release-cut.mjs` has required clean `main == origin/main`. It sets `PORCELAIN_RELEASE_CUT=1`
+for one reason only: to *deny* the Claude duplicate-skip, so the tracked hook still runs
+`pnpm verify` on the nested commit `pnpm version` makes — which the outer Claude/Grok hook
+never sees. It never bypasses the gate. No multi-workflow pre-cut gate. No cut/retry/npm_only
+mode soup.
 
 Day-to-day proof is `pnpm verify` + browser e2e on the **dev** stack — not this workflow.
 

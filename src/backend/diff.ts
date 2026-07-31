@@ -1,3 +1,5 @@
+import { headLabel } from '../shared/head'
+
 export type FileStatus = 'modified' | 'added' | 'deleted' | 'renamed' | 'untracked'
 
 export interface ChangedFile {
@@ -140,6 +142,9 @@ export function parseNumstat(out: string): DiffStat[] {
 
 export interface Worktree {
   path: string
+  /** Display label for this checkout's HEAD — a branch name, `detached @ <sha>`,
+   *  or `bare`. A label, never a checkout target: use `gitHead` when you need the
+   *  branch identity. */
   branch: string
 }
 
@@ -153,8 +158,13 @@ export function parseWorktrees(out: string): Worktree[] {
       const lines = block.split('\n')
       const path = lines.find((l) => l.startsWith('worktree '))?.slice('worktree '.length) ?? ''
       const branchRef = lines.find((l) => l.startsWith('branch '))?.slice('branch '.length)
-      const branch = branchRef?.replace('refs/heads/', '') ?? '(detached)'
-      return { path, branch }
+      const branch = branchRef?.replace('refs/heads/', '') ?? null
+      // Each block carries `HEAD <sha>`, so a detached row can name the commit it
+      // sits on instead of reading as an anonymous "(detached)".
+      const head = lines.find((l) => l.startsWith('HEAD '))?.slice('HEAD '.length) ?? null
+      const detachedSha = branch === null && head !== null ? head.slice(0, 7) : null
+      const label = lines.includes('bare') ? 'bare' : headLabel({ branch, detachedSha })
+      return { path, branch: label }
     })
     .filter((w) => w.path !== '')
 }

@@ -9,6 +9,7 @@ import {
 } from './comment-store'
 import type { Layer } from './flow'
 import { readLayers, writeLayers } from './layers-store'
+import { isLinkedWorktree, primaryCheckoutPath } from './linked-worktree'
 import { readNotes, writeNotes } from './notes-store'
 import { hidePath, pinPath, type RepoScope, readRepoScope } from './scope-store'
 
@@ -134,4 +135,42 @@ export async function copyRepoSettings(
     }
   }
   return importRepoSettings(toPath, settings)
+}
+
+/**
+ * Copy settings onto a checkout that has NONE of its own, for the automatic paths
+ * (a new worktree, or opening one that predates this seeding). Three properties the
+ * explicit `copyRepoSettings` deliberately does not have, because a human asked for
+ * that one and nobody asked for this one:
+ * - an existing entry is never overwritten (empty = `exportRepoSettings` returns {}),
+ * - a same-path or missing source is a no-op,
+ * - it never throws: seeding is a courtesy, and the create/open it hangs off must
+ *   not fail because a channel file was unreadable.
+ */
+export async function seedRepoSettings(
+  fromPath: string,
+  toPath: string,
+): Promise<ImportRepoSettingsResult> {
+  try {
+    if (fromPath === toPath) return { imported: [] }
+    const existing = await exportRepoSettings(toPath)
+    if (Object.keys(existing).length > 0) return { imported: [] }
+    return await copyRepoSettings(fromPath, toPath)
+  } catch {
+    return { imported: [] }
+  }
+}
+
+/**
+ * Seed a linked worktree from its primary checkout. Companion data is keyed by
+ * absolute path, so the same project seen through a worktree starts blank — this
+ * carries actions/notes/board/layers/comments/scope across on first open. A
+ * primary checkout, an unresolvable family, or a worktree that already has
+ * settings all no-op.
+ */
+export async function seedWorktreeSettings(repoPath: string): Promise<ImportRepoSettingsResult> {
+  if (!(await isLinkedWorktree(repoPath))) return { imported: [] }
+  const primary = await primaryCheckoutPath(repoPath)
+  if (primary === null) return { imported: [] }
+  return seedRepoSettings(primary, repoPath)
 }

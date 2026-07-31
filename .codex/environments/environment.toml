@@ -1,0 +1,18 @@
+# Codex local environment. The ChatGPT app normally writes this file from its
+# settings pane (and may rewrite it); this checked-in copy exists so a fresh
+# Codex worktree installs dependencies without anyone opening that pane first.
+version = 1
+name = "porcelain"
+
+[setup]
+script = "pnpm install --frozen-lockfile"
+
+[[actions]]
+name = "Verify"
+icon = "test"
+command = "pnpm verify"
+
+[[actions]]
+name = "Dev daemon"
+icon = "run"
+command = "pnpm build && pnpm dev:daemon"

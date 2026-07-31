@@ -35,6 +35,7 @@ Installed automatically on every app/daemon launch. Run from **inside the repo**
 | Changes tab grouping wrong; monorepo layout; too many files in Other | Tune **flow layers** (repo-wide regex) | [layers.md](references/layers.md) |
 | Monorepo tree too noisy; hide sibling apps / pin the one you care about | **Scope** hide/pin | [scope.md](references/scope.md) |
 | Seed Mac ↔ remote companion data (board, actions, notes, layers, hide/pin) | Copy deliberately with path remap | [sync-environments.md](references/sync-environments.md) |
+| Working in a harness worktree; it opened empty; reviewing worktree work | Seed the new repo path deliberately; publish the Review **in** the worktree, carry it into the PR | [worktrees.md](references/worktrees.md) |
 
 ## Everyday CLI cheatsheet
 

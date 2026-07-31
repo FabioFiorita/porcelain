@@ -3,8 +3,10 @@
 # Claude Code and Grok Build both load it through .claude/settings.json.
 #
 #   1. Blocks unmanaged branch/worktree creation -> use `pnpm worktree create`.
-#   2. Blocks direct commits on main  -> task worktrees commit on `work/*`.
-#   3. Runs the verification gate     -> AGENTS.md rule 3 (before ANY task commit) and
+#   2. Accepts commits on `main` (solo main-first flow), on managed `work/*`
+#      branches, and inside harness-native worktrees; every other branch is
+#      unmanaged and blocked.
+#   3. Runs the verification gate     -> AGENTS.md rule 3 (before ANY commit) and
 #      blocks the commit on failure, feeding the failing output back to the agent
 #      so it can fix and retry without a human in the loop.
 #
@@ -18,6 +20,21 @@
 set -u
 # Hooks run without the interactive shell's PATH; make pnpm/node resolvable.
 export PATH="$HOME/Library/pnpm:/opt/homebrew/bin:/usr/local/bin:$PATH"
+
+# AI harnesses (T3 Code, Codex, Grok Build, Claude) cut their own worktrees on
+# their own branch names — often a detached HEAD — and can't be redirected into
+# our managed lifecycle. Recognize them by location: a linked worktree (`.git`
+# is a file, not a directory) below a known harness root.
+is_harness_worktree() {
+  local top
+  top="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+  [ -n "$top" ] && [ -f "$top/.git" ] || return 1
+  top="$(CDPATH= cd -- "$top" 2>/dev/null && pwd -P)" || return 1
+  case "$top" in
+    "$HOME"/.t3/worktrees/* | "$HOME"/.codex/worktrees/* | "$HOME"/.grok/worktrees/* | */.claude/worktrees/*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
 
 # Classify the Bash command: prints BLOCK_CREATE, COMMIT, or OK.
 decision="$(node -e '
@@ -67,11 +84,8 @@ case "$decision" in
     ;;
   COMMIT)
     branch="$(git branch --show-current 2>/dev/null || true)"
-    if [ "$branch" = "main" ]; then
-      echo "Blocked (AGENTS.md rule 8): main is integration-only; commit inside a managed worktree." >&2
-      exit 2
-    fi
     case "$branch" in
+      main) ;;
       work/*)
         profile_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
         if ! node -e '
@@ -90,8 +104,11 @@ case "$decision" in
         fi
         ;;
       *)
-        echo "Blocked (AGENTS.md rule 8): agent commits require a managed work/* branch." >&2
-        exit 2
+        # Harness worktrees commit on any branch (or detached HEAD) — gate unchanged.
+        if ! is_harness_worktree; then
+          echo "Blocked (AGENTS.md rule 8): unmanaged branch '$branch'; commit on main, 'pnpm worktree create <slug>', or work in a harness worktree." >&2
+          exit 2
+        fi
         ;;
     esac
     if ! command -v pnpm >/dev/null 2>&1; then

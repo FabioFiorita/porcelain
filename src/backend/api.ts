@@ -70,7 +70,6 @@ import { funnelStatus, startFunnel, stopFunnel } from './funnel'
 import { directoriesOf, fuzzySearch, type SearchResult } from './fuzzy'
 import {
   gitAddWorktree,
-  gitBranch,
   gitBranches,
   gitCheckout,
   gitCommit,
@@ -84,6 +83,7 @@ import {
   gitFileInHead,
   gitFileLog,
   gitGrep,
+  gitHead,
   gitListFiles,
   gitListSearchFiles,
   gitLog,
@@ -110,6 +110,7 @@ import {
 } from './git'
 import { imageMimeForPath, isBinaryBuffer } from './image-mime'
 import { readLayers, writeLayers } from './layers-store'
+import { isLinkedWorktree } from './linked-worktree'
 import { readNotes, writeNotes } from './notes-store'
 import { expandUserPath } from './path-expand'
 import { exceedsReadLimit } from './read-limits'
@@ -121,6 +122,8 @@ import {
   importRepoSettings,
   type RepoSettings,
   repoSettingsSchema,
+  seedRepoSettings,
+  seedWorktreeSettings,
 } from './repo-settings'
 import type { ReviewSet } from './review-set'
 import { clearReviewSet, readReviewSet } from './review-store'
@@ -517,24 +520,35 @@ export const router = t.router({
   openRepoPath: t.procedure.input(z.string()).mutation(async ({ input }): Promise<RepoInfo> => {
     await stat(input)
     await recordRecent(input)
+    // A worktree opened for the first time inherits its family's companion data
+    // (see seedWorktreeSettings). Never overwrites, never throws.
+    await seedWorktreeSettings(input)
     warmFileList(input)
     return toRepoInfo(input)
   }),
 
-  recentRepos: t.procedure.query(async (): Promise<RepoInfo[]> => {
-    const config = await loadConfig()
-    const existing = await Promise.all(
-      config.recentRepos.map(async (path) => {
-        try {
-          await stat(path)
-          return path
-        } catch {
-          return null
-        }
-      }),
-    )
-    return existing.filter((p): p is string => p !== null).map(toRepoInfo)
-  }),
+  recentRepos: t.procedure
+    // Linked worktrees are dropped by default: a worktree already has a home in the
+    // footer's worktree switcher, so listing it as a project too shows one checkout
+    // under two identities. They stay in the STORED recents — `includeWorktrees` is
+    // what lets last-repo restore land back in the worktree the human left.
+    .input(z.object({ includeWorktrees: z.boolean().default(false) }).optional())
+    .query(async ({ input }): Promise<RepoInfo[]> => {
+      const includeWorktrees = input?.includeWorktrees ?? false
+      const config = await loadConfig()
+      const existing = await Promise.all(
+        config.recentRepos.map(async (path) => {
+          try {
+            await stat(path)
+            if (!includeWorktrees && (await isLinkedWorktree(path))) return null
+            return path
+          } catch {
+            return null
+          }
+        }),
+      )
+      return existing.filter((p): p is string => p !== null).map(toRepoInfo)
+    }),
 
   // Drop a repo from the recents list. Removes only the recents entry — scope
   // (hidden/pinned) lives in ~/.porcelain/scope.json and is keyed by path, so it
@@ -1400,7 +1414,7 @@ export const router = t.router({
     return { ...status, envForced: process.env.PORCELAIN_FUNNEL_BIND === '1' }
   }),
 
-  gitBranch: t.procedure.input(z.string()).query(({ input }) => gitBranch(input)),
+  gitHead: t.procedure.input(z.string()).query(({ input }) => gitHead(input)),
 
   gitBranches: t.procedure.input(z.string()).query(({ input }) => gitBranches(input)),
 
@@ -1421,7 +1435,13 @@ export const router = t.router({
 
   gitAddWorktree: t.procedure
     .input(z.object({ repoPath: z.string(), branch: z.string().min(1) }))
-    .mutation(({ input }) => gitAddWorktree(input.repoPath, input.branch)),
+    .mutation(async ({ input }) => {
+      const worktree = await gitAddWorktree(input.repoPath, input.branch)
+      // The new checkout is the same project under a new path key, so seed it from
+      // the checkout it was created against rather than opening it blank.
+      await seedRepoSettings(input.repoPath, worktree.path)
+      return worktree
+    }),
 
   gitLog: t.procedure
     .input(z.object({ repoPath: z.string(), limit: z.number().int().max(500).default(200) }))

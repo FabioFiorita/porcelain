@@ -41,8 +41,8 @@ const CLEAN_ENV = {
   CLICOLOR: '0',
   CLICOLOR_FORCE: '0',
   GH_FORCE_TTY: '0',
-  // The tracked pre-commit hook otherwise (correctly) rejects direct main commits.
-  // release:cut is the one narrow exception: it already requires clean, synchronized main.
+  // Denies the tracked hook's Claude duplicate-skip: `pnpm version` commits through a
+  // nested git call the outer PreToolUse guard never saw, so the gate must run here.
   PORCELAIN_RELEASE_CUT: '1',
 }
 

@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { mkdir, readFile, realpath, stat } from 'node:fs/promises'
 import { basename, dirname, isAbsolute, join, relative } from 'node:path'
 import { promisify } from 'node:util'
+import type { HeadRef } from '../shared/head'
 import {
   type ChangedFile,
   type CodeSearchFile,
@@ -236,8 +237,17 @@ export async function gitCommitNumstat(repoPath: string, hash: string): Promise<
   return parseNumstat(await runGit(repoPath, ['show', '--numstat', '--format=', '-z', hash]))
 }
 
-export async function gitBranch(repoPath: string): Promise<string> {
-  return (await runGit(repoPath, ['rev-parse', '--abbrev-ref', 'HEAD'])).trim()
+/**
+ * What HEAD points at in this checkout. `--abbrev-ref` answers the literal string
+ * `HEAD` when detached, which is not a branch anyone can check out — so a detached
+ * HEAD reports `branch: null` plus the short sha instead of that lie. The second
+ * spawn only happens while detached (rare; this polls every 5s).
+ */
+export async function gitHead(repoPath: string): Promise<HeadRef> {
+  const name = (await runGit(repoPath, ['rev-parse', '--abbrev-ref', 'HEAD'])).trim()
+  if (name !== 'HEAD') return { branch: name, detachedSha: null }
+  const sha = (await runGit(repoPath, ['rev-parse', '--short', 'HEAD'])).trim()
+  return { branch: null, detachedSha: sha }
 }
 
 export async function gitWorktrees(repoPath: string): Promise<Worktree[]> {

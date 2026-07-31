@@ -4,6 +4,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { headLabel } from '../shared/head'
 import {
   gitAddWorktree,
   gitCommit,
@@ -13,6 +14,7 @@ import {
   gitDiffFile,
   gitFileInHead,
   gitFileLog,
+  gitHead,
   gitMergeBase,
   gitPush,
   gitRangeChangedFiles,
@@ -466,6 +468,47 @@ describe('gitAddWorktree', () => {
     expect(wt.branch).toBe('feature/x')
     const listed = await gitWorktrees(dir)
     expect(listed.some((w) => w.branch === 'feature/x')).toBe(true)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// gitHead — honest detached-HEAD reporting
+// ---------------------------------------------------------------------------
+
+describe('gitHead', () => {
+  const dirs: string[] = []
+
+  async function repo(): Promise<string> {
+    const dir = await makeRepo()
+    dirs.push(dir, join(dirname(dir), `${basename(dir)}-worktrees`))
+    return dir
+  }
+
+  afterAll(async () => {
+    await Promise.all(dirs.map((d) => rm(d, { recursive: true, force: true })))
+  })
+
+  it('reports the checked-out branch with no sha', async () => {
+    const dir = await repo()
+    expect(await gitHead(dir)).toEqual({ branch: 'main', detachedSha: null })
+  })
+
+  it('reports a detached HEAD as a short sha, never the literal "HEAD"', async () => {
+    const dir = await repo()
+    git(dir, 'checkout', '--detach', 'HEAD')
+    const head = await gitHead(dir)
+    expect(head.branch).toBeNull()
+    expect(head.detachedSha).toMatch(/^[0-9a-f]{7,}$/)
+    expect(headLabel(head)).toBe(`detached @ ${head.detachedSha}`)
+  })
+
+  it('labels a detached worktree row with its short sha', async () => {
+    const dir = await repo()
+    const wtDir = join(dirname(dir), `${basename(dir)}-worktrees`, 'detached')
+    git(dir, 'worktree', 'add', '--detach', wtDir)
+    const listed = await gitWorktrees(dir)
+    const row = listed.find((w) => w.path.endsWith('/detached'))
+    expect(row?.branch).toMatch(/^detached @ [0-9a-f]{7}$/)
   })
 })
 

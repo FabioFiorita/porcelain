@@ -20,6 +20,10 @@ e2e/.artifacts/
 # Claude-only local orchestration (models, delegation). Not part of AGENTS.md.
 CLAUDE.local.md
 
+# Host-local Claude permission overrides. Ignored (never tracked) so `.worktreeinclude`
+# can seed it into a harness worktree — Codex only copies ignored files.
+.claude/settings.local.json
+
 # Marketing screenshots produced by `pnpm shots` — regenerated, not tracked.
 marketing/shots/
 

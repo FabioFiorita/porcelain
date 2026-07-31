@@ -5,18 +5,30 @@
 # Activated per clone by `core.hooksPath=githooks`, which `pnpm install` wires
 # via the `prepare` script.
 #
-# Like git-guard.sh this fails CLOSED: if it can't run the gate, it refuses the
-# commit rather than waving it through.
+# Commits are allowed on `main` (solo main-first flow), on managed `work/*`
+# branches, and in harness-native worktrees; any other branch is unmanaged and
+# rejected. Like git-guard.sh this fails CLOSED: if it can't run the gate, it
+# refuses the commit rather than waving it through.
 
 set -u
 # Hooks run without the interactive shell's PATH; make pnpm/node resolvable.
 export PATH="$HOME/Library/pnpm:$HOME/.volta/bin:$HOME/.local/share/pnpm:/opt/homebrew/bin:/usr/local/bin:$PATH"
 
+# AI harnesses (T3 Code, Codex, Grok Build, Claude) cut their own worktrees on
+# their own branch names — often a detached HEAD — and can't be redirected into
+# our managed lifecycle. Recognize them by location: a linked worktree (`.git`
+# is a file, not a directory) below a known harness root.
+is_harness_worktree() {
+  harness_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+  [ -n "$harness_root" ] && [ -f "$harness_root/.git" ] || return 1
+  harness_root="$(CDPATH= cd -- "$harness_root" 2>/dev/null && pwd -P)" || return 1
+  case "$harness_root" in
+    "$HOME"/.t3/worktrees/* | "$HOME"/.codex/worktrees/* | "$HOME"/.grok/worktrees/* | */.claude/worktrees/*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 branch="$(git branch --show-current 2>/dev/null || true)"
-if [ "$branch" = "main" ] && [ "${PORCELAIN_RELEASE_CUT:-}" != "1" ]; then
-  echo "pre-commit: main is integration-only; commit in a managed work/* worktree." >&2
-  exit 1
-fi
 case "$branch" in
   main) ;;
   work/*)
@@ -37,14 +49,19 @@ case "$branch" in
     fi
     ;;
   *)
-    echo "pre-commit: unmanaged branch '$branch'; use 'pnpm worktree create <slug>'." >&2
-    exit 1
+    # Harness worktrees commit on any branch (or detached HEAD) — gate unchanged.
+    if ! is_harness_worktree; then
+      echo "pre-commit: unmanaged branch '$branch'; commit on main, use 'pnpm worktree create <slug>', or work in a harness worktree." >&2
+      exit 1
+    fi
     ;;
 esac
 
 # Claude Code already ran `pnpm verify` in its guaranteed PreToolUse guard.
 # Grok does NOT skip here: its session id cannot prove this checkout's project
 # hook was trusted, discovered, and successful, so the tracked gate stays authoritative.
+# `release:cut` also refuses the skip: it commits through `pnpm version`'s nested
+# git call, which the outer PreToolUse guard never saw, so this gate must run.
 if [ -n "${CLAUDECODE:-}" ] && [ "${PORCELAIN_RELEASE_CUT:-}" != "1" ]; then
   echo "pre-commit: verify skipped: already gated by git-guard (CLAUDECODE set)."
   exit 0
