@@ -22,9 +22,9 @@ const SF_SYMBOLS = {
 } as const satisfies Record<ToolbarIconName, ToolbarIcon>
 
 const ANDROID_IMAGES: Record<ToolbarIconName, ImageSourcePropType> = {
-  settings: require<ImageSourcePropType>('../../assets/toolbar/settings.png'),
-  board: require<ImageSourcePropType>('../../assets/toolbar/board.png'),
-  history: require<ImageSourcePropType>('../../assets/toolbar/history.png'),
+  settings: require('../../assets/toolbar/settings.png'),
+  board: require('../../assets/toolbar/board.png'),
+  history: require('../../assets/toolbar/history.png'),
 }
 
 export function toolbarIcon(name: ToolbarIconName): ToolbarIcon {
