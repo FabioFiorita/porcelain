@@ -1,55 +1,23 @@
-# Preview delivery — the TestFlight build is always current, cheaply.
+# Preview delivery — keep the TestFlight build current, cheaply.
 #
-# Runs on mobile PRs into main AND on mobile pushes to main, because both are
-# real ship paths here: small changes go straight to main, bigger ones take a
-# worktree and a PR (AGENTS.md hard rule 8). Either way the tester's TestFlight
-# build has to end up running that code.
+# Runs on mobile PRs into main and mobile pushes to main; both are ship paths.
+# Fingerprint unchanged -> EAS Update on the `preview` channel (no build credits).
+# Fingerprint moved -> a `preview` build, then TestFlight. `wait_for_in_progress`
+# makes a merge reuse its PR's build: get-build matches the hash, not the branch.
 #
-# One decision decides the cost:
-#   fingerprint unchanged -> EAS Update to the `preview` channel. No credits.
-#                            The installed TestFlight build picks it up on relaunch.
-#   fingerprint changed   -> a `preview` build (native deps/config moved, so no OTA
-#                            can reach the old binary — its runtimeVersion no longer
-#                            matches), then straight to TestFlight.
+# To force a build when the fingerprint held, apply the GitHub label
+# `eas-build-ios:preview` — EAS's own trigger (Project settings > GitHub), not
+# something to reimplement here.
 #
-# `wait_for_in_progress` is what keeps the merge cheap: when a PR already paid for
-# a build, main's run finds that same fingerprint (get-build matches on the hash,
-# not the branch) — waiting if it is still running — and publishes an update
-# instead of buying a second binary.
+# iOS-only: `app.json` declares `"platforms": ["ios"]`.
 #
-# iOS-only because the app is: `app.json` declares `"platforms": ["ios"]`
-# (2026-07-31 — the Play Store account is closed and Android was dropped as a
-# target), so there is no second platform to fan out to here.
+# `message` truncates to 1024, EAS's hard limit; longer fails the run before it
+# starts. `.husky/commit-msg` covers local commits, this covers what it cannot.
 #
-# Force a build when the fingerprint did NOT change: apply the GitHub label
-# `eas-build-ios:preview` to the PR. That is EAS's own built-in label trigger
-# (Project settings > GitHub), not this workflow — don't reimplement it here.
+# Delivery is `type: submit`; `testflight` with a `build_id` requires a paid plan.
 #
-# Every `message` below is truncated to 1024: that is EAS's hard limit on the
-# field, and a longer value fails the job before it starts with "String must
-# contain at most 1024 character(s)" — the whole delivery run, not just that job.
-# On a push there is no PR title to fall back on, so the raw commit body goes
-# straight in. `.husky/commit-msg` keeps locally-authored messages under the
-# limit at the source; this truncation covers what that hook can never see — a
-# squash-merge composed in GitHub's UI, or `--no-verify`.
-#
-# Delivery is `type: submit`, not `type: testflight`, because the `testflight`
-# job with a `build_id` is paid-plan only ("TestFlight jobs that submit an EAS
-# build (build_id) require a paid plan", 2026-07-31). `submit` is the plain
-# upload and is what production.yml already uses; `testflight` only buys the
-# advanced options — explicit internal/external groups, a "What to Test"
-# changelog, and Beta App Review submission. The cost of this is real and
-# deliberate: **testers get no per-build release notes.** The build still reaches
-# TestFlight and auto-distributes to internal groups that have auto-distribute
-# enabled. To get notes back without paying, App Store Connect has to be
-# connected under Project settings > Connections, and a second workflow triggered
-# on `app_store_connect.build_upload` runs `testflight` with `asc_build_id` —
-# that variant is free. Not built yet; it is two moving parts for a changelog.
-#
-# Prerequisite: App Store Connect credentials must exist on EAS for the submit
-# job to run non-interactively (`eas credentials:configure-build -p ios -e preview`
-# plus an App Store Connect API key). Until then the build lands in EAS and the
-# submit job is the step that fails.
+# Trade-off: no per-build "What to Test" note. Needs App Store Connect credentials
+# on EAS, or the submit job is where the run fails.
 
 name: Preview delivery
 

@@ -104,12 +104,12 @@ The same four triggers drive both presentations: iPhone gets the bottom tab
 bar, and `sidebarAdaptable` lets iPadOS/macOS promote them to the system side
 tab bar and sidebar. There is one tab list, never a second iPad-only one.
 
-That promotion needs **`ios.supportsTablet: true`** (`app.json`), which was
-missing until 2026-07-31. Without it Expo emits `UIDeviceFamily = [1]` and the
-app runs on iPad in iPhone **compatibility mode** — a fixed portrait window that
-will not rotate and never reaches the regular horizontal size class the sidebar
-depends on. If iPad looks like a scaled phone, check that flag first, and
-remember it is native: it needs a rebuild, not a reload.
+That promotion needs **`ios.supportsTablet: true`** (`app.json`). Without it Expo
+emits `UIDeviceFamily = [1]` and the app runs on iPad in iPhone **compatibility
+mode** — a fixed portrait window that will not rotate and never reaches the
+regular horizontal size class the sidebar depends on. If iPad looks like a scaled
+phone, check that flag first, and remember it is native: it needs a rebuild, not
+a reload.
 
 ## Delivery
 
@@ -122,16 +122,9 @@ Two EAS workflows in `.eas/workflows/`:
 
 The submit job needs App Store Connect credentials configured on EAS before it
 can run non-interactively; until then a native change builds but stops there.
-
-Delivery uses the `submit` job, not the richer `testflight` one: a `testflight`
-job that takes an EAS `build_id` is paid-plan only, so on the current plan it
-fails to start (seen 2026-07-31). The build still reaches TestFlight and
-auto-distributes to internal groups that have auto-distribute enabled — what is
-deliberately absent is the per-build **"What to Test" note**, along with explicit
-group targeting and Beta App Review submission. The free way to get notes back is
-to connect App Store Connect under Project settings > Connections and add a
-second workflow triggered on `app_store_connect.build_upload` that runs
-`testflight` with `asc_build_id`; that variant is not plan-gated.
+Delivery uses `submit` rather than `testflight`, which is paid-tier when given an
+EAS `build_id` — so builds reach TestFlight and auto-distribute to internal
+groups, but carry no per-build "What to Test" note.
 
 ## Startup metrics
 
@@ -142,9 +135,8 @@ time-to-interactive for the launch — only the first mark in a session counts, 
 whichever tab the app restores into supplies it.
 
 Per-route navigation metrics (`Observe.configure({ integrations: … })`) and
-custom `Observe.logEvent` calls are deliberately absent: their dashboards start
-at the Production plan, so on the current plan they would ship data that cannot
-be read. Two things to know when reading the numbers:
+custom `Observe.logEvent` calls are deliberately absent — their dashboards are a
+paid EAS tier. Two things to know when reading the numbers:
 
 - Debug builds do not dispatch. A dev-client run reports nothing unless
   `dispatchInDebug: true` is set temporarily.
