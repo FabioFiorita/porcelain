@@ -38,6 +38,8 @@
     "typecheck": "npm run typecheck:node && npm run typecheck:web && npm run typecheck:mobile",
     "mobile:start": "pnpm --dir apps/mobile start",
     "mobile:start:mcp": "pnpm --dir apps/mobile start:mcp",
+    "mobile:sim:build": "pnpm --dir apps/mobile sim:build",
+    "mobile:sim:install": "pnpm --dir apps/mobile sim:install",
     "start": "electron-vite preview",
     "dev": "electron-vite dev",
     "dev:daemon": "node scripts/dev-daemon.mjs",

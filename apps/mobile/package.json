@@ -35,6 +35,8 @@
     "start": "expo start",
     "start:mcp": "EXPO_UNSTABLE_MCP_SERVER=1 expo start",
     "ios": "expo start --ios",
+    "sim:build": "npx eas-cli@latest build -p ios --profile development-simulator",
+    "sim:install": "npx eas-cli@latest build:run -p ios --profile development-simulator --latest",
     "typecheck": "tsc --noEmit"
   },
   "private": true

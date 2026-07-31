@@ -34,24 +34,33 @@ The repo lives on the Linux host; the simulator lives on the Mac. Metro runs on
 the host and the simulator loads the bundle over the LAN, so the only Mac-side
 step is installing the dev client — and only when the native fingerprint moved.
 
+All three steps are repo-root scripts, so nothing here is a command to remember:
+
 ```bash
 # 1. On the host — build a SIMULATOR dev client (arm64 .app, not an .ipa).
-cd apps/mobile && npx eas-cli@latest build -p ios --profile development-simulator
+pnpm mobile:sim:build
 
 # 2. On the Mac, from its checkout — download, install, and launch it.
 #    `build:run` does the tarball + `simctl install` dance for you.
 #    ALWAYS name the target; see below.
-cd apps/mobile && npx eas-cli@latest build:run -p ios \
-  --profile development-simulator --latest --simulator 'iPhone 17 Pro'
+pnpm mobile:sim:install --simulator 'iPhone 17 Pro'
 
 # 3. Back on the host — Metro. Repeat only this for JS changes.
 pnpm mobile:start
 ```
 
-Steps 1 and 2 are saved **Porcelain actions** on this repo: *iOS sim: build dev
-client (EAS)*, *iPhone sim: install on this Mac*, and *iPad sim: install on this
-Mac*. The install actions are `where: local`, so they run on the Mac even though
-the window is bound to the host daemon.
+Extra flags pass through both delegation hops (root → `apps/mobile` → `eas-cli`),
+which is why the simulator name is an **argument** and not baked into the script:
+device names are per-machine, and the repo should not carry one maintainer's
+simulator list.
+
+All of these are saved **Porcelain actions** on this repo — *iOS sim: build dev
+client (EAS)*, *iPhone sim: install on this Mac*, *iPad sim: install on this Mac*,
+*Metro (mobile dev server)*, *Metro + Expo MCP* — each running the script above
+rather than a pasted command, so editing the script updates every button. The two
+install actions are `where: local`, so they run on the Mac even though the window
+is bound to the host daemon; the build and Metro actions run on the host, where
+the repo is.
 
 Three things that bite:
 
