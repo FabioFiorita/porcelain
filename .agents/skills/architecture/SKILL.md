@@ -2,65 +2,111 @@
 name: architecture
 metadata:
   internal: true
-description: Porcelain's stack, the one client architecture every feature follows, repo facts, and the app-shell decisions/traps the code can't show you. Read before writing or reviewing any code in this repo.
+description: Porcelain's stack, the one client architecture every feature follows, and the decisions and traps the code can't show you. Read before writing or reviewing any code in this repo.
 ---
 
 # Porcelain architecture
 
-This skill is the **durable layer**: the stack, the single architecture every feature follows, and the decisions, "why"s, and traps you can't recover by reading one file. It deliberately does **not** paraphrase how a feature is wired today — for that, open the entry file named in this skill's **Nomenclature** section and read it. The code is always current; this skill tells you what a fresh read won't. Canonical `AGENTS.md` (with `CLAUDE.md` as a compatibility symlink) only points here so every session stays slim.
+Decisions, deliberate absences, and traps a fresh read won't recover. It does **not** paraphrase
+how a feature is wired — open the entry file in **Nomenclature** and read it.
 
 ## Stack
 
 | Area | Decision |
 |---|---|
-| Desktop/browser shell | Electron via **electron-vite**, React 19, TypeScript (strict) |
-| Desktop/browser UI | **shadcn/ui on Base UI** (`@base-ui/react`, not Radix) + Tailwind CSS v4, **`base-nova` preset** (shadcn preset `b5J4txmSY` — replaced the old glass `base-vega`/luma line on the opaque redesign; sidebar parts are still forced to `rounded-md` against the preset's radius). **Typography is a sans/mono split** (design overhaul Phase A): the preset's own body font would be JetBrains Mono, but `main.css` *deliberately* overrides `--font-sans` to **Geist** — sans for UI chrome and prose, `--font-mono` for codelike content only (read `main.css` for which surfaces). TRAP: `VirtualRows` hardcodes `font-mono`, so the reading surface has to override prose rows back to `font-sans`. Terminal keeps Geist Mono + Nerd Font. Dark mode default |
-| Native mobile | **Expo SDK 57, iOS-only**, React Native, Expo Router native tabs/stacks, and **`@expo/ui/swift-ui`** components + `@expo/ui/swift-ui/modifiers` (the universal `@expo/ui` root is lint-banned). **Dev-client builds via EAS, never Expo Go** — see "Native mobile client" below |
-| Client architecture | **Porcelain's own conventions** (see "The one architecture" below): tab-store routing, domain data hooks, one public component per file |
-| Client state | **zustand** — small stores per concern; no other state libraries |
-| Git backend | Shell out to `git` CLI from the main process; parse porcelain-format output; no git libraries |
-| Per-repo config | App-side JSON store under `~/Library/Application Support/porcelain`, keyed by repo path; never write into work repos |
-| Package manager | **pnpm** |
-| Lint/format | **Biome** (no ESLint/Prettier) — `noUnusedImports` / `noUnusedVariables` are **errors**; plus three custom gates for rules Biome can't express — `scripts/lint-control-recipes.mjs` (compact control classes), `scripts/lint-escapes.mjs` (`as unknown as` + `void` on promises, hard rules 6/7) and `scripts/lint-audit.mjs` (two `audit` invariants: the `isSafeExternalUrl` gate and `GIT_OPTIONAL_LOCKS`); all skip comment lines, since these bans are *documented* in prose next to the code they guard. **`lint-escapes` is the one gate that also scans `apps/mobile/src`** — hard rules 6/7 are about the language, so every client is in scope; the control-recipe and shadcn-heuristic gates are renderer-surface rules (mobile bans shadcn outright) and `lint-audit` guards daemon/main invariants, so all three stay Electron-only. Plus **knip** (`pnpm lint:knip`: unused files, deps, unlisted, binaries, duplicates — not a full unused-exports sweep; many schemas/helpers are deliberately public for tests and the CLI island) |
-| Tests | **Vitest** (unit/component, `src/**/*.test.{ts,tsx}`) + **Playwright** (Electron e2e in `e2e/`, `*.spec.ts`) |
+| Desktop/browser shell | Electron via electron-vite, React 19, strict TypeScript |
+| Desktop/browser UI | shadcn/ui on **Base UI** (`@base-ui/react`, not Radix) + Tailwind v4, preset `b5J4txmSY` (nova/neutral/sky), dark default |
+| Typography | Sans/mono split — `main.css` deliberately overrides the preset's `--font-sans` to Geist; mono is codelike content only. **TRAP:** `VirtualRows` hardcodes `font-mono`, so prose rows must override back to `font-sans` |
+| Native mobile | Expo SDK 57, **iOS-only**, Expo Router, `@expo/ui/swift-ui` + `/modifiers`. EAS dev-client builds, never Expo Go |
+| Client state | zustand, one small store per concern. No other state library |
+| Git backend | Shell out to the `git` CLI, parse porcelain output. No git libraries |
+| Per-repo config | App-side JSON under `userData`, keyed by repo path. Never write into work repos |
+| Package manager | pnpm |
+| Lint/format | Biome (no ESLint/Prettier); unused imports/vars are **errors**. Plus knip and four custom gates |
+| Tests | Vitest (`src/**/*.test.{ts,tsx}`) + Playwright (`e2e/*.spec.ts`) |
 
-### Native mobile client (`apps/mobile`)
+Custom gates cover rules Biome can't express. Scope is deliberate; all four skip comment lines,
+because the bans are *documented* next to the code they guard.
 
-A separate native client of the same daemon, not a port of the desktop
-renderer. The decisions a fresh read won't give you:
+| Gate | Enforces | Scope |
+|---|---|---|
+| `lint-escapes.mjs` | `as unknown as`, `void` on promises, mobile universal-`@expo/ui` imports | **all clients incl. `apps/mobile`** — hard rules 6/7 are about the language |
+| `lint-control-recipes.mjs` | compact control classes come from `lib/controls.ts` | renderer |
+| `lint-shadcn-heuristics.mjs` | hand-rolled renderer primitives | renderer |
+| `lint-audit.mjs` | `isSafeExternalUrl`, `GIT_OPTIONAL_LOCKS`, hook env scrub | daemon/main |
 
-- **iOS-only, and the codebase says so** (2026-07-31 — this reverses the earlier dual-platform assumption). `app.json` declares `"platforms": ["ios"]`, so prebuild, Metro, and EAS never consider Android; the `android` config block, `expo-build-properties`, `@react-native-vector-icons/*`, the adaptive-icon asset, the `android` script, and the generated `android/` folder are all gone. **Why:** the Play Store developer account was closed for inactivity (Mar 2025) and will not be repurchased, so an Android target was carrying real cost — a `Platform.OS` branch or raster twin in every toolbar icon and sheet, a second runtime loop to prove, a whole lowest-common-denominator constraint on `@expo/ui` — to ship to nobody. **Why Expo rather than dropping to SwiftUI now that it's one platform:** the cross-platform argument was never the load-bearing one. `@expo/ui` already renders real SwiftUI; what Expo buys that Xcode cannot is tRPC types shared straight off the daemon router (hard rule 1's one architecture, no second hand-written API client), EAS Update OTA fixes without App Store review, and a build that runs from the Linux host instead of requiring a Mac session per change. **Consequences to honor:** no `Platform.OS` branches, no `.ios.tsx`/`.android.tsx` pairs (the 2026-07-31 split approval for Review's face switcher is moot — it's one file), no PNG twin for an SF Symbol, and the UI layer is SwiftUI-only (next bullet).
-- **SwiftUI-only UI: `@expo/ui/swift-ui`, never the universal `@expo/ui` root** (2026-07-31 — this reverses "universal first, platform layer by exception", which only ever existed to serve Android). Components come from `@expo/ui/swift-ui`, modifiers from `@expo/ui/swift-ui/modifiers`, and `Host` from `@expo/ui/swift-ui` too (SDK 57 exports its own — the vendored `expo-ui` skill still says Host must come from the root; that guidance predates this and does not apply here). **Lint-enforced** by `scripts/lint-escapes.mjs`, mobile files only, so this stops being prose. **Why:** (a) the universal layer is the newer, thinner surface — 19 components against SwiftUI's 51, and it is the one Expo is still moving; (b) it was already costing product decisions, not just ergonomics — universal `Text` is `children?: string`, which is *why* `docs/plans/02-changes.md` dropped syntax highlighting from the diff reader, and the absence of `SwipeActions`/`ContextMenu`/`Alert` shaped staging, confirms, and empty states around gaps SwiftUI does not have; (c) `Form`, `Section`, `ContentUnavailableView`, and nested-span `Text` are the actual iOS idioms this app's surfaces want. **What it does NOT change:** universal components already accepted `@expo/ui/swift-ui/modifiers` through `UniversalBaseProps.modifiers`, so there was never a modifier gap — the win here is components and one idiom, not reach. **Cost accepted:** more verbose trees (`Button` + `VStack` + two `Text`s where `ListItem` took two props) and no web target, which this app never wanted. **Trap the universal layer hid:** a SwiftUI `Button` tints its *entire label* with the accent color, so a `Button`-wrapped row renders as blue link text instead of a settings row — every tappable row built this way needs `buttonStyle('plain')`. Caught on the simulator, not by `tsc`; it is the class of bug that only runtime proof finds, which is why phase 5 of `close-the-loop` does not scale away. The `@expo/ui` **package** stays a dependency — `swift-ui` is a subpath export of it, so "remove `@expo/ui`" means the root import path, not the dep.
-- **Dev-client builds, not Expo Go** (2026-07-30 — this reverses the earlier "Expo Go first"). `@expo/ui` renders real SwiftUI views, and the app's native dependencies (secure-store, webview, sqlite) aren't in the Expo Go binary either — so Go could never run this app past a scaffold, and "development builds only when native deps require them" was a condition already met on day one. Distribution is **EAS**: dev builds for the simulator/device, plus a store-distribution **preview** build on TestFlight kept current by **EAS Workflows**. `runtimeVersion` policy is **fingerprint**, so an OTA only reaches native builds it actually matches instead of landing on an incompatible binary.
-- **Delivery is fingerprint-decided, on PRs *and* on main** (`.eas/workflows/preview.yml`, 2026-07-31 — this reverses the earlier label-gated, OTA-only PR workflow). Both are real ship paths (hard rule 8's main-first flow), so both must leave the tester's TestFlight build running that code: fingerprint unchanged → EAS Update to the `preview` channel, free; fingerprint moved → a `preview` build then TestFlight, because no OTA can reach a binary whose runtimeVersion no longer matches. **`wait_for_in_progress` on `get-build` is what stops a merged PR paying twice** — `get-build` matches on the fingerprint hash, not the branch, so main's run reuses (or waits for) the build the PR already bought. The manual force-build escape hatch is EAS's **built-in** `eas-build-ios:preview` GitHub label, not a job in the workflow. `production.yml` carries the same shape plus App Store submission but has **no push or tag trigger** and defaults submission off: the app is not in the store, so the release path is decided without being armed. Both are **iOS-only** because the app is (see the iOS-only bullet); there is no second platform to fan out to. Runtime proof is an **iOS simulator on the Mac driven from the Linux host over the LAN** (`serve-sim-remote`), paired against the dev daemon's **LAN** URL — not `127.0.0.1`, which on that simulator is the Mac. A fresh simulator needs the dev client installed once from the Mac (`eas build -p ios --profile development-simulator`, then `xcrun simctl install booted`).
-- **EAS Observe is wired for launch metrics only, because the plan tier decides what is readable** (2026-07-31). `expo-observe` wraps the root layout (`ObserveRoot.wrap` in `src/app/_layout.tsx`, which measures cold/warm TTR) and each of the four tab screens renders `<ObserveInteractiveMarker />` so a launch also gets a TTI no matter which tab the session restores into. The `expo-router` integration is deliberately **not** configured and `Observe.logEvent` is deliberately unused: per-route TTR/TTI land in the **Navigation events dashboard** and custom events in the **User-defined events dashboard**, both of which start at the Production plan — enabling them on the free plan pays event volume for data the account cannot open. Flipping the integration on is one `Observe.configure({ integrations: { 'expo-router': true } })` at module scope (it throws once a screen has mounted), and only then does per-screen marking mean anything. **Traps:** the marker fires on mount and only the **first** `markInteractive` per session is recorded, so the moment a tab screen starts fetching daemon data the marker must move below the loaded content or TTI silently degrades into a second TTR; `expo-observe` is a native module, so adding it moved the fingerprint and the next `preview.yml` run builds and ships TestFlight instead of an OTA; and debug builds never dispatch, so a dev-client run shows nothing in the dashboard unless `dispatchInDebug: true` is set temporarily.
-- **iPad needs `ios.supportsTablet: true`, and without it every other iPad decision is dead code** (2026-07-31, found on a real iPad simulator). `@expo/config-plugins`' `getDeviceFamilies()` is `!!config.ios?.supportsTablet` → `UIDeviceFamily = [1]`, iPhone-only, unless you set it. An iPhone-only binary on iPad runs in **compatibility mode**: a fixed portrait window that will not rotate and never gets a regular horizontal size class — so `sidebarAdaptable` has nothing to promote and the app looks like a scaled phone. **The `sidebarAdaptable` bullet below was written from the docs and shipped unverified for exactly that reason; treat any iPad claim here as unproven until a screenshot backs it.** Note this is a native flag: changing it moves the fingerprint, so it needs a new build — Fast Refresh cannot deliver it.
-- **iPad is the same four tabs, adapted — not a second shell** (2026-07-31). `NativeTabs` takes `sidebarAdaptable`, so iPadOS/macOS can promote the tab bar to the system side tab bar/sidebar off one trigger list; a phone-sized bottom bar on a 13" screen was the whole complaint. **Verify the promotion on a booted iPad before relying on it** — on iOS 18+ `sidebarAdaptable` shows a top tab bar with a sidebar toggle rather than an unconditional sidebar, and it requires the regular size class the bullet above is about. What that does **not** buy is a Notes-style multi-column Files, and the reason is structural: `expo-router`'s `SplitView` throws `SplitView cannot be used inside another navigator, except for Slot` (verified in `node_modules/expo-router/build/split-view/split-view.js`), so it can only be the **root** layout — a split-view Files means forking the shell on iPad, not nesting a column layout in the Files tab. That fork is deferred to the real Files feature (`docs/plans/01-files.md` §2.7), because columns over placeholder screens prove nothing.
-- **The shell is FOUR native tabs — Files · Changes · Review · Terminal** (not the desktop's seven sidebar tabs). A phone tab bar is the whole spine of the app, so everything that isn't a standing destination is demoted on purpose: **History** is a pushed screen inside Changes; **Board** is a pushed screen inside Review, because the two are coupled (a card *starts* a review — as peer tabs that flow would cross the tab bar); **Search** is a native search bar on Files, not a tab; **Settings/Environments** is a formSheet off a header gear (t3code-style) holding the per-device daemon environment list. That list is **LAN + Tailscale only — no relay tier, deliberately**: a relay means recurring infrastructure bills, and Tailscale Funnel already is the public-HTTPS path.
-- **Feature slices, because the worktrees are parallel.** `src/features/<feature>/` owns a feature's screens and logic vertically; `src/app` is a thin Expo Router route table only — no co-located components there. One worktree per feature then touches its own slice plus its route entries, so parallel mobile work doesn't collide in a shared component tree.
-- **Transport intent (not built yet):** the mobile client is a *fourth focused client of the same daemon* — `@trpc/client` + `@tanstack/react-query` against the daemon's tRPC v11, the device credential in `expo-secure-store`, paired by a **pasted link only** like the browser client — **no QR, deliberate** (the camera dependency was removed rather than carried for one screen), with a user-chosen nickname per environment. No second protocol and no mobile-only API.
-- **The granted rule-5 exceptions, as of 2026-07-31 — this list is exhaustive.** `@expo/ui/swift-ui` is the default; these two are the approved departures from it, and anything beyond them still needs the human. **`Alert.alert` is no longer one of them** — it was granted because universal `@expo/ui` had no alert, and `@expo/ui/swift-ui` ships `Alert` and `ConfirmationDialog`. (1) **`react-native-webview` is sanctioned in exactly two places**: daemon-authored loop-evidence HTML (sandboxed, JavaScript OFF) and the Terminal tab's xterm.js bundle — the same emulator as the desktop client, so agent TUIs (`claude`, `codex`, alternate screen, DECCKM, reflow) render identically instead of smearing through a hand-rolled ANSI-to-text view; it ships as a committed generated bundle from the root `@xterm/*` deps, so **zero new runtime dependencies**, and the WebView is a dumb renderer that never opens a socket and never sees the token. A WebView for ordinary UI (diffs, file viewing) stays banned. (2) **Rotation is unlocked** (`app.json` `"orientation": "default"`, was `portrait`): terminal columns and landscape diff reading motivated it, so **every screen must tolerate rotation** — re-fit on orientation change, never assume portrait.
-- **Cleartext HTTP is allowed APP-WIDE, deliberately** (`app.json`: `NSAllowsArbitraryLoads` in `ios.infoPlist`). The product's daemons live on the LAN and the tailnet, usually plain `http` on a bare IP — and the narrow key doesn't cover that: a tailnet `100.64/10` address is not "local" by `NSAllowsLocalNetworking`'s definition. So it's app-wide or nothing. (The Android `usesCleartextTraffic` half of this, and the `expo-build-properties` plugin that set it, went with the Android target.) **Guardrails:** this is NOT license to talk to a *public* endpoint over plain HTTP — the public path is Tailscale Funnel, which is HTTPS. Don't "tighten" these flags in a later pass without first solving tailnet-IP HTTP another way, or the app silently stops reaching the machines it exists to reach. App Store review will ask why `NSAllowsArbitraryLoads` is set; the answer is local-network device pairing.
+`knip` covers unused files/deps/binaries, not unused exports — many schemas and helpers are
+deliberately public for tests and the CLI island.
 
-Build with `@expo/ui/swift-ui` and do not copy T3 Code's component layer — note
-that T3 Code's mobile app is plain React Native and uses `@expo/ui/swift-ui` in
-exactly one file (a Live Activity widget), so it is not a reference for this
-app's screens. The native app may share
-protocols and domain contracts with the existing client, but it does not share
-DOM components, Tailwind styles, or the renderer's tab-store routing. Expo
-skills are canonical in `.agents/skills/`; `.claude/skills/` contains adapters.
-The remote Expo MCP is a host-level agent connection, while `expo-mcp` plus
-`pnpm mobile:start:mcp` exposes the running local development server.
+## Native mobile (`apps/mobile`)
+
+A separate native client of the same daemon, not a port of the renderer.
+
+- **iOS-only** (`"platforms": ["ios"]`). Android cost a `Platform.OS` branch and a raster twin per
+  SF Symbol, a second runtime loop, and a lowest-common-denominator ceiling on `@expo/ui`, for no
+  audience. So: no `Platform.OS` branches, no `.ios.tsx`/`.android.tsx` pairs, no PNG twins.
+- **Expo rather than raw Xcode even at one platform:** tRPC types shared off the daemon router (no
+  second API client), OTA fixes without App Store review, builds that don't need a Mac per change.
+- **`@expo/ui/swift-ui` only — never the universal `@expo/ui` root** (`Host` included; SDK 57
+  exports its own from the subpath, so the vendored `expo-ui` skill's "Host from the root" doesn't
+  apply). Lint-enforced. 51 components vs the universal layer's 19, and the gap already cost
+  product decisions — universal `Text` is `children?: string`, which is why the diff reader has no
+  syntax highlighting. No modifier gap existed, so the win is components and one idiom, not reach.
+  Cost accepted: verbose trees, no web target. The `@expo/ui` **package** stays a dependency.
+- **TRAP:** a SwiftUI `Button` tints its *entire label*, so a `Button`-wrapped settings row renders
+  as blue link text — every tappable row needs `buttonStyle('plain')`. `tsc` can't see it.
+- **Dev-client builds, not Expo Go** (`@expo/ui`, secure-store, webview, sqlite are all absent from
+  the Go binary). `runtimeVersion` policy is **fingerprint**, so an OTA never lands on an
+  incompatible binary.
+- **Delivery is fingerprint-decided on PRs *and* main** (`preview.yml`) — both are real ship paths,
+  so both must leave TestFlight running that code. **`wait_for_in_progress` on `get-build` is what
+  stops a merged PR paying twice** (it matches the fingerprint hash, not the branch). Force-build
+  escape is EAS's built-in `eas-build-ios:preview` label, not a job. `production.yml` has **no push
+  or tag trigger** and submission off by default — the release path is decided without being armed.
+- **`ios.supportsTablet: true` is load-bearing.** Without it iPad runs in compatibility mode —
+  fixed portrait, no rotation, never a regular size class, so `sidebarAdaptable` has nothing to
+  promote. Native flag: changing it moves the fingerprint.
+- **iPad is the same four tabs adapted, not a second shell.** `sidebarAdaptable` on iOS 18+ gives a
+  top tab bar with a sidebar toggle, not an unconditional sidebar. **Treat every iPad claim here as
+  unproven until a screenshot backs it** — these were written from docs and shipped unverified once.
+  Multi-column Files is structurally blocked: `SplitView` throws inside another navigator, so it can
+  only be the root layout; that fork is deferred to the real Files feature.
+- **Four native tabs — Files · Changes · Review · Terminal.** History is pushed inside Changes;
+  Board inside Review, because a card *starts* a review and as peers that flow crosses the tab bar;
+  Search is a search bar on Files; Settings is a formSheet. Environments are **LAN + Tailscale only
+  — no relay tier, deliberately**: a relay is a recurring bill, Funnel is already the public path.
+- **Feature slices** (`src/features/<feature>/` owns screens and logic; `src/app` is a thin route
+  table) so parallel worktrees don't collide in a shared component tree.
+- **Transport intent (not built):** `@trpc/client` + react-query on the same router, credential in
+  `expo-secure-store`, paired by a **pasted link only — no QR, deliberate** (camera dependency for
+  one screen). No second protocol, no mobile-only API.
+- **Rule-5 exceptions, exhaustive.** (1) `react-native-webview` in exactly two places: sandboxed
+  loop-evidence HTML (JS off) and the Terminal's xterm.js bundle — the same emulator as desktop, so
+  agent TUIs render identically instead of smearing through hand-rolled ANSI; it's a committed
+  generated bundle from the root `@xterm/*` deps (**zero new runtime deps**) and never opens a
+  socket or sees the token. A WebView for ordinary UI stays banned. (2) Rotation is unlocked, so
+  **every screen must tolerate rotation**. `Alert.alert` is no longer an exception.
+- **Cleartext HTTP is allowed APP-WIDE, deliberately** (`NSAllowsArbitraryLoads`): daemons are plain
+  `http` on bare LAN/tailnet IPs and `NSAllowsLocalNetworking` doesn't cover `100.64/10`, so it's
+  app-wide or nothing. **Not** license to reach a *public* endpoint over plain HTTP — that path is
+  Funnel (HTTPS). Don't "tighten" it without first solving tailnet-IP HTTP, or the app silently
+  stops reaching the machines it exists to reach. App Store review's answer: device pairing.
+- **EAS Observe is launch metrics only** — the `expo-router` integration and `Observe.logEvent` are
+  **deliberately unconfigured** because their dashboards start at the Production plan, so enabling
+  them pays event volume for data the account cannot open. Traps: only the **first**
+  `markInteractive` per session counts, so a marker above loaded content silently degrades TTI into
+  a second TTR; `expo-observe` is native, so adding it moved the fingerprint; debug builds never
+  dispatch unless `dispatchInDebug: true`.
+
+T3 Code's mobile app is plain React Native with one `swift-ui` file — not a reference. The native
+app shares protocols and domain contracts, never DOM components, Tailwind, or tab-store routing.
 
 ## The one architecture
-
-The Electron/browser renderer has exactly one architecture; every feature on
-that client follows it. Hard rule 1 points here. Layering, top to bottom:
 
 ```
 daemon (src/backend/api.ts procedures + pure logic in own modules; Electron-free, HTTP/WS on 127.0.0.1)
   → lib/trpc.ts (appRouter client) + lib/daemon.ts (the WS session) — imports restricted to hooks/ and stores/
-    → hooks/use-<domain>.ts (domain data hooks: queries, mutations, invalidation)
+    → hooks/use-<domain>.ts (queries, mutations, invalidation)
       → components/<area>/*.tsx (UI only; consume hooks + stores)
 stores/ (zustand: client-only state — tabs, repo, preferences, selection)
 
@@ -68,262 +114,482 @@ shell (src/main/shell-api.ts) — a SEPARATE thin surface: the few Electron-nati
   (dialogs, windows, updater) over tRPC-over-IPC, its own client (shellTrpc)
 ```
 
-The renderer talks to TWO backends: the **daemon** (the electron-free bulk, over real HTTP/WS) and the **shell** (the Electron-native rump, over IPC). See "The daemon" below and the IPC repo-fact for why the split exists; the layering above is otherwise unchanged.
+### The daemon — client/server always, even fully local
 
-### The daemon (always client/server, even fully local)
+The renderer never touches the backend in-process. Deliberate: local and remote are ONE code path,
+so they can't drift, and pointing the client at a remote daemon needed no new transport.
 
-Porcelain is client/server *always* — the renderer never touches the backend in-process. The Electron shell forks a headless **daemon** (`src/backend/server.ts`, via `utilityProcess.fork`) and the renderer reaches it over HTTP + one WebSocket on `127.0.0.1`. This is t3-style and deliberate: local and remote are ONE code path, so they can't drift, and the remote-environments phases (shipped v0.18–0.19) point the same client at a *remote* daemon (a home server or Linux box over the tailnet) with no new transport. Entry files: `src/main/daemon.ts` (spawn/babysit), `src/backend/server.ts` (HTTP `/trpc` + WS `/session` + auth), `src/backend/session.ts` (per-connection state), `src/shared/ws-protocol.ts` (the WS message schemas). Read those for mechanics; the decisions/traps a fresh read won't surface:
-
-- **Spawn/restart model** (`daemon.ts`): the shell forks the daemon via `utilityProcess.fork` — fuse-proof: the `RunAsNode: false` fuse in packaged builds silently ignores `ELECTRON_RUN_AS_NODE`, so the old `spawn(process.execPath, …)` approach made the packaged child boot as a second GUI app, recursively — a fork bomb caught in the v0.19.0 pre-publish fuse check (dev/e2e run unfused and never showed it). The daemon prints ONE stdout line `{"port": N}` when listening (port 0 = OS-assigned); a crash restarts it with capped backoff (give up after 3 rapid failures) and pushes the NEW url to LOCAL-bound windows over `daemon-url-changed` (remote-bound windows keep their pair) — the renderer's WS client reconnects, re-registers its watch sets, and refetches queries. A utility child has no stdin, so the shell sets `PORCELAIN_NO_STDIN_WATCHDOG=1` and Electron owns the child's lifetime instead (standalone daemons under plain `node` keep the stdin parent-death watchdog, so they still never orphan).
-- **Auth has two scopes, both on from boot** (2026-07-29): loopback is reachable from any webpage the user's browser has open (fetch to 127.0.0.1; WebSockets have no CORS at all), so the daemon NEVER runs open. The local Electron shell / host CLI hold a persistent **administrator credential** (`~/.porcelain/admin-token`, `0600`) passed by env, never argv. A one-time `pc_pair_*` grant exchanges for a separate `pc_client_*` device credential; only sha256 hashes live in `~/.porcelain/access.json` (0600), and each device can be revoked without affecting the others. Both credential kinds Bearer-gate `/trpc` and gate `/session` via the `porcelain.<token>` subprotocol (query strings leak into logs). Only `adminProcedure` can inspect/revoke access or change network/Funnel settings; a device credential still grants the product itself, including terminal access. CORS remains scoped, never `*`.
-- **Optional LAN, tailnet, and Funnel reachability**: the daemon can additionally listen on detected Tailscale (100.64/10) and/or RFC1918 addresses (`tailnet-listener.ts`) — shared auth handlers, same configured port, and never `0.0.0.0`. The dev stack enables LAN by default on 43118. Persisted `tailnetBind` / `lanBind` flags (or matching env overrides) start/stop live. **TRAP — reconcile, not bind-once:** addresses appear after boot; enabled private listeners re-scan every 5s and diff sockets. Tailscale Funnel is a separate opt-in public HTTPS reverse proxy to loopback (`funnel.ts`, `funnelBind`, `PORCELAIN_FUNNEL_BIND=1`, CLI `--funnel`). Porcelain refuses a conflicting or unowned Funnel target and only turns off a configuration whose 0600 ownership marker matches this daemon target; never adopt or erase another service's Funnel.
-- **The daemon serves the renderer to a plain browser** (Phase 3, `src/backend/static-server.ts`): non-API GET/HEAD requests serve the built renderer dist, unauthenticated because the app shell is not secret; `/trpc` + `/session` keep the credential gate. Electron and browser use the SAME dist, split only at `lib/platform.ts` (`window.porcelain` absent in browsers). Shell-only surfaces hide, including Share and Remotes. A pairing link opens `/pair#token=…`; `TokenGate` posts the fragment credential once, stores the returned client token in `localStorage` as `porcelain-client-token`, removes the fragment, and reconnects. Without a valid link/token it remains locked. The daemon rewrites only CSP `connect-src` for same-origin WS; `img-src`/`default-src` remain untouched. Remote boot cost stays contained in this server: compressible assets negotiate Brotli/gzip at runtime, Vite-fingerprinted `/assets/*` are immutable for one year, and the host-rewritten app shell plus stable public filenames stay `no-cache` so a release is discovered immediately. The one opaque design and Linux/Windows renderer chrome decisions remain unchanged.
-- **The standalone daemon package** (Phase 4, `scripts/build-daemon-dist.mjs` + `scripts/daemon-cli.js`): `pnpm daemon:dist` assembles publishable `dist-daemon/` as **`porcelain-daemon`** — plain Node, no Electron, with renderer, agent CLI, and host-management CLI. Preferred UX: `npx porcelain-daemon@latest serve --tailnet --funnel`, then on that host `npx porcelain-daemon@latest access issue --name "My phone"`; the output is the one-time connection link. Share control is CLI-first on headless hosts: `access list|revoke`, `share status`, and `share lan|tailnet|funnel on|off`. The CLI ensures the local `admin-token`; it never prints it. **Deliberately no SSH launch:** the host service/process is started manually or supervised. Every `serve` refreshes the bundled agent CLI. Supervisors still need `--no-watchdog`.
-- **The Mac app binds each WINDOW to a daemon, chosen from SAVED environments** (Phase 4; per-window 2026-07-16 — Settings → **Environments**): the shell persists named `{ id, name, url, token }` entries plus an `activeId` (DEFAULT for new/restore windows only) in `remote-daemon.json` in userData (`src/main/remote-daemon.ts` — the shell owns the list, so it CANNOT live in the daemon's own config; tokens are plaintext, same trust as the token file). **Each BrowserWindow has its own binding** (`setWindowEnvironment` / `daemonInfoFor` in `daemon.ts`, keyed by `webContents.id`); the preload's sync `daemon-url` getter is per-sender, and a local-daemon restart only pushes `daemon-url-changed` to LOCAL-bound windows. So one window can stay on This device while another is on a remote host. UI: **Use here** re-points THIS window; **New window** opens a fresh window on that env without touching the caller; bare File → New Window / open-in-new-window inherits the caller's env. add/connect probe `<url>/trpc/recentRepos` with the Bearer token before accepting. Tokens never cross to the renderer: the `remoteEnvironments` query returns id/name/url plus THIS window's `activeId`. **The local child keeps running underneath** (instant switch-back + multi-env). **A switch = main-process `webContents.reload()` via `switchWindowEnvironment` (`window.ts`), landing on the welcome page for that env** — not a renderer `location.reload()` after invalidate (that raced and left shell chrome on one daemon while appRouter still talked to the other). Force welcome so recents always match the new machine (restoring a path from the previous disk is wrong). The landing page always shows environment identity (This device vs remote name/url). **Companion data across environments** is agent-driven (porcelain-companion skill, `references/sync-environments.md`): the porcelain CLI + SSH/path remap for actions/notes/board/layers/comments/scope (hide/pin in `~/.porcelain/scope.json`). Daemon still has `exportRepoSettings`/`importRepoSettings`/`copyRepoSettings` for scripts; the Settings seed UI was removed. Never silent; never copy the dynamic feature view (review sets). **The one AUTOMATIC seed is worktree-local and never overwrites** (`seedRepoSettings`/`seedWorktreeSettings` in `repo-settings.ts`): companion data is keyed by absolute path, so a linked worktree of a project the human already set up would otherwise open blank. `gitAddWorktree` seeds the new checkout from the repo it was created against, and `openRepoPath` seeds a linked worktree from its primary checkout — both only when the target has NO settings at all, both silent on failure (a create/open must never fail because a channel file was unreadable). Cross-HOST carry stays explicit and agent-driven; this is a same-machine, same-project convenience only.
-- **Connect with a one-time link; administer only on the host** (2026-07-29). Settings → **Share** exists only in a local Electron window; it is hidden in browsers and in a window bound to a remote daemon. It toggles LAN/tailnet/Funnel, issues 15-minute single-use links, and lists/revokes devices. Headless hosts do the same through the daemon CLI. The pairing secret lives after `#token=` so the initial GET and intermediary logs never receive it; `/pair` serves the normal app shell on GET and consumes the grant on POST. The browser stores the returned device token under `porcelain-client-token`; another Mac pastes the link in Settings → **Remotes** and the main process exchanges it. The retired `daemon-token` is deliberately ignored so a previously shared value cannot become administrator access.
-- **Environments announce themselves; the switcher is the entry point** (2026-07-26, environments v2 phases 1–2). The daemon reports `host`/`platform`/`arch` on the EXISTING `daemonInfo` procedure (`src/backend/daemon-identity.ts`) rather than a new one — widening the probe every client already calls. **Read those fields as OPTIONAL:** a daemon older than the widening returns `{ version }` alone. That drives auto-naming on add (the machine, not the address), the correct "This device" subtitle on every platform (it was hardcoded "this Mac"), and the top-bar `EnvironmentSwitcher`. Reachability comes from the shell's `environmentStatuses` query, which probes local + every saved env in parallel: **`unauthorized` is a distinct state from `offline`** (a box that answers and rejects the token needs re-pairing, not waking), and a non-401 failure re-probes `recentRepos` before claiming offline — otherwise a pre-0.30 daemon, which 404s `daemonInfo`, would grey out while working perfectly. It's a network call per environment, so the hook is deliberately lazy (long staleTime, refetch on focus, no poll). Settings splits **Share** (this daemon as host) from **Remotes** (saved machines as client, shell-only).
-- **One environment, many endpoints** (2026-07-26, environments v2 phase 5; `remote-daemon.ts` + the failover helpers in `shell-api.ts`). A saved environment holds a list of addresses for ONE machine (one machine may be a LAN address at home and a tailnet address away); `url` is just the last known good one, which is what a window binds to. Three decisions a fresh read won't explain: (1) **the kind is derived from the address, the preference is stored by kind** — `endpointKind` classifies 100.64/10 as tailnet and RFC1918 as lan, and the human's "prefer the LAN here" survives a DHCP lease change, which pinning the address would not; (2) **failover is sequential and preference-ordered, not a race** — on the home LAN the tailnet address usually still *works*, just slower via the relay, so "first to answer" would quietly pick the worse route; `unauthorized` short-circuits the walk since the token is the same on every address; (3) **reachability never moves the preference** — `withActiveUrl` updates the last known good url only, so a laptop that connected over the tailnet on a train comes home to the LAN. `environmentStatuses` self-heals the stored url on focus, which is why a machine that changed networks is already pointing at the live address by the time the human clicks it. Adding an environment whose daemon reports a `host` we already know MERGES into that environment as another endpoint rather than making a second identically-named row — identity comes from the daemon's report, never from what the human typed. **TRAP — `environmentStatuses` is a WRITER, and it probes for seconds first:** a bare load→mutate→save after that await would resurrect an environment (token and all) that was removed meanwhile, so every writer goes through `updateRemoteEnvironmentState`, keyed by id — never by an index into a pre-await snapshot.
-- **The renderer's WS session is an INSTANCE now, not a module singleton** (2026-07-26, `lib/daemon.ts`): `createDaemonSession(endpoint)` builds one, `primary` is the window's binding, and the flat exports (`createTerminal`, `onDaemonEvent`, `watchFiles`, …) delegate to it — so every existing call site is unchanged and `primary` stays the answer to "the daemon". WHY it stopped being a singleton: a window bound to a REMOTE daemon must still be able to run a terminal on the machine in front of the human (test iOS on the Mac while the repo lives on the Linux box), and that needs a SECOND live connection, not a re-point. Each instance owns its socket, listener sets, pending maps, and backoff, so one session's drop can't fail the other's in-flight creates. **Don't add a second session for anything else:** the window's repo lives on `primary`'s machine, so every repo-scoped procedure belongs there — a second connection is only for work that is explicitly about another machine.
-- **Traps a fresh read won't show:**
-  - **PTY env must stay scrubbed** (`src/backend/terminal-env.ts` strip list): the token and `ELECTRON_RUN_AS_NODE` (and the other `PORCELAIN_*` daemon knobs) must NEVER reach a spawned shell — `env` in the terminal would print the token, and `ELECTRON_RUN_AS_NODE=1` would silently run any Electron binary launched from the terminal as plain Node. Also strip **`_VOLTA_TOOL_RECURSION`**: a daemon started via `~/.volta/bin/node` inherits it from Volta's shim, and if it leaks into PTYs every `yarn`/`node` shim fails with "Node is not available" (ENOENT) while VS Code still works. Add a new daemon env var → add it to `DAEMON_ONLY_ENV`.
-  - **The daemon must never print the token** — the parent passed it via env, so it already knows it; the only stdout line is the port. Don't log the token to stdout/stderr.
-  - **The tailnet browser client is an INSECURE context** (plain HTTP on a non-localhost origin — WireGuard encrypts the wire, so no TLS by design), where secure-context-only APIs are simply absent: `crypto.randomUUID` and `navigator.clipboard` DON'T EXIST there (they work on localhost + in Electron, which are secure contexts — so this only bites the tailnet client). Never call a secure-context API directly in the renderer — go through `randomId()` (UUID, `crypto.getRandomValues` fallback) and `copyText()` (textarea+`execCommand` fallback) in `lib/utils.ts`. `clipboard.readText` has no polyfill (context-menu Paste no-ops; native paste + Cmd/Ctrl+V still work).
-  - **The dist CSP `connect-src` allows loopback AND scheme-wide `http:/https:/ws:/wss:`** (`index.html`) so the Electron window can talk to a remote daemon (LAN/tailnet Phase 4) — the old loopback-only policy blocked the renderer with "Failed to fetch" while the main-process connect probe still succeeded. The daemon rewrites ONLY `connect-src` to same-origin WS when it serves the browser client (`rewriteCsp`). `img-src`/`default-src` remain the sandboxed-HTML exfil backstop (an `audit` invariant) — never widen either, and the rewrite must never touch them.
-  - **`ws-protocol.ts` is the single `AppEvent` source** (`src/backend/app-events.ts` re-exports it) — add an event once, there; both ends validate every message against these schemas.
+- **Spawn/restart.** The daemon prints ONE stdout line `{"port": N}`. A crash restarts with capped
+  backoff (give up after 3 rapid failures) and pushes the new url to **local-bound windows only**. A
+  utility child has no stdin, so `PORCELAIN_NO_STDIN_WATCHDOG=1` is set and Electron owns its
+  lifetime; standalone daemons under plain `node` keep the parent-death watchdog so they never
+  orphan. `utilityProcess.fork` is required — an `audit` invariant.
+- **Private listeners reconcile, not bind-once** — tailnet/LAN addresses appear *after* boot, so
+  enabled listeners re-scan every 5s and diff sockets. Bind/Funnel rules: `audit`.
+- **The daemon serves the renderer to a plain browser.** Electron and browser use the SAME dist,
+  split only at `lib/platform.ts`. Fingerprinted assets are immutable for a year; the host-rewritten
+  shell stays `no-cache` so a release is discovered immediately.
+- **The standalone `porcelain-daemon` package** is plain Node with renderer + agent CLI + host CLI;
+  share control is CLI-first for headless hosts. **Deliberately no SSH launch** — the host process is
+  started manually or supervised (`--no-watchdog`). Every `serve` refreshes the bundled agent CLI.
+- **Each WINDOW binds to a daemon**, from a list persisted **shell-side** (the shell owns it, so it
+  cannot live in the daemon's own config). Bindings key off `webContents.id`, so one window can be
+  local while another is remote, and the local child keeps running underneath for instant
+  switch-back. Tokens never cross to the renderer. **A switch is a main-process
+  `webContents.reload()` landing on welcome** — a renderer `location.reload()` after invalidate
+  raced and left shell chrome on one daemon while appRouter talked to the other; welcome is forced
+  because restoring a path from the previous disk is wrong.
+- **The one AUTOMATIC settings seed is worktree-local, never overwrites, and fails silently.**
+  Companion data is keyed by absolute path, so a linked worktree of a configured project would open
+  blank; seeding runs only when the target has no settings at all, and a create/open must never fail
+  because a channel file was unreadable. Cross-host carry stays explicit and agent-driven.
+- **Environments announce themselves.** `daemonInfo` was **widened** with `host`/`platform`/`arch`
+  rather than adding a procedure, so **read those fields as OPTIONAL** — an older daemon returns
+  `{ version }` alone. **`unauthorized` is a distinct state from `offline`** (answering and rejecting
+  the token means re-pair, not wake), and a non-401 failure re-probes `recentRepos` first, or a
+  daemon that 404s `daemonInfo` greys out while working perfectly. One network call per environment,
+  so the hook is deliberately lazy.
+- **One environment, many endpoints.** (1) **Kind is derived from the address, preference stored by
+  kind** — "prefer the LAN here" then survives a DHCP lease change. (2) **Failover is sequential and
+  preference-ordered, not a race**: on the home LAN the tailnet address still *works*, just slower,
+  so "first to answer" picks the worse route; `unauthorized` short-circuits the walk. (3)
+  **Reachability never moves the preference**, only the last-known-good url. Identity comes from the
+  daemon's reported `host`, never what the human typed, so a known host MERGES as another endpoint.
+  **TRAP — `environmentStatuses` is a WRITER that probes for seconds first:** a load→mutate→save
+  after that await resurrects an environment (token and all) removed meanwhile, so every writer goes
+  through `updateRemoteEnvironmentState` keyed by id, never an index into a pre-await snapshot.
+- **The renderer's WS session is an INSTANCE, not a module singleton** (`primary` is the window's
+  binding; flat exports delegate, so call sites are unchanged). *Why:* a remote-bound window must
+  still run a terminal on the machine in front of the human — a SECOND live connection, not a
+  re-point. Each instance owns its socket, listeners, pendings, backoff. **Don't add a second session
+  for anything else** — the window's repo lives on `primary`'s machine.
+- **TRAP — the tailnet browser client is an INSECURE context** (plain HTTP on a non-localhost
+  origin; WireGuard encrypts the wire, so no TLS by design). `crypto.randomUUID` and
+  `navigator.clipboard` **do not exist** there, but do on localhost and in Electron — so this only
+  bites the tailnet client. Use `randomId()` / `copyText()` in `lib/utils.ts`. `clipboard.readText`
+  has no polyfill (context-menu Paste no-ops; native Cmd/Ctrl+V still works).
+- **`ws-protocol.ts` is the single `AppEvent` source** — add an event once, there; both ends validate.
 
 ### Routing — the tabs store IS the router
 
-No URL routing, no router library; the active tab's `(kind, path, line)` in `stores/tabs.ts` is the entire navigation state. A screen = a `TabKind` (`file | diff | commit | review | search | feature | explore | board | terminal`; the former `artifact`/`evidence` kinds are gone — the Review absorbed them; `agent` and `chat` went with the in-app agent runner and the relay). `Tab.path` is overloaded per kind (documented on the type; `explore` also carries an optional `symbol`). Tab ids are ALWAYS built with `tabId(kind, key)` — never hand-build `"diff:..."` strings. `Viewer` (`components/shell/viewer.tsx`) dispatches kind → view with an **exhaustive `switch`** (no default; the annotated return type turns a missing case into a compile error). Preview semantics: single-click opens a preview tab (italic) the next preview replaces; double-click, editing, or a non-preview re-open clears preview (`pinTab`). **Sticky pin is separate:** `Tab.pinned` + `togglePinned` keeps a tab fixed at the left of the tab bar (only unpinned tabs scroll); `closeUnpinnedTabs` clears the rest. Don't conflate the two — `pinTab` never sets `pinned`.
+No URL routing, no router library: the active tab's `(kind, path, line)` in `stores/tabs.ts` is the
+whole navigation state. `Tab.path` is overloaded per kind. Ids are ALWAYS `tabId(kind, key)`, never
+hand-built strings. `Viewer` dispatches with an **exhaustive `switch`** — no default, so a missing
+case is a compile error.
 
-**Split view = panes, not extra tab state.** The store holds `panes: Pane[]` (`{ tabs, activeTabId }`) plus `activePaneIndex`. The key invariant: **`openTab`/`pinTab`/`cycleTab`/`closeAllTabs` keep their signatures and always act on the active pane**, so every opener (tree, finder, changes/history/search/feature) is pane-agnostic and needed zero changes. `openTabToSide(tab)` opens in the other pane; pane-scoped ops (`closeTab`/`closeOtherTabs`/`…ToLeft`/`…ToRight`/`activateTab`) take `(paneIndex, id)`. Closing a pane's last tab collapses the split (`normalize` drops empty panes, keeps ≥1). Triggers: "Open to the Side" context items + Cmd+Shift+S.
+- **Preview and pinned are different things.** Preview = single-click, italic, replaced by the next;
+  cleared by double-click/edit/non-preview re-open (`pinTab`). Sticky `Tab.pinned` fixes a tab at the
+  left of the bar. `pinTab` never sets `pinned`.
+- **Split view = panes, not extra tab state.** The invariant: **`openTab`/`pinTab`/`cycleTab`/
+  `closeAllTabs` keep their signatures and always act on the active pane**, so every opener stayed
+  pane-agnostic. `openTabToSide` targets the other pane; pane-scoped ops take `(paneIndex, id)`.
+- **Recipe — new screen/tab kind**, in order: pure logic in `src/backend/<thing>.ts` + sibling test →
+  procedure in `api.ts` (only a genuinely Electron-native one goes on `shellRouter`) → hook →
+  `TabKind` → view component (one public export, key as a single prop, data via the hook) → opener
+  calls `openTab` → `case` in `Viewer` (the compiler forces it) → keyboard binding if needed.
+- **Opening a repo is a DAEMON-side directory browser, not a native dialog** — repos are daemon
+  paths, so with a remote daemon a Mac dialog picks the wrong machine's. Repo switching is one store
+  action (`switchTo`); never clear tabs ad hoc. Both switchers carry a per-row "open in new window"
+  leaving this window and its terminals untouched (worktrees get worked side by side).
+- **A linked worktree is NOT a project:** `recentRepos` drops paths whose `.git` is a file (one
+  `stat`, never a git spawn — the endpoint is hot), so a checkout has one home; they stay in stored
+  recents so quitting inside a worktree reopens there.
+- **HEAD is reported structurally, never as a label:** `gitHead` returns `{ branch, detachedSha }`
+  and the ONE rendering is `headLabel` — that's why nothing string-sniffs `'HEAD'` or invents a
+  second "(detached)".
 
-**Recipe — adding a new screen/tab kind** (e.g. `blame`), in order:
-1. Pure logic in its own `src/backend/<thing>.ts` module with a `<thing>.test.ts` next to it (Electron-free — the daemon package).
-2. Procedure on the router in `src/backend/api.ts` (zod input; `AppRouter` updates automatically). Only a genuinely Electron-native procedure (native dialog, window, updater) goes on the `shellRouter` in `src/main/shell-api.ts` instead.
-3. Hook in `src/renderer/src/hooks/use-<domain>.ts` wrapping the procedure (new file only for a genuinely new domain).
-4. `'blame'` added to `TabKind` in `stores/tabs.ts`.
-5. View component `components/git/blame-view.tsx` — one public component, takes its key as a single prop, reads data via the hook.
-6. Opener calls `openTab({ id: tabId('blame', key), ... })`.
-7. New `case` in `Viewer`'s switch (the compiler forces this).
-8. Keyboard binding in `use-app-shortcuts.ts` if needed.
+### Data hooks, state, components
 
-**Opening a repo = a DAEMON-side directory browser**, not a native dialog. `useRepoStore.openRepo()` just shows `RepoPickerDialog` (mounted once in AppShell, covering both the welcome screen and the repo shell; intent via the `repo-picker` store, the file-prompt "compose intent" pattern). The dialog browses the daemon's filesystem over `browseDirs` (`src/backend/browse.ts` — directory names only) and confirms through `openRepoPath`. The native `openRepo` folder dialog was **REMOVED** (remote-envs decision 5): repos are daemon paths, so with a remote daemon a Mac dialog picks the wrong machine's paths — the daemon-side browser makes local and remote one code path. Repo switching is one store action: `useRepoStore.switchTo(path)` (closes all tabs, clears this window's terminal *views* — the daemon-owned PTYs survive the switch, Phase 2 — opens the repo/worktree in THIS window) — the row click of both `ProjectSwitcher` and `WorktreeSwitcher`; never clear tabs ad hoc. Both switchers ALSO carry a per-row trailing "open in new window" button (`useNewWindow().openWindow`) that leaves this window — terminals included — untouched (worktrees are parallel checkouts often worked side by side, so opening one in a new window instead of switching in place is the terminal-preserving option). **A linked worktree is NOT a project:** `recentRepos` drops paths whose `.git` is a file (`isLinkedWorktree` — one `stat`, never a git spawn, because the endpoint is hot), so a checkout has exactly one home — the footer's `WorktreeSwitcher`. They stay in the STORED recents, and `restoreLastRepo` passes `includeWorktrees: true`, so quitting inside a worktree still reopens there. **HEAD is reported structurally, never as a label:** `gitHead` returns `{ branch, detachedSha }` (branch `null` when detached) and the ONE rendering lives in `headLabel` (`src/shared/head.ts`) — that's why nothing string-sniffs `'HEAD'` or invents a second "(detached)". `parseWorktrees` builds its row label from the same helper. The right sidebar follows `preferences.sidebarTab` (the LEFT sidebar's tab), not the active main tab — two parallel nav axes by design.
+- One module per domain — **read the directory; an enumerated list here went stale before.** Query
+  options live in the hook, not the component.
+- **Hooks own invalidation:** each mutation lists targeted invalidations in `onSuccess`. The ONLY
+  blanket `utils.invalidate()` is `useQuickCommand` (pull/stash change everything — a documented
+  escape hatch). **No tRPC subscriptions**; push arrives from the daemon WS session and the tiny
+  `shell-event` IPC channel under one renderer-facing union.
+- **Enforced:** importing `lib/trpc` or `lib/daemon` from `components/**` is a Biome error.
 
-### Data hooks (`src/renderer/src/hooks/`)
+| State kind | Home |
+|---|---|
+| Server / git / fs | TanStack Query via domain hooks, nowhere else |
+| Cross-component UI | a zustand store, one per concern; fine-grained selectors at the leaf, no prop-drilling (sole exception `LeftSidebarHandle`, forced by nested SidebarProviders) |
+| Prefs surviving reload | the single persisted `preferences` store. **Nothing else persists** |
+| Everything else | component-local `useState` — never for state another component reads |
 
-- One module per domain, `use-<domain>.ts` — **read the directory for the current set; don't expect a list here to stay complete** (an enumerated list here went stale before). Thin declarative wrappers — no business logic.
-- Query options (enabled guards `repo !== null`, `staleTime`, `refetchInterval`, `placeholderData: keepPreviousData`) live in the hook, not the component.
-- **Hooks own invalidation**: each mutation hook lists its targeted invalidations in `onSuccess` (`Promise.all`). The ONLY blanket `utils.invalidate()` is `useQuickCommand` (pull/stash change everything — documented escape hatch). Hover prefetch is a hook too.
-- `use-app-events.ts` consumes push, mounted once in `AppShell`, from TWO sources since the daemon split: the daemon's **WS session** (`lib/daemon.ts` — agent-channel refreshes + the `working-tree`/`file-tree` watcher events) and the tiny Electron **`shell-event`** channel (`window.porcelain.onShellEvent` — only `close-tab` + `update-status`, whose source is the shell). One handler serves both under one renderer-facing union. There are still NO tRPC subscriptions. The terminal's bidirectional byte stream also rides that same WS session (consumed by `use-terminal-channel.ts`, mounted once in `AppShell`; see the Terminal subsystem).
-- Enforced: a Biome `overrides` block makes importing `@renderer/lib/trpc` OR `@renderer/lib/daemon` from `components/**` a lint error — components reach the server (and the daemon session) only through hooks.
+**Component authoring** (beyond what the surrounding files show). One public component per file;
+co-location exceptions are inseparable variant pairs, a component + its companion hook, and mutually
+recursive components. Props typed **inline**; a named `XProps` interface only for generic components.
+Handlers named by intent (`run`, `save`), **never `handleX`** — prose-only, because Biome can't ban a
+prefix. **No app-authored React context** and no boolean-prop variant proliferation: composition is
+prop-driven components + zustand, `children` wrappers for menu/boundary shells, render-props only for
+generic virtualized lists, Base UI's `render` to merge shadcn triggers.
 
-### State placement — one rule per kind of state
+### Keyboard shortcuts — tiered ownership (deliberate; don't "centralize")
 
-- Server/git/fs state → TanStack Query via domain hooks, nowhere else.
-- Cross-component UI state → a zustand store in `stores/`, one file per concern; components subscribe with fine-grained selectors (`useXStore((s) => s.field)`) at the leaf — no prop-drilling stores (sole exception: `LeftSidebarHandle` drilled `RepoShell`→`TopBar`, forced by nested SidebarProviders).
-- Prefs that survive reload → the single persisted `preferences` store (localStorage `porcelain-preferences`). Nothing else persists.
-- Everything else → component-local `useState`. Never `useState` for state another component reads.
-- Store actions may call other stores via `useXStore.getState()`; components use hooks.
+Main-process `before-input-event` **only** to override an OS/Electron default (⌘W) → app-global store
+bindings in `use-app-shortcuts.ts` → a component's own listener for its own local state → element
+`onKeyDown` for focused-element chords → `SidebarProvider`'s `shortcut` prop.
 
-### Component authoring
-
-- **One public component per file**; filename = kebab-case of the export. Private module-scoped subcomponents only when tightly bound to the export; an independent feature (own queries/state) gets its own file. Co-location exceptions: inseparable variant pairs (`file-icon.tsx`), a component + its companion hook (`code-line.tsx` + `useHighlighter`), mutually recursive components (`tree-node.tsx`).
-- Named exports only (`export function PascalCase()`); the sole default export is `App` (lint-enforced: `noDefaultExport`). Class components only where React requires it (`ErrorBoundary`).
-- Explicit return types: `React.JSX.Element` (`| null` when conditionally empty); handlers `void`/`Promise<void>`.
-- Props typed INLINE in the destructuring parameter. A named `XProps` interface only for generic components (`VirtualRowsProps<T>`); domain/data types may be named interfaces.
-- Handlers named by intent (`run`, `save`, `switchTo`, `select`) — never `handleX`; callback props use `onX`. (prose-only: Biome can't ban a name prefix)
-- Composition: plain prop-driven components + zustand; `children`-wrapper components for menu/boundary shells; render-prop only for generic virtualized lists; Base UI's `render={<.../>}` to merge shadcn triggers. NO app-authored React context, no boolean-prop variant proliferation.
-- Pure single-file helpers stay module-scoped at the top; pure shared helpers go in `@renderer/lib/` with a test; reused stateful logic is a `useX` hook returning named callbacks. Derive, don't store, computed values. Always `cn()` for conditional classNames.
-
-### Keyboard shortcuts — tiered ownership (deliberate, don't "centralize")
-
-1. Main-process `before-input-event` ONLY to override an Electron/OS default (Cmd+W).
-2. App-global bindings acting on stores → `use-app-shortcuts.ts` (Ctrl+Tab, Cmd+1–7, Cmd+Shift+S, plus the context-aware "new" keys: **Cmd+T** always spawns a terminal; **Cmd+N** follows `preferences.sidebarTab` — Board → new card, Terminal → new terminal).
-3. A shortcut toggling one component's local state registers its own window listener in that component (Cmd+P in `file-finder`, Cmd+F in `text-file-view`).
-4. Focused-element shortcuts as element `onKeyDown` (Cmd+S on the editor textarea; Cmd+Enter/Cmd+S in the card composer).
-5. Sidebar toggles via the `SidebarProvider` `shortcut` prop (Cmd+B / Cmd+.).
-
-Earned rules a fresh read won't show:
-- **A shortcut that fires a tRPC mutation can't live in `use-app-shortcuts.ts`** — that hook is under `components/**`, where importing `lib/trpc` is a lint error (mutations go through hooks, which only components may call). So the Files fs-shortcuts (Cmd+N new file, Cmd+Shift+N new folder, Cmd+D duplicate, Cmd+⌫ trash) live in a dedicated always-mounted component, `file-commands.tsx` (next to `FileFinder` in `AppShell`), guarded to `sidebarTab === 'files'`. The global hook keeps only store/bridge actions (spawn terminal, open a draft).
-- **The browser client remaps the primary modifier to Ctrl** (same shape as the Linux-port branch: shared predicate + label helper in `lib/keyboard.ts`, keyed off `isBrowser || isLinuxShell` from `lib/platform.ts` — the Linux Electron shell, preload present with `window.porcelain.platform === 'linux'` via `src/shared/platform.ts` `resolvePlatform` and `PORCELAIN_FORCE_LINUX=1` as the Mac dev preview, is Ctrl-primary too). Safari (macOS + iPad) and Chrome own ⌘1–7 / ⌘T / ⌘N / ⌘W / ⌘P, so the daemon-served browser build uses Ctrl for every primary-mod shortcut and always `preventDefault()`s (Ctrl chords ARE page-interceptable). The exclusive checks (tab switch, split) route through `isModExclusive(e)`; the loose `e.metaKey || e.ctrlKey` sites already accept Ctrl and are untouched. Over a focused PTY the ⌘T/⌘N spawn keys yield to the shell (`ctrlIsPrimary && isTerminalTarget` → return), since Ctrl+T/Ctrl+N are readline's; the ⌘K clear + `terminalEditBytes` chords stay meta-only and so go dormant in the browser, letting readline own the Ctrl/Alt equivalents (same "naturally macOS-only" call as Linux). Labels render via `kbdLabel(...)` → ⌃/Alt/⇧ joined with `+` in the browser (⌃ glyph, not the word, because the OS may be macOS), ⌘/⌥/⇧ tight in the shell. The OS may still be macOS — the trigger is the browser client, not the platform.
-- **`isTextEntry` (`lib/keyboard.ts`) is the "don't hijack typing" guard, but it deliberately excludes `.xterm`** — xterm's hidden textarea reports as editable, yet Cmd+T/Cmd+N must still spawn a terminal while the PTY is focused.
-- **Terminal editing chords are translated in the xterm registry**, not via window listeners — `attachCustomKeyEventHandler` returns `false` to swallow the key and `window.porcelain.terminal.write`s the right bytes. Cmd+K clears (meta only, **never Ctrl-K** = readline kill-to-end-of-line, which must reach the shell); the rest is the pure, unit-tested `terminalEditBytes` (`lib/terminal-keys.ts`): ⌘⌫→Ctrl-U, ⌘←/→→Ctrl-A/E, ⌥⌫→word-delete, ⌥←/→→word-move, ⇧↵→`\n` (newline for multiline TUIs). ⌥+letter is left alone so Option-compose still types accents. **The destructive Files shortcuts (⌘D/⌘⌫) must NOT fire over a focused terminal** — `FileCommands` guards with `isTerminalTarget`, the inverse of `isTextEntry`'s `.xterm` carve-out (which exists so ⌘T/⌘N still spawn while a PTY is focused).
-- **"Compose intent" two surfaces share rides a tiny zustand store, with ONE dialog mounted in `AppShell`** — `file-prompt` (new file/folder/rename) → `FilePromptDialog`; `card-draft` (holds `CardDraft` + `draftFromCard`) → `CardComposer`. Board surfaces and the keyboard both call the store's `open`; mounting the dialog once avoids two stacked modals when the sidebar list and the viewer board are both mounted. The selection store also tracks the last-clicked `active` row so keyboard file ops know where to land.
+- **A shortcut firing a tRPC mutation can't live in `use-app-shortcuts.ts`** — that hook sits under
+  `components/**` where importing `lib/trpc` is a lint error, so the Files fs-shortcuts live in a
+  dedicated always-mounted `file-commands.tsx`.
+- **The browser client remaps the primary modifier to Ctrl** (`lib/keyboard.ts`, keyed off
+  `isBrowser || isLinuxShell`): browsers own ⌘1–7/⌘T/⌘N/⌘W/⌘P, but Ctrl chords *are*
+  page-interceptable. Over a focused PTY the ⌘T/⌘N spawn keys yield to the shell (Ctrl+T/N are
+  readline's); ⌘K clear and `terminalEditBytes` stay meta-only so they go dormant in the browser and
+  readline owns the equivalents. Labels use the ⌃ glyph, not the word — the OS may still be macOS;
+  the trigger is the client, not the platform.
+- **`isTextEntry` deliberately excludes `.xterm`** (its hidden textarea reports as editable, yet
+  ⌘T/⌘N must still spawn while a PTY is focused). `FileCommands` guards with the inverse
+  (`isTerminalTarget`) so destructive ⌘D/⌘⌫ never fire over a terminal.
+- **Terminal editing chords are translated in the xterm registry**, not by window listeners. **⌘K
+  clears, never Ctrl-K** (= readline kill-to-end-of-line, which must reach the shell); the rest is
+  the pure, unit-tested `terminalEditBytes`. ⌥+letter is left alone so Option-compose types accents.
+- **"Compose intent" surfaces share a tiny store with ONE dialog mounted in `AppShell`** — mounting
+  once avoids two stacked modals when a sidebar list and the viewer board are both mounted.
 
 ### Testing
 
-- Pure logic (main-process parsers, lib helpers, zustand stores) → unit tests next to source (`foo.test.ts`). This is where most coverage lives — keep logic pure and main-side.
-- Component tests (`foo.test.tsx`) mock the **domain hooks**, never the tRPC proxy: `vi.mock('@renderer/hooks/use-history', ...)` returning plain objects. Shape mock data with `@main` types so drift breaks the build. Exemplars: `history-list.test.tsx`, `changes-list.test.tsx`.
-- Setup `src/test-setup.ts` wires jest-dom, an explicit `afterEach(cleanup)` (globals off — import from `'vitest'`), a `window.matchMedia` stub (any `SidebarProvider` mount needs it), and a `document.elementFromPoint` stub (ProseMirror/TipTap needs it). Reset zustand between tests with `useXStore.setState(...)` in `beforeEach`. No snapshot tests.
-- **Playwright e2e** (`e2e/`): **browser** project is day-to-day (`pnpm test:e2e` — daemon-served client, headless Chromium). **electron** project is optional (`pnpm test:e2e:native`, manual CI workflow) — not a per-push or pre-cut gate. Browser fixture boots an isolated daemon + temp channels (never the human’s prod `~/.porcelain`). Earned gotchas: (1) **`PLAYWRIGHT_FORCE_ASYNC_LOADER=1`** is required (in scripts). (2) Self-contained `e2e/tsconfig.json`. (3) Screenshots DOM-only, per-project/platform. (4) Prefer element-scoped baselines when a column is tight.
+**Most coverage lives in pure daemon-side unit tests — keep logic pure and daemon-side.** Component
+tests mock the **domain hooks**, never the tRPC proxy, and shape mock data with `@main` types so drift
+breaks the build. No snapshot tests. `src/test-setup.ts`'s stubs are non-obvious: `window.matchMedia`
+(any `SidebarProvider` mount needs it), `document.elementFromPoint` (TipTap), and an explicit
+`afterEach(cleanup)` because globals are off.
 
-## Repo facts (cross-file truths)
+**Playwright:** the **browser** project is day-to-day; the **electron** project is optional (manual
+workflow), not a per-push or pre-cut gate. The browser fixture boots an isolated daemon + temp
+channels, never the human's prod `~/.porcelain`. Gotchas: `PLAYWRIGHT_FORCE_ASYNC_LOADER=1` is
+required; `e2e/tsconfig.json` is self-contained; screenshots are DOM-only, per-project/platform;
+prefer element-scoped baselines when a column is tight.
 
-- Aliases `@renderer/*` → `src/renderer/src/*`, `@main/*` → `src/main/*`, `@backend/*` → `src/backend/*` (the Electron-free daemon package — what the renderer type-imports most), and `@shared/*` → `src/shared/*` are defined in **FOUR places that must stay in sync**: `electron.vite.config.ts`, `tsconfig.web.json`, root `tsconfig.json` (the shadcn CLI needs it), `vitest.config.ts`.
-- `@main` imports in the renderer are **type-only** (`import type`) — never runtime-import main code (esbuild erases the types; a runtime import leaks Node into the bundle). Main = OS/git/fs access; renderer = pure UI, no Node APIs.
-- **Data fetching = TanStack Query via domain hooks** (`@trpc/react-query@11` + `@tanstack/react-query@5`). v5 idioms: mutations expose `isPending`; "keep last data" is `placeholderData: keepPreviousData`; query-level `onSuccess`/`onError` are gone (invalidation lives in mutation `onSuccess`). Never ad-hoc `useEffect`+`useState` fetching. **IPC details and the never-`void`-a-promise rule are `audit` invariants — read them.**
-- **Two transports since the daemon split** (`electron-trpc` is gone, always was): the **appRouter** (`src/backend/api.ts`, ~all procedures) is real tRPC over `httpBatchLink` to the local daemon (`lib/trpc.ts` → `http://127.0.0.1:<port>/trpc`, Bearer-token gated), and its streams/push ride the ONE zod-validated **WS session** (`/session`, `lib/daemon.ts` ↔ `src/backend/session.ts`) — terminals, watch registration (`watch:files`/`watch:dirs` are WS messages now, NOT tRPC procedures), and agent app-events. The **shellRouter** (`src/main/shell-api.ts`, the Electron-native rump) still rides tRPC-over-IPC — a serialized-HTTP shuttle over `invoke('trpc-shell')` replayed through `fetchRequestHandler`; the "only shuttle bytes, never read tRPC internals" rationale (in `audit`) applies to THAT shuttle. Shell push (`close-tab`, `update-status`) rides the separate `shell-event` IPC channel. Full transport map in the `audit` skill.
-  - **TRAP — the two `createTRPCReact` instances must never share the default TRPC context.** `createTRPCReact` with no `context` option falls back to a module-level shared `TRPCContext` singleton, so nesting the shell Provider inside the app Provider silently routes ALL app hooks to the shell client ("No procedure found" hang). The shell hooks (`shellTrpc`) pass an explicit `context` (`lib/trpc.ts`) to keep the two isolated.
-- **Syntax highlighting = Shiki**, theme `dark-plus`, singleton in `lib/highlight.ts`. Tokenization is **whole-file, not per-line** (`tokenizeLines` runs `codeToTokensBase` over the entire content) so grammar state carries across line breaks — per-line lost it and mis-colored multiline comments/template literals. The diff reconstructs each hunk's old/new image and tokenizes those (cross-hunk context is inherently unavailable). JetBrains Mono ligatures are disabled globally (`font-variant-ligatures: none` on `html`) so `===`/`=>`/`??` stay legible.
-- shadcn components live in `src/renderer/src/components/ui/` (excluded from Biome); add via `pnpm dlx shadcn@latest add <name>`. Base UI uses the `render` prop, not Radix's `asChild` — see the `shadcn` skill's `rules/base-vs-radix.md`.
-- **Theme: neutral graphite, System/Light/Dark preference.** A renderer-local appearance preference (`stores/preferences.ts` `theme: 'system' | 'light' | 'dark'`, default `system`) now ships — Settings → General → Appearance. It's resolved by `lib/theme.ts` (`resolveTheme` reads `matchMedia('(prefers-color-scheme: dark)')` for `system`; `applyResolvedTheme` toggles the `dark` class + `color-scheme`; `subscribeResolvedTheme` watches the store AND the media query, deduped) and consumed via `hooks/use-theme.ts` (`useResolvedTheme` for value-following surfaces, `useThemeSync` mounted once in AppShell). Applied **pre-paint in `main.tsx`** (index.html keeps `class="dark"` ONLY as the boot flash-guard main.tsx immediately corrects — do NOT read it as "hardwired dark"). The OS chrome follows via a `setThemeSource` shell mutation (`shell-api.ts`: `nativeTheme.themeSource` + every window's `backgroundColor`, dark `#090b0c` / light `#ffffff`); `nativeTheme` is used ONLY there. Shiki is themed (`dark-plus` + `light-plus` both registered in `lib/highlight.ts`; the resolved theme name is in the `tokenCache` key and threaded through `tokenizeLines`/`tokenizeHunks`/`buildRows` into the highlighting memos of `code-line`/`hunks-view`/`reading-surface`); xterm is themed (`TERMINAL_THEMES` in `terminal-registry.ts`, live-retinted on mode change, and the pane fill in `terminal-view.tsx` reads `TERMINAL_THEMES[mode].background`). Semantic/status/diff/ink colors are tokenized for both `:root` (light) and `.dark` (the `.dark` values reproduce the old literal shades exactly). **TRAP — re-applying a shadcn preset overwrites `ui/` AND the color block, and clobbers non-ui files too** (learned on the nova apply, 2026-07-18); afterwards restore: `lib/utils.ts` (custom `extendTailwindMerge` font-size groups + `randomId`/`copyText` insecure-context helpers — the apply rewrites it to the stock 6-line `cn`), `ui/sonner.tsx` (upstream imports `next-themes`, which the apply also re-adds to `package.json` — remove the dep, keep the local Toaster), the sidebar `shortcut` prop + `SIDEBAR_WIDTH_MOBILE_LEFT` + `style` threading + dual-rail mobile sheet + `dvh` viewport units, the ScrollArea `orientation` prop, and the AlertDialogAction-on-`Close` fix. Diff every touched file against HEAD before trusting the apply. (`shadcn apply` needs a temporary stub `vite.config.ts` to pass framework detection.) **The opaque redesign retired the old glass restore steps** — `--background`/`--sidebar` are now the preset's own fully-opaque values (no alpha), `body` is `bg-background` (it was transparent only to show window vibrancy through), and `--accent` is the preset's own (no neutral-accent re-point) — don't reinstate any of them.
-- **Backend pure logic** lives in `src/backend/*.ts` (the Electron-free daemon package — it moved out of `src/main` in the daemon split), each with a sibling `.test.ts` — that's where most coverage lives, so keep logic pure and Electron-free. For the current set and what each module does, read the directory and this skill's **Nomenclature** section (an enumerated module map went stale — don't reintroduce one; the code is always current). The durable cross-file facts a fresh read won't surface: `groupByLayer` (`flow.ts`) is the regex flow-grouping impl (furthest-right match + alphabetical), shared by the Changes/History tabs and the explore reader; the **feature view (the Review) is agent-curated only** — `buildFeatureView` takes **exactly** `reviewSet.files` (membership + order), uses `groupByLayerOrdered` so the agent's per-file `layer` and declared order render verbatim, and tags listed dirty paths as `changed` from git status. It does **not** union the working tree or auto-expand imports: incidental dirty files stay on Changes. `featureView` returns **null when there's no review set** (the renderer shows the "No review yet" empty state). A review file's optional `layer` is the knob; without it a file falls back to the regex match; `terminal-manager.ts` is the one impure, non-unit-tested main module (it spawns shells); repo notes, flow layers, reviewed marks, and monorepo scope live under `~/.porcelain/*.json` so the dependency-free CLI can read them. The flow layers are read from the channel (`layers-store.ts`) on every grouping query. Daemon `userData/config.json` holds recents + global bind flags only. Router + procedures live in `src/backend/api.ts`; the daemon that serves them (HTTP + the WS session) is `src/backend/server.ts` + `session.ts`, spawned/babysat by `src/main/daemon.ts` — see "The daemon" below.
+## Repo facts
 
-## App shell — traps & decisions (not an inventory)
+- Path aliases are defined in **FOUR places that must stay in sync**: `electron.vite.config.ts`,
+  `tsconfig.web.json`, root `tsconfig.json` (the shadcn CLI needs it), `vitest.config.ts`.
+- `@main` imports in the renderer are **type-only** — a runtime import leaks Node into the bundle.
+- **TRAP — the two `createTRPCReact` instances must never share the default TRPC context.** With no
+  `context` option it falls back to a module-level singleton, so nesting the shell Provider inside
+  the app Provider silently routes ALL app hooks to the shell client ("No procedure found" hang).
+- **Shiki tokenization is whole-file, not per-line**, so grammar state carries across line breaks —
+  per-line lost it and mis-colored multiline comments and template literals. Diffs reconstruct each
+  hunk's old/new image (cross-hunk context is inherently unavailable). Mono ligatures are disabled
+  globally so `===`/`=>`/`??` stay legible.
+- shadcn components live in `components/ui/` (excluded from Biome). Base UI uses `render`, not
+  Radix's `asChild`.
+- **Theme is a renderer-local preference applied pre-paint in `main.tsx`.** `index.html` keeps
+  `class="dark"` ONLY as the boot flash-guard main.tsx immediately corrects — do **not** read it as
+  "hardwired dark". OS chrome follows a `setThemeSource` shell mutation; `nativeTheme` is used ONLY
+  there. The resolved theme name is part of the Shiki `tokenCache` key.
+- **TRAP — re-applying a shadcn preset overwrites `ui/` AND the color block, and clobbers non-`ui`
+  files too.** Afterwards restore: `lib/utils.ts` (custom `extendTailwindMerge` groups +
+  `randomId`/`copyText` — the apply rewrites it to the stock 6-line `cn`), `ui/sonner.tsx` (upstream
+  pulls `next-themes` back into `package.json`), the sidebar `shortcut` prop + mobile-width constants
+  + dual-rail sheet + `dvh` units, the ScrollArea `orientation` prop, and the
+  AlertDialogAction-on-`Close` fix. Diff every touched file against HEAD. (`shadcn apply` needs a
+  temporary stub `vite.config.ts` to pass framework detection.)
+- **The Review's feature view is agent-curated only.** `buildFeatureView` takes **exactly**
+  `reviewSet.files` for membership and order, renders the agent's per-file `layer` verbatim, and tags
+  listed dirty paths as `changed`. It does **not** union the working tree or auto-expand imports —
+  incidental dirty files stay on Changes — and returns **null** with no review set.
+- `groupByLayer` (`flow.ts`) is the regex flow grouping (furthest-right match, then alphabetical),
+  shared by Changes/History and the explore reader. `terminal-manager.ts` is the one impure,
+  non-unit-tested backend module.
+- Daemon `userData/config.json` holds recents + global bind flags only. Notes, layers, reviewed marks,
+  and scope live under `~/.porcelain/*.json` for one reason: **the CLI ships with no dependencies and
+  no app**, so it must read them off disk. Keep new channels there.
 
-The map (which file is which region) is this skill's **Nomenclature** section; read the entry file for mechanics. What a fresh read won't tell you:
+## App shell — traps & decisions
 
-- **Embedded terminal (added 2026-06-16, reversing the old "never a terminal" rule).** Porcelain now hosts real PTYs — see the **Terminal subsystem** section below for the architecture (native module, dedicated bridge, xterm registry). **One repo per window** still holds, but as of Phase 2 **PTYs are daemon-owned and survive a window reload / socket close** (only an explicit kill or the daemon dying ends one).
-- **Multi-window (one repo per window, added 2026-06-18).** `createWindow(init)` (`window.ts`) is re-callable; each window is an independent renderer (its own `repo`/`tabs`/`terminals` zustand stores) over the ONE process-wide, stateless tRPC handler — every procedure already takes `repoPath`, so two windows on two repos just pass two paths (the main process holds no "current repo"). Since the daemon split, appRouter procedures are **stateless — the context is empty**; `ctx.sender` is GONE (Biome fences a backend procedure from even importing electron, let alone a connection). Per-connection concerns moved to the WS **session** (`src/backend/session.ts`), ONE socket per window: watch registration and terminal routing live there, keyed by the session object (a structural `TerminalSender`/`FileWatchSender`) instead of a `WebContents`. The lone procedure that still needs the calling window — `windowInit` — moved to the **shellRouter**, which keeps its `{ sender }` context (it's Electron-side). **Window-targeted vs broadcast:** the `working-tree`/`file-tree` watcher events target the session that registered the watch (reaped on socket close in `session.dispose`); the agent-channel app-events (`feature-view`/`comments`/`board`/`actions`/`layers`/`evidence`) **broadcast** to every session (`broadcastAppEvent`) because each window invalidates only its own repo-keyed query, so a cross-window delivery is a harmless no-op refetch — don't add a window→repo registry to "fix" it. `close-tab` (Cmd+W) and `update-status` are **shell events** (`shell-event` IPC, `src/main/shell-events.ts`), never daemon events — their source is the shell. A new window boots through `useRepoStore.boot()` reading the `windowInit` procedure (open a chosen repo / restore last / land on welcome). **TRAP — `windowInitFor` (`window.ts`) must stay an IDEMPOTENT read (do NOT delete-on-read):** the renderer's boot effect runs under React `StrictMode` (double-invoked in dev), so a one-shot read lets the 2nd boot fall back to `{ mode: 'restore' }` and clone the last repo; the pending init is cleaned up on window *close* instead. **Entry points:** the avatar switcher (`project-switcher.tsx`) carries a "New window" item + a per-recent open-in-new-window button (the `DropdownMenu` is *controlled* so the button can `stopPropagation` to suppress `switchTo` and still close the menu via `setMenuOpen(false)`), plus the app's first **role-based macOS menu** (`menu.ts`, set once in `whenReady`) whose **File → New Window** carries the **⌘⌥N** accelerator. Menu traps: it's the standard Electron template — keep the `editMenu` role (a custom menu otherwise strips Cmd+C/V from inputs) and keep reload/devtools **dev-gated** (prod deliberately ignores Cmd+R). **React DevTools** loads in dev only (`index.ts`, gated `is.dev && !isE2E`, dynamic import); `electron-devtools-installer` stays a **devDependency** — don't move it to `dependencies`, it must not ship in the packaged app.
-- **Dev isolation (two channel homes):** Production = port **43117**, `~/.local/share/porcelain`, channels in `~/.porcelain` — real day-job work; agents never touch it while building Porcelain. Development = `pnpm dev:daemon` on port **43118**, `PORCELAIN_USER_DATA=~/.local/share/porcelain-dev`, `PORCELAIN_HOME=~/.porcelain-dev` (token, channels, CLI install), playground repo only (e.g. `~/code/porcelain-playground`). `PORCELAIN_HOME` is the single redirect for channel paths + token + `ensureCli` dir (`src/shared/porcelain-home.ts`). `pnpm porcelain -- …` runs the local CLI against the dev home. Agent surface is the **porcelain CLI** writing channel files under that home.
-- **Chrome heights are coupled:** the full-width window titlebar (`title-bar.tsx`), the rail/panel headers, the viewer header (`TopBar`), and the right-sidebar header are all `h-12`, and `trafficLightPosition { x:19, y:16 }` in main is tuned to that 48px titlebar flush with the window top (`AppShell` is a flex-col — titlebar over the columns row). Change the titlebar height and the macOS traffic lights drift.
-- **Unified titlebar owns the traffic lights** (`title-bar.tsx`, full-width above the tiles — lights + a centered search button that raises the finder via `stores/file-finder.ts`; `file-finder.tsx` adds a ⌘K alias, skipped over a focused terminal so its clear-screen survives). **The two floating sidebars must be pushed BELOW the titlebar on desktop only** — shadcn pins their container to the full viewport (`fixed inset-y-0 h-dvh`), so both `AppSidebar` and `RightSidebar` use `md:` top/height classes for the 3rem titlebar plus `safe-area-inset-top` / `safe-area-inset-bottom`. Never express that offset as an inline style: the mobile Sheet reuses the same props and would begin 3rem below the viewport. The center `SidebarInset` is `h-full` (NOT `h-screen` — that overflowed 48px past the bottom). Verify the search bar is visible in the top strip, not covered by the center tile, and the left card, viewer, and right card share top/bottom edges on an iPad viewport. Because the lights left the sidebar, the project switcher became an **avatar at the rail top** (`project-switcher.tsx`) and the panel header is a contextual title + Files-only controls (collapse-all + hide-files); the old `pl-7` lights-clearance hack is gone. Footer = a **branch picker** (`branch-switcher.tsx`, in-place `git checkout` via `gitCheckout` + `useCheckout`'s blanket invalidate) on the left + the **worktree switcher** (`worktree-switcher.tsx`) on the right — two distinct menus, not one list shared. `gitCheckout` throws git's own dirty-tree refusal (git is the guard); the UI surfaces it through `sonner` — the one toast system, `<Toaster>` mounted once in `AppShell`, pinned to dark (the app has no theme picker, so the shadcn next-themes wiring is stripped).
-- **Window chrome is platform-split; the traffic lights are macOS-only** (`window.ts` `createWindow`). macOS keeps native controls (`titleBarStyle: 'hiddenInset'` + `trafficLightPosition`); Linux/Windows get `frame: false` and the renderer draws its own min/maximize/close cluster. That cluster is `WindowControls` (`components/shell/window-controls.tsx`) — mounted in the titlebar's right inset ONLY when `isLinuxShell` (`title-bar.tsx`), never in the browser. It calls four shell-router tRPC procedures — `windowMinimize` / `windowToggleMaximize` / `windowClose` / `windowIsMaximized` (`shell-api.ts`) — that act on the CALLING window via `BrowserWindow.fromWebContents(ctx.sender)` (the sanctioned per-window handle, same as `windowInit`), each null-guarded. The maximize-vs-restore glyph must track OS-driven state (double-click drag region, WM shortcut), not just our toggle: `window.ts` sends a `'maximized-changed'` shell event on the BrowserWindow `maximize`/`unmaximize` events, and `use-app-events` invalidates the `windowIsMaximized` query on it (`use-window-controls.ts` reads it, `enabled: !isBrowser`). `'maximized-changed'` is window-targeted (like `close-tab`), not broadcast — it's about ONE window's state.
-- **Collapse-all is a nonce, not a store of expanded paths.** Folder expansion is per-`DirNode` local state (the tree reads lazily — there's no central map to clear), so the Explorer collapse-all bumps `stores/file-tree.ts`'s `collapseNonce` and every node collapses in an effect keyed on it (skipping its mount so a reveal-expanded node isn't snapped shut). Don't add a central expansion store to "fix" this.
-- **The rail↔panel divider is the rail's FULL-HEIGHT right border, on the rail `Sidebar` element itself** (not its `SidebarContent`, which only spanned the middle and left the avatar/settings rows borderless — the broken-looking "off" state). With the border full-height, the panel's own header/footer hairlines start *at this edge* instead of crossing into the rail, and the rail footer (settings) carries **no** top border — the rail reads as one clean vertical strip with the panel chrome butting against it (this is the mockup, and it reverses the earlier "divider on `SidebarContent` so it doesn't cut the chrome / rail footer mirrors the panel footer's border-t" arrangement). A short centered divider still sits below the avatar (separating it from the tabs). Inner rail + panel are `bg-transparent` so only the outer floating tile carries the opaque `bg-sidebar` fill (the shadcn `floating` variant) — stacking a fill on the inner elements would double it. The avatar is a `size-10` `rounded-md border bg-secondary` chip (project-switcher) — `rounded-md` to match the tab icons directly below it (the rail's control radius). `--sidebar-width-icon` (the rail width) is set to `4rem` (64px) on the `AppSidebar` outer-`Sidebar` style to match the mockup's spacious rail — 20px (`size-5`) tab icons in `size-10` items. **TRAP: set it on the shell style, not the vendored `SIDEBAR_WIDTH_ICON` constant — a preset re-apply resets that constant to shadcn's 3rem (silently shrinking the rail).** Cmd+B collapses to the rail (`collapsible="icon"`, not offcanvas) and clicking a rail icon `setOpen(true)` re-reveals the panel.
-- **Resize handles write the CSS variable directly during the drag and commit to the store only on mouseup** — sidebar width, notes height, and split ratio all share this trick. A store write per `mousemove` re-renders the whole app.
-- **`VirtualRows` is fixed-height (`ROW_HEIGHT`) by default — the perf invariant; the lone opt-in is `dynamicHeight`.** The file/diff/source viewers MUST stay fixed-height (they render huge files; measuring every row is the thing the virtualizer exists to avoid). Only the **reading surface** opts in, because it renders the Review document — a mix of variable-height row kinds (`ReadingRow`: `thesis`/`prose` markdown, `sectionHeader`, sandboxed `diagram`/`embed` + `evidenceHeader`/`evidenceBody` iframes, and anchored code blocks whose agent note wraps) — and it's safe there because the surface is small + sliced. `dynamicHeight` also publishes the scroll viewport width as the `--vrows-vw` CSS var (written straight to the DOM in a `ResizeObserver`, the same no-render trick as the resize handles) so a wrapping row can size to the VIEWPORT, not the `w-max` horizontally-scrolling content. Don't turn it on for a large surface.
-- **Two nested SidebarProviders:** the inner (right/Quick Access) takes `shortcut="."` so both don't grab Cmd+B (the provider gained a `shortcut?: string | null` prop); `TopBar` lives inside the inner provider, so left-sidebar state is drilled to it via `RepoShell`. The two `TopBar` toggle icons are **deliberately different** — left `PanelLeft`, right `Zap` — never mirror-image panel icons. **Both toggles must call that provider's `toggleSidebar`**, not write the open preference alone: below the `useIsMobile` breakpoint (768px) the shell is a Sheet driven by `openMobile`, and flipping only the desktop `open` flag leaves the sheet closed (the right Zap used to do exactly that — phone Quick Access was a no-op).
-- **Phone / iOS Safari is "quick look", not a full workspace** (iPad ≥768 often keeps the desktop floating layout and is already usable). Below 768px shadcn's Sidebar goes to a mobile Sheet; our left shell is a **dual-rail** (`collapsible="icon"` = icon strip + content panel), so the mobile body must be **`flex-row`** (default sheet body was `flex-col`, which stacked the rail on top of the list and made the phone drawer unusable). Other phone traps: auto-close the left sheet when the active viewer tab changes (so opening a file reveals the viewer); force **unified** diffs (split needs two columns); drop traffic-light spacers in the browser titlebar; safe-area padding on the shell (`viewport-fit=cover` is already in `index.html`); settings dialog height is `min(600px, 90dvh)`. Deliberately **not** a redesign of every surface for touch — the goal is glanceable review from the couch, not shipping an iPhone IDE. **The Glance** (2026-07-19): on a phone with a repo open, an empty viewer pane renders `GlanceHome` (`glance-home.tsx`) instead of the desktop quick-start — the companion home (the Review inbox, this checkout's changed-count signal, board summary), mounted from `EmptyViewer` in `viewer.tsx` and gated on `isMobile && repo`. Sections omit when empty and it reuses existing hooks/queries only — no new procedures, no cranked polling; taps just open the existing surfaces.
-- **One opaque design — the glaze glass system is DELETED (decision).** Porcelain dropped vibrancy/translucency for a flat opaque skin (shadcn preset `b5J4txmSY`: style **nova**, baseColor **neutral**, theme **sky**, preset body font **JetBrains Mono** — see `components.json`; but Phase A overrides `--font-sans` to **Geist** so sans is the default face and mono is code-only — see the Stack table's typography note). **One carve-out (2026-07-18, nova switch): menus are translucent again** — the nova preset ships `menuColor: default-translucent` (dropdown/context menus at `bg-popover/70` + backdrop-blur) and the maintainer chose the preset as-is; every other surface stays opaque, and this doesn't license new glass anywhere else. WHY: the app targets a plain browser as a first-class client (and the Linux Electron shell in dev), and neither can do macOS window vibrancy — a glass design that works on only one of its targets isn't one design. So `.glaze-tile`/`.glaze-chip`/`.glaze-segment`/`.glaze-rail`, the `--surface-*`/`--hover-fill`/`--selected-fill` tokens, the `html.browser` void, and window vibrancy are all **gone** — don't reintroduce a `Surface` wrapper or a glass material; surfaces are plain shadcn primitives now. The Porcelain tokens block in `main.css` layers ONLY semantic state / diff / ink colors over the preset (it survives a preset re-apply); it no longer redefines `--accent`/`--muted`/surfaces.
-- **Surface recipes (keep them uniform):** raised surfaces = `rounded-* border bg-card`; recessed *wells* (Notes card, titlebar search) = `rounded-lg border border-border/60` + `bg-muted` (or `bg-black/20`); settings groups = `rounded-md border bg-muted/40` (never per-row `bg-card` pills). Row/card actions are quiet `outline` buttons on the compact scale (`h-7 text-xs`) — the recipe lives in `@renderer/lib/controls.ts` (`compactButtonClass` + `compactInputClass` + `denseInputClass` + `rowActionClass`), the single source; apply it (not a fresh `h-7 text-xs` / `h-8 text-xs`) to any button, toggle segment, or input acting on a card or list row, so Quick Access commit/commands and settings rows stay one height (`compactInputClass` = `h-8 text-xs md:text-xs` for ordinary fields; `denseInputClass` = `h-7 text-xs-minus md:text-xs-minus` remains available for dense technical stacks that truly need icon-sm height + smaller mono type — Settings sections, including Review layers, stay on the compact scale so type matches General/Share/Remotes; compose with `font-mono` for regex/command fields). **TRAP — always pair a text size with its `md:` twin** when overriding the vendored Input: it ships `md:text-sm` for the iOS zoom-safe base, and without `md:text-xs` / `md:text-xs-minus` desktop keeps sm. **Enforced:** `pnpm lint` runs `scripts/lint-control-recipes.mjs` (Biome can't ban className substrings) — inventing `h-7 text-xs` outside `controls.ts` fails the gate. Don't inline the constant into `components/ui/button.tsx` — vendored shadcn files are overwritten on preset re-apply. An active-state marker is a `Badge`, never a bare span. Left-panel (`PANEL_TITLES`) and right-panel (`COMPANION_TITLES`) headers must never carry the identical title for the same tab.
-- **One interaction language — hover/selected use the opaque accent, never a bespoke shade.** Every interactive surface (sidebar rows + the icon rail, file tree, Changes/History/Feature/Board/Terminal lists, toggles like Working/Branch and Unified/Split, ghost/outline buttons, command-palette + menu items) shares ONE pair: `bg-accent` (or `bg-sidebar-accent`) = the lit selected/"on" state, `bg-accent/50` (or `/50`) = the resting hover. These are the nova preset's own opaque `--accent`/`--sidebar-accent` tokens in `main.css` — **not** re-pointed by the Porcelain block, so a preset re-apply is safe. A new hover/selected state reuses `bg-accent`/`bg-accent/50`, never a fresh opaque shade. `--muted` still backs *static* surfaces (kbd, skeleton, wells, code/diff panels) — distinct from this interactive accent fill.
-- **No decorative accent — neutral graphite throughout** (the redesign neutralized the old gold; the user's call: keep color only for *meaning*). The Commit button is the plain filled `primary`; suggestion rows and the Actions Play icon are `muted-foreground`. The ONLY surviving color is functional: git +/− (`diff-add`/`diff-del`), file-type icons (incl. the amber `ink-amber` JSON braces — now `ink-amber`'s only use), folder/status hues, terminal ANSI. (This reverses the earlier "`ink-amber` is the single action-to-take accent / don't revert Commit to `primary`" rule — that rule is gone; don't reintroduce a CTA color.)
-- **TipTap is a scoped exception:** allowed ONLY in the Notes card (a companion surface). The file viewer stays a plain textarea over a Shiki backdrop — no CodeMirror/Monaco, no autocomplete/rename/format (those make it an editor).
-- **The editor adopts external file changes ONLY when clean.** `EditorSource` keeps the file in local `useState` (so it must opt in to a `readFile` refetch — the read-only/reader views re-render from the prop for free). When the prop's content changes (the agent edited the file on disk; see the `file-watch` watcher in `audit`), it reloads **only if there are no unsaved edits** (`content === savedContent`); mid-edit, the user's text wins and we never clobber it. Don't make it always adopt (clobbers in-progress edits) or never adopt (the editable view goes stale again — the bug this fixed).
-- **Markdown reader is NOT virtualized** (`MarkdownView`, react-markdown) — never route code files through it. Reader links get `target="_blank"` → main's `setWindowOpenHandler`, gated by `isSafeExternalUrl` (an `audit` invariant).
-- **HTML files open in a built-in sandboxed preview** (default; Source toggle like markdown). `TextFileView` + `HtmlView` (`html-view.tsx`); daemon `previewHtml` inlines relative sibling images as data URIs (`evidence-assets.ts`) so `srcdoc` works under CSP. Same `sandbox=""` as the Review's diagram + evidence iframes — never add allow-* tokens. Preference `htmlMode` (`preview` | `source`).
-- **File-tree reveal** (Changes → Open file) drives expansion through a **controlled** `Collapsible` (`open={expanded}`) + a target path in `stores/reveal.ts`; because reads are lazy, each ancestor opening mounts the next level until the leaf scrolls into view and highlights.
-- Base UI requires `DropdownMenuLabel` inside `DropdownMenuGroup` — outside one it throws `MenuGroupContext missing`.
-- **Tree Delete = the `trash` npm package** (`trashPath` in `src/backend/api.ts`; moves to the macOS Trash, recoverable — it replaced Electron's `shell.trashItem`, which the electron-free daemon can't call), never a permanent unlink; it's the one destructive tree action, so it confirms via an `AlertDialog`.
-- **Crash/self-verify:** `ErrorBoundary` wraps the app (`App.tsx`); in dev, main pipes the renderer `console-message` + `render-process-gone` to stdout — read them from the `pnpm dev` log to self-verify a change.
-- **Vite `optimizeDeps.entries` must cover `src/**/*.{ts,tsx}`** or a lazily-discovered `@base-ui/react/*` entry re-optimizes mid-session, loads a second React copy, and crashes with "Invalid hook call". (An `audit` invariant.)
-- **Agent channels are watched JSON files under `~/.porcelain/`, driven by the dependency-free porcelain CLI** (`src/cli/` — read that directory and the stores it mirrors for the current set, which way each one flows, and which verbs exist; an enumeration here rots). What a fresh read won't tell you:
-  - **Agent channel transport is the porcelain CLI** (stdio MCP was removed 2026-07-17 — implementer history, not a product pitch). Channels are watched JSON under `PORCELAIN_HOME` (default `~/.porcelain`). Agents run `~/.porcelain/porcelain` (or `pnpm porcelain` on the dev stack). Do not re-add a Porcelain MCP server without reopening the channel design deliberately.
-  - **Monorepo hide/pin is the `scope` channel** (`~/.porcelain/scope.json`, `scope-store.ts` ↔ `src/cli/scope-file.ts`, verbs `scope list|hide|unhide|pin|unpin|clear`). Watch emits `scope` → tree/pins/search invalidate.
-  - **Notes, flow layers, reviewed marks, and monorepo scope live under `~/.porcelain/*.json`** for exactly one reason: the CLI ships with no dependencies and no app, so it must be able to read them straight off disk. Keep new channels on that side of the line. Daemon `userData/config.json` is recents + global bind flags only.
-  - **Two channels are DELETED, deliberately.** feature-artifact folded into the Review's walkthrough `sections` — one document, not a second narrative surface beside it. The agent chat/relay channel went on **2026-07-27**: agent-to-agent messages with file claims and overlap detection weren't worth their maintenance, and coordinating parallel agents is not a problem Porcelain claims to solve. Don't reintroduce either as a channel.
-  - **The app makes exactly ONE write to the review-set channel** — that rule and the rest of the channel write-safety invariants live in the `audit` skill; **read it before touching any channel file.**
-  - **TRAP — the CLI's `DEFAULT_LAYERS` is a deliberate duplicate of `flow.ts`'s**, because the CLI may not import backend code. The duplication is *guarded* (`layers-file.test.ts` asserts the two are identical), so edit both together or that test fails. Content is **Docs + Agents starters only** (not a fat Pages/Components/Hooks stack); absence of a repo entry applies starters; a stored custom set keeps until `layers reset`.
-  - **Explore's flow reading is a heuristic, not an index** — it follows *relative imports only*, so it won't cross the client→server seam. That gap is exactly what the agent's `shipped` files exist to fill.
+- **Multi-window, one repo per window.** Each window is an independent renderer over the ONE
+  *stateless* daemon router — every procedure takes `repoPath`, so the backend holds no "current
+  repo" and appRouter context is **empty**. Per-connection concerns live on the WS **session** (one
+  socket per window) keyed by a structural sender, not a `WebContents`. The lone procedure needing
+  the calling window (`windowInit`) lives on the shellRouter.
+- **Window-targeted vs broadcast:** watcher events target the session that registered the watch;
+  agent-channel app-events **broadcast**, because each window invalidates only its own repo-keyed
+  query so cross-window delivery is a harmless no-op refetch. **Don't add a window→repo registry to
+  "fix" it.** `close-tab` / `update-status` / `maximized-changed` are shell events, never daemon
+  events; the last is window-targeted because it's about ONE window's state.
+- **TRAP — `windowInitFor` must stay an IDEMPOTENT read (do NOT delete-on-read):** the boot effect
+  runs under `StrictMode`, so a one-shot read lets the second boot fall back to `restore` and clone
+  the last repo. Pending init is cleaned up on window *close*.
+- **macOS menu:** keep the `editMenu` role (a custom menu strips ⌘C/V from inputs) and keep
+  reload/devtools **dev-gated** (prod deliberately ignores ⌘R). `electron-devtools-installer` stays a
+  **devDependency** — it must not ship.
+- **Chrome heights are coupled.** Titlebar, rail/panel headers, viewer header, right-sidebar header
+  are all `h-12`, and `trafficLightPosition` is tuned to that 48px titlebar. Change it and the traffic
+  lights drift.
+- **The two floating sidebars are pushed below the titlebar with `md:` classes, never an inline
+  style** — shadcn pins their container to the full viewport, and the mobile Sheet reuses the same
+  props, so an inline offset makes the drawer begin 3rem below the viewport. The center
+  `SidebarInset` is `h-full`, not `h-screen` (which overflowed 48px past the bottom).
+- **Window chrome is platform-split; traffic lights are macOS-only.** Linux/Windows get
+  `frame: false` and a renderer-drawn `WindowControls` calling shell procedures that act on the
+  calling window. The maximize glyph must track OS-driven state (WM shortcut, drag-region
+  double-click), hence the `maximized-changed` event.
+- **Collapse-all is a nonce, not a store of expanded paths.** Expansion is per-`DirNode` local state
+  because the tree reads lazily, so collapse-all bumps `collapseNonce` and nodes collapse in an effect
+  keyed on it (skipping mount, so a reveal-expanded node isn't snapped shut). **Don't add a central
+  expansion store to "fix" this.**
+- **Resize handles write the CSS variable directly during the drag and commit to the store only on
+  mouseup** — a store write per `mousemove` re-renders the whole app.
+- **`VirtualRows` is fixed-height by default — the perf invariant.** File/diff/source viewers MUST
+  stay fixed-height (measuring every row is what the virtualizer exists to avoid). The lone opt-in is
+  `dynamicHeight`, used only by the small, sliced reading surface; it also publishes the viewport
+  width as `--vrows-vw` straight to the DOM in a `ResizeObserver` (the resize-handle trick) so a
+  wrapping row sizes to the viewport, not the `w-max` content. Don't enable it on a large surface.
+- **Two nested SidebarProviders**; the inner takes `shortcut="."` so both don't grab ⌘B. The two
+  `TopBar` toggle icons are **deliberately different** (`PanelLeft` / `Zap`) — never mirror-image
+  icons. **Both toggles must call that provider's `toggleSidebar`**, not write the open preference
+  alone: below the mobile breakpoint the shell is a Sheet driven by `openMobile`, and flipping only
+  the desktop flag leaves it closed.
+- **Phone is "quick look", not a full workspace** (iPad ≥768 keeps the desktop floating layout).
+  Below 768px the Sidebar becomes a Sheet, and because our left shell is a dual-rail the mobile body
+  must be **`flex-row`** (the default `flex-col` stacked the rail on the list). Also: auto-close the
+  left sheet when the active viewer tab changes; force unified diffs (split needs two columns); drop
+  traffic-light spacers in the browser titlebar; safe-area padding. Deliberately **not** a touch
+  redesign of every surface — glanceable review, not an iPhone IDE.
+- **One opaque design — the glaze glass system is DELETED.** The app targets a plain browser as a
+  first-class client, and neither it nor Linux Electron can do macOS vibrancy — a glass design that
+  works on one target isn't one design. `.glaze-*`, the `--surface-*`/`--hover-fill`/`--selected-fill`
+  tokens, and window vibrancy are gone; don't reintroduce a `Surface` wrapper or a glass material.
+  **One carve-out:** the preset ships translucent menus and was taken as-is; that licenses no new
+  glass elsewhere. The Porcelain tokens block layers ONLY semantic/diff/ink colors, so it survives a
+  preset re-apply.
+- **Surface recipes.** Raised = `rounded-* border bg-card`; recessed wells = `rounded-lg border
+  border-border/60` + `bg-muted`; settings groups = `rounded-md border bg-muted/40` (never per-row
+  `bg-card` pills). Row/card action classes come from `lib/controls.ts` — **an inline `h-7 text-xs`
+  outside it fails `pnpm lint`.** Don't inline the constant into `ui/button.tsx`; vendored files are
+  overwritten on re-apply. **TRAP — always pair a text size with its `md:` twin** when overriding the
+  vendored Input: it ships `md:text-sm` for the iOS zoom-safe base, so without the twin desktop keeps
+  `sm`.
+- **One interaction language:** `bg-accent` (or `bg-sidebar-accent`) = lit/selected, `bg-accent/50` =
+  resting hover, everywhere. These are the preset's own tokens, **not** re-pointed by the Porcelain
+  block, so a re-apply is safe. Never invent a fresh opaque shade. `--muted` backs *static* surfaces.
+- **No decorative accent — color only for meaning.** The only surviving color is functional: git +/−,
+  file-type icons, folder/status hues, terminal ANSI. Don't reintroduce a CTA accent.
+- **TipTap is a scoped exception, allowed ONLY in the Notes card.** The file viewer stays a plain
+  textarea over a Shiki backdrop — no CodeMirror/Monaco, no autocomplete/rename/format (those make it
+  an editor).
+- **The editor adopts external file changes ONLY when clean** — `EditorSource` reloads from a changed
+  prop only if there are no unsaved edits; mid-edit the user's text wins. Don't make it always adopt
+  (clobbers edits) or never adopt (the stale-view bug this fixed).
+- **Markdown reader is NOT virtualized** — never route code files through it. Reader links get
+  `target="_blank"` → `setWindowOpenHandler`, gated by `isSafeExternalUrl`.
+- **HTML files open in a built-in sandboxed preview**, same `sandbox=""` as the Review's diagram and
+  evidence iframes — never add allow-* tokens.
+- Base UI requires `DropdownMenuLabel` inside `DropdownMenuGroup`, or it throws `MenuGroupContext
+  missing`.
+- **Tree Delete = the `trash` npm package** (recoverable), never a permanent unlink; the one
+  destructive tree action, so it confirms via an `AlertDialog`.
+- **Agent channels are watched JSON under `PORCELAIN_HOME`, driven by the dependency-free porcelain
+  CLI.** Read `src/cli/` and the stores it mirrors for the current set — an enumeration here rots.
+  **Do not re-add a Porcelain MCP server** without reopening the channel design. Channel write-safety
+  rules live in `audit` — read it before touching any channel file.
+- **TRAP — the CLI's `DEFAULT_LAYERS` is a deliberate duplicate of `flow.ts`'s**, because the CLI may
+  not import backend code. The duplication is *guarded* by a test asserting the two are identical, so
+  edit both together.
+- **Explore's flow reading is a heuristic, not an index** — relative imports only, so it won't cross
+  the client→server seam. That gap is what the agent's `shipped` files fill.
 
-## Terminal subsystem (the one place the "one architecture" deliberately bends)
+## Terminal subsystem (the one place the one architecture deliberately bends)
 
-The embedded terminal doesn't fit the tab-store→hook→component data flow, because a terminal is a live bidirectional byte stream, not request/response data. What a fresh read won't tell you:
+A terminal is a live bidirectional byte stream, not request/response data.
 
-- **`node-pty` is the one native module** (main `dependencies`). It's required — a real PTY (to run `claude`/TUIs) has no pure-JS equivalent on macOS. It reverses the old native-module-free property: `electron-builder install-app-deps` rebuilds it for Electron's ABI (also `onlyBuiltDependencies` lists it for pnpm), and it ships a `pty.node` + a `spawn-helper` binary that **must be `asarUnpack`ed and signed** (see `audit`/`releasing`). `@xterm/xterm` + `@xterm/addon-fit` are renderer `devDependencies` (Vite-bundled, pre-discovered by `optimizeDeps.entries`).
-- **The terminal rides the daemon WS session, NOT tRPC and NOT a preload channel.** Since the daemon split, `create`/`attach`/`detach`/`write`/`resize`/`kill` (out) and `data`/`exit`/`attached` (back) are messages on the ONE `/session` socket (`lib/daemon.ts` ↔ `src/backend/session.ts`, zod-validated via `@shared/ws-protocol`); preload no longer carries a `terminal` channel, and `use-terminal-channel.ts` + the registry consume `lib/daemon`. **PTYs are daemon-owned and survive disconnect/reload (Phase 2 — decoupled from the WS connection).** A session in `terminal-manager.ts` has a *set* of attached senders (output fans out to all; writes/resize are last-write-wins) instead of one owner: on socket close the session `detach`es (never kills), and a reconnecting or second client `attach`es to replay scrollback and resume live. **A closed tab, a repo switch, or a dropped socket never ends a PTY** — only an explicit `kill` (the Terminal list close button), the daemon process dying, or the lifecycle bounds below. The daemon also owns the **roster** (name/cwd/status): the renderer hydrates its sidebar list from the `terminalSessions` tRPC query (filtered to the current repo, re-run on reconnect) and renames via the `renameTerminal` mutation, so a still-running or renamed session reappears after a reload. Attach replays a **byte-capped ≤64KB scrollback** (`scrollback-buffer.ts`). So: create/attach ride the WS; list/rename ride tRPC. Lifecycle control is here, not in a hook — a terminal isn't TanStack-Query data. tRPC stays for the Actions *definitions* (CRUD), which ARE data.
-- **A terminal is a `TabKind`, so split view + tabs come for free** — no bespoke panel. Terminal tabs open **pinned** (a click must not replace a running shell like a preview tab). The `path` field holds the session id. **One xterm instance = one DOM node = one pane:** unlike a file (cloneable into both panes), a terminal can live in only ONE pane, so `openTab` activates an already-open terminal in place and `openTabToSide` MOVES it (the `tab.kind === 'terminal'` branches in `stores/tabs.ts`); `detachTerminal` is container-scoped so a moved terminal's old pane can't yank the wrapper back and blank the new one. Don't "simplify" these back to the generic clone path — that reintroduces the blank-pane bug.
-- **xterm instances live in a module registry (`lib/terminal-registry.ts`), NOT in React.** The viewer only mounts the active tab, so a `Terminal` kept in component state would be destroyed (losing scrollback + detaching a background dev server) on every tab switch. Instead each session's `Terminal` is opened into a detached wrapper `<div>` the view merely re-parents on mount and detaches (never disposes) on unmount. Early PTY output is buffered in the registry until the instance exists, so nothing is lost between spawn and first mount. `use-terminal-channel.ts` (mounted once in `AppShell`) routes the inbound bridge into the registry — the inbound twin of `useAppEvents`.
-- **Session lifetime is independent of BOTH the tab and the connection.** `stores/terminals.ts` is the roster, but it's now **daemon-owned and hydrated** (`hydrate` from the `terminalSessions` query), not client-authored — so it survives a reload. Closing a terminal *tab* keeps the PTY running (background server survives); only `close` (explicit kill) ends a PTY. `reset` (repo switch) is **local-only now** — it detaches + disposes this window's xterm instances but does NOT kill the PTYs, which survive the switch and re-hydrate if the repo returns (a different repo just filters them out of the hydrated list). Don't reintroduce a kill-on-switch or kill-on-close-socket path.
-- **Decoupled is not unbounded — the PTY lifecycle has three bounds (2026-07-29).** For two releases nothing removed a naturally-exited session, nothing capped concurrency, and a running session nobody was attached to lived until the daemon died: a long-lived daemon reached **228 sessions and an 8.7 GB peak with a pile of orphaned `zsh -l` processes**. `terminal-manager.ts` now sweeps (`sweepTerminals(now)`, driven by ONE lazily-started `unref`'d 60s interval — never a timer at import): an **exited** entry is forgotten `EXITED_RETENTION_MS` (10min) after exit, so final output still survives a reload but not the week; a **running** one with nobody attached is killed after `DETACHED_IDLE_MS` (**12h**, deliberately generous — the dev server you come back to tomorrow must live, the shell you forgot must not); and `MAX_SESSIONS` (64) evicts cheapest-first (exited entries, then the oldest *unwatched* shell) and **throws** rather than kill a session a human is looking at. **A session with an attached client is never reaped by any of the three**, which is what keeps the Phase-2 decoupling honest — so don't "simplify" the bounds away, and remember every path that can empty `attached` (including `fanOut` dropping a destroyed sender) must start the idle clock or a session detaches invisibly and never expires. The cap's throw is caught in `session.ts` and answered as `terminal:created { id: '' }`: `terminal:created` has no error channel, and an unsettled create would wedge the client's pending promise.
-- **Nerd Font fallback, not a font swap.** The terminal's xterm `fontFamily` is Geist Mono *then* `"Symbols Nerd Font Mono"` (vendored MIT, `assets/fonts/`, `@font-face` in `main.css`) — Geist Mono renders text, the symbols font fills powerline/devicon glyphs per-glyph so prompts don't show tofu. It's terminal-only (app chrome never references it). The **Mono** variant is required (single-cell, aligns to the grid).
-- **OSC 52 clipboard (remote copy) is write-only and host-side** (`lib/terminal-osc52.ts`, registered in `terminal-registry` on every xterm). Claude Code / vim / tmux copy by emitting OSC 52 base64; xterm does not handle it by default, so without this a remote Claude session's copy prints "sent N chars via OSC 52" and the host clipboard stays empty. We decode → `copyText()` (insecure-context safe). **Deliberately no OSC 52 *read*** (`c;?`) — that would report the system clipboard to the remote PTY (exfil). Manual select+copy still works; Claude's "hold Shift while selecting for native copy" is the fallback when OSC 52 is missing, not the happy path.
-- **Selection Copy chip** (`terminal-selection-toolbar.tsx`): when the human selects text in xterm, a floating **Copy** button appears near the selection (T3-style; we do **not** ship "Add to chat"). Uses `getSelection` / `onSelectionChange` via registry helpers + `copyText`. `mousedown` preventDefault is load-bearing — without it, pressing the chip clears the selection before click. Complementary to OSC 52: that path is *app*-driven; this one is *user* selection.
-- **Terminal paint path is one decision: WebGL with automatic DOM fallback (no Settings toggle).** WebGL (`@xterm/addon-webgl`) is the product path because the DOM renderer snaps the font to the grid with a computed `letter-spacing = cellWidth − glyphWidth`; for contiguous **block-element/box-drawing** glyphs (the Claude Code startup logo, powerline fills) that spacing shows as a hairline **vertical gap between every column** — and any `lineHeight > 1` adds the horizontal twin. xterm's **`customGlyphs`** (GPU renderers only) draw U+2500–U+259F edge-to-edge. The WebGL atlas rasterizes glyphs via canvas `fillText`, which **still does per-glyph font fallback**, so Nerd Font glyphs survive. Loaded best-effort in `terminal-registry.ts` *after* `term.open()`, in a `try/catch`, with `onContextLoss → dispose` — no WebGL or a lost context degrades to DOM (gapped block art) rather than a blank pane. Multi-touch (iPad) **force-DOMs** (WebGL contexts get killed under memory pressure). Clear-atlas on resize / tab-switch / wake covers common garble without a user toggle — don't reintroduce a dual Settings control. Keep `lineHeight: 1.0`. **Canvas is gone** (xterm v6). **e2e trap:** WebGL paints to a `<canvas>` and leaves `.xterm-rows` empty — specs use `window.__porcelainTerminalText(index)` / buffer model (`expectTerminalText` in `e2e/helpers/electron.ts`), not DOM scrape.
-- **Touch is a first-class terminal client, and the seam is `isCoarseTouch()` (`lib/platform.ts`), NOT the phone width breakpoint.** An iPad sits at desktop width and still has no Ctrl key. Behaviours that key off it: force-DOM paint, **touch pan → scroll** (`terminal-touch-scroll.ts`), and the one that's a *decision*: **`attachTerminal` deliberately does NOT focus the xterm on a coarse-touch device.** Focusing xterm's hidden helper textarea is what raises the iOS software keyboard, and attach runs on every mount — opening a tab, switching tabs, moving a terminal between panes — so auto-focus meant an iPad could never just *read* scrollback. Focus is now an explicit act: `TerminalView` tap-vs-pan, or the key bar's Keyboard button. Don't "restore" the unconditional focus.
-- **Touch scroll traps** (why “nothing moves” / Claude screams on iPad): (1) xterm 6 only scrolls on **wheel** — finger pans need our adapter; (2) Safari needs **`touch-action: none`** (on `.xterm` + host) or it rubber-bands the page and ignores `preventDefault` on move; (3) listeners use **capture + Pointer Events** (`setPointerCapture`) so moves aren't lost; (4) **alternate buffer** (Claude fullscreen) has no xterm scrollback — `scrollLines` is a no-op. **Never send arrow keys** and **never synthetic `WheelEvent`**: a non-trusted wheel falls through xterm's no-scrollback path into CSI A/B, which Claude rejects ("Scroll wheel is sending arrow keys · use PgUp/PgDn"). Correct alt path: write **SGR wheel bytes** (`CSI < 64/65 ; col ; row M`) when mouse mode includes wheel (vt200/drag/any), else **PageUp/PageDown** (`CSI 5~` / `6~`). Normal buffer: `scrollLines` only.
-- **"This device" terminals: a window on a REMOTE daemon can run a shell on the machine it's displayed on** (2026-07-27; `lib/local-daemon.ts`, `hooks/use-local-terminal.ts`, `main/local-terminal-paths.ts`). The repo lives on a remote Linux box, but only the Mac can run an iOS build — before this the Terminal tab could only reach the bound daemon, so that meant leaving Porcelain. Decisions a fresh read won't explain: (1) **local-only, not general multi-daemon** — the second session exists ONLY for work that is explicitly about the other machine; every repo-scoped query stays on `primary` (the repo is on ITS disk). (2) **The cwd is a stored MAPPING, not a guess** — the remote repo path rarely exists locally, so the human maps it (keyed by environment AND repo path — two machines commonly hold the same path). It's shell-side in userData because it's a fact about THIS machine's filesystem; the remote daemon's config is the wrong disk. **Editable after the fact:** the first "This device" spawn still prompts when unset; the Terminal header shows a **folder icon left of +** (edit mode) so a wrong or moved local clone can be fixed without re-discovering the dialog. `LocalPathDialog` modes: `spawn` (save + open shell), `edit` (save only), `run` (save + run a local-targeted action). (3) **+ is a menu only when remote** — remote host vs This device; on a local window + just opens a shell. (4) **Saved actions pick the machine via `where: primary|local`** (default primary) — same dual-machine model; legacy action `cwd` is still read but no longer written. (5) **Terminal ids are routed, not namespaced** — `sessionForTerminal(id)` (defaulting to `primary`) is the ONE place the registry/store ask which daemon owns a PTY, and local ids are re-registered on every roster hydrate so a session that outlived the window is routable before anything writes to it. (6) **Both rosters hydrate the store in ONE call** — `hydrate` REPLACES, so a call per daemon would leave only the last one. (7) **Electron-only by nature** (the shell router and the local daemon both), so the browser client hides it rather than half-supporting it. **Verification trap:** no suite covers this — the browser project has no shell router and the native fixture always boots local. It was verified with a scratch harness that seeds `remote-daemon.json` to boot the window against a second standalone daemon, then asserts the PTY exists on the LOCAL daemon with the mapped cwd and NOT on the remote one (same box, so only the cwd distinguishes them). Re-verify that way when touching this.
-- **The terminal key bar is TOUCH-ONLY and always on** (`terminal-key-bar.tsx`, gated in `terminal-view.tsx` by `isCoarseTouch()` — no Settings preference): Esc / Tab / sticky Ctrl / ^C / arrows / keyboard toggle. Sits at the **TOP** of the terminal pane (not the bottom): the iOS soft keyboard covers the bottom of the visual viewport, so a bottom bar was hidden whenever you were typing — the whole reason the bar exists. A desktop keyboard already has every key, so the gate is `isCoarseTouch()`, never `useIsMobile` — a landscape iPad is desktop-width and still needs it. **No opt-out:** the device decides, not a preference. Tests that need the bar use the `touchDevice` fixture (`e2e/helpers/app.ts`), which overrides `navigator.maxTouchPoints` — Playwright's own `hasTouch` reports a single point, which `isCoarseTouch` reads as a pen. Four more things a fresh read won't explain: (1) **sticky Ctrl rides a store** (`stores/terminal-input.ts`, keyed by session id so split view can't cross-fire) which the registry's `attachCustomKeyEventHandler` consumes — a soft keyboard has no Ctrl, so this is the only path to ^C/^D/^R there; it disarms on ANY key, and a lone modifier keydown is skipped so Shift-then-letter still works. (2) **Focus preservation is the whole trick**: a tap moves focus out of xterm, and on iOS that dismisses the keyboard — so each key preventDefaults `mousedown` AND samples focus at pointer-down to restore it after, but *only when the terminal already had it*, or Esc would raise a keyboard the human just dismissed. The Keyboard toggle opts out of that restore (it's the one key whose job is to change focus). (3) **Arrows must read the live DECCKM state** (`term.modes.applicationCursorKeysMode` → `terminalArrowBytes`) — the bar writes bytes directly, so sending the normal `ESC [ A` form unconditionally would insert a literal `[A` in vim. (4) **Tap-vs-pan for focus:** focusing xterm's helper textarea raises the software keyboard. On touch, `TerminalView` only focuses when a pointer gesture stays within ~10px (a tap); a scroll pan does not raise the keyboard. Desktop still focuses on pointerdown.
-- **Actions are the 4th agent channel** (`~/.porcelain/actions.json`, `actions-store.ts` ↔ `src/cli/action-file.ts`) — same shape/rules as the board, but the *content is an executable command* the human runs. Running = spawn a terminal with the command typed into a fresh login shell (so it stays live after — Ctrl-C, re-run). The agent CRUDs definitions only; it never executes one (see `audit`). **`initialInput` is written after a quiet period keyed on the output's shape (`initial-input.ts`) — NEVER at spawn, and NOT on the shell's first output:** anything written before readline preps the tty is echoed but DISCARDED (readline's prep flushes queued typeahead), so the command never runs. A spawn-time write failed two release gates (v0.17.1, v0.19.0); the "first output = readline is up" trigger failed a third (2026-07-05 — bash's first chunk is its startup banner, still pre-readline on a slow runner). The reliable signal is the PROMPT — the only output whose tail has no trailing newline — so a prompt-shaped chunk arms a short debounce, a newline-terminated one a long one (also the from-spawn fallback for silent shells) (`createTerminal` in `terminal-manager.ts`). The e2e specs obey the same law: they wait for the `$` prompt before typing (`e2e/terminal.spec.ts`).
+- **`node-pty` is the one native module**, reversing the old native-module-free property — a real PTY
+  has no pure-JS equivalent. Packaging consequences are `audit` invariants.
+- **The terminal rides the daemon WS session, NOT tRPC and NOT a preload channel.** Create/attach ride
+  the WS; list/rename ride tRPC. Lifecycle control lives here, not in a hook — a terminal isn't
+  TanStack-Query data. tRPC stays for Actions *definitions*, which are data.
+- **PTYs are daemon-owned and survive disconnect, reload, tab close, and repo switch.** A session has
+  a *set* of attached senders (output fans out; writes/resize last-write-wins); socket close
+  **detaches, never kills**, and a reconnecting or second client attaches to replay scrollback. Only
+  an explicit kill, the daemon dying, or the bounds below end a PTY.
+- **A terminal is a `TabKind`, so split view and tabs come for free** — no bespoke panel. Terminal tabs
+  open **pinned** (a click must not replace a running shell). **One xterm instance = one DOM node =
+  one pane:** unlike a file a terminal lives in only ONE pane, so `openTab` activates it in place and
+  `openTabToSide` **moves** it; `detachTerminal` is container-scoped so the old pane can't yank the
+  wrapper back and blank the new one. Don't "simplify" back to the generic clone path — that's the
+  blank-pane bug.
+- **xterm instances live in a module registry, NOT in React.** The viewer only mounts the active tab,
+  so a `Terminal` in component state would be destroyed (losing scrollback, detaching a background dev
+  server) on every tab switch. Each session's `Terminal` opens into a detached wrapper `<div>` the
+  view re-parents on mount and detaches — **never disposes** — on unmount. Early PTY output is
+  buffered until the instance exists.
+- **Decoupled is not unbounded — three lifecycle bounds.** Without them a long-lived daemon reached
+  228 sessions and an 8.7 GB peak with orphaned shells. An **exited** entry is forgotten 10 min after
+  exit (final output survives a reload, not the week); a **running** one with nobody attached is killed
+  after **12h** (deliberately generous — the dev server you return to tomorrow must live, the shell you
+  forgot must not); `MAX_SESSIONS` (64) evicts cheapest-first and **throws** rather than kill a session
+  a human is watching. **A session with an attached client is never reaped by any of the three** — that
+  is what keeps the decoupling honest. The sweep is ONE lazily-started `unref`'d 60s interval, never a
+  timer at import. Every path that can empty `attached` (including `fanOut` dropping a destroyed
+  sender) must start the idle clock, or a session detaches invisibly and never expires. The cap's throw
+  is answered as `terminal:created { id: '' }` — that message has no error channel, and an unsettled
+  create would wedge the client's pending promise.
+- **Nerd Font fallback, not a font swap:** Geist Mono *then* `"Symbols Nerd Font Mono"` (vendored MIT)
+  so text renders in Geist Mono and powerline/devicon glyphs fill per-glyph instead of tofu.
+  Terminal-only; the **Mono** variant is required (single-cell, aligns to the grid).
+- **OSC 52 clipboard is write-only and host-side.** Agents and vim/tmux copy by emitting OSC 52 and
+  xterm doesn't handle it, so without this a remote copy prints "sent N chars" and the host clipboard
+  stays empty. **Deliberately no OSC 52 *read*** — that would report the system clipboard to the
+  remote PTY (exfil).
+- **Selection Copy chip:** `mousedown` preventDefault is load-bearing — without it, pressing the chip
+  clears the selection before the click. Complementary to OSC 52 (app-driven vs user selection). We
+  deliberately do not ship "Add to chat".
+- **Paint path is one decision: WebGL with automatic DOM fallback, no Settings toggle.** The DOM
+  renderer snaps the font to the grid with a computed `letter-spacing`, which shows as a hairline
+  **vertical gap between every column** for contiguous block/box-drawing glyphs (agent startup logos,
+  powerline fills); `lineHeight > 1` adds the horizontal twin, so keep `lineHeight: 1.0`. Only GPU
+  renderers get `customGlyphs`, and the WebGL atlas still does per-glyph font fallback so Nerd Font
+  glyphs survive. Load it best-effort *after* `term.open()`, in a try/catch, with
+  `onContextLoss → dispose`, so no-WebGL or a lost context degrades to DOM rather than a blank pane;
+  multi-touch **force-DOMs**, because WebGL contexts die under memory pressure. **e2e trap:** WebGL
+  paints to a `<canvas>` and leaves `.xterm-rows` empty — specs use the buffer-model helper.
+- **Touch is a first-class terminal client, and the seam is `isCoarseTouch()`, NOT the phone width
+  breakpoint** — an iPad sits at desktop width and still has no Ctrl key.
+  - **`attachTerminal` deliberately does NOT focus xterm on a coarse-touch device.** Focusing the
+    hidden helper textarea raises the iOS keyboard, and attach runs on every mount, so auto-focus meant
+    an iPad could never just *read* scrollback. Focus is explicit (tap-vs-pan within ~10px, or the key
+    bar's Keyboard button). Don't restore it.
+  - **Touch scroll traps:** xterm only scrolls on **wheel**, so finger pans need our adapter; Safari
+    needs **`touch-action: none`** or it rubber-bands and ignores `preventDefault`; listeners use
+    capture + Pointer Events with `setPointerCapture` so moves aren't lost; the **alternate buffer** has
+    no scrollback, so `scrollLines` is a no-op there. **Never send arrow keys and never a synthetic
+    `WheelEvent`** — a non-trusted wheel falls through xterm's no-scrollback path into CSI A/B, which
+    agents reject. Correct alt-buffer path: **SGR wheel bytes** when mouse mode includes wheel, else
+    PageUp/PageDown. Normal buffer: `scrollLines`.
+  - **The key bar is TOUCH-ONLY, always on, no Settings opt-out** — the device decides. It sits at the
+    **TOP** of the pane, because the iOS keyboard covers the bottom of the visual viewport and a bottom
+    bar was hidden exactly when you were typing. Traps: (1) **sticky Ctrl rides a store keyed by session
+    id** so split view can't cross-fire; it disarms on ANY key, and a lone modifier keydown is skipped so
+    Shift-then-letter still works. (2) **Focus preservation is the whole trick** — each key
+    preventDefaults `mousedown` and samples focus at pointer-down to restore it, but *only when the
+    terminal already had it*, or Esc would raise a keyboard the human just dismissed; the Keyboard toggle
+    opts out. (3) **Arrows must read the live DECCKM state** — the bar writes bytes directly, so an
+    unconditional `ESC [ A` inserts a literal `[A` in vim. (4) Tests need the `touchDevice` fixture:
+    Playwright's `hasTouch` reports a single point, which `isCoarseTouch` reads as a pen.
+- **"This device" terminals — a remote-bound window can run a shell on the machine it's displayed on.**
+  (1) **Local-only, not general multi-daemon:** the second session exists ONLY for work explicitly about
+  the other machine; every repo-scoped query stays on `primary`. (2) **The cwd is a stored MAPPING, not
+  a guess** — the remote repo path rarely exists locally, so the human maps it, keyed by environment AND
+  repo path (two machines commonly hold the same path); it lives shell-side because it's a fact about
+  THIS machine's filesystem. (3) **+ is a menu only when remote.** (4) Saved actions pick the machine via
+  `where: primary|local`. (5) **Terminal ids are routed, not namespaced** — `sessionForTerminal` is the
+  ONE place anything asks which daemon owns a PTY, and local ids are re-registered on every roster
+  hydrate so a surviving session is routable before anything writes to it. (6) **Both rosters hydrate in
+  ONE call** — `hydrate` REPLACES, so a call per daemon leaves only the last. (7) Electron-only by
+  nature, so the browser client hides it rather than half-supporting it. **Verification trap: no suite
+  covers this** (the browser project has no shell router; the native fixture always boots local). It was
+  verified with a scratch harness seeding `remote-daemon.json` against a second standalone daemon and
+  asserting the PTY exists on the LOCAL daemon with the mapped cwd. Re-verify that way.
+- **`initialInput` is written after a quiet period keyed on the output's shape — NEVER at spawn, and NOT
+  on the shell's first output.** Anything written before readline preps the tty is echoed but DISCARDED,
+  so the command never runs. A spawn-time write failed two release gates; "first output = readline is
+  up" failed a third (a shell's first chunk is its startup banner, still pre-readline on a slow runner).
+  The reliable signal is the PROMPT — the only output whose tail has no trailing newline — so a
+  prompt-shaped chunk arms a short debounce and a newline-terminated one a long one (also the from-spawn
+  fallback for silent shells). The e2e specs obey the same law: wait for the prompt before typing.
 
-## Agents run in a terminal — the in-app runner is gone (2026-07-27)
+## Deliberately absent
 
-Deleted: the Agent sidebar tab, agent threads and their store, the four provider drivers
-(`src/backend/agents/`), `src/shared/agent-protocol.ts`, the Settings → Agents panel, the
-agent tRPC procedures, and the `agent:*` WS messages. **Why it went, so nobody rebuilds it:**
-it cost ~18k lines and a 40% fix rate in 16 days for a surface its author used twice — and
-the moat it was supposed to feed, the Review, is fed by the **porcelain CLI**, not by
-in-app threads. An agent running in Porcelain's embedded terminal, in Ghostty, or over SSH
-publishes the same Review through the same CLI, so nothing in the review loop ever depended
-on owning the runner. Porcelain is the **review layer**: agents run in your terminal.
-Don't reintroduce an in-app runner without reopening the `product` skill's
-"Companion, not competitor" principle first. **What survived that panel:** the
-skills-install UI it hosted (`skills-section.tsx`) is now the **Companion** block at the
-bottom of Settings → **General**, and the skills-update toast opens there. It stays
-shell-only (`!isBrowser`) exactly as the Agents panel was `shellOnly` — the commands and
-the bundled version come from the shell router, so the browser client would render two
-empty boxes.
+| Not built | Why |
+|---|---|
+| In-app agent runner / chat threads | ~18k lines and a 40% fix rate in 16 days for a surface its author used twice. The Review is fed by the **porcelain CLI**, so an agent in Porcelain's terminal, another emulator, or over SSH publishes the same Review. Reopen `product`'s "Companion, not competitor" before rebuilding |
+| Porcelain MCP server | Channels are the CLI writing local JSON |
+| Agent chat / relay channel | Agent-to-agent messages with file claims and overlap detection weren't worth the maintenance; coordinating parallel agents is not a problem Porcelain claims to solve |
+| Standalone artifact + evidence tab kinds | Folded into the Review canvas — one document, not a second narrative surface beside it |
+| Glaze / vibrancy / a `Surface` wrapper | See "One opaque design" |
+| A fleet-wide shared daemon token | Per-device credentials, individually revocable |
+| Config→channel migrations, upgrade shims | Pre-audience: **no one-shot migrations from retired formats**; corrupt or unknown shapes → empty/default. Don't re-add `migrate*FromConfig`, `evidence.json`, action `cwd`, bare-string reviewed marks, or the single-`{url,token}` remote-daemon parse |
+| Linux/Windows desktop packaging | A *distribution* decision only: nobody ran the unsigned Linux build and its failure could block a fine Mac release. **Every Linux runtime path stays** — `resolvePlatform`/`PORCELAIN_FORCE_LINUX`, `isLinuxShell`, renderer-drawn window controls, Ctrl-primary keybindings. Don't "clean up" those as dead code; the daemon ships to Linux via npm and the browser client is how Linux humans get a seat |
 
-## Packaging, signing, updates
+**Still product, not trash:** WebGL→DOM terminal fallback; dual primary+local daemon sessions;
+`exportRepoSettings`/`importRepoSettings`; Linux shell chrome; `feature` internal ids while the UI says
+Review (the rename is a structural project).
 
-Durable config facts (the step-by-step runbook is the `releasing` skill): `electron-builder.yml` — appId `com.fabiofiorita.porcelain`, mac targets dmg + zip (arm64; the **zip** is what electron-updater downloads), hardened runtime, signs with the "Developer ID Application" identity. Auto-update is wired in `src/main/updater.ts` (no-op unless `app.isPackaged`; checks on launch + every 4h, installs on quit) and surfaced by the titlebar `UpdateButton` (`update-button.tsx`, next to the environment chip — matching chip surface/height, icon-only on phone; shell chrome, not the viewer TopBar) + the Settings Updates section (same backend). The porcelain CLI is a **second main build input** (`electron.vite.config.ts`) emitting `out/main/cli/porcelain.js`, importing only Node builtins so a plain `node` can run it. Icons regenerate from `build/icon.png` (1024 master) via iconutil + ImageMagick. **Dep placement** (main/preload deps in `dependencies`, renderer-only in `devDependencies`) and the **empty-`CSC_LINK`** trap are `audit` invariants.
+## Packaging, release, conventions
 
-**Release pipeline shape (2026-07-27):** simple main + tag. `pnpm release:cut` (default **patch**) bumps on main, tags, pushes, dispatches `release.yml` which packages mac (sign/notarize), publishes the GH Release (latest), and npm `porcelain-daemon`. No pending branches, no multi-workflow pre-cut gate. Native e2e is optional (manual workflow), not a ship gate. Details in the `releasing` skill.
+`electron-builder.yml`: mac dmg + zip (arm64 — the **zip** is what electron-updater downloads), hardened
+runtime, Developer ID signing. Auto-update no-ops unless `app.isPackaged`. The porcelain CLI is a
+**second main build input** importing only Node builtins, so a plain `node` runs it. Release is simple
+main + tag: `pnpm release:cut` (default **patch**) bumps, tags, and dispatches one workflow that
+packages, publishes the GH Release, and publishes npm `porcelain-daemon` — no pending branches, no
+multi-workflow pre-cut gate, native e2e optional. Runbook: `releasing`. Dep placement and the
+empty-`CSC_LINK` trap are `audit` invariants.
 
-**The packaged desktop app is macOS-only (decision, 2026-07-27).** The unsigned Linux AppImage/deb targets and the `package-linux` release job are deleted: nobody ran that build, and a Linux packaging failure could block a Mac release that was fine. This is a *distribution* decision and changes **nothing** about Linux at runtime — the daemon's own home is a Linux box (shipped via npm as `porcelain-daemon`, untouched), the browser client is how Linux humans get a seat, and `pnpm dev`/`pnpm start` on Linux is the maintainer's daily loop. So every Linux code path stays: `resolvePlatform`/`PORCELAIN_FORCE_LINUX`, `isLinuxShell`, the renderer-drawn window controls, Ctrl-primary keybindings. Don't "clean up" those as dead code.
-
-## Conventions
-
-- **shadcn primitives only**: never hand-roll a primitive (sidebar, tabs, dialog, tree, …); search shadcn/registries first; a new primitive requires user approval.
+- shadcn primitives only; a new primitive needs the human's approval.
 - Strict TS, no `any`, no `as unknown as`, no dead code, no commented-out code.
-- Conventional Commits (`feat:`, `fix:`, `chore:`, `refactor:`, `test:`, `docs:`).
-- **Development worktrees are runtime-isolated** (`scripts/worktree.mjs` + `scripts/dev-env.mjs`): primary keeps port 43118 and the original dev homes; every managed `work/<slug>` checkout has `.porcelain-worktree.json` with a unique 43200–43999 port and derives per-slug channels, user data, and playground. `PORCELAIN_DEV_PLAYGROUND` carries that seed into the daemon and is scrubbed from spawned PTYs. Cleanup owns the whole disposable unit after merge.
-- Verification gate before any commit: `pnpm verify` (= lint [Biome + control recipes + knip] && test && build; typecheck runs inside build) must all pass.
-- **Related skills**: `audit` = the security/correctness/perf/type invariants to preserve (read before main-process/IPC/config/git/packaging changes); `releasing` = the release runbook; `product` = what/why for features. This skill is the *what* for code structure.
-
-## On-disk shapes (no upgrade shims)
-
-Pre-audience product: **no one-shot migrations from retired formats.** Channel files and config must match the current schemas. Corrupt or unknown shapes → empty/default (home-channel renames unparseable channel JSON to `.corrupt-*`; prefs fall back to Files for an unknown `sidebarTab`). Do not re-add `migrate*FromConfig`, `evidence.json`, action `cwd`, bare-string reviewed marks, or single-`{url,token}` remote-daemon parse.
-
-**Still product (not trash):** WebGL→DOM terminal fallback; dual primary+local daemon sessions; `exportRepoSettings`/`importRepoSettings` (script/companion); Linux shell chrome; `feature` internal ids while UI says Review (rename is a structural project).
-
-**Do not reintroduce:** Porcelain MCP server, in-app agent runner / chat relay, glaze/vibrancy, a fleet-wide shared daemon token, standalone artifact/evidence tab kinds, config→channel migrations.
+- Conventional Commits. Gate before any commit: `pnpm verify`.
+- Managed worktrees are runtime-isolated (unique port, per-slug channels/user data/playground).
+  `PORCELAIN_DEV_PLAYGROUND` carries the seed into the daemon and **must stay in `terminal-env.ts`'s
+  scrub list**.
 
 ## Nomenclature
 
-Shared vocabulary so a bare noun ("improve the viewer", "the Changes tab is wrong") resolves to one place without asking. Each term maps to real code; when the user uses one, act on the named region — don't re-ask which one. The file in parens is the **entry point** — read it for current mechanics; the `architecture` skill holds the cross-cutting decisions and traps. This is the lookup table.
+The lookup table for bare nouns. When the human says one, act on that region — don't re-ask. The file in
+parens is the **entry point**; read it for mechanics.
 
-**Shell regions (the window, outside-in):**
-- **Top bar** — the full-width window **titlebar** (`title-bar.tsx`): traffic lights + a centered search button + the **environment switcher** (top-right, `environment-switcher.tsx`) and, when a release is ready, the **Update** install chip (`update-button.tsx`). **Not** the viewer's own header (`TopBar` in `app-shell.tsx`, below it).
-- **Environment switcher** — the top-right chip + menu naming the machine this window works on, with Use here / New window per environment (`environment-switcher.tsx`). **Always rendered, local or remote** — it replaced a Remote-only chip, which couldn't be how you *go* remote since it only existed once you already were (2026-07-26). In the browser client it degrades to a static identity label (no shell router to switch with).
-- **Sidebar** (unqualified = the **left** one) — `app-sidebar.tsx`; the nav panel (Cmd+B). An **icon rail** beside a **content panel** (active tab's body); footer = **branch chip** (left) + **worktrees picker** (right).
-- **Viewer** — the central panel (`shell/viewer.tsx`, `components/viewer/`). **Never "editor"** — Porcelain is a viewer.
-- **Quick Access** — the **right** panel (`right-sidebar.tsx`, Cmd+.); its contents follow the active sidebar tab.
+**Shell regions (outside-in)**
 
-**Inside the sidebar** (tabs `Files`·`Changes`·`Review`·`History`·`Search`·`Board`·`Terminal` — review-loop order; `sidebarTab` pref, Cmd+1–7 — a vertical icon rail, ⌘B collapses to it; the Review tab's pref id is still `feature`):
-- **File tree** — Files body (`file-tree.tsx` / `tree-node.tsx`).
-- **Search list** — Search body (`search-list.tsx`): repo-wide code search (`gitSearchCode`), distinct from the ⌘⇧F `ContentSearch` overlay (`gitGrep`).
-- **Changes list** — Changes body (`changes-list.tsx`), grouped by flow layer.
-- **History list** — History body (`history-list.tsx`).
-- **Feature list** — Feature body (`feature-list.tsx`): header (name + progress + **Open Review** + ship handoff) and the file outline (section titles + files with reviewed marks; changed → diff, context/shipped → file). Intent / Execution / Evidence tabs live only in the viewer canvas — not duplicated in the sidebar. Clear review lives on the right-rail companion.
-- **Review inbox** — a `SidebarGroup` at the top of the Feature body (`review-inbox.tsx`, above the outline in every state): the OTHER worktrees of the family with agent work awaiting review; one click switches this window there. Rows assembled by `worktree-inbox.ts`.
-- **Board list** — Board body (`board-list.tsx`): the todo/doing/done cards.
-- **Terminal list** — Terminal body (`terminal-list.tsx`): the roster of terminal **sessions** (they outlive their tabs — a closed tab keeps the PTY running).
-- **Key bar** — the key row **above** a terminal pane (`terminal-key-bar.tsx`): Esc / Tab / sticky Ctrl / ^C / arrows / keyboard toggle; always on for coarse-touch devices (iPhone/iPad), never a Settings option.
-- **Selection Copy** — floating **Copy** chip over a non-empty terminal selection (`terminal-selection-toolbar.tsx`); host clipboard via `copyText`, not OSC 52.
+| Term | Entry | Note |
+|---|---|---|
+| Top bar | `title-bar.tsx` | The full-width titlebar. **Not** the viewer's header (`TopBar` in `app-shell.tsx`) |
+| Environment switcher | `environment-switcher.tsx` | **Always rendered, local or remote** — a Remote-only chip couldn't be how you *go* remote. Static label in the browser |
+| Sidebar (unqualified = left) | `app-sidebar.tsx` | Icon rail + content panel (⌘B); footer = branch chip + worktrees picker |
+| Viewer | `shell/viewer.tsx` | The central panel. **Never "editor"** |
+| Quick Access | `right-sidebar.tsx` | The right panel (⌘.); contents follow the active sidebar tab |
 
-**Inside the viewer:**
-- **Glance** — companion home an empty viewer pane renders with a repo open (`glance-home.tsx`; phone and desktop, U6): work in flight + always-on Jump to; taps open the existing surfaces.
-- **Tab bar** — the floating capsule of open documents (`tab-bar.tsx`).
-- **Tab** — one open document. **Preview** = single-click, italic, replaced by the next; **pinned** = double-click/edit, kept.
-- **Split view / pane** — two side-by-side **panes**, each its own tabs (`panes`/`activePaneIndex` in `stores/tabs.ts`); "Open to the Side". Model in `architecture` (Routing).
-- **Tab kinds** — `file view` / `source view` (`source-view.tsx`) / `markdown reader` (`markdown-view.tsx`) / `html preview` (`html-view.tsx`, sandboxed; Preview|Source like markdown) / `diff view` (`diff-view.tsx`) / `commit view` (`commit-view.tsx`) / `review view` (`review-view.tsx`) / `search view` (`search-view.tsx`) / `feature view` (`feature-view.tsx`) / `explore view` (`explore-view.tsx`) / `board view` (`board-view.tsx`) / `terminal view` (`terminal-view.tsx`). What each renders → read the file; the concepts → `product`. (The `feature view` IS the Review canvas — Intent / Execution / Evidence tabs; the former `artifact`/`evidence` tab kinds are gone. `Tab.highlight` carries agent-changed line ranges for Feature-outline file opens.)
+**Sidebar tabs** — Files · Changes · Review · History · Search · Board · Terminal (review-loop order,
+⌘1–7; the Review tab's stored pref id is still `feature`).
 
-**Inside Quick Access** (section follows the sidebar tab):
-- Files → **Pinned** (`pinned-group.tsx`) + **Notes card** (`notes-card.tsx`), in `files-quick-access.tsx`.
-- Search → **Recent searches** (`search-quick-access.tsx`).
-- Changes/History/Feature → **Quick commands** (`quick-commands-group.tsx`): a **Suggested** card over the **Commands** grid.
-- History → **File timeline** (`file-timeline-group.tsx`): the commit history of the file open in the viewer (`gitFileLog`, `--follow`); click an entry to open that commit.
-- Changes/Feature → **Commit composer** (`commit-group.tsx`) + **Comments** (`comments-group.tsx`).
-- Terminal → **Actions** (`actions-group.tsx`).
-- Board → **Focus** (`board-quick-access.tsx`): full detail of the selected card (default = first Doing, then Todo, then Done). Click any card in the list or wide kanban to focus it; Edit / Move / Delete live on the rail. Selection is client-only (`stores/board-selection.ts`) — not a second kanban and not Files pins/notes (that was the retired U18 borrow).
-- Feature → **Reading** companion only (`review-group.tsx` + Comments) — not a clone of Changes git commands/commit (decided 2026-07-20, P7). Outline is a header card (Open Review + ship handoff + Execution files). **Clear review & evidence** is an inline button on the right-rail companion (`review-group.tsx` + AlertDialog) — not a lone … menu item on the list.
+| Term | Entry | Note |
+|---|---|---|
+| File tree | `file-tree.tsx` / `tree-node.tsx` | |
+| Search list | `search-list.tsx` | `gitSearchCode`; distinct from the ⌘⇧F `ContentSearch` overlay (`gitGrep`) |
+| Changes list | `changes-list.tsx` | Grouped by flow layer |
+| History list | `history-list.tsx` | |
+| Feature list | `feature-list.tsx` | Header + file outline. **Intent/Execution/Evidence live only in the viewer canvas** |
+| Review inbox | `review-inbox.tsx` | Other worktrees with work awaiting review; rows from `worktree-inbox.ts` |
+| Board list | `board-list.tsx` | todo/doing/done cards |
+| Terminal list | `terminal-list.tsx` | Roster of **sessions** — they outlive their tabs |
+| Key bar | `terminal-key-bar.tsx` | Above the terminal pane; coarse-touch only, never a Settings option |
+| Selection Copy | `terminal-selection-toolbar.tsx` | Host clipboard via `copyText`, not OSC 52 |
 
-**Overlays:**
-- **File finder** — Cmd+P fuzzy finder (`file-finder.tsx`).
-- **Find bar** — Cmd+F in-viewer search (`find-bar.tsx`).
-- **Settings** — gear → `settings-dialog.tsx` (General · Share · Remotes · Review flow · Updates).
-- **Welcome screen** — the no-repo / repo-picker state (`welcome.tsx`).
+**Inside the viewer**
 
-**Cross-cutting vocabulary** (the *what* and *why* live in `product`; channel internals + traps in `architecture`/`audit`):
-- **Flow / flow layers** — the architectural-layer grouping of changes (entry-point → data); the heart of "review as a story".
-- **The Review / feature view / review set** — one active **unit-of-work** story as a three-tab canvas (**the Review**): **Intent** (thesis + walkthrough prose / optional freeform HTML|Excalidraw), **Execution** (agent-listed files + notes only — not the full working tree), **Evidence** (HTML proof when present). Product language is **Review** (bugs/chores first-class); code may keep `feature` tab ids. Lifecycle: empty (start-of-unit / begin prompt) → in progress (thin Execution/Evidence) → ready to close (Evidence and/or high reviewed % → Changes handoff). Sidebar outline + right-rail companion (Clear home). Listed files tagged **changed** / **context** / **shipped**. Manifest in `~/.porcelain/review-sets.json`. Continuous review (Changes/History) and Explore still use the reading surface with evidence opt-in.
-- **Evidence** — agent-authored self-contained **HTML** *proof the loop closed* (screenshots, pass/fail); directory-on-disk (`~/.porcelain/loop-evidence/<key>/`); app write = clear only. Renders as the Review canvas **Evidence** tab (full height). Structured checks via `evidence check` (overall status DERIVED). Excalidraw is Intent-only, not evidence. Ephemeral — clear after review.
-- **Review comments** — the reviewer's line/file notes (`~/.porcelain/comments.json`), app→agent via the porcelain CLI.
-- **Reviewed marks** — the per-file "reviewed" checkboxes the human ticks in the Changes/Feature lists (`~/.porcelain/reviewed.json`), app→agent via the porcelain CLI (read-only, like notes); cleared on commit.
-- **Project board** — per-repo todo/doing/done (`~/.porcelain/board.json`), two-way via the porcelain CLI.
-- **Embedded terminal / Actions** — real PTYs (node-pty + xterm.js) on the daemon's WS session (`lib/daemon.ts`, not tRPC and no longer a preload channel). **Actions** = saved named commands (`~/.porcelain/actions.json`); agent curates, **human runs**.
-- **Daemon** — the headless, Electron-free backend process (`src/backend/server.ts`) the renderer talks to over HTTP + one WebSocket on 127.0.0.1; the shell spawns/babysits it. Entry points: `src/main/daemon.ts` (spawn), `src/backend/server.ts` + `session.ts` (serve). "The daemon" always resolves here.
-- **Repo / worktree / window** — one repo per window; the worktree switcher sits in the sidebar footer.
-- **Surface language** — the opaque design (shadcn preset `b5J4txmSY`: nova/neutral/sky). Raised surfaces are cards (`rounded-* border bg-card`) over the app background; recessed wells are `border bg-muted`; hover/selected are the opaque `bg-accent`/`bg-accent/50` (and `bg-sidebar-accent`). **Surfaces are opaque; menus are the one translucent exception** (nova's `menuColor: default-translucent`) — the former glaze system stays gone. ONE design serves the Electron shell and the browser alike.
+| Term | Entry | Note |
+|---|---|---|
+| Glance | `glance-home.tsx` | Companion home an empty pane renders with a repo open |
+| Tab bar / Tab | `tab-bar.tsx` | Preview = single-click, italic, replaced; pinned = double-click/edit |
+| Split view / pane | `stores/tabs.ts` | Two panes, each its own tabs; "Open to the Side" |
+| Tab kinds | `viewer.tsx` switch | file / source / markdown reader / html preview / diff / commit / review / search / feature / explore / board / terminal. **The `feature view` IS the Review canvas** |
+
+**Inside Quick Access** (section follows the sidebar tab)
+
+| Sidebar tab | Quick Access |
+|---|---|
+| Files | Pinned + Notes card |
+| Search | Recent searches |
+| Changes / History / Feature | Quick commands — a Suggested card over the Commands grid |
+| History | File timeline (`gitFileLog --follow`) |
+| Changes / Feature | Commit composer + Comments |
+| Terminal | Actions |
+| Board | Focus — full detail of the selected card; selection is client-only, **not** a second kanban |
+| Feature | **Reading companion only** (`review-group.tsx` + Comments) — deliberately not a clone of Changes' git commands/commit. "Clear review & evidence" is an inline button here |
+
+**Overlays:** file finder (⌘P) · find bar (⌘F) · Settings (`settings-dialog.tsx` — General · Share ·
+Remotes · Review flow · Updates) · welcome screen.
+
+**Cross-cutting** (the *what*/*why* live in `product`; internals here and in `audit`)
+
+| Term | Meaning |
+|---|---|
+| Flow / flow layers | Architectural-layer grouping of changes (entry-point → data); the heart of "review as a story" |
+| The Review (feature view / review set) | One unit-of-work story as a three-tab canvas: **Intent** (thesis + walkthrough prose, optional freeform HTML/Excalidraw), **Execution** (agent-listed files + notes, not the working tree), **Evidence**. Files tagged **changed** / **context** / **shipped**. Manifest: `review-sets.json`. Product language is **Review**; code may keep `feature` ids |
+| Evidence | Agent-authored self-contained HTML *proof the loop closed*; directory-on-disk under `loop-evidence/<key>/`; app write = clear only. Excalidraw is Intent-only. Ephemeral |
+| Review comments | The reviewer's line/file notes (`comments.json`), app→agent via the CLI |
+| Reviewed marks | Per-file "reviewed" checkboxes (`reviewed.json`), app→agent, read-only like notes |
+| Project board | Per-repo todo/doing/done (`board.json`), two-way via the CLI |
+| Actions | Saved named commands (`actions.json`); agent curates, **human runs** |
+| Daemon | The headless Electron-free backend (`src/backend/server.ts`) the renderer reaches over HTTP + one WS; the shell spawns and babysits it (`src/main/daemon.ts`). "The daemon" always resolves here |
+| Surface language | The opaque design: raised = cards, recessed = wells, hover/selected = `bg-accent`/`bg-accent/50`. Menus are the one translucent exception. ONE design serves Electron and the browser alike |
