@@ -1,3 +1,4 @@
+import { ObserveInteractiveMarker } from 'expo-observe'
 import { router, Stack } from 'expo-router'
 
 import { PlaceholderScreen } from '@/components/placeholder-screen'
@@ -28,6 +29,7 @@ export function ChangesScreen() {
           onPress={() => router.push('/settings')}
         />
       </Stack.Toolbar>
+      <ObserveInteractiveMarker />
     </>
   )
 }

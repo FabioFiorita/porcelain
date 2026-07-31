@@ -1,3 +1,5 @@
+import { ObserveInteractiveMarker } from 'expo-observe'
+
 import { PlaceholderScreen } from '@/components/placeholder-screen'
 import { SettingsToolbar } from '@/components/settings-toolbar'
 
@@ -14,6 +16,7 @@ export function TerminalScreen() {
         ]}
       />
       <SettingsToolbar />
+      <ObserveInteractiveMarker />
     </>
   )
 }

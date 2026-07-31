@@ -56,6 +56,25 @@ local emulator loop):
 The TestFlight job needs App Store Connect credentials configured on EAS before
 it can run non-interactively; until then a native change builds but stops there.
 
+## Startup metrics
+
+`expo-observe` reports launch performance to EAS Observe. The root layout is
+wrapped in `ObserveRoot.wrap` (cold and warm time-to-first-render) and each of
+the four tab screens renders `<ObserveInteractiveMarker />`, which marks
+time-to-interactive for the launch — only the first mark in a session counts, so
+whichever tab the app restores into supplies it.
+
+Per-route navigation metrics (`Observe.configure({ integrations: … })`) and
+custom `Observe.logEvent` calls are deliberately absent: their dashboards start
+at the Production plan, so on the current plan they would ship data that cannot
+be read. Two things to know when reading the numbers:
+
+- Debug builds do not dispatch. A dev-client run reports nothing unless
+  `dispatchInDebug: true` is set temporarily.
+- The marker fires on mount. Once a tab screen fetches real daemon data, move it
+  below the loaded content or time-to-interactive just repeats
+  time-to-first-render.
+
 ## Where code goes
 
 ```

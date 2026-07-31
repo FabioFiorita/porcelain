@@ -1,3 +1,4 @@
+import { ObserveInteractiveMarker } from 'expo-observe'
 import { Stack } from 'expo-router'
 
 import { PlaceholderScreen } from '@/components/placeholder-screen'
@@ -17,6 +18,7 @@ export function FilesScreen() {
       />
       <Stack.SearchBar placeholder="Search files" />
       <SettingsToolbar />
+      <ObserveInteractiveMarker />
     </>
   )
 }
