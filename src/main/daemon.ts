@@ -9,7 +9,7 @@ import {
   type WebContents,
 } from 'electron'
 import { z } from 'zod'
-import { ensureAdminToken } from '../backend/admin-token'
+import { ensureAdminToken } from '../backend/net/admin-token'
 import {
   loadRemoteEnvironmentState,
   type RemoteDaemon,

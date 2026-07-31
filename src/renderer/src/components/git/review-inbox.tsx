@@ -1,4 +1,4 @@
-import type { InboxRow } from '@backend/worktree-inbox'
+import type { InboxRow } from '@backend/git/worktree-inbox'
 import {
   SidebarGroup,
   SidebarGroupContent,

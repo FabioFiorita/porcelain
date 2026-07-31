@@ -1,14 +1,14 @@
 import { watch } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
 import { basename, dirname } from 'node:path'
-import { actionsPath } from './actions-store'
-import { type AppEvent, emitAppEvent } from './app-events'
-import { boardPath } from './board-store'
-import { commentsPath } from './comment-store'
-import { loopEvidenceRoot } from './evidence-store'
-import { layersPath } from './layers-store'
-import { reviewSetsPath } from './review-store'
-import { scopePath } from './scope-store'
+import { type AppEvent, emitAppEvent } from '../app-events'
+import { actionsPath } from '../stores/actions-store'
+import { boardPath } from '../stores/board-store'
+import { commentsPath } from '../stores/comment-store'
+import { loopEvidenceRoot } from '../stores/evidence-store'
+import { layersPath } from '../stores/layers-store'
+import { reviewSetsPath } from '../stores/review-store'
+import { scopePath } from '../stores/scope-store'
 
 /**
  * Watch the agent channels in `~/.porcelain` — `review-sets.json` (→ `feature-view`),

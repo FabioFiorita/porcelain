@@ -1,14 +1,14 @@
 import { readFile } from 'node:fs/promises'
 import { isAbsolute, relative, resolve } from 'node:path'
 import { z } from 'zod'
-import { porcelainHomePath } from '../shared/porcelain-home'
-import { createHomeChannel } from './home-channel'
+import { porcelainHomePath } from '../../shared/porcelain-home'
+import { createHomeChannel } from '../net/home-channel'
 import {
   type ReviewSection,
   type ReviewSet,
   reviewSectionSchema,
   reviewSetSchema,
-} from './review-set'
+} from '../review/review-set'
 
 /**
  * True when `entryPath` (a path from the external, CLI-authored review-set file)

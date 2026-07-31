@@ -11,7 +11,7 @@ import WebSocket from 'ws'
 // The session and the router statically import terminal-manager, which imports
 // node-pty — a native module built for Electron's ABI that won't load under
 // plain-Node Vitest. Mock it (hoisted) so the import graph never touches it.
-vi.mock('./terminal-manager', () => ({
+vi.mock('../terminal/terminal-manager', () => ({
   listTerminals: () => [],
   renameTerminal: vi.fn(),
   createTerminal: vi.fn(() => 'term-1'),
@@ -23,11 +23,11 @@ vi.mock('./terminal-manager', () => ({
   resizeTerminal: vi.fn(),
 }))
 
-import { router } from './api'
-import { initConfigDir } from './config-store'
+import { router } from '../api'
+import { initConfigDir } from '../stores/config-store'
+import { attachTerminal } from '../terminal/terminal-manager'
 import { createDaemonHttp } from './daemon-http'
 import { closeAllSessions, closeClientSessions, createSession, sessionCount } from './session'
-import { attachTerminal } from './terminal-manager'
 
 const TOKEN = 'test-token'
 const CLIENT_TOKEN = 'client-token'

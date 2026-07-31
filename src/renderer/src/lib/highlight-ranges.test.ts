@@ -1,4 +1,4 @@
-import type { ReadingFile } from '@backend/feature-view'
+import type { ReadingFile } from '@backend/review/feature-view'
 import { describe, expect, it } from 'vitest'
 import { highlightRangesForFile, lineInHighlightRanges } from './highlight-ranges'
 

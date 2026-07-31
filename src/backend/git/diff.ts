@@ -1,4 +1,4 @@
-import { headLabel } from '../shared/head'
+import { headLabel } from '../../shared/head'
 
 export type FileStatus = 'modified' | 'added' | 'deleted' | 'renamed' | 'untracked'
 

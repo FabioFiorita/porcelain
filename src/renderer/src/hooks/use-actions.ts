@@ -1,4 +1,4 @@
-import type { Action, ActionWhere } from '@backend/actions-store'
+import type { Action, ActionWhere } from '@backend/stores/actions-store'
 import { onMutationError } from '@renderer/hooks/mutation-error'
 import { spawnLocalTerminal } from '@renderer/lib/terminal-actions'
 import { trpc } from '@renderer/lib/trpc'

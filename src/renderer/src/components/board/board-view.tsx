@@ -1,4 +1,4 @@
-import type { BoardCard } from '@backend/board-store'
+import type { BoardCard } from '@backend/stores/board-store'
 import { Button } from '@renderer/components/ui/button'
 import { BOARD_COLUMNS, useBoardCards } from '@renderer/hooks/use-board'
 import { draftFromCard, useCardDraftStore } from '@renderer/stores/card-draft'

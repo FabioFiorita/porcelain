@@ -1,4 +1,4 @@
-import type { CommitConventions } from '@backend/conventions'
+import type { CommitConventions } from '@backend/git/conventions'
 import { SidebarProvider } from '@renderer/components/ui/sidebar'
 import { useCommit, useCommitConventions, useStageAll } from '@renderer/hooks/use-commit'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'

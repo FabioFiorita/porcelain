@@ -7,7 +7,7 @@ import { WebSocket } from 'ws'
 // Same node-pty wall as daemon-http.test.ts: session.ts statically imports
 // terminal-manager (→ node-pty). Mock it (hoisted) so the import never loads the
 // native module; killTerminal stays a spy so we can prove close DOESN'T call it.
-vi.mock('./terminal-manager', () => ({
+vi.mock('../terminal/terminal-manager', () => ({
   createTerminal: vi.fn(() => 'term-1'),
   attachTerminal: vi.fn(() => ({ scrollback: '', status: 'running' as const })),
   detachTerminal: vi.fn(),
@@ -19,16 +19,16 @@ vi.mock('./terminal-manager', () => ({
 
 // file-watch is real code (node:fs), but the session unit test only cares that
 // the routing lands — mock the four entry points session.ts calls as spies.
-vi.mock('./file-watch', () => ({
+vi.mock('../fs/file-watch', () => ({
   setWatchedFiles: vi.fn(),
   setWatchedDirs: vi.fn(),
   clearWatchedFiles: vi.fn(),
   clearWatchedDirs: vi.fn(),
 }))
 
-import { clearWatchedDirs, clearWatchedFiles, setWatchedFiles } from './file-watch'
+import { clearWatchedDirs, clearWatchedFiles, setWatchedFiles } from '../fs/file-watch'
+import { detachSender, killTerminal } from '../terminal/terminal-manager'
 import { broadcastAppEvent, createSession } from './session'
-import { detachSender, killTerminal } from './terminal-manager'
 
 // A minimal fake ws.WebSocket: an EventEmitter with a `send` spy and a settable
 // `readyState`, so we can drive `message`/`close` and control the OPEN check

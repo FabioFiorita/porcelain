@@ -1,4 +1,4 @@
-import type { ChangedFile, DiffStat } from './diff'
+import type { ChangedFile, DiffStat } from '../git/diff'
 import type { Layer } from './flow'
 import type { ReviewSet } from './review-set'
 

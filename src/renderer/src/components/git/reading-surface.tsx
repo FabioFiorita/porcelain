@@ -1,5 +1,5 @@
-import type { DiffLine } from '@backend/diff'
-import type { FeatureReading, ReadingFile } from '@backend/feature-view'
+import type { DiffLine } from '@backend/git/diff'
+import type { FeatureReading, ReadingFile } from '@backend/review/feature-view'
 import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
 import {

@@ -15,7 +15,7 @@ export interface Layer {
   pattern: string
 }
 
-// Kept in sync with DEFAULT_LAYERS in src/backend/flow.ts (the app's source of truth);
+// Kept in sync with DEFAULT_LAYERS in src/backend/review/flow.ts (the app's source of truth);
 // layers-file.test.ts asserts the two are identical so this copy can't drift. We
 // duplicate rather than import so this server stays a dependency-free island that never
 // reaches into src/backend. Starter Docs + Agents groups only — not a fat framework

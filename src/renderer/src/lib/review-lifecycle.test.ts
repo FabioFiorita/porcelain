@@ -1,4 +1,4 @@
-import type { FeatureReading } from '@backend/feature-view'
+import type { FeatureReading } from '@backend/review/feature-view'
 import { describe, expect, it } from 'vitest'
 import {
   hasIntentContent,

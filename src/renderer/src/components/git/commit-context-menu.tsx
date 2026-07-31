@@ -1,4 +1,4 @@
-import type { Commit } from '@backend/diff'
+import type { Commit } from '@backend/git/diff'
 import {
   ContextMenu,
   ContextMenuContent,

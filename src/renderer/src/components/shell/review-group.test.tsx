@@ -1,4 +1,4 @@
-import type { FeatureReading } from '@backend/feature-view'
+import type { FeatureReading } from '@backend/review/feature-view'
 import { SidebarProvider } from '@renderer/components/ui/sidebar'
 import { useReviewComments } from '@renderer/hooks/use-comments'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'

@@ -1,4 +1,4 @@
-import type { Action } from '@backend/actions-store'
+import type { Action } from '@backend/stores/actions-store'
 import { create } from 'zustand'
 
 /**

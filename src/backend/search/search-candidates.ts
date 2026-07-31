@@ -1,5 +1,5 @@
+import { visibleFilePaths } from '../repo-config'
 import { directoriesOf } from './fuzzy'
-import { visibleFilePaths } from './repo-config'
 
 // The finder searches visible files PLUS their ancestor folders. Both the
 // hidden-path filtering and the directory derivation run over the full file

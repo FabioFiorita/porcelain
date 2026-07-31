@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import type { Layer } from './flow'
-import { createHomeChannel } from './home-channel'
+import { createHomeChannel } from '../net/home-channel'
+import type { Layer } from '../review/flow'
 
 /**
  * The flow-layers channel: the per-repo review-flow layers (the ordered

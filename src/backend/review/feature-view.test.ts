@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { ChangedFile, DiffHunk } from './diff'
+import type { ChangedFile, DiffHunk } from '../git/diff'
 import {
   buildDiffReading,
   buildFeatureReading,

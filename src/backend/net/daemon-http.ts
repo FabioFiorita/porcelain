@@ -4,7 +4,7 @@ import type { Duplex } from 'node:stream'
 import type { AnyRouter } from '@trpc/server'
 import { fetchRequestHandler } from '@trpc/server/adapters/fetch'
 import { type WebSocket, WebSocketServer } from 'ws'
-import type { AuthIdentity } from './access-store'
+import type { AuthIdentity } from '../stores/access-store'
 
 /**
  * The daemon's HTTP + WS surface, factored out of `server.ts` so it can be booted

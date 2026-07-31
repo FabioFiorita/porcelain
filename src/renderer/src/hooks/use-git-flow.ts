@@ -1,5 +1,5 @@
-import type { FlowGroup } from '@backend/flow'
-import type { GitSuggestion } from '@backend/suggestions'
+import type { FlowGroup } from '@backend/review/flow'
+import type { GitSuggestion } from '@backend/search/suggestions'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 

@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { z } from 'zod'
-import { createHomeChannel } from './home-channel'
+import { createHomeChannel } from '../net/home-channel'
 
 /**
  * The monorepo scope channel: per-repo **hidden** and **pinned** paths that keep a

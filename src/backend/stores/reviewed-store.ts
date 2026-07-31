@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { createHomeChannel } from './home-channel'
+import { createHomeChannel } from '../net/home-channel'
 
 /**
  * The reviewed-marks channel: the repo-relative file paths the human has checked off

@@ -1,32 +1,19 @@
 #!/usr/bin/env node
 /**
- * Enforce the three `audit`-skill invariants that are mechanically checkable, so
- * the skill can carry the *why* instead of a "verify by reading the diff" note:
+ * Enforce the audit-skill invariants that are mechanically checkable.
  *
- *   1. External URLs go through `isSafeExternalUrl` — any file that reaches
- *      `shell.openExternal` / `setWindowOpenHandler` must also name the guard.
- *      Proxy, not proof: it can't tell a gated call from an ungated one in a
- *      file that has both. It catches the real regression shape, which is a
- *      *new* file opening an external URL without ever importing the guard.
- *   2. Every git invocation sets `GIT_OPTIONAL_LOCKS=0` — `runGit` in
- *      `src/backend/git.ts` is the one chokepoint, so this asserts the flag is
- *      still there AND that no other shipped `src/backend` / `src/main` module
- *      spawns `git` around it. (The 3s status/flow polls otherwise rewrite
- *      `.git/index` under a lock and fail the user's own `pull`/`commit`.)
- *      Out of scope on purpose: tests spawn git to *build* fixtures in a temp
- *      repo (no poll, no user repo), and `src/cli` is the dependency-free CLI
- *      island with its own one-shot `rev-parse` — neither polls a live repo.
- *   3. The tracked pre-commit hook (`.husky/pre-commit`) clears Git's exported
- *      repository-local env before verification. Otherwise fixture git commands
- *      ignore cwd and commit into the worktree whose hook is running.
- *   4. Every git spawn in the gateway builds its env with `gitEnv` — the
- *      runtime half of 3. An inherited `GIT_DIR` overrides `cwd`, so a spawn
- *      that passes the raw `process.env` acts on whatever repository the
- *      parent pointed at instead of `repoPath`. Count-based proxy: it can't
- *      tell WHICH spawn kept the raw env, only that one did.
+ *   1. External URLs go through `isSafeExternalUrl` — any file reaching
+ *      `shell.openExternal` / `setWindowOpenHandler` must also import the guard.
+ *   2. Every git invocation sets `GIT_OPTIONAL_LOCKS=0` via `runGit` in
+ *      `src/backend/git/git.ts`, the sole chokepoint; no other shipped `src/backend`
+ *      / `src/main` module may spawn git around it. Test fixtures and `src/cli`'s
+ *      one-shot `rev-parse` are out of scope.
+ *   3. `.husky/pre-commit` clears Git's exported repository-local env before
+ *      verification.
+ *   4. Every git spawn in the gateway builds its env with `gitEnv`, the runtime
+ *      half of 3.
  *
- * Comment lines are skipped for the same reason as `lint-escapes.mjs`: both
- * invariants are *documented* in prose next to the code they guard.
+ * Comment lines are skipped, matching `lint-escapes.mjs`.
  */
 
 import { readdirSync, readFileSync, statSync } from 'node:fs'
@@ -40,11 +27,11 @@ const EXTERNAL_URL_CALL = /\b(?:shell\.openExternal|setWindowOpenHandler)\s*\(/
 const EXTERNAL_URL_GUARD = 'isSafeExternalUrl'
 /** The guard's own module and its test define/exercise it — nothing to gate. */
 const GUARD_FILES = new Set([
-  join(scanRoot, 'backend', 'external-url.ts'),
-  join(scanRoot, 'backend', 'external-url.test.ts'),
+  join(scanRoot, 'backend', 'fs', 'external-url.ts'),
+  join(scanRoot, 'backend', 'fs', 'external-url.test.ts'),
 ])
 
-const GIT_GATEWAY = join(scanRoot, 'backend', 'git.ts')
+const GIT_GATEWAY = join(scanRoot, 'backend', 'git', 'git.ts')
 const GIT_LOCKS_FLAG = 'GIT_OPTIONAL_LOCKS'
 const GIT_LOCKS_SET = /GIT_OPTIONAL_LOCKS\s*:\s*['"]0['"]/
 const GIT_SPAWN =
@@ -152,7 +139,7 @@ for (const file of walk(scanRoot)) {
     failures.push({
       file: rel,
       line: hit.number,
-      label: `external URL opened without ${EXTERNAL_URL_GUARD} (src/backend/external-url.ts) — gate it or route through the guard`,
+      label: `external URL opened without ${EXTERNAL_URL_GUARD} (src/backend/fs/external-url.ts) — gate it or route through the guard`,
       snippet: hit.snippet,
     })
   }
@@ -167,7 +154,7 @@ for (const file of walk(scanRoot)) {
     failures.push({
       file: rel,
       line: hit.number,
-      label: `git spawned outside runGit (src/backend/git.ts) — it would miss ${GIT_LOCKS_FLAG}=0`,
+      label: `git spawned outside runGit (src/backend/git/git.ts) — it would miss ${GIT_LOCKS_FLAG}=0`,
       snippet: hit.snippet,
     })
   }
@@ -191,7 +178,7 @@ if (scrubbedSpawns < gatewaySpawns) {
   failures.push({
     file: relative(root, GIT_GATEWAY),
     line: 0,
-    label: `${gatewaySpawns - scrubbedSpawns} git spawn(s) in the gateway don't build their env with gitEnv (src/backend/git-env.ts) — an inherited GIT_DIR would override cwd and redirect them to another repository`,
+    label: `${gatewaySpawns - scrubbedSpawns} git spawn(s) in the gateway don't build their env with gitEnv (src/backend/git/git-env.ts) — an inherited GIT_DIR would override cwd and redirect them to another repository`,
     snippet: `(${scrubbedSpawns} gitEnv env for ${gatewaySpawns} spawns)`,
   })
 }

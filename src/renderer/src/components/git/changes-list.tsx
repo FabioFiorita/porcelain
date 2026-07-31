@@ -1,5 +1,5 @@
-import type { FileStatus } from '@backend/diff'
-import type { FlowFile } from '@backend/flow'
+import type { FileStatus } from '@backend/git/diff'
+import type { FlowFile } from '@backend/review/flow'
 import { SetupTip } from '@renderer/components/shell/setup-tip'
 import { SidebarHeaderActions } from '@renderer/components/shell/sidebar-header-actions'
 import {

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { join } from 'node:path'
-import { porcelainHomePath } from '../shared/porcelain-home'
+import { porcelainHomePath } from '../../shared/porcelain-home'
 
 /**
  * Loop evidence lives as a **directory of files on disk**, not as HTML shuttled

@@ -1,4 +1,4 @@
-import type { FeatureView } from '@backend/feature-view'
+import type { FeatureView } from '@backend/review/feature-view'
 import { onMutationError } from '@renderer/hooks/mutation-error'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'

@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { createHomeChannel } from './home-channel'
-import { FILE_SOURCES } from './review-set'
+import { createHomeChannel } from '../net/home-channel'
+import { FILE_SOURCES } from '../review/review-set'
 
 /**
  * The feature-view SNAPSHOT channel: Porcelain's COMPUTED feature view for a repo

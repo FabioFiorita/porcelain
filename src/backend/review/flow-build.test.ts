@@ -3,7 +3,10 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { ChangedFile, DiffStat } from './diff'
+import type { ChangedFile, DiffStat } from '../git/diff'
+import { gitEnv } from '../git/git-env'
+import { clearWorkingTreeSnapshot } from '../git/working-tree'
+import { writeLayers } from '../stores/layers-store'
 import { DEFAULT_LAYERS, type FlowGroup } from './flow'
 import {
   loadCommitFlow,
@@ -11,9 +14,6 @@ import {
   loadWorkingFlow,
   readSourcesAndBuildFlow,
 } from './flow-build'
-import { gitEnv } from './git-env'
-import { writeLayers } from './layers-store'
-import { clearWorkingTreeSnapshot } from './working-tree'
 
 const GIT_ENV = {
   GIT_AUTHOR_NAME: 'Test User',

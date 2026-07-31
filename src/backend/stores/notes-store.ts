@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { createHomeChannel } from './home-channel'
+import { createHomeChannel } from '../net/home-channel'
 
 /**
  * The repo-notes channel: the human's freeform per-repo markdown scratchpad, keyed by

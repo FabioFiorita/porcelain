@@ -1,5 +1,5 @@
-import type { Worktree } from '@backend/diff'
-import type { InboxRow } from '@backend/worktree-inbox'
+import type { Worktree } from '@backend/git/diff'
+import type { InboxRow } from '@backend/git/worktree-inbox'
 import { useNewWindow } from '@renderer/hooks/use-repo'
 import { useWorktreeInbox, useWorktrees } from '@renderer/hooks/use-worktrees'
 import { useRepoStore } from '@renderer/stores/repo'

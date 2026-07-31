@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { ChangedFile, DiffStat } from './diff'
+import type { ChangedFile, DiffStat } from '../git/diff'
 import { featureKey, flowKey } from './feature-key'
 import { DEFAULT_LAYERS } from './flow'
 

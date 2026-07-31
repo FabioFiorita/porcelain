@@ -1,4 +1,4 @@
-import type { BoardCard, CardStatus } from '@backend/board-store'
+import type { BoardCard, CardStatus } from '@backend/stores/board-store'
 import { onMutationError } from '@renderer/hooks/mutation-error'
 import { trpc } from '@renderer/lib/trpc'
 import { randomId } from '@renderer/lib/utils'

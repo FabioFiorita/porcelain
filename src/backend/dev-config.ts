@@ -1,8 +1,8 @@
 import { stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { updateConfig } from './config-store'
 import { withRecentRepo } from './repo-config'
+import { updateConfig } from './stores/config-store'
 
 export function devRepoPath(source: NodeJS.ProcessEnv = process.env, home = homedir()): string {
   return source.PORCELAIN_DEV_PLAYGROUND ?? join(home, 'code', 'porcelain-playground')

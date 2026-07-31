@@ -4,7 +4,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { headLabel } from '../shared/head'
+import { headLabel } from '../../shared/head'
 import {
   gitAddWorktree,
   gitCommit,

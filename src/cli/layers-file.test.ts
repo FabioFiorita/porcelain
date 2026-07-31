@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 // Relative so this typechecks: the cli tree uses no path aliases, so this test
 // reaches into src/backend relatively; the runtime layers-file.ts never does.
-import { DEFAULT_LAYERS as MAIN_DEFAULT_LAYERS } from '../backend/flow'
+import { DEFAULT_LAYERS as MAIN_DEFAULT_LAYERS } from '../backend/review/flow'
 import {
   clearLayers,
   DEFAULT_LAYERS,
@@ -15,7 +15,7 @@ import {
 } from './layers-file'
 
 describe('DEFAULT_LAYERS', () => {
-  it('stays identical to the app source of truth (src/backend/flow.ts)', () => {
+  it('stays identical to the app source of truth (src/backend/review/flow.ts)', () => {
     // The CLI island duplicates the defaults rather than import from src/backend; this
     // guard makes the copy impossible to let drift.
     expect(DEFAULT_LAYERS).toEqual(MAIN_DEFAULT_LAYERS)

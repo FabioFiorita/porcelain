@@ -1,4 +1,4 @@
-import type { FeatureReading } from '@backend/feature-view'
+import type { FeatureReading } from '@backend/review/feature-view'
 import {
   AlertDialog,
   AlertDialogAction,

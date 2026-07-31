@@ -1,4 +1,4 @@
-import type { CommitConventions } from '@backend/conventions'
+import type { CommitConventions } from '@backend/git/conventions'
 import { onMutationError } from '@renderer/hooks/mutation-error'
 import { trpc } from '@renderer/lib/trpc'
 import { usePreferencesStore } from '@renderer/stores/preferences'

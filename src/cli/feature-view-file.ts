@@ -4,7 +4,7 @@ import { porcelainHomePath } from '../shared/porcelain-home'
 // Builtins only — see cli.ts. The feature-view SNAPSHOT channel: Porcelain's
 // COMPUTED feature view (every file it renders, each tagged with its git-truth source
 // and flow layer), READ-ONLY here. ONE-WAY, app→agent — the app computes the view and
-// writes it (src/backend/feature-snapshot-store.ts); the agent reads it to see the whole
+// writes it (src/backend/stores/feature-snapshot-store.ts); the agent reads it to see the whole
 // feature (not just the git diff) and to learn which files are actually `changed`
 // (diffed) vs `context`/`shipped`. Like the reviewed/notes channels the app is the SOLE
 // writer, so there is no write tool. Lenient parse of our own file: skip malformed rows.

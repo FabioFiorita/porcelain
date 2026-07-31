@@ -1,4 +1,4 @@
-import type { FeatureReading, ReadingFile } from '@backend/feature-view'
+import type { FeatureReading, ReadingFile } from '@backend/review/feature-view'
 
 /**
  * Lifecycle of the one active Review story for a repo.

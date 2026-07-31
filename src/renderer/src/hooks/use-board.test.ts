@@ -1,4 +1,4 @@
-import type { BoardCard } from '@backend/board-store'
+import type { BoardCard } from '@backend/stores/board-store'
 import { useRepoStore } from '@renderer/stores/repo'
 import { renderHook, waitFor } from '@testing-library/react'
 import { toast } from 'sonner'

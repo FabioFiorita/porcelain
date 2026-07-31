@@ -59,7 +59,7 @@ export default defineConfig({
         // (`node out/main/cli/porcelain.js`) copied to ~/.porcelain/porcelain.js, which
         // imports only Node builtins so it runs under a plain `node`; and the
         // daemon (`out/main/daemon/server.js`), the Electron-free backend the
-        // shell spawns with ELECTRON_RUN_AS_NODE — it imports only src/backend,
+        // shell spawns with `utilityProcess.fork` — it imports only src/backend,
         // Node builtins, and externalized deps (@trpc/server, ws, node-pty, zod,
         // trash), never electron (Biome-fenced in src/backend).
         input: {

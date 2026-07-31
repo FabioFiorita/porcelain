@@ -1,6 +1,6 @@
+import { readReviewSet } from '../stores/review-store'
 import type { Worktree } from './diff'
 import { gitStatus, gitWorktrees } from './git'
-import { readReviewSet } from './review-store'
 
 /**
  * One Review-inbox row: a SIBLING worktree of the current checkout that has work awaiting

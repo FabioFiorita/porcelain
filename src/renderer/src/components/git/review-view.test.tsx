@@ -1,4 +1,4 @@
-import type { FeatureReading } from '@backend/feature-view'
+import type { FeatureReading } from '@backend/review/feature-view'
 import { useDiffReading } from '@renderer/hooks/use-diff-reading'
 import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'

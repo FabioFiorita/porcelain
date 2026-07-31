@@ -1,4 +1,4 @@
-import type { ReviewComment } from '@backend/comment-store'
+import type { ReviewComment } from '@backend/stores/comment-store'
 import { SidebarProvider } from '@renderer/components/ui/sidebar'
 import { useCommentActions, useReviewComments } from '@renderer/hooks/use-comments'
 import { render, screen } from '@testing-library/react'

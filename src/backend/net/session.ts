@@ -6,8 +6,13 @@ import {
 } from '@porcelain/contracts'
 import { WebSocket } from 'ws'
 import { z } from 'zod'
-import type { AuthIdentity } from './access-store'
-import { clearWatchedDirs, clearWatchedFiles, setWatchedDirs, setWatchedFiles } from './file-watch'
+import {
+  clearWatchedDirs,
+  clearWatchedFiles,
+  setWatchedDirs,
+  setWatchedFiles,
+} from '../fs/file-watch'
+import type { AuthIdentity } from '../stores/access-store'
 import {
   attachTerminal,
   createTerminal,
@@ -16,7 +21,7 @@ import {
   killTerminal,
   resizeTerminal,
   writeTerminal,
-} from './terminal-manager'
+} from '../terminal/terminal-manager'
 
 /**
  * Per-connection state for the daemon's WS session channel — the replacement for

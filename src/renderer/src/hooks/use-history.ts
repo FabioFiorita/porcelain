@@ -1,5 +1,5 @@
-import type { Commit } from '@backend/diff'
-import type { FlowGroup } from '@backend/flow'
+import type { Commit } from '@backend/git/diff'
+import type { FlowGroup } from '@backend/review/flow'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 

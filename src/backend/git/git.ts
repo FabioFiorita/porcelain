@@ -3,7 +3,10 @@ import { createHash } from 'node:crypto'
 import { mkdir, readFile, realpath, stat } from 'node:fs/promises'
 import { basename, dirname, isAbsolute, join, relative } from 'node:path'
 import { promisify } from 'node:util'
-import type { HeadRef } from '../shared/head'
+import type { HeadRef } from '../../shared/head'
+import { imageMimeForPath, isBinaryBuffer, isGitBinaryDiff } from '../fs/image-mime'
+import { exceedsReadLimit } from '../fs/read-limits'
+import { type GitSuggestion, parseSuggestions } from '../search/suggestions'
 import {
   type ChangedFile,
   type CodeSearchFile,
@@ -25,9 +28,6 @@ import {
   type Worktree,
 } from './diff'
 import { gitEnv } from './git-env'
-import { imageMimeForPath, isBinaryBuffer, isGitBinaryDiff } from './image-mime'
-import { exceedsReadLimit } from './read-limits'
-import { type GitSuggestion, parseSuggestions } from './suggestions'
 
 const execFileAsync = promisify(execFile)
 

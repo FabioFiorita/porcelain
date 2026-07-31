@@ -1,4 +1,4 @@
-import type { BrowseResult } from '@backend/browse'
+import type { BrowseResult } from '@backend/git/browse'
 import { trpc } from '@renderer/lib/trpc'
 import { keepPreviousData } from '@tanstack/react-query'
 

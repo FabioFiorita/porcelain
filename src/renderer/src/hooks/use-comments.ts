@@ -1,4 +1,4 @@
-import type { ReviewComment } from '@backend/comment-store'
+import type { ReviewComment } from '@backend/stores/comment-store'
 import { onMutationError } from '@renderer/hooks/mutation-error'
 import { trpc } from '@renderer/lib/trpc'
 import { randomId } from '@renderer/lib/utils'

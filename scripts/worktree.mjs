@@ -32,7 +32,7 @@ const PORT_MAX = 43999
  * being committed. This file always addresses a repository by `cwd`, and its
  * passes are destructive (cleanup prune, `worktree remove --force`, adopt
  * rollback), so cwd must stay authoritative. Same strip list and rationale as
- * `src/backend/git-env.ts` (mirrors `git rev-parse --local-env-vars`); other
+ * `src/backend/git/git-env.ts` (mirrors `git rev-parse --local-env-vars`); other
  * `GIT_*` vars are the user's real config and pass through. Used for EVERY child
  * spawn here, git or not.
  */
@@ -231,17 +231,12 @@ function createPlayground(path, slug) {
 }
 
 /**
- * `.worktreeinclude` — the gitignored files a fresh checkout needs (`.env`,
- * `.npmrc`, local certs). Claude Code skips this file entirely once a
- * WorktreeCreate hook is configured, and Codex only honours it for worktrees it
- * manages itself, so this script applies it for EVERY entry point (create and
- * adopt) and stays the one mechanism.
- *
- * Deliberate pattern SUBSET (not gitignore semantics): one relative path per
- * line, `#` comments and blank lines skipped, an optional trailing `/`, and `*`
- * matching within a single path segment. No `**`, no negation, no anchoring
- * rules — an unsupported form simply matches nothing. A pattern that lands on a
- * directory contributes the files beneath it.
+ * `.worktreeinclude` lists gitignored files a fresh checkout needs (`.env`,
+ * `.npmrc`, certs), applied at every entry point since Claude Code and
+ * Codex only honor it partially on their own.
+ * Subset of gitignore syntax: one relative path per line, `#`/blank lines
+ * skipped, optional trailing `/`, `*` within one segment, no `**`, negation,
+ * or anchoring — a directory pattern contributes the files beneath it.
  */
 function segmentMatcher(segment) {
   const source = segment
@@ -478,16 +473,12 @@ function isHarnessPath(path) {
 }
 
 /**
- * Linked worktrees this script does not manage — Codex (`~/.codex/worktrees/…`),
- * Grok Build (`~/.grok/worktrees/…`), or a hand-made detached checkout. They
- * register in `git worktree list` for this repo and clutter the switcher, and no
- * harness reliably removes them.
- *
- * Only a DETACHED, clean, already-merged entry UNDER a recognized harness root is
- * `prunable`. Anything on a branch, dirty, or carrying unreachable commits is
- * reported but never touched — and neither is a hand-made checkout outside those
- * roots: `git status` cannot see gitignored files, so "clean" does not prove
- * "worthless" for a directory a human made deliberately.
+ * Linked worktrees this script doesn't manage — Codex, Grok Build, or a
+ * hand-made checkout — clutter `git worktree list`; no harness removes them.
+ * `prunable` requires DETACHED, clean, already-merged, AND under a
+ * recognized harness root. Anything on a branch, dirty, or with unreachable
+ * commits is reported but never touched — likewise for checkouts outside
+ * those roots, since `git status` can't see gitignored files.
  */
 function harnessWorktrees(root) {
   return parseWorktrees(root)
@@ -710,7 +701,7 @@ function channelKeys(worktreePath) {
   return [...keys]
 }
 
-/** The worktree's review set from its isolated channel home (see src/backend/review-store.ts). */
+/** The worktree's review set from its isolated channel home (see src/backend/stores/review-store.ts). */
 function readReviewSet(home, keys) {
   const all = readJsonFile(join(home, 'review-sets.json'))
   if (!all) return null
@@ -721,7 +712,7 @@ function readReviewSet(home, keys) {
   return null
 }
 
-/** The worktree's loop evidence pack (see src/backend/evidence-paths.ts for the keying). */
+/** The worktree's loop evidence pack (see src/backend/fs/evidence-paths.ts for the keying). */
 function readEvidence(home, keys) {
   for (const key of keys) {
     const dir = join(

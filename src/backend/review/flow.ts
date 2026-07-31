@@ -1,4 +1,4 @@
-import type { ChangedFile } from './diff'
+import type { ChangedFile } from '../git/diff'
 
 export interface Layer {
   label: string

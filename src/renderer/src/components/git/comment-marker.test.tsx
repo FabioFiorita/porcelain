@@ -1,4 +1,4 @@
-import type { ReviewComment } from '@backend/comment-store'
+import type { ReviewComment } from '@backend/stores/comment-store'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { commentRowClass, LineDecorations } from './comment-marker'

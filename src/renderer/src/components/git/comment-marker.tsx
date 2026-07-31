@@ -1,4 +1,4 @@
-import type { ReviewComment } from '@backend/comment-store'
+import type { ReviewComment } from '@backend/stores/comment-store'
 import { Button } from '@renderer/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@renderer/components/ui/popover'
 import { useCommentActions } from '@renderer/hooks/use-comments'

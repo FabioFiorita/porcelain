@@ -1,5 +1,5 @@
-import type { EvidenceCheck } from '../shared/evidence-check'
-import type { ChangedFile, DiffHunk, FileStatus } from './diff'
+import type { EvidenceCheck } from '../../shared/evidence-check'
+import type { ChangedFile, DiffHunk, FileStatus } from '../git/diff'
 import { collectImportedSymbols, type SliceRange, sliceSource } from './feature-slice'
 import {
   type FlowGroup,

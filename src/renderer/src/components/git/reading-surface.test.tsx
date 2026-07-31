@@ -1,4 +1,4 @@
-import type { FeatureReading } from '@backend/feature-view'
+import type { FeatureReading } from '@backend/review/feature-view'
 import type { EvidenceCheck } from '@shared/evidence-check'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'

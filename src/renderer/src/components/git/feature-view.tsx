@@ -1,5 +1,5 @@
-import type { FeatureReading, ReadingFile } from '@backend/feature-view'
-import type { FileSource } from '@backend/review-set'
+import type { FeatureReading, ReadingFile } from '@backend/review/feature-view'
+import type { FileSource } from '@backend/review/review-set'
 import { CanvasBody } from '@renderer/components/git/canvas-body'
 import { EvidencePanel } from '@renderer/components/git/evidence-panel'
 import { Button } from '@renderer/components/ui/button'

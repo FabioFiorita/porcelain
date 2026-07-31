@@ -1,5 +1,5 @@
-import type { ReadingFile } from '@backend/feature-view'
-import type { FileSource } from '@backend/review-set'
+import type { ReadingFile } from '@backend/review/feature-view'
+import type { FileSource } from '@backend/review/review-set'
 import { Button } from '@renderer/components/ui/button'
 import {
   ContextMenu,

@@ -1,4 +1,4 @@
-import type { DiffHunk, DiffLine } from '@backend/diff'
+import type { DiffHunk, DiffLine } from '@backend/git/diff'
 
 /** A half-open character range `[start, end)` within a single line's text. */
 export interface CharRange {

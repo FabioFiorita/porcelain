@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { MAX_SCENE_BYTES } from '../shared/excalidraw-scene'
+import { MAX_SCENE_BYTES } from '../../shared/excalidraw-scene'
 
 /**
  * Where a file in Execution comes from, relative to the unit under review. The

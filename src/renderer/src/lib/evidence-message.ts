@@ -1,4 +1,4 @@
-import type { Evidence } from '@backend/evidence-store'
+import type { Evidence } from '@backend/stores/evidence-store'
 
 /** Format a byte count for human-facing over-cap copy (always MB, one decimal). */
 export function formatEvidenceMb(bytes: number): string {

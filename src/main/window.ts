@@ -2,7 +2,7 @@ import { join } from 'node:path'
 import { is } from '@electron-toolkit/utils'
 import { BrowserWindow, shell, type WebContents } from 'electron'
 import icon from '../../resources/icon.png?asset'
-import { isSafeExternalUrl } from '../backend/external-url'
+import { isSafeExternalUrl } from '../backend/fs/external-url'
 import { resolvePlatform } from '../shared/platform'
 import { getDefaultEnvironmentId, setWindowEnvironment } from './daemon'
 

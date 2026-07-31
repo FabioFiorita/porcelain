@@ -1,4 +1,4 @@
-import type { FlowFile } from '@backend/flow'
+import type { FlowFile } from '@backend/review/flow'
 import { Button } from '@renderer/components/ui/button'
 import {
   ContextMenu,

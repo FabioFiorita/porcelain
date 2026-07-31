@@ -1,4 +1,4 @@
-import type { BoardCard } from '@backend/board-store'
+import type { BoardCard } from '@backend/stores/board-store'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { resolveBoardFocus, useBoardSelectionStore } from './board-selection'
 

@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto'
 import { chmod, mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname } from 'node:path'
-import { porcelainHomePath } from '../shared/porcelain-home'
+import { porcelainHomePath } from '../../shared/porcelain-home'
 
 /**
  * The host administrator credential, persisted at `~/.porcelain/admin-token`.

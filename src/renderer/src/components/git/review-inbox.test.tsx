@@ -1,4 +1,4 @@
-import type { InboxRow } from '@backend/worktree-inbox'
+import type { InboxRow } from '@backend/git/worktree-inbox'
 import { SidebarProvider } from '@renderer/components/ui/sidebar'
 import { useNewWindow } from '@renderer/hooks/use-repo'
 import { useWorktreeInbox } from '@renderer/hooks/use-worktrees'

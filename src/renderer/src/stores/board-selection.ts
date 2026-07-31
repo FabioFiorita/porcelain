@@ -1,4 +1,4 @@
-import type { BoardCard, CardStatus } from '@backend/board-store'
+import type { BoardCard, CardStatus } from '@backend/stores/board-store'
 import { create } from 'zustand'
 
 /**

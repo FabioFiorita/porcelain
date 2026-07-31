@@ -1,4 +1,4 @@
-import type { InboxRow } from '@backend/worktree-inbox'
+import type { InboxRow } from '@backend/git/worktree-inbox'
 import { reviewTabKey } from '@renderer/components/git/review-view'
 import { useBoardCards } from '@renderer/hooks/use-board'
 import { useReviewComments } from '@renderer/hooks/use-comments'

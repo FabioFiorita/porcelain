@@ -3,12 +3,7 @@ import { mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { addAction, readActions } from './actions-store'
-import { addCard, readCards } from './board-store'
-import { addComment, readComments } from './comment-store'
-import { gitEnv } from './git-env'
-import { readLayers, writeLayers } from './layers-store'
-import { readNotes, writeNotes } from './notes-store'
+import { gitEnv } from './git/git-env'
 import {
   copyRepoSettings,
   exportRepoSettings,
@@ -16,6 +11,11 @@ import {
   seedRepoSettings,
   seedWorktreeSettings,
 } from './repo-settings'
+import { addAction, readActions } from './stores/actions-store'
+import { addCard, readCards } from './stores/board-store'
+import { addComment, readComments } from './stores/comment-store'
+import { readLayers, writeLayers } from './stores/layers-store'
+import { readNotes, writeNotes } from './stores/notes-store'
 
 const SRC = '/Users/me/Code/my-project'
 const DST = '/home/me/code/my-project'

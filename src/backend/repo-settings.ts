@@ -1,17 +1,17 @@
 import { z } from 'zod'
-import { type Action, actionSchema, readActions, writeActions } from './actions-store'
-import { type BoardCard, boardCardSchema, readCards, writeCards } from './board-store'
+import { isLinkedWorktree, primaryCheckoutPath } from './git/linked-worktree'
+import type { Layer } from './review/flow'
+import { type Action, actionSchema, readActions, writeActions } from './stores/actions-store'
+import { type BoardCard, boardCardSchema, readCards, writeCards } from './stores/board-store'
 import {
   type ReviewComment,
   readComments,
   reviewCommentSchema,
   writeComments,
-} from './comment-store'
-import type { Layer } from './flow'
-import { readLayers, writeLayers } from './layers-store'
-import { isLinkedWorktree, primaryCheckoutPath } from './linked-worktree'
-import { readNotes, writeNotes } from './notes-store'
-import { hidePath, pinPath, type RepoScope, readRepoScope } from './scope-store'
+} from './stores/comment-store'
+import { readLayers, writeLayers } from './stores/layers-store'
+import { readNotes, writeNotes } from './stores/notes-store'
+import { hidePath, pinPath, type RepoScope, readRepoScope } from './stores/scope-store'
 
 /**
  * Snapshot of the per-repo companion data agents (or scripts) carry from one

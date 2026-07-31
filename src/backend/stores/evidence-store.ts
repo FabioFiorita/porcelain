@@ -5,14 +5,14 @@ import {
   MAX_CHECK_DETAIL,
   MAX_CHECK_LABEL,
   MAX_CHECKS,
-} from '../shared/evidence-check'
-import { inlineLocalAssets } from './evidence-assets'
-import { evidenceDirForRepo, evidenceIndexPath, evidenceMetaPath } from './evidence-paths'
+} from '../../shared/evidence-check'
+import { inlineLocalAssets } from '../fs/evidence-assets'
+import { evidenceDirForRepo, evidenceIndexPath, evidenceMetaPath } from '../fs/evidence-paths'
 
 // Structured checks live in the node-free `../shared/evidence-check` leaf so the
 // renderer can import the shape + `evidenceOverallStatus` without pulling this
 // module's fs graph; re-exported here so backend/test callers use one entry.
-export { type EvidenceCheck, evidenceOverallStatus } from '../shared/evidence-check'
+export { type EvidenceCheck, evidenceOverallStatus } from '../../shared/evidence-check'
 
 /**
  * Evidence — **files on disk are the source of truth**:
@@ -86,7 +86,7 @@ export type EvidenceMeta = {
 }
 
 // Re-export path helpers so callers (review-watch, e2e) use one place.
-export { evidenceDirForRepo, loopEvidenceRoot } from './evidence-paths'
+export { evidenceDirForRepo, loopEvidenceRoot } from '../fs/evidence-paths'
 
 async function readDiskMeta(repoPath: string): Promise<z.infer<typeof metaSchema> | null> {
   try {

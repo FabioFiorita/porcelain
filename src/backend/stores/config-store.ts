@@ -1,6 +1,6 @@
 import { join } from 'node:path'
-import { createHomeChannel } from './home-channel'
-import { type AppConfig, appConfigSchema, emptyConfig } from './repo-config'
+import { createHomeChannel } from '../net/home-channel'
+import { type AppConfig, appConfigSchema, emptyConfig } from '../repo-config'
 
 // The backend is Electron-free, so it can't resolve `app.getPath('userData')`
 // itself; the shell injects the directory once at startup (src/main/index.ts).

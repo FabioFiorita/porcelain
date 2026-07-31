@@ -3,6 +3,8 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { gitEnv } from '../git/git-env'
+import { clearWorkingTreeSnapshot } from '../git/working-tree'
 import {
   cachedFeatureReading,
   gatherFeature,
@@ -12,9 +14,7 @@ import {
   storeFeatureReading,
 } from './feature-build'
 import { DEFAULT_LAYERS } from './flow'
-import { gitEnv } from './git-env'
 import type { ReviewSet } from './review-set'
-import { clearWorkingTreeSnapshot } from './working-tree'
 
 const GIT_ENV = {
   GIT_AUTHOR_NAME: 'Test User',

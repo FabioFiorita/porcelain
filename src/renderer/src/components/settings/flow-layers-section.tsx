@@ -1,4 +1,4 @@
-import type { Layer } from '@backend/flow'
+import type { Layer } from '@backend/review/flow'
 import { SetupTip } from '@renderer/components/shell/setup-tip'
 import { Button } from '@renderer/components/ui/button'
 import { Input } from '@renderer/components/ui/input'

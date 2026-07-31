@@ -1,7 +1,7 @@
 import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import type { ZodType } from 'zod'
-import { porcelainHomePath } from '../shared/porcelain-home'
+import { porcelainHomePath } from '../../shared/porcelain-home'
 
 export interface HomeChannel<T> {
   path(): string

@@ -1,4 +1,4 @@
-import type { Evidence } from '@backend/evidence-store'
+import type { Evidence } from '@backend/stores/evidence-store'
 import { onMutationError } from '@renderer/hooks/mutation-error'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'

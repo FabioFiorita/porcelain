@@ -1,4 +1,4 @@
-import type { Action, ActionWhere } from '@backend/actions-store'
+import type { Action, ActionWhere } from '@backend/stores/actions-store'
 import { Button } from '@renderer/components/ui/button'
 import {
   Dialog,

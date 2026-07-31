@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
-import { createHomeChannel } from './home-channel'
+import { createHomeChannel } from '../net/home-channel'
 
 /**
  * The saved-actions channel: named, runnable commands the human launches in the

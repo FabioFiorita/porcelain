@@ -1,4 +1,4 @@
-import type { ReviewCanvas } from '@backend/review-set'
+import type { ReviewCanvas } from '@backend/review/review-set'
 import { ExcalidrawHost } from '@renderer/components/viewer/excalidraw-host'
 import { HtmlView } from '@renderer/components/viewer/html-view'
 import type { ExcalidrawScene } from '@shared/excalidraw-scene'
