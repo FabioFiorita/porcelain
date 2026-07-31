@@ -29,6 +29,7 @@
     "@tiptap/pm",
     "@tailwindcss/typography",
     "tailwindcss",
-    "conventional-changelog-conventionalcommits"
+    "conventional-changelog-conventionalcommits",
+    "expo-mcp"
   ]
 }

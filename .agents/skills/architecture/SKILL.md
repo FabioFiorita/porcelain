@@ -13,8 +13,9 @@ This skill is the **durable layer**: the stack, the single architecture every fe
 
 | Area | Decision |
 |---|---|
-| Shell | Electron via **electron-vite**, React 19, TypeScript (strict) |
-| UI | **shadcn/ui on Base UI** (`@base-ui/react`, not Radix) + Tailwind CSS v4, **`base-nova` preset** (shadcn preset `b5J4txmSY` — replaced the old glass `base-vega`/luma line on the opaque redesign; sidebar parts are still forced to `rounded-md` against the preset's radius). **Typography is a sans/mono split** (design overhaul Phase A): the preset's own body font would be JetBrains Mono, but `main.css` *deliberately* overrides `--font-sans` to **Geist** — sans for UI chrome and prose, `--font-mono` for codelike content only (read `main.css` for which surfaces). TRAP: `VirtualRows` hardcodes `font-mono`, so the reading surface has to override prose rows back to `font-sans`. Terminal keeps Geist Mono + Nerd Font. Dark mode default |
+| Desktop/browser shell | Electron via **electron-vite**, React 19, TypeScript (strict) |
+| Desktop/browser UI | **shadcn/ui on Base UI** (`@base-ui/react`, not Radix) + Tailwind CSS v4, **`base-nova` preset** (shadcn preset `b5J4txmSY` — replaced the old glass `base-vega`/luma line on the opaque redesign; sidebar parts are still forced to `rounded-md` against the preset's radius). **Typography is a sans/mono split** (design overhaul Phase A): the preset's own body font would be JetBrains Mono, but `main.css` *deliberately* overrides `--font-sans` to **Geist** — sans for UI chrome and prose, `--font-mono` for codelike content only (read `main.css` for which surfaces). TRAP: `VirtualRows` hardcodes `font-mono`, so the reading surface has to override prose rows back to `font-sans`. Terminal keeps Geist Mono + Nerd Font. Dark mode default |
+| Native mobile | **Expo SDK 57**, React Native, Expo Router native tabs/stacks, and universal **`@expo/ui`** components. Expo Go first; development builds only when native dependencies require them |
 | Client architecture | **Porcelain's own conventions** (see "The one architecture" below): tab-store routing, domain data hooks, one public component per file |
 | Client state | **zustand** — small stores per concern; no other state libraries |
 | Git backend | Shell out to `git` CLI from the main process; parse porcelain-format output; no git libraries |
@@ -23,9 +24,27 @@ This skill is the **durable layer**: the stack, the single architecture every fe
 | Lint/format | **Biome** (no ESLint/Prettier) — `noUnusedImports` / `noUnusedVariables` are **errors**; plus three custom gates for rules Biome can't express — `scripts/lint-control-recipes.mjs` (compact control classes), `scripts/lint-escapes.mjs` (`as unknown as` + `void` on promises, hard rules 6/7) and `scripts/lint-audit.mjs` (two `audit` invariants: the `isSafeExternalUrl` gate and `GIT_OPTIONAL_LOCKS`); all skip comment lines, since these bans are *documented* in prose next to the code they guard — and **knip** (`pnpm lint:knip`: unused files, deps, unlisted, binaries, duplicates — not a full unused-exports sweep; many schemas/helpers are deliberately public for tests and the CLI island) |
 | Tests | **Vitest** (unit/component, `src/**/*.test.{ts,tsx}`) + **Playwright** (Electron e2e in `e2e/`, `*.spec.ts`) |
 
+### Native mobile starter
+
+`apps/mobile` is a separate native client for the same daemon, not a port of the
+desktop renderer. Its stable bottom-level navigation is deliberately limited to
+**Files · Changes · Review · Board · Terminal**. Each tab owns a stack; History
+lives under Changes, Settings is reached from top-bar chrome, and Quick Access
+will open as a sheet. This keeps destinations navigable without turning every
+desktop sidebar item into a permanent phone tab.
+
+Use universal `@expo/ui` before its platform-specific SwiftUI or Jetpack Compose
+surfaces, and do not copy T3 Code's component layer. The native app may share
+protocols and domain contracts with the existing client, but it does not share
+DOM components, Tailwind styles, or the renderer's tab-store routing. Expo
+skills are canonical in `.agents/skills/`; `.claude/skills/` contains adapters.
+The remote Expo MCP is a host-level agent connection, while `expo-mcp` plus
+`pnpm mobile:start:mcp` exposes the running local development server.
+
 ## The one architecture
 
-The renderer has exactly one architecture; every feature follows it. Hard rule 1 points here. Layering, top to bottom:
+The Electron/browser renderer has exactly one architecture; every feature on
+that client follows it. Hard rule 1 points here. Layering, top to bottom:
 
 ```
 daemon (src/backend/api.ts procedures + pure logic in own modules; Electron-free, HTTP/WS on 127.0.0.1)

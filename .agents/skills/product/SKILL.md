@@ -9,7 +9,14 @@ description: What Porcelain is (where agent work becomes trusted work), who it's
 
 **Where agent work becomes trusted work.**
 
-Porcelain is the lightweight **review layer for agentic coding** (a macOS app, plus a browser viewer served by the daemon — which runs anywhere Node does, Linux hosts very much included). A **focused companion**, not a cockpit: not an agent host and not an IDE. Agents keep writing where they already write; Porcelain is where you read, annotate, and sign off. Agents write faster than anyone can trust; Porcelain stands on the trust side of that pile.
+Porcelain is the lightweight **review layer for agentic coding** (a macOS app,
+plus a browser viewer served by the daemon — which runs anywhere Node does,
+Linux hosts very much included). A native Expo client is in development for
+focused phone access to the same daemon; it is not yet a shipped surface. A
+**focused companion**, not a cockpit: not an agent host and not an IDE. Agents
+keep writing where they already write; Porcelain is where you read, annotate,
+and sign off. Agents write faster than anyone can trust; Porcelain stands on the
+trust side of that pile.
 
 ## Who it is for
 
@@ -35,7 +42,7 @@ There is no third pillar. "Running agents" was one until 2026-07-27; the in-app 
 - **Project board** — a per-repo todo/doing/done kanban (Board sidebar tab + a wide viewer board). Your coding agent reads and updates it via the porcelain CLI (list/create/update/move/delete cards), so it can pick up queued work and reflect progress without you spelling everything out in chat — the planning counterpart to the feature view and review comments.
 - **Companion surfaces** — per-repo scratchpad (the Notes card, a TipTap WYSIWYG) and pinned files, so the things you care about during a review session stay one glance away. These are *companion* features, not editor features.
 - **Embedded terminal + actions** — a real terminal lives in the app (the **Terminal** sidebar tab, Cmd+7), so you can run `claude` next to the review surfaces instead of in a separate Ghostty/Warp window. When the window is remote-bound, you can also open shells on **This device** (the machine running the app) and map the local clone path via a folder icon next to +. **Actions** are saved named commands shown in the Terminal tab's Quick Access — one click runs one in a terminal (e.g. a dev server); each can target this window's machine or This device. Actions are a two-way agent channel: your coding agent curates them via the porcelain CLI, but only you *run* one. (This reverses an earlier "companion to the terminal, never a terminal" stance — decided 2026-06-16; the consolidation into one window won out. Git quick-commands/commit still run inline, not through a shell.)
-- **Remote access / environments** — the same client, three ways in: the Mac app on a local daemon, a Mac window pointed at a remote daemon (Settings → **Remotes**), or any browser served by the daemon (including mobile). **Each window picks its own environment.** Companion data is carried Mac ↔ remote by the coding agent through the companion skill, not a Settings seed UI. Reachability can be trusted-home LAN (opt-in, cleartext), private Tailscale, or public HTTPS through opt-in Tailscale Funnel. **Connection is a one-time link, access is per device:** a local Mac uses Settings → **Share**; a headless host uses the daemon CLI. Each link expires after 15 minutes and exchanges once for an individually revocable device credential. Share is intentionally absent from browser and remote-bound windows; new access and network changes require the host's local administrator credential. Multi-endpoint failover stays under the hood.
+- **Remote access / environments** — one daemon, reached by a Mac app on its local host, a Mac window pointed at another host (Settings → **Remotes**), or any browser it serves (including mobile). The native Expo client in development is a fourth focused client of that same daemon, not a new backend or duplicated product. **Each window or device picks its own environment.** Companion data is carried Mac ↔ remote by the coding agent through the companion skill, not a Settings seed UI. Reachability can be trusted-home LAN (opt-in, cleartext), private Tailscale, or public HTTPS through opt-in Tailscale Funnel. **Connection is a one-time link, access is per device:** a local Mac uses Settings → **Share**; a headless host uses the daemon CLI. Each link expires after 15 minutes and exchanges once for an individually revocable device credential. Share is intentionally absent from browser and remote-bound windows; new access and network changes require the host's local administrator credential. Multi-endpoint failover stays under the hood.
 
 ## Principles
 

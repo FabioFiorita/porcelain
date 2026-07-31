@@ -55,6 +55,14 @@ if [ "${PORCELAIN_SKIP_VERIFY:-}" = "1" ]; then
   exit 0
 fi
 
+# Git exports repository-local variables to hooks. Clear them before the test
+# suite creates fixture repositories, or their nested git commands ignore cwd
+# and mutate the worktree being committed.
+git_local_env="$(git rev-parse --local-env-vars)"
+for git_local_var in $git_local_env; do
+  unset "$git_local_var"
+done
+
 if ! command -v pnpm >/dev/null 2>&1; then
   echo "pre-commit: pnpm not found on PATH — REFUSING the commit (the rule-3 gate can't run)." >&2
   echo "Fix PATH / install pnpm, or set PORCELAIN_SKIP_VERIFY=1 if you know the gate already passed." >&2

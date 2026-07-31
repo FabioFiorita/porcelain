@@ -402,6 +402,16 @@ assumed — this skill is the codebase-specific layer beneath them.
 
 ## Git plumbing
 
+- **The pre-commit verification process clears Git's hook-local environment.**
+  Git exports repository variables such as `GIT_INDEX_FILE` to hooks; before
+  `pnpm verify`, `githooks/pre-commit` must enumerate
+  `git rev-parse --local-env-vars` and unset each one. Otherwise tests that
+  create temporary Git repositories inherit the real worktree's index/object
+  paths, ignore their `cwd`, and can create fixture commits or switch branches
+  in the checkout being committed. The branch/profile checks intentionally run
+  before the scrub; verification runs after it. *Verify:* `lint-audit` enforces
+  the scrub, and a normal managed-worktree commit completes without changing
+  branch or producing fixture commits.
 - **Every git invocation sets `GIT_OPTIONAL_LOCKS=0`** (`runGit` in `src/backend/git.ts`).
   *Why:* the 3s `gitStatus`/`gitFlow` background polls otherwise rewrite `.git/index`
   under a lock, racing the user's own `pull`/`commit` and failing it with

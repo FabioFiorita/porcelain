@@ -1,14 +1,35 @@
+packages:
+  - .
+  - apps/*
+
 allowBuilds:
   electron: true
   electron-winstaller: true
   esbuild: true
   node-pty: true
+minimumReleaseAgeExclude:
+  - '@expo/cli@57.0.11'
+  - '@expo/inline-modules@0.1.4'
+  - '@expo/local-build-cache-provider@57.0.5'
+  - '@expo/log-box@57.0.2'
+  - '@expo/metro-runtime@57.0.8'
+  - '@expo/prebuild-config@57.0.10'
+  - '@expo/ui@57.0.8'
+  - babel-preset-expo@57.0.5
+  - expo-asset@57.0.8
+  - expo-constants@57.0.8
+  - expo-modules-core@57.0.8
+  - expo-router@57.0.9
+  - expo-system-ui@57.0.2
+  - expo@57.0.9
+  - expo-updates@57.0.11
 onlyBuiltDependencies:
   - electron
   - electron-winstaller
   - esbuild
   - node-pty
 overrides:
+  expo-constants: 57.0.8
   # GHSA-vxpw-j846-p89q & related: undici <7.28.0 via electron>@electron/get
   # (install-time binary fetch) and jsdom (test-only). Not a shipped code path.
   # Try deleting on the next `pnpm update electron*`.
