@@ -23,13 +23,7 @@
         "backgroundColor": "#090B0C",
         "foregroundImage": "./assets/images/android-icon-foreground.png"
       },
-      "predictiveBackGestureEnabled": false,
-      "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO",
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
-      ]
+      "predictiveBackGestureEnabled": false
     },
     "plugins": [
       "expo-router",
@@ -43,12 +37,6 @@
       ],
       "expo-secure-store",
       "expo-sqlite",
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "Porcelain uses the camera to scan the pairing QR code shown by your daemon."
-        }
-      ],
       [
         "expo-build-properties",
         {
