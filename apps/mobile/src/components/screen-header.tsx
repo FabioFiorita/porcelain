@@ -89,13 +89,9 @@ export function ScreenHeader({
       {/*
         Two buttons, never more. The companion keeps its own because it is a view toggle
         used constantly while reading; everything that navigates away goes in the menu.
+        It sits last so the control for the right-hand panel is on the right-hand edge.
       */}
       <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button
-          accessibilityLabel="Companion"
-          icon={toolbarIcon('companion')}
-          onPress={(): void => router.push('/companion')}
-        />
         <Stack.Toolbar.Menu accessibilityLabel="More" icon={toolbarIcon('overflow')}>
           {action === undefined ? null : (
             <Stack.Toolbar.MenuAction
@@ -112,6 +108,11 @@ export function ScreenHeader({
             Settings
           </Stack.Toolbar.MenuAction>
         </Stack.Toolbar.Menu>
+        <Stack.Toolbar.Button
+          accessibilityLabel="Companion"
+          icon={toolbarIcon('companion')}
+          onPress={(): void => router.push('/companion')}
+        />
       </Stack.Toolbar>
     </>
   )
