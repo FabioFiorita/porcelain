@@ -1,23 +1,22 @@
 import {
   Button,
   ContentUnavailableView,
-  Host,
   HStack,
   List,
   Section,
   Spacer,
   Text,
 } from '@expo/ui/swift-ui'
-import { font, foregroundStyle, listStyle } from '@expo/ui/swift-ui/modifiers'
+import { foregroundStyle, listStyle } from '@expo/ui/swift-ui/modifiers'
 import { router } from 'expo-router'
 import { useState } from 'react'
 
+import { ScreenHost } from '@/components/screen-host'
 import { browseDirsQuery } from '@/lib/daemon/procedures/connection'
 import { useDaemonInvalidate, useDaemonQuery } from '@/lib/daemon/queries'
 import { openRepo } from '@/lib/daemon/repo'
-import { useAccentColor } from '@/theme/colors'
+import { footnote, secondary } from '@/theme/modifiers'
 
-const secondary = foregroundStyle({ style: 'secondary', type: 'hierarchical' })
 /** iOS systemRed. */
 const errorStyle = foregroundStyle({ color: '#FF3B30', type: 'color' })
 
@@ -26,7 +25,6 @@ const MAX_ROWS = 200
 
 /** Walks the daemon's directories. `null` starts at the daemon's home. */
 export function RepoBrowseScreen(): React.JSX.Element {
-  const accentColor = useAccentColor()
   const [path, setPath] = useState<string | null>(null)
   const listing = useDaemonQuery(browseDirsQuery, path)
   const invalidate = useDaemonInvalidate()
@@ -49,7 +47,7 @@ export function RepoBrowseScreen(): React.JSX.Element {
   const parent = data?.parent ?? null
 
   return (
-    <Host seedColor={accentColor} style={{ flex: 1 }} useViewportSizeMeasurement>
+    <ScreenHost>
       <List modifiers={[listStyle('insetGrouped')]}>
         <Section title={data?.path ?? 'Daemon'}>
           {data === undefined ? (
@@ -85,16 +83,12 @@ export function RepoBrowseScreen(): React.JSX.Element {
               ) : null}
             </HStack>
           ))}
-          {error === null ? null : (
-            <Text modifiers={[font({ textStyle: 'footnote' }), errorStyle]}>{error}</Text>
-          )}
+          {error === null ? null : <Text modifiers={[footnote, errorStyle]}>{error}</Text>}
           {hidden === 0 ? null : (
-            <Text
-              modifiers={[font({ textStyle: 'footnote' }), secondary]}
-            >{`…and ${hidden} more`}</Text>
+            <Text modifiers={[footnote, secondary]}>{`…and ${hidden} more`}</Text>
           )}
         </Section>
       </List>
-    </Host>
+    </ScreenHost>
   )
 }

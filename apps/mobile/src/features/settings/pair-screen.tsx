@@ -1,8 +1,7 @@
-import { Button, Form, Host, Section, Text, TextField } from '@expo/ui/swift-ui'
+import { Button, Form, Section, Text, TextField } from '@expo/ui/swift-ui'
 import {
   autocorrectionDisabled,
   disabled,
-  font,
   foregroundStyle,
   keyboardType,
   textInputAutocapitalization,
@@ -10,10 +9,11 @@ import {
 import { router } from 'expo-router'
 import { useState } from 'react'
 
+import { ScreenHost } from '@/components/screen-host'
 import { hostOf } from '@/lib/daemon/environment'
 import { environmentActions } from '@/lib/daemon/environments-store'
 import { type PairingLinkProblem, parsePairingLink, redeemPairingLink } from '@/lib/daemon/pairing'
-import { useAccentColor } from '@/theme/colors'
+import { footnote, secondary } from '@/theme/modifiers'
 
 /** Human-readable reason a link was rejected, shown under the field that carried it. */
 function describePairingProblem(problem: PairingLinkProblem): string {
@@ -35,7 +35,6 @@ function describePairingProblem(problem: PairingLinkProblem): string {
  * there is one pairing artefact to explain and no QR scanner to justify a camera permission.
  */
 export function PairScreen(): React.JSX.Element {
-  const accentColor = useAccentColor()
   const [nickname, setNickname] = useState('')
   const [link, setLink] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -66,7 +65,7 @@ export function PairScreen(): React.JSX.Element {
   }
 
   return (
-    <Host seedColor={accentColor} style={{ flex: 1 }} useViewportSizeMeasurement>
+    <ScreenHost>
       <Form>
         <Section title="Environment">
           <TextField
@@ -92,9 +91,9 @@ export function PairScreen(): React.JSX.Element {
           footer={
             <Text
               modifiers={[
-                font({ textStyle: 'footnote' }),
+                footnote,
                 error === null
-                  ? foregroundStyle({ style: 'secondary', type: 'hierarchical' })
+                  ? secondary
                   : // iOS systemRed — a rejected paste is the one thing on this screen that must shout.
                     foregroundStyle({ color: '#FF3B30', type: 'color' }),
               ]}
@@ -113,6 +112,6 @@ export function PairScreen(): React.JSX.Element {
           />
         </Section>
       </Form>
-    </Host>
+    </ScreenHost>
   )
 }

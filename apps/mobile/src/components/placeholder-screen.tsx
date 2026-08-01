@@ -1,7 +1,7 @@
-import { Host, ScrollView, Spacer, Text, VStack } from '@expo/ui/swift-ui'
+import { ScrollView, Spacer, Text, VStack } from '@expo/ui/swift-ui'
 import { font, frame, padding } from '@expo/ui/swift-ui/modifiers'
 
-import { useAccentColor } from '@/theme/colors'
+import { ScreenHost } from '@/components/screen-host'
 
 /**
  * Scaffolding for a surface that is not built yet. It deliberately renders no title:
@@ -15,10 +15,8 @@ export function PlaceholderScreen({
   description: string
   details: readonly string[]
 }): React.JSX.Element {
-  const accentColor = useAccentColor()
-
   return (
-    <Host seedColor={accentColor} style={{ flex: 1 }} useViewportSizeMeasurement>
+    <ScreenHost>
       <ScrollView>
         {/*
           `Spacer` fills available space in a SwiftUI stack, so a fixed gap is a
@@ -35,6 +33,6 @@ export function PlaceholderScreen({
           ))}
         </VStack>
       </ScrollView>
-    </Host>
+    </ScreenHost>
   )
 }

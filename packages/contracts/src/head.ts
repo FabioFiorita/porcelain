@@ -1,7 +1,7 @@
 /**
- * What a checkout's HEAD points at. Node-free leaf in `src/shared/` (like
- * evidence-check) so the daemon parses it and the renderer renders it without
- * runtime-importing `@backend/*`.
+ * What a checkout's HEAD points at. A node-free leaf shared by every client —
+ * the daemon parses it, the renderer and the phone render it — so it lives at
+ * the contracts boundary rather than inside one client's tree.
  *
  * `branch` is the CHECKOUT TARGET — null when HEAD is detached — so callers that
  * compare against a branch list (the branch switcher's current-branch mark) can

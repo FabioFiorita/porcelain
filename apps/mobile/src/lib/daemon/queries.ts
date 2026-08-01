@@ -38,12 +38,19 @@ export function useDaemonQuery<TInput, TOutput>(
   options?: {
     enabled?: boolean
     staleTime?: number
+    /**
+     * Poll interval in ms, applied whatever the socket is doing. Required for anything the
+     * daemon only pushes to sessions that registered watches — a healthy socket is not a
+     * promise of freshness. Gate it with `enabled` on screen focus.
+     */
+    pollMs?: number
     /** Backstop poll interval in ms, applied only while the socket is down. */
     backstopMs?: number
   },
 ): UseQueryResult<TOutput, DaemonError> {
   const environment = useActiveEnvironment()
   const session = useDaemonSession()
+  const poll = options?.pollMs
   const backstop = options?.backstopMs
 
   return useQuery<TOutput, DaemonError>({
@@ -53,9 +60,10 @@ export function useDaemonQuery<TInput, TOutput>(
       return await callDaemon(getDaemonClient(environment), procedure, input)
     },
     queryKey: daemonKeys.call(environment?.id ?? 'none', procedure.name, input),
-    // A healthy socket carries the truth, so polling is off; React Query already suspends
-    // intervals while the app is unfocused (`refetchIntervalInBackground` stays false).
-    refetchInterval: backstop !== undefined && session.status !== 'open' ? backstop : false,
+    // React Query already suspends intervals while the app is unfocused
+    // (`refetchIntervalInBackground` stays false), so neither interval runs in the background.
+    refetchInterval:
+      poll ?? (backstop !== undefined && session.status !== 'open' ? backstop : false),
     staleTime: options?.staleTime,
   })
 }

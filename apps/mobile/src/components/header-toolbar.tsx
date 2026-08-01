@@ -16,16 +16,21 @@ export type ScreenAction = {
  *
  * The companion is last so the control for the right-hand panel sits on the right-hand edge.
  */
-export function HeaderToolbar({ action }: { action?: ScreenAction }): React.JSX.Element {
+export function HeaderToolbar({
+  actions = [],
+}: {
+  actions?: readonly ScreenAction[]
+}): React.JSX.Element {
   return (
     <Stack.Toolbar placement="right">
-      {action === undefined ? null : (
+      {actions.map((action) => (
         <Stack.Toolbar.Button
           accessibilityLabel={action.label}
           icon={toolbarIcon(action.icon)}
+          key={action.label}
           onPress={(): void => router.push(action.href)}
         />
-      )}
+      ))}
       <Stack.Toolbar.Button
         accessibilityLabel="Settings"
         icon={toolbarIcon('settings')}

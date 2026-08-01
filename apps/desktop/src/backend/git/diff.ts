@@ -1,4 +1,4 @@
-import { headLabel } from '../../shared/head'
+import { headLabel } from '@porcelain/contracts'
 
 export type FileStatus = 'modified' | 'added' | 'deleted' | 'renamed' | 'untracked'
 

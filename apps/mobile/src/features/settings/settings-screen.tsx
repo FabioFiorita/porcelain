@@ -1,7 +1,6 @@
 import {
   Button,
   ContentUnavailableView,
-  Host,
   HStack,
   Image,
   List,
@@ -12,11 +11,12 @@ import {
   Text,
   VStack,
 } from '@expo/ui/swift-ui'
-import { font, foregroundStyle, listStyle, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers'
+import { font, listStyle, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers'
 import Constants from 'expo-constants'
 import { router } from 'expo-router'
 import * as Updates from 'expo-updates'
 
+import { ScreenHost } from '@/components/screen-host'
 import { SheetCloseToolbar } from '@/components/sheet-close-toolbar'
 import { getDaemonClient } from '@/lib/daemon/client'
 import { type Environment, isPaired } from '@/lib/daemon/environment'
@@ -30,7 +30,7 @@ import {
 import { callDaemon } from '@/lib/daemon/procedure'
 import { revokeCurrentClientMutation } from '@/lib/daemon/procedures/connection'
 import { type Preferences, setPreference, usePreferences } from '@/lib/preferences'
-import { useAccentColor } from '@/theme/colors'
+import { secondary } from '@/theme/modifiers'
 
 /** iOS system colours: gray idle, green connected, orange unreachable, red revoked. */
 const STATUS_COLORS = {
@@ -59,16 +59,13 @@ function describeConnection(connection: ConnectionState): {
   }
 }
 
-const secondary = foregroundStyle({ style: 'secondary', type: 'hierarchical' })
-
 export function SettingsScreen(): React.JSX.Element {
-  const accentColor = useAccentColor()
   const environments = useEnvironments()
   const preferences = usePreferences()
 
   return (
     <>
-      <Host seedColor={accentColor} style={{ flex: 1 }} useViewportSizeMeasurement>
+      <ScreenHost>
         <List modifiers={[listStyle('insetGrouped')]}>
           {/*
             Environments and About are sections, not rows that push a screen: Settings holds
@@ -136,7 +133,7 @@ export function SettingsScreen(): React.JSX.Element {
             )}
           </Section>
         </List>
-      </Host>
+      </ScreenHost>
       <SheetCloseToolbar />
     </>
   )

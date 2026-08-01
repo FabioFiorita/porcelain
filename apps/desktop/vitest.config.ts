@@ -23,13 +23,13 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
-    // `apps/mobile` runs no test runner of its own — one suite, one command. Scoped to its
-    // `lib/` so the glob itself enforces "pure modules only": a screen test would drag React
-    // Native into jsdom, which has no native runtime to give it.
+    // `apps/mobile` runs no test runner of its own — one suite, one command. Scoped to any
+    // `lib/` directory so the glob itself enforces "pure modules only": a screen test would drag
+    // React Native into jsdom, which has no native runtime to give it.
     include: [
       'src/**/*.test.{ts,tsx}',
       '../../packages/*/src/**/*.test.{ts,tsx}',
-      '../mobile/src/lib/**/*.test.ts',
+      '../mobile/src/**/lib/**/*.test.ts',
     ],
     setupFiles: ['src/test-setup.ts'],
   },

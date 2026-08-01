@@ -20,3 +20,30 @@ const ACCENT = {
 export function useAccentColor(): string {
   return useColorScheme() === 'dark' ? ACCENT.dark : ACCENT.light
 }
+
+/**
+ * Git status tints, mirroring the renderer's `changes-list.tsx` mapping (success/warning/
+ * destructive/info) in iOS system colours so both clients tell the same story about a file.
+ */
+const STATUS_TINTS = {
+  added: '#34C759',
+  deleted: '#FF3B30',
+  modified: '#FF9500',
+  renamed: ACCENT.dark,
+  untracked: '#34C759',
+} as const
+
+export function statusTint(status: keyof typeof STATUS_TINTS | undefined): string {
+  return status === undefined ? STATUS_TINTS.modified : STATUS_TINTS[status]
+}
+
+/** Diff line backgrounds. Deep enough to read over the list background, light enough that
+ *  monospaced text on top keeps system contrast in both appearances. */
+const DIFF_BACKGROUNDS = {
+  dark: { add: '#15321F', del: '#3A1A1C' },
+  light: { add: '#E4F5E9', del: '#FDE7E7' },
+} as const
+
+export function useDiffBackgrounds(): { add: string; del: string } {
+  return useColorScheme() === 'dark' ? DIFF_BACKGROUNDS.dark : DIFF_BACKGROUNDS.light
+}

@@ -1,5 +1,5 @@
 import { Button, Host, HStack, Image, Menu, Picker, Text, VStack } from '@expo/ui/swift-ui'
-import { disabled, font, foregroundStyle, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers'
+import { disabled, font, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers'
 import { router, Stack } from 'expo-router'
 
 import { HeaderToolbar, type ScreenAction } from '@/components/header-toolbar'
@@ -10,8 +10,7 @@ import {
 } from '@/lib/daemon/environments-store'
 import { useActiveRepo } from '@/lib/daemon/repo'
 import { useAccentColor } from '@/theme/colors'
-
-const secondary = foregroundStyle({ style: 'secondary', type: 'hierarchical' })
+import { secondary } from '@/theme/modifiers'
 
 /**
  * The header every tab wears: title left, on the same row as the toolbar buttons.
@@ -22,10 +21,10 @@ const secondary = foregroundStyle({ style: 'secondary', type: 'hierarchical' })
  * the capsule rather than at the header's own inset.
  */
 export function ScreenHeader({
-  action,
+  actions,
   title,
 }: {
-  action?: ScreenAction
+  actions?: readonly ScreenAction[]
   title: string
 }): React.JSX.Element {
   const accentColor = useAccentColor()
@@ -91,7 +90,7 @@ export function ScreenHeader({
           </Host>
         </Stack.Toolbar.View>
       </Stack.Toolbar>
-      <HeaderToolbar action={action} />
+      <HeaderToolbar actions={actions} />
     </>
   )
 }

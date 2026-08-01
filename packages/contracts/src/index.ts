@@ -1,6 +1,8 @@
-// The default entry is the runtime wire protocol and nothing else: zod-only, so
-// it typechecks and bundles under every client's toolchain (Vite, Metro). The
-// router type lives behind `@porcelain/contracts/router` on purpose — see there.
+// The default entry carries the wire protocol and the leaf types both clients
+// render: dependency-light (zod only), so it typechecks and bundles under every
+// client's toolchain (Vite, Metro). The router type lives behind
+// `@porcelain/contracts/router` on purpose — see there.
+export { type HeadRef, headLabel } from './head'
 export {
   type AppEvent,
   appEventSchema,

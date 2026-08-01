@@ -1,9 +1,9 @@
 import type { Worktree } from '@backend/git/diff'
 import type { BranchRef } from '@backend/git/git'
 import type { InboxRow } from '@backend/git/worktree-inbox'
+import { headLabel } from '@porcelain/contracts'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
-import { headLabel } from '@shared/head'
 
 /** The current HEAD as a label: a branch name, or `detached @ <short sha>`. The daemon
  *  reports the branch identity and the sha separately (`gitHead`); the label is built

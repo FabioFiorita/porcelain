@@ -1,7 +1,6 @@
 import {
   Button,
   ContentUnavailableView,
-  Host,
   HStack,
   List,
   Section,
@@ -10,25 +9,22 @@ import {
   Text,
   VStack,
 } from '@expo/ui/swift-ui'
-import { font, foregroundStyle, listStyle } from '@expo/ui/swift-ui/modifiers'
+import { foregroundStyle, listStyle } from '@expo/ui/swift-ui/modifiers'
 import { router } from 'expo-router'
 import { useState } from 'react'
 
+import { ScreenHost } from '@/components/screen-host'
 import { SheetCloseToolbar } from '@/components/sheet-close-toolbar'
 import { recentReposQuery, removeRecentRepoMutation } from '@/lib/daemon/procedures/connection'
 import { useDaemonInvalidate, useDaemonMutation, useDaemonQuery } from '@/lib/daemon/queries'
 import { openRepo } from '@/lib/daemon/repo'
-import { useAccentColor } from '@/theme/colors'
-
-const secondary = foregroundStyle({ style: 'secondary', type: 'hierarchical' })
-const footnote = font({ textStyle: 'footnote' })
+import { footnote, secondary } from '@/theme/modifiers'
 
 /**
  * The daemon's recent repos. Every path here is a daemon path — the phone never reads its own
  * filesystem for repo content, so there is no local file picker to fall back to.
  */
 export function RepoPickerScreen(): React.JSX.Element {
-  const accentColor = useAccentColor()
   const recents = useDaemonQuery(recentReposQuery, { includeWorktrees: true })
   const forget = useDaemonMutation(removeRecentRepoMutation, { invalidates: ['recentRepos'] })
   const invalidate = useDaemonInvalidate()
@@ -48,7 +44,7 @@ export function RepoPickerScreen(): React.JSX.Element {
 
   return (
     <>
-      <Host seedColor={accentColor} style={{ flex: 1 }} useViewportSizeMeasurement>
+      <ScreenHost>
         <List modifiers={[listStyle('insetGrouped')]}>
           <Section title="Recent">
             {recents.data === undefined || recents.data.length === 0 ? (
@@ -106,7 +102,7 @@ export function RepoPickerScreen(): React.JSX.Element {
             />
           </Section>
         </List>
-      </Host>
+      </ScreenHost>
       <SheetCloseToolbar />
     </>
   )

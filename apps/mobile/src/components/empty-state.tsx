@@ -1,14 +1,14 @@
-import { Button, Host, Spacer, Text, VStack } from '@expo/ui/swift-ui'
+import { Button, Spacer, Text, VStack } from '@expo/ui/swift-ui'
 import {
   buttonStyle,
   font,
-  foregroundStyle,
   frame,
   multilineTextAlignment,
   padding,
 } from '@expo/ui/swift-ui/modifiers'
 
-import { useAccentColor } from '@/theme/colors'
+import { ScreenHost } from '@/components/screen-host'
+import { secondary } from '@/theme/modifiers'
 
 /**
  * A locked or empty surface with the one action that unlocks it. Distinct from
@@ -30,17 +30,15 @@ export function EmptyState({
   onSecondaryAction?: () => void
   title: string
 }): React.JSX.Element {
-  const accentColor = useAccentColor()
-
   return (
-    <Host seedColor={accentColor} style={{ flex: 1 }} useViewportSizeMeasurement>
+    <ScreenHost>
       <VStack modifiers={[padding({ all: 24 })]} spacing={12}>
         <Spacer />
         <Text modifiers={[font({ textStyle: 'title2', weight: 'semibold' })]}>{title}</Text>
         <Text
           modifiers={[
             font({ textStyle: 'subheadline' }),
-            foregroundStyle({ style: 'secondary', type: 'hierarchical' }),
+            secondary,
             multilineTextAlignment('center'),
           ]}
         >
@@ -57,6 +55,6 @@ export function EmptyState({
         )}
         <Spacer />
       </VStack>
-    </Host>
+    </ScreenHost>
   )
 }
