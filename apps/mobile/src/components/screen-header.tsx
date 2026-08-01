@@ -86,28 +86,32 @@ export function ScreenHeader({
           </Host>
         </Stack.Toolbar.View>
       </Stack.Toolbar>
+      {/*
+        Two buttons, never more. The companion keeps its own because it is a view toggle
+        used constantly while reading; everything that navigates away goes in the menu.
+      */}
       <Stack.Toolbar placement="right">
-        {action === undefined ? null : (
-          <Stack.Toolbar.Button
-            accessibilityLabel={action.label}
-            icon={toolbarIcon(action.icon)}
-            onPress={(): void => router.push(action.href)}
-          />
-        )}
-        {/*
-          The renderer's companion panel is a second sidebar; a phone has room for one
-          surface at a time, so here it is a sheet raised from the header instead.
-        */}
         <Stack.Toolbar.Button
           accessibilityLabel="Companion"
           icon={toolbarIcon('companion')}
           onPress={(): void => router.push('/companion')}
         />
-        <Stack.Toolbar.Button
-          accessibilityLabel="Settings"
-          icon={toolbarIcon('settings')}
-          onPress={(): void => router.push('/settings')}
-        />
+        <Stack.Toolbar.Menu accessibilityLabel="More" icon={toolbarIcon('overflow')}>
+          {action === undefined ? null : (
+            <Stack.Toolbar.MenuAction
+              icon={toolbarIcon(action.icon)}
+              onPress={(): void => router.push(action.href)}
+            >
+              {action.label}
+            </Stack.Toolbar.MenuAction>
+          )}
+          <Stack.Toolbar.MenuAction
+            icon={toolbarIcon('settings')}
+            onPress={(): void => router.push('/settings')}
+          >
+            Settings
+          </Stack.Toolbar.MenuAction>
+        </Stack.Toolbar.Menu>
       </Stack.Toolbar>
     </>
   )

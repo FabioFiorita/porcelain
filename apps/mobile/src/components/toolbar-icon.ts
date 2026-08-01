@@ -1,7 +1,14 @@
 import type { StackToolbarButtonProps } from 'expo-router'
 
 /** Every icon the app puts in a native stack toolbar. */
-export type ToolbarIconName = 'settings' | 'companion' | 'board' | 'history' | 'close' | 'add'
+export type ToolbarIconName =
+  | 'overflow'
+  | 'settings'
+  | 'companion'
+  | 'board'
+  | 'history'
+  | 'close'
+  | 'add'
 
 type ToolbarIcon = NonNullable<StackToolbarButtonProps['icon']>
 
@@ -10,10 +17,12 @@ type ToolbarIcon = NonNullable<StackToolbarButtonProps['icon']>
  * `Stack.Toolbar.Button` takes it directly. Keep the indirection anyway: call
  * sites name the icon, this file owns the symbol, so a rename is one edit.
  *
- * `settings` is an ellipsis, not a gear — iOS reads a bare `ellipsis` as "more".
+ * `overflow` opens the menu (iOS reads a bare `ellipsis` as "more"); `settings`
+ * is the gear on the row inside it, naming a destination rather than an act.
  */
 const SF_SYMBOLS: Record<ToolbarIconName, ToolbarIcon> = {
-  settings: 'ellipsis',
+  overflow: 'ellipsis',
+  settings: 'gearshape',
   companion: 'sidebar.right',
   board: 'rectangle.3.group',
   history: 'clock.arrow.circlepath',
