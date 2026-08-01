@@ -3,6 +3,8 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-naviga
 import { Stack } from 'expo-router/stack'
 import { useColorScheme } from 'react-native'
 
+import { DaemonProvider } from '@/lib/daemon/provider'
+
 /**
  * Every sheet in the app is the same form sheet — grabber, transparent content so the
  * sheet's own material shows through, and detents that leave the surface behind it visible.
@@ -21,12 +23,16 @@ function RootLayout(): React.JSX.Element {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        {/* Settings nests a stack of its own, which supplies the header this one hides. */}
-        <Stack.Screen name="settings" options={{ ...SHEET, headerShown: false }} />
-        <Stack.Screen name="companion" options={{ ...SHEET, title: 'Companion' }} />
-      </Stack>
+      <DaemonProvider>
+        <Stack>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          {/* Settings nests a stack of its own, which supplies the header this one hides. */}
+          <Stack.Screen name="settings" options={{ ...SHEET, headerShown: false }} />
+          {/* Repo nests a stack of its own, like Settings. */}
+          <Stack.Screen name="repo" options={{ ...SHEET, headerShown: false }} />
+          <Stack.Screen name="companion" options={{ ...SHEET, title: 'Companion' }} />
+        </Stack>
+      </DaemonProvider>
     </ThemeProvider>
   )
 }

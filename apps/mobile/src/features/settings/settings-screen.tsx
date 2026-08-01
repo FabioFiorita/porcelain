@@ -18,12 +18,46 @@ import { router } from 'expo-router'
 import * as Updates from 'expo-updates'
 
 import { SheetCloseToolbar } from '@/components/sheet-close-toolbar'
-import { type Environment, removeEnvironment, useEnvironments } from '@/lib/environments'
+import { getDaemonClient } from '@/lib/daemon/client'
+import { type Environment, isPaired } from '@/lib/daemon/environment'
+import {
+  type ConnectionState,
+  environmentActions,
+  useActiveEnvironment,
+  useConnectionState,
+  useEnvironments,
+} from '@/lib/daemon/environments-store'
+import { callDaemon } from '@/lib/daemon/procedure'
+import { revokeCurrentClientMutation } from '@/lib/daemon/procedures/connection'
 import { type Preferences, setPreference, usePreferences } from '@/lib/preferences'
 import { useAccentColor } from '@/theme/colors'
 
-/** iOS systemGray — a paired-but-idle daemon, the only status this build can honestly show. */
-const IDLE_STATUS_COLOR = '#8E8E93'
+/** iOS system colours: gray idle, green connected, orange unreachable, red revoked. */
+const STATUS_COLORS = {
+  idle: '#8E8E93',
+  ready: '#34C759',
+  unreachable: '#FF9500',
+  unauthorized: '#FF3B30',
+} as const
+
+function describeConnection(connection: ConnectionState): {
+  color: string
+  label: string
+} {
+  switch (connection.kind) {
+    case 'ready':
+      return { color: STATUS_COLORS.ready, label: connection.daemonVersion ?? 'Connected' }
+    case 'unreachable':
+      return { color: STATUS_COLORS.unreachable, label: 'Unreachable' }
+    case 'unauthorized':
+      return { color: STATUS_COLORS.unauthorized, label: 'Token revoked' }
+    case 'connecting':
+    case 'loading':
+      return { color: STATUS_COLORS.idle, label: 'Connecting…' }
+    case 'no-environment':
+      return { color: STATUS_COLORS.idle, label: 'Not connected' }
+  }
+}
 
 const secondary = foregroundStyle({ style: 'secondary', type: 'hierarchical' })
 
@@ -109,10 +143,37 @@ export function SettingsScreen(): React.JSX.Element {
 }
 
 function EnvironmentRow({ environment }: { environment: Environment }): React.JSX.Element {
+  const active = useActiveEnvironment()
+  const connection = useConnectionState()
+  const isActive = active?.id === environment.id
+  const status = isActive
+    ? describeConnection(connection)
+    : {
+        color: environment.token === null ? STATUS_COLORS.unauthorized : STATUS_COLORS.idle,
+        label: environment.token === null ? 'Token revoked' : 'Paired',
+      }
+
+  /**
+   * Revoke host-side first, then forget locally either way: an unreachable daemon cannot be
+   * told, and a local delete that pretends the credential is dead is the failure to avoid.
+   */
+  async function unpair(): Promise<void> {
+    // Revoked with this row's OWN credential — the react-query hooks only ever speak to the
+    // active environment, which would leave a background daemon's token alive on the host.
+    if (isPaired(environment)) {
+      try {
+        await callDaemon(getDaemonClient(environment), revokeCurrentClientMutation, undefined)
+      } catch {
+        // An unreachable host keeps the credential until someone revokes it there.
+      }
+    }
+    await environmentActions.remove(environment.id)
+  }
+
   return (
     <SwipeActions>
       <HStack spacing={10}>
-        <Image color={IDLE_STATUS_COLOR} size={10} systemName="circle.fill" />
+        <Image color={status.color} size={10} systemName="circle.fill" />
         <VStack alignment="leading" spacing={2}>
           <Text>{environment.nickname}</Text>
           <Text modifiers={[font({ textStyle: 'footnote' }), secondary]}>
@@ -120,16 +181,14 @@ function EnvironmentRow({ environment }: { environment: Environment }): React.JS
           </Text>
         </VStack>
         <Spacer />
-        {/*
-          A status, not a switch: connecting is the daemon's business, and a toggle that
-          cannot actually disconnect anything is a control that lies.
-        */}
-        <Text modifiers={[font({ textStyle: 'footnote' }), secondary]}>Not connected</Text>
+        <Text modifiers={[font({ textStyle: 'footnote' }), secondary]}>{status.label}</Text>
       </HStack>
       <SwipeActions.Actions>
         <Button
-          label="Remove"
-          onPress={(): void => removeEnvironment(environment.id)}
+          label="Unpair"
+          onPress={(): void => {
+            unpair()
+          }}
           role="destructive"
           systemImage="trash"
         />

@@ -5,8 +5,8 @@ A separate native client of the same daemon, not a port of the renderer.
 - **iOS-only** (`"platforms": ["ios"]`). Android cost a `Platform.OS` branch and a raster twin per
   SF Symbol, a second runtime loop, and a lowest-common-denominator ceiling on `@expo/ui`, for no
   audience. So: no `Platform.OS` branches, no `.ios.tsx`/`.android.tsx` pairs, no PNG twins.
-- **Expo rather than raw Xcode even at one platform:** tRPC types shared off the daemon router (no
-  second API client), OTA fixes without App Store review, builds that don't need a Mac per change.
+- **Expo rather than raw Xcode even at one platform:** one daemon router and no second API,
+  OTA fixes without App Store review, builds that don't need a Mac per change.
 - **`@expo/ui/swift-ui` only — never the universal `@expo/ui` root** (`Host` included; SDK 57
   exports its own from the subpath, so the vendored `expo-ui` skill's "Host from the root" doesn't
   apply). Lint-enforced. 51 components vs the universal layer's 19, and the gap already cost
@@ -37,9 +37,10 @@ A separate native client of the same daemon, not a port of the renderer.
   — no relay tier, deliberately**: a relay is a recurring bill, Funnel is already the public path.
 - **Feature slices** (`src/features/<feature>/` owns screens and logic; `src/app` is a thin route
   table) so parallel worktrees don't collide in a shared component tree.
-- **Transport intent (not built):** `@trpc/client` + react-query on the same router, credential in
-  `expo-secure-store`, paired by a **pasted link only — no QR, deliberate** (camera dependency for
-  one screen). No second protocol, no mobile-only API.
+- **Transport:** untyped `@trpc/client` + react-query behind `src/lib/daemon/`; responses are
+  **zod-parsed** against hand-declared descriptors. Never import the daemon's `AppRouter` — it drags
+  45 modules through `tsc`; WS schemas come from `@porcelain/contracts`. Credential in
+  `expo-secure-store`; **pasted link only, no QR**.
 - **Rule-5 exceptions, exhaustive.** (1) `react-native-webview` in exactly two places: sandboxed
   loop-evidence HTML (JS off) and the Terminal's xterm.js bundle — the same emulator as desktop, so
   agent TUIs render identically instead of smearing through hand-rolled ANSI; it's a committed

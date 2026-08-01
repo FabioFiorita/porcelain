@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { parsePairingLink } from './environments'
+import { parsePairingLink } from './pairing'
 
 const GRANT = `pc_pair_3f2a1c88-0f4d-4b6e-9a11-2c7d5e8b0a34_${'a'.repeat(64)}`
 

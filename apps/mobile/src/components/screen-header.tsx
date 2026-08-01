@@ -3,7 +3,12 @@ import { disabled, font, foregroundStyle, pickerStyle, tag } from '@expo/ui/swif
 import { router, Stack } from 'expo-router'
 
 import { HeaderToolbar, type ScreenAction } from '@/components/header-toolbar'
-import { selectEnvironment, useEnvironments, useSelectedEnvironment } from '@/lib/environments'
+import {
+  environmentActions,
+  useActiveEnvironment,
+  useEnvironments,
+} from '@/lib/daemon/environments-store'
+import { useActiveRepo } from '@/lib/daemon/repo'
 import { useAccentColor } from '@/theme/colors'
 
 const secondary = foregroundStyle({ style: 'secondary', type: 'hierarchical' })
@@ -25,11 +30,12 @@ export function ScreenHeader({
 }): React.JSX.Element {
   const accentColor = useAccentColor()
   const environments = useEnvironments()
-  const selected = useSelectedEnvironment()
+  const selected = useActiveEnvironment()
+  const repo = useActiveRepo()
 
-  // The line names the repo you are reading, which is what a project picker selects. Until a
-  // daemon can list one it falls back to the environment, then to the action that gets you one.
-  const context = selected?.nickname ?? 'Pair an environment'
+  // The line names the repo you are reading, which is what a project picker selects. It falls
+  // back to the environment, then to the action that gets you one.
+  const context = repo?.name ?? selected?.nickname ?? 'Pair an environment'
 
   return (
     <>
@@ -49,7 +55,11 @@ export function ScreenHeader({
                 }
               >
                 <Menu label="Project" systemImage="folder">
-                  <Button label="Needs an environment" modifiers={[disabled(true)]} />
+                  <Button
+                    label={selected === null ? 'Needs an environment' : 'Choose repo…'}
+                    modifiers={[disabled(selected === null)]}
+                    onPress={(): void => router.push('/repo')}
+                  />
                 </Menu>
                 <Menu label="Environment" systemImage="desktopcomputer">
                   {environments.length === 0 ? (
@@ -63,7 +73,9 @@ export function ScreenHeader({
                     <Picker<string>
                       label="Environment"
                       modifiers={[pickerStyle('inline')]}
-                      onSelectionChange={(id: string): void => selectEnvironment(id)}
+                      onSelectionChange={(id: string): void => {
+                        environmentActions.setActive(id)
+                      }}
                       selection={selected?.id ?? ''}
                     >
                       {environments.map((environment) => (

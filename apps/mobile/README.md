@@ -135,6 +135,31 @@ regular horizontal size class the sidebar depends on. If iPad looks like a scale
 phone, check that flag first, and remember it is native: it needs a rebuild, not
 a reload.
 
+## Connection
+
+`src/lib/daemon/` is the only way this app talks to a daemon: `DaemonProvider`
+(root layout) owns the query client, hydration, the bootstrap sequence and the
+`/session` socket; screens call `useDaemonQuery` / `useDaemonMutation` with a
+descriptor from `procedures/*.ts` and wrap their body in `DaemonGate`.
+
+Four rules hold that seam together:
+
+- **Import the exact module — there is no barrel.** A tab slice adds
+  `procedures/<tab>.ts` and appends to `app-events.ts`; it edits nothing else here.
+- **Never import the daemon's `AppRouter`.** Procedures are hand-declared zod
+  descriptors, and every response is parsed — version skew has to fail as
+  `invalid-response`, not as an undefined property three renders later.
+- **WS frames come from `@porcelain/contracts`.** One definition of the protocol
+  in the repo; re-declaring a schema locally is drift by construction.
+- **Credentials live in `expo-secure-store`, one key per environment**
+  (`porcelain.token.<id>`); the `porcelain.environments` index carries no token, so
+  renaming an environment never rewrites one. An index that will not parse is kept
+  under `porcelain.environments.corrupt` and reported, never silently dropped.
+
+Query keys are `['daemon', envId, procedureName, input ?? null]` — the
+environment id is in the key so switching daemons can never serve another one's
+cache.
+
 ## Delivery
 
 Two EAS workflows in `.eas/workflows/`:
