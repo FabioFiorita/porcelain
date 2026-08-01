@@ -38,23 +38,35 @@ describe('normalizeDaemonUrl', () => {
 })
 
 describe('parseRemoteEnvironmentState', () => {
-  it('passes a valid v2 state straight through', () => {
+  it('passes a valid environment-group state straight through', () => {
     const state = {
       activeId: 'a',
       environments: [
-        { id: 'a', name: 'Beelink', url: 'http://beelink:43117', token: 't1' },
-        { id: 'b', name: 'Mac', url: 'https://mac.ts.net', token: 't2' },
+        {
+          endpoints: ['http://beelink:43117'],
+          id: 'a',
+          name: 'Beelink',
+          token: 't1',
+          url: 'http://beelink:43117',
+        },
+        {
+          endpoints: ['https://mac.ts.net'],
+          id: 'b',
+          name: 'Mac',
+          token: 't2',
+          url: 'https://mac.ts.net',
+        },
       ],
     }
     expect(parseRemoteEnvironmentState(state)).toEqual(state)
   })
 
-  it('returns the empty state for garbage, null, or pre-v2 shapes', () => {
+  it('returns the empty state for garbage, null, or single-url shapes', () => {
     const empty = { activeId: null, environments: [] }
     expect(parseRemoteEnvironmentState(null)).toEqual(empty)
     expect(parseRemoteEnvironmentState({ nope: true })).toEqual(empty)
     expect(parseRemoteEnvironmentState('string')).toEqual(empty)
-    // Pre-multi-env single { url, token } is not upgraded — re-add the remote.
+    // A group must declare its endpoint list; re-pair a single-url record.
     expect(
       parseRemoteEnvironmentState({
         url: 'http://beelink.tailnet.ts.net:43117',
@@ -69,8 +81,20 @@ describe('activeRemoteDaemon', () => {
     const state = {
       activeId: 'b',
       environments: [
-        { id: 'a', name: 'Beelink', url: 'http://beelink:43117', token: 't1' },
-        { id: 'b', name: 'Mac', url: 'https://mac.ts.net', token: 't2' },
+        {
+          endpoints: ['http://beelink:43117'],
+          id: 'a',
+          name: 'Beelink',
+          token: 't1',
+          url: 'http://beelink:43117',
+        },
+        {
+          endpoints: ['https://mac.ts.net'],
+          id: 'b',
+          name: 'Mac',
+          token: 't2',
+          url: 'https://mac.ts.net',
+        },
       ],
     }
     expect(activeRemoteDaemon(state)).toEqual({ url: 'https://mac.ts.net', token: 't2' })
@@ -79,7 +103,15 @@ describe('activeRemoteDaemon', () => {
   it('returns null when nothing is active', () => {
     const state = {
       activeId: null,
-      environments: [{ id: 'a', name: 'Beelink', url: 'http://beelink:43117', token: 't1' }],
+      environments: [
+        {
+          endpoints: ['http://beelink:43117'],
+          id: 'a',
+          name: 'Beelink',
+          token: 't1',
+          url: 'http://beelink:43117',
+        },
+      ],
     }
     expect(activeRemoteDaemon(state)).toBeNull()
   })
@@ -87,7 +119,15 @@ describe('activeRemoteDaemon', () => {
   it('returns null when activeId dangles', () => {
     const state = {
       activeId: 'gone',
-      environments: [{ id: 'a', name: 'Beelink', url: 'http://beelink:43117', token: 't1' }],
+      environments: [
+        {
+          endpoints: ['http://beelink:43117'],
+          id: 'a',
+          name: 'Beelink',
+          token: 't1',
+          url: 'http://beelink:43117',
+        },
+      ],
     }
     expect(activeRemoteDaemon(state)).toBeNull()
   })
@@ -128,10 +168,6 @@ describe('endpointKind', () => {
 })
 
 describe('orderedEndpoints', () => {
-  it('migrates a pre-phase-5 environment that only has a url', () => {
-    expect(orderedEndpoints({ id: 'e', name: 'n', url: NAMED, token: 't' })).toEqual([NAMED])
-  })
-
   it('tries the preferred KIND first, not whichever answered last', () => {
     expect(orderedEndpoints(env({ url: TAILNET, preferredKind: 'lan' }))).toEqual([LAN, TAILNET])
   })
@@ -166,6 +202,10 @@ describe('endpoint edits', () => {
     const dropped = withoutEndpoint(env({ url: LAN }), LAN)
     expect(dropped.endpoints).toEqual([TAILNET])
     expect(dropped.url).toBe(TAILNET)
+  })
+
+  it('clears a primary route when its last endpoint is removed', () => {
+    expect(withoutEndpoint(env({ preferredKind: 'lan' }), LAN).preferredKind).toBeUndefined()
   })
 
   it('refuses to remove the last way in', () => {

@@ -63,7 +63,7 @@ export function ScreenHeader({
                 <Menu label="Environment" systemImage="desktopcomputer">
                   {environments.length === 0 ? (
                     <Button
-                      label="Pair an environment"
+                      label="Pair an environment group"
                       onPress={(): void => router.push('/settings/pair')}
                       systemImage="plus"
                     />

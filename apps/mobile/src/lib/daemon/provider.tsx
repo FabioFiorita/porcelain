@@ -1,3 +1,4 @@
+import { orderedEndpointUrls } from '@porcelain/contracts'
 import {
   focusManager,
   onlineManager,
@@ -9,7 +10,7 @@ import { type ReactNode, useEffect } from 'react'
 import { AppState, type AppStateStatus } from 'react-native'
 
 import { APP_EVENT_INVALIDATIONS } from './app-events'
-import { getDaemonClient } from './client'
+import { createDaemonClient, getDaemonClient } from './client'
 import { type Environment, isPaired, type PairedEnvironment } from './environment'
 import {
   activeEnvironment,
@@ -59,8 +60,11 @@ onlineManager.setEventListener((setOnline): (() => void) => {
   }
 })
 
-async function bootstrap(environment: PairedEnvironment): Promise<ConnectionState> {
-  const client = getDaemonClient(environment)
+async function bootstrapAtEndpoint(
+  environment: PairedEnvironment,
+  baseUrl: string,
+): Promise<ConnectionState> {
+  const client = createDaemonClient(baseUrl, environment.token)
   let daemonVersion: string | null = null
   try {
     daemonVersion = (await callDaemon(client, daemonInfoQuery, undefined)).version
@@ -88,6 +92,34 @@ async function bootstrap(environment: PairedEnvironment): Promise<ConnectionStat
     }
   }
   return { daemonVersion, kind: 'ready' }
+}
+
+/** Probe routes in the group's explicit order; a working LAN route wins over a slower fallback. */
+async function bootstrap(environment: PairedEnvironment): Promise<ConnectionState> {
+  let firstUnreachable: Error | null = null
+  const endpoints = orderedEndpointUrls({
+    endpoints: environment.endpoints,
+    preferredKind: environment.preferredKind,
+    url: environment.baseUrl,
+  })
+
+  for (const baseUrl of endpoints) {
+    try {
+      const ready = await bootstrapAtEndpoint(environment, baseUrl)
+      if (baseUrl !== environment.baseUrl) {
+        await environmentActions.setActiveEndpoint(environment.id, baseUrl)
+      }
+      return ready
+    } catch (error) {
+      if (error instanceof DaemonError && error.kind === 'unauthorized') throw error
+      const normalized =
+        error instanceof Error ? error : new Error('The daemon could not be reached.')
+      firstUnreachable ??= normalized
+      if (!(error instanceof DaemonError && error.kind === 'unreachable')) throw error
+    }
+  }
+
+  throw firstUnreachable ?? new Error('The daemon could not be reached.')
 }
 
 /** The credential is dead: drop it, stop the socket, and keep the daemon's name for re-pairing. */
@@ -151,7 +183,10 @@ function DaemonLifecycle(): null {
   const baseUrl = environment?.baseUrl ?? null
   const token = environment?.token ?? null
   const repoPath = environment?.activeRepoPath ?? null
-  const identity = environment === null ? null : `${environment.id}:${baseUrl}:${token}`
+  const identity =
+    environment === null
+      ? null
+      : `${environment.id}:${token}:${environment.preferredKind ?? ''}:${environment.endpoints.join('|')}`
 
   useEffect(() => {
     // An unpaired daemon's cache is not just stale, it is another machine's — drop it whole.

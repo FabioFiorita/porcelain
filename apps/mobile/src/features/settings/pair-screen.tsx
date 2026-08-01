@@ -6,13 +6,14 @@ import {
   keyboardType,
   textInputAutocapitalization,
 } from '@expo/ui/swift-ui/modifiers'
-import { router } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
 
 import { ScreenHost } from '@/components/screen-host'
-import { hostOf } from '@/lib/daemon/environment'
-import { environmentActions } from '@/lib/daemon/environments-store'
+import { hostOf, isPaired } from '@/lib/daemon/environment'
+import { environmentActions, useEnvironments } from '@/lib/daemon/environments-store'
 import { type PairingLinkProblem, parsePairingLink, redeemPairingLink } from '@/lib/daemon/pairing'
+import { attachPairingCredential, verifyPairingCredential } from '@/lib/daemon/pairing-group'
 import { footnote, secondary } from '@/theme/modifiers'
 
 /** Human-readable reason a link was rejected, shown under the field that carried it. */
@@ -30,17 +31,26 @@ function describePairingProblem(problem: PairingLinkProblem): string {
 }
 
 /**
- * Two fields, matching what the desktop hands out: a name for this device's list, and the
- * `…/pair#token=…` link Settings → Share copies. Same link the browser client redeems, so
- * there is one pairing artefact to explain and no QR scanner to justify a camera permission.
+ * The group name and `…/pair#token=…` link match what the desktop hands out. The same link the
+ * browser client redeems is used here, so there is one pairing artefact and no camera permission.
  */
 export function PairScreen(): React.JSX.Element {
+  const { environmentId } = useLocalSearchParams<{ environmentId?: string }>()
+  const environments = useEnvironments()
+  const target =
+    typeof environmentId === 'string'
+      ? (environments.find((environment) => environment.id === environmentId) ?? null)
+      : null
   const [nickname, setNickname] = useState('')
   const [link, setLink] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pairing, setPairing] = useState(false)
 
   async function submit(): Promise<void> {
+    if (environmentId !== undefined && (target === null || !isPaired(target))) {
+      setError('That environment group is no longer available. Start a new pairing.')
+      return
+    }
     const parsed = parsePairingLink(link)
     if (!parsed.ok) {
       setError(describePairingProblem(parsed.problem))
@@ -49,13 +59,20 @@ export function PairScreen(): React.JSX.Element {
     setPairing(true)
     try {
       const token = await redeemPairingLink(parsed.link)
-      const trimmed = nickname.trim()
-      const environment = await environmentActions.add({
-        baseUrl: parsed.link.baseUrl,
-        nickname: trimmed === '' ? hostOf(parsed.link.baseUrl) : trimmed,
-        token,
-      })
-      await environmentActions.setActive(environment.id)
+      if (target !== null && isPaired(target)) {
+        await attachPairingCredential(parsed.link.baseUrl, token, target.token)
+        await environmentActions.addEndpoint(target.id, parsed.link.baseUrl)
+        await environmentActions.setActive(target.id)
+      } else {
+        await verifyPairingCredential(parsed.link.baseUrl, token)
+        const trimmed = nickname.trim()
+        const environment = await environmentActions.add({
+          baseUrl: parsed.link.baseUrl,
+          nickname: trimmed === '' ? hostOf(parsed.link.baseUrl) : trimmed,
+          token,
+        })
+        await environmentActions.setActive(environment.id)
+      }
       router.back()
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Pairing failed.')
@@ -67,13 +84,19 @@ export function PairScreen(): React.JSX.Element {
   return (
     <ScreenHost>
       <Form>
-        <Section title="Environment">
-          <TextField
-            onTextChange={(value: string): void => {
-              setNickname(value)
-            }}
-            placeholder="Nickname"
-          />
+        <Section title={target === null ? 'Environment group' : 'Connection group'}>
+          {target === null ? (
+            <TextField
+              onTextChange={(value: string): void => {
+                setNickname(value)
+              }}
+              placeholder="Group name (optional)"
+            />
+          ) : (
+            <Text modifiers={[secondary]}>
+              Add a LAN, Tailscale, or Funnel connection to {target.nickname}.
+            </Text>
+          )}
           <TextField
             modifiers={[
               keyboardType('url'),
@@ -104,7 +127,9 @@ export function PairScreen(): React.JSX.Element {
           }
         >
           <Button
-            label={pairing ? 'Pairing…' : 'Add environment'}
+            label={
+              pairing ? 'Pairing…' : target === null ? 'Pair environment group' : 'Add connection'
+            }
             modifiers={[disabled(pairing || link.trim() === '')]}
             onPress={(): void => {
               submit()

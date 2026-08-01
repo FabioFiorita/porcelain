@@ -1,3 +1,4 @@
+import { endpointKindSchema } from '@porcelain/contracts'
 import { z } from 'zod'
 
 /**
@@ -10,6 +11,10 @@ const environmentRecordSchema = z.object({
   nickname: z.string().min(1).max(64),
   /** Normalized: scheme + host + port, no trailing slash. */
   baseUrl: z.string().url(),
+  /** Every verified route for this daemon; a group of one is valid. */
+  endpoints: z.array(z.string().url()).min(1),
+  /** The preferred route class, which survives DHCP changes. */
+  preferredKind: endpointKindSchema.optional(),
   createdAt: z.number().int(),
   /** The repo this daemon was last pointed at — per-daemon, meaningless without one. */
   activeRepoPath: z.string().nullable(),
@@ -19,7 +24,7 @@ export type EnvironmentRecord = z.infer<typeof environmentRecordSchema>
 export type EnvironmentId = EnvironmentRecord['id']
 
 export const environmentsFileSchema = z.object({
-  version: z.literal(1),
+  version: z.literal(2),
   activeId: z.string().nullable(),
   environments: z.array(environmentRecordSchema),
 })
@@ -28,7 +33,7 @@ export type EnvironmentsFile = z.infer<typeof environmentsFileSchema>
 
 /**
  * A stored environment with its credential resolved. `token: null` is a device whose token was
- * revoked on the host: the nickname and url survive so the app can name what was unpaired and
+ * revoked on the host: the nickname and routes survive so the app can name what was unpaired and
  * offer to pair again, but nothing can be called against it.
  */
 export type Environment = EnvironmentRecord & { token: string | null }
@@ -39,7 +44,7 @@ export function isPaired(environment: Environment | null): environment is Paired
 }
 
 export const EMPTY_ENVIRONMENTS_FILE: EnvironmentsFile = {
-  version: 1,
+  version: 2,
   activeId: null,
   environments: [],
 }

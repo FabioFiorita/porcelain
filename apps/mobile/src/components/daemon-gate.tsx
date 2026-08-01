@@ -31,14 +31,16 @@ export function DaemonGate({
     case 'no-environment':
       return (
         <EmptyState
-          action="Pair a daemon"
+          action="Pair an environment group"
           body={
             corrupt
               ? 'The environments stored on this device could not be read. Pair again to restore the connection.'
-              : 'Porcelain reviews work that happens on your machine. Pair the daemon running there to see it.'
+              : 'Porcelain reviews work that happens on your machine. Pair the environment group running there to see it.'
           }
           onAction={(): void => router.push('/settings/pair')}
-          title={corrupt ? 'Stored environments couldn’t be read' : 'Pair your first daemon'}
+          title={
+            corrupt ? 'Stored environments couldn’t be read' : 'Pair your first environment group'
+          }
         />
       )
     case 'unauthorized':

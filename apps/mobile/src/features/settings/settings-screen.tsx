@@ -11,7 +11,8 @@ import {
   Text,
   VStack,
 } from '@expo/ui/swift-ui'
-import { font, listStyle, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers'
+import { disabled, font, listStyle, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers'
+import { endpointKind } from '@porcelain/contracts'
 import Constants from 'expo-constants'
 import { router } from 'expo-router'
 import * as Updates from 'expo-updates'
@@ -75,7 +76,7 @@ export function SettingsScreen(): React.JSX.Element {
           <Section title="Environments">
             {environments.length === 0 ? (
               <ContentUnavailableView
-                description="Pair a daemon and the repos it exposes show up here. Until then there is nothing to review."
+                description="Pair an environment group and the repos it exposes show up here. Until then there is nothing to review."
                 systemImage="point.3.connected.trianglepath.dotted"
                 title="No environments"
               />
@@ -85,7 +86,7 @@ export function SettingsScreen(): React.JSX.Element {
               ))
             )}
             <Button
-              label="Pair an environment"
+              label="Pair an environment group"
               onPress={(): void => router.push('/settings/pair')}
               systemImage="plus"
             />
@@ -171,11 +172,61 @@ function EnvironmentRow({ environment }: { environment: Environment }): React.JS
     <SwipeActions>
       <HStack spacing={10}>
         <Image color={status.color} size={10} systemName="circle.fill" />
-        <VStack alignment="leading" spacing={2}>
+        <VStack alignment="leading" spacing={6}>
           <Text>{environment.nickname}</Text>
           <Text modifiers={[font({ textStyle: 'footnote' }), secondary]}>
-            {environment.baseUrl}
+            {environment.endpoints.length === 1
+              ? '1 connection'
+              : `${environment.endpoints.length} connections`}
           </Text>
+          <VStack alignment="leading" spacing={3}>
+            {environment.endpoints.map((endpoint) => {
+              const preferred =
+                environment.preferredKind !== undefined &&
+                endpointKind(endpoint) === environment.preferredKind
+              return (
+                <HStack key={endpoint} spacing={6}>
+                  <Image size={8} systemName={preferred ? 'checkmark.circle.fill' : 'circle'} />
+                  <VStack alignment="leading" spacing={0}>
+                    <Text modifiers={[font({ textStyle: 'caption' })]}>
+                      {endpointLabel(endpoint)}
+                    </Text>
+                    <Text modifiers={[font({ textStyle: 'caption2' }), secondary]}>{endpoint}</Text>
+                  </VStack>
+                  <Spacer />
+                  {preferred ? (
+                    <Text modifiers={[font({ textStyle: 'caption2' }), secondary]}>Primary</Text>
+                  ) : (
+                    <Button
+                      label="Make primary"
+                      onPress={(): void => {
+                        environmentActions.preferEndpoint(environment.id, endpoint)
+                      }}
+                    />
+                  )}
+                  <Button
+                    label="Remove connection"
+                    onPress={(): void => {
+                      environmentActions.removeEndpoint(environment.id, endpoint)
+                    }}
+                    role="destructive"
+                    systemImage="trash"
+                    modifiers={[disabled(environment.endpoints.length === 1)]}
+                  />
+                </HStack>
+              )
+            })}
+          </VStack>
+          <Button
+            label="Add connection"
+            onPress={(): void => {
+              router.push({
+                pathname: '/settings/pair',
+                params: { environmentId: environment.id },
+              })
+            }}
+            systemImage="plus"
+          />
         </VStack>
         <Spacer />
         <Text modifiers={[font({ textStyle: 'footnote' }), secondary]}>{status.label}</Text>
@@ -192,6 +243,17 @@ function EnvironmentRow({ environment }: { environment: Environment }): React.JS
       </SwipeActions.Actions>
     </SwipeActions>
   )
+}
+
+function endpointLabel(endpoint: string): string {
+  switch (endpointKind(endpoint)) {
+    case 'lan':
+      return 'LAN'
+    case 'tailnet':
+      return 'Tailscale'
+    case 'other':
+      return 'Funnel / Internet'
+  }
 }
 
 function ValueRow({ label, value }: { label: string; value: string }): React.JSX.Element {

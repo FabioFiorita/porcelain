@@ -15,21 +15,26 @@ type CachedClient = { baseUrl: string; token: string; client: DaemonClient }
 
 const clients = new Map<string, CachedClient>()
 
-/** One client per environment, rebuilt when its `baseUrl` or token changes. */
+/** Build a client for one verified route. Temporary pairing probes never enter the cache. */
+export function createDaemonClient(baseUrl: string, token: string): DaemonClient {
+  return createTRPCUntypedClient<AnyTRPCRouter>({
+    links: [
+      httpBatchLink({
+        headers: () => ({ authorization: `Bearer ${token}` }),
+        url: `${baseUrl}/trpc`,
+      }),
+    ],
+  })
+}
+
+/** One cached client per environment, rebuilt when its `baseUrl` or token changes. */
 export function getDaemonClient(env: PairedEnvironment): DaemonClient {
   const cached = clients.get(env.id)
   if (cached !== undefined && cached.baseUrl === env.baseUrl && cached.token === env.token) {
     return cached.client
   }
 
-  const client = createTRPCUntypedClient<AnyTRPCRouter>({
-    links: [
-      httpBatchLink({
-        headers: () => ({ authorization: `Bearer ${env.token}` }),
-        url: `${env.baseUrl}/trpc`,
-      }),
-    ],
-  })
+  const client = createDaemonClient(env.baseUrl, env.token)
   clients.set(env.id, { baseUrl: env.baseUrl, client, token: env.token })
   return client
 }

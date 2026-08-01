@@ -1,3 +1,4 @@
+import { endpointKind } from '@porcelain/contracts'
 import { randomUUID } from 'expo-crypto'
 import * as SecureStore from 'expo-secure-store'
 import { create } from 'zustand'
@@ -84,7 +85,7 @@ async function persist(): Promise<void> {
   const file: EnvironmentsFile = {
     activeId,
     environments: environments.map(toRecord),
-    version: 1,
+    version: 2,
   }
   await SecureStore.setItemAsync(INDEX_KEY, JSON.stringify(file))
 }
@@ -127,8 +128,12 @@ function connectionFor(environment: Environment | null): ConnectionState {
 
 type EnvironmentActions = {
   add(input: { nickname: string; baseUrl: string; token: string }): Promise<PairedEnvironment>
+  addEndpoint(id: EnvironmentId, baseUrl: string): Promise<void>
   rename(id: EnvironmentId, nickname: string): Promise<void>
   setActive(id: EnvironmentId): Promise<void>
+  setActiveEndpoint(id: EnvironmentId, baseUrl: string): Promise<void>
+  preferEndpoint(id: EnvironmentId, baseUrl: string): Promise<void>
+  removeEndpoint(id: EnvironmentId, baseUrl: string): Promise<void>
   remove(id: EnvironmentId): Promise<void>
   forgetToken(id: EnvironmentId): Promise<void>
   setActiveRepoPath(id: EnvironmentId, path: string | null): Promise<void>
@@ -143,12 +148,15 @@ export const environmentActions: EnvironmentActions = {
     token: string
   }): Promise<PairedEnvironment> {
     // SecureStore keys allow `[A-Za-z0-9._-]`, which a UUID satisfies.
+    const baseUrl = normalizeBaseUrl(input.baseUrl)
     const environment: PairedEnvironment = {
       activeRepoPath: null,
-      baseUrl: normalizeBaseUrl(input.baseUrl),
+      baseUrl,
       createdAt: Date.now(),
+      endpoints: [baseUrl],
       id: randomUUID(),
       nickname: input.nickname,
+      preferredKind: endpointKind(baseUrl),
       token: input.token,
     }
     await SecureStore.setItemAsync(tokenKey(environment.id), environment.token)
@@ -158,6 +166,23 @@ export const environmentActions: EnvironmentActions = {
     }))
     await persist()
     return environment
+  },
+
+  async addEndpoint(id: EnvironmentId, inputUrl: string): Promise<void> {
+    const baseUrl = normalizeBaseUrl(inputUrl)
+    const environment = useEnvironmentsStore
+      .getState()
+      .environments.find((candidate) => candidate.id === id)
+    if (environment === undefined) throw new Error('That environment no longer exists')
+    if (environment.endpoints.includes(baseUrl)) return
+    useEnvironmentsStore.setState((state) => ({
+      environments: state.environments.map((candidate) =>
+        candidate.id === id
+          ? { ...candidate, endpoints: [...candidate.endpoints, baseUrl] }
+          : candidate,
+      ),
+    }))
+    await persist()
   },
 
   async rename(id: EnvironmentId, nickname: string): Promise<void> {
@@ -177,6 +202,60 @@ export const environmentActions: EnvironmentActions = {
     await persist()
   },
 
+  async setActiveEndpoint(id: EnvironmentId, inputUrl: string): Promise<void> {
+    const baseUrl = normalizeBaseUrl(inputUrl)
+    const environment = useEnvironmentsStore
+      .getState()
+      .environments.find((candidate) => candidate.id === id)
+    if (environment === undefined || !environment.endpoints.includes(baseUrl)) return
+    useEnvironmentsStore.setState((state) => ({
+      environments: state.environments.map((candidate) =>
+        candidate.id === id ? { ...candidate, baseUrl } : candidate,
+      ),
+    }))
+    await persist()
+  },
+
+  async preferEndpoint(id: EnvironmentId, inputUrl: string): Promise<void> {
+    const baseUrl = normalizeBaseUrl(inputUrl)
+    const environment = useEnvironmentsStore
+      .getState()
+      .environments.find((candidate) => candidate.id === id)
+    if (environment === undefined || !environment.endpoints.includes(baseUrl)) return
+    useEnvironmentsStore.setState((state) => ({
+      environments: state.environments.map((candidate) =>
+        candidate.id === id ? { ...candidate, preferredKind: endpointKind(baseUrl) } : candidate,
+      ),
+    }))
+    await persist()
+  },
+
+  async removeEndpoint(id: EnvironmentId, inputUrl: string): Promise<void> {
+    const baseUrl = normalizeBaseUrl(inputUrl)
+    const environment = useEnvironmentsStore
+      .getState()
+      .environments.find((candidate) => candidate.id === id)
+    if (environment === undefined || environment.endpoints.length === 1) return
+    const endpoints = environment.endpoints.filter((endpoint) => endpoint !== baseUrl)
+    if (endpoints.length === environment.endpoints.length) return
+    const nextBaseUrl = endpoints.includes(environment.baseUrl)
+      ? environment.baseUrl
+      : (endpoints[0] ?? environment.baseUrl)
+    const preferredKind =
+      environment.preferredKind !== undefined &&
+      endpoints.some((endpoint) => endpointKind(endpoint) === environment.preferredKind)
+        ? environment.preferredKind
+        : undefined
+    useEnvironmentsStore.setState((state) => ({
+      environments: state.environments.map((candidate) =>
+        candidate.id === id
+          ? { ...candidate, baseUrl: nextBaseUrl, endpoints, preferredKind }
+          : candidate,
+      ),
+    }))
+    await persist()
+  },
+
   async remove(id: EnvironmentId): Promise<void> {
     forgetDaemonClient(id)
     useEnvironmentsStore.setState((state) => {
@@ -189,7 +268,7 @@ export const environmentActions: EnvironmentActions = {
     await persist()
   },
 
-  /** The token was revoked host-side: keep the nickname and url, drop the dead credential. */
+  /** The token was revoked host-side: keep the nickname and routes, drop the dead credential. */
   async forgetToken(id: EnvironmentId): Promise<void> {
     forgetDaemonClient(id)
     useEnvironmentsStore.setState((state) => ({

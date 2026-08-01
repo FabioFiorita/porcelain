@@ -30,7 +30,8 @@ import {
  *
  * Lifecycle: the ready line (`{"port": N}` on stdout) resolves the port; a crash restarts
  * with a capped backoff (give up after 3 rapid failures) and pushes the NEW url to every
- * LOCAL-bound window over `daemon-url-changed`; quit kills the child. A utility child has
+ * LOCAL-bound window over `daemon-url-changed`; group route healing uses that channel for
+ * remote-bound windows too. Quit kills the child. A utility child has
  * no stdin, so the shell disables the daemon's parent-death watchdog via
  * PORCELAIN_NO_STDIN_WATCHDOG (standalone daemons under plain `node` keep it).
  *
@@ -120,6 +121,17 @@ export function setWindowEnvironment(
   }
 }
 
+/** Re-point every open window bound to a group after its route resolver finds a live endpoint. */
+export function setWindowRemoteEndpoint(environmentId: string, daemon: RemoteDaemon): void {
+  for (const window of BrowserWindow.getAllWindows()) {
+    if (window.isDestroyed() || windowEnvironmentId(window.webContents) !== environmentId) continue
+    const current = windowDaemons.get(window.webContents.id)
+    if (current?.url === daemon.url && current.token === daemon.token) continue
+    windowDaemons.set(window.webContents.id, daemon)
+    window.webContents.send('daemon-url-changed', daemon)
+  }
+}
+
 /** This window's environment id (null = local). */
 export function windowEnvironmentId(webContents: WebContents): string | null {
   return windowEnvIds.get(webContents.id) ?? null
@@ -158,7 +170,7 @@ export async function setDefaultEnvironmentId(id: string | null): Promise<void> 
 
 /**
  * After a local daemon restart, only re-point windows that are on the local
- * child — remote-bound windows must keep their remote pair.
+ * child — remote-bound windows keep their remote pair.
  */
 function pushLocalDaemonInfo(): void {
   for (const window of BrowserWindow.getAllWindows()) {
@@ -277,9 +289,8 @@ async function launch(): Promise<void> {
   proc.on('exit', (code) => onChildDown(`exited (code ${code})`))
 
   port = await awaitReadyLine(proc)
-  // Push the (new) url + token only to LOCAL-bound windows — after a restart the
-  // renderer's WS client reconnects here and its queries refetch against the
-  // new port. Remote-bound windows keep their remote pair.
+  // Push the (new) url + token to LOCAL-bound windows after a restart. Remote
+  // group route healing uses the same renderer event with its saved token.
   pushLocalDaemonInfo()
 }
 

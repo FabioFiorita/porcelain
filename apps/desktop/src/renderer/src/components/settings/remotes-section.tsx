@@ -1,29 +1,27 @@
 import type { EnvironmentStatus } from '@main/shell-api'
+import { endpointKind } from '@porcelain/contracts'
 import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
 import { Input } from '@renderer/components/ui/input'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useEnvironmentStatuses } from '@renderer/hooks/use-environment-status'
 import {
-  useAddRemoteEnvironment,
   useConnectRemoteEnvironment,
   useDisconnectRemoteEnvironment,
   useOpenWindowInEnvironment,
+  usePairEnvironmentConnection,
+  usePreferEnvironmentEndpoint,
   useRemoteEnvironments,
+  useRemoveEnvironmentEndpoint,
   useRemoveRemoteEnvironment,
 } from '@renderer/hooks/use-remote-daemon'
 import { compactButtonClass, rowActionClass } from '@renderer/lib/controls'
 import { cn } from '@renderer/lib/utils'
 import { platformLabel } from '@shared/platform'
 import { TestIds } from '@shared/test-ids'
-import { X } from 'lucide-react'
+import { Check, X } from 'lucide-react'
 import { useState } from 'react'
 
-/**
- * One line of prose for a probed environment: what it is when we reached it, why it
- * isn't usable when we didn't. `unauthorized` means the saved device credential
- * was revoked — create a fresh connection link on that machine.
- */
 function describeStatus(status: EnvironmentStatus | undefined): string {
   if (status === undefined) return 'Checking…'
   if (status.state === 'offline') return 'Not reachable'
@@ -35,24 +33,42 @@ function describeStatus(status: EnvironmentStatus | undefined): string {
   return status.version !== null ? `${machine} · daemon ${status.version}` : machine
 }
 
-/** Primary action slot — Badge ("This window") and Button ("Use here") share a
- *  fixed min width so "New window" lines up on every row. */
+function endpointLabel(url: string): string {
+  switch (endpointKind(url)) {
+    case 'lan':
+      return 'LAN'
+    case 'tailnet':
+      return 'Tailscale'
+    case 'other':
+      return 'Funnel / Internet'
+  }
+}
+
+function activeRoute(status: EnvironmentStatus | undefined): string | null {
+  if (status?.state !== 'online' || status.endpoint === null) return null
+  return endpointLabel(status.endpoint)
+}
+
+/** Primary action slot — Badge and Button share a width so the settings rows stay aligned. */
 const primaryActionSlotClass = 'flex min-w-[5.75rem] justify-end'
 
 /**
- * Machines this app can open windows against. Electron-only. Add with a one-time
- * connection link from the other machine's Settings → Share or host CLI.
+ * Each saved environment is a group of verified connections. A group of one is the normal
+ * starting point; pairing another link adds a route to this same card.
  */
 export function RemotesSection(): React.JSX.Element {
   const data = useRemoteEnvironments()
   const statuses = useEnvironmentStatuses()
-  const { add, isPending: isAdding, error } = useAddRemoteEnvironment()
+  const { pair, isPending: isPairing, error } = usePairEnvironmentConnection()
   const { connect, pendingId: connectingId } = useConnectRemoteEnvironment()
   const { disconnect, isPending: isDisconnecting } = useDisconnectRemoteEnvironment()
   const { open: openInEnv } = useOpenWindowInEnvironment()
   const { remove, pendingId: removingId } = useRemoveRemoteEnvironment()
+  const { prefer: preferEndpoint } = usePreferEnvironmentEndpoint()
+  const { remove: removeEndpoint } = useRemoveEnvironmentEndpoint()
   const [connectionLink, setConnectionLink] = useState('')
-  const [showAdd, setShowAdd] = useState(false)
+  const [pairingTargetId, setPairingTargetId] = useState<string | null>(null)
+  const [showPairing, setShowPairing] = useState(false)
 
   const environments = data?.environments ?? []
   const activeId = data?.activeId ?? null
@@ -60,9 +76,14 @@ export function RemotesSection(): React.JSX.Element {
   const localName =
     localStatus?.host != null && localStatus.host !== '' ? localStatus.host : 'This device'
 
+  function showPairForm(groupId: string | null): void {
+    setPairingTargetId(groupId)
+    setConnectionLink('')
+    setShowPairing(true)
+  }
+
   return (
     <div className="flex flex-col gap-3">
-      {/* Title lives on the dialog header — don't restate "Remotes" here. */}
       <ul className="divide-y divide-border/60 overflow-hidden rounded-md border border-border/60">
         <li
           className="flex items-center justify-between gap-3 p-3"
@@ -101,119 +122,151 @@ export function RemotesSection(): React.JSX.Element {
             >
               New window
             </Button>
-            {/* Reserve the same slot as the remove control on remote rows so
-                "New window" lines up across every environment. */}
             <span className="size-7 shrink-0" aria-hidden />
           </div>
         </li>
-        {environments.map((env) => {
-          const isActive = env.id === activeId
-          const status = statuses.get(env.id)
-          const via =
-            status?.state === 'online' && status.endpoint != null
-              ? status.endpoint.includes('100.')
-                ? 'via Tailscale'
-                : 'via local network'
-              : null
+        {environments.map((environment) => {
+          const isActive = environment.id === activeId
+          const status = statuses.get(environment.id)
+          const route = activeRoute(status)
           return (
             <li
-              key={env.id}
-              className="flex items-center justify-between gap-3 p-3"
-              data-testid={TestIds.environmentRow(env.id)}
+              key={environment.id}
+              className="flex flex-col gap-3 p-3"
+              data-testid={TestIds.environmentRow(environment.id)}
             >
-              <div className="min-w-0">
-                <p className="text-sm-minus font-medium">{env.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {describeStatus(status)}
-                  {via != null ? ` · ${via}` : ''}
-                </p>
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <div className={primaryActionSlotClass}>
-                  {isActive ? (
-                    <Badge
-                      variant="outline"
-                      className="rounded-md border-border/60 text-2xs text-muted-foreground"
-                    >
-                      This window
-                    </Badge>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className={rowActionClass}
-                      disabled={connectingId === env.id}
-                      onClick={() => connect(env.id)}
-                    >
-                      {connectingId === env.id ? 'Switching…' : 'Use here'}
-                    </Button>
-                  )}
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm-minus font-medium">{environment.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {describeStatus(status)}
+                    {route == null ? '' : ` · via ${route}`}
+                  </p>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={rowActionClass}
-                  onClick={() => openInEnv({ environmentId: env.id })}
-                >
-                  New window
-                </Button>
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        disabled={removingId === env.id}
-                        onClick={() => remove(env.id)}
-                        aria-label="Remove"
+                <div className="flex shrink-0 items-center gap-2">
+                  <div className={primaryActionSlotClass}>
+                    {isActive ? (
+                      <Badge
+                        variant="outline"
+                        className="rounded-md border-border/60 text-2xs text-muted-foreground"
                       >
-                        <X />
+                        This window
+                      </Badge>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={rowActionClass}
+                        disabled={connectingId === environment.id}
+                        onClick={() => connect(environment.id)}
+                      >
+                        {connectingId === environment.id ? 'Switching…' : 'Use here'}
                       </Button>
-                    }
-                  />
-                  <TooltipContent>Remove</TooltipContent>
-                </Tooltip>
+                    )}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={rowActionClass}
+                    onClick={() => openInEnv({ environmentId: environment.id })}
+                  >
+                    New window
+                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          disabled={removingId === environment.id}
+                          onClick={() => remove(environment.id)}
+                          aria-label="Remove environment group"
+                        >
+                          <X />
+                        </Button>
+                      }
+                    />
+                    <TooltipContent>Remove group</TooltipContent>
+                  </Tooltip>
+                </div>
               </div>
+
+              <div className="flex flex-col gap-1 rounded-md border border-border/60 p-2">
+                <p className="px-1 text-2xs font-medium tracking-wider text-muted-foreground uppercase">
+                  Connections · primary route first
+                </p>
+                {environment.endpoints.map((endpoint) => (
+                  <EndpointRow
+                    endpoint={endpoint}
+                    environmentId={environment.id}
+                    key={endpoint.url}
+                    onRemove={() => removeEndpoint({ id: environment.id, url: endpoint.url })}
+                    onPrefer={() => preferEndpoint({ id: environment.id, url: endpoint.url })}
+                    preferred={endpoint.preferred}
+                    removable={environment.endpoints.length > 1}
+                  />
+                ))}
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn('self-start', compactButtonClass)}
+                onClick={() => showPairForm(environment.id)}
+              >
+                Add connection
+              </Button>
             </li>
           )
         })}
       </ul>
 
-      {showAdd ? (
+      {showPairing ? (
         <div className="flex flex-col gap-2 rounded-md border border-border/60 p-3">
           <p className="text-2xs font-medium tracking-wider text-muted-foreground uppercase">
-            Add remote
+            {pairingTargetId === null ? 'Create environment group' : 'Add connection to group'}
           </p>
           <Input
             type="password"
             placeholder="Connection link (https://…/pair#token=…)"
             value={connectionLink}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>): void =>
-              setConnectionLink(e.target.value)
+            onChange={(event: React.ChangeEvent<HTMLInputElement>): void =>
+              setConnectionLink(event.target.value)
             }
-            disabled={isAdding}
+            disabled={isPairing}
             className="font-mono"
           />
           <p className="text-xs text-muted-foreground">
-            Create this one-time link from Settings → Share or the host CLI.
+            Pair LAN first, then add Tailscale or Funnel as the fallback route. Each link is
+            verified against the same daemon before it joins the group.
           </p>
           <div className="flex items-center gap-2">
             <Button
               variant="default"
               size="sm"
               className={compactButtonClass}
-              disabled={isAdding || connectionLink.trim() === ''}
-              onClick={() => add({ connectionLink })}
+              disabled={isPairing || connectionLink.trim() === ''}
+              onClick={() =>
+                pair({
+                  connectionLink,
+                  connectThisWindow: pairingTargetId === null,
+                  groupId: pairingTargetId,
+                })
+              }
             >
-              {isAdding ? 'Adding…' : 'Add & use here'}
+              {isPairing
+                ? 'Pairing…'
+                : pairingTargetId === null
+                  ? 'Pair & use here'
+                  : 'Add connection'}
             </Button>
             <Button
               variant="ghost"
               size="sm"
               className={compactButtonClass}
-              disabled={isAdding}
+              disabled={isPairing}
               onClick={() => {
-                setShowAdd(false)
+                setShowPairing(false)
                 setConnectionLink('')
               }}
             >
@@ -227,11 +280,76 @@ export function RemotesSection(): React.JSX.Element {
           variant="outline"
           size="sm"
           className={cn('self-start', compactButtonClass)}
-          onClick={() => setShowAdd(true)}
+          onClick={() => showPairForm(null)}
         >
-          Add remote
+          Pair an environment group
         </Button>
       )}
+    </div>
+  )
+}
+
+function EndpointRow({
+  endpoint,
+  environmentId,
+  onPrefer,
+  onRemove,
+  preferred,
+  removable,
+}: {
+  endpoint: { url: string; kind: 'lan' | 'tailnet' | 'other'; preferred: boolean }
+  environmentId: string
+  onPrefer: () => void
+  onRemove: () => void
+  preferred: boolean
+  removable: boolean
+}): React.JSX.Element {
+  return (
+    <div className="flex items-center justify-between gap-2 rounded-sm px-1 py-1">
+      <div className="flex min-w-0 items-center gap-2">
+        <Badge variant={preferred ? 'default' : 'outline'} className="shrink-0 rounded-md text-2xs">
+          {endpointLabel(endpoint.url)}
+        </Badge>
+        <span className="truncate font-mono text-2xs-plus text-muted-foreground">
+          {endpoint.url}
+        </span>
+      </div>
+      <div className="flex shrink-0 items-center gap-1">
+        {preferred ? (
+          <Badge variant="secondary" className="gap-1 rounded-md text-2xs">
+            <Check data-icon="inline-start" /> Primary
+          </Badge>
+        ) : (
+          <Button
+            variant="ghost"
+            size="sm"
+            className={compactButtonClass}
+            onClick={onPrefer}
+            aria-label={`Make ${endpointLabel(endpoint.url)} primary`}
+          >
+            Make primary
+          </Button>
+        )}
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                disabled={!removable}
+                onClick={onRemove}
+                aria-label={`Remove ${endpointLabel(endpoint.url)} connection`}
+                data-environment-id={environmentId}
+              >
+                <X />
+              </Button>
+            }
+          />
+          <TooltipContent>
+            {removable ? 'Remove connection' : 'A group needs one connection'}
+          </TooltipContent>
+        </Tooltip>
+      </div>
     </div>
   )
 }

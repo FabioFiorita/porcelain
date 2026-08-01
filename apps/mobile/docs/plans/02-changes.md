@@ -227,7 +227,7 @@ pnpm mobile:start                                  # Metro here; the sim loads t
 
 The `PORCELAIN_HOME` / `PORCELAIN_DAEMON_PORT` prefix is not optional — without it `daemon-cli.js` reads the production admin token and issues a link against 43117. In a managed worktree, substitute its own 43200–43999 port everywhere 43118 appears. First run on a fresh simulator needs the dev client installed once from the Mac (`eas build -p ios --profile development-simulator`, then `xcrun simctl install booted <App>.app`).
 
-Pair the simulator to `http://<this-host>.local:43118` using the environment flow from 00-connection (Settings → Environments → Pair a daemon → paste the printed link) — **not** `127.0.0.1`, which on the simulator means the Mac. Point it at a **playground** repo (`~/code/porcelain-playgrounds/<slug>`), never a real worktree.
+Pair the simulator to `http://<this-host>.local:43118` using the environment-group flow from 00-connection (Settings → Environments → Pair an environment group → paste the printed link) — **not** `127.0.0.1`, which on the simulator means the Mac. Point it at a **playground** repo (`~/code/porcelain-playgrounds/<slug>`), never a real worktree.
 
 Fixture: make the playground dirty across at least two layers — e.g. edit `README.md` (Docs) and `src/example.ts` (Other) and add one new file — so grouping, statuses, and stats are all visible.
 

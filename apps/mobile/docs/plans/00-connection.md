@@ -7,8 +7,9 @@ and where it and this plan disagree, the daemon source wins.
 ## 1. Mission
 
 When this worktree merges, the app can be pointed at a real daemon and stay pointed at it: the user
-pastes a pairing link into Settings → Environments, the app redeems it, stores `{id, nickname,
-baseUrl, token}` in `expo-secure-store`, picks a repo from the daemon's recents (or browses the
+pastes a pairing link into Settings → Environments, the app redeems it, stores
+`{id, nickname, baseUrl, endpoints, preferredKind, token}` as one environment group in
+`expo-secure-store`, picks a repo from the daemon's recents (or browses the
 daemon's directories), and every screen in the app can then run a typed, zod-validated tRPC call
 against the active environment with React Query caching, a `/session` WebSocket pushing
 invalidations, and a coherent story for the three failures that actually happen (host unreachable,
@@ -28,7 +29,8 @@ one after merge means changing four plans.
 | `environments-store.ts` | zustand store + `useEnvironments`, `useActiveEnvironment`, actions |
 | `repo.ts` | `useActiveRepo`, `openRepo`, `clearActiveRepo` |
 | `pairing.ts` | `parsePairingLink`, `redeemPairingLink` (pure parse + one unauthenticated POST) |
-| `client.ts` | `getDaemonClient(env)` — cached untyped tRPC client per environment |
+| `pairing-group.ts` | Verify a new route against a group token and revoke temporary pairing credentials |
+| `client.ts` | `createDaemonClient(url, token)`, `getDaemonClient(env)` — temporary and cached untyped tRPC clients |
 | `procedure.ts` | `defineQuery` / `defineMutation`, `DaemonQuery`, `DaemonMutation` |
 | `procedures/connection.ts` | this layer's procedures (`daemonInfo`, `recentRepos`, …) |
 | `errors.ts` | `DaemonError`, `DaemonErrorKind`, `toDaemonError` |
@@ -73,7 +75,7 @@ import type { AnyTRPCRouter } from '@trpc/server' // type-only; verified to comp
 
 export type DaemonClient = ReturnType<typeof createTRPCUntypedClient<AnyTRPCRouter>>
 
-/** One client per environment id, rebuilt when the token or baseUrl changes. */
+/** One cached client per group id, rebuilt when the token or last-known-good URL changes. */
 export function getDaemonClient(env: Environment): DaemonClient
 ```
 
@@ -158,6 +160,9 @@ export function useActiveEnvironment(): Environment | null
 export function useConnectionState(): ConnectionState
 export const environmentActions: {
   add(input: { nickname: string; baseUrl: string; token: string }): Promise<Environment>
+  addEndpoint(id: EnvironmentId, baseUrl: string): Promise<void>
+  setActiveEndpoint(id: EnvironmentId, baseUrl: string): Promise<void>
+  preferEndpoint(id: EnvironmentId, baseUrl: string): Promise<void>
   rename(id: EnvironmentId, nickname: string): Promise<void>
   setActive(id: EnvironmentId): Promise<void>
   remove(id: EnvironmentId): Promise<void>   // local only — see `unpair` in the UX section
@@ -286,15 +291,14 @@ JS-thread-bound per row — fine for environments and recents (tens of rows), an
 
 A `List` inside the existing settings stack:
 
-- One `ListItem` per environment. Headline = nickname; `supportingText` = `baseUrl` plus a state dot
+- One `ListItem` per environment group. Headline = nickname; supporting content lists each verified endpoint and its route class (`LAN`, `Tailscale`, or `Funnel / Internet`) plus a state dot
   (`Active`, `Unreachable`, `Token revoked`). Tapping a non-active row makes it active and pops back
   to the settings root.
-- A trailing `Button` row: **Pair a daemon** → pushes `/settings/environments/pair`.
-- Tapping the **active** row pushes `/settings/environments/[id]` (detail): rename via `TextInput`
-  (`useNativeState`, per the expo-ui skill — its `value` is an `ObservableState`, not a string),
-  read-only `baseUrl`, daemon version + host from `daemonInfo`, and **Unpair this device**.
+- A trailing `Button` row: **Pair an environment group** → pushes `/settings/environments/pair`.
+- Each group offers **Add connection** (the same pairing screen targeted at that group), a primary
+  route choice, and **Unpair this device**. A group of one uses exactly the same controls.
 - Empty list: a short line explaining that Porcelain is useless without a remote, and the same
-  **Pair a daemon** button.
+  **Pair an environment group** button.
 
 **Unpair** = `revokeCurrentClient` mutation, then `environmentActions.remove(id)` regardless of the
 result. If the daemon is unreachable the token can't be revoked remotely — the confirmation copy says
@@ -310,9 +314,12 @@ One screen, one field, deliberately dull:
 2. Live parse feedback under the field via `parsePairingLink` — origin and a masked credential when
    it parses, a specific reason when it doesn't.
 3. Optional nickname field, pre-filled with the link's host (`beelink`, `100.x.y.z`).
-4. **Pair** button → `redeemPairingLink` → `environmentActions.add` → `setActive` → pop to
-   `/settings/environments`. The new environment is active immediately; the app then runs the
-   bootstrap sequence and, if no repo is chosen yet, opens the repo sheet.
+4. **Pair** button → `redeemPairingLink` → verify the token with `recentRepos` →
+   `environmentActions.add` → `setActive` → pop to `/settings/environments`. The new group is
+   active immediately; the app then runs the bootstrap sequence and, if no repo is chosen yet,
+   opens the repo sheet.
+5. When opened from a group’s **Add connection** action, redeem the link, verify the existing group
+   token at that URL, revoke the temporary token, and append the verified endpoint to the group.
 
 `parsePairingLink` is pure and unit-tested (see Verification). It accepts `<origin>/pair#token=<cred>`
 and tolerates a trailing slash, surrounding whitespace, and a `?`-style fragment; it rejects a
@@ -354,7 +361,7 @@ one primary `Button`; the existing `PlaceholderScreen` stays for the not-yet-bui
 
 | `useConnectionState` | Title | Action |
 |---|---|---|
-| `no-environment` | "Pair your first daemon" | **Pair a daemon** → `/settings/environments/pair` |
+| `no-environment` | "Pair your first environment group" | **Pair an environment group** → `/settings/environments/pair` |
 | `unauthorized` | "This device was unpaired" | **Pair again** → the pair screen, prefilled nickname |
 | `unreachable` | "Can't reach <nickname>" | **Retry**, secondary **Switch environment** |
 | `ready`, no repo (`requires: 'repo'`) | "Choose a repo" | **Choose repo** → `/repo` |
@@ -441,7 +448,7 @@ list is split:
 
 | Key | Value |
 |---|---|
-| `porcelain.environments` | `{ version: 1, activeId: string \| null, environments: EnvironmentRecord[] }` |
+| `porcelain.environments` | `{ version: 2, activeId: string \| null, environments: EnvironmentRecord[] }` |
 | `porcelain.token.<id>` | the raw `pc_client_…` token, one key per environment |
 
 ```ts
@@ -449,11 +456,13 @@ const environmentRecordSchema = z.object({
   id: z.string(),
   nickname: z.string().min(1).max(64),
   baseUrl: z.string().url(),          // normalized: scheme + host + port, no trailing slash
+  endpoints: z.array(z.string().url()).min(1),
+  preferredKind: z.enum(['tailnet', 'lan', 'other']).optional(),
   createdAt: z.number().int(),
   activeRepoPath: z.string().nullable(),
 })
 const environmentsFileSchema = z.object({
-  version: z.literal(1),
+  version: z.literal(2),
   activeId: z.string().nullable(),
   environments: z.array(environmentRecordSchema),
 })
@@ -495,7 +504,7 @@ Classification reads `TRPCClientError`'s `data.httpStatus` / `data.code`; anythi
 | Kind | Where it shows |
 |---|---|
 | `unreachable` | `ConnectionState.unreachable` → `DaemonGate` empty state + the environment row's dot; a retry does **not** clear the cache |
-| `unauthorized` | `ConnectionState.unauthorized` → gate offers re-pair; the environment is kept (nickname + baseUrl survive), the token key is deleted |
+| `unauthorized` | `ConnectionState.unauthorized` → gate offers re-pair; the environment group is kept (nickname + endpoints survive), the token key is deleted |
 | `unsupported` on `daemonInfo` | not an error — `ready` with `daemonVersion: null`, plus a one-line "This daemon predates 0.30; some screens may be empty" note on the environment detail screen |
 | `unsupported` elsewhere | the calling screen shows "Your daemon is too old for this" in place of that section; the rest of the app keeps working |
 | `invalid-response` | the calling screen shows "Unexpected response from the daemon" and the environment detail nudges an update; the parse error is logged with the procedure name |
@@ -503,10 +512,11 @@ Classification reads `TRPCClientError`'s `data.httpStatus` / `data.code`; anythi
 
 ### Bootstrap order (in `DaemonProvider`, on hydrate and on every environment switch)
 
-`hydrate` → active environment → `daemonInfo` (version probe; `NOT_FOUND` ⇒ pre-0.30) →
-`recentRepos` (doubles as the token-validity probe: a `401` here is what flips `unauthorized`) →
-if `activeRepoPath` is set, `openRepoPath` it (load-bearing — records the recent, seeds worktree
-settings, warms the file cache) → open the socket and `session:hello`.
+`hydrate` → active environment → ordered endpoint probes → `daemonInfo` (version probe;
+`NOT_FOUND` ⇒ pre-0.30) → `recentRepos` (doubles as the token-validity probe: a `401` here is what
+flips `unauthorized`) → if `activeRepoPath` is set, `openRepoPath` it (load-bearing — records the
+recent, seeds worktree settings, warms the file cache) → remember last-known-good → open the socket
+and `session:hello`.
 
 ## 5. Files to create / change
 
@@ -605,7 +615,7 @@ the one that proves cross-machine pairing works. First run on a fresh simulator 
 installed once from the Mac (`eas build -p ios --profile development-simulator` here, then `eas build:run -p ios
 --profile development-simulator --latest` on the Mac); after that `pnpm mobile:start` is enough.
 
-Then, in the app: Settings → Environments → **Pair a daemon** → paste the printed link → pair →
+Then, in the app: Settings → Environments → **Pair an environment group** → paste the printed link → pair →
 the environment appears active → the repo sheet lists the dev playground's recents → open one →
 the header button shows the repo name and a tab body renders past `DaemonGate`. Capture screenshots
 of the pair screen, the environments list, and the repo picker for the Review's evidence.

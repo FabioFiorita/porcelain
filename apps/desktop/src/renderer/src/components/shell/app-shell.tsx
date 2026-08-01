@@ -5,6 +5,7 @@ import { Toaster } from '@renderer/components/ui/sonner'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useAppEvents } from '@renderer/hooks/use-app-events'
 import { useDocumentTitle } from '@renderer/hooks/use-document-title'
+import { useEnvironmentStatuses } from '@renderer/hooks/use-environment-status'
 import { useWatchOpenFiles, useWatchTreeDirs } from '@renderer/hooks/use-files'
 import { useAnnounceSession } from '@renderer/hooks/use-repo'
 import { useResponsiveShell } from '@renderer/hooks/use-responsive-shell'
@@ -198,6 +199,7 @@ export function AppShell(): React.JSX.Element {
 
   useAppShortcuts()
   useAppEvents()
+  useEnvironmentStatuses()
   useThemeSync()
   useDocumentTitle()
   useTerminalChannel()

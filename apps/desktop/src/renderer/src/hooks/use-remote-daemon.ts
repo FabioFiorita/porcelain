@@ -4,7 +4,7 @@ import { isBrowser } from '@renderer/lib/platform'
 import { shellTrpc } from '@renderer/lib/trpc'
 
 /**
- * One address of an environment (phase 5: one identity, many endpoints). `preferred`
+ * One address of an environment group (one identity, many endpoints). `preferred`
  * is per KIND, not per address — a DHCP lease is not a preference — so every LAN
  * address of an environment reads as preferred once the LAN is the preferred kind.
  */
@@ -33,13 +33,17 @@ export function useRemoteEnvironments():
   return data
 }
 
-export function useAddRemoteEnvironment(): {
-  add: (input: { connectionLink: string; connectThisWindow?: boolean }) => void
+export function usePairEnvironmentConnection(): {
+  pair: (input: {
+    connectionLink: string
+    groupId?: string | null
+    connectThisWindow?: boolean
+  }) => void
   isPending: boolean
   error: string | null
 } {
   const utils = shellTrpc.useUtils()
-  const mutation = shellTrpc.addRemoteEnvironment.useMutation({
+  const mutation = shellTrpc.pairEnvironmentConnection.useMutation({
     onSuccess: async (result: {
       id: string
       reloaded: boolean
@@ -47,26 +51,67 @@ export function useAddRemoteEnvironment(): {
     }): Promise<void> => {
       // Main reloads THIS window when connectThisWindow (default); only invalidate
       // when we stayed put so the list refreshes without a full boot.
-      if (!result.reloaded) await utils.remoteEnvironments.invalidate()
+      if (!result.reloaded) {
+        await Promise.all([
+          utils.remoteEnvironments.invalidate(),
+          utils.environmentStatuses.invalidate(),
+        ])
+      }
     },
   })
   return {
-    add: (input: { connectionLink: string; connectThisWindow?: boolean }): void =>
-      mutation.mutate(input),
+    pair: (input: {
+      connectionLink: string
+      groupId?: string | null
+      connectThisWindow?: boolean
+    }): void => mutation.mutate(input),
     isPending: mutation.isPending,
     error: mutation.error?.message ?? null,
-    // The procedure also returns `merged` (this address joined a machine we already had,
-    // phase 5). Deliberately NOT surfaced: every caller adds with connectThisWindow, so the
-    // window hard-reloads onto that environment and any "added as another address" line
-    // would flash for one frame. The reload IS the feedback — it lands on the merged
-    // environment. Re-expose it the day a non-connecting add path exists, not before.
+    // The procedure also returns `merged` (this address joined an existing group). It is not
+    // surfaced: pairing a new group reloads into it, while adding to an existing group refreshes
+    // the endpoint list in place.
   }
 }
 
-// Endpoint add/remove/prefer live on the shell router (multi-address environments,
-// phase 5) and are driven by addRemoteEnvironment's merge path + status failover —
-// no Settings UI exposes them today. When a multi-address editor lands, wrap those
-// procedures here again rather than calling shellTrpc from components.
+export function usePreferEnvironmentEndpoint(): {
+  prefer: (input: { id: string; url: string }) => void
+  isPending: boolean
+} {
+  const utils = shellTrpc.useUtils()
+  const mutation = shellTrpc.preferEnvironmentEndpoint.useMutation({
+    onSuccess: async (): Promise<void> => {
+      await Promise.all([
+        utils.remoteEnvironments.invalidate(),
+        utils.environmentStatuses.invalidate(),
+      ])
+    },
+    onError: onMutationError('Set primary connection'),
+  })
+  return {
+    prefer: (input: { id: string; url: string }): void => mutation.mutate(input),
+    isPending: mutation.isPending,
+  }
+}
+
+export function useRemoveEnvironmentEndpoint(): {
+  remove: (input: { id: string; url: string }) => void
+  isPending: boolean
+} {
+  const utils = shellTrpc.useUtils()
+  const mutation = shellTrpc.removeEnvironmentEndpoint.useMutation({
+    onSuccess: async (): Promise<void> => {
+      await Promise.all([
+        utils.remoteEnvironments.invalidate(),
+        utils.environmentStatuses.invalidate(),
+      ])
+    },
+    onError: onMutationError('Remove connection'),
+  })
+  return {
+    remove: (input: { id: string; url: string }): void => mutation.mutate(input),
+    isPending: mutation.isPending,
+  }
+}
 
 export function useConnectRemoteEnvironment(): {
   connect: (id: string) => void

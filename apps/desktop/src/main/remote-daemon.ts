@@ -1,15 +1,23 @@
 import { readFile, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import {
+  type EndpointKind,
+  endpointKind,
+  endpointKindSchema,
+  orderedEndpointUrls,
+} from '@porcelain/contracts'
 import { app } from 'electron'
 import { z } from 'zod'
 
+export { type EndpointKind, endpointKind }
+
 /**
- * Shell-side persistence for SAVED remote environments (remote-envs Phase 4).
+ * Shell-side persistence for saved environment groups.
  *
  * The shell owns the list of known daemons (the choice CANNOT live in the
  * daemon's own config — that config lives on whichever machine the daemon runs
  * on — circular). It's a small file, `remote-daemon.json`, in the shell's
- * userData dir: a list of named `{ id, name, url, token }` environments plus
+ * userData dir: a list of named groups with verified endpoints plus
  * `activeId`, which is only the DEFAULT for new/restore windows (null = local).
  * Each open window has its OWN binding in memory (daemon.ts) — so one window can
  * be on This device while another is on the Beelink.
@@ -27,21 +35,18 @@ import { z } from 'zod'
  * stored kind would then describe the wrong thing. The human's preference is persisted
  * BY KIND for the same reason.
  */
-const endpointKinds = ['tailnet', 'lan', 'other'] as const
-export type EndpointKind = (typeof endpointKinds)[number]
-
 const environmentSchema = z.object({
   id: z.string(),
   name: z.string(),
   /** The last known good endpoint — always one of `endpoints`. What a window binds to. */
-  url: z.string(),
+  url: z.string().url(),
   token: z.string(),
   /** The daemon's reported hostname, so a second pairing of the same machine merges. */
   host: z.string().optional(),
-  /** Every known address for this machine, most-recently-added last. */
-  endpoints: z.array(z.string()).optional(),
+  /** Every verified address for this machine, most-recently-added last. */
+  endpoints: z.array(z.string().url()).min(1),
   /** Which KIND to try first; absent = try `endpoints` in order. */
-  preferredKind: z.enum(endpointKinds).optional(),
+  preferredKind: endpointKindSchema.optional(),
 })
 export type RemoteEnvironment = z.infer<typeof environmentSchema>
 
@@ -59,12 +64,12 @@ const EMPTY_STATE: RemoteEnvironmentState = { activeId: null, environments: [] }
 const filePath = (): string => join(app.getPath('userData'), 'remote-daemon.json')
 
 /**
- * Parse persisted JSON into the multi-environment state. PURE (exported for tests):
- * valid v2 state is returned as-is; anything else falls back to the empty state.
+ * Parse persisted JSON into the environment-group state. PURE (exported for tests):
+ * anything that does not contain the group endpoint list falls back to the empty state.
  */
 export function parseRemoteEnvironmentState(json: unknown): RemoteEnvironmentState {
-  const v2 = stateSchema.safeParse(json)
-  if (v2.success) return v2.data
+  const parsed = stateSchema.safeParse(json)
+  if (parsed.success) return parsed.data
   return EMPTY_STATE
 }
 
@@ -123,35 +128,9 @@ export function activeRemoteDaemon(state: RemoteEnvironmentState): RemoteDaemon 
   return active ? { url: active.url, token: active.token } : null
 }
 
-/**
- * Classify an address so the human's preference can be remembered by KIND. Tailscale hands
- * out CGNAT 100.64/10 (the same range-based match `tailnet.ts` uses daemon-side, and for
- * the same reason: the interface name is not dependable); RFC1918 is the home LAN. Anything
- * else — a hostname, a public address — is `other`, which is fine: it just doesn't get to
- * be the thing "prefer the LAN" refers to. Pure.
- */
-export function endpointKind(url: string): EndpointKind {
-  let host: string
-  try {
-    host = new URL(url).hostname
-  } catch {
-    return 'other'
-  }
-  const octets = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.\d{1,3}$/.exec(host)
-  if (octets === null) return 'other'
-  const [a, b] = [Number(octets[1]), Number(octets[2])]
-  // 100.64.0.0/10 — Tailscale's range. Note 100.0–100.63 and 100.128+ are NOT in it.
-  if (a === 100 && b >= 64 && b <= 127) return 'tailnet'
-  if (a === 10) return 'lan'
-  if (a === 172 && b >= 16 && b <= 31) return 'lan'
-  if (a === 192 && b === 168) return 'lan'
-  return 'other'
-}
-
-/** Every known address for an environment; migrates a pre-phase-5 entry (url only). */
+/** Every verified address for an environment group. */
 export function endpointsOf(env: RemoteEnvironment): string[] {
-  const stored = env.endpoints ?? []
-  return stored.length > 0 ? stored : [env.url]
+  return [...env.endpoints]
 }
 
 /**
@@ -162,11 +141,7 @@ export function endpointsOf(env: RemoteEnvironment): string[] {
  * route. Preference decides; reachability only breaks ties. Pure — unit-tested.
  */
 export function orderedEndpoints(env: RemoteEnvironment): string[] {
-  const all = endpointsOf(env)
-  const preferred = env.preferredKind
-  const byPreference =
-    preferred === undefined ? [] : all.filter((u) => endpointKind(u) === preferred)
-  return [...new Set([...byPreference, env.url, ...all])].filter((url) => all.includes(url))
+  return orderedEndpointUrls(env)
 }
 
 /** Add an address to an environment's endpoint list (idempotent). Pure. */
@@ -191,9 +166,15 @@ export function withActiveUrl(env: RemoteEnvironment, url: string): RemoteEnviro
 export function withoutEndpoint(env: RemoteEnvironment, url: string): RemoteEnvironment {
   const endpoints = endpointsOf(env).filter((u) => u !== url)
   if (endpoints.length === 0) return env
+  const preferredKind =
+    env.preferredKind !== undefined &&
+    endpoints.some((endpoint) => endpointKind(endpoint) === env.preferredKind)
+      ? env.preferredKind
+      : undefined
   return {
     ...env,
     endpoints,
+    preferredKind,
     url: endpoints.includes(env.url) ? env.url : (endpoints[0] ?? env.url),
   }
 }

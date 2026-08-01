@@ -1,3 +1,4 @@
+import { endpointKind, orderedEndpointUrls } from '@porcelain/contracts'
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -13,18 +14,48 @@ const RECORD = {
   id: '3f2a1c88-0f4d-4b6e-9a11-2c7d5e8b0a34',
   nickname: 'beelink',
   baseUrl: 'http://beelink.local:43117',
+  endpoints: ['http://beelink.local:43117'],
   createdAt: 1_700_000_000_000,
   activeRepoPath: '/home/you/code/my-app',
 }
 
+const LAN = 'http://192.168.1.50:43117'
+const FUNNEL = 'https://beelink.example.ts.net'
+
+describe('environment group route ordering', () => {
+  it('recognizes Funnel as the fallback route class', () => {
+    expect(endpointKind(FUNNEL)).toBe('other')
+  })
+
+  it('tries the preferred LAN route before the last-known-good Funnel route', () => {
+    expect(
+      orderedEndpointUrls({
+        endpoints: [LAN, FUNNEL],
+        preferredKind: 'lan',
+        url: FUNNEL,
+      }),
+    ).toEqual([LAN, FUNNEL])
+  })
+})
+
 describe('parseEnvironmentsFile', () => {
   it('round-trips the stored index', () => {
-    const file = { version: 1, activeId: RECORD.id, environments: [RECORD] }
+    const file = { version: 2, activeId: RECORD.id, environments: [RECORD] }
 
     expect(parseEnvironmentsFile(JSON.stringify(file))).toEqual({
       status: 'ok',
       file: environmentsFileSchema.parse(file),
     })
+  })
+
+  it('requires the endpoint list that defines an environment group', () => {
+    const file = {
+      version: 2,
+      activeId: RECORD.id,
+      environments: [{ ...RECORD, endpoints: undefined }],
+    }
+
+    expect(parseEnvironmentsFile(JSON.stringify(file))).toEqual({ status: 'corrupt' })
   })
 
   it('reads a device that has never paired as empty, not corrupt', () => {
@@ -36,18 +67,18 @@ describe('parseEnvironmentsFile', () => {
   // credential silently looks exactly like never having paired.
   it('reports unreadable storage as corrupt', () => {
     expect(parseEnvironmentsFile('{not json')).toEqual({ status: 'corrupt' })
-    expect(parseEnvironmentsFile('{"version":2,"activeId":null,"environments":[]}')).toEqual({
+    expect(parseEnvironmentsFile('{"version":1,"activeId":null,"environments":[]}')).toEqual({
       status: 'corrupt',
     })
     expect(
       parseEnvironmentsFile(
-        JSON.stringify({ version: 1, activeId: null, environments: [{ id: 'x' }] }),
+        JSON.stringify({ version: 2, activeId: null, environments: [{ id: 'x' }] }),
       ),
     ).toEqual({ status: 'corrupt' })
   })
 
   it('rejects a record whose baseUrl is not a url', () => {
-    const file = { version: 1, activeId: null, environments: [{ ...RECORD, baseUrl: 'beelink' }] }
+    const file = { version: 2, activeId: null, environments: [{ ...RECORD, baseUrl: 'beelink' }] }
 
     expect(parseEnvironmentsFile(JSON.stringify(file))).toEqual({ status: 'corrupt' })
   })

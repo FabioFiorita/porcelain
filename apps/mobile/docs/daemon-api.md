@@ -27,18 +27,21 @@ This is why the app ships `NSAllowsArbitraryLoads` / `usesCleartextTraffic` (see
 1. Host admin issues a link: `issuePairingLink({label, baseUrl})` → `<baseUrl>/pair#token=pc_pair_<id>_<secret>`. Single-use, **15-minute TTL**, stored hashed in `~/.porcelain/access.json`.
 2. The mobile app takes a **pasted link** (no QR — deliberate), parses the URL: origin = the daemon base URL, fragment `token` param = the credential. Fragments never reach servers, so parse client-side.
 3. `POST <origin>/pair` with `{credential}` → client token `pc_client_<id>_<secret>`.
-4. Store the token + base URL (+ user-chosen nickname) in `expo-secure-store`. Every request thereafter: `Bearer` header; WS: `porcelain.<token>` subprotocol.
-5. A device can un-pair itself with `revokeCurrentClient` (the one access procedure clients may call). Everything else access-related (`accessStatus`, `issuePairingLink`, revocations, LAN/tailnet/funnel toggles) is admin-only and FORBIDDEN for paired clients — mobile cannot self-pair another device or flip binds.
+4. Verify the new client token with `recentRepos`, then store the token + one or more verified endpoint URLs (+ user-chosen group nickname) in `expo-secure-store`. A group with one endpoint is valid. Every request thereafter: `Bearer` header; WS: `porcelain.<token>` subprotocol.
+5. To add a LAN, Tailscale, or Funnel link to an existing group, redeem it into a temporary credential, verify that the existing group credential also authenticates at that URL, then revoke the temporary credential before saving the endpoint. This prevents two machines from sharing one group token.
+6. A device can un-pair itself with `revokeCurrentClient` (the one access procedure clients may call). Everything else access-related (`accessStatus`, `issuePairingLink`, revocations, LAN/tailnet/funnel toggles) is admin-only and FORBIDDEN for paired clients — mobile cannot self-pair another device or flip binds.
 
-**Environments are mobile-owned.** The desktop Remotes registry lives in the Electron shell router (IPC-only, not on any port). The mobile app keeps its own list of `{nickname, baseUrl, token}` entries in secure storage; each entry is one paired daemon.
+**Environment groups are client-owned.** The desktop Remotes registry lives in the Electron shell router (IPC-only, not on any port). The mobile app keeps its own list of `{nickname, baseUrl, endpoints, preferredKind, token}` groups in secure storage; each group identifies one paired daemon and may contain one or more verified routes.
 
 ## Bootstrap sequence
 
-1. `daemonInfo` → `{version, host?, platform?, arch?}`. NOT_FOUND ⇒ daemon older than 0.30 (treat as "pre-0.30", not an error). Version-skew probe.
-2. `recentRepos({includeWorktrees:true})` → pick a repo (also the cheap "is my token valid" probe — the browser client uses it exactly this way).
-3. `openRepoPath(path)` — **load-bearing**: records the recent, seeds worktree settings, warms the file-list cache. Always call it when switching repo.
-4. Open `/session` WS lazily; after choosing a repo send `session:hello {repo}` and `watch:files`/`watch:dirs` registrations. **On every reconnect** re-send hello, watches, and `terminal:attach` for each attached terminal — server-side session state dies with the socket.
-5. `browseDirs(path|null)` walks daemon-side directories for the repo picker (`null` = daemon home).
+1. Try the group's endpoints in preferred-kind order, then last-known-good, then the remaining saved routes. Failover is sequential; a 401 stops immediately.
+2. `daemonInfo` → `{version, host?, platform?, arch?}`. NOT_FOUND ⇒ daemon older than 0.30 (treat as "pre-0.30", not an error). Version-skew probe.
+3. `recentRepos({includeWorktrees:true})` → pick a repo (also the cheap "is my token valid" probe — the browser client uses it exactly this way).
+4. `openRepoPath(path)` — **load-bearing**: records the recent, seeds worktree settings, warms the file-list cache. Always call it when switching repo.
+5. Remember the endpoint that answered as last-known-good without changing the preferred route.
+6. Open `/session` WS lazily; after choosing a repo send `session:hello {repo}` and `watch:files`/`watch:dirs` registrations. **On every reconnect** re-send hello, watches, and `terminal:attach` for each attached terminal — server-side session state dies with the socket.
+7. `browseDirs(path|null)` walks daemon-side directories for the repo picker (`null` = daemon home).
 
 ## Live updates
 

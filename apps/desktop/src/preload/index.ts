@@ -6,8 +6,8 @@ import type { PorcelainBridge } from './bridge'
 
 // The daemon's base url + session token, fetched synchronously at window boot
 // (the shell spawns the daemon before the first window, so both are known). A
-// daemon restart lands on a NEW port; `daemon.onUrlChanged` pushes the fresh
-// pair (see src/main/daemon.ts). The token gates every daemon request — see the
+// a daemon restart or environment-group route change pushes a fresh pair through
+// `daemon.onUrlChanged` (see src/main/daemon.ts). The token gates every request — see the
 // security note in backend/server.ts.
 interface DaemonInfo {
   url: string
