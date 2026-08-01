@@ -23,6 +23,21 @@ describe('inlineLocalAssets', () => {
     expect(out).not.toContain('src="shot.png"')
   })
 
+  it('inlines a relative stylesheet link for sandboxed HTML', async () => {
+    writeFileSync(join(dir, 'styles.css'), 'body { background: #123456; }')
+    const html = '<link rel="stylesheet" href="styles.css"><p>hello</p>'
+    const out = await inlineLocalAssets(dir, html)
+    expect(out).toContain('<style data-porcelain-inlined-stylesheet="true">')
+    expect(out).toContain('body { background: #123456; }')
+    expect(out).not.toContain('<link rel="stylesheet" href="styles.css">')
+  })
+
+  it('leaves remote and missing stylesheets alone', async () => {
+    const html =
+      '<link rel="stylesheet" href="https://example.com/styles.css"><link rel="stylesheet" href="missing.css">'
+    expect(await inlineLocalAssets(dir, html)).toBe(html)
+  })
+
   it('leaves data: and https: src alone', async () => {
     const html = '<img src="data:image/png;base64,xx"><img src="https://x/y.png">'
     expect(await inlineLocalAssets(dir, html)).toBe(html)

@@ -665,15 +665,15 @@ function DiagramRow({ svg }: { svg: string }): React.JSX.Element {
   )
 }
 
-// The section's self-contained HTML embed (styled tables, metric summaries, small
-// reports) — same fully-sandboxed `sandbox=""` + srcdoc path as evidence/diagrams.
-// The sandboxed iframe is cross-origin and can't be measured from the parent, so the
-// agent's `htmlHeight` hint (schema-capped 160–1600px, default 448) sizes the well and
-// taller content scrolls inside the iframe.
+// The section's self-contained HTML embed uses the same sandboxed iframe as evidence and
+// diagrams; its height hint sizes the well, while phone-sized wells scroll inside the frame.
 function EmbedRow({ row }: { row: { html: string; height?: number } }): React.JSX.Element {
   return (
     <div className="sticky left-0 max-w-[var(--vrows-vw)] px-3 py-2">
-      <div className="overflow-hidden rounded-md border" style={{ height: row.height ?? 448 }}>
+      <div
+        className="max-md:min-h-[60dvh] max-md:max-h-[70dvh] overflow-hidden rounded-md border"
+        style={{ height: row.height ?? 448 }}
+      >
         <HtmlView html={row.html} title="Section embed" />
       </div>
     </div>

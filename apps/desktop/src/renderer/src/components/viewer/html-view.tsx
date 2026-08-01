@@ -1,10 +1,23 @@
 import { TestIds } from '@shared/test-ids'
 
 const HTML_EXTENSIONS = ['html', 'htm']
+const VIEWPORT_META =
+  '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">'
 
 export function isHtmlPath(path: string): boolean {
   const ext = path.split('.').at(-1)?.toLowerCase() ?? ''
   return HTML_EXTENSIONS.includes(ext)
+}
+
+function responsiveHtml(html: string): string {
+  if (/<meta\b[^>]*\bname\s*=\s*["']viewport["']/i.test(html)) return html
+  const head = /<head\b[^>]*>/i
+  if (head.test(html)) return html.replace(head, (tag) => tag + VIEWPORT_META)
+  const htmlTag = /<html\b[^>]*>/i
+  if (htmlTag.test(html)) {
+    return html.replace(htmlTag, (tag) => `${tag}<head>${VIEWPORT_META}</head>`)
+  }
+  return `<!doctype html><html><head>${VIEWPORT_META}</head><body>${html}</body></html>`
 }
 
 /**
@@ -24,9 +37,11 @@ export function HtmlView({
     <iframe
       data-testid={TestIds.evidenceIframe}
       title={title}
-      srcDoc={html}
+      srcDoc={responsiveHtml(html)}
       sandbox=""
-      className="min-h-0 h-full w-full flex-1 border-0 bg-background"
+      scrolling="yes"
+      className="min-h-0 h-full w-full flex-1 overflow-y-auto overscroll-contain border-0 bg-background"
+      style={{ WebkitOverflowScrolling: 'touch' }}
     />
   )
 }
