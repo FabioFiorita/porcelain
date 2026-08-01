@@ -3,7 +3,6 @@ import { PlaceholderScreen } from '@/components/placeholder-screen'
 export function HistoryScreen(): React.JSX.Element {
   return (
     <PlaceholderScreen
-      title="History"
       description="Commit history, pushed from Changes instead of owning a tab of its own."
       details={[
         'Commits for the current branch, newest first',

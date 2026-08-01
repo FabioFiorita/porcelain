@@ -3,7 +3,8 @@ import { Stack } from 'expo-router/stack'
 export default function ChangesLayout(): React.JSX.Element {
   return (
     <Stack screenOptions={{ headerBackButtonDisplayMode: 'minimal' }}>
-      <Stack.Screen name="index" options={{ headerLargeTitle: true, title: 'Changes' }} />
+      {/* `ScreenHeader` draws the title as a left header item; iOS always centres this one. */}
+      <Stack.Screen name="index" options={{ headerTitle: '', title: 'Changes' }} />
       <Stack.Screen name="history" options={{ title: 'History' }} />
     </Stack>
   )

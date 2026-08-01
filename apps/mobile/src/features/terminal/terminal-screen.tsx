@@ -1,13 +1,12 @@
 import { ObserveInteractiveMarker } from 'expo-observe'
 
 import { PlaceholderScreen } from '@/components/placeholder-screen'
-import { SettingsToolbar } from '@/components/settings-toolbar'
+import { ScreenHeader } from '@/components/screen-header'
 
 export function TerminalScreen(): React.JSX.Element {
   return (
     <>
       <PlaceholderScreen
-        title="Terminal"
         description="Daemon-side terminals — the sessions keep running when the phone sleeps."
         details={[
           'PTYs owned by the daemon, attached from the device',
@@ -15,7 +14,7 @@ export function TerminalScreen(): React.JSX.Element {
           'Output that survives reconnects',
         ]}
       />
-      <SettingsToolbar />
+      <ScreenHeader title="Terminal" />
       <ObserveInteractiveMarker />
     </>
   )

@@ -51,6 +51,16 @@
       "linter": { "rules": { "nursery": { "useExplicitType": "off" } } }
     },
     {
+      "includes": ["apps/mobile/src/**"],
+      "linter": {
+        "rules": {
+          "a11y": {
+            "useValidAriaRole": { "level": "error", "options": { "ignoreNonDom": true } }
+          }
+        }
+      }
+    },
+    {
       "includes": [
         "apps/desktop/src/backend/**",
         "apps/desktop/src/shared/**",

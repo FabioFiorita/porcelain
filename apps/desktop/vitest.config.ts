@@ -18,11 +18,19 @@ export default defineConfig({
       '@backend': resolve('src/backend'),
       '@shared': resolve('src/shared'),
       '@porcelain/contracts': resolve('../../packages/contracts/src'),
+      '@/': `${resolve('../mobile/src')}/`,
     },
   },
   test: {
     environment: 'jsdom',
-    include: ['src/**/*.test.{ts,tsx}', '../../packages/*/src/**/*.test.{ts,tsx}'],
+    // `apps/mobile` runs no test runner of its own — one suite, one command. Scoped to its
+    // `lib/` so the glob itself enforces "pure modules only": a screen test would drag React
+    // Native into jsdom, which has no native runtime to give it.
+    include: [
+      'src/**/*.test.{ts,tsx}',
+      '../../packages/*/src/**/*.test.{ts,tsx}',
+      '../mobile/src/lib/**/*.test.ts',
+    ],
     setupFiles: ['src/test-setup.ts'],
   },
 })

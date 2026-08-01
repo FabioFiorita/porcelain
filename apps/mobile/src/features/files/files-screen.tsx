@@ -2,13 +2,12 @@ import { ObserveInteractiveMarker } from 'expo-observe'
 import { Stack } from 'expo-router'
 
 import { PlaceholderScreen } from '@/components/placeholder-screen'
-import { SettingsToolbar } from '@/components/settings-toolbar'
+import { ScreenHeader } from '@/components/screen-header'
 
 export function FilesScreen(): React.JSX.Element {
   return (
     <>
       <PlaceholderScreen
-        title="Files"
         description="The repository tree and file viewer, scoped to the daemon's checkout."
         details={[
           'Tree navigation with monorepo hide and pin',
@@ -17,7 +16,7 @@ export function FilesScreen(): React.JSX.Element {
         ]}
       />
       <Stack.SearchBar placeholder="Search files" />
-      <SettingsToolbar />
+      <ScreenHeader title="Files" />
       <ObserveInteractiveMarker />
     </>
   )

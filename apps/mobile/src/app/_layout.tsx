@@ -3,6 +3,19 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-naviga
 import { Stack } from 'expo-router/stack'
 import { useColorScheme } from 'react-native'
 
+/**
+ * Every sheet in the app is the same form sheet — grabber, transparent content so the
+ * sheet's own material shows through, and detents that leave the surface behind it visible.
+ * Only the header differs, and each sheet owns that.
+ */
+const SHEET = {
+  contentStyle: { backgroundColor: 'transparent' },
+  presentation: 'formSheet',
+  // Not `as const`: the native stack takes a mutable `number[]` here.
+  sheetAllowedDetents: [0.7, 1.0] as number[],
+  sheetGrabberVisible: true,
+} as const
+
 function RootLayout(): React.JSX.Element {
   const colorScheme = useColorScheme()
 
@@ -10,16 +23,10 @@ function RootLayout(): React.JSX.Element {
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="settings"
-          options={{
-            contentStyle: { backgroundColor: 'transparent' },
-            headerShown: false,
-            presentation: 'formSheet',
-            sheetAllowedDetents: [0.7, 1.0],
-            sheetGrabberVisible: true,
-          }}
-        />
+        {/* Settings nests a stack of its own, which supplies the header this one hides. */}
+        <Stack.Screen name="settings" options={{ ...SHEET, headerShown: false }} />
+        <Stack.Screen name="workspace" options={{ ...SHEET, title: 'Workspace' }} />
+        <Stack.Screen name="companion" options={{ ...SHEET, title: 'Companion' }} />
       </Stack>
     </ThemeProvider>
   )

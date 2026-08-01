@@ -1,14 +1,12 @@
 import { ObserveInteractiveMarker } from 'expo-observe'
-import { router, Stack } from 'expo-router'
 
 import { PlaceholderScreen } from '@/components/placeholder-screen'
-import { toolbarIcon } from '@/components/toolbar-icon'
+import { ScreenHeader } from '@/components/screen-header'
 
 export function ReviewScreen(): React.JSX.Element {
   return (
     <>
       <PlaceholderScreen
-        title="Review"
         description="Where agent work becomes trusted work: the Review canvas, read as a story."
         details={[
           'Intent — what the work was supposed to do',
@@ -17,18 +15,7 @@ export function ReviewScreen(): React.JSX.Element {
           'The Board is pushed from this header; a board card starts a review',
         ]}
       />
-      <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button
-          accessibilityLabel="Board"
-          icon={toolbarIcon('board')}
-          onPress={(): void => router.push('/board')}
-        />
-        <Stack.Toolbar.Button
-          accessibilityLabel="Settings"
-          icon={toolbarIcon('settings')}
-          onPress={(): void => router.push('/settings')}
-        />
-      </Stack.Toolbar>
+      <ScreenHeader action={{ href: '/board', icon: 'board', label: 'Board' }} title="Review" />
       <ObserveInteractiveMarker />
     </>
   )
