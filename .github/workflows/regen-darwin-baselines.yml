@@ -23,5 +23,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: darwin-baselines
-          path: e2e/**/*-darwin.png
+          path: apps/desktop/e2e/**/*-darwin.png
           if-no-files-found: error

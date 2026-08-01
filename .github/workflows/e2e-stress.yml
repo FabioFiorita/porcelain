@@ -23,8 +23,8 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: node node_modules/electron/install.js
-      - run: pnpm exec playwright install --with-deps chromium
+      - run: node apps/desktop/node_modules/electron/install.js
+      - run: pnpm --dir apps/desktop exec playwright install --with-deps chromium
       - run: pnpm build
       - name: Run browser e2e N times with retries=0
         env:
@@ -35,5 +35,5 @@ jobs:
           n="${RUNS}"
           for i in $(seq 1 "$n"); do
             echo "=== stress pass $i / $n ==="
-            pnpm exec playwright test --project=browser --retries=0
+            pnpm --dir apps/desktop exec playwright test --project=browser --retries=0
           done

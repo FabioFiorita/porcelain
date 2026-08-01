@@ -41,7 +41,7 @@ import {
 } from './dev-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const serverEntry = join(root, 'out', 'main', 'daemon', 'server.js')
+const serverEntry = join(root, 'apps', 'desktop', 'out', 'main', 'daemon', 'server.js')
 
 const HELP = `Porcelain DEV daemon — local tree on the isolated dev stack
 
@@ -60,7 +60,7 @@ Options:
 Notes:
   • Data: ${DEV_USER_DATA}
   • Channels / token: ${DEV_HOME}  (never prod ~/.porcelain)
-  • Requires a warm build: pnpm build   (if out/main/daemon/server.js is missing)
+  • Requires a warm build: pnpm build   (if apps/desktop/out/main/daemon/server.js is missing)
   • Production is port 43117 / systemd — this command never touches it
   • Not the published package: use \`npx porcelain-daemon@latest serve\` for that
 
@@ -272,7 +272,9 @@ async function main() {
   }
 
   if (!existsSync(serverEntry)) {
-    console.error('[dev:daemon] out/main/daemon/server.js missing — run `pnpm build` first')
+    console.error(
+      '[dev:daemon] apps/desktop/out/main/daemon/server.js missing — run `pnpm build` first',
+    )
     process.exit(1)
   }
 

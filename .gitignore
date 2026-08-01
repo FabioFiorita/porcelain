@@ -7,7 +7,7 @@ out/
 # Playwright e2e: keep the *-snapshots/ baselines (committed), drop run output.
 test-results/
 playwright-report/
-e2e/.artifacts/
+apps/desktop/e2e/.artifacts/
 
 # Playwright MCP (agent browser drive) dumps page-*.yml / console logs at repo root.
 # Never commit; delete the dir when the drive is done (see CLAUDE.md).
@@ -42,4 +42,4 @@ scripts/agent-scratch/
 # Claude Design handoff bundle — a local prototype reference, not source. Keep it
 # out of git and out of the lint/typecheck gate (Biome honours .gitignore).
 claude-design/
-src/renderer/public/excalidraw-assets/
+apps/desktop/src/renderer/public/excalidraw-assets/

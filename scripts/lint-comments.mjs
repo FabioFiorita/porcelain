@@ -55,7 +55,7 @@ const SKIP_DIRS = new Set([
  * AGENTS.md). `apps/mobile/ios` is CNG-generated native output when it exists.
  */
 const SKIP_PATHS = [
-  'src/renderer/src/components/ui/',
+  'apps/desktop/src/renderer/src/components/ui/',
   '.husky/_/',
   'apps/mobile/ios/',
   'CHANGELOG.md',

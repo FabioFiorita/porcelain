@@ -5,10 +5,10 @@
       "name": "Debug Main Process",
       "type": "node",
       "request": "launch",
-      "cwd": "${workspaceRoot}",
-      "runtimeExecutable": "${workspaceRoot}/node_modules/.bin/electron-vite",
+      "cwd": "${workspaceRoot}/apps/desktop",
+      "runtimeExecutable": "${workspaceRoot}/apps/desktop/node_modules/.bin/electron-vite",
       "windows": {
-        "runtimeExecutable": "${workspaceRoot}/node_modules/.bin/electron-vite.cmd"
+        "runtimeExecutable": "${workspaceRoot}/apps/desktop/node_modules/.bin/electron-vite.cmd"
       },
       "runtimeArgs": ["--sourcemap"],
       "env": {
@@ -20,7 +20,7 @@
       "port": 9222,
       "request": "attach",
       "type": "chrome",
-      "webRoot": "${workspaceFolder}/src/renderer",
+      "webRoot": "${workspaceFolder}/apps/desktop/src/renderer",
       "timeout": 60000,
       "presentation": {
         "hidden": true

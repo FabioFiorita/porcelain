@@ -8,7 +8,9 @@ directories:
 files:
   - '!**/.vscode/*'
   - '!src/*'
+  - '!e2e/**'
   - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!playwright.{config,shots.config}.ts'
   - '!{.claude,.agents,.codex,docs}/**'
   - '!{biome.json,components.json,vitest.config.ts,setupTests.ts,AGENTS.md,CLAUDE.md,README.md,CHANGELOG.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
@@ -39,7 +41,9 @@ mac:
   # APPLE_TEAM_ID env vars (set as repo secrets).
   notarize: true
 dmg:
-  artifactName: ${name}-${version}.${ext}
+  # Literal, not ${name}: that macro expands this package's scoped name
+  # (@porcelain/desktop) verbatim — a slash in the artifact filename.
+  artifactName: porcelain-${version}.${ext}
 npmRebuild: false
 publish:
   provider: github

@@ -2,8 +2,19 @@
 
 ## Repo facts
 
+- **Three workspace packages**: `apps/desktop` (the Electron app — main, preload, renderer, plus the
+  daemon and agent CLI it bundles), `apps/mobile` (Expo, iOS-only), `packages/contracts` (wire shapes
+  both clients share). The root is a workspace root only — it owns lint, the git hooks and the
+  release scripts, and its `package.json` deliberately has **no `version`**:
+  `apps/desktop/package.json` holds the one product version electron-builder stamps, so
+  `release-cut.mjs` bumps it there.
+- **TRAP — `@porcelain/contracts` must stay a `devDependency` of `apps/desktop`.** electron-vite
+  externalizes declared `dependencies`, so promoting it emits a bare `require("@porcelain/contracts")`
+  into the dependency-free CLI bundle and the standalone daemon.
+- **TRAP — pin `dmg.artifactName`.** electron-builder's `${name}` expands to the raw package name, so
+  the scoped `@porcelain/desktop` would put a slash in the artifact filename.
 - Path aliases are defined in **FOUR places that must stay in sync**: `electron.vite.config.ts`,
-  `tsconfig.web.json`, root `tsconfig.json` (the shadcn CLI needs it), `vitest.config.ts`.
+  `tsconfig.web.json`, `apps/desktop/tsconfig.json` (the shadcn CLI needs it), `vitest.config.ts`.
 - `@main` imports in the renderer are **type-only** — a runtime import leaks Node into the bundle.
 - **TRAP — the two `createTRPCReact` instances must never share the default TRPC context.** With no
   `context` option it falls back to a module-level singleton, so nesting the shell Provider inside

@@ -10,10 +10,12 @@ import { fileURLToPath } from 'node:url'
 import { devEnv } from './dev-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const cli = join(root, 'out', 'main', 'cli', 'porcelain.js')
+const cli = join(root, 'apps', 'desktop', 'out', 'main', 'cli', 'porcelain.js')
 
 if (!existsSync(cli)) {
-  console.error('[porcelain] out/main/cli/porcelain.js missing — run `pnpm build` first')
+  console.error(
+    '[porcelain] apps/desktop/out/main/cli/porcelain.js missing — run `pnpm build` first',
+  )
   process.exit(1)
 }
 

@@ -22,7 +22,7 @@ import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
 
 const root = join(fileURLToPath(new URL('.', import.meta.url)), '..')
-const SCAN = join(root, 'src', 'renderer', 'src')
+const SCAN = join(root, 'apps', 'desktop', 'src', 'renderer', 'src')
 const VENDORED_UI = join(SCAN, 'components', 'ui')
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'out'])
 

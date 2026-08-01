@@ -28,7 +28,7 @@ import { byId } from './helpers/locators'
 // produces publishable, non-empty product shots.
 
 const DAEMON_ENTRY = join(__dirname, '..', 'out', 'main', 'daemon', 'server.js')
-const SHOTS_DIR = join(__dirname, '..', 'marketing', 'shots')
+const SHOTS_DIR = join(__dirname, '..', '..', '..', 'marketing', 'shots')
 const DAEMON_SECRET = randomBytes(32).toString('hex')
 const DAEMON_TOKEN = `pc_client_marketing_${DAEMON_SECRET}`
 const ADMIN_TOKEN = randomBytes(32).toString('hex')

@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="src/renderer/src/assets/logo.png" alt="Porcelain" width="120" />
+  <img src="apps/desktop/src/renderer/src/assets/logo.png" alt="Porcelain" width="120" />
   <h1>Porcelain</h1>
   <p><strong>Where agent work becomes trusted work.</strong></p>
   <p>The review layer for agentic coding: a focused companion, not a second cockpit. Your agents keep running where they already run. Porcelain is where you review what they built as a story, not a file list.</p>

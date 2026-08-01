@@ -7,7 +7,7 @@
       "!.agents",
       "!apps/mobile/assets",
       "!marketing",
-      "!src/renderer/src/components/ui",
+      "!apps/desktop/src/renderer/src/components/ui",
       "!**/*.css"
     ]
   },
@@ -38,20 +38,24 @@
   "overrides": [
     {
       "includes": [
-        "src/renderer/src/App.tsx",
+        "apps/desktop/src/renderer/src/App.tsx",
         "apps/mobile/src/app/**/*.tsx",
         "**/*.config.ts",
         "**/*.d.ts",
-        "playwright.config.ts"
+        "apps/desktop/playwright.config.ts"
       ],
       "linter": { "rules": { "style": { "noDefaultExport": "off" } } }
     },
     {
-      "includes": ["e2e/**", "**/*.config.ts", "scripts/**"],
+      "includes": ["apps/desktop/e2e/**", "**/*.config.ts", "scripts/**"],
       "linter": { "rules": { "nursery": { "useExplicitType": "off" } } }
     },
     {
-      "includes": ["src/backend/**", "src/shared/**", "src/renderer/**"],
+      "includes": [
+        "apps/desktop/src/backend/**",
+        "apps/desktop/src/shared/**",
+        "apps/desktop/src/renderer/**"
+      ],
       "linter": {
         "rules": {
           "style": {
@@ -70,7 +74,7 @@
       }
     },
     {
-      "includes": ["src/renderer/src/components/**"],
+      "includes": ["apps/desktop/src/renderer/src/components/**"],
       "linter": {
         "rules": {
           "style": {

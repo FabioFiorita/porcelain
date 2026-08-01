@@ -43,11 +43,11 @@ const { version } = JSON.parse(readFileSync(resolve('package.json'), 'utf8')) as
 const define = { __PORCELAIN_VERSION__: JSON.stringify(version) }
 
 // The cross-client wire contract (packages/contracts) is a workspace package with
-// no build step, resolved by alias rather than by a root `dependencies` entry:
+// no build step, resolved by alias rather than by a `dependencies` entry:
 // electron-vite externalizes declared deps, so declaring it would emit a bare
 // `require("@porcelain/contracts")` into the dependency-free CLI and the
 // standalone daemon bundle. The alias keeps it bundled from source everywhere.
-const contractsAlias = { '@porcelain/contracts': resolve('packages/contracts/src') }
+const contractsAlias = { '@porcelain/contracts': resolve('../../packages/contracts/src') }
 
 export default defineConfig({
   main: {

@@ -41,7 +41,7 @@ pnpm porcelain <noun> <verb>    # CLI → ~/.porcelain-dev
 
 Proof is the **browser** against the **dev** daemon (`pnpm test:e2e` or a live tab) — never the installed app or the production daemon. Full loop and testing doctrine: `close-the-loop`.
 
-**Debris:** `scripts/agent-scratch/` is gitignored. Before stopping, delete session-local debris (`.playwright-mcp/`, `test-results/`, `playwright-report/`, `e2e/.artifacts/`) and leave a clean worktree.
+**Debris:** `scripts/agent-scratch/` is gitignored. Before stopping, delete session-local debris (`.playwright-mcp/`, `test-results/`, `playwright-report/`, `apps/desktop/e2e/.artifacts/`) and leave a clean worktree.
 
 ## Skills (load on demand)
 

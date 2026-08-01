@@ -22,7 +22,7 @@ main is good enough for daily use (web + daemon)
         ▼
   pnpm release:cut [patch|minor|major]   # default patch
         │  clean main == origin/main
-        │  pnpm version → commit + tag on main
+        │  bump apps/desktop/package.json → commit + tag on main
         │  git push --follow-tags
         │  dispatch release.yml -f tag=vX.Y.Z
         ▼
@@ -35,7 +35,7 @@ main is good enough for daily use (web + daemon)
 short-lived managed `work/*` PR), and release stays the same simple main+tag path after
 `release-cut.mjs` has required clean `main == origin/main`. It sets `PORCELAIN_RELEASE_CUT=1`
 for one reason only: to *deny* the Claude duplicate-skip, so the tracked hook still runs
-`pnpm verify` on the nested commit `pnpm version` makes — which the outer Claude/Grok hook
+`pnpm verify` on the nested commit `release-cut.mjs` makes — which the outer Claude/Grok hook
 never sees. It never bypasses the gate. No multi-workflow pre-cut gate. No cut/retry/npm_only
 mode soup.
 
@@ -88,7 +88,7 @@ Do **not** invent a new patch for infra flake if the tag already exists and only
 
 ## Changelog
 
-`pnpm version` runs the `version` lifecycle → `pnpm changelog` (newest section only). Only `feat`/`fix`/breaking surface. Empty-ish notes for tiny patches are fine; write a real blurb when the release *matters*.
+`release-cut.mjs` bumps `apps/desktop/package.json` (the repo's ONE `version`) then `pnpm changelog` (newest section only). Only `feat`/`fix`/breaking surface. Empty-ish notes for tiny patches are fine; write a real blurb when the release *matters*.
 
 ## Signing & notarization
 

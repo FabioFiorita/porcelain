@@ -22,11 +22,11 @@ const root = join(fileURLToPath(new URL('.', import.meta.url)), '..')
 const config = JSON.parse(readFileSync(join(root, 'scripts', 'ratchets.json'), 'utf8'))
 
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'dist-daemon', '.git', 'ios', 'android'])
-const VENDORED_UI = join(root, 'src', 'renderer', 'src', 'components', 'ui')
-const HOOKS_DIR = join(root, 'src', 'renderer', 'src', 'hooks')
+const VENDORED_UI = join(root, 'apps', 'desktop', 'src', 'renderer', 'src', 'components', 'ui')
+const HOOKS_DIR = join(root, 'apps', 'desktop', 'src', 'renderer', 'src', 'hooks')
 
 const SCAN_ROOTS = [
-  join(root, 'src'),
+  join(root, 'apps', 'desktop', 'src'),
   join(root, 'apps', 'mobile', 'src'),
   join(root, 'packages'),
 ].filter((dir) => existsSync(dir))

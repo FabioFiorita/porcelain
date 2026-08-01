@@ -1,22 +1,29 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "entry": [
-    "src/main/index.ts!",
-    "src/preload/index.ts!",
-    "src/backend/server.ts!",
-    "src/cli/porcelain.ts!",
-    "src/renderer/src/main.tsx!",
-    "scripts/*.{mjs,js}",
-    "e2e/**/*.{ts,tsx}",
-    "playwright.config.ts",
-    "playwright.shots.config.ts",
-    "vitest.config.ts",
-    "electron.vite.config.ts",
-    "src/test-setup.ts"
-  ],
-  "project": ["src/**/*.{ts,tsx}", "scripts/**/*.{mjs,js}", "e2e/**/*.{ts,tsx}"],
-  "ignore": ["src/renderer/src/components/ui/**"],
-  "ignoreBinaries": ["ss"],
+  "workspaces": {
+    ".": {
+      "entry": ["scripts/*.{mjs,js}"],
+      "project": ["scripts/**/*.{mjs,js}"],
+      "ignoreBinaries": ["ss", "playwright", "vitest"]
+    },
+    "apps/desktop": {
+      "entry": [
+        "src/main/index.ts!",
+        "src/preload/index.ts!",
+        "src/backend/server.ts!",
+        "src/cli/porcelain.ts!",
+        "src/renderer/src/main.tsx!",
+        "e2e/**/*.{ts,tsx}",
+        "playwright.config.ts",
+        "playwright.shots.config.ts",
+        "vitest.config.ts",
+        "electron.vite.config.ts",
+        "src/test-setup.ts"
+      ],
+      "project": ["src/**/*.{ts,tsx}", "e2e/**/*.{ts,tsx}"],
+      "ignore": ["src/renderer/src/components/ui/**"]
+    }
+  },
   "ignoreDependencies": [
     "@fontsource-variable/geist",
     "@fontsource-variable/geist-mono",

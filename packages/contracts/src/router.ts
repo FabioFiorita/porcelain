@@ -8,4 +8,4 @@
 // global) into whoever imports the barrel — which breaks `apps/mobile`, whose
 // tsconfig is Expo's. Desktop consumers opt in via `@porcelain/contracts/router`;
 // mobile can once its tsconfig carries Node types.
-export type { AppRouter } from '../../../src/backend/api'
+export type { AppRouter } from '../../../apps/desktop/src/backend/api'

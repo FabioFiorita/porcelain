@@ -7,7 +7,7 @@
  * that has burned releases before: node-pty unpacked + Electron binary present.
  *
  * Usage:
- *   node scripts/release-fuse-smoke.mjs --platform mac --dir dist
+ *   node scripts/release-fuse-smoke.mjs --platform mac --dir apps/desktop/dist
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -16,14 +16,14 @@ import { parseArgs } from 'node:util'
 const { values } = parseArgs({
   options: {
     platform: { type: 'string' },
-    dir: { type: 'string', default: 'dist' },
+    dir: { type: 'string', default: 'apps/desktop/dist' },
     help: { type: 'boolean', default: false },
   },
   strict: true,
 })
 
 if (values.help || values.platform !== 'mac') {
-  console.log('Usage: node scripts/release-fuse-smoke.mjs --platform mac [--dir dist]')
+  console.log('Usage: node scripts/release-fuse-smoke.mjs --platform mac [--dir apps/desktop/dist]')
   process.exit(values.help ? 0 : 1)
 }
 

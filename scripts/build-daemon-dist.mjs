@@ -10,8 +10,8 @@
 // keep working unchanged: the shared chunk require from
 // main/daemon/server.js) and RENDERER_ROOT (`__dirname/../../renderer`, see
 // src/backend/net/static-server.ts). Externalized runtime deps are declared
-// in a generated package.json with the EXACT semver ranges read from the root
-// package.json, so `npm install` / npx on the target pulls them (and compiles
+// in a generated package.json with the EXACT semver ranges read from
+// apps/desktop/package.json, so `npm install` / npx on the target pulls them (and compiles
 // node-pty for that host). The dependency-free CLI ships too — the daemon installs
 // it to ~/.porcelain/porcelain on boot and the Beelink's coding agent runs it.
 //
@@ -30,14 +30,17 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const out = join(root, 'out')
+const desktop = join(root, 'apps', 'desktop')
+const out = join(desktop, 'out')
 const dist = join(root, 'dist-daemon')
 
 // The daemon bundle is the build's headline artifact — if it's missing, the
 // whole `out/` tree is stale or absent. Point the human at the one fix.
 const daemonEntry = join(out, 'main', 'daemon', 'server.js')
 if (!existsSync(daemonEntry)) {
-  console.error('[daemon:dist] out/main/daemon/server.js not found — run `pnpm build` first')
+  console.error(
+    '[daemon:dist] apps/desktop/out/main/daemon/server.js not found — run `pnpm build` first',
+  )
   process.exit(1)
 }
 
@@ -45,16 +48,16 @@ if (!existsSync(daemonEntry)) {
 // node-pty is native — `npm install` on the target compiles it for that host.
 const RUNTIME_DEPS = ['@trpc/client', '@trpc/server', 'node-pty', 'trash', 'ws', 'zod']
 
-const rootPkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
+const desktopPkg = JSON.parse(readFileSync(join(desktop, 'package.json'), 'utf8'))
 
 // Read the EXACT range the repo pins so the standalone package can't drift from
 // what the bundle was built against. A missing dep is a build-config bug, not a
 // silent skip.
 const dependencies = {}
 for (const name of RUNTIME_DEPS) {
-  const range = rootPkg.dependencies?.[name]
+  const range = desktopPkg.dependencies?.[name]
   if (range === undefined) {
-    console.error(`[daemon:dist] ${name} missing from root package.json dependencies`)
+    console.error(`[daemon:dist] ${name} missing from apps/desktop/package.json dependencies`)
     process.exit(1)
   }
   dependencies[name] = range
@@ -75,7 +78,7 @@ const copies = [
 for (const [from, to] of copies) {
   const src = join(out, from)
   if (!existsSync(src)) {
-    console.error(`[daemon:dist] expected build output missing: out/${from}`)
+    console.error(`[daemon:dist] expected build output missing: apps/desktop/out/${from}`)
     process.exit(1)
   }
   const dest = join(dist, to)
@@ -103,14 +106,14 @@ chmodSync(cliDest, 0o755)
 // Publish as porcelain-daemon; bin name matches for `npx porcelain-daemon@latest`.
 const distPkg = {
   name: 'porcelain-daemon',
-  version: rootPkg.version,
+  version: desktopPkg.version,
   description:
     'Headless Porcelain daemon — plain Node backend for remote machines (npx porcelain-daemon@latest serve)',
-  license: rootPkg.license ?? 'MIT',
-  author: rootPkg.author,
-  repository: rootPkg.repository,
-  bugs: rootPkg.bugs,
-  homepage: rootPkg.homepage ?? 'https://github.com/FabioFiorita/porcelain',
+  license: desktopPkg.license ?? 'MIT',
+  author: desktopPkg.author,
+  repository: desktopPkg.repository,
+  bugs: desktopPkg.bugs,
+  homepage: desktopPkg.homepage ?? 'https://github.com/FabioFiorita/porcelain',
   engines: { node: '>=22' },
   bin: {
     'porcelain-daemon': 'bin/porcelain-daemon.js',
@@ -124,9 +127,9 @@ const distPkg = {
 }
 writeFileSync(join(dist, 'package.json'), `${JSON.stringify(distPkg, null, 2)}\n`)
 
-writeFileSync(join(dist, 'README.md'), readme(rootPkg.version))
+writeFileSync(join(dist, 'README.md'), readme(desktopPkg.version))
 
-console.log(`[daemon:dist] assembled dist-daemon/ (porcelain-daemon@${rootPkg.version})`)
+console.log(`[daemon:dist] assembled dist-daemon/ (porcelain-daemon@${desktopPkg.version})`)
 console.log('[daemon:dist] try:   cd dist-daemon && npm install && npx porcelain-daemon serve')
 console.log(
   '[daemon:dist] pair:  npx porcelain-daemon access issue --name "My phone" --base-url http://127.0.0.1:43117',

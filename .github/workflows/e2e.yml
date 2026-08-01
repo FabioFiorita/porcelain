@@ -26,8 +26,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       # Electron 42 has no postinstall, so a fresh install leaves the binary
       # missing; fetch it explicitly (idempotent, cached) before anything runs it.
-      - run: node node_modules/electron/install.js
-      - run: pnpm exec playwright install --with-deps chromium
+      - run: node apps/desktop/node_modules/electron/install.js
+      - run: pnpm --dir apps/desktop exec playwright install --with-deps chromium
       # The browser project drives the SAME built renderer dist and data path the
       # Electron window loads, so it asserts everything but the shell layer.
       # `*-browser-linux.png` baselines are asserted here.

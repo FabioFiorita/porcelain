@@ -28,11 +28,15 @@ const { values, positionals } = parseArgs({
 const bump = positionals[0] ?? 'patch'
 if (values.help || !['patch', 'minor', 'major'].includes(bump)) {
   console.log(`Usage: node scripts/release-cut.mjs [patch|minor|major] [--skip-push]
-Bumps package.json + CHANGELOG on main, tags vX.Y.Z, pushes, dispatches release.yml.`)
+Bumps apps/desktop/package.json + CHANGELOG on main, tags vX.Y.Z, pushes, dispatches release.yml.`)
   process.exit(values.help ? 0 : 1)
 }
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+// apps/desktop/package.json carries the ONE product version: electron-builder stamps
+// it, electron.vite.config.ts bakes it into __PORCELAIN_VERSION__, and daemon:dist
+// reads it. The workspace root deliberately has no `version` field to drift from it.
+const desktop = path.join(root, 'apps', 'desktop')
 
 const CLEAN_ENV = {
   ...process.env,
@@ -41,7 +45,7 @@ const CLEAN_ENV = {
   CLICOLOR: '0',
   CLICOLOR_FORCE: '0',
   GH_FORCE_TTY: '0',
-  // Denies the tracked hook's Claude duplicate-skip: `pnpm version` commits through a
+  // Denies the tracked hook's Claude duplicate-skip: the bump commit below is a
   // nested git call the outer PreToolUse guard never saw, so the gate must run here.
   PORCELAIN_RELEASE_CUT: '1',
 }
@@ -76,17 +80,22 @@ if (local !== remote) {
   fail(`HEAD (${local.slice(0, 7)}) ≠ origin/main (${remote.slice(0, 7)}) — push or pull first`)
 }
 
-console.log(`release:cut → pnpm version ${bump}`)
-const ver = spawnSync('pnpm', ['version', bump, '-m', 'chore: release v%s'], {
-  cwd: root,
+console.log(`release:cut → pnpm version ${bump} (apps/desktop)`)
+const ver = spawnSync('pnpm', ['version', bump, '--no-git-tag-version'], {
+  cwd: desktop,
   encoding: 'utf8',
   stdio: 'inherit',
   env: CLEAN_ENV,
 })
 if (ver.status !== 0) process.exit(ver.status ?? 1)
 
-const version = sh('node', ['-p', "require('./package.json').version"])
+const version = sh('node', ['-p', "require('./apps/desktop/package.json').version"])
 const tag = `v${version}`
+
+sh('pnpm', ['changelog'], { inherit: true })
+sh('git', ['add', 'CHANGELOG.md', 'apps/desktop/package.json'], { inherit: true })
+sh('git', ['commit', '-m', `chore: release ${tag}`], { inherit: true })
+sh('git', ['tag', '-a', tag, '-m', `chore: release ${tag}`], { inherit: true })
 console.log(`release:cut → ${tag}`)
 
 if (!values['skip-push']) {

@@ -3,7 +3,7 @@
   "include": [
     "src/renderer/src/env.d.ts",
     "src/shared/**/*",
-    "packages/contracts/src/**/*",
+    "../../packages/contracts/src/**/*",
     "src/renderer/src/**/*",
     "src/renderer/src/**/*.tsx",
     "src/preload/*.d.ts",
@@ -25,8 +25,8 @@
       "@main/*": ["src/main/*"],
       "@backend/*": ["src/backend/*"],
       "@shared/*": ["src/shared/*"],
-      "@porcelain/contracts": ["packages/contracts/src/index.ts"],
-      "@porcelain/contracts/*": ["packages/contracts/src/*"]
+      "@porcelain/contracts": ["../../packages/contracts/src/index.ts"],
+      "@porcelain/contracts/*": ["../../packages/contracts/src/*"]
     }
   }
 }

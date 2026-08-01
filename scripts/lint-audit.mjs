@@ -21,7 +21,7 @@ import { join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = join(fileURLToPath(new URL('.', import.meta.url)), '..')
-const scanRoot = join(root, 'src')
+const scanRoot = join(root, 'apps', 'desktop', 'src')
 
 const EXTERNAL_URL_CALL = /\b(?:shell\.openExternal|setWindowOpenHandler)\s*\(/
 const EXTERNAL_URL_GUARD = 'isSafeExternalUrl'

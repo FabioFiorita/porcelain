@@ -29,6 +29,8 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const result = spawnSync(
   'pnpm',
   [
+    '--dir',
+    'apps/desktop',
     'exec',
     'vitest',
     'run',
