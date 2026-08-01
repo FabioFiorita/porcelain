@@ -42,7 +42,7 @@ pnpm porcelain -- help  # CLI against ~/.porcelain-dev
 6. **Docs** — only when a *constraint* changed. Most sessions touch no doc at all: why you chose this path belongs in the commit message (hard rule 4), and `pnpm lint` caps the corpus, so adding means cutting. If a skill now restates a lint or the code, delete it.
 7. **Gate & commit** — `pnpm verify`, then commit. Stop there: pushing is prompted, on `main` and on a task branch alike (see Autonomy split). Once the human says go, a task branch pushes and opens a PR into `main` carrying the Review's evidence; after merge and a local main update, `pnpm worktree remove <slug>` closes the task.
 
-**A main commit is not a shortcut past the loop.** The gate runs identically on every branch, and an agent-authored commit on `main` still ends with a **published Porcelain Review** (Intent · Execution · Evidence) — that Review is what a PR would otherwise carry, and nothing enforces it but you.
+**A main commit is not a shortcut past the loop.** The gate runs identically on every branch. A published Porcelain Review (Intent · Execution · Evidence) is a judgement call, not a standing rule — publish one when the work earns a story or the human asks. Ordinary commits need none.
 
 Scale ceremony to the change. Phase 5 never scales away — no "should work."
 
