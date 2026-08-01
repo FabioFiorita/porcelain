@@ -1,5 +1,5 @@
-import { Host, HStack, Image, Menu, Picker, Text, VStack } from '@expo/ui/swift-ui'
-import { font, foregroundStyle, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers'
+import { Button, Host, HStack, Image, Menu, Picker, Text, VStack } from '@expo/ui/swift-ui'
+import { disabled, font, foregroundStyle, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers'
 import { type Href, router, Stack } from 'expo-router'
 
 import { type ToolbarIconName, toolbarIcon } from '@/components/toolbar-icon'
@@ -34,6 +34,10 @@ export function ScreenHeader({
   const environments = useEnvironments()
   const selected = useSelectedEnvironment()
 
+  // The line names the repo you are reading, which is what a project picker selects. Until a
+  // daemon can list one it falls back to the environment, then to the action that gets you one.
+  const context = selected?.nickname ?? 'Pair an environment'
+
   return (
     <>
       <Stack.Toolbar placement="left">
@@ -41,32 +45,43 @@ export function ScreenHeader({
           <Host matchContents seedColor={accentColor}>
             <VStack alignment="leading" spacing={0}>
               <Text modifiers={[font({ size: 22, weight: 'bold' })]}>{title}</Text>
-              {selected === null ? null : (
-                <Menu
-                  label={
-                    <HStack spacing={3}>
-                      <Text modifiers={[font({ size: 12, weight: 'medium' }), secondary]}>
-                        {selected.nickname}
-                      </Text>
-                      <Image modifiers={[secondary]} size={8} systemName="chevron.down" />
-                    </HStack>
-                  }
-                >
-                  {/* An inline Picker is what puts the checkmark beside the current row. */}
-                  <Picker<string>
-                    label="Environment"
-                    modifiers={[pickerStyle('inline')]}
-                    onSelectionChange={(id: string): void => selectEnvironment(id)}
-                    selection={selected.id}
-                  >
-                    {environments.map((environment) => (
-                      <Text key={environment.id} modifiers={[tag(environment.id)]}>
-                        {environment.nickname}
-                      </Text>
-                    ))}
-                  </Picker>
+              <Menu
+                label={
+                  <HStack spacing={3}>
+                    <Text modifiers={[font({ size: 12, weight: 'medium' }), secondary]}>
+                      {context}
+                    </Text>
+                    <Image modifiers={[secondary]} size={8} systemName="chevron.down" />
+                  </HStack>
+                }
+              >
+                <Menu label="Project" systemImage="folder">
+                  <Button label="Needs an environment" modifiers={[disabled(true)]} />
                 </Menu>
-              )}
+                <Menu label="Environment" systemImage="desktopcomputer">
+                  {environments.length === 0 ? (
+                    <Button
+                      label="Pair an environment"
+                      onPress={(): void => router.push('/settings/pair')}
+                      systemImage="plus"
+                    />
+                  ) : (
+                    // An inline Picker is what puts the checkmark beside the current row.
+                    <Picker<string>
+                      label="Environment"
+                      modifiers={[pickerStyle('inline')]}
+                      onSelectionChange={(id: string): void => selectEnvironment(id)}
+                      selection={selected?.id ?? ''}
+                    >
+                      {environments.map((environment) => (
+                        <Text key={environment.id} modifiers={[tag(environment.id)]}>
+                          {environment.nickname}
+                        </Text>
+                      ))}
+                    </Picker>
+                  )}
+                </Menu>
+              </Menu>
             </VStack>
           </Host>
         </Stack.Toolbar.View>
