@@ -1,3 +1,31 @@
+## [0.46.0](https://github.com/FabioFiorita/porcelain/compare/v0.45.3...v0.46.0) (2026-08-01)
+
+### Features
+
+* **dev:** add managed worktree lifecycle ([64672e4](https://github.com/FabioFiorita/porcelain/commit/64672e47874eb9ba555847c29c1d0402a31261ac))
+* **lint:** ratchet the limits instead of cutting them again ([aaeab91](https://github.com/FabioFiorita/porcelain/commit/aaeab9127654fd42d2b57bac809deb167804f67b))
+* **mobile:** 4-tab native shell, EAS preview pipeline, mobile lint gate ([b6e0d93](https://github.com/FabioFiorita/porcelain/commit/b6e0d938dd608162a9550955bb7507d8bcdc6997))
+* **mobile:** adapt tabs to iPad; fingerprint-decided EAS delivery ([a70b93d](https://github.com/FabioFiorita/porcelain/commit/a70b93d83da6e9ba8be7f4e82069fba2c4b6a3c1))
+* **mobile:** scaffold Expo native client ([1d77161](https://github.com/FabioFiorita/porcelain/commit/1d7716169d0715447a274409a87bf0e39bc2347a))
+* **mobile:** wire EAS Observe launch metrics ([f3aaee6](https://github.com/FabioFiorita/porcelain/commit/f3aaee69b0a5d05ccd7358ab28138e55e3667042))
+* **renderer:** optimistic writes on the board and comment channels ([b4cea91](https://github.com/FabioFiorita/porcelain/commit/b4cea91765e19fd2b3d64224fe3b4365b8c4081f))
+* **worktrees:** main-first flow, harness cooperation, worktree-aware app ([c7d3a44](https://github.com/FabioFiorita/porcelain/commit/c7d3a4452db9e164549ea0da68e59265d7a9d68b))
+
+### Bug Fixes
+
+* **daemon:** bound unwatched terminal sessions ([0a36464](https://github.com/FabioFiorita/porcelain/commit/0a3646423f942c2df7949acef26f54d3451fd0b2))
+* **daemon:** filter the LAN bind by interface, not just address range ([70798bb](https://github.com/FabioFiorita/porcelain/commit/70798bbd51500fbce63e3120f3e7bb6fe3f59c7e))
+* **git:** keep cwd authoritative for every spawned git ([6598c49](https://github.com/FabioFiorita/porcelain/commit/6598c49e186516d338d87fe2772b8e7f16b51466))
+* **mobile:** cut plan narrative from preview.yml and README ([ac65635](https://github.com/FabioFiorita/porcelain/commit/ac656355f312e61156c10892b76d0dd8ef56eca4))
+* **mobile:** drop invalid generic args on require() in toolbar-icon ([8326008](https://github.com/FabioFiorita/porcelain/commit/83260084d0390168ddd0fa2ec183e5d20d6fb83c))
+* **mobile:** free-plan delivery — submit, not testflight ([f6a35d6](https://github.com/FabioFiorita/porcelain/commit/f6a35d643286d9582abbfa591a2f21ab21455b30))
+* **mobile:** plain button style on Settings rows ([0e4eb5e](https://github.com/FabioFiorita/porcelain/commit/0e4eb5e8189bdca0eb07397f3ec326cd15f9bbd6))
+* **mobile:** rasterize Android toolbar icons from a vector icon set ([48519e9](https://github.com/FabioFiorita/porcelain/commit/48519e9e325ed72c31a8fa3f8154f310c4dd0796))
+* **mobile:** render header toolbar buttons on Android ([a780494](https://github.com/FabioFiorita/porcelain/commit/a780494e92d6be6ee5a2a07d39ae01284886f3c2))
+* **mobile:** set ios.supportsTablet — iPad ran in iPhone compat mode ([f3fb0b7](https://github.com/FabioFiorita/porcelain/commit/f3fb0b7c2aa458c0612d17421488d64770a5c88e))
+* **renderer:** stop writing refs during render ([78d25ba](https://github.com/FabioFiorita/porcelain/commit/78d25ba91e8aa50ab65adfa559002f69b2917fa7))
+* **worktrees:** scrub repo-local git env, fence the debris prune ([4123e25](https://github.com/FabioFiorita/porcelain/commit/4123e25ad880914d3d54b5bc537cd11df3e4ebc4))
+
 ## [0.45.3](https://github.com/FabioFiorita/porcelain/compare/v0.45.2...v0.45.3) (2026-07-29)
 
 ### Bug Fixes
