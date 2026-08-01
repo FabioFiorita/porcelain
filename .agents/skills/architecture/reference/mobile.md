@@ -26,14 +26,14 @@ A separate native client of the same daemon, not a port of the renderer.
 - **`ios.supportsTablet: true` is load-bearing.** Without it iPad runs in compatibility mode —
   fixed portrait, no rotation, never a regular size class, so `sidebarAdaptable` has nothing to
   promote. Native flag: changing it moves the fingerprint.
-- **iPad is the same four tabs adapted, not a second shell.** `sidebarAdaptable` on iOS 18+ gives a
+- **iPad is the same tab list adapted, not a second shell** — `hidden` makes a trigger's route
+  unreachable, so an idiom-only tab means duplicating it. `sidebarAdaptable` on iOS 18+ gives a
   top tab bar with a sidebar toggle, not an unconditional sidebar. **Treat every iPad claim here as
-  unproven until a screenshot backs it** — these were written from docs and shipped unverified once.
-  Multi-column Files is structurally blocked: `SplitView` throws inside another navigator, so it can
+  unproven until a screenshot backs it.** Multi-column Files is structurally blocked: `SplitView` throws inside another navigator, so it can
   only be the root layout; that fork is deferred to the real Files feature.
-- **Four native tabs — Files · Changes · Review · Terminal.** History is pushed inside Changes;
-  Board inside Review, because a card *starts* a review and as peers that flow crosses the tab bar;
-  Search is a search bar on Files; Settings is a formSheet. Environments are **LAN + Tailscale only
+- **Five native tabs — Files · Changes · Review · Board · Terminal**, and five is the ceiling: a
+  sixth collapses iOS into "More". So History stays pushed inside Changes; Search is a search bar
+  on Files; Settings is a formSheet. Environments are **LAN + Tailscale only
   — no relay tier, deliberately**: a relay is a recurring bill, Funnel is already the public path.
 - **Feature slices** (`src/features/<feature>/` owns screens and logic; `src/app` is a thin route
   table) so parallel worktrees don't collide in a shared component tree.

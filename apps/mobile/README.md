@@ -104,25 +104,29 @@ To pair the app with the dev daemon, use the host's **LAN address**, never
 `127.0.0.1` — on the simulator that resolves to the Mac. See
 `docs/plans/README.md` → *Shared verification recipe*.
 
-## Shell: four tabs
+## Shell: five tabs
 
-The client has four stable native tabs — **Files · Changes · Review ·
+The client has five stable native tabs — **Files · Changes · Review · Board ·
 Terminal** — and each owns its own stack, so deeper screens are pushed instead
 of becoming tabs. Mobile deliberately carries fewer tabs than the desktop app:
 
 | Desktop surface | Where it lives on mobile |
 | --- | --- |
 | History | pushed from the **Changes** header (commit history reads as part of the working tree story) |
-| Board | pushed from the **Review** header (a board card starts a review; the two are coupled) |
 | Search | the **Files** header search bar, not a tab |
-| Settings | a root-level route presented as a form sheet, reachable from every tab's header gear |
+| Settings | a row in the header's overflow menu, opening a root-level form sheet |
 
-Settings itself is a nested stack: root list → Environments (daemons paired
-with this device over LAN or Tailscale) · Appearance · About.
+**Five is the ceiling.** iOS collapses a sixth tab into a system "More" tab, so
+anything else earns its place by displacing one of these, not by being added.
 
-The same four triggers drive both presentations: iPhone gets the bottom tab
+Settings itself is a nested stack: root list (Environments and About inline,
+plus reading preferences) → Pair an environment.
+
+The same five triggers drive both presentations: iPhone gets the bottom tab
 bar, and `sidebarAdaptable` lets iPadOS/macOS promote them to the system side
-tab bar and sidebar. There is one tab list, never a second iPad-only one.
+tab bar and sidebar. There is one tab list, never a second iPad-only one —
+`NativeTabTrigger`'s `hidden` makes a route unreachable rather than merely
+unlisted, so an idiom-specific tab means duplicating its route.
 
 That promotion needs **`ios.supportsTablet: true`** (`app.config.ts`). Without it Expo
 emits `UIDeviceFamily = [1]` and the app runs on iPad in iPhone **compatibility

@@ -12,10 +12,9 @@ export function ReviewScreen(): React.JSX.Element {
           'Intent — what the work was supposed to do',
           'Execution — what actually changed',
           'Evidence — the proof the loop was closed',
-          'The Board is pushed from this header; a board card starts a review',
         ]}
       />
-      <ScreenHeader action={{ href: '/board', icon: 'board', label: 'Board' }} title="Review" />
+      <ScreenHeader title="Review" />
       <ObserveInteractiveMarker />
     </>
   )
