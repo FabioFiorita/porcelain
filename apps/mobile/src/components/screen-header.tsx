@@ -1,9 +1,9 @@
-import { Button, Host, HStack, Image, Text, VStack } from '@expo/ui/swift-ui'
-import { buttonStyle, font, foregroundStyle } from '@expo/ui/swift-ui/modifiers'
+import { Host, HStack, Image, Menu, Picker, Text, VStack } from '@expo/ui/swift-ui'
+import { font, foregroundStyle, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers'
 import { type Href, router, Stack } from 'expo-router'
 
 import { type ToolbarIconName, toolbarIcon } from '@/components/toolbar-icon'
-import { useSelectedEnvironment } from '@/lib/environments'
+import { selectEnvironment, useEnvironments, useSelectedEnvironment } from '@/lib/environments'
 import { useAccentColor } from '@/theme/colors'
 
 /** A push this screen owns, sitting left of the two buttons every tab shares. */
@@ -13,13 +13,15 @@ export type ScreenAction = {
   label: string
 }
 
+const secondary = foregroundStyle({ style: 'secondary', type: 'hierarchical' })
+
 /**
- * The header every tab wears: title on the left, on the same row as the toolbar buttons.
+ * The header every tab wears: title left, on the same row as the toolbar buttons.
  *
- * iOS pins the native header title to the centre — `headerTitleAlign` is documented as
- * having no effect there — so the title is a custom left header item and each stack layout
- * blanks the native one. The line beneath it is where the environment, project and worktree
- * pickers live: one home for "what am I looking at", instead of a picker per tab.
+ * iOS pins the native title to the centre (`headerTitleAlign` is a no-op there), so this is a
+ * custom left item and each stack blanks the native one. `hidesSharedBackground` drops the
+ * glass capsule iOS 26 wraps a custom bar item in — inside it the title sits flush against
+ * the capsule rather than at the header's own inset.
  */
 export function ScreenHeader({
   action,
@@ -29,41 +31,45 @@ export function ScreenHeader({
   title: string
 }): React.JSX.Element {
   const accentColor = useAccentColor()
+  const environments = useEnvironments()
   const selected = useSelectedEnvironment()
-  const context = selected?.nickname ?? 'No environment'
 
   return (
     <>
-      {/*
-        `asChild` hands the whole left header slot to this element, and `matchContents`
-        lets the SwiftUI stack size itself — a header item has no viewport to measure.
-      */}
-      <Stack.Toolbar asChild placement="left">
-        <Host matchContents seedColor={accentColor}>
-          <VStack alignment="leading" spacing={1}>
-            <Text modifiers={[font({ size: 22, weight: 'bold' })]}>{title}</Text>
-            <Button
-              modifiers={[buttonStyle('plain')]}
-              onPress={(): void => router.push('/workspace')}
-            >
-              <HStack spacing={3}>
-                <Text
-                  modifiers={[
-                    font({ size: 12, weight: 'medium' }),
-                    foregroundStyle({ style: 'secondary', type: 'hierarchical' }),
-                  ]}
+      <Stack.Toolbar placement="left">
+        <Stack.Toolbar.View hidesSharedBackground>
+          <Host matchContents seedColor={accentColor}>
+            <VStack alignment="leading" spacing={0}>
+              <Text modifiers={[font({ size: 22, weight: 'bold' })]}>{title}</Text>
+              {selected === null ? null : (
+                <Menu
+                  label={
+                    <HStack spacing={3}>
+                      <Text modifiers={[font({ size: 12, weight: 'medium' }), secondary]}>
+                        {selected.nickname}
+                      </Text>
+                      <Image modifiers={[secondary]} size={8} systemName="chevron.down" />
+                    </HStack>
+                  }
                 >
-                  {context}
-                </Text>
-                <Image
-                  modifiers={[foregroundStyle({ style: 'secondary', type: 'hierarchical' })]}
-                  size={8}
-                  systemName="chevron.down"
-                />
-              </HStack>
-            </Button>
-          </VStack>
-        </Host>
+                  {/* An inline Picker is what puts the checkmark beside the current row. */}
+                  <Picker<string>
+                    label="Environment"
+                    modifiers={[pickerStyle('inline')]}
+                    onSelectionChange={(id: string): void => selectEnvironment(id)}
+                    selection={selected.id}
+                  >
+                    {environments.map((environment) => (
+                      <Text key={environment.id} modifiers={[tag(environment.id)]}>
+                        {environment.nickname}
+                      </Text>
+                    ))}
+                  </Picker>
+                </Menu>
+              )}
+            </VStack>
+          </Host>
+        </Stack.Toolbar.View>
       </Stack.Toolbar>
       <Stack.Toolbar placement="right">
         {action === undefined ? null : (

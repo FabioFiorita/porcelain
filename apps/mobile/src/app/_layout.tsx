@@ -25,7 +25,6 @@ function RootLayout(): React.JSX.Element {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         {/* Settings nests a stack of its own, which supplies the header this one hides. */}
         <Stack.Screen name="settings" options={{ ...SHEET, headerShown: false }} />
-        <Stack.Screen name="workspace" options={{ ...SHEET, title: 'Workspace' }} />
         <Stack.Screen name="companion" options={{ ...SHEET, title: 'Companion' }} />
       </Stack>
     </ThemeProvider>
