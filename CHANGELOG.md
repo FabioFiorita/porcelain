@@ -1,3 +1,21 @@
+## [0.46.1](https://github.com/FabioFiorita/porcelain/compare/v0.46.0...v0.46.1) (2026-08-01)
+
+### Features
+
+* group environment connections ([78f8687](https://github.com/FabioFiorita/porcelain/commit/78f86877ee73fb57ba6717114ab366a121ca8a8b))
+* **mobile:** Changes tab end-to-end on the daemon seam ([2c4631f](https://github.com/FabioFiorita/porcelain/commit/2c4631f7c73f44248fa6e08202b7bee68f74d521))
+* **mobile:** daemon connection seam per plan 00 ([f0bc4c8](https://github.com/FabioFiorita/porcelain/commit/f0bc4c89a777d59ee32c42e3c4ffa7c845bbdaf3))
+* **mobile:** left-align titles and inline the settings surface ([d83f2d6](https://github.com/FabioFiorita/porcelain/commit/d83f2d64e91a7c6f6254ceb48f21c16e204fb27a))
+* **mobile:** nest Project and Environment in the header context menu ([756cf05](https://github.com/FabioFiorita/porcelain/commit/756cf05f69ae1197f907ec8575243ad0ec91aedd))
+* **mobile:** promote Board to its own tab ([747659a](https://github.com/FabioFiorita/porcelain/commit/747659a5d0b4102895abd792d8cdee68c65079b9))
+
+### Bug Fixes
+
+* complete environment group recovery ([ec2618f](https://github.com/FabioFiorita/porcelain/commit/ec2618f688b82e4dd1a3bbadce7b94e4051fcd51))
+* **mobile:** give History a toolbar, unfold Settings to a button ([5897af9](https://github.com/FabioFiorita/porcelain/commit/5897af9047d2dba9bc42d33b8aa0b7720109ff98))
+* **mobile:** put the companion button on the right edge of the header ([878ab90](https://github.com/FabioFiorita/porcelain/commit/878ab9011ad9fed99366f20a69e3c1c501adbac5))
+* **review:** improve mobile HTML previews and evidence styles ([2d00c4e](https://github.com/FabioFiorita/porcelain/commit/2d00c4e9812fb63689866ba8a8b7a08279f8efef))
+
 ## [0.46.0](https://github.com/FabioFiorita/porcelain/compare/v0.45.3...v0.46.0) (2026-08-01)
 
 ### Features
