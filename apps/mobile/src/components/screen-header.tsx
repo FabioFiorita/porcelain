@@ -1,17 +1,10 @@
 import { Button, Host, HStack, Image, Menu, Picker, Text, VStack } from '@expo/ui/swift-ui'
 import { disabled, font, foregroundStyle, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers'
-import { type Href, router, Stack } from 'expo-router'
+import { router, Stack } from 'expo-router'
 
-import { type ToolbarIconName, toolbarIcon } from '@/components/toolbar-icon'
+import { HeaderToolbar, type ScreenAction } from '@/components/header-toolbar'
 import { selectEnvironment, useEnvironments, useSelectedEnvironment } from '@/lib/environments'
 import { useAccentColor } from '@/theme/colors'
-
-/** A push this screen owns, sitting left of the two buttons every tab shares. */
-export type ScreenAction = {
-  href: Href
-  icon: ToolbarIconName
-  label: string
-}
 
 const secondary = foregroundStyle({ style: 'secondary', type: 'hierarchical' })
 
@@ -86,34 +79,7 @@ export function ScreenHeader({
           </Host>
         </Stack.Toolbar.View>
       </Stack.Toolbar>
-      {/*
-        Two buttons, never more. The companion keeps its own because it is a view toggle
-        used constantly while reading; everything that navigates away goes in the menu.
-        It sits last so the control for the right-hand panel is on the right-hand edge.
-      */}
-      <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Menu accessibilityLabel="More" icon={toolbarIcon('overflow')}>
-          {action === undefined ? null : (
-            <Stack.Toolbar.MenuAction
-              icon={toolbarIcon(action.icon)}
-              onPress={(): void => router.push(action.href)}
-            >
-              {action.label}
-            </Stack.Toolbar.MenuAction>
-          )}
-          <Stack.Toolbar.MenuAction
-            icon={toolbarIcon('settings')}
-            onPress={(): void => router.push('/settings')}
-          >
-            Settings
-          </Stack.Toolbar.MenuAction>
-        </Stack.Toolbar.Menu>
-        <Stack.Toolbar.Button
-          accessibilityLabel="Companion"
-          icon={toolbarIcon('companion')}
-          onPress={(): void => router.push('/companion')}
-        />
-      </Stack.Toolbar>
+      <HeaderToolbar action={action} />
     </>
   )
 }

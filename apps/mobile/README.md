@@ -114,7 +114,7 @@ of becoming tabs. Mobile deliberately carries fewer tabs than the desktop app:
 | --- | --- |
 | History | pushed from the **Changes** header (commit history reads as part of the working tree story) |
 | Search | the **Files** header search bar, not a tab |
-| Settings | a row in the header's overflow menu, opening a root-level form sheet |
+| Settings | the header's `ellipsis` button, opening a root-level form sheet |
 
 **Five is the ceiling.** iOS collapses a sixth tab into a system "More" tab, so
 anything else earns its place by displacing one of these, not by being added.
