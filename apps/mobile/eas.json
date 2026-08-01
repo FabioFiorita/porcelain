@@ -21,6 +21,7 @@
     "preview": {
       "distribution": "store",
       "channel": "preview",
+      "environment": "preview",
       "autoIncrement": true,
       "env": {
         "APP_VARIANT": "production"
@@ -28,6 +29,7 @@
     },
     "production": {
       "channel": "production",
+      "environment": "production",
       "autoIncrement": true,
       "env": {
         "APP_VARIANT": "production"
@@ -35,7 +37,15 @@
     }
   },
   "submit": {
-    "preview": {},
-    "production": {}
+    "preview": {
+      "ios": {
+        "ascAppId": "6796720233"
+      }
+    },
+    "production": {
+      "ios": {
+        "ascAppId": "6796720233"
+      }
+    }
   }
 }

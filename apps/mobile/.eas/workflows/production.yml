@@ -71,6 +71,8 @@ jobs:
     needs: [build_ios]
     if: ${{ inputs.submit_to_app_store }}
     type: submit
+    env:
+      EXPO_DEBUG: "1"
     params:
       build_id: ${{ needs.build_ios.outputs.build_id }}
       profile: production
