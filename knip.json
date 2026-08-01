@@ -22,6 +22,9 @@
       ],
       "project": ["src/**/*.{ts,tsx}", "e2e/**/*.{ts,tsx}"],
       "ignore": ["src/renderer/src/components/ui/**"]
+    },
+    "apps/mobile": {
+      "project": ["src/**/*.{ts,tsx}"]
     }
   },
   "ignoreDependencies": [
@@ -38,8 +41,6 @@
     "tailwindcss",
     "conventional-changelog-conventionalcommits",
     "expo-mcp",
-    "@trpc/client",
-    "@tanstack/react-query",
-    "expo-network"
+    "@trpc/client"
   ]
 }
