@@ -45,7 +45,7 @@ Proof is the **browser** against the **dev** daemon (`pnpm test:e2e` or a live t
 
 ## Skills (load on demand)
 
-Only each skill's one-line description is ambient; **read the body before acting in its area.**
+Only each skill's description is ambient. A `SKILL.md` routes — read it, then open only the `reference/*.md` your task needs.
 
 | Skill | When |
 |-------|------|
@@ -58,7 +58,7 @@ Only each skill's one-line description is ambient; **read the body before acting
 | `shadcn` | Renderer UI primitive work |
 | `expo-*` / `eas-*` | Native mobile structure, UI, routing, builds, delivery |
 
-Internal skills set `metadata.internal: true` so they don't leak into `npx skills add`. **Shipped content carries no personal setup** — public docs and app copy use generic placeholders (`you@remote-host`, `/home/you/code/my-app`), never a maintainer's hostname or private paths.
+**Shipped content carries no personal setup** — public docs and app copy use generic placeholders (`you@remote-host`, `/home/you/code/my-app`), never a maintainer's hostname or private paths.
 
 ## Agent foundations
 
