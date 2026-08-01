@@ -30,6 +30,22 @@ export class DaemonError extends Error {
   }
 }
 
+/** Transport details belong in logs; screens get one sentence they can act on. */
+export function daemonErrorMessage(error: DaemonError): string {
+  switch (error.kind) {
+    case 'unreachable':
+      return 'The daemon could not be reached.'
+    case 'unauthorized':
+      return 'This device is no longer paired.'
+    case 'unsupported':
+      return 'Your daemon is too old for this.'
+    case 'invalid-response':
+      return 'The daemon returned an invalid response.'
+    case 'daemon-error':
+      return 'The daemon could not complete that request.'
+  }
+}
+
 /** tRPC's error payload, read structurally — the shape the daemon's `errorFormatter` sends. */
 const errorDataSchema = z.object({
   httpStatus: z.number().optional(),
@@ -44,8 +60,9 @@ export function toDaemonError(procedure: string, cause: unknown): DaemonError {
     })
   }
   if (!(cause instanceof TRPCClientError)) {
-    const message = cause instanceof Error ? cause.message : 'The daemon could not be reached.'
-    return new DaemonError('unreachable', procedure, message, { cause })
+    return new DaemonError('unreachable', procedure, daemonErrorMessageFor('unreachable'), {
+      cause,
+    })
   }
 
   const data = errorDataSchema.safeParse(cause.data)
@@ -55,11 +72,32 @@ export function toDaemonError(procedure: string, cause: unknown): DaemonError {
     return new DaemonError('unauthorized', procedure, 'This device is no longer paired.', { cause })
   }
   if (code === 'NOT_FOUND' && httpStatus === 404) {
-    return new DaemonError('unsupported', procedure, 'Your daemon is too old for this.', { cause })
+    return new DaemonError('unsupported', procedure, daemonErrorMessageFor('unsupported'), {
+      cause,
+    })
   }
   // No data at all means the request never reached a tRPC handler: DNS, refused, timeout.
   if (!data.success || code === undefined) {
-    return new DaemonError('unreachable', procedure, cause.message, { cause })
+    return new DaemonError('unreachable', procedure, daemonErrorMessageFor('unreachable'), {
+      cause,
+    })
   }
-  return new DaemonError('daemon-error', procedure, cause.message, { cause })
+  return new DaemonError('daemon-error', procedure, daemonErrorMessageFor('daemon-error'), {
+    cause,
+  })
+}
+
+function daemonErrorMessageFor(kind: DaemonErrorKind): string {
+  switch (kind) {
+    case 'unreachable':
+      return 'The daemon could not be reached.'
+    case 'unauthorized':
+      return 'This device is no longer paired.'
+    case 'unsupported':
+      return 'Your daemon is too old for this.'
+    case 'invalid-response':
+      return 'The daemon returned an invalid response.'
+    case 'daemon-error':
+      return 'The daemon could not complete that request.'
+  }
 }

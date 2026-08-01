@@ -9,8 +9,8 @@ import { useCallback } from 'react'
 
 import { getDaemonClient } from './client'
 import { type EnvironmentId, isPaired } from './environment'
-import { useActiveEnvironment } from './environments-store'
-import { DaemonError } from './errors'
+import { environmentActions, useActiveEnvironment } from './environments-store'
+import { DaemonError, daemonErrorMessage } from './errors'
 import { callDaemon, type DaemonMutation, type DaemonQuery } from './procedure'
 import { useDaemonSession } from './session'
 
@@ -57,7 +57,16 @@ export function useDaemonQuery<TInput, TOutput>(
     enabled: isPaired(environment) && (options?.enabled ?? true),
     queryFn: async (): Promise<TOutput> => {
       if (!isPaired(environment)) throw NO_ENVIRONMENT
-      return await callDaemon(getDaemonClient(environment), procedure, input)
+      try {
+        const output = await callDaemon(getDaemonClient(environment), procedure, input)
+        environmentActions.recordReachabilitySuccess(environment.id)
+        return output
+      } catch (error) {
+        if (error instanceof DaemonError && error.kind === 'unreachable') {
+          environmentActions.recordReachabilityFailure(environment.id, daemonErrorMessage(error))
+        }
+        throw error
+      }
     },
     queryKey: daemonKeys.call(environment?.id ?? 'none', procedure.name, input),
     // React Query already suspends intervals while the app is unfocused
@@ -79,7 +88,16 @@ export function useDaemonMutation<TInput, TOutput>(
   return useMutation<TOutput, DaemonError, TInput>({
     mutationFn: async (input: TInput): Promise<TOutput> => {
       if (!isPaired(environment)) throw NO_ENVIRONMENT
-      return await callDaemon(getDaemonClient(environment), procedure, input)
+      try {
+        const output = await callDaemon(getDaemonClient(environment), procedure, input)
+        environmentActions.recordReachabilitySuccess(environment.id)
+        return output
+      } catch (error) {
+        if (error instanceof DaemonError && error.kind === 'unreachable') {
+          environmentActions.recordReachabilityFailure(environment.id, daemonErrorMessage(error))
+        }
+        throw error
+      }
     },
     onSuccess: (): void => {
       if (invalidates !== undefined) invalidate(invalidates)

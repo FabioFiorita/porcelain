@@ -68,6 +68,8 @@ export interface DaemonSession {
   onTerminalExit: (listener: (id: string, exitCode: number) => void) => () => void
   onTerminalScrollback: (listener: (id: string, scrollback: string) => void) => () => void
   onDaemonReconnect: (listener: () => void) => () => void
+  /** Fires when the primary socket dies; the shell can resolve a group's next route. */
+  onDaemonClose: (listener: () => void) => () => void
   watchFiles: (paths: string[]) => void
   watchDirs: (paths: string[]) => void
   announceSession: (repo: string | undefined) => void
@@ -100,6 +102,7 @@ export function createDaemonSession(initial: DaemonEndpoint): DaemonSession {
   const exitListeners = new Set<(id: string, exitCode: number) => void>()
   const scrollbackListeners = new Set<(id: string, scrollback: string) => void>()
   const reconnectListeners = new Set<() => void>()
+  const closeListeners = new Set<() => void>()
   interface PendingCreate {
     resolve: (id: string) => void
     reject: (error: Error) => void
@@ -276,6 +279,7 @@ export function createDaemonSession(initial: DaemonEndpoint): DaemonSession {
       )
       if (socket !== ws) return
       socket = null
+      for (const listener of closeListeners) listener()
       scheduleReconnect()
     }
   }
@@ -327,6 +331,7 @@ export function createDaemonSession(initial: DaemonEndpoint): DaemonSession {
       subscribe(scrollbackListeners, listener),
     /** Fires after the session comes BACK (never on the first connect) — queries are stale, refetch. */
     onDaemonReconnect: (listener: () => void) => subscribe(reconnectListeners, listener),
+    onDaemonClose: (listener: () => void) => subscribe(closeListeners, listener),
 
     /** Register the open-file set to watch; replayed automatically on reconnect. */
     watchFiles: (paths: string[]): void => {
@@ -461,6 +466,7 @@ export const onTerminalExit: DaemonSession['onTerminalExit'] = primary.onTermina
 export const onTerminalScrollback: DaemonSession['onTerminalScrollback'] =
   primary.onTerminalScrollback
 export const onDaemonReconnect: DaemonSession['onDaemonReconnect'] = primary.onDaemonReconnect
+export const onDaemonClose: DaemonSession['onDaemonClose'] = primary.onDaemonClose
 export const watchFiles: DaemonSession['watchFiles'] = primary.watchFiles
 export const watchDirs: DaemonSession['watchDirs'] = primary.watchDirs
 export const announceSession: DaemonSession['announceSession'] = primary.announceSession

@@ -1,6 +1,6 @@
 import { Button, ContentUnavailableView } from '@expo/ui/swift-ui'
 
-import type { DaemonError } from '@/lib/daemon/errors'
+import { type DaemonError, daemonErrorMessage } from '@/lib/daemon/errors'
 
 /** The symbols this app's notices use — a literal union so no `SFSymbol` import is needed. */
 type NoticeSymbol = 'doc.text' | 'checkmark.seal' | 'clock.arrow.circlepath' | 'text.alignleft'
@@ -30,7 +30,7 @@ export function QueryNotice({
   return (
     <>
       <ContentUnavailableView
-        description={failed ? error.message : description}
+        description={failed ? daemonErrorMessage(error) : description}
         systemImage={symbol}
         title={failed ? 'Could not read the repo' : isPending ? 'Loading' : title}
       />

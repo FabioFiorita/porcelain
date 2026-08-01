@@ -246,6 +246,15 @@ describe('daemon WS client', () => {
     expect(spy).toHaveBeenCalledTimes(1)
   })
 
+  it('fires the close listener so a bound environment can resolve a fallback route', () => {
+    const spy = vi.fn()
+    daemon.onDaemonClose(spy)
+    const ws = latest()
+    ws.open()
+    ws.drop()
+    expect(spy).toHaveBeenCalledTimes(1)
+  })
+
   it('caps the reconnect backoff at 10_000ms', () => {
     daemon.onDaemonEvent(() => {})
     latest().open() // resets backoff to 500

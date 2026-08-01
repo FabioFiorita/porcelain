@@ -74,11 +74,11 @@ worth keeping: an Electron window always loads our own renderer dist from disk (
 HTML. **If a window is ever loaded FROM a remote daemon's static server, this becomes a real
 credential leak and must go first.** It stays Electron-only (the shell router throws in the browser).
 **An entry must never come to hold two different machines' addresses** — that is what would put one
-machine's token on another's wire, in cleartext, on a LAN. Two guards, both required: the identity
-merge requires the existing entry's credential to authenticate at the new address (reported hostnames
-like `ubuntu` collide without malice), and `addEnvironmentEndpoint` rejects an address whose daemon
-reports a different host. A duplicate entry is cosmetic; a merged pair of machines is a leaked
-credential.
+machine's token on another's wire, in cleartext, on a LAN. The identity proof is the existing
+entry's credential authenticating at the new address; reported hostnames like `ubuntu` only nominate
+a candidate because they collide. The proof gates explicit group attach
+and an automatic host-nominated merge. A duplicate entry is cosmetic; a merged pair of machines is a
+leaked credential.
 
 **(4) CORS is scoped, never `*`** — only the dev Vite origin or the packaged `null` origin is echoed.
 The preflight carries nothing sensitive; the Bearer check on the real request is the gate.
@@ -125,4 +125,3 @@ two `createServer` sites (`server.ts`, `tailnet-listener.ts`) and nothing in `sr
   user's real environment otherwise passes through untouched. *Verify:* a new daemon env var that must
   not leak is added to `DAEMON_ONLY_ENV`; `terminal-env.test.ts` still asserts the token,
   `RUN_AS_NODE`, and `_VOLTA_TOOL_RECURSION` are absent.
-

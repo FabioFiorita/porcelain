@@ -181,9 +181,7 @@ function EnvironmentRow({ environment }: { environment: Environment }): React.JS
           </Text>
           <VStack alignment="leading" spacing={3}>
             {environment.endpoints.map((endpoint) => {
-              const preferred =
-                environment.preferredKind !== undefined &&
-                endpointKind(endpoint) === environment.preferredKind
+              const preferred = environment.preferredEndpoint === endpoint
               return (
                 <HStack key={endpoint} spacing={6}>
                   <Image size={8} systemName={preferred ? 'checkmark.circle.fill' : 'circle'} />

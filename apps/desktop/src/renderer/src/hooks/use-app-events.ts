@@ -1,8 +1,8 @@
 import type { AppEvent } from '@backend/app-events'
 import type { ShellEvent } from '@main/shell-events'
-import { onDaemonEvent, onDaemonReconnect } from '@renderer/lib/daemon'
+import { onDaemonClose, onDaemonEvent, onDaemonReconnect } from '@renderer/lib/daemon'
 import { isBrowser } from '@renderer/lib/platform'
-import { shellTrpc, trpc } from '@renderer/lib/trpc'
+import { shellTrpc, shellTrpcClient, trpc } from '@renderer/lib/trpc'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { unreadTabFor, useUnreadStore } from '@renderer/stores/unread'
 import { useEffect } from 'react'
@@ -147,10 +147,14 @@ export function useAppEvents(): void {
     const offReconnect = onDaemonReconnect(async () => {
       await utils.invalidate()
     })
+    const offClose = onDaemonClose(async () => {
+      if (!isBrowser) await shellTrpcClient.refreshRemoteEnvironment.query()
+    })
     return () => {
       offShell()
       offDaemon()
       offReconnect()
+      offClose()
     }
   }, [utils, shellUtils])
 }

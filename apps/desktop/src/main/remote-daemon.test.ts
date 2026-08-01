@@ -46,6 +46,7 @@ describe('parseRemoteEnvironmentState', () => {
           endpoints: ['http://beelink:43117'],
           id: 'a',
           name: 'Beelink',
+          preferredEndpoint: 'http://beelink:43117',
           token: 't1',
           url: 'http://beelink:43117',
         },
@@ -53,6 +54,7 @@ describe('parseRemoteEnvironmentState', () => {
           endpoints: ['https://mac.ts.net'],
           id: 'b',
           name: 'Mac',
+          preferredEndpoint: 'https://mac.ts.net',
           token: 't2',
           url: 'https://mac.ts.net',
         },
@@ -85,6 +87,7 @@ describe('activeRemoteDaemon', () => {
           endpoints: ['http://beelink:43117'],
           id: 'a',
           name: 'Beelink',
+          preferredEndpoint: 'http://beelink:43117',
           token: 't1',
           url: 'http://beelink:43117',
         },
@@ -92,6 +95,7 @@ describe('activeRemoteDaemon', () => {
           endpoints: ['https://mac.ts.net'],
           id: 'b',
           name: 'Mac',
+          preferredEndpoint: 'https://mac.ts.net',
           token: 't2',
           url: 'https://mac.ts.net',
         },
@@ -108,6 +112,7 @@ describe('activeRemoteDaemon', () => {
           endpoints: ['http://beelink:43117'],
           id: 'a',
           name: 'Beelink',
+          preferredEndpoint: 'http://beelink:43117',
           token: 't1',
           url: 'http://beelink:43117',
         },
@@ -124,6 +129,7 @@ describe('activeRemoteDaemon', () => {
           endpoints: ['http://beelink:43117'],
           id: 'a',
           name: 'Beelink',
+          preferredEndpoint: 'http://beelink:43117',
           token: 't1',
           url: 'http://beelink:43117',
         },
@@ -143,6 +149,7 @@ const env = (overrides: Partial<RemoteEnvironment> = {}): RemoteEnvironment => (
   url: LAN,
   token: 't',
   endpoints: [LAN, TAILNET],
+  preferredEndpoint: LAN,
   ...overrides,
 })
 
@@ -161,19 +168,24 @@ describe('endpointKind', () => {
     expect(endpointKind('http://172.32.0.1:43117')).toBe('other')
   })
 
-  it('treats a hostname or garbage as other rather than guessing', () => {
+  it('recognizes local and direct MagicDNS hostnames without guessing public HTTPS', () => {
     expect(endpointKind(NAMED)).toBe('other')
+    expect(endpointKind('http://beelink.local:43117')).toBe('lan')
+    expect(endpointKind('http://beelink.ts.net:43117')).toBe('tailnet')
+    expect(endpointKind('https://beelink.ts.net:43117')).toBe('other')
     expect(endpointKind('not a url')).toBe('other')
   })
 })
 
 describe('orderedEndpoints', () => {
-  it('tries the preferred KIND first, not whichever answered last', () => {
-    expect(orderedEndpoints(env({ url: TAILNET, preferredKind: 'lan' }))).toEqual([LAN, TAILNET])
+  it('tries the exact preferred endpoint first, not every endpoint of its kind', () => {
+    expect(orderedEndpoints(env({ url: TAILNET, preferredEndpoint: LAN }))).toEqual([LAN, TAILNET])
   })
 
-  it('falls back to the last known good url when no kind is preferred', () => {
-    expect(orderedEndpoints(env({ url: TAILNET }))).toEqual([TAILNET, LAN])
+  it('falls back to the last known good url when the preferred route is stale', () => {
+    expect(
+      orderedEndpoints(env({ preferredEndpoint: 'http://old-route:43117', url: TAILNET })),
+    ).toEqual([TAILNET, LAN])
   })
 
   it('never yields an address the environment no longer knows', () => {
@@ -189,9 +201,9 @@ describe('endpoint edits', () => {
   })
 
   it('records the live address WITHOUT moving the preference — reachability is not a choice', () => {
-    const moved = withActiveUrl(env({ preferredKind: 'lan' }), TAILNET)
+    const moved = withActiveUrl(env({ preferredEndpoint: LAN }), TAILNET)
     expect(moved.url).toBe(TAILNET)
-    expect(moved.preferredKind).toBe('lan')
+    expect(moved.preferredEndpoint).toBe(LAN)
   })
 
   it('adds an unknown live address to the list rather than dangling', () => {
@@ -204,8 +216,8 @@ describe('endpoint edits', () => {
     expect(dropped.url).toBe(TAILNET)
   })
 
-  it('clears a primary route when its last endpoint is removed', () => {
-    expect(withoutEndpoint(env({ preferredKind: 'lan' }), LAN).preferredKind).toBeUndefined()
+  it('selects a remaining endpoint when the primary route is removed', () => {
+    expect(withoutEndpoint(env({ preferredEndpoint: LAN }), LAN).preferredEndpoint).toBe(TAILNET)
   })
 
   it('refuses to remove the last way in', () => {

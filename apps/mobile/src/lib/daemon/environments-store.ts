@@ -1,4 +1,4 @@
-import { endpointKind } from '@porcelain/contracts'
+import { type EndpointKind, endpointKind, orderedEndpointUrls } from '@porcelain/contracts'
 import { randomUUID } from 'expo-crypto'
 import * as SecureStore from 'expo-secure-store'
 import { create } from 'zustand'
@@ -22,14 +22,23 @@ import {
 const INDEX_KEY = 'porcelain.environments'
 const CORRUPT_KEY = 'porcelain.environments.corrupt'
 const tokenKey = (id: EnvironmentId): string => `porcelain.token.${id}`
+const REACHABILITY_FAILURE_THRESHOLD = 2
+
+export type EndpointAttempt = { url: string; kind: EndpointKind }
+type Reachability = {
+  state: 'reachable' | 'unreachable'
+  source: 'endpoint-walk' | 'query'
+  consecutiveFailures: number
+  attempted: readonly EndpointAttempt[]
+}
 
 export type ConnectionState =
   | { kind: 'loading' }
   | { kind: 'no-environment' }
   | { kind: 'connecting' }
   /** `daemonVersion: null` — the daemon predates 0.30 and has no `daemonInfo`. */
-  | { kind: 'ready'; daemonVersion: string | null }
-  | { kind: 'unreachable'; message: string }
+  | { kind: 'ready'; daemonVersion: string | null; reachability: Reachability }
+  | { kind: 'unreachable'; message: string; reachability: Reachability }
   | { kind: 'unauthorized' }
 
 type EnvironmentsState = {
@@ -70,6 +79,10 @@ export function activeEnvironment(): Environment | null {
   return environments.find((candidate) => candidate.id === activeId) ?? null
 }
 
+export function currentConnection(): ConnectionState {
+  return useEnvironmentsStore.getState().connection
+}
+
 /** Subscribe outside React (the provider drives bootstrap off this). */
 export function subscribeToEnvironments(listener: (state: EnvironmentsState) => void): () => void {
   return useEnvironmentsStore.subscribe(listener)
@@ -85,7 +98,7 @@ async function persist(): Promise<void> {
   const file: EnvironmentsFile = {
     activeId,
     environments: environments.map(toRecord),
-    version: 2,
+    version: 3,
   }
   await SecureStore.setItemAsync(INDEX_KEY, JSON.stringify(file))
 }
@@ -129,6 +142,7 @@ function connectionFor(environment: Environment | null): ConnectionState {
 type EnvironmentActions = {
   add(input: { nickname: string; baseUrl: string; token: string }): Promise<PairedEnvironment>
   addEndpoint(id: EnvironmentId, baseUrl: string): Promise<void>
+  restoreToken(id: EnvironmentId, baseUrl: string, token: string): Promise<void>
   rename(id: EnvironmentId, nickname: string): Promise<void>
   setActive(id: EnvironmentId): Promise<void>
   setActiveEndpoint(id: EnvironmentId, baseUrl: string): Promise<void>
@@ -137,6 +151,12 @@ type EnvironmentActions = {
   remove(id: EnvironmentId): Promise<void>
   forgetToken(id: EnvironmentId): Promise<void>
   setActiveRepoPath(id: EnvironmentId, path: string | null): Promise<void>
+  recordReachabilityFailure(
+    id: EnvironmentId,
+    message: string,
+    attempted?: readonly EndpointAttempt[],
+  ): void
+  recordReachabilitySuccess(id: EnvironmentId): void
   setConnection(connection: ConnectionState): void
   hydrate(): Promise<void>
 }
@@ -156,7 +176,7 @@ export const environmentActions: EnvironmentActions = {
       endpoints: [baseUrl],
       id: randomUUID(),
       nickname: input.nickname,
-      preferredKind: endpointKind(baseUrl),
+      preferredEndpoint: baseUrl,
       token: input.token,
     }
     await SecureStore.setItemAsync(tokenKey(environment.id), environment.token)
@@ -181,6 +201,33 @@ export const environmentActions: EnvironmentActions = {
           ? { ...candidate, endpoints: [...candidate.endpoints, baseUrl] }
           : candidate,
       ),
+    }))
+    await persist()
+  },
+
+  async restoreToken(id: EnvironmentId, inputUrl: string, token: string): Promise<void> {
+    const baseUrl = normalizeBaseUrl(inputUrl)
+    const environment = useEnvironmentsStore
+      .getState()
+      .environments.find((candidate) => candidate.id === id)
+    if (environment === undefined) throw new Error('That environment no longer exists')
+    const endpoints = environment.endpoints.includes(baseUrl)
+      ? environment.endpoints
+      : [...environment.endpoints, baseUrl]
+    await SecureStore.setItemAsync(tokenKey(id), token)
+    useEnvironmentsStore.setState((state) => ({
+      environments: state.environments.map((candidate) =>
+        candidate.id === id
+          ? {
+              ...candidate,
+              baseUrl,
+              endpoints,
+              token,
+              preferredEndpoint: candidate.preferredEndpoint,
+            }
+          : candidate,
+      ),
+      connection: state.activeId === id ? { kind: 'connecting' } : state.connection,
     }))
     await persist()
   },
@@ -224,7 +271,7 @@ export const environmentActions: EnvironmentActions = {
     if (environment === undefined || !environment.endpoints.includes(baseUrl)) return
     useEnvironmentsStore.setState((state) => ({
       environments: state.environments.map((candidate) =>
-        candidate.id === id ? { ...candidate, preferredKind: endpointKind(baseUrl) } : candidate,
+        candidate.id === id ? { ...candidate, preferredEndpoint: baseUrl } : candidate,
       ),
     }))
     await persist()
@@ -241,15 +288,14 @@ export const environmentActions: EnvironmentActions = {
     const nextBaseUrl = endpoints.includes(environment.baseUrl)
       ? environment.baseUrl
       : (endpoints[0] ?? environment.baseUrl)
-    const preferredKind =
-      environment.preferredKind !== undefined &&
-      endpoints.some((endpoint) => endpointKind(endpoint) === environment.preferredKind)
-        ? environment.preferredKind
-        : undefined
+    const preferredEndpoint =
+      environment.preferredEndpoint === baseUrl
+        ? (endpoints[0] ?? environment.preferredEndpoint)
+        : environment.preferredEndpoint
     useEnvironmentsStore.setState((state) => ({
       environments: state.environments.map((candidate) =>
         candidate.id === id
-          ? { ...candidate, baseUrl: nextBaseUrl, endpoints, preferredKind }
+          ? { ...candidate, baseUrl: nextBaseUrl, endpoints, preferredEndpoint }
           : candidate,
       ),
     }))
@@ -286,6 +332,74 @@ export const environmentActions: EnvironmentActions = {
       ),
     }))
     await persist()
+  },
+
+  recordReachabilityFailure(
+    id: EnvironmentId,
+    message: string,
+    attempted?: readonly EndpointAttempt[],
+  ): void {
+    const state = useEnvironmentsStore.getState()
+    if (state.activeId !== id) return
+    const environment = state.environments.find((candidate) => candidate.id === id)
+    if (environment === undefined || environment.token === null) return
+    const routes =
+      attempted ??
+      orderedEndpointUrls({
+        endpoints: environment.endpoints,
+        preferredEndpoint: environment.preferredEndpoint,
+        url: environment.baseUrl,
+      }).map((url) => ({ kind: endpointKind(url), url }))
+    const previousFailures =
+      state.connection.kind === 'ready' || state.connection.kind === 'unreachable'
+        ? state.connection.reachability.consecutiveFailures
+        : 0
+    const consecutiveFailures = previousFailures + 1
+    if (consecutiveFailures < REACHABILITY_FAILURE_THRESHOLD) {
+      if (state.connection.kind !== 'ready') return
+      useEnvironmentsStore.setState({
+        connection: {
+          ...state.connection,
+          reachability: {
+            attempted: routes,
+            consecutiveFailures,
+            source: 'query',
+            state: 'reachable',
+          },
+        },
+      })
+      return
+    }
+    useEnvironmentsStore.setState({
+      connection: {
+        kind: 'unreachable',
+        message,
+        reachability: {
+          attempted: routes,
+          consecutiveFailures,
+          source: 'query',
+          state: 'unreachable',
+        },
+      },
+    })
+  },
+
+  recordReachabilitySuccess(id: EnvironmentId): void {
+    const state = useEnvironmentsStore.getState()
+    if (state.activeId !== id) return
+    if (state.connection.kind === 'ready') {
+      useEnvironmentsStore.setState({
+        connection: {
+          ...state.connection,
+          reachability: {
+            ...state.connection.reachability,
+            consecutiveFailures: 0,
+            source: 'endpoint-walk',
+            state: 'reachable',
+          },
+        },
+      })
+    }
   },
 
   setConnection(connection: ConnectionState): void {

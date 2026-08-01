@@ -8,7 +8,7 @@ and where it and this plan disagree, the daemon source wins.
 
 When this worktree merges, the app can be pointed at a real daemon and stay pointed at it: the user
 pastes a pairing link into Settings → Environments, the app redeems it, stores
-`{id, nickname, baseUrl, endpoints, preferredKind, token}` as one environment group in
+`{id, nickname, baseUrl, endpoints, preferredEndpoint, token}` as one environment group in
 `expo-secure-store`, picks a repo from the daemon's recents (or browses the
 daemon's directories), and every screen in the app can then run a typed, zod-validated tRPC call
 against the active environment with React Query caching, a `/session` WebSocket pushing
@@ -448,7 +448,7 @@ list is split:
 
 | Key | Value |
 |---|---|
-| `porcelain.environments` | `{ version: 2, activeId: string \| null, environments: EnvironmentRecord[] }` |
+| `porcelain.environments` | `{ version: 3, activeId: string \| null, environments: EnvironmentRecord[] }` |
 | `porcelain.token.<id>` | the raw `pc_client_…` token, one key per environment |
 
 ```ts
@@ -457,12 +457,12 @@ const environmentRecordSchema = z.object({
   nickname: z.string().min(1).max(64),
   baseUrl: z.string().url(),          // normalized: scheme + host + port, no trailing slash
   endpoints: z.array(z.string().url()).min(1),
-  preferredKind: z.enum(['tailnet', 'lan', 'other']).optional(),
+  preferredEndpoint: z.string().url(),
   createdAt: z.number().int(),
   activeRepoPath: z.string().nullable(),
 })
 const environmentsFileSchema = z.object({
-  version: z.literal(2),
+  version: z.literal(3),
   activeId: z.string().nullable(),
   environments: z.array(environmentRecordSchema),
 })

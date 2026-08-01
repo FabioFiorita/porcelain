@@ -15,6 +15,7 @@ import { useState } from 'react'
 
 import { ScreenHost } from '@/components/screen-host'
 import { SheetCloseToolbar } from '@/components/sheet-close-toolbar'
+import { DaemonError, daemonErrorMessage } from '@/lib/daemon/errors'
 import { recentReposQuery, removeRecentRepoMutation } from '@/lib/daemon/procedures/connection'
 import { useDaemonInvalidate, useDaemonMutation, useDaemonQuery } from '@/lib/daemon/queries'
 import { openRepo } from '@/lib/daemon/repo'
@@ -34,7 +35,13 @@ export function RepoPickerScreen(): React.JSX.Element {
     try {
       await openRepo(path)
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'That repo could not be opened.')
+      setError(
+        cause instanceof DaemonError
+          ? daemonErrorMessage(cause)
+          : cause instanceof Error
+            ? cause.message
+            : 'That repo could not be opened.',
+      )
       return
     }
     // Opening a repo records it daemon-side, which reorders this very list.
@@ -50,7 +57,9 @@ export function RepoPickerScreen(): React.JSX.Element {
             {recents.data === undefined || recents.data.length === 0 ? (
               <ContentUnavailableView
                 description={
-                  recents.error?.message ??
+                  (recents.error === null || recents.error === undefined
+                    ? null
+                    : daemonErrorMessage(recents.error)) ??
                   'Open a repo on the host once and it shows up here. Or browse the daemon below.'
                 }
                 systemImage="folder"

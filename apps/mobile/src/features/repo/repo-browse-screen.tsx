@@ -12,6 +12,7 @@ import { router } from 'expo-router'
 import { useState } from 'react'
 
 import { ScreenHost } from '@/components/screen-host'
+import { DaemonError, daemonErrorMessage } from '@/lib/daemon/errors'
 import { browseDirsQuery } from '@/lib/daemon/procedures/connection'
 import { useDaemonInvalidate, useDaemonQuery } from '@/lib/daemon/queries'
 import { openRepo } from '@/lib/daemon/repo'
@@ -34,7 +35,13 @@ export function RepoBrowseScreen(): React.JSX.Element {
     try {
       await openRepo(repoPath)
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'That repo could not be opened.')
+      setError(
+        cause instanceof DaemonError
+          ? daemonErrorMessage(cause)
+          : cause instanceof Error
+            ? cause.message
+            : 'That repo could not be opened.',
+      )
       return
     }
     invalidate(['recentRepos'])
@@ -52,7 +59,11 @@ export function RepoBrowseScreen(): React.JSX.Element {
         <Section title={data?.path ?? 'Daemon'}>
           {data === undefined ? (
             <ContentUnavailableView
-              description={listing.error?.message ?? 'Reading the daemon’s directories.'}
+              description={
+                listing.error === null || listing.error === undefined
+                  ? 'Reading the daemon’s directories.'
+                  : daemonErrorMessage(listing.error)
+              }
               systemImage="externaldrive"
               title={listing.isPending ? 'Loading' : 'Nothing to browse'}
             />

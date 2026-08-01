@@ -31,11 +31,11 @@ This is why the app ships `NSAllowsArbitraryLoads` / `usesCleartextTraffic` (see
 5. To add a LAN, Tailscale, or Funnel link to an existing group, redeem it into a temporary credential, verify that the existing group credential also authenticates at that URL, then revoke the temporary credential before saving the endpoint. This prevents two machines from sharing one group token.
 6. A device can un-pair itself with `revokeCurrentClient` (the one access procedure clients may call). Everything else access-related (`accessStatus`, `issuePairingLink`, revocations, LAN/tailnet/funnel toggles) is admin-only and FORBIDDEN for paired clients — mobile cannot self-pair another device or flip binds.
 
-**Environment groups are client-owned.** The desktop Remotes registry lives in the Electron shell router (IPC-only, not on any port). The mobile app keeps its own list of `{nickname, baseUrl, endpoints, preferredKind, token}` groups in secure storage; each group identifies one paired daemon and may contain one or more verified routes.
+**Environment groups are client-owned.** The desktop Remotes registry lives in the Electron shell router (IPC-only, not on any port). The mobile app keeps its own list of `{nickname, baseUrl, endpoints, preferredEndpoint, token}` groups in secure storage.
 
 ## Bootstrap sequence
 
-1. Try the group's endpoints in preferred-kind order, then last-known-good, then the remaining saved routes. Failover is sequential; a 401 stops immediately.
+1. Try the group's exact preferred endpoint, then last-known-good, then the remaining saved routes. Failover is sequential; a 401 stops immediately.
 2. `daemonInfo` → `{version, host?, platform?, arch?}`. NOT_FOUND ⇒ daemon older than 0.30 (treat as "pre-0.30", not an error). Version-skew probe.
 3. `recentRepos({includeWorktrees:true})` → pick a repo (also the cheap "is my token valid" probe — the browser client uses it exactly this way).
 4. `openRepoPath(path)` — **load-bearing**: records the recent, seeds worktree settings, warms the file-list cache. Always call it when switching repo.

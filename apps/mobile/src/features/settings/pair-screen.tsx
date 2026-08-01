@@ -47,8 +47,8 @@ export function PairScreen(): React.JSX.Element {
   const [pairing, setPairing] = useState(false)
 
   async function submit(): Promise<void> {
-    if (environmentId !== undefined && (target === null || !isPaired(target))) {
-      setError('That environment group is no longer available. Start a new pairing.')
+    if (environmentId !== undefined && target === null) {
+      setError('That environment group is no longer on this device. Start a new pairing.')
       return
     }
     const parsed = parsePairingLink(link)
@@ -62,6 +62,12 @@ export function PairScreen(): React.JSX.Element {
       if (target !== null && isPaired(target)) {
         await attachPairingCredential(parsed.link.baseUrl, token, target.token)
         await environmentActions.addEndpoint(target.id, parsed.link.baseUrl)
+        await environmentActions.setActive(target.id)
+      } else if (target !== null) {
+        // The old credential is gone, so the user-selected group is the identity context. The
+        // freshly redeemed credential becomes its new daemon token and the saved routes remain.
+        await verifyPairingCredential(parsed.link.baseUrl, token)
+        await environmentActions.restoreToken(target.id, parsed.link.baseUrl, token)
         await environmentActions.setActive(target.id)
       } else {
         await verifyPairingCredential(parsed.link.baseUrl, token)
@@ -94,7 +100,9 @@ export function PairScreen(): React.JSX.Element {
             />
           ) : (
             <Text modifiers={[secondary]}>
-              Add a LAN, Tailscale, or Funnel connection to {target.nickname}.
+              {isPaired(target)
+                ? `Add a LAN, Tailscale, or Funnel connection to ${target.nickname}.`
+                : `Pair ${target.nickname} again. Existing connections will stay with this group.`}
             </Text>
           )}
           <TextField
@@ -128,7 +136,13 @@ export function PairScreen(): React.JSX.Element {
         >
           <Button
             label={
-              pairing ? 'Pairing…' : target === null ? 'Pair environment group' : 'Add connection'
+              pairing
+                ? 'Pairing…'
+                : target === null
+                  ? 'Pair environment group'
+                  : isPaired(target)
+                    ? 'Add connection'
+                    : 'Pair again'
             }
             modifiers={[disabled(pairing || link.trim() === '')]}
             onPress={(): void => {

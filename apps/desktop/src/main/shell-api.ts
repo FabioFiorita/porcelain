@@ -315,6 +315,10 @@ export const shellRouter = t.router({
     return windowInitFor(ctx.sender)
   }),
 
+  refreshRemoteEnvironment: t.procedure.query(async ({ ctx }): Promise<void> => {
+    const environmentId = windowEnvironmentId(ctx.sender)
+    if (environmentId !== null) await refreshActiveEndpoint(environmentId)
+  }),
   /**
    * The LOCAL child daemon's pair, plus whether this window is already bound to it.
    * Handing the renderer the local token is not a widening — the preload already gives
@@ -466,7 +470,7 @@ export const shellRouter = t.router({
           endpoints: endpointsOf(env).map((url) => ({
             url,
             kind: endpointKind(url),
-            preferred: env.preferredKind !== undefined && endpointKind(url) === env.preferredKind,
+            preferred: env.preferredEndpoint === url,
           })),
         })),
       }
@@ -612,7 +616,7 @@ export const shellRouter = t.router({
               url,
               token,
               endpoints: [url],
-              preferredKind: endpointKind(url),
+              preferredEndpoint: url,
               ...(host !== null && host !== '' ? { host } : {}),
             },
           ],
@@ -640,14 +644,16 @@ export const shellRouter = t.router({
       await reloadEnvironmentsCache()
     }),
 
-  /** Pin a route kind; failover still tries the remaining routes. */
+  /** Pin one exact route; failover still tries the remaining routes. */
   preferEnvironmentEndpoint: t.procedure
     .input(z.object({ id: z.string(), url: z.string() }))
     .mutation(async ({ input }): Promise<void> => {
       await updateRemoteEnvironmentState((state) => ({
         ...state,
         environments: state.environments.map((e) =>
-          e.id === input.id ? { ...e, preferredKind: endpointKind(input.url) } : e,
+          e.id === input.id && e.endpoints.includes(input.url)
+            ? { ...e, preferredEndpoint: input.url }
+            : e,
         ),
       }))
       await reloadEnvironmentsCache()

@@ -47,7 +47,7 @@ let wanted = false
 let foreground = true
 let retryDelay: number = MIN_RETRY_MS
 let retryTimer: ReturnType<typeof setTimeout> | null = null
-let onClosed: ((reason: SessionCloseReason) => void) | null = null
+let onClosed: ((reason: SessionCloseReason) => Promise<void> | void) | null = null
 const pendingRejects = new Set<(error: DaemonError) => void>()
 
 function setStatus(next: SessionStatus): void {
@@ -129,19 +129,19 @@ function open(): void {
     if (parsed.success) dispatch(parsed.data)
   }
 
-  ws.onclose = (event: WebSocketCloseEvent): void => {
+  ws.onclose = async (event: WebSocketCloseEvent): Promise<void> => {
     failPending('The daemon connection dropped before the reply arrived.')
     if (socket !== ws) return
     socket = null
     if (event.code === REVOKED_CLOSE_CODE) {
       wanted = false
       setStatus('idle')
-      onClosed?.('revoked')
+      await onClosed?.('revoked')
       return
     }
-    // A handshake that fails after this session has worked is the shape a revoked token
-    // takes on reconnect; the provider settles it over HTTP while the backoff continues.
-    if (everConnected) onClosed?.('refused')
+    // A live disconnect gets one HTTP endpoint walk before this socket retries. The provider
+    // can therefore move to LAN, Tailscale, or Funnel instead of backing off against one dead URL.
+    if (everConnected) await onClosed?.('refused')
     scheduleReconnect()
   }
 }
@@ -260,7 +260,9 @@ export function setSessionForeground(active: boolean): void {
 }
 
 /** How the provider learns a socket died for a credential reason rather than a network one. */
-export function onSessionClosed(handler: (reason: SessionCloseReason) => void): void {
+export function onSessionClosed(
+  handler: (reason: SessionCloseReason) => Promise<void> | void,
+): void {
   onClosed = handler
 }
 

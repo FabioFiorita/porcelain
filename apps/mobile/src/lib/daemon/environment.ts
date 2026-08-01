@@ -1,4 +1,3 @@
-import { endpointKindSchema } from '@porcelain/contracts'
 import { z } from 'zod'
 
 /**
@@ -13,8 +12,8 @@ const environmentRecordSchema = z.object({
   baseUrl: z.string().url(),
   /** Every verified route for this daemon; a group of one is valid. */
   endpoints: z.array(z.string().url()).min(1),
-  /** The preferred route class, which survives DHCP changes. */
-  preferredKind: endpointKindSchema.optional(),
+  /** The exact route chosen first; endpoint kind is only a display hint. */
+  preferredEndpoint: z.string().url(),
   createdAt: z.number().int(),
   /** The repo this daemon was last pointed at — per-daemon, meaningless without one. */
   activeRepoPath: z.string().nullable(),
@@ -24,7 +23,7 @@ export type EnvironmentRecord = z.infer<typeof environmentRecordSchema>
 export type EnvironmentId = EnvironmentRecord['id']
 
 export const environmentsFileSchema = z.object({
-  version: z.literal(2),
+  version: z.literal(3),
   activeId: z.string().nullable(),
   environments: z.array(environmentRecordSchema),
 })
@@ -44,7 +43,7 @@ export function isPaired(environment: Environment | null): environment is Paired
 }
 
 export const EMPTY_ENVIRONMENTS_FILE: EnvironmentsFile = {
-  version: 2,
+  version: 3,
   activeId: null,
   environments: [],
 }

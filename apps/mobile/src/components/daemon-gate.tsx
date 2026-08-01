@@ -1,3 +1,4 @@
+import type { EndpointKind } from '@porcelain/contracts'
 import { router } from 'expo-router'
 import type { ReactNode } from 'react'
 
@@ -9,6 +10,31 @@ import {
 } from '@/lib/daemon/environments-store'
 import { retryConnection } from '@/lib/daemon/provider'
 import { useActiveRepo } from '@/lib/daemon/repo'
+
+function endpointLabel(kind: EndpointKind): string {
+  switch (kind) {
+    case 'lan':
+      return 'LAN'
+    case 'tailnet':
+      return 'Tailscale'
+    case 'other':
+      return 'Funnel / Internet'
+  }
+}
+
+function attemptedRoutes(kinds: readonly EndpointKind[]): string {
+  const counts = new Map<string, number>()
+  for (const kind of kinds) {
+    const label = endpointLabel(kind)
+    counts.set(label, (counts.get(label) ?? 0) + 1)
+  }
+  const routes = [...counts].map(([label, count]) =>
+    count === 1 ? label : `${count} ${label} connections`,
+  )
+  if (routes.length === 0) return ''
+  if (routes.length === 1) return `Tried ${routes[0]}.`
+  return `Tried ${routes.slice(0, -1).join(', ')} and ${routes.at(-1)}.`
+}
 
 /**
  * The whole contract for empty and locked states: a tab wraps its content in this and writes
@@ -48,7 +74,13 @@ export function DaemonGate({
         <EmptyState
           action="Pair again"
           body={`${environment?.nickname ?? 'That daemon'} revoked this device’s token, so it can no longer be reached.`}
-          onAction={(): void => router.push('/settings/pair')}
+          onAction={(): void => {
+            if (environment === null) {
+              router.push('/settings/pair')
+              return
+            }
+            router.push({ pathname: '/settings/pair', params: { environmentId: environment.id } })
+          }}
           title="This device was unpaired"
         />
       )
@@ -56,7 +88,7 @@ export function DaemonGate({
       return (
         <EmptyState
           action="Retry"
-          body={connection.message}
+          body={`${connection.message} ${attemptedRoutes(connection.reachability.attempted.map((attempt) => attempt.kind))}`.trim()}
           onAction={(): void => {
             retryConnection()
           }}
@@ -72,9 +104,9 @@ export function DaemonGate({
   if (requires === 'repo' && repo === null) {
     return (
       <EmptyState
-        action="Open settings"
+        action="Choose a repo"
         body="Every surface here reads one repository on the daemon, and this device has not opened one yet."
-        onAction={(): void => router.push('/settings')}
+        onAction={(): void => router.push('/repo')}
         title="Choose a repo"
       />
     )

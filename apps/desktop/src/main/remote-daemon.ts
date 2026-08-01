@@ -1,11 +1,6 @@
 import { readFile, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import {
-  type EndpointKind,
-  endpointKind,
-  endpointKindSchema,
-  orderedEndpointUrls,
-} from '@porcelain/contracts'
+import { type EndpointKind, endpointKind, orderedEndpointUrls } from '@porcelain/contracts'
 import { app } from 'electron'
 import { z } from 'zod'
 
@@ -33,7 +28,7 @@ export { type EndpointKind, endpointKind }
  * instead of appearing as two confusingly-named rows. The kind is DERIVED from the
  * address (see `endpointKind`), never stored: a DHCP lease changes the address and a
  * stored kind would then describe the wrong thing. The human's preference is persisted
- * BY KIND for the same reason.
+ * BY EXACT ENDPOINT; kind is only a display hint, so two `other` routes cannot both be primary.
  */
 const environmentSchema = z.object({
   id: z.string(),
@@ -45,8 +40,8 @@ const environmentSchema = z.object({
   host: z.string().optional(),
   /** Every verified address for this machine, most-recently-added last. */
   endpoints: z.array(z.string().url()).min(1),
-  /** Which KIND to try first; absent = try `endpoints` in order. */
-  preferredKind: endpointKindSchema.optional(),
+  /** Which exact endpoint to try first. */
+  preferredEndpoint: z.string().url(),
 })
 export type RemoteEnvironment = z.infer<typeof environmentSchema>
 
@@ -134,7 +129,7 @@ export function endpointsOf(env: RemoteEnvironment): string[] {
 }
 
 /**
- * The order to TRY an environment's endpoints in: the preferred kind first, then the last
+ * The order to TRY an environment's endpoints in: the preferred endpoint first, then the last
  * known good url, then the rest as stored, deduped. Ordering matters more than it looks:
  * on the home LAN the tailnet address usually still *works*, just slower (out to the
  * WireGuard relay and back), so "first one that answers" would quietly pick the worse
@@ -154,7 +149,7 @@ export function withEndpoint(env: RemoteEnvironment, url: string): RemoteEnviron
 
 /**
  * Record the endpoint that just answered as the last known good one. Deliberately does NOT
- * touch `preferredKind`: reachability is not a preference. A LAN-preferring human who
+ * touch `preferredEndpoint`: reachability is not a preference. A LAN-preferring human who
  * opens the laptop on a train should come back home to the LAN, not to the tailnet address
  * that happened to work in transit — only an explicit choice moves the preference.
  */
@@ -166,15 +161,12 @@ export function withActiveUrl(env: RemoteEnvironment, url: string): RemoteEnviro
 export function withoutEndpoint(env: RemoteEnvironment, url: string): RemoteEnvironment {
   const endpoints = endpointsOf(env).filter((u) => u !== url)
   if (endpoints.length === 0) return env
-  const preferredKind =
-    env.preferredKind !== undefined &&
-    endpoints.some((endpoint) => endpointKind(endpoint) === env.preferredKind)
-      ? env.preferredKind
-      : undefined
+  const preferredEndpoint =
+    env.preferredEndpoint === url ? (endpoints[0] ?? env.preferredEndpoint) : env.preferredEndpoint
   return {
     ...env,
     endpoints,
-    preferredKind,
+    preferredEndpoint,
     url: endpoints.includes(env.url) ? env.url : (endpoints[0] ?? env.url),
   }
 }

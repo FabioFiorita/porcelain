@@ -2,7 +2,7 @@ import { TRPCClientError } from '@trpc/client'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 
-import { DaemonError, toDaemonError } from './errors'
+import { DaemonError, daemonErrorMessage, toDaemonError } from './errors'
 
 function trpcError(data: { httpStatus?: number; code?: string } | null): TRPCClientError<never> {
   return TRPCClientError.from({
@@ -24,9 +24,10 @@ describe('toDaemonError', () => {
   })
 
   it('reads a network failure as unreachable', () => {
-    expect(toDaemonError('recentRepos', new TypeError('Network request failed')).kind).toBe(
-      'unreachable',
-    )
+    const error = toDaemonError('recentRepos', new TypeError('Promise.swift:56'))
+    expect(error.kind).toBe('unreachable')
+    expect(error.message).toBe('The daemon could not be reached.')
+    expect(daemonErrorMessage(error)).toBe('The daemon could not be reached.')
   })
 
   it('reads a 401 as unauthorized', () => {
@@ -50,6 +51,8 @@ describe('toDaemonError', () => {
   })
 
   it('reads a tRPC error with no data as unreachable', () => {
-    expect(toDaemonError('openRepoPath', trpcError(null)).kind).toBe('unreachable')
+    const error = toDaemonError('openRepoPath', trpcError(null))
+    expect(error.kind).toBe('unreachable')
+    expect(error.message).toBe('The daemon could not be reached.')
   })
 })

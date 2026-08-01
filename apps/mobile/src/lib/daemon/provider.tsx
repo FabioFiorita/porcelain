@@ -1,4 +1,4 @@
-import { orderedEndpointUrls } from '@porcelain/contracts'
+import { endpointKind, orderedEndpointUrls } from '@porcelain/contracts'
 import {
   focusManager,
   onlineManager,
@@ -10,16 +10,18 @@ import { type ReactNode, useEffect } from 'react'
 import { AppState, type AppStateStatus } from 'react-native'
 
 import { APP_EVENT_INVALIDATIONS } from './app-events'
-import { createDaemonClient, getDaemonClient } from './client'
+import { createDaemonClient } from './client'
 import { type Environment, isPaired, type PairedEnvironment } from './environment'
 import {
   activeEnvironment,
-  type ConnectionState,
+  currentConnection,
+  type EndpointAttempt,
   environmentActions,
   subscribeToEnvironments,
   useActiveEnvironment,
+  useConnectionState,
 } from './environments-store'
-import { DaemonError } from './errors'
+import { DaemonError, daemonErrorMessage } from './errors'
 import { callDaemon } from './procedure'
 import { daemonInfoQuery, openRepoPathMutation, recentReposQuery } from './procedures/connection'
 import { daemonKeys } from './queries'
@@ -63,7 +65,7 @@ onlineManager.setEventListener((setOnline): (() => void) => {
 async function bootstrapAtEndpoint(
   environment: PairedEnvironment,
   baseUrl: string,
-): Promise<ConnectionState> {
+): Promise<{ daemonVersion: string | null }> {
   const client = createDaemonClient(baseUrl, environment.token)
   let daemonVersion: string | null = null
   try {
@@ -91,35 +93,53 @@ async function bootstrapAtEndpoint(
       await environmentActions.setActiveRepoPath(environment.id, null)
     }
   }
-  return { daemonVersion, kind: 'ready' }
+  return { daemonVersion }
+}
+
+class EndpointWalkError extends Error {
+  readonly attempts: readonly EndpointAttempt[]
+  readonly firstError: DaemonError
+
+  constructor(attempts: readonly EndpointAttempt[], firstError: DaemonError) {
+    super('No endpoint in this environment group answered.')
+    this.name = 'EndpointWalkError'
+    this.attempts = attempts
+    this.firstError = firstError
+  }
 }
 
 /** Probe routes in the group's explicit order; a working LAN route wins over a slower fallback. */
-async function bootstrap(environment: PairedEnvironment): Promise<ConnectionState> {
-  let firstUnreachable: Error | null = null
+async function bootstrap(
+  environment: PairedEnvironment,
+): Promise<{ daemonVersion: string | null; attempts: readonly EndpointAttempt[] }> {
+  let firstUnreachable: DaemonError | null = null
+  const attempts: EndpointAttempt[] = []
   const endpoints = orderedEndpointUrls({
     endpoints: environment.endpoints,
-    preferredKind: environment.preferredKind,
+    preferredEndpoint: environment.preferredEndpoint,
     url: environment.baseUrl,
   })
 
   for (const baseUrl of endpoints) {
+    attempts.push({ kind: endpointKind(baseUrl), url: baseUrl })
     try {
       const ready = await bootstrapAtEndpoint(environment, baseUrl)
       if (baseUrl !== environment.baseUrl) {
         await environmentActions.setActiveEndpoint(environment.id, baseUrl)
       }
-      return ready
+      return { ...ready, attempts }
     } catch (error) {
       if (error instanceof DaemonError && error.kind === 'unauthorized') throw error
-      const normalized =
-        error instanceof Error ? error : new Error('The daemon could not be reached.')
-      firstUnreachable ??= normalized
       if (!(error instanceof DaemonError && error.kind === 'unreachable')) throw error
+      firstUnreachable ??= error
     }
   }
 
-  throw firstUnreachable ?? new Error('The daemon could not be reached.')
+  throw new EndpointWalkError(
+    attempts,
+    firstUnreachable ??
+      new DaemonError('unreachable', 'bootstrap', 'The daemon could not be reached.'),
+  )
 }
 
 /** The credential is dead: drop it, stop the socket, and keep the daemon's name for re-pairing. */
@@ -130,30 +150,44 @@ async function goUnauthorized(environment: Environment): Promise<void> {
 }
 
 async function connect(environment: PairedEnvironment): Promise<void> {
+  const previous = currentConnection()
   environmentActions.setConnection({ kind: 'connecting' })
   try {
-    environmentActions.setConnection(await bootstrap(environment))
+    const ready = await bootstrap(environment)
+    environmentActions.setConnection({
+      daemonVersion: ready.daemonVersion,
+      kind: 'ready',
+      reachability: {
+        attempted: ready.attempts,
+        consecutiveFailures: 0,
+        source: 'endpoint-walk',
+        state: 'reachable',
+      },
+    })
   } catch (error) {
     if (error instanceof DaemonError && error.kind === 'unauthorized') {
       await goUnauthorized(environment)
       return
     }
-    const message = error instanceof Error ? error.message : 'The daemon could not be reached.'
-    environmentActions.setConnection({ kind: 'unreachable', message })
-  }
-}
-
-/**
- * A refused upgrade looks the same as a dead host, so ask over HTTP: only a 401 is a verdict.
- * Anything else leaves the socket's own backoff to keep trying.
- */
-async function probeAuthorization(): Promise<void> {
-  const current = activeEnvironment()
-  if (!isPaired(current)) return
-  try {
-    await callDaemon(getDaemonClient(current), recentReposQuery, { includeWorktrees: true })
-  } catch (error) {
-    if (error instanceof DaemonError && error.kind === 'unauthorized') await goUnauthorized(current)
+    const walk = error instanceof EndpointWalkError ? error : null
+    const current = previous
+    const previousFailures =
+      current.kind === 'unreachable' ? current.reachability.consecutiveFailures : 0
+    const daemonError =
+      walk?.firstError ??
+      new DaemonError('unreachable', 'bootstrap', 'The daemon could not be reached.')
+    environmentActions.setConnection({
+      kind: 'unreachable',
+      message: daemonErrorMessage(daemonError),
+      reachability: {
+        attempted: walk?.attempts ?? [
+          { kind: endpointKind(environment.baseUrl), url: environment.baseUrl },
+        ],
+        consecutiveFailures: previousFailures + 1,
+        source: 'endpoint-walk',
+        state: 'unreachable',
+      },
+    })
   }
 }
 
@@ -183,10 +217,21 @@ function DaemonLifecycle(): null {
   const baseUrl = environment?.baseUrl ?? null
   const token = environment?.token ?? null
   const repoPath = environment?.activeRepoPath ?? null
+  const connection = useConnectionState()
   const identity =
     environment === null
       ? null
-      : `${environment.id}:${token}:${environment.preferredKind ?? ''}:${environment.endpoints.join('|')}`
+      : `${environment.id}:${token}:${environment.preferredEndpoint}:${environment.endpoints.join('|')}`
+
+  useEffect(() => {
+    if (connection.kind !== 'unreachable' || connection.reachability.source !== 'query') return
+    const current = activeEnvironment()
+    if (!isPaired(current)) return
+    const recover = async (): Promise<void> => {
+      await connect(current)
+    }
+    recover()
+  }, [connection])
 
   useEffect(() => {
     // An unpaired daemon's cache is not just stale, it is another machine's — drop it whole.
@@ -199,14 +244,14 @@ function DaemonLifecycle(): null {
       known.clear()
       for (const id of live) known.add(id)
     })
-    onSessionClosed((reason) => {
+    onSessionClosed(async (reason) => {
       const current = activeEnvironment()
       if (current === null) return
-      const settle = async (): Promise<void> => {
-        if (reason === 'revoked') await goUnauthorized(current)
-        else await probeAuthorization()
+      if (reason === 'revoked') {
+        await goUnauthorized(current)
+        return
       }
-      settle()
+      if (isPaired(current)) await connect(current)
     })
     const subscription = AppState.addEventListener('change', (state: AppStateStatus) => {
       setSessionForeground(state === 'active')
