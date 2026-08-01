@@ -18,7 +18,7 @@ const ACCENT = {
  * preference — read the scheme, never persist it.
  */
 export function useAccentColor(): string {
-  return useColorScheme() === 'dark' ? ACCENT.dark : ACCENT.light
+  return accentColor(useColorScheme() === 'dark' ? 'dark' : 'light')
 }
 
 /**
@@ -44,6 +44,16 @@ const DIFF_BACKGROUNDS = {
   light: { add: '#E4F5E9', del: '#FDE7E7' },
 } as const
 
+export type AppearanceScheme = 'light' | 'dark'
+
+export function diffBackgrounds(scheme: AppearanceScheme): { add: string; del: string } {
+  return DIFF_BACKGROUNDS[scheme]
+}
+
+export function accentColor(scheme: AppearanceScheme): string {
+  return ACCENT[scheme]
+}
+
 export function useDiffBackgrounds(): { add: string; del: string } {
-  return useColorScheme() === 'dark' ? DIFF_BACKGROUNDS.dark : DIFF_BACKGROUNDS.light
+  return diffBackgrounds(useColorScheme() === 'dark' ? 'dark' : 'light')
 }

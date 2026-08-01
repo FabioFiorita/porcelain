@@ -9,9 +9,9 @@ A separate native client of the same daemon, not a port of the renderer.
   OTA fixes without App Store review, builds that don't need a Mac per change.
 - **`@expo/ui/swift-ui` only — never the universal `@expo/ui` root** (`Host` included; SDK 57
   exports its own from the subpath, so the vendored `expo-ui` skill's "Host from the root" doesn't
-  apply). Lint-enforced. 51 components vs the universal layer's 19, and the gap already cost
-  product decisions — universal `Text` is `children?: string`, which is why the diff reader has no
-  syntax highlighting. No modifier gap existed, so the win is components and one idiom, not reach.
+  apply). Lint-enforced. 51 components vs the universal layer's 19, and the gap already cost product
+  decisions (universal `Text` takes only strings). No modifier gap existed, so the win is components
+  and one idiom, not reach.
   Cost accepted: verbose trees, no web target. The `@expo/ui` **package** stays a dependency.
 - **TRAP:** a SwiftUI `Button` tints its *entire label*, so a `Button`-wrapped settings row renders
   as blue link text — every tappable row needs `buttonStyle('plain')`. `tsc` can't see it.
@@ -42,11 +42,12 @@ A separate native client of the same daemon, not a port of the renderer.
   45 modules through `tsc`; WS schemas come from `@porcelain/contracts`. Credential in
   `expo-secure-store`; **pasted link only, no QR**.
 - **Rule-5 exceptions, exhaustive.** (1) `react-native-webview` in exactly two places: sandboxed
-  loop-evidence HTML (JS off) and the Terminal's xterm.js bundle — the same emulator as desktop, so
-  agent TUIs render identically instead of smearing through hand-rolled ANSI; it's a committed
-  generated bundle from the root `@xterm/*` deps (**zero new runtime deps**) and never opens a
+  loop-evidence HTML (JS off) and the Terminal's xterm.js bundle — the same emulator as desktop, a
+  committed bundle of the root `@xterm/*` deps (**zero new runtime deps**) that never opens a
   socket or sees the token. A WebView for ordinary UI stays banned. (2) Rotation is unlocked, so
-  **every screen must tolerate rotation**.
+  **every screen must tolerate rotation**. (3) One custom Expo native module: a **generic row
+  engine** (diff now, terminal later). Its Swift surface stays generic: rows/theme/tokens as data,
+  feature logic in JS.
 - **Cleartext HTTP is allowed APP-WIDE, deliberately** (`NSAllowsArbitraryLoads`): daemons are plain
   `http` on bare LAN/tailnet IPs and `NSAllowsLocalNetworking` doesn't cover `100.64/10`, so it's
   app-wide or nothing. **Not** license to reach a *public* endpoint over plain HTTP — that path is

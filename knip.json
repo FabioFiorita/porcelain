@@ -24,7 +24,13 @@
       "ignore": ["src/renderer/src/components/ui/**"]
     },
     "apps/mobile": {
-      "project": ["src/**/*.{ts,tsx}"]
+      "project": ["src/**/*.{ts,tsx}"],
+      "ignoreDependencies": [
+        "expo-clipboard",
+        "expo-haptics",
+        "expo-notifications",
+        "expo-task-manager"
+      ]
     }
   },
   "ignoreDependencies": [

@@ -1,6 +1,7 @@
 # Mobile plans
 
-Five implementation plans, one per worktree. Each is self-contained: a fresh agent implements it with
+Five implementation plans, one per worktree, plus `05-native-core.md` — not a worktree, the
+**one native build** they all ship on. Each is self-contained: a fresh agent implements it with
 only that file and the repo. **`../daemon-api.md` is required reading in every worktree** — it is the
 daemon contract all five implement against, and where it and a plan disagree, the daemon source wins
 (fix the doc in the same commit, hard rule 4).
@@ -20,6 +21,7 @@ plans use comes from there: `useDaemonQuery` · `useDaemonMutation` · `useDaemo
 | `02-changes.md` | Changes tab: working-tree diff reading, staging, commit, and the pushed History screen |
 | `03-review.md` | Review tab: the Review canvas, comments, loop evidence, and the pushed Board screen |
 | `04-terminal.md` | Terminal tab: the daemon-owned PTY roster, attach/detach over the WS, saved actions |
+| `05-native-core.md` | The native surface all five need — clipboard, haptics, local notifications from a background poll, the shiki engine, the row-engine module — front-loaded into one fingerprint so the rest ships OTA |
 
 ## Rule-5 exceptions already granted
 
@@ -35,6 +37,9 @@ Settled by the human — don't re-open them, and don't extend them either. Canon
 - **Destructive confirms use `@expo/ui/swift-ui`'s `Alert` / `ConfirmationDialog`** — the old `Alert.alert` exception existed only because the universal layer had no alert, and is withdrawn.
 - **Rotation is unlocked** — `app.json` is `"orientation": "default"`. Every screen must tolerate
   rotation; no screen may assume portrait.
+- **One custom Expo native module: the generic row engine** (`05` §2.6) — diff rows now, a terminal
+  adapter later. Its Swift surface stays generic (rows/theme/tokens as data, feature logic in JS); a
+  second native module, or a diff-shaped Swift API, is a new decision.
 
 ## Dependency rule
 
@@ -65,7 +70,8 @@ The few files more than one worktree touches. Keep edits here minimal and additi
   `assets/toolbar/` PNG twin any more.
 - `src/theme/colors.ts` — `02` adds the diff/status palette and the monospace helper.
 - `apps/mobile/package.json` — any tab adding a dependency (`00` adds `zod`, `zustand`,
-  `expo-clipboard`, `expo-crypto`, and `@trpc/server` type-only).
+  `expo-crypto`, and `@trpc/server` type-only; `05` front-loads every **native** one, and a tab
+  adding another is a build, so flag it instead).
 - `apps/mobile/README.md` — each tab updates its own paragraph.
 
 ## Shared verification recipe

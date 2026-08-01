@@ -28,6 +28,9 @@ const HOOKS_DIR = join(root, 'apps', 'desktop', 'src', 'renderer', 'src', 'hooks
 const SCAN_ROOTS = [
   join(root, 'apps', 'desktop', 'src'),
   join(root, 'apps', 'mobile', 'src'),
+  // walk() only matches `.tsx?$`, so this scans a native module's JS/TS glue, never its Swift —
+  // Swift has no ratchet here or anywhere else in the repo.
+  join(root, 'apps', 'mobile', 'modules'),
   join(root, 'packages'),
 ].filter((dir) => existsSync(dir))
 

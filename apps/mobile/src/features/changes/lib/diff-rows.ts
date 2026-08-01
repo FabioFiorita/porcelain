@@ -19,8 +19,11 @@ export type DiffRow =
   | { key: string; kind: 'line'; tone: 'context' | 'add' | 'del'; gutter: string; text: string }
   | { key: string; kind: 'notice'; text: string; path?: string }
 
-/** Per file. Beyond this the reader offers the file's own screen instead of more rows. */
+/** Per file, on the SwiftUI list: beyond this the reader offers the file's own screen instead. */
 const MAX_FILE_LINES = 300
+/** Per file, on the native row canvas. A drawn row costs an offset and a `draw` call, not a
+ *  cell, so the only remaining budget is the row JSON crossing the bridge. */
+export const CANVAS_FILE_LINES = 3000
 /** Whole document. The daemon builds up to ~200 files of hunks in one response; the phone
  *  renders a prefix of it and says so, rather than pushing 100k rows through the bridge. */
 const MAX_ROWS = 6000
@@ -77,7 +80,10 @@ const NO_TEXT_DIFF = 'Binary or unreadable — not shown'
  * The whole change as one document, in the daemon's flow order. Layers and files are never
  * re-sorted here: that grouping is the product, not a client-side view option.
  */
-export function readingRows(reading: FeatureReading): DiffRow[] {
+export function readingRows(
+  reading: FeatureReading,
+  fileLineBudget: number = MAX_FILE_LINES,
+): DiffRow[] {
   const rows: DiffRow[] = []
 
   for (const group of reading.groups) {
@@ -103,7 +109,7 @@ export function readingRows(reading: FeatureReading): DiffRow[] {
         })
         continue
       }
-      rows.push(...lineRows(hunks, file.path, MAX_FILE_LINES))
+      rows.push(...lineRows(hunks, file.path, fileLineBudget))
     }
   }
 

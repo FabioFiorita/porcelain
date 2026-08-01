@@ -1,18 +1,27 @@
 import { Button, List, Section, Text } from '@expo/ui/swift-ui'
 import { listStyle } from '@expo/ui/swift-ui/modifiers'
 import { router, useLocalSearchParams } from 'expo-router'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { useColorScheme } from 'react-native'
 
 import { DaemonGate } from '@/components/daemon-gate'
 import { HeaderToolbar } from '@/components/header-toolbar'
 import { ScreenHost } from '@/components/screen-host'
-import { DiffRowsView } from '@/features/changes/components/diff-rows-view'
+import { DiffSurface } from '@/features/changes/components/diff-surface'
 import { QueryNotice } from '@/features/changes/components/query-notice'
 import { useDiffReading, useScopeFlow } from '@/features/changes/data/queries'
-import { isLargeChange, readingRows, totalStats } from '@/features/changes/lib/diff-rows'
+import {
+  CANVAS_FILE_LINES,
+  type DiffRow,
+  isLargeChange,
+  readingRows,
+  totalStats,
+} from '@/features/changes/lib/diff-rows'
 import { formatStats } from '@/features/changes/lib/format'
 import { parseScope, scopeParams } from '@/features/changes/lib/scope'
+import { useDiffTokenizer } from '@/features/changes/lib/use-diff-tokenizer'
 import type { DiffReadingScope } from '@/lib/daemon/procedures/changes'
+import { isRowCanvasAvailable } from '@/lib/row-canvas/row-canvas'
 import { footnote, secondary } from '@/theme/modifiers'
 
 /**
@@ -36,10 +45,20 @@ export function ReadingScreen(): React.JSX.Element {
 
 function Reading({ scope }: { scope: DiffReadingScope }): React.JSX.Element {
   const [confirmed, setConfirmed] = useState(false)
+  const tokenizer = useDiffTokenizer(useColorScheme())
   const flow = useScopeFlow(scope)
   const totals = totalStats(flow.data ?? [])
   const large = flow.data !== undefined && isLargeChange(totals)
   const reading = useDiffReading(scope, flow.data !== undefined && (!large || confirmed))
+  // Built once per response: every re-render otherwise re-runs the word diff over the whole
+  // change and re-serializes it, on the JS thread, for a document the native side already has.
+  const rows = useMemo(
+    (): DiffRow[] =>
+      reading.data === undefined
+        ? []
+        : readingRows(reading.data, isRowCanvasAvailable() ? CANVAS_FILE_LINES : undefined),
+    [reading.data],
+  )
 
   function openFile(path: string): void {
     router.push({ params: { ...scopeParams(scope), path }, pathname: '/file' })
@@ -85,8 +104,11 @@ function Reading({ scope }: { scope: DiffReadingScope }): React.JSX.Element {
   }
 
   return (
-    <ScreenHost>
-      <DiffRowsView onOpenFile={openFile} rows={readingRows(reading.data)} />
-    </ScreenHost>
+    <DiffSurface
+      contentKey={`reading:${scope.type}:${scope.type === 'commit' ? scope.hash : 'working'}`}
+      onOpenFile={openFile}
+      rows={rows}
+      tokenizer={tokenizer}
+    />
   )
 }

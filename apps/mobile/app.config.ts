@@ -76,6 +76,14 @@ const config: ExpoConfig = {
     ],
     'expo-secure-store',
     'expo-sqlite',
+    // Adds the `processing` background mode and `BGTaskSchedulerPermittedIdentifiers`. Needed
+    // explicitly — unlike expo-notifications/expo-task-manager, this one is not auto-applied.
+    'expo-background-task',
+    // Deletes the `aps-environment` entitlement that expo-notifications' auto-applied plugin
+    // writes — auto-applied plugins always run before this static array, so position here can't
+    // lose to it. Mods are LIFO: a static plugin that writes entitlements must come after this
+    // one in the array, or it re-adds the key.
+    './plugins/with-local-only-notifications',
   ],
   experiments: {
     typedRoutes: true,
