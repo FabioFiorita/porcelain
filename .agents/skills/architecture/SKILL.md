@@ -22,11 +22,10 @@ how a feature is wired — open the entry file in **Nomenclature** and read it.
 | Git backend | Shell out to the `git` CLI, parse porcelain output. No git libraries |
 | Per-repo config | App-side JSON under `userData`, keyed by repo path. Never write into work repos |
 | Package manager | pnpm |
-| Lint/format | Biome (no ESLint/Prettier); unused imports/vars are **errors**. Plus knip and four custom gates |
-| Tests | Vitest (`src/**/*.test.{ts,tsx}`) + Playwright (`e2e/*.spec.ts`) |
+| Lint/format | Biome (no ESLint/Prettier); unused imports/vars are **errors** |
+| Tests | Vitest (`apps/desktop/src/**/*.test.{ts,tsx}`) + Playwright (`apps/desktop/e2e/*.spec.ts`) |
 
-Custom gates cover rules Biome can't express. Scope is deliberate; all four skip comment lines,
-because the bans are *documented* next to the code they guard.
+Eight custom gates cover rules Biome can't express. The scoped ones skip comment lines.
 
 | Gate | Enforces | Scope |
 |---|---|---|
@@ -34,9 +33,13 @@ because the bans are *documented* next to the code they guard.
 | `lint-control-recipes.mjs` | compact control classes come from `lib/controls.ts` | renderer |
 | `lint-shadcn-heuristics.mjs` | hand-rolled renderer primitives | renderer |
 | `lint-audit.mjs` | `isSafeExternalUrl`, `GIT_OPTIONAL_LOCKS`, hook env scrub | daemon/main |
+| `lint-comments.mjs` | dates, oversized comment blocks, plan/billing narrative | repo, incl. `.yml`/`.md`/`.sh`/`.mjs` |
+| `lint-render-refs.mjs` | `ref.current =` at render scope (TS AST, not regex) | renderer |
+| `lint-ratchets.mjs` | 500-line file cap, hook sibling tests — allowlists where a **stale entry also fails** | repo |
+| `lint-doc-budget.mjs` | per-tier word caps + a corpus total on `AGENTS.md` and authored skills | docs |
 
-`knip` covers unused files/deps/binaries, not unused exports — many schemas and helpers are
-deliberately public for tests and the CLI island.
+`knip` runs with `exports,types`, so an unused export fails the gate — it is not a
+"deliberately public" escape hatch.
 
 ## Deliberately absent
 

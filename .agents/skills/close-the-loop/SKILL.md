@@ -2,7 +2,7 @@
 name: close-the-loop
 metadata:
   internal: true
-description: The development loop every session must complete — intent, paths, execute, test, verify with evidence, sync docs, gate, commit — plus the testing doctrine (unit tests for the daemon, browser-first for the UI) and the autonomy split. Read at the start of any session that will change code.
+description: The development loop every session must complete — intent, paths, execute, test, verify with evidence, gate, commit — plus the testing doctrine (unit tests for the daemon, browser-first for the UI) and the autonomy split. Read at the start of any session that will change code.
 ---
 
 # Close the loop
@@ -39,8 +39,8 @@ pnpm porcelain -- help  # CLI against ~/.porcelain-dev
 3. **Execute** — one architecture, shadcn primitives (UI only), type-safety-driven design. Work on `main` by default; opt into a managed `work/<slug>` worktree when the task runs in parallel with another or is risky enough to want a PR boundary.
 4. **Test** — per the testing doctrine below.
 5. **Verify with evidence** — prove the *intent*. UI → browser against the **dev** daemon (Playwright MCP or `pnpm test:e2e`). Backend → unit test / CLI on **dev** channels. Never drive the installed **Porcelain** app or the prod daemon for product work.
-6. **Docs sync** — update the owning skill in the same commit for decisions/traps changed; cut skill prose that only paraphrases code.
-7. **Gate & commit** — `pnpm verify`, then commit. On `main` (the default): push. On a managed task branch: push and open a PR into `main` carrying the Review's evidence; after merge and a local main update, `pnpm worktree remove <slug>` closes the task.
+6. **Docs** — only when a *constraint* changed. Most sessions touch no doc at all: why you chose this path belongs in the commit message (hard rule 4), and `pnpm lint` caps the corpus, so adding means cutting. If a skill now restates a lint or the code, delete it.
+7. **Gate & commit** — `pnpm verify`, then commit. Stop there: pushing is prompted, on `main` and on a task branch alike (see Autonomy split). Once the human says go, a task branch pushes and opens a PR into `main` carrying the Review's evidence; after merge and a local main update, `pnpm worktree remove <slug>` closes the task.
 
 **A main commit is not a shortcut past the loop.** The gate runs identically on every branch, and an agent-authored commit on `main` still ends with a **published Porcelain Review** (Intent · Execution · Evidence) — that Review is what a PR would otherwise carry, and nothing enforces it but you.
 
@@ -73,14 +73,9 @@ Wrap at 100.                               whole message <= 1024
 
 Serialized work lands straight on `main`. Take a worktree when isolation actually buys something: a second task running concurrently, a long-lived experiment, or a change you want CI to judge before it touches `main`.
 
-1. From primary main: `pnpm worktree create <slug>`.
-2. Work only inside `<repo>-worktrees/<slug>` on `work/<slug>`.
-3. `pnpm dev:daemon` and `pnpm porcelain` read `.porcelain-worktree.json`, so every task gets a stable unique port, channel home, user-data home, administrator token, and seeded disposable playground.
-4. Push the task branch and open a PR. Porcelain remains the review story; the PR is the CI/merge boundary.
-5. Squash-merge, update the primary main checkout, then `pnpm worktree remove <slug>`. It fails closed on dirty or unmerged work; `--force` is only for explicitly abandoned work.
-6. `pnpm worktree cleanup` removes all other clean managed worktrees already merged into local main.
+`pnpm worktree create <slug>` → work only inside `<repo>-worktrees/<slug>` on `work/<slug>` → push and open a PR (Porcelain stays the review story; the PR is the CI/merge boundary) → squash-merge, update primary main, `pnpm worktree remove <slug>`.
 
-Cleanup stops only a recorded daemon whose PID, command, and working directory still identify that exact worktree; it never kills an unverified process.
+Each task gets its own port, channel home, user-data home, administrator token and seeded playground via `.porcelain-worktree.json`. `remove` fails closed on dirty or unmerged work; `--force` is only for explicitly abandoned work.
 
 ## Autonomy split
 
@@ -92,7 +87,7 @@ Cleanup stops only a recorded daemon whose PID, command, and working directory s
 - **Backend / business logic** (daemon, git, stores, CLI) → **Vitest**.
 - **Frontend, day-to-day** → **browser-first** against the daemon-served web client (same renderer dist as Electron). Dev: Playwright MCP or live tab on the **dev** daemon. CI/local suite: `pnpm test:e2e` (`browser` project).
 - **Electron native** (`pnpm test:e2e:native`) → **optional** (manual, or pre-ship when packaging/shell may have broken). Not part of `pnpm verify` and not required on every push.
-- **E2e locator contract:** `data-testid` via `src/shared/test-ids.ts` + `e2e/helpers/locators.ts`.
+- **E2e locator contract:** `data-testid` via `apps/desktop/src/shared/test-ids.ts` + `apps/desktop/e2e/helpers/locators.ts`.
 - **Isolation:** each e2e test gets a pristine fixture repo — never the human's work repos, never production channels.
 - **Stress:** `e2e-stress.yml` (manual).
 

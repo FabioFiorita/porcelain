@@ -65,5 +65,5 @@ Remotes · Review flow · Updates) · welcome screen.
 | Reviewed marks | Per-file "reviewed" checkboxes (`reviewed.json`), app→agent, read-only like notes |
 | Project board | Per-repo todo/doing/done (`board.json`), two-way via the CLI |
 | Actions | Saved named commands (`actions.json`); agent curates, **human runs** |
-| Daemon | The headless Electron-free backend (`src/backend/server.ts`) the renderer reaches over HTTP + one WS; the shell spawns and babysits it (`src/main/daemon.ts`). "The daemon" always resolves here |
+| Daemon | The headless Electron-free backend (`apps/desktop/src/backend/server.ts`) the renderer reaches over HTTP + one WS; the shell spawns and babysits it (`apps/desktop/src/main/daemon.ts`). "The daemon" always resolves here |
 | Surface language | The opaque design: raised = cards, recessed = wells, hover/selected = `bg-accent`/`bg-accent/50`. Menus are the one translucent exception. ONE design serves Electron and the browser alike |

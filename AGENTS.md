@@ -19,8 +19,8 @@ The human is **not** the source of truth and not a dictator to obey. Everything 
 5. **UI primitives follow the client.** Renderer: shadcn only, never hand-rolled (`shadcn` skill). `apps/mobile`: iOS-only, SwiftUI-only — Expo Router plus `@expo/ui/swift-ui` and its `/modifiers`, **never the universal `@expo/ui` root** (`Host` included). A primitive neither library provides needs the human's approval first. Backend work loads neither skill.
 6. **Let type-safety drive the design.** When types fight you, change the design — a structural interface at the seam, a zod parse, a narrowing guard. Never escape it. The escapes are lint-enforced, not prose.
 7. **No `void` on promises.** Use `async`/`await`. Bare fire-and-forget without `void` is fine when you truly don't need to wait.
-8. **Main-first solo flow.** Work on `main`, pass the gate, commit, push. Parallel or risky work opts into `pnpm worktree create <slug>` → PR → squash-merge → `pnpm worktree remove <slug>`. Unmanaged branches stay hook-blocked. No long-lived task branches.
-9. **Close the loop — every session.** Intent → paths → execute → test → verify **with evidence** → docs sync → gate → commit. Never end at "implemented, should work." Owned by `close-the-loop`.
+8. **Main-first solo flow.** Work on `main`, pass the gate, commit — then stop; **pushing is prompted**. Parallel or risky work opts into `pnpm worktree create <slug>` → PR → squash-merge → `pnpm worktree remove <slug>`. Unmanaged branches stay hook-blocked. No long-lived task branches.
+9. **Close the loop — every session.** Intent → paths → execute → test → verify **with evidence** → gate → commit. Never end at "implemented, should work." Docs are not a phase: touch one only when a constraint changed. Owned by `close-the-loop`.
 10. **One home per concern.** Changes (diffs/stage/commit), Review (canvas), Files (tree), Board (plan), Terminal/Actions (run). Other surfaces may *preview* and must **hand off** via `lib/surface-handoffs.ts` — never a second Diff panel or commit UX. Full principle: `product` skill.
 
 ## Prod vs dev daemons

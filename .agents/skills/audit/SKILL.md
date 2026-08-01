@@ -27,7 +27,7 @@ When reviewing, walk the relevant reference files against the changed files.
 | File | Read it when |
 |---|---|
 | `reference/network-boundary.md` | Touching the main/renderer process split, `readFile`/external-URL guards, the daemon's listener/bind/auth/CORS/CSP surface, or a spawned PTY's environment. |
-| `reference/agent-channels.md` | Touching `src/cli/`, any `~/.porcelain/*.json` channel (review sets, comments, board, actions, layers, notes, reviewed, feature-view, scope), agent-authored review content (diagrams/HTML/prose rendering), loop evidence, or CLI install/boot wiring. |
+| `reference/agent-channels.md` | Touching `apps/desktop/src/cli/`, any `~/.porcelain/*.json` channel (review sets, comments, board, actions, layers, notes, reviewed, feature-view, scope), agent-authored review content (diagrams/HTML/prose rendering), loop evidence, or CLI install/boot wiring. |
 | `reference/git-and-config.md` | Touching `config.json` persistence (`json-store`) or anything that spawns `git` (env, locks, staging, quick commands, status flags). |
 | `reference/data-ipc.md` | Touching tRPC routers/transports, the WS session, `utilityProcess` daemon lifecycle, or IPC shape generally. |
 | `reference/performance.md` | Touching the file viewer/diff virtualization, the file tree, Vite dep pre-bundling, or any polling/watcher/cache tuning on a large repo. |
