@@ -21,7 +21,7 @@ import { fileURLToPath } from 'node:url'
 const root = join(fileURLToPath(new URL('.', import.meta.url)), '..')
 const config = JSON.parse(readFileSync(join(root, 'scripts', 'ratchets.json'), 'utf8'))
 
-const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'dist-daemon', '.git', 'ios', 'android'])
+const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'dist-daemon', '.git', 'ios'])
 const VENDORED_UI = join(root, 'apps', 'desktop', 'src', 'renderer', 'src', 'components', 'ui')
 const HOOKS_DIR = join(root, 'apps', 'desktop', 'src', 'renderer', 'src', 'hooks')
 
