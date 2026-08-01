@@ -42,6 +42,8 @@
     "mobile:start:mcp": "pnpm --dir apps/mobile start:mcp",
     "mobile:sim:build": "pnpm --dir apps/mobile sim:build",
     "mobile:sim:install": "pnpm --dir apps/mobile sim:install",
+    "mobile:dev:device": "pnpm --dir apps/mobile dev:device",
+    "mobile:dev:build": "pnpm --dir apps/mobile dev:build",
     "start": "pnpm --dir apps/desktop start",
     "dev": "pnpm --dir apps/desktop dev",
     "dev:daemon": "node scripts/dev-daemon.mjs",

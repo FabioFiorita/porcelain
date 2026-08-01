@@ -3,7 +3,7 @@
 The native Porcelain client is an **iOS-only** Expo SDK 57 app. Its starter
 shell uses Expo Router native tabs and `@expo/ui/swift-ui` components.
 
-`app.json` declares `"platforms": ["ios"]`, so prebuild, EAS, and Metro only
+`app.config.ts` declares `"platforms": ["ios"]`, so prebuild, EAS, and Metro only
 ever consider iOS. There is no Android target and no Play Store account behind
 one — write iOS code directly and never add a `Platform.OS` branch, an
 `.android.tsx` twin, or a raster twin of an SF Symbol.
@@ -26,6 +26,26 @@ To expose Expo's local development MCP server while Metro is running:
 
 ```bash
 pnpm mobile:start:mcp
+```
+
+## Two apps on one device
+
+`app.config.ts` maps `APP_VARIANT` (set per profile in `eas.json`) to a bundle
+identifier, name, scheme, and icon. The `development` profile builds **Porcelain
+Dev** (`…porcelain.dev`, blue icon); every other profile builds **Porcelain**
+(`…porcelain`, white icon), the TestFlight identity. The two install side by side.
+
+A distinct bundle identifier only creates an App ID in the developer portal —
+App Store Connect never sees it, so no dev build can disturb TestFlight. The
+production strings feed the native fingerprint, so changing one strands the
+installed app on a runtime version no update targets.
+
+Register a device **before** building for it: the ad-hoc profile embeds UDIDs at
+build time, so registering afterwards means building again.
+
+```bash
+pnpm mobile:dev:device   # open the link on each iPhone/iPad, install the profile
+pnpm mobile:dev:build    # device .ipa, installs over the air from the EAS page
 ```
 
 ## Running it on the Mac's iOS simulator
@@ -75,9 +95,9 @@ Three things that bite:
   an arm64 simulator slice, not device-specific), so targeting a second one never
   needs a second build.
 - **Step 1 is only needed when the native fingerprint changes** — a new native
-  module, an `app.json` change, an SDK bump. Pure JS/TS edits reach the running
+  module, an `app.config.ts` change, an SDK bump. Pure JS/TS edits reach the running
   app through Fast Refresh, and step 2 would just reinstall the same binary. The
-  corollary bites: `ios.supportsTablet` is an `app.json` flag, so an iPad fix
+  corollary bites: `ios.supportsTablet` is an `app.config.ts` flag, so an iPad fix
   cannot arrive over Fast Refresh no matter how many times you reinstall.
 
 To pair the app with the dev daemon, use the host's **LAN address**, never
@@ -104,7 +124,7 @@ The same four triggers drive both presentations: iPhone gets the bottom tab
 bar, and `sidebarAdaptable` lets iPadOS/macOS promote them to the system side
 tab bar and sidebar. There is one tab list, never a second iPad-only one.
 
-That promotion needs **`ios.supportsTablet: true`** (`app.json`). Without it Expo
+That promotion needs **`ios.supportsTablet: true`** (`app.config.ts`). Without it Expo
 emits `UIDeviceFamily = [1]` and the app runs on iPad in iPhone **compatibility
 mode** — a fixed portrait window that will not rotate and never reaches the
 regular horizontal size class the sidebar depends on. If iPad looks like a scaled
