@@ -4,6 +4,7 @@ import { router, Stack, useLocalSearchParams } from 'expo-router'
 
 import { DaemonGate } from '@/components/daemon-gate'
 import { HeaderToolbar } from '@/components/header-toolbar'
+import { ListLinkRow } from '@/components/list-link-row'
 import { ScreenHost } from '@/components/screen-host'
 import { FlowGroupList } from '@/features/changes/components/flow-group-list'
 import { QueryNotice } from '@/features/changes/components/query-notice'
@@ -28,15 +29,7 @@ export function CommitDetailScreen(): React.JSX.Element {
       <DaemonGate requires="repo">
         <CommitBody hash={hash} />
       </DaemonGate>
-      <HeaderToolbar
-        actions={[
-          {
-            href: { params: { hash, scope: 'commit' }, pathname: '/reading' },
-            icon: 'read',
-            label: 'Read',
-          },
-        ]}
-      />
+      <HeaderToolbar />
     </>
   )
 }
@@ -54,6 +47,18 @@ function CommitBody({ hash }: { hash: string }): React.JSX.Element {
           <Text modifiers={[headline]}>{subject === '' ? shortHash(hash) : subject}</Text>
           {body === '' ? null : <Text modifiers={[footnote, secondary]}>{body}</Text>}
         </Section>
+        {groups.length === 0 ? null : (
+          <Section title="Review">
+            <ListLinkRow
+              detail="Read every changed file in flow order"
+              icon="text.alignleft"
+              label="Read changes"
+              onPress={(): void => {
+                router.push({ params: { hash, scope: 'commit' }, pathname: '/reading' })
+              }}
+            />
+          </Section>
+        )}
         {groups.length === 0 ? (
           <Section>
             <QueryNotice

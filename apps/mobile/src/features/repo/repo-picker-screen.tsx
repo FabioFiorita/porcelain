@@ -1,25 +1,23 @@
 import {
   Button,
   ContentUnavailableView,
-  HStack,
   List,
   Section,
-  Spacer,
   SwipeActions,
   Text,
-  VStack,
 } from '@expo/ui/swift-ui'
 import { foregroundStyle, listStyle } from '@expo/ui/swift-ui/modifiers'
 import { router } from 'expo-router'
 import { useState } from 'react'
 
+import { ListLinkRow } from '@/components/list-link-row'
 import { ScreenHost } from '@/components/screen-host'
 import { SheetCloseToolbar } from '@/components/sheet-close-toolbar'
 import { DaemonError, daemonErrorMessage } from '@/lib/daemon/errors'
 import { recentReposQuery, removeRecentRepoMutation } from '@/lib/daemon/procedures/connection'
 import { useDaemonInvalidate, useDaemonMutation, useDaemonQuery } from '@/lib/daemon/queries'
 import { openRepo } from '@/lib/daemon/repo'
-import { footnote, secondary } from '@/theme/modifiers'
+import { footnote } from '@/theme/modifiers'
 
 /**
  * The daemon's recent repos. Every path here is a daemon path — the phone never reads its own
@@ -68,19 +66,13 @@ export function RepoPickerScreen(): React.JSX.Element {
             ) : (
               recents.data.map((repo) => (
                 <SwipeActions key={repo.path}>
-                  <Button
+                  <ListLinkRow
+                    detail={repo.path}
+                    label={repo.name}
                     onPress={(): void => {
                       choose(repo.path)
                     }}
-                  >
-                    <HStack>
-                      <VStack alignment="leading" spacing={2}>
-                        <Text>{repo.name}</Text>
-                        <Text modifiers={[footnote, secondary]}>{repo.path}</Text>
-                      </VStack>
-                      <Spacer />
-                    </HStack>
-                  </Button>
+                  />
                   <SwipeActions.Actions>
                     <Button
                       label="Remove"
@@ -105,7 +97,7 @@ export function RepoPickerScreen(): React.JSX.Element {
             }
           >
             <Button
-              label="Browse the daemon…"
+              label="Browse the daemon"
               onPress={(): void => router.push('/repo/browse')}
               systemImage="externaldrive.connected.to.line.below"
             />

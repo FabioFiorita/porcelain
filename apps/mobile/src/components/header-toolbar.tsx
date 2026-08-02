@@ -10,9 +10,9 @@ export type ScreenAction = {
 }
 
 /**
- * The trailing buttons every surface wears. Split out from `ScreenHeader` because a pushed
- * screen wants these without the custom title — a left header item would take the slot the
- * back button needs.
+ * The optional trailing buttons a surface exposes. Split out from `ScreenHeader` because a
+ * pushed screen wants these without the custom title — a left header item would take the slot
+ * the back button needs.
  *
  * The companion is last so the control for the right-hand panel sits on the right-hand edge.
  */
@@ -21,13 +21,18 @@ export function HeaderToolbar({
   companion,
 }: {
   actions?: readonly ScreenAction[]
-  companion?: ScreenAction
-}): React.JSX.Element {
-  const companionAction: ScreenAction = companion ?? {
-    href: '/companion',
-    icon: 'bolt',
-    label: 'Companion',
-  }
+  companion?: ScreenAction | null
+}): React.JSX.Element | null {
+  const companionAction: ScreenAction | null =
+    companion === undefined
+      ? {
+          href: '/companion',
+          icon: 'bolt',
+          label: 'Companion',
+        }
+      : companion
+
+  if (actions.length === 0 && companionAction === null) return null
 
   return (
     <Stack.Toolbar placement="right">
@@ -39,11 +44,13 @@ export function HeaderToolbar({
           onPress={(): void => router.push(action.href)}
         />
       ))}
-      <Stack.Toolbar.Button
-        accessibilityLabel={companionAction.label}
-        icon={toolbarIcon(companionAction.icon)}
-        onPress={(): void => router.push(companionAction.href)}
-      />
+      {companionAction === null ? null : (
+        <Stack.Toolbar.Button
+          accessibilityLabel={companionAction.label}
+          icon={toolbarIcon(companionAction.icon)}
+          onPress={(): void => router.push(companionAction.href)}
+        />
+      )}
     </Stack.Toolbar>
   )
 }

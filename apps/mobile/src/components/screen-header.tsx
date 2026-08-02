@@ -21,7 +21,7 @@ export function ScreenHeader({
   title,
 }: {
   actions?: readonly ScreenAction[]
-  companion?: ScreenAction
+  companion?: ScreenAction | null
   title: string
 }): React.JSX.Element {
   const accentColor = useAccentColor()

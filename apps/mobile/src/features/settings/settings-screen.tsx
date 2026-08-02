@@ -11,7 +11,6 @@ import {
 import { listStyle, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers'
 import Constants from 'expo-constants'
 import { router } from 'expo-router'
-import * as Updates from 'expo-updates'
 
 import { ListLinkRow } from '@/components/list-link-row'
 import { ScreenHeader } from '@/components/screen-header'
@@ -104,13 +103,10 @@ export function SettingsScreen(): React.JSX.Element {
 
           <Section title="About">
             <ValueRow label="Version" value={Constants.expoConfig?.version ?? 'unknown'} />
-            {Updates.updateId === null ? null : (
-              <ValueRow label="Update" value={Updates.updateId.slice(0, 7)} />
-            )}
           </Section>
         </List>
       </ScreenHost>
-      <ScreenHeader title="Settings" />
+      <ScreenHeader companion={null} title="Settings" />
     </>
   )
 }

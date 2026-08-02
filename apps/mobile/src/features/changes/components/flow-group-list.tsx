@@ -79,11 +79,18 @@ function FileRow({
     .join(' · ')
 
   return (
-    <Button modifiers={[buttonStyle('plain')]} onPress={(): void => onSelect(file.path)}>
+    <Button
+      modifiers={[
+        buttonStyle('plain'),
+        frame({ maxWidth: Infinity, alignment: 'leading' }),
+        contentShape(shapes.rectangle()),
+      ]}
+      onPress={(): void => onSelect(file.path)}
+    >
       <HStack
         modifiers={[
-          contentShape(shapes.rectangle()),
           frame({ maxWidth: Infinity, alignment: 'leading' }),
+          contentShape(shapes.rectangle()),
         ]}
         spacing={10}
       >

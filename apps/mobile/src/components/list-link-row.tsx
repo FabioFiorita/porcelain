@@ -6,6 +6,7 @@ import { secondary } from '@/theme/modifiers'
 type LinkIcon =
   | 'chevron.right'
   | 'desktopcomputer'
+  | 'folder'
   | 'laptopcomputer'
   | 'shippingbox'
   | 'terminal'
@@ -31,11 +32,18 @@ export function ListLinkRow({
   onPress: () => void
 }): React.JSX.Element {
   return (
-    <Button modifiers={[buttonStyle('plain')]} onPress={onPress}>
+    <Button
+      modifiers={[
+        buttonStyle('plain'),
+        frame({ maxWidth: Infinity, alignment: 'leading' }),
+        contentShape(shapes.rectangle()),
+      ]}
+      onPress={onPress}
+    >
       <HStack
         modifiers={[
-          contentShape(shapes.rectangle()),
           frame({ maxWidth: Infinity, alignment: 'leading' }),
+          contentShape(shapes.rectangle()),
         ]}
         spacing={12}
       >

@@ -1,5 +1,10 @@
 import { z } from 'zod'
 
+const environmentIconSchema = z.preprocess(
+  (value: unknown): unknown => (value === 'box' ? 'desktop' : value),
+  z.enum(['desktop', 'terminal', 'notebook']).default('desktop'),
+)
+
 /**
  * One paired daemon, as stored. The token lives under its own secure-store key
  * (`porcelain.token.<id>`), never in this record: renaming an environment rewrites the
@@ -9,7 +14,7 @@ const environmentRecordSchema = z.object({
   id: z.string(),
   nickname: z.string().min(1).max(64),
   /** The visual kind chosen for this environment group in Settings. */
-  icon: z.enum(['desktop', 'terminal', 'notebook', 'box']).default('desktop'),
+  icon: environmentIconSchema,
   /** Normalized: scheme + host + port, no trailing slash. */
   baseUrl: z.string().url(),
   /** Every verified route for this daemon; a group of one is valid. */

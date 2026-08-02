@@ -1,5 +1,13 @@
 import { Button, HStack, List, Section, Spacer, Text, VStack } from '@expo/ui/swift-ui'
-import { lineLimit, listStyle, refreshable } from '@expo/ui/swift-ui/modifiers'
+import {
+  buttonStyle,
+  contentShape,
+  frame,
+  lineLimit,
+  listStyle,
+  refreshable,
+  shapes,
+} from '@expo/ui/swift-ui/modifiers'
 import { router } from 'expo-router'
 import { useState } from 'react'
 
@@ -59,11 +67,22 @@ function Log(): React.JSX.Element {
             commits.map((commit) => (
               <Button
                 key={commit.hash}
+                modifiers={[
+                  buttonStyle('plain'),
+                  frame({ maxWidth: Infinity, alignment: 'leading' }),
+                  contentShape(shapes.rectangle()),
+                ]}
                 onPress={(): void => {
                   router.push({ params: { hash: commit.hash }, pathname: '/commit/[hash]' })
                 }}
               >
-                <HStack spacing={10}>
+                <HStack
+                  modifiers={[
+                    frame({ maxWidth: Infinity, alignment: 'leading' }),
+                    contentShape(shapes.rectangle()),
+                  ]}
+                  spacing={10}
+                >
                   <VStack alignment="leading" spacing={2}>
                     <Text modifiers={[lineLimit(1)]}>{commit.subject}</Text>
                     <Text modifiers={[footnote, secondary, lineLimit(1)]}>

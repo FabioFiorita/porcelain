@@ -1,16 +1,9 @@
-import {
-  Button,
-  ContentUnavailableView,
-  HStack,
-  List,
-  Section,
-  Spacer,
-  Text,
-} from '@expo/ui/swift-ui'
+import { Button, ContentUnavailableView, List, Section, Text } from '@expo/ui/swift-ui'
 import { foregroundStyle, listStyle } from '@expo/ui/swift-ui/modifiers'
 import { router } from 'expo-router'
 import { useState } from 'react'
 
+import { ListLinkRow } from '@/components/list-link-row'
 import { ScreenHost } from '@/components/screen-host'
 import { DaemonError, daemonErrorMessage } from '@/lib/daemon/errors'
 import { browseDirsQuery } from '@/lib/daemon/procedures/connection'
@@ -76,23 +69,18 @@ export function RepoBrowseScreen(): React.JSX.Element {
             />
           )}
           {shown.map((entry) => (
-            <HStack key={entry.path}>
-              <Button
-                onPress={(): void => setPath(entry.path)}
-                systemImage={entry.isRepo ? 'shippingbox' : 'folder'}
-              >
-                <Text>{entry.name}</Text>
-              </Button>
-              <Spacer />
-              {entry.isRepo ? (
-                <Button
-                  label="Open"
-                  onPress={(): void => {
-                    choose(entry.path)
-                  }}
-                />
-              ) : null}
-            </HStack>
+            <ListLinkRow
+              icon={entry.isRepo ? 'shippingbox' : 'folder'}
+              key={entry.path}
+              label={entry.name}
+              onPress={(): void => {
+                if (entry.isRepo) {
+                  choose(entry.path)
+                } else {
+                  setPath(entry.path)
+                }
+              }}
+            />
           ))}
           {error === null ? null : <Text modifiers={[footnote, errorStyle]}>{error}</Text>}
           {hidden === 0 ? null : (

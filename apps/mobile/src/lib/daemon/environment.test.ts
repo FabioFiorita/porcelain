@@ -66,6 +66,16 @@ describe('parseEnvironmentsFile', () => {
     expect(environmentsFileSchema.parse(file).environments[0]?.icon).toBe('desktop')
   })
 
+  it('normalizes the removed box icon in stored groups', () => {
+    const file = { version: 3, activeId: RECORD.id, environments: [{ ...RECORD, icon: 'box' }] }
+
+    expect(parseEnvironmentsFile(JSON.stringify(file))).toEqual({
+      status: 'ok',
+      file: environmentsFileSchema.parse(file),
+    })
+    expect(environmentsFileSchema.parse(file).environments[0]?.icon).toBe('desktop')
+  })
+
   it('requires the endpoint list that defines an environment group', () => {
     const file = {
       version: 3,

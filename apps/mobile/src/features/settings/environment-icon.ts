@@ -1,10 +1,6 @@
 import type { EnvironmentIcon } from '@/lib/daemon/environment'
 
-export type EnvironmentIconSymbol =
-  | 'desktopcomputer'
-  | 'terminal'
-  | 'laptopcomputer'
-  | 'shippingbox'
+export type EnvironmentIconSymbol = 'desktopcomputer' | 'terminal' | 'laptopcomputer'
 
 type EnvironmentIconOption = {
   id: EnvironmentIcon
@@ -16,11 +12,9 @@ export const ENVIRONMENT_ICON_OPTIONS: readonly EnvironmentIconOption[] = [
   { id: 'desktop', label: 'Desktop', systemImage: 'desktopcomputer' },
   { id: 'terminal', label: 'Terminal', systemImage: 'terminal' },
   { id: 'notebook', label: 'Notebook', systemImage: 'laptopcomputer' },
-  { id: 'box', label: 'Box', systemImage: 'shippingbox' },
 ]
 
 const SYSTEM_IMAGES: Record<EnvironmentIcon, EnvironmentIconSymbol> = {
-  box: 'shippingbox',
   desktop: 'desktopcomputer',
   notebook: 'laptopcomputer',
   terminal: 'terminal',
