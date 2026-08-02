@@ -46,7 +46,7 @@ const variant = VARIANTS[resolveVariant(process.env.APP_VARIANT)]
 const config: ExpoConfig = {
   name: variant.name,
   slug: 'porcelain',
-  version: '0.1.1',
+  version: '0.1.0',
   orientation: 'default',
   icon: variant.icon,
   scheme: variant.scheme,
