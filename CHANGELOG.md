@@ -1,3 +1,23 @@
+## [0.46.2](https://github.com/FabioFiorita/porcelain/compare/v0.46.1...v0.46.2) (2026-08-02)
+
+### Features
+
+* **mobile:** adapt Changes for iPad ([bf429dc](https://github.com/FabioFiorita/porcelain/commit/bf429dc731a5870a983e3d24738ed09256856d14))
+* **mobile:** add remote simulator dev runner ([0885fcd](https://github.com/FabioFiorita/porcelain/commit/0885fcdb2aa051e281b32f24da5edb5584cacfe4))
+* **mobile:** native core — generic row canvas, shiki, plan-named deps ([77bd653](https://github.com/FabioFiorita/porcelain/commit/77bd6537b7142fe530164c6e33d9117994147540))
+* **mobile:** refine iPhone shell and Changes UI ([6446ea8](https://github.com/FabioFiorita/porcelain/commit/6446ea81c8dbdf8295178627d523bd936992a802))
+* **review:** collapse files in continuous diffs ([aa6aa99](https://github.com/FabioFiorita/porcelain/commit/aa6aa99ae2a2370f86d5391a2397ac0a4ef0c386))
+
+### Bug Fixes
+
+* **mobile:** configure EAS delivery profiles ([bb70fee](https://github.com/FabioFiorita/porcelain/commit/bb70fee49db1251412f79d0b54b249c63bf503ee))
+* **mobile:** refine native link rows and history ([37366a2](https://github.com/FabioFiorita/porcelain/commit/37366a2fc4b7b8ccf4daca8d48484ba1e7efe5eb))
+* **review:** fit diff controls in file headers ([df28d21](https://github.com/FabioFiorita/porcelain/commit/df28d21b826e5070fb7c4c3319bdb4f582aa3ed0))
+
+### Reverts
+
+* Revert "chore(mobile): release 0.1.1" ([8fba1d3](https://github.com/FabioFiorita/porcelain/commit/8fba1d38738d141c4497828dfdfa917bd2e51523))
+
 ## [0.46.1](https://github.com/FabioFiorita/porcelain/compare/v0.46.0...v0.46.1) (2026-08-01)
 
 ### Features
