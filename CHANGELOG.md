@@ -1,3 +1,12 @@
+## [0.46.3](https://github.com/FabioFiorita/porcelain/compare/v0.46.2...v0.46.3) (2026-08-02)
+
+### Features
+
+* **mobile:** add daemon terminal surface ([8b25277](https://github.com/FabioFiorita/porcelain/commit/8b25277280ab66e1f7ccf990f661bc86601e7bcf))
+* **mobile:** add files browser ([e27f25b](https://github.com/FabioFiorita/porcelain/commit/e27f25b1e04bea9a0b40909fcbf8ebb955706363))
+* **mobile:** add review and board surfaces ([eff34d2](https://github.com/FabioFiorita/porcelain/commit/eff34d216dae29a273dc8cbc02716692b50ec7b3))
+* **mobile:** complete changes history workspace flow ([f456b23](https://github.com/FabioFiorita/porcelain/commit/f456b23fa85ebe3fb2771a1469fc08b24c606f06))
+
 ## [0.46.2](https://github.com/FabioFiorita/porcelain/compare/v0.46.1...v0.46.2) (2026-08-02)
 
 ### Features
