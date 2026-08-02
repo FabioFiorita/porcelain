@@ -28,5 +28,6 @@ export const APP_EVENT_INVALIDATIONS: Record<AppEvent, readonly string[]> = {
     'reviewedPaths',
     'gitHead',
     'gitLog',
+    'readFile',
   ],
 }

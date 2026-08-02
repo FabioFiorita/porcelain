@@ -7,6 +7,7 @@ import { create } from 'zustand'
  */
 export type Preferences = {
   diffLayout: 'unified' | 'split'
+  filesShowHidden: boolean
   html: 'preview' | 'source'
   markdown: 'reader' | 'source'
   pullMode: 'merge' | 'rebase'
@@ -14,6 +15,7 @@ export type Preferences = {
 
 const DEFAULTS: Preferences = {
   diffLayout: 'unified',
+  filesShowHidden: false,
   html: 'preview',
   markdown: 'reader',
   pullMode: 'merge',
@@ -21,6 +23,7 @@ const DEFAULTS: Preferences = {
 
 const ALLOWED: { [K in keyof Preferences]: readonly Preferences[K][] } = {
   diffLayout: ['unified', 'split'],
+  filesShowHidden: [false, true],
   html: ['preview', 'source'],
   markdown: ['reader', 'source'],
   pullMode: ['merge', 'rebase'],
@@ -59,6 +62,7 @@ function readStored(): Preferences {
   const stored: Record<string, unknown> = { ...parsed }
   return {
     diffLayout: narrow('diffLayout', stored.diffLayout),
+    filesShowHidden: narrow('filesShowHidden', stored.filesShowHidden),
     html: narrow('html', stored.html),
     markdown: narrow('markdown', stored.markdown),
     pullMode: narrow('pullMode', stored.pullMode),
