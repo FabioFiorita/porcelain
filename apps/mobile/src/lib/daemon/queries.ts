@@ -1,4 +1,5 @@
 import {
+  keepPreviousData,
   type UseMutationResult,
   type UseQueryResult,
   useMutation,
@@ -38,6 +39,9 @@ export function useDaemonQuery<TInput, TOutput>(
   options?: {
     enabled?: boolean
     staleTime?: number
+    gcTime?: number
+    refetchOnWindowFocus?: boolean
+    placeholderData?: 'keepPreviousData'
     /**
      * Poll interval in ms, applied whatever the socket is doing. Required for anything the
      * daemon only pushes to sessions that registered watches — a healthy socket is not a
@@ -73,6 +77,9 @@ export function useDaemonQuery<TInput, TOutput>(
     // (`refetchIntervalInBackground` stays false), so neither interval runs in the background.
     refetchInterval:
       poll ?? (backstop !== undefined && session.status !== 'open' ? backstop : false),
+    gcTime: options?.gcTime,
+    placeholderData: options?.placeholderData === 'keepPreviousData' ? keepPreviousData : undefined,
+    refetchOnWindowFocus: options?.refetchOnWindowFocus,
     staleTime: options?.staleTime,
   })
 }

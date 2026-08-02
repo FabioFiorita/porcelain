@@ -3,6 +3,10 @@
 The native Porcelain client is an **iOS-only** Expo SDK 57 app. Its starter
 shell uses Expo Router native tabs and `@expo/ui/swift-ui` components.
 
+The Files tab is a read-only, daemon-backed repository browser: drill through
+folders, search filenames, and open text, image, binary, or oversized-file
+states without copying repository contents onto the phone.
+
 `app.config.ts` declares `"platforms": ["ios"]`, so prebuild, EAS, and Metro only
 ever consider iOS. There is no Android target and no Play Store account behind
 one — write iOS code directly and never add a `Platform.OS` branch, an
