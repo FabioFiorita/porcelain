@@ -11,6 +11,7 @@ import {
   gitHeadQuery,
   gitLogQuery,
   gitPushMutation,
+  gitQuickCommandMutation,
   gitStageAllMutation,
   gitStageFileMutation,
   gitSuggestionsQuery,
@@ -149,6 +150,8 @@ describe('change mutations and action queries', () => {
     expect(gitDiscardFileMutation.name).toBe('gitDiscardFile')
     expect(gitCommitMutation.name).toBe('gitCommit')
     expect(gitPushMutation.output.parse('pushed')).toBe('pushed')
+    expect(gitQuickCommandMutation.name).toBe('gitQuickCommand')
+    expect(gitQuickCommandMutation.output.parse('On branch main')).toBe('On branch main')
     expect(markReviewedMutation.name).toBe('markReviewed')
     expect(unmarkReviewedMutation.name).toBe('unmarkReviewed')
     expect(setReviewedMutation.name).toBe('setReviewed')

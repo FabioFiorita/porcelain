@@ -8,6 +8,8 @@ import { z } from 'zod'
 const environmentRecordSchema = z.object({
   id: z.string(),
   nickname: z.string().min(1).max(64),
+  /** The visual kind chosen for this environment group in Settings. */
+  icon: z.enum(['desktop', 'terminal', 'notebook', 'box']).default('desktop'),
   /** Normalized: scheme + host + port, no trailing slash. */
   baseUrl: z.string().url(),
   /** Every verified route for this daemon; a group of one is valid. */
@@ -21,6 +23,7 @@ const environmentRecordSchema = z.object({
 
 export type EnvironmentRecord = z.infer<typeof environmentRecordSchema>
 export type EnvironmentId = EnvironmentRecord['id']
+export type EnvironmentIcon = EnvironmentRecord['icon']
 
 export const environmentsFileSchema = z.object({
   version: z.literal(3),

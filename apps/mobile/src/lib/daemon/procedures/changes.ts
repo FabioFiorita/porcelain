@@ -128,6 +128,9 @@ const gitSuggestionSchema = z.object({ command: z.string(), reason: z.string() }
 export type CommitConventions = z.infer<typeof commitConventionsSchema>
 export type GitSuggestion = z.infer<typeof gitSuggestionSchema>
 
+export const QUICK_COMMANDS = ['status', 'pull', 'push', 'fetch', 'stash', 'stash-pop'] as const
+export type QuickCommandId = (typeof QUICK_COMMANDS)[number]
+
 export const gitCommitConventionsQuery = defineQuery<string, CommitConventions>(
   'gitCommitConventions',
   commitConventionsSchema,
@@ -169,6 +172,11 @@ export const gitCommitMutation = defineMutation<{ repoPath: string; message: str
 )
 
 export const gitPushMutation = defineMutation<{ repoPath: string }, string>('gitPush', z.string())
+
+export const gitQuickCommandMutation = defineMutation<
+  { repoPath: string; command: QuickCommandId; pullMode: 'merge' | 'rebase' },
+  string
+>('gitQuickCommand', z.string())
 
 export const markReviewedMutation = defineMutation<{ repoPath: string; path: string }, void>(
   'markReviewed',

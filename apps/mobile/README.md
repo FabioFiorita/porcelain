@@ -106,27 +106,34 @@ To pair the app with the dev daemon, use the host's **LAN address**, never
 
 ## Shell: five tabs
 
-The client has five stable native tabs — **Files · Changes · Review · Board ·
-Terminal** — and each owns its own stack, so deeper screens are pushed instead
-of becoming tabs. Mobile deliberately carries fewer tabs than the desktop app:
+The client has five stable native tabs — **Files · Changes · Board · Terminal ·
+Settings** — and each owns its own stack, so deeper screens are pushed instead
+of becoming tabs. Review and Read are contextual destinations inside Changes:
+they appear only when there is a changed tree or an agent-published Review.
+Mobile deliberately carries fewer tabs than the desktop app:
 
 | Desktop surface | Where it lives on mobile |
 | --- | --- |
 | History | pushed from the **Changes** header (commit history reads as part of the working tree story) |
+| Read | a contextual row in **Changes**, only when there are changed files |
+| Review | a contextual row in **Changes**, only when the agent published one |
 | Search | the **Files** header search bar, not a tab |
-| Settings | the header's `ellipsis` button, opening a root-level form sheet |
+| Settings | its own tab; environment groups push a detail screen |
 
 **Five is the ceiling.** iOS collapses a sixth tab into a system "More" tab, so
 anything else earns its place by displacing one of these, not by being added.
 
-Settings itself is a nested stack: root list (Environments and About inline,
-plus reading preferences) → Pair an environment.
+The bolt remains the shared companion affordance. Changes opens its existing
+form sheet, now with the desktop command set (`status`, `pull`, `push`, `fetch`,
+`stash`, and `stash pop`) alongside staging and commit actions. Settings keeps
+the environment list, connection detail, pairing, reading preferences, and
+pull behavior in one tab.
 
 iPhone currently uses the bottom `NativeTabs` presentation. The iPad root
 presentation belongs to the SplitView work in `docs/plans/01-files.md §2.7`;
-do not add an iPad-only tab table or a second route tree while that work is
-pending. `ios.supportsTablet: true` stays enabled because the root SplitView
-requires the app binary to include the iPad device family.
+this shell change does not claim that root split presentation. `ios.supportsTablet: true`
+stays enabled because the eventual root SplitView requires the app binary to
+include the iPad device family.
 
 ## Connection
 

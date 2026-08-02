@@ -1,6 +1,6 @@
 # Plan 02 — Changes (with History) on the native client
 
-Status: ready to implement. Depends on **plan 00-connection** (daemon client/session/query seams under `apps/mobile/src/lib/daemon/`). Slug: `mobile-changes`.
+Status: implemented, with the contextual shell and quick-command expansion tracked below. Depends on **plan 00-connection** (daemon client/session/query seams under `apps/mobile/src/lib/daemon/`).
 
 ## 1. Mission
 
@@ -17,14 +17,14 @@ Source of truth is **`gitFlow`** alone — it returns `FlowGroup[] = { layer, fi
 Layout, top to bottom, inside one `Host style={{flex:1}}` + `List` (native `List` = SwiftUI `List`, so it virtualizes):
 
 1. **Summary row** — `<branch> · N files · +A −D · M reviewed`. Branch from `gitHead` (`headLabel`-equivalent: branch name, else `detached @ sha`). Tapping it does nothing in v1 (no branch switcher — §5).
-2. **Suggestion strip** (only when `gitSuggestions` returns the `push` command) — one line, `reason` text (e.g. "2 commits ahead"), trailing `Push` button → §2.5. Every other suggested command (`pull`, `stash`, `fetch`, …) is ignored in v1. **Note:** `gitSuggestions` is *quick-command* advice derived from branch-sync + stash state — it is **not** commit-message suggestion. Commit-message help comes from `gitCommitConventions`. The desktop code (`src/backend/search/suggestions.ts`) is authoritative here; don't wire it into the composer.
+2. **Suggestion strip** (when `gitSuggestions` returns any whitelisted command) — each row carries the command's `reason` and runs through the same command surface as the desktop. **Note:** `gitSuggestions` is *quick-command* advice derived from branch-sync + stash state — it is **not** commit-message suggestion. Commit-message help comes from `gitCommitConventions`. The desktop code (`src/backend/search/suggestions.ts`) is authoritative here; don't wire it into the composer.
 3. **One section per layer, in `gitFlow` order** — a plain section-header row (`Text`, uppercase, secondary color) `LAYER · n files · +A −D · k/n reviewed`, then that group's file rows. Layer order comes from the daemon and is never re-sorted client-side; files inside a group keep daemon order too. A repo on starter layers will show most files under `Other` — that's correct and expected, don't "fix" it by sorting.
 4. **File row** (`ListItem`):
    - `leading`: a status glyph — `Icon` with a per-status SF Symbol / material symbol (`plus.circle` added, `pencil.circle` modified, `minus.circle` deleted, `arrow.triangle.turn.up.right.circle` renamed, `questionmark.circle` untracked), tinted from `theme/colors`.
    - headline: the **basename**, `numberOfLines={1}`; `supportingText`: the dirname (truncated head-first is not available — use `numberOfLines={1}`, the tail matters less than the file name here), plus `+A −D`.
    - `trailing`: a `Row` of (a) a reviewed check glyph — filled `checkmark.circle.fill` when the path is in `reviewedPaths`, hidden otherwise (display only, toggled from the diff screens, §2.3); (b) a `Checkbox` bound to "fully staged" (`staged && !unstaged`), the staging control (§2.4).
    - `onPress` opens the **file diff** screen (`/file?path=…`). Row tap = read, checkbox = stage: two targets, no gesture vocabulary to learn.
-5. Header toolbar (`Stack.Toolbar placement="right"`, existing pattern in `changes-screen.tsx`): **Read** (`book`/`text.alignleft` → `/reading`), **History** (existing), **Settings** (existing). Bottom toolbar: **Stage all / Unstage all** (flips to Unstage when every file is fully staged, mirroring `commit-group.tsx`) and **Commit** (opens the composer sheet, §2.5, disabled on a clean tree).
+5. Header toolbar (`Stack.Toolbar placement="right"`, existing pattern in `changes-screen.tsx`): **History** (always available) and the bolt sheet. Read and agent Review are contextual rows in the Changes list. The bolt sheet carries the desktop command set plus staging, review marks, and commit.
 
 Pull-to-refresh via `List`'s `onRefresh` → refetch `gitFlow` + `reviewedPaths`.
 
@@ -71,7 +71,7 @@ A route presented as a **form sheet** (`presentation: 'formSheet'`, `sheetAllowe
 
 **Push** is out of the composer (the desktop deliberately keeps Push out of Commit too). It is a single explicit tap in the suggestion strip → `Alert.alert` confirm → `gitPush` → invalidate `gitSuggestions` + `gitHead`, with git's output shown inline on failure.
 
-**Scope of commit UX in v1: staging toggles + stage-all + conventional-prefix pickers + message + commit + discard (confirmed) + push (confirmed).** Out: amend, hunk staging, co-authors, commit templates, quick commands other than push.
+**Scope of commit UX in v1: staging toggles + stage-all + conventional-prefix pickers + message + commit + discard (confirmed) + push (confirmed).** The bolt sheet also exposes the desktop's six quick commands. Out: amend, hunk staging, co-authors, and commit templates.
 
 ### 2.6 History (pushed from the Changes header)
 
@@ -110,7 +110,8 @@ Every descriptor carries a zod schema for its **output** (inputs are ours, so th
 | `gitFlow` | `repoPath` | working-tree list | `backstopMs: 10_000`, event-invalidated |
 | `reviewedPaths` | `repoPath` | check glyphs | with `gitFlow` |
 | `gitHead` | `repoPath` | summary row | `staleTime` 30 s |
-| `gitSuggestions` | `repoPath` | push strip | `staleTime` 30 s |
+| `gitSuggestions` | `repoPath` | contextual suggestions in the bolt sheet | `staleTime` 30 s |
+| `featureView` | `repoPath` | contextual Review row in Changes | focused poll / event-invalidated |
 | `gitCommitConventions` | `repoPath` | composer pickers | `staleTime` 5 min; only when the sheet is open |
 | `diffReading` | `{repoPath, scope:{type:'working'}}` | reading screen | **no polling**, `enabled` only while that screen is mounted+focused |
 | `gitDiffFile` | `{repoPath, filePath}` | file diff (working) | `staleTime` 0, event-invalidated |
@@ -195,7 +196,7 @@ Named on purpose, so nobody "completes" the surface:
 
 - **Branch scope.** Changes is working-scope only; History is commit-scope. No `gitRangeFlow` / "vs main" toggle — the branch story belongs to the Review/PR, and a scope switcher on a phone list is noise.
 - **Branch management**: `gitCheckout`, `gitCreateBranch`, `gitBranches`, `gitWorktrees`, `gitAddWorktree`, worktree inbox. Read-only branch *label* only.
-- **Quick commands**: `gitQuickCommand` entirely (pull, fetch, stash, stash-pop, status). Push is the single write, and it goes through `gitPush`.
+- **Quick commands**: the Changes bolt owns the daemon whitelist (`status`, `pull`, `push`, `fetch`, `stash`, `stash-pop`); branch management remains out of scope.
 - **Hunk-level / line-level staging**, amend, revert, cherry-pick, commit context menu.
 - **Syntax highlighting, split diff, word-level intra-line diff, in-diff search, image/binary previews.**
 - **File history** (`gitFileLog`), blame.

@@ -25,7 +25,7 @@ export function HeaderToolbar({
 }): React.JSX.Element {
   const companionAction: ScreenAction = companion ?? {
     href: '/companion',
-    icon: 'companion',
+    icon: 'bolt',
     label: 'Companion',
   }
 
@@ -39,11 +39,6 @@ export function HeaderToolbar({
           onPress={(): void => router.push(action.href)}
         />
       ))}
-      <Stack.Toolbar.Button
-        accessibilityLabel="Settings"
-        icon={toolbarIcon('settings')}
-        onPress={(): void => router.push('/settings')}
-      />
       <Stack.Toolbar.Button
         accessibilityLabel={companionAction.label}
         icon={toolbarIcon(companionAction.icon)}

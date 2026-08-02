@@ -12,6 +12,7 @@ import {
 
 const RECORD = {
   id: '3f2a1c88-0f4d-4b6e-9a11-2c7d5e8b0a34',
+  icon: 'desktop' as const,
   nickname: 'beelink',
   baseUrl: 'http://beelink.local:43117',
   endpoints: ['http://beelink.local:43117'],
@@ -52,6 +53,17 @@ describe('parseEnvironmentsFile', () => {
       status: 'ok',
       file: environmentsFileSchema.parse(file),
     })
+  })
+
+  it('defaults the icon for groups saved before icon selection existed', () => {
+    const legacy = { ...RECORD, icon: undefined }
+    const file = { version: 3, activeId: RECORD.id, environments: [legacy] }
+
+    expect(parseEnvironmentsFile(JSON.stringify(file))).toEqual({
+      status: 'ok',
+      file: environmentsFileSchema.parse(file),
+    })
+    expect(environmentsFileSchema.parse(file).environments[0]?.icon).toBe('desktop')
   })
 
   it('requires the endpoint list that defines an environment group', () => {

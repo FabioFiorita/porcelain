@@ -10,6 +10,16 @@ export const CHANGES_INVALIDATIONS = {
   ],
   discard: ['gitFlow', 'gitDiffFile', 'diffReading'],
   push: ['gitSuggestions', 'gitHead'],
+  quickCommand: [
+    'gitFlow',
+    'gitDiffFile',
+    'diffReading',
+    'gitHead',
+    'gitLog',
+    'gitCommitConventions',
+    'gitSuggestions',
+    'reviewedPaths',
+  ],
   reviewed: ['reviewedPaths'],
   stage: ['gitFlow'],
 } as const

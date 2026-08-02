@@ -23,6 +23,7 @@ import {
   gitSuggestionsQuery,
   reviewedPathsQuery,
 } from '@/lib/daemon/procedures/changes'
+import { type FeatureViewSummary, featureViewQuery } from '@/lib/daemon/procedures/review'
 import { useDaemonQuery } from '@/lib/daemon/queries'
 import { useActiveRepo } from '@/lib/daemon/repo'
 
@@ -78,6 +79,16 @@ export function useSuggestions(): Query<GitSuggestion[]> {
   const repo = useRepoPath()
   const focused = useIsFocused()
   return useDaemonQuery(gitSuggestionsQuery, repo.path, {
+    enabled: repo.enabled && focused,
+    pollMs: FOCUS_POLL,
+  })
+}
+
+/** The Changes shell uses the agent-published Review as a contextual destination. */
+export function useFeatureViewSummary(): Query<FeatureViewSummary> {
+  const repo = useRepoPath()
+  const focused = useIsFocused()
+  return useDaemonQuery(featureViewQuery, repo.path, {
     enabled: repo.enabled && focused,
     pollMs: FOCUS_POLL,
   })

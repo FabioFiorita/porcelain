@@ -1,5 +1,12 @@
 import { Button, HStack, Image, Section, Spacer, Text, VStack } from '@expo/ui/swift-ui'
-import { font, foregroundStyle, lineLimit } from '@expo/ui/swift-ui/modifiers'
+import {
+  buttonStyle,
+  contentShape,
+  foregroundStyle,
+  frame,
+  lineLimit,
+  shapes,
+} from '@expo/ui/swift-ui/modifiers'
 
 import { totalStats } from '@/features/changes/lib/diff-rows'
 import { basename, dirname, formatStats, stagingLabel } from '@/features/changes/lib/format'
@@ -8,7 +15,8 @@ import type { FlowFile, FlowGroup } from '@/lib/daemon/procedures/changes'
 import { statusTint } from '@/theme/colors'
 import { footnote, secondary } from '@/theme/modifiers'
 
-const caption = font({ textStyle: 'caption' })
+const additionsStyle = foregroundStyle({ color: statusTint('added'), type: 'color' })
+const deletionsStyle = foregroundStyle({ color: statusTint('deleted'), type: 'color' })
 
 /**
  * The flow-grouped file list, shared by the working tree and a historical commit — the grouping
@@ -30,7 +38,7 @@ export function FlowGroupList({
   return (
     <>
       {groups.map((group) => (
-        <Section header={<LayerHeader group={group} />} key={group.layer}>
+        <Section key={group.layer} title={layerTitle(group)}>
           {group.files.map((file) => (
             <FileRow
               file={file}
@@ -45,16 +53,12 @@ export function FlowGroupList({
   )
 }
 
-function LayerHeader({ group }: { group: FlowGroup }): React.JSX.Element {
+function layerTitle(group: FlowGroup): string {
   const totals = totalStats([group])
   const stats = formatStats(totals.additions, totals.deletions)
   const files = `${totals.files} file${totals.files === 1 ? '' : 's'}`
 
-  return (
-    <Text modifiers={[caption, secondary]}>
-      {[group.layer.toUpperCase(), files, stats].filter((part) => part !== '').join(' · ')}
-    </Text>
-  )
+  return [group.layer.toUpperCase(), files, stats].filter((part) => part !== '').join(' · ')
 }
 
 function FileRow({
@@ -75,8 +79,14 @@ function FileRow({
     .join(' · ')
 
   return (
-    <Button onPress={(): void => onSelect(file.path)}>
-      <HStack spacing={10}>
+    <Button modifiers={[buttonStyle('plain')]} onPress={(): void => onSelect(file.path)}>
+      <HStack
+        modifiers={[
+          contentShape(shapes.rectangle()),
+          frame({ maxWidth: Infinity, alignment: 'leading' }),
+        ]}
+        spacing={10}
+      >
         <Image
           modifiers={[foregroundStyle({ color: statusTint(file.status), type: 'color' })]}
           size={18}
@@ -84,9 +94,7 @@ function FileRow({
         />
         <VStack alignment="leading" spacing={2}>
           <Text modifiers={[lineLimit(1)]}>{basename(file.path)}</Text>
-          {detail === '' ? null : (
-            <Text modifiers={[footnote, secondary, lineLimit(1)]}>{detail}</Text>
-          )}
+          {detail === '' ? null : <FileDetails file={file} />}
         </VStack>
         <Spacer />
         {reviewed ? (
@@ -98,5 +106,37 @@ function FileRow({
         ) : null}
       </HStack>
     </Button>
+  )
+}
+
+function FileDetails({ file }: { file: FlowFile }): React.JSX.Element | null {
+  const directory = dirname(file.path)
+  const hasAdditions = file.additions !== undefined && file.additions > 0
+  const hasDeletions = file.deletions !== undefined && file.deletions > 0
+  const stage = stagingLabel(file)
+  if (directory === '' && !hasAdditions && !hasDeletions && stage === '') return null
+
+  return (
+    <HStack spacing={4}>
+      {directory === '' ? null : (
+        <Text modifiers={[footnote, secondary, lineLimit(1)]}>{directory}</Text>
+      )}
+      {directory === '' || !hasAdditions ? null : <Text modifiers={[footnote, secondary]}>·</Text>}
+      {hasAdditions ? (
+        <Text modifiers={[footnote, additionsStyle]}>{`+${file.additions}`}</Text>
+      ) : null}
+      {hasAdditions && hasDeletions ? <Text modifiers={[footnote, secondary]}>·</Text> : null}
+      {hasDeletions ? (
+        <Text modifiers={[footnote, deletionsStyle]}>{`−${file.deletions}`}</Text>
+      ) : null}
+      {stage === '' ? null : (
+        <>
+          {directory !== '' || hasAdditions || hasDeletions ? (
+            <Text modifiers={[footnote, secondary]}>·</Text>
+          ) : null}
+          <Text modifiers={[footnote, secondary]}>{stage}</Text>
+        </>
+      )}
+    </HStack>
   )
 }

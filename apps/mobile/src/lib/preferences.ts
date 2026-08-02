@@ -9,18 +9,21 @@ export type Preferences = {
   diffLayout: 'unified' | 'split'
   html: 'preview' | 'source'
   markdown: 'reader' | 'source'
+  pullMode: 'merge' | 'rebase'
 }
 
 const DEFAULTS: Preferences = {
   diffLayout: 'unified',
   html: 'preview',
   markdown: 'reader',
+  pullMode: 'merge',
 }
 
 const ALLOWED: { [K in keyof Preferences]: readonly Preferences[K][] } = {
   diffLayout: ['unified', 'split'],
   html: ['preview', 'source'],
   markdown: ['reader', 'source'],
+  pullMode: ['merge', 'rebase'],
 }
 
 // One blob under one key: these are read together and never written from two places at once.
@@ -58,6 +61,7 @@ function readStored(): Preferences {
     diffLayout: narrow('diffLayout', stored.diffLayout),
     html: narrow('html', stored.html),
     markdown: narrow('markdown', stored.markdown),
+    pullMode: narrow('pullMode', stored.pullMode),
   }
 }
 

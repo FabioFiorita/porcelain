@@ -5,11 +5,17 @@ import { ObserveInteractiveMarker } from 'expo-observe'
 import { router } from 'expo-router'
 
 import { DaemonGate } from '@/components/daemon-gate'
+import { ListLinkRow } from '@/components/list-link-row'
 import { ScreenHeader } from '@/components/screen-header'
 import { ScreenHost } from '@/components/screen-host'
 import { FlowGroupList } from '@/features/changes/components/flow-group-list'
 import { QueryNotice } from '@/features/changes/components/query-notice'
-import { useHead, useReviewedPaths, useWorkingFlow } from '@/features/changes/data/queries'
+import {
+  useFeatureViewSummary,
+  useHead,
+  useReviewedPaths,
+  useWorkingFlow,
+} from '@/features/changes/data/queries'
 import { totalStats } from '@/features/changes/lib/diff-rows'
 import { formatStats } from '@/features/changes/lib/format'
 import { footnote, secondary } from '@/theme/modifiers'
@@ -28,10 +34,7 @@ export function ChangesScreen(): React.JSX.Element {
         <WorkingTree />
       </DaemonGate>
       <ScreenHeader
-        actions={[
-          { href: '/reading', icon: 'read', label: 'Read' },
-          { href: '/history', icon: 'history', label: 'History' },
-        ]}
+        actions={[{ href: '/history', icon: 'history', label: 'History' }]}
         companion={{ href: '/actions', icon: 'bolt', label: 'Actions' }}
         title="Changes"
       />
@@ -44,6 +47,7 @@ function WorkingTree(): React.JSX.Element {
   const flow = useWorkingFlow()
   const reviewed = useReviewedPaths()
   const head = useHead()
+  const featureView = useFeatureViewSummary()
 
   const groups = flow.data ?? []
   const totals = totalStats(groups)
@@ -66,6 +70,27 @@ function WorkingTree(): React.JSX.Element {
             </Text>
           </HStack>
         </Section>
+        {groups.length === 0 &&
+        (featureView.data === null || featureView.data === undefined) ? null : (
+          <Section title="Review">
+            {groups.length === 0 ? null : (
+              <ListLinkRow
+                detail="Read every changed file in flow order"
+                icon="text.alignleft"
+                label="Read changes"
+                onPress={(): void => router.push('/reading')}
+              />
+            )}
+            {featureView.data === null || featureView.data === undefined ? null : (
+              <ListLinkRow
+                detail={featureView.data.name}
+                icon="checkmark.seal"
+                label="Review agent work"
+                onPress={(): void => router.push('/review')}
+              />
+            )}
+          </Section>
+        )}
         {groups.length === 0 ? (
           <Section>
             <QueryNotice

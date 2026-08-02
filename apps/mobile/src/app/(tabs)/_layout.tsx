@@ -15,15 +15,6 @@ export default function TabsLayout(): React.JSX.Element {
         <NativeTabs.Trigger.Icon sf="arrow.triangle.branch" />
         <NativeTabs.Trigger.Label>Changes</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="(review)">
-        {/*
-          Reading a change closely, not stamping it: Review is the work read as a story, so
-          the glyph is a magnifier over text rather than the seal it used to be — that one
-          read as an approve button, which is not what the tab does.
-        */}
-        <NativeTabs.Trigger.Icon sf="text.magnifyingglass" />
-        <NativeTabs.Trigger.Label>Review</NativeTabs.Trigger.Label>
-      </NativeTabs.Trigger>
       {/*
         The plan is a peer of the work, not a child of the Review that reports it — the
         renderer has carried Board as its own sidebar tab all along.
@@ -35,6 +26,10 @@ export default function TabsLayout(): React.JSX.Element {
       <NativeTabs.Trigger name="(terminal)">
         <NativeTabs.Trigger.Icon sf="terminal.fill" />
         <NativeTabs.Trigger.Label>Terminal</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="settings">
+        <NativeTabs.Trigger.Icon sf="gearshape.fill" />
+        <NativeTabs.Trigger.Label>Settings</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
     </NativeTabs>
   )

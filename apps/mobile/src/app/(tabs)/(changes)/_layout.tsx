@@ -7,6 +7,8 @@ export default function ChangesLayout(): React.JSX.Element {
       <Stack.Screen name="index" options={{ headerTitle: '', title: 'Changes' }} />
       <Stack.Screen name="history" options={{ title: 'History' }} />
       <Stack.Screen name="reading" options={{ title: 'Read' }} />
+      {/* `ReviewScreen` draws the shared title and toolbar; keep the native title slot empty. */}
+      <Stack.Screen name="review" options={{ headerTitle: '', title: 'Review' }} />
       {/* `file` and `commit/[hash]` title themselves from their subject. */}
       <Stack.Screen name="file" />
       <Stack.Screen name="commit/[hash]" />

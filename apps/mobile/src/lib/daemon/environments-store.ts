@@ -7,6 +7,7 @@ import { forgetDaemonClient } from './client'
 import {
   EMPTY_ENVIRONMENTS_FILE,
   type Environment,
+  type EnvironmentIcon,
   type EnvironmentId,
   type EnvironmentRecord,
   type EnvironmentsFile,
@@ -142,6 +143,7 @@ type EnvironmentActions = {
   add(input: { nickname: string; baseUrl: string; token: string }): Promise<PairedEnvironment>
   addEndpoint(id: EnvironmentId, baseUrl: string): Promise<void>
   restoreToken(id: EnvironmentId, baseUrl: string, token: string): Promise<void>
+  setIcon(id: EnvironmentId, icon: EnvironmentIcon): Promise<void>
   rename(id: EnvironmentId, nickname: string): Promise<void>
   setActive(id: EnvironmentId): Promise<void>
   setActiveEndpoint(id: EnvironmentId, baseUrl: string): Promise<void>
@@ -174,6 +176,7 @@ export const environmentActions: EnvironmentActions = {
       createdAt: Date.now(),
       endpoints: [baseUrl],
       id: randomUUID(),
+      icon: 'desktop',
       nickname: input.nickname,
       preferredEndpoint: baseUrl,
       token: input.token,
@@ -227,6 +230,19 @@ export const environmentActions: EnvironmentActions = {
           : candidate,
       ),
       connection: state.activeId === id ? { kind: 'connecting' } : state.connection,
+    }))
+    await persist()
+  },
+
+  async setIcon(id: EnvironmentId, icon: EnvironmentIcon): Promise<void> {
+    const environment = useEnvironmentsStore
+      .getState()
+      .environments.find((candidate) => candidate.id === id)
+    if (environment === undefined) throw new Error('That environment no longer exists')
+    useEnvironmentsStore.setState((state) => ({
+      environments: state.environments.map((candidate) =>
+        candidate.id === id ? { ...candidate, icon } : candidate,
+      ),
     }))
     await persist()
   },

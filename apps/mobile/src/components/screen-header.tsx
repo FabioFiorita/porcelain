@@ -1,13 +1,8 @@
-import { Button, Host, HStack, Image, Menu, Picker, Text, VStack } from '@expo/ui/swift-ui'
-import { disabled, font, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers'
+import { Button, Host, HStack, Image, Menu, Text, VStack } from '@expo/ui/swift-ui'
+import { font } from '@expo/ui/swift-ui/modifiers'
 import { router, Stack } from 'expo-router'
 
 import { HeaderToolbar, type ScreenAction } from '@/components/header-toolbar'
-import {
-  environmentActions,
-  useActiveEnvironment,
-  useEnvironments,
-} from '@/lib/daemon/environments-store'
 import { useActiveRepo } from '@/lib/daemon/repo'
 import { useAccentColor } from '@/theme/colors'
 import { secondary } from '@/theme/modifiers'
@@ -30,13 +25,12 @@ export function ScreenHeader({
   title: string
 }): React.JSX.Element {
   const accentColor = useAccentColor()
-  const environments = useEnvironments()
-  const selected = useActiveEnvironment()
   const repo = useActiveRepo()
 
-  // The line names the repo you are reading, which is what a project picker selects. It falls
-  // back to the environment, then to the action that gets you one.
-  const context = repo?.name ?? selected?.nickname ?? 'Pair an environment'
+  // The line names the repo you are reading, which is what a project picker selects. Environment
+  // routing stays in Settings; putting its selector here made the toolbar change meaning on every
+  // screen and made a four-button header out of a contextual control.
+  const context = repo?.name ?? 'Choose project'
 
   return (
     <>
@@ -56,36 +50,7 @@ export function ScreenHeader({
                 }
               >
                 <Menu label="Project" systemImage="folder">
-                  <Button
-                    label={selected === null ? 'Needs an environment' : 'Choose repo…'}
-                    modifiers={[disabled(selected === null)]}
-                    onPress={(): void => router.push('/repo')}
-                  />
-                </Menu>
-                <Menu label="Environment" systemImage="desktopcomputer">
-                  {environments.length === 0 ? (
-                    <Button
-                      label="Pair an environment group"
-                      onPress={(): void => router.push('/settings/pair')}
-                      systemImage="plus"
-                    />
-                  ) : (
-                    // An inline Picker is what puts the checkmark beside the current row.
-                    <Picker<string>
-                      label="Environment"
-                      modifiers={[pickerStyle('inline')]}
-                      onSelectionChange={(id: string): void => {
-                        environmentActions.setActive(id)
-                      }}
-                      selection={selected?.id ?? ''}
-                    >
-                      {environments.map((environment) => (
-                        <Text key={environment.id} modifiers={[tag(environment.id)]}>
-                          {environment.nickname}
-                        </Text>
-                      ))}
-                    </Picker>
-                  )}
+                  <Button label="Choose repo…" onPress={(): void => router.push('/repo')} />
                 </Menu>
               </Menu>
             </VStack>

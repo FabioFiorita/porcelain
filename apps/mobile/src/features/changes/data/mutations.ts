@@ -5,17 +5,20 @@ import {
   gitCommitMutation,
   gitDiscardFileMutation,
   gitPushMutation,
+  gitQuickCommandMutation,
   gitStageAllMutation,
   gitStageFileMutation,
   gitUnstageAllMutation,
   gitUnstageFileMutation,
   markReviewedMutation,
+  type QuickCommandId,
   reviewedPathsQuery,
   setReviewedMutation,
   unmarkReviewedMutation,
 } from '@/lib/daemon/procedures/changes'
 import { daemonKeys, useDaemonMutation } from '@/lib/daemon/queries'
 import { useActiveRepo } from '@/lib/daemon/repo'
+import { usePreferences } from '@/lib/preferences'
 import { CHANGES_INVALIDATIONS } from './invalidation'
 
 type ChangeAction<TOutput> = {
@@ -45,6 +48,11 @@ export type ChangesMutations = {
   readonly discardFile: FileChangeAction
   readonly markReviewed: FileChangeAction
   readonly push: ChangeAction<string>
+  readonly quickCommand: {
+    readonly error: DaemonError | null
+    readonly isPending: boolean
+    readonly run: (command: QuickCommandId) => Promise<string>
+  }
   readonly setReviewed: ReviewedPathsAction
   readonly stageAll: ChangeAction<void>
   readonly stageFile: FileChangeAction
@@ -78,6 +86,9 @@ export function useChangesMutations(): ChangesMutations {
   const pushMutation = useDaemonMutation<{ repoPath: string }, string>(gitPushMutation, {
     invalidates: CHANGES_INVALIDATIONS.push,
   })
+  const quickCommandMutation = useDaemonMutation(gitQuickCommandMutation, {
+    invalidates: CHANGES_INVALIDATIONS.quickCommand,
+  })
   const markReviewedMutationResult = useDaemonMutation(markReviewedMutation, {
     invalidates: CHANGES_INVALIDATIONS.reviewed,
   })
@@ -87,6 +98,7 @@ export function useChangesMutations(): ChangesMutations {
   const setReviewedMutationResult = useDaemonMutation(setReviewedMutation, {
     invalidates: CHANGES_INVALIDATIONS.reviewed,
   })
+  const preferences = usePreferences()
 
   async function runVoidRepoAction(run: (repoPath: string) => Promise<void>): Promise<void> {
     if (repo === null) return
@@ -165,6 +177,19 @@ export function useChangesMutations(): ChangesMutations {
       run: async (): Promise<string> =>
         await runStringRepoAction(
           async (repoPath: string): Promise<string> => await pushMutation.mutateAsync({ repoPath }),
+        ),
+    },
+    quickCommand: {
+      error: quickCommandMutation.error,
+      isPending: quickCommandMutation.isPending,
+      run: async (command: QuickCommandId): Promise<string> =>
+        await runStringRepoAction(
+          async (repoPath: string): Promise<string> =>
+            await quickCommandMutation.mutateAsync({
+              command,
+              pullMode: preferences.pullMode,
+              repoPath,
+            }),
         ),
     },
     setReviewed: {

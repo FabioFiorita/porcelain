@@ -12,6 +12,7 @@ import {
   useNativeState,
 } from '@expo/ui/swift-ui'
 import {
+  buttonStyle,
   disabled,
   font,
   foregroundStyle,
@@ -25,6 +26,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { DaemonGate } from '@/components/daemon-gate'
 import { ScreenHost } from '@/components/screen-host'
 import { SheetCloseToolbar } from '@/components/sheet-close-toolbar'
+import { QuickCommandsSection } from '@/features/changes/components/quick-commands-section'
 import { useCommitDraftStore } from '@/features/changes/data/commit-draft'
 import { useChangesMutations } from '@/features/changes/data/mutations'
 import {
@@ -39,7 +41,8 @@ import { firstParam } from '@/features/changes/lib/scope'
 import { type DaemonError, daemonErrorMessage } from '@/lib/daemon/errors'
 import type { FlowFile } from '@/lib/daemon/procedures/changes'
 import { useActiveRepo } from '@/lib/daemon/repo'
-import { footnote, monospace, secondary } from '@/theme/modifiers'
+import { useAccentColor } from '@/theme/colors'
+import { footnote, secondary } from '@/theme/modifiers'
 
 const headline = font({ textStyle: 'headline' })
 const errorStyle = foregroundStyle({ color: '#FF3B30', type: 'color' })
@@ -59,6 +62,7 @@ export function ActionsScreen(): React.JSX.Element {
 
 function ActionsBody({ path }: { readonly path: string }): React.JSX.Element {
   const repo = useActiveRepo()
+  const accentColor = useAccentColor()
   const flow = useWorkingFlow()
   const reviewed = useReviewedPaths()
   const suggestions = useSuggestions()
@@ -69,9 +73,7 @@ function ActionsBody({ path }: { readonly path: string }): React.JSX.Element {
   const clearDraft = useCommitDraftStore((state) => state.clearMessage)
   const nativeMessage = useNativeState(draft)
   const [discardPresented, setDiscardPresented] = useState(false)
-  const [pushPresented, setPushPresented] = useState(false)
   const [operationError, setOperationError] = useState<string | null>(null)
-  const [pushOutput, setPushOutput] = useState<string | null>(null)
 
   const files = useMemo(
     (): FlowFile[] => flow.data?.flatMap((group) => group.files) ?? [],
@@ -87,7 +89,6 @@ function ActionsBody({ path }: { readonly path: string }): React.JSX.Element {
   const stagedAdditions = stagedFiles.reduce((total, file) => total + (file.additions ?? 0), 0)
   const stagedDeletions = stagedFiles.reduce((total, file) => total + (file.deletions ?? 0), 0)
   const prefix = parseCommitPrefix(draft)
-  const pushSuggestion = suggestions.data?.find((suggestion) => suggestion.command === 'push')
   const error = operationError ?? firstErrorMessage(mutations, flow.error, reviewed.error)
 
   useEffect(() => {
@@ -136,16 +137,6 @@ function ActionsBody({ path }: { readonly path: string }): React.JSX.Element {
     try {
       await mutations.discardFile.run(selectedFile.path)
       router.dismiss(2)
-    } catch (cause) {
-      setOperationError(actionError(cause))
-    }
-  }
-
-  async function runPush(): Promise<void> {
-    setPushPresented(false)
-    setOperationError(null)
-    try {
-      setPushOutput(await mutations.push.run())
     } catch (cause) {
       setOperationError(actionError(cause))
     }
@@ -221,6 +212,8 @@ function ActionsBody({ path }: { readonly path: string }): React.JSX.Element {
           </Section>
         )}
 
+        <QuickCommandsSection mutations={mutations} suggestions={suggestions.data ?? []} />
+
         <Section title="Working tree">
           <Button
             label={allStaged ? 'Unstage all' : 'Stage all'}
@@ -248,18 +241,6 @@ function ActionsBody({ path }: { readonly path: string }): React.JSX.Element {
             <Text modifiers={[footnote, secondary]}>Reading working-tree changes…</Text>
           ) : null}
         </Section>
-
-        {pushSuggestion === undefined ? null : (
-          <Section title="Push">
-            <Button
-              label={`Push · ${pushSuggestion.reason}`}
-              modifiers={[disabled(mutations.push.isPending)]}
-              onPress={(): void => setPushPresented(true)}
-              systemImage="arrow.up.circle"
-            />
-            {pushOutput === null ? null : <Text modifiers={[monospace]}>{pushOutput}</Text>}
-          </Section>
-        )}
 
         <Section title="Commit">
           <HStack spacing={8}>
@@ -304,6 +285,9 @@ function ActionsBody({ path }: { readonly path: string }): React.JSX.Element {
               </Text>
             ))}
           </Picker>
+        </Section>
+
+        <Section>
           <TextField
             axis="vertical"
             onTextChange={updateDraft}
@@ -313,6 +297,8 @@ function ActionsBody({ path }: { readonly path: string }): React.JSX.Element {
           <Button
             label="Commit"
             modifiers={[
+              buttonStyle('automatic'),
+              foregroundStyle({ color: accentColor, type: 'color' }),
               disabled(
                 draft.trim() === '' || stagedFiles.length === 0 || mutations.commit.isPending,
               ),
@@ -349,24 +335,6 @@ function ActionsBody({ path }: { readonly path: string }): React.JSX.Element {
           <Button label="Cancel" onPress={(): void => setDiscardPresented(false)} role="cancel" />
         </ConfirmationDialog.Actions>
       </ConfirmationDialog>
-      <ConfirmationDialog
-        isPresented={pushPresented}
-        onIsPresentedChange={setPushPresented}
-        title="Push changes?"
-      >
-        <ConfirmationDialog.Message>
-          <Text>Send the current branch to its upstream.</Text>
-        </ConfirmationDialog.Message>
-        <ConfirmationDialog.Actions>
-          <Button
-            label="Push"
-            onPress={(): void => {
-              runPush()
-            }}
-          />
-          <Button label="Cancel" onPress={(): void => setPushPresented(false)} role="cancel" />
-        </ConfirmationDialog.Actions>
-      </ConfirmationDialog>
     </ScreenHost>
   )
 }
@@ -385,6 +353,7 @@ function firstErrorMessage(
     mutations.discardFile.error,
     mutations.markReviewed.error,
     mutations.push.error,
+    mutations.quickCommand.error,
     mutations.setReviewed.error,
     mutations.stageAll.error,
     mutations.stageFile.error,
