@@ -1,17 +1,8 @@
 import { TRPCClientError } from '@trpc/client'
 import { z } from 'zod'
 
-/**
- * The five failures a phone actually sees. `unsupported` is version skew, not a bug: a daemon
- * older than the procedure answers `NOT_FOUND`, and the calling screen degrades instead of
- * claiming the connection is broken.
- */
-export type DaemonErrorKind =
-  | 'unreachable'
-  | 'unauthorized'
-  | 'unsupported'
-  | 'invalid-response'
-  | 'daemon-error'
+/** The failures a phone can act on at the daemon boundary. */
+export type DaemonErrorKind = 'unreachable' | 'unauthorized' | 'invalid-response' | 'daemon-error'
 
 export class DaemonError extends Error {
   readonly kind: DaemonErrorKind
@@ -37,8 +28,6 @@ export function daemonErrorMessage(error: DaemonError): string {
       return 'The daemon could not be reached.'
     case 'unauthorized':
       return 'This device is no longer paired.'
-    case 'unsupported':
-      return 'Your daemon is too old for this.'
     case 'invalid-response':
       return 'The daemon returned an invalid response.'
     case 'daemon-error':
@@ -71,11 +60,6 @@ export function toDaemonError(procedure: string, cause: unknown): DaemonError {
   if (httpStatus === 401 || httpStatus === 403 || code === 'UNAUTHORIZED') {
     return new DaemonError('unauthorized', procedure, 'This device is no longer paired.', { cause })
   }
-  if (code === 'NOT_FOUND' && httpStatus === 404) {
-    return new DaemonError('unsupported', procedure, daemonErrorMessageFor('unsupported'), {
-      cause,
-    })
-  }
   // No data at all means the request never reached a tRPC handler: DNS, refused, timeout.
   if (!data.success || code === undefined) {
     return new DaemonError('unreachable', procedure, daemonErrorMessageFor('unreachable'), {
@@ -93,8 +77,6 @@ function daemonErrorMessageFor(kind: DaemonErrorKind): string {
       return 'The daemon could not be reached.'
     case 'unauthorized':
       return 'This device is no longer paired.'
-    case 'unsupported':
-      return 'Your daemon is too old for this.'
     case 'invalid-response':
       return 'The daemon returned an invalid response.'
     case 'daemon-error':

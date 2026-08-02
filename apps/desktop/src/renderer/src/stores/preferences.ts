@@ -98,25 +98,6 @@ export const usePreferencesStore = create<PreferencesState>()(
     }),
     {
       name: 'porcelain-preferences',
-      // Re-clamp persisted widths in case the min/max floor changed since they
-      // were stored — otherwise an old too-narrow width would survive on load.
-      onRehydrateStorage: () => (state: PreferencesState | undefined) => {
-        if (!state) return
-        state.setSidebarWidth(state.sidebarWidth)
-        state.setRightSidebarWidth(state.rightSidebarWidth)
-        // Persisted JSON is untyped — an unknown/retired sidebarTab id would leave the
-        // left panel blank. Fall back to Files when the value is not a live tab.
-        const known: readonly string[] = [
-          'files',
-          'changes',
-          'history',
-          'feature',
-          'board',
-          'terminal',
-          'search',
-        ]
-        if (!known.includes(state.sidebarTab)) state.setSidebarTab('files')
-      },
     },
   ),
 )

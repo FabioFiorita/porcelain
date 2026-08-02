@@ -12,8 +12,8 @@ pastes a pairing link into Settings → Environments, the app redeems it, stores
 `expo-secure-store`, picks a repo from the daemon's recents (or browses the
 daemon's directories), and every screen in the app can then run a typed, zod-validated tRPC call
 against the active environment with React Query caching, a `/session` WebSocket pushing
-invalidations, and a coherent story for the three failures that actually happen (host unreachable,
-token revoked, daemon too old). The four tabs are still placeholders — but each one now has an
+invalidations, and a coherent story for the two connection failures that actually happen (host
+unreachable, token revoked). The four tabs are still placeholders — but each one now has an
 empty state that routes to pairing instead of lying, and a one-import path to real data.
 
 ## 2. Shared seams this layer exports
@@ -61,9 +61,10 @@ vs. react-native lib config). Making it pass means bending the mobile tsconfig a
 that for a checked-in generated artifact that goes stale silently and orders `pnpm build` before
 `typecheck:mobile`. The hand-declared contract costs one small zod schema per procedure used, and
 buys something the imported type could never give: **runtime validation at a genuinely external
-seam**. Version skew across daemon releases is real and stated in `daemon-api.md`; a compile-time
-type asserts a shape the phone cannot verify, while a zod parse turns skew into a legible
-`invalid-response` error instead of an undefined-property crash three renders later.
+seam**. Even though the app and daemon are developed together, the response is an external
+boundary; a compile-time type asserts a shape the phone cannot verify, while a zod parse turns
+contract drift into a legible `invalid-response` error instead of an undefined-property crash
+three renders later.
 
 The client itself is still the real thing — vanilla `@trpc/client` v11 with `httpBatchLink`, so
 batching, error shapes, and the URL contract are tRPC's, not ours:
@@ -173,7 +174,7 @@ export type ConnectionState =
   | { kind: 'loading' }
   | { kind: 'no-environment' }
   | { kind: 'connecting' }
-  | { kind: 'ready'; daemonVersion: string | null }  // null = pre-0.30 daemon
+  | { kind: 'ready'; daemonVersion: string }
   | { kind: 'unreachable'; message: string }
   | { kind: 'unauthorized' }
 ```
@@ -373,15 +374,15 @@ one primary `Button`; the existing `PlaceholderScreen` stays for the not-yet-bui
 
 | Descriptor | Procedure | Input | Output schema |
 |---|---|---|---|
-| `daemonInfoQuery` | `daemonInfo` Q | `void` | `{ version: string; host?: string; platform?: string; arch?: string }` |
+| `daemonInfoQuery` | `daemonInfo` Q | `void` | `{ version: string; host: string; platform: string; arch: string }` |
 | `recentReposQuery` | `recentRepos` Q | `{ includeWorktrees: boolean }` | `{ path: string; name: string }[]` |
 | `openRepoPathMutation` | `openRepoPath` M | `string` (abs daemon path) | `{ path: string; name: string }` |
 | `browseDirsQuery` | `browseDirs` Q | `string \| null` | `{ path: string; parent: string \| null; entries: { name: string; path: string; isRepo: boolean }[] }` |
 | `removeRecentRepoMutation` | `removeRecentRepo` M | `string` | `void` (`z.void()`) |
 | `revokeCurrentClientMutation` | `revokeCurrentClient` M | `void` | `void` |
 
-Every optional daemon field stays optional in the schema — `daemonInfo`'s identity fields are the
-version-skew canary, not a contract.
+`daemonInfo`'s identity fields are required. Optional fields elsewhere describe domain values
+that are genuinely inapplicable, not alternate contracts.
 
 ### Query keys
 
@@ -391,7 +392,7 @@ switching environments can never serve another daemon's cache, and unpairing is 
 (every repo-scoped procedure already takes `repoPath`).
 
 Defaults on the singleton `QueryClient`: `staleTime: 5_000`, `gcTime: 5 * 60_000`, `retry` = 2 for
-`unreachable` only (never retry `unauthorized`, `unsupported`, or `invalid-response`),
+`unreachable` only (never retry `unauthorized` or `invalid-response`),
 `refetchOnReconnect: true`, `refetchOnMount: true`.
 
 ### Invalidation on app-event — `app-events.ts`
@@ -486,8 +487,7 @@ for one string.
 export type DaemonErrorKind =
   | 'unreachable'       // network failure, DNS, refused, timeout
   | 'unauthorized'      // 401 — token revoked or wrong daemon
-  | 'unsupported'       // NOT_FOUND on a procedure this daemon is too old to have
-  | 'invalid-response'  // zod parse failure — version skew in a payload shape
+  | 'invalid-response'  // zod parse failure — contract drift in a payload shape
   | 'daemon-error'      // the daemon answered with a real error message
 
 export class DaemonError extends Error {
@@ -505,15 +505,13 @@ Classification reads `TRPCClientError`'s `data.httpStatus` / `data.code`; anythi
 |---|---|
 | `unreachable` | `ConnectionState.unreachable` → `DaemonGate` empty state + the environment row's dot; a retry does **not** clear the cache |
 | `unauthorized` | `ConnectionState.unauthorized` → gate offers re-pair; the environment group is kept (nickname + endpoints survive), the token key is deleted |
-| `unsupported` on `daemonInfo` | not an error — `ready` with `daemonVersion: null`, plus a one-line "This daemon predates 0.30; some screens may be empty" note on the environment detail screen |
-| `unsupported` elsewhere | the calling screen shows "Your daemon is too old for this" in place of that section; the rest of the app keeps working |
 | `invalid-response` | the calling screen shows "Unexpected response from the daemon" and the environment detail nudges an update; the parse error is logged with the procedure name |
 | `daemon-error` | the daemon's own message, verbatim, at the call site |
 
 ### Bootstrap order (in `DaemonProvider`, on hydrate and on every environment switch)
 
-`hydrate` → active environment → ordered endpoint probes → `daemonInfo` (version probe;
-`NOT_FOUND` ⇒ pre-0.30) → `recentRepos` (doubles as the token-validity probe: a `401` here is what
+`hydrate` → active environment → ordered endpoint probes → `daemonInfo` (current build and
+identity contract) → `recentRepos` (doubles as the token-validity probe: a `401` here is what
 flips `unauthorized`) → if `activeRepoPath` is set, `openRepoPath` it (load-bearing — records the
 recent, seeds worktree settings, warms the file cache) → remember last-known-good → open the socket
 and `session:hello`.

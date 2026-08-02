@@ -42,7 +42,7 @@ export function localTerminalPathKey(environmentId: string | null, repoPath: str
   return `${environmentId ?? 'local'}\n${repoPath}`
 }
 
-/** Parse persisted JSON, falling back to empty on absent/corrupt/legacy shapes. PURE. */
+/** Parse persisted JSON, falling back to empty on absent or corrupt shapes. PURE. */
 export function parseLocalTerminalPathState(json: unknown): LocalTerminalPathState {
   const parsed = stateSchema.safeParse(json)
   return parsed.success ? parsed.data : EMPTY_STATE

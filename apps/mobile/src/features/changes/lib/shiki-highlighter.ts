@@ -1,6 +1,6 @@
 import type { LanguageInput, ThemeInput } from '@shikijs/core'
 import { createHighlighterCore } from '@shikijs/core'
-import { requireOptionalNativeModule } from 'expo'
+import { createNativeEngine } from 'react-native-shiki-engine'
 
 import type { ShikiHighlighter } from '@/features/changes/lib/highlight'
 
@@ -39,15 +39,6 @@ export function shikiThemeName(scheme: 'light' | 'dark'): string {
 
 let highlighterPromise: Promise<ShikiHighlighter> | null = null
 
-type NativeShikiEngine = typeof import('react-native-shiki-engine')
-
-async function loadNativeEngine(): Promise<NativeShikiEngine> {
-  if (requireOptionalNativeModule('ShikiEngine') === null) {
-    throw new Error('ShikiEngine is not linked in this native client.')
-  }
-  return await import('react-native-shiki-engine')
-}
-
 /**
  * A failed build (a bad OTA bundle split, a missing grammar chunk) must not wedge every future
  * mount behind the same rejected promise — clear the cache so the next caller retries from
@@ -55,9 +46,8 @@ async function loadNativeEngine(): Promise<NativeShikiEngine> {
  */
 async function buildHighlighter(): Promise<ShikiHighlighter> {
   try {
-    const nativeEngine = await loadNativeEngine()
     return (await createHighlighterCore({
-      engine: nativeEngine.createNativeEngine(),
+      engine: createNativeEngine(),
       langs: LANG_LOADERS,
       themes: [THEME_LOADERS.dark, THEME_LOADERS.light],
     })) as ShikiHighlighter
@@ -69,11 +59,9 @@ async function buildHighlighter(): Promise<ShikiHighlighter> {
 
 /**
  * One highlighter instance for the app's lifetime, built on first use: the native engine's own
- * guidance is to construct it once and reuse it, never per render. Returns `undefined` when the
- * native engine isn't linked — an old dev-client build, or a RowCanvas fallback build — so a
- * caller degrades to `highlight.ts`'s documented "no tokenizer" path, not a broken one.
+ * guidance is to construct it once and reuse it, never per render.
  */
-export function getHighlighter(): Promise<ShikiHighlighter> | undefined {
+export function getHighlighter(): Promise<ShikiHighlighter> {
   highlighterPromise ??= buildHighlighter()
   return highlighterPromise
 }

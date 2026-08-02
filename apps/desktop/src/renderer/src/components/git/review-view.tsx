@@ -11,7 +11,7 @@ export function parseReviewTabKey(path: string): DiffReadingScope {
   if (path === 'working') return { type: 'working' }
   if (path === 'branch') return { type: 'branch' }
   if (path.startsWith('commit:')) return { type: 'commit', hash: path.slice('commit:'.length) }
-  // Defensive fallback — older or hand-built keys shouldn't blank the view.
+  // Defensive fallback — malformed navigation should not blank the view.
   return { type: 'working' }
 }
 

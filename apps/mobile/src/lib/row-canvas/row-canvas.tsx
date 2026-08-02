@@ -1,5 +1,5 @@
-import { requireNativeView, requireOptionalNativeModule } from 'expo'
-import type { ComponentType, Ref, RefObject } from 'react'
+import { requireNativeView } from 'expo'
+import type { Ref, RefObject } from 'react'
 import { createElement, useEffect, useImperativeHandle, useMemo, useRef } from 'react'
 import type { StyleProp, ViewStyle } from 'react-native'
 
@@ -59,21 +59,7 @@ export type RowCanvasProps = {
   onRefresh?: () => void
 }
 
-let cachedNativeView: ComponentType<NativeProps> | null | undefined
-
-function nativeView(): ComponentType<NativeProps> | null {
-  if (cachedNativeView !== undefined) return cachedNativeView
-  cachedNativeView =
-    requireOptionalNativeModule(MODULE_NAME) === null
-      ? null
-      : requireNativeView<NativeProps>(MODULE_NAME)
-  return cachedNativeView
-}
-
-/** False on a dev client built before this module existed — callers must keep a JS fallback. */
-export function isRowCanvasAvailable(): boolean {
-  return nativeView() !== null
-}
+const NativeView = requireNativeView<NativeProps>(MODULE_NAME)
 
 function usePayload(
   ref: RefObject<NativeCommands | null>,
@@ -131,7 +117,7 @@ export function RowCanvas({
   theme,
   tokensPatch,
   tokensResetKey = contentKey,
-}: RowCanvasProps): React.JSX.Element | null {
+}: RowCanvasProps): React.JSX.Element {
   const nativeRef = useRef<NativeCommands>(null)
   const rowsJson = useMemo((): string => JSON.stringify(rows), [rows])
   const themeJson = useMemo((): string => JSON.stringify(theme), [theme])
@@ -157,10 +143,7 @@ export function RowCanvas({
     [],
   )
 
-  const View = nativeView()
-  if (View === null) return null
-
-  return createElement(View, {
+  return createElement(NativeView, {
     contentKey,
     onRefresh,
     onRowLongPress: (event: NativeEvent<RowCanvasRowEvent>): void =>

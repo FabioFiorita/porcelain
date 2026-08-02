@@ -122,18 +122,11 @@ anything else earns its place by displacing one of these, not by being added.
 Settings itself is a nested stack: root list (Environments and About inline,
 plus reading preferences) → Pair an environment.
 
-The same five triggers drive both presentations: iPhone gets the bottom tab
-bar, and `sidebarAdaptable` lets iPadOS/macOS promote them to the system side
-tab bar and sidebar. There is one tab list, never a second iPad-only one —
-`NativeTabTrigger`'s `hidden` makes a route unreachable rather than merely
-unlisted, so an idiom-specific tab means duplicating its route.
-
-That promotion needs **`ios.supportsTablet: true`** (`app.config.ts`). Without it Expo
-emits `UIDeviceFamily = [1]` and the app runs on iPad in iPhone **compatibility
-mode** — a fixed portrait window that will not rotate and never reaches the
-regular horizontal size class the sidebar depends on. If iPad looks like a scaled
-phone, check that flag first, and remember it is native: it needs a rebuild, not
-a reload.
+iPhone currently uses the bottom `NativeTabs` presentation. The iPad root
+presentation belongs to the SplitView work in `docs/plans/01-files.md §2.7`;
+do not add an iPad-only tab table or a second route tree while that work is
+pending. `ios.supportsTablet: true` stays enabled because the root SplitView
+requires the app binary to include the iPad device family.
 
 ## Connection
 
@@ -147,7 +140,7 @@ Four rules hold that seam together:
 - **Import the exact module — there is no barrel.** A tab slice adds
   `procedures/<tab>.ts` and appends to `app-events.ts`; it edits nothing else here.
 - **Never import the daemon's `AppRouter`.** Procedures are hand-declared zod
-  descriptors, and every response is parsed — version skew has to fail as
+  descriptors, and every response is parsed — contract drift has to fail as
   `invalid-response`, not as an undefined property three renders later.
 - **WS frames come from `@porcelain/contracts`.** One definition of the protocol
   in the repo; re-declaring a schema locally is drift by construction.

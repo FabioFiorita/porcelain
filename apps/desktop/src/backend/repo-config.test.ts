@@ -39,39 +39,12 @@ describe('withoutRecentRepo', () => {
 })
 
 describe('appConfigSchema', () => {
-  it('parses a config written by an older build, stripping retired keys', () => {
-    // Back-compat guard, not a formality: home-channel renames a config it cannot parse to
-    // `.corrupt-*` and starts empty, so a `.strict()` here would silently wipe the user's
-    // recents the first time they opened a build that dropped a key.
-    const parsed = appConfigSchema.parse({
+  it('rejects keys outside the current config contract', () => {
+    const result = appConfigSchema.safeParse({
       recentRepos: ['/repo'],
-      agentModelFavorites: ['claude:opus'],
-      lastAgentProvider: 'codex',
-      agentProviderDefaults: { codex: { model: 'gpt-5' } },
-      lastAgentSelection: { provider: 'codex', model: 'gpt-5' },
-      agentProviderCache: [{ provider: 'claude', installed: true }],
-      repos: {
-        '/repo': {
-          hiddenPaths: ['/repo/apps/legacy'],
-          pinnedPaths: ['/repo/apps/dtc'],
-          notes: 'old',
-          reviewedPaths: ['src/a.ts'],
-          layers: [{ label: 'X', pattern: 'x' }],
-        },
-      },
+      retiredSetting: true,
     })
-    expect(parsed.recentRepos).toEqual(['/repo'])
-    // Retired keys are stripped rather than carried forward, so the next write drops them.
-    for (const key of [
-      'agentModelFavorites',
-      'lastAgentProvider',
-      'agentProviderDefaults',
-      'lastAgentSelection',
-      'agentProviderCache',
-      'repos',
-    ]) {
-      expect(Object.keys(parsed)).not.toContain(key)
-    }
+    expect(result.success).toBe(false)
   })
 })
 

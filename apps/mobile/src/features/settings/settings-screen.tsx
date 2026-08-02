@@ -47,7 +47,7 @@ function describeConnection(connection: ConnectionState): {
 } {
   switch (connection.kind) {
     case 'ready':
-      return { color: STATUS_COLORS.ready, label: connection.daemonVersion ?? 'Connected' }
+      return { color: STATUS_COLORS.ready, label: connection.daemonVersion }
     case 'unreachable':
       return { color: STATUS_COLORS.unreachable, label: 'Unreachable' }
     case 'unauthorized':

@@ -9,10 +9,8 @@ import { hostname } from 'node:os'
  * label "This device" correctly on every platform, and show a machine in the top-bar
  * switcher rather than a nickname.
  *
- * Rides the EXISTING `daemonInfo` procedure rather than a new one: that procedure is
- * already the version-skew probe every client calls, and widening its result is
- * backward compatible (a daemon older than this build simply returns `{ version }`,
- * which clients must treat as "identity unknown", never as unreachable).
+ * Rides the existing `daemonInfo` procedure rather than a second identity endpoint so
+ * every current client gets the same machine label from the same response.
  *
  * Nothing here is a secret — a host name, an OS, and a CPU arch. Never widen it to
  * anything that is (paths, users, the token).

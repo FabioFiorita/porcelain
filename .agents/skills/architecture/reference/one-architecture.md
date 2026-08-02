@@ -40,12 +40,11 @@ so they can't drift, and pointing the client at a remote daemon needed no new tr
   Companion data is keyed by absolute path, so a linked worktree of a configured project would open
   blank; seeding runs only when the target has no settings at all, and a create/open must never fail
   because a channel file was unreadable. Cross-host carry stays explicit and agent-driven.
-- **Environments announce themselves.** `daemonInfo` was **widened** with `host`/`platform`/`arch`
-  rather than adding a procedure, so **read those fields as OPTIONAL** — an older daemon returns
-  `{ version }` alone. **`unauthorized` is a distinct state from `offline`** (answering and rejecting
-  the token means re-pair, not wake), and a non-401 failure re-probes `recentRepos` first, or a
-  daemon that 404s `daemonInfo` greys out while working perfectly. One network call per environment,
-  so the hook is deliberately lazy.
+- **Environments announce themselves.** `daemonInfo` returns the required `host`/`platform`/`arch`
+  identity alongside `version`, so a missing or malformed response is a contract error rather than
+  a partial identity. **`unauthorized` is a distinct state from `offline`** (answering and rejecting
+  the token means re-pair, not wake). One network call per environment, so the hook is deliberately
+  lazy.
 - **One environment, many endpoints.** (1) **Kind is derived from the address, preference stored by
   kind** — "prefer the LAN here" then survives a DHCP lease change. (2) **Failover is sequential and
   preference-ordered, not a race**: on the home LAN the tailnet address still *works*, just slower,

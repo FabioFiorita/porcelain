@@ -4,20 +4,16 @@ import { defineMutation, defineQuery } from '../procedure'
 
 const repoSchema = z.object({ path: z.string(), name: z.string() })
 
-/**
- * The identity fields are the version-skew canary, not a contract — every one stays optional
- * so a daemon that stops sending `arch` degrades a label instead of failing the probe.
- */
 export const daemonInfoQuery = defineQuery<
   void,
-  { version: string; host?: string; platform?: string; arch?: string }
+  { version: string; host: string; platform: string; arch: string }
 >(
   'daemonInfo',
   z.object({
     version: z.string(),
-    host: z.string().optional(),
-    platform: z.string().optional(),
-    arch: z.string().optional(),
+    host: z.string(),
+    platform: z.string(),
+    arch: z.string(),
   }),
 )
 

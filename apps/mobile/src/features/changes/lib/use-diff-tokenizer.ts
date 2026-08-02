@@ -5,9 +5,9 @@ import { type RowTokenizer, shikiRowTokenizer } from '@/features/changes/lib/hig
 import { getHighlighter, shikiThemeName } from '@/features/changes/lib/shiki-highlighter'
 
 /**
- * The diff surface's tokenizer for the current appearance. Resolves to `undefined` while the
- * highlighter is still loading, and whenever the native engine isn't linked — DiffSurface's
- * documented "no tokenizer" path, not a degraded one.
+ * The diff surface's tokenizer for the current appearance. It stays unset while the current
+ * client's native highlighter is loading or if that build fails, so the canvas can still paint
+ * plain rows while the error is visible in logs.
  */
 export function useDiffTokenizer(scheme: ColorSchemeName): RowTokenizer | undefined {
   const theme = shikiThemeName(scheme === 'dark' ? 'dark' : 'light')
@@ -15,7 +15,6 @@ export function useDiffTokenizer(scheme: ColorSchemeName): RowTokenizer | undefi
 
   useEffect(() => {
     const highlighter = getHighlighter()
-    if (highlighter === undefined) return
 
     let cancelled = false
     const load = async (): Promise<void> => {

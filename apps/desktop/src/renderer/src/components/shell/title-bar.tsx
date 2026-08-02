@@ -21,8 +21,7 @@ import { WindowControls } from './window-controls'
  *
  * `EnvironmentSwitcher` shows ALWAYS (local or remote): a control that only
  * appears once you're remote can't be how you go remote. It owns machine
- * identity, reachability, and the version-skew warning (paired with
- * DaemonSkewToast). `UpdateButton` sits to its left once a download is ready.
+ * identity and reachability. `UpdateButton` sits to its left once a download is ready.
  *
  * No border-b: floating tiles seat their own top chrome under this bar; a
  * hairline here doubled up as a second line under the search field.

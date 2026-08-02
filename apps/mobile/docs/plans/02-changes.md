@@ -89,7 +89,7 @@ Connection-shaped states are **not this slice's** to write: every Changes screen
 | No repo selected | `DaemonGate requires="repo"` → 00's `/repo` sheet. Do not build a second picker here. |
 | Clean tree | "Working tree clean." + the last commit's subject (from `gitLog` limit 1) + "View history". Bottom-toolbar actions disabled, not hidden. |
 | Empty history | "No commits yet." |
-| Query error | Message + **Retry** (refetch). Show the daemon's message verbatim; version skew degrades politely per `daemon-api.md`. |
+| Query error | Message + **Retry** (refetch). Show the daemon's message verbatim; a contract mismatch is an `invalid-response` error per `daemon-api.md`. |
 | Large change | §2.2 guard rows. |
 
 ## 3. Data layer
@@ -101,7 +101,7 @@ Connection-shaped states are **not this slice's** to write: every Changes screen
 - The active repo comes from `useActiveRepo()`, the environment from `useActiveEnvironment()`, connection state from `useConnectionState()`, and the WS from `useDaemonSession()`.
 - This slice **must not**: construct a tRPC client, read `expo-secure-store` directly, hardcode a base URL, or open its own WebSocket.
 
-Every descriptor carries a zod schema for its **output** (inputs are ours, so they aren't parsed) — that is what turns daemon version skew into a legible `invalid-response` error instead of an undefined-property crash mid-scroll.
+Every descriptor carries a zod schema for its **output** (inputs are ours, so they aren't parsed) — that is what turns contract drift into a legible `invalid-response` error instead of an undefined-property crash mid-scroll.
 
 **Queries** (all inputs are daemon-side paths; `repoPath` is the active repo):
 

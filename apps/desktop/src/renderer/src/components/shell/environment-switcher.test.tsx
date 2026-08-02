@@ -1,5 +1,4 @@
 import type { EnvironmentStatus } from '@main/shell-api'
-import type { VersionSkew } from '@renderer/lib/version-skew'
 import { useSettingsDialogStore } from '@renderer/stores/settings-dialog'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -7,7 +6,6 @@ import { EnvironmentSwitcher } from './environment-switcher'
 
 const identityMock =
   vi.fn<() => { host: string | null; platform: string | null; version: string | null }>()
-const skewMock = vi.fn<() => VersionSkew | null>()
 const statusesMock = vi.fn<() => Map<string | null, EnvironmentStatus>>()
 const environmentsMock = vi.fn()
 const connect = vi.fn()
@@ -16,10 +14,6 @@ const openInEnv = vi.fn()
 
 vi.mock('@renderer/hooks/use-daemon-identity', () => ({
   useDaemonIdentity: () => identityMock(),
-}))
-
-vi.mock('@renderer/hooks/use-daemon-skew', () => ({
-  useDaemonSkew: () => skewMock(),
 }))
 
 vi.mock('@renderer/hooks/use-environment-status', () => ({
@@ -45,13 +39,6 @@ vi.mock('@renderer/hooks/use-mobile', () => ({
 
 const beelink = { id: 'beelink', name: 'Beelink', url: 'http://100.64.1.2:43117' }
 
-const skew: VersionSkew = {
-  daemonVersion: '0.28.2',
-  appVersion: '0.29.2',
-  daemonIsOlder: true,
-  message: 'Daemon v0.28.2 · app v0.29.2 — restart the remote daemon to update',
-}
-
 const status = (
   id: string | null,
   state: EnvironmentStatus['state'],
@@ -68,7 +55,6 @@ const status = (
 
 beforeEach(() => {
   identityMock.mockReturnValue({ host: 'studio', platform: 'darwin', version: '0.40.0' })
-  skewMock.mockReturnValue(null)
   // Local status probe reports this Mac — independent of the bound daemon identity.
   statusesMock.mockReturnValue(new Map([[null, status(null, 'online', 'studio', 'darwin')]]))
   environmentsMock.mockReturnValue({ activeId: null, defaultId: null, environments: [] })
@@ -113,14 +99,6 @@ describe('EnvironmentSwitcher chip', () => {
     })
     render(<EnvironmentSwitcher />)
     expect(screen.getByLabelText('Environment: Beelink')).toBeTruthy()
-  })
-
-  it('flags version skew in the accessible name when the daemon differs', () => {
-    skewMock.mockReturnValue(skew)
-    render(<EnvironmentSwitcher />)
-    // The tooltip body carries skew.message but only mounts on hover/focus (Base UI
-    // portal), so the chip's own name has to say it.
-    expect(screen.getByLabelText(/daemon version mismatch/i)).toBeTruthy()
   })
 })
 

@@ -25,7 +25,6 @@
       "apps/desktop/src/renderer/src/hooks/use-browse.ts",
       "apps/desktop/src/renderer/src/hooks/use-commit.ts",
       "apps/desktop/src/renderer/src/hooks/use-daemon-identity.ts",
-      "apps/desktop/src/renderer/src/hooks/use-daemon-skew.ts",
       "apps/desktop/src/renderer/src/hooks/use-diff-reading.ts",
       "apps/desktop/src/renderer/src/hooks/use-document-title.ts",
       "apps/desktop/src/renderer/src/hooks/use-environment-status.ts",

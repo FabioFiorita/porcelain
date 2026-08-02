@@ -155,7 +155,7 @@ export interface EnvironmentStatus {
   state: EnvironmentState
   /** Which of the environment group's endpoints answered; null when none did. */
   endpoint: string | null
-  /** Reported identity; null when the daemon is too old to announce it, or is down. */
+  /** Reported identity; null when the daemon is down or returned an invalid response. */
   host: string | null
   platform: string | null
   version: string | null
@@ -167,10 +167,9 @@ const daemonInfoResponseSchema = z.object({
   result: z.object({
     data: z.object({
       version: z.string(),
-      // Optional: a daemon older than the identity widening returns version alone.
-      host: z.string().optional(),
-      platform: z.string().optional(),
-      arch: z.string().optional(),
+      host: z.string(),
+      platform: z.string(),
+      arch: z.string(),
     }),
   }),
 })
@@ -184,10 +183,6 @@ const UNKNOWN_IDENTITY = { host: null, platform: null, version: null }
 /**
  * Ask one daemon who it is. Never throws — a switcher row must render for an
  * environment that is asleep, and an unreachable box is a *state*, not an error.
- * The subtle path is an old daemon: `daemonInfo` doesn't exist before 0.30, so its url
- * answers 404 while being a perfectly reachable Porcelain daemon. Falling straight to
- * `offline` would grey out a working environment, so a non-401 failure re-probes with
- * `recentRepos` (which every daemon has) and reports `online` with unknown identity.
  */
 async function probeEnvironment(
   url: string,
@@ -205,30 +200,21 @@ async function probeEnvironment(
   }
   if (res.status === 401) return { state: 'unauthorized', ...UNKNOWN_IDENTITY }
 
-  if (!res.ok) {
-    // Reachable, but this procedure is missing (pre-0.30) or erroring. Confirm it's
-    // really a live daemon before claiming online.
-    try {
-      await probeDaemon(url, token)
-      return { state: 'online', ...UNKNOWN_IDENTITY }
-    } catch {
-      return { state: 'offline', ...UNKNOWN_IDENTITY }
-    }
-  }
+  if (!res.ok) return { state: 'offline', ...UNKNOWN_IDENTITY }
 
   let body: unknown
   try {
     body = await res.json()
   } catch {
-    return { state: 'online', ...UNKNOWN_IDENTITY }
+    return { state: 'offline', ...UNKNOWN_IDENTITY }
   }
   const parsed = daemonInfoResponseSchema.safeParse(body)
-  if (!parsed.success) return { state: 'online', ...UNKNOWN_IDENTITY }
+  if (!parsed.success) return { state: 'offline', ...UNKNOWN_IDENTITY }
   const info = parsed.data.result.data
   return {
     state: 'online',
-    host: info.host ?? null,
-    platform: info.platform ?? null,
+    host: info.host,
+    platform: info.platform,
     version: info.version,
   }
 }

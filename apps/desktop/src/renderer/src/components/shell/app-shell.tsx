@@ -24,7 +24,6 @@ import { CardComposer } from '../board/card-composer'
 import { SettingsDialog } from '../settings/settings-dialog'
 import { AppSidebar } from './app-sidebar'
 import { ContentSearch } from './content-search'
-import { DaemonSkewToast } from './daemon-skew-toast'
 import { FileCommands } from './file-commands'
 import { FileFinder } from './file-finder'
 import { FilePromptDialog } from './file-prompt-dialog'
@@ -229,7 +228,6 @@ export function AppShell(): React.JSX.Element {
         </div>
         <RepoPickerDialog />
         <SettingsDialog />
-        <DaemonSkewToast />
         <Toaster />
       </div>
     )
@@ -261,7 +259,6 @@ export function AppShell(): React.JSX.Element {
         <RepoPickerDialog />
         <CardComposer />
         <SkillsUpdateToast />
-        <DaemonSkewToast />
         <SettingsDialog />
         <AppSidebar />
         <RepoShell />

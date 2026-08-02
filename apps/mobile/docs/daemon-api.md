@@ -36,7 +36,7 @@ This is why the app ships `NSAllowsArbitraryLoads` / `usesCleartextTraffic` (see
 ## Bootstrap sequence
 
 1. Try the group's exact preferred endpoint, then last-known-good, then the remaining saved routes. Failover is sequential; a 401 stops immediately.
-2. `daemonInfo` → `{version, host?, platform?, arch?}`. NOT_FOUND ⇒ daemon older than 0.30 (treat as "pre-0.30", not an error). Version-skew probe.
+2. `daemonInfo` → `{version, host, platform, arch}`. This is the current daemon identity and build contract; a missing or malformed response is an invalid response.
 3. `recentRepos({includeWorktrees:true})` → pick a repo (also the cheap "is my token valid" probe — the browser client uses it exactly this way).
 4. `openRepoPath(path)` — **load-bearing**: records the recent, seeds worktree settings, warms the file-list cache. Always call it when switching repo.
 5. Remember the endpoint that answered as last-known-good without changing the preferred route.
@@ -97,4 +97,6 @@ All flat names; Q = query, M = mutation. No tRPC subscriptions exist.
 
 - Heavy payloads: `readFile` inlines images as data URLs; `loopEvidenceHtml` is a whole HTML document; `diffReading`/`featureReading` can carry up to ~200 files of hunks. Fine on LAN/tailnet; cap or defer on a Funnel/cellular path.
 - Every path in every call is a **daemon-side** path (`~` expands daemon-side). Never touch the phone's filesystem for repo content.
-- Version skew is real: feature-detect via `daemonInfo` and degrade politely.
+- The mobile client and daemon are developed and delivered together. A missing procedure or
+  malformed payload is an error; do not feature-detect alternate daemon contracts or silently
+  degrade.

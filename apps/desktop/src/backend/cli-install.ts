@@ -69,8 +69,8 @@ export async function ensureCli(
   await rm(chunksDir, { recursive: true, force: true })
   await rename(chunksTmp, chunksDir)
 
-  // Drop the legacy flat install (pre-layout-fix) so a stale porcelain.js can't
-  // be executed by accident and fail on missing ../chunks.
+  // Remove an obsolete flat entrypoint so a stale porcelain.js can't be executed by
+  // accident and fail on missing ../chunks.
   await rm(join(dir, 'porcelain.js'), { force: true })
 
   const wrapperPath = join(dir, 'porcelain')

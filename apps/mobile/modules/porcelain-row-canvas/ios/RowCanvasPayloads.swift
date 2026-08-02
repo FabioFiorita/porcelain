@@ -1,7 +1,7 @@
 import UIKit
 
-/// The wire model. Every field is optional so an older native binary keeps rendering rows a
-/// newer JS adapter sends: unknown keys are ignored, missing keys fall back.
+/// The current JS/native wire model. Optional fields describe row kinds and styling channels, not
+/// client-version variants.
 struct RowCanvasRow: Decodable {
   let id: String
   let text: String?

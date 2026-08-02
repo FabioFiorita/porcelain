@@ -13,17 +13,8 @@ import {
 import { adminProcedure, publicProcedure, t } from '../trpc'
 
 export const daemonRouter = t.router({
-  // The daemon's build version, so the client can detect and surface skew (a client
-  // on a newer/older build than the daemon it's bound to) once and clearly, instead
-  // of a cryptic per-procedure "No procedure found" failure. A daemon older than
-  // 0.30 has no such procedure, so the client's query 404s (NOT_FOUND) — it treats
-  // that as a definitely-older 'pre-0.30' rather than surfacing the raw error.
-  //
-  // It also carries this daemon's IDENTITY (host/platform/arch — see daemon-identity.ts)
-  // so a client can name and recognize the machine it reached instead of relying on a
-  // nickname the human typed. Widened rather than split into a second procedure: this
-  // is already the probe every client calls, and a daemon older than that widening
-  // returns `{ version }` alone — clients must read the identity fields as OPTIONAL.
+  // The current daemon's build version and identity. One response gives the client
+  // the machine label and the exact build serving the rest of the contract.
   daemonInfo: publicProcedure.query((): { version: string } & DaemonIdentity => ({
     version: daemonVersion(),
     ...daemonIdentity(),

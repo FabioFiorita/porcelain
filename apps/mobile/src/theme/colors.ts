@@ -53,7 +53,3 @@ export function diffBackgrounds(scheme: AppearanceScheme): { add: string; del: s
 export function accentColor(scheme: AppearanceScheme): string {
   return ACCENT[scheme]
 }
-
-export function useDiffBackgrounds(): { add: string; del: string } {
-  return diffBackgrounds(useColorScheme() === 'dark' ? 'dark' : 'light')
-}

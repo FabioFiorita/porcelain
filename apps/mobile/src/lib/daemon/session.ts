@@ -248,7 +248,7 @@ export function configureSession(next: SessionEndpoint | null): void {
   everConnected = false
   retryDelay = MIN_RETRY_MS
   close()
-  // Subscribers registered against the old daemon still want frames from the new one.
+  // Subscribers registered against the previous socket still want frames from the new one.
   if (listeners.size > 0 || watches.size > 0) ensureOpen()
 }
 

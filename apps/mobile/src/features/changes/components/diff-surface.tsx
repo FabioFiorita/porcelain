@@ -1,8 +1,6 @@
-import { type Ref, useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useColorScheme } from 'react-native'
 
-import { ScreenHost } from '@/components/screen-host'
-import { DiffRowsView } from '@/features/changes/components/diff-rows-view'
 import {
   diffCanvasRows,
   type TokenizableLine,
@@ -12,14 +10,12 @@ import { diffCanvasTheme } from '@/features/changes/lib/canvas-theme'
 import type { DiffRow } from '@/features/changes/lib/diff-rows'
 import { buildTokensPatch, type RowTokenizer } from '@/features/changes/lib/highlight'
 import { pendingTokenRowIds } from '@/features/changes/lib/token-window'
-import { isRowCanvasAvailable, RowCanvas } from '@/lib/row-canvas/row-canvas'
+import { RowCanvas } from '@/lib/row-canvas/row-canvas'
 import type {
-  RowCanvasHandle,
   RowCanvasRow,
   RowCanvasRowEvent,
   RowCanvasTheme,
   RowCanvasTokensPatch,
-  RowCanvasVisibleRange,
 } from '@/lib/row-canvas/types'
 
 const FILL = { flex: 1 } as const
@@ -31,32 +27,12 @@ export type DiffSurfaceProps = {
   /** The file a single-file document is showing, for language detection. */
   defaultPath?: string
   onOpenFile?: (path: string) => void
-  onVisibleRange?: (range: RowCanvasVisibleRange) => void
-  surfaceRef?: Ref<RowCanvasHandle>
   tokenizer?: RowTokenizer
 }
 
-export type DiffSurfaceHandle = RowCanvasHandle
-
-/**
- * The diff renderer. The native row canvas draws the whole document; the capped SwiftUI list is
- * the automatic fallback on a dev client built before the module existed, so an old binary
- * degrades to the previous rendering instead of crashing.
- */
+/** The diff renderer backed by the native row canvas in the current iOS client. */
 export function DiffSurface(props: DiffSurfaceProps): React.JSX.Element {
   const scheme = useColorScheme()
-  if (!isRowCanvasAvailable()) {
-    return (
-      <ScreenHost>
-        <DiffRowsView
-          onOpenFile={props.onOpenFile}
-          onVisibleRange={props.onVisibleRange}
-          rows={props.rows}
-          surfaceRef={props.surfaceRef}
-        />
-      </ScreenHost>
-    )
-  }
   // Keyed by the document and the appearance: a new document gets a new canvas rather than an
   // effect that has to remember to clear the tokens the previous one accumulated, and an
   // appearance flip gets the same treatment — otherwise already-tokenized rows would keep the
@@ -70,9 +46,7 @@ function DiffCanvas({
   contentKey,
   defaultPath,
   onOpenFile,
-  onVisibleRange,
   rows,
-  surfaceRef,
   tokenizer,
 }: DiffSurfaceProps): React.JSX.Element {
   const scheme = useColorScheme()
@@ -126,13 +100,9 @@ function DiffCanvas({
 
   return (
     <RowCanvas
-      canvasRef={surfaceRef}
       contentKey={contentKey}
       onRowPress={handleRowPress}
-      onVisibleRange={(range: RowCanvasVisibleRange): void => {
-        onVisibleRange?.(range)
-        handleVisibleRange(range)
-      }}
+      onVisibleRange={handleVisibleRange}
       rows={canvasRows}
       style={FILL}
       theme={theme}

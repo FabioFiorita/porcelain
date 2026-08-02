@@ -144,10 +144,9 @@ export function SettingsDialog(): React.JSX.Element | null {
     if (candidate.id === 'share') return remotes?.activeId === null
     return true
   })
-  // A section that's hidden in this client (e.g. 'updates' opened in Electron, then
-  // the same prefs viewed in a browser) — or one that no longer exists at all (a
-  // section id kept from an older build, like the removed 'environments' panel) —
-  // falls back to General so the header and body never disagree.
+  // A section that's hidden in this surface (e.g. 'updates' opened in Electron, then
+  // the same prefs viewed in a browser) falls back to General so the header and body
+  // never disagree.
   const active = sections.find((s) => s.id === section) ?? sections[0]
   if (active === undefined) return null
   const activeId = active.id

@@ -9,7 +9,6 @@ import {
 } from '@renderer/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
-import { useDaemonSkew } from '@renderer/hooks/use-daemon-skew'
 import { useEnvironmentStatuses } from '@renderer/hooks/use-environment-status'
 import { useIsMobile } from '@renderer/hooks/use-mobile'
 import {
@@ -23,14 +22,7 @@ import { cn } from '@renderer/lib/utils'
 import { useSettingsDialogStore } from '@renderer/stores/settings-dialog'
 import { platformLabel } from '@shared/platform'
 import { TestIds } from '@shared/test-ids'
-import {
-  Check,
-  Cloud,
-  Monitor,
-  Settings2,
-  SquareArrowOutUpRight,
-  TriangleAlert,
-} from 'lucide-react'
+import { Check, Cloud, Monitor, Settings2, SquareArrowOutUpRight } from 'lucide-react'
 import { useState } from 'react'
 
 /**
@@ -50,7 +42,6 @@ export function EnvironmentSwitcher(): React.JSX.Element | null {
   const identity = useDaemonIdentity()
   const environments = useRemoteEnvironments()
   const statuses = useEnvironmentStatuses()
-  const skew = useDaemonSkew()
   const isMobile = useIsMobile()
   const { connect, pendingId } = useConnectRemoteEnvironment()
   const { disconnect, isPending: isDisconnecting } = useDisconnectRemoteEnvironment()
@@ -98,7 +89,6 @@ export function EnvironmentSwitcher(): React.JSX.Element | null {
         <Monitor className="size-3.5 shrink-0 opacity-80" aria-hidden />
       )}
       {!compact && <span className="truncate">{label}</span>}
-      {skew && <TriangleAlert className="size-3.5 shrink-0 text-warning" aria-hidden />}
     </span>
   )
 
@@ -125,14 +115,7 @@ export function EnvironmentSwitcher(): React.JSX.Element | null {
                 <button
                   type="button"
                   data-testid={TestIds.environmentSwitcher}
-                  // The skew warning is an icon in the chip, so the accessible name
-                  // has to carry it too — the tooltip body (which holds the full
-                  // message) only mounts on hover/focus.
-                  aria-label={
-                    skew
-                      ? `Environment: ${label} — daemon version mismatch`
-                      : `Environment: ${label}`
-                  }
+                  aria-label={`Environment: ${label}`}
                   className={cn(
                     'app-no-drag rounded-md transition-colors',
                     'hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
@@ -152,7 +135,6 @@ export function EnvironmentSwitcher(): React.JSX.Element | null {
                 {active.url}
               </p>
             )}
-            {skew && <p className="mt-1 text-xs text-warning">{skew.message}</p>}
             <p className="mt-1 text-xs text-muted-foreground">Click to switch environment</p>
           </div>
         </TooltipContent>

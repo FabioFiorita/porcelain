@@ -101,7 +101,7 @@ union. Every state is a designed state — no raw error text, no infinite spinne
 | `binary` | Icon + "Binary file" + humanized size. |
 | `too-large` | Icon + "Too large to open (N MB)" + the daemon's 10 MB limit stated plainly. |
 | `not-found` | "This file is no longer here." + a button that invalidates the parent directory query and pops back — the stale-row case the daemon comments call out. |
-| query error | Connection-level failures (no environment, unauthorized, unreachable) never reach here — `DaemonGate` catches them. What's left is per-call: render 00 §4's error-taxonomy copy for the `DaemonError.kind` (`unsupported` → "Your daemon is too old for this", `invalid-response` → "Unexpected response from the daemon", `daemon-error` → the daemon's own message verbatim). Not a Files-local invention. |
+| query error | Connection-level failures (no environment, unauthorized, unreachable) never reach here — `DaemonGate` catches them. What's left is per-call: render 00 §4's error-taxonomy copy for the `DaemonError.kind` (`invalid-response` → "Unexpected response from the daemon", `daemon-error` → the daemon's own message verbatim). Not a Files-local invention. |
 
 Loading is a single centered activity indicator; the header title (basename) is
 available immediately from the route params, so the screen never looks blank.
@@ -179,9 +179,9 @@ the desktop client already is.
 `IsWithinLayoutContext` at render. So a split view **cannot** live inside the
 Files tab. Reaching Notes-like Files on iPad means the **root** layout branches:
 iPhone keeps `NativeTabs`, iPad renders `SplitView` whose primary column carries
-the four destinations (replacing the tab bar the way Notes has no tab bar),
-supplementary = the directory listing, secondary = the viewer. `sidebarAdaptable`
-on `NativeTabs` — already shipped — is the *interim* answer, not this one.
+the five destinations (replacing the tab bar the way Notes has no tab bar),
+supplementary = the directory listing, secondary = the viewer. There is no
+iPad-specific presentation in the tab shell until this root change lands.
 
 Why it lands in **this** plan rather than as its own change: columns over
 `PlaceholderScreen` prove nothing. The split view is only reviewable once there

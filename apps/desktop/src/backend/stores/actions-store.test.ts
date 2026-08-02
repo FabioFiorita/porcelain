@@ -61,7 +61,7 @@ describe('actions-store CRUD', () => {
     expect((await readActions('/repo'))[0]?.where).toBeUndefined()
   })
 
-  it('strips unknown fields (e.g. retired cwd) on read', async () => {
+  it('rejects fields outside the current action contract', async () => {
     mkdirSync(dir, { recursive: true })
     writeFileSync(
       file,
@@ -78,9 +78,7 @@ describe('actions-store CRUD', () => {
         ],
       }),
     )
-    const action = (await readActions('/repo'))[0]
-    expect(action?.title).toBe('Dev')
-    expect(action).not.toHaveProperty('cwd')
+    expect(await readActions('/repo')).toEqual([])
   })
 
   it('deletes an action', async () => {

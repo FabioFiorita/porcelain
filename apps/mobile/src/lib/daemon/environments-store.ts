@@ -36,8 +36,7 @@ export type ConnectionState =
   | { kind: 'loading' }
   | { kind: 'no-environment' }
   | { kind: 'connecting' }
-  /** `daemonVersion: null` — the daemon predates 0.30 and has no `daemonInfo`. */
-  | { kind: 'ready'; daemonVersion: string | null; reachability: Reachability }
+  | { kind: 'ready'; daemonVersion: string; reachability: Reachability }
   | { kind: 'unreachable'; message: string; reachability: Reachability }
   | { kind: 'unauthorized' }
 

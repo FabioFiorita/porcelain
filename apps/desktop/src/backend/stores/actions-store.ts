@@ -24,19 +24,21 @@ import { createHomeChannel } from '../net/home-channel'
 const actionWhereSchema = z.enum(['primary', 'local'])
 export type ActionWhere = z.infer<typeof actionWhereSchema>
 
-export const actionSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  command: z.string(),
-  /**
-   * Which machine runs the command. Omitted ⇒ primary (this window's daemon).
-   * `local` only applies when the window is remote-bound (Electron); otherwise ignored.
-   */
-  where: actionWhereSchema.optional(),
-  /** Sort key; set on create so newer actions land at the end. */
-  order: z.number().default(0),
-  createdAt: z.number().default(0),
-})
+export const actionSchema = z
+  .object({
+    id: z.string(),
+    title: z.string(),
+    command: z.string(),
+    /**
+     * Which machine runs the command. Omitted ⇒ primary (this window's daemon).
+     * `local` only applies when the window is remote-bound (Electron); otherwise ignored.
+     */
+    where: actionWhereSchema.optional(),
+    /** Sort key; set on create so newer actions land at the end. */
+    order: z.number().default(0),
+    createdAt: z.number().default(0),
+  })
+  .strict()
 export type Action = z.infer<typeof actionSchema>
 
 const actionsSchema = z.record(z.string(), z.array(actionSchema))

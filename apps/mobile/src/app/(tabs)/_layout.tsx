@@ -6,10 +6,7 @@ export default function TabsLayout(): React.JSX.Element {
   const accentColor = useAccentColor()
 
   return (
-    // `sidebarAdaptable` is iPad/macOS-only (iOS 18+, no effect on iPhone): it lets the system
-    // promote the tab bar to the side tab bar / sidebar instead of pinning a phone-sized bottom
-    // bar to a 13" screen. Every trigger below feeds both presentations, so there is one tab list.
-    <NativeTabs minimizeBehavior="onScrollDown" sidebarAdaptable tintColor={accentColor}>
+    <NativeTabs minimizeBehavior="onScrollDown" tintColor={accentColor}>
       <NativeTabs.Trigger name="(files)">
         <NativeTabs.Trigger.Icon sf="folder.fill" />
         <NativeTabs.Trigger.Label>Files</NativeTabs.Trigger.Label>

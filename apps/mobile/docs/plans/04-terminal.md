@@ -101,9 +101,8 @@ Large-title "Terminal", `@expo/ui/swift-ui` `Host` + `List`.
 - The states that *are* ours, each a plain centered `Column`, never a spinner-forever:
   - reachable, zero sessions → "No shells running" + a `Start a shell` button;
   - WS disconnected → an inline banner ("Reconnecting…"), roster stays readable from cache;
-  - daemon too old — `terminalSessions` fails with `DaemonError.kind === 'unsupported'`
-    (00 §4's taxonomy; a pre-0.30 daemon also reads as `ready` with `daemonVersion: null`)
-    → "This daemon is too old for terminals."
+  - daemon contract error — `terminalSessions` fails with `DaemonError.kind === 'daemon-error'`
+    or `invalid-response` (00 §4's taxonomy) → show the current daemon error and retry action.
 
 ### 2.3 Screen 2 — the session (`(terminal)/session/[id].tsx`)
 

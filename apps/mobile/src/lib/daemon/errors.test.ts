@@ -12,12 +12,12 @@ function trpcError(data: { httpStatus?: number; code?: string } | null): TRPCCli
 
 describe('toDaemonError', () => {
   it('keeps a DaemonError it is handed', () => {
-    const original = new DaemonError('unsupported', 'daemonInfo', 'too old')
+    const original = new DaemonError('daemon-error', 'daemonInfo', 'failed')
 
     expect(toDaemonError('daemonInfo', original)).toBe(original)
   })
 
-  it('reads a zod failure as version skew in the payload', () => {
+  it('reads a zod failure as an invalid response', () => {
     const failure = z.object({ version: z.string() }).safeParse({})
 
     expect(toDaemonError('daemonInfo', failure.error).kind).toBe('invalid-response')
@@ -36,11 +36,10 @@ describe('toDaemonError', () => {
     ).toBe('unauthorized')
   })
 
-  // A daemon too old to have the procedure answers NOT_FOUND — skew, not a broken connection.
-  it('reads a 404 NOT_FOUND as unsupported', () => {
+  it('reads a 404 NOT_FOUND as a daemon error', () => {
     expect(
       toDaemonError('daemonInfo', trpcError({ httpStatus: 404, code: 'NOT_FOUND' })).kind,
-    ).toBe('unsupported')
+    ).toBe('daemon-error')
   })
 
   it('reads a real daemon error as daemon-error', () => {

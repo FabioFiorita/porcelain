@@ -65,15 +65,9 @@ onlineManager.setEventListener((setOnline): (() => void) => {
 async function bootstrapAtEndpoint(
   environment: PairedEnvironment,
   baseUrl: string,
-): Promise<{ daemonVersion: string | null }> {
+): Promise<{ daemonVersion: string }> {
   const client = createDaemonClient(baseUrl, environment.token)
-  let daemonVersion: string | null = null
-  try {
-    daemonVersion = (await callDaemon(client, daemonInfoQuery, undefined)).version
-  } catch (error) {
-    // A daemon older than 0.30 has no `daemonInfo` at all — that is skew, not a failure.
-    if (!(error instanceof DaemonError) || error.kind !== 'unsupported') throw error
-  }
+  const daemonVersion = (await callDaemon(client, daemonInfoQuery, undefined)).version
 
   // Doubles as the token probe: a 401 here is what proves the credential is dead.
   await callDaemon(client, recentReposQuery, { includeWorktrees: true })
@@ -111,7 +105,7 @@ class EndpointWalkError extends Error {
 /** Probe routes in the group's explicit order; a working LAN route wins over a slower fallback. */
 async function bootstrap(
   environment: PairedEnvironment,
-): Promise<{ daemonVersion: string | null; attempts: readonly EndpointAttempt[] }> {
+): Promise<{ daemonVersion: string; attempts: readonly EndpointAttempt[] }> {
   let firstUnreachable: DaemonError | null = null
   const attempts: EndpointAttempt[] = []
   const endpoints = orderedEndpointUrls({

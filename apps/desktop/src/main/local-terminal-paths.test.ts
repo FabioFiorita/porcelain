@@ -29,7 +29,7 @@ describe('parseLocalTerminalPathState', () => {
     expect(state.paths['env-1\n/srv/app']).toBe('/Users/you/app')
   })
 
-  it('falls back to empty on corrupt, legacy, or absent shapes rather than throwing', () => {
+  it('falls back to empty on invalid or absent shapes rather than throwing', () => {
     expect(parseLocalTerminalPathState(null).paths).toEqual({})
     expect(parseLocalTerminalPathState({ paths: { a: 3 } }).paths).toEqual({})
     expect(parseLocalTerminalPathState('nonsense').paths).toEqual({})

@@ -23,14 +23,13 @@ A separate native client of the same daemon, not a port of the renderer.
   stops a merged PR paying twice** (it matches the fingerprint hash, not the branch). Force-build
   escape is EAS's built-in `eas-build-ios:preview` label, not a job. `production.yml` has **no push
   or tag trigger** and submission off by default — the release path is decided without being armed.
-- **`ios.supportsTablet: true` is load-bearing.** Without it iPad runs in compatibility mode —
-  fixed portrait, no rotation, never a regular size class, so `sidebarAdaptable` has nothing to
-  promote. Native flag: changing it moves the fingerprint.
-- **iPad is the same tab list adapted, not a second shell** — `hidden` makes a trigger's route
-  unreachable, so an idiom-only tab means duplicating it. `sidebarAdaptable` on iOS 18+ gives a
-  top tab bar with a sidebar toggle, not an unconditional sidebar. **Treat every iPad claim here as
-  unproven until a screenshot backs it.** Multi-column Files is structurally blocked: `SplitView` throws inside another navigator, so it can
-  only be the root layout; that fork is deferred to the real Files feature.
+- **`ios.supportsTablet: true` is load-bearing.** The iPad presentation is a root `SplitView`, so
+  the binary must include the iPad device family. Native flag: changing it moves the fingerprint.
+- **iPhone and iPad have two presentations over one route table.** iPhone keeps `NativeTabs`; iPad
+  uses the root `SplitView` with the same destinations and Files list/detail columns. Do not add an
+  iPad-only route table or selection store. **Treat every iPad claim here as unproven until a
+  screenshot backs it.** `SplitView` is structurally blocked inside another navigator, so the fork
+  belongs only in the root layout once the real Files feature is ready.
 - **Five native tabs — Files · Changes · Review · Board · Terminal**, and five is the ceiling: a
   sixth collapses iOS into "More". So History stays pushed inside Changes; Search is a search bar
   on Files; Settings is a formSheet. Environments are **LAN + Tailscale only

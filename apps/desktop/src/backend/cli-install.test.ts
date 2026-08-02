@@ -46,7 +46,7 @@ describe('ensureCli', () => {
     expect(statSync(wrapper).mode & 0o777).toBe(0o755)
   })
 
-  it('removes a legacy flat porcelain.js that cannot resolve chunks', async () => {
+  it('removes an obsolete flat porcelain.js that cannot resolve chunks', async () => {
     await mkdir(home, { recursive: true })
     writeFileSync(join(home, 'porcelain.js'), 'stale-flat')
     await ensureCli(source, home)
