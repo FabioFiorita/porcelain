@@ -69,6 +69,26 @@ pnpm mobile:sim:install --simulator 'iPhone 17 Pro'
 pnpm mobile:start
 ```
 
+For the usual Linux host → Mac simulator loop, one command checks the Mac
+preview and starts it when needed before starting Metro:
+
+```bash
+pnpm mobile:dev:remote
+```
+
+Metro stays on this checkout and serves the bundle over LAN; the Mac-side
+`serve-sim` preview is available at `http://<sim-host>:3200`. The command uses
+the SSH alias `mac` and preview host `macbook.local` by default. Override them
+with `--ssh-alias` / `--sim-host` when a machine uses different names. Extra
+arguments are passed to Expo, for example
+`pnpm mobile:dev:remote -- --clear`. Ctrl-C stops Metro and leaves the preview
+running for the next session; stop it explicitly with
+`pnpm mobile:dev:remote -- --stop-sim`.
+
+The preview exposes simulator control endpoints, so use it only on a trusted
+LAN. An SSH tunnel can be used instead when the Mac should not bind the preview
+to the LAN.
+
 Extra flags pass through both delegation hops (root → `apps/mobile` → `eas-cli`),
 which is why the simulator name is an **argument** and not baked into the script:
 device names are per-machine, and the repo should not carry one maintainer's

@@ -74,7 +74,8 @@ Only each skill's description is ambient. A `SKILL.md` routes — read it, then 
 
 The tracked `.husky/` bodies are the authoritative gate; husky only wires the shims (gitignored, regenerated on install). **`HUSKY=0` skips every hook** — treat it as `--no-verify`. `PORCELAIN_SKIP_VERIFY=1` is the explicit escape after a verified manual run. `pnpm agents:check` catches adapter drift; `pnpm agents:doctor` proves local activation. `invariant-reviewer` is a read-only review against `audit` — use it before committing anything non-trivial.
 
-Personal orchestration belongs in ignored host-local files and never carries project rules.
+Personal orchestration belongs in ignored host-local files and never carries project rules. If
+present, read `AGENTS.local.md` for machine-specific runtime setup before driving a remote client.
 
 ## Nomenclature
 
