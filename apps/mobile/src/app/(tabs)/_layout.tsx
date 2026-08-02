@@ -27,6 +27,10 @@ export default function TabsLayout(): React.JSX.Element {
         <NativeTabs.Trigger.Icon sf="terminal.fill" />
         <NativeTabs.Trigger.Label>Terminal</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="settings">
+        <NativeTabs.Trigger.Icon sf="gearshape.fill" />
+        <NativeTabs.Trigger.Label>Settings</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
     </NativeTabs>
   )
 }
