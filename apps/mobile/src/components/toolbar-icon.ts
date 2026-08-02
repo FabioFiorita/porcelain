@@ -1,7 +1,17 @@
 import type { StackToolbarButtonProps } from 'expo-router'
 
 /** Every icon the app puts in a native stack toolbar. */
-export type ToolbarIconName = 'companion' | 'history' | 'close' | 'add' | 'read' | 'bolt' | 'more'
+export type ToolbarIconName =
+  | 'companion'
+  | 'history'
+  | 'close'
+  | 'add'
+  | 'read'
+  | 'bolt'
+  | 'board'
+  | 'comment'
+  | 'evidence'
+  | 'more'
 
 type ToolbarIcon = NonNullable<StackToolbarButtonProps['icon']>
 
@@ -18,6 +28,9 @@ const SF_SYMBOLS: Record<ToolbarIconName, ToolbarIcon> = {
   close: 'xmark',
   add: 'plus',
   bolt: 'bolt',
+  board: 'rectangle.3.group.fill',
+  comment: 'text.bubble',
+  evidence: 'checkmark.seal',
   more: 'ellipsis',
 } as const satisfies Record<ToolbarIconName, ToolbarIcon>
 
