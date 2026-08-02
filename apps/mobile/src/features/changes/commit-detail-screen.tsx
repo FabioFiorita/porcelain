@@ -21,20 +21,31 @@ const headline = font({ textStyle: 'headline' })
  * given them.
  */
 export function CommitDetailScreen(): React.JSX.Element {
-  const hash = firstParam(useLocalSearchParams<{ hash: string }>().hash)
+  const params = useLocalSearchParams<{ author?: string; date?: string; hash: string }>()
+  const hash = firstParam(params.hash)
+  const author = firstParam(params.author)
+  const date = firstParam(params.date)
 
   return (
     <>
       <Stack.Screen options={{ title: shortHash(hash) }} />
       <DaemonGate requires="repo">
-        <CommitBody hash={hash} />
+        <CommitBody author={author} date={date} hash={hash} />
       </DaemonGate>
       <HeaderToolbar />
     </>
   )
 }
 
-function CommitBody({ hash }: { hash: string }): React.JSX.Element {
+function CommitBody({
+  author,
+  date,
+  hash,
+}: {
+  author: string
+  date: string
+  hash: string
+}): React.JSX.Element {
   const message = useCommitMessage(hash)
   const flow = useScopeFlow({ hash, type: 'commit' })
   const groups = flow.data ?? []
@@ -46,6 +57,11 @@ function CommitBody({ hash }: { hash: string }): React.JSX.Element {
         <Section>
           <Text modifiers={[headline]}>{subject === '' ? shortHash(hash) : subject}</Text>
           {body === '' ? null : <Text modifiers={[footnote, secondary]}>{body}</Text>}
+          {author === '' && date === '' ? null : (
+            <Text modifiers={[footnote, secondary]}>
+              {[author, date].filter(Boolean).join(' · ')}
+            </Text>
+          )}
         </Section>
         {groups.length === 0 ? null : (
           <Section title="Review">

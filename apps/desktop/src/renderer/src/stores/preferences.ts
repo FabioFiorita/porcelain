@@ -69,7 +69,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       htmlMode: 'preview',
       pullMode: 'merge',
       rightSidebarOpen: true,
-      rightSidebarWidth: 272,
+      rightSidebarWidth: RIGHT_SIDEBAR_MIN_WIDTH,
       sidebarTab: 'files',
       sidebarWidth: 256,
       notesHeight: 220,

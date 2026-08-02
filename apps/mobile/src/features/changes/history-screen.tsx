@@ -1,23 +1,16 @@
-import { Button, HStack, List, Section, Spacer, Text, VStack } from '@expo/ui/swift-ui'
-import {
-  buttonStyle,
-  contentShape,
-  frame,
-  lineLimit,
-  listStyle,
-  refreshable,
-  shapes,
-} from '@expo/ui/swift-ui/modifiers'
+import { Button, List, Section, Text } from '@expo/ui/swift-ui'
+import { listStyle, refreshable } from '@expo/ui/swift-ui/modifiers'
 import { router } from 'expo-router'
 import { useState } from 'react'
 
 import { DaemonGate } from '@/components/daemon-gate'
 import { HeaderToolbar } from '@/components/header-toolbar'
+import { ListLinkRow } from '@/components/list-link-row'
 import { ScreenHost } from '@/components/screen-host'
 import { QueryNotice } from '@/features/changes/components/query-notice'
 import { useLog } from '@/features/changes/data/queries'
 import { shortHash } from '@/features/changes/lib/format'
-import { footnote, monospace, secondary } from '@/theme/modifiers'
+import { monospace, secondary } from '@/theme/modifiers'
 
 /** There is no cursor API — "more" is the same query with a bigger limit, capped daemon-side. */
 const PAGE = 100
@@ -65,34 +58,22 @@ function Log(): React.JSX.Element {
             />
           ) : (
             commits.map((commit) => (
-              <Button
+              <ListLinkRow
+                detail={`${commit.author} · ${commit.date}`}
                 key={commit.hash}
-                modifiers={[
-                  buttonStyle('plain'),
-                  frame({ maxWidth: Infinity, alignment: 'leading' }),
-                  contentShape(shapes.rectangle()),
-                ]}
+                label={commit.subject}
                 onPress={(): void => {
-                  router.push({ params: { hash: commit.hash }, pathname: '/commit/[hash]' })
+                  router.push({
+                    params: {
+                      author: commit.author,
+                      date: commit.date,
+                      hash: commit.hash,
+                    },
+                    pathname: '/commit/[hash]',
+                  })
                 }}
-              >
-                <HStack
-                  modifiers={[
-                    frame({ maxWidth: Infinity, alignment: 'leading' }),
-                    contentShape(shapes.rectangle()),
-                  ]}
-                  spacing={10}
-                >
-                  <VStack alignment="leading" spacing={2}>
-                    <Text modifiers={[lineLimit(1)]}>{commit.subject}</Text>
-                    <Text modifiers={[footnote, secondary, lineLimit(1)]}>
-                      {`${commit.author} · ${commit.date}`}
-                    </Text>
-                  </VStack>
-                  <Spacer />
-                  <Text modifiers={[monospace, secondary]}>{shortHash(commit.hash)}</Text>
-                </HStack>
-              </Button>
+                trailing={<TextHash hash={commit.hash} />}
+              />
             ))
           )}
           {commits.length < limit || limit >= MAX_LIMIT ? null : (
@@ -105,4 +86,8 @@ function Log(): React.JSX.Element {
       </List>
     </ScreenHost>
   )
+}
+
+function TextHash({ hash }: { hash: string }): React.JSX.Element {
+  return <Text modifiers={[monospace, secondary]}>{shortHash(hash)}</Text>
 }
