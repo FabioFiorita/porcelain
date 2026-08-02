@@ -2,12 +2,24 @@ import { describe, expect, it } from 'vitest'
 
 import {
   diffReadingQuery,
+  gitCommitConventionsQuery,
   gitCommitDiffQuery,
+  gitCommitMutation,
   gitDiffFileQuery,
+  gitDiscardFileMutation,
   gitFlowQuery,
   gitHeadQuery,
   gitLogQuery,
+  gitPushMutation,
+  gitStageAllMutation,
+  gitStageFileMutation,
+  gitSuggestionsQuery,
+  gitUnstageAllMutation,
+  gitUnstageFileMutation,
+  markReviewedMutation,
   reviewedPathsQuery,
+  setReviewedMutation,
+  unmarkReviewedMutation,
 } from './changes'
 
 /**
@@ -125,5 +137,29 @@ describe('history and head', () => {
 
   it('parses reviewed paths', () => {
     expect(reviewedPathsQuery.output.parse(['src/a.ts'])).toEqual(['src/a.ts'])
+  })
+})
+
+describe('change mutations and action queries', () => {
+  it('uses the daemon procedure names and output shapes', () => {
+    expect(gitStageAllMutation.name).toBe('gitStageAll')
+    expect(gitUnstageAllMutation.name).toBe('gitUnstageAll')
+    expect(gitStageFileMutation.name).toBe('gitStageFile')
+    expect(gitUnstageFileMutation.name).toBe('gitUnstageFile')
+    expect(gitDiscardFileMutation.name).toBe('gitDiscardFile')
+    expect(gitCommitMutation.name).toBe('gitCommit')
+    expect(gitPushMutation.output.parse('pushed')).toBe('pushed')
+    expect(markReviewedMutation.name).toBe('markReviewed')
+    expect(unmarkReviewedMutation.name).toBe('unmarkReviewed')
+    expect(setReviewedMutation.name).toBe('setReviewed')
+    expect(gitCommitConventionsQuery.output.parse({ scopes: ['mobile'], types: ['feat'] })).toEqual(
+      {
+        scopes: ['mobile'],
+        types: ['feat'],
+      },
+    )
+    expect(
+      gitSuggestionsQuery.output.parse([{ command: 'push', reason: '1 unpushed commit' }]),
+    ).toEqual([{ command: 'push', reason: '1 unpushed commit' }])
   })
 })

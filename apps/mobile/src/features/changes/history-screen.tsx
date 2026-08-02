@@ -26,7 +26,7 @@ export function HistoryScreen(): React.JSX.Element {
         Toolbar only, no `ScreenHeader`: a custom left header item would take the slot the
         back button needs, and a pushed screen has to keep its way back.
       */}
-      <HeaderToolbar />
+      <HeaderToolbar companion={{ href: '/actions', icon: 'bolt', label: 'Actions' }} />
     </>
   )
 }

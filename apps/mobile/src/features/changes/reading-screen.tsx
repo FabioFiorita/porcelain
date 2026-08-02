@@ -1,14 +1,17 @@
 import { Button, List, Section, Text } from '@expo/ui/swift-ui'
 import { listStyle } from '@expo/ui/swift-ui/modifiers'
 import { router, useLocalSearchParams } from 'expo-router'
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useColorScheme } from 'react-native'
 
 import { DaemonGate } from '@/components/daemon-gate'
 import { HeaderToolbar } from '@/components/header-toolbar'
 import { ScreenHost } from '@/components/screen-host'
+import type { DiffSurfaceHandle } from '@/features/changes/components/diff-surface'
 import { DiffSurface } from '@/features/changes/components/diff-surface'
+import type { FilePickerFile } from '@/features/changes/components/file-picker-pane'
 import { QueryNotice } from '@/features/changes/components/query-notice'
+import { useChangesPaneStore } from '@/features/changes/data/pane-store'
 import { useDiffReading, useScopeFlow } from '@/features/changes/data/queries'
 import {
   CANVAS_FILE_LINES,
@@ -22,6 +25,7 @@ import { parseScope, scopeParams } from '@/features/changes/lib/scope'
 import { useDiffTokenizer } from '@/features/changes/lib/use-diff-tokenizer'
 import type { DiffReadingScope } from '@/lib/daemon/procedures/changes'
 import { isRowCanvasAvailable } from '@/lib/row-canvas/row-canvas'
+import type { RowCanvasVisibleRange } from '@/lib/row-canvas/types'
 import { footnote, secondary } from '@/theme/modifiers'
 
 /**
@@ -38,13 +42,18 @@ export function ReadingScreen(): React.JSX.Element {
       <DaemonGate requires="repo">
         <Reading scope={scope} />
       </DaemonGate>
-      <HeaderToolbar />
+      <HeaderToolbar companion={{ href: '/actions', icon: 'bolt', label: 'Actions' }} />
     </>
   )
 }
 
 function Reading({ scope }: { scope: DiffReadingScope }): React.JSX.Element {
   const [confirmed, setConfirmed] = useState(false)
+  const [selectedPath, setSelectedPath] = useState<string | null>(null)
+  const surfaceRef = useRef<DiffSurfaceHandle>(null)
+  const paneOwner = useRef(Symbol('changes-reader'))
+  const clearPane = useChangesPaneStore((state) => state.clear)
+  const publishPane = useChangesPaneStore((state) => state.publish)
   const tokenizer = useDiffTokenizer(useColorScheme())
   const flow = useScopeFlow(scope)
   const totals = totalStats(flow.data ?? [])
@@ -60,9 +69,74 @@ function Reading({ scope }: { scope: DiffReadingScope }): React.JSX.Element {
     [reading.data],
   )
 
-  function openFile(path: string): void {
-    router.push({ params: { ...scopeParams(scope), path }, pathname: '/file' })
-  }
+  const files = useMemo(
+    (): FilePickerFile[] =>
+      reading.data?.groups.flatMap((group) =>
+        group.files.map((file) => ({
+          additions: file.additions,
+          deletions: file.deletions,
+          path: file.path,
+          status: file.status,
+        })),
+      ) ?? [],
+    [reading.data],
+  )
+  const renderedPaths = useMemo(
+    (): ReadonlySet<string> =>
+      new Set(rows.flatMap((row) => (row.kind === 'file' ? [row.path] : []))),
+    [rows],
+  )
+  const fileByRowId = useMemo((): Map<string, string> => {
+    const paths = new Map<string, string>()
+    let currentPath: string | null = null
+    for (const row of rows) {
+      if (row.kind === 'file') currentPath = row.path
+      if (currentPath !== null) paths.set(row.key, currentPath)
+    }
+    return paths
+  }, [rows])
+  const handleVisibleRange = useCallback(
+    (range: RowCanvasVisibleRange): void => {
+      const path = fileByRowId.get(range.firstRowId)
+      if (path !== undefined) setSelectedPath(path)
+    },
+    [fileByRowId],
+  )
+  const selectFile = useCallback(
+    (path: string): void => {
+      setSelectedPath(path)
+      if (renderedPaths.has(path)) {
+        surfaceRef.current?.scrollToRow(`file:${path}`)
+        return
+      }
+      router.push({ params: { ...scopeParams(scope), path }, pathname: '/file' })
+    },
+    [renderedPaths, scope],
+  )
+
+  useEffect(() => {
+    setSelectedPath(files[0]?.path ?? null)
+  }, [files])
+  useEffect(() => {
+    if (reading.data === undefined) {
+      clearPane(paneOwner.current)
+      return
+    }
+    publishPane({
+      files,
+      onSelect: selectFile,
+      owner: paneOwner.current,
+      selectedPath,
+    })
+    return (): void => clearPane(paneOwner.current)
+  }, [clearPane, files, publishPane, reading.data, selectFile, selectedPath])
+
+  const openFile = useCallback(
+    (path: string): void => {
+      router.push({ params: { ...scopeParams(scope), path }, pathname: '/file' })
+    },
+    [scope],
+  )
 
   if (large && !confirmed) {
     return (
@@ -107,7 +181,9 @@ function Reading({ scope }: { scope: DiffReadingScope }): React.JSX.Element {
     <DiffSurface
       contentKey={`reading:${scope.type}:${scope.type === 'commit' ? scope.hash : 'working'}`}
       onOpenFile={openFile}
+      onVisibleRange={handleVisibleRange}
       rows={rows}
+      surfaceRef={surfaceRef}
       tokenizer={tokenizer}
     />
   )

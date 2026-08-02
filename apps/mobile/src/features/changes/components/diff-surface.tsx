@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { type Ref, useCallback, useMemo, useState } from 'react'
 import { useColorScheme } from 'react-native'
 
 import { ScreenHost } from '@/components/screen-host'
@@ -14,10 +14,12 @@ import { buildTokensPatch, type RowTokenizer } from '@/features/changes/lib/high
 import { pendingTokenRowIds } from '@/features/changes/lib/token-window'
 import { isRowCanvasAvailable, RowCanvas } from '@/lib/row-canvas/row-canvas'
 import type {
+  RowCanvasHandle,
   RowCanvasRow,
   RowCanvasRowEvent,
   RowCanvasTheme,
   RowCanvasTokensPatch,
+  RowCanvasVisibleRange,
 } from '@/lib/row-canvas/types'
 
 const FILL = { flex: 1 } as const
@@ -29,8 +31,12 @@ export type DiffSurfaceProps = {
   /** The file a single-file document is showing, for language detection. */
   defaultPath?: string
   onOpenFile?: (path: string) => void
+  onVisibleRange?: (range: RowCanvasVisibleRange) => void
+  surfaceRef?: Ref<RowCanvasHandle>
   tokenizer?: RowTokenizer
 }
+
+export type DiffSurfaceHandle = RowCanvasHandle
 
 /**
  * The diff renderer. The native row canvas draws the whole document; the capped SwiftUI list is
@@ -42,7 +48,12 @@ export function DiffSurface(props: DiffSurfaceProps): React.JSX.Element {
   if (!isRowCanvasAvailable()) {
     return (
       <ScreenHost>
-        <DiffRowsView onOpenFile={props.onOpenFile} rows={props.rows} />
+        <DiffRowsView
+          onOpenFile={props.onOpenFile}
+          onVisibleRange={props.onVisibleRange}
+          rows={props.rows}
+          surfaceRef={props.surfaceRef}
+        />
       </ScreenHost>
     )
   }
@@ -59,7 +70,9 @@ function DiffCanvas({
   contentKey,
   defaultPath,
   onOpenFile,
+  onVisibleRange,
   rows,
+  surfaceRef,
   tokenizer,
 }: DiffSurfaceProps): React.JSX.Element {
   const scheme = useColorScheme()
@@ -113,9 +126,13 @@ function DiffCanvas({
 
   return (
     <RowCanvas
+      canvasRef={surfaceRef}
       contentKey={contentKey}
       onRowPress={handleRowPress}
-      onVisibleRange={handleVisibleRange}
+      onVisibleRange={(range: RowCanvasVisibleRange): void => {
+        onVisibleRange?.(range)
+        handleVisibleRange(range)
+      }}
       rows={canvasRows}
       style={FILL}
       theme={theme}

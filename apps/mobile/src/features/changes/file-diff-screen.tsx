@@ -31,7 +31,13 @@ export function FileDiffScreen(): React.JSX.Element {
       <DaemonGate requires="repo">
         <FileDiff path={path} scope={scope} />
       </DaemonGate>
-      <HeaderToolbar />
+      <HeaderToolbar
+        companion={
+          scope.type === 'working'
+            ? { href: { params: { path }, pathname: '/actions' }, icon: 'bolt', label: 'Actions' }
+            : undefined
+        }
+      />
     </>
   )
 }

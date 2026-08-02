@@ -4,12 +4,15 @@ import { useIsFocused } from 'expo-router'
 
 import type { DaemonError } from '@/lib/daemon/errors'
 import {
+  type CommitConventions,
   type DiffFileResult,
   type DiffHunk,
   type DiffReadingScope,
   diffReadingQuery,
   type FeatureReading,
   type FlowGroup,
+  type GitSuggestion,
+  gitCommitConventionsQuery,
   gitCommitDiffQuery,
   gitCommitFlowQuery,
   gitCommitMessageQuery,
@@ -17,6 +20,7 @@ import {
   gitFlowQuery,
   gitHeadQuery,
   gitLogQuery,
+  gitSuggestionsQuery,
   reviewedPathsQuery,
 } from '@/lib/daemon/procedures/changes'
 import { useDaemonQuery } from '@/lib/daemon/queries'
@@ -67,6 +71,23 @@ export function useHead(): Query<HeadRef> {
   return useDaemonQuery(gitHeadQuery, repo.path, {
     enabled: repo.enabled && focused,
     pollMs: FOCUS_POLL,
+  })
+}
+
+export function useSuggestions(): Query<GitSuggestion[]> {
+  const repo = useRepoPath()
+  const focused = useIsFocused()
+  return useDaemonQuery(gitSuggestionsQuery, repo.path, {
+    enabled: repo.enabled && focused,
+    pollMs: FOCUS_POLL,
+  })
+}
+
+export function useCommitConventions(): Query<CommitConventions> {
+  const repo = useRepoPath()
+  const focused = useIsFocused()
+  return useDaemonQuery(gitCommitConventionsQuery, repo.path, {
+    enabled: repo.enabled && focused,
   })
 }
 

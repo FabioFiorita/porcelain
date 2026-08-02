@@ -1,6 +1,6 @@
 import type { LanguageInput, ThemeInput } from '@shikijs/core'
 import { createHighlighterCore } from '@shikijs/core'
-import { createNativeEngine, isNativeEngineAvailable } from 'react-native-shiki-engine'
+import { requireOptionalNativeModule } from 'expo'
 
 import type { ShikiHighlighter } from '@/features/changes/lib/highlight'
 
@@ -39,6 +39,15 @@ export function shikiThemeName(scheme: 'light' | 'dark'): string {
 
 let highlighterPromise: Promise<ShikiHighlighter> | null = null
 
+type NativeShikiEngine = typeof import('react-native-shiki-engine')
+
+async function loadNativeEngine(): Promise<NativeShikiEngine> {
+  if (requireOptionalNativeModule('ShikiEngine') === null) {
+    throw new Error('ShikiEngine is not linked in this native client.')
+  }
+  return await import('react-native-shiki-engine')
+}
+
 /**
  * A failed build (a bad OTA bundle split, a missing grammar chunk) must not wedge every future
  * mount behind the same rejected promise — clear the cache so the next caller retries from
@@ -46,8 +55,9 @@ let highlighterPromise: Promise<ShikiHighlighter> | null = null
  */
 async function buildHighlighter(): Promise<ShikiHighlighter> {
   try {
+    const nativeEngine = await loadNativeEngine()
     return (await createHighlighterCore({
-      engine: createNativeEngine(),
+      engine: nativeEngine.createNativeEngine(),
       langs: LANG_LOADERS,
       themes: [THEME_LOADERS.dark, THEME_LOADERS.light],
     })) as ShikiHighlighter
@@ -64,7 +74,6 @@ async function buildHighlighter(): Promise<ShikiHighlighter> {
  * caller degrades to `highlight.ts`'s documented "no tokenizer" path, not a broken one.
  */
 export function getHighlighter(): Promise<ShikiHighlighter> | undefined {
-  if (!isNativeEngineAvailable()) return undefined
   highlighterPromise ??= buildHighlighter()
   return highlighterPromise
 }

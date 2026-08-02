@@ -32,6 +32,7 @@ export function ChangesScreen(): React.JSX.Element {
           { href: '/reading', icon: 'read', label: 'Read' },
           { href: '/history', icon: 'history', label: 'History' },
         ]}
+        companion={{ href: '/actions', icon: 'bolt', label: 'Actions' }}
         title="Changes"
       />
       <ObserveInteractiveMarker />

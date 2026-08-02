@@ -1,16 +1,30 @@
-import { Button, HStack, Image, List, Spacer, Text, VStack } from '@expo/ui/swift-ui'
+import {
+  Button,
+  HStack,
+  Image,
+  LazyVStack,
+  ScrollView,
+  Spacer,
+  Text,
+  useNativeState,
+  VStack,
+} from '@expo/ui/swift-ui'
 import {
   font,
   foregroundStyle,
+  id,
   lineLimit,
   listRowBackground,
   listRowInsets,
-  listStyle,
+  scrollPosition,
+  scrollTargetLayout,
 } from '@expo/ui/swift-ui/modifiers'
+import { type Ref, useImperativeHandle } from 'react'
 
 import type { DiffRow } from '@/features/changes/lib/diff-rows'
 import { basename, formatStats } from '@/features/changes/lib/format'
 import { statusSymbol } from '@/features/changes/lib/status'
+import type { RowCanvasHandle, RowCanvasVisibleRange } from '@/lib/row-canvas/types'
 import { statusTint, useDiffBackgrounds } from '@/theme/colors'
 import { footnote, monospace, secondary } from '@/theme/modifiers'
 
@@ -25,19 +39,54 @@ const tightRow = listRowInsets({ bottom: 1, leading: 12, top: 1, trailing: 8 })
  */
 export function DiffRowsView({
   onOpenFile,
+  onVisibleRange,
   rows,
+  surfaceRef,
 }: {
   onOpenFile?: (path: string) => void
+  onVisibleRange?: (range: RowCanvasVisibleRange) => void
   rows: readonly DiffRow[]
+  surfaceRef?: Ref<RowCanvasHandle>
 }): React.JSX.Element {
   const backgrounds = useDiffBackgrounds()
+  const activeRow = useNativeState<string | null>(null)
+
+  useImperativeHandle(
+    surfaceRef,
+    (): RowCanvasHandle => ({
+      scrollToRow: async (rowId: string): Promise<void> => {
+        activeRow.set(rowId)
+      },
+      scrollToTop: async (): Promise<void> => {
+        activeRow.set(rows[0]?.key ?? null)
+      },
+    }),
+    [activeRow, rows],
+  )
+
+  function handleVisibleRow(rowId: string | null): void {
+    if (rowId === null) return
+    const index = rows.findIndex((row) => row.key === rowId)
+    if (index === -1) return
+    onVisibleRange?.({
+      firstIndex: index,
+      firstRowId: rowId,
+      lastIndex: index,
+      lastRowId: rowId,
+      totalRows: rows.length,
+    })
+  }
 
   return (
-    <List modifiers={[listStyle('plain')]}>
-      {rows.map((row) => (
-        <DiffRowView backgrounds={backgrounds} key={row.key} onOpenFile={onOpenFile} row={row} />
-      ))}
-    </List>
+    <ScrollView modifiers={[scrollPosition(activeRow, { onChange: handleVisibleRow })]}>
+      <LazyVStack modifiers={[scrollTargetLayout()]}>
+        {rows.map((row) => (
+          <VStack key={row.key} modifiers={[id(row.key)]}>
+            <DiffRowView backgrounds={backgrounds} onOpenFile={onOpenFile} row={row} />
+          </VStack>
+        ))}
+      </LazyVStack>
+    </ScrollView>
   )
 }
 

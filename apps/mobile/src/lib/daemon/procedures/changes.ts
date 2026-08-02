@@ -1,7 +1,7 @@
 import type { HeadRef } from '@porcelain/contracts'
 import { z } from 'zod'
 
-import { defineQuery } from '../procedure'
+import { defineMutation, defineQuery } from '../procedure'
 
 const fileStatusSchema = z.enum(['modified', 'added', 'deleted', 'renamed', 'untracked'])
 
@@ -118,3 +118,69 @@ export const diffReadingQuery = defineQuery<
   { repoPath: string; scope: DiffReadingScope },
   FeatureReading
 >('diffReading', featureReadingSchema)
+
+const commitConventionsSchema = z.object({
+  scopes: z.array(z.string()),
+  types: z.array(z.string()),
+})
+const gitSuggestionSchema = z.object({ command: z.string(), reason: z.string() })
+
+export type CommitConventions = z.infer<typeof commitConventionsSchema>
+export type GitSuggestion = z.infer<typeof gitSuggestionSchema>
+
+export const gitCommitConventionsQuery = defineQuery<string, CommitConventions>(
+  'gitCommitConventions',
+  commitConventionsSchema,
+)
+
+export const gitSuggestionsQuery = defineQuery<string, GitSuggestion[]>(
+  'gitSuggestions',
+  z.array(gitSuggestionSchema),
+)
+
+export const gitStageAllMutation = defineMutation<{ repoPath: string }, void>(
+  'gitStageAll',
+  z.void(),
+)
+
+export const gitUnstageAllMutation = defineMutation<{ repoPath: string }, void>(
+  'gitUnstageAll',
+  z.void(),
+)
+
+export const gitStageFileMutation = defineMutation<{ repoPath: string; path: string }, void>(
+  'gitStageFile',
+  z.void(),
+)
+
+export const gitUnstageFileMutation = defineMutation<{ repoPath: string; path: string }, void>(
+  'gitUnstageFile',
+  z.void(),
+)
+
+export const gitDiscardFileMutation = defineMutation<{ repoPath: string; path: string }, void>(
+  'gitDiscardFile',
+  z.void(),
+)
+
+export const gitCommitMutation = defineMutation<{ repoPath: string; message: string }, void>(
+  'gitCommit',
+  z.void(),
+)
+
+export const gitPushMutation = defineMutation<{ repoPath: string }, string>('gitPush', z.string())
+
+export const markReviewedMutation = defineMutation<{ repoPath: string; path: string }, void>(
+  'markReviewed',
+  z.void(),
+)
+
+export const unmarkReviewedMutation = defineMutation<{ repoPath: string; path: string }, void>(
+  'unmarkReviewed',
+  z.void(),
+)
+
+export const setReviewedMutation = defineMutation<{ repoPath: string; paths: string[] }, void>(
+  'setReviewed',
+  z.void(),
+)

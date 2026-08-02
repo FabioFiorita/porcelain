@@ -18,9 +18,17 @@ export type ScreenAction = {
  */
 export function HeaderToolbar({
   actions = [],
+  companion,
 }: {
   actions?: readonly ScreenAction[]
+  companion?: ScreenAction
 }): React.JSX.Element {
+  const companionAction: ScreenAction = companion ?? {
+    href: '/companion',
+    icon: 'companion',
+    label: 'Companion',
+  }
+
   return (
     <Stack.Toolbar placement="right">
       {actions.map((action) => (
@@ -37,9 +45,9 @@ export function HeaderToolbar({
         onPress={(): void => router.push('/settings')}
       />
       <Stack.Toolbar.Button
-        accessibilityLabel="Companion"
-        icon={toolbarIcon('companion')}
-        onPress={(): void => router.push('/companion')}
+        accessibilityLabel={companionAction.label}
+        icon={toolbarIcon(companionAction.icon)}
+        onPress={(): void => router.push(companionAction.href)}
       />
     </Stack.Toolbar>
   )

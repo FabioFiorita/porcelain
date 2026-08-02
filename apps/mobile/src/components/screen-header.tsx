@@ -22,9 +22,11 @@ import { secondary } from '@/theme/modifiers'
  */
 export function ScreenHeader({
   actions,
+  companion,
   title,
 }: {
   actions?: readonly ScreenAction[]
+  companion?: ScreenAction
   title: string
 }): React.JSX.Element {
   const accentColor = useAccentColor()
@@ -90,7 +92,7 @@ export function ScreenHeader({
           </Host>
         </Stack.Toolbar.View>
       </Stack.Toolbar>
-      <HeaderToolbar actions={actions} />
+      <HeaderToolbar actions={actions} companion={companion} />
     </>
   )
 }
