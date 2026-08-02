@@ -6,6 +6,7 @@
       "**",
       "!.agents",
       "!apps/mobile/assets",
+      "!apps/mobile/src/features/terminal/webview/*.generated.ts",
       "!marketing",
       "!apps/desktop/src/renderer/src/components/ui",
       "!**/*.css"

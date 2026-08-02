@@ -10,13 +10,18 @@ export type Preferences = {
   html: 'preview' | 'source'
   markdown: 'reader' | 'source'
   pullMode: 'merge' | 'rebase'
+  terminalFontSize: TerminalFontSize
 }
+
+const TERMINAL_FONT_SIZES = [10, 12, 14] as const
+type TerminalFontSize = (typeof TERMINAL_FONT_SIZES)[number]
 
 const DEFAULTS: Preferences = {
   diffLayout: 'unified',
   html: 'preview',
   markdown: 'reader',
   pullMode: 'merge',
+  terminalFontSize: 12,
 }
 
 const ALLOWED: { [K in keyof Preferences]: readonly Preferences[K][] } = {
@@ -24,6 +29,7 @@ const ALLOWED: { [K in keyof Preferences]: readonly Preferences[K][] } = {
   html: ['preview', 'source'],
   markdown: ['reader', 'source'],
   pullMode: ['merge', 'rebase'],
+  terminalFontSize: TERMINAL_FONT_SIZES,
 }
 
 // One blob under one key: these are read together and never written from two places at once.
@@ -62,6 +68,7 @@ function readStored(): Preferences {
     html: narrow('html', stored.html),
     markdown: narrow('markdown', stored.markdown),
     pullMode: narrow('pullMode', stored.pullMode),
+    terminalFontSize: narrow('terminalFontSize', stored.terminalFontSize),
   }
 }
 

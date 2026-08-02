@@ -62,7 +62,7 @@ function walk(dir, out = []) {
     if (path === VENDORED_UI) continue
     const st = statSync(path)
     if (st.isDirectory()) walk(path, out)
-    else if (/\.(tsx?|jsx?)$/.test(name)) out.push(path)
+    else if (/\.(tsx?|jsx?)$/.test(name) && !name.endsWith('.generated.ts')) out.push(path)
   }
   return out
 }

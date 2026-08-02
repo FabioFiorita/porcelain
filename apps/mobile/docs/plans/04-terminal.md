@@ -1,6 +1,6 @@
 # 04 — Terminal tab (native client)
 
-Status: plan. Owner: one worktree (`mobile-terminal`). Depends on **00-connection** (daemon
+Status: implemented. Owner: one worktree (`mobile-terminal`). Depends on **00-connection** (daemon
 client, environment/token storage, `/session` WS manager). Read
 `apps/mobile/docs/daemon-api.md` → *Terminal tab* before writing a line; it is the contract.
 
