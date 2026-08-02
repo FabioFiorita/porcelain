@@ -43,7 +43,8 @@ A separate native client of the same daemon, not a port of the renderer.
 - **Rule-5 exceptions, exhaustive.** (1) `react-native-webview` in exactly two places: sandboxed
   loop-evidence HTML (JS off) and the Terminal's xterm.js bundle — the same emulator as desktop, a
   committed bundle of the root `@xterm/*` deps (**zero new runtime deps**) that never opens a
-  socket or sees the token. A WebView for ordinary UI stays banned. (2) Rotation is unlocked, so
+  socket or sees the token; the RN bridge carries only terminal bytes, dimensions, focus, and
+  link notifications. A WebView for ordinary UI stays banned. (2) Rotation is unlocked, so
   **every screen must tolerate rotation**. (3) One custom Expo native module: a **generic row
   engine** (diff now, terminal later). Its Swift surface stays generic: rows/theme/tokens as data,
   feature logic in JS.

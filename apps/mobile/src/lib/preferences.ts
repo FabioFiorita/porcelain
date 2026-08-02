@@ -7,23 +7,32 @@ import { create } from 'zustand'
  */
 export type Preferences = {
   diffLayout: 'unified' | 'split'
+  filesShowHidden: boolean
   html: 'preview' | 'source'
   markdown: 'reader' | 'source'
   pullMode: 'merge' | 'rebase'
+  terminalFontSize: TerminalFontSize
 }
+
+const TERMINAL_FONT_SIZES = [10, 12, 14] as const
+type TerminalFontSize = (typeof TERMINAL_FONT_SIZES)[number]
 
 const DEFAULTS: Preferences = {
   diffLayout: 'unified',
+  filesShowHidden: false,
   html: 'preview',
   markdown: 'reader',
   pullMode: 'merge',
+  terminalFontSize: 12,
 }
 
 const ALLOWED: { [K in keyof Preferences]: readonly Preferences[K][] } = {
   diffLayout: ['unified', 'split'],
+  filesShowHidden: [false, true],
   html: ['preview', 'source'],
   markdown: ['reader', 'source'],
   pullMode: ['merge', 'rebase'],
+  terminalFontSize: TERMINAL_FONT_SIZES,
 }
 
 // One blob under one key: these are read together and never written from two places at once.
@@ -59,9 +68,11 @@ function readStored(): Preferences {
   const stored: Record<string, unknown> = { ...parsed }
   return {
     diffLayout: narrow('diffLayout', stored.diffLayout),
+    filesShowHidden: narrow('filesShowHidden', stored.filesShowHidden),
     html: narrow('html', stored.html),
     markdown: narrow('markdown', stored.markdown),
     pullMode: narrow('pullMode', stored.pullMode),
+    terminalFontSize: narrow('terminalFontSize', stored.terminalFontSize),
   }
 }
 

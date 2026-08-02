@@ -3,6 +3,10 @@
 The native Porcelain client is an **iOS-only** Expo SDK 57 app. Its starter
 shell uses Expo Router native tabs and `@expo/ui/swift-ui` components.
 
+The Files tab is a read-only, daemon-backed repository browser: drill through
+folders, search filenames, and open text, image, binary, or oversized-file
+states without copying repository contents onto the phone.
+
 `app.config.ts` declares `"platforms": ["ios"]`, so prebuild, EAS, and Metro only
 ever consider iOS. There is no Android target and no Play Store account behind
 one — write iOS code directly and never add a `Platform.OS` branch, an
@@ -148,6 +152,14 @@ form sheet, now with the desktop command set (`status`, `pull`, `push`, `fetch`,
 `stash`, and `stash pop`) alongside staging and commit actions. Settings keeps
 the environment list, connection detail, pairing, reading preferences, and
 pull behavior in one tab.
+
+Every tab's native header keeps the workspace context together: project chooses
+the daemon's active repo, branch checks out a branch in that worktree, and
+worktree switches among linked checkouts. Environment selection stays in
+Settings, so changing the network target does not change the meaning of the
+project/branch/worktree controls.
+
+Terminal is the execution home for daemon-owned PTYs and saved Actions; its xterm WebView, key bar, lifecycle, and resize contract live in [`docs/plans/04-terminal.md`](docs/plans/04-terminal.md).
 
 iPhone currently uses the bottom `NativeTabs` presentation. The iPad root
 presentation belongs to the SplitView work in `docs/plans/01-files.md §2.7`;

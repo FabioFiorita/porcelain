@@ -1,8 +1,14 @@
+import { List, Section, Text } from '@expo/ui/swift-ui'
+import { listStyle } from '@expo/ui/swift-ui/modifiers'
 import { ObserveRoot } from 'expo-observe'
+import { type Href, router, usePathname } from 'expo-router'
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-navigation'
 import { Stack } from 'expo-router/stack'
-import { useColorScheme } from 'react-native'
-
+import { SplitView } from 'expo-router/unstable-split-view'
+import { Platform, useColorScheme } from 'react-native'
+import { ListLinkRow } from '@/components/list-link-row'
+import { ScreenHost } from '@/components/screen-host'
+import { FilesSplitColumn } from '@/features/files/files-screen'
 import { DaemonProvider } from '@/lib/daemon/provider'
 
 /**
@@ -24,14 +30,104 @@ function RootLayout(): React.JSX.Element {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <DaemonProvider>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          {/* Repo remains a sheet because it is a contextual project picker. */}
-          <Stack.Screen name="repo" options={{ ...SHEET, headerShown: false }} />
-          <Stack.Screen name="companion" options={{ ...SHEET, title: 'Companion' }} />
-        </Stack>
+        <RootNavigation />
       </DaemonProvider>
     </ThemeProvider>
+  )
+}
+
+function RootNavigation(): React.JSX.Element {
+  if ('isPad' in Platform && Platform.isPad) return <IPadSplitView />
+
+  return (
+    <Stack>
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      {/* Repo remains a sheet because it is a contextual project picker. */}
+      <Stack.Screen name="repo" options={{ ...SHEET, headerShown: false }} />
+      <Stack.Screen name="companion" options={{ ...SHEET, title: 'Companion' }} />
+    </Stack>
+  )
+}
+
+function IPadSplitView(): React.JSX.Element {
+  return (
+    <SplitView
+      preferredDisplayMode="twoBesideSecondary"
+      preferredSplitBehavior="tile"
+      topColumnForCollapsing="supplementary"
+    >
+      {/**
+       * Expo Router adds the current URL's Slot as the third, secondary column. The existing
+       * `/(tabs)/(files)/file/[...path]` route renders FileScreen there.
+       */}
+      <SplitView.Column>
+        <IPadNavigationColumn />
+      </SplitView.Column>
+      <SplitView.Column>
+        <FilesSplitColumn />
+      </SplitView.Column>
+    </SplitView>
+  )
+}
+
+function IPadNavigationColumn(): React.JSX.Element {
+  const pathname = usePathname()
+
+  return (
+    <ScreenHost>
+      <List modifiers={[listStyle('sidebar')]}>
+        <Section title="Porcelain">
+          <IPadDestination
+            active={pathname.includes('(files)') || pathname === '/'}
+            href="/(tabs)/(files)"
+            label="Files"
+          />
+          <IPadDestination
+            active={pathname.includes('(changes)')}
+            href="/(tabs)/(changes)"
+            label="Changes"
+          />
+          <IPadDestination
+            active={pathname.includes('(board)')}
+            href="/(tabs)/(board)"
+            label="Board"
+          />
+          <IPadDestination
+            active={pathname.includes('(terminal)')}
+            href="/(tabs)/(terminal)"
+            label="Terminal"
+          />
+          <IPadDestination
+            active={pathname.includes('/settings')}
+            href="/(tabs)/settings"
+            label="Settings"
+          />
+        </Section>
+        <Section>
+          <Text>Repository and companion actions stay in the shared route table.</Text>
+        </Section>
+      </List>
+    </ScreenHost>
+  )
+}
+
+function IPadDestination({
+  active,
+  href,
+  label,
+}: {
+  active: boolean
+  href: Href
+  label: string
+}): React.JSX.Element {
+  return (
+    <ListLinkRow
+      detail={active ? 'Selected' : undefined}
+      label={label}
+      onPress={(): void => {
+        router.replace(href)
+      }}
+    />
   )
 }
 

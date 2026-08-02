@@ -11,6 +11,7 @@ export type ToolbarIconName =
   | 'board'
   | 'comment'
   | 'evidence'
+  | 'more'
 
 type ToolbarIcon = NonNullable<StackToolbarButtonProps['icon']>
 
@@ -30,6 +31,7 @@ const SF_SYMBOLS: Record<ToolbarIconName, ToolbarIcon> = {
   board: 'rectangle.3.group.fill',
   comment: 'text.bubble',
   evidence: 'checkmark.seal',
+  more: 'ellipsis',
 } as const satisfies Record<ToolbarIconName, ToolbarIcon>
 
 export function toolbarIcon(name: ToolbarIconName): ToolbarIcon {
