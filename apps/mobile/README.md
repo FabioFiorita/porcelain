@@ -149,6 +149,8 @@ form sheet, now with the desktop command set (`status`, `pull`, `push`, `fetch`,
 the environment list, connection detail, pairing, reading preferences, and
 pull behavior in one tab.
 
+Terminal is the execution home for daemon-owned PTYs and saved Actions; its xterm WebView, key bar, lifecycle, and resize contract live in [`docs/plans/04-terminal.md`](docs/plans/04-terminal.md).
+
 iPhone currently uses the bottom `NativeTabs` presentation. The iPad root
 presentation belongs to the SplitView work in `docs/plans/01-files.md §2.7`;
 this shell change does not claim that root split presentation. `ios.supportsTablet: true`
