@@ -458,6 +458,29 @@ function FileHeaderRow({
     >
       <div className="flex h-5 items-center gap-2 border-t border-border bg-card px-2">
         {showSource && <SourceMarker source={file.source} />}
+        {fileActions?.collapsible && (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-2xs"
+                  className="shrink-0 rounded-none !border-transparent !bg-transparent text-muted-foreground hover:!bg-transparent hover:text-foreground"
+                  onClick={(e: React.MouseEvent<HTMLButtonElement>): void => {
+                    e.stopPropagation()
+                    onToggleCollapsed()
+                  }}
+                  aria-expanded={!collapsed}
+                  aria-label={collapsed ? 'Expand diff' : 'Collapse diff'}
+                  data-testid={TestIds.diffCollapse(file.path)}
+                >
+                  {collapsed ? <ChevronRight /> : <ChevronDown />}
+                </Button>
+              }
+            />
+            <TooltipContent>{collapsed ? 'Expand diff' : 'Collapse diff'}</TooltipContent>
+          </Tooltip>
+        )}
         <span
           className={cn(
             'min-w-0 flex-1 truncate font-mono text-xs font-medium',
@@ -479,7 +502,7 @@ function FileHeaderRow({
               render={
                 <Button
                   variant="ghost"
-                  size="icon-xs"
+                  size="icon-2xs"
                   onClick={async (e: React.MouseEvent<HTMLButtonElement>): Promise<void> => {
                     e.stopPropagation()
                     await handleToggleReviewed()
@@ -508,7 +531,7 @@ function FileHeaderRow({
               render={
                 <Button
                   variant="ghost"
-                  size="icon-xs"
+                  size="icon-2xs"
                   onClick={(e: React.MouseEvent<HTMLButtonElement>): void => {
                     e.stopPropagation()
                     handleOpenFile()
@@ -521,29 +544,6 @@ function FileHeaderRow({
               }
             />
             <TooltipContent>Open file</TooltipContent>
-          </Tooltip>
-        )}
-        {fileActions?.collapsible && (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  className="shrink-0 text-muted-foreground hover:text-foreground"
-                  onClick={(e: React.MouseEvent<HTMLButtonElement>): void => {
-                    e.stopPropagation()
-                    onToggleCollapsed()
-                  }}
-                  aria-expanded={!collapsed}
-                  aria-label={collapsed ? 'Expand diff' : 'Collapse diff'}
-                  data-testid={TestIds.diffCollapse(file.path)}
-                >
-                  {collapsed ? <ChevronRight /> : <ChevronDown />}
-                </Button>
-              }
-            />
-            <TooltipContent>{collapsed ? 'Expand diff' : 'Collapse diff'}</TooltipContent>
           </Tooltip>
         )}
       </div>
