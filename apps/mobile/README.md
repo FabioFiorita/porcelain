@@ -149,6 +149,12 @@ form sheet, now with the desktop command set (`status`, `pull`, `push`, `fetch`,
 the environment list, connection detail, pairing, reading preferences, and
 pull behavior in one tab.
 
+Every tab's native header keeps the workspace context together: project chooses
+the daemon's active repo, branch checks out a branch in that worktree, and
+worktree switches among linked checkouts. Environment selection stays in
+Settings, so changing the network target does not change the meaning of the
+project/branch/worktree controls.
+
 iPhone currently uses the bottom `NativeTabs` presentation. The iPad root
 presentation belongs to the SplitView work in `docs/plans/01-files.md §2.7`;
 this shell change does not claim that root split presentation. `ios.supportsTablet: true`

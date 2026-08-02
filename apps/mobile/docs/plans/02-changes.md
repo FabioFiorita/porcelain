@@ -4,7 +4,7 @@ Status: implemented, with the contextual shell and quick-command expansion track
 
 ## 1. Mission
 
-Make the phone the place where you *read what the agent did and decide it's good* — Changes is the canonical home for diffs, staging, and commit on every Porcelain client, and on mobile it has to carry that identity in a thumb-sized surface. The tab opens on the working tree **grouped by flow layer** (never alphabetically — that grouping is the product's differentiator, not a sort option), lets you read the whole change as one continuous scrolling document (`diffReading`), mark files reviewed, stage what belongs together, and commit with the repo's own conventional vocabulary. History is the same story one step back: a `gitLog` list pushed from the Changes header, and a commit detail that reuses the *identical* flow-grouped list and diff reader with a commit scope. No second diff renderer, no second commit UX, no branch cockpit — everything a phone can't do well is deliberately absent and named in §5.
+Make the phone the place where you *read what the agent did and decide it's good* — Changes is the canonical home for diffs, staging, and commit on every Porcelain client, and on mobile it has to carry that identity in a thumb-sized surface. The tab opens on the working tree **grouped by flow layer** (never alphabetically — that grouping is the product's differentiator, not a sort option), lets you read the whole change as one continuous scrolling document (`diffReading`), mark files reviewed, stage what belongs together, and commit with the repo's own conventional vocabulary. History is the same story one step back: a `gitLog` list pushed from the Changes header, and a commit detail that reuses the *identical* flow-grouped list and diff reader with a commit scope. No second diff renderer or second commit UX; project, branch, and worktree selection live together in the shared native context header, while branch-diff review remains out of scope for the phone list.
 
 ## 2. UX shape
 
@@ -16,7 +16,7 @@ Source of truth is **`gitFlow`** alone — it returns `FlowGroup[] = { layer, fi
 
 Layout, top to bottom, inside one `Host style={{flex:1}}` + `List` (native `List` = SwiftUI `List`, so it virtualizes):
 
-1. **Summary row** — `<branch> · N files · +A −D · M reviewed`. Branch from `gitHead` (`headLabel`-equivalent: branch name, else `detached @ sha`). Tapping it does nothing in v1 (no branch switcher — §5).
+1. **Summary row** — `<branch> · N files · +A −D · M reviewed`. Branch from `gitHead` (`headLabel`-equivalent: branch name, else `detached @ sha`). Project, branch, and worktree are selected from the shared header; the summary does not duplicate those controls.
 2. **Suggestion strip** (when `gitSuggestions` returns any whitelisted command) — each row carries the command's `reason` and runs through the same command surface as the desktop. **Note:** `gitSuggestions` is *quick-command* advice derived from branch-sync + stash state — it is **not** commit-message suggestion. Commit-message help comes from `gitCommitConventions`. The desktop code (`src/backend/search/suggestions.ts`) is authoritative here; don't wire it into the composer.
 3. **One section per layer, in `gitFlow` order** — a plain section-header row (`Text`, uppercase, secondary color) `LAYER · n files · +A −D · k/n reviewed`, then that group's file rows. Layer order comes from the daemon and is never re-sorted client-side; files inside a group keep daemon order too. A repo on starter layers will show most files under `Other` — that's correct and expected, don't "fix" it by sorting.
 4. **File row** (`ListItem`):
@@ -195,8 +195,8 @@ Do **not** touch: anything under the repo-root `src/` (Electron/daemon), `src/re
 Named on purpose, so nobody "completes" the surface:
 
 - **Branch scope.** Changes is working-scope only; History is commit-scope. No `gitRangeFlow` / "vs main" toggle — the branch story belongs to the Review/PR, and a scope switcher on a phone list is noise.
-- **Branch management**: `gitCheckout`, `gitCreateBranch`, `gitBranches`, `gitWorktrees`, `gitAddWorktree`, worktree inbox. Read-only branch *label* only.
-- **Quick commands**: the Changes bolt owns the daemon whitelist (`status`, `pull`, `push`, `fetch`, `stash`, `stash-pop`); branch management remains out of scope.
+- **Workspace selection.** The shared context header exposes the active project, branch, and linked worktree. Branch checkout and worktree switching are supported because they answer "which checkout am I reviewing?"; branch creation, worktree creation, and the worktree inbox remain out of scope for the phone.
+- **Quick commands**: the Changes bolt owns the daemon whitelist (`status`, `pull`, `push`, `fetch`, `stash`, `stash-pop`).
 - **Hunk-level / line-level staging**, amend, revert, cherry-pick, commit context menu.
 - **Syntax highlighting, split diff, word-level intra-line diff, in-diff search, image/binary previews.**
 - **File history** (`gitFileLog`), blame.

@@ -56,7 +56,11 @@ export function QuickCommandsSection({
     if (running !== null) return
     setRunning(command)
     try {
-      const output = await mutations.quickCommand.run(command)
+      // Push has its own daemon mutation because it updates the upstream/head suggestions
+      // separately from the local quick-command whitelist. Keep the visible command set shared
+      // with the desktop, but preserve that invalidation boundary here.
+      const output =
+        command === 'push' ? await mutations.push.run() : await mutations.quickCommand.run(command)
       setResult({ failed: false, output: output === '' ? '(no output)' : output })
     } catch (cause) {
       setResult({

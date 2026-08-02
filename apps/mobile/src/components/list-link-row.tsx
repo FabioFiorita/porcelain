@@ -1,5 +1,13 @@
 import { Button, HStack, Image, Spacer, Text, VStack } from '@expo/ui/swift-ui'
-import { buttonStyle, contentShape, font, frame, shapes } from '@expo/ui/swift-ui/modifiers'
+import {
+  buttonStyle,
+  contentShape,
+  font,
+  frame,
+  lineLimit,
+  shapes,
+} from '@expo/ui/swift-ui/modifiers'
+import type { ReactNode } from 'react'
 
 import { secondary } from '@/theme/modifiers'
 
@@ -24,12 +32,14 @@ export function ListLinkRow({
   iconColor,
   label,
   onPress,
+  trailing,
 }: {
   detail?: string
   icon?: Exclude<LinkIcon, 'chevron.right'>
   iconColor?: string
   label: string
   onPress: () => void
+  trailing?: ReactNode
 }): React.JSX.Element {
   return (
     <Button
@@ -49,12 +59,15 @@ export function ListLinkRow({
       >
         {icon === undefined ? null : <Image color={iconColor} size={18} systemName={icon} />}
         <VStack alignment="leading" spacing={2}>
-          <Text>{label}</Text>
+          <Text modifiers={[lineLimit(1)]}>{label}</Text>
           {detail === undefined ? null : (
-            <Text modifiers={[font({ textStyle: 'footnote' }), secondary]}>{detail}</Text>
+            <Text modifiers={[font({ textStyle: 'footnote' }), secondary, lineLimit(1)]}>
+              {detail}
+            </Text>
           )}
         </VStack>
         <Spacer />
+        {trailing}
         <Image modifiers={[secondary]} size={12} systemName="chevron.right" />
       </HStack>
     </Button>
