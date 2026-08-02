@@ -1,11 +1,10 @@
-import { Button, Host, HStack, Image, Menu, Text, VStack } from '@expo/ui/swift-ui'
+import { Host, Text, VStack } from '@expo/ui/swift-ui'
 import { font } from '@expo/ui/swift-ui/modifiers'
-import { router, Stack } from 'expo-router'
+import { Stack } from 'expo-router'
 
 import { HeaderToolbar, type ScreenAction } from '@/components/header-toolbar'
-import { useActiveRepo } from '@/lib/daemon/repo'
+import { WorkspaceContext } from '@/components/workspace-context'
 import { useAccentColor } from '@/theme/colors'
-import { secondary } from '@/theme/modifiers'
 
 /**
  * The header every tab wears: title left, on the same row as the toolbar buttons.
@@ -25,12 +24,6 @@ export function ScreenHeader({
   title: string
 }): React.JSX.Element {
   const accentColor = useAccentColor()
-  const repo = useActiveRepo()
-
-  // The line names the repo you are reading, which is what a project picker selects. Environment
-  // routing stays in Settings; putting its selector here made the toolbar change meaning on every
-  // screen and made a four-button header out of a contextual control.
-  const context = repo?.name ?? 'Choose project'
 
   return (
     <>
@@ -39,25 +32,11 @@ export function ScreenHeader({
           <Host matchContents seedColor={accentColor}>
             <VStack alignment="leading" spacing={0}>
               <Text modifiers={[font({ size: 22, weight: 'bold' })]}>{title}</Text>
-              <Menu
-                label={
-                  <HStack spacing={3}>
-                    <Text modifiers={[font({ size: 12, weight: 'medium' }), secondary]}>
-                      {context}
-                    </Text>
-                    <Image modifiers={[secondary]} size={8} systemName="chevron.down" />
-                  </HStack>
-                }
-              >
-                <Menu label="Project" systemImage="folder">
-                  <Button label="Choose repo…" onPress={(): void => router.push('/repo')} />
-                </Menu>
-              </Menu>
             </VStack>
           </Host>
         </Stack.Toolbar.View>
       </Stack.Toolbar>
-      <HeaderToolbar actions={actions} companion={companion} />
+      <HeaderToolbar actions={actions} companion={companion} workspace={<WorkspaceContext />} />
     </>
   )
 }

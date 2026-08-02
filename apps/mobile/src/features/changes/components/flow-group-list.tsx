@@ -111,6 +111,7 @@ function FileRow({
             systemName="checkmark.circle.fill"
           />
         ) : null}
+        <Image modifiers={[secondary]} size={12} systemName="chevron.right" />
       </HStack>
     </Button>
   )
