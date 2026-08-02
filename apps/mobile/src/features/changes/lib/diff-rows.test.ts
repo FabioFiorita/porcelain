@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { DiffHunk, FeatureReading } from '@/lib/daemon/procedures/changes'
 
-import { fileDiffRows, isLargeChange, readingRows, totalStats } from './diff-rows'
+import { collapsedRowIds, fileDiffRows, isLargeChange, readingRows, totalStats } from './diff-rows'
 import { statusSymbol } from './status'
 
 function hunk(lines: number, from = 1): DiffHunk {
@@ -56,6 +56,21 @@ describe('readingRows', () => {
   it('says so when a file carries no hunks', () => {
     const rows = readingRows(reading([{ path: 'logo.png' }]))
     expect(rows.at(-1)).toMatchObject({ kind: 'notice', text: 'Binary or unreadable — not shown' })
+  })
+
+  it('keeps a collapsed file header and hides only its following rows', () => {
+    const rows = readingRows(
+      reading([
+        { hunks: [hunk(2)], path: 'README.md' },
+        { hunks: [hunk(1)], path: 'src/app.ts' },
+      ]),
+    )
+
+    expect(collapsedRowIds(rows, new Set(['README.md']))).toEqual([
+      'README.md:0:h',
+      'README.md:0:0',
+      'README.md:0:1',
+    ])
   })
 })
 

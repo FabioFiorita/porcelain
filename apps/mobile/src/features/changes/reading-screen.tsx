@@ -9,7 +9,7 @@ import { HeaderToolbar } from '@/components/header-toolbar'
 import { ScreenHost } from '@/components/screen-host'
 import { DiffSurface } from '@/features/changes/components/diff-surface'
 import { QueryNotice } from '@/features/changes/components/query-notice'
-import { useDiffReading, useScopeFlow } from '@/features/changes/data/queries'
+import { useDiffReading, useReviewedPaths, useScopeFlow } from '@/features/changes/data/queries'
 import {
   CANVAS_FILE_LINES,
   type DiffRow,
@@ -46,6 +46,7 @@ function Reading({ scope }: { scope: DiffReadingScope }): React.JSX.Element {
   const [confirmed, setConfirmed] = useState(false)
   const tokenizer = useDiffTokenizer(useColorScheme())
   const flow = useScopeFlow(scope)
+  const reviewed = useReviewedPaths(scope.type === 'working')
   const totals = totalStats(flow.data ?? [])
   const large = flow.data !== undefined && isLargeChange(totals)
   const reading = useDiffReading(scope, flow.data !== undefined && (!large || confirmed))
@@ -102,9 +103,11 @@ function Reading({ scope }: { scope: DiffReadingScope }): React.JSX.Element {
 
   return (
     <DiffSurface
+      collapsible
       contentKey={`reading:${scope.type}:${scope.type === 'commit' ? scope.hash : 'working'}`}
       onOpenFile={openFile}
       rows={rows}
+      reviewedPaths={scope.type === 'working' ? reviewed.data : undefined}
       tokenizer={tokenizer}
     />
   )

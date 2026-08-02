@@ -29,6 +29,20 @@ describe('diffCanvasRows', () => {
     expect(row.text).toBe('src/a.ts  +3 −1')
   })
 
+  it('marks whole-change file headers with an expand/collapse affordance', () => {
+    const [expanded] = diffCanvasRows(
+      [{ key: 'f', kind: 'file', path: 'src/a.ts', status: 'modified' }],
+      { collapsible: true },
+    )
+    const [collapsed] = diffCanvasRows(
+      [{ key: 'f', kind: 'file', path: 'src/a.ts', status: 'modified' }],
+      { collapsible: true, collapsedPaths: new Set(['src/a.ts']) },
+    )
+
+    expect(expanded.gutter).toBe('M ▾')
+    expect(collapsed.gutter).toBe('M ▸')
+  })
+
   it('highlights the words that changed across a paired delete and add', () => {
     const rows = diffCanvasRows([line('d', 'del', 'const a = 1'), line('a', 'add', 'const b = 1')])
     expect(rows[0].ranges).toEqual([{ end: 7, start: 6 }])

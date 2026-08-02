@@ -1,6 +1,5 @@
 import type { DiffLine } from '@backend/git/diff'
 import type { FeatureReading, ReadingFile } from '@backend/review/feature-view'
-import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
 import {
   ContextMenu,
@@ -17,7 +16,7 @@ import {
   type CommentIndex,
   useReviewComments,
 } from '@renderer/hooks/use-comments'
-import { useClearEvidence, useEvidenceHtml } from '@renderer/hooks/use-evidence'
+import { useEvidenceHtml } from '@renderer/hooks/use-evidence'
 import { useReviewedPaths, useToggleReviewed } from '@renderer/hooks/use-reviewed'
 import { useResolvedTheme } from '@renderer/hooks/use-theme'
 import { evidenceHtmlEmptyMessage } from '@renderer/lib/evidence-message'
@@ -40,20 +39,13 @@ import {
   useReviewFocusStore,
 } from '@renderer/stores/review-focus'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
-import {
-  type EvidenceCheck,
-  type EvidenceCheckStatus,
-  evidenceOverallStatus,
-} from '@shared/evidence-check'
+import type { EvidenceCheck } from '@shared/evidence-check'
 import { TestIds } from '@shared/test-ids'
 import {
-  CircleCheck,
-  CircleMinus,
-  CircleX,
-  Eraser,
+  ChevronDown,
+  ChevronRight,
   FileText,
   MessageSquarePlus,
-  ShieldCheck,
   Square,
   SquareCheck,
 } from 'lucide-react'
@@ -65,6 +57,9 @@ import { type CommentAnchor, CommentComposer } from './comment-composer'
 import { commentRowClass, LineDecorations } from './comment-marker'
 import { SourceMarker } from './feature-list'
 import { tokenizeHunks } from './hunks-view'
+import { EvidenceChecksRow, EvidenceHeaderRow } from './reading-evidence-rows'
+
+export { EvidenceChecksRow, EvidenceHeaderRow } from './reading-evidence-rows'
 
 /** Optional chrome on each file-name row in a pure-diff continuous review. */
 export interface ReadingFileActions {
@@ -72,6 +67,8 @@ export interface ReadingFileActions {
   reviewed?: boolean
   /** Show open-file control (hidden for deleted files via `ReadingFile.status`). */
   openFile?: boolean
+  /** Show the per-file collapse/expand control in a continuous diff review. */
+  collapsible?: boolean
   /** Show the feature source marker (changed/context/shipped). Off for pure diffs. */
   showSource?: boolean
 }
@@ -113,8 +110,10 @@ function pushFileRows(
   file: ReadingFile,
   highlighter: ReturnType<typeof useHighlighter>,
   theme: HighlightThemeName,
+  collapsedPaths?: ReadonlySet<string>,
 ): void {
   rows.push({ type: 'file', file })
+  if (collapsedPaths?.has(file.path)) return
   if (file.note) rows.push({ type: 'note', note: file.note })
   const lang = languageFor(file.path)
   if (file.hunks) {
@@ -157,6 +156,8 @@ export interface BuildRowsOptions {
    * Intent narrative — Execution owns the file list). Default true.
    */
   includeAnchors?: boolean
+  /** Omit a file's body while keeping its header visible. State is client-local. */
+  collapsedPaths?: ReadonlySet<string>
 }
 
 /**
@@ -175,6 +176,7 @@ export function buildRows(
   const includeEvidence = options?.includeEvidence !== false
   const includeAnchors = options?.includeAnchors !== false
   const rows: ReadingRow[] = []
+  const collapsedPaths = options?.collapsedPaths
   if (reading.thesis) rows.push({ type: 'thesis', md: reading.thesis })
   reading.sections.forEach((section, index) => {
     rows.push({ type: 'sectionHeader', index, title: section.title })
@@ -182,7 +184,9 @@ export function buildRows(
     if (section.diagram) rows.push({ type: 'diagram', svg: section.diagram })
     if (section.html) rows.push({ type: 'embed', html: section.html, height: section.htmlHeight })
     if (includeAnchors) {
-      for (const file of section.files) pushFileRows(rows, file, highlighter, theme)
+      for (const file of section.files) {
+        pushFileRows(rows, file, highlighter, theme, collapsedPaths)
+      }
     }
   })
   if (includeAnchors) {
@@ -191,7 +195,9 @@ export function buildRows(
     }
     for (const group of reading.groups) {
       rows.push({ type: 'layer', label: group.layer })
-      for (const file of group.files) pushFileRows(rows, file, highlighter, theme)
+      for (const file of group.files) {
+        pushFileRows(rows, file, highlighter, theme, collapsedPaths)
+      }
     }
   }
   if (includeEvidence && reading.evidence) {
@@ -396,10 +402,16 @@ function FileHeaderRow({
   file,
   onComment,
   fileActions,
+  collapsed,
+  onToggleCollapsed,
+  onCollapse,
 }: {
   file: ReadingFile
   onComment: (anchor: CommentAnchor) => void
   fileActions?: ReadingFileActions
+  collapsed: boolean
+  onToggleCollapsed: () => void
+  onCollapse: () => void
 }): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)
   const openTab = useTabsStore((s) => s.openTab)
@@ -426,8 +438,12 @@ function FileHeaderRow({
   }
 
   const handleToggleReviewed = async (): Promise<void> => {
-    if (isReviewed) await unmark(file.path)
-    else await mark(file.path)
+    if (isReviewed) {
+      await unmark(file.path)
+      return
+    }
+    await mark(file.path)
+    if (fileActions?.collapsible) onCollapse()
   }
 
   return (
@@ -473,6 +489,7 @@ function FileHeaderRow({
                     isReviewed ? 'text-success' : 'text-muted-foreground hover:text-foreground',
                   )}
                   aria-label={isReviewed ? 'Unmark reviewed' : 'Mark reviewed'}
+                  data-testid={TestIds.diffReviewed(file.path)}
                 >
                   {isReviewed ? (
                     <SquareCheck className="size-3.5" />
@@ -506,6 +523,29 @@ function FileHeaderRow({
             <TooltipContent>Open file</TooltipContent>
           </Tooltip>
         )}
+        {fileActions?.collapsible && (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  className="shrink-0 text-muted-foreground hover:text-foreground"
+                  onClick={(e: React.MouseEvent<HTMLButtonElement>): void => {
+                    e.stopPropagation()
+                    onToggleCollapsed()
+                  }}
+                  aria-expanded={!collapsed}
+                  aria-label={collapsed ? 'Expand diff' : 'Collapse diff'}
+                  data-testid={TestIds.diffCollapse(file.path)}
+                >
+                  {collapsed ? <ChevronRight /> : <ChevronDown />}
+                </Button>
+              }
+            />
+            <TooltipContent>{collapsed ? 'Expand diff' : 'Collapse diff'}</TooltipContent>
+          </Tooltip>
+        )}
       </div>
     </CommentMenu>
   )
@@ -537,91 +577,6 @@ function MarkdownBlock({ md }: { md: string }): React.JSX.Element {
         </Markdown>
       </article>
     </div>
-  )
-}
-
-// The loop-evidence chapter header: title + the clear action (the evidence
-// lifecycle — once the human has reviewed the proof, they erase it; the agent can
-// always re-push).
-export function EvidenceHeaderRow({
-  title,
-  checks,
-}: {
-  title: string
-  checks: EvidenceCheck[]
-}): React.JSX.Element {
-  const { clear, isClearing } = useClearEvidence()
-  const overall = evidenceOverallStatus(checks)
-  return (
-    <div className="sticky left-0 flex max-w-[var(--vrows-vw)] items-center gap-2 border-t border-border px-3 pb-1 pt-3">
-      <ShieldCheck className="size-3.5 shrink-0 text-info" />
-      <h2 className="min-w-0 flex-1 truncate font-sans text-sm font-semibold">{title}</h2>
-      {overall && (
-        <Badge
-          variant="outline"
-          className={cn(
-            'shrink-0 text-2xs',
-            overall === 'pass' ? 'text-success' : 'text-destructive',
-          )}
-        >
-          {overall === 'pass' ? 'Pass' : 'Fail'}
-        </Badge>
-      )}
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              className="shrink-0 text-muted-foreground"
-              onClick={clear}
-              disabled={isClearing}
-              aria-label="Clear evidence"
-              data-testid={TestIds.evidenceClear}
-            >
-              <Eraser />
-            </Button>
-          }
-        />
-        <TooltipContent>Clear evidence</TooltipContent>
-      </Tooltip>
-    </div>
-  )
-}
-
-// Per-status icon + semantic color for a structured check: green tick (pass), red
-// cross (fail), muted minus (skip). Same success/destructive tokens as the +/- stats.
-const checkStatusStyle: Record<
-  EvidenceCheckStatus,
-  { Icon: typeof CircleCheck; className: string }
-> = {
-  pass: { Icon: CircleCheck, className: 'text-success' },
-  fail: { Icon: CircleX, className: 'text-destructive' },
-  skip: { Icon: CircleMinus, className: 'text-muted-foreground' },
-}
-
-// The structured verification checks, between the evidence header and the document.
-// Plain NATIVE React — react auto-escapes the agent-authored label/detail strings, so
-// (unlike the sandboxed HTML body) there is no dangerouslySetInnerHTML / iframe here.
-export function EvidenceChecksRow({ checks }: { checks: EvidenceCheck[] }): React.JSX.Element {
-  return (
-    <ul className="sticky left-0 flex max-w-[var(--vrows-vw)] flex-col gap-1 px-3 py-1.5">
-      {checks.map((check, index) => {
-        const { Icon, className } = checkStatusStyle[check.status]
-        return (
-          // biome-ignore lint/suspicious/noArrayIndexKey: static per render, never reordered; labels are agent-authored and not deduped
-          <li key={`${index}-${check.label}`} className="flex items-start gap-2">
-            <Icon className={cn('mt-0.5 size-3.5 shrink-0', className)} />
-            <span className="min-w-0 font-sans text-sm leading-snug">
-              {check.label}
-              {check.detail && (
-                <span className="ml-2 text-xs text-muted-foreground">{check.detail}</span>
-              )}
-            </span>
-          </li>
-        )
-      })}
-    </ul>
   )
 }
 
@@ -686,12 +641,18 @@ function ReadingRowView({
   commentIndexByPath,
   pendingAnchor,
   fileActions,
+  collapsedPaths,
+  onToggleCollapsed,
+  onCollapse,
 }: {
   row: ReadingRow
   onComment: (anchor: CommentAnchor) => void
   commentIndexByPath: Map<string, CommentIndex>
   pendingAnchor: CommentAnchor | null
   fileActions?: ReadingFileActions
+  collapsedPaths: ReadonlySet<string>
+  onToggleCollapsed: (path: string) => void
+  onCollapse: (path: string) => void
 }): React.JSX.Element {
   switch (row.type) {
     case 'thesis':
@@ -720,7 +681,16 @@ function ReadingRowView({
         </p>
       )
     case 'file':
-      return <FileHeaderRow file={row.file} onComment={onComment} fileActions={fileActions} />
+      return (
+        <FileHeaderRow
+          file={row.file}
+          onComment={onComment}
+          fileActions={fileActions}
+          collapsed={collapsedPaths.has(row.file.path)}
+          onToggleCollapsed={(): void => onToggleCollapsed(row.file.path)}
+          onCollapse={(): void => onCollapse(row.file.path)}
+        />
+      )
     case 'note':
       // The note wraps to multiple lines and is capped at the viewport width (the
       // `--vrows-vw` var, NOT the surface's horizontally-scrolling `w-max` content), so
@@ -828,9 +798,32 @@ export function ReadingSurfaceBody({
 }): React.JSX.Element {
   const highlighter = useHighlighter()
   const theme = themeNameFor(useResolvedTheme())
+  const collapsible = fileActions?.collapsible === true
+  const [collapsedPaths, setCollapsedPaths] = useState<ReadonlySet<string>>(new Set())
+  const toggleCollapsed = (path: string): void => {
+    setCollapsedPaths((current) => {
+      const next = new Set(current)
+      if (next.has(path)) next.delete(path)
+      else next.add(path)
+      return next
+    })
+  }
+  const collapse = (path: string): void => {
+    setCollapsedPaths((current) => {
+      if (current.has(path)) return current
+      const next = new Set(current)
+      next.add(path)
+      return next
+    })
+  }
   const rows = useMemo(
-    () => buildRows(reading, highlighter, theme, { includeEvidence, includeAnchors }),
-    [reading, highlighter, theme, includeEvidence, includeAnchors],
+    () =>
+      buildRows(reading, highlighter, theme, {
+        includeEvidence,
+        includeAnchors,
+        collapsedPaths: collapsible ? collapsedPaths : undefined,
+      }),
+    [reading, highlighter, theme, includeEvidence, includeAnchors, collapsible, collapsedPaths],
   )
   const [anchor, setAnchor] = useState<CommentAnchor | null>(null)
   const comments = useReviewComments()
@@ -891,6 +884,9 @@ export function ReadingSurfaceBody({
             commentIndexByPath={commentIndexByPath}
             pendingAnchor={anchor}
             fileActions={fileActions}
+            collapsedPaths={collapsedPaths}
+            onToggleCollapsed={toggleCollapsed}
+            onCollapse={collapse}
           />
         )}
       />

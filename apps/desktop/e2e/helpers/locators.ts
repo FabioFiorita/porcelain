@@ -40,6 +40,8 @@ export const loc = {
   changesList: (page: Page): Locator => byId(page, TestIds.changesList),
   changesSummary: (page: Page): Locator => byId(page, TestIds.changesSummary),
   changesFile: (page: Page, fileName: string): Locator => byId(page, TestIds.changesFile(fileName)),
+  diffCollapse: (page: Page, path: string): Locator => byId(page, TestIds.diffCollapse(path)),
+  diffReviewed: (page: Page, path: string): Locator => byId(page, TestIds.diffReviewed(path)),
 
   worktreeSwitcher: (page: Page): Locator => byId(page, TestIds.worktreeSwitcher),
   worktreeMenuItem: (page: Page, branch: string): Locator =>

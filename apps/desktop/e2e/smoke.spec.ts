@@ -14,6 +14,29 @@ test('Changes tab lists the working-tree changes', async ({ page }) => {
   await expect(loc.changesFile(page, 'Card.tsx')).toBeVisible()
 })
 
+test('All changes can collapse and expand an individual diff', async ({ page }) => {
+  await waitForShell(page)
+  await selectTab(page, 'Changes')
+  await page.getByRole('button', { name: 'All changes' }).click()
+
+  const collapse = loc.diffCollapse(page, 'src/pages/Home.tsx')
+  const lines = page.locator('[data-file="src/pages/Home.tsx"]')
+  await expect(collapse).toHaveAttribute('aria-label', 'Collapse diff')
+  await expect(lines.first()).toBeVisible()
+
+  await collapse.click()
+  await expect(collapse).toHaveAttribute('aria-label', 'Expand diff')
+  await expect(lines).toHaveCount(0)
+
+  await collapse.click()
+  await expect(collapse).toHaveAttribute('aria-label', 'Collapse diff')
+  await expect(lines.first()).toBeVisible()
+
+  await loc.diffReviewed(page, 'src/pages/Home.tsx').click()
+  await expect(collapse).toHaveAttribute('aria-label', 'Expand diff')
+  await expect(lines).toHaveCount(0)
+})
+
 test('Board tab keeps the Quick Access toggle (Focus card detail)', async ({ page }) => {
   await waitForShell(page)
   await selectTab(page, 'Changes')

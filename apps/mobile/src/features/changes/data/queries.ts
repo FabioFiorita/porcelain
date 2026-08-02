@@ -56,11 +56,11 @@ export function useWorkingFlow(): Query<FlowGroup[]> {
   })
 }
 
-export function useReviewedPaths(): Query<string[]> {
+export function useReviewedPaths(enabled = true): Query<string[]> {
   const repo = useRepoPath()
   const focused = useIsFocused()
   return useDaemonQuery(reviewedPathsQuery, repo.path, {
-    enabled: repo.enabled && focused,
+    enabled: repo.enabled && focused && enabled,
     pollMs: FOCUS_POLL,
   })
 }

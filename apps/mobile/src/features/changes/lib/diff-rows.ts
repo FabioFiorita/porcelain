@@ -124,6 +124,35 @@ export function readingRows(
   return rows
 }
 
+/** Row ids hidden under a collapsed file header in the whole-change canvas. */
+export function collapsedRowIds(
+  rows: readonly DiffRow[],
+  collapsedPaths: ReadonlySet<string>,
+): string[] {
+  const hidden: string[] = []
+  let filePath: string | null = null
+
+  for (const row of rows) {
+    if (row.kind === 'layer') {
+      filePath = null
+      continue
+    }
+    if (row.kind === 'file') {
+      filePath = row.path
+      continue
+    }
+
+    if (filePath === null || !collapsedPaths.has(filePath)) continue
+    if (row.kind === 'notice' && row.path === undefined) {
+      filePath = null
+      continue
+    }
+    hidden.push(row.key)
+  }
+
+  return hidden
+}
+
 /** Totals the list header and the large-change guard both quote. */
 export function totalStats(
   groups: readonly { files: readonly { additions?: number; deletions?: number }[] }[],

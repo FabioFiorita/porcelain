@@ -145,7 +145,7 @@ async function seedState(
   await mkdir(userData, { recursive: true })
   await writeFile(
     join(userData, 'config.json'),
-    JSON.stringify({ recentRepos: [seedRepo ? repoDir : ABSENT_REPO], repos: {} }),
+    JSON.stringify({ recentRepos: [seedRepo ? repoDir : ABSENT_REPO] }),
   )
   const reviewSets = join(udBase, 'review-sets.json')
   await writeFile(reviewSets, JSON.stringify(seedReviewSet ? { [repoDir]: seedReviewSet } : {}))

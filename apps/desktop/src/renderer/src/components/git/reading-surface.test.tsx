@@ -80,6 +80,14 @@ describe('buildRows', () => {
     const code = buildRows(reading, null).find((r) => r.type === 'code')
     expect(code).toMatchObject({ type: 'code', lineNo: 10, text: 'export const X = 1' })
   })
+
+  it('keeps a collapsed file header while omitting its body rows', () => {
+    expect(
+      buildRows(reading, null, undefined, { collapsedPaths: new Set(['app/page.tsx']) }).map(
+        (row) => row.type,
+      ),
+    ).toEqual(['layer', 'file', 'layer', 'file', 'note', 'gap', 'code', 'truncated'])
+  })
 })
 
 // The full Review document: thesis, a walkthrough section (prose + diagram +

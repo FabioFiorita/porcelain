@@ -63,22 +63,34 @@ function wordRanges(rows: readonly DiffRow[]): Map<string, { start: number; end:
   return ranges
 }
 
-type RangeMap = Map<string, { start: number; end: number }[]>
+type WordRange = { start: number; end: number }
+type RangeMap = ReadonlyMap<string, WordRange[]>
+
+type DiffCanvasOptions = {
+  collapsible?: boolean
+  collapsedPaths?: ReadonlySet<string>
+  ranges?: RangeMap
+}
 
 /** Roles carrying a heading rather than a code line need the extra height reserved up front. */
-function canvasRow(row: DiffRow, ranges: RangeMap): RowCanvasRow {
+function canvasRow(row: DiffRow, ranges: RangeMap, options: DiffCanvasOptions): RowCanvasRow {
   switch (row.kind) {
     case 'layer':
       return { heightScale: 1.6, id: row.key, role: 'layer', text: row.label.toUpperCase() }
-    case 'file':
+    case 'file': {
+      const status = row.status === undefined ? '' : STATUS_LETTERS[row.status]
+      const indicator = options.collapsedPaths?.has(row.path) === true ? '▸' : '▾'
+      const gutter =
+        options.collapsible === true ? `${status}${status === '' ? '' : ' '}${indicator}` : status
       return {
-        gutter: row.status === undefined ? '' : STATUS_LETTERS[row.status],
+        gutter,
         heightScale: 1.9,
         id: row.key,
         role: 'file',
         sticky: true,
         text: fileText(row),
       }
+    }
     case 'hunk':
       return { id: row.key, role: 'hunk', text: row.header }
     case 'line':
@@ -94,9 +106,17 @@ function canvasRow(row: DiffRow, ranges: RangeMap): RowCanvasRow {
   }
 }
 
-export function diffCanvasRows(rows: readonly DiffRow[]): RowCanvasRow[] {
-  const ranges = wordRanges(rows)
-  return rows.map((row) => canvasRow(row, ranges))
+export function diffCanvasRows(
+  rows: readonly DiffRow[],
+  options: DiffCanvasOptions = {},
+): RowCanvasRow[] {
+  const ranges = options.ranges ?? wordRanges(rows)
+  return rows.map((row) => canvasRow(row, ranges, options))
+}
+
+/** Cache the expensive word pairing separately from the cheap file-header presentation. */
+export function diffCanvasRanges(rows: readonly DiffRow[]): RangeMap {
+  return wordRanges(rows)
 }
 
 export type TokenizableLine = { text: string; path: string }

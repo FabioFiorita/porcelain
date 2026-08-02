@@ -56,6 +56,8 @@ export const TestIds = {
   changesList: 'changes-list',
   changesSummary: 'changes-summary',
   changesFile: (fileName: string): string => `changes-file-${fileName}`,
+  diffCollapse: (path: string): string => `diff-collapse-${path}`,
+  diffReviewed: (path: string): string => `diff-reviewed-${path}`,
   /** Quiet kickoff when layers are still starters (not agent-configured). */
   changesLayersSetup: 'changes-layers-setup',
   changesLayersSetupDismiss: 'changes-layers-setup-dismiss',
