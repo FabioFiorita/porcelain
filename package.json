@@ -40,6 +40,7 @@
     "typecheck:mobile": "pnpm --dir apps/mobile typecheck",
     "mobile:start": "pnpm --dir apps/mobile start",
     "mobile:start:mcp": "pnpm --dir apps/mobile start:mcp",
+    "mobile:fixture": "node scripts/mobile-fixture-daemon.mjs",
     "mobile:sim:build": "pnpm --dir apps/mobile sim:build",
     "mobile:sim:install": "pnpm --dir apps/mobile sim:install",
     "mobile:dev:device": "pnpm --dir apps/mobile dev:device",
