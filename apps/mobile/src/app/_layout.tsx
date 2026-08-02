@@ -56,6 +56,10 @@ function IPadSplitView(): React.JSX.Element {
       preferredSplitBehavior="tile"
       topColumnForCollapsing="supplementary"
     >
+      {/**
+       * Expo Router adds the current URL's Slot as the third, secondary column. The existing
+       * `/(tabs)/(files)/file/[...path]` route renders FileScreen there.
+       */}
       <SplitView.Column>
         <IPadNavigationColumn />
       </SplitView.Column>
