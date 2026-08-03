@@ -9,7 +9,7 @@
  *      / `src/main` module may spawn git around it. Test fixtures and `src/cli`'s
  *      one-shot `rev-parse` are out of scope.
  *   3. `.husky/pre-commit` clears Git's exported repository-local env before
- *      verification.
+ *      the commit gate (`pnpm lint`).
  *   4. Every git spawn in the gateway builds its env with `gitEnv`, the runtime
  *      half of 3.
  *
@@ -74,16 +74,16 @@ function hasOrderedGitHookEnvScrub(source) {
   const branchProfileEnd = code.indexOf('\nesac\n')
   const envList = GIT_LOCAL_ENV_LIST.exec(code)
   const envUnset = GIT_LOCAL_ENV_UNSET.exec(code)
-  const verifyStart = code.indexOf('pnpm verify')
+  const gateStart = code.indexOf('pnpm lint')
 
   return (
     branchProfileEnd !== -1 &&
     envList !== null &&
     envUnset !== null &&
-    verifyStart !== -1 &&
+    gateStart !== -1 &&
     envList.index > branchProfileEnd &&
     envUnset.index > envList.index &&
-    verifyStart > envUnset.index
+    gateStart > envUnset.index
   )
 }
 
@@ -111,10 +111,10 @@ esac
 # for git_local_var in $git_local_env; do
 #   unset "$git_local_var"
 # done
-pnpm verify`
+pnpm lint`
 const lateScrubDecoy = `case "$branch" in
 esac
-pnpm verify
+pnpm lint
 git_local_env="$(git rev-parse --local-env-vars)"
 for git_local_var in $git_local_env; do
   unset "$git_local_var"
@@ -189,7 +189,7 @@ if (!hasOrderedGitHookEnvScrub(preCommitHook)) {
     file: relative(root, PRE_COMMIT_HOOK),
     line: 0,
     label:
-      'pre-commit no longer clears Git repository-local env before verification — fixture git commands could mutate the real worktree',
+      'pre-commit no longer clears Git repository-local env before the lint gate — fixture git commands could mutate the real worktree',
     snippet: '(git local env scrub absent from the hook)',
   })
 }

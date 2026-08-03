@@ -35,11 +35,12 @@ main is good enough for daily use (web + daemon)
 short-lived managed `work/*` PR), and release stays the same simple main+tag path after
 `release-cut.mjs` has required clean `main == origin/main`. It sets `PORCELAIN_RELEASE_CUT=1`
 for one reason only: to *deny* the Claude duplicate-skip, so the tracked hook still runs
-`pnpm verify` on the nested commit `release-cut.mjs` makes — which the outer Claude/Grok hook
+`pnpm lint` on the nested commit `release-cut.mjs` makes — which the outer Claude/Grok hook
 never sees. It never bypasses the gate. No multi-workflow pre-cut gate. No cut/retry/npm_only
 mode soup.
 
-Day-to-day proof is `pnpm verify` + browser e2e on the **dev** stack — not this workflow.
+Day-to-day proof is `pnpm verify` (before push) + browser e2e on CI / the **dev** stack — not this
+workflow.
 
 ## Runbook
 

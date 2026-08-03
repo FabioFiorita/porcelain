@@ -3,14 +3,13 @@ import type { AppMode } from './e2e/helpers/app'
 
 // Porcelain's e2e tier — ONE spec suite, two runtimes (see e2e/helpers/app.ts):
 //
-// - `browser` (day-to-day, per push): headless Chromium driving the daemon-served
+// - `browser` (day-to-day CI on main): headless Chromium driving the daemon-served
 //   browser client — the daemon serves the SAME built renderer dist the Electron
 //   window loads, over the same tRPC + WS data path, so this asserts everything
 //   except the Electron shell layer, with no display server needed.
-// - `electron` (macOS only: e2e-native-dry-run.yml per push + release.yml's
-//   package-mac): the BUILT app via
+// - `electron` (local Mac only — `pnpm test:e2e:native*`): the BUILT app via
 //   Playwright's `_electron`, so the real preload, native menu, and window
-//   management are present.
+//   management are present. Not CI; release packaging does not re-run this suite.
 //
 // Both need `pnpm build` first; the `test:e2e*` scripts do this for you.
 export default defineConfig<{ appMode: AppMode }>({

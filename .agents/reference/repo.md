@@ -58,6 +58,6 @@ multi-workflow pre-cut gate, native e2e optional. Runbook: `releasing`. Dep plac
 empty-`CSC_LINK` trap are `audit` invariants.
 
 - shadcn primitives only; a new primitive needs human approval.
-- Strict TS; type escapes lint-enforced. Gate: `pnpm verify`.
+- Strict TS; type escapes lint-enforced. Commit: `pnpm lint`. Before push / CI: `pnpm verify`.
 - Managed worktrees are runtime-isolated (unique port, per-slug homes).
   `PORCELAIN_DEV_PLAYGROUND` must stay in `terminal-env.ts`'s scrub list.

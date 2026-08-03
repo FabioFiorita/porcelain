@@ -14,9 +14,9 @@ Root `AGENTS.md` hard rules are assumed.
 
 ## How to verify
 
-`pnpm verify` is the commit gate. Three rules are lint-enforced by `scripts/lint-audit.mjs`
-(`isSafeExternalUrl`, `GIT_OPTIONAL_LOCKS=0`, hook env scrub). Everything else needs a read of the
-diff against the references below.
+Commit gate is `pnpm lint` (includes audit). Full bar before push/CI is `pnpm verify`. Three rules
+are lint-enforced by `scripts/lint-audit.mjs` (`isSafeExternalUrl`, `GIT_OPTIONAL_LOCKS=0`, hook env
+scrub). Everything else needs a read of the diff against the references below.
 
 ## Reference
 

@@ -11,13 +11,14 @@
 
 ## Git plumbing
 
-- **The pre-commit verification process clears Git's hook-local environment.** Git exports repository
-  variables such as `GIT_INDEX_FILE` to hooks, so before `pnpm verify` `.husky/pre-commit` must
-  enumerate `git rev-parse --local-env-vars` and unset each one. Otherwise tests that create temporary
-  Git repositories inherit the real worktree's index and object paths, ignore their `cwd`, and can
-  create fixture commits or switch branches in the checkout being committed. The branch/profile checks
-  intentionally run **before** the scrub; verification runs after. *Verify:* `lint-audit` enforces the
-  scrub, and a normal commit completes without changing branch or producing fixture commits.
+- **The pre-commit process clears Git's hook-local environment.** Git exports repository variables
+  such as `GIT_INDEX_FILE` to hooks, so before the commit gate (`.husky/pre-commit` → `pnpm lint`)
+  must enumerate `git rev-parse --local-env-vars` and unset each one. Otherwise nested git (or a
+  future expansion of the gate that runs tests) inherits the real worktree's index and object paths,
+  ignores `cwd`, and can create fixture commits or switch branches in the checkout being committed.
+  Branch/profile checks run **before** the scrub; the gate command runs after. *Verify:* `lint-audit`
+  enforces the scrub, and a normal commit completes without changing branch or producing fixture
+  commits.
 - **`cwd` decides which repository a spawned git acts on — never an inherited variable.** Every git
   spawn builds its env with `gitEnv`, which drops the repository-local variables
   `git rev-parse --local-env-vars` names and passes the rest through: `GIT_SSH_COMMAND`/`GIT_ASKPASS`

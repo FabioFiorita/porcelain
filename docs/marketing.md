@@ -40,4 +40,4 @@ for that path. Keep demo content generic (`you@remote-host`, not personal machin
 3. Site version string current; best og shot.
 4. Screenshots for changed surfaces.
 5. No personal-setup leaks.
-6. `pnpm verify` + commit.
+6. Commit (lint gate) + `pnpm verify` before push.

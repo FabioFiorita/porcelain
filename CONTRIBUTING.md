@@ -19,17 +19,16 @@ pnpm dev
 
 If Electron is missing after install (`Error: Electron uninstall`), run `node node_modules/electron/install.js` once (Electron may not download in `postinstall` on every platform).
 
-**Agents and this clone:** project hooks require `pnpm verify` before commit. Work on a fork, open a PR, and keep changes focused. Day-to-day product work uses the **dev** daemon (`pnpm dev:daemon`, port 43118, `~/.porcelain-dev`) — not a production install. See [AGENTS.md](AGENTS.md) and the `ship` skill.
+**Agents and this clone:** project hooks require `pnpm lint` before commit; run `pnpm verify` before push. Work on a fork, open a PR, and keep changes focused. Day-to-day product work uses the **dev** daemon (`pnpm dev:daemon`, port 43118, `~/.porcelain-dev`) — not a production install. See [AGENTS.md](AGENTS.md) and the `ship` skill.
 
 ## Verification
 
-Every change must pass the gate before commit:
-
 ```bash
-pnpm verify
+pnpm lint     # every commit (hook-enforced): Biome + real custom lints
+pnpm verify   # before push / release: lint + test + build + e2e typecheck
 ```
 
-That is lint + test + build (typecheck runs inside build).
+CI on `main` runs full `pnpm verify` and browser e2e in parallel.
 
 ## Pull requests
 

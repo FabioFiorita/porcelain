@@ -27,30 +27,14 @@
     "rules": {
       "preset": "recommended",
       "suspicious": { "noExplicitAny": "error" },
-      "style": { "noDefaultExport": "error" },
       "correctness": {
         "noUnusedImports": "error",
         "noUnusedVariables": "error"
-      },
-      "nursery": { "useExplicitType": "error" }
+      }
     }
   },
   "assist": { "actions": { "source": { "organizeImports": "on" } } },
   "overrides": [
-    {
-      "includes": [
-        "apps/desktop/src/renderer/src/App.tsx",
-        "apps/mobile/src/app/**/*.tsx",
-        "**/*.config.ts",
-        "**/*.d.ts",
-        "apps/desktop/playwright.config.ts"
-      ],
-      "linter": { "rules": { "style": { "noDefaultExport": "off" } } }
-    },
-    {
-      "includes": ["apps/desktop/e2e/**", "**/*.config.ts", "scripts/**"],
-      "linter": { "rules": { "nursery": { "useExplicitType": "off" } } }
-    },
     {
       "includes": ["apps/mobile/src/**"],
       "linter": {

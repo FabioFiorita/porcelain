@@ -1,9 +1,18 @@
 name: CI
 
+# Solo side-project gate. Local commit runs cheap lint; this workflow is the
+# clean-room quality bar on every push/PR (full verify) plus browser e2e on main.
+# One workflow so install/bootstrap lives in one place.
+
 on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   check:
@@ -17,4 +26,21 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm verify
-      - run: pnpm typecheck:e2e
+
+  e2e:
+    # Browser e2e is the day-to-day UI contract (daemon-served client).
+    # PRs get verify only; main + manual get the suite.
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Electron 42 has no postinstall; fetch the binary before anything runs it.
+      - run: node apps/desktop/node_modules/electron/install.js
+      - run: pnpm --dir apps/desktop exec playwright install --with-deps chromium
+      - run: pnpm test:e2e

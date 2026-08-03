@@ -6,9 +6,10 @@
 #   2. Accepts commits on `main` (solo main-first flow), on managed `work/*`
 #      branches, and inside harness-native worktrees; every other branch is
 #      unmanaged and blocked.
-#   3. Runs the verification gate     -> AGENTS.md rule 3 (before ANY commit) and
+#   3. Runs the cheap lint gate        -> AGENTS.md rule 3 (before ANY commit) and
 #      blocks the commit on failure, feeding the failing output back to the agent
-#      so it can fix and retry without a human in the loop.
+#      so it can fix and retry without a human in the loop. Full `pnpm verify`
+#      is the pre-push / CI bar, not this early guard.
 #
 # Exit 2 blocks the tool call; everything on stderr is shown to the agent.
 # This is the deterministic backstop the advisory CLAUDE.md rules can't be, so it
@@ -113,18 +114,19 @@ case "$decision" in
     esac
     if ! command -v pnpm >/dev/null 2>&1; then
       echo "git-guard: pnpm not found on PATH — REFUSING the commit (the rule-3 gate can't run)." >&2
-      echo "Fix PATH / install pnpm, or commit from an environment where 'pnpm verify' works." >&2
+      echo "Fix PATH / install pnpm, or commit from an environment where 'pnpm lint' works." >&2
       exit 2
     fi
     out="$(mktemp)"
-    if pnpm verify >"$out" 2>&1; then
+    if pnpm lint >"$out" 2>&1; then
       rm -f "$out"
       exit 0
     fi
     {
-      echo "Verification gate FAILED — commit blocked (AGENTS.md rule 3: lint · typecheck · test · build)."
-      echo "Fix the failures, then retry the commit. For lint/format issues run: pnpm lint:fix"
-      echo "----- last 40 lines of 'pnpm verify' -----"
+      echo "Lint gate FAILED — commit blocked (AGENTS.md rule 3: cheap lint on commit)."
+      echo "Fix the failures, then retry. For format issues: pnpm lint:fix"
+      echo "Full quality bar before push: pnpm verify"
+      echo "----- last 40 lines of 'pnpm lint' -----"
       tail -n 40 "$out"
     } >&2
     rm -f "$out"

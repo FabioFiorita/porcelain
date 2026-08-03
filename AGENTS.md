@@ -24,8 +24,9 @@ sign-off before breaking it.
 1. **One architecture.** Match existing patterns for state, data fetching, IPC, and tests. Propose
    before forking — two patterns nobody chose is the failure state.
 2. **Match the local idiom.** Naming, tests, layout, commits: read the code around you.
-3. **`pnpm verify` before every commit** (`lint && test && build`). Hook-enforced. Commit messages
-   are capped at **1024 chars** (EAS rejects longer). Details: `ship` skill.
+3. **Cheap lint on every commit; full verify before push.** Hook runs `pnpm lint`. Before push (and
+   on CI): `pnpm verify` (`lint && test && build && typecheck:e2e`). Commit messages capped at
+   **1024 chars** (EAS rejects longer). Details: `ship` skill.
 4. **Type-safety drives design.** When types fight you, change the design. No `as unknown as`; no
    `void` on promises (`async`/`await`). Lint-backed.
 5. **Never mix prod and dev daemons** while building Porcelain (table below).
@@ -100,7 +101,7 @@ Vendor-neutral sources are canonical; host directories are adapters.
 | Early Git guard | `.agents/hooks/git-guard.sh` | `.claude/settings.json` | tracked hook | `.claude/settings.json` after trust |
 | Commit gate | `.husky/pre-commit`, `.husky/commit-msg` | yes | yes | yes |
 
-`HUSKY=0` is `--no-verify`. `PORCELAIN_SKIP_VERIFY=1` is the deliberate escape after a verified
+`HUSKY=0` is `--no-verify`. `PORCELAIN_SKIP_VERIFY=1` skips the pre-commit lint gate after a known-good
 manual run. `pnpm agents:check` catches adapter drift; `pnpm agents:doctor` proves local activation.
 
 Work on `main` by default. Use a managed worktree (`pnpm worktree create <slug>`) when isolation

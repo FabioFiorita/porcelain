@@ -1,7 +1,7 @@
 #!/bin/sh
-# Tracked pre-commit hook — the client-independent AGENTS.md rule-3 gate before
-# ANY commit. Claude Code and Grok Build also run the shared PreToolUse guard
-# through .claude/settings.json; Codex and plain terminals arrive here directly.
+# Tracked pre-commit hook — the client-independent cheap commit gate.
+# Claude Code and Grok Build also run the shared PreToolUse guard through
+# .claude/settings.json; Codex and plain terminals arrive here directly.
 # Activated per clone by `core.hooksPath=.husky/_`, which `pnpm install` wires
 # through the `prepare` script (husky). Husky owns the wiring only — the hook
 # body is tracked here and is what every client actually runs.
@@ -10,6 +10,9 @@
 # branches, and in harness-native worktrees; any other branch is unmanaged and
 # rejected. Like git-guard.sh this fails CLOSED: if it can't run the gate, it
 # refuses the commit rather than waving it through.
+#
+# Gate shape: cheap `pnpm lint` only. Full `pnpm verify` (lint + test + build +
+# e2e typecheck) is the human/agent pre-push command and the CI clean-room bar.
 #
 # Husky's shim runs this with `sh -e`, so an unguarded non-zero command aborts
 # the hook (and blocks the commit). That is the direction we want to fail, but
@@ -63,24 +66,24 @@ case "$branch" in
     ;;
 esac
 
-# Claude Code already ran `pnpm verify` in its guaranteed PreToolUse guard.
+# Claude Code already ran `pnpm lint` in its guaranteed PreToolUse guard.
 # Grok does NOT skip here: its session id cannot prove this checkout's project
 # hook was trusted, discovered, and successful, so the tracked gate stays authoritative.
 # `release:cut` also refuses the skip: it commits through `pnpm version`'s nested
 # git call, which the outer PreToolUse guard never saw, so this gate must run.
 if [ -n "${CLAUDECODE:-}" ] && [ "${PORCELAIN_RELEASE_CUT:-}" != "1" ]; then
-  echo "pre-commit: verify skipped: already gated by git-guard (CLAUDECODE set)."
+  echo "pre-commit: lint skipped: already gated by git-guard (CLAUDECODE set)."
   exit 0
 fi
 
 if [ "${PORCELAIN_SKIP_VERIFY:-}" = "1" ]; then
-  echo "pre-commit: verify skipped: PORCELAIN_SKIP_VERIFY=1 (escape hatch)."
+  echo "pre-commit: lint skipped: PORCELAIN_SKIP_VERIFY=1 (escape hatch)."
   exit 0
 fi
 
-# Git exports repository-local variables to hooks. Clear them before the test
-# suite creates fixture repositories, or their nested git commands ignore cwd
-# and mutate the worktree being committed.
+# Git exports repository-local variables to hooks. Clear them before any tool
+# that might spawn nested git (or future expansion of the gate). Scrub stays
+# before the gate command so fixtures never inherit the real worktree index.
 git_local_env="$(git rev-parse --local-env-vars)"
 for git_local_var in $git_local_env; do
   unset "$git_local_var"
@@ -93,15 +96,16 @@ if ! command -v pnpm >/dev/null 2>&1; then
 fi
 
 out="$(mktemp)"
-if pnpm verify >"$out" 2>&1; then
+if pnpm lint >"$out" 2>&1; then
   rm -f "$out"
   exit 0
 fi
 
 {
-  echo "Verification gate FAILED — commit blocked (AGENTS.md rule 3: lint · typecheck · test · build)."
-  echo "Fix the failures, then retry the commit. For lint/format issues run: pnpm lint:fix"
-  echo "----- last 40 lines of 'pnpm verify' -----"
+  echo "Lint gate FAILED — commit blocked (AGENTS.md rule 3: cheap lint on commit)."
+  echo "Fix the failures, then retry. For format issues: pnpm lint:fix"
+  echo "Full quality bar before push: pnpm verify"
+  echo "----- last 40 lines of 'pnpm lint' -----"
   tail -n 40 "$out"
 } >&2
 rm -f "$out"

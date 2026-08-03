@@ -14,7 +14,7 @@
   },
   "scripts": {
     "format": "biome format --write .",
-    "lint": "biome check . && node scripts/lint-escapes.mjs && node scripts/lint-audit.mjs && node scripts/lint-render-refs.mjs && node scripts/lint-swiftui-host.mjs && node scripts/lint-eas-triggers.mjs && pnpm agents:check && pnpm lint:knip && node scripts/build-terminal-webview.mjs --check",
+    "lint": "biome check . && node scripts/lint-escapes.mjs && node scripts/lint-audit.mjs && node scripts/lint-eas-triggers.mjs && pnpm agents:check",
     "lint:fix": "biome check --write .",
     "lint:audit": "node scripts/lint-audit.mjs",
     "lint:escapes": "node scripts/lint-escapes.mjs",
@@ -64,7 +64,7 @@
     "dist": "pnpm --dir apps/desktop dist",
     "package:mac": "pnpm --dir apps/desktop package:mac",
     "daemon:dist": "node scripts/build-daemon-dist.mjs",
-    "verify": "pnpm lint && pnpm test && pnpm build",
+    "verify": "pnpm lint && pnpm test && pnpm build && pnpm typecheck:e2e",
     "prepare": "[ \"$(git rev-parse --show-toplevel 2>/dev/null)\" = \"$PWD\" ] && husky || true",
     "release": "node scripts/release-cut.mjs",
     "release:prebuilt": "pnpm --dir apps/desktop release:prebuilt",

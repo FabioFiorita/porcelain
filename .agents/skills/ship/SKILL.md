@@ -28,16 +28,23 @@ pnpm porcelain -- help          # CLI → ~/.porcelain-dev
    channels. Mobile → sim/device evidence per `mobile` skill. Never the prod daemon or installed
    production app for product work.
 6. **Docs** — only when a durable constraint changed. Reasons live in the commit body.
-7. **Gate & commit** — `pnpm verify`, then commit. **Stop; push is prompted.**
+7. **Gate & commit** — cheap lint is hook-enforced; then commit. **Before push: `pnpm verify`.**
+   **Stop; push is prompted.**
 
 Scale ceremony to the change. Evidence never scales away. A Porcelain Review (Intent · Execution ·
 Evidence) is optional — publish when the work earns a story or the human asks.
 
 ## Gate
 
-`.husky/pre-commit` runs `pnpm verify`; `.husky/commit-msg` runs `scripts/lint-commit-message.mjs`.
+| When | Command | What |
+|------|---------|------|
+| Every commit (husky + git-guard) | `pnpm lint` | Biome + escapes + audit + eas-triggers + agents:check |
+| Before push / release | `pnpm verify` | lint + unit tests + build + e2e typecheck |
+| On push to `main` (CI) | `pnpm verify` ∥ browser e2e | Clean-room full bar + UI suite |
 
-- `HUSKY=0` = `--no-verify`. `PORCELAIN_SKIP_VERIFY=1` only after a verified manual run.
+`.husky/commit-msg` runs `scripts/lint-commit-message.mjs` (1024-char EAS cap).
+
+- `HUSKY=0` = `--no-verify`. `PORCELAIN_SKIP_VERIFY=1` only after a known-good manual lint run.
 - Missing husky shims silently ungates — `pnpm agents:doctor` checks them.
 - Never add a `GROK_SESSION_ID` skip (fails open).
 
@@ -72,8 +79,9 @@ squash-merge → `pnpm worktree remove <slug>`. Each task gets its own port and 
 
 - **Backend / business logic** → Vitest (`apps/desktop`; also globs mobile pure modules).
 - **No separate `apps/mobile` test script.**
-- **Desktop UI** → browser-first on the daemon-served client. `pnpm test:e2e` for the suite.
-- **Electron native e2e** → optional, not in `pnpm verify`.
+- **Desktop UI** → browser-first on the daemon-served client. `pnpm test:e2e` for the suite (CI on
+  main).
+- **Electron native e2e** → local Mac only (`pnpm test:e2e:native*`); not CI, not `pnpm verify`.
 - Locators: `data-testid` via `apps/desktop/src/shared/test-ids.ts` + e2e helpers.
 - E2e fixtures are pristine — never the human's repos or prod channels.
 

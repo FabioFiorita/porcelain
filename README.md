@@ -81,17 +81,18 @@ pnpm dev       # run the app in development
 | Command | What it does |
 |---|---|
 | `pnpm dev` | Run the app in development |
-| `pnpm lint` | Biome lint + format check |
+| `pnpm lint` | Cheap commit gate (Biome + escapes/audit/eas/agents) |
 | `pnpm typecheck` | Type-check main and renderer |
 | `pnpm test` | Run the Vitest suite |
 | `pnpm test:e2e` | Playwright e2e (headless browser project) |
 | `pnpm build` | Type-check and build |
+| `pnpm verify` | Full bar: lint + test + build + e2e typecheck (run before push) |
 | `pnpm shots` | Regenerate marketing screenshots |
 | `pnpm dist` | Build a signed local `.dmg` / `.zip` |
 | `pnpm daemon:dist` | Assemble publishable `dist-daemon/` (`porcelain-daemon` npm package) |
 | `pnpm release` | Build and publish to GitHub Releases |
 
-The verification gate before any commit is `pnpm verify` (lint + test + build; typecheck runs inside build).
+Commit is gated by `pnpm lint`. Before push (and on CI): `pnpm verify`. Browser e2e runs on every push to `main`.
 
 ## Contributing
 
