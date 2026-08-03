@@ -12,6 +12,8 @@ export type ToolbarIconName =
   | 'comment'
   | 'evidence'
   | 'more'
+  | 'settings'
+  | 'filter'
 
 type ToolbarIcon = NonNullable<StackToolbarButtonProps['icon']>
 
@@ -19,7 +21,6 @@ type ToolbarIcon = NonNullable<StackToolbarButtonProps['icon']>
  * The client is iOS-only, so a toolbar icon is always an SF Symbol name and
  * `Stack.Toolbar.Button` takes it directly. Keep the indirection anyway: call
  * sites name the icon, this file owns the symbol, so a rename is one edit.
- *
  */
 const SF_SYMBOLS: Record<ToolbarIconName, ToolbarIcon> = {
   companion: 'sidebar.right',
@@ -32,6 +33,8 @@ const SF_SYMBOLS: Record<ToolbarIconName, ToolbarIcon> = {
   comment: 'text.bubble',
   evidence: 'checkmark.seal',
   more: 'ellipsis',
+  settings: 'gearshape',
+  filter: 'line.3.horizontal.decrease.circle',
 } as const satisfies Record<ToolbarIconName, ToolbarIcon>
 
 export function toolbarIcon(name: ToolbarIconName): ToolbarIcon {

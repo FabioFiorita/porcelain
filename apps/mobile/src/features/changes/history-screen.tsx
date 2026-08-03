@@ -7,6 +7,7 @@ import { DaemonGate } from '@/components/daemon-gate'
 import { HeaderToolbar } from '@/components/header-toolbar'
 import { ListLinkRow } from '@/components/list-link-row'
 import { ScreenHost } from '@/components/screen-host'
+import { useSurfaceFocus } from '@/components/use-surface-focus'
 import { QueryNotice } from '@/features/changes/components/query-notice'
 import { useLog } from '@/features/changes/data/queries'
 import { shortHash } from '@/features/changes/lib/format'
@@ -18,6 +19,8 @@ const MAX_LIMIT = 500
 
 /** Commit history, pushed from the Changes header rather than owning a tab of its own. */
 export function HistoryScreen(): React.JSX.Element {
+  useSurfaceFocus('history')
+
   return (
     <>
       <DaemonGate requires="repo">
@@ -27,7 +30,7 @@ export function HistoryScreen(): React.JSX.Element {
         Toolbar only, no `ScreenHeader`: a custom left header item would take the slot the
         back button needs, and a pushed screen has to keep its way back.
       */}
-      <HeaderToolbar companion={{ href: '/actions', icon: 'bolt', label: 'Actions' }} />
+      <HeaderToolbar companion={{ href: '/companion', icon: 'companion', label: 'Companion' }} />
     </>
   )
 }

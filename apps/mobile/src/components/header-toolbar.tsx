@@ -1,11 +1,8 @@
-import { Host } from '@expo/ui/swift-ui'
 import { type Href, router, Stack } from 'expo-router'
-import type { ReactNode } from 'react'
 
 import { type ToolbarIconName, toolbarIcon } from '@/components/toolbar-icon'
-import { useAccentColor } from '@/theme/colors'
 
-/** A push the screen owns, sitting before the companion button every surface shares. */
+/** A push the screen owns, sitting before the companion / settings buttons. */
 export type ScreenAction = {
   href: Href
   icon: ToolbarIconName
@@ -13,42 +10,32 @@ export type ScreenAction = {
 }
 
 /**
- * The workspace trigger and optional trailing buttons a surface exposes. Split out from
- * `ScreenHeader` because a pushed screen wants these without the custom title — a left header item
- * would take the slot the back button needs.
- *
- * The companion is last so the control for the right-hand panel sits on the right-hand edge.
+ * Trailing header controls. Order is fixed: surface actions → companion → settings.
+ * Companion is the right-rail analogue (sheet on phone, inspector on iPad). Settings is
+ * chrome, never a tab.
  */
 export function HeaderToolbar({
   actions = [],
   companion,
-  workspace,
+  showSettings = true,
 }: {
   actions?: readonly ScreenAction[]
   companion?: ScreenAction | null
-  workspace?: ReactNode
+  showSettings?: boolean
 }): React.JSX.Element | null {
-  const accentColor = useAccentColor()
   const companionAction: ScreenAction | null =
     companion === undefined
       ? {
           href: '/companion',
-          icon: 'bolt',
+          icon: 'companion',
           label: 'Companion',
         }
       : companion
 
-  if (actions.length === 0 && companionAction === null && workspace === undefined) return null
+  if (actions.length === 0 && companionAction === null && !showSettings) return null
 
   return (
     <Stack.Toolbar placement="right">
-      {workspace === undefined ? null : (
-        <Stack.Toolbar.View hidesSharedBackground>
-          <Host matchContents seedColor={accentColor}>
-            {workspace}
-          </Host>
-        </Stack.Toolbar.View>
-      )}
       {actions.map((action) => (
         <Stack.Toolbar.Button
           accessibilityLabel={action.label}
@@ -64,6 +51,13 @@ export function HeaderToolbar({
           onPress={(): void => router.push(companionAction.href)}
         />
       )}
+      {showSettings ? (
+        <Stack.Toolbar.Button
+          accessibilityLabel="Settings"
+          icon={toolbarIcon('settings')}
+          onPress={(): void => router.push('/settings')}
+        />
+      ) : null}
     </Stack.Toolbar>
   )
 }

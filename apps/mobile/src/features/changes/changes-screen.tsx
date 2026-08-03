@@ -8,6 +8,8 @@ import { DaemonGate } from '@/components/daemon-gate'
 import { ListLinkRow } from '@/components/list-link-row'
 import { ScreenHeader } from '@/components/screen-header'
 import { ScreenHost } from '@/components/screen-host'
+import { useSurfaceFocus } from '@/components/use-surface-focus'
+import { useTabRootFocusRegistration } from '@/components/use-tab-root-focus'
 import { FlowGroupList } from '@/features/changes/components/flow-group-list'
 import { QueryNotice } from '@/features/changes/components/query-notice'
 import {
@@ -28,6 +30,9 @@ const headline = font({ textStyle: 'headline' })
  * heavy `diffReading` is ever fired.
  */
 export function ChangesScreen(): React.JSX.Element {
+  useSurfaceFocus('changes')
+  useTabRootFocusRegistration('changes')
+
   return (
     <>
       <DaemonGate requires="repo">
@@ -35,7 +40,7 @@ export function ChangesScreen(): React.JSX.Element {
       </DaemonGate>
       <ScreenHeader
         actions={[{ href: '/history', icon: 'history', label: 'History' }]}
-        companion={{ href: '/actions', icon: 'bolt', label: 'Actions' }}
+        companion={{ href: '/companion', icon: 'companion', label: 'Companion' }}
         title="Changes"
       />
       <ObserveInteractiveMarker />

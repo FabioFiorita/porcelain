@@ -11,15 +11,8 @@ import type { ReactNode } from 'react'
 
 import { secondary } from '@/theme/modifiers'
 
-type LinkIcon =
-  | 'chevron.right'
-  | 'desktopcomputer'
-  | 'folder'
-  | 'laptopcomputer'
-  | 'shippingbox'
-  | 'terminal'
-  | 'text.alignleft'
-  | 'checkmark.seal'
+/** SF Symbol names used as leading icons on list rows. Keep this open enough for shell chrome. */
+type LinkIcon = string
 
 /**
  * A list row that navigates somewhere, without making the destination look like a web link.
@@ -57,7 +50,14 @@ export function ListLinkRow({
         ]}
         spacing={12}
       >
-        {icon === undefined ? null : <Image color={iconColor} size={18} systemName={icon} />}
+        {icon === undefined ? null : (
+          <Image
+            color={iconColor}
+            size={18}
+            // SF Symbols typing is the Apple catalog; shell icons are valid names at runtime.
+            systemName={icon as 'folder'}
+          />
+        )}
         <VStack alignment="leading" spacing={2}>
           <Text modifiers={[lineLimit(1)]}>{label}</Text>
           {detail === undefined ? null : (

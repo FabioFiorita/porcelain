@@ -57,6 +57,8 @@ const config: ExpoConfig = {
   platforms: ['ios'],
   ios: {
     bundleIdentifier: variant.bundleIdentifier,
+    // Product targets iOS 26+ (SplitView inspector, liquid glass tab chrome). No older guards.
+    deploymentTarget: '26.0',
     supportsTablet: true,
     infoPlist: {
       NSAppTransportSecurity: {
@@ -65,6 +67,7 @@ const config: ExpoConfig = {
       NSLocalNetworkUsageDescription:
         'Porcelain talks to your daemon over the local network or Tailscale, usually at a plain http address.',
       ITSAppUsesNonExemptEncryption: false,
+      LSMinimumSystemVersion: '26.0',
     },
   },
   plugins: [

@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { DaemonGate } from '@/components/daemon-gate'
 import { ScreenHeader } from '@/components/screen-header'
 import { toolbarIcon } from '@/components/toolbar-icon'
+import { useSurfaceFocus } from '@/components/use-surface-focus'
 import { useActiveRepo } from '@/lib/daemon/repo'
 import { setPreference, usePreferences } from '@/lib/preferences'
 import { EntryList } from './entry-list'
@@ -20,6 +21,7 @@ import {
 export function FilesScreen(): React.JSX.Element {
   const [searchText, setSearchText] = useState('')
   const debouncedQuery = useDebouncedFileQuery(searchText)
+  useSurfaceFocus('files')
 
   return (
     <>

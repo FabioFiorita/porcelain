@@ -6,20 +6,20 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-naviga
 import { Stack } from 'expo-router/stack'
 import { SplitView } from 'expo-router/unstable-split-view'
 import { Platform, useColorScheme } from 'react-native'
+
 import { ListLinkRow } from '@/components/list-link-row'
 import { ScreenHost } from '@/components/screen-host'
+import { CompanionScreen } from '@/features/companion/companion-screen'
 import { FilesSplitColumn } from '@/features/files/files-screen'
 import { DaemonProvider } from '@/lib/daemon/provider'
 
 /**
- * Every sheet in the app is the same form sheet — grabber, transparent content so the
- * sheet's own material shows through, and detents that leave the surface behind it visible.
- * Only the header differs, and each sheet owns that.
+ * Shared sheet chrome: form sheet, grabber, material background, room to see the surface
+ * underneath. Header content is owned by each sheet.
  */
 const SHEET = {
   contentStyle: { backgroundColor: 'transparent' },
   presentation: 'formSheet',
-  // Not `as const`: the native stack takes a mutable `number[]` here.
   sheetAllowedDetents: [0.7, 1.0] as number[],
   sheetGrabberVisible: true,
 } as const
@@ -37,40 +37,47 @@ function RootLayout(): React.JSX.Element {
 }
 
 function RootNavigation(): React.JSX.Element {
-  if ('isPad' in Platform && Platform.isPad) return <IPadSplitView />
+  if ('isPad' in Platform && Platform.isPad) return <IPadShell />
 
   return (
     <Stack>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      {/* Repo remains a sheet because it is a contextual project picker. */}
       <Stack.Screen name="repo" options={{ ...SHEET, headerShown: false }} />
       <Stack.Screen name="companion" options={{ ...SHEET, title: 'Companion' }} />
+      <Stack.Screen name="settings" options={{ ...SHEET, headerShown: false }} />
     </Stack>
   )
 }
 
-function IPadSplitView(): React.JSX.Element {
+/**
+ * iPad is a full workstation alternative to the Mac app / browser — three columns +
+ * inspector companion, no bottom tab bar. Phone remains the companion form factor.
+ *
+ * Expo SplitView is root-only (cannot nest). Primary = destinations, supplementary =
+ * list for the active destination, secondary (Slot) = detail route, inspector = Companion.
+ */
+function IPadShell(): React.JSX.Element {
   return (
     <SplitView
       preferredDisplayMode="twoBesideSecondary"
       preferredSplitBehavior="tile"
-      topColumnForCollapsing="supplementary"
+      showInspector
+      topColumnForCollapsing="primary"
     >
-      {/**
-       * Expo Router adds the current URL's Slot as the third, secondary column. The existing
-       * `/(tabs)/(files)/file/[...path]` route renders FileScreen there.
-       */}
       <SplitView.Column>
-        <IPadNavigationColumn />
+        <IPadPrimaryColumn />
       </SplitView.Column>
       <SplitView.Column>
-        <FilesSplitColumn />
+        <IPadSupplementaryColumn />
       </SplitView.Column>
+      <SplitView.Inspector>
+        <CompanionScreen embedded />
+      </SplitView.Inspector>
     </SplitView>
   )
 }
 
-function IPadNavigationColumn(): React.JSX.Element {
+function IPadPrimaryColumn(): React.JSX.Element {
   const pathname = usePathname()
 
   return (
@@ -81,30 +88,78 @@ function IPadNavigationColumn(): React.JSX.Element {
             active={pathname.includes('(files)') || pathname === '/'}
             href="/(tabs)/(files)"
             label="Files"
+            systemImage="folder.fill"
           />
           <IPadDestination
-            active={pathname.includes('(changes)')}
+            active={pathname.includes('(changes)') && !pathname.includes('history')}
             href="/(tabs)/(changes)"
             label="Changes"
+            systemImage="arrow.triangle.branch"
           />
           <IPadDestination
-            active={pathname.includes('(board)')}
-            href="/(tabs)/(board)"
+            active={pathname.includes('history')}
+            href="/(tabs)/(changes)/history"
+            label="History"
+            systemImage="clock.arrow.circlepath"
+          />
+          <IPadDestination
+            active={pathname.includes('(review)') && !pathname.includes('board')}
+            href="/(tabs)/(review)"
+            label="Review"
+            systemImage="checkmark.seal.fill"
+          />
+          <IPadDestination
+            active={pathname.includes('board')}
+            href="/(tabs)/(review)/board"
             label="Board"
+            systemImage="rectangle.3.group.fill"
           />
           <IPadDestination
             active={pathname.includes('(terminal)')}
             href="/(tabs)/(terminal)"
             label="Terminal"
-          />
-          <IPadDestination
-            active={pathname.includes('/settings')}
-            href="/(tabs)/settings"
-            label="Settings"
+            systemImage="terminal.fill"
           />
         </Section>
+        <Section title="Chrome">
+          <IPadDestination
+            active={pathname.includes('/settings')}
+            href="/settings"
+            label="Settings"
+            systemImage="gearshape"
+          />
+          <IPadDestination
+            active={pathname.includes('/repo')}
+            href="/repo"
+            label="Project"
+            systemImage="folder"
+          />
+        </Section>
+      </List>
+    </ScreenHost>
+  )
+}
+
+function IPadSupplementaryColumn(): React.JSX.Element {
+  const pathname = usePathname()
+
+  if (pathname.includes('(files)')) {
+    return <FilesSplitColumn />
+  }
+
+  return (
+    <ScreenHost>
+      <List modifiers={[listStyle('sidebar')]}>
         <Section>
-          <Text>Repository and companion actions stay in the shared route table.</Text>
+          <Text>
+            {pathname.includes('(changes)')
+              ? 'Open a change from the main column, or pick History in the sidebar.'
+              : pathname.includes('(review)')
+                ? 'The Review canvas and Board open in the main column.'
+                : pathname.includes('(terminal)')
+                  ? 'Sessions open in the main column.'
+                  : 'Select a destination.'}
+          </Text>
         </Section>
       </List>
     </ScreenHost>
@@ -115,14 +170,17 @@ function IPadDestination({
   active,
   href,
   label,
+  systemImage,
 }: {
   active: boolean
   href: Href
   label: string
+  systemImage: string
 }): React.JSX.Element {
   return (
     <ListLinkRow
       detail={active ? 'Selected' : undefined}
+      icon={systemImage}
       label={label}
       onPress={(): void => {
         router.replace(href)
@@ -131,9 +189,4 @@ function IPadDestination({
   )
 }
 
-// EAS Observe: measures time to first render for cold and warm launches. Deliberately WITHOUT
-// `Observe.configure({ integrations: { 'expo-router': true } })` — per-route navigation metrics
-// only surface in the Navigation events dashboard, which this account's plan does not include,
-// so the integration would ship data nobody can read. Turn it on (module scope, before the first
-// screen mounts) if the plan changes. The startup TTI each entry screen marks IS free-tier.
 export default ObserveRoot.wrap(RootLayout)

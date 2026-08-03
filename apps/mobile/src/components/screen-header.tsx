@@ -7,21 +7,24 @@ import { WorkspaceContext } from '@/components/workspace-context'
 import { useAccentColor } from '@/theme/colors'
 
 /**
- * The header every tab wears: title left, on the same row as the toolbar buttons.
+ * Phone root chrome: large title on the left, workspace (project · branch · worktree) on the
+ * line under it, trailing actions + companion + settings on the right.
  *
- * iOS pins the native title to the centre (`headerTitleAlign` is a no-op there), so this is a
- * custom left item and each stack blanks the native one. `hidesSharedBackground` drops the
- * glass capsule iOS 26 wraps a custom bar item in — inside it the title sits flush against
- * the capsule rather than at the header's own inset.
+ * iOS centres the native title slot, so we blank it and draw this custom left item instead.
+ * `hidesSharedBackground` drops the iOS 26 glass capsule so the title sits at the header inset.
  */
 export function ScreenHeader({
   actions,
   companion,
+  showSettings = true,
   title,
+  workspace = true,
 }: {
   actions?: readonly ScreenAction[]
   companion?: ScreenAction | null
+  showSettings?: boolean
   title: string
+  workspace?: boolean
 }): React.JSX.Element {
   const accentColor = useAccentColor()
 
@@ -30,13 +33,14 @@ export function ScreenHeader({
       <Stack.Toolbar placement="left">
         <Stack.Toolbar.View hidesSharedBackground>
           <Host matchContents seedColor={accentColor}>
-            <VStack alignment="leading" spacing={0}>
+            <VStack alignment="leading" spacing={2}>
               <Text modifiers={[font({ size: 22, weight: 'bold' })]}>{title}</Text>
+              {workspace ? <WorkspaceContext /> : null}
             </VStack>
           </Host>
         </Stack.Toolbar.View>
       </Stack.Toolbar>
-      <HeaderToolbar actions={actions} companion={companion} workspace={<WorkspaceContext />} />
+      <HeaderToolbar actions={actions} companion={companion} showSettings={showSettings} />
     </>
   )
 }

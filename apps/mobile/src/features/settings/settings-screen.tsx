@@ -32,6 +32,7 @@ export function SettingsScreen(): React.JSX.Element {
 
   return (
     <>
+      <ScreenHeader companion={null} showSettings={false} title="Settings" workspace={false} />
       <ScreenHost>
         <List modifiers={[listStyle('insetGrouped')]}>
           <Section title="Environments">
@@ -106,7 +107,6 @@ export function SettingsScreen(): React.JSX.Element {
           </Section>
         </List>
       </ScreenHost>
-      <ScreenHeader companion={null} title="Settings" />
     </>
   )
 }

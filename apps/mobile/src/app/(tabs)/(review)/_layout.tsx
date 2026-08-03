@@ -11,6 +11,8 @@ export default function ReviewLayout(): React.JSX.Element {
   return (
     <Stack screenOptions={{ headerBackButtonDisplayMode: 'minimal' }}>
       <Stack.Screen name="index" options={{ headerTitle: '', title: 'Review' }} />
+      {/* Board is pushed (and re-tap alternate), not a tab. */}
+      <Stack.Screen name="board" options={{ headerTitle: '', title: 'Board' }} />
       <Stack.Screen name="chapter" options={{ title: 'Intent' }} />
       <Stack.Screen name="evidence" options={{ title: 'Proof' }} />
       <Stack.Screen name="comments" options={{ title: 'Comments' }} />

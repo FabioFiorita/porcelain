@@ -16,6 +16,7 @@ import { useState } from 'react'
 import { DaemonGate } from '@/components/daemon-gate'
 import { ScreenHeader } from '@/components/screen-header'
 import { ScreenHost } from '@/components/screen-host'
+import { useSurfaceFocus } from '@/components/use-surface-focus'
 import { QueryNotice } from '@/features/changes/components/query-notice'
 import { useBoardCardActions, useBoardCards } from '@/features/review/hooks/use-board-cards'
 import type { BoardCard, CardStatus } from '@/lib/daemon/procedures/review'
@@ -27,14 +28,17 @@ const columns: readonly { label: string; status: CardStatus }[] = [
 ]
 
 export function BoardScreen(): React.JSX.Element {
+  useSurfaceFocus('board')
+
   return (
     <>
       <DaemonGate requires="repo">
         <BoardBody />
       </DaemonGate>
       <ScreenHeader
-        actions={[{ href: '/(tabs)/(review)/card?mode=create', icon: 'add', label: 'Add card' }]}
+        actions={[{ href: '/card?mode=create', icon: 'add', label: 'Add card' }]}
         title="Board"
+        workspace={false}
       />
       <ObserveInteractiveMarker />
     </>

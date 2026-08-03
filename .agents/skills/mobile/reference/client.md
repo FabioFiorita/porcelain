@@ -4,7 +4,7 @@
 
 ```
 src/app/        route table only — thin files that re-export a feature screen
-src/features/   one folder per feature (files, changes, review, board, terminal, settings)
+src/features/   one folder per feature (files, changes, review, board, terminal, settings, glance, companion)
 src/components/ shared presentational components
 src/lib/daemon/ the only daemon seam
 src/theme/      shared design values (colors.tint is the single accent)
@@ -12,68 +12,85 @@ src/theme/      shared design values (colors.tint is the single accent)
 
 Never co-locate components, types or utilities under `src/app` — it holds routes and `_layout` files
 and nothing else. A new screen is a file in `src/features/<feature>/<name>-screen.tsx` plus a
-one-line route that default-exports it. File names are kebab-case. Feature slices exist so parallel
-worktrees don't collide in a shared component tree.
+one-line route that default-exports it. File names are kebab-case.
 
-## The tab shell
+## Product roles by form factor
 
-Native tabs, each owning its own stack, so deeper screens push instead of becoming tabs.
+| Form | Role |
+|------|------|
+| **iPhone** | Companion to Mac / iPad / browser — glance, review, stage/commit, terminal, light board |
+| **iPad** | Full workstation alternative to the Mac app and browser — three-column SplitView + inspector |
 
-**The ceiling is five.** iOS collapses a sixth into a system "More" tab, so anything new earns its
-place by displacing one, not by being added.
+## The tab shell (iPhone)
 
-**CONFLICT — resolve before adding another.** `src/app/(tabs)/_layout.tsx` currently registers
-**six** triggers: Files, Changes, Review, Board, Terminal, Settings. Either the ceiling is being
-violated on iPhone, or the ceiling rule is wrong; the code and this rule cannot both stand. Verify on
-a booted iPhone simulator before treating either as settled.
+Four primary tabs — the iOS ceiling is five; we stay under it.
 
-Surfaces the desktop app has that are deliberately not tabs here:
+| Tab | Alternates (re-tap root / header) |
+|-----|-----------------------------------|
+| **Files** | — |
+| **Changes** | **History** (push) |
+| **Review** | **Board** (push) |
+| **Terminal** | — |
 
-| Desktop surface | Where it lives on mobile |
-| --- | --- |
-| History | pushed from the **Changes** header — commit history reads as part of the working-tree story |
-| Read | a contextual row in **Changes**, only when there are changed files |
-| Search | the **Files** header search bar |
+**Not tabs**
 
-Every tab's native header keeps the workspace context together: project chooses the daemon's active
-repo, branch checks out a branch in that worktree, worktree switches among linked checkouts.
-Environment selection stays in Settings, so changing the network target does not change what the
-project/branch/worktree controls mean.
+| Surface | Placement |
+|---------|-----------|
+| Settings | Form sheet from header gear |
+| Companion | Form sheet from header (right-rail analogue) |
+| Board | Pushed from Review (and re-tap Review while on root) |
+| History | Pushed from Changes (and re-tap Changes while on root) |
+| Repo picker | Form sheet |
+| Search | Files search bar |
 
-Environments are **LAN + Tailscale only — no relay tier, deliberately**: a relay is a recurring bill,
-and Funnel is already the public path.
+NativeTabs has no long-press menu API; **re-tap while focused on the tab root** opens the
+alternate. Header actions mirror the same destinations. When a long-press API lands, wire it to
+the same `TAB_ALTERNATES` table in `src/lib/tab-alternates.ts`.
 
-iPhone uses the bottom `NativeTabs` presentation. The iPad root presentation is a root `SplitView`
-over the same route table with Files list/detail columns — do not add an iPad-only route table or
-selection store. `SplitView` is structurally blocked inside another navigator, so the fork belongs
-only in the root layout. **Treat every iPad claim as unproven until a screenshot backs it.**
+### Header contract (phone)
 
-## The daemon seam
+```
+[ Title          ]     [ surface actions ] [ Companion ] [ Settings ]
+[ Workspace ▾    ]     (project · branch · worktree under the title)
+```
 
-`src/lib/daemon/` is the only way this app talks to a daemon. `DaemonProvider` (root layout) owns the
-query client, hydration, the bootstrap sequence and the `/session` socket; screens call
-`useDaemonQuery` / `useDaemonMutation` with a descriptor from `procedures/*.ts` and wrap their body in
-`DaemonGate`. Transport is untyped `@trpc/client` + react-query.
+Workspace is **under** the title, never mid-toolbar. Environment selection stays in Settings.
 
-Four rules hold it together:
+## iPad shell
 
-- **Import the exact module — there is no barrel.** A tab slice adds `procedures/<tab>.ts` and
-  appends to `app-events.ts`; it edits nothing else here.
-- **Never import the daemon's `AppRouter`.** It drags 45 modules through `tsc`. Procedures are
-  hand-declared zod descriptors and every response is parsed, so contract drift fails as
-  `invalid-response` rather than as an undefined property three renders later.
-- **WS frames come from `@porcelain/contracts`.** One definition of the protocol in the repo;
-  re-declaring a schema locally is drift by construction.
-- **Credentials live in `expo-secure-store`, one key per environment** (`porcelain.token.<id>`).
-  The `porcelain.environments` index carries no token, so renaming an environment never rewrites one.
-  An index that will not parse is kept under `porcelain.environments.corrupt` and reported, never
-  silently dropped. Pairing is a **pasted link only, no QR**.
+Root `SplitView` (`expo-router/unstable-split-view`), **no bottom tab bar**:
 
-Query keys are `['daemon', envId, procedureName, input ?? null]` — the environment id is in the key,
-so switching daemons can never serve another one's cache.
+| Column | Content |
+|--------|---------|
+| Primary | Destinations (Files, Changes, History, Review, Board, Terminal + Settings/Project) |
+| Supplementary | List for active destination (Files tree today; others deepen as lists extract) |
+| Secondary (Slot) | Detail / canvas from the route table |
+| Inspector | Companion (iOS 26+) |
+
+SplitView is root-only (cannot nest). Same feature screens and daemon seam as phone.
+
+## Companion
+
+Content follows `useActiveSurface()` (last focused product surface):
+
+| Surface | Companion |
+|---------|-----------|
+| Changes / History | Commit composer + quick commands (`ActionsScreen`) |
+| Review | Comments + Board entry |
+| Board | Focus card |
+| Terminal | Saved Actions |
+| Files | Pins & notes (stub until pins land) |
+
+## Glance
+
+When Review has no published unit of work, the tab shows **Glance** — work in flight and jump
+rows (desktop empty-viewer home, phone-sized).
+
+## Daemon seam
+
+Unchanged: `src/lib/daemon/` only, hand-declared procedures, zod-parsed, no `AppRouter` import,
+WS frames from `@porcelain/contracts`, credentials in Secure Store.
 
 ## UI primitives
 
-`@expo/ui/swift-ui` components with styling from `@expo/ui/swift-ui/modifiers`, plus Expo Router
-navigation. No shadcn, Tailwind or DOM components. The universal `@expo/ui` root is lint-banned; see
-the skill's platform decisions for why.
+`@expo/ui/swift-ui` + `/modifiers` only. iOS 26+ deployment target. No Android.

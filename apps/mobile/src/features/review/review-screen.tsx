@@ -1,13 +1,14 @@
-import { Button, List, Section, Text, VStack } from '@expo/ui/swift-ui'
-import { font, padding } from '@expo/ui/swift-ui/modifiers'
+import { List, Section, VStack } from '@expo/ui/swift-ui'
 import { ObserveInteractiveMarker } from 'expo-observe'
-import { router } from 'expo-router'
 import { useEffect, useState } from 'react'
 
 import { DaemonGate } from '@/components/daemon-gate'
 import { ScreenHeader } from '@/components/screen-header'
 import { ScreenHost } from '@/components/screen-host'
+import { useSurfaceFocus } from '@/components/use-surface-focus'
+import { useTabRootFocusRegistration } from '@/components/use-tab-root-focus'
 import { QueryNotice } from '@/features/changes/components/query-notice'
+import { GlanceScreen } from '@/features/glance/glance-screen'
 
 import { EvidenceFace } from './evidence-face'
 import { ExecutionFace } from './execution-face'
@@ -18,18 +19,16 @@ import { useReviewedPaths } from './hooks/use-reviewed'
 import { IntentFace } from './intent-face'
 
 export function ReviewScreen(): React.JSX.Element {
+  useSurfaceFocus('review')
+  useTabRootFocusRegistration('review')
+
   return (
     <>
       <DaemonGate requires="repo">
         <ReviewBody />
       </DaemonGate>
-      <ScreenHeader
-        actions={[
-          { href: '/comments', icon: 'comment', label: 'Comments' },
-          { href: '/(tabs)/(board)', icon: 'board', label: 'Board' },
-        ]}
-        title="Review"
-      />
+      {/* Board is also the re-tap alternate; keep one surface action so companion + settings stay visible. */}
+      <ScreenHeader actions={[{ href: '/board', icon: 'board', label: 'Board' }]} title="Review" />
       <ObserveInteractiveMarker />
     </>
   )
@@ -92,7 +91,8 @@ function ReviewBody(): React.JSX.Element {
     )
   }
 
-  if (view.data === null || reading.data === null) return <BeginUnit />
+  // Empty unit of work → Glance (what’s in flight), not a dead-end card.
+  if (view.data === null || reading.data === null) return <GlanceScreen />
 
   const evidenceEnabled = reading.data.evidence !== null
   return (
@@ -107,29 +107,6 @@ function ReviewBody(): React.JSX.Element {
           <EvidenceFace reading={reading.data} />
         )}
       </VStack>
-    </ScreenHost>
-  )
-}
-
-function BeginUnit(): React.JSX.Element {
-  return (
-    <ScreenHost>
-      <List>
-        <Section>
-          <VStack alignment="leading" modifiers={[padding({ all: 12 })]} spacing={10}>
-            <Text modifiers={[font({ textStyle: 'title2', weight: 'bold' })]}>No review yet</Text>
-            <Text modifiers={[font({ textStyle: 'body' })]}>
-              This is the start of a unit of work, not a dead end. Ask the agent to publish Intent
-              first; Execution and Evidence grow from there.
-            </Text>
-            <Button
-              label="Open Board"
-              onPress={(): void => router.push('/(tabs)/(board)')}
-              systemImage="rectangle.3.group.fill"
-            />
-          </VStack>
-        </Section>
-      </List>
     </ScreenHost>
   )
 }

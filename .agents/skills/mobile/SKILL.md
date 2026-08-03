@@ -48,9 +48,9 @@ src/features/   one folder per feature
 src/lib/daemon/ only daemon seam — no AppRouter import, no barrels
 ```
 
-iPhone = bottom tabs (ceiling five is the design intent; verify before adding). iPad = root
-`SplitView` over the same routes — unproven without iPad evidence. Full structure notes:
-`reference/client.md`.
+iPhone = **four** bottom tabs (Files · Changes · Review · Terminal); History/Board are pushes +
+re-tap alternates; Settings/Companion are sheets. iPad = root `SplitView` + inspector, no tab bar.
+iOS 26+. Full IA: `reference/client.md`.
 
 ## Reference
 

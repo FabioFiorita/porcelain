@@ -1,13 +1,14 @@
 import { Button, ContentUnavailableView, List, Section, Text } from '@expo/ui/swift-ui'
 import { listStyle } from '@expo/ui/swift-ui/modifiers'
 import { ObserveInteractiveMarker } from 'expo-observe'
-import { router, Stack } from 'expo-router'
+import { router } from 'expo-router'
 import { useState } from 'react'
 import { Alert } from 'react-native'
 
 import { DaemonGate } from '@/components/daemon-gate'
 import { ScreenHeader } from '@/components/screen-header'
 import { ScreenHost } from '@/components/screen-host'
+import { useSurfaceFocus } from '@/components/use-surface-focus'
 import type { TerminalAction } from '@/lib/daemon/procedures/terminal'
 import { useActiveRepo } from '@/lib/daemon/repo'
 import { useDaemonSession } from '@/lib/daemon/session'
@@ -19,36 +20,30 @@ import { useTerminalSessions } from './use-terminal-sessions'
 
 export function TerminalScreen(): React.JSX.Element {
   const [showAll, setShowAll] = useState(false)
+  useSurfaceFocus('terminal')
 
   return (
     <>
       <DaemonGate requires="repo">
-        <TerminalBody showAll={showAll} />
+        <TerminalBody onToggleShowAll={setShowAll} showAll={showAll} />
       </DaemonGate>
-      <ScreenHeader companion={null} title="Terminal" />
-      <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button
-          accessibilityLabel="Start a shell"
-          icon="plus"
-          onPress={(): void => router.push('/new')}
-        />
-        <Stack.Toolbar.Menu icon="ellipsis.circle">
-          <Stack.Toolbar.MenuAction
-            isOn={showAll}
-            onPress={(): void => {
-              setShowAll((current) => !current)
-            }}
-          >
-            Show all sessions
-          </Stack.Toolbar.MenuAction>
-        </Stack.Toolbar.Menu>
-      </Stack.Toolbar>
+      {/* One trailing toolbar only — a second Stack.Toolbar replaces companion/settings. */}
+      <ScreenHeader
+        actions={[{ href: '/new', icon: 'add', label: 'Start a shell' }]}
+        title="Terminal"
+      />
       <ObserveInteractiveMarker />
     </>
   )
 }
 
-function TerminalBody({ showAll }: { showAll: boolean }): React.JSX.Element {
+function TerminalBody({
+  onToggleShowAll,
+  showAll,
+}: {
+  onToggleShowAll: (value: boolean | ((current: boolean) => boolean)) => void
+  showAll: boolean
+}): React.JSX.Element {
   const repo = useActiveRepo()
   const session = useDaemonSession()
   const roster = useTerminalSessions(showAll)
@@ -154,6 +149,13 @@ function TerminalBody({ showAll }: { showAll: boolean }): React.JSX.Element {
                 label="Start a shell"
                 onPress={(): void => router.push('/new')}
                 systemImage="plus"
+              />
+              <Button
+                label={showAll ? 'Showing all sessions' : 'Show all sessions'}
+                onPress={(): void => {
+                  onToggleShowAll((current) => !current)
+                }}
+                systemImage="list.bullet"
               />
             </>
           ) : (
