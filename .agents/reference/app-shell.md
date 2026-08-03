@@ -58,9 +58,7 @@
   preset re-apply.
 - **Surface recipes.** Raised = `rounded-* border bg-card`; recessed wells = `rounded-lg border
   border-border/60` + `bg-muted`; settings groups = `rounded-md border bg-muted/40` (never per-row
-  `bg-card` pills). Row/card action classes come from `lib/controls.ts` — **an inline `h-7 text-xs`
-  outside it fails `pnpm lint`.** Don't inline the constant into `ui/button.tsx`; vendored files are
-  overwritten on re-apply. **TRAP — always pair a text size with its `md:` twin** when overriding the
+  `bg-card` pills). Row/card action classes live in `lib/controls.ts` — prefer them over one-off size recipes. Don't inline into vendored `ui/button.tsx` (re-apply overwrites it). **TRAP — always pair a text size with its `md:` twin** when overriding the
   vendored Input: it ships `md:text-sm` for the iOS zoom-safe base, so without the twin desktop keeps
   `sm`.
 - **One interaction language:** `bg-accent` (or `bg-sidebar-accent`) = lit/selected, `bg-accent/50` =

@@ -129,10 +129,12 @@ CI runs layout smoke only. On a real Mac install when packaging changed:
 
 ## Prod vs dev (not a release concern)
 
-Product work uses the **dev** daemon (`pnpm dev:daemon`, port **43118**, `~/.porcelain-dev`). The production home (port **43117**, `~/.porcelain`) is for real day-job work — agents never touch it while polishing Porcelain. Details in `close-the-loop` / `architecture`.
+Product work uses the **dev** daemon (`pnpm dev:daemon`, port **43118**, `~/.porcelain-dev`). The
+production home (port **43117**, `~/.porcelain`) is real day-job work — agents never touch it while
+polishing Porcelain. See root `AGENTS.md`.
 
 ## See also
 
-- `architecture` skill — packaging facts
 - `audit` skill — empty-`CSC_LINK`, node-pty unpack
-- `close-the-loop` — day-to-day loop (not release)
+- `.agents/reference/repo.md` — packaging facts
+- `ship` skill — day-to-day loop (not release)

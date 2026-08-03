@@ -57,9 +57,7 @@ packages, publishes the GH Release, and publishes npm `porcelain-daemon` — no 
 multi-workflow pre-cut gate, native e2e optional. Runbook: `releasing`. Dep placement and the
 empty-`CSC_LINK` trap are `audit` invariants.
 
-- shadcn primitives only; a new primitive needs the human's approval.
-- Strict TS, no `any`, no `as unknown as`, no dead code, no commented-out code.
-- Conventional Commits. Gate before any commit: `pnpm verify`.
-- Managed worktrees are runtime-isolated (unique port, per-slug channels/user data/playground).
-  `PORCELAIN_DEV_PLAYGROUND` carries the seed into the daemon and **must stay in `terminal-env.ts`'s
-  scrub list**.
+- shadcn primitives only; a new primitive needs human approval.
+- Strict TS; type escapes lint-enforced. Gate: `pnpm verify`.
+- Managed worktrees are runtime-isolated (unique port, per-slug homes).
+  `PORCELAIN_DEV_PLAYGROUND` must stay in `terminal-env.ts`'s scrub list.

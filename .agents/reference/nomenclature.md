@@ -54,7 +54,7 @@ parens is the **entry point**; read it for mechanics.
 **Overlays:** file finder (⌘P) · find bar (⌘F) · Settings (`settings-dialog.tsx` — General · Share ·
 Remotes · Review flow · Updates) · welcome screen.
 
-**Cross-cutting** (the *what*/*why* live in `product`; internals here and in `audit`)
+**Cross-cutting** (product meaning: `docs/product.md`; internals here and in `audit`)
 
 | Term | Meaning |
 |---|---|

@@ -1,6 +1,6 @@
 # Renderer composition rules
 
-Each rule is a thing a reviewer will send back. Grouped by what you are writing.
+Defaults for renderer JSX. Match neighboring components when something here fights the file.
 
 ## Styling
 

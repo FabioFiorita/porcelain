@@ -1,10 +1,8 @@
-import { lstat, readdir, readFile, readlink, writeFile } from 'node:fs/promises'
+import { lstat, readdir, readFile, readlink } from 'node:fs/promises'
 import { join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
-const canonicalAgent = join(root, '.agents', 'agents', 'invariant-reviewer.md')
-const codexAgent = join(root, '.codex', 'agents', 'invariant-reviewer.toml')
 const write = process.argv.includes('--write')
 
 function fail(message) {
@@ -26,27 +24,6 @@ async function expectSymlink(path, expectedTarget) {
   } catch {
     fail(`${relative(root, path)} is missing`)
   }
-}
-
-function parseAgent(markdown) {
-  const match = markdown.match(/^---\n([\s\S]*?)\n---\n\n([\s\S]+)$/)
-  if (!match) throw new Error('canonical reviewer needs YAML frontmatter and a body')
-
-  const fields = new Map()
-  for (const line of match[1].split('\n')) {
-    const separator = line.indexOf(':')
-    if (separator === -1) continue
-    fields.set(line.slice(0, separator).trim(), line.slice(separator + 1).trim())
-  }
-
-  const name = fields.get('name')
-  const description = fields.get('description')
-  if (!name || !description) throw new Error('canonical reviewer needs name and description')
-  return { name, description, body: match[2].trimEnd() }
-}
-
-function codexToml({ name, description, body }) {
-  return `# Generated from .agents/agents/invariant-reviewer.md by pnpm agents:sync. Do not edit.\nname = ${JSON.stringify(name)}\ndescription = ${JSON.stringify(description)}\ndeveloper_instructions = ${JSON.stringify(body)}\n`
 }
 
 function hasInternalSkillMetadata(skill) {
@@ -90,27 +67,18 @@ async function checkSkillAdapters() {
 }
 
 async function main() {
+  if (write) {
+    // Adapters are symlinks only; nothing to generate after invariant-reviewer removal.
+    console.log(
+      'agents:sync · nothing to write (skills + hooks are symlink-checked by agents:check)',
+    )
+  }
+
   await expectSymlink(join(root, 'CLAUDE.md'), 'AGENTS.md')
-  await expectSymlink(
-    join(root, '.claude', 'agents', 'invariant-reviewer.md'),
-    '../../.agents/agents/invariant-reviewer.md',
-  )
   for (const hook of ['git-guard.sh', 'worktree-create.sh', 'worktree-remove.sh']) {
     await expectSymlink(join(root, '.claude', 'hooks', hook), `../../.agents/hooks/${hook}`)
   }
   await checkSkillAdapters()
-
-  const canonical = parseAgent(await readFile(canonicalAgent, 'utf8'))
-  const expectedCodex = codexToml(canonical)
-  if (write) {
-    await writeFile(codexAgent, expectedCodex)
-    console.log('agents:sync · wrote .codex/agents/invariant-reviewer.toml')
-  } else {
-    const actualCodex = await readFile(codexAgent, 'utf8').catch(() => '')
-    if (actualCodex !== expectedCodex) {
-      fail('.codex/agents/invariant-reviewer.toml drifted; run pnpm agents:sync')
-    }
-  }
 
   const settings = JSON.parse(await readFile(join(root, '.claude', 'settings.json'), 'utf8'))
   const settingsText = JSON.stringify(settings)

@@ -1,41 +1,44 @@
 # Porcelain mobile client
 
-These instructions apply to files under `apps/mobile/`. Read the **`mobile` skill** before changing
-anything here — it carries the platform decisions, the fingerprint-gated development and delivery
-loop, and the traps. This file is only what must be true without loading it.
+Applies under `apps/mobile/`. Read the **`mobile` skill** for the fingerprint-gated build/deliver
+loop and runtime traps. This file is platform law that must stay true without loading it.
 
 ## Non-negotiable
 
-- iOS-only Expo SDK 57, Expo Router, EAS development client. Never add Android branches, Expo Go
-  assumptions, or a second native client architecture.
-- Use `@expo/ui/swift-ui` and its modifiers. Never import the universal `@expo/ui` root or `Host`.
-- Feature code lives in `src/features/<feature>/`; `src/app/` stays thin re-exports and layouts.
-- `src/lib/daemon/` is the only daemon seam. Procedures are hand-declared and zod-parsed; never
-  import the desktop daemon's `AppRouter`. Use the existing React Query + zustand seams and the
-  app-event invalidation path — no second transport, query client, or mobile-only protocol.
-- Mobile is a separate native client of the same daemon, not a renderer port. Do not reuse desktop
-  DOM components, Tailwind, shadcn primitives, or desktop shell state.
-- Treat every iPad presentation claim as unproven until it has runtime evidence from an iPad.
+- **iOS-only** Expo SDK 57, Expo Router, EAS development client. No Android branches, no Expo Go,
+  no second native architecture.
+- **`@expo/ui/swift-ui` + `/modifiers` only.** Never import the universal `@expo/ui` root or `Host`
+  (lint-enforced).
+- Feature code lives in `src/features/<feature>/`. `src/app/` stays thin re-exports and layouts.
+- **`src/lib/daemon/` is the only daemon seam.** Procedures are hand-declared and zod-parsed; never
+  import the desktop daemon's `AppRouter`. Same React Query + zustand seams and app-event
+  invalidation — no second transport or mobile-only protocol.
+- Mobile is a **separate native client** of the same daemon, not a renderer port. No desktop DOM,
+  Tailwind, shadcn, or desktop shell state.
+- Treat every **iPad** presentation claim as unproven until runtime evidence from an iPad backs it.
+- SwiftUI `Button` tints its entire label — tappable rows need `buttonStyle('plain')`.
 
-## Before you build or deliver
+## Fingerprint first
 
-**Ask whether the native fingerprint moved** — `eas fingerprint:compare`. A JS/TS change reaches the
-simulator through Metro Fast Refresh and the phone through `eas update`, both free and neither
-needing a build or a workflow run. Only a moved fingerprint justifies either. The four flows and
-their costs are in the `mobile` skill's `reference/loop.md`; guessing here is what spends the
-monthly quota.
+Ask whether the native fingerprint moved (`eas fingerprint:compare`) before building or delivering.
+
+| Fingerprint | Simulator | Phone |
+|-------------|-----------|--------|
+| Unchanged | Metro Fast Refresh | `eas update` (free) |
+| Moved | Local Mac build (`--local`) or EAS build | EAS workflow (spends a monthly build) |
+
+Prefer **local Mac builds** for simulator-native changes when a Mac is available — cloud builds burn
+the monthly quota. Details: `mobile` skill → `reference/loop.md`.
 
 ## Normal development
 
 ```bash
 pnpm mobile:start
 pnpm typecheck:mobile
-pnpm verify          # from the repository root, before any commit
+pnpm verify          # from repo root, before any commit
 ```
 
-Use the dev daemon on `43118`, never production `43117`; worktrees use their assigned `43200–43999`
-port.
+Dev daemon on **43118** (worktrees **43200–43999**), never production **43117**.
 
-Host-specific simulator access — SSH alias, Metro LAN rule, serve-sim endpoints, native-install
-limits — is in the ignored `AGENTS.local.md` beside this file, needed only for runtime or evidence
-work.
+Host-specific simulator access (SSH to Mac, serve-sim, Metro LAN, local install) lives in the
+ignored `apps/mobile/AGENTS.local.md` — load it only for runtime or evidence work.

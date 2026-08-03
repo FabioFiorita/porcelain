@@ -67,7 +67,7 @@ npx skills upgrade -g
 
 ## Develop
 
-Porcelain is built with Electron (electron-vite), React 19, TypeScript (strict), shadcn/ui on Base UI, Tailwind v4, tRPC, TanStack Query, and zustand. State and git access run through a single, deliberately uniform architecture; see [AGENTS.md](AGENTS.md) and the [agent skills](.agents/skills/).
+Porcelain is built with Electron (electron-vite), React 19, TypeScript (strict), shadcn/ui on Base UI, Tailwind v4, tRPC, TanStack Query, and zustand. State and git access run through a single, deliberately uniform architecture; see [AGENTS.md](AGENTS.md), [docs/product.md](docs/product.md), and [agent skills](.agents/skills/).
 
 ```bash
 pnpm install   # install dependencies

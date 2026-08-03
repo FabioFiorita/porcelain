@@ -37,7 +37,6 @@ const sync = command(process.execPath, ['scripts/sync-agent-foundations.mjs'])
 report(sync.status === 0 ? 'PASS' : 'FAIL', 'shared adapters', (sync.stdout || sync.stderr).trim())
 
 checkSymlink('CLAUDE.md', 'AGENTS.md')
-checkSymlink('.claude/agents/invariant-reviewer.md', '../../.agents/agents/invariant-reviewer.md')
 checkSymlink('.claude/hooks/git-guard.sh', '../../.agents/hooks/git-guard.sh')
 
 // husky points core.hooksPath at its generated `.husky/_` shims, which are
@@ -58,8 +57,8 @@ for (const hook of ['pre-commit', 'commit-msg']) {
     shim && body ? 'PASS' : 'FAIL',
     `hook ${hook}`,
     shim && body
-      ? '.husky/' + hook + ' via .husky/_'
-      : [!body && '.husky/' + hook + ' missing', !shim && 'shim missing (run `pnpm install`)']
+      ? `.husky/${hook} via .husky/_`
+      : [!body && `.husky/${hook} missing`, !shim && 'shim missing (run `pnpm install`)']
           .filter(Boolean)
           .join('; '),
   )
@@ -119,7 +118,6 @@ if (grok.status !== 0) {
       (hook) =>
         hook.event === 'pre_tool_use' && hook.target?.includes('.claude/hooks/git-guard.sh'),
     )
-    const hasReviewer = discovery.agents?.some((agent) => agent.name === 'invariant-reviewer')
     const projectInstruction = discovery.projectInstructions?.find(
       (entry) =>
         entry.scope === 'project' &&
@@ -131,11 +129,6 @@ if (grok.status !== 0) {
       trusted ? 'trusted' : 'run /hooks-trust',
     )
     report(hasGuard ? 'PASS' : 'FAIL', 'Grok Git guard', hasGuard ? 'discovered' : 'not discovered')
-    report(
-      hasReviewer ? 'PASS' : 'FAIL',
-      'Grok reviewer',
-      hasReviewer ? 'discovered' : 'not discovered',
-    )
     report(
       projectInstruction ? 'PASS' : 'FAIL',
       'Grok instructions',

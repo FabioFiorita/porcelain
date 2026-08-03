@@ -166,7 +166,7 @@ if (messagePath) {
   for (const warning of warnings) console.error(`commit-msg: warning: ${warning}`)
 
   if (errors.length > 0) {
-    console.error('\nCommit message rejected (AGENTS.md rule 3 · close-the-loop skill):\n')
+    console.error('\nCommit message rejected (AGENTS.md · ship skill):\n')
     for (const error of errors) console.error(`  • ${error}`)
     console.error(
       '\n  type(scope): imperative summary, no trailing period, <= 72 chars' +
