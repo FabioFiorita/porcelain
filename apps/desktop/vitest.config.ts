@@ -23,6 +23,15 @@ export default defineConfig({
       '@porcelain/client-runtime/terminal-keys': resolve(
         '../../packages/client-runtime/src/terminal-keys.ts',
       ),
+      '@porcelain/client-runtime/session-protocol': resolve(
+        '../../packages/client-runtime/src/session-protocol.ts',
+      ),
+      '@porcelain/client-runtime/word-diff-line': resolve(
+        '../../packages/client-runtime/src/word-diff-line.ts',
+      ),
+      '@porcelain/client-runtime/word-diff-tokens': resolve(
+        '../../packages/client-runtime/src/word-diff-tokens.ts',
+      ),
       '@/': `${resolve('../mobile/src')}/`,
     },
   },

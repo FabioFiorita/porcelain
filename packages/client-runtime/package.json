@@ -5,7 +5,10 @@
   "description": "Non-UI client core shared by web and mobile.",
   "type": "module",
   "exports": {
-    "./terminal-keys": "./src/terminal-keys.ts"
+    "./terminal-keys": "./src/terminal-keys.ts",
+    "./session-protocol": "./src/session-protocol.ts",
+    "./word-diff-line": "./src/word-diff-line.ts",
+    "./word-diff-tokens": "./src/word-diff-tokens.ts"
   },
   "dependencies": {
     "@porcelain/contracts": "workspace:*"

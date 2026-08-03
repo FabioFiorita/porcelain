@@ -10,12 +10,23 @@ export {
 } from './environment'
 export { type HeadRef, headLabel } from './head'
 export {
+  actionSchema,
+  boardCardSchema,
+  browseDirsOutputSchema,
+  daemonInfoOutputSchema,
+  dirEntrySchema,
+  fileViewSchema,
+  flowGroupSchema,
+  headRefSchema,
   PROCEDURE_NAMES,
   type ProcedureIo,
   type ProcedureName,
   procedureIo,
   procedureNames,
   refinedProcedureIo,
+  repoInfoSchema,
+  reviewCommentSchema,
+  terminalInfoSchema,
 } from './procedures'
 export {
   type AppEvent,

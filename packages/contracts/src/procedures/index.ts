@@ -3,6 +3,8 @@ export { PROCEDURE_NAME_SET, PROCEDURE_NAMES, type ProcedureName } from './names
 export {
   actionSchema,
   boardCardSchema,
+  browseDirsOutputSchema,
+  daemonInfoOutputSchema,
   diffHunkSchema,
   diffLineSchema,
   dirEntrySchema,

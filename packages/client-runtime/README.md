@@ -5,8 +5,12 @@ Non-UI client behavior shared by web and mobile. Subpath exports only — no roo
 | Subpath | Responsibility |
 |---------|----------------|
 | `./terminal-keys` | PTY edit chords, Ctrl bytes, arrow DECCKM |
+| `./session-protocol` | WS URL/subprotocol, backoff, frame parse, watch unions |
+| `./word-diff-line` | Desktop/GitHub-Desktop-style prefix/suffix line emphasis |
+| `./word-diff-tokens` | Token LCS ranges for the native row canvas |
 
-Session protocol, env failover pure core, and word-diff will land here as forks are deleted.
+Two word-diff algorithms are intentional: web paints syntax spans; mobile paints
+canvas ranges. Shared pure session protocol so reconnect semantics cannot drift.
+
+Platform apps still own full session lifecycle, env storage, and UI navigation.
 Contracts holds wire shapes; this package holds client-side pure logic.
-
-Platform apps supply persistence and UI navigation themselves.

@@ -1,4 +1,15 @@
-import { type ClientMessage, type ServerMessage, serverMessageSchema } from '@porcelain/contracts'
+import {
+  MIN_RETRY_MS,
+  nextRetryDelay,
+  parseServerMessage,
+  REQUEST_TIMEOUT_MS,
+  REVOKED_CLOSE_CODE,
+  reconnectDelayMs,
+  sessionSubprotocol,
+  sessionWebSocketUrl,
+  unionWatchPaths,
+} from '@porcelain/client-runtime/session-protocol'
+import type { ClientMessage, ServerMessage } from '@porcelain/contracts'
 import { useMemo, useSyncExternalStore } from 'react'
 
 import { DaemonError } from './errors'
@@ -23,17 +34,6 @@ export type DaemonSession = {
   ): Promise<TReply>
 }
 
-const MIN_RETRY_MS = 500
-const MAX_RETRY_MS = 8_000
-const REQUEST_TIMEOUT_MS = 10_000
-/**
- * What the daemon does when a credential dies: it closes a live session with 4001 (`revoked`),
- * and refuses a later upgrade with a raw HTTP 401, which reaches a client as an abnormal 1006.
- * 1006 is also what an unreachable host looks like, so it is a *prompt to probe*, never a
- * verdict — a revoked token must not become a reconnect battery drain either way.
- */
-const REVOKED_CLOSE_CODE = 4001
-
 const listeners = new Set<(message: ServerMessage) => void>()
 const reconnectHandlers = new Set<() => void>()
 const statusListeners = new Set<() => void>()
@@ -56,14 +56,6 @@ function setStatus(next: SessionStatus): void {
   for (const listener of statusListeners) listener()
 }
 
-function union(kind: 'files' | 'dirs'): string[] {
-  const paths = new Set<string>()
-  for (const registration of watches.values()) {
-    for (const path of registration[kind]) paths.add(path)
-  }
-  return [...paths]
-}
-
 function push(message: ClientMessage): void {
   if (socket !== null && socket.readyState === 1) socket.send(JSON.stringify(message))
 }
@@ -83,12 +75,11 @@ function failPending(message: string): void {
 
 function scheduleReconnect(): void {
   if (retryTimer !== null || !wanted || !foreground) return
-  const jitter = Math.random() * retryDelay * 0.3
   retryTimer = setTimeout(() => {
     retryTimer = null
     open()
-  }, retryDelay + jitter)
-  retryDelay = Math.min(retryDelay * 2, MAX_RETRY_MS)
+  }, reconnectDelayMs(retryDelay))
+  retryDelay = nextRetryDelay(retryDelay)
   setStatus('reconnecting')
 }
 
@@ -99,7 +90,7 @@ function open(): void {
   const { baseUrl, token, repo } = endpoint
   // The token rides as the requested subprotocol — the one header a WebSocket can carry, and
   // the reason it never lands in a query string a proxy would log.
-  const ws = new WebSocket(`${baseUrl.replace(/^http/, 'ws')}/session`, [`porcelain.${token}`])
+  const ws = new WebSocket(sessionWebSocketUrl(baseUrl), [sessionSubprotocol(token)])
   socket = ws
   setStatus(everConnected ? 'reconnecting' : 'connecting')
 
@@ -108,8 +99,7 @@ function open(): void {
     retryDelay = MIN_RETRY_MS
     // Session state is per-socket daemon-side: hello and every watch start over on each open.
     push({ t: 'session:hello', repo: repo ?? undefined })
-    const files = union('files')
-    const dirs = union('dirs')
+    const { files, dirs } = unionWatchPaths(watches.values())
     if (files.length > 0) push({ t: 'watch:files', paths: files })
     if (dirs.length > 0) push({ t: 'watch:dirs', paths: dirs })
     setStatus('open')
@@ -119,14 +109,8 @@ function open(): void {
 
   ws.onmessage = (event: WebSocketMessageEvent): void => {
     if (typeof event.data !== 'string') return
-    let json: unknown
-    try {
-      json = JSON.parse(event.data)
-    } catch {
-      return
-    }
-    const parsed = serverMessageSchema.safeParse(json)
-    if (parsed.success) dispatch(parsed.data)
+    const parsed = parseServerMessage(event.data)
+    if (parsed !== null) dispatch(parsed)
   }
 
   ws.onclose = async (event: WebSocketCloseEvent): Promise<void> => {
@@ -191,12 +175,14 @@ export const daemonSession: DaemonSession = {
     const key = Symbol('watch')
     watches.set(key, { dirs: paths.dirs ?? [], files: paths.files ?? [] })
     ensureOpen()
-    push({ paths: union('files'), t: 'watch:files' })
-    push({ paths: union('dirs'), t: 'watch:dirs' })
+    const current = unionWatchPaths(watches.values())
+    push({ paths: current.files, t: 'watch:files' })
+    push({ paths: current.dirs, t: 'watch:dirs' })
     return () => {
       watches.delete(key)
-      push({ paths: union('files'), t: 'watch:files' })
-      push({ paths: union('dirs'), t: 'watch:dirs' })
+      const next = unionWatchPaths(watches.values())
+      push({ paths: next.files, t: 'watch:files' })
+      push({ paths: next.dirs, t: 'watch:dirs' })
     }
   },
   request<TReply extends ServerMessage>(

@@ -58,6 +58,18 @@ export default defineConfig({
         root,
         '../../packages/client-runtime/src/terminal-keys.ts',
       ),
+      '@porcelain/client-runtime/session-protocol': resolve(
+        root,
+        '../../packages/client-runtime/src/session-protocol.ts',
+      ),
+      '@porcelain/client-runtime/word-diff-line': resolve(
+        root,
+        '../../packages/client-runtime/src/word-diff-line.ts',
+      ),
+      '@porcelain/client-runtime/word-diff-tokens': resolve(
+        root,
+        '../../packages/client-runtime/src/word-diff-tokens.ts',
+      ),
     },
   },
   plugins: [react(), tailwindcss(), excalidrawAssetsPlugin()],

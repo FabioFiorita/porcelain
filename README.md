@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="apps/desktop/src/renderer/src/assets/logo.png" alt="Porcelain" width="120" />
+  <img src="apps/web/src/assets/logo.png" alt="Porcelain" width="120" />
   <h1>Porcelain</h1>
   <p><strong>Where agent work becomes trusted work.</strong></p>
   <p>The review layer for agentic coding: a focused companion, not a second cockpit. Your agents keep running where they already run. Porcelain is where you review what they built as a story, not a file list.</p>
@@ -67,14 +67,16 @@ npx skills upgrade -g
 
 ## Develop
 
-Porcelain is built with Electron (electron-vite), React 19, TypeScript (strict), shadcn/ui on Base UI, Tailwind v4, tRPC, TanStack Query, and zustand. State and git access run through a single, deliberately uniform architecture; see [AGENTS.md](AGENTS.md), [docs/product.md](docs/product.md), and [agent skills](.agents/skills/).
+Porcelain is a monorepo: **daemon** (headless Node), **web** (React client), **desktop** (thin Electron shell), **cli** (agent channel), **mobile** (iOS). Stack: React 19, TypeScript (strict), shadcn/ui on Base UI, Tailwind v4, tRPC, TanStack Query, zustand, Expo. Architecture: [AGENTS.md](AGENTS.md), [architecture charter](.agents/reference/architecture.md), [docs/product.md](docs/product.md).
 
 ```bash
-pnpm install   # install dependencies
-pnpm dev       # run the app in development
+pnpm install      # install dependencies
+pnpm build        # daemon + cli + web + shell (dev daemon needs a warm build)
+pnpm dev:daemon   # headless on :43118 (browser: http://127.0.0.1:43118/)
+pnpm dev          # Electron shell against the same architecture
 ```
 
-`pnpm dev` runs against a throwaway playground repo and an isolated config, so it never touches your real repositories.
+`pnpm dev` / `pnpm dev:daemon` use an isolated config (`~/.porcelain-dev`), so product work never touches the production home.
 
 ### Common scripts
 

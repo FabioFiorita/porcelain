@@ -1,9 +1,11 @@
 import {
-  type AppEvent,
-  type ClientMessage,
-  type ServerMessage,
-  serverMessageSchema,
-} from '@porcelain/contracts'
+  MIN_RETRY_MS,
+  nextRetryDelay,
+  parseServerMessage,
+  sessionSubprotocol,
+  sessionWebSocketUrl,
+} from '@porcelain/client-runtime/session-protocol'
+import type { AppEvent, ClientMessage, ServerMessage } from '@porcelain/contracts'
 import { randomId } from './utils'
 
 /**
@@ -137,7 +139,7 @@ export function createDaemonSession(initial: DaemonEndpoint): DaemonSession {
   // restarted): the NEXT successful connect must refetch queries even if this is
   // the first-ever connect — boot queries errored against the dead/absent daemon.
   let recoveryPending = false
-  let retryDelay = 500
+  let retryDelay = MIN_RETRY_MS
   let reconnectTimer: number | null = null
 
   /** The daemon's HTTP origin. Falls back to the page origin — Phase 3 serves the remote client FROM the daemon, making it same-origin. */
@@ -213,7 +215,8 @@ export function createDaemonSession(initial: DaemonEndpoint): DaemonSession {
       reconnectTimer = null
       ensureSession()
     }, retryDelay)
-    retryDelay = Math.min(retryDelay * 2, 10_000)
+    // Desktop allows a 10s cap (mobile uses the shared 8s default).
+    retryDelay = nextRetryDelay(retryDelay, 10_000)
   }
 
   /** Idempotent: opens the session if it isn't open/connecting. Called lazily by every consumer. */
@@ -228,13 +231,13 @@ export function createDaemonSession(initial: DaemonEndpoint): DaemonSession {
     // one header a browser WebSocket can carry — because the upgrade has no CORS
     // check at all; the daemon rejects the handshake without it (server.ts).
     const ws = new WebSocket(
-      `${resolvedBaseUrl().replace(/^http/, 'ws')}/session`,
-      token !== '' ? [`porcelain.${token}`] : [],
+      sessionWebSocketUrl(resolvedBaseUrl()),
+      token !== '' ? [sessionSubprotocol(token)] : [],
     )
     socket = ws
     ws.onopen = (): void => {
       if (socket !== ws) return
-      retryDelay = 500
+      retryDelay = MIN_RETRY_MS
       // The daemon keys watchers (and the roster's what-is-this-device-doing state) by
       // session, so a fresh socket starts blank — replay the current watch sets and the
       // announced repo before anything else.
@@ -260,16 +263,10 @@ export function createDaemonSession(initial: DaemonEndpoint): DaemonSession {
     }
     ws.onmessage = (event: MessageEvent): void => {
       if (typeof event.data !== 'string') return
-      let json: unknown
-      try {
-        json = JSON.parse(event.data)
-      } catch {
-        return
-      }
       // Validate on the way in, mirroring the daemon — protocol drift fails
       // quietly per message instead of mis-shaping data downstream.
-      const parsed = serverMessageSchema.safeParse(json)
-      if (parsed.success) dispatch(parsed.data)
+      const parsed = parseServerMessage(event.data)
+      if (parsed !== null) dispatch(parsed)
     }
     ws.onclose = (): void => {
       // Creates addressed to THIS socket can never be answered — fail them even

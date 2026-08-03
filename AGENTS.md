@@ -6,9 +6,7 @@ Porcelain is where you read, annotate, and sign off. Full product story: `docs/p
 
 Ship discipline: polish existing surfaces; releases are **patch** unless asked; 1.0 is far away.
 
-**Monorepo refactor in progress.** Package map and done criteria:
-`.agents/reference/architecture.md`. Prefer the target surfaces (daemon · cli · web · shell ·
-mobile) over the transitional “everything under apps/desktop” layout.
+**Package map:** daemon · cli · web · shell · mobile — see `.agents/reference/architecture.md`.
 
 ## How we work together
 
@@ -77,7 +75,7 @@ public copy.
 
 | Path | Loads when working under |
 |------|--------------------------|
-| `apps/desktop/AGENTS.md` | Electron shell (and, until extract finishes, daemon/cli/web source still under it) |
+| `apps/desktop/AGENTS.md` | Electron shell |
 | `apps/mobile/AGENTS.md` | Native iOS client |
 
 Host-only topology and machine runbooks live in ignored `AGENTS.local.md` files (root and

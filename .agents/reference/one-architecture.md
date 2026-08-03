@@ -1,7 +1,8 @@
 # The one architecture
 
-Package ownership (see `architecture.md`): daemon · cli · web · shell are separate apps;
-electron-vite in desktop still builds web/daemon/cli until independent builds land.
+Package ownership (see `architecture.md`): daemon · cli · web · shell · mobile are separate apps.
+Production builds: esbuild (daemon/cli), Vite (web), electron-vite (shell only). Dev HMR for web
+still goes through electron-vite.
 
 ```
 daemon (apps/daemon/src/api.ts procedures + pure logic in own modules; Electron-free, HTTP/WS on 127.0.0.1)

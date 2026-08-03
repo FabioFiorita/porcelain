@@ -195,30 +195,28 @@ const repoPath = z.string()
 const repoPathObj = z.object({ repoPath: z.string() })
 const repoPathAndPath = z.object({ repoPath: z.string(), path: z.string() })
 
+/** Named schemas so clients keep z.infer precision (procedureIo erases to ZodType). */
+export const daemonInfoOutputSchema = z.object({
+  version: z.string(),
+  host: z.string(),
+  platform: z.string(),
+  arch: z.string(),
+})
+export const browseDirsOutputSchema = z.object({
+  path: z.string(),
+  parent: z.string().nullable(),
+  entries: z.array(z.object({ name: z.string(), path: z.string(), isRepo: z.boolean() })),
+})
+
 /**
  * Partial map — only procedures with refined schemas. `procedureIo` fills the rest
  * with unknown. Keys must be subset of ProcedureName (lint-procedure-contracts).
  */
 export const refinedProcedureIo: Partial<Record<ProcedureName, ProcedureIo>> = {
-  daemonInfo: io(
-    z.void(),
-    z.object({
-      version: z.string(),
-      host: z.string(),
-      platform: z.string(),
-      arch: z.string(),
-    }),
-  ),
+  daemonInfo: io(z.void(), daemonInfoOutputSchema),
   recentRepos: io(z.object({ includeWorktrees: z.boolean() }).optional(), z.array(repoInfoSchema)),
   openRepoPath: io(z.string(), repoInfoSchema),
-  browseDirs: io(
-    z.string().nullable(),
-    z.object({
-      path: z.string(),
-      parent: z.string().nullable(),
-      entries: z.array(z.object({ name: z.string(), path: z.string(), isRepo: z.boolean() })),
-    }),
-  ),
+  browseDirs: io(z.string().nullable(), browseDirsOutputSchema),
   removeRecentRepo: io(z.string(), z.void()),
   revokeCurrentClient: io(z.void(), z.void()),
 

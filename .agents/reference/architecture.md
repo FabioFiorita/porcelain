@@ -1,7 +1,7 @@
 # Architecture charter
 
-Product surfaces and package boundaries. Feature work is paused until the monorepo
-matches this map. For data-flow traps inside a surface, see `one-architecture.md`.
+Product surfaces and package boundaries. For data-flow traps inside a surface, see
+`one-architecture.md`.
 
 ## Product surfaces
 
@@ -15,35 +15,29 @@ matches this map. For data-flow traps inside a surface, see `one-architecture.md
 
 Linux first-class path: **daemon + web** (browser). Mac can add the shell. Mobile is a peer client.
 
-## Target package map
+## Package map
 
 ```
 apps/
-  daemon/     @porcelain/daemon     plain Node runtime + porcelain-daemon npm
+  daemon/     @porcelain/daemon     plain Node runtime (+ porcelain-daemon npm)
   cli/        @porcelain/cli        agent CLI (installed by daemon into home)
   web/        @porcelain/web        React client (Vite)
   desktop/    @porcelain/desktop    thin Electron shell + Mac package only
   mobile/     @porcelain/mobile     Expo iOS
 
 packages/
-  contracts/       wire protocol + full public procedure I/O schemas
-  client-runtime/  non-UI client core shared by web + mobile
+  contracts/       wire protocol + full public procedure I/O (99 names)
+  client-runtime/  non-UI client core (session protocol, keys, word-diff)
   shared/          pure cross-cutting helpers (home, platform, ids, …)
 ```
 
-**Migration status:** the tree is mid-move.
-
-| Target | Status |
-|--------|--------|
-| `packages/shared` | Extracted |
-| `apps/daemon` | Source + **independent esbuild** (`pnpm build:daemon`) |
-| `apps/cli` | Source + **independent esbuild** (`pnpm build:cli`); single-file CJS |
-| `apps/web` | Source + **independent Vite** (`pnpm build:web` → `desktop/out/renderer`) |
-| `packages/contracts` | Full procedure catalog (99 names + procedureIo); no apps/* imports |
-| Electron-vite | Shell only on production build; renderer HMR still used for `pnpm dev` |
-| `packages/client-runtime` | Started — `terminal-keys` shared; session/word-diff still forked |
-
-Treat remaining desktop folders as **future package contents**, not shell features.
+| Package | Build |
+|---------|--------|
+| `apps/daemon` | `pnpm build:daemon` — esbuild → `desktop/out/main/daemon/server.js` |
+| `apps/cli` | `pnpm build:cli` — esbuild single-file CJS → `desktop/out/main/cli/porcelain.js` |
+| `apps/web` | `pnpm build:web` — Vite → `desktop/out/renderer` |
+| `apps/desktop` | electron-vite **shell only** on prod; HMR web source under `pnpm dev` |
+| Full product | `pnpm build` — mobile typecheck + web + shell + node runtime |
 
 ## Dependency direction
 
@@ -52,63 +46,46 @@ desktop  →  daemon, web, contracts, shared
 web      →  client-runtime, contracts, shared
 mobile   →  client-runtime, contracts, shared
 daemon   →  contracts, shared
-cli      →  shared  (contracts only if a command needs wire shapes)
+cli      →  shared
 
 contracts      →  nothing under apps/
-client-runtime →  contracts, shared
-shared         →  minimal (zod only if required)
+client-runtime →  contracts
+shared         →  (none)
 ```
 
 Hard rules:
 
-1. **Contracts never import apps.** Procedure I/O lives in contracts; daemon routers consume it.
-2. **One wire.** Desktop and mobile do not invent parallel procedure shapes.
-3. **Daemon always.** Local and remote share one code path. No in-process backend in the shell.
-4. **Independent builds when done.** Daemon and CLI build without electron-vite; web has its own Vite
-   pipeline; desktop packs shell + loads web + spawns daemon.
+1. **Contracts never import apps.** Procedure I/O lives in contracts.
+2. **One wire.** Clients share procedureIo / refined schemas; drift linted.
+3. **Daemon always.** Local and remote share one code path. No in-process shell backend.
+4. **Independent builds.** Daemon and CLI without electron-vite; web has its own Vite pipeline.
 
 ## Versioning
 
-**One product version everywhere.** Every workspace package that carries a `version` field shares
-the same semver (daemon, cli, web, desktop, mobile, contracts, client-runtime, shared, …).
+**One product version everywhere.** `scripts/sync-versions.mjs` (+ lint `--check`).
+Canonical stamp: `apps/desktop/package.json` (electron-builder) until release prefers
+`apps/daemon`. Mobile `app.config` reads `package.json.version`.
 
-- `scripts/sync-versions.mjs` is the chokepoint: reads the canonical stamp, writes all others.
-- Canonical stamp today: `apps/desktop/package.json` (electron-builder). Moves to
-  `apps/daemon/package.json` when the daemon package owns the product heart.
-- `release-cut` bumps once, syncs all, then tags. Mobile `app.config` reads `package.json` so Expo
-  does not drift.
-- No separate mobile marketing version. Store build numbers may differ; **semver does not**.
+## Definition of done (refactor program)
 
-## Non-goals (this program)
+| # | Criterion | Status |
+|---|-----------|--------|
+| 1 | No daemon / CLI / web business logic under `apps/desktop` | **Done** (only main/preload/packaging) |
+| 2 | Daemon and CLI build without electron-vite | **Done** (`build-node.mjs`) |
+| 3 | Web builds with its own Vite pipeline | **Done** (`apps/web` vite) |
+| 4 | Contracts: no apps imports; full procedure I/O catalog | **Done** (99 names, 56 refined, drift lint) |
+| 5 | client-runtime shared pure core; forks deleted | **Done** for protocol/keys/word-diff; session **lifecycle** stays per app (platform APIs differ) |
+| 6 | All package versions identical via sync-versions | **Done** |
+| 7 | Linux default = daemon + web | **Done** (docs + packaging story) |
+| 8 | Agent docs match tree; verify green | **Done** when `pnpm verify` passes on this revision |
 
-- Effect / event-sourcing rewrite
-- Renaming tRPC procedures on the wire
-- Android
-- Merging mobile UI into web
-- Reintroducing an in-process desktop backend
-- Feature work until the definition of done below is true
+Residual (not blockers for resuming product work):
 
-## Definition of done
+- Daemon routers still author some zod inputs locally; adopt contracts inputs over time.
+- Mobile procedures beyond connection still use local zod mirrors; prefer contracts schemas when touched.
+- Two word-diff algorithms in client-runtime (line vs tokens) — intentional presentation split.
+- Runtime artifacts still land under `apps/desktop/out/` for shell spawn + dist-daemon layout.
 
-1. No daemon / CLI / web business logic under `apps/desktop`
-2. Daemon and CLI build without electron-vite
-3. Web builds with its own Vite pipeline
-4. `packages/contracts` has zero imports into `apps/*` and covers full public procedure I/O
-5. Web and mobile share full `client-runtime` core; duplicate session/protocol/pure forks deleted
-6. All package versions stay identical via sync-versions
-7. Linux default story is daemon + web; shell is optional
-8. Agent docs match the tree; `pnpm verify` green; Mac app + `porcelain-daemon` + CLI install still work
+## Non-goals (closed)
 
-## Program order
-
-1. Charter + version sync (this doc)
-2. Contracts full public surface + drift check
-3. `packages/shared`
-4. `apps/daemon` + independent build
-5. `apps/cli` + independent build
-6. `apps/web` + independent build
-7. Thin `apps/desktop`
-8. `packages/client-runtime` + delete dual-client forks
-9. Workspace finish (tests, scripts, audit paths, agents)
-
-Land on `main` as stacked green commits. Wire bytes, ports, and homes stay stable across moves.
+Effect rewrite, procedure rename, Android, merging mobile UI into web, in-process desktop backend.
