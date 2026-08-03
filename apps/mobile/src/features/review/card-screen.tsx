@@ -141,26 +141,26 @@ export function CardScreen(): React.JSX.Element {
             {error === null ? null : <Text>{error}</Text>}
           </Section>
         </Form>
+        <ConfirmationDialog
+          isPresented={deletePresented}
+          onIsPresentedChange={setDeletePresented}
+          title="Delete this card?"
+        >
+          <ConfirmationDialog.Message>
+            <Text>This cannot be undone.</Text>
+          </ConfirmationDialog.Message>
+          <ConfirmationDialog.Actions>
+            <Button label="Cancel" role="cancel" />
+            <Button
+              label="Delete"
+              onPress={(): void => {
+                remove()
+              }}
+              role="destructive"
+            />
+          </ConfirmationDialog.Actions>
+        </ConfirmationDialog>
       </ScreenHost>
-      <ConfirmationDialog
-        isPresented={deletePresented}
-        onIsPresentedChange={setDeletePresented}
-        title="Delete this card?"
-      >
-        <ConfirmationDialog.Message>
-          <Text>This cannot be undone.</Text>
-        </ConfirmationDialog.Message>
-        <ConfirmationDialog.Actions>
-          <Button label="Cancel" role="cancel" />
-          <Button
-            label="Delete"
-            onPress={(): void => {
-              remove()
-            }}
-            role="destructive"
-          />
-        </ConfirmationDialog.Actions>
-      </ConfirmationDialog>
     </>
   )
 }
