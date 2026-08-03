@@ -16,7 +16,7 @@ The human is **not** the source of truth and not a dictator to obey. Everything 
 2. **Match the local idiom.** Naming, test shape, file layout, commit format: read like the code around it.
 3. **`pnpm verify` before any commit** (`lint && test && build`; typecheck runs inside `build`). Hook-enforced for every client via `.husky/pre-commit`. `.husky/commit-msg` separately caps the message at **1024 chars** — EAS rejects longer and mobile delivery dies silently. Rules and why: `close-the-loop`.
 4. **Docs carry constraints; commits carry reasons.** A tracked doc or comment states what a future session must do or avoid, in the fewest lines that stand alone. Why we chose it, what we gave up, what we tried first, and when all belong in the **commit message** — git keeps them without spending every future session's context. Never date a doc, never record an account's plan or billing state, never write "we used to." *Test: "delivery uses `submit`; `testflight` with a `build_id` is paid-tier" is a constraint; the paragraph on what that costs and how to undo it is a commit message.* When a doc only restates the code, *cut it*. Prefer a lint over prose whenever a lint can enforce the rule.
-5. **UI primitives follow the client.** Renderer: shadcn only, never hand-rolled (`shadcn` skill). `apps/mobile`: iOS-only, SwiftUI-only — Expo Router plus `@expo/ui/swift-ui` and its `/modifiers`, **never the universal `@expo/ui` root** (`Host` included). A primitive neither library provides needs the human's approval first. Backend work loads neither skill.
+5. **UI primitives follow the client.** Renderer: shadcn only, never hand-rolled (`client` skill). `apps/mobile`: iOS-only, SwiftUI-only — Expo Router plus `@expo/ui/swift-ui` and its `/modifiers`, **never the universal `@expo/ui` root** (`Host` included). A primitive neither library provides needs the human's approval first. Backend work loads neither skill.
 6. **Let type-safety drive the design.** When types fight you, change the design — a structural interface at the seam, a zod parse, a narrowing guard. Never escape it. The escapes are lint-enforced, not prose.
 7. **No `void` on promises.** Use `async`/`await`. Bare fire-and-forget without `void` is fine when you truly don't need to wait.
 8. **Main-first solo flow.** Work on `main`, pass the gate, commit — then stop; **pushing is prompted**. Parallel or risky work opts into `pnpm worktree create <slug>` → PR → squash-merge → `pnpm worktree remove <slug>`. Unmanaged branches stay hook-blocked. No long-lived task branches.
@@ -55,7 +55,7 @@ Only each skill's description is ambient. A `SKILL.md` routes — read it, then 
 | `audit` | Main process, IPC, config, git plumbing, file reads, packaging; regression review |
 | `marketing` | README, `marketing/`, screenshots, launch copy |
 | `releasing` | Cutting a release or changing signing/notarization |
-| `shadcn` | Renderer UI primitive work |
+| `client` | Renderer UI primitive work |
 | `expo-*` / `eas-*` | Native mobile structure, UI, routing, builds, delivery |
 
 **Shipped content carries no personal setup** — public docs and app copy use generic placeholders (`you@remote-host`, `/home/you/code/my-app`), never a maintainer's hostname or private paths.
