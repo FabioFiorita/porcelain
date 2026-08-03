@@ -24,8 +24,14 @@ const root = join(fileURLToPath(new URL('.', import.meta.url)), '..')
 const { docBudget } = JSON.parse(readFileSync(join(root, 'scripts', 'ratchets.json'), 'utf8'))
 
 const SKILLS_DIR = join(root, '.agents', 'skills')
-/** Pulled in by `npx skills add`; not ours to trim. */
-const isVendored = (name) => /^(expo|eas)-/.test(name)
+/**
+ * Every skill is authored, so every skill is budgeted. Vendored skills used to be
+ * exempt, which let 39k words of `expo-*`/`eas-*` and a 9k `shadcn` sit outside the
+ * gate — and the shadcn one was charged to us anyway, because the prefix test missed
+ * it. Now the corpus has no exemption to game: a vendored skill is a failure, and the
+ * `mobile` skill routes to the Expo MCP doc tools for API detail instead.
+ */
+const isVendored = (name) => /^(expo|eas)-/.test(name) || name === 'shadcn'
 
 const words = (path) => readFileSync(path, 'utf8').trim().split(/\s+/).filter(Boolean).length
 
@@ -39,10 +45,19 @@ function markdownUnder(dir, out = []) {
   return out
 }
 
+const vendored = readdirSync(SKILLS_DIR).filter(isVendored)
+if (vendored.length > 0) {
+  console.error('Vendored skills are not installed here — they drift and they dodge the budget:\n')
+  for (const name of vendored) console.error(`  .agents/skills/${name}`)
+  console.error(
+    '\nKeep the deltas in an authored skill and read the vendor docs live (mcp__expo__read_documentation).',
+  )
+  process.exit(1)
+}
+
 function collect() {
   const files = [{ rel: 'AGENTS.md', tier: 'agentsMd', words: words(join(root, 'AGENTS.md')) }]
   for (const name of readdirSync(SKILLS_DIR)) {
-    if (isVendored(name)) continue
     for (const path of markdownUnder(join(SKILLS_DIR, name))) {
       const tier = path.endsWith(`${name}/SKILL.md`) ? 'skillMd' : 'reference'
       files.push({ rel: relative(root, path), tier, words: words(path) })
@@ -56,7 +71,7 @@ const files = collect()
 // Without this the gate passes vacuously: if the corpus ever moves out from under
 // the walk, the total drops to zero and everything looks fine. Every authored skill
 // must contribute exactly one SKILL.md.
-const authoredSkills = readdirSync(SKILLS_DIR).filter((name) => !isVendored(name))
+const authoredSkills = readdirSync(SKILLS_DIR)
 const routers = files.filter((f) => f.tier === 'skillMd').length
 if (routers !== authoredSkills.length) {
   console.error(
