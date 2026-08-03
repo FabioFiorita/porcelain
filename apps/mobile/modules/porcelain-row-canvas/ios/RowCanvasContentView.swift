@@ -26,6 +26,7 @@ struct RowCanvasHit {
 /// cached offset, never a view, which is what lets the document be arbitrarily long.
 final class RowCanvasContentView: UIView, UIGestureRecognizerDelegate {
   private static let maxCachedAttributedRows = 2000
+  private static let maxCachedSymbols = 128
 
   var onRowPress: ((RowCanvasHit) -> Void)?
   var onRowLongPress: ((RowCanvasHit) -> Void)?
@@ -54,6 +55,7 @@ final class RowCanvasContentView: UIView, UIGestureRecognizerDelegate {
     didSet {
       colorsByHex.removeAll()
       attributedByRowId.removeAll()
+      symbolsByKey.removeAll()
       rebuildLayout()
       setNeedsDisplay()
     }
@@ -92,6 +94,7 @@ final class RowCanvasContentView: UIView, UIGestureRecognizerDelegate {
   private var panStartOffset: CGFloat = 0
   private var attributedByRowId: [String: NSAttributedString] = [:]
   private var colorsByHex: [String: UIColor] = [:]
+  private var symbolsByKey: [String: UIImage] = [:]
   private var decelerationLink: CADisplayLink?
   private var decelerationProxy: RowCanvasDisplayLinkProxy?
   private var horizontalVelocity: CGFloat = 0
@@ -136,6 +139,7 @@ final class RowCanvasContentView: UIView, UIGestureRecognizerDelegate {
   private func installGestures() {
     isOpaque = true
     contentMode = .redraw
+    isAccessibilityElement = false
     addGestureRecognizer(panGesture)
     addGestureRecognizer(longPressGesture)
     addGestureRecognizer(tapGesture)
@@ -181,11 +185,22 @@ final class RowCanvasContentView: UIView, UIGestureRecognizerDelegate {
   }
 
   private func columnCount(for row: RowCanvasRow) -> Int {
-    let indent = max(0, row.indent ?? 0)
+    let leading = leadingColumns(for: row)
     if let cells = row.cells {
-      return indent + cells.reduce(0) { $0 + $1.text.count }
+      return leading + cells.reduce(0) { $0 + $1.text.count }
     }
-    return indent + (row.text?.count ?? 0)
+    return leading + (row.text?.count ?? 0)
+  }
+
+  /// Rows without symbols reserve nothing, so a diff document keeps its exact character grid.
+  private func leadingColumns(for row: RowCanvasRow) -> Int {
+    let symbols = row.symbols?.count ?? 0
+    return max(0, row.indent ?? 0) + symbols * theme.symbolColumns
+  }
+
+  /// Where a row's text begins: past the gutter, its own indent, and its symbol slots.
+  private func contentOriginX(for row: RowCanvasRow) -> CGFloat {
+    codeStartX - horizontalOffset + CGFloat(leadingColumns(for: row)) * characterWidth
   }
 
   private var codeFont: UIFont {
@@ -410,7 +425,7 @@ final class RowCanvasContentView: UIView, UIGestureRecognizerDelegate {
     let row = rows[index]
     let inGutter = point.x < codeStartX
     let column = (point.x - codeStartX + horizontalOffset) / max(characterWidth, 1)
-    let charIndex = max(0, Int(column.rounded(.down)) - max(0, row.indent ?? 0))
+    let charIndex = max(0, Int(column.rounded(.down)) - leadingColumns(for: row))
     return RowCanvasHit(index: index, row: row, charIndex: inGutter ? 0 : charIndex, inGutter: inGutter)
   }
 
@@ -422,6 +437,54 @@ final class RowCanvasContentView: UIView, UIGestureRecognizerDelegate {
   @objc private func handleLongPress(_ gesture: UILongPressGestureRecognizer) {
     guard gesture.state == .began, let target = hit(at: gesture.location(in: self)) else { return }
     onRowLongPress?(target)
+  }
+
+  // MARK: - Accessibility
+
+  /// The canvas draws text instead of building subviews, so VoiceOver would otherwise find one
+  /// unlabelled rectangle. Elements cover the visible rows only and are built when accessibility
+  /// asks for them, not on every scroll frame.
+  override var accessibilityElements: [Any]? {
+    get { visibleAccessibilityElements() }
+    set {}
+  }
+
+  private func visibleAccessibilityElements() -> [Any] {
+    guard let range = visibleRowRange() else { return [] }
+
+    var elements: [UIAccessibilityElement] = []
+    for index in range.first...range.last {
+      let row = rows[index]
+      let rowHeight = height(for: row)
+      guard rowHeight > 0, let label = spokenLabel(for: row) else { continue }
+
+      var traits: UIAccessibilityTraits = .button
+      if row.sticky == true { traits.insert(.header) }
+
+      let element = UIAccessibilityElement(accessibilityContainer: self)
+      element.accessibilityLabel = label
+      element.accessibilityTraits = traits
+      element.accessibilityFrameInContainerSpace = CGRect(
+        x: 0,
+        y: rowOffsets[index] - verticalOffset,
+        width: max(bounds.width, 1),
+        height: rowHeight
+      )
+      elements.append(element)
+    }
+    return elements
+  }
+
+  /// `label` is what the adapter wants said ("src, folder, 12 items"); the drawn text is the
+  /// fallback, and a row that is only whitespace is skipped rather than announced as blank.
+  private func spokenLabel(for row: RowCanvasRow) -> String? {
+    if let label = row.label, !label.isEmpty { return label }
+    if let text = row.text, !text.trimmingCharacters(in: .whitespaces).isEmpty { return text }
+    if let cells = row.cells {
+      let joined = cells.map(\.text).joined()
+      if !joined.trimmingCharacters(in: .whitespaces).isEmpty { return joined }
+    }
+    return nil
   }
 
   // MARK: - Drawing
@@ -475,6 +538,7 @@ final class RowCanvasContentView: UIView, UIGestureRecognizerDelegate {
     context.saveGState()
     context.clip(to: CGRect(x: codeStartX, y: rect.minY, width: max(0, viewportWidth - codeStartX), height: rect.height))
     drawRanges(row, in: rect, context: context)
+    drawSymbols(row, in: rect, role: role)
     drawContent(row, in: rect, role: role)
     context.restoreGState()
 
@@ -520,14 +584,14 @@ final class RowCanvasContentView: UIView, UIGestureRecognizerDelegate {
 
   private func drawRanges(_ row: RowCanvasRow, in rect: CGRect, context: CGContext) {
     guard let ranges = row.ranges, !ranges.isEmpty else { return }
-    let indent = CGFloat(max(0, row.indent ?? 0))
+    let origin = contentOriginX(for: row)
     let height = min(rect.height - 2, codeFont.lineHeight + 2)
     for range in ranges where range.end > range.start {
       guard let fill = theme.role(range.role)?.highlight ?? theme.role(row.role)?.highlight else {
         continue
       }
       fill.setFill()
-      let x = codeStartX - horizontalOffset + (indent + CGFloat(range.start)) * characterWidth
+      let x = origin + CGFloat(range.start) * characterWidth
       let width = max(2, CGFloat(range.end - range.start) * characterWidth)
       UIBezierPath(
         roundedRect: CGRect(x: x, y: rect.midY - height / 2, width: width, height: height),
@@ -536,11 +600,51 @@ final class RowCanvasContentView: UIView, UIGestureRecognizerDelegate {
     }
   }
 
+  /// The leading glyphs, each centred in its own reserved slot so the text column stays straight.
+  /// Drawn in the same clipped region as the content, so they pan with the row rather than over
+  /// the gutter.
+  private func drawSymbols(_ row: RowCanvasRow, in rect: CGRect, role: RowCanvasRole?) {
+    guard let symbols = row.symbols, !symbols.isEmpty, theme.symbolColumns > 0 else { return }
+
+    let slot = CGFloat(theme.symbolColumns) * characterWidth
+    // A trailing gap inside each slot keeps a glyph from crowding whatever follows it.
+    let usable = max(slot - characterWidth * 0.5, 1)
+    var x = codeStartX - horizontalOffset + CGFloat(max(0, row.indent ?? 0)) * characterWidth
+
+    for symbol in symbols {
+      defer { x += slot }
+      guard !symbol.name.isEmpty else { continue }
+      let tint = color(symbol.tint) ?? role?.foreground ?? theme.mutedText
+      guard let image = symbolImage(name: symbol.name, tint: tint) else { continue }
+
+      let scale = min(1, usable / max(image.size.width, 1))
+      let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+      image.draw(
+        in: CGRect(
+          x: x + max(0, (usable - size.width) / 2),
+          y: rect.midY - size.height / 2,
+          width: size.width,
+          height: size.height
+        )
+      )
+    }
+  }
+
+  /// Keyed on the resolved colour, not the row's `tint` string: a row that leaves the tint out
+  /// takes its role's foreground, and two roles must not share one cached glyph.
+  private func symbolImage(name: String, tint: UIColor) -> UIImage? {
+    let cacheKey = "\(name)|\(tint.hashValue)|\(theme.fontSize)"
+    if let cached = symbolsByKey[cacheKey] { return cached }
+    let configuration = UIImage.SymbolConfiguration(pointSize: theme.fontSize, weight: .regular)
+    guard let base = UIImage(systemName: name, withConfiguration: configuration) else { return nil }
+    let image = base.withTintColor(tint, renderingMode: .alwaysOriginal)
+    if symbolsByKey.count >= Self.maxCachedSymbols { symbolsByKey.removeAll() }
+    symbolsByKey[cacheKey] = image
+    return image
+  }
+
   private func drawContent(_ row: RowCanvasRow, in rect: CGRect, role: RowCanvasRole?) {
-    let origin = CGPoint(
-      x: codeStartX - horizontalOffset + CGFloat(max(0, row.indent ?? 0)) * characterWidth,
-      y: rect.midY - codeFont.lineHeight / 2
-    )
+    let origin = CGPoint(x: contentOriginX(for: row), y: rect.midY - codeFont.lineHeight / 2)
     let foreground = role?.foreground ?? theme.text
 
     if let attributed = attributedContent(row, foreground: foreground) {

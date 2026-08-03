@@ -1,7 +1,7 @@
 import { Host } from '@expo/ui/swift-ui'
 import type { ReactNode } from 'react'
 
-import { useAccentColor } from '@/theme/colors'
+import { useAccentColor } from '@/theme/use-accent-color'
 
 /**
  * The root every full-screen SwiftUI tree sits in. `useViewportSizeMeasurement` is what lets a

@@ -17,8 +17,8 @@ import { useDebouncedFileQuery } from './use-files'
 
 /**
  * Files tab search face — dual-face like Board/History (re-tap to flip; no Done).
- * Field is a fixed RN TextInput above the results FlatList. SwiftUI TextField as a
- * FlatList header collapses to zero height under ScreenHost measurement.
+ * Field is a fixed RN TextInput above the results canvas. SwiftUI TextField as a
+ * list header collapses to zero height under ScreenHost measurement.
  */
 export function FilesSearchScreen(): React.JSX.Element {
   const [query, setQuery] = useState('')

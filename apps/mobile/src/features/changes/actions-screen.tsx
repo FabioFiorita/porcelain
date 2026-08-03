@@ -41,8 +41,8 @@ import { firstParam } from '@/features/changes/lib/scope'
 import { type DaemonError, daemonErrorMessage } from '@/lib/daemon/errors'
 import type { FlowFile } from '@/lib/daemon/procedures/changes'
 import { useActiveRepo } from '@/lib/daemon/repo'
-import { useAccentColor } from '@/theme/colors'
 import { footnote, secondary } from '@/theme/modifiers'
+import { useAccentColor } from '@/theme/use-accent-color'
 
 const headline = font({ textStyle: 'headline' })
 const errorStyle = foregroundStyle({ color: '#FF3B30', type: 'color' })

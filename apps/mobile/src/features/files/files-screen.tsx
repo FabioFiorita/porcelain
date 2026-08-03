@@ -1,6 +1,6 @@
 import { ObserveInteractiveMarker } from 'expo-observe'
 import { Stack } from 'expo-router'
-import { useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
 import { Platform } from 'react-native'
 
 import { DaemonGate } from '@/components/daemon-gate'
@@ -11,9 +11,9 @@ import { useSurfaceFocus } from '@/components/use-surface-focus'
 import { useActiveRepo } from '@/lib/daemon/repo'
 import { useIPadDestination } from '@/lib/ipad-destination'
 import { setPreference, usePreferences } from '@/lib/preferences'
-import { EntryList } from './entry-list'
-import { FilesLoading, FilesQueryState, NoVisibleFiles } from './files-empty-states'
-import { useFileEntryActions, useFilesDirectory, usePinnedFileEntries } from './use-files'
+import { FileTree } from './file-tree'
+import { FilesLoading } from './files-empty-states'
+import { useFileTreeStore } from './use-file-tree'
 
 function isIPad(): boolean {
   return 'isPad' in Platform && Platform.isPad
@@ -26,10 +26,14 @@ function isIPad(): boolean {
  */
 export function FilesScreen(): React.JSX.Element {
   const preferences = usePreferences()
+  const repo = useActiveRepo()
   useSurfaceFocus('files')
   useEffect(() => {
     if (isIPad()) useIPadDestination.getState().setDestination('files')
   }, [])
+  const collapseAll = useCallback((): void => {
+    if (repo !== null) useFileTreeStore.getState().collapseAll(repo.path)
+  }, [repo])
 
   return (
     <>
@@ -55,6 +59,12 @@ export function FilesScreen(): React.JSX.Element {
             >
               {preferences.filesShowHidden ? 'Hide hidden files' : 'Show hidden files'}
             </Stack.Toolbar.MenuAction>
+            <Stack.Toolbar.MenuAction
+              icon="arrow.down.right.and.arrow.up.left"
+              onPress={collapseAll}
+            >
+              Collapse all
+            </Stack.Toolbar.MenuAction>
           </Stack.Toolbar.Menu>
         </Stack.Toolbar>
       ) : null}
@@ -63,23 +73,11 @@ export function FilesScreen(): React.JSX.Element {
   )
 }
 
-/** The real directory listing used by the root SplitView supplementary column on iPad. */
+/** The real tree used by the root SplitView supplementary column on iPad. */
 export function FilesSplitColumn(): React.JSX.Element {
-  const repo = useActiveRepo()
-  const preferences = usePreferences()
-  const actions = useFileEntryActions(repo?.path ?? null)
-
   return (
     <DaemonGate requires="repo">
-      {repo === null ? (
-        <FilesLoading />
-      ) : (
-        <RootListing
-          actions={actions}
-          repoPath={repo.path}
-          showHidden={preferences.filesShowHidden}
-        />
-      )}
+      <FilesBrowse />
     </DaemonGate>
   )
 }
@@ -87,53 +85,17 @@ export function FilesSplitColumn(): React.JSX.Element {
 function FilesBrowse(): React.JSX.Element {
   const repo = useActiveRepo()
   const preferences = usePreferences()
-  const actions = useFileEntryActions(repo?.path ?? null)
 
   if (repo === null) return <FilesLoading />
 
-  // EntryList owns ScreenHost + FlatList — do not wrap it in another Host/List or the
-  // listing collapses to zero height.
+  // The tree draws itself on the row canvas — do not wrap it in a Host or List, or it collapses
+  // to zero height the way the old FlatList listing did.
   return (
-    <RootListing actions={actions} repoPath={repo.path} showHidden={preferences.filesShowHidden} />
-  )
-}
-
-function RootListing({
-  actions,
-  repoPath,
-  showHidden,
-}: {
-  actions: ReturnType<typeof useFileEntryActions>
-  repoPath: string
-  showHidden: boolean
-}): React.JSX.Element {
-  const listing = useFilesDirectory(repoPath, repoPath, showHidden, true)
-  const pinned = usePinnedFileEntries(repoPath, true)
-  const visiblePinned = (pinned.data ?? []).filter((entry) => showHidden || !entry.hidden)
-
-  if (listing.data === undefined) {
-    if (listing.error !== null && listing.error !== undefined) {
-      return (
-        <FilesQueryState
-          description="The root listing will update when the daemon is reachable again."
-          error={listing.error}
-          onRetry={(): void => {
-            listing.refetch()
-          }}
-          title="Could not read this repo"
-        />
-      )
-    }
-    return <FilesLoading />
-  }
-  if (listing.data.length === 0 && visiblePinned.length === 0) return <NoVisibleFiles />
-
-  return (
-    <EntryList
-      actions={actions}
-      entries={listing.data}
-      pinnedEntries={visiblePinned}
-      repoPath={repoPath}
+    <FileTree
+      repoPath={repo.path}
+      rootPath={repo.path}
+      showHidden={preferences.filesShowHidden}
+      showPinned
     />
   )
 }

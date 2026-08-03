@@ -9,7 +9,7 @@ export default function ChangesLayout(): React.JSX.Element {
     <Stack screenOptions={{ headerBackButtonDisplayMode: 'minimal' }}>
       {/* Index swaps Changes/History faces in-place — not a push. */}
       <Stack.Screen name="index" options={{ headerTitle: '', title: 'Changes' }} />
-      <Stack.Screen name="reading" options={{ title: 'Read' }} />
+      <Stack.Screen name="reading" options={{ title: 'All changes' }} />
       <Stack.Screen name="review" options={{ headerTitle: '', title: 'Review' }} />
       <Stack.Screen name="file" />
       <Stack.Screen name="commit/[hash]" />

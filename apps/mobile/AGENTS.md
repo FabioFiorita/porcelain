@@ -17,6 +17,11 @@ loop and runtime traps. This file is platform law that must stay true without lo
   Tailwind, shadcn, or desktop shell state.
 - Treat every **iPad** presentation claim as unproven until runtime evidence from an iPad backs it.
 - SwiftUI `Button` tints its entire label — tappable rows need `buttonStyle('plain')`.
+- **Anything that lists paths renders on the row canvas** — Files, Changes, History, commit detail,
+  search — through `components/entry-canvas.tsx` and the one row model in `entry-rows.ts`. A file
+  reads the same in the list and in the diff it opens because it is the same surface. SwiftUI
+  `List` stays for forms, empty states and notices; a `FlatList` of per-row `Host`s is the shape
+  this replaced, not a fallback to reach for.
 
 ## Fingerprint first
 

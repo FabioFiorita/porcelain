@@ -9,7 +9,6 @@ import {
   hidePathMutation,
   pinnedEntriesQuery,
   pinPathMutation,
-  readDirQuery,
   readFileQuery,
   searchFilesQuery,
   unhidePathMutation,
@@ -26,7 +25,7 @@ function useRefetchOnFocus(refetch: () => Promise<unknown>, enabled: boolean): v
   )
 }
 
-function useFilesWatch({
+export function useFilesWatch({
   dirs,
   files,
 }: {
@@ -39,27 +38,6 @@ function useFilesWatch({
     if (!enabled) return
     return watch({ dirs, files })
   }, [dirs, enabled, files, watch])
-}
-
-export function useFilesDirectory(
-  repoPath: string,
-  path: string,
-  showHidden: boolean,
-  enabled: boolean,
-): UseQueryResult<DirEntry[], DaemonError> {
-  const query = useDaemonQuery(
-    readDirQuery,
-    { path, repoPath, showHidden },
-    {
-      enabled,
-      refetchOnWindowFocus: false,
-      staleTime: 30_000,
-    },
-  )
-  const dirs = useMemo(() => (enabled ? [path] : []), [enabled, path])
-  useFilesWatch({ dirs })
-  useRefetchOnFocus(query.refetch, enabled)
-  return query
 }
 
 export function usePinnedFileEntries(

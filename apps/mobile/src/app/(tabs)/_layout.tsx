@@ -4,7 +4,7 @@ import { Platform } from 'react-native'
 import type { TabWithAlternate } from '@/lib/tab-alternates'
 import { useTabFaces } from '@/lib/tab-faces'
 import { useTabRootFocus } from '@/lib/tab-root-focus'
-import { useAccentColor } from '@/theme/colors'
+import { useAccentColor } from '@/theme/use-accent-color'
 
 /**
  * iPhone shell: four tab slots. Files, Changes, and Review are dual-face — re-tap the

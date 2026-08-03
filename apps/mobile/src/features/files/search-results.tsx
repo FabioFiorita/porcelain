@@ -1,20 +1,40 @@
 import { ContentUnavailableView, Host, ProgressView, Text, VStack } from '@expo/ui/swift-ui'
 import { frame, padding } from '@expo/ui/swift-ui/modifiers'
+import { type Href, router } from 'expo-router'
+import { useMemo } from 'react'
+import { EntryCanvas } from '@/components/entry-canvas'
+import type { EntryItem } from '@/components/entry-rows'
 import { daemonErrorMessage } from '@/lib/daemon/errors'
-import type { DirEntry } from '@/lib/daemon/procedures/files'
 import { useActiveRepo } from '@/lib/daemon/repo'
-import { useAccentColor } from '@/theme/colors'
 import { secondary } from '@/theme/modifiers'
-import { EntryList } from './entry-list'
-import { basename, parentRelativePath, repoRelativePath } from './file-paths'
-import { useFileEntryActions, useFileSearch } from './use-files'
+import { useAccentColor } from '@/theme/use-accent-color'
+import {
+  basename,
+  entryHref,
+  hrefForAbsolutePath,
+  parentRelativePath,
+  repoRelativePath,
+} from './file-paths'
+import { useFileSearch } from './use-files'
 
 /** Search hits for the Files Search face. Parent pins the query field above this list. */
 export function SearchResults({ query }: { query: string }): React.JSX.Element {
   const repo = useActiveRepo()
-  const actions = useFileEntryActions(repo?.path ?? null)
   const results = useFileSearch(repo?.path ?? '', query, repo !== null && query.trim() !== '')
   const accentColor = useAccentColor()
+  const repoPath = repo?.path ?? ''
+  const items = useMemo(
+    (): EntryItem[] =>
+      (results.data ?? []).map((result) => ({
+        depth: 0,
+        key: result.path,
+        kind: result.kind === 'dir' ? 'dir' : 'file',
+        name: basename(result.path),
+        path: result.path,
+        trailing: [{ text: searchResultDetail(repoPath, result.path) }],
+      })),
+    [repoPath, results.data],
+  )
 
   if (query.trim() === '') {
     return (
@@ -84,20 +104,22 @@ export function SearchResults({ query }: { query: string }): React.JSX.Element {
   }
 
   return (
-    <EntryList
-      actions={actions}
-      detailForEntry={(entry: DirEntry): string => searchResultDetail(repo.path, entry.path)}
-      embedded
-      entries={results.data.map((result) => ({
-        hidden: false,
-        kind: result.kind,
-        name: basename(result.path),
-        path: result.path,
-        pinned: false,
-      }))}
-      repoPath={repo.path}
+    <EntryCanvas
+      contentKey={`search:${repo.path}:${query}`}
+      items={items}
+      onPress={(item): void => {
+        if (item.kind === 'item') return
+        router.push(searchHref(repo.path, item.path, item.kind))
+      }}
     />
   )
+}
+
+function searchHref(repoPath: string, path: string, kind: 'dir' | 'file'): Href {
+  const relative = repoRelativePath(repoPath, path)
+  return relative === null || relative === ''
+    ? hrefForAbsolutePath(repoPath, path, kind)
+    : entryHref(kind, relative)
 }
 
 function searchResultDetail(repoPath: string, absolutePath: string): string {

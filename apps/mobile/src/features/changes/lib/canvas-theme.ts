@@ -1,5 +1,5 @@
 import type { RowCanvasTheme } from '@/lib/row-canvas/types'
-import { type AppearanceScheme, accentColor, diffBackgrounds } from '@/theme/colors'
+import { type AppearanceScheme, accentColor, diffBackgrounds, ink } from '@/theme/colors'
 
 /**
  * The diff surface's palette, expressed as canvas roles. Every colour the native view paints
@@ -13,7 +13,6 @@ const SURFACE = {
     border: '#2C2C2E',
     header: '#141416',
     hunk: '#10222B',
-    muted: '#8E8E93',
     text: '#EDEDED',
   },
   light: {
@@ -21,7 +20,6 @@ const SURFACE = {
     border: '#D1D1D6',
     header: '#F2F2F7',
     hunk: '#E5F0FA',
-    muted: '#6C6C70',
     text: '#1C1C1E',
   },
 } as const
@@ -36,6 +34,7 @@ export function diffCanvasTheme(scheme: AppearanceScheme): RowCanvasTheme {
   const surface = SURFACE[scheme]
   const accent = accentColor(scheme)
   const backgrounds = diffBackgrounds(scheme)
+  const muted = ink('muted', scheme)
 
   return {
     accentBarWidth: 3,
@@ -47,7 +46,7 @@ export function diffCanvasTheme(scheme: AppearanceScheme): RowCanvasTheme {
     gutterFontSize: 10,
     gutterWidth: 38,
     maxContentWidth: 6000,
-    mutedText: surface.muted,
+    mutedText: muted,
     roles: {
       add: {
         accent: ADD_BAR,
@@ -64,8 +63,8 @@ export function diffCanvasTheme(scheme: AppearanceScheme): RowCanvasTheme {
       },
       file: { bg: surface.header, fg: surface.text },
       hunk: { bg: surface.hunk, fg: accent },
-      layer: { fg: surface.muted },
-      notice: { fg: surface.muted },
+      layer: { fg: muted },
+      notice: { fg: muted },
     },
     rowHeight: 18,
     selection: `${accent}38`,

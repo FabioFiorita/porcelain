@@ -5,7 +5,7 @@ import { Platform } from 'react-native'
 
 import { HeaderToolbar, type ScreenAction } from '@/components/header-toolbar'
 import { WorkspaceContext } from '@/components/workspace-context'
-import { useAccentColor } from '@/theme/colors'
+import { useAccentColor } from '@/theme/use-accent-color'
 
 function isIPad(): boolean {
   return 'isPad' in Platform && Platform.isPad

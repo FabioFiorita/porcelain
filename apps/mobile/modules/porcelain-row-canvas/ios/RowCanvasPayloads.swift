@@ -12,6 +12,15 @@ struct RowCanvasRow: Decodable {
   let sticky: Bool?
   let heightScale: Double?
   let ranges: [RowCanvasRange]?
+  let symbols: [RowCanvasSymbol]?
+  let label: String?
+}
+
+/// A leading glyph. Each one takes a fixed slot before the row's text, so a disclosure chevron and
+/// a type icon can sit side by side without the text column going ragged.
+struct RowCanvasSymbol: Decodable {
+  let name: String
+  let tint: String?
 }
 
 struct RowCanvasCell: Decodable {
@@ -67,6 +76,7 @@ struct RowCanvasThemePayload: Decodable {
   let accentBarWidth: Double?
   let contentPadding: Double?
   let maxContentWidth: Double?
+  let symbolColumns: Double?
 }
 
 struct RowCanvasRole {
@@ -93,6 +103,10 @@ struct RowCanvasTheme {
   let accentBarWidth: CGFloat
   let contentPadding: CGFloat
   let maxContentWidth: CGFloat
+  /// Width of one leading symbol slot, in whole characters. Fixed so glyphs of different widths
+  /// still leave every row's text on the same column, and whole so a row that pads itself with
+  /// `indent` instead of a symbol lands on exactly the same column.
+  let symbolColumns: Int
 
   static let fallback = RowCanvasTheme(
     background: UIColor.systemBackground,
@@ -108,7 +122,8 @@ struct RowCanvasTheme {
     gutterWidth: 44,
     accentBarWidth: 3,
     contentPadding: 8,
-    maxContentWidth: 4000
+    maxContentWidth: 4000,
+    symbolColumns: 3
   )
 
   static func resolve(_ payload: RowCanvasThemePayload?) -> RowCanvasTheme {
@@ -134,7 +149,8 @@ struct RowCanvasTheme {
       gutterWidth: nonNegative(payload.gutterWidth, fallback.gutterWidth),
       accentBarWidth: nonNegative(payload.accentBarWidth, fallback.accentBarWidth),
       contentPadding: nonNegative(payload.contentPadding, fallback.contentPadding),
-      maxContentWidth: positive(payload.maxContentWidth, fallback.maxContentWidth)
+      maxContentWidth: positive(payload.maxContentWidth, fallback.maxContentWidth),
+      symbolColumns: columns(payload.symbolColumns, fallback.symbolColumns)
     )
   }
 
@@ -151,6 +167,11 @@ struct RowCanvasTheme {
   private static func nonNegative(_ value: Double?, _ fallback: CGFloat) -> CGFloat {
     guard let value, value.isFinite, value >= 0 else { return fallback }
     return CGFloat(value)
+  }
+
+  private static func columns(_ value: Double?, _ fallback: Int) -> Int {
+    guard let value, value.isFinite, value >= 0 else { return fallback }
+    return Int(value.rounded())
   }
 
   private static func weight(_ value: String?) -> UIFont.Weight {

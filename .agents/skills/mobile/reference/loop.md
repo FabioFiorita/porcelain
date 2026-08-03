@@ -14,8 +14,8 @@ The dev client already installed on the Mac's simulator loads the bundle from Me
 host over the LAN. Nothing is built, nothing is installed, no SSH is needed.
 
 ```bash
-pnpm mobile:start          # Metro on the host
-pnpm mobile:dev:remote     # or: check the Mac preview, start it if down, then Metro
+pnpm --dir apps/mobile start           # Metro on the host
+node scripts/mobile-remote-dev.mjs     # or: check the Mac preview, start it if down, then Metro
 ```
 
 Pair the app with the host's **LAN address**, never `127.0.0.1` — on the simulator that resolves to
@@ -28,16 +28,16 @@ the machine that runs it and costs no build credit — which means it must run o
 Xcode, fastlane and CocoaPods live.
 
 ```bash
-pnpm mobile:sim:build                                                          # on the Mac
-pnpm mobile:sim:install:local --path build-*.tar.gz --simulator 'iPhone 17 Pro'  # on the Mac
+pnpm --dir apps/mobile sim:build                                                 # on the Mac
+pnpm --dir apps/mobile sim:install:local --path <artifact> --simulator 'iPhone 17 Pro'
 ```
 
 **UNVERIFIED:** no `--local` build has completed yet. It needs a Mac checkout plus that toolchain.
 Until one run proves it, the fallback below is the known-good path.
 
 ```bash
-pnpm mobile:sim:build:cloud                            # builds on EAS — spends one of 15
-pnpm mobile:sim:install --simulator 'iPhone 17 Pro'    # on the Mac
+pnpm --dir apps/mobile sim:build:cloud                 # builds on EAS — spends one of 15
+pnpm --dir apps/mobile sim:install --simulator 'iPhone 17 Pro'
 ```
 
 Traps:

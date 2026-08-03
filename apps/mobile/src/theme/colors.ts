@@ -1,4 +1,8 @@
-import { useColorScheme } from 'react-native'
+/**
+ * The palette both clients paint from. Pure on purpose — no React, no `react-native` — so the
+ * mapping can be unit tested; the hook that reads the system appearance lives in
+ * `use-accent-color.ts`.
+ */
 
 /**
  * The app's accent, tracking the desktop renderer's `--info` token — the blue it already
@@ -10,16 +14,6 @@ const ACCENT = {
   dark: '#00A6F4',
   light: '#0084D1',
 } as const
-
-/**
- * Accent for the current system appearance, feeding the tab bar tint and every
- * `@expo/ui/swift-ui` `Host` seed color so the app never drifts into two accents.
- * Appearance follows the phone and offers no override, so it is never a stored
- * preference — read the scheme, never persist it.
- */
-export function useAccentColor(): string {
-  return accentColor(useColorScheme() === 'dark' ? 'dark' : 'light')
-}
 
 /**
  * Git status tints, mirroring the renderer's `changes-list.tsx` mapping (success/warning/
@@ -45,6 +39,54 @@ const DIFF_BACKGROUNDS = {
 } as const
 
 export type AppearanceScheme = 'light' | 'dark'
+
+/**
+ * The renderer's `--ink-*` tokens, converted from oklch to the hex the row canvas parses, plus the
+ * secondary grey the surfaces already use. Both clients name a file's type with the same hue: a
+ * `.ts` file has no business being blue in the sidebar and green on the phone.
+ */
+const INK = {
+  dark: {
+    amber: '#FFB900',
+    blue: '#51A2FF',
+    cyan: '#00D3F2',
+    emerald: '#00D492',
+    green: '#05DF72',
+    indigo: '#7C86FF',
+    muted: '#8E8E93',
+    orange: '#FF8904',
+    pink: '#FB64B6',
+    purple: '#C27AFF',
+    red: '#FF6467',
+    sky: '#00BCFF',
+    teal: '#00D5BE',
+    violet: '#A684FF',
+    yellow: '#FDC700',
+  },
+  light: {
+    amber: '#E17100',
+    blue: '#155DFC',
+    cyan: '#0092B8',
+    emerald: '#009966',
+    green: '#00A63E',
+    indigo: '#4F39F6',
+    muted: '#6C6C70',
+    orange: '#F54900',
+    pink: '#E60076',
+    purple: '#9810FA',
+    red: '#E7000B',
+    sky: '#0084D1',
+    teal: '#009689',
+    violet: '#7F22FE',
+    yellow: '#D08700',
+  },
+} as const
+
+export type InkColor = keyof (typeof INK)['dark']
+
+export function ink(color: InkColor, scheme: AppearanceScheme): string {
+  return INK[scheme][color]
+}
 
 export function diffBackgrounds(scheme: AppearanceScheme): { add: string; del: string } {
   return DIFF_BACKGROUNDS[scheme]

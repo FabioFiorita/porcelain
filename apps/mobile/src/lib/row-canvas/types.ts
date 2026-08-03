@@ -19,6 +19,17 @@ type RowCanvasRange = {
   role?: string
 }
 
+/**
+ * A leading glyph, drawn before the row's text in a slot `theme.symbolColumns` characters wide.
+ * Several sit side by side in order — a disclosure chevron and a file-type icon, say — and a row
+ * that wants the same text column without a glyph pads `indent` by the same whole number instead.
+ */
+type RowCanvasSymbol = {
+  /** SF Symbol name. An unknown name draws nothing and still holds its slot. */
+  name: string
+  tint?: string
+}
+
 export type RowCanvasRow = {
   id: string
   text?: string
@@ -32,6 +43,9 @@ export type RowCanvasRow = {
   /** Multiple of the theme's `rowHeight`. */
   heightScale?: number
   ranges?: RowCanvasRange[]
+  symbols?: RowCanvasSymbol[]
+  /** What VoiceOver says. Falls back to the drawn text, which reads badly once a row is columns. */
+  label?: string
 }
 
 /** A syntax token, patched in per row after the rows themselves are on screen. */
@@ -70,6 +84,8 @@ export type RowCanvasTheme = {
   accentBarWidth: number
   contentPadding: number
   maxContentWidth: number
+  /** Width of one `symbols` slot, in whole characters. Rounded natively; defaults to 3. */
+  symbolColumns?: number
 }
 
 export type RowCanvasState = {
