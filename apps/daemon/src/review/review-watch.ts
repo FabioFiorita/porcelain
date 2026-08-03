@@ -1,5 +1,5 @@
 import { watch } from 'node:fs'
-import { mkdir } from 'node:fs/promises'
+import { mkdir, stat } from 'node:fs/promises'
 import { basename } from 'node:path'
 import { PROJECT_FILES, projectEvidenceDir, projectPorcelainDir } from '@shared/project-porcelain'
 import { type AppEvent, emitAppEvent } from '../app-events'
@@ -9,6 +9,10 @@ import { loadConfig } from '../stores/config-store'
  * Watch each open project's `.porcelain/` directory for agent/app channel writes
  * so the UI live-refreshes. Watches the directory (atomic tmp+rename replaces
  * inodes). Evidence is a tree under `.porcelain/evidence/`.
+ *
+ * Never create a repo root that does not already exist — mkdir of `.porcelain`
+ * is recursive and would materialize e2e "absent" paths (and any stale recent)
+ * into real directories, skipping Welcome.
  *
  * Re-syncs watches when recent repos change (openRepoPath updates config).
  */
@@ -26,14 +30,27 @@ const FILE_EVENTS: Record<string, AppEvent> = {
   [PROJECT_FILES.notes]: 'feature-view',
 }
 
-function watchRepo(repoPath: string): void {
+async function isDirectory(path: string): Promise<boolean> {
+  try {
+    return (await stat(path)).isDirectory()
+  } catch {
+    return false
+  }
+}
+
+async function watchRepo(repoPath: string): Promise<void> {
   if (watched.has(repoPath)) return
+  // Repo root must already exist. Creating `.porcelain` under a missing path
+  // would invent the parent directory (recursive mkdir).
+  if (!(await isDirectory(repoPath))) return
+
   const dir = projectPorcelainDir(repoPath)
   const evidenceDir = projectEvidenceDir(repoPath)
 
   const closers: Array<() => void> = []
 
   const startDirWatch = (target: string, onChange: (filename: string | null) => void): void => {
+    // Safe: parent (repoPath) is known to exist.
     void mkdir(target, { recursive: true })
       .then(() => {
         try {
@@ -83,9 +100,9 @@ export async function syncProjectWatches(extraRepo?: string): Promise<void> {
   const config = await loadConfig()
   const paths = new Set(config.recentRepos)
   if (extraRepo) paths.add(extraRepo)
-  for (const repo of paths) watchRepo(repo)
+  await Promise.all([...paths].map((repo) => watchRepo(repo)))
 }
 
 export function watchProjectCompanion(repoPath: string): void {
-  watchRepo(repoPath)
+  void watchRepo(repoPath)
 }
