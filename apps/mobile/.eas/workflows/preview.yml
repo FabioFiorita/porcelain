@@ -1,39 +1,34 @@
-# Preview delivery — keep the TestFlight build current, cheaply.
+# Preview delivery — dispatched, never triggered.
 #
-# Runs on mobile PRs into main and mobile pushes to main; both are ship paths.
-# Fingerprint unchanged -> EAS Update on the `preview` channel (no build credits).
-# Fingerprint moved -> a `preview` build, then TestFlight. `wait_for_in_progress`
-# makes a merge reuse its PR's build: get-build matches the hash, not the branch.
+# `on:` is `workflow_dispatch` only, and `scripts/lint-eas-triggers.mjs` fails
+# the gate if a `push`, `pull_request`, or `schedule` trigger appears: a run
+# spends ~2.4 minutes of the monthly workflow allowance (fingerprint 65s, update
+# 81s) before anything reaches a tester, which is ~25 runs. Raise the EAS plan
+# before allowing one.
 #
-# To force a build when the fingerprint held, apply the GitHub label
-# `eas-build-ios:preview` — EAS's own trigger (Project settings > GitHub), not
-# something to reimplement here.
+#   eas workflow:run .eas/workflows/preview.yml
+#
+# Fingerprint unchanged -> EAS Update on `preview`, no build credit. Fingerprint
+# moved -> a `preview` build, then TestFlight. Monthly iOS builds are capped and
+# shared with every `development-simulator` build.
 #
 # iOS-only: `app.json` declares `"platforms": ["ios"]`.
 #
-# `message` truncates to 1024, EAS's hard limit; longer fails the run before it
-# starts. `.husky/commit-msg` covers local commits, this covers what it cannot.
+# `message` truncates to 1024, EAS's hard limit; longer fails the run up front.
 #
-# Delivery is `type: submit`; `testflight` with a `build_id` requires a paid plan.
-#
-# Trade-off: no per-build "What to Test" note. Needs App Store Connect credentials
-# on EAS, or the submit job is where the run fails.
+# Delivery is `type: submit`; `testflight` with a `build_id` is paid-tier, so no
+# per-build "What to Test" note. Needs App Store Connect credentials on EAS.
 
 name: Preview delivery
 
 on:
-  push:
-    branches: ['main']
-    paths: ['apps/mobile/**']
-  pull_request:
-    branches: ['main']
-    paths: ['apps/mobile/**']
+  # `{}` is required — a bare `workflow_dispatch:` is null, and the schema wants
+  # an object.
+  workflow_dispatch: {}
 
-concurrency:
-  cancel_in_progress: true
-  # Custom groups are not supported yet; this is the placeholder value the docs
-  # ask for so the file stays compatible when they are.
-  group: ${{ workflow.filename }}-${{ github.ref }}
+# No `concurrency` block: `cancel_in_progress` only accepts `true`, and
+# cancelling a run does not refund a build already in flight — EAS only refunds
+# builds cancelled before work starts.
 
 jobs:
   fingerprint:
@@ -60,7 +55,7 @@ jobs:
     params:
       channel: preview
       platform: ios
-      message: ${{ substring(github.event.pull_request.title || github.commit_message, 0, 1024) }}
+      message: ${{ substring(github.commit_message || 'Manual preview update', 0, 1024) }}
 
   build_ios:
     name: Build iOS preview
@@ -70,14 +65,12 @@ jobs:
     params:
       platform: ios
       profile: preview
-      message: ${{ substring(github.event.pull_request.title || github.commit_message, 0, 1024) }}
+      message: ${{ substring(github.commit_message || 'Manual preview build', 0, 1024) }}
 
   submit_ios:
     name: Send iOS preview to TestFlight
     needs: [build_ios]
     type: submit
-    env:
-      EXPO_DEBUG: "1"
     params:
       build_id: ${{ needs.build_ios.outputs.build_id }}
       profile: preview

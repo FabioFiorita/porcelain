@@ -50,8 +50,10 @@
     "start": "expo start",
     "start:mcp": "EXPO_UNSTABLE_MCP_SERVER=1 expo start",
     "ios": "expo start --ios",
-    "sim:build": "npx eas-cli@latest build -p ios --profile development-simulator",
+    "sim:build": "npx eas-cli@latest build -p ios --profile development-simulator --local",
+    "sim:build:cloud": "npx eas-cli@latest build -p ios --profile development-simulator",
     "sim:install": "npx eas-cli@latest build:run -p ios --profile development-simulator --latest",
+    "sim:install:local": "npx eas-cli@latest build:run -p ios --profile development-simulator",
     "typecheck": "tsc --noEmit",
     "dev:device": "npx eas-cli@latest device:create",
     "dev:build": "npx eas-cli@latest build -p ios --profile development"

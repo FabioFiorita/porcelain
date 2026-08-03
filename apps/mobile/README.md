@@ -54,24 +54,34 @@ pnpm mobile:dev:build    # device .ipa, installs over the air from the EAS page
 
 ## Running it on the Mac's iOS simulator
 
-The repo lives on the Linux host; the simulator lives on the Mac. Metro runs on
-the host and the simulator loads the bundle over the LAN, so the only Mac-side
-step is installing the dev client — and only when the native fingerprint moved.
+The repo lives on the Linux host; the simulator and the native toolchain live on
+the Mac. Metro runs on the host and the simulator loads the bundle over the LAN,
+so the Mac owns the native steps — and only when the fingerprint moved.
 
-All three steps are repo-root scripts, so nothing here is a command to remember:
+All the steps are repo-root scripts, so nothing here is a command to remember:
 
 ```bash
-# 1. On the host — build a SIMULATOR dev client (arm64 .app, not an .ipa).
+# 1. On the Mac — build a SIMULATOR dev client (arm64 .app, not an .ipa).
+#    `--local`, so it compiles here and costs no EAS build credit.
 pnpm mobile:sim:build
 
-# 2. On the Mac, from its checkout — download, install, and launch it.
-#    `build:run` does the tarball + `simctl install` dance for you.
-#    ALWAYS name the target; see below.
-pnpm mobile:sim:install --simulator 'iPhone 17 Pro'
+# 2. On the Mac — install and launch that artifact. ALWAYS name the target.
+pnpm mobile:sim:install:local --path build-*.tar.gz --simulator 'iPhone 17 Pro'
 
-# 3. Back on the host — Metro. Repeat only this for JS changes.
+# 3. On the host — Metro. Repeat only this for JS changes.
 pnpm mobile:start
 ```
+
+A host without Xcode, fastlane, and CocoaPods builds on EAS instead, and installs
+whatever EAS built last:
+
+```bash
+pnpm mobile:sim:build:cloud                              # on the host
+pnpm mobile:sim:install --simulator 'iPhone 17 Pro'      # on the Mac
+```
+
+That pair spends one of the plan's **15 monthly iOS builds**, the same pool
+TestFlight builds come from, so reach for it deliberately rather than by habit.
 
 For the usual Linux host → Mac simulator loop, one command checks the Mac
 preview and starts it when needed before starting Metro:
@@ -101,16 +111,21 @@ simulator list.
 All of these are saved **Porcelain actions** on this repo — *iOS sim: build dev
 client (EAS)*, *iPhone sim: install on this Mac*, *iPad sim: install on this Mac*,
 *Metro (mobile dev server)*, *Metro + Expo MCP* — each running the script above
-rather than a pasted command, so editing the script updates every button. The two
+rather than a pasted command, so editing the script updates every button. The
 install actions are `where: local`, so they run on the Mac even though the window
-is bound to the host daemon; the build and Metro actions run on the host, where
-the repo is.
+is bound to the host daemon; the Metro action runs on the host, where the repo is.
+The build action must be `where: local` too, or point at `sim:build:cloud`:
+`sim:build` compiles locally and a Linux host has no Xcode.
 
-Three things that bite:
+Four things that bite:
 
 - **`development-simulator` is a separate profile** (`eas.json`) because a
   simulator build is an unsigned arm64 `.app`; the plain `development` profile
   produces a device `.ipa` the simulator cannot install.
+- **`--latest` means the latest *EAS* build.** `sim:install` downloads from EAS,
+  so running it after a local build installs the last cloud artifact, silently
+  older. A local build pairs with `sim:install:local --path`, never with
+  `sim:install`.
 - **`--simulator` is effectively required.** The flag's help says you are
   prompted when it is omitted, but with a simulator already booted `build:run`
   silently installs to that one — so omitting it on a Mac running both an iPhone
@@ -198,8 +213,14 @@ Two EAS workflows in `.eas/workflows/`:
 
 | File | Trigger | What it does |
 | --- | --- | --- |
-| `preview.yml` | mobile PRs into `main`, mobile pushes to `main` | Fingerprint matches an existing `preview` build → EAS Update (free). Fingerprint moved → new build → TestFlight. |
+| `preview.yml` | manual `eas workflow:run` only | Fingerprint matches an existing `preview` build → EAS Update (free). Fingerprint moved → new build → TestFlight. |
 | `production.yml` | manual `eas workflow:run` only | The same build-or-update shape plus App Store submission, deliberately not automatic while the app is out of the store. |
+
+Neither carries an automatic trigger, and `pnpm lint:eas` fails if one appears.
+A run costs ~2.4 minutes of the plan's 60 monthly workflow minutes before
+anything reaches a tester — about 25 runs — so delivery is an act at the end of a
+session, not a side effect of committing. Only the session's last commit is
+observable to a tester anyway.
 
 The submit job needs App Store Connect credentials configured on EAS before it
 can run non-interactively; until then a native change builds but stops there.
