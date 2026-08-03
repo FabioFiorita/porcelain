@@ -1,3 +1,9 @@
+## [0.47.2](https://github.com/FabioFiorita/porcelain/compare/v0.47.1...v0.47.2) (2026-08-03)
+
+### Features
+
+* generate commit messages and groups ([de48850](https://github.com/FabioFiorita/porcelain/commit/de48850fa6f2721f7c0ff048b1aaab4f60d632eb))
+
 ## [0.47.1](https://github.com/FabioFiorita/porcelain/compare/v0.47.0...v0.47.1) (2026-08-03)
 
 ### Bug Fixes
