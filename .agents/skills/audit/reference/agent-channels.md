@@ -2,11 +2,11 @@
 
 ## The agent CLI and its channels
 
-- **The CLI adds NO inbound network surface.** `apps/desktop/src/cli/` is a short-lived process the user's agent
+- **The CLI adds NO inbound network surface.** `apps/cli/` is a short-lived process the user's agent
   runs per command; it never opens a port or socket, only reads/writes local `~/.porcelain/*.json`.
   Don't "upgrade" a channel to an in-app HTTP listener or a long-lived agent server. It stays
   **dependency-free** (Node builtins only) so it runs under a plain `node` — no npm imports in
-  `apps/desktop/src/cli/`.
+  `apps/cli/src/`.
 - **Rules common to every channel:** both sides write **atomically** (tmp + rename), the app serializes
   its own read-modify-write, content is local-file only, and a malformed entry is **dropped, not
   thrown** (read-side leniency — one bad agent write must never break a surface). Externally-authored

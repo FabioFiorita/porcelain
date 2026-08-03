@@ -1,8 +1,8 @@
 import { rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-// Relative so this typechecks: the cli tree uses no path aliases, so this test
-// reaches into src/backend relatively; the runtime layers-file.ts never does.
+// Typecheck uses the desktop vitest aliases: this test reaches into apps/daemon via
+// @backend; the runtime layers-file.ts never does.
 import { DEFAULT_LAYERS as MAIN_DEFAULT_LAYERS } from '@backend/review/flow'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
@@ -16,7 +16,7 @@ import {
 
 describe('DEFAULT_LAYERS', () => {
   it('stays identical to the app source of truth (apps/daemon/src/review/flow.ts)', () => {
-    // The CLI island duplicates the defaults rather than import from src/backend; this
+    // The CLI island duplicates the defaults rather than import from apps/daemon; this
     // guard makes the copy impossible to let drift.
     expect(DEFAULT_LAYERS).toEqual(MAIN_DEFAULT_LAYERS)
   })

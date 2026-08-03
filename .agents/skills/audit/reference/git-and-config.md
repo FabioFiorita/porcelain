@@ -36,8 +36,9 @@
   background polls otherwise rewrite `.git/index` under a lock, racing the user's own `pull`/`commit`
   and failing it with `fatal: Unable to write index.`. The flag disables only optional refreshes;
   required locks for real mutations are untouched. *Verify:* lint-enforced — the flag stays in `git.ts`
-  and no other shipped `src/backend`/`src/main` module spawns `git` around `runGit`. Tests and
-  `src/cli`'s one-shot `rev-parse` are out of scope on purpose (neither polls a live user repo).
+  and no other shipped `apps/daemon`/`apps/desktop/src/main` module spawns `git` around `runGit`.
+  Tests and `apps/cli`'s one-shot `rev-parse` are out of scope on purpose (neither polls a live user
+  repo).
   `git.ts` itself is exempt from the spawn half, so a new in-file bypass of `runGit` is invisible to
   the lint — still read a change to `git.ts`.
 - **Commit never auto-stages.** `gitCommit` is `git commit -m` on **staged** changes only; staging is

@@ -1,6 +1,6 @@
 # Daemon API — the mobile client's contract
 
-The native app is a fourth client of the same daemon the browser client talks to; everything below is what that client actually uses. Router: `src/backend/api.ts` (single flat tRPC v11 router, ~99 procedures). Transport pipeline: `src/backend/net/daemon-http.ts`. When this doc and the code disagree, the code wins — update this doc in the same commit.
+The native app is a fourth client of the same daemon the browser client talks to; everything below is what that client actually uses. Router: `apps/daemon/src/api.ts` (single flat tRPC v11 router, ~99 procedures). Transport pipeline: `apps/daemon/src/net/daemon-http.ts`. When this doc and the code disagree, the code wins — update this doc in the same commit.
 
 ## Transport
 

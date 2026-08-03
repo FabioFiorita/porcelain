@@ -5,8 +5,8 @@ import { createNativeEngine } from 'react-native-shiki-engine'
 import type { ShikiHighlighter } from '@/features/changes/lib/highlight'
 
 /**
- * The bounded grammar set this client ships, mirroring the desktop renderer's `LANGS` choice
- * (apps/desktop/src/renderer/src/lib/highlight.ts) so both clients highlight the same languages.
+ * The bounded grammar set this client ships, mirroring the web client's `LANGS` choice
+ * (apps/web/src/lib/highlight.ts) so both clients highlight the same languages.
  * Each entry is a dynamic import rather than a static one at module scope: the grammar is only
  * evaluated once `getHighlighter` actually runs, not merely because this file loaded.
  */

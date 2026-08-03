@@ -10,8 +10,8 @@
 - **`readFile` stats before it reads** and returns `{type:'too-large'}` above `MAX_READ_BYTES`
   (10 MB). Never read the bytes of an oversized file — a multi-GB file in a 50 GB monorepo OOMs the
   process.
-- **`src/backend` is the only OS/git/fs surface.** `src/main` keeps the Electron-native rump
-  (dialogs, windows, updater, plugin installer); the renderer is pure UI with no Node APIs, and
+- **`apps/daemon` is the only OS/git/fs surface.** `apps/desktop/src/main` keeps the Electron-native
+  rump (dialogs, windows, updater, plugin installer); the web client is pure UI with no Node APIs, and
   `@main/*` imports there are **type-only** — a runtime import leaks Node into the bundle.
 - **Never write into the user's work repos.** Per-repo state lives under `userData`, keyed by repo
   path.
@@ -105,9 +105,9 @@ their enumerated addresses. Funnel is intentionally public HTTPS, so possession 
 is its entire product boundary. Keep admin-only procedures separate, but **do not repo-scope ordinary
 file procedures** — that breaks cross-repo flows.
 
-*Verify:* `rg -n "createServer|listen\(|http\.createServer" src/backend src/main src/cli` hits at most
-two `createServer` sites (`server.ts`, `tailnet-listener.ts`) and nothing in `src/cli`; the loopback
-`listen` still passes `'127.0.0.1'`; the factory binds only `findTailscaleAddress()`/
+*Verify:* `rg -n "createServer|listen\(|http\.createServer" apps/daemon apps/desktop/src/main apps/cli`
+hits at most two `createServer` sites (`server.ts`, `tailnet-listener.ts`) and nothing in `apps/cli`;
+the loopback `listen` still passes `'127.0.0.1'`; the factory binds only `findTailscaleAddress()`/
 `findLanAddresses()` results; all listeners share the Bearer + subprotocol checks;
 `static-server.test.ts` traversal and connect-src-only tests stay green.
 

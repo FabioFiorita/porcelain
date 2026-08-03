@@ -173,7 +173,7 @@ returns `false` for everything else — a tapped link inside the proof does noth
 route it to `Linking`; the desktop can't navigate out of `sandbox=""` either).
 
 **Why no network, and the one honest gap.** `loopEvidenceHtml` already inlines every local
-asset as a `data:` URL (`src/backend/fs/evidence-assets.ts`: relative `src="…"` inside the
+asset as a `data:` URL (`apps/daemon/src/fs/evidence-assets.ts`: relative `src="…"` inside the
 evidence dir → `data:<mime>;base64,…`), so screenshots need zero network. Absolute
 `http(s)://` sources are deliberately left alone by the daemon, and the desktop blocks
 those anyway because the sandboxed `srcDoc` iframe inherits the renderer CSP (`img-src

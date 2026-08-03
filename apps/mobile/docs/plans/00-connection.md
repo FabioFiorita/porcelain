@@ -53,7 +53,7 @@ Rules that keep four parallel worktrees off each other's files:
 **Decision: a hand-declared, zod-validated procedure contract, not an imported `AppRouter` type.**
 
 I probed the alternative rather than guessing. A type-only `import type { AppRouter } from
-'../../../src/backend/api'` resolves, but it drags 45 daemon modules into `apps/mobile`'s
+'../../../apps/daemon/src/api'` resolves, but it drags 45 daemon modules into `apps/mobile`'s
 `tsc --noEmit`, which then fails on daemon-only assumptions the mobile tsconfig can't hold
 (`__PORCELAIN_VERSION__` is a build-time global, `ProcessEnv` overload mismatches in `git.ts`, node
 vs. react-native lib config). Making it pass means bending the mobile tsconfig around daemon source

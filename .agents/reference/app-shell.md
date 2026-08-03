@@ -81,7 +81,7 @@
 - **Tree Delete = the `trash` npm package** (recoverable), never a permanent unlink; the one
   destructive tree action, so it confirms via an `AlertDialog`.
 - **Agent channels are watched JSON under `PORCELAIN_HOME`, driven by the dependency-free porcelain
-  CLI.** Read `apps/desktop/src/cli/` and the stores it mirrors for the current set — an enumeration here rots.
+  CLI.** Read `apps/cli/src/` and the daemon stores it mirrors for the current set — an enumeration here rots.
   **Do not re-add a Porcelain MCP server** without reopening the channel design. Channel write-safety
   rules live in `audit` — read it before touching any channel file.
 - **TRAP — the CLI's `DEFAULT_LAYERS` is a deliberate duplicate of `flow.ts`'s**, because the CLI may

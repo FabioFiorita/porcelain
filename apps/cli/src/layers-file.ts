@@ -17,8 +17,8 @@ export interface Layer {
 
 // Kept in sync with DEFAULT_LAYERS in apps/daemon/src/review/flow.ts (the app's source of truth);
 // layers-file.test.ts asserts the two are identical so this copy can't drift. We
-// duplicate rather than import so this server stays a dependency-free island that never
-// reaches into src/backend. Starter Docs + Agents groups only — not a fat framework
+// duplicate rather than import so this CLI stays a dependency-free island that never
+// reaches into apps/daemon. Starter Docs + Agents groups only — not a fat framework
 // stack. Shown by `porcelain layers get` when a repo has no custom set; what
 // `porcelain layers reset` falls back to.
 export const DEFAULT_LAYERS: Layer[] = [

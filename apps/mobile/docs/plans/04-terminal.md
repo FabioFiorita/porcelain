@@ -171,7 +171,7 @@ single **Close** (kill removes it from the roster).
 - **Run an Action** — exactly the desktop semantics, deliberately: create a **new** terminal
   named after the action, `cwd` = repo root, `initialInput` = `action.command`, then push
   its screen. The daemon types the command into the live shell once its readline is up (see
-  `src/backend/terminal/initial-input.ts`) and the shell **stays live** afterwards, so you can ^C it,
+  `apps/daemon/src/terminal/initial-input.ts`) and the shell **stays live** afterwards, so you can ^C it,
   re-run it, keep working. The daemon never executes an action itself — a human tap is the
   only path, and that stays true on mobile. Always a new session (no "reuse a matching
   one"), matching desktop.

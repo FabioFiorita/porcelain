@@ -82,7 +82,7 @@ squash-merge → `pnpm worktree remove <slug>`. Each task gets its own port and 
 - **Desktop UI** → browser-first on the daemon-served client. `pnpm test:e2e` for the suite (CI on
   main).
 - **Electron native e2e** → local Mac only (`pnpm test:e2e:native*`); not CI, not `pnpm verify`.
-- Locators: `data-testid` via `apps/desktop/src/shared/test-ids.ts` + e2e helpers.
+- Locators: `data-testid` via `packages/shared/src/test-ids.ts` + e2e helpers.
 - E2e fixtures are pristine — never the human's repos or prod channels.
 
 Release is separate: only when the human asks → `releasing` skill.

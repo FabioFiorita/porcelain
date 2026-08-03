@@ -3,8 +3,9 @@
 Applies under `apps/desktop/`. Mobile: `apps/mobile/`. Map: `.agents/reference/architecture.md`.
 
 **This package is the Electron shell** (main, preload, packaging). Product runtime is `apps/daemon`,
-agent CLI is `apps/cli`, React UI is `apps/web`. electron-vite still lives here and builds those
-packages into `out/` until independent builds land.
+agent CLI is `apps/cli`, React UI is `apps/web`. Independent builds emit into `out/` for shell spawn
+and packaging: Vite (web), esbuild (daemon/cli), electron-vite (shell only). See
+`.agents/reference/architecture.md`.
 
 ## Boundaries
 
