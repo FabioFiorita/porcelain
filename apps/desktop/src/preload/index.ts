@@ -1,7 +1,7 @@
 import { electronAPI } from '@electron-toolkit/preload'
+import { resolvePlatform } from '@shared/platform'
 import { contextBridge, ipcRenderer } from 'electron'
 import type { ShellEvent } from '../main/shell-events'
-import { resolvePlatform } from '../shared/platform'
 import type { PorcelainBridge } from './bridge'
 
 // The daemon's base url + session token, fetched synchronously at window boot

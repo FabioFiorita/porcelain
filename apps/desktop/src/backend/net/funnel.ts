@@ -2,8 +2,8 @@ import { execFile } from 'node:child_process'
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { promisify } from 'node:util'
+import { porcelainHomePath } from '@shared/porcelain-home'
 import { z } from 'zod'
-import { porcelainHomePath } from '../../shared/porcelain-home'
 
 const execFileAsync = promisify(execFile)
 const markerSchema = z.object({ target: z.string(), url: z.string() })

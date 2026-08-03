@@ -1,8 +1,8 @@
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
 import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
+import { porcelainHomePath } from '@shared/porcelain-home'
 import { z } from 'zod'
-import { porcelainHomePath } from '../../shared/porcelain-home'
 
 const MAX_ACCESS_FILE_BYTES = 1_048_576
 const PAIRING_TTL_MS = 15 * 60 * 1000

@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { porcelainHomePath } from '../shared/porcelain-home'
+import { porcelainHomePath } from '@shared/porcelain-home'
 
 // Builtins only — see cli.ts. Monorepo hide/pin scope: folders the human (or agent)
 // hides from the tree / pins for Quick Access. TWO-WAY channel in ~/.porcelain/scope.json

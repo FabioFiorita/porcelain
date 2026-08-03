@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
-import { porcelainHomePath } from '../shared/porcelain-home'
+import { porcelainHomePath } from '@shared/porcelain-home'
 
 // Builtins only — see cli.ts. The project-board channel: todo/doing/done cards
 // the human (Porcelain app, board-store.ts) and the agent (here) both manage. The

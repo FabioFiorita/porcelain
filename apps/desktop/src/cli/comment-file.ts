@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
-import { porcelainHomePath } from '../shared/porcelain-home'
+import { porcelainHomePath } from '@shared/porcelain-home'
 
 // Builtins only — see cli.ts for why this server must stay dependency-free.
 // This is the SECOND agent channel, parallel to review-file.ts but flowing the other

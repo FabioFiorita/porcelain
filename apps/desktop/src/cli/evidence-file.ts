@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { porcelainHomePath } from '../shared/porcelain-home'
+import { porcelainHomePath } from '@shared/porcelain-home'
 import { htmlPreview } from './html-input'
 
 // Builtins only — see cli.ts. Evidence is a **directory of files**:
@@ -39,7 +39,7 @@ export interface Evidence {
 }
 
 // Structured verification checks. This CLI is dependency-free (Node builtins only,
-// no zod), so it DUPLICATES the shape + caps that src/shared/evidence-check.ts owns
+// no zod), so it DUPLICATES the shape + caps that packages/shared evidence-check owns
 // — same deliberate duplication as the path/key helpers above. Keep them in lockstep.
 type EvidenceCheckStatus = 'pass' | 'fail' | 'skip'
 

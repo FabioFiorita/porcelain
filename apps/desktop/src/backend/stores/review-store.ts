@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { isAbsolute, relative, resolve } from 'node:path'
+import { porcelainHomePath } from '@shared/porcelain-home'
 import { z } from 'zod'
-import { porcelainHomePath } from '../../shared/porcelain-home'
 import { createHomeChannel } from '../net/home-channel'
 import {
   type ReviewSection,

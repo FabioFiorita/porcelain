@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { porcelainHomePath } from '../shared/porcelain-home'
+import { porcelainHomePath } from '@shared/porcelain-home'
 
 // Builtins only — see cli.ts. The feature-view SNAPSHOT channel: Porcelain's
 // COMPUTED feature view (every file it renders, each tagged with its git-truth source

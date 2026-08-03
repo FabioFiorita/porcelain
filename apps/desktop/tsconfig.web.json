@@ -4,11 +4,13 @@
     "src/renderer/src/env.d.ts",
     "src/shared/**/*",
     "../../packages/contracts/src/**/*",
+    "../../packages/shared/src/**/*",
     "src/renderer/src/**/*",
     "src/renderer/src/**/*.tsx",
     "src/preload/*.d.ts",
     "src/test-setup.ts"
   ],
+  "exclude": ["../../packages/shared/src/**/*.test.ts"],
   "compilerOptions": {
     "noImplicitAny": true,
     "noUncheckedIndexedAccess": true,
@@ -24,7 +26,8 @@
       "@renderer/*": ["src/renderer/src/*"],
       "@main/*": ["src/main/*"],
       "@backend/*": ["src/backend/*"],
-      "@shared/*": ["src/shared/*"],
+      "@shared/*": ["../../packages/shared/src/*"],
+      "@porcelain/shared/*": ["../../packages/shared/src/*"],
       "@porcelain/contracts": ["../../packages/contracts/src/index.ts"],
       "@porcelain/contracts/*": ["../../packages/contracts/src/*"]
     }

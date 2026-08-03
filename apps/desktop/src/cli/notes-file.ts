@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { porcelainHomePath } from '../shared/porcelain-home'
+import { porcelainHomePath } from '@shared/porcelain-home'
 
 // Builtins only — see cli.ts. The repo-notes channel: the human's freeform
 // per-repo markdown scratchpad (Porcelain app, notes-store.ts), READ-ONLY here.

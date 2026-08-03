@@ -1,18 +1,18 @@
 import { readFile, rm, stat } from 'node:fs/promises'
-import { z } from 'zod'
 import {
   type EvidenceCheck,
   MAX_CHECK_DETAIL,
   MAX_CHECK_LABEL,
   MAX_CHECKS,
-} from '../../shared/evidence-check'
+} from '@shared/evidence-check'
+import { z } from 'zod'
 import { inlineLocalAssets } from '../fs/evidence-assets'
 import { evidenceDirForRepo, evidenceIndexPath, evidenceMetaPath } from '../fs/evidence-paths'
 
-// Structured checks live in the node-free `../shared/evidence-check` leaf so the
+// Structured checks live in the node-free `@shared/evidence-check` leaf so the
 // renderer can import the shape + `evidenceOverallStatus` without pulling this
 // module's fs graph; re-exported here so backend/test callers use one entry.
-export { type EvidenceCheck, evidenceOverallStatus } from '../../shared/evidence-check'
+export { type EvidenceCheck, evidenceOverallStatus } from '@shared/evidence-check'
 
 /**
  * Evidence — **files on disk are the source of truth**:

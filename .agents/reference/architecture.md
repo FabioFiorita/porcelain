@@ -31,9 +31,16 @@ packages/
   shared/          pure cross-cutting helpers (home, platform, ids, …)
 ```
 
-**Migration status:** the tree is mid-move. Until done, daemon/CLI/web source may still live under
-`apps/desktop/src/{backend,cli,renderer}`. Treat those folders as **the future package contents**,
-not as “part of the desktop app.” Do not add new business logic into shell-only concerns.
+**Migration status:** the tree is mid-move.
+
+| Target | Status |
+|--------|--------|
+| `packages/shared` | Extracted |
+| `packages/contracts` | Exists; full procedure I/O + drop apps import still open |
+| `apps/daemon` / `cli` / `web` | Still under `apps/desktop/src/{backend,cli,renderer}` |
+| `packages/client-runtime` | Not started |
+
+Treat remaining desktop folders as **future package contents**, not shell features.
 
 ## Dependency direction
 

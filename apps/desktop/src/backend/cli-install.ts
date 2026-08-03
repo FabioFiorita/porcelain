@@ -1,6 +1,6 @@
 import { chmod, copyFile, cp, mkdir, readdir, rename, rm, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
-import { porcelainHome } from '../shared/porcelain-home'
+import { porcelainHome } from '@shared/porcelain-home'
 
 /**
  * Install the bundled Porcelain CLI into `PORCELAIN_HOME` (default `~/.porcelain/`)

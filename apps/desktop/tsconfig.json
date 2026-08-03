@@ -14,7 +14,8 @@
       "@renderer/*": ["src/renderer/src/*"],
       "@main/*": ["src/main/*"],
       "@backend/*": ["src/backend/*"],
-      "@shared/*": ["src/shared/*"],
+      "@shared/*": ["../../packages/shared/src/*"],
+      "@porcelain/shared/*": ["../../packages/shared/src/*"],
       "@porcelain/contracts": ["../../packages/contracts/src/index.ts"],
       "@porcelain/contracts/*": ["../../packages/contracts/src/*"]
     }

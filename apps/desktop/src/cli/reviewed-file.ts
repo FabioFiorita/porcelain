@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { porcelainHomePath } from '../shared/porcelain-home'
+import { porcelainHomePath } from '@shared/porcelain-home'
 
 // Builtins only — see cli.ts. The reviewed-marks channel: the repo-relative file
 // paths the human has checked off as reviewed in Porcelain (the per-file marks in the

@@ -7,7 +7,10 @@
     "strict": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
-    "noEmit": true
+    "noEmit": true,
+    "paths": {
+      "@shared/*": ["../../../packages/shared/src/*"]
+    }
   },
-  "include": ["**/*.ts", "../playwright.config.ts", "../src/shared/test-ids.ts"]
+  "include": ["**/*.ts", "../playwright.config.ts", "../../../packages/shared/src/test-ids.ts"]
 }

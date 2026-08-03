@@ -47,12 +47,18 @@ const define = { __PORCELAIN_VERSION__: JSON.stringify(version) }
 // electron-vite externalizes declared deps, so declaring it would emit a bare
 // `require("@porcelain/contracts")` into the dependency-free CLI and the
 // standalone daemon bundle. The alias keeps it bundled from source everywhere.
-const contractsAlias = { '@porcelain/contracts': resolve('../../packages/contracts/src') }
+// Workspace packages resolved by alias (not dependencies) so electron-vite does
+// not externalize them into bare requires inside the CLI/daemon bundles.
+const workspaceAliases = {
+  '@porcelain/contracts': resolve('../../packages/contracts/src'),
+  '@porcelain/shared': resolve('../../packages/shared/src'),
+  '@shared': resolve('../../packages/shared/src'),
+}
 
 export default defineConfig({
   main: {
     define,
-    resolve: { alias: contractsAlias },
+    resolve: { alias: workspaceAliases },
     build: {
       rollupOptions: {
         // Three main-process bundles: the app entry; the dependency-free agent CLI
@@ -75,7 +81,9 @@ export default defineConfig({
       },
     },
   },
-  preload: {},
+  preload: {
+    resolve: { alias: workspaceAliases },
+  },
   renderer: {
     define,
     resolve: {
@@ -83,8 +91,7 @@ export default defineConfig({
         '@renderer': resolve('src/renderer/src'),
         '@main': resolve('src/main'),
         '@backend': resolve('src/backend'),
-        '@shared': resolve('src/shared'),
-        ...contractsAlias,
+        ...workspaceAliases,
       },
     },
     optimizeDeps: {

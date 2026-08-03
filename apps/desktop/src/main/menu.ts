@@ -1,6 +1,6 @@
 import { is } from '@electron-toolkit/utils'
+import { resolvePlatform } from '@shared/platform'
 import { Menu, type MenuItemConstructorOptions } from 'electron'
-import { resolvePlatform } from '../shared/platform'
 import { createWindow } from './window'
 
 export function installAppMenu(): void {

@@ -1,0 +1,32 @@
+{
+  "name": "@porcelain/shared",
+  "version": "0.46.3",
+  "private": true,
+  "description": "Pure cross-cutting helpers shared by daemon, CLI, web, and shell.",
+  "exports": {
+    "./porcelain-home": "./src/porcelain-home.ts",
+    "./platform": "./src/platform.ts",
+    "./evidence-check": "./src/evidence-check.ts",
+    "./excalidraw-scene": "./src/excalidraw-scene.ts",
+    "./test-ids": "./src/test-ids.ts"
+  },
+  "typesVersions": {
+    "*": {
+      "porcelain-home": [
+        "./src/porcelain-home.ts"
+      ],
+      "platform": [
+        "./src/platform.ts"
+      ],
+      "evidence-check": [
+        "./src/evidence-check.ts"
+      ],
+      "excalidraw-scene": [
+        "./src/excalidraw-scene.ts"
+      ],
+      "test-ids": [
+        "./src/test-ids.ts"
+      ]
+    }
+  }
+}
