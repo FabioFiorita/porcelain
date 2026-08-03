@@ -47,7 +47,12 @@ import { footnote, secondary } from '@/theme/modifiers'
 const headline = font({ textStyle: 'headline' })
 const errorStyle = foregroundStyle({ color: '#FF3B30', type: 'color' })
 
-export function ActionsScreen(): React.JSX.Element {
+export function ActionsScreen({
+  showClose = true,
+}: {
+  /** False when embedded in iPad inspector / companion (no Stack composition there). */
+  showClose?: boolean
+}): React.JSX.Element {
   const path = firstParam(useLocalSearchParams<{ path?: string }>().path)
 
   return (
@@ -55,7 +60,7 @@ export function ActionsScreen(): React.JSX.Element {
       <DaemonGate requires="repo">
         <ActionsBody path={path} />
       </DaemonGate>
-      <SheetCloseToolbar />
+      {showClose ? <SheetCloseToolbar /> : null}
     </>
   )
 }

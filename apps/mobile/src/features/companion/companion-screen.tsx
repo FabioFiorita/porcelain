@@ -26,29 +26,31 @@ function openBoardFace(): void {
  */
 export function CompanionScreen({ embedded = false }: { embedded?: boolean }): React.JSX.Element {
   const surface = useActiveSurface((state) => state.surface)
-  // Changes/history reuse ActionsScreen, which already wears SheetCloseToolbar.
+  // Changes/history reuse ActionsScreen, which can own SheetCloseToolbar on phone sheets.
   const ownsClose = surface === 'changes' || surface === 'history'
 
   return (
     <>
       {!embedded && !ownsClose ? <SheetCloseToolbar /> : null}
       <DaemonGate requires="repo">
-        <CompanionBody surface={surface} />
+        <CompanionBody embedded={embedded} surface={surface} />
       </DaemonGate>
     </>
   )
 }
 
 function CompanionBody({
+  embedded,
   surface,
 }: {
+  embedded: boolean
   surface: ReturnType<typeof useActiveSurface.getState>['surface']
 }): React.JSX.Element {
   switch (surface) {
     case 'changes':
     case 'history':
-      // Commit composer + quick commands — the Changes companion.
-      return <ActionsScreen />
+      // Commit composer + quick commands — never Stack.Toolbar in the iPad inspector.
+      return <ActionsScreen showClose={!embedded} />
     case 'terminal':
       return <TerminalCompanion />
     case 'board':
