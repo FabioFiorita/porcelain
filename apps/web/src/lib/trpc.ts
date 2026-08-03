@@ -1,5 +1,5 @@
+import type { AppRouter } from '@backend/api'
 import type { ShellRouter } from '@main/shell-api'
-import type { AppRouter } from '@porcelain/contracts/router'
 import type { PorcelainBridge } from '@preload/bridge'
 import { createTRPCClient, httpBatchLink, type TRPCLink } from '@trpc/client'
 import { createTRPCReact } from '@trpc/react-query'

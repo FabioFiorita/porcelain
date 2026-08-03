@@ -39,8 +39,9 @@ packages/
 | `apps/daemon` | Source + **independent esbuild** (`pnpm build:daemon`) |
 | `apps/cli` | Source + **independent esbuild** (`pnpm build:cli`); single-file CJS |
 | `apps/web` | Source + **independent Vite** (`pnpm build:web` → `desktop/out/renderer`) |
-| `packages/contracts` | Exists; full procedure I/O + drop apps import still open |
+| `packages/contracts` | Full procedure catalog (99 names + procedureIo); no apps/* imports |
 | Electron-vite | Shell only on production build; renderer HMR still used for `pnpm dev` |
+| `packages/client-runtime` | Not started |
 | `packages/client-runtime` | Not started |
 
 Treat remaining desktop folders as **future package contents**, not shell features.
