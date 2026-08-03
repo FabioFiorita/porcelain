@@ -1,11 +1,11 @@
 # The one architecture
 
-Package ownership is migrating (see `architecture.md`). Daemon source is `apps/daemon`;
-web/cli still under desktop until extracted.
+Package ownership (see `architecture.md`): daemon · cli · web · shell are separate apps;
+electron-vite in desktop still builds web/daemon/cli until independent builds land.
 
 ```
 daemon (apps/daemon/src/api.ts procedures + pure logic in own modules; Electron-free, HTTP/WS on 127.0.0.1)
-  → lib/trpc.ts (appRouter client) + lib/daemon.ts (the WS session) — imports restricted to hooks/ and stores/
+  → apps/web lib/trpc.ts (appRouter client) + lib/daemon.ts (the WS session) — imports restricted to hooks/ and stores/
     → hooks/use-<domain>.ts (queries, mutations, invalidation)
       → components/<area>/*.tsx (UI only; consume hooks + stores)
 stores/ (zustand: client-only state — tabs, repo, preferences, selection)

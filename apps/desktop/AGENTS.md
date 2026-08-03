@@ -1,34 +1,28 @@
-# Desktop tree (shell + transitional host)
+# Desktop shell
 
-Applies under `apps/desktop/`. Mobile is out of scope — see `apps/mobile/`.
-Daemon source: `apps/daemon/`. Map: `.agents/reference/architecture.md`.
+Applies under `apps/desktop/`. Mobile: `apps/mobile/`. Map: `.agents/reference/architecture.md`.
 
-**Target:** this package is the **Electron shell only**. Web client still lives here as
-`src/renderer` until `apps/web`. Daemon: `apps/daemon`. CLI: `apps/cli`.
+**This package is the Electron shell** (main, preload, packaging). Product runtime is `apps/daemon`,
+agent CLI is `apps/cli`, React UI is `apps/web`. electron-vite still lives here and builds those
+packages into `out/` until independent builds land.
 
 ## Boundaries
 
-- **Web client (`src/renderer`):** shadcn/ui on **Base UI** (`@base-ui/react`, not Radix) + Tailwind v4.
-  Custom triggers use `render`, never `asChild`. Settled config: `components.json`. Composition traps:
+- **Web (`apps/web`):** shadcn/ui on **Base UI** + Tailwind v4. Composition:
   `.agents/reference/composition.md`.
-- **Daemon (`apps/daemon`):** Electron-free product runtime. Load the **`audit` skill** before changing
-  git, config, file reads, external URLs, packaging, or agent channels. Import types via `@backend/*`.
+- **Daemon (`apps/daemon`):** Electron-free. Load **`audit`** before git/config/fs/URLs/channels.
+  Types via `@backend/*`.
 - **Shell (`src/main`, `src/preload`):** windows, menu, updater, spawn/bind daemon, shell IPC only.
 - **CLI (`apps/cli`):** agent binary; Node builtins only.
 - **Data flow:** daemon procedures → domain hooks → components. Components never import
-  `lib/trpc` or `lib/daemon` (Biome-enforced). One zustand store per client-only concern.
-- **Ports:** product work uses dev **43118** (worktrees **43200–43999**). Production is **43117**.
-  Never mix data or channels.
-- **One home per concern:** Changes owns diffs/stage/commit; Review owns the canvas; Files the tree;
-  Board the plan; Terminal/Actions run. Previews hand off via `lib/surface-handoffs.ts` — no second
-  Diff panel or commit UX.
+  `lib/trpc` or `lib/daemon` (Biome-enforced).
+- **Ports:** dev **43118** (worktrees **43200–43999**); production **43117**. Never mix homes.
 
 ## Proof
 
-- Day-to-day UI: **browser** against the dev daemon (same dist Electron loads). Playwright MCP,
-  a live tab, or `pnpm test:e2e`.
-- Backend / pure logic: Vitest under `apps/desktop` (globs daemon + mobile pure modules).
-- Electron-native e2e is local Mac only (`pnpm --dir apps/desktop test:e2e:native*`), not CI or `pnpm verify`.
+- UI: **browser** against the dev daemon. `pnpm test:e2e` for the suite.
+- Pure logic: Vitest under `apps/desktop` (globs daemon/cli/web/mobile pure modules).
+- Electron-native e2e: local Mac only; not CI / not `pnpm verify`.
 
 ## When lost
 
@@ -39,4 +33,3 @@ Daemon source: `apps/daemon/`. Map: `.agents/reference/architecture.md`.
 | Shell / surfaces | `.agents/reference/app-shell.md` |
 | Terminal | `.agents/reference/terminal.md` |
 | Repo / packaging facts | `.agents/reference/repo.md` |
-| Tab names / regions | `.agents/reference/nomenclature.md` |

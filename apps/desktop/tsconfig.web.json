@@ -1,17 +1,22 @@
 {
   "extends": "@electron-toolkit/tsconfig/tsconfig.web.json",
   "include": [
-    "src/renderer/src/env.d.ts",
+    "../web/src/env.d.ts",
     "src/shared/**/*",
     "../../packages/contracts/src/**/*",
     "../../packages/shared/src/**/*",
     "../daemon/src/**/*",
-    "src/renderer/src/**/*",
-    "src/renderer/src/**/*.tsx",
+    "../web/src/**/*",
+    "../web/src/**/*.tsx",
     "src/preload/*.d.ts",
     "src/test-setup.ts"
   ],
-  "exclude": ["../../packages/shared/src/**/*.test.ts", "../daemon/src/**/*.test.ts"],
+  "exclude": [
+    "../../packages/shared/src/**/*.test.ts",
+    "../daemon/src/**/*.test.ts",
+    "../web/src/**/*.test.ts",
+    "../web/src/**/*.test.tsx"
+  ],
   "compilerOptions": {
     "noImplicitAny": true,
     "noUncheckedIndexedAccess": true,
@@ -24,8 +29,9 @@
     "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
-      "@renderer/*": ["src/renderer/src/*"],
+      "@renderer/*": ["../web/src/*"],
       "@main/*": ["src/main/*"],
+      "@preload/*": ["src/preload/*"],
       "@backend/*": ["../daemon/src/*"],
       "@porcelain/daemon/*": ["../daemon/src/*"],
       "@shared/*": ["../../packages/shared/src/*"],

@@ -9,6 +9,10 @@ import type { Plugin } from 'vite'
  * Self-host Excalidraw fonts under `excalidraw-assets/fonts` so CSP font-src 'self'
  * works (no CDN). Copied from the package at dev-server start and production build.
  */
+const webRoot = resolve('../web')
+const webSrc = resolve(webRoot, 'src')
+const webPublic = resolve(webRoot, 'public')
+
 function excalidrawAssetsPlugin(): Plugin {
   const fontsSrc = resolve('node_modules/@excalidraw/excalidraw/dist/prod/fonts')
   const copyTo = (outDir: string): void => {
@@ -20,10 +24,9 @@ function excalidrawAssetsPlugin(): Plugin {
   return {
     name: 'excalidraw-assets',
     configureServer(server) {
-      // Dev: materialize under the renderer public-ish out so `/excalidraw-assets/` resolves.
-      const devPublic = resolve('src/renderer/public')
-      mkdirSync(devPublic, { recursive: true })
-      copyTo(devPublic)
+      // Dev: materialize under web public so `/excalidraw-assets/` resolves.
+      mkdirSync(webPublic, { recursive: true })
+      copyTo(webPublic)
       server.watcher.add(fontsSrc)
     },
     writeBundle(_options, _bundle) {
@@ -88,11 +91,14 @@ export default defineConfig({
     resolve: { alias: workspaceAliases },
   },
   renderer: {
+    // Web client package (apps/web) — independent Vite later; electron-vite still owns the build.
+    root: webRoot,
     define,
     resolve: {
       alias: {
-        '@renderer': resolve('src/renderer/src'),
+        '@renderer': webSrc,
         '@main': resolve('src/main'),
+        '@preload': resolve('src/preload'),
         ...workspaceAliases,
       },
     },
@@ -101,9 +107,16 @@ export default defineConfig({
       // Discovering one lazily (e.g. opening a dropdown for the first time)
       // makes Vite re-optimize mid-session, which loads a second React copy
       // and crashes the renderer with "Invalid hook call" / a blank window.
-      entries: ['src/**/*.{ts,tsx}', 'index.html'],
+      entries: [join(webSrc, '**/*.{ts,tsx}'), join(webRoot, 'index.html')],
     },
     plugins: [react(), tailwindcss(), excalidrawAssetsPlugin()],
-    publicDir: resolve('src/renderer/public'),
+    publicDir: webPublic,
+    build: {
+      outDir: resolve('out/renderer'),
+      emptyOutDir: true,
+      rollupOptions: {
+        input: resolve(webRoot, 'index.html'),
+      },
+    },
   },
 })

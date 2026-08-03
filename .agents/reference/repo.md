@@ -4,9 +4,9 @@
 
 - **Target layout** (see `architecture.md`): `apps/daemon`, `apps/cli`, `apps/web`, `apps/desktop`
   (shell), `apps/mobile`, plus `packages/contracts`, `packages/client-runtime`, `packages/shared`.
-  **Done so far:** `packages/shared`, `apps/daemon`, `apps/cli` (source; daemon/cli still bundled via
-  desktop electron-vite). **Transitional:** web still under `apps/desktop/src/renderer`. Root is
-  workspace-only (lint, hooks, release); no `version` on the root package.
+  **Done so far:** `packages/shared`, `apps/daemon`, `apps/cli`, `apps/web` (source; still built via
+  desktop electron-vite). Root is workspace-only (lint, hooks, release); no `version` on the root
+  package.
 - **One product version** on every workspace package that carries `version`. Canonical stamp is
   `apps/desktop/package.json` until `apps/daemon` exists; `scripts/sync-versions.mjs` keeps them
   aligned (`pnpm lint` runs `--check`). `release-cut` bumps then syncs.

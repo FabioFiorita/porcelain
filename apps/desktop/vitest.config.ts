@@ -12,8 +12,9 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@renderer': resolve('src/renderer/src'),
+      '@renderer': resolve('../web/src'),
       '@main': resolve('src/main'),
+      '@preload': resolve('src/preload'),
       '@backend': resolve('../daemon/src'),
       '@porcelain/daemon': resolve('../daemon/src'),
       '@shared': resolve('../../packages/shared/src'),
@@ -24,13 +25,14 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
-    // One suite, one command. Mobile pure tests + daemon + shared packages.
+    // One suite, one command. Mobile pure tests + daemon + cli + web + shared.
     // A screen test in jsdom with no native runtime fails loudly — correct signal
     // that it belongs in browser e2e, not here.
     include: [
       'src/**/*.test.{ts,tsx}',
       '../daemon/src/**/*.test.{ts,tsx}',
       '../cli/src/**/*.test.{ts,tsx}',
+      '../web/src/**/*.test.{ts,tsx}',
       '../../packages/*/src/**/*.test.{ts,tsx}',
       '../mobile/src/**/*.test.{ts,tsx}',
     ],

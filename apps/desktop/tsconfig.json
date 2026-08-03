@@ -11,8 +11,9 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@renderer/*": ["src/renderer/src/*"],
+      "@renderer/*": ["../web/src/*"],
       "@main/*": ["src/main/*"],
+      "@preload/*": ["src/preload/*"],
       "@backend/*": ["../daemon/src/*"],
       "@porcelain/daemon/*": ["../daemon/src/*"],
       "@shared/*": ["../../packages/shared/src/*"],
