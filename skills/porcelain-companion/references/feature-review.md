@@ -31,7 +31,7 @@ Without a review set the tab shows **Start this unit of work** — there is no a
 1. **Intent-first** — one `review set` with name + thesis. Files/sections may be thin at start; a full `review set` replaces the structured set and does **not** keep a previous freeform canvas.
 2. **Optional Intent board** — only if *this* unit needs one: `review set-canvas` (html or Excalidraw). Never set-canvas alone for a new unit without step 0–1.
 3. **Execution grows** — re-`review set` with files + notes as you work.
-4. **Evidence** — after you validate, `evidence prepare` + write `index.html` (HTML only). Prepare/set start from an empty evidence dir (no leftover screenshots). **Required to claim done.**
+4. **Evidence** — after you validate, `evidence prepare` + write self-contained `index.html` (**include CSS** — inline `<style>` or sibling `.css`; no app default theme). Prepare/set start from an empty evidence dir. **Required to claim done.**
 5. Confirm with `review get` / `feature get` / `evidence get`.
 
 CLI: `~/.porcelain/porcelain` (from inside the repo; `help` lists verbs).
@@ -61,7 +61,8 @@ CLI: `~/.porcelain/porcelain` (from inside the repo; `help` lists verbs).
 
 # Evidence (HTML only — never Excalidraw here; dir is wiped on prepare/set)
 ~/.porcelain/porcelain evidence prepare --title "Smoke: …"
-# then Write index.html (+ screenshots) into the printed directory
+# then Write index.html WITH its own CSS (+ optional styles.css sibling + screenshots).
+# Sandboxed preview has no Porcelain theme — unstyled HTML looks broken. See evidence.md.
 ~/.porcelain/porcelain evidence check --label "pnpm test" --status pass --detail "…"
 ```
 
@@ -80,7 +81,7 @@ CLI: `~/.porcelain/porcelain` (from inside the repo; `help` lists verbs).
 |---------|-----------------|
 | **Intent** | Structured document (thesis + section prose/diagrams) **or** freeform HTML **or** Excalidraw |
 | **Execution** | Native app UI (exactly the files from `--files`, agent order; anchors group chapters) — not a freeform medium |
-| **Evidence** | **HTML only** (`index.html` + optional screenshots) |
+| **Evidence** | **HTML only** (`index.html` + own CSS + optional screenshots / sibling `.css`) |
 
 **Bias:** structured Intent + HTML Evidence. Reach for Excalidraw only when a spatial board is clearly better for Intent (architecture map, data-flow whiteboard). Never put Excalidraw on Evidence.
 
@@ -101,6 +102,7 @@ CLI: `~/.porcelain/porcelain` (from inside the repo; `help` lists verbs).
 - Don't publish a new unit without `review clear` first — old Board/Evidence will mix with the new story.
 - Don't claim done without Evidence — only publish what you actually ran.
 - Don't invent evidence.
+- Don't ship Evidence HTML without CSS (sandboxed; Porcelain does not style it for you).
 - Don't use `evidence set --medium excalidraw` (removed). Freeform boards → Intent canvas.
 - Don't push multi-MB HTML through `evidence set`; use `prepare` + Write tools.
 - Don't re-implement a second file browser in Intent; Execution + sidebar own the files.

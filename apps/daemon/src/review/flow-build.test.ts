@@ -179,13 +179,19 @@ describe('flow loaders', () => {
     const dir = await repo('porcelain-flow-layers-bust-')
     await writeFile(join(dir, 'src', 'a.ts'), 'export const a = 2\n')
     const first = await loadWorkingFlow(dir)
-    expect(first.map((group) => group.layer)).toEqual(['Other'])
+    expect(fileAt(first, 'src/a.ts')).toBeDefined()
+    expect(first.find((group) => group.files.some((f) => f.path === 'src/a.ts'))?.layer).toBe(
+      'Other',
+    )
 
     await writeLayers(dir, [{ label: 'Source', pattern: '(^|/)src/' }])
     clearWorkingTreeSnapshot(dir)
     const second = await loadWorkingFlow(dir)
     expect(second).not.toBe(first)
-    expect(second.map((group) => group.layer)).toEqual(['Source'])
+    // Product path remaps to Source; writing layers also leaves untracked `.porcelain/*` in Other.
+    expect(second.find((group) => group.files.some((f) => f.path === 'src/a.ts'))?.layer).toBe(
+      'Source',
+    )
   })
 
   it('loadRangeFlow reports the base branch and memoizes the range', async () => {

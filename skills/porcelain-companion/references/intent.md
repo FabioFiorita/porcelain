@@ -40,7 +40,7 @@ Intent is the **narrative** of the unit of work (feature, bug, chore, investigat
 
 - **prose** — *why* this step exists, invariants, traps (markdown; no raw HTML execution).
 - **diagram** — self-contained **inline SVG** only (sandboxed; no scripts/remote loads). Render mermaid yourself if needed.
-- **html** — optional self-contained embed (inline CSS; 512 KB cap; height 160–1600).
+- **html** — optional self-contained embed (**own CSS** in `<style>` or fully inlined; no parent theme; 512 KB cap; height 160–1600).
 - **anchors** — still declare them: they drive which files belong under this chapter in Execution and the sidebar, even when Intent does not paint the code blocks.
 
 Keep sections tight: enough steps to tell the whole feature, not a section per file.

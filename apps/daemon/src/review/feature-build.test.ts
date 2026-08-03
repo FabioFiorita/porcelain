@@ -143,14 +143,18 @@ describe('feature build', () => {
     await writeFile(join(dir, 'src', 'b.ts'), "import { a } from './a'\nexport const b = a + 1\n")
     await writeReviewSet(dir, { name: 'Feature', files: [{ path: 'src/b.ts' }], sections: [] })
 
-    const first = await getFeatureBuild(dir, await gathered(dir))
+    // First build may write companion snapshots under `.porcelain/` (e.g. feature-view.json),
+    // which changes git status. Settle once, then assert identity on a stable tree.
+    await getFeatureBuild(dir, await gathered(dir))
     clearWorkingTreeSnapshot(dir)
-    expect(await getFeatureBuild(dir, await gathered(dir))).toBe(first)
+    const settled = await getFeatureBuild(dir, await gathered(dir))
+    clearWorkingTreeSnapshot(dir)
+    expect(await getFeatureBuild(dir, await gathered(dir))).toBe(settled)
 
     await writeReviewSet(dir, { name: 'Renamed', files: [{ path: 'src/b.ts' }], sections: [] })
     clearWorkingTreeSnapshot(dir)
     const second = await getFeatureBuild(dir, await gathered(dir))
-    expect(second).not.toBe(first)
+    expect(second).not.toBe(settled)
     expect(second.view.name).toBe('Renamed')
   })
 })

@@ -2,7 +2,7 @@
 // The SKILL.md + references live at the repo root under /skills/porcelain-companion/.
 
 /** Bump whenever the bundled skills change so the update toast prompts `npx skills upgrade`. */
-export const SKILLS_VERSION = '3.0.0'
+export const SKILLS_VERSION = '3.0.1'
 
 /** Repository slug passed to `npx skills add`. */
 const SKILLS_REPO = 'FabioFiorita/porcelain'

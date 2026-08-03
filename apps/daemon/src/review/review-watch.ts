@@ -45,44 +45,49 @@ async function watchRepo(repoPath: string): Promise<void> {
   if (!(await isDirectory(repoPath))) return
 
   const dir = projectPorcelainDir(repoPath)
-  const evidenceDir = projectEvidenceDir(repoPath)
+  // Do not mkdir `.porcelain` here — an empty shell blocks home→repo migrate
+  // (ensureProjectCompanion used to treat any existing dir as "already done").
+  // Re-invoke after ensure/write once the dir exists.
+  if (!(await isDirectory(dir))) return
 
+  const evidenceDir = projectEvidenceDir(repoPath)
   const closers: Array<() => void> = []
 
-  const startDirWatch = (target: string, onChange: (filename: string | null) => void): void => {
-    // Safe: parent (repoPath) is known to exist.
-    void mkdir(target, { recursive: true })
-      .then(() => {
-        try {
-          const w = watch(target, (_event, filename) => {
-            onChange(typeof filename === 'string' ? filename : null)
-          })
-          closers.push(() => w.close())
-        } catch {
-          // unsupported FS — polls still cover discovery
-        }
-      })
-      .catch(() => {})
+  try {
+    const w = watch(dir, (_event, filename) => {
+      if (!filename) {
+        for (const event of new Set(Object.values(FILE_EVENTS))) emitAppEvent(event)
+        emitAppEvent('evidence')
+        return
+      }
+      const name = typeof filename === 'string' ? filename : null
+      if (!name) return
+      const base = basename(name)
+      const event = FILE_EVENTS[base]
+      if (event) emitAppEvent(event)
+      if (base === 'evidence' || name.startsWith('evidence') || name.startsWith('reviews')) {
+        emitAppEvent('evidence')
+        emitAppEvent('feature-view')
+      }
+    })
+    closers.push(() => w.close())
+  } catch {
+    // unsupported FS — polls still cover discovery
   }
 
-  startDirWatch(dir, (filename) => {
-    if (!filename) {
-      for (const event of new Set(Object.values(FILE_EVENTS))) emitAppEvent(event)
-      emitAppEvent('evidence')
-      return
-    }
-    const base = basename(filename)
-    const event = FILE_EVENTS[base]
-    if (event) emitAppEvent(event)
-    if (base === 'evidence' || filename.startsWith('evidence') || filename.startsWith('reviews')) {
-      emitAppEvent('evidence')
-      emitAppEvent('feature-view')
-    }
-  })
-
-  startDirWatch(evidenceDir, () => {
-    emitAppEvent('evidence')
-  })
+  // Evidence tree may not exist yet; create under an existing companion only.
+  void mkdir(evidenceDir, { recursive: true })
+    .then(() => {
+      try {
+        const w = watch(evidenceDir, () => {
+          emitAppEvent('evidence')
+        })
+        closers.push(() => w.close())
+      } catch {
+        // unsupported FS
+      }
+    })
+    .catch(() => {})
 
   watched.set(repoPath, {
     close: () => {

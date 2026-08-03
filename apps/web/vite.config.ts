@@ -42,6 +42,7 @@ function excalidrawAssetsPlugin(): Plugin {
 
 export default defineConfig({
   root,
+  base: './', // file:// (Electron loadFile); not Vite's default '/'
   define: { __PORCELAIN_VERSION__: JSON.stringify(version) },
   publicDir: resolve(root, 'public'),
   resolve: {

@@ -114,11 +114,42 @@ function errorCode(error: unknown): string | number | undefined {
   return undefined
 }
 
+/**
+ * GUI apps and systemd units often ship a minimal PATH that omits user installs
+ * (`~/.local/bin` for claude/codex, `~/.grok/bin`). Prepend common bins so model
+ * discovery and generation match what the human has in a shell.
+ */
+export function agentCliPath(pathEnv: string | undefined, home: string | undefined): string {
+  const extras = [
+    home ? join(home, '.local', 'bin') : '',
+    home ? join(home, '.volta', 'bin') : '',
+    home ? join(home, '.grok', 'bin') : '',
+    home ? join(home, '.cargo', 'bin') : '',
+    '/opt/homebrew/bin',
+    '/usr/local/bin',
+  ].filter((part) => part !== '')
+  const seen = new Set<string>()
+  const parts: string[] = []
+  for (const part of [...extras, ...(pathEnv ?? '').split(':')]) {
+    if (part === '' || seen.has(part)) continue
+    seen.add(part)
+    parts.push(part)
+  }
+  return parts.join(':')
+}
+
+function agentCliEnv(base: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+  return {
+    ...base,
+    PATH: agentCliPath(base.PATH, base.HOME),
+  }
+}
+
 /** Check provider installation without making a model request or changing state. */
 async function commandAvailable(command: string): Promise<boolean> {
   try {
     await execFileAsync(command, ['--version'], {
-      env: process.env,
+      env: agentCliEnv(),
       maxBuffer: 64 * 1024,
       timeout: 10_000,
     })
@@ -172,7 +203,7 @@ async function discoverOpenCodeModels(isAvailable: boolean): Promise<CommitModel
   let stdout: string
   try {
     const result = await execFileAsync('opencode', ['models'], {
-      env: process.env,
+      env: agentCliEnv(),
       maxBuffer: MODEL_OUTPUT_BYTES,
       timeout: 15_000,
     })
@@ -490,7 +521,7 @@ export function parseGeneratedCommitGroups(
 async function runTextModel(model: CommitModel, cwd: string, prompt: string): Promise<string> {
   const options = {
     cwd,
-    env: process.env,
+    env: agentCliEnv(),
     maxBuffer: MODEL_OUTPUT_BYTES,
     timeout: MODEL_TIMEOUT_MS,
   }

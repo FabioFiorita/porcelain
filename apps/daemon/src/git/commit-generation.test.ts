@@ -2,6 +2,7 @@
 
 import { describe, expect, it } from 'vitest'
 import {
+  agentCliPath,
   buildCommitGenerationPrompt,
   parseGeneratedCommitGroups,
   parseGeneratedCommitMessage,
@@ -9,6 +10,14 @@ import {
 } from './commit-generation'
 
 describe('commit generation', () => {
+  it('prepends user install bins so GUI/systemd daemons still find claude/codex/grok', () => {
+    const path = agentCliPath('/usr/bin:/bin', '/home/me')
+    expect(path.startsWith('/home/me/.local/bin:')).toBe(true)
+    expect(path).toContain('/home/me/.volta/bin')
+    expect(path).toContain('/home/me/.grok/bin')
+    expect(path.endsWith('/usr/bin:/bin')).toBe(true)
+  })
+
   it('builds a prompt that keeps the model read-only and makes the effort explicit', () => {
     const prompt = buildCommitGenerationPrompt({
       mode: 'single',

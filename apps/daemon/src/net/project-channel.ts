@@ -7,6 +7,7 @@ import {
   projectPorcelainPath,
 } from '@shared/project-porcelain'
 import type { ZodType } from 'zod'
+import { watchProjectCompanion } from '../review/review-watch'
 
 export interface ProjectChannel<T> {
   path(repoPath: string): string
@@ -76,6 +77,8 @@ export function createProjectChannel<T>(opts: {
     } catch {
       await writeFile(gi, DEFAULT_PROJECT_GITIGNORE)
     }
+    // Watcher skips missing dirs so it never invents an empty companion; attach once created.
+    watchProjectCompanion(repoPath)
   }
 
   const read = async (repoPath: string): Promise<T> => readWithGuards(pathFor(repoPath))
@@ -131,6 +134,7 @@ export async function writeProjectText(
   } catch {
     await writeFile(gi, DEFAULT_PROJECT_GITIGNORE)
   }
+  watchProjectCompanion(repoPath)
   const p = projectPorcelainPath(repoPath, fileName)
   if (text === '') {
     // Drop empty notes so the tree stays tidy.

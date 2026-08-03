@@ -52,7 +52,7 @@ Installed automatically on every app/daemon launch. Run from **inside the repo**
 ~/.porcelain/porcelain review clear
 ~/.porcelain/porcelain review set --name "…" --thesis "…" --files '[…]' --sections '[…]'
 ~/.porcelain/porcelain review set-canvas --medium html --html-file ./intent.html   # optional; only for THIS unit
-~/.porcelain/porcelain evidence prepare --title "…"   # then Write index.html in the printed dir
+~/.porcelain/porcelain evidence prepare --title "…"   # then Write index.html + its own CSS in the printed dir
 ~/.porcelain/porcelain comments list
 ~/.porcelain/porcelain comments resolve --id <id>
 ~/.porcelain/porcelain reviewed list

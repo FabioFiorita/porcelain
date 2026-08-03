@@ -80,4 +80,31 @@ describe('ensureProjectCompanion', () => {
     expect(scope.hiddenPaths).toEqual(['apps/legacy'])
     expect(scope.pinnedPaths).toEqual(['apps/web'])
   })
+
+  it('fills missing channels when .porcelain already exists (empty shell)', async () => {
+    mkdirSync(projectPorcelainDir(repo), { recursive: true })
+    writeFileSync(
+      projectPorcelainPath(repo, PROJECT_FILES.review),
+      JSON.stringify({ name: 'in-repo' }),
+    )
+    writeFileSync(
+      join(home, 'board.json'),
+      JSON.stringify({
+        [repo]: [{ id: 'c1', title: 'From home', status: 'todo', order: 1, createdAt: 1 }],
+      }),
+    )
+    writeFileSync(join(home, 'review-sets.json'), JSON.stringify({ [repo]: { name: 'from-home' } }))
+
+    const result = await ensureProjectCompanion(repo)
+    expect(result.migrated).toBe(true)
+
+    const board = JSON.parse(
+      readFileSync(projectPorcelainPath(repo, PROJECT_FILES.board), 'utf8'),
+    ) as Array<{ title: string }>
+    expect(board).toEqual([expect.objectContaining({ title: 'From home' })])
+    // Existing in-repo review is not clobbered by home.
+    expect(
+      JSON.parse(readFileSync(projectPorcelainPath(repo, PROJECT_FILES.review), 'utf8')),
+    ).toEqual({ name: 'in-repo' })
+  })
 })

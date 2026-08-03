@@ -353,11 +353,11 @@ export function CommitGroup(): React.JSX.Element {
               {isCommitting ? 'Committing…' : 'Commit'}
             </Button>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2">
             <Button
               size="sm"
               variant="outline"
-              className={cn(compactButtonClass, 'min-w-0 flex-1 rounded-md')}
+              className={cn(compactButtonClass, 'w-full justify-start rounded-md')}
               disabled={!hasStaged || isGenerating}
               data-testid={TestIds.generateCommitMessage}
               onClick={handleGenerateMessage}
@@ -368,7 +368,7 @@ export function CommitGroup(): React.JSX.Element {
             <Button
               size="sm"
               variant="outline"
-              className={cn(compactButtonClass, 'min-w-0 flex-1 rounded-md')}
+              className={cn(compactButtonClass, 'w-full justify-start rounded-md')}
               disabled={hasStaged || !hasUnstaged || isGenerating}
               data-testid={TestIds.generateCommitGroups}
               onClick={handleGenerateGroups}
