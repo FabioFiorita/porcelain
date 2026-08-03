@@ -1,6 +1,6 @@
 {
   "name": "porcelain-row-canvas",
-  "version": "0.47.0",
+  "version": "0.47.1",
   "private": true,
   "description": "Generic JSON-driven row rendering surface for iOS.",
   "expo-module": {

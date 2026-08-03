@@ -1,3 +1,9 @@
+## [0.47.1](https://github.com/FabioFiorita/porcelain/compare/v0.47.0...v0.47.1) (2026-08-03)
+
+### Bug Fixes
+
+* **daemon:** do not mkdir missing repo roots when watching ([e14e3e2](https://github.com/FabioFiorita/porcelain/commit/e14e3e26c165952371769a740237ad50c49d0c5a))
+
 ## [0.47.0](https://github.com/FabioFiorita/porcelain/compare/v0.46.3...v0.47.0) (2026-08-03)
 
 ### Features
