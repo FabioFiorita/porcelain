@@ -30,6 +30,7 @@ export default defineConfig({
     include: [
       'src/**/*.test.{ts,tsx}',
       '../daemon/src/**/*.test.{ts,tsx}',
+      '../cli/src/**/*.test.{ts,tsx}',
       '../../packages/*/src/**/*.test.{ts,tsx}',
       '../mobile/src/**/*.test.{ts,tsx}',
     ],

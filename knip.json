@@ -10,7 +10,6 @@
       "entry": [
         "src/main/index.ts!",
         "src/preload/index.ts!",
-        "src/cli/porcelain.ts!",
         "src/renderer/src/main.tsx!",
         "e2e/**/*.{ts,tsx}",
         "playwright.config.ts",
@@ -24,6 +23,10 @@
     },
     "apps/daemon": {
       "entry": ["src/server.ts!", "src/api.ts!"],
+      "project": ["src/**/*.{ts,tsx}"]
+    },
+    "apps/cli": {
+      "entry": ["src/porcelain.ts!"],
       "project": ["src/**/*.{ts,tsx}"]
     },
     "apps/mobile": {

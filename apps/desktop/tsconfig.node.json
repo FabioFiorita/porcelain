@@ -5,12 +5,16 @@
     "../../packages/contracts/src/**/*",
     "../../packages/shared/src/**/*",
     "../daemon/src/**/*",
+    "../cli/src/**/*",
     "src/shared/**/*",
     "src/main/**/*",
-    "src/preload/**/*",
-    "src/cli/**/*"
+    "src/preload/**/*"
   ],
-  "exclude": ["../../packages/shared/src/**/*.test.ts", "../daemon/src/**/*.test.ts"],
+  "exclude": [
+    "../../packages/shared/src/**/*.test.ts",
+    "../daemon/src/**/*.test.ts",
+    "../cli/src/**/*.test.ts"
+  ],
   "compilerOptions": {
     // `paths` without `baseUrl` resolves relative to this file — baseUrl is
     // deprecated in TS 6 and only tsconfig.web.json still needs it (shadcn CLI).

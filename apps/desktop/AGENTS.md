@@ -3,9 +3,8 @@
 Applies under `apps/desktop/`. Mobile is out of scope — see `apps/mobile/`.
 Daemon source: `apps/daemon/`. Map: `.agents/reference/architecture.md`.
 
-**Target:** this package is the **Electron shell only**. Web client and agent CLI still live here
-as `src/renderer` and `src/cli` until those packages extract. Do not put new daemon logic under
-this tree — it belongs in `apps/daemon`.
+**Target:** this package is the **Electron shell only**. Web client still lives here as
+`src/renderer` until `apps/web`. Daemon: `apps/daemon`. CLI: `apps/cli`.
 
 ## Boundaries
 
@@ -15,7 +14,7 @@ this tree — it belongs in `apps/daemon`.
 - **Daemon (`apps/daemon`):** Electron-free product runtime. Load the **`audit` skill** before changing
   git, config, file reads, external URLs, packaging, or agent channels. Import types via `@backend/*`.
 - **Shell (`src/main`, `src/preload`):** windows, menu, updater, spawn/bind daemon, shell IPC only.
-- **CLI (`src/cli`):** agent binary; Node builtins only (until `apps/cli`).
+- **CLI (`apps/cli`):** agent binary; Node builtins only.
 - **Data flow:** daemon procedures → domain hooks → components. Components never import
   `lib/trpc` or `lib/daemon` (Biome-enforced). One zustand store per client-only concern.
 - **Ports:** product work uses dev **43118** (worktrees **43200–43999**). Production is **43117**.

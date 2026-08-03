@@ -73,7 +73,7 @@ export default defineConfig({
         // trash), never electron (Biome-fenced in apps/daemon).
         input: {
           index: resolve('src/main/index.ts'),
-          'cli/porcelain': resolve('src/cli/porcelain.ts'),
+          'cli/porcelain': resolve('../cli/src/porcelain.ts'),
           'daemon/server': resolve('../daemon/src/server.ts'),
         },
         // External ESM-only deps (trash) required from the CJS bundles need the

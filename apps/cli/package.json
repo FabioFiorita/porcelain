@@ -1,0 +1,16 @@
+{
+  "name": "@porcelain/cli",
+  "version": "0.46.3",
+  "private": true,
+  "description": "Porcelain agent CLI — dependency-free Node binary installed by the daemon.",
+  "bin": {
+    "porcelain": "./src/porcelain.ts"
+  },
+  "dependencies": {
+    "@porcelain/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^6.0.3"
+  }
+}
