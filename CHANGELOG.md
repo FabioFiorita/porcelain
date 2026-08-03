@@ -1,3 +1,9 @@
+## [0.47.3](https://github.com/FabioFiorita/porcelain/compare/v0.47.2...v0.47.3) (2026-08-03)
+
+### Bug Fixes
+
+* black Mac renderer, companion migrate, commit models, Changes ([46f4f6e](https://github.com/FabioFiorita/porcelain/commit/46f4f6e1349162c26296e0664b0b80f2da294047))
+
 ## [0.47.2](https://github.com/FabioFiorita/porcelain/compare/v0.47.1...v0.47.2) (2026-08-03)
 
 ### Features
