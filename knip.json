@@ -46,7 +46,6 @@
     "@tailwindcss/typography",
     "tailwindcss",
     "conventional-changelog-conventionalcommits",
-    "expo-mcp",
     "@trpc/client"
   ]
 }

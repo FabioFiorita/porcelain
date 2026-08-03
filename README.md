@@ -80,17 +80,20 @@ pnpm dev       # run the app in development
 
 | Command | What it does |
 |---|---|
-| `pnpm dev` | Run the app in development |
+| `pnpm dev` | Run the Electron app in development |
+| `pnpm dev:daemon` | Dev daemon on 43118 (`~/.porcelain-dev`) — day-to-day product work |
 | `pnpm lint` | Cheap commit gate (Biome + escapes/audit/eas/agents) |
-| `pnpm typecheck` | Type-check main and renderer |
 | `pnpm test` | Run the Vitest suite |
 | `pnpm test:e2e` | Playwright e2e (headless browser project) |
-| `pnpm build` | Type-check and build |
+| `pnpm build` | Type-check mobile + build desktop |
 | `pnpm verify` | Full bar: lint + test + build + e2e typecheck (run before push) |
+| `pnpm worktree` | Managed worktrees (`create` / `list` / `pr` / `remove` / …) |
 | `pnpm shots` | Regenerate marketing screenshots |
-| `pnpm dist` | Build a signed local `.dmg` / `.zip` |
-| `pnpm daemon:dist` | Assemble publishable `dist-daemon/` (`porcelain-daemon` npm package) |
-| `pnpm release` | Build and publish to GitHub Releases |
+| `pnpm package:mac` | Local Mac package (unsigned path varies by host) |
+| `pnpm daemon:dist` | Assemble publishable `dist-daemon/` |
+| `pnpm release` | Cut a release (patch by default) |
+
+Mobile lives under `apps/mobile` (`pnpm --dir apps/mobile start`, `sim:build`, …). Snapshot update: `pnpm --dir apps/desktop test:e2e:update`.
 
 Commit is gated by `pnpm lint`. Before push (and on CI): `pnpm verify`. Browser e2e runs on every push to `main`.
 

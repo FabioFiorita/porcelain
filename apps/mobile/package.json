@@ -42,13 +42,11 @@
   "devDependencies": {
     "@trpc/server": "^11.17.0",
     "@types/react": "~19.2.2",
-    "expo-mcp": "^0.2.1",
     "typescript": "~6.0.3",
     "vitest": "^4.1.8"
   },
   "scripts": {
     "start": "expo start",
-    "start:mcp": "EXPO_UNSTABLE_MCP_SERVER=1 expo start",
     "ios": "expo start --ios",
     "sim:build": "npx eas-cli@latest build -p ios --profile development-simulator --local",
     "sim:build:cloud": "npx eas-cli@latest build -p ios --profile development-simulator",

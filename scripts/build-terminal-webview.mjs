@@ -167,7 +167,9 @@ const generated = `export const TERMINAL_HTML = ${JSON.stringify(html)}\n`
 if (process.argv.includes('--check')) {
   const current = read(outputPath)
   if (current !== generated) {
-    console.error('terminal-html.generated.ts is stale; run pnpm mobile:terminal:html')
+    console.error(
+      'terminal-html.generated.ts is stale; run node scripts/build-terminal-webview.mjs',
+    )
     process.exit(1)
   }
   console.log('terminal-html.generated.ts: up to date')

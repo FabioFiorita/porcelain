@@ -3,7 +3,7 @@ import { expect, loc, openSettings, selectTab, test, waitForShell } from './help
 // Screenshot baselines = the regression net. DOM-only (no native window chrome /
 // traffic lights — the UI is one opaque design, no vibrancy), per-platform.
 // Deliberately NOT screenshotting the History list — its relative timestamps drift.
-// Regenerate after intentional UI changes with `pnpm test:e2e:update`.
+// Regenerate after intentional UI changes with `pnpm --dir apps/desktop test:e2e:update`.
 
 test('empty viewer', async ({ page }) => {
   await waitForShell(page)

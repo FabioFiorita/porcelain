@@ -24,7 +24,7 @@ Applies under `apps/desktop/`. Mobile runtime is out of scope here — see `apps
 - Day-to-day UI: **browser** against the dev daemon (same renderer dist as Electron). Playwright MCP,
   a live tab, or `pnpm test:e2e`.
 - Backend / pure logic: Vitest under `apps/desktop` (also globs mobile pure modules).
-- Electron-native e2e is local Mac only (`pnpm test:e2e:native*`), not CI or `pnpm verify`.
+- Electron-native e2e is local Mac only (`pnpm --dir apps/desktop test:e2e:native*`), not CI or `pnpm verify`.
 
 ## When lost
 

@@ -6,9 +6,9 @@
  * serve-sim needs that machine's xcrun/simctl installation.
  *
  * Usage:
- *   pnpm mobile:dev:remote
- *   pnpm mobile:dev:remote -- --clear
- *   pnpm mobile:dev:remote -- --stop-sim
+ *   node scripts/mobile-remote-dev.mjs
+ *   node scripts/mobile-remote-dev.mjs -- --clear
+ *   node scripts/mobile-remote-dev.mjs -- --stop-sim
  */
 import { spawn, spawnSync } from 'node:child_process'
 import { dirname, resolve } from 'node:path'
@@ -24,8 +24,8 @@ const remoteLogPath = '/tmp/porcelain-serve-sim.log'
 const HELP = `Remote mobile development loop
 
 Usage:
-  pnpm mobile:dev:remote [-- expo-options]
-  pnpm mobile:dev:remote -- --stop-sim
+  node scripts/mobile-remote-dev.mjs [-- expo-options]
+  node scripts/mobile-remote-dev.mjs -- --stop-sim
 
 The command keeps Expo/Metro on this host and starts or reuses serve-sim on
 the Mac reached through the SSH alias "${defaultSshAlias}".
@@ -39,7 +39,7 @@ Options owned by this command:
   -h, --help           Show this help
 
 All other options are passed to Expo. For example:
-  pnpm mobile:dev:remote -- --clear
+  node scripts/mobile-remote-dev.mjs -- --clear
 `
 
 function fail(message) {

@@ -33,8 +33,8 @@ the monthly quota. Details: `mobile` skill → `reference/loop.md`.
 ## Normal development
 
 ```bash
-pnpm mobile:start
-pnpm typecheck:mobile
+pnpm --dir apps/mobile start
+pnpm --dir apps/mobile typecheck
 pnpm verify          # from repo root, before any commit
 ```
 

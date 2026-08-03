@@ -7,11 +7,12 @@ import type { AppMode } from './e2e/helpers/app'
 //   browser client — the daemon serves the SAME built renderer dist the Electron
 //   window loads, over the same tRPC + WS data path, so this asserts everything
 //   except the Electron shell layer, with no display server needed.
-// - `electron` (local Mac only — `pnpm test:e2e:native*`): the BUILT app via
-//   Playwright's `_electron`, so the real preload, native menu, and window
-//   management are present. Not CI; release packaging does not re-run this suite.
+// - `electron` (local Mac only — `pnpm --dir apps/desktop test:e2e:native*`): the
+//   BUILT app via Playwright's `_electron`, so the real preload, native menu, and
+//   window management are present. Not CI; release packaging does not re-run this.
 //
-// Both need `pnpm build` first; the `test:e2e*` scripts do this for you.
+// Both need `pnpm build` first; root `pnpm test:e2e` and the desktop package
+// scripts do this for you.
 export default defineConfig<{ appMode: AppMode }>({
   testDir: './e2e',
   // Pin a paths-free tsconfig: the root tsconfig's `@renderer`/`@main` path
