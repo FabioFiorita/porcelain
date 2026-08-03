@@ -1,11 +1,11 @@
 import { existsSync } from 'node:fs'
 import { cp, mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname } from 'node:path'
-import trash from 'trash'
 import { z } from 'zod'
 import { inlineLocalAssets } from '../fs/evidence-assets'
 import { uniqueDuplicatePath } from '../fs/fs-ops'
 import { imageMimeForPath, isBinaryBuffer } from '../fs/image-mime'
+import { moveToTrash } from '../fs/move-to-trash'
 import { expandUserPath } from '../fs/path-expand'
 import { exceedsReadLimit } from '../fs/read-limits'
 import { gitGrep, gitListSearchFiles, gitSearchCode } from '../git/git'
@@ -142,7 +142,7 @@ export const filesRouter = t.router({
     ),
 
   trashPath: publicProcedure.input(z.string()).mutation(async ({ input }) => {
-    await trash(input)
+    await moveToTrash(input)
   }),
 
   searchFiles: publicProcedure

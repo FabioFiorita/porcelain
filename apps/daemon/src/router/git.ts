@@ -1,6 +1,6 @@
 import { join } from 'node:path'
-import trash from 'trash'
 import { z } from 'zod'
+import { moveToTrash } from '../fs/move-to-trash'
 import { type CommitConventions, parseConventions } from '../git/conventions'
 import {
   gitAddWorktree,
@@ -99,7 +99,7 @@ export const gitRouter = t.router({
         await gitRestoreFromHead(input.repoPath, input.path)
       } else {
         await gitResetPath(input.repoPath, input.path)
-        await trash(join(input.repoPath, input.path))
+        await moveToTrash(join(input.repoPath, input.path))
       }
       clearWorkingTreeSnapshot(input.repoPath)
     }),
