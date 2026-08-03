@@ -317,7 +317,7 @@ will collide on:
   `ToolbarIconName` and `SF_SYMBOLS` (`ellipsis`). `settings`, `board`, `history`
   are already there; 00 adds `repo`. iOS-only, so that is the whole edit — no
   raster twin.
-- `apps/mobile/README.md` — one short paragraph on what the Files tab does and
+- `.agents/skills/mobile/reference/client.md` — one short paragraph on what the Files tab does and
   that it is read-only. Docs sync in the same commit (hard rule 4).
 - `src/lib/surface-handoffs.ts` — the tiny shared module `03-review.md` §2.4
   specifies (typed `openDiff` / `openFile` href pushes). Files is the **target**

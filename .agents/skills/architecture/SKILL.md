@@ -67,6 +67,5 @@ Detail lives in `reference/*.md`, read on demand — don't open one until the ta
 | [`reference/one-architecture.md`](reference/one-architecture.md) | Changing how data flows daemon → hooks → components; touching the WS session, environments/failover, tab routing, keyboard-shortcut tiers, or test setup |
 | [`reference/terminal.md`](reference/terminal.md) | Changing anything about PTY lifecycle, terminal rendering (WebGL/DOM), touch input, the key bar, or scrollback |
 | [`reference/app-shell.md`](reference/app-shell.md) | Changing window chrome, sidebar/viewer layout, surface/color recipes, or any other App Shell trap |
-| [`reference/mobile.md`](reference/mobile.md) | Changing anything under `apps/mobile`, or touching the native client's platform, delivery, or Rule-5 decisions |
 | [`reference/nomenclature.md`](reference/nomenclature.md) | Looking up a term the human used (a tab name, shell region, or cross-cutting word) to find its entry file |
 | [`reference/repo.md`](reference/repo.md) | Looking up a repo-wide fact (path aliases, Shiki, theme boot, shadcn re-apply) or a packaging/release/lint convention |

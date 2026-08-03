@@ -539,7 +539,7 @@ Tests (pure modules only, no react-native imports): `pairing.test.ts` · `enviro
 - `src/components/toolbar-icon.ts` — add the `'repo'` icon
 - `apps/mobile/package.json` — add `zod`, `zustand`, `expo-clipboard`, `expo-crypto`; add
   `@trpc/server` (devDependency, type-only)
-- `apps/mobile/README.md` — a short "Connection" section: environments, pairing, the simulator recipe
+- `.agents/skills/mobile/reference/client.md` — a short "Connection" section: environments, pairing, the simulator recipe
 - `vitest.config.ts` (root) — add `apps/mobile/src/**/*.test.ts` to `include`
 - `.agents/skills/architecture/reference/mobile.md` — record the transport decision from §2 (hard rule 4: same
   commit). The paste-only/no-QR bullet is **already** accurate there; don't rewrite it.

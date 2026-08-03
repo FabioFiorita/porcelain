@@ -341,7 +341,7 @@ matching the root layout's sheet options).
 - `.agents/skills/architecture/reference/mobile.md` → *Native mobile client* — add one bullet: the
   terminal renders through xterm.js in a WebView, why the two alternatives lost, and that
   the WebView is a dumb renderer holding no credentials. Same commit as the code (rule 4).
-- `apps/mobile/README.md` — one line under the tab table pointing at this doc.
+- `.agents/skills/mobile/reference/client.md` — one line under the tab table pointing at this doc.
 - **Do not** add `zod` here on your own — 00-connection lands it as an `apps/mobile`
   dependency. Use it for the bridge parses (`webview/bridge-protocol.ts`); the `/session`
   frames are already parsed by `@porcelain/contracts`.

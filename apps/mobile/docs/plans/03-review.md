@@ -5,7 +5,7 @@ executed by a fresh agent in a managed worktree with no other context than this 
 the sources it names.
 
 Required reading before writing code: `apps/mobile/docs/daemon-api.md` (Review-tab
-catalog), `apps/mobile/README.md`, `.agents/skills/product/SKILL.md` (the Review feature —
+catalog), `.agents/skills/mobile/reference/client.md`, `.agents/skills/product/SKILL.md` (the Review feature —
 Intent · Execution · Evidence, lifecycle, Board↔Review coupling),
 `.agents/skills/architecture/reference/mobile.md` → "Native mobile client", `.claude/skills/expo-ui/`
 (+ `references/swift-ui.md`),
@@ -348,7 +348,7 @@ Shared merge points (coordinate — other worktrees touch these):
   here (§2.4) with the concrete route targets those plans define. Whoever lands first
   creates it; keep it to typed `openDiff` / `openFile` href pushes and nothing else.
 - `@/lib/daemon/*` — consumed read-only from 00-connection.
-- `apps/mobile/README.md` — add the Review routes to the "Where code goes" picture if the
+- `.agents/skills/mobile/reference/client.md` — add the Review routes to the "Where code goes" picture if the
   shape changes.
 
 Docs sync in the same commit (hard rule 4): if anything here proves wrong against the

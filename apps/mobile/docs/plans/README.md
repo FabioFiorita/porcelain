@@ -72,7 +72,7 @@ The few files more than one worktree touches. Keep edits here minimal and additi
 - `apps/mobile/package.json` — any tab adding a dependency (`00` adds `zod`, `zustand`,
   `expo-crypto`, and `@trpc/server` type-only; `05` front-loads every **native** one, and a tab
   adding another is a build, so flag it instead).
-- `apps/mobile/README.md` — each tab updates its own paragraph.
+- `.agents/skills/mobile/reference/client.md` — each tab updates its own paragraph.
 
 ## Shared verification recipe
 

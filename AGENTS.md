@@ -56,7 +56,8 @@ Only each skill's description is ambient. A `SKILL.md` routes — read it, then 
 | `marketing` | README, `marketing/`, screenshots, launch copy |
 | `releasing` | Cutting a release or changing signing/notarization |
 | `client` | Renderer UI primitive work |
-| `expo-*` / `eas-*` | Native mobile structure, UI, routing, builds, delivery |
+| `mobile` | Anything under `apps/mobile` — platform decisions, the build/deliver loop, traps |
+| `expo-*` / `eas-*` | Vendor detail the `mobile` skill routes to, never a first stop |
 
 **Shipped content carries no personal setup** — public docs and app copy use generic placeholders (`you@remote-host`, `/home/you/code/my-app`), never a maintainer's hostname or private paths.
 
