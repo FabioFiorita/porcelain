@@ -3,8 +3,11 @@ import { font, listStyle, refreshable } from '@expo/ui/swift-ui/modifiers'
 import { headLabel } from '@porcelain/contracts'
 import { ObserveInteractiveMarker } from 'expo-observe'
 import { router } from 'expo-router'
+import { useEffect } from 'react'
+import { Platform } from 'react-native'
 
 import { DaemonGate } from '@/components/daemon-gate'
+import { IPadDetailPlaceholder } from '@/components/ipad-detail-placeholder'
 import { ListLinkRow } from '@/components/list-link-row'
 import { ScreenHeader } from '@/components/screen-header'
 import { ScreenHost } from '@/components/screen-host'
@@ -19,27 +22,52 @@ import {
 } from '@/features/changes/data/queries'
 import { totalStats } from '@/features/changes/lib/diff-rows'
 import { formatStats } from '@/features/changes/lib/format'
+import { useIPadDestination } from '@/lib/ipad-destination'
 import { footnote, secondary } from '@/theme/modifiers'
 
 const headline = font({ textStyle: 'headline' })
+
+function isIPad(): boolean {
+  return 'isPad' in Platform && Platform.isPad
+}
 
 /**
  * The tab's home: the working tree, grouped by review-flow layer in the daemon's order. A row
  * opens that file's diff; the whole change is read from the Read button, the one place the
  * heavy `diffReading` is ever fired.
+ *
+ * On iPad the list lives in the SplitView supplementary column; this Slot shows an empty
+ * state until a file is opened.
  */
 export function ChangesScreen(): React.JSX.Element {
   useSurfaceFocus('changes')
+  useEffect(() => {
+    if (isIPad()) useIPadDestination.getState().setDestination('changes')
+  }, [])
 
   return (
     <>
-      <DaemonGate requires="repo">
-        <WorkingTree />
-      </DaemonGate>
+      {isIPad() ? (
+        <IPadDetailPlaceholder
+          description="Choose a changed file from the list to open its diff."
+          title="Select a file"
+        />
+      ) : (
+        <ChangesSplitColumn />
+      )}
       {/* History is the tab face alternate — re-tap the tab bar; no header switcher. */}
       <ScreenHeader title="Changes" />
       <ObserveInteractiveMarker />
     </>
+  )
+}
+
+/** List-only column for iPad SplitView supplementary (detail opens in the secondary Slot). */
+export function ChangesSplitColumn(): React.JSX.Element {
+  return (
+    <DaemonGate requires="repo">
+      <WorkingTree />
+    </DaemonGate>
   )
 }
 

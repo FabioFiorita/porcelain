@@ -1,7 +1,7 @@
 import { List, Section, Text } from '@expo/ui/swift-ui'
 import { listStyle } from '@expo/ui/swift-ui/modifiers'
 import { ObserveRoot } from 'expo-observe'
-import { type Href, router, usePathname } from 'expo-router'
+import { type Href, router } from 'expo-router'
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-navigation'
 import { Stack } from 'expo-router/stack'
 import { SplitView } from 'expo-router/unstable-split-view'
@@ -9,9 +9,12 @@ import { Platform, useColorScheme } from 'react-native'
 
 import { ListLinkRow } from '@/components/list-link-row'
 import { ScreenHost } from '@/components/screen-host'
+import { ChangesSplitColumn } from '@/features/changes/changes-screen'
+import { HistorySplitColumn } from '@/features/changes/history-screen'
 import { CompanionScreen } from '@/features/companion/companion-screen'
 import { FilesSplitColumn } from '@/features/files/files-screen'
 import { DaemonProvider } from '@/lib/daemon/provider'
+import { type IPadDestination, useIPadDestination } from '@/lib/ipad-destination'
 import { useTabFaces } from '@/lib/tab-faces'
 
 /**
@@ -79,78 +82,78 @@ function IPadShell(): React.JSX.Element {
 }
 
 function IPadPrimaryColumn(): React.JSX.Element {
-  const pathname = usePathname()
-  const changesFace = useTabFaces((state) => state.changes)
-  const reviewFace = useTabFaces((state) => state.review)
-  const onChanges = pathname.includes('(changes)')
-  const onReview = pathname.includes('(review)')
+  const destination = useIPadDestination((state) => state.destination)
 
   return (
     <ScreenHost>
       <List modifiers={[listStyle('sidebar')]}>
         <Section title="Porcelain">
-          <IPadDestination
-            active={pathname.includes('(files)') || pathname === '/'}
+          <IPadNavRow
+            active={destination === 'files'}
+            destination="files"
             href="/(tabs)/(files)"
             label="Files"
             systemImage="folder.fill"
           />
-          <IPadDestination
-            active={onChanges && changesFace === 'changes'}
+          <IPadNavRow
+            active={destination === 'changes'}
+            destination="changes"
             href="/(tabs)/(changes)"
             label="Changes"
-            onPress={(): void => {
+            onNavigate={(): void => {
               useTabFaces.getState().setChanges('changes')
-              router.replace('/(tabs)/(changes)')
             }}
             systemImage="arrow.triangle.branch"
           />
-          <IPadDestination
-            active={onChanges && changesFace === 'history'}
+          <IPadNavRow
+            active={destination === 'history'}
+            destination="history"
             href="/(tabs)/(changes)"
             label="History"
-            onPress={(): void => {
+            onNavigate={(): void => {
               useTabFaces.getState().setChanges('history')
-              router.replace('/(tabs)/(changes)')
             }}
             systemImage="clock.arrow.circlepath"
           />
-          <IPadDestination
-            active={onReview && reviewFace === 'review'}
+          <IPadNavRow
+            active={destination === 'review'}
+            destination="review"
             href="/(tabs)/(review)"
             label="Review"
-            onPress={(): void => {
+            onNavigate={(): void => {
               useTabFaces.getState().setReview('review')
-              router.replace('/(tabs)/(review)')
             }}
             systemImage="checkmark.seal.fill"
           />
-          <IPadDestination
-            active={onReview && reviewFace === 'board'}
+          <IPadNavRow
+            active={destination === 'board'}
+            destination="board"
             href="/(tabs)/(review)"
             label="Board"
-            onPress={(): void => {
+            onNavigate={(): void => {
               useTabFaces.getState().setReview('board')
-              router.replace('/(tabs)/(review)')
             }}
             systemImage="rectangle.3.group.fill"
           />
-          <IPadDestination
-            active={pathname.includes('(terminal)')}
+          <IPadNavRow
+            active={destination === 'terminal'}
+            destination="terminal"
             href="/(tabs)/(terminal)"
             label="Terminal"
             systemImage="terminal.fill"
           />
         </Section>
         <Section title="Chrome">
-          <IPadDestination
-            active={pathname.includes('/settings')}
+          <IPadNavRow
+            active={destination === 'settings'}
+            destination="settings"
             href="/settings"
             label="Settings"
             systemImage="gearshape"
           />
-          <IPadDestination
-            active={pathname.includes('/repo')}
+          <IPadNavRow
+            active={destination === 'repo'}
+            destination="repo"
             href="/repo"
             label="Project"
             systemImage="folder"
@@ -161,43 +164,58 @@ function IPadPrimaryColumn(): React.JSX.Element {
   )
 }
 
+/**
+ * Middle column: the list for the active destination. The secondary Slot (main) is the
+ * detail — open file, commit, session — or an empty placeholder on the tab root.
+ */
 function IPadSupplementaryColumn(): React.JSX.Element {
-  const pathname = usePathname()
+  const destination = useIPadDestination((state) => state.destination)
 
-  if (pathname.includes('(files)')) {
+  if (destination === 'files') {
     return <FilesSplitColumn />
   }
+
+  if (destination === 'changes') {
+    return <ChangesSplitColumn />
+  }
+
+  if (destination === 'history') {
+    return <HistorySplitColumn />
+  }
+
+  // Review / Board / Terminal are canvases (or not yet list-extracted). Keep a short
+  // sidebar note so the three-column shell stays stable while those deepen.
+  const note =
+    destination === 'review' || destination === 'board'
+      ? 'Review and Board open in the main column.'
+      : destination === 'terminal'
+        ? 'Sessions open in the main column.'
+        : 'Select a destination in the sidebar.'
 
   return (
     <ScreenHost>
       <List modifiers={[listStyle('sidebar')]}>
         <Section>
-          <Text>
-            {pathname.includes('(changes)')
-              ? 'Open a change from the main column, or pick History in the sidebar.'
-              : pathname.includes('(review)')
-                ? 'The Review canvas and Board open in the main column.'
-                : pathname.includes('(terminal)')
-                  ? 'Sessions open in the main column.'
-                  : 'Select a destination.'}
-          </Text>
+          <Text>{note}</Text>
         </Section>
       </List>
     </ScreenHost>
   )
 }
 
-function IPadDestination({
+function IPadNavRow({
   active,
+  destination,
   href,
   label,
-  onPress,
+  onNavigate,
   systemImage,
 }: {
   active: boolean
+  destination: IPadDestination
   href: Href
   label: string
-  onPress?: () => void
+  onNavigate?: () => void
   systemImage: string
 }): React.JSX.Element {
   return (
@@ -205,12 +223,11 @@ function IPadDestination({
       detail={active ? 'Selected' : undefined}
       icon={systemImage}
       label={label}
-      onPress={
-        onPress ??
-        ((): void => {
-          router.replace(href)
-        })
-      }
+      onPress={(): void => {
+        useIPadDestination.getState().setDestination(destination)
+        onNavigate?.()
+        router.replace(href)
+      }}
     />
   )
 }

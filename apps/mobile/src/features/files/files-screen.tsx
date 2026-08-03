@@ -1,42 +1,63 @@
 import { ObserveInteractiveMarker } from 'expo-observe'
 import { Stack } from 'expo-router'
+import { useEffect } from 'react'
+import { Platform } from 'react-native'
 
 import { DaemonGate } from '@/components/daemon-gate'
+import { IPadDetailPlaceholder } from '@/components/ipad-detail-placeholder'
 import { ScreenHeader } from '@/components/screen-header'
 import { toolbarIcon } from '@/components/toolbar-icon'
 import { useSurfaceFocus } from '@/components/use-surface-focus'
 import { useActiveRepo } from '@/lib/daemon/repo'
+import { useIPadDestination } from '@/lib/ipad-destination'
 import { setPreference, usePreferences } from '@/lib/preferences'
 import { EntryList } from './entry-list'
 import { FilesLoading, FilesQueryState, NoVisibleFiles } from './files-empty-states'
 import { useFileEntryActions, useFilesDirectory, usePinnedFileEntries } from './use-files'
 
+function isIPad(): boolean {
+  return 'isPad' in Platform && Platform.isPad
+}
+
 /**
  * Files browse face — directory listing with the same header chrome as every other tab root.
  * Search is the re-tap face (`FilesSearchScreen`), not a nav-bar search field.
+ * On iPad the listing lives in the SplitView supplementary column.
  */
 export function FilesScreen(): React.JSX.Element {
   const preferences = usePreferences()
   useSurfaceFocus('files')
+  useEffect(() => {
+    if (isIPad()) useIPadDestination.getState().setDestination('files')
+  }, [])
 
   return (
     <>
-      <DaemonGate requires="repo">
-        <FilesBrowse />
-      </DaemonGate>
+      {isIPad() ? (
+        <IPadDetailPlaceholder
+          description="Choose a file from the list to open it."
+          title="Select a file"
+        />
+      ) : (
+        <DaemonGate requires="repo">
+          <FilesBrowse />
+        </DaemonGate>
+      )}
       <ScreenHeader title="Files" />
       {/* Same right toolbar as ScreenHeader — Menu merges into the trailing cluster on iOS 26. */}
-      <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Menu accessibilityLabel="Files options" icon={toolbarIcon('more')}>
-          <Stack.Toolbar.MenuAction
-            icon={preferences.filesShowHidden ? 'eye.slash' : 'eye'}
-            isOn={preferences.filesShowHidden}
-            onPress={(): void => setPreference('filesShowHidden', !preferences.filesShowHidden)}
-          >
-            {preferences.filesShowHidden ? 'Hide hidden files' : 'Show hidden files'}
-          </Stack.Toolbar.MenuAction>
-        </Stack.Toolbar.Menu>
-      </Stack.Toolbar>
+      {!isIPad() ? (
+        <Stack.Toolbar placement="right">
+          <Stack.Toolbar.Menu accessibilityLabel="Files options" icon={toolbarIcon('more')}>
+            <Stack.Toolbar.MenuAction
+              icon={preferences.filesShowHidden ? 'eye.slash' : 'eye'}
+              isOn={preferences.filesShowHidden}
+              onPress={(): void => setPreference('filesShowHidden', !preferences.filesShowHidden)}
+            >
+              {preferences.filesShowHidden ? 'Hide hidden files' : 'Show hidden files'}
+            </Stack.Toolbar.MenuAction>
+          </Stack.Toolbar.Menu>
+        </Stack.Toolbar>
+      ) : null}
       <ObserveInteractiveMarker />
     </>
   )

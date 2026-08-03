@@ -1,9 +1,11 @@
 import { Button, List, Section, Text } from '@expo/ui/swift-ui'
 import { listStyle, refreshable } from '@expo/ui/swift-ui/modifiers'
 import { router } from 'expo-router'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { Platform } from 'react-native'
 
 import { DaemonGate } from '@/components/daemon-gate'
+import { IPadDetailPlaceholder } from '@/components/ipad-detail-placeholder'
 import { ListLinkRow } from '@/components/list-link-row'
 import { ScreenHeader } from '@/components/screen-header'
 import { ScreenHost } from '@/components/screen-host'
@@ -11,23 +13,48 @@ import { useSurfaceFocus } from '@/components/use-surface-focus'
 import { QueryNotice } from '@/features/changes/components/query-notice'
 import { useLog } from '@/features/changes/data/queries'
 import { shortHash } from '@/features/changes/lib/format'
+import { useIPadDestination } from '@/lib/ipad-destination'
 import { monospace, secondary } from '@/theme/modifiers'
 
 /** There is no cursor API — "more" is the same query with a bigger limit, capped daemon-side. */
 const PAGE = 100
 const MAX_LIMIT = 500
 
-/** Commit history as the Changes tab face — same chrome as Changes, no back chevron. */
+function isIPad(): boolean {
+  return 'isPad' in Platform && Platform.isPad
+}
+
+/**
+ * Commit history as the Changes tab face — same chrome as Changes, no back chevron.
+ * On iPad the log lives in the supplementary column; this Slot is empty until a commit opens.
+ */
 export function HistoryScreen(): React.JSX.Element {
   useSurfaceFocus('history')
+  useEffect(() => {
+    if (isIPad()) useIPadDestination.getState().setDestination('history')
+  }, [])
 
   return (
     <>
-      <DaemonGate requires="repo">
-        <Log />
-      </DaemonGate>
+      {isIPad() ? (
+        <IPadDetailPlaceholder
+          description="Choose a commit from the list to open it."
+          title="Select a commit"
+        />
+      ) : (
+        <HistorySplitColumn />
+      )}
       <ScreenHeader title="History" />
     </>
+  )
+}
+
+/** List-only column for iPad SplitView supplementary. */
+export function HistorySplitColumn(): React.JSX.Element {
+  return (
+    <DaemonGate requires="repo">
+      <Log />
+    </DaemonGate>
   )
 }
 
