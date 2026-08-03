@@ -6,6 +6,10 @@ Porcelain is where you read, annotate, and sign off. Full product story: `docs/p
 
 Ship discipline: polish existing surfaces; releases are **patch** unless asked; 1.0 is far away.
 
+**Monorepo refactor in progress.** Package map and done criteria:
+`.agents/reference/architecture.md`. Prefer the target surfaces (daemon · cli · web · shell ·
+mobile) over the transitional “everything under apps/desktop” layout.
+
 ## How we work together
 
 The human is not a dictator to obey. Everything they say is open to discussion, including
@@ -30,8 +34,8 @@ sign-off before breaking it.
 4. **Type-safety drives design.** When types fight you, change the design. No `as unknown as`; no
    `void` on promises (`async`/`await`). Lint-backed.
 5. **Never mix prod and dev daemons** while building Porcelain (table below).
-6. **UI primitives follow the client tree.** Desktop: shadcn/Base UI. Mobile: iOS-only SwiftUI via
-   `@expo/ui/swift-ui`. Nested `AGENTS.md` owns the detail.
+6. **UI primitives follow the client tree.** Web (and Electron shell loading it): shadcn/Base UI.
+   Mobile: iOS-only SwiftUI via `@expo/ui/swift-ui`. Nested `AGENTS.md` owns the detail.
 7. **Close the loop with evidence.** Intent → execute → prove it → gate → commit. Never end at
    "implemented, should work." Scale ceremony to the change; evidence never scales away.
 
@@ -49,7 +53,7 @@ pnpm build && pnpm dev:daemon   # dev daemon on 43118
 pnpm porcelain <noun> <verb>    # CLI → ~/.porcelain-dev
 ```
 
-Desktop UI proof is the **browser** against the **dev** daemon — same renderer as Electron. Never
+Web UI proof is the **browser** against the **dev** daemon — same client Electron loads. Never
 drive the installed app or the prod daemon for product work.
 
 **Debris:** delete session-local junk (`.playwright-mcp/`, `test-results/`, `playwright-report/`,
@@ -73,7 +77,7 @@ public copy.
 
 | Path | Loads when working under |
 |------|--------------------------|
-| `apps/desktop/AGENTS.md` | Desktop app, daemon, renderer, CLI |
+| `apps/desktop/AGENTS.md` | Electron shell (and, until extract finishes, daemon/cli/web source still under it) |
 | `apps/mobile/AGENTS.md` | Native iOS client |
 
 Host-only topology and machine runbooks live in ignored `AGENTS.local.md` files (root and
@@ -83,6 +87,7 @@ Host-only topology and machine runbooks live in ignored `AGENTS.local.md` files 
 
 | Topic | File |
 |-------|------|
+| Package map, surfaces, refactor done criteria | `.agents/reference/architecture.md` |
 | Daemon → hooks → components, WS, tabs, data flow | `.agents/reference/one-architecture.md` |
 | App shell, surfaces, window chrome | `.agents/reference/app-shell.md` |
 | Terminal / PTY | `.agents/reference/terminal.md` |

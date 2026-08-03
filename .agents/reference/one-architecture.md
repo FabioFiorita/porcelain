@@ -1,5 +1,8 @@
 # The one architecture
 
+Package ownership is migrating (see `architecture.md`). Paths below are the **current** tree;
+`src/backend` → future `apps/daemon`, `src/renderer` → future `apps/web`, `src/main` → shell.
+
 ```
 daemon (apps/desktop/src/backend/api.ts procedures + pure logic in own modules; Electron-free, HTTP/WS on 127.0.0.1)
   → lib/trpc.ts (appRouter client) + lib/daemon.ts (the WS session) — imports restricted to hooks/ and stores/

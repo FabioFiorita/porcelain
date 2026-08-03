@@ -1,5 +1,7 @@
 import type { ExpoConfig } from 'expo/config'
 
+import packageJson from './package.json'
+
 type AppVariant = 'development' | 'production'
 
 type Variant = {
@@ -46,7 +48,8 @@ const variant = VARIANTS[resolveVariant(process.env.APP_VARIANT)]
 const config: ExpoConfig = {
   name: variant.name,
   slug: 'porcelain',
-  version: '0.1.0',
+  // Same product version as every workspace package (scripts/sync-versions.mjs).
+  version: packageJson.version,
   orientation: 'default',
   icon: variant.icon,
   scheme: variant.scheme,

@@ -2,15 +2,18 @@
 
 ## Repo facts
 
-- **Three workspace packages**: `apps/desktop` (the Electron app — main, preload, renderer, plus the
-  daemon and agent CLI it bundles), `apps/mobile` (Expo, iOS-only), `packages/contracts` (wire shapes
-  both clients share). The root is a workspace root only — it owns lint, the git hooks and the
-  release scripts, and its `package.json` deliberately has **no `version`**:
-  `apps/desktop/package.json` holds the one product version electron-builder stamps, so
-  `release-cut.mjs` bumps it there.
-- **TRAP — `@porcelain/contracts` must stay a `devDependency` of `apps/desktop`.** electron-vite
-  externalizes declared `dependencies`, so promoting it emits a bare `require("@porcelain/contracts")`
-  into the dependency-free CLI bundle and the standalone daemon.
+- **Target layout** (see `architecture.md`): `apps/daemon`, `apps/cli`, `apps/web`, `apps/desktop`
+  (shell), `apps/mobile`, plus `packages/contracts`, `packages/client-runtime`, `packages/shared`.
+  **Transitional:** daemon, agent CLI, and web still live under `apps/desktop/src/{backend,cli,renderer}`
+  until those packages are extracted. The root is a workspace root only — lint, hooks, release scripts;
+  its `package.json` has **no `version`**.
+- **One product version** on every workspace package that carries `version`. Canonical stamp is
+  `apps/desktop/package.json` until `apps/daemon` exists; `scripts/sync-versions.mjs` keeps them
+  aligned (`pnpm lint` runs `--check`). `release-cut` bumps then syncs.
+- **TRAP — `@porcelain/contracts` must stay a `devDependency` of `apps/desktop` while electron-vite
+  still bundles the CLI/daemon.** electron-vite externalizes declared `dependencies`, so promoting it
+  emits a bare `require("@porcelain/contracts")` into the dependency-free CLI and standalone daemon.
+  After independent daemon/cli builds, revisit.
 - **TRAP — pin `dmg.artifactName`.** electron-builder's `${name}` expands to the raw package name, so
   the scoped `@porcelain/desktop` would put a slash in the artifact filename.
 - Path aliases are defined in **FOUR places that must stay in sync**: `electron.vite.config.ts`,
@@ -52,10 +55,10 @@
 `electron-builder.yml`: mac dmg + zip (arm64 — the **zip** is what electron-updater downloads), hardened
 runtime, Developer ID signing. Auto-update no-ops unless `app.isPackaged`. The porcelain CLI is a
 **second main build input** importing only Node builtins, so a plain `node` runs it. Release is simple
-main + tag: `pnpm release:cut` (default **patch**) bumps, tags, and dispatches one workflow that
-packages, publishes the GH Release, and publishes npm `porcelain-daemon` — no pending branches, no
-multi-workflow pre-cut gate, native e2e optional. Runbook: `releasing`. Dep placement and the
-empty-`CSC_LINK` trap are `audit` invariants.
+main + tag: `pnpm release:cut` (default **patch**) bumps the canonical package, syncs all versions,
+tags, and dispatches one workflow that packages, publishes the GH Release, and publishes npm
+`porcelain-daemon`. Runbook: `releasing`. Dep placement and the empty-`CSC_LINK` trap are `audit`
+invariants.
 
 - shadcn primitives only; a new primitive needs human approval.
 - Strict TS; type escapes lint-enforced. Commit: `pnpm lint`. Before push / CI: `pnpm verify`.

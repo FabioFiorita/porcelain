@@ -22,7 +22,7 @@ main is good enough for daily use (web + daemon)
         ▼
   pnpm release:cut [patch|minor|major]   # default patch
         │  clean main == origin/main
-        │  bump apps/desktop/package.json → commit + tag on main
+        │  bump product version (all packages in sync) → commit + tag on main
         │  git push --follow-tags
         │  dispatch release.yml -f tag=vX.Y.Z
         ▼
@@ -89,7 +89,10 @@ Do **not** invent a new patch for infra flake if the tag already exists and only
 
 ## Changelog
 
-`release-cut.mjs` bumps `apps/desktop/package.json` (the repo's ONE `version`) then `pnpm changelog` (newest section only). Only `feat`/`fix`/breaking surface. Empty-ish notes for tiny patches are fine; write a real blurb when the release *matters*.
+`release-cut.mjs` bumps the canonical stamp (`apps/desktop` today; `apps/daemon` when extracted),
+runs `scripts/sync-versions.mjs` so **every** workspace package shares that semver (including
+mobile), then `pnpm changelog` (newest section only). Only `feat`/`fix`/breaking surface.
+Empty-ish notes for tiny patches are fine; write a real blurb when the release *matters*.
 
 ## Signing & notarization
 

@@ -28,14 +28,16 @@ const { values, positionals } = parseArgs({
 const bump = positionals[0] ?? 'patch'
 if (values.help || !['patch', 'minor', 'major'].includes(bump)) {
   console.log(`Usage: node scripts/release-cut.mjs [patch|minor|major] [--skip-push]
-Bumps apps/desktop/package.json + CHANGELOG on main, tags vX.Y.Z, pushes, dispatches release.yml.`)
+Bumps the product version on every workspace package + CHANGELOG on main, tags vX.Y.Z,
+pushes, dispatches release.yml.`)
   process.exit(values.help ? 0 : 1)
 }
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-// apps/desktop/package.json carries the ONE product version: electron-builder stamps
-// it, electron.vite.config.ts bakes it into __PORCELAIN_VERSION__, and daemon:dist
-// reads it. The workspace root deliberately has no `version` field to drift from it.
+// One product version everywhere (architecture charter). Canonical stamp is
+// apps/desktop today (electron-builder + __PORCELAIN_VERSION__); becomes apps/daemon
+// when that package exists. sync-versions.mjs mirrors to every apps/* and packages/*
+// package.json that carries a version field. Root has no version on purpose.
 const desktop = path.join(root, 'apps', 'desktop')
 
 const CLEAN_ENV = {
@@ -80,7 +82,7 @@ if (local !== remote) {
   fail(`HEAD (${local.slice(0, 7)}) ≠ origin/main (${remote.slice(0, 7)}) — push or pull first`)
 }
 
-console.log(`release:cut → pnpm version ${bump} (apps/desktop)`)
+console.log(`release:cut → pnpm version ${bump} (canonical apps/desktop)`)
 const ver = spawnSync('pnpm', ['version', bump, '--no-git-tag-version'], {
   cwd: desktop,
   encoding: 'utf8',
@@ -89,11 +91,15 @@ const ver = spawnSync('pnpm', ['version', bump, '--no-git-tag-version'], {
 })
 if (ver.status !== 0) process.exit(ver.status ?? 1)
 
+console.log('release:cut → sync-versions (all workspace packages)')
+sh('node', ['scripts/sync-versions.mjs'], { inherit: true })
+
 const version = sh('node', ['-p', "require('./apps/desktop/package.json').version"])
 const tag = `v${version}`
 
 sh('pnpm', ['changelog'], { inherit: true })
-sh('git', ['add', 'CHANGELOG.md', 'apps/desktop/package.json'], { inherit: true })
+// Stage every package.json that may have been version-bumped, plus changelog.
+sh('git', ['add', 'CHANGELOG.md', 'apps', 'packages'], { inherit: true })
 sh('git', ['commit', '-m', `chore: release ${tag}`], { inherit: true })
 sh('git', ['tag', '-a', tag, '-m', `chore: release ${tag}`], { inherit: true })
 console.log(`release:cut → ${tag}`)
