@@ -67,17 +67,10 @@ export default defineConfig({
     resolve: { alias: workspaceAliases },
     build: {
       rollupOptions: {
-        // Three main-process bundles: the app entry; the dependency-free agent CLI
-        // (`node out/main/cli/porcelain.js`) copied to ~/.porcelain/porcelain.js, which
-        // imports only Node builtins so it runs under a plain `node`; and the
-        // daemon (`out/main/daemon/server.js`), the Electron-free backend the
-        // shell spawns with `utilityProcess.fork` — source in apps/daemon, plus
-        // Node builtins and externalized deps (@trpc/server, ws, node-pty, zod,
-        // trash), never electron (Biome-fenced in apps/daemon).
+        // Shell only — daemon and agent CLI are built by `scripts/build-node.mjs`
+        // (esbuild) into out/main/{daemon,cli}/ so this package stays Electron chrome.
         input: {
           index: resolve('src/main/index.ts'),
-          'cli/porcelain': resolve('../cli/src/porcelain.ts'),
-          'daemon/server': resolve('../daemon/src/server.ts'),
         },
         // External ESM-only deps (trash) required from the CJS bundles need the
         // __esModule-aware interop helper, or their default import becomes a

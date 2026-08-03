@@ -36,11 +36,11 @@ packages/
 | Target | Status |
 |--------|--------|
 | `packages/shared` | Extracted |
-| `apps/daemon` | Source extracted; still bundled via desktop electron-vite |
-| `apps/cli` | Source extracted; still bundled via desktop electron-vite |
+| `apps/daemon` | Source + **independent esbuild** (`pnpm build:daemon`) |
+| `apps/cli` | Source + **independent esbuild** (`pnpm build:cli`); single-file CJS |
 | `apps/web` | Source extracted; still built via desktop electron-vite |
 | `packages/contracts` | Exists; full procedure I/O + drop apps import still open |
-| Independent builds | Open |
+| Independent web build | Open |
 | `packages/client-runtime` | Not started |
 
 Treat remaining desktop folders as **future package contents**, not shell features.

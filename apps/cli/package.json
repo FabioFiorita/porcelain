@@ -6,6 +6,9 @@
   "bin": {
     "porcelain": "./src/porcelain.ts"
   },
+  "scripts": {
+    "build": "node ../../scripts/build-node.mjs cli"
+  },
   "dependencies": {
     "@porcelain/shared": "workspace:*"
   },

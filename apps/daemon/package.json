@@ -19,6 +19,9 @@
     "ws": "^8.21.0",
     "zod": "^4.4.3"
   },
+  "scripts": {
+    "build": "node ../../scripts/build-node.mjs daemon"
+  },
   "devDependencies": {
     "@types/node": "^24.0.0",
     "@types/ws": "^8.18.1",

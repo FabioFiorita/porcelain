@@ -44,20 +44,27 @@ if (!existsSync(daemonEntry)) {
   process.exit(1)
 }
 
-// Externalized runtime deps used by the daemon bundle and host-management CLI.
+// Externalized runtime deps used by the daemon bundle. Prefer apps/daemon pins;
+// fall back to desktop (shell still ships the same natives for utilityProcess).
 // node-pty is native — `npm install` on the target compiles it for that host.
 const RUNTIME_DEPS = ['@trpc/client', '@trpc/server', 'node-pty', 'trash', 'ws', 'zod']
 
 const desktopPkg = JSON.parse(readFileSync(join(desktop, 'package.json'), 'utf8'))
+const daemonPkgPath = join(root, 'apps', 'daemon', 'package.json')
+const daemonPkg = existsSync(daemonPkgPath)
+  ? JSON.parse(readFileSync(daemonPkgPath, 'utf8'))
+  : desktopPkg
 
 // Read the EXACT range the repo pins so the standalone package can't drift from
 // what the bundle was built against. A missing dep is a build-config bug, not a
 // silent skip.
 const dependencies = {}
 for (const name of RUNTIME_DEPS) {
-  const range = desktopPkg.dependencies?.[name]
+  const range = daemonPkg.dependencies?.[name] ?? desktopPkg.dependencies?.[name]
   if (range === undefined) {
-    console.error(`[daemon:dist] ${name} missing from apps/desktop/package.json dependencies`)
+    console.error(
+      `[daemon:dist] ${name} missing from apps/daemon and apps/desktop package.json dependencies`,
+    )
     process.exit(1)
   }
   dependencies[name] = range
@@ -67,15 +74,15 @@ for (const name of RUNTIME_DEPS) {
 rmSync(dist, { recursive: true, force: true })
 mkdirSync(dist, { recursive: true })
 
-// Copy the out/ pieces the daemon needs, PRESERVING their relative layout so the
-// chunk require and RENDERER_ROOT resolve exactly as they do in `out/`.
-const copies = [
+// Copy the out/ pieces the daemon needs, PRESERVING their relative layout so
+// RENDERER_ROOT (`__dirname/../../renderer` from main/daemon/server.js) resolves.
+// main/chunks is optional — independent esbuild CLI is a single file.
+const requiredCopies = [
   ['main/daemon/server.js', 'main/daemon/server.js'],
-  ['main/chunks', 'main/chunks'],
   ['main/cli/porcelain.js', 'main/cli/porcelain.js'],
   ['renderer', 'renderer'],
 ]
-for (const [from, to] of copies) {
+for (const [from, to] of requiredCopies) {
   const src = join(out, from)
   if (!existsSync(src)) {
     console.error(`[daemon:dist] expected build output missing: apps/desktop/out/${from}`)
@@ -84,6 +91,10 @@ for (const [from, to] of copies) {
   const dest = join(dist, to)
   mkdirSync(dirname(dest), { recursive: true })
   cpSync(src, dest, { recursive: true })
+}
+const chunksSrc = join(out, 'main', 'chunks')
+if (existsSync(chunksSrc)) {
+  cpSync(chunksSrc, join(dist, 'main', 'chunks'), { recursive: true })
 }
 
 // CLI entry (npx porcelain-daemon serve …). Source of truth is scripts/daemon-cli.js;
@@ -106,7 +117,7 @@ chmodSync(cliDest, 0o755)
 // Publish as porcelain-daemon; bin name matches for `npx porcelain-daemon@latest`.
 const distPkg = {
   name: 'porcelain-daemon',
-  version: desktopPkg.version,
+  version: daemonPkg.version ?? desktopPkg.version,
   description:
     'Headless Porcelain daemon — plain Node backend for remote machines (npx porcelain-daemon@latest serve)',
   license: desktopPkg.license ?? 'MIT',
