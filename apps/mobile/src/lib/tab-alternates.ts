@@ -4,9 +4,11 @@
  *
  * | Tab slot  | Faces              |
  * |-----------|--------------------|
+ * | Files     | Files · Search     |
  * | Changes   | Changes · History  |
  * | Review    | Review · Board     |
  *
  * Face state: `useTabFaces` in `tab-faces.ts` (survives chrome sheets).
+ * Search face auto-focuses the keyboard when it appears.
  */
-export type TabWithAlternate = 'changes' | 'review'
+export type TabWithAlternate = 'files' | 'changes' | 'review'

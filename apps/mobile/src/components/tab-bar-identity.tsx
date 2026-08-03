@@ -6,6 +6,7 @@ import { useTabFaces } from '@/lib/tab-faces'
 /** SF Symbols used as tab bar identities for the four phone tabs and their alternates. */
 export type TabBarSymbol =
   | 'folder.fill'
+  | 'magnifyingglass'
   | 'arrow.triangle.branch'
   | 'clock.arrow.circlepath'
   | 'checkmark.seal.fill'
@@ -29,6 +30,14 @@ export function useTabBarIdentity(label: string, sf: TabBarSymbol): void {
       title: label,
     })
   }, [label, navigation, sf])
+}
+
+export function useFilesTabBarIdentity(): void {
+  const face = useTabFaces((state) => state.files)
+  useTabBarIdentity(
+    face === 'search' ? 'Search' : 'Files',
+    face === 'search' ? 'magnifyingglass' : 'folder.fill',
+  )
 }
 
 export function useReviewTabBarIdentity(): void {

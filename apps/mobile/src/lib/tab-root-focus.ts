@@ -9,7 +9,7 @@ type TabRootFocusState = {
 
 /** True only while that tab's *root* screen is focused (not a pushed child). */
 export const useTabRootFocus = create<TabRootFocusState>((set) => ({
-  roots: { changes: false, review: false },
+  roots: { changes: false, files: false, review: false },
   setRoot: (tab, focused): void => {
     set((state) => ({ roots: { ...state.roots, [tab]: focused } }))
   },

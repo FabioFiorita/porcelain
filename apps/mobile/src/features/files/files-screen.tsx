@@ -1,36 +1,29 @@
+import { List, Section, Toggle } from '@expo/ui/swift-ui'
+import { listStyle } from '@expo/ui/swift-ui/modifiers'
 import { ObserveInteractiveMarker } from 'expo-observe'
-import { Stack } from 'expo-router'
-import { useState } from 'react'
 
 import { DaemonGate } from '@/components/daemon-gate'
 import { ScreenHeader } from '@/components/screen-header'
-import { toolbarIcon } from '@/components/toolbar-icon'
+import { ScreenHost } from '@/components/screen-host'
 import { useSurfaceFocus } from '@/components/use-surface-focus'
 import { useActiveRepo } from '@/lib/daemon/repo'
 import { setPreference, usePreferences } from '@/lib/preferences'
 import { EntryList } from './entry-list'
 import { FilesLoading, FilesQueryState, NoVisibleFiles } from './files-empty-states'
-import { SearchResults } from './search-results'
-import {
-  useDebouncedFileQuery,
-  useFileEntryActions,
-  useFilesDirectory,
-  usePinnedFileEntries,
-} from './use-files'
+import { useFileEntryActions, useFilesDirectory, usePinnedFileEntries } from './use-files'
 
+/**
+ * Files browse face — directory listing with the same header chrome as every other tab root.
+ * Search is the re-tap face (`FilesSearchScreen`), not a nav-bar search field (which fought
+ * our title + workspace header for vertical space).
+ */
 export function FilesScreen(): React.JSX.Element {
-  const [searchText, setSearchText] = useState('')
-  const debouncedQuery = useDebouncedFileQuery(searchText)
   useSurfaceFocus('files')
 
   return (
     <>
       <DaemonGate requires="repo">
-        <FilesRoot
-          debouncedQuery={debouncedQuery}
-          onCancelSearch={(): void => setSearchText('')}
-          onSearchChange={setSearchText}
-        />
+        <FilesBrowse />
       </DaemonGate>
       <ScreenHeader title="Files" />
       <ObserveInteractiveMarker />
@@ -59,15 +52,7 @@ export function FilesSplitColumn(): React.JSX.Element {
   )
 }
 
-function FilesRoot({
-  debouncedQuery,
-  onCancelSearch,
-  onSearchChange,
-}: {
-  debouncedQuery: string
-  onCancelSearch: () => void
-  onSearchChange: (value: string) => void
-}): React.JSX.Element {
+function FilesBrowse(): React.JSX.Element {
   const repo = useActiveRepo()
   const preferences = usePreferences()
   const actions = useFileEntryActions(repo?.path ?? null)
@@ -75,35 +60,24 @@ function FilesRoot({
   if (repo === null) return <FilesLoading />
 
   return (
-    <>
-      <Stack.SearchBar
-        onCancelButtonPress={onCancelSearch}
-        onChangeText={(event: { nativeEvent: { text: string } }): void =>
-          onSearchChange(event.nativeEvent.text)
-        }
-        placeholder="Search files"
+    <ScreenHost>
+      <RootListing
+        actions={actions}
+        repoPath={repo.path}
+        showHidden={preferences.filesShowHidden}
       />
-      <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Menu accessibilityLabel="Files options" icon={toolbarIcon('more')}>
-          <Stack.Toolbar.MenuAction
-            icon={preferences.filesShowHidden ? 'eye.slash' : 'eye'}
+      <List modifiers={[listStyle('insetGrouped')]}>
+        <Section>
+          <Toggle
             isOn={preferences.filesShowHidden}
-            onPress={(): void => setPreference('filesShowHidden', !preferences.filesShowHidden)}
-          >
-            {preferences.filesShowHidden ? 'Hide hidden files' : 'Show hidden files'}
-          </Stack.Toolbar.MenuAction>
-        </Stack.Toolbar.Menu>
-      </Stack.Toolbar>
-      {debouncedQuery.trim() === '' ? (
-        <RootListing
-          actions={actions}
-          repoPath={repo.path}
-          showHidden={preferences.filesShowHidden}
-        />
-      ) : (
-        <SearchResults query={debouncedQuery} />
-      )}
-    </>
+            label="Show hidden files"
+            onIsOnChange={(value: boolean): void => {
+              setPreference('filesShowHidden', value)
+            }}
+          />
+        </Section>
+      </List>
+    </ScreenHost>
   )
 }
 

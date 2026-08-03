@@ -27,13 +27,14 @@ Four primary tabs — the iOS ceiling is five; we stay under it.
 
 | Tab slot | Faces (re-tap root to flip) | Chrome |
 |----------|------------------------------|--------|
-| **Files** | Files | full header |
-| **Changes** | Changes · **History** | same header (workspace + companion + settings); no back chevron |
+| **Files** | Files · **Search** | full header; Search auto-focuses the keyboard |
+| **Changes** | Changes · **History** | same header; no back chevron |
 | **Review** | Review · **Board** | same |
 | **Terminal** | Terminal | full header |
 
 Faces live in `useTabFaces` (not the URL). Opening Settings/Companion does **not** reset the face.
-The tab bar is the only switcher — no header icons for History/Board. Label/icon follow the store.
+The tab bar is the only switcher. Label/icon follow the store. Search is not a nav-bar field —
+it is a face so it does not fight title + workspace for vertical space.
 
 **Not tabs**
 
