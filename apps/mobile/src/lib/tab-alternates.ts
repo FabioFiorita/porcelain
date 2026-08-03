@@ -1,26 +1,12 @@
-import type { Href } from 'expo-router'
-
 /**
- * Tab bar long-press / re-tap alternates. NativeTabs has no long-press menu API yet, so the
- * phone shell uses (1) re-tap while focused → push the alternate, and (2) an explicit header
- * menu on those tabs. Same destinations either way.
+ * Dual-face tabs: one bottom-tab slot, two product surfaces. Switch only via the tab bar
+ * (re-tap while focused). No header icons, no stack push with a back chevron.
  *
- * | Primary tab | Alternate |
- * |-------------|-----------|
- * | Changes     | History   |
- * | Review      | Board     |
+ * | Tab slot  | Faces              |
+ * |-----------|--------------------|
+ * | Changes   | Changes · History  |
+ * | Review    | Review · Board     |
+ *
+ * Face state: `useTabFaces` in `tab-faces.ts` (survives chrome sheets).
  */
-export const TAB_ALTERNATES = {
-  changes: {
-    href: '/history' as Href,
-    label: 'History',
-    symbol: 'clock.arrow.circlepath',
-  },
-  review: {
-    href: '/board' as Href,
-    label: 'Board',
-    symbol: 'rectangle.3.group.fill',
-  },
-} as const
-
-export type TabWithAlternate = keyof typeof TAB_ALTERNATES
+export type TabWithAlternate = 'changes' | 'review'

@@ -25,12 +25,15 @@ one-line route that default-exports it. File names are kebab-case.
 
 Four primary tabs — the iOS ceiling is five; we stay under it.
 
-| Tab | Alternates (re-tap root / header) |
-|-----|-----------------------------------|
-| **Files** | — |
-| **Changes** | **History** (push) |
-| **Review** | **Board** (push) |
-| **Terminal** | — |
+| Tab slot | Faces (re-tap root to flip) | Chrome |
+|----------|------------------------------|--------|
+| **Files** | Files | full header |
+| **Changes** | Changes · **History** | same header (workspace + companion + settings); no back chevron |
+| **Review** | Review · **Board** | same |
+| **Terminal** | Terminal | full header |
+
+Faces live in `useTabFaces` (not the URL). Opening Settings/Companion does **not** reset the face.
+The tab bar is the only switcher — no header icons for History/Board. Label/icon follow the store.
 
 **Not tabs**
 

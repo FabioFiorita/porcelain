@@ -35,10 +35,10 @@ export function BoardScreen(): React.JSX.Element {
       <DaemonGate requires="repo">
         <BoardBody />
       </DaemonGate>
+      {/* Same chrome as Review — full tab face, not a pushed screen with a back chevron. */}
       <ScreenHeader
         actions={[{ href: '/card?mode=create', icon: 'add', label: 'Add card' }]}
         title="Board"
-        workspace={false}
       />
       <ObserveInteractiveMarker />
     </>

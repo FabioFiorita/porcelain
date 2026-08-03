@@ -12,7 +12,13 @@ import { useBoardCards } from '@/features/review/hooks/use-board-cards'
 import { TerminalActionsSection } from '@/features/terminal/terminal-actions-section'
 import { useTerminalActions } from '@/features/terminal/use-terminal-actions'
 import { useActiveSurface } from '@/lib/active-surface'
+import { useTabFaces } from '@/lib/tab-faces'
 import { secondary } from '@/theme/modifiers'
+
+function openBoardFace(): void {
+  useTabFaces.getState().setReview('board')
+  router.push('/(tabs)/(review)')
+}
 
 /**
  * Right-rail analogue. Desktop retitles this by sidebar tab; phone raises it as a form
@@ -99,11 +105,7 @@ function ReviewCompanion(): React.JSX.Element {
             label="Comments"
             onPress={(): void => router.push('/comments')}
           />
-          <ListLinkRow
-            icon="rectangle.3.group.fill"
-            label="Board"
-            onPress={(): void => router.push('/board')}
-          />
+          <ListLinkRow icon="rectangle.3.group.fill" label="Board" onPress={openBoardFace} />
         </Section>
       </List>
     </ScreenHost>
@@ -122,11 +124,7 @@ function BoardCompanion(): React.JSX.Element {
           {focus === undefined ? (
             <Text modifiers={[secondary]}>No cards yet. Add one on the Board.</Text>
           ) : (
-            <ListLinkRow
-              detail={focus.status}
-              label={focus.title}
-              onPress={(): void => router.push('/board')}
-            />
+            <ListLinkRow detail={focus.status} label={focus.title} onPress={openBoardFace} />
           )}
         </Section>
       </List>

@@ -12,6 +12,7 @@ import { ScreenHost } from '@/components/screen-host'
 import { CompanionScreen } from '@/features/companion/companion-screen'
 import { FilesSplitColumn } from '@/features/files/files-screen'
 import { DaemonProvider } from '@/lib/daemon/provider'
+import { useTabFaces } from '@/lib/tab-faces'
 
 /**
  * Shared sheet chrome: form sheet, grabber, material background, room to see the surface
@@ -79,6 +80,10 @@ function IPadShell(): React.JSX.Element {
 
 function IPadPrimaryColumn(): React.JSX.Element {
   const pathname = usePathname()
+  const changesFace = useTabFaces((state) => state.changes)
+  const reviewFace = useTabFaces((state) => state.review)
+  const onChanges = pathname.includes('(changes)')
+  const onReview = pathname.includes('(review)')
 
   return (
     <ScreenHost>
@@ -91,27 +96,43 @@ function IPadPrimaryColumn(): React.JSX.Element {
             systemImage="folder.fill"
           />
           <IPadDestination
-            active={pathname.includes('(changes)') && !pathname.includes('history')}
+            active={onChanges && changesFace === 'changes'}
             href="/(tabs)/(changes)"
             label="Changes"
+            onPress={(): void => {
+              useTabFaces.getState().setChanges('changes')
+              router.replace('/(tabs)/(changes)')
+            }}
             systemImage="arrow.triangle.branch"
           />
           <IPadDestination
-            active={pathname.includes('history')}
-            href="/(tabs)/(changes)/history"
+            active={onChanges && changesFace === 'history'}
+            href="/(tabs)/(changes)"
             label="History"
+            onPress={(): void => {
+              useTabFaces.getState().setChanges('history')
+              router.replace('/(tabs)/(changes)')
+            }}
             systemImage="clock.arrow.circlepath"
           />
           <IPadDestination
-            active={pathname.includes('(review)') && !pathname.includes('board')}
+            active={onReview && reviewFace === 'review'}
             href="/(tabs)/(review)"
             label="Review"
+            onPress={(): void => {
+              useTabFaces.getState().setReview('review')
+              router.replace('/(tabs)/(review)')
+            }}
             systemImage="checkmark.seal.fill"
           />
           <IPadDestination
-            active={pathname.includes('board')}
-            href="/(tabs)/(review)/board"
+            active={onReview && reviewFace === 'board'}
+            href="/(tabs)/(review)"
             label="Board"
+            onPress={(): void => {
+              useTabFaces.getState().setReview('board')
+              router.replace('/(tabs)/(review)')
+            }}
             systemImage="rectangle.3.group.fill"
           />
           <IPadDestination
@@ -170,11 +191,13 @@ function IPadDestination({
   active,
   href,
   label,
+  onPress,
   systemImage,
 }: {
   active: boolean
   href: Href
   label: string
+  onPress?: () => void
   systemImage: string
 }): React.JSX.Element {
   return (
@@ -182,9 +205,12 @@ function IPadDestination({
       detail={active ? 'Selected' : undefined}
       icon={systemImage}
       label={label}
-      onPress={(): void => {
-        router.replace(href)
-      }}
+      onPress={
+        onPress ??
+        ((): void => {
+          router.replace(href)
+        })
+      }
     />
   )
 }

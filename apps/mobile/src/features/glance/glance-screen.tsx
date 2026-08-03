@@ -10,7 +10,18 @@ import { useBoardCards } from '@/features/review/hooks/use-board-cards'
 import { useFeatureReading } from '@/features/review/hooks/use-feature-reading'
 import { useFeatureView } from '@/features/review/hooks/use-feature-view'
 import { useActiveRepo } from '@/lib/daemon/repo'
+import { useTabFaces } from '@/lib/tab-faces'
 import { secondary } from '@/theme/modifiers'
+
+function openBoardFace(): void {
+  useTabFaces.getState().setReview('board')
+  router.push('/(tabs)/(review)')
+}
+
+function openChangesFace(): void {
+  useTabFaces.getState().setChanges('changes')
+  router.push('/(tabs)/(changes)')
+}
 
 /**
  * Phone companion home when nothing is selected — work in flight and jump rows.
@@ -62,7 +73,7 @@ function GlanceBody(): React.JSX.Element {
                 detail={changedCount === 1 ? '1 file' : `${changedCount} files`}
                 icon="arrow.triangle.branch"
                 label="Changed files"
-                onPress={(): void => router.push('/(tabs)/(changes)')}
+                onPress={openChangesFace}
               />
             ) : null}
             {hasReview ? (
@@ -71,7 +82,7 @@ function GlanceBody(): React.JSX.Element {
                 icon="checkmark.seal"
                 label="Review"
                 onPress={(): void => {
-                  // Already on Review when Glance is the empty state — scroll is enough.
+                  useTabFaces.getState().setReview('review')
                 }}
               />
             ) : null}
@@ -89,29 +100,17 @@ function GlanceBody(): React.JSX.Element {
                 .join(' · ')}
               icon="rectangle.3.group.fill"
               label="Open Board"
-              onPress={(): void => router.push('/board')}
+              onPress={openBoardFace}
             />
             {doing.slice(0, 3).map((card) => (
-              <ListLinkRow
-                key={card.id}
-                label={card.title}
-                onPress={(): void => router.push('/board')}
-              />
+              <ListLinkRow key={card.id} label={card.title} onPress={openBoardFace} />
             ))}
           </Section>
         ) : null}
 
         <Section title="Jump">
-          <ListLinkRow
-            icon="arrow.triangle.branch"
-            label="Changes"
-            onPress={(): void => router.push('/(tabs)/(changes)')}
-          />
-          <ListLinkRow
-            icon="rectangle.3.group.fill"
-            label="Board"
-            onPress={(): void => router.push('/board')}
-          />
+          <ListLinkRow icon="arrow.triangle.branch" label="Changes" onPress={openChangesFace} />
+          <ListLinkRow icon="rectangle.3.group.fill" label="Board" onPress={openBoardFace} />
           <ListLinkRow
             icon="terminal"
             label="Terminal"

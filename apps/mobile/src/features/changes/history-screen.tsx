@@ -4,8 +4,8 @@ import { router } from 'expo-router'
 import { useState } from 'react'
 
 import { DaemonGate } from '@/components/daemon-gate'
-import { HeaderToolbar } from '@/components/header-toolbar'
 import { ListLinkRow } from '@/components/list-link-row'
+import { ScreenHeader } from '@/components/screen-header'
 import { ScreenHost } from '@/components/screen-host'
 import { useSurfaceFocus } from '@/components/use-surface-focus'
 import { QueryNotice } from '@/features/changes/components/query-notice'
@@ -17,7 +17,7 @@ import { monospace, secondary } from '@/theme/modifiers'
 const PAGE = 100
 const MAX_LIMIT = 500
 
-/** Commit history, pushed from the Changes header rather than owning a tab of its own. */
+/** Commit history as the Changes tab face — same chrome as Changes, no back chevron. */
 export function HistoryScreen(): React.JSX.Element {
   useSurfaceFocus('history')
 
@@ -26,11 +26,7 @@ export function HistoryScreen(): React.JSX.Element {
       <DaemonGate requires="repo">
         <Log />
       </DaemonGate>
-      {/*
-        Toolbar only, no `ScreenHeader`: a custom left header item would take the slot the
-        back button needs, and a pushed screen has to keep its way back.
-      */}
-      <HeaderToolbar companion={{ href: '/companion', icon: 'companion', label: 'Companion' }} />
+      <ScreenHeader title="History" />
     </>
   )
 }

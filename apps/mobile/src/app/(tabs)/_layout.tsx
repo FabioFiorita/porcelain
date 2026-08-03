@@ -1,20 +1,21 @@
-import { router } from 'expo-router'
 import { NativeTabs } from 'expo-router/unstable-native-tabs'
 import { Platform } from 'react-native'
 
-import { TAB_ALTERNATES, type TabWithAlternate } from '@/lib/tab-alternates'
+import type { TabWithAlternate } from '@/lib/tab-alternates'
+import { useTabFaces } from '@/lib/tab-faces'
 import { useTabRootFocus } from '@/lib/tab-root-focus'
 import { useAccentColor } from '@/theme/colors'
 
 /**
- * iPhone shell: four primary destinations. History and Board are alternates of Changes and
- * Review — re-tap the already-focused tab root to open them (NativeTabs has no long-press
- * menu API). Header actions on those tabs mirror the same destinations. Settings and
- * Companion are chrome sheets. iPad hides this bar; SplitView owns navigation there.
+ * iPhone shell: four tab slots. Changes and Review are dual-face — re-tap the focused root
+ * toggles History / Board. Face state is not URL-based, so Settings/Companion sheets leave
+ * the tab bar identity alone. Label/Icon children re-render from the face store.
  */
 export default function TabsLayout(): React.JSX.Element {
   const accentColor = useAccentColor()
   const hideBar = 'isPad' in Platform && Platform.isPad
+  const changesFace = useTabFaces((state) => state.changes)
+  const reviewFace = useTabFaces((state) => state.review)
 
   return (
     <NativeTabs hidden={hideBar} minimizeBehavior="onScrollDown" tintColor={accentColor}>
@@ -25,24 +26,32 @@ export default function TabsLayout(): React.JSX.Element {
       <NativeTabs.Trigger
         listeners={{
           tabPress: (): void => {
-            openAlternateIfRoot('changes')
+            toggleFaceIfRoot('changes')
           },
         }}
         name="(changes)"
       >
-        <NativeTabs.Trigger.Icon sf="arrow.triangle.branch" />
-        <NativeTabs.Trigger.Label>Changes</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon
+          sf={changesFace === 'history' ? 'clock.arrow.circlepath' : 'arrow.triangle.branch'}
+        />
+        <NativeTabs.Trigger.Label>
+          {changesFace === 'history' ? 'History' : 'Changes'}
+        </NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger
         listeners={{
           tabPress: (): void => {
-            openAlternateIfRoot('review')
+            toggleFaceIfRoot('review')
           },
         }}
         name="(review)"
       >
-        <NativeTabs.Trigger.Icon sf="checkmark.seal.fill" />
-        <NativeTabs.Trigger.Label>Review</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon
+          sf={reviewFace === 'board' ? 'rectangle.3.group.fill' : 'checkmark.seal.fill'}
+        />
+        <NativeTabs.Trigger.Label>
+          {reviewFace === 'board' ? 'Board' : 'Review'}
+        </NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="(terminal)">
         <NativeTabs.Trigger.Icon sf="terminal.fill" />
@@ -52,7 +61,8 @@ export default function TabsLayout(): React.JSX.Element {
   )
 }
 
-function openAlternateIfRoot(tab: TabWithAlternate): void {
+function toggleFaceIfRoot(tab: TabWithAlternate): void {
   if (!useTabRootFocus.getState().roots[tab]) return
-  router.push(TAB_ALTERNATES[tab].href)
+  if (tab === 'changes') useTabFaces.getState().toggleChanges()
+  else useTabFaces.getState().toggleReview()
 }

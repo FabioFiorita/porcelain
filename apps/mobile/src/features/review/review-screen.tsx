@@ -6,7 +6,6 @@ import { DaemonGate } from '@/components/daemon-gate'
 import { ScreenHeader } from '@/components/screen-header'
 import { ScreenHost } from '@/components/screen-host'
 import { useSurfaceFocus } from '@/components/use-surface-focus'
-import { useTabRootFocusRegistration } from '@/components/use-tab-root-focus'
 import { QueryNotice } from '@/features/changes/components/query-notice'
 import { GlanceScreen } from '@/features/glance/glance-screen'
 
@@ -20,15 +19,14 @@ import { IntentFace } from './intent-face'
 
 export function ReviewScreen(): React.JSX.Element {
   useSurfaceFocus('review')
-  useTabRootFocusRegistration('review')
 
   return (
     <>
       <DaemonGate requires="repo">
         <ReviewBody />
       </DaemonGate>
-      {/* Board is also the re-tap alternate; keep one surface action so companion + settings stay visible. */}
-      <ScreenHeader actions={[{ href: '/board', icon: 'board', label: 'Board' }]} title="Review" />
+      {/* Board is the tab face alternate — re-tap the tab bar; no header switcher. */}
+      <ScreenHeader title="Review" />
       <ObserveInteractiveMarker />
     </>
   )
