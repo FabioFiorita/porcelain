@@ -82,6 +82,10 @@ if (local !== remote) {
   fail(`HEAD (${local.slice(0, 7)}) ≠ origin/main (${remote.slice(0, 7)}) — push or pull first`)
 }
 
+// Bump the release stamp on apps/desktop, then force every package to that
+// version. sync-versions prefers apps/daemon as canonical when present — so a
+// bare `sync-versions.mjs` after only bumping desktop would snap everyone
+// back to the daemon's old version. Always --set the desktop stamp.
 console.log(`release:cut → pnpm version ${bump} (canonical apps/desktop)`)
 const ver = spawnSync('pnpm', ['version', bump, '--no-git-tag-version'], {
   cwd: desktop,
@@ -91,11 +95,11 @@ const ver = spawnSync('pnpm', ['version', bump, '--no-git-tag-version'], {
 })
 if (ver.status !== 0) process.exit(ver.status ?? 1)
 
-console.log('release:cut → sync-versions (all workspace packages)')
-sh('node', ['scripts/sync-versions.mjs'], { inherit: true })
-
 const version = sh('node', ['-p', "require('./apps/desktop/package.json').version"])
 const tag = `v${version}`
+
+console.log(`release:cut → sync-versions --set ${version} (all workspace packages)`)
+sh('node', ['scripts/sync-versions.mjs', '--set', version], { inherit: true })
 
 sh('pnpm', ['changelog'], { inherit: true })
 // Stage every package.json that may have been version-bumped, plus changelog.
