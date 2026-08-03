@@ -37,7 +37,8 @@
       "@shared/*": ["../../packages/shared/src/*"],
       "@porcelain/shared/*": ["../../packages/shared/src/*"],
       "@porcelain/contracts": ["../../packages/contracts/src/index.ts"],
-      "@porcelain/contracts/*": ["../../packages/contracts/src/*"]
+      "@porcelain/contracts/*": ["../../packages/contracts/src/*"],
+      "@porcelain/client-runtime/*": ["../../packages/client-runtime/src/*"]
     }
   }
 }

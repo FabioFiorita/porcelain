@@ -20,6 +20,9 @@ export default defineConfig({
       '@shared': resolve('../../packages/shared/src'),
       '@porcelain/shared': resolve('../../packages/shared/src'),
       '@porcelain/contracts': resolve('../../packages/contracts/src'),
+      '@porcelain/client-runtime/terminal-keys': resolve(
+        '../../packages/client-runtime/src/terminal-keys.ts',
+      ),
       '@/': `${resolve('../mobile/src')}/`,
     },
   },

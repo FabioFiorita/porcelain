@@ -41,6 +41,9 @@ const define = { __PORCELAIN_VERSION__: JSON.stringify(version) }
 const workspaceAliases = {
   '@porcelain/contracts': resolve('../../packages/contracts/src'),
   '@porcelain/shared': resolve('../../packages/shared/src'),
+  '@porcelain/client-runtime/terminal-keys': resolve(
+    '../../packages/client-runtime/src/terminal-keys.ts',
+  ),
   '@shared': resolve('../../packages/shared/src'),
   '@backend': resolve('../daemon/src'),
   '@porcelain/daemon': resolve('../daemon/src'),

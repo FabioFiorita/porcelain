@@ -54,6 +54,10 @@ export default defineConfig({
       '@shared': resolve(root, '../../packages/shared/src'),
       '@porcelain/shared': resolve(root, '../../packages/shared/src'),
       '@porcelain/contracts': resolve(root, '../../packages/contracts/src'),
+      '@porcelain/client-runtime/terminal-keys': resolve(
+        root,
+        '../../packages/client-runtime/src/terminal-keys.ts',
+      ),
     },
   },
   plugins: [react(), tailwindcss(), excalidrawAssetsPlugin()],

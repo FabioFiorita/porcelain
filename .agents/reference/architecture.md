@@ -41,8 +41,7 @@ packages/
 | `apps/web` | Source + **independent Vite** (`pnpm build:web` → `desktop/out/renderer`) |
 | `packages/contracts` | Full procedure catalog (99 names + procedureIo); no apps/* imports |
 | Electron-vite | Shell only on production build; renderer HMR still used for `pnpm dev` |
-| `packages/client-runtime` | Not started |
-| `packages/client-runtime` | Not started |
+| `packages/client-runtime` | Started — `terminal-keys` shared; session/word-diff still forked |
 
 Treat remaining desktop folders as **future package contents**, not shell features.
 
