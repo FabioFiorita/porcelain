@@ -11,16 +11,6 @@ const webViewMessageSchema = z.discriminatedUnion('t', [
 
 export type TerminalWebViewMessage = z.infer<typeof webViewMessageSchema>
 
-export const terminalWebViewCommandSchema = z.discriminatedUnion('t', [
-  z.object({ t: z.literal('write'), data: z.string() }),
-  z.object({ t: z.literal('reset') }),
-  z.object({ t: z.literal('fit') }),
-  z.object({ t: z.literal('font-size'), size: z.number() }),
-  z.object({ t: z.literal('theme'), theme: z.enum(['light', 'dark']) }),
-])
-
-export type TerminalWebViewCommand = z.infer<typeof terminalWebViewCommandSchema>
-
 export function parseBridgeMessage(raw: string): TerminalWebViewMessage | null {
   let value: unknown
   try {

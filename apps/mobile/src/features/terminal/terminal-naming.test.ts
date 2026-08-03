@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { nextTerminalNumber } from '../../features/terminal/terminal-naming'
+import { nextTerminalNumber } from './terminal-naming'
 
 describe('nextTerminalNumber', () => {
   it('keeps names monotonic after a session closes', () => {

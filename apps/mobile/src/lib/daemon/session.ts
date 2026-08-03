@@ -130,8 +130,11 @@ function open(): void {
   }
 
   ws.onclose = async (event: WebSocketCloseEvent): Promise<void> => {
-    failPending('The daemon connection dropped before the reply arrived.')
+    // `pendingRejects` is global, so this guard must come first: a superseded socket closing late
+    // would otherwise reject requests already re-issued on the live one. Whoever replaced this
+    // socket went through `close()`, which failed that socket's own pending requests.
     if (socket !== ws) return
+    failPending('The daemon connection dropped before the reply arrived.')
     socket = null
     if (event.code === REVOKED_CLOSE_CODE) {
       wanted = false

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { scrubRemoteAssets } from '../scrub-remote-assets'
+import { scrubRemoteAssets } from './scrub-remote-assets'
 
 describe('scrubRemoteAssets', () => {
   it('keeps inlined data assets and blocks remote and relative assets', () => {

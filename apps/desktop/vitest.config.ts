@@ -22,13 +22,15 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
-    // `apps/mobile` runs no test runner of its own — one suite, one command. Scoped to any
-    // `lib/` directory so the glob itself enforces "pure modules only": a screen test would drag
-    // React Native into jsdom, which has no native runtime to give it.
+    // `apps/mobile` runs no test runner of its own — one suite, one command. The mobile glob is
+    // deliberately total: a narrower one (it was once scoped to `lib/`) silently drops any test
+    // written outside it, and silence is the one failure a gate must never have. The cost is that
+    // a screen test lands in jsdom with no native runtime and fails loudly — which is the correct
+    // signal that it belongs in the browser-first e2e suite, not here.
     include: [
       'src/**/*.test.{ts,tsx}',
       '../../packages/*/src/**/*.test.{ts,tsx}',
-      '../mobile/src/**/lib/**/*.test.ts',
+      '../mobile/src/**/*.test.{ts,tsx}',
     ],
     setupFiles: ['src/test-setup.ts'],
   },

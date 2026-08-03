@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  controlByte,
-  type EditChord,
-  terminalArrowBytes,
-  terminalEditBytes,
-} from '../../features/terminal/terminal-keys'
+import { controlByte, type EditChord, terminalArrowBytes, terminalEditBytes } from './terminal-keys'
 
 describe('terminal keys', () => {
   it('maps control characters and cursor modes to PTY bytes', () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { FeatureReading } from '@/lib/daemon/procedures/review'
-import { lifecycleBadgeLabel, reviewLifecyclePhase } from '../lifecycle'
+import { lifecycleBadgeLabel, reviewLifecyclePhase } from './lifecycle'
 
 function reading(overrides: Partial<FeatureReading> = {}): FeatureReading {
   return {

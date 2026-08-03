@@ -85,13 +85,12 @@ Each task gets its own port, channel home, user-data home, administrator token a
 ## Testing doctrine
 
 - **Backend / business logic** (daemon, git, stores, CLI) → **Vitest**.
+- **Mobile pure modules** → the *same* Vitest suite (`apps/desktop/vitest.config.ts` globs `apps/mobile`). Never give `apps/mobile` its own `test` script.
 - **Frontend, day-to-day** → **browser-first** against the daemon-served web client (same renderer dist as Electron). Dev: Playwright MCP or live tab on the **dev** daemon. CI/local suite: `pnpm test:e2e` (`browser` project).
-- **Electron native** (`pnpm test:e2e:native`) → **optional** (manual, or pre-ship when packaging/shell may have broken). Not part of `pnpm verify` and not required on every push.
+- **Electron native** (`pnpm test:e2e:native`) → **optional** (manual, or pre-ship when packaging/shell may have broken; a real Mac install smoke counts). Not part of `pnpm verify` and not required on every push.
 - **E2e locator contract:** `data-testid` via `apps/desktop/src/shared/test-ids.ts` + `apps/desktop/e2e/helpers/locators.ts`.
 - **Isolation:** each e2e test gets a pristine fixture repo — never the human's work repos, never production channels.
 - **Stress:** `e2e-stress.yml` (manual).
-
-Accepted tradeoff: browser cannot see Electron shell chrome. Catch shell-only bugs with optional native e2e or a real Mac install smoke when packaging changed.
 
 ## Release is not the day-to-day loop
 

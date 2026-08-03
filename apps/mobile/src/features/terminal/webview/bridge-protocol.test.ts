@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  isSafeExternalUrl,
-  javascriptString,
-  parseBridgeMessage,
-  type TerminalWebViewCommand,
-  terminalWebViewCommandSchema,
-} from '../../features/terminal/webview/bridge-protocol'
+import { isSafeExternalUrl, javascriptString, parseBridgeMessage } from './bridge-protocol'
 
 describe('terminal WebView bridge', () => {
   it('parses only the narrow native message protocol', () => {
@@ -16,9 +10,6 @@ describe('terminal WebView bridge', () => {
       t: 'resize',
     })
     expect(parseBridgeMessage(JSON.stringify({ t: 'resize', cols: '80', rows: 24 }))).toBeNull()
-
-    const command: TerminalWebViewCommand = { data: 'ls', t: 'write' }
-    expect(terminalWebViewCommandSchema.parse(command)).toEqual(command)
   })
 
   it('allows only external HTTP links and escapes JavaScript line separators', () => {

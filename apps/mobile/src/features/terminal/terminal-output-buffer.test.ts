@@ -4,7 +4,7 @@ import {
   TERMINAL_OUTPUT_FLUSH_MS,
   TERMINAL_OUTPUT_MAX_BYTES,
   TerminalOutputBuffer,
-} from '../../features/terminal/terminal-output-buffer'
+} from './terminal-output-buffer'
 
 afterEach(() => {
   vi.useRealTimers()

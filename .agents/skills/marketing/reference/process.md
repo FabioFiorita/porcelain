@@ -36,6 +36,6 @@ site (above) rides the same pass.
 1. Claims verified against shipped code (product surfaces, era).
 2. README ↔ site ↔ product skill tell one story; no transport wars, no brand lists.
 3. Site version string current; og:image still the best shot.
-4. Screenshots regenerated for surfaces that changed (pipeline: `reference/screenshots.md`).
+4. Screenshots regenerated for surfaces that changed (pipeline: `./screenshots.md`).
 5. No personal-setup leaks.
 6. Normal gate: `pnpm verify` + commit (site deploys itself on push).
