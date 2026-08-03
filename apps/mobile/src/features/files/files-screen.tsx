@@ -1,10 +1,9 @@
-import { List, Section, Toggle } from '@expo/ui/swift-ui'
-import { listStyle } from '@expo/ui/swift-ui/modifiers'
 import { ObserveInteractiveMarker } from 'expo-observe'
+import { Stack } from 'expo-router'
 
 import { DaemonGate } from '@/components/daemon-gate'
 import { ScreenHeader } from '@/components/screen-header'
-import { ScreenHost } from '@/components/screen-host'
+import { toolbarIcon } from '@/components/toolbar-icon'
 import { useSurfaceFocus } from '@/components/use-surface-focus'
 import { useActiveRepo } from '@/lib/daemon/repo'
 import { setPreference, usePreferences } from '@/lib/preferences'
@@ -14,10 +13,10 @@ import { useFileEntryActions, useFilesDirectory, usePinnedFileEntries } from './
 
 /**
  * Files browse face — directory listing with the same header chrome as every other tab root.
- * Search is the re-tap face (`FilesSearchScreen`), not a nav-bar search field (which fought
- * our title + workspace header for vertical space).
+ * Search is the re-tap face (`FilesSearchScreen`), not a nav-bar search field.
  */
 export function FilesScreen(): React.JSX.Element {
+  const preferences = usePreferences()
   useSurfaceFocus('files')
 
   return (
@@ -26,6 +25,18 @@ export function FilesScreen(): React.JSX.Element {
         <FilesBrowse />
       </DaemonGate>
       <ScreenHeader title="Files" />
+      {/* Same right toolbar as ScreenHeader — Menu merges into the trailing cluster on iOS 26. */}
+      <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Menu accessibilityLabel="Files options" icon={toolbarIcon('more')}>
+          <Stack.Toolbar.MenuAction
+            icon={preferences.filesShowHidden ? 'eye.slash' : 'eye'}
+            isOn={preferences.filesShowHidden}
+            onPress={(): void => setPreference('filesShowHidden', !preferences.filesShowHidden)}
+          >
+            {preferences.filesShowHidden ? 'Hide hidden files' : 'Show hidden files'}
+          </Stack.Toolbar.MenuAction>
+        </Stack.Toolbar.Menu>
+      </Stack.Toolbar>
       <ObserveInteractiveMarker />
     </>
   )
@@ -59,25 +70,10 @@ function FilesBrowse(): React.JSX.Element {
 
   if (repo === null) return <FilesLoading />
 
+  // EntryList owns ScreenHost + FlatList — do not wrap it in another Host/List or the
+  // listing collapses to zero height.
   return (
-    <ScreenHost>
-      <RootListing
-        actions={actions}
-        repoPath={repo.path}
-        showHidden={preferences.filesShowHidden}
-      />
-      <List modifiers={[listStyle('insetGrouped')]}>
-        <Section>
-          <Toggle
-            isOn={preferences.filesShowHidden}
-            label="Show hidden files"
-            onIsOnChange={(value: boolean): void => {
-              setPreference('filesShowHidden', value)
-            }}
-          />
-        </Section>
-      </List>
-    </ScreenHost>
+    <RootListing actions={actions} repoPath={repo.path} showHidden={preferences.filesShowHidden} />
   )
 }
 
