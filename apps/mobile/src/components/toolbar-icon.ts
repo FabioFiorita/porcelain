@@ -23,7 +23,7 @@ type ToolbarIcon = NonNullable<StackToolbarButtonProps['icon']>
  * sites name the icon, this file owns the symbol, so a rename is one edit.
  */
 const SF_SYMBOLS: Record<ToolbarIconName, ToolbarIcon> = {
-  companion: 'sidebar.right',
+  companion: 'bolt.fill',
   history: 'clock.arrow.circlepath',
   read: 'text.alignleft',
   close: 'xmark',

@@ -24,7 +24,7 @@ export function FilesSearchScreen(): React.JSX.Element {
   const [query, setQuery] = useState('')
   const debouncedQuery = useDebouncedFileQuery(query)
   const dark = useColorScheme() === 'dark'
-  useSurfaceFocus('files')
+  useSurfaceFocus('search')
 
   return (
     <>

@@ -6,6 +6,7 @@ import { create } from 'zustand'
  */
 export type ActiveSurface =
   | 'files'
+  | 'search'
   | 'changes'
   | 'history'
   | 'review'
