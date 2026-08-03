@@ -43,7 +43,13 @@ import {
   readEvidenceMeta,
 } from '../stores/evidence-store'
 import { readLayers } from '../stores/layers-store'
-import { clearReviewSet } from '../stores/review-store'
+import {
+  type ArchivedReviewMeta,
+  clearReviewSet,
+  deleteArchivedReview,
+  listArchivedReviews,
+  restoreArchivedReview,
+} from '../stores/review-store'
 import {
   markReviewed,
   readReviewedMarks,
@@ -217,18 +223,28 @@ export const reviewRouter = t.router({
       return reading
     }),
 
-  // Clear a repo's agent review set AND its loop evidence → the Review reverts to
-  // its "No review yet" empty state with no orphaned ~/.porcelain/loop-evidence
-  // directory. The app's one write to each channel (see `clearReviewSet` /
-  // `clearEvidence`); the next featureView/featureReading poll reads null.
+  // Archive the active review (intent, comments, reviewed marks, evidence) under
+  // .porcelain/reviews/<id>/ and clear the active slots → "No review yet".
   clearFeatureReview: publicProcedure.input(z.string()).mutation(async ({ input }) => {
     await clearReviewSet(input)
-    // Clear evidence too: Feature Clear is the human's "I'm done with this Review"
-    // affordance. Leaving loop-evidence on disk after dropping the review set
-    // orphans files with no UI surface (board card 6281e071). Evidence-only Clear
-    // still lives on the Loop evidence chapter header.
-    await clearEvidence(input)
   }),
+
+  /** Previous (archived) reviews for the project, newest first. */
+  archivedReviews: publicProcedure
+    .input(z.string())
+    .query(({ input }): Promise<ArchivedReviewMeta[]> => listArchivedReviews(input)),
+
+  restoreArchivedReview: publicProcedure
+    .input(z.object({ repoPath: z.string(), id: z.string().min(1) }))
+    .mutation(async ({ input }) => {
+      await restoreArchivedReview(input.repoPath, input.id)
+    }),
+
+  deleteArchivedReview: publicProcedure
+    .input(z.object({ repoPath: z.string(), id: z.string().min(1) }))
+    .mutation(async ({ input }) => {
+      await deleteArchivedReview(input.repoPath, input.id)
+    }),
 
   // Loop evidence: agent-authored HTML proving the work was validated (browser /
   // simulator / screenshots), rendered sandboxed as the Review's final chapter.

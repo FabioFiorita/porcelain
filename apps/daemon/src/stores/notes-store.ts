@@ -1,34 +1,18 @@
-import { z } from 'zod'
-import { createHomeChannel } from '../net/home-channel'
+import { PROJECT_FILES } from '@shared/project-porcelain'
+import { readProjectText, writeProjectText } from '../net/project-channel'
+import { ensureProjectCompanion } from '../project/migrate-home'
 
 /**
- * The repo-notes channel: the human's freeform per-repo markdown scratchpad, keyed by
- * absolute repo path, in `~/.porcelain/notes.json` (same fixed home-dir rationale as
- * the review-set / comment / board / action channels — a plain `node` CLI process
- * can't resolve userData). ONE-WAY, app→agent: only the app writes (the human edits the
- * Notes card); the porcelain CLI (src/cli/notes-file.ts) only reads. That's why there's no
- * `review-watch` entry for it — the app is the SOLE writer, nothing pushes back.
- * Atomic (tmp + rename) + in-process-serialized writes.
+ * Project notes — freeform markdown in `<repo>/.porcelain/notes.md`.
+ * ONE-WAY app→agent: only the app writes; CLI reads.
  */
-const notesSchema = z.record(z.string(), z.string())
-type Notes = z.infer<typeof notesSchema>
 
-const channel = createHomeChannel({
-  envVar: 'PORCELAIN_NOTES',
-  fileName: 'notes.json',
-  schema: notesSchema,
-  empty: (): Notes => ({}),
-})
-
-/** The human's notes for a repo ('' when none / file absent). */
 export async function readNotes(repoPath: string): Promise<string> {
-  return (await channel.readAll())[repoPath] ?? ''
+  await ensureProjectCompanion(repoPath)
+  return readProjectText(repoPath, PROJECT_FILES.notes)
 }
 
-/** Replace a repo's notes; an empty string drops the entry so the file stays tidy. */
 export async function writeNotes(repoPath: string, notes: string): Promise<void> {
-  await channel.mutate((all) => {
-    if (notes === '') delete all[repoPath]
-    else all[repoPath] = notes
-  })
+  await ensureProjectCompanion(repoPath)
+  await writeProjectText(repoPath, PROJECT_FILES.notes, notes)
 }

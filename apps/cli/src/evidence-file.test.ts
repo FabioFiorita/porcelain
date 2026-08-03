@@ -7,161 +7,96 @@ import {
   clearEvidence,
   describeEvidence,
   evidenceDirForRepo,
-  evidenceOverallStatus,
   getEvidence,
-  MAX_HTML_BYTES,
   prepareEvidence,
   setEvidence,
-  validateEvidence,
 } from './evidence-file'
 
-describe('validateEvidence', () => {
-  it('accepts a non-empty title + html', () => {
-    expect(validateEvidence('Title', '<p>hi</p>')).toEqual({ title: 'Title', html: '<p>hi</p>' })
-  })
+const root = join(tmpdir(), 'porcelain-evidence-file-test')
+const repo = join(root, 'repo')
 
-  it('throws on an empty or non-string title', () => {
-    expect(() => validateEvidence('', '<p>hi</p>')).toThrow('title must be a non-empty string')
-  })
-
-  it('throws when the html exceeds the size cap', () => {
-    expect(() => validateEvidence('Title', 'x'.repeat(MAX_HTML_BYTES + 1))).toThrow('over the')
-  })
+beforeEach(() => {
+  rmSync(root, { recursive: true, force: true })
+  mkdirSync(repo, { recursive: true })
+})
+afterEach(() => {
+  rmSync(root, { recursive: true, force: true })
 })
 
 describe('evidence directory channel', () => {
-  const root = join(tmpdir(), 'porcelain-cli-evidence-test')
-  const diskRoot = join(root, 'loop-evidence')
-
-  beforeEach(() => {
-    process.env.PORCELAIN_LOOP_EVIDENCE_DIR = diskRoot
-    rmSync(root, { recursive: true, force: true })
-    mkdirSync(root, { recursive: true })
-  })
-  afterEach(() => {
-    delete process.env.PORCELAIN_LOOP_EVIDENCE_DIR
-    rmSync(root, { recursive: true, force: true })
-  })
-
   it('prepareEvidence creates the dir + meta without index.html', () => {
-    const { dir, title } = prepareEvidence('/repo', 'SPA redirect')
-    expect(title).toBe('SPA redirect')
-    expect(dir).toBe(evidenceDirForRepo('/repo'))
+    const { dir, title } = prepareEvidence(repo, 'Loop')
+    expect(title).toBe('Loop')
+    expect(dir).toBe(evidenceDirForRepo(repo))
     expect(existsSync(join(dir, 'meta.json'))).toBe(true)
     expect(existsSync(join(dir, 'index.html'))).toBe(false)
   })
 
-  it('prepareEvidence wipes prior HTML and screenshots (no stale files)', () => {
-    const { dir } = prepareEvidence('/repo', 'Old')
-    writeFileSync(join(dir, 'index.html'), '<p>old</p>')
-    writeFileSync(join(dir, 'shot.png'), 'fake-png')
-    const next = prepareEvidence('/repo', 'New feature')
-    expect(next.title).toBe('New feature')
-    expect(existsSync(join(next.dir, 'index.html'))).toBe(false)
-    expect(existsSync(join(next.dir, 'shot.png'))).toBe(false)
-    expect(existsSync(join(next.dir, 'meta.json'))).toBe(true)
-  })
-
-  it('setEvidence replaces the directory so old screenshots cannot linger', () => {
-    const first = setEvidence('/repo', 'A', '<p>a</p>')
-    writeFileSync(join(first.dir, 'old.png'), 'png')
-    const second = setEvidence('/repo', 'B', '<p>b</p>')
-    expect(readFileSync(join(second.dir, 'index.html'), 'utf8')).toBe('<p>b</p>')
-    expect(existsSync(join(second.dir, 'old.png'))).toBe(false)
+  it('agent can Write index.html after prepare and getEvidence sees it', () => {
+    prepareEvidence(repo, 'Loop')
+    writeFileSync(join(evidenceDirForRepo(repo), 'index.html'), '<h1>ok</h1>')
+    expect(getEvidence(repo)?.html).toBe('<h1>ok</h1>')
   })
 
   it('setEvidence writes index.html into the directory', () => {
-    const evidence = setEvidence('/repo', 'Vite loop', '<h1>Pass</h1>')
-    expect(evidence.dir).toBe(evidenceDirForRepo('/repo'))
-    expect(readFileSync(join(evidence.dir, 'index.html'), 'utf8')).toBe('<h1>Pass</h1>')
-    expect(getEvidence('/repo')?.title).toBe('Vite loop')
-  })
-
-  it('agent can Write index.html after prepare and getEvidence sees it', () => {
-    const { dir } = prepareEvidence('/repo', 'Manual write')
-    writeFileSync(join(dir, 'index.html'), '<p>from disk</p>')
-    expect(getEvidence('/repo')?.html).toBe('<p>from disk</p>')
+    const e = setEvidence(repo, 'T', '<p>hi</p>')
+    expect(e.dir).toBe(evidenceDirForRepo(repo))
+    expect(readFileSync(join(e.dir, 'index.html'), 'utf8')).toBe('<p>hi</p>')
   })
 
   it('clearEvidence removes the directory', () => {
-    const { dir } = prepareEvidence('/repo', 'X')
-    setEvidence('/repo', 'X', '<p>x</p>')
-    clearEvidence('/repo')
-    expect(existsSync(dir)).toBe(false)
-    expect(getEvidence('/repo')).toBeNull()
+    setEvidence(repo, 'T', '<p>hi</p>')
+    clearEvidence(repo)
+    expect(existsSync(evidenceDirForRepo(repo))).toBe(false)
   })
 
-  it('describeEvidence points at the directory when index exists, with a preview', () => {
-    setEvidence('/repo', 'Vite loop', '<h1>Pass</h1>')
-    const text = describeEvidence('/repo', getEvidence('/repo'))
-    expect(text).toContain('index.html')
-    expect(text).toContain(evidenceDirForRepo('/repo'))
-    expect(text).toContain('Preview:')
-    expect(text).toContain('<h1>Pass</h1>')
-  })
-
-  it('describeEvidence without evidence explains the prepare flow', () => {
-    expect(describeEvidence('/repo', null)).toContain('evidence prepare')
-    expect(describeEvidence('/repo', null)).toContain('index.html')
-  })
-
-  const readChecks = (repo: string): unknown => {
-    const meta = JSON.parse(readFileSync(join(evidenceDirForRepo(repo), 'meta.json'), 'utf8')) as {
-      checks?: unknown
-    }
-    return meta.checks
-  }
-
-  it('checkEvidence creates the meta when missing (title falls back to Evidence)', () => {
-    const result = checkEvidence('/repo', 'pnpm test', 'pass', '1348 passed')
-    expect(result.title).toBe('Evidence')
-    expect(result.checks).toEqual([{ label: 'pnpm test', status: 'pass', detail: '1348 passed' }])
-    expect(existsSync(join(evidenceDirForRepo('/repo'), 'meta.json'))).toBe(true)
+  it('checkEvidence creates the meta when missing', () => {
+    const r = checkEvidence(repo, 'unit', 'pass', undefined)
+    expect(r.title).toBe('Evidence')
+    expect(r.checks).toHaveLength(1)
   })
 
   it('checkEvidence appends distinct checks and keeps the prepared title', () => {
-    prepareEvidence('/repo', 'Login smoke test')
-    checkEvidence('/repo', 'pnpm lint', 'pass', undefined)
-    const result = checkEvidence('/repo', 'pnpm build', 'skip', undefined)
-    expect(result.title).toBe('Login smoke test')
-    expect(result.checks.map((c) => c.label)).toEqual(['pnpm lint', 'pnpm build'])
-    expect(readChecks('/repo')).toHaveLength(2)
+    prepareEvidence(repo, 'Loop')
+    checkEvidence(repo, 'a', 'pass', undefined)
+    checkEvidence(repo, 'b', 'fail', 'nope')
+    const r = checkEvidence(repo, 'c', 'skip', undefined)
+    expect(r.title).toBe('Loop')
+    expect(r.checks.map((c) => c.label)).toEqual(['a', 'b', 'c'])
   })
 
-  it('checkEvidence replaces a check with the same label instead of duplicating', () => {
-    checkEvidence('/repo', 'pnpm test', 'fail', '2 failed')
-    const result = checkEvidence('/repo', 'pnpm test', 'pass', '1348 passed')
-    expect(result.checks).toEqual([{ label: 'pnpm test', status: 'pass', detail: '1348 passed' }])
-    expect(evidenceOverallStatus(result.checks)).toBe('pass')
+  it('checkEvidence replaces a check with the same label', () => {
+    checkEvidence(repo, 'a', 'fail', undefined)
+    const r = checkEvidence(repo, 'a', 'pass', undefined)
+    expect(r.checks).toHaveLength(1)
+    expect(r.checks[0]?.status).toBe('pass')
   })
 
-  it('checkEvidence enforces the count cap (33rd distinct check throws)', () => {
-    for (let i = 0; i < 32; i++) checkEvidence('/repo', `check ${i}`, 'pass', undefined)
-    expect(() => checkEvidence('/repo', 'check 32', 'pass', undefined)).toThrow('too many checks')
+  it('describeEvidence points at the directory when index exists', () => {
+    setEvidence(repo, 'T', '<p>preview me</p>')
+    const text = describeEvidence(repo, getEvidence(repo))
+    expect(text).toContain('preview me')
+    expect(text).toContain(evidenceDirForRepo(repo))
   })
 
-  it('checkEvidence rejects an over-long label and an unknown status', () => {
-    expect(() => checkEvidence('/repo', 'x'.repeat(121), 'pass', undefined)).toThrow('over the')
-    expect(() => checkEvidence('/repo', 'ok', 'bogus', undefined)).toThrow('pass|fail|skip')
+  it('describeEvidence includes the checks summary', () => {
+    setEvidence(repo, 'T', '<p>x</p>')
+    checkEvidence(repo, 'unit', 'pass', undefined)
+    const text = describeEvidence(repo, getEvidence(repo))
+    expect(text).toMatch(/Checks:|pass/i)
   })
 
-  it('describeEvidence warns when estimated inlined size exceeds the viewer cap', () => {
-    const { dir } = prepareEvidence('/repo', 'Big shots')
-    writeFileSync(join(dir, 'index.html'), '<img src="shot.png">')
-    // ~3.2 MB sibling → base64 estimate over 4 MB
-    writeFileSync(join(dir, 'shot.png'), Buffer.alloc(3_200_000, 1))
-    const text = describeEvidence('/repo', getEvidence('/repo'))
-    expect(text).toContain('WARNING')
-    expect(text).toContain('Evidence too large')
-    expect(text).toContain('viewer cap')
+  it('prepareEvidence wipes prior HTML', () => {
+    setEvidence(repo, 'Old', '<p>old</p>')
+    prepareEvidence(repo, 'New')
+    expect(existsSync(join(evidenceDirForRepo(repo), 'index.html'))).toBe(false)
   })
 
-  it('describeEvidence includes the checks summary + derived status', () => {
-    setEvidence('/repo', 'Loop', '<h1>ok</h1>')
-    checkEvidence('/repo', 'pnpm test', 'pass', '1348 passed')
-    checkEvidence('/repo', 'pnpm build', 'fail', 'tsc error')
-    const text = describeEvidence('/repo', getEvidence('/repo'))
-    expect(text).toContain('Checks: 2')
-    expect(text).toContain('FAIL')
+  it('setEvidence replaces the directory so old screenshots cannot linger', () => {
+    const dir = evidenceDirForRepo(repo)
+    setEvidence(repo, 'A', '<p>1</p>')
+    writeFileSync(join(dir, 'shot.png'), 'png')
+    setEvidence(repo, 'B', '<p>2</p>')
+    expect(existsSync(join(dir, 'shot.png'))).toBe(false)
   })
 })

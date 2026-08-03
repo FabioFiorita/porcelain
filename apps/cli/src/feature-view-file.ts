@@ -1,13 +1,7 @@
-import { readFileSync } from 'node:fs'
-import { porcelainHomePath } from '@shared/porcelain-home'
+import { PROJECT_FILES } from '@shared/project-porcelain'
+import { readProjectJson } from './project-io'
 
-// Builtins only — see cli.ts. The feature-view SNAPSHOT channel: Porcelain's
-// COMPUTED feature view (every file it renders, each tagged with its git-truth source
-// and flow layer), READ-ONLY here. ONE-WAY, app→agent — the app computes the view and
-// writes it (apps/daemon/src/stores/feature-snapshot-store.ts); the agent reads it to see the whole
-// feature (not just the git diff) and to learn which files are actually `changed`
-// (diffed) vs `context`/`shipped`. Like the reviewed/notes channels the app is the SOLE
-// writer, so there is no write tool. Lenient parse of our own file: skip malformed rows.
+// Feature-view snapshot — <repo>/.porcelain/feature-view.json (app writes; CLI reads).
 
 const FILE_SOURCES = new Set(['changed', 'context', 'shipped'])
 
@@ -22,14 +16,8 @@ export interface FeatureViewSnapshot {
   files: FeatureViewFile[]
 }
 
-type Snapshots = Record<string, FeatureViewSnapshot>
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
-}
-
-function featureViewPath(): string {
-  return process.env.PORCELAIN_FEATURE_VIEW ?? porcelainHomePath('feature-view.json')
 }
 
 function parseFiles(value: unknown): FeatureViewFile[] {
@@ -48,50 +36,29 @@ function parseFiles(value: unknown): FeatureViewFile[] {
   return files
 }
 
-function readAll(): Snapshots {
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(readFileSync(featureViewPath(), 'utf8'))
-  } catch {
-    return {}
-  }
-  if (!isRecord(parsed)) return {}
-  const all: Snapshots = {}
-  for (const [repoPath, value] of Object.entries(parsed)) {
-    if (!isRecord(value)) continue
-    all[repoPath] = {
-      name: typeof value.name === 'string' ? value.name : 'Feature view',
-      files: parseFiles(value.files),
-    }
-  }
-  return all
-}
-
-/** Porcelain's last-computed feature view for a repo (null when none / file absent). */
 export function readFeatureView(repoPath: string): FeatureViewSnapshot | null {
-  return readAll()[repoPath] ?? null
+  const value = readProjectJson(repoPath, PROJECT_FILES.featureView)
+  if (!isRecord(value)) return null
+  const files = parseFiles(value.files)
+  if (files.length === 0 && (typeof value.name !== 'string' || value.name === '')) return null
+  return {
+    name: typeof value.name === 'string' ? value.name : 'Feature view',
+    files,
+  }
 }
 
-/** Map a repo's feature files to their source, for tagging review comments by status. */
 export function sourceByPath(snapshot: FeatureViewSnapshot | null): Map<string, string> {
   const map = new Map<string, string>()
   for (const file of snapshot?.files ?? []) map.set(file.path, file.source)
   return map
 }
 
-/**
- * Render the snapshot for `porcelain feature get`: a one-line summary (count + per-source
- * breakdown, spelling out that `changed` means in the git diff) then the files grouped
- * in flow order. This is what Porcelain MADE of the feature after folding the agent's
- * pushed set into git status and the import baseline — the complement to
- * `porcelain review get` (which echoes what the agent declared).
- */
 export function describeFeatureView(
   repoPath: string,
   snapshot: FeatureViewSnapshot | null,
 ): string {
   if (!snapshot || snapshot.files.length === 0) {
-    return `No feature view computed for ${repoPath} yet. Open the Feature tab in Porcelain (or push a review set with \`porcelain review set\`); Porcelain then renders the feature and this snapshot reports every file with its source (changed = in the git diff, context/shipped = the unchanged rest of the feature) and flow layer.`
+    return `No feature view computed for ${repoPath} yet (.porcelain/feature-view.json). Open the Feature tab or push a review set.`
   }
   const counts = new Map<string, number>()
   for (const file of snapshot.files) counts.set(file.source, (counts.get(file.source) ?? 0) + 1)
@@ -109,5 +76,5 @@ export function describeFeatureView(
     }
     lines.push(`  - [${file.source}] ${file.path}`)
   }
-  return `Feature view "${snapshot.name}" for ${repoPath}: ${snapshot.files.length} file(s) (${breakdown}). "changed" files are in the git diff; "context"/"shipped" are not (the unchanged or cross-seam rest of the feature). In flow order:\n${lines.join('\n')}`
+  return `Feature view "${snapshot.name}" for ${repoPath}: ${snapshot.files.length} file(s) (${breakdown}):\n${lines.join('\n')}`
 }

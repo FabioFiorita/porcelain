@@ -1,13 +1,8 @@
 import { randomUUID } from 'node:crypto'
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
-import { dirname } from 'node:path'
-import { porcelainHomePath } from '@shared/porcelain-home'
+import { PROJECT_FILES } from '@shared/project-porcelain'
+import { readProjectJson, writeProjectJson } from './project-io'
 
-// Builtins only — see cli.ts. The saved-actions channel: named, runnable
-// commands the human (Porcelain app, actions-store.ts) launches in the embedded
-// terminal, and the agent (here) can curate. The agent CRUDs definitions only — it
-// never executes one (no run tool). Atomic writes (tmp + rename); the app re-validates
-// with zod on read.
+// Saved actions in <repo>/.porcelain/actions.json — agent curates, human runs.
 
 export type ActionWhere = 'primary' | 'local'
 
@@ -15,20 +10,13 @@ export interface Action {
   id: string
   title: string
   command: string
-  /** Which machine runs the command. Omitted ⇒ primary (this window's daemon). */
   where?: ActionWhere
   order: number
   createdAt: number
 }
 
-type Actions = Record<string, Action[]>
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
-}
-
-function actionsPath(): string {
-  return process.env.PORCELAIN_ACTIONS ?? porcelainHomePath('actions.json')
 }
 
 function parseWhere(value: unknown): ActionWhere | undefined {
@@ -62,30 +50,16 @@ function parseActions(value: unknown): Action[] {
   return actions
 }
 
-function readAll(): Actions {
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(readFileSync(actionsPath(), 'utf8'))
-  } catch {
-    return {}
-  }
-  if (!isRecord(parsed)) return {}
-  const all: Actions = {}
-  for (const [repoPath, value] of Object.entries(parsed)) all[repoPath] = parseActions(value)
-  return all
+function readAll(repoPath: string): Action[] {
+  return parseActions(readProjectJson(repoPath, PROJECT_FILES.actions))
 }
 
-function writeAll(all: Actions): void {
-  const path = actionsPath()
-  mkdirSync(dirname(path), { recursive: true })
-  const tmp = `${path}.tmp`
-  writeFileSync(tmp, JSON.stringify(all, null, 2))
-  renameSync(tmp, path)
+function writeAll(repoPath: string, actions: Action[]): void {
+  writeProjectJson(repoPath, PROJECT_FILES.actions, actions)
 }
 
 export function readActions(repoPath: string): Action[] {
-  const actions = readAll()[repoPath] ?? []
-  return [...actions].sort((a, b) => a.order - b.order)
+  return [...readAll(repoPath)].sort((a, b) => a.order - b.order)
 }
 
 export function createAction(
@@ -97,9 +71,7 @@ export function createAction(
   const now = Date.now()
   const action: Action = { id: randomUUID(), title, command, order: now, createdAt: now }
   if (where !== undefined && where !== 'primary') action.where = where
-  const all = readAll()
-  all[repoPath] = [...(all[repoPath] ?? []), action]
-  writeAll(all)
+  writeAll(repoPath, [...readAll(repoPath), action])
   return action
 }
 
@@ -108,8 +80,8 @@ export function updateAction(
   id: string,
   fields: { title?: string; command?: string; where?: ActionWhere },
 ): boolean {
-  const all = readAll()
-  const action = all[repoPath]?.find((a) => a.id === id)
+  const actions = readAll(repoPath)
+  const action = actions.find((a) => a.id === id)
   if (!action) return false
   if (fields.title !== undefined) action.title = fields.title
   if (fields.command !== undefined) action.command = fields.command
@@ -117,23 +89,23 @@ export function updateAction(
     if (fields.where === 'primary') delete action.where
     else action.where = fields.where
   }
-  writeAll(all)
+  writeAll(repoPath, actions)
   return true
 }
 
 export function deleteAction(repoPath: string, id: string): boolean {
-  const all = readAll()
-  const actions = all[repoPath]
-  if (!actions?.some((a) => a.id === id)) return false
-  all[repoPath] = actions.filter((a) => a.id !== id)
-  writeAll(all)
+  const actions = readAll(repoPath)
+  if (!actions.some((a) => a.id === id)) return false
+  writeAll(
+    repoPath,
+    actions.filter((a) => a.id !== id),
+  )
   return true
 }
 
-/** Render the actions for `list_actions`: each with id, title, command, and where. */
 export function describeActions(repoPath: string, actions: Action[]): string {
   if (actions.length === 0) {
-    return `No saved actions for ${repoPath}. Actions are named commands the human runs in Porcelain's embedded terminal with one click; add useful ones (dev server, storybook, test watcher) here and they appear in the app.`
+    return `No saved actions for ${repoPath}. Actions are named commands the human runs in Porcelain's embedded terminal; add useful ones here (.porcelain/actions.json).`
   }
   const lines: string[] = [`Saved actions for ${repoPath} (${actions.length}):`]
   for (const action of actions) {

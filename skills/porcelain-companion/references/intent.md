@@ -12,7 +12,7 @@ Intent is the **narrative** of the unit of work (feature, bug, chore, investigat
 ## CLI
 
 ```bash
-~/.porcelain/porcelain review clear   # always before a new unit (drops old Board + evidence too)
+~/.porcelain/porcelain review clear   # always before a new unit (drops active review + evidence; app Archive keeps history under .porcelain/reviews/)
 ~/.porcelain/porcelain review set --name "…" --thesis "…" --sections '[…]' --files '[…]'
 ~/.porcelain/porcelain review set-canvas --medium html --html-file ./intent.html
 ~/.porcelain/porcelain review set-canvas --medium excalidraw --file ./board.excalidraw

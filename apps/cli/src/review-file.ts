@@ -1,12 +1,9 @@
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
-import { dirname } from 'node:path'
-import { porcelainHomePath } from '@shared/porcelain-home'
+import { unlinkSync } from 'node:fs'
+import { PROJECT_FILES, projectPorcelainPath } from '@shared/project-porcelain'
+import { readProjectJson, writeProjectJson } from './project-io'
 
-// Builtins only — see cli.ts for why this server must stay dependency-free.
-// This file owns the agent channel that Porcelain reads (apps/daemon/src/stores/review-store.ts
-// reads the same path); both honour PORCELAIN_REVIEW_SETS so tests and dev can
-// redirect it. Default lives in ~/.porcelain (the user's home, NOT a work repo).
-// Porcelain re-validates this file with zod on read, so reads here stay lenient.
+// Builtins only — see cli.ts. Active review set at <repo>/.porcelain/review.json.
+// Daemon review-store.ts reads the same path.
 
 const FILE_SOURCES = new Set(['changed', 'context', 'shipped'])
 
@@ -58,14 +55,8 @@ const MIN_HTML_HEIGHT = 160
 const MAX_HTML_HEIGHT = 1600
 const MAX_ANCHORS = 40
 
-type ReviewSets = Record<string, ReviewSet>
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
-}
-
-function reviewSetsPath(): string {
-  return process.env.PORCELAIN_REVIEW_SETS ?? porcelainHomePath('review-sets.json')
 }
 
 /** Coerce arbitrary tool input into validated review files; throws on bad shape. */
@@ -297,88 +288,74 @@ export function toReviewCanvas(
   throw new Error('medium must be html or excalidraw')
 }
 
-function readAll(): ReviewSets {
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(readFileSync(reviewSetsPath(), 'utf8'))
-  } catch {
-    return {}
+function parseReviewSet(value: unknown): ReviewSet | null {
+  if (!isRecord(value)) return null
+  if (typeof value.name !== 'string' || value.name === '') return null
+  const set: ReviewSet = {
+    name: value.name,
+    files: parseReviewFiles(value.files),
+    sections: parseReviewSections(value.sections),
   }
-  if (!isRecord(parsed)) return {}
-  const sets: ReviewSets = {}
-  for (const [repoPath, value] of Object.entries(parsed)) {
-    if (!isRecord(value)) continue
-    const set: ReviewSet = {
-      name: typeof value.name === 'string' ? value.name : 'Feature view',
-      files: parseReviewFiles(value.files),
-      sections: parseReviewSections(value.sections),
-    }
-    if (typeof value.thesis === 'string') set.thesis = value.thesis
-    const canvas = parseReviewCanvas(value.canvas)
-    if (canvas) set.canvas = canvas
-    sets[repoPath] = set
-  }
-  return sets
+  if (typeof value.thesis === 'string') set.thesis = value.thesis
+  const canvas = parseReviewCanvas(value.canvas)
+  if (canvas) set.canvas = canvas
+  return set
 }
 
-function writeAll(sets: ReviewSets): void {
-  const path = reviewSetsPath()
-  mkdirSync(dirname(path), { recursive: true })
-  const tmp = `${path}.tmp`
-  writeFileSync(tmp, JSON.stringify(sets, null, 2))
-  renameSync(tmp, path)
+function readDisk(repoPath: string): ReviewSet | null {
+  return parseReviewSet(readProjectJson(repoPath, PROJECT_FILES.review))
+}
+
+function writeDisk(repoPath: string, set: ReviewSet | null): void {
+  if (set === null) {
+    writeProjectJson(repoPath, PROJECT_FILES.review, { name: '', files: [], sections: [] })
+    return
+  }
+  writeProjectJson(repoPath, PROJECT_FILES.review, set)
 }
 
 export function setReview(repoPath: string, set: ReviewSet): void {
-  const sets = readAll()
-  // Full replace of the structured set. Do NOT keep a previous freeform canvas —
-  // that was an old feature's Board (Excalidraw/HTML) sitting under a new document.
-  // Want a board for THIS feature? `review set-canvas` after set. Want a clean
-  // slate including evidence? `review clear` first (skill: always clear before a
-  // new feature Review).
-  sets[repoPath] = { ...set }
-  writeAll(sets)
+  // Full replace. Do NOT keep a previous freeform canvas from an old unit.
+  // Clear first for a clean slate including evidence (app archives on clear).
+  writeDisk(repoPath, { ...set })
 }
 
 /** Merge files into the existing set; name/thesis/sections are whole-set (replaced by `review set`). */
 export function addReviewFiles(repoPath: string, files: ReviewFile[]): number {
-  const sets = readAll()
-  const current = sets[repoPath] ?? { name: 'Feature view', files: [], sections: [] }
+  const current = readDisk(repoPath) ?? { name: 'Feature view', files: [], sections: [] }
   const merged = mergeReviewFiles(current.files, files)
-  sets[repoPath] = { ...current, files: merged }
-  writeAll(sets)
+  writeDisk(repoPath, { ...current, files: merged })
   return merged.length
 }
 
 /** Attach or replace the freeform Overview canvas on an existing (or empty) set. */
 export function setReviewCanvas(repoPath: string, canvas: ReviewCanvas): void {
-  const sets = readAll()
-  const current = sets[repoPath] ?? { name: 'Feature view', files: [], sections: [] }
-  sets[repoPath] = { ...current, canvas }
-  writeAll(sets)
+  const current = readDisk(repoPath) ?? { name: 'Feature view', files: [], sections: [] }
+  writeDisk(repoPath, { ...current, canvas })
 }
 
 /** Drop the freeform Overview canvas; thesis/sections/files stay. */
 export function clearReviewCanvas(repoPath: string): boolean {
-  const sets = readAll()
-  const current = sets[repoPath]
+  const current = readDisk(repoPath)
   if (!current?.canvas) return false
   const { canvas: _drop, ...rest } = current
-  sets[repoPath] = rest
-  writeAll(sets)
+  writeDisk(repoPath, rest)
   return true
 }
 
 export function clearReview(repoPath: string): void {
-  const sets = readAll()
-  if (!(repoPath in sets)) return
-  delete sets[repoPath]
-  writeAll(sets)
+  // CLI clear drops the active set (does not archive — that is the app's
+  // clearFeatureReview). Agents starting a new unit should clear first.
+  try {
+    unlinkSync(projectPorcelainPath(repoPath, PROJECT_FILES.review))
+  } catch {
+    // absent
+  }
 }
 
 /** Read back the stored review set for a repo (null when none is set). */
 export function readReview(repoPath: string): ReviewSet | null {
-  return readAll()[repoPath] ?? null
+  return readDisk(repoPath)
 }
 
 /**

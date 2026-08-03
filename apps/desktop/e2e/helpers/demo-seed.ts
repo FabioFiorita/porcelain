@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
@@ -272,36 +271,21 @@ export const DEMO_EVIDENCE_HTML = `<!doctype html>
 `
 
 /**
- * Write every agent channel for `repoDir` under `udBase`, and return the env slots
- * that point the daemon at them (the same PORCELAIN_* redirects the e2e harness uses).
- * Review sets live under `udBase`; loop evidence is a per-repo directory keyed like
- * the app (sha256(repoPath).slice(0,16)).
+ * Write demo companion data into `<repo>/.porcelain/` and return home env for the
+ * daemon (token home only — channels are project-local).
  */
 export async function seedDemoChannels(
   udBase: string,
   repoDir: string,
 ): Promise<Record<string, string>> {
-  const files: Record<string, [string, unknown]> = {
-    'review-sets.json': ['PORCELAIN_REVIEW_SETS', { [repoDir]: DEMO_REVIEW_SET }],
-    'board.json': ['PORCELAIN_BOARD', { [repoDir]: DEMO_BOARD }],
-    'comments.json': ['PORCELAIN_COMMENTS', { [repoDir]: DEMO_COMMENTS }],
-    'actions.json': ['PORCELAIN_ACTIONS', { [repoDir]: DEMO_ACTIONS }],
-    'layers.json': ['PORCELAIN_LAYERS', {}],
-    'reviewed.json': ['PORCELAIN_REVIEWED', {}],
-    'notes.json': ['PORCELAIN_NOTES', {}],
-    'feature-view.json': ['PORCELAIN_FEATURE_VIEW', {}],
-  }
-  const env: Record<string, string> = {}
-  for (const [name, [envVar, value]] of Object.entries(files)) {
-    const path = join(udBase, name)
-    await writeFile(path, JSON.stringify(value, null, 2))
-    env[envVar] = path
-  }
+  const project = join(repoDir, '.porcelain')
+  await mkdir(project, { recursive: true })
+  await writeFile(join(project, 'review.json'), JSON.stringify(DEMO_REVIEW_SET, null, 2))
+  await writeFile(join(project, 'board.json'), JSON.stringify(DEMO_BOARD, null, 2))
+  await writeFile(join(project, 'comments.json'), JSON.stringify(DEMO_COMMENTS, null, 2))
+  await writeFile(join(project, 'actions.json'), JSON.stringify(DEMO_ACTIONS, null, 2))
 
-  // Loop evidence is a directory of files (index.html + meta.json), not JSON.
-  const evidenceRoot = join(udBase, 'loop-evidence')
-  const key = createHash('sha256').update(repoDir).digest('hex').slice(0, 16)
-  const evidenceDir = join(evidenceRoot, key)
+  const evidenceDir = join(project, 'evidence')
   await mkdir(evidenceDir, { recursive: true })
   await writeFile(join(evidenceDir, 'index.html'), DEMO_EVIDENCE_HTML)
   await writeFile(
@@ -312,6 +296,5 @@ export async function seedDemoChannels(
       updatedAt: '2024-05-02T09:15:00.000Z',
     }),
   )
-  env.PORCELAIN_LOOP_EVIDENCE_DIR = evidenceRoot
-  return env
+  return { PORCELAIN_HOME: udBase }
 }

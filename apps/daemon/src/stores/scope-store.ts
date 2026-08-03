@@ -1,41 +1,66 @@
-import { join } from 'node:path'
+import { join, relative } from 'node:path'
+import { PROJECT_FILES } from '@shared/project-porcelain'
 import { z } from 'zod'
-import { createHomeChannel } from '../net/home-channel'
+import { createProjectChannel } from '../net/project-channel'
+import { ensureProjectCompanion } from '../project/migrate-home'
 
 /**
- * The monorepo scope channel: per-repo **hidden** and **pinned** paths that keep a
- * huge tree navigable (hide irrelevant apps, pin the ones you care about). Keyed by
- * absolute repo path in `~/.porcelain/scope.json` — same fixed-home rationale as
- * layers/notes so the dependency-free CLI can read+write them. TWO-WAY: the app
- * (tree Hide/Pin) and the porcelain CLI (`scope hide|unhide|pin|unpin|list`) both
- * author; atomic tmp+rename writes; the watcher emits `scope` so the tree refreshes.
- *
- * Paths are stored absolute. The CLI accepts repo-relative paths and joins them to
- * the repo root before writing.
+ * Monorepo hide/pin scope — `<repo>/.porcelain/scope.json`.
+ * Paths are stored **repo-relative** on disk; API surfaces absolute paths under
+ * the repo for tree matching. TWO-WAY: app + CLI. Git-shareable when tracked.
  */
+
 const repoScopeSchema = z.object({
   hiddenPaths: z.array(z.string()).default([]),
   pinnedPaths: z.array(z.string()).default([]),
 })
 export type RepoScope = z.infer<typeof repoScopeSchema>
 
-const scopeSchema = z.record(z.string(), repoScopeSchema)
-type ScopeMap = z.infer<typeof scopeSchema>
-
 const emptyRepo = (): RepoScope => ({ hiddenPaths: [], pinnedPaths: [] })
 
-const channel = createHomeChannel({
-  envVar: 'PORCELAIN_SCOPE',
-  fileName: 'scope.json',
-  schema: scopeSchema,
-  empty: (): ScopeMap => ({}),
+const channel = createProjectChannel({
+  fileName: PROJECT_FILES.scope,
+  schema: repoScopeSchema,
+  empty: emptyRepo,
 })
 
-// Must match src/cli/scope-file.ts. PORCELAIN_SCOPE redirects both sides for tests.
-export const scopePath: () => string = channel.path
+export function scopePath(repoPath: string): string {
+  return channel.path(repoPath)
+}
+
+/** Normalize user/agent input to a repo-relative path for storage. */
+export function toRelativeScopePath(repoPath: string, path: string): string {
+  const trimmed = path.trim()
+  if (trimmed === '') throw new Error('path must be non-empty')
+  if (trimmed === repoPath || trimmed === '.') return ''
+  if (trimmed.startsWith(`${repoPath}/`)) return trimmed.slice(repoPath.length + 1)
+  if (trimmed.startsWith('/')) {
+    const rel = relative(repoPath, trimmed)
+    if (rel.startsWith('..') || rel === '') {
+      throw new Error(`path must be inside the repo: ${path}`)
+    }
+    return rel
+  }
+  // already relative
+  return trimmed.replace(/^\.\//, '')
+}
+
+/** Absolute path under repo for a stored relative path. */
+export function toAbsoluteScopePath(repoPath: string, rel: string): string {
+  if (rel === '' || rel === '.') return repoPath
+  return join(repoPath, rel)
+}
+
+function expandScope(repoPath: string, scope: RepoScope): RepoScope {
+  return {
+    hiddenPaths: scope.hiddenPaths.map((p) => toAbsoluteScopePath(repoPath, p)),
+    pinnedPaths: scope.pinnedPaths.map((p) => toAbsoluteScopePath(repoPath, p)),
+  }
+}
 
 export async function readRepoScope(repoPath: string): Promise<RepoScope> {
-  return (await channel.readAll())[repoPath] ?? emptyRepo()
+  await ensureProjectCompanion(repoPath)
+  return expandScope(repoPath, await channel.read(repoPath))
 }
 
 export async function hiddenPathsForRepo(repoPath: string): Promise<Set<string>> {
@@ -46,54 +71,46 @@ export async function pinnedPathsForRepo(repoPath: string): Promise<string[]> {
   return (await readRepoScope(repoPath)).pinnedPaths
 }
 
-/** Normalize a user/agent path to absolute under repo (relative → join). */
+/** @deprecated use toRelativeScopePath; kept for call sites that resolve then hide. */
 export function resolveScopePath(repoPath: string, path: string): string {
-  const trimmed = path.trim()
-  if (trimmed === '') throw new Error('path must be non-empty')
-  if (trimmed.startsWith(`${repoPath}/`) || trimmed === repoPath) return trimmed
-  // Absolute path outside the repo — store as given; relative paths join under the repo.
-  if (trimmed.startsWith('/')) return trimmed
-  return join(repoPath, trimmed)
+  const rel = toRelativeScopePath(repoPath, path)
+  return toAbsoluteScopePath(repoPath, rel)
 }
 
 export async function hidePath(repoPath: string, path: string): Promise<void> {
-  const absolute = resolveScopePath(repoPath, path)
-  await channel.mutate((all) => {
-    const repo = all[repoPath] ?? emptyRepo()
-    if (repo.hiddenPaths.includes(absolute)) return
-    all[repoPath] = { ...repo, hiddenPaths: [...repo.hiddenPaths, absolute] }
+  const rel = toRelativeScopePath(repoPath, path)
+  if (rel === '') return
+  await ensureProjectCompanion(repoPath)
+  await channel.mutate(repoPath, (scope) => {
+    if (scope.hiddenPaths.includes(rel)) return scope
+    return { ...scope, hiddenPaths: [...scope.hiddenPaths, rel] }
   })
 }
 
 export async function unhidePath(repoPath: string, path: string): Promise<void> {
-  const absolute = resolveScopePath(repoPath, path)
-  await channel.mutate((all) => {
-    const repo = all[repoPath]
-    if (!repo) return
-    all[repoPath] = {
-      ...repo,
-      hiddenPaths: repo.hiddenPaths.filter((p) => p !== absolute),
-    }
-  })
+  const rel = toRelativeScopePath(repoPath, path)
+  await ensureProjectCompanion(repoPath)
+  await channel.mutate(repoPath, (scope) => ({
+    ...scope,
+    hiddenPaths: scope.hiddenPaths.filter((p) => p !== rel),
+  }))
 }
 
 export async function pinPath(repoPath: string, path: string): Promise<void> {
-  const absolute = resolveScopePath(repoPath, path)
-  await channel.mutate((all) => {
-    const repo = all[repoPath] ?? emptyRepo()
-    if (repo.pinnedPaths.includes(absolute)) return
-    all[repoPath] = { ...repo, pinnedPaths: [...repo.pinnedPaths, absolute] }
+  const rel = toRelativeScopePath(repoPath, path)
+  if (rel === '') return
+  await ensureProjectCompanion(repoPath)
+  await channel.mutate(repoPath, (scope) => {
+    if (scope.pinnedPaths.includes(rel)) return scope
+    return { ...scope, pinnedPaths: [...scope.pinnedPaths, rel] }
   })
 }
 
 export async function unpinPath(repoPath: string, path: string): Promise<void> {
-  const absolute = resolveScopePath(repoPath, path)
-  await channel.mutate((all) => {
-    const repo = all[repoPath]
-    if (!repo) return
-    all[repoPath] = {
-      ...repo,
-      pinnedPaths: repo.pinnedPaths.filter((p) => p !== absolute),
-    }
-  })
+  const rel = toRelativeScopePath(repoPath, path)
+  await ensureProjectCompanion(repoPath)
+  await channel.mutate(repoPath, (scope) => ({
+    ...scope,
+    pinnedPaths: scope.pinnedPaths.filter((p) => p !== rel),
+  }))
 }

@@ -75,7 +75,7 @@ JSON
 
 ## Standing rules
 
-1. **Start of session** — If the previous unit is done (or this is a new unit), **`review clear` first** (drops the previous set **and** the loop-evidence directory: HTML, screenshots, meta). Then `review set` with **name + thesis** (+ optional light sections/files). This is Intent-first scope, not a fake-complete Review. Works for **bugs, features, chores, and investigations** — not features only.
+1. **Start of session** — If the previous unit is done (or this is a new unit), **`review clear` first** (drops the active set **and** `.porcelain/evidence/`; the app **Archive** path keeps history under `.porcelain/reviews/`). Then `review set` with **name + thesis** (+ optional light sections/files). This is Intent-first scope, not a fake-complete Review. Works for **bugs, features, chores, and investigations** — not features only.
 2. **During** — Grow Execution as you touch files; Intent mid-session updates are OK. Human comments and reviewed marks are app → agent (`comments` / `reviewed list`).
 3. **End of session** — Complete Execution + **real Evidence** before claiming done. Don't invent proof.
 4. **Clear before a new unit** — Never leave another agent's Intent board or old evidence under a new document. If the human still has a previous unit open, clear it (or ask) before starting.

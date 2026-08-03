@@ -1,4 +1,4 @@
-import { rmSync } from 'node:fs'
+import { mkdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -10,6 +10,9 @@ import {
   normalizeStatus,
   readCards,
 } from './board-file'
+
+const root = join(tmpdir(), 'porcelain-board-file-test')
+const repo = join(root, 'repo')
 
 describe('normalizeStatus', () => {
   it('accepts the three columns', () => {
@@ -26,11 +29,11 @@ describe('normalizeStatus', () => {
 
 describe('describeBoard', () => {
   it('explains an empty board', () => {
-    expect(describeBoard('/repo', [])).toContain('is empty')
+    expect(describeBoard(repo, [])).toContain('is empty')
   })
 
   it('groups cards by column with id, title, and body', () => {
-    const text = describeBoard('/repo', [
+    const text = describeBoard(repo, [
       { id: 'c1', title: 'Add login', status: 'todo', order: 1, createdAt: 1 },
       { id: 'c2', title: 'Fix retry', body: 'unbounded', status: 'doing', order: 2, createdAt: 2 },
     ])
@@ -43,28 +46,25 @@ describe('describeBoard', () => {
 })
 
 describe('board-file round-trip', () => {
-  const dir = join(tmpdir(), 'porcelain-board-file-test')
-  const file = join(dir, 'board.json')
   beforeEach(() => {
-    process.env.PORCELAIN_BOARD = file
-    rmSync(dir, { recursive: true, force: true })
+    rmSync(root, { recursive: true, force: true })
+    mkdirSync(repo, { recursive: true })
   })
   afterEach(() => {
-    delete process.env.PORCELAIN_BOARD
-    rmSync(dir, { recursive: true, force: true })
+    rmSync(root, { recursive: true, force: true })
   })
 
   it('creates, moves, and deletes a card', () => {
-    const card = createCard('/repo', 'Add login', undefined, 'todo')
-    expect(readCards('/repo')).toHaveLength(1)
-    expect(moveCard('/repo', card.id, 'done')).toBe(true)
-    expect(readCards('/repo')[0]?.status).toBe('done')
-    expect(deleteCard('/repo', card.id)).toBe(true)
-    expect(readCards('/repo')).toEqual([])
+    const card = createCard(repo, 'Add login', undefined, 'todo')
+    expect(readCards(repo)).toHaveLength(1)
+    expect(moveCard(repo, card.id, 'done')).toBe(true)
+    expect(readCards(repo)[0]?.status).toBe('done')
+    expect(deleteCard(repo, card.id)).toBe(true)
+    expect(readCards(repo)).toEqual([])
   })
 
   it('returns false moving or deleting an unknown id', () => {
-    expect(moveCard('/repo', 'nope', 'done')).toBe(false)
-    expect(deleteCard('/repo', 'nope')).toBe(false)
+    expect(moveCard(repo, 'nope', 'done')).toBe(false)
+    expect(deleteCard(repo, 'nope')).toBe(false)
   })
 })

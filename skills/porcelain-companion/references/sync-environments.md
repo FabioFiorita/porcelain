@@ -1,101 +1,42 @@
-# Sync Porcelain environments
+# Sync environments (project companion)
 
-Porcelain keeps per-repo companion data on the **daemon host**, keyed by **absolute** repo path. Nothing crosses machines automatically. You (the agent) copy what the human needs — deliberately, with path remapping — instead of a confusing Settings UI seed.
+Porcelain stores **project companion data** in the repo:
 
-The CLI lives at `~/.porcelain/porcelain` on **every** daemon host (local Mac and remote alike) — installed automatically and kept fresh on every launch, no registration. Run it from inside the repo and it targets that repo (git toplevel of the cwd); add `--repo <absolute path>` to point at a specific checkout — which is how you drive the remote's CLI over SSH.
-
-## What to copy (and what not to)
-
-| Carry over | Source | Notes |
-|---|---|---|
-| **Saved actions** (commands) | `porcelain actions list` / `actions create` or `~/.porcelain/actions.json` | Same commands the human one-clicks in Terminal |
-| **Project board** | `porcelain board list` / `board create` or `~/.porcelain/board.json` | Todo/doing/done — remap paths only on the key |
-| **Repo notes** | `porcelain notes get` (read-only) + write notes via the app or file | Human scratchpad |
-| **Flow layers** | `porcelain layers get` / `layers set` | Regex rules; paths inside patterns are usually relative |
-| **Review comments** | `porcelain comments list` | Only if the human still wants open notes on the other host |
-| **Hidden folders** | `porcelain scope list` / `scope hide` or `~/.porcelain/scope.json` | Absolute paths in the file — **must remap** (CLI accepts relative on the target host) |
-| **Pinned folders** | `porcelain scope pin` / same `scope.json` | Same as hidden |
-
-**Do not copy:**
-
-- Review sets (`review-sets.json`) — the **Review** is session/work-specific
-- Loop evidence
-- Reviewed marks
-- Daemon token, environments list
-
-## Paths by host
-
-Channel files (board, actions, notes, layers, comments, …):
-
-- Always: `~/.porcelain/<name>.json` on the machine where the **daemon** runs
-- Override for tests: `PORCELAIN_*` env vars (see channel modules)
-
-Hidden/pinned live in the **scope channel** (same home as board/layers):
-
-- Always: `~/.porcelain/scope.json` on the machine where the **daemon** runs
-- Override for tests: `PORCELAIN_SCOPE`
-
-Shape:
-
-```json
-{
-  "/absolute/path/to/repo": {
-    "hiddenPaths": ["/absolute/path/to/repo/apps/legacy"],
-    "pinnedPaths": ["/absolute/path/to/repo/apps/web"]
-  }
-}
+```text
+<repo>/.porcelain/
+  actions.json
+  board.json
+  layers.json
+  scope.json
+  notes.md
+  review.json          # active unit
+  comments.json
+  reviewed.json
+  feature-view.json    # app-computed snapshot
+  evidence/            # gitignored by default
+  reviews/<id>/        # archived units
+  .gitignore
 ```
 
-Legacy: older installs stored hide/pin under daemon `config.json` `repos[*]`; the daemon migrates into `scope.json` on boot.
+Machine secrets (daemon token, remotes, UI prefs) stay under `~/.porcelain` (or
+`PORCELAIN_HOME` for the dev stack). They are never copied into the work tree.
 
-## Local → remote workflow (typical)
+## Share with a teammate or another machine
 
-1. **Confirm both absolute paths**
-   - Local: e.g. `/Users/you/Code/my-app`
-   - Remote: e.g. `/home/you/code/my-app`
-2. **On the local machine** (where you're running now):
-   - `porcelain actions list`, `board list`, `notes get`, `layers get`, `comments list` (run from inside the repo, or with local `--repo`)
-   - Read `config.json` hidden/pinned for that key (or ask the human what is hidden)
-3. **Decide what still makes sense remotely**
-   - Keep the same action **commands** if tools exist on remote (`pnpm`, `cargo`, …); drop Mac-only commands (e.g. `xcodebuild`, Simulator) or rewrite them
-   - Board cards: usually copy as-is
-   - Hidden/pinned: remap absolute prefixes `localRoot → remoteRoot`
-4. **Apply on remote** — prefer one of:
-   - **A. SSH + the remote's CLI** (best): SSH in and run the daemon-installed `~/.porcelain/porcelain` there — `actions create` / `board create` / `layers set` with `--repo <remote path>`. Nothing to install; the remote daemon already put the CLI in place.
+1. Track the files you want under `.porcelain/` (edit `.porcelain/.gitignore` —
+   evidence is ignored by default).
+2. Commit and push.
+3. Teammate (or remote clone) pulls — companion data is present.
 
-     ```bash
-     ssh you@remote-host '~/.porcelain/porcelain board create --title "Wire up auth" \
-       --status todo --repo /home/you/code/my-app'
-     ```
-   - **B. SSH + edit channel JSON**: merge under the remote absolute path key in each `~/.porcelain/*.json` (atomic write: write `.tmp` then rename). Preserve other repos' keys
-   - **C. Same host path remap only**: if both paths are on one daemon, the app still has `exportRepoSettings` / `importRepoSettings` / `copyRepoSettings` tRPC procedures for scripts — not the Settings UI
-5. **Hidden/pinned on remote**: prefer `porcelain scope hide|pin --path … --repo <remotePath>` over SSH (paths relative to the remote checkout). Or merge remote `~/.porcelain/scope.json` under the remote absolute key — remap every absolute path string.
+There is **no** daemon-side “copy settings between remotes” or “seed worktree”
+path. Linked worktrees share whatever is on the checked-out revision of
+`.porcelain/` (same as any other project file).
 
-## Remote → local
+## One-way migrate from home (existing installs)
 
-Same steps, reverse source/target. When the human works in a **remote Porcelain window**, the CLI on that host already targets remote `~/.porcelain` — list there, then apply on the Mac.
+Older Porcelain stored channels in `~/.porcelain/*.json` keyed by absolute path.
+On open, if the repo has no `.porcelain/` yet but home still has data for that
+path, Porcelain copies it into the repo once and **purges** the home keys. There
+is no move-back.
 
-## SSH tips
-
-```bash
-# Reach the remote (Tailscale hostname or LAN)
-ssh you@remote-host
-
-# The CLI is already installed by the remote daemon
-~/.porcelain/porcelain board list --repo /home/you/code/my-app
-
-# Channel files
-ls ~/.porcelain/
-cat ~/.porcelain/board.json | head
-
-# Daemon config (Linux default)
-cat ~/.local/share/porcelain/config.json
-```
-
-## Principles
-
-- **Never silent merge of feature review sets** — those are live review state
-- **Remap absolute paths** (hidden/pinned keys and values)
-- Prefer **commands the remote can run**; drop or rewrite Mac-only tooling, or create them with `--where local` so they only run on This device when the human is remote-bound
-- Prefer the CLI over hand-editing JSON when you can reach the target host
-- Tell the human what you copied and what you skipped
+Greenfield projects write `.porcelain/` on first companion write (CLI or app).

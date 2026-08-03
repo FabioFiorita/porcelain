@@ -49,7 +49,7 @@ parens is the **entry point**; read it for mechanics.
 | Changes / Feature | Commit composer + Comments |
 | Terminal | Actions |
 | Board | Focus — full detail of the selected card; selection is client-only, **not** a second kanban |
-| Feature | **Reading companion only** (`review-group.tsx` + Comments) — deliberately not a clone of Changes' git commands/commit. "Clear review & evidence" is an inline button here |
+| Feature | **Current review + Previous reviews** (`review-group.tsx` + Comments) — archive the active unit; restore or trash archives under `.porcelain/reviews/` |
 
 **Overlays:** file finder (⌘P) · find bar (⌘F) · Settings (`settings-dialog.tsx` — General · Share ·
 Remotes · Review flow · Updates) · welcome screen.
@@ -59,11 +59,12 @@ Remotes · Review flow · Updates) · welcome screen.
 | Term | Meaning |
 |---|---|
 | Flow / flow layers | Architectural-layer grouping of changes (entry-point → data); the heart of "review as a story" |
-| The Review (feature view / review set) | One unit-of-work story as a three-tab canvas: **Intent** (thesis + walkthrough prose, optional freeform HTML/Excalidraw), **Execution** (agent-listed files + notes, not the working tree), **Evidence**. Files tagged **changed** / **context** / **shipped**. Manifest: `review-sets.json`. Product language is **Review**; code may keep `feature` ids |
-| Evidence | Agent-authored self-contained HTML *proof the loop closed*; directory-on-disk under `loop-evidence/<key>/`; app write = clear only. Excalidraw is Intent-only. Ephemeral |
-| Review comments | The reviewer's line/file notes (`comments.json`), app→agent via the CLI |
-| Reviewed marks | Per-file "reviewed" checkboxes (`reviewed.json`), app→agent, read-only like notes |
-| Project board | Per-repo todo/doing/done (`board.json`), two-way via the CLI |
-| Actions | Saved named commands (`actions.json`); agent curates, **human runs** |
+| The Review (feature view / review set) | One unit-of-work story as a three-tab canvas: **Intent** (thesis + walkthrough prose, optional freeform HTML/Excalidraw), **Execution** (agent-listed files + notes, not the working tree), **Evidence**. Files tagged **changed** / **context** / **shipped**. Active: `<repo>/.porcelain/review.json`; archives under `.porcelain/reviews/<id>/`. Product language is **Review**; code may keep `feature` ids |
+| Evidence | Agent-authored self-contained HTML *proof the loop closed*; `<repo>/.porcelain/evidence/` (gitignored by default); archives with the review. Excalidraw is Intent-only |
+| Review comments | The reviewer's line/file notes (`.porcelain/comments.json`), app→agent via the CLI |
+| Reviewed marks | Per-file "reviewed" checkboxes (`.porcelain/reviewed.json`), app→agent, read-only like notes |
+| Project board | Per-repo todo/doing/done (`.porcelain/board.json`), two-way via the CLI; share via git |
+| Actions | Saved named commands (`.porcelain/actions.json`); agent curates, **human runs** |
+| Project companion | Repo-local `.porcelain/` (board, actions, scope, layers, notes, reviews). Machine secrets stay in `~/.porcelain` / `PORCELAIN_HOME`. One-way migrate from home on first open |
 | Daemon | The headless Electron-free backend (`apps/daemon/src/server.ts`) the web client reaches over HTTP + one WS; the shell spawns and babysits it (`apps/desktop/src/main/daemon.ts`). "The daemon" always resolves here |
 | Surface language | The opaque design: raised = cards, recessed = wells, hover/selected = `bg-accent`/`bg-accent/50`. Menus are the one translucent exception. ONE design serves Electron and the browser alike |

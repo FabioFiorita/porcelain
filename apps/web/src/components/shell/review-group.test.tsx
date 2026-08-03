@@ -19,6 +19,12 @@ vi.mock('@renderer/hooks/use-reviewed', () => ({
 const clearSpy = vi.hoisted(() => vi.fn(async () => {}))
 vi.mock('@renderer/hooks/use-feature-view', () => ({
   useClearFeatureReview: () => ({ clear: clearSpy, isClearing: false }),
+  useArchivedReviews: () => [],
+  useArchivedReviewActions: () => ({
+    restore: vi.fn(),
+    remove: vi.fn(),
+    isBusy: false,
+  }),
 }))
 
 const reading: FeatureReading = {
@@ -68,22 +74,22 @@ describe('ReviewGroup', () => {
     vi.mocked(useFeatureReading).mockReturnValue({ reading: null, refresh: async () => {} })
     renderGroup()
     expect(screen.getByText(/Start a unit/)).toBeInTheDocument()
-    expect(screen.queryByText('Clear review & evidence')).not.toBeInTheDocument()
+    expect(screen.queryByText('Archive review & evidence')).not.toBeInTheDocument()
   })
 
-  it('shows Now reading, lifecycle, and the inline Clear review button', () => {
+  it('shows Current review, lifecycle, and the Archive review button', () => {
     renderGroup()
-    expect(screen.getByText('Now reading')).toBeInTheDocument()
+    expect(screen.getByText('Current review')).toBeInTheDocument()
     expect(screen.getAllByText('Crew call-outs').length).toBeGreaterThanOrEqual(1)
     expect(screen.getAllByText(/In progress/i).length).toBeGreaterThanOrEqual(1)
     expect(screen.getByTestId('feature-clear-review')).toBeInTheDocument()
   })
 
-  it('clears only after AlertDialog confirm', () => {
+  it('archives only after AlertDialog confirm', () => {
     renderGroup()
     fireEvent.click(screen.getByTestId('feature-clear-review'))
     expect(clearSpy).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByLabelText('Confirm clear review and evidence'))
+    fireEvent.click(screen.getByLabelText('Confirm archive review and evidence'))
     expect(clearSpy).toHaveBeenCalledTimes(1)
   })
 })

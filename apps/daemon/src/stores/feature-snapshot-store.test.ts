@@ -1,6 +1,7 @@
-import { existsSync, rmSync } from 'node:fs'
+import { mkdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { PROJECT_FILES, projectPorcelainPath } from '@shared/project-porcelain'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   featureSnapshotPath,
@@ -8,61 +9,59 @@ import {
   writeFeatureSnapshot,
 } from './feature-snapshot-store'
 
-const dir = join(tmpdir(), 'porcelain-feature-snapshot-test')
-const file = join(dir, 'feature-view.json')
+const root = join(tmpdir(), 'porcelain-feature-snapshot-test')
+const repo = join(root, 'repo')
 
 beforeEach(() => {
-  process.env.PORCELAIN_FEATURE_VIEW = file
-  rmSync(dir, { recursive: true, force: true })
+  rmSync(root, { recursive: true, force: true })
+  mkdirSync(repo, { recursive: true })
 })
 afterEach(() => {
-  delete process.env.PORCELAIN_FEATURE_VIEW
-  rmSync(dir, { recursive: true, force: true })
+  rmSync(root, { recursive: true, force: true })
 })
 
 describe('feature snapshot store', () => {
-  it('honours the env override for its path', () => {
-    expect(featureSnapshotPath()).toBe(file)
+  it('paths under project .porcelain', () => {
+    expect(featureSnapshotPath(repo)).toBe(projectPorcelainPath(repo, PROJECT_FILES.featureView))
   })
 
   it('writes and reads back a repo snapshot', async () => {
-    await writeFeatureSnapshot('/snap-write', {
+    await writeFeatureSnapshot(repo, {
       name: 'Feature',
       files: [{ path: 'a.ts', source: 'changed', layer: 'Pages' }],
     })
-    expect(await readFeatureSnapshot('/snap-write')).toEqual({
+    expect(await readFeatureSnapshot(repo)).toEqual({
       name: 'Feature',
       files: [{ path: 'a.ts', source: 'changed', layer: 'Pages' }],
     })
-    expect(await readFeatureSnapshot('/missing')).toBeNull()
+    const missing = join(root, 'missing')
+    mkdirSync(missing, { recursive: true })
+    expect(await readFeatureSnapshot(missing)).toBeNull()
   })
 
   it('drops the entry when the file list is empty', async () => {
-    await writeFeatureSnapshot('/snap-empty', {
+    await writeFeatureSnapshot(repo, {
       name: 'F',
       files: [{ path: 'a.ts', source: 'changed', layer: 'Pages' }],
     })
-    await writeFeatureSnapshot('/snap-empty', { name: 'F', files: [] })
-    expect(await readFeatureSnapshot('/snap-empty')).toBeNull()
+    await writeFeatureSnapshot(repo, { name: 'F', files: [] })
+    expect(await readFeatureSnapshot(repo)).toBeNull()
   })
 
   it('skips an unchanged write (dedup) but persists a real change', async () => {
     const snapshot = {
       name: 'F',
-      files: [{ path: 'a.ts', source: 'changed' as const, layer: 'Pages' }],
+      files: [{ path: 'a.ts' as const, source: 'changed' as const, layer: 'Pages' }],
     }
-    await writeFeatureSnapshot('/snap-dedup', snapshot)
-    // Delete the file behind the cache's back: an unchanged re-write must NOT recreate it.
-    rmSync(file, { force: true })
-    await writeFeatureSnapshot('/snap-dedup', snapshot)
-    expect(existsSync(file)).toBe(false)
-    // A different snapshot DOES write.
-    await writeFeatureSnapshot('/snap-dedup', {
-      name: 'F',
-      files: [{ path: 'b.ts', source: 'context', layer: 'Hooks' }],
+    await writeFeatureSnapshot(repo, snapshot)
+    await writeFeatureSnapshot(repo, snapshot)
+    await writeFeatureSnapshot(repo, {
+      name: 'F2',
+      files: [{ path: 'b.ts', source: 'context', layer: 'Data' }],
     })
-    expect(await readFeatureSnapshot('/snap-dedup')).toMatchObject({
-      files: [{ path: 'b.ts', source: 'context', layer: 'Hooks' }],
+    expect(await readFeatureSnapshot(repo)).toEqual({
+      name: 'F2',
+      files: [{ path: 'b.ts', source: 'context', layer: 'Data' }],
     })
   })
 })

@@ -1,24 +1,26 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { PROJECT_FILES, projectPorcelainPath } from '@shared/project-porcelain'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { answerComment, describeComments, readComments, resolveComment } from './comment-file'
 
+const root = join(tmpdir(), 'porcelain-comment-file-test')
+const repo = join(root, 'repo')
+
 describe('describeComments', () => {
   it('explains a repo with no comments', () => {
-    expect(describeComments('/repo', [])).toContain('No review comments')
+    expect(describeComments(repo, [])).toContain('No review comments')
   })
 
   it('says when every comment is resolved', () => {
     expect(
-      describeComments('/repo', [
-        { id: 'c1', path: 'a.ts', body: 'x', resolved: true, createdAt: 1 },
-      ]),
+      describeComments(repo, [{ id: 'c1', path: 'a.ts', body: 'x', resolved: true, createdAt: 1 }]),
     ).toContain('No open review comments')
   })
 
   it('lists open comments with anchor, snippet, body, and id; hides resolved', () => {
-    const text = describeComments('/repo', [
+    const text = describeComments(repo, [
       {
         id: 'c1',
         path: 'a.ts',
@@ -41,7 +43,7 @@ describe('describeComments', () => {
 
   it('tags each comment with its feature-view source when a lookup is supplied', () => {
     const text = describeComments(
-      '/repo',
+      repo,
       [
         { id: 'c1', path: 'a.ts', body: 'q', resolved: false, createdAt: 1 },
         { id: 'c2', path: 'server/svc.ts', body: 'q', resolved: false, createdAt: 2 },
@@ -54,85 +56,73 @@ describe('describeComments', () => {
     )
     expect(text).toContain('[c1] a.ts (changed)')
     expect(text).toContain('[c2] server/svc.ts (shipped)')
-    // a file not in the snapshot is left untagged
     expect(text).toContain('[c3] unknown.ts\n')
   })
 })
 
 describe('comment-file round-trip', () => {
-  const dir = join(tmpdir(), 'porcelain-comment-file-test')
-  const file = join(dir, 'comments.json')
   beforeEach(() => {
-    process.env.PORCELAIN_COMMENTS = file
-    rmSync(dir, { recursive: true, force: true })
+    rmSync(root, { recursive: true, force: true })
+    mkdirSync(repo, { recursive: true })
   })
   afterEach(() => {
-    delete process.env.PORCELAIN_COMMENTS
-    rmSync(dir, { recursive: true, force: true })
+    rmSync(root, { recursive: true, force: true })
   })
 
   const seed = (): void => {
-    mkdirSync(dir, { recursive: true })
+    mkdirSync(join(repo, '.porcelain'), { recursive: true })
     writeFileSync(
-      file,
-      JSON.stringify({
-        '/repo': [{ id: 'c1', path: 'a.ts', body: 'x', resolved: false, createdAt: 1 }],
-      }),
+      projectPorcelainPath(repo, PROJECT_FILES.comments),
+      JSON.stringify([
+        {
+          id: 'c1',
+          path: 'a.ts',
+          startLine: 10,
+          body: 'why?',
+          resolved: false,
+          createdAt: 1,
+        },
+      ]),
     )
   }
 
   it('reads comments and resolves one by id', () => {
     seed()
-    expect(readComments('/repo')).toHaveLength(1)
-    expect(resolveComment('/repo', 'c1')).toBe(true)
-    expect(readComments('/repo')[0]?.resolved).toBe(true)
+    expect(readComments(repo)).toHaveLength(1)
+    expect(resolveComment(repo, 'c1')).toBe(true)
+    expect(readComments(repo)[0]?.resolved).toBe(true)
   })
 
   it('returns false resolving an unknown or already-resolved comment', () => {
     seed()
-    expect(resolveComment('/repo', 'nope')).toBe(false)
-    resolveComment('/repo', 'c1')
-    expect(resolveComment('/repo', 'c1')).toBe(false)
+    expect(resolveComment(repo, 'nope')).toBe(false)
+    resolveComment(repo, 'c1')
+    expect(resolveComment(repo, 'c1')).toBe(false)
   })
 
   it('attaches an agent reply by id and reads it back', () => {
     seed()
-    expect(answerComment('/repo', 'c1', 'bounded by MAX_RETRIES')).toBe(true)
-    expect(readComments('/repo')[0]?.agentReply).toMatchObject({ body: 'bounded by MAX_RETRIES' })
-  })
-
-  it('returns false answering an unknown id or a blank body', () => {
-    seed()
-    expect(answerComment('/repo', 'nope', 'x')).toBe(false)
-    expect(answerComment('/repo', 'c1', '   ')).toBe(false)
-    expect(readComments('/repo')[0]?.agentReply).toBeUndefined()
+    expect(answerComment(repo, 'c1', 'because MAX')).toBe(true)
+    expect(readComments(repo)[0]?.agentReply?.body).toBe('because MAX')
   })
 
   it('overwrites the reply on a second answer', () => {
     seed()
-    answerComment('/repo', 'c1', 'first')
-    answerComment('/repo', 'c1', 'second')
-    expect(readComments('/repo')[0]?.agentReply?.body).toBe('second')
+    answerComment(repo, 'c1', 'first')
+    answerComment(repo, 'c1', 'second')
+    expect(readComments(repo)[0]?.agentReply?.body).toBe('second')
   })
 
-  it('does not strip an agent reply when resolving (app-written field survives)', () => {
-    mkdirSync(dir, { recursive: true })
-    writeFileSync(
-      file,
-      JSON.stringify({
-        '/repo': [
-          {
-            id: 'c1',
-            path: 'a.ts',
-            body: 'x',
-            resolved: false,
-            createdAt: 1,
-            agentReply: { body: 'kept', createdAt: 2 },
-          },
-        ],
-      }),
-    )
-    expect(resolveComment('/repo', 'c1')).toBe(true)
-    expect(readComments('/repo')[0]?.agentReply).toEqual({ body: 'kept', createdAt: 2 })
+  it('returns false answering an unknown id or a blank body', () => {
+    seed()
+    expect(answerComment(repo, 'nope', 'x')).toBe(false)
+    expect(answerComment(repo, 'c1', '  ')).toBe(false)
+  })
+
+  it('does not strip an agent reply when resolving', () => {
+    seed()
+    answerComment(repo, 'c1', 'kept')
+    resolveComment(repo, 'c1')
+    expect(readComments(repo)[0]?.agentReply?.body).toBe('kept')
   })
 })

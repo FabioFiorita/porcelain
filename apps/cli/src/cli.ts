@@ -57,13 +57,11 @@ import {
   unpinPath as unpinScopePath,
 } from './scope-file'
 
-// Porcelain's agent CLI: a dependency-free command that reads and writes the watched
-// JSON channels under ~/.porcelain (review sets, board, actions, notes, layers,
-// evidence, comments, reviewed marks). One fresh process per invocation does a single
-// synchronous read-modify-write, so there is no long-lived server or ordering machinery.
-// Node builtins only, hand-rolled flag parsing: the built bundle is copied to
-// ~/.porcelain/porcelain.js and run under a plain `node`, which cannot resolve anything
-// from node_modules inside app.asar.
+// Porcelain's agent CLI: a dependency-free command that reads and writes project
+// companion channels under <repo>/.porcelain/ (review, board, actions, notes, layers,
+// evidence, comments, reviewed marks, scope). One fresh process per invocation does a
+// single synchronous read-modify-write. Node builtins only; the built bundle is
+// installed to ~/.porcelain/porcelain.js and run under plain `node`.
 
 interface CliDeps {
   /** Directory to resolve the repo from when --repo is absent. Default: process.cwd(). */

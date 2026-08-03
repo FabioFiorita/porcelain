@@ -1,12 +1,4 @@
 import { z } from 'zod'
-import {
-  copyRepoSettings,
-  exportRepoSettings,
-  type ImportRepoSettingsResult,
-  importRepoSettings,
-  type RepoSettings,
-  repoSettingsSchema,
-} from '../repo-settings'
 import { DEFAULT_LAYERS, type Layer } from '../review/flow'
 import { readLayers, writeLayers } from '../stores/layers-store'
 import { readNotes, writeNotes } from '../stores/notes-store'
@@ -64,26 +56,4 @@ export const settingsRouter = t.router({
     .mutation(async ({ input }) => {
       await writeNotes(input.repoPath, input.notes)
     }),
-
-  // Explicit seed of per-repo channel settings (actions/notes/board/layers/comments)
-  // — used to carry project setup from one environment/path to another. Never
-  // silent: the caller supplies source + target; present channels replace on the
-  // target.
-  exportRepoSettings: publicProcedure
-    .input(z.string())
-    .query(({ input }): Promise<RepoSettings> => exportRepoSettings(input)),
-
-  importRepoSettings: publicProcedure
-    .input(z.object({ repoPath: z.string(), settings: repoSettingsSchema }))
-    .mutation(
-      ({ input }): Promise<ImportRepoSettingsResult> =>
-        importRepoSettings(input.repoPath, input.settings),
-    ),
-
-  copyRepoSettings: publicProcedure
-    .input(z.object({ fromPath: z.string(), toPath: z.string() }))
-    .mutation(
-      ({ input }): Promise<ImportRepoSettingsResult> =>
-        copyRepoSettings(input.fromPath, input.toPath),
-    ),
 })

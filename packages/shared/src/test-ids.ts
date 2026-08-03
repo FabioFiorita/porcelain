@@ -77,8 +77,13 @@ export const TestIds = {
   reviewInboxRow: (branch: string): string => `review-inbox-row-${branch}`,
   featureList: 'feature-list',
   featureOpenReview: 'feature-open-review',
-  /** Right-rail companion: clear the published Review + evidence (confirm first). */
+  /** Right-rail companion: archive the published Review + evidence (confirm first). */
   featureClearReview: 'feature-clear-review',
+  /** Right-rail list of archived previous reviews. */
+  previousReviews: 'previous-reviews',
+  previousReviewRow: (id: string): string => `previous-review-${id}`,
+  previousReviewRestore: (id: string): string => `previous-review-restore-${id}`,
+  previousReviewDelete: (id: string): string => `previous-review-delete-${id}`,
   /** Ship handoff: open Changes (commit home) after review progress. */
   featureCommitChanges: 'feature-commit-changes',
   featureOutlineEvidence: 'feature-outline-evidence',

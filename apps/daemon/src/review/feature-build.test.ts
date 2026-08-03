@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
 import { gitEnv } from '../git/git-env'
 import { clearWorkingTreeSnapshot } from '../git/working-tree'
 import {
@@ -78,18 +78,6 @@ describe('readSourcesInto', () => {
 })
 
 describe('feature build', () => {
-  beforeEach(async () => {
-    const home = await tempDir('porcelain-feature-home-')
-    process.env.PORCELAIN_LAYERS = join(home, 'layers.json')
-    process.env.PORCELAIN_REVIEW_SETS = join(home, 'review-sets.json')
-    process.env.PORCELAIN_FEATURE_VIEW = join(home, 'feature-view.json')
-  })
-  afterEach(() => {
-    delete process.env.PORCELAIN_LAYERS
-    delete process.env.PORCELAIN_REVIEW_SETS
-    delete process.env.PORCELAIN_FEATURE_VIEW
-  })
-
   async function repo(prefix: string): Promise<string> {
     const dir = await tempDir(prefix)
     git(dir, 'init', '-b', 'main')
@@ -102,10 +90,8 @@ describe('feature build', () => {
   }
 
   async function writeReviewSet(repoPath: string, set: ReviewSet): Promise<void> {
-    await writeFile(
-      process.env.PORCELAIN_REVIEW_SETS ?? '',
-      JSON.stringify({ [repoPath]: set }, null, 2),
-    )
+    await mkdir(join(repoPath, '.porcelain'), { recursive: true })
+    await writeFile(join(repoPath, '.porcelain', 'review.json'), JSON.stringify(set, null, 2))
   }
 
   const gathered = async (repoPath: string): Promise<ReviewGather> => {

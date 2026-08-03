@@ -16,11 +16,11 @@ export { type EvidenceCheck, evidenceOverallStatus } from '@shared/evidence-chec
 
 /**
  * Evidence — **files on disk are the source of truth**:
- * `~/.porcelain/loop-evidence/<key>/` holds `index.html` (required), `meta.json`
+ * `<repo>/.porcelain/evidence/` holds `index.html` (required), `meta.json`
  * (title / checks) and optional screenshots. Agents write them with normal Write
  * tools; the app inlines relative images for the sandboxed viewer and clears by
- * deleting the directory. Excalidraw is NOT an evidence medium — the Intent
- * freeform canvas (`review set-canvas`) is. See `evidence-paths.ts`.
+ * deleting the directory (or archives them with the review on clear). Excalidraw
+ * is NOT an evidence medium — the Intent freeform canvas is. See `evidence-paths.ts`.
  */
 
 /**

@@ -5,55 +5,35 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { runCli } from './cli'
 
-const dir = join(tmpdir(), 'porcelain-cli-test')
-const file = join(dir, 'review-sets.json')
-const notesFile = join(dir, 'notes.json')
-const layersFile = join(dir, 'layers.json')
-const reviewedFile = join(dir, 'reviewed.json')
-const boardFile = join(dir, 'board.json')
-const actionsFile = join(dir, 'actions.json')
-const commentsFile = join(dir, 'comments.json')
-const featureViewFile = join(dir, 'feature-view.json')
-const scopeFile = join(dir, 'scope.json')
+const root = join(tmpdir(), 'porcelain-cli-test')
+const repoPath = join(root, 'repo')
 
 beforeEach(() => {
-  process.env.PORCELAIN_REVIEW_SETS = file
-  process.env.PORCELAIN_NOTES = notesFile
-  process.env.PORCELAIN_LAYERS = layersFile
-  process.env.PORCELAIN_REVIEWED = reviewedFile
-  process.env.PORCELAIN_BOARD = boardFile
-  process.env.PORCELAIN_ACTIONS = actionsFile
-  process.env.PORCELAIN_COMMENTS = commentsFile
-  process.env.PORCELAIN_FEATURE_VIEW = featureViewFile
-  process.env.PORCELAIN_SCOPE = scopeFile
-  rmSync(dir, { recursive: true, force: true })
+  rmSync(root, { recursive: true, force: true })
+  mkdirSync(repoPath, { recursive: true })
 })
 afterEach(() => {
-  delete process.env.PORCELAIN_REVIEW_SETS
-  delete process.env.PORCELAIN_NOTES
-  delete process.env.PORCELAIN_LAYERS
-  delete process.env.PORCELAIN_REVIEWED
-  delete process.env.PORCELAIN_BOARD
-  delete process.env.PORCELAIN_ACTIONS
-  delete process.env.PORCELAIN_COMMENTS
-  delete process.env.PORCELAIN_FEATURE_VIEW
-  delete process.env.PORCELAIN_LOOP_EVIDENCE_DIR
-  delete process.env.PORCELAIN_SCOPE
-  rmSync(dir, { recursive: true, force: true })
+  rmSync(root, { recursive: true, force: true })
 })
 // A plausible self-contained document: has a `<` tag and clears the MIN_HTML_BYTES floor,
 // so it survives resolveToolHtml's plausibility guard (unlike tiny test fragments).
 const doc = `<main>${'x'.repeat(600)}</main>`
 
-// Every command targets --repo /repo unless it's exercising repo resolution itself.
-const repo = ['--repo', '/repo']
+// Every command targets a real temp repo path.
+const repo = ['--repo', repoPath]
 
-const read = (): Record<
-  string,
-  { name: string; thesis?: string; files: unknown[]; sections?: unknown[] }
-> => JSON.parse(readFileSync(file, 'utf8'))
-const readBoard = (): Record<string, unknown[]> => JSON.parse(readFileSync(boardFile, 'utf8'))
-const readActions = (): Record<string, unknown[]> => JSON.parse(readFileSync(actionsFile, 'utf8'))
+const porcelain = (...parts: string[]): string => join(repoPath, '.porcelain', ...parts)
+const ensurePorcelain = (): void => {
+  mkdirSync(porcelain(), { recursive: true })
+}
+const read = (): {
+  name: string
+  thesis?: string
+  files: unknown[]
+  sections?: unknown[]
+} => JSON.parse(readFileSync(porcelain('review.json'), 'utf8'))
+const readBoard = (): unknown[] => JSON.parse(readFileSync(porcelain('board.json'), 'utf8'))
+const readActions = (): unknown[] => JSON.parse(readFileSync(porcelain('actions.json'), 'utf8'))
 
 describe('runCli — flag parsing, help, repo resolution', () => {
   it('bare invocation and `help` print usage', async () => {
@@ -93,7 +73,7 @@ describe('runCli — flag parsing, help, repo resolution', () => {
   it('reads --files from stdin when passed "-"', async () => {
     const readStdin = (): string => JSON.stringify([{ path: 'a.ts' }])
     await runCli(['review', 'set', ...repo, '--files', '-'], { readStdin })
-    expect(read()['/repo']?.files).toEqual([{ path: 'a.ts' }])
+    expect(read()?.files).toEqual([{ path: 'a.ts' }])
   })
   it('reads --layers from stdin when passed "-"', async () => {
     const readStdin = (): string => JSON.stringify([{ label: 'Pages', pattern: '(^|/)pages/' }])
@@ -101,10 +81,9 @@ describe('runCli — flag parsing, help, repo resolution', () => {
     expect(await runCli(['layers', 'get', ...repo])).toContain('Pages')
   })
   it('reads --html from stdin when passed "-"', async () => {
-    process.env.PORCELAIN_LOOP_EVIDENCE_DIR = join(dir, 'loop-evidence')
     const readStdin = (): string => doc
     await runCli(['evidence', 'set', ...repo, '--title', 'Piped', '--html', '-'], { readStdin })
-    expect(await runCli(['evidence', 'get', ...repo])).toContain('Evidence "Piped" for /repo')
+    expect(await runCli(['evidence', 'get', ...repo])).toContain(`Evidence "Piped" for ${repoPath}`)
   })
 })
 
@@ -119,7 +98,7 @@ describe('runCli — review + feature + comments + reviewed', () => {
       '--files',
       JSON.stringify([{ path: 'a.ts' }]),
     ])
-    expect(read()['/repo']).toEqual({ name: 'X', files: [{ path: 'a.ts' }], sections: [] })
+    expect(read()).toEqual({ name: 'X', files: [{ path: 'a.ts' }], sections: [] })
   })
   it('review set accepts --thesis and --sections and review get round-trips them', async () => {
     const sections = [
@@ -145,8 +124,8 @@ describe('runCli — review + feature + comments + reviewed', () => {
       JSON.stringify(sections),
     ])
     expect(out).toContain('1 section(s)')
-    expect(read()['/repo']?.thesis).toBe('One round-trip instead of three.')
-    expect(read()['/repo']?.sections).toEqual(sections)
+    expect(read()?.thesis).toBe('One round-trip instead of three.')
+    expect(read()?.sections).toEqual(sections)
     const text = await runCli(['review', 'get', ...repo])
     expect(text).toContain('1 section(s), thesis set')
     expect(JSON.parse(text.slice(text.indexOf('{')))).toEqual({
@@ -161,7 +140,7 @@ describe('runCli — review + feature + comments + reviewed', () => {
       ['review', 'set', ...repo, '--files', JSON.stringify([{ path: 'a.ts' }]), '--sections', '-'],
       { readStdin },
     )
-    expect(read()['/repo']?.sections).toEqual([{ title: 'Entry', prose: 'piped', anchors: [] }])
+    expect(read()?.sections).toEqual([{ title: 'Entry', prose: 'piped', anchors: [] }])
   })
   it('review set rejects malformed --sections with an indexed message', async () => {
     await expect(
@@ -226,13 +205,13 @@ describe('runCli — review + feature + comments + reviewed', () => {
       JSON.stringify([{ title: 'Entry', prose: 'x' }]),
     ])
     await runCli(['review', 'add', ...repo, '--files', JSON.stringify([{ path: 'b.ts' }])])
-    expect(read()['/repo']?.thesis).toBe('The why.')
-    expect(read()['/repo']?.sections).toHaveLength(1)
-    expect(read()['/repo']?.files).toHaveLength(2)
+    expect(read()?.thesis).toBe('The why.')
+    expect(read()?.sections).toHaveLength(1)
+    expect(read()?.files).toHaveLength(2)
   })
   it('review set defaults the name to "Feature view"', async () => {
     await runCli(['review', 'set', ...repo, '--files', JSON.stringify([{ path: 'a.ts' }])])
-    expect(read()['/repo']?.name).toBe('Feature view')
+    expect(read()?.name).toBe('Feature view')
   })
   it('review set requires --files', async () => {
     await expect(runCli(['review', 'set', ...repo])).rejects.toThrow('files must be an array')
@@ -240,16 +219,15 @@ describe('runCli — review + feature + comments + reviewed', () => {
   it('review add merges into the existing set', async () => {
     await runCli(['review', 'set', ...repo, '--files', JSON.stringify([{ path: 'a.ts' }])])
     await runCli(['review', 'add', ...repo, '--files', JSON.stringify([{ path: 'b.ts' }])])
-    expect(read()['/repo']?.files).toEqual([{ path: 'a.ts' }, { path: 'b.ts' }])
+    expect(read()?.files).toEqual([{ path: 'a.ts' }, { path: 'b.ts' }])
   })
   it('review clear removes the set and the loop-evidence directory', async () => {
-    process.env.PORCELAIN_LOOP_EVIDENCE_DIR = join(dir, 'loop-evidence')
     await runCli(['review', 'set', ...repo, '--files', JSON.stringify([{ path: 'a.ts' }])])
     await runCli(['evidence', 'set', ...repo, '--title', 'Old', '--html', doc])
-    const evidenceDir = join(dir, 'loop-evidence')
+    const evidenceDir = porcelain('evidence')
     const msg = await runCli(['review', 'clear', ...repo])
     expect(msg).toContain('loop evidence')
-    expect(read()['/repo']).toBeUndefined()
+    expect(() => read()).toThrow()
     // evidenceDirForRepo hashes the path; whole loop-evidence root may still exist for other repos
     const { readdirSync, existsSync } = await import('node:fs')
     if (existsSync(evidenceDir)) {
@@ -267,54 +245,49 @@ describe('runCli — review + feature + comments + reviewed', () => {
       '--files',
       JSON.stringify([{ path: 'a.ts' }]),
     ])
-    expect(await runCli(['review', 'get', ...repo])).toContain('Feature review "X" for /repo')
+    expect(await runCli(['review', 'get', ...repo])).toContain(`Feature review "X" for ${repoPath}`)
   })
   it('feature get describes the app-computed snapshot, or hints when absent', async () => {
-    mkdirSync(dir, { recursive: true })
+    ensurePorcelain()
     writeFileSync(
-      featureViewFile,
-      JSON.stringify({
-        '/repo': { name: 'X', files: [{ path: 'a.ts', source: 'changed', layer: 'Pages' }] },
-      }),
+      porcelain('feature-view.json'),
+      JSON.stringify({ name: 'X', files: [{ path: 'a.ts', source: 'changed', layer: 'Pages' }] }),
     )
-    expect(await runCli(['feature', 'get', ...repo])).toContain('Feature view "X" for /repo')
+    expect(await runCli(['feature', 'get', ...repo])).toContain(`Feature view "X" for ${repoPath}`)
     expect(await runCli(['feature', 'get', '--repo', '/other'])).toContain(
       'No feature view computed',
     )
   })
   it('comments list tags each comment with its feature-view source', async () => {
-    mkdirSync(dir, { recursive: true })
+    ensurePorcelain()
     writeFileSync(
-      commentsFile,
-      JSON.stringify({
-        '/repo': [
-          { id: 'c1', path: 'server/svc.ts', body: 'check', resolved: false, createdAt: 1 },
-        ],
-      }),
+      porcelain('comments.json'),
+      JSON.stringify([
+        { id: 'c1', path: 'server/svc.ts', body: 'check', resolved: false, createdAt: 1 },
+      ]),
     )
     writeFileSync(
-      featureViewFile,
+      porcelain('feature-view.json'),
       JSON.stringify({
-        '/repo': { name: 'X', files: [{ path: 'server/svc.ts', source: 'shipped', layer: 'Svc' }] },
+        name: 'X',
+        files: [{ path: 'server/svc.ts', source: 'shipped', layer: 'Svc' }],
       }),
     )
     expect(await runCli(['comments', 'list', ...repo])).toContain('[c1] server/svc.ts (shipped)')
   })
   it('comments answer attaches a reply, found/not-found by id', async () => {
-    mkdirSync(dir, { recursive: true })
+    ensurePorcelain()
     writeFileSync(
-      commentsFile,
-      JSON.stringify({
-        '/repo': [{ id: 'c1', path: 'a.ts', body: 'why?', resolved: false, createdAt: 1 }],
-      }),
+      porcelain('comments.json'),
+      JSON.stringify([{ id: 'c1', path: 'a.ts', body: 'why?', resolved: false, createdAt: 1 }]),
     )
     expect(
       await runCli(['comments', 'answer', ...repo, '--id', 'c1', '--body', 'because']),
     ).toContain('Answered comment c1')
-    const stored: Record<string, Array<{ agentReply?: { body: string } }>> = JSON.parse(
-      readFileSync(commentsFile, 'utf8'),
+    const stored: Array<{ agentReply?: { body: string } }> = JSON.parse(
+      readFileSync(porcelain('comments.json'), 'utf8'),
     )
-    expect(stored['/repo']?.[0]?.agentReply?.body).toBe('because')
+    expect(stored[0]?.agentReply?.body).toBe('because')
     expect(await runCli(['comments', 'answer', ...repo, '--id', 'nope', '--body', 'x'])).toContain(
       'No comment nope',
     )
@@ -328,15 +301,13 @@ describe('runCli — review + feature + comments + reviewed', () => {
     )
   })
   it('reviewed list lists the human-reviewed paths', async () => {
-    mkdirSync(dir, { recursive: true })
+    ensurePorcelain()
     writeFileSync(
-      reviewedFile,
-      JSON.stringify({
-        '/repo': [
-          { path: 'src/a.ts', fingerprint: 'a' },
-          { path: 'src/b.ts', fingerprint: 'b' },
-        ],
-      }),
+      porcelain('reviewed.json'),
+      JSON.stringify([
+        { path: 'src/a.ts', fingerprint: 'a' },
+        { path: 'src/b.ts', fingerprint: 'b' },
+      ]),
     )
     const text = await runCli(['reviewed', 'list', ...repo])
     expect(text).toContain('src/a.ts')
@@ -349,50 +320,45 @@ describe('runCli — review + feature + comments + reviewed', () => {
 
 describe('runCli — evidence (html input)', () => {
   it('evidence set rejects both --html and --html-file', async () => {
-    process.env.PORCELAIN_LOOP_EVIDENCE_DIR = join(dir, 'loop-evidence')
-    mkdirSync(dir, { recursive: true })
-    const htmlPath = join(dir, 'evidence.html')
+    ensurePorcelain()
+    const htmlPath = join(root, 'evidence.html')
     writeFileSync(htmlPath, doc)
     await expect(
       runCli(['evidence', 'set', ...repo, '--title', 'X', '--html', doc, '--html-file', htmlPath]),
     ).rejects.toThrow('not both')
   })
   it('evidence set rejects neither --html nor --html-file', async () => {
-    process.env.PORCELAIN_LOOP_EVIDENCE_DIR = join(dir, 'loop-evidence')
     await expect(runCli(['evidence', 'set', ...repo, '--title', 'X'])).rejects.toThrow(
       '--html or --html-file is required',
     )
   })
 
   it('evidence prepare prepares the on-disk directory', async () => {
-    process.env.PORCELAIN_LOOP_EVIDENCE_DIR = join(dir, 'loop-evidence')
     const msg = await runCli(['evidence', 'prepare', ...repo, '--title', 'SPA redirect'])
     expect(msg).toContain('Evidence directory ready')
     expect(msg).toContain('index.html')
-    expect(msg).toMatch(/loop-evidence/)
+    expect(msg).toMatch(/\.porcelain\/evidence/)
   })
   it('evidence prepare rejects a missing title', async () => {
-    process.env.PORCELAIN_LOOP_EVIDENCE_DIR = join(dir, 'loop-evidence')
     await expect(runCli(['evidence', 'prepare', ...repo])).rejects.toThrow(
       'title must be a non-empty string',
     )
   })
   it('evidence set/get/clear with html writes index.html under the dir', async () => {
-    process.env.PORCELAIN_LOOP_EVIDENCE_DIR = join(dir, 'loop-evidence')
     await runCli(['evidence', 'set', ...repo, '--title', 'Vite loop', '--html', doc])
-    expect(await runCli(['evidence', 'get', ...repo])).toContain('Evidence "Vite loop" for /repo')
+    expect(await runCli(['evidence', 'get', ...repo])).toContain(
+      `Evidence "Vite loop" for ${repoPath}`,
+    )
     expect(await runCli(['evidence', 'get', ...repo])).toContain('index.html')
     await runCli(['evidence', 'clear', ...repo])
     expect(await runCli(['evidence', 'get', ...repo])).toContain('No evidence')
   })
   it('evidence set rejects a missing title', async () => {
-    process.env.PORCELAIN_LOOP_EVIDENCE_DIR = join(dir, 'loop-evidence')
     await expect(runCli(['evidence', 'set', ...repo, '--html', doc])).rejects.toThrow(
       'title must be a non-empty string',
     )
   })
   it('evidence check records a check (creating meta) and get shows the summary', async () => {
-    process.env.PORCELAIN_LOOP_EVIDENCE_DIR = join(dir, 'loop-evidence')
     const msg = await runCli([
       'evidence',
       'check',
@@ -411,13 +377,11 @@ describe('runCli — evidence (html input)', () => {
     expect(got).toContain('PASS')
   })
   it('evidence check rejects an unknown status', async () => {
-    process.env.PORCELAIN_LOOP_EVIDENCE_DIR = join(dir, 'loop-evidence')
     await expect(
       runCli(['evidence', 'check', ...repo, '--label', 'x', '--status', 'bogus']),
     ).rejects.toThrow('pass|fail|skip')
   })
   it('evidence set rejects a file path pasted into --html', async () => {
-    process.env.PORCELAIN_LOOP_EVIDENCE_DIR = join(dir, 'loop-evidence')
     await expect(
       runCli([
         'evidence',
@@ -431,7 +395,6 @@ describe('runCli — evidence (html input)', () => {
     ).rejects.toThrow(/html-file/)
   })
   it('evidence set rejects a missing --html-file', async () => {
-    process.env.PORCELAIN_LOOP_EVIDENCE_DIR = join(dir, 'loop-evidence')
     await expect(
       runCli([
         'evidence',
@@ -440,12 +403,11 @@ describe('runCli — evidence (html input)', () => {
         '--title',
         'Redirect',
         '--html-file',
-        join(dir, 'nope.html'),
+        join(root, 'nope.html'),
       ]),
     ).rejects.toThrow('not found or unreadable')
   })
   it('evidence get includes a content preview of what was stored', async () => {
-    process.env.PORCELAIN_LOOP_EVIDENCE_DIR = join(dir, 'loop-evidence')
     await runCli([
       'evidence',
       'set',
@@ -460,9 +422,8 @@ describe('runCli — evidence (html input)', () => {
     expect(text).toContain('Marker heading')
   })
   it('evidence set accepts --html-file and writes the evidence dir', async () => {
-    process.env.PORCELAIN_LOOP_EVIDENCE_DIR = join(dir, 'loop-evidence')
-    mkdirSync(dir, { recursive: true })
-    const htmlPath = join(dir, 'evidence.html')
+    ensurePorcelain()
+    const htmlPath = join(root, 'evidence.html')
     writeFileSync(htmlPath, doc)
     const msg = await runCli([
       'evidence',
@@ -480,8 +441,9 @@ describe('runCli — evidence (html input)', () => {
 
 describe('runCli — notes + layers', () => {
   it('notes get reads the human notes scratchpad', async () => {
-    mkdirSync(dir, { recursive: true })
-    writeFileSync(notesFile, JSON.stringify({ '/repo': '# conventions\n- no any' }))
+    ensurePorcelain()
+    ensurePorcelain()
+    writeFileSync(porcelain('notes.md'), '# conventions\n- no any')
     expect(await runCli(['notes', 'get', ...repo])).toContain('# conventions')
     expect(await runCli(['notes', 'get', '--repo', '/other'])).toContain('No project notes')
   })
@@ -530,7 +492,7 @@ describe('runCli — notes + layers', () => {
 describe('runCli — board + actions', () => {
   it('board create with a title writes a card in todo by default', async () => {
     await runCli(['board', 'create', ...repo, '--title', 'Ship it'])
-    const cards = readBoard()['/repo'] as Array<{ title: string; status: string }>
+    const cards = readBoard() as Array<{ title: string; status: string }>
     expect(cards).toHaveLength(1)
     expect(cards[0]?.title).toBe('Ship it')
     expect(cards[0]?.status).toBe('todo')
@@ -540,7 +502,7 @@ describe('runCli — board + actions', () => {
   })
   it('board update edits the title and body of an existing card', async () => {
     await runCli(['board', 'create', ...repo, '--title', 'Old'])
-    const id = (readBoard()['/repo'] as Array<{ id: string }>)[0]?.id as string
+    const id = (readBoard() as Array<{ id: string }>)[0]?.id as string
     const result = await runCli([
       'board',
       'update',
@@ -553,20 +515,20 @@ describe('runCli — board + actions', () => {
       'detail',
     ])
     expect(result).toContain('Updated card')
-    const cards = readBoard()['/repo'] as Array<{ title: string; body: string }>
+    const cards = readBoard() as Array<{ title: string; body: string }>
     expect(cards[0]?.title).toBe('New')
     expect(cards[0]?.body).toBe('detail')
   })
   it('board move to a valid status moves it', async () => {
     await runCli(['board', 'create', ...repo, '--title', 'Task'])
-    const id = (readBoard()['/repo'] as Array<{ id: string }>)[0]?.id as string
+    const id = (readBoard() as Array<{ id: string }>)[0]?.id as string
     const result = await runCli(['board', 'move', ...repo, '--id', id, '--status', 'doing'])
     expect(result).toContain('Moved card')
-    expect((readBoard()['/repo'] as Array<{ status: string }>)[0]?.status).toBe('doing')
+    expect((readBoard() as Array<{ status: string }>)[0]?.status).toBe('doing')
   })
   it('board move with a bad status rejects', async () => {
     await runCli(['board', 'create', ...repo, '--title', 'Task'])
-    const id = (readBoard()['/repo'] as Array<{ id: string }>)[0]?.id as string
+    const id = (readBoard() as Array<{ id: string }>)[0]?.id as string
     await expect(
       runCli(['board', 'move', ...repo, '--id', id, '--status', 'invalid']),
     ).rejects.toThrow('status must be one of todo|doing|done')
@@ -585,10 +547,10 @@ describe('runCli — board + actions', () => {
   })
   it('board delete removes the card', async () => {
     await runCli(['board', 'create', ...repo, '--title', 'Gone'])
-    const id = (readBoard()['/repo'] as Array<{ id: string }>)[0]?.id as string
+    const id = (readBoard() as Array<{ id: string }>)[0]?.id as string
     const result = await runCli(['board', 'delete', ...repo, '--id', id])
     expect(result).toContain('Deleted card')
-    expect((readBoard()['/repo'] as unknown[]).length).toBe(0)
+    expect((readBoard() as unknown[]).length).toBe(0)
   })
   it('board list groups by column', async () => {
     await runCli(['board', 'create', ...repo, '--title', 'Task'])
@@ -596,7 +558,7 @@ describe('runCli — board + actions', () => {
   })
   it('actions create with title+command writes an action', async () => {
     await runCli(['actions', 'create', ...repo, '--title', 'Dev', '--command', 'pnpm dev'])
-    const actions = readActions()['/repo'] as Array<{ title: string; command: string }>
+    const actions = readActions() as Array<{ title: string; command: string }>
     expect(actions).toHaveLength(1)
     expect(actions[0]?.title).toBe('Dev')
     expect(actions[0]?.command).toBe('pnpm dev')
@@ -608,7 +570,7 @@ describe('runCli — board + actions', () => {
   })
   it('actions update edits the title and command', async () => {
     await runCli(['actions', 'create', ...repo, '--title', 'Dev', '--command', 'pnpm dev'])
-    const id = (readActions()['/repo'] as Array<{ id: string }>)[0]?.id as string
+    const id = (readActions() as Array<{ id: string }>)[0]?.id as string
     const result = await runCli([
       'actions',
       'update',
@@ -621,16 +583,16 @@ describe('runCli — board + actions', () => {
       'pnpm build',
     ])
     expect(result).toContain('Updated action')
-    const actions = readActions()['/repo'] as Array<{ title: string; command: string }>
+    const actions = readActions() as Array<{ title: string; command: string }>
     expect(actions[0]?.title).toBe('Build')
     expect(actions[0]?.command).toBe('pnpm build')
   })
   it('actions delete removes the action', async () => {
     await runCli(['actions', 'create', ...repo, '--title', 'Dev', '--command', 'pnpm dev'])
-    const id = (readActions()['/repo'] as Array<{ id: string }>)[0]?.id as string
+    const id = (readActions() as Array<{ id: string }>)[0]?.id as string
     const result = await runCli(['actions', 'delete', ...repo, '--id', id])
     expect(result).toContain('Deleted action')
-    expect((readActions()['/repo'] as unknown[]).length).toBe(0)
+    expect((readActions() as unknown[]).length).toBe(0)
   })
   it('scope hide/pin list and clear', async () => {
     await runCli(['scope', 'hide', ...repo, '--path', 'apps/legacy'])

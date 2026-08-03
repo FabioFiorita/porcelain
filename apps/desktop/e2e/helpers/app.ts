@@ -71,15 +71,13 @@ interface Options {
    */
   seedRepo: boolean
   /**
-   * Seed the review-set channel for the fixture repo (default null → the Review's
-   * empty state). Written keyed by the fixture repo at launch, exactly as if the
-   * porcelain CLI had pushed it, so the Feature outline + Review document render.
+   * Seed the active review under `<repo>/.porcelain/review.json` (default null →
+   * the Review's empty state). Written as if the porcelain CLI had pushed it.
    */
   seedReviewSet: SeedReviewSet | null
   /**
-   * Seed the loop-evidence channel for the fixture repo (default null → none).
-   * Renders as the Review's final chapter (needs a `seedReviewSet` — without a
-   * review set the Review shows only its empty state).
+   * Seed evidence under `<repo>/.porcelain/evidence/` (default null → none).
+   * Renders as the Review's final chapter (needs a `seedReviewSet`).
    */
   seedEvidence: { title: string; html: string } | null
   /**
@@ -127,12 +125,8 @@ interface WorkerFixtures {
 }
 
 /**
- * Write the isolated userData + agent-channel files a run reads, identically for
- * both modes: the Electron shell resolves userData itself (appending '-dev' on the
- * is.dev path — the built app launched outside a package counts as dev), while the
- * browser-mode daemon is handed the same '-dev' dir via PORCELAIN_USER_DATA.
- * Isolation matters: the Feature/Terminal/Board tabs and the flow grouping stay
- * deterministic and we never read or touch the user's real ~/.porcelain files.
+ * Write isolated userData (daemon token/access) + project companion files under
+ * the fixture repo's `.porcelain/`. Machine home stays empty of companion channels.
  */
 async function seedState(
   repoDir: string,
@@ -147,22 +141,27 @@ async function seedState(
     join(userData, 'config.json'),
     JSON.stringify({ recentRepos: [seedRepo ? repoDir : ABSENT_REPO] }),
   )
-  const reviewSets = join(udBase, 'review-sets.json')
-  await writeFile(reviewSets, JSON.stringify(seedReviewSet ? { [repoDir]: seedReviewSet } : {}))
-  const actions = join(udBase, 'actions.json')
-  await writeFile(actions, '{}')
-  const board = join(udBase, 'board.json')
-  await writeFile(board, '{}')
-  const layers = join(udBase, 'layers.json')
-  await writeFile(layers, '{}')
-  const reviewed = join(udBase, 'reviewed.json')
-  await writeFile(reviewed, '{}')
-  const notes = join(udBase, 'notes.json')
-  await writeFile(notes, '{}')
-  const comments = join(udBase, 'comments.json')
-  await writeFile(comments, '{}')
-  const featureView = join(udBase, 'feature-view.json')
-  await writeFile(featureView, '{}')
+  // Project companion lives in the fixture repo (same layout as production).
+  if (seedRepo) {
+    const project = join(repoDir, '.porcelain')
+    await mkdir(project, { recursive: true })
+    if (seedReviewSet) {
+      await writeFile(join(project, 'review.json'), JSON.stringify(seedReviewSet, null, 2))
+    }
+    if (seedEvidence) {
+      const evidenceDir = join(project, 'evidence')
+      await mkdir(evidenceDir, { recursive: true })
+      await writeFile(join(evidenceDir, 'index.html'), seedEvidence.html)
+      await writeFile(
+        join(evidenceDir, 'meta.json'),
+        JSON.stringify({
+          title: seedEvidence.title,
+          repoPath: repoDir,
+          updatedAt: '2024-01-01T12:00:00.000Z',
+        }),
+      )
+    }
+  }
   const adminTokenFile = join(udBase, 'admin-token')
   await writeFile(adminTokenFile, ADMIN_TOKEN, { mode: 0o600 })
   const accessFile = join(udBase, 'access.json')
@@ -182,37 +181,11 @@ async function seedState(
     }),
     { mode: 0o600 },
   )
-  // Loop evidence is a directory of files (index.html + optional assets), not JSON.
-  // Seed the on-disk layout the app/CLI share (see evidence-paths.ts).
-  const evidenceRoot = join(udBase, 'loop-evidence')
-  await mkdir(evidenceRoot, { recursive: true })
-  if (seedEvidence) {
-    const key = createHash('sha256').update(repoDir).digest('hex').slice(0, 16)
-    const evidenceDir = join(evidenceRoot, key)
-    await mkdir(evidenceDir, { recursive: true })
-    await writeFile(join(evidenceDir, 'index.html'), seedEvidence.html)
-    await writeFile(
-      join(evidenceDir, 'meta.json'),
-      JSON.stringify({
-        title: seedEvidence.title,
-        repoPath: repoDir,
-        updatedAt: '2024-01-01T12:00:00.000Z',
-      }),
-    )
-  }
   return {
     udBase,
     userData,
     env: {
-      PORCELAIN_REVIEW_SETS: reviewSets,
-      PORCELAIN_ACTIONS: actions,
-      PORCELAIN_BOARD: board,
-      PORCELAIN_LAYERS: layers,
-      PORCELAIN_REVIEWED: reviewed,
-      PORCELAIN_NOTES: notes,
-      PORCELAIN_COMMENTS: comments,
-      PORCELAIN_FEATURE_VIEW: featureView,
-      PORCELAIN_LOOP_EVIDENCE_DIR: evidenceRoot,
+      PORCELAIN_HOME: udBase,
       PORCELAIN_ADMIN_TOKEN_FILE: adminTokenFile,
       PORCELAIN_ACCESS_FILE: accessFile,
       // Pins a fast, config-free shell so the terminal tests are deterministic and

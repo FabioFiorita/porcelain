@@ -218,15 +218,25 @@ export async function gitCommitDiff(
   )
 }
 
+/** Companion data under `.porcelain/` is owned by Porcelain surfaces (board,
+ * Review, scope), not the Changes / flow story of product code. Filter it from
+ * status so agent writes do not dirty memo keys or crowd the Changes list.
+ * `git` itself still sees the files; teammates share via normal commits. */
+function isProjectCompanionPath(path: string): boolean {
+  return path === '.porcelain' || path.startsWith('.porcelain/')
+}
+
 export async function gitStatus(repoPath: string): Promise<ChangedFile[]> {
   // --untracked-files=all lists each new file individually; the default
   // (-unormal) collapses an untracked directory into a single `dir/` row, which
   // the changes list would then try to diff as a file (readFile → EISDIR).
-  return parseStatus(await runGit(repoPath, ['status', '--porcelain=v1', '-uall', '-z']))
+  const files = parseStatus(await runGit(repoPath, ['status', '--porcelain=v1', '-uall', '-z']))
+  return files.filter((file) => !isProjectCompanionPath(file.path))
 }
 
 export async function gitNumstat(repoPath: string): Promise<DiffStat[]> {
-  return parseNumstat(await runGit(repoPath, ['diff', 'HEAD', '--numstat', '-z']))
+  const stats = parseNumstat(await runGit(repoPath, ['diff', 'HEAD', '--numstat', '-z']))
+  return stats.filter((stat) => !isProjectCompanionPath(stat.path))
 }
 
 /**

@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
 import type { ChangedFile, DiffStat } from '../git/diff'
 import { gitEnv } from '../git/git-env'
 import { clearWorkingTreeSnapshot } from '../git/working-tree'
@@ -133,13 +133,6 @@ describe('readSourcesAndBuildFlow', () => {
 // status+numstat+layers. Identity (`toBe`) is the observable: a hit returns the
 // stored array, a miss builds a fresh one.
 describe('flow loaders', () => {
-  beforeEach(async () => {
-    process.env.PORCELAIN_LAYERS = join(await tempDir('porcelain-flow-layers-'), 'layers.json')
-  })
-  afterEach(() => {
-    delete process.env.PORCELAIN_LAYERS
-  })
-
   async function repo(prefix: string): Promise<string> {
     const dir = await tempDir(prefix)
     git(dir, 'init', '-b', 'main')

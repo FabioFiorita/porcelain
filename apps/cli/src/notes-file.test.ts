@@ -1,51 +1,39 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { PROJECT_FILES, projectPorcelainPath } from '@shared/project-porcelain'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { describeNotes, readNotes } from './notes-file'
 
-const dir = join(tmpdir(), 'porcelain-notes-file-test')
-const file = join(dir, 'notes.json')
+const root = join(tmpdir(), 'porcelain-notes-file-test')
+const repo = join(root, 'repo')
 
 beforeEach(() => {
-  process.env.PORCELAIN_NOTES = file
-  rmSync(dir, { recursive: true, force: true })
+  rmSync(root, { recursive: true, force: true })
+  mkdirSync(repo, { recursive: true })
 })
 afterEach(() => {
-  delete process.env.PORCELAIN_NOTES
-  rmSync(dir, { recursive: true, force: true })
+  rmSync(root, { recursive: true, force: true })
 })
 
-function seed(notes: Record<string, unknown>): void {
-  mkdirSync(dir, { recursive: true })
-  writeFileSync(file, JSON.stringify(notes))
-}
-
 describe('notes-file', () => {
-  it('reads a repo-keyed markdown string', () => {
-    seed({ '/repo': '# todo\n- ship it' })
-    expect(readNotes('/repo')).toBe('# todo\n- ship it')
+  it('reads markdown from .porcelain/notes.md', () => {
+    mkdirSync(join(repo, '.porcelain'), { recursive: true })
+    writeFileSync(projectPorcelainPath(repo, PROJECT_FILES.notes), '# todo\n- ship it')
+    expect(readNotes(repo)).toBe('# todo\n- ship it')
   })
 
-  it('returns an empty string when the file or repo entry is absent', () => {
-    expect(readNotes('/repo')).toBe('')
-    seed({ '/other': 'hi' })
-    expect(readNotes('/repo')).toBe('')
-  })
-
-  it('skips non-string values rather than throwing', () => {
-    seed({ '/repo': 42, '/ok': 'real' })
-    expect(readNotes('/repo')).toBe('')
-    expect(readNotes('/ok')).toBe('real')
+  it('returns an empty string when absent', () => {
+    expect(readNotes(repo)).toBe('')
   })
 
   it('describes the notes verbatim with a header', () => {
-    expect(describeNotes('/repo', '# todo')).toContain('# todo')
-    expect(describeNotes('/repo', '# todo')).toContain('/repo')
+    expect(describeNotes(repo, '# todo')).toContain('# todo')
+    expect(describeNotes(repo, '# todo')).toContain(repo)
   })
 
-  it('describes an empty scratchpad with a hint, not a header', () => {
-    const text = describeNotes('/repo', '   \n  ')
-    expect(text).toContain('No project notes for /repo')
+  it('describes an empty scratchpad with a hint', () => {
+    const text = describeNotes(repo, '   \n  ')
+    expect(text).toContain('No project notes')
   })
 })

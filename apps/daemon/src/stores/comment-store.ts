@@ -1,53 +1,46 @@
 import { randomUUID } from 'node:crypto'
+import { PROJECT_FILES } from '@shared/project-porcelain'
 import { z } from 'zod'
-import { createHomeChannel } from '../net/home-channel'
+import { createProjectChannel } from '../net/project-channel'
+import { ensureProjectCompanion } from '../project/migrate-home'
 
 /**
- * The review-comment channel: the human's notes on lines/files, keyed by absolute
- * repo path, in `~/.porcelain/comments.json` (NOT the work repo, NOT userData — a
- * plain `node` CLI process can't resolve userData, so both sides agree on this fixed
- * home-dir path, like the review-set channel). This is a TWO-WAY channel: the app
- * authors comments (add/edit/delete/resolve here) and the porcelain CLI (src/cli/
- * comment-file.ts) reads them and may flip `resolved`. Distinct from review-sets, so
- * the "app makes one write to the review-set channel" invariant is untouched. App
- * writes are atomic (tmp + rename) and serialized in-process; a cross-process race
- * with a CLI resolve is rare, low-stakes (a lost resolve just reappears), and the
- * watcher re-syncs.
+ * Review comments for the **active** review — `<repo>/.porcelain/comments.json`.
+ * TWO-WAY: app authors; CLI reads and may resolve / answer.
+ * Archived with the review on clear (see review-store archive).
  */
 export const reviewCommentSchema = z.object({
   id: z.string(),
-  /** Repo-relative path of the file the comment is anchored to. */
   path: z.string().min(1),
-  /** 1-based new-side line range; omitted for a file-level comment. */
   startLine: z.number().int().positive().optional(),
   endLine: z.number().int().positive().optional(),
-  /** Snippet of the anchored lines, for agent context + best-effort re-anchoring. */
   anchorText: z.string().optional(),
   body: z.string(),
   resolved: z.boolean().default(false),
   createdAt: z.number(),
-  /** The agent's one reply (overwritten on re-answer), set via the CLI answer command. */
   agentReply: z.object({ body: z.string(), createdAt: z.number() }).optional(),
 })
 export type ReviewComment = z.infer<typeof reviewCommentSchema>
 
-const reviewCommentsSchema = z.record(z.string(), z.array(reviewCommentSchema))
-type ReviewComments = z.infer<typeof reviewCommentsSchema>
+const commentsSchema = z.array(reviewCommentSchema)
 
-const channel = createHomeChannel({
-  envVar: 'PORCELAIN_COMMENTS',
-  fileName: 'comments.json',
-  schema: reviewCommentsSchema,
-  empty: (): ReviewComments => ({}),
+const channel = createProjectChannel({
+  fileName: PROJECT_FILES.comments,
+  schema: commentsSchema,
+  empty: (): ReviewComment[] => [],
 })
 
-// Must match src/cli/comment-file.ts. PORCELAIN_COMMENTS redirects both sides for
-// dev/tests.
-export const commentsPath: () => string = channel.path
+export function commentsPath(repoPath: string): string {
+  return channel.path(repoPath)
+}
 
-/** The review comments for a repo, newest first. */
+async function ready(repoPath: string): Promise<void> {
+  await ensureProjectCompanion(repoPath)
+}
+
 export async function readComments(repoPath: string): Promise<ReviewComment[]> {
-  const comments = (await channel.readAll())[repoPath] ?? []
+  await ready(repoPath)
+  const comments = await channel.read(repoPath)
   return [...comments].sort((a, b) => b.createdAt - a.createdAt)
 }
 
@@ -60,6 +53,7 @@ export interface NewComment {
 }
 
 export async function addComment(repoPath: string, input: NewComment): Promise<ReviewComment> {
+  await ready(repoPath)
   const comment: ReviewComment = {
     id: randomUUID(),
     path: input.path,
@@ -70,33 +64,27 @@ export async function addComment(repoPath: string, input: NewComment): Promise<R
     ...(input.endLine !== undefined ? { endLine: input.endLine } : {}),
     ...(input.anchorText !== undefined ? { anchorText: input.anchorText } : {}),
   }
-  await channel.mutate((all) => {
-    all[repoPath] = [...(all[repoPath] ?? []), comment]
-  })
+  await channel.mutate(repoPath, (all) => [...all, comment])
   return comment
 }
 
 export async function editComment(repoPath: string, id: string, body: string): Promise<void> {
-  await channel.mutate((all) => {
-    const comment = all[repoPath]?.find((c) => c.id === id)
+  await ready(repoPath)
+  await channel.mutate(repoPath, (all) => {
+    const comment = all.find((c) => c.id === id)
     if (comment) comment.body = body
+    return all
   })
 }
 
 export async function deleteComment(repoPath: string, id: string): Promise<void> {
-  await channel.mutate((all) => {
-    const comments = all[repoPath]
-    if (comments) all[repoPath] = comments.filter((c) => c.id !== id)
-  })
+  await ready(repoPath)
+  await channel.mutate(repoPath, (all) => all.filter((c) => c.id !== id))
 }
 
-/** Remove every resolved (closed) comment in one atomic write — the human's
- * bulk erase once a review thread is done, analogous to clearing Done cards. */
 export async function clearResolvedComments(repoPath: string): Promise<void> {
-  await channel.mutate((all) => {
-    const comments = all[repoPath]
-    if (comments) all[repoPath] = comments.filter((c) => !c.resolved)
-  })
+  await ready(repoPath)
+  await channel.mutate(repoPath, (all) => all.filter((c) => !c.resolved))
 }
 
 export async function setCommentResolved(
@@ -104,16 +92,15 @@ export async function setCommentResolved(
   id: string,
   resolved: boolean,
 ): Promise<void> {
-  await channel.mutate((all) => {
-    const comment = all[repoPath]?.find((c) => c.id === id)
+  await ready(repoPath)
+  await channel.mutate(repoPath, (all) => {
+    const comment = all.find((c) => c.id === id)
     if (comment) comment.resolved = resolved
+    return all
   })
 }
 
-/** Whole-set replace for a repo (user-initiated seed / path remap). Empty drops the entry. */
 export async function writeComments(repoPath: string, comments: ReviewComment[]): Promise<void> {
-  await channel.mutate((all) => {
-    if (comments.length === 0) delete all[repoPath]
-    else all[repoPath] = comments
-  })
+  await ready(repoPath)
+  await channel.write(repoPath, comments)
 }

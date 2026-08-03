@@ -1,4 +1,4 @@
-import { rmSync } from 'node:fs'
+import { mkdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -10,13 +10,16 @@ import {
   updateAction,
 } from './action-file'
 
+const root = join(tmpdir(), 'porcelain-action-file-test')
+const repo = join(root, 'repo')
+
 describe('describeActions', () => {
   it('explains an empty list', () => {
-    expect(describeActions('/repo', [])).toContain('No saved actions')
+    expect(describeActions(repo, [])).toContain('No saved actions')
   })
 
   it('lists each action with id, command, and where', () => {
-    const text = describeActions('/repo', [
+    const text = describeActions(repo, [
       { id: 'a1', title: 'Storybook', command: 'pnpm storybook', order: 1, createdAt: 1 },
       {
         id: 'a2',
@@ -35,35 +38,32 @@ describe('describeActions', () => {
 })
 
 describe('action-file round-trip', () => {
-  const dir = join(tmpdir(), 'porcelain-action-file-test')
-  const file = join(dir, 'actions.json')
   beforeEach(() => {
-    process.env.PORCELAIN_ACTIONS = file
-    rmSync(dir, { recursive: true, force: true })
+    rmSync(root, { recursive: true, force: true })
+    mkdirSync(repo, { recursive: true })
   })
   afterEach(() => {
-    delete process.env.PORCELAIN_ACTIONS
-    rmSync(dir, { recursive: true, force: true })
+    rmSync(root, { recursive: true, force: true })
   })
 
   it('creates, updates, and deletes an action', () => {
-    const action = createAction('/repo', 'Storybook', 'pnpm storybook', undefined)
-    expect(readActions('/repo')).toHaveLength(1)
-    expect(updateAction('/repo', action.id, { command: 'pnpm sb' })).toBe(true)
-    expect(readActions('/repo')[0]?.command).toBe('pnpm sb')
-    expect(deleteAction('/repo', action.id)).toBe(true)
-    expect(readActions('/repo')).toEqual([])
+    const action = createAction(repo, 'Storybook', 'pnpm storybook', undefined)
+    expect(readActions(repo)).toHaveLength(1)
+    expect(updateAction(repo, action.id, { command: 'pnpm sb' })).toBe(true)
+    expect(readActions(repo)[0]?.command).toBe('pnpm sb')
+    expect(deleteAction(repo, action.id)).toBe(true)
+    expect(readActions(repo)).toEqual([])
   })
 
   it('persists where: local and clears it back to primary', () => {
-    const action = createAction('/repo', 'iOS', 'xcodebuild', 'local')
-    expect(readActions('/repo')[0]?.where).toBe('local')
-    expect(updateAction('/repo', action.id, { where: 'primary' })).toBe(true)
-    expect(readActions('/repo')[0]?.where).toBeUndefined()
+    const action = createAction(repo, 'iOS', 'xcodebuild', 'local')
+    expect(readActions(repo)[0]?.where).toBe('local')
+    expect(updateAction(repo, action.id, { where: 'primary' })).toBe(true)
+    expect(readActions(repo)[0]?.where).toBeUndefined()
   })
 
   it('returns false updating or deleting an unknown id', () => {
-    expect(updateAction('/repo', 'nope', { title: 'x' })).toBe(false)
-    expect(deleteAction('/repo', 'nope')).toBe(false)
+    expect(updateAction(repo, 'nope', { title: 'x' })).toBe(false)
+    expect(deleteAction(repo, 'nope')).toBe(false)
   })
 })

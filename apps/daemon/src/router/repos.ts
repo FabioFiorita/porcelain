@@ -4,8 +4,9 @@ import { z } from 'zod'
 import { type BrowseResult, browseDirs } from '../git/browse'
 import { warmFileList } from '../git/git'
 import { isLinkedWorktree } from '../git/linked-worktree'
+import { ensureProjectCompanion } from '../project/migrate-home'
 import { withoutRecentRepo, withRecentRepo } from '../repo-config'
-import { seedWorktreeSettings } from '../repo-settings'
+import { watchProjectCompanion } from '../review/review-watch'
 import { loadConfig, updateConfig } from '../stores/config-store'
 import {
   hiddenPathsForRepo,
@@ -40,9 +41,9 @@ export const reposRouter = t.router({
   openRepoPath: publicProcedure.input(z.string()).mutation(async ({ input }): Promise<RepoInfo> => {
     await stat(input)
     await recordRecent(input)
-    // A worktree opened for the first time inherits its family's companion data
-    // (see seedWorktreeSettings). Never overwrites, never throws.
-    await seedWorktreeSettings(input)
+    // One-way migrate home companion data into <repo>/.porcelain when present.
+    await ensureProjectCompanion(input)
+    watchProjectCompanion(input)
     warmFileList(input)
     return toRepoInfo(input)
   }),
@@ -70,9 +71,8 @@ export const reposRouter = t.router({
       return existing.filter((p): p is string => p !== null).map(toRepoInfo)
     }),
 
-  // Drop a repo from the recents list. Removes only the recents entry — scope
-  // (hidden/pinned) lives in ~/.porcelain/scope.json and is keyed by path, so it
-  // survives remove + re-open.
+  // Drop a repo from the recents list. Removes only the recents entry — project
+  // companion data lives in <repo>/.porcelain and survives remove + re-open.
   removeRecentRepo: publicProcedure.input(z.string()).mutation(async ({ input }) => {
     await updateConfig((config) => withoutRecentRepo(config, input))
   }),

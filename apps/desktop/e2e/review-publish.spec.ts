@@ -1,5 +1,4 @@
 import { spawn } from 'node:child_process'
-import { createHash } from 'node:crypto'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { expect, loc, selectTab, test, waitForShell } from './helpers/app'
@@ -123,13 +122,8 @@ test('CLI review set then evidence appears on the Review canvas', async ({
   const pathLine = prepareOut
     .split('\n')
     .map((l) => l.trim())
-    .find((l) => l.startsWith('/') || l.includes('loop-evidence'))
-  const evidenceDir =
-    pathLine ??
-    join(
-      seeded.env.PORCELAIN_LOOP_EVIDENCE_DIR ?? '',
-      createHash('sha256').update(repoDir).digest('hex').slice(0, 16),
-    )
+    .find((l) => l.startsWith('/') || l.includes('.porcelain/evidence'))
+  const evidenceDir = pathLine ?? join(repoDir, '.porcelain', 'evidence')
   await mkdir(evidenceDir, { recursive: true })
   await writeFile(join(evidenceDir, 'index.html'), EVIDENCE_HTML)
 

@@ -1,25 +1,16 @@
 import { randomUUID } from 'node:crypto'
+import { PROJECT_FILES } from '@shared/project-porcelain'
 import { z } from 'zod'
-import { createHomeChannel } from '../net/home-channel'
+import { createProjectChannel } from '../net/project-channel'
+import { ensureProjectCompanion } from '../project/migrate-home'
 
 /**
- * The saved-actions channel: named, runnable commands the human launches in the
- * embedded terminal with one click, keyed by absolute repo path, in
- * `~/.porcelain/actions.json` (same fixed home-dir location + rationale as the
- * review-set / comment / board channels). TWO-WAY: the app authors actions (add/
- * edit/delete here) and the porcelain CLI (src/cli/action-file.ts) does the same — so
- * the agent can curate useful commands for the human to run. Atomic (tmp + rename)
- * + in-process-serialized writes; a cross-process race is rare/low-stakes and the
- * watcher re-syncs.
+ * Saved actions for a project — named shell commands the human runs in the
+ * embedded terminal. Lives in `<repo>/.porcelain/actions.json` (array, not
+ * path-keyed). TWO-WAY: app + porcelain CLI. Git-shareable when tracked.
  *
- * SECURITY: an action's `command` is a shell command the HUMAN executes by clicking
- * (never the agent — there is no CLI run command, and nothing here executes a command).
- * The full text is always shown before it runs (see the audit skill). This file only
- * stores definitions.
- *
- * `where` picks the machine: `primary` (default) = the daemon this window is bound to;
- * `local` = This device (the machine running the app) when the window is remote.
- * Commands always run with the repo root (or mapped local path) as cwd.
+ * SECURITY: `command` is executed only when the human clicks Run — never by the
+ * agent. Full text is shown before run (audit skill).
  */
 const actionWhereSchema = z.enum(['primary', 'local'])
 export type ActionWhere = z.infer<typeof actionWhereSchema>
@@ -29,34 +20,33 @@ export const actionSchema = z
     id: z.string(),
     title: z.string(),
     command: z.string(),
-    /**
-     * Which machine runs the command. Omitted ⇒ primary (this window's daemon).
-     * `local` only applies when the window is remote-bound (Electron); otherwise ignored.
-     */
     where: actionWhereSchema.optional(),
-    /** Sort key; set on create so newer actions land at the end. */
     order: z.number().default(0),
     createdAt: z.number().default(0),
   })
   .strict()
 export type Action = z.infer<typeof actionSchema>
 
-const actionsSchema = z.record(z.string(), z.array(actionSchema))
-type Actions = z.infer<typeof actionsSchema>
+const actionsSchema = z.array(actionSchema)
 
-const channel = createHomeChannel({
-  envVar: 'PORCELAIN_ACTIONS',
-  fileName: 'actions.json',
+const channel = createProjectChannel({
+  fileName: PROJECT_FILES.actions,
   schema: actionsSchema,
-  empty: (): Actions => ({}),
+  empty: (): Action[] => [],
 })
 
-// Must match src/cli/action-file.ts. PORCELAIN_ACTIONS redirects both sides for tests.
-export const actionsPath: () => string = channel.path
+export function actionsPath(repoPath: string): string {
+  return channel.path(repoPath)
+}
+
+async function ready(repoPath: string): Promise<void> {
+  await ensureProjectCompanion(repoPath)
+}
 
 /** The actions for a repo, sorted by creation order (oldest first). */
 export async function readActions(repoPath: string): Promise<Action[]> {
-  const actions = (await channel.readAll())[repoPath] ?? []
+  await ready(repoPath)
+  const actions = await channel.read(repoPath)
   return [...actions].sort((a, b) => a.order - b.order)
 }
 
@@ -67,6 +57,7 @@ export interface NewAction {
 }
 
 export async function addAction(repoPath: string, input: NewAction): Promise<Action> {
+  await ready(repoPath)
   const now = Date.now()
   const action: Action = {
     id: randomUUID(),
@@ -76,9 +67,7 @@ export async function addAction(repoPath: string, input: NewAction): Promise<Act
     createdAt: now,
     ...(input.where !== undefined && input.where !== 'primary' ? { where: input.where } : {}),
   }
-  await channel.mutate((all) => {
-    all[repoPath] = [...(all[repoPath] ?? []), action]
-  })
+  await channel.mutate(repoPath, (all) => [...all, action])
   return action
 }
 
@@ -87,56 +76,49 @@ export async function updateAction(
   id: string,
   fields: { title?: string; command?: string; where?: ActionWhere },
 ): Promise<void> {
-  await channel.mutate((all) => {
-    const action = all[repoPath]?.find((a) => a.id === id)
-    if (!action) return
+  await ready(repoPath)
+  await channel.mutate(repoPath, (all) => {
+    const action = all.find((a) => a.id === id)
+    if (!action) return all
     if (fields.title !== undefined) action.title = fields.title
     if (fields.command !== undefined) action.command = fields.command
     if (fields.where !== undefined) {
-      // primary is the default — drop the field so the file stays small.
       if (fields.where === 'primary') delete action.where
       else action.where = fields.where
     }
+    return all
   })
 }
 
-/**
- * Move an action one slot up or down within its repo by swapping `order` with its
- * neighbour (the list is rendered sorted by `order`). No-op at the ends or if unknown.
- */
 export async function moveAction(
   repoPath: string,
   id: string,
   direction: 'up' | 'down',
 ): Promise<void> {
-  await channel.mutate((all) => {
-    const actions = all[repoPath]
-    if (!actions) return
-    const sorted = [...actions].sort((a, b) => a.order - b.order)
+  await ready(repoPath)
+  await channel.mutate(repoPath, (all) => {
+    const sorted = [...all].sort((a, b) => a.order - b.order)
     const index = sorted.findIndex((a) => a.id === id)
-    if (index === -1) return
+    if (index === -1) return all
     const target = index + (direction === 'up' ? -1 : 1)
-    if (target < 0 || target >= sorted.length) return
+    if (target < 0 || target >= sorted.length) return all
     const current = sorted[index]
     const neighbour = sorted[target]
-    if (!current || !neighbour) return
+    if (!current || !neighbour) return all
     const tmp = current.order
     current.order = neighbour.order
     neighbour.order = tmp
+    return sorted
   })
 }
 
 export async function deleteAction(repoPath: string, id: string): Promise<void> {
-  await channel.mutate((all) => {
-    const actions = all[repoPath]
-    if (actions) all[repoPath] = actions.filter((a) => a.id !== id)
-  })
+  await ready(repoPath)
+  await channel.mutate(repoPath, (all) => all.filter((a) => a.id !== id))
 }
 
-/** Whole-set replace for a repo (user-initiated seed / path remap). Empty drops the entry. */
+/** Whole-set replace (tests / rare bulk). Empty writes []. */
 export async function writeActions(repoPath: string, actions: Action[]): Promise<void> {
-  await channel.mutate((all) => {
-    if (actions.length === 0) delete all[repoPath]
-    else all[repoPath] = actions
-  })
+  await ready(repoPath)
+  await channel.write(repoPath, actions)
 }

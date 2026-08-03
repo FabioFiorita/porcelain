@@ -32,7 +32,6 @@ import {
 } from '../git/git'
 import { clearWorkingTreeSnapshot } from '../git/working-tree'
 import { worktreeInbox } from '../git/worktree-inbox'
-import { seedRepoSettings } from '../repo-settings'
 import type { FlowGroup } from '../review/flow'
 import { loadCommitFlow, loadRangeFlow, loadWorkingFlow } from '../review/flow-build'
 import { clearReviewedPaths } from '../stores/reviewed-store'
@@ -167,11 +166,9 @@ export const gitRouter = t.router({
   gitAddWorktree: publicProcedure
     .input(z.object({ repoPath: z.string(), branch: z.string().min(1) }))
     .mutation(async ({ input }) => {
-      const worktree = await gitAddWorktree(input.repoPath, input.branch)
-      // The new checkout is the same project under a new path key, so seed it from
-      // the checkout it was created against rather than opening it blank.
-      await seedRepoSettings(input.repoPath, worktree.path)
-      return worktree
+      // Companion data is in-repo under .porcelain — linked worktrees that share
+      // the same commit see the same files; no daemon-side seed/copy.
+      return gitAddWorktree(input.repoPath, input.branch)
     }),
 
   gitLog: publicProcedure

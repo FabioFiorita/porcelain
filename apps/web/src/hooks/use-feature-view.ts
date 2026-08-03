@@ -25,16 +25,14 @@ export function useFeatureView(): {
 }
 
 /**
- * Clear the agent review set AND loop evidence for the current repo — the Review
- * goes back to its "No review yet" empty state until the agent re-pushes, with no
- * orphaned evidence directory. Invalidates feature + evidence surfaces so the
- * outline, canvas, and Loop evidence chapter refresh together.
+ * Archive the active review (intent, comments, reviewed, evidence) under
+ * `.porcelain/reviews/<id>/` and clear active slots → "No review yet".
  */
 export function useClearFeatureReview(): { clear: () => Promise<void>; isClearing: boolean } {
   const repo = useRepoStore((s) => s.repo)
   const utils = trpc.useUtils()
   const mutation = trpc.clearFeatureReview.useMutation({
-    onError: onMutationError('Clear review'),
+    onError: onMutationError('Archive review'),
   })
   return {
     clear: async () => {
@@ -45,8 +43,69 @@ export function useClearFeatureReview(): { clear: () => Promise<void>; isClearin
         utils.featureReading.invalidate(),
         utils.loopEvidence.invalidate(),
         utils.loopEvidenceHtml.invalidate(),
+        utils.archivedReviews.invalidate(),
+        utils.reviewComments.invalidate(),
+        utils.reviewedPaths.invalidate(),
       ])
     },
     isClearing: mutation.isPending,
+  }
+}
+
+export interface ArchivedReviewRow {
+  id: string
+  name: string
+  thesis?: string
+  archivedAt: string
+}
+
+export function useArchivedReviews(): ArchivedReviewRow[] {
+  const repo = useRepoStore((s) => s.repo)
+  const { data } = trpc.archivedReviews.useQuery(repo?.path ?? '', {
+    enabled: repo !== null,
+    staleTime: 2000,
+    refetchInterval: 5000,
+  })
+  return data ?? []
+}
+
+export function useArchivedReviewActions(): {
+  restore: (id: string) => Promise<void>
+  remove: (id: string) => Promise<void>
+  isBusy: boolean
+} {
+  const repo = useRepoStore((s) => s.repo)
+  const utils = trpc.useUtils()
+  const restoreMut = trpc.restoreArchivedReview.useMutation({
+    onError: onMutationError('Restore review'),
+  })
+  const deleteMut = trpc.deleteArchivedReview.useMutation({
+    onError: onMutationError('Delete review'),
+  })
+
+  const invalidateAll = async (): Promise<void> => {
+    await Promise.all([
+      utils.featureView.invalidate(),
+      utils.featureReading.invalidate(),
+      utils.loopEvidence.invalidate(),
+      utils.loopEvidenceHtml.invalidate(),
+      utils.archivedReviews.invalidate(),
+      utils.reviewComments.invalidate(),
+      utils.reviewedPaths.invalidate(),
+    ])
+  }
+
+  return {
+    restore: async (id) => {
+      if (!repo) return
+      await restoreMut.mutateAsync({ repoPath: repo.path, id })
+      await invalidateAll()
+    },
+    remove: async (id) => {
+      if (!repo) return
+      await deleteMut.mutateAsync({ repoPath: repo.path, id })
+      await utils.archivedReviews.invalidate()
+    },
+    isBusy: restoreMut.isPending || deleteMut.isPending,
   }
 }

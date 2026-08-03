@@ -1,15 +1,12 @@
 import { randomUUID } from 'node:crypto'
+import { PROJECT_FILES } from '@shared/project-porcelain'
 import { z } from 'zod'
-import { createHomeChannel } from '../net/home-channel'
+import { createProjectChannel } from '../net/project-channel'
+import { ensureProjectCompanion } from '../project/migrate-home'
 
 /**
- * The project-board channel: todo/doing/done cards the human and the agent both
- * manage, keyed by absolute repo path, in `~/.porcelain/board.json` (same fixed
- * home-dir location rationale as the review-set + comment channels). TWO-WAY: the
- * app authors cards (add/edit/move/delete here) and the porcelain CLI (src/cli/
- * board-file.ts) does the same — the agent reads the board for what to build and
- * moves cards as it works. Atomic (tmp + rename) + in-process-serialized writes; a
- * cross-process race is rare/low-stakes and the watcher re-syncs.
+ * Project board — todo/doing/done cards in `<repo>/.porcelain/board.json`.
+ * TWO-WAY: app + CLI. Git-shareable when tracked.
  */
 export const CARD_STATUSES = ['todo', 'doing', 'done'] as const
 export type CardStatus = (typeof CARD_STATUSES)[number]
@@ -19,29 +16,30 @@ export const boardCardSchema = z.object({
   title: z.string(),
   body: z.string().optional(),
   status: z.enum(CARD_STATUSES).default('todo'),
-  /** Sort key within a column; set on create and bumped on move so a moved card
-   * lands at the end of its new column. */
   order: z.number().default(0),
   createdAt: z.number().default(0),
 })
 export type BoardCard = z.infer<typeof boardCardSchema>
 
-const boardSchema = z.record(z.string(), z.array(boardCardSchema))
-type Board = z.infer<typeof boardSchema>
+const boardSchema = z.array(boardCardSchema)
 
-const channel = createHomeChannel({
-  envVar: 'PORCELAIN_BOARD',
-  fileName: 'board.json',
+const channel = createProjectChannel({
+  fileName: PROJECT_FILES.board,
   schema: boardSchema,
-  empty: (): Board => ({}),
+  empty: (): BoardCard[] => [],
 })
 
-// Must match src/cli/board-file.ts. PORCELAIN_BOARD redirects both sides for tests.
-export const boardPath: () => string = channel.path
+export function boardPath(repoPath: string): string {
+  return channel.path(repoPath)
+}
 
-/** The cards for a repo, sorted by column order (oldest/first at the top). */
+async function ready(repoPath: string): Promise<void> {
+  await ensureProjectCompanion(repoPath)
+}
+
 export async function readCards(repoPath: string): Promise<BoardCard[]> {
-  const cards = (await channel.readAll())[repoPath] ?? []
+  await ready(repoPath)
+  const cards = await channel.read(repoPath)
   return [...cards].sort((a, b) => a.order - b.order)
 }
 
@@ -52,6 +50,7 @@ export interface NewCard {
 }
 
 export async function addCard(repoPath: string, input: NewCard): Promise<BoardCard> {
+  await ready(repoPath)
   const now = Date.now()
   const card: BoardCard = {
     id: randomUUID(),
@@ -61,9 +60,7 @@ export async function addCard(repoPath: string, input: NewCard): Promise<BoardCa
     createdAt: now,
     ...(input.body !== undefined ? { body: input.body } : {}),
   }
-  await channel.mutate((all) => {
-    all[repoPath] = [...(all[repoPath] ?? []), card]
-  })
+  await channel.mutate(repoPath, (all) => [...all, card])
   return card
 }
 
@@ -72,43 +69,38 @@ export async function updateCard(
   id: string,
   fields: { title?: string; body?: string },
 ): Promise<void> {
-  await channel.mutate((all) => {
-    const card = all[repoPath]?.find((c) => c.id === id)
-    if (!card) return
+  await ready(repoPath)
+  await channel.mutate(repoPath, (all) => {
+    const card = all.find((c) => c.id === id)
+    if (!card) return all
     if (fields.title !== undefined) card.title = fields.title
     if (fields.body !== undefined) card.body = fields.body
+    return all
   })
 }
 
 export async function moveCard(repoPath: string, id: string, status: CardStatus): Promise<void> {
-  await channel.mutate((all) => {
-    const card = all[repoPath]?.find((c) => c.id === id)
-    if (!card) return
+  await ready(repoPath)
+  await channel.mutate(repoPath, (all) => {
+    const card = all.find((c) => c.id === id)
+    if (!card) return all
     card.status = status
-    card.order = Date.now() // bump so it lands at the end of the target column
+    card.order = Date.now()
+    return all
   })
 }
 
 export async function deleteCard(repoPath: string, id: string): Promise<void> {
-  await channel.mutate((all) => {
-    const cards = all[repoPath]
-    if (cards) all[repoPath] = cards.filter((c) => c.id !== id)
-  })
+  await ready(repoPath)
+  await channel.mutate(repoPath, (all) => all.filter((c) => c.id !== id))
 }
 
-/** Remove every card in a column in one atomic write (the human's bulk
- * equivalent of clearing out, e.g., all Done cards). */
 export async function clearCards(repoPath: string, status: CardStatus): Promise<void> {
-  await channel.mutate((all) => {
-    const cards = all[repoPath]
-    if (cards) all[repoPath] = cards.filter((c) => c.status !== status)
-  })
+  await ready(repoPath)
+  await channel.mutate(repoPath, (all) => all.filter((c) => c.status !== status))
 }
 
-/** Whole-set replace for a repo (user-initiated seed / path remap). Empty drops the entry. */
 export async function writeCards(repoPath: string, cards: BoardCard[]): Promise<void> {
-  await channel.mutate((all) => {
-    if (cards.length === 0) delete all[repoPath]
-    else all[repoPath] = cards
-  })
+  await ready(repoPath)
+  await channel.write(repoPath, cards)
 }

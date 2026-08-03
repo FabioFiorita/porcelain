@@ -47,8 +47,9 @@ through the CLI. Do not rebuild an in-app agent runner.
   Public copy sells Porcelain's surfaces, not transport debates or third-party brand lists.
 - **Connected, not siloed** — one home per concern (Changes, Review, Files, Board, Terminal);
   previews hand off, never second Diff/commit UXes.
-- **Local by default** — state on the daemon host under `~/.porcelain/`; no Porcelain cloud for
-  your code, no telemetry.
+- **Local by default** — machine secrets on the daemon host under `~/.porcelain/`; project
+  companion data (reviews, board, scope, actions, …) lives in `<repo>/.porcelain/` and is
+  shareable via git when you choose to track it. No Porcelain cloud for your code, no telemetry.
 
 Open this file when designing features, prioritizing, or writing public identity copy. Day-to-day
 implementation does not need it if root `AGENTS.md` is enough.

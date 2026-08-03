@@ -10,7 +10,7 @@ Evidence is **ephemeral HTML proof** that you closed the loop: browser, simulato
 
 **Do not push large HTML or base64 screenshots through the CLI.**
 
-1. `~/.porcelain/porcelain evidence prepare --title "<title>"` → prints `~/.porcelain/loop-evidence/<key>/`
+1. `~/.porcelain/porcelain evidence prepare --title "<title>"` → prints `<repo>/.porcelain/evidence/`
 2. Write into that directory:
    - **`index.html`** — the document
    - Optional screenshots as siblings with relative `src` (`<img src="shot.png">`)

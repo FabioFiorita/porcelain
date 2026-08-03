@@ -1,8 +1,16 @@
-import { readFile } from 'node:fs/promises'
-import { isAbsolute, relative, resolve } from 'node:path'
-import { porcelainHomePath } from '@shared/porcelain-home'
+import { randomBytes } from 'node:crypto'
+import { access, cp, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { isAbsolute, join, relative, resolve } from 'node:path'
+import {
+  PROJECT_EVIDENCE_DIR,
+  PROJECT_FILES,
+  projectArchivedReviewDir,
+  projectPorcelainPath,
+  projectReviewsDir,
+} from '@shared/project-porcelain'
 import { z } from 'zod'
-import { createHomeChannel } from '../net/home-channel'
+import { createProjectChannel } from '../net/project-channel'
+import { ensureProjectCompanion } from '../project/migrate-home'
 import {
   type ReviewSection,
   type ReviewSet,
@@ -11,10 +19,8 @@ import {
 } from '../review/review-set'
 
 /**
- * True when `entryPath` (a path from the external, CLI-authored review-set file)
- * stays inside `repoPath`. Rejects absolute paths and `..`-escapes — the file is
- * owned by an untrusted external process, so its paths must be repo-contained
- * before they reach `readFile(join(repoPath, entryPath))`.
+ * True when `entryPath` stays inside `repoPath`. Rejects absolute paths and
+ * `..`-escapes — the review file is owned by an untrusted external process.
  */
 export function isRepoContained(repoPath: string, entryPath: string): boolean {
   if (isAbsolute(entryPath)) return false
@@ -23,80 +29,220 @@ export function isRepoContained(repoPath: string, entryPath: string): boolean {
 }
 
 /**
- * The agent channel: review sets the porcelain CLI writes, keyed by absolute repo
- * path. Lives in `~/.porcelain/` — the user's home, NOT the work repo (Porcelain never
- * writes into work repos) and NOT `userData` (a plain `node` CLI process can't resolve
- * Electron's userData path, so both sides agree on this fixed location). The CLI
- * AUTHORS the sets; the app READS them and makes exactly one write, `clearReviewSet`.
+ * Active review set — `<repo>/.porcelain/review.json`. CLI authors; app reads and
+ * archives on clear. Previous reviews live under `.porcelain/reviews/<id>/`.
  */
-export function reviewSetsPath(): string {
-  // Must match src/cli/review-file.ts (the sole writer). PORCELAIN_REVIEW_SETS lets
-  // dev/tests redirect both sides to the same throwaway path.
-  return process.env.PORCELAIN_REVIEW_SETS ?? porcelainHomePath('review-sets.json')
-}
 
-// Read-side leniency for sections: parse them per-item (below) so ONE invalid
-// section is dropped instead of invalidating the whole set. Everything else in the
-// set keeps the strict schema (`reviewSetsSchema` stays the documented on-disk shape).
 const lenientReviewSetSchema = reviewSetSchema.extend({
   sections: z.array(z.unknown()).default([]),
 })
-const lenientReviewSetsSchema = z.record(z.string(), lenientReviewSetSchema)
-type LenientReviewSets = z.infer<typeof lenientReviewSetsSchema>
 
-// The read path stays custom below (per-entry repo-containment filter); the channel
-// exists only for the app's one write — the user-initiated clear. It validates with
-// the lenient schema so one invalid section can't make the clear treat the whole
-// CLI-owned file as corrupt (backing it up and dropping every other repo's set).
-const channel = createHomeChannel({
-  path: reviewSetsPath,
-  schema: lenientReviewSetsSchema,
-  empty: (): LenientReviewSets => ({}),
+const channel = createProjectChannel({
+  fileName: PROJECT_FILES.review,
+  schema: lenientReviewSetSchema,
+  empty: (): z.infer<typeof lenientReviewSetSchema> => ({
+    name: '',
+    files: [],
+    sections: [],
+  }),
 })
 
-/** Max sections rendered, mirroring `reviewSetSchema`'s cap on the strict parse. */
+export function reviewPath(repoPath: string): string {
+  return channel.path(repoPath)
+}
+
+/** @deprecated use reviewPath — kept name for older call sites during transition. */
+export function reviewSetsPath(repoPath?: string): string {
+  if (repoPath) return reviewPath(repoPath)
+  // Home path no longer holds review sets; tests should pass repoPath.
+  return projectPorcelainPath('', PROJECT_FILES.review)
+}
+
 const MAX_SECTIONS = 30
 
-/** The agent-fed review set for a repo, or null if none / the file is absent or corrupt. */
-export async function readReviewSet(repoPath: string): Promise<ReviewSet | null> {
+const archivedMetaSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  thesis: z.string().optional(),
+  archivedAt: z.string(),
+})
+export type ArchivedReviewMeta = z.infer<typeof archivedMetaSchema>
+
+async function pathExists(path: string): Promise<boolean> {
   try {
-    const raw = await readFile(reviewSetsPath(), 'utf8')
-    const all = lenientReviewSetsSchema.parse(JSON.parse(raw))
-    const set = all[repoPath]
-    if (!set) return null
-    // A section that fails validation is DROPPED, never thrown (the agent keeps its
-    // other sections); anchor paths are repo-contained exactly like file paths —
-    // both flow into readFile(join(repoPath, path)).
-    const sections = set.sections.slice(0, MAX_SECTIONS).flatMap((section): ReviewSection[] => {
-      const parsed = reviewSectionSchema.safeParse(section)
-      if (!parsed.success) return []
-      return [
-        {
-          ...parsed.data,
-          anchors: parsed.data.anchors.filter((anchor) => isRepoContained(repoPath, anchor.path)),
-        },
-      ]
-    })
-    return {
-      ...set,
-      files: set.files.filter((file) => isRepoContained(repoPath, file.path)),
-      sections,
-    }
+    await access(path)
+    return true
   } catch {
-    // absent, unparseable, or schema-invalid (an external process owns this file) —
-    // treat as "no agent set" and let the app show the no-review empty state
+    return false
+  }
+}
+
+function sanitizeReview(repoPath: string, set: z.infer<typeof lenientReviewSetSchema>): ReviewSet {
+  if (!set.name) {
+    return { name: '', files: [], sections: [] }
+  }
+  const sections = set.sections.slice(0, MAX_SECTIONS).flatMap((section): ReviewSection[] => {
+    const parsed = reviewSectionSchema.safeParse(section)
+    if (!parsed.success) return []
+    return [
+      {
+        ...parsed.data,
+        anchors: parsed.data.anchors.filter((anchor) => isRepoContained(repoPath, anchor.path)),
+      },
+    ]
+  })
+  return {
+    ...set,
+    files: set.files.filter((file) => isRepoContained(repoPath, file.path)),
+    sections,
+  }
+}
+
+/** The active agent-fed review set, or null if none / empty name. */
+export async function readReviewSet(repoPath: string): Promise<ReviewSet | null> {
+  await ensureProjectCompanion(repoPath)
+  try {
+    const raw = await readFile(reviewPath(repoPath), 'utf8')
+    const set = lenientReviewSetSchema.parse(JSON.parse(raw))
+    if (!set.name) return null
+    return sanitizeReview(repoPath, set)
+  } catch {
     return null
   }
 }
 
+function newArchiveId(): string {
+  return `${Date.now().toString(36)}-${randomBytes(4).toString('hex')}`
+}
+
 /**
- * Remove a repo's review set, reverting its feature view to the no-review empty state.
- * Atomic (tmp + rename) so a concurrent CLI write can't corrupt the shared file;
- * a no-op if the file is absent/corrupt or the repo has no set. The watcher
- * (`review-watch.ts`) sees the change and refreshes the open view like any CLI write.
+ * Archive the active review (review + comments + reviewed + evidence) under
+ * `.porcelain/reviews/<id>/`, then clear the active slots. No-op if there is
+ * nothing active. Returns the new archive id or null.
+ */
+export async function archiveActiveReview(repoPath: string): Promise<string | null> {
+  await ensureProjectCompanion(repoPath)
+  const set = await readReviewSet(repoPath)
+  const hasReview = set !== null
+  const evidenceDir = projectPorcelainPath(repoPath, PROJECT_EVIDENCE_DIR)
+  const commentsPath = projectPorcelainPath(repoPath, PROJECT_FILES.comments)
+  const reviewedPath = projectPorcelainPath(repoPath, PROJECT_FILES.reviewed)
+  const hasEvidence = await pathExists(join(evidenceDir, 'index.html'))
+  const hasComments = await pathExists(commentsPath)
+  const hasReviewed = await pathExists(reviewedPath)
+
+  if (!hasReview && !hasEvidence && !hasComments && !hasReviewed) return null
+
+  const id = newArchiveId()
+  const dest = projectArchivedReviewDir(repoPath, id)
+  await mkdir(dest, { recursive: true })
+
+  const meta: ArchivedReviewMeta = {
+    id,
+    name: set?.name ?? 'Untitled review',
+    ...(set?.thesis ? { thesis: set.thesis } : {}),
+    archivedAt: new Date().toISOString(),
+  }
+  await writeFile(join(dest, 'meta.json'), JSON.stringify(meta, null, 2))
+
+  if (hasReview) {
+    await cp(reviewPath(repoPath), join(dest, PROJECT_FILES.review)).catch(() => {})
+  }
+  if (hasComments) {
+    await cp(commentsPath, join(dest, PROJECT_FILES.comments)).catch(() => {})
+  }
+  if (hasReviewed) {
+    await cp(reviewedPath, join(dest, PROJECT_FILES.reviewed)).catch(() => {})
+  }
+  if (hasEvidence) {
+    await cp(evidenceDir, join(dest, PROJECT_EVIDENCE_DIR), { recursive: true }).catch(() => {})
+  }
+
+  await dropActiveReviewFiles(repoPath)
+  return id
+}
+
+async function dropActiveReviewFiles(repoPath: string): Promise<void> {
+  await rm(reviewPath(repoPath), { force: true }).catch(() => {})
+  await rm(projectPorcelainPath(repoPath, PROJECT_FILES.comments), { force: true }).catch(() => {})
+  await rm(projectPorcelainPath(repoPath, PROJECT_FILES.reviewed), { force: true }).catch(() => {})
+  await rm(projectPorcelainPath(repoPath, PROJECT_EVIDENCE_DIR), {
+    recursive: true,
+    force: true,
+  }).catch(() => {})
+}
+
+/**
+ * Archive the active review (if any) and clear active slots — the human's
+ * "done with this unit" path. Prefer this over hard-delete.
  */
 export async function clearReviewSet(repoPath: string): Promise<void> {
-  await channel.mutate((all) => {
-    if (repoPath in all) delete all[repoPath]
-  })
+  await archiveActiveReview(repoPath)
+}
+
+/** List archived reviews, newest first. */
+export async function listArchivedReviews(repoPath: string): Promise<ArchivedReviewMeta[]> {
+  await ensureProjectCompanion(repoPath)
+  const root = projectReviewsDir(repoPath)
+  let entries: string[]
+  try {
+    entries = await readdir(root)
+  } catch {
+    return []
+  }
+  const metas: ArchivedReviewMeta[] = []
+  for (const id of entries) {
+    try {
+      const raw = await readFile(join(root, id, 'meta.json'), 'utf8')
+      const parsed = archivedMetaSchema.safeParse(JSON.parse(raw))
+      if (parsed.success) metas.push(parsed.data)
+    } catch {
+      // skip corrupt / partial archives
+    }
+  }
+  return metas.sort((a, b) => (a.archivedAt < b.archivedAt ? 1 : -1))
+}
+
+/** Permanently delete an archived review. */
+export async function deleteArchivedReview(repoPath: string, id: string): Promise<void> {
+  if (id.includes('/') || id.includes('..') || id === '') {
+    throw new Error('invalid review id')
+  }
+  await rm(projectArchivedReviewDir(repoPath, id), { recursive: true, force: true })
+}
+
+/**
+ * Restore an archived review as active. Archives the current active review first
+ * (if any), then copies the chosen archive into the active slots.
+ */
+export async function restoreArchivedReview(repoPath: string, id: string): Promise<void> {
+  if (id.includes('/') || id.includes('..') || id === '') {
+    throw new Error('invalid review id')
+  }
+  const src = projectArchivedReviewDir(repoPath, id)
+  if (!(await pathExists(src))) throw new Error(`archived review not found: ${id}`)
+
+  await archiveActiveReview(repoPath)
+
+  const reviewSrc = join(src, PROJECT_FILES.review)
+  if (await pathExists(reviewSrc)) {
+    await cp(reviewSrc, reviewPath(repoPath))
+  }
+  const commentsSrc = join(src, PROJECT_FILES.comments)
+  if (await pathExists(commentsSrc)) {
+    await cp(commentsSrc, projectPorcelainPath(repoPath, PROJECT_FILES.comments))
+  }
+  const reviewedSrc = join(src, PROJECT_FILES.reviewed)
+  if (await pathExists(reviewedSrc)) {
+    await cp(reviewedSrc, projectPorcelainPath(repoPath, PROJECT_FILES.reviewed))
+  }
+  const evidenceSrc = join(src, PROJECT_EVIDENCE_DIR)
+  if (await pathExists(evidenceSrc)) {
+    await cp(evidenceSrc, projectPorcelainPath(repoPath, PROJECT_EVIDENCE_DIR), {
+      recursive: true,
+    })
+  }
+
+  // Drop the archive entry after promote (it is now active).
+  await rm(src, { recursive: true, force: true })
 }

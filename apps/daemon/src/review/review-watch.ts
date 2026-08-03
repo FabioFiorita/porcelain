@@ -1,75 +1,91 @@
 import { watch } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
-import { basename, dirname } from 'node:path'
+import { basename } from 'node:path'
+import { PROJECT_FILES, projectEvidenceDir, projectPorcelainDir } from '@shared/project-porcelain'
 import { type AppEvent, emitAppEvent } from '../app-events'
-import { actionsPath } from '../stores/actions-store'
-import { boardPath } from '../stores/board-store'
-import { commentsPath } from '../stores/comment-store'
-import { loopEvidenceRoot } from '../stores/evidence-store'
-import { layersPath } from '../stores/layers-store'
-import { reviewSetsPath } from '../stores/review-store'
-import { scopePath } from '../stores/scope-store'
+import { loadConfig } from '../stores/config-store'
 
 /**
- * Watch the agent channels in `~/.porcelain` — `review-sets.json` (→ `feature-view`),
- * `comments.json` (→ `comments`), `board.json` (→ `board`), `actions.json`
- * (→ `actions`), `layers.json` (→ `layers`), `scope.json` (→ `scope` hide/pin),
- * and `loop-evidence/` (→ `evidence`) —
- * and push an app-event when any changes, so an agent write live-refreshes the open
- * view. We watch the DIRECTORY, not the file: writes are atomic (tmp + rename),
- * which replaces the inode and breaks a direct file watch. The paths usually share a
- * directory, watched once. Loop evidence is a **tree** of files under
- * `loop-evidence/<key>/` (index.html + screenshots); that root is watched recursively.
+ * Watch each open project's `.porcelain/` directory for agent/app channel writes
+ * so the UI live-refreshes. Watches the directory (atomic tmp+rename replaces
+ * inodes). Evidence is a tree under `.porcelain/evidence/`.
+ *
+ * Re-syncs watches when recent repos change (openRepoPath updates config).
  */
-export async function watchAgentChannels(): Promise<void> {
-  const targets: { path: string; event: AppEvent }[] = [
-    { path: reviewSetsPath(), event: 'feature-view' },
-    { path: commentsPath(), event: 'comments' },
-    { path: boardPath(), event: 'board' },
-    { path: actionsPath(), event: 'actions' },
-    { path: layersPath(), event: 'layers' },
-    { path: scopePath(), event: 'scope' },
-  ]
-  const byDir = new Map<string, Map<string, AppEvent>>()
-  for (const target of targets) {
-    const dir = dirname(target.path)
-    const files = byDir.get(dir) ?? new Map<string, AppEvent>()
-    files.set(basename(target.path), target.event)
-    byDir.set(dir, files)
-  }
-  for (const [dir, files] of byDir) {
-    await mkdir(dir, { recursive: true }).catch(() => {})
-    try {
-      watch(dir, (_event, filename) => {
-        if (!filename) {
-          // some platforms don't report the filename — refresh every channel here
-          for (const event of new Set(files.values())) emitAppEvent(event)
-          return
+
+const watched = new Map<string, { close: () => void }>()
+
+const FILE_EVENTS: Record<string, AppEvent> = {
+  [PROJECT_FILES.review]: 'feature-view',
+  [PROJECT_FILES.comments]: 'comments',
+  [PROJECT_FILES.board]: 'board',
+  [PROJECT_FILES.actions]: 'actions',
+  [PROJECT_FILES.layers]: 'layers',
+  [PROJECT_FILES.scope]: 'scope',
+  [PROJECT_FILES.featureView]: 'feature-view',
+  [PROJECT_FILES.notes]: 'feature-view',
+}
+
+function watchRepo(repoPath: string): void {
+  if (watched.has(repoPath)) return
+  const dir = projectPorcelainDir(repoPath)
+  const evidenceDir = projectEvidenceDir(repoPath)
+
+  const closers: Array<() => void> = []
+
+  const startDirWatch = (target: string, onChange: (filename: string | null) => void): void => {
+    void mkdir(target, { recursive: true })
+      .then(() => {
+        try {
+          const w = watch(target, (_event, filename) => {
+            onChange(typeof filename === 'string' ? filename : null)
+          })
+          closers.push(() => w.close())
+        } catch {
+          // unsupported FS — polls still cover discovery
         }
-        const event = files.get(filename)
-        if (event) emitAppEvent(event)
       })
-    } catch {
-      // fs.watch is unsupported on some platforms/filesystems; agent pushes still
-      // surface on the views' own polls, just not instantly.
-    }
+      .catch(() => {})
   }
 
-  // Loop-evidence directory tree (agent Write tools drop index.html + screenshots).
-  // Recursive watch when available; Feature list also polls every 3s as a backstop.
-  const evidenceRoot = loopEvidenceRoot()
-  await mkdir(evidenceRoot, { recursive: true }).catch(() => {})
-  try {
-    watch(evidenceRoot, { recursive: true }, () => {
+  startDirWatch(dir, (filename) => {
+    if (!filename) {
+      for (const event of new Set(Object.values(FILE_EVENTS))) emitAppEvent(event)
       emitAppEvent('evidence')
-    })
-  } catch {
-    try {
-      watch(evidenceRoot, () => {
-        emitAppEvent('evidence')
-      })
-    } catch {
-      // polls still cover discovery
+      return
     }
-  }
+    const base = basename(filename)
+    const event = FILE_EVENTS[base]
+    if (event) emitAppEvent(event)
+    if (base === 'evidence' || filename.startsWith('evidence') || filename.startsWith('reviews')) {
+      emitAppEvent('evidence')
+      emitAppEvent('feature-view')
+    }
+  })
+
+  startDirWatch(evidenceDir, () => {
+    emitAppEvent('evidence')
+  })
+
+  watched.set(repoPath, {
+    close: () => {
+      for (const c of closers) c()
+    },
+  })
+}
+
+export async function watchAgentChannels(): Promise<void> {
+  await syncProjectWatches()
+}
+
+/** Start watches for recent repos (and any newly opened path). */
+export async function syncProjectWatches(extraRepo?: string): Promise<void> {
+  const config = await loadConfig()
+  const paths = new Set(config.recentRepos)
+  if (extraRepo) paths.add(extraRepo)
+  for (const repo of paths) watchRepo(repo)
+}
+
+export function watchProjectCompanion(repoPath: string): void {
+  watchRepo(repoPath)
 }

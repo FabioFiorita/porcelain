@@ -1,20 +1,19 @@
-import { createHash } from 'node:crypto'
 import { mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { porcelainHomePath } from '@shared/porcelain-home'
+import { projectEvidenceDir } from '@shared/project-porcelain'
 import { htmlPreview } from './html-input'
+import { ensureProjectDir } from './project-io'
 
 // Builtins only — see cli.ts. Evidence is a **directory of files**:
 //
-//   ~/.porcelain/loop-evidence/<sha256(repoPath)[0..16]>/
+//   <repo>/.porcelain/evidence/
 //     index.html   — the HTML document Porcelain renders (Evidence tab)
 //     meta.json    — { title, repoPath, updatedAt }
 //     *.png / …    — screenshots with relative <img src>
 //
 // Agents SHOULD write those files with normal Write tools (no CLI payload limits).
 // `porcelain evidence prepare` with a title only makes the dir and returns the path.
-// Optional --html / --html-file still write index.html for small docs / automation.
-// Keep the keying formula in lockstep with apps/daemon/src/fs/evidence-paths.ts.
+// Keep in lockstep with apps/daemon/src/fs/evidence-paths.ts.
 
 /**
  * The CLI `set` payload cap stays small on purpose — it steers agents to the
@@ -122,16 +121,8 @@ function readChecksForRepo(repoPath: string): EvidenceCheck[] {
   }
 }
 
-function loopEvidenceRoot(): string {
-  return process.env.PORCELAIN_LOOP_EVIDENCE_DIR ?? porcelainHomePath('loop-evidence')
-}
-
-function repoEvidenceKey(repoPath: string): string {
-  return createHash('sha256').update(repoPath).digest('hex').slice(0, 16)
-}
-
 export function evidenceDirForRepo(repoPath: string): string {
-  return join(loopEvidenceRoot(), repoEvidenceKey(repoPath))
+  return projectEvidenceDir(repoPath)
 }
 
 export function validateEvidence(title: unknown, html: unknown): { title: string; html: string } {
@@ -151,6 +142,7 @@ export function validateEvidence(title: unknown, html: unknown): { title: string
 }
 
 function writeMeta(repoPath: string, title: string): EvidenceMeta {
+  ensureProjectDir(repoPath)
   const dir = evidenceDirForRepo(repoPath)
   mkdirSync(dir, { recursive: true })
   const path = join(dir, 'meta.json')

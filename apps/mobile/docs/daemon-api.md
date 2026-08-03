@@ -90,7 +90,7 @@ All flat names; Q = query, M = mutation. No tRPC subscriptions exist.
 ### Cross-cutting
 - `repoNotes` Q / `setRepoNotes` M (Notes is the human's scratchpad — mobile read-only surface)
 - `repoLayers` Q / `setRepoLayers` M (flow-layer config)
-- `exportRepoSettings` Q / `importRepoSettings` / `copyRepoSettings` M
+- `archivedReviews` Q / `restoreArchivedReview` / `deleteArchivedReview` M — previous reviews under `.porcelain/reviews/`
 - `removeRecentRepo` M
 
 ## Mobile-side cautions

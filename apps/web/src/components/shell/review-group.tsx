@@ -17,20 +17,24 @@ import {
 } from '@renderer/components/ui/sidebar'
 import { useReviewComments } from '@renderer/hooks/use-comments'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
-import { useClearFeatureReview } from '@renderer/hooks/use-feature-view'
+import {
+  useArchivedReviewActions,
+  useArchivedReviews,
+  useClearFeatureReview,
+} from '@renderer/hooks/use-feature-view'
 import { useReviewedPaths } from '@renderer/hooks/use-reviewed'
 import { rowActionClass } from '@renderer/lib/controls'
-import { fileName } from '@renderer/lib/paths'
 import {
   lifecycleBadgeLabel,
   lifecycleDetail,
   reviewLifecyclePhase,
   reviewOutlineFiles,
 } from '@renderer/lib/review-lifecycle'
+import { openFeatureReview } from '@renderer/lib/surface-handoffs'
 import { cn } from '@renderer/lib/utils'
 import { type ReviewFocusSection, useReviewFocusStore } from '@renderer/stores/review-focus'
 import { TestIds } from '@shared/test-ids'
-import { Eraser } from 'lucide-react'
+import { Archive, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 
 const LABEL_CLASS = 'px-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground'
@@ -56,33 +60,127 @@ function chapterTitle(reading: FeatureReading, active: ReviewFocusSection): stri
   return reading.name
 }
 
+function formatArchivedAt(iso: string): string {
+  try {
+    const d = new Date(iso)
+    if (Number.isNaN(d.getTime())) return iso
+    return d.toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  } catch {
+    return iso
+  }
+}
+
 /**
- * The Feature tab's live companion to the Review document: lifecycle status,
- * Clear review (inline companion home — not a buried … menu), the chapter under
- * the reader's eyes, notes, and open-comment count.
+ * Feature tab companion: current unit status, archive (clear), and previous
+ * reviews restored from `<repo>/.porcelain/reviews/`.
  */
 export function ReviewGroup(): React.JSX.Element | null {
   const { reading } = useFeatureReading()
   const activeSection = useReviewFocusStore((s) => s.activeSection)
-  const visiblePath = useReviewFocusStore((s) => s.visiblePath)
   const comments = useReviewComments()
   const reviewed = useReviewedPaths()
   const { clear, isClearing } = useClearFeatureReview()
+  const archived = useArchivedReviews()
+  const { restore, remove, isBusy } = useArchivedReviewActions()
   const [confirmClearOpen, setConfirmClearOpen] = useState(false)
   const [clearError, setClearError] = useState<string | null>(null)
+  const [archiveError, setArchiveError] = useState<string | null>(null)
+
+  const handleRunClear = async (): Promise<void> => {
+    setClearError(null)
+    try {
+      await clear()
+      setConfirmClearOpen(false)
+    } catch (e) {
+      setClearError(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  const previousList =
+    archived.length > 0 ? (
+      <SidebarGroup className="px-3" data-testid={TestIds.previousReviews}>
+        <SidebarGroupLabel className={LABEL_CLASS}>Previous reviews</SidebarGroupLabel>
+        <SidebarGroupContent className="flex flex-col gap-1 px-1">
+          {archived.map((row) => (
+            <div
+              key={row.id}
+              data-testid={TestIds.previousReviewRow(row.id)}
+              className="flex items-start gap-1 rounded-xl border bg-card p-2"
+            >
+              <button
+                type="button"
+                className="min-w-0 flex-1 text-left"
+                data-testid={TestIds.previousReviewRestore(row.id)}
+                disabled={isBusy}
+                onClick={async () => {
+                  setArchiveError(null)
+                  try {
+                    await restore(row.id)
+                    openFeatureReview()
+                  } catch (e) {
+                    setArchiveError(e instanceof Error ? e.message : String(e))
+                  }
+                }}
+              >
+                <span className="block truncate text-xs font-medium">{row.name}</span>
+                <span className="mt-0.5 block text-3xs text-muted-foreground">
+                  {formatArchivedAt(row.archivedAt)}
+                </span>
+                {row.thesis && (
+                  <p className="mt-1 line-clamp-2 text-2xs text-muted-foreground">{row.thesis}</p>
+                )}
+              </button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                className="shrink-0 text-muted-foreground hover:text-destructive"
+                data-testid={TestIds.previousReviewDelete(row.id)}
+                disabled={isBusy}
+                aria-label={`Delete archived review ${row.name}`}
+                onClick={async () => {
+                  setArchiveError(null)
+                  try {
+                    await remove(row.id)
+                  } catch (e) {
+                    setArchiveError(e instanceof Error ? e.message : String(e))
+                  }
+                }}
+              >
+                <Trash2 className="size-3.5" />
+              </Button>
+            </div>
+          ))}
+          {archiveError && (
+            <p className="whitespace-pre-wrap font-mono text-2xs text-destructive">
+              {archiveError}
+            </p>
+          )}
+        </SidebarGroupContent>
+      </SidebarGroup>
+    ) : null
 
   // Empty Review: companion matches the viewer start-of-unit empty state.
   if (reading === null) {
     return (
-      <SidebarGroup className="px-3">
-        <SidebarGroupLabel className={LABEL_CLASS}>Review</SidebarGroupLabel>
-        <SidebarGroupContent className="px-1">
-          <div className="rounded-xl border border-dashed bg-muted/20 p-2.5 text-2xs text-muted-foreground">
-            Start a unit: open the canvas and copy the begin-unit prompt (name + thesis). Agents use
-            porcelain-companion — Intent first; clear any previous unit before a new one.
-          </div>
-        </SidebarGroupContent>
-      </SidebarGroup>
+      <>
+        <SidebarGroup className="px-3">
+          <SidebarGroupLabel className={LABEL_CLASS}>Review</SidebarGroupLabel>
+          <SidebarGroupContent className="px-1">
+            <div className="rounded-xl border border-dashed bg-muted/20 p-2.5 text-2xs text-muted-foreground">
+              Start a unit: open the canvas and copy the begin-unit prompt (name + thesis). Agents
+              use porcelain-companion — Intent first. Archive the previous unit when done so it
+              stays in Previous reviews (`.porcelain/reviews/`).
+            </div>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        {previousList}
+      </>
     )
   }
 
@@ -100,124 +198,85 @@ export function ReviewGroup(): React.JSX.Element | null {
       ? reading.sections[activeSection]
       : undefined
   const proseLine = section ? firstProseLine(section.prose) : null
-
-  // The visible file's agent notes (a file anchored in several places carries the
-  // same note — dedupe) and its open comments.
-  const notes = visiblePath
-    ? [
-        ...new Set(
-          [...reading.sections.flatMap((s) => s.files), ...reading.groups.flatMap((g) => g.files)]
-            .filter((file) => file.path === visiblePath)
-            .map((file) => file.note)
-            .filter((note): note is string => note !== undefined && note !== ''),
-        ),
-      ]
-    : []
-  const openCommentCount = visiblePath
-    ? comments.filter((c) => c.path === visiblePath && !c.resolved).length
-    : 0
-
-  const handleRunClear = async (): Promise<void> => {
-    setClearError(null)
-    try {
-      await clear()
-      setConfirmClearOpen(false)
-    } catch (e) {
-      setClearError(e instanceof Error ? e.message : String(e))
-    }
-  }
+  const openCommentCount = comments.filter((c) => !c.resolved).length
 
   return (
-    <SidebarGroup className="px-3">
-      <SidebarGroupLabel className={LABEL_CLASS}>Now reading</SidebarGroupLabel>
-      <SidebarGroupContent className="flex flex-col gap-1.5 px-1">
-        <div
-          className={cn(
-            'rounded-xl border p-2',
-            phase === 'ready_to_close' ? 'border-success/30 bg-success/5' : 'bg-card',
-          )}
-        >
-          <div className="min-w-0">
-            <span className="block truncate text-xs font-medium">{reading.name}</span>
-            {badge && (
-              <span className="mt-0.5 block text-3xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                {badge}
-                {outline.length === 0 ? ' · previous unit still up' : ''}
-              </span>
+    <>
+      <SidebarGroup className="px-3">
+        <SidebarGroupLabel className={LABEL_CLASS}>Current review</SidebarGroupLabel>
+        <SidebarGroupContent className="flex flex-col gap-1.5 px-1">
+          <div
+            className={cn(
+              'rounded-xl border p-2',
+              phase === 'ready_to_close' ? 'border-success/30 bg-success/5' : 'bg-card',
             )}
-          </div>
-          <p className="mt-1 text-2xs leading-snug text-muted-foreground">{detail}</p>
-        </div>
-        <div className="rounded-xl border bg-card p-2">
-          <span className="block truncate text-xs font-medium">
-            {chapterTitle(reading, activeSection)}
-          </span>
-          {proseLine && (
-            <p className="mt-1 line-clamp-2 text-xs-minus text-muted-foreground">{proseLine}</p>
-          )}
-        </div>
-        {visiblePath && (
-          <div className="rounded-xl border bg-card p-2">
-            <span className="block truncate font-mono text-2xs text-muted-foreground">
-              {fileName(visiblePath)}
-            </span>
-            {notes.map((note) => (
-              <p key={note} className="mt-1 break-words text-xs-minus text-muted-foreground">
-                <span className="mr-1.5 text-3xs font-semibold uppercase tracking-[0.08em] text-muted-foreground/70">
-                  Note
+          >
+            <div className="min-w-0">
+              <span className="block truncate text-xs font-medium">{reading.name}</span>
+              {badge && (
+                <span className="mt-0.5 block text-3xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                  {badge}
+                  {outline.length === 0 ? ' · previous unit still up' : ''}
                 </span>
-                {note}
+              )}
+            </div>
+            <p className="mt-1 text-2xs leading-snug text-muted-foreground">{detail}</p>
+            {proseLine && (
+              <p className="mt-1 line-clamp-2 text-xs-minus text-muted-foreground">
+                {chapterTitle(reading, activeSection)}
+                {proseLine ? ` — ${proseLine}` : ''}
               </p>
-            ))}
+            )}
             {openCommentCount > 0 && (
               <p className="mt-1 text-2xs text-muted-foreground/70">
                 {openCommentCount} open comment{openCommentCount === 1 ? '' : 's'}
               </p>
             )}
           </div>
-        )}
-        {/* Single destructive action for the Review — inline, not buried in … */}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className={cn(rowActionClass, 'w-full justify-start text-destructive')}
-          disabled={isClearing}
-          data-testid={TestIds.featureClearReview}
-          onClick={() => setConfirmClearOpen(true)}
-        >
-          <Eraser />
-          Clear review & evidence
-        </Button>
-        {clearError && (
-          <p className="whitespace-pre-wrap font-mono text-2xs text-destructive">{clearError}</p>
-        )}
-      </SidebarGroupContent>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className={cn(rowActionClass, 'w-full justify-start text-destructive')}
+            disabled={isClearing}
+            data-testid={TestIds.featureClearReview}
+            onClick={() => setConfirmClearOpen(true)}
+          >
+            <Archive />
+            Archive review & evidence
+          </Button>
+          {clearError && (
+            <p className="whitespace-pre-wrap font-mono text-2xs text-destructive">{clearError}</p>
+          )}
+        </SidebarGroupContent>
 
-      <AlertDialog open={confirmClearOpen} onOpenChange={setConfirmClearOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Clear review and evidence?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Removes the agent Review (Intent, files, walkthrough) and the evidence directory for
-              this repo. The agent can re-publish. This cannot be undone from the app.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              disabled={isClearing}
-              onClick={async () => {
-                await handleRunClear()
-              }}
-              aria-label="Confirm clear review and evidence"
-            >
-              Clear
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </SidebarGroup>
+        <AlertDialog open={confirmClearOpen} onOpenChange={setConfirmClearOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Archive review and evidence?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Moves the agent Review (Intent, files, walkthrough), comments, and evidence into
+                `.porcelain/reviews/` so you can restore later. The active unit becomes empty until
+                the agent re-publishes or you restore a previous review.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                variant="destructive"
+                disabled={isClearing}
+                onClick={async () => {
+                  await handleRunClear()
+                }}
+                aria-label="Confirm archive review and evidence"
+              >
+                Archive
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </SidebarGroup>
+      {previousList}
+    </>
   )
 }

@@ -1,34 +1,21 @@
-import { createHash } from 'node:crypto'
 import { join } from 'node:path'
-import { porcelainHomePath } from '@shared/porcelain-home'
+import { projectEvidenceDir } from '@shared/project-porcelain'
 
 /**
- * Loop evidence lives as a **directory of files on disk**, not as HTML shuttled
- * through the CLI. Agents write `index.html` (+ screenshots as sibling files) with
- * normal file tools; Porcelain reads and renders. The CLI only needs to return the
- * directory path (or optionally seed title / copy a small htmlFile).
+ * Loop evidence lives as a directory of files on disk under the project:
+ *   <repo>/.porcelain/evidence/
+ *     index.html
+ *     meta.json
+ *     *.png / …
  *
- * Layout:
- *   ~/.porcelain/loop-evidence/<sha256(repoPath)[0..16]>/
- *     index.html          — HTML body
- *     meta.json           — optional { title, repoPath, updatedAt, checks }
- *     *.png / …           — relative assets referenced from index.html
+ * Agents write with normal file tools; Porcelain reads and renders. Default
+ * `.porcelain/.gitignore` ignores this tree (can be un-ignored to share).
  *
- * Keep this keying formula in lockstep with `src/cli/evidence-file.ts`
- * (the dependency-free CLI cannot import this module).
+ * Keep in lockstep with `apps/cli/src/evidence-file.ts`.
  */
 
-export function loopEvidenceRoot(): string {
-  return process.env.PORCELAIN_LOOP_EVIDENCE_DIR ?? porcelainHomePath('loop-evidence')
-}
-
-/** Stable short directory name for an absolute repo path. */
-function repoEvidenceKey(repoPath: string): string {
-  return createHash('sha256').update(repoPath).digest('hex').slice(0, 16)
-}
-
 export function evidenceDirForRepo(repoPath: string): string {
-  return join(loopEvidenceRoot(), repoEvidenceKey(repoPath))
+  return projectEvidenceDir(repoPath)
 }
 
 export function evidenceIndexPath(repoPath: string): string {
@@ -37,4 +24,9 @@ export function evidenceIndexPath(repoPath: string): string {
 
 export function evidenceMetaPath(repoPath: string): string {
   return join(evidenceDirForRepo(repoPath), 'meta.json')
+}
+
+/** @deprecated home loop-evidence root is no longer used for active packs. */
+export function loopEvidenceRoot(): string {
+  return process.env.PORCELAIN_LOOP_EVIDENCE_DIR ?? ''
 }
