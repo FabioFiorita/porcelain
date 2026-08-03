@@ -38,9 +38,9 @@ packages/
 | `packages/shared` | Extracted |
 | `apps/daemon` | Source + **independent esbuild** (`pnpm build:daemon`) |
 | `apps/cli` | Source + **independent esbuild** (`pnpm build:cli`); single-file CJS |
-| `apps/web` | Source extracted; still built via desktop electron-vite |
+| `apps/web` | Source + **independent Vite** (`pnpm build:web` → `desktop/out/renderer`) |
 | `packages/contracts` | Exists; full procedure I/O + drop apps import still open |
-| Independent web build | Open |
+| Electron-vite | Shell only on production build; renderer HMR still used for `pnpm dev` |
 | `packages/client-runtime` | Not started |
 
 Treat remaining desktop folders as **future package contents**, not shell features.

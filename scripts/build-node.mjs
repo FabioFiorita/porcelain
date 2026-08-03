@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
@@ -109,7 +109,8 @@ async function buildCli() {
   const outfile = join(outMain, 'cli', 'porcelain.js')
   mkdirSync(dirname(outfile), { recursive: true })
   // Fully bundled: agents run plain `node porcelain.js` with zero install.
-  // No shared chunks — ensureCli treats a missing chunks dir as single-file.
+  // ensureCli treats a missing sibling chunks/ as single-file (do not wipe
+  // out/main/chunks — the Electron shell main entry may still use that dir).
   await esbuild.build({
     ...common,
     entryPoints: [join(root, 'apps', 'cli', 'src', 'porcelain.ts')],
@@ -117,12 +118,6 @@ async function buildCli() {
     // Node builtins only; do not externalize workspace packages.
     packages: 'bundle',
   })
-  // Drop stale electron-vite chunk siblings so installs don't pick up dead hashes.
-  const chunks = join(outMain, 'chunks')
-  if (existsSync(chunks)) {
-    rmSync(chunks, { recursive: true, force: true })
-    console.log(`[build-node] removed stale ${chunks} (CLI is single-file now)`)
-  }
   console.log(`[build-node] cli → ${outfile}`)
 }
 
