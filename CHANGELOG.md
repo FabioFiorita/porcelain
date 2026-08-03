@@ -1,3 +1,27 @@
+## [0.47.0](https://github.com/FabioFiorita/porcelain/compare/v0.46.3...v0.47.0) (2026-08-03)
+
+### Features
+
+* **client-runtime:** session protocol, word-diff; close arch program ([42647e3](https://github.com/FabioFiorita/porcelain/commit/42647e3985fed2a2cb3d671495db03a4ecb2fda5))
+* **client-runtime:** share terminal-keys between web and mobile ([d06514e](https://github.com/FabioFiorita/porcelain/commit/d06514e509f74b5204624d8381ca0faaec901543))
+* **contracts:** full procedure catalog and drop apps import ([2ee0610](https://github.com/FabioFiorita/porcelain/commit/2ee0610fd68e0b6c8e8a297bcdcd798d36e643be))
+* **mobile:** Files dual-face Search with keyboard on re-tap ([5e3f910](https://github.com/FabioFiorita/porcelain/commit/5e3f91077d30ba42bf5c6e934e9a922804eff094))
+* **mobile:** reconstruct shell for phone companion + iPad workstation ([5291b70](https://github.com/FabioFiorita/porcelain/commit/5291b70d850e99f2afb9e45e84a03119653a0d9e))
+* repo-local .porcelain companion store with review archive ([f5e07bd](https://github.com/FabioFiorita/porcelain/commit/f5e07bda7623ae021679d4b3686c22ebf53cc9e5))
+
+### Bug Fixes
+
+* **daemon:** unwrap ESM trash default after CJS esbuild ([c5a4ab1](https://github.com/FabioFiorita/porcelain/commit/c5a4ab1b9c6a394717d1f77ba5575e5527a8941f))
+* **mobile:** bolt companion icon and per-surface companion content ([2a8ad90](https://github.com/FabioFiorita/porcelain/commit/2a8ad905ee08fd0b57d812436f70801ed0ba11ef))
+* **mobile:** dispatch EAS delivery instead of running it on every commit ([01e0102](https://github.com/FabioFiorita/porcelain/commit/01e0102c791d3a949d758214c808ce860bfce62f))
+* **mobile:** do not use Stack.Toolbar in iPad companion inspector ([467589d](https://github.com/FabioFiorita/porcelain/commit/467589d1808b3cfa36711db1ee9b0c9c3f88616a))
+* **mobile:** dual-face tabs without push/back or sheet reset ([ffeead5](https://github.com/FabioFiorita/porcelain/commit/ffeead58c2a3efdf52c696ca80132af9099cd57c))
+* **mobile:** host the card delete dialog inside its SwiftUI tree ([54235be](https://github.com/FabioFiorita/porcelain/commit/54235be749df429643b87648b048b1979996bea9))
+* **mobile:** iPad SplitView list|detail for Changes, Files, History ([23025ec](https://github.com/FabioFiorita/porcelain/commit/23025ec89e93ca164b6cec8b728c5cd1046bcff1))
+* **mobile:** restore Files list and Done exit from Search face ([f64d906](https://github.com/FabioFiorita/porcelain/commit/f64d906d9c5e29082e6c4ae547f8d748579e7701))
+* **mobile:** Search stays as tab face; pin query field above results ([44a8ab3](https://github.com/FabioFiorita/porcelain/commit/44a8ab3f92dff037d82107f57b855841d9c91abf))
+* **release:** sync all packages to desktop bump stamp ([a825a15](https://github.com/FabioFiorita/porcelain/commit/a825a15482aab3d6e5e07dc8af838c75aa553283))
+
 ## [0.46.3](https://github.com/FabioFiorita/porcelain/compare/v0.46.2...v0.46.3) (2026-08-02)
 
 ### Features
