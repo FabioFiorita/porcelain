@@ -27,7 +27,7 @@ Four primary tabs — the iOS ceiling is five; we stay under it.
 
 | Tab slot | Faces (re-tap root to flip) | Chrome |
 |----------|------------------------------|--------|
-| **Files** | Files · **Search** | full header; Search auto-focuses the keyboard |
+| **Files** | Files · **Search** | full header; Search auto-focuses the keyboard; stay until re-tap |
 | **Changes** | Changes · **History** | same header; no back chevron |
 | **Review** | Review · **Board** | same |
 | **Terminal** | Terminal | full header |

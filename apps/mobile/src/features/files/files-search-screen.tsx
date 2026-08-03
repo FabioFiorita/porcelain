@@ -1,66 +1,91 @@
-import { List, Section, Text, TextField, useNativeState } from '@expo/ui/swift-ui'
-import { listStyle } from '@expo/ui/swift-ui/modifiers'
 import { ObserveInteractiveMarker } from 'expo-observe'
-import { Stack } from 'expo-router'
 import { useState } from 'react'
+import {
+  Platform,
+  StyleSheet,
+  TextInput,
+  type TextInputProps,
+  useColorScheme,
+  View,
+} from 'react-native'
 
 import { DaemonGate } from '@/components/daemon-gate'
 import { ScreenHeader } from '@/components/screen-header'
-import { ScreenHost } from '@/components/screen-host'
 import { useSurfaceFocus } from '@/components/use-surface-focus'
-import { useTabFaces } from '@/lib/tab-faces'
-import { secondary } from '@/theme/modifiers'
 import { SearchResults } from './search-results'
 import { useDebouncedFileQuery } from './use-files'
 
 /**
- * Files tab search face. Re-tap Files → this face mounts with `autoFocus` so the keyboard
- * is up immediately. Done (and re-tap when the bar is visible) returns to browse.
+ * Files tab search face — dual-face like Board/History (re-tap to flip; no Done).
+ * Field is a fixed RN TextInput above the results FlatList. SwiftUI TextField as a
+ * FlatList header collapses to zero height under ScreenHost measurement.
  */
 export function FilesSearchScreen(): React.JSX.Element {
   const [query, setQuery] = useState('')
-  const nativeQuery = useNativeState('')
   const debouncedQuery = useDebouncedFileQuery(query)
+  const dark = useColorScheme() === 'dark'
   useSurfaceFocus('files')
 
   return (
     <>
       <DaemonGate requires="repo">
-        <ScreenHost>
-          <List modifiers={[listStyle('insetGrouped')]}>
-            <Section>
-              <TextField
-                autoFocus
-                onTextChange={(value: string): void => {
-                  setQuery(value)
-                }}
-                placeholder="Search files"
-                text={nativeQuery}
-              />
-            </Section>
-            {debouncedQuery.trim() === '' ? (
-              <Section>
-                <Text modifiers={[secondary]}>
-                  Filename search in this repository. Done returns to the file tree.
-                </Text>
-              </Section>
-            ) : null}
-          </List>
-          {debouncedQuery.trim() === '' ? null : <SearchResults query={debouncedQuery} />}
-        </ScreenHost>
+        <View style={styles.root}>
+          <View style={styles.fieldWrap}>
+            <TextInput
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoFocus
+              clearButtonMode="while-editing"
+              onChangeText={setQuery}
+              placeholder="Search files"
+              placeholderTextColor={dark ? '#8E8E93' : '#8E8E93'}
+              returnKeyType="search"
+              style={[styles.field, dark ? styles.fieldDark : styles.fieldLight]}
+              value={query}
+              {...platformFieldProps}
+            />
+          </View>
+          <View style={styles.results}>
+            <SearchResults query={debouncedQuery} />
+          </View>
+        </View>
       </DaemonGate>
-      {/* Done lives in the header because the keyboard covers the tab bar. */}
-      <ScreenHeader companion={null} title="Search" />
-      <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button
-          onPress={(): void => {
-            useTabFaces.getState().setFiles('files')
-          }}
-        >
-          Done
-        </Stack.Toolbar.Button>
-      </Stack.Toolbar>
+      <ScreenHeader title="Search" />
       <ObserveInteractiveMarker />
     </>
   )
 }
+
+const platformFieldProps: Pick<TextInputProps, 'textContentType'> =
+  Platform.OS === 'ios' ? { textContentType: 'none' } : {}
+
+const styles = StyleSheet.create({
+  field: {
+    backgroundColor: 'rgba(120, 120, 128, 0.16)',
+    borderRadius: 12,
+    fontSize: 17,
+    minHeight: 44,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  fieldDark: {
+    color: '#fff',
+  },
+  fieldLight: {
+    color: '#000',
+  },
+  fieldWrap: {
+    flexGrow: 0,
+    flexShrink: 0,
+    paddingBottom: 8,
+    paddingHorizontal: 16,
+    paddingTop: 4,
+  },
+  results: {
+    flex: 1,
+    minHeight: 0,
+  },
+  root: {
+    flex: 1,
+  },
+})

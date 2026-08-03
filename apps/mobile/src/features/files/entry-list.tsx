@@ -27,32 +27,36 @@ type FileListItem = FileListSection | FileListEntry
 
 export function EntryList({
   actions,
+  embedded = false,
   entries,
   detailForEntry,
   pinnedEntries = [],
   repoPath,
 }: {
   actions: FileEntryActions
+  /** Parent already owns layout (Search face column). */
+  embedded?: boolean
   entries: readonly DirEntry[]
   detailForEntry?: (entry: DirEntry) => string | undefined
   pinnedEntries?: readonly DirEntry[]
   repoPath: string
 }): React.JSX.Element {
   const items = makeItems(entries, pinnedEntries, detailForEntry)
-
-  return (
-    <ScreenHost>
-      <HostRNList actions={actions} items={items} repoPath={repoPath} />
-    </ScreenHost>
+  const list = (
+    <HostRNList actions={actions} embedded={embedded} items={items} repoPath={repoPath} />
   )
+  if (embedded) return list
+  return <ScreenHost>{list}</ScreenHost>
 }
 
 function HostRNList({
   actions,
+  embedded,
   items,
   repoPath,
 }: {
   actions: FileEntryActions
+  embedded: boolean
   items: readonly FileListItem[]
   repoPath: string
 }): React.JSX.Element {
@@ -66,11 +70,14 @@ function HostRNList({
   return (
     <FlatList
       contentContainerStyle={styles.listContent}
-      contentInsetAdjustmentBehavior="automatic"
+      contentInsetAdjustmentBehavior={embedded ? 'never' : 'automatic'}
       data={items}
       keyExtractor={(item: FileListItem): string => item.key}
+      keyboardDismissMode="on-drag"
+      keyboardShouldPersistTaps="handled"
       renderItem={renderItem}
       showsVerticalScrollIndicator
+      style={styles.list}
     />
   )
 }
@@ -230,6 +237,9 @@ async function copyDaemonPath(path: string): Promise<void> {
 }
 
 const styles = StyleSheet.create({
+  list: {
+    flex: 1,
+  },
   listContent: {
     paddingBottom: 28,
   },
