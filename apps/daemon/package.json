@@ -1,0 +1,27 @@
+{
+  "name": "@porcelain/daemon",
+  "version": "0.46.3",
+  "private": true,
+  "description": "Porcelain headless runtime — git, review, PTY, share. Plain Node.",
+  "type": "module",
+  "exports": {
+    ".": "./src/api.ts",
+    "./server": "./src/server.ts",
+    "./*": "./src/*"
+  },
+  "dependencies": {
+    "@porcelain/contracts": "workspace:*",
+    "@porcelain/shared": "workspace:*",
+    "@trpc/client": "^11.17.0",
+    "@trpc/server": "^11.17.0",
+    "node-pty": "^1.1.0",
+    "trash": "^10.1.1",
+    "ws": "^8.21.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/ws": "^8.18.1",
+    "typescript": "^6.0.3"
+  }
+}

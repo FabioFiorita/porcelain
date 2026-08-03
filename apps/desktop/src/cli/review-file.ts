@@ -3,7 +3,7 @@ import { dirname } from 'node:path'
 import { porcelainHomePath } from '@shared/porcelain-home'
 
 // Builtins only — see cli.ts for why this server must stay dependency-free.
-// This file owns the agent channel that Porcelain reads (src/backend/stores/review-store.ts
+// This file owns the agent channel that Porcelain reads (apps/daemon/src/stores/review-store.ts
 // reads the same path); both honour PORCELAIN_REVIEW_SETS so tests and dev can
 // redirect it. Default lives in ~/.porcelain (the user's home, NOT a work repo).
 // Porcelain re-validates this file with zod on read, so reads here stay lenient.
@@ -45,7 +45,7 @@ export interface ReviewSet {
   canvas?: ReviewCanvas
 }
 
-// Caps mirrored from src/backend/review/review-set.ts (the zod schema Porcelain re-validates
+// Caps mirrored from apps/daemon/src/review/review-set.ts (the zod schema Porcelain re-validates
 // with on read) so a too-big write fails HERE with an actionable message instead of
 // being silently dropped by the app.
 const MAX_SECTIONS = 30

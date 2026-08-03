@@ -152,7 +152,7 @@ function parseArgs(argv) {
   return opts
 }
 
-/** Same semantics as src/backend/net/admin-token.ts (plain CJS copy). */
+/** Same semantics as apps/daemon/src/net/admin-token.ts (plain CJS copy). */
 function ensureAdminToken(path = ADMIN_TOKEN_PATH()) {
   try {
     const existing = readFileSync(path, 'utf8').trim()

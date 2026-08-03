@@ -36,8 +36,10 @@ packages/
 | Target | Status |
 |--------|--------|
 | `packages/shared` | Extracted |
+| `apps/daemon` | Source extracted; still bundled via desktop electron-vite |
 | `packages/contracts` | Exists; full procedure I/O + drop apps import still open |
-| `apps/daemon` / `cli` / `web` | Still under `apps/desktop/src/{backend,cli,renderer}` |
+| `apps/cli` / `apps/web` | Still under `apps/desktop/src/{cli,renderer}` |
+| Independent daemon/cli builds | Open |
 | `packages/client-runtime` | Not started |
 
 Treat remaining desktop folders as **future package contents**, not shell features.

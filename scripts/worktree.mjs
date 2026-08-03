@@ -32,7 +32,7 @@ const PORT_MAX = 43999
  * being committed. This file always addresses a repository by `cwd`, and its
  * passes are destructive (cleanup prune, `worktree remove --force`, adopt
  * rollback), so cwd must stay authoritative. Same strip list and rationale as
- * `src/backend/git/git-env.ts` (mirrors `git rev-parse --local-env-vars`); other
+ * `apps/daemon/src/git/git-env.ts` (mirrors `git rev-parse --local-env-vars`); other
  * `GIT_*` vars are the user's real config and pass through. Used for EVERY child
  * spawn here, git or not.
  */
@@ -701,7 +701,7 @@ function channelKeys(worktreePath) {
   return [...keys]
 }
 
-/** The worktree's review set from its isolated channel home (see src/backend/stores/review-store.ts). */
+/** The worktree's review set from its isolated channel home (see apps/daemon/src/stores/review-store.ts). */
 function readReviewSet(home, keys) {
   const all = readJsonFile(join(home, 'review-sets.json'))
   if (!all) return null
@@ -712,7 +712,7 @@ function readReviewSet(home, keys) {
   return null
 }
 
-/** The worktree's loop evidence pack (see src/backend/fs/evidence-paths.ts for the keying). */
+/** The worktree's loop evidence pack (see apps/daemon/src/fs/evidence-paths.ts for the keying). */
 function readEvidence(home, keys) {
   for (const key of keys) {
     const dir = join(

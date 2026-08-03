@@ -4,17 +4,19 @@
     "electron.vite.config.*",
     "../../packages/contracts/src/**/*",
     "../../packages/shared/src/**/*",
-    "src/backend/**/*",
+    "../daemon/src/**/*",
     "src/shared/**/*",
     "src/main/**/*",
     "src/preload/**/*",
     "src/cli/**/*"
   ],
-  "exclude": ["../../packages/shared/src/**/*.test.ts"],
+  "exclude": ["../../packages/shared/src/**/*.test.ts", "../daemon/src/**/*.test.ts"],
   "compilerOptions": {
     // `paths` without `baseUrl` resolves relative to this file — baseUrl is
     // deprecated in TS 6 and only tsconfig.web.json still needs it (shadcn CLI).
     "paths": {
+      "@backend/*": ["../daemon/src/*"],
+      "@porcelain/daemon/*": ["../daemon/src/*"],
       "@shared/*": ["../../packages/shared/src/*"],
       "@porcelain/shared/*": ["../../packages/shared/src/*"],
       "@porcelain/contracts": ["../../packages/contracts/src/index.ts"],

@@ -1,10 +1,10 @@
 # The one architecture
 
-Package ownership is migrating (see `architecture.md`). Paths below are the **current** tree;
-`src/backend` → future `apps/daemon`, `src/renderer` → future `apps/web`, `src/main` → shell.
+Package ownership is migrating (see `architecture.md`). Daemon source is `apps/daemon`;
+web/cli still under desktop until extracted.
 
 ```
-daemon (apps/desktop/src/backend/api.ts procedures + pure logic in own modules; Electron-free, HTTP/WS on 127.0.0.1)
+daemon (apps/daemon/src/api.ts procedures + pure logic in own modules; Electron-free, HTTP/WS on 127.0.0.1)
   → lib/trpc.ts (appRouter client) + lib/daemon.ts (the WS session) — imports restricted to hooks/ and stores/
     → hooks/use-<domain>.ts (queries, mutations, invalidation)
       → components/<area>/*.tsx (UI only; consume hooks + stores)
@@ -92,7 +92,7 @@ case is a compile error.
 - **Split view = panes, not extra tab state.** The invariant: **`openTab`/`pinTab`/`cycleTab`/
   `closeAllTabs` keep their signatures and always act on the active pane**, so every opener stayed
   pane-agnostic. `openTabToSide` targets the other pane; pane-scoped ops take `(paneIndex, id)`.
-- **Recipe — new screen/tab kind**, in order: pure logic in `apps/desktop/src/backend/<thing>.ts` + sibling test →
+- **Recipe — new screen/tab kind**, in order: pure logic in `apps/daemon/src/<thing>.ts` + sibling test →
   procedure in `api.ts` (only a genuinely Electron-native one goes on `shellRouter`) → hook →
   `TabKind` → view component (one public export, key as a single prop, data via the hook) → opener
   calls `openTab` → `case` in `Viewer` (the compiler forces it) → keyboard binding if needed.

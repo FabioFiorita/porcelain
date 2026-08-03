@@ -1,4 +1,5 @@
 import { join } from 'node:path'
+import { ensureAdminToken } from '@backend/net/admin-token'
 import { is } from '@electron-toolkit/utils'
 import {
   app,
@@ -9,7 +10,6 @@ import {
   type WebContents,
 } from 'electron'
 import { z } from 'zod'
-import { ensureAdminToken } from '../backend/net/admin-token'
 import {
   loadRemoteEnvironmentState,
   type RemoteDaemon,

@@ -46,11 +46,7 @@
       }
     },
     {
-      "includes": [
-        "apps/desktop/src/backend/**",
-        "apps/desktop/src/renderer/**",
-        "packages/shared/src/**"
-      ],
+      "includes": ["apps/daemon/src/**", "apps/desktop/src/renderer/**", "packages/shared/src/**"],
       "linter": {
         "rules": {
           "style": {
@@ -58,9 +54,9 @@
               "level": "error",
               "options": {
                 "paths": {
-                  "electron": "Electron stays in src/main and src/preload — backend, web client, and packages/shared must remain Electron-free.",
-                  "@electron-toolkit/preload": "Electron stays in src/main and src/preload — backend, web client, and packages/shared must remain Electron-free.",
-                  "@electron-toolkit/utils": "Electron stays in src/main and src/preload — backend, web client, and packages/shared must remain Electron-free."
+                  "electron": "Electron stays in apps/desktop main/preload — daemon, web client, and packages/shared must remain Electron-free.",
+                  "@electron-toolkit/preload": "Electron stays in apps/desktop main/preload — daemon, web client, and packages/shared must remain Electron-free.",
+                  "@electron-toolkit/utils": "Electron stays in apps/desktop main/preload — daemon, web client, and packages/shared must remain Electron-free."
                 }
               }
             }

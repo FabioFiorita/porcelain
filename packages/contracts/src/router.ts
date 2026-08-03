@@ -5,4 +5,4 @@
 // Type-only: no client bundles backend code. Kept off the default entry because
 // resolving it drags the daemon type graph (Node typings, __PORCELAIN_VERSION__)
 // into Expo's tsc. Desktop opts in via `@porcelain/contracts/router`.
-export type { AppRouter } from '../../../apps/desktop/src/backend/api'
+export type { AppRouter } from '../../../apps/daemon/src/api'

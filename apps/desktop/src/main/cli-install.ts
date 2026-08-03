@@ -1,6 +1,6 @@
 import { join } from 'node:path'
+import { ensureCli as ensureCliInHome } from '@backend/cli-install'
 import { app } from 'electron'
-import { ensureCli as ensureCliInHome } from '../backend/cli-install'
 
 /**
  * The Electron shell's boot-time CLI install. The backend `ensureCli` resolves the

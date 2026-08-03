@@ -13,7 +13,8 @@
     "paths": {
       "@renderer/*": ["src/renderer/src/*"],
       "@main/*": ["src/main/*"],
-      "@backend/*": ["src/backend/*"],
+      "@backend/*": ["../daemon/src/*"],
+      "@porcelain/daemon/*": ["../daemon/src/*"],
       "@shared/*": ["../../packages/shared/src/*"],
       "@porcelain/shared/*": ["../../packages/shared/src/*"],
       "@porcelain/contracts": ["../../packages/contracts/src/index.ts"],

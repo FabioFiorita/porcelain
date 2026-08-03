@@ -14,19 +14,19 @@ import { htmlPreview } from './html-input'
 // Agents SHOULD write those files with normal Write tools (no CLI payload limits).
 // `porcelain evidence prepare` with a title only makes the dir and returns the path.
 // Optional --html / --html-file still write index.html for small docs / automation.
-// Keep the keying formula in lockstep with src/backend/fs/evidence-paths.ts.
+// Keep the keying formula in lockstep with apps/daemon/src/fs/evidence-paths.ts.
 
 /**
  * The CLI `set` payload cap stays small on purpose — it steers agents to the
  * write-files path for anything with screenshots. The READ-side cap in
- * src/backend/stores/evidence-store.ts is higher (4 MB) to give inlined screenshots
+ * apps/daemon/src/stores/evidence-store.ts is higher (4 MB) to give inlined screenshots
  * headroom after data-URI inlining.
  */
 export const MAX_HTML_BYTES = 1_572_864
 
 /**
  * Viewer read-side ceiling after data-URI inlining (lockstep with
- * `MAX_HTML_BYTES` in `src/backend/stores/evidence-store.ts`). Exceeding it makes the
+ * `MAX_HTML_BYTES` in `apps/daemon/src/stores/evidence-store.ts`). Exceeding it makes the
  * app show "Evidence too large" instead of the HTML body.
  */
 const READ_MAX_HTML_BYTES = 4_194_304

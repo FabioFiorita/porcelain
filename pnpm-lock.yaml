@@ -34,6 +34,43 @@ importers:
         specifier: ^6.0.3
         version: 6.0.3
 
+  apps/daemon:
+    dependencies:
+      '@porcelain/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      '@porcelain/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@trpc/client':
+        specifier: ^11.17.0
+        version: 11.17.0(@trpc/server@11.17.0(typescript@6.0.3))(typescript@6.0.3)
+      '@trpc/server':
+        specifier: ^11.17.0
+        version: 11.17.0(typescript@6.0.3)
+      node-pty:
+        specifier: ^1.1.0
+        version: 1.1.0
+      trash:
+        specifier: ^10.1.1
+        version: 10.1.1(patch_hash=3fd7a85418b1cea1bb24dc4ec5cceffb3bccbce3cdabed8bfab0cb914be0fbc5)
+      ws:
+        specifier: ^8.21.0
+        version: 8.21.0
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.13.3
+      '@types/ws':
+        specifier: ^8.18.1
+        version: 8.18.1
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+
   apps/desktop:
     dependencies:
       '@electron-toolkit/preload':
@@ -11473,7 +11510,7 @@ snapshots:
 
   '@types/ws@8.18.1':
     dependencies:
-      '@types/node': 24.13.2
+      '@types/node': 24.13.3
 
   '@types/yargs-parser@21.0.3': {}
 
@@ -12016,7 +12053,7 @@ snapshots:
 
   chrome-launcher@0.15.2:
     dependencies:
-      '@types/node': 24.13.2
+      '@types/node': 24.13.3
       escape-string-regexp: 4.0.0
       is-wsl: 2.2.0
       lighthouse-logger: 1.4.2
@@ -12025,7 +12062,7 @@ snapshots:
 
   chromium-edge-launcher@0.3.0:
     dependencies:
-      '@types/node': 24.13.2
+      '@types/node': 24.13.3
       escape-string-regexp: 4.0.0
       is-wsl: 2.2.0
       lighthouse-logger: 1.4.2
@@ -12704,7 +12741,7 @@ snapshots:
     dependencies:
       '@electron-internal/extract-zip': 1.0.3
       '@electron/get': 5.0.0
-      '@types/node': 24.13.2
+      '@types/node': 24.13.3
     transitivePeerDependencies:
       - supports-color
 

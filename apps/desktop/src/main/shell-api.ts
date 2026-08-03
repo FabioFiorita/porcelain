@@ -35,7 +35,7 @@ import { createWindow, switchWindowEnvironment, type WindowInit, windowInitFor }
 
 // The Electron-side half of the router split: everything here needs the shell
 // (native dialogs, window management, the updater) or the
-// calling window. The pure-Node procedures live in src/backend/api.ts.
+// calling window. The pure-Node procedures live in apps/daemon/src/api.ts.
 interface ShellTrpcContext {
   sender: WebContents
 }

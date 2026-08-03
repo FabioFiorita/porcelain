@@ -1,9 +1,9 @@
 import { join } from 'node:path'
+import { isSafeExternalUrl } from '@backend/fs/external-url'
 import { is } from '@electron-toolkit/utils'
 import { resolvePlatform } from '@shared/platform'
 import { BrowserWindow, shell, type WebContents } from 'electron'
 import icon from '../../resources/icon.png?asset'
-import { isSafeExternalUrl } from '../backend/fs/external-url'
 import { getDefaultEnvironmentId, setWindowEnvironment } from './daemon'
 
 // The opaque dark shell background: the `.dark --background` token from

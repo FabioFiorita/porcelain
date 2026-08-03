@@ -5,9 +5,9 @@
  *   1. External URLs go through `isSafeExternalUrl` — any file reaching
  *      `shell.openExternal` / `setWindowOpenHandler` must also import the guard.
  *   2. Every git invocation sets `GIT_OPTIONAL_LOCKS=0` via `runGit` in
- *      `src/backend/git/git.ts`, the sole chokepoint; no other shipped `src/backend`
- *      / `src/main` module may spawn git around it. Test fixtures and `src/cli`'s
- *      one-shot `rev-parse` are out of scope.
+ *      `apps/daemon/src/git/git.ts`, the sole chokepoint; no other shipped daemon
+ *      / shell `src/main` module may spawn git around it. Test fixtures and the
+ *      agent CLI's one-shot `rev-parse` are out of scope.
  *   3. `.husky/pre-commit` clears Git's exported repository-local env before
  *      the commit gate (`pnpm lint`).
  *   4. Every git spawn in the gateway builds its env with `gitEnv`, the runtime
@@ -21,24 +21,25 @@ import { join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = join(fileURLToPath(new URL('.', import.meta.url)), '..')
-const scanRoot = join(root, 'apps', 'desktop', 'src')
+const desktopSrc = join(root, 'apps', 'desktop', 'src')
+const daemonSrc = join(root, 'apps', 'daemon', 'src')
 
 const EXTERNAL_URL_CALL = /\b(?:shell\.openExternal|setWindowOpenHandler)\s*\(/
 const EXTERNAL_URL_GUARD = 'isSafeExternalUrl'
 /** The guard's own module and its test define/exercise it — nothing to gate. */
 const GUARD_FILES = new Set([
-  join(scanRoot, 'backend', 'fs', 'external-url.ts'),
-  join(scanRoot, 'backend', 'fs', 'external-url.test.ts'),
+  join(daemonSrc, 'fs', 'external-url.ts'),
+  join(daemonSrc, 'fs', 'external-url.test.ts'),
 ])
 
-const GIT_GATEWAY = join(scanRoot, 'backend', 'git', 'git.ts')
+const GIT_GATEWAY = join(daemonSrc, 'git', 'git.ts')
 const GIT_LOCKS_FLAG = 'GIT_OPTIONAL_LOCKS'
 const GIT_LOCKS_SET = /GIT_OPTIONAL_LOCKS\s*:\s*['"]0['"]/
 const GIT_SPAWN =
   /\b(?:exec|execSync|execFile|execFileSync|execFileAsync|spawn|spawnSync)\s*\(\s*(['"`])git\1/
 const GIT_SPAWN_ALL = new RegExp(GIT_SPAWN.source, 'g')
 const GIT_ENV_SCRUB = /env:\s*gitEnv\(/g
-const GIT_SPAWN_ROOTS = [join(scanRoot, 'backend'), join(scanRoot, 'main')]
+const GIT_SPAWN_ROOTS = [daemonSrc, join(desktopSrc, 'main')]
 const PRE_COMMIT_HOOK = join(root, '.husky', 'pre-commit')
 const GIT_LOCAL_ENV_LIST = /git rev-parse --local-env-vars/
 const GIT_LOCAL_ENV_UNSET =
@@ -128,7 +129,7 @@ if (hasOrderedGitHookEnvScrub(commentedScrubDecoy) || hasOrderedGitHookEnvScrub(
   })
 }
 
-for (const file of walk(scanRoot)) {
+for (const file of [...walk(desktopSrc), ...walk(daemonSrc)]) {
   if (GUARD_FILES.has(file)) continue
   const rel = relative(root, file)
   const lines = codeLines(file)
@@ -139,7 +140,7 @@ for (const file of walk(scanRoot)) {
     failures.push({
       file: rel,
       line: hit.number,
-      label: `external URL opened without ${EXTERNAL_URL_GUARD} (src/backend/fs/external-url.ts) — gate it or route through the guard`,
+      label: `external URL opened without ${EXTERNAL_URL_GUARD} (apps/daemon/src/fs/external-url.ts) — gate it or route through the guard`,
       snippet: hit.snippet,
     })
   }
@@ -154,7 +155,7 @@ for (const file of walk(scanRoot)) {
     failures.push({
       file: rel,
       line: hit.number,
-      label: `git spawned outside runGit (src/backend/git/git.ts) — it would miss ${GIT_LOCKS_FLAG}=0`,
+      label: `git spawned outside runGit (apps/daemon/src/git/git.ts) — it would miss ${GIT_LOCKS_FLAG}=0`,
       snippet: hit.snippet,
     })
   }
@@ -178,7 +179,7 @@ if (scrubbedSpawns < gatewaySpawns) {
   failures.push({
     file: relative(root, GIT_GATEWAY),
     line: 0,
-    label: `${gatewaySpawns - scrubbedSpawns} git spawn(s) in the gateway don't build their env with gitEnv (src/backend/git/git-env.ts) — an inherited GIT_DIR would override cwd and redirect them to another repository`,
+    label: `${gatewaySpawns - scrubbedSpawns} git spawn(s) in the gateway don't build their env with gitEnv (apps/daemon/src/git/git-env.ts) — an inherited GIT_DIR would override cwd and redirect them to another repository`,
     snippet: `(${scrubbedSpawns} gitEnv env for ${gatewaySpawns} spawns)`,
   })
 }

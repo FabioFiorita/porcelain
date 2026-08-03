@@ -1,21 +1,21 @@
 # Desktop tree (shell + transitional host)
 
 Applies under `apps/desktop/`. Mobile is out of scope — see `apps/mobile/`.
+Daemon source: `apps/daemon/`. Map: `.agents/reference/architecture.md`.
 
-**Target:** this package becomes the **Electron shell only**. Daemon, agent CLI, and web client are
-moving to `apps/daemon`, `apps/cli`, and `apps/web` (see `.agents/reference/architecture.md`).
-Until then their source remains here as `src/backend`, `src/cli`, and `src/renderer` — treat those
-as future packages, not as “desktop features.”
+**Target:** this package is the **Electron shell only**. Web client and agent CLI still live here
+as `src/renderer` and `src/cli` until those packages extract. Do not put new daemon logic under
+this tree — it belongs in `apps/daemon`.
 
 ## Boundaries
 
 - **Web client (`src/renderer`):** shadcn/ui on **Base UI** (`@base-ui/react`, not Radix) + Tailwind v4.
   Custom triggers use `render`, never `asChild`. Settled config: `components.json`. Composition traps:
   `.agents/reference/composition.md`.
-- **Daemon (`src/backend`):** Electron-free product runtime. Load the **`audit` skill** before changing
-  git, config, file reads, external URLs, packaging, or agent channels.
+- **Daemon (`apps/daemon`):** Electron-free product runtime. Load the **`audit` skill** before changing
+  git, config, file reads, external URLs, packaging, or agent channels. Import types via `@backend/*`.
 - **Shell (`src/main`, `src/preload`):** windows, menu, updater, spawn/bind daemon, shell IPC only.
-- **CLI (`src/cli`):** agent binary; Node builtins only.
+- **CLI (`src/cli`):** agent binary; Node builtins only (until `apps/cli`).
 - **Data flow:** daemon procedures → domain hooks → components. Components never import
   `lib/trpc` or `lib/daemon` (Biome-enforced). One zustand store per client-only concern.
 - **Ports:** product work uses dev **43118** (worktrees **43200–43999**). Production is **43117**.
@@ -28,7 +28,7 @@ as future packages, not as “desktop features.”
 
 - Day-to-day UI: **browser** against the dev daemon (same dist Electron loads). Playwright MCP,
   a live tab, or `pnpm test:e2e`.
-- Backend / pure logic: Vitest under `apps/desktop` (also globs mobile pure modules).
+- Backend / pure logic: Vitest under `apps/desktop` (globs daemon + mobile pure modules).
 - Electron-native e2e is local Mac only (`pnpm --dir apps/desktop test:e2e:native*`), not CI or `pnpm verify`.
 
 ## When lost

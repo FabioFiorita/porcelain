@@ -9,7 +9,7 @@
 // It mirrors the `out/` layout exactly so the daemon's two relative resolutions
 // keep working unchanged: the shared chunk require from
 // main/daemon/server.js) and RENDERER_ROOT (`__dirname/../../renderer`, see
-// src/backend/net/static-server.ts). Externalized runtime deps are declared
+// apps/daemon/src/net/static-server.ts). Externalized runtime deps are declared
 // in a generated package.json with the EXACT semver ranges read from
 // apps/desktop/package.json, so `npm install` / npx on the target pulls them (and compiles
 // node-pty for that host). The dependency-free CLI ships too — the daemon installs
