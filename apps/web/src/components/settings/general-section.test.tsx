@@ -1,8 +1,20 @@
+import { useCommitModels } from '@renderer/hooks/use-commit'
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { GeneralSection } from './general-section'
 
+vi.mock('@renderer/hooks/use-commit', () => ({
+  useCommitModels: vi.fn(),
+}))
+
 describe('GeneralSection', () => {
+  beforeEach(() => {
+    vi.mocked(useCommitModels).mockReturnValue({
+      models: [{ id: 'luna', label: 'Luna', provider: 'codex' }],
+      isLoading: false,
+    })
+  })
+
   it('hosts appearance and viewer prefs, not companion skills', () => {
     render(<GeneralSection />)
     expect(screen.getByText('Appearance')).toBeTruthy()

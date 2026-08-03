@@ -1,4 +1,15 @@
+import type { CommitModel, CommitModelOption } from '@porcelain/contracts'
+import { Button } from '@renderer/components/ui/button'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandList,
+} from '@renderer/components/ui/command'
+import { Popover, PopoverContent, PopoverTrigger } from '@renderer/components/ui/popover'
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
+import { useCommitModels } from '@renderer/hooks/use-commit'
 import { compactButtonClass } from '@renderer/lib/controls'
 import {
   type DiffMode,
@@ -9,6 +20,8 @@ import {
   usePreferencesStore,
 } from '@renderer/stores/preferences'
 import { TestIds } from '@shared/test-ids'
+import { Check, ChevronsUpDown } from 'lucide-react'
+import { useState } from 'react'
 
 /**
  * Settings type scale (page title lives on the dialog header):
@@ -38,8 +51,66 @@ function PreferenceRow({
   )
 }
 
+function CommitModelPicker({
+  value,
+  onChange,
+  options,
+  isLoading,
+}: {
+  value: CommitModel
+  onChange: (value: CommitModel) => void
+  options: CommitModelOption[]
+  isLoading: boolean
+}): React.JSX.Element {
+  const [open, setOpen] = useState(false)
+  const selected = options.find((option) => option.id === value)
+
+  return (
+    <Popover open={open} onOpenChange={(next: boolean): void => setOpen(next)}>
+      <PopoverTrigger
+        render={
+          <Button
+            variant="outline"
+            size="sm"
+            className={compactButtonClass}
+            disabled={isLoading || options.length === 0}
+            aria-label="Commit message model"
+            data-testid={TestIds.settingsCommitModel}
+          >
+            {isLoading ? 'Loading…' : (selected?.label ?? 'No providers')}
+            <ChevronsUpDown />
+          </Button>
+        }
+      />
+      <PopoverContent align="end" className="w-44 p-1">
+        <Command shouldFilter={false}>
+          <CommandList>
+            {options.length === 0 && <CommandEmpty>No supported providers found.</CommandEmpty>}
+            <CommandGroup>
+              {options.map((option) => (
+                <CommandItem
+                  key={option.id}
+                  value={option.id}
+                  onSelect={() => {
+                    onChange(option.id)
+                    setOpen(false)
+                  }}
+                >
+                  {option.label}
+                  {option.id === value && <Check className="ml-auto" />}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 /** Viewer + git prefs only. Share / Remotes are their own Settings tabs. */
 export function GeneralSection(): React.JSX.Element {
+  const { models, isLoading: areModelsLoading } = useCommitModels()
   const diffMode = usePreferencesStore((s) => s.diffMode)
   const setDiffMode = usePreferencesStore((s) => s.setDiffMode)
   const markdownMode = usePreferencesStore((s) => s.markdownMode)
@@ -48,6 +119,8 @@ export function GeneralSection(): React.JSX.Element {
   const setHtmlMode = usePreferencesStore((s) => s.setHtmlMode)
   const pullMode = usePreferencesStore((s) => s.pullMode)
   const setPullMode = usePreferencesStore((s) => s.setPullMode)
+  const commitModel = usePreferencesStore((s) => s.commitModel ?? 'luna')
+  const setCommitModel = usePreferencesStore((s) => s.setCommitModel)
   const theme = usePreferencesStore((s) => s.theme) ?? 'system'
   const setTheme = usePreferencesStore((s) => s.setTheme)
 
@@ -154,6 +227,17 @@ export function GeneralSection(): React.JSX.Element {
             Rebase
           </ToggleGroupItem>
         </ToggleGroup>
+      </PreferenceRow>
+      <PreferenceRow
+        label="Commit message model"
+        description="Model used for generated commit messages and commit groups. Effort is fixed at medium."
+      >
+        <CommitModelPicker
+          value={commitModel}
+          onChange={setCommitModel}
+          options={models}
+          isLoading={areModelsLoading}
+        />
       </PreferenceRow>
     </div>
   )

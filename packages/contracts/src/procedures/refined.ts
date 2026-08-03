@@ -1,4 +1,10 @@
 import { z } from 'zod'
+import {
+  commitGroupGenerationOutputSchema,
+  commitMessageGenerationInputSchema,
+  commitMessageGenerationOutputSchema,
+  commitModelOptionsSchema,
+} from '../commit-model'
 import type { ProcedureName } from './names'
 
 export type ProcedureIo = {
@@ -236,6 +242,7 @@ export const refinedProcedureIo: Partial<Record<ProcedureName, ProcedureIo>> = {
   ),
   gitCommitMessage: io(z.object({ repoPath: z.string(), hash: z.string() }), z.string()),
   gitCommitFlow: io(z.object({ repoPath: z.string(), hash: z.string() }), z.array(flowGroupSchema)),
+  commitModels: io(z.void(), commitModelOptionsSchema),
   gitDiffFile: io(z.object({ repoPath: z.string(), filePath: z.string() }), diffFileResultSchema),
   gitCommitDiff: io(
     z.object({ repoPath: z.string(), hash: z.string(), filePath: z.string() }),
@@ -252,6 +259,14 @@ export const refinedProcedureIo: Partial<Record<ProcedureName, ProcedureIo>> = {
     changesFeatureReadingSchema,
   ),
   gitCommitConventions: io(repoPath, commitConventionsSchema),
+  gitGenerateCommitMessage: io(
+    commitMessageGenerationInputSchema,
+    commitMessageGenerationOutputSchema,
+  ),
+  gitGenerateCommitGroups: io(
+    commitMessageGenerationInputSchema,
+    commitGroupGenerationOutputSchema,
+  ),
   gitSuggestions: io(repoPath, z.array(gitSuggestionSchema)),
   gitStageAll: io(repoPathObj, z.void()),
   gitUnstageAll: io(repoPathObj, z.void()),

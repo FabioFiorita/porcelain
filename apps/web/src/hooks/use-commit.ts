@@ -1,9 +1,11 @@
 import type { CommitConventions } from '@backend/git/conventions'
+import type { CommitGroupGenerationGroup, CommitModelOption } from '@porcelain/contracts'
 import { onMutationError } from '@renderer/hooks/mutation-error'
 import { trpc } from '@renderer/lib/trpc'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRepoStore } from '@renderer/stores/repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
+import { useEffect } from 'react'
 
 export function useCommit(onCommitted?: () => void): {
   commit: (message: string) => void
@@ -116,6 +118,56 @@ export function useCommitConventions(): CommitConventions | undefined {
   const repo = useRepoStore((s) => s.repo)
   const { data } = trpc.gitCommitConventions.useQuery(repo?.path ?? '', { enabled: repo !== null })
   return data
+}
+
+export function useCommitModels(): {
+  models: CommitModelOption[]
+  isLoading: boolean
+} {
+  const commitModel = usePreferencesStore((s) => s.commitModel)
+  const setCommitModel = usePreferencesStore((s) => s.setCommitModel)
+  const { data, isLoading } = trpc.commitModels.useQuery(undefined, {
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  })
+
+  useEffect(() => {
+    const first = data?.[0]
+    if (first && !data.some((model) => model.id === commitModel)) setCommitModel(first.id)
+  }, [commitModel, data, setCommitModel])
+
+  return { models: data ?? [], isLoading }
+}
+
+export function useCommitGeneration(): {
+  generateMessage: () => Promise<string>
+  generateGroups: () => Promise<CommitGroupGenerationGroup[]>
+  isGenerating: boolean
+  error: { message: string } | null
+} {
+  const repo = useRepoStore((s) => s.repo)
+  const model = usePreferencesStore((s) => s.commitModel)
+  const messageMutation = trpc.gitGenerateCommitMessage.useMutation()
+  const groupsMutation = trpc.gitGenerateCommitGroups.useMutation()
+
+  const generateMessage = async (): Promise<string> => {
+    if (!repo) return ''
+    const result = await messageMutation.mutateAsync({ repoPath: repo.path, model })
+    return result.message
+  }
+
+  const generateGroups = async (): Promise<CommitGroupGenerationGroup[]> => {
+    if (!repo) return []
+    const result = await groupsMutation.mutateAsync({ repoPath: repo.path, model })
+    return result.groups
+  }
+
+  return {
+    generateMessage,
+    generateGroups,
+    isGenerating: messageMutation.isPending || groupsMutation.isPending,
+    error: messageMutation.error ?? groupsMutation.error,
+  }
 }
 
 export function useQuickCommand(): (commandId: string) => Promise<string> {

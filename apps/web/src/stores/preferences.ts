@@ -1,3 +1,4 @@
+import type { CommitModel } from '@porcelain/contracts'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
@@ -35,6 +36,8 @@ interface PreferencesState {
   htmlMode: HtmlMode
   /** Strategy the `git pull` quick command uses (`--no-rebase` vs `--rebase`). */
   pullMode: PullMode
+  /** Model used when Porcelain drafts a commit message or commit groups. */
+  commitModel: CommitModel
   rightSidebarOpen: boolean
   rightSidebarWidth: number
   sidebarTab: SidebarTab
@@ -49,6 +52,7 @@ interface PreferencesState {
   setMarkdownMode: (mode: MarkdownMode) => void
   setHtmlMode: (mode: HtmlMode) => void
   setPullMode: (mode: PullMode) => void
+  setCommitModel: (model: CommitModel) => void
   setSidebarTab: (tab: SidebarTab) => void
   setRightSidebarOpen: (open: boolean) => void
   setRightSidebarWidth: (width: number) => void
@@ -68,6 +72,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       markdownMode: 'reader',
       htmlMode: 'preview',
       pullMode: 'merge',
+      commitModel: 'luna',
       rightSidebarOpen: true,
       rightSidebarWidth: RIGHT_SIDEBAR_MIN_WIDTH,
       sidebarTab: 'files',
@@ -80,6 +85,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       setMarkdownMode: (markdownMode: MarkdownMode) => set({ markdownMode }),
       setHtmlMode: (htmlMode: HtmlMode) => set({ htmlMode }),
       setPullMode: (pullMode: PullMode) => set({ pullMode }),
+      setCommitModel: (commitModel: CommitModel) => set({ commitModel }),
       setSidebarTab: (sidebarTab: SidebarTab) => set({ sidebarTab }),
       setRightSidebarOpen: (rightSidebarOpen: boolean) => set({ rightSidebarOpen }),
       setRightSidebarWidth: (width: number) =>

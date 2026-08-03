@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { listCommitModels } from '../git/commit-generation'
 import { DEFAULT_LAYERS, type Layer } from '../review/flow'
 import { readLayers, writeLayers } from '../stores/layers-store'
 import { readNotes, writeNotes } from '../stores/notes-store'
@@ -15,6 +16,8 @@ function isValidPattern(pattern: string): boolean {
 }
 
 export const settingsRouter = t.router({
+  commitModels: publicProcedure.query(() => listCommitModels()),
+
   repoLayers: publicProcedure
     .input(z.string())
     .query(async ({ input }): Promise<{ layers: Layer[]; custom: boolean }> => {

@@ -1,6 +1,8 @@
 import { join } from 'node:path'
+import { commitMessageGenerationInputSchema } from '@porcelain/contracts'
 import { z } from 'zod'
 import { moveToTrash } from '../fs/move-to-trash'
+import { generateCommitGroups, generateCommitMessage } from '../git/commit-generation'
 import { type CommitConventions, parseConventions } from '../git/conventions'
 import {
   gitAddWorktree,
@@ -116,6 +118,18 @@ export const gitRouter = t.router({
         committed.map((file) => file.path),
       )
     }),
+
+  gitGenerateCommitMessage: publicProcedure
+    .input(commitMessageGenerationInputSchema)
+    .mutation(async ({ input }) => ({
+      message: await generateCommitMessage(input.repoPath, input.model),
+    })),
+
+  gitGenerateCommitGroups: publicProcedure
+    .input(commitMessageGenerationInputSchema)
+    .mutation(async ({ input }) => ({
+      groups: await generateCommitGroups(input.repoPath, input.model),
+    })),
 
   gitCommitConventions: publicProcedure
     .input(z.string())

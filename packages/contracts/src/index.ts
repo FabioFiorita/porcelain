@@ -3,6 +3,22 @@
 // must never import apps/* (architecture charter).
 
 export {
+  COMMIT_MODEL_IDS,
+  COMMIT_MODEL_OPTIONS,
+  type CommitGroupGenerationGroup,
+  type CommitModel,
+  type CommitModelOption,
+  commitGroupGenerationGroupSchema,
+  commitGroupGenerationOutputSchema,
+  commitMessageGenerationInputSchema,
+  commitMessageGenerationOutputSchema,
+  commitModelOptionSchema,
+  commitModelOptionsSchema,
+  commitModelProviderSchema,
+  commitModelSchema,
+} from './commit-model'
+
+export {
   type EndpointKind,
   endpointKind,
   endpointKindSchema,

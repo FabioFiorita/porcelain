@@ -44,6 +44,7 @@ export const TestIds = {
   settingsAppearanceLight: 'settings-appearance-light',
   settingsAppearanceDark: 'settings-appearance-dark',
   settingsAppearanceSystem: 'settings-appearance-system',
+  settingsCommitModel: 'settings-commit-model',
   /** Settings → Share: authorized and pending devices. */
   shareStatus: 'share-status',
   /** Settings → Review layers: copy agent setup prompt (shown while starters only). */
@@ -103,6 +104,8 @@ export const TestIds = {
   // --- Commit companion ---
   commitButton: 'commit-button',
   commitGroup: 'commit-group',
+  generateCommitMessage: 'generate-commit-message',
+  generateCommitGroups: 'generate-commit-groups',
 
   // --- Terminal ---
   terminalNew: 'terminal-new',

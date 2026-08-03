@@ -1,3 +1,4 @@
+import type { CommitGroupGenerationGroup } from '@porcelain/contracts'
 import { Button } from '@renderer/components/ui/button'
 import {
   Command,
@@ -13,7 +14,13 @@ import {
   SidebarGroupLabel,
 } from '@renderer/components/ui/sidebar'
 import { Textarea } from '@renderer/components/ui/textarea'
-import { useCommit, useCommitConventions, useStageAll } from '@renderer/hooks/use-commit'
+import {
+  useCommit,
+  useCommitConventions,
+  useCommitGeneration,
+  useFileStaging,
+  useStageAll,
+} from '@renderer/hooks/use-commit'
 import { useGitFlow } from '@renderer/hooks/use-git-flow'
 import { applyCommitPrefix, parseCommitPrefix } from '@renderer/lib/commit-message'
 import { compactButtonClass } from '@renderer/lib/controls'
@@ -22,7 +29,14 @@ import { cn } from '@renderer/lib/utils'
 import { useCommitDraftStore } from '@renderer/stores/commit-draft'
 import { useRepoStore } from '@renderer/stores/repo'
 import { TestIds } from '@shared/test-ids'
-import { ChevronsUpDown, FileMinus2, FilePlus2, GitCommitHorizontal } from 'lucide-react'
+import {
+  ChevronsUpDown,
+  FileMinus2,
+  FilePlus2,
+  GitCommitHorizontal,
+  Layers,
+  Sparkles,
+} from 'lucide-react'
 import { useState } from 'react'
 
 /**
@@ -129,6 +143,8 @@ export function CommitGroup(): React.JSX.Element {
   const setMessage = useCommitDraftStore((s) => s.setMessage)
   const clearMessage = useCommitDraftStore((s) => s.clearMessage)
   const [staged, setStaged] = useState<{ text: string; failed: boolean } | null>(null)
+  const [generatedGroups, setGeneratedGroups] = useState<CommitGroupGenerationGroup[] | null>(null)
+  const [isApplyingGroup, setIsApplyingGroup] = useState(false)
   const conventions = useCommitConventions()
   const {
     commit: runCommit,
@@ -138,7 +154,14 @@ export function CommitGroup(): React.JSX.Element {
     clearMessage(repoPath)
     setStaged(null)
   })
+  const {
+    generateMessage,
+    generateGroups,
+    isGenerating,
+    error: generationError,
+  } = useCommitGeneration()
   const { stageAll, unstageAll, isStaging } = useStageAll()
+  const { stageFile } = useFileStaging()
   const { groups } = useGitFlow()
 
   // "Stage all" flips to "Unstage all" once every change is fully staged with
@@ -146,6 +169,8 @@ export function CommitGroup(): React.JSX.Element {
   // to undo the staging. Push lives only in Quick Commands (Suggested + Commands
   // grid) — a second Push under Commit was a duplicate.
   const files = groups?.flatMap((g) => g.files) ?? []
+  const hasStaged = files.some((file) => file.staged === true)
+  const hasUnstaged = files.some((file) => file.unstaged === true)
   const allStaged = files.length > 0 && files.every((f) => f.staged && !f.unstaged)
   const treeClean = files.length === 0
 
@@ -192,6 +217,54 @@ export function CommitGroup(): React.JSX.Element {
       setStaged({ text: e instanceof Error ? e.message : String(e), failed: true })
     }
   }
+
+  const handleGenerateMessage = async (): Promise<void> => {
+    if (!hasStaged || isGenerating) return
+    setStaged(null)
+    try {
+      const generated = await generateMessage()
+      setMessage(repoPath, generated)
+      setGeneratedGroups(null)
+      setStaged({ text: 'Generated commit message', failed: false })
+    } catch (e) {
+      setStaged({ text: e instanceof Error ? e.message : String(e), failed: true })
+    }
+  }
+
+  const handleGenerateGroups = async (): Promise<void> => {
+    if (hasStaged || !hasUnstaged || isGenerating) return
+    setStaged(null)
+    try {
+      const generated = await generateGroups()
+      setGeneratedGroups(generated)
+      setStaged({
+        text: `Generated ${generated.length} commit group${generated.length === 1 ? '' : 's'}`,
+        failed: false,
+      })
+    } catch (e) {
+      setStaged({ text: e instanceof Error ? e.message : String(e), failed: true })
+    }
+  }
+
+  const handleUseGroup = async (group: CommitGroupGenerationGroup): Promise<void> => {
+    if (isApplyingGroup) return
+    setIsApplyingGroup(true)
+    setStaged(null)
+    try {
+      for (const path of group.files) await stageFile(path)
+      setMessage(repoPath, group.message)
+      setStaged({
+        text: `Staged ${group.files.length} file${group.files.length === 1 ? '' : 's'} for this group`,
+        failed: false,
+      })
+    } catch (e) {
+      setStaged({ text: e instanceof Error ? e.message : String(e), failed: true })
+    } finally {
+      setIsApplyingGroup(false)
+    }
+  }
+
+  const displayedError = error ?? generationError
 
   return (
     <SidebarGroup data-testid={TestIds.commitGroup} className="px-3">
@@ -247,9 +320,9 @@ export function CommitGroup(): React.JSX.Element {
               {staged.text}
             </p>
           )}
-          {error && (
+          {displayedError && (
             <p className="whitespace-pre-wrap font-mono text-2xs text-destructive">
-              {error.message}
+              {displayedError.message}
             </p>
           )}
           <div className="flex gap-2">
@@ -280,6 +353,54 @@ export function CommitGroup(): React.JSX.Element {
               {isCommitting ? 'Committing…' : 'Commit'}
             </Button>
           </div>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className={cn(compactButtonClass, 'min-w-0 flex-1 rounded-md')}
+              disabled={!hasStaged || isGenerating}
+              data-testid={TestIds.generateCommitMessage}
+              onClick={handleGenerateMessage}
+            >
+              <Sparkles />
+              {isGenerating ? 'Generating…' : 'Generate Commit Message'}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className={cn(compactButtonClass, 'min-w-0 flex-1 rounded-md')}
+              disabled={hasStaged || !hasUnstaged || isGenerating}
+              data-testid={TestIds.generateCommitGroups}
+              onClick={handleGenerateGroups}
+            >
+              <Layers />
+              {isGenerating ? 'Generating…' : 'Generate Group Commit'}
+            </Button>
+          </div>
+          {generatedGroups && (
+            <div className="flex flex-col gap-2 border-t pt-2">
+              <p className="text-2xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                Generated groups
+              </p>
+              {generatedGroups.map((group) => (
+                <div key={group.files.join('|')} className="rounded-md border p-2">
+                  <p className="whitespace-pre-wrap text-xs font-medium">{group.message}</p>
+                  <p className="mt-1 break-words font-mono text-2xs text-muted-foreground">
+                    {group.files.join(', ')}
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className={cn(compactButtonClass, 'mt-1 rounded-md px-1.5')}
+                    disabled={isApplyingGroup}
+                    onClick={() => handleUseGroup(group)}
+                  >
+                    Stage group
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </SidebarGroupContent>
     </SidebarGroup>

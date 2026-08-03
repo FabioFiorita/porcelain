@@ -31,7 +31,8 @@ import { gitEnv } from './git-env'
 
 const execFileAsync = promisify(execFile)
 
-async function runGit(repoPath: string, args: string[]): Promise<string> {
+/** Shared read/mutation spawn chokepoint; callers supply only fixed git arguments. */
+export async function runGit(repoPath: string, args: string[]): Promise<string> {
   const { stdout } = await execFileAsync('git', args, {
     cwd: repoPath,
     maxBuffer: 64 * 1024 * 1024,
