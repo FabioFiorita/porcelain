@@ -1,0 +1,90 @@
+{
+  "name": "Mobile iPhone shell and Changes actions",
+  "files": [
+    {
+      "path": "apps/mobile/src/app/(tabs)/_layout.tsx",
+      "source": "changed",
+      "layer": "Other"
+    },
+    {
+      "path": "apps/mobile/src/app/(tabs)/(changes)/_layout.tsx",
+      "source": "changed",
+      "layer": "Other"
+    },
+    {
+      "path": "apps/mobile/src/app/(tabs)/(changes)/review.tsx",
+      "source": "changed",
+      "layer": "Other"
+    },
+    {
+      "path": "apps/mobile/src/app/(tabs)/settings/_layout.tsx",
+      "source": "changed",
+      "layer": "Other"
+    },
+    {
+      "path": "apps/mobile/src/components/header-toolbar.tsx",
+      "source": "changed",
+      "layer": "Other"
+    },
+    {
+      "path": "apps/mobile/src/components/screen-header.tsx",
+      "source": "changed",
+      "layer": "Other"
+    },
+    {
+      "path": "apps/mobile/src/components/list-link-row.tsx",
+      "source": "changed",
+      "layer": "Other"
+    },
+    {
+      "path": "apps/mobile/src/features/changes/changes-screen.tsx",
+      "source": "changed",
+      "layer": "Other"
+    },
+    {
+      "path": "apps/mobile/src/features/changes/actions-screen.tsx",
+      "source": "changed",
+      "layer": "Other"
+    },
+    {
+      "path": "apps/mobile/src/features/changes/components/quick-commands-section.tsx",
+      "source": "changed",
+      "layer": "Other"
+    },
+    {
+      "path": "apps/mobile/src/features/changes/data/mutations.ts",
+      "source": "changed",
+      "layer": "Other"
+    },
+    {
+      "path": "apps/mobile/src/lib/daemon/procedures/changes.ts",
+      "source": "changed",
+      "layer": "Other"
+    },
+    {
+      "path": "apps/mobile/src/lib/daemon/procedures/review.ts",
+      "source": "changed",
+      "layer": "Other"
+    },
+    {
+      "path": "apps/mobile/src/features/settings/settings-screen.tsx",
+      "source": "changed",
+      "layer": "Other"
+    },
+    {
+      "path": "apps/mobile/src/features/settings/environment-detail-screen.tsx",
+      "source": "changed",
+      "layer": "Other"
+    },
+    {
+      "path": "apps/mobile/README.md",
+      "source": "changed",
+      "layer": "Docs"
+    },
+    {
+      "path": "apps/mobile/docs/plans/02-changes.md",
+      "source": "changed",
+      "layer": "Docs"
+    }
+  ]
+}

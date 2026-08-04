@@ -1,0 +1,10 @@
+[
+  {
+    "label": "Docs",
+    "pattern": "(^|/)(README|CONTRIBUTING|LICENSE|CHANGELOG)(\\.md)?$|(^|/)docs/"
+  },
+  {
+    "label": "Agents",
+    "pattern": "(^|/)(AGENTS|CLAUDE|CLAUDE\\.local)\\.md$|(^|/)\\.agents/|(^|/)\\.claude/|(^|/)skills/"
+  }
+]
