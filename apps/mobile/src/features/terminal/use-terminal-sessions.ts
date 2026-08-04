@@ -74,11 +74,22 @@ export function useTerminalSessions(showAll: boolean): TerminalQuery & {
     [queryClient, queryKey, renameMutation],
   )
 
+  /**
+   * A kill is the one terminal event the daemon never announces. `evict` deletes the session
+   * before killing the PTY precisely so `onExit` skips the fan-out, so no `terminal:exit` arrives
+   * and the subscription above never fires — the row sat there looking alive until the 10s
+   * backstop refetched, which reads as a button that does nothing. The client that asked for the
+   * kill already knows the answer, so it drops the row itself and lets the refetch reconcile.
+   */
   const kill = useCallback(
     (id: string): void => {
       session.send({ id, t: 'terminal:kill' })
+      queryClient.setQueryData<TerminalInfo[]>(queryKey, (current) =>
+        current?.filter((terminal) => terminal.id !== id),
+      )
+      queryClient.invalidateQueries({ queryKey }).catch(() => {})
     },
-    [session],
+    [queryClient, queryKey, session],
   )
 
   const sessions = useMemo(() => {
