@@ -10,6 +10,21 @@ const outputPath = join(
 )
 const xtermRoot = join(root, 'apps/desktop/node_modules/@xterm/xterm')
 const fitRoot = join(root, 'apps/desktop/node_modules/@xterm/addon-fit')
+/**
+ * The same Nerd Font the renderer loads (`apps/web/src/lib/terminal-registry.ts`), subset to the
+ * ranges a shell prompt actually draws from. Without it a Powerlevel10k or Starship prompt renders
+ * its icons as blank cells — the glyph is missing but the terminal grid still spends the column, so
+ * a path arrives wearing four spaces of phantom indent.
+ *
+ * Committed rather than generated: subsetting needs fonttools, and a build that works everywhere
+ * beats one that needs a Python toolchain. Regenerate from the vendored TTF beside it with
+ *   pyftsubset SymbolsNerdFontMono-Regular.ttf \
+ *     --unicodes="U+E0A0-E0D4,U+F300-F372,U+F000-F2FF,U+F400-F533" \
+ *     --flavor=woff2 --output-file=SymbolsNerdFontMono-Subset.woff2
+ * — powerline separators, distro logos, Font Awesome (where p10k's defaults live) and octicons.
+ * The full face is 2.4 MB; this is 165 KB, and it rides in the bundle as base64.
+ */
+const symbolsFont = join(root, 'apps/web/src/assets/fonts/SymbolsNerdFontMono-Subset.woff2')
 
 function read(path) {
   return readFileSync(path, 'utf8')
@@ -18,6 +33,7 @@ function read(path) {
 const xterm = read(join(xtermRoot, 'lib/xterm.js'))
 const fit = read(join(fitRoot, 'lib/addon-fit.js'))
 const css = read(join(xtermRoot, 'css/xterm.css'))
+const symbols = readFileSync(symbolsFont).toString('base64')
 
 const bridge = String.raw`<script>
 (() => {
@@ -39,7 +55,9 @@ const bridge = String.raw`<script>
   const terminal = new globalThis.Terminal({
     allowProposedApi: true,
     cursorBlink: true,
-    fontFamily: 'ui-monospace, Menlo, monospace',
+    // Symbols second, as in the renderer: text comes from the system mono, and the subset only
+    // carries private-use codepoints, so the browser falls through to it per glyph.
+    fontFamily: 'ui-monospace, "Symbols Nerd Font Mono", Menlo, monospace',
     fontSize: 12,
     lineHeight: 1,
     scrollback: 5000,
@@ -145,7 +163,12 @@ const bridge = String.raw`<script>
     scheduleFit()
   }
   window.__porcelainTerminalTheme = (mode) => {
-    terminal.options.theme = themes[mode] || themes.dark
+    const theme = themes[mode] || themes.dark
+    terminal.options.theme = theme
+    // The page behind the canvas has to move too. xterm only paints its own rows, so a
+    // hardcoded body background frames a light terminal in black the moment the appearance flips.
+    document.documentElement.style.background = theme.background
+    document.body.style.background = theme.background
   }
   new ResizeObserver(scheduleFit).observe(root)
   window.addEventListener('resize', scheduleFit)
@@ -156,7 +179,9 @@ const bridge = String.raw`<script>
 </script>`
 
 const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><style>${css}
-html,body,#terminal{width:100%;height:100%;margin:0;overflow:hidden;background:#16161a}
+@font-face{font-family:"Symbols Nerd Font Mono";src:url(data:font/woff2;base64,${symbols}) format("woff2");font-display:block}
+html,body,#terminal{width:100%;height:100%;margin:0;overflow:hidden;background:#ffffff}
+@media (prefers-color-scheme: dark){html,body,#terminal{background:#16161a}}
 body{touch-action:none;-webkit-user-select:none;user-select:none}
 .xterm{height:100%;padding:8px;box-sizing:border-box}
 .xterm-viewport{background:transparent!important}

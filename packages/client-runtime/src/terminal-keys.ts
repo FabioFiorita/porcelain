@@ -76,6 +76,29 @@ export function controlByte(key: string): string | null {
   return null
 }
 
+/**
+ * The key bar's sticky modifiers: tap one, then a key, and the modifier applies to that one
+ * keystroke from either source — a bar button or the soft keyboard. A soft keyboard has no
+ * Ctrl and no Alt, so this is the only route to ^C/^R and to the ESC-prefixed Meta chords that
+ * readline and agent TUIs bind.
+ */
+export type TerminalModifier = 'ctrl' | 'meta'
+
+/**
+ * Apply an armed modifier to the next keystroke. Meta is the ESC prefix, which is how a tty has
+ * always carried Alt — `ESC f` is word-forward, and Claude Code reads `ESC` + key the same way.
+ * Returns null when the pair has no encoding (Ctrl-1, Meta with nothing typed), so the caller
+ * can send the key unmodified instead of swallowing it.
+ *
+ * Arrows are deliberately not routed here: Meta+← must be `ESC b` (word-wise, matching
+ * `terminalEditBytes`), not `ESC` + the arrow's own escape sequence, which readline reads as two
+ * separate keys. The caller resolves arrows before reaching for this.
+ */
+export function terminalModifierBytes(modifier: TerminalModifier, key: string): string | null {
+  if (modifier === 'ctrl') return controlByte(key)
+  return key === '' ? null : `\x1b${key}`
+}
+
 export type ArrowDirection = 'up' | 'down' | 'left' | 'right'
 
 const ARROW_FINAL: Record<ArrowDirection, string> = { up: 'A', down: 'B', right: 'C', left: 'D' }

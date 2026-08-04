@@ -22,6 +22,12 @@ loop and runtime traps. This file is platform law that must stay true without lo
   reads the same in the list and in the diff it opens because it is the same surface. SwiftUI
   `List` stays for forms, empty states and notices; a `FlatList` of per-row `Host`s is the shape
   this replaced, not a fallback to reach for.
+- **The terminal is xterm in a WebView, themed from `theme/terminal-colors.ts`.** Desktop and web
+  render the same `@xterm/xterm`, so the emulator behaves identically on all three surfaces —
+  replacing it with a native VT forks terminal behaviour, not just rendering. Chrome colours are
+  lint-banned from carrying hex literals because the WebView picks its theme from
+  `prefers-color-scheme` and a literal cannot follow it. The **key bar docks above the keyboard**,
+  never the top of the screen: every key on it corrects the keystroke you just typed.
 
 ## Fingerprint first
 

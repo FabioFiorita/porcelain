@@ -3,6 +3,8 @@ export {
   type ArrowDirection,
   controlByte,
   type EditChord,
+  type TerminalModifier,
   terminalArrowBytes,
   terminalEditBytes,
+  terminalModifierBytes,
 } from '@porcelain/client-runtime/terminal-keys'

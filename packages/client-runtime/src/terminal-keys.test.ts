@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { controlByte, type EditChord, terminalArrowBytes, terminalEditBytes } from './terminal-keys'
+import {
+  controlByte,
+  type EditChord,
+  terminalArrowBytes,
+  terminalEditBytes,
+  terminalModifierBytes,
+} from './terminal-keys'
 
 const chord = (partial: Partial<EditChord> & { key: string }): EditChord => ({
   metaKey: false,
@@ -70,6 +76,26 @@ describe('controlByte', () => {
     expect(controlByte('Shift')).toBeNull()
     expect(controlByte('')).toBeNull()
     expect(controlByte('1')).toBeNull()
+  })
+})
+
+describe('terminalModifierBytes', () => {
+  it('encodes Ctrl the same way a real Ctrl chord would', () => {
+    expect(terminalModifierBytes('ctrl', 'c')).toBe('\x03')
+    expect(terminalModifierBytes('ctrl', 'd')).toBe('\x04')
+    expect(terminalModifierBytes('ctrl', 'l')).toBe('\x0c')
+  })
+
+  it('encodes Meta as the ESC prefix a tty has always used for Alt', () => {
+    expect(terminalModifierBytes('meta', 'f')).toBe('\x1bf') // word forward
+    expect(terminalModifierBytes('meta', 'b')).toBe('\x1bb') // word back
+    expect(terminalModifierBytes('meta', '.')).toBe('\x1b.') // last argument
+  })
+
+  it('returns null when the pair has no encoding, so the caller sends the key unmodified', () => {
+    expect(terminalModifierBytes('ctrl', '1')).toBeNull()
+    expect(terminalModifierBytes('ctrl', 'Enter')).toBeNull()
+    expect(terminalModifierBytes('meta', '')).toBeNull()
   })
 })
 

@@ -131,6 +131,35 @@ describe('exited-session retention', () => {
   })
 })
 
+describe('explicit kill', () => {
+  it('kills the PTY and forgets the session', () => {
+    const sender = makeSender()
+    const id = create(sender)
+
+    killTerminal(id)
+
+    expect(ptys[0]?.kill).toHaveBeenCalledTimes(1)
+    expect(ids()).toEqual([])
+  })
+
+  /**
+   * `evict` deletes the entry before killing so `onExit`'s guard skips the fan-out, which means a
+   * kill is the one terminal event no client is told about. The mobile roster learned this the
+   * hard way: it waited for a `terminal:exit` that never came and left a dead shell on screen. A
+   * client that asks for a kill has to drop the row itself — if this ever starts emitting, that
+   * is a contract change, not an implementation detail.
+   */
+  it('tells no one — an explicit kill sends no exit to attached clients', () => {
+    const sender = makeSender()
+    const id = create(sender)
+    vi.mocked(sender.send).mockClear()
+
+    killTerminal(id)
+
+    expect(sender.send).not.toHaveBeenCalled()
+  })
+})
+
 describe('detached-idle TTL', () => {
   it('never reaps a running session with an attached client, however old', () => {
     const sender = makeSender()

@@ -1,0 +1,4 @@
+# Porcelain project companion — edit freely.
+# Evidence packs can be large; ignored by default. Remove a line to track it.
+evidence/
+reviews/*/evidence/
