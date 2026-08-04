@@ -21,6 +21,25 @@ struct RowCanvasHit {
   let inGutter: Bool
 }
 
+/// A plain `UIAccessibilityElement` can be focused and spoken but never activated: it carries no
+/// handler, and the tap recognizer on the canvas never sees VoiceOver's double tap. Every path
+/// list in the app is drawn on this canvas, so without this a VoiceOver reader hears the rows
+/// and can open none of them.
+private final class RowCanvasAccessibilityElement: UIAccessibilityElement {
+  private weak var canvas: RowCanvasContentView?
+  private let rowIndex: Int
+
+  init(canvas: RowCanvasContentView, rowIndex: Int) {
+    self.canvas = canvas
+    self.rowIndex = rowIndex
+    super.init(accessibilityContainer: canvas)
+  }
+
+  override func accessibilityActivate() -> Bool {
+    canvas?.pressRow(at: rowIndex) ?? false
+  }
+}
+
 /// The canvas: one `UIView` that draws only the rows intersecting the viewport, positioned by
 /// the scroll view above it. It owns no subviews and no cells — a row costs a `draw` call and a
 /// cached offset, never a view, which is what lets the document be arbitrarily long.
@@ -461,7 +480,7 @@ final class RowCanvasContentView: UIView, UIGestureRecognizerDelegate {
       var traits: UIAccessibilityTraits = .button
       if row.sticky == true { traits.insert(.header) }
 
-      let element = UIAccessibilityElement(accessibilityContainer: self)
+      let element = RowCanvasAccessibilityElement(canvas: self, rowIndex: index)
       element.accessibilityLabel = label
       element.accessibilityTraits = traits
       element.accessibilityFrameInContainerSpace = CGRect(
@@ -470,9 +489,37 @@ final class RowCanvasContentView: UIView, UIGestureRecognizerDelegate {
         width: max(bounds.width, 1),
         height: rowHeight
       )
+      // The long press carries the row menu — pin, hide, copy path. A pointer gesture is not
+      // reachable under VoiceOver, so it becomes a rotor action instead of disappearing.
+      if onRowLongPress != nil {
+        element.accessibilityCustomActions = [
+          UIAccessibilityCustomAction(name: "Actions") { [weak self] _ in
+            self?.longPressRow(at: index) ?? false
+          }
+        ]
+      }
       elements.append(element)
     }
     return elements
+  }
+
+  /// Activation from an accessibility element: the same callback the tap recognizer fires, at the
+  /// row's start rather than at a touch point no assistive gesture has.
+  fileprivate func pressRow(at index: Int) -> Bool {
+    guard let press = onRowPress, let hit = accessibilityHit(at: index) else { return false }
+    press(hit)
+    return true
+  }
+
+  fileprivate func longPressRow(at index: Int) -> Bool {
+    guard let longPress = onRowLongPress, let hit = accessibilityHit(at: index) else { return false }
+    longPress(hit)
+    return true
+  }
+
+  private func accessibilityHit(at index: Int) -> RowCanvasHit? {
+    guard rows.indices.contains(index) else { return nil }
+    return RowCanvasHit(index: index, row: rows[index], charIndex: 0, inGutter: false)
   }
 
   /// `label` is what the adapter wants said ("src, folder, 12 items"); the drawn text is the
