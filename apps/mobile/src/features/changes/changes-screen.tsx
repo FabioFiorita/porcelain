@@ -10,6 +10,7 @@ import { DaemonGate } from '@/components/daemon-gate'
 import { EntryCanvas } from '@/components/entry-canvas'
 import type { EntryItem, EntrySpan, EntryTarget } from '@/components/entry-rows'
 import { IPadDetailPlaceholder } from '@/components/ipad-detail-placeholder'
+import { ListLinkRow } from '@/components/list-link-row'
 import { ScreenHeader } from '@/components/screen-header'
 import { ScreenHost } from '@/components/screen-host'
 import { useSurfaceFocus } from '@/components/use-surface-focus'
@@ -127,6 +128,18 @@ function WorkingTree(): React.JSX.Element {
     return (
       <ScreenHost>
         <List modifiers={[listStyle('insetGrouped')]}>
+          {/* A clean tree is the common state right after the agent commits — and exactly when
+              the published Review still wants reading. Losing this row loses the route to it. */}
+          {reviewName === undefined ? null : (
+            <Section title="Review">
+              <ListLinkRow
+                detail={reviewName}
+                icon="checkmark.seal"
+                label="Review agent work"
+                onPress={(): void => router.push('/review')}
+              />
+            </Section>
+          )}
           <Section>
             <QueryNotice
               description="Nothing is waiting for review in this checkout."

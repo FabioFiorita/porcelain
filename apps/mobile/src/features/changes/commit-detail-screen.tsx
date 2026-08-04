@@ -74,29 +74,10 @@ function CommitBody({
     [accent, groups],
   )
 
-  if (groups.length === 0) {
-    return (
-      <ScreenHost>
-        <List modifiers={[listStyle('insetGrouped')]}>
-          <Section>
-            <QueryNotice
-              description="This commit touched no files the daemon can group."
-              error={flow.error ?? message.error}
-              isPending={flow.isPending}
-              onRetry={(): void => {
-                flow.refetch()
-              }}
-              symbol="doc.text"
-              title="No files"
-            />
-          </Section>
-        </List>
-      </ScreenHost>
-    )
-  }
-
   return (
     <View style={styles.root}>
+      {/* The message block is what this screen was opened to read. An empty commit, or a flow
+          query that failed while the message landed, still owes the reader its subject. */}
       <Host matchContents seedColor={seedColor}>
         <VStack alignment="leading" modifiers={[padding({ all: 16 })]} spacing={4}>
           <Text modifiers={[headline]}>{subject === '' ? shortHash(hash) : subject}</Text>
@@ -108,18 +89,37 @@ function CommitBody({
           )}
         </VStack>
       </Host>
-      <EntryCanvas
-        contentKey={`commit:${hash}`}
-        items={items}
-        onPress={(item: EntryTarget): void => {
-          if (item.key === ALL_CHANGES_KEY) {
-            router.push({ params: { hash, scope: 'commit' }, pathname: '/reading' })
-            return
-          }
-          if (item.kind === 'item') return
-          router.push({ params: { hash, path: item.path, scope: 'commit' }, pathname: '/file' })
-        }}
-      />
+      {groups.length === 0 ? (
+        <ScreenHost>
+          <List modifiers={[listStyle('insetGrouped')]}>
+            <Section>
+              <QueryNotice
+                description="This commit touched no files the daemon can group."
+                error={flow.error ?? message.error}
+                isPending={flow.isPending}
+                onRetry={(): void => {
+                  flow.refetch()
+                }}
+                symbol="doc.text"
+                title="No files"
+              />
+            </Section>
+          </List>
+        </ScreenHost>
+      ) : (
+        <EntryCanvas
+          contentKey={`commit:${hash}`}
+          items={items}
+          onPress={(item: EntryTarget): void => {
+            if (item.key === ALL_CHANGES_KEY) {
+              router.push({ params: { hash, scope: 'commit' }, pathname: '/reading' })
+              return
+            }
+            if (item.kind === 'item') return
+            router.push({ params: { hash, path: item.path, scope: 'commit' }, pathname: '/file' })
+          }}
+        />
+      )}
     </View>
   )
 }
