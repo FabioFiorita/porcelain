@@ -1,6 +1,7 @@
-import { Pressable, ScrollView, Text, View } from 'react-native'
+import { ScrollView, Text, View } from 'react-native'
 
 import { Button } from '@/components/ui/button'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Text as UiText } from '@/components/ui/text'
 import { cn } from '@/lib/utils'
 
@@ -9,66 +10,60 @@ import { PhoneHeader } from './phone-header'
 import { ChromeGlyph } from './shell-icon'
 import { type SettingsSection, useShellStore } from './shell-store'
 
+const SECTIONS: { id: SettingsSection; label: string }[] = [
+  { id: 'general', label: 'General' },
+  { id: 'review', label: 'Review' },
+  { id: 'environments', label: 'Environments' },
+]
+
 /**
- * Phone Settings tab — full-screen (not a sheet). Same sections as the tablet
- * settings sheet: General · Review · Environments.
+ * Phone Settings tab — full-screen (not a sheet). Segmented tabs under the
+ * header (not a sidebar): phone width is too tight for a rail + panel split.
  */
 export function SettingsScreen(): React.JSX.Element {
   const section = useShellStore((state) => state.settingsSection)
   const setSettingsSection = useShellStore((state) => state.setSettingsSection)
 
-  const sections: { id: SettingsSection; label: string }[] = [
-    { id: 'general', label: 'General' },
-    { id: 'review', label: 'Review' },
-    { id: 'environments', label: 'Environments' },
-  ]
-
   return (
     <View className="flex-1 bg-background" testID="porcelain-phone-settings">
       <PhoneHeader title="Settings" workspace={false} />
 
-      <View className="flex-1 flex-row">
-        <ScrollView
-          className="w-[38%] border-r border-border bg-muted/20"
-          contentContainerClassName="gap-1 px-2 py-3"
-          showsVerticalScrollIndicator={false}
-        >
-          {sections.map((entry) => (
-            <Pressable
-              key={entry.id}
-              accessibilityRole="button"
-              accessibilityState={{ selected: section === entry.id }}
-              className={cn(
-                'rounded-xl border border-transparent px-3 py-3 active:bg-accent',
-                section === entry.id && 'border-border bg-card',
-              )}
-              testID={`porcelain-settings-section-${entry.id}`}
-              onPress={() => {
-                setSettingsSection(entry.id)
-              }}
-            >
-              <Text
-                className={cn(
-                  'text-sm font-medium',
-                  section === entry.id ? 'text-foreground' : 'text-muted-foreground',
-                )}
+      <Tabs
+        className="min-h-0 flex-1 gap-0"
+        onValueChange={(value) => {
+          setSettingsSection(value as SettingsSection)
+        }}
+        value={section}
+      >
+        <View className="border-b border-border px-4 pb-3 pt-2">
+          <TabsList className="h-10 w-full" testID="porcelain-settings-tabs">
+            {SECTIONS.map((entry) => (
+              <TabsTrigger
+                key={entry.id}
+                className="min-h-9 flex-1"
+                testID={`porcelain-settings-section-${entry.id}`}
+                value={entry.id}
               >
-                {entry.label}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
+                <UiText className="text-sm font-medium">{entry.label}</UiText>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </View>
 
-        <ScrollView
-          className="flex-1"
-          contentContainerClassName="gap-3 px-4 py-4 pb-10"
-          showsVerticalScrollIndicator={false}
-        >
-          {section === 'general' ? <GeneralSettings /> : null}
-          {section === 'review' ? <ReviewSettings /> : null}
-          {section === 'environments' ? <EnvironmentsSettings /> : null}
-        </ScrollView>
-      </View>
+        {SECTIONS.map((entry) => (
+          <TabsContent key={entry.id} className="min-h-0 flex-1" value={entry.id}>
+            <ScrollView
+              className="flex-1"
+              contentContainerClassName="gap-3 px-4 py-4 pb-10"
+              showsVerticalScrollIndicator={false}
+            >
+              {entry.id === 'general' ? <GeneralSettings /> : null}
+              {entry.id === 'review' ? <ReviewSettings /> : null}
+              {entry.id === 'environments' ? <EnvironmentsSettings /> : null}
+            </ScrollView>
+          </TabsContent>
+        ))}
+      </Tabs>
     </View>
   )
 }
