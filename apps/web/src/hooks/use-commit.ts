@@ -139,11 +139,16 @@ export function useCommitModels(): {
   return { models: data ?? [], isLoading }
 }
 
+/**
+ * Failures reject out of `generateMessage` / `generateGroups`, and the composer reports
+ * them on its status line. The mutations' own `error` is deliberately NOT returned:
+ * rendering both printed every failure twice, and a mutation error also lingers on
+ * screen after a later attempt succeeds.
+ */
 export function useCommitGeneration(): {
   generateMessage: () => Promise<string>
   generateGroups: () => Promise<CommitGroupGenerationGroup[]>
   isGenerating: boolean
-  error: { message: string } | null
 } {
   const repo = useRepoStore((s) => s.repo)
   const model = usePreferencesStore((s) => s.commitModel)
@@ -166,7 +171,6 @@ export function useCommitGeneration(): {
     generateMessage,
     generateGroups,
     isGenerating: messageMutation.isPending || groupsMutation.isPending,
-    error: messageMutation.error ?? groupsMutation.error,
   }
 }
 
