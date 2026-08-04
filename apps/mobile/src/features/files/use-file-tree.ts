@@ -59,7 +59,14 @@ export type FileTree = {
   reveal: (path: string) => void
   collapseAll: () => void
   refresh: () => Promise<void>
+  /**
+   * The daemon's entry for a listed path, pin and hide flags included. A drawn row carries only
+   * what it draws, and the row menu has to speak in the daemon's state, not the tree's.
+   */
+  entryAt: (path: string) => DirEntry | undefined
   isPending: boolean
+  /** True while any open folder is in flight — what a pull-to-refresh spinner ends on. */
+  isFetching: boolean
   error: DaemonError | null
 }
 
@@ -112,6 +119,19 @@ export function useFileTree({
     [entriesByPath, expanded, rootPath],
   )
 
+  const entryByPath = useMemo((): Map<string, DirEntry> => {
+    const byPath = new Map<string, DirEntry>()
+    for (const entries of entriesByPath.values()) {
+      for (const entry of entries) byPath.set(entry.path, entry)
+    }
+    return byPath
+  }, [entriesByPath])
+
+  const entryAt = useCallback(
+    (path: string): DirEntry | undefined => entryByPath.get(path),
+    [entryByPath],
+  )
+
   const toggle = useCallback(
     (path: string): void => {
       useFileTreeStore.getState().toggle(rootPath, path)
@@ -136,8 +156,12 @@ export function useFileTree({
 
   return {
     collapseAll,
+    entryAt,
     error: results[0]?.error ?? null,
     expanded,
+    // A refetch never touches `isPending` once the root has landed, so a spinner watching it
+    // would spin for the rest of the session after the first pull.
+    isFetching: results.some((result) => result.isFetching),
     isPending: results[0]?.isPending ?? false,
     items,
     refresh,

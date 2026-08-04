@@ -1,15 +1,15 @@
-import { setStringAsync } from 'expo-clipboard'
 import { type Href, router } from 'expo-router'
 import { useCallback, useMemo, useState } from 'react'
-import { ActionSheetIOS } from 'react-native'
 
 import { EntryCanvas } from '@/components/entry-canvas'
 import type { EntryItem, EntryTarget } from '@/components/entry-rows'
 import type { DirEntry } from '@/lib/daemon/procedures/files'
+import type { EntryMenuState } from './entry-menu'
 import { entryHref, hrefForAbsolutePath, repoRelativePath } from './file-paths'
 import { FilesLoading, FilesQueryState, NoVisibleFiles } from './files-empty-states'
+import { showEntryMenu } from './show-entry-menu'
 import { useFileTree } from './use-file-tree'
-import { type FileEntryActions, useFileEntryActions, usePinnedFileEntries } from './use-files'
+import { useFileEntryActions, usePinnedFileEntries } from './use-files'
 
 const PINNED_PREFIX = 'pinned:'
 
@@ -92,9 +92,9 @@ export function FileTree({
   const handleLongPress = useCallback(
     (item: EntryTarget): void => {
       if (item.kind === 'item') return
-      showEntryMenu(entryFor(item, pinnedEntries), actions)
+      showEntryMenu(entryFor(item, tree.entryAt(item.path), pinnedEntries), actions)
     },
-    [actions, pinnedEntries],
+    [actions, pinnedEntries, tree],
   )
 
   const refresh = useCallback((): void => {
@@ -126,7 +126,7 @@ export function FileTree({
       onLongPress={handleLongPress}
       onPress={handlePress}
       onRefresh={refresh}
-      refreshing={tree.isPending}
+      refreshing={tree.isFetching || pinned.isFetching}
       revealKey={revealKey}
     />
   )
@@ -139,41 +139,23 @@ function fileHref(repoPath: string, path: string): Href {
     : entryHref('file', relative)
 }
 
-/** Pin and hide state lives on the daemon's entry, which a pinned row carries and a tree row not. */
+/**
+ * Pin and hide state lives on the daemon's entry, not on the drawn row. The tree's own listing
+ * is the source: the pinned section is only rendered at the repo root, so deriving pin state
+ * from it left every deep-linked folder unable to unpin what it was showing as pinned.
+ */
 function entryFor(
   item: Extract<EntryItem, { kind: 'dir' | 'file' }>,
+  treeEntry: DirEntry | undefined,
   pinnedEntries: readonly DirEntry[],
-): { path: string; pinned: boolean; hidden: boolean } {
-  const pinned = pinnedEntries.some((entry) => entry.path === item.path)
-  return { hidden: item.dimmed === true, path: item.path, pinned }
-}
-
-function showEntryMenu(
-  entry: { path: string; pinned: boolean; hidden: boolean },
-  actions: FileEntryActions,
-): void {
-  const pinLabel = entry.pinned ? 'Unpin' : 'Pin'
-  const hideLabel = entry.hidden ? 'Unhide' : 'Hide'
-  const options = [pinLabel, hideLabel, 'Copy path', 'Cancel']
-
-  ActionSheetIOS.showActionSheetWithOptions(
-    { cancelButtonIndex: options.length - 1, options, title: entry.path },
-    (index: number): void => {
-      if (index === 0) {
-        if (entry.pinned) actions.unpin(entry.path)
-        else actions.pin(entry.path)
-        return
-      }
-      if (index === 1) {
-        if (entry.hidden) actions.unhide(entry.path)
-        else actions.hide(entry.path)
-        return
-      }
-      if (index === 2) {
-        setStringAsync(entry.path).catch(() => {
-          // Clipboard access is best effort; the sheet still dismisses cleanly.
-        })
-      }
-    },
-  )
+): EntryMenuState {
+  if (treeEntry !== undefined) {
+    return { hidden: treeEntry.hidden, path: treeEntry.path, pinned: treeEntry.pinned }
+  }
+  // A pinned-section row whose folder is not open in the tree below it.
+  const pinnedEntry = pinnedEntries.find((entry) => entry.path === item.path)
+  if (pinnedEntry !== undefined) {
+    return { hidden: pinnedEntry.hidden, path: pinnedEntry.path, pinned: pinnedEntry.pinned }
+  }
+  return { hidden: item.dimmed === true, path: item.path, pinned: false }
 }

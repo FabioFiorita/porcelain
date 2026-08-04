@@ -15,7 +15,8 @@ import {
   parentRelativePath,
   repoRelativePath,
 } from './file-paths'
-import { useFileSearch } from './use-files'
+import { showEntryMenu } from './show-entry-menu'
+import { useFileEntryActions, useFileSearch, usePinnedFileEntries } from './use-files'
 
 /** Search hits for the Files Search face. Parent pins the query field above this list. */
 export function SearchResults({ query }: { query: string }): React.JSX.Element {
@@ -23,6 +24,14 @@ export function SearchResults({ query }: { query: string }): React.JSX.Element {
   const results = useFileSearch(repo?.path ?? '', query, repo !== null && query.trim() !== '')
   const accentColor = useAccentColor()
   const repoPath = repo?.path ?? ''
+  const actions = useFileEntryActions(repo?.path ?? null)
+  // A hit carries a path and a kind, never pin state — the pinned listing is what knows, and it
+  // is the same cached query the Files face and the companion already hold.
+  const pinned = usePinnedFileEntries(repoPath, repo !== null)
+  const pinnedPaths = useMemo(
+    (): ReadonlySet<string> => new Set((pinned.data ?? []).map((entry) => entry.path)),
+    [pinned.data],
+  )
   const items = useMemo(
     (): EntryItem[] =>
       (results.data ?? []).map((result) => ({
@@ -107,6 +116,15 @@ export function SearchResults({ query }: { query: string }): React.JSX.Element {
     <EntryCanvas
       contentKey={`search:${repo.path}:${query}`}
       items={items}
+      onLongPress={(item): void => {
+        if (item.kind === 'item') return
+        // Search lists what the daemon found; hidden entries never reach it, so a hit is visible
+        // by construction and the menu offers Hide.
+        showEntryMenu(
+          { hidden: false, path: item.path, pinned: pinnedPaths.has(item.path) },
+          actions,
+        )
+      }}
       onPress={(item): void => {
         if (item.kind === 'item') return
         router.push(searchHref(repo.path, item.path, item.kind))
