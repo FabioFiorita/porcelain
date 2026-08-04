@@ -10,17 +10,23 @@ export type ScreenAction = {
 }
 
 /**
- * Trailing header controls. Order is fixed: surface actions → companion → settings.
- * Companion is the right-rail analogue (sheet on phone, inspector on iPad). Settings is
- * chrome, never a tab.
+ * Trailing header controls. Order is fixed: surface actions → options menu → companion →
+ * settings. Companion is the right-rail analogue (sheet on phone, inspector on iPad). Settings
+ * is chrome, never a tab.
+ *
+ * One trailing toolbar per screen: a second `Stack.Toolbar placement="right"` REPLACES this one
+ * rather than merging, which is how the Files tab lost its bolt. A screen with its own
+ * `Stack.Toolbar.Menu` passes it as `menu` so it lands inside this cluster.
  */
 export function HeaderToolbar({
   actions = [],
   companion,
+  menu,
   showSettings = true,
 }: {
   actions?: readonly ScreenAction[]
   companion?: ScreenAction | null
+  menu?: React.ReactNode
   showSettings?: boolean
 }): React.JSX.Element | null {
   const companionAction: ScreenAction | null =
@@ -32,7 +38,14 @@ export function HeaderToolbar({
         }
       : companion
 
-  if (actions.length === 0 && companionAction === null && !showSettings) return null
+  if (
+    actions.length === 0 &&
+    companionAction === null &&
+    !showSettings &&
+    (menu === undefined || menu === null)
+  ) {
+    return null
+  }
 
   return (
     <Stack.Toolbar placement="right">
@@ -44,6 +57,7 @@ export function HeaderToolbar({
           onPress={(): void => router.push(action.href)}
         />
       ))}
+      {menu}
       {companionAction === null ? null : (
         <Stack.Toolbar.Button
           accessibilityLabel={companionAction.label}

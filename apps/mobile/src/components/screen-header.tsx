@@ -23,12 +23,15 @@ function isIPad(): boolean {
 export function ScreenHeader({
   actions,
   companion,
+  menu,
   showSettings = true,
   title,
   workspace = true,
 }: {
   actions?: readonly ScreenAction[]
   companion?: ScreenAction | null
+  /** A `Stack.Toolbar.Menu` this screen owns — rendered inside the one trailing cluster. */
+  menu?: React.ReactNode
   showSettings?: boolean
   title: string
   workspace?: boolean
@@ -49,7 +52,12 @@ export function ScreenHeader({
           </Host>
         </Stack.Toolbar.View>
       </Stack.Toolbar>
-      <HeaderToolbar actions={actions} companion={companionAction} showSettings={showSettings} />
+      <HeaderToolbar
+        actions={actions}
+        companion={companionAction}
+        menu={menu}
+        showSettings={showSettings}
+      />
     </>
   )
 }

@@ -13,9 +13,11 @@ public final class PorcelainRowCanvasView: ExpoView, UIScrollViewDelegate {
   private var contentKey = ""
   private var tokensResetKey = ""
   private var rowsGeneration = 0
+  private var installedRowsGeneration = 0
   private var lastVisibleRangeKey = ""
   private var pendingScrollRowId: String?
   private var pendingScrollAnimated = false
+  private var pendingScrollGeneration = 0
 
   let onVisibleRange = EventDispatcher()
   let onRowPress = EventDispatcher()
@@ -138,6 +140,7 @@ public final class PorcelainRowCanvasView: ExpoView, UIScrollViewDelegate {
       DispatchQueue.main.async {
         guard let self, generation == self.rowsGeneration, key == self.contentKey else { return }
         self.canvas.rows = decoded ?? []
+        self.installedRowsGeneration = generation
         self.lastVisibleRangeKey = ""
         self.updateMetrics()
       }
@@ -220,6 +223,7 @@ public final class PorcelainRowCanvasView: ExpoView, UIScrollViewDelegate {
   func scrollToRow(_ rowId: String, animated: Bool) {
     pendingScrollRowId = rowId
     pendingScrollAnimated = animated
+    pendingScrollGeneration = rowsGeneration
     applyPendingScroll()
   }
 
@@ -231,7 +235,11 @@ public final class PorcelainRowCanvasView: ExpoView, UIScrollViewDelegate {
   private func applyPendingScroll() {
     guard let rowId = pendingScrollRowId, bounds.height > 0 else { return }
     guard let index = canvas.index(ofRowId: rowId), let frame = canvas.frameForRow(at: index) else {
-      if !canvas.rows.isEmpty { pendingScrollRowId = nil }
+      // A reveal asks for a row JS already has, but rows travel through a background decode, so
+      // the request routinely lands on the previous listing. Dropping it here — the canvas is
+      // non-empty, just stale — is what made a pinned folder expand and never scroll. Hold the
+      // request until a listing sent *after* it has been installed and still lacks the row.
+      if installedRowsGeneration > pendingScrollGeneration { pendingScrollRowId = nil }
       return
     }
     let animated = pendingScrollAnimated

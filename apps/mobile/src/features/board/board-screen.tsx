@@ -35,9 +35,12 @@ export function BoardScreen(): React.JSX.Element {
       <DaemonGate requires="repo">
         <BoardBody />
       </DaemonGate>
-      {/* Same chrome as Review — full tab face, not a pushed screen with a back chevron. */}
+      {/* Same chrome as Review — full tab face, not a pushed screen with a back chevron.
+          No companion on phone: the face IS the board and a tapped card opens the full editor,
+          so the sheet could only repeat one card. iPad still gets Focus in the inspector. */}
       <ScreenHeader
         actions={[{ href: '/card?mode=create', icon: 'add', label: 'Add card' }]}
+        companion={null}
         title="Board"
       />
       <ObserveInteractiveMarker />

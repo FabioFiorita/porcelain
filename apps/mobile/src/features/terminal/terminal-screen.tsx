@@ -27,9 +27,12 @@ export function TerminalScreen(): React.JSX.Element {
       <DaemonGate requires="repo">
         <TerminalBody onToggleShowAll={setShowAll} showAll={showAll} />
       </DaemonGate>
-      {/* One trailing toolbar only — a second Stack.Toolbar replaces companion/settings. */}
+      {/* One trailing toolbar only — a second Stack.Toolbar replaces companion/settings.
+          No companion on phone: this face already lists Sessions AND the saved Actions the
+          sheet held, and `+` starts a shell. iPad still gets Actions in the inspector. */}
       <ScreenHeader
         actions={[{ href: '/new', icon: 'add', label: 'Start a shell' }]}
+        companion={null}
         title="Terminal"
       />
       <ObserveInteractiveMarker />
