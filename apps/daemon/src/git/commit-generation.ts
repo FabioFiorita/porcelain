@@ -1,8 +1,7 @@
-import { execFile } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { mkdtemp, readFile, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { promisify } from 'node:util'
 import {
   COMMIT_MODEL_IDS,
   COMMIT_MODEL_OPTIONS,
@@ -14,14 +13,22 @@ import { z } from 'zod'
 import type { ChangedFile } from './diff'
 import { runGit as gitRead, gitStatus } from './git'
 
-const execFileAsync = promisify(execFile)
-
 const COMMIT_GENERATION_EFFORT = 'medium'
 const MAX_CONTEXT_CHARS = 48_000
 const MAX_UNTRACKED_FILE_CHARS = 16_000
 const MODEL_TIMEOUT_MS = 180_000
 const MODEL_OUTPUT_BYTES = 4 * 1024 * 1024
+const VERSION_TIMEOUT_MS = 10_000
+const MODEL_LIST_TIMEOUT_MS = 15_000
+/** Grace between SIGTERM and SIGKILL when a model CLI overruns its timeout. */
+const KILL_GRACE_MS = 2_000
 const ANSI_ESCAPE = new RegExp(`${String.fromCharCode(27)}\\[[0-?]*[ -/]*[@-~]`, 'g')
+
+/**
+ * Startup chatter that is never the reason a run failed. Both lines exist because
+ * a CLI found an stdin pipe; they used to be the entire error the human saw.
+ */
+const CLI_NOISE = [/^Warning: no stdin data received/i, /^Reading additional input from stdin/i]
 
 interface ModelCommand {
   provider: 'claude' | 'codex' | 'grok' | 'opencode'
@@ -145,18 +152,95 @@ function agentCliEnv(base: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
   }
 }
 
+interface CliRun {
+  code: number | null
+  stdout: string
+  stderr: string
+  timedOut: boolean
+}
+
+interface CliOptions {
+  cwd?: string
+  timeout: number
+  maxBytes: number
+}
+
+/**
+ * Spawn a CLI with stdin CLOSED. `execFile` builds its own spawn options and drops
+ * `stdio`, so every model CLI inherited a stdin pipe nobody would ever write to or
+ * close: `codex exec` parks on "Reading additional input from stdin..." forever and
+ * `claude` stalls three seconds before warning. `stdio[0]: 'ignore'` is the fix.
+ *
+ * The child leads its own process group so a timeout can take its children with it —
+ * these CLIs fork helpers that keep running when only the parent is signalled.
+ * A non-zero exit RESOLVES; only a failure to spawn rejects, so callers can read the
+ * output a failing run produced (that is where the real error usually is).
+ */
+function runCli(command: string, args: string[], options: CliOptions): Promise<CliRun> {
+  return new Promise<CliRun>((resolve, reject) => {
+    const child = spawn(command, args, {
+      cwd: options.cwd,
+      env: agentCliEnv(),
+      stdio: ['ignore', 'pipe', 'pipe'],
+      detached: true,
+    })
+
+    let stdout = ''
+    let stderr = ''
+    let timedOut = false
+
+    child.stdout.setEncoding('utf8')
+    child.stdout.on('data', (chunk: string) => {
+      if (stdout.length < options.maxBytes) stdout += chunk
+    })
+    child.stderr.setEncoding('utf8')
+    child.stderr.on('data', (chunk: string) => {
+      if (stderr.length < options.maxBytes) stderr += chunk
+    })
+
+    const killGroup = (signal: NodeJS.Signals): void => {
+      try {
+        if (child.pid !== undefined) process.kill(-child.pid, signal)
+      } catch {
+        // The group already exited between the timeout firing and this signal.
+      }
+    }
+
+    let escalation: NodeJS.Timeout | null = null
+    const timer = setTimeout(() => {
+      timedOut = true
+      killGroup('SIGTERM')
+      // A CLI mid-request can swallow SIGTERM; escalate instead of hanging on it.
+      escalation = setTimeout(() => killGroup('SIGKILL'), KILL_GRACE_MS)
+    }, options.timeout)
+
+    const done = (): void => {
+      clearTimeout(timer)
+      if (escalation !== null) clearTimeout(escalation)
+    }
+
+    child.on('error', (error) => {
+      done()
+      reject(error)
+    })
+    child.on('close', (code) => {
+      done()
+      resolve({ code, stdout, stderr, timedOut })
+    })
+  })
+}
+
 /** Check provider installation without making a model request or changing state. */
 async function commandAvailable(command: string): Promise<boolean> {
   try {
-    await execFileAsync(command, ['--version'], {
-      env: agentCliEnv(),
-      maxBuffer: 64 * 1024,
-      timeout: 10_000,
+    await runCli(command, ['--version'], {
+      timeout: VERSION_TIMEOUT_MS,
+      maxBytes: 64 * 1024,
     })
-    return true
-  } catch (error) {
     // A provider can return a non-zero version status while still being installed
     // (for example, when it prints an auth warning). ENOENT is the useful signal.
+    return true
+  } catch (error) {
     return errorCode(error) !== 'ENOENT'
   }
 }
@@ -200,19 +284,18 @@ export function parseOpenCodeCommitModels(stdout: string): CommitModelOption[] {
 async function discoverOpenCodeModels(isAvailable: boolean): Promise<CommitModelOption[]> {
   if (!isAvailable) return []
 
-  let stdout: string
+  let run: CliRun
   try {
-    const result = await execFileAsync('opencode', ['models'], {
-      env: agentCliEnv(),
-      maxBuffer: MODEL_OUTPUT_BYTES,
-      timeout: 15_000,
+    run = await runCli('opencode', ['models'], {
+      timeout: MODEL_LIST_TIMEOUT_MS,
+      maxBytes: MODEL_OUTPUT_BYTES,
     })
-    stdout = String(result.stdout)
   } catch {
     return []
   }
+  if (run.code !== 0) return []
 
-  return parseOpenCodeCommitModels(stdout)
+  return parseOpenCodeCommitModels(run.stdout)
 }
 
 /**
@@ -311,6 +394,44 @@ function errorOutput(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
+/** Drop ANSI and startup chatter so what is left is a reason, not a banner. */
+export function meaningfulOutput(value: string): string | null {
+  const lines = value
+    .split(/\r?\n/g)
+    .map((line) => line.replace(ANSI_ESCAPE, '').trim())
+    .filter((line) => line !== '' && !CLI_NOISE.some((pattern) => pattern.test(line)))
+  return lines.length === 0 ? null : lines.join('\n')
+}
+
+/**
+ * Claude reports auth and API failures inside its stdout JSON envelope — often with
+ * a zero exit code and an empty stderr. Reading only stderr turned "Not logged in ·
+ * Please run /login" into a bare stdin warning, which is what the human was shown.
+ */
+export function claudeEnvelopeError(stdout: string): string | null {
+  const value = jsonValueFromText(stdout)
+  if (!isRecord(value) || value.is_error !== true) return null
+  const result = typeof value.result === 'string' ? value.result.trim() : ''
+  return result === '' ? 'the model reported an error with no detail' : result
+}
+
+/** Describe why a model run is unusable, or null when it produced a usable answer. */
+export function cliFailure(run: CliRun, command: string): string | null {
+  if (run.timedOut) {
+    return `${command} did not respond within ${Math.round(MODEL_TIMEOUT_MS / 1000)}s`
+  }
+  // A zero exit is not success for Claude: it reports auth and API failures in the
+  // envelope. Prefer that over whichever stream happens to be non-empty.
+  const envelope = claudeEnvelopeError(run.stdout)
+  if (run.code === 0) return envelope
+  return (
+    envelope ??
+    meaningfulOutput(run.stderr) ??
+    meaningfulOutput(run.stdout) ??
+    `${command} exited with code ${run.code ?? 'unknown'}`
+  )
+}
+
 async function runGit(repoPath: string, args: string[]): Promise<string> {
   try {
     return await gitRead(repoPath, args)
@@ -399,21 +520,56 @@ async function unstagedContext(repoPath: string): Promise<CommitGenerationContex
   return { branch, files: paths, summary, patch }
 }
 
+/**
+ * Collect balanced top-level `{…}` spans, ignoring braces inside strings. Models
+ * routinely wrap the answer in prose ("I'll check the workspace…{…}"), and a
+ * first-brace/last-brace slice silently spans everything between two objects.
+ */
+export function jsonObjectCandidates(text: string): string[] {
+  const candidates: string[] = []
+  let depth = 0
+  let start = -1
+  let inString = false
+  let escaped = false
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index]
+    if (inString) {
+      if (escaped) escaped = false
+      else if (char === '\\') escaped = true
+      else if (char === '"') inString = false
+      continue
+    }
+    if (char === '"') inString = true
+    else if (char === '{') {
+      if (depth === 0) start = index
+      depth += 1
+    } else if (char === '}' && depth > 0) {
+      depth -= 1
+      if (depth === 0 && start !== -1) candidates.push(text.slice(start, index + 1))
+    }
+  }
+  return candidates
+}
+
 function jsonValueFromText(text: string): unknown {
   const trimmed = text.trim()
   const withoutFence = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i)?.[1] ?? trimmed
   try {
     return JSON.parse(withoutFence) as unknown
   } catch {
-    const start = withoutFence.indexOf('{')
-    const end = withoutFence.lastIndexOf('}')
-    if (start === -1 || end <= start) return null
+    // Not a bare JSON document — fall through to the embedded-object scan.
+  }
+  // Last first: when a model narrates before answering, the answer is what it ended on.
+  const candidates = jsonObjectCandidates(withoutFence)
+  for (let index = candidates.length - 1; index >= 0; index -= 1) {
     try {
-      return JSON.parse(withoutFence.slice(start, end + 1)) as unknown
+      return JSON.parse(candidates[index] as string) as unknown
     } catch {
-      return null
+      // Try the next candidate rather than giving up on the whole response.
     }
   }
+  return null
 }
 
 /** OpenCode's JSON format is a stream of events; join only assistant text events. */
@@ -457,6 +613,9 @@ function resolveModelOutput(value: unknown, depth = 0): unknown {
     'structured_output',
     'structuredOutput',
     'result',
+    // Grok Build's `--output-format json` envelope carries the answer here; without
+    // it a perfectly good response resolved to null ("returned invalid commit groups").
+    'text',
     'output',
     'message',
     'data',
@@ -482,11 +641,26 @@ function formatMessage(message: GeneratedMessage): string {
   return body === '' ? subject : `${subject}\n\n${body}`
 }
 
+/**
+ * Quote back what actually arrived. "returned an invalid commit message" alone gives
+ * the human nothing to act on and hides whether the model refused, timed out, or
+ * simply answered in prose.
+ */
+function responseSnippet(raw: string): string {
+  const text = raw.replace(ANSI_ESCAPE, '').replace(/\s+/g, ' ').trim()
+  if (text === '') return 'the response was empty'
+  return text.length > 200 ? `${text.slice(0, 200)}…` : text
+}
+
 /** Parse and normalize one model response into the text used by the composer. */
 export function parseGeneratedCommitMessage(raw: string): string {
   const value = resolveModelOutput(raw)
   const parsed = generatedMessageSchema.safeParse(value)
-  if (!parsed.success) throw new Error('The selected model returned an invalid commit message.')
+  if (!parsed.success) {
+    throw new Error(
+      `The selected model returned an invalid commit message: ${responseSnippet(raw)}`,
+    )
+  }
   return formatMessage({ subject: parsed.data.subject, body: parsed.data.body ?? '' })
 }
 
@@ -497,7 +671,9 @@ export function parseGeneratedCommitGroups(
 ): Array<{ files: string[]; message: string }> {
   const value = resolveModelOutput(raw)
   const parsed = generatedGroupsSchema.safeParse(value)
-  if (!parsed.success) throw new Error('The selected model returned invalid commit groups.')
+  if (!parsed.success) {
+    throw new Error(`The selected model returned invalid commit groups: ${responseSnippet(raw)}`)
+  }
 
   const expected = new Set(expectedFiles)
   const seen = new Set<string>()
@@ -518,105 +694,129 @@ export function parseGeneratedCommitGroups(
   return groups
 }
 
-async function runTextModel(model: CommitModel, cwd: string, prompt: string): Promise<string> {
-  const options = {
-    cwd,
-    env: agentCliEnv(),
-    maxBuffer: MODEL_OUTPUT_BYTES,
-    timeout: MODEL_TIMEOUT_MS,
-  }
-
+/** Run one model CLI, converting an unusable run into the error the human reads. */
+async function runModelCli(
+  model: CommitModel,
+  command: string,
+  args: string[],
+  options: CliOptions,
+): Promise<CliRun> {
+  let run: CliRun
   try {
-    const command = await resolveModelCommand(model)
-    if (command.provider === 'codex') {
-      const tempDir = await mkdtemp(join(tmpdir(), 'porcelain-commit-'))
-      const outputPath = join(tempDir, 'message.txt')
-      try {
-        await execFileAsync(
-          'codex',
-          [
-            'exec',
-            '--ephemeral',
-            '--sandbox',
-            'read-only',
-            '--skip-git-repo-check',
-            '--model',
-            command.model,
-            '--config',
-            'model_reasoning_effort=medium',
-            '--color',
-            'never',
-            '--output-last-message',
-            outputPath,
-            prompt,
-          ],
-          options,
-        )
-        return await readFile(outputPath, 'utf8')
-      } finally {
-        await rm(tempDir, { recursive: true, force: true })
-      }
-    }
+    run = await runCli(command, args, options)
+  } catch (error) {
+    throw new Error(`Unable to generate a commit message with ${model}: ${errorOutput(error)}`)
+  }
+  const failure = cliFailure(run, command)
+  if (failure !== null) {
+    throw new Error(`Unable to generate a commit message with ${model}: ${failure}`)
+  }
+  return run
+}
 
-    if (command.provider === 'opencode') {
-      const { stdout, stderr } = await execFileAsync(
-        'opencode',
+/**
+ * `--bare` is deliberately absent for Claude: its own help states OAuth and keychain
+ * are never read under it, so on a subscription login it can only answer "Not logged
+ * in · Please run /login". Pinning an empty MCP config keeps the run isolated —
+ * which is what `--bare` was reached for — without discarding the human's credentials.
+ */
+function providerArgs(command: ModelCommand, prompt: string): string[] {
+  if (command.provider === 'claude') {
+    return [
+      '--no-session-persistence',
+      '--strict-mcp-config',
+      '--mcp-config',
+      '{"mcpServers":{}}',
+      '--model',
+      command.model,
+      '--effort',
+      COMMIT_GENERATION_EFFORT,
+      '--tools',
+      '',
+      '--output-format',
+      'json',
+      '--print',
+      prompt,
+    ]
+  }
+  return [
+    '--model',
+    command.model,
+    '--reasoning-effort',
+    COMMIT_GENERATION_EFFORT,
+    '--output-format',
+    'json',
+    '--no-memory',
+    '--no-subagents',
+    '--disable-web-search',
+    '--tools',
+    '',
+    '--single',
+    prompt,
+  ]
+}
+
+async function runTextModel(model: CommitModel, cwd: string, prompt: string): Promise<string> {
+  const command = await resolveModelCommand(model)
+  const options: CliOptions = { cwd, timeout: MODEL_TIMEOUT_MS, maxBytes: MODEL_OUTPUT_BYTES }
+
+  if (command.provider === 'codex') {
+    const tempDir = await mkdtemp(join(tmpdir(), 'porcelain-commit-'))
+    const outputPath = join(tempDir, 'message.txt')
+    try {
+      await runModelCli(
+        model,
+        'codex',
         [
-          'run',
+          'exec',
+          '--ephemeral',
+          '--sandbox',
+          'read-only',
+          '--skip-git-repo-check',
           '--model',
           command.model,
-          '--agent',
-          'plan',
-          '--format',
-          'json',
-          '--variant',
-          COMMIT_GENERATION_EFFORT,
-          '--dir',
-          cwd,
+          '--config',
+          `model_reasoning_effort=${COMMIT_GENERATION_EFFORT}`,
+          '--color',
+          'never',
+          '--output-last-message',
+          outputPath,
           prompt,
         ],
         options,
       )
-      const output = String(stdout).trim() === '' ? String(stderr) : String(stdout)
-      return openCodeTextFromEvents(output)
+      return await readFile(outputPath, 'utf8')
+    } finally {
+      await rm(tempDir, { recursive: true, force: true })
     }
-
-    const args =
-      command.provider === 'claude'
-        ? [
-            '--bare',
-            '--no-session-persistence',
-            '--model',
-            command.model,
-            '--effort',
-            COMMIT_GENERATION_EFFORT,
-            '--tools',
-            '',
-            '--output-format',
-            'json',
-            '--print',
-            prompt,
-          ]
-        : [
-            '--model',
-            command.model,
-            '--reasoning-effort',
-            COMMIT_GENERATION_EFFORT,
-            '--output-format',
-            'json',
-            '--no-memory',
-            '--no-subagents',
-            '--disable-web-search',
-            '--tools',
-            '',
-            '--single',
-            prompt,
-          ]
-    const { stdout } = await execFileAsync(command.provider, args, options)
-    return String(stdout)
-  } catch (error) {
-    throw new Error(`Unable to generate a commit message with ${model}: ${errorOutput(error)}`)
   }
+
+  if (command.provider === 'opencode') {
+    const run = await runModelCli(
+      model,
+      'opencode',
+      [
+        'run',
+        '--model',
+        command.model,
+        '--agent',
+        'plan',
+        '--format',
+        'json',
+        '--variant',
+        COMMIT_GENERATION_EFFORT,
+        '--dir',
+        cwd,
+        prompt,
+      ],
+      options,
+    )
+    const output = run.stdout.trim() === '' ? run.stderr : run.stdout
+    return openCodeTextFromEvents(output)
+  }
+
+  const run = await runModelCli(model, command.provider, providerArgs(command, prompt), options)
+  return run.stdout
 }
 
 export async function generateCommitMessage(repoPath: string, model: CommitModel): Promise<string> {
