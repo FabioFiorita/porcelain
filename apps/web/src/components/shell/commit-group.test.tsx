@@ -64,7 +64,6 @@ describe('CommitGroup', () => {
       generateMessage: async () => 'feat: generated message',
       generateGroups: async () => [{ files: ['src/a.ts'], message: 'feat: grouped change' }],
       isGenerating: false,
-      error: null,
     })
     vi.mocked(useFileStaging).mockReturnValue({
       stageFile: async () => {},
@@ -110,5 +109,26 @@ describe('CommitGroup', () => {
       )
     })
     expect(screen.getByRole('button', { name: 'Generate Group Commit' })).toBeDisabled()
+  })
+
+  it('reports a failed generation once, not once per error channel', async () => {
+    const failure = 'Unable to generate a commit message with sonnet: Not logged in'
+    vi.mocked(useGitFlow).mockReturnValue({
+      groups: changedFiles(false, true),
+      refresh: async () => {},
+    })
+    vi.mocked(useCommitGeneration).mockReturnValue({
+      generateMessage: async () => '',
+      generateGroups: () => Promise.reject(new Error(failure)),
+      isGenerating: false,
+    })
+    renderGroup()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Generate Group Commit' }))
+
+    // findByText throws on multiple matches, so it fails outright if the composer
+    // grows a second error channel again; the count keeps that explicit.
+    await screen.findByText(failure)
+    expect(screen.getAllByText(failure)).toHaveLength(1)
   })
 })

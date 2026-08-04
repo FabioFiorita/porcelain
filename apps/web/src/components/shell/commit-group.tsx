@@ -154,12 +154,7 @@ export function CommitGroup(): React.JSX.Element {
     clearMessage(repoPath)
     setStaged(null)
   })
-  const {
-    generateMessage,
-    generateGroups,
-    isGenerating,
-    error: generationError,
-  } = useCommitGeneration()
+  const { generateMessage, generateGroups, isGenerating } = useCommitGeneration()
   const { stageAll, unstageAll, isStaging } = useStageAll()
   const { stageFile } = useFileStaging()
   const { groups } = useGitFlow()
@@ -264,7 +259,9 @@ export function CommitGroup(): React.JSX.Element {
     }
   }
 
-  const displayedError = error ?? generationError
+  // Only the commit mutation reports here; generation failures land on the status
+  // line above via `staged`, so a failed generate is not printed twice.
+  const displayedError = error
 
   return (
     <SidebarGroup data-testid={TestIds.commitGroup} className="px-3">
