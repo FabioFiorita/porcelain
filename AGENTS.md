@@ -33,7 +33,8 @@ sign-off before breaking it.
    `void` on promises (`async`/`await`). Lint-backed.
 5. **Never mix prod and dev daemons** while building Porcelain (table below).
 6. **UI primitives follow the client tree.** Web (and Electron shell loading it): shadcn/Base UI.
-   Mobile: iOS-only SwiftUI via `@expo/ui/swift-ui`. Nested `AGENTS.md` owns the detail.
+   Mobile: iOS-only NativeWind v5, Tailwind CSS v4, and React Native Reusables. Nested `AGENTS.md`
+   owns the detail.
 7. **Close the loop with evidence.** Intent → execute → prove it → gate → commit. Never end at
    "implemented, should work." Scale ceremony to the change; evidence never scales away.
 
