@@ -44,10 +44,12 @@ describe('applyResolvedTheme', () => {
   it('toggles the dark class and color-scheme', () => {
     applyResolvedTheme('dark')
     expect(document.documentElement.classList.contains('dark')).toBe(true)
+    expect(document.documentElement.classList.contains('light')).toBe(false)
     expect(document.documentElement.style.colorScheme).toBe('dark')
 
     applyResolvedTheme('light')
     expect(document.documentElement.classList.contains('dark')).toBe(false)
+    expect(document.documentElement.classList.contains('light')).toBe(true)
     expect(document.documentElement.style.colorScheme).toBe('light')
   })
 })

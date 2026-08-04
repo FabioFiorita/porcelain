@@ -17,6 +17,7 @@
     "@porcelain/client-runtime": "workspace:*",
     "@porcelain/contracts": "workspace:*",
     "@porcelain/shared": "workspace:*",
+    "@porcelain/ui": "workspace:*",
     "@shikijs/langs": "^4.2.0",
     "@shikijs/themes": "^4.2.0",
     "@tailwindcss/typography": "^0.5.20",

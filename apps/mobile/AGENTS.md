@@ -12,7 +12,9 @@ loop and runtime traps. This file is platform law that must stay true without lo
   reintroduce SwiftUI Hosts, the row canvas, DOM bridges, or custom native UI modules.
 - Reusable primitives live in `src/components/ui/` and are copied from the React Native Reusables
   registry with its CLI. Compose them with `className` and `cn`; keep semantic tokens aligned with
-  the web shadcn vocabulary in `src/global.css`.
+  the web shadcn vocabulary. The shared token source is `@porcelain/ui/tokens.css`; keep
+  `src/global.css` as the NativeWind entrypoint and add only mobile-specific font/setup overrides
+  there.
 - The v5 setup does not use the NativeWind v4 Babel preset or a `tailwind.config.js`. Keep
   `components.json` for Reusables CLI metadata and make CSS imports the source of truth.
 - **`src/lib/daemon/` is the only daemon seam.** Procedures are hand-declared and zod-parsed; never

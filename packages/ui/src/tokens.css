@@ -1,0 +1,256 @@
+/*
+ * Cross-platform design tokens.
+ *
+ * This file is intentionally limited to the vocabulary that Tailwind CSS and
+ * NativeWind can both consume. App entrypoints own platform-specific imports,
+ * preflight, fonts, browser selectors, and native-only setup.
+ */
+
+@theme inline {
+  --font-heading: var(--porcelain-font-sans);
+  --font-sans: var(--porcelain-font-sans);
+  --font-mono: var(--porcelain-font-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-diff-add: var(--diff-add);
+  --color-diff-del: var(--diff-del);
+  --color-diff-add-emphasis: var(--diff-add-emphasis);
+  --color-diff-del-emphasis: var(--diff-del-emphasis);
+  --color-ink-blue: var(--ink-blue);
+  --color-ink-yellow: var(--ink-yellow);
+  --color-ink-green: var(--ink-green);
+  --color-ink-emerald: var(--ink-emerald);
+  --color-ink-red: var(--ink-red);
+  --color-ink-orange: var(--ink-orange);
+  --color-ink-cyan: var(--ink-cyan);
+  --color-ink-indigo: var(--ink-indigo);
+  --color-ink-purple: var(--ink-purple);
+  --color-ink-violet: var(--ink-violet);
+  --color-ink-pink: var(--ink-pink);
+  --color-ink-teal: var(--ink-teal);
+  --color-ink-amber: var(--ink-amber);
+  --color-ink-sky: var(--ink-sky);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+  --text-4xs: 0.53125rem;
+  --text-3xs: 0.5625rem;
+  --text-2xs: 0.625rem;
+  --text-2xs-plus: 0.65625rem;
+  --text-xs-minus: 0.6875rem;
+  --text-xs-plus: 0.78125rem;
+  --text-sm-minus: 0.8125rem;
+}
+
+:root {
+  color-scheme: light;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.5 0.134 242.749);
+  --primary-foreground: oklch(0.977 0.013 236.62);
+  --secondary: oklch(0.967 0.001 286.375);
+  --secondary-foreground: oklch(0.21 0.006 285.885);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.828 0.111 230.318);
+  --chart-2: oklch(0.685 0.169 237.323);
+  --chart-3: oklch(0.588 0.158 241.966);
+  --chart-4: oklch(0.5 0.134 242.749);
+  --chart-5: oklch(0.443 0.11 240.79);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.588 0.158 241.966);
+  --sidebar-primary-foreground: oklch(0.977 0.013 236.62);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+  --success: oklch(0.596 0.145 163.225);
+  --warning: oklch(0.666 0.179 58.318);
+  --info: oklch(0.588 0.158 241.966);
+  --diff-add: oklch(0.93 0.05 163 / 0.55);
+  --diff-del: oklch(0.93 0.06 25 / 0.55);
+  --diff-add-emphasis: oklch(0.85 0.13 163 / 0.75);
+  --diff-del-emphasis: oklch(0.83 0.15 25 / 0.75);
+  --ink-blue: oklch(0.546 0.245 262.881);
+  --ink-yellow: oklch(0.681 0.162 75.834);
+  --ink-green: oklch(0.627 0.194 149.214);
+  --ink-emerald: oklch(0.596 0.145 163.225);
+  --ink-red: oklch(0.577 0.245 27.325);
+  --ink-orange: oklch(0.646 0.222 41.116);
+  --ink-cyan: oklch(0.609 0.126 221.723);
+  --ink-indigo: oklch(0.511 0.262 276.966);
+  --ink-purple: oklch(0.558 0.288 302.321);
+  --ink-violet: oklch(0.541 0.281 293.009);
+  --ink-pink: oklch(0.592 0.249 0.584);
+  --ink-teal: oklch(0.6 0.118 184.704);
+  --ink-amber: oklch(0.666 0.179 58.318);
+  --ink-sky: oklch(0.588 0.158 241.966);
+}
+
+.dark {
+  color-scheme: dark;
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.443 0.11 240.79);
+  --primary-foreground: oklch(0.977 0.013 236.62);
+  --secondary: oklch(0.274 0.006 286.033);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.828 0.111 230.318);
+  --chart-2: oklch(0.685 0.169 237.323);
+  --chart-3: oklch(0.588 0.158 241.966);
+  --chart-4: oklch(0.5 0.134 242.749);
+  --chart-5: oklch(0.443 0.11 240.79);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.685 0.169 237.323);
+  --sidebar-primary-foreground: oklch(0.293 0.066 243.157);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+  --success: oklch(0.696 0.17 162.48);
+  --warning: oklch(0.769 0.188 70.08);
+  --info: oklch(0.685 0.169 237.32);
+  --diff-add: oklch(0.262 0.051 172.55 / 0.6);
+  --diff-del: oklch(0.258 0.092 26.04 / 0.6);
+  --diff-add-emphasis: oklch(0.45 0.12 165 / 0.7);
+  --diff-del-emphasis: oklch(0.45 0.17 25 / 0.7);
+  --ink-blue: oklch(0.707 0.165 254.624);
+  --ink-yellow: oklch(0.852 0.199 91.936);
+  --ink-green: oklch(0.792 0.209 151.711);
+  --ink-emerald: oklch(0.765 0.177 163.223);
+  --ink-red: oklch(0.704 0.191 22.216);
+  --ink-orange: oklch(0.75 0.183 55.934);
+  --ink-cyan: oklch(0.789 0.154 211.53);
+  --ink-indigo: oklch(0.673 0.182 276.935);
+  --ink-purple: oklch(0.714 0.203 305.504);
+  --ink-violet: oklch(0.702 0.183 293.541);
+  --ink-pink: oklch(0.718 0.202 349.761);
+  --ink-teal: oklch(0.777 0.152 181.912);
+  --ink-amber: oklch(0.828 0.189 84.429);
+  --ink-sky: oklch(0.746 0.16 232.661);
+}
+
+/*
+ * NativeWind does not have the web document class to select `.dark`, so the
+ * same dark palette also follows the platform color scheme on native. The
+ * `.light` escape hatch is toggled by the web theme resolver for an explicit
+ * light choice, including when the operating system is dark.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    color-scheme: dark;
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.205 0 0);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.205 0 0);
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.443 0.11 240.79);
+    --primary-foreground: oklch(0.977 0.013 236.62);
+    --secondary: oklch(0.274 0.006 286.033);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.269 0 0);
+    --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.269 0 0);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.556 0 0);
+    --chart-1: oklch(0.828 0.111 230.318);
+    --chart-2: oklch(0.685 0.169 237.323);
+    --chart-3: oklch(0.588 0.158 241.966);
+    --chart-4: oklch(0.5 0.134 242.749);
+    --chart-5: oklch(0.443 0.11 240.79);
+    --sidebar: oklch(0.205 0 0);
+    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar-primary: oklch(0.685 0.169 237.323);
+    --sidebar-primary-foreground: oklch(0.293 0.066 243.157);
+    --sidebar-accent: oklch(0.269 0 0);
+    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: oklch(0.556 0 0);
+    --success: oklch(0.696 0.17 162.48);
+    --warning: oklch(0.769 0.188 70.08);
+    --info: oklch(0.685 0.169 237.32);
+    --diff-add: oklch(0.262 0.051 172.55 / 0.6);
+    --diff-del: oklch(0.258 0.092 26.04 / 0.6);
+    --diff-add-emphasis: oklch(0.45 0.12 165 / 0.7);
+    --diff-del-emphasis: oklch(0.45 0.17 25 / 0.7);
+    --ink-blue: oklch(0.707 0.165 254.624);
+    --ink-yellow: oklch(0.852 0.199 91.936);
+    --ink-green: oklch(0.792 0.209 151.711);
+    --ink-emerald: oklch(0.765 0.177 163.223);
+    --ink-red: oklch(0.704 0.191 22.216);
+    --ink-orange: oklch(0.75 0.183 55.934);
+    --ink-cyan: oklch(0.789 0.154 211.53);
+    --ink-indigo: oklch(0.673 0.182 276.935);
+    --ink-purple: oklch(0.714 0.203 305.504);
+    --ink-violet: oklch(0.702 0.183 293.541);
+    --ink-pink: oklch(0.718 0.202 349.761);
+    --ink-teal: oklch(0.777 0.152 181.912);
+    --ink-amber: oklch(0.828 0.189 84.429);
+    --ink-sky: oklch(0.746 0.16 232.661);
+  }
+}

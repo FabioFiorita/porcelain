@@ -22,13 +22,14 @@ export function resolveTheme(pref: ThemeMode): 'light' | 'dark' {
 }
 
 /**
- * Apply a resolved appearance to the document: toggle the `dark` class the
- * `@custom-variant dark` + `.dark` token block key off, and set `color-scheme`
- * so native form controls / scrollbars follow.
+ * Apply a resolved appearance to the document: toggle the `dark`/`light`
+ * classes the token blocks key off, and set `color-scheme` so native form
+ * controls / scrollbars follow.
  */
 export function applyResolvedTheme(mode: 'light' | 'dark'): void {
   const root = document.documentElement
   root.classList.toggle('dark', mode === 'dark')
+  root.classList.toggle('light', mode === 'light')
   root.style.colorScheme = mode
 }
 
