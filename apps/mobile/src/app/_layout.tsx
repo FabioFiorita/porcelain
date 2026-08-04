@@ -2,22 +2,23 @@ import '@/global.css'
 
 import { PortalHost } from '@rn-primitives/portal'
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-navigation'
-import { Stack } from 'expo-router/stack'
 import { StatusBar } from 'expo-status-bar'
-import { useColorScheme } from 'react-native'
+import { Platform, useColorScheme } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 
+import { PocIPadEntryPoint, PocIPhoneEntryPoint } from '@/features/poc/poc-shell'
 import { DaemonProvider } from '@/lib/daemon/provider'
 
 export default function RootLayout(): React.JSX.Element {
   const colorScheme = useColorScheme()
+  const isIPad = Platform.OS === 'ios' && Platform.isPad
 
   return (
     <SafeAreaProvider>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <DaemonProvider>
           <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-          <Stack screenOptions={{ headerShown: false }} />
+          {isIPad ? <PocIPadEntryPoint /> : <PocIPhoneEntryPoint />}
           <PortalHost />
         </DaemonProvider>
       </ThemeProvider>
