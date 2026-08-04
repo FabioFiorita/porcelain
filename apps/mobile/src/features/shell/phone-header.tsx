@@ -1,6 +1,8 @@
 import { Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
+import { cn } from '@/lib/utils'
+
 import { MOCK_WORKSPACE, type SurfaceId } from './mock-data'
 import { ChromeGlyph } from './shell-icon'
 import { useShellStore } from './shell-store'
@@ -15,6 +17,18 @@ type PhoneHeaderProps = {
   companionSurface?: SurfaceId
   /** Hide workspace chips (Settings). */
   workspace?: boolean
+  /**
+   * Companion bolt. Product tabs keep it; Settings drops it — prefs have no
+   * companion rail content.
+   */
+  companion?: boolean
+  /**
+   * Bottom border under the title band. Settings puts the border under its
+   * section tabs instead so the tabs read as part of the header.
+   */
+  border?: boolean
+  /** Optional content under the title row (Settings section tabs). */
+  children?: React.ReactNode
 }
 
 /**
@@ -23,12 +37,15 @@ type PhoneHeaderProps = {
  *   [ project · branch · worktree       ]
  *
  * No gear (Settings is a tab). No environment chip (lives in Settings).
- * Bolt always opens the companion sheet for the current surface.
+ * Bolt opens the companion sheet on product surfaces.
  */
 export function PhoneHeader({
   title,
   companionSurface,
   workspace = true,
+  companion = true,
+  border = true,
+  children,
 }: PhoneHeaderProps): React.JSX.Element {
   const insets = useSafeAreaInsets()
   const openSheet = useShellStore((state) => state.openSheet)
@@ -36,7 +53,7 @@ export function PhoneHeader({
 
   return (
     <View
-      className="border-b border-border bg-background px-4 pb-2.5"
+      className={cn('bg-background px-4 pb-2.5', border && 'border-b border-border')}
       style={{ paddingTop: Math.max(insets.top, 8) + 4 }}
       testID="porcelain-phone-header"
     >
@@ -82,21 +99,24 @@ export function PhoneHeader({
           ) : null}
         </View>
 
-        <Pressable
-          accessibilityLabel="Companion"
-          accessibilityRole="button"
-          className="mt-0.5 size-10 items-center justify-center rounded-xl border border-border bg-card active:bg-accent"
-          testID="porcelain-phone-bolt"
-          onPress={() => {
-            if (companionSurface !== undefined) {
-              setActiveSurface(companionSurface)
-            }
-            openSheet('companion')
-          }}
-        >
-          <ChromeGlyph name="companion" size={17} tone="foreground" />
-        </Pressable>
+        {companion ? (
+          <Pressable
+            accessibilityLabel="Companion"
+            accessibilityRole="button"
+            className="mt-0.5 size-10 items-center justify-center rounded-xl border border-border bg-card active:bg-accent"
+            testID="porcelain-phone-bolt"
+            onPress={() => {
+              if (companionSurface !== undefined) {
+                setActiveSurface(companionSurface)
+              }
+              openSheet('companion')
+            }}
+          >
+            <ChromeGlyph name="companion" size={17} tone="foreground" />
+          </Pressable>
+        ) : null}
       </View>
+      {children}
     </View>
   )
 }

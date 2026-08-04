@@ -50,6 +50,14 @@ const CHROME_SYMBOLS = {
   folder: { ios: 'folder' as SFSymbol, android: 'folder_open' as AndroidSymbol },
   branch: { ios: 'arrow.triangle.branch' as SFSymbol, android: 'account_tree' as AndroidSymbol },
   network: { ios: 'network' as SFSymbol, android: 'lan' as AndroidSymbol },
+  desktop: { ios: 'desktopcomputer' as SFSymbol, android: 'desktop_windows' as AndroidSymbol },
+  terminal: { ios: 'terminal' as SFSymbol, android: 'terminal' as AndroidSymbol },
+  notebook: { ios: 'book' as SFSymbol, android: 'menu_book' as AndroidSymbol },
+  chevronRight: { ios: 'chevron.right' as SFSymbol, android: 'chevron_right' as AndroidSymbol },
+  chevronLeft: { ios: 'chevron.left' as SFSymbol, android: 'chevron_left' as AndroidSymbol },
+  trash: { ios: 'trash' as SFSymbol, android: 'delete' as AndroidSymbol },
+  plus: { ios: 'plus' as SFSymbol, android: 'add' as AndroidSymbol },
+  check: { ios: 'checkmark' as SFSymbol, android: 'check' as AndroidSymbol },
 } as const
 
 export type ChromeIconName = keyof typeof CHROME_SYMBOLS

@@ -59,6 +59,13 @@ export function useEnvironments(): readonly Environment[] {
   return useEnvironmentsStore((state) => state.environments)
 }
 
+/** Imperative lookup for pairing / non-React callers. */
+export function getEnvironment(id: EnvironmentId): Environment | null {
+  return (
+    useEnvironmentsStore.getState().environments.find((candidate) => candidate.id === id) ?? null
+  )
+}
+
 export function useActiveEnvironment(): Environment | null {
   return useEnvironmentsStore(
     (state) => state.environments.find((candidate) => candidate.id === state.activeId) ?? null,
@@ -149,6 +156,8 @@ type EnvironmentActions = {
   setActiveEndpoint(id: EnvironmentId, baseUrl: string): Promise<void>
   preferEndpoint(id: EnvironmentId, baseUrl: string): Promise<void>
   removeEndpoint(id: EnvironmentId, baseUrl: string): Promise<void>
+  /** Reorder residual fallbacks; preferredEndpoint still wins the probe first. */
+  setEndpointOrder(id: EnvironmentId, endpoints: readonly string[]): Promise<void>
   remove(id: EnvironmentId): Promise<void>
   forgetToken(id: EnvironmentId): Promise<void>
   setActiveRepoPath(id: EnvironmentId, path: string | null): Promise<void>
@@ -312,6 +321,25 @@ export const environmentActions: EnvironmentActions = {
         candidate.id === id
           ? { ...candidate, baseUrl: nextBaseUrl, endpoints, preferredEndpoint }
           : candidate,
+      ),
+    }))
+    await persist()
+  },
+
+  async setEndpointOrder(id: EnvironmentId, next: readonly string[]): Promise<void> {
+    const environment = useEnvironmentsStore
+      .getState()
+      .environments.find((candidate) => candidate.id === id)
+    if (environment === undefined) return
+    const normalized = next.map(normalizeBaseUrl)
+    if (normalized.length !== environment.endpoints.length) return
+    const sameSet =
+      normalized.every((url) => environment.endpoints.includes(url)) &&
+      environment.endpoints.every((url) => normalized.includes(url))
+    if (!sameSet) return
+    useEnvironmentsStore.setState((state) => ({
+      environments: state.environments.map((candidate) =>
+        candidate.id === id ? { ...candidate, endpoints: normalized } : candidate,
       ),
     }))
     await persist()
