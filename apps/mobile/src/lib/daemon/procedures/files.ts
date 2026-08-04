@@ -44,6 +44,12 @@ export const searchFilesQuery = defineQuery<
 
 export const readFileQuery = defineQuery<string, FileView>('readFile', fileViewSchema)
 
+/** Sandboxed HTML preview with local images inlined as data URIs (daemon-side). */
+export const previewHtmlQuery = defineQuery<string, string | null>(
+  'previewHtml',
+  z.string().nullable(),
+)
+
 type ScopeInput = { repoPath: string; path: string }
 
 export const hidePathMutation = defineMutation<ScopeInput, void>('hidePath', z.void())

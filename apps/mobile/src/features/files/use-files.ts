@@ -9,6 +9,7 @@ import {
   hidePathMutation,
   pinnedEntriesQuery,
   pinPathMutation,
+  previewHtmlQuery,
   readFileQuery,
   searchFilesQuery,
   unhidePathMutation,
@@ -95,6 +96,19 @@ export function useFileView(path: string, enabled: boolean): UseQueryResult<File
   useFilesWatch({ files })
   useRefetchOnFocus(query.refetch, enabled && path !== '')
   return query
+}
+
+/** HTML preview with sibling assets inlined; only enabled for the HTML preview face. */
+export function usePreviewHtml(
+  path: string,
+  enabled: boolean,
+): UseQueryResult<string | null, DaemonError> {
+  return useDaemonQuery(previewHtmlQuery, path, {
+    enabled: enabled && path !== '',
+    gcTime: 2 * 60_000,
+    refetchOnWindowFocus: false,
+    staleTime: 60_000,
+  })
 }
 
 export type FileEntryActions = {
