@@ -1,3 +1,18 @@
+## [0.48.0](https://github.com/FabioFiorita/porcelain/compare/v0.47.3...v0.48.0) (2026-08-04)
+
+### Features
+
+* **mobile:** dock terminal key bar to the keyboard, theme chrome ([1c92f75](https://github.com/FabioFiorita/porcelain/commit/1c92f75f0fa52df7a9078cabb56741d2ddd83b40)), closes [#16161a](https://github.com/FabioFiorita/porcelain/issues/16161a)
+* **mobile:** native search bar on the Files search face ([8e0c68f](https://github.com/FabioFiorita/porcelain/commit/8e0c68f4a9fb993444477d1fafa1663a26af5622))
+* **mobile:** render every path list on the diff's row canvas ([1fcb48c](https://github.com/FabioFiorita/porcelain/commit/1fcb48c01bd3f42bc8bb0711707191c57d353815))
+
+### Bug Fixes
+
+* make commit generation work on every model provider ([bd6b39e](https://github.com/FabioFiorita/porcelain/commit/bd6b39e1b882cb5ba8ae76b32299949a2d786779))
+* **mobile:** make Kill take effect, swipe Rename and Kill ([64deaff](https://github.com/FabioFiorita/porcelain/commit/64deaff4e13649f06925263393fc968de1fcd73f))
+* **mobile:** render prompt glyphs in the terminal ([ac465bb](https://github.com/FabioFiorita/porcelain/commit/ac465bb69f8e21f159fa1596f26e3ee74e85f785))
+* **mobile:** restore the Files bolt, and the Codex findings under it ([b6c14f4](https://github.com/FabioFiorita/porcelain/commit/b6c14f47284f679577ea87556302cbe753423dbe))
+
 ## [0.47.3](https://github.com/FabioFiorita/porcelain/compare/v0.47.2...v0.47.3) (2026-08-03)
 
 ### Bug Fixes
