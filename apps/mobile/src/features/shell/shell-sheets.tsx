@@ -5,25 +5,43 @@ import { Input } from '@/components/ui/input'
 import { Text as UiText } from '@/components/ui/text'
 import { cn } from '@/lib/utils'
 import {
+  COMPANION,
   MOCK_BRANCHES,
-  MOCK_ENVIRONMENTS,
   MOCK_PROJECTS,
   MOCK_WORKSPACE,
   MOCK_WORKTREES,
+  surfaceById,
 } from './mock-data'
+import { EnvironmentsSettings, GeneralSettings, ReviewSettings } from './settings-screen'
 import { ChromeGlyph } from './shell-icon'
 import { ShellModal, ShellModalScroll } from './shell-modal'
 import { type SettingsSection, useShellStore } from './shell-store'
 
 const WINDOW = Dimensions.get('window')
-const SHEET_MAX_W = Math.min(WINDOW.width * 0.55, 440)
-const SHEET_MAX_H = Math.min(WINDOW.height * 0.72, 520)
+const IS_PHONE_WIDTH = WINDOW.width < 768
+const SHEET_MAX_W = IS_PHONE_WIDTH
+  ? Math.min(WINDOW.width - 24, 400)
+  : Math.min(WINDOW.width * 0.55, 440)
+const SHEET_MAX_H = IS_PHONE_WIDTH
+  ? Math.min(WINDOW.height * 0.78, 640)
+  : Math.min(WINDOW.height * 0.72, 520)
 const SETTINGS_MAX_W = Math.min(WINDOW.width * 0.68, 600)
-const SEARCH_MAX_W = Math.min(WINDOW.width * 0.55, 500)
+const SEARCH_MAX_W = IS_PHONE_WIDTH
+  ? Math.min(WINDOW.width - 24, 400)
+  : Math.min(WINDOW.width * 0.55, 500)
 
-export function ShellSheets(): React.JSX.Element {
+type ShellSheetsProps = {
+  /**
+   * Phone hides the settings sheet (Settings is a tab). Companion is phone-primary;
+   * tablet still toggles the inspector column and can open the same sheet as fallback.
+   */
+  variant?: 'phone' | 'tablet'
+}
+
+export function ShellSheets({ variant = 'tablet' }: ShellSheetsProps): React.JSX.Element {
   const sheet = useShellStore((state) => state.sheet)
   const closeSheet = useShellStore((state) => state.closeSheet)
+  const showSettingsSheet = variant === 'tablet'
 
   return (
     <>
@@ -59,16 +77,70 @@ export function ShellSheets(): React.JSX.Element {
         <WorktreeSheetBody />
       </ShellModal>
 
+      {showSettingsSheet ? (
+        <ShellModal
+          open={sheet === 'settings'}
+          onClose={closeSheet}
+          title="Settings"
+          description="General, Review, and Environments for this client."
+          contentStyle={{ width: SETTINGS_MAX_W, maxHeight: SHEET_MAX_H }}
+        >
+          <SettingsSheetBody />
+        </ShellModal>
+      ) : null}
+
       <ShellModal
-        open={sheet === 'settings'}
+        open={sheet === 'companion'}
         onClose={closeSheet}
-        title="Settings"
-        description="General, Review, and Environments for this client."
-        contentStyle={{ width: SETTINGS_MAX_W, maxHeight: SHEET_MAX_H }}
+        title={undefined}
+        hideHeader
+        bare
+        contentStyle={{ width: SHEET_MAX_W, maxHeight: SHEET_MAX_H }}
       >
-        <SettingsSheetBody />
+        <CompanionSheetBody />
       </ShellModal>
     </>
+  )
+}
+
+function CompanionSheetBody(): React.JSX.Element {
+  const surfaceId = useShellStore((state) => state.activeSurface)
+  const surface = surfaceById(surfaceId)
+  const sections = COMPANION[surfaceId]
+  const closeSheet = useShellStore((state) => state.closeSheet)
+
+  return (
+    <View className="gap-3 p-5" testID="porcelain-companion-sheet">
+      <View className="gap-1 pr-8">
+        <Text className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+          Companion
+        </Text>
+        <Text className="text-lg font-semibold text-foreground">{surface.companionTitle}</Text>
+        <Text className="text-sm text-muted-foreground">{surface.label}</Text>
+      </View>
+      <ShellModalScroll style={{ maxHeight: SHEET_MAX_H - 120 }}>
+        {sections.map((section) => (
+          <View key={section.id} className="gap-2 rounded-2xl border border-border bg-card p-3">
+            <Text className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              {section.title}
+            </Text>
+            <View className="gap-2">
+              {section.rows.map((row) => (
+                <View key={row.id} className="gap-0.5">
+                  <Text className="text-sm font-medium text-foreground">{row.label}</Text>
+                  {row.detail ? (
+                    <Text className="text-xs text-muted-foreground">{row.detail}</Text>
+                  ) : null}
+                </View>
+              ))}
+            </View>
+          </View>
+        ))}
+      </ShellModalScroll>
+      <Button onPress={closeSheet} variant="outline">
+        <UiText>Done</UiText>
+      </Button>
+    </View>
   )
 }
 
@@ -368,76 +440,10 @@ function SettingsSheetBody(): React.JSX.Element {
       <View className="w-px self-stretch bg-border" />
 
       <ShellModalScroll style={{ flex: 1, minWidth: 0 }}>
-        {section === 'general' ? <GeneralSettingsMock /> : null}
-        {section === 'review' ? <ReviewSettingsMock /> : null}
-        {section === 'environments' ? <EnvironmentsSettingsMock /> : null}
+        {section === 'general' ? <GeneralSettings /> : null}
+        {section === 'review' ? <ReviewSettings /> : null}
+        {section === 'environments' ? <EnvironmentsSettings /> : null}
       </ShellModalScroll>
-    </View>
-  )
-}
-
-function GeneralSettingsMock(): React.JSX.Element {
-  return (
-    <View className="gap-3">
-      <SettingsCard title="Appearance" body="System · Light · Dark — follows the OS for now." />
-      <SettingsCard title="Diff mode" body="Unified (default). Split lands with the real viewer." />
-      <SettingsCard title="Markdown" body="Reader or source when opening markdown files." />
-      <SettingsCard title="HTML" body="Sandboxed preview or source for .html files." />
-      <SettingsCard title="Pull strategy" body="Merge or rebase for the git pull quick command." />
-    </View>
-  )
-}
-
-function ReviewSettingsMock(): React.JSX.Element {
-  return (
-    <View className="gap-3">
-      <SettingsCard
-        title="Review layers"
-        body="Docs · Agents · Other — same grouping as the web Review section."
-      />
-      <SettingsCard title="Empty review" body="Show Glance when no unit of work is published." />
-    </View>
-  )
-}
-
-function EnvironmentsSettingsMock(): React.JSX.Element {
-  return (
-    <View className="gap-3">
-      <Text className="text-sm text-muted-foreground">
-        Pair this tablet with a dev daemon. Production port 43117 is never used for product work.
-      </Text>
-      {MOCK_ENVIRONMENTS.map((environment) => (
-        <View
-          key={environment.id}
-          className={cn(
-            'flex-row items-center gap-3 rounded-xl border border-border bg-card p-3',
-            environment.active && 'border-primary/40 bg-primary/5',
-          )}
-        >
-          <View className="size-9 items-center justify-center rounded-lg bg-muted">
-            <ChromeGlyph name="network" size={16} tone="foreground" />
-          </View>
-          <View className="min-w-0 flex-1 gap-0.5">
-            <Text className="font-medium text-foreground">{environment.name}</Text>
-            <Text className="text-xs text-muted-foreground">{environment.host}</Text>
-          </View>
-          {environment.active ? (
-            <Text className="text-xs font-semibold text-primary">Active</Text>
-          ) : null}
-        </View>
-      ))}
-      <Button variant="outline">
-        <UiText>Add environment…</UiText>
-      </Button>
-    </View>
-  )
-}
-
-function SettingsCard({ title, body }: { title: string; body: string }): React.JSX.Element {
-  return (
-    <View className="gap-1 rounded-xl border border-border bg-muted/40 p-3">
-      <Text className="text-sm font-semibold text-foreground">{title}</Text>
-      <Text className="text-sm leading-5 text-muted-foreground">{body}</Text>
     </View>
   )
 }

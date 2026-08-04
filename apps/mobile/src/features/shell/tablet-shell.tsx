@@ -61,7 +61,7 @@ export function TabletShell(): React.JSX.Element {
           <AndroidTabletColumns activeSurface={activeSurface} inspectorVisible={inspectorVisible} />
         )}
       </View>
-      <ShellSheets />
+      <ShellSheets variant="tablet" />
     </View>
   )
 }

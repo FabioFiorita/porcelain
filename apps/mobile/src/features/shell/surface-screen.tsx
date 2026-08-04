@@ -1,16 +1,18 @@
 import { Platform, useWindowDimensions } from 'react-native'
-import { PocSurfaceScreen } from '@/features/poc/poc-screen'
+
 import type { SurfaceId } from './mock-data'
+import { PhoneSurface } from './phone-surface'
 import { ViewerCanvas } from './shell-chrome'
 import { useShellStore } from './shell-store'
 
 type SurfaceScreenProps = {
-  /** Phone route surface. Tablet ignores this and uses the shell store. */
+  /** Phone route surface (primary face of a dual slot, or Terminal). */
   surface: SurfaceId
 }
 
 /**
- * Shared route body: tablet Slot shows store-driven viewer; phone keeps tab POC.
+ * Shared route body: tablet Slot shows store-driven viewer; phone uses dual-face
+ * PhoneSurface chrome.
  */
 export function SurfaceScreen({ surface }: SurfaceScreenProps): React.JSX.Element {
   const { width, height } = useWindowDimensions()
@@ -21,14 +23,19 @@ export function SurfaceScreen({ surface }: SurfaceScreenProps): React.JSX.Elemen
     return <ViewerCanvas surfaceId={activeSurface} />
   }
 
-  if (surface === 'history' || surface === 'search' || surface === 'board') {
-    return <ViewerCanvas surfaceId={surface} />
+  if (surface === 'files') {
+    return <PhoneSurface slot="files" surface="files" />
+  }
+  if (surface === 'changes') {
+    return <PhoneSurface slot="changes" surface="changes" />
+  }
+  if (surface === 'review') {
+    return <PhoneSurface slot="review" surface="review" />
+  }
+  if (surface === 'terminal') {
+    return <PhoneSurface surface="terminal" />
   }
 
-  const phoneSurface =
-    surface === 'files' || surface === 'changes' || surface === 'review' || surface === 'terminal'
-      ? surface
-      : 'files'
-
-  return <PocSurfaceScreen surface={phoneSurface} />
+  // Orphan routes (history/search/board) still render their face if navigated to.
+  return <PhoneSurface surface={surface} />
 }

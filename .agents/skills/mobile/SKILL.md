@@ -48,11 +48,11 @@ src/features/   one folder per feature
 src/lib/daemon/ only daemon seam — no AppRouter import, no barrels
 ```
 
-iPhone and Android phone = **four** bottom tabs (Files · Changes · Review · Terminal); History/Board
-are pushes + re-tap alternates; Settings/Companion are sheets. Tablet (iPad + Android) = primary ·
-supplementary · viewer · companion (`features/shell`); Settings is a sheet, not a rail item. iOS
-uses root `SplitView` + inspector; Android tablet uses the shared multi-column shell. Full IA:
-`reference/client.md`.
+iPhone and Android phone = **five** bottom tabs (Files · Changes · Review · Terminal · Settings);
+History / Search / Board are **re-tap dual faces** (store, not URL); Companion is a sheet from the
+bolt. Tablet (iPad + Android) = primary · supplementary · viewer · companion (`features/shell`);
+Settings is a sheet on tablet, a tab on phone. iOS uses root `SplitView` + inspector; Android tablet
+uses the shared multi-column shell. Full IA: `reference/client.md`.
 
 ## Android control
 

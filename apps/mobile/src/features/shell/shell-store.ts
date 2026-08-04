@@ -2,12 +2,19 @@ import { create } from 'zustand'
 
 import { defaultSelectedIds, type SurfaceId } from './mock-data'
 
-export type ShellSheet = 'project' | 'search' | 'branch' | 'worktree' | 'settings' | null
+export type ShellSheet =
+  | 'project'
+  | 'search'
+  | 'branch'
+  | 'worktree'
+  | 'settings'
+  | 'companion'
+  | null
 
 export type SettingsSection = 'general' | 'review' | 'environments'
 
 type ShellState = {
-  /** Tablet surface selection (independent of phone tab routes). */
+  /** Active product surface (tablet rail + phone face). Independent of URL faces. */
   activeSurface: SurfaceId
   inspectorVisible: boolean
   sheet: ShellSheet

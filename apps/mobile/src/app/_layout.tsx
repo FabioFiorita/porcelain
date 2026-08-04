@@ -6,7 +6,7 @@ import { StatusBar } from 'expo-status-bar'
 import { Platform, useColorScheme, useWindowDimensions } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 
-import { PocIPhoneEntryPoint } from '@/features/poc/poc-shell'
+import { PhoneShell } from '@/features/shell/phone-shell'
 import { TabletShell } from '@/features/shell/tablet-shell'
 import { DaemonProvider } from '@/lib/daemon/provider'
 
@@ -20,7 +20,7 @@ export default function RootLayout(): React.JSX.Element {
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <DaemonProvider>
           <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-          {isTablet ? <TabletShell /> : <PocIPhoneEntryPoint />}
+          {isTablet ? <TabletShell /> : <PhoneShell />}
           <PortalHost />
         </DaemonProvider>
       </ThemeProvider>

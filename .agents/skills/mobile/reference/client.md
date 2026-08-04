@@ -20,9 +20,9 @@ one-line route that default-exports it. File names are kebab-case.
 | **iPhone / Android phone** | Companion to Mac / iPad / browser — glance, review, stage/commit, terminal, light board |
 | **iPad / Android tablet** | Full workstation alternative — web-like chrome with primary · supplementary · viewer · companion |
 
-## The tab shell (iPhone)
+## The tab shell (iPhone + Android phone)
 
-Four primary tabs — the iOS ceiling is five; we stay under it.
+Five tabs — uses the iOS ceiling. Android phones share the same shell.
 
 | Tab slot | Faces (re-tap root to flip) | Chrome |
 |----------|------------------------------|--------|
@@ -30,34 +30,34 @@ Four primary tabs — the iOS ceiling is five; we stay under it.
 | **Changes** | Changes · **History** | same header; no back chevron |
 | **Review** | Review · **Board** | same |
 | **Terminal** | Terminal | full header |
+| **Settings** | Settings | header without workspace chips |
 
-Faces live in `useTabFaces` (not the URL). Opening Settings/Companion does **not** reset the face.
-The tab bar is the only switcher. Label/icon follow the store. Search is not a nav-bar field —
-it is a face so it does not fight title + workspace for vertical space.
+Faces live in `useTabFaces` (`features/shell/tab-faces.ts`) — **not the URL**. Opening Companion
+or project/branch/worktree sheets must **not** reset the face. The tab bar is the only switcher.
+Label/icon follow the store. Search is a face (not a permanent nav-bar field) so it does not fight
+title + workspace for vertical space.
 
 **Not tabs**
 
 | Surface | Placement |
 |---------|-----------|
-| Settings | Form sheet from header gear |
-| Companion | Form sheet from header (right-rail analogue) |
-| Board | Pushed from Review (and re-tap Review while on root) |
-| History | Pushed from Changes (and re-tap Changes while on root) |
-| Repo picker | Form sheet |
-| Search | Files search bar / face |
+| Companion | Form sheet from header bolt (right-rail analogue) |
+| Board / History / Search | Dual-face alternates of Review / Changes / Files |
+| Repo / branch / worktree pickers | Form sheets from the workspace line |
 
 NativeTabs has no long-press menu API; **re-tap while focused on the tab root** opens the
-alternate. Header actions mirror the same destinations. When a long-press API lands, wire it to
-the same `TAB_ALTERNATES` table in `src/lib/tab-alternates.ts`.
+alternate (`useTabRootFocus` gates re-tap so pushed children do not flip the face).
 
 ### Header contract (phone)
 
 ```
-[ Title          ]     [ surface actions ] [ Companion ] [ Settings ]
-[ Workspace ▾    ]     (project · branch · worktree under the title)
+[ Title                          ⚡ ]
+[ project · branch · worktree      ]
 ```
 
-Workspace is **under** the title, never mid-toolbar. Environment selection stays in Settings.
+Workspace is **under** the title, never mid-toolbar. No gear (Settings is a tab). No environment
+chip (lives in Settings → Environments). Bolt opens the companion sheet on every tab for the
+Chrome pass; individual surfaces may drop it later when their inline content covers the same job.
 
 ## Tablet shell (iPad + Android tablet)
 
