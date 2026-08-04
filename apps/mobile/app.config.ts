@@ -5,6 +5,7 @@ import packageJson from './package.json'
 type AppVariant = 'development' | 'production'
 
 type Variant = {
+  androidPackage: string
   bundleIdentifier: string
   icon: string
   name: string
@@ -15,15 +16,16 @@ type Variant = {
 /**
  * One binary identity per variant, selected by `APP_VARIANT` (set per profile in eas.json).
  *
- * A distinct bundle identifier is what lets the dev client and the released app sit side by
- * side on one device instead of replacing each other. It only creates an App ID in the Apple
- * developer portal — App Store Connect never sees it, so no dev build can disturb TestFlight.
+ * A distinct bundle identifier / Android application id is what lets the dev client and the
+ * released app sit side by side on one device instead of replacing each other. The development
+ * identity never ships to either store.
  *
  * `production` must stay byte-identical to what shipped: every string here feeds the native
  * fingerprint, and changing one strands the installed app on an unreachable runtime version.
  */
 const VARIANTS: Record<AppVariant, Variant> = {
   development: {
+    androidPackage: 'com.fabiofiorita.porcelain.dev',
     bundleIdentifier: 'com.fabiofiorita.porcelain.dev',
     icon: './assets/images/icon-dev.png',
     name: 'Porcelain Dev',
@@ -31,6 +33,7 @@ const VARIANTS: Record<AppVariant, Variant> = {
     splashIcon: './assets/images/icon-dev.png',
   },
   production: {
+    androidPackage: 'com.fabiofiorita.porcelain',
     bundleIdentifier: 'com.fabiofiorita.porcelain',
     icon: './assets/images/icon.png',
     name: 'Porcelain',
@@ -54,7 +57,16 @@ const config: ExpoConfig = {
   icon: variant.icon,
   scheme: variant.scheme,
   userInterfaceStyle: 'automatic',
-  platforms: ['ios'],
+  platforms: ['ios', 'android'],
+  android: {
+    package: variant.androidPackage,
+    adaptiveIcon: {
+      backgroundColor: '#090B0C',
+      foregroundImage: variant.icon,
+    },
+    predictiveBackGestureEnabled: false,
+    softwareKeyboardLayoutMode: 'resize',
+  },
   ios: {
     bundleIdentifier: variant.bundleIdentifier,
     // Product targets iOS 26+ (SplitView inspector, liquid glass tab chrome). No older guards.
@@ -81,6 +93,15 @@ const config: ExpoConfig = {
       },
     ],
     'expo-secure-store',
+    [
+      'expo-build-properties',
+      {
+        android: {
+          // The daemon's opt-in LAN/Tailscale listener intentionally serves cleartext HTTP.
+          usesCleartextTraffic: true,
+        },
+      },
+    ],
   ],
   experiments: {
     typedRoutes: true,

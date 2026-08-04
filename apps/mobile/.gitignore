@@ -11,6 +11,7 @@ expo-env.d.ts
 
 # Native
 *.orig.*
+*.jks
 *.p8
 *.p12
 *.key
@@ -36,7 +37,8 @@ yarn-error.*
 
 example
 
-# generated native folder (iOS only — app.json `platforms` is `["ios"]`)
+# generated native projects (Expo prebuild / local development builds)
+/android
 /ios
 
 # `eas build --local` drops its artifact in the working directory
