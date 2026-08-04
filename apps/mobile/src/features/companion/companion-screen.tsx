@@ -127,7 +127,9 @@ function FilesCompanion(): React.JSX.Element {
   return (
     <ScreenHost>
       <List modifiers={[listStyle('insetGrouped')]}>
-        <NotesSection repoPath={repo?.path ?? null} />
+        {/* Keyed by repo: the companion stays mounted under the project picker, and a seeded
+            editor would otherwise keep showing — and then save — the previous project's note. */}
+        <NotesSection key={repo?.path ?? 'no-repo'} repoPath={repo?.path ?? null} />
         <Section title="Pinned">
           {pins.length === 0 ? (
             <Text modifiers={[secondary]}>
@@ -186,7 +188,8 @@ function FilesCompanion(): React.JSX.Element {
  * The notes half of the Files companion. Desktop runs a TipTap WYSIWYG; the phone keeps the
  * same markdown string in a growing SwiftUI field — one store, two editors, no mobile-only
  * note format. Seeded once from the first read so a background refetch cannot yank the
- * caret out of a sentence.
+ * caret out of a sentence; the caller keys it by repo, which is what makes "once" mean once
+ * per project rather than once per app launch.
  */
 function NotesSection({ repoPath }: { repoPath: string | null }): React.JSX.Element {
   const { notes, save } = useRepoNotes(repoPath)

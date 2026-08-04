@@ -26,18 +26,23 @@ export function useRepoNotes(repoPath: string | null): RepoNotes {
   })
   const mutation = useDaemonMutation(setRepoNotesMutation, { invalidates: ['repoNotes'] })
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const pending = useRef<string | null>(null)
+  // The edit carries the repo it was typed in. Reading `repoPath` when the timer fires would
+  // write the previous project's sentence into whichever project was chosen in those 800 ms.
+  const pending = useRef<{ notes: string; repoPath: string } | null>(null)
 
-  // Sees the current repo and mutation without re-arming the unmount flush every render.
+  // Sees the current mutation without re-arming the flush every render.
   const flush = useEffectEvent((): void => {
     if (timer.current !== null) clearTimeout(timer.current)
     timer.current = null
     const next = pending.current
     pending.current = null
-    if (next === null || repoPath === null) return
-    mutation.mutate({ notes: next, repoPath })
+    if (next === null) return
+    mutation.mutate({ notes: next.notes, repoPath: next.repoPath })
   })
 
+  // Flushed on unmount so dismissing the sheet mid-sentence still saves. A project switch does
+  // not need its own flush: the pending edit names its repo, so whether it lands here or when
+  // the timer fires, it lands in the repo it was typed in.
   useEffect(() => {
     return (): void => {
       flush()
@@ -47,7 +52,8 @@ export function useRepoNotes(repoPath: string | null): RepoNotes {
   return {
     notes: query.data,
     save: (next: string): void => {
-      pending.current = next
+      if (repoPath === null) return
+      pending.current = { notes: next, repoPath }
       if (timer.current !== null) clearTimeout(timer.current)
       timer.current = setTimeout(() => {
         flush()
