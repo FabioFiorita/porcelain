@@ -243,26 +243,28 @@ function SurfaceNavLink({
   onPress: () => void
 }): React.JSX.Element {
   return (
-    <Button
+    <Pressable
+      accessibilityLabel={surface.label}
+      accessibilityRole="button"
       accessibilityState={{ selected: active }}
       className={cn(
-        'h-auto w-full justify-start gap-3 rounded-xl px-3 py-2.5',
+        'w-full flex-row items-center justify-start gap-3 rounded-xl px-3 py-3 active:bg-accent dark:active:bg-accent/50',
         active ? 'bg-accent' : 'bg-transparent',
       )}
       onPress={onPress}
-      variant="ghost"
+      testID={`porcelain-tablet-destination-${surface.id}`}
     >
       <SurfaceGlyph active={active} surface={surface.id} />
       <UiText
         className={cn(
-          'flex-1 text-left text-sm font-medium',
+          'min-w-0 flex-1 text-left text-sm font-medium leading-6',
           active ? 'text-accent-foreground' : 'text-foreground',
         )}
       >
         {surface.label}
       </UiText>
       {active ? <View className="size-1.5 rounded-full bg-primary" /> : null}
-    </Button>
+    </Pressable>
   )
 }
 
@@ -280,13 +282,11 @@ export function SupplementaryColumn({
 
   return (
     <SafeAreaView
-      className="flex-1 border-l border-border bg-card"
+      className={cn('flex-1 bg-card', !primaryCollapsed && 'border-l border-border')}
       edges={{ bottom: true, left: true, right: true }}
     >
       {/* Extra top inset clears the system SplitView collapse control when the rail hides. */}
-      <View
-        className={cn('flex-1 gap-4 pb-5 pr-3', primaryCollapsed ? 'pt-[72px] pl-11' : 'pt-5 pl-3')}
-      >
+      <View className={cn('flex-1 gap-4 pb-5 pl-3 pr-3', primaryCollapsed ? 'pt-[72px]' : 'pt-5')}>
         <View className="gap-1 px-1">
           <Text className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
             Supplementary

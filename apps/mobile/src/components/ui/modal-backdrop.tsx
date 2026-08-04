@@ -1,6 +1,6 @@
-import { requireOptionalNativeModule } from 'expo'
+import { BlurView } from 'expo-blur'
 import type { GestureResponderEvent } from 'react-native'
-import { Platform, Pressable, StyleSheet, UIManager, useColorScheme, View } from 'react-native'
+import { Pressable, StyleSheet, useColorScheme, View } from 'react-native'
 
 type ModalBackdropProps = {
   accessibilityElementsHidden?: boolean
@@ -9,24 +9,6 @@ type ModalBackdropProps = {
   onPress?: (event: GestureResponderEvent) => void
   testID?: string
 }
-
-type BlurViewComponent = typeof import('expo-blur').BlurView
-
-function resolveBlurView(): BlurViewComponent | null {
-  // Keep an older installed development client usable until it is rebuilt with expo-blur.
-  // The JS package can be present while the native ExpoBlurView manager is absent.
-  if (
-    Platform.OS !== 'web' &&
-    (requireOptionalNativeModule('ExpoBlur') === null ||
-      UIManager.getViewManagerConfig('ExpoBlurView') === null)
-  ) {
-    return null
-  }
-
-  return require('expo-blur').BlurView as BlurViewComponent
-}
-
-const BlurView = resolveBlurView()
 
 /** Shared native scrim and blur for every mobile modal surface. */
 export function ModalBackdrop({
@@ -40,9 +22,7 @@ export function ModalBackdrop({
   const dismissible = onPress !== undefined
   return (
     <View className="absolute inset-0" pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-      {BlurView ? (
-        <BlurView intensity={36} pointerEvents="none" style={StyleSheet.absoluteFill} tint={tint} />
-      ) : null}
+      <BlurView intensity={36} pointerEvents="none" style={StyleSheet.absoluteFill} tint={tint} />
       <View className="absolute inset-0 bg-black opacity-50" pointerEvents="none" />
       <Pressable
         accessibilityElementsHidden={accessibilityElementsHidden}
