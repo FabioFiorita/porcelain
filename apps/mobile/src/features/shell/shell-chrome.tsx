@@ -21,47 +21,60 @@ import { useShellStore } from './shell-store'
 import { useIsAppFullscreen } from './use-app-window'
 
 /**
- * Tablet title bar (web-like):
- * left  [Project] [Branch] [Worktree]  — inset only when windowed (Stage Manager)
- * center [Search]
- * right  [Settings] [Bolt] [Environment]
+ * Tablet title bar — web geometry:
+ * - Search is absolutely centered in the full bar (not leftover flex space).
+ * - Project is an avatar-only switcher (web rail pattern); name lives in a11y + sheet.
+ * - Left/right clusters are content-width only so they never cover the search hit target.
  */
 export function TabletHeader(_props: { platformLabel: string }): React.JSX.Element {
   const openSheet = useShellStore((state) => state.openSheet)
   const toggleInspector = useShellStore((state) => state.toggleInspector)
   const inspectorVisible = useShellStore((state) => state.inspectorVisible)
   const isFullscreen = useIsAppFullscreen()
-  // Stage Manager window chrome (colored control) sits over the left edge — only inset then.
+  // Stage Manager window chrome sits over the left edge — only inset then.
   const leftInset = isFullscreen ? 4 : 72
+  const projectInitial = MOCK_WORKSPACE.projectName.charAt(0).toUpperCase()
 
   return (
     <View className="border-b border-border bg-background px-3 pb-2 pt-1.5">
-      {/*
-        Three real columns (not absolute search under a flex-1 left row).
-        Absolute search was covered by the left flex-1 cluster, so taps never reached it.
-      */}
-      <View className="h-12 flex-row items-center gap-2">
-        <View className="shrink-0 flex-row items-center gap-2" style={{ paddingLeft: leftInset }}>
+      <View className="relative h-12">
+        {/* True window center — independent of asymmetric left/right chrome. */}
+        <View
+          pointerEvents="box-none"
+          className="absolute inset-0 z-0 items-center justify-center px-14"
+        >
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Project picker"
-            className="h-12 min-w-[13rem] max-w-[18rem] flex-row items-center gap-2.5 rounded-xl border border-border bg-card px-3 active:bg-accent"
+            accessibilityLabel="Search files, folders, commands, commits"
+            className="h-10 w-full max-w-[27.5rem] flex-row items-center gap-2 rounded-xl border border-border/70 bg-muted px-3 active:bg-accent"
+            onPress={() => {
+              openSheet('search')
+            }}
+          >
+            <ChromeGlyph name="search" size={15} />
+            <Text className="min-w-0 flex-1 text-sm text-muted-foreground" numberOfLines={1}>
+              Search files, folders, commands…
+            </Text>
+          </Pressable>
+        </View>
+
+        {/* Left: avatar project + branch + worktree (content-width, above search layer). */}
+        <View
+          className="absolute bottom-0 left-0 top-0 z-10 flex-row items-center gap-2"
+          style={{ paddingLeft: leftInset }}
+        >
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Switch project, ${MOCK_WORKSPACE.projectName}`}
+            className="relative size-10 items-center justify-center rounded-xl border border-border bg-secondary active:bg-accent"
             onPress={() => {
               openSheet('project')
             }}
           >
-            <View className="size-9 shrink-0 items-center justify-center rounded-lg bg-primary">
-              <Text className="text-sm font-black text-primary-foreground">P</Text>
+            <Text className="text-sm font-semibold text-foreground">{projectInitial}</Text>
+            <View className="absolute -bottom-0.5 -right-0.5 size-3.5 items-center justify-center rounded-full border border-border bg-card">
+              <ChromeGlyph name="chevron" size={8} />
             </View>
-            <View className="min-w-0 flex-1 justify-center gap-0.5">
-              <Text className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                Project
-              </Text>
-              <Text className="text-sm font-semibold text-foreground" numberOfLines={1}>
-                {MOCK_WORKSPACE.projectName}
-              </Text>
-            </View>
-            <ChromeGlyph name="chevron" size={12} />
           </Pressable>
 
           <HeaderChip
@@ -80,24 +93,8 @@ export function TabletHeader(_props: { platformLabel: string }): React.JSX.Eleme
           />
         </View>
 
-        {/* Middle: search owns this flex region and receives taps. */}
-        <View className="min-w-0 flex-1 items-center px-2">
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Search workspace"
-            className="h-11 w-full max-w-[26rem] flex-row items-center gap-2.5 rounded-xl border border-border/70 bg-muted px-3.5 active:bg-accent"
-            onPress={() => {
-              openSheet('search')
-            }}
-          >
-            <ChromeGlyph name="search" size={16} />
-            <Text className="min-w-0 flex-1 text-sm text-muted-foreground" numberOfLines={1}>
-              Search files, folders, commands…
-            </Text>
-          </Pressable>
-        </View>
-
-        <View className="shrink-0 flex-row items-center gap-2">
+        {/* Right: settings → bolt → environment */}
+        <View className="absolute bottom-0 right-0 top-0 z-10 flex-row items-center gap-2">
           <HeaderIconButton
             accessibilityLabel="Settings"
             onPress={() => {
@@ -110,7 +107,7 @@ export function TabletHeader(_props: { platformLabel: string }): React.JSX.Eleme
             onPress={toggleInspector}
             symbol="companion"
           />
-          <View className="h-11 shrink-0 justify-center rounded-xl border border-border bg-card px-3">
+          <View className="h-10 shrink-0 justify-center rounded-xl border border-border bg-card px-3">
             <Text className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
               Environment
             </Text>
@@ -136,7 +133,7 @@ function HeaderChip({
   return (
     <Pressable
       accessibilityRole="button"
-      className="h-11 shrink-0 flex-row items-center gap-1.5 rounded-xl border border-border bg-card px-2.5 active:bg-accent"
+      className="h-10 shrink-0 flex-row items-center gap-1.5 rounded-xl border border-border bg-card px-2.5 active:bg-accent"
       onPress={onPress}
     >
       <View className="gap-0.5">
@@ -152,7 +149,7 @@ function HeaderChip({
   )
 }
 
-/** Icon control — same h-11 as environment / project chips. */
+/** Icon control — matches search / env chip height. */
 function HeaderIconButton({
   accessibilityLabel,
   onPress,
@@ -166,7 +163,7 @@ function HeaderIconButton({
     <Pressable
       accessibilityLabel={accessibilityLabel}
       accessibilityRole="button"
-      className="h-11 w-11 items-center justify-center rounded-xl border border-border bg-card active:bg-accent"
+      className="size-10 items-center justify-center rounded-xl border border-border bg-card active:bg-accent"
       onPress={onPress}
     >
       <ChromeGlyph name={symbol} size={16} tone="foreground" />
@@ -179,7 +176,6 @@ export function PrimaryColumn(): React.JSX.Element {
   const setActiveSurface = useShellStore((state) => state.setActiveSurface)
   const toggleInspector = useShellStore((state) => state.toggleInspector)
   const inspectorVisible = useShellStore((state) => state.inspectorVisible)
-  const openSheet = useShellStore((state) => state.openSheet)
 
   return (
     <SafeAreaView
@@ -211,18 +207,9 @@ export function PrimaryColumn(): React.JSX.Element {
           ))}
         </View>
 
+        {/* Settings lives only in the header gear — keep companion toggle as rail affordance. */}
         <View className="mt-auto gap-2 px-1">
           <Separator />
-          <Button
-            onPress={() => {
-              openSheet('settings')
-            }}
-            size="sm"
-            variant="ghost"
-          >
-            <ChromeGlyph name="settings" size={16} tone="foreground" />
-            <UiText>Settings</UiText>
-          </Button>
           <Button onPress={toggleInspector} size="sm" variant="outline">
             <ChromeGlyph name="companion" size={16} tone="foreground" />
             <UiText>{inspectorVisible ? 'Hide companion' : 'Show companion'}</UiText>
