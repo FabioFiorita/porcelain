@@ -56,6 +56,7 @@ export function PocIPhoneEntryPoint(): React.JSX.Element {
 
 export function PocIPadEntryPoint(): React.JSX.Element {
   const [visible, setVisible] = useState(true)
+  const [primaryCollapsed, setPrimaryCollapsed] = useState(false)
   const toggle = (): void => {
     setVisible((current) => !current)
   }
@@ -74,6 +75,9 @@ export function PocIPadEntryPoint(): React.JSX.Element {
             }}
             preferredDisplayMode="twoBesideSecondary"
             preferredSplitBehavior="tile"
+            onDisplayModeWillChange={(event) => {
+              setPrimaryCollapsed(event.nativeEvent.nextDisplayMode === 'oneBesideSecondary')
+            }}
             primaryBackgroundStyle="none"
             showInspector={visible}
             topColumnForCollapsing="primary"
@@ -82,7 +86,7 @@ export function PocIPadEntryPoint(): React.JSX.Element {
               <PocPrimaryColumn inspectorVisible={visible} onToggleInspector={toggle} />
             </SplitView.Column>
             <SplitView.Column>
-              <PocSupplementaryColumn />
+              <PocSupplementaryColumn primaryCollapsed={primaryCollapsed} />
             </SplitView.Column>
             <SplitView.Inspector>
               <PocInspector onToggle={toggle} />
@@ -179,7 +183,11 @@ function PocPrimaryColumn({
   )
 }
 
-function PocSupplementaryColumn(): React.JSX.Element {
+function PocSupplementaryColumn({
+  primaryCollapsed,
+}: {
+  primaryCollapsed: boolean
+}): React.JSX.Element {
   const pathname = usePathname()
   const activeSurface = surfaceForPath(pathname)
   const items = POC_ITEMS[activeSurface.id]
@@ -198,7 +206,7 @@ function PocSupplementaryColumn(): React.JSX.Element {
           gap: 20,
           paddingBottom: 24,
           paddingHorizontal: 16,
-          paddingTop: 20,
+          paddingTop: primaryCollapsed ? 64 : 20,
         }}
       >
         <View className="gap-1 px-1">
