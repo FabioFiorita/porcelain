@@ -24,10 +24,10 @@ export function PocSurfaceScreen({ surface }: PocSurfaceScreenProps): React.JSX.
   return (
     <ScrollView
       className="flex-1 bg-background"
-      contentContainerClassName="gap-7 px-6 pb-12 sm:px-8"
-      contentContainerStyle={{
-        paddingTop: Platform.OS === 'android' ? insets.top + 24 : 24,
-      }}
+      contentContainerClassName="gap-7 px-6 pb-12 pt-6 sm:px-8"
+      contentContainerStyle={
+        Platform.OS === 'android' ? { paddingTop: insets.top + 24 } : undefined
+      }
       showsVerticalScrollIndicator={false}
     >
       <View className="gap-3">

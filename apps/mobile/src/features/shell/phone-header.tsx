@@ -3,9 +3,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { cn } from '@/lib/utils'
 
-import { MOCK_WORKSPACE, type SurfaceId } from './mock-data'
+import type { SurfaceId } from './mock-data'
 import { ChromeGlyph } from './shell-icon'
 import { useShellStore } from './shell-store'
+import { useWorkspaceHeader } from './workspace-switchers'
 
 type PhoneHeaderProps = {
   /** Large title — active face name (Files, Search, Changes, …). */
@@ -50,6 +51,8 @@ export function PhoneHeader({
   const insets = useSafeAreaInsets()
   const openSheet = useShellStore((state) => state.openSheet)
   const setActiveSurface = useShellStore((state) => state.setActiveSurface)
+  const { branch, repo, worktree } = useWorkspaceHeader()
+  const projectName = repo?.name ?? 'Project'
 
   return (
     <View
@@ -70,8 +73,8 @@ export function PhoneHeader({
           {workspace ? (
             <View className="flex-row flex-wrap items-center gap-1.5 pt-0.5">
               <WorkspaceChip
-                accessibilityLabel={`Project ${MOCK_WORKSPACE.projectName}`}
-                label={MOCK_WORKSPACE.projectName}
+                accessibilityLabel={`Project ${projectName}`}
+                label={projectName}
                 testID="porcelain-phone-project"
                 onPress={() => {
                   openSheet('project')
@@ -79,8 +82,8 @@ export function PhoneHeader({
               />
               <Text className="text-xs text-muted-foreground">·</Text>
               <WorkspaceChip
-                accessibilityLabel={`Branch ${MOCK_WORKSPACE.branch}`}
-                label={MOCK_WORKSPACE.branch}
+                accessibilityLabel={`Branch ${branch}`}
+                label={branch}
                 testID="porcelain-phone-branch"
                 onPress={() => {
                   openSheet('branch')
@@ -88,8 +91,8 @@ export function PhoneHeader({
               />
               <Text className="text-xs text-muted-foreground">·</Text>
               <WorkspaceChip
-                accessibilityLabel={`Worktree ${MOCK_WORKSPACE.worktree}`}
-                label={MOCK_WORKSPACE.worktree}
+                accessibilityLabel={`Worktree ${worktree}`}
+                label={worktree}
                 testID="porcelain-phone-worktree"
                 onPress={() => {
                   openSheet('worktree')

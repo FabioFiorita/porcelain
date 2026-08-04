@@ -101,12 +101,15 @@ function AndroidTabletColumns({
 }): React.JSX.Element {
   return (
     <View className="flex-1 flex-row bg-background">
+      {/* nativewind-allow-style: Android tablet columns use fractional flex geometry. */}
       <View className="min-w-0" style={{ flex: 0.16 }}>
         <PrimaryColumn />
       </View>
+      {/* nativewind-allow-style: Android tablet columns use fractional flex geometry. */}
       <View className="min-w-0" style={{ flex: 0.22 }}>
         <SupplementaryColumn primaryCollapsed={false} />
       </View>
+      {/* nativewind-allow-style: the viewer fraction changes with the inspector column. */}
       <View
         className="min-w-0 border-l border-border"
         style={{ flex: inspectorVisible ? 0.4 : 0.62 }}
@@ -114,6 +117,7 @@ function AndroidTabletColumns({
         <ViewerCanvas surfaceId={activeSurface} />
       </View>
       {inspectorVisible ? (
+        /* nativewind-allow-style: Android tablet columns use fractional flex geometry. */
         <View className="min-w-0" style={{ flex: 0.22 }}>
           <CompanionColumn />
         </View>

@@ -3,7 +3,6 @@ import {
   Modal,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   useColorScheme,
   View,
@@ -11,8 +10,6 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { cn } from '@/lib/utils'
-
-const SCRIM = 'rgba(0, 0, 0, 0.48)'
 
 type ShellModalProps = {
   open: boolean
@@ -54,24 +51,22 @@ export function ShellModal({
       transparent
       visible={open}
     >
-      <View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center' }]}>
+      <View className="absolute inset-0 items-center justify-center">
         <Pressable
           accessibilityLabel="Dismiss"
           accessibilityRole="button"
           onPress={onClose}
-          style={[StyleSheet.absoluteFill, { backgroundColor: SCRIM }]}
+          className="absolute inset-0 bg-black/50"
         />
         <View
           className={cn(
-            'overflow-hidden rounded-2xl border border-border bg-background shadow-lg',
+            'mx-4 max-w-full overflow-hidden rounded-2xl border border-border bg-background shadow-lg',
             !bare && 'gap-3 p-5',
           )}
           style={[
             {
-              marginHorizontal: 16,
               marginTop: insets.top + 8,
               marginBottom: insets.bottom + 8,
-              maxWidth: '100%',
             },
             contentStyle,
           ]}
@@ -88,9 +83,9 @@ export function ShellModal({
           <Pressable
             accessibilityLabel="Close"
             accessibilityRole="button"
+            className="absolute right-3.5 top-3.5 z-[2] p-1"
             hitSlop={12}
             onPress={onClose}
-            style={{ position: 'absolute', right: 14, top: 14, zIndex: 2, padding: 4 }}
           >
             <SymbolView
               accessible={false}
@@ -111,16 +106,21 @@ export function ShellModal({
 
 export function ShellModalScroll({
   children,
+  className,
+  contentContainerClassName,
   style,
   testID,
 }: {
   children: React.ReactNode
+  className?: string
+  contentContainerClassName?: string
   style?: ViewStyle
   testID?: string
 }): React.JSX.Element {
   return (
     <ScrollView
-      contentContainerStyle={{ gap: 12, paddingBottom: 4, flexGrow: 1 }}
+      className={className}
+      contentContainerClassName={cn('grow gap-3 pb-1', contentContainerClassName)}
       keyboardShouldPersistTaps="handled"
       nestedScrollEnabled
       showsVerticalScrollIndicator

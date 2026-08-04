@@ -14,7 +14,7 @@ import { DaemonProvider } from '@/lib/daemon/provider'
 
 export default function RootLayout(): React.JSX.Element {
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView className="flex-1">
       <SafeAreaProvider>
         <AppThemeProvider>
           <ThemedApp />

@@ -9,7 +9,6 @@ import {
   COMPANION,
   LIST_ITEMS,
   type ListItem,
-  MOCK_WORKSPACE,
   SURFACES,
   type Surface,
   type SurfaceId,
@@ -19,6 +18,7 @@ import {
 import { ChromeGlyph, SurfaceGlyph } from './shell-icon'
 import { useShellStore } from './shell-store'
 import { useIsAppFullscreen } from './use-app-window'
+import { useWorkspaceHeader } from './workspace-switchers'
 
 /**
  * Tablet title bar — web geometry:
@@ -31,9 +31,7 @@ export function TabletHeader(_props: { platformLabel: string }): React.JSX.Eleme
   const toggleInspector = useShellStore((state) => state.toggleInspector)
   const inspectorVisible = useShellStore((state) => state.inspectorVisible)
   const isFullscreen = useIsAppFullscreen()
-  // Stage Manager window chrome sits over the left edge — only inset then.
-  const leftInset = isFullscreen ? 4 : 72
-  const projectInitial = MOCK_WORKSPACE.projectName.charAt(0).toUpperCase()
+  const { branch, environmentLabel, projectInitial, repo, worktree } = useWorkspaceHeader()
 
   return (
     <View className="border-b border-border bg-background px-3 pb-2 pt-1.5">
@@ -47,6 +45,7 @@ export function TabletHeader(_props: { platformLabel: string }): React.JSX.Eleme
             accessibilityRole="button"
             accessibilityLabel="Search files, folders, commands, commits"
             className="h-10 w-full max-w-[27.5rem] flex-row items-center gap-2 rounded-xl border border-border/70 bg-muted px-3 active:bg-accent"
+            testID="porcelain-tablet-search"
             onPress={() => {
               openSheet('search')
             }}
@@ -60,13 +59,16 @@ export function TabletHeader(_props: { platformLabel: string }): React.JSX.Eleme
 
         {/* Left: avatar project + branch + worktree (content-width, above search layer). */}
         <View
-          className="absolute bottom-0 left-0 top-0 z-10 flex-row items-center gap-2"
-          style={{ paddingLeft: leftInset }}
+          className={cn(
+            'absolute bottom-0 left-0 top-0 z-10 flex-row items-center gap-2',
+            isFullscreen ? 'pl-1' : 'pl-[72px]',
+          )}
         >
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`Switch project, ${MOCK_WORKSPACE.projectName}`}
+            accessibilityLabel={`Switch project${repo === null ? '' : `, ${repo.name}`}`}
             className="relative size-10 items-center justify-center rounded-xl border border-border bg-secondary active:bg-accent"
+            testID="porcelain-tablet-project"
             onPress={() => {
               openSheet('project')
             }}
@@ -78,18 +80,22 @@ export function TabletHeader(_props: { platformLabel: string }): React.JSX.Eleme
           </Pressable>
 
           <HeaderChip
-            label={MOCK_WORKSPACE.branch}
+            accessibilityLabel={`Branch ${branch}`}
+            label={branch}
             onPress={() => {
               openSheet('branch')
             }}
             subtitle="Branch"
+            testID="porcelain-tablet-branch"
           />
           <HeaderChip
-            label={MOCK_WORKSPACE.worktree}
+            accessibilityLabel={`Worktree ${worktree}`}
+            label={worktree}
             onPress={() => {
               openSheet('worktree')
             }}
             subtitle="Worktree"
+            testID="porcelain-tablet-worktree"
           />
         </View>
 
@@ -101,18 +107,20 @@ export function TabletHeader(_props: { platformLabel: string }): React.JSX.Eleme
               openSheet('settings')
             }}
             symbol="settings"
+            testID="porcelain-tablet-settings"
           />
           <HeaderIconButton
             accessibilityLabel={inspectorVisible ? 'Hide companion' : 'Show companion'}
             onPress={toggleInspector}
             symbol="companion"
+            testID="porcelain-tablet-companion"
           />
           <View className="h-10 shrink-0 justify-center rounded-xl border border-border bg-card px-3">
             <Text className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
               Environment
             </Text>
             <Text className="text-sm font-medium text-foreground" numberOfLines={1}>
-              {MOCK_WORKSPACE.environmentName}
+              {environmentLabel}
             </Text>
           </View>
         </View>
@@ -122,18 +130,24 @@ export function TabletHeader(_props: { platformLabel: string }): React.JSX.Eleme
 }
 
 function HeaderChip({
+  accessibilityLabel,
   label,
   subtitle,
   onPress,
+  testID,
 }: {
+  accessibilityLabel: string
   label: string
   subtitle: string
   onPress: () => void
+  testID: string
 }): React.JSX.Element {
   return (
     <Pressable
+      accessibilityLabel={accessibilityLabel}
       accessibilityRole="button"
       className="h-10 shrink-0 flex-row items-center gap-1.5 rounded-xl border border-border bg-card px-2.5 active:bg-accent"
+      testID={testID}
       onPress={onPress}
     >
       <View className="gap-0.5">
@@ -154,16 +168,19 @@ function HeaderIconButton({
   accessibilityLabel,
   onPress,
   symbol,
+  testID,
 }: {
   accessibilityLabel: string
   onPress: () => void
   symbol: 'settings' | 'companion'
+  testID: string
 }): React.JSX.Element {
   return (
     <Pressable
       accessibilityLabel={accessibilityLabel}
       accessibilityRole="button"
       className="size-10 items-center justify-center rounded-xl border border-border bg-card active:bg-accent"
+      testID={testID}
       onPress={onPress}
     >
       <ChromeGlyph name={symbol} size={16} tone="foreground" />
@@ -178,11 +195,7 @@ export function PrimaryColumn(): React.JSX.Element {
   const inspectorVisible = useShellStore((state) => state.inspectorVisible)
 
   return (
-    <SafeAreaView
-      className="flex-1 bg-sidebar"
-      edges={{ bottom: true, left: true }}
-      style={{ flex: 1 }}
-    >
+    <SafeAreaView className="flex-1 bg-sidebar" edges={{ bottom: true, left: true }}>
       {/* Top padding clears the native SplitView sidebar toggle over the rail. */}
       <ScrollView
         className="flex-1"
@@ -269,12 +282,10 @@ export function SupplementaryColumn({
     <SafeAreaView
       className="flex-1 border-l border-border bg-card"
       edges={{ bottom: true, left: true, right: true }}
-      style={{ flex: 1 }}
     >
       {/* Extra top inset clears the system SplitView collapse control when the rail hides. */}
       <View
-        className="flex-1 gap-4 px-3 pb-5"
-        style={{ paddingTop: primaryCollapsed ? 72 : 20, paddingLeft: primaryCollapsed ? 44 : 12 }}
+        className={cn('flex-1 gap-4 pb-5 pr-3', primaryCollapsed ? 'pt-[72px] pl-11' : 'pt-5 pl-3')}
       >
         <View className="gap-1 px-1">
           <Text className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
@@ -367,7 +378,6 @@ export function CompanionColumn(): React.JSX.Element {
     <SafeAreaView
       className="flex-1 border-l border-border bg-muted/20"
       edges={{ bottom: true, right: true }}
-      style={{ flex: 1 }}
     >
       <ScrollView
         className="flex-1"

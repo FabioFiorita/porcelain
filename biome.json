@@ -43,6 +43,9 @@
         "rules": {
           "a11y": {
             "useValidAriaRole": { "level": "error", "options": { "ignoreNonDom": true } }
+          },
+          "nursery": {
+            "noInlineStyles": "error"
           }
         }
       }

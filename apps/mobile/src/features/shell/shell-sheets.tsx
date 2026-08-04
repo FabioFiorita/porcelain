@@ -4,18 +4,12 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Text as UiText } from '@/components/ui/text'
 import { cn } from '@/lib/utils'
-import {
-  COMPANION,
-  MOCK_BRANCHES,
-  MOCK_PROJECTS,
-  MOCK_WORKSPACE,
-  MOCK_WORKTREES,
-  surfaceById,
-} from './mock-data'
+import { COMPANION, surfaceById } from './mock-data'
 import { EnvironmentsSettings, GeneralSettings, ReviewSettings } from './settings-screen'
 import { ChromeGlyph } from './shell-icon'
 import { ShellModal, ShellModalScroll } from './shell-modal'
 import { type SettingsSection, useShellStore } from './shell-store'
+import { BranchSheetBody, ProjectSheetBody, WorktreeSheetBody } from './workspace-switchers'
 
 type ShellSheetsProps = {
   /**
@@ -60,7 +54,7 @@ export function ShellSheets({ variant = 'tablet' }: ShellSheetsProps): React.JSX
         description="Open and recent projects."
         contentStyle={{ width: sheetMaxW, maxHeight: sheetMaxH }}
       >
-        <ProjectSheetBody />
+        <ProjectSheetBody open={sheet === 'project'} />
       </ShellModal>
 
       <SearchCommandSheet open={sheet === 'search'} onClose={closeSheet} maxWidth={searchMaxW} />
@@ -72,7 +66,7 @@ export function ShellSheets({ variant = 'tablet' }: ShellSheetsProps): React.JSX
         description="Switch branch in this worktree."
         contentStyle={{ width: sheetMaxW, maxHeight: sheetMaxH }}
       >
-        <BranchSheetBody />
+        <BranchSheetBody open={sheet === 'branch'} />
       </ShellModal>
 
       <ShellModal
@@ -82,7 +76,7 @@ export function ShellSheets({ variant = 'tablet' }: ShellSheetsProps): React.JSX
         description="Open or switch a worktree."
         contentStyle={{ width: sheetMaxW, maxHeight: sheetMaxH }}
       >
-        <WorktreeSheetBody />
+        <WorktreeSheetBody open={sheet === 'worktree'} />
       </ShellModal>
 
       {showSettingsSheet ? (
@@ -148,42 +142,6 @@ function CompanionSheetBody(): React.JSX.Element {
       </ShellModalScroll>
       <Button onPress={closeSheet} variant="outline">
         <UiText>Done</UiText>
-      </Button>
-    </View>
-  )
-}
-
-function ProjectSheetBody(): React.JSX.Element {
-  const closeSheet = useShellStore((state) => state.closeSheet)
-  const open = MOCK_PROJECTS.filter((project) => project.group === 'open')
-  const recent = MOCK_PROJECTS.filter((project) => project.group === 'recent')
-
-  return (
-    <View className="gap-4">
-      <SheetSection title="Open">
-        {open.map((project) => (
-          <SheetRow
-            key={project.id}
-            label={project.name}
-            detail={project.path}
-            selected={project.name === MOCK_WORKSPACE.projectName}
-            onPress={closeSheet}
-          />
-        ))}
-      </SheetSection>
-      <SheetSection title="Recent">
-        {recent.map((project) => (
-          <SheetRow
-            key={project.id}
-            label={project.name}
-            detail={project.path}
-            onPress={closeSheet}
-          />
-        ))}
-      </SheetSection>
-      <Button onPress={closeSheet} variant="outline">
-        <ChromeGlyph name="folder" size={16} tone="foreground" />
-        <UiText>Open directory…</UiText>
       </Button>
     </View>
   )
@@ -272,7 +230,7 @@ function SearchCommandSheet({
         nestedScrollEnabled
         showsVerticalScrollIndicator
         style={{ maxHeight: sheetMaxH - 72 }}
-        contentContainerStyle={{ paddingVertical: 6, paddingBottom: 12 }}
+        contentContainerClassName="py-1.5 pb-3"
       >
         {empty ? (
           <Text className="px-4 py-8 text-center text-sm text-muted-foreground">
@@ -376,41 +334,6 @@ function CommandItem({
   )
 }
 
-function BranchSheetBody(): React.JSX.Element {
-  const closeSheet = useShellStore((state) => state.closeSheet)
-  return (
-    <View className="gap-1">
-      {MOCK_BRANCHES.map((branch) => (
-        <SheetRow
-          key={branch.id}
-          label={branch.name}
-          detail={branch.current ? 'Current branch' : undefined}
-          selected={branch.current}
-          glyph="branch"
-          onPress={closeSheet}
-        />
-      ))}
-    </View>
-  )
-}
-
-function WorktreeSheetBody(): React.JSX.Element {
-  const closeSheet = useShellStore((state) => state.closeSheet)
-  return (
-    <View className="gap-1">
-      {MOCK_WORKTREES.map((worktree) => (
-        <SheetRow
-          key={worktree.id}
-          label={worktree.name}
-          detail={worktree.path}
-          selected={worktree.current}
-          onPress={closeSheet}
-        />
-      ))}
-    </View>
-  )
-}
-
 function SettingsSheetBody({ settingsMaxH }: { settingsMaxH: number }): React.JSX.Element {
   const section = useShellStore((state) => state.settingsSection)
   const setSettingsSection = useShellStore((state) => state.setSettingsSection)
@@ -460,10 +383,7 @@ function SettingsSheetBody({ settingsMaxH }: { settingsMaxH: number }): React.JS
 
       <View className="w-px self-stretch bg-border" />
 
-      <ShellModalScroll
-        style={{ flex: 1, minWidth: 0, width: '100%' }}
-        testID="porcelain-tablet-settings-body"
-      >
+      <ShellModalScroll className="min-w-0 w-full flex-1" testID="porcelain-tablet-settings-body">
         <View className="w-full gap-3 pr-1">
           {section === 'general' ? <GeneralSettings /> : null}
           {section === 'review' ? <ReviewSettings /> : null}
@@ -471,55 +391,5 @@ function SettingsSheetBody({ settingsMaxH }: { settingsMaxH: number }): React.JS
         </View>
       </ShellModalScroll>
     </View>
-  )
-}
-
-function SheetSection({
-  title,
-  children,
-}: {
-  title: string
-  children: React.ReactNode
-}): React.JSX.Element {
-  return (
-    <View className="gap-1.5">
-      <Text className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-        {title}
-      </Text>
-      <View className="gap-0.5">{children}</View>
-    </View>
-  )
-}
-
-function SheetRow({
-  label,
-  detail,
-  selected,
-  glyph,
-  onPress,
-}: {
-  label: string
-  detail?: string
-  selected?: boolean
-  glyph?: 'branch'
-  onPress: () => void
-}): React.JSX.Element {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ selected: Boolean(selected) }}
-      className={cn(
-        'flex-row items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 active:bg-accent',
-        selected && 'border-border bg-muted/70',
-      )}
-      onPress={onPress}
-    >
-      {glyph === 'branch' ? <ChromeGlyph name="branch" size={16} /> : null}
-      <View className="min-w-0 flex-1 gap-0.5">
-        <Text className="text-sm font-medium text-foreground">{label}</Text>
-        {detail ? <Text className="text-xs text-muted-foreground">{detail}</Text> : null}
-      </View>
-      {selected ? <View className="size-1.5 rounded-full bg-primary" /> : null}
-    </Pressable>
   )
 }
