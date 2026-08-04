@@ -1,0 +1,123 @@
+{
+  "name": "Right rail / companion audit",
+  "files": [
+    {
+      "path": "apps/mobile/src/components/header-toolbar.tsx",
+      "source": "changed",
+      "note": "The one trailing cluster. New `menu` slot: a screen's own Stack.Toolbar.Menu rides inside it instead of declaring a second toolbar that replaces it."
+    },
+    {
+      "path": "apps/mobile/src/components/screen-header.tsx",
+      "source": "changed",
+      "note": "Passes `menu` through. iPad still resolves the companion to the inspector rather than a sheet."
+    },
+    {
+      "path": "apps/mobile/src/features/files/files-screen.tsx",
+      "source": "changed",
+      "note": "The bug: `<ScreenHeader/>` plus its own trailing toolbar meant only the options menu survived. The menu is now a prop, so bolt and gear come back."
+    },
+    {
+      "path": "scripts/lint-escapes.mjs",
+      "source": "changed",
+      "note": "The ratchet. A screen rendering both a header and its own trailing toolbar now fails lint, with the reason in the message."
+    },
+    {
+      "path": "apps/mobile/src/features/terminal/terminal-screen.tsx",
+      "source": "changed",
+      "note": "companion={null}: the face already lists Sessions and saved Actions, and + starts a shell."
+    },
+    {
+      "path": "apps/mobile/src/features/board/board-screen.tsx",
+      "source": "changed",
+      "note": "companion={null}: the face is the three columns and a card opens the full editor."
+    },
+    {
+      "path": "apps/mobile/src/features/companion/companion-screen.tsx",
+      "source": "changed",
+      "note": "Notes join Pinned; Search folds into the Files companion; History drops the paragraph pointing back at the screen you came from; the close button returns to every body but the commit composer."
+    },
+    {
+      "path": "apps/mobile/src/features/files/use-repo-notes.ts",
+      "source": "changed",
+      "note": "Debounced autosave with an unmount flush, so dismissing the sheet mid-sentence still persists."
+    },
+    {
+      "path": "apps/mobile/src/lib/daemon/procedures/notes.ts",
+      "source": "changed",
+      "note": "repoNotes / setRepoNotes — the same wire the desktop notes card uses."
+    },
+    {
+      "path": "apps/web/src/components/shell/app-shell.tsx",
+      "source": "changed",
+      "note": "Desktop was already right per tab; only the always-true hasQuickAccess and a mangled comment go."
+    },
+    {
+      "path": "apps/web/src/hooks/use-responsive-shell.ts",
+      "source": "changed",
+      "note": "The rightSuppressed branch nothing has passed true since Board kept its rail."
+    }
+  ],
+  "sections": [
+    {
+      "title": "The bolt was not missing — it was replaced",
+      "prose": "Files rendered `<ScreenHeader title=\"Files\" />` and then, right below it, its own `<Stack.Toolbar placement=\"right\">` for the hidden-files menu. iOS does not merge two trailing toolbars: the later one **replaces** the earlier. So the header cluster the rest of the app shows — companion (bolt) and settings (gear) — silently vanished on the one tab whose companion holds notes.\n\nThe fix is a `menu` slot on `HeaderToolbar`: a screen hands over its `Stack.Toolbar.Menu` and the header renders it inside the single cluster, in a fixed order (actions → menu → companion → settings). The terminal session screen, which has no header at all, still owns its toolbar outright.",
+      "anchors": [
+        {
+          "path": "apps/mobile/src/components/header-toolbar.tsx"
+        },
+        {
+          "path": "apps/mobile/src/features/files/files-screen.tsx"
+        }
+      ]
+    },
+    {
+      "title": "A ratchet, because a comment already tried",
+      "prose": "The terminal screen carried a comment warning about exactly this trap, and Files regressed anyway — a comment is not a gate. `lint-escapes` now fails any mobile screen that renders both a header (`ScreenHeader` / `HeaderToolbar`) and its own trailing `Stack.Toolbar`, and says why in the failure. Proven both ways: a probe file with the old shape fails, the fixed tree passes.",
+      "anchors": [
+        {
+          "path": "scripts/lint-escapes.mjs"
+        }
+      ]
+    },
+    {
+      "title": "The companion earns its tap or loses it",
+      "prose": "On phone the companion costs a tap, so it has to hold something the surface cannot. Audited all eight surfaces:\n\n- **Files / Search** — pins **and notes**. Keeps the bolt; one tab, one companion (Search stopped being a paragraph about search).\n- **Changes** — the commit composer, quick commands, per-file staging. Untouched.\n- **History** — quick git commands; lost the sentence that pointed back at the screen you were already on.\n- **Review** — Now reading: lifecycle, outline progress, comments. Keeps the bolt.\n- **Board** — dropped. The face is the three columns; tapping a card opens the full editor, so the sheet could only repeat one card, worse.\n- **Terminal** — dropped. The face already lists Sessions *and* the saved Actions the sheet held, and `+` starts a shell.\n\nOn iPad the companion is the SplitView inspector — a rail that is always on screen, not a tap — so Board and Terminal keep Focus and Actions there. Only the phone header button goes.",
+      "anchors": [
+        {
+          "path": "apps/mobile/src/features/companion/companion-screen.tsx"
+        },
+        {
+          "path": "apps/mobile/src/features/terminal/terminal-screen.tsx"
+        },
+        {
+          "path": "apps/mobile/src/features/board/board-screen.tsx"
+        }
+      ]
+    },
+    {
+      "title": "\"Pinned & notes\" now has notes",
+      "prose": "The mobile companion has been titled *Pinned & notes* while showing only pins. It now calls the same `repoNotes` / `setRepoNotes` procedures the desktop card uses, with the same 800 ms debounce and an unmount flush so dismissing the sheet mid-sentence still saves. Desktop keeps its TipTap WYSIWYG, phone gets a growing SwiftUI field — one markdown string in `<repo>/.porcelain/notes.md`, two editors, no mobile-only note format.\n\nProved end to end: typed on the simulator, landed in the playground's `.porcelain/notes.md` on this host, read back on the Search face.",
+      "anchors": [
+        {
+          "path": "apps/mobile/src/features/companion/companion-screen.tsx"
+        },
+        {
+          "path": "apps/mobile/src/features/files/use-repo-notes.ts"
+        }
+      ]
+    },
+    {
+      "title": "Desktop was already right",
+      "prose": "Walked all seven right-rail tabs in the browser against the dev daemon: Files (pins + notes), Changes (commit), History (timeline), Review (now reading), Board (Focus — the only card editor, so it earns the rail), Terminal (saved commands), Search (recent). Nothing to remove; the rail retitles per tab instead of disappearing.\n\nSo desktop only loses dead scaffolding: `hasQuickAccess = true` guarding a conditional render, a mangled leftover comment, and the `rightSuppressed` branch in the responsive hook that no caller has passed `true` since Board kept its rail.",
+      "anchors": [
+        {
+          "path": "apps/web/src/components/shell/app-shell.tsx"
+        },
+        {
+          "path": "apps/web/src/hooks/use-responsive-shell.ts"
+        }
+      ]
+    }
+  ],
+  "thesis": "The right rail is the same idea on three surfaces: desktop retitles a rail per tab, iPad shows it as an always-on inspector, phone raises it as a sheet behind the bolt. The phone had drifted — Files lost the bolt entirely to a toolbar collision, its companion promised notes it never had, and Terminal and Board charged a tap for content their own screens already show. This audits all eight surfaces, fixes the collision with a lint gate behind it, gives Files its notes, and drops the companion where it only repeats the screen."
+}

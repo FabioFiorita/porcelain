@@ -1,26 +1,6 @@
 {
-  "name": "Mobile iPhone shell and Changes actions",
+  "name": "Right rail / companion audit",
   "files": [
-    {
-      "path": "apps/mobile/src/app/(tabs)/_layout.tsx",
-      "source": "changed",
-      "layer": "Other"
-    },
-    {
-      "path": "apps/mobile/src/app/(tabs)/(changes)/_layout.tsx",
-      "source": "changed",
-      "layer": "Other"
-    },
-    {
-      "path": "apps/mobile/src/app/(tabs)/(changes)/review.tsx",
-      "source": "changed",
-      "layer": "Other"
-    },
-    {
-      "path": "apps/mobile/src/app/(tabs)/settings/_layout.tsx",
-      "source": "changed",
-      "layer": "Other"
-    },
     {
       "path": "apps/mobile/src/components/header-toolbar.tsx",
       "source": "changed",
@@ -32,59 +12,49 @@
       "layer": "Other"
     },
     {
-      "path": "apps/mobile/src/components/list-link-row.tsx",
+      "path": "apps/mobile/src/features/files/files-screen.tsx",
       "source": "changed",
       "layer": "Other"
     },
     {
-      "path": "apps/mobile/src/features/changes/changes-screen.tsx",
+      "path": "scripts/lint-escapes.mjs",
       "source": "changed",
       "layer": "Other"
     },
     {
-      "path": "apps/mobile/src/features/changes/actions-screen.tsx",
+      "path": "apps/mobile/src/features/terminal/terminal-screen.tsx",
       "source": "changed",
       "layer": "Other"
     },
     {
-      "path": "apps/mobile/src/features/changes/components/quick-commands-section.tsx",
+      "path": "apps/mobile/src/features/board/board-screen.tsx",
       "source": "changed",
       "layer": "Other"
     },
     {
-      "path": "apps/mobile/src/features/changes/data/mutations.ts",
+      "path": "apps/mobile/src/features/companion/companion-screen.tsx",
       "source": "changed",
       "layer": "Other"
     },
     {
-      "path": "apps/mobile/src/lib/daemon/procedures/changes.ts",
+      "path": "apps/mobile/src/features/files/use-repo-notes.ts",
       "source": "changed",
       "layer": "Other"
     },
     {
-      "path": "apps/mobile/src/lib/daemon/procedures/review.ts",
+      "path": "apps/mobile/src/lib/daemon/procedures/notes.ts",
       "source": "changed",
       "layer": "Other"
     },
     {
-      "path": "apps/mobile/src/features/settings/settings-screen.tsx",
+      "path": "apps/web/src/components/shell/app-shell.tsx",
       "source": "changed",
       "layer": "Other"
     },
     {
-      "path": "apps/mobile/src/features/settings/environment-detail-screen.tsx",
+      "path": "apps/web/src/hooks/use-responsive-shell.ts",
       "source": "changed",
       "layer": "Other"
-    },
-    {
-      "path": "apps/mobile/README.md",
-      "source": "changed",
-      "layer": "Docs"
-    },
-    {
-      "path": "apps/mobile/docs/plans/02-changes.md",
-      "source": "changed",
-      "layer": "Docs"
     }
   ]
 }
