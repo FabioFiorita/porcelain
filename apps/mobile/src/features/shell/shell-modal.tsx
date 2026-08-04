@@ -112,17 +112,20 @@ export function ShellModal({
 export function ShellModalScroll({
   children,
   style,
+  testID,
 }: {
   children: React.ReactNode
   style?: ViewStyle
+  testID?: string
 }): React.JSX.Element {
   return (
     <ScrollView
+      contentContainerStyle={{ gap: 12, paddingBottom: 4, flexGrow: 1 }}
       keyboardShouldPersistTaps="handled"
       nestedScrollEnabled
       showsVerticalScrollIndicator
       style={style}
-      contentContainerStyle={{ gap: 12, paddingBottom: 4 }}
+      testID={testID}
     >
       {children}
     </ScrollView>

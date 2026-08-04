@@ -1,6 +1,6 @@
 import { SplitView } from 'expo-router/unstable-split-view'
-import { useState } from 'react'
-import { Platform, View } from 'react-native'
+import { useEffect, useState } from 'react'
+import { Linking, Platform, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { SurfaceId } from './mock-data'
 import {
@@ -17,14 +17,40 @@ import { useShellStore } from './shell-store'
  * Tablet outer shell — iPad native SplitView, Android shared multi-column layout.
  * Surface selection is store-driven so primary · supplementary · viewer · companion
  * switch together. iOS SplitView auto-Slot hosts the route which reads the same store.
+ *
+ * Deep link `porcelain-dev://settings` (or `…/settings`) opens the Settings sheet —
+ * tablet Settings is not a tab route like the phone.
  */
 export function TabletShell(): React.JSX.Element {
   const insets = useSafeAreaInsets()
   const inspectorVisible = useShellStore((state) => state.inspectorVisible)
   const activeSurface = useShellStore((state) => state.activeSurface)
+  const openSheet = useShellStore((state) => state.openSheet)
   const [primaryCollapsed, setPrimaryCollapsed] = useState(false)
   const usesNativeSplitView = Platform.OS === 'ios'
   const platformLabel = usesNativeSplitView ? 'iPad' : 'Android tablet'
+
+  useEffect(() => {
+    const openFromUrl = (url: string): void => {
+      try {
+        const path = url.split('://')[1] ?? url
+        if (path === 'settings' || path.startsWith('settings?') || path.endsWith('/settings')) {
+          openSheet('settings')
+        }
+      } catch {
+        // Ignore malformed deep links.
+      }
+    }
+    Linking.getInitialURL().then((url) => {
+      if (url !== null) openFromUrl(url)
+    })
+    const sub = Linking.addEventListener('url', (event) => {
+      openFromUrl(event.url)
+    })
+    return () => {
+      sub.remove()
+    }
+  }, [openSheet])
 
   return (
     <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>

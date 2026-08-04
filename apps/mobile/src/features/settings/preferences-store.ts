@@ -1,6 +1,7 @@
 import type { CommitModel } from '@porcelain/contracts'
 import * as SecureStore from 'expo-secure-store'
-import { Appearance } from 'react-native'
+import { Appearance, type ColorSchemeName } from 'react-native'
+import { colorScheme as cssColorScheme } from 'react-native-css/native'
 import { z } from 'zod'
 import { create } from 'zustand'
 
@@ -32,9 +33,22 @@ const DEFAULTS: Preferences = {
 
 const STORAGE_KEY = 'porcelain.preferences'
 
-function applyTheme(theme: ThemeMode): void {
-  // `unspecified` restores OS preference (RN ColorSchemeName). Tokens follow the resolved scheme.
-  Appearance.setColorScheme(theme === 'system' ? 'unspecified' : theme)
+/**
+ * Drive both RN Appearance (nav/status bar + useColorScheme) and react-native-css's
+ * colorScheme observable (what `@media (prefers-color-scheme: dark)` in tokens.css
+ * actually reads). Appearance alone does not update NativeWind CSS variables.
+ */
+/** Sync RN Appearance + react-native-css colorScheme to a preference. */
+export function applyTheme(theme: ThemeMode): void {
+  if (theme === 'system') {
+    // Restore OS preference for Appearance listeners, then sync the CSS observable.
+    Appearance.setColorScheme('unspecified')
+    const os = Appearance.getColorScheme()
+    cssColorScheme.set(os === 'dark' ? 'dark' : 'light')
+    return
+  }
+  Appearance.setColorScheme(theme satisfies ColorSchemeName)
+  cssColorScheme.set(theme)
 }
 
 type PreferencesState = Preferences & {
@@ -68,8 +82,9 @@ export const usePreferencesStore = create<PreferencesState>()((set, get) => ({
   hydrated: false,
   setTheme: (theme) => {
     applyTheme(theme)
+    // Always write theme even when re-applying the same value (system OS flip).
     set({ theme })
-    persist(slicePrefs(get()))
+    if (get().hydrated) persist(slicePrefs(get()))
   },
   setDiffMode: (diffMode) => {
     set({ diffMode })

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Dimensions, Pressable, ScrollView, Text, View } from 'react-native'
+import { Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Text as UiText } from '@/components/ui/text'
@@ -17,19 +17,6 @@ import { ChromeGlyph } from './shell-icon'
 import { ShellModal, ShellModalScroll } from './shell-modal'
 import { type SettingsSection, useShellStore } from './shell-store'
 
-const WINDOW = Dimensions.get('window')
-const IS_PHONE_WIDTH = WINDOW.width < 768
-const SHEET_MAX_W = IS_PHONE_WIDTH
-  ? Math.min(WINDOW.width - 24, 400)
-  : Math.min(WINDOW.width * 0.55, 440)
-const SHEET_MAX_H = IS_PHONE_WIDTH
-  ? Math.min(WINDOW.height * 0.78, 640)
-  : Math.min(WINDOW.height * 0.72, 520)
-const SETTINGS_MAX_W = Math.min(WINDOW.width * 0.68, 600)
-const SEARCH_MAX_W = IS_PHONE_WIDTH
-  ? Math.min(WINDOW.width - 24, 400)
-  : Math.min(WINDOW.width * 0.55, 500)
-
 type ShellSheetsProps = {
   /**
    * Phone hides the settings sheet (Settings is a tab). Companion is phone-primary;
@@ -38,10 +25,31 @@ type ShellSheetsProps = {
   variant?: 'phone' | 'tablet'
 }
 
+function useSheetMetrics(): {
+  sheetMaxW: number
+  sheetMaxH: number
+  settingsMaxW: number
+  settingsMaxH: number
+  searchMaxW: number
+} {
+  // Live dimensions — module-level Dimensions.get freezes portrait metrics on a
+  // landscape iPad and starves the Settings dialog of width for segmented controls.
+  const { width, height } = useWindowDimensions()
+  const isPhoneWidth = width < 768
+  return {
+    sheetMaxW: isPhoneWidth ? Math.min(width - 24, 400) : Math.min(width * 0.55, 440),
+    sheetMaxH: isPhoneWidth ? Math.min(height * 0.78, 640) : Math.min(height * 0.72, 520),
+    settingsMaxW: Math.min(Math.max(width, height) * 0.55, 760),
+    settingsMaxH: Math.min(Math.min(width, height) * 0.85, 680),
+    searchMaxW: isPhoneWidth ? Math.min(width - 24, 400) : Math.min(width * 0.55, 500),
+  }
+}
+
 export function ShellSheets({ variant = 'tablet' }: ShellSheetsProps): React.JSX.Element {
   const sheet = useShellStore((state) => state.sheet)
   const closeSheet = useShellStore((state) => state.closeSheet)
   const showSettingsSheet = variant === 'tablet'
+  const { sheetMaxW, sheetMaxH, settingsMaxW, settingsMaxH, searchMaxW } = useSheetMetrics()
 
   return (
     <>
@@ -50,19 +58,19 @@ export function ShellSheets({ variant = 'tablet' }: ShellSheetsProps): React.JSX
         onClose={closeSheet}
         title="Project"
         description="Open and recent projects."
-        contentStyle={{ width: SHEET_MAX_W, maxHeight: SHEET_MAX_H }}
+        contentStyle={{ width: sheetMaxW, maxHeight: sheetMaxH }}
       >
         <ProjectSheetBody />
       </ShellModal>
 
-      <SearchCommandSheet open={sheet === 'search'} onClose={closeSheet} />
+      <SearchCommandSheet open={sheet === 'search'} onClose={closeSheet} maxWidth={searchMaxW} />
 
       <ShellModal
         open={sheet === 'branch'}
         onClose={closeSheet}
         title="Branch"
         description="Switch branch in this worktree."
-        contentStyle={{ width: SHEET_MAX_W, maxHeight: SHEET_MAX_H }}
+        contentStyle={{ width: sheetMaxW, maxHeight: sheetMaxH }}
       >
         <BranchSheetBody />
       </ShellModal>
@@ -72,7 +80,7 @@ export function ShellSheets({ variant = 'tablet' }: ShellSheetsProps): React.JSX
         onClose={closeSheet}
         title="Worktree"
         description="Open or switch a worktree."
-        contentStyle={{ width: SHEET_MAX_W, maxHeight: SHEET_MAX_H }}
+        contentStyle={{ width: sheetMaxW, maxHeight: sheetMaxH }}
       >
         <WorktreeSheetBody />
       </ShellModal>
@@ -83,9 +91,9 @@ export function ShellSheets({ variant = 'tablet' }: ShellSheetsProps): React.JSX
           onClose={closeSheet}
           title="Settings"
           description="General, Review, and Environments for this client."
-          contentStyle={{ width: SETTINGS_MAX_W, maxHeight: SHEET_MAX_H }}
+          contentStyle={{ width: settingsMaxW, maxHeight: settingsMaxH }}
         >
-          <SettingsSheetBody />
+          <SettingsSheetBody settingsMaxH={settingsMaxH} />
         </ShellModal>
       ) : null}
 
@@ -95,7 +103,7 @@ export function ShellSheets({ variant = 'tablet' }: ShellSheetsProps): React.JSX
         title={undefined}
         hideHeader
         bare
-        contentStyle={{ width: SHEET_MAX_W, maxHeight: SHEET_MAX_H }}
+        contentStyle={{ width: sheetMaxW, maxHeight: sheetMaxH }}
       >
         <CompanionSheetBody />
       </ShellModal>
@@ -108,6 +116,7 @@ function CompanionSheetBody(): React.JSX.Element {
   const surface = surfaceById(surfaceId)
   const sections = COMPANION[surfaceId]
   const closeSheet = useShellStore((state) => state.closeSheet)
+  const { sheetMaxH } = useSheetMetrics()
 
   return (
     <View className="gap-3 p-5" testID="porcelain-companion-sheet">
@@ -118,7 +127,7 @@ function CompanionSheetBody(): React.JSX.Element {
         <Text className="text-lg font-semibold text-foreground">{surface.companionTitle}</Text>
         <Text className="text-sm text-muted-foreground">{surface.label}</Text>
       </View>
-      <ShellModalScroll style={{ maxHeight: SHEET_MAX_H - 120 }}>
+      <ShellModalScroll style={{ maxHeight: sheetMaxH - 120 }}>
         {sections.map((section) => (
           <View key={section.id} className="gap-2 rounded-2xl border border-border bg-card p-3">
             <Text className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
@@ -184,11 +193,14 @@ function ProjectSheetBody(): React.JSX.Element {
 function SearchCommandSheet({
   open,
   onClose,
+  maxWidth,
 }: {
   open: boolean
   onClose: () => void
+  maxWidth: number
 }): React.JSX.Element {
   const [query, setQuery] = useState('')
+  const { sheetMaxH } = useSheetMetrics()
   const q = query.trim().toLowerCase()
 
   const files = useMemo(
@@ -241,7 +253,7 @@ function SearchCommandSheet({
         setQuery('')
         onClose()
       }}
-      contentStyle={{ width: SEARCH_MAX_W, maxHeight: SHEET_MAX_H }}
+      contentStyle={{ width: maxWidth, maxHeight: sheetMaxH }}
     >
       <View className="flex-row items-center gap-2 border-b border-border px-3 py-1 pr-12">
         <ChromeGlyph name="search" size={16} />
@@ -259,7 +271,7 @@ function SearchCommandSheet({
         keyboardShouldPersistTaps="handled"
         nestedScrollEnabled
         showsVerticalScrollIndicator
-        style={{ maxHeight: SHEET_MAX_H - 72 }}
+        style={{ maxHeight: sheetMaxH - 72 }}
         contentContainerStyle={{ paddingVertical: 6, paddingBottom: 12 }}
       >
         {empty ? (
@@ -399,7 +411,7 @@ function WorktreeSheetBody(): React.JSX.Element {
   )
 }
 
-function SettingsSheetBody(): React.JSX.Element {
+function SettingsSheetBody({ settingsMaxH }: { settingsMaxH: number }): React.JSX.Element {
   const section = useShellStore((state) => state.settingsSection)
   const setSettingsSection = useShellStore((state) => state.setSettingsSection)
 
@@ -409,9 +421,17 @@ function SettingsSheetBody(): React.JSX.Element {
     { id: 'environments', label: 'Environments' },
   ]
 
+  // Explicit height (not maxHeight alone): a flex:1 ScrollView inside maxHeight-only
+  // collapses to zero and the dialog looks empty. Same panels as the phone Settings tab.
+  const bodyHeight = Math.max(settingsMaxH - 120, 360)
+
   return (
-    <View className="flex-row gap-4" style={{ maxHeight: SHEET_MAX_H - 100 }}>
-      <View className="w-36 shrink-0 gap-1">
+    <View
+      className="flex-row gap-4"
+      style={{ height: bodyHeight }}
+      testID="porcelain-tablet-settings"
+    >
+      <View className="w-36 shrink-0 gap-1" testID="porcelain-tablet-settings-nav">
         {sections.map((entry) => (
           <Pressable
             key={entry.id}
@@ -421,6 +441,7 @@ function SettingsSheetBody(): React.JSX.Element {
               'rounded-lg border border-transparent px-3 py-2.5 active:bg-accent',
               section === entry.id && 'border-border bg-accent',
             )}
+            testID={`porcelain-tablet-settings-section-${entry.id}`}
             onPress={() => {
               setSettingsSection(entry.id)
             }}
@@ -439,10 +460,15 @@ function SettingsSheetBody(): React.JSX.Element {
 
       <View className="w-px self-stretch bg-border" />
 
-      <ShellModalScroll style={{ flex: 1, minWidth: 0 }}>
-        {section === 'general' ? <GeneralSettings /> : null}
-        {section === 'review' ? <ReviewSettings /> : null}
-        {section === 'environments' ? <EnvironmentsSettings /> : null}
+      <ShellModalScroll
+        style={{ flex: 1, minWidth: 0, width: '100%' }}
+        testID="porcelain-tablet-settings-body"
+      >
+        <View className="w-full gap-3 pr-1">
+          {section === 'general' ? <GeneralSettings /> : null}
+          {section === 'review' ? <ReviewSettings /> : null}
+          {section === 'environments' ? <EnvironmentsSettings /> : null}
+        </View>
       </ShellModalScroll>
     </View>
   )
