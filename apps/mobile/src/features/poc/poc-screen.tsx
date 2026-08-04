@@ -1,22 +1,22 @@
 import { useState } from 'react'
-import { Pressable, ScrollView, Text, View } from 'react-native'
+import { Platform, Pressable, ScrollView, Text, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Text as UiText } from '@/components/ui/text'
 import { cn } from '@/lib/utils'
 import { POC_ITEMS, type PocItem, type PocSurfaceId, surfaceById } from './poc-data'
 import { PocGlyph } from './poc-glyph'
-import { usePocInspector } from './poc-shell'
 
 type PocSurfaceScreenProps = {
   surface: PocSurfaceId
 }
 
+/** Phone tab body until a dedicated phone chrome pass. Tablet uses `shell/ViewerCanvas`. */
 export function PocSurfaceScreen({ surface }: PocSurfaceScreenProps): React.JSX.Element {
   const definition = surfaceById(surface)
-  const inspector = usePocInspector()
+  const insets = useSafeAreaInsets()
   const items = POC_ITEMS[surface]
   const [selectedItem, setSelectedItem] = useState(items[0]?.id ?? '')
   const selected = items.find((item) => item.id === selectedItem) ?? items[0]
@@ -24,7 +24,10 @@ export function PocSurfaceScreen({ surface }: PocSurfaceScreenProps): React.JSX.
   return (
     <ScrollView
       className="flex-1 bg-background"
-      contentContainerClassName="gap-7 px-6 pb-12 pt-6 sm:px-8"
+      contentContainerClassName="gap-7 px-6 pb-12 sm:px-8"
+      contentContainerStyle={{
+        paddingTop: Platform.OS === 'android' ? insets.top + 24 : 24,
+      }}
       showsVerticalScrollIndicator={false}
     >
       <View className="gap-3">
@@ -33,7 +36,7 @@ export function PocSurfaceScreen({ surface }: PocSurfaceScreenProps): React.JSX.
             {definition.eyebrow}
           </Text>
           <Badge variant="secondary">
-            <UiText>POC</UiText>
+            <UiText>Phone</UiText>
           </Badge>
         </View>
         <Text className="text-4xl font-extrabold tracking-tight text-foreground">
@@ -44,26 +47,13 @@ export function PocSurfaceScreen({ surface }: PocSurfaceScreenProps): React.JSX.
         </Text>
       </View>
 
-      <View className="flex-row flex-wrap gap-2">
-        <View className="flex-row items-center gap-2 rounded-full border border-border bg-card px-3 py-2">
-          <PocGlyph size={15} symbol="▤" tone="muted" />
-          <Text className="text-xs font-medium text-muted-foreground">
-            {inspector === null ? 'Native tabs entry' : 'SplitView secondary'}
-          </Text>
-        </View>
-        <View className="flex-row items-center gap-2 rounded-full border border-border bg-card px-3 py-2">
-          <PocGlyph size={15} symbol=">_" tone="muted" />
-          <Text className="text-xs font-medium text-muted-foreground">Local sample data only</Text>
-        </View>
-      </View>
-
       <Card>
         <CardHeader>
           <View className="flex-row items-center justify-between gap-3">
             <View className="flex-1 gap-1.5">
-              <CardTitle>Secondary column</CardTitle>
+              <CardTitle>{definition.label}</CardTitle>
               <CardDescription>
-                This is the shared content surface that both entry points can host.
+                Phone tab content. Tablet chrome is the outer shell in features/shell.
               </CardDescription>
             </View>
             <View className="size-10 items-center justify-center rounded-full bg-primary/10">
@@ -74,14 +64,13 @@ export function PocSurfaceScreen({ surface }: PocSurfaceScreenProps): React.JSX.
         <CardContent className="gap-4">
           <View className="gap-2 rounded-xl border border-border bg-muted/40 p-4">
             <Text className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              Selected preview
+              Selected
             </Text>
             <Text className="text-lg font-semibold text-foreground">{selected?.label}</Text>
             <Text className="text-sm leading-5 text-muted-foreground">{selected?.detail}</Text>
           </View>
           <Separator />
           <View className="gap-2">
-            <Text className="text-sm font-semibold text-foreground">Sample list</Text>
             {items.map((item) => (
               <SampleItem
                 key={item.id}
@@ -93,40 +82,6 @@ export function PocSurfaceScreen({ surface }: PocSurfaceScreenProps): React.JSX.
               />
             ))}
           </View>
-        </CardContent>
-      </Card>
-
-      <Card className="border-dashed">
-        <CardHeader>
-          <CardTitle>Entry-point experiment</CardTitle>
-          <CardDescription>
-            The route content stays shared; only the native shell changes by form factor.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="gap-3">
-          <AnatomyRow label="iPhone" value="NativeTabs · four primary destinations" />
-          <AnatomyRow label="iPad" value="SplitView · primary / supplementary / secondary" />
-          <AnatomyRow
-            label="Inspector"
-            value={
-              inspector === null
-                ? 'iPad-only companion column'
-                : inspector.visible
-                  ? 'Visible'
-                  : 'Hidden'
-            }
-          />
-          {inspector !== null ? (
-            <Button
-              className="mt-2 self-start"
-              onPress={inspector.toggle}
-              size="sm"
-              variant="outline"
-            >
-              <PocGlyph size={15} symbol="▤" tone="foreground" />
-              <UiText>{inspector.visible ? 'Hide inspector' : 'Show inspector'}</UiText>
-            </Button>
-          ) : null}
         </CardContent>
       </Card>
     </ScrollView>
@@ -170,14 +125,5 @@ function SampleItem({
         </Badge>
       ) : null}
     </Pressable>
-  )
-}
-
-function AnatomyRow({ label, value }: { label: string; value: string }): React.JSX.Element {
-  return (
-    <View className="flex-row items-start justify-between gap-4">
-      <Text className="text-sm font-medium text-foreground">{label}</Text>
-      <Text className="flex-1 text-right text-sm leading-5 text-muted-foreground">{value}</Text>
-    </View>
   )
 }

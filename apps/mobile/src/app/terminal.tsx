@@ -1,5 +1,5 @@
-import { PocSurfaceScreen } from '@/features/poc/poc-screen'
+import { SurfaceScreen } from '@/features/shell/surface-screen'
 
 export default function TerminalRoute(): React.JSX.Element {
-  return <PocSurfaceScreen surface="terminal" />
+  return <SurfaceScreen surface="terminal" />
 }

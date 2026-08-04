@@ -1,6 +1,6 @@
 import * as AlertDialogPrimitive from '@rn-primitives/alert-dialog'
 import * as React from 'react'
-import { Platform, View, type ViewProps } from 'react-native'
+import { Platform, Pressable, StyleSheet, View, type ViewProps } from 'react-native'
 import { FadeIn, FadeOut, ReduceMotion } from 'react-native-reanimated'
 import { FullWindowOverlay as RNFullWindowOverlay } from 'react-native-screens'
 import { buttonTextVariants, buttonVariants } from '@/components/ui/button'
@@ -16,6 +16,9 @@ const AlertDialogPortal = AlertDialogPrimitive.Portal
 
 const FullWindowOverlay = Platform.OS === 'ios' ? RNFullWindowOverlay : React.Fragment
 
+/** Matches dialog scrim — dim the app behind alerts. */
+const SCRIM = 'rgba(0, 0, 0, 0.48)'
+
 function AlertDialogOverlay({
   className,
   children,
@@ -27,22 +30,40 @@ function AlertDialogOverlay({
     <FullWindowOverlay>
       <AlertDialogPrimitive.Overlay
         className={cn(
-          'absolute bottom-0 left-0 right-0 top-0 z-50 flex items-center justify-center bg-black/50 p-2',
+          'absolute bottom-0 left-0 right-0 top-0 z-50 flex items-center justify-center p-3',
           Platform.select({
-            web: 'animate-in fade-in-0 fixed',
+            web: 'animate-in fade-in-0 fixed bg-black/40 backdrop-blur-sm',
           }),
           className,
         )}
+        style={Platform.OS === 'web' ? undefined : StyleSheet.absoluteFill}
         {...props}
         asChild={Platform.OS !== 'web'}
       >
-        <NativeOnlyAnimatedView
-          entering={FadeIn.duration(200).delay(50).reduceMotion(ReduceMotion.System)}
-          exiting={FadeOut.duration(150).reduceMotion(ReduceMotion.System)}
-          as="Pressable"
-        >
-          {children}
-        </NativeOnlyAnimatedView>
+        {Platform.OS === 'web' ? (
+          children
+        ) : (
+          <NativeOnlyAnimatedView
+            entering={FadeIn.duration(180).delay(40).reduceMotion(ReduceMotion.System)}
+            exiting={FadeOut.duration(140).reduceMotion(ReduceMotion.System)}
+            style={StyleSheet.absoluteFill}
+          >
+            <Pressable
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+              style={[StyleSheet.absoluteFill, { backgroundColor: SCRIM }]}
+            />
+            <View
+              pointerEvents="box-none"
+              style={[
+                StyleSheet.absoluteFill,
+                { alignItems: 'center', justifyContent: 'center', padding: 12 },
+              ]}
+            >
+              {children}
+            </View>
+          </NativeOnlyAnimatedView>
+        )}
       </AlertDialogPrimitive.Overlay>
     </FullWindowOverlay>
   )

@@ -4,10 +4,9 @@
 
 ```
 src/app/        route table only — thin files that re-export a feature screen
-src/features/   one folder per feature (files, changes, review, board, terminal, settings, glance, companion)
+src/features/   one folder per feature (shell, poc, files, changes, review, …)
 src/components/ shared presentational components
 src/lib/daemon/ the only daemon seam
-src/theme/      shared design values (colors.tint is the single accent)
 ```
 
 Never co-locate components, types or utilities under `src/app` — it holds routes and `_layout` files
@@ -18,8 +17,8 @@ one-line route that default-exports it. File names are kebab-case.
 
 | Form | Role |
 |------|------|
-| **iPhone** | Companion to Mac / iPad / browser — glance, review, stage/commit, terminal, light board |
-| **iPad** | Full workstation alternative to the Mac app and browser — three-column SplitView + inspector |
+| **iPhone / Android phone** | Companion to Mac / iPad / browser — glance, review, stage/commit, terminal, light board |
+| **iPad / Android tablet** | Full workstation alternative — web-like chrome with primary · supplementary · viewer · companion |
 
 ## The tab shell (iPhone)
 
@@ -45,7 +44,7 @@ it is a face so it does not fight title + workspace for vertical space.
 | Board | Pushed from Review (and re-tap Review while on root) |
 | History | Pushed from Changes (and re-tap Changes while on root) |
 | Repo picker | Form sheet |
-| Search | Files search bar |
+| Search | Files search bar / face |
 
 NativeTabs has no long-press menu API; **re-tap while focused on the tab root** opens the
 alternate. Header actions mirror the same destinations. When a long-press API lands, wire it to
@@ -60,30 +59,47 @@ the same `TAB_ALTERNATES` table in `src/lib/tab-alternates.ts`.
 
 Workspace is **under** the title, never mid-toolbar. Environment selection stays in Settings.
 
-## iPad shell
+## Tablet shell (iPad + Android tablet)
 
-Root `SplitView` (`expo-router/unstable-split-view`), **no bottom tab bar**:
+Root entry: `features/shell/tablet-shell` — **no bottom tab bar**.
 
-| Column | Content |
-|--------|---------|
-| Primary | Destinations (Files, Changes, History, Review, Board, Terminal + Settings/Project) |
-| Supplementary | List for active destination (Files tree today; others deepen as lists extract) |
-| Secondary (Slot) | Detail / canvas from the route table |
-| Inspector | Companion (iOS 26+) |
+| Column | Role |
+|--------|------|
+| **Primary** | Destinations: Files, Changes, Review, History, Search, Board, Terminal |
+| **Supplementary** | List / controls for the active destination |
+| **Secondary (viewer)** | File · diff · review · history · search results · board · terminal canvas |
+| **Companion (inspector)** | Right rail; content follows active surface |
 
-SplitView is root-only (cannot nest). Same feature screens and daemon seam as phone.
+**iOS:** `expo-router/unstable-split-view` (primary + supplementary columns, auto Slot secondary,
+inspector). **Android tablet:** shared four-column flex shell with the same roles (native SplitView
+is iOS-only; non-iOS SplitView degrades to Slot).
 
-## Companion
+### Header (tablet)
 
-Content follows `useActiveSurface()` (last focused product surface):
+```
+[ Project ▾ ] [ Search ]     Environment name     [ Branch ▾ ] [ Worktree ▾ ] [ Companion ] [ Settings ]
+```
+
+Project, search, branch, worktree, and settings open **mock sheets** today; daemon wiring later.
+Settings is **never** a primary-rail destination — gear / footer control → sheet with **General ·
+Review · Environments**.
+
+### Companion titles (match web)
 
 | Surface | Companion |
 |---------|-----------|
-| Changes / History | Commit composer + quick commands (`ActionsScreen`) |
-| Review | Comments + Board entry |
-| Board | Focus card |
-| Terminal | Saved Actions |
-| Files | Pins & notes (stub until pins land) |
+| Files | Pinned & notes |
+| Changes | Commit (+ quick commands, comments) |
+| Review | Now reading (+ comments) |
+| History | Timeline (+ git commands) |
+| Search | Recent searches |
+| Board | Focus |
+| Terminal | Actions |
+
+### Outer layer vs inner features
+
+`features/shell` owns chrome, mock lists, viewer placeholders, and sheets. Feature folders fill
+supplementary lists, viewer canvases, and companion sections without inventing a second shell.
 
 ## Glance
 
@@ -97,4 +113,6 @@ WS frames from `@porcelain/contracts`, credentials in Secure Store.
 
 ## UI primitives
 
-`@expo/ui/swift-ui` + `/modifiers` only. iOS 26+ deployment target. No Android.
+NativeWind v5, Tailwind CSS v4, `react-native-css`, and React Native Reusables provide the shared
+React Native UI on iOS and Android. iOS 26+ native navigation is an iOS-only enhancement; Android
+uses the shared phone shell and system navigation; Android tablet uses the shared multi-column shell.

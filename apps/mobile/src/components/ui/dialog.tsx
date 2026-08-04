@@ -1,10 +1,18 @@
 import * as DialogPrimitive from '@rn-primitives/dialog'
-import { X } from 'lucide-react-native'
+import { SymbolView } from 'expo-symbols'
 import * as React from 'react'
-import { type GestureResponderEvent, Platform, Text, View, type ViewProps } from 'react-native'
+import {
+  type GestureResponderEvent,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  useColorScheme,
+  View,
+  type ViewProps,
+} from 'react-native'
 import { FadeIn, FadeOut, ReduceMotion } from 'react-native-reanimated'
 import { FullWindowOverlay as RNFullWindowOverlay } from 'react-native-screens'
-import { Icon } from '@/components/ui/icon'
 import { NativeOnlyAnimatedView } from '@/components/ui/native-only-animated-view'
 import { cn } from '@/lib/utils'
 
@@ -18,6 +26,9 @@ const DialogClose = DialogPrimitive.Close
 
 const FullWindowOverlay = Platform.OS === 'ios' ? RNFullWindowOverlay : React.Fragment
 
+/** Dim + soft wash so modals match web (backdrop-blur + scrim). Inline styles: NW className often misses FullWindowOverlay children. */
+const SCRIM = 'rgba(0, 0, 0, 0.48)'
+
 function DialogOverlay({
   className,
   children,
@@ -28,7 +39,7 @@ function DialogOverlay({
 }) {
   const { onOpenChange } = DialogPrimitive.useRootContext()
 
-  function onOverlayPress(event: GestureResponderEvent) {
+  function dismissIfBackdrop(event: GestureResponderEvent) {
     onPress?.(event)
     if (event.target === event.currentTarget && !event.isDefaultPrevented()) {
       onOpenChange(false)
@@ -39,32 +50,51 @@ function DialogOverlay({
     <FullWindowOverlay>
       <DialogPrimitive.Overlay
         className={cn(
-          'absolute bottom-0 left-0 right-0 top-0 flex items-center justify-center bg-black/50 p-2',
+          'absolute bottom-0 left-0 right-0 top-0 z-50 flex items-center justify-center p-3',
           Platform.select({
-            web: 'animate-in fade-in-0 fixed cursor-default [&>*]:cursor-auto',
+            web: 'animate-in fade-in-0 fixed cursor-default bg-black/40 backdrop-blur-sm [&>*]:cursor-auto',
           }),
           className,
         )}
+        style={Platform.OS === 'web' ? undefined : StyleSheet.absoluteFill}
         {...props}
-        onPress={Platform.select({ web: onOverlayPress, native: onPress })}
         asChild={Platform.OS !== 'web'}
       >
-        <NativeOnlyAnimatedView
-          entering={FadeIn.duration(200).reduceMotion(ReduceMotion.System)}
-          exiting={FadeOut.duration(150).reduceMotion(ReduceMotion.System)}
-          as="Pressable"
-        >
+        {Platform.OS === 'web' ? (
+          children
+        ) : (
           <NativeOnlyAnimatedView
-            entering={FadeIn.delay(50).reduceMotion(ReduceMotion.System)}
-            exiting={FadeOut.duration(150).reduceMotion(ReduceMotion.System)}
+            entering={FadeIn.duration(180).reduceMotion(ReduceMotion.System)}
+            exiting={FadeOut.duration(140).reduceMotion(ReduceMotion.System)}
+            style={StyleSheet.absoluteFill}
           >
-            {children}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Dismiss"
+              onPress={dismissIfBackdrop}
+              style={[StyleSheet.absoluteFill, { backgroundColor: SCRIM }]}
+            />
+            <View
+              pointerEvents="box-none"
+              style={[
+                StyleSheet.absoluteFill,
+                { alignItems: 'center', justifyContent: 'center', padding: 12 },
+              ]}
+            >
+              <NativeOnlyAnimatedView
+                entering={FadeIn.delay(40).reduceMotion(ReduceMotion.System)}
+                exiting={FadeOut.duration(120).reduceMotion(ReduceMotion.System)}
+              >
+                {children}
+              </NativeOnlyAnimatedView>
+            </View>
           </NativeOnlyAnimatedView>
-        </NativeOnlyAnimatedView>
+        )}
       </DialogPrimitive.Overlay>
     </FullWindowOverlay>
   )
 }
+
 function DialogContent({
   className,
   portalHost,
@@ -78,7 +108,7 @@ function DialogContent({
       <DialogOverlay>
         <DialogPrimitive.Content
           className={cn(
-            'bg-background border-border z-50 mx-auto flex w-full max-w-[calc(100%-2rem)] flex-col gap-4 rounded-lg border p-6 shadow-lg shadow-black/5 sm:max-w-lg',
+            'bg-background border-border z-50 mx-auto flex w-full max-w-[calc(100%-2rem)] flex-col gap-4 overflow-hidden rounded-xl border p-6 shadow-lg shadow-black/20 sm:max-w-lg',
             Platform.select({
               web: 'animate-in fade-in-0 zoom-in-95 duration-200',
             }),
@@ -96,15 +126,27 @@ function DialogContent({
             )}
             hitSlop={12}
           >
-            <Icon
-              as={X}
-              className={cn('text-accent-foreground web:pointer-events-none size-4 shrink-0')}
-            />
+            <DialogCloseIcon />
             <Text className="sr-only">Close</Text>
           </DialogPrimitive.Close>
         </DialogPrimitive.Content>
       </DialogOverlay>
     </DialogPortal>
+  )
+}
+
+/** SF Symbol close — avoids lucide/RNSVG red "U" placeholders on the current iOS dev client. */
+function DialogCloseIcon(): React.JSX.Element {
+  const tint = useColorScheme() === 'dark' ? '#F5F7FA' : '#171A1C'
+  return (
+    <SymbolView
+      accessible={false}
+      importantForAccessibility="no-hide-descendants"
+      name={{ android: 'close', ios: 'xmark' }}
+      size={16}
+      tintColor={tint}
+      weight="medium"
+    />
   )
 }
 

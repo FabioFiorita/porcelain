@@ -1,5 +1,5 @@
-import { PocSurfaceScreen } from '@/features/poc/poc-screen'
+import { SurfaceScreen } from '@/features/shell/surface-screen'
 
 export default function IndexRoute(): React.JSX.Element {
-  return <PocSurfaceScreen surface="files" />
+  return <SurfaceScreen surface="files" />
 }

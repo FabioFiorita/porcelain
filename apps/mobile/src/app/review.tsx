@@ -1,5 +1,5 @@
-import { PocSurfaceScreen } from '@/features/poc/poc-screen'
+import { SurfaceScreen } from '@/features/shell/surface-screen'
 
 export default function ReviewRoute(): React.JSX.Element {
-  return <PocSurfaceScreen surface="review" />
+  return <SurfaceScreen surface="review" />
 }
