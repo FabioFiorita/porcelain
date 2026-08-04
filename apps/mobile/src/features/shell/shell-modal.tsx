@@ -9,6 +9,7 @@ import {
   type ViewStyle,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { ModalBackdrop } from '@/components/ui/modal-backdrop'
 import { cn } from '@/lib/utils'
 
 type ShellModalProps = {
@@ -52,11 +53,10 @@ export function ShellModal({
       visible={open}
     >
       <View className="absolute inset-0 items-center justify-center">
-        <Pressable
+        <ModalBackdrop
           accessibilityLabel="Dismiss"
-          accessibilityRole="button"
           onPress={onClose}
-          className="absolute inset-0 bg-black/50"
+          testID="porcelain-modal-backdrop"
         />
         <View
           className={cn(

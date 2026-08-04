@@ -244,19 +244,22 @@ function DirectoryBrowser({
         </Text>
       </View>
 
-      <Button
+      <Pressable
         accessibilityLabel="Go to parent folder"
+        accessibilityRole="button"
+        accessibilityState={{
+          disabled: !paired || result?.parent === null || result === undefined || busyPath !== null,
+        }}
+        className="h-11 flex-row items-center gap-3 border-b border-border px-3 active:bg-accent"
         disabled={!paired || result?.parent === null || result === undefined || busyPath !== null}
-        size="sm"
         testID="porcelain-project-up"
-        variant="ghost"
         onPress={() => {
           if (result?.parent !== null && result?.parent !== undefined) onPathChange(result.parent)
         }}
       >
-        <ChromeGlyph name="chevronLeft" size={14} tone="foreground" />
-        <UiText>Up</UiText>
-      </Button>
+        <ChromeGlyph name="arrowUp" size={18} tone="foreground" />
+        <Text className="font-mono text-sm text-foreground">..</Text>
+      </Pressable>
 
       <ShellModalScroll className="max-h-72" contentContainerClassName="gap-1">
         {browseQuery.isLoading ? (
@@ -319,7 +322,7 @@ function DirectoryBrowser({
             if (result !== undefined) onOpen(result.path)
           }}
         >
-          <ChromeGlyph name="folder" size={16} tone="foreground" />
+          <ChromeGlyph name="folder" size={16} tone="primaryForeground" />
           <UiText>{busyPath === result?.path ? 'Opening…' : 'Open this folder'}</UiText>
         </Button>
         <Button

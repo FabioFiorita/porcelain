@@ -1,9 +1,10 @@
 import * as AlertDialogPrimitive from '@rn-primitives/alert-dialog'
 import * as React from 'react'
-import { Platform, Pressable, StyleSheet, View, type ViewProps } from 'react-native'
+import { Platform, StyleSheet, View, type ViewProps } from 'react-native'
 import { FadeIn, FadeOut, ReduceMotion } from 'react-native-reanimated'
 import { FullWindowOverlay as RNFullWindowOverlay } from 'react-native-screens'
 import { buttonTextVariants, buttonVariants } from '@/components/ui/button'
+import { ModalBackdrop } from '@/components/ui/modal-backdrop'
 import { NativeOnlyAnimatedView } from '@/components/ui/native-only-animated-view'
 import { TextClassContext } from '@/components/ui/text'
 import { cn } from '@/lib/utils'
@@ -15,9 +16,6 @@ const AlertDialogTrigger = AlertDialogPrimitive.Trigger
 const AlertDialogPortal = AlertDialogPrimitive.Portal
 
 const FullWindowOverlay = Platform.OS === 'ios' ? RNFullWindowOverlay : React.Fragment
-
-/** Matches dialog scrim — dim the app behind alerts. */
-const SCRIM = 'rgba(0, 0, 0, 0.48)'
 
 function AlertDialogOverlay({
   className,
@@ -48,10 +46,10 @@ function AlertDialogOverlay({
             exiting={FadeOut.duration(140).reduceMotion(ReduceMotion.System)}
             style={StyleSheet.absoluteFill}
           >
-            <Pressable
+            <ModalBackdrop
               accessibilityElementsHidden
               importantForAccessibility="no-hide-descendants"
-              style={[StyleSheet.absoluteFill, { backgroundColor: SCRIM }]}
+              testID="porcelain-alert-dialog-backdrop"
             />
             <View
               pointerEvents="box-none"

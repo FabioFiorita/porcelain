@@ -3,18 +3,20 @@ import { SymbolView } from 'expo-symbols'
 import { useColorScheme } from 'react-native'
 import type { SurfaceId } from './mock-data'
 
-type IconTone = 'foreground' | 'muted' | 'primary'
+type IconTone = 'foreground' | 'muted' | 'primary' | 'primaryForeground'
 
 const TONE_HEX: Record<'light' | 'dark', Record<IconTone, string>> = {
   light: {
     foreground: '#171A1C',
     muted: '#687076',
     primary: '#0A84FF',
+    primaryForeground: '#FFFFFF',
   },
   dark: {
     foreground: '#F5F7FA',
     muted: '#A7B0BB',
     primary: '#0A84FF',
+    primaryForeground: '#FFFFFF',
   },
 }
 
@@ -47,6 +49,7 @@ const CHROME_SYMBOLS = {
   },
   settings: { ios: 'gearshape' as SFSymbol, android: 'settings' as AndroidSymbol },
   search: { ios: 'magnifyingglass' as SFSymbol, android: 'search' as AndroidSymbol },
+  arrowUp: { ios: 'arrow.up' as SFSymbol, android: 'arrow_upward' as AndroidSymbol },
   folder: { ios: 'folder' as SFSymbol, android: 'folder_open' as AndroidSymbol },
   branch: { ios: 'arrow.triangle.branch' as SFSymbol, android: 'account_tree' as AndroidSymbol },
   network: { ios: 'network' as SFSymbol, android: 'lan' as AndroidSymbol },

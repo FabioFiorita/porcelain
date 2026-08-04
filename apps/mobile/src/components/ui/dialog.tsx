@@ -4,7 +4,6 @@ import * as React from 'react'
 import {
   type GestureResponderEvent,
   Platform,
-  Pressable,
   StyleSheet,
   Text,
   useColorScheme,
@@ -13,6 +12,7 @@ import {
 } from 'react-native'
 import { FadeIn, FadeOut, ReduceMotion } from 'react-native-reanimated'
 import { FullWindowOverlay as RNFullWindowOverlay } from 'react-native-screens'
+import { ModalBackdrop } from '@/components/ui/modal-backdrop'
 import { NativeOnlyAnimatedView } from '@/components/ui/native-only-animated-view'
 import { cn } from '@/lib/utils'
 
@@ -25,9 +25,6 @@ const DialogPortal = DialogPrimitive.Portal
 const DialogClose = DialogPrimitive.Close
 
 const FullWindowOverlay = Platform.OS === 'ios' ? RNFullWindowOverlay : React.Fragment
-
-/** Dim + soft wash so modals match web (backdrop-blur + scrim). Inline styles: NW className often misses FullWindowOverlay children. */
-const SCRIM = 'rgba(0, 0, 0, 0.48)'
 
 function DialogOverlay({
   className,
@@ -68,11 +65,10 @@ function DialogOverlay({
             exiting={FadeOut.duration(140).reduceMotion(ReduceMotion.System)}
             style={StyleSheet.absoluteFill}
           >
-            <Pressable
-              accessibilityRole="button"
+            <ModalBackdrop
               accessibilityLabel="Dismiss"
               onPress={dismissIfBackdrop}
-              style={[StyleSheet.absoluteFill, { backgroundColor: SCRIM }]}
+              testID="porcelain-dialog-backdrop"
             />
             <View
               pointerEvents="box-none"
