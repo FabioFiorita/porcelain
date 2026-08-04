@@ -8,3 +8,4 @@ reviews/*/evidence/
 # file. The durable companion data (board, actions, layers, scope, notes) stays
 # tracked; archived reviews under reviews/ still land in history.
 review.json
+reviewed.json
