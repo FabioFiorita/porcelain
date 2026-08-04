@@ -2,3 +2,9 @@
 # Evidence packs can be large; ignored by default. Remove a line to track it.
 evidence/
 reviews/*/evidence/
+
+# The active Review is whatever unit is in flight right now — it turns over per
+# branch and per worktree, so tracking it means every branch fighting over one
+# file. The durable companion data (board, actions, layers, scope, notes) stays
+# tracked; archived reviews under reviews/ still land in history.
+review.json
