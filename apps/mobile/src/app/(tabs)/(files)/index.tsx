@@ -3,7 +3,7 @@ import { FilesScreen } from '@/features/files/files-screen'
 import { FilesSearchScreen } from '@/features/files/files-search-screen'
 import { useTabFaces } from '@/lib/tab-faces'
 
-/** One tab slot, two faces — re-tap flips to Search and raises the keyboard. */
+/** One tab slot, two faces — re-tap flips to Search; the field waits to be tapped. */
 export default function FilesTabRoot(): React.JSX.Element {
   useTabRootFocusRegistration('files')
   const face = useTabFaces((state) => state.files)
