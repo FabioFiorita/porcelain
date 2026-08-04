@@ -2,6 +2,8 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from 
 import { type LayoutChangeEvent, Linking, useColorScheme } from 'react-native'
 import WebView, { type WebViewMessageEvent } from 'react-native-webview'
 
+import { terminalColors } from '@/theme/terminal-colors'
+
 import { isSafeExternalUrl, javascriptString, parseBridgeMessage } from './webview/bridge-protocol'
 import { TERMINAL_HTML } from './webview/terminal-html.generated'
 
@@ -140,6 +142,9 @@ export const TerminalWebView = forwardRef<
       ref={webViewRef}
       allowFileAccess={false}
       allowsLinkPreview={false}
+      // WKWebView's own prev/next/done bar would sit between the key bar and the keyboard,
+      // stealing a row of screen to offer form navigation a terminal has no use for.
+      hideKeyboardAccessoryView
       javaScriptEnabled
       mediaPlaybackRequiresUserAction
       onLayout={onLayout}
@@ -148,7 +153,7 @@ export const TerminalWebView = forwardRef<
       originWhitelist={['about:blank']}
       setSupportMultipleWindows={false}
       source={{ html: TERMINAL_HTML }}
-      style={{ backgroundColor: scheme === 'light' ? '#ffffff' : '#16161a', flex: 1 }}
+      style={{ backgroundColor: terminalColors(scheme).background, flex: 1 }}
     />
   )
 })

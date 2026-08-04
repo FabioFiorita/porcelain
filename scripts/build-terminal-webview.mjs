@@ -145,7 +145,12 @@ const bridge = String.raw`<script>
     scheduleFit()
   }
   window.__porcelainTerminalTheme = (mode) => {
-    terminal.options.theme = themes[mode] || themes.dark
+    const theme = themes[mode] || themes.dark
+    terminal.options.theme = theme
+    // The page behind the canvas has to move too. xterm only paints its own rows, so a
+    // hardcoded body background frames a light terminal in black the moment the appearance flips.
+    document.documentElement.style.background = theme.background
+    document.body.style.background = theme.background
   }
   new ResizeObserver(scheduleFit).observe(root)
   window.addEventListener('resize', scheduleFit)
@@ -156,7 +161,8 @@ const bridge = String.raw`<script>
 </script>`
 
 const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><style>${css}
-html,body,#terminal{width:100%;height:100%;margin:0;overflow:hidden;background:#16161a}
+html,body,#terminal{width:100%;height:100%;margin:0;overflow:hidden;background:#ffffff}
+@media (prefers-color-scheme: dark){html,body,#terminal{background:#16161a}}
 body{touch-action:none;-webkit-user-select:none;user-select:none}
 .xterm{height:100%;padding:8px;box-sizing:border-box}
 .xterm-viewport{background:transparent!important}

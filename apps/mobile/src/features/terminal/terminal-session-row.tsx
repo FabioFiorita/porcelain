@@ -2,6 +2,7 @@ import { Button, HStack, Image, Menu, Spacer, Text, VStack } from '@expo/ui/swif
 import { buttonStyle, contentShape, font, frame, shapes } from '@expo/ui/swift-ui/modifiers'
 
 import type { TerminalInfo } from '@/lib/daemon/procedures/terminal'
+import { type AppearanceScheme, ink } from '@/theme/colors'
 import { monospace, secondary } from '@/theme/modifiers'
 
 export function TerminalSessionRow({
@@ -9,17 +10,19 @@ export function TerminalSessionRow({
   onOpen,
   onRename,
   repoPath,
+  scheme,
   session,
 }: {
   onKill: () => void
   onOpen: () => void
   onRename: () => void
   repoPath: string | null
+  scheme: AppearanceScheme
   session: TerminalInfo
 }): React.JSX.Element {
   const relativeCwd = repoPath === null ? session.cwd : relativePath(session.cwd, repoPath)
   const detail = `${relativeCwd} · ${statusLabel(session)}`
-  const tint = session.status === 'running' ? '#34C759' : '#8E8E93'
+  const tint = ink(session.status === 'running' ? 'green' : 'muted', scheme)
 
   return (
     <HStack spacing={8}>

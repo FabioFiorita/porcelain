@@ -3,7 +3,7 @@ import { listStyle } from '@expo/ui/swift-ui/modifiers'
 import { ObserveInteractiveMarker } from 'expo-observe'
 import { router } from 'expo-router'
 import { useState } from 'react'
-import { Alert } from 'react-native'
+import { Alert, useColorScheme } from 'react-native'
 
 import { DaemonGate } from '@/components/daemon-gate'
 import { ScreenHeader } from '@/components/screen-header'
@@ -45,6 +45,7 @@ function TerminalBody({
   showAll: boolean
 }): React.JSX.Element {
   const repo = useActiveRepo()
+  const scheme = useColorScheme() === 'light' ? 'light' : 'dark'
   const session = useDaemonSession()
   const roster = useTerminalSessions(showAll)
   const actions = useTerminalActions()
@@ -168,6 +169,7 @@ function TerminalBody({
                 }
                 onRename={(): void => rename(current.id, current.name)}
                 repoPath={repo?.path ?? null}
+                scheme={scheme}
                 session={current}
               />
             ))

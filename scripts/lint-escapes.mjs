@@ -46,6 +46,21 @@ const MOBILE_FORBIDDEN = [
   },
 ]
 
+/**
+ * The terminal is the one surface whose chrome must agree with a palette it does not own — the
+ * xterm themes baked into the generated WebView HTML. A hex literal here is how the React Native
+ * frame came to paint a black border around a white terminal in light appearance: the emulator
+ * followed `prefers-color-scheme` and the chrome did not follow anything. Colours come from
+ * `theme/terminal-colors.ts`, which is the single place both sides are written down.
+ */
+const TERMINAL_FORBIDDEN = [
+  {
+    re: /#[0-9a-fA-F]{3,8}\b/,
+    label:
+      'hardcoded colour in the terminal feature (use terminalColors(scheme) from @/theme/terminal-colors, or ink()/accentColor() — a literal here silently disagrees with the xterm theme in the WebView)',
+  },
+]
+
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'out'])
 // The vendored shadcn dir, excluded by PATH, not by name: a name-based `ui`
 // skip would silently drop a native `ui` slice under apps/mobile/src too.
@@ -70,11 +85,18 @@ function walk(dir, out = []) {
 const hits = []
 
 const mobileFiles = new Set(walk(mobileRoot))
+const terminalRoot = join(mobileRoot, 'features', 'terminal')
 
 for (const file of [...walk(scanRoot), ...mobileFiles]) {
   if (ALLOWED_FILES.has(file)) continue
   const rel = relative(root, file)
-  const rules = mobileFiles.has(file) ? [...FORBIDDEN, ...MOBILE_FORBIDDEN] : FORBIDDEN
+  const rules = mobileFiles.has(file)
+    ? [
+        ...FORBIDDEN,
+        ...MOBILE_FORBIDDEN,
+        ...(file.startsWith(terminalRoot) ? TERMINAL_FORBIDDEN : []),
+      ]
+    : FORBIDDEN
   const lines = readFileSync(file, 'utf8').split('\n')
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
