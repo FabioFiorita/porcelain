@@ -26,7 +26,7 @@ Five tabs — uses the iOS ceiling. Android phones share the same shell.
 
 | Tab slot | Faces (re-tap root to flip) | Chrome |
 |----------|------------------------------|--------|
-| **Files** | Files · **Search** | full header; Search auto-focuses the keyboard; stay until re-tap |
+| **Files** | Files · **Search** | full header; Search field is passive until the user taps it; stay until re-tap |
 | **Changes** | Changes · **History** | same header; no back chevron |
 | **Review** | Review · **Board** | same |
 | **Terminal** | Terminal | full header |
