@@ -47,27 +47,30 @@ export function FilesScreen(): React.JSX.Element {
           <FilesBrowse />
         </DaemonGate>
       )}
-      <ScreenHeader title="Files" />
-      {/* Same right toolbar as ScreenHeader — Menu merges into the trailing cluster on iOS 26. */}
-      {!isIPad() ? (
-        <Stack.Toolbar placement="right">
-          <Stack.Toolbar.Menu accessibilityLabel="Files options" icon={toolbarIcon('more')}>
-            <Stack.Toolbar.MenuAction
-              icon={preferences.filesShowHidden ? 'eye.slash' : 'eye'}
-              isOn={preferences.filesShowHidden}
-              onPress={(): void => setPreference('filesShowHidden', !preferences.filesShowHidden)}
-            >
-              {preferences.filesShowHidden ? 'Hide hidden files' : 'Show hidden files'}
-            </Stack.Toolbar.MenuAction>
-            <Stack.Toolbar.MenuAction
-              icon="arrow.down.right.and.arrow.up.left"
-              onPress={collapseAll}
-            >
-              Collapse all
-            </Stack.Toolbar.MenuAction>
-          </Stack.Toolbar.Menu>
-        </Stack.Toolbar>
-      ) : null}
+      {/* The options menu rides INSIDE ScreenHeader's toolbar: a second trailing
+          `Stack.Toolbar` replaces that cluster, which is how Files lost its bolt. */}
+      <ScreenHeader
+        menu={
+          isIPad() ? undefined : (
+            <Stack.Toolbar.Menu accessibilityLabel="Files options" icon={toolbarIcon('more')}>
+              <Stack.Toolbar.MenuAction
+                icon={preferences.filesShowHidden ? 'eye.slash' : 'eye'}
+                isOn={preferences.filesShowHidden}
+                onPress={(): void => setPreference('filesShowHidden', !preferences.filesShowHidden)}
+              >
+                {preferences.filesShowHidden ? 'Hide hidden files' : 'Show hidden files'}
+              </Stack.Toolbar.MenuAction>
+              <Stack.Toolbar.MenuAction
+                icon="arrow.down.right.and.arrow.up.left"
+                onPress={collapseAll}
+              >
+                Collapse all
+              </Stack.Toolbar.MenuAction>
+            </Stack.Toolbar.Menu>
+          )
+        }
+        title="Files"
+      />
       <ObserveInteractiveMarker />
     </>
   )

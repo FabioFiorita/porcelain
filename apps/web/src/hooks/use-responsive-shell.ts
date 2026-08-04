@@ -19,8 +19,6 @@ interface Params {
   leftOpen: boolean
   /** Drives the left sidebar open/collapsed (the provider's `setOpen`). */
   setLeftOpen: (open: boolean) => void
-  /** Tabs without a Quick Access section (e.g. Board) suppress the right panel. */
-  rightSuppressed: boolean
 }
 
 /**
@@ -31,7 +29,7 @@ interface Params {
  * in `decideResponsiveLayout`; this hook is the thin DOM layer — it observes the
  * window width, reconciles user toggles, and drives the two providers.
  */
-export function useResponsiveShell({ leftOpen, setLeftOpen, rightSuppressed }: Params): void {
+export function useResponsiveShell({ leftOpen, setLeftOpen }: Params): void {
   const sidebarWidth = usePreferencesStore((s) => s.sidebarWidth)
   const rightSidebarWidth = usePreferencesStore((s) => s.rightSidebarWidth)
   const rightOpen = usePreferencesStore((s) => s.rightSidebarOpen)
@@ -49,8 +47,6 @@ export function useResponsiveShell({ leftOpen, setLeftOpen, rightSuppressed }: P
 
   useEffect(() => {
     const evaluate = (): void => {
-      const effectiveRightOpen = rightOpen && !rightSuppressed
-
       // Reconcile user intent: if a panel's state diverged from what the system
       // last drove it to, the user toggled it — clear that panel's auto flag so
       // a user-closed panel is never auto-reopened and a user-opened one isn't
@@ -58,17 +54,15 @@ export function useResponsiveShell({ leftOpen, setLeftOpen, rightSuppressed }: P
       if (systemLeft.current !== null && leftOpen !== systemLeft.current) {
         autoCollapsedLeft.current = false
       }
-      if (!rightSuppressed && systemRight.current !== null && rightOpen !== systemRight.current) {
+      if (systemRight.current !== null && rightOpen !== systemRight.current) {
         autoClosedRight.current = false
       }
 
       const current: PanelState = {
         leftOpen,
-        rightOpen: effectiveRightOpen,
+        rightOpen,
         autoCollapsedLeft: autoCollapsedLeft.current,
-        // The right panel reserves 0 width while suppressed, so it doesn't
-        // participate — freeze its flag and don't let it be restored here.
-        autoClosedRight: rightSuppressed ? false : autoClosedRight.current,
+        autoClosedRight: autoClosedRight.current,
       }
 
       const next = decideResponsiveLayout(
@@ -90,25 +84,13 @@ export function useResponsiveShell({ leftOpen, setLeftOpen, rightSuppressed }: P
       autoCollapsedLeft.current = next.autoCollapsedLeft
       systemLeft.current = next.leftOpen
 
-      // While suppressed, leave the right panel's preference and refs untouched
-      // (toggling the hidden panel would silently flip the user's stored pref).
-      if (!rightSuppressed) {
-        if (next.rightOpen !== effectiveRightOpen) setRightOpen(next.rightOpen)
-        autoClosedRight.current = next.autoClosedRight
-        systemRight.current = next.rightOpen
-      }
+      if (next.rightOpen !== rightOpen) setRightOpen(next.rightOpen)
+      autoClosedRight.current = next.autoClosedRight
+      systemRight.current = next.rightOpen
     }
 
     evaluate()
     window.addEventListener('resize', evaluate)
     return () => window.removeEventListener('resize', evaluate)
-  }, [
-    leftOpen,
-    rightOpen,
-    rightSuppressed,
-    sidebarWidth,
-    rightSidebarWidth,
-    setLeftOpen,
-    setRightOpen,
-  ])
+  }, [leftOpen, rightOpen, sidebarWidth, rightSidebarWidth, setLeftOpen, setRightOpen])
 }

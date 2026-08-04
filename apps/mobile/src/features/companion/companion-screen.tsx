@@ -1,7 +1,7 @@
-import { Button, List, Section, Text, VStack } from '@expo/ui/swift-ui'
+import { Button, List, Section, Text, TextField, useNativeState, VStack } from '@expo/ui/swift-ui'
 import { buttonStyle, font, listStyle } from '@expo/ui/swift-ui/modifiers'
 import { router, useNavigation } from 'expo-router'
-import { useLayoutEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 import { DaemonGate } from '@/components/daemon-gate'
 import { ListLinkRow } from '@/components/list-link-row'
@@ -13,6 +13,7 @@ import { useChangesMutations } from '@/features/changes/data/mutations'
 import { useSuggestions } from '@/features/changes/data/queries'
 import { basename, repoRelativePath } from '@/features/files/file-paths'
 import { useFileEntryActions, usePinnedFileEntries } from '@/features/files/use-files'
+import { useRepoNotes } from '@/features/files/use-repo-notes'
 import { useBoardCardActions, useBoardCards } from '@/features/review/hooks/use-board-cards'
 import { useFeatureReading } from '@/features/review/hooks/use-feature-reading'
 import { useReviewComments } from '@/features/review/hooks/use-review-comments'
@@ -34,11 +35,14 @@ import { secondary } from '@/theme/modifiers'
 
 /** Sheet / inspector titles — match desktop right-rail labels. */
 const COMPANION_TITLES: Record<ActiveSurface, string> = {
+  // Search is the Files tab's other face; one tab, one companion.
   files: 'Pinned & notes',
-  search: 'Search',
+  search: 'Pinned & notes',
   changes: 'Commit',
   history: 'Commands',
   review: 'Now reading',
+  // Board and Terminal reach this only as the iPad inspector — the phone header drops the bolt
+  // there because those faces already carry their own detail and actions.
   board: 'Focus',
   terminal: 'Actions',
   settings: 'Companion',
@@ -56,7 +60,9 @@ function openBoardFace(): void {
 export function CompanionScreen({ embedded = false }: { embedded?: boolean }): React.JSX.Element {
   const surface = useActiveSurface((state) => state.surface)
   const navigation = useNavigation()
-  const ownsClose = surface === 'changes' || surface === 'history'
+  // Only the commit companion draws its own close (ActionsScreen); every other body needs
+  // this screen to supply one, or the sheet is drag-to-dismiss only.
+  const ownsClose = surface === 'changes'
 
   useLayoutEffect(() => {
     navigation.setOptions({ title: COMPANION_TITLES[surface] })
@@ -91,18 +97,18 @@ function CompanionBody({
       return <BoardCompanion />
     case 'review':
       return <ReviewCompanion />
+    // Search is the Files tab's other face — same pins, same notes.
     case 'files':
-      return <FilesCompanion />
     case 'search':
-      return <SearchCompanion />
+      return <FilesCompanion />
     default:
       return (
         <ScreenHost>
           <List modifiers={[listStyle('insetGrouped')]}>
             <Section>
               <Text modifiers={[secondary]}>
-                Companion follows the surface under the bolt — Changes (commit), Review, Board,
-                Files, Search, History, or Terminal.
+                The companion follows the surface you were last on — Files, Search, Changes, History
+                or Review.
               </Text>
             </Section>
           </List>
@@ -111,7 +117,7 @@ function CompanionBody({
   }
 }
 
-/** Desktop: Pinned & notes. Mobile: live pin list + project picker. */
+/** Desktop: Pinned & notes. Mobile: the same two halves — live pin list, then repo notes. */
 function FilesCompanion(): React.JSX.Element {
   const repo = useActiveRepo()
   const pinned = usePinnedFileEntries(repo?.path ?? '', repo !== null)
@@ -121,6 +127,7 @@ function FilesCompanion(): React.JSX.Element {
   return (
     <ScreenHost>
       <List modifiers={[listStyle('insetGrouped')]}>
+        <NotesSection repoPath={repo?.path ?? null} />
         <Section title="Pinned">
           {pins.length === 0 ? (
             <Text modifiers={[secondary]}>
@@ -175,30 +182,38 @@ function FilesCompanion(): React.JSX.Element {
   )
 }
 
-/** Desktop: Recent searches. Mobile: short guidance (no recent-store yet). */
-function SearchCompanion(): React.JSX.Element {
+/**
+ * The notes half of the Files companion. Desktop runs a TipTap WYSIWYG; the phone keeps the
+ * same markdown string in a growing SwiftUI field — one store, two editors, no mobile-only
+ * note format. Seeded once from the first read so a background refetch cannot yank the
+ * caret out of a sentence.
+ */
+function NotesSection({ repoPath }: { repoPath: string | null }): React.JSX.Element {
+  const { notes, save } = useRepoNotes(repoPath)
+  const native = useNativeState('')
+  const seeded = useRef(false)
+
+  useEffect(() => {
+    if (seeded.current || notes === undefined) return
+    seeded.current = true
+    native.set(notes)
+  }, [native, notes])
+
   return (
-    <ScreenHost>
-      <List modifiers={[listStyle('insetGrouped')]}>
-        <Section title="Search">
-          <Text modifiers={[secondary]}>
-            Type in the Search tab to filter filenames in this repo. Results open as file rows — the
-            bolt stays for project and pin jumps.
-          </Text>
-        </Section>
-        <Section>
-          <ListLinkRow
-            icon="folder"
-            label="Choose project…"
-            onPress={(): void => router.push('/repo')}
-          />
-        </Section>
-      </List>
-    </ScreenHost>
+    <Section title="Notes">
+      {notes === undefined ? (
+        <Text modifiers={[secondary]}>Loading…</Text>
+      ) : (
+        <TextField axis="vertical" onTextChange={save} placeholder="Write a note…" text={native} />
+      )}
+    </Section>
   )
 }
 
-/** Desktop: Timeline + quick commands. Mobile: quick commands (history list is the tab face). */
+/**
+ * Desktop: Timeline + quick commands. Mobile: quick commands only — the log itself is the
+ * History face, so a paragraph pointing back at the screen you came from is not content.
+ */
 function HistoryCompanion(): React.JSX.Element {
   const mutations = useChangesMutations()
   const suggestions = useSuggestions()
@@ -207,11 +222,6 @@ function HistoryCompanion(): React.JSX.Element {
     <ScreenHost>
       <List modifiers={[listStyle('insetGrouped')]}>
         <QuickCommandsSection mutations={mutations} suggestions={suggestions.data ?? []} />
-        <Section>
-          <Text modifiers={[secondary]}>
-            Commit history is the History face on the Changes tab. Re-tap Changes to open it.
-          </Text>
-        </Section>
       </List>
     </ScreenHost>
   )

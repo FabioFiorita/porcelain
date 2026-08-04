@@ -61,6 +61,17 @@ const TERMINAL_FORBIDDEN = [
   },
 ]
 
+/**
+ * One trailing toolbar per screen. A screen-level `Stack.Toolbar placement="right"` does NOT
+ * merge with the one `HeaderToolbar` renders — it replaces it, taking the companion (bolt) and
+ * settings buttons with it. That is how the Files tab shipped showing only its options menu.
+ * A screen with menu items passes them to `ScreenHeader`/`HeaderToolbar` as `menu`; a screen
+ * with no header at all (the terminal session) still owns its toolbar outright.
+ */
+const TOOLBAR_OWNERS = new Set(['components/header-toolbar.tsx', 'components/screen-header.tsx'])
+const RENDERS_HEADER = /<(?:ScreenHeader|HeaderToolbar)\b/
+const TRAILING_TOOLBAR = /<Stack\.Toolbar\s+placement="right"/
+
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'out'])
 // The vendored shadcn dir, excluded by PATH, not by name: a name-based `ui`
 // skip would silently drop a native `ui` slice under apps/mobile/src too.
@@ -107,6 +118,20 @@ for (const file of [...walk(scanRoot), ...mobileFiles]) {
       }
     }
   }
+
+  // File-level: a header AND a second trailing toolbar in the same screen (see TOOLBAR_OWNERS).
+  if (!mobileFiles.has(file) || TOOLBAR_OWNERS.has(rel.slice('apps/mobile/src/'.length))) continue
+  const code = lines.filter((line) => !/^\s*(\/\/|\/\*|\*)/.test(line))
+  if (!code.some((line) => RENDERS_HEADER.test(line))) continue
+  const toolbarLine = lines.findIndex((line) => TRAILING_TOOLBAR.test(line))
+  if (toolbarLine === -1) continue
+  hits.push({
+    file: rel,
+    line: toolbarLine + 1,
+    label:
+      'second trailing toolbar on a screen that already renders ScreenHeader/HeaderToolbar (it REPLACES that cluster — the companion bolt and settings disappear; pass a `menu` prop instead)',
+    snippet: lines[toolbarLine].trim().slice(0, 120),
+  })
 }
 
 if (hits.length > 0) {

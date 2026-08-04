@@ -48,8 +48,6 @@ interface LeftSidebarHandle {
 // App-update install lives in TitleBar (shell chrome), not here (document chrome).
 function TopBar({ left }: { left: LeftSidebarHandle }): React.JSX.Element {
   const { toggleSidebar: toggleRight, isMobile, openMobile, open: rightOpen } = useSidebar()
-  // Every sidebar tab has a companion rail (Board = Focus card detail).
-  const hasQuickAccess = true
   // When split, each pane carries its own tab bar inside the viewer; the chrome
   // bar shows the (single) pane's tabs otherwise.
   const isSplit = useTabsStore((s) => s.panes.length > 1)
@@ -80,28 +78,28 @@ function TopBar({ left }: { left: LeftSidebarHandle }): React.JSX.Element {
         </TooltipContent>
       </Tooltip>
       {isSplit ? <div className="min-w-0 flex-1 self-stretch" /> : <TabBar paneIndex={0} />}
-      {hasQuickAccess && (
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={toggleRight}
-                aria-label="Toggle quick access sidebar"
-                aria-expanded={rightActive}
-                data-testid={TestIds.toggleRightSidebar}
-                className="app-no-drag m-1 mr-2"
-              >
-                <Zap />
-              </Button>
-            }
-          />
-          <TooltipContent className="flex items-center gap-1.5">
-            Quick access <Kbd>{kbdLabel('mod', '.')}</Kbd>
-          </TooltipContent>
-        </Tooltip>
-      )}
+      {/* Every tab has a companion rail (Board = Focus card detail), so the bolt is
+          unconditional — the rail retitles itself instead of disappearing. */}
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={toggleRight}
+              aria-label="Toggle quick access sidebar"
+              aria-expanded={rightActive}
+              data-testid={TestIds.toggleRightSidebar}
+              className="app-no-drag m-1 mr-2"
+            >
+              <Zap />
+            </Button>
+          }
+        />
+        <TooltipContent className="flex items-center gap-1.5">
+          Quick access <Kbd>{kbdLabel('mod', '.')}</Kbd>
+        </TooltipContent>
+      </Tooltip>
     </div>
   )
 }
@@ -111,9 +109,8 @@ function RepoShell(): React.JSX.Element {
   const { state, setOpen, toggleSidebar, isMobile, openMobile } = useSidebar()
   const setRightSidebarOpen = usePreferencesStore((s) => s.setRightSidebarOpen)
   const rightSidebarWidth = usePreferencesStore((s) => s.rightSidebarWidth)
-  // Board keeps notes/pins in the right rail (U18); no longer suppress by tab.
-  // which is restored
-  // when they switch back to a tab that has a Quick Access section.
+  // One open/closed preference for every tab: the rail is never suppressed per tab,
+  // so switching tabs swaps its content, never its visibility.
   const rightOpen = usePreferencesStore((s) => s.rightSidebarOpen)
   // On phone the left panel is a sheet (`openMobile`), not the desktop expanded flag.
   const left: LeftSidebarHandle = {
@@ -124,11 +121,7 @@ function RepoShell(): React.JSX.Element {
   // Keep the center viewer usable when the window is narrowed: close the right
   // Quick Access first, then collapse the left sidebar to its rail, restoring
   // them as the window widens (see useResponsiveShell / decideResponsiveLayout).
-  useResponsiveShell({
-    leftOpen: state === 'expanded',
-    setLeftOpen: setOpen,
-    rightSuppressed: false,
-  })
+  useResponsiveShell({ leftOpen: state === 'expanded', setLeftOpen: setOpen })
 
   // Zen mode (Z in the Review document): collapse both sidebars, restoring their
   // previous open state on the second Z. Consumed HERE because this is the one
