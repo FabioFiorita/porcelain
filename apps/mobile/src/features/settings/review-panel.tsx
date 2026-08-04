@@ -218,6 +218,7 @@ function ReviewLayersEditor({ repoPath }: { repoPath: string }): React.JSX.Eleme
             key={layer.id}
             count={draft.length}
             index={index}
+            layerId={layer.id}
             layer={layer}
             onChange={(next) => {
               setDraft((current) =>
@@ -370,6 +371,7 @@ function LayerRow({
   layer,
   index,
   count,
+  layerId,
   onChange,
   onMove,
   onRemove,
@@ -377,6 +379,7 @@ function LayerRow({
   layer: Layer
   index: number
   count: number
+  layerId: number
   onChange: (layer: Layer) => void
   onMove: (direction: 1 | -1) => void
   onRemove: () => void
@@ -444,11 +447,12 @@ function LayerRow({
           accessibilityLabel="Remove layer"
           accessibilityRole="button"
           className={cn(
-            'rounded-md border border-border px-2.5 py-1.5 active:bg-accent',
+            'ml-auto rounded-md border border-border px-2.5 py-1.5 active:bg-accent',
             count === 1 && 'opacity-40',
           )}
           disabled={count === 1}
           onPress={onRemove}
+          testID={`porcelain-settings-review-layer-${layerId}-remove`}
         >
           <Text className="text-xs text-destructive">Remove</Text>
         </Pressable>
