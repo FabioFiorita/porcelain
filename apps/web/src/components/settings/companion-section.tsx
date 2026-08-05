@@ -1,7 +1,10 @@
+import { Button } from '@renderer/components/ui/button'
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
 import {
   useCompanionDispositions,
+  useCompanionGitVisibility,
   useSetCompanionDisposition,
+  useSetCompanionGitVisibility,
 } from '@renderer/hooks/use-companion-dispositions'
 import { compactButtonClass } from '@renderer/lib/controls'
 import { isBrowser } from '@renderer/lib/platform'
@@ -74,8 +77,11 @@ function DispositionRow({
 export function CompanionSection(): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)
   const channels = useCompanionDispositions()
+  const visibility = useCompanionGitVisibility()
+  const setVisibility = useSetCompanionGitVisibility()
   const { set } = useSetCompanionDisposition()
   const [lastUntracked, setLastUntracked] = useState<string[]>([])
+  const hidden = visibility?.hidden === true
 
   return (
     <div className="flex flex-col gap-6">
@@ -88,6 +94,34 @@ export function CompanionSection(): React.JSX.Element {
             written as ignore rules your teammates can read and commit.
           </p>
         </div>
+        {repo !== null && (
+          <div
+            className="flex flex-col gap-2 rounded-lg border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between"
+            data-testid={TestIds.companionGitVisibility}
+          >
+            <div className="min-w-0">
+              <p className="text-sm-minus font-medium">
+                {hidden ? 'Hidden from git in this clone' : 'Visible to git'}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {hidden
+                  ? 'Nothing Porcelain writes shows up in git status. Choosing Shared below lifts this.'
+                  : 'The choices below decide what git carries. Hide again to take Porcelain back out of this clone entirely.'}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="shrink-0 self-start sm:self-center"
+              data-testid={TestIds.companionGitVisibilityToggle}
+              onClick={async () => {
+                await setVisibility(!hidden)
+              }}
+            >
+              {hidden ? 'Start sharing' : 'Hide from git'}
+            </Button>
+          </div>
+        )}
         {repo === null ? (
           <p className="text-xs text-muted-foreground">Open a project to choose.</p>
         ) : (

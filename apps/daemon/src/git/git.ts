@@ -387,6 +387,21 @@ export async function gitUnstageFile(repoPath: string, path: string): Promise<vo
   await runGitChecked(repoPath, ['restore', '--staged', '--', path])
 }
 
+/**
+ * `$GIT_COMMON_DIR` for this checkout, or null outside a repo. Linked worktrees
+ * have a `.git` FILE, not a directory, and git resolves `info/` through the
+ * common dir — so anything writing into `info/` must ask git where that is
+ * rather than assuming `<repo>/.git`.
+ */
+export async function gitCommonDir(repoPath: string): Promise<string | null> {
+  try {
+    const out = (await runGit(repoPath, ['rev-parse', '--git-common-dir'])).trim()
+    return out === '' ? null : out
+  } catch {
+    return null
+  }
+}
+
 /** Repo-relative paths under `path` that git currently tracks. Empty outside a repo. */
 export async function gitTrackedUnder(repoPath: string, path: string): Promise<string[]> {
   try {

@@ -11,6 +11,7 @@ import {
   renderGitignore,
 } from '@shared/project-porcelain'
 import { gitTrackedUnder, gitUntrackKeepingFile } from '../git/git'
+import { isCompanionHidden, unhideCompanion } from './git-exclude'
 
 /**
  * Shared vs Local per companion channel, expressed as `.porcelain/.gitignore`
@@ -79,6 +80,8 @@ export async function readChannelDispositions(repoPath: string): Promise<Channel
 export interface SetDispositionResult {
   /** Paths git stopped tracking (a staged deletion the human still has to commit). */
   untracked: string[]
+  /** True when this call also made the companion visible to git in this clone. */
+  revealed: boolean
 }
 
 /**
@@ -96,10 +99,22 @@ export async function setChannelDisposition(
   const next = { ...parseDispositions(current), [key]: disposition }
   await writeGitignore(repoPath, renderGitignore(current, next))
 
-  if (disposition !== 'local') return { untracked: [] }
+  if (disposition !== 'local') {
+    // Choosing Shared is the moment the human opts this clone in, so lift the
+    // blanket exclude — otherwise the toggle would be a no-op they cannot see.
+    return { untracked: [], revealed: await unhideCompanion(repoPath) }
+  }
+  // Going back to Local does NOT re-hide. Re-adding the exclude would hide a
+  // staged deletion and any file the team already tracks; hiding again is an
+  // explicit act (setCompanionGitVisibility).
   const untracked: string[] = []
   for (const path of repoRelativePaths(key)) {
     untracked.push(...(await gitUntrackKeepingFile(repoPath, path)))
   }
-  return { untracked }
+  return { untracked, revealed: false }
+}
+
+/** Whether git can see the companion in this clone at all. */
+export async function readCompanionGitVisibility(repoPath: string): Promise<{ hidden: boolean }> {
+  return { hidden: await isCompanionHidden(repoPath) }
 }

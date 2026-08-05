@@ -3,9 +3,11 @@ import { listCommitModels } from '../git/commit-generation'
 import {
   type ChannelDisposition,
   readChannelDispositions,
+  readCompanionGitVisibility,
   type SetDispositionResult,
   setChannelDisposition,
 } from '../project/companion-disposition'
+import { hideCompanion, unhideCompanion } from '../project/git-exclude'
 import { DEFAULT_LAYERS, type Layer } from '../review/flow'
 import { readLayers, writeLayers } from '../stores/layers-store'
 import { readNotes, writeNotes } from '../stores/notes-store'
@@ -74,6 +76,24 @@ export const settingsRouter = t.router({
   companionDispositions: publicProcedure
     .input(z.string())
     .query(({ input }): Promise<ChannelDisposition[]> => readChannelDispositions(input)),
+
+  /**
+   * Is git blind to `.porcelain/` in this clone? Opening a repo must not change
+   * its `git status`, so the companion is excluded via `$GIT_COMMON_DIR/info/exclude`
+   * until the human shares something. See `project/git-exclude.ts`.
+   */
+  companionGitVisibility: publicProcedure
+    .input(z.string())
+    .query(({ input }): Promise<{ hidden: boolean }> => readCompanionGitVisibility(input)),
+
+  setCompanionGitVisibility: publicProcedure
+    .input(z.object({ repoPath: z.string(), hidden: z.boolean() }))
+    .mutation(async ({ input }): Promise<{ changed: boolean }> => {
+      const changed = input.hidden
+        ? await hideCompanion(input.repoPath)
+        : await unhideCompanion(input.repoPath)
+      return { changed }
+    }),
 
   setCompanionDisposition: publicProcedure
     .input(

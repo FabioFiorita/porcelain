@@ -7,6 +7,7 @@ import {
   projectPorcelainPath,
 } from '@shared/project-porcelain'
 import type { ZodType } from 'zod'
+import { ensureCompanionHidden } from '../project/git-exclude'
 import { watchProjectCompanion } from '../review/review-watch'
 
 export interface ProjectChannel<T> {
@@ -70,6 +71,9 @@ export function createProjectChannel<T>(opts: {
 
   const ensureProjectDir = async (repoPath: string): Promise<void> => {
     const dir = projectPorcelainDir(repoPath)
+    // Decide git visibility BEFORE the first file lands, so opening a repo and
+    // letting an agent write never leaves `?? .porcelain/` in the human's status.
+    await ensureCompanionHidden(repoPath)
     await mkdir(dir, { recursive: true })
     const gi = projectPorcelainPath(repoPath, PROJECT_FILES.gitignore)
     try {
@@ -127,6 +131,7 @@ export async function writeProjectText(
   text: string,
 ): Promise<void> {
   const dir = projectPorcelainDir(repoPath)
+  await ensureCompanionHidden(repoPath)
   await mkdir(dir, { recursive: true })
   const gi = projectPorcelainPath(repoPath, PROJECT_FILES.gitignore)
   try {

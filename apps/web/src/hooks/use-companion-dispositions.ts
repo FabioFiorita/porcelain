@@ -10,6 +10,32 @@ export function useCompanionDispositions(): ChannelDisposition[] | undefined {
   return data
 }
 
+/** Whether git is blind to `.porcelain/` in this clone. */
+export function useCompanionGitVisibility(): { hidden: boolean } | undefined {
+  const repo = useRepoStore((s) => s.repo)
+  const { data } = trpc.companionGitVisibility.useQuery(repo?.path ?? '', {
+    enabled: repo !== null,
+  })
+  return data
+}
+
+export function useSetCompanionGitVisibility(): (hidden: boolean) => Promise<void> {
+  const utils = trpc.useUtils()
+  const mutation = trpc.setCompanionGitVisibility.useMutation({
+    onError: onMutationError('Change git visibility'),
+  })
+  return async (hidden: boolean): Promise<void> => {
+    const repoPath = useRepoStore.getState().repo?.path
+    if (!repoPath) return
+    await mutation.mutateAsync({ repoPath, hidden })
+    await Promise.all([
+      utils.companionGitVisibility.invalidate(),
+      utils.companionDispositions.invalidate(),
+      utils.gitStatus.invalidate(),
+    ])
+  }
+}
+
 export function useSetCompanionDisposition(): {
   set: (key: string, disposition: CompanionDisposition) => Promise<string[]>
   isSaving: boolean
@@ -23,9 +49,13 @@ export function useSetCompanionDisposition(): {
       const repoPath = useRepoStore.getState().repo?.path
       if (!repoPath) return []
       const result = await mutation.mutateAsync({ repoPath, key, disposition })
-      // Going Local stages a deletion, so the Changes tab is now stale as well as
-      // the toggle row itself.
-      await Promise.all([utils.companionDispositions.invalidate(), utils.gitStatus.invalidate()])
+      // Going Local stages a deletion; going Shared can lift the clone-wide
+      // exclude. Either way the toggle row, the visibility line and Changes are stale.
+      await Promise.all([
+        utils.companionDispositions.invalidate(),
+        utils.companionGitVisibility.invalidate(),
+        utils.gitStatus.invalidate(),
+      ])
       return result.untracked
     },
     isSaving: mutation.isPending,

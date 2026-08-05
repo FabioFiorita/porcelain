@@ -176,4 +176,6 @@ export const TestIds = {
   companionDisposition: (key: string, disposition: string): string =>
     `companion-disposition-${key}-${disposition}`,
   companionUntracked: 'companion-untracked',
+  companionGitVisibility: 'companion-git-visibility',
+  companionGitVisibilityToggle: 'companion-git-visibility-toggle',
 } as const
