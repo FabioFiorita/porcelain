@@ -119,7 +119,6 @@ export function useFileContents(relative: string, active: boolean): FileContents
 
   const { data, error, isLoading } = useDaemonQuery(readFileQuery, path, {
     enabled,
-    placeholderData: 'keepPreviousData',
   })
   return { error, isLoading, view: data }
 }

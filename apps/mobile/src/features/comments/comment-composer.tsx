@@ -35,9 +35,12 @@ export function describeAnchor(anchor: CommentAnchor): string {
 export function CommentComposer({
   anchor,
   onClose,
+  testIDPrefix = 'porcelain-changes-comment',
 }: {
   anchor: CommentAnchor | null
   onClose: () => void
+  /** Keeps the established Changes IDs while giving other surfaces their own targets. */
+  testIDPrefix?: string
 }): React.JSX.Element {
   const { add } = useCommentActions()
   const { width } = useShellModalSize()
@@ -82,7 +85,7 @@ export function CommentComposer({
       contentStyle={{ width }}
       description={anchor === null ? undefined : describeAnchor(anchor)}
     >
-      <View className="gap-3" testID="porcelain-comment-composer">
+      <View className="gap-3" testID={`${testIDPrefix}-composer`}>
         {anchor?.anchorText === undefined ? null : (
           <View className="max-h-28 overflow-hidden rounded-md bg-muted px-2.5 py-2">
             <Text className="font-mono text-[11px] leading-4 text-muted-foreground">
@@ -95,22 +98,22 @@ export function CommentComposer({
           autoFocus={open}
           className="min-h-24"
           placeholder="What should the agent know about this?"
-          testID="porcelain-comment-input"
+          testID={`${testIDPrefix}-input`}
           value={body}
           onChangeText={setBody}
         />
         {error === null ? null : (
-          <Text className="text-xs text-destructive" testID="porcelain-comment-error">
+          <Text className="text-xs text-destructive" testID={`${testIDPrefix}-error`}>
             {error}
           </Text>
         )}
         <View className="flex-row justify-end gap-2">
-          <Button testID="porcelain-comment-cancel" variant="ghost" onPress={onClose}>
+          <Button testID={`${testIDPrefix}-cancel`} variant="ghost" onPress={onClose}>
             <UiText>Cancel</UiText>
           </Button>
           <Button
             disabled={body.trim() === '' || saving}
-            testID="porcelain-comment-save"
+            testID={`${testIDPrefix}-save`}
             onPress={() => {
               handleSave()
             }}

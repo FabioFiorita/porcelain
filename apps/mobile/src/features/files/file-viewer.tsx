@@ -98,6 +98,7 @@ export function FileViewer({
         extend(filePath, line)
       },
       selected,
+      testIDPrefix: pathTestId('porcelain-files-source-line', filePath),
       tokens,
     }),
     [commentedLines, extend, filePath, selected, start, tokens],
@@ -204,12 +205,14 @@ export function FileViewer({
           bottomInset={bottomInset}
           path={filePath}
           range={selected}
+          testIDPrefix="porcelain-files-selection"
           onCancel={lineSelection.clear}
           onComment={handleCommentSelection}
         />
       )}
       <CommentComposer
         anchor={anchor}
+        testIDPrefix="porcelain-files-comment"
         onClose={() => {
           setAnchor(null)
         }}

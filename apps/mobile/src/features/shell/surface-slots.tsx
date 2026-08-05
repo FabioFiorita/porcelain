@@ -8,6 +8,10 @@ import { FilesPhoneScreen } from '@/features/files/files-phone-screen'
 import { FilesViewer } from '@/features/files/files-viewer'
 import { SearchList } from '@/features/files/search-list'
 import { SearchPhoneScreen } from '@/features/files/search-phone-screen'
+import { HistoryCompanion } from '@/features/history/history-companion'
+import { HistoryList } from '@/features/history/history-list'
+import { HistoryPhoneScreen } from '@/features/history/history-phone-screen'
+import { HistoryViewer } from '@/features/history/history-viewer'
 
 import type { SurfaceId } from './mock-data'
 
@@ -56,6 +60,12 @@ const SURFACE_SLOTS: Partial<Record<SurfaceId, SurfaceSlots>> = {
     list: SearchList,
     phone: SearchPhoneScreen,
     viewer: FilesViewer,
+  },
+  history: {
+    companion: HistoryCompanion,
+    list: HistoryList,
+    phone: HistoryPhoneScreen,
+    viewer: HistoryViewer,
   },
 }
 

@@ -1,14 +1,9 @@
 import { useMemo } from 'react'
-
+import { LIVE_POLL_MS } from '@/lib/daemon/poll'
 import {
-  type DiffFileResult,
   type DiffReadingScope,
-  diffReadingQuery,
-  type FeatureReading,
   type FlowGroup,
-  gitDiffFileQuery,
   gitFlowQuery,
-  gitRangeDiffFileQuery,
   gitRangeFlowQuery,
   markReviewedMutation,
   reviewedPathsQuery,
@@ -19,13 +14,6 @@ import { useDaemonMutation, useDaemonQuery } from '@/lib/daemon/queries'
 import { useActiveRepo } from '@/lib/daemon/repo'
 
 import { type ChangesScope, useChangesStore } from './changes-store'
-
-/**
- * The working tree changes under the agent while you read, and the daemon only pushes a
- * `working-tree` event for files a client explicitly watches — so the live reads poll. The
- * committed range is static until the next commit and is refreshed by invalidation instead.
- */
-const LIVE_POLL_MS = 3_000
 
 export type ChangesFlow = {
   groups: FlowGroup[] | undefined
@@ -153,68 +141,7 @@ export function useToggleReviewed(): {
   }
 }
 
-export type DiffFile = {
-  result: DiffFileResult | undefined
-  isLoading: boolean
-  error: Error | null
-}
-
-/**
- * One file's diff for the active scope. The working-tree form polls (the agent may be
- * writing the very file on screen); the committed range form never changes under you.
- */
-export function useDiffFile(filePath: string, base: string | undefined, active: boolean): DiffFile {
-  const repo = useActiveRepo()
-  const repoPath = repo?.path ?? ''
-  const enabled = active && repo !== null
-
-  const working = useDaemonQuery(
-    gitDiffFileQuery,
-    { filePath, repoPath },
-    {
-      enabled: enabled && base === undefined,
-      placeholderData: 'keepPreviousData',
-      pollMs: base === undefined ? LIVE_POLL_MS : undefined,
-      staleTime: 0,
-    },
-  )
-  const range = useDaemonQuery(
-    gitRangeDiffFileQuery,
-    { base: base ?? '', filePath, repoPath },
-    {
-      enabled: enabled && base !== undefined,
-      placeholderData: 'keepPreviousData',
-    },
-  )
-
-  const query = base === undefined ? working : range
-  return { error: query.error, isLoading: query.isLoading, result: query.data }
-}
-
 /** The scope the continuous "read all" surface reads — the store's scope in wire form. */
 export function readingScopeFor(scope: ChangesScope): DiffReadingScope {
   return scope === 'branch' ? { type: 'branch' } : { type: 'working' }
-}
-
-/**
- * The whole change set as one document: every file with its hunks inlined, in flow order.
- * One read instead of N, which is what makes the stacked surface usable over a phone link.
- */
-export function useDiffReading(
-  scope: ChangesScope,
-  active: boolean,
-): { reading: FeatureReading | undefined; isLoading: boolean; error: Error | null } {
-  const repo = useActiveRepo()
-  const live = scope === 'working'
-  const { data, error, isLoading } = useDaemonQuery(
-    diffReadingQuery,
-    { repoPath: repo?.path ?? '', scope: readingScopeFor(scope) },
-    {
-      enabled: active && repo !== null,
-      placeholderData: 'keepPreviousData',
-      pollMs: live ? LIVE_POLL_MS : undefined,
-      staleTime: live ? 0 : undefined,
-    },
-  )
-  return { error, isLoading, reading: data }
 }

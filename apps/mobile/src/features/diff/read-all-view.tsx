@@ -6,48 +6,66 @@ import { FlatList, Text, View } from 'react-native'
 import { EmptyNote, ErrorNote, IconAction, PanelLabel } from '@/components/panel-chrome'
 import { type CommentAnchor, CommentComposer } from '@/features/comments/comment-composer'
 import { rangeForPath, rangeOf } from '@/features/comments/line-range'
-import { SelectionBar } from '@/features/comments/selection-bar'
 import { useCommentedLinesByPath, useReviewComments } from '@/features/comments/use-comments'
-import {
-  type LineSelectionControls,
-  useLineSelection,
-} from '@/features/comments/use-line-selection'
+import type { LineSelectionControls } from '@/features/comments/use-line-selection'
 import { usePreferencesStore } from '@/features/settings/preferences-store'
-import type { DiffHunk, FeatureReading } from '@/lib/daemon/procedures/changes'
+import type { DiffHunk, DiffReadingScope, FeatureReading } from '@/lib/daemon/procedures/changes'
 import { cn } from '@/lib/utils'
-import type { ChangesScope } from './changes-store'
 import { DiffRowView } from './diff-lines'
 import { anchorTextFor } from './diff-rows'
 import { type ReadingRow, toReadingRows } from './reading-rows'
-import { useDiffReading, useReviewedPaths, useToggleReviewed } from './use-changes'
+import { SelectionBar } from './selection-bar'
+import { useDiffReading } from './use-diff'
 import { useDiffTokens } from './use-highlight'
+import { useLineSelection } from './use-line-selection'
+
+/** Per-file reviewed ticks, when the surface has them. A commit's files are already history. */
+export type ReviewedPaths = {
+  paths: ReadonlySet<string>
+  onToggle: (path: string, reviewed: boolean) => void
+}
 
 /**
- * The whole change set as one scrollable document — "read all". Same flow order as the list,
- * every file's diff inlined, so a review can be walked end to end without returning to the
- * list between files.
+ * A whole change set as one scrollable document — "read all". Same flow order as the list it
+ * was opened from, every file's diff inlined, so a review can be walked end to end without
+ * returning to the list between files.
+ *
+ * The set is whatever `scope` names: the working tree, the branch range, or one commit.
  */
 export function ReadAllView({
   active,
-  base,
   bottomInset = 0,
-  scope,
+  context,
   onBack,
+  reviewed,
+  scope,
+  testID,
+  commentTestIDPrefix = 'porcelain-changes-comment',
+  selectionTestIDPrefix = 'porcelain-changes-selection',
+  title,
   topInset = 0,
 }: {
   active: boolean
-  base: string | undefined
   /** Phone: room for the floating tab bar the rows scroll under. */
   bottomInset?: number
-  scope: ChangesScope
+  /** Second header line — which set this is, before the file count. */
+  context: string
   onBack?: () => void
+  /** Omitted where reviewing does not apply. */
+  reviewed?: ReviewedPaths
+  scope: DiffReadingScope
+  /** Root test id; every control below derives from it. */
+  testID: string
+  /** Prefix for the comment controls exposed by this surface. */
+  commentTestIDPrefix?: string
+  /** Prefix for the selection-bar controls exposed by this surface. */
+  selectionTestIDPrefix?: string
+  title: string
   /** Phone: this view replaces the tab header, so it owns the status-bar inset. */
   topInset?: number
 }): React.JSX.Element {
   const { error, isLoading, reading } = useDiffReading(scope, active)
   const mode = usePreferencesStore((state) => state.diffMode)
-  const reviewed = useReviewedPaths(active)
-  const { mark, unmark } = useToggleReviewed()
   const comments = useReviewComments(active)
   const [anchor, setAnchor] = useState<CommentAnchor | null>(null)
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set())
@@ -100,46 +118,44 @@ export function ReadAllView({
   }
 
   const fileCount = reading?.groups.reduce((count, group) => count + group.files.length, 0) ?? 0
-  const scopeLabel = scope === 'branch' ? `Branch range · vs ${base ?? 'base'}` : 'Working tree'
 
   return (
-    <View className="flex-1 bg-background" testID="porcelain-changes-read-all">
+    <View className="flex-1 bg-background" testID={testID}>
       <View
         className="flex-row items-center gap-1 border-b border-border px-2 py-1.5"
         style={{ paddingTop: topInset + 6 }}
       >
         {onBack === undefined ? null : (
           <IconAction
-            accessibilityLabel="Back to changes"
+            accessibilityLabel="Back"
             glyph="chevronLeft"
-            testID="porcelain-changes-read-all-back"
+            testID={`${testID}-back`}
             tone="foreground"
             onPress={onBack}
           />
         )}
         <View className={cn('min-w-0 flex-1', onBack === undefined && 'pl-1.5')}>
-          <Text className="text-xs font-semibold text-foreground">All changes</Text>
+          <Text className="text-xs font-semibold text-foreground" numberOfLines={1}>
+            {title}
+          </Text>
           <Text className="text-[10px] text-muted-foreground" numberOfLines={1}>
-            {scopeLabel} · {fileCount} {fileCount === 1 ? 'file' : 'files'}
+            {context} · {fileCount} {fileCount === 1 ? 'file' : 'files'}
           </Text>
         </View>
       </View>
 
       {error !== null ? (
         <View className="p-4">
-          <ErrorNote message={error.message} testID="porcelain-changes-read-all-error" />
+          <ErrorNote message={error.message} testID={`${testID}-error`} />
         </View>
       ) : isLoading ? (
-        <Text
-          className="p-4 text-sm text-muted-foreground"
-          testID="porcelain-changes-read-all-loading"
-        >
+        <Text className="p-4 text-sm text-muted-foreground" testID={`${testID}-loading`}>
           Loading…
         </Text>
       ) : fileCount === 0 ? (
         <EmptyNote
           body="Nothing to walk through in this range yet."
-          testID="porcelain-changes-read-all-empty"
+          testID={`${testID}-empty`}
           title="No changes to review"
         />
       ) : (
@@ -156,23 +172,21 @@ export function ReadAllView({
               emphasis={emphasis}
               hunksByPath={hunksByPath}
               selection={lineSelection}
+              testID={testID}
               tokensFor={diffTokens}
-              isReviewed={item.kind === 'file' ? reviewed.has(item.file.path) : false}
+              isReviewed={item.kind === 'file' && reviewed?.paths.has(item.file.path) === true}
+              reviewable={reviewed !== undefined}
               row={item}
               onToggleCollapsed={toggleCollapsed}
               onToggleReviewed={(path, next) => {
-                if (next) {
-                  mark(path)
-                  // Ticking a file off folds it away, like the web surface: the read moves on
-                  // to the next file instead of leaving a wall of already-read diff behind.
-                  setCollapsed((current) => new Set(current).add(path))
-                } else {
-                  unmark(path)
-                }
+                reviewed?.onToggle(path, next)
+                // Ticking a file off folds it away, like the web surface: the read moves on
+                // to the next file instead of leaving a wall of already-read diff behind.
+                if (next) setCollapsed((current) => new Set(current).add(path))
               }}
             />
           )}
-          testID="porcelain-changes-read-all-rows"
+          testID={`${testID}-rows`}
           windowSize={9}
         />
       )}
@@ -182,12 +196,14 @@ export function ReadAllView({
           bottomInset={bottomInset}
           path={activeSelection.path}
           range={activeSelection.range}
+          testIDPrefix={selectionTestIDPrefix}
           onCancel={lineSelection.clear}
           onComment={handleCommentSelection}
         />
       )}
       <CommentComposer
         anchor={anchor}
+        testIDPrefix={commentTestIDPrefix}
         onClose={() => {
           setAnchor(null)
         }}
@@ -211,8 +227,10 @@ function ReadingRowView({
   isReviewed,
   onToggleCollapsed,
   onToggleReviewed,
+  reviewable,
   row,
   selection,
+  testID,
   tokensFor,
 }: {
   collapsed: boolean
@@ -222,8 +240,10 @@ function ReadingRowView({
   isReviewed: boolean
   onToggleCollapsed: (path: string) => void
   onToggleReviewed: (path: string, reviewed: boolean) => void
+  reviewable: boolean
   row: ReadingRow
   selection: LineSelectionControls
+  testID: string
   tokensFor: (path: string, hunks: readonly DiffHunk[]) => TokenMap
 }): React.JSX.Element {
   if (row.kind === 'layer') {
@@ -240,7 +260,7 @@ function ReadingRowView({
         <IconAction
           accessibilityLabel={`${collapsed ? 'Expand' : 'Collapse'} ${fileName(file.path)} diff`}
           glyph={collapsed ? 'chevronRight' : 'chevron'}
-          testID={`porcelain-changes-read-all-collapse-${fileName(file.path)}`}
+          testID={`${testID}-collapse-${fileName(file.path)}`}
           onPress={() => {
             onToggleCollapsed(file.path)
           }}
@@ -269,16 +289,18 @@ function ReadingRowView({
         {file.deletions === undefined ? null : (
           <Text className="font-mono text-[10px] text-destructive">−{file.deletions}</Text>
         )}
-        <IconAction
-          accessibilityLabel={`${isReviewed ? 'Unmark' : 'Mark'} ${fileName(file.path)} reviewed`}
-          glyph={isReviewed ? 'squareCheck' : 'square'}
-          selected={isReviewed}
-          testID={`porcelain-changes-read-all-reviewed-${fileName(file.path)}`}
-          tone={isReviewed ? 'success' : 'muted'}
-          onPress={() => {
-            onToggleReviewed(file.path, !isReviewed)
-          }}
-        />
+        {reviewable ? (
+          <IconAction
+            accessibilityLabel={`${isReviewed ? 'Unmark' : 'Mark'} ${fileName(file.path)} reviewed`}
+            glyph={isReviewed ? 'squareCheck' : 'square'}
+            selected={isReviewed}
+            testID={`${testID}-reviewed-${fileName(file.path)}`}
+            tone={isReviewed ? 'success' : 'muted'}
+            onPress={() => {
+              onToggleReviewed(file.path, !isReviewed)
+            }}
+          />
+        ) : null}
       </View>
     )
   }

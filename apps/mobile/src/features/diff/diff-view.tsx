@@ -2,37 +2,46 @@ import { fileName } from '@porcelain/client-runtime/paths'
 import { intraLineEmphasis } from '@porcelain/client-runtime/word-diff-line'
 import { useMemo, useState } from 'react'
 import { FlatList, Image, Text, View } from 'react-native'
+
 import { EmptyNote, ErrorNote, IconAction } from '@/components/panel-chrome'
 import { type CommentAnchor, CommentComposer } from '@/features/comments/comment-composer'
-import { rangeForPath } from '@/features/comments/line-range'
-import { SelectionBar } from '@/features/comments/selection-bar'
 import { useCommentIndex, useReviewComments } from '@/features/comments/use-comments'
-import { useLineSelection } from '@/features/comments/use-line-selection'
 import { usePreferencesStore } from '@/features/settings/preferences-store'
-import type { DiffHunk } from '@/lib/daemon/procedures/changes'
+import type { DiffHunk, FileStatus } from '@/lib/daemon/procedures/changes'
 import { cn } from '@/lib/utils'
+
 import { DiffRowView } from './diff-lines'
-import { anchorTextFor, type DiffRow, toDiffRows } from './diff-rows'
-import { useDiffFile, useReviewedPaths, useToggleReviewed } from './use-changes'
+import { type DiffRow, toDiffRows } from './diff-rows'
+import { anchorTextFor, rangeForPath } from './line-selection'
+import { SelectionBar } from './selection-bar'
+import { type DiffSource, useDiffFile } from './use-diff'
 import { useDiffTokens } from './use-highlight'
+import { useLineSelection } from './use-line-selection'
+
+/** The reviewed tick, when the surface has one. A historical commit has no reviewed state. */
+export type ReviewedControl = { isReviewed: boolean; onToggle: () => void }
 
 /**
- * One file's diff. The unified / split choice is a Settings preference rather than a control
- * in this header — a phone has no room for two code columns, and the toggle would be a
- * per-viewer decision the user has already made once.
+ * One file's diff — from the working tree, a branch range, or a single commit.
+ *
+ * The unified / split choice is a Settings preference rather than a control in this header —
+ * a phone has no room for two code columns, and the toggle would be a per-viewer decision the
+ * user has already made once.
  */
 export function DiffView({
   active,
-  base,
   bottomInset = 0,
   filePath,
   onBack,
   onOpenFile,
+  reviewed,
+  source,
+  testID,
+  commentTestIDPrefix = 'porcelain-changes-comment',
+  selectionTestIDPrefix = 'porcelain-changes-selection',
   topInset = 0,
 }: {
   active: boolean
-  /** Branch scope base ref; `undefined` reads the working tree. */
-  base: string | undefined
   /** Phone: room for the floating tab bar the rows scroll under. */
   bottomInset?: number
   filePath: string
@@ -43,20 +52,30 @@ export function DiffView({
    * tablet. The host decides which; the header just offers it.
    */
   onOpenFile?: (path: string) => void
+  /** Omitted where reviewing does not apply — a commit's diff is already history. */
+  reviewed?: ReviewedControl
+  /** Which diff to read. The tab that owns this view decides. */
+  source: DiffSource
+  /**
+   * Root test id. Every control below derives from it (`${testID}-back`, `-rows`, …) so the
+   * tabs that share this surface stay separately addressable in the Android tree.
+   */
+  testID: string
+  /** Prefix for the comment controls exposed by this surface. */
+  commentTestIDPrefix?: string
+  /** Prefix for the selection-bar controls exposed by this surface. */
+  selectionTestIDPrefix?: string
   /** Phone: this view replaces the tab header, so it owns the status-bar inset. */
   topInset?: number
 }): React.JSX.Element {
-  const { error, isLoading, result } = useDiffFile(filePath, base, active)
-  const reviewedPaths = useReviewedPaths(active)
-  const { mark, unmark } = useToggleReviewed()
+  const file = useDiffFile(filePath, source, active)
   const preferredMode = usePreferencesStore((state) => state.diffMode)
   const comments = useReviewComments(active)
   const commentIndex = useCommentIndex(comments, filePath)
   const [anchor, setAnchor] = useState<CommentAnchor | null>(null)
   const lineSelection = useLineSelection()
-  const isReviewed = reviewedPaths.has(filePath)
 
-  const hunks: readonly DiffHunk[] = result?.hunks ?? []
+  const hunks: readonly DiffHunk[] = file.hunks ?? []
   const rows = useMemo(() => toDiffRows(hunks, preferredMode), [hunks, preferredMode])
   const emphasis = useMemo(() => intraLineEmphasis(hunks), [hunks])
   const commentedLines = useMemo(() => new Set(commentIndex.byLine.keys()), [commentIndex])
@@ -92,42 +111,42 @@ export function DiffView({
   }
 
   return (
-    <View className="flex-1 bg-background" testID="porcelain-changes-diff">
+    <View className="flex-1 bg-background" testID={testID}>
       <DiffHeader
         filePath={filePath}
+        reviewed={reviewed}
+        testID={testID}
         topInset={topInset}
-        isReviewed={isReviewed}
         onBack={onBack}
         onComment={() => {
           setAnchor({ path: filePath })
         }}
         onOpenFile={onOpenFile}
-        onToggleReviewed={() => {
-          if (isReviewed) unmark(filePath)
-          else mark(filePath)
-        }}
       />
       <DiffBody
-        binary={result?.binary === true}
+        binary={file.binary}
         bottomInset={bottomInset}
         ctx={ctx}
-        error={error}
-        image={result?.image}
-        isLoading={isLoading}
+        error={file.error}
+        image={file.image}
+        isLoading={file.isLoading}
         rows={rows}
-        status={result?.status}
+        status={file.status}
+        testID={testID}
       />
       {selected === null ? null : (
         <SelectionBar
           bottomInset={bottomInset}
           path={filePath}
           range={selected}
+          testIDPrefix={selectionTestIDPrefix}
           onCancel={lineSelection.clear}
           onComment={handleCommentSelection}
         />
       )}
       <CommentComposer
         anchor={anchor}
+        testIDPrefix={commentTestIDPrefix}
         onClose={() => {
           setAnchor(null)
         }}
@@ -138,19 +157,19 @@ export function DiffView({
 
 function DiffHeader({
   filePath,
-  isReviewed,
   onBack,
   onComment,
   onOpenFile,
-  onToggleReviewed,
+  reviewed,
+  testID,
   topInset,
 }: {
   filePath: string
-  isReviewed: boolean
   onBack?: () => void
   onComment: () => void
   onOpenFile?: (path: string) => void
-  onToggleReviewed: () => void
+  reviewed: ReviewedControl | undefined
+  testID: string
   topInset: number
 }): React.JSX.Element {
   return (
@@ -160,9 +179,9 @@ function DiffHeader({
     >
       {onBack === undefined ? null : (
         <IconAction
-          accessibilityLabel="Back to changes"
+          accessibilityLabel="Back"
           glyph="chevronLeft"
-          testID="porcelain-changes-diff-back"
+          testID={`${testID}-back`}
           tone="foreground"
           onPress={onBack}
         />
@@ -179,18 +198,20 @@ function DiffHeader({
           {filePath}
         </Text>
       </View>
-      <IconAction
-        accessibilityLabel={isReviewed ? 'Unmark reviewed' : 'Mark reviewed'}
-        glyph={isReviewed ? 'squareCheck' : 'square'}
-        selected={isReviewed}
-        testID="porcelain-changes-diff-reviewed"
-        tone={isReviewed ? 'success' : 'muted'}
-        onPress={onToggleReviewed}
-      />
+      {reviewed === undefined ? null : (
+        <IconAction
+          accessibilityLabel={reviewed.isReviewed ? 'Unmark reviewed' : 'Mark reviewed'}
+          glyph={reviewed.isReviewed ? 'squareCheck' : 'square'}
+          selected={reviewed.isReviewed}
+          testID={`${testID}-reviewed`}
+          tone={reviewed.isReviewed ? 'success' : 'muted'}
+          onPress={reviewed.onToggle}
+        />
+      )}
       <IconAction
         accessibilityLabel="Comment on file"
         glyph="commentAdd"
-        testID="porcelain-changes-diff-comment"
+        testID={`${testID}-comment`}
         onPress={onComment}
       />
       {/* A diff answers "what changed"; the file answers "what is this now". Reading one
@@ -199,7 +220,7 @@ function DiffHeader({
         accessibilityLabel="Open the whole file"
         disabled={onOpenFile === undefined}
         glyph="file"
-        testID="porcelain-changes-diff-open-file"
+        testID={`${testID}-open-file`}
         onPress={() => {
           onOpenFile?.(filePath)
         }}
@@ -217,6 +238,7 @@ function DiffBody({
   isLoading,
   rows,
   status,
+  testID,
 }: {
   binary: boolean
   bottomInset: number
@@ -225,18 +247,19 @@ function DiffBody({
   image: { dataUrl: string } | undefined
   isLoading: boolean
   rows: DiffRow[]
-  status: string | undefined
+  status: FileStatus | undefined
+  testID: string
 }): React.JSX.Element {
   if (error !== null) {
     return (
       <View className="p-4">
-        <ErrorNote message={error.message} testID="porcelain-changes-diff-error" />
+        <ErrorNote message={error.message} testID={`${testID}-error`} />
       </View>
     )
   }
   if (isLoading) {
     return (
-      <Text className="p-4 text-sm text-muted-foreground" testID="porcelain-changes-diff-loading">
+      <Text className="p-4 text-sm text-muted-foreground" testID={`${testID}-loading`}>
         Loading…
       </Text>
     )
@@ -263,7 +286,7 @@ function DiffBody({
     return (
       <EmptyNote
         body="Porcelain doesn’t render a byte diff — read this one on the host."
-        testID="porcelain-changes-diff-binary"
+        testID={`${testID}-binary`}
         title="Binary file"
       />
     )
@@ -272,7 +295,7 @@ function DiffBody({
     return (
       <EmptyNote
         body="This file is in the change set but its contents match — a mode or rename change."
-        testID="porcelain-changes-diff-empty"
+        testID={`${testID}-empty`}
         title="No line changes"
       />
     )
@@ -287,7 +310,7 @@ function DiffBody({
       keyExtractor={(row) => row.key}
       maxToRenderPerBatch={40}
       renderItem={({ item }) => <DiffRowView ctx={ctx} row={item} />}
-      testID="porcelain-changes-diff-rows"
+      testID={`${testID}-rows`}
       windowSize={9}
     />
   )

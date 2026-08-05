@@ -130,6 +130,35 @@ export function useDaemonQueries<TInput, TOutput>(
   return useQueries({ queries })
 }
 
+type DaemonFetch = <TInput, TOutput>(
+  procedure: DaemonQuery<TInput, TOutput>,
+  input: TInput,
+) => Promise<TOutput>
+
+/**
+ * One read, imperatively — for an action that needs data it is not rendering, like copying a
+ * commit's full message from a menu row.
+ *
+ * Goes through the same cache as `useDaemonQuery`, so a value the open screen already has is
+ * handed back rather than re-fetched, and a value this pulls warms the screen that shows it
+ * next. Rejects with a `DaemonError` like every other call on this seam.
+ */
+export function useDaemonFetch(): DaemonFetch {
+  const client = useQueryClient()
+  const environment = useActiveEnvironment()
+
+  return useCallback<DaemonFetch>(
+    async (procedure, input) => {
+      if (!isPaired(environment)) throw NO_ENVIRONMENT
+      return client.fetchQuery({
+        queryFn: daemonQueryFn(environment, procedure, input),
+        queryKey: daemonKeys.call(environment.id, procedure.name, input),
+      })
+    },
+    [client, environment],
+  )
+}
+
 export function useDaemonMutation<TInput, TOutput>(
   procedure: DaemonMutation<TInput, TOutput>,
   options?: { invalidates?: readonly string[] },

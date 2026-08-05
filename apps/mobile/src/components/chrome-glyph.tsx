@@ -75,6 +75,8 @@ const CHROME_SYMBOLS = {
   image: { ios: 'photo' as SFSymbol, android: 'image' as AndroidSymbol },
   code: { ios: 'curlybraces' as SFSymbol, android: 'code' as AndroidSymbol },
   comment: { ios: 'bubble.left' as SFSymbol, android: 'chat_bubble' as AndroidSymbol },
+  /** History's commit menu: copy the SHA, copy the message. */
+  copy: { ios: 'doc.on.doc' as SFSymbol, android: 'content_copy' as AndroidSymbol },
   commentAdd: {
     ios: 'bubble.left.and.text.bubble.right' as SFSymbol,
     android: 'add_comment' as AndroidSymbol,

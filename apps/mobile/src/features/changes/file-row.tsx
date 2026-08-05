@@ -15,7 +15,6 @@ const STATUS_BADGE: Record<FileStatus, { label: string; className: string }> = {
   renamed: { label: 'R', className: 'text-info' },
   untracked: { label: 'U', className: 'text-success' },
 }
-
 export type FileRowActions = {
   onOpen: (path: string) => void
   onToggleReviewed: (path: string, reviewed: boolean) => void

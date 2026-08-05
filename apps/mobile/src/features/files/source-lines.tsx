@@ -10,6 +10,8 @@ import type { SourceRow } from './source-rows'
 export type SourceLineContext = {
   /** Syntax spans per 1-based line. `null` renders every line in the plain foreground. */
   tokens: ThemedToken[][] | null
+  /** Stable path-derived prefix for the source-line accessibility targets. */
+  testIDPrefix: string
   /** Lines carrying a review comment, so the row can show its marker. */
   commentedLines: ReadonlySet<number>
   /** The range being selected in this file, or null when nothing is selected. */
@@ -42,12 +44,13 @@ function SourceLineImpl({
   return (
     <Pressable
       accessibilityLabel={`Line ${row.line}${commented ? ', commented' : ''}`}
-      accessibilityRole="text"
+      accessibilityRole="button"
       accessibilityState={{ selected }}
       className={cn(
         'flex-row gap-1.5 px-2 py-px',
         selected ? 'bg-primary/15' : commented ? 'bg-info/10' : '',
       )}
+      testID={`${ctx.testIDPrefix}-${row.line}`}
       onLongPress={() => {
         ctx.onAnchorLine(row.line)
       }}

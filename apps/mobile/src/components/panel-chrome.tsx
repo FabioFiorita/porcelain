@@ -11,9 +11,9 @@ import { cn } from '@/lib/utils'
  * result note under a write, the empty and error states, and the two touch stand-ins for a
  * desktop right-click menu.
  *
- * Lives in `components/` rather than a feature folder because every tab needs the same
- * vocabulary — the second copy of an "empty note" is where two surfaces start looking like
- * two products. Callers pass their own testIDs, so nothing here names a surface.
+ * Lives beside the UI primitives rather than inside a tab because Changes, History, Files, and
+ * the diff surfaces they share all draw from it. Callers pass their own testIDs, so nothing here
+ * names a surface.
  */
 
 /** Section caption shared by the list groups and every companion card. */

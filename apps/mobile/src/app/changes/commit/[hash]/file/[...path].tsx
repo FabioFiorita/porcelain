@@ -1,39 +1,39 @@
 import { useIsFocused, useLocalSearchParams, useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { ChangesDiffView } from '@/features/changes/changes-diff-view'
-import { useChangesFlow } from '@/features/changes/use-changes'
+import { DiffView } from '@/features/diff/diff-view'
 import { pathSegments } from '@/features/files/file-paths'
+import { useHistoryFocus } from '@/features/history/use-history'
 import { useTabBarInset } from '@/features/shell/tab-bar-inset'
 
 /**
- * One file's diff, pushed over the Changes list.
+ * One file's diff as of a commit, pushed over that commit's file list.
  *
  * The repo-relative path is a rest segment because it carries slashes; Expo Router hands the
  * segments back as an array, which rejoins to exactly the path git gave us.
  */
-export default function ChangesFileRoute(): React.JSX.Element {
-  const { path } = useLocalSearchParams<{ path: string[] }>()
+export default function HistoryCommitFileRoute(): React.JSX.Element {
+  const { hash, path } = useLocalSearchParams<{ hash: string; path: string[] }>()
   const focused = useIsFocused()
   const insets = useSafeAreaInsets()
   const router = useRouter()
   const bottomInset = useTabBarInset()
-  // The base ref identifies a branch-scope diff, and it comes from the same read the list
-  // rendered before it pushed us — already cached, so this costs nothing.
-  const { base } = useChangesFlow(focused)
+  const filePath = path.join('/')
+  useHistoryFocus({ hash, kind: 'file', path: filePath })
 
   return (
-    <ChangesDiffView
+    <DiffView
       active={focused}
-      base={base}
       bottomInset={bottomInset}
-      filePath={path.join('/')}
+      filePath={filePath}
+      source={{ hash, kind: 'commit' }}
+      testID="porcelain-history-diff"
+      commentTestIDPrefix="porcelain-history-comment"
+      selectionTestIDPrefix="porcelain-history-selection"
       topInset={Math.max(insets.top, 8)}
       onBack={() => {
         router.back()
       }}
-      // Git and this route both speak repo-relative paths, and so does the Files viewer —
-      // the same string identifies the file in all three.
       onOpenFile={(next) => {
         router.push({ params: { path: pathSegments(next) }, pathname: '/file/[...path]' })
       }}

@@ -146,6 +146,7 @@ export function FilesBrowser({
 
       <CommentComposer
         anchor={anchor}
+        testIDPrefix="porcelain-files-comment"
         onClose={() => {
           setAnchor(null)
         }}
