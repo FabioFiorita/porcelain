@@ -7,6 +7,11 @@ import { join } from 'node:path'
  *
  * Users choose what to share with git via `.porcelain/.gitignore`. Evidence is
  * ignored by default (can be large); everything else is trackable by default.
+ *
+ * NODE-ONLY. The `node:path` import below externalizes in a browser bundle and
+ * Metro cannot resolve it at all, so web and mobile may only `import type` from
+ * this module. Anything a client needs at runtime belongs in
+ * `@porcelain/client-runtime` — see `companion-disposition.ts` there.
  */
 
 export const PROJECT_PORCELAIN_DIR = '.porcelain'
@@ -67,6 +72,12 @@ export const ASSETS_DIR = 'assets'
  */
 export type CompanionDisposition = 'shared' | 'local'
 
+/**
+ * The sentence each client renders under a channel row lives in
+ * `@porcelain/client-runtime/companion-disposition` — this module reaches for
+ * `node:path`, which Metro cannot resolve, so shared copy for the mobile client
+ * cannot live here.
+ */
 export interface CompanionChannel {
   key: string
   label: string
@@ -154,7 +165,10 @@ export const ALWAYS_IGNORED = [
   'reviews/*/evidence/',
 ] as const
 
-const MANAGED_BEGIN = '# >>> porcelain:managed — Settings › Companion owns these lines'
+// The trailing prose is free to change: `renderGitignore` finds the opening
+// marker by prefix, so a companion written by an older build is still replaced
+// rather than duplicated.
+const MANAGED_BEGIN = '# >>> porcelain:managed — Settings › Data owns these lines'
 const MANAGED_END = '# <<< porcelain:managed'
 
 /**

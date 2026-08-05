@@ -11,7 +11,8 @@ export type ShellSheet =
   | 'companion'
   | null
 
-export type SettingsSection = 'general' | 'review' | 'environments'
+/** Mirrors the desktop Settings dialog: General · Data · Review · Environments. */
+export type SettingsSection = 'general' | 'data' | 'review' | 'environments'
 
 type ShellState = {
   /** Active product surface (tablet rail + phone face). Independent of URL faces. */

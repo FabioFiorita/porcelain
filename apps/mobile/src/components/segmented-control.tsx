@@ -19,18 +19,25 @@ export function SegmentedControl<T extends string>({
   options,
   onChange,
   className,
+  disabled = false,
   testID,
 }: {
   value: T
   options: readonly Option<T>[]
   onChange: (value: T) => void
   className?: string
+  /** Held while a write is in flight, so a second tap cannot race the first. */
+  disabled?: boolean
   testID?: string
 }): React.JSX.Element {
   return (
     <View
       accessibilityRole="tablist"
-      className={cn('w-full flex-row rounded-lg bg-muted p-0.5', className)}
+      className={cn(
+        'w-full flex-row rounded-lg bg-muted p-0.5',
+        disabled && 'opacity-60',
+        className,
+      )}
       testID={testID}
     >
       {options.map((option) => {
@@ -39,11 +46,12 @@ export function SegmentedControl<T extends string>({
           <Pressable
             key={option.value}
             accessibilityRole="tab"
-            accessibilityState={{ selected }}
+            accessibilityState={{ disabled, selected }}
             className={cn(
               'min-h-8 min-w-0 flex-1 items-center justify-center rounded-md px-2.5 py-1.5',
               selected && 'bg-background shadow-sm shadow-black/5',
             )}
+            disabled={disabled}
             testID={option.testID}
             onPress={() => {
               onChange(option.value)

@@ -9,7 +9,7 @@ Every AI harness makes worktrees now, and each one hands you a fresh checkout. C
 | Active review (`active-review/`) | Always ignored | Nothing, **by design** — two worktrees must never fight over one review |
 | Archived reviews (`reviews/<id>/`) | Local unless published | Only the ones someone published |
 
-So there is usually **nothing to seed**. If actions or layers are missing in a worktree, the cause is almost always that the channel is set to Local for this repo, not that the worktree needs priming — check Settings › Companion or read `.porcelain/.gitignore`.
+So there is usually **nothing to seed**. If actions or layers are missing in a worktree, the cause is almost always that the channel is set to Local for this repo, not that the worktree needs priming — check Settings › Data or read `.porcelain/.gitignore`.
 
 **Git visibility is one decision per clone.** `info/` resolves through `$GIT_COMMON_DIR`, so the `.porcelain/` exclude line covers every worktree of a clone, including ones created later. You cannot hide in one worktree and share in another. Full detail: [git-visibility.md](git-visibility.md).
 

@@ -3,6 +3,7 @@
  * is real product UI rather than shell chrome placeholders.
  */
 export {
+  DataSettings,
   EnvironmentsSettings,
   GeneralSettings,
   ReviewSettings,

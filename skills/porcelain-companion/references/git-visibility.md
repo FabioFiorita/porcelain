@@ -23,7 +23,7 @@ git rev-parse --git-common-dir           # where info/exclude actually lives
 grep -n porcelain "$(git rev-parse --git-common-dir)/info/exclude"
 ```
 
-**To start sharing, remove that line.** Either edit the file, or let the human flip any channel to Shared in Settings › Companion, which removes it for them.
+**To start sharing, remove that line.** Either edit the file, or let the human flip any channel to Shared in Settings › Data, which removes it for them.
 
 ```bash
 # Make the companion visible to git in this clone (idempotent)
@@ -40,7 +40,7 @@ While the exclude is in place, **negation rules inside `.porcelain/.gitignore` d
 `.porcelain/.gitignore` carries a block Porcelain owns:
 
 ```
-# >>> porcelain:managed — Settings › Companion owns these lines
+# >>> porcelain:managed — Settings › Data owns these lines
 …
 # <<< porcelain:managed
 ```

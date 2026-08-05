@@ -24,7 +24,7 @@ Machine secrets (daemon token, remotes, UI prefs) stay under `~/.porcelain` (or
 1. Lift the clone-wide exclude if it is still there — Porcelain hides
    `.porcelain/` from git until you share something. See
    [git-visibility.md](git-visibility.md).
-2. Pick what to share (Settings › Companion, or edit the managed block in
+2. Pick what to share (Settings › Data, or edit the managed block in
    `.porcelain/.gitignore` directly).
 3. Commit and push.
 4. Teammate (or remote clone) pulls — the shared channels are present. A clone

@@ -24,6 +24,7 @@ import { TestIds } from '@shared/test-ids'
 import {
   BookOpen,
   Cloud,
+  Database,
   Download,
   Layers,
   Settings2,
@@ -31,6 +32,7 @@ import {
   SlidersHorizontal,
 } from 'lucide-react'
 import { CompanionSection } from './companion-section'
+import { DataSection } from './data-section'
 import { FlowLayersSection } from './flow-layers-section'
 import { GeneralSection } from './general-section'
 import { RemotesSection } from './remotes-section'
@@ -58,14 +60,23 @@ const ALL_SECTIONS: {
     blurb: 'Viewer preferences, saved on this machine.',
   },
   {
+    id: 'data',
+    label: 'Data',
+    icon: Database,
+    title: 'Data',
+    // Not shell-only: what git carries is a property of the REPO, so it has to be
+    // reachable from the browser client and a remote daemon too.
+    blurb: "This project's companion data, and what git carries between clones.",
+  },
+  {
     id: 'companion',
     label: 'Companion',
     icon: BookOpen,
     title: 'Companion',
-    // Not shell-only: what git carries is a property of the REPO, so it has to be
-    // reachable from the browser client and a remote daemon too. The skill
-    // installer inside is the shell-only half and hides itself.
-    blurb: 'What git carries, and the porcelain-companion skill for your agents.',
+    // Shell-only now that the repo half lives under Data: all that is left is the
+    // skill installer, which writes into agent homes on THIS machine.
+    blurb: 'The porcelain-companion skill for your agents.',
+    shellOnly: true,
   },
   {
     id: 'share',
@@ -270,6 +281,7 @@ function SettingsSectionBody({
   return (
     <>
       {activeId === 'general' && <GeneralSection />}
+      {activeId === 'data' && <DataSection />}
       {activeId === 'companion' && <CompanionSection />}
       {activeId === 'share' && <ShareSection />}
       {activeId === 'remotes' && <RemotesSection />}

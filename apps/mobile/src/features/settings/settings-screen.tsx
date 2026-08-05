@@ -5,12 +5,14 @@ import { Text as UiText } from '@/components/ui/text'
 
 import { PhoneHeader } from '../shell/phone-header'
 import { type SettingsSection, useShellStore } from '../shell/shell-store'
+import { DataSettings } from './data-panel'
 import { EnvironmentsSettings } from './environments-panel'
 import { GeneralSettings } from './general-panel'
 import { ReviewSettings } from './review-panel'
 
 const SECTIONS: { id: SettingsSection; label: string }[] = [
   { id: 'general', label: 'General' },
+  { id: 'data', label: 'Data' },
   { id: 'review', label: 'Review' },
   { id: 'environments', label: 'Environments' },
 ]
@@ -38,11 +40,15 @@ export function SettingsScreen(): React.JSX.Element {
               {SECTIONS.map((entry) => (
                 <TabsTrigger
                   key={entry.id}
-                  className="min-h-9 flex-1"
+                  className="min-h-9 min-w-0 flex-1 px-1.5"
                   testID={`porcelain-settings-section-${entry.id}`}
                   value={entry.id}
                 >
-                  <UiText className="text-sm font-medium">{entry.label}</UiText>
+                  {/* Four sections share a 390pt phone, so "Environments" has
+                      ~85pt: one line, smaller type, and no wrap. */}
+                  <UiText className="text-xs font-medium" numberOfLines={1}>
+                    {entry.label}
+                  </UiText>
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -58,6 +64,7 @@ export function SettingsScreen(): React.JSX.Element {
               showsVerticalScrollIndicator={false}
             >
               {entry.id === 'general' ? <GeneralSettings /> : null}
+              {entry.id === 'data' ? <DataSettings /> : null}
               {entry.id === 'review' ? <ReviewSettings /> : null}
               {entry.id === 'environments' ? <EnvironmentsSettings /> : null}
             </ScrollView>
@@ -69,4 +76,4 @@ export function SettingsScreen(): React.JSX.Element {
 }
 
 // Re-export panels for the tablet settings sheet.
-export { EnvironmentsSettings, GeneralSettings, ReviewSettings }
+export { DataSettings, EnvironmentsSettings, GeneralSettings, ReviewSettings }

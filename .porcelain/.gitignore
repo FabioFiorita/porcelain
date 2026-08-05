@@ -1,7 +1,7 @@
 # Porcelain project companion.
 # Lines outside the managed block are yours — Porcelain never touches them.
 
-# >>> porcelain:managed — Settings › Companion owns these lines
+# >>> porcelain:managed — Settings › Data owns these lines
 /notes.md
 /board.json
 /feature-view.json

@@ -1,151 +1,20 @@
-import { Button } from '@renderer/components/ui/button'
-import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
-import {
-  useCompanionDispositions,
-  useCompanionGitVisibility,
-  useSetCompanionDisposition,
-  useSetCompanionGitVisibility,
-} from '@renderer/hooks/use-companion-dispositions'
-import { compactButtonClass } from '@renderer/lib/controls'
-import { isBrowser } from '@renderer/lib/platform'
-import { useRepoStore } from '@renderer/stores/repo'
-import type { CompanionDisposition } from '@shared/project-porcelain'
-import { TestIds } from '@shared/test-ids'
-import { useState } from 'react'
 import { SkillsSection } from './skills-section'
 
 /**
- * Settings → Companion: what git carries, plus the agent companion skill.
+ * Settings → Companion: the `porcelain-companion` skill your agents read.
  *
- * The toggle is a git disposition, not a storage location — companion data lives
- * in `<repo>/.porcelain/` either way. Local writes an ignore line and untracks;
- * Shared removes the line and leaves staging to the human.
+ * What git carries moved to Settings → Data. That half was a property of the
+ * repo; this half installs files into an agent home on THIS machine, which is
+ * why the tab is shell-only — a browser client has no shell router to run it.
  */
-function DispositionRow({
-  channelKey,
-  label,
-  hint,
-  disposition,
-  trackedCount,
-  onChange,
-}: {
-  channelKey: string
-  label: string
-  hint: string
-  disposition: CompanionDisposition
-  trackedCount: number
-  onChange: (next: CompanionDisposition) => Promise<void>
-}): React.JSX.Element {
-  return (
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-      <div className="min-w-0">
-        <p className="text-sm-minus font-medium">{label}</p>
-        <p className="text-xs text-muted-foreground">{hint}</p>
-      </div>
-      <div className="shrink-0 self-start sm:self-center">
-        <ToggleGroup
-          value={[disposition]}
-          onValueChange={async (value: string[]) => {
-            const next = value[0]
-            if (next === 'shared' || next === 'local') {
-              await onChange(next satisfies CompanionDisposition)
-            }
-          }}
-        >
-          <ToggleGroupItem
-            value="shared"
-            size="sm"
-            className={compactButtonClass}
-            data-testid={TestIds.companionDisposition(channelKey, 'shared')}
-          >
-            Shared
-          </ToggleGroupItem>
-          <ToggleGroupItem
-            value="local"
-            size="sm"
-            className={compactButtonClass}
-            data-testid={TestIds.companionDisposition(channelKey, 'local')}
-          >
-            Local{trackedCount > 0 && disposition === 'shared' ? ` (${trackedCount})` : ''}
-          </ToggleGroupItem>
-        </ToggleGroup>
-      </div>
-    </div>
-  )
-}
-
 export function CompanionSection(): React.JSX.Element {
-  const repo = useRepoStore((s) => s.repo)
-  const channels = useCompanionDispositions()
-  const visibility = useCompanionGitVisibility()
-  const setVisibility = useSetCompanionGitVisibility()
-  const { set } = useSetCompanionDisposition()
-  const [lastUntracked, setLastUntracked] = useState<string[]>([])
-  const hidden = visibility?.hidden === true
-
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-3">
-        <p className="text-sm-minus font-medium">What git carries</p>
-        {repo !== null && (
-          <div
-            className="flex flex-col gap-2 rounded-lg border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between"
-            data-testid={TestIds.companionGitVisibility}
-          >
-            <div className="min-w-0">
-              <p className="text-sm-minus font-medium">
-                {hidden ? 'Hidden from git in this clone' : 'Visible to git'}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {hidden ? 'Nothing shows in git status. Sharing anything lifts this.' : null}
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="shrink-0 self-start sm:self-center"
-              data-testid={TestIds.companionGitVisibilityToggle}
-              onClick={async () => {
-                await setVisibility(!hidden)
-              }}
-            >
-              {hidden ? 'Start sharing' : 'Hide from git'}
-            </Button>
-          </div>
-        )}
-        {repo === null ? (
-          <p className="text-xs text-muted-foreground">Open a project to choose.</p>
-        ) : (
-          <div className="flex flex-col gap-3" data-testid={TestIds.companionDispositions}>
-            {(channels ?? []).map((channel) => (
-              <DispositionRow
-                key={channel.key}
-                channelKey={channel.key}
-                label={channel.label}
-                hint={channel.hint}
-                disposition={channel.disposition}
-                trackedCount={channel.trackedPaths.length}
-                onChange={async (next) => {
-                  setLastUntracked(await set(channel.key, next))
-                }}
-              />
-            ))}
-          </div>
-        )}
-        {lastUntracked.length > 0 && (
-          <p className="text-xs text-muted-foreground" data-testid={TestIds.companionUntracked}>
-            Untracked {lastUntracked.length} {lastUntracked.length === 1 ? 'file' : 'files'} — still
-            on disk, removal staged.
-          </p>
-        )}
-      </div>
-
-      {!isBrowser && (
-        <div className="flex flex-col gap-3">
-          <p className="text-sm-minus font-medium">Agent skill</p>
-          <SkillsSection />
-        </div>
-      )}
+    <div className="flex flex-col gap-3">
+      <p className="text-xs text-muted-foreground">
+        Installs the skill that teaches your agents the Review loop, the board, saved actions, and
+        how this project's companion data is shared.
+      </p>
+      <SkillsSection />
     </div>
   )
 }

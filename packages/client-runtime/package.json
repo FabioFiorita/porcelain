@@ -6,6 +6,7 @@
   "type": "module",
   "exports": {
     "./commit-message": "./src/commit-message.ts",
+    "./companion-disposition": "./src/companion-disposition.ts",
     "./highlight": "./src/highlight.ts",
     "./paths": "./src/paths.ts",
     "./terminal-keys": "./src/terminal-keys.ts",

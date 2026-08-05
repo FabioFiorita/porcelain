@@ -51,8 +51,10 @@ parens is the **entry point**; read it for mechanics.
 | Board | Focus — full detail of the selected card; selection is client-only, **not** a second kanban |
 | Feature | **Current review + Previous reviews** (`review-group.tsx` + Comments) — archive the active unit; restore or trash archives under `.porcelain/reviews/` |
 
-**Overlays:** file finder (⌘P) · find bar (⌘F) · Settings (`settings-dialog.tsx` — General · Share ·
-Remotes · Review flow · Updates) · welcome screen.
+**Overlays:** file finder (⌘P) · find bar (⌘F) · Settings (`settings-dialog.tsx` — General · **Data**
+· Companion · Share · Remotes · Review flow · Updates) · welcome screen. **Data** owns what git
+carries (`data-section.tsx`, every client); **Companion** is the agent-skill installer only and is
+shell-only. Mobile mirrors General · Data · Review · Environments.
 
 **Cross-cutting** (product meaning: `docs/product.md`; internals here and in `audit`)
 

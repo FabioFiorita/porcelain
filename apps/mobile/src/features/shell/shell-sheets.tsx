@@ -7,7 +7,12 @@ import { Input } from '@/components/ui/input'
 import { Text as UiText } from '@/components/ui/text'
 import { cn } from '@/lib/utils'
 import { COMPANION, surfaceById } from './mock-data'
-import { EnvironmentsSettings, GeneralSettings, ReviewSettings } from './settings-screen'
+import {
+  DataSettings,
+  EnvironmentsSettings,
+  GeneralSettings,
+  ReviewSettings,
+} from './settings-screen'
 import { type SettingsSection, useShellStore } from './shell-store'
 import { surfaceSlots } from './surface-slots'
 import { BranchSheetBody, ProjectSheetBody, WorktreeSheetBody } from './workspace-switchers'
@@ -350,6 +355,7 @@ function SettingsSheetBody({ settingsMaxH }: { settingsMaxH: number }): React.JS
 
   const sections: { id: SettingsSection; label: string }[] = [
     { id: 'general', label: 'General' },
+    { id: 'data', label: 'Data' },
     { id: 'review', label: 'Review' },
     { id: 'environments', label: 'Environments' },
   ]
@@ -396,6 +402,7 @@ function SettingsSheetBody({ settingsMaxH }: { settingsMaxH: number }): React.JS
       <ShellModalScroll className="min-w-0 w-full flex-1" testID="porcelain-tablet-settings-body">
         <View className="w-full gap-3 pr-1">
           {section === 'general' ? <GeneralSettings /> : null}
+          {section === 'data' ? <DataSettings /> : null}
           {section === 'review' ? <ReviewSettings /> : null}
           {section === 'environments' ? <EnvironmentsSettings /> : null}
         </View>

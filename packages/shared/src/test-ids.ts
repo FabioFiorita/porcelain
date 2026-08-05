@@ -172,10 +172,12 @@ export const TestIds = {
   actionUnreviewed: (title: string): string =>
     `action-unreviewed-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
 
-  // --- Settings › Companion (what git carries) ---
+  // --- Settings › Data (what git carries) ---
   companionDispositions: 'companion-dispositions',
   companionDisposition: (key: string, disposition: string): string =>
     `companion-disposition-${key}-${disposition}`,
+  /** The plain-language line under a row: what git does with this channel today. */
+  companionDispositionState: (key: string): string => `companion-disposition-${key}-state`,
   companionUntracked: 'companion-untracked',
   companionGitVisibility: 'companion-git-visibility',
   companionGitVisibilityToggle: 'companion-git-visibility-toggle',
