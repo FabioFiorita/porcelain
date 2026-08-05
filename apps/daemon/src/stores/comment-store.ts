@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { PROJECT_FILES } from '@shared/project-porcelain'
+import { ACTIVE_FILES } from '@shared/project-porcelain'
 import { z } from 'zod'
 import { createProjectChannel } from '../net/project-channel'
 import { ensureProjectCompanion } from '../project/migrate-home'
@@ -25,7 +25,7 @@ export type ReviewComment = z.infer<typeof reviewCommentSchema>
 const commentsSchema = z.array(reviewCommentSchema)
 
 const channel = createProjectChannel({
-  fileName: PROJECT_FILES.comments,
+  fileName: ACTIVE_FILES.comments,
   schema: commentsSchema,
   empty: (): ReviewComment[] => [],
 })

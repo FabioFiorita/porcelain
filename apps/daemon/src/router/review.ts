@@ -26,7 +26,7 @@ import {
 } from '../review/feature-view'
 import { DEFAULT_LAYERS, type FlowGroup } from '../review/flow'
 import { loadCommitFlow, loadRangeFlow, loadWorkingFlow } from '../review/flow-build'
-import { type IntentDoc, readActiveIntentDocs } from '../review/intent-docs'
+import { type IntentDoc, readActiveEvidenceDocs, readActiveIntentDocs } from '../review/intent-docs'
 import {
   addComment,
   clearResolvedComments,
@@ -243,6 +243,11 @@ export const reviewRouter = t.router({
   reviewIntent: publicProcedure
     .input(z.string())
     .query(({ input }): Promise<IntentDoc[]> => readActiveIntentDocs(input)),
+
+  /** Extra evidence documents beside index.html — same media and caps as Intent. */
+  reviewEvidenceDocs: publicProcedure
+    .input(z.string())
+    .query(({ input }): Promise<IntentDoc[]> => readActiveEvidenceDocs(input)),
 
   /** Byte cost of publishing the active review, so the warning can be specific. */
   reviewPublishCost: publicProcedure

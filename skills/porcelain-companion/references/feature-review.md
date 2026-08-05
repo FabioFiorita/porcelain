@@ -16,7 +16,17 @@ Without a review set the tab shows **Start this unit of work** — there is no a
 
 ## Where a review lives
 
-One folder per review under `.porcelain/reviews/<id>/` once archived — review set, intent documents, comments, reviewed marks, evidence and its assets, together. The **active** review is the loose set at the companion root (`review.json`, `intent/`, `evidence/`, …); `review clear` and the app's Archive move it into `reviews/<id>/`.
+One folder per review, and the unit in flight has the **same shape** as an archived one:
+
+```
+.porcelain/
+  actions.json  board.json  layers.json  scope.json  notes.md   ← durable project data
+  active-review/          ← the unit in flight
+    review.json  intent/  evidence/  comments.json  reviewed.json
+  reviews/<id>/           ← history, same shape + meta.json
+```
+
+`review clear` and the app's Archive move `active-review/` into `reviews/<id>/` wholesale.
 
 **Reviews are Local by default** — git ignores `reviews/`, so an agent publishing a review does not dirty anybody else's tree. The human **publishes** one deliberately (right rail → *Publish review to the repo*), which force-adds that one folder past the ignore rule and reports the byte cost first. It stages; committing stays the human's call.
 

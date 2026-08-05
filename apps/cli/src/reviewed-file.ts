@@ -1,4 +1,4 @@
-import { PROJECT_FILES } from '@shared/project-porcelain'
+import { ACTIVE_FILES } from '@shared/project-porcelain'
 import { readProjectJson } from './project-io'
 
 // Reviewed marks — <repo>/.porcelain/reviewed.json (app writes; CLI reads).
@@ -13,7 +13,7 @@ function entryPath(entry: unknown): string | null {
 }
 
 export function readReviewed(repoPath: string): string[] {
-  const value = readProjectJson(repoPath, PROJECT_FILES.reviewed)
+  const value = readProjectJson(repoPath, ACTIVE_FILES.reviewed)
   if (!Array.isArray(value)) return []
   return value.map(entryPath).filter((p): p is string => p !== null)
 }

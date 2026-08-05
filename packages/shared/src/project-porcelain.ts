@@ -29,6 +29,25 @@ export const PROJECT_EVIDENCE_DIR = 'evidence'
 export const PROJECT_REVIEWS_DIR = 'reviews'
 
 /**
+ * The unit in flight lives in ONE directory, shaped exactly like an archived one
+ * under `reviews/<id>/`. Archiving is then a directory move rather than five
+ * per-file copies, the companion root stays legible (durable project data at the
+ * top, the review in its own folder), and the whole active review is one ignore
+ * rule instead of one per slot.
+ */
+export const PROJECT_ACTIVE_DIR = 'active-review'
+
+/**
+ * Channel names for the review in flight, prefixed with the active directory so
+ * every existing path helper resolves inside it without a special case.
+ */
+export const ACTIVE_FILES = {
+  review: `${PROJECT_ACTIVE_DIR}/review.json`,
+  comments: `${PROJECT_ACTIVE_DIR}/comments.json`,
+  reviewed: `${PROJECT_ACTIVE_DIR}/reviewed.json`,
+} as const
+
+/**
  * Intent as a document set rather than one field: `.porcelain/intent/` holds the
  * agent's case for the change in whatever medium carries it — markdown, a
  * self-contained HTML page with its own CSS and images, an Excalidraw scene.
@@ -116,11 +135,10 @@ export const COMPANION_CHANNELS: readonly CompanionChannel[] = [
  * companion root never swallows the same filename inside `reviews/<id>/`.
  *
  * - `feature-view.json` is a render snapshot, derived and stale on arrival.
- * - `review.json`, `reviewed.json`, `comments.json`, `intent/` and `evidence/`
- *   are the ACTIVE review — per branch, per worktree, and rewritten constantly
- *   while a unit is in flight. Publishing is what shares a review, and it copies
- *   these into `reviews/<id>/` and force-adds that one folder. Tracking the
- *   active slots instead would put every agent's work-in-progress and every
+ * - `active-review/` is the unit in flight — per branch, per worktree, and
+ *   rewritten constantly. Publishing is what shares a review: it copies the
+ *   directory to `reviews/<id>/` and re-includes that one folder. Tracking the
+ *   live directory would put every agent's work-in-progress and every
  *   screenshot it took into everyone else's diff.
  * - `.migrated-from-home` is a machine artifact from the home→repo migration.
  * - `*.tmp` / `*.corrupt-*` are atomic-write debris.
@@ -129,11 +147,7 @@ export const COMPANION_CHANNELS: readonly CompanionChannel[] = [
  */
 export const ALWAYS_IGNORED = [
   '/feature-view.json',
-  '/review.json',
-  '/reviewed.json',
-  '/comments.json',
-  '/intent/',
-  '/evidence/',
+  '/active-review/',
   '/.migrated-from-home',
   '*.tmp',
   '*.corrupt-*',
@@ -251,15 +265,25 @@ export function projectPorcelainPath(repoPath: string, ...parts: string[]): stri
 }
 
 export function projectEvidenceDir(repoPath: string): string {
-  return projectPorcelainPath(repoPath, PROJECT_EVIDENCE_DIR)
+  return activeReviewPath(repoPath, PROJECT_EVIDENCE_DIR)
 }
 
 export function projectReviewsDir(repoPath: string): string {
   return projectPorcelainPath(repoPath, PROJECT_REVIEWS_DIR)
 }
 
+/** `<repo>/.porcelain/active-review` — the unit currently in flight. */
+export function projectActiveReviewDir(repoPath: string): string {
+  return projectPorcelainPath(repoPath, PROJECT_ACTIVE_DIR)
+}
+
+/** A file inside the active review (`review.json`, `comments.json`, …). */
+export function activeReviewPath(repoPath: string, ...parts: string[]): string {
+  return join(projectActiveReviewDir(repoPath), ...parts)
+}
+
 export function projectIntentDir(repoPath: string): string {
-  return projectPorcelainPath(repoPath, PROJECT_INTENT_DIR)
+  return activeReviewPath(repoPath, PROJECT_INTENT_DIR)
 }
 
 export function projectArchivedReviewDir(repoPath: string, reviewId: string): string {

@@ -1,4 +1,4 @@
-import { PROJECT_FILES } from '@shared/project-porcelain'
+import { ACTIVE_FILES } from '@shared/project-porcelain'
 import { z } from 'zod'
 import { createProjectChannel } from '../net/project-channel'
 import { ensureProjectCompanion } from '../project/migrate-home'
@@ -14,7 +14,7 @@ export type ReviewedMark = z.infer<typeof reviewedMarkSchema>
 const reviewedSchema = z.array(reviewedMarkSchema)
 
 const channel = createProjectChannel({
-  fileName: PROJECT_FILES.reviewed,
+  fileName: ACTIVE_FILES.reviewed,
   schema: reviewedSchema,
   empty: (): ReviewedMark[] => [],
 })

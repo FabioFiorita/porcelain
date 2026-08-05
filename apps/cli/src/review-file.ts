@@ -1,5 +1,5 @@
 import { unlinkSync } from 'node:fs'
-import { PROJECT_FILES, projectPorcelainPath } from '@shared/project-porcelain'
+import { ACTIVE_FILES, projectPorcelainPath } from '@shared/project-porcelain'
 import { readProjectJson, writeProjectJson } from './project-io'
 
 // Builtins only — see cli.ts. Active review set at <repo>/.porcelain/review.json.
@@ -303,15 +303,15 @@ function parseReviewSet(value: unknown): ReviewSet | null {
 }
 
 function readDisk(repoPath: string): ReviewSet | null {
-  return parseReviewSet(readProjectJson(repoPath, PROJECT_FILES.review))
+  return parseReviewSet(readProjectJson(repoPath, ACTIVE_FILES.review))
 }
 
 function writeDisk(repoPath: string, set: ReviewSet | null): void {
   if (set === null) {
-    writeProjectJson(repoPath, PROJECT_FILES.review, { name: '', files: [], sections: [] })
+    writeProjectJson(repoPath, ACTIVE_FILES.review, { name: '', files: [], sections: [] })
     return
   }
-  writeProjectJson(repoPath, PROJECT_FILES.review, set)
+  writeProjectJson(repoPath, ACTIVE_FILES.review, set)
 }
 
 export function setReview(repoPath: string, set: ReviewSet): void {
@@ -347,7 +347,7 @@ export function clearReview(repoPath: string): void {
   // CLI clear drops the active set (does not archive — that is the app's
   // clearFeatureReview). Agents starting a new unit should clear first.
   try {
-    unlinkSync(projectPorcelainPath(repoPath, PROJECT_FILES.review))
+    unlinkSync(projectPorcelainPath(repoPath, ACTIVE_FILES.review))
   } catch {
     // absent
   }

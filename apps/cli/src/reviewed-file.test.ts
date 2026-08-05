@@ -1,7 +1,11 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { PROJECT_FILES, projectPorcelainPath } from '@shared/project-porcelain'
+import {
+  ACTIVE_FILES,
+  projectActiveReviewDir,
+  projectPorcelainPath,
+} from '@shared/project-porcelain'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { describeReviewed, readReviewed } from './reviewed-file'
 
@@ -17,8 +21,8 @@ afterEach(() => {
 })
 
 function seed(marks: unknown): void {
-  mkdirSync(join(repo, '.porcelain'), { recursive: true })
-  writeFileSync(projectPorcelainPath(repo, PROJECT_FILES.reviewed), JSON.stringify(marks))
+  mkdirSync(projectActiveReviewDir(repo), { recursive: true })
+  writeFileSync(projectPorcelainPath(repo, ACTIVE_FILES.reviewed), JSON.stringify(marks))
 }
 
 describe('reviewed-file', () => {

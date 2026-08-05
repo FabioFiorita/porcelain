@@ -2,8 +2,10 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
-  PROJECT_FILES,
+  ACTIVE_FILES,
+  projectActiveReviewDir,
   projectArchivedReviewDir,
+  projectEvidenceDir,
   projectIntentDir,
   projectPorcelainPath,
 } from '@shared/project-porcelain'
@@ -22,8 +24,8 @@ const root = join(tmpdir(), 'porcelain-review-store-test')
 const repo = join(root, 'repo')
 
 function writeReview(data: unknown): void {
-  mkdirSync(join(repo, '.porcelain'), { recursive: true })
-  writeFileSync(projectPorcelainPath(repo, PROJECT_FILES.review), JSON.stringify(data))
+  mkdirSync(projectActiveReviewDir(repo), { recursive: true })
+  writeFileSync(projectPorcelainPath(repo, ACTIVE_FILES.review), JSON.stringify(data))
 }
 
 beforeEach(() => {
@@ -136,12 +138,9 @@ describe('intent travels with the review', () => {
 describe('publish cost', () => {
   it('counts what would enter history, not just the review file', async () => {
     writeReview({ name: 'A', files: [], sections: [] })
-    mkdirSync(join(projectPorcelainPath(repo, 'evidence'), 'assets'), { recursive: true })
-    writeFileSync(join(projectPorcelainPath(repo, 'evidence'), 'index.html'), '<p>ok</p>')
-    writeFileSync(
-      join(projectPorcelainPath(repo, 'evidence'), 'assets', 'shot.png'),
-      'x'.repeat(4096),
-    )
+    mkdirSync(join(projectEvidenceDir(repo), 'assets'), { recursive: true })
+    writeFileSync(join(projectEvidenceDir(repo), 'index.html'), '<p>ok</p>')
+    writeFileSync(join(projectEvidenceDir(repo), 'assets', 'shot.png'), 'x'.repeat(4096))
 
     const cost = await activeReviewCost(repo)
     expect(cost.files).toBe(3)

@@ -6,7 +6,7 @@ Intent is the **case for the change** (feature, bug, chore, investigation): purp
 
 ## Two ways to say it
 
-**1. Documents on disk (`.porcelain/intent/`) — reach for this when prose alone won't carry it.**
+**1. Documents on disk (`.porcelain/active-review/intent/`) — reach for this when prose alone won't carry it.**
 
 ```bash
 ~/.porcelain/porcelain intent prepare          # makes the dir + assets/, prints the paths
@@ -23,7 +23,7 @@ Each document becomes a **tab**. One document renders bare with no chrome, so a 
 | `.html` / `.htm` | Sandboxed page | Sibling `.css` and images are **inlined for you**, so relative paths work. No scripts, ever |
 | `.excalidraw` | Read-only diagram | Scene JSON; see [excalidraw.md](excalidraw.md) |
 
-Images live in `.porcelain/intent/assets/` and are referenced relatively:
+Images live in `.porcelain/active-review/intent/assets/` and are referenced relatively:
 
 ```html
 <link rel="stylesheet" href="index.css">
@@ -84,4 +84,4 @@ Combining is fine — documents, board, and the structured walkthrough all appea
 
 ## Where it goes
 
-`.porcelain/intent/` belongs to the **active** review. `review clear` (or the app's Archive) moves it into `.porcelain/reviews/<id>/intent/` with the rest of the story, so history keeps the whole thing. Reviews are **Local by default** — the human publishes one deliberately (see [feature-review.md](feature-review.md)).
+`.porcelain/active-review/intent/` belongs to the review in flight. `review clear` (or the app's Archive) moves it into `.porcelain/reviews/<id>/intent/` with the rest of the story, so history keeps the whole thing. Reviews are **Local by default** — the human publishes one deliberately (see [feature-review.md](feature-review.md)).

@@ -3,11 +3,11 @@ import type { Dirent } from 'node:fs'
 import { access, cp, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { isAbsolute, join, relative, resolve } from 'node:path'
 import {
+  ACTIVE_FILES,
   PROJECT_EVIDENCE_DIR,
   PROJECT_FILES,
-  PROJECT_INTENT_DIR,
+  projectActiveReviewDir,
   projectArchivedReviewDir,
-  projectIntentDir,
   projectPorcelainPath,
   projectReviewsDir,
 } from '@shared/project-porcelain'
@@ -43,7 +43,7 @@ const lenientReviewSetSchema = reviewSetSchema.extend({
 })
 
 const channel = createProjectChannel({
-  fileName: PROJECT_FILES.review,
+  fileName: ACTIVE_FILES.review,
   schema: lenientReviewSetSchema,
   empty: (): z.infer<typeof lenientReviewSetSchema> => ({
     name: '',
@@ -60,7 +60,7 @@ export function reviewPath(repoPath: string): string {
 export function reviewSetsPath(repoPath?: string): string {
   if (repoPath) return reviewPath(repoPath)
   // Home path no longer holds review sets; tests should pass repoPath.
-  return projectPorcelainPath('', PROJECT_FILES.review)
+  return projectPorcelainPath('', ACTIVE_FILES.review)
 }
 
 const MAX_SECTIONS = 30
@@ -128,21 +128,16 @@ function newArchiveId(): string {
 export async function archiveActiveReview(repoPath: string): Promise<string | null> {
   await ensureProjectCompanion(repoPath)
   const set = await readReviewSet(repoPath)
-  const hasReview = set !== null
-  const evidenceDir = projectPorcelainPath(repoPath, PROJECT_EVIDENCE_DIR)
-  const commentsPath = projectPorcelainPath(repoPath, PROJECT_FILES.comments)
-  const reviewedPath = projectPorcelainPath(repoPath, PROJECT_FILES.reviewed)
-  const intentDir = projectIntentDir(repoPath)
-  const hasEvidence = await pathExists(join(evidenceDir, 'index.html'))
-  const hasComments = await pathExists(commentsPath)
-  const hasReviewed = await pathExists(reviewedPath)
-  const hasIntent = await pathExists(intentDir)
-
-  if (!hasReview && !hasEvidence && !hasComments && !hasReviewed && !hasIntent) return null
+  const activeDir = projectActiveReviewDir(repoPath)
+  if (!(await pathExists(activeDir))) return null
 
   const id = newArchiveId()
   const dest = projectArchivedReviewDir(repoPath, id)
-  await mkdir(dest, { recursive: true })
+  await mkdir(join(dest, '..'), { recursive: true })
+
+  // A directory copy, because the active review is shaped exactly like an
+  // archived one — no per-slot list to keep in sync as the shape grows.
+  await cp(activeDir, dest, { recursive: true })
 
   const meta: ArchivedReviewMeta = {
     id,
@@ -152,35 +147,8 @@ export async function archiveActiveReview(repoPath: string): Promise<string | nu
   }
   await writeFile(join(dest, 'meta.json'), JSON.stringify(meta, null, 2))
 
-  if (hasReview) {
-    await cp(reviewPath(repoPath), join(dest, PROJECT_FILES.review)).catch(() => {})
-  }
-  if (hasComments) {
-    await cp(commentsPath, join(dest, PROJECT_FILES.comments)).catch(() => {})
-  }
-  if (hasReviewed) {
-    await cp(reviewedPath, join(dest, PROJECT_FILES.reviewed)).catch(() => {})
-  }
-  if (hasEvidence) {
-    await cp(evidenceDir, join(dest, PROJECT_EVIDENCE_DIR), { recursive: true }).catch(() => {})
-  }
-  if (hasIntent) {
-    await cp(intentDir, join(dest, PROJECT_INTENT_DIR), { recursive: true }).catch(() => {})
-  }
-
-  await dropActiveReviewFiles(repoPath)
+  await rm(activeDir, { recursive: true, force: true }).catch(() => {})
   return id
-}
-
-async function dropActiveReviewFiles(repoPath: string): Promise<void> {
-  await rm(reviewPath(repoPath), { force: true }).catch(() => {})
-  await rm(projectPorcelainPath(repoPath, PROJECT_FILES.comments), { force: true }).catch(() => {})
-  await rm(projectPorcelainPath(repoPath, PROJECT_FILES.reviewed), { force: true }).catch(() => {})
-  await rm(projectPorcelainPath(repoPath, PROJECT_EVIDENCE_DIR), {
-    recursive: true,
-    force: true,
-  }).catch(() => {})
-  await rm(projectIntentDir(repoPath), { recursive: true, force: true }).catch(() => {})
 }
 
 /**
@@ -233,25 +201,8 @@ export interface PublishCost {
  */
 export async function activeReviewCost(repoPath: string): Promise<PublishCost> {
   await ensureProjectCompanion(repoPath)
-  const parts = await Promise.all([
-    dirCost(projectPorcelainPath(repoPath, PROJECT_EVIDENCE_DIR)),
-    dirCost(projectIntentDir(repoPath)),
-  ])
-  let bytes = parts.reduce((sum, part) => sum + part.bytes, 0)
-  let files = parts.reduce((sum, part) => sum + part.files, 0)
-  for (const file of [
-    reviewPath(repoPath),
-    projectPorcelainPath(repoPath, PROJECT_FILES.comments),
-    projectPorcelainPath(repoPath, PROJECT_FILES.reviewed),
-  ]) {
-    try {
-      bytes += (await stat(file)).size
-      files += 1
-    } catch {
-      // absent slot — nothing to publish from it
-    }
-  }
-  return { bytes, files }
+  // One walk: the active review is a single directory now.
+  return dirCost(projectActiveReviewDir(repoPath))
 }
 
 export interface PublishResult {

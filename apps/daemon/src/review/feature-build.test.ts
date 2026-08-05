@@ -2,6 +2,11 @@ import { execFileSync } from 'node:child_process'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import {
+  ACTIVE_FILES,
+  projectActiveReviewDir,
+  projectPorcelainPath,
+} from '@shared/project-porcelain'
 import { afterAll, describe, expect, it } from 'vitest'
 import { gitEnv } from '../git/git-env'
 import { clearWorkingTreeSnapshot } from '../git/working-tree'
@@ -90,8 +95,11 @@ describe('feature build', () => {
   }
 
   async function writeReviewSet(repoPath: string, set: ReviewSet): Promise<void> {
-    await mkdir(join(repoPath, '.porcelain'), { recursive: true })
-    await writeFile(join(repoPath, '.porcelain', 'review.json'), JSON.stringify(set, null, 2))
+    await mkdir(projectActiveReviewDir(repoPath), { recursive: true })
+    await writeFile(
+      projectPorcelainPath(repoPath, ACTIVE_FILES.review),
+      JSON.stringify(set, null, 2),
+    )
   }
 
   const gathered = async (repoPath: string): Promise<ReviewGather> => {

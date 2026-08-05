@@ -1,4 +1,4 @@
-import { PROJECT_FILES } from '@shared/project-porcelain'
+import { ACTIVE_FILES } from '@shared/project-porcelain'
 import { readProjectJson, writeProjectJson } from './project-io'
 
 // Active review comments — <repo>/.porcelain/comments.json
@@ -49,11 +49,11 @@ function parseComments(value: unknown): Comment[] {
 }
 
 function readAll(repoPath: string): Comment[] {
-  return parseComments(readProjectJson(repoPath, PROJECT_FILES.comments))
+  return parseComments(readProjectJson(repoPath, ACTIVE_FILES.comments))
 }
 
 function writeAll(repoPath: string, comments: Comment[]): void {
-  writeProjectJson(repoPath, PROJECT_FILES.comments, comments)
+  writeProjectJson(repoPath, ACTIVE_FILES.comments, comments)
 }
 
 export function readComments(repoPath: string): Comment[] {

@@ -1,7 +1,7 @@
 import { readdir, readFile, stat } from 'node:fs/promises'
 import { extname, join } from 'node:path'
 import { type ExcalidrawScene, parseExcalidrawScene } from '@shared/excalidraw-scene'
-import { INTENT_MANIFEST, projectIntentDir } from '@shared/project-porcelain'
+import { INTENT_MANIFEST, projectEvidenceDir, projectIntentDir } from '@shared/project-porcelain'
 import { z } from 'zod'
 import { inlineLocalAssets } from '../fs/evidence-assets'
 
@@ -155,4 +155,18 @@ export async function readIntentDocs(dir: string): Promise<IntentDoc[]> {
 /** Intent documents for the checkout's active review. */
 export function readActiveIntentDocs(repoPath: string): Promise<IntentDoc[]> {
   return readIntentDocs(projectIntentDir(repoPath))
+}
+
+/**
+ * Extra evidence documents beside `index.html`.
+ *
+ * Proof is rarely one page: a run log, a query plan, a diagram of what was
+ * exercised. Same reader, same rendering rules, same caps as Intent — the only
+ * difference is that `index.html` is excluded, because the Evidence panel
+ * already renders it with the structured checks above it and owns its
+ * over-cap message.
+ */
+export async function readActiveEvidenceDocs(repoPath: string): Promise<IntentDoc[]> {
+  const docs = await readIntentDocs(projectEvidenceDir(repoPath))
+  return docs.filter((doc) => doc.file !== 'index.html' && doc.file !== 'index.htm')
 }

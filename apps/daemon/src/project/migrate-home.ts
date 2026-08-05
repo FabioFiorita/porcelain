@@ -2,6 +2,7 @@ import { access, cp, mkdir, readFile, rename, rm, writeFile } from 'node:fs/prom
 import { join } from 'node:path'
 import { porcelainHomePath } from '@shared/porcelain-home'
 import {
+  ACTIVE_FILES,
   DEFAULT_PROJECT_GITIGNORE,
   PROJECT_EVIDENCE_DIR,
   PROJECT_FILES,
@@ -10,6 +11,7 @@ import {
 } from '@shared/project-porcelain'
 import { z } from 'zod'
 import { trustMigratedCommands } from '../stores/action-trust-store'
+import { migrateActiveReviewLayout } from './migrate-active-review'
 
 /**
  * One-way home → repo migration for companion channels.
@@ -84,6 +86,7 @@ function toRelativePaths(repoPath: string, paths: unknown): string[] {
 }
 
 async function writeJson(path: string, value: unknown): Promise<void> {
+  await mkdir(join(path, '..'), { recursive: true }).catch(() => {})
   const tmp = `${path}.tmp`
   await writeFile(tmp, JSON.stringify(value, null, 2))
   await rename(tmp, path)
@@ -132,6 +135,9 @@ export function resetProjectCompanionMemo(): void {
  * Purges a home key only after its project file is on disk.
  */
 async function migrateHome(repoPath: string): Promise<{ migrated: boolean }> {
+  // Fold any flat companion into active-review/ first, so everything below sees
+  // one layout. Cheap and idempotent; shares this function's per-repo memo.
+  await migrateActiveReviewLayout(repoPath)
   const snapshots = Object.fromEntries(
     await Promise.all(homeChannels.map(async (f) => [f, await readHomeRecord(f)] as const)),
   ) as Record<HomeChannel, Record<string, unknown>>
@@ -223,15 +229,15 @@ async function migrateHome(repoPath: string): Promise<{ migrated: boolean }> {
   }
 
   const comments = homeVal('comments.json')
-  if (Array.isArray(comments)) await landJson('comments.json', PROJECT_FILES.comments, comments)
-  else await landIfPresent('comments.json', PROJECT_FILES.comments)
+  if (Array.isArray(comments)) await landJson('comments.json', ACTIVE_FILES.comments, comments)
+  else await landIfPresent('comments.json', ACTIVE_FILES.comments)
 
   const reviewed = homeVal('reviewed.json')
-  if (Array.isArray(reviewed)) await landJson('reviewed.json', PROJECT_FILES.reviewed, reviewed)
-  else await landIfPresent('reviewed.json', PROJECT_FILES.reviewed)
+  if (Array.isArray(reviewed)) await landJson('reviewed.json', ACTIVE_FILES.reviewed, reviewed)
+  else await landIfPresent('reviewed.json', ACTIVE_FILES.reviewed)
 
   if (homeVal('review-sets.json') !== undefined) {
-    await landJson('review-sets.json', PROJECT_FILES.review, homeVal('review-sets.json'))
+    await landJson('review-sets.json', ACTIVE_FILES.review, homeVal('review-sets.json'))
   }
 
   if (homeVal('feature-view.json') !== undefined) {

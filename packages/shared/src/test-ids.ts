@@ -159,6 +159,7 @@ export const TestIds = {
   intentDocTab: (label: string): string =>
     `intent-doc-tab-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
   intentDocBody: 'intent-doc-body',
+  evidenceDocTabs: 'evidence-doc-tabs',
   paneError: 'pane-error',
   reviewPublish: 'review-publish',
   reviewPublishConfirm: 'review-publish-confirm',

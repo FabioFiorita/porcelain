@@ -14,12 +14,13 @@ Evidence is **ephemeral HTML proof** that you closed the loop: browser, simulato
 
 **Do not push large HTML or base64 screenshots through the CLI.**
 
-1. `~/.porcelain/porcelain evidence prepare --title "<title>"` → prints `<repo>/.porcelain/evidence/`
+1. `~/.porcelain/porcelain evidence prepare --title "<title>"` → prints `<repo>/.porcelain/active-review/evidence/`
 2. Write into that directory:
    - **`index.html`** — the document (**must include its own CSS** — see below)
    - Optional **CSS sibling** if you prefer a separate stylesheet (`styles.css` + `<link rel="stylesheet" href="styles.css">`)
    - Screenshots with a relative `src`. Put more than one or two under **`assets/`** and reference them as `<img src="assets/shot.png">` — sub-directories are inlined the same way, and it keeps a published review's folder readable.
-3. Record structured checks:
+3. Optionally add **more documents** beside `index.html` — a run log, a query plan, a diagram. Any `.md` / `.html` / `.excalidraw` in the evidence directory becomes a tab next to Report, with the structured checks pinned above all of them. Same media and caps as Intent.
+4. Record structured checks:
 
 ```bash
 ~/.porcelain/porcelain evidence check --label "pnpm lint"  --status pass --detail "0 errors"

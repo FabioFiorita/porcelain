@@ -1,7 +1,12 @@
 import { watch } from 'node:fs'
 import { mkdir, stat } from 'node:fs/promises'
 import { basename } from 'node:path'
-import { PROJECT_FILES, projectEvidenceDir, projectPorcelainDir } from '@shared/project-porcelain'
+import {
+  PROJECT_FILES,
+  projectActiveReviewDir,
+  projectEvidenceDir,
+  projectPorcelainDir,
+} from '@shared/project-porcelain'
 import { type AppEvent, emitAppEvent } from '../app-events'
 import { loadConfig } from '../stores/config-store'
 
@@ -52,6 +57,20 @@ async function watchRepo(repoPath: string): Promise<void> {
 
   const evidenceDir = projectEvidenceDir(repoPath)
   const closers: Array<() => void> = []
+  // The unit in flight lives in its own directory now; watch it as well as the
+  // companion root, or an agent write to review.json never reaches the UI.
+  try {
+    const active = watch(projectActiveReviewDir(repoPath), (_event, filename) => {
+      const base = typeof filename === 'string' ? basename(filename) : null
+      const event = base === null ? undefined : FILE_EVENTS[base]
+      if (event) emitAppEvent(event)
+      emitAppEvent('evidence')
+      emitAppEvent('feature-view')
+    })
+    closers.push(() => active.close())
+  } catch {
+    // absent until the first review write — the poll path still discovers it
+  }
 
   try {
     const w = watch(dir, (_event, filename) => {

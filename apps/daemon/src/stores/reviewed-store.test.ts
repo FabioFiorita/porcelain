@@ -1,7 +1,11 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { PROJECT_FILES, projectPorcelainPath } from '@shared/project-porcelain'
+import {
+  ACTIVE_FILES,
+  projectActiveReviewDir,
+  projectPorcelainPath,
+} from '@shared/project-porcelain'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   clearReviewedPaths,
@@ -106,9 +110,9 @@ describe('reviewed-store', () => {
   })
 
   it('drops a corrupt channel file rather than half-parsing', async () => {
-    mkdirSync(join(repo, '.porcelain'), { recursive: true })
+    mkdirSync(projectActiveReviewDir(repo), { recursive: true })
     writeFileSync(
-      projectPorcelainPath(repo, PROJECT_FILES.reviewed),
+      projectPorcelainPath(repo, ACTIVE_FILES.reviewed),
       JSON.stringify(['src/legacy.ts']),
     )
     expect(await readReviewedMarks(repo)).toEqual([])

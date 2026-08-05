@@ -10,6 +10,13 @@ export function useReviewIntent(): IntentDoc[] {
   return data ?? []
 }
 
+/** Extra evidence documents beside index.html — tabs, same media as Intent. */
+export function useReviewEvidenceDocs(): IntentDoc[] {
+  const repo = useRepoStore((s) => s.repo)
+  const { data } = trpc.reviewEvidenceDocs.useQuery(repo?.path ?? '', { enabled: repo !== null })
+  return data ?? []
+}
+
 /** Bytes and file count publishing the active review would add to git history. */
 export function useReviewPublishCost(
   enabled: boolean,

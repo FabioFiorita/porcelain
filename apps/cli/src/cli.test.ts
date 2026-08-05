@@ -23,15 +23,17 @@ const doc = `<main>${'x'.repeat(600)}</main>`
 const repo = ['--repo', repoPath]
 
 const porcelain = (...parts: string[]): string => join(repoPath, '.porcelain', ...parts)
+/** The unit in flight lives in its own directory, shaped like an archived one. */
+const activeReview = (...parts: string[]): string => porcelain('active-review', ...parts)
 const ensurePorcelain = (): void => {
-  mkdirSync(porcelain(), { recursive: true })
+  mkdirSync(activeReview(), { recursive: true })
 }
 const read = (): {
   name: string
   thesis?: string
   files: unknown[]
   sections?: unknown[]
-} => JSON.parse(readFileSync(porcelain('review.json'), 'utf8'))
+} => JSON.parse(readFileSync(activeReview('review.json'), 'utf8'))
 const readBoard = (): unknown[] => JSON.parse(readFileSync(porcelain('board.json'), 'utf8'))
 const readActions = (): unknown[] => JSON.parse(readFileSync(porcelain('actions.json'), 'utf8'))
 
@@ -224,7 +226,7 @@ describe('runCli — review + feature + comments + reviewed', () => {
   it('review clear removes the set and the loop-evidence directory', async () => {
     await runCli(['review', 'set', ...repo, '--files', JSON.stringify([{ path: 'a.ts' }])])
     await runCli(['evidence', 'set', ...repo, '--title', 'Old', '--html', doc])
-    const evidenceDir = porcelain('evidence')
+    const evidenceDir = activeReview('evidence')
     const msg = await runCli(['review', 'clear', ...repo])
     expect(msg).toContain('loop evidence')
     expect(() => read()).toThrow()
@@ -261,7 +263,7 @@ describe('runCli — review + feature + comments + reviewed', () => {
   it('comments list tags each comment with its feature-view source', async () => {
     ensurePorcelain()
     writeFileSync(
-      porcelain('comments.json'),
+      activeReview('comments.json'),
       JSON.stringify([
         { id: 'c1', path: 'server/svc.ts', body: 'check', resolved: false, createdAt: 1 },
       ]),
@@ -278,14 +280,14 @@ describe('runCli — review + feature + comments + reviewed', () => {
   it('comments answer attaches a reply, found/not-found by id', async () => {
     ensurePorcelain()
     writeFileSync(
-      porcelain('comments.json'),
+      activeReview('comments.json'),
       JSON.stringify([{ id: 'c1', path: 'a.ts', body: 'why?', resolved: false, createdAt: 1 }]),
     )
     expect(
       await runCli(['comments', 'answer', ...repo, '--id', 'c1', '--body', 'because']),
     ).toContain('Answered comment c1')
     const stored: Array<{ agentReply?: { body: string } }> = JSON.parse(
-      readFileSync(porcelain('comments.json'), 'utf8'),
+      readFileSync(activeReview('comments.json'), 'utf8'),
     )
     expect(stored[0]?.agentReply?.body).toBe('because')
     expect(await runCli(['comments', 'answer', ...repo, '--id', 'nope', '--body', 'x'])).toContain(
@@ -303,7 +305,7 @@ describe('runCli — review + feature + comments + reviewed', () => {
   it('reviewed list lists the human-reviewed paths', async () => {
     ensurePorcelain()
     writeFileSync(
-      porcelain('reviewed.json'),
+      activeReview('reviewed.json'),
       JSON.stringify([
         { path: 'src/a.ts', fingerprint: 'a' },
         { path: 'src/b.ts', fingerprint: 'b' },
@@ -337,7 +339,7 @@ describe('runCli — evidence (html input)', () => {
     const msg = await runCli(['evidence', 'prepare', ...repo, '--title', 'SPA redirect'])
     expect(msg).toContain('Evidence directory ready')
     expect(msg).toContain('index.html')
-    expect(msg).toMatch(/\.porcelain\/evidence/)
+    expect(msg).toMatch(/\.porcelain\/active-review\/evidence/)
   })
   it('evidence prepare rejects a missing title', async () => {
     await expect(runCli(['evidence', 'prepare', ...repo])).rejects.toThrow(

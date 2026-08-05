@@ -1,7 +1,13 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { PROJECT_FILES, projectPorcelainDir, projectPorcelainPath } from '@shared/project-porcelain'
+import {
+  ACTIVE_FILES,
+  PROJECT_FILES,
+  projectActiveReviewDir,
+  projectPorcelainDir,
+  projectPorcelainPath,
+} from '@shared/project-porcelain'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { ensureProjectCompanion, resetProjectCompanionMemo } from './migrate-home'
 
@@ -86,9 +92,9 @@ describe('ensureProjectCompanion', () => {
   })
 
   it('fills missing channels when .porcelain already exists (empty shell)', async () => {
-    mkdirSync(projectPorcelainDir(repo), { recursive: true })
+    mkdirSync(projectActiveReviewDir(repo), { recursive: true })
     writeFileSync(
-      projectPorcelainPath(repo, PROJECT_FILES.review),
+      projectPorcelainPath(repo, ACTIVE_FILES.review),
       JSON.stringify({ name: 'in-repo' }),
     )
     writeFileSync(
@@ -108,7 +114,7 @@ describe('ensureProjectCompanion', () => {
     expect(board).toEqual([expect.objectContaining({ title: 'From home' })])
     // Existing in-repo review is not clobbered by home.
     expect(
-      JSON.parse(readFileSync(projectPorcelainPath(repo, PROJECT_FILES.review), 'utf8')),
+      JSON.parse(readFileSync(projectPorcelainPath(repo, ACTIVE_FILES.review), 'utf8')),
     ).toEqual({ name: 'in-repo' })
   })
 })

@@ -25,7 +25,9 @@ describe('project-porcelain paths', () => {
   })
 
   it('nests evidence and archived reviews under the project dir', () => {
-    expect(projectEvidenceDir('/repo')).toBe(join('/repo', '.porcelain', 'evidence'))
+    expect(projectEvidenceDir('/repo')).toBe(
+      join('/repo', '.porcelain', 'active-review', 'evidence'),
+    )
     expect(projectReviewsDir('/repo')).toBe(join('/repo', '.porcelain', 'reviews'))
     expect(projectArchivedReviewDir('/repo', 'abc')).toBe(
       join('/repo', '.porcelain', 'reviews', 'abc'),
@@ -107,15 +109,8 @@ describe('the active review is never tracked by default', () => {
     // Publishing is what shares a review; it copies these into reviews/<id>/ and
     // force-adds that folder. Tracking the live slots would put work-in-progress
     // and every screenshot into everyone else's diff.
-    for (const slot of [
-      '/review.json',
-      '/reviewed.json',
-      '/comments.json',
-      '/intent/',
-      '/evidence/',
-    ]) {
-      expect(DEFAULT_PROJECT_GITIGNORE).toContain(slot)
-    }
+    // One rule now: the whole unit in flight lives in one directory.
+    expect(DEFAULT_PROJECT_GITIGNORE).toContain('/active-review/')
   })
 })
 
