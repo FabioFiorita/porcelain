@@ -37,4 +37,5 @@ overrides:
   # Try deleting on the next `pnpm update electron*`.
   undici@7: '>=7.28.0 <8'
 patchedDependencies:
+  tiptap-markdown@0.9.0: patches/tiptap-markdown@0.9.0.patch
   trash@10.1.1: patches/trash@10.1.1.patch

@@ -10,6 +10,7 @@ overrides:
   undici@7: '>=7.28.0 <8'
 
 patchedDependencies:
+  tiptap-markdown@0.9.0: dd2ee4d8a33606557b4f6defe6e6dda1c7166bb2c8514e028f3fc31803ce3203
   trash@10.1.1: 3fd7a85418b1cea1bb24dc4ec5cceffb3bccbce3cdabed8bfab0cb914be0fbc5
 
 importers:
@@ -273,7 +274,7 @@ importers:
         version: 4.3.1
       tiptap-markdown:
         specifier: ^0.9.0
-        version: 0.9.0(@tiptap/core@3.26.1(@tiptap/pm@3.26.1))
+        version: 0.9.0(patch_hash=dd2ee4d8a33606557b4f6defe6e6dda1c7166bb2c8514e028f3fc31803ce3203)(@tiptap/core@3.26.1(@tiptap/pm@3.26.1))
       tw-animate-css:
         specifier: ^1.4.0
         version: 1.4.0
@@ -634,7 +635,7 @@ importers:
         version: 4.3.1
       tiptap-markdown:
         specifier: ^0.9.0
-        version: 0.9.0(@tiptap/core@3.26.1(@tiptap/pm@3.26.1))
+        version: 0.9.0(patch_hash=dd2ee4d8a33606557b4f6defe6e6dda1c7166bb2c8514e028f3fc31803ce3203)(@tiptap/core@3.26.1(@tiptap/pm@3.26.1))
       tw-animate-css:
         specifier: ^1.4.0
         version: 1.4.0
@@ -18481,7 +18482,7 @@ snapshots:
 
   tinyrainbow@3.1.0: {}
 
-  tiptap-markdown@0.9.0(@tiptap/core@3.26.1(@tiptap/pm@3.26.1)):
+  tiptap-markdown@0.9.0(patch_hash=dd2ee4d8a33606557b4f6defe6e6dda1c7166bb2c8514e028f3fc31803ce3203)(@tiptap/core@3.26.1(@tiptap/pm@3.26.1)):
     dependencies:
       '@tiptap/core': 3.26.1(@tiptap/pm@3.26.1)
       '@types/markdown-it': 13.0.9
