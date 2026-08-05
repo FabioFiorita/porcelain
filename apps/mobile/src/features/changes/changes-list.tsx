@@ -17,22 +17,30 @@ import { useDiscardFile, useFileStaging } from './use-commit'
  * says how much of it has been read and the two bulk actions — tick everything off, or open
  * the whole set as one continuous read.
  *
- * Row taps open the diff through the store, so the tablet's viewer column and the phone's
- * detail view are driven by one selection rather than two navigation models.
+ * Row taps hand the path up to `onOpenFile`, which the phone turns into a stack push and the
+ * tablet into a viewer-column selection. The list stays ignorant of which.
  */
 export function ChangesList({
   active,
   bottomInset = 0,
+  onOpenAll,
+  onOpenFile,
 }: {
   active: boolean
   /** Phone: room for the floating tab bar the list scrolls under. */
   bottomInset?: number
+  /** Phone: push the read-all route. Omitted on tablet, which selects into its viewer column. */
+  onOpenAll?: () => void
+  /** Phone: push the file's route. Omitted on tablet, which selects into its viewer column. */
+  onOpenFile?: (path: string) => void
 }): React.JSX.Element {
   const scope = useChangesStore((state) => state.scope)
   const setScope = useChangesStore((state) => state.setScope)
   const selection = useChangesStore((state) => state.selection)
-  const openFile = useChangesStore((state) => state.openFile)
-  const openAll = useChangesStore((state) => state.openAll)
+  const selectFile = useChangesStore((state) => state.openFile)
+  const selectAll = useChangesStore((state) => state.openAll)
+  const openFile = onOpenFile ?? selectFile
+  const openAll = onOpenAll ?? selectAll
 
   const { base, error, groups, isLoading } = useChangesFlow(active)
   const reviewed = useReviewedPaths(active)

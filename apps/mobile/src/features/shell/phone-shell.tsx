@@ -1,6 +1,5 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs'
 
-import { useChangesStore } from '@/features/changes/changes-store'
 import { useChangedFileCount } from '@/features/changes/use-changes'
 
 import { ShellSheets } from './shell-sheets'
@@ -98,13 +97,10 @@ export function PhoneShell(): React.JSX.Element {
 }
 
 function toggleFaceIfRoot(tab: DualTabSlot): void {
+  // Re-tapping a tab pops its stack to the root first (the iOS "back to root" idiom) — the
+  // navigator does that itself, so a tab only reaches here once it is already showing its
+  // list, and the tap means "flip to the alternate face".
   if (!useTabRootFocus.getState().roots[tab]) return
-  // Re-tapping a tab pops its detail view first (the iOS "back to root" idiom); only a tab
-  // already showing its list flips to the alternate face.
-  if (tab === 'changes' && useChangesStore.getState().selection !== null) {
-    useChangesStore.getState().closeSelection()
-    return
-  }
   if (tab === 'files') useTabFaces.getState().toggleFiles()
   else if (tab === 'changes') useTabFaces.getState().toggleChanges()
   else useTabFaces.getState().toggleReview()

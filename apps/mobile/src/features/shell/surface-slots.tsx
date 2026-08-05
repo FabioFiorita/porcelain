@@ -15,7 +15,8 @@ import type { SurfaceId } from './mock-data'
  * screen mounted in the background), not about which surface is selected.
  *
  * Adding a tab is one entry here plus its feature folder. Keep the shape: list · viewer ·
- * companion for tablet, and `phone` for the tab body that owns its own header and detail view.
+ * companion for tablet, and `phone` for the tab's root screen, which owns its own header.
+ * A surface with detail views gives them routes under `app/<surface>/` and pushes.
  */
 export type SurfaceSlots = {
   /** Tablet supplementary column. */

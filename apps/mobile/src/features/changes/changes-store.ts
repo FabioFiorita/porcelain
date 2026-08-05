@@ -15,15 +15,15 @@ type ChangesState = {
   setScope: (scope: ChangesScope) => void
   openFile: (path: string) => void
   openAll: () => void
-  closeSelection: () => void
 }
 
 /**
- * Changes view state — which scope is read and what the viewer holds.
+ * Changes view state — which scope is read, and on tablet what the viewer holds.
  *
- * Selection lives here rather than in the URL because the tablet viewer is a SplitView slot
- * the route does not own, and the phone tab bar's dual faces are already store-driven. One
- * selection model across both form factors beats a router push on phone and a store on tablet.
+ * Selection is the **tablet's** model only: its viewer is a SplitView column the route does
+ * not own, so there is nothing there to push. The phone reads its selection from the route
+ * instead, which is what earns it the native pop gesture and the hardware back button.
+ * Scope stays shared — it is the tab's setting on both form factors.
  *
  * Deliberately not persisted: a diff you were reading before a cold start is stale by then,
  * and re-opening it would fire a daemon read before the environment has reconnected.
@@ -41,8 +41,5 @@ export const useChangesStore = create<ChangesState>()((set) => ({
   },
   openAll: () => {
     set({ selection: { kind: 'all' } })
-  },
-  closeSelection: () => {
-    set({ selection: null })
   },
 }))

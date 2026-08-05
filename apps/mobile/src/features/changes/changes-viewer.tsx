@@ -7,23 +7,14 @@ import { ReadAllView } from './read-all-view'
 import { useChangesFlow } from './use-changes'
 
 /**
- * The Changes viewer: whatever the list last opened — one file's diff, or the whole set as a
- * continuous read. `onBack` is passed on phone, where the viewer replaces the list; the
- * tablet keeps both on screen and omits it.
+ * The tablet's viewer column: whatever the list last selected — one file's diff, or the whole
+ * set as a continuous read.
+ *
+ * Tablet-only. This column is always on screen beside the list, so it has no back affordance
+ * and no tab-bar inset to clear; the phone reaches the same two views through pushed routes
+ * that pass their own chrome insets.
  */
-export function ChangesViewer({
-  active,
-  bottomInset = 0,
-  onBack,
-  topInset = 0,
-}: {
-  active: boolean
-  /** Phone: room for the floating tab bar the rows scroll under. */
-  bottomInset?: number
-  onBack?: () => void
-  /** Phone: the detail replaces the tab header, so it owns the status-bar inset. */
-  topInset?: number
-}): React.JSX.Element {
+export function ChangesViewer({ active }: { active: boolean }): React.JSX.Element {
   const scope = useChangesStore((state) => state.scope)
   const selection = useChangesStore((state) => state.selection)
   // The base ref is part of what identifies a branch-scope diff, and it comes from the same
@@ -42,25 +33,7 @@ export function ChangesViewer({
     )
   }
   if (selection.kind === 'all') {
-    return (
-      <ReadAllView
-        active={active}
-        base={base}
-        bottomInset={bottomInset}
-        scope={scope}
-        topInset={topInset}
-        onBack={onBack}
-      />
-    )
+    return <ReadAllView active={active} base={base} scope={scope} />
   }
-  return (
-    <DiffView
-      active={active}
-      base={base}
-      bottomInset={bottomInset}
-      filePath={selection.path}
-      topInset={topInset}
-      onBack={onBack}
-    />
-  )
+  return <DiffView active={active} base={base} filePath={selection.path} />
 }
