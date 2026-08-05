@@ -271,7 +271,8 @@ export const DEMO_EVIDENCE_HTML = `<!doctype html>
 `
 
 /**
- * Write demo companion data into `<repo>/.porcelain/` and return home env for the
+ * Write demo companion data into `<repo>/.porcelain/` (review parts under
+ * `active-review/`) and return home env for the
  * daemon (token home only — channels are project-local).
  */
 export async function seedDemoChannels(
@@ -279,13 +280,15 @@ export async function seedDemoChannels(
   repoDir: string,
 ): Promise<Record<string, string>> {
   const project = join(repoDir, '.porcelain')
-  await mkdir(project, { recursive: true })
-  await writeFile(join(project, 'review.json'), JSON.stringify(DEMO_REVIEW_SET, null, 2))
+  // The unit in flight lives in its own directory, shaped like an archived one.
+  const active = join(project, 'active-review')
+  await mkdir(active, { recursive: true })
+  await writeFile(join(active, 'review.json'), JSON.stringify(DEMO_REVIEW_SET, null, 2))
+  await writeFile(join(active, 'comments.json'), JSON.stringify(DEMO_COMMENTS, null, 2))
   await writeFile(join(project, 'board.json'), JSON.stringify(DEMO_BOARD, null, 2))
-  await writeFile(join(project, 'comments.json'), JSON.stringify(DEMO_COMMENTS, null, 2))
   await writeFile(join(project, 'actions.json'), JSON.stringify(DEMO_ACTIONS, null, 2))
 
-  const evidenceDir = join(project, 'evidence')
+  const evidenceDir = join(active, 'evidence')
   await mkdir(evidenceDir, { recursive: true })
   await writeFile(join(evidenceDir, 'index.html'), DEMO_EVIDENCE_HTML)
   await writeFile(

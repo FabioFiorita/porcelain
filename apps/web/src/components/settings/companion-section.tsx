@@ -86,14 +86,7 @@ export function CompanionSection(): React.JSX.Element {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
-        <div>
-          <p className="text-sm-minus font-medium">What git carries</p>
-          <p className="text-xs text-muted-foreground">
-            Companion data always lives in <span className="font-mono">.porcelain/</span> inside
-            this repo. This only decides whether git carries it to the rest of the team — it is
-            written as ignore rules your teammates can read and commit.
-          </p>
-        </div>
+        <p className="text-sm-minus font-medium">What git carries</p>
         {repo !== null && (
           <div
             className="flex flex-col gap-2 rounded-lg border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between"
@@ -104,9 +97,7 @@ export function CompanionSection(): React.JSX.Element {
                 {hidden ? 'Hidden from git in this clone' : 'Visible to git'}
               </p>
               <p className="text-xs text-muted-foreground">
-                {hidden
-                  ? 'Nothing Porcelain writes shows up in git status. Choosing Shared below lifts this.'
-                  : 'The choices below decide what git carries. Hide again to take Porcelain back out of this clone entirely.'}
+                {hidden ? 'Nothing shows in git status. Sharing anything lifts this.' : null}
               </p>
             </div>
             <Button
@@ -143,21 +134,15 @@ export function CompanionSection(): React.JSX.Element {
         )}
         {lastUntracked.length > 0 && (
           <p className="text-xs text-muted-foreground" data-testid={TestIds.companionUntracked}>
-            Stopped tracking {lastUntracked.length} {lastUntracked.length === 1 ? 'file' : 'files'}.
-            They are still on disk; the removal is staged and lands for everyone on your next
-            commit.
+            Untracked {lastUntracked.length} {lastUntracked.length === 1 ? 'file' : 'files'} — still
+            on disk, removal staged.
           </p>
         )}
       </div>
 
       {!isBrowser && (
         <div className="flex flex-col gap-3">
-          <p className="text-xs text-muted-foreground">
-            Companion skills teach your agent how to push feature reviews (Intent, Execution,
-            Evidence), read comments, manage the board, and curate actions. They ship through
-            skills.sh. Commands use <span className="font-mono">-g</span> so the skill is available
-            in every project, not only one working directory.
-          </p>
+          <p className="text-sm-minus font-medium">Agent skill</p>
           <SkillsSection />
         </div>
       )}

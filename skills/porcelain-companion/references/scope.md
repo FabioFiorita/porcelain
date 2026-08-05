@@ -4,7 +4,7 @@ Hide folders that are not yours; pin the ones you care about. Porcelain stays fa
 
 ## Channel
 
-`~/.porcelain/scope.json` (override with `PORCELAIN_SCOPE`). Keyed by **absolute** repo path. Values are absolute paths under that repo (the CLI accepts **repo-relative** paths and joins them).
+`<repo>/.porcelain/scope.json`. Values are **repo-relative** paths, so the file travels with a clone unchanged. Shared with the team by default — see [git-visibility.md](git-visibility.md).
 
 ```json
 {

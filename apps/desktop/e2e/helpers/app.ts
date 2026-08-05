@@ -71,12 +71,12 @@ interface Options {
    */
   seedRepo: boolean
   /**
-   * Seed the active review under `<repo>/.porcelain/review.json` (default null →
+   * Seed the active review under `<repo>/.porcelain/active-review/review.json` (default null →
    * the Review's empty state). Written as if the porcelain CLI had pushed it.
    */
   seedReviewSet: SeedReviewSet | null
   /**
-   * Seed evidence under `<repo>/.porcelain/evidence/` (default null → none).
+   * Seed evidence under `<repo>/.porcelain/active-review/evidence/` (default null → none).
    * Renders as the Review's final chapter (needs a `seedReviewSet`).
    */
   seedEvidence: { title: string; html: string } | null
@@ -143,13 +143,14 @@ async function seedState(
   )
   // Project companion lives in the fixture repo (same layout as production).
   if (seedRepo) {
-    const project = join(repoDir, '.porcelain')
-    await mkdir(project, { recursive: true })
+    // The unit in flight lives in its own directory (same layout as production).
+    const active = join(repoDir, '.porcelain', 'active-review')
+    await mkdir(active, { recursive: true })
     if (seedReviewSet) {
-      await writeFile(join(project, 'review.json'), JSON.stringify(seedReviewSet, null, 2))
+      await writeFile(join(active, 'review.json'), JSON.stringify(seedReviewSet, null, 2))
     }
     if (seedEvidence) {
-      const evidenceDir = join(project, 'evidence')
+      const evidenceDir = join(active, 'evidence')
       await mkdir(evidenceDir, { recursive: true })
       await writeFile(join(evidenceDir, 'index.html'), seedEvidence.html)
       await writeFile(

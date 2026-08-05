@@ -35,7 +35,8 @@ Installed automatically on every app/daemon launch. Run from **inside the repo**
 | Changes tab grouping wrong; monorepo layout; too many files in Other | Tune **flow layers** (repo-wide regex) | [layers.md](references/layers.md) |
 | Monorepo tree too noisy; hide sibling apps / pin the one you care about | **Scope** hide/pin | [scope.md](references/scope.md) |
 | Seed Mac ↔ remote companion data (board, actions, notes, layers, hide/pin) | Copy deliberately with path remap | [sync-environments.md](references/sync-environments.md) |
-| Working in a harness worktree; it opened empty; reviewing worktree work | Seed the new repo path deliberately; publish the Review **in** the worktree, carry it into the PR | [worktrees.md](references/worktrees.md) |
+| Working in a harness worktree; reviewing worktree work | Target the right checkout; publish the Review **in** the worktree, carry it into the PR | [worktrees.md](references/worktrees.md) |
+| Human asks what git carries / why something is (not) ignored / how to share companion data or one review | Read and edit `.porcelain/.gitignore` and `info/exclude` **directly** — no CLI verb, and none needed | [git-visibility.md](references/git-visibility.md) |
 
 ## Everyday CLI cheatsheet
 
@@ -83,7 +84,7 @@ JSON
 4. **Clear before a new unit** — Never leave another agent's Intent board or old evidence under a new document. If the human still has a previous unit open, clear it (or ask) before starting.
 5. **Notes are the human's** — read only; put actionable work on the board.
 6. **Actions are human-executed** — never invent an `actions run`; you only CRUD definitions.
-7. **Hide/pin via `scope`** — same channel the app uses (`~/.porcelain/scope.json`); remap paths when syncing hosts ([scope.md](references/scope.md), [sync-environments.md](references/sync-environments.md)).
+7. **Hide/pin via `scope`** — same channel the app uses (`<repo>/.porcelain/scope.json`, repo-relative paths) ([scope.md](references/scope.md)).
 8. **No secrets** in board, notes, or evidence.
 9. **Board ≠ Review** — Board is a queue of cards; Review is one active story. Optional: move a card to Doing, then start Review with that title as the name. Do not turn Review into a second kanban.
 

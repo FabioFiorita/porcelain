@@ -122,8 +122,8 @@ test('CLI review set then evidence appears on the Review canvas', async ({
   const pathLine = prepareOut
     .split('\n')
     .map((l) => l.trim())
-    .find((l) => l.startsWith('/') || l.includes('.porcelain/evidence'))
-  const evidenceDir = pathLine ?? join(repoDir, '.porcelain', 'evidence')
+    .find((l) => l.startsWith('/') || l.includes('/evidence'))
+  const evidenceDir = pathLine ?? join(repoDir, '.porcelain', 'active-review', 'evidence')
   await mkdir(evidenceDir, { recursive: true })
   await writeFile(join(evidenceDir, 'index.html'), EVIDENCE_HTML)
 

@@ -87,42 +87,42 @@ export const COMPANION_CHANNELS: readonly CompanionChannel[] = [
   {
     key: 'actions',
     label: 'Saved actions',
-    hint: 'Named commands for this project. Shared actions from a clone must be trusted before they run.',
+    hint: 'Named commands for this project.',
     patterns: ['/actions.json'],
     defaultDisposition: 'shared',
   },
   {
     key: 'notes',
     label: 'Repo notes',
-    hint: 'Your standing brief for agents. Personal by default — share it when the whole team wants the same brief.',
+    hint: 'Your standing brief for agents.',
     patterns: ['/notes.md'],
     defaultDisposition: 'local',
   },
   {
     key: 'scope',
     label: 'Hidden & pinned paths',
-    hint: 'Which parts of a monorepo matter. About the tree, so usually worth sharing.',
+    hint: 'Which parts of a monorepo matter.',
     patterns: ['/scope.json'],
     defaultDisposition: 'shared',
   },
   {
     key: 'layers',
     label: 'Flow layers',
-    hint: 'How files group into a story in the Review.',
+    hint: 'How files group into a story.',
     patterns: ['/layers.json'],
     defaultDisposition: 'shared',
   },
   {
     key: 'board',
     label: 'Board',
-    hint: 'A live work queue that turns over constantly — local keeps it out of everyone else’s diff.',
+    hint: 'A live work queue.',
     patterns: ['/board.json'],
     defaultDisposition: 'local',
   },
   {
     key: 'reviews',
     label: 'Reviews',
-    hint: 'Local keeps reviews to yourself; publishing shares one review at a time.',
+    hint: 'Publishing shares one at a time.',
     // Contents, not the directory: git cannot re-include a path whose PARENT is
     // excluded, so `/reviews/` would make publishing a single review impossible.
     patterns: ['/reviews/*'],

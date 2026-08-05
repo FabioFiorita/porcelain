@@ -4,17 +4,15 @@ Porcelain stores **project companion data** in the repo:
 
 ```text
 <repo>/.porcelain/
-  actions.json
-  board.json
-  layers.json
-  scope.json
-  notes.md
-  review.json          # active unit
-  comments.json
-  reviewed.json
-  feature-view.json    # app-computed snapshot
-  evidence/            # gitignored by default
-  reviews/<id>/        # archived units
+  actions.json         # shared by default
+  scope.json           # shared by default
+  layers.json          # shared by default
+  board.json           # local by default
+  notes.md             # local by default
+  feature-view.json    # app-computed snapshot, never shared
+  active-review/       # the unit in flight — always ignored
+    review.json  intent/  evidence/  comments.json  reviewed.json
+  reviews/<id>/        # archived units; local until published
   .gitignore
 ```
 
@@ -23,10 +21,14 @@ Machine secrets (daemon token, remotes, UI prefs) stay under `~/.porcelain` (or
 
 ## Share with a teammate or another machine
 
-1. Track the files you want under `.porcelain/` (edit `.porcelain/.gitignore` —
-   evidence is ignored by default).
-2. Commit and push.
-3. Teammate (or remote clone) pulls — companion data is present.
+1. Lift the clone-wide exclude if it is still there — Porcelain hides
+   `.porcelain/` from git until you share something. See
+   [git-visibility.md](git-visibility.md).
+2. Pick what to share (Settings › Companion, or edit the managed block in
+   `.porcelain/.gitignore` directly).
+3. Commit and push.
+4. Teammate (or remote clone) pulls — the shared channels are present. A clone
+   that already tracks a companion is never re-hidden.
 
 There is **no** daemon-side “copy settings between remotes” or “seed worktree”
 path. Linked worktrees share whatever is on the checked-out revision of
