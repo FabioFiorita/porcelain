@@ -1,9 +1,8 @@
-import { Platform, useWindowDimensions } from 'react-native'
-
 import type { SurfaceId } from './mock-data'
 import { PhoneSurface } from './phone-surface'
 import { ViewerCanvas } from './shell-chrome'
 import { useShellStore } from './shell-store'
+import { useIsTablet } from './use-app-window'
 
 type SurfaceScreenProps = {
   /** Phone route surface (primary face of a dual slot, or Terminal). */
@@ -15,8 +14,7 @@ type SurfaceScreenProps = {
  * PhoneSurface chrome.
  */
 export function SurfaceScreen({ surface }: SurfaceScreenProps): React.JSX.Element {
-  const { width, height } = useWindowDimensions()
-  const isTablet = (Platform.OS === 'ios' && Platform.isPad) || Math.min(width, height) >= 768
+  const isTablet = useIsTablet()
   const activeSurface = useShellStore((state) => state.activeSurface)
 
   if (isTablet) {

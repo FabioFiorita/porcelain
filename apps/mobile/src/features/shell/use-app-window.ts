@@ -1,5 +1,17 @@
 import { useEffect, useState } from 'react'
-import { Dimensions, type ScaledSize, useWindowDimensions } from 'react-native'
+import { Dimensions, Platform, type ScaledSize, useWindowDimensions } from 'react-native'
+
+/**
+ * Whether this device gets the multi-column shell rather than the tab bar.
+ *
+ * An iPad is always one, however small its Stage Manager window is — the shell it gets is a
+ * property of the device, not of the current scene. Everything else qualifies on its short
+ * edge, which is what tells an Android tablet from a phone in either orientation.
+ */
+export function useIsTablet(): boolean {
+  const { height, width } = useWindowDimensions()
+  return (Platform.OS === 'ios' && Platform.isPad) || Math.min(width, height) >= 768
+}
 
 /**
  * Whether the app scene fills (nearly) the whole display.

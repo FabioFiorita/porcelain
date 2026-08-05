@@ -82,20 +82,29 @@ export const gitHeadQuery = defineQuery<string, HeadRef>(
   z.object({ branch: z.string().nullable(), detachedSha: z.string().nullable() }),
 )
 
-export const gitLogQuery = defineQuery<
-  { repoPath: string; limit: number },
-  { hash: string; author: string; date: string; subject: string }[]
->(
+/** `date` is git's relative form (`%ar`) — "2 hours ago" — not a parseable timestamp. */
+const commitSchema = z.object({
+  hash: z.string(),
+  author: z.string(),
+  date: z.string(),
+  subject: z.string(),
+})
+
+export type Commit = z.infer<typeof commitSchema>
+
+export const gitLogQuery = defineQuery<{ repoPath: string; limit: number }, Commit[]>(
   'gitLog',
-  z.array(
-    z.object({
-      hash: z.string(),
-      author: z.string(),
-      date: z.string(),
-      subject: z.string(),
-    }),
-  ),
+  z.array(commitSchema),
 )
+
+/**
+ * One file's history, newest first. The daemon follows renames, so the timeline does not stop
+ * at a move, and it accepts the repo-relative path the flow lists already carry.
+ */
+export const gitFileLogQuery = defineQuery<
+  { repoPath: string; filePath: string; limit: number },
+  Commit[]
+>('gitFileLog', z.array(commitSchema))
 
 /** The daemon returns the raw `%B` body, so the subject is this string's first line. */
 export const gitCommitMessageQuery = defineQuery<{ repoPath: string; hash: string }, string>(

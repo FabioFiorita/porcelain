@@ -7,6 +7,7 @@ import {
   gitCommitMutation,
   gitDiffFileQuery,
   gitDiscardFileMutation,
+  gitFileLogQuery,
   gitFlowQuery,
   gitGenerateCommitGroupsMutation,
   gitGenerateCommitMessageMutation,
@@ -150,6 +151,15 @@ describe('history and head', () => {
   it('parses a commit row', () => {
     expect(
       gitLogQuery.output.parse([
+        { author: 'A', date: '2 days ago', hash: 'abc', subject: 'feat: x' },
+      ]),
+    ).toHaveLength(1)
+  })
+
+  it('parses a file timeline off the same commit shape', () => {
+    expect(gitFileLogQuery.name).toBe('gitFileLog')
+    expect(
+      gitFileLogQuery.output.parse([
         { author: 'A', date: '2 days ago', hash: 'abc', subject: 'feat: x' },
       ]),
     ).toHaveLength(1)
