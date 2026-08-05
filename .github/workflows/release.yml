@@ -2,7 +2,8 @@ name: Release
 
 # Side-project release: simple path.
 #   1. Tag already exists on main (pnpm release:cut bumps + tags + pushes).
-#   2. This workflow packages macOS, publishes the GH Release, publishes npm.
+#   2. This workflow packages macOS and the Linux/plain-Node daemon in parallel,
+#      publishes the GH Release, then publishes the prepared daemon to npm.
 # No pending branches. No multi-mode cut/retry soup.
 # Retry: re-run the failed job, or `gh workflow run release.yml -f tag=vX.Y.Z`.
 
@@ -86,6 +87,37 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  # The Linux deliverable is the plain-Node daemon published as porcelain-daemon.
+  # Build it independently of the signed Mac job, then hand the exact assembled
+  # package to the post-release npm publisher instead of rebuilding the workspace.
+  package-daemon:
+    needs: [prepare]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
+
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      # The daemon package needs the shared web renderer plus the independent
+      # daemon/CLI bundles, not the Electron shell or mobile typecheck.
+      - run: pnpm build:web
+      - run: pnpm build:node
+      - run: pnpm daemon:dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-daemon-${{ needs.prepare.outputs.tag }}
+          path: dist-daemon
+          if-no-files-found: error
+          retention-days: 14
+
   publish:
     needs: [prepare, package-mac]
     runs-on: ubuntu-latest
@@ -93,7 +125,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          ref: ${{ github.sha }}
+          ref: ${{ needs.prepare.outputs.tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download mac artifacts
@@ -118,24 +150,22 @@ jobs:
             --cleanup-drafts
 
   publish-npm:
-    needs: [prepare, publish]
+    needs: [prepare, publish, package-daemon]
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v5
-        with:
-          ref: ${{ needs.prepare.outputs.tag }}
-
-      - uses: pnpm/action-setup@v5
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-          cache: pnpm
 
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
+      - name: Download prepared Linux daemon
+        uses: actions/download-artifact@v4
+        with:
+          name: release-daemon-${{ needs.prepare.outputs.tag }}
+          path: dist-daemon
+
       - name: Publish porcelain-daemon to npm
         run: |
           set -euo pipefail
