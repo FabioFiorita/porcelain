@@ -6,6 +6,15 @@ import { Button } from '@/components/ui/button'
 import { Text as UiText } from '@/components/ui/text'
 import { cn } from '@/lib/utils'
 
+/**
+ * The small chrome every product panel is built from: section captions, icon-only actions,
+ * the status / empty / error notes, and the two touch stand-ins for a right-click menu.
+ *
+ * Lives beside the UI primitives rather than inside a tab because Changes, History, and the
+ * diff surfaces they share all draw from it — a panel that invents its own empty state is how
+ * two tabs stop looking like one app.
+ */
+
 /** Section caption shared by the list groups and every companion card. */
 export function PanelLabel({
   children,

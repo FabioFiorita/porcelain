@@ -1,9 +1,10 @@
 import { View } from 'react-native'
 
-import { EmptyNote } from './changes-chrome'
+import { EmptyNote } from '@/components/panel-chrome'
+
+import { ChangesDiffView } from './changes-diff-view'
+import { ChangesReadAllView } from './changes-read-all-view'
 import { useChangesStore } from './changes-store'
-import { DiffView } from './diff-view'
-import { ReadAllView } from './read-all-view'
 import { useChangesFlow } from './use-changes'
 
 /**
@@ -33,7 +34,7 @@ export function ChangesViewer({ active }: { active: boolean }): React.JSX.Elemen
     )
   }
   if (selection.kind === 'all') {
-    return <ReadAllView active={active} base={base} scope={scope} />
+    return <ChangesReadAllView active={active} base={base} scope={scope} />
   }
-  return <DiffView active={active} base={base} filePath={selection.path} />
+  return <ChangesDiffView active={active} base={base} filePath={selection.path} />
 }

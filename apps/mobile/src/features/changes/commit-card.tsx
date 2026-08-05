@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
+import { PanelLabel, StatusNote } from '@/components/panel-chrome'
 import { ShellModal, ShellModalScroll, useShellModalSize } from '@/components/shell-modal'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,8 +13,6 @@ import { Textarea } from '@/components/ui/textarea'
 import type { FlowGroup } from '@/lib/daemon/procedures/changes'
 import { useActiveRepo } from '@/lib/daemon/repo'
 import { cn } from '@/lib/utils'
-
-import { PanelLabel, StatusNote } from './changes-chrome'
 import { useCommitDraftStore } from './commit-draft-store'
 import { useWorkingFlow } from './use-changes'
 import {

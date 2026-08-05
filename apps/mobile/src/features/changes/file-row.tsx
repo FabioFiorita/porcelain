@@ -3,19 +3,10 @@ import { memo, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
-import type { FileStatus, FlowFile } from '@/lib/daemon/procedures/changes'
+import { ActionSheet, ConfirmDialog, type SheetAction } from '@/components/panel-chrome'
+import { StatusBadge } from '@/features/diff/status-badge'
+import type { FlowFile } from '@/lib/daemon/procedures/changes'
 import { cn } from '@/lib/utils'
-
-import { ActionSheet, ConfirmDialog, type SheetAction } from './changes-chrome'
-
-/** The one-letter status lead, matching the web row (colour carries the meaning). */
-const STATUS_BADGE: Record<FileStatus, { label: string; className: string }> = {
-  added: { label: 'A', className: 'text-success' },
-  deleted: { label: 'D', className: 'text-destructive' },
-  modified: { label: 'M', className: 'text-warning' },
-  renamed: { label: 'R', className: 'text-info' },
-  untracked: { label: 'U', className: 'text-success' },
-}
 
 export type FileRowActions = {
   onOpen: (path: string) => void
@@ -54,7 +45,6 @@ function FileRowImpl({
   const name = fileName(file.path)
   const directory = dirName(file.path)
   const connects = file.connects.map((entry) => fileName(entry)).join(', ')
-  const badge = STATUS_BADGE[file.status]
   // A file with no committed version is trashed rather than reverted; word the confirmation
   // to match what discard actually does in each case.
   const isNew = file.status === 'untracked' || file.status === 'added'
@@ -127,9 +117,7 @@ function FileRowImpl({
           actions.onOpen(file.path)
         }}
       >
-        <Text className={cn('mt-0.5 w-3 text-center font-mono text-xs font-bold', badge.className)}>
-          {badge.label}
-        </Text>
+        <StatusBadge className="mt-0.5" status={file.status} />
         <View className="min-w-0 flex-1 gap-0.5">
           <View className="flex-row items-center gap-1.5">
             {file.staged === true ? (

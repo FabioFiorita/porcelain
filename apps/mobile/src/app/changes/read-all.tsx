@@ -1,8 +1,8 @@
 import { useIsFocused, useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
+import { ChangesReadAllView } from '@/features/changes/changes-read-all-view'
 import { useChangesStore } from '@/features/changes/changes-store'
-import { ReadAllView } from '@/features/changes/read-all-view'
 import { useChangesFlow } from '@/features/changes/use-changes'
 import { useTabBarInset } from '@/features/shell/tab-bar-inset'
 
@@ -21,7 +21,7 @@ export default function ChangesReadAllRoute(): React.JSX.Element {
   const { base } = useChangesFlow(focused)
 
   return (
-    <ReadAllView
+    <ChangesReadAllView
       active={focused}
       base={base}
       bottomInset={bottomInset}

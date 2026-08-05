@@ -1,7 +1,7 @@
 import { useIsFocused, useLocalSearchParams, useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { DiffView } from '@/features/changes/diff-view'
+import { ChangesDiffView } from '@/features/changes/changes-diff-view'
 import { useChangesFlow } from '@/features/changes/use-changes'
 import { useTabBarInset } from '@/features/shell/tab-bar-inset'
 
@@ -22,7 +22,7 @@ export default function ChangesFileRoute(): React.JSX.Element {
   const { base } = useChangesFlow(focused)
 
   return (
-    <DiffView
+    <ChangesDiffView
       active={focused}
       base={base}
       bottomInset={bottomInset}
