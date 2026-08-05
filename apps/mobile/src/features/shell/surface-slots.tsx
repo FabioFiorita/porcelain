@@ -6,6 +6,7 @@ import { FilesCompanion } from '@/features/files/files-companion'
 import { FilesList } from '@/features/files/files-list'
 import { FilesPhoneScreen } from '@/features/files/files-phone-screen'
 import { FilesViewer } from '@/features/files/files-viewer'
+import { SearchCompanion } from '@/features/files/search-companion'
 import { SearchList } from '@/features/files/search-list'
 import { SearchPhoneScreen } from '@/features/files/search-phone-screen'
 import { HistoryCompanion } from '@/features/history/history-companion'
@@ -57,10 +58,11 @@ const SURFACE_SLOTS: Partial<Record<SurfaceId, SurfaceSlots>> = {
     viewer: FilesViewer,
   },
   // Search is the Files tab's other face and the tablet rail's own destination: a different
-  // way into the same tree, so it shares Files' viewer and companion rather than owning a
-  // second copy of either.
+  // way into the same tree, so it shares Files' viewer rather than owning a second copy. Its
+  // companion is its own, because "what did I just look for" is not "where do I work" — the
+  // same split the web rail makes.
   search: {
-    companion: FilesCompanion,
+    companion: SearchCompanion,
     list: SearchList,
     phone: SearchPhoneScreen,
     viewer: FilesViewer,

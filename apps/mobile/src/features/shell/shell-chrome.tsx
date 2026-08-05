@@ -1,5 +1,6 @@
+import { createContext, useContext } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
-import { SafeAreaView } from 'react-native-screens/experimental'
+import { SafeAreaView, type SafeAreaViewProps } from 'react-native-screens/experimental'
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -190,14 +191,64 @@ function HeaderIconButton({
   )
 }
 
+/**
+ * How far a SplitView column overruns the bottom of the screen, in points.
+ *
+ * The iPad shell puts its own header above the native SplitView, but the columns inside it are
+ * still laid out at the full window height — so every column ends that far below the screen and
+ * quietly loses whatever sits at its bottom: the rail's companion toggle, and the selection bar
+ * a comment is filed from. The shell measures the offset once and every column subtracts it.
+ * Zero everywhere else, which is why the phone never showed the bug.
+ */
+const ColumnOverflowContext = createContext(0)
+
+export function ColumnOverflowProvider({
+  children,
+  value,
+}: {
+  children: React.ReactNode
+  value: number
+}): React.JSX.Element {
+  return <ColumnOverflowContext.Provider value={value}>{children}</ColumnOverflowContext.Provider>
+}
+
+/**
+ * A tablet column's paint, its safe-area padding, and its share of the overflow above.
+ *
+ * `react-native-screens`' `SafeAreaView` is a native host NativeWind does not interop, so a
+ * `className` on it is silently dropped — which is why the rail and the list column rendered
+ * as bare black holes inside the iPad SplitView while every styled child inside them was fine.
+ * The fill and the border go on a plain `View` around it, and the SafeAreaView keeps doing the
+ * one thing it is here for: the insets. Wrapping rather than padding by hand keeps the fill
+ * under the inset strip, where a column's background belongs.
+ */
+function ColumnSurface({
+  children,
+  className,
+  edges,
+}: {
+  children: React.ReactNode
+  className: string
+  edges: SafeAreaViewProps['edges']
+}): React.JSX.Element {
+  const overflow = useContext(ColumnOverflowContext)
+  return (
+    // nativewind-allow-style: the overflow is measured at runtime, not a class.
+    <View className={cn('flex-1', className)} style={{ paddingBottom: overflow }}>
+      {/* nativewind-allow-style: this host drops className, which is the whole point above. */}
+      <SafeAreaView edges={edges} style={{ flex: 1 }}>
+        {children}
+      </SafeAreaView>
+    </View>
+  )
+}
+
 export function PrimaryColumn(): React.JSX.Element {
   const activeId = useShellStore((state) => state.activeSurface)
   const setActiveSurface = useShellStore((state) => state.setActiveSurface)
-  const toggleInspector = useShellStore((state) => state.toggleInspector)
-  const inspectorVisible = useShellStore((state) => state.inspectorVisible)
 
   return (
-    <SafeAreaView className="flex-1 bg-sidebar" edges={{ bottom: true, left: true }}>
+    <ColumnSurface className="bg-sidebar" edges={{ bottom: true, left: true }}>
       {/* Top padding clears the native SplitView sidebar toggle over the rail. */}
       <ScrollView
         className="flex-1"
@@ -221,17 +272,10 @@ export function PrimaryColumn(): React.JSX.Element {
             />
           ))}
         </View>
-
-        {/* Settings lives only in the header gear — keep companion toggle as rail affordance. */}
-        <View className="mt-auto gap-2 px-1">
-          <Separator />
-          <Button onPress={toggleInspector} size="sm" variant="outline">
-            <ChromeGlyph name="companion" size={16} tone="foreground" />
-            <UiText>{inspectorVisible ? 'Hide companion' : 'Show companion'}</UiText>
-          </Button>
-        </View>
+        {/* No companion toggle down here: the header's bolt is the one control for it, and a
+            rail that ends in a second copy of a header button reads as two ways to be wrong. */}
       </ScrollView>
-    </SafeAreaView>
+    </ColumnSurface>
   )
 }
 
@@ -287,21 +331,21 @@ export function SupplementaryColumn({
   // that the mock title / hint block has no room for.
   if (slots !== undefined) {
     return (
-      <SafeAreaView
-        className={cn('flex-1 bg-card', !primaryCollapsed && 'border-l border-border')}
+      <ColumnSurface
+        className={cn('bg-card', !primaryCollapsed && 'border-l border-border')}
         edges={{ bottom: true, left: true, right: true }}
       >
         <View className={cn('flex-1', primaryCollapsed ? 'pt-[72px]' : 'pt-4')}>
           <Text className="px-4 pb-1 text-xl font-bold text-foreground">{surface.listTitle}</Text>
           <slots.list active />
         </View>
-      </SafeAreaView>
+      </ColumnSurface>
     )
   }
 
   return (
-    <SafeAreaView
-      className={cn('flex-1 bg-card', !primaryCollapsed && 'border-l border-border')}
+    <ColumnSurface
+      className={cn('bg-card', !primaryCollapsed && 'border-l border-border')}
       edges={{ bottom: true, left: true, right: true }}
     >
       {/* Extra top inset clears the system SplitView collapse control when the rail hides. */}
@@ -344,7 +388,7 @@ export function SupplementaryColumn({
           </View>
         </ScrollView>
       </View>
-    </SafeAreaView>
+    </ColumnSurface>
   )
 }
 
@@ -396,8 +440,8 @@ export function CompanionColumn(): React.JSX.Element {
 
   if (slots !== undefined) {
     return (
-      <SafeAreaView
-        className="flex-1 border-l border-border bg-muted/20"
+      <ColumnSurface
+        className="border-l border-border bg-muted/20"
         edges={{ bottom: true, right: true }}
       >
         <View className="flex-row items-start justify-between gap-2 px-3 pt-4">
@@ -417,13 +461,13 @@ export function CompanionColumn(): React.JSX.Element {
           </Button>
         </View>
         <slots.companion active />
-      </SafeAreaView>
+      </ColumnSurface>
     )
   }
 
   return (
-    <SafeAreaView
-      className="flex-1 border-l border-border bg-muted/20"
+    <ColumnSurface
+      className="border-l border-border bg-muted/20"
       edges={{ bottom: true, right: true }}
     >
       <ScrollView
@@ -466,14 +510,21 @@ export function CompanionColumn(): React.JSX.Element {
           </View>
         ))}
       </ScrollView>
-    </SafeAreaView>
+    </ColumnSurface>
   )
 }
 
 export function ViewerCanvas({ surfaceId }: { surfaceId: SurfaceId }): React.JSX.Element {
   const slots = surfaceSlots(surfaceId)
-  if (slots !== undefined) return <slots.viewer active />
-  return <MockViewerCanvas surfaceId={surfaceId} />
+  const overflow = useContext(ColumnOverflowContext)
+  return (
+    // The viewer is a column like any other, and its floating chrome — the selection bar a
+    // comment is filed from — anchors to this box's bottom edge. See `ColumnOverflowContext`.
+    // nativewind-allow-style: the overflow is measured at runtime, not a class.
+    <View className="flex-1 bg-background" style={{ paddingBottom: overflow }}>
+      {slots === undefined ? <MockViewerCanvas surfaceId={surfaceId} /> : <slots.viewer active />}
+    </View>
+  )
 }
 
 function MockViewerCanvas({ surfaceId }: { surfaceId: SurfaceId }): React.JSX.Element {

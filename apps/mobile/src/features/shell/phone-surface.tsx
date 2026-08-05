@@ -119,7 +119,7 @@ function PhoneSurfaceBody({ surfaceId }: { surfaceId: SurfaceId }): React.JSX.El
           <View className="flex-row items-center gap-2 rounded-xl border border-border bg-muted/40 px-3">
             <ChromeGlyph name="search" size={16} />
             <Input
-              className="native:h-11 flex-1 border-0 bg-transparent px-0 shadow-none"
+              className="native:h-11 flex-1 border-0 bg-transparent px-0 shadow-none dark:bg-transparent"
               onChangeText={setSearchQuery}
               placeholder="Search the workspace…"
               returnKeyType="search"

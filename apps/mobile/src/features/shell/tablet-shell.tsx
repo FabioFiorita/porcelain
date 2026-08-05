@@ -4,6 +4,7 @@ import { Linking, Platform, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { SurfaceId } from './mock-data'
 import {
+  ColumnOverflowProvider,
   CompanionColumn,
   PrimaryColumn,
   SupplementaryColumn,
@@ -29,6 +30,10 @@ export function TabletShell(): React.JSX.Element {
   const [primaryCollapsed, setPrimaryCollapsed] = useState(false)
   const usesNativeSplitView = Platform.OS === 'ios'
   const platformLabel = usesNativeSplitView ? 'iPad' : 'Android tablet'
+  // How far the header pushes the SplitView down. The native columns are laid out at the full
+  // window height regardless, so this is exactly how far each one overruns the bottom of the
+  // screen — see `ColumnOverflowContext`. Android lays its own columns out and needs none of it.
+  const [columnOverflow, setColumnOverflow] = useState(0)
 
   useEffect(() => {
     const openFromUrl = (url: string): void => {
@@ -55,37 +60,50 @@ export function TabletShell(): React.JSX.Element {
   return (
     <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
       <TabletHeader platformLabel={platformLabel} />
-      <View className="min-h-0 flex-1">
-        {usesNativeSplitView ? (
-          <SplitView
-            columnMetrics={{
-              preferredInspectorColumnWidthOrFraction: 0.22,
-              preferredPrimaryColumnWidthOrFraction: 0.16,
-              preferredSecondaryColumnWidthOrFraction: 0.4,
-              preferredSupplementaryColumnWidthOrFraction: 0.22,
-            }}
-            preferredDisplayMode="twoBesideSecondary"
-            preferredSplitBehavior="tile"
-            onDisplayModeWillChange={(event) => {
-              setPrimaryCollapsed(event.nativeEvent.nextDisplayMode === 'oneBesideSecondary')
-            }}
-            primaryBackgroundStyle="none"
-            showInspector={inspectorVisible}
-            topColumnForCollapsing="primary"
-          >
-            <SplitView.Column>
-              <PrimaryColumn />
-            </SplitView.Column>
-            <SplitView.Column>
-              <SupplementaryColumn primaryCollapsed={primaryCollapsed} />
-            </SplitView.Column>
-            <SplitView.Inspector>
-              <CompanionColumn />
-            </SplitView.Inspector>
-          </SplitView>
-        ) : (
-          <AndroidTabletColumns activeSurface={activeSurface} inspectorVisible={inspectorVisible} />
-        )}
+      <View
+        className="min-h-0 flex-1"
+        onLayout={(event) => {
+          // `layout.y` already counts the root's top inset padding, so it is the split view's
+          // absolute offset from the top of the window — and its overrun past the bottom.
+          if (!usesNativeSplitView) return
+          setColumnOverflow(event.nativeEvent.layout.y)
+        }}
+      >
+        <ColumnOverflowProvider value={columnOverflow}>
+          {usesNativeSplitView ? (
+            <SplitView
+              columnMetrics={{
+                preferredInspectorColumnWidthOrFraction: 0.22,
+                preferredPrimaryColumnWidthOrFraction: 0.16,
+                preferredSecondaryColumnWidthOrFraction: 0.4,
+                preferredSupplementaryColumnWidthOrFraction: 0.22,
+              }}
+              preferredDisplayMode="twoBesideSecondary"
+              preferredSplitBehavior="tile"
+              onDisplayModeWillChange={(event) => {
+                setPrimaryCollapsed(event.nativeEvent.nextDisplayMode === 'oneBesideSecondary')
+              }}
+              primaryBackgroundStyle="none"
+              showInspector={inspectorVisible}
+              topColumnForCollapsing="primary"
+            >
+              <SplitView.Column>
+                <PrimaryColumn />
+              </SplitView.Column>
+              <SplitView.Column>
+                <SupplementaryColumn primaryCollapsed={primaryCollapsed} />
+              </SplitView.Column>
+              <SplitView.Inspector>
+                <CompanionColumn />
+              </SplitView.Inspector>
+            </SplitView>
+          ) : (
+            <AndroidTabletColumns
+              activeSurface={activeSurface}
+              inspectorVisible={inspectorVisible}
+            />
+          )}
+        </ColumnOverflowProvider>
       </View>
       <ShellSheets variant="tablet" />
     </View>

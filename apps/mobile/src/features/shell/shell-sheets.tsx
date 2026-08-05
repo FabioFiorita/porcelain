@@ -232,7 +232,7 @@ function SearchCommandSheet({
         <ChromeGlyph name="search" size={16} />
         <Input
           autoFocus={open}
-          className="native:h-12 flex-1 border-0 bg-transparent px-0 text-base shadow-none"
+          className="native:h-12 flex-1 border-0 bg-transparent px-0 text-base shadow-none dark:bg-transparent"
           onChangeText={setQuery}
           placeholder="Search files, folders, commands, commits…"
           returnKeyType="search"

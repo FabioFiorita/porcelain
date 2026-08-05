@@ -14,11 +14,20 @@ type FilesState = {
   selection: string | null
   /** The Search face's query, shared so the tablet's results and viewer agree on it. */
   query: string
+  /** Queries that found something, newest first — the Search companion's roster. */
+  recentSearches: string[]
   toggleHidden: () => void
   openDir: (path: string) => void
   openFile: (path: string) => void
   setQuery: (query: string) => void
+  /** Record a settled query at the top of the recents (trimmed, deduped, capped). */
+  rememberSearch: (query: string) => void
+  /** Drop a single query from the recents. */
+  forgetSearch: (query: string) => void
 }
+
+/** Enough to get back to this morning's searches without becoming a list you scroll. */
+const MAX_RECENT_SEARCHES = 8
 
 /**
  * Files view state — the scope override, and on tablet what the two columns hold.
@@ -34,13 +43,27 @@ type FilesState = {
 export const useFilesStore = create<FilesState>()((set) => ({
   cursor: REPO_ROOT,
   query: '',
+  recentSearches: [],
   selection: null,
   showHidden: false,
+  forgetSearch: (query) => {
+    set((state) => ({ recentSearches: state.recentSearches.filter((q) => q !== query) }))
+  },
   openDir: (cursor) => {
     set({ cursor })
   },
   openFile: (selection) => {
     set({ selection })
+  },
+  rememberSearch: (query) => {
+    const trimmed = query.trim()
+    if (trimmed === '') return
+    set((state) => ({
+      recentSearches: [trimmed, ...state.recentSearches.filter((q) => q !== trimmed)].slice(
+        0,
+        MAX_RECENT_SEARCHES,
+      ),
+    }))
   },
   setQuery: (query) => {
     set({ query })

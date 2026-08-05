@@ -43,6 +43,7 @@ export function SearchPanel({
 }): React.JSX.Element {
   const query = useFilesStore((state) => state.query)
   const setQuery = useFilesStore((state) => state.setQuery)
+  const rememberSearch = useFilesStore((state) => state.rememberSearch)
   const [settled, setSettled] = useState(query)
 
   useEffect(() => {
@@ -56,6 +57,12 @@ export function SearchPanel({
 
   const { error, isLoading, results } = useFileSearch(settled, active)
   const trimmed = query.trim()
+
+  // A query joins the recents once it has settled and actually found something — half-typed
+  // prefixes on the way to a real search are not searches anyone wants to run again.
+  useEffect(() => {
+    if (results.length > 0) rememberSearch(settled)
+  }, [rememberSearch, results, settled])
   // Typing past a settled query is a search in flight as far as the reader is concerned, even
   // though no request has left yet.
   const searching = isLoading || trimmed !== settled.trim()
@@ -69,7 +76,7 @@ export function SearchPanel({
             accessibilityLabel="Search files by name"
             autoCapitalize="none"
             autoCorrect={false}
-            className="native:h-11 flex-1 border-0 bg-transparent px-0 shadow-none"
+            className="native:h-11 flex-1 border-0 bg-transparent px-0 shadow-none dark:bg-transparent"
             placeholder="Find a file by name…"
             returnKeyType="search"
             testID="porcelain-search-input"

@@ -4,7 +4,7 @@ import { FlatList, Image, Text, View } from 'react-native'
 import { EmptyNote, ErrorNote, IconAction } from '@/components/panel-chrome'
 import { SegmentedControl } from '@/components/segmented-control'
 import { type CommentAnchor, CommentComposer } from '@/features/comments/comment-composer'
-import { rangeForPath } from '@/features/comments/line-range'
+import { describeRange, type LineRange, rangeForPath } from '@/features/comments/line-range'
 import { SelectionBar } from '@/features/comments/selection-bar'
 import { useCommentIndex, useReviewComments } from '@/features/comments/use-comments'
 import { useLineSelection } from '@/features/comments/use-line-selection'
@@ -104,13 +104,17 @@ export function FileViewer({
     [commentedLines, extend, filePath, selected, start, tokens],
   )
 
+  // A range selected in Source means nothing while a rendered page is up — the bar is hidden
+  // there for the same reason — so the header falls back to the whole file.
+  const anchorable = selected === null || reader || preview ? null : selected
+
   const handleCommentSelection = (): void => {
-    if (selected === null) return
+    if (anchorable === null) return
     setAnchor({
-      anchorText: sourceAnchorText(rows, selected),
-      endLine: selected.endLine,
+      anchorText: sourceAnchorText(rows, anchorable),
+      endLine: anchorable.endLine,
       path: filePath,
-      startLine: selected.startLine,
+      startLine: anchorable.startLine,
     })
     lineSelection.clear()
   }
@@ -133,8 +137,13 @@ export function FileViewer({
         filePath={filePath}
         isPinned={isPinned}
         onBack={onBack}
+        // One button, two anchors: with a range open it files against the range, and against
+        // the file when there is none. The bar stays the deliberate route; this is the same
+        // action where the reader's thumb already is.
+        selectedRange={anchorable}
         onComment={() => {
-          setAnchor({ path: filePath })
+          if (anchorable === null) setAnchor({ path: filePath })
+          else handleCommentSelection()
         }}
         onTogglePinned={() => {
           handlePin(!isPinned)
@@ -268,6 +277,7 @@ function ViewerHeader({
   onBack,
   onComment,
   onTogglePinned,
+  selectedRange,
   topInset,
 }: {
   commentCount: number
@@ -276,6 +286,8 @@ function ViewerHeader({
   onBack?: () => void
   onComment: () => void
   onTogglePinned: () => void
+  /** The open selection the comment action would anchor to, or null for the whole file. */
+  selectedRange: LineRange | null
   topInset: number
 }): React.JSX.Element {
   return (
@@ -315,9 +327,15 @@ function ViewerHeader({
         onPress={onTogglePinned}
       />
       <IconAction
-        accessibilityLabel="Comment on file"
+        accessibilityLabel={
+          selectedRange === null
+            ? 'Comment on file'
+            : `Comment on ${describeRange(selectedRange).toLowerCase()}`
+        }
         glyph="commentAdd"
+        selected={selectedRange !== null}
         testID="porcelain-files-viewer-comment"
+        tone={selectedRange === null ? 'muted' : 'primary'}
         onPress={onComment}
       />
     </View>

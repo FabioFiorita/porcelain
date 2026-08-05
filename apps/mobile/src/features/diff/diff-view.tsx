@@ -10,7 +10,7 @@ import type { DiffHunk, FileStatus } from '@/lib/daemon/procedures/changes'
 import { cn } from '@/lib/utils'
 import { DiffRowView } from './diff-lines'
 import { type DiffRow, toDiffRows } from './diff-rows'
-import { anchorTextFor, rangeForPath } from './line-selection'
+import { anchorTextFor, describeRange, type LineRange, rangeForPath } from './line-selection'
 import { SelectionBar } from './selection-bar'
 import { type DiffSource, useDiffFile } from './use-diff'
 import { useDiffTokens } from './use-highlight'
@@ -113,11 +113,16 @@ export function DiffView({
       <DiffHeader
         filePath={filePath}
         reviewed={reviewed}
+        // One button, two anchors: with a range open it files against the range, and against
+        // the file when there is none. The bar stays the deliberate route; this is the same
+        // action where the reader's thumb already is.
+        selectedRange={selected}
         testID={testID}
         topInset={topInset}
         onBack={onBack}
         onComment={() => {
-          setAnchor({ path: filePath })
+          if (selected === null) setAnchor({ path: filePath })
+          else handleCommentSelection()
         }}
         onOpenFile={onOpenFile}
       />
@@ -159,6 +164,7 @@ function DiffHeader({
   onComment,
   onOpenFile,
   reviewed,
+  selectedRange,
   testID,
   topInset,
 }: {
@@ -167,6 +173,8 @@ function DiffHeader({
   onComment: () => void
   onOpenFile?: (path: string) => void
   reviewed: ReviewedControl | undefined
+  /** The open selection the comment action would anchor to, or null for the whole file. */
+  selectedRange: LineRange | null
   testID: string
   topInset: number
 }): React.JSX.Element {
@@ -207,9 +215,15 @@ function DiffHeader({
         />
       )}
       <IconAction
-        accessibilityLabel="Comment on file"
+        accessibilityLabel={
+          selectedRange === null
+            ? 'Comment on file'
+            : `Comment on ${describeRange(selectedRange).toLowerCase()}`
+        }
         glyph="commentAdd"
+        selected={selectedRange !== null}
         testID={`${testID}-comment`}
+        tone={selectedRange === null ? 'muted' : 'primary'}
         onPress={onComment}
       />
       {/* A diff answers "what changed"; the file answers "what is this now". Reading one

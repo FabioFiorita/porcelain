@@ -24,7 +24,8 @@ const buttonVariants = cva(
           }),
         ),
         outline: cn(
-          'border-border bg-background active:bg-accent dark:bg-input/30 dark:border-input dark:active:bg-input/50 border shadow-sm shadow-black/5',
+          // `dark:bg-white/…` stands in for the registry's `dark:bg-input/…` — see `input.tsx`.
+          'border-border bg-background active:bg-accent dark:bg-white/5 dark:border-input dark:active:bg-white/8 border shadow-sm shadow-black/5',
           Platform.select({
             web: 'hover:bg-accent dark:hover:bg-input/50',
           }),

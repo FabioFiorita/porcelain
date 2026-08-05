@@ -10,7 +10,8 @@ function Switch({ className, ...props }: React.ComponentProps<typeof SwitchPrimi
         Platform.select({
           web: 'focus-visible:border-ring focus-visible:ring-ring/50 peer inline-flex outline-none transition-all focus-visible:ring-[3px] disabled:cursor-not-allowed',
         }),
-        props.checked ? 'bg-primary' : 'bg-input dark:bg-input/80',
+        // `dark:bg-white/12` stands in for the registry's `dark:bg-input/80` — see `input.tsx`.
+        props.checked ? 'bg-primary' : 'bg-input dark:bg-white/12',
         props.disabled && 'opacity-50',
         className,
       )}
