@@ -57,3 +57,38 @@ describe('terminalFieldEdit', () => {
     expect(terminalFieldEdit(S, `${S}a\nb\n`).bytes).toBe('a\rb\r')
   })
 })
+
+describe('terminalFieldEdit with bracketed paste', () => {
+  const PASTE = { bracketedPaste: true } as const
+  const START = '\x1b[200~'
+  const END = '\x1b[201~'
+
+  it('wraps a multi-line paste so it lands as one block instead of N submits', () => {
+    // Unwrapped, this runs `a` and then `b`. Wrapped, an agent prompt takes both lines into
+    // its input box and the human still decides when to submit.
+    expect(terminalFieldEdit(S, `${S}a\nb\n`, PASTE).bytes).toBe(`${START}a\rb\r${END}`)
+  })
+
+  it('wraps a single-line paste too — the app asked to be told what was a burst', () => {
+    expect(terminalFieldEdit(S, `${S}git status`, PASTE).bytes).toBe(`${START}git status${END}`)
+  })
+
+  it('leaves a keystroke alone', () => {
+    expect(terminalFieldEdit(S, `${S}e`, PASTE).bytes).toBe('e')
+    expect(terminalFieldEdit(`${S}ls`, `${S}ls\n`, PASTE).bytes).toBe('\r')
+  })
+
+  it('leaves a correction alone: deleting first is what a paste never does', () => {
+    // Autocorrect and dictation replace a run of characters. Wrapped, an app would treat the
+    // replacement as pasted text rather than typing.
+    expect(terminalFieldEdit(`${S}teh`, `${S}the`, PASTE).bytes).toBe(`${BS}${BS}he`)
+  })
+
+  it('leaves a backspace alone', () => {
+    expect(terminalFieldEdit(`${S}abc`, `${S}a`, PASTE).bytes).toBe(`${BS}${BS}`)
+  })
+
+  it('sends the same bytes as before when the app has not asked for it', () => {
+    expect(terminalFieldEdit(S, `${S}a\nb\n`, { bracketedPaste: false }).bytes).toBe('a\rb\r')
+  })
+})

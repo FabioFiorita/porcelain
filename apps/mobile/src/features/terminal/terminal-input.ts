@@ -1,6 +1,7 @@
 import {
   type ArrowDirection,
   terminalArrowBytes,
+  terminalEditBytes,
   terminalModifierBytes,
 } from '@porcelain/client-runtime/terminal-keys'
 
@@ -44,17 +45,64 @@ export function sendTerminalText(id: string, text: string): void {
   sendTerminalBytes(id, `${bytes ?? head}${text.slice(head.length)}`)
 }
 
+/** The DOM key name for each direction, which is the shared encoder's vocabulary. */
+const ARROW_KEY: Record<ArrowDirection, string> = {
+  down: 'ArrowDown',
+  left: 'ArrowLeft',
+  right: 'ArrowRight',
+  up: 'ArrowUp',
+}
+
 /**
  * Send an arrow, honouring the terminal's live DECCKM state. The key bar writes bytes
  * directly, so unlike a real keypress it has to read the mode itself: a full-screen TUI puts
  * the terminal in application-cursor mode, where the normal `ESC [ A` form is inserted as a
  * literal `[A` instead of moving the cursor.
+ *
+ * An armed Alt makes ← / → WORD-wise, exactly as ⌥←/⌥→ do on a real terminal. That is the one
+ * modifier an arrow encodes, and it is deliberately NOT the generic ESC prefix: `ESC` followed
+ * by an arrow's own escape sequence is two separate keys to readline, which is why the shared
+ * encoder answers this chord with `ESC b` / `ESC f` instead.
  */
 export function sendTerminalArrow(id: string, direction: ArrowDirection): void {
+  // Every keystroke disarms, chord or not.
+  const armed = takeArmedModifier(id)
+  if (armed === 'meta') {
+    const wordJump = terminalEditBytes({
+      altKey: true,
+      ctrlKey: false,
+      key: ARROW_KEY[direction],
+      metaKey: false,
+      shiftKey: false,
+    })
+    // Up and Down have no word-wise form; they fall through to the plain arrow below.
+    if (wordJump !== null) {
+      sendTerminalBytes(id, wordJump)
+      return
+    }
+  }
   const applicationCursorKeys = getTerminal(id)?.modes.applicationCursorKeysMode ?? false
-  // An arrow cancels an armed modifier without being encoded by it: Meta+← must stay a word
-  // jump (`ESC b`, sent by the bar's own key), not ESC followed by an arrow sequence, which
-  // readline reads as two separate keys.
-  takeArmedModifier(id)
   sendTerminalBytes(id, terminalArrowBytes(direction, applicationCursorKeys))
+}
+
+/**
+ * Insert a newline instead of submitting the line — ⇧↵ on a keyboard that has one.
+ *
+ * Agent CLIs and other multiline prompts read a bare CR as "run it", so on a touch device there
+ * was no way to write a second line at all: the hidden field's Return is a submit, and the
+ * chord that means "newline" cannot be typed. The bytes are the shared encoder's, so this key
+ * and the desktop client's ⇧↵ send exactly the same thing.
+ */
+export function sendTerminalNewline(id: string): void {
+  takeArmedModifier(id)
+  const bytes = terminalEditBytes({
+    altKey: false,
+    ctrlKey: false,
+    key: 'Enter',
+    metaKey: false,
+    shiftKey: true,
+  })
+  // The shared encoder answers this chord unconditionally; null would mean it stopped doing so,
+  // and sending a bare CR instead would submit the line this key exists to avoid.
+  if (bytes !== null) sendTerminalBytes(id, bytes)
 }

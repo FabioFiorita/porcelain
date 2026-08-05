@@ -6,7 +6,7 @@ import {
   killTerminal,
 } from '@/lib/daemon/terminal'
 
-import { disposeTerminal } from './terminal-engine'
+import { disposeTerminal, fitTerminal, nextTerminalSize } from './terminal-engine'
 import { nextTerminalNumber } from './terminal-naming'
 
 /**
@@ -136,8 +136,21 @@ export const useTerminalStore = create<TerminalState>()((set, get) => ({
       numberFloor,
     )
     const label = name ?? `Terminal ${numberFloor}`
-    const id = await createDaemonTerminal({ cwd, initialInput, name: label })
+    // Spawn at the grid this device last measured rather than the daemon's 80×24 default: the
+    // shell's first frame — and an agent CLI's whole first screen — is drawn before any view
+    // has mounted to correct it, and a TUI redrawn at a new size is a visible reflow.
+    const size = nextTerminalSize()
+    const id = await createDaemonTerminal({
+      cols: size?.cols,
+      cwd,
+      initialInput,
+      name: label,
+      rows: size?.rows,
+    })
     tombstones.delete(id)
+    // Remember it against the daemon-minted id too, so output that arrives before the view
+    // mounts is written into an emulator of the same size the PTY is running at.
+    if (size !== undefined) fitTerminal(id, size.cols, size.rows)
     set((state) => ({
       selectedId: id,
       sessions: [...state.sessions, { id, name: label, status: 'running' as const }],

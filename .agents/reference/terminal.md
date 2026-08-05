@@ -132,7 +132,33 @@ protocol and every lifecycle rule above are unchanged. What differs is everythin
   smears a monospace glyph past its cell and shears every column after it. Embedded at build
   time via the `expo-font` plugin: it moves the native fingerprint, and a font that arrives late
   would visibly reflow the grid. iOS names it by PostScript name, Android by file name.
-- **The grid is measured, not assumed.** An off-screen ruler `<Text>` divides its width by its
-  character count; cols/rows come from that. The measured size is remembered in the registry
-  even before an emulator exists, because output that arrives first must wrap at the width it
-  will be read at.
+- **The grid is measured, not assumed — and measured from the CONTENT box.** An off-screen ruler
+  `<Text>` divides its width by its character count; cols/rows come from that. React Native's
+  `onLayout` reports the **border** box, so the pane's own `px-2 py-1` must come off before the
+  divide — `terminal-metrics.ts` owns that arithmetic and the same constants place the absolutely
+  positioned cursor, which RN lays out against the border box. One row too many is not a rounding
+  complaint: a full-screen TUI anchors its input box to the LAST row of the grid it was told about
+  (DECSTBM + CUP), so the line the human is typing on is written into a row that sits outside the
+  pane's `overflow-hidden` — **real, correct, and invisible**. That shipped on an iPad.
+  `terminal-view.test.ts` holds the invariant.
+- **The first fit is immediate; every later one is debounced 100ms** (matching web). A re-attach
+  replays scrollback the moment the view mounts and xterm never re-wraps printed lines, so a
+  delayed first fit wraps the whole replay at the wrong width — while a rotation or keyboard
+  animation firing layout continuously would otherwise storm SIGWINCH and make agent CLIs and
+  p10k reprint their prompt per step. The measured size is remembered in the registry even before
+  an emulator exists, and a **spawn carries `cols`/`rows`** so the first TUI frame is not drawn
+  against the daemon's 80×24.
+- **OSC 52 is honoured here too, write-only, and NOT during a replay.** Mobile re-attaches (and
+  therefore re-parses its whole scrollback) on every reconnect — backgrounding the app is one — so
+  an unguarded handler would hand the pasteboard a copy from an hour ago each time the app wakes.
+  The decode is hand-rolled: Hermes has neither `atob` nor `TextDecoder`.
+- **A paste is bracketed when the app asked for it.** The field diff turns `\n` into `\r`, which
+  submits — so a multi-line paste ran a command per line. When `bracketedPasteMode` is live, a
+  paste-shaped edit (multi-character, nothing deleted — a correction always deletes first) is
+  wrapped in `ESC[200~`/`ESC[201~` and lands in the agent's input box as one block.
+- **No hardware-key path exists, and it is not reachable from RN core.** `TextInput.onKeyPress` is
+  derived from the text-change delegate and carries only `{ key }` — no modifiers, and nothing for
+  Esc or the arrows, which change no text. `View.onKeyDown` carries the full DOM-shaped chord but
+  is wired only in `BaseViewConfig.android.js`. An iPad's Magic Keyboard therefore reaches the PTY
+  only through the key bar; Esc/Tab/Ctrl/⌘/⌥ chords would need a `UIKeyCommand` native module,
+  which moves the fingerprint.

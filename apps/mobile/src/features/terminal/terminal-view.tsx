@@ -22,12 +22,24 @@ import {
 import { FIELD_SENTINEL, terminalFieldEdit } from './terminal-field'
 import { sendTerminalBytes, sendTerminalText } from './terminal-input'
 import { TerminalKeyBar } from './terminal-key-bar'
+import {
+  TERMINAL_FONT_SIZE,
+  TERMINAL_LINE_HEIGHT,
+  terminalColumnLeft,
+  terminalGrid,
+  terminalRowTop,
+} from './terminal-metrics'
 import { TERMINAL_PALETTES } from './terminal-theme'
 import { useKeyboardInset } from './use-keyboard-inset'
 
-const FONT_SIZE = 12
-/** 1.0 would be truest to the grid, but React Native clips descenders below ~1.25. */
-const LINE_HEIGHT = Math.round(FONT_SIZE * 1.35)
+/**
+ * Wait for the pane to settle before telling the PTY, exactly as the web client does. Every fit
+ * that changes the grid is a SIGWINCH, and a rotation, a keyboard animation or a split drag
+ * fires layout continuously — shells like p10k and agent CLIs reprint their whole prompt for
+ * each one, stacking copies up the scrollback.
+ */
+const FIT_DEBOUNCE_MS = 100
+
 /**
  * The terminal's face: GeistMono Nerd Font Mono, embedded by the `expo-font` plugin.
  *
@@ -77,6 +89,8 @@ export function TerminalView({ sessionId }: { sessionId: string }): React.JSX.El
   const keyboardInset = useKeyboardInset()
   const residual = useRef(0)
   const lastPan = useRef(0)
+  /** The session whose first fit has already landed — see the fit effect. */
+  const fitted = useRef<string | null>(null)
 
   useEffect(() => {
     ensureTerminal(sessionId)
@@ -94,12 +108,25 @@ export function TerminalView({ sessionId }: { sessionId: string }): React.JSX.El
   const gridHeight = Math.max(0, pane.height - (Platform.OS === 'ios' ? keyboardInset : 0))
 
   useEffect(() => {
-    if (charWidth <= 0 || pane.width <= 0 || gridHeight <= 0) return
-    fitTerminal(
-      sessionId,
-      Math.max(2, Math.floor(pane.width / charWidth)),
-      Math.max(2, Math.floor(gridHeight / LINE_HEIGHT)),
-    )
+    // `pane` is what onLayout reported, which is the BORDER box — `terminalGrid` takes the
+    // pane's own padding off before it divides, or the PTY is told about one more row than the
+    // pane can paint and a TUI's input box is written onto it, outside the clip.
+    const grid = terminalGrid({ height: gridHeight, width: pane.width }, charWidth)
+    if (grid === null) return
+    // The FIRST fit for a session lands immediately: attaching replays the scrollback as soon
+    // as the view mounts, and xterm never re-wraps lines it has already printed — a debounced
+    // first fit would wrap the whole replay at the size the PTY happened to start at.
+    if (fitted.current !== sessionId) {
+      fitted.current = sessionId
+      fitTerminal(sessionId, grid.cols, grid.rows)
+      return
+    }
+    const timer = setTimeout(() => {
+      fitTerminal(sessionId, grid.cols, grid.rows)
+    }, FIT_DEBOUNCE_MS)
+    return () => {
+      clearTimeout(timer)
+    }
   }, [charWidth, gridHeight, pane.width, sessionId])
 
   // Deliberately not memoized: the subscription above decides when this component renders at
@@ -116,7 +143,7 @@ export function TerminalView({ sessionId }: { sessionId: string }): React.JSX.El
     .onUpdate((event) => {
       const dy = event.translationY - lastPan.current
       lastPan.current = event.translationY
-      const applied = applyTouchScrollDelta(residual.current, dy, LINE_HEIGHT)
+      const applied = applyTouchScrollDelta(residual.current, dy, TERMINAL_LINE_HEIGHT)
       residual.current = applied.residual
       if (applied.lines === 0) return
       const live = getTerminal(sessionId)
@@ -150,7 +177,11 @@ export function TerminalView({ sessionId }: { sessionId: string }): React.JSX.El
 
   /** The keyboard edits a hidden field; the diff of that field is the input. */
   const handleChange = (next: string): void => {
-    const edit = terminalFieldEdit(fieldRef.current, next)
+    // Read the mode live: bracketed paste is turned on and off by whatever is running in the
+    // PTY right now, so a paste into an agent's prompt is wrapped while the same paste at a
+    // bare shell is not.
+    const bracketedPaste = getTerminal(sessionId)?.modes.bracketedPasteMode ?? false
+    const edit = terminalFieldEdit(fieldRef.current, next, { bracketedPaste })
     if (edit.bytes !== '') sendTerminalText(sessionId, edit.bytes)
     fieldRef.current = edit.value
     setField(edit.value)
@@ -188,7 +219,7 @@ export function TerminalView({ sessionId }: { sessionId: string }): React.JSX.El
             /* nativewind-allow-style: an off-screen ruler for the monospace advance. */
             style={{
               fontFamily: MONO.regular,
-              fontSize: FONT_SIZE,
+              fontSize: TERMINAL_FONT_SIZE,
               left: -9999,
               position: 'absolute',
             }}
@@ -221,14 +252,15 @@ export function TerminalView({ sessionId }: { sessionId: string }): React.JSX.El
 
           {viewport.cursor === null || charWidth <= 0 ? null : (
             <View
-              /* nativewind-allow-style: the cursor is placed on the measured cell grid. */
+              /* nativewind-allow-style: the cursor is placed on the measured cell grid, with
+                 the same constants the fit above subtracted — the two must never disagree. */
               style={{
                 backgroundColor: palette.cursor,
-                height: LINE_HEIGHT,
-                left: 8 + viewport.cursor.column * charWidth,
+                height: TERMINAL_LINE_HEIGHT,
+                left: terminalColumnLeft(viewport.cursor.column, charWidth),
                 opacity: keyboardVisible ? 0.75 : 0.35,
                 position: 'absolute',
-                top: 4 + viewport.cursor.row * LINE_HEIGHT,
+                top: terminalRowTop(viewport.cursor.row),
                 width: Math.max(2, charWidth),
               }}
               testID="porcelain-terminal-cursor"
@@ -277,9 +309,9 @@ function TerminalRow({
       style={{
         color: foreground,
         fontFamily: MONO.regular,
-        fontSize: FONT_SIZE,
-        height: LINE_HEIGHT,
-        lineHeight: LINE_HEIGHT,
+        fontSize: TERMINAL_FONT_SIZE,
+        height: TERMINAL_LINE_HEIGHT,
+        lineHeight: TERMINAL_LINE_HEIGHT,
       }}
     >
       {runs.map((run, index) => (

@@ -4,7 +4,7 @@ import { Pressable, ScrollView, Text } from 'react-native'
 import { ChromeGlyph, type ChromeIconName } from '@/components/chrome-glyph'
 import { cn } from '@/lib/utils'
 
-import { sendTerminalArrow, sendTerminalBytes } from './terminal-input'
+import { sendTerminalArrow, sendTerminalBytes, sendTerminalNewline } from './terminal-input'
 import { takeArmedModifier, useTerminalInputStore } from './terminal-input-store'
 
 const ARROWS: readonly { direction: ArrowDirection; label: string; glyph: ChromeIconName }[] = [
@@ -59,6 +59,16 @@ export function TerminalKeyBar({
         onPress={() => {
           takeArmedModifier(sessionId)
           sendTerminalBytes(sessionId, '\t')
+        }}
+      />
+      {/* The one key a soft keyboard cannot type: its Return submits, and an agent prompt
+          needs a newline to take a second line at all. */}
+      <KeyButton
+        accessibilityLabel="Newline without submitting"
+        glyph="newline"
+        testID="porcelain-terminal-key-newline"
+        onPress={() => {
+          sendTerminalNewline(sessionId)
         }}
       />
       <KeyButton

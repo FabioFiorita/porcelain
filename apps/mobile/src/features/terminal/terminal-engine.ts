@@ -1,7 +1,8 @@
 import type { Terminal } from '@xterm/headless'
-
+import { copyText } from '@/lib/clipboard'
 import { resizeTerminal, writeTerminal } from '@/lib/daemon/terminal'
 
+import { attachOsc52Clipboard } from './terminal-osc52'
 import { loadTerminalEngine } from './xterm-host'
 
 /**
@@ -44,6 +45,18 @@ const listeners = new Map<string, Set<() => void>>()
 const failures = new Map<string, string>()
 /** The grid the pane last measured, applied as soon as an emulator exists for it. */
 const sizes = new Map<string, { cols: number; rows: number }>()
+/**
+ * The most recent grid ANY pane measured — the size a PTY that has no view yet should be
+ * spawned at. Without it every new terminal starts at the daemon's 80×24 and a TUI draws its
+ * first frame against a grid this device never had.
+ */
+let lastMeasured: { cols: number; rows: number } | undefined
+/**
+ * Sessions whose replay snapshot is still being parsed. A replay re-runs every escape sequence
+ * in the scrollback, and on this client that happens on EVERY reconnect — backgrounding the app
+ * is one. An OSC 52 copy from an hour ago must not take the pasteboard again each time.
+ */
+const replaying = new Set<string>()
 /**
  * Ids whose replay scrollback has already been written. A fresh launch seeds once; a later
  * reconnect re-attaches the same id and must NOT seed again — the emulator already holds the
@@ -90,6 +103,16 @@ export function ensureTerminal(id: string): void {
       writeTerminal(id, data)
     })
 
+    // Agents, vim and tmux copy by emitting OSC 52 — xterm does not handle it, so without this
+    // a copy inside the shell silently reaches nothing while the agent reports success.
+    // Write-only: a clipboard READ would report this device's pasteboard into the PTY.
+    attachOsc52Clipboard(term, (text: string) => {
+      if (replaying.has(id)) return
+      // Fire-and-forget: an OSC handler cannot await, and `copyText` reports failure by
+      // resolving false rather than rejecting.
+      copyText(text)
+    })
+
     const queued = pending.get(id)
     pending.delete(id)
     if (queued !== undefined) for (const chunk of queued) term.write(chunk)
@@ -130,21 +153,26 @@ export function receiveData(id: string, data: string): void {
  */
 export function receiveScrollback(id: string, scrollback: string): void {
   const wasSeeded = seeded.has(id)
-  if (wasSeeded) {
-    const instance = instances.get(id)
-    if (instance === undefined) {
-      // A failed engine load can leave output buffered. The replay supersedes that older stream.
-      pending.delete(id)
-    } else {
-      instance.term.reset()
-    }
-  }
+  // Written straight into the emulator rather than through `receiveData`, because the replay
+  // has to be marked as a replay for the whole time xterm spends parsing it — see `replaying`.
+  ensureTerminal(id)
   seeded.add(id)
+  const instance = instances.get(id)
+  if (instance === undefined) {
+    // The engine failed to load. The replay supersedes anything buffered for the older stream.
+    pending.delete(id)
+    return
+  }
+  if (wasSeeded) instance.term.reset()
   if (scrollback === '') {
     if (wasSeeded) notify(id)
     return
   }
-  receiveData(id, scrollback)
+  replaying.add(id)
+  instance.term.write(scrollback, () => {
+    replaying.delete(id)
+    scheduleRepaint(id)
+  })
 }
 
 /** A dim footer when the PTY ends, so an exited session still reads as finished. */
@@ -183,12 +211,25 @@ export function getTerminal(id: string): Terminal | undefined {
 export function fitTerminal(id: string, cols: number, rows: number): void {
   if (cols <= 0 || rows <= 0) return
   sizes.set(id, { cols, rows })
+  lastMeasured = { cols, rows }
   const instance = instances.get(id)
   if (instance === undefined) return
   if (instance.term.cols === cols && instance.term.rows === rows) return
   instance.term.resize(cols, rows)
   resizeTerminal(id, cols, rows)
   notify(id)
+}
+
+/**
+ * The grid to spawn the NEXT PTY at — the last one a pane measured on this device.
+ *
+ * A create carries `cols`/`rows` on the wire, and a shell that starts at the right size draws
+ * its first frame at the right size. Without it a TUI paints against the daemon's 80×24 and is
+ * corrected only once a view has mounted and measured, which is a visible reflow — and on a
+ * phone, an 80-column first frame wraps every line of it.
+ */
+export function nextTerminalSize(): { cols: number; rows: number } | undefined {
+  return lastMeasured
 }
 
 /** Scroll the emulator's viewport by whole lines (negative = older). */
@@ -213,6 +254,7 @@ export function disposeTerminal(id: string): void {
   seeded.delete(id)
   failures.delete(id)
   sizes.delete(id)
+  replaying.delete(id)
   if (instance === undefined) return
   if (instance.repaintTimer !== undefined) clearTimeout(instance.repaintTimer)
   instance.term.dispose()
