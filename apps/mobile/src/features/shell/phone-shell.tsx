@@ -27,8 +27,10 @@ export function PhoneShell(): React.JSX.Element {
         minimizeBehavior="onScrollDown"
         tintColor="#0A84FF"
       >
+        {/* The Files tab is a route group, so its stack (`/folder/…`, `/file/…`) lives inside
+            the tab while the tab root stays the app's `/`. */}
         <NativeTabs.Trigger
-          name="index"
+          name="(files)"
           listeners={{
             tabPress: () => {
               toggleFaceIfRoot('files')

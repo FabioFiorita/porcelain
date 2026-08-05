@@ -1,6 +1,8 @@
 import { View } from 'react-native'
 
 import { EmptyNote } from '@/components/panel-chrome'
+import { useFilesStore } from '@/features/files/files-store'
+import { useShellStore } from '@/features/shell/shell-store'
 import { useChangesStore } from './changes-store'
 import { DiffView } from './diff-view'
 import { ReadAllView } from './read-all-view'
@@ -35,5 +37,17 @@ export function ChangesViewer({ active }: { active: boolean }): React.JSX.Elemen
   if (selection.kind === 'all') {
     return <ReadAllView active={active} base={base} scope={scope} />
   }
-  return <DiffView active={active} base={base} filePath={selection.path} />
+  return (
+    <DiffView
+      active={active}
+      base={base}
+      filePath={selection.path}
+      // Tablet: the file opens in the Files destination's viewer column, so the rail moves
+      // with it — the alternative is a viewer showing a file the rail says you are not on.
+      onOpenFile={(path) => {
+        useFilesStore.getState().openFile(path)
+        useShellStore.getState().setActiveSurface('files')
+      }}
+    />
+  )
 }
