@@ -46,6 +46,17 @@ export default defineConfig({
   define: { __PORCELAIN_VERSION__: JSON.stringify(version) },
   publicDir: resolve(root, 'public'),
   resolve: {
+    /**
+     * One React for the whole graph.
+     *
+     * The store carries two copies (19.2.3 alongside 19.2.8), and a lazily
+     * loaded dependency that binds the other one gets a React whose internals
+     * are not the ones the app initialised — which surfaces as the canvas dying
+     * on `Cannot read properties of null (reading 'useLayoutEffect')`. Only the
+     * production bundle the daemon serves hit it; Electron's dev renderer is
+     * unbundled, so nothing caught it until a browser did.
+     */
+    dedupe: ['react', 'react-dom'],
     alias: {
       '@renderer': resolve(root, 'src'),
       '@main': resolve(desktop, 'src/main'),
