@@ -2,14 +2,10 @@
 # Lines outside the managed block are yours — Porcelain never touches them.
 
 # >>> porcelain:managed — Settings › Companion owns these lines
+/notes.md
 /board.json
-/reviews/
 /feature-view.json
-/review.json
-/reviewed.json
-/comments.json
-/intent/
-/evidence/
+/active-review/
 /.migrated-from-home
 *.tmp
 *.corrupt-*

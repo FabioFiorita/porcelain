@@ -1,2 +1,0 @@
-- Check if the mock was the right approach
-- **Expo Router Split View on iPad**
