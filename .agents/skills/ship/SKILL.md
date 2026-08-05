@@ -1,6 +1,6 @@
 ---
 name: ship
-version: 0.49.0
+version: 0.50.0
 metadata:
   internal: true
 description: Development loop for code changes — evidence, testing doctrine, commit shape, worktrees, and autonomy. Load when changing code, verifying, or committing. Not needed for pure Q&A.

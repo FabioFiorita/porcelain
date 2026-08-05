@@ -170,7 +170,6 @@ jobs:
         run: |
           set -euo pipefail
           npm install -g npm@11.5.2
-          pnpm daemon:dist
           cd dist-daemon
           PUBLISH_NPMRC="$(mktemp)"
           SMOKE_DIR="$(mktemp -d)"

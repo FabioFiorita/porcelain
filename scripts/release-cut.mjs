@@ -102,8 +102,14 @@ console.log(`release:cut → sync-versions --set ${version} (all workspace packa
 sh('node', ['scripts/sync-versions.mjs', '--set', version], { inherit: true })
 
 sh('pnpm', ['changelog'], { inherit: true })
-// Stage every package.json that may have been version-bumped, plus changelog.
-sh('git', ['add', 'CHANGELOG.md', 'apps', 'packages'], { inherit: true })
+// Stage every package and skill manifest that may have been version-bumped, plus changelog.
+sh(
+  'git',
+  ['add', 'CHANGELOG.md', 'apps', 'packages', '.agents/skills', 'skills/porcelain-companion'],
+  {
+    inherit: true,
+  },
+)
 sh('git', ['commit', '-m', `chore: release ${tag}`], { inherit: true })
 sh('git', ['tag', '-a', tag, '-m', `chore: release ${tag}`], { inherit: true })
 console.log(`release:cut → ${tag}`)
