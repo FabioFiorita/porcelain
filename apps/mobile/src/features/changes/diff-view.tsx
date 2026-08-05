@@ -2,21 +2,19 @@ import { fileName } from '@porcelain/client-runtime/paths'
 import { intraLineEmphasis } from '@porcelain/client-runtime/word-diff-line'
 import { useMemo, useState } from 'react'
 import { FlatList, Image, Text, View } from 'react-native'
-
+import { EmptyNote, ErrorNote, IconAction } from '@/components/panel-chrome'
+import { type CommentAnchor, CommentComposer } from '@/features/comments/comment-composer'
+import { rangeForPath } from '@/features/comments/line-range'
+import { SelectionBar } from '@/features/comments/selection-bar'
+import { useCommentIndex, useReviewComments } from '@/features/comments/use-comments'
+import { useLineSelection } from '@/features/comments/use-line-selection'
 import { usePreferencesStore } from '@/features/settings/preferences-store'
 import type { DiffHunk } from '@/lib/daemon/procedures/changes'
 import { cn } from '@/lib/utils'
-
-import { EmptyNote, ErrorNote, IconAction } from './changes-chrome'
-import { type CommentAnchor, CommentComposer } from './comment-composer'
 import { DiffRowView } from './diff-lines'
-import { type DiffRow, toDiffRows } from './diff-rows'
-import { anchorTextFor, rangeForPath } from './line-selection'
-import { SelectionBar } from './selection-bar'
+import { anchorTextFor, type DiffRow, toDiffRows } from './diff-rows'
 import { useDiffFile, useReviewedPaths, useToggleReviewed } from './use-changes'
-import { useCommentIndex, useReviewComments } from './use-comments'
 import { useDiffTokens } from './use-highlight'
-import { useLineSelection } from './use-line-selection'
 
 /**
  * One file's diff. The unified / split choice is a Settings preference rather than a control

@@ -82,7 +82,7 @@ export function CommentComposer({
       contentStyle={{ width }}
       description={anchor === null ? undefined : describeAnchor(anchor)}
     >
-      <View className="gap-3" testID="porcelain-changes-comment-composer">
+      <View className="gap-3" testID="porcelain-comment-composer">
         {anchor?.anchorText === undefined ? null : (
           <View className="max-h-28 overflow-hidden rounded-md bg-muted px-2.5 py-2">
             <Text className="font-mono text-[11px] leading-4 text-muted-foreground">
@@ -95,22 +95,22 @@ export function CommentComposer({
           autoFocus={open}
           className="min-h-24"
           placeholder="What should the agent know about this?"
-          testID="porcelain-changes-comment-input"
+          testID="porcelain-comment-input"
           value={body}
           onChangeText={setBody}
         />
         {error === null ? null : (
-          <Text className="text-xs text-destructive" testID="porcelain-changes-comment-error">
+          <Text className="text-xs text-destructive" testID="porcelain-comment-error">
             {error}
           </Text>
         )}
         <View className="flex-row justify-end gap-2">
-          <Button testID="porcelain-changes-comment-cancel" variant="ghost" onPress={onClose}>
+          <Button testID="porcelain-comment-cancel" variant="ghost" onPress={onClose}>
             <UiText>Cancel</UiText>
           </Button>
           <Button
             disabled={body.trim() === '' || saving}
-            testID="porcelain-changes-comment-save"
+            testID="porcelain-comment-save"
             onPress={() => {
               handleSave()
             }}

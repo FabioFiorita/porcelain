@@ -1,3 +1,4 @@
+import { isLineInRange, type LineRange, MAX_ANCHOR_TEXT } from '@/features/comments/line-range'
 import type { DiffHunk } from '@/lib/daemon/procedures/changes'
 
 type DiffLine = DiffHunk['lines'][number]
@@ -86,6 +87,24 @@ export function toDiffRows(hunks: readonly DiffHunk[], mode: DiffMode): DiffRow[
     })
   })
   return rows
+}
+
+/**
+ * The source the selected lines quote, for the comment's anchor text.
+ *
+ * Selects on the same predicate the rows tint with (`anchorLineOf` inside the range), so what
+ * the reader sees highlighted is exactly what the agent is quoted — a diff line that anchors
+ * nowhere is neither tinted nor quoted. A whole-file surface answers the same question from
+ * its own lines; only the diff has to walk hunks to do it.
+ */
+export function anchorTextFor(hunks: readonly DiffHunk[], range: LineRange): string {
+  const lines: string[] = []
+  for (const hunk of hunks) {
+    for (const line of hunk.lines) {
+      if (isLineInRange(range, anchorLineOf(line))) lines.push(line.text)
+    }
+  }
+  return lines.join('\n').slice(0, MAX_ANCHOR_TEXT)
 }
 
 /** Total added / removed lines across a file's hunks — the diff header's counters. */

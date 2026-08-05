@@ -3,22 +3,24 @@ import { fileName } from '@porcelain/client-runtime/paths'
 import { intraLineEmphasis } from '@porcelain/client-runtime/word-diff-line'
 import { useMemo, useState } from 'react'
 import { FlatList, Text, View } from 'react-native'
-
+import { EmptyNote, ErrorNote, IconAction, PanelLabel } from '@/components/panel-chrome'
+import { type CommentAnchor, CommentComposer } from '@/features/comments/comment-composer'
+import { rangeForPath, rangeOf } from '@/features/comments/line-range'
+import { SelectionBar } from '@/features/comments/selection-bar'
+import { useCommentedLinesByPath, useReviewComments } from '@/features/comments/use-comments'
+import {
+  type LineSelectionControls,
+  useLineSelection,
+} from '@/features/comments/use-line-selection'
 import { usePreferencesStore } from '@/features/settings/preferences-store'
 import type { DiffHunk, FeatureReading } from '@/lib/daemon/procedures/changes'
 import { cn } from '@/lib/utils'
-
-import { EmptyNote, ErrorNote, IconAction, PanelLabel } from './changes-chrome'
 import type { ChangesScope } from './changes-store'
-import { type CommentAnchor, CommentComposer } from './comment-composer'
 import { DiffRowView } from './diff-lines'
-import { anchorTextFor, rangeForPath, rangeOf } from './line-selection'
+import { anchorTextFor } from './diff-rows'
 import { type ReadingRow, toReadingRows } from './reading-rows'
-import { SelectionBar } from './selection-bar'
 import { useDiffReading, useReviewedPaths, useToggleReviewed } from './use-changes'
-import { useCommentedLinesByPath, useReviewComments } from './use-comments'
 import { useDiffTokens } from './use-highlight'
-import { type LineSelectionControls, useLineSelection } from './use-line-selection'
 
 /**
  * The whole change set as one scrollable document — "read all". Same flow order as the list,

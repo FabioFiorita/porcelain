@@ -1,5 +1,20 @@
 import { useEffect, useState } from 'react'
-import { Dimensions, type ScaledSize, useWindowDimensions } from 'react-native'
+import { Dimensions, Platform, type ScaledSize, useWindowDimensions } from 'react-native'
+
+/**
+ * Whether this device gets the multi-column shell rather than the tab shell.
+ *
+ * Every iPad is a tablet whatever its window size (Stage Manager can make an iPad narrower
+ * than a phone and it is still an iPad); everything else is measured on its shortest side, so
+ * an Android tablet qualifies in either orientation and a phone never does.
+ *
+ * One definition, read by the root layout, the route bodies, and anything that has to pick
+ * between pushing a route and moving a column cursor.
+ */
+export function useIsTablet(): boolean {
+  const { height, width } = useWindowDimensions()
+  return (Platform.OS === 'ios' && Platform.isPad) || Math.min(width, height) >= 768
+}
 
 /**
  * Whether the app scene fills (nearly) the whole display.

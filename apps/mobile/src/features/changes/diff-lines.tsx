@@ -3,12 +3,10 @@ import { type CharRange, splitByRanges } from '@porcelain/client-runtime/word-di
 import { memo } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import type { ThemedToken } from 'shiki'
-
+import { isLineInRange, type LineRange } from '@/features/comments/line-range'
 import type { DiffHunk } from '@/lib/daemon/procedures/changes'
 import { cn } from '@/lib/utils'
-
 import { anchorLineOf, cellAnchorLine, type DiffRow } from './diff-rows'
-import { isLineInRange, type LineRange } from './line-selection'
 
 type DiffLine = DiffHunk['lines'][number]
 

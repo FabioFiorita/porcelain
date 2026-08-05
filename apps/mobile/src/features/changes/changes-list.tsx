@@ -1,13 +1,11 @@
 import { useMemo, useState } from 'react'
 import { SectionList, Text, View } from 'react-native'
-
+import { EmptyNote, ErrorNote, IconAction, PanelLabel } from '@/components/panel-chrome'
 import { SegmentedControl } from '@/components/segmented-control'
+import { type CommentAnchor, CommentComposer } from '@/features/comments/comment-composer'
 import type { FlowFile } from '@/lib/daemon/procedures/changes'
-
-import { EmptyNote, ErrorNote, IconAction, PanelLabel } from './changes-chrome'
 import { type ChangesScope, useChangesStore } from './changes-store'
 import { changedPaths, summarizeChanges } from './changes-summary'
-import { type CommentAnchor, CommentComposer } from './comment-composer'
 import { FileRow, type FileRowActions } from './file-row'
 import { useChangesFlow, useReviewedPaths, useToggleReviewed } from './use-changes'
 import { useDiscardFile, useFileStaging } from './use-commit'

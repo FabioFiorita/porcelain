@@ -1,6 +1,6 @@
 import { View } from 'react-native'
 
-import { EmptyNote } from './changes-chrome'
+import { EmptyNote } from '@/components/panel-chrome'
 import { useChangesStore } from './changes-store'
 import { DiffView } from './diff-view'
 import { ReadAllView } from './read-all-view'
