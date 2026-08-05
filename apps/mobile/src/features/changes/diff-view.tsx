@@ -2,21 +2,19 @@ import { fileName } from '@porcelain/client-runtime/paths'
 import { intraLineEmphasis } from '@porcelain/client-runtime/word-diff-line'
 import { useMemo, useState } from 'react'
 import { FlatList, Image, Text, View } from 'react-native'
-
+import { EmptyNote, ErrorNote, IconAction } from '@/components/panel-chrome'
+import { type CommentAnchor, CommentComposer } from '@/features/comments/comment-composer'
+import { rangeForPath } from '@/features/comments/line-range'
+import { SelectionBar } from '@/features/comments/selection-bar'
+import { useCommentIndex, useReviewComments } from '@/features/comments/use-comments'
+import { useLineSelection } from '@/features/comments/use-line-selection'
 import { usePreferencesStore } from '@/features/settings/preferences-store'
 import type { DiffHunk } from '@/lib/daemon/procedures/changes'
 import { cn } from '@/lib/utils'
-
-import { EmptyNote, ErrorNote, IconAction } from './changes-chrome'
-import { type CommentAnchor, CommentComposer } from './comment-composer'
 import { DiffRowView } from './diff-lines'
-import { type DiffRow, toDiffRows } from './diff-rows'
-import { anchorTextFor, rangeForPath } from './line-selection'
-import { SelectionBar } from './selection-bar'
+import { anchorTextFor, type DiffRow, toDiffRows } from './diff-rows'
 import { useDiffFile, useReviewedPaths, useToggleReviewed } from './use-changes'
-import { useCommentIndex, useReviewComments } from './use-comments'
 import { useDiffTokens } from './use-highlight'
-import { useLineSelection } from './use-line-selection'
 
 /**
  * One file's diff. The unified / split choice is a Settings preference rather than a control
@@ -29,6 +27,7 @@ export function DiffView({
   bottomInset = 0,
   filePath,
   onBack,
+  onOpenFile,
   topInset = 0,
 }: {
   active: boolean
@@ -39,6 +38,11 @@ export function DiffView({
   filePath: string
   /** Phone: pop back to the list. Omitted on tablet, where the list is always on screen. */
   onBack?: () => void
+  /**
+   * Open the whole file in the Files viewer — a push on phone, a viewer-column selection on
+   * tablet. The host decides which; the header just offers it.
+   */
+  onOpenFile?: (path: string) => void
   /** Phone: this view replaces the tab header, so it owns the status-bar inset. */
   topInset?: number
 }): React.JSX.Element {
@@ -97,6 +101,7 @@ export function DiffView({
         onComment={() => {
           setAnchor({ path: filePath })
         }}
+        onOpenFile={onOpenFile}
         onToggleReviewed={() => {
           if (isReviewed) unmark(filePath)
           else mark(filePath)
@@ -136,6 +141,7 @@ function DiffHeader({
   isReviewed,
   onBack,
   onComment,
+  onOpenFile,
   onToggleReviewed,
   topInset,
 }: {
@@ -143,6 +149,7 @@ function DiffHeader({
   isReviewed: boolean
   onBack?: () => void
   onComment: () => void
+  onOpenFile?: (path: string) => void
   onToggleReviewed: () => void
   topInset: number
 }): React.JSX.Element {
@@ -186,15 +193,16 @@ function DiffHeader({
         testID="porcelain-changes-diff-comment"
         onPress={onComment}
       />
-      {/* TODO: opens the whole file in the Files viewer — lands with the Files tab, which is
-          still the mock surface. Kept visible (and disabled) so the affordance's place in the
-          header is settled now rather than relaid out later. */}
+      {/* A diff answers "what changed"; the file answers "what is this now". Reading one
+          because of the other is the common move, so it is one tap and not a tab switch. */}
       <IconAction
-        accessibilityLabel="Open file (available once the Files tab lands)"
-        disabled
+        accessibilityLabel="Open the whole file"
+        disabled={onOpenFile === undefined}
         glyph="file"
         testID="porcelain-changes-diff-open-file"
-        onPress={() => undefined}
+        onPress={() => {
+          onOpenFile?.(filePath)
+        }}
       />
     </View>
   )

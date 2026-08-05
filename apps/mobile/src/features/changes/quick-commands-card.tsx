@@ -2,10 +2,9 @@ import { useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 
 import { ChromeGlyph, type ChromeIconName } from '@/components/chrome-glyph'
+import { PanelLabel } from '@/components/panel-chrome'
 import { QUICK_COMMANDS, type QuickCommandId } from '@/lib/daemon/procedures/changes'
 import { cn } from '@/lib/utils'
-
-import { PanelLabel } from './changes-chrome'
 import { useGitSuggestions, useQuickCommand } from './use-commit'
 
 /** Label + glyph for each whitelisted command; the ids come from the daemon's own list. */

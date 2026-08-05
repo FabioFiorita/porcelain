@@ -1,33 +1,18 @@
 import { describe, expect, it } from 'vitest'
 
-import type { DiffHunk } from '@/lib/daemon/procedures/changes'
-
 import {
-  anchorTextFor,
   describeRange,
   isLineInRange,
   type LineSelection,
   rangeForPath,
   rangeOf,
-} from './line-selection'
+} from './line-range'
 
 const selection = (anchor: number, focus: number, path = 'src/a.ts'): LineSelection => ({
   anchor,
   focus,
   path,
 })
-
-const hunks: DiffHunk[] = [
-  {
-    header: '@@ -1,3 +1,4 @@',
-    lines: [
-      { kind: 'context', newLine: 1, oldLine: 1, text: 'one' },
-      { kind: 'add', newLine: 2, oldLine: null, text: 'two' },
-      { kind: 'add', newLine: 3, oldLine: null, text: 'three' },
-      { kind: 'context', newLine: 4, oldLine: 2, text: 'four' },
-    ],
-  },
-]
 
 describe('rangeOf', () => {
   it('orders a forward selection', () => {
@@ -76,35 +61,6 @@ describe('isLineInRange', () => {
 
   it('is false when nothing is selected', () => {
     expect(isLineInRange(null, 3)).toBe(false)
-  })
-})
-
-describe('anchorTextFor', () => {
-  it('quotes exactly the lines the range covers', () => {
-    expect(anchorTextFor(hunks, { endLine: 3, startLine: 2 })).toBe('two\nthree')
-  })
-
-  it('quotes one line for a one-line range', () => {
-    expect(anchorTextFor(hunks, { endLine: 1, startLine: 1 })).toBe('one')
-  })
-
-  it('returns empty text when the range covers no anchored line', () => {
-    expect(anchorTextFor(hunks, { endLine: 99, startLine: 90 })).toBe('')
-  })
-
-  it('caps the quote — it is context for the agent, not the file', () => {
-    const long: DiffHunk[] = [
-      {
-        header: '@@',
-        lines: Array.from({ length: 500 }, (_, index) => ({
-          kind: 'add' as const,
-          newLine: index + 1,
-          oldLine: null,
-          text: 'x'.repeat(50),
-        })),
-      },
-    ]
-    expect(anchorTextFor(long, { endLine: 500, startLine: 1 })).toHaveLength(2_000)
   })
 })
 

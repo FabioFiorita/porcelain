@@ -6,6 +6,16 @@ import { Button } from '@/components/ui/button'
 import { Text as UiText } from '@/components/ui/text'
 import { cn } from '@/lib/utils'
 
+/**
+ * The chrome a daemon-backed surface is built from: section captions, icon actions, the
+ * result note under a write, the empty and error states, and the two touch stand-ins for a
+ * desktop right-click menu.
+ *
+ * Lives in `components/` rather than a feature folder because every tab needs the same
+ * vocabulary — the second copy of an "empty note" is where two surfaces start looking like
+ * two products. Callers pass their own testIDs, so nothing here names a surface.
+ */
+
 /** Section caption shared by the list groups and every companion card. */
 export function PanelLabel({
   children,

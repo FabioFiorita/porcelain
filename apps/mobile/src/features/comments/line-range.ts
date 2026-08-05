@@ -1,11 +1,11 @@
-import type { DiffHunk } from '@/lib/daemon/procedures/changes'
-
-import { anchorLineOf } from './diff-rows'
-
 /**
  * An in-progress line selection: the line it was anchored on and the line it currently
  * reaches. Kept as anchor/focus rather than start/end so extending backwards past the
  * anchor works without the range flipping inside out.
+ *
+ * Deliberately free of any diff or file model — a diff row, a source line, and a future
+ * commit view all anchor a comment the same way, and only the surface knows how to turn a
+ * range back into quoted text.
  */
 export type LineSelection = {
   /** Repo-relative path. A selection never spans two files. */
@@ -34,24 +34,7 @@ export function isLineInRange(range: LineRange | null, line: number | undefined)
 }
 
 /** Anchor text is best-effort context for the agent, not the file — cap it like web does. */
-const MAX_ANCHOR_TEXT = 2_000
-
-/**
- * The source the selected lines quote, for the comment's anchor text.
- *
- * Selects on the same predicate the rows tint with (`anchorLineOf` inside the range), so what
- * the reader sees highlighted is exactly what the agent is quoted — a diff line that anchors
- * nowhere is neither tinted nor quoted.
- */
-export function anchorTextFor(hunks: readonly DiffHunk[], range: LineRange): string {
-  const lines: string[] = []
-  for (const hunk of hunks) {
-    for (const line of hunk.lines) {
-      if (isLineInRange(range, anchorLineOf(line))) lines.push(line.text)
-    }
-  }
-  return lines.join('\n').slice(0, MAX_ANCHOR_TEXT)
-}
+export const MAX_ANCHOR_TEXT = 2_000
 
 /** "Line 12" / "Lines 12–18" — what the selection bar offers to comment on. */
 export function describeRange(range: LineRange): string {

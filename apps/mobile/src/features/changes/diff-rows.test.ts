@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest'
 
 import type { DiffHunk } from '@/lib/daemon/procedures/changes'
 
-import { anchorLineOf, cellAnchorLine, countDiffLines, toDiffRows } from './diff-rows'
+import {
+  anchorLineOf,
+  anchorTextFor,
+  cellAnchorLine,
+  countDiffLines,
+  toDiffRows,
+} from './diff-rows'
 
 /** A rewritten line (one del replaced by one add) plus surrounding context. */
 const rewrite: DiffHunk = {
@@ -93,6 +99,47 @@ describe('comment anchoring', () => {
     const line = { kind: 'del', newLine: null, oldLine: 3, text: '' } as const
     expect(cellAnchorLine(line, 'left')).toBe(3)
     expect(cellAnchorLine(line, 'right')).toBeUndefined()
+  })
+})
+
+describe('anchorTextFor', () => {
+  const hunks: DiffHunk[] = [
+    {
+      header: '@@ -1,3 +1,4 @@',
+      lines: [
+        { kind: 'context', newLine: 1, oldLine: 1, text: 'one' },
+        { kind: 'add', newLine: 2, oldLine: null, text: 'two' },
+        { kind: 'add', newLine: 3, oldLine: null, text: 'three' },
+        { kind: 'context', newLine: 4, oldLine: 2, text: 'four' },
+      ],
+    },
+  ]
+
+  it('quotes exactly the lines the range covers', () => {
+    expect(anchorTextFor(hunks, { endLine: 3, startLine: 2 })).toBe('two\nthree')
+  })
+
+  it('quotes one line for a one-line range', () => {
+    expect(anchorTextFor(hunks, { endLine: 1, startLine: 1 })).toBe('one')
+  })
+
+  it('returns empty text when the range covers no anchored line', () => {
+    expect(anchorTextFor(hunks, { endLine: 99, startLine: 90 })).toBe('')
+  })
+
+  it('caps the quote — it is context for the agent, not the file', () => {
+    const long: DiffHunk[] = [
+      {
+        header: '@@',
+        lines: Array.from({ length: 500 }, (_, index) => ({
+          kind: 'add' as const,
+          newLine: index + 1,
+          oldLine: null,
+          text: 'x'.repeat(50),
+        })),
+      },
+    ]
+    expect(anchorTextFor(long, { endLine: 500, startLine: 1 })).toHaveLength(2_000)
   })
 })
 

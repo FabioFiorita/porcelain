@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
 
-import type { LineSelection } from './line-selection'
+import type { LineSelection } from './line-range'
 
 export type LineSelectionControls = {
   selection: LineSelection | null
@@ -12,7 +12,8 @@ export type LineSelectionControls = {
 }
 
 /**
- * Line-range selection for the diff surfaces.
+ * Line-range selection for any surface that renders numbered lines — a diff, a source file,
+ * the continuous read.
  *
  * The web viewer anchors a comment by dragging a text selection, which a touch surface has
  * no equivalent for — a drag over a virtualized list is a scroll, and React Native has no

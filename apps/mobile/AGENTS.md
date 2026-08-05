@@ -11,6 +11,12 @@ loop and runtime traps. This file is platform law that must stay true without lo
 - Mobile UI is **NativeWind v5, Tailwind CSS v4, react-native-css, and React Native Reusables**.
   Use the CSS-first setup in `metro.config.js`, `postcss.config.mjs`, and `src/global.css`; do not
   reintroduce SwiftUI Hosts, the row canvas, DOM bridges, or custom native UI modules.
+- A **WebView renders user content, never app UI.** The ban above is on building screens out of a
+  web page; showing a document that has no native form — an HTML file from the repo, or markdown
+  rendered from it — is what `react-native-webview` is here for. Such a document is untrusted: no
+  scripting, no network (`default-src 'none'` in the document itself), every navigation refused,
+  and web links handed to the system browser. `features/files/preview-view.tsx` is the only host;
+  route a new preview through it rather than mounting a second WebView with its own rules.
 - Reusable primitives live in `src/components/ui/` and are copied from the React Native Reusables
   registry with its CLI. Compose them with `className` and `cn`; keep semantic tokens aligned with
   the web shadcn vocabulary. The shared token source is `@porcelain/ui/tokens.css`; keep

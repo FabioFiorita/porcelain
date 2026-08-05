@@ -66,6 +66,14 @@ const CHROME_SYMBOLS = {
   square: { ios: 'square' as SFSymbol, android: 'check_box_outline_blank' as AndroidSymbol },
   squareCheck: { ios: 'checkmark.square.fill' as SFSymbol, android: 'check_box' as AndroidSymbol },
   file: { ios: 'doc.text' as SFSymbol, android: 'description' as AndroidSymbol },
+  /* Files tab: the tree rows and their scope actions. */
+  folderFill: { ios: 'folder.fill' as SFSymbol, android: 'folder' as AndroidSymbol },
+  pin: { ios: 'pin' as SFSymbol, android: 'push_pin' as AndroidSymbol },
+  pinOff: { ios: 'pin.slash' as SFSymbol, android: 'keep_off' as AndroidSymbol },
+  eye: { ios: 'eye' as SFSymbol, android: 'visibility' as AndroidSymbol },
+  eyeOff: { ios: 'eye.slash' as SFSymbol, android: 'visibility_off' as AndroidSymbol },
+  image: { ios: 'photo' as SFSymbol, android: 'image' as AndroidSymbol },
+  code: { ios: 'curlybraces' as SFSymbol, android: 'code' as AndroidSymbol },
   comment: { ios: 'bubble.left' as SFSymbol, android: 'chat_bubble' as AndroidSymbol },
   commentAdd: {
     ios: 'bubble.left.and.text.bubble.right' as SFSymbol,

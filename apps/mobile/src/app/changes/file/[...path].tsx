@@ -3,6 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { DiffView } from '@/features/changes/diff-view'
 import { useChangesFlow } from '@/features/changes/use-changes'
+import { pathSegments } from '@/features/files/file-paths'
 import { useTabBarInset } from '@/features/shell/tab-bar-inset'
 
 /**
@@ -30,6 +31,11 @@ export default function ChangesFileRoute(): React.JSX.Element {
       topInset={Math.max(insets.top, 8)}
       onBack={() => {
         router.back()
+      }}
+      // Git and this route both speak repo-relative paths, and so does the Files viewer —
+      // the same string identifies the file in all three.
+      onOpenFile={(next) => {
+        router.push({ params: { path: pathSegments(next) }, pathname: '/file/[...path]' })
       }}
     />
   )
