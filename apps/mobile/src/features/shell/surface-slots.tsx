@@ -1,3 +1,7 @@
+import { BoardCompanion } from '@/features/board/board-companion'
+import { BoardList } from '@/features/board/board-list'
+import { BoardPhoneScreen } from '@/features/board/board-phone-screen'
+import { BoardViewer } from '@/features/board/board-viewer'
 import { ChangesCompanion } from '@/features/changes/changes-companion'
 import { ChangesList } from '@/features/changes/changes-list'
 import { ChangesPhoneScreen } from '@/features/changes/changes-phone-screen'
@@ -13,6 +17,10 @@ import { HistoryCompanion } from '@/features/history/history-companion'
 import { HistoryList } from '@/features/history/history-list'
 import { HistoryPhoneScreen } from '@/features/history/history-phone-screen'
 import { HistoryViewer } from '@/features/history/history-viewer'
+import { ReviewCompanion } from '@/features/review/review-companion'
+import { ReviewList } from '@/features/review/review-list'
+import { ReviewPhoneScreen } from '@/features/review/review-phone-screen'
+import { ReviewViewer } from '@/features/review/review-viewer'
 import { TerminalCompanion } from '@/features/terminal/terminal-companion'
 import { TerminalList } from '@/features/terminal/terminal-list'
 import { TerminalPhoneScreen } from '@/features/terminal/terminal-phone-screen'
@@ -45,6 +53,14 @@ export type SurfaceSlots = {
 }
 
 const SURFACE_SLOTS: Partial<Record<SurfaceId, SurfaceSlots>> = {
+  // Board is the Review tab's other face on phone and its own rail destination on tablet, so
+  // it owns all four panels: the columns read the same cards whichever way you arrive.
+  board: {
+    companion: BoardCompanion,
+    list: BoardList,
+    phone: BoardPhoneScreen,
+    viewer: BoardViewer,
+  },
   changes: {
     companion: ChangesCompanion,
     list: ChangesList,
@@ -72,6 +88,15 @@ const SURFACE_SLOTS: Partial<Record<SurfaceId, SurfaceSlots>> = {
     list: HistoryList,
     phone: HistoryPhoneScreen,
     viewer: HistoryViewer,
+  },
+  // The Review's three canvas tabs live inside its own body, not in the shell, so the list is
+  // an outline that jumps the canvas rather than a route switcher — Intent, Execution and
+  // Evidence are one unit of work seen three ways, never three destinations.
+  review: {
+    companion: ReviewCompanion,
+    list: ReviewList,
+    phone: ReviewPhoneScreen,
+    viewer: ReviewViewer,
   },
   terminal: {
     companion: TerminalCompanion,

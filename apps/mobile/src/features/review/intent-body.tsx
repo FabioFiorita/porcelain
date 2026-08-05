@@ -1,0 +1,169 @@
+import { Text, View } from 'react-native'
+
+import { EmptyNote, ErrorNote } from '@/components/panel-chrome'
+import { markdownToHtml, previewDocument, readerDocument } from '@/features/files/preview-document'
+import { PreviewView } from '@/features/files/preview-view'
+import { useResolvedColorScheme } from '@/features/settings/theme-provider'
+import type { FeatureReading, IntentDoc } from '@/lib/daemon/procedures/review'
+
+import { IntentDocBody, SceneNote } from './doc-body'
+import { type DocTab, DocTabs } from './review-chrome'
+import { useReviewStore } from './review-store'
+import { useReviewIntentDocs } from './use-review'
+
+/**
+ * Intent: whatever the agent reached for to make the case.
+ *
+ * Documents written under `.porcelain/intent/` become panes, plus the review set's freeform
+ * board and its thesis/walkthrough narrative — the same three sources the desktop canvas
+ * offers, in the same order. One pane renders bare; more than one gets a strip, so a review
+ * with a single `index.md` never pays for chrome it does not need.
+ *
+ * The document set is only read while this canvas is up (see `useReviewIntentDocs`), which is
+ * the whole reason Intent is a tab rather than a chapter of one long page.
+ */
+export function IntentBody({
+  active,
+  reading,
+}: {
+  /** Focus AND tab visibility — the gate on a read that can reach 8 MiB. */
+  active: boolean
+  reading: FeatureReading
+}): React.JSX.Element {
+  const { docs, error, isLoading } = useReviewIntentDocs(active)
+  const pane = useReviewStore((state) => state.intentPane)
+  const setPane = useReviewStore((state) => state.setIntentPane)
+  const scheme = useResolvedColorScheme()
+
+  const panes = intentPanes(reading, docs ?? [])
+  const current = panes.find((entry) => entry.key === pane) ?? panes[0]
+
+  if (error !== null) {
+    return (
+      <View className="p-4">
+        <ErrorNote message={error.message} testID="porcelain-review-intent-error" />
+      </View>
+    )
+  }
+
+  if (current === undefined) {
+    if (isLoading && docs === undefined) {
+      return (
+        <Text
+          className="p-4 text-sm text-muted-foreground"
+          testID="porcelain-review-intent-loading"
+        >
+          Loading Intent…
+        </Text>
+      )
+    }
+    return (
+      <EmptyNote
+        body="No Intent yet — a document under .porcelain/intent/, a thesis, walkthrough sections, or a freeform board. Files live on the Execution tab."
+        testID="porcelain-review-intent-empty"
+        title="Nothing to read yet"
+      />
+    )
+  }
+
+  return (
+    <View className="flex-1" testID="porcelain-review-intent">
+      {panes.length === 1 ? null : (
+        <DocTabs
+          tabs={panes}
+          testIDPrefix="porcelain-review-intent-tab"
+          value={current.key}
+          onChange={setPane}
+        />
+      )}
+      <IntentPaneBody pane={current} scheme={scheme} />
+    </View>
+  )
+}
+
+/**
+ * A pane is one of the agent's documents, the freeform board, or the narrative the review set
+ * carries in `thesis` / `sections`. Resolved to a body at render time, so the strip can list
+ * them all without building any of them.
+ */
+type IntentPane = DocTab &
+  (
+    | { kind: 'doc'; doc: IntentDoc }
+    | { kind: 'html'; html: string }
+    | { kind: 'scene' }
+    | { kind: 'markup'; markup: string }
+  )
+
+function intentPanes(reading: FeatureReading, docs: readonly IntentDoc[]): IntentPane[] {
+  const panes: IntentPane[] = docs.map((doc) => ({
+    doc,
+    key: `doc:${doc.file}`,
+    kind: 'doc',
+    label: doc.label,
+  }))
+
+  const canvas = reading.canvas
+  if (canvas !== undefined) {
+    panes.push(
+      canvas.medium === 'html'
+        ? { html: canvas.html, key: 'board', kind: 'html', label: 'Board' }
+        : { key: 'board', kind: 'scene', label: 'Board' },
+    )
+  }
+
+  const markup = narrativeMarkup(reading)
+  if (markup !== null) {
+    panes.push({ key: 'document', kind: 'markup', label: 'Document', markup })
+  }
+
+  return panes
+}
+
+/**
+ * The review set's own narrative as one HTML fragment: the thesis, then each walkthrough
+ * section's heading, prose, inline SVG diagram, and agent-authored HTML block.
+ *
+ * Prose goes through markdown-it with raw HTML off, so markdown cannot smuggle markup in; the
+ * diagram and the section's HTML are inserted as themselves, because that is what they are.
+ * The preview document's own CSP (`default-src 'none'`, no scripting, no network) is what
+ * makes that safe — the same guarantee the desktop's `sandbox=""` frame gives them.
+ */
+function narrativeMarkup(reading: FeatureReading): string | null {
+  const parts: string[] = []
+  if (reading.thesis !== undefined && reading.thesis.trim() !== '') {
+    parts.push(markdownToHtml(reading.thesis))
+  }
+  for (const section of reading.sections) {
+    if (section.title.trim() !== '') parts.push(markdownToHtml(`## ${section.title}`))
+    if (section.prose.trim() !== '') parts.push(markdownToHtml(section.prose))
+    if (section.diagram !== undefined) parts.push(section.diagram)
+    if (section.html !== undefined) parts.push(section.html)
+  }
+  return parts.length === 0 ? null : parts.join('\n')
+}
+
+function IntentPaneBody({
+  pane,
+  scheme,
+}: {
+  pane: IntentPane
+  scheme: 'light' | 'dark'
+}): React.JSX.Element {
+  if (pane.kind === 'markup') {
+    return (
+      <PreviewView
+        document={readerDocument(pane.markup, scheme)}
+        testID="porcelain-review-intent-document"
+      />
+    )
+  }
+  if (pane.kind === 'html') {
+    return (
+      <PreviewView document={previewDocument(pane.html)} testID="porcelain-review-intent-board" />
+    )
+  }
+  if (pane.kind === 'scene') {
+    return <SceneNote testID="porcelain-review-intent-board-scene" />
+  }
+  return <IntentDocBody doc={pane.doc} testIDPrefix="porcelain-review-intent-doc" />
+}

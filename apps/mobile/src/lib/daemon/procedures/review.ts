@@ -148,12 +148,64 @@ const boardCardSchema = z.object({
   createdAt: z.number(),
 })
 
+/**
+ * Intent (and extra Evidence) documents: `.porcelain/intent/` and the files beside
+ * `evidence/index.html`, rendered as ordered tabs.
+ *
+ * Discriminated on `medium` because each one is a different kind of thing, not a different
+ * flavour of string: markdown is rendered to HTML here, an HTML document arrives already
+ * self-contained (the daemon inlines its siblings), and an Excalidraw scene is inert JSON
+ * that only the desktop canvas can draw. The scene is carried but not walked — this client
+ * has no canvas host, so a mobile reader is told to open it on the desktop rather than shown
+ * a blank pane.
+ */
+const intentSceneSchema = z.object({ elements: z.array(z.unknown()) }).passthrough()
+
+const intentDocSchema = z.discriminatedUnion('medium', [
+  z.object({
+    file: z.string(),
+    label: z.string(),
+    medium: z.literal('markdown'),
+    body: z.string(),
+  }),
+  z.object({
+    file: z.string(),
+    label: z.string(),
+    medium: z.literal('html'),
+    body: z.string(),
+  }),
+  z.object({
+    file: z.string(),
+    label: z.string(),
+    medium: z.literal('excalidraw'),
+    scene: intentSceneSchema,
+  }),
+])
+
+const publishCostSchema = z.object({ bytes: z.number(), files: z.number() })
+
+const publishResultSchema = z.object({ id: z.string(), cost: publishCostSchema })
+
+const archivedReviewSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  thesis: z.string().optional(),
+  archivedAt: z.string(),
+})
+
 export type FeatureView = z.infer<typeof featureViewObjectSchema>
 export type FeatureViewSummary = { name: string } | null
+export type FileSource = z.infer<typeof fileSourceSchema>
 export type ReadingFile = z.infer<typeof readingFileSchema>
+export type SliceRange = z.infer<typeof sliceRangeSchema>
 export type FeatureReading = z.infer<typeof featureReadingSchema>
 export type EvidenceMeta = z.infer<typeof evidenceMetaSchema>
+export type EvidenceCheck = z.infer<typeof evidenceCheckSchema>
 export type Evidence = z.infer<typeof evidenceSchema>
+export type IntentDoc = z.infer<typeof intentDocSchema>
+export type PublishCost = z.infer<typeof publishCostSchema>
+export type PublishResult = z.infer<typeof publishResultSchema>
+export type ArchivedReview = z.infer<typeof archivedReviewSchema>
 export type ReviewComment = z.infer<typeof reviewCommentSchema>
 export type BoardCard = z.infer<typeof boardCardSchema>
 export type CardStatus = BoardCard['status']
@@ -177,6 +229,68 @@ export const loopEvidenceHtmlQuery = defineQuery<string, Evidence | null>(
   'loopEvidenceHtml',
   evidenceSchema.nullable(),
 )
+
+/**
+ * Intent as a document set. Up to 8 MiB of documents across the tabs, so this is only ever
+ * read while the Intent canvas is on screen — never alongside `featureReading`, and never on
+ * a poll.
+ */
+export const reviewIntentQuery = defineQuery<string, IntentDoc[]>(
+  'reviewIntent',
+  z.array(intentDocSchema),
+)
+
+/** Extra evidence documents beside `index.html` — same media, same caps, same lazy rule. */
+export const reviewEvidenceDocsQuery = defineQuery<string, IntentDoc[]>(
+  'reviewEvidenceDocs',
+  z.array(intentDocSchema),
+)
+
+/** Byte cost of publishing the active review, so the warning can name a real number. */
+export const reviewPublishCostQuery = defineQuery<string, PublishCost>(
+  'reviewPublishCost',
+  publishCostSchema,
+)
+
+/**
+ * Archive the active review and force-stage it for the team, past the ignore rule that keeps
+ * reviews local. `null` when there was nothing active to publish. Staging only — the commit
+ * stays the human's.
+ */
+export const publishReviewMutation = defineMutation<string, PublishResult | null>(
+  'publishReview',
+  publishResultSchema.nullable(),
+)
+
+/** Previous (archived) reviews for the project, newest first. */
+export const archivedReviewsQuery = defineQuery<string, ArchivedReview[]>(
+  'archivedReviews',
+  z.array(archivedReviewSchema),
+)
+
+/** Promote an archive back to active. Archives whatever is active first. */
+export const restoreArchivedReviewMutation = defineMutation<{ repoPath: string; id: string }, void>(
+  'restoreArchivedReview',
+  z.void(),
+)
+
+/** Permanently delete an archived review. Not recoverable. */
+export const deleteArchivedReviewMutation = defineMutation<{ repoPath: string; id: string }, void>(
+  'deleteArchivedReview',
+  z.void(),
+)
+
+/**
+ * Archive the active review — intent, walkthrough, comments, reviewed marks and evidence —
+ * under `.porcelain/reviews/<id>/` and clear the active slots.
+ */
+export const clearFeatureReviewMutation = defineMutation<string, void>(
+  'clearFeatureReview',
+  z.void(),
+)
+
+/** Drop the loop evidence without touching the rest of the review. */
+export const clearLoopEvidenceMutation = defineMutation<string, void>('clearLoopEvidence', z.void())
 
 export const reviewCommentsQuery = defineQuery<string, ReviewComment[]>(
   'reviewComments',
