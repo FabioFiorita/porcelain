@@ -154,6 +154,13 @@ export const TestIds = {
   cardComposerSave: 'card-composer-save',
   cardComposer: 'card-composer',
 
+  // --- Saved action trust ---
+  actionTrustDialog: 'action-trust-dialog',
+  actionTrustCommand: 'action-trust-command',
+  actionTrustConfirm: 'action-trust-confirm',
+  actionUnreviewed: (title: string): string =>
+    `action-unreviewed-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+
   // --- Settings › Companion (what git carries) ---
   companionDispositions: 'companion-dispositions',
   companionDisposition: (key: string, disposition: string): string =>

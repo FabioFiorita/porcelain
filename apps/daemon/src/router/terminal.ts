@@ -1,10 +1,12 @@
 import { z } from 'zod'
 import {
   type Action,
+  type ActionView,
   addAction,
   deleteAction,
   moveAction,
-  readActions,
+  readActionViews,
+  trustActions,
   updateAction,
 } from '../stores/actions-store'
 import { listTerminals, renameTerminal, type TerminalInfo } from '../terminal/terminal-manager'
@@ -15,9 +17,17 @@ export const terminalRouter = t.router({
   // click, stored in <repo>/.porcelain/actions.json (see `actions-store.ts`); a two-way
   // channel the agent reads (`actions list`) and curates (`actions create/update/delete`)
   // via the CLI. The agent never EXECUTES one — running is human-only (see the audit skill).
+  // `trusted` says whether this machine's human has accepted the command text.
+  // Shared actions can arrive from a clone or an agent write, so the Run button
+  // is gated on it in the UI — see `action-trust-store.ts` for what that does and
+  // does not defend.
   actions: publicProcedure
     .input(z.string())
-    .query(({ input }): Promise<Action[]> => readActions(input)),
+    .query(({ input }): Promise<ActionView[]> => readActionViews(input)),
+
+  trustActions: publicProcedure
+    .input(z.object({ repoPath: z.string(), ids: z.array(z.string()).min(1) }))
+    .mutation(({ input }) => trustActions(input.repoPath, input.ids)),
 
   addAction: publicProcedure
     .input(

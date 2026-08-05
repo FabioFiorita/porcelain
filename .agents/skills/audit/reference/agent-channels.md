@@ -33,12 +33,32 @@
   arbitrary local files into the Review. *Verify:* new code reading an agent-supplied path routes
   through the filtered set.
 - **Saved actions are agent-writable but HUMAN-executed.** An agent that writes `actions.json` could
-  plant a command; three safeguards make that acceptable and all must hold: (1) **nothing in the agent
+  plant a command; four safeguards make that acceptable and all must hold: (1) **nothing in the agent
   channel executes an action** — the CLI has `list/create/update/delete` and **no run verb**; running
   is solely a human click. (2) The **full command text is always visible** in the Actions row before
   the click — never hide or truncate-without-recourse. (3) It runs in a **visible PTY** via the user's
-  login shell, so there is no silent background execution. *Verify:* the CLI command table has no
-  execute verb; the Action row still shows `command`.
+  login shell, so there is no silent background execution. (4) **A command this machine has not
+  accepted does not run on one click** — see the trust gate below. *Verify:* the CLI command table has
+  no execute verb; the Action row still shows `command`.
+- **Command trust is per machine, per command TEXT, and never lives in the repo.**
+  `actions.json` moved into `<repo>/.porcelain/` and is Shared by default, so a Run list can now
+  arrive with a `git clone`. `action-trust-store.ts` (`~/.porcelain/action-trust.json`) records the
+  sha256 of each command the human accepted; `readActionViews` derives `trusted` per read and the
+  renderer routes an untrusted action to the accept dialog instead of a PTY. All of these must hold:
+  1. Trust is **derived, never persisted into `.porcelain/`** — a repo that could vouch for its own
+     commands is not a gate. It is home-only and repo-path-keyed, so it fails closed on rename.
+  2. The fingerprint is over the **command**, not the title. A retitled action keeps trust (a label
+     cannot execute); an edited command loses it, whoever edited it — agent, teammate, or hand.
+  3. App-authored commands (`addAction`/`updateAction`) are trusted **by the act of typing them**,
+     and the home→repo migration grandfathers what was already in `~/.porcelain`. Without both, every
+     existing user would face a wall of prompts for commands they wrote — which is exactly how a
+     trust prompt becomes a thing people click through.
+  4. **Do not sell this as a sandbox.** A credential holder can already `terminal:create` with any
+     input (see the network boundary's "the token holder IS the user"), so a daemon-side block would
+     be theatre. What it defends is the human's attention: no one-click on a command they assumed was
+     their own. Keep the gate in the renderer, and keep the accept step showing the command in full.
+  *Verify:* `action-trust-store.test.ts` — an on-disk write is untrusted, accepting one command does
+  not accept its neighbours, and editing behind the app withdraws trust.
 - **Flow layers are auto-executed regex.** `compileLayers` runs `new RegExp(pattern, 'g')` on every
   flow build, so **the app's read MUST drop any layer whose pattern doesn't compile** or one bad
   agent-written pattern throws and breaks every grouping view; the CLI rejects an uncompilable pattern

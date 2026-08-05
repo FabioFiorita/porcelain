@@ -97,6 +97,7 @@ export const PROCEDURE_NAMES = [
   'tailnetStatus',
   'terminalSessions',
   'trashPath',
+  'trustActions',
   'unhidePath',
   'unmarkReviewed',
   'unpinPath',

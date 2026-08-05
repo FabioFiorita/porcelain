@@ -1,4 +1,4 @@
-import type { Action, ActionWhere } from '@backend/stores/actions-store'
+import type { Action, ActionView, ActionWhere } from '@backend/stores/actions-store'
 import { onMutationError } from '@renderer/hooks/mutation-error'
 import { spawnLocalTerminal } from '@renderer/lib/terminal-actions'
 import { trpc } from '@renderer/lib/trpc'
@@ -7,7 +7,7 @@ import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { useTerminalsStore } from '@renderer/stores/terminals'
 
 /** All saved actions for the current repo (live-refreshed when the agent curates them). */
-export function useActions(enabled = true): Action[] {
+export function useActions(enabled = true): ActionView[] {
   const repo = useRepoStore((s) => s.repo)
   const { data } = trpc.actions.useQuery(repo?.path ?? '', { enabled: enabled && repo !== null })
   return data ?? []
@@ -64,6 +64,22 @@ export function useActionMutations(): {
       if (!repo) return
       await remove.mutateAsync({ repoPath: repo.path, id })
     },
+  }
+}
+
+/**
+ * Accept a command this machine has not run before. Trust is recorded against the
+ * command TEXT on this machine only, so editing it later — by hand, by an agent,
+ * or by a teammate's commit — asks again.
+ */
+export function useTrustAction(): (id: string) => Promise<void> {
+  const utils = trpc.useUtils()
+  const mutation = trpc.trustActions.useMutation({ onError: onMutationError('Accept command') })
+  return async (id: string): Promise<void> => {
+    const repoPath = useRepoStore.getState().repo?.path
+    if (!repoPath) return
+    await mutation.mutateAsync({ repoPath, ids: [id] })
+    await utils.actions.invalidate()
   }
 }
 

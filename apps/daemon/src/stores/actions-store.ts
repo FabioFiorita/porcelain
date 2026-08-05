@@ -3,6 +3,7 @@ import { PROJECT_FILES } from '@shared/project-porcelain'
 import { z } from 'zod'
 import { createProjectChannel } from '../net/project-channel'
 import { ensureProjectCompanion } from '../project/migrate-home'
+import { commandFingerprint, readTrustedCommands, trustCommands } from './action-trust-store'
 
 /**
  * Saved actions for a project — named shell commands the human runs in the
@@ -50,6 +51,34 @@ export async function readActions(repoPath: string): Promise<Action[]> {
   return [...actions].sort((a, b) => a.order - b.order)
 }
 
+/**
+ * An action plus whether this machine's human has accepted its command. The flag
+ * is derived per read and never stored on disk — writing it into the repo would
+ * let a repo vouch for its own commands.
+ */
+export type ActionView = Action & { trusted: boolean }
+
+export async function readActionViews(repoPath: string): Promise<ActionView[]> {
+  const [actions, trusted] = await Promise.all([
+    readActions(repoPath),
+    readTrustedCommands(repoPath),
+  ])
+  return actions.map((action) => ({
+    ...action,
+    trusted: trusted.has(commandFingerprint(action.command)),
+  }))
+}
+
+/** Accept the listed commands for this repo (human-initiated, from the Actions rail). */
+export async function trustActions(repoPath: string, ids: string[]): Promise<void> {
+  const actions = await readActions(repoPath)
+  const wanted = new Set(ids)
+  await trustCommands(
+    repoPath,
+    actions.filter((a) => wanted.has(a.id)).map((a) => a.command),
+  )
+}
+
 export interface NewAction {
   title: string
   command: string
@@ -68,6 +97,8 @@ export async function addAction(repoPath: string, input: NewAction): Promise<Act
     ...(input.where !== undefined && input.where !== 'primary' ? { where: input.where } : {}),
   }
   await channel.mutate(repoPath, (all) => [...all, action])
+  // Authored here, by the human, through the app — nothing to review.
+  await trustCommands(repoPath, [action.command])
   return action
 }
 
@@ -88,6 +119,8 @@ export async function updateAction(
     }
     return all
   })
+  // A command the human just typed into the composer is accepted by that act.
+  if (fields.command !== undefined) await trustCommands(repoPath, [fields.command])
 }
 
 export async function moveAction(

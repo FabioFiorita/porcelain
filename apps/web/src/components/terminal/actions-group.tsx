@@ -1,4 +1,5 @@
-import type { Action } from '@backend/stores/actions-store'
+import type { Action, ActionView } from '@backend/stores/actions-store'
+import { ActionTrustDialog } from '@renderer/components/terminal/action-trust-dialog'
 import {
   LocalPathDialog,
   type LocalPathDialogMode,
@@ -16,7 +17,12 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
 } from '@renderer/components/ui/sidebar'
-import { useActionMutations, useActions, useRunAction } from '@renderer/hooks/use-actions'
+import {
+  useActionMutations,
+  useActions,
+  useRunAction,
+  useTrustAction,
+} from '@renderer/hooks/use-actions'
 import { useLocalDaemon, useLocalTerminalPath } from '@renderer/hooks/use-local-terminal'
 import { useActionRunStore } from '@renderer/stores/action-run'
 import { useRepoStore } from '@renderer/stores/repo'
@@ -30,6 +36,7 @@ import {
   PenLine,
   Play,
   Plus,
+  ShieldQuestion,
   Trash2,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -43,9 +50,9 @@ function ActionRow({
   isFirst,
   isLast,
 }: {
-  action: Action
+  action: ActionView
   onEdit: (action: Action) => void
-  onRun: (action: Action) => void
+  onRun: (action: ActionView) => void
   /** When true, surface a small Cloud/Monitor cue so Play’s target is obvious. */
   showWhere: boolean
   isFirst: boolean
@@ -53,6 +60,9 @@ function ActionRow({
 }): React.JSX.Element {
   const { move, remove } = useActionMutations()
   const isLocal = action.where === 'local'
+  // Unreviewed commands still show their full text and still sit under one click —
+  // the click just lands on the accept step instead of a shell.
+  const unreviewed = !action.trusted
   return (
     <div className="group/action flex items-center gap-1 rounded-xl border bg-card p-2">
       <button
@@ -62,9 +72,23 @@ function ActionRow({
         className="flex min-w-0 flex-1 items-center gap-2 text-left"
         // The full command is always visible before it runs — an agent can author
         // actions, so the human must see exactly what a click executes (see audit skill).
-        title={isLocal ? `Run on this device: ${action.command}` : `Run: ${action.command}`}
+        title={
+          unreviewed
+            ? `Not run on this machine yet: ${action.command}`
+            : isLocal
+              ? `Run on this device: ${action.command}`
+              : `Run: ${action.command}`
+        }
       >
-        <Play className="size-3.5 shrink-0 text-muted-foreground" />
+        {unreviewed ? (
+          <ShieldQuestion
+            className="size-3.5 shrink-0 text-muted-foreground"
+            aria-label="Not run on this machine yet"
+            data-testid={TestIds.actionUnreviewed(action.title)}
+          />
+        ) : (
+          <Play className="size-3.5 shrink-0 text-muted-foreground" />
+        )}
         <span className="min-w-0 flex-1">
           <span className="flex min-w-0 items-center gap-1.5">
             <span className="block truncate text-xs font-medium">{action.title}</span>
@@ -143,6 +167,9 @@ export function ActionsGroup(): React.JSX.Element {
   // the path dialog in 'run' mode; on save, run with the just-saved path. Also fed by
   // the file finder via useActionRunStore (compose-intent).
   const [pendingLocal, setPendingLocal] = useState<Action | null>(null)
+  // Held while the human reads a command they have not run here before.
+  const [pendingTrust, setPendingTrust] = useState<ActionView | null>(null)
+  const trustAction = useTrustAction()
   const [mappingMode, setMappingMode] = useState<LocalPathDialogMode | null>(null)
   const storePending = useActionRunStore((s) => s.pendingLocal)
   const clearStorePending = useActionRunStore((s) => s.clearPendingLocal)
@@ -154,7 +181,7 @@ export function ActionsGroup(): React.JSX.Element {
     clearStorePending()
   }, [storePending, clearStorePending])
 
-  const handleRun = async (action: Action, localPath?: string | null): Promise<void> => {
+  const spawn = async (action: Action, localPath?: string | null): Promise<void> => {
     const result = await runAction(action, {
       localPath: localPath ?? mappedLocalPath,
     })
@@ -162,6 +189,20 @@ export function ActionsGroup(): React.JSX.Element {
       setPendingLocal(action)
       setMappingMode('run')
     }
+  }
+
+  /**
+   * A command this machine has never accepted goes to the review step instead of
+   * a shell. Everything already accepted runs exactly as before — the gate must
+   * cost nothing on the path people use fifty times a day, or it trains them to
+   * click through it.
+   */
+  const handleRun = async (action: ActionView, localPath?: string | null): Promise<void> => {
+    if (!action.trusted) {
+      setPendingTrust(action)
+      return
+    }
+    await spawn(action, localPath)
   }
 
   return (
@@ -199,6 +240,15 @@ export function ActionsGroup(): React.JSX.Element {
           ))
         )}
       </SidebarGroupContent>
+      <ActionTrustDialog
+        action={pendingTrust}
+        onCancel={() => setPendingTrust(null)}
+        onTrust={async (action: ActionView): Promise<void> => {
+          setPendingTrust(null)
+          await trustAction(action.id)
+          await spawn(action)
+        }}
+      />
       <ActionComposer
         draft={draft}
         open={draft !== null}
@@ -217,7 +267,7 @@ export function ActionsGroup(): React.JSX.Element {
             const action = pendingLocal
             setPendingLocal(null)
             setMappingMode(null)
-            handleRun(action, localPath)
+            spawn(action, localPath)
           }}
           onClose={() => {
             setPendingLocal(null)

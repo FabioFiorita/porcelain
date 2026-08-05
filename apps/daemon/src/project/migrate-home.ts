@@ -9,6 +9,7 @@ import {
   projectPorcelainPath,
 } from '@shared/project-porcelain'
 import { z } from 'zod'
+import { trustMigratedCommands } from '../stores/action-trust-store'
 
 /**
  * One-way home → repo migration for companion channels.
@@ -172,8 +173,21 @@ async function migrateHome(repoPath: string): Promise<{ migrated: boolean }> {
   }
 
   const actions = homeVal('actions.json')
-  if (Array.isArray(actions)) await landJson('actions.json', PROJECT_FILES.actions, actions)
-  else await landIfPresent('actions.json', PROJECT_FILES.actions)
+  if (Array.isArray(actions)) {
+    await landJson('actions.json', PROJECT_FILES.actions, actions)
+    // Anything in ~/.porcelain was authored by this human on this machine, so it
+    // carries its own provenance across the move. Without this every migrating
+    // user would be asked to re-approve commands they typed themselves — which is
+    // how a trust prompt turns into a thing people click through.
+    await trustMigratedCommands(
+      repoPath,
+      z
+        .array(z.object({ command: z.string().min(1) }).loose())
+        .catch([])
+        .parse(actions)
+        .map((a) => a.command),
+    )
+  } else await landIfPresent('actions.json', PROJECT_FILES.actions)
 
   const board = homeVal('board.json')
   if (Array.isArray(board)) await landJson('board.json', PROJECT_FILES.board, board)
