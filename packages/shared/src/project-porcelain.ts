@@ -114,7 +114,12 @@ export const COMPANION_CHANNELS: readonly CompanionChannel[] = [
  * companion root never swallows the same filename inside `reviews/<id>/`.
  *
  * - `feature-view.json` is a render snapshot, derived and stale on arrival.
- * - `review.json` names the checkout's active review — per branch, per worktree.
+ * - `review.json`, `reviewed.json`, `comments.json`, `intent/` and `evidence/`
+ *   are the ACTIVE review — per branch, per worktree, and rewritten constantly
+ *   while a unit is in flight. Publishing is what shares a review, and it copies
+ *   these into `reviews/<id>/` and force-adds that one folder. Tracking the
+ *   active slots instead would put every agent's work-in-progress and every
+ *   screenshot it took into everyone else's diff.
  * - `.migrated-from-home` is a machine artifact from the home→repo migration.
  * - `*.tmp` / `*.corrupt-*` are atomic-write debris.
  * - the per-review evidence glob keeps proof packs opt-in even when Reviews are
@@ -125,6 +130,8 @@ export const ALWAYS_IGNORED = [
   '/review.json',
   '/reviewed.json',
   '/comments.json',
+  '/intent/',
+  '/evidence/',
   '/.migrated-from-home',
   '*.tmp',
   '*.corrupt-*',

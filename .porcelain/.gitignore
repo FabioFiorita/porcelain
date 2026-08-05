@@ -8,6 +8,8 @@
 /review.json
 /reviewed.json
 /comments.json
+/intent/
+/evidence/
 /.migrated-from-home
 *.tmp
 *.corrupt-*

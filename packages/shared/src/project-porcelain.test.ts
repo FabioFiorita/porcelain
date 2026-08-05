@@ -88,3 +88,20 @@ describe('companion dispositions', () => {
     for (const channel of COMPANION_CHANNELS) expect(parsed[channel.key]).toBe('shared')
   })
 })
+
+describe('the active review is never tracked by default', () => {
+  it('ignores every active slot, including intent and evidence', () => {
+    // Publishing is what shares a review; it copies these into reviews/<id>/ and
+    // force-adds that folder. Tracking the live slots would put work-in-progress
+    // and every screenshot into everyone else's diff.
+    for (const slot of [
+      '/review.json',
+      '/reviewed.json',
+      '/comments.json',
+      '/intent/',
+      '/evidence/',
+    ]) {
+      expect(DEFAULT_PROJECT_GITIGNORE).toContain(slot)
+    }
+  })
+})
