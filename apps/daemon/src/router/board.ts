@@ -13,7 +13,7 @@ import { publicProcedure, t } from '../trpc'
 
 export const boardRouter = t.router({
   // Project board — todo/doing/done cards the human and the agent both manage,
-  // stored in ~/.porcelain/board.json (see `board-store.ts`); a two-way channel the
+  // stored in <repo>/.porcelain/board.json (see `board-store.ts`); a two-way channel the
   // agent reads (`board list`) and mutates (`board create/update/move/delete`) via the CLI.
   boardCards: publicProcedure
     .input(z.string())

@@ -1,11 +1,15 @@
-# Porcelain project companion — edit freely.
-# Evidence packs can be large; ignored by default. Remove a line to track it.
-evidence/
-reviews/*/evidence/
+# Porcelain project companion.
+# Lines outside the managed block are yours — Porcelain never touches them.
 
-# The active Review is whatever unit is in flight right now — it turns over per
-# branch and per worktree, so tracking it means every branch fighting over one
-# file. The durable companion data (board, actions, layers, scope, notes) stays
-# tracked; archived reviews under reviews/ still land in history.
-review.json
-reviewed.json
+# >>> porcelain:managed — Settings › Companion owns these lines
+/board.json
+/reviews/
+/feature-view.json
+/review.json
+/reviewed.json
+/comments.json
+/.migrated-from-home
+*.tmp
+*.corrupt-*
+reviews/*/evidence/
+# <<< porcelain:managed

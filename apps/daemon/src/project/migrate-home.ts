@@ -96,11 +96,41 @@ async function ensureFile(path: string, write: () => Promise<void>): Promise<boo
 }
 
 /**
+ * One run per repo per process. Every companion store calls `ensureProjectCompanion`
+ * on every read, and an unmemoized pass is nine home-file reads plus a hash and a
+ * stat — on the poll path that is a syscall storm for a migration that can only
+ * ever do something once. Keyed by the in-flight promise so concurrent first
+ * callers share a single run instead of racing each other's writes.
+ *
+ * Deliberately NOT the on-disk `.migrated-from-home` marker: an empty companion
+ * dir once blocked migrate forever (see 46f4f6e), and a marker committed to git
+ * would tell a fresh clone that someone else's migration was its own.
+ */
+const runs = new Map<string, Promise<{ migrated: boolean }>>()
+
+export function ensureProjectCompanion(repoPath: string): Promise<{ migrated: boolean }> {
+  const inFlight = runs.get(repoPath)
+  if (inFlight) return inFlight
+  // Failures are not cached — a transient EACCES should retry on the next read.
+  const run = migrateHome(repoPath).catch((error: unknown) => {
+    runs.delete(repoPath)
+    throw error
+  })
+  runs.set(repoPath, run)
+  return run
+}
+
+/** Test seam: forget what this process has already migrated. */
+export function resetProjectCompanionMemo(): void {
+  runs.clear()
+}
+
+/**
  * Copy remaining home companion data into `<repo>/.porcelain`. Runs even when the
  * project dir already exists (an empty shell used to block migrate forever).
  * Purges a home key only after its project file is on disk.
  */
-export async function ensureProjectCompanion(repoPath: string): Promise<{ migrated: boolean }> {
+async function migrateHome(repoPath: string): Promise<{ migrated: boolean }> {
   const snapshots = Object.fromEntries(
     await Promise.all(homeChannels.map(async (f) => [f, await readHomeRecord(f)] as const)),
   ) as Record<HomeChannel, Record<string, unknown>>

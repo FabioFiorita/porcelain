@@ -157,7 +157,7 @@ export const reviewRouter = t.router({
     }),
 
   // The feature view (the Review's Execution outline): exactly the files the agent
-  // listed in the review set (porcelain CLI → ~/.porcelain/review-sets.json), in
+  // listed in the review set (porcelain CLI → <repo>/.porcelain/review.json), in
   // agent order, with notes/layers/thesis/sections. Null without a set (the
   // renderer shows the "No review yet" empty state). Working-tree changes that
   // the agent did not list never appear here.
@@ -265,7 +265,7 @@ export const reviewRouter = t.router({
 
   // Review comments — the human's notes on lines/files, fed to the agent as context
   // via the porcelain CLI (`comments list`) and resolvable by it (`comments resolve`).
-  // Stored in ~/.porcelain/comments.json (see `comment-store.ts`); a two-way channel.
+  // Stored in the active review folder (see `comment-store.ts`); a two-way channel.
   reviewComments: publicProcedure
     .input(z.string())
     .query(({ input }): Promise<ReviewComment[]> => readComments(input)),

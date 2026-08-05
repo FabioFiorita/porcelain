@@ -12,7 +12,7 @@ import { publicProcedure, t } from '../trpc'
 
 export const terminalRouter = t.router({
   // Saved actions — named commands the human runs in the embedded terminal with one
-  // click, stored in ~/.porcelain/actions.json (see `actions-store.ts`); a two-way
+  // click, stored in <repo>/.porcelain/actions.json (see `actions-store.ts`); a two-way
   // channel the agent reads (`actions list`) and curates (`actions create/update/delete`)
   // via the CLI. The agent never EXECUTES one — running is human-only (see the audit skill).
   actions: publicProcedure

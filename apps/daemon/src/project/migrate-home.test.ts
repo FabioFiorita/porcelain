@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PROJECT_FILES, projectPorcelainDir, projectPorcelainPath } from '@shared/project-porcelain'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { ensureProjectCompanion } from './migrate-home'
+import { ensureProjectCompanion, resetProjectCompanionMemo } from './migrate-home'
 
 const root = join(tmpdir(), 'porcelain-migrate-home-test')
 const home = join(root, 'home')
@@ -14,6 +14,8 @@ beforeEach(() => {
   mkdirSync(repo, { recursive: true })
   mkdirSync(home, { recursive: true })
   process.env.PORCELAIN_HOME = home
+  // The memo is per process, so each case starts as a repo this process has never seen.
+  resetProjectCompanionMemo()
 })
 afterEach(() => {
   delete process.env.PORCELAIN_HOME
@@ -58,8 +60,10 @@ describe('ensureProjectCompanion', () => {
       // file removed entirely when empty — ok
     }
 
-    // Second call is a no-op (project dir exists).
-    expect((await ensureProjectCompanion(repo)).migrated).toBe(false)
+    // Second call is memoized: it reports what the one run for this repo concluded
+    // rather than re-walking home. `migrated` answers "did this repo migrate",
+    // not "did this particular call do work".
+    expect((await ensureProjectCompanion(repo)).migrated).toBe(true)
     expect(projectPorcelainDir(repo)).toBe(join(repo, '.porcelain'))
   })
 
@@ -106,5 +110,24 @@ describe('ensureProjectCompanion', () => {
     expect(
       JSON.parse(readFileSync(projectPorcelainPath(repo, PROJECT_FILES.review), 'utf8')),
     ).toEqual({ name: 'in-repo' })
+  })
+})
+
+describe('migration memo', () => {
+  it('runs once per repo per process', async () => {
+    writeFileSync(join(home, 'notes.json'), JSON.stringify({ [repo]: '# hello' }))
+    expect((await ensureProjectCompanion(repo)).migrated).toBe(true)
+
+    // A second call must not re-read home or re-land anything: home is purged, so
+    // an unmemoized pass would report false and churn the disk on every store read.
+    writeFileSync(join(home, 'notes.json'), JSON.stringify({ [repo]: '# resurrected' }))
+    expect((await ensureProjectCompanion(repo)).migrated).toBe(true)
+    expect(readFileSync(projectPorcelainPath(repo, PROJECT_FILES.notes), 'utf8')).toBe('# hello')
+  })
+
+  it('shares one run between concurrent first callers', async () => {
+    writeFileSync(join(home, 'board.json'), JSON.stringify({ [repo]: [] }))
+    const [a, b] = await Promise.all([ensureProjectCompanion(repo), ensureProjectCompanion(repo)])
+    expect(a).toBe(b)
   })
 })
