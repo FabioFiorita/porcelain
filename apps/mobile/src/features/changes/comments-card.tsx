@@ -47,8 +47,9 @@ export function CommentsCard({ active }: { active: boolean }): React.JSX.Element
 
       {comments.length === 0 ? (
         <Text className="text-[11px] leading-4 text-muted-foreground">
-          Long-press a line in a diff, or a file in the list, to leave a comment — your agent reads
-          them as review context.
+          Long-press a line in a diff to select it, tap more lines to extend the range, then
+          Comment. Long-press a file in the list to comment on the whole file. Your agent reads them
+          as review context.
         </Text>
       ) : (
         <View className="gap-1.5">

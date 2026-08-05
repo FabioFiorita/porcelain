@@ -12,10 +12,13 @@ import { EmptyNote, ErrorNote, IconAction, PanelLabel } from './changes-chrome'
 import type { ChangesScope } from './changes-store'
 import { type CommentAnchor, CommentComposer } from './comment-composer'
 import { DiffRowView } from './diff-lines'
+import { anchorTextFor, rangeForPath, rangeOf } from './line-selection'
 import { type ReadingRow, toReadingRows } from './reading-rows'
+import { SelectionBar } from './selection-bar'
 import { useDiffReading, useReviewedPaths, useToggleReviewed } from './use-changes'
 import { useCommentedLinesByPath, useReviewComments } from './use-comments'
 import { useDiffTokens } from './use-highlight'
+import { type LineSelectionControls, useLineSelection } from './use-line-selection'
 
 /**
  * The whole change set as one scrollable document — "read all". Same flow order as the list,
@@ -46,6 +49,7 @@ export function ReadAllView({
   const comments = useReviewComments(active)
   const [anchor, setAnchor] = useState<CommentAnchor | null>(null)
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set())
+  const lineSelection = useLineSelection()
 
   const toggleCollapsed = (path: string): void => {
     setCollapsed((current) => {
@@ -72,6 +76,26 @@ export function ReadAllView({
     }
     return byPath
   }, [reading])
+
+  // The bar names the file too: in a stacked read the range alone would not say which one.
+  const activeSelection =
+    lineSelection.selection === null
+      ? null
+      : {
+          path: lineSelection.selection.path,
+          range: rangeOf(lineSelection.selection),
+        }
+
+  const handleCommentSelection = (): void => {
+    if (activeSelection === null) return
+    setAnchor({
+      anchorText: anchorTextFor(hunksByPath.get(activeSelection.path) ?? [], activeSelection.range),
+      endLine: activeSelection.range.endLine,
+      path: activeSelection.path,
+      startLine: activeSelection.range.startLine,
+    })
+    lineSelection.clear()
+  }
 
   const fileCount = reading?.groups.reduce((count, group) => count + group.files.length, 0) ?? 0
   const scopeLabel = scope === 'branch' ? `Branch range · vs ${base ?? 'base'}` : 'Working tree'
@@ -129,6 +153,7 @@ export function ReadAllView({
               commentedByPath={commentedByPath}
               emphasis={emphasis}
               hunksByPath={hunksByPath}
+              selection={lineSelection}
               tokensFor={diffTokens}
               isReviewed={item.kind === 'file' ? reviewed.has(item.file.path) : false}
               row={item}
@@ -151,6 +176,15 @@ export function ReadAllView({
         />
       )}
 
+      {activeSelection === null ? null : (
+        <SelectionBar
+          bottomInset={bottomInset}
+          path={activeSelection.path}
+          range={activeSelection.range}
+          onCancel={lineSelection.clear}
+          onComment={handleCommentSelection}
+        />
+      )}
       <CommentComposer
         anchor={anchor}
         onClose={() => {
@@ -178,6 +212,7 @@ function ReadingRowView({
   onToggleCollapsed,
   onToggleReviewed,
   row,
+  selection,
   tokensFor,
 }: {
   collapsed: boolean
@@ -189,6 +224,7 @@ function ReadingRowView({
   onToggleCollapsed: (path: string) => void
   onToggleReviewed: (path: string, reviewed: boolean) => void
   row: ReadingRow
+  selection: LineSelectionControls
   tokensFor: (path: string, hunks: readonly DiffHunk[]) => TokenMap
 }): React.JSX.Element {
   if (row.kind === 'layer') {
@@ -257,10 +293,14 @@ function ReadingRowView({
       ctx={{
         commentedLines: commentedByPath.get(row.path) ?? NO_COMMENTS,
         emphasis,
-        tokens: tokensFor(row.path, hunksByPath.get(row.path) ?? []),
-        onCommentLine: (line: number): void => {
-          onComment({ path: row.path, startLine: line })
+        onAnchorLine: (line: number): void => {
+          selection.start(row.path, line)
         },
+        onExtendToLine: (line: number): void => {
+          selection.extend(row.path, line)
+        },
+        selected: rangeForPath(selection.selection, row.path),
+        tokens: tokensFor(row.path, hunksByPath.get(row.path) ?? []),
       }}
       row={row.row}
     />

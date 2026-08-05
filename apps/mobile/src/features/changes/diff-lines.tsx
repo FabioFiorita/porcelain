@@ -8,6 +8,7 @@ import type { DiffHunk } from '@/lib/daemon/procedures/changes'
 import { cn } from '@/lib/utils'
 
 import { anchorLineOf, cellAnchorLine, type DiffRow } from './diff-rows'
+import { isLineInRange, type LineRange } from './line-selection'
 
 type DiffLine = DiffHunk['lines'][number]
 
@@ -32,8 +33,12 @@ export type DiffLineContext = {
   tokens: TokenMap
   /** New-side lines that carry a comment, so the row can show its marker. */
   commentedLines: ReadonlySet<number>
-  /** Long-press a line to comment on it. */
-  onCommentLine: (line: number) => void
+  /** The line range being selected in THIS file, or null when the selection is elsewhere. */
+  selected: LineRange | null
+  /** Long-press anchors a selection on this line. */
+  onAnchorLine: (line: number) => void
+  /** Tap extends the open selection to this line. */
+  onExtendToLine: (line: number) => void
 }
 
 function LineNumber({ value }: { value: number | null }): React.JSX.Element {
@@ -109,18 +114,23 @@ function CommentMarker(): React.JSX.Element {
 function UnifiedRow({ ctx, line }: { ctx: DiffLineContext; line: DiffLine }): React.JSX.Element {
   const anchor = anchorLineOf(line)
   const commented = anchor !== undefined && ctx.commentedLines.has(anchor)
+  const selected = isLineInRange(ctx.selected, anchor)
   return (
     <Pressable
       accessibilityLabel={
         anchor === undefined ? line.text : `Line ${anchor}${commented ? ', commented' : ''}`
       }
       accessibilityRole="text"
+      accessibilityState={{ selected }}
       className={cn(
         'flex-row gap-1.5 px-2 py-px',
-        commented ? 'bg-info/10' : LINE_CLASS[line.kind],
+        selected ? 'bg-primary/15' : commented ? 'bg-info/10' : LINE_CLASS[line.kind],
       )}
       onLongPress={() => {
-        if (anchor !== undefined) ctx.onCommentLine(anchor)
+        if (anchor !== undefined) ctx.onAnchorLine(anchor)
+      }}
+      onPress={() => {
+        if (anchor !== undefined) ctx.onExtendToLine(anchor)
       }}
     >
       <LineNumber value={line.oldLine} />
@@ -142,14 +152,25 @@ function SplitCell({
 }): React.JSX.Element {
   const anchor = line === null ? undefined : cellAnchorLine(line, side)
   const commented = anchor !== undefined && ctx.commentedLines.has(anchor)
+  const selected = isLineInRange(ctx.selected, anchor)
   return (
     <Pressable
+      accessibilityState={{ selected }}
       className={cn(
         'min-w-0 flex-1 flex-row gap-1.5 px-2 py-px',
-        commented ? 'bg-info/10' : line === null ? '' : LINE_CLASS[line.kind],
+        selected
+          ? 'bg-primary/15'
+          : commented
+            ? 'bg-info/10'
+            : line === null
+              ? ''
+              : LINE_CLASS[line.kind],
       )}
       onLongPress={() => {
-        if (anchor !== undefined) ctx.onCommentLine(anchor)
+        if (anchor !== undefined) ctx.onAnchorLine(anchor)
+      }}
+      onPress={() => {
+        if (anchor !== undefined) ctx.onExtendToLine(anchor)
       }}
     >
       <LineNumber

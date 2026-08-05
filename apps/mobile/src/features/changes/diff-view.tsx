@@ -11,9 +11,12 @@ import { EmptyNote, ErrorNote, IconAction } from './changes-chrome'
 import { type CommentAnchor, CommentComposer } from './comment-composer'
 import { DiffRowView } from './diff-lines'
 import { type DiffRow, toDiffRows } from './diff-rows'
+import { anchorTextFor, rangeForPath } from './line-selection'
+import { SelectionBar } from './selection-bar'
 import { useDiffFile, useReviewedPaths, useToggleReviewed } from './use-changes'
 import { useCommentIndex, useReviewComments } from './use-comments'
 import { useDiffTokens } from './use-highlight'
+import { useLineSelection } from './use-line-selection'
 
 /**
  * One file's diff. The unified / split choice is a Settings preference rather than a control
@@ -46,6 +49,7 @@ export function DiffView({
   const comments = useReviewComments(active)
   const commentIndex = useCommentIndex(comments, filePath)
   const [anchor, setAnchor] = useState<CommentAnchor | null>(null)
+  const lineSelection = useLineSelection()
   const isReviewed = reviewedPaths.has(filePath)
 
   const hunks: readonly DiffHunk[] = result?.hunks ?? []
@@ -54,17 +58,34 @@ export function DiffView({
   const commentedLines = useMemo(() => new Set(commentIndex.byLine.keys()), [commentIndex])
   const diffTokens = useDiffTokens()
   const tokens = useMemo(() => diffTokens(filePath, hunks), [diffTokens, filePath, hunks])
+  const selected = rangeForPath(lineSelection.selection, filePath)
+  const { extend, start } = lineSelection
   const ctx = useMemo(
     () => ({
       commentedLines,
       emphasis,
-      onCommentLine: (line: number): void => {
-        setAnchor({ path: filePath, startLine: line })
+      onAnchorLine: (line: number): void => {
+        start(filePath, line)
       },
+      onExtendToLine: (line: number): void => {
+        extend(filePath, line)
+      },
+      selected,
       tokens,
     }),
-    [commentedLines, emphasis, filePath, tokens],
+    [commentedLines, emphasis, extend, filePath, selected, start, tokens],
   )
+
+  const handleCommentSelection = (): void => {
+    if (selected === null) return
+    setAnchor({
+      anchorText: anchorTextFor(hunks, selected),
+      endLine: selected.endLine,
+      path: filePath,
+      startLine: selected.startLine,
+    })
+    lineSelection.clear()
+  }
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-changes-diff">
@@ -91,6 +112,15 @@ export function DiffView({
         rows={rows}
         status={result?.status}
       />
+      {selected === null ? null : (
+        <SelectionBar
+          bottomInset={bottomInset}
+          path={filePath}
+          range={selected}
+          onCancel={lineSelection.clear}
+          onComment={handleCommentSelection}
+        />
+      )}
       <CommentComposer
         anchor={anchor}
         onClose={() => {
