@@ -13,6 +13,15 @@ export type EntryActions = {
   onComment: (path: string) => void
   onSetPinned: (path: string, pinned: boolean) => void
   onSetHidden: (path: string, hidden: boolean) => void
+  /**
+   * The working-tree writes. The row only says which entry the reader pointed at; the browser
+   * owns the prompt and the confirmation, so the tree holds one of each rather than one per row.
+   */
+  onCreateFile: (entry: FileEntry) => void
+  onCreateFolder: (entry: FileEntry) => void
+  onRename: (entry: FileEntry) => void
+  onDuplicate: (entry: FileEntry) => void
+  onTrash: (entry: FileEntry) => void
 }
 
 const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'avif', 'ico'])
@@ -52,7 +61,8 @@ function glyphFor(entry: FileEntry): ChromeIconName {
  *
  * Tap opens — a folder drills in, a file opens in the viewer — so the row's one tap target
  * does the one obvious thing. Everything the desktop puts behind a right-click lives behind a
- * long press instead: pin it to the companion, hide it from the tree, comment on it.
+ * long press instead: create beside it, rename, duplicate, trash, pin it to the companion,
+ * hide it from the tree, comment on it.
  */
 function FileEntryRowImpl({
   actions,
@@ -65,7 +75,43 @@ function FileEntryRowImpl({
 }): React.JSX.Element {
   const [menuOpen, setMenuOpen] = useState(false)
 
+  // A folder takes new entries inside it; a file's siblings go beside it. Saying so on the
+  // label is cheaper than making the reader guess where the file they just made went.
+  const into = entry.kind === 'dir' ? entry.name : 'this folder'
+
   const menuActions: SheetAction[] = [
+    {
+      glyph: 'plus',
+      id: 'new-file',
+      label: `New file in ${into}`,
+      onPress: () => {
+        actions.onCreateFile(entry)
+      },
+    },
+    {
+      glyph: 'folder',
+      id: 'new-folder',
+      label: `New folder in ${into}`,
+      onPress: () => {
+        actions.onCreateFolder(entry)
+      },
+    },
+    {
+      glyph: 'pencil',
+      id: 'rename',
+      label: 'Rename',
+      onPress: () => {
+        actions.onRename(entry)
+      },
+    },
+    {
+      glyph: 'copy',
+      id: 'duplicate',
+      label: 'Duplicate',
+      onPress: () => {
+        actions.onDuplicate(entry)
+      },
+    },
     {
       glyph: entry.pinned ? 'pinOff' : 'pin',
       id: 'pin',
@@ -93,6 +139,17 @@ function FileEntryRowImpl({
       },
     })
   }
+  // Last, and the only destructive one: the trash is recoverable, but a mis-tap next to
+  // "Duplicate" still costs a trip to Finder.
+  menuActions.push({
+    destructive: true,
+    glyph: 'trash',
+    id: 'trash',
+    label: 'Move to Trash…',
+    onPress: () => {
+      actions.onTrash(entry)
+    },
+  })
 
   return (
     <View>

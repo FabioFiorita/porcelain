@@ -1,6 +1,11 @@
 import { useMemo } from 'react'
 import {
+  type CodeSearchOptions,
+  type CodeSearchResult,
+  createFileMutation,
+  createFolderMutation,
   type DirEntry,
+  duplicatePathMutation,
   type FileSearchResult,
   type FileView,
   hidePathMutation,
@@ -9,7 +14,10 @@ import {
   previewHtmlQuery,
   readDirQuery,
   readFileQuery,
+  renamePathMutation,
+  searchCodeQuery,
   searchFilesQuery,
+  trashPathMutation,
   unhidePathMutation,
   unpinPathMutation,
 } from '@/lib/daemon/procedures/files'
@@ -18,7 +26,7 @@ import { useDaemonMutation, useDaemonQuery } from '@/lib/daemon/queries'
 import { useActiveRepo } from '@/lib/daemon/repo'
 import { useDaemonWatch } from '@/lib/daemon/watch'
 
-import { absolutePath, relativePath } from './file-paths'
+import { absolutePath, parentPath, relativePath } from './file-paths'
 import { useFilesStore } from './files-store'
 
 /** A repo-relative directory entry — what every row, route and comment in this tab speaks. */
@@ -35,6 +43,13 @@ export type FileEntry = Omit<DirEntry, 'path'> & {
  * row you just hid stays on screen until something else moves.
  */
 const TREE_INVALIDATIONS = ['readDir', 'pinnedEntries', 'searchFiles'] as const
+
+/**
+ * What a working-tree write makes stale: the same list a `file-tree` push invalidates, plus the
+ * reads only a write can invalidate — the open file's contents (a rename moves it out from
+ * under the viewer) and any content search still showing lines that have moved.
+ */
+const WRITE_INVALIDATIONS = [...TREE_INVALIDATIONS, 'readFile', 'searchCode', 'searchText'] as const
 
 function toEntries(repoPath: string, entries: readonly DirEntry[] | undefined): FileEntry[] {
   if (entries === undefined) return []
@@ -171,6 +186,100 @@ export function useFileSearch(
     error,
     isLoading: isLoading && trimmed !== '',
     results: data ?? [],
+  }
+}
+
+/**
+ * Repo-wide **content** search — the desktop Search tab's read, not the ⌘P finder's.
+ *
+ * The daemon runs `git grep` and answers per-file context hunks with a truncation flag, so
+ * nothing here re-groups or re-caps. The caller debounces the whole option set: a keystroke in
+ * the exclude field is as much a new search as a keystroke in the query.
+ */
+export function useCodeSearch(
+  options: CodeSearchOptions,
+  active: boolean,
+): { result: CodeSearchResult | undefined; isLoading: boolean; error: Error | null } {
+  const repo = useActiveRepo()
+  const trimmed = options.query.trim()
+  const { data, error, isLoading } = useDaemonQuery(
+    searchCodeQuery,
+    { ...options, query: trimmed, repoPath: repo?.path ?? '' },
+    {
+      enabled: active && repo !== null && trimmed !== '',
+      placeholderData: 'keepPreviousData',
+      staleTime: 10_000,
+    },
+  )
+
+  return { error, isLoading: isLoading && trimmed !== '', result: data }
+}
+
+export type FileWrites = {
+  /** Create an empty file named `name` inside the repo-relative directory `dir`. */
+  createFile: (dir: string, name: string) => Promise<void>
+  createFolder: (dir: string, name: string) => Promise<void>
+  /** Rename in place — `name` is a bare name, never a path. */
+  rename: (relative: string, name: string) => Promise<void>
+  /** Copy to a free "… copy" sibling; answers the new path, repo-relative. */
+  duplicate: (relative: string) => Promise<string | null>
+  /** The OS trash, not `rm`. */
+  trash: (relative: string) => Promise<void>
+  isPending: boolean
+}
+
+/**
+ * The working-tree writes behind a row's long-press menu.
+ *
+ * Invalidate-only, like every other write on this seam: the daemon is the truth about what is
+ * on disk, and a tree that paints a file the daemon refused to create is worse than a tree that
+ * redraws a beat later. Every one of these rejects with the daemon's own message — a name
+ * collision, a read-only directory — and the caller is expected to show it.
+ */
+export function useFileWrites(): FileWrites {
+  const repo = useActiveRepo()
+  const create = useDaemonMutation(createFileMutation, { invalidates: WRITE_INVALIDATIONS })
+  const folder = useDaemonMutation(createFolderMutation, { invalidates: WRITE_INVALIDATIONS })
+  const rename = useDaemonMutation(renamePathMutation, { invalidates: WRITE_INVALIDATIONS })
+  const duplicate = useDaemonMutation(duplicatePathMutation, { invalidates: WRITE_INVALIDATIONS })
+  const trash = useDaemonMutation(trashPathMutation, { invalidates: WRITE_INVALIDATIONS })
+
+  const absolute = (relative: string): string | null =>
+    repo === null ? null : absolutePath(repo.path, relative)
+
+  return {
+    createFile: async (dir, name): Promise<void> => {
+      const parent = absolute(dir)
+      if (parent === null) return
+      await create.mutateAsync({ path: `${parent}/${name}` })
+    },
+    createFolder: async (dir, name): Promise<void> => {
+      const parent = absolute(dir)
+      if (parent === null) return
+      await folder.mutateAsync({ path: `${parent}/${name}` })
+    },
+    duplicate: async (relative): Promise<string | null> => {
+      const path = absolute(relative)
+      if (path === null || repo === null) return null
+      return relativePath(repo.path, await duplicate.mutateAsync({ path }))
+    },
+    isPending:
+      create.isPending ||
+      folder.isPending ||
+      rename.isPending ||
+      duplicate.isPending ||
+      trash.isPending,
+    rename: async (relative, name): Promise<void> => {
+      const from = absolute(relative)
+      const parent = absolute(parentPath(relative))
+      if (from === null || parent === null) return
+      await rename.mutateAsync({ from, to: `${parent}/${name}` })
+    },
+    trash: async (relative): Promise<void> => {
+      const path = absolute(relative)
+      if (path === null) return
+      await trash.mutateAsync(path)
+    },
   }
 }
 

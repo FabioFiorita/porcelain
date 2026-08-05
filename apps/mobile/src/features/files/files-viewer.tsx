@@ -14,6 +14,7 @@ import { useFilesStore } from './files-store'
  */
 export function FilesViewer({ active }: { active: boolean }): React.JSX.Element {
   const selection = useFilesStore((state) => state.selection)
+  const selectionLine = useFilesStore((state) => state.selectionLine)
 
   if (selection === null) {
     return (
@@ -26,5 +27,5 @@ export function FilesViewer({ active }: { active: boolean }): React.JSX.Element 
       </View>
     )
   }
-  return <FileViewer active={active} filePath={selection} />
+  return <FileViewer active={active} filePath={selection} line={selectionLine ?? undefined} />
 }

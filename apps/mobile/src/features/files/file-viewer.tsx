@@ -1,5 +1,5 @@
 import { fileName } from '@porcelain/client-runtime/paths'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { FlatList, Image, Text, View } from 'react-native'
 import { EmptyNote, ErrorNote, IconAction } from '@/components/panel-chrome'
 import { SegmentedControl } from '@/components/segmented-control'
@@ -25,6 +25,7 @@ import { SourceLine } from './source-lines'
 import { describeBytes, type SourceRow, sourceAnchorText, toSourceRows } from './source-rows'
 import { useSourceTokens } from './use-file-highlight'
 import { useFileContents, useHtmlPreview, usePathScope, usePinnedEntries } from './use-files'
+import { type ViewerOverride, viewerMode } from './viewer-mode'
 
 /**
  * One file, whole — the Files tab's viewer.
@@ -34,15 +35,17 @@ import { useFileContents, useHtmlPreview, usePathScope, usePinnedEntries } from 
  * on the other end of it. That last part is the point of reading a file on a phone at all —
  * a comment filed here reaches the agent through the same channel as one filed on a diff.
  *
- * A markdown or HTML file also has a rendered face, chosen by the same Settings preference the
- * desktop uses; the toggle above the content is that preference, not a per-file mode. Source
- * stays the surface that carries line numbers, comment markers and selection — a comment
- * anchors to a line, and a rendered page has none.
+ * A markdown or HTML file also has a rendered face. Which one it opens in is the Settings
+ * preference; the toggle above the content overrides that choice **for this file only** and
+ * never writes back to the default — see `viewer-mode.ts`. Source stays the surface that
+ * carries line numbers, comment markers and selection — a comment anchors to a line, and a
+ * rendered page has none.
  */
 export function FileViewer({
   active,
   bottomInset = 0,
   filePath,
+  line,
   onBack,
   topInset = 0,
 }: {
@@ -51,6 +54,8 @@ export function FileViewer({
   bottomInset?: number
   /** Repo-relative. */
   filePath: string
+  /** 1-based line to scroll to and tint — a search hit, opened where it matched. */
+  line?: number
   /** Phone: pop back to the browser. Omitted on tablet, where the list is always on screen. */
   onBack?: () => void
   /** Phone: this view replaces the tab header, so it owns the status-bar inset. */
@@ -70,10 +75,17 @@ export function FileViewer({
 
   const markdown = isMarkdownPath(filePath)
   const html = isHtmlPath(filePath)
-  const markdownMode = usePreferencesStore((state) => state.markdownMode)
-  const htmlMode = usePreferencesStore((state) => state.htmlMode)
-  const setMarkdownMode = usePreferencesStore((state) => state.setMarkdownMode)
-  const setHtmlMode = usePreferencesStore((state) => state.setHtmlMode)
+  // The Settings row is the default a file opens in; the toggle below is this file's override.
+  // They were one field, which is why glancing at a README's source used to make Source the
+  // app-wide default for every markdown file afterwards.
+  const defaultMarkdownMode = usePreferencesStore((state) => state.markdownMode)
+  const defaultHtmlMode = usePreferencesStore((state) => state.htmlMode)
+  const [markdownOverride, setMarkdownOverride] = useState<ViewerOverride<MarkdownMode> | null>(
+    null,
+  )
+  const [htmlOverride, setHtmlOverride] = useState<ViewerOverride<HtmlMode> | null>(null)
+  const markdownMode = viewerMode(defaultMarkdownMode, markdownOverride, filePath)
+  const htmlMode = viewerMode(defaultHtmlMode, htmlOverride, filePath)
   const scheme = useResolvedColorScheme()
   // A rendered face only exists for a text file that has one; an image or a binary is neither.
   const isText = view?.type === 'text'
@@ -91,17 +103,20 @@ export function FileViewer({
   const ctx = useMemo(
     () => ({
       commentedLines,
-      onAnchorLine: (line: number): void => {
-        start(filePath, line)
+      // The line a search hit pointed at, tinted so the reader lands on it rather than
+      // somewhere near it. Distinct from `selected`, which is a comment anchor in progress.
+      focusedLine: line ?? null,
+      onAnchorLine: (at: number): void => {
+        start(filePath, at)
       },
-      onExtendToLine: (line: number): void => {
-        extend(filePath, line)
+      onExtendToLine: (at: number): void => {
+        extend(filePath, at)
       },
       selected,
       testIDPrefix: pathTestId('porcelain-files-source-line', filePath),
       tokens,
     }),
-    [commentedLines, extend, filePath, selected, start, tokens],
+    [commentedLines, extend, filePath, line, selected, start, tokens],
   )
 
   // A range selected in Source means nothing while a rendered page is up — the bar is hidden
@@ -167,7 +182,9 @@ export function FileViewer({
               ]}
               testID="porcelain-files-markdown-mode"
               value={markdownMode}
-              onChange={setMarkdownMode}
+              onChange={(mode) => {
+                setMarkdownOverride({ mode, path: filePath })
+              }}
             />
           ) : (
             <SegmentedControl<HtmlMode>
@@ -177,7 +194,9 @@ export function FileViewer({
               ]}
               testID="porcelain-files-html-mode"
               value={htmlMode}
-              onChange={setHtmlMode}
+              onChange={(mode) => {
+                setHtmlOverride({ mode, path: filePath })
+              }}
             />
           )}
         </View>
@@ -201,6 +220,7 @@ export function FileViewer({
           error={error}
           filePath={filePath}
           isLoading={isLoading}
+          line={line}
           rows={rows}
           view={view}
         />
@@ -348,6 +368,7 @@ function ViewerBody({
   error,
   filePath,
   isLoading,
+  line,
   rows,
   view,
 }: {
@@ -356,9 +377,29 @@ function ViewerBody({
   error: Error | null
   filePath: string
   isLoading: boolean
+  /** 1-based line the caller wants on screen, or undefined to open at the top. */
+  line: number | undefined
   rows: SourceRow[]
   view: FileView | undefined
 }): React.JSX.Element {
+  const listRef = useRef<FlatList<SourceRow>>(null)
+  // Hooks run before the early returns below, so the ref stays honest about which line has
+  // already been jumped to when the file's contents arrive a beat after the route does.
+  const jumped = useRef<string | null>(null)
+  const target =
+    line === undefined || rows.length === 0
+      ? null
+      : Math.min(Math.max(Math.trunc(line) - 1, 0), rows.length - 1)
+
+  useEffect(() => {
+    const key = `${filePath}:${String(target)}`
+    if (target === null || jumped.current === key) return
+    jumped.current = key
+    // The list is measured, not laid out from a known row height, so the first frame after
+    // mount has no offset for a row deep in the file; `onScrollToIndexFailed` finishes the job.
+    listRef.current?.scrollToIndex({ animated: false, index: target, viewPosition: 0.3 })
+  }, [filePath, target])
+
   if (error !== null) {
     return (
       <View className="p-4">
@@ -433,6 +474,7 @@ function ViewerBody({
   }
   return (
     <FlatList
+      ref={listRef}
       contentContainerStyle={{ paddingBottom: bottomInset }}
       data={rows}
       // Lines wrap to variable heights, so no getItemLayout: the window is measured. These
@@ -443,6 +485,22 @@ function ViewerBody({
       renderItem={({ item }) => <SourceLine ctx={ctx} row={item} />}
       testID={pathTestId('porcelain-files-source', filePath)}
       windowSize={9}
+      // A hit past the first window has no measured offset yet. Land on the estimate, which
+      // renders the rows in between, then ask once more for the exact row. One retry only:
+      // a loop here would fight the user's own scrolling.
+      onScrollToIndexFailed={(info) => {
+        listRef.current?.scrollToOffset({
+          animated: false,
+          offset: info.averageItemLength * info.index,
+        })
+        setTimeout(() => {
+          listRef.current?.scrollToIndex({
+            animated: false,
+            index: Math.min(info.index, rows.length - 1),
+            viewPosition: 0.3,
+          })
+        }, 120)
+      }}
     />
   )
 }

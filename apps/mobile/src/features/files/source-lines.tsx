@@ -16,6 +16,11 @@ export type SourceLineContext = {
   commentedLines: ReadonlySet<number>
   /** The range being selected in this file, or null when nothing is selected. */
   selected: LineRange | null
+  /**
+   * The line the viewer was opened at — a search hit. Tinted so the reader can see which line
+   * the jump was for; distinct from `selected`, which is a comment anchor being drawn.
+   */
+  focusedLine: number | null
   /** Long-press anchors a selection on this line. */
   onAnchorLine: (line: number) => void
   /** Tap extends the open selection to this line. */
@@ -39,16 +44,19 @@ function SourceLineImpl({
 }): React.JSX.Element {
   const commented = ctx.commentedLines.has(row.line)
   const selected = isLineInRange(ctx.selected, row.line)
+  const focused = ctx.focusedLine === row.line
   const tokens = ctx.tokens?.[row.line - 1]
 
   return (
     <Pressable
-      accessibilityLabel={`Line ${row.line}${commented ? ', commented' : ''}`}
+      accessibilityLabel={`Line ${row.line}${commented ? ', commented' : ''}${
+        focused ? ', search match' : ''
+      }`}
       accessibilityRole="button"
       accessibilityState={{ selected }}
       className={cn(
         'flex-row gap-1.5 px-2 py-px',
-        selected ? 'bg-primary/15' : commented ? 'bg-info/10' : '',
+        selected ? 'bg-primary/15' : focused ? 'bg-warning/20' : commented ? 'bg-info/10' : '',
       )}
       testID={`${ctx.testIDPrefix}-${row.line}`}
       onLongPress={() => {

@@ -1,14 +1,34 @@
 import { useState } from 'react'
 import { FlatList, Pressable, Text, View } from 'react-native'
 
-import { EmptyNote, ErrorNote, IconAction } from '@/components/panel-chrome'
+import {
+  ActionSheet,
+  ConfirmDialog,
+  EmptyNote,
+  ErrorNote,
+  IconAction,
+  type SheetAction,
+} from '@/components/panel-chrome'
 import { type CommentAnchor, CommentComposer } from '@/features/comments/comment-composer'
 import { useActiveRepo } from '@/lib/daemon/repo'
 import { cn } from '@/lib/utils'
 import { type EntryActions, FileEntryRow } from './file-entry-row'
-import { breadcrumbs, type Crumb, pathTestId, REPO_ROOT } from './file-paths'
+import { breadcrumbs, type Crumb, parentPath, pathTestId, REPO_ROOT } from './file-paths'
 import { useFilesStore } from './files-store'
-import { type FileEntry, useDirEntries, usePathScope } from './use-files'
+import { NamePrompt } from './name-prompt'
+import { type FileEntry, useDirEntries, useFileWrites, usePathScope } from './use-files'
+
+/**
+ * The write the tree is in the middle of asking about.
+ *
+ * One at a time, held by the browser rather than by the row: a prompt per row would put a
+ * hundred modals in a directory listing, and only one of them can ever be on screen.
+ */
+type PendingWrite =
+  | { kind: 'create-file'; dir: string }
+  | { kind: 'create-folder'; dir: string }
+  | { kind: 'rename'; path: string; name: string }
+  | { kind: 'trash'; path: string; name: string }
 
 /**
  * One directory, as a list.
@@ -56,8 +76,11 @@ export function FilesBrowser({
   const toggleHidden = useFilesStore((state) => state.toggleHidden)
   const { entries, error, isLoading } = useDirEntries(dirPath, active)
   const { hide, pin, unhide, unpin } = usePathScope()
+  const writes = useFileWrites()
   const [anchor, setAnchor] = useState<CommentAnchor | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [pending, setPending] = useState<PendingWrite | null>(null)
+  const [newMenuOpen, setNewMenuOpen] = useState(false)
 
   // Every scope write is a daemon round trip that can fail; report it here instead of letting
   // a long-press action look like it worked.
@@ -68,13 +91,34 @@ export function FilesBrowser({
     })
   }
 
+  /** A new entry lands inside a folder row, and beside a file row. */
+  const containerFor = (entry: FileEntry): string =>
+    entry.kind === 'dir' ? entry.path : parentPath(entry.path)
+
   const actions: EntryActions = {
     onComment: (path) => {
       setAnchor({ path })
     },
+    onCreateFile: (entry) => {
+      setActionError(null)
+      setPending({ dir: containerFor(entry), kind: 'create-file' })
+    },
+    onCreateFolder: (entry) => {
+      setActionError(null)
+      setPending({ dir: containerFor(entry), kind: 'create-folder' })
+    },
+    onDuplicate: (entry) => {
+      guard('Duplicate failed', async () => {
+        await writes.duplicate(entry.path)
+      })
+    },
     onOpen: (entry: FileEntry) => {
       if (entry.kind === 'dir') onOpenDir(entry.path)
       else onOpenFile(entry.path)
+    },
+    onRename: (entry) => {
+      setActionError(null)
+      setPending({ kind: 'rename', name: entry.name, path: entry.path })
     },
     onSetHidden: (path, hidden) => {
       guard(hidden ? 'Hide failed' : 'Unhide failed', () => (hidden ? hide(path) : unhide(path)))
@@ -82,22 +126,56 @@ export function FilesBrowser({
     onSetPinned: (path, pinned) => {
       guard(pinned ? 'Pin failed' : 'Unpin failed', () => (pinned ? pin(path) : unpin(path)))
     },
+    onTrash: (entry) => {
+      setActionError(null)
+      setPending({ kind: 'trash', name: entry.name, path: entry.path })
+    },
+  }
+
+  // The header's own "New", for the case a long press cannot reach: an empty folder has no row
+  // to press, and the repo root has no parent row either.
+  const newActions: SheetAction[] = [
+    {
+      glyph: 'plus',
+      id: 'new-file',
+      label: 'New file',
+      onPress: () => {
+        setActionError(null)
+        setPending({ dir: dirPath, kind: 'create-file' })
+      },
+    },
+    {
+      glyph: 'folder',
+      id: 'new-folder',
+      label: 'New folder',
+      onPress: () => {
+        setActionError(null)
+        setPending({ dir: dirPath, kind: 'create-folder' })
+      },
+    },
+  ]
+
+  const closePending = (): void => {
+    setPending(null)
   }
 
   const dirCount = entries.filter((entry) => entry.kind === 'dir').length
   const fileCount = entries.length - dirCount
-  const pending = isLoading && entries.length === 0
+  const reading = isLoading && entries.length === 0
 
   return (
     <View className="flex-1" testID="porcelain-files-browser">
       <BrowserHeader
         crumbs={breadcrumbs(repo?.name ?? 'Repo', dirPath)}
         onBack={onBack}
+        onNew={() => {
+          setNewMenuOpen(true)
+        }}
         onOpenCrumb={onOpenCrumb}
         onToggleHidden={toggleHidden}
         showHidden={showHidden}
         summary={
-          pending
+          reading
             ? 'Reading directory…'
             : `${dirCount} ${dirCount === 1 ? 'folder' : 'folders'} · ${fileCount} ${
                 fileCount === 1 ? 'file' : 'files'
@@ -117,7 +195,7 @@ export function FilesBrowser({
         </View>
       )}
 
-      {pending ? (
+      {reading ? (
         <Text className="px-3 py-6 text-sm text-muted-foreground" testID="porcelain-files-loading">
           Reading directory…
         </Text>
@@ -151,6 +229,94 @@ export function FilesBrowser({
           setAnchor(null)
         }}
       />
+
+      <ActionSheet
+        actions={newActions}
+        open={newMenuOpen}
+        subtitle={dirPath === REPO_ROOT ? repo?.name : dirPath}
+        testID="porcelain-files-new-menu"
+        title="New"
+        onClose={() => {
+          setNewMenuOpen(false)
+        }}
+      />
+
+      {/* Remounted per pending write (the key), so the field opens on this row's name rather
+          than on the last one's. */}
+      <NamePrompt
+        key={`create-file:${pending?.kind === 'create-file' ? pending.dir : ''}`}
+        busy={writes.isPending}
+        confirmLabel="Create"
+        description={
+          pending?.kind === 'create-file'
+            ? `In ${pending.dir === REPO_ROOT ? (repo?.name ?? 'the repo root') : pending.dir}.`
+            : ''
+        }
+        open={pending?.kind === 'create-file'}
+        testID="porcelain-files-new-file-prompt"
+        title="New file"
+        onClose={closePending}
+        onSubmit={async (name) => {
+          if (pending?.kind !== 'create-file') return
+          await writes.createFile(pending.dir, name)
+        }}
+      />
+
+      <NamePrompt
+        key={`create-folder:${pending?.kind === 'create-folder' ? pending.dir : ''}`}
+        busy={writes.isPending}
+        confirmLabel="Create"
+        description={
+          pending?.kind === 'create-folder'
+            ? `In ${pending.dir === REPO_ROOT ? (repo?.name ?? 'the repo root') : pending.dir}.`
+            : ''
+        }
+        open={pending?.kind === 'create-folder'}
+        testID="porcelain-files-new-folder-prompt"
+        title="New folder"
+        onClose={closePending}
+        onSubmit={async (name) => {
+          if (pending?.kind !== 'create-folder') return
+          await writes.createFolder(pending.dir, name)
+        }}
+      />
+
+      <NamePrompt
+        key={`rename:${pending?.kind === 'rename' ? pending.path : ''}`}
+        busy={writes.isPending}
+        confirmLabel="Rename"
+        description={pending?.kind === 'rename' ? pending.path : ''}
+        initialValue={pending?.kind === 'rename' ? pending.name : ''}
+        open={pending?.kind === 'rename'}
+        testID="porcelain-files-rename-prompt"
+        title="Rename"
+        onClose={closePending}
+        onSubmit={async (name) => {
+          if (pending?.kind !== 'rename') return
+          await writes.rename(pending.path, name)
+        }}
+      />
+
+      {/* "Trash", not "Delete": the daemon moves the path to the OS trash, and a dialog that
+          says Delete promises something worse than what happens. */}
+      <ConfirmDialog
+        body={
+          pending?.kind === 'trash'
+            ? `“${pending.name}” moves to the Trash on the host. ${pending.path}`
+            : ''
+        }
+        confirmLabel="Trash"
+        open={pending?.kind === 'trash'}
+        testID="porcelain-files-trash-confirm"
+        title="Move to Trash?"
+        onCancel={closePending}
+        onConfirm={() => {
+          if (pending?.kind !== 'trash') return
+          const { name, path } = pending
+          closePending()
+          guard(`Could not trash “${name}”`, () => writes.trash(path))
+        }}
+      />
     </View>
   )
 }
@@ -158,6 +324,7 @@ export function FilesBrowser({
 function BrowserHeader({
   crumbs,
   onBack,
+  onNew,
   onOpenCrumb,
   onToggleHidden,
   showHidden,
@@ -166,6 +333,8 @@ function BrowserHeader({
 }: {
   crumbs: Crumb[]
   onBack?: () => void
+  /** Create in the directory on screen — the affordance an empty folder has no row for. */
+  onNew: () => void
   onOpenCrumb?: (path: string) => void
   onToggleHidden: () => void
   showHidden: boolean
@@ -193,6 +362,13 @@ function BrowserHeader({
             {summary}
           </Text>
         </View>
+        <IconAction
+          accessibilityLabel="New file or folder here"
+          glyph="plus"
+          testID="porcelain-files-new"
+          tone="foreground"
+          onPress={onNew}
+        />
         <IconAction
           accessibilityLabel={showHidden ? 'Hide out-of-scope entries' : 'Show hidden entries'}
           glyph={showHidden ? 'eye' : 'eyeOff'}

@@ -58,23 +58,35 @@ export function GeneralSettings(): React.JSX.Element {
         />
       </PreferenceRow>
 
-      <PreferenceRow description="How file diffs are rendered." label="Diff layout">
+      <PreferenceRow
+        description="How file diffs are rendered."
+        label="Diff layout"
+        testID="porcelain-settings-diff-mode"
+      >
         <SegmentedControl<DiffMode>
           options={[
-            { value: 'unified', label: 'Unified' },
-            { value: 'split', label: 'Split' },
+            { value: 'unified', label: 'Unified', testID: 'porcelain-settings-diff-unified' },
+            { value: 'split', label: 'Split', testID: 'porcelain-settings-diff-split' },
           ]}
+          testID="porcelain-settings-diff-mode-control"
           value={diffMode}
           onChange={setDiffMode}
         />
       </PreferenceRow>
 
-      <PreferenceRow description="Default view when opening markdown files." label="Markdown">
+      {/* The *default* a markdown file opens in. The viewer's own toggle overrides it for the
+          file on screen and deliberately never writes back here. */}
+      <PreferenceRow
+        description="Default view when opening markdown files."
+        label="Markdown"
+        testID="porcelain-settings-markdown-mode"
+      >
         <SegmentedControl<MarkdownMode>
           options={[
-            { value: 'reader', label: 'Reader' },
-            { value: 'source', label: 'Source' },
+            { value: 'reader', label: 'Reader', testID: 'porcelain-settings-markdown-reader' },
+            { value: 'source', label: 'Source', testID: 'porcelain-settings-markdown-source' },
           ]}
+          testID="porcelain-settings-markdown-mode-control"
           value={markdownMode}
           onChange={setMarkdownMode}
         />
@@ -83,23 +95,30 @@ export function GeneralSettings(): React.JSX.Element {
       <PreferenceRow
         description="Default view when opening .html files (sandboxed preview)."
         label="HTML"
+        testID="porcelain-settings-html-mode"
       >
         <SegmentedControl<HtmlMode>
           options={[
-            { value: 'preview', label: 'Preview' },
-            { value: 'source', label: 'Source' },
+            { value: 'preview', label: 'Preview', testID: 'porcelain-settings-html-preview' },
+            { value: 'source', label: 'Source', testID: 'porcelain-settings-html-source' },
           ]}
+          testID="porcelain-settings-html-mode-control"
           value={htmlMode}
           onChange={setHtmlMode}
         />
       </PreferenceRow>
 
-      <PreferenceRow description="How the git pull quick command reconciles." label="Pull strategy">
+      <PreferenceRow
+        description="How the git pull quick command reconciles."
+        label="Pull strategy"
+        testID="porcelain-settings-pull-mode"
+      >
         <SegmentedControl<PullMode>
           options={[
-            { value: 'merge', label: 'Merge' },
-            { value: 'rebase', label: 'Rebase' },
+            { value: 'merge', label: 'Merge', testID: 'porcelain-settings-pull-merge' },
+            { value: 'rebase', label: 'Rebase', testID: 'porcelain-settings-pull-rebase' },
           ]}
+          testID="porcelain-settings-pull-mode-control"
           value={pullMode}
           onChange={setPullMode}
         />

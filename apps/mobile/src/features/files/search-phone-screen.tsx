@@ -28,8 +28,16 @@ export function SearchPhoneScreen(): React.JSX.Element {
         onOpenDir={(path) => {
           router.push({ params: { path: pathSegments(path) }, pathname: '/folder/[...path]' })
         }}
-        onOpenFile={(path) => {
-          router.push({ params: { path: pathSegments(path) }, pathname: '/file/[...path]' })
+        // A content hit carries the line it matched on, so the viewer opens where the reader
+        // was looking rather than at the top of a two-thousand-line file.
+        onOpenFile={(path, line) => {
+          router.push({
+            params: {
+              line: line === undefined ? undefined : String(line),
+              path: pathSegments(path),
+            },
+            pathname: '/file/[...path]',
+          })
         }}
       />
     </View>
