@@ -154,6 +154,15 @@ export const TestIds = {
   cardComposerSave: 'card-composer-save',
   cardComposer: 'card-composer',
 
+  // --- Review Intent documents ---
+  intentDocTabs: 'intent-doc-tabs',
+  intentDocTab: (label: string): string =>
+    `intent-doc-tab-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+  intentDocBody: 'intent-doc-body',
+  reviewPublish: 'review-publish',
+  reviewPublishConfirm: 'review-publish-confirm',
+  reviewPublishCost: 'review-publish-cost',
+
   // --- Saved action trust ---
   actionTrustDialog: 'action-trust-dialog',
   actionTrustCommand: 'action-trust-command',

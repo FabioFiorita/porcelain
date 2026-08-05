@@ -29,6 +29,18 @@ export const PROJECT_EVIDENCE_DIR = 'evidence'
 export const PROJECT_REVIEWS_DIR = 'reviews'
 
 /**
+ * Intent as a document set rather than one field: `.porcelain/intent/` holds the
+ * agent's case for the change in whatever medium carries it — markdown, a
+ * self-contained HTML page with its own CSS and images, an Excalidraw scene.
+ * More than one file becomes more than one tab. Archived with the review.
+ */
+export const PROJECT_INTENT_DIR = 'intent'
+/** Ordered tab manifest inside `intent/` — readdir order is filesystem-dependent. */
+export const INTENT_MANIFEST = 'meta.json'
+/** Conventional home for images an intent or evidence document references. */
+export const ASSETS_DIR = 'assets'
+
+/**
  * Whether a channel is shared with the team through git or kept on this machine.
  * "Local" is not a second storage location — the file lives in `.porcelain/`
  * either way; local just means git ignores it. One place on disk, two git
@@ -204,6 +216,10 @@ export function projectEvidenceDir(repoPath: string): string {
 
 export function projectReviewsDir(repoPath: string): string {
   return projectPorcelainPath(repoPath, PROJECT_REVIEWS_DIR)
+}
+
+export function projectIntentDir(repoPath: string): string {
+  return projectPorcelainPath(repoPath, PROJECT_INTENT_DIR)
 }
 
 export function projectArchivedReviewDir(repoPath: string, reviewId: string): string {

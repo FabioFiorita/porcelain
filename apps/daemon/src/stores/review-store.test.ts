@@ -1,9 +1,15 @@
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { PROJECT_FILES, projectPorcelainPath } from '@shared/project-porcelain'
+import {
+  PROJECT_FILES,
+  projectArchivedReviewDir,
+  projectIntentDir,
+  projectPorcelainPath,
+} from '@shared/project-porcelain'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
+  activeReviewCost,
   archiveActiveReview,
   clearReviewSet,
   isRepoContained,
@@ -103,5 +109,46 @@ describe('empty name is null', () => {
   it('treats empty review file as no set', async () => {
     writeReview({ name: '', files: [], sections: [] })
     expect(await readReviewSet(repo)).toBeNull()
+  })
+})
+
+describe('intent travels with the review', () => {
+  it('archives the intent directory and clears the active one', async () => {
+    writeReview({ name: 'A', files: [], sections: [] })
+    mkdirSync(projectIntentDir(repo), { recursive: true })
+    writeFileSync(join(projectIntentDir(repo), 'index.md'), '# Why')
+
+    const id = await archiveActiveReview(repo)
+    expect(id).not.toBeNull()
+    expect(
+      readFileSync(join(projectArchivedReviewDir(repo, id ?? ''), 'intent', 'index.md'), 'utf8'),
+    ).toBe('# Why')
+    expect(existsSync(projectIntentDir(repo))).toBe(false)
+  })
+
+  it('archives intent even when there is no review file yet', async () => {
+    mkdirSync(projectIntentDir(repo), { recursive: true })
+    writeFileSync(join(projectIntentDir(repo), 'index.md'), 'draft')
+    expect(await archiveActiveReview(repo)).not.toBeNull()
+  })
+})
+
+describe('publish cost', () => {
+  it('counts what would enter history, not just the review file', async () => {
+    writeReview({ name: 'A', files: [], sections: [] })
+    mkdirSync(join(projectPorcelainPath(repo, 'evidence'), 'assets'), { recursive: true })
+    writeFileSync(join(projectPorcelainPath(repo, 'evidence'), 'index.html'), '<p>ok</p>')
+    writeFileSync(
+      join(projectPorcelainPath(repo, 'evidence'), 'assets', 'shot.png'),
+      'x'.repeat(4096),
+    )
+
+    const cost = await activeReviewCost(repo)
+    expect(cost.files).toBe(3)
+    expect(cost.bytes).toBeGreaterThan(4096)
+  })
+
+  it('is zero for an empty companion', async () => {
+    expect(await activeReviewCost(repo)).toEqual({ bytes: 0, files: 0 })
   })
 })

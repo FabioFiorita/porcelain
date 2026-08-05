@@ -26,6 +26,7 @@ import {
 } from '../review/feature-view'
 import { DEFAULT_LAYERS, type FlowGroup } from '../review/flow'
 import { loadCommitFlow, loadRangeFlow, loadWorkingFlow } from '../review/flow-build'
+import { type IntentDoc, readActiveIntentDocs } from '../review/intent-docs'
 import {
   addComment,
   clearResolvedComments,
@@ -45,9 +46,13 @@ import {
 import { readLayers } from '../stores/layers-store'
 import {
   type ArchivedReviewMeta,
+  activeReviewCost,
   clearReviewSet,
   deleteArchivedReview,
   listArchivedReviews,
+  type PublishCost,
+  type PublishResult,
+  publishActiveReview,
   restoreArchivedReview,
 } from '../stores/review-store'
 import {
@@ -228,6 +233,30 @@ export const reviewRouter = t.router({
   clearFeatureReview: publicProcedure.input(z.string()).mutation(async ({ input }) => {
     await clearReviewSet(input)
   }),
+
+  /**
+   * Intent as a document set: `.porcelain/intent/` rendered as ordered tabs.
+   * HTML arrives self-contained (siblings inlined by the daemon) so the renderer
+   * keeps it on the `sandbox="" srcdoc` path — never a `src` URL, which would
+   * drop the parent CSP that backstops agent-authored HTML.
+   */
+  reviewIntent: publicProcedure
+    .input(z.string())
+    .query(({ input }): Promise<IntentDoc[]> => readActiveIntentDocs(input)),
+
+  /** Byte cost of publishing the active review, so the warning can be specific. */
+  reviewPublishCost: publicProcedure
+    .input(z.string())
+    .query(({ input }): Promise<PublishCost> => activeReviewCost(input)),
+
+  /**
+   * Archive the active review and stage it for the team. Reviews are Local by
+   * default, so this force-adds; it stages and stops, leaving the commit to the
+   * human.
+   */
+  publishReview: publicProcedure
+    .input(z.string())
+    .mutation(({ input }): Promise<PublishResult | null> => publishActiveReview(input)),
 
   /** Previous (archived) reviews for the project, newest first. */
   archivedReviews: publicProcedure

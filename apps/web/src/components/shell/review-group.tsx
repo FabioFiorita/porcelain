@@ -1,4 +1,5 @@
 import type { FeatureReading } from '@backend/review/feature-view'
+import { PublishReviewButton } from '@renderer/components/shell/publish-review-button'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -233,6 +234,7 @@ export function ReviewGroup(): React.JSX.Element | null {
               </p>
             )}
           </div>
+          <PublishReviewButton className={rowActionClass} />
           <Button
             type="button"
             variant="outline"

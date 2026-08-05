@@ -17,6 +17,13 @@ vi.mock('@renderer/hooks/use-reviewed', () => ({
   useReviewedPaths: () => new Set<string>(),
 }))
 const clearSpy = vi.hoisted(() => vi.fn(async () => {}))
+vi.mock('@renderer/hooks/use-review-intent', () => ({
+  useReviewPublishCost: (): { bytes: number; files: number } => ({ bytes: 0, files: 0 }),
+  usePublishReview: (): { publish: () => Promise<null>; isPublishing: boolean } => ({
+    publish: async () => null,
+    isPublishing: false,
+  }),
+}))
 vi.mock('@renderer/hooks/use-feature-view', () => ({
   useClearFeatureReview: () => ({ clear: clearSpy, isClearing: false }),
   useArchivedReviews: () => [],

@@ -1,14 +1,18 @@
 import { randomBytes } from 'node:crypto'
-import { access, cp, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import type { Dirent } from 'node:fs'
+import { access, cp, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { isAbsolute, join, relative, resolve } from 'node:path'
 import {
   PROJECT_EVIDENCE_DIR,
   PROJECT_FILES,
+  PROJECT_INTENT_DIR,
   projectArchivedReviewDir,
+  projectIntentDir,
   projectPorcelainPath,
   projectReviewsDir,
 } from '@shared/project-porcelain'
 import { z } from 'zod'
+import { gitForceStage } from '../git/git'
 import { createProjectChannel } from '../net/project-channel'
 import { ensureProjectCompanion } from '../project/migrate-home'
 import {
@@ -127,11 +131,13 @@ export async function archiveActiveReview(repoPath: string): Promise<string | nu
   const evidenceDir = projectPorcelainPath(repoPath, PROJECT_EVIDENCE_DIR)
   const commentsPath = projectPorcelainPath(repoPath, PROJECT_FILES.comments)
   const reviewedPath = projectPorcelainPath(repoPath, PROJECT_FILES.reviewed)
+  const intentDir = projectIntentDir(repoPath)
   const hasEvidence = await pathExists(join(evidenceDir, 'index.html'))
   const hasComments = await pathExists(commentsPath)
   const hasReviewed = await pathExists(reviewedPath)
+  const hasIntent = await pathExists(intentDir)
 
-  if (!hasReview && !hasEvidence && !hasComments && !hasReviewed) return null
+  if (!hasReview && !hasEvidence && !hasComments && !hasReviewed && !hasIntent) return null
 
   const id = newArchiveId()
   const dest = projectArchivedReviewDir(repoPath, id)
@@ -157,6 +163,9 @@ export async function archiveActiveReview(repoPath: string): Promise<string | nu
   if (hasEvidence) {
     await cp(evidenceDir, join(dest, PROJECT_EVIDENCE_DIR), { recursive: true }).catch(() => {})
   }
+  if (hasIntent) {
+    await cp(intentDir, join(dest, PROJECT_INTENT_DIR), { recursive: true }).catch(() => {})
+  }
 
   await dropActiveReviewFiles(repoPath)
   return id
@@ -170,6 +179,7 @@ async function dropActiveReviewFiles(repoPath: string): Promise<void> {
     recursive: true,
     force: true,
   }).catch(() => {})
+  await rm(projectIntentDir(repoPath), { recursive: true, force: true }).catch(() => {})
 }
 
 /**
@@ -178,6 +188,90 @@ async function dropActiveReviewFiles(repoPath: string): Promise<void> {
  */
 export async function clearReviewSet(repoPath: string): Promise<void> {
   await archiveActiveReview(repoPath)
+}
+
+/** Recursive byte + file count for a directory. Missing dir reads as zero. */
+async function dirCost(dir: string): Promise<{ bytes: number; files: number }> {
+  let bytes = 0
+  let files = 0
+  const walk = async (current: string): Promise<void> => {
+    let entries: Dirent[]
+    try {
+      entries = await readdir(current, { withFileTypes: true })
+    } catch {
+      return
+    }
+    for (const entry of entries) {
+      const path = join(current, entry.name)
+      if (entry.isDirectory()) {
+        await walk(path)
+        continue
+      }
+      try {
+        bytes += (await stat(path)).size
+        files += 1
+      } catch {
+        // vanished mid-walk — the estimate is advisory
+      }
+    }
+  }
+  await walk(dir)
+  return { bytes, files }
+}
+
+export interface PublishCost {
+  bytes: number
+  files: number
+}
+
+/**
+ * What publishing the active review would add to git history, measured before
+ * the human commits to it. Evidence packs are the reason this exists: a review
+ * is worth sharing, and a 30 MB capture inside it is worth knowing about first,
+ * because history does not forget.
+ */
+export async function activeReviewCost(repoPath: string): Promise<PublishCost> {
+  await ensureProjectCompanion(repoPath)
+  const parts = await Promise.all([
+    dirCost(projectPorcelainPath(repoPath, PROJECT_EVIDENCE_DIR)),
+    dirCost(projectIntentDir(repoPath)),
+  ])
+  let bytes = parts.reduce((sum, part) => sum + part.bytes, 0)
+  let files = parts.reduce((sum, part) => sum + part.files, 0)
+  for (const file of [
+    reviewPath(repoPath),
+    projectPorcelainPath(repoPath, PROJECT_FILES.comments),
+    projectPorcelainPath(repoPath, PROJECT_FILES.reviewed),
+  ]) {
+    try {
+      bytes += (await stat(file)).size
+      files += 1
+    } catch {
+      // absent slot — nothing to publish from it
+    }
+  }
+  return { bytes, files }
+}
+
+export interface PublishResult {
+  id: string
+  cost: PublishCost
+}
+
+/**
+ * Archive the active review and stage it for the team. Reviews are Local by
+ * default, so this force-adds past `.gitignore` — the one place in the app that
+ * does, and only because the human just asked for exactly this path.
+ *
+ * It stages rather than commits: what goes in a commit stays the human's call,
+ * the same rule `gitCommit` follows by never auto-staging.
+ */
+export async function publishActiveReview(repoPath: string): Promise<PublishResult | null> {
+  const cost = await activeReviewCost(repoPath)
+  const id = await archiveActiveReview(repoPath)
+  if (id === null) return null
+  await gitForceStage(repoPath, relative(repoPath, projectArchivedReviewDir(repoPath, id)))
+  return { id, cost }
 }
 
 /** List archived reviews, newest first. */

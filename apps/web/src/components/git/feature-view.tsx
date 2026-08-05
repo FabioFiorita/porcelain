@@ -2,11 +2,13 @@ import type { FeatureReading, ReadingFile } from '@backend/review/feature-view'
 import type { FileSource } from '@backend/review/review-set'
 import { CanvasBody } from '@renderer/components/git/canvas-body'
 import { EvidencePanel } from '@renderer/components/git/evidence-panel'
+import { IntentDocBody } from '@renderer/components/git/intent-doc-body'
 import { Button } from '@renderer/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@renderer/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useDiffFilePrefetch } from '@renderer/hooks/use-diff'
 import { useFeatureReading } from '@renderer/hooks/use-feature-reading'
+import { useReviewIntent } from '@renderer/hooks/use-review-intent'
 import { useReviewedPaths } from '@renderer/hooks/use-reviewed'
 import { compactButtonClass } from '@renderer/lib/controls'
 import {
@@ -394,71 +396,90 @@ export function FeatureView(): React.JSX.Element {
 }
 
 /**
- * Intent: freeform board and/or narrative document (thesis + section prose —
- * no code anchors; Execution owns files). Board | Document when both exist.
+ * Intent: whatever the agent reached for to make the case — documents it wrote
+ * under `.porcelain/intent/` (markdown, a self-contained HTML page, an
+ * Excalidraw scene), plus the review set's own freeform board and narrative.
+ *
+ * Each becomes a pane. One pane renders bare; more than one gets a strip, so a
+ * single `index.md` never pays for chrome it doesn't need.
  */
 function IntentBody({ reading }: { reading: FeatureReading }): React.JSX.Element {
-  const hasCanvas = reading.canvas !== undefined
+  const docs = useReviewIntent()
+  // Captured so the pane closure keeps the narrowing (a property read would not).
+  const canvas = reading.canvas
   const hasDoc =
     reading.sections.length > 0 || (reading.thesis !== undefined && reading.thesis.trim() !== '')
-  const [mode, setMode] = useState<'board' | 'document'>(hasCanvas ? 'board' : 'document')
 
-  if (hasCanvas && hasDoc) {
-    return (
-      <div className="flex h-full min-h-0 flex-col">
-        <div className="flex shrink-0 items-center gap-1 border-b border-border/60 px-3 py-1.5">
-          <Button
-            size="sm"
-            variant={mode === 'board' ? 'secondary' : 'ghost'}
-            className={compactButtonClass}
-            onClick={() => setMode('board')}
-          >
-            Board
-          </Button>
-          <Button
-            size="sm"
-            variant={mode === 'document' ? 'secondary' : 'ghost'}
-            className={compactButtonClass}
-            onClick={() => setMode('document')}
-          >
-            Document
-          </Button>
-        </div>
-        <div className="min-h-0 flex-1">
-          {mode === 'board' && reading.canvas ? (
-            <CanvasBody canvas={reading.canvas} />
-          ) : (
-            <ReadingSurfaceBody
-              reading={reading}
-              trackFocus
-              includeEvidence={false}
-              includeAnchors={false}
-            />
-          )}
-        </div>
-      </div>
-    )
-  }
-  if (hasCanvas && reading.canvas) {
-    return <CanvasBody canvas={reading.canvas} />
-  }
-  if (!hasDoc) {
+  const panes: Array<{ key: string; label: string; render: () => React.JSX.Element }> = [
+    ...docs.map((doc) => ({
+      key: `doc:${doc.file}`,
+      label: doc.label,
+      render: (): React.JSX.Element => <IntentDocBody doc={doc} />,
+    })),
+    ...(canvas !== undefined
+      ? [
+          {
+            key: 'board',
+            label: 'Board',
+            render: (): React.JSX.Element => <CanvasBody canvas={canvas} />,
+          },
+        ]
+      : []),
+    ...(hasDoc
+      ? [
+          {
+            key: 'document',
+            label: 'Document',
+            render: (): React.JSX.Element => (
+              <ReadingSurfaceBody
+                reading={reading}
+                trackFocus
+                includeEvidence={false}
+                includeAnchors={false}
+              />
+            ),
+          },
+        ]
+      : []),
+  ]
+
+  const [active, setActive] = useState<string | null>(null)
+  const current = panes.find((pane) => pane.key === active) ?? panes[0]
+
+  if (!current) {
     return (
       <div className="flex h-full items-center justify-center p-8">
         <p className="max-w-sm text-center text-sm text-muted-foreground">
-          No Intent narrative yet — thesis, walkthrough sections, or a freeform board. Files live on
-          the Execution tab.
+          No Intent yet — a document under <span className="font-mono">.porcelain/intent/</span>, a
+          thesis, walkthrough sections, or a freeform board. Files live on the Execution tab.
         </p>
       </div>
     )
   }
+
+  if (panes.length === 1) return current.render()
+
   return (
-    <ReadingSurfaceBody
-      reading={reading}
-      trackFocus
-      includeEvidence={false}
-      includeAnchors={false}
-    />
+    <div className="flex h-full min-h-0 flex-col">
+      <div
+        className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-border/60 px-3 py-1.5"
+        data-testid={TestIds.intentDocTabs}
+      >
+        {panes.map((pane) => (
+          <Button
+            key={pane.key}
+            size="sm"
+            variant={pane.key === current.key ? 'secondary' : 'ghost'}
+            className={compactButtonClass}
+            data-testid={TestIds.intentDocTab(pane.label)}
+            onClick={() => setActive(pane.key)}
+          >
+            {pane.label}
+          </Button>
+        ))}
+      </div>
+      <div className="min-h-0 flex-1">{current.render()}</div>
+    </div>
   )
 }
 
