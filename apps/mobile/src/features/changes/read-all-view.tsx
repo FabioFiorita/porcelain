@@ -157,7 +157,6 @@ export function ReadAllView({
               tokensFor={diffTokens}
               isReviewed={item.kind === 'file' ? reviewed.has(item.file.path) : false}
               row={item}
-              onComment={setAnchor}
               onToggleCollapsed={toggleCollapsed}
               onToggleReviewed={(path, next) => {
                 if (next) {
@@ -208,7 +207,6 @@ function ReadingRowView({
   emphasis,
   hunksByPath,
   isReviewed,
-  onComment,
   onToggleCollapsed,
   onToggleReviewed,
   row,
@@ -220,7 +218,6 @@ function ReadingRowView({
   emphasis: React.ComponentProps<typeof DiffRowView>['ctx']['emphasis']
   hunksByPath: Map<string, DiffHunk[]>
   isReviewed: boolean
-  onComment: (anchor: CommentAnchor) => void
   onToggleCollapsed: (path: string) => void
   onToggleReviewed: (path: string, reviewed: boolean) => void
   row: ReadingRow
