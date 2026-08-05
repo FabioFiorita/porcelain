@@ -345,6 +345,7 @@ export function BranchSheetBody({ open }: PickerBodyProps): React.JSX.Element {
   const closeSheet = useShellStore((state) => state.closeSheet)
   const openSheet = useShellStore((state) => state.openSheet)
   const repo = useActiveRepo()
+  const invalidate = useDaemonInvalidate()
   const [query, setQuery] = useState('')
   const [actionError, setActionError] = useState<string | null>(null)
   const repoPath = repo?.path ?? ''
@@ -356,6 +357,9 @@ export function BranchSheetBody({ open }: PickerBodyProps): React.JSX.Element {
   const branchesQuery = useDaemonQuery(gitBranchesQuery, repoPath, {
     enabled: open && repo !== null,
     placeholderData: 'keepPreviousData',
+    // Branch refs can change outside the mobile client; the sheet establishes the
+    // freshness boundary when it opens instead of trusting the shared 5s cache.
+    staleTime: 0,
   })
   const worktreesQuery = useDaemonQuery(gitWorktreesQuery, repoPath, {
     enabled: open && repo !== null,
@@ -389,8 +393,10 @@ export function BranchSheetBody({ open }: PickerBodyProps): React.JSX.Element {
     if (!open) {
       setActionError(null)
       setQuery('')
+      return
     }
-  }, [open])
+    if (repoPath !== '') invalidate(['gitBranches'])
+  }, [open, invalidate, repoPath])
 
   const handleSelect = async (branch: BranchRef): Promise<void> => {
     const blockedBy = (worktreesQuery.data ?? []).find(
