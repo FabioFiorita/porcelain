@@ -18,6 +18,17 @@ Talk to Porcelain through the bundled CLI at `~/.porcelain/porcelain` — instal
 
 You **define** actions; only the human runs them (there is no run command). When you discover the project's common commands (from package.json scripts, the README, or what the human asks you to run repeatedly), offer to save them as actions.
 
+## The human accepts a command before it runs
+
+Actions live in `<repo>/.porcelain/actions.json` and are **shared with the team by default**, so a Run list can arrive with a `git clone`. A command the human has not accepted **on this machine** does not run on one click: the row shows a shield instead of a play arrow, and clicking opens the full command with *Run and remember*.
+
+What this means for you:
+
+- **An action you create starts unreviewed.** That is expected, not an error. Tell the human you added it so they know why it is asking.
+- **Editing an existing command withdraws its acceptance.** Do not rewrite a command the human already trusts just to tidy it — change it when the command is actually wrong, and say so.
+- **Retitling is free** — trust is keyed to the command text, not the label.
+- **Never** try to work around the gate (no wrapper action that runs another, no encoding the real command elsewhere). It exists so the human is never surprised by what a click does.
+
 ## Safety
 
 - Never invent an execute/run verb.

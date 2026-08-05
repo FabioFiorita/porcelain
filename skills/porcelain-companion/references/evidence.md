@@ -4,7 +4,11 @@ Evidence is **ephemeral HTML proof** that you closed the loop: browser, simulato
 
 **End of session:** do not claim a unit done without real Evidence of what you ran. Don't invent proof. Required alongside complete Execution.
 
-**HTML only.** Excalidraw is **not** an evidence medium (use Intent freeform for boards).
+**HTML only.** Excalidraw is **not** an evidence medium (use Intent for boards).
+
+**Screenshots yes, video no.** Images (`.png`, `.jpg`, `.webp`, `.gif`, `.svg`) are inlined into the sandboxed document as data URIs. Video is not supported: playing it would mean either widening the CSP that backstops agent-authored HTML, or serving the review over HTTP and losing that CSP entirely. A short sequence of stills says the same thing and survives being committed. If a recording is genuinely the only proof, link to where it lives and put the stills here.
+
+**Size is not free.** Evidence is ignored by git by default, but a **published** review carries its evidence into history permanently — the publish dialog names the byte cost. Prefer WebP over PNG for screenshots and keep a pack in the low single-digit MB.
 
 ## Preferred flow — prepare, then write files
 
@@ -14,7 +18,7 @@ Evidence is **ephemeral HTML proof** that you closed the loop: browser, simulato
 2. Write into that directory:
    - **`index.html`** — the document (**must include its own CSS** — see below)
    - Optional **CSS sibling** if you prefer a separate stylesheet (`styles.css` + `<link rel="stylesheet" href="styles.css">`)
-   - Optional screenshots as siblings with relative `src` (`<img src="shot.png">`)
+   - Screenshots with a relative `src`. Put more than one or two under **`assets/`** and reference them as `<img src="assets/shot.png">` — sub-directories are inlined the same way, and it keeps a published review's folder readable.
 3. Record structured checks:
 
 ```bash

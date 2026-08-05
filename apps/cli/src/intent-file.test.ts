@@ -1,0 +1,58 @@
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { INTENT_MANIFEST, projectIntentDir } from '@shared/project-porcelain'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { listIntent, orderIntent, prepareIntent } from './intent-file'
+
+let repo = ''
+
+beforeEach(() => {
+  repo = mkdtempSync(join(tmpdir(), 'porcelain-cli-intent-'))
+})
+
+afterEach(() => {
+  rmSync(repo, { recursive: true, force: true })
+})
+
+describe('intent prepare', () => {
+  it('creates the directory and an assets home', () => {
+    const prepared = prepareIntent(repo)
+    expect(prepared.dir).toBe(projectIntentDir(repo))
+    expect(listIntent(repo)).toContain('assets')
+  })
+
+  it('is safe to run twice', () => {
+    prepareIntent(repo)
+    writeFileSync(join(projectIntentDir(repo), 'index.md'), 'kept')
+    prepareIntent(repo)
+    expect(readFileSync(join(projectIntentDir(repo), 'index.md'), 'utf8')).toBe('kept')
+  })
+})
+
+describe('intent order', () => {
+  it('writes the manifest in the given order', () => {
+    prepareIntent(repo)
+    writeFileSync(join(projectIntentDir(repo), 'a.md'), 'a')
+    writeFileSync(join(projectIntentDir(repo), 'b.html'), 'b')
+    expect(orderIntent(repo, ['b.html', 'a.md'])).toEqual(['b.html', 'a.md'])
+    const manifest = JSON.parse(
+      readFileSync(join(projectIntentDir(repo), INTENT_MANIFEST), 'utf8'),
+    ) as { tabs: Array<{ file: string }> }
+    expect(manifest.tabs.map((t) => t.file)).toEqual(['b.html', 'a.md'])
+  })
+
+  it('refuses a document that is not there yet', () => {
+    prepareIntent(repo)
+    expect(() => orderIntent(repo, ['ghost.md'])).toThrow(/write the documents first/)
+  })
+
+  it('refuses a path instead of a file name', () => {
+    prepareIntent(repo)
+    expect(() => orderIntent(repo, ['../../etc/passwd'])).toThrow(/plain file names/)
+  })
+
+  it('refuses an empty list', () => {
+    expect(() => orderIntent(repo, [])).toThrow(/at least one/)
+  })
+})

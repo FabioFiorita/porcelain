@@ -31,6 +31,7 @@ import {
 } from './evidence-file'
 import { describeFeatureView, readFeatureView, sourceByPath } from './feature-view-file'
 import { resolveToolHtml } from './html-input'
+import { listIntent, orderIntent, prepareIntent } from './intent-file'
 import { clearLayers, describeLayers, readLayers, setLayers, toLayers } from './layers-file'
 import { describeNotes, readNotes } from './notes-file'
 import {
@@ -230,6 +231,24 @@ const COMMANDS: NounHelp[] = [
     blurb: 'the files the human has checked off as reviewed (read-only)',
     verbs: [{ verb: 'list', args: '', desc: 'List the reviewed file paths' }],
     flags: [],
+  },
+  {
+    noun: 'intent',
+    blurb: 'intent — the case for the change, as documents the human can read',
+    verbs: [
+      {
+        verb: 'prepare',
+        args: '',
+        desc: 'Make .porcelain/intent/ and print where to write documents',
+      },
+      {
+        verb: 'order',
+        args: '--files <a.md,b.html>',
+        desc: 'Pin the tab order (comma-separated, left to right)',
+      },
+      { verb: 'list', args: '', desc: 'List the intent documents on disk' },
+    ],
+    flags: ['files'],
   },
   {
     noun: 'evidence',
@@ -458,6 +477,26 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
     }
     case 'reviewed list':
       return describeReviewed(repo, readReviewed(repo))
+    case 'intent prepare': {
+      const prepared = prepareIntent(repo)
+      return `Intent directory ready at:\n${prepared.dir}\n\nWrite documents there with your normal file tools — one per idea. .md renders as prose, .html renders in a sandboxed frame (its sibling .css and images are inlined for you, so relative paths work), .excalidraw renders as a read-only diagram. Images go in ${prepared.assetsDir} and are referenced relatively, e.g. <img src="assets/before.png">. Scripts never run; do not ship a .js. More than one document becomes more than one tab — pin the order with \`intent order --files a.md,b.html\`.`
+    }
+    case 'intent order': {
+      const ordered = orderIntent(
+        repo,
+        (opt('files') ?? '')
+          .split(',')
+          .map((f) => f.trim())
+          .filter((f) => f !== ''),
+      )
+      return `Intent tab order for ${repo}: ${ordered.join(' → ')}`
+    }
+    case 'intent list': {
+      const files = listIntent(repo)
+      return files.length === 0
+        ? `No intent documents for ${repo}. Run \`intent prepare\` first.`
+        : `Intent documents for ${repo}:\n${files.map((f) => `  ${f}`).join('\n')}`
+    }
     case 'evidence prepare': {
       const prepared = prepareEvidence(repo, opt('title'))
       return `Evidence directory ready for "${prepared.title}" at:\n${prepared.dir}\n\nWrite index.html there (HTML body only). Screenshots as sibling files with relative <img src="shot.png">. Porcelain picks it up on the Evidence canvas tab. For large HTML, write the file yourself rather than passing --html.`

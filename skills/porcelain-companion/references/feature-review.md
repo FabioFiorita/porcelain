@@ -14,6 +14,14 @@ Porcelain is where agent work becomes trusted work. The **Review** sidebar tab i
 
 Without a review set the tab shows **Start this unit of work** — there is no automatic baseline. You declare the boundary.
 
+## Where a review lives
+
+One folder per review under `.porcelain/reviews/<id>/` once archived — review set, intent documents, comments, reviewed marks, evidence and its assets, together. The **active** review is the loose set at the companion root (`review.json`, `intent/`, `evidence/`, …); `review clear` and the app's Archive move it into `reviews/<id>/`.
+
+**Reviews are Local by default** — git ignores `reviews/`, so an agent publishing a review does not dirty anybody else's tree. The human **publishes** one deliberately (right rail → *Publish review to the repo*), which force-adds that one folder past the ignore rule and reports the byte cost first. It stages; committing stays the human's call.
+
+That means: write the review for a reader, not for a diff. It may be read by a teammate who was not here, from a clone, weeks later.
+
 ## Lifecycle
 
 | Phase | Agent does | UI cue |
