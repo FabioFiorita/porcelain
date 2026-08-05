@@ -1,4 +1,5 @@
 import { Kbd } from '@renderer/components/ui/kbd'
+import { useIsMobile } from '@renderer/hooks/use-mobile'
 import { kbdLabel } from '@renderer/lib/keyboard'
 import { isBrowser, isLinuxShell } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
@@ -28,6 +29,11 @@ import { WindowControls } from './window-controls'
  */
 export function TitleBar(): React.JSX.Element {
   const setFinderOpen = useFileFinderStore((s) => s.setOpen)
+  // Search must sit level with the chips beside it, and they size differently per
+  // breakpoint: on desktop both derive 26px from a text-xs line box + py-1, on a
+  // phone both chips collapse to size-8 squares. Matching 26px there too would
+  // shrink a tap target to fix an alignment nobody has — so the phone stays at 32.
+  const compact = useIsMobile()
 
   return (
     <div className="app-drag relative flex h-12 shrink-0 items-center px-3">
@@ -37,14 +43,22 @@ export function TitleBar(): React.JSX.Element {
           type="button"
           onClick={() => setFinderOpen(true)}
           aria-label="Search files, folders, commands, commits"
-          className="app-no-drag pointer-events-auto flex h-8 w-full max-w-[440px] items-center gap-2 rounded-lg border border-border/60 bg-muted px-3 text-xs text-muted-foreground transition-colors hover:border-ring/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          className={cn(
+            'app-no-drag pointer-events-auto flex w-full max-w-[440px] items-center gap-2',
+            'rounded-lg border border-border/60 bg-muted px-3 text-xs text-muted-foreground',
+            'transition-colors hover:border-ring/40 hover:text-foreground',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+            compact ? 'h-8' : 'py-1',
+          )}
         >
           <Search className="size-3.5 shrink-0" />
           <span className="min-w-0 flex-1 truncate text-left">
             Search files, folders, commands, commits…
           </span>
-          {/* Keyboard chords are noise on a phone soft-keyboard; keep them for pointer. */}
-          <Kbd className="[@media(hover:none)]:hidden">{kbdLabel('mod', 'K')}</Kbd>
+          {/* Keyboard chords are noise on a phone soft-keyboard; keep them for pointer.
+              h-4 caps the chord at the text line box: Kbd's default h-5 is the tallest
+              child here, and it would push the field to 30px — 4px off the chips. */}
+          <Kbd className="h-4 [@media(hover:none)]:hidden">{kbdLabel('mod', 'K')}</Kbd>
         </button>
       </div>
 
