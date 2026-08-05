@@ -6,6 +6,15 @@ import { Button } from '@/components/ui/button'
 import { Text as UiText } from '@/components/ui/text'
 import { cn } from '@/lib/utils'
 
+/**
+ * The chrome every product surface shares — captions, icon actions, empty and error notes, the
+ * long-press action sheet, and the confirmation a destructive write needs.
+ *
+ * It grew inside Changes and moved here when Terminal needed the same vocabulary. Keeping one
+ * copy is the point: a second set would drift into two answers for "what does an empty list
+ * look like", which is exactly the failure the one-architecture rule exists to prevent.
+ */
+
 /** Section caption shared by the list groups and every companion card. */
 export function PanelLabel({
   children,

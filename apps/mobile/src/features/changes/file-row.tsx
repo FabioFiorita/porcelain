@@ -3,10 +3,9 @@ import { memo, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
+import { ActionSheet, ConfirmDialog, type SheetAction } from '@/components/surface-chrome'
 import type { FileStatus, FlowFile } from '@/lib/daemon/procedures/changes'
 import { cn } from '@/lib/utils'
-
-import { ActionSheet, ConfirmDialog, type SheetAction } from './changes-chrome'
 
 /** The one-letter status lead, matching the web row (colour carries the meaning). */
 const STATUS_BADGE: Record<FileStatus, { label: string; className: string }> = {

@@ -1,111 +1,30 @@
+import { applyTouchScrollDelta } from '@porcelain/client-runtime/terminal-touch-scroll'
+
 /**
- * Finger pan → terminal scroll for xterm 6.
+ * The DOM half of finger-pan scrolling. The rules themselves — line deltas, the alternate
+ * buffer's SGR-wheel / PageUp fallback, and the ban on arrow keys — are shared with the mobile
+ * client in `@porcelain/client-runtime/terminal-touch-scroll`; only the listener plumbing is
+ * host-specific and lives here.
  *
- * xterm scrolls via SmoothScrollableElement (wheel only) — iOS Safari never fires
- * wheel for finger pans, so without this adapter the buffer never moves. We convert
- * pointer/touch deltas into whole-line steps and apply them via applyTerminalTouchScroll.
- *
- * Convention matches xterm: positive lines = newer (scroll down), negative =
- * older scrollback (scroll up). Finger-down (dy > 0) therefore yields negative
- * lines; finger-up yields positive.
- *
- * Capture-phase listeners + touch-action:none (CSS on `.xterm` + wrapper) are
- * load-bearing: without capture, an inner handler can swallow the event; without
- * touch-action:none Safari steals the gesture for page rubber-band and our
- * preventDefault on move is ignored.
- *
- * Alternate-buffer apps (Claude Code fullscreen) own their own scroll. NEVER send
- * arrow keys — Claude detects that as "scroll wheel is sending arrow keys" and
- * refuses to scroll. Prefer real wheel events (mouse protocol) or PageUp/PageDown.
+ * Capture-phase listeners + touch-action:none (CSS on `.xterm` + wrapper) are load-bearing:
+ * without capture, an inner handler can swallow the event; without touch-action:none Safari
+ * steals the gesture for page rubber-band and our preventDefault on move is ignored.
  */
 
-export function applyTouchScrollDelta(
-  residual: number,
-  dy: number,
-  cellHeight: number,
-): { residual: number; lines: number } {
-  const next = residual - dy
-  if (!(cellHeight > 0)) return { residual: next, lines: 0 }
-  // Math.trunc(-0.4) is -0; normalize so callers never see negative zero.
-  const lines = Math.trunc(next / cellHeight) || 0
-  return { residual: next - lines * cellHeight, lines }
-}
-
-/** What the touch-pan adapter needs from an xterm instance (testable without xterm). */
-export interface TerminalTouchScrollTarget {
-  bufferType: 'normal' | 'alternate'
-  mouseTrackingMode: 'none' | 'x10' | 'vt200' | 'drag' | 'any'
-  cols: number
-  rows: number
-  scrollLines: (lines: number) => void
-  /** Write bytes into the PTY as input (SGR wheel or PageUp/PageDown). */
-  input: (data: string) => void
-}
+export {
+  applyTerminalTouchScroll,
+  applyTouchScrollDelta,
+  encodeSgrWheel,
+  mouseModeHasWheel,
+  type TerminalTouchScrollTarget,
+} from '@porcelain/client-runtime/terminal-touch-scroll'
 
 /**
- * SGR mouse wheel report (DECSET 1006). Button 64 = wheel up, 65 = wheel down.
- * col/row are 1-based. One report per notch — Claude Code treats these as "mouse wheel".
- *
- * We write these bytes ourselves instead of dispatching a synthetic WheelEvent: a
- * non-trusted wheel can fall through xterm's no-scrollback handler and become arrow
- * keys, which Claude rejects with "Scroll wheel is sending arrow keys".
- */
-export function encodeSgrWheel(lines: number, col: number, row: number): string {
-  if (lines === 0) return ''
-  // lines < 0 → older content → wheel up (64); lines > 0 → newer → wheel down (65)
-  const code = lines < 0 ? 64 : 65
-  const c = Math.max(1, col)
-  const r = Math.max(1, row)
-  const one = `\x1b[<${code};${c};${r}M`
-  return one.repeat(Math.abs(lines))
-}
-
-/** Whether this mouse mode's protocol includes wheel events (X10 is press-only). */
-export function mouseModeHasWheel(mode: TerminalTouchScrollTarget['mouseTrackingMode']): boolean {
-  return mode === 'vt200' || mode === 'drag' || mode === 'any'
-}
-
-/**
- * Apply a pan line-delta to a terminal.
- *
- * - Normal buffer: xterm scrollback via scrollLines only.
- * - Alternate + wheel-capable mouse: SGR wheel reports into the PTY (Claude fullscreen).
- * - Alternate otherwise: PageUp/PageDown — never arrow keys (Claude rejects those).
- */
-export function applyTerminalTouchScroll(target: TerminalTouchScrollTarget, lines: number): void {
-  if (lines === 0) return
-
-  if (target.bufferType !== 'alternate') {
-    target.scrollLines(lines)
-    return
-  }
-
-  // lines < 0 → older content → wheel up / PageUp
-  // lines > 0 → newer content → wheel down / PageDown
-  if (mouseModeHasWheel(target.mouseTrackingMode)) {
-    const col = Math.max(1, Math.floor(target.cols / 2) + 1)
-    const row = Math.max(1, Math.floor(target.rows / 2) + 1)
-    const report = encodeSgrWheel(lines, col, row)
-    if (report !== '') target.input(report)
-    return
-  }
-
-  // PageUp = CSI 5 ~, PageDown = CSI 6 ~. One page step per ~¼ viewport of finger
-  // travel so a flick isn't N half-screens.
-  const pageSeq = lines < 0 ? '\x1b[5~' : '\x1b[6~'
-  const chunk = Math.max(3, Math.floor(target.rows / 4) || 3)
-  const steps = Math.max(1, Math.round(Math.abs(lines) / chunk))
-  for (let i = 0; i < steps; i++) {
-    target.input(pageSeq)
-  }
-}
-
-/**
- * Attach pan listeners that scroll the terminal and swallow the gesture so the browser
- * page can't rubber-band. Returns a disposer. Only meaningful on multi-touch devices;
- * desktop keeps the wheel path untouched. Prefers Pointer Events (setPointerCapture keeps
- * moves even off-element), falling back to Touch Events without pointer capture — both
- * use capture so they win over xterm-internal handlers.
+ * Attach pan listeners that scroll the terminal and swallow the gesture so the browser page
+ * can't rubber-band. Returns a disposer. Only meaningful on multi-touch devices; desktop keeps
+ * the wheel path untouched. Prefers Pointer Events (setPointerCapture keeps moves even
+ * off-element), falling back to Touch Events without pointer capture — both use capture so they
+ * win over xterm-internal handlers.
  */
 export function attachTouchScroll(
   scrollLines: (lines: number) => void,

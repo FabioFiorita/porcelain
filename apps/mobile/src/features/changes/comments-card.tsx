@@ -1,11 +1,9 @@
 import { fileName } from '@porcelain/client-runtime/paths'
 import { useState } from 'react'
 import { Text, View } from 'react-native'
-
+import { ConfirmDialog, IconAction, PanelLabel } from '@/components/surface-chrome'
 import type { ReviewComment } from '@/lib/daemon/procedures/review'
 import { cn } from '@/lib/utils'
-
-import { ConfirmDialog, IconAction, PanelLabel } from './changes-chrome'
 import { useCommentActions, useReviewComments } from './use-comments'
 
 /** "file.ts", "file.ts:12", or "file.ts:12–18" — the shortest thing that locates a comment. */

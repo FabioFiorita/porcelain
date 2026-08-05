@@ -47,17 +47,22 @@ const MOBILE_FORBIDDEN = [
 ]
 
 /**
- * The terminal is the one surface whose chrome must agree with a palette it does not own — the
- * xterm themes baked into the generated WebView HTML. A hex literal here is how the React Native
- * frame came to paint a black border around a white terminal in light appearance: the emulator
- * followed `prefers-color-scheme` and the chrome did not follow anything. Colours come from
- * `theme/terminal-colors.ts`, which is the single place both sides are written down.
+ * The terminal is the one surface that cannot take its colours from the design tokens: a shell
+ * paints with ANSI, so the pane, its chrome and every escape sequence have to resolve against
+ * ONE palette. A hex literal loose in the feature is how the frame came to paint a black border
+ * around a white terminal in light appearance — the emulator followed the appearance and the
+ * chrome followed nothing.
+ *
+ * `terminal-theme.ts` IS that palette (it is deliberately byte-identical to the desktop
+ * client's, so one PTY looks the same on both), which is why it is the one file allowed to
+ * write the values down.
  */
+const TERMINAL_PALETTE_FILE = 'terminal-theme.ts'
 const TERMINAL_FORBIDDEN = [
   {
     re: /#[0-9a-fA-F]{3,8}\b/,
     label:
-      'hardcoded colour in the terminal feature (use terminalColors(scheme) from @/theme/terminal-colors, or ink()/accentColor() — a literal here silently disagrees with the xterm theme in the WebView)',
+      'hardcoded colour in the terminal feature (take it from TERMINAL_PALETTES in ./terminal-theme — a literal here silently disagrees with the palette the emulator paints with)',
   },
 ]
 
@@ -105,7 +110,13 @@ for (const file of [...walk(scanRoot), ...mobileFiles]) {
     ? [
         ...FORBIDDEN,
         ...MOBILE_FORBIDDEN,
-        ...(file.startsWith(terminalRoot) ? TERMINAL_FORBIDDEN : []),
+        // The palette module writes the values down, and its tests assert them — both are the
+        // guard against drift rather than instances of it.
+        ...(file.startsWith(terminalRoot) &&
+        !file.endsWith(TERMINAL_PALETTE_FILE) &&
+        !/\.test\.tsx?$/.test(file)
+          ? TERMINAL_FORBIDDEN
+          : []),
       ]
     : FORBIDDEN
   const lines = readFileSync(file, 'utf8').split('\n')

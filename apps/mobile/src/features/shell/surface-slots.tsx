@@ -2,6 +2,10 @@ import { ChangesCompanion } from '@/features/changes/changes-companion'
 import { ChangesList } from '@/features/changes/changes-list'
 import { ChangesPhoneScreen } from '@/features/changes/changes-phone-screen'
 import { ChangesViewer } from '@/features/changes/changes-viewer'
+import { TerminalCompanion } from '@/features/terminal/terminal-companion'
+import { TerminalList } from '@/features/terminal/terminal-list'
+import { TerminalPhoneScreen } from '@/features/terminal/terminal-phone-screen'
+import { TerminalViewer } from '@/features/terminal/terminal-viewer'
 
 import type { SurfaceId } from './mock-data'
 
@@ -35,6 +39,12 @@ const SURFACE_SLOTS: Partial<Record<SurfaceId, SurfaceSlots>> = {
     list: ChangesList,
     phone: ChangesPhoneScreen,
     viewer: ChangesViewer,
+  },
+  terminal: {
+    companion: TerminalCompanion,
+    list: TerminalList,
+    phone: TerminalPhoneScreen,
+    viewer: TerminalViewer,
   },
 }
 

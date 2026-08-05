@@ -2,12 +2,10 @@ import { fileName } from '@porcelain/client-runtime/paths'
 import { intraLineEmphasis } from '@porcelain/client-runtime/word-diff-line'
 import { useMemo, useState } from 'react'
 import { FlatList, Image, Text, View } from 'react-native'
-
+import { EmptyNote, ErrorNote, IconAction } from '@/components/surface-chrome'
 import { usePreferencesStore } from '@/features/settings/preferences-store'
 import type { DiffHunk } from '@/lib/daemon/procedures/changes'
 import { cn } from '@/lib/utils'
-
-import { EmptyNote, ErrorNote, IconAction } from './changes-chrome'
 import { type CommentAnchor, CommentComposer } from './comment-composer'
 import { DiffRowView } from './diff-lines'
 import { type DiffRow, toDiffRows } from './diff-rows'

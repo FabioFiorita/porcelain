@@ -2,9 +2,8 @@ import { useMemo, useState } from 'react'
 import { SectionList, Text, View } from 'react-native'
 
 import { SegmentedControl } from '@/components/segmented-control'
+import { EmptyNote, ErrorNote, IconAction, PanelLabel } from '@/components/surface-chrome'
 import type { FlowFile } from '@/lib/daemon/procedures/changes'
-
-import { EmptyNote, ErrorNote, IconAction, PanelLabel } from './changes-chrome'
 import { type ChangesScope, useChangesStore } from './changes-store'
 import { changedPaths, summarizeChanges } from './changes-summary'
 import { type CommentAnchor, CommentComposer } from './comment-composer'

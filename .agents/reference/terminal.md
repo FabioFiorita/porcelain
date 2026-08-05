@@ -96,3 +96,43 @@ A terminal is a live bidirectional byte stream, not request/response data.
   The reliable signal is the PROMPT — the only output whose tail has no trailing newline — so a
   prompt-shaped chunk arms a short debounce and a newline-terminated one a long one (also the from-spawn
   fallback for silent shells). The e2e specs obey the same law: wait for the prompt before typing.
+
+## The mobile client (same PTYs, a different renderer)
+
+`apps/mobile` is a second human client of the same daemon-owned PTYs — the roster, the WS
+protocol and every lifecycle rule above are unchanged. What differs is everything below
+`term.write`, because React Native has no DOM to hand xterm.
+
+- **`@xterm/headless` is the emulator; the painting is ours.** xterm.js needs a DOM, and a DOM
+  bridge is banned on mobile (`apps/mobile/AGENTS.md`), so the headless build keeps the VT state
+  machine — alt buffer, DECCKM, 256/truecolor, wrapping — and `terminal-cells.ts` turns its
+  buffer into `<Text>` runs. Adjacent cells sharing every attribute collapse into ONE span,
+  because on this renderer the cost is span count, not cell count.
+- **It is loaded with `require`, not `import()`, and it lies about being Node.** xterm decides
+  at import time whether it is Node (`'title' in process`) and otherwise reads
+  `navigator.userAgent`, which React Native does not define — so the module throws before a
+  Terminal exists. `xterm-host.ts` sets `process.title` first, which a hoisted static import
+  cannot guarantee. A dynamic `import()` gives the same ordering on paper but Metro turns it
+  into an async chunk that fails on device with *Requiring unknown module* — a red screen at
+  launch. This cost a release-gate-shaped afternoon; do not "modernize" it back.
+- **Emulators live in a module registry, exactly as on desktop, and for the same reason.** The
+  viewer mounts only the session on screen.
+- **Repaints are throttled to ~30fps.** A noisy build emits hundreds of writes a second, and
+  each one would otherwise be a React render.
+- **Input is a DIFF of a hidden `TextInput`, never a key event.** A software keyboard reports
+  edits, and autocorrect, predictive text and dictation REPLACE a run of characters rather than
+  appending one. The first version read the field as "the new input" and, because a controlled
+  value that never changes is never pushed back to the native field, resent the whole
+  accumulated line on every keystroke — the shell showed `eececheochoecho` for `echo`.
+  `terminal-field.ts` owns the diff and is unit-tested.
+- **One patched font, NOT the desktop's per-glyph fallback.** React Native takes a single
+  `fontFamily` per span, so a Geist-Mono-then-Symbols stack has nothing to fall back to.
+  GeistMono Nerd Font **Mono** carries the PUA glyphs inside the text face, so prompts and
+  powerline fills come from one metric — and bold picks the bold FAMILY, because faux bold
+  smears a monospace glyph past its cell and shears every column after it. Embedded at build
+  time via the `expo-font` plugin: it moves the native fingerprint, and a font that arrives late
+  would visibly reflow the grid. iOS names it by PostScript name, Android by file name.
+- **The grid is measured, not assumed.** An off-screen ruler `<Text>` divides its width by its
+  character count; cols/rows come from that. The measured size is remembered in the registry
+  even before an emulator exists, because output that arrives first must wrap at the width it
+  will be read at.

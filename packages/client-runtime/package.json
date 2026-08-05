@@ -10,6 +10,7 @@
     "./highlight": "./src/highlight.ts",
     "./paths": "./src/paths.ts",
     "./terminal-keys": "./src/terminal-keys.ts",
+    "./terminal-touch-scroll": "./src/terminal-touch-scroll.ts",
     "./session-protocol": "./src/session-protocol.ts",
     "./word-diff-line": "./src/word-diff-line.ts",
     "./word-diff-tokens": "./src/word-diff-tokens.ts"
