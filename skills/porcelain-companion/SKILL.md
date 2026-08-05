@@ -1,7 +1,7 @@
 ---
 name: porcelain-companion
 description: Drive Porcelain — the review layer for agentic coding — via the bundled CLI (~/.porcelain/porcelain). Use for the Review (Intent · Execution · Evidence) as the start and end of a unit of work (features, bugs, chores, investigations), project board, saved terminal actions, repo notes, review-flow layers, review comments, and syncing companion setup across local/remote environments. Use whenever the human mentions Porcelain, the Review/Board/Terminal tabs, review comments, monorepo hide/pin, or you need to publish a review and close the loop.
-version: 3.1.0
+version: 0.49.0
 license: MIT
 ---
 

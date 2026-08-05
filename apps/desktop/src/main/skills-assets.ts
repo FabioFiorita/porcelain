@@ -1,8 +1,12 @@
 // Skills metadata for the skills.sh-packaged companion skill (porcelain-companion).
 // The SKILL.md + references live at the repo root under /skills/porcelain-companion/.
 
-/** Bump whenever the bundled skills change so the update toast prompts `npx skills upgrade`. */
-export const SKILLS_VERSION = '3.1.0'
+/**
+ * The skill ships with the app, so it carries the app's version rather than a private one.
+ * A hand-bumped constant only told the truth when someone remembered to bump it; this cannot
+ * drift. `scripts/sync-versions.mjs` stamps the same string into SKILL.md's frontmatter.
+ */
+export const SKILLS_VERSION = __PORCELAIN_VERSION__
 
 /** Repository slug passed to `npx skills add`. */
 const SKILLS_REPO = 'FabioFiorita/porcelain'

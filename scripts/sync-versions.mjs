@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 /**
- * Keep every workspace package version identical.
+ * Keep every workspace package version — and the shipped skill — identical.
  *
  * Canonical stamp: apps/desktop/package.json until apps/daemon owns the product
  * version (architecture charter). Discover every package.json under apps/ and
- * packages/ that already has a `version` field and write the same string.
+ * packages/ that already has a `version` field and write the same string, then
+ * stamp the same version into each shipped SKILL.md's frontmatter.
  *
  * Usage:
  *   node scripts/sync-versions.mjs              # sync to canonical
@@ -60,6 +61,30 @@ function readJson(path) {
   return JSON.parse(readFileSync(path, 'utf8'))
 }
 
+/**
+ * Shipped agent skills carry the product version in their SKILL.md frontmatter: the skill is
+ * distributed with the app (`npx skills add`), and the app reports SKILLS_VERSION to prompt an
+ * upgrade, so a skill version that drifts from the app is a lie the human acts on.
+ */
+const SKILL_FILES = [join(root, 'skills', 'porcelain-companion', 'SKILL.md')]
+
+/** Replace `version:` inside the leading `---` frontmatter block only. */
+function stampSkillVersion(path, next) {
+  const text = readFileSync(path, 'utf8')
+  const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text)
+  if (!frontmatter) return { changed: false, current: null }
+  const current = /^version:[ \t]*(.+)$/m.exec(frontmatter[1])?.[1]?.trim() ?? null
+  if (current === next) return { changed: false, current }
+  const updated =
+    current === null
+      ? text.replace(/^(---\r?\n)/, `$1version: ${next}\n`)
+      : text.replace(/^---\r?\n[\s\S]*?\r?\n---/, (block) =>
+          block.replace(/^version:[ \t]*.+$/m, `version: ${next}`),
+        )
+  writeFileSync(path, updated)
+  return { changed: true, current }
+}
+
 function resolveCanonicalPath() {
   for (const path of CANONICAL_CANDIDATES) {
     if (!existsSync(path)) continue
@@ -101,14 +126,33 @@ for (const path of packageFiles) {
   console.log(`[sync-versions] ${rel} → ${version}`)
 }
 
+for (const path of SKILL_FILES) {
+  if (!existsSync(path)) continue
+  const rel = relative(root, path)
+  if (values.check) {
+    const text = readFileSync(path, 'utf8')
+    const current = /^---\r?\n[\s\S]*?^version:[ \t]*(.+)$/m.exec(text)?.[1]?.trim() ?? null
+    if (current === version) continue
+    drifted++
+    console.error(
+      `[sync-versions] drift: ${rel} has ${current ?? 'no version'}, expected ${version}`,
+    )
+    continue
+  }
+  const { changed, current } = stampSkillVersion(path, version)
+  if (changed) console.log(`[sync-versions] ${rel} ${current ?? 'unset'} → ${version}`)
+}
+
 if (values.check) {
   if (drifted > 0) {
     console.error(
-      `[sync-versions] ${drifted} package(s) out of sync (canonical ${relative(root, canonicalPath)} = ${version})`,
+      `[sync-versions] ${drifted} file(s) out of sync (canonical ${relative(root, canonicalPath)} = ${version})`,
     )
     process.exit(1)
   }
-  console.log(`[sync-versions] ok — ${packageFiles.length} package(s) at ${version}`)
+  console.log(
+    `[sync-versions] ok — ${packageFiles.length} package(s) + ${SKILL_FILES.length} skill(s) at ${version}`,
+  )
   process.exit(0)
 }
 
