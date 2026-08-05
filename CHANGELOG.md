@@ -1,3 +1,24 @@
+## [0.50.0](https://github.com/FabioFiorita/porcelain/compare/v0.49.0...v0.50.0) (2026-08-05)
+
+### Features
+
+* **mobile:** give Changes a real navigation stack ([8bbe410](https://github.com/FabioFiorita/porcelain/commit/8bbe410783934145052ef28fc2ccd3772dca3009))
+* **mobile:** give Files a real tab ([d4290c0](https://github.com/FabioFiorita/porcelain/commit/d4290c05d8d447dc8bd4845987dca02c74805ffc))
+* **mobile:** give History a real commit list and commit viewer ([5c6e7ed](https://github.com/FabioFiorita/porcelain/commit/5c6e7ed676f88b88364b57e668b549d586c3a544))
+* **mobile:** give Terminal a real, live PTY surface ([bc2c222](https://github.com/FabioFiorita/porcelain/commit/bc2c222c9905d7a74f9ec532a793a7f776d1547d))
+* **mobile:** render markdown and HTML, not just their source ([80a3621](https://github.com/FabioFiorita/porcelain/commit/80a3621ef6ad25ac37865c29e99bb1512b214b71))
+* **settings:** give companion data its own Data tab, on every client ([3670758](https://github.com/FabioFiorita/porcelain/commit/367075891faf4bab460bae586e85bc2b29ee77a5))
+
+### Bug Fixes
+
+* **agents:** repair stale skill commands, and gate them ([76ffb57](https://github.com/FabioFiorita/porcelain/commit/76ffb5733afa1ecc383b4534dac7941e68ce5715))
+* **cli:** let a review start Intent-first, as the skill has always said ([3fa3858](https://github.com/FabioFiorita/porcelain/commit/3fa3858f437a3d5b4ac45a8ac5dea58a86e47b6f))
+* declare tiptap markdown peer ([615dcd8](https://github.com/FabioFiorita/porcelain/commit/615dcd80d9ed6d0dc3e78e82f54a846dc8791384))
+* **mobile:** refresh branch refs when opening picker ([02e9ff2](https://github.com/FabioFiorita/porcelain/commit/02e9ff2f23f57bac31345b7d501c030f60866326))
+* **shell:** level the search field with the titlebar chips ([c7d6a82](https://github.com/FabioFiorita/porcelain/commit/c7d6a820f4dc05d83a5fcb6fb7ee505361ca5b8c))
+* **shell:** make the update chip as tall as the env chip ([8d033b1](https://github.com/FabioFiorita/porcelain/commit/8d033b10f00d17838b0e3ea3c6326af0320f3441))
+* **shell:** restore the sidebar cards' top edge, and align all three ([bf13285](https://github.com/FabioFiorita/porcelain/commit/bf13285abbe371a692fc280ca290befeb1338475))
+
 ## [0.49.0](https://github.com/FabioFiorita/porcelain/compare/v0.48.0...v0.49.0) (2026-08-05)
 
 ### Features

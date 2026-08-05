@@ -1,6 +1,6 @@
 {
   "name": "@porcelain/cli",
-  "version": "0.49.0",
+  "version": "0.50.0",
   "private": true,
   "description": "Porcelain agent CLI — dependency-free Node binary installed by the daemon.",
   "bin": {
