@@ -1,3 +1,42 @@
+## [0.49.0](https://github.com/FabioFiorita/porcelain/compare/v0.48.0...v0.49.0) (2026-08-05)
+
+### Features
+
+* **actions:** don't one-click a command this machine never accepted ([0f64841](https://github.com/FabioFiorita/porcelain/commit/0f6484131c0d84880592680d359a39e7f10ac042))
+* **cli:** author intent documents, and teach the skill the new shape ([1a11547](https://github.com/FabioFiorita/porcelain/commit/1a115470c0ffd8d4b6717181bf4e06f4c0925bfd))
+* **companion:** choose per channel what git carries ([5b414f7](https://github.com/FabioFiorita/porcelain/commit/5b414f74c814ba7be965f25b8df7ace73267b9de))
+* **companion:** open a repo without touching its git status ([c317022](https://github.com/FabioFiorita/porcelain/commit/c3170223636047bbd139d35557a1b73e2d3363c4))
+* Migrate mobile shell styling to NativeWind ([2d8f4b8](https://github.com/FabioFiorita/porcelain/commit/2d8f4b84941c04823f3476a8303325af99f1e20c))
+* **mobile:** add diff syntax highlighting and read-all collapse ([a1994ea](https://github.com/FabioFiorita/porcelain/commit/a1994ead10db620ab43d0cec52266780ce3176cb))
+* **mobile:** add native navigation POC ([40aafdc](https://github.com/FabioFiorita/porcelain/commit/40aafdca49afbb1b0c485b27c1d90aca0585f81e))
+* **mobile:** add NativeWind Reusables foundation ([2dc2c8d](https://github.com/FabioFiorita/porcelain/commit/2dc2c8d71d544a4a9554616ce7cc41b7d6c7f7cc))
+* **mobile:** add tablet shell outer layer with mock chrome ([2e3e922](https://github.com/FabioFiorita/porcelain/commit/2e3e9228b93e4f4562988a3016519e6d085d5bad))
+* **mobile:** build the Changes tab against the daemon ([82139f7](https://github.com/FabioFiorita/porcelain/commit/82139f78e369cb90589811c739d205713ae22122))
+* **mobile:** phone chrome with five dual-face tabs ([4e99d49](https://github.com/FabioFiorita/porcelain/commit/4e99d493018683b8b581516e7b7406a9f98e02b7))
+* **mobile:** restore Android and emulator control ([38ef823](https://github.com/FabioFiorita/porcelain/commit/38ef823f32c35833afa496ce88dbc52c28f6a317))
+* **mobile:** select a line range to comment on ([b8deff8](https://github.com/FabioFiorita/porcelain/commit/b8deff8b080a596ccb323d773e56078336bdfed8))
+* **mobile:** share UI tokens and add Reusables primitives ([312d0fc](https://github.com/FabioFiorita/porcelain/commit/312d0fc6802fd38f58fec63e8a43c5f395706829))
+* **mobile:** ship real Settings (General, Review, Environments) ([febe84b](https://github.com/FabioFiorita/porcelain/commit/febe84b9f03abfb75948cf173cb0d5e5bfd373e7))
+* **mobile:** syntax-highlighted file viewer with md/html modes ([ffd339e](https://github.com/FabioFiorita/porcelain/commit/ffd339e6fa67d03184c88524533c5808864792d3))
+* **review:** intent as a document set, and publishing one review ([d2aec7c](https://github.com/FabioFiorita/porcelain/commit/d2aec7c25aa1d76eda117cf6458935833dfd8df3))
+* **review:** publish a review as a rule, not just a staged add ([a633576](https://github.com/FabioFiorita/porcelain/commit/a633576b4018e4f85d443ba736c4b74c9bb4f15c))
+
+### Bug Fixes
+
+* **companion:** keep the active review out of git ([437e835](https://github.com/FabioFiorita/porcelain/commit/437e83589d59e00cf2bb8c0f99364451b7ee2b1d))
+* **companion:** stop the migrate storm, untrack machine artifacts ([dd65e3a](https://github.com/FabioFiorita/porcelain/commit/dd65e3a1c273d5a120ba76b7059f06328786224b))
+* Improve mobile tablet navigation and modal backdrop ([839e995](https://github.com/FabioFiorita/porcelain/commit/839e9959df18d8d28438811eda0bb86495535ebb))
+* **mobile:** align layer remove action ([b75e42c](https://github.com/FabioFiorita/porcelain/commit/b75e42c3ea961046a65ea46c7e209b775218f9c5))
+* **mobile:** center tablet search and drop rail settings ([a5f8e73](https://github.com/FabioFiorita/porcelain/commit/a5f8e737f97d56fe9f2ed3672787de53eba465a3))
+* **mobile:** declare CSS side-effect imports ([559249b](https://github.com/FabioFiorita/porcelain/commit/559249b2461ad36352d5ad18051a4bae86f279e8))
+* **mobile:** do not auto-focus Search on face toggle ([55ba36d](https://github.com/FabioFiorita/porcelain/commit/55ba36dae9d68b255c9426f83b757dccb1fef1f5))
+* **mobile:** make Appearance theme work; fill tablet Settings ([76b80f5](https://github.com/FabioFiorita/porcelain/commit/76b80f5e7a9d94fd0e3ab65d8193eaff5911bd54))
+* **mobile:** offset collapsed split header ([38f040b](https://github.com/FabioFiorita/porcelain/commit/38f040ba9e44c1a08426d4e48e246b883d849a49))
+* **mobile:** polish project picker overlays ([b218844](https://github.com/FabioFiorita/porcelain/commit/b218844846acc26aad7e1d9d816009936bca2b98))
+* **mobile:** use segmented tabs for phone Settings sections ([7f916ee](https://github.com/FabioFiorita/porcelain/commit/7f916ee4145688560a2a001559c53a050d3cf091))
+* **review:** parse scenes daemon-side, contain a bad pane ([3f4486f](https://github.com/FabioFiorita/porcelain/commit/3f4486ff88a0ac9d7caa512a59aa7f9a71e7e971))
+* **web:** one React for the whole graph, which fixes the canvas ([94d22f4](https://github.com/FabioFiorita/porcelain/commit/94d22f407f187066ff8af5d51f9d18b5512c5d10))
+
 ## [0.48.0](https://github.com/FabioFiorita/porcelain/compare/v0.47.3...v0.48.0) (2026-08-04)
 
 ### Features
