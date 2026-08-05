@@ -6,6 +6,7 @@ import { ShellModal, useShellModalSize } from '@/components/shell-modal'
 import { Button } from '@/components/ui/button'
 import { Text as UiText } from '@/components/ui/text'
 import { Textarea } from '@/components/ui/textarea'
+import type { ReviewComment } from '@/lib/daemon/procedures/review'
 
 import { useCommentActions } from './use-comments'
 
@@ -31,44 +32,60 @@ export function describeAnchor(anchor: CommentAnchor): string {
  * Write a review comment anchored to a line range, or to the file as a whole. Saves to the
  * same comment channel the agent reads through the porcelain CLI — this is the half of the
  * loop where a phone read turns into work the agent picks up.
+ *
+ * Pass `editing` to rewrite an existing comment instead: one form for both, so a typo is fixed
+ * where it was written rather than deleted and retyped. An edited comment keeps its anchor, its
+ * resolved flag and the agent's reply — only the body moves.
  */
 export function CommentComposer({
   anchor,
+  editing = null,
   onClose,
   testIDPrefix = 'porcelain-changes-comment',
 }: {
+  /** The lines a NEW comment is filed against. Ignored while `editing` — a comment is already anchored. */
   anchor: CommentAnchor | null
+  editing?: ReviewComment | null
   onClose: () => void
   /** Keeps the established Changes IDs while giving other surfaces their own targets. */
   testIDPrefix?: string
 }): React.JSX.Element {
-  const { add } = useCommentActions()
+  const { add, edit } = useCommentActions()
   const { width } = useShellModalSize()
   const [body, setBody] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const open = anchor !== null
+  // A comment carries its own anchor, so editing one needs no second source for the header.
+  const target: CommentAnchor | null = editing ?? anchor
+  const open = target !== null
+  const initialBody = editing?.body ?? ''
 
   // Fresh field per anchor — a draft left from the last line would be filed against this one.
+  // An edit opens on the body it is rewriting, or "save" would silently erase it.
   useEffect(() => {
     if (open) {
-      setBody('')
+      setBody(initialBody)
       setError(null)
     }
-  }, [open])
+  }, [open, initialBody])
 
   const handleSave = async (): Promise<void> => {
-    if (anchor === null || body.trim() === '' || saving) return
+    const next = body.trim()
+    if (next === '' || saving) return
     setSaving(true)
     setError(null)
     try {
-      await add({
-        body: body.trim(),
-        path: anchor.path,
-        ...(anchor.startLine === undefined ? {} : { startLine: anchor.startLine }),
-        ...(anchor.endLine === undefined ? {} : { endLine: anchor.endLine }),
-        ...(anchor.anchorText === undefined ? {} : { anchorText: anchor.anchorText }),
-      })
+      if (editing !== null) {
+        await edit(editing.id, next)
+      } else if (anchor !== null) {
+        await add({
+          body: next,
+          path: anchor.path,
+          ...(anchor.startLine === undefined ? {} : { startLine: anchor.startLine }),
+          ...(anchor.endLine === undefined ? {} : { endLine: anchor.endLine }),
+          ...(anchor.anchorText === undefined ? {} : { anchorText: anchor.anchorText }),
+        })
+      }
       onClose()
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not save the comment.')
@@ -81,15 +98,15 @@ export function CommentComposer({
     <ShellModal
       open={open}
       onClose={onClose}
-      title="Add comment"
+      title={editing === null ? 'Add comment' : 'Edit comment'}
       contentStyle={{ width }}
-      description={anchor === null ? undefined : describeAnchor(anchor)}
+      description={target === null ? undefined : describeAnchor(target)}
     >
       <View className="gap-3" testID={`${testIDPrefix}-composer`}>
-        {anchor?.anchorText === undefined ? null : (
+        {target?.anchorText === undefined ? null : (
           <View className="max-h-28 overflow-hidden rounded-md bg-muted px-2.5 py-2">
             <Text className="font-mono text-[11px] leading-4 text-muted-foreground">
-              {anchor.anchorText}
+              {target.anchorText}
             </Text>
           </View>
         )}
@@ -118,7 +135,7 @@ export function CommentComposer({
               handleSave()
             }}
           >
-            <UiText>{saving ? 'Saving…' : 'Comment'}</UiText>
+            <UiText>{saving ? 'Saving…' : editing === null ? 'Comment' : 'Save'}</UiText>
           </Button>
         </View>
       </View>

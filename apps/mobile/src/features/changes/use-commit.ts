@@ -1,6 +1,7 @@
 import type { CommitGroupGenerationGroup } from '@porcelain/contracts'
 
 import { usePreferencesStore } from '@/features/settings/preferences-store'
+import { DaemonError, daemonErrorMessage } from '@/lib/daemon/errors'
 import {
   type CommitConventions,
   type GitSuggestion,
@@ -9,6 +10,7 @@ import {
   gitDiscardFileMutation,
   gitGenerateCommitGroupsMutation,
   gitGenerateCommitMessageMutation,
+  gitPushMutation,
   gitQuickCommandMutation,
   gitStageAllMutation,
   gitStageFileMutation,
@@ -141,6 +143,37 @@ export function useCommit(): {
     },
     error: mutation.error,
     isCommitting: mutation.isPending,
+  }
+}
+
+/**
+ * Push the current branch — the commit's follow-through, and the only write in this tab that
+ * leaves the machine. `gitPush` is the same daemon call the `push` quick command routes to, so
+ * a branch with no upstream still gets tracking wired on its first push; it is exposed beside
+ * Commit because that is where the need appears, not because the grid chip was missing.
+ *
+ * Rejects with the daemon's verbatim output so the composer's status line can print it — a push
+ * that failed must never read like one that worked.
+ */
+export function usePush(): {
+  push: () => Promise<string>
+  isPushing: boolean
+} {
+  const repo = useActiveRepo()
+  const mutation = useDaemonMutation(gitPushMutation, { invalidates: COMMIT_INVALIDATIONS })
+  return {
+    isPushing: mutation.isPending,
+    push: async (): Promise<string> => {
+      if (repo === null) return ''
+      try {
+        return await mutation.mutateAsync({ repoPath: repo.path })
+      } catch (cause) {
+        // The seam carries git's own words on `detail`; a refused push must read as git wrote it.
+        throw new Error(cause instanceof DaemonError ? daemonErrorMessage(cause) : String(cause), {
+          cause,
+        })
+      }
+    },
   }
 }
 

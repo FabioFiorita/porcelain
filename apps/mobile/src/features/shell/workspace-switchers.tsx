@@ -15,9 +15,12 @@ import {
 } from '@/lib/daemon/procedures/connection'
 import {
   type BranchRef,
+  gitAddWorktreeMutation,
   gitBranchesQuery,
   gitCheckoutMutation,
+  gitCreateBranchMutation,
   gitWorktreesQuery,
+  WORKSPACE_ADD_WORKTREE_INVALIDATIONS,
   WORKSPACE_CHECKOUT_INVALIDATIONS,
   type Worktree,
 } from '@/lib/daemon/procedures/workspace'
@@ -25,6 +28,7 @@ import { useDaemonInvalidate, useDaemonMutation, useDaemonQuery } from '@/lib/da
 import { openRepo, useActiveRepo } from '@/lib/daemon/repo'
 import { cn } from '@/lib/utils'
 import { useShellStore } from './shell-store'
+import { WorkspaceCreateDialog } from './workspace-create-dialog'
 
 type WorkspaceHeader = {
   repo: ReturnType<typeof useActiveRepo>
@@ -348,6 +352,8 @@ export function BranchSheetBody({ open }: PickerBodyProps): React.JSX.Element {
   const invalidate = useDaemonInvalidate()
   const [query, setQuery] = useState('')
   const [actionError, setActionError] = useState<string | null>(null)
+  const [createOpen, setCreateOpen] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
   const repoPath = repo?.path ?? ''
   const headQuery = useDaemonQuery(gitHeadQuery, repoPath, {
     enabled: open && repo !== null,
@@ -369,6 +375,10 @@ export function BranchSheetBody({ open }: PickerBodyProps): React.JSX.Element {
   const checkout = useDaemonMutation(gitCheckoutMutation, {
     invalidates: WORKSPACE_CHECKOUT_INVALIDATIONS,
   })
+  // `checkout -b` lands HEAD on the new branch, so creating one has a checkout's blast radius.
+  const createBranch = useDaemonMutation(gitCreateBranchMutation, {
+    invalidates: WORKSPACE_CHECKOUT_INVALIDATIONS,
+  })
   const currentBranch = headQuery.data === undefined ? null : headLabel(headQuery.data)
   const normalizedQuery = query.trim().toLowerCase()
   const branches = branchesQuery.data ?? []
@@ -388,10 +398,17 @@ export function BranchSheetBody({ open }: PickerBodyProps): React.JSX.Element {
       ),
     [branches, normalizedQuery],
   )
+  // Unfiltered: the create form validates against every local name, not the searched subset.
+  const localBranchNames = useMemo(
+    () => branches.filter((branch) => branch.remote === null).map((branch) => branch.name),
+    [branches],
+  )
 
   useEffect(() => {
     if (!open) {
       setActionError(null)
+      setCreateError(null)
+      setCreateOpen(false)
       setQuery('')
       return
     }
@@ -417,6 +434,19 @@ export function BranchSheetBody({ open }: PickerBodyProps): React.JSX.Element {
       closeSheet()
     } catch (error) {
       setActionError(errorMessage(error, 'Checkout failed.'))
+    }
+  }
+
+  const handleCreate = async (branch: string): Promise<void> => {
+    if (repo === null || createBranch.isPending) return
+    setCreateError(null)
+    try {
+      await createBranch.mutateAsync({ branch, repoPath: repo.path })
+      setCreateOpen(false)
+      closeSheet()
+    } catch (error) {
+      // git's refusal (an existing branch, a malformed ref) is the message worth reading.
+      setCreateError(errorMessage(error, 'Create branch failed.'))
     }
   }
 
@@ -507,9 +537,42 @@ export function BranchSheetBody({ open }: PickerBodyProps): React.JSX.Element {
           ) : null}
         </ShellModalScroll>
       ) : null}
+
+      <Button
+        accessibilityLabel="New branch"
+        accessibilityRole="button"
+        disabled={checkout.isPending || createBranch.isPending}
+        testID="porcelain-workspace-new-branch"
+        variant="outline"
+        onPress={() => {
+          setCreateError(null)
+          setCreateOpen(true)
+        }}
+      >
+        <ChromeGlyph name="plus" size={16} tone="foreground" />
+        <UiText>New branch…</UiText>
+      </Button>
+
       {actionError ? (
         <ErrorState message={actionError} testID="porcelain-branch-action-error" />
       ) : null}
+
+      <WorkspaceCreateDialog
+        daemonError={createError}
+        existingBranches={localBranchNames}
+        fromLabel={currentBranch ?? 'HEAD'}
+        open={createOpen}
+        pending={createBranch.isPending}
+        repoPath={repo.path}
+        target="branch"
+        onClose={() => {
+          setCreateOpen(false)
+          setCreateError(null)
+        }}
+        onSubmit={(branch) => {
+          handleCreate(branch)
+        }}
+      />
     </View>
   )
 }
@@ -565,17 +628,43 @@ export function WorktreeSheetBody({ open }: PickerBodyProps): React.JSX.Element 
   const repo = useActiveRepo()
   const [busyPath, setBusyPath] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [createOpen, setCreateOpen] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
   const repoPath = repo?.path ?? ''
   const worktreesQuery = useDaemonQuery(gitWorktreesQuery, repoPath, {
     enabled: open && repo !== null,
     placeholderData: 'keepPreviousData',
     pollMs: 15_000,
   })
+  // `worktree add -b` creates a branch too, so this sheet needs the same HEAD and roster the
+  // branch sheet reads to say what it forks from and to reject a name git already knows.
+  const headQuery = useDaemonQuery(gitHeadQuery, repoPath, {
+    enabled: open && repo !== null,
+    pollMs: 5_000,
+    staleTime: 0,
+  })
+  const branchesQuery = useDaemonQuery(gitBranchesQuery, repoPath, {
+    enabled: open && repo !== null,
+    placeholderData: 'keepPreviousData',
+    staleTime: 0,
+  })
+  const addWorktree = useDaemonMutation(gitAddWorktreeMutation, {
+    invalidates: WORKSPACE_ADD_WORKTREE_INVALIDATIONS,
+  })
+  const localBranchNames = useMemo(
+    () =>
+      (branchesQuery.data ?? [])
+        .filter((branch) => branch.remote === null)
+        .map((branch) => branch.name),
+    [branchesQuery.data],
+  )
 
   useEffect(() => {
     if (!open) {
       setActionError(null)
       setBusyPath(null)
+      setCreateError(null)
+      setCreateOpen(false)
     }
   }, [open])
 
@@ -591,6 +680,26 @@ export function WorktreeSheetBody({ open }: PickerBodyProps): React.JSX.Element 
       closeSheet()
     } catch (error) {
       setActionError(errorMessage(error, 'Could not open that worktree.'))
+    } finally {
+      setBusyPath(null)
+    }
+  }
+
+  const handleCreate = async (branch: string): Promise<void> => {
+    if (repo === null || addWorktree.isPending || busyPath !== null) return
+    setCreateError(null)
+    try {
+      // The daemon derives and realpaths the destination, so its answer — not the preview the
+      // form showed — is what gets opened. Creating a worktree you are not standing in would
+      // leave the tap with nothing to show for it. The form stays up until the switch lands so
+      // a failing open still has somewhere to report.
+      const created = await addWorktree.mutateAsync({ branch, repoPath: repo.path })
+      setBusyPath(created.path)
+      await openRepo(created.path)
+      setCreateOpen(false)
+      closeSheet()
+    } catch (error) {
+      setCreateError(errorMessage(error, 'Create worktree failed.'))
     } finally {
       setBusyPath(null)
     }
@@ -644,9 +753,42 @@ export function WorktreeSheetBody({ open }: PickerBodyProps): React.JSX.Element 
           ))}
         </PickerSection>
       ) : null}
+
+      <Button
+        accessibilityLabel="New worktree"
+        accessibilityRole="button"
+        disabled={busyPath !== null || addWorktree.isPending}
+        testID="porcelain-workspace-new-worktree"
+        variant="outline"
+        onPress={() => {
+          setCreateError(null)
+          setCreateOpen(true)
+        }}
+      >
+        <ChromeGlyph name="plus" size={16} tone="foreground" />
+        <UiText>New worktree…</UiText>
+      </Button>
+
       {actionError ? (
         <ErrorState message={actionError} testID="porcelain-worktree-action-error" />
       ) : null}
+
+      <WorkspaceCreateDialog
+        daemonError={createError}
+        existingBranches={localBranchNames}
+        fromLabel={headQuery.data === undefined ? 'HEAD' : headLabel(headQuery.data)}
+        open={createOpen}
+        pending={addWorktree.isPending || busyPath !== null}
+        repoPath={repo.path}
+        target="worktree"
+        onClose={() => {
+          setCreateOpen(false)
+          setCreateError(null)
+        }}
+        onSubmit={(branch) => {
+          handleCreate(branch)
+        }}
+      />
     </View>
   )
 }

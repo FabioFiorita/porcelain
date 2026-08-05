@@ -2,6 +2,7 @@ import { fileName } from '@porcelain/client-runtime/paths'
 import { useState } from 'react'
 import { Text, View } from 'react-native'
 import { ConfirmDialog, IconAction, PanelLabel } from '@/components/panel-chrome'
+import { CommentComposer } from '@/features/comments/comment-composer'
 import { useCommentActions, useReviewComments } from '@/features/comments/use-comments'
 import type { ReviewComment } from '@/lib/daemon/procedures/review'
 import { cn } from '@/lib/utils'
@@ -24,6 +25,7 @@ export function CommentsCard({ active }: { active: boolean }): React.JSX.Element
   const comments = useReviewComments(active)
   const { clearResolved, remove, setResolved } = useCommentActions()
   const [confirmClear, setConfirmClear] = useState(false)
+  const [editing, setEditing] = useState<ReviewComment | null>(null)
   const open = comments.filter((comment) => !comment.resolved).length
   const closed = comments.length - open
 
@@ -55,6 +57,9 @@ export function CommentsCard({ active }: { active: boolean }): React.JSX.Element
             <CommentRow
               key={comment.id}
               comment={comment}
+              onEdit={() => {
+                setEditing(comment)
+              }}
               onRemove={() => {
                 remove(comment.id)
               }}
@@ -65,6 +70,15 @@ export function CommentsCard({ active }: { active: boolean }): React.JSX.Element
           ))}
         </View>
       )}
+
+      <CommentComposer
+        anchor={null}
+        editing={editing}
+        testIDPrefix="porcelain-changes-edit-comment"
+        onClose={() => {
+          setEditing(null)
+        }}
+      />
 
       <ConfirmDialog
         body={`This permanently deletes ${closed} closed ${closed === 1 ? 'comment' : 'comments'}. Open comments are left alone.`}
@@ -86,10 +100,12 @@ export function CommentsCard({ active }: { active: boolean }): React.JSX.Element
 
 function CommentRow({
   comment,
+  onEdit,
   onRemove,
   onToggleResolved,
 }: {
   comment: ReviewComment
+  onEdit: () => void
   onRemove: () => void
   onToggleResolved: () => void
 }): React.JSX.Element {
@@ -108,6 +124,12 @@ function CommentRow({
         >
           {anchorLabel(comment)}
         </Text>
+        <IconAction
+          accessibilityLabel="Edit comment"
+          glyph="pencil"
+          testID={`porcelain-changes-comment-edit-${comment.id}`}
+          onPress={onEdit}
+        />
         <IconAction
           accessibilityLabel={comment.resolved ? 'Reopen comment' : 'Resolve comment'}
           glyph={comment.resolved ? 'undo' : 'check'}

@@ -20,6 +20,7 @@ import {
   useCommitConventions,
   useCommitGeneration,
   useFileStaging,
+  usePush,
   useStageAll,
 } from './use-commit'
 
@@ -42,6 +43,7 @@ export function CommitCard({ active }: { active: boolean }): React.JSX.Element {
   const { generateGroups, generateMessage, isGenerating } = useCommitGeneration()
   const { isStaging, stageAll, unstageAll } = useStageAll()
   const { stageFile } = useFileStaging()
+  const { isPushing, push } = usePush()
   // Commit always acts on the working tree, whatever scope the list is reading.
   const groups = useWorkingFlow(active)
 
@@ -82,6 +84,19 @@ export function CommitCard({ active }: { active: boolean }): React.JSX.Element {
     } catch (cause) {
       setStatus({ failed: true, text: cause instanceof Error ? cause.message : String(cause) })
     }
+  }
+
+  /**
+   * A clean tree is the normal state for a push — the commits are already made — so this is the
+   * one action here that survives `treeClean`. The daemon's output is printed as written: an
+   * "Everything up-to-date" and a rejected non-fast-forward must not look alike.
+   */
+  const handlePush = async (): Promise<void> => {
+    if (isPushing) return
+    await report(async () => {
+      const output = await push()
+      return output === '' ? 'Pushed' : output
+    })
   }
 
   const handleToggleStaging = async (): Promise<void> => {
@@ -215,6 +230,20 @@ export function CommitCard({ active }: { active: boolean }): React.JSX.Element {
             <UiText>{isCommitting ? 'Committing…' : 'Commit'}</UiText>
           </Button>
         </View>
+
+        <Button
+          accessibilityLabel="Push"
+          disabled={isPushing}
+          size="sm"
+          testID="porcelain-changes-push"
+          variant="outline"
+          onPress={() => {
+            handlePush()
+          }}
+        >
+          <ChromeGlyph name="arrowUpFromLine" size={14} tone="foreground" />
+          <UiText>{isPushing ? 'Pushing…' : 'Push'}</UiText>
+        </Button>
 
         <View className="gap-2">
           <Button

@@ -4,6 +4,7 @@ import {
   addReviewCommentMutation,
   clearResolvedReviewCommentsMutation,
   deleteReviewCommentMutation,
+  editReviewCommentMutation,
   type ReviewComment,
   resolveReviewCommentMutation,
   reviewCommentsQuery,
@@ -49,6 +50,8 @@ export type NewComment = {
 
 export function useCommentActions(): {
   add: (comment: NewComment) => Promise<void>
+  /** Rewrites the body in place — the anchor, the resolved flag and the agent's reply all stay. */
+  edit: (id: string, body: string) => Promise<void>
   remove: (id: string) => Promise<void>
   setResolved: (id: string, resolved: boolean) => Promise<void>
   clearResolved: () => Promise<void>
@@ -57,6 +60,9 @@ export function useCommentActions(): {
 } {
   const repo = useActiveRepo()
   const add = useDaemonMutation(addReviewCommentMutation, { invalidates: COMMENT_INVALIDATIONS })
+  const edit = useDaemonMutation(editReviewCommentMutation, {
+    invalidates: COMMENT_INVALIDATIONS,
+  })
   const remove = useDaemonMutation(deleteReviewCommentMutation, {
     invalidates: COMMENT_INVALIDATIONS,
   })
@@ -76,8 +82,13 @@ export function useCommentActions(): {
       if (repo === null) return
       await clear.mutateAsync({ repoPath: repo.path })
     },
-    error: add.error ?? remove.error ?? resolve.error ?? clear.error,
-    isPending: add.isPending || remove.isPending || resolve.isPending || clear.isPending,
+    edit: async (id: string, body: string): Promise<void> => {
+      if (repo === null) return
+      await edit.mutateAsync({ body, id, repoPath: repo.path })
+    },
+    error: add.error ?? edit.error ?? remove.error ?? resolve.error ?? clear.error,
+    isPending:
+      add.isPending || edit.isPending || remove.isPending || resolve.isPending || clear.isPending,
     remove: async (id: string): Promise<void> => {
       if (repo === null) return
       await remove.mutateAsync({ id, repoPath: repo.path })

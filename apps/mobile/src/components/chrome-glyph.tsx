@@ -98,6 +98,10 @@ const CHROME_SYMBOLS = {
     android: 'check_circle' as AndroidSymbol,
   },
   circleX: { ios: 'xmark.circle.fill' as SFSymbol, android: 'cancel' as AndroidSymbol },
+  /** Files tab: rename a tree entry. */
+  pencil: { ios: 'pencil' as SFSymbol, android: 'edit' as AndroidSymbol },
+  /** Terminal key bar: insert a newline instead of submitting the line (⇧↵). */
+  newline: { ios: 'return' as SFSymbol, android: 'keyboard_return' as AndroidSymbol },
 } as const
 
 export type ChromeIconName = keyof typeof CHROME_SYMBOLS

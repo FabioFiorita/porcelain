@@ -14,7 +14,9 @@ export const APP_EVENT_INVALIDATIONS: Record<AppEvent, readonly string[]> = {
   comments: ['reviewComments'],
   evidence: ['loopEvidence', 'loopEvidenceHtml', 'featureReading'],
   'feature-view': ['featureView', 'featureReading', 'worktreeInbox'],
-  'file-tree': ['readDir', 'searchFiles', 'pinnedEntries'],
+  // Content search reads file bodies, so a tree write staleness it exactly like a directory
+  // listing — without these an open grep keeps showing hits in a file that no longer has them.
+  'file-tree': ['readDir', 'searchFiles', 'searchCode', 'searchText', 'pinnedEntries'],
   layers: ['repoLayers'],
   scope: ['repoScope', 'pinnedEntries', 'readDir'],
   'working-tree': [

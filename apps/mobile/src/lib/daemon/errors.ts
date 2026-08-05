@@ -7,33 +7,50 @@ export type DaemonErrorKind = 'unreachable' | 'unauthorized' | 'invalid-response
 export class DaemonError extends Error {
   readonly kind: DaemonErrorKind
   readonly procedure: string
+  /**
+   * The daemon's own words, when it had any worth showing.
+   *
+   * Only set for `daemon-error` — the case where a handler ran and refused on purpose, so the
+   * text is git's stderr or a written-for-a-human sentence ("README.md already exists"). The
+   * transport kinds have nothing to add: a DNS failure's message describes a socket, not
+   * anything the reader can act on.
+   */
+  readonly detail?: string
 
   constructor(
     kind: DaemonErrorKind,
     procedure: string,
     message: string,
-    options?: { cause?: unknown },
+    options?: { cause?: unknown; detail?: string },
   ) {
     super(message, options)
     this.name = 'DaemonError'
     this.kind = kind
     this.procedure = procedure
+    this.detail = options?.detail
   }
 }
 
-/** Transport details belong in logs; screens get one sentence they can act on. */
+/**
+ * What a screen shows. Transport details belong in logs, so those collapse to one sentence the
+ * reader can act on — but a refusal the daemon explained is passed through verbatim. Replacing
+ * "! [rejected] main -> main (non-fast-forward)" with "could not complete that request" throws
+ * away the only part that tells the user what to do next.
+ */
 export function daemonErrorMessage(error: DaemonError): string {
-  switch (error.kind) {
-    case 'unreachable':
-      return 'The daemon could not be reached.'
-    case 'unauthorized':
-      return 'This device is no longer paired.'
-    case 'invalid-response':
-      return 'The daemon returned an invalid response.'
-    case 'daemon-error':
-      return 'The daemon could not complete that request.'
-  }
+  return error.detail ?? daemonErrorMessageFor(error.kind)
 }
+
+/** The daemon wraps its cause; a bare tRPC message is already the sentence we want. */
+function daemonErrorDetail(cause: TRPCClientError<never>): string | undefined {
+  const text = cause.message.trim()
+  if (text === '') return undefined
+  // A stack that rode along in `message` is noise on a phone; keep the first paragraph.
+  const [head] = text.split('\n    at ')
+  return head.length > DETAIL_MAX ? `${head.slice(0, DETAIL_MAX).trimEnd()}…` : head
+}
+
+const DETAIL_MAX = 600
 
 /** tRPC's error payload, read structurally — the shape the daemon's `errorFormatter` sends. */
 const errorDataSchema = z.object({
@@ -68,6 +85,7 @@ export function toDaemonError(procedure: string, cause: unknown): DaemonError {
   }
   return new DaemonError('daemon-error', procedure, daemonErrorMessageFor('daemon-error'), {
     cause,
+    detail: daemonErrorDetail(cause),
   })
 }
 
