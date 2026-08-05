@@ -2,6 +2,7 @@ import type { CommitModel } from '@porcelain/contracts'
 import { useState } from 'react'
 import { Pressable, View } from 'react-native'
 
+import { SegmentedControl } from '@/components/segmented-control'
 import { Text } from '@/components/ui/text'
 import { useConnectionState } from '@/lib/daemon/environments-store'
 import { commitModelsQuery } from '@/lib/daemon/procedures/settings'
@@ -17,7 +18,6 @@ import {
   type ThemeMode,
   usePreferencesStore,
 } from './preferences-store'
-import { SegmentedControl } from './segmented-control'
 
 /** Viewer + git prefs. Stored on-device; commit model list comes from the active daemon. */
 export function GeneralSettings(): React.JSX.Element {

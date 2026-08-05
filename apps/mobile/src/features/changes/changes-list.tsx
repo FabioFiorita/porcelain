@@ -1,0 +1,220 @@
+import { useMemo, useState } from 'react'
+import { SectionList, Text, View } from 'react-native'
+
+import { SegmentedControl } from '@/components/segmented-control'
+import type { FlowFile } from '@/lib/daemon/procedures/changes'
+
+import { EmptyNote, ErrorNote, IconAction, PanelLabel } from './changes-chrome'
+import { type ChangesScope, useChangesStore } from './changes-store'
+import { changedPaths, summarizeChanges } from './changes-summary'
+import { type CommentAnchor, CommentComposer } from './comment-composer'
+import { FileRow, type FileRowActions } from './file-row'
+import { useChangesFlow, useReviewedPaths, useToggleReviewed } from './use-changes'
+import { useDiscardFile, useFileStaging } from './use-commit'
+
+/**
+ * The Changes list: the flow-grouped change set for the active scope, with the header that
+ * says how much of it has been read and the two bulk actions — tick everything off, or open
+ * the whole set as one continuous read.
+ *
+ * Row taps open the diff through the store, so the tablet's viewer column and the phone's
+ * detail view are driven by one selection rather than two navigation models.
+ */
+export function ChangesList({
+  active,
+  bottomInset = 0,
+}: {
+  active: boolean
+  /** Phone: room for the floating tab bar the list scrolls under. */
+  bottomInset?: number
+}): React.JSX.Element {
+  const scope = useChangesStore((state) => state.scope)
+  const setScope = useChangesStore((state) => state.setScope)
+  const selection = useChangesStore((state) => state.selection)
+  const openFile = useChangesStore((state) => state.openFile)
+  const openAll = useChangesStore((state) => state.openAll)
+
+  const { base, error, groups, isLoading } = useChangesFlow(active)
+  const reviewed = useReviewedPaths(active)
+  const { mark, setReviewed, unmark, error: reviewedError } = useToggleReviewed()
+  const { stageFile, unstageFile } = useFileStaging()
+  const { discardFile } = useDiscardFile()
+  const [anchor, setAnchor] = useState<CommentAnchor | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
+
+  const summary = useMemo(
+    () => summarizeChanges(groups ?? [], reviewed, base),
+    [base, groups, reviewed],
+  )
+  const sections = useMemo(
+    () => (groups ?? []).map((group) => ({ data: group.files, layer: group.layer })),
+    [groups],
+  )
+
+  // Every write here is a daemon round trip that can fail (a locked index, a vanished file);
+  // report it on the header instead of letting a tap look like it worked.
+  const guard = (label: string, run: () => Promise<void>): void => {
+    setActionError(null)
+    run().catch((cause: unknown) => {
+      setActionError(`${label}: ${cause instanceof Error ? cause.message : String(cause)}`)
+    })
+  }
+
+  const actions: FileRowActions = {
+    onComment: (path) => {
+      setAnchor({ path })
+    },
+    onDiscard: (path) => {
+      guard('Discard failed', () => discardFile(path))
+    },
+    onOpen: openFile,
+    onStage: (path) => {
+      guard('Stage failed', () => stageFile(path))
+    },
+    onToggleReviewed: (path, next) => {
+      guard('Mark reviewed failed', () => (next ? mark(path) : unmark(path)))
+    },
+    onUnstage: (path) => {
+      guard('Unstage failed', () => unstageFile(path))
+    },
+  }
+
+  const selectedPath = selection?.kind === 'file' ? selection.path : null
+  // Until the first read lands there is no honest count to print — "0 changed files" would
+  // read as a clean tree.
+  const pending = isLoading && groups === undefined
+  const failure = actionError ?? (reviewedError === null ? null : reviewedError.message)
+
+  return (
+    <View className="flex-1" testID="porcelain-changes-list">
+      <ChangesHeader
+        allReviewed={summary.allReviewed}
+        label={pending ? 'Loading changes…' : summary.label}
+        scope={scope}
+        total={summary.total}
+        onReadAll={openAll}
+        onScopeChange={setScope}
+        onToggleAll={() => {
+          guard('Update reviewed failed', () =>
+            setReviewed(summary.allReviewed ? [] : changedPaths(groups ?? [])),
+          )
+        }}
+      />
+
+      {failure === null ? null : (
+        <View className="px-3 pb-2">
+          <ErrorNote message={failure} testID="porcelain-changes-action-error" />
+        </View>
+      )}
+
+      {error !== null ? (
+        <View className="px-3 pb-2">
+          <ErrorNote message={error.message} testID="porcelain-changes-error" />
+        </View>
+      ) : null}
+
+      {pending ? (
+        <Text
+          className="px-3 py-6 text-sm text-muted-foreground"
+          testID="porcelain-changes-loading"
+        >
+          Loading changes…
+        </Text>
+      ) : summary.total === 0 && error === null ? (
+        <EmptyNote
+          body={
+            scope === 'branch'
+              ? 'This branch has no commits beyond its base yet.'
+              : 'Your working tree is clean.'
+          }
+          testID="porcelain-changes-empty"
+          title="No changes to review"
+        />
+      ) : (
+        <SectionList
+          contentContainerClassName="gap-0.5 px-2 pb-8"
+          contentContainerStyle={{ paddingBottom: bottomInset }}
+          keyExtractor={(file: FlowFile) => file.path}
+          renderItem={({ item }) => (
+            <FileRow
+              actions={actions}
+              file={item}
+              isReviewed={reviewed.has(item.path)}
+              selected={item.path === selectedPath}
+              working={scope === 'working'}
+            />
+          )}
+          renderSectionHeader={({ section }) => (
+            <View className="bg-background px-2 pb-1 pt-3">
+              <PanelLabel>{section.layer}</PanelLabel>
+            </View>
+          )}
+          sections={sections}
+          stickySectionHeadersEnabled={false}
+          testID="porcelain-changes-rows"
+        />
+      )}
+
+      <CommentComposer
+        anchor={anchor}
+        onClose={() => {
+          setAnchor(null)
+        }}
+      />
+    </View>
+  )
+}
+
+function ChangesHeader({
+  allReviewed,
+  label,
+  onReadAll,
+  onScopeChange,
+  onToggleAll,
+  scope,
+  total,
+}: {
+  allReviewed: boolean
+  label: string
+  onReadAll: () => void
+  onScopeChange: (scope: ChangesScope) => void
+  onToggleAll: () => void
+  scope: ChangesScope
+  total: number
+}): React.JSX.Element {
+  return (
+    <View className="gap-2 px-3 pb-2 pt-1">
+      <View className="flex-row items-center gap-1">
+        <Text
+          className={`min-w-0 flex-1 text-xs ${allReviewed ? 'text-success' : 'text-muted-foreground'}`}
+          testID="porcelain-changes-summary"
+        >
+          {label}
+        </Text>
+        <IconAction
+          accessibilityLabel={allReviewed ? 'Unmark all reviewed' : 'Mark all reviewed'}
+          disabled={total === 0}
+          glyph={allReviewed ? 'checklistOff' : 'checklist'}
+          testID="porcelain-changes-review-all"
+          onPress={onToggleAll}
+        />
+        <IconAction
+          accessibilityLabel="Read all changes"
+          disabled={total === 0}
+          glyph="readAll"
+          testID="porcelain-changes-read-all-open"
+          onPress={onReadAll}
+        />
+      </View>
+      <SegmentedControl<ChangesScope>
+        options={[
+          { value: 'working', label: 'Working', testID: 'porcelain-changes-scope-working' },
+          { value: 'branch', label: 'Branch', testID: 'porcelain-changes-scope-branch' },
+        ]}
+        testID="porcelain-changes-scope"
+        value={scope}
+        onChange={onScopeChange}
+      />
+    </View>
+  )
+}

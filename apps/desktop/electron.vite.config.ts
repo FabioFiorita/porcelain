@@ -41,6 +41,10 @@ const define = { __PORCELAIN_VERSION__: JSON.stringify(version) }
 const workspaceAliases = {
   '@porcelain/contracts': resolve('../../packages/contracts/src'),
   '@porcelain/shared': resolve('../../packages/shared/src'),
+  '@porcelain/client-runtime/commit-message': resolve(
+    '../../packages/client-runtime/src/commit-message.ts',
+  ),
+  '@porcelain/client-runtime/paths': resolve('../../packages/client-runtime/src/paths.ts'),
   '@porcelain/client-runtime/terminal-keys': resolve(
     '../../packages/client-runtime/src/terminal-keys.ts',
   ),

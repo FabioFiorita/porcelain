@@ -2,7 +2,7 @@ import { type EndpointKind, endpointKind } from '@porcelain/contracts'
 import { useState } from 'react'
 import { Alert, Pressable, View } from 'react-native'
 import { Swipeable } from 'react-native-gesture-handler'
-
+import { ChromeGlyph, type ChromeIconName } from '@/components/chrome-glyph'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Text } from '@/components/ui/text'
@@ -20,8 +20,6 @@ import {
   useEnvironmentsCorrupt,
 } from '@/lib/daemon/environments-store'
 import { cn } from '@/lib/utils'
-
-import { ChromeGlyph, type ChromeIconName } from '../shell/shell-icon'
 import { addGroupConnection, describePairProblem, pairNewGroup } from './pair-environment'
 
 type EnvRoute =

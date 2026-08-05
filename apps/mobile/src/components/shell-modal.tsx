@@ -5,6 +5,7 @@ import {
   ScrollView,
   Text,
   useColorScheme,
+  useWindowDimensions,
   View,
   type ViewStyle,
 } from 'react-native'
@@ -102,6 +103,19 @@ export function ShellModal({
       </View>
     </Modal>
   )
+}
+
+/**
+ * Panel geometry for a standard sheet. Read live (not `Dimensions.get` at module scope):
+ * frozen portrait metrics starve a landscape iPad dialog of the width its controls need.
+ */
+export function useShellModalSize(): { width: number; maxHeight: number } {
+  const { width, height } = useWindowDimensions()
+  const isPhoneWidth = width < 768
+  return {
+    maxHeight: isPhoneWidth ? Math.min(height * 0.78, 640) : Math.min(height * 0.72, 520),
+    width: isPhoneWidth ? Math.min(width - 24, 400) : Math.min(width * 0.55, 440),
+  }
 }
 
 export function ShellModalScroll({

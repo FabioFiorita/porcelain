@@ -1,13 +1,12 @@
 import { useIsFocused } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
-
+import { ChromeGlyph } from '@/components/chrome-glyph'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import { Text as UiText } from '@/components/ui/text'
 import { cn } from '@/lib/utils'
-
 import {
   COMPANION,
   LIST_ITEMS,
@@ -17,8 +16,8 @@ import {
   VIEWER_PLACEHOLDERS,
 } from './mock-data'
 import { PhoneHeader } from './phone-header'
-import { ChromeGlyph } from './shell-icon'
 import { useShellStore } from './shell-store'
+import { surfaceSlots } from './surface-slots'
 import type { DualTabSlot } from './tab-faces'
 import { useTabFaces } from './tab-faces'
 import { useTabRootFocusRegistration } from './tab-root-focus'
@@ -88,6 +87,11 @@ function PhoneSurfaceBody({ surfaceId }: { surfaceId: SurfaceId }): React.JSX.El
       setActiveSurface(surfaceId)
     }
   }, [focused, setActiveSurface, surfaceId])
+
+  // A real surface owns its whole tab body — header, list, and detail view. The mock body
+  // below stays for the tabs that have not landed yet.
+  const slots = surfaceSlots(surfaceId)
+  if (slots !== undefined) return <slots.phone />
 
   const query = searchQuery.trim()
   const filtered =

@@ -1,7 +1,8 @@
 import { headLabel } from '@porcelain/contracts'
 import { useEffect, useMemo, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
-
+import { ChromeGlyph } from '@/components/chrome-glyph'
+import { ShellModalScroll } from '@/components/shell-modal'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Text as UiText } from '@/components/ui/text'
@@ -23,9 +24,6 @@ import {
 import { useDaemonInvalidate, useDaemonMutation, useDaemonQuery } from '@/lib/daemon/queries'
 import { openRepo, useActiveRepo } from '@/lib/daemon/repo'
 import { cn } from '@/lib/utils'
-
-import { ChromeGlyph } from './shell-icon'
-import { ShellModalScroll } from './shell-modal'
 import { useShellStore } from './shell-store'
 
 type WorkspaceHeader = {

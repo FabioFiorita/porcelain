@@ -5,6 +5,8 @@
   "description": "Non-UI client core shared by web and mobile.",
   "type": "module",
   "exports": {
+    "./commit-message": "./src/commit-message.ts",
+    "./paths": "./src/paths.ts",
     "./terminal-keys": "./src/terminal-keys.ts",
     "./session-protocol": "./src/session-protocol.ts",
     "./word-diff-line": "./src/word-diff-line.ts",

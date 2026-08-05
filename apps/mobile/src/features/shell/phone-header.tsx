@@ -1,10 +1,8 @@
 import { Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-
+import { ChromeGlyph } from '@/components/chrome-glyph'
 import { cn } from '@/lib/utils'
-
 import type { SurfaceId } from './mock-data'
-import { ChromeGlyph } from './shell-icon'
 import { useShellStore } from './shell-store'
 import { useWorkspaceHeader } from './workspace-switchers'
 

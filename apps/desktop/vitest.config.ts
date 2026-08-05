@@ -20,6 +20,10 @@ export default defineConfig({
       '@shared': resolve('../../packages/shared/src'),
       '@porcelain/shared': resolve('../../packages/shared/src'),
       '@porcelain/contracts': resolve('../../packages/contracts/src'),
+      '@porcelain/client-runtime/commit-message': resolve(
+        '../../packages/client-runtime/src/commit-message.ts',
+      ),
+      '@porcelain/client-runtime/paths': resolve('../../packages/client-runtime/src/paths.ts'),
       '@porcelain/client-runtime/terminal-keys': resolve(
         '../../packages/client-runtime/src/terminal-keys.ts',
       ),

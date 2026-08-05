@@ -1,14 +1,15 @@
 import { useMemo, useState } from 'react'
 import { Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native'
+import { ChromeGlyph } from '@/components/chrome-glyph'
+import { ShellModal, ShellModalScroll } from '@/components/shell-modal'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Text as UiText } from '@/components/ui/text'
 import { cn } from '@/lib/utils'
 import { COMPANION, surfaceById } from './mock-data'
 import { EnvironmentsSettings, GeneralSettings, ReviewSettings } from './settings-screen'
-import { ChromeGlyph } from './shell-icon'
-import { ShellModal, ShellModalScroll } from './shell-modal'
 import { type SettingsSection, useShellStore } from './shell-store'
+import { surfaceSlots } from './surface-slots'
 import { BranchSheetBody, ProjectSheetBody, WorktreeSheetBody } from './workspace-switchers'
 
 type ShellSheetsProps = {
@@ -111,6 +112,7 @@ function CompanionSheetBody(): React.JSX.Element {
   const sections = COMPANION[surfaceId]
   const closeSheet = useShellStore((state) => state.closeSheet)
   const { sheetMaxH } = useSheetMetrics()
+  const slots = surfaceSlots(surfaceId)
 
   return (
     <View className="gap-3 p-5" testID="porcelain-companion-sheet">
@@ -121,25 +123,33 @@ function CompanionSheetBody(): React.JSX.Element {
         <Text className="text-lg font-semibold text-foreground">{surface.companionTitle}</Text>
         <Text className="text-sm text-muted-foreground">{surface.label}</Text>
       </View>
-      <ShellModalScroll style={{ maxHeight: sheetMaxH - 120 }}>
-        {sections.map((section) => (
-          <View key={section.id} className="gap-2 rounded-2xl border border-border bg-card p-3">
-            <Text className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              {section.title}
-            </Text>
-            <View className="gap-2">
-              {section.rows.map((row) => (
-                <View key={row.id} className="gap-0.5">
-                  <Text className="text-sm font-medium text-foreground">{row.label}</Text>
-                  {row.detail ? (
-                    <Text className="text-xs text-muted-foreground">{row.detail}</Text>
-                  ) : null}
-                </View>
-              ))}
+      {/* A real surface renders its own scrolling companion; the mock sections stay for the
+          tabs that have not landed yet. */}
+      {slots !== undefined ? (
+        <View style={{ height: sheetMaxH - 170 }}>
+          <slots.companion active />
+        </View>
+      ) : (
+        <ShellModalScroll style={{ maxHeight: sheetMaxH - 120 }}>
+          {sections.map((section) => (
+            <View key={section.id} className="gap-2 rounded-2xl border border-border bg-card p-3">
+              <Text className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                {section.title}
+              </Text>
+              <View className="gap-2">
+                {section.rows.map((row) => (
+                  <View key={row.id} className="gap-0.5">
+                    <Text className="text-sm font-medium text-foreground">{row.label}</Text>
+                    {row.detail ? (
+                      <Text className="text-xs text-muted-foreground">{row.detail}</Text>
+                    ) : null}
+                  </View>
+                ))}
+              </View>
             </View>
-          </View>
-        ))}
-      </ShellModalScroll>
+          ))}
+        </ShellModalScroll>
+      )}
       <Button onPress={closeSheet} variant="outline">
         <UiText>Done</UiText>
       </Button>

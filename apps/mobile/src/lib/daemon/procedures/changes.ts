@@ -1,4 +1,9 @@
-import type { HeadRef } from '@porcelain/contracts'
+import {
+  type CommitModel,
+  commitGroupGenerationOutputSchema,
+  commitMessageGenerationOutputSchema,
+  type HeadRef,
+} from '@porcelain/contracts'
 import { z } from 'zod'
 
 import { defineMutation, defineQuery } from '../procedure'
@@ -56,6 +61,17 @@ export type FeatureReading = z.infer<typeof featureReadingSchema>
 
 export const gitFlowQuery = defineQuery<string, FlowGroup[]>('gitFlow', z.array(flowGroupSchema))
 
+const rangeFlowSchema = z.object({ groups: z.array(flowGroupSchema), base: z.string() })
+
+export type RangeFlow = z.infer<typeof rangeFlowSchema>
+
+/**
+ * The cumulative committed diff since the merge-base with the default branch, plus the
+ * label of that base. Unlike `gitFlow` this is static until the next commit, so it is read
+ * without a poll and refreshed by the `working-tree` app event.
+ */
+export const gitRangeFlowQuery = defineQuery<string, RangeFlow>('gitRangeFlow', rangeFlowSchema)
+
 export const reviewedPathsQuery = defineQuery<string, string[]>(
   'reviewedPaths',
   z.array(z.string()),
@@ -106,13 +122,22 @@ export const gitDiffFileQuery = defineQuery<{ repoPath: string; filePath: string
   diffFileResultSchema,
 )
 
+/** The same file shape as `gitDiffFile`, measured over `base`..HEAD instead of the working tree. */
+export const gitRangeDiffFileQuery = defineQuery<
+  { repoPath: string; base: string; filePath: string },
+  DiffFileResult
+>('gitRangeDiffFile', diffFileResultSchema)
+
 /** Unlike `gitDiffFile`, the commit form returns the hunks bare — no status, no image. */
 export const gitCommitDiffQuery = defineQuery<
   { repoPath: string; hash: string; filePath: string },
   DiffHunk[]
 >('gitCommitDiff', z.array(diffHunkSchema))
 
-export type DiffReadingScope = { type: 'working' } | { type: 'commit'; hash: string }
+export type DiffReadingScope =
+  | { type: 'working' }
+  | { type: 'branch' }
+  | { type: 'commit'; hash: string }
 
 export const diffReadingQuery = defineQuery<
   { repoPath: string; scope: DiffReadingScope },
@@ -172,6 +197,21 @@ export const gitCommitMutation = defineMutation<{ repoPath: string; message: str
 )
 
 export const gitPushMutation = defineMutation<{ repoPath: string }, string>('gitPush', z.string())
+
+/**
+ * Both generators spawn a provider on the daemon host and can run for tens of seconds; the
+ * model is the on-device preference, validated daemon-side against the installed inventory.
+ * Message generation reads the STAGED diff, group generation the unstaged one.
+ */
+export const gitGenerateCommitMessageMutation = defineMutation<
+  { repoPath: string; model: CommitModel },
+  { message: string }
+>('gitGenerateCommitMessage', commitMessageGenerationOutputSchema)
+
+export const gitGenerateCommitGroupsMutation = defineMutation<
+  { repoPath: string; model: CommitModel },
+  { groups: { files: string[]; message: string }[] }
+>('gitGenerateCommitGroups', commitGroupGenerationOutputSchema)
 
 export const gitQuickCommandMutation = defineMutation<
   { repoPath: string; command: QuickCommandId; pullMode: 'merge' | 'rebase' },

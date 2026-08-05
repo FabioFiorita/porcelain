@@ -1,5 +1,8 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs'
 
+import { useChangesStore } from '@/features/changes/changes-store'
+import { useChangedFileCount } from '@/features/changes/use-changes'
+
 import { ShellSheets } from './shell-sheets'
 import type { DualTabSlot } from './tab-faces'
 import { useTabFaces } from './tab-faces'
@@ -14,6 +17,9 @@ export function PhoneShell(): React.JSX.Element {
   const filesFace = useTabFaces((state) => state.files)
   const changesFace = useTabFaces((state) => state.changes)
   const reviewFace = useTabFaces((state) => state.review)
+  // The badge is the live working-tree count — a fixed number here would be a lie the moment
+  // the agent writes anything.
+  const changedFiles = useChangedFileCount()
 
   return (
     <>
@@ -54,8 +60,8 @@ export function PhoneShell(): React.JSX.Element {
           <NativeTabs.Trigger.Label>
             {changesFace === 'history' ? 'History' : 'Changes'}
           </NativeTabs.Trigger.Label>
-          {changesFace === 'changes' ? (
-            <NativeTabs.Trigger.Badge>3</NativeTabs.Trigger.Badge>
+          {changesFace === 'changes' && changedFiles > 0 ? (
+            <NativeTabs.Trigger.Badge>{String(changedFiles)}</NativeTabs.Trigger.Badge>
           ) : null}
         </NativeTabs.Trigger>
 
@@ -93,6 +99,12 @@ export function PhoneShell(): React.JSX.Element {
 
 function toggleFaceIfRoot(tab: DualTabSlot): void {
   if (!useTabRootFocus.getState().roots[tab]) return
+  // Re-tapping a tab pops its detail view first (the iOS "back to root" idiom); only a tab
+  // already showing its list flips to the alternate face.
+  if (tab === 'changes' && useChangesStore.getState().selection !== null) {
+    useChangesStore.getState().closeSelection()
+    return
+  }
   if (tab === 'files') useTabFaces.getState().toggleFiles()
   else if (tab === 'changes') useTabFaces.getState().toggleChanges()
   else useTabFaces.getState().toggleReview()

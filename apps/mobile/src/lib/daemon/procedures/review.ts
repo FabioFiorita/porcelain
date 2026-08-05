@@ -183,8 +183,20 @@ export const reviewCommentsQuery = defineQuery<string, ReviewComment[]>(
   z.array(reviewCommentSchema),
 )
 
+/**
+ * A comment with no `startLine` is anchored to the whole file; with one it anchors to a line
+ * range on the NEW side of the diff. `anchorText` is the quoted source the agent sees when the
+ * lines have since moved.
+ */
 export const addReviewCommentMutation = defineMutation<
-  { repoPath: string; path: string; body: string },
+  {
+    repoPath: string
+    path: string
+    body: string
+    startLine?: number
+    endLine?: number
+    anchorText?: string
+  },
   ReviewComment
 >('addReviewComment', reviewCommentSchema)
 
@@ -195,6 +207,17 @@ export const editReviewCommentMutation = defineMutation<
 
 export const deleteReviewCommentMutation = defineMutation<{ repoPath: string; id: string }, void>(
   'deleteReviewComment',
+  z.void(),
+)
+
+export const resolveReviewCommentMutation = defineMutation<
+  { repoPath: string; id: string; resolved: boolean },
+  void
+>('resolveReviewComment', z.void())
+
+/** Bulk delete of every resolved comment — open ones are left alone. Not recoverable. */
+export const clearResolvedReviewCommentsMutation = defineMutation<{ repoPath: string }, void>(
+  'clearResolvedReviewComments',
   z.void(),
 )
 

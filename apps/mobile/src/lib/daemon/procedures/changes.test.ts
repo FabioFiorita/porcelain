@@ -8,10 +8,14 @@ import {
   gitDiffFileQuery,
   gitDiscardFileMutation,
   gitFlowQuery,
+  gitGenerateCommitGroupsMutation,
+  gitGenerateCommitMessageMutation,
   gitHeadQuery,
   gitLogQuery,
   gitPushMutation,
   gitQuickCommandMutation,
+  gitRangeDiffFileQuery,
+  gitRangeFlowQuery,
   gitStageAllMutation,
   gitStageFileMutation,
   gitSuggestionsQuery,
@@ -74,6 +78,21 @@ describe('gitFlow', () => {
   })
 })
 
+describe('gitRangeFlow', () => {
+  it('parses the branch range: flow groups plus the base they are measured against', () => {
+    const parsed = gitRangeFlowQuery.output.parse({
+      base: 'origin/main',
+      groups: [{ files: [{ connects: [], path: 'src/a.ts', status: 'modified' }], layer: 'Other' }],
+    })
+    expect(parsed.base).toBe('origin/main')
+    expect(parsed.groups[0]?.files).toHaveLength(1)
+  })
+
+  it('rejects a range with no base — the header has nothing to name without it', () => {
+    expect(() => gitRangeFlowQuery.output.parse({ groups: [] })).toThrow()
+  })
+})
+
 describe('diff shapes', () => {
   it('parses gitDiffFile, which carries status and an optional image', () => {
     const parsed = gitDiffFileQuery.output.parse({
@@ -83,6 +102,11 @@ describe('diff shapes', () => {
       status: 'modified',
     })
     expect(parsed.hunks[0]?.lines).toHaveLength(2)
+  })
+
+  it('parses gitRangeDiffFile with the same shape as the working-tree read', () => {
+    const parsed = gitRangeDiffFileQuery.output.parse({ hunks: [hunk], status: 'added' })
+    expect(parsed.status).toBe('added')
   })
 
   it('parses gitCommitDiff, which returns hunks bare', () => {
@@ -164,5 +188,27 @@ describe('change mutations and action queries', () => {
     expect(
       gitSuggestionsQuery.output.parse([{ command: 'push', reason: '1 unpushed commit' }]),
     ).toEqual([{ command: 'push', reason: '1 unpushed commit' }])
+  })
+})
+
+describe('commit generation', () => {
+  it('parses a generated message', () => {
+    expect(
+      gitGenerateCommitMessageMutation.output.parse({ message: 'feat(mobile): changes tab' })
+        .message,
+    ).toBe('feat(mobile): changes tab')
+  })
+
+  it('parses generated groups, each a file set with its own message', () => {
+    const parsed = gitGenerateCommitGroupsMutation.output.parse({
+      groups: [{ files: ['a.ts', 'b.ts'], message: 'fix: a' }],
+    })
+    expect(parsed.groups[0]?.files).toEqual(['a.ts', 'b.ts'])
+  })
+
+  it('rejects a group with no message — there would be nothing to commit with', () => {
+    expect(() =>
+      gitGenerateCommitGroupsMutation.output.parse({ groups: [{ files: ['a.ts'] }] }),
+    ).toThrow()
   })
 })

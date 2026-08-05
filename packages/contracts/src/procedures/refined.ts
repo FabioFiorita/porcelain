@@ -253,6 +253,7 @@ export const refinedProcedureIo: Partial<Record<ProcedureName, ProcedureIo>> = {
       repoPath: z.string(),
       scope: z.union([
         z.object({ type: z.literal('working') }),
+        z.object({ type: z.literal('branch') }),
         z.object({ type: z.literal('commit'), hash: z.string() }),
       ]),
     }),

@@ -1,5 +1,6 @@
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-screens/experimental'
+import { ChromeGlyph } from '@/components/chrome-glyph'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -15,8 +16,9 @@ import {
   surfaceById,
   VIEWER_PLACEHOLDERS,
 } from './mock-data'
-import { ChromeGlyph, SurfaceGlyph } from './shell-icon'
+import { SurfaceGlyph } from './shell-icon'
 import { useShellStore } from './shell-store'
+import { surfaceSlots } from './surface-slots'
 import { useIsAppFullscreen } from './use-app-window'
 import { useWorkspaceHeader } from './workspace-switchers'
 
@@ -279,6 +281,23 @@ export function SupplementaryColumn({
   const selectedId = useShellStore((state) => state.selectedIds[surface.id])
   const selectItem = useShellStore((state) => state.selectItem)
   const selected = items.find((item) => item.id === selectedId) ?? items[0]
+  const slots = surfaceSlots(surfaceId)
+
+  // A real surface owns its whole column: its header carries live counts and scope controls
+  // that the mock title / hint block has no room for.
+  if (slots !== undefined) {
+    return (
+      <SafeAreaView
+        className={cn('flex-1 bg-card', !primaryCollapsed && 'border-l border-border')}
+        edges={{ bottom: true, left: true, right: true }}
+      >
+        <View className={cn('flex-1', primaryCollapsed ? 'pt-[72px]' : 'pt-4')}>
+          <Text className="px-4 pb-1 text-xl font-bold text-foreground">{surface.listTitle}</Text>
+          <slots.list active />
+        </View>
+      </SafeAreaView>
+    )
+  }
 
   return (
     <SafeAreaView
@@ -373,6 +392,34 @@ export function CompanionColumn(): React.JSX.Element {
   const surface = surfaceById(surfaceId)
   const sections = COMPANION[surface.id]
   const toggleInspector = useShellStore((state) => state.toggleInspector)
+  const slots = surfaceSlots(surfaceId)
+
+  if (slots !== undefined) {
+    return (
+      <SafeAreaView
+        className="flex-1 border-l border-border bg-muted/20"
+        edges={{ bottom: true, right: true }}
+      >
+        <View className="flex-row items-start justify-between gap-2 px-3 pt-4">
+          <View className="min-w-0 flex-1 gap-1">
+            <Text className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+              Companion
+            </Text>
+            <Text className="text-xl font-bold text-foreground">{surface.companionTitle}</Text>
+          </View>
+          <Button
+            accessibilityLabel="Close companion"
+            onPress={toggleInspector}
+            size="icon"
+            variant="ghost"
+          >
+            <ChromeGlyph name="close" size={16} tone="foreground" />
+          </Button>
+        </View>
+        <slots.companion active />
+      </SafeAreaView>
+    )
+  }
 
   return (
     <SafeAreaView
@@ -424,6 +471,12 @@ export function CompanionColumn(): React.JSX.Element {
 }
 
 export function ViewerCanvas({ surfaceId }: { surfaceId: SurfaceId }): React.JSX.Element {
+  const slots = surfaceSlots(surfaceId)
+  if (slots !== undefined) return <slots.viewer active />
+  return <MockViewerCanvas surfaceId={surfaceId} />
+}
+
+function MockViewerCanvas({ surfaceId }: { surfaceId: SurfaceId }): React.JSX.Element {
   const surface = SURFACES.find((entry) => entry.id === surfaceId) ?? SURFACES[0]
   const items = LIST_ITEMS[surface.id]
   const selectedId = useShellStore((state) => state.selectedIds[surface.id])

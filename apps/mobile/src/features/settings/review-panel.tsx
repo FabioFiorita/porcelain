@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Pressable, View } from 'react-native'
 
+import { SegmentedControl } from '@/components/segmented-control'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Text } from '@/components/ui/text'
@@ -13,8 +14,6 @@ import {
 } from '@/lib/daemon/procedures/settings'
 import { useDaemonMutation, useDaemonQuery } from '@/lib/daemon/queries'
 import { cn } from '@/lib/utils'
-
-import { SegmentedControl } from './segmented-control'
 
 type MatchType = 'folder' | 'ext' | 'suffix'
 

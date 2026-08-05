@@ -55,6 +55,14 @@ export default defineConfig({
       '@shared': resolve(root, '../../packages/shared/src'),
       '@porcelain/shared': resolve(root, '../../packages/shared/src'),
       '@porcelain/contracts': resolve(root, '../../packages/contracts/src'),
+      '@porcelain/client-runtime/commit-message': resolve(
+        root,
+        '../../packages/client-runtime/src/commit-message.ts',
+      ),
+      '@porcelain/client-runtime/paths': resolve(
+        root,
+        '../../packages/client-runtime/src/paths.ts',
+      ),
       '@porcelain/client-runtime/terminal-keys': resolve(
         root,
         '../../packages/client-runtime/src/terminal-keys.ts',
