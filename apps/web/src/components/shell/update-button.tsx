@@ -43,7 +43,10 @@ export function UpdateButton(): React.JSX.Element | null {
               'text-xs font-medium text-secondary-foreground transition-colors',
               'hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
               'disabled:pointer-events-none disabled:opacity-50',
-              compact ? 'size-8 justify-center' : 'h-8 max-w-48 gap-1.5 px-2',
+              // Height is derived, never pinned: `py-1` on a text-xs line box is what
+              // makes this exactly as tall as the env chip beside it. A literal `h-8`
+              // here drifted 6px taller and broke the cluster.
+              compact ? 'size-8 justify-center' : 'max-w-48 gap-1.5 px-2 py-1',
             )}
           >
             {isInstalling ? (
