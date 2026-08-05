@@ -10,7 +10,12 @@ import {
 } from '@shared/project-porcelain'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { gitEnv } from '../git/git-env'
-import { readChannelDispositions, setChannelDisposition } from './companion-disposition'
+import {
+  readChannelDispositions,
+  recordPublishedReview,
+  setChannelDisposition,
+} from './companion-disposition'
+import { hideCompanion } from './git-exclude'
 
 const GIT_ENV = {
   GIT_AUTHOR_NAME: 'Test User',
@@ -55,7 +60,7 @@ describe('companion dispositions', () => {
     const state = await readChannelDispositions(repo)
     const byKey = Object.fromEntries(state.map((c) => [c.key, c.disposition]))
     expect(byKey.actions).toBe('shared')
-    expect(byKey.notes).toBe('shared')
+    expect(byKey.notes).toBe('local')
     expect(byKey.board).toBe('local')
     expect(byKey.reviews).toBe('local')
   })
@@ -108,5 +113,34 @@ describe('companion dispositions', () => {
     const text = await readFile(path, 'utf8')
     expect(text).toContain('# mine')
     expect(text).toContain('scratch/')
+  })
+})
+
+describe('publishing a review', () => {
+  it('lifts the clone-wide exclude and re-includes just that review', async () => {
+    await hideCompanion(repo)
+    const dir = join(projectPorcelainDir(repo), 'reviews')
+    await mkdir(join(dir, 'keep', 'evidence'), { recursive: true })
+    await mkdir(join(dir, 'other'), { recursive: true })
+    await writeFile(join(dir, 'keep', 'review.json'), '{}')
+    await writeFile(join(dir, 'keep', 'evidence', 'index.html'), '<p>proof</p>')
+    await writeFile(join(dir, 'other', 'review.json'), '{}')
+
+    await recordPublishedReview(repo, 'keep')
+
+    const status = git(repo, 'status', '--porcelain=v1', '-uall')
+    // The published review is visible, evidence and all.
+    expect(status).toContain('.porcelain/reviews/keep/review.json')
+    expect(status).toContain('.porcelain/reviews/keep/evidence/index.html')
+    // Every other review stays private.
+    expect(status).not.toContain('other/review.json')
+  })
+
+  it('is idempotent and survives a later toggle', async () => {
+    await recordPublishedReview(repo, 'r1')
+    await recordPublishedReview(repo, 'r1')
+    await setChannelDisposition(repo, 'board', 'shared')
+    const text = await readFile(projectPorcelainPath(repo, PROJECT_FILES.gitignore), 'utf8')
+    expect(text.split('\n').filter((l) => l.trim() === '!/reviews/r1/')).toHaveLength(1)
   })
 })

@@ -14,6 +14,7 @@ import {
 import { z } from 'zod'
 import { gitForceStage } from '../git/git'
 import { createProjectChannel } from '../net/project-channel'
+import { recordPublishedReview } from '../project/companion-disposition'
 import { ensureProjectCompanion } from '../project/migrate-home'
 import {
   type ReviewSection,
@@ -270,6 +271,10 @@ export async function publishActiveReview(repoPath: string): Promise<PublishResu
   const cost = await activeReviewCost(repoPath)
   const id = await archiveActiveReview(repoPath)
   if (id === null) return null
+  // The durable half: a negation rule the team can read, and which travels with
+  // the commit. It also lifts the clone-wide exclude, without which it is inert.
+  await recordPublishedReview(repoPath, id)
+  // The immediate half: stage it now so the human sees it in Changes.
   await gitForceStage(repoPath, relative(repoPath, projectArchivedReviewDir(repoPath, id)))
   return { id, cost }
 }

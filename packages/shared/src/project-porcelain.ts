@@ -75,9 +75,9 @@ export const COMPANION_CHANNELS: readonly CompanionChannel[] = [
   {
     key: 'notes',
     label: 'Repo notes',
-    hint: 'The standing brief agents read before they work.',
+    hint: 'Your standing brief for agents. Personal by default — share it when the whole team wants the same brief.',
     patterns: ['/notes.md'],
-    defaultDisposition: 'shared',
+    defaultDisposition: 'local',
   },
   {
     key: 'scope',
@@ -103,8 +103,10 @@ export const COMPANION_CHANNELS: readonly CompanionChannel[] = [
   {
     key: 'reviews',
     label: 'Reviews',
-    hint: 'Local keeps reviews to yourself; publish still shares one review at a time.',
-    patterns: ['/reviews/'],
+    hint: 'Local keeps reviews to yourself; publishing shares one review at a time.',
+    // Contents, not the directory: git cannot re-include a path whose PARENT is
+    // excluded, so `/reviews/` would make publishing a single review impossible.
+    patterns: ['/reviews/*'],
     defaultDisposition: 'local',
   },
 ] as const
@@ -141,15 +143,45 @@ export const ALWAYS_IGNORED = [
 const MANAGED_BEGIN = '# >>> porcelain:managed — Settings › Companion owns these lines'
 const MANAGED_END = '# <<< porcelain:managed'
 
-function managedBlock(dispositions: Record<string, CompanionDisposition>): string {
+/**
+ * Re-include one published review, LAST so it beats the rules above it —
+ * including the per-review evidence glob, because a review without its proof is
+ * half a review and the publish dialog already priced the bytes.
+ *
+ * Two lines are required: the directory, then everything beneath it. Git will
+ * not descend into an excluded directory, so re-including only `**` would never
+ * be reached, and re-including only the directory would leave the evidence glob
+ * winning underneath.
+ */
+function publishedLines(id: string): string[] {
+  return [`!/${PROJECT_REVIEWS_DIR}/${id}/`, `!/${PROJECT_REVIEWS_DIR}/${id}/**`]
+}
+
+function managedBlock(
+  dispositions: Record<string, CompanionDisposition>,
+  published: readonly string[] = [],
+): string {
   const lines: string[] = [MANAGED_BEGIN]
   for (const channel of COMPANION_CHANNELS) {
     const disposition = dispositions[channel.key] ?? channel.defaultDisposition
     if (disposition !== 'local') continue
     lines.push(...channel.patterns)
   }
-  lines.push(...ALWAYS_IGNORED, MANAGED_END)
+  lines.push(...ALWAYS_IGNORED)
+  for (const id of published) lines.push(...publishedLines(id))
+  lines.push(MANAGED_END)
   return lines.join('\n')
+}
+
+/** Review ids this companion has published (negated back in). */
+export function parsePublishedReviews(gitignore: string): string[] {
+  const out = new Set<string>()
+  const re = new RegExp(`^!/${PROJECT_REVIEWS_DIR}/([^/]+)/$`)
+  for (const raw of gitignore.split('\n')) {
+    const match = re.exec(raw.trim())
+    if (match?.[1]) out.add(match[1])
+  }
+  return [...out]
 }
 
 function defaultDispositions(): Record<string, CompanionDisposition> {
@@ -197,8 +229,9 @@ export function parseDispositions(gitignore: string): Record<string, CompanionDi
 export function renderGitignore(
   current: string,
   dispositions: Record<string, CompanionDisposition>,
+  published: readonly string[] = parsePublishedReviews(current),
 ): string {
-  const block = managedBlock(dispositions)
+  const block = managedBlock(dispositions, published)
   const lines = current.split('\n')
   const begin = lines.findIndex((l) => l.trim().startsWith('# >>> porcelain:managed'))
   const end = lines.findIndex((l) => l.trim() === MANAGED_END)

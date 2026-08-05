@@ -7,6 +7,7 @@ import {
   PROJECT_FILES,
   PROJECT_PORCELAIN_DIR,
   parseDispositions,
+  parsePublishedReviews,
   projectArchivedReviewDir,
   projectEvidenceDir,
   projectPorcelainDir,
@@ -52,6 +53,18 @@ describe('companion dispositions', () => {
     const allShared = Object.fromEntries(COMPANION_CHANNELS.map((c) => [c.key, 'shared' as const]))
     const back = renderGitignore(rendered, allShared)
     expect(parseDispositions(back)).toEqual(allShared)
+  })
+
+  it('ships the agreed defaults', () => {
+    const parsed = parseDispositions(DEFAULT_PROJECT_GITIGNORE)
+    expect(parsed).toEqual({
+      actions: 'shared',
+      notes: 'local',
+      scope: 'shared',
+      layers: 'shared',
+      board: 'local',
+      reviews: 'local',
+    })
   })
 
   it('reads the shipped defaults back out of the default file', () => {
@@ -103,5 +116,34 @@ describe('the active review is never tracked by default', () => {
     ]) {
       expect(DEFAULT_PROJECT_GITIGNORE).toContain(slot)
     }
+  })
+})
+
+describe('publishing one review', () => {
+  it('re-includes the folder and everything under it, last', () => {
+    const next = renderGitignore(DEFAULT_PROJECT_GITIGNORE, { reviews: 'local' }, ['abc123'])
+    const lines = next.split('\n').map((l) => l.trim())
+    // Git cannot re-include a path whose parent is excluded, so the reviews rule
+    // must exclude CONTENTS, and the negations must come after it.
+    expect(lines).toContain('/reviews/*')
+    expect(lines.indexOf('!/reviews/abc123/')).toBeGreaterThan(lines.indexOf('/reviews/*'))
+    // After the evidence glob too, or a published review would lose its proof.
+    expect(lines.indexOf('!/reviews/abc123/**')).toBeGreaterThan(
+      lines.indexOf('reviews/*/evidence/'),
+    )
+  })
+
+  it('round-trips the published set', () => {
+    const next = renderGitignore(DEFAULT_PROJECT_GITIGNORE, { reviews: 'local' }, ['a', 'b'])
+    expect(parsePublishedReviews(next).sort()).toEqual(['a', 'b'])
+  })
+
+  it('keeps published reviews across an unrelated toggle', () => {
+    const published = renderGitignore(DEFAULT_PROJECT_GITIGNORE, { reviews: 'local' }, ['keep'])
+    const afterToggle = renderGitignore(published, {
+      ...parseDispositions(published),
+      board: 'shared',
+    })
+    expect(parsePublishedReviews(afterToggle)).toEqual(['keep'])
   })
 })
