@@ -42,10 +42,20 @@ export function useWorktreeInbox(): InboxRow[] {
   return data
 }
 
-export function useBranches(): BranchRef[] {
+export function useBranches(): { branches: BranchRef[]; refresh: () => Promise<void> } {
   const repo = useRepoStore((s) => s.repo)
-  const { data = [] } = trpc.gitBranches.useQuery(repo?.path ?? '', { enabled: repo !== null })
-  return data
+  const { data = [], refetch } = trpc.gitBranches.useQuery(repo?.path ?? '', {
+    enabled: repo !== null,
+    // Branches can be created or deleted outside Porcelain. Keep the cached value
+    // stale and let the picker establish the explicit freshness boundary on open.
+    staleTime: 0,
+  })
+
+  const refresh = async (): Promise<void> => {
+    await refetch()
+  }
+
+  return { branches: data, refresh }
 }
 
 /** Check out a branch by name. A remote-only name lets git DWIM a local tracking

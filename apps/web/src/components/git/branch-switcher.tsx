@@ -38,7 +38,7 @@ import { toast } from 'sonner'
 export function BranchSwitcher(): React.JSX.Element | null {
   const repo = useRepoStore((s) => s.repo)
   const branch = useBranch()
-  const branches = useBranches()
+  const { branches, refresh } = useBranches()
   const checkout = useCheckout()
   const createBranch = useCreateBranch()
   const [open, setOpen] = useState(false)
@@ -78,6 +78,15 @@ export function BranchSwitcher(): React.JSX.Element | null {
     setCreateOpen(true)
   }
 
+  const handleOpenChange = async (next: boolean): Promise<void> => {
+    setOpen(next)
+    if (!next) {
+      setQuery('')
+      return
+    }
+    await refresh()
+  }
+
   const handleCreate = async (): Promise<void> => {
     const name = newName.trim()
     if (name === '' || creating) return
@@ -97,13 +106,7 @@ export function BranchSwitcher(): React.JSX.Element | null {
   }
 
   return (
-    <Popover
-      open={open}
-      onOpenChange={(next: boolean): void => {
-        setOpen(next)
-        if (!next) setQuery('')
-      }}
-    >
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger
         render={
           <button

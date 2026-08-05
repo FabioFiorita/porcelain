@@ -38,7 +38,7 @@ beforeEach(() => {
   gitHeadQuery.mockReturnValue({ data: undefined })
   gitWorktreesQuery.mockReturnValue({ data: undefined })
   worktreeInboxQuery.mockReturnValue({ data: undefined })
-  gitBranchesQuery.mockReturnValue({ data: undefined })
+  gitBranchesQuery.mockReturnValue({ data: undefined, refetch: vi.fn() })
   useUtils.mockReturnValue({ invalidate: vi.fn() })
 })
 
@@ -108,15 +108,30 @@ describe('useBranches', () => {
   it('returns [] with no repo selected', () => {
     const { result } = renderHook(() => useBranches())
     expect(gitBranchesQuery).toHaveBeenCalledWith('', expect.objectContaining({ enabled: false }))
-    expect(result.current).toEqual([])
+    expect(result.current.branches).toEqual([])
   })
 
   it('passes through the branch list', () => {
     useRepoStore.setState({ repo: aRepo })
     const branches = [{ name: 'main', remote: null }]
-    gitBranchesQuery.mockReturnValue({ data: branches })
+    gitBranchesQuery.mockReturnValue({ data: branches, refetch: vi.fn() })
     const { result } = renderHook(() => useBranches())
-    expect(result.current).toBe(branches)
+    expect(gitBranchesQuery).toHaveBeenCalledWith(
+      aRepo.path,
+      expect.objectContaining({ enabled: true, staleTime: 0 }),
+    )
+    expect(result.current.branches).toBe(branches)
+  })
+
+  it('refreshes the live branch refs on demand', async () => {
+    useRepoStore.setState({ repo: aRepo })
+    const refetch = vi.fn().mockResolvedValue(undefined)
+    gitBranchesQuery.mockReturnValue({ data: [], refetch })
+
+    const { result } = renderHook(() => useBranches())
+    await result.current.refresh()
+
+    expect(refetch).toHaveBeenCalled()
   })
 })
 
