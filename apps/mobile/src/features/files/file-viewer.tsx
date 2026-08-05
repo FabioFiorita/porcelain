@@ -1,21 +1,30 @@
 import { fileName } from '@porcelain/client-runtime/paths'
 import { useMemo, useState } from 'react'
 import { FlatList, Image, Text, View } from 'react-native'
-
 import { EmptyNote, ErrorNote, IconAction } from '@/components/panel-chrome'
+import { SegmentedControl } from '@/components/segmented-control'
 import { type CommentAnchor, CommentComposer } from '@/features/comments/comment-composer'
 import { rangeForPath } from '@/features/comments/line-range'
 import { SelectionBar } from '@/features/comments/selection-bar'
 import { useCommentIndex, useReviewComments } from '@/features/comments/use-comments'
 import { useLineSelection } from '@/features/comments/use-line-selection'
+import {
+  type HtmlMode,
+  type MarkdownMode,
+  usePreferencesStore,
+} from '@/features/settings/preferences-store'
+import { useResolvedColorScheme } from '@/features/settings/theme-provider'
 import type { FileView } from '@/lib/daemon/procedures/files'
 import { cn } from '@/lib/utils'
 
+import { isHtmlPath, isMarkdownPath } from './file-kinds'
 import { pathTestId } from './file-paths'
+import { markdownToHtml, previewDocument, readerDocument } from './preview-document'
+import { PreviewView } from './preview-view'
 import { SourceLine } from './source-lines'
 import { describeBytes, type SourceRow, sourceAnchorText, toSourceRows } from './source-rows'
 import { useSourceTokens } from './use-file-highlight'
-import { useFileContents, usePathScope, usePinnedEntries } from './use-files'
+import { useFileContents, useHtmlPreview, usePathScope, usePinnedEntries } from './use-files'
 
 /**
  * One file, whole — the Files tab's viewer.
@@ -25,9 +34,10 @@ import { useFileContents, usePathScope, usePinnedEntries } from './use-files'
  * on the other end of it. That last part is the point of reading a file on a phone at all —
  * a comment filed here reaches the agent through the same channel as one filed on a diff.
  *
- * Markdown and HTML render as source. The desktop's reader and sandboxed preview both need a
- * renderer this client does not carry (a WebView, a markdown component), and adding one is a
- * native dependency decision, not a detail of this tab.
+ * A markdown or HTML file also has a rendered face, chosen by the same Settings preference the
+ * desktop uses; the toggle above the content is that preference, not a per-file mode. Source
+ * stays the surface that carries line numbers, comment markers and selection — a comment
+ * anchors to a line, and a rendered page has none.
  */
 export function FileViewer({
   active,
@@ -57,6 +67,20 @@ export function FileViewer({
   // instead of a pin button that silently does nothing on an already-pinned file.
   const { entries: pinned } = usePinnedEntries(active)
   const isPinned = pinned.some((entry) => entry.path === filePath)
+
+  const markdown = isMarkdownPath(filePath)
+  const html = isHtmlPath(filePath)
+  const markdownMode = usePreferencesStore((state) => state.markdownMode)
+  const htmlMode = usePreferencesStore((state) => state.htmlMode)
+  const setMarkdownMode = usePreferencesStore((state) => state.setMarkdownMode)
+  const setHtmlMode = usePreferencesStore((state) => state.setHtmlMode)
+  const scheme = useResolvedColorScheme()
+  // A rendered face only exists for a text file that has one; an image or a binary is neither.
+  const isText = view?.type === 'text'
+  const reader = isText && markdown && markdownMode === 'reader'
+  const preview = isText && html && htmlMode === 'preview'
+  // The daemon re-reads the file to inline its images, so only ask while the preview is up.
+  const htmlPreview = useHtmlPreview(filePath, active && preview)
 
   const content = view?.type === 'text' ? view.content : ''
   const rows = useMemo(() => toSourceRows(content), [content])
@@ -123,17 +147,59 @@ export function FileViewer({
         </View>
       )}
 
-      <ViewerBody
-        bottomInset={bottomInset}
-        ctx={ctx}
-        error={error}
-        filePath={filePath}
-        isLoading={isLoading}
-        rows={rows}
-        view={view}
-      />
+      {!isText || (!markdown && !html) ? null : (
+        <View className="px-3 py-2">
+          {markdown ? (
+            <SegmentedControl<MarkdownMode>
+              options={[
+                { value: 'reader', label: 'Reader', testID: 'porcelain-files-mode-reader' },
+                { value: 'source', label: 'Source', testID: 'porcelain-files-mode-source' },
+              ]}
+              testID="porcelain-files-markdown-mode"
+              value={markdownMode}
+              onChange={setMarkdownMode}
+            />
+          ) : (
+            <SegmentedControl<HtmlMode>
+              options={[
+                { value: 'preview', label: 'Preview', testID: 'porcelain-files-mode-preview' },
+                { value: 'source', label: 'Source', testID: 'porcelain-files-mode-html-source' },
+              ]}
+              testID="porcelain-files-html-mode"
+              value={htmlMode}
+              onChange={setHtmlMode}
+            />
+          )}
+        </View>
+      )}
 
-      {selected === null ? null : (
+      {reader ? (
+        <PreviewView
+          document={readerDocument(markdownToHtml(content), scheme)}
+          testID="porcelain-files-reader"
+        />
+      ) : preview ? (
+        <HtmlPreviewBody
+          error={htmlPreview.error}
+          html={htmlPreview.html}
+          isLoading={htmlPreview.isLoading}
+        />
+      ) : (
+        <ViewerBody
+          bottomInset={bottomInset}
+          ctx={ctx}
+          error={error}
+          filePath={filePath}
+          isLoading={isLoading}
+          rows={rows}
+          view={view}
+        />
+      )}
+
+      {/* A rendered page has no line numbers, so a range selected in Source has nothing to
+          point at here — the bar waits for the toggle to come back rather than hovering over
+          content it cannot describe. */}
+      {selected === null || reader || preview ? null : (
         <SelectionBar
           bottomInset={bottomInset}
           path={filePath}
@@ -150,6 +216,46 @@ export function FileViewer({
       />
     </View>
   )
+}
+
+/**
+ * The preview half of an HTML file. The daemon answers `null` when it declines to prepare the
+ * page — missing, empty, or past the read cap — which is a state, not a failure, and the way
+ * out of it is the Source toggle that is already on screen.
+ */
+function HtmlPreviewBody({
+  error,
+  html,
+  isLoading,
+}: {
+  error: Error | null
+  html: string | null | undefined
+  isLoading: boolean
+}): React.JSX.Element {
+  if (error !== null) {
+    return (
+      <View className="p-4">
+        <ErrorNote message={error.message} testID="porcelain-files-preview-error" />
+      </View>
+    )
+  }
+  if (html === undefined && isLoading) {
+    return (
+      <Text className="p-4 text-sm text-muted-foreground" testID="porcelain-files-preview-loading">
+        Preparing preview…
+      </Text>
+    )
+  }
+  if (html === null || html === undefined) {
+    return (
+      <EmptyNote
+        body="The daemon could not prepare this page — it may be empty or past the read limit. Switch to Source for the raw file."
+        testID="porcelain-files-preview-unavailable"
+        title="No preview"
+      />
+    )
+  }
+  return <PreviewView document={previewDocument(html)} testID="porcelain-files-preview" />
 }
 
 function ViewerHeader({

@@ -6,6 +6,7 @@ import {
   hidePathMutation,
   pinnedEntriesQuery,
   pinPathMutation,
+  previewHtmlQuery,
   readDirQuery,
   readFileQuery,
   searchFilesQuery,
@@ -121,6 +122,27 @@ export function useFileContents(relative: string, active: boolean): FileContents
     placeholderData: 'keepPreviousData',
   })
   return { error, isLoading, view: data }
+}
+
+/**
+ * An HTML file as the daemon prepares it for preview: read from disk with its local sibling
+ * images inlined as data URIs, so a page can show its own screenshots inside a WebView that is
+ * allowed no network at all.
+ *
+ * `null` rather than an error when the daemon declines — missing, empty, or past the size cap.
+ * Only fetched while the preview is actually on screen; the source view has no use for it.
+ */
+export function useHtmlPreview(
+  relative: string,
+  enabled: boolean,
+): { html: string | null | undefined; isLoading: boolean; error: Error | null } {
+  const repo = useActiveRepo()
+  const { data, error, isLoading } = useDaemonQuery(
+    previewHtmlQuery,
+    absolutePath(repo?.path ?? '', relative),
+    { enabled: enabled && repo !== null && relative !== '' },
+  )
+  return { error, html: data, isLoading }
 }
 
 /**
