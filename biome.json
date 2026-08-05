@@ -6,7 +6,6 @@
       "**",
       "!.agents",
       "!apps/mobile/assets",
-      "!apps/mobile/src/features/terminal/webview/*.generated.ts",
       "!.porcelain",
       "!.porcelain-dev",
       "!marketing",

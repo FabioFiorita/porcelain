@@ -1,4 +1,4 @@
-import { isLineInRange, type LineRange, MAX_ANCHOR_TEXT } from '@/features/comments/line-range'
+import { isLineInRange, type LineRange, MAX_ANCHOR_TEXT } from '../comments/line-range'
 
 /** One rendered line of a file: its 1-based number and its text. */
 export type SourceRow = {

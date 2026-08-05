@@ -7,13 +7,9 @@ import { Text as UiText } from '@/components/ui/text'
 import { cn } from '@/lib/utils'
 
 /**
- * The chrome a daemon-backed surface is built from: section captions, icon actions, the
- * result note under a write, the empty and error states, and the two touch stand-ins for a
- * desktop right-click menu.
- *
- * Lives beside the UI primitives rather than inside a tab because Changes, History, Files, and
- * the diff surfaces they share all draw from it. Callers pass their own testIDs, so nothing here
- * names a surface.
+ * Shared chrome for daemon-backed mobile surfaces: section captions, icon actions, result,
+ * empty, and error notes, plus the touch stand-ins for desktop menus and confirmation dialogs.
+ * Changes, History, Files, diffs, and Terminal all use this vocabulary.
  */
 
 /** Section caption shared by the list groups and every companion card. */

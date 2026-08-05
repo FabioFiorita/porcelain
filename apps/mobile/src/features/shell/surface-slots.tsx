@@ -12,6 +12,10 @@ import { HistoryCompanion } from '@/features/history/history-companion'
 import { HistoryList } from '@/features/history/history-list'
 import { HistoryPhoneScreen } from '@/features/history/history-phone-screen'
 import { HistoryViewer } from '@/features/history/history-viewer'
+import { TerminalCompanion } from '@/features/terminal/terminal-companion'
+import { TerminalList } from '@/features/terminal/terminal-list'
+import { TerminalPhoneScreen } from '@/features/terminal/terminal-phone-screen'
+import { TerminalViewer } from '@/features/terminal/terminal-viewer'
 
 import type { SurfaceId } from './mock-data'
 
@@ -66,6 +70,12 @@ const SURFACE_SLOTS: Partial<Record<SurfaceId, SurfaceSlots>> = {
     list: HistoryList,
     phone: HistoryPhoneScreen,
     viewer: HistoryViewer,
+  },
+  terminal: {
+    companion: TerminalCompanion,
+    list: TerminalList,
+    phone: TerminalPhoneScreen,
+    viewer: TerminalViewer,
   },
 }
 

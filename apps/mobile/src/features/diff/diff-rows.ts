@@ -1,5 +1,6 @@
-import { isLineInRange, type LineRange, MAX_ANCHOR_TEXT } from '@/features/comments/line-range'
 import type { DiffHunk } from '@/lib/daemon/procedures/changes'
+
+import { isLineInRange, type LineRange, MAX_ANCHOR_TEXT } from '../comments/line-range'
 
 type DiffLine = DiffHunk['lines'][number]
 

@@ -26,6 +26,13 @@ export type DaemonSession = {
   subscribe(listener: (message: ServerMessage) => void): () => void
   /** Fires after every successful (re)connect, once hello has been re-sent. */
   onReconnect(handler: () => void): () => void
+  /**
+   * Fires after every successful connect INCLUDING the first — `onReconnect` deliberately
+   * skips that one. Anything that must not be pushed into a socket still in `connecting`
+   * (a terminal create/attach, which correlates a reply by `reqId` and would otherwise
+   * time out against a dropped frame) waits on this instead.
+   */
+  onOpen(handler: () => void): () => void
   watch(paths: { files?: readonly string[]; dirs?: readonly string[] }): () => void
   request<TReply extends ServerMessage>(
     message: ClientMessage,
@@ -36,6 +43,7 @@ export type DaemonSession = {
 
 const listeners = new Set<(message: ServerMessage) => void>()
 const reconnectHandlers = new Set<() => void>()
+const openHandlers = new Set<() => void>()
 const statusListeners = new Set<() => void>()
 const watches = new Map<symbol, { files: readonly string[]; dirs: readonly string[] }>()
 
@@ -105,6 +113,7 @@ function open(): void {
     setStatus('open')
     if (everConnected) for (const handler of [...reconnectHandlers]) handler()
     everConnected = true
+    for (const handler of [...openHandlers]) handler()
   }
 
   ws.onmessage = (event: WebSocketMessageEvent): void => {
@@ -169,6 +178,13 @@ export const daemonSession: DaemonSession = {
     reconnectHandlers.add(handler)
     return () => {
       reconnectHandlers.delete(handler)
+    }
+  },
+  onOpen(handler: () => void): () => void {
+    ensureOpen()
+    openHandlers.add(handler)
+    return () => {
+      openHandlers.delete(handler)
     }
   },
   watch(paths: { files?: readonly string[]; dirs?: readonly string[] }): () => void {

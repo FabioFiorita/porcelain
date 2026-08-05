@@ -80,6 +80,10 @@ export const actionSchema = z
     where: z.enum(['primary', 'local']).optional(),
     order: z.number().default(0),
     createdAt: z.number().default(0),
+    // Whether THIS machine's human has accepted this command text. Daemon-derived (it is not
+    // in the stored action), so it belongs to the wire shape and not to the on-disk one in
+    // `actions-store.ts`. A parsing client omitting it under `.strict()` rejects every action.
+    trusted: z.boolean().default(false),
   })
   .strict()
 

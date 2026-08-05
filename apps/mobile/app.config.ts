@@ -94,6 +94,25 @@ const config: ExpoConfig = {
     ],
     'expo-secure-store',
     [
+      // The terminal's face, embedded at build time rather than fetched at runtime: a shell is
+      // often the first thing on screen after a cold start, and a terminal that repaints its
+      // grid when a font arrives late is a terminal that visibly reflows under you.
+      //
+      // GeistMono Nerd Font MONO — the Mono variant specifically, because its glyphs are
+      // single-cell and align to the grid; the proportional variants render powerline glyphs
+      // double-width and shear every column after them. It carries the Nerd Font glyphs INSIDE
+      // the same face as the text, so prompts, devicons and powerline fills all come from one
+      // metric. Geist Mono is also what the desktop client renders with, so one PTY reads the
+      // same on both.
+      'expo-font',
+      {
+        fonts: [
+          './assets/fonts/GeistMonoNerdFontMono-Regular.otf',
+          './assets/fonts/GeistMonoNerdFontMono-Bold.otf',
+        ],
+      },
+    ],
+    [
       'expo-build-properties',
       {
         android: {
