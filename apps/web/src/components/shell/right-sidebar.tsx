@@ -41,7 +41,11 @@ export function RightSidebar(): React.JSX.Element {
       data-testid={TestIds.rightSidebar}
       // Match the viewer and left card below the titlebar + safe areas. Keeping
       // this responsive prevents the phone Sheet from inheriting a desktop offset.
-      className="md:top-[calc(3rem+env(safe-area-inset-top))] md:h-[calc(100dvh-3rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] md:pt-0"
+      // pt-px, NOT pt-0: this card's outline is a `ring-1`, painted OUTSIDE the box,
+      // while the viewer's is a border painted inside it. Flush at pt-0 the ring
+      // landed a pixel ABOVE the viewer's top edge — the cards shared a border box
+      // but not a visible frame. One pixel of padding puts the paint on one row.
+      className="md:top-[calc(3rem+env(safe-area-inset-top))] md:h-[calc(100dvh-3rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] md:pt-px"
     >
       {!isMobile && <RightSidebarResizeHandle />}
       <SidebarHeader className="app-drag h-12 flex-row items-center border-b py-0 pr-1 pl-3">

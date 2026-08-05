@@ -116,11 +116,16 @@ export function AppSidebar(): React.JSX.Element {
     <Sidebar
       variant="floating"
       collapsible="icon"
-      className="overflow-hidden md:top-[calc(3rem+env(safe-area-inset-top))] md:h-[calc(100dvh-3rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] md:pt-0 *:data-[sidebar=sidebar]:flex-row"
+      className="overflow-hidden md:top-[calc(3rem+env(safe-area-inset-top))] md:h-[calc(100dvh-3rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] md:pt-px *:data-[sidebar=sidebar]:flex-row"
       // shadcn pins the desktop floating container to the full viewport. Offset
       // it below the h-12 titlebar and both safe areas so its card shares the
       // viewer's exact vertical frame. These are responsive classes, not inline
       // styles: the phone Sheet must remain full-height.
+      // pt-px, NOT pt-0: the floating card's outline is a `ring-1`, which Tailwind
+      // paints OUTSIDE the box. Flush against this `overflow-hidden` container the
+      // top ring is clipped away and the card reads as open-topped. One pixel of
+      // padding gives it room — and lands it on the same row as the viewer tile's
+      // own 1px border, so the two still start together.
       // --sidebar-width-icon = the rail width: 4rem (64px) matches the mockup's
       // spacious rail (a preset re-apply resets the vendored 3rem default — set it
       // here, on the non-vendored shell, so it survives).

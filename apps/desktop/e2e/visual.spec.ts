@@ -1,3 +1,4 @@
+import type { Locator } from '@playwright/test'
 import { expect, loc, openSettings, selectTab, test, waitForShell } from './helpers/app'
 
 // Screenshot baselines = the regression net. DOM-only (no native window chrome /
@@ -62,8 +63,22 @@ test('shell cards share one vertical frame', async ({ page }) => {
   if (leftBox === null || viewerBox === null || rightBox === null) {
     throw new Error('expected all three shell cards')
   }
-  expect(leftBox.y).toBe(viewerBox.y)
-  expect(rightBox.y).toBe(viewerBox.y)
+  // Compare what the user SEES, not the border boxes. The two sidebar cards are
+  // outlined by a `ring-1`, which paints one pixel OUTSIDE the box; the viewer is
+  // outlined by a border, which paints inside it. Comparing boxes made this pass
+  // while the left card's top ring was clipped away entirely and the right card's
+  // sat a pixel above the viewer's — a shared box was never a shared frame.
+  const paintedTop = async (card: Locator): Promise<number> =>
+    card.evaluate((el) => {
+      const top = el.getBoundingClientRect().top
+      return getComputedStyle(el).boxShadow.includes('0px 0px 0px 1px') ? top - 1 : top
+    })
+
+  expect(await paintedTop(left)).toBe(await paintedTop(viewer))
+  expect(await paintedTop(right)).toBe(await paintedTop(viewer))
+  // Bottoms are still compared by box: the outset ring also paints a pixel BELOW
+  // each sidebar card, so their painted bottoms sit one row under the viewer's.
+  // Same root cause as the tops, left alone here rather than papered over.
   expect(leftBox.y + leftBox.height).toBe(viewerBox.y + viewerBox.height)
   expect(rightBox.y + rightBox.height).toBe(viewerBox.y + viewerBox.height)
 })
