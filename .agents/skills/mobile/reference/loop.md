@@ -8,6 +8,15 @@ workflow run costs ~2.4 minutes (fingerprint 65s, update 81s) before anything re
 the allowance is ~25 runs. EAS Update's own limits — 1,000 monthly active users, 100 GiB bandwidth —
 are not a real constraint at this app's scale.
 
+## Contents
+
+1. **JS change, see it on the simulator** — free
+2. **Native change, see it on the simulator** — free, on the Mac
+3. **JS change, get it to the phone** — free
+4. **Native change, get it to the phone** — one build
+- **Two apps on one device** — dev vs TestFlight identity
+- **Startup metrics**
+
 ## 1. JS change, see it on the simulator — free
 
 The dev client already installed on the Mac's simulator loads the bundle from Metro on the Linux
@@ -78,7 +87,7 @@ The workflow makes the build-or-update decision itself: fingerprint matches an e
 build → EAS Update; fingerprint moved → a build, then TestFlight. Dispatch it when a session is
 worth delivering — only the last commit of a session is observable to a tester anyway.
 
-Both workflows are dispatch-only and `pnpm lint:eas` fails if an automatic trigger appears; the
+Both workflows are dispatch-only and `pnpm lint` fails if an automatic trigger appears; the
 reasoning is in `scripts/lint-eas-triggers.mjs`. `production.yml` adds App Store submission, off by
 default while the app is out of the store.
 
@@ -100,8 +109,8 @@ For a physical device, register it **before** building: the ad-hoc profile embed
 time, so registering afterwards means building again.
 
 ```bash
-pnpm mobile:dev:device   # open the link on each device, install the profile
-pnpm mobile:dev:build    # device .ipa, installs over the air from the EAS page
+pnpm --dir apps/mobile dev:device   # open the link on each device, install the profile
+pnpm --dir apps/mobile dev:build    # device .ipa, installs over the air from the EAS page
 ```
 
 ## Startup metrics

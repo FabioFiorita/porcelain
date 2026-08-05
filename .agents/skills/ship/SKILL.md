@@ -1,5 +1,6 @@
 ---
 name: ship
+version: 0.49.0
 metadata:
   internal: true
 description: Development loop for code changes — evidence, testing doctrine, commit shape, worktrees, and autonomy. Load when changing code, verifying, or committing. Not needed for pure Q&A.
@@ -81,7 +82,8 @@ squash-merge → `pnpm worktree remove <slug>`. Each task gets its own port and 
 - **No separate `apps/mobile` test script.**
 - **Desktop UI** → browser-first on the daemon-served client. `pnpm test:e2e` for the suite (CI on
   main).
-- **Electron native e2e** → local Mac only (`pnpm test:e2e:native*`); not CI, not `pnpm verify`.
+- **Electron native e2e** → local Mac only (`pnpm --dir apps/desktop test:e2e:native*`); not CI,
+  not `pnpm verify`.
 - Locators: `data-testid` via `packages/shared/src/test-ids.ts` + e2e helpers.
 - E2e fixtures are pristine — never the human's repos or prod channels.
 

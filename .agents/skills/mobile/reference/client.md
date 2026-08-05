@@ -1,5 +1,13 @@
 # Client structure
 
+## Contents
+
+- **Where code goes** — the directory contract
+- **Product roles by form factor** — phone vs tablet intent
+- **The tab shell** (iPhone + Android phone)
+- **Tablet shell** (iPad + Android tablet)
+- **Glance**, **Daemon seam**, **UI primitives**
+
 ## Where code goes
 
 ```

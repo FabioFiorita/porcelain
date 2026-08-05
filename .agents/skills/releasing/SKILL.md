@@ -1,5 +1,6 @@
 ---
 name: releasing
+version: 0.49.0
 metadata:
   internal: true
 description: How to cut a Porcelain release — simple main+tag path, Mac package + npm, always patch unless asked. Read when publishing a version or changing signing/notarization.
@@ -84,8 +85,6 @@ Do **not** invent a new patch for infra flake if the tag already exists and only
 | `pnpm package:mac` | `electron-builder --mac --publish never` |
 | `pnpm release:publish` | Assemble GH release (CI uses this) |
 | `pnpm release:fuse-smoke` | Artifact layout smoke |
-
-`pnpm release:check` is a no-op pointer at the new path (old multi-gate removed).
 
 ## Changelog
 

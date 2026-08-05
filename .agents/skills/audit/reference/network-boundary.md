@@ -1,5 +1,11 @@
 # Network & Process Boundary
 
+## Contents
+
+- **Process boundary** — what runs where, and what may cross
+- **The daemon is the ONE sanctioned listener** — loopback-first, always credential-gated
+- **PTY environment** — what the terminal inherits
+
 ## Process boundary
 
 - **External URLs go through `isSafeExternalUrl`** (`external-url.ts`; http/https/mailto allowlist).

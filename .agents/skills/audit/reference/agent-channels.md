@@ -1,5 +1,11 @@
 # Agent CLI, Channels & Active Content
 
+## Contents
+
+- **The agent CLI and its channels** — what the CLI writes, where, and the trust rules
+- **Agent-authored active content** — sandboxing HTML/SVG an agent produced
+- **CLI install** — how the binary lands in `~/.porcelain`
+
 ## The agent CLI and its channels
 
 - **The CLI adds NO inbound network surface.** `apps/cli/` is a short-lived process the user's agent

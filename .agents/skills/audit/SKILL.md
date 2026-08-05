@@ -1,5 +1,6 @@
 ---
 name: audit
+version: 0.49.0
 metadata:
   internal: true
 description: Earned security, correctness, performance, and packaging invariants. Load before changing main process, IPC, config, git plumbing, file reads, external URLs, packaging, agent channels, or data-fetching wiring — not for ordinary UI or pure feature work.

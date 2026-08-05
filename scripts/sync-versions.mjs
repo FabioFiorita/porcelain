@@ -66,7 +66,15 @@ function readJson(path) {
  * distributed with the app (`npx skills add`), and the app reports SKILLS_VERSION to prompt an
  * upgrade, so a skill version that drifts from the app is a lie the human acts on.
  */
-const SKILL_FILES = [join(root, 'skills', 'porcelain-companion', 'SKILL.md')]
+const SKILL_FILES = [
+  join(root, 'skills', 'porcelain-companion', 'SKILL.md'),
+  // Skills we author. Listed explicitly, never globbed: .agents/skills also holds vendored
+  // Expo skills that carry their own upstream version, and restamping those would claim we
+  // ship an upstream release we do not have.
+  ...['ship', 'audit', 'mobile', 'releasing'].map((name) =>
+    join(root, '.agents', 'skills', name, 'SKILL.md'),
+  ),
+]
 
 /** Replace `version:` inside the leading `---` frontmatter block only. */
 function stampSkillVersion(path, next) {
@@ -77,7 +85,8 @@ function stampSkillVersion(path, next) {
   if (current === next) return { changed: false, current }
   const updated =
     current === null
-      ? text.replace(/^(---\r?\n)/, `$1version: ${next}\n`)
+      ? // New field: sit right after `name:` so frontmatter reads name → version → rest.
+        text.replace(/^(---\r?\n[\s\S]*?^name:.*$)/m, `$1\nversion: ${next}`)
       : text.replace(/^---\r?\n[\s\S]*?\r?\n---/, (block) =>
           block.replace(/^version:[ \t]*.+$/m, `version: ${next}`),
         )
