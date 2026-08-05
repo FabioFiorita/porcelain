@@ -153,4 +153,10 @@ export const TestIds = {
   cardTitleInput: 'card-title-input',
   cardComposerSave: 'card-composer-save',
   cardComposer: 'card-composer',
+
+  // --- Settings › Companion (what git carries) ---
+  companionDispositions: 'companion-dispositions',
+  companionDisposition: (key: string, disposition: string): string =>
+    `companion-disposition-${key}-${disposition}`,
+  companionUntracked: 'companion-untracked',
 } as const

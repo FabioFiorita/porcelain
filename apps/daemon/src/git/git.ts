@@ -387,6 +387,44 @@ export async function gitUnstageFile(repoPath: string, path: string): Promise<vo
   await runGitChecked(repoPath, ['restore', '--staged', '--', path])
 }
 
+/** Repo-relative paths under `path` that git currently tracks. Empty outside a repo. */
+export async function gitTrackedUnder(repoPath: string, path: string): Promise<string[]> {
+  try {
+    const out = await runGit(repoPath, ['ls-files', '-z', '--', path])
+    return out.split('\0').filter((p) => p !== '')
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Stop tracking `path` while leaving the working-tree file alone — the index half
+ * of flipping a companion channel to Local. Without this the toggle would be a
+ * lie: `.gitignore` has no effect on an already-tracked file, so the UI would say
+ * "local" while every board move still landed in everyone's diff.
+ *
+ * `--ignore-unmatch` makes it idempotent (an untracked channel is already local),
+ * `-r` covers a directory channel like `reviews/`, and `--cached` is what keeps
+ * the file on disk. It STAGES a deletion — that is the honest meaning of "stop
+ * sharing this", and the caller tells the human so.
+ */
+export async function gitUntrackKeepingFile(repoPath: string, path: string): Promise<string[]> {
+  const tracked = await gitTrackedUnder(repoPath, path)
+  if (tracked.length === 0) return []
+  await runGitChecked(repoPath, ['rm', '--cached', '-r', '-q', '--ignore-unmatch', '--', path])
+  return tracked
+}
+
+/**
+ * Stage `path` past `.gitignore`. Reviews are Local by default, so publishing one
+ * has to force-add it; nothing else in the app force-adds, because overriding a
+ * human's ignore rules is only defensible when the human just asked for exactly
+ * this path.
+ */
+export async function gitForceStage(repoPath: string, path: string): Promise<void> {
+  await runGitChecked(repoPath, ['add', '-f', '--', path])
+}
+
 /**
  * Does `path` exist in the HEAD commit? Distinguishes a tracked file (discardable
  * by reverting to HEAD) from a brand-new one (no committed version to revert to).

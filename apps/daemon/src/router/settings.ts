@@ -1,5 +1,11 @@
 import { z } from 'zod'
 import { listCommitModels } from '../git/commit-generation'
+import {
+  type ChannelDisposition,
+  readChannelDispositions,
+  type SetDispositionResult,
+  setChannelDisposition,
+} from '../project/companion-disposition'
 import { DEFAULT_LAYERS, type Layer } from '../review/flow'
 import { readLayers, writeLayers } from '../stores/layers-store'
 import { readNotes, writeNotes } from '../stores/notes-store'
@@ -59,4 +65,26 @@ export const settingsRouter = t.router({
     .mutation(async ({ input }) => {
       await writeNotes(input.repoPath, input.notes)
     }),
+
+  /**
+   * Shared vs Local per companion channel. Not two storage locations — the data
+   * lives in `<repo>/.porcelain/` either way, and this only decides whether git
+   * carries it. See `project/companion-disposition.ts` for why.
+   */
+  companionDispositions: publicProcedure
+    .input(z.string())
+    .query(({ input }): Promise<ChannelDisposition[]> => readChannelDispositions(input)),
+
+  setCompanionDisposition: publicProcedure
+    .input(
+      z.object({
+        repoPath: z.string(),
+        key: z.string().min(1),
+        disposition: z.enum(['shared', 'local']),
+      }),
+    )
+    .mutation(
+      ({ input }): Promise<SetDispositionResult> =>
+        setChannelDisposition(input.repoPath, input.key, input.disposition),
+    ),
 })
