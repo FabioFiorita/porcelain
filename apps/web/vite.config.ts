@@ -59,6 +59,10 @@ export default defineConfig({
         root,
         '../../packages/client-runtime/src/commit-message.ts',
       ),
+      '@porcelain/client-runtime/highlight': resolve(
+        root,
+        '../../packages/client-runtime/src/highlight.ts',
+      ),
       '@porcelain/client-runtime/paths': resolve(
         root,
         '../../packages/client-runtime/src/paths.ts',

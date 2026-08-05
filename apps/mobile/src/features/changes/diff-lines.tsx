@@ -1,6 +1,8 @@
+import type { TokenMap } from '@porcelain/client-runtime/highlight'
 import { type CharRange, splitByRanges } from '@porcelain/client-runtime/word-diff-line'
 import { memo } from 'react'
 import { Pressable, Text, View } from 'react-native'
+import type { ThemedToken } from 'shiki'
 
 import type { DiffHunk } from '@/lib/daemon/procedures/changes'
 import { cn } from '@/lib/utils'
@@ -26,6 +28,8 @@ const EMPHASIS_CLASS: Record<DiffLine['kind'], string> = {
 export type DiffLineContext = {
   /** Intra-line changed ranges, keyed by line identity (see `intraLineEmphasis`). */
   emphasis: Map<DiffLine, CharRange[]>
+  /** Syntax spans per line, keyed the same way. Empty until the highlighter loads. */
+  tokens: TokenMap
   /** New-side lines that carry a comment, so the row can show its marker. */
   commentedLines: ReadonlySet<number>
   /** Long-press a line to comment on it. */
@@ -41,33 +45,55 @@ function LineNumber({ value }: { value: number | null }): React.JSX.Element {
 }
 
 /**
- * The line's text with its changed words emphasized. Rendered as nested `Text` so the whole
- * line stays one wrapping text run — splitting it into sibling views would break at the
- * emphasis boundary instead of at a sensible column.
+ * The line's syntax spans with its changed words emphasized over them. Rendered as nested
+ * `Text` so the whole line stays one wrapping text run — sibling views would break at a
+ * token boundary instead of at a sensible column.
+ *
+ * Token colours come from the same VS Code theme the web viewer paints, so a diff read on
+ * the phone and the same diff on the desktop are the same picture.
  */
 function LineText({
   emphasis,
   line,
+  tokens,
 }: {
   emphasis: CharRange[] | undefined
   line: DiffLine
+  tokens: ThemedToken[] | undefined
 }): React.JSX.Element {
   const base = 'min-w-0 flex-1 font-mono text-[11px] leading-4 text-foreground'
-  if (emphasis === undefined || emphasis.length === 0) {
+  const hasTokens = tokens !== undefined && tokens.length > 0
+  const hasEmphasis = emphasis !== undefined && emphasis.length > 0
+  if (!hasTokens && !hasEmphasis) {
     return <Text className={base}>{line.text === '' ? ' ' : line.text}</Text>
   }
+
+  const parts = hasTokens
+    ? tokens.map((token) => ({ color: token.color, content: token.content }))
+    : [{ color: undefined, content: line.text }]
   // Spans tile the line left to right, so a span's start column is its stable identity —
-  // unlike its position in the array, which shifts as the emphasis ranges move.
+  // unlike its position in the array, which shifts as the ranges move.
   let column = 0
-  const spans = splitByRanges([{ content: line.text }], emphasis).map((span) => {
+  const spans = (
+    hasEmphasis ? splitByRanges(parts, emphasis) : parts.map((p) => ({ ...p, emphasized: false }))
+  ).map((span) => {
     const start = column
     column += span.content.length
     return { ...span, start }
   })
+
   return (
     <Text className={base}>
       {spans.map((span) => (
-        <Text key={span.start} className={cn(span.emphasized && EMPHASIS_CLASS[line.kind])}>
+        <Text
+          key={span.start}
+          // `undefined`, never `''`: an empty className still hands the element to
+          // react-native-css, which then resolves a style of its own and drops the inline
+          // token colour — the span renders in the inherited foreground instead.
+          className={span.emphasized ? EMPHASIS_CLASS[line.kind] : undefined}
+          // nativewind-allow-style: token colours are theme data from Shiki, not classes.
+          style={span.color === undefined ? undefined : { color: span.color }}
+        >
           {span.content}
         </Text>
       ))}
@@ -100,7 +126,7 @@ function UnifiedRow({ ctx, line }: { ctx: DiffLineContext; line: DiffLine }): Re
       <LineNumber value={line.oldLine} />
       <LineNumber value={line.newLine} />
       {commented ? <CommentMarker /> : null}
-      <LineText emphasis={ctx.emphasis.get(line)} line={line} />
+      <LineText emphasis={ctx.emphasis.get(line)} line={line} tokens={ctx.tokens.get(line)} />
     </Pressable>
   )
 }
@@ -133,7 +159,7 @@ function SplitCell({
       {line === null ? (
         <Text className="min-w-0 flex-1"> </Text>
       ) : (
-        <LineText emphasis={ctx.emphasis.get(line)} line={line} />
+        <LineText emphasis={ctx.emphasis.get(line)} line={line} tokens={ctx.tokens.get(line)} />
       )}
     </Pressable>
   )

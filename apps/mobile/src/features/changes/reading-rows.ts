@@ -21,12 +21,18 @@ export type ReadingRow =
  * set end to end feel like one document instead of N screens — and it is the only shape that
  * stays cheap when the set is large, because the list windows across file boundaries.
  */
-export function toReadingRows(reading: FeatureReading, mode: DiffMode): ReadingRow[] {
+export function toReadingRows(
+  reading: FeatureReading,
+  mode: DiffMode,
+  /** Files whose body is folded away; their header stays so the set reads as a table of contents. */
+  collapsed?: ReadonlySet<string>,
+): ReadingRow[] {
   const rows: ReadingRow[] = []
   for (const group of reading.groups) {
     rows.push({ key: `layer:${group.layer}`, kind: 'layer', layer: group.layer })
     for (const file of group.files) {
       rows.push({ file, key: `file:${file.path}`, kind: 'file' })
+      if (collapsed?.has(file.path) === true) continue
       const hunks = file.hunks ?? []
       if (hunks.length === 0) {
         rows.push({ key: `nodiff:${file.path}`, kind: 'no-diff', path: file.path })

@@ -44,6 +44,7 @@ const workspaceAliases = {
   '@porcelain/client-runtime/commit-message': resolve(
     '../../packages/client-runtime/src/commit-message.ts',
   ),
+  '@porcelain/client-runtime/highlight': resolve('../../packages/client-runtime/src/highlight.ts'),
   '@porcelain/client-runtime/paths': resolve('../../packages/client-runtime/src/paths.ts'),
   '@porcelain/client-runtime/terminal-keys': resolve(
     '../../packages/client-runtime/src/terminal-keys.ts',

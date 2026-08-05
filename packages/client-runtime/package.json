@@ -6,6 +6,7 @@
   "type": "module",
   "exports": {
     "./commit-message": "./src/commit-message.ts",
+    "./highlight": "./src/highlight.ts",
     "./paths": "./src/paths.ts",
     "./terminal-keys": "./src/terminal-keys.ts",
     "./session-protocol": "./src/session-protocol.ts",
@@ -13,7 +14,10 @@
     "./word-diff-tokens": "./src/word-diff-tokens.ts"
   },
   "dependencies": {
-    "@porcelain/contracts": "workspace:*"
+    "@porcelain/contracts": "workspace:*",
+    "@shikijs/langs": "^4.2.0",
+    "@shikijs/themes": "^4.2.0",
+    "shiki": "^4.2.0"
   },
   "devDependencies": {
     "typescript": "^6.0.3",

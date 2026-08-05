@@ -5,6 +5,7 @@ Non-UI client behavior shared by web and mobile. Subpath exports only — no roo
 | Subpath | Responsibility |
 |---------|----------------|
 | `./commit-message` | Conventional-commit `type(scope):` prefix parse / rewrite |
+| `./highlight` | Shiki grammars/themes, language lookup, hunk + line tokenization |
 | `./paths` | Repo-relative basename / dirname helpers |
 | `./terminal-keys` | PTY edit chords, Ctrl bytes, arrow DECCKM |
 | `./session-protocol` | WS URL/subprotocol, backoff, frame parse, watch unions |

@@ -72,6 +72,17 @@ describe('toReadingRows', () => {
     expect(new Set(rows.map((row) => row.key)).size).toBe(rows.length)
   })
 
+  it('folds a collapsed file to its header, so the set still reads as a contents list', () => {
+    const rows = toReadingRows(reading, 'unified', new Set(['docs/a.md']))
+    expect(rows.map((row) => row.kind)).toEqual(['layer', 'file', 'file', 'no-diff'])
+  })
+
+  it('leaves other files expanded when one is collapsed', () => {
+    const rows = toReadingRows(reading, 'unified', new Set(['assets/logo.png']))
+    expect(rows.filter((row) => row.kind === 'diff')).toHaveLength(3)
+    expect(rows.some((row) => row.kind === 'no-diff')).toBe(false)
+  })
+
   it('honours the split layout', () => {
     const rows = toReadingRows(reading, 'split')
     const diff = rows.find((row) => row.kind === 'diff' && row.row.kind !== 'header')

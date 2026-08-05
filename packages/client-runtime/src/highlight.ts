@@ -1,0 +1,233 @@
+// Fine-grained Shiki: import ONLY the grammars/theme the app uses, not the
+// `'shiki'` meta-bundle (which registers the entire language/theme registry in
+// the renderer chunk). Adding a 12th language = one `@shikijs/langs/<x>` import
+// below + a `LANGS` entry — never reach back for the meta bundle.
+
+import langCss from '@shikijs/langs/css'
+import langDotenv from '@shikijs/langs/dotenv'
+import langHtml from '@shikijs/langs/html'
+import langJavascript from '@shikijs/langs/javascript'
+import langJson from '@shikijs/langs/json'
+import langJsx from '@shikijs/langs/jsx'
+import langMarkdown from '@shikijs/langs/markdown'
+import langShellscript from '@shikijs/langs/shellscript'
+import langSwift from '@shikijs/langs/swift'
+import langTsx from '@shikijs/langs/tsx'
+import langTypescript from '@shikijs/langs/typescript'
+import langYaml from '@shikijs/langs/yaml'
+import themeDarkPlus from '@shikijs/themes/dark-plus'
+import themeLightPlus from '@shikijs/themes/light-plus'
+import type { BundledLanguage, HighlighterGeneric, ThemedToken } from 'shiki'
+import { createHighlighterCore } from 'shiki/core'
+import {
+  createJavaScriptRegexEngine,
+  type JavaScriptRegexEngineOptions,
+} from 'shiki/engine/javascript'
+import type { DiffHunk, DiffLine } from './word-diff-line'
+
+// Both VS Code presets are registered so the viewer can retint per resolved
+// appearance (see hooks/use-theme). Add a theme = one `@shikijs/themes/<x>`
+// import + a map entry — never the `'shiki'` meta bundle.
+export const HIGHLIGHT_THEMES = { light: 'light-plus', dark: 'dark-plus' } as const
+export type HighlightThemeName = (typeof HIGHLIGHT_THEMES)[keyof typeof HIGHLIGHT_THEMES]
+
+/** The Shiki theme name for a resolved appearance. */
+export function themeNameFor(mode: 'light' | 'dark'): HighlightThemeName {
+  return HIGHLIGHT_THEMES[mode]
+}
+
+export const LANGS: readonly BundledLanguage[] = [
+  'typescript',
+  'tsx',
+  'javascript',
+  'jsx',
+  'json',
+  'css',
+  'html',
+  'markdown',
+  'yaml',
+  'shellscript',
+  'swift',
+  'dotenv',
+] as const
+
+// Return the broad HighlighterGeneric type (a supertype of the core build) so
+// consumers that pass this highlighter around compile unchanged — they only
+// ever call `codeToTokensBase`, which the core build provides. The type is
+// import-only (zero bundle weight); the runtime is the fine-grained core.
+export type Highlighter = HighlighterGeneric<BundledLanguage, HighlightThemeName>
+
+let highlighterPromise: Promise<Highlighter> | null = null
+
+/**
+ * Regex-engine options for the calling host, applied on the FIRST call (the highlighter is a
+ * process singleton — only one host exists per process, so first-call-wins is unambiguous).
+ *
+ * Web leaves these at their defaults. React Native passes `forgiving` + an older `target`
+ * because Hermes is not the same RegExp implementation as V8/JSC: a grammar pattern that
+ * fails to compile there must degrade that one pattern, not throw out of the whole viewer.
+ */
+export function getHighlighter(engine?: JavaScriptRegexEngineOptions): Promise<Highlighter> {
+  // JS regex engine: the renderer CSP (no 'wasm-unsafe-eval') blocks the default WASM engine
+  highlighterPromise ??= createHighlighterCore({
+    themes: [themeDarkPlus, themeLightPlus],
+    langs: [
+      langTypescript,
+      langTsx,
+      langJavascript,
+      langJsx,
+      langJson,
+      langCss,
+      langHtml,
+      langMarkdown,
+      langYaml,
+      langShellscript,
+      langSwift,
+      langDotenv,
+    ],
+    engine: createJavaScriptRegexEngine(engine),
+  }) as Promise<Highlighter>
+  return highlighterPromise
+}
+
+const extToLang: Record<string, BundledLanguage> = {
+  ts: 'typescript',
+  mts: 'typescript',
+  cts: 'typescript',
+  tsx: 'tsx',
+  js: 'javascript',
+  mjs: 'javascript',
+  cjs: 'javascript',
+  jsx: 'jsx',
+  json: 'json',
+  css: 'css',
+  html: 'html',
+  md: 'markdown',
+  yaml: 'yaml',
+  yml: 'yaml',
+  sh: 'shellscript',
+  zsh: 'shellscript',
+  bash: 'shellscript',
+  swift: 'swift',
+  // Bare `*.env` (e.g. config.env). Dotfile forms (.env, .env.local, …) are
+  // handled in languageFor — last-segment extension alone is "local"/"example".
+  env: 'dotenv',
+}
+
+export function languageFor(path: string): BundledLanguage | null {
+  // Basename so absolute paths and nested dirs don't confuse the check.
+  const base = path.split(/[/\\]/).at(-1)?.toLowerCase() ?? ''
+  // .env, .env.local, .env.production, .env.example, …
+  if (base === '.env' || base.startsWith('.env.')) return 'dotenv'
+  const ext = base.split('.').at(-1) ?? ''
+  return extToLang[ext] ?? null
+}
+
+/**
+ * Files with more lines than this cap are not syntax-highlighted. Whole-file
+ * tokenization runs synchronously on the renderer main thread via the JS regex
+ * engine (the CSP blocks the faster WASM engine), so very large generated files
+ * (lockfiles, schema dumps, bundled JS) block the UI for hundreds of ms to
+ * seconds. Above this threshold `isTokenizable` returns false and callers fall
+ * back to plain text — still fully readable, just unhighlighted.
+ */
+export const MAX_TOKENIZE_LINES = 10_000
+
+/** Maximum byte length before we bail out regardless of line count (catches
+ * pathological minified single-line files that slip under the line cap). */
+const MAX_TOKENIZE_BYTES = 2 * 1024 * 1024 // 2 MB
+
+/**
+ * Returns true when `content` is small enough to tokenize without janking the
+ * renderer. Pure function — no Shiki dependency, safe to call before the
+ * highlighter loads.
+ *
+ * Counts `\n` occurrences with an index loop rather than `split('\n')` so we
+ * don't allocate a giant array for the very large files we're protecting.
+ */
+export function isTokenizable(content: string): boolean {
+  if (content.length > MAX_TOKENIZE_BYTES) return false
+  let newlines = 0
+  let idx = content.indexOf('\n')
+  while (idx !== -1) {
+    newlines++
+    if (newlines > MAX_TOKENIZE_LINES) return false
+    idx = content.indexOf('\n', idx + 1)
+  }
+  return true
+}
+
+/**
+ * Tokenizes a whole file at once so grammar state (an open block comment or
+ * template literal) survives line breaks; one entry per `\n`-split line.
+ * Cached (bounded LRU, keyed by `${theme} ${lang} ${code}`) since the viewer
+ * only mounts the active tab. Returned arrays are shared — never mutate them;
+ * don't raise TOKEN_CACHE_MAX without checking retained-memory impact.
+ */
+const TOKEN_CACHE_MAX = 8
+const tokenCache = new Map<string, ThemedToken[][]>()
+
+export function tokenizeLines(
+  highlighter: Highlighter,
+  code: string,
+  lang: BundledLanguage,
+  theme: HighlightThemeName = HIGHLIGHT_THEMES.dark,
+): ThemedToken[][] {
+  const key = `${theme} ${lang} ${code}`
+  const hit = tokenCache.get(key)
+  if (hit) {
+    // Re-insert to mark most-recently-used (Map preserves insertion order).
+    tokenCache.delete(key)
+    tokenCache.set(key, hit)
+    return hit
+  }
+  const tokens = highlighter.codeToTokensBase(code, { lang, theme })
+  tokenCache.set(key, tokens)
+  if (tokenCache.size > TOKEN_CACHE_MAX) {
+    const oldest = tokenCache.keys().next().value
+    if (oldest !== undefined) tokenCache.delete(oldest)
+  }
+  return tokens
+}
+
+/** Pre-tokenized spans per diff line, keyed by the `DiffLine` object identity. */
+export type TokenMap = Map<DiffLine, ThemedToken[]>
+
+/**
+ * Tokenize each hunk by reconstructing its old (context + del) and new
+ * (context + add) images as contiguous text, so a multiline comment or string
+ * inside the hunk keeps its grammar state across lines. A diff can't see the
+ * file outside its hunks, so cross-hunk context is inherently unavailable.
+ */
+export function tokenizeHunks(
+  highlighter: Highlighter,
+  hunks: readonly DiffHunk[],
+  lang: BundledLanguage,
+  theme: HighlightThemeName = HIGHLIGHT_THEMES.dark,
+): TokenMap {
+  const map: TokenMap = new Map()
+  for (const hunk of hunks) {
+    const oldImage = hunk.lines.filter((l) => l.kind !== 'add')
+    const newImage = hunk.lines.filter((l) => l.kind !== 'del')
+    const oldTokens = tokenizeLines(
+      highlighter,
+      oldImage.map((l) => l.text).join('\n'),
+      lang,
+      theme,
+    )
+    const newTokens = tokenizeLines(
+      highlighter,
+      newImage.map((l) => l.text).join('\n'),
+      lang,
+      theme,
+    )
+    oldImage.forEach((l, i) => {
+      // context lines are shared; take their tokens from the new image below
+      if (l.kind === 'del') map.set(l, oldTokens[i] ?? [])
+    })
+    newImage.forEach((l, i) => {
+      map.set(l, newTokens[i] ?? [])
+    })
+  }
+  return map
+}

@@ -5,21 +5,10 @@ import { CodeLine, useHighlighter } from '@renderer/components/viewer/code-line'
 import { VirtualRows } from '@renderer/components/viewer/virtual-rows'
 import type { CommentIndex } from '@renderer/hooks/use-comments'
 import { useResolvedTheme } from '@renderer/hooks/use-theme'
-import {
-  HIGHLIGHT_THEMES,
-  type Highlighter,
-  type HighlightThemeName,
-  languageFor,
-  themeNameFor,
-  tokenizeLines,
-} from '@renderer/lib/highlight'
+import { languageFor, type TokenMap, themeNameFor, tokenizeHunks } from '@renderer/lib/highlight'
 import { cn } from '@renderer/lib/utils'
 import { type CharRange, intraLineEmphasis } from '@renderer/lib/word-diff'
 import { useMemo } from 'react'
-import type { BundledLanguage, ThemedToken } from 'shiki'
-
-/** Pre-tokenized spans per diff line, keyed by the DiffLine object identity. */
-type TokenMap = Map<DiffLine, ThemedToken[]>
 
 /** Intra-line word-diff ranges per diff line (paired del/add lines only). */
 type EmphasisMap = Map<DiffLine, CharRange[]>
@@ -36,45 +25,6 @@ interface RenderContext {
   commentsByLine: CommentsByLine
   /** Lines the open comment composer is currently anchored to (transient highlight). */
   pendingLines: ReadonlySet<number>
-}
-
-/**
- * Tokenize each hunk by reconstructing its old (context + del) and new
- * (context + add) images as contiguous text, so a multiline comment or string
- * inside the hunk keeps its grammar state across lines. A diff can't see the
- * file outside its hunks, so cross-hunk context is inherently unavailable.
- */
-export function tokenizeHunks(
-  highlighter: Highlighter,
-  hunks: readonly DiffHunk[],
-  lang: BundledLanguage,
-  theme: HighlightThemeName = HIGHLIGHT_THEMES.dark,
-): TokenMap {
-  const map: TokenMap = new Map()
-  for (const hunk of hunks) {
-    const oldImage = hunk.lines.filter((l) => l.kind !== 'add')
-    const newImage = hunk.lines.filter((l) => l.kind !== 'del')
-    const oldTokens = tokenizeLines(
-      highlighter,
-      oldImage.map((l) => l.text).join('\n'),
-      lang,
-      theme,
-    )
-    const newTokens = tokenizeLines(
-      highlighter,
-      newImage.map((l) => l.text).join('\n'),
-      lang,
-      theme,
-    )
-    oldImage.forEach((l, i) => {
-      // context lines are shared; take their tokens from the new image below
-      if (l.kind === 'del') map.set(l, oldTokens[i] ?? [])
-    })
-    newImage.forEach((l, i) => {
-      map.set(l, newTokens[i] ?? [])
-    })
-  }
-  return map
 }
 
 const lineClass: Record<DiffLine['kind'], string> = {

@@ -25,6 +25,7 @@ import {
   type HighlightThemeName,
   languageFor,
   themeNameFor,
+  tokenizeHunks,
   tokenizeLines,
 } from '@renderer/lib/highlight'
 import { type LineSelection, lineSelectionForFile } from '@renderer/lib/line-selection'
@@ -56,7 +57,6 @@ import type { ThemedToken } from 'shiki'
 import { type CommentAnchor, CommentComposer } from './comment-composer'
 import { commentRowClass, LineDecorations } from './comment-marker'
 import { SourceMarker } from './feature-list'
-import { tokenizeHunks } from './hunks-view'
 import { EvidenceChecksRow, EvidenceHeaderRow } from './reading-evidence-rows'
 
 export { EvidenceChecksRow, EvidenceHeaderRow } from './reading-evidence-rows'

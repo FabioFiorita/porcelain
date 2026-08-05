@@ -13,6 +13,7 @@ import { DiffRowView } from './diff-lines'
 import { type DiffRow, toDiffRows } from './diff-rows'
 import { useDiffFile, useReviewedPaths, useToggleReviewed } from './use-changes'
 import { useCommentIndex, useReviewComments } from './use-comments'
+import { useDiffTokens } from './use-highlight'
 
 /**
  * One file's diff. The unified / split choice is a Settings preference rather than a control
@@ -51,6 +52,8 @@ export function DiffView({
   const rows = useMemo(() => toDiffRows(hunks, preferredMode), [hunks, preferredMode])
   const emphasis = useMemo(() => intraLineEmphasis(hunks), [hunks])
   const commentedLines = useMemo(() => new Set(commentIndex.byLine.keys()), [commentIndex])
+  const diffTokens = useDiffTokens()
+  const tokens = useMemo(() => diffTokens(filePath, hunks), [diffTokens, filePath, hunks])
   const ctx = useMemo(
     () => ({
       commentedLines,
@@ -58,8 +61,9 @@ export function DiffView({
       onCommentLine: (line: number): void => {
         setAnchor({ path: filePath, startLine: line })
       },
+      tokens,
     }),
-    [commentedLines, emphasis, filePath],
+    [commentedLines, emphasis, filePath, tokens],
   )
 
   return (
