@@ -4,6 +4,15 @@ Companion data lives in `<repo>/.porcelain/`. **Where it lives never changes; on
 
 **These are plain files in the repo. Edit them directly with your normal tools — there is no CLI verb for them, and none is needed.** The CLI exists to read and write the *channels* (board, actions, review, …); git disposition is just text.
 
+## Contents
+
+- **The three layers** — the whole model in one table
+- **Layer 1 — the clone exclude** (`info/exclude`), and how to lift it
+- **Layer 2 — the managed block** in `.porcelain/.gitignore`
+- **Layer 3 — publishing one review** past the ignore rule
+- **Worktrees** — why visibility is one decision per clone
+- **Checking your work**
+
 ## The three layers
 
 | Layer | Where | Scope | Question |

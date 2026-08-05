@@ -1,0 +1,4 @@
+interface:
+  display_name: "Porcelain Companion"
+  short_description: "Publish the Review (Intent · Execution · Evidence), run the board, actions, notes, and flow layers through the Porcelain CLI"
+  default_prompt: "Use $porcelain-companion to open a unit of work with an Intent-first Review, grow Execution as you touch files, publish real Evidence before claiming done, and manage the project board, saved terminal actions, review comments, and monorepo hide/pin."

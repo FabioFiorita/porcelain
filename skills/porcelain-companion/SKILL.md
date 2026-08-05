@@ -1,13 +1,19 @@
 ---
 name: porcelain-companion
 description: Drive Porcelain — the review layer for agentic coding — via the bundled CLI (~/.porcelain/porcelain). Use for the Review (Intent · Execution · Evidence) as the start and end of a unit of work (features, bugs, chores, investigations), project board, saved terminal actions, repo notes, review-flow layers, review comments, and syncing companion setup across local/remote environments. Use whenever the human mentions Porcelain, the Review/Board/Terminal tabs, review comments, monorepo hide/pin, or you need to publish a review and close the loop.
+version: 3.1.0
+license: MIT
 ---
 
 # Porcelain companion
 
-Porcelain is where agent work becomes **trusted** work. It is a **review companion**, not the agent host and not the editor: you keep writing where you already write; you publish the Review here. You talk to Porcelain through one CLI; this skill is the manual. Read a **reference** only when you need depth for that surface — keep this index in mind always.
+Porcelain is where agent work becomes **trusted** work. It is a **review companion**, not the
+agent host and not the editor: you keep writing where you already write; you publish the Review
+here. You talk to Porcelain through one CLI; this skill is the manual.
 
-**The Review is the home for a unit of work** — not only a post-hoc dump after shipping. Humans and agents **start** (Intent) and **end** (Execution + Evidence) here. Board is the queue of cards; Review is the **one active story** per repo.
+**The Review is the home for a unit of work** — not a post-hoc dump after shipping. Humans and
+agents **start** (Intent) and **end** (Execution + Evidence) here. Board is the queue of cards;
+Review is the **one active story** per repo.
 
 ## The CLI
 
@@ -15,28 +21,57 @@ Porcelain is where agent work becomes **trusted** work. It is a **review compani
 ~/.porcelain/porcelain
 ```
 
-Installed automatically on every app/daemon launch. Run from **inside the repo** (git toplevel of cwd); use `--repo <absolute path>` only for another checkout. `help` / `<noun> --help` list verbs.
+Installed automatically on every app/daemon launch. Run from **inside the repo** (git toplevel of
+cwd); use `--repo <absolute path>` only for another checkout. `help` / `<noun> --help` list verbs.
 
 ```bash
 ~/.porcelain/porcelain help
 ```
 
-## Surface map — when → what → reference
+## References
 
-| When | Do | Reference |
-|------|----|-----------|
-| **Start of session** / pick up a unit (feature, bug, chore, investigation) | `review clear` if previous unit is done → `review set` with **name + thesis** (Intent-first; Execution may be thin) | [feature-review.md](references/feature-review.md) → [intent](references/intent.md) · [execution](references/execution.md) · [evidence](references/evidence.md) · [excalidraw](references/excalidraw.md) |
-| **Mid-session** | Grow Execution (files/notes); optional light Intent updates; human comments / reviewed marks | same |
-| **End of session** / claim done | Complete Execution + real Evidence; do not invent proof | [evidence.md](references/evidence.md) |
-| Human left line/file comments or asked what they reviewed | `comments list` / `answer` / `resolve`; `reviewed list` (read-only) | [feature-review.md](references/feature-review.md) |
-| Pick up queued work; track progress; capture follow-ups | **Board** list/create/move (queue only — not a second Review) | [board.md](references/board.md) |
-| Starting work; "check my notes" | `notes get` (human scratchpad — **read-only**) | [notes.md](references/notes.md) |
-| Common commands should be one click for the human | Curate **actions** (you define; human runs) | [actions.md](references/actions.md) |
-| Changes tab grouping wrong; monorepo layout; too many files in Other | Tune **flow layers** (repo-wide regex) | [layers.md](references/layers.md) |
-| Monorepo tree too noisy; hide sibling apps / pin the one you care about | **Scope** hide/pin | [scope.md](references/scope.md) |
-| Seed Mac ↔ remote companion data (board, actions, notes, layers, hide/pin) | Copy deliberately with path remap | [sync-environments.md](references/sync-environments.md) |
-| Working in a harness worktree; reviewing worktree work | Target the right checkout; publish the Review **in** the worktree, carry it into the PR | [worktrees.md](references/worktrees.md) |
-| Human asks what git carries / why something is (not) ignored / how to share companion data or one review | Read and edit `.porcelain/.gitignore` and `info/exclude` **directly** — no CLI verb, and none needed | [git-visibility.md](references/git-visibility.md) |
+Read one when you need depth for that surface. Each is complete on its own.
+
+```
+references/
+  review.md            The Review end to end: Intent · Execution · Evidence, lifecycle,
+                       publish flow, mediums, comments, reviewed marks
+  board.md             The queue of cards (todo/doing/done)
+  actions.md           Saved terminal commands you curate and the human runs
+  notes.md             The human's per-repo scratchpad (read-only)
+  layers.md            Repo-wide Changes-tab flow grouping (regex layers)
+  scope.md             Monorepo hide/pin
+  git-visibility.md    What git carries, .porcelain/.gitignore and info/exclude
+  sync-environments.md Seeding companion data across Mac ↔ remote
+  worktrees.md         Working in a harness worktree
+```
+
+## Scripts
+
+```bash
+node <skill>/scripts/check-evidence.mjs [--repo <abs path>]
+```
+
+Run it before claiming a unit done. It reports missing `index.html`, missing CSS, `<script>` tags,
+remote assets, broken image references, and the inlined size against the 4 MB read cap — all of
+which fail **silently** in the sandboxed Evidence tab. Fix what it reports and run it again.
+
+## When → what
+
+| When | Do |
+|------|----|
+| **Start of session** / pick up a unit | `review clear` if the previous unit is done → `review set` with **name + thesis** |
+| **Mid-session** | Grow Execution (files/notes); light Intent updates; handle comments |
+| **End of session** / claim done | Complete Execution + real Evidence; `check-evidence.mjs`; do not invent proof |
+| Human left comments or asked what they reviewed | `comments list` / `answer` / `resolve`; `reviewed list` (read-only) |
+| Pick up queued work; capture follow-ups | **Board** list/create/move (queue only — not a second Review) |
+| Starting work; "check my notes" | `notes get` (human scratchpad — **read-only**) |
+| Common commands should be one click for the human | Curate **actions** (you define; human runs) |
+| Changes tab grouping wrong; too many files in Other | Tune **flow layers** (repo-wide regex) |
+| Monorepo tree too noisy | **Scope** hide/pin |
+| Seed Mac ↔ remote companion data | Copy deliberately with path remap |
+| Working in a harness worktree | Target the right checkout; publish the Review **in** the worktree |
+| "What does git carry / why is this ignored?" | Read and edit `.porcelain/.gitignore` and `info/exclude` **directly** — no CLI verb needed |
 
 ## Everyday CLI cheatsheet
 
@@ -49,13 +84,15 @@ Installed automatically on every app/daemon launch. Run from **inside the repo**
 # Context
 ~/.porcelain/porcelain notes get
 
-# The Review — lifecycle: clear → Intent-first start → grow → Evidence to finish
+# The Review — clear → Intent-first start → grow → Evidence to finish
 ~/.porcelain/porcelain review clear
+~/.porcelain/porcelain review set --name "…" --thesis "…"        # name + thesis is a full start
 ~/.porcelain/porcelain review set --name "…" --thesis "…" --files '[…]' --sections '[…]'
-~/.porcelain/porcelain review set-canvas --medium html --html-file ./intent.html   # optional; only for THIS unit
-~/.porcelain/porcelain intent prepare                 # then Write .md / .html / .excalidraw docs in the printed dir
-~/.porcelain/porcelain intent order --files a.md,b.html   # pin tab order when there is more than one
-~/.porcelain/porcelain evidence prepare --title "…"   # then Write index.html + its own CSS in the printed dir
+~/.porcelain/porcelain review set-canvas --medium html --html-file ./intent.html   # optional
+~/.porcelain/porcelain intent prepare                 # then write .md / .html / .excalidraw docs
+~/.porcelain/porcelain intent order --files a.md,b.html
+~/.porcelain/porcelain evidence prepare --title "…"   # then write index.html + its own CSS
+~/.porcelain/porcelain evidence check --label "pnpm test" --status pass --detail "…"
 ~/.porcelain/porcelain comments list
 ~/.porcelain/porcelain comments resolve --id <id>
 ~/.porcelain/porcelain reviewed list
@@ -78,31 +115,34 @@ JSON
 
 ## Standing rules
 
-1. **Start of session** — If the previous unit is done (or this is a new unit), **`review clear` first** (drops the active set **and** `.porcelain/evidence/`; the app **Archive** path keeps history under `.porcelain/reviews/`). Then `review set` with **name + thesis** (+ optional light sections/files). This is Intent-first scope, not a fake-complete Review. Works for **bugs, features, chores, and investigations** — not features only.
-2. **During** — Grow Execution as you touch files; Intent mid-session updates are OK. Human comments and reviewed marks are app → agent (`comments` / `reviewed list`).
-3. **End of session** — Complete Execution + **real Evidence** before claiming done. Don't invent proof.
-4. **Clear before a new unit** — Never leave another agent's Intent board or old evidence under a new document. If the human still has a previous unit open, clear it (or ask) before starting.
+1. **Start of session** — If the previous unit is done (or this is a new unit), **`review clear`
+   first** (drops the active set **and** `.porcelain/evidence/`; the app **Archive** path keeps
+   history under `.porcelain/reviews/`). Then `review set` with **name + thesis** — that alone is
+   a complete Intent-first start; `--files` and `--sections` are optional. Works for **bugs,
+   features, chores, and investigations** — not features only.
+2. **During** — Grow Execution as you touch files; Intent updates are fine. Human comments and
+   reviewed marks are app → agent (`comments` / `reviewed list`).
+3. **End of session** — Complete Execution + **real Evidence** before claiming done. Run
+   `check-evidence.mjs`. Don't invent proof.
+4. **Clear before a new unit** — Never leave another agent's Intent or old evidence under a new
+   document. If the human still has a previous unit open, clear it (or ask) before starting.
 5. **Notes are the human's** — read only; put actionable work on the board.
 6. **Actions are human-executed** — never invent an `actions run`; you only CRUD definitions.
-7. **Hide/pin via `scope`** — same channel the app uses (`<repo>/.porcelain/scope.json`, repo-relative paths) ([scope.md](references/scope.md)).
+7. **Hide/pin via `scope`** — same channel the app uses (`<repo>/.porcelain/scope.json`,
+   repo-relative paths).
 8. **No secrets** in board, notes, or evidence.
-9. **Board ≠ Review** — Board is a queue of cards; Review is one active story. Optional: move a card to Doing, then start Review with that title as the name. Do not turn Review into a second kanban.
+9. **Board ≠ Review** — Board is a queue of cards; Review is one active story. Optional: move a
+   card to Doing, then start Review with that title as the name. Do not turn Review into a second
+   kanban.
 
-## Lifecycle paths
+## Lifecycle
 
-### Start of session (agent)
+**Start:** `board move` → doing (if you started from a card) → **`review clear`** if the previous
+unit is done → **`review set --name "…" --thesis "…"`** → implement, keeping the board honest.
 
-1. `board move` → doing (if you started from a card).
-2. **`review clear`** if the previous unit is done.
-3. **`review set --name "…" --thesis "…"`** — Intent-first; `--files` / `--sections` may be empty or light.
-4. Implement; keep the board honest.
+**End:** **`review set`** again with full Execution (files + notes + sections that match what
+shipped) → validate → `evidence prepare` + write HTML + `evidence check` + `check-evidence.mjs` →
+handle `comments list` → `board move` → done once the human has signed off → human Clear (or you
+`review clear` before the **next** unit).
 
-### End of session (agent)
-
-1. **`review set`** again with full Execution (files + notes + sections that match what shipped).
-2. Validate → `evidence prepare` + write HTML + `evidence check` (`prepare`/`set` start from an empty evidence dir).
-3. Handle `comments list`; resolve when addressed.
-4. `board move` → done when the human has signed off (or as they prefer).
-5. Human Clear (or you `review clear` before the **next** unit).
-
-Details: [feature-review.md](references/feature-review.md).
+Full detail: [review.md](references/review.md).
