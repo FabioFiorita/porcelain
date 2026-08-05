@@ -62,8 +62,10 @@ const ALL_SECTIONS: {
     label: 'Companion',
     icon: BookOpen,
     title: 'Companion',
-    blurb: 'Install and upgrade the porcelain-companion skill for your coding agents.',
-    shellOnly: true,
+    // Not shell-only: what git carries is a property of the REPO, so it has to be
+    // reachable from the browser client and a remote daemon too. The skill
+    // installer inside is the shell-only half and hides itself.
+    blurb: 'What git carries, and the porcelain-companion skill for your agents.',
   },
   {
     id: 'share',

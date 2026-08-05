@@ -81,3 +81,18 @@ describe('intent documents', () => {
     expect((await readIntentDocs(dir)).map((d) => d.file)).toEqual(['index.md'])
   })
 })
+
+describe('excalidraw is parsed daemon-side', () => {
+  it('hands the renderer a scene, never raw JSON text', async () => {
+    await writeFile(join(dir, 'shape.excalidraw'), JSON.stringify({ elements: [{ type: 'rect' }] }))
+    const [doc] = await readIntentDocs(dir)
+    expect(doc?.medium).toBe('excalidraw')
+    expect(doc?.medium === 'excalidraw' && doc.scene.elements).toHaveLength(1)
+  })
+
+  it('drops a malformed scene rather than shipping it to the client', async () => {
+    await writeFile(join(dir, 'broken.excalidraw'), 'not json at all')
+    await writeFile(join(dir, 'index.md'), 'fine')
+    expect((await readIntentDocs(dir)).map((d) => d.file)).toEqual(['index.md'])
+  })
+})

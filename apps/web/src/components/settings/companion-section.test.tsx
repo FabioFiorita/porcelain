@@ -10,6 +10,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { CompanionSection } from './companion-section'
 
 vi.mock('@renderer/hooks/use-skills', () => ({ useSkillsInfo: vi.fn() }))
+// The skill installer writes to THIS machine's agent config, so it stays shell-only.
+// "What git carries" is about the repo and must reach the browser client too.
+vi.mock('@renderer/lib/platform', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@renderer/lib/platform')>()),
+  isBrowser: false,
+}))
 vi.mock('@renderer/hooks/use-companion-dispositions', () => ({
   useCompanionDispositions: vi.fn(),
   useSetCompanionDisposition: vi.fn(),
@@ -46,7 +52,7 @@ describe('CompanionSection', () => {
     ])
   })
 
-  it('shows global install and upgrade commands', () => {
+  it('shows global install and upgrade commands in the shell', () => {
     render(<CompanionSection />)
     expect(screen.getByText('npx skills add FabioFiorita/porcelain -g')).toBeTruthy()
     expect(screen.getByText('npx skills upgrade -g')).toBeTruthy()

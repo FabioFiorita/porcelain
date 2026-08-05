@@ -1,5 +1,6 @@
 import { readdir, readFile, stat } from 'node:fs/promises'
 import { extname, join } from 'node:path'
+import { type ExcalidrawScene, parseExcalidrawScene } from '@shared/excalidraw-scene'
 import { INTENT_MANIFEST, projectIntentDir } from '@shared/project-porcelain'
 import { z } from 'zod'
 import { inlineLocalAssets } from '../fs/evidence-assets'
@@ -30,14 +31,22 @@ const MAX_TOTAL_BYTES = 8 * 1024 * 1024
 
 export type IntentMedium = 'markdown' | 'html' | 'excalidraw'
 
-export interface IntentDoc {
+interface IntentDocBase {
   /** Stable per review — the file name, used as the tab key. */
   file: string
   label: string
-  medium: IntentMedium
-  /** Markdown source, self-contained HTML, or an Excalidraw scene as JSON text. */
-  body: string
 }
+
+/**
+ * Discriminated on medium so the renderer never has to parse. Excalidraw in
+ * particular is parsed HERE: `parseExcalidrawScene` uses `Buffer` for its byte
+ * cap, and the web client is pure UI with no Node APIs — calling it in the
+ * renderer throws `Buffer is not defined` and takes the whole surface down.
+ */
+export type IntentDoc =
+  | (IntentDocBase & { medium: 'markdown'; body: string })
+  | (IntentDocBase & { medium: 'html'; body: string })
+  | (IntentDocBase & { medium: 'excalidraw'; scene: ExcalidrawScene })
 
 const manifestSchema = z.object({
   tabs: z
@@ -124,9 +133,18 @@ export async function readIntentDocs(dir: string): Promise<IntentDoc[]> {
       // file must not take the surface down, and it is dropped, not thrown.
       if (size > MAX_DOC_BYTES || total + size > MAX_TOTAL_BYTES) continue
       const raw = await readFile(path, 'utf8')
+      const label = tab.label ?? labelFor(tab.file)
+      if (medium === 'excalidraw') {
+        const parsed = parseExcalidrawScene(raw)
+        // A malformed scene is dropped like any other bad external write, never thrown.
+        if (!parsed.ok) continue
+        total += parsed.bytes
+        docs.push({ file: tab.file, label, medium, scene: parsed.scene })
+        continue
+      }
       const body = medium === 'html' ? await inlineLocalAssets(dir, raw) : raw
       total += Buffer.byteLength(body, 'utf8')
-      docs.push({ file: tab.file, label: tab.label ?? labelFor(tab.file), medium, body })
+      docs.push({ file: tab.file, label, medium, body })
     } catch {
       // unreadable or not valid utf8 — skip it, keep the rest of the tabs
     }

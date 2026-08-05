@@ -1,8 +1,8 @@
 import type { IntentDoc } from '@backend/review/intent-docs'
+import { PaneErrorBoundary } from '@renderer/components/shell/error-boundary'
 import { ExcalidrawHost } from '@renderer/components/viewer/excalidraw-host'
 import { HtmlView } from '@renderer/components/viewer/html-view'
 import { MarkdownView } from '@renderer/components/viewer/markdown-view'
-import { parseExcalidrawScene } from '@shared/excalidraw-scene'
 import { TestIds } from '@shared/test-ids'
 
 /**
@@ -26,18 +26,13 @@ export function IntentDocBody({ doc }: { doc: IntentDoc }): React.JSX.Element {
     )
   }
   if (doc.medium === 'excalidraw') {
-    // Agent-authored JSON: a malformed scene says so instead of throwing — one
-    // bad file must never take the Review down.
-    const parsed = parseExcalidrawScene(doc.body)
+    // Already parsed daemon-side: the scene parser is Buffer-based and this is a
+    // pure-UI client. A malformed scene never reaches here — it is dropped on read.
     return (
       <div className="h-full min-h-0 p-3" data-testid={TestIds.intentDocBody}>
-        {parsed.ok ? (
-          <ExcalidrawHost scene={parsed.scene} />
-        ) : (
-          <p className="p-4 text-sm text-muted-foreground">
-            This diagram could not be read ({parsed.error}).
-          </p>
-        )}
+        <PaneErrorBoundary label={doc.label}>
+          <ExcalidrawHost scene={doc.scene} />
+        </PaneErrorBoundary>
       </div>
     )
   }

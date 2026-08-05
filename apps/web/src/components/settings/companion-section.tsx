@@ -4,6 +4,7 @@ import {
   useSetCompanionDisposition,
 } from '@renderer/hooks/use-companion-dispositions'
 import { compactButtonClass } from '@renderer/lib/controls'
+import { isBrowser } from '@renderer/lib/platform'
 import { useRepoStore } from '@renderer/stores/repo'
 import type { CompanionDisposition } from '@shared/project-porcelain'
 import { TestIds } from '@shared/test-ids'
@@ -115,15 +116,17 @@ export function CompanionSection(): React.JSX.Element {
         )}
       </div>
 
-      <div className="flex flex-col gap-3">
-        <p className="text-xs text-muted-foreground">
-          Companion skills teach your agent how to push feature reviews (Intent, Execution,
-          Evidence), read comments, manage the board, and curate actions. They ship through
-          skills.sh. Commands use <span className="font-mono">-g</span> so the skill is available in
-          every project, not only one working directory.
-        </p>
-        <SkillsSection />
-      </div>
+      {!isBrowser && (
+        <div className="flex flex-col gap-3">
+          <p className="text-xs text-muted-foreground">
+            Companion skills teach your agent how to push feature reviews (Intent, Execution,
+            Evidence), read comments, manage the board, and curate actions. They ship through
+            skills.sh. Commands use <span className="font-mono">-g</span> so the skill is available
+            in every project, not only one working directory.
+          </p>
+          <SkillsSection />
+        </div>
+      )}
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import type { ReviewCanvas } from '@backend/review/review-set'
+import { PaneErrorBoundary } from '@renderer/components/shell/error-boundary'
 import { ExcalidrawHost } from '@renderer/components/viewer/excalidraw-host'
 import { HtmlView } from '@renderer/components/viewer/html-view'
 import type { ExcalidrawScene } from '@shared/excalidraw-scene'
@@ -19,7 +20,9 @@ export function CanvasBody({ canvas }: { canvas: ReviewCanvas }): React.JSX.Elem
   }
   return (
     <div className="h-full min-h-0 p-3">
-      <ExcalidrawHost scene={canvas.scene as ExcalidrawScene} />
+      <PaneErrorBoundary label="This board">
+        <ExcalidrawHost scene={canvas.scene as ExcalidrawScene} />
+      </PaneErrorBoundary>
     </div>
   )
 }
