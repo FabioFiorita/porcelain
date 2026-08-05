@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { runCli } from './cli'
+import { COMMANDS, runCli } from './cli'
 
 const root = join(tmpdir(), 'porcelain-cli-test')
 const repoPath = join(root, 'repo')
@@ -36,6 +36,31 @@ const read = (): {
 } => JSON.parse(readFileSync(activeReview('review.json'), 'utf8'))
 const readBoard = (): unknown[] => JSON.parse(readFileSync(porcelain('board.json'), 'utf8'))
 const readActions = (): unknown[] => JSON.parse(readFileSync(porcelain('actions.json'), 'utf8'))
+
+describe('COMMANDS registry matches the dispatch switch', () => {
+  // Static comparison rather than invocation: running every verb would touch the filesystem
+  // and need per-verb fixtures, and this catches the same drift with none of that.
+  const toplevel = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+    encoding: 'utf8',
+  }).trim()
+  const source = readFileSync(join(toplevel, 'apps/cli/src/cli.ts'), 'utf8')
+  const dispatched = new Set(
+    [...source.matchAll(/^\s*case '([a-z]+ [a-z-]+)':/gm)].map((m) => m[1] as string),
+  )
+  const documented = new Set(
+    COMMANDS.flatMap((noun) => noun.verbs.map((verb) => `${noun.noun} ${verb.verb}`)),
+  )
+
+  it('documents every dispatched command', () => {
+    expect([...dispatched].filter((cmd) => !documented.has(cmd))).toEqual([])
+  })
+  it('dispatches every documented command', () => {
+    expect([...documented].filter((cmd) => !dispatched.has(cmd))).toEqual([])
+  })
+  it('found the switch at all (guards the regex itself)', () => {
+    expect(dispatched.size).toBeGreaterThan(20)
+  })
+})
 
 describe('runCli — flag parsing, help, repo resolution', () => {
   it('bare invocation and `help` print usage', async () => {
@@ -215,8 +240,15 @@ describe('runCli — review + feature + comments + reviewed', () => {
     await runCli(['review', 'set', ...repo, '--files', JSON.stringify([{ path: 'a.ts' }])])
     expect(read()?.name).toBe('Feature view')
   })
-  it('review set requires --files', async () => {
-    await expect(runCli(['review', 'set', ...repo])).rejects.toThrow('files must be an array')
+  // The skill's standing rule is to open a unit with name + thesis before touching a file.
+  it('review set starts Intent-first, with no --files at all', async () => {
+    await runCli(['review', 'set', ...repo, '--name', 'Unit', '--thesis', 'Why this change'])
+    expect(read()).toMatchObject({ name: 'Unit', thesis: 'Why this change', files: [] })
+  })
+  it('review set still validates --files when it is passed', async () => {
+    await expect(runCli(['review', 'set', ...repo, '--files', '"nope"'])).rejects.toThrow(
+      'files must be an array',
+    )
   })
   it('review add merges into the existing set', async () => {
     await runCli(['review', 'set', ...repo, '--files', JSON.stringify([{ path: 'a.ts' }])])
@@ -248,6 +280,14 @@ describe('runCli — review + feature + comments + reviewed', () => {
       JSON.stringify([{ path: 'a.ts' }]),
     ])
     expect(await runCli(['review', 'get', ...repo])).toContain(`Feature review "X" for ${repoPath}`)
+  })
+  it('review get reports a thesis-only Intent-first start as a real review', async () => {
+    await runCli(['review', 'set', ...repo, '--name', 'Unit', '--thesis', 'Why this change'])
+    expect(await runCli(['review', 'get', ...repo])).toContain(`Feature review "Unit"`)
+  })
+  it('review get still reports a truly empty set as absent', async () => {
+    await runCli(['review', 'set', ...repo, '--name', 'Unit'])
+    expect(await runCli(['review', 'get', ...repo])).toContain('No feature review set')
   })
   it('feature get describes the app-computed snapshot, or hints when absent', async () => {
     ensurePorcelain()

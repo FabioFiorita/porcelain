@@ -367,7 +367,15 @@ export function readReview(repoPath: string): ReviewSet | null {
  * `changed` regardless of the declared source.
  */
 export function describeReview(repoPath: string, review: ReviewSet | null): string {
-  if (!review || (review.files.length === 0 && review.sections.length === 0 && !review.canvas)) {
+  // A thesis alone is a real review: the app's `hasIntentContent` counts it, and an
+  // Intent-first start has nothing else yet. Reporting it absent hid the whole opening move.
+  const empty =
+    review !== null &&
+    review.files.length === 0 &&
+    review.sections.length === 0 &&
+    !review.canvas &&
+    (review.thesis === undefined || review.thesis.trim() === '')
+  if (!review || empty) {
     return `No feature review set for ${repoPath}. Porcelain shows the no-review empty state until one is pushed. Use \`porcelain review set\` to define one.`
   }
   const counts = new Map<string, number>()

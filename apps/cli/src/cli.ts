@@ -180,15 +180,20 @@ interface NounHelp {
   flagOverrides?: Record<string, string>
 }
 
-const COMMANDS: NounHelp[] = [
+/**
+ * The help registry. This and the dispatch `switch` below are two hand-maintained lists of
+ * the same command set; `cli.test.ts` fails if they ever disagree, because a verb that is
+ * documented but undispatched (or the reverse) is invisible until an agent hits it.
+ */
+export const COMMANDS: NounHelp[] = [
   {
     noun: 'review',
     blurb: 'the feature review set (the files and walkthrough that make up the Review)',
     verbs: [
       {
         verb: 'set',
-        args: '[--name <s>] [--thesis <s>] [--sections <json|->] --files <json|->',
-        desc: 'Replace the review set',
+        args: '[--name <s>] [--thesis <s>] [--files <json|->] [--sections <json|->]',
+        desc: 'Replace the review set (name + thesis alone is a valid Intent-first start)',
       },
       { verb: 'add', args: '--files <json|->', desc: 'Add files to the existing set' },
       {
@@ -415,7 +420,10 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
   switch (`${noun} ${verb}`) {
     case 'review set': {
       const name = opt('name') ?? 'Feature view'
-      const files = toReviewFiles(readJson('files'))
+      // Intent-first starts declare a name and a thesis before any file is touched, so
+      // --files is optional and defaults to empty. Passing it explicitly still validates.
+      const rawFiles = readJson('files')
+      const files = rawFiles === undefined ? [] : toReviewFiles(rawFiles)
       const rawSections = readJson('sections')
       const sections = rawSections === undefined ? [] : toReviewSections(rawSections)
       const set: ReviewSet = { name, files, sections }
