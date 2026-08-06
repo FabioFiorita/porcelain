@@ -205,6 +205,34 @@ describe('commit generation', () => {
     expect(prompt).toContain('@commitlint/config-conventional')
   })
 
+  it('tells the model the observed style outranks the generic subject defaults, only when style is present', () => {
+    const without = buildCommitGenerationPrompt({
+      mode: 'single',
+      branch: 'main',
+      files: ['src/commit.ts'],
+      summary: 'M\tsrc/commit.ts',
+      patch: '+x\n',
+    })
+    const withStyle = buildCommitGenerationPrompt({
+      mode: 'single',
+      branch: 'main',
+      files: ['src/commit.ts'],
+      summary: 'M\tsrc/commit.ts',
+      patch: '+x\n',
+      styleSamples: ['Fixed the login bug.'],
+      styleGuidance: null,
+    })
+
+    expect(without).not.toContain('takes precedence')
+    expect(without).toContain(
+      '- each subject must be imperative, no more than 72 characters, and have no trailing period',
+    )
+    expect(withStyle).toContain('takes precedence over these defaults')
+    expect(withStyle).toContain(
+      'by default each subject must be imperative, no more than 72 characters, and have no trailing period',
+    )
+  })
+
   it('samples recent conventional-commit subjects and detects CONTRIBUTING commit guidance', async () => {
     const dir = await initRepo()
     scratchDirs.push(dir)
@@ -245,6 +273,20 @@ describe('commit generation', () => {
 
     expect(subjects).toEqual([])
     expect(style).toEqual({ styleSamples: [], styleGuidance: null })
+  })
+
+  it('skips an oversized convention candidate instead of reading it in full', async () => {
+    const dir = await initRepo()
+    scratchDirs.push(dir)
+    await commit(dir, 'chore: scaffold repo')
+    // One paragraph over the 256 KB cap, still matching /commit/i so it would
+    // otherwise be picked up by extractCommitGuidance.
+    const oversized = `## Commit messages\n\n${'x'.repeat(256 * 1024 + 1)} commit`
+    await writeFile(join(dir, 'CONTRIBUTING.md'), oversized)
+
+    const style = await repoCommitStyle(dir)
+
+    expect(style.styleGuidance).toBeNull()
   })
 
   it('rejects unsafe group responses that omit or duplicate changed files', () => {

@@ -18,6 +18,9 @@ const MAX_CONTEXT_CHARS = 48_000
 const MAX_UNTRACKED_FILE_CHARS = 16_000
 const RECENT_COMMIT_SAMPLE_COUNT = 30
 const MAX_CONVENTION_FILE_CHARS = 2_000
+/** Skip (never partially load) a convention candidate bigger than this — a huge
+ * CONTRIBUTING.md or commitlint config must not stall the daemon reading it. */
+const MAX_CONVENTION_FILE_BYTES = 256 * 1024
 const MAX_STYLE_GUIDANCE_CHARS = 4_000
 /** Cheaply detectable commitlint config names, checked at the repo root only. */
 const COMMITLINT_CONFIG_CANDIDATES = [
@@ -384,11 +387,15 @@ export function buildCommitGenerationPrompt(input: CommitGenerationPromptInput):
   const styleSamples = input.styleSamples ?? []
   const hasStyle = styleSamples.length > 0
 
+  const subjectRule = hasStyle
+    ? '- by default each subject must be imperative, no more than 72 characters, and have no trailing period — but this repository has an observed commit style below, and it takes precedence over these defaults wherever they conflict (tense, punctuation, casing, or length)'
+    : '- each subject must be imperative, no more than 72 characters, and have no trailing period'
+
   return [
     'You write concise git commit messages from supplied repository changes.',
     'Do not edit files, run commands, or make a commit. Analyze the supplied context only.',
     'Rules:',
-    '- each subject must be imperative, no more than 72 characters, and have no trailing period',
+    subjectRule,
     '- body may be an empty string or short bullet points',
     '- describe the primary user-visible or developer-visible change',
     ...(hasStyle
@@ -594,6 +601,9 @@ async function readTextFileCapped(path: string, maxChars: number): Promise<strin
   try {
     const info = await stat(path)
     if (!info.isFile()) return null
+    // Stat before reading: a multi-megabyte candidate must be skipped outright,
+    // never loaded in full just to be trimmed down after the fact.
+    if (info.size > MAX_CONVENTION_FILE_BYTES) return null
     const content = await readFile(path, 'utf8')
     if (content.includes('\0')) return null
     return limitSection(content, maxChars)
