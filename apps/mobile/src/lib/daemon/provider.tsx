@@ -10,7 +10,7 @@ import { type ReactNode, useEffect } from 'react'
 import { AppState, type AppStateStatus } from 'react-native'
 
 import { APP_EVENT_INVALIDATIONS } from './app-events'
-import { createDaemonClient } from './client'
+import { createDaemonClient, PROBE_TIMEOUT_MS } from './client'
 import { type Environment, isPaired, type PairedEnvironment } from './environment'
 import {
   activeEnvironment,
@@ -55,7 +55,9 @@ focusManager.setEventListener((setFocused): (() => void) => {
 // from a phone with no route to the internet at all.
 onlineManager.setEventListener((setOnline): (() => void) => {
   const subscription = Network.addNetworkStateListener((state: Network.NetworkState) => {
-    setOnline(state.isConnected ?? true)
+    const online = state.isConnected ?? true
+    setOnline(online)
+    if (online) recoverToPreferredEndpoint()
   })
   return (): void => {
     subscription.remove()
@@ -66,7 +68,9 @@ async function bootstrapAtEndpoint(
   environment: PairedEnvironment,
   baseUrl: string,
 ): Promise<{ daemonVersion: string }> {
-  const client = createDaemonClient(baseUrl, environment.token)
+  // Short-fused on purpose: this is the reachability probe, not the client this endpoint's
+  // regular traffic uses once it wins the walk — see `PROBE_TIMEOUT_MS` in `client.ts`.
+  const client = createDaemonClient(baseUrl, environment.token, { timeoutMs: PROBE_TIMEOUT_MS })
   const daemonVersion = (await callDaemon(client, daemonInfoQuery, undefined)).version
 
   // Doubles as the token probe: a 401 here is what proves the credential is dead.
@@ -192,6 +196,20 @@ export async function retryConnection(): Promise<void> {
 }
 
 /**
+ * Climb back to the preferred route once it might be reachable again — `bootstrap` always tries
+ * `preferredEndpoint` first, so replaying it is the whole mechanism. Only worth it once we've
+ * actually settled on a fallback (nothing to climb back from otherwise) and only while healthy: a
+ * connection already mid-failure has its own walk in flight from `recordReachabilityFailure`.
+ */
+export async function recoverToPreferredEndpoint(): Promise<void> {
+  const current = activeEnvironment()
+  if (!isPaired(current)) return
+  if (current.baseUrl === current.preferredEndpoint) return
+  if (currentConnection().kind !== 'ready') return
+  await connect(current)
+}
+
+/**
  * The one wiring point: hydration, the bootstrap sequence, the socket lifecycle, and React
  * Query's focus/online managers. It renders children immediately — hydration is exposed
  * through `useConnectionState`, so a cold start on a dead daemon still lands in a usable shell.
@@ -249,6 +267,7 @@ function DaemonLifecycle(): null {
     })
     const subscription = AppState.addEventListener('change', (state: AppStateStatus) => {
       setSessionForeground(state === 'active')
+      if (state === 'active') recoverToPreferredEndpoint()
     })
     return () => {
       off()
