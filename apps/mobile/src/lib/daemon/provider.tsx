@@ -10,7 +10,7 @@ import { type ReactNode, useEffect } from 'react'
 import { AppState, type AppStateStatus } from 'react-native'
 
 import { APP_EVENT_INVALIDATIONS } from './app-events'
-import { createDaemonClient } from './client'
+import { createDaemonClient, PROBE_TIMEOUT_MS } from './client'
 import { type Environment, isPaired, type PairedEnvironment } from './environment'
 import {
   activeEnvironment,
@@ -68,7 +68,9 @@ async function bootstrapAtEndpoint(
   environment: PairedEnvironment,
   baseUrl: string,
 ): Promise<{ daemonVersion: string }> {
-  const client = createDaemonClient(baseUrl, environment.token)
+  // Short-fused on purpose: this is the reachability probe, not the client this endpoint's
+  // regular traffic uses once it wins the walk — see `PROBE_TIMEOUT_MS` in `client.ts`.
+  const client = createDaemonClient(baseUrl, environment.token, { timeoutMs: PROBE_TIMEOUT_MS })
   const daemonVersion = (await callDaemon(client, daemonInfoQuery, undefined)).version
 
   // Doubles as the token probe: a 401 here is what proves the credential is dead.

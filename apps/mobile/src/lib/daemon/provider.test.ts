@@ -26,10 +26,15 @@ vi.mock('react-native', () => ({
 
 // The daemon seam itself is not under test here — only the endpoint-walk decision that sits in
 // front of it. `createDaemonClient` becomes an identity tag and `callDaemon` looks the tag up in
-// a small "which URLs answer right now" set the tests drive directly.
-vi.mock('./client', () => ({
-  createDaemonClient: vi.fn((baseUrl: string, token: string) => ({ baseUrl, token })),
-}))
+// a small "which URLs answer right now" set the tests drive directly. `PROBE_TIMEOUT_MS` stays
+// the real export so a test below can prove bootstrap actually asks for the probe budget.
+vi.mock('./client', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./client')>()
+  return {
+    ...actual,
+    createDaemonClient: vi.fn((baseUrl: string, token: string) => ({ baseUrl, token })),
+  }
+})
 
 const reachable = new Set<string>()
 
@@ -56,6 +61,7 @@ const { environmentActions, getEnvironment, currentConnection } = await import(
   './environments-store'
 )
 const { retryConnection, recoverToPreferredEndpoint } = await import('./provider')
+const { createDaemonClient, PROBE_TIMEOUT_MS } = await import('./client')
 
 const LAN = 'http://192.168.1.50:43117'
 const FUNNEL = 'https://beelink.example.ts.net'
@@ -84,6 +90,20 @@ describe('automatic endpoint failover', () => {
 
     expect(getEnvironment(id)?.baseUrl).toBe(FUNNEL)
     expect(currentConnection()).toMatchObject({ kind: 'ready' })
+  })
+
+  // The bootstrap probe must ask for the short, connect-failure budget — never the large one
+  // regular app traffic gets — or a dead LAN endpoint would hang the whole walk instead of
+  // failing over quickly. See `PROBE_TIMEOUT_MS` in `client.ts`.
+  it('probes every endpoint in the walk with the connect-failure budget, not the traffic one', async () => {
+    await pairGroup()
+    reachable.add(LAN)
+
+    await retryConnection()
+
+    expect(createDaemonClient).toHaveBeenCalledWith(LAN, 'pc_client_test', {
+      timeoutMs: PROBE_TIMEOUT_MS,
+    })
   })
 
   it('does not move off the preferred endpoint while it is still the one answering', async () => {
