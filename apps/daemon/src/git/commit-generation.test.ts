@@ -1,6 +1,11 @@
 // @vitest-environment node
 
-import { describe, expect, it } from 'vitest'
+import { execFile } from 'node:child_process'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { promisify } from 'node:util'
+import { afterEach, describe, expect, it } from 'vitest'
 import {
   agentCliPath,
   buildCommitGenerationPrompt,
@@ -11,9 +16,32 @@ import {
   parseGeneratedCommitGroups,
   parseGeneratedCommitMessage,
   parseOpenCodeCommitModels,
+  recentCommitSubjects,
+  repoCommitStyle,
 } from './commit-generation'
 
+const execFileAsync = promisify(execFile)
+
+async function initRepo(): Promise<string> {
+  const dir = await mkdtemp(join(tmpdir(), 'porcelain-commit-style-'))
+  await execFileAsync('git', ['init', '--initial-branch=main'], { cwd: dir })
+  await execFileAsync('git', ['config', 'user.email', 'test@example.com'], { cwd: dir })
+  await execFileAsync('git', ['config', 'user.name', 'Test'], { cwd: dir })
+  return dir
+}
+
+async function commit(dir: string, subject: string): Promise<void> {
+  await writeFile(join(dir, `${Date.now()}-${Math.random()}.txt`), subject)
+  await execFileAsync('git', ['add', '-A'], { cwd: dir })
+  await execFileAsync('git', ['commit', '-m', subject], { cwd: dir })
+}
+
 describe('commit generation', () => {
+  const scratchDirs: string[] = []
+  afterEach(async () => {
+    await Promise.all(scratchDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })))
+  })
+
   it('prepends user install bins so GUI/systemd daemons still find claude/codex/grok', () => {
     const path = agentCliPath('/usr/bin:/bin', '/home/me')
     expect(path.startsWith('/home/me/.local/bin:')).toBe(true)
@@ -132,6 +160,91 @@ describe('commit generation', () => {
     expect(() => parseGeneratedCommitGroups('', ['src/a.ts'])).toThrow(
       'invalid commit groups: the response was empty',
     )
+  })
+
+  it('leaves the prompt unchanged when there is no observed style to match', () => {
+    const withStyle = buildCommitGenerationPrompt({
+      mode: 'single',
+      branch: 'main',
+      files: ['src/commit.ts'],
+      summary: 'M\tsrc/commit.ts',
+      patch: '+x\n',
+      styleSamples: [],
+      styleGuidance: null,
+    })
+    const without = buildCommitGenerationPrompt({
+      mode: 'single',
+      branch: 'main',
+      files: ['src/commit.ts'],
+      summary: 'M\tsrc/commit.ts',
+      patch: '+x\n',
+    })
+
+    expect(withStyle).toBe(without)
+    expect(without).not.toContain('observed commit style')
+    expect(without).not.toContain('Recent commit subjects')
+  })
+
+  it('includes sampled subjects and a match-the-style instruction when history is supplied', () => {
+    const prompt = buildCommitGenerationPrompt({
+      mode: 'single',
+      branch: 'main',
+      files: ['src/commit.ts'],
+      summary: 'M\tsrc/commit.ts',
+      patch: '+x\n',
+      styleSamples: ['feat(git): add commit generation', 'fix(web): correct commit group order'],
+      styleGuidance:
+        'Commitlint config (.commitlintrc.json):\n{"extends":["@commitlint/config-conventional"]}',
+    })
+
+    expect(prompt).toContain("match this repository's observed commit style")
+    expect(prompt).toContain('Recent commit subjects from this repository (match this style):')
+    expect(prompt).toContain('- feat(git): add commit generation')
+    expect(prompt).toContain('- fix(web): correct commit group order')
+    expect(prompt).toContain('Repository commit conventions:')
+    expect(prompt).toContain('@commitlint/config-conventional')
+  })
+
+  it('samples recent conventional-commit subjects and detects CONTRIBUTING commit guidance', async () => {
+    const dir = await initRepo()
+    scratchDirs.push(dir)
+    await commit(dir, 'chore: scaffold repo')
+    await commit(dir, 'feat(auth): add login form')
+    await commit(dir, 'fix(auth): correct redirect loop')
+    await writeFile(
+      join(dir, 'CONTRIBUTING.md'),
+      [
+        '# Contributing',
+        '',
+        'Read the code before you change it.',
+        '',
+        '## Commit messages',
+        '',
+        'Use conventional commits: `type(scope): imperative summary`, no trailing period.',
+      ].join('\n'),
+    )
+
+    const style = await repoCommitStyle(dir)
+
+    expect(style.styleSamples).toEqual([
+      'fix(auth): correct redirect loop',
+      'feat(auth): add login form',
+      'chore: scaffold repo',
+    ])
+    expect(style.styleGuidance).toContain('CONTRIBUTING.md commit guidance')
+    expect(style.styleGuidance).toContain('conventional commits')
+  })
+
+  it('keeps current behavior — no samples, no guidance — when the repo has no commits yet', async () => {
+    const dir = await initRepo()
+    scratchDirs.push(dir)
+    await writeFile(join(dir, 'CONTRIBUTING.md'), '## Commit messages\n\nUse conventional commits.')
+
+    const subjects = await recentCommitSubjects(dir)
+    const style = await repoCommitStyle(dir)
+
+    expect(subjects).toEqual([])
+    expect(style).toEqual({ styleSamples: [], styleGuidance: null })
   })
 
   it('rejects unsafe group responses that omit or duplicate changed files', () => {

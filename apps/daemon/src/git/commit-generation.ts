@@ -16,6 +16,23 @@ import { runGit as gitRead, gitStatus } from './git'
 const COMMIT_GENERATION_EFFORT = 'medium'
 const MAX_CONTEXT_CHARS = 48_000
 const MAX_UNTRACKED_FILE_CHARS = 16_000
+const RECENT_COMMIT_SAMPLE_COUNT = 30
+const MAX_CONVENTION_FILE_CHARS = 2_000
+const MAX_STYLE_GUIDANCE_CHARS = 4_000
+/** Cheaply detectable commitlint config names, checked at the repo root only. */
+const COMMITLINT_CONFIG_CANDIDATES = [
+  '.commitlintrc.json',
+  '.commitlintrc.yaml',
+  '.commitlintrc.yml',
+  '.commitlintrc.cjs',
+  '.commitlintrc.js',
+  '.commitlintrc',
+  'commitlint.config.js',
+  'commitlint.config.cjs',
+  'commitlint.config.mjs',
+]
+/** Docs that plausibly carry commit-message guidance, per the board card. */
+const COMMIT_GUIDANCE_DOC_CANDIDATES = ['CONTRIBUTING.md', 'CLAUDE.md', 'AGENTS.md']
 const MODEL_TIMEOUT_MS = 180_000
 const MODEL_OUTPUT_BYTES = 4 * 1024 * 1024
 const VERSION_TIMEOUT_MS = 10_000
@@ -85,6 +102,10 @@ export interface CommitGenerationPromptInput {
   files: readonly string[]
   summary: string
   patch: string
+  /** Recent subjects from `git log`, oldest style signal first. Empty on a historyless repo. */
+  styleSamples?: readonly string[]
+  /** Commitlint config / CONTRIBUTING·CLAUDE·AGENTS commit guidance, when any was found. */
+  styleGuidance?: string | null
 }
 
 interface GeneratedMessage {
@@ -360,6 +381,9 @@ export function buildCommitGenerationPrompt(input: CommitGenerationPromptInput):
         ]
       : ['Return only JSON shaped like {"subject":"...","body":"..."}.']
 
+  const styleSamples = input.styleSamples ?? []
+  const hasStyle = styleSamples.length > 0
+
   return [
     'You write concise git commit messages from supplied repository changes.',
     'Do not edit files, run commands, or make a commit. Analyze the supplied context only.',
@@ -367,6 +391,11 @@ export function buildCommitGenerationPrompt(input: CommitGenerationPromptInput):
     '- each subject must be imperative, no more than 72 characters, and have no trailing period',
     '- body may be an empty string or short bullet points',
     '- describe the primary user-visible or developer-visible change',
+    ...(hasStyle
+      ? [
+          "- match this repository's observed commit style below: prefixes, scopes, casing, tense, and subject length",
+        ]
+      : []),
     ...groupRules,
     '',
     `Branch: ${input.branch ?? '(detached)'}`,
@@ -379,6 +408,20 @@ export function buildCommitGenerationPrompt(input: CommitGenerationPromptInput):
     '',
     'Change patch and untracked-file contents:',
     limitSection(input.patch, MAX_CONTEXT_CHARS),
+    ...(hasStyle
+      ? [
+          '',
+          'Recent commit subjects from this repository (match this style):',
+          styleSamples.map((subject) => `- ${subject}`).join('\n'),
+        ]
+      : []),
+    ...(input.styleGuidance
+      ? [
+          '',
+          'Repository commit conventions:',
+          limitSection(input.styleGuidance, MAX_STYLE_GUIDANCE_CHARS),
+        ]
+      : []),
   ].join('\n')
 }
 
@@ -518,6 +561,99 @@ async function unstagedContext(repoPath: string): Promise<CommitGenerationContex
   const patch = [trackedPatch.trim(), untracked.join('\n\n')].filter(Boolean).join('\n\n')
   if (patch.trim() === '') throw new Error('The unstaged changes disappeared before grouping.')
   return { branch, files: paths, summary, patch }
+}
+
+interface CommitStyle {
+  styleSamples: string[]
+  styleGuidance: string | null
+}
+
+/** Last N subjects on the current branch, oldest-history-first as `git log` returns them. */
+export async function recentCommitSubjects(
+  repoPath: string,
+  count: number = RECENT_COMMIT_SAMPLE_COUNT,
+): Promise<string[]> {
+  let log: string
+  try {
+    log = await runGit(repoPath, ['log', '-n', String(count), '--pretty=format:%s'])
+  } catch {
+    // No commits yet (or not a repo the caller already validated) — empty history.
+    return []
+  }
+  return [
+    ...new Set(
+      log
+        .split(/\r?\n/g)
+        .map((line) => line.trim())
+        .filter((line) => line !== ''),
+    ),
+  ]
+}
+
+async function readTextFileCapped(path: string, maxChars: number): Promise<string | null> {
+  try {
+    const info = await stat(path)
+    if (!info.isFile()) return null
+    const content = await readFile(path, 'utf8')
+    if (content.includes('\0')) return null
+    return limitSection(content, maxChars)
+  } catch {
+    return null
+  }
+}
+
+async function findCommitlintConfig(
+  repoPath: string,
+): Promise<{ name: string; content: string } | null> {
+  for (const name of COMMITLINT_CONFIG_CANDIDATES) {
+    const content = await readTextFileCapped(join(repoPath, name), MAX_CONVENTION_FILE_CHARS)
+    if (content !== null) return { name, content }
+  }
+  return null
+}
+
+/** Keep only the paragraphs of a guidance doc that actually talk about commits. */
+function extractCommitGuidance(doc: string): string | null {
+  const paragraphs = doc
+    .split(/\n{2,}/g)
+    .map((paragraph) => paragraph.trim())
+    .filter((paragraph) => paragraph !== '')
+  const relevant = paragraphs.filter((paragraph) => /commit/i.test(paragraph))
+  return relevant.length === 0 ? null : relevant.join('\n\n')
+}
+
+/**
+ * Cheap, repo-root-only detection of an explicit commit-format convention: a
+ * commitlint config, or a commit-related section of CONTRIBUTING/CLAUDE/AGENTS.
+ * Never walks the tree or parses JS configs — presence and raw text are enough
+ * context for the model.
+ */
+async function repoCommitConventions(repoPath: string): Promise<string | null> {
+  const sections: string[] = []
+  const commitlint = await findCommitlintConfig(repoPath)
+  if (commitlint) sections.push(`Commitlint config (${commitlint.name}):\n${commitlint.content}`)
+
+  for (const name of COMMIT_GUIDANCE_DOC_CANDIDATES) {
+    const doc = await readTextFileCapped(join(repoPath, name), 8_000)
+    const guidance = doc === null ? null : extractCommitGuidance(doc)
+    if (guidance !== null) sections.push(`${name} commit guidance:\n${guidance}`)
+  }
+
+  return sections.length === 0
+    ? null
+    : limitSection(sections.join('\n\n'), MAX_STYLE_GUIDANCE_CHARS)
+}
+
+/**
+ * Derive the target commit format from the repository itself rather than inventing
+ * one. An empty history (new repo, no commits yet) skips convention detection too —
+ * there is nothing to match, so generation keeps its unstyled, current behavior.
+ */
+export async function repoCommitStyle(repoPath: string): Promise<CommitStyle> {
+  const styleSamples = await recentCommitSubjects(repoPath)
+  if (styleSamples.length === 0) return { styleSamples: [], styleGuidance: null }
+  const styleGuidance = await repoCommitConventions(repoPath)
+  return { styleSamples, styleGuidance }
 }
 
 /**
@@ -820,11 +956,11 @@ async function runTextModel(model: CommitModel, cwd: string, prompt: string): Pr
 }
 
 export async function generateCommitMessage(repoPath: string, model: CommitModel): Promise<string> {
-  const context = await stagedContext(repoPath)
+  const [context, style] = await Promise.all([stagedContext(repoPath), repoCommitStyle(repoPath)])
   const raw = await runTextModel(
     model,
     repoPath,
-    buildCommitGenerationPrompt({ ...context, mode: 'single' }),
+    buildCommitGenerationPrompt({ ...context, ...style, mode: 'single' }),
   )
   return parseGeneratedCommitMessage(raw)
 }
@@ -835,11 +971,11 @@ export async function generateCommitGroups(
 ): Promise<Array<{ files: string[]; message: string }>> {
   const staged = (await gitStatus(repoPath)).some((file) => file.staged === true)
   if (staged) throw new Error('Unstage all files before generating commit groups.')
-  const context = await unstagedContext(repoPath)
+  const [context, style] = await Promise.all([unstagedContext(repoPath), repoCommitStyle(repoPath)])
   const raw = await runTextModel(
     model,
     repoPath,
-    buildCommitGenerationPrompt({ ...context, mode: 'groups' }),
+    buildCommitGenerationPrompt({ ...context, ...style, mode: 'groups' }),
   )
   return parseGeneratedCommitGroups(raw, context.files)
 }
