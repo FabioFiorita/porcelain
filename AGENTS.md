@@ -67,6 +67,7 @@ Only each skill's description is ambient. Do not load a skill "just in case."
 | `ship` | Changing code, testing, committing, or worktrees |
 | `audit` | Main process, IPC, config, git, file reads, external URLs, packaging, agent channels |
 | `mobile` | Building, installing, delivering, or proving `apps/mobile` |
+| `merge-queue` | Landing selected `work/*` PRs and retiring their worktrees |
 | `releasing` | Cutting a release or changing signing/notarization |
 
 Product and marketing prose live under `docs/` (no skills). Open them when designing or touching

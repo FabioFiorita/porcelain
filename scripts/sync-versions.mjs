@@ -71,7 +71,7 @@ const SKILL_FILES = [
   // Skills we author. Listed explicitly, never globbed: .agents/skills also holds vendored
   // Expo skills that carry their own upstream version, and restamping those would claim we
   // ship an upstream release we do not have.
-  ...['ship', 'audit', 'mobile', 'releasing'].map((name) =>
+  ...['ship', 'audit', 'mobile', 'releasing', 'merge-queue'].map((name) =>
     join(root, '.agents', 'skills', name, 'SKILL.md'),
   ),
 ]
