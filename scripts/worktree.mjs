@@ -701,8 +701,14 @@ function channelKeys(worktreePath) {
   return [...keys]
 }
 
-/** The worktree's review set from its isolated channel home (see apps/daemon/src/stores/review-store.ts). */
-function readReviewSet(home, keys) {
+/**
+ * The worktree's active Review. Current daemons store it repo-locally under
+ * `.porcelain/active-review/` (see the `.migrated-from-home` marker); the channel-home
+ * `review-sets.json` is the pre-migration layout, kept as a fallback.
+ */
+function readReviewSet(worktreePath, home, keys) {
+  const local = readJsonFile(join(worktreePath, '.porcelain', 'active-review', 'review.json'))
+  if (local) return local
   const all = readJsonFile(join(home, 'review-sets.json'))
   if (!all) return null
   for (const key of keys) {
@@ -729,14 +735,19 @@ function evidenceImageNames(dir) {
     .slice(0, MAX_EVIDENCE_IMAGES)
 }
 
-/** The worktree's loop evidence pack (see apps/daemon/src/fs/evidence-paths.ts for the keying). */
-function readEvidence(home, keys) {
-  for (const key of keys) {
-    const dir = join(
-      home,
-      'loop-evidence',
-      createHash('sha256').update(key).digest('hex').slice(0, 16),
-    )
+/**
+ * The worktree's evidence pack — repo-local `.porcelain/active-review/evidence/` first
+ * (current layout), then the legacy channel-home `loop-evidence` keying
+ * (see apps/daemon/src/fs/evidence-paths.ts).
+ */
+function readEvidence(worktreePath, home, keys) {
+  const dirs = [
+    join(worktreePath, '.porcelain', 'active-review', 'evidence'),
+    ...keys.map((key) =>
+      join(home, 'loop-evidence', createHash('sha256').update(key).digest('hex').slice(0, 16)),
+    ),
+  ]
+  for (const dir of dirs) {
     if (!existsSync(join(dir, 'index.html'))) continue
     const meta = readJsonFile(join(dir, 'meta.json')) ?? {}
     return {
@@ -850,8 +861,8 @@ function renderReviewBody(review, evidence, slug, publishedImages) {
 
 function prBody(root, branch, worktreePath, home, slug, publishedImages) {
   const keys = channelKeys(worktreePath)
-  const review = readReviewSet(home, keys)
-  const evidence = readEvidence(home, keys)
+  const review = readReviewSet(worktreePath, home, keys)
+  const evidence = readEvidence(worktreePath, home, keys)
   const commits = git(root, ['log', `main..${branch}`, '--oneline'])
   const commitSection = ['## Commits', '', '```', commits, '```', ''].join('\n')
   if (!review && !evidence) {
@@ -926,7 +937,7 @@ function pullRequest(slugArg, options) {
 
   git(root, ['push', '-u', 'origin', branch], { inherit: true })
 
-  const evidence = readEvidence(home, channelKeys(worktree.path))
+  const evidence = readEvidence(worktree.path, home, channelKeys(worktree.path))
   const publishedImages =
     evidence && evidence.images.length > 0 ? publishEvidenceImages(slug, evidence) : []
 
