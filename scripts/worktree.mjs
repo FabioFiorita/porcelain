@@ -712,6 +712,23 @@ function readReviewSet(home, keys) {
   return null
 }
 
+const EVIDENCE_IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif'])
+const MAX_EVIDENCE_IMAGES = 8
+
+/** Image filenames directly inside an evidence pack dir, sorted, capped at `MAX_EVIDENCE_IMAGES`. */
+function evidenceImageNames(dir) {
+  let entries = []
+  try {
+    entries = readdirSync(dir)
+  } catch {
+    return []
+  }
+  return entries
+    .filter((entry) => EVIDENCE_IMAGE_EXTENSIONS.has(entry.split('.').pop()?.toLowerCase() ?? ''))
+    .sort()
+    .slice(0, MAX_EVIDENCE_IMAGES)
+}
+
 /** The worktree's loop evidence pack (see apps/daemon/src/fs/evidence-paths.ts for the keying). */
 function readEvidence(home, keys) {
   for (const key of keys) {
@@ -727,14 +744,61 @@ function readEvidence(home, keys) {
       title: text(meta.title, 120) || 'Evidence',
       updatedAt: text(meta.updatedAt, 64),
       checks: Array.isArray(meta.checks) ? meta.checks.slice(0, 40) : [],
+      images: evidenceImageNames(dir),
     }
   }
   return null
 }
 
+const R2_EVIDENCE_PREFIX = 'porcelain/pr-evidence'
+
+/**
+ * Publishes an evidence pack's screenshots to R2 so a GitHub PR body can embed them — a local
+ * pack path means nothing to GitHub. Non-fatal: a missing rclone or a failed upload/link just
+ * drops that image and warns to stderr, since the local pack path stays available as a fallback.
+ */
+function publishEvidenceImages(slug, evidence) {
+  if (spawnSync('rclone', ['version'], { stdio: 'ignore', env: ENV }).error) {
+    console.error('worktree · evidence upload skipped: rclone is not installed')
+    return []
+  }
+
+  const published = []
+  for (const name of evidence.images) {
+    const remote = `r2:beelink/${R2_EVIDENCE_PREFIX}/${slug}/${name}`
+    const upload = spawnSync('rclone', ['copyto', join(evidence.dir, name), remote], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: ENV,
+    })
+    if (upload.status !== 0) {
+      console.error(
+        `worktree · evidence upload failed for ${name}: ${upload.stderr?.toString().trim() || 'unknown error'}`,
+      )
+      continue
+    }
+    const link = spawnSync('rclone', ['link', remote, '--expire', '2h'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: ENV,
+    })
+    if (link.status !== 0) {
+      console.error(
+        `worktree · evidence upload failed for ${name}: ${link.stderr?.toString().trim() || 'unknown error'}`,
+      )
+      continue
+    }
+    published.push({ name, url: link.stdout.trim() })
+  }
+  return published
+}
+
 const CHECK_MARKS = { pass: '✓', fail: '✗', skip: '–' }
 
-function renderReviewBody(review, evidence) {
+/**
+ * `publishedImages` is `'dry-run'` (show would-upload names from `evidence.images`), an array of
+ * `{ name, url }` already published to R2, or omitted (no evidence, or nothing to publish).
+ */
+function renderReviewBody(review, evidence, slug, publishedImages) {
   const lines = []
   if (review) {
     const thesis = text(review.thesis, 4000)
@@ -763,12 +827,28 @@ function renderReviewBody(review, evidence) {
       const detail = text(check?.detail, 400)
       lines.push(`- ${mark} ${label}${detail === '' ? '' : ` — \`${detail}\``}`)
     }
-    lines.push('', `Pack: \`${join(evidence.dir, 'index.html')}\``, '')
+    lines.push('')
+    if (publishedImages === 'dry-run') {
+      if (evidence.images.length > 0) {
+        lines.push(`screenshots (would upload): ${evidence.images.join(', ')}`, '')
+      }
+      lines.push(`Pack: \`${join(evidence.dir, 'index.html')}\``, '')
+    } else if (Array.isArray(publishedImages) && publishedImages.length > 0) {
+      lines.push('### Screenshots', '')
+      for (const image of publishedImages) lines.push(`![${image.name}](${image.url})`)
+      lines.push(
+        '',
+        `Links expire in ~2 hours; durable copies live at \`r2:beelink/${R2_EVIDENCE_PREFIX}/${slug}/\`.`,
+        '',
+      )
+    } else {
+      lines.push(`Pack: \`${join(evidence.dir, 'index.html')}\``, '')
+    }
   }
   return lines.join('\n')
 }
 
-function prBody(root, branch, worktreePath, home) {
+function prBody(root, branch, worktreePath, home, slug, publishedImages) {
   const keys = channelKeys(worktreePath)
   const review = readReviewSet(home, keys)
   const evidence = readEvidence(home, keys)
@@ -783,7 +863,7 @@ function prBody(root, branch, worktreePath, home) {
       commitSection,
     ].join('\n')
   }
-  return `${renderReviewBody(review, evidence)}\n${commitSection}`
+  return `${renderReviewBody(review, evidence, slug, publishedImages)}\n${commitSection}`
 }
 
 function requireGh(root) {
@@ -825,6 +905,7 @@ function pullRequest(slugArg, options) {
   const root = primaryRoot()
   const worktree = findManaged(root, slugArg)
   const { slug, branch } = worktree.config
+  const home = managedPaths(slug).home
 
   if (git(root, ['rev-list', '--count', `main..${branch}`]) === '0') {
     fail(`${branch} has no commits ahead of main; commit the unit before opening a PR`)
@@ -832,7 +913,7 @@ function pullRequest(slugArg, options) {
 
   if (options.dryRun) {
     console.log(`title: ${options.title ?? git(root, ['log', '-1', '--format=%s', branch])}\n`)
-    console.log(prBody(root, branch, worktree.path, managedPaths(slug).home))
+    console.log(prBody(root, branch, worktree.path, home, slug, 'dry-run'))
     return
   }
 
@@ -845,8 +926,12 @@ function pullRequest(slugArg, options) {
 
   git(root, ['push', '-u', 'origin', branch], { inherit: true })
 
+  const evidence = readEvidence(home, channelKeys(worktree.path))
+  const publishedImages =
+    evidence && evidence.images.length > 0 ? publishEvidenceImages(slug, evidence) : []
+
   const title = options.title ?? git(root, ['log', '-1', '--format=%s', branch])
-  const body = prBody(root, branch, worktree.path, managedPaths(slug).home)
+  const body = prBody(root, branch, worktree.path, home, slug, publishedImages)
   const dir = mkdtempSync(join(tmpdir(), 'porcelain-pr-'))
   const bodyFile = join(dir, 'body.md')
   try {
@@ -1041,9 +1126,11 @@ list:
 pr:
   Pushes work/<slug> to origin and opens a PR into main via gh. Title defaults to
   the branch's latest commit subject; the body carries the worktree's published
-  Review (Intent + Evidence) when one exists, plus the commit list. Prints the URL
-  and exits when a PR is already open for the branch. --dry-run prints the title
-  and body it would send and touches neither origin nor gh.
+  Review (Intent + Evidence) when one exists, plus the commit list. Evidence-pack
+  screenshots are published to R2 and inlined as short-lived (~2h) presigned links
+  so they render on GitHub. Prints the URL and exits when a PR is already open for
+  the branch. --dry-run prints the title and body it would send, lists screenshot
+  names it would upload, and touches neither origin, gh, nor R2.
 
 remove:
   Requires a clean worktree whose branch is merged into local main. Stops its
