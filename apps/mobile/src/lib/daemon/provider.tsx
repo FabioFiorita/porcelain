@@ -55,7 +55,9 @@ focusManager.setEventListener((setFocused): (() => void) => {
 // from a phone with no route to the internet at all.
 onlineManager.setEventListener((setOnline): (() => void) => {
   const subscription = Network.addNetworkStateListener((state: Network.NetworkState) => {
-    setOnline(state.isConnected ?? true)
+    const online = state.isConnected ?? true
+    setOnline(online)
+    if (online) recoverToPreferredEndpoint()
   })
   return (): void => {
     subscription.remove()
@@ -192,6 +194,20 @@ export async function retryConnection(): Promise<void> {
 }
 
 /**
+ * Climb back to the preferred route once it might be reachable again — `bootstrap` always tries
+ * `preferredEndpoint` first, so replaying it is the whole mechanism. Only worth it once we've
+ * actually settled on a fallback (nothing to climb back from otherwise) and only while healthy: a
+ * connection already mid-failure has its own walk in flight from `recordReachabilityFailure`.
+ */
+export async function recoverToPreferredEndpoint(): Promise<void> {
+  const current = activeEnvironment()
+  if (!isPaired(current)) return
+  if (current.baseUrl === current.preferredEndpoint) return
+  if (currentConnection().kind !== 'ready') return
+  await connect(current)
+}
+
+/**
  * The one wiring point: hydration, the bootstrap sequence, the socket lifecycle, and React
  * Query's focus/online managers. It renders children immediately — hydration is exposed
  * through `useConnectionState`, so a cold start on a dead daemon still lands in a usable shell.
@@ -249,6 +265,7 @@ function DaemonLifecycle(): null {
     })
     const subscription = AppState.addEventListener('change', (state: AppStateStatus) => {
       setSessionForeground(state === 'active')
+      if (state === 'active') recoverToPreferredEndpoint()
     })
     return () => {
       off()
