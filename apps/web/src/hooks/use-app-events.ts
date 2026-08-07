@@ -3,6 +3,7 @@ import type { ShellEvent } from '@main/shell-events'
 import { onDaemonClose, onDaemonEvent, onDaemonReconnect } from '@renderer/lib/daemon'
 import { isBrowser } from '@renderer/lib/platform'
 import { shellTrpc, shellTrpcClient, trpc } from '@renderer/lib/trpc'
+import { useSettingsDialogStore } from '@renderer/stores/settings-dialog'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { unreadTabFor, useUnreadStore } from '@renderer/stores/unread'
 import { useEffect } from 'react'
@@ -116,6 +117,10 @@ function handle(
       else window.close()
       return Promise.resolve()
     }
+    case 'open-settings':
+      // File > Settings… (menu.ts) — open the same dialog the sidebar gear drives.
+      useSettingsDialogStore.getState().openTo()
+      return Promise.resolve()
   }
 }
 

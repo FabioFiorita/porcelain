@@ -1,6 +1,6 @@
 import { is } from '@electron-toolkit/utils'
 import { resolvePlatform } from '@shared/platform'
-import { Menu, type MenuItemConstructorOptions } from 'electron'
+import { BrowserWindow, Menu, type MenuItemConstructorOptions } from 'electron'
 import { createWindow } from './window'
 
 export function installAppMenu(): void {
@@ -47,6 +47,14 @@ export function installAppMenu(): void {
           accelerator: 'CmdOrCtrl+Alt+N',
           click: () => {
             createWindow({ mode: 'welcome' })
+          },
+        },
+        { type: 'separator' },
+        {
+          label: 'Settings…',
+          accelerator: 'CmdOrCtrl+,',
+          click: () => {
+            BrowserWindow.getFocusedWindow()?.webContents.send('shell-event', 'open-settings')
           },
         },
         { type: 'separator' },

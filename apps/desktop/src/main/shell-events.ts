@@ -15,6 +15,8 @@ export type ShellEvent =
   // second connection to the local daemon for "This device" terminals and would
   // otherwise keep talking to a dead port (daemon.ts, pushLocalDaemonInfo).
   | 'local-daemon-changed'
+  // File > Settings… (menu.ts) — open the Settings dialog in the focused window.
+  | 'open-settings'
 
 /**
  * Broadcast a shell event to every open window (update-status is repo-agnostic,
