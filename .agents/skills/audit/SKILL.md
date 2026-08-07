@@ -9,7 +9,7 @@ description: Earned security, correctness, performance, and packaging invariants
 # Audit
 
 Constraints the codebase earned the hard way. Breaking one rarely fails a unit test; it fails in
-production. Read the matching reference before you act; check it after.
+production. This skill is a router: read the matching invariants doc before you act; check it after.
 
 Root `AGENTS.md` hard rules are assumed.
 
@@ -17,15 +17,15 @@ Root `AGENTS.md` hard rules are assumed.
 
 Commit gate is `pnpm lint` (includes audit). Full bar before push/CI is `pnpm verify`. Three rules
 are lint-enforced by `scripts/lint-audit.mjs` (`isSafeExternalUrl`, `GIT_OPTIONAL_LOCKS=0`, hook env
-scrub). Everything else needs a read of the diff against the references below.
+scrub). Everything else needs a read of the diff against the invariants below.
 
-## Reference
+## Invariants (docs/internals/audit/)
 
 | File | When |
 |---|---|
-| `reference/network-boundary.md` | Main/renderer split, `readFile`/external URLs, daemon bind/auth/CORS/CSP, PTY env |
-| `reference/agent-channels.md` | CLI, `~/.porcelain` channels, review content, loop evidence |
-| `reference/git-and-config.md` | `config.json` / `json-store`, anything that spawns `git` |
-| `reference/data-ipc.md` | tRPC, WS session, `utilityProcess` daemon lifecycle |
-| `reference/performance.md` | Viewer/diff virtualization, file tree, Vite pre-bundle, polling/watchers |
-| `reference/packaging.md` | Dep placement, electron-builder/signing, `node-pty`, `trash` |
+| `docs/internals/audit/network-boundary.md` | Main/renderer split, `readFile`/external URLs, daemon bind/auth/CORS/CSP, PTY env |
+| `docs/internals/audit/agent-channels.md` | CLI, `~/.porcelain` channels, review content, loop evidence |
+| `docs/internals/audit/git-and-config.md` | `config.json` / `json-store`, anything that spawns `git` |
+| `docs/internals/audit/data-ipc.md` | tRPC, WS session, `utilityProcess` daemon lifecycle |
+| `docs/internals/audit/performance.md` | Viewer/diff virtualization, file tree, Vite pre-bundle, polling/watchers |
+| `docs/internals/audit/packaging.md` | Dep placement, electron-builder/signing, `node-pty`, `trash` |

@@ -23,3 +23,17 @@ Contributor architecture. Start with `architecture.md`; the rest are deep dives.
 | [internals/composition.md](internals/composition.md) | Renderer JSX defaults (shadcn on Base UI) |
 | [internals/nomenclature.md](internals/nomenclature.md) | Bare nouns: tab names → entry-point files |
 | [internals/repo.md](internals/repo.md) | Repo layout, aliases, packaging facts, shadcn re-apply |
+
+## Audit invariants
+
+Earned security/correctness/performance constraints. The `audit` skill routes agents here before
+risky edits; three of these rules are lint-enforced by `scripts/lint-audit.mjs`.
+
+| File | What |
+|------|------|
+| [internals/audit/network-boundary.md](internals/audit/network-boundary.md) | Main/renderer split, file reads, external URLs, daemon bind/auth/CORS/CSP, PTY env |
+| [internals/audit/agent-channels.md](internals/audit/agent-channels.md) | CLI, `~/.porcelain` channels, review content, loop evidence |
+| [internals/audit/git-and-config.md](internals/audit/git-and-config.md) | `config.json` / `json-store`, anything that spawns `git` |
+| [internals/audit/data-ipc.md](internals/audit/data-ipc.md) | tRPC, WS session, `utilityProcess` daemon lifecycle |
+| [internals/audit/performance.md](internals/audit/performance.md) | Viewer/diff virtualization, file tree, Vite pre-bundle, polling/watchers |
+| [internals/audit/packaging.md](internals/audit/packaging.md) | Dep placement, electron-builder/signing, `node-pty`, `trash` |
