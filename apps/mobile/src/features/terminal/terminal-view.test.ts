@@ -24,7 +24,7 @@ import { TERMINAL_PALETTES } from './terminal-theme'
  */
 
 const palette = TERMINAL_PALETTES.dark
-/** The default preference — see `DEFAULTS.terminalTextSize` in `preferences-store.ts`. */
+/** One representative size — the grid math is identical at every size, this just fixes one. */
 const LINE_HEIGHT = terminalLineHeight('medium')
 /** A pane height chosen so the padding is the difference between 19 rows and 20. */
 const PANE = { height: LINE_HEIGHT * 20, width: 400 }

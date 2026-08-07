@@ -2,7 +2,6 @@ import { useRouter } from 'expo-router'
 import { Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { EmptyNote, ScreenHeader } from '@/components/surface-chrome'
-import { useTabBarInset } from '@/features/shell/tab-bar-inset'
 
 import { useTerminalStore } from './terminal-store'
 import { TerminalView } from './terminal-view'
@@ -20,10 +19,11 @@ import { TerminalView } from './terminal-view'
 export function TerminalSessionScreen({ sessionId }: { sessionId: string }): React.JSX.Element {
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  // Pushed inside the tab, so the floating tab bar stays on screen over this pane. Without the
-  // reservation the grid is fitted to the full height and the PTY writes its last rows — the
-  // prompt, a build's final verdict — underneath the bar, unreachable and unscrollable.
-  const bottomInset = useTabBarInset()
+  // A full-screen modal, not a push — the tab bar is not on screen here at all (see
+  // `app/terminal/_layout.tsx`), and nothing else lives below this pane to reserve the
+  // home-indicator strip for either: no button, no bar, nothing the swipe-up gesture would
+  // conflict with. So the grid gets every row the display has, full stop.
+  const bottomInset = 0
   const session = useTerminalStore((state) =>
     state.sessions.find((candidate) => candidate.id === sessionId),
   )

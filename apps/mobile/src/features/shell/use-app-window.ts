@@ -13,6 +13,21 @@ import { Dimensions, Platform, type ScaledSize, useWindowDimensions } from 'reac
  */
 export function useIsTablet(): boolean {
   const { height, width } = useWindowDimensions()
+  return isTabletSize(width, height)
+}
+
+/**
+ * Same rule as `useIsTablet`, callable outside a component — module-load-time defaults (a
+ * preference's initial value before anything has rendered) have no hook to read from. A
+ * device's form factor does not change mid-session, so a one-time `Dimensions.get` read is
+ * exactly as correct as the hook.
+ */
+export function isTabletFormFactor(): boolean {
+  const { height, width } = Dimensions.get('window')
+  return isTabletSize(width, height)
+}
+
+function isTabletSize(width: number, height: number): boolean {
   return (Platform.OS === 'ios' && Platform.isPad) || Math.min(width, height) >= 768
 }
 

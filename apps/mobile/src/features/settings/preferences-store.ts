@@ -5,6 +5,8 @@ import { colorScheme as cssColorScheme } from 'react-native-css/native'
 import { z } from 'zod'
 import { create } from 'zustand'
 
+import { isTabletFormFactor } from '@/features/shell/use-app-window'
+
 export type ThemeMode = 'system' | 'light' | 'dark'
 export type DiffMode = 'unified' | 'split'
 export type MarkdownMode = 'reader' | 'source'
@@ -24,6 +26,15 @@ const preferencesSchema = z.object({
 
 type Preferences = z.infer<typeof preferencesSchema>
 
+/**
+ * A phone's readability problem turned out to be wrapping and margins, not the glyph size
+ * itself — both fixed elsewhere (the full-screen session view, the tighter pane gutter) — so
+ * 'small' stays the phone default, favoring columns. A tablet has the physical room to spend
+ * on 'medium' without giving up much width, so it starts there instead. Read once at launch:
+ * a device's form factor does not change mid-session.
+ */
+const DEFAULT_TERMINAL_TEXT_SIZE: TerminalTextSize = isTabletFormFactor() ? 'medium' : 'small'
+
 const DEFAULTS: Preferences = {
   theme: 'system',
   diffMode: 'unified',
@@ -31,9 +42,7 @@ const DEFAULTS: Preferences = {
   htmlMode: 'preview',
   pullMode: 'merge',
   commitModel: 'luna',
-  // 12pt (the old fixed size) reads as unreadably small on a phone; 'medium' is the floor
-  // for prose-heavy CLI output, not just code.
-  terminalTextSize: 'medium',
+  terminalTextSize: DEFAULT_TERMINAL_TEXT_SIZE,
 }
 
 const STORAGE_KEY = 'porcelain.preferences'

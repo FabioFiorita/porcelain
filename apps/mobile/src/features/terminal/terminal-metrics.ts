@@ -37,14 +37,14 @@ export function terminalLineHeight(size: TerminalTextSize): number {
 }
 
 /**
- * The pane's `px-4`, in pixels — subtracted from the measured width before it becomes cols.
+ * The pane's `px-2`, in pixels — subtracted from the measured width before it becomes cols.
  *
- * The same 16pt gutter every other surface uses (`SURFACE_GUTTER`), not a terminal-specific
- * number. It costs about two columns at this font size, which is the right trade: nothing a
- * shell prints becomes readable at 52 columns that was not readable at 50, and output running
- * into the bezel is the thing that made this pane look unfinished next to the rest of the app.
+ * A terminal-specific number, tighter than `SURFACE_GUTTER`: a dense monospace grid reads
+ * differently from the app's prose and list surfaces, and the full-screen session view has no
+ * sibling chrome either side of it to align against. Kept just wide enough that output stays
+ * off the bezel and the rounded corners.
  */
-export const TERMINAL_PANE_PADDING_X = 16
+export const TERMINAL_PANE_PADDING_X = 8
 
 /** The pane's `py-1`, in pixels — subtracted from the measured height before it becomes rows. */
 export const TERMINAL_PANE_PADDING_Y = 4
