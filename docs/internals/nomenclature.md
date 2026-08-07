@@ -62,7 +62,7 @@ shell-only. Mobile mirrors General · Data · Review · Environments.
 |---|---|
 | Flow / flow layers | Architectural-layer grouping of changes (entry-point → data); the heart of "review as a story" |
 | The Review (feature view / review set) | One unit-of-work story as a three-tab canvas: **Intent** (thesis + walkthrough prose, optional freeform HTML), **Execution** (agent-listed files + notes, not the working tree), **Evidence**. Files tagged **changed** / **context** / **shipped**. Active: `<repo>/.porcelain/review.json`; archives under `.porcelain/reviews/<id>/`. Product language is **Review**; code may keep `feature` ids |
-| Evidence | Agent-authored self-contained HTML *proof the loop closed*; `<repo>/.porcelain/evidence/` (gitignored by default); archives with the review |
+| Evidence | Agent-authored *proof the loop closed*: structured checks + a Results document set + an image gallery under `<repo>/.porcelain/active-review/evidence/` (gitignored by default); archives with the review |
 | Review comments | The reviewer's line/file notes (`.porcelain/comments.json`), app→agent via the CLI |
 | Reviewed marks | Per-file "reviewed" checkboxes (`.porcelain/reviewed.json`), app→agent, read-only like notes |
 | Project board | Per-repo todo/doing/done (`.porcelain/board.json`), two-way via the CLI; share via git |

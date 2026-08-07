@@ -26,6 +26,9 @@ import {
   MAX_HTML_BYTES as EVIDENCE_MAX_HTML_BYTES,
   evidenceOverallStatus,
   getEvidence,
+  listAssets,
+  listResults,
+  orderResults,
   prepareEvidence,
   setEvidence,
 } from './evidence-file'
@@ -159,6 +162,7 @@ const FLAG_DESCRIPTIONS: Record<string, string> = {
   path: 'Repo-relative folder or file path (absolute under the repo also accepted)',
   label: 'Short label for the verification check, e.g. "pnpm test"',
   detail: 'Optional result detail for the check, e.g. "1348 passed"',
+  tabs: 'Comma-separated starting tabs (default: why,approach,decisions); a bare name gets .md',
 }
 
 interface VerbHelp {
@@ -243,8 +247,8 @@ export const COMMANDS: NounHelp[] = [
     verbs: [
       {
         verb: 'prepare',
-        args: '',
-        desc: 'Make .porcelain/intent/ and print where to write documents',
+        args: '[--tabs why,approach,decisions]',
+        desc: 'Make the intent dir + assets/, seed the recommended tabs, print the paths',
       },
       {
         verb: 'order',
@@ -253,33 +257,44 @@ export const COMMANDS: NounHelp[] = [
       },
       { verb: 'list', args: '', desc: 'List the intent documents on disk' },
     ],
-    flags: ['files'],
+    flags: ['files', 'tabs'],
+    flagOverrides: {
+      files: 'Document file names inside intent/, comma-separated, in tab order',
+    },
   },
   {
     noun: 'evidence',
-    blurb: 'evidence — proof the loop closed (HTML validation report)',
+    blurb: 'evidence — proof the loop closed (checks + Results documents + an image gallery)',
     verbs: [
       {
         verb: 'prepare',
         args: '--title <s>',
-        desc: 'Prepare the on-disk dir; write index.html there yourself',
+        desc: 'Make the pack (results/ + assets/); write the documents there yourself',
       },
       {
         verb: 'set',
         args: '--title <s> (--html <s|-> | --html-file <p>)',
-        desc: 'Write index.html (HTML body)',
+        desc: 'Write results/index.html (small single-document packs only)',
       },
       {
         verb: 'check',
         args: '--label <s> --status pass|fail|skip [--detail <s>]',
         desc: 'Record a verification check (append, or update the same label)',
       },
-      { verb: 'get', args: '', desc: 'Read back the stored evidence (summary + preview)' },
+      {
+        verb: 'results-order',
+        args: '--files <a.md,b.html>',
+        desc: 'Pin the Results tab order (comma-separated, left to right)',
+      },
+      { verb: 'results-list', args: '', desc: 'List the Results documents on disk' },
+      { verb: 'assets-list', args: '', desc: 'List the gallery images with sizes and warnings' },
+      { verb: 'get', args: '', desc: 'Read back the pack (checks, Results, gallery, preview)' },
       { verb: 'clear', args: '', desc: 'Remove the evidence' },
     ],
-    flags: ['title', 'html', 'html-file', 'label', 'status', 'detail'],
+    flags: ['title', 'html', 'html-file', 'label', 'status', 'detail', 'files'],
     flagOverrides: {
       status: 'Check result: pass | fail | skip',
+      files: 'Document file names inside evidence/results/, comma-separated, in tab order',
     },
   },
   {
@@ -401,6 +416,14 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
     return value
   }
   const opt = (name: string): string | undefined => flags.get(name)
+  /** `a.md, b.html` → ['a.md','b.html']; absent → undefined, so "unset" survives. */
+  const splitList = (raw: string | undefined): string[] | undefined =>
+    raw === undefined
+      ? undefined
+      : raw
+          .split(',')
+          .map((entry) => entry.trim())
+          .filter((entry) => entry !== '')
   const readJson = (name: string): unknown => {
     const raw = flags.get(name)
     if (raw === undefined) return undefined
@@ -480,17 +503,23 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
     case 'reviewed list':
       return describeReviewed(repo, readReviewed(repo))
     case 'intent prepare': {
-      const prepared = prepareIntent(repo)
-      return `Intent directory ready at:\n${prepared.dir}\n\nWrite documents there with your normal file tools — one per idea. .md renders as prose, .html renders in a sandboxed frame (its sibling .css and images are inlined for you, so relative paths work). Images go in ${prepared.assetsDir} and are referenced relatively, e.g. <img src="assets/before.png">. Scripts never run; do not ship a .js. More than one document becomes more than one tab — pin the order with \`intent order --files a.md,b.html\`.`
+      const prepared = prepareIntent(repo, splitList(opt('tabs')))
+      const pinned = prepared.tabs.map((tab) => `  ${tab.file}`).join('\n')
+      const seeded = prepared.seeded
+        ? `Seeded the tab order:\n${pinned}`
+        : `Left the existing meta.json alone (its order and labels are yours):\n${pinned}\n…is what a fresh prepare would have written. Re-pin with \`intent order --files …\` if you want it.`
+      return `Intent directory ready at:\n${prepared.dir}\n\n${seeded}
+
+The three tabs we recommend — a convention, not a schema:
+  why.md        Why — the motivation and problem as understood BEFORE work started
+  approach.md   Approach — the solution shape that was agreed
+  decisions.md  Decisions — trade-offs taken, alternatives rejected, scope cut
+Add or drop tabs freely and re-pin with \`intent order --files a.md,b.html\`; a file the manifest names but nobody wrote is simply not a tab.
+
+Write the documents with your normal file tools. .md renders as prose; .html renders in a sandboxed frame (its sibling .css and images are inlined for you, so relative paths work). Scripts never run; do not ship a .js. Images go in ${prepared.assetsDir} and are referenced relatively, e.g. <img src="assets/before.png">.`
     }
     case 'intent order': {
-      const ordered = orderIntent(
-        repo,
-        (opt('files') ?? '')
-          .split(',')
-          .map((f) => f.trim())
-          .filter((f) => f !== ''),
-      )
+      const ordered = orderIntent(repo, splitList(opt('files')) ?? [])
       return `Intent tab order for ${repo}: ${ordered.join(' → ')}`
     }
     case 'intent list': {
@@ -501,12 +530,48 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
     }
     case 'evidence prepare': {
       const prepared = prepareEvidence(repo, opt('title'))
-      return `Evidence directory ready for "${prepared.title}" at:\n${prepared.dir}\n\nWrite index.html there (HTML body only). Screenshots as sibling files with relative <img src="shot.png">. Porcelain picks it up on the Evidence canvas tab. For large HTML, write the file yourself rather than passing --html.`
+      return `Evidence pack ready for "${prepared.title}". Three parts, three sub-tabs:
+
+  Checks   \`evidence check --label … --status pass|fail|skip\` → ${prepared.dir}/meta.json
+           The one-second summary a human reads first. Record what you actually ran.
+  Results  ${prepared.resultsDir}
+           An ordered .md / .html document set — the narrated proof. Pin the order with
+           \`evidence results-order --files a.md,b.html\`.
+  Assets   ${prepared.assetsDir}
+           Drop raw screenshots here; Porcelain renders them as a native gallery, no HTML
+           needed. A shot you also want narrated is referenced from a Results document as
+           <img src="../assets/shot.png"> — it stays in the gallery too.
+
+.md renders as prose; .html renders in a sandboxed frame with its local CSS and images inlined. Scripts never run. For large documents write the files yourself rather than passing --html.`
     }
     case 'evidence set': {
       const html = resolveHtml(EVIDENCE_MAX_HTML_BYTES)
       const evidence = setEvidence(repo, opt('title'), html)
-      return `Wrote evidence "${evidence.title}" to ${evidence.dir}/index.html for ${repo}. Porcelain renders it on the Evidence canvas tab. For large docs prefer "evidence prepare" + writing index.html yourself.`
+      return `Wrote evidence "${evidence.title}" to ${evidence.dir}/${evidence.file} for ${repo}. Porcelain renders it as a Results tab. For anything bigger than one document prefer "evidence prepare" + writing the files yourself.`
+    }
+    case 'evidence results-order': {
+      const ordered = orderResults(repo, splitList(opt('files')) ?? [])
+      return `Evidence Results tab order for ${repo}: ${ordered.join(' → ')}`
+    }
+    case 'evidence results-list': {
+      const files = listResults(repo)
+      return files.length === 0
+        ? `No Results documents for ${repo}. Run \`evidence prepare --title "…"\` first, then write .md / .html there.`
+        : `Results documents for ${repo}:\n${files.map((f) => `  ${f}`).join('\n')}`
+    }
+    case 'evidence assets-list': {
+      const assets = listAssets(repo)
+      if (assets.length === 0) {
+        return `No evidence assets for ${repo}. Drop screenshots in the pack's assets/ directory — \`evidence prepare\` prints the path.`
+      }
+      const rows = assets
+        .map(
+          (a) =>
+            `  ${a.file}  ${(a.bytes / 1024).toFixed(0)} KB${a.warning === undefined ? '' : `  — WARNING: ${a.warning}`}`,
+        )
+        .join('\n')
+      const shown = assets.filter((a) => a.warning === undefined).length
+      return `Evidence assets for ${repo} (${shown} in the gallery of ${assets.length} file(s)):\n${rows}`
     }
     case 'evidence check': {
       const result = checkEvidence(repo, req('label'), req('status'), opt('detail'))
