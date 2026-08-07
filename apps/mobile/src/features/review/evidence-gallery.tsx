@@ -1,3 +1,4 @@
+import { StatusBar } from 'expo-status-bar'
 import { useState } from 'react'
 import { FlatList, Image, Modal, Pressable, Text, useWindowDimensions, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -110,6 +111,11 @@ function GalleryTile({
  * is the only thing anyone wants after looking at one, and a swipe is the phone's
  * word for it. Page width comes from the window, so it is a real style and not a
  * class — every static value here stays in NativeWind.
+ *
+ * The backdrop is `bg-black` in BOTH themes, a deliberate exception to the semantic
+ * tokens: this is the photo-viewer idiom every phone shares, and on `bg-background`
+ * in light mode the zoom read as an image floating on the page rather than an
+ * overlay over it. `ModalBackdrop` already scrims in black for the same reason.
  */
 function GalleryZoom({
   assets,
@@ -131,7 +137,10 @@ function GalleryZoom({
       visible
       testID="porcelain-review-evidence-asset-zoom"
     >
-      <View className="flex-1 bg-background">
+      <View className="flex-1 bg-black">
+        {/* The app-level status bar follows the theme; over an always-black backdrop
+            a light-theme (dark) status bar is invisible. */}
+        <StatusBar style="light" />
         <FlatList
           data={assets}
           getItemLayout={(_, page) => ({ index: page, length: width, offset: width * page })}
@@ -146,12 +155,13 @@ function GalleryZoom({
           <Pressable
             accessibilityLabel="Close the image"
             accessibilityRole="button"
-            className="size-10 items-center justify-center rounded-full bg-muted"
+            className="size-10 items-center justify-center rounded-full bg-white/20"
             hitSlop={8}
             testID="porcelain-review-evidence-asset-zoom-close"
             onPress={onClose}
           >
-            <ChromeGlyph name="close" size={17} />
+            {/* White in both themes: the chrome sits on a backdrop that is always black. */}
+            <ChromeGlyph name="close" size={17} tone="primaryForeground" />
           </Pressable>
         </View>
       </View>
@@ -159,31 +169,49 @@ function GalleryZoom({
   )
 }
 
-/** One page of the zoom pager — the whole image, never cropped. */
+/**
+ * One page of the zoom pager — the whole image, never cropped, over its caption.
+ *
+ * The caption rides the page rather than the modal chrome so it can never name the
+ * wrong screenshot: a swipe moves both together, with no scroll position to track.
+ * Its name was only an accessibility label before, which is a strange thing for a
+ * gallery of `run-2.png` and `after.png` to keep from the person looking at them.
+ */
 function ZoomPage({ asset, width }: { asset: EvidenceAsset; width: number }): React.JSX.Element {
   const { asset: body, isLoading } = useReviewEvidenceAsset(asset.file, true)
+  const insets = useSafeAreaInsets()
 
   return (
-    <View className="flex-1 items-center justify-center px-4" style={{ width }}>
-      {body === null || body === undefined ? (
-        <Text
-          className="text-center text-xs text-muted-foreground"
-          testID={
-            isLoading
-              ? 'porcelain-review-evidence-asset-zoom-loading'
-              : 'porcelain-review-evidence-asset-zoom-unavailable'
-          }
-        >
-          {isLoading ? 'Loading the image…' : overCap(asset)}
-        </Text>
-      ) : (
-        <Image
-          accessibilityLabel={asset.label}
-          className="size-full"
-          resizeMode="contain"
-          source={{ uri: body.dataUrl }}
-        />
-      )}
+    <View className="flex-1" style={{ width }}>
+      <View className="flex-1 items-center justify-center px-4">
+        {body === null || body === undefined ? (
+          <Text
+            className="text-center text-xs text-white/60"
+            testID={
+              isLoading
+                ? 'porcelain-review-evidence-asset-zoom-loading'
+                : 'porcelain-review-evidence-asset-zoom-unavailable'
+            }
+          >
+            {isLoading ? 'Loading the image…' : overCap(asset)}
+          </Text>
+        ) : (
+          <Image
+            accessibilityLabel={asset.label}
+            className="size-full"
+            resizeMode="contain"
+            source={{ uri: body.dataUrl }}
+          />
+        )}
+      </View>
+      <Text
+        className="px-6 pt-3 text-center text-xs text-white/70"
+        numberOfLines={2}
+        style={{ paddingBottom: insets.bottom + 12 }}
+        testID="porcelain-review-evidence-asset-zoom-caption"
+      >
+        {`${asset.label} · ${describeBytes(asset.bytes)}`}
+      </Text>
     </View>
   )
 }
