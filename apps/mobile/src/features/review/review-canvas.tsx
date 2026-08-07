@@ -96,7 +96,7 @@ export function ReviewCanvas({
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-review-canvas">
-      <View className="gap-1.5 border-b border-border px-4 pb-3 pt-3">
+      <View className="gap-1.5 border-b border-border px-[16px] pb-[12px] pt-[12px]">
         <Text className="text-sm font-semibold text-foreground" numberOfLines={1}>
           {reading.name}
         </Text>
@@ -118,7 +118,7 @@ export function ReviewCanvas({
 
       <LifecycleBanner reading={reading} reviewedFraction={fraction} />
 
-      <View className="px-4 py-2">
+      <View className="px-[16px] py-2">
         <SegmentedControl<ReviewCanvasTab>
           options={CANVAS_TABS}
           testID="porcelain-review-tabs"

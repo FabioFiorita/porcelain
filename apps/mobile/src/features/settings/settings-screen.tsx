@@ -1,6 +1,6 @@
 import { ScrollView, View } from 'react-native'
 
-import { SURFACE_GUTTER } from '@/components/surface-layout'
+import { SURFACE_GUTTER, surfaceContentStyle } from '@/components/surface-layout'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Text as UiText } from '@/components/ui/text'
 import { cn } from '@/lib/utils'
@@ -65,11 +65,14 @@ export function SettingsScreen(): React.JSX.Element {
           <TabsContent key={entry.id} className="min-h-0 flex-1" value={entry.id}>
             <ScrollView
               className="flex-1"
-              contentContainerClassName={cn(SURFACE_GUTTER, 'gap-3 pt-3')}
               /* The tab bar floats over this pane rather than reserving space below it, so a
                  preference that stops at the safe area — a picker's open list, the last row of
                  Data — is stranded behind the bar with no scroll left to clear it. */
-              contentContainerStyle={{ paddingBottom: bottomInset + 24 }}
+              contentContainerStyle={surfaceContentStyle({
+                bottomInset,
+                gap: 12,
+                paddingTop: 12,
+              })}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >

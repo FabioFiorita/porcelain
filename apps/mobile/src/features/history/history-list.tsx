@@ -1,6 +1,7 @@
 import { FlatList, Text, View } from 'react-native'
 
 import { EmptyNote, ErrorNote, StatusNote } from '@/components/panel-chrome'
+import { surfaceContentStyle } from '@/components/surface-layout'
 import type { Commit } from '@/lib/daemon/procedures/changes'
 
 import { CommitRow, type CommitRowActions } from './commit-row'
@@ -54,14 +55,14 @@ export function HistoryList({
       />
 
       {error !== null ? (
-        <View className="px-4 pb-2">
+        <View className="px-[16px] pb-[8px]">
           <ErrorNote message={error.message} testID="porcelain-history-error" />
         </View>
       ) : null}
 
       {pending ? (
         <Text
-          className="px-4 py-6 text-sm text-muted-foreground"
+          className="px-[16px] py-6 text-sm text-muted-foreground"
           testID="porcelain-history-loading"
         >
           Loading commits…
@@ -74,8 +75,7 @@ export function HistoryList({
         />
       ) : (
         <FlatList
-          contentContainerClassName="gap-0.5 px-4 pb-8"
-          contentContainerStyle={{ paddingBottom: bottomInset }}
+          contentContainerStyle={surfaceContentStyle({ bottomInset, gap: 2 })}
           data={commits ?? []}
           initialNumToRender={20}
           keyExtractor={(commit: Commit) => commit.hash}
@@ -105,7 +105,7 @@ function HistoryHeader({
   const on = branch === null ? '' : ` on ${branch}`
 
   return (
-    <View className="gap-1 px-4 pb-2 pt-3">
+    <View className="gap-1 px-[16px] pb-[8px] pt-[12px]">
       <Text className="text-xs text-muted-foreground" testID="porcelain-history-summary">
         {pending ? 'Loading commits…' : `${total} ${noun}${on}`}
       </Text>

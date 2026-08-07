@@ -339,7 +339,9 @@ export function SupplementaryColumn({
         edges={{ bottom: true, left: true, right: true }}
       >
         <View className={cn('flex-1', primaryCollapsed ? 'pt-[72px]' : 'pt-4')}>
-          <Text className="px-4 pb-1 text-xl font-bold text-foreground">{surface.listTitle}</Text>
+          <Text className="px-[16px] pb-1 text-xl font-bold text-foreground">
+            {surface.listTitle}
+          </Text>
           <slots.list active />
         </View>
       </ColumnSurface>
@@ -475,7 +477,7 @@ export function CompanionColumn(): React.JSX.Element {
     >
       <ScrollView
         className="flex-1"
-        contentContainerClassName="gap-4 px-4 pb-6 pt-4"
+        contentContainerClassName="gap-4 px-[16px] pb-6 pt-4"
         showsVerticalScrollIndicator={false}
       >
         <View className="flex-row items-start justify-between gap-2">

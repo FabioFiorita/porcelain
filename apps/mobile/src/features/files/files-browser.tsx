@@ -9,7 +9,7 @@ import {
   IconAction,
   type SheetAction,
 } from '@/components/panel-chrome'
-import { SURFACE_TOOLBAR } from '@/components/surface-layout'
+import { SURFACE_TOOLBAR, surfaceContentStyle } from '@/components/surface-layout'
 import { type CommentAnchor, CommentComposer } from '@/features/comments/comment-composer'
 import { useActiveRepo } from '@/lib/daemon/repo'
 import { cn } from '@/lib/utils'
@@ -186,18 +186,21 @@ export function FilesBrowser({
       />
 
       {actionError === null ? null : (
-        <View className="px-4 pb-2">
+        <View className="px-[16px] pb-[8px]">
           <ErrorNote message={actionError} testID="porcelain-files-action-error" />
         </View>
       )}
       {error === null ? null : (
-        <View className="px-4 pb-2">
+        <View className="px-[16px] pb-[8px]">
           <ErrorNote message={error.message} testID="porcelain-files-error" />
         </View>
       )}
 
       {reading ? (
-        <Text className="px-4 py-6 text-sm text-muted-foreground" testID="porcelain-files-loading">
+        <Text
+          className="px-[16px] py-6 text-sm text-muted-foreground"
+          testID="porcelain-files-loading"
+        >
           Reading directory…
         </Text>
       ) : entries.length === 0 && error === null ? (
@@ -212,8 +215,7 @@ export function FilesBrowser({
         />
       ) : (
         <FlatList
-          contentContainerClassName="gap-0.5 px-4 pb-8"
-          contentContainerStyle={{ paddingBottom: bottomInset }}
+          contentContainerStyle={surfaceContentStyle({ bottomInset, gap: 2 })}
           data={entries}
           keyExtractor={(entry: FileEntry) => entry.path}
           renderItem={({ item }) => (

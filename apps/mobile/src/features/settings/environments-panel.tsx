@@ -718,6 +718,8 @@ function ConnectionRow({
         <Pressable
           accessibilityLabel="Remove connection"
           accessibilityRole="button"
+          /* surface-gutter-allow: a swipe action's own width, revealed outside the row — not a
+             gutter anything aligns to. */
           className="ml-2 items-center justify-center rounded-xl bg-destructive px-4"
           testID={`porcelain-settings-connection-remove-${index}`}
           onPress={() => {

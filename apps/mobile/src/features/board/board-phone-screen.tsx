@@ -3,6 +3,7 @@ import { ScrollView, Text, View } from 'react-native'
 
 import { EmptyNote, ErrorNote } from '@/components/panel-chrome'
 import { SegmentedControl } from '@/components/segmented-control'
+import { surfaceContentStyle } from '@/components/surface-layout'
 import { PhoneHeader } from '@/features/shell/phone-header'
 import { useTabBarInset } from '@/features/shell/tab-bar-inset'
 import type { CardStatus } from '@/lib/daemon/procedures/review'
@@ -39,7 +40,7 @@ export function BoardPhoneScreen(): React.JSX.Element {
     <View className="flex-1 bg-background" testID="porcelain-phone-surface-board">
       <PhoneHeader companionSurface="board" title="Board" />
 
-      <View className="px-4 pb-2 pt-3">
+      <View className="px-[16px] pb-[8px] pt-[12px]">
         <SegmentedControl<CardStatus>
           options={BOARD_COLUMNS.map((entry) => ({
             label: `${entry.label} · ${cardsInColumn(cards, entry.status).length}`,
@@ -53,7 +54,7 @@ export function BoardPhoneScreen(): React.JSX.Element {
       </View>
 
       {error === null ? null : (
-        <View className="px-4 pb-2">
+        <View className="px-[16px] pb-[8px]">
           <ErrorNote
             message={`Couldn't load the board. ${error.message}`}
             testID="porcelain-board-phone-error"
@@ -63,7 +64,7 @@ export function BoardPhoneScreen(): React.JSX.Element {
 
       {isLoading ? (
         <Text
-          className="px-4 py-6 text-sm text-muted-foreground"
+          className="px-[16px] py-6 text-sm text-muted-foreground"
           testID="porcelain-board-phone-loading"
         >
           Loading board…
@@ -77,8 +78,7 @@ export function BoardPhoneScreen(): React.JSX.Element {
       ) : (
         <ScrollView
           className="flex-1"
-          contentContainerClassName="px-4 pb-8"
-          contentContainerStyle={{ paddingBottom: bottomInset }}
+          contentContainerStyle={surfaceContentStyle({ bottomInset })}
           showsVerticalScrollIndicator={false}
           testID="porcelain-board-phone-cards"
         >

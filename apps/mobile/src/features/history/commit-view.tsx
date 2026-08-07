@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { SectionList, Text, View } from 'react-native'
 
 import { EmptyNote, ErrorNote, IconAction, PanelLabel } from '@/components/panel-chrome'
+import { surfaceContentStyle } from '@/components/surface-layout'
 import { type CommentAnchor, CommentComposer } from '@/features/comments/comment-composer'
 import type { FlowFile } from '@/lib/daemon/procedures/changes'
 import { cn } from '@/lib/utils'
@@ -103,8 +104,7 @@ export function CommitView({
         </Text>
       ) : (
         <SectionList
-          contentContainerClassName="gap-0.5 px-4 pb-8"
-          contentContainerStyle={{ paddingBottom: bottomInset }}
+          contentContainerStyle={surfaceContentStyle({ bottomInset, gap: 2 })}
           keyExtractor={(file: FlowFile) => file.path}
           ListEmptyComponent={
             <EmptyNote

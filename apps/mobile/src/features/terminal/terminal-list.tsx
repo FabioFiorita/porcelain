@@ -10,6 +10,7 @@ import {
   IconAction,
   type SheetAction,
 } from '@/components/surface-chrome'
+import { surfaceContentStyle } from '@/components/surface-layout'
 import { useActiveRepo } from '@/lib/daemon/repo'
 import { cn } from '@/lib/utils'
 
@@ -93,7 +94,7 @@ export function TerminalList({
 
   return (
     <View className="flex-1" testID="porcelain-terminal-list">
-      <View className="flex-row items-center gap-1 px-4 pb-2 pt-3">
+      <View className="flex-row items-center gap-1 px-[16px] pb-[8px] pt-[12px]">
         <Text
           className="min-w-0 flex-1 text-xs text-muted-foreground"
           testID="porcelain-terminal-summary"
@@ -114,12 +115,12 @@ export function TerminalList({
       </View>
 
       {failure === null ? null : (
-        <View className="px-4 pb-2">
+        <View className="px-[16px] pb-[8px]">
           <ErrorNote message={failure} testID="porcelain-terminal-action-error" />
         </View>
       )}
       {error === null ? null : (
-        <View className="px-4 pb-2">
+        <View className="px-[16px] pb-[8px]">
           <ErrorNote message={error.message} testID="porcelain-terminal-error" />
         </View>
       )}
@@ -136,8 +137,7 @@ export function TerminalList({
         />
       ) : (
         <FlatList
-          contentContainerClassName="gap-0.5 px-4 pb-8"
-          contentContainerStyle={{ paddingBottom: bottomInset }}
+          contentContainerStyle={surfaceContentStyle({ bottomInset, gap: 2 })}
           data={sessions}
           keyExtractor={(session: TerminalSession) => session.id}
           renderItem={({ item }) => (

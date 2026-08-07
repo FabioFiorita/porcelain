@@ -2,6 +2,7 @@ import { dirName, fileName } from '@porcelain/client-runtime/paths'
 import { FlatList, Pressable, Text, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
+import { surfaceContentStyle } from '@/components/surface-layout'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import type { CodeSearchFile, CodeSearchLine } from '@/lib/daemon/procedures/files'
 import { cn } from '@/lib/utils'
@@ -36,8 +37,7 @@ export function ContentResults({
 }): React.JSX.Element {
   return (
     <FlatList
-      contentContainerClassName="gap-1 px-4 pb-8"
-      contentContainerStyle={{ paddingBottom: bottomInset }}
+      contentContainerStyle={surfaceContentStyle({ bottomInset, gap: 4 })}
       data={files}
       keyboardShouldPersistTaps="handled"
       keyExtractor={(file: CodeSearchFile) => file.path}
