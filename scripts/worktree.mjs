@@ -737,7 +737,8 @@ function evidenceImageNames(dir) {
       .filter((entry) => EVIDENCE_IMAGE_EXTENSIONS.has(entry.split('.').pop()?.toLowerCase() ?? ''))
       .sort()
       .slice(0, MAX_EVIDENCE_IMAGES)
-    if (images.length > 0) return images.map((name) => (candidate === dir ? name : join('assets', name)))
+    if (images.length > 0)
+      return images.map((name) => (candidate === dir ? name : join('assets', name)))
   }
   return []
 }
