@@ -3,52 +3,59 @@
     "id": "cd2522a1-1684-464e-b22e-776e55a1f3fc",
     "title": "Verify",
     "command": "pnpm verify",
-    "order": 1785768200434,
+    "order": 1785768200463,
     "createdAt": 1785768200434
+  },
+  {
+    "id": "21b32e2e-09d7-452d-acca-0b24f60780d7",
+    "title": "Claude Personal",
+    "command": "claude-personal",
+    "order": 1785768200434,
+    "createdAt": 1786109719171
   },
   {
     "id": "4c1fa36b-7df1-4556-acb1-4c7d1d747ff5",
     "title": "Metro (mobile)",
     "command": "pnpm --dir apps/mobile start",
-    "order": 1785768200463,
+    "order": 1785768200493,
     "createdAt": 1785768200463
   },
   {
     "id": "cfc3058b-190c-424c-9acf-ab4f61d22740",
     "title": "Mobile Fixture",
     "command": "node scripts/mobile-fixture-daemon.mjs",
-    "order": 1785768200493,
+    "order": 1785768200525,
     "createdAt": 1785768200493
   },
   {
     "id": "f8eaa996-c8ce-4d9b-80fd-0d1c211ab6af",
     "title": "Serve sim",
     "command": "npx serve-sim --host 0.0.0.0",
-    "order": 1785768200525,
-    "createdAt": 1785768200525,
-    "where": "local"
+    "where": "local",
+    "order": 1785768200556,
+    "createdAt": 1785768200525
   },
   {
     "id": "eb20d5db-5c65-424e-b67f-5c3d70da8b5c",
     "title": "iOS sim: build dev client",
     "command": "pnpm --dir apps/mobile sim:build",
-    "order": 1785768200556,
+    "order": 1785768200588,
     "createdAt": 1785768200556
   },
   {
     "id": "eb9a8a3e-5e7d-4439-a152-95abee0abed3",
     "title": "iPhone sim: install",
     "command": "pnpm --dir apps/mobile sim:install --simulator 'iPhone 17 Pro'",
-    "order": 1785768200588,
-    "createdAt": 1785768200588,
-    "where": "local"
+    "where": "local",
+    "order": 1785768200622,
+    "createdAt": 1785768200588
   },
   {
     "id": "a4875946-1dbb-4104-8b09-ec9ab1adca60",
     "title": "iPad sim: install",
     "command": "pnpm --dir apps/mobile sim:install --simulator 'iPad Pro 13-inch (M5)'",
-    "order": 1785768200622,
-    "createdAt": 1785768200622,
-    "where": "local"
+    "where": "local",
+    "order": 1786109719171,
+    "createdAt": 1785768200622
   }
 ]
