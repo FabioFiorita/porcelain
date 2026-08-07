@@ -1,6 +1,6 @@
 ---
 name: releasing
-version: 0.50.0
+version: 0.51.0
 metadata:
   internal: true
 description: How to cut a Porcelain release — simple main+tag path, Mac package + npm, always patch unless asked. Read when publishing a version or changing signing/notarization.

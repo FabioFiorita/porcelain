@@ -1,3 +1,45 @@
+## [0.51.0](https://github.com/FabioFiorita/porcelain/compare/v0.50.0...v0.51.0) (2026-08-07)
+
+### Features
+
+* **agents:** merge-queue skill lands selected work/* PRs ([04604e7](https://github.com/FabioFiorita/porcelain/commit/04604e76f48cf3c18aa44c3d1ab5e994111fa646))
+* **daemon:** match commit generation to the repo's own commit style ([#11](https://github.com/FabioFiorita/porcelain/issues/11)) ([6ab5c52](https://github.com/FabioFiorita/porcelain/commit/6ab5c52c6bb14fbdd1b08959bc9403ba31721dc7))
+* **desktop:** add Quick Open, New Terminal, and Split Pane to the menu ([d1f6b7f](https://github.com/FabioFiorita/porcelain/commit/d1f6b7f9be3ec1a6ab6e04bd895a6f40370dcb75))
+* **desktop:** add Settings to the File menu ([dc19521](https://github.com/FabioFiorita/porcelain/commit/dc19521834ca1b1303aafc43efe4a57bc132f608))
+* **mobile:** branch/worktree creation, push, and comment editing ([4424f83](https://github.com/FabioFiorita/porcelain/commit/4424f8378d5c3a98078e18057ed4814a00a84640))
+* **mobile:** file writes, content search, and a real reader default ([b8b1c7d](https://github.com/FabioFiorita/porcelain/commit/b8b1c7d54f32f2c649b9842167dca12628b23f51))
+* **mobile:** make terminal text size a real preference ([157693b](https://github.com/FabioFiorita/porcelain/commit/157693b9faf58a6fdfe93b05f377b65079ad2474))
+* **mobile:** the Review and the Board ([fb15131](https://github.com/FabioFiorita/porcelain/commit/fb15131b735ab4837d381a32dfbdf23180e6cc44))
+* **skills:** porcelain-remote — remote daemon setup and ops skill ([fc40fca](https://github.com/FabioFiorita/porcelain/commit/fc40fca4a5d636390eb2418c03f5b78b8299ee99))
+* **terminal:** paste an image into a running session ([851e54c](https://github.com/FabioFiorita/porcelain/commit/851e54c4f5e8d08a482275c6fc6357f6941d3c80))
+* **worktree:** publish PR evidence screenshots to R2 ([14cc2de](https://github.com/FabioFiorita/porcelain/commit/14cc2dea58a49f6e06f303392e6dd4f76cb45059))
+
+### Bug Fixes
+
+* complete release bookkeeping ([6da0667](https://github.com/FabioFiorita/porcelain/commit/6da06677ac51c85661b9665bc7bc350699ea7bfc))
+* **e2e:** stop scraping evidence prepare's prose for the pack dir ([e80fd57](https://github.com/FabioFiorita/porcelain/commit/e80fd57945e19396e47dea29346e4c0cf8654ad6)), closes [#15](https://github.com/FabioFiorita/porcelain/issues/15)
+* **evidence:** address Codex review that landed after PR [#15](https://github.com/FabioFiorita/porcelain/issues/15) merged ([4a9f110](https://github.com/FabioFiorita/porcelain/commit/4a9f110334a24ec2241a932796b27bd3ad1ee0a8))
+* **mobile:** avoid the keyboard in the shell modal ([250d93d](https://github.com/FabioFiorita/porcelain/commit/250d93d26934bf2a6ed33e9ab94f6e48c2a996c5))
+* **mobile:** dark-mode fields, iPad columns, and a Search companion ([5d6e911](https://github.com/FabioFiorita/porcelain/commit/5d6e9110d4e693dfd40efc5e3e4014c83a8b6926))
+* **mobile:** drop the board empty note so columns always render ([4b41a39](https://github.com/FabioFiorita/porcelain/commit/4b41a39afdddabdf46b845cbda61afd98c2bab98))
+* **mobile:** fade the ghost light-mode fill instead of tinting it ([28585bd](https://github.com/FabioFiorita/porcelain/commit/28585bdbb0a1bef760e361a819995ce6a63f53c2))
+* **mobile:** give ghost buttons a visible idle fill ([8dd5e47](https://github.com/FabioFiorita/porcelain/commit/8dd5e47f9afe402b9a51cae05d6c5c3c15f5177f))
+* **mobile:** give the terminal every point of the display it can use ([aec21c1](https://github.com/FabioFiorita/porcelain/commit/aec21c109d2705fbcb62caae6545ff0839ff7f33))
+* **mobile:** let the shell own bottom chrome; flatten Evidence's tabs ([06070ed](https://github.com/FabioFiorita/porcelain/commit/06070ed336a6a8fdc7917258b4d35a9da45d6752))
+* **mobile:** name the worktree chip after the checkout, not its branch ([4a5c973](https://github.com/FabioFiorita/porcelain/commit/4a5c973f1f569313625f36968bbcb1188702607b))
+* **mobile:** one gutter, one rhythm, and nothing left under the tab bar ([3bf02b5](https://github.com/FabioFiorita/porcelain/commit/3bf02b588c72ac2a3b8132a7ef5a351a1907e33b))
+* **mobile:** pin the spacing scale to points and share one screen header ([e492b7b](https://github.com/FabioFiorita/porcelain/commit/e492b7b65f0e7da1a496c7099b00ee0a375d0a99))
+* **mobile:** sit both iPad column titles in the same title band ([19580eb](https://github.com/FabioFiorita/porcelain/commit/19580eb7f2dadc05b36aaf7137db427cb59c3e60))
+* **mobile:** stop contentContainerStyle silently deleting the gutter ([73eb193](https://github.com/FabioFiorita/porcelain/commit/73eb193e14299334eda8ffb51a4281589e61d9b2))
+* **mobile:** stop doubling companion padding, go full-screen in terminal ([a7cb72b](https://github.com/FabioFiorita/porcelain/commit/a7cb72ba9e257e4dabcb654b07a85f940589fb9c))
+* **mobile:** terminal grid math, paste, and spawn size ([577738c](https://github.com/FabioFiorita/porcelain/commit/577738c500ce5f8db167c6b912b1a6a5bc6f1f83))
+* **mobile:** time out daemon HTTP calls so endpoint failover fires ([#12](https://github.com/FabioFiorita/porcelain/issues/12)) ([e39884d](https://github.com/FabioFiorita/porcelain/commit/e39884da8ce6d7be1b0007d8ff222ac93668532c))
+* **mobile:** tint ghost buttons with primary in light mode ([3046b24](https://github.com/FabioFiorita/porcelain/commit/3046b24663628c6a649a5dc7fd13a0c5fe90568b))
+* **mobile:** use a laptop glyph for the notebook environment icon ([f6b68a8](https://github.com/FabioFiorita/porcelain/commit/f6b68a8be15f9206ae6e4df283830e12fbbe0740))
+* **review:** gate publish on visibility, widen disclosure scope ([387c943](https://github.com/FabioFiorita/porcelain/commit/387c9434b78da56145e870a6ac373178b8b91069)), closes [#14](https://github.com/FabioFiorita/porcelain/issues/14)
+* **worktree:** let create --force past a dirty primary main ([acc340d](https://github.com/FabioFiorita/porcelain/commit/acc340d3a4573541593032fec92421cd37f6f438))
+* **worktree:** read the repo-local active-review layout for PR bodies ([f885a2a](https://github.com/FabioFiorita/porcelain/commit/f885a2a786985208369da59f1a0d04e24c80e80b))
+
 ## [0.50.0](https://github.com/FabioFiorita/porcelain/compare/v0.49.0...v0.50.0) (2026-08-05)
 
 ### Features
