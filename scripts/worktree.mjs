@@ -743,6 +743,36 @@ function evidenceImageNames(dir) {
   return []
 }
 
+const EVIDENCE_RESULT_EXTENSIONS = new Set(['md', 'markdown', 'html', 'htm'])
+
+/** Any renderable Results document — mirrors doc-set.ts's `isResultDoc`. */
+function hasResultsDoc(dir) {
+  let entries = []
+  try {
+    entries = readdirSync(join(dir, 'results'))
+  } catch {
+    return false
+  }
+  return entries.some(
+    (entry) =>
+      !entry.startsWith('.') &&
+      EVIDENCE_RESULT_EXTENSIONS.has(entry.split('.').pop()?.toLowerCase() ?? ''),
+  )
+}
+
+/** Any gallery image under `assets/` — mirrors evidence-assets-list.ts's listing filter. */
+function hasEvidenceAsset(dir) {
+  let entries = []
+  try {
+    entries = readdirSync(join(dir, 'assets'))
+  } catch {
+    return false
+  }
+  return entries.some((entry) =>
+    EVIDENCE_IMAGE_EXTENSIONS.has(entry.split('.').pop()?.toLowerCase() ?? ''),
+  )
+}
+
 /**
  * The worktree's evidence pack — repo-local `.porcelain/active-review/evidence/` first
  * (current layout), then the legacy channel-home `loop-evidence` keying
@@ -756,9 +786,15 @@ function readEvidence(worktreePath, home, keys) {
     ),
   ]
   for (const dir of dirs) {
-    // A pack exists when its checks meta or a legacy report page is present — matching the
-    // daemon's widened presence rule (evidence is a pack now, not one HTML page).
-    if (!existsSync(join(dir, 'meta.json')) && !existsSync(join(dir, 'index.html'))) continue
+    // A pack exists when its checks meta, a legacy report page, a Results document, or a
+    // gallery image is present — matching the daemon's widened presence rule (evidence is a
+    // pack now, not one HTML page, and a Results- or Assets-only pack is still evidence).
+    const hasPack =
+      existsSync(join(dir, 'meta.json')) ||
+      existsSync(join(dir, 'index.html')) ||
+      hasResultsDoc(dir) ||
+      hasEvidenceAsset(dir)
+    if (!hasPack) continue
     const meta = readJsonFile(join(dir, 'meta.json')) ?? {}
     return {
       dir,

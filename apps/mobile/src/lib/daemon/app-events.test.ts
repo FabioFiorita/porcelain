@@ -13,6 +13,15 @@ describe('APP_EVENT_INVALIDATIONS', () => {
   it('maps nothing the daemon never sends', () => {
     expect(Object.keys(APP_EVENT_INVALIDATIONS).sort()).toEqual([...appEventSchema.options].sort())
   })
+
+  // An agent retrying a capture step commonly reuses a file name (before.png/
+  // after.png), so the per-asset body cache (staleTime: Infinity, keyed by
+  // file) is not safe behind only the listing invalidation — it needs its own
+  // entry dropped too, or an overwritten tile keeps showing the old bytes.
+  it('drops the per-asset body cache on an evidence event, not just the listing', () => {
+    expect(APP_EVENT_INVALIDATIONS.evidence).toContain('reviewEvidenceAssets')
+    expect(APP_EVENT_INVALIDATIONS.evidence).toContain('reviewEvidenceAsset')
+  })
 })
 
 describe('serverMessageSchema', () => {

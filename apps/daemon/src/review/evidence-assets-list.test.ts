@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -71,6 +71,17 @@ describe('listEvidenceAssets', () => {
     expect(asset?.file).toBe('huge.png')
     expect(await readEvidenceAsset(dir, 'huge.png')).toBeNull()
   })
+
+  it('skips a symlink even when its target is a real image', async () => {
+    const outside = await mkdtemp(join(tmpdir(), 'porcelain-assets-outside-'))
+    try {
+      await writeFile(join(outside, 'real.png'), PNG)
+      await symlink(join(outside, 'real.png'), join(dir, 'link.png'))
+      expect(await listEvidenceAssets(dir)).toEqual([])
+    } finally {
+      await rm(outside, { recursive: true, force: true })
+    }
+  })
 })
 
 describe('readEvidenceAsset', () => {
@@ -102,5 +113,17 @@ describe('readEvidenceAsset', () => {
     await writeFile(join(dir, 'notes.txt'), 'nope')
     expect(await readEvidenceAsset(dir, 'notes.txt')).toBeNull()
     expect(await readEvidenceAsset(dir, 'gone.png')).toBeNull()
+  })
+
+  it('refuses a symlink even when its target resolves inside dir and is a real image', async () => {
+    const outside = await mkdtemp(join(tmpdir(), 'porcelain-assets-outside-'))
+    try {
+      const secret = join(outside, 'secret.png')
+      await writeFile(secret, PNG)
+      await symlink(secret, join(dir, 'link.png'))
+      expect(await readEvidenceAsset(dir, 'link.png')).toBeNull()
+    } finally {
+      await rm(outside, { recursive: true, force: true })
+    }
   })
 })

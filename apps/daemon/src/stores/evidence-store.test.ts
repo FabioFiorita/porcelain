@@ -79,6 +79,35 @@ describe('readEvidence (disk-first)', () => {
     expect(evidence?.htmlUnavailable?.reason).toBe('too-large')
     expect(evidence?.title).toBe('Big')
   })
+
+  // A pack the current CLI wrote has no legacy root index.html at all — only
+  // results/index.html. An installed client not yet on the Results/Assets split
+  // still calls this procedure (loopEvidenceHtml) for the primary report; it
+  // must not see "cleared" just because the pack moved one directory down.
+  it('falls back to results/index.html when the legacy root is absent', async () => {
+    mkdirSync(projectEvidenceDir(repo), { recursive: true })
+    mkdirSync(projectEvidenceResultsDir(repo), { recursive: true })
+    writeFileSync(join(projectEvidenceResultsDir(repo), 'index.html'), '<h1>results report</h1>')
+    writeFileSync(
+      join(projectEvidenceDir(repo), 'meta.json'),
+      JSON.stringify({ title: 'Results pack', repoPath: repo, updatedAt: META_AT }),
+    )
+    const evidence = await readEvidence(repo)
+    expect(evidence?.html).toBe('<h1>results report</h1>')
+    expect(evidence?.title).toBe('Results pack')
+  })
+
+  it('inlines a results-report image relative to the evidence root, not results/', async () => {
+    mkdirSync(projectEvidenceResultsDir(repo), { recursive: true })
+    mkdirSync(projectEvidenceAssetsDir(repo), { recursive: true })
+    writeFileSync(join(projectEvidenceAssetsDir(repo), 'shot.png'), 'png-bytes')
+    writeFileSync(
+      join(projectEvidenceResultsDir(repo), 'index.html'),
+      '<img src="../assets/shot.png">',
+    )
+    const evidence = await readEvidence(repo)
+    expect(evidence?.html).toContain('data:image/png;base64,')
+  })
 })
 
 describe('clearEvidence', () => {

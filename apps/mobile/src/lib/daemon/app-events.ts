@@ -18,6 +18,7 @@ export const APP_EVENT_INVALIDATIONS: Record<AppEvent, readonly string[]> = {
     'featureReading',
     'reviewEvidenceDocs',
     'reviewEvidenceAssets',
+    'reviewEvidenceAsset',
   ],
   'feature-view': ['featureView', 'featureReading', 'worktreeInbox'],
   // Content search reads file bodies, so a tree write staleness it exactly like a directory

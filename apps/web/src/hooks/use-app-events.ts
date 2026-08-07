@@ -85,13 +85,17 @@ function handle(
       // the agent authored/cleared loop evidence — refresh the Review document (its
       // evidence chapter meta rides on featureReading) and every part of the pack:
       // the legacy HTML body, the Results document set, and the Assets listing.
-      // Per-asset bodies are keyed by file and immutable, so the listing is enough.
+      // Also drop the per-asset body cache: an agent retrying a capture step
+      // commonly reuses the same file name (before.png/after.png), so a name is
+      // not a reliable proxy for immutable bytes — without this the gallery and
+      // zoom view can keep showing the old screenshot under the new listing.
       return Promise.all([
         utils.featureReading.invalidate(),
         utils.loopEvidence.invalidate(),
         utils.loopEvidenceHtml.invalidate(),
         utils.reviewEvidenceDocs.invalidate(),
         utils.reviewEvidenceAssets.invalidate(),
+        utils.reviewEvidenceAsset.invalidate(),
       ])
     case 'working-tree':
       // a watched file changed on disk outside the app (most often the coding

@@ -226,16 +226,26 @@ function tooLarge(bytes: number): EvidenceHtmlUnavailable {
 }
 
 /**
- * Prefer on-disk index.html. Oversized bodies keep title/checks and surface
- * `htmlUnavailable` (never silent null — that looked like "cleared"). Malformed
- * / empty index → null. A dir with no index.html — including an old scene-only
- * evidence pack from before HTML was the only medium — is not treated as
- * evidence at all; rewrite it as HTML.
+ * Prefer on-disk index.html — `results/index.html` (current layout) first, then
+ * the legacy root `index.html`, same precedence as the CLI's own `getEvidence`.
+ * This procedure (`loopEvidenceHtml`) is what an installed client not yet on the
+ * Results/Assets split still calls; a pack written by the current CLI, which no
+ * longer writes the legacy root, must keep answering it or a staggered
+ * daemon/client upgrade shows "cleared" for a pack that fully exists.
+ * Oversized bodies keep title/checks and surface `htmlUnavailable` (never
+ * silent null — that looked like "cleared"). Malformed / empty index → null.
+ * No index.html anywhere — including an old scene-only evidence pack from
+ * before HTML was the only medium — is not treated as evidence at all;
+ * rewrite it as HTML.
  */
 export async function readEvidence(repoPath: string): Promise<Evidence | null> {
   const dir = evidenceDirForRepo(repoPath)
-  const indexPath = evidenceIndexPath(repoPath)
-  if (!(await fileExists(indexPath))) return null
+  const resultsDir = projectEvidenceResultsDir(repoPath)
+  const resultsIndexPath = join(resultsDir, 'index.html')
+  const legacyIndexPath = evidenceIndexPath(repoPath)
+  const useResults = await fileExists(resultsIndexPath)
+  const indexPath = useResults ? resultsIndexPath : legacyIndexPath
+  if (!useResults && !(await fileExists(legacyIndexPath))) return null
 
   const meta = await readDiskMeta(repoPath)
   const checks = meta?.checks ?? []
@@ -256,7 +266,12 @@ export async function readEvidence(repoPath: string): Promise<Evidence | null> {
     if (rawBytes > MAX_HTML_BYTES) {
       return { ...base, htmlUnavailable: tooLarge(rawBytes) }
     }
-    const html = await inlineLocalAssets(dir, raw)
+    // Results docs live one level down and point at `../assets/shot.png` — the
+    // same gallery the Assets tab lists — so resolve relative to their own
+    // directory but keep containment at the evidence root, matching doc-set.ts.
+    const html = useResults
+      ? await inlineLocalAssets(resultsDir, raw, dir)
+      : await inlineLocalAssets(dir, raw)
     const inlinedBytes = Buffer.byteLength(html, 'utf8')
     if (inlinedBytes > MAX_HTML_BYTES) {
       return { ...base, htmlUnavailable: tooLarge(inlinedBytes) }

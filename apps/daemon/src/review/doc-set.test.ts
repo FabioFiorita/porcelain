@@ -92,6 +92,20 @@ describe('document sets', () => {
     await writeFile(join(dir, 'index.md'), 'small')
     expect((await readDocSet(dir)).map((d) => d.file)).toEqual(['index.md'])
   })
+
+  // A tiny HTML file can reference a large sibling image: inlining reads and
+  // base64's the WHOLE referenced file with no cap of its own, so the raw
+  // on-disk size (checked before inlining) is not enough — the expanded body
+  // must be capped too, or a small doc can smuggle a multi-MB image through.
+  it('drops a document that only exceeds the cap after its image is inlined', async () => {
+    await mkdir(join(dir, 'assets'), { recursive: true })
+    // Base64 inflates by ~4/3, so 1.6 MB of raw bytes clears the 2 MB doc cap
+    // once inlined, while the on-disk .html file itself stays tiny.
+    await writeFile(join(dir, 'assets', 'big.png'), Buffer.alloc(1_600_000))
+    await writeFile(join(dir, 'index.html'), '<img src="assets/big.png">')
+    await writeFile(join(dir, 'index.md'), 'small')
+    expect((await readDocSet(dir)).map((d) => d.file)).toEqual(['index.md'])
+  })
 })
 
 describe('assetRoot', () => {

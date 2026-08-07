@@ -1,4 +1,4 @@
-import { readdir, readFile, stat } from 'node:fs/promises'
+import { lstat, readdir, readFile } from 'node:fs/promises'
 import { extname, isAbsolute, join, relative, resolve } from 'node:path'
 import { imageMimeForPath } from '../fs/image-mime'
 
@@ -92,8 +92,10 @@ export async function listEvidenceAssets(dir: string): Promise<EvidenceAsset[]> 
     const mime = imageMimeForPath(file)
     if (mime === null) continue
     try {
-      const info = await stat(join(dir, file))
-      if (!info.isFile()) continue
+      // lstat, not stat: a symlink named with an image extension must not be
+      // listed as a real tile just because its target happens to be one.
+      const info = await lstat(join(dir, file))
+      if (info.isSymbolicLink() || !info.isFile()) continue
       assets.push({ file, label: labelFor(file), mime, kind: 'image', bytes: info.size })
     } catch {
       // vanished mid-listing — the gallery is a snapshot, not a lock
@@ -115,7 +117,11 @@ export async function readEvidenceAsset(
   const mime = imageMimeForPath(file)
   if (mime === null) return null
   try {
-    const info = await stat(path)
+    // lstat, not stat: `assetPath` only validates the resolved path lexically,
+    // so a symlink inside `dir` would otherwise let `readFile` follow it
+    // outside the containment root — reject before ever touching the target.
+    const info = await lstat(path)
+    if (info.isSymbolicLink()) return null
     // Stat before read: a huge file must never be pulled into memory just to
     // discover it is over the cap.
     if (!info.isFile() || info.size > MAX_ASSET_BYTES) return null

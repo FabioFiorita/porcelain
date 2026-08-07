@@ -221,6 +221,11 @@ async function readDoc(
     const raw = await readFile(path, 'utf8')
     const body =
       medium === 'html' ? await inlineLocalAssets(tab.dir, raw, assetRoot ?? tab.dir) : raw
+    // Inlining can expand an HTML doc well past its on-disk size — each local
+    // image/stylesheet reference is read and base64'd in full with no cap of its
+    // own, so the raw-size check above is not enough once assets are inlined.
+    const bodyBytes = Buffer.byteLength(body, 'utf8')
+    if (bodyBytes > MAX_DOC_BYTES || bodyBytes > remainingBytes) return null
     return { file: tab.file, label: tab.label ?? labelFor(tab.file), medium, body }
   } catch {
     // unreadable or not valid utf8 — skip it, keep the rest of the tabs
