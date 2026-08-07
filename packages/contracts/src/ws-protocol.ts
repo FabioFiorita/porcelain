@@ -36,6 +36,17 @@ export const appEventSchema = z.enum([
 
 export type AppEvent = z.infer<typeof appEventSchema>
 
+/**
+ * The real cap for a pasted image, decoded. Checked inside the daemon's handler
+ * (`apps/daemon/src/terminal/image-paste.ts`), not by the zod schema below — a
+ * schema-level cap that failed would drop the message before `reqId` could ever be
+ * answered, leaving the client's pending paste promise hanging forever (see
+ * `dataBase64`'s own comment). 4 MiB is the same order of magnitude as
+ * `evidence-store.ts`'s `MAX_HTML_BYTES`, comfortably above a real full-resolution
+ * screenshot and well under the daemon's generic 10 MiB read ceiling.
+ */
+export const MAX_PASTE_IMAGE_BYTES = 4_194_304
+
 export const serverMessageSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('app-event'), event: appEventSchema }),
   z.object({ t: z.literal('terminal:data'), id: z.string(), data: z.string() }),
@@ -54,6 +65,18 @@ export const serverMessageSchema = z.discriminatedUnion('t', [
     status: z.enum(['running', 'exited']),
     exitCode: z.number().optional(),
     found: z.boolean(),
+  }),
+  // Answers a `terminal:paste-image`. `result` is a reason enum, not free text — each
+  // client owns its own copy for whatever it shows (mobile has no toast, only
+  // `Alert.alert`). `path` is present only on `ok`, for callers that want it (tests,
+  // logging); the client never needs to act on it, since the daemon has already
+  // written the mention into the PTY itself.
+  z.object({
+    t: z.literal('terminal:image-pasted'),
+    reqId: z.string(),
+    id: z.string(),
+    result: z.enum(['ok', 'too-large', 'no-session', 'write-failed']),
+    path: z.string().optional(),
   }),
 ])
 
@@ -86,6 +109,18 @@ export const clientMessageSchema = z.discriminatedUnion('t', [
     rows: z.number().int(),
   }),
   z.object({ t: z.literal('terminal:kill'), id: z.string() }),
+  // A pasted image, client → daemon. `dataBase64`'s `.max()` is a coarse memory-sink
+  // backstop only (roomy above `MAX_PASTE_IMAGE_BYTES`'s decoded cap, to survive
+  // base64's ~4/3 blowup) — a schema failure here means `handleMessage` drops the
+  // message before it can look up `reqId` to reply, so the REAL cap is enforced
+  // inside the handler, where a `too-large` reply can actually be sent back.
+  z.object({
+    t: z.literal('terminal:paste-image'),
+    id: z.string(),
+    reqId: z.string(),
+    mime: z.enum(['image/png', 'image/jpeg', 'image/gif', 'image/webp']),
+    dataBase64: z.string().max(8_388_608),
+  }),
   z.object({ t: z.literal('watch:files'), paths: z.array(z.string()) }),
   z.object({ t: z.literal('watch:dirs'), paths: z.array(z.string()) }),
 ])

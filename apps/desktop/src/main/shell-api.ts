@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { createTRPCUntypedClient, httpLink } from '@trpc/client'
 import { initTRPC } from '@trpc/server'
-import { BrowserWindow, nativeTheme, shell, type WebContents } from 'electron'
+import { BrowserWindow, clipboard, nativeTheme, shell, type WebContents } from 'electron'
 import { z } from 'zod'
 import {
   getDefaultEnvironmentId,
@@ -409,6 +409,16 @@ export const shellRouter = t.router({
 
   revealInFinder: t.procedure.input(z.string()).mutation(({ input }) => {
     shell.showItemInFolder(input)
+  }),
+
+  // Electron's own clipboard, not the web Clipboard API: the terminal pane's paste-image
+  // chord (Cmd/Ctrl+Shift+V) needs this to work regardless of secure-context, and it's the
+  // more reliable of the two on desktop. A mutation, not a query — TanStack caches a
+  // query's result, which would replay the FIRST screenshot on every later paste.
+  readClipboardImage: t.procedure.mutation(() => {
+    const image = clipboard.readImage()
+    if (image.isEmpty()) return null
+    return { dataBase64: image.toPNG().toString('base64'), mime: 'image/png' as const }
   }),
 
   updateStatus: t.procedure.query((): UpdateStatus => updateStatus()),

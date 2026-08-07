@@ -13,6 +13,7 @@ import {
   setWatchedFiles,
 } from '../fs/file-watch'
 import type { AuthIdentity } from '../stores/access-store'
+import { pasteImageToTerminal } from '../terminal/image-paste'
 import {
   attachTerminal,
   createTerminal,
@@ -173,6 +174,21 @@ class Session {
         killTerminal(message.id)
         this.terminals.delete(message.id)
         break
+      case 'terminal:paste-image': {
+        // `handleMessage` is otherwise fully synchronous; an uncaught rejection in a
+        // 'message' handler takes the daemon down (the same trap `terminal:create`'s own
+        // comment calls out), so the outer catch is a backstop even though
+        // `pasteImageToTerminal` itself never throws.
+        const { id, reqId } = message
+        pasteImageToTerminal(message)
+          .then((outcome) => {
+            this.push({ t: 'terminal:image-pasted', reqId, id, ...outcome })
+          })
+          .catch(() => {
+            this.push({ t: 'terminal:image-pasted', reqId, id, result: 'write-failed' })
+          })
+        break
+      }
       case 'watch:files':
         setWatchedFiles(this, message.paths)
         break

@@ -39,6 +39,8 @@ const TONE_HEX: Record<'light' | 'dark', Record<IconTone, string>> = {
  */
 const CHROME_SYMBOLS = {
   chevron: { ios: 'chevron.down' as SFSymbol, android: 'expand_more' as AndroidSymbol },
+  /** `chevron`'s mirror — the up-facing member of the same pair, not `arrowUp`'s style. */
+  chevronUp: { ios: 'chevron.up' as SFSymbol, android: 'expand_less' as AndroidSymbol },
   /** Matches the web companion toggle (Zap) — header only. */
   companion: { ios: 'bolt.fill' as SFSymbol, android: 'bolt' as AndroidSymbol },
   /** Dismiss companion inspector. */

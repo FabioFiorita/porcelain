@@ -1,16 +1,47 @@
 import type { ArrowDirection } from '@porcelain/client-runtime/terminal-keys'
-import { Pressable, ScrollView, Text } from 'react-native'
+import { Alert, Pressable, ScrollView, Text } from 'react-native'
 
 import { ChromeGlyph, type ChromeIconName } from '@/components/chrome-glyph'
+import { getImage, hasImage } from '@/lib/clipboard'
+import { pasteImageToTerminal } from '@/lib/daemon/terminal'
 import { cn } from '@/lib/utils'
 
 import { sendTerminalArrow, sendTerminalBytes, sendTerminalNewline } from './terminal-input'
 import { takeArmedModifier, useTerminalInputStore } from './terminal-input-store'
 
+/**
+ * Copy a screenshot, tap this, and the agent in the shell can see it — the PTY is always
+ * on the daemon's machine, never this device, so the daemon does the actual attaching;
+ * this only hands it the bytes and reports failure. No toast primitive exists on mobile
+ * (only `Alert.alert`, used the same way for the delete-environment confirmation), so
+ * every failure here is a modal rather than a transient banner.
+ */
+async function handlePasteImage(sessionId: string): Promise<void> {
+  if (!(await hasImage())) {
+    Alert.alert('No image on clipboard', 'Copy a screenshot or photo first, then try again.')
+    return
+  }
+  const image = await getImage()
+  if (image === null) {
+    Alert.alert('Could not read the clipboard image', 'Try copying it again.')
+    return
+  }
+  const outcome = await pasteImageToTerminal(sessionId, image.mime, image.base64).catch(() => ({
+    result: 'write-failed' as const,
+  }))
+  if (outcome.result === 'ok') return
+  const message: Record<'no-session' | 'too-large' | 'write-failed', string> = {
+    'no-session': 'This terminal is no longer available.',
+    'too-large': 'That image is too large to paste.',
+    'write-failed': 'The daemon could not save the image. Try again.',
+  }
+  Alert.alert('Could not attach the image', message[outcome.result])
+}
+
 const ARROWS: readonly { direction: ArrowDirection; label: string; glyph: ChromeIconName }[] = [
   { direction: 'left', glyph: 'chevronLeft', label: 'Left' },
   { direction: 'down', glyph: 'chevron', label: 'Down' },
-  { direction: 'up', glyph: 'arrowUp', label: 'Up' },
+  { direction: 'up', glyph: 'chevronUp', label: 'Up' },
   { direction: 'right', glyph: 'chevronRight', label: 'Right' },
 ]
 
@@ -98,6 +129,14 @@ export function TerminalKeyBar({
         onPress={() => {
           takeArmedModifier(sessionId)
           sendTerminalBytes(sessionId, '\x03')
+        }}
+      />
+      <KeyButton
+        accessibilityLabel="Paste image from clipboard"
+        glyph="image"
+        testID="porcelain-terminal-key-paste-image"
+        onPress={() => {
+          handlePasteImage(sessionId)
         }}
       />
       {ARROWS.map(({ direction, glyph, label }) => (

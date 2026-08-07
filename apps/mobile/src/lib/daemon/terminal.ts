@@ -132,6 +132,33 @@ export function isTerminalAttached(id: string): boolean {
   return attachedIds.has(id)
 }
 
+export type PasteImageResult = {
+  result: 'ok' | 'too-large' | 'no-session' | 'write-failed'
+  path?: string
+}
+
+/**
+ * Send a pasted image to the daemon for `id`'s session. The daemon writes it to disk
+ * (never this client's job — the PTY it needs to reach is on the daemon's machine, not
+ * this device) and types a natural-language mention of the path into the shell, the same
+ * way `writeTerminal` types real keystrokes. This client only needs the result to decide
+ * whether to tell the user it failed.
+ */
+export async function pasteImageToTerminal(
+  id: string,
+  mime: 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp',
+  dataBase64: string,
+): Promise<PasteImageResult> {
+  await whenOpen()
+  const reqId = randomUUID()
+  const reply = await daemonSession.request(
+    { dataBase64, id, mime, reqId, t: 'terminal:paste-image' },
+    (frame) => (frame.t === 'terminal:image-pasted' && frame.reqId === reqId ? frame : null),
+    { timeoutMs: REQUEST_TIMEOUT_MS },
+  )
+  return { path: reply.path, result: reply.result }
+}
+
 export function writeTerminal(id: string, data: string): void {
   if (data === '') return
   for (let offset = 0; offset < data.length; offset += WRITE_CHUNK) {

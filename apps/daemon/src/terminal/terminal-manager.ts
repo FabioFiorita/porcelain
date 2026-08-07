@@ -327,6 +327,11 @@ export function writeTerminal(id: string, data: string): void {
   sessions.get(id)?.pty.write(data)
 }
 
+/** Whether `id` is a session the daemon currently knows about (running or exited). */
+export function hasTerminal(id: string): boolean {
+  return sessions.has(id)
+}
+
 export function resizeTerminal(id: string, cols: number, rows: number): void {
   // node-pty throws on non-positive dimensions (a hidden/zero-size pane reports 0).
   if (cols <= 0 || rows <= 0) return

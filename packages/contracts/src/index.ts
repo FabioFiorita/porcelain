@@ -49,6 +49,7 @@ export {
   appEventSchema,
   type ClientMessage,
   clientMessageSchema,
+  MAX_PASTE_IMAGE_BYTES,
   type ServerMessage,
   serverMessageSchema,
 } from './ws-protocol'

@@ -50,6 +50,11 @@ export interface AttachResult {
   found: boolean
 }
 
+export interface PasteImageResult {
+  result: 'ok' | 'too-large' | 'no-session' | 'write-failed'
+  path?: string
+}
+
 /** Where a session points. An empty `url` means "the page origin" (the browser client is served BY its daemon). */
 export interface DaemonEndpoint {
   url: string
@@ -88,6 +93,11 @@ export interface DaemonSession {
   writeTerminal: (id: string, data: string) => void
   resizeTerminal: (id: string, cols: number, rows: number) => void
   killTerminal: (id: string) => void
+  pasteImageToTerminal: (
+    id: string,
+    mime: 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp',
+    dataBase64: string,
+  ) => Promise<PasteImageResult>
 }
 
 /**
@@ -115,6 +125,11 @@ export function createDaemonSession(initial: DaemonEndpoint): DaemonSession {
     reject: (error: Error) => void
   }
   const pendingAttaches = new Map<string, PendingAttach>()
+  interface PendingPaste {
+    resolve: (result: PasteImageResult) => void
+    reject: (error: Error) => void
+  }
+  const pendingPastes = new Map<string, PendingPaste>()
   // The ids this client is currently streaming — re-sent as `terminal:attach` on every
   // reconnect (the daemon's attached-sender set died with the old socket), with the fresh
   // scrollback routed through the scrollback listeners so the registry can replay it.
@@ -156,6 +171,9 @@ export function createDaemonSession(initial: DaemonEndpoint): DaemonSession {
     const attaches = [...pendingAttaches.values()]
     pendingAttaches.clear()
     for (const { reject } of attaches) reject(new Error(reason))
+    const pastes = [...pendingPastes.values()]
+    pendingPastes.clear()
+    for (const { reject } of pastes) reject(new Error(reason))
   }
 
   function dispatch(message: ServerMessage): void {
@@ -191,6 +209,14 @@ export function createDaemonSession(initial: DaemonEndpoint): DaemonSession {
             exitCode: message.exitCode,
             found: message.found,
           })
+        }
+        break
+      }
+      case 'terminal:image-pasted': {
+        const pending = pendingPastes.get(message.reqId)
+        if (pending) {
+          pendingPastes.delete(message.reqId)
+          pending.resolve({ path: message.path, result: message.result })
         }
         break
       }
@@ -421,6 +447,25 @@ export function createDaemonSession(initial: DaemonEndpoint): DaemonSession {
       attachedIds.delete(id)
       push({ t: 'terminal:kill', id })
     },
+    /**
+     * Send a pasted image to the daemon for `id`'s session. `pushOrQueue`, like create and
+     * attach: the outbox only survives the initial CONNECTING window (cleared on any
+     * close, per `failPendingCreates`), so this never replays a stale paste into whatever
+     * the cursor is doing after a later reconnect — it only lets a paste tapped the instant
+     * the socket is still opening ride the same flush a create would.
+     */
+    pasteImageToTerminal: (
+      id: string,
+      mime: 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp',
+      dataBase64: string,
+    ): Promise<PasteImageResult> => {
+      ensureSession()
+      return new Promise<PasteImageResult>((resolve, reject) => {
+        const reqId = randomId()
+        pendingPastes.set(reqId, { resolve, reject })
+        pushOrQueue({ t: 'terminal:paste-image', id, reqId, mime, dataBase64 })
+      })
+    },
   }
 }
 
@@ -474,3 +519,5 @@ export const isTerminalAttached: DaemonSession['isTerminalAttached'] = primary.i
 export const writeTerminal: DaemonSession['writeTerminal'] = primary.writeTerminal
 export const resizeTerminal: DaemonSession['resizeTerminal'] = primary.resizeTerminal
 export const killTerminal: DaemonSession['killTerminal'] = primary.killTerminal
+export const pasteImageToTerminal: DaemonSession['pasteImageToTerminal'] =
+  primary.pasteImageToTerminal

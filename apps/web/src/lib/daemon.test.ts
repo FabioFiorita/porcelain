@@ -322,4 +322,36 @@ describe('daemon WS client', () => {
     })
     await expect(retry).resolves.toMatchObject({ found: true })
   })
+
+  // --- paste-image ---
+
+  it('sends a paste-image request and resolves with the daemon reply', async () => {
+    const pasted = daemon.pasteImageToTerminal('t1', 'image/png', 'YWJj')
+    const ws = latest()
+    ws.open()
+
+    const frame = sentMessages(ws).find((f) => f.t === 'terminal:paste-image')
+    expect(frame).toBeDefined()
+    if (frame?.t !== 'terminal:paste-image') throw new Error('unreachable')
+    expect(frame.id).toBe('t1')
+    expect(frame.mime).toBe('image/png')
+    expect(frame.dataBase64).toBe('YWJj')
+
+    ws.receive({
+      t: 'terminal:image-pasted',
+      reqId: frame.reqId,
+      id: 't1',
+      result: 'ok',
+      path: '/tmp/x.png',
+    })
+    await expect(pasted).resolves.toEqual({ result: 'ok', path: '/tmp/x.png' })
+  })
+
+  it('rejects a pending paste-image request on close, same as create/attach', async () => {
+    const pasted = daemon.pasteImageToTerminal('t1', 'image/png', 'YWJj')
+    const ws = latest()
+    const rejects = expect(pasted).rejects.toThrow(/daemon connection dropped/)
+    ws.drop()
+    await rejects
+  })
 })

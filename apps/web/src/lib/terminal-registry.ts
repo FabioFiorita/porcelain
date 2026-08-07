@@ -4,8 +4,10 @@ import { useTerminalInputStore } from '@renderer/stores/terminal-input'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebglAddon } from '@xterm/addon-webgl'
 import { type ITheme, Terminal } from '@xterm/xterm'
+import { toast } from 'sonner'
+import type { PasteImageResult } from './daemon'
 import { sessionForTerminal } from './local-daemon'
-import { isCoarseTouch, isE2E } from './platform'
+import { isBrowser, isCoarseTouch, isE2E } from './platform'
 import {
   type ArrowDirection,
   controlByte,
@@ -15,6 +17,7 @@ import {
 import { attachOsc52Clipboard } from './terminal-osc52'
 import { applyTerminalTouchScroll, attachTouchScroll } from './terminal-touch-scroll'
 import { resolveTheme, subscribeResolvedTheme } from './theme'
+import { shellTrpcClient } from './trpc'
 
 /** Wire an xterm instance into the pure touch-scroll applier (see terminal-touch-scroll). */
 function scrollTerminalTouch(term: Terminal, lines: number): void {
@@ -300,6 +303,13 @@ function create(id: string): Instance {
         return false
       }
     }
+    // ⌘/Ctrl+Shift+V — the desktop paste-image chord. Shift is load-bearing: plain
+    // ⌘/Ctrl+V must stay real text paste, which xterm already handles on its own.
+    if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === 'v') {
+      event.preventDefault()
+      pasteImageFromDesktopClipboard(id)
+      return false
+    }
     // ⌘K clears the viewport (macOS terminal convention). Meta only — never Ctrl-K,
     // which is readline's kill-to-end-of-line and must still reach the shell.
     if (
@@ -466,6 +476,54 @@ export function getTerminalSelectionAnchor(
 export function sendTerminalInput(id: string, data: string): void {
   sessionForTerminal(id).writeTerminal(id, data)
   instances.get(id)?.term.scrollToBottom()
+}
+
+/**
+ * Hand a pasted image to the daemon for `id`'s session. Routed through the same
+ * `sessionForTerminal` indirection as every other terminal call — a pane bound to a
+ * remote (non-primary) daemon must paste through that daemon, not the primary one.
+ */
+export function pasteImageToTerminal(
+  id: string,
+  mime: 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp',
+  dataBase64: string,
+): Promise<PasteImageResult> {
+  return sessionForTerminal(id).pasteImageToTerminal(id, mime, dataBase64)
+}
+
+/** One human-readable line per non-`ok` `pasteImageToTerminal` result, shared by every trigger. */
+export const PASTE_IMAGE_FAILURE_MESSAGE: Record<
+  Exclude<PasteImageResult['result'], 'ok'>,
+  string
+> = {
+  'no-session': 'This terminal is no longer available.',
+  'too-large': 'That image is too large to paste.',
+  'write-failed': 'The daemon could not save the image. Try again.',
+}
+
+/**
+ * The desktop-only paste-image chord (⌘/Ctrl+Shift+V): reads Electron's native clipboard
+ * (not the web Clipboard API — more reliable, and works with no secure-context gate) via
+ * the shell router's `readClipboardImage`, and hands the bytes to the same
+ * `pasteImageToTerminal` path the key-bar button uses. No-ops (silently — a stray chord
+ * on a plain browser tab must not toast) when there is no shell bridge at all.
+ */
+async function pasteImageFromDesktopClipboard(id: string): Promise<void> {
+  if (isBrowser) return
+  const image = await shellTrpcClient.readClipboardImage.mutate().catch(() => null)
+  if (image === null) {
+    toast.error('No image on clipboard', {
+      description: 'Copy a screenshot or image first, then try again.',
+    })
+    return
+  }
+  const outcome = await pasteImageToTerminal(id, image.mime, image.dataBase64).catch(() => ({
+    result: 'write-failed' as const,
+  }))
+  if (outcome.result === 'ok') return
+  toast.error('Could not attach the image', {
+    description: PASTE_IMAGE_FAILURE_MESSAGE[outcome.result],
+  })
 }
 
 /**
