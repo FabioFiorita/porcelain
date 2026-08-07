@@ -133,6 +133,8 @@ give before the walkthrough.
 - **anchors** — still declare them: they drive which files belong under this chapter in Execution
   and the sidebar.
 
+**Caps:** 30 sections, title ≤ 200 chars, prose ≤ 32 KB, diagram ≤ 256 KB, 40 anchors per section.
+
 Keep sections tight: enough steps to tell the whole unit, not a section per file.
 
 ### Documents on disk
@@ -238,7 +240,7 @@ inject extra paths from git status.
 | `path` | Repo-relative |
 | `source` | Omit for files you changed (git detects dirty → `changed`). `"shipped"` = already-landed cross-seam deps. `"context"` = unchanged files needed to follow the flow |
 | `note` | Cross-file invariant the reviewer must check |
-| `layer` | Optional group heading. When **any** file has `layer`, Porcelain groups by your layers + order (nothing lands in "Other") |
+| `layer` | Optional group heading. Each file's group is its explicit `layer` if set, else the repo-wide regex layer match (same layers the Changes tab uses), else "Other" — so "Other" only disappears when **every** listed file carries an explicit `layer` |
 
 ```bash
 ~/.porcelain/porcelain review set --name "…" --thesis "…" --files '[
@@ -285,6 +287,8 @@ Evidence is **one pack, three sub-tabs**, all under
 ```
 
 `prepare` wipes any previous pack first, so a new unit never inherits an old screenshot.
+`evidence clear` also wipes the whole pack, standalone — no new one is written, and Intent/Execution
+are untouched. Independent of `review clear`, which cascades into wiping Evidence too.
 
 **Screenshots yes, video no.** Images (`.png`, `.jpg`, `.webp`, `.gif`, `.svg`) are inlined as
 data URIs. Video would mean widening the CSP that backstops agent-authored HTML, or serving the
