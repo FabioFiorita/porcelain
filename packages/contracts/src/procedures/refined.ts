@@ -156,7 +156,59 @@ const evidenceMetaSchema = z.object({
   updatedAt: z.string(),
   checks: z.array(evidenceCheckSchema),
   dir: z.string().optional(),
+  /**
+   * @deprecated Evidence is three sub-tabs, not one medium. Installed mobile
+   * clients require this literal, so the daemon keeps emitting it; drop it one
+   * release after mobile ships the widened schema.
+   */
   medium: z.literal('html'),
+  /** Documents in `evidence/results/`. */
+  results: z.number().optional(),
+  /** Images in `evidence/assets/`. */
+  assets: z.number().optional(),
+  /** A legacy `index.html` is present, surfaced as the "Report" document. */
+  hasReport: z.boolean().optional(),
+})
+
+/**
+ * One document of a set — Intent, or the Results sub-tab of Evidence. Two media
+ * and no third: markdown renders escaped, HTML renders only inside
+ * `<iframe sandbox="" srcdoc>` with its assets already inlined by the daemon.
+ */
+export const reviewDocSchema = z.discriminatedUnion('medium', [
+  z.object({
+    file: z.string(),
+    label: z.string(),
+    medium: z.literal('markdown'),
+    body: z.string(),
+  }),
+  z.object({
+    file: z.string(),
+    label: z.string(),
+    medium: z.literal('html'),
+    body: z.string(),
+  }),
+])
+
+/** A gallery tile: what the Assets sub-tab lists, without the bytes. */
+export const evidenceAssetSchema = z.object({
+  file: z.string(),
+  label: z.string(),
+  kind: z.literal('image'),
+  mime: z.string(),
+  bytes: z.number(),
+})
+
+/**
+ * One gallery image, fetched on demand. A data URL rather than a URL to a
+ * static route: the daemon serves no user files over HTTP, so the bytes ride
+ * the authenticated tRPC channel like every other read.
+ */
+export const evidenceAssetBodySchema = z.object({
+  file: z.string(),
+  mime: z.string(),
+  bytes: z.number(),
+  dataUrl: z.string(),
 })
 
 const evidenceSchema = evidenceMetaSchema.extend({
@@ -311,6 +363,15 @@ export const refinedProcedureIo: Partial<Record<ProcedureName, ProcedureIo>> = {
   featureReading: io(repoPath, z.unknown()), // full Review document; refined further later
   loopEvidence: io(repoPath, evidenceMetaSchema.nullable()),
   loopEvidenceHtml: io(repoPath, evidenceSchema.nullable()),
+  reviewIntent: io(repoPath, z.array(reviewDocSchema)),
+  // Wire history: the name predates the sub-tabs and now means "the Results
+  // document set". Renaming it would break every installed client for nothing.
+  reviewEvidenceDocs: io(repoPath, z.array(reviewDocSchema)),
+  reviewEvidenceAssets: io(repoPath, z.array(evidenceAssetSchema)),
+  reviewEvidenceAsset: io(
+    z.object({ repoPath: z.string(), file: z.string() }),
+    evidenceAssetBodySchema.nullable(),
+  ),
   reviewComments: io(repoPath, z.array(reviewCommentSchema)),
   addReviewComment: io(
     z.object({

@@ -1,10 +1,10 @@
-import type { IntentDoc } from '@backend/review/intent-docs'
+import type { ReviewDoc } from '@backend/review/doc-set'
 import { TestIds } from '@shared/test-ids'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { IntentDocBody } from './intent-doc-body'
 
-const markdown = (body: string): IntentDoc => ({
+const markdown = (body: string): ReviewDoc => ({
   file: 'index.md',
   label: 'Index',
   medium: 'markdown',

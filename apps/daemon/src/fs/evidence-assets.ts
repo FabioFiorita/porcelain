@@ -1,14 +1,22 @@
 import { readFile } from 'node:fs/promises'
-import { isAbsolute, normalize, relative, resolve, sep } from 'node:path'
+import { isAbsolute, relative, resolve, sep } from 'node:path'
 
 /**
- * Inline relative image sources and stylesheet links for files that live in the
- * evidence directory. Keeps the viewer on a fully sandboxed `srcdoc` while
- * letting agents drop real PNG/JPEG/CSS siblings next to index.html instead of
+ * Inline relative image sources and stylesheet links for a document that lives
+ * in a review directory. Keeps the viewer on a fully sandboxed `srcdoc` while
+ * letting agents drop real PNG/JPEG/CSS siblings beside the document instead of
  * base64-inlining them through the porcelain CLI.
  *
- * Paths that escape the evidence dir, or that are absolute / remote / data:, are
- * left alone (remote still blocked by CSP; absolute file paths never load in srcdoc).
+ * Two roots, deliberately: references resolve relative to the document's own
+ * directory, but containment is checked against `root`. A Results document sits
+ * one level down and points at `../assets/shot.png` — the same gallery the
+ * Assets tab lists — so the pack keeps ONE copy of each image. Containment is a
+ * resolved-path check against `root` and nothing else; a textual `..` test would
+ * reject that legitimate reference while proving nothing extra (`a/../../b`
+ * escapes without a leading `..`).
+ *
+ * Paths that escape `root`, or that are absolute / remote / data:, are left
+ * alone (remote still blocked by CSP; absolute file paths never load in srcdoc).
  */
 
 const SRC_ATTR = /\bsrc\s*=\s*(["'])([^"']+)\1/gi
@@ -42,17 +50,16 @@ function attributeValue(tag: string, name: string): string | null {
   return match?.[1] ?? match?.[2] ?? match?.[3] ?? null
 }
 
-function localAssetPath(root: string, raw: string): string | null {
+function localAssetPath(base: string, root: string, raw: string): string | null {
   const value = raw.trim()
   if (
     value === '' ||
     value.includes('\0') ||
-    /^(?:data:|https?:|\/\/|blob:|about:|file:)/i.test(value) ||
-    normalize(value).startsWith('..')
+    /^(?:data:|https?:|\/\/|blob:|about:|file:)/i.test(value)
   ) {
     return null
   }
-  const candidate = resolve(root, value)
+  const candidate = resolve(base, value)
   return isInsideDir(root, candidate) ? candidate : null
 }
 
@@ -69,11 +76,17 @@ function escapeStyleText(css: string): string {
 }
 
 /**
- * Expand local relative image sources under `dir` into data URIs.
- * Best-effort: a missing sibling is left as-is (broken img in the viewer).
+ * Expand local relative image sources into data URIs. References resolve
+ * against `dir`; `root` (defaulting to `dir`) is the boundary they may not
+ * leave. Best-effort: a missing sibling is left as-is (broken img in the viewer).
  */
-export async function inlineLocalAssets(dir: string, html: string): Promise<string> {
-  const root = resolve(dir)
+export async function inlineLocalAssets(
+  dir: string,
+  html: string,
+  rootDir: string = dir,
+): Promise<string> {
+  const base = resolve(dir)
+  const root = resolve(rootDir)
   const matches = [...html.matchAll(SRC_ATTR)]
   const stylesheetMatches = [...html.matchAll(LINK_TAG)]
 
@@ -87,7 +100,7 @@ export async function inlineLocalAssets(dir: string, html: string): Promise<stri
   const dataUris = new Map<string, string>()
   await Promise.all(
     [...paths].map(async (raw) => {
-      const abs = localAssetPath(root, raw)
+      const abs = localAssetPath(base, root, raw)
       if (abs === null) return
       try {
         const bytes = await readFile(abs)
@@ -107,7 +120,7 @@ export async function inlineLocalAssets(dir: string, html: string): Promise<stri
   const stylesheets = new Map<string, string>()
   await Promise.all(
     [...stylesheetPaths].map(async (raw) => {
-      const abs = localAssetPath(root, raw)
+      const abs = localAssetPath(base, root, raw)
       if (abs === null) return
       try {
         stylesheets.set(raw, await readFile(abs, 'utf8'))

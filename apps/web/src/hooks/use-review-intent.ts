@@ -1,17 +1,17 @@
-import type { IntentDoc } from '@backend/review/intent-docs'
+import type { ReviewDoc } from '@backend/review/doc-set'
 import { onMutationError } from '@renderer/hooks/mutation-error'
 import { trpc } from '@renderer/lib/trpc'
 import { useRepoStore } from '@renderer/stores/repo'
 
 /** Intent documents the agent wrote under `.porcelain/intent/`, in tab order. */
-export function useReviewIntent(): IntentDoc[] {
+export function useReviewIntent(): ReviewDoc[] {
   const repo = useRepoStore((s) => s.repo)
   const { data } = trpc.reviewIntent.useQuery(repo?.path ?? '', { enabled: repo !== null })
   return data ?? []
 }
 
 /** Extra evidence documents beside index.html — tabs, same media as Intent. */
-export function useReviewEvidenceDocs(): IntentDoc[] {
+export function useReviewEvidenceDocs(): ReviewDoc[] {
   const repo = useRepoStore((s) => s.repo)
   const { data } = trpc.reviewEvidenceDocs.useQuery(repo?.path ?? '', { enabled: repo !== null })
   return data ?? []

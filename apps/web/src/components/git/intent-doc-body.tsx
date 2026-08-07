@@ -1,4 +1,4 @@
-import type { IntentDoc } from '@backend/review/intent-docs'
+import type { ReviewDoc } from '@backend/review/doc-set'
 import { PaneErrorBoundary } from '@renderer/components/shell/error-boundary'
 import { HtmlView } from '@renderer/components/viewer/html-view'
 import { MarkdownView } from '@renderer/components/viewer/markdown-view'
@@ -14,7 +14,7 @@ import { TestIds } from '@shared/test-ids'
  * every client. There is no script medium — a review can arrive from a clone, and
  * `allow-scripts` would make that someone else's JavaScript in this renderer.
  */
-export function IntentDocBody({ doc }: { doc: IntentDoc }): React.JSX.Element {
+export function IntentDocBody({ doc }: { doc: ReviewDoc }): React.JSX.Element {
   if (doc.medium === 'html') {
     return (
       <div className="h-full min-h-0 p-3" data-testid={TestIds.intentDocBody}>

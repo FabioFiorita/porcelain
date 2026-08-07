@@ -65,6 +65,27 @@ export const INTENT_MANIFEST = 'meta.json'
 export const ASSETS_DIR = 'assets'
 
 /**
+ * Evidence is three sub-tabs over one directory: structured checks (`meta.json`),
+ * a document set (`evidence/results/`, the same primitive as Intent), and a
+ * gallery (`evidence/assets/`). Results is its own folder so a screenshot beside
+ * a report never gets mistaken for a document — and so the gallery can be a
+ * plain directory listing rather than a manifest.
+ */
+export const EVIDENCE_RESULTS_DIR = 'results'
+
+/**
+ * The tabs an agent reaches for first when it has nothing to say yet. A
+ * **recommended convention, not a schema**: `readDocSet` renders whatever is on
+ * disk, in manifest order, whatever it is named. It lives here so the CLI
+ * scaffolder and the skill that describes it cannot drift apart.
+ */
+export const INTENT_CANONICAL_TABS = [
+  { file: 'why.md', label: 'Why' },
+  { file: 'approach.md', label: 'Approach' },
+  { file: 'decisions.md', label: 'Decisions' },
+] as const
+
+/**
  * Whether a channel is shared with the team through git or kept on this machine.
  * "Local" is not a second storage location — the file lives in `.porcelain/`
  * either way; local just means git ignores it. One place on disk, two git
@@ -150,7 +171,9 @@ export const COMPANION_CHANNELS: readonly CompanionChannel[] = [
  *   rewritten constantly. Publishing is what shares a review: it copies the
  *   directory to `reviews/<id>/` and re-includes that one folder. Tracking the
  *   live directory would put every agent's work-in-progress and every
- *   screenshot it took into everyone else's diff.
+ *   screenshot it took into everyone else's diff. The directory glob already
+ *   covers everything the evidence pack grew — checks, `results/`, `assets/` —
+ *   so no rule needs to name them.
  * - `.migrated-from-home` is a machine artifact from the home→repo migration.
  * - `*.tmp` / `*.corrupt-*` are atomic-write debris.
  * - the per-review evidence glob keeps proof packs opt-in even when Reviews are
@@ -298,6 +321,21 @@ export function activeReviewPath(repoPath: string, ...parts: string[]): string {
 
 export function projectIntentDir(repoPath: string): string {
   return activeReviewPath(repoPath, PROJECT_INTENT_DIR)
+}
+
+/** `…/active-review/evidence/results` — the Results document set. */
+export function projectEvidenceResultsDir(repoPath: string): string {
+  return join(projectEvidenceDir(repoPath), EVIDENCE_RESULTS_DIR)
+}
+
+/** `…/active-review/evidence/assets` — the images the gallery lists. */
+export function projectEvidenceAssetsDir(repoPath: string): string {
+  return join(projectEvidenceDir(repoPath), ASSETS_DIR)
+}
+
+/** `…/active-review/intent/assets` — images an intent document references. */
+export function projectIntentAssetsDir(repoPath: string): string {
+  return join(projectIntentDir(repoPath), ASSETS_DIR)
 }
 
 export function projectArchivedReviewDir(repoPath: string, reviewId: string): string {

@@ -4,8 +4,10 @@ import { access, cp, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:
 import { isAbsolute, join, relative, resolve } from 'node:path'
 import {
   ACTIVE_FILES,
+  activeReviewPath,
   PROJECT_EVIDENCE_DIR,
   PROJECT_FILES,
+  PROJECT_INTENT_DIR,
   projectActiveReviewDir,
   projectArchivedReviewDir,
   projectPorcelainPath,
@@ -264,6 +266,12 @@ export async function deleteArchivedReview(repoPath: string, id: string): Promis
 /**
  * Restore an archived review as active. Archives the current active review first
  * (if any), then copies the chosen archive into the active slots.
+ *
+ * The destinations are the ACTIVE-review paths, not the companion root. An
+ * archive is shaped exactly like `active-review/`, and every reader
+ * (`ACTIVE_FILES` / `activeReviewPath`) looks inside that directory — restoring
+ * to the flat legacy paths landed the files where nothing reads them, so a
+ * restored review came back empty.
  */
 export async function restoreArchivedReview(repoPath: string, id: string): Promise<void> {
   if (id.includes('/') || id.includes('..') || id === '') {
@@ -273,24 +281,18 @@ export async function restoreArchivedReview(repoPath: string, id: string): Promi
   if (!(await pathExists(src))) throw new Error(`archived review not found: ${id}`)
 
   await archiveActiveReview(repoPath)
+  await mkdir(projectActiveReviewDir(repoPath), { recursive: true })
 
-  const reviewSrc = join(src, PROJECT_FILES.review)
-  if (await pathExists(reviewSrc)) {
-    await cp(reviewSrc, reviewPath(repoPath))
+  // Same shape on both sides: the archive's file name is its active name.
+  for (const file of [PROJECT_FILES.review, PROJECT_FILES.comments, PROJECT_FILES.reviewed]) {
+    const from = join(src, file)
+    if (await pathExists(from)) await cp(from, activeReviewPath(repoPath, file))
   }
-  const commentsSrc = join(src, PROJECT_FILES.comments)
-  if (await pathExists(commentsSrc)) {
-    await cp(commentsSrc, projectPorcelainPath(repoPath, PROJECT_FILES.comments))
-  }
-  const reviewedSrc = join(src, PROJECT_FILES.reviewed)
-  if (await pathExists(reviewedSrc)) {
-    await cp(reviewedSrc, projectPorcelainPath(repoPath, PROJECT_FILES.reviewed))
-  }
-  const evidenceSrc = join(src, PROJECT_EVIDENCE_DIR)
-  if (await pathExists(evidenceSrc)) {
-    await cp(evidenceSrc, projectPorcelainPath(repoPath, PROJECT_EVIDENCE_DIR), {
-      recursive: true,
-    })
+  for (const dir of [PROJECT_EVIDENCE_DIR, PROJECT_INTENT_DIR]) {
+    const from = join(src, dir)
+    if (await pathExists(from)) {
+      await cp(from, activeReviewPath(repoPath, dir), { recursive: true })
+    }
   }
 
   // Drop the archive entry after promote (it is now active).
