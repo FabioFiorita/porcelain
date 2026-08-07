@@ -364,20 +364,31 @@ function installDependencies(path) {
   if (result.status !== 0) throw new Error(`dependency install failed in ${path}`)
 }
 
-function assertPrimaryMain(root) {
+function assertPrimaryMain(root, force) {
   if (repoRoot() !== root) fail('create must run from the primary checkout, not a task worktree')
   const branch = git(root, ['branch', '--show-current'])
   if (branch !== 'main') fail(`create must run from main (currently ${branch || 'detached'})`)
   const dirty = git(root, ['status', '--porcelain'])
   if (dirty !== '') {
-    fail('primary main is dirty; commit/integrate the current unit before creating a task worktree')
+    if (!force) {
+      fail(
+        'primary main is dirty; commit/integrate the current unit before creating a task worktree ' +
+          "(or pass --force if the dirty files are a concurrent session's, not yours — `git worktree " +
+          'add` branches from the committed tip of main regardless, so this only skips the safety check, ' +
+          'not the checkout)',
+      )
+    }
+    console.error(
+      "worktree ⚠ primary main is dirty; --force set, branching from main's committed tip anyway. " +
+        'The uncommitted files stay in the primary checkout, untouched.',
+    )
   }
 }
 
 function create(slugArg, options) {
   const slug = validateSlug(slugArg)
   const root = primaryRoot()
-  assertPrimaryMain(root)
+  assertPrimaryMain(root, options.force)
 
   const branch = `${BRANCH_PREFIX}${slug}`
   const paths = managedPaths(slug)
@@ -1151,7 +1162,7 @@ function help() {
     `Porcelain managed worktrees
 
 Usage:
-  pnpm worktree create <slug> [--skip-install]
+  pnpm worktree create <slug> [--skip-install] [--force]
   pnpm worktree adopt <path> <slug> [--skip-install]
   pnpm worktree list
   pnpm worktree pr <slug> [--draft] [--dry-run] [--title <title>]
@@ -1162,6 +1173,12 @@ create:
   Run from the primary main checkout. Creates work/<slug> in the sibling
   <repo>-worktrees/<slug> directory with an isolated port, channels, user data,
   and disposable playground. Installs dependencies unless --skip-install is set.
+  Refuses a dirty primary main by default — the branch point is main's last
+  COMMIT either way, so this check only guards against silently losing your own
+  uncommitted work, not against a concurrent session's. When the dirty files are
+  provably not yours (a different session's in-progress edit on the shared
+  primary checkout), pass --force to skip the check; it does not touch or stage
+  those files.
 
 adopt:
   Converts a detached harness worktree (Codex, Grok Build, hand-made) into a
@@ -1211,7 +1228,7 @@ async function main() {
     return
   }
   if (verb === 'create') {
-    create(name, { skipInstall: rest.includes('--skip-install') })
+    create(name, { skipInstall: rest.includes('--skip-install'), force: rest.includes('--force') })
     return
   }
   if (verb === 'adopt') {
