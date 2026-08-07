@@ -71,4 +71,3 @@ stop a device started by someone else.
 | `reference/loop.md` | Build, install, update, TestFlight, costs |
 | `reference/client.md` | Screens, tabs, daemon seam, file layout |
 | `reference/android.md` | Android emulator control, testID contract, and evidence traps |
-| `reference/expo.md` | Expo Router / SwiftUI / SDK traps vs generic Expo docs |
