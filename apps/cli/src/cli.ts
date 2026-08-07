@@ -149,6 +149,7 @@ const FLAG_DESCRIPTIONS: Record<string, string> = {
     "Walkthrough sections as JSON: array of {title, prose (markdown), diagram? (inline SVG), anchors?: [{path, startLine?, endLine?}]}, in flow order; '-' reads stdin",
   title: 'Short title for the item',
   body: 'Body / details text',
+  medium: 'Canvas medium — html is the only one',
   html: "The complete self-contained HTML document, inline; '-' reads stdin",
   'html-file':
     'Absolute path to a local HTML file to read (prefer over --html for large docs with embedded screenshots)',
@@ -217,7 +218,7 @@ export const COMMANDS: NounHelp[] = [
         desc: 'Clear the Review and loop evidence (set + on-disk HTML/images) — matches the app Clear button',
       },
     ],
-    flags: ['name', 'thesis', 'files', 'sections', 'medium', 'html', 'html-file', 'file'],
+    flags: ['name', 'thesis', 'files', 'sections', 'medium', 'html', 'html-file'],
   },
   {
     noun: 'feature',
