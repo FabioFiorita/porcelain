@@ -41,7 +41,9 @@ export function SearchCompanion(): React.JSX.Element {
       showsVerticalScrollIndicator={false}
       testID="porcelain-search-companion"
     >
-      <PanelLabel>{recent.length > 0 ? `Recent · ${recent.length}` : 'Recent'}</PanelLabel>
+      <PanelLabel>
+        {recent.length > 0 ? `Recent searches · ${recent.length}` : 'Recent searches'}
+      </PanelLabel>
 
       {recent.length === 0 ? (
         <Text className="text-[11px] leading-4 text-muted-foreground">

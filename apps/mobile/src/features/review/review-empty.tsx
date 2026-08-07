@@ -2,40 +2,19 @@ import { useState } from 'react'
 import { Text, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
-import { StatusNote } from '@/components/panel-chrome'
-import { Button } from '@/components/ui/button'
-import { Text as UiText } from '@/components/ui/text'
 // The Board hands a card's title over when it sends you here to start the unit. Consumed
-// once, so the prompt stays stable while you read it.
+// once, so the name stays stable while you read it.
 import { useReviewHandoffStore } from '@/features/board/review-handoff-store'
-import { copyText } from '@/lib/clipboard'
-
-import { reviewStartPrompt } from './review-lifecycle'
 
 /**
  * The start of a unit of work.
  *
  * There is no baseline Review — one exists only once an agent publishes it — so the empty
- * canvas is not an error state, it is the front door. What it offers is the thing the human
- * can actually do from a phone: put the begin-unit prompt on the pasteboard, ready to paste
- * wherever the agent is listening.
+ * canvas is not an error state, it is the front door. It says what a unit is and what the
+ * agent has to publish first; the lifecycle itself is driven agent-side.
  */
 export function ReviewEmptyState(): React.JSX.Element {
   const [suggestedName] = useState(() => useReviewHandoffStore.getState().consume())
-  const [status, setStatus] = useState<{ failed: boolean; text: string } | null>(null)
-
-  const handleCopy = (): void => {
-    copyText(reviewStartPrompt(suggestedName === null ? undefined : { name: suggestedName }))
-      .then((copied) => {
-        setStatus({
-          failed: !copied,
-          text: copied ? 'Begin-unit prompt copied.' : 'Could not reach the pasteboard.',
-        })
-      })
-      .catch(() => {
-        setStatus({ failed: true, text: 'Could not reach the pasteboard.' })
-      })
-  }
 
   return (
     <View className="flex-1 items-center justify-center p-6" testID="porcelain-review-empty">
@@ -58,23 +37,6 @@ export function ReviewEmptyState(): React.JSX.Element {
               Suggested name: <Text className="font-medium">{suggestedName}</Text>
             </Text>
           </View>
-        )}
-        <Button
-          accessibilityLabel="Copy the begin-unit prompt"
-          accessibilityRole="button"
-          testID="porcelain-review-copy-start-prompt"
-          variant="outline"
-          onPress={handleCopy}
-        >
-          <ChromeGlyph name="copy" size={14} />
-          <UiText>Copy begin-unit prompt</UiText>
-        </Button>
-        {status === null ? null : (
-          <StatusNote
-            failed={status.failed}
-            testID="porcelain-review-copy-status"
-            text={status.text}
-          />
         )}
       </View>
     </View>

@@ -1,10 +1,15 @@
 import { Button } from '@renderer/components/ui/button'
-import { SidebarGroup, SidebarGroupContent } from '@renderer/components/ui/sidebar'
+import {
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+} from '@renderer/components/ui/sidebar'
 import { useSearchStore } from '@renderer/stores/search'
 import { Search, X } from 'lucide-react'
 
-/** Recent Search-tab queries (the companion header names the section); clicking
- *  one re-runs it in the panel, the row's × drops it from the list. */
+/** Recent Search-tab queries (the group label names the section — the companion
+ *  header is static); clicking one re-runs it in the panel, the row's × drops it
+ *  from the list. */
 export function SearchQuickAccess(): React.JSX.Element {
   const recent = useSearchStore((s) => s.recent)
   const setQuery = useSearchStore((s) => s.setQuery)
@@ -12,6 +17,9 @@ export function SearchQuickAccess(): React.JSX.Element {
 
   return (
     <SidebarGroup className="px-3 pt-3">
+      <SidebarGroupLabel className="px-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
+        Recent searches
+      </SidebarGroupLabel>
       <SidebarGroupContent>
         {recent.length === 0 ? (
           <p className="px-1 py-1 text-xs text-muted-foreground">

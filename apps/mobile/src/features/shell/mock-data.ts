@@ -21,7 +21,6 @@ export type Surface = {
   readonly listTitle: string
   readonly listHint: string
   readonly viewerKind: 'file' | 'diff' | 'review' | 'history' | 'search' | 'board' | 'terminal'
-  readonly companionTitle: string
 }
 
 export type ListItem = {
@@ -80,7 +79,6 @@ export const SURFACES: readonly Surface[] = [
     listTitle: 'Files',
     listHint: 'Workspace tree for the current project.',
     viewerKind: 'file',
-    companionTitle: 'Pinned & notes',
   },
   {
     id: 'changes',
@@ -89,7 +87,6 @@ export const SURFACES: readonly Surface[] = [
     listTitle: 'Changes',
     listHint: 'Working tree and staged files.',
     viewerKind: 'diff',
-    companionTitle: 'Commit',
   },
   {
     id: 'review',
@@ -98,7 +95,6 @@ export const SURFACES: readonly Surface[] = [
     listTitle: 'Review',
     listHint: 'Units of work waiting for sign-off.',
     viewerKind: 'review',
-    companionTitle: 'Now reading',
   },
   {
     id: 'history',
@@ -107,7 +103,6 @@ export const SURFACES: readonly Surface[] = [
     listTitle: 'History',
     listHint: 'Recent commits on this branch.',
     viewerKind: 'history',
-    companionTitle: 'Timeline',
   },
   {
     id: 'search',
@@ -116,7 +111,6 @@ export const SURFACES: readonly Surface[] = [
     listTitle: 'Search',
     listHint: 'Query and results across the tree.',
     viewerKind: 'search',
-    companionTitle: 'Recent searches',
   },
   {
     id: 'board',
@@ -125,7 +119,6 @@ export const SURFACES: readonly Surface[] = [
     listTitle: 'Board',
     listHint: 'Cards in the agent workflow.',
     viewerKind: 'board',
-    companionTitle: 'Focus',
   },
   {
     id: 'terminal',
@@ -134,7 +127,6 @@ export const SURFACES: readonly Surface[] = [
     listTitle: 'Terminal',
     listHint: 'Sessions and saved actions.',
     viewerKind: 'terminal',
-    companionTitle: 'Actions',
   },
 ]
 
