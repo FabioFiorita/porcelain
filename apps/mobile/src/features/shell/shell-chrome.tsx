@@ -345,19 +345,19 @@ export function SupplementaryColumn({
       >
         <View className="flex-1 pt-4">
           {/*
+            The SAME 36pt band the rail's "Destinations" title sits in, at the same `pt-4`, so
+            the two column titles share a baseline across the divider. They were a text box and
+            a centred band before, which put them 4pt apart — close enough to read as a
+            rendering fault rather than a choice.
+
             Collapsing the rail moves the system toggle into this column's top-left. The title
             steps aside for it instead of dropping below it: a 72pt top inset pushed the whole
             column down and left a dead band across the top, and the list is the thing you came
             here to read. Indenting the one line the toggle overlaps costs nothing.
           */}
-          <Text
-            className={cn(
-              'pb-1 text-xl font-bold text-foreground',
-              primaryCollapsed ? 'pl-14 pr-4' : 'px-4',
-            )}
-          >
-            {surface.listTitle}
-          </Text>
+          <View className={cn('h-9 justify-center', primaryCollapsed ? 'pl-14 pr-4' : 'px-4')}>
+            <Text className="text-xl font-bold text-foreground">{surface.listTitle}</Text>
+          </View>
           <slots.list active />
         </View>
       </ColumnSurface>
