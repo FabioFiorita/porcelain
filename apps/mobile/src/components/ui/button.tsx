@@ -35,10 +35,11 @@ const buttonVariants = cva(
           Platform.select({ web: 'hover:bg-secondary/80' }),
         ),
         ghost: cn(
-          // Idle fill uses `foreground` opacity (not `accent`/`muted`) so it stays visible in
-          // light mode, where those tokens sit within ~3% lightness of `background`.
-          'bg-foreground/5 active:bg-foreground/10',
-          Platform.select({ web: 'hover:bg-foreground/8' }),
+          // Idle fill can't lean on `accent`/`muted` — those sit within ~3% lightness of
+          // `background` in light mode and disappear. Light gets a soft primary tint instead of
+          // gray; dark keeps `foreground` opacity, which already reads fine there.
+          'bg-primary/5 active:bg-primary/10 dark:bg-foreground/5 dark:active:bg-foreground/10',
+          Platform.select({ web: 'hover:bg-primary/8 dark:hover:bg-foreground/8' }),
         ),
         link: '',
       },
