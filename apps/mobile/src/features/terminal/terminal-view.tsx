@@ -7,6 +7,7 @@ import { Platform, Text, TextInput, View } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 
 import { ErrorNote } from '@/components/surface-chrome'
+import { usePreferencesStore } from '@/features/settings/preferences-store'
 import { useResolvedColorScheme } from '@/features/settings/theme-provider'
 
 import { readViewport, type TerminalRun } from './terminal-cells'
@@ -23,10 +24,10 @@ import { FIELD_SENTINEL, terminalFieldEdit } from './terminal-field'
 import { sendTerminalBytes, sendTerminalText } from './terminal-input'
 import { TerminalKeyBar } from './terminal-key-bar'
 import {
-  TERMINAL_FONT_SIZE,
-  TERMINAL_LINE_HEIGHT,
   terminalColumnLeft,
+  terminalFontSize,
   terminalGrid,
+  terminalLineHeight,
   terminalRowTop,
 } from './terminal-metrics'
 import { TERMINAL_PALETTES } from './terminal-theme'
@@ -85,6 +86,9 @@ export function TerminalView({
 }): React.JSX.Element {
   const scheme = useResolvedColorScheme()
   const palette = TERMINAL_PALETTES[scheme === 'dark' ? 'dark' : 'light']
+  const textSize = usePreferencesStore((state) => state.terminalTextSize)
+  const fontSize = terminalFontSize(textSize)
+  const lineHeight = terminalLineHeight(textSize)
   const inputRef = useRef<TextInput>(null)
   const [charWidth, setCharWidth] = useState(0)
   const [pane, setPane] = useState({ height: 0, width: 0 })
@@ -126,7 +130,7 @@ export function TerminalView({
     // `pane` is what onLayout reported, which is the BORDER box — `terminalGrid` takes the
     // pane's own padding off before it divides, or the PTY is told about one more row than the
     // pane can paint and a TUI's input box is written onto it, outside the clip.
-    const grid = terminalGrid({ height: gridHeight, width: pane.width }, charWidth)
+    const grid = terminalGrid({ height: gridHeight, width: pane.width }, charWidth, lineHeight)
     if (grid === null) return
     // The FIRST fit for a session lands immediately: attaching replays the scrollback as soon
     // as the view mounts, and xterm never re-wraps lines it has already printed — a debounced
@@ -142,7 +146,7 @@ export function TerminalView({
     return () => {
       clearTimeout(timer)
     }
-  }, [charWidth, gridHeight, pane.width, sessionId])
+  }, [charWidth, gridHeight, lineHeight, pane.width, sessionId])
 
   // Deliberately not memoized: the subscription above decides when this component renders at
   // all, and re-reading the viewport is cheaper than the JSX it feeds.
@@ -158,7 +162,7 @@ export function TerminalView({
     .onUpdate((event) => {
       const dy = event.translationY - lastPan.current
       lastPan.current = event.translationY
-      const applied = applyTouchScrollDelta(residual.current, dy, TERMINAL_LINE_HEIGHT)
+      const applied = applyTouchScrollDelta(residual.current, dy, lineHeight)
       residual.current = applied.residual
       if (applied.lines === 0) return
       const live = getTerminal(sessionId)
@@ -236,7 +240,7 @@ export function TerminalView({
             /* nativewind-allow-style: an off-screen ruler for the monospace advance. */
             style={{
               fontFamily: MONO.regular,
-              fontSize: TERMINAL_FONT_SIZE,
+              fontSize,
               left: -9999,
               position: 'absolute',
             }}
@@ -263,6 +267,8 @@ export function TerminalView({
               // biome-ignore lint/suspicious/noArrayIndexKey: fixed grid position, not a list
               key={row}
               foreground={palette.foreground}
+              fontSize={fontSize}
+              lineHeight={lineHeight}
               runs={runs}
             />
           ))}
@@ -273,11 +279,11 @@ export function TerminalView({
                  the same constants the fit above subtracted — the two must never disagree. */
               style={{
                 backgroundColor: palette.cursor,
-                height: TERMINAL_LINE_HEIGHT,
+                height: lineHeight,
                 left: terminalColumnLeft(viewport.cursor.column, charWidth),
                 opacity: keyboardVisible ? 0.75 : 0.35,
                 position: 'absolute',
-                top: terminalRowTop(viewport.cursor.row),
+                top: terminalRowTop(viewport.cursor.row, lineHeight),
                 width: Math.max(2, charWidth),
               }}
               testID="porcelain-terminal-cursor"
@@ -314,9 +320,13 @@ export function TerminalView({
 
 function TerminalRow({
   foreground,
+  fontSize,
+  lineHeight,
   runs,
 }: {
   foreground: string
+  fontSize: number
+  lineHeight: number
   runs: TerminalRun[]
 }): React.JSX.Element {
   return (
@@ -326,9 +336,9 @@ function TerminalRow({
       style={{
         color: foreground,
         fontFamily: MONO.regular,
-        fontSize: TERMINAL_FONT_SIZE,
-        height: TERMINAL_LINE_HEIGHT,
-        lineHeight: TERMINAL_LINE_HEIGHT,
+        fontSize,
+        height: lineHeight,
+        lineHeight,
       }}
     >
       {runs.map((run, index) => (

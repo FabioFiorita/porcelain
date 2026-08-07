@@ -3,11 +3,11 @@ import { describe, expect, it } from 'vitest'
 
 import { readViewport } from './terminal-cells'
 import {
-  TERMINAL_LINE_HEIGHT,
   TERMINAL_PANE_PADDING_X,
   TERMINAL_PANE_PADDING_Y,
   terminalColumnLeft,
   terminalGrid,
+  terminalLineHeight,
   terminalRowTop,
 } from './terminal-metrics'
 import { TERMINAL_PALETTES } from './terminal-theme'
@@ -24,8 +24,10 @@ import { TERMINAL_PALETTES } from './terminal-theme'
  */
 
 const palette = TERMINAL_PALETTES.dark
+/** The default preference — see `DEFAULTS.terminalTextSize` in `preferences-store.ts`. */
+const LINE_HEIGHT = terminalLineHeight('medium')
 /** A pane height chosen so the padding is the difference between 19 rows and 20. */
-const PANE = { height: 320, width: 400 }
+const PANE = { height: LINE_HEIGHT * 20, width: 400 }
 const CHAR_WIDTH = 7
 
 /** xterm parses asynchronously; the callback is when the buffer actually reflects the write. */
@@ -36,7 +38,7 @@ function write(term: Terminal, data: string): Promise<void> {
 }
 
 function bottomOf(row: number): number {
-  return terminalRowTop(row) + TERMINAL_LINE_HEIGHT
+  return terminalRowTop(row, LINE_HEIGHT) + LINE_HEIGHT
 }
 
 function rightOf(column: number): number {
@@ -45,24 +47,24 @@ function rightOf(column: number): number {
 
 describe('the grid a measured pane can paint', () => {
   it('takes the pane padding off both axes before dividing', () => {
-    const grid = terminalGrid(PANE, CHAR_WIDTH)
+    const grid = terminalGrid(PANE, CHAR_WIDTH, LINE_HEIGHT)
     expect(grid).toEqual({
       cols: Math.floor((PANE.width - TERMINAL_PANE_PADDING_X * 2) / CHAR_WIDTH),
-      rows: Math.floor((PANE.height - TERMINAL_PANE_PADDING_Y * 2) / TERMINAL_LINE_HEIGHT),
+      rows: Math.floor((PANE.height - TERMINAL_PANE_PADDING_Y * 2) / LINE_HEIGHT),
     })
   })
 
   it('asks for fewer rows than the border box would, which is the whole bug', () => {
-    const grid = terminalGrid(PANE, CHAR_WIDTH)
+    const grid = terminalGrid(PANE, CHAR_WIDTH, LINE_HEIGHT)
     // What the view used to compute: the padded height, divided.
-    const borderBoxRows = Math.floor(PANE.height / TERMINAL_LINE_HEIGHT)
+    const borderBoxRows = Math.floor(PANE.height / LINE_HEIGHT)
     expect(grid?.rows).toBe(borderBoxRows - 1)
     // And that extra row is genuinely off the bottom of the pane.
     expect(bottomOf(borderBoxRows - 1)).toBeGreaterThan(PANE.height)
   })
 
   it('leaves every row and column it asked for inside the pane', () => {
-    const grid = terminalGrid(PANE, CHAR_WIDTH)
+    const grid = terminalGrid(PANE, CHAR_WIDTH, LINE_HEIGHT)
     expect(grid).not.toBeNull()
     if (grid === null) return
     expect(bottomOf(grid.rows - 1)).toBeLessThanOrEqual(PANE.height - TERMINAL_PANE_PADDING_Y)
@@ -70,10 +72,10 @@ describe('the grid a measured pane can paint', () => {
   })
 
   it('has nothing to fit before the pane or the ruler has measured', () => {
-    expect(terminalGrid(PANE, 0)).toBeNull()
-    expect(terminalGrid({ height: 0, width: 0 }, CHAR_WIDTH)).toBeNull()
+    expect(terminalGrid(PANE, 0, LINE_HEIGHT)).toBeNull()
+    expect(terminalGrid({ height: 0, width: 0 }, CHAR_WIDTH, LINE_HEIGHT)).toBeNull()
     // A pane smaller than its own padding is mid-layout, not a two-row terminal.
-    expect(terminalGrid({ height: 4, width: 8 }, CHAR_WIDTH)).toBeNull()
+    expect(terminalGrid({ height: 4, width: 8 }, CHAR_WIDTH, LINE_HEIGHT)).toBeNull()
   })
 
   it('keeps a two-row floor while a pane is still animating open', () => {
@@ -86,6 +88,7 @@ describe('the grid a measured pane can paint', () => {
         width: TERMINAL_PANE_PADDING_X * 2 + CHAR_WIDTH,
       },
       CHAR_WIDTH,
+      LINE_HEIGHT,
     )
     expect(grid).toEqual({ cols: 2, rows: 2 })
   })
@@ -93,7 +96,7 @@ describe('the grid a measured pane can paint', () => {
 
 describe("a TUI's input line on the grid the pane fitted", () => {
   it('lands on a row the pane can actually paint', async () => {
-    const grid = terminalGrid(PANE, CHAR_WIDTH)
+    const grid = terminalGrid(PANE, CHAR_WIDTH, LINE_HEIGHT)
     expect(grid).not.toBeNull()
     if (grid === null) return
 
@@ -118,7 +121,7 @@ describe("a TUI's input line on the grid the pane fitted", () => {
   })
 
   it('would have been written below the clip on the old, unpadded grid', async () => {
-    const borderBoxRows = Math.floor(PANE.height / TERMINAL_LINE_HEIGHT)
+    const borderBoxRows = Math.floor(PANE.height / LINE_HEIGHT)
     const term = new Terminal({
       allowProposedApi: true,
       cols: 40,

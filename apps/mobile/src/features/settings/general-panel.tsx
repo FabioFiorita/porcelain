@@ -15,6 +15,7 @@ import {
   type HtmlMode,
   type MarkdownMode,
   type PullMode,
+  type TerminalTextSize,
   type ThemeMode,
   usePreferencesStore,
 } from './preferences-store'
@@ -31,6 +32,8 @@ export function GeneralSettings(): React.JSX.Element {
   const setHtmlMode = usePreferencesStore((s) => s.setHtmlMode)
   const pullMode = usePreferencesStore((s) => s.pullMode)
   const setPullMode = usePreferencesStore((s) => s.setPullMode)
+  const terminalTextSize = usePreferencesStore((s) => s.terminalTextSize)
+  const setTerminalTextSize = usePreferencesStore((s) => s.setTerminalTextSize)
   const commitModel = usePreferencesStore((s) => s.commitModel)
   const setCommitModel = usePreferencesStore((s) => s.setCommitModel)
 
@@ -121,6 +124,27 @@ export function GeneralSettings(): React.JSX.Element {
           testID="porcelain-settings-pull-mode-control"
           value={pullMode}
           onChange={setPullMode}
+        />
+      </PreferenceRow>
+
+      <PreferenceRow
+        description="How large terminal output renders."
+        label="Terminal text size"
+        testID="porcelain-settings-terminal-text-size"
+      >
+        <SegmentedControl<TerminalTextSize>
+          options={[
+            { value: 'small', label: 'Small', testID: 'porcelain-settings-terminal-text-small' },
+            {
+              value: 'medium',
+              label: 'Medium',
+              testID: 'porcelain-settings-terminal-text-medium',
+            },
+            { value: 'large', label: 'Large', testID: 'porcelain-settings-terminal-text-large' },
+          ]}
+          testID="porcelain-settings-terminal-text-size-control"
+          value={terminalTextSize}
+          onChange={setTerminalTextSize}
         />
       </PreferenceRow>
 

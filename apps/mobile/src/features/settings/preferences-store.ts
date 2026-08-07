@@ -10,6 +10,7 @@ export type DiffMode = 'unified' | 'split'
 export type MarkdownMode = 'reader' | 'source'
 export type HtmlMode = 'preview' | 'source'
 export type PullMode = 'merge' | 'rebase'
+export type TerminalTextSize = 'small' | 'medium' | 'large'
 
 const preferencesSchema = z.object({
   theme: z.enum(['system', 'light', 'dark']),
@@ -18,6 +19,7 @@ const preferencesSchema = z.object({
   htmlMode: z.enum(['preview', 'source']),
   pullMode: z.enum(['merge', 'rebase']),
   commitModel: z.string().trim().min(1),
+  terminalTextSize: z.enum(['small', 'medium', 'large']),
 })
 
 type Preferences = z.infer<typeof preferencesSchema>
@@ -29,6 +31,9 @@ const DEFAULTS: Preferences = {
   htmlMode: 'preview',
   pullMode: 'merge',
   commitModel: 'luna',
+  // 12pt (the old fixed size) reads as unreadably small on a phone; 'medium' is the floor
+  // for prose-heavy CLI output, not just code.
+  terminalTextSize: 'medium',
 }
 
 const STORAGE_KEY = 'porcelain.preferences'
@@ -59,6 +64,7 @@ type PreferencesState = Preferences & {
   setHtmlMode: (mode: HtmlMode) => void
   setPullMode: (mode: PullMode) => void
   setCommitModel: (model: CommitModel) => void
+  setTerminalTextSize: (size: TerminalTextSize) => void
   hydrate: () => Promise<void>
 }
 
@@ -74,6 +80,7 @@ function slicePrefs(state: PreferencesState): Preferences {
     htmlMode: state.htmlMode,
     pullMode: state.pullMode,
     commitModel: state.commitModel,
+    terminalTextSize: state.terminalTextSize,
   }
 }
 
@@ -121,6 +128,10 @@ export const usePreferencesStore = create<PreferencesState>()((set, get) => {
     },
     setCommitModel: (commitModel) => {
       set({ commitModel })
+      save()
+    },
+    setTerminalTextSize: (terminalTextSize) => {
+      set({ terminalTextSize })
       save()
     },
     hydrate: async () => {

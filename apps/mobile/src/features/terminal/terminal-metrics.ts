@@ -14,10 +14,27 @@
  * Two copies of "8" and "4" is exactly how the two drifted apart in the first place.
  */
 
-export const TERMINAL_FONT_SIZE = 12
+import type { TerminalTextSize } from '@/features/settings/preferences-store'
+
+/**
+ * Point sizes behind the user's terminal text size preference. 'small' is the original fixed
+ * size this terminal shipped with — dense, but too small to read prose-heavy CLI output on a
+ * phone, which is why 'medium' is the default (see `DEFAULTS` in `preferences-store.ts`).
+ */
+const TERMINAL_FONT_SIZES: Record<TerminalTextSize, number> = {
+  large: 18,
+  medium: 15,
+  small: 12,
+}
+
+export function terminalFontSize(size: TerminalTextSize): number {
+  return TERMINAL_FONT_SIZES[size]
+}
 
 /** 1.0 would be truest to the grid, but React Native clips descenders below ~1.25. */
-export const TERMINAL_LINE_HEIGHT = Math.round(TERMINAL_FONT_SIZE * 1.35)
+export function terminalLineHeight(size: TerminalTextSize): number {
+  return Math.round(terminalFontSize(size) * 1.35)
+}
 
 /**
  * The pane's `px-4`, in pixels — subtracted from the measured width before it becomes cols.
@@ -51,6 +68,7 @@ export type TerminalGrid = { cols: number; rows: number }
 export function terminalGrid(
   pane: { height: number; width: number },
   charWidth: number,
+  lineHeight: number,
 ): TerminalGrid | null {
   if (!(charWidth > 0)) return null
   const contentWidth = pane.width - TERMINAL_PANE_PADDING_X * 2
@@ -58,7 +76,7 @@ export function terminalGrid(
   if (contentWidth <= 0 || contentHeight <= 0) return null
   return {
     cols: Math.max(MIN_COLS, Math.floor(contentWidth / charWidth)),
-    rows: Math.max(MIN_ROWS, Math.floor(contentHeight / TERMINAL_LINE_HEIGHT)),
+    rows: Math.max(MIN_ROWS, Math.floor(contentHeight / lineHeight)),
   }
 }
 
@@ -68,8 +86,8 @@ export function terminalGrid(
  * React Native positions an absolutely-placed child against the parent's BORDER box, so the
  * pane's padding has to be added back — the same padding `terminalGrid` took off.
  */
-export function terminalRowTop(row: number): number {
-  return TERMINAL_PANE_PADDING_Y + row * TERMINAL_LINE_HEIGHT
+export function terminalRowTop(row: number, lineHeight: number): number {
+  return TERMINAL_PANE_PADDING_Y + row * lineHeight
 }
 
 /** The left edge of grid column `column`, in the pane's own coordinates. */
