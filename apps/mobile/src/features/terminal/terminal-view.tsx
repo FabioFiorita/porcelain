@@ -75,7 +75,14 @@ const WIDTH_SAMPLE = 'M'.repeat(40)
  * Keystrokes go to the daemon, never into the emulator: the emulator's buffer is a picture of
  * what the PTY actually echoed, which is what makes it trustworthy while an agent is writing.
  */
-export function TerminalView({ sessionId }: { sessionId: string }): React.JSX.Element {
+export function TerminalView({
+  bottomInset = 0,
+  sessionId,
+}: {
+  /** Phone: the floating tab bar this pane is laid out underneath. */
+  bottomInset?: number
+  sessionId: string
+}): React.JSX.Element {
   const scheme = useResolvedColorScheme()
   const palette = TERMINAL_PALETTES[scheme === 'dark' ? 'dark' : 'light']
   const inputRef = useRef<TextInput>(null)
@@ -105,7 +112,15 @@ export function TerminalView({ sessionId }: { sessionId: string }): React.JSX.El
 
   // Android resizes the pane when the keyboard appears; iOS overlays it, so only iOS needs the
   // inset subtracted here. Applying the inset on both platforms shrinks Android twice.
-  const gridHeight = Math.max(0, pane.height - (Platform.OS === 'ios' ? keyboardInset : 0))
+  //
+  // The tab bar floats over the bottom of this pane too — but the keyboard covers the tab bar,
+  // so exactly one of the two is ever between the last row and the reader. Reserving both would
+  // spend a couple of rows on space nothing occupies, and on a phone those rows are the prompt.
+  const covered = Math.max(
+    Platform.OS === 'ios' ? keyboardInset : 0,
+    keyboardInset > 0 ? 0 : bottomInset,
+  )
+  const gridHeight = Math.max(0, pane.height - covered)
 
   useEffect(() => {
     // `pane` is what onLayout reported, which is the BORDER box — `terminalGrid` takes the
@@ -205,7 +220,9 @@ export function TerminalView({ sessionId }: { sessionId: string }): React.JSX.El
 
       <GestureDetector gesture={Gesture.Race(pan, tap)}>
         <View
-          className="min-h-0 flex-1 overflow-hidden px-2 py-1"
+          /* Keep in step with `TERMINAL_PANE_PADDING_X` / `_Y` — the fit and the cursor both
+             subtract those, and a class that disagrees shears the grid. */
+          className="min-h-0 flex-1 overflow-hidden px-4 py-1"
           onLayout={(event) => {
             const { height, width } = event.nativeEvent.layout
             setPane({ height, width })

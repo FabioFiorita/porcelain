@@ -19,8 +19,15 @@ export const TERMINAL_FONT_SIZE = 12
 /** 1.0 would be truest to the grid, but React Native clips descenders below ~1.25. */
 export const TERMINAL_LINE_HEIGHT = Math.round(TERMINAL_FONT_SIZE * 1.35)
 
-/** The pane's `px-2`, in pixels — subtracted from the measured width before it becomes cols. */
-export const TERMINAL_PANE_PADDING_X = 8
+/**
+ * The pane's `px-4`, in pixels — subtracted from the measured width before it becomes cols.
+ *
+ * The same 16pt gutter every other surface uses (`SURFACE_GUTTER`), not a terminal-specific
+ * number. It costs about two columns at this font size, which is the right trade: nothing a
+ * shell prints becomes readable at 52 columns that was not readable at 50, and output running
+ * into the bezel is the thing that made this pane look unfinished next to the rest of the app.
+ */
+export const TERMINAL_PANE_PADDING_X = 16
 
 /** The pane's `py-1`, in pixels — subtracted from the measured height before it becomes rows. */
 export const TERMINAL_PANE_PADDING_Y = 4

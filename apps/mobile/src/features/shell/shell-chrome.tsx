@@ -252,6 +252,8 @@ export function PrimaryColumn(): React.JSX.Element {
       {/* Top padding clears the native SplitView sidebar toggle over the rail. */}
       <ScrollView
         className="flex-1"
+        /* surface-gutter-allow: an icon rail, not a surface — its width IS the tap targets,
+           and a 16pt gutter would push them off their own column. */
         contentContainerClassName="grow gap-4 px-2 pb-5 pt-14"
         showsVerticalScrollIndicator={false}
       >
@@ -472,7 +474,7 @@ export function CompanionColumn(): React.JSX.Element {
     >
       <ScrollView
         className="flex-1"
-        contentContainerClassName="gap-4 px-3 pb-6 pt-4"
+        contentContainerClassName="gap-4 px-4 pb-6 pt-4"
         showsVerticalScrollIndicator={false}
       >
         <View className="flex-row items-start justify-between gap-2">
@@ -537,6 +539,8 @@ function MockViewerCanvas({ surfaceId }: { surfaceId: SurfaceId }): React.JSX.El
   return (
     <ScrollView
       className="flex-1 bg-background"
+      /* surface-gutter-allow: the placeholder standing in for a viewer that has not landed —
+         prose in an empty pane, not a surface anything aligns to. */
       contentContainerClassName="gap-5 px-6 py-6"
       showsVerticalScrollIndicator={false}
     >

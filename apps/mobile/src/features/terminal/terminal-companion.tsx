@@ -43,7 +43,7 @@ export function TerminalCompanion({ active }: { active: boolean }): React.JSX.El
   return (
     <ScrollView
       className="flex-1"
-      contentContainerClassName="gap-3 px-3 pb-8 pt-1"
+      contentContainerClassName="gap-3 px-4 pb-8 pt-3"
       showsVerticalScrollIndicator={false}
       testID="porcelain-terminal-companion"
     >

@@ -108,20 +108,20 @@ export function ChangesList({
       />
 
       {failure === null ? null : (
-        <View className="px-3 pb-2">
+        <View className="px-4 pb-2">
           <ErrorNote message={failure} testID="porcelain-changes-action-error" />
         </View>
       )}
 
       {error !== null ? (
-        <View className="px-3 pb-2">
+        <View className="px-4 pb-2">
           <ErrorNote message={error.message} testID="porcelain-changes-error" />
         </View>
       ) : null}
 
       {pending ? (
         <Text
-          className="px-3 py-6 text-sm text-muted-foreground"
+          className="px-4 py-6 text-sm text-muted-foreground"
           testID="porcelain-changes-loading"
         >
           Loading changes…
@@ -138,7 +138,7 @@ export function ChangesList({
         />
       ) : (
         <SectionList
-          contentContainerClassName="gap-0.5 px-2 pb-8"
+          contentContainerClassName="gap-0.5 px-4 pb-8"
           contentContainerStyle={{ paddingBottom: bottomInset }}
           keyExtractor={(file: FlowFile) => file.path}
           renderItem={({ item }) => (
@@ -151,7 +151,7 @@ export function ChangesList({
             />
           )}
           renderSectionHeader={({ section }) => (
-            <View className="bg-background px-2 pb-1 pt-3">
+            <View className="bg-background pb-1 pt-3">
               <PanelLabel>{section.layer}</PanelLabel>
             </View>
           )}
@@ -189,7 +189,7 @@ function ChangesHeader({
   total: number
 }): React.JSX.Element {
   return (
-    <View className="gap-2 px-3 pb-2 pt-1">
+    <View className="gap-2 px-4 pb-2 pt-3">
       <View className="flex-row items-center gap-1">
         <Text
           className={`min-w-0 flex-1 text-xs ${allReviewed ? 'text-success' : 'text-muted-foreground'}`}
@@ -197,20 +197,25 @@ function ChangesHeader({
         >
           {label}
         </Text>
-        <IconAction
-          accessibilityLabel={allReviewed ? 'Unmark all reviewed' : 'Mark all reviewed'}
-          disabled={total === 0}
-          glyph={allReviewed ? 'checklistOff' : 'checklist'}
-          testID="porcelain-changes-review-all"
-          onPress={onToggleAll}
-        />
-        <IconAction
-          accessibilityLabel="Read all changes"
-          disabled={total === 0}
-          glyph="readAll"
-          testID="porcelain-changes-read-all-open"
-          onPress={onReadAll}
-        />
+        {/* An icon button is a 36pt box around a 17pt glyph, so sitting it *on* the gutter
+            leaves the glyph 9pt inside it. The cluster hangs out to put the glyph on the
+            gutter instead — the alignment the eye reads is the mark's, not the box's. */}
+        <View className="-mr-2 flex-row items-center">
+          <IconAction
+            accessibilityLabel={allReviewed ? 'Unmark all reviewed' : 'Mark all reviewed'}
+            disabled={total === 0}
+            glyph={allReviewed ? 'checklistOff' : 'checklist'}
+            testID="porcelain-changes-review-all"
+            onPress={onToggleAll}
+          />
+          <IconAction
+            accessibilityLabel="Read all changes"
+            disabled={total === 0}
+            glyph="readAll"
+            testID="porcelain-changes-read-all-open"
+            onPress={onReadAll}
+          />
+        </View>
       </View>
       <SegmentedControl<ChangesScope>
         options={[

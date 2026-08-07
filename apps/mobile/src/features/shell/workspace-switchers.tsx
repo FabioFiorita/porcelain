@@ -1,3 +1,4 @@
+import { fileName } from '@porcelain/client-runtime/paths'
 import { headLabel } from '@porcelain/contracts'
 import { useEffect, useMemo, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
@@ -48,13 +49,6 @@ export function useWorkspaceHeader(): WorkspaceHeader {
     pollMs: 5_000,
     staleTime: 0,
   })
-  const worktrees = useDaemonQuery(gitWorktreesQuery, repoPath, {
-    enabled: repo !== null,
-    placeholderData: 'keepPreviousData',
-    pollMs: 15_000,
-  })
-  const currentWorktree = worktrees.data?.find((candidate) => candidate.path === repo?.path)
-
   return {
     branch:
       repo === null
@@ -67,7 +61,10 @@ export function useWorkspaceHeader(): WorkspaceHeader {
     environmentLabel: environment?.nickname ?? 'No environment',
     projectInitial: repo?.name.charAt(0).toUpperCase() || '?',
     repo,
-    worktree: repo === null ? 'No project' : (currentWorktree?.branch ?? repo.name),
+    // The checkout's own folder, NOT the branch in it. A worktree is named for its branch, so
+    // reading the branch back out here printed the same string as the branch chip beside it —
+    // three switchers, two of them saying the same word. The folder is the fact this chip owns.
+    worktree: repo === null ? 'No project' : fileName(repoPath) || repo.name,
   }
 }
 
@@ -265,7 +262,7 @@ function DirectoryBrowser({
 
       <ShellModalScroll className="max-h-72" contentContainerClassName="gap-1">
         {browseQuery.isLoading ? (
-          <Text className="px-3 py-6 text-center text-sm text-muted-foreground">
+          <Text className="px-4 py-6 text-center text-sm text-muted-foreground">
             Loading folders…
           </Text>
         ) : null}
@@ -276,7 +273,7 @@ function DirectoryBrowser({
           />
         ) : null}
         {!browseQuery.isLoading && !browseQuery.isError && entries.length === 0 ? (
-          <Text className="px-3 py-6 text-center text-sm text-muted-foreground">
+          <Text className="px-4 py-6 text-center text-sm text-muted-foreground">
             No folders here
           </Text>
         ) : null}

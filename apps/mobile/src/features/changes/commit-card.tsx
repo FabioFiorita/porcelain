@@ -424,7 +424,7 @@ function TokenChip({
             />
           ) : null}
           {filtered.length === 0 && !canCreate ? (
-            <Text className="px-3 py-6 text-center text-sm text-muted-foreground">
+            <Text className="px-4 py-6 text-center text-sm text-muted-foreground">
               No {kind}s yet.
             </Text>
           ) : null}

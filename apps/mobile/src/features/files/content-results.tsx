@@ -36,7 +36,7 @@ export function ContentResults({
 }): React.JSX.Element {
   return (
     <FlatList
-      contentContainerClassName="gap-1 px-2 pb-8"
+      contentContainerClassName="gap-1 px-4 pb-8"
       contentContainerStyle={{ paddingBottom: bottomInset }}
       data={files}
       keyboardShouldPersistTaps="handled"

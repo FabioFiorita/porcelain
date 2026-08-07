@@ -35,7 +35,7 @@ export function SearchCompanion(): React.JSX.Element {
   return (
     <ScrollView
       className="flex-1"
-      contentContainerClassName="gap-2 px-3 pb-8 pt-1"
+      contentContainerClassName="gap-2 px-4 pb-8 pt-3"
       keyboardShouldPersistTaps="handled"
       nestedScrollEnabled
       showsVerticalScrollIndicator={false}

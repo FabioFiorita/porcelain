@@ -103,7 +103,7 @@ export function CommitView({
         </Text>
       ) : (
         <SectionList
-          contentContainerClassName="gap-0.5 px-2 pb-8"
+          contentContainerClassName="gap-0.5 px-4 pb-8"
           contentContainerStyle={{ paddingBottom: bottomInset }}
           keyExtractor={(file: FlowFile) => file.path}
           ListEmptyComponent={
@@ -116,7 +116,7 @@ export function CommitView({
           ListHeaderComponent={<CommitMessageCard hash={hash} message={message} />}
           renderItem={({ item }) => <CommitFileRow actions={actions} file={item} />}
           renderSectionHeader={({ section }) => (
-            <View className="bg-background px-2 pb-1 pt-3">
+            <View className="bg-background pb-1 pt-3">
               <PanelLabel>{section.layer}</PanelLabel>
             </View>
           )}

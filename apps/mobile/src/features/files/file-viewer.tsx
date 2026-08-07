@@ -167,13 +167,13 @@ export function FileViewer({
       />
 
       {actionError === null ? null : (
-        <View className="px-3 py-2">
+        <View className="px-4 py-2">
           <ErrorNote message={actionError} testID="porcelain-files-viewer-action-error" />
         </View>
       )}
 
       {!isText || (!markdown && !html) ? null : (
-        <View className="px-3 py-2">
+        <View className="px-4 py-2">
           {markdown ? (
             <SegmentedControl<MarkdownMode>
               options={[

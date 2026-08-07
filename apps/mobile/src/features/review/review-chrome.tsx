@@ -81,7 +81,7 @@ export function DocTabs({
   return (
     <ScrollView
       className="max-h-12 shrink-0 grow-0 border-b border-border"
-      contentContainerClassName="items-center gap-1 px-2 py-1.5"
+      contentContainerClassName="items-center gap-1 px-4 py-1.5"
       horizontal
       showsHorizontalScrollIndicator={false}
       testID={testIDPrefix}

@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { EmptyNote } from '@/components/surface-chrome'
+import { useTabBarInset } from '@/features/shell/tab-bar-inset'
 
 import { useTerminalStore } from './terminal-store'
 import { TerminalView } from './terminal-view'
@@ -21,6 +22,10 @@ import { TerminalView } from './terminal-view'
 export function TerminalSessionScreen({ sessionId }: { sessionId: string }): React.JSX.Element {
   const router = useRouter()
   const insets = useSafeAreaInsets()
+  // Pushed inside the tab, so the floating tab bar stays on screen over this pane. Without the
+  // reservation the grid is fitted to the full height and the PTY writes its last rows — the
+  // prompt, a build's final verdict — underneath the bar, unreachable and unscrollable.
+  const bottomInset = useTabBarInset()
   const session = useTerminalStore((state) =>
     state.sessions.find((candidate) => candidate.id === sessionId),
   )
@@ -32,7 +37,7 @@ export function TerminalSessionScreen({ sessionId }: { sessionId: string }): Rea
       style={{ paddingTop: insets.top }}
       testID="porcelain-terminal-session"
     >
-      <View className="flex-row items-center gap-1 border-b border-border px-1 py-1">
+      <View className="flex-row items-center gap-1 border-b border-border px-2 py-1">
         <Pressable
           accessibilityLabel="Back to terminals"
           accessibilityRole="button"
@@ -67,7 +72,7 @@ export function TerminalSessionScreen({ sessionId }: { sessionId: string }): Rea
           title="This terminal is gone"
         />
       ) : (
-        <TerminalView sessionId={sessionId} />
+        <TerminalView bottomInset={bottomInset} sessionId={sessionId} />
       )}
     </View>
   )

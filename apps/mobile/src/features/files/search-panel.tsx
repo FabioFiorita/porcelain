@@ -108,7 +108,7 @@ export function SearchPanel({
 
   return (
     <View className="flex-1" testID="porcelain-search-panel">
-      <View className="gap-2 px-3 pb-2 pt-1">
+      <View className="gap-2 px-4 pb-2 pt-3">
         <SegmentedControl<SearchMode>
           options={[
             { value: 'text', label: 'Text', testID: 'porcelain-search-mode-text' },
@@ -188,7 +188,7 @@ export function SearchPanel({
       </View>
 
       {error === null ? null : (
-        <View className="px-3 pb-2">
+        <View className="px-4 pb-2">
           <ErrorNote message={error.message} testID="porcelain-search-error" />
         </View>
       )}
@@ -233,7 +233,7 @@ export function SearchPanel({
         </View>
       ) : (
         <FlatList
-          contentContainerClassName="gap-0.5 px-2 pb-8"
+          contentContainerClassName="gap-0.5 px-4 pb-8"
           contentContainerStyle={{ paddingBottom: bottomInset }}
           data={paths.results}
           keyboardShouldPersistTaps="handled"

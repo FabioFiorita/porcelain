@@ -52,7 +52,7 @@ export function ReviewCompanion({ active }: { active: boolean }): React.JSX.Elem
   return (
     <ScrollView
       className="flex-1"
-      contentContainerClassName="gap-5 px-3 pb-8 pt-1"
+      contentContainerClassName="gap-5 px-4 pb-8 pt-3"
       keyboardShouldPersistTaps="handled"
       nestedScrollEnabled
       showsVerticalScrollIndicator={false}

@@ -9,6 +9,7 @@ import {
   IconAction,
   type SheetAction,
 } from '@/components/panel-chrome'
+import { SURFACE_TOOLBAR } from '@/components/surface-layout'
 import { type CommentAnchor, CommentComposer } from '@/features/comments/comment-composer'
 import { useActiveRepo } from '@/lib/daemon/repo'
 import { cn } from '@/lib/utils'
@@ -185,18 +186,18 @@ export function FilesBrowser({
       />
 
       {actionError === null ? null : (
-        <View className="px-3 pb-2">
+        <View className="px-4 pb-2">
           <ErrorNote message={actionError} testID="porcelain-files-action-error" />
         </View>
       )}
       {error === null ? null : (
-        <View className="px-3 pb-2">
+        <View className="px-4 pb-2">
           <ErrorNote message={error.message} testID="porcelain-files-error" />
         </View>
       )}
 
       {reading ? (
-        <Text className="px-3 py-6 text-sm text-muted-foreground" testID="porcelain-files-loading">
+        <Text className="px-4 py-6 text-sm text-muted-foreground" testID="porcelain-files-loading">
           Reading directory…
         </Text>
       ) : entries.length === 0 && error === null ? (
@@ -211,7 +212,7 @@ export function FilesBrowser({
         />
       ) : (
         <FlatList
-          contentContainerClassName="gap-0.5 px-2 pb-8"
+          contentContainerClassName="gap-0.5 px-4 pb-8"
           contentContainerStyle={{ paddingBottom: bottomInset }}
           data={entries}
           keyExtractor={(entry: FileEntry) => entry.path}
@@ -343,40 +344,50 @@ function BrowserHeader({
 }): React.JSX.Element {
   return (
     <View
-      className={cn('gap-1 px-2 pb-2', topInset === undefined ? 'pt-1' : 'border-b border-border')}
+      className={cn(
+        SURFACE_TOOLBAR,
+        'gap-1',
+        topInset === undefined ? undefined : 'border-b border-border',
+      )}
       style={topInset === undefined ? undefined : { paddingTop: topInset + 6 }}
     >
+      {/* The icon clusters hang half an icon button outside the gutter so their glyphs, not
+          their 36pt hit boxes, line up with the breadcrumb and the rows below. */}
       <View className="flex-row items-center gap-1">
         {onBack === undefined ? null : (
-          <IconAction
-            accessibilityLabel="Back to the parent folder"
-            glyph="chevronLeft"
-            testID="porcelain-files-back"
-            tone="foreground"
-            onPress={onBack}
-          />
+          <View className="-ml-2">
+            <IconAction
+              accessibilityLabel="Back to the parent folder"
+              glyph="chevronLeft"
+              testID="porcelain-files-back"
+              tone="foreground"
+              onPress={onBack}
+            />
+          </View>
         )}
-        <View className={cn('min-w-0 flex-1', onBack === undefined && 'pl-1')}>
+        <View className="min-w-0 flex-1">
           <Breadcrumbs crumbs={crumbs} onOpenCrumb={onOpenCrumb} />
           <Text className="text-[11px] text-muted-foreground" testID="porcelain-files-summary">
             {summary}
           </Text>
         </View>
-        <IconAction
-          accessibilityLabel="New file or folder here"
-          glyph="plus"
-          testID="porcelain-files-new"
-          tone="foreground"
-          onPress={onNew}
-        />
-        <IconAction
-          accessibilityLabel={showHidden ? 'Hide out-of-scope entries' : 'Show hidden entries'}
-          glyph={showHidden ? 'eye' : 'eyeOff'}
-          selected={showHidden}
-          testID="porcelain-files-toggle-hidden"
-          tone={showHidden ? 'primary' : 'muted'}
-          onPress={onToggleHidden}
-        />
+        <View className="-mr-2 flex-row items-center">
+          <IconAction
+            accessibilityLabel="New file or folder here"
+            glyph="plus"
+            testID="porcelain-files-new"
+            tone="foreground"
+            onPress={onNew}
+          />
+          <IconAction
+            accessibilityLabel={showHidden ? 'Hide out-of-scope entries' : 'Show hidden entries'}
+            glyph={showHidden ? 'eye' : 'eyeOff'}
+            selected={showHidden}
+            testID="porcelain-files-toggle-hidden"
+            tone={showHidden ? 'primary' : 'muted'}
+            onPress={onToggleHidden}
+          />
+        </View>
       </View>
     </View>
   )

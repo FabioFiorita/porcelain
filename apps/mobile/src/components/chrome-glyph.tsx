@@ -46,6 +46,13 @@ const CHROME_SYMBOLS = {
   settings: { ios: 'gearshape' as SFSymbol, android: 'settings' as AndroidSymbol },
   search: { ios: 'magnifyingglass' as SFSymbol, android: 'search' as AndroidSymbol },
   arrowUp: { ios: 'arrow.up' as SFSymbol, android: 'arrow_upward' as AndroidSymbol },
+  /**
+   * Reorder a row within a list. NOT `arrowDown`, which is `arrow.down.to.line` / `download`
+   * — a transfer, not a move, and the pair has to read as each other's mirror.
+   */
+  moveDown: { ios: 'arrow.down' as SFSymbol, android: 'arrow_downward' as AndroidSymbol },
+  /** The endpoint a group is tried on first. */
+  star: { ios: 'star.fill' as SFSymbol, android: 'star' as AndroidSymbol },
   folder: { ios: 'folder' as SFSymbol, android: 'folder_open' as AndroidSymbol },
   branch: { ios: 'arrow.triangle.branch' as SFSymbol, android: 'account_tree' as AndroidSymbol },
   network: { ios: 'network' as SFSymbol, android: 'lan' as AndroidSymbol },

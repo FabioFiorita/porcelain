@@ -1,4 +1,4 @@
-import { type EndpointKind, endpointKind } from '@porcelain/contracts'
+import { endpointKind } from '@porcelain/contracts'
 import { useState } from 'react'
 import { Alert, Pressable, View } from 'react-native'
 import { Swipeable } from 'react-native-gesture-handler'
@@ -14,6 +14,7 @@ import {
 } from '@/lib/daemon/environment'
 import {
   environmentActions,
+  getEnvironment,
   useActiveEnvironment,
   useConnectionState,
   useEnvironments,
@@ -542,9 +543,14 @@ function GroupDetail({
       </View>
 
       <View className="gap-2">
-        <Text className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-          Connections · primary first
-        </Text>
+        <View className="gap-0.5">
+          <Text className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+            Connections
+          </Text>
+          <Text className="text-xs leading-5 text-muted-foreground">
+            The primary is tried first; the rest follow in this order until one answers.
+          </Text>
+        </View>
         {environment.endpoints.map((url, index) => (
           <ConnectionRow
             key={url}
@@ -556,14 +562,17 @@ function GroupDetail({
             url={url}
           />
         ))}
-        <Button
-          testID="porcelain-settings-add-connection-open"
-          variant="outline"
-          onPress={onAddConnection}
-        >
-          <Text>Add connection</Text>
-        </Button>
       </View>
+
+      {/* Outside the connections group on purpose: inside it, the button sat 8pt below the last
+          card and 16pt above Delete group, which reads as a misalignment rather than a step. */}
+      <Button
+        testID="porcelain-settings-add-connection-open"
+        variant="outline"
+        onPress={onAddConnection}
+      >
+        <Text>Add connection</Text>
+      </Button>
 
       <Button
         testID="porcelain-settings-delete-group"
@@ -591,12 +600,8 @@ function ConnectionRow({
   index: number
   total: number
 }): React.JSX.Element {
-  const kind: EndpointKind = endpointKind(url)
-
   const move = async (direction: -1 | 1): Promise<void> => {
-    const environment = (await import('@/lib/daemon/environments-store')).getEnvironment(
-      environmentId,
-    )
+    const environment = getEnvironment(environmentId)
     if (environment === null) return
     const next = [...environment.endpoints]
     const target = index + direction
@@ -609,76 +614,98 @@ function ConnectionRow({
     await environmentActions.setEndpointOrder(environmentId, next)
   }
 
+  /**
+   * Promotion also hoists the row to the top. The client walks `preferredEndpoint` first and
+   * the rest in array order, so leaving a promoted row sitting third made the list disagree
+   * with the failover it was describing — the reader had to hold two orders in their head.
+   */
+  const makePrimary = async (): Promise<void> => {
+    await environmentActions.preferEndpoint(environmentId, url)
+    const environment = getEnvironment(environmentId)
+    if (environment === null) return
+    await environmentActions.setEndpointOrder(environmentId, [
+      url,
+      ...environment.endpoints.filter((candidate) => candidate !== url),
+    ])
+  }
+
   const body = (
     <View
-      className="gap-1.5 rounded-xl border border-border bg-card p-3"
+      className={cn(
+        'flex-row items-center gap-3 rounded-xl border p-3',
+        preferred ? 'border-primary/40 bg-primary/5' : 'border-border bg-card',
+      )}
       testID={`porcelain-settings-connection-${index}`}
     >
-      <View className="flex-row items-center gap-2">
-        <View
-          className={cn(
-            'rounded-md px-2 py-0.5',
-            preferred ? 'bg-primary' : 'border border-border bg-muted',
-          )}
-        >
-          <Text
+      <View className="min-w-0 flex-1 gap-1.5">
+        <View className="flex-row items-center gap-2">
+          <View
             className={cn(
-              'text-[11px] font-semibold',
-              preferred ? 'text-primary-foreground' : 'text-foreground',
+              'rounded-md px-2 py-0.5',
+              preferred ? 'bg-primary' : 'border border-border bg-muted',
             )}
           >
-            {endpointLabel(url)}
-          </Text>
+            <Text
+              className={cn(
+                'text-[11px] font-semibold',
+                preferred ? 'text-primary-foreground' : 'text-foreground',
+              )}
+            >
+              {endpointLabel(url)}
+            </Text>
+          </View>
+          {preferred ? (
+            <View className="flex-row items-center gap-1">
+              <ChromeGlyph name="star" size={11} tone="primary" />
+              <Text className="text-[11px] font-semibold uppercase tracking-widest text-primary">
+                Primary
+              </Text>
+            </View>
+          ) : (
+            <Pressable
+              accessibilityLabel="Make this the primary connection"
+              accessibilityRole="button"
+              className="flex-row items-center gap-1 rounded-md border border-border px-2 py-0.5 active:bg-accent"
+              testID={`porcelain-settings-connection-primary-${index}`}
+              onPress={() => {
+                makePrimary()
+              }}
+            >
+              <ChromeGlyph name="star" size={10} />
+              <Text className="text-[11px] font-medium text-foreground">Make primary</Text>
+            </Pressable>
+          )}
         </View>
-        {preferred ? <Text className="text-[11px] font-semibold text-primary">Primary</Text> : null}
-        <Text className="text-[11px] text-muted-foreground">{kind}</Text>
+        <Text className="font-mono text-xs text-muted-foreground" numberOfLines={2}>
+          {url}
+        </Text>
       </View>
-      <Text className="font-mono text-xs text-muted-foreground" numberOfLines={2}>
-        {url}
-      </Text>
-      <View className="flex-row flex-wrap gap-1.5">
-        {!preferred ? (
-          <Pressable
-            accessibilityLabel="Make primary"
-            accessibilityRole="button"
-            className="rounded-md border border-border px-2.5 py-1.5 active:bg-accent"
-            testID={`porcelain-settings-connection-primary-${index}`}
+
+      {/* Reorder is two glyphs on the trailing edge, not two word-buttons in the row's flow:
+          "Up" and "Down" spelled out sat beside "Make primary" and read as three peers, so
+          which one changed the failover order was a guess. */}
+      {total > 1 ? (
+        <View className="shrink-0 gap-1">
+          <ReorderButton
+            accessibilityLabel="Move connection up"
+            disabled={index === 0}
+            glyph="arrowUp"
+            testID={`porcelain-settings-connection-up-${index}`}
             onPress={() => {
-              environmentActions.preferEndpoint(environmentId, url)
+              move(-1)
             }}
-          >
-            <Text className="text-xs text-foreground">Make primary</Text>
-          </Pressable>
-        ) : null}
-        <Pressable
-          accessibilityLabel="Move connection up"
-          accessibilityRole="button"
-          className={cn(
-            'rounded-md border border-border px-2.5 py-1.5 active:bg-accent',
-            index === 0 && 'opacity-40',
-          )}
-          disabled={index === 0}
-          onPress={() => {
-            move(-1)
-          }}
-        >
-          <Text className="text-xs text-foreground">Up</Text>
-        </Pressable>
-        <Pressable
-          accessibilityLabel="Move connection down"
-          accessibilityRole="button"
-          className={cn(
-            'rounded-md border border-border px-2.5 py-1.5 active:bg-accent',
-            index === total - 1 && 'opacity-40',
-          )}
-          disabled={index === total - 1}
-          onPress={() => {
-            move(1)
-          }}
-        >
-          <Text className="text-xs text-foreground">Down</Text>
-        </Pressable>
-      </View>
+          />
+          <ReorderButton
+            accessibilityLabel="Move connection down"
+            disabled={index === total - 1}
+            glyph="moveDown"
+            testID={`porcelain-settings-connection-down-${index}`}
+            onPress={() => {
+              move(1)
+            }}
+          />
+        </View>
+      ) : null}
     </View>
   )
 
@@ -703,6 +730,39 @@ function ConnectionRow({
     >
       {body}
     </Swipeable>
+  )
+}
+
+/** A 32pt square on the row's trailing edge — a thumb target that is still not a text button. */
+function ReorderButton({
+  accessibilityLabel,
+  disabled,
+  glyph,
+  onPress,
+  testID,
+}: {
+  accessibilityLabel: string
+  disabled: boolean
+  glyph: ChromeIconName
+  onPress: () => void
+  testID: string
+}): React.JSX.Element {
+  return (
+    <Pressable
+      accessibilityLabel={accessibilityLabel}
+      accessibilityRole="button"
+      accessibilityState={{ disabled }}
+      className={cn(
+        'size-8 items-center justify-center rounded-md border border-border active:bg-accent',
+        disabled && 'opacity-30',
+      )}
+      disabled={disabled}
+      hitSlop={4}
+      testID={testID}
+      onPress={onPress}
+    >
+      <ChromeGlyph name={glyph} size={13} tone="foreground" />
+    </Pressable>
   )
 }
 

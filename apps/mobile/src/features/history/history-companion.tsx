@@ -26,7 +26,7 @@ export function HistoryCompanion({ active }: { active: boolean }): React.JSX.Ele
   return (
     <ScrollView
       className="flex-1"
-      contentContainerClassName="gap-5 px-3 pb-8 pt-1"
+      contentContainerClassName="gap-5 px-4 pb-8 pt-3"
       nestedScrollEnabled
       showsVerticalScrollIndicator={false}
       testID="porcelain-history-companion"

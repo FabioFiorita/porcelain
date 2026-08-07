@@ -77,8 +77,17 @@ describe('the grid a measured pane can paint', () => {
   })
 
   it('keeps a two-row floor while a pane is still animating open', () => {
-    const grid = terminalGrid({ height: 40, width: 40 }, CHAR_WIDTH)
-    expect(grid).toEqual({ cols: 3, rows: 2 })
+    // Room for exactly one column and less than one line — the clamp is what answers here,
+    // not the division. Sized off the padding constants so tightening the gutter (the pane
+    // shares the app's 16pt one) does not turn a floor test into an arithmetic test.
+    const grid = terminalGrid(
+      {
+        height: TERMINAL_PANE_PADDING_Y * 2 + 1,
+        width: TERMINAL_PANE_PADDING_X * 2 + CHAR_WIDTH,
+      },
+      CHAR_WIDTH,
+    )
+    expect(grid).toEqual({ cols: 2, rows: 2 })
   })
 })
 

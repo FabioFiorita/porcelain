@@ -93,29 +93,33 @@ export function TerminalList({
 
   return (
     <View className="flex-1" testID="porcelain-terminal-list">
-      <View className="flex-row items-center gap-1 px-3 pb-2 pt-1">
+      <View className="flex-row items-center gap-1 px-4 pb-2 pt-3">
         <Text
           className="min-w-0 flex-1 text-xs text-muted-foreground"
           testID="porcelain-terminal-summary"
         >
           {summaryLabel(sessions, isLoading, repo !== null)}
         </Text>
-        <IconAction
-          accessibilityLabel="New terminal"
-          disabled={repo === null}
-          glyph="plus"
-          testID="porcelain-terminal-new"
-          onPress={handleNew}
-        />
+        {/* Hung out by half the icon button's slack so the glyph — not its 36pt box — lands
+            on the same gutter as the summary beside it. */}
+        <View className="-mr-2">
+          <IconAction
+            accessibilityLabel="New terminal"
+            disabled={repo === null}
+            glyph="plus"
+            testID="porcelain-terminal-new"
+            onPress={handleNew}
+          />
+        </View>
       </View>
 
       {failure === null ? null : (
-        <View className="px-3 pb-2">
+        <View className="px-4 pb-2">
           <ErrorNote message={failure} testID="porcelain-terminal-action-error" />
         </View>
       )}
       {error === null ? null : (
-        <View className="px-3 pb-2">
+        <View className="px-4 pb-2">
           <ErrorNote message={error.message} testID="porcelain-terminal-error" />
         </View>
       )}
@@ -132,7 +136,7 @@ export function TerminalList({
         />
       ) : (
         <FlatList
-          contentContainerClassName="gap-0.5 px-2 pb-8"
+          contentContainerClassName="gap-0.5 px-4 pb-8"
           contentContainerStyle={{ paddingBottom: bottomInset }}
           data={sessions}
           keyExtractor={(session: TerminalSession) => session.id}

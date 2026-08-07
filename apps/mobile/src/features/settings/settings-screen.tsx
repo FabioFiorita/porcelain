@@ -1,10 +1,13 @@
 import { ScrollView, View } from 'react-native'
 
+import { SURFACE_GUTTER } from '@/components/surface-layout'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Text as UiText } from '@/components/ui/text'
+import { cn } from '@/lib/utils'
 
 import { PhoneHeader } from '../shell/phone-header'
 import { type SettingsSection, useShellStore } from '../shell/shell-store'
+import { useTabBarInset } from '../shell/tab-bar-inset'
 import { DataSettings } from './data-panel'
 import { EnvironmentsSettings } from './environments-panel'
 import { GeneralSettings } from './general-panel'
@@ -24,6 +27,7 @@ const SECTIONS: { id: SettingsSection; label: string }[] = [
 export function SettingsScreen(): React.JSX.Element {
   const section = useShellStore((state) => state.settingsSection)
   const setSettingsSection = useShellStore((state) => state.setSettingsSection)
+  const bottomInset = useTabBarInset()
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-phone-settings">
@@ -35,7 +39,9 @@ export function SettingsScreen(): React.JSX.Element {
         }}
       >
         <PhoneHeader border={false} companion={false} title="Settings" workspace={false}>
-          <View className="border-b border-border pb-3 pt-3">
+          {/* The header hands its divider to this band so the tabs read as part of the chrome;
+              the band therefore owns the gutter and the space above the line. */}
+          <View className={cn(SURFACE_GUTTER, 'border-b border-border pb-3')}>
             <TabsList className="h-10 w-full" testID="porcelain-settings-tabs">
               {SECTIONS.map((entry) => (
                 <TabsTrigger
@@ -59,7 +65,11 @@ export function SettingsScreen(): React.JSX.Element {
           <TabsContent key={entry.id} className="min-h-0 flex-1" value={entry.id}>
             <ScrollView
               className="flex-1"
-              contentContainerClassName="gap-3 px-4 py-4 pb-10"
+              contentContainerClassName={cn(SURFACE_GUTTER, 'gap-3 pt-3')}
+              /* The tab bar floats over this pane rather than reserving space below it, so a
+                 preference that stops at the safe area — a picker's open list, the last row of
+                 Data — is stranded behind the bar with no scroll left to clear it. */
+              contentContainerStyle={{ paddingBottom: bottomInset + 24 }}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
