@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { INTENT_CANONICAL_TABS, INTENT_MANIFEST, projectIntentDir } from '@shared/project-porcelain'
@@ -22,7 +22,7 @@ describe('intent prepare', () => {
   it('creates the directory and an assets home', () => {
     const prepared = prepareIntent(repo)
     expect(prepared.dir).toBe(projectIntentDir(repo))
-    expect(listIntent(repo)).toContain('assets')
+    expect(existsSync(prepared.assetsDir)).toBe(true)
   })
 
   it('seeds the canonical tab order, labels and all', () => {
@@ -34,7 +34,8 @@ describe('intent prepare', () => {
   // against what is on disk, so an unwritten tab is simply not a tab.
   it('seeds the manifest without creating the documents', () => {
     prepareIntent(repo)
-    expect(listIntent(repo)).toEqual(['assets', INTENT_MANIFEST])
+    expect(existsSync(join(projectIntentDir(repo), INTENT_MANIFEST))).toBe(true)
+    expect(listIntent(repo)).toEqual([])
   })
 
   it('--tabs replaces the order and gives a bare name .md', () => {
@@ -57,6 +58,25 @@ describe('intent prepare', () => {
     expect(again.seeded).toBe(false)
     expect(readFileSync(join(projectIntentDir(repo), 'index.md'), 'utf8')).toBe('kept')
     expect(readManifest().tabs).toEqual([{ file: 'overview.md', label: 'Overview' }])
+  })
+})
+
+describe('intent list', () => {
+  // `intent list` answers "what will the human see as tabs", so the manifest, the
+  // assets directory and a dotfile are all noise — the raw readdir printed them.
+  it('lists only renderable documents, name-sorted', () => {
+    prepareIntent(repo)
+    const dir = projectIntentDir(repo)
+    writeFileSync(join(dir, 'why.md'), 'why')
+    writeFileSync(join(dir, 'before-after.html'), '<p>x</p>')
+    writeFileSync(join(dir, 'notes.txt'), 'txt')
+    writeFileSync(join(dir, '.DS_Store'), '')
+    mkdirSync(join(dir, 'sketches.md'), { recursive: true })
+    expect(listIntent(repo)).toEqual(['before-after.html', 'why.md'])
+  })
+
+  it('lists a missing directory as empty', () => {
+    expect(listIntent(repo)).toEqual([])
   })
 })
 

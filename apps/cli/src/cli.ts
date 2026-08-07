@@ -525,7 +525,7 @@ Write the documents with your normal file tools. .md renders as prose; .html ren
     case 'intent list': {
       const files = listIntent(repo)
       return files.length === 0
-        ? `No intent documents for ${repo}. Run \`intent prepare\` first.`
+        ? `No intent documents for ${repo}. Run \`intent prepare\` first, then write .md / .html there.`
         : `Intent documents for ${repo}:\n${files.map((f) => `  ${f}`).join('\n')}`
     }
     case 'evidence prepare': {

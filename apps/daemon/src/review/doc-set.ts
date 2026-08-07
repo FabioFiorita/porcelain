@@ -40,6 +40,13 @@ const MAX_TOTAL_BYTES = 8 * 1024 * 1024
 /** Legacy single-page evidence, from before Evidence had sub-tabs. */
 const LEGACY_REPORT_FILES = ['index.html', 'index.htm'] as const
 
+/**
+ * What a pack's `index` document is called in the tab strip. The legacy root
+ * report has always been "Report"; `results/index.html` — the same document, one
+ * directory down — read as "Index" until a manifest renamed it.
+ */
+const REPORT_LABEL = 'Report'
+
 export type DocMedium = 'markdown' | 'html'
 
 interface ReviewDocBase {
@@ -136,6 +143,13 @@ export interface DocSetOptions {
    * most obvious name an agent would give its report.
    */
   excludeFromAlsoScan?: readonly string[]
+  /**
+   * Reader-facing labels for specific file names (case-insensitive), used only
+   * when the manifest names no label. `index.html` is the most obvious name for
+   * a pack's report and the derived label for it is "Index" — a filename
+   * artifact nobody wrote. A manifest label still wins.
+   */
+  defaultLabels?: Readonly<Record<string, string>>
 }
 
 interface QueuedDoc {
@@ -178,8 +192,11 @@ export async function readDocSet(dir: string, options: DocSetOptions = {}): Prom
 
   const docs: ReviewDoc[] = []
   let total = 0
+  const defaults = options.defaultLabels ?? {}
   for (const tab of queue.slice(0, MAX_DOCS)) {
-    const doc = await readDoc(tab, options.assetRoot, MAX_TOTAL_BYTES - total)
+    const labelled =
+      tab.label === undefined ? { ...tab, label: defaults[tab.file.toLowerCase()] } : tab
+    const doc = await readDoc(labelled, options.assetRoot, MAX_TOTAL_BYTES - total)
     if (doc === null) continue
     total += Buffer.byteLength(doc.body, 'utf8')
     docs.push(doc)
@@ -227,8 +244,9 @@ export function readActiveIntentDocs(repoPath: string): Promise<ReviewDoc[]> {
  *
  * A pack can hold BOTH — `evidence/index.html` and `evidence/results/index.html`
  * are two files, in two directories, written by two generations of agent. Both
- * render; the legacy one only gives up the bare `index.html` tab key, because
- * `file` is what every client uses as the key.
+ * render; the legacy one gives up the bare `index.html` tab key, because `file`
+ * is what every client uses as the key, and the "Report" name with it, because
+ * two tabs reading "Report" is a strip the human cannot navigate.
  */
 export async function readActiveEvidenceResults(repoPath: string): Promise<ReviewDoc[]> {
   const evidenceDir = projectEvidenceDir(repoPath)
@@ -236,6 +254,7 @@ export async function readActiveEvidenceResults(repoPath: string): Promise<Revie
     assetRoot: evidenceDir,
     alsoScan: [evidenceDir],
     excludeFromAlsoScan: LEGACY_REPORT_FILES,
+    defaultLabels: { 'index.html': REPORT_LABEL, 'index.htm': REPORT_LABEL },
   })
   const report = await readLegacyReport(evidenceDir)
   if (report === null) return docs
@@ -243,14 +262,16 @@ export async function readActiveEvidenceResults(repoPath: string): Promise<Revie
   // `../index.html` is the legacy file's path from the results directory: stable,
   // honest about where it came from, and never a name a scanned directory yields
   // (those are plain file names, with no separator in them).
-  const keyed = taken.has(report.file) ? { ...report, file: `../${report.file}` } : report
+  const keyed = taken.has(report.file)
+    ? { ...report, file: `../${report.file}`, label: 'Earlier report' }
+    : report
   return [keyed, ...docs]
 }
 
 async function readLegacyReport(evidenceDir: string): Promise<ReviewDoc | null> {
   for (const file of LEGACY_REPORT_FILES) {
     const doc = await readDoc(
-      { file, label: 'Report', dir: evidenceDir },
+      { file, label: REPORT_LABEL, dir: evidenceDir },
       evidenceDir,
       MAX_DOC_BYTES,
     )

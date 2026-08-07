@@ -1,4 +1,4 @@
-import { mkdirSync, readdirSync, renameSync, writeFileSync } from 'node:fs'
+import { type Dirent, mkdirSync, readdirSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { INTENT_MANIFEST } from '@shared/project-porcelain'
 
@@ -66,13 +66,35 @@ export function orderDocSet(dir: string, files: string[], where: string): string
   )
 }
 
-/** Everything in the directory, name-sorted; a missing directory lists as empty. */
+/**
+ * The media a document set renders — lockstep with `MEDIUM_BY_EXT` in
+ * apps/daemon/src/review/doc-set.ts. Anything else in the directory is not a tab.
+ */
+const DOC_EXTENSIONS = /\.(md|markdown|html?)$/i
+
+/**
+ * The renderable documents in the directory, name-sorted; a missing directory
+ * lists as empty.
+ *
+ * A raw `readdir` here answered a question nobody asked: `intent list` printed
+ * `assets`, `meta.json` and every dotfile beside the two documents, so an agent
+ * reading the output could not tell what the human would actually see as tabs.
+ * The listing matches what the daemon's `readDocSet` will show — files only, the
+ * two renderable media only.
+ */
 export function listDocSet(dir: string): string[] {
+  let entries: Dirent[]
   try {
-    return readdirSync(dir).sort()
+    entries = readdirSync(dir, { withFileTypes: true })
   } catch {
     return []
   }
+  return entries
+    .filter(
+      (entry) => entry.isFile() && !entry.name.startsWith('.') && DOC_EXTENSIONS.test(entry.name),
+    )
+    .map((entry) => entry.name)
+    .sort()
 }
 
 /** `why.md` → "Why"; `before-after.html` → "Before after". */

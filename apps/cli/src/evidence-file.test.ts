@@ -147,6 +147,19 @@ describe('evidence results — the document set', () => {
     writeFileSync(join(resultsDir, 'a.md'), 'a')
     expect(listResults(repo)).toEqual(['a.md', 'b.md'])
   })
+
+  // The list answers "what will the human see as tabs" — the manifest, an assets
+  // directory and a stray log are none of them.
+  it('listResults lists only renderable documents', () => {
+    const { resultsDir } = prepareEvidence(repo, 'Loop')
+    writeFileSync(join(resultsDir, 'why.md'), 'why')
+    writeFileSync(join(resultsDir, 'report.html'), '<p>r</p>')
+    writeFileSync(join(resultsDir, 'run.log'), 'log')
+    writeFileSync(join(resultsDir, '.hidden.md'), 'nope')
+    orderResults(repo, ['why.md'])
+    mkdirSync(join(resultsDir, 'assets'), { recursive: true })
+    expect(listResults(repo)).toEqual(['report.html', 'why.md'])
+  })
 })
 
 describe('evidence assets — the gallery', () => {
@@ -178,5 +191,28 @@ describe('evidence assets — the gallery', () => {
     expect(text).toContain('Results: 1 document(s): index.html')
     expect(text).toContain('Assets: 1 image(s) in the gallery')
     expect(text).toContain('run.log')
+  })
+
+  // The report looks finished and the human sees a broken image — `get` is the
+  // last place an agent can catch it.
+  it('describeEvidence warns about a Results ref with nothing behind it', () => {
+    const { resultsDir, assetsDir } = prepareEvidence(repo, 'Loop')
+    writeFileSync(join(assetsDir, 'here.png'), 'png')
+    writeFileSync(
+      join(resultsDir, 'index.html'),
+      '<img src="../assets/here.png"><img src="../assets/gone.png">',
+    )
+    const text = describeEvidence(repo, getEvidence(repo))
+    expect(text).toContain('WARNING: results/index.html references ../assets/gone.png')
+    expect(text).not.toContain('here.png, which is not on disk')
+  })
+
+  it('describeEvidence leaves remote and out-of-pack refs alone', () => {
+    const { resultsDir } = prepareEvidence(repo, 'Loop')
+    writeFileSync(
+      join(resultsDir, 'index.html'),
+      '<img src="https://example.com/a.png"><img src="../../../../secrets.png">',
+    )
+    expect(describeEvidence(repo, getEvidence(repo))).not.toContain('not on disk')
   })
 })

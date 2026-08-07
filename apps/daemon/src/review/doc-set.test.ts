@@ -175,24 +175,38 @@ describe('readActiveEvidenceResults', () => {
     expect(docs[0]?.body).toContain('data:image/png;base64,')
   })
 
-  it('renders results/index.html — the exclusion is for the legacy root only', async () => {
+  // "Index" is a file name, not a name a human gave the tab; the legacy root file
+  // has always read "Report" and this is the same document one directory down.
+  it('renders results/index.html as "Report" — the exclusion is for the legacy root only', async () => {
     const results = projectEvidenceResultsDir(repo())
     await mkdir(results, { recursive: true })
     await writeFile(join(results, 'index.html'), '<p>modern report</p>')
     const docs = await readActiveEvidenceResults(repo())
-    expect(docs.map((d) => [d.file, d.label])).toEqual([['index.html', 'Index']])
+    expect(docs.map((d) => [d.file, d.label])).toEqual([['index.html', 'Report']])
     expect(docs[0]?.body).toBe('<p>modern report</p>')
   })
 
-  it('renders both index.html files, with distinct keys', async () => {
+  it('lets a manifest label beat the derived "Report"', async () => {
+    const results = projectEvidenceResultsDir(repo())
+    await mkdir(results, { recursive: true })
+    await writeFile(join(results, 'index.html'), '<p>modern report</p>')
+    await writeFile(
+      join(results, INTENT_MANIFEST),
+      JSON.stringify({ tabs: [{ file: 'index.html', label: 'Sim loop' }] }),
+    )
+    const docs = await readActiveEvidenceResults(repo())
+    expect(docs.map((d) => [d.file, d.label])).toEqual([['index.html', 'Sim loop']])
+  })
+
+  it('renders both index.html files, with distinct keys and distinct labels', async () => {
     const results = projectEvidenceResultsDir(repo())
     await mkdir(results, { recursive: true })
     await writeFile(join(projectEvidenceDir(repo()), 'index.html'), '<p>old proof</p>')
     await writeFile(join(results, 'index.html'), '<p>modern report</p>')
     const docs = await readActiveEvidenceResults(repo())
     expect(docs.map((d) => [d.file, d.label])).toEqual([
-      ['../index.html', 'Report'],
-      ['index.html', 'Index'],
+      ['../index.html', 'Earlier report'],
+      ['index.html', 'Report'],
     ])
     expect(docs.map((d) => d.body)).toEqual(['<p>old proof</p>', '<p>modern report</p>'])
     expect(new Set(docs.map((d) => d.file)).size).toBe(docs.length)

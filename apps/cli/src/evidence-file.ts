@@ -366,7 +366,7 @@ export function orderResults(repoPath: string, files: string[]): string[] {
   return orderDocSet(projectEvidenceResultsDir(repoPath), files, 'evidence/results/')
 }
 
-/** Everything in `evidence/results/`, name-sorted. */
+/** The renderable documents in `evidence/results/`, name-sorted. */
 export function listResults(repoPath: string): string[] {
   return listDocSet(projectEvidenceResultsDir(repoPath))
 }
@@ -434,19 +434,25 @@ export function listAssets(repoPath: string): EvidenceAssetEntry[] {
   return out
 }
 
+interface LocalRef {
+  /** Exactly as the document wrote it, so the warning names what to fix. */
+  raw: string
+  /** Null when nothing is at that path — a ref that will render as a broken image. */
+  bytes: number | null
+}
+
 /**
- * Rough post-inline size: HTML bytes + base64 expansion (~4/3) of the local images
- * a document references.
+ * The local images a document references, deduped, in document order.
  *
  * Refs resolve from the document's own directory but must land inside `root` (the
  * evidence directory), which is exactly what the daemon does — that is how a
  * Results document's `../assets/shot.png` counts, while `../../../secrets.png`
- * does not.
+ * does not (it is not a broken ref, it is one the viewer will never inline).
  */
-function estimateInlinedBytes(docDir: string, html: string, root: string): number {
-  let total = Buffer.byteLength(html, 'utf8')
+function localRefs(docDir: string, html: string, root: string): LocalRef[] {
   const re = /\bsrc\s*=\s*(["'])(?!data:|https?:|\/\/|blob:|about:)([^"']+)\1/gi
   const seen = new Set<string>()
+  const refs: LocalRef[] = []
   for (const match of html.matchAll(re)) {
     const raw = match[2]?.trim()
     if (!raw || seen.has(raw) || raw.startsWith('/')) continue
@@ -455,14 +461,40 @@ function estimateInlinedBytes(docDir: string, html: string, root: string): numbe
     const rel = relative(resolve(root), path)
     if (rel === '' || rel.startsWith('..')) continue
     try {
-      const size = statSync(path).size
-      // base64 expands ~4/3; data: URL prefix is small enough to ignore for the warn.
-      total += Math.ceil((size * 4) / 3)
+      refs.push({ raw, bytes: statSync(path).size })
     } catch {
-      // missing reference — leave out of the estimate
+      refs.push({ raw, bytes: null })
     }
   }
+  return refs
+}
+
+/**
+ * Rough post-inline size: HTML bytes + base64 expansion (~4/3) of the local images
+ * a document references. A ref with nothing behind it inlines as nothing.
+ */
+function estimateInlinedBytes(html: string, refs: LocalRef[]): number {
+  let total = Buffer.byteLength(html, 'utf8')
+  for (const ref of refs) {
+    // base64 expands ~4/3; data: URL prefix is small enough to ignore for the warn.
+    if (ref.bytes !== null) total += Math.ceil((ref.bytes * 4) / 3)
+  }
   return total
+}
+
+/**
+ * A ref the agent wrote and never produced — the single most expensive evidence
+ * bug, because the report looks finished and the human sees a broken image. The
+ * containment rule above means these are all refs the viewer WOULD have inlined.
+ */
+function missingRefsNote(file: string, refs: LocalRef[]): string {
+  return refs
+    .filter((ref) => ref.bytes === null)
+    .map(
+      (ref) =>
+        `\nWARNING: ${file} references ${ref.raw}, which is not on disk — it renders as a broken image. Write the file, or fix the path.`,
+    )
+    .join('')
 }
 
 function formatMb(bytes: number): string {
@@ -471,7 +503,7 @@ function formatMb(bytes: number): string {
 
 /** The Results tab list and the gallery count — the two sub-tabs `get` cannot preview. */
 function packSummary(repoPath: string): string {
-  const results = listResults(repoPath).filter((file) => /\.(md|markdown|html?)$/i.test(file))
+  const results = listResults(repoPath)
   const assets = listAssets(repoPath)
   const galleryCount = assets.filter((a) => a.warning === undefined).length
   const lines = [
@@ -498,12 +530,14 @@ export function describeEvidence(repoPath: string, evidence: Evidence | null): s
   const when = evidence.updatedAt ? ` (updated ${evidence.updatedAt})` : ''
   const preview = `\nPreview: ${htmlPreview(evidence.html)}`
   const path = join(dir, evidence.file)
-  const estimated = estimateInlinedBytes(join(path, '..'), evidence.html, dir)
+  const refs = localRefs(join(path, '..'), evidence.html, dir)
+  const missing = missingRefsNote(evidence.file, refs)
+  const estimated = estimateInlinedBytes(evidence.html, refs)
   const sizeNote =
     estimated > READ_MAX_HTML_BYTES
       ? `\nWARNING: estimated inlined size ~${formatMb(estimated)} exceeds the viewer cap (${formatMb(READ_MAX_HTML_BYTES)}). Porcelain will show "Evidence too large" instead of the HTML body — shrink screenshots (e.g. JPEG ~540px) and rewrite the document.`
       : bytes > READ_MAX_HTML_BYTES
         ? `\nWARNING: ${evidence.file} is ${formatMb(bytes)} over the viewer cap (${formatMb(READ_MAX_HTML_BYTES)}). Porcelain will show "Evidence too large" — shrink the document.`
         : ''
-  return `Evidence "${evidence.title}" for ${repoPath}: ${bytes} bytes at ${path}${when}. Open that path in a browser, or Review tab → Evidence in Porcelain.${checks}${pack}${sizeNote}${preview}`
+  return `Evidence "${evidence.title}" for ${repoPath}: ${bytes} bytes at ${path}${when}. Open that path in a browser, or Review tab → Evidence in Porcelain.${checks}${pack}${missing}${sizeNote}${preview}`
 }

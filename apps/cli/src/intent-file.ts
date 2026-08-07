@@ -89,6 +89,7 @@ export function orderIntent(repoPath: string, files: string[]): string[] {
   return orderDocSet(projectIntentDir(repoPath), files, 'intent/')
 }
 
+/** The renderable documents in `intent/`, name-sorted. */
 export function listIntent(repoPath: string): string[] {
   return listDocSet(projectIntentDir(repoPath))
 }
