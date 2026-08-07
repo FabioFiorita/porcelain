@@ -17,7 +17,9 @@ Porcelain stores **project companion data** in the repo:
 ```
 
 Machine secrets (daemon token, remotes, UI prefs) stay under `~/.porcelain` (or
-`PORCELAIN_HOME` for the dev stack). They are never copied into the work tree.
+`PORCELAIN_HOME` for the dev stack). They are never copied into the work tree. Setting up the
+daemon itself on a remote host — install, exposure, pairing, always-on — is the
+`porcelain-remote` skill, not this one.
 
 ## Share with a teammate or another machine
 

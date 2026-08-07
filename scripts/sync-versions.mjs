@@ -68,6 +68,7 @@ function readJson(path) {
  */
 const SKILL_FILES = [
   join(root, 'skills', 'porcelain-companion', 'SKILL.md'),
+  join(root, 'skills', 'porcelain-remote', 'SKILL.md'),
   // Skills we author. Listed explicitly, never globbed: .agents/skills also holds vendored
   // Expo skills that carry their own upstream version, and restamping those would claim we
   // ship an upstream release we do not have.

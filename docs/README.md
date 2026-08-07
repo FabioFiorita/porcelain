@@ -9,6 +9,7 @@ Every file here must be indexed below; `pnpm lint` enforces it.
 |------|------|
 | [product.md](product.md) | Product story: audience, pillars, what Porcelain is and is not |
 | [marketing.md](marketing.md) | Voice and copy rules for README and marketing surfaces |
+| [remote-setup.md](remote-setup.md) | Running the daemon on a remote host: install, exposure, pairing, always-on |
 
 ## Internals
 

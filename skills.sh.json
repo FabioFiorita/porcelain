@@ -4,8 +4,8 @@
   "groupings": [
     {
       "title": "Porcelain",
-      "description": "One companion skill for the whole review layer: the Review, board, actions, notes, layers, and environment sync.",
-      "skills": ["porcelain-companion"]
+      "description": "The review layer for agentic coding: the Review, board, actions, notes, layers, environment sync, and setting up a remote daemon.",
+      "skills": ["porcelain-companion", "porcelain-remote"]
     }
   ]
 }
