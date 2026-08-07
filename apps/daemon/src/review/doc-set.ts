@@ -127,8 +127,15 @@ export interface DocSetOptions {
    * docs at the evidence root; they keep rendering without a migration.
    */
   alsoScan?: readonly string[]
-  /** File names never surfaced from any scanned directory (case-insensitive). */
-  exclude?: readonly string[]
+  /**
+   * File names skipped in the `alsoScan` directories only (case-insensitive).
+   *
+   * Deliberately NOT applied to `dir`: the caller excludes `index.html` so the
+   * legacy root report is not listed twice, and applying that to the primary
+   * directory silently swallowed a modern `evidence/results/index.html` — the
+   * most obvious name an agent would give its report.
+   */
+  excludeFromAlsoScan?: readonly string[]
 }
 
 interface QueuedDoc {
@@ -146,8 +153,8 @@ interface QueuedDoc {
  * `MAX_TOTAL_BYTES` in total. Over-cap documents are dropped, never thrown.
  */
 export async function readDocSet(dir: string, options: DocSetOptions = {}): Promise<ReviewDoc[]> {
-  const exclude = new Set((options.exclude ?? []).map((name) => name.toLowerCase()))
-  const renderable = await renderableNames(dir, exclude)
+  const exclude = new Set((options.excludeFromAlsoScan ?? []).map((name) => name.toLowerCase()))
+  const renderable = await renderableNames(dir, new Set())
   const ordered = await readManifestOrder(dir)
   const seen = new Set<string>()
   const queue: QueuedDoc[] = []
@@ -217,16 +224,27 @@ export function readActiveIntentDocs(repoPath: string): Promise<ReviewDoc[]> {
  * Two legacy shapes still render, because a pack written last month is still
  * proof: loose `*.md` / `*.html` at the evidence root, and the single
  * `index.html` from before Evidence had sub-tabs, surfaced first as "Report".
+ *
+ * A pack can hold BOTH — `evidence/index.html` and `evidence/results/index.html`
+ * are two files, in two directories, written by two generations of agent. Both
+ * render; the legacy one only gives up the bare `index.html` tab key, because
+ * `file` is what every client uses as the key.
  */
 export async function readActiveEvidenceResults(repoPath: string): Promise<ReviewDoc[]> {
   const evidenceDir = projectEvidenceDir(repoPath)
   const docs = await readDocSet(projectEvidenceResultsDir(repoPath), {
     assetRoot: evidenceDir,
     alsoScan: [evidenceDir],
-    exclude: LEGACY_REPORT_FILES,
+    excludeFromAlsoScan: LEGACY_REPORT_FILES,
   })
   const report = await readLegacyReport(evidenceDir)
-  return report === null ? docs : [report, ...docs]
+  if (report === null) return docs
+  const taken = new Set(docs.map((doc) => doc.file))
+  // `../index.html` is the legacy file's path from the results directory: stable,
+  // honest about where it came from, and never a name a scanned directory yields
+  // (those are plain file names, with no separator in them).
+  const keyed = taken.has(report.file) ? { ...report, file: `../${report.file}` } : report
+  return [keyed, ...docs]
 }
 
 async function readLegacyReport(evidenceDir: string): Promise<ReviewDoc | null> {

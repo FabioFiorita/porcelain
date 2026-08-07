@@ -135,13 +135,26 @@ describe('alsoScan', () => {
     expect(set[1]?.body).toBe('loose at the root')
   })
 
-  it('never surfaces an excluded name from any scanned directory', async () => {
+  it('never surfaces an excluded name from an extra directory', async () => {
     const docs = join(dir, 'results')
     await mkdir(docs, { recursive: true })
     await writeFile(join(dir, 'index.html'), '<p>legacy</p>')
     await writeFile(join(dir, 'run-log.md'), 'log')
-    const set = await readDocSet(docs, { alsoScan: [dir], exclude: ['index.html'] })
+    const set = await readDocSet(docs, { alsoScan: [dir], excludeFromAlsoScan: ['index.html'] })
     expect(set.map((d) => d.file)).toEqual(['run-log.md'])
+  })
+
+  // The exclusion exists to stop the legacy root report being listed twice. It
+  // must never reach the primary directory, where `index.html` is just the most
+  // obvious name for a modern report.
+  it('keeps a primary-directory file the extra directories exclude', async () => {
+    const docs = join(dir, 'results')
+    await mkdir(docs, { recursive: true })
+    await writeFile(join(docs, 'index.html'), '<p>modern</p>')
+    await writeFile(join(dir, 'index.html'), '<p>legacy</p>')
+    const set = await readDocSet(docs, { alsoScan: [dir], excludeFromAlsoScan: ['index.html'] })
+    expect(set.map((d) => d.file)).toEqual(['index.html'])
+    expect(set[0]?.body).toBe('<p>modern</p>')
   })
 })
 
@@ -160,6 +173,29 @@ describe('readActiveEvidenceResults', () => {
     const docs = await readActiveEvidenceResults(repo())
     expect(docs.map((d) => d.file)).toEqual(['report.html'])
     expect(docs[0]?.body).toContain('data:image/png;base64,')
+  })
+
+  it('renders results/index.html — the exclusion is for the legacy root only', async () => {
+    const results = projectEvidenceResultsDir(repo())
+    await mkdir(results, { recursive: true })
+    await writeFile(join(results, 'index.html'), '<p>modern report</p>')
+    const docs = await readActiveEvidenceResults(repo())
+    expect(docs.map((d) => [d.file, d.label])).toEqual([['index.html', 'Index']])
+    expect(docs[0]?.body).toBe('<p>modern report</p>')
+  })
+
+  it('renders both index.html files, with distinct keys', async () => {
+    const results = projectEvidenceResultsDir(repo())
+    await mkdir(results, { recursive: true })
+    await writeFile(join(projectEvidenceDir(repo()), 'index.html'), '<p>old proof</p>')
+    await writeFile(join(results, 'index.html'), '<p>modern report</p>')
+    const docs = await readActiveEvidenceResults(repo())
+    expect(docs.map((d) => [d.file, d.label])).toEqual([
+      ['../index.html', 'Report'],
+      ['index.html', 'Index'],
+    ])
+    expect(docs.map((d) => d.body)).toEqual(['<p>old proof</p>', '<p>modern report</p>'])
+    expect(new Set(docs.map((d) => d.file)).size).toBe(docs.length)
   })
 
   it('surfaces a legacy index.html first, as "Report"', async () => {
