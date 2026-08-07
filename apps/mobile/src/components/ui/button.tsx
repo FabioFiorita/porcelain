@@ -36,10 +36,10 @@ const buttonVariants = cva(
         ),
         ghost: cn(
           // Idle fill can't lean on `accent`/`muted` — those sit within ~3% lightness of
-          // `background` in light mode and disappear. Light gets a soft primary tint instead of
-          // gray; dark keeps `foreground` opacity, which already reads fine there.
-          'bg-primary/5 active:bg-primary/10 dark:bg-foreground/5 dark:active:bg-foreground/10',
-          Platform.select({ web: 'hover:bg-primary/8 dark:hover:bg-foreground/8' }),
+          // `background` in light mode and disappear. Light stays neutral but much fainter than
+          // dark needs, so it reads as a soft wash rather than a gray block.
+          'bg-foreground/3 active:bg-foreground/6 dark:bg-foreground/5 dark:active:bg-foreground/10',
+          Platform.select({ web: 'hover:bg-foreground/5 dark:hover:bg-foreground/8' }),
         ),
         link: '',
       },
