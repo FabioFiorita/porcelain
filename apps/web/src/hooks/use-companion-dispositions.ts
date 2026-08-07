@@ -11,12 +11,15 @@ export function useCompanionDispositions(): ChannelDisposition[] | undefined {
 }
 
 /** Whether git is blind to `.porcelain/` in this clone. */
-export function useCompanionGitVisibility(): { hidden: boolean } | undefined {
+export function useCompanionGitVisibility(): {
+  data: { hidden: boolean } | undefined
+  isPending: boolean
+} {
   const repo = useRepoStore((s) => s.repo)
-  const { data } = trpc.companionGitVisibility.useQuery(repo?.path ?? '', {
+  const { data, isPending } = trpc.companionGitVisibility.useQuery(repo?.path ?? '', {
     enabled: repo !== null,
   })
-  return data
+  return { data, isPending }
 }
 
 export function useSetCompanionGitVisibility(): (hidden: boolean) => Promise<void> {

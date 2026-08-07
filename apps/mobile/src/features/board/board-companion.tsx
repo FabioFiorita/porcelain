@@ -64,14 +64,20 @@ export function BoardCompanion({ active }: { active: boolean }): React.JSX.Eleme
         </Text>
       ) : card === null ? (
         error === null ? (
-          <EmptyNote
-            body="Add one from the Board — it opens here."
-            testID="porcelain-board-focus-empty"
-            title="No cards yet"
-          />
+          <View className="gap-2">
+            <PanelLabel>Focus</PanelLabel>
+            <EmptyNote
+              body="Add one from the Board — it opens here."
+              testID="porcelain-board-focus-empty"
+              title="No cards yet"
+            />
+          </View>
         ) : null
       ) : (
-        <FocusCard card={card} />
+        <View className="gap-2">
+          <PanelLabel>Focus</PanelLabel>
+          <FocusCard card={card} />
+        </View>
       )}
 
       <CardComposer host="companion" />
@@ -104,9 +110,13 @@ function FocusCard({ card }: { card: BoardCard }): React.JSX.Element {
       className="gap-3 rounded-2xl border border-border bg-card p-3"
       testID="porcelain-board-focus"
     >
+      {/* The section caption above says "Focus"; the card keeps its own status so the column
+          a card sits in never has to be inferred from the board behind the sheet. */}
       <View className="flex-row items-center gap-1.5">
         <ChromeGlyph name={COLUMN_GLYPH[card.status]} size={12} />
-        <PanelLabel>{STATUS_LABEL[card.status]}</PanelLabel>
+        <Text className="text-[11px] font-medium text-muted-foreground">
+          {STATUS_LABEL[card.status]}
+        </Text>
       </View>
 
       <Text className="text-sm font-medium leading-5 text-foreground">{card.title}</Text>

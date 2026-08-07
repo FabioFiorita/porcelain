@@ -84,8 +84,9 @@ test('CLI review set then evidence appears on the Review canvas', async ({
   await loc.featureOpenReview(page).click()
   await expect(loc.featureCanvas(page)).toBeVisible({ timeout: 15_000 })
   await expect(loc.featureCanvas(page)).toContainText('CLI Intent-only unit')
-  await expect(loc.featureLifecycle(page)).toBeVisible({ timeout: 10_000 })
-  await expect(loc.featureLifecycle(page)).toHaveAttribute('data-phase', 'in_progress')
+  // Intent-only: the chapter is on the canvas and Evidence has nothing to show yet.
+  await expect(loc.featureCanvas(page)).toContainText('Scope')
+  await expect(loc.featureCanvasTab(page, 'evidence')).toBeDisabled({ timeout: 10_000 })
 
   // Grow Execution + Evidence (end of unit path).
   await runFixtureCli(
@@ -140,7 +141,6 @@ test('CLI review set then evidence appears on the Review canvas', async ({
   await expect(frame.locator('h1')).toHaveText('CLI Publish Canary', { timeout: 15_000 })
   await expect(frame.locator('body')).not.toContainText('SCRIPT EXECUTED')
 
-  await expect(loc.featureLifecycle(page)).toHaveAttribute('data-phase', 'ready_to_close', {
-    timeout: 10_000,
-  })
+  // Execution landed too: the outline reports reading progress over the published file.
+  await expect(loc.featureList(page)).toContainText('0/1 reviewed', { timeout: 10_000 })
 })

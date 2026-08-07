@@ -174,7 +174,7 @@ function PhoneSurfaceBody({ surfaceId }: { surfaceId: SurfaceId }): React.JSX.El
 
         <View className="gap-2 rounded-2xl border border-border bg-card p-4">
           <Text className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-            Companion preview · {surface.companionTitle}
+            Companion preview
           </Text>
           {COMPANION[surfaceId].slice(0, 1).map((section) => (
             <View key={section.id} className="gap-1.5">

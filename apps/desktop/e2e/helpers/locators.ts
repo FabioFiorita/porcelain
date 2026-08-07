@@ -55,7 +55,6 @@ export const loc = {
   featureOpenReview: (page: Page): Locator => byId(page, TestIds.featureOpenReview),
   featureCanvas: (page: Page): Locator => byId(page, TestIds.featureCanvas),
   featureEmpty: (page: Page): Locator => byId(page, TestIds.featureEmpty),
-  featureLifecycle: (page: Page): Locator => byId(page, TestIds.featureLifecycle),
   featureCanvasTab: (page: Page, tab: 'intent' | 'execution' | 'evidence'): Locator =>
     byId(page, TestIds.featureCanvasTab(tab)),
   evidencePanel: (page: Page): Locator => byId(page, TestIds.evidencePanel),

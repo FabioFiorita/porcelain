@@ -89,7 +89,7 @@ function DispositionRow({
 export function DataSection(): React.JSX.Element {
   const repo = useRepoStore((s) => s.repo)
   const channels = useCompanionDispositions()
-  const visibility = useCompanionGitVisibility()
+  const { data: visibility } = useCompanionGitVisibility()
   const setVisibility = useSetCompanionGitVisibility()
   const { set } = useSetCompanionDisposition()
   const [lastUntracked, setLastUntracked] = useState<string[]>([])

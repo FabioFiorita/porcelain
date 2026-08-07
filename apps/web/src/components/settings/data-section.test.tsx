@@ -28,7 +28,10 @@ describe('DataSection', () => {
     vi.mocked(useSetCompanionDisposition).mockReturnValue({ set, isSaving: false })
     setVisibility.mockResolvedValue(undefined)
     vi.mocked(useSetCompanionGitVisibility).mockReturnValue(setVisibility)
-    vi.mocked(useCompanionGitVisibility).mockReturnValue({ hidden: true })
+    vi.mocked(useCompanionGitVisibility).mockReturnValue({
+      data: { hidden: true },
+      isPending: false,
+    })
     vi.mocked(useCompanionDispositions).mockReturnValue([
       {
         key: 'actions',
@@ -104,7 +107,10 @@ describe('git visibility', () => {
     vi.mocked(useSetCompanionGitVisibility).mockReturnValue(setVisibility)
     vi.mocked(useSetCompanionDisposition).mockReturnValue({ set, isSaving: false })
     vi.mocked(useCompanionDispositions).mockReturnValue([])
-    vi.mocked(useCompanionGitVisibility).mockReturnValue({ hidden: true })
+    vi.mocked(useCompanionGitVisibility).mockReturnValue({
+      data: { hidden: true },
+      isPending: false,
+    })
   })
 
   it('says the companion is hidden, so the toggles below are not mysterious', () => {
@@ -121,7 +127,10 @@ describe('git visibility', () => {
   })
 
   it('offers to hide again once visible', async () => {
-    vi.mocked(useCompanionGitVisibility).mockReturnValue({ hidden: false })
+    vi.mocked(useCompanionGitVisibility).mockReturnValue({
+      data: { hidden: false },
+      isPending: false,
+    })
     render(<DataSection />)
     expect(screen.getByTestId(TestIds.companionGitVisibility).textContent).toContain(
       'Visible to git',

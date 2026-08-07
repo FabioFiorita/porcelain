@@ -13,12 +13,7 @@ import { useReviewedPaths, useToggleReviewed } from '@renderer/hooks/use-reviewe
 import { compactButtonClass } from '@renderer/lib/controls'
 import { highlightRangesForFile } from '@renderer/lib/highlight-ranges'
 import { dirName, fileName } from '@renderer/lib/paths'
-import {
-  lifecycleBadgeLabel,
-  reviewLifecyclePhase,
-  reviewOutlineFiles,
-} from '@renderer/lib/review-lifecycle'
-import { openChanges } from '@renderer/lib/surface-handoffs'
+import { reviewOutlineFiles } from '@renderer/lib/review-lifecycle'
 import { cn } from '@renderer/lib/utils'
 import { useRepoStore } from '@renderer/stores/repo'
 import {
@@ -28,14 +23,7 @@ import {
 } from '@renderer/stores/review-focus'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { TestIds } from '@shared/test-ids'
-import {
-  Check,
-  FileDiff,
-  GitCompareArrows,
-  MessageSquarePlus,
-  Square,
-  SquareCheck,
-} from 'lucide-react'
+import { Check, FileDiff, MessageSquarePlus, Square, SquareCheck } from 'lucide-react'
 import { memo, useState } from 'react'
 import { CommentComposer } from './comment-composer'
 import { ReviewInbox } from './review-inbox'
@@ -246,15 +234,15 @@ function FeatureOutline(): React.JSX.Element {
     return <p className="p-3 text-sm text-muted-foreground">Loading…</p>
   }
 
-  // No agent review set → start-of-unit. The viewer empty state carries the begin
-  // prompt; the outline points agents (and humans) at Intent-first publish.
+  // No agent review set → start-of-unit. The agent opens the unit; the outline
+  // points agents (and humans) at Intent-first publish.
   if (reading === null) {
     return (
       <div className="mx-2 mt-0.5 rounded-lg border border-dashed bg-muted/20 p-2.5">
         <p className="text-xs font-medium text-foreground">Start a Review</p>
         <p className="mt-1 text-2xs text-muted-foreground">
-          Open the canvas for the begin-unit agent prompt (name + thesis). Clear any previous unit
-          first. Outline fills when Intent is published.
+          Ask your agent to publish Intent first (name + thesis). Clear any previous unit first.
+          Outline fills when Intent is published.
         </p>
       </div>
     )
@@ -275,13 +263,8 @@ function FeatureOutline(): React.JSX.Element {
 
   const allFiles = reviewOutlineFiles(reading)
   const reviewedCount = allFiles.filter((file) => reviewed.has(file.path)).length
-  const reviewedFraction = allFiles.length === 0 ? 0 : reviewedCount / allFiles.length
-  const phase = reviewLifecyclePhase({ reading, reviewedFraction })
-  const phaseBadge = lifecycleBadgeLabel(phase)
-  // Ship handoff (U12): once half the outline is reviewed, offer Commit → Changes
-  // (canonical commit home). Full progress gets the stronger primary CTA.
-  const shipReady = allFiles.length > 0 && reviewedCount * 2 >= allFiles.length
-  const shipDone = allFiles.length > 0 && reviewedCount === allFiles.length
+  // Ship handoff (U12): committing lives on Changes, its canonical home. The
+  // outline reports reading progress and stops there — no second commit entry point.
   const isActive = (section: ReviewFocusSection): boolean => activeSection === section
 
   // Stable list keys from the agent-authored titles (deduped — two sections may
@@ -303,7 +286,6 @@ function FeatureOutline(): React.JSX.Element {
         <div className="min-w-0">
           <p className="truncate text-xs font-semibold text-foreground">{reading.name}</p>
           <p className="mt-0.5 text-2xs text-muted-foreground">
-            {phaseBadge ? `${phaseBadge} · ` : ''}
             {allFiles.length > 0
               ? `${reviewedCount}/${allFiles.length} reviewed`
               : reading.canvas
@@ -319,18 +301,6 @@ function FeatureOutline(): React.JSX.Element {
         >
           Open Review
         </Button>
-        {shipReady && (
-          <Button
-            size="sm"
-            variant={shipDone ? 'default' : 'outline'}
-            className={cn(compactButtonClass, 'w-full')}
-            data-testid={TestIds.featureCommitChanges}
-            onClick={() => openChanges()}
-          >
-            <GitCompareArrows data-icon="inline-start" />
-            Commit changes
-          </Button>
-        )}
       </div>
 
       <div className="flex flex-col gap-0.5 px-2 pt-1">

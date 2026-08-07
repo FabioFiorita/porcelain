@@ -11,7 +11,7 @@ parens is the **entry point**; read it for mechanics.
 | Environment switcher | `environment-switcher.tsx` | **Always rendered, local or remote** — a Remote-only chip couldn't be how you *go* remote. Static label in the browser |
 | Sidebar (unqualified = left) | `app-sidebar.tsx` | Icon rail + content panel (⌘B); footer = branch chip + worktrees picker |
 | Viewer | `shell/viewer.tsx` | The central panel. **Never "editor"** |
-| Quick Access | `right-sidebar.tsx` | The right panel (⌘.); contents follow the active sidebar tab |
+| Companion | `right-sidebar.tsx` | The right panel (⌘.); statically titled "Companion" on every tab — no more per-tab retitling. Orientation comes from section labels, which follow the active sidebar tab. Three other things share the word: the Settings tab, the mobile column/sheet, and the repo-local `.porcelain/` project companion — see the Overlays row and Cross-cutting table below |
 
 **Sidebar tabs** — Files · Changes · Review · History · Search · Board · Terminal (review-loop order,
 ⌘1–7; the Review tab's stored pref id is still `feature`).
@@ -38,23 +38,25 @@ parens is the **entry point**; read it for mechanics.
 | Split view / pane | `stores/tabs.ts` | Two panes, each its own tabs; "Open to the Side" |
 | Tab kinds | `viewer.tsx` switch | file / source / markdown reader / html preview / diff / commit / review / search / feature / explore / board / terminal. **The `feature view` IS the Review canvas** |
 
-**Inside Quick Access** (section follows the sidebar tab)
+**Inside Companion** (sections follow the sidebar tab; the panel title itself never changes)
 
-| Sidebar tab | Quick Access |
+| Sidebar tab | Companion sections |
 |---|---|
-| Files | Pinned + Notes card |
+| Files | Pinned · Notes |
+| Changes | Suggested · Commands · Commit · Comments |
+| History | Suggested · Commands · File timeline (`gitFileLog --follow`) |
+| Review | **Current review · Previous reviews** (`review-group.tsx`; always rendered, empty note when there are none) · Comments — archive the active unit; restore or trash archives under `.porcelain/reviews/` |
+| Board | Focus — full detail of the selected card; card status shows inside the card, not a Board-tab-only affordance. Selection is client-only, **not** a second kanban |
+| Terminal | Saved commands — the "Actions" feature (`.porcelain/actions.json`, see Cross-cutting below) surfaced under this section label |
 | Search | Recent searches |
-| Changes / History / Feature | Quick commands — a Suggested card over the Commands grid |
-| History | File timeline (`gitFileLog --follow`) |
-| Changes / Feature | Commit composer + Comments |
-| Terminal | Actions |
-| Board | Focus — full detail of the selected card; selection is client-only, **not** a second kanban |
-| Feature | **Current review + Previous reviews** (`review-group.tsx` + Comments) — archive the active unit; restore or trash archives under `.porcelain/reviews/` |
+
+Suggested/Commands render only on Changes and History — Review does not get them (it gets Current/Previous review instead).
 
 **Overlays:** file finder (⌘P) · find bar (⌘F) · Settings (`settings-dialog.tsx` — General · **Data**
 · Companion · Share · Remotes · Review flow · Updates) · welcome screen. **Data** owns what git
-carries (`data-section.tsx`, every client); **Companion** is the agent-skill installer only and is
-shell-only. Mobile mirrors General · Data · Review · Environments.
+carries (`data-section.tsx`, every client); this Settings **Companion** tab is the agent-skill
+installer only and is shell-only — do not confuse it with the right-panel **Companion** (⌘.) above.
+Mobile mirrors General · Data · Review · Environments.
 
 **Cross-cutting** (product meaning: `docs/product.md`; internals here and in `audit`)
 
@@ -67,6 +69,6 @@ shell-only. Mobile mirrors General · Data · Review · Environments.
 | Reviewed marks | Per-file "reviewed" checkboxes (`.porcelain/reviewed.json`), app→agent, read-only like notes |
 | Project board | Per-repo todo/doing/done (`.porcelain/board.json`), two-way via the CLI; share via git |
 | Actions | Saved named commands (`.porcelain/actions.json`); agent curates, **human runs** |
-| Project companion | Repo-local `.porcelain/` (board, actions, scope, layers, notes, reviews). Machine secrets stay in `~/.porcelain` / `PORCELAIN_HOME`. One-way migrate from home on first open |
+| Project companion | Repo-local `.porcelain/` (board, actions, scope, layers, notes, reviews) — the third "companion": distinct from the right-panel **Companion** and the Settings **Companion** tab above. Machine secrets stay in `~/.porcelain` / `PORCELAIN_HOME`. One-way migrate from home on first open |
 | Daemon | The headless Electron-free backend (`apps/daemon/src/server.ts`) the web client reaches over HTTP + one WS; the shell spawns and babysits it (`apps/desktop/src/main/daemon.ts`). "The daemon" always resolves here |
 | Surface language | The opaque design: raised = cards, recessed = wells, hover/selected = `bg-accent`/`bg-accent/50`. Menus are the one translucent exception. ONE design serves Electron and the browser alike |

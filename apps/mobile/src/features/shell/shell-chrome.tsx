@@ -448,11 +448,8 @@ export function CompanionColumn(): React.JSX.Element {
         edges={{ bottom: true, right: true }}
       >
         <View className="flex-row items-start justify-between gap-2 px-3 pt-4">
-          <View className="min-w-0 flex-1 gap-1">
-            <Text className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-              Companion
-            </Text>
-            <Text className="text-xl font-bold text-foreground">{surface.companionTitle}</Text>
+          <View className="min-w-0 flex-1">
+            <Text className="text-xl font-bold text-foreground">Companion</Text>
           </View>
           <Button
             accessibilityLabel="Close companion"
@@ -479,11 +476,8 @@ export function CompanionColumn(): React.JSX.Element {
         showsVerticalScrollIndicator={false}
       >
         <View className="flex-row items-start justify-between gap-2">
-          <View className="min-w-0 flex-1 gap-1">
-            <Text className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-              Companion
-            </Text>
-            <Text className="text-xl font-bold text-foreground">{surface.companionTitle}</Text>
+          <View className="min-w-0 flex-1">
+            <Text className="text-xl font-bold text-foreground">Companion</Text>
           </View>
           <Button
             accessibilityLabel="Close companion"
