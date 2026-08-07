@@ -114,17 +114,15 @@ test('CLI review set then evidence appears on the Review canvas', async ({
     repoDir,
   )
 
-  const prepareOut = await runFixtureCli(
+  await runFixtureCli(
     ['evidence', 'prepare', '--repo', repoDir, '--title', 'CLI smoke'],
     seeded.env,
     repoDir,
   )
-  // CLI: `Evidence directory ready for "…" at:\n<dir>\n\nWrite index.html…`
-  const pathLine = prepareOut
-    .split('\n')
-    .map((l) => l.trim())
-    .find((l) => l.startsWith('/') || l.includes('/evidence'))
-  const evidenceDir = pathLine ?? join(repoDir, '.porcelain', 'active-review', 'evidence')
+  // The pack directory is a pure function of repoDir (projectEvidenceDir) — read
+  // it back rather than scraping the CLI's explainer text, which names the
+  // three sub-tab paths in prose and is not a stable line to parse.
+  const evidenceDir = join(repoDir, '.porcelain', 'active-review', 'evidence')
   await mkdir(evidenceDir, { recursive: true })
   await writeFile(join(evidenceDir, 'index.html'), EVIDENCE_HTML)
 
