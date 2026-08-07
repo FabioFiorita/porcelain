@@ -1,6 +1,8 @@
 import { SymbolView } from 'expo-symbols'
 import {
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -53,7 +55,10 @@ export function ShellModal({
       transparent
       visible={open}
     >
-      <View className="absolute inset-0 items-center justify-center">
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        className="absolute inset-0 items-center justify-center"
+      >
         <ModalBackdrop
           accessibilityLabel="Dismiss"
           onPress={onClose}
@@ -100,7 +105,7 @@ export function ShellModal({
 
           {children}
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   )
 }
