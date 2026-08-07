@@ -30,10 +30,24 @@ the package name and URL scheme from the resolved Expo config, defaulting to
 APP_VARIANT=development pnpm --dir apps/mobile android:build
 ```
 
-The loop uses `adb reverse` so the emulator reaches Metro through `127.0.0.1`. It reuses a ready
-emulator when one exists. If it boots one itself, `down` stops only that emulator; if the emulator
-was already running, `down` removes only the reverse created by this loop and leaves the emulator
-running.
+Boot the emulator headless *before* running the build: `expo run:android`'s own auto-boot opens a
+window and is not headless-safe. The build runs `expo prebuild` (creates `android/`, rewrites
+`package.json`), so run it in a managed worktree, never the primary checkout.
+
+The loop uses `adb reverse` so the emulator reaches Metro through `127.0.0.1`.
+
+**Check ownership before `up`.** Run `adb devices` first: an emulator that is already running
+almost certainly belongs to another session — never reuse it, drive it, or kill it. Boot your own
+instead: one AVD supports one instance, so create a session-named clone
+(`avdmanager create avd -n remote-<slug> ...` or copy the `remote` AVD) and boot it headless on a
+distinct port (`emulator -avd remote-<slug> -port <even 5554–5584> -no-window -no-audio`), then
+address it explicitly (`ANDROID_SERIAL=emulator-<port>`). `up` reuses a ready emulator when one
+exists, so this check must happen before calling it.
+
+**Teardown is mandatory.** Every emulator you booted gets shut down before the session ends
+(`adb -s emulator-<port> emu kill`; `down` stops the one this loop booted). Leaving one running
+turns the next session's ownership check into a false "another session is using it". Never kill
+an emulator you did not boot. Delete any session-named AVD clone you created.
 
 ## Targeting controls
 
