@@ -28,6 +28,23 @@ export function installAppMenu(): void {
     ? { role: 'close' }
     : { role: 'close', registerAccelerator: false }
 
+  // New Terminal (Cmd/Ctrl+T). Same trap as Close: a registered accelerator fires in
+  // the main process before the renderer sees the key, regardless of what's focused.
+  // On Linux/Windows the renderer deliberately yields Ctrl+T to a focused embedded
+  // terminal (use-app-shortcuts.ts, ctrlIsPrimary) so the shell keeps its own
+  // transpose-char binding — a registered accelerator here would steal that
+  // unconditionally. macOS has no such carve-out (Cmd is free in the terminal), so it
+  // keeps the real accelerator; Linux/Windows show the same shortcut label but let the
+  // renderer's own keydown handler decide.
+  const newTerminalItem: MenuItemConstructorOptions = {
+    label: 'New Terminal',
+    accelerator: 'CmdOrCtrl+T',
+    ...(isMac ? {} : { registerAccelerator: false }),
+    click: () => {
+      BrowserWindow.getFocusedWindow()?.webContents.send('shell-event', 'new-terminal')
+    },
+  }
+
   // Electron's `{ role: 'windowMenu' }` is expanded here so its platform default
   // Close item can't smuggle a registered Ctrl+W back in on Linux/Windows. macOS
   // keeps the native window roles (minimize/zoom/front); non-darwin omits Close
@@ -47,6 +64,15 @@ export function installAppMenu(): void {
           accelerator: 'CmdOrCtrl+Alt+N',
           click: () => {
             createWindow({ mode: 'welcome' })
+          },
+        },
+        newTerminalItem,
+        { type: 'separator' },
+        {
+          label: 'Quick Open…',
+          accelerator: 'CmdOrCtrl+P',
+          click: () => {
+            BrowserWindow.getFocusedWindow()?.webContents.send('shell-event', 'quick-open')
           },
         },
         { type: 'separator' },
@@ -69,6 +95,14 @@ export function installAppMenu(): void {
         { role: 'resetZoom' },
         { role: 'zoomIn' },
         { role: 'zoomOut' },
+        { type: 'separator' },
+        {
+          label: 'Split Pane',
+          accelerator: 'CmdOrCtrl+Shift+S',
+          click: () => {
+            BrowserWindow.getFocusedWindow()?.webContents.send('shell-event', 'split-pane')
+          },
+        },
         { type: 'separator' },
         { role: 'togglefullscreen' },
       ],

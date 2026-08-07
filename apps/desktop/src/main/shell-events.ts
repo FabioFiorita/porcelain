@@ -17,6 +17,12 @@ export type ShellEvent =
   | 'local-daemon-changed'
   // File > Settings… (menu.ts) — open the Settings dialog in the focused window.
   | 'open-settings'
+  // File > New Terminal / File > Quick Open… / View > Split Pane (menu.ts) — mirror the
+  // renderer's own ⌘T / ⌘P / ⌘⇧S shortcuts (use-app-shortcuts.ts, file-finder.tsx) so the
+  // menu item and the keyboard shortcut land on the same code path.
+  | 'new-terminal'
+  | 'quick-open'
+  | 'split-pane'
 
 /**
  * Broadcast a shell event to every open window (update-status is repo-agnostic,

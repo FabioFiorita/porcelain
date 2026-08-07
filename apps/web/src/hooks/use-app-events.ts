@@ -2,7 +2,9 @@ import type { AppEvent } from '@backend/app-events'
 import type { ShellEvent } from '@main/shell-events'
 import { onDaemonClose, onDaemonEvent, onDaemonReconnect } from '@renderer/lib/daemon'
 import { isBrowser } from '@renderer/lib/platform'
+import { spawnTerminal } from '@renderer/lib/terminal-actions'
 import { shellTrpc, shellTrpcClient, trpc } from '@renderer/lib/trpc'
+import { useFileFinderStore } from '@renderer/stores/file-finder'
 import { useSettingsDialogStore } from '@renderer/stores/settings-dialog'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { unreadTabFor, useUnreadStore } from '@renderer/stores/unread'
@@ -121,6 +123,24 @@ function handle(
       // File > Settings… (menu.ts) — open the same dialog the sidebar gear drives.
       useSettingsDialogStore.getState().openTo()
       return Promise.resolve()
+    case 'new-terminal':
+      // File > New Terminal (menu.ts) — same spawn the ⌘T shortcut and the Terminal
+      // tab's "+" button use.
+      return spawnTerminal()
+    case 'quick-open':
+      // File > Quick Open… (menu.ts) — open the same popup ⌘P toggles, mirroring the
+      // titlebar search bar's use of this store.
+      useFileFinderStore.getState().setOpen(true)
+      return Promise.resolve()
+    case 'split-pane': {
+      // View > Split Pane (menu.ts) — same as the ⌘⇧S shortcut (use-app-shortcuts.ts):
+      // open the active tab again in a new pane beside it.
+      const { panes, activePaneIndex, openTabToSide } = useTabsStore.getState()
+      const pane = panes[activePaneIndex]
+      const active = pane?.tabs.find((t) => t.id === pane.activeTabId)
+      if (active) openTabToSide({ ...active, preview: false })
+      return Promise.resolve()
+    }
   }
 }
 
