@@ -2,18 +2,15 @@ import { ScrollView, Text, View } from 'react-native'
 
 import { ChromeGlyph, type ChromeIconName, type IconTone } from '@/components/chrome-glyph'
 import { EmptyNote, ErrorNote } from '@/components/panel-chrome'
-import { previewDocument } from '@/features/files/preview-document'
-import { PreviewView } from '@/features/files/preview-view'
-import type { Evidence, EvidenceCheck, EvidenceMeta } from '@/lib/daemon/procedures/review'
+import { SegmentedControl } from '@/components/segmented-control'
+import type { EvidenceCheck, EvidenceMeta } from '@/lib/daemon/procedures/review'
 import { cn } from '@/lib/utils'
 
 import { IntentDocBody } from './doc-body'
+import { EvidenceGallery } from './evidence-gallery'
 import { type DocTab, DocTabs } from './review-chrome'
-import { useReviewStore } from './review-store'
-import { useEvidenceHtml, useReviewEvidenceDocs } from './use-review'
-
-/** The report is not a file on disk from the tab strip's point of view — it is `index.html`. */
-const REPORT_KEY = 'report'
+import { type EvidenceTab, useReviewStore } from './review-store'
+import { useReviewEvidenceAssets, useReviewEvidenceDocs } from './use-review'
 
 const CHECK_FACE: Record<EvidenceCheck['status'], { glyph: ChromeIconName; tone: IconTone }> = {
   fail: { glyph: 'circleX', tone: 'destructive' },
@@ -21,115 +18,141 @@ const CHECK_FACE: Record<EvidenceCheck['status'], { glyph: ChromeIconName; tone:
   skip: { glyph: 'minus', tone: 'muted' },
 }
 
+const SUB_TABS: readonly { value: EvidenceTab; label: string }[] = [
+  { label: 'Checks', value: 'checks' },
+  { label: 'Results', value: 'results' },
+  { label: 'Assets', value: 'assets' },
+]
+
 /**
  * Evidence: what the agent actually ran, and the proof of it.
  *
- * The structured checks stay above every tab because they are the summary, not one view of
- * it — a pass/fail line you can read in a second is the point of the surface on a phone. The
- * report itself (`evidence/index.html`) is the first tab; any other document beside it is a
- * tab of its own, same media and caps as Intent.
+ * One directory read three ways, not one document. **Checks** is the agent's structured
+ * claim, **Results** the documents it wrote to back the claim (`evidence/results/`, with a
+ * legacy `index.html` folded in as "Report"), **Assets** the screenshots. A sub-tab with
+ * nothing behind it stays visible and disabled, so the shape of a pack is legible before
+ * you tap — and the first sub-tab that has anything is the one that opens, so a pack
+ * without checks lands on Results rather than a dead pane.
  *
- * The HTML is only read while this canvas is up: an evidence pack runs to megabytes of
- * inlined screenshots, and fetching it beside the reading would make opening the Review
- * expensive for a tab nobody asked for.
+ * The header keeps only what is true of the whole pack: title, when it was written, and the
+ * one-line pass/fail. The checks LIST is a sub-tab like the others — on a phone it is the
+ * longest of the three, and pinning it above every tab left the proof itself in a sliver.
+ *
+ * Every read here is gated on this canvas being up: a pack runs to megabytes, and only the
+ * mounted sub-tab's body fetches at all.
  */
 export function EvidenceBody({
   active,
   meta,
 }: {
-  /** Focus AND tab visibility — the gate on a read that can reach 4 MiB. */
+  /** Focus AND tab visibility — the gate on reads that can reach megabytes. */
   active: boolean
   /** From `featureReading`; `null` when the agent has published no evidence. */
   meta: EvidenceMeta | null
 }): React.JSX.Element {
-  const { docs } = useReviewEvidenceDocs(active && meta !== null)
-  const { error, evidence, isLoading } = useEvidenceHtml(active && meta !== null)
-  const selected = useReviewStore((state) => state.evidenceDoc)
-  const setSelected = useReviewStore((state) => state.setEvidenceDoc)
+  const enabled = active && meta !== null
+  const { docs } = useReviewEvidenceDocs(enabled)
+  const { assets } = useReviewEvidenceAssets(enabled)
+  const picked = useReviewStore((state) => state.evidenceTab)
+  const setPicked = useReviewStore((state) => state.setEvidenceTab)
 
   if (meta === null) {
     return (
       <EmptyNote
-        body="When your agent publishes HTML proof of what it ran, it shows here. Ask it for evidence prepare, then evidence check."
+        body="When your agent publishes proof of what it ran, it shows here. Ask it for evidence prepare, then evidence check."
         testID="porcelain-review-evidence-empty"
         title="No evidence yet"
       />
     )
   }
 
-  const extras = docs ?? []
-  const tabs: DocTab[] = [
-    { key: REPORT_KEY, label: 'Report' },
-    ...extras.map((doc) => ({ key: doc.file, label: doc.label })),
-  ]
-  const current = selected === null ? REPORT_KEY : selected
-  const doc = extras.find((entry) => entry.file === current)
+  // The listings are authoritative once they land; until then the meta counts keep the
+  // sub-tabs from flashing disabled on a pack that has plenty in it.
+  const counts: Record<EvidenceTab, number> = {
+    assets: assets?.length ?? meta.assets ?? 0,
+    checks: meta.checks.length,
+    results: docs?.length ?? (meta.results ?? 0) + (meta.hasReport === true ? 1 : 0),
+  }
+  const current = picked ?? SUB_TABS.find((tab) => counts[tab.value] > 0)?.value ?? 'checks'
 
   return (
     <View className="flex-1" testID="porcelain-review-evidence">
       <EvidenceHeader meta={meta} />
-      {tabs.length === 1 ? null : (
-        <DocTabs
-          tabs={tabs}
-          testIDPrefix="porcelain-review-evidence-tab"
+      <View className="px-4 py-2">
+        <SegmentedControl<EvidenceTab>
+          options={SUB_TABS.map((tab) => ({
+            disabled: counts[tab.value] === 0,
+            label: `${tab.label} ${counts[tab.value]}`,
+            testID: `porcelain-review-evidence-subtab-${tab.value}`,
+            value: tab.value,
+          }))}
+          testID="porcelain-review-evidence-subtabs"
           value={current}
-          onChange={(key) => {
-            setSelected(key === REPORT_KEY ? null : key)
-          }}
+          onChange={setPicked}
         />
-      )}
-      {doc !== undefined ? (
-        <IntentDocBody doc={doc} testIDPrefix="porcelain-review-evidence-doc" />
+      </View>
+      {current === 'checks' ? (
+        <ChecksPane checks={meta.checks} />
+      ) : current === 'results' ? (
+        <ResultsPane />
       ) : (
-        <EvidenceReport error={error} evidence={evidence} isLoading={isLoading} />
+        <AssetsPane />
       )}
     </View>
   )
 }
 
-/** Title, when it was written, and the checks — the part that stays above every tab. */
+/** Title, when it was written, and the one-line verdict — true of the whole pack. */
 function EvidenceHeader({ meta }: { meta: EvidenceMeta }): React.JSX.Element {
   const failed = meta.checks.filter((check) => check.status === 'fail').length
   const passed = meta.checks.filter((check) => check.status === 'pass').length
 
   return (
-    <View className="shrink-0 gap-2 border-b border-border px-3 py-2">
-      <View className="flex-row items-center gap-2">
-        <View className="min-w-0 flex-1">
-          <Text className="text-xs font-semibold text-foreground" numberOfLines={2}>
-            {meta.title}
-          </Text>
-          <Text className="text-[10px] text-muted-foreground" numberOfLines={1}>
-            Updated {formatUpdatedAt(meta.updatedAt)}
-          </Text>
-        </View>
-        {meta.checks.length === 0 ? null : (
-          <Text
-            className={cn(
-              'font-mono text-[11px] font-semibold',
-              failed > 0 ? 'text-destructive' : 'text-success',
-            )}
-            testID="porcelain-review-evidence-summary"
-          >
-            {failed > 0 ? `${failed} failed` : `${passed} passed`}
-          </Text>
-        )}
+    <View className="shrink-0 flex-row items-center gap-2 border-b border-border px-3 py-2">
+      <View className="min-w-0 flex-1">
+        <Text className="text-xs font-semibold text-foreground" numberOfLines={2}>
+          {meta.title}
+        </Text>
+        <Text className="text-[10px] text-muted-foreground" numberOfLines={1}>
+          Updated {formatUpdatedAt(meta.updatedAt)}
+        </Text>
       </View>
-
       {meta.checks.length === 0 ? null : (
-        <ScrollView
-          className="max-h-28"
-          contentContainerClassName="gap-1"
-          nestedScrollEnabled
-          showsVerticalScrollIndicator={false}
-          testID="porcelain-review-evidence-checks"
+        <Text
+          className={cn(
+            'font-mono text-[11px] font-semibold',
+            failed > 0 ? 'text-destructive' : 'text-success',
+          )}
+          testID="porcelain-review-evidence-summary"
         >
-          {meta.checks.map((check) => (
-            <CheckRow key={check.label} check={check} />
-          ))}
-        </ScrollView>
+          {failed > 0 ? `${failed} failed` : `${passed} passed`}
+        </Text>
       )}
     </View>
+  )
+}
+
+/** Checks: the agent's structured claim, one row per thing it says it ran. */
+function ChecksPane({ checks }: { checks: EvidenceCheck[] }): React.JSX.Element {
+  if (checks.length === 0) {
+    return (
+      <EmptyNote
+        body="This pack records no checks. Ask the agent for evidence check to write what it ran."
+        testID="porcelain-review-evidence-checks-empty"
+        title="No checks in this pack"
+      />
+    )
+  }
+  return (
+    <ScrollView
+      className="flex-1"
+      contentContainerClassName="gap-2 px-4 py-2"
+      testID="porcelain-review-evidence-checks"
+    >
+      {checks.map((check) => (
+        <CheckRow key={check.label} check={check} />
+      ))}
+    </ScrollView>
   )
 }
 
@@ -145,11 +168,9 @@ function CheckRow({ check }: { check: EvidenceCheck }): React.JSX.Element {
         <ChromeGlyph name={face.glyph} size={13} tone={face.tone} />
       </View>
       <View className="min-w-0 flex-1">
-        <Text className="text-[11px] leading-4 text-foreground" numberOfLines={2}>
-          {check.label}
-        </Text>
+        <Text className="text-[11px] leading-4 text-foreground">{check.label}</Text>
         {check.detail === undefined ? null : (
-          <Text className="font-mono text-[10px] leading-4 text-muted-foreground" numberOfLines={2}>
+          <Text className="font-mono text-[10px] leading-4 text-muted-foreground">
             {check.detail}
           </Text>
         )}
@@ -159,21 +180,15 @@ function CheckRow({ check }: { check: EvidenceCheck }): React.JSX.Element {
 }
 
 /**
- * The proof itself.
- *
- * The over-cap case gets real copy rather than a blank pane: the title and the checks are
- * still on disk and still true, and only the inlined body was dropped for the read cap — so
- * the message names both sizes and what to do about it, exactly as the desktop does.
+ * Results: `evidence/results/` as the same document strip Intent uses, over the same
+ * two-media renderer. One document renders bare — a strip of one pill is chrome, not a
+ * choice.
  */
-function EvidenceReport({
-  error,
-  evidence,
-  isLoading,
-}: {
-  error: Error | null
-  evidence: Evidence | null | undefined
-  isLoading: boolean
-}): React.JSX.Element {
+function ResultsPane(): React.JSX.Element {
+  const { docs, error, isLoading } = useReviewEvidenceDocs(true)
+  const selected = useReviewStore((state) => state.evidenceDoc)
+  const setSelected = useReviewStore((state) => state.setEvidenceDoc)
+
   if (error !== null) {
     return (
       <View className="p-4">
@@ -181,61 +196,71 @@ function EvidenceReport({
       </View>
     )
   }
-  if (evidence === undefined) {
-    return isLoading ? (
+  if (docs === undefined) {
+    return (
       <Text
         className="p-4 text-sm text-muted-foreground"
-        testID="porcelain-review-evidence-loading"
+        testID={isLoading ? 'porcelain-review-evidence-loading' : 'porcelain-review-evidence-idle'}
       >
-        Loading evidence…
+        {isLoading ? 'Loading evidence…' : 'No daemon connected.'}
       </Text>
-    ) : (
-      <EmptyNote
-        body="The daemon returned nothing for this evidence pack."
-        testID="porcelain-review-evidence-unavailable"
-        title="Nothing to show"
-      />
     )
   }
-  if (evidence === null) {
+
+  const current = docs.find((doc) => doc.file === selected) ?? docs[0]
+  if (current === undefined) {
     return (
       <EmptyNote
-        body="The evidence pack was cleared since this Review was read."
-        testID="porcelain-review-evidence-cleared"
-        title="Evidence was cleared"
+        body="Documents your agent writes to evidence/results/ show here — markdown or a styled HTML page."
+        testID="porcelain-review-evidence-results-empty"
+        title="No documents in this pack"
       />
     )
   }
-  if (evidence.htmlUnavailable !== undefined) {
-    const { bytes, maxBytes } = evidence.htmlUnavailable
-    return (
-      <EmptyNote
-        body={`This pack is ${formatMb(bytes)}, past the ${formatMb(maxBytes)} read cap, so its body was dropped — the checks above are still the real result. Shrink the screenshots (JPEG around 540px wide) and rewrite index.html.`}
-        testID="porcelain-review-evidence-too-large"
-        title="Evidence too large to render"
-      />
-    )
-  }
-  if (evidence.html === undefined || evidence.html === '') {
-    return (
-      <EmptyNote
-        body="The pack has checks but no index.html body. Ask the agent to write one in the directory evidence prepare printed."
-        testID="porcelain-review-evidence-no-body"
-        title="No evidence body"
-      />
-    )
-  }
+
+  const tabs: DocTab[] = docs.map((doc) => ({ key: doc.file, label: doc.label }))
+
   return (
-    <PreviewView
-      document={previewDocument(evidence.html)}
-      testID="porcelain-review-evidence-report"
-    />
+    <View className="flex-1" testID="porcelain-review-evidence-results">
+      {tabs.length === 1 ? null : (
+        <DocTabs
+          tabs={tabs}
+          testIDPrefix="porcelain-review-evidence-tab"
+          value={current.file}
+          onChange={setSelected}
+        />
+      )}
+      <IntentDocBody doc={current} testIDPrefix="porcelain-review-evidence-doc" />
+    </View>
   )
 }
 
-/** Always MB with one decimal — the same shape the desktop's over-cap copy uses. */
-function formatMb(bytes: number): string {
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+/** Assets: the screenshots, native. The listing is cheap; the bytes are not, so they wait. */
+function AssetsPane(): React.JSX.Element {
+  const { assets, error, isLoading } = useReviewEvidenceAssets(true)
+
+  if (error !== null) {
+    return (
+      <View className="p-4">
+        <ErrorNote message={error.message} testID="porcelain-review-evidence-assets-error" />
+      </View>
+    )
+  }
+  if (assets === undefined) {
+    return (
+      <Text
+        className="p-4 text-sm text-muted-foreground"
+        testID={
+          isLoading
+            ? 'porcelain-review-evidence-assets-loading'
+            : 'porcelain-review-evidence-assets-idle'
+        }
+      >
+        {isLoading ? 'Loading the gallery…' : 'No daemon connected.'}
+      </Text>
+    )
+  }
+  return <EvidenceGallery assets={assets} />
 }
 
 function formatUpdatedAt(iso: string): string {

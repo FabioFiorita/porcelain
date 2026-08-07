@@ -10,6 +10,9 @@ export type ReviewCanvasTab = 'intent' | 'execution' | 'evidence'
  */
 export type ExecutionFocus = { blockId: string; token: number } | null
 
+/** Evidence read three ways: the claim, the documents behind it, the screenshots. */
+export type EvidenceTab = 'checks' | 'results' | 'assets'
+
 type ReviewState = {
   canvasTab: ReviewCanvasTab
   /**
@@ -18,13 +21,20 @@ type ReviewState = {
    * who has chosen nothing yet gets whatever comes first.
    */
   intentPane: string | null
-  /** Which Evidence document is up, by file name. `null` is the `index.html` report. */
+  /**
+   * Which Evidence sub-tab is up. `null` means "the first one that has anything"
+   * — a pack with no checks should open on Results rather than a dead pane, and
+   * the reader's own pick must survive the next poll landing a new document.
+   */
+  evidenceTab: EvidenceTab | null
+  /** Which Results document is up, by file name. `null` means the first one. */
   evidenceDoc: string | null
   /** The Execution block the outline last asked for. Consumed by the Execution canvas. */
   executionFocus: ExecutionFocus
   setCanvasTab: (tab: ReviewCanvasTab) => void
   setIntentPane: (pane: string | null) => void
   setEvidenceDoc: (file: string | null) => void
+  setEvidenceTab: (tab: EvidenceTab) => void
   /** Outline tap: show Execution and scroll it to this block. */
   focusExecutionBlock: (blockId: string) => void
   clearExecutionFocus: () => void
@@ -46,6 +56,7 @@ type ReviewState = {
 export const useReviewStore = create<ReviewState>()((set) => ({
   canvasTab: 'intent',
   evidenceDoc: null,
+  evidenceTab: null,
   executionFocus: null,
   intentPane: null,
   clearExecutionFocus: () => {
@@ -64,6 +75,9 @@ export const useReviewStore = create<ReviewState>()((set) => ({
   },
   setEvidenceDoc: (evidenceDoc) => {
     set({ evidenceDoc })
+  },
+  setEvidenceTab: (evidenceTab) => {
+    set({ evidenceTab })
   },
   setIntentPane: (intentPane) => {
     set({ intentPane })

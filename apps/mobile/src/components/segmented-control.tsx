@@ -7,6 +7,12 @@ type Option<T extends string> = {
   value: T
   label: string
   testID?: string
+  /**
+   * This segment alone is unselectable — a sub-tab with nothing behind it. It stays
+   * visible and dimmed rather than disappearing, so the shape of what you are
+   * looking at is legible before you tap.
+   */
+  disabled?: boolean
 }
 
 /**
@@ -42,16 +48,18 @@ export function SegmentedControl<T extends string>({
     >
       {options.map((option) => {
         const selected = option.value === value
+        const off = disabled || option.disabled === true
         return (
           <Pressable
             key={option.value}
             accessibilityRole="tab"
-            accessibilityState={{ disabled, selected }}
+            accessibilityState={{ disabled: off, selected }}
             className={cn(
               'min-h-8 min-w-0 flex-1 items-center justify-center rounded-md px-2.5 py-1.5',
               selected && 'bg-background shadow-sm shadow-black/5',
+              option.disabled === true && 'opacity-40',
             )}
-            disabled={disabled}
+            disabled={off}
             testID={option.testID}
             onPress={() => {
               onChange(option.value)

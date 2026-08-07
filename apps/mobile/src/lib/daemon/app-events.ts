@@ -12,7 +12,13 @@ export const APP_EVENT_INVALIDATIONS: Record<AppEvent, readonly string[]> = {
   actions: ['actions'],
   board: ['boardCards'],
   comments: ['reviewComments'],
-  evidence: ['loopEvidence', 'loopEvidenceHtml', 'featureReading'],
+  evidence: [
+    'loopEvidence',
+    'loopEvidenceHtml',
+    'featureReading',
+    'reviewEvidenceDocs',
+    'reviewEvidenceAssets',
+  ],
   'feature-view': ['featureView', 'featureReading', 'worktreeInbox'],
   // Content search reads file bodies, so a tree write staleness it exactly like a directory
   // listing — without these an open grep keeps showing hits in a file that no longer has them.
