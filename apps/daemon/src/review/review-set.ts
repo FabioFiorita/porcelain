@@ -1,4 +1,3 @@
-import { MAX_SCENE_BYTES } from '@shared/excalidraw-scene'
 import { z } from 'zod'
 
 /**
@@ -87,34 +86,17 @@ export interface ReviewSection {
  * renders this full-height instead of the structured reading surface; thesis +
  * sections still drive the sidebar outline. Not a revival of the deleted
  * feature-artifact channel — a medium on the same Review.
+ *
+ * HTML is the only canvas medium. Reviews written before the media collapsed to
+ * HTML + Markdown may still carry a scene-based canvas on disk; that canvas is
+ * dropped on read (see `canvas` below), never a parse failure.
  */
-const reviewCanvasSchema = z
-  .discriminatedUnion('medium', [
-    z.object({
-      medium: z.literal('html'),
-      html: z.string().min(1).max(524_288),
-    }),
-    z.object({
-      medium: z.literal('excalidraw'),
-      // Shape gate; byte cap via superRefine (mirrors parseExcalidrawScene).
-      scene: z
-        .object({
-          elements: z.array(z.unknown()),
-        })
-        .passthrough(),
-    }),
-  ])
-  .superRefine((value, ctx) => {
-    if (value.medium !== 'excalidraw') return
-    const bytes = Buffer.byteLength(JSON.stringify(value.scene), 'utf8')
-    if (bytes > MAX_SCENE_BYTES) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: `canvas.scene is ${bytes} bytes, over the ${MAX_SCENE_BYTES}-byte limit`,
-        path: ['scene'],
-      })
-    }
-  })
+const reviewCanvasSchema = z.discriminatedUnion('medium', [
+  z.object({
+    medium: z.literal('html'),
+    html: z.string().min(1).max(524_288),
+  }),
+])
 
 export type ReviewCanvas = z.infer<typeof reviewCanvasSchema>
 
@@ -123,7 +105,13 @@ export const reviewSetSchema = z.object({
   thesis: z.string().max(4096).optional(),
   files: z.array(reviewSetFileSchema).default([]),
   sections: z.array(reviewSectionSchema).max(30).default([]),
-  canvas: reviewCanvasSchema.optional(),
+  /**
+   * A canvas the app cannot render — a legacy scene medium, or anything over the
+   * caps — degrades to no canvas instead of failing the whole review. review.json
+   * is written by an external process; one stale field must not cost the human
+   * every other tab.
+   */
+  canvas: reviewCanvasSchema.optional().catch(undefined),
 })
 
 export interface ReviewSet {
@@ -133,6 +121,6 @@ export interface ReviewSet {
   files: ReviewSetFile[]
   /** The agent-authored walkthrough sections, in flow order. */
   sections: ReviewSection[]
-  /** Optional freeform Overview body (html | excalidraw). */
+  /** Optional freeform Overview body (html). */
   canvas?: ReviewCanvas
 }

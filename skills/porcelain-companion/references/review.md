@@ -10,7 +10,7 @@ a unit of work — feature, bug, chore, or investigation.
 - **Intent** — thesis, sections, documents on disk, freeform canvas
 - **Execution** — the curated file list, sources, notes, layers
 - **Evidence** — HTML proof, structured checks, sandbox and CSS rules
-- **Medium policy** — what belongs on which surface (including Excalidraw)
+- **Medium policy** — what belongs on which surface
 - **Comments & reviewed marks** — app → agent
 - **What not to do**
 
@@ -71,12 +71,12 @@ card → Start Review (title prefilled). Do not turn Review into a second kanban
 
 0. **`review clear` first** when starting a **new** unit — removes the previous set **and** its
    loop-evidence directory (HTML + images). Matches the app Clear control. Skipping this is how a
-   later agent leaves an old Excalidraw board under a new Intent document.
+   later agent leaves an old board under a new Intent document.
 1. **Intent-first** — one `review set` with name + thesis. `--files` and `--sections` are
    optional; omit them entirely at the start. A full `review set` replaces the structured set and
    does **not** keep a previous freeform canvas.
-2. **Optional Intent board** — only if *this* unit needs one: `review set-canvas` (html or
-   Excalidraw). Never `set-canvas` alone for a new unit without steps 0–1.
+2. **Optional Intent board** — only if *this* unit needs one: `review set-canvas` (html).
+   Never `set-canvas` alone for a new unit without steps 0–1.
 3. **Execution grows** — re-`review set` with files + notes as you work.
 4. **Evidence** — after you validate, `evidence prepare` + write a self-contained `index.html`
    (**include CSS**). **Required to claim done.**
@@ -141,7 +141,7 @@ Reach for these when prose alone won't carry it.
 ```bash
 ~/.porcelain/porcelain intent prepare          # makes the dir + assets/, prints the paths
 # …write documents there with your normal file tools…
-~/.porcelain/porcelain intent order --files overview.md,before-after.html,flow.excalidraw
+~/.porcelain/porcelain intent order --files overview.md,before-after.html,flow.md
 ~/.porcelain/porcelain intent list
 ```
 
@@ -152,7 +152,10 @@ costs nothing.
 |---|---|---|
 | `.md` / `.markdown` | Prose | Escaped markdown — a raw `<script>` shows as text, not markup |
 | `.html` / `.htm` | Sandboxed page | Sibling `.css` and images are **inlined for you**, so relative paths work. No scripts, ever |
-| `.excalidraw` | Read-only diagram | Scene JSON; export from the app, don't hand-author |
+
+Those two are the whole media story, on every client — web, desktop shell, and mobile. Anything
+else in the directory is skipped. A diagram is inline SVG inside an `.html` document (or a section
+`diagram`), not a third format.
 
 Images live in `.porcelain/active-review/intent/assets/` and are referenced relatively:
 
@@ -173,7 +176,6 @@ document should be simpler, or a diagram.
 
 ```bash
 ~/.porcelain/porcelain review set-canvas --medium html --html-file ./intent.html
-~/.porcelain/porcelain review set-canvas --medium excalidraw --file ./board.excalidraw
 ~/.porcelain/porcelain review clear-canvas
 ```
 
@@ -187,8 +189,7 @@ only the Intent body when set.
 | `--thesis` alone | Small unit; one paragraph is the whole story |
 | `--thesis` + `--sections` | Default. Ordered walkthrough with code anchors |
 | `intent prepare` + `.md` | The rationale is longer than a thesis and wants headings |
-| `intent prepare` + `.html` | A before/after, a table of measurements, a styled report |
-| `intent prepare` + `.excalidraw` | Architecture or data flow that needs a spatial map |
+| `intent prepare` + `.html` | A before/after, a table of measurements, a styled report, an architecture or data-flow map as inline SVG |
 | `set-canvas` | One board carries the whole idea and you want it full-height |
 
 Combining is fine — documents, board, and the structured walkthrough all appear as tabs.
@@ -251,7 +252,7 @@ Grouping across the whole repo (not just this unit) is [layers.md](layers.md).
 Ephemeral HTML proof that you closed the loop: browser, simulator, screenshots, pass/fail. Do not
 claim a unit done without real Evidence of what you ran. Don't invent proof.
 
-**HTML only.** Excalidraw is not an evidence medium.
+**HTML only.** Markdown documents may sit beside `index.html`; nothing else is an evidence medium.
 
 **Screenshots yes, video no.** Images (`.png`, `.jpg`, `.webp`, `.gif`, `.svg`) are inlined as
 data URIs. Video would mean widening the CSP that backstops agent-authored HTML, or serving the
@@ -274,8 +275,8 @@ into history permanently. Prefer WebP over PNG and keep a pack in the low single
    - Screenshots with a relative `src`. Put more than one or two under **`assets/`** —
      sub-directories are inlined the same way, and it keeps a published review readable.
 3. Optionally add **more documents** beside `index.html` — a run log, a query plan, a diagram. Any
-   `.md` / `.html` / `.excalidraw` there becomes a tab next to Report, with the structured checks
-   pinned above all of them.
+   `.md` / `.html` there becomes a tab next to Report, with the structured checks pinned above all
+   of them.
 4. Record structured checks:
 
 ```bash
@@ -356,13 +357,13 @@ That skeleton is an example only — rewrite the CSS per review.
 
 | Surface | Allowed mediums |
 |---------|-----------------|
-| **Intent** | Structured document (thesis + section prose/diagrams) **or** freeform HTML **or** Excalidraw |
+| **Intent** | Structured document (thesis + section prose/diagrams) **or** freeform HTML **or** markdown documents |
 | **Execution** | Native app UI (exactly the files from `--files`, agent order) — not a freeform medium |
 | **Evidence** | **HTML only** (`index.html` + own CSS + optional screenshots) |
 
-**Bias:** structured Intent + HTML Evidence. Reach for Excalidraw only when a spatial board is
-clearly better for Intent (architecture map, data-flow whiteboard) — and export it from the
-Excalidraw app rather than hand-authoring scene JSON. Never put Excalidraw on Evidence.
+**Bias:** structured Intent + HTML Evidence. Two media, everywhere: HTML and markdown. When a
+spatial map (architecture, data flow) is the clearest way to say it, draw it as inline SVG in an
+HTML document — that renders on every client, including mobile.
 
 ## Comments & reviewed marks (app → agent)
 

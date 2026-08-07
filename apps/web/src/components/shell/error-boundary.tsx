@@ -36,10 +36,10 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBound
 /**
  * Pane-level: contains a crash to one pane instead of taking the window down.
  *
- * Review content is agent-authored and can reach heavy third-party renderers
- * (Excalidraw). One unrenderable document must cost the human that document,
- * not the whole app — they still need the other Intent tabs, the file list, and
- * the evidence to finish the review.
+ * Review content is agent-authored and arrives from outside the app — markup an
+ * agent wrote, or a review received from a clone. One unrenderable document must
+ * cost the human that document, not the whole app — they still need the other
+ * Intent tabs, the file list, and the evidence to finish the review.
  */
 export class PaneErrorBoundary extends Component<
   { children: ReactNode; label: string },

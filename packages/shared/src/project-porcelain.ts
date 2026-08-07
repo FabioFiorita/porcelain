@@ -54,8 +54,8 @@ export const ACTIVE_FILES = {
 
 /**
  * Intent as a document set rather than one field: `.porcelain/intent/` holds the
- * agent's case for the change in whatever medium carries it — markdown, a
- * self-contained HTML page with its own CSS and images, an Excalidraw scene.
+ * agent's case for the change in whatever medium carries it — markdown, or a
+ * self-contained HTML page with its own CSS and images.
  * More than one file becomes more than one tab. Archived with the review.
  */
 export const PROJECT_INTENT_DIR = 'intent'

@@ -89,7 +89,7 @@ which fail **silently** in the sandboxed Evidence tab. Fix what it reports and r
 ~/.porcelain/porcelain review set --name "…" --thesis "…"        # name + thesis is a full start
 ~/.porcelain/porcelain review set --name "…" --thesis "…" --files '[…]' --sections '[…]'
 ~/.porcelain/porcelain review set-canvas --medium html --html-file ./intent.html   # optional
-~/.porcelain/porcelain intent prepare                 # then write .md / .html / .excalidraw docs
+~/.porcelain/porcelain intent prepare                 # then write .md / .html docs
 ~/.porcelain/porcelain intent order --files a.md,b.html
 ~/.porcelain/porcelain evidence prepare --title "…"   # then write index.html + its own CSS
 ~/.porcelain/porcelain evidence check --label "pnpm test" --status pass --detail "…"

@@ -94,6 +94,32 @@ describe('readReviewSet path containment', () => {
   })
 })
 
+describe('canvas media', () => {
+  it('keeps an html canvas', async () => {
+    writeReview({
+      name: 'test',
+      files: [],
+      sections: [],
+      canvas: { medium: 'html', html: '<p>board</p>' },
+    })
+    const set = await readReviewSet(repo)
+    expect(set?.canvas).toEqual({ medium: 'html', html: '<p>board</p>' })
+  })
+
+  it('drops a legacy scene canvas instead of failing the whole review', async () => {
+    writeReview({
+      name: 'test',
+      files: [{ path: 'a.ts' }],
+      sections: [],
+      canvas: { medium: 'excalidraw', scene: { elements: [] } },
+    })
+    const set = await readReviewSet(repo)
+    expect(set?.name).toBe('test')
+    expect(set?.files.map((file) => file.path)).toEqual(['a.ts'])
+    expect(set?.canvas).toBeUndefined()
+  })
+})
+
 describe('restoreArchivedReview', () => {
   it('promotes an archive back to active', async () => {
     writeReview({ name: 'First', files: [{ path: 'a.ts' }], sections: [], thesis: 't1' })

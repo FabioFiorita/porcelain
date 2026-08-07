@@ -19,8 +19,8 @@ export { type EvidenceCheck, evidenceOverallStatus } from '@shared/evidence-chec
  * `<repo>/.porcelain/evidence/` holds `index.html` (required), `meta.json`
  * (title / checks) and optional screenshots. Agents write them with normal Write
  * tools; the app inlines relative images for the sandboxed viewer and clears by
- * deleting the directory (or archives them with the review on clear). Excalidraw
- * is NOT an evidence medium — the Intent freeform canvas is. See `evidence-paths.ts`.
+ * deleting the directory (or archives them with the review on clear). HTML is the
+ * only evidence medium. See `evidence-paths.ts`.
  */
 
 /**
@@ -66,7 +66,7 @@ export type Evidence = {
   dir?: string
   /** Structured verification checks (empty when none were recorded). */
   checks: EvidenceCheck[]
-  /** Always HTML for evidence (Excalidraw is Intent-only). */
+  /** Always HTML for evidence. */
   medium: EvidenceMedium
   /** Inlined for the sandboxed iframe. Absent when over-cap or empty. */
   html?: string
@@ -132,8 +132,9 @@ function tooLarge(bytes: number): EvidenceHtmlUnavailable {
 /**
  * Prefer on-disk index.html. Oversized bodies keep title/checks and surface
  * `htmlUnavailable` (never silent null — that looked like "cleared"). Malformed
- * / empty index → null. A scene-only dir (old Excalidraw evidence) is not treated
- * as evidence — rewrite as HTML.
+ * / empty index → null. A dir with no index.html — including an old scene-only
+ * evidence pack from before HTML was the only medium — is not treated as
+ * evidence at all; rewrite it as HTML.
  */
 export async function readEvidence(repoPath: string): Promise<Evidence | null> {
   const dir = evidenceDirForRepo(repoPath)

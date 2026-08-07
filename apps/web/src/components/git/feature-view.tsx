@@ -397,8 +397,8 @@ export function FeatureView(): React.JSX.Element {
 
 /**
  * Intent: whatever the agent reached for to make the case — documents it wrote
- * under `.porcelain/intent/` (markdown, a self-contained HTML page, an
- * Excalidraw scene), plus the review set's own freeform board and narrative.
+ * under `.porcelain/intent/` (markdown or a self-contained HTML page), plus the
+ * review set's own freeform board and narrative.
  *
  * Each becomes a pane. One pane renders bare; more than one gets a strip, so a
  * single `index.md` never pays for chrome it doesn't need.

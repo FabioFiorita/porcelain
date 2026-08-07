@@ -28,15 +28,4 @@ describe('IntentDocBody', () => {
     expect(frame.getAttribute('src')).toBeNull()
     expect(frame.getAttribute('srcdoc')).toContain('<p>hi</p>')
   })
-
-  it('takes an already-parsed scene — the renderer never parses one itself', () => {
-    // parseExcalidrawScene is Buffer-based; calling it here threw "Buffer is not
-    // defined" and blanked the Review. The daemon parses and drops bad scenes.
-    render(
-      <IntentDocBody
-        doc={{ file: 'd.excalidraw', label: 'D', medium: 'excalidraw', scene: { elements: [] } }}
-      />,
-    )
-    expect(screen.getByTestId(TestIds.intentDocBody)).toBeTruthy()
-  })
 })

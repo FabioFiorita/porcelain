@@ -6,7 +6,7 @@ import { PreviewView } from '@/features/files/preview-view'
 import { useResolvedColorScheme } from '@/features/settings/theme-provider'
 import type { FeatureReading, IntentDoc } from '@/lib/daemon/procedures/review'
 
-import { IntentDocBody, SceneNote } from './doc-body'
+import { IntentDocBody } from './doc-body'
 import { type DocTab, DocTabs } from './review-chrome'
 import { useReviewStore } from './review-store'
 import { useReviewIntentDocs } from './use-review'
@@ -90,7 +90,6 @@ type IntentPane = DocTab &
   (
     | { kind: 'doc'; doc: IntentDoc }
     | { kind: 'html'; html: string }
-    | { kind: 'scene' }
     | { kind: 'markup'; markup: string }
   )
 
@@ -104,11 +103,7 @@ function intentPanes(reading: FeatureReading, docs: readonly IntentDoc[]): Inten
 
   const canvas = reading.canvas
   if (canvas !== undefined) {
-    panes.push(
-      canvas.medium === 'html'
-        ? { html: canvas.html, key: 'board', kind: 'html', label: 'Board' }
-        : { key: 'board', kind: 'scene', label: 'Board' },
-    )
+    panes.push({ html: canvas.html, key: 'board', kind: 'html', label: 'Board' })
   }
 
   const markup = narrativeMarkup(reading)
@@ -161,9 +156,6 @@ function IntentPaneBody({
     return (
       <PreviewView document={previewDocument(pane.html)} testID="porcelain-review-intent-board" />
     )
-  }
-  if (pane.kind === 'scene') {
-    return <SceneNote testID="porcelain-review-intent-board-scene" />
   }
   return <IntentDocBody doc={pane.doc} testIDPrefix="porcelain-review-intent-doc" />
 }

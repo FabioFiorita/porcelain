@@ -198,8 +198,8 @@ export const COMMANDS: NounHelp[] = [
       { verb: 'add', args: '--files <json|->', desc: 'Add files to the existing set' },
       {
         verb: 'set-canvas',
-        args: '--medium html|excalidraw (--html-file <p> | --html <s|-> | --file <scene.excalidraw>)',
-        desc: 'Set freeform Overview canvas (html or Excalidraw); outline still uses files/sections',
+        args: '--medium html (--html-file <p> | --html <s|->)',
+        desc: 'Set freeform Overview canvas (html); outline still uses files/sections',
       },
       {
         verb: 'clear-canvas',
@@ -454,13 +454,7 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
         setReviewCanvas(repo, toReviewCanvas('html', { html }))
         return `Set Overview canvas (html) for ${repo}. Outline still uses thesis/sections/files.`
       }
-      if (medium === 'excalidraw') {
-        const file = req('file')
-        const sceneRaw = readFileSync(file, 'utf8')
-        setReviewCanvas(repo, toReviewCanvas('excalidraw', { sceneRaw }))
-        return `Set Overview canvas (excalidraw) for ${repo} from ${file}. Outline still uses thesis/sections/files.`
-      }
-      throw new Error('medium must be html or excalidraw')
+      throw new Error('medium must be html')
     }
     case 'review clear-canvas':
       return clearReviewCanvas(repo)
@@ -487,7 +481,7 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<string
       return describeReviewed(repo, readReviewed(repo))
     case 'intent prepare': {
       const prepared = prepareIntent(repo)
-      return `Intent directory ready at:\n${prepared.dir}\n\nWrite documents there with your normal file tools — one per idea. .md renders as prose, .html renders in a sandboxed frame (its sibling .css and images are inlined for you, so relative paths work), .excalidraw renders as a read-only diagram. Images go in ${prepared.assetsDir} and are referenced relatively, e.g. <img src="assets/before.png">. Scripts never run; do not ship a .js. More than one document becomes more than one tab — pin the order with \`intent order --files a.md,b.html\`.`
+      return `Intent directory ready at:\n${prepared.dir}\n\nWrite documents there with your normal file tools — one per idea. .md renders as prose, .html renders in a sandboxed frame (its sibling .css and images are inlined for you, so relative paths work). Images go in ${prepared.assetsDir} and are referenced relatively, e.g. <img src="assets/before.png">. Scripts never run; do not ship a .js. More than one document becomes more than one tab — pin the order with \`intent order --files a.md,b.html\`.`
     }
     case 'intent order': {
       const ordered = orderIntent(

@@ -22,10 +22,10 @@ describe('intent documents', () => {
 
   it('picks the medium from the extension and titles from the file name', async () => {
     await writeFile(join(dir, 'index.md'), '# Why')
-    await writeFile(join(dir, 'data-flow.excalidraw'), '{"elements":[]}')
+    await writeFile(join(dir, 'data-flow.html'), '<p>flow</p>')
     const docs = await readIntentDocs(dir)
     expect(docs.map((d) => [d.file, d.medium, d.label])).toEqual([
-      ['data-flow.excalidraw', 'excalidraw', 'Data flow'],
+      ['data-flow.html', 'html', 'Data flow'],
       ['index.md', 'markdown', 'Index'],
     ])
   })
@@ -66,6 +66,14 @@ describe('intent documents', () => {
     expect((await readIntentDocs(dir)).map((d) => d.file)).toEqual(['index.md'])
   })
 
+  // A scene left behind by an older agent is not a medium any client can draw.
+  // It is skipped like any other unknown extension — the rest of the tabs stand.
+  it('skips a legacy scene file without failing the directory', async () => {
+    await writeFile(join(dir, 'board.excalidraw'), JSON.stringify({ elements: [] }))
+    await writeFile(join(dir, 'index.md'), 'yes')
+    expect((await readIntentDocs(dir)).map((d) => d.file)).toEqual(['index.md'])
+  })
+
   it('refuses a manifest entry that tries to walk out of the directory', async () => {
     await writeFile(join(dir, 'index.md'), 'ok')
     await writeFile(
@@ -78,21 +86,6 @@ describe('intent documents', () => {
   it('drops an oversized document instead of throwing', async () => {
     await writeFile(join(dir, 'huge.md'), 'x'.repeat(3 * 1024 * 1024))
     await writeFile(join(dir, 'index.md'), 'small')
-    expect((await readIntentDocs(dir)).map((d) => d.file)).toEqual(['index.md'])
-  })
-})
-
-describe('excalidraw is parsed daemon-side', () => {
-  it('hands the renderer a scene, never raw JSON text', async () => {
-    await writeFile(join(dir, 'shape.excalidraw'), JSON.stringify({ elements: [{ type: 'rect' }] }))
-    const [doc] = await readIntentDocs(dir)
-    expect(doc?.medium).toBe('excalidraw')
-    expect(doc?.medium === 'excalidraw' && doc.scene.elements).toHaveLength(1)
-  })
-
-  it('drops a malformed scene rather than shipping it to the client', async () => {
-    await writeFile(join(dir, 'broken.excalidraw'), 'not json at all')
-    await writeFile(join(dir, 'index.md'), 'fine')
     expect((await readIntentDocs(dir)).map((d) => d.file)).toEqual(['index.md'])
   })
 })

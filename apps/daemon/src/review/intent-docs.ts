@@ -1,6 +1,5 @@
 import { readdir, readFile, stat } from 'node:fs/promises'
 import { extname, join } from 'node:path'
-import { type ExcalidrawScene, parseExcalidrawScene } from '@shared/excalidraw-scene'
 import { INTENT_MANIFEST, projectEvidenceDir, projectIntentDir } from '@shared/project-porcelain'
 import { z } from 'zod'
 import { inlineLocalAssets } from '../fs/evidence-assets'
@@ -18,7 +17,9 @@ import { inlineLocalAssets } from '../fs/evidence-assets'
  *   (CSS, images) inlined here so relative paths resolve without ever handing
  *   the iframe a `src` URL — a srcdoc document inherits the parent CSP, and that
  *   CSP is the exfil backstop. Serving intent over HTTP would drop it.
- * - excalidraw is inert JSON handed to the read-only host.
+ *
+ * Those two media are the whole story on every client — web, shell, and mobile.
+ * A file with any other extension is skipped, not surfaced as a broken tab.
  *
  * There is deliberately no script medium. Scripts would need `allow-scripts`,
  * and a review is now something you can receive from a clone — that is someone
@@ -29,7 +30,7 @@ const MAX_DOCS = 12
 const MAX_DOC_BYTES = 2 * 1024 * 1024
 const MAX_TOTAL_BYTES = 8 * 1024 * 1024
 
-export type IntentMedium = 'markdown' | 'html' | 'excalidraw'
+export type IntentMedium = 'markdown' | 'html'
 
 interface IntentDocBase {
   /** Stable per review — the file name, used as the tab key. */
@@ -38,15 +39,13 @@ interface IntentDocBase {
 }
 
 /**
- * Discriminated on medium so the renderer never has to parse. Excalidraw in
- * particular is parsed HERE: `parseExcalidrawScene` uses `Buffer` for its byte
- * cap, and the web client is pure UI with no Node APIs — calling it in the
- * renderer throws `Buffer is not defined` and takes the whole surface down.
+ * Discriminated on medium so the renderer never has to parse. Every read and
+ * every cap is applied HERE: the clients are pure UI with no Node APIs, and a
+ * parse that needs `Buffer` takes the whole surface down in a renderer.
  */
 export type IntentDoc =
   | (IntentDocBase & { medium: 'markdown'; body: string })
   | (IntentDocBase & { medium: 'html'; body: string })
-  | (IntentDocBase & { medium: 'excalidraw'; scene: ExcalidrawScene })
 
 const manifestSchema = z.object({
   tabs: z
@@ -60,14 +59,13 @@ const MEDIUM_BY_EXT: Record<string, IntentMedium> = {
   '.markdown': 'markdown',
   '.html': 'html',
   '.htm': 'html',
-  '.excalidraw': 'excalidraw',
 }
 
 function mediumFor(file: string): IntentMedium | null {
   return MEDIUM_BY_EXT[extname(file).toLowerCase()] ?? null
 }
 
-/** `index.md` → "Index"; `data-flow.excalidraw` → "Data flow". */
+/** `index.md` → "Index"; `data-flow.html` → "Data flow". */
 function labelFor(file: string): string {
   const base = file.slice(0, file.length - extname(file).length).replace(/[-_]+/g, ' ')
   return base.charAt(0).toUpperCase() + base.slice(1)
@@ -134,14 +132,6 @@ export async function readIntentDocs(dir: string): Promise<IntentDoc[]> {
       if (size > MAX_DOC_BYTES || total + size > MAX_TOTAL_BYTES) continue
       const raw = await readFile(path, 'utf8')
       const label = tab.label ?? labelFor(tab.file)
-      if (medium === 'excalidraw') {
-        const parsed = parseExcalidrawScene(raw)
-        // A malformed scene is dropped like any other bad external write, never thrown.
-        if (!parsed.ok) continue
-        total += parsed.bytes
-        docs.push({ file: tab.file, label, medium, scene: parsed.scene })
-        continue
-      }
       const body = medium === 'html' ? await inlineLocalAssets(dir, raw) : raw
       total += Buffer.byteLength(body, 'utf8')
       docs.push({ file: tab.file, label, medium, body })
