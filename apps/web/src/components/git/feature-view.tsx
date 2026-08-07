@@ -2,7 +2,7 @@ import type { FeatureReading, ReadingFile } from '@backend/review/feature-view'
 import type { FileSource } from '@backend/review/review-set'
 import { CanvasBody } from '@renderer/components/git/canvas-body'
 import { EvidencePanel } from '@renderer/components/git/evidence-panel'
-import { IntentDocBody } from '@renderer/components/git/intent-doc-body'
+import { ReviewDocBody } from '@renderer/components/git/review-doc-body'
 import { Button } from '@renderer/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@renderer/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
@@ -242,7 +242,8 @@ function LifecycleBanner({
 /**
  * The viewer's `feature` tab: the Review canvas — header (name + source counts)
  * over three tabs: **Intent** (narrative / freeform board), **Execution** (files +
- * notes), **Evidence** (HTML proof). Human questions appear as tab hover tooltips.
+ * notes), **Evidence** (the pack: checks, results, assets). Human questions appear as
+ * tab hover tooltips.
  * Outline jumps pick the tab; J/K stay on Intent.
  */
 export function FeatureView(): React.JSX.Element {
@@ -385,7 +386,8 @@ export function FeatureView(): React.JSX.Element {
           ) : (
             <div className="flex h-full items-center justify-center p-8">
               <p className="max-w-sm text-center text-sm text-muted-foreground">
-                No evidence yet. When your agent publishes HTML proof, it shows here.
+                No evidence yet. Checks, result documents, or screenshots — whatever your agent
+                publishes shows up here.
               </p>
             </div>
           )}
@@ -414,7 +416,7 @@ function IntentBody({ reading }: { reading: FeatureReading }): React.JSX.Element
     ...docs.map((doc) => ({
       key: `doc:${doc.file}`,
       label: doc.label,
-      render: (): React.JSX.Element => <IntentDocBody doc={doc} />,
+      render: (): React.JSX.Element => <ReviewDocBody doc={doc} />,
     })),
     ...(canvas !== undefined
       ? [

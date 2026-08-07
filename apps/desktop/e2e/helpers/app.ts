@@ -61,6 +61,22 @@ interface SeedReviewSet {
   }[]
 }
 
+/**
+ * The on-disk evidence pack an agent writes: `meta.json` (title + structured
+ * checks), an optional legacy `index.html` report at the root, documents under
+ * `results/`, and images under `assets/`.
+ */
+interface SeedEvidence {
+  title: string
+  /** Legacy single-page report at the evidence root — the daemon surfaces it as "Report". */
+  html?: string
+  checks?: { label: string; status: 'pass' | 'fail' | 'skip'; detail?: string }[]
+  /** Documents under `evidence/results/` — `.md` and `.html` only. */
+  results?: { file: string; body: string }[]
+  /** Images under `evidence/assets/`, base64 so a fixture stays a text file. */
+  assets?: { file: string; base64: string }[]
+}
+
 /** Which runtime hosts the suite: the built Electron app, or headless Chromium on the daemon-served browser client. Picked per Playwright project. */
 export type AppMode = 'electron' | 'browser'
 
@@ -77,9 +93,11 @@ interface Options {
   seedReviewSet: SeedReviewSet | null
   /**
    * Seed evidence under `<repo>/.porcelain/active-review/evidence/` (default null → none).
-   * Renders as the Review's final chapter (needs a `seedReviewSet`).
+   * Renders as the Review's Evidence tab (needs a `seedReviewSet`) — one pack over
+   * three sub-tabs, so a seed can carry any part of it: `checks` in meta.json,
+   * `html` as the legacy root report, `results` as documents, `assets` as images.
    */
-  seedEvidence: { title: string; html: string } | null
+  seedEvidence: SeedEvidence | null
   /**
    * Present the renderer with a multi-touch screen (default false → a desktop
    * pointer, which is what both runtimes really are). Set it for the surfaces
@@ -132,7 +150,7 @@ async function seedState(
   repoDir: string,
   seedRepo: boolean,
   seedReviewSet: SeedReviewSet | null,
-  seedEvidence: { title: string; html: string } | null,
+  seedEvidence: SeedEvidence | null,
 ): Promise<Seeded> {
   const udBase = await mkdtemp(join(tmpdir(), 'porcelain-e2e-ud-'))
   const userData = `${udBase}-dev`
@@ -152,13 +170,27 @@ async function seedState(
     if (seedEvidence) {
       const evidenceDir = join(active, 'evidence')
       await mkdir(evidenceDir, { recursive: true })
-      await writeFile(join(evidenceDir, 'index.html'), seedEvidence.html)
+      if (seedEvidence.html !== undefined) {
+        await writeFile(join(evidenceDir, 'index.html'), seedEvidence.html)
+      }
+      for (const doc of seedEvidence.results ?? []) {
+        await mkdir(join(evidenceDir, 'results'), { recursive: true })
+        await writeFile(join(evidenceDir, 'results', doc.file), doc.body)
+      }
+      for (const asset of seedEvidence.assets ?? []) {
+        await mkdir(join(evidenceDir, 'assets'), { recursive: true })
+        await writeFile(
+          join(evidenceDir, 'assets', asset.file),
+          Buffer.from(asset.base64, 'base64'),
+        )
+      }
       await writeFile(
         join(evidenceDir, 'meta.json'),
         JSON.stringify({
           title: seedEvidence.title,
           repoPath: repoDir,
           updatedAt: '2024-01-01T12:00:00.000Z',
+          checks: seedEvidence.checks ?? [],
         }),
       )
     }

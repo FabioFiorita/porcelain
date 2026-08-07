@@ -270,6 +270,29 @@ export const DEMO_EVIDENCE_HTML = `<!doctype html>
 </html>
 `
 
+const DEMO_EVIDENCE_CHECKS = [
+  { label: 'pnpm test', status: 'pass', detail: '1804 passed' },
+  { label: 'Browser smoke — /orders', status: 'pass', detail: '14/14 rows FULFILLED' },
+  { label: 'Pagination beyond page 3', status: 'skip', detail: 'no fixture data yet' },
+]
+
+const DEMO_EVIDENCE_RUN_LOG = `# Run log
+
+1. \`pnpm dev\` on a clean checkout
+2. Opened \`/orders\` — 20 orders, newest first
+3. Selected **status = FULFILLED** — one request, correct query string
+4. Cleared the filter — back to 20 orders
+`
+
+// 16×16 PNGs, base64 so the fixture stays a text file. Real captures would be
+// screenshots; the gallery only needs more than one to show its shape.
+const DEMO_EVIDENCE_ASSETS: Record<string, string> = {
+  'orders-list.png':
+    'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAFklEQVR4nGNQOhpHEmIY1TCqYfhqAACML0UQHuDXpwAAAABJRU5ErkJggg==',
+  'status-filter.png':
+    'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAFklEQVR4nGOwbvpGEmIY1TCqYfhqAACHB7MQtEO1oAAAAABJRU5ErkJggg==',
+}
+
 /**
  * Write demo companion data into `<repo>/.porcelain/` (review parts under
  * `active-review/`) and return home env for the
@@ -288,15 +311,23 @@ export async function seedDemoChannels(
   await writeFile(join(project, 'board.json'), JSON.stringify(DEMO_BOARD, null, 2))
   await writeFile(join(project, 'actions.json'), JSON.stringify(DEMO_ACTIONS, null, 2))
 
+  // Evidence is one pack over three sub-tabs, so the shots seed all three:
+  // checks in meta.json, the report + a run log as documents, captures as images.
   const evidenceDir = join(active, 'evidence')
-  await mkdir(evidenceDir, { recursive: true })
+  await mkdir(join(evidenceDir, 'results'), { recursive: true })
+  await mkdir(join(evidenceDir, 'assets'), { recursive: true })
   await writeFile(join(evidenceDir, 'index.html'), DEMO_EVIDENCE_HTML)
+  await writeFile(join(evidenceDir, 'results', 'run-log.md'), DEMO_EVIDENCE_RUN_LOG)
+  for (const [file, base64] of Object.entries(DEMO_EVIDENCE_ASSETS)) {
+    await writeFile(join(evidenceDir, 'assets', file), Buffer.from(base64, 'base64'))
+  }
   await writeFile(
     join(evidenceDir, 'meta.json'),
     JSON.stringify({
       title: EVIDENCE_TITLE,
       repoPath: repoDir,
       updatedAt: '2024-05-02T09:15:00.000Z',
+      checks: DEMO_EVIDENCE_CHECKS,
     }),
   )
   return { PORCELAIN_HOME: udBase }
