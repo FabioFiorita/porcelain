@@ -1,6 +1,6 @@
 import { ScrollView, Text, View } from 'react-native'
 
-import { EmptyNote, ErrorNote } from '@/components/panel-chrome'
+import { ErrorNote } from '@/components/panel-chrome'
 
 import { BoardColumn } from './board-column'
 import { CardComposer } from './card-composer'
@@ -35,12 +35,6 @@ export function BoardList({ active }: { active: boolean }): React.JSX.Element {
         >
           Loading board…
         </Text>
-      ) : cards.length === 0 && error === null ? (
-        <EmptyNote
-          body="Add one with + on any column — cards you and the agent both read."
-          testID="porcelain-board-list-empty"
-          title="No cards yet"
-        />
       ) : (
         <ScrollView
           className="flex-1"

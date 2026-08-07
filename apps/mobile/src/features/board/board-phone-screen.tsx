@@ -1,7 +1,7 @@
 import { useIsFocused } from 'expo-router'
 import { ScrollView, Text, View } from 'react-native'
 
-import { EmptyNote, ErrorNote } from '@/components/panel-chrome'
+import { ErrorNote } from '@/components/panel-chrome'
 import { SegmentedControl } from '@/components/segmented-control'
 import { surfaceContentStyle } from '@/components/surface-layout'
 import { PhoneHeader } from '@/features/shell/phone-header'
@@ -69,12 +69,6 @@ export function BoardPhoneScreen(): React.JSX.Element {
         >
           Loading board…
         </Text>
-      ) : cards.length === 0 && error === null ? (
-        <EmptyNote
-          body="Add one with + on any column — cards you and the agent both read."
-          testID="porcelain-board-phone-empty"
-          title="No cards yet"
-        />
       ) : (
         <ScrollView
           className="flex-1"
