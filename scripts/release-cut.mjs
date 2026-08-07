@@ -103,13 +103,13 @@ sh('node', ['scripts/sync-versions.mjs', '--set', version], { inherit: true })
 
 sh('pnpm', ['changelog'], { inherit: true })
 // Stage every package and skill manifest that may have been version-bumped, plus changelog.
-sh(
-  'git',
-  ['add', 'CHANGELOG.md', 'apps', 'packages', '.agents/skills', 'skills/porcelain-companion'],
-  {
-    inherit: true,
-  },
-)
+// `skills` goes in whole rather than one named child: it used to list `skills/porcelain-companion`
+// by hand, so `skills/porcelain-remote` was stamped by sync-versions and then left out of the
+// release commit — v0.51.0 shipped with that file dirty in the working tree. Any path
+// sync-versions writes has to be staged here, and it enumerates the directory, not a fixed list.
+sh('git', ['add', 'CHANGELOG.md', 'apps', 'packages', '.agents/skills', 'skills'], {
+  inherit: true,
+})
 sh('git', ['commit', '-m', `chore: release ${tag}`], { inherit: true })
 sh('git', ['tag', '-a', tag, '-m', `chore: release ${tag}`], { inherit: true })
 console.log(`release:cut → ${tag}`)
