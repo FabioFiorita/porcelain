@@ -1,16 +1,16 @@
 # Desktop shell
 
-Applies under `apps/desktop/`. Mobile: `apps/mobile/`. Map: `.agents/reference/architecture.md`.
+Applies under `apps/desktop/`. Mobile: `apps/mobile/`. Map: `docs/internals/architecture.md`.
 
 **This package is the Electron shell** (main, preload, packaging). Product runtime is `apps/daemon`,
 agent CLI is `apps/cli`, React UI is `apps/web`. Independent builds emit into `out/` for shell spawn
 and packaging: Vite (web), esbuild (daemon/cli), electron-vite (shell only). See
-`.agents/reference/architecture.md`.
+`docs/internals/architecture.md`.
 
 ## Boundaries
 
 - **Web (`apps/web`):** shadcn/ui on **Base UI** + Tailwind v4. Composition:
-  `.agents/reference/composition.md`.
+  `docs/internals/composition.md`.
 - **Daemon (`apps/daemon`):** Electron-free. Load **`audit`** before git/config/fs/URLs/channels.
   Types via `@backend/*`.
 - **Shell (`src/main`, `src/preload`):** windows, menu, updater, spawn/bind daemon, shell IPC only.
@@ -29,8 +29,8 @@ and packaging: Vite (web), esbuild (daemon/cli), electron-vite (shell only). See
 
 | Topic | Open |
 |-------|------|
-| Package map / refactor | `.agents/reference/architecture.md` |
-| Architecture / data flow | `.agents/reference/one-architecture.md` |
-| Shell / surfaces | `.agents/reference/app-shell.md` |
-| Terminal | `.agents/reference/terminal.md` |
-| Repo / packaging facts | `.agents/reference/repo.md` |
+| Package map / refactor | `docs/internals/architecture.md` |
+| Architecture / data flow | `docs/internals/one-architecture.md` |
+| Shell / surfaces | `docs/internals/app-shell.md` |
+| Terminal | `docs/internals/terminal.md` |
+| Repo / packaging facts | `docs/internals/repo.md` |

@@ -139,5 +139,5 @@ polishing Porcelain. See root `AGENTS.md`.
 ## See also
 
 - `audit` skill — empty-`CSC_LINK`, node-pty unpack
-- `.agents/reference/repo.md` — packaging facts
+- `docs/internals/repo.md` — packaging facts
 - `ship` skill — day-to-day loop (not release)

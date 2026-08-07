@@ -6,7 +6,7 @@ Thanks for looking at Porcelain. Issues and pull requests are welcome.
 
 1. Read [AGENTS.md](AGENTS.md) for how the project works and the defaults agents (and humans) follow.
 2. Product identity: [docs/product.md](docs/product.md). Architecture traps when lost:
-   [.agents/reference/](.agents/reference/).
+   [docs/internals/](docs/internals/).
 
 ## Setup
 

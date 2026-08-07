@@ -6,8 +6,8 @@
  * script leaves an instruction that only fails at the moment someone trusts it. Rollbacks
  * are the usual cause: the script goes, the sentence stays.
  *
- * Checks both trees — `.agents/skills` + `.agents/reference` (internal) and `skills/`
- * (shipped) — against the root package.json and every workspace package.
+ * Checks every tree agents read — `.agents/skills` (internal), `skills/` (shipped), and
+ * `docs/` — against the root package.json and every workspace package.
  *
  * A citation is satisfied when the script exists at the root, because that is where a bare
  * `pnpm <script>` runs. A script that only exists in a workspace package must be written
@@ -75,8 +75,8 @@ for (const area of ['apps', 'packages']) {
 
 const files = [
   ...walk(join(root, '.agents', 'skills')),
-  ...walk(join(root, '.agents', 'reference')),
   ...walk(join(root, 'skills')),
+  ...walk(join(root, 'docs')),
 ]
 
 const problems = []

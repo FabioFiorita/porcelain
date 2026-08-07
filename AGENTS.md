@@ -6,7 +6,7 @@ Porcelain is where you read, annotate, and sign off. Full product story: `docs/p
 
 Ship discipline: polish existing surfaces; releases are **patch** unless asked; 1.0 is far away.
 
-**Package map:** daemon · cli · web · shell · mobile — see `.agents/reference/architecture.md`.
+**Package map:** daemon · cli · web · shell · mobile — see `docs/internals/architecture.md`.
 
 ## How we work together
 
@@ -87,13 +87,13 @@ Host-only topology and machine runbooks live in ignored `AGENTS.local.md` files 
 
 | Topic | File |
 |-------|------|
-| Package map, surfaces, refactor done criteria | `.agents/reference/architecture.md` |
-| Daemon → hooks → components, WS, tabs, data flow | `.agents/reference/one-architecture.md` |
-| App shell, surfaces, window chrome | `.agents/reference/app-shell.md` |
-| Terminal / PTY | `.agents/reference/terminal.md` |
-| Repo layout, aliases, shadcn re-apply | `.agents/reference/repo.md` |
-| Bare nouns (tabs, viewer, Review, …) | `.agents/reference/nomenclature.md` |
-| Renderer composition (shadcn/Base UI) | `.agents/reference/composition.md` |
+| Package map, surfaces, refactor done criteria | `docs/internals/architecture.md` |
+| Daemon → hooks → components, WS, tabs, data flow | `docs/internals/one-architecture.md` |
+| App shell, surfaces, window chrome | `docs/internals/app-shell.md` |
+| Terminal / PTY | `docs/internals/terminal.md` |
+| Repo layout, aliases, shadcn re-apply | `docs/internals/repo.md` |
+| Bare nouns (tabs, viewer, Review, …) | `docs/internals/nomenclature.md` |
+| Renderer composition (shadcn/Base UI) | `docs/internals/composition.md` |
 
 ## Agent foundations
 
