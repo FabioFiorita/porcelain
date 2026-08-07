@@ -3,7 +3,13 @@ import { fileName } from '@porcelain/client-runtime/paths'
 import { intraLineEmphasis } from '@porcelain/client-runtime/word-diff-line'
 import { useMemo, useState } from 'react'
 import { FlatList, Text, View } from 'react-native'
-import { EmptyNote, ErrorNote, IconAction, PanelLabel } from '@/components/panel-chrome'
+import {
+  EmptyNote,
+  ErrorNote,
+  IconAction,
+  PanelLabel,
+  ScreenHeader,
+} from '@/components/panel-chrome'
 import { type CommentAnchor, CommentComposer } from '@/features/comments/comment-composer'
 import { rangeForPath, rangeOf } from '@/features/comments/line-range'
 import { useCommentedLinesByPath, useReviewComments } from '@/features/comments/use-comments'
@@ -121,28 +127,16 @@ export function ReadAllView({
 
   return (
     <View className="flex-1 bg-background" testID={testID}>
-      <View
-        className="flex-row items-center gap-1 border-b border-border px-2 py-1.5"
-        style={{ paddingTop: topInset + 6 }}
-      >
-        {onBack === undefined ? null : (
-          <IconAction
-            accessibilityLabel="Back"
-            glyph="chevronLeft"
-            testID={`${testID}-back`}
-            tone="foreground"
-            onPress={onBack}
-          />
-        )}
-        <View className={cn('min-w-0 flex-1', onBack === undefined && 'pl-1.5')}>
-          <Text className="text-xs font-semibold text-foreground" numberOfLines={1}>
-            {title}
-          </Text>
-          <Text className="text-[10px] text-muted-foreground" numberOfLines={1}>
-            {context} · {fileCount} {fileCount === 1 ? 'file' : 'files'}
-          </Text>
-        </View>
-      </View>
+      <ScreenHeader
+        back={
+          onBack === undefined
+            ? undefined
+            : { accessibilityLabel: 'Back', onPress: onBack, testID: `${testID}-back` }
+        }
+        subtitle={`${context} · ${fileCount} ${fileCount === 1 ? 'file' : 'files'}`}
+        title={title}
+        topInset={topInset}
+      />
 
       {error !== null ? (
         <View className="p-4">

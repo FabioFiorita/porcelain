@@ -248,7 +248,7 @@ function SearchCommandSheet({
         contentContainerClassName="py-1.5 pb-3"
       >
         {empty ? (
-          <Text className="px-[16px] py-8 text-center text-sm text-muted-foreground">
+          <Text className="px-4 py-8 text-center text-sm text-muted-foreground">
             No results{q ? ` for “${query.trim()}”` : ''}.
           </Text>
         ) : null}

@@ -109,7 +109,7 @@ function PhoneSurfaceBody({ surfaceId }: { surfaceId: SurfaceId }): React.JSX.El
 
       <ScrollView
         className="flex-1"
-        contentContainerClassName="gap-4 px-[16px] pb-10 pt-4"
+        contentContainerClassName="gap-4 px-4 pb-10 pt-4"
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >

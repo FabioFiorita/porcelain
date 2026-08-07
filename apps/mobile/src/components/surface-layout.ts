@@ -16,7 +16,7 @@ import type { ViewStyle } from 'react-native'
  * list row all start here. A row's own padding sits *inside* it, so row text is indented from
  * the section label above it — the card is inset, the chrome is not.
  */
-export const SURFACE_GUTTER = 'px-[16px]'
+export const SURFACE_GUTTER = 'px-4'
 
 /**
  * The band directly under the header's divider — a toolbar, a segmented control, a summary.
@@ -25,22 +25,32 @@ export const SURFACE_GUTTER = 'px-[16px]'
  * 10pt and 4pt, which is the kind of near-miss that looks like a rendering bug rather than a
  * choice.
  */
-export const SURFACE_TOOLBAR = 'px-[16px] pb-[8px] pt-[12px]'
+export const SURFACE_TOOLBAR = 'px-4 pb-2 pt-3'
+
+/**
+ * The gap between peer controls stacked inside a toolbar band — a segmented control over a
+ * search field, a summary row over a scope switcher.
+ *
+ * Equal to the band's own top padding, so the run from the divider down reads as one even
+ * rhythm. It was `gap-2` against a `pt-3` band: 8pt under the tabs, 12pt above them, close
+ * enough to look like a mistake and far enough to see.
+ *
+ * NOT for a label and its detail line — those are one block and stay tight (`gap-1`).
+ */
+export const SURFACE_STACK_GAP = 'gap-3'
 
 /** A note hanging under the toolbar: an error, an action failure, a loading line. */
-export const SURFACE_NOTE = 'px-[16px] pb-[8px]'
+export const SURFACE_NOTE = 'px-4 pb-2'
 
 /** Padding above the header's divider. Kept equal to `SURFACE_TOOLBAR`'s top padding. */
-export const SURFACE_HEADER_BAND = 'px-[16px] pb-[12px]'
+export const SURFACE_HEADER_BAND = 'px-4 pb-3'
 
 /**
  * `SURFACE_GUTTER` as a number, for the scroll containers that cannot use the class.
  *
- * The classes above spell the gutter `px-[16px]` rather than `px-4` so this number and that
- * class are the same 16pt. They were not: measured on device, `px-4` lands at 14pt — Tailwind's
- * spacing scale is rem-relative and the runtime rem here is not 16 — so a header written in
- * classes sat 2pt inside a list written in points. Two pixels is invisible in a diff and plainly
- * wrong on a screen. Anything that has to line up states its size in px on both sides.
+ * Equal to `px-4` only because `src/global.css` pins `--spacing` to `4px`. Left on Tailwind's
+ * default `0.25rem` the class measured 14pt against this 16, and chrome written in classes sat
+ * 2pt inside lists written in points — see the note on `--spacing`, and keep the two in step.
  */
 export const SURFACE_GUTTER_PX = 16
 

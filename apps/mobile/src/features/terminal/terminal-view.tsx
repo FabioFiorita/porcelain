@@ -222,7 +222,7 @@ export function TerminalView({
         <View
           /* Keep in step with `TERMINAL_PANE_PADDING_X` / `_Y` — the fit and the cursor both
              subtract those, and a class that disagrees shears the grid. */
-          className="min-h-0 flex-1 overflow-hidden px-[16px] py-1"
+          className="min-h-0 flex-1 overflow-hidden px-4 py-1"
           onLayout={(event) => {
             const { height, width } = event.nativeEvent.layout
             setPane({ height, width })

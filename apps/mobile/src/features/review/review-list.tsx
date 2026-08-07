@@ -43,7 +43,7 @@ export function ReviewList({ active }: { active: boolean }): React.JSX.Element {
     return (
       <View className="flex-1 bg-background" testID="porcelain-review-list">
         <Text
-          className="px-[16px] py-6 text-sm text-muted-foreground"
+          className="px-4 py-6 text-sm text-muted-foreground"
           testID={isLoading ? 'porcelain-review-list-loading' : 'porcelain-review-list-idle'}
         >
           {isLoading ? 'Loading the Review…' : 'No daemon connected.'}
@@ -69,7 +69,7 @@ export function ReviewList({ active }: { active: boolean }): React.JSX.Element {
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-review-list">
-      <View className="gap-1 px-[16px] pb-[8px] pt-[12px]">
+      <View className="gap-1 px-4 pb-2 pt-3">
         <Text className="text-xs font-semibold text-foreground" numberOfLines={2}>
           {reading.name}
         </Text>
@@ -88,7 +88,7 @@ export function ReviewList({ active }: { active: boolean }): React.JSX.Element {
 
       <ScrollView
         className="flex-1"
-        contentContainerClassName="gap-0.5 px-[16px] pb-8"
+        contentContainerClassName="gap-0.5 px-4 pb-8"
         showsVerticalScrollIndicator={false}
         testID="porcelain-review-outline"
       >

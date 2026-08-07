@@ -2,6 +2,7 @@ import { Pressable, Text, View } from 'react-native'
 
 import { ChromeGlyph, type ChromeIconName, type IconTone } from '@/components/chrome-glyph'
 import { ShellModal, ShellModalScroll, useShellModalSize } from '@/components/shell-modal'
+import { SURFACE_GUTTER } from '@/components/surface-layout'
 import { Button } from '@/components/ui/button'
 import { Text as UiText } from '@/components/ui/text'
 import { cn } from '@/lib/utils'
@@ -66,6 +67,77 @@ export function IconAction({
     >
       <ChromeGlyph name={glyph} size={17} tone={tone} />
     </Pressable>
+  )
+}
+
+/**
+ * The bar at the top of a pushed screen: back, what you are looking at, and its actions.
+ *
+ * One component because there were five hand-rolled copies of it — the file viewer, the diff,
+ * a commit, the continuous read, and a terminal session — and they had drifted onto their own
+ * 8pt gutter while every surface behind them moved to 16pt. Backing out of a file therefore
+ * shifted the whole screen sideways.
+ *
+ * The icon clusters hang half a button outside the gutter: a 36pt box around a 17pt glyph puts
+ * the mark 9pt inside its own edge, and it is the mark the eye lines up.
+ */
+export function ScreenHeader({
+  actions,
+  back,
+  mono = false,
+  subtitle,
+  /** Head-truncate the subtitle — the tail of a path is what identifies it. */
+  subtitleFromEnd = false,
+  title,
+  topInset,
+}: {
+  actions?: React.ReactNode
+  back?: { accessibilityLabel: string; testID: string; onPress: () => void }
+  mono?: boolean
+  subtitle?: string
+  subtitleFromEnd?: boolean
+  title: string
+  /** Status-bar inset when this bar replaces the tab header; 0 inside a column. */
+  topInset: number
+}): React.JSX.Element {
+  return (
+    <View
+      className={cn(SURFACE_GUTTER, 'flex-row items-center gap-1 border-b border-border py-1.5')}
+      /* nativewind-allow-style: the bar clears the live status-bar inset. */
+      style={{ paddingTop: topInset + 6 }}
+    >
+      {back === undefined ? null : (
+        <View className="-ml-2">
+          <IconAction
+            accessibilityLabel={back.accessibilityLabel}
+            glyph="chevronLeft"
+            testID={back.testID}
+            tone="foreground"
+            onPress={back.onPress}
+          />
+        </View>
+      )}
+      <View className="min-w-0 flex-1">
+        <Text
+          className={cn('text-xs font-semibold text-foreground', mono && 'font-mono font-medium')}
+          numberOfLines={1}
+        >
+          {title}
+        </Text>
+        {subtitle === undefined ? null : (
+          <Text
+            className="font-mono text-[10px] text-muted-foreground"
+            ellipsizeMode={subtitleFromEnd ? 'head' : 'tail'}
+            numberOfLines={1}
+          >
+            {subtitle}
+          </Text>
+        )}
+      </View>
+      {actions === undefined ? null : (
+        <View className="-mr-2 flex-row items-center">{actions}</View>
+      )}
+    </View>
   )
 }
 

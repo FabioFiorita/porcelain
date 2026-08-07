@@ -94,7 +94,7 @@ export function TerminalList({
 
   return (
     <View className="flex-1" testID="porcelain-terminal-list">
-      <View className="flex-row items-center gap-1 px-[16px] pb-[8px] pt-[12px]">
+      <View className="flex-row items-center gap-1 px-4 pb-2 pt-3">
         <Text
           className="min-w-0 flex-1 text-xs text-muted-foreground"
           testID="porcelain-terminal-summary"
@@ -115,12 +115,12 @@ export function TerminalList({
       </View>
 
       {failure === null ? null : (
-        <View className="px-[16px] pb-[8px]">
+        <View className="px-4 pb-2">
           <ErrorNote message={failure} testID="porcelain-terminal-action-error" />
         </View>
       )}
       {error === null ? null : (
-        <View className="px-[16px] pb-[8px]">
+        <View className="px-4 pb-2">
           <ErrorNote message={error.message} testID="porcelain-terminal-error" />
         </View>
       )}

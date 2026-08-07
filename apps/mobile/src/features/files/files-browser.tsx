@@ -186,21 +186,18 @@ export function FilesBrowser({
       />
 
       {actionError === null ? null : (
-        <View className="px-[16px] pb-[8px]">
+        <View className="px-4 pb-2">
           <ErrorNote message={actionError} testID="porcelain-files-action-error" />
         </View>
       )}
       {error === null ? null : (
-        <View className="px-[16px] pb-[8px]">
+        <View className="px-4 pb-2">
           <ErrorNote message={error.message} testID="porcelain-files-error" />
         </View>
       )}
 
       {reading ? (
-        <Text
-          className="px-[16px] py-6 text-sm text-muted-foreground"
-          testID="porcelain-files-loading"
-        >
+        <Text className="px-4 py-6 text-sm text-muted-foreground" testID="porcelain-files-loading">
           Reading directory…
         </Text>
       ) : entries.length === 0 && error === null ? (

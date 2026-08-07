@@ -2,7 +2,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-import { SURFACE_GUTTER } from './surface-layout'
+import { SURFACE_GUTTER, SURFACE_GUTTER_PX } from './surface-layout'
 
 /**
  * Two ratchets on the same surface, both earned by a bug that shipped.
@@ -71,19 +71,18 @@ describe('surface layout', () => {
     expect(offenders).toEqual([])
   })
 
-  it('spells the gutter in px, never on the rem-relative spacing scale', () => {
-    const offenders: string[] = []
+  it('keeps the spacing scale pinned to points, not rem', () => {
+    // Comments stripped first — the declaration's own note names the default it replaces.
+    const css = readFileSync(join(__dirname, '..', 'global.css'), 'utf8').replace(
+      /\/\*[\s\S]*?\*\//g,
+      '',
+    )
+    const spacing = /--spacing:\s*([^;]+);/.exec(css)?.[1]?.trim()
 
-    for (const path of sourceFiles(FEATURES)) {
-      const source = readFileSync(path, 'utf8')
-      for (const match of source.matchAll(/\bpx-4\b/g)) {
-        if (elementAround(source, match.index).includes(ALLOW)) continue
-        offenders.push(path.slice(FEATURES.length + 1))
-      }
-    }
-
-    // `px-4` measures 14pt on device, not 16 — Tailwind spacing is rem-relative and the runtime
-    // rem is not 16. Anything that lines up with `SURFACE_GUTTER_PX` has to say `px-[16px]`.
-    expect(offenders).toEqual([])
+    // Tailwind's default is `0.25rem`, and react-native-css hardcodes the runtime rem to 14 —
+    // so every spacing utility silently measures 0.875x its name and `min-h-11` stops being a
+    // 44pt touch target. An absolute unit is what makes `px-4` and SURFACE_GUTTER_PX agree.
+    expect(spacing).toBe('4px')
+    expect(SURFACE_GUTTER_PX).toBe(16)
   })
 })

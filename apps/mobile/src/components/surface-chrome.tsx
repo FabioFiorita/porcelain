@@ -9,6 +9,7 @@ export {
   ErrorNote,
   IconAction,
   PanelLabel,
+  ScreenHeader,
   type SheetAction,
   StatusNote,
 } from './panel-chrome'

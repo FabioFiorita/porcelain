@@ -291,7 +291,7 @@ function DirectoryBrowser({
 
       <ShellModalScroll className="max-h-72" contentContainerClassName="gap-1">
         {browseQuery.isLoading ? (
-          <Text className="px-[16px] py-6 text-center text-sm text-muted-foreground">
+          <Text className="px-4 py-6 text-center text-sm text-muted-foreground">
             Loading folders…
           </Text>
         ) : null}
@@ -302,7 +302,7 @@ function DirectoryBrowser({
           />
         ) : null}
         {!browseQuery.isLoading && !browseQuery.isError && entries.length === 0 ? (
-          <Text className="px-[16px] py-6 text-center text-sm text-muted-foreground">
+          <Text className="px-4 py-6 text-center text-sm text-muted-foreground">
             No folders here
           </Text>
         ) : null}

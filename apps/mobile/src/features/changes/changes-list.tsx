@@ -2,9 +2,14 @@ import { useMemo, useState } from 'react'
 import { SectionList, Text, View } from 'react-native'
 import { EmptyNote, ErrorNote, IconAction, PanelLabel } from '@/components/panel-chrome'
 import { SegmentedControl } from '@/components/segmented-control'
-import { surfaceContentStyle } from '@/components/surface-layout'
+import {
+  SURFACE_STACK_GAP,
+  SURFACE_TOOLBAR,
+  surfaceContentStyle,
+} from '@/components/surface-layout'
 import { type CommentAnchor, CommentComposer } from '@/features/comments/comment-composer'
 import type { FlowFile } from '@/lib/daemon/procedures/changes'
+import { cn } from '@/lib/utils'
 import { type ChangesScope, useChangesStore } from './changes-store'
 import { changedPaths, summarizeChanges } from './changes-summary'
 import { FileRow, type FileRowActions } from './file-row'
@@ -109,20 +114,20 @@ export function ChangesList({
       />
 
       {failure === null ? null : (
-        <View className="px-[16px] pb-[8px]">
+        <View className="px-4 pb-2">
           <ErrorNote message={failure} testID="porcelain-changes-action-error" />
         </View>
       )}
 
       {error !== null ? (
-        <View className="px-[16px] pb-[8px]">
+        <View className="px-4 pb-2">
           <ErrorNote message={error.message} testID="porcelain-changes-error" />
         </View>
       ) : null}
 
       {pending ? (
         <Text
-          className="px-[16px] py-6 text-sm text-muted-foreground"
+          className="px-4 py-6 text-sm text-muted-foreground"
           testID="porcelain-changes-loading"
         >
           Loading changes…
@@ -189,7 +194,7 @@ function ChangesHeader({
   total: number
 }): React.JSX.Element {
   return (
-    <View className="gap-2 px-[16px] pb-[8px] pt-[12px]">
+    <View className={cn(SURFACE_TOOLBAR, SURFACE_STACK_GAP)}>
       <View className="flex-row items-center gap-1">
         <Text
           className={`min-w-0 flex-1 text-xs ${allReviewed ? 'text-success' : 'text-muted-foreground'}`}

@@ -20,7 +20,7 @@ export function BoardList({ active }: { active: boolean }): React.JSX.Element {
   return (
     <View className="flex-1" testID="porcelain-board-list">
       {error === null ? null : (
-        <View className="px-[16px] pb-[8px] pt-[12px]">
+        <View className="px-4 pb-2 pt-3">
           <ErrorNote
             message={`Couldn't load the board. ${error.message}`}
             testID="porcelain-board-list-error"
@@ -30,7 +30,7 @@ export function BoardList({ active }: { active: boolean }): React.JSX.Element {
 
       {isLoading ? (
         <Text
-          className="px-[16px] py-6 text-sm text-muted-foreground"
+          className="px-4 py-6 text-sm text-muted-foreground"
           testID="porcelain-board-list-loading"
         >
           Loading board…
@@ -44,7 +44,7 @@ export function BoardList({ active }: { active: boolean }): React.JSX.Element {
       ) : (
         <ScrollView
           className="flex-1"
-          contentContainerClassName="gap-4 px-[16px] pb-8 pt-3"
+          contentContainerClassName="gap-4 px-4 pb-8 pt-3"
           nestedScrollEnabled
           showsVerticalScrollIndicator={false}
           testID="porcelain-board-list-columns"

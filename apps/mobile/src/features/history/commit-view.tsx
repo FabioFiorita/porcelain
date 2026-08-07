@@ -1,11 +1,16 @@
 import { useMemo, useState } from 'react'
 import { SectionList, Text, View } from 'react-native'
 
-import { EmptyNote, ErrorNote, IconAction, PanelLabel } from '@/components/panel-chrome'
+import {
+  EmptyNote,
+  ErrorNote,
+  IconAction,
+  PanelLabel,
+  ScreenHeader,
+} from '@/components/panel-chrome'
 import { surfaceContentStyle } from '@/components/surface-layout'
 import { type CommentAnchor, CommentComposer } from '@/features/comments/comment-composer'
 import type { FlowFile } from '@/lib/daemon/procedures/changes'
-import { cn } from '@/lib/utils'
 
 import { CommitFileRow, type CommitFileRowActions } from './commit-file-row'
 import { commitTitle, shortHash, splitCommitMessage } from './commit-message'
@@ -59,37 +64,31 @@ export function CommitView({
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-history-commit-view">
-      <View
-        className="flex-row items-center gap-1 border-b border-border px-2 py-1.5"
-        style={{ paddingTop: topInset + 6 }}
-      >
-        {onBack === undefined ? null : (
+      <ScreenHeader
+        actions={
           <IconAction
-            accessibilityLabel="Back to history"
-            glyph="chevronLeft"
-            testID="porcelain-history-commit-back"
-            tone="foreground"
-            onPress={onBack}
+            accessibilityLabel="Read the whole commit"
+            disabled={fileCount === 0}
+            glyph="readAll"
+            testID="porcelain-history-commit-read-all"
+            onPress={() => {
+              onOpenAll(hash)
+            }}
           />
-        )}
-        <View className={cn('min-w-0 flex-1', onBack === undefined && 'pl-1.5')}>
-          <Text className="text-xs font-semibold text-foreground" numberOfLines={1}>
-            {commitTitle(message, hash)}
-          </Text>
-          <Text className="font-mono text-[10px] text-muted-foreground" numberOfLines={1}>
-            {shortHash(hash)} · {fileCount} {fileCount === 1 ? 'file' : 'files'}
-          </Text>
-        </View>
-        <IconAction
-          accessibilityLabel="Read the whole commit"
-          disabled={fileCount === 0}
-          glyph="readAll"
-          testID="porcelain-history-commit-read-all"
-          onPress={() => {
-            onOpenAll(hash)
-          }}
-        />
-      </View>
+        }
+        back={
+          onBack === undefined
+            ? undefined
+            : {
+                accessibilityLabel: 'Back to history',
+                onPress: onBack,
+                testID: 'porcelain-history-commit-back',
+              }
+        }
+        subtitle={`${shortHash(hash)} · ${fileCount} ${fileCount === 1 ? 'file' : 'files'}`}
+        title={commitTitle(message, hash)}
+        topInset={topInset}
+      />
 
       {error !== null ? (
         <View className="p-4">

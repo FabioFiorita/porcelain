@@ -55,14 +55,14 @@ export function HistoryList({
       />
 
       {error !== null ? (
-        <View className="px-[16px] pb-[8px]">
+        <View className="px-4 pb-2">
           <ErrorNote message={error.message} testID="porcelain-history-error" />
         </View>
       ) : null}
 
       {pending ? (
         <Text
-          className="px-[16px] py-6 text-sm text-muted-foreground"
+          className="px-4 py-6 text-sm text-muted-foreground"
           testID="porcelain-history-loading"
         >
           Loading commits…
@@ -105,7 +105,7 @@ function HistoryHeader({
   const on = branch === null ? '' : ` on ${branch}`
 
   return (
-    <View className="gap-1 px-[16px] pb-[8px] pt-[12px]">
+    <View className="gap-1 px-4 pb-2 pt-3">
       <Text className="text-xs text-muted-foreground" testID="porcelain-history-summary">
         {pending ? 'Loading commits…' : `${total} ${noun}${on}`}
       </Text>

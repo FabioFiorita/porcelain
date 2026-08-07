@@ -2,12 +2,11 @@ import { fileName } from '@porcelain/client-runtime/paths'
 import { intraLineEmphasis } from '@porcelain/client-runtime/word-diff-line'
 import { useMemo, useState } from 'react'
 import { FlatList, Image, Text, View } from 'react-native'
-import { EmptyNote, ErrorNote, IconAction } from '@/components/panel-chrome'
+import { EmptyNote, ErrorNote, IconAction, ScreenHeader } from '@/components/panel-chrome'
 import { type CommentAnchor, CommentComposer } from '@/features/comments/comment-composer'
 import { useCommentIndex, useReviewComments } from '@/features/comments/use-comments'
 import { usePreferencesStore } from '@/features/settings/preferences-store'
 import type { DiffHunk, FileStatus } from '@/lib/daemon/procedures/changes'
-import { cn } from '@/lib/utils'
 import { DiffRowView } from './diff-lines'
 import { type DiffRow, toDiffRows } from './diff-rows'
 import { anchorTextFor, describeRange, type LineRange, rangeForPath } from './line-selection'
@@ -179,65 +178,55 @@ function DiffHeader({
   topInset: number
 }): React.JSX.Element {
   return (
-    <View
-      className="flex-row items-center gap-1 border-b border-border px-2 py-1.5"
-      style={{ paddingTop: topInset + 6 }}
-    >
-      {onBack === undefined ? null : (
-        <IconAction
-          accessibilityLabel="Back"
-          glyph="chevronLeft"
-          testID={`${testID}-back`}
-          tone="foreground"
-          onPress={onBack}
-        />
-      )}
-      <View className={cn('min-w-0 flex-1', onBack === undefined && 'pl-1.5')}>
-        <Text className="font-mono text-xs font-medium text-foreground" numberOfLines={1}>
-          {fileName(filePath)}
-        </Text>
-        <Text
-          className="font-mono text-[10px] text-muted-foreground"
-          ellipsizeMode="head"
-          numberOfLines={1}
-        >
-          {filePath}
-        </Text>
-      </View>
-      {reviewed === undefined ? null : (
-        <IconAction
-          accessibilityLabel={reviewed.isReviewed ? 'Unmark reviewed' : 'Mark reviewed'}
-          glyph={reviewed.isReviewed ? 'squareCheck' : 'square'}
-          selected={reviewed.isReviewed}
-          testID={`${testID}-reviewed`}
-          tone={reviewed.isReviewed ? 'success' : 'muted'}
-          onPress={reviewed.onToggle}
-        />
-      )}
-      <IconAction
-        accessibilityLabel={
-          selectedRange === null
-            ? 'Comment on file'
-            : `Comment on ${describeRange(selectedRange).toLowerCase()}`
-        }
-        glyph="commentAdd"
-        selected={selectedRange !== null}
-        testID={`${testID}-comment`}
-        tone={selectedRange === null ? 'muted' : 'primary'}
-        onPress={onComment}
-      />
-      {/* A diff answers "what changed"; the file answers "what is this now". Reading one
-          because of the other is the common move, so it is one tap and not a tab switch. */}
-      <IconAction
-        accessibilityLabel="Open the whole file"
-        disabled={onOpenFile === undefined}
-        glyph="file"
-        testID={`${testID}-open-file`}
-        onPress={() => {
-          onOpenFile?.(filePath)
-        }}
-      />
-    </View>
+    <ScreenHeader
+      actions={
+        <>
+          {reviewed === undefined ? null : (
+            <IconAction
+              accessibilityLabel={reviewed.isReviewed ? 'Unmark reviewed' : 'Mark reviewed'}
+              glyph={reviewed.isReviewed ? 'squareCheck' : 'square'}
+              selected={reviewed.isReviewed}
+              testID={`${testID}-reviewed`}
+              tone={reviewed.isReviewed ? 'success' : 'muted'}
+              onPress={reviewed.onToggle}
+            />
+          )}
+          <IconAction
+            accessibilityLabel={
+              selectedRange === null
+                ? 'Comment on file'
+                : `Comment on ${describeRange(selectedRange).toLowerCase()}`
+            }
+            glyph="commentAdd"
+            selected={selectedRange !== null}
+            testID={`${testID}-comment`}
+            tone={selectedRange === null ? 'muted' : 'primary'}
+            onPress={onComment}
+          />
+          {/* A diff answers "what changed"; the file answers "what is this now". Reading one
+              because of the other is the common move, so it is one tap and not a tab switch. */}
+          <IconAction
+            accessibilityLabel="Open the whole file"
+            disabled={onOpenFile === undefined}
+            glyph="file"
+            testID={`${testID}-open-file`}
+            onPress={() => {
+              onOpenFile?.(filePath)
+            }}
+          />
+        </>
+      }
+      back={
+        onBack === undefined
+          ? undefined
+          : { accessibilityLabel: 'Back', onPress: onBack, testID: `${testID}-back` }
+      }
+      mono
+      subtitle={filePath}
+      subtitleFromEnd
+      title={fileName(filePath)}
+      topInset={topInset}
+    />
   )
 }
 

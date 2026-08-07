@@ -39,7 +39,7 @@ export function TerminalKeyBar({
   return (
     <ScrollView
       className="max-h-14 shrink-0 border-b border-border bg-card"
-      contentContainerClassName="items-center gap-1 px-[16px] py-1.5"
+      contentContainerClassName="items-center gap-1 px-4 py-1.5"
       horizontal
       keyboardShouldPersistTaps="always"
       showsHorizontalScrollIndicator={false}

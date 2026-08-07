@@ -7,4 +7,18 @@
 :root {
   --porcelain-font-sans: System;
   --porcelain-font-mono: Menlo;
+
+  /*
+   * The spacing grid, pinned to points instead of `rem`.
+   *
+   * Tailwind ships `--spacing: 0.25rem`, and `react-native-css` hardcodes the runtime rem to 14
+   * (`native-internal/root.ts`) — `inlineVariables: false` keeps the variable, so it is the
+   * RUNTIME rem that wins, not `inlineRem` in `metro.config.js`. Every spacing utility therefore
+   * measured 0.875x its name: `px-4` was 14pt, `gap-2` was 7pt, and `min-h-11` was 38.5pt — under
+   * the 44pt touch target it exists to guarantee. Fractional, invisible in a diff, and impossible
+   * to line up against anything expressed in points.
+   *
+   * 4pt here makes the whole scale exact and integral: `gap-2` is 8, `pt-3` is 12, `px-4` is 16.
+   */
+  --spacing: 4px;
 }

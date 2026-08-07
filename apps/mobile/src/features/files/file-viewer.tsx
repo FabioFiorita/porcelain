@@ -1,7 +1,7 @@
 import { fileName } from '@porcelain/client-runtime/paths'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { FlatList, Image, Text, View } from 'react-native'
-import { EmptyNote, ErrorNote, IconAction } from '@/components/panel-chrome'
+import { EmptyNote, ErrorNote, IconAction, ScreenHeader } from '@/components/panel-chrome'
 import { SegmentedControl } from '@/components/segmented-control'
 import { type CommentAnchor, CommentComposer } from '@/features/comments/comment-composer'
 import { describeRange, type LineRange, rangeForPath } from '@/features/comments/line-range'
@@ -15,7 +15,6 @@ import {
 } from '@/features/settings/preferences-store'
 import { useResolvedColorScheme } from '@/features/settings/theme-provider'
 import type { FileView } from '@/lib/daemon/procedures/files'
-import { cn } from '@/lib/utils'
 
 import { isHtmlPath, isMarkdownPath } from './file-kinds'
 import { pathTestId } from './file-paths'
@@ -167,13 +166,13 @@ export function FileViewer({
       />
 
       {actionError === null ? null : (
-        <View className="px-[16px] py-2">
+        <View className="px-4 py-2">
           <ErrorNote message={actionError} testID="porcelain-files-viewer-action-error" />
         </View>
       )}
 
       {!isText || (!markdown && !html) ? null : (
-        <View className="px-[16px] py-2">
+        <View className="px-4 py-2">
           {markdown ? (
             <SegmentedControl<MarkdownMode>
               options={[
@@ -311,54 +310,46 @@ function ViewerHeader({
   topInset: number
 }): React.JSX.Element {
   return (
-    <View
-      className="flex-row items-center gap-1 border-b border-border px-2 py-1.5"
-      style={{ paddingTop: topInset + 6 }}
-    >
-      {onBack === undefined ? null : (
-        <IconAction
-          accessibilityLabel="Back to files"
-          glyph="chevronLeft"
-          testID="porcelain-files-viewer-back"
-          tone="foreground"
-          onPress={onBack}
-        />
-      )}
-      <View className={cn('min-w-0 flex-1', onBack === undefined && 'pl-1.5')}>
-        <Text className="font-mono text-xs font-medium text-foreground" numberOfLines={1}>
-          {fileName(filePath)}
-        </Text>
-        {/* Head-truncated: the tail of a path identifies it, the repo root never does. */}
-        <Text
-          className="font-mono text-[10px] text-muted-foreground"
-          ellipsizeMode="head"
-          numberOfLines={1}
-        >
-          {filePath}
-          {commentCount === 0 ? '' : ` · ${commentCount} commented`}
-        </Text>
-      </View>
-      <IconAction
-        accessibilityLabel={isPinned ? 'Unpin file' : 'Pin file'}
-        glyph={isPinned ? 'pinOff' : 'pin'}
-        selected={isPinned}
-        testID="porcelain-files-viewer-pin"
-        tone={isPinned ? 'primary' : 'muted'}
-        onPress={onTogglePinned}
-      />
-      <IconAction
-        accessibilityLabel={
-          selectedRange === null
-            ? 'Comment on file'
-            : `Comment on ${describeRange(selectedRange).toLowerCase()}`
-        }
-        glyph="commentAdd"
-        selected={selectedRange !== null}
-        testID="porcelain-files-viewer-comment"
-        tone={selectedRange === null ? 'muted' : 'primary'}
-        onPress={onComment}
-      />
-    </View>
+    <ScreenHeader
+      actions={
+        <>
+          <IconAction
+            accessibilityLabel={isPinned ? 'Unpin file' : 'Pin file'}
+            glyph={isPinned ? 'pinOff' : 'pin'}
+            selected={isPinned}
+            testID="porcelain-files-viewer-pin"
+            tone={isPinned ? 'primary' : 'muted'}
+            onPress={onTogglePinned}
+          />
+          <IconAction
+            accessibilityLabel={
+              selectedRange === null
+                ? 'Comment on file'
+                : `Comment on ${describeRange(selectedRange).toLowerCase()}`
+            }
+            glyph="commentAdd"
+            selected={selectedRange !== null}
+            testID="porcelain-files-viewer-comment"
+            tone={selectedRange === null ? 'muted' : 'primary'}
+            onPress={onComment}
+          />
+        </>
+      }
+      back={
+        onBack === undefined
+          ? undefined
+          : {
+              accessibilityLabel: 'Back to files',
+              onPress: onBack,
+              testID: 'porcelain-files-viewer-back',
+            }
+      }
+      mono
+      subtitle={`${filePath}${commentCount === 0 ? '' : ` · ${commentCount} commented`}`}
+      subtitleFromEnd
+      title={fileName(filePath)}
+      topInset={topInset}
+    />
   )
 }
 

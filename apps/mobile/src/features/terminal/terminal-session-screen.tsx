@@ -1,9 +1,7 @@
 import { useRouter } from 'expo-router'
-import { Pressable, Text, View } from 'react-native'
+import { Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-
-import { ChromeGlyph } from '@/components/chrome-glyph'
-import { EmptyNote } from '@/components/surface-chrome'
+import { EmptyNote, ScreenHeader } from '@/components/surface-chrome'
 import { useTabBarInset } from '@/features/shell/tab-bar-inset'
 
 import { useTerminalStore } from './terminal-store'
@@ -37,33 +35,26 @@ export function TerminalSessionScreen({ sessionId }: { sessionId: string }): Rea
       style={{ paddingTop: insets.top }}
       testID="porcelain-terminal-session"
     >
-      <View className="flex-row items-center gap-1 border-b border-border px-2 py-1">
-        <Pressable
-          accessibilityLabel="Back to terminals"
-          accessibilityRole="button"
-          className="size-10 items-center justify-center rounded-lg active:bg-accent"
-          testID="porcelain-terminal-session-back"
-          onPress={() => {
+      <ScreenHeader
+        actions={
+          session?.status === 'exited' ? (
+            <Text className="px-2 text-[10px] uppercase tracking-widest text-muted-foreground">
+              exited
+            </Text>
+          ) : (
+            <View className="mr-2 size-2 rounded-full bg-success" />
+          )
+        }
+        back={{
+          accessibilityLabel: 'Back to terminals',
+          onPress: () => {
             router.back()
-          }}
-        >
-          <ChromeGlyph name="chevronLeft" size={18} tone="foreground" />
-        </Pressable>
-        <Text
-          className="min-w-0 flex-1 text-sm font-semibold text-foreground"
-          numberOfLines={1}
-          testID="porcelain-terminal-session-title"
-        >
-          {session?.name ?? 'Terminal'}
-        </Text>
-        {session?.status === 'exited' ? (
-          <Text className="px-2 text-[10px] uppercase tracking-widest text-muted-foreground">
-            exited
-          </Text>
-        ) : (
-          <View className="mr-3 size-2 rounded-full bg-success" />
-        )}
-      </View>
+          },
+          testID: 'porcelain-terminal-session-back',
+        }}
+        title={session?.name ?? 'Terminal'}
+        topInset={0}
+      />
 
       {session === undefined ? (
         <EmptyNote

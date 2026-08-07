@@ -14,7 +14,7 @@ export function ChangesCompanion({ active }: { active: boolean }): React.JSX.Ele
   return (
     <ScrollView
       className="flex-1"
-      contentContainerClassName="gap-5 px-[16px] pb-8 pt-3"
+      contentContainerClassName="gap-5 px-4 pb-8 pt-3"
       keyboardShouldPersistTaps="handled"
       nestedScrollEnabled
       showsVerticalScrollIndicator={false}

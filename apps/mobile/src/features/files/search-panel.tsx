@@ -5,7 +5,11 @@ import { FlatList, Pressable, Text, View } from 'react-native'
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { EmptyNote, ErrorNote } from '@/components/panel-chrome'
 import { SegmentedControl } from '@/components/segmented-control'
-import { surfaceContentStyle } from '@/components/surface-layout'
+import {
+  SURFACE_STACK_GAP,
+  SURFACE_TOOLBAR,
+  surfaceContentStyle,
+} from '@/components/surface-layout'
 import { Input } from '@/components/ui/input'
 import type { CodeSearchOptions, FileSearchResult } from '@/lib/daemon/procedures/files'
 import { cn } from '@/lib/utils'
@@ -109,7 +113,7 @@ export function SearchPanel({
 
   return (
     <View className="flex-1" testID="porcelain-search-panel">
-      <View className="gap-2 px-[16px] pb-[8px] pt-[12px]">
+      <View className={cn(SURFACE_TOOLBAR, SURFACE_STACK_GAP)}>
         <SegmentedControl<SearchMode>
           options={[
             { value: 'text', label: 'Text', testID: 'porcelain-search-mode-text' },
@@ -189,7 +193,7 @@ export function SearchPanel({
       </View>
 
       {error === null ? null : (
-        <View className="px-[16px] pb-[8px]">
+        <View className="px-4 pb-2">
           <ErrorNote message={error.message} testID="porcelain-search-error" />
         </View>
       )}
@@ -206,7 +210,7 @@ export function SearchPanel({
         />
       ) : !found ? (
         <Text
-          className="px-[16px] py-6 text-center text-sm text-muted-foreground"
+          className="px-4 py-6 text-center text-sm text-muted-foreground"
           testID={searching ? 'porcelain-search-searching' : 'porcelain-search-empty'}
         >
           {searching
@@ -271,10 +275,7 @@ function ResultSummary({
   truncated: boolean
 }): React.JSX.Element {
   return (
-    <Text
-      className="px-[16px] pb-1 text-[11px] text-muted-foreground"
-      testID="porcelain-search-summary"
-    >
+    <Text className="px-4 pb-1 text-[11px] text-muted-foreground" testID="porcelain-search-summary">
       {matches} {matches === 1 ? 'result' : 'results'} in {files} {files === 1 ? 'file' : 'files'}
       {truncated ? ' · capped — narrow the search to see the rest' : ''}
     </Text>
