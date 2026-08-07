@@ -4,7 +4,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ReadAllView } from '@/features/diff/read-all-view'
 import { commitTitle, shortHash } from '@/features/history/commit-message'
 import { useCommitMessage, useHistoryFocus } from '@/features/history/use-history'
-import { useTabBarInset } from '@/features/shell/tab-bar-inset'
 
 /**
  * A whole commit as one continuous read, pushed over the commit screen. The daemon inlines
@@ -16,14 +15,12 @@ export default function HistoryCommitReadAllRoute(): React.JSX.Element {
   const focused = useIsFocused()
   const insets = useSafeAreaInsets()
   const router = useRouter()
-  const bottomInset = useTabBarInset()
   const message = useCommitMessage(hash, focused)
   useHistoryFocus({ hash, kind: 'all' })
 
   return (
     <ReadAllView
       active={focused}
-      bottomInset={bottomInset}
       context={shortHash(hash)}
       scope={{ hash, type: 'commit' }}
       testID="porcelain-history-read-all"

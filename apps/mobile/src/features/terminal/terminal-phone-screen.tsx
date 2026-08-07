@@ -2,7 +2,6 @@ import { useIsFocused, useRouter } from 'expo-router'
 import { View } from 'react-native'
 
 import { PhoneHeader } from '@/features/shell/phone-header'
-import { useTabBarInset } from '@/features/shell/tab-bar-inset'
 
 import { TerminalList } from './terminal-list'
 
@@ -17,14 +16,12 @@ import { TerminalList } from './terminal-list'
 export function TerminalPhoneScreen(): React.JSX.Element {
   const focused = useIsFocused()
   const router = useRouter()
-  const bottomInset = useTabBarInset()
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-phone-surface-terminal">
       <PhoneHeader companionSurface="terminal" title="Terminal" />
       <TerminalList
         active={focused}
-        bottomInset={bottomInset}
         onOpenSession={(id) => {
           router.push({ params: { id }, pathname: '/terminal/[id]' })
         }}

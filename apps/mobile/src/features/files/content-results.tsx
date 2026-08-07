@@ -1,8 +1,8 @@
 import { dirName, fileName } from '@porcelain/client-runtime/paths'
-import { FlatList, Pressable, Text, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
-import { surfaceContentStyle } from '@/components/surface-layout'
+import { SurfaceList } from '@/components/surface-scroll'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import type { CodeSearchFile, CodeSearchLine } from '@/lib/daemon/procedures/files'
 import { cn } from '@/lib/utils'
@@ -18,7 +18,6 @@ import { commonIndent, matchSpans } from './search-highlight'
  * match or context — opens the file there.
  */
 export function ContentResults({
-  bottomInset = 0,
   caseSensitive,
   files,
   onOpenLine,
@@ -26,7 +25,6 @@ export function ContentResults({
   regex,
   selectedPath,
 }: {
-  bottomInset?: number
   caseSensitive: boolean
   files: readonly CodeSearchFile[]
   /** Repo-relative path plus the 1-based line the reader tapped. */
@@ -36,9 +34,9 @@ export function ContentResults({
   selectedPath: string | null
 }): React.JSX.Element {
   return (
-    <FlatList
-      contentContainerStyle={surfaceContentStyle({ bottomInset, gap: 4 })}
+    <SurfaceList
       data={files}
+      gap={4}
       keyboardShouldPersistTaps="handled"
       keyExtractor={(file: CodeSearchFile) => file.path}
       renderItem={({ item }) => (

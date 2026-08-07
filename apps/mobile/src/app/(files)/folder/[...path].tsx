@@ -4,7 +4,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { pathFromSegments, pathSegments } from '@/features/files/file-paths'
 import { FilesBrowser } from '@/features/files/files-browser'
-import { useTabBarInset } from '@/features/shell/tab-bar-inset'
 
 /**
  * One directory, pushed over the tree.
@@ -17,14 +16,12 @@ export default function FilesFolderRoute(): React.JSX.Element {
   const focused = useIsFocused()
   const insets = useSafeAreaInsets()
   const router = useRouter()
-  const bottomInset = useTabBarInset()
   const dirPath = pathFromSegments(path)
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-files-folder-screen">
       <FilesBrowser
         active={focused}
-        bottomInset={bottomInset}
         dirPath={dirPath}
         topInset={Math.max(insets.top, 8)}
         onBack={() => {

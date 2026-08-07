@@ -1,11 +1,10 @@
 import { useIsFocused } from 'expo-router'
-import { ScrollView, Text, View } from 'react-native'
+import { Text, View } from 'react-native'
 
 import { ErrorNote } from '@/components/panel-chrome'
 import { SegmentedControl } from '@/components/segmented-control'
-import { surfaceContentStyle } from '@/components/surface-layout'
+import { SurfaceScroll } from '@/components/surface-scroll'
 import { PhoneHeader } from '@/features/shell/phone-header'
-import { useTabBarInset } from '@/features/shell/tab-bar-inset'
 import type { CardStatus } from '@/lib/daemon/procedures/review'
 
 import { BoardColumn } from './board-column'
@@ -29,7 +28,6 @@ import {
  */
 export function BoardPhoneScreen(): React.JSX.Element {
   const focused = useIsFocused()
-  const bottomInset = useTabBarInset()
   const { cards, error, isLoading } = useBoardCards(focused)
   const column = useBoardStore((state) => state.column)
   const setColumn = useBoardStore((state) => state.setColumn)
@@ -70,12 +68,7 @@ export function BoardPhoneScreen(): React.JSX.Element {
           Loading board…
         </Text>
       ) : (
-        <ScrollView
-          className="flex-1"
-          contentContainerStyle={surfaceContentStyle({ bottomInset })}
-          showsVerticalScrollIndicator={false}
-          testID="porcelain-board-phone-cards"
-        >
+        <SurfaceScroll showsVerticalScrollIndicator={false} testID="porcelain-board-phone-cards">
           <BoardColumn
             cards={cards}
             host="phone"
@@ -84,7 +77,7 @@ export function BoardPhoneScreen(): React.JSX.Element {
             status={column}
             testIDPrefix="porcelain-board-phone"
           />
-        </ScrollView>
+        </SurfaceScroll>
       )}
 
       <CardComposer host="phone" />

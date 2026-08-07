@@ -4,7 +4,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ChangesReadAllView } from '@/features/changes/changes-read-all-view'
 import { useChangesStore } from '@/features/changes/changes-store'
 import { useChangesFlow } from '@/features/changes/use-changes'
-import { useTabBarInset } from '@/features/shell/tab-bar-inset'
 
 /**
  * The whole change set as one continuous read, pushed over the Changes list.
@@ -16,7 +15,6 @@ export default function ChangesReadAllRoute(): React.JSX.Element {
   const focused = useIsFocused()
   const insets = useSafeAreaInsets()
   const router = useRouter()
-  const bottomInset = useTabBarInset()
   const scope = useChangesStore((state) => state.scope)
   const { base } = useChangesFlow(focused)
 
@@ -24,7 +22,6 @@ export default function ChangesReadAllRoute(): React.JSX.Element {
     <ChangesReadAllView
       active={focused}
       base={base}
-      bottomInset={bottomInset}
       scope={scope}
       topInset={Math.max(insets.top, 8)}
       onBack={() => {

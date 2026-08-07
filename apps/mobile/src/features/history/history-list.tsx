@@ -1,7 +1,7 @@
-import { FlatList, Text, View } from 'react-native'
+import { Text, View } from 'react-native'
 
 import { EmptyNote, ErrorNote, StatusNote } from '@/components/panel-chrome'
-import { surfaceContentStyle } from '@/components/surface-layout'
+import { SurfaceList } from '@/components/surface-scroll'
 import type { Commit } from '@/lib/daemon/procedures/changes'
 
 import { CommitRow, type CommitRowActions } from './commit-row'
@@ -18,12 +18,9 @@ import { useGitLog, useHeadLabel } from './use-history'
  */
 export function HistoryList({
   active,
-  bottomInset = 0,
   onOpenCommit,
 }: {
   active: boolean
-  /** Phone: room for the floating tab bar the list scrolls under. */
-  bottomInset?: number
   /** Phone: push the commit's route. Omitted on tablet, which selects into its viewer. */
   onOpenCommit?: (hash: string) => void
 }): React.JSX.Element {
@@ -74,9 +71,9 @@ export function HistoryList({
           title="No commits yet"
         />
       ) : (
-        <FlatList
-          contentContainerStyle={surfaceContentStyle({ bottomInset, gap: 2 })}
+        <SurfaceList
           data={commits ?? []}
+          gap={2}
           initialNumToRender={20}
           keyExtractor={(commit: Commit) => commit.hash}
           renderItem={({ item }) => (

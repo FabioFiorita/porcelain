@@ -1,13 +1,13 @@
-import { ScrollView, View } from 'react-native'
+import { View } from 'react-native'
 
-import { SURFACE_GUTTER, surfaceContentStyle } from '@/components/surface-layout'
+import { SURFACE_GUTTER } from '@/components/surface-layout'
+import { SurfaceScroll } from '@/components/surface-scroll'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Text as UiText } from '@/components/ui/text'
 import { cn } from '@/lib/utils'
 
 import { PhoneHeader } from '../shell/phone-header'
 import { type SettingsSection, useShellStore } from '../shell/shell-store'
-import { useTabBarInset } from '../shell/tab-bar-inset'
 import { DataSettings } from './data-panel'
 import { EnvironmentsSettings } from './environments-panel'
 import { GeneralSettings } from './general-panel'
@@ -27,7 +27,6 @@ const SECTIONS: { id: SettingsSection; label: string }[] = [
 export function SettingsScreen(): React.JSX.Element {
   const section = useShellStore((state) => state.settingsSection)
   const setSettingsSection = useShellStore((state) => state.setSettingsSection)
-  const bottomInset = useTabBarInset()
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-phone-settings">
@@ -63,24 +62,17 @@ export function SettingsScreen(): React.JSX.Element {
 
         {SECTIONS.map((entry) => (
           <TabsContent key={entry.id} className="min-h-0 flex-1" value={entry.id}>
-            <ScrollView
-              className="flex-1"
-              /* The tab bar floats over this pane rather than reserving space below it, so a
-                 preference that stops at the safe area — a picker's open list, the last row of
-                 Data — is stranded behind the bar with no scroll left to clear it. */
-              contentContainerStyle={surfaceContentStyle({
-                bottomInset,
-                gap: 12,
-                paddingTop: 12,
-              })}
+            <SurfaceScroll
+              gap={12}
               keyboardShouldPersistTaps="handled"
+              paddingTop={12}
               showsVerticalScrollIndicator={false}
             >
               {entry.id === 'general' ? <GeneralSettings /> : null}
               {entry.id === 'data' ? <DataSettings /> : null}
               {entry.id === 'review' ? <ReviewSettings /> : null}
               {entry.id === 'environments' ? <EnvironmentsSettings /> : null}
-            </ScrollView>
+            </SurfaceScroll>
           </TabsContent>
         ))}
       </Tabs>

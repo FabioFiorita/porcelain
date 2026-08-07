@@ -2,7 +2,6 @@ import { useIsFocused, useRouter } from 'expo-router'
 import { View } from 'react-native'
 
 import { PhoneHeader } from '@/features/shell/phone-header'
-import { useTabBarInset } from '@/features/shell/tab-bar-inset'
 
 import { ChangesList } from './changes-list'
 
@@ -17,14 +16,12 @@ import { ChangesList } from './changes-list'
 export function ChangesPhoneScreen(): React.JSX.Element {
   const focused = useIsFocused()
   const router = useRouter()
-  const bottomInset = useTabBarInset()
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-phone-surface-changes">
       <PhoneHeader companionSurface="changes" title="Changes" />
       <ChangesList
         active={focused}
-        bottomInset={bottomInset}
         onOpenAll={() => {
           router.push('/changes/read-all')
         }}

@@ -2,7 +2,6 @@ import { useIsFocused } from 'expo-router'
 import { View } from 'react-native'
 
 import { PhoneHeader } from '@/features/shell/phone-header'
-import { useTabBarInset } from '@/features/shell/tab-bar-inset'
 
 import { ReviewCanvas } from './review-canvas'
 
@@ -17,12 +16,11 @@ import { ReviewCanvas } from './review-canvas'
  */
 export function ReviewPhoneScreen(): React.JSX.Element {
   const focused = useIsFocused()
-  const bottomInset = useTabBarInset()
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-phone-surface-review">
       <PhoneHeader companionSurface="review" title="Review" />
-      <ReviewCanvas active={focused} bottomInset={bottomInset} />
+      <ReviewCanvas active={focused} />
     </View>
   )
 }

@@ -3,7 +3,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { pathFromSegments } from '@/features/files/file-paths'
 import { FileViewer } from '@/features/files/file-viewer'
-import { useTabBarInset } from '@/features/shell/tab-bar-inset'
 
 /**
  * One file, pushed over the tree — or over a search, or over a diff, since every surface that
@@ -14,7 +13,6 @@ export default function FilesFileRoute(): React.JSX.Element {
   const focused = useIsFocused()
   const insets = useSafeAreaInsets()
   const router = useRouter()
-  const bottomInset = useTabBarInset()
   // A deep link carries whatever the URL says; anything that is not a positive integer is a
   // file opened at the top, not a crash.
   const parsed = line === undefined ? Number.NaN : Number(line)
@@ -23,7 +21,6 @@ export default function FilesFileRoute(): React.JSX.Element {
   return (
     <FileViewer
       active={focused}
-      bottomInset={bottomInset}
       filePath={pathFromSegments(path)}
       line={at}
       topInset={Math.max(insets.top, 8)}

@@ -10,14 +10,12 @@ import { readingScopeFor, useReviewedPaths, useToggleReviewed } from './use-chan
 export function ChangesReadAllView({
   active,
   base,
-  bottomInset = 0,
   onBack,
   scope,
   topInset = 0,
 }: {
   active: boolean
   base: string | undefined
-  bottomInset?: number
   onBack?: () => void
   scope: ChangesScope
   topInset?: number
@@ -28,7 +26,6 @@ export function ChangesReadAllView({
   return (
     <ReadAllView
       active={active}
-      bottomInset={bottomInset}
       context={scope === 'branch' ? `Branch range · vs ${base ?? 'base'}` : 'Working tree'}
       reviewed={{
         onToggle: (path, next) => {

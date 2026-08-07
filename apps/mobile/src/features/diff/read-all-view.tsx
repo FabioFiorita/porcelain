@@ -2,7 +2,7 @@ import type { TokenMap } from '@porcelain/client-runtime/highlight'
 import { fileName } from '@porcelain/client-runtime/paths'
 import { intraLineEmphasis } from '@porcelain/client-runtime/word-diff-line'
 import { useMemo, useState } from 'react'
-import { FlatList, Text, View } from 'react-native'
+import { Text, View } from 'react-native'
 import {
   EmptyNote,
   ErrorNote,
@@ -10,11 +10,13 @@ import {
   PanelLabel,
   ScreenHeader,
 } from '@/components/panel-chrome'
+import { SurfaceList } from '@/components/surface-scroll'
 import { type CommentAnchor, CommentComposer } from '@/features/comments/comment-composer'
 import { rangeForPath, rangeOf } from '@/features/comments/line-range'
 import { useCommentedLinesByPath, useReviewComments } from '@/features/comments/use-comments'
 import type { LineSelectionControls } from '@/features/comments/use-line-selection'
 import { usePreferencesStore } from '@/features/settings/preferences-store'
+import { useBottomChrome } from '@/features/shell/bottom-chrome'
 import type { DiffHunk, DiffReadingScope, FeatureReading } from '@/lib/daemon/procedures/changes'
 import { cn } from '@/lib/utils'
 import { DiffRowView } from './diff-lines'
@@ -40,7 +42,6 @@ export type ReviewedPaths = {
  */
 export function ReadAllView({
   active,
-  bottomInset = 0,
   context,
   onBack,
   reviewed,
@@ -52,8 +53,6 @@ export function ReadAllView({
   topInset = 0,
 }: {
   active: boolean
-  /** Phone: room for the floating tab bar the rows scroll under. */
-  bottomInset?: number
   /** Second header line — which set this is, before the file count. */
   context: string
   onBack?: () => void
@@ -70,6 +69,7 @@ export function ReadAllView({
   /** Phone: this view replaces the tab header, so it owns the status-bar inset. */
   topInset?: number
 }): React.JSX.Element {
+  const bottomInset = useBottomChrome()
   const { error, isLoading, reading } = useDiffReading(scope, active)
   const mode = usePreferencesStore((state) => state.diffMode)
   const comments = useReviewComments(active)
@@ -153,9 +153,9 @@ export function ReadAllView({
           title="No changes to review"
         />
       ) : (
-        <FlatList
-          contentContainerStyle={{ paddingBottom: bottomInset }}
+        <SurfaceList
           data={rows}
+          edgeToEdge
           initialNumToRender={40}
           keyExtractor={(row) => row.key}
           maxToRenderPerBatch={40}

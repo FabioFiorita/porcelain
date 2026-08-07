@@ -3,7 +3,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { CommitView } from '@/features/history/commit-view'
 import { useHistoryFocus } from '@/features/history/use-history'
-import { useTabBarInset } from '@/features/shell/tab-bar-inset'
 
 /**
  * One commit, pushed over the History list.
@@ -17,13 +16,11 @@ export default function HistoryCommitRoute(): React.JSX.Element {
   const focused = useIsFocused()
   const insets = useSafeAreaInsets()
   const router = useRouter()
-  const bottomInset = useTabBarInset()
   useHistoryFocus({ hash, kind: 'commit' })
 
   return (
     <CommitView
       active={focused}
-      bottomInset={bottomInset}
       hash={hash}
       topInset={Math.max(insets.top, 8)}
       onBack={() => {

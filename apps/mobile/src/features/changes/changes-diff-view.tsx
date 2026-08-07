@@ -13,7 +13,6 @@ import { useReviewedPaths, useToggleReviewed } from './use-changes'
 export function ChangesDiffView({
   active,
   base,
-  bottomInset = 0,
   filePath,
   onBack,
   onOpenFile,
@@ -22,7 +21,6 @@ export function ChangesDiffView({
   active: boolean
   /** Branch scope base ref; `undefined` reads the working tree. */
   base: string | undefined
-  bottomInset?: number
   filePath: string
   onBack?: () => void
   onOpenFile?: (path: string) => void
@@ -35,7 +33,6 @@ export function ChangesDiffView({
   return (
     <DiffView
       active={active}
-      bottomInset={bottomInset}
       filePath={filePath}
       reviewed={{
         isReviewed,

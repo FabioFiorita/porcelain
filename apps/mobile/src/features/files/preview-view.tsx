@@ -1,6 +1,8 @@
 import { Linking } from 'react-native'
 import { WebView } from 'react-native-webview'
 
+import { useBottomChrome } from '@/features/shell/bottom-chrome'
+
 /**
  * The one place this client renders someone else's document.
  *
@@ -11,6 +13,17 @@ import { WebView } from 'react-native-webview'
  * The rules are the renderer's `sandbox=""` iframe, expressed the way a WebView expresses them:
  * scripting off, no network (the document's own CSP), and every navigation refused. A repo file
  * is not trusted content; opening it to read must not run it.
+ *
+ * It also owns the bottom-chrome clearance for every document, as a **scroll inset** on the
+ * WebView rather than padding inside the HTML. The rejected alternative had each caller pass
+ * the tab bar's height down to the document builders, which then interpolated it into the
+ * stylesheet (`padding: 16px 18px ${48 + bottomInset}px`) and injected a spacer `<div>` before
+ * `</body>`. That put host geometry inside content — it edited an arbitrary repo file to lay
+ * out the app around it, it padded unconditionally so a short document grew a dead page under
+ * its last line whether or not anything ever scrolled, and it made every caller of a document
+ * builder responsible for a number it had no business knowing. A scroll inset is the same idea
+ * expressed where it belongs: the document is untouched, and the space exists only while there
+ * is something to scroll past it.
  */
 export function PreviewView({
   document,
@@ -20,12 +33,17 @@ export function PreviewView({
   document: string
   testID: string
 }): React.JSX.Element {
+  const bottomInset = useBottomChrome()
   return (
     <WebView
       // No baseUrl: the document resolves nothing relative, so a stray `src` cannot reach the
       // file system or the network even before the CSP is consulted.
       allowsFullscreenVideo={false}
       allowsInlineMediaPlayback={false}
+      contentInset={{ bottom: bottomInset }}
+      // Ours is the only inset; iOS adding its own on top is the double reservation this
+      // whole seam exists to stop.
+      contentInsetAdjustmentBehavior="never"
       // The document is inert; scripting buys it nothing and costs it every injection bug.
       javaScriptEnabled={false}
       onShouldStartLoadWithRequest={(request) => {

@@ -1,15 +1,12 @@
 import { dirName, fileName } from '@porcelain/client-runtime/paths'
 import { useEffect, useState } from 'react'
-import { FlatList, Pressable, Text, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { EmptyNote, ErrorNote } from '@/components/panel-chrome'
 import { SegmentedControl } from '@/components/segmented-control'
-import {
-  SURFACE_STACK_GAP,
-  SURFACE_TOOLBAR,
-  surfaceContentStyle,
-} from '@/components/surface-layout'
+import { SURFACE_STACK_GAP, SURFACE_TOOLBAR } from '@/components/surface-layout'
+import { SurfaceList } from '@/components/surface-scroll'
 import { Input } from '@/components/ui/input'
 import type { CodeSearchOptions, FileSearchResult } from '@/lib/daemon/procedures/files'
 import { cn } from '@/lib/utils'
@@ -41,14 +38,11 @@ const DEBOUNCE_MS = 150
  */
 export function SearchPanel({
   active,
-  bottomInset = 0,
   onOpenDir,
   onOpenFile,
   selectedPath = null,
 }: {
   active: boolean
-  /** Phone: room for the floating tab bar the list scrolls under. */
-  bottomInset?: number
   onOpenDir: (path: string) => void
   /** `line` is 1-based and only set by a content hit — the file opens there. */
   onOpenFile: (path: string, line?: number) => void
@@ -227,7 +221,6 @@ export function SearchPanel({
             truncated={text.result.truncated}
           />
           <ContentResults
-            bottomInset={bottomInset}
             caseSensitive={settled.caseSensitive}
             files={text.result.files}
             query={settled.query}
@@ -237,9 +230,9 @@ export function SearchPanel({
           />
         </View>
       ) : (
-        <FlatList
-          contentContainerStyle={surfaceContentStyle({ bottomInset, gap: 2 })}
+        <SurfaceList
           data={paths.results}
+          gap={2}
           keyboardShouldPersistTaps="handled"
           keyExtractor={(result: FileSearchResult) => `${result.kind}:${result.path}`}
           renderItem={({ item }) => (

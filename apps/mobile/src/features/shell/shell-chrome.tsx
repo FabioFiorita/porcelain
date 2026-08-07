@@ -250,18 +250,23 @@ export function PrimaryColumn(): React.JSX.Element {
 
   return (
     <ColumnSurface className="bg-sidebar" edges={{ bottom: true, left: true }}>
-      {/* Top padding clears the native SplitView sidebar toggle over the rail. */}
       <ScrollView
         className="flex-1"
         /* surface-gutter-allow: an icon rail, not a surface — its width IS the tap targets,
            and a 16pt gutter would push them off their own column. */
-        contentContainerClassName="grow gap-4 px-2 pb-5 pt-14"
+        contentContainerClassName="grow gap-2 px-2 pb-5 pt-4"
         showsVerticalScrollIndicator={false}
       >
-        <View className="gap-1 px-2">
-          <Text className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-            Destinations
-          </Text>
+        {/*
+          The title shares a line with the system SplitView toggle rather than clearing it.
+          Measured on an iPad Pro 13": the toggle is a 36pt square at y=109, so a 36pt band
+          starting at the column's `pt-4` puts this title's centre on the toggle's, and the
+          first destination lands just under both instead of 34pt below the toggle with an
+          empty strip between. The toggle sits at the column's right edge and this text runs
+          out of the left, so the two never meet.
+        */}
+        <View className="h-9 justify-center px-2">
+          <Text className="text-xl font-bold text-foreground">Destinations</Text>
         </View>
         <View className="gap-0.5">
           {SURFACES.map((surface) => (
@@ -335,11 +340,24 @@ export function SupplementaryColumn({
   if (slots !== undefined) {
     return (
       <ColumnSurface
-        className={cn('bg-card', !primaryCollapsed && 'border-l border-border')}
+        className={cn('bg-background', !primaryCollapsed && 'border-l border-border')}
         edges={{ bottom: true, left: true, right: true }}
       >
-        <View className={cn('flex-1', primaryCollapsed ? 'pt-[72px]' : 'pt-4')}>
-          <Text className="px-4 pb-1 text-xl font-bold text-foreground">{surface.listTitle}</Text>
+        <View className="flex-1 pt-4">
+          {/*
+            Collapsing the rail moves the system toggle into this column's top-left. The title
+            steps aside for it instead of dropping below it: a 72pt top inset pushed the whole
+            column down and left a dead band across the top, and the list is the thing you came
+            here to read. Indenting the one line the toggle overlaps costs nothing.
+          */}
+          <Text
+            className={cn(
+              'pb-1 text-xl font-bold text-foreground',
+              primaryCollapsed ? 'pl-14 pr-4' : 'px-4',
+            )}
+          >
+            {surface.listTitle}
+          </Text>
           <slots.list active />
         </View>
       </ColumnSurface>
@@ -348,12 +366,11 @@ export function SupplementaryColumn({
 
   return (
     <ColumnSurface
-      className={cn('bg-card', !primaryCollapsed && 'border-l border-border')}
+      className={cn('bg-background', !primaryCollapsed && 'border-l border-border')}
       edges={{ bottom: true, left: true, right: true }}
     >
-      {/* Extra top inset clears the system SplitView collapse control when the rail hides. */}
-      <View className={cn('flex-1 gap-4 pb-5 pl-3 pr-3', primaryCollapsed ? 'pt-[72px]' : 'pt-5')}>
-        <View className="gap-1 px-1">
+      <View className="flex-1 gap-4 pb-5 pl-3 pr-3 pt-5">
+        <View className={cn('gap-1', primaryCollapsed ? 'pl-12 pr-1' : 'px-1')}>
           <Text className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
             Supplementary
           </Text>

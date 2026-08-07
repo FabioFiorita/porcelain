@@ -1,10 +1,11 @@
 import { StatusBar } from 'expo-status-bar'
 import { useState } from 'react'
 import { FlatList, Image, Modal, Pressable, Text, useWindowDimensions, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { EmptyNote } from '@/components/panel-chrome'
+import { SurfaceList } from '@/components/surface-scroll'
 import { pathTestId } from '@/features/files/file-paths'
 import { describeBytes } from '@/features/files/source-rows'
 import type { EvidenceAsset } from '@/lib/daemon/procedures/review'
@@ -41,11 +42,11 @@ export function EvidenceGallery({ assets }: { assets: EvidenceAsset[] }): React.
 
   return (
     <View className="flex-1" testID="porcelain-review-evidence-assets">
-      <FlatList
-        contentContainerClassName="px-4 py-2"
+      <SurfaceList
         data={assets}
         keyExtractor={(asset) => asset.file}
         numColumns={3}
+        paddingTop={8}
         renderItem={({ index, item }) => (
           <GalleryTile
             asset={item}
@@ -116,8 +117,44 @@ function GalleryTile({
  * tokens: this is the photo-viewer idiom every phone shares, and on `bg-background`
  * in light mode the zoom read as an image floating on the page rather than an
  * overlay over it. `ModalBackdrop` already scrims in black for the same reason.
+ *
+ * It carries its own `SafeAreaProvider`, which is the whole reason the caption used to
+ * float 47pt above the bottom of the screen. A `Modal` presents OVER the tab bar, but
+ * the app-level provider measures the tab screen underneath — where UIKit folds the tab
+ * bar into `insets.bottom` (81pt on an iPhone 17 Pro, not 34). Inherited into a modal
+ * that covers the bar, that reserves room for chrome which is no longer on screen. A
+ * nested provider measures the modal's own view, so the caption clears the home
+ * indicator and nothing else.
  */
 function GalleryZoom({
+  assets,
+  index,
+  onClose,
+}: {
+  assets: EvidenceAsset[]
+  index: number
+  onClose: () => void
+}): React.JSX.Element {
+  return (
+    <Modal
+      animationType="fade"
+      onRequestClose={onClose}
+      statusBarTranslucent
+      visible
+      testID="porcelain-review-evidence-asset-zoom"
+    >
+      <SafeAreaProvider>
+        <GalleryZoomBody assets={assets} index={index} onClose={onClose} />
+      </SafeAreaProvider>
+    </Modal>
+  )
+}
+
+/**
+ * Inside the modal's own provider — so `useSafeAreaInsets` here answers for the modal, not for
+ * the tab screen it covers. Split out because a provider only serves its descendants.
+ */
+function GalleryZoomBody({
   assets,
   index,
   onClose,
@@ -130,42 +167,34 @@ function GalleryZoom({
   const insets = useSafeAreaInsets()
 
   return (
-    <Modal
-      animationType="fade"
-      onRequestClose={onClose}
-      statusBarTranslucent
-      visible
-      testID="porcelain-review-evidence-asset-zoom"
-    >
-      <View className="flex-1 bg-black">
-        {/* The app-level status bar follows the theme; over an always-black backdrop
+    <View className="flex-1 bg-black">
+      {/* The app-level status bar follows the theme; over an always-black backdrop
             a light-theme (dark) status bar is invisible. */}
-        <StatusBar style="light" />
-        <FlatList
-          data={assets}
-          getItemLayout={(_, page) => ({ index: page, length: width, offset: width * page })}
-          horizontal
-          initialScrollIndex={index}
-          keyExtractor={(asset) => asset.file}
-          pagingEnabled
-          renderItem={({ item }) => <ZoomPage asset={item} width={width} />}
-          showsHorizontalScrollIndicator={false}
-        />
-        <View className="absolute right-3" style={{ top: insets.top + 12 }}>
-          <Pressable
-            accessibilityLabel="Close the image"
-            accessibilityRole="button"
-            className="size-10 items-center justify-center rounded-full bg-white/20"
-            hitSlop={8}
-            testID="porcelain-review-evidence-asset-zoom-close"
-            onPress={onClose}
-          >
-            {/* White in both themes: the chrome sits on a backdrop that is always black. */}
-            <ChromeGlyph name="close" size={17} tone="primaryForeground" />
-          </Pressable>
-        </View>
+      <StatusBar style="light" />
+      <FlatList
+        data={assets}
+        getItemLayout={(_, page) => ({ index: page, length: width, offset: width * page })}
+        horizontal
+        initialScrollIndex={index}
+        keyExtractor={(asset) => asset.file}
+        pagingEnabled
+        renderItem={({ item }) => <ZoomPage asset={item} width={width} />}
+        showsHorizontalScrollIndicator={false}
+      />
+      <View className="absolute right-3" style={{ top: insets.top + 12 }}>
+        <Pressable
+          accessibilityLabel="Close the image"
+          accessibilityRole="button"
+          className="size-10 items-center justify-center rounded-full bg-white/20"
+          hitSlop={8}
+          testID="porcelain-review-evidence-asset-zoom-close"
+          onPress={onClose}
+        >
+          {/* White in both themes: the chrome sits on a backdrop that is always black. */}
+          <ChromeGlyph name="close" size={17} tone="primaryForeground" />
+        </Pressable>
       </View>
-    </Modal>
+    </View>
   )
 }
 

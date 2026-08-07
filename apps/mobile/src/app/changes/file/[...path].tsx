@@ -4,7 +4,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ChangesDiffView } from '@/features/changes/changes-diff-view'
 import { useChangesFlow } from '@/features/changes/use-changes'
 import { pathSegments } from '@/features/files/file-paths'
-import { useTabBarInset } from '@/features/shell/tab-bar-inset'
 
 /**
  * One file's diff, pushed over the Changes list.
@@ -17,7 +16,6 @@ export default function ChangesFileRoute(): React.JSX.Element {
   const focused = useIsFocused()
   const insets = useSafeAreaInsets()
   const router = useRouter()
-  const bottomInset = useTabBarInset()
   // The base ref identifies a branch-scope diff, and it comes from the same read the list
   // rendered before it pushed us — already cached, so this costs nothing.
   const { base } = useChangesFlow(focused)
@@ -26,7 +24,6 @@ export default function ChangesFileRoute(): React.JSX.Element {
     <ChangesDiffView
       active={focused}
       base={base}
-      bottomInset={bottomInset}
       filePath={path.join('/')}
       topInset={Math.max(insets.top, 8)}
       onBack={() => {

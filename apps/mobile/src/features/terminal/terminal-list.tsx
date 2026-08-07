@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { FlatList, Pressable, Text, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import {
@@ -10,7 +10,7 @@ import {
   IconAction,
   type SheetAction,
 } from '@/components/surface-chrome'
-import { surfaceContentStyle } from '@/components/surface-layout'
+import { SurfaceList } from '@/components/surface-scroll'
 import { useActiveRepo } from '@/lib/daemon/repo'
 import { cn } from '@/lib/utils'
 
@@ -28,12 +28,9 @@ import { useRenameTerminal, useTerminals } from './use-terminals'
  */
 export function TerminalList({
   active,
-  bottomInset = 0,
   onOpenSession,
 }: {
   active: boolean
-  /** Phone: room for the floating tab bar the list scrolls under. */
-  bottomInset?: number
   /** Phone: push the session's route. Omitted on tablet, which selects into its viewer. */
   onOpenSession?: (id: string) => void
 }): React.JSX.Element {
@@ -136,9 +133,9 @@ export function TerminalList({
           title="No terminals"
         />
       ) : (
-        <FlatList
-          contentContainerStyle={surfaceContentStyle({ bottomInset, gap: 2 })}
+        <SurfaceList
           data={sessions}
+          gap={2}
           keyExtractor={(session: TerminalSession) => session.id}
           renderItem={({ item }) => (
             <TerminalRow

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { FlatList, Pressable, Text, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
 
 import {
   ActionSheet,
@@ -9,7 +9,8 @@ import {
   IconAction,
   type SheetAction,
 } from '@/components/panel-chrome'
-import { SURFACE_TOOLBAR, surfaceContentStyle } from '@/components/surface-layout'
+import { SURFACE_TOOLBAR } from '@/components/surface-layout'
+import { SurfaceList } from '@/components/surface-scroll'
 import { type CommentAnchor, CommentComposer } from '@/features/comments/comment-composer'
 import { useActiveRepo } from '@/lib/daemon/repo'
 import { cn } from '@/lib/utils'
@@ -43,7 +44,6 @@ type PendingWrite =
  */
 export function FilesBrowser({
   active,
-  bottomInset = 0,
   dirPath,
   onBack,
   onOpenCrumb,
@@ -53,8 +53,6 @@ export function FilesBrowser({
   topInset,
 }: {
   active: boolean
-  /** Phone: room for the floating tab bar the list scrolls under. */
-  bottomInset?: number
   /** Repo-relative directory; `''` is the repo root. */
   dirPath: string
   /** Phone folder screens: pop back. Omitted at a tab root and on tablet. */
@@ -211,9 +209,9 @@ export function FilesBrowser({
           title="Nothing to show"
         />
       ) : (
-        <FlatList
-          contentContainerStyle={surfaceContentStyle({ bottomInset, gap: 2 })}
+        <SurfaceList
           data={entries}
+          gap={2}
           keyExtractor={(entry: FileEntry) => entry.path}
           renderItem={({ item }) => (
             <FileEntryRow actions={actions} entry={item} selected={item.path === selectedPath} />

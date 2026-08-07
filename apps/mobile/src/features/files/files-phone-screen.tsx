@@ -2,7 +2,6 @@ import { useIsFocused, useRouter } from 'expo-router'
 import { View } from 'react-native'
 
 import { PhoneHeader } from '@/features/shell/phone-header'
-import { useTabBarInset } from '@/features/shell/tab-bar-inset'
 
 import { pathSegments, REPO_ROOT } from './file-paths'
 import { FilesBrowser } from './files-browser'
@@ -18,14 +17,12 @@ import { FilesBrowser } from './files-browser'
 export function FilesPhoneScreen(): React.JSX.Element {
   const focused = useIsFocused()
   const router = useRouter()
-  const bottomInset = useTabBarInset()
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-phone-surface-files">
       <PhoneHeader companionSurface="files" title="Files" />
       <FilesBrowser
         active={focused}
-        bottomInset={bottomInset}
         dirPath={REPO_ROOT}
         onOpenDir={(path) => {
           router.push({ params: { path: pathSegments(path) }, pathname: '/folder/[...path]' })

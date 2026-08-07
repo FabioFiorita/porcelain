@@ -8,6 +8,7 @@ import {
   surfaceContentStyle,
 } from '@/components/surface-layout'
 import { type CommentAnchor, CommentComposer } from '@/features/comments/comment-composer'
+import { useBottomChrome } from '@/features/shell/bottom-chrome'
 import type { FlowFile } from '@/lib/daemon/procedures/changes'
 import { cn } from '@/lib/utils'
 import { type ChangesScope, useChangesStore } from './changes-store'
@@ -26,18 +27,16 @@ import { useDiscardFile, useFileStaging } from './use-commit'
  */
 export function ChangesList({
   active,
-  bottomInset = 0,
   onOpenAll,
   onOpenFile,
 }: {
   active: boolean
-  /** Phone: room for the floating tab bar the list scrolls under. */
-  bottomInset?: number
   /** Phone: push the read-all route. Omitted on tablet, which selects into its viewer column. */
   onOpenAll?: () => void
   /** Phone: push the file's route. Omitted on tablet, which selects into its viewer column. */
   onOpenFile?: (path: string) => void
 }): React.JSX.Element {
+  const bottomInset = useBottomChrome()
   const scope = useChangesStore((state) => state.scope)
   const setScope = useChangesStore((state) => state.setScope)
   const selection = useChangesStore((state) => state.selection)

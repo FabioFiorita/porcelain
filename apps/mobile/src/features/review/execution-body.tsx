@@ -2,10 +2,11 @@ import type { TokenMap } from '@porcelain/client-runtime/highlight'
 import { fileName } from '@porcelain/client-runtime/paths'
 import { intraLineEmphasis } from '@porcelain/client-runtime/word-diff-line'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { FlatList, Text, View } from 'react-native'
+import { type FlatList, Text, View } from 'react-native'
 import type { ThemedToken } from 'shiki'
 
 import { EmptyNote, IconAction, PanelLabel } from '@/components/panel-chrome'
+import { SurfaceList } from '@/components/surface-scroll'
 import { useReviewedPaths, useToggleReviewed } from '@/features/changes/use-changes'
 import { type CommentAnchor, CommentComposer } from '@/features/comments/comment-composer'
 import { rangeForPath, rangeOf } from '@/features/comments/line-range'
@@ -20,6 +21,7 @@ import { pathTestId } from '@/features/files/file-paths'
 import { SourceLine } from '@/features/files/source-lines'
 import { type SourceRow, sourceAnchorText } from '@/features/files/source-rows'
 import { usePreferencesStore } from '@/features/settings/preferences-store'
+import { useBottomChrome } from '@/features/shell/bottom-chrome'
 import type { DiffHunk } from '@/lib/daemon/procedures/changes'
 import type { FeatureReading, ReadingFile, SliceRange } from '@/lib/daemon/procedures/review'
 import { cn } from '@/lib/utils'
@@ -47,14 +49,12 @@ const NO_RANGES: readonly SliceRange[] = []
  */
 export function ExecutionBody({
   active,
-  bottomInset = 0,
   reading,
 }: {
   active: boolean
-  /** Phone: room for the floating tab bar the rows scroll under. */
-  bottomInset?: number
   reading: FeatureReading
 }): React.JSX.Element {
+  const bottomInset = useBottomChrome()
   const mode = usePreferencesStore((state) => state.diffMode)
   const comments = useReviewComments(active)
   const reviewed = useReviewedPaths(active)
@@ -126,9 +126,9 @@ export function ExecutionBody({
 
   return (
     <View className="flex-1" testID="porcelain-review-execution">
-      <FlatList
-        contentContainerStyle={{ paddingBottom: bottomInset }}
+      <SurfaceList
         data={rows}
+        edgeToEdge
         // Lines wrap to variable heights, so no getItemLayout: the window is measured. A
         // failed jump falls back to the list's own running average rather than giving up.
         initialNumToRender={40}

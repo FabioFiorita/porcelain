@@ -58,10 +58,21 @@ export const SURFACE_GUTTER_PX = 16
 const SURFACE_TRAILING_PX = 24
 
 export type SurfaceContentOptions = {
-  /** Room for the floating tab bar (and keyboard) the list scrolls under. */
+  /**
+   * Points of shell chrome floating over the bottom edge, from `useBottomChrome`.
+   *
+   * Callers do not compute this and do not pass it down — `SurfaceScroll` / `SurfaceList` read
+   * it from the shell themselves. See `features/shell/bottom-chrome` for why it stopped being
+   * a prop.
+   */
   bottomInset?: number
   /** Space between rows, in points. */
   gap?: number
+  /**
+   * Drop the horizontal gutter: content that is a slab rather than a stack of cards — a diff,
+   * a source listing, a gallery of full-bleed tiles — draws its own left edge.
+   */
+  edgeToEdge?: boolean
   /** Space above the first row, in points. */
   paddingTop?: number
 }
@@ -85,13 +96,14 @@ export type SurfaceContentOptions = {
  */
 export function surfaceContentStyle({
   bottomInset = 0,
+  edgeToEdge = false,
   gap,
   paddingTop,
 }: SurfaceContentOptions = {}): ViewStyle {
   return {
     gap,
     paddingBottom: bottomInset + SURFACE_TRAILING_PX,
-    paddingHorizontal: SURFACE_GUTTER_PX,
+    paddingHorizontal: edgeToEdge ? 0 : SURFACE_GUTTER_PX,
     paddingTop,
   }
 }

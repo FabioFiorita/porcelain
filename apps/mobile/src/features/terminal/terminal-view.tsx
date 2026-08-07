@@ -9,6 +9,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import { ErrorNote } from '@/components/surface-chrome'
 import { usePreferencesStore } from '@/features/settings/preferences-store'
 import { useResolvedColorScheme } from '@/features/settings/theme-provider'
+import { useBottomChrome } from '@/features/shell/bottom-chrome'
 
 import { readViewport, type TerminalRun } from './terminal-cells'
 import {
@@ -76,14 +77,8 @@ const WIDTH_SAMPLE = 'M'.repeat(40)
  * Keystrokes go to the daemon, never into the emulator: the emulator's buffer is a picture of
  * what the PTY actually echoed, which is what makes it trustworthy while an agent is writing.
  */
-export function TerminalView({
-  bottomInset = 0,
-  sessionId,
-}: {
-  /** Phone: the floating tab bar this pane is laid out underneath. */
-  bottomInset?: number
-  sessionId: string
-}): React.JSX.Element {
+export function TerminalView({ sessionId }: { sessionId: string }): React.JSX.Element {
+  const bottomInset = useBottomChrome()
   const scheme = useResolvedColorScheme()
   const palette = TERMINAL_PALETTES[scheme === 'dark' ? 'dark' : 'light']
   const textSize = usePreferencesStore((state) => state.terminalTextSize)

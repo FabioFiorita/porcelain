@@ -1,8 +1,9 @@
 import { fileName } from '@porcelain/client-runtime/paths'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { FlatList, Image, Text, View } from 'react-native'
+import { type FlatList, Image, Text, View } from 'react-native'
 import { EmptyNote, ErrorNote, IconAction, ScreenHeader } from '@/components/panel-chrome'
 import { SegmentedControl } from '@/components/segmented-control'
+import { SurfaceList } from '@/components/surface-scroll'
 import { type CommentAnchor, CommentComposer } from '@/features/comments/comment-composer'
 import { describeRange, type LineRange, rangeForPath } from '@/features/comments/line-range'
 import { SelectionBar } from '@/features/comments/selection-bar'
@@ -14,6 +15,7 @@ import {
   usePreferencesStore,
 } from '@/features/settings/preferences-store'
 import { useResolvedColorScheme } from '@/features/settings/theme-provider'
+import { useBottomChrome } from '@/features/shell/bottom-chrome'
 import type { FileView } from '@/lib/daemon/procedures/files'
 
 import { isHtmlPath, isMarkdownPath } from './file-kinds'
@@ -42,15 +44,12 @@ import { type ViewerOverride, viewerMode } from './viewer-mode'
  */
 export function FileViewer({
   active,
-  bottomInset = 0,
   filePath,
   line,
   onBack,
   topInset = 0,
 }: {
   active: boolean
-  /** Phone: room for the floating tab bar the rows scroll under. */
-  bottomInset?: number
   /** Repo-relative. */
   filePath: string
   /** 1-based line to scroll to and tint — a search hit, opened where it matched. */
@@ -60,6 +59,7 @@ export function FileViewer({
   /** Phone: this view replaces the tab header, so it owns the status-bar inset. */
   topInset?: number
 }): React.JSX.Element {
+  const bottomInset = useBottomChrome()
   const { error, isLoading, view } = useFileContents(filePath, active)
   const comments = useReviewComments(active)
   const commentIndex = useCommentIndex(comments, filePath)
@@ -214,7 +214,6 @@ export function FileViewer({
         />
       ) : (
         <ViewerBody
-          bottomInset={bottomInset}
           ctx={ctx}
           error={error}
           filePath={filePath}
@@ -354,7 +353,6 @@ function ViewerHeader({
 }
 
 function ViewerBody({
-  bottomInset,
   ctx,
   error,
   filePath,
@@ -363,7 +361,6 @@ function ViewerBody({
   rows,
   view,
 }: {
-  bottomInset: number
   ctx: React.ComponentProps<typeof SourceLine>['ctx']
   error: Error | null
   filePath: string
@@ -464,10 +461,10 @@ function ViewerBody({
     )
   }
   return (
-    <FlatList
+    <SurfaceList
       ref={listRef}
-      contentContainerStyle={{ paddingBottom: bottomInset }}
       data={rows}
+      edgeToEdge
       // Lines wrap to variable heights, so no getItemLayout: the window is measured. These
       // batch sizes keep a thousand-line file scrolling without blocking the JS thread.
       initialNumToRender={40}

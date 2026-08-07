@@ -4,7 +4,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { DiffView } from '@/features/diff/diff-view'
 import { pathSegments } from '@/features/files/file-paths'
 import { useHistoryFocus } from '@/features/history/use-history'
-import { useTabBarInset } from '@/features/shell/tab-bar-inset'
 
 /**
  * One file's diff as of a commit, pushed over that commit's file list.
@@ -17,14 +16,12 @@ export default function HistoryCommitFileRoute(): React.JSX.Element {
   const focused = useIsFocused()
   const insets = useSafeAreaInsets()
   const router = useRouter()
-  const bottomInset = useTabBarInset()
   const filePath = path.join('/')
   useHistoryFocus({ hash, kind: 'file', path: filePath })
 
   return (
     <DiffView
       active={focused}
-      bottomInset={bottomInset}
       filePath={filePath}
       source={{ hash, kind: 'commit' }}
       testID="porcelain-history-diff"

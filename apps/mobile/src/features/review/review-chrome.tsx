@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Text as UiText } from '@/components/ui/text'
 import { pathTestId } from '@/features/files/file-paths'
 import type { FileSource } from '@/lib/daemon/procedures/review'
+import { cn } from '@/lib/utils'
 
 /**
  * Chrome the three Review canvases share: the source marker, the document tab strip, and
@@ -58,14 +59,28 @@ export type DocTab = {
   /** Stable identity — a file name or a pane key, never a render position. */
   key: string
   label: string
+  /** How many things are behind this pane, when the number is worth showing. */
+  count?: number
+  /**
+   * Nothing behind it. Stays visible and dimmed rather than disappearing, so the shape of
+   * what you are looking at is legible before you tap — a phone has no tooltip to explain
+   * an absence with.
+   */
+  disabled?: boolean
 }
 
 /**
- * The strip over a document set: Intent's panes, Evidence's report plus its extra pages.
+ * The strip over a document set: Intent's panes, Evidence's checks, results and assets.
  *
  * Horizontally scrollable rather than segmented, because the count is the agent's to choose —
  * a review may publish one `index.md` or a dozen pages, and a control that divides the width
  * between them stops being tappable at four.
+ *
+ * It is also deliberately NOT a `SegmentedControl`: this is second-level navigation, under the
+ * canvas' own Intent · Execution · Evidence switch. Evidence used to answer with a second
+ * full-width segmented control, and two identical bars stacked read as two peer navigations
+ * rather than a thing and its parts. Left-aligned, content-width pills under a divider are
+ * what subordinate reads as here.
  */
 export function DocTabs({
   onChange,
@@ -86,22 +101,32 @@ export function DocTabs({
       showsHorizontalScrollIndicator={false}
       testID={testIDPrefix}
     >
-      {tabs.map((tab) => (
-        <Button
-          key={tab.key}
-          accessibilityLabel={tab.label}
-          accessibilityRole="tab"
-          accessibilityState={{ selected: tab.key === value }}
-          size="sm"
-          testID={pathTestId(testIDPrefix, tab.key)}
-          variant={tab.key === value ? 'secondary' : 'ghost'}
-          onPress={() => {
-            onChange(tab.key)
-          }}
-        >
-          <UiText className="text-xs">{tab.label}</UiText>
-        </Button>
-      ))}
+      {tabs.map((tab) => {
+        const off = tab.disabled === true
+        return (
+          <Button
+            key={tab.key}
+            accessibilityLabel={tab.count === undefined ? tab.label : `${tab.label}, ${tab.count}`}
+            accessibilityRole="tab"
+            accessibilityState={{ disabled: off, selected: tab.key === value }}
+            className={cn(off && 'opacity-40')}
+            disabled={off}
+            size="sm"
+            testID={pathTestId(testIDPrefix, tab.key)}
+            variant={tab.key === value ? 'secondary' : 'ghost'}
+            onPress={() => {
+              onChange(tab.key)
+            }}
+          >
+            <UiText className="text-xs">{tab.label}</UiText>
+            {tab.count === undefined ? null : (
+              <UiText className="text-[10px] tabular-nums text-muted-foreground">
+                {tab.count}
+              </UiText>
+            )}
+          </Button>
+        )
+      })}
     </ScrollView>
   )
 }

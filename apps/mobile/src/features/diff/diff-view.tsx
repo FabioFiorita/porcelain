@@ -1,11 +1,13 @@
 import { fileName } from '@porcelain/client-runtime/paths'
 import { intraLineEmphasis } from '@porcelain/client-runtime/word-diff-line'
 import { useMemo, useState } from 'react'
-import { FlatList, Image, Text, View } from 'react-native'
+import { Image, Text, View } from 'react-native'
 import { EmptyNote, ErrorNote, IconAction, ScreenHeader } from '@/components/panel-chrome'
+import { SurfaceList } from '@/components/surface-scroll'
 import { type CommentAnchor, CommentComposer } from '@/features/comments/comment-composer'
 import { useCommentIndex, useReviewComments } from '@/features/comments/use-comments'
 import { usePreferencesStore } from '@/features/settings/preferences-store'
+import { useBottomChrome } from '@/features/shell/bottom-chrome'
 import type { DiffHunk, FileStatus } from '@/lib/daemon/procedures/changes'
 import { DiffRowView } from './diff-lines'
 import { type DiffRow, toDiffRows } from './diff-rows'
@@ -27,7 +29,6 @@ export type ReviewedControl = { isReviewed: boolean; onToggle: () => void }
  */
 export function DiffView({
   active,
-  bottomInset = 0,
   filePath,
   onBack,
   onOpenFile,
@@ -39,8 +40,6 @@ export function DiffView({
   topInset = 0,
 }: {
   active: boolean
-  /** Phone: room for the floating tab bar the rows scroll under. */
-  bottomInset?: number
   filePath: string
   /** Phone: pop back to the list. Omitted on tablet, where the list is always on screen. */
   onBack?: () => void
@@ -65,6 +64,7 @@ export function DiffView({
   /** Phone: this view replaces the tab header, so it owns the status-bar inset. */
   topInset?: number
 }): React.JSX.Element {
+  const bottomInset = useBottomChrome()
   const file = useDiffFile(filePath, source, active)
   const preferredMode = usePreferencesStore((state) => state.diffMode)
   const comments = useReviewComments(active)
@@ -127,7 +127,6 @@ export function DiffView({
       />
       <DiffBody
         binary={file.binary}
-        bottomInset={bottomInset}
         ctx={ctx}
         error={file.error}
         image={file.image}
@@ -232,7 +231,6 @@ function DiffHeader({
 
 function DiffBody({
   binary,
-  bottomInset,
   ctx,
   error,
   image,
@@ -242,7 +240,6 @@ function DiffBody({
   testID,
 }: {
   binary: boolean
-  bottomInset: number
   ctx: React.ComponentProps<typeof DiffRowView>['ctx']
   error: Error | null
   image: { dataUrl: string } | undefined
@@ -302,9 +299,9 @@ function DiffBody({
     )
   }
   return (
-    <FlatList
-      contentContainerStyle={{ paddingBottom: bottomInset }}
+    <SurfaceList
       data={rows}
+      edgeToEdge
       // Rows wrap to variable heights, so no getItemLayout: the window is measured. These
       // batch sizes keep a thousand-line diff scrolling without blocking the JS thread.
       initialNumToRender={40}

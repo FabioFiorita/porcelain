@@ -7,6 +7,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 
 import { AppThemeProvider, useResolvedColorScheme } from '@/features/settings/theme-provider'
+import { PhoneBottomChrome } from '@/features/shell/bottom-chrome'
 import { PhoneShell } from '@/features/shell/phone-shell'
 import { TabletShell } from '@/features/shell/tablet-shell'
 import { useIsTablet } from '@/features/shell/use-app-window'
@@ -32,7 +33,15 @@ function ThemedApp(): React.JSX.Element {
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <DaemonProvider>
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-        {isTablet ? <TabletShell /> : <PhoneShell />}
+        {/* Only the phone floats chrome over its content. A tablet column ends above its own
+            chrome already, so it declares none and every shared body reads zero there. */}
+        {isTablet ? (
+          <TabletShell />
+        ) : (
+          <PhoneBottomChrome>
+            <PhoneShell />
+          </PhoneBottomChrome>
+        )}
         <PortalHost />
       </DaemonProvider>
     </ThemeProvider>

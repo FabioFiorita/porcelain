@@ -2,7 +2,6 @@ import { useIsFocused, useRouter } from 'expo-router'
 import { View } from 'react-native'
 
 import { PhoneHeader } from '@/features/shell/phone-header'
-import { useTabBarInset } from '@/features/shell/tab-bar-inset'
 
 import { pathSegments } from './file-paths'
 import { SearchPanel } from './search-panel'
@@ -16,7 +15,6 @@ import { SearchPanel } from './search-panel'
 export function SearchPhoneScreen(): React.JSX.Element {
   const focused = useIsFocused()
   const router = useRouter()
-  const bottomInset = useTabBarInset()
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-phone-surface-search">
@@ -24,7 +22,6 @@ export function SearchPhoneScreen(): React.JSX.Element {
       <PhoneHeader companionSurface="search" title="Search" />
       <SearchPanel
         active={focused}
-        bottomInset={bottomInset}
         onOpenDir={(path) => {
           router.push({ params: { path: pathSegments(path) }, pathname: '/folder/[...path]' })
         }}

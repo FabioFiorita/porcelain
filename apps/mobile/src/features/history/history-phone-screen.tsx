@@ -2,7 +2,6 @@ import { useIsFocused, useRouter } from 'expo-router'
 import { View } from 'react-native'
 
 import { PhoneHeader } from '@/features/shell/phone-header'
-import { useTabBarInset } from '@/features/shell/tab-bar-inset'
 
 import { HistoryList } from './history-list'
 
@@ -22,14 +21,12 @@ import { HistoryList } from './history-list'
 export function HistoryPhoneScreen(): React.JSX.Element {
   const focused = useIsFocused()
   const router = useRouter()
-  const bottomInset = useTabBarInset()
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-phone-surface-history">
       <PhoneHeader companionSurface="history" title="History" />
       <HistoryList
         active={focused}
-        bottomInset={bottomInset}
         onOpenCommit={(hash) => {
           router.push({ params: { hash }, pathname: '/changes/commit/[hash]' })
         }}

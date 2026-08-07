@@ -32,14 +32,7 @@ const CANVAS_TABS: readonly { value: ReviewCanvasTab; label: string; testID: str
  * Only the visible tab's body is mounted, which is also what makes the lazy reads lazy — a
  * hidden Intent or Evidence pane has no query in flight at all.
  */
-export function ReviewCanvas({
-  active,
-  bottomInset = 0,
-}: {
-  active: boolean
-  /** Phone: room for the floating tab bar the canvas scrolls under. */
-  bottomInset?: number
-}): React.JSX.Element {
+export function ReviewCanvas({ active }: { active: boolean }): React.JSX.Element {
   const { error, isLoading, reading } = useFeatureReading(active)
   const tab = useReviewStore((state) => state.canvasTab)
   const setTab = useReviewStore((state) => state.setCanvasTab)
@@ -115,7 +108,7 @@ export function ReviewCanvas({
       {tab === 'intent' ? (
         <IntentBody active={active} reading={reading} />
       ) : tab === 'execution' ? (
-        <ExecutionBody active={active} bottomInset={bottomInset} reading={reading} />
+        <ExecutionBody active={active} reading={reading} />
       ) : (
         <EvidenceBody active={active} meta={reading.evidence} />
       )}

@@ -10,6 +10,7 @@ import {
 } from '@/components/panel-chrome'
 import { surfaceContentStyle } from '@/components/surface-layout'
 import { type CommentAnchor, CommentComposer } from '@/features/comments/comment-composer'
+import { useBottomChrome } from '@/features/shell/bottom-chrome'
 import type { FlowFile } from '@/lib/daemon/procedures/changes'
 
 import { CommitFileRow, type CommitFileRowActions } from './commit-file-row'
@@ -25,7 +26,6 @@ import { useCommitFlow, useCommitMessage } from './use-history'
  */
 export function CommitView({
   active,
-  bottomInset = 0,
   hash,
   onBack,
   onOpenAll,
@@ -33,8 +33,6 @@ export function CommitView({
   topInset = 0,
 }: {
   active: boolean
-  /** Phone: room for the floating tab bar the list scrolls under. */
-  bottomInset?: number
   hash: string
   /** Phone: pop back to the list. Omitted on tablet, where the list is always on screen. */
   onBack?: () => void
@@ -43,6 +41,7 @@ export function CommitView({
   /** Phone: this view replaces the tab header, so it owns the status-bar inset. */
   topInset?: number
 }): React.JSX.Element {
+  const bottomInset = useBottomChrome()
   const message = useCommitMessage(hash, active)
   const { error, groups, isLoading } = useCommitFlow(hash, active)
   const [anchor, setAnchor] = useState<CommentAnchor | null>(null)

@@ -10,8 +10,17 @@ export type ReviewCanvasTab = 'intent' | 'execution' | 'evidence'
  */
 export type ExecutionFocus = { blockId: string; token: number } | null
 
-/** Evidence read three ways: the claim, the documents behind it, the screenshots. */
-export type EvidenceTab = 'checks' | 'results' | 'assets'
+/**
+ * Which Evidence pane is up, as ONE key: `checks`, `assets`, or `doc:<file>` for a document
+ * from `evidence/results/`.
+ *
+ * It was two pieces of state — a `checks | results | assets` sub-tab plus, inside Results, a
+ * separately remembered document — which is what forced a third strip of tabs onto the screen
+ * whenever a pack published more than one document. Intent already models its documents and its
+ * board as one flat set of panes; Evidence now says the same thing the same way, and the level
+ * disappears with the state that required it.
+ */
+export type EvidencePane = string
 
 type ReviewState = {
   canvasTab: ReviewCanvasTab
@@ -22,19 +31,16 @@ type ReviewState = {
    */
   intentPane: string | null
   /**
-   * Which Evidence sub-tab is up. `null` means "the first one that has anything"
-   * — a pack with no checks should open on Results rather than a dead pane, and
-   * the reader's own pick must survive the next poll landing a new document.
+   * Which Evidence pane is up. `null` means "the first one that has anything" — a pack with no
+   * checks should open on its documents rather than a dead pane, and the reader's own pick must
+   * survive the next poll landing a new document.
    */
-  evidenceTab: EvidenceTab | null
-  /** Which Results document is up, by file name. `null` means the first one. */
-  evidenceDoc: string | null
+  evidencePane: EvidencePane | null
   /** The Execution block the outline last asked for. Consumed by the Execution canvas. */
   executionFocus: ExecutionFocus
   setCanvasTab: (tab: ReviewCanvasTab) => void
   setIntentPane: (pane: string | null) => void
-  setEvidenceDoc: (file: string | null) => void
-  setEvidenceTab: (tab: EvidenceTab) => void
+  setEvidencePane: (pane: EvidencePane) => void
   /** Outline tap: show Execution and scroll it to this block. */
   focusExecutionBlock: (blockId: string) => void
   clearExecutionFocus: () => void
@@ -55,8 +61,7 @@ type ReviewState = {
  */
 export const useReviewStore = create<ReviewState>()((set) => ({
   canvasTab: 'intent',
-  evidenceDoc: null,
-  evidenceTab: null,
+  evidencePane: null,
   executionFocus: null,
   intentPane: null,
   clearExecutionFocus: () => {
@@ -73,11 +78,8 @@ export const useReviewStore = create<ReviewState>()((set) => ({
   setCanvasTab: (canvasTab) => {
     set({ canvasTab })
   },
-  setEvidenceDoc: (evidenceDoc) => {
-    set({ evidenceDoc })
-  },
-  setEvidenceTab: (evidenceTab) => {
-    set({ evidenceTab })
+  setEvidencePane: (evidencePane) => {
+    set({ evidencePane })
   },
   setIntentPane: (intentPane) => {
     set({ intentPane })
