@@ -34,7 +34,7 @@ export function formatBytes(bytes: number): string {
 export function PublishReviewButton({ className }: { className?: string }): React.JSX.Element {
   const [open, setOpen] = useState(false)
   const cost = useReviewPublishCost(open)
-  const visibility = useCompanionGitVisibility()
+  const { data: visibility, isPending: visibilityPending } = useCompanionGitVisibility()
   const { publish, isPublishing } = usePublishReview()
   const [published, setPublished] = useState<string | null>(null)
 
@@ -69,13 +69,24 @@ export function PublishReviewButton({ className }: { className?: string }): Reac
             </AlertDialogDescription>
           </AlertDialogHeader>
           {/* Publishing lifts the clone-wide hide as a side effect — say so before
-              the click, not after `.porcelain/` shows up in git status. */}
-          {visibility?.hidden === true && (
-            <p className="text-xs text-warning" data-testid={TestIds.reviewPublishVisibilityNote}>
-              Porcelain data is currently hidden from Git in this clone — publishing lifts that and
-              makes <span className="font-mono">.porcelain/reviews/</span> (plus its ignore rules)
-              visible.
+              the click, not after `.porcelain/` shows up in git status. Gated on the
+              query resolving so a slow daemon can't let Publish through before we know
+              whether this clone is hidden. */}
+          {visibilityPending ? (
+            <p
+              className="text-xs text-muted-foreground"
+              data-testid={TestIds.reviewPublishVisibilityNote}
+            >
+              Checking this clone&rsquo;s git visibility…
             </p>
+          ) : (
+            visibility?.hidden === true && (
+              <p className="text-xs text-warning" data-testid={TestIds.reviewPublishVisibilityNote}>
+                Porcelain data is currently hidden from Git in this clone — publishing lifts that,
+                exposing every <span className="font-mono">Shared</span> channel (not just this
+                review) to git status.
+              </p>
+            )
           )}
           <p className="text-xs text-muted-foreground" data-testid={TestIds.reviewPublishCost}>
             {cost === undefined
@@ -87,7 +98,7 @@ export function PublishReviewButton({ className }: { className?: string }): Reac
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              disabled={isPublishing}
+              disabled={isPublishing || visibilityPending}
               data-testid={TestIds.reviewPublishConfirm}
               onClick={async () => {
                 setPublished(await publish())

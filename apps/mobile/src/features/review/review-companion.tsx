@@ -199,13 +199,20 @@ function ReviewCurrentCard({
                   cost.files === 1 ? 'file' : 'files'
                 } to git history — permanently.`}
           </Text>
-          {visibility.data?.hidden === true ? (
+          {visibility.isPending ? (
             <Text
               className="text-xs leading-5 text-muted-foreground"
               testID="porcelain-review-publish-hidden"
             >
-              Porcelain data is currently hidden from Git in this clone — publishing lifts that and
-              makes .porcelain/reviews/ (plus its ignore rules) visible.
+              Checking this clone&rsquo;s git visibility…
+            </Text>
+          ) : visibility.data?.hidden === true ? (
+            <Text
+              className="text-xs leading-5 text-muted-foreground"
+              testID="porcelain-review-publish-hidden"
+            >
+              Porcelain data is currently hidden from Git in this clone — publishing lifts that,
+              exposing every Shared channel (not just this review) to git status.
             </Text>
           ) : null}
           <View className="flex-row justify-end gap-2">
@@ -219,7 +226,7 @@ function ReviewCurrentCard({
               <UiText>Cancel</UiText>
             </Button>
             <Button
-              disabled={isPending}
+              disabled={isPending || visibility.isPending}
               testID="porcelain-review-publish-dialog-confirm"
               onPress={() => {
                 setPublishOpen(false)

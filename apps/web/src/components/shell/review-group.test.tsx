@@ -25,7 +25,10 @@ vi.mock('@renderer/hooks/use-review-intent', () => ({
   }),
 }))
 vi.mock('@renderer/hooks/use-companion-dispositions', () => ({
-  useCompanionGitVisibility: (): { hidden: boolean } => ({ hidden: false }),
+  useCompanionGitVisibility: (): { data: { hidden: boolean }; isPending: boolean } => ({
+    data: { hidden: false },
+    isPending: false,
+  }),
 }))
 vi.mock('@renderer/hooks/use-feature-view', () => ({
   useClearFeatureReview: () => ({ clear: clearSpy, isClearing: false }),
