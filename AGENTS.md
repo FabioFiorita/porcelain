@@ -8,6 +8,22 @@ Ship discipline: polish existing surfaces; releases are **patch** unless asked; 
 
 **Package map:** daemon · cli · web · shell · mobile — see `docs/internals/architecture.md`.
 
+## Glossary
+
+Bare nouns resolve to exact regions of the product — act on them, don't re-ask. Full lookup:
+`docs/internals/nomenclature.md`.
+
+| Term | Meaning |
+|---|---|
+| The Review | One unit-of-work story as a three-tab canvas: **Intent · Execution · Evidence**. Product language is Review; code may keep `feature` ids |
+| Evidence | Agent-authored self-contained HTML proof the loop closed (`.porcelain/evidence/`) |
+| Viewer | The central panel of the app. Never "editor" |
+| Daemon | The headless Electron-free backend (`apps/daemon`); the shell spawns and babysits it |
+| Project companion | Repo-local `.porcelain/` (board, actions, notes, reviews) — agents write it via the porcelain CLI, never an MCP server |
+| Project board | Per-repo todo/doing/done (`.porcelain/board.json`), two-way via the CLI |
+| Playground | Throwaway repo that dev daemons operate on — never a real checkout |
+| Surface language | Raised = cards, recessed = wells; ONE opaque design serves Electron and the browser alike |
+
 ## How we work together
 
 The human is not a dictator to obey. Everything they say is open to discussion, including
@@ -21,22 +37,47 @@ anything destructive or outward-facing (push stays prompted).
 These are **good defaults**, not sacred text. If a rule fights the task, say so loudly and get
 sign-off before breaking it.
 
-## Hard rules
+## The four ways to hurt yourself
 
-1. **One architecture.** Match existing patterns for state, data fetching, IPC, and tests. Propose
-   before forking — two patterns nobody chose is the failure state.
-2. **Match the local idiom.** Naming, tests, layout, commits: read the code around you.
-3. **Cheap lint on every commit; full verify before push.** Hook runs `pnpm lint`. Before push (and
-   on CI): `pnpm verify` (`lint && test && build && typecheck:e2e`). Commit messages capped at
-   **1024 chars** (EAS rejects longer). Details: `ship` skill.
-4. **Type-safety drives design.** When types fight you, change the design. No `as unknown as`; no
-   `void` on promises (`async`/`await`). Lint-backed.
-5. **Never mix prod and dev daemons** while building Porcelain (table below).
-6. **UI primitives follow the client tree.** Web (and Electron shell loading it): shadcn/Base UI.
-   Mobile: NativeWind v5, Tailwind CSS v4, and React Native Reusables on iOS and Android. Nested
-   `AGENTS.md` owns the detail.
-7. **Close the loop with evidence.** Intent → execute → prove it → gate → commit. Never end at
-   "implemented, should work." Scale ceremony to the change; evidence never scales away.
+1. **Mixing prod and dev daemons.** Production is where real work gets reviewed; touching it while
+   building Porcelain corrupts both. The table below is canonical — everywhere else points here.
+2. **A second architecture.** Match existing patterns for state, data fetching, IPC, and tests.
+   Propose before forking — two patterns nobody chose is the failure state.
+3. **Ending at "implemented, should work."** Close the loop: intent → execute → prove it → gate →
+   commit. Scale ceremony to the change; evidence never scales away.
+4. **Proving UI on the wrong surface.** Web UI proof is the **browser** against the **dev** daemon —
+   the same client Electron loads. Never the installed app, never the prod daemon.
+
+## Rules that stay prose
+
+- **Match the local idiom.** Naming, tests, layout, commits: read the code around you.
+- **Type-safety drives design.** When types fight you, change the design (the escape hatches
+  themselves are lint-blocked).
+- **UI primitives follow the client tree.** Web (and Electron shell loading it): shadcn/Base UI.
+  Mobile: NativeWind v5, Tailwind CSS v4, and React Native Reusables. Nested `AGENTS.md` owns the
+  detail.
+
+## What is machine-enforced
+
+Don't memorize these — the gate catches you. Hooks run `pnpm lint` on every commit; run
+`pnpm verify` (`lint && test && build && typecheck:e2e`) before push, and CI runs it on `main`.
+
+| Rule | Owner |
+|---|---|
+| No `as unknown as`; no `void`-swallowed promises | `lint-escapes` |
+| No inline `style` / `contentContainerStyle` in mobile src | `lint-mobile-nativewind` |
+| Components never import `lib/trpc` / `lib/daemon` | Biome |
+| External-URL guard, git env scrub, hook env scrub | `lint-audit` |
+| EAS workflows stay dispatch-only | `lint-eas-triggers` |
+| Contracts package ↔ daemon routers 1:1 | `lint-procedure-contracts` |
+| Every `pnpm <script>` cited in skills or docs exists | `lint-skill-commands` |
+| One version across packages + authored skills | `sync-versions` |
+| `docs/README.md` indexes every doc; no stale doc paths | `lint-docs` |
+| Branch policy (`main` or managed `work/*`), lint before commit | git-guard + husky `pre-commit` |
+| Commit message ≤ 1024 chars (EAS cap), house style | husky `commit-msg` |
+
+`HUSKY=0` is `--no-verify`. `PORCELAIN_SKIP_VERIFY=1` skips the pre-commit lint gate after a
+known-good manual run.
 
 ## Prod vs dev
 
@@ -51,9 +92,6 @@ sign-off before breaking it.
 pnpm build && pnpm dev:daemon   # dev daemon on 43118
 pnpm porcelain <noun> <verb>    # CLI → ~/.porcelain-dev
 ```
-
-Web UI proof is the **browser** against the **dev** daemon — same client Electron loads. Never
-drive the installed app or the prod daemon for product work.
 
 **Debris:** delete session-local junk (`.playwright-mcp/`, `test-results/`, `playwright-report/`,
 `apps/desktop/e2e/.artifacts/`) before stopping. `scripts/agent-scratch/` is gitignored.
@@ -70,8 +108,17 @@ Only each skill's description is ambient. Do not load a skill "just in case."
 | `merge-queue` | Landing selected `work/*` PRs and retiring their worktrees |
 | `releasing` | Cutting a release or changing signing/notarization |
 
-Product and marketing prose live under `docs/` (no skills). Open them when designing or touching
-public copy.
+## Docs and plans
+
+Two trees, split by tense. When lost, open `docs/README.md` — it indexes everything.
+
+| Tree | Tense | What goes there |
+|------|-------|-----------------|
+| `docs/` | What **is** | Product prose, contributor internals, audit invariants |
+| `plans/` | What **isn't yet** | Plans and backlogs; deleted when shipped, keepers distilled into `docs/` |
+
+Skills stay procedures; `AGENTS.md` files stay identity. A rule a machine can own goes in the
+lint gate, not in prose. No tool-specific mirror files (`GEMINI.md`, `.cursorrules`, …) — they rot.
 
 ## Nested instructions
 
@@ -82,18 +129,6 @@ public copy.
 
 Host-only topology and machine runbooks live in ignored `AGENTS.local.md` files (root and
 `apps/mobile/`). Never copy private hostnames or personal paths into shipped docs or app copy.
-
-## Architecture traps (open when lost)
-
-| Topic | File |
-|-------|------|
-| Package map, surfaces, refactor done criteria | `docs/internals/architecture.md` |
-| Daemon → hooks → components, WS, tabs, data flow | `docs/internals/one-architecture.md` |
-| App shell, surfaces, window chrome | `docs/internals/app-shell.md` |
-| Terminal / PTY | `docs/internals/terminal.md` |
-| Repo layout, aliases, shadcn re-apply | `docs/internals/repo.md` |
-| Bare nouns (tabs, viewer, Review, …) | `docs/internals/nomenclature.md` |
-| Renderer composition (shadcn/Base UI) | `docs/internals/composition.md` |
 
 ## Agent foundations
 
@@ -106,8 +141,7 @@ Vendor-neutral sources are canonical; host directories are adapters.
 | Early Git guard | `.agents/hooks/git-guard.sh` | `.claude/settings.json` | tracked hook | `.claude/settings.json` after trust |
 | Commit gate | `.husky/pre-commit`, `.husky/commit-msg` | yes | yes | yes |
 
-`HUSKY=0` is `--no-verify`. `PORCELAIN_SKIP_VERIFY=1` skips the pre-commit lint gate after a known-good
-manual run. `pnpm agents:check` catches adapter drift; `pnpm agents:doctor` proves local activation.
+`pnpm agents:check` catches adapter drift; `pnpm agents:doctor` proves local activation.
 
 Work on `main` by default. Use a managed worktree (`pnpm worktree create <slug>`) when isolation
 helps — parallel tasks, risky experiments, or a PR boundary. Preference, not law.

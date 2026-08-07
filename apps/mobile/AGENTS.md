@@ -67,7 +67,7 @@ pnpm verify          # from repo root, before any commit
 Pure UI and CSS changes should use Metro Fast Refresh. Check the fingerprint before building or
 delivering when dependencies, Expo config, or native runtime requirements change.
 
-Dev daemon on **43118** (worktrees **43200–43999**), never production **43117**.
+Daemon ports and homes: root `AGENTS.md` → "Prod vs dev" is canonical — dev only, never production.
 
 Host-specific simulator access (SSH to Mac, serve-sim, Metro LAN, local install) lives in the
 ignored `apps/mobile/AGENTS.local.md` — load it only for runtime or evidence work.

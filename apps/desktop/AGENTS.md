@@ -17,7 +17,7 @@ and packaging: Vite (web), esbuild (daemon/cli), electron-vite (shell only). See
 - **CLI (`apps/cli`):** agent binary; Node builtins only.
 - **Data flow:** daemon procedures → domain hooks → components. Components never import
   `lib/trpc` or `lib/daemon` (Biome-enforced).
-- **Ports:** dev **43118** (worktrees **43200–43999**); production **43117**. Never mix homes.
+- **Ports / homes:** root `AGENTS.md` → "Prod vs dev" is canonical. Never mix them.
 
 ## Proof
 
