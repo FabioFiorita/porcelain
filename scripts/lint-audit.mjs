@@ -196,7 +196,7 @@ if (!hasOrderedGitHookEnvScrub(preCommitHook)) {
 }
 
 if (failures.length > 0) {
-  console.error('Audit-invariant drift (.agents/skills/audit/SKILL.md):\n')
+  console.error('Audit-invariant drift (docs/internals/audit/):\n')
   for (const f of failures) {
     console.error(`  ${f.file}:${f.line}  ${f.label}`)
     console.error(`    ${f.snippet}`)

@@ -2,7 +2,7 @@
 
 Shapes that cross a **client** boundary — WS protocol, env helpers, and the **full
 public procedure catalog** (`PROCEDURE_NAMES` + `procedureIo`). See
-`.agents/reference/architecture.md`.
+`docs/internals/architecture.md`.
 
 - `procedureIo[name]` is the I/O zod for every daemon procedure (refined where a
   second client needs precision; otherwise `z.unknown()`).

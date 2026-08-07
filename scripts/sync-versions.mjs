@@ -35,7 +35,7 @@ const { values } = parseArgs({
 
 if (values.help) {
   console.log(`Usage: node scripts/sync-versions.mjs [--check] [--set X.Y.Z]
-One product version across all workspace packages (see .agents/reference/architecture.md).`)
+One product version across all workspace packages (see docs/internals/architecture.md).`)
   process.exit(0)
 }
 
