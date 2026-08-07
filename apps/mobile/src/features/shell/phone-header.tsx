@@ -57,8 +57,7 @@ export function PhoneHeader({
   const insets = useSafeAreaInsets()
   const openSheet = useShellStore((state) => state.openSheet)
   const setActiveSurface = useShellStore((state) => state.setActiveSurface)
-  const { branch, repo, worktree } = useWorkspaceHeader()
-  const projectName = repo?.name ?? 'Project'
+  const { branch, projectName, worktree } = useWorkspaceHeader()
 
   return (
     <View

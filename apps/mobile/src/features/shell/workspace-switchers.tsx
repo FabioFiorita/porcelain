@@ -34,12 +34,26 @@ import { WorkspaceCreateDialog } from './workspace-create-dialog'
 type WorkspaceHeader = {
   repo: ReturnType<typeof useActiveRepo>
   branch: string
+  /** The project's own name — the MAIN checkout's folder, never a linked worktree's. */
+  projectName: string
   worktree: string
   projectInitial: string
   environmentLabel: string
 }
 
-/** The live three-part workspace identity used by both phone and tablet chrome. */
+/**
+ * The live three-part workspace identity used by both phone and tablet chrome.
+ *
+ * Three chips have to carry three different facts or they are noise. Two of them used to
+ * collide: the worktree chip read back the branch checked out in it, and a worktree is named
+ * for its branch — so the header said the same word twice and the reader had to work out which
+ * chip was which. `repo.name` is only the active path's basename, so naming the worktree by its
+ * folder instead just moves the collision onto the project chip, which in a linked checkout was
+ * already reporting the worktree's folder as the project.
+ *
+ * So both come off the worktree roster: git lists the main worktree first, its folder is the
+ * project, and the chip says where you are actually standing.
+ */
 export function useWorkspaceHeader(): WorkspaceHeader {
   const repo = useActiveRepo()
   const environment = useActiveEnvironment()
@@ -49,6 +63,16 @@ export function useWorkspaceHeader(): WorkspaceHeader {
     pollMs: 5_000,
     staleTime: 0,
   })
+  const worktrees = useDaemonQuery(gitWorktreesQuery, repoPath, {
+    enabled: repo !== null,
+    placeholderData: 'keepPreviousData',
+    pollMs: 15_000,
+  })
+  // `git worktree list` puts the main worktree first; the linked ones live in a sibling
+  // `<repo>-worktrees/` directory and must not rename the project.
+  const main = worktrees.data?.[0] ?? null
+  const projectName = main === null ? (repo?.name ?? 'Project') : fileName(main.path)
+
   return {
     branch:
       repo === null
@@ -59,12 +83,17 @@ export function useWorkspaceHeader(): WorkspaceHeader {
             ? 'No branch'
             : '…',
     environmentLabel: environment?.nickname ?? 'No environment',
-    projectInitial: repo?.name.charAt(0).toUpperCase() || '?',
+    projectInitial: projectName.charAt(0).toUpperCase() || '?',
+    projectName,
     repo,
-    // The checkout's own folder, NOT the branch in it. A worktree is named for its branch, so
-    // reading the branch back out here printed the same string as the branch chip beside it —
-    // three switchers, two of them saying the same word. The folder is the fact this chip owns.
-    worktree: repo === null ? 'No project' : fileName(repoPath) || repo.name,
+    // Until the roster lands, the folder is the honest answer: less specific than "Main", never
+    // wrong. Naming it before we know which checkout is the main one would be a guess.
+    worktree:
+      repo === null
+        ? 'No project'
+        : main !== null && main.path === repoPath
+          ? 'Main'
+          : fileName(repoPath) || repo.name,
   }
 }
 

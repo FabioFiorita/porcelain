@@ -34,7 +34,8 @@ export function TabletHeader(_props: { platformLabel: string }): React.JSX.Eleme
   const toggleInspector = useShellStore((state) => state.toggleInspector)
   const inspectorVisible = useShellStore((state) => state.inspectorVisible)
   const isFullscreen = useIsAppFullscreen()
-  const { branch, environmentLabel, projectInitial, repo, worktree } = useWorkspaceHeader()
+  const { branch, environmentLabel, projectInitial, projectName, repo, worktree } =
+    useWorkspaceHeader()
 
   return (
     <View className="border-b border-border bg-background px-3 pb-2 pt-1.5">
@@ -69,7 +70,7 @@ export function TabletHeader(_props: { platformLabel: string }): React.JSX.Eleme
         >
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`Switch project${repo === null ? '' : `, ${repo.name}`}`}
+            accessibilityLabel={`Switch project${repo === null ? '' : `, ${projectName}`}`}
             className="relative size-10 items-center justify-center rounded-xl border border-border bg-secondary active:bg-accent"
             testID="porcelain-tablet-project"
             onPress={() => {
