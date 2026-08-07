@@ -14,7 +14,7 @@
   },
   "scripts": {
     "format": "biome format --write .",
-    "lint": "biome check . && node scripts/lint-mobile-nativewind.mjs && node scripts/lint-escapes.mjs && node scripts/lint-audit.mjs && node scripts/lint-eas-triggers.mjs && node scripts/lint-procedure-contracts.mjs && node scripts/lint-skill-commands.mjs && node scripts/sync-versions.mjs --check && pnpm agents:check",
+    "lint": "biome check . && node scripts/lint-mobile-nativewind.mjs && node scripts/lint-escapes.mjs && node scripts/lint-audit.mjs && node scripts/lint-eas-triggers.mjs && node scripts/lint-procedure-contracts.mjs && node scripts/lint-skill-commands.mjs && node scripts/lint-docs.mjs && node scripts/sync-versions.mjs --check && pnpm agents:check",
     "versions:sync": "node scripts/sync-versions.mjs",
     "versions:check": "node scripts/sync-versions.mjs --check",
     "lint:fix": "biome check --write .",

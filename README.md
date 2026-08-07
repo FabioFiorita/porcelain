@@ -67,7 +67,7 @@ npx skills upgrade -g
 
 ## Develop
 
-Porcelain is a monorepo: **daemon** (headless Node), **web** (React client), **desktop** (thin Electron shell), **cli** (agent channel), **mobile** (iOS). Stack: React 19, TypeScript (strict), shadcn/ui on Base UI, Tailwind v4, tRPC, TanStack Query, zustand, Expo. Architecture: [AGENTS.md](AGENTS.md), [architecture charter](.agents/reference/architecture.md), [docs/product.md](docs/product.md).
+Porcelain is a monorepo: **daemon** (headless Node), **web** (React client), **desktop** (thin Electron shell), **cli** (agent channel), **mobile** (iOS). Stack: React 19, TypeScript (strict), shadcn/ui on Base UI, Tailwind v4, tRPC, TanStack Query, zustand, Expo. Architecture: [AGENTS.md](AGENTS.md), [architecture charter](docs/internals/architecture.md), [docs/product.md](docs/product.md).
 
 ```bash
 pnpm install      # install dependencies
