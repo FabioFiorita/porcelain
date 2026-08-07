@@ -24,6 +24,9 @@ vi.mock('@renderer/hooks/use-review-intent', () => ({
     isPublishing: false,
   }),
 }))
+vi.mock('@renderer/hooks/use-companion-dispositions', () => ({
+  useCompanionGitVisibility: (): { hidden: boolean } => ({ hidden: false }),
+}))
 vi.mock('@renderer/hooks/use-feature-view', () => ({
   useClearFeatureReview: () => ({ clear: clearSpy, isClearing: false }),
   useArchivedReviews: () => [],
@@ -84,12 +87,25 @@ describe('ReviewGroup', () => {
     expect(screen.queryByText('Archive review & evidence')).not.toBeInTheDocument()
   })
 
-  it('shows Current review, lifecycle, and the Archive review button', () => {
+  it('shows Current review and the Archive review button', () => {
     renderGroup()
     expect(screen.getByText('Current review')).toBeInTheDocument()
     expect(screen.getAllByText('Crew call-outs').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText(/In progress/i).length).toBeGreaterThanOrEqual(1)
+    expect(screen.queryByText(/In progress/i)).not.toBeInTheDocument()
     expect(screen.getByTestId('feature-clear-review')).toBeInTheDocument()
+  })
+
+  it('always shows Previous reviews, with a note when nothing is archived', () => {
+    renderGroup()
+    expect(screen.getByText('Previous reviews')).toBeInTheDocument()
+    expect(screen.getByText(/No previous reviews yet/)).toBeInTheDocument()
+  })
+
+  it('shows Previous reviews in the empty-reading state too', () => {
+    vi.mocked(useFeatureReading).mockReturnValue({ reading: null, refresh: async () => {} })
+    renderGroup()
+    expect(screen.getByText('Previous reviews')).toBeInTheDocument()
+    expect(screen.getByText(/No previous reviews yet/)).toBeInTheDocument()
   })
 
   it('archives only after AlertDialog confirm', () => {

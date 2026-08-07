@@ -1,7 +1,7 @@
 import { BoardQuickAccess } from '@renderer/components/board/board-quick-access'
 import { ActionsGroup } from '@renderer/components/terminal/actions-group'
 import { Sidebar, SidebarContent, SidebarHeader, useSidebar } from '@renderer/components/ui/sidebar'
-import { type SidebarTab, usePreferencesStore } from '@renderer/stores/preferences'
+import { usePreferencesStore } from '@renderer/stores/preferences'
 import { TestIds } from '@shared/test-ids'
 import { CommentsGroup } from './comments-group'
 import { CommitGroup } from './commit-group'
@@ -11,21 +11,6 @@ import { QuickCommandsGroup } from './quick-commands-group'
 import { ReviewGroup } from './review-group'
 import { SearchQuickAccess } from './search-quick-access'
 import { RightSidebarResizeHandle } from './sidebar-resize-handle'
-
-// The companion panel retitles itself to what you're doing (matching the left
-// panel's contextual header) instead of a generic "Quick access" — the redesign
-// dropped the "Quick Access" / "Quick Commands" labels. Left vs right must never
-// share the same title for one tab (Board list vs Focus detail).
-const COMPANION_TITLES: Record<SidebarTab, string> = {
-  files: 'Pinned & notes',
-  changes: 'Commit',
-  history: 'Timeline',
-  // Review companion — not a git clone (P7 / U5).
-  feature: 'Now reading',
-  board: 'Focus',
-  terminal: 'Actions',
-  search: 'Recent searches',
-}
 
 // Sections follow the left sidebar's active tab. Board Focus is the selected
 // card detail (default first Doing); Files keeps pins/notes. Feature stays Review-native.
@@ -49,9 +34,10 @@ export function RightSidebar(): React.JSX.Element {
     >
       {!isMobile && <RightSidebarResizeHandle />}
       <SidebarHeader className="app-drag h-12 flex-row items-center border-b py-0 pr-1 pl-3">
-        <span className="truncate text-xs font-semibold text-foreground">
-          {COMPANION_TITLES[sidebarTab]}
-        </span>
+        {/* The right panel is the Companion on every tab — one name you learn once.
+            Sections inside it do the orienting; the header never moves. Mobile names
+            it the same way. */}
+        <span className="truncate text-xs font-semibold text-foreground">Companion</span>
       </SidebarHeader>
       <SidebarContent
         className={

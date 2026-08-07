@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Text as UiText } from '@/components/ui/text'
 import { cn } from '@/lib/utils'
-import { COMPANION, surfaceById } from './mock-data'
+import { COMPANION } from './mock-data'
 import {
   DataSettings,
   EnvironmentsSettings,
@@ -114,7 +114,6 @@ export function ShellSheets({ variant = 'tablet' }: ShellSheetsProps): React.JSX
 
 function CompanionSheetBody(): React.JSX.Element {
   const surfaceId = useShellStore((state) => state.activeSurface)
-  const surface = surfaceById(surfaceId)
   const sections = COMPANION[surfaceId]
   const closeSheet = useShellStore((state) => state.closeSheet)
   const { sheetMaxH } = useSheetMetrics()
@@ -127,11 +126,7 @@ function CompanionSheetBody(): React.JSX.Element {
           uses — wrapping it in a second, wider gutter doubled the inset from the sheet edge
           to the actual content, which is what read as "too much padding" next to Files. */}
       <View className={cn('gap-1 pr-8', SURFACE_GUTTER)}>
-        <Text className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-          Companion
-        </Text>
-        <Text className="text-lg font-semibold text-foreground">{surface.companionTitle}</Text>
-        <Text className="text-sm text-muted-foreground">{surface.label}</Text>
+        <Text className="text-lg font-semibold text-foreground">Companion</Text>
       </View>
       {/* A real surface renders its own scrolling companion; the mock sections stay for the
           tabs that have not landed yet. */}

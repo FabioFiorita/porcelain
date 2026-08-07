@@ -225,24 +225,16 @@ describe('FeatureList', () => {
     expect(screen.queryByLabelText('Review actions')).not.toBeInTheDocument()
   })
 
-  it('hides Commit changes until half the outline is reviewed', () => {
+  // Committing lives on Changes only — the outline never grew a second entry point.
+  it('does not host Commit changes at any progress', () => {
+    reviewedPaths.current = new Set(['src/components/callout.tsx', 'server/callout-service.ts'])
     renderList()
     expect(screen.queryByRole('button', { name: 'Commit changes' })).not.toBeInTheDocument()
   })
 
-  it('offers Commit changes at half progress and hands off to Changes', () => {
-    // 1 of 2 reviewed → shipReady
+  it('reports reading progress on the meta line', () => {
     reviewedPaths.current = new Set(['src/components/callout.tsx'])
     renderList()
-    const commit = screen.getByRole('button', { name: 'Commit changes' })
-    fireEvent.click(commit)
-    expect(usePreferencesStore.getState().sidebarTab).toBe('changes')
-  })
-
-  it('offers a primary Commit changes when every file is reviewed', () => {
-    reviewedPaths.current = new Set(['src/components/callout.tsx', 'server/callout-service.ts'])
-    renderList()
-    expect(screen.getByRole('button', { name: 'Commit changes' })).toBeInTheDocument()
-    expect(screen.getByText(/2\/2 reviewed/)).toBeInTheDocument()
+    expect(screen.getByText(/1\/2 reviewed/)).toBeInTheDocument()
   })
 })

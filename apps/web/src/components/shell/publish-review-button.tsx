@@ -9,6 +9,7 @@ import {
   AlertDialogTitle,
 } from '@renderer/components/ui/alert-dialog'
 import { Button } from '@renderer/components/ui/button'
+import { useCompanionGitVisibility } from '@renderer/hooks/use-companion-dispositions'
 import { usePublishReview, useReviewPublishCost } from '@renderer/hooks/use-review-intent'
 import { cn } from '@renderer/lib/utils'
 import { TestIds } from '@shared/test-ids'
@@ -33,6 +34,7 @@ export function formatBytes(bytes: number): string {
 export function PublishReviewButton({ className }: { className?: string }): React.JSX.Element {
   const [open, setOpen] = useState(false)
   const cost = useReviewPublishCost(open)
+  const visibility = useCompanionGitVisibility()
   const { publish, isPublishing } = usePublishReview()
   const [published, setPublished] = useState<string | null>(null)
 
@@ -48,7 +50,7 @@ export function PublishReviewButton({ className }: { className?: string }): Reac
         onClick={() => setOpen(true)}
       >
         <Share2 />
-        Publish review to the repo
+        Publish review
       </Button>
       {published !== null && (
         <p className="text-2xs text-muted-foreground">
@@ -66,6 +68,15 @@ export function PublishReviewButton({ className }: { className?: string }): Reac
               rule that keeps reviews local. Nothing is committed; that stays yours.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {/* Publishing lifts the clone-wide hide as a side effect — say so before
+              the click, not after `.porcelain/` shows up in git status. */}
+          {visibility?.hidden === true && (
+            <p className="text-xs text-warning" data-testid={TestIds.reviewPublishVisibilityNote}>
+              Porcelain data is currently hidden from Git in this clone — publishing lifts that and
+              makes <span className="font-mono">.porcelain/reviews/</span> (plus its ignore rules)
+              visible.
+            </p>
+          )}
           <p className="text-xs text-muted-foreground" data-testid={TestIds.reviewPublishCost}>
             {cost === undefined
               ? 'Measuring…'

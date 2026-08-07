@@ -85,14 +85,10 @@ export const TestIds = {
   previousReviewRow: (id: string): string => `previous-review-${id}`,
   previousReviewRestore: (id: string): string => `previous-review-restore-${id}`,
   previousReviewDelete: (id: string): string => `previous-review-delete-${id}`,
-  /** Ship handoff: open Changes (commit home) after review progress. */
-  featureCommitChanges: 'feature-commit-changes',
   featureOutlineEvidence: 'feature-outline-evidence',
   featureCanvas: 'feature-canvas',
   /** Empty Review canvas — start-of-unit affordance. */
   featureEmpty: 'feature-empty',
-  /** Lifecycle banner on the canvas (in progress / ready to close). */
-  featureLifecycle: 'feature-lifecycle',
   featureCanvasTab: (tab: 'intent' | 'execution' | 'evidence'): string =>
     `feature-canvas-tab-${tab}`,
   evidencePanel: 'evidence-panel',
@@ -164,6 +160,8 @@ export const TestIds = {
   reviewPublish: 'review-publish',
   reviewPublishConfirm: 'review-publish-confirm',
   reviewPublishCost: 'review-publish-cost',
+  /** Publish dialog warning shown when `.porcelain/` is hidden from git in this clone. */
+  reviewPublishVisibilityNote: 'review-publish-visibility-note',
 
   // --- Saved action trust ---
   actionTrustDialog: 'action-trust-dialog',

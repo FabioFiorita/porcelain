@@ -67,15 +67,20 @@ export function BoardQuickAccess(): React.JSX.Element {
 
   if (!focus) {
     return (
-      <div
-        data-testid={TestIds.boardFocus}
-        className="flex flex-1 flex-col items-center justify-center gap-1 px-4 py-8 text-center"
-      >
-        <p className="text-xs text-muted-foreground">No cards yet</p>
-        <p className="text-2xs text-muted-foreground/80">
-          Add one from the Board list — it will open here.
-        </p>
-      </div>
+      <SidebarGroup className="flex min-h-0 flex-1 flex-col p-0">
+        <SidebarGroupLabel className="px-3 pt-2 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
+          Focus
+        </SidebarGroupLabel>
+        <div
+          data-testid={TestIds.boardFocus}
+          className="flex flex-1 flex-col items-center justify-center gap-1 px-4 py-8 text-center"
+        >
+          <p className="text-xs text-muted-foreground">No cards yet</p>
+          <p className="text-2xs text-muted-foreground/80">
+            Add one from the Board list — it will open here.
+          </p>
+        </div>
+      </SidebarGroup>
     )
   }
 
@@ -109,15 +114,18 @@ function CardDetail({
       className="flex h-full min-h-0 flex-col"
     >
       <SidebarGroup className="min-h-0 flex-1 p-0">
-        <SidebarGroupLabel className="px-3 pt-2">
-          <span className="flex items-center gap-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
-            {/* Lucide defaults to 24px; pin to the label’s text size so To do / Doing don’t dwarf the word. */}
-            <StatusIcon className="size-3 shrink-0" aria-hidden />
-            {STATUS_LABEL[card.status]}
-          </span>
+        <SidebarGroupLabel className="px-3 pt-2 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
+          Focus
         </SidebarGroupLabel>
         <SidebarGroupContent className="flex min-h-0 flex-1 flex-col gap-3 px-3 pb-3">
-          <h2 className="text-sm font-medium break-words text-foreground">{card.title}</h2>
+          <div className="flex flex-col gap-1">
+            <span className="flex items-center gap-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
+              {/* Lucide defaults to 24px; pin to the label’s text size so To do / Doing don’t dwarf the word. */}
+              <StatusIcon className="size-3 shrink-0" aria-hidden />
+              {STATUS_LABEL[card.status]}
+            </span>
+            <h2 className="text-sm font-medium break-words text-foreground">{card.title}</h2>
+          </div>
           {card.body ? (
             <div className="min-h-0 flex-1 overflow-y-auto">
               <p className="whitespace-pre-wrap text-xs text-muted-foreground">{card.body}</p>
