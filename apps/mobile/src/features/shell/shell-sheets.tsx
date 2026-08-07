@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native'
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { ShellModal, ShellModalScroll } from '@/components/shell-modal'
+import { SURFACE_GUTTER } from '@/components/surface-layout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Text as UiText } from '@/components/ui/text'
@@ -120,8 +121,12 @@ function CompanionSheetBody(): React.JSX.Element {
   const slots = surfaceSlots(surfaceId)
 
   return (
-    <View className="gap-3 p-5" testID="porcelain-companion-sheet">
-      <View className="gap-1 pr-8">
+    <View className="gap-3 py-5" testID="porcelain-companion-sheet">
+      {/* Horizontal padding lives here, not on the outer View: a real surface's companion
+          (below) already carries its own `SURFACE_GUTTER`, the same one every other screen
+          uses — wrapping it in a second, wider gutter doubled the inset from the sheet edge
+          to the actual content, which is what read as "too much padding" next to Files. */}
+      <View className={cn('gap-1 pr-8', SURFACE_GUTTER)}>
         <Text className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
           Companion
         </Text>
@@ -135,7 +140,10 @@ function CompanionSheetBody(): React.JSX.Element {
           <slots.companion active />
         </View>
       ) : (
-        <ShellModalScroll style={{ maxHeight: sheetMaxH - 120 }}>
+        <ShellModalScroll
+          contentContainerClassName={SURFACE_GUTTER}
+          style={{ maxHeight: sheetMaxH - 120 }}
+        >
           {sections.map((section) => (
             <View key={section.id} className="gap-2 rounded-2xl border border-border bg-card p-3">
               <Text className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
@@ -155,9 +163,11 @@ function CompanionSheetBody(): React.JSX.Element {
           ))}
         </ShellModalScroll>
       )}
-      <Button onPress={closeSheet} variant="outline">
-        <UiText>Done</UiText>
-      </Button>
+      <View className={SURFACE_GUTTER}>
+        <Button onPress={closeSheet} variant="outline">
+          <UiText>Done</UiText>
+        </Button>
+      </View>
     </View>
   )
 }
