@@ -4,7 +4,9 @@ import { basename } from 'node:path'
 import {
   PROJECT_FILES,
   projectActiveReviewDir,
+  projectEvidenceAssetsDir,
   projectEvidenceDir,
+  projectEvidenceResultsDir,
   projectPorcelainDir,
 } from '@shared/project-porcelain'
 import { type AppEvent, emitAppEvent } from '../app-events'
@@ -95,18 +97,27 @@ async function watchRepo(repoPath: string): Promise<void> {
   }
 
   // Evidence tree may not exist yet; create under an existing companion only.
-  void mkdir(evidenceDir, { recursive: true })
-    .then(() => {
-      try {
-        const w = watch(evidenceDir, () => {
-          emitAppEvent('evidence')
-        })
-        closers.push(() => w.close())
-      } catch {
-        // unsupported FS
-      }
-    })
-    .catch(() => {})
+  // `watch` is non-recursive on Linux, so the pack's sub-directories each need
+  // their own watch or a screenshot dropped into `assets/` only reaches the UI
+  // on the next poll. Best-effort throughout — the poll is the correctness path.
+  for (const dirToWatch of [
+    evidenceDir,
+    projectEvidenceResultsDir(repoPath),
+    projectEvidenceAssetsDir(repoPath),
+  ]) {
+    void mkdir(dirToWatch, { recursive: true })
+      .then(() => {
+        try {
+          const w = watch(dirToWatch, () => {
+            emitAppEvent('evidence')
+          })
+          closers.push(() => w.close())
+        } catch {
+          // unsupported FS
+        }
+      })
+      .catch(() => {})
+  }
 
   watched.set(repoPath, {
     close: () => {

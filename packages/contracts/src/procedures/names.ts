@@ -82,6 +82,8 @@ export const PROCEDURE_NAMES = [
   'resolveReviewComment',
   'restoreArchivedReview',
   'reviewComments',
+  'reviewEvidenceAsset',
+  'reviewEvidenceAssets',
   'reviewEvidenceDocs',
   'reviewIntent',
   'reviewPublishCost',

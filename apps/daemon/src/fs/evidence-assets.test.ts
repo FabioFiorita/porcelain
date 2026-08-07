@@ -47,4 +47,28 @@ describe('inlineLocalAssets', () => {
     const html = '<img src="../../etc/passwd">'
     expect(await inlineLocalAssets(dir, html)).toBe(html)
   })
+
+  it('rejects a reference that escapes without a leading ..', async () => {
+    writeFileSync(join(dir, 'shot.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47]))
+    const html = '<img src="sub/../../shot.png">'
+    expect(await inlineLocalAssets(join(dir, 'sub'), html)).toBe(html)
+  })
+
+  // A Results document sits one level below the pack root and points at the
+  // gallery the Assets tab lists — so the pack keeps one copy of each image.
+  it('inlines ../assets when the root is the directory above', async () => {
+    mkdirSync(join(dir, 'assets'), { recursive: true })
+    mkdirSync(join(dir, 'results'), { recursive: true })
+    writeFileSync(join(dir, 'assets', 'shot.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47]))
+    const html = '<img src="../assets/shot.png">'
+    const out = await inlineLocalAssets(join(dir, 'results'), html, dir)
+    expect(out).toMatch(/src="data:image\/png;base64,/)
+  })
+
+  it('still refuses to climb above the root', async () => {
+    mkdirSync(join(dir, 'results'), { recursive: true })
+    writeFileSync(join(dir, 'shot.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47]))
+    const html = '<img src="../../shot.png">'
+    expect(await inlineLocalAssets(join(dir, 'results'), html, dir)).toBe(html)
+  })
 })

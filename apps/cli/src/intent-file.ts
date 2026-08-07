@@ -1,61 +1,95 @@
-import { mkdirSync, readdirSync, renameSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { ASSETS_DIR, INTENT_MANIFEST, projectIntentDir } from '@shared/project-porcelain'
+import {
+  ASSETS_DIR,
+  INTENT_CANONICAL_TABS,
+  INTENT_MANIFEST,
+  projectIntentDir,
+} from '@shared/project-porcelain'
+import {
+  labelFor,
+  listDocSet,
+  MAX_TABS,
+  type ManifestTab,
+  orderDocSet,
+  writeManifest,
+} from './doc-set-file'
 import { ensureProjectDir } from './project-io'
 
 /**
- * `porcelain intent prepare` — make `.porcelain/intent/` and hand back the path.
+ * `porcelain intent prepare` — make `.porcelain/active-review/intent/`, seed the
+ * recommended tab order, and hand back the paths.
  *
  * Same shape as `evidence prepare`, and for the same reason: an agent writes
  * documents with its normal file tools, and a large payload must never ride a
- * channel argument. The CLI's whole job here is to name the directory and,
- * optionally, fix the tab order.
+ * channel argument. The CLI's whole job here is to name the directory, propose
+ * a starting shape, and fix the tab order.
  */
-
-const MAX_TABS = 12
 
 export interface PreparedIntent {
   dir: string
   assetsDir: string
-}
-
-export function prepareIntent(repoPath: string): PreparedIntent {
-  ensureProjectDir(repoPath)
-  const dir = projectIntentDir(repoPath)
-  mkdirSync(join(dir, ASSETS_DIR), { recursive: true })
-  return { dir, assetsDir: join(dir, ASSETS_DIR) }
+  /** The manifest order, canonical or `--tabs`, in tab order. */
+  tabs: ManifestTab[]
+  /** False when a manifest was already there and was left exactly as it was. */
+  seeded: boolean
 }
 
 /**
- * Pin tab order. Without a manifest the app falls back to file-name order, which
- * is fine for one document and arbitrary for five — and `readdir` order is not
- * even stable across platforms.
+ * Turn a `--tabs` token into a manifest entry: `why` → `why.md` "Why",
+ * `before-after.html` → `before-after.html` "Before after". A bare name gets
+ * `.md` because prose is the default medium and the alternative is an agent
+ * writing `why` and wondering why no tab appeared.
  */
-export function orderIntent(repoPath: string, files: string[]): string[] {
-  if (files.length === 0) throw new Error('pass at least one --file')
-  const bad = files.filter((f) => f.includes('/') || f.includes('\\') || f.startsWith('.'))
-  if (bad.length > 0) {
-    throw new Error(`--file takes plain file names inside intent/, not paths: ${bad.join(', ')}`)
+function toTab(raw: string): ManifestTab {
+  const name = raw.trim()
+  if (name === '') throw new Error('--tabs entries must be non-empty')
+  if (name.includes('/') || name.includes('\\') || name.startsWith('.')) {
+    throw new Error(`--tabs takes plain file names inside intent/, not paths: ${name}`)
   }
-  const dir = prepareIntent(repoPath).dir
-  const present = new Set(readdirSync(dir))
-  const missing = files.filter((f) => !present.has(f))
-  if (missing.length > 0) {
-    throw new Error(`not in ${dir}: ${missing.join(', ')} — write the documents first`)
-  }
-  const tabs = files.slice(0, MAX_TABS).map((file) => ({ file }))
-  const path = join(dir, INTENT_MANIFEST)
-  const tmp = `${path}.tmp`
-  writeFileSync(tmp, JSON.stringify({ tabs }, null, 2))
-  // Atomic like every other channel write — a half-written manifest reads as none.
-  renameSync(tmp, path)
-  return tabs.map((t) => t.file)
+  const file = /\.[a-z]+$/i.test(name) ? name : `${name}.md`
+  return { file, label: labelFor(file) }
 }
 
-export function listIntent(repoPath: string): string[] {
-  try {
-    return readdirSync(projectIntentDir(repoPath)).sort()
-  } catch {
-    return []
+function canonicalTabs(): ManifestTab[] {
+  return INTENT_CANONICAL_TABS.map((tab) => ({ file: tab.file, label: tab.label }))
+}
+
+/**
+ * Create the directory (and its `assets/` home) and, when there is no manifest
+ * yet, seed one with the recommended tab order.
+ *
+ * Seeding a manifest for files nobody has written yet is safe on purpose:
+ * `readDocSet` filters the manifest against what is actually on disk, so an
+ * unwritten `decisions.md` is simply not a tab. And re-running `prepare` NEVER
+ * touches an existing manifest — an agent that re-pinned its own order with
+ * `intent order`, or renamed a tab, must not have that undone by a second
+ * scaffold call.
+ */
+export function prepareIntent(repoPath: string, tabs?: string[]): PreparedIntent {
+  ensureProjectDir(repoPath)
+  const dir = projectIntentDir(repoPath)
+  mkdirSync(join(dir, ASSETS_DIR), { recursive: true })
+  const requested = tabs?.map(toTab)
+  if (requested !== undefined && requested.length === 0) {
+    throw new Error('--tabs needs at least one name, e.g. --tabs why,approach,decisions')
   }
+  const wanted = (requested ?? canonicalTabs()).slice(0, MAX_TABS)
+  const manifestPath = join(dir, INTENT_MANIFEST)
+  if (existsSync(manifestPath)) {
+    return { dir, assetsDir: join(dir, ASSETS_DIR), tabs: wanted, seeded: false }
+  }
+  writeManifest(dir, wanted)
+  return { dir, assetsDir: join(dir, ASSETS_DIR), tabs: wanted, seeded: true }
+}
+
+/** Pin the intent tab order (see `orderDocSet`). */
+export function orderIntent(repoPath: string, files: string[]): string[] {
+  if (files.length > 0) ensureProjectDir(repoPath)
+  return orderDocSet(projectIntentDir(repoPath), files, 'intent/')
+}
+
+/** The renderable documents in `intent/`, name-sorted. */
+export function listIntent(repoPath: string): string[] {
+  return listDocSet(projectIntentDir(repoPath))
 }

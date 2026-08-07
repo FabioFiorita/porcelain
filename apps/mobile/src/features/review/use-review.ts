@@ -5,14 +5,16 @@ import {
   clearFeatureReviewMutation,
   clearLoopEvidenceMutation,
   deleteArchivedReviewMutation,
-  type Evidence,
+  type EvidenceAsset,
+  type EvidenceAssetBody,
   type FeatureReading,
   featureReadingQuery,
   type IntentDoc,
-  loopEvidenceHtmlQuery,
   type PublishCost,
   publishReviewMutation,
   restoreArchivedReviewMutation,
+  reviewEvidenceAssetQuery,
+  reviewEvidenceAssetsQuery,
   reviewEvidenceDocsQuery,
   reviewIntentQuery,
   reviewPublishCostQuery,
@@ -37,6 +39,8 @@ const REVIEW_INVALIDATIONS = [
   'featureReading',
   'reviewIntent',
   'reviewEvidenceDocs',
+  'reviewEvidenceAssets',
+  'reviewEvidenceAsset',
   'reviewPublishCost',
   'loopEvidence',
   'loopEvidenceHtml',
@@ -51,6 +55,8 @@ const EVIDENCE_INVALIDATIONS = [
   'loopEvidence',
   'loopEvidenceHtml',
   'reviewEvidenceDocs',
+  'reviewEvidenceAssets',
+  'reviewEvidenceAsset',
   'reviewPublishCost',
 ] as const
 
@@ -97,7 +103,11 @@ export function useReviewIntentDocs(enabled: boolean): {
   return { docs: data, error, isLoading }
 }
 
-/** Extra evidence documents beside the report. Same lazy rule, same reason. */
+/**
+ * The Results sub-tab of Evidence: `evidence/results/`, plus a legacy `index.html`
+ * the daemon folds in as "Report". Same lazy rule as Intent, same reason — this is
+ * the single largest thing the Evidence canvas reads.
+ */
 export function useReviewEvidenceDocs(enabled: boolean): {
   docs: IntentDoc[] | undefined
   isLoading: boolean
@@ -111,19 +121,41 @@ export function useReviewEvidenceDocs(enabled: boolean): {
 }
 
 /**
- * The evidence HTML itself — the single largest thing this client ever reads. Gated on the
- * Evidence canvas being up, never polled, never fetched beside the reading.
+ * The Assets gallery listing — names, types, sizes, no bytes. Cheap enough to read
+ * with the rest of the pack, which is what lets the sub-tab show its count before
+ * anyone opens it.
  */
-export function useEvidenceHtml(enabled: boolean): {
-  evidence: Evidence | null | undefined
+export function useReviewEvidenceAssets(enabled: boolean): {
+  assets: EvidenceAsset[] | undefined
   isLoading: boolean
   error: Error | null
 } {
   const repo = useActiveRepo()
-  const { data, error, isLoading } = useDaemonQuery(loopEvidenceHtmlQuery, repo?.path ?? '', {
+  const { data, error, isLoading } = useDaemonQuery(reviewEvidenceAssetsQuery, repo?.path ?? '', {
     enabled: enabled && repo !== null,
   })
-  return { error, evidence: data, isLoading }
+  return { assets: data, error, isLoading }
+}
+
+/**
+ * One gallery image as a data URL.
+ *
+ * The heaviest read on this surface and the most granular: a pack can be tens of
+ * megabytes, so `enabled` is the Assets sub-tab being up — not the Evidence canvas —
+ * and each tile pays only for itself. `null` data is the daemon's per-image cap; the
+ * gallery says so from the listing's byte count rather than showing a blank tile.
+ */
+export function useReviewEvidenceAsset(
+  file: string,
+  enabled: boolean,
+): { asset: EvidenceAssetBody | null | undefined; isLoading: boolean } {
+  const repo = useActiveRepo()
+  const { data, isLoading } = useDaemonQuery(
+    reviewEvidenceAssetQuery,
+    { file, repoPath: repo?.path ?? '' },
+    { enabled: enabled && repo !== null },
+  )
+  return { asset: data, isLoading }
 }
 
 /**

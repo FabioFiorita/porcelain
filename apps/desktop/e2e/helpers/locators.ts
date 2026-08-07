@@ -60,6 +60,15 @@ export const loc = {
   evidencePanel: (page: Page): Locator => byId(page, TestIds.evidencePanel),
   evidenceClear: (page: Page): Locator => byId(page, TestIds.evidenceClear),
   evidenceIframe: (page: Page): Locator => byId(page, TestIds.evidenceIframe),
+  evidenceSubTab: (page: Page, tab: 'checks' | 'results' | 'assets'): Locator =>
+    byId(page, TestIds.evidenceSubTab(tab)),
+  evidenceChecksPane: (page: Page): Locator => byId(page, TestIds.evidenceChecksPane),
+  evidenceResultsPane: (page: Page): Locator => byId(page, TestIds.evidenceResultsPane),
+  evidenceDocTab: (page: Page, label: string): Locator => byId(page, TestIds.intentDocTab(label)),
+  evidenceGallery: (page: Page): Locator => byId(page, TestIds.evidenceGallery),
+  evidenceGalleryItem: (page: Page, file: string): Locator =>
+    byId(page, TestIds.evidenceGalleryItem(file)),
+  evidenceGalleryZoom: (page: Page): Locator => byId(page, TestIds.evidenceGalleryZoom),
   featureClearReview: (page: Page): Locator => byId(page, TestIds.featureClearReview),
   boardStartReview: (page: Page): Locator => byId(page, TestIds.boardStartReview),
 

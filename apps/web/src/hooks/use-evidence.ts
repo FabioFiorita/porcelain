@@ -1,3 +1,4 @@
+import type { EvidenceAsset, EvidenceAssetBody } from '@backend/review/evidence-assets-list'
 import type { Evidence } from '@backend/stores/evidence-store'
 import { onMutationError } from '@renderer/hooks/mutation-error'
 import { trpc } from '@renderer/lib/trpc'
@@ -18,9 +19,42 @@ export function useEvidenceHtml(repoPath: string): { evidence: Evidence | null |
 }
 
 /**
+ * The Assets sub-tab's listing — metadata only (file, label, mime, bytes), never
+ * bytes. Cheap enough to hold with the rest of the pack and refreshed by the
+ * app-event 'evidence' invalidation when the agent rewrites the directory.
+ */
+export function useEvidenceAssets(): EvidenceAsset[] {
+  const repo = useRepoStore((s) => s.repo)
+  const { data } = trpc.reviewEvidenceAssets.useQuery(repo?.path ?? '', { enabled: repo !== null })
+  return data ?? []
+}
+
+/**
+ * One gallery image as a data URL. `enabled` is the laziness: a tile's bytes can
+ * be megabytes, so the Assets sub-tab passes false until it is the visible pane
+ * — nobody pays for a gallery they never open.
+ *
+ * `staleTime: Infinity` because the bytes are immutable for a given pack; the
+ * 'evidence' event drops the whole cache entry rather than refetching each tile.
+ * `null` data means over-cap (or vanished): the caller shows the listing's size.
+ */
+export function useEvidenceAsset(
+  file: string,
+  enabled: boolean,
+): { asset: EvidenceAssetBody | null | undefined; isLoading: boolean } {
+  const repo = useRepoStore((s) => s.repo)
+  const { data, isPending } = trpc.reviewEvidenceAsset.useQuery(
+    { repoPath: repo?.path ?? '', file },
+    { enabled: enabled && repo !== null, staleTime: Number.POSITIVE_INFINITY },
+  )
+  return { asset: data, isLoading: enabled && isPending }
+}
+
+/**
  * Clear the agent's loop evidence for the current repo — the app's one write to the
  * evidence channel. Invalidates the evidence queries AND featureReading so the
  * Review's evidence chapter (and the outline's Loop evidence row) drop immediately.
+ * Clear deletes the whole directory, so the Results and Assets sub-tabs go too.
  */
 export function useClearEvidence(): { clear: () => Promise<void>; isClearing: boolean } {
   const repo = useRepoStore((s) => s.repo)
@@ -35,6 +69,8 @@ export function useClearEvidence(): { clear: () => Promise<void>; isClearing: bo
       await Promise.all([
         utils.loopEvidence.invalidate(),
         utils.loopEvidenceHtml.invalidate(),
+        utils.reviewEvidenceDocs.invalidate(),
+        utils.reviewEvidenceAssets.invalidate(),
         utils.featureReading.invalidate(),
       ])
     },

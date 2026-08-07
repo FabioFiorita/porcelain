@@ -1,19 +1,35 @@
-import { mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { projectEvidenceDir } from '@shared/project-porcelain'
+import {
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs'
+import { join, relative, resolve } from 'node:path'
+import {
+  EVIDENCE_RESULTS_DIR,
+  projectEvidenceAssetsDir,
+  projectEvidenceDir,
+  projectEvidenceResultsDir,
+} from '@shared/project-porcelain'
+import { listDocSet, orderDocSet } from './doc-set-file'
 import { htmlPreview } from './html-input'
 import { ensureProjectDir } from './project-io'
 
-// Builtins only — see cli.ts. Evidence is a **directory of files**:
+// Builtins only — see cli.ts. Evidence is a **three-part pack on disk**:
 //
-//   <repo>/.porcelain/evidence/
-//     index.html   — the HTML document Porcelain renders (Evidence tab)
-//     meta.json    — { title, repoPath, updatedAt }
-//     *.png / …    — screenshots with relative <img src>
+//   <repo>/.porcelain/active-review/evidence/
+//     meta.json    — { title, repoPath, updatedAt, checks[] }   → the Checks sub-tab
+//     results/     — an ordered .md/.html document set (meta.json {tabs})  → Results
+//     assets/      — a flat directory of images, rendered natively  → Assets gallery
+//     index.html   — LEGACY single report; still renders, no longer written here
 //
 // Agents SHOULD write those files with normal Write tools (no CLI payload limits).
-// `porcelain evidence prepare` with a title only makes the dir and returns the path.
-// Keep in lockstep with apps/daemon/src/fs/evidence-paths.ts.
+// `porcelain evidence prepare` with a title only makes the directories and returns
+// the paths. Keep in lockstep with apps/daemon/src/review/doc-set.ts and
+// apps/daemon/src/review/evidence-assets-list.ts.
 
 /**
  * The CLI `set` payload cap stays small on purpose — it steers agents to the
@@ -35,7 +51,30 @@ export interface Evidence {
   html: string
   updatedAt: string
   dir: string
+  /** Where the report was found, relative to `dir` — `results/index.html` or the legacy root. */
+  file: string
 }
+
+/**
+ * Gallery caps, duplicated from apps/daemon/src/review/evidence-assets-list.ts —
+ * the same deliberate duplication as the check caps below, for the same reason
+ * (this CLI takes no dependency on the daemon).
+ */
+const MAX_ASSETS = 60
+const MAX_ASSET_BYTES = 8 * 1024 * 1024
+
+/** Extensions the gallery renders; anything else in `assets/` is not a tile. */
+const ASSET_EXTENSIONS = new Set([
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.gif',
+  '.webp',
+  '.svg',
+  '.ico',
+  '.bmp',
+  '.avif',
+])
 
 // Structured verification checks. This CLI is dependency-free (Node builtins only,
 // no zod), so it DUPLICATES the shape + caps that packages/shared evidence-check owns
@@ -217,106 +256,288 @@ function checksSummary(checks: EvidenceCheck[]): string {
   return `\nChecks: ${checks.length} (${count('pass')} pass, ${count('fail')} fail, ${count('skip')} skip) → ${verdict}`
 }
 
+export interface PreparedEvidence {
+  dir: string
+  resultsDir: string
+  assetsDir: string
+  title: string
+  updatedAt: string
+}
+
 /**
- * Prepare a fresh loop-evidence directory for a repo.
- * Wipes any previous dir (HTML, screenshots, checks) first so agents never stack
- * stale images from an older feature under a new title. Agents then write index.html.
+ * Prepare a fresh evidence pack for a repo: the directory, `results/`, `assets/`,
+ * and the meta that carries the title.
+ *
+ * Wipes any previous pack (documents, screenshots, checks) first so agents never
+ * stack stale images from an older feature under a new title. Agents then write
+ * documents into `results/` and drop screenshots into `assets/`.
  */
-export function prepareEvidence(repoPath: string, title: unknown): { dir: string; title: string } {
+export function prepareEvidence(repoPath: string, title: unknown): PreparedEvidence {
   if (typeof title !== 'string' || title.trim().length === 0) {
     throw new Error('title must be a non-empty string')
   }
   clearEvidence(repoPath)
   const meta = writeMeta(repoPath, title)
-  return { dir: evidenceDirForRepo(repoPath), title: meta.title }
+  const resultsDir = projectEvidenceResultsDir(repoPath)
+  const assetsDir = projectEvidenceAssetsDir(repoPath)
+  mkdirSync(resultsDir, { recursive: true })
+  mkdirSync(assetsDir, { recursive: true })
+  return {
+    dir: evidenceDirForRepo(repoPath),
+    resultsDir,
+    assetsDir,
+    title: meta.title,
+    updatedAt: meta.updatedAt,
+  }
 }
 
 /**
- * Write index.html into a clean evidence directory (and meta). Prefer prepareEvidence +
- * agent Write tools for large documents. Clears prior dir contents first so old
+ * Write `results/index.html` into a clean pack (and meta). Prefer prepareEvidence +
+ * agent Write tools for large documents. Clears the prior pack first so old
  * screenshots cannot linger beside a new body.
+ *
+ * The document goes to `results/`, NOT the evidence root: the root `index.html` is
+ * read-only legacy compatibility now, and a pack that mixes the two makes an agent
+ * guess which one the human is reading.
  */
 export function setEvidence(repoPath: string, title: unknown, html: unknown): Evidence {
   const valid = validateEvidence(title, html)
-  clearEvidence(repoPath)
-  const meta = writeMeta(repoPath, valid.title)
-  const dir = evidenceDirForRepo(repoPath)
-  const indexPath = join(dir, 'index.html')
+  const prepared = prepareEvidence(repoPath, valid.title)
+  const indexPath = join(prepared.resultsDir, 'index.html')
   const tmp = `${indexPath}.tmp`
   writeFileSync(tmp, valid.html)
   renameSync(tmp, indexPath)
-  return { ...valid, updatedAt: meta.updatedAt, dir }
+  return {
+    ...valid,
+    updatedAt: prepared.updatedAt,
+    dir: prepared.dir,
+    file: `${EVIDENCE_RESULTS_DIR}/index.html`,
+  }
 }
 
 export function clearEvidence(repoPath: string): void {
   rmSync(evidenceDirForRepo(repoPath), { recursive: true, force: true })
 }
 
+/**
+ * The pack's primary report, for the `get` summary: `results/index.html` first,
+ * then the legacy root `index.html` a pack written by an older agent still has.
+ * A pack with no report at all is not "no evidence" — checks and a gallery are
+ * evidence too — so `describeEvidence` reports those separately.
+ */
 export function getEvidence(repoPath: string): Evidence | null {
   const dir = evidenceDirForRepo(repoPath)
-  const indexPath = join(dir, 'index.html')
+  for (const file of [`${EVIDENCE_RESULTS_DIR}/index.html`, 'index.html']) {
+    const found = readReport(dir, file)
+    if (found !== null) return found
+  }
+  return null
+}
+
+function readReport(dir: string, file: string): Evidence | null {
+  const path = join(dir, file)
+  let html: string
   try {
-    const html = readFileSync(indexPath, 'utf8')
-    if (!html) return null
-    let title = 'Evidence'
-    let updatedAt = ''
-    try {
-      const parsed: unknown = JSON.parse(readFileSync(join(dir, 'meta.json'), 'utf8'))
-      const meta = isRecord(parsed) ? parsed : {}
-      if (typeof meta.title === 'string' && meta.title.trim()) title = meta.title.trim()
-      if (typeof meta.updatedAt === 'string') updatedAt = meta.updatedAt
-    } catch {
-      try {
-        updatedAt = statSync(indexPath).mtime.toISOString()
-      } catch {
-        // ignore
-      }
-    }
-    return { title, html, updatedAt, dir }
+    html = readFileSync(path, 'utf8')
   } catch {
     return null
   }
-}
-
-/** Rough post-inline size: HTML bytes + base64 expansion (~4/3) of local sibling images. */
-function estimateInlinedBytes(dir: string, html: string): number {
-  let total = Buffer.byteLength(html, 'utf8')
-  const re = /\bsrc\s*=\s*(["'])(?!data:|https?:|\/\/|blob:|about:)([^"']+)\1/gi
-  const seen = new Set<string>()
-  for (const match of html.matchAll(re)) {
-    const raw = match[2]?.trim()
-    if (!raw || seen.has(raw) || raw.includes('..') || raw.startsWith('/')) continue
-    seen.add(raw)
+  if (!html) return null
+  let title = 'Evidence'
+  let updatedAt = ''
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(join(dir, 'meta.json'), 'utf8'))
+    const meta = isRecord(parsed) ? parsed : {}
+    if (typeof meta.title === 'string' && meta.title.trim()) title = meta.title.trim()
+    if (typeof meta.updatedAt === 'string') updatedAt = meta.updatedAt
+  } catch {
     try {
-      const size = statSync(join(dir, raw)).size
-      // base64 expands ~4/3; data: URL prefix is small enough to ignore for the warn.
-      total += Math.ceil((size * 4) / 3)
+      updatedAt = statSync(path).mtime.toISOString()
     } catch {
-      // missing sibling — leave out of the estimate
+      // ignore — a report with no timestamp still renders
     }
   }
+  return { title, html, updatedAt, dir, file }
+}
+
+/** Pin the Results tab order (see `orderDocSet`). */
+export function orderResults(repoPath: string, files: string[]): string[] {
+  if (files.length > 0) ensureProjectDir(repoPath)
+  return orderDocSet(projectEvidenceResultsDir(repoPath), files, 'evidence/results/')
+}
+
+/** The renderable documents in `evidence/results/`, name-sorted. */
+export function listResults(repoPath: string): string[] {
+  return listDocSet(projectEvidenceResultsDir(repoPath))
+}
+
+export interface EvidenceAssetEntry {
+  file: string
+  bytes: number
+  /** Why this file will not appear as a gallery tile, when it will not. */
+  warning?: string
+}
+
+function extensionOf(file: string): string {
+  const dot = file.lastIndexOf('.')
+  return dot <= 0 ? '' : file.slice(dot).toLowerCase()
+}
+
+/**
+ * The gallery as the daemon will see it: name-sorted, with a per-file warning for
+ * anything that will be skipped (not an image) or refused (over the per-image cap),
+ * plus the over-count tail. Warning, not error — a stray `notes.txt` is not a
+ * broken pack, it just is not a tile.
+ */
+export function listAssets(repoPath: string): EvidenceAssetEntry[] {
+  const dir = projectEvidenceAssetsDir(repoPath)
+  let names: string[]
+  try {
+    names = readdirSync(dir).sort()
+  } catch {
+    return []
+  }
+  const out: EvidenceAssetEntry[] = []
+  let images = 0
+  for (const file of names) {
+    let bytes = 0
+    try {
+      const info = statSync(join(dir, file))
+      if (!info.isFile()) continue
+      bytes = info.size
+    } catch {
+      continue
+    }
+    if (file.startsWith('.')) {
+      out.push({ file, bytes, warning: 'dotfile — never listed' })
+      continue
+    }
+    if (!ASSET_EXTENSIONS.has(extensionOf(file))) {
+      out.push({ file, bytes, warning: 'not an image — skipped by the gallery' })
+      continue
+    }
+    images++
+    if (bytes > MAX_ASSET_BYTES) {
+      out.push({
+        file,
+        bytes,
+        warning: `${formatMb(bytes)} is over the ${formatMb(MAX_ASSET_BYTES)} per-image cap — it lists but will not load`,
+      })
+      continue
+    }
+    if (images > MAX_ASSETS) {
+      out.push({ file, bytes, warning: `past the ${MAX_ASSETS}-image gallery cap — not shown` })
+      continue
+    }
+    out.push({ file, bytes })
+  }
+  return out
+}
+
+interface LocalRef {
+  /** Exactly as the document wrote it, so the warning names what to fix. */
+  raw: string
+  /** Null when nothing is at that path — a ref that will render as a broken image. */
+  bytes: number | null
+}
+
+/**
+ * The local images a document references, deduped, in document order.
+ *
+ * Refs resolve from the document's own directory but must land inside `root` (the
+ * evidence directory), which is exactly what the daemon does — that is how a
+ * Results document's `../assets/shot.png` counts, while `../../../secrets.png`
+ * does not (it is not a broken ref, it is one the viewer will never inline).
+ */
+function localRefs(docDir: string, html: string, root: string): LocalRef[] {
+  const re = /\bsrc\s*=\s*(["'])(?!data:|https?:|\/\/|blob:|about:)([^"']+)\1/gi
+  const seen = new Set<string>()
+  const refs: LocalRef[] = []
+  for (const match of html.matchAll(re)) {
+    const raw = match[2]?.trim()
+    if (!raw || seen.has(raw) || raw.startsWith('/')) continue
+    seen.add(raw)
+    const path = resolve(docDir, raw)
+    const rel = relative(resolve(root), path)
+    if (rel === '' || rel.startsWith('..')) continue
+    try {
+      refs.push({ raw, bytes: statSync(path).size })
+    } catch {
+      refs.push({ raw, bytes: null })
+    }
+  }
+  return refs
+}
+
+/**
+ * Rough post-inline size: HTML bytes + base64 expansion (~4/3) of the local images
+ * a document references. A ref with nothing behind it inlines as nothing.
+ */
+function estimateInlinedBytes(html: string, refs: LocalRef[]): number {
+  let total = Buffer.byteLength(html, 'utf8')
+  for (const ref of refs) {
+    // base64 expands ~4/3; data: URL prefix is small enough to ignore for the warn.
+    if (ref.bytes !== null) total += Math.ceil((ref.bytes * 4) / 3)
+  }
   return total
+}
+
+/**
+ * A ref the agent wrote and never produced — the single most expensive evidence
+ * bug, because the report looks finished and the human sees a broken image. The
+ * containment rule above means these are all refs the viewer WOULD have inlined.
+ */
+function missingRefsNote(file: string, refs: LocalRef[]): string {
+  return refs
+    .filter((ref) => ref.bytes === null)
+    .map(
+      (ref) =>
+        `\nWARNING: ${file} references ${ref.raw}, which is not on disk — it renders as a broken image. Write the file, or fix the path.`,
+    )
+    .join('')
 }
 
 function formatMb(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
+/** The Results tab list and the gallery count — the two sub-tabs `get` cannot preview. */
+function packSummary(repoPath: string): string {
+  const results = listResults(repoPath)
+  const assets = listAssets(repoPath)
+  const galleryCount = assets.filter((a) => a.warning === undefined).length
+  const lines = [
+    results.length === 0
+      ? `\nResults: (none) — write .md / .html into ${projectEvidenceResultsDir(repoPath)}`
+      : `\nResults: ${results.length} document(s): ${results.join(', ')}`,
+    `\nAssets: ${galleryCount} image(s) in the gallery${assets.length > galleryCount ? ` (${assets.length - galleryCount} not shown)` : ''}`,
+  ]
+  for (const asset of assets) {
+    if (asset.warning !== undefined)
+      lines.push(`\nWARNING: assets/${asset.file} — ${asset.warning}`)
+  }
+  return lines.join('')
+}
+
 export function describeEvidence(repoPath: string, evidence: Evidence | null): string {
   const dir = evidenceDirForRepo(repoPath)
   const checks = checksSummary(readChecksForRepo(repoPath))
+  const pack = packSummary(repoPath)
   if (!evidence) {
-    return `No evidence for ${repoPath}. Preferred flow: run \`porcelain evidence prepare --title <title>\` — it returns a directory path; write index.html (and screenshots as siblings with relative <img src>) there with normal file tools. Porcelain picks it up automatically. Do NOT push large HTML through the CLI.${checks}`
+    return `No evidence report for ${repoPath}. Preferred flow: run \`porcelain evidence prepare --title <title>\` — it returns three paths; write .md/.html documents into results/ and drop screenshots into assets/ with normal file tools, referencing them as <img src="../assets/shot.png">. Porcelain picks it up automatically. Do NOT push large HTML through the CLI.${checks}${pack}`
   }
   const bytes = Buffer.byteLength(evidence.html, 'utf8')
   const when = evidence.updatedAt ? ` (updated ${evidence.updatedAt})` : ''
   const preview = `\nPreview: ${htmlPreview(evidence.html)}`
-  const estimated = estimateInlinedBytes(dir, evidence.html)
+  const path = join(dir, evidence.file)
+  const refs = localRefs(join(path, '..'), evidence.html, dir)
+  const missing = missingRefsNote(evidence.file, refs)
+  const estimated = estimateInlinedBytes(evidence.html, refs)
   const sizeNote =
     estimated > READ_MAX_HTML_BYTES
-      ? `\nWARNING: estimated inlined size ~${formatMb(estimated)} exceeds the viewer cap (${formatMb(READ_MAX_HTML_BYTES)}). Porcelain will show "Evidence too large" instead of the HTML body — shrink screenshots (e.g. JPEG ~540px) and rewrite index.html.`
+      ? `\nWARNING: estimated inlined size ~${formatMb(estimated)} exceeds the viewer cap (${formatMb(READ_MAX_HTML_BYTES)}). Porcelain will show "Evidence too large" instead of the HTML body — shrink screenshots (e.g. JPEG ~540px) and rewrite the document.`
       : bytes > READ_MAX_HTML_BYTES
-        ? `\nWARNING: index.html is ${formatMb(bytes)} over the viewer cap (${formatMb(READ_MAX_HTML_BYTES)}). Porcelain will show "Evidence too large" — shrink the document.`
+        ? `\nWARNING: ${evidence.file} is ${formatMb(bytes)} over the viewer cap (${formatMb(READ_MAX_HTML_BYTES)}). Porcelain will show "Evidence too large" — shrink the document.`
         : ''
-  return `Evidence "${evidence.title}" for ${repoPath}: ${bytes} bytes at ${dir}/index.html${when}. Open that path in a browser, or Feature tab → Evidence in Porcelain.${checks}${sizeNote}${preview}`
+  return `Evidence "${evidence.title}" for ${repoPath}: ${bytes} bytes at ${path}${when}. Open that path in a browser, or Review tab → Evidence in Porcelain.${checks}${pack}${missing}${sizeNote}${preview}`
 }

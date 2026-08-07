@@ -83,11 +83,15 @@ function handle(
       ])
     case 'evidence':
       // the agent authored/cleared loop evidence — refresh the Review document (its
-      // evidence chapter meta rides on featureReading) and the chapter's full HTML.
+      // evidence chapter meta rides on featureReading) and every part of the pack:
+      // the legacy HTML body, the Results document set, and the Assets listing.
+      // Per-asset bodies are keyed by file and immutable, so the listing is enough.
       return Promise.all([
         utils.featureReading.invalidate(),
         utils.loopEvidence.invalidate(),
         utils.loopEvidenceHtml.invalidate(),
+        utils.reviewEvidenceDocs.invalidate(),
+        utils.reviewEvidenceAssets.invalidate(),
       ])
     case 'working-tree':
       // a watched file changed on disk outside the app (most often the coding

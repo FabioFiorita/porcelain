@@ -9,8 +9,8 @@ a unit of work — feature, bug, chore, or investigation.
 - **Lifecycle** — start / during / end / after, and the publish flow
 - **Intent** — thesis, sections, documents on disk, freeform canvas
 - **Execution** — the curated file list, sources, notes, layers
-- **Evidence** — HTML proof, structured checks, sandbox and CSS rules
-- **Medium policy** — what belongs on which surface (including Excalidraw)
+- **Evidence** — checks, the Results document set, the asset gallery, sandbox and CSS rules
+- **Medium policy** — what belongs on which surface
 - **Comments & reviewed marks** — app → agent
 - **What not to do**
 
@@ -40,7 +40,7 @@ One folder per review, and the unit in flight has the **same shape** as an archi
 .porcelain/
   actions.json  board.json  layers.json  scope.json  notes.md   ← durable project data
   active-review/          ← the unit in flight
-    review.json  intent/  evidence/  comments.json  reviewed.json
+    review.json  intent/  evidence/{results/,assets/}  comments.json  reviewed.json
   reviews/<id>/           ← history, same shape + meta.json
 ```
 
@@ -71,15 +71,16 @@ card → Start Review (title prefilled). Do not turn Review into a second kanban
 
 0. **`review clear` first** when starting a **new** unit — removes the previous set **and** its
    loop-evidence directory (HTML + images). Matches the app Clear control. Skipping this is how a
-   later agent leaves an old Excalidraw board under a new Intent document.
+   later agent leaves an old board under a new Intent document.
 1. **Intent-first** — one `review set` with name + thesis. `--files` and `--sections` are
    optional; omit them entirely at the start. A full `review set` replaces the structured set and
    does **not** keep a previous freeform canvas.
-2. **Optional Intent board** — only if *this* unit needs one: `review set-canvas` (html or
-   Excalidraw). Never `set-canvas` alone for a new unit without steps 0–1.
+2. **Optional Intent board** — only if *this* unit needs one: `review set-canvas` (html).
+   Never `set-canvas` alone for a new unit without steps 0–1.
 3. **Execution grows** — re-`review set` with files + notes as you work.
-4. **Evidence** — after you validate, `evidence prepare` + write a self-contained `index.html`
-   (**include CSS**). **Required to claim done.**
+4. **Evidence** — after you validate, `evidence check` for each thing you ran, then
+   `evidence prepare` + Results documents (**include CSS**) + screenshots in `assets/`.
+   **Required to claim done.**
 5. Confirm with `review get` / `feature get` / `evidence get`, or run
    `scripts/check-evidence.mjs` (below).
 
@@ -139,20 +140,41 @@ Keep sections tight: enough steps to tell the whole unit, not a section per file
 Reach for these when prose alone won't carry it.
 
 ```bash
-~/.porcelain/porcelain intent prepare          # makes the dir + assets/, prints the paths
+~/.porcelain/porcelain intent prepare          # dir + assets/ + the recommended tab order
 # …write documents there with your normal file tools…
-~/.porcelain/porcelain intent order --files overview.md,before-after.html,flow.excalidraw
+~/.porcelain/porcelain intent order --files why.md,approach.md,decisions.md
 ~/.porcelain/porcelain intent list
 ```
 
 Each document becomes a **tab**. One document renders bare with no chrome, so a lone `index.md`
 costs nothing.
 
+#### The three tabs we recommend
+
+`intent prepare` seeds this order; `--tabs why,approach,decisions` (or any other list) overrides it.
+
+| Tab | File | What belongs there |
+|---|---|---|
+| **Why** | `why.md` | The motivation and problem as understood **before** work started |
+| **Approach** | `approach.md` | The solution shape that was agreed |
+| **Decisions** | `decisions.md` | Trade-offs taken, alternatives rejected, scope cut |
+
+Intent captures what was agreed **before work started**, even though you author it at completion.
+Write it as the brief you wished you'd had, not as a changelog.
+
+**A convention, not a schema.** Porcelain renders whatever is on disk, in manifest order, whatever
+it is named — add or drop tabs freely and re-pin with `intent order`. A manifest entry for a
+document you never wrote is not an error; it simply is not a tab. Re-running `intent prepare` never
+touches an existing `meta.json`, so your own order and labels survive.
+
 | Extension | Renders as | Rules |
 |---|---|---|
 | `.md` / `.markdown` | Prose | Escaped markdown — a raw `<script>` shows as text, not markup |
 | `.html` / `.htm` | Sandboxed page | Sibling `.css` and images are **inlined for you**, so relative paths work. No scripts, ever |
-| `.excalidraw` | Read-only diagram | Scene JSON; export from the app, don't hand-author |
+
+Those two are the whole media story, on every client — web, desktop shell, and mobile. Anything
+else in the directory is skipped. A diagram is inline SVG inside an `.html` document (or a section
+`diagram`), not a third format.
 
 Images live in `.porcelain/active-review/intent/assets/` and are referenced relatively:
 
@@ -173,7 +195,6 @@ document should be simpler, or a diagram.
 
 ```bash
 ~/.porcelain/porcelain review set-canvas --medium html --html-file ./intent.html
-~/.porcelain/porcelain review set-canvas --medium excalidraw --file ./board.excalidraw
 ~/.porcelain/porcelain review clear-canvas
 ```
 
@@ -187,8 +208,7 @@ only the Intent body when set.
 | `--thesis` alone | Small unit; one paragraph is the whole story |
 | `--thesis` + `--sections` | Default. Ordered walkthrough with code anchors |
 | `intent prepare` + `.md` | The rationale is longer than a thesis and wants headings |
-| `intent prepare` + `.html` | A before/after, a table of measurements, a styled report |
-| `intent prepare` + `.excalidraw` | Architecture or data flow that needs a spatial map |
+| `intent prepare` + `.html` | A before/after, a table of measurements, a styled report, an architecture or data-flow map as inline SVG |
 | `set-canvas` | One board carries the whole idea and you want it full-height |
 
 Combining is fine — documents, board, and the structured walkthrough all appear as tabs.
@@ -248,10 +268,23 @@ Grouping across the whole repo (not just this unit) is [layers.md](layers.md).
 
 ## Evidence — "Did it actually work?"
 
-Ephemeral HTML proof that you closed the loop: browser, simulator, screenshots, pass/fail. Do not
-claim a unit done without real Evidence of what you ran. Don't invent proof.
+Proof that you closed the loop: browser, simulator, screenshots, pass/fail. Do not claim a unit
+done without real Evidence of what you ran. Don't invent proof.
 
-**HTML only.** Excalidraw is not an evidence medium.
+Evidence is **one pack, three sub-tabs**, all under
+`<repo>/.porcelain/active-review/evidence/`:
+
+| Sub-tab | On disk | Job |
+|---|---|---|
+| **Checks** | `meta.json` (`evidence check`) | The summary a human reads in one second |
+| **Results** | `results/*.md` / `*.html` + `results/meta.json` | The narrated proof, as ordered tabs |
+| **Assets** | `assets/*.png` … | Raw screenshots, rendered as a native gallery |
+
+```bash
+~/.porcelain/porcelain evidence prepare --title "…"   # makes the pack, prints all three paths
+```
+
+`prepare` wipes any previous pack first, so a new unit never inherits an old screenshot.
 
 **Screenshots yes, video no.** Images (`.png`, `.jpg`, `.webp`, `.gif`, `.svg`) are inlined as
 data URIs. Video would mean widening the CSP that backstops agent-authored HTML, or serving the
@@ -262,21 +295,7 @@ put the stills here.
 **Size is not free.** Evidence is git-ignored by default, but a **published** review carries it
 into history permanently. Prefer WebP over PNG and keep a pack in the low single-digit MB.
 
-### Preferred flow — prepare, then write files
-
-**Do not push large HTML or base64 screenshots through the CLI.**
-
-1. `~/.porcelain/porcelain evidence prepare --title "<title>"` → prints
-   `<repo>/.porcelain/active-review/evidence/`
-2. Write into that directory:
-   - **`index.html`** — the document (**must include its own CSS**)
-   - Optional **CSS sibling** (`styles.css` + `<link rel="stylesheet" href="styles.css">`)
-   - Screenshots with a relative `src`. Put more than one or two under **`assets/`** —
-     sub-directories are inlined the same way, and it keeps a published review readable.
-3. Optionally add **more documents** beside `index.html` — a run log, a query plan, a diagram. Any
-   `.md` / `.html` / `.excalidraw` there becomes a tab next to Report, with the structured checks
-   pinned above all of them.
-4. Record structured checks:
+### Checks — the one-second read
 
 ```bash
 ~/.porcelain/porcelain evidence check --label "pnpm lint"  --status pass --detail "0 errors"
@@ -288,14 +307,60 @@ into history permanently. Prefer WebP over PNG and keep a pack in the low single
 - Overall: any fail → Fail; all pass (≥1) → Pass; skip-only → no badge.
 - Caps: 32 checks, label ≤ 120, detail ≤ 400.
 
-5. **Validate before claiming done:**
+Record what you actually ran, including the skips — a skip with a reason is information; a missing
+check reads as "never tried".
+
+### Results — the narrated proof
+
+**Do not push large HTML or base64 screenshots through the CLI.**
+
+1. `evidence prepare` (above) → prints `…/evidence/results/`.
+2. Write documents there with your normal file tools — a report, a run log, a query plan, a
+   before/after. Same primitive as Intent: each file is a tab.
+3. Reference screenshots from the gallery one level up: `<img src="../assets/shot.png">`.
+4. Pin the order (readdir order is not stable):
+
+```bash
+~/.porcelain/porcelain evidence results-order --files index.html,run-log.md
+~/.porcelain/porcelain evidence results-list
+```
+
+| Extension | Renders as | Rules |
+|---|---|---|
+| `.md` / `.markdown` | Prose | Escaped markdown — a raw `<script>` shows as text, not markup |
+| `.html` / `.htm` | Sandboxed page | Local `.css` and images (including `../assets/…`) are **inlined for you**. No scripts, ever |
+
+**There is no script medium.** A `.js` file is ignored. A published review can arrive with someone
+else's `git clone`, so agent-authored HTML runs in a fully sandboxed frame with no `allow-scripts`.
+Anything that needs interactivity to be understood should be simpler, or a diagram.
+
+**Caps:** 12 documents, 2 MB each, 8 MB total. Over-cap documents are dropped silently — check
+`evidence results-list` if a tab is missing.
+
+A pack written before sub-tabs existed still renders: a root `index.html` shows up as a **Report**
+tab. Don't write one — `evidence set` now writes `results/index.html`.
+
+### Assets — the gallery
+
+Drop raw screenshots in `assets/`; Porcelain renders the gallery natively in both clients, so a
+screenshot needs no HTML around it. Anything you want **narrated** also gets an `<img>` in a
+Results document; anything that is just **proof** can live in the gallery alone.
+
+```bash
+~/.porcelain/porcelain evidence assets-list   # names, sizes, and what will not render
+```
+
+**Caps:** 60 images, 8 MB each. Non-images in `assets/` are skipped, not tiles.
+
+### Validate before claiming done
 
 ```bash
 node <skill>/scripts/check-evidence.mjs          # inside the repo
 ```
 
-It reports missing `index.html`, missing CSS, broken image references, script tags, remote
-assets, and the inlined size against the 4 MB cap. Fix what it reports and run it again.
+It reports an empty pack, missing CSS, broken image references (resolving `../assets/`), script
+tags, remote assets, the gallery count, and the inlined size against the 4 MB cap. Fix what it
+reports and run it again.
 
 ### Small docs only
 
@@ -303,7 +368,8 @@ assets, and the inlined size against the 4 MB cap. Fix what it reports and run i
 ~/.porcelain/porcelain evidence set --title "Login smoke" --html-file ./evidence.html
 ```
 
-Exactly one of `--html-file` or `--html` (`-` = stdin). Never for multi-screenshot packs.
+Writes `results/index.html`. Exactly one of `--html-file` or `--html` (`-` = stdin). Never for
+multi-screenshot packs.
 
 ### Authoring HTML
 
@@ -313,8 +379,8 @@ Fully **sandboxed** iframe (`sandbox=""` — scripts never run; no remote assets
 **CSS is required — own the template.** There is no shared Porcelain evidence CSS and no default
 template. Design the look for *this* unit. Pick one (or combine):
 
-1. **Inline** — a full `<style>…</style>` in `index.html` (safest, one file).
-2. **Sibling stylesheet** — `styles.css` next to `index.html`, linked relatively. The daemon
+1. **Inline** — a full `<style>…</style>` in the document (safest, one file).
+2. **Sibling stylesheet** — `styles.css` next to it in `results/`, linked relatively. The daemon
    inlines local relative stylesheets for the sandboxed viewer. Missing or remote CSS is left
    as-is and **will not load**.
 
@@ -322,8 +388,8 @@ Do **not** omit CSS, link CDN/`https://` stylesheets (blocked), use absolute `fi
 ship only a screenshot when the human needs to read steps and logs.
 
 Read cap is **4 MB after data-URI inlining**. Over that, the Evidence tab shows *"Evidence too
-large (X MB > 4.0 MB)"* — not "cleared". Shrink screenshots (e.g. JPEG ~540px) and rewrite
-`index.html`. `evidence get` prints a WARNING when the estimate is over.
+large (X MB > 4.0 MB)"* — not "cleared". Shrink screenshots (e.g. JPEG ~540px) and rewrite the
+document. `evidence get` prints a WARNING when the estimate is over.
 
 A useful pack usually has: title + overall status, what you ran (commands, URLs, env), steps,
 screenshots / key logs, and what's left if partial. Structure is yours.
@@ -356,13 +422,13 @@ That skeleton is an example only — rewrite the CSS per review.
 
 | Surface | Allowed mediums |
 |---------|-----------------|
-| **Intent** | Structured document (thesis + section prose/diagrams) **or** freeform HTML **or** Excalidraw |
+| **Intent** | Structured document (thesis + section prose/diagrams) **or** freeform HTML **or** markdown documents |
 | **Execution** | Native app UI (exactly the files from `--files`, agent order) — not a freeform medium |
-| **Evidence** | **HTML only** (`index.html` + own CSS + optional screenshots) |
+| **Evidence** | Structured checks + `results/` documents (`.md` / `.html` + own CSS) + an `assets/` image gallery |
 
-**Bias:** structured Intent + HTML Evidence. Reach for Excalidraw only when a spatial board is
-clearly better for Intent (architecture map, data-flow whiteboard) — and export it from the
-Excalidraw app rather than hand-authoring scene JSON. Never put Excalidraw on Evidence.
+**Bias:** structured Intent + HTML Evidence. Two media, everywhere: HTML and markdown. When a
+spatial map (architecture, data flow) is the clearest way to say it, draw it as inline SVG in an
+HTML document — that renders on every client, including mobile.
 
 ## Comments & reviewed marks (app → agent)
 
@@ -377,6 +443,9 @@ Excalidraw app rather than hand-authoring scene JSON. Never put Excalidraw on Ev
 - Don't invent evidence.
 - Don't ship Evidence HTML without CSS (sandboxed; Porcelain does not style it for you).
 - Don't push multi-MB HTML through `evidence set`; use `prepare` + your file tools.
+- Don't hand-author an HTML gallery page — `assets/` already renders as one, natively.
+- Don't duplicate every screenshot into a Results document; narrate the few that need narrating.
+- Don't leave Intent as a changelog — it is the brief, written as of before the work started.
 - Don't re-implement a second file browser in Intent; Execution + sidebar own the files.
 - Don't `set-canvas` alone as a "review" — that keeps the previous files/thesis.
 - Don't turn Review into a second kanban (Board owns the queue).

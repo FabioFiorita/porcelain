@@ -1,27 +1,18 @@
 import type { ReviewCanvas } from '@backend/review/review-set'
 import { PaneErrorBoundary } from '@renderer/components/shell/error-boundary'
-import { ExcalidrawHost } from '@renderer/components/viewer/excalidraw-host'
 import { HtmlView } from '@renderer/components/viewer/html-view'
-import type { ExcalidrawScene } from '@shared/excalidraw-scene'
 
 /**
- * Freeform Intent canvas body — HTML (sandboxed) or Excalidraw (read-only host).
+ * Freeform Intent canvas body — agent-authored HTML in the sandboxed frame.
  * Used when the review set carries an explicit `canvas` field (Intent medium).
  */
 export function CanvasBody({ canvas }: { canvas: ReviewCanvas }): React.JSX.Element {
-  if (canvas.medium === 'html') {
-    return (
-      <div className="h-full min-h-0 p-3">
-        <div className="h-full min-h-0 overflow-hidden rounded-md border">
-          <HtmlView html={canvas.html} title="Intent canvas" />
-        </div>
-      </div>
-    )
-  }
   return (
     <div className="h-full min-h-0 p-3">
       <PaneErrorBoundary label="This board">
-        <ExcalidrawHost scene={canvas.scene as ExcalidrawScene} />
+        <div className="h-full min-h-0 overflow-hidden rounded-md border">
+          <HtmlView html={canvas.html} title="Intent canvas" />
+        </div>
       </PaneErrorBoundary>
     </div>
   )

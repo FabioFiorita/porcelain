@@ -94,6 +94,14 @@ export const TestIds = {
   evidencePanel: 'evidence-panel',
   evidenceClear: 'evidence-clear',
   evidenceIframe: 'evidence-iframe',
+  /** Evidence is one pack over three sub-tabs: Checks · Results · Assets. */
+  evidenceSubTab: (id: 'checks' | 'results' | 'assets'): string => `evidence-sub-tab-${id}`,
+  evidenceChecksPane: 'evidence-checks-pane',
+  evidenceResultsPane: 'evidence-results-pane',
+  evidenceGallery: 'evidence-gallery',
+  /** One gallery tile, keyed by its file name inside `evidence/assets/`. */
+  evidenceGalleryItem: (file: string): string => `evidence-gallery-item-${file}`,
+  evidenceGalleryZoom: 'evidence-gallery-zoom',
   /** Board Focus → open Review with title prefilled for the start prompt. */
   boardStartReview: 'board-start-review',
 
@@ -150,11 +158,12 @@ export const TestIds = {
   cardComposerSave: 'card-composer-save',
   cardComposer: 'card-composer',
 
-  // --- Review Intent documents ---
+  // --- Review documents (Intent panes and Evidence Results) ---
   intentDocTabs: 'intent-doc-tabs',
   intentDocTab: (label: string): string =>
     `intent-doc-tab-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
-  intentDocBody: 'intent-doc-body',
+  /** One rendered document body — the same renderer serves Intent and Results. */
+  reviewDocBody: 'review-doc-body',
   evidenceDocTabs: 'evidence-doc-tabs',
   paneError: 'pane-error',
   reviewPublish: 'review-publish',

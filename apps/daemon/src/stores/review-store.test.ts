@@ -10,6 +10,7 @@ import {
   projectPorcelainPath,
 } from '@shared/project-porcelain'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { addComment, readComments } from './comment-store'
 import {
   activeReviewCost,
   archiveActiveReview,
@@ -19,6 +20,7 @@ import {
   readReviewSet,
   restoreArchivedReview,
 } from './review-store'
+import { markReviewed, readReviewedMarks } from './reviewed-store'
 
 const root = join(tmpdir(), 'porcelain-review-store-test')
 const repo = join(root, 'repo')
@@ -94,6 +96,32 @@ describe('readReviewSet path containment', () => {
   })
 })
 
+describe('canvas media', () => {
+  it('keeps an html canvas', async () => {
+    writeReview({
+      name: 'test',
+      files: [],
+      sections: [],
+      canvas: { medium: 'html', html: '<p>board</p>' },
+    })
+    const set = await readReviewSet(repo)
+    expect(set?.canvas).toEqual({ medium: 'html', html: '<p>board</p>' })
+  })
+
+  it('drops a legacy scene canvas instead of failing the whole review', async () => {
+    writeReview({
+      name: 'test',
+      files: [{ path: 'a.ts' }],
+      sections: [],
+      canvas: { medium: 'excalidraw', scene: { elements: [] } },
+    })
+    const set = await readReviewSet(repo)
+    expect(set?.name).toBe('test')
+    expect(set?.files.map((file) => file.path)).toEqual(['a.ts'])
+    expect(set?.canvas).toBeUndefined()
+  })
+})
+
 describe('restoreArchivedReview', () => {
   it('promotes an archive back to active', async () => {
     writeReview({ name: 'First', files: [{ path: 'a.ts' }], sections: [], thesis: 't1' })
@@ -104,6 +132,30 @@ describe('restoreArchivedReview', () => {
     const set = await readReviewSet(repo)
     expect(set?.name).toBe('First')
     expect(await listArchivedReviews(repo)).toEqual([])
+  })
+
+  // Restore used to copy the archive back to the flat `.porcelain/*.json` paths
+  // while every reader looks inside `active-review/` — a restored review came
+  // back with its comments and marks nowhere anything would find them.
+  it('lands every slot where the readers look', async () => {
+    writeReview({ name: 'First', files: [{ path: 'a.ts' }], sections: [] })
+    await addComment(repo, { path: 'a.ts', body: 'look here' })
+    await markReviewed(repo, 'a.ts', 'fingerprint-1')
+    mkdirSync(projectEvidenceDir(repo), { recursive: true })
+    writeFileSync(join(projectEvidenceDir(repo), 'index.html'), '<p>proof</p>')
+    mkdirSync(projectIntentDir(repo), { recursive: true })
+    writeFileSync(join(projectIntentDir(repo), 'why.md'), '# Why')
+
+    const id = await archiveActiveReview(repo)
+    await restoreArchivedReview(repo, id as string)
+
+    expect((await readComments(repo)).map((c) => c.body)).toEqual(['look here'])
+    expect((await readReviewedMarks(repo)).map((m) => m.path)).toEqual(['a.ts'])
+    expect(readFileSync(join(projectEvidenceDir(repo), 'index.html'), 'utf8')).toBe('<p>proof</p>')
+    expect(readFileSync(join(projectIntentDir(repo), 'why.md'), 'utf8')).toBe('# Why')
+    // Nothing lands at the pre-active-review flat paths any more.
+    expect(existsSync(projectPorcelainPath(repo, 'comments.json'))).toBe(false)
+    expect(existsSync(projectPorcelainPath(repo, 'evidence'))).toBe(false)
   })
 })
 

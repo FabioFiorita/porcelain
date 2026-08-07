@@ -1,7 +1,11 @@
 import { mkdirSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { projectEvidenceDir } from '@shared/project-porcelain'
+import {
+  projectEvidenceAssetsDir,
+  projectEvidenceDir,
+  projectEvidenceResultsDir,
+} from '@shared/project-porcelain'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   clearEvidence,
@@ -113,5 +117,76 @@ describe('mtime resolution', () => {
     utimesSync(indexPath, later, later)
     const meta = await readEvidenceMeta(repo)
     expect(meta?.updatedAt).toBe(later.toISOString())
+  })
+
+  it('picks up a file dropped into results/ or assets/', async () => {
+    writeDisk('T', '<p>1</p>')
+    const later = new Date('2026-07-19T00:00:00.000Z')
+    const shot = join(projectEvidenceAssetsDir(repo), 'shot.png')
+    mkdirSync(projectEvidenceAssetsDir(repo), { recursive: true })
+    writeFileSync(shot, 'png')
+    utimesSync(shot, later, later)
+    expect((await readEvidenceMeta(repo))?.updatedAt).toBe(later.toISOString())
+  })
+})
+
+/**
+ * The presence rule is the whole point of the pack redesign: checks alone, a
+ * Results document alone, or a gallery alone is evidence. Only an empty (or
+ * absent) directory is "no evidence yet".
+ */
+describe('evidence pack presence', () => {
+  const writeInto = (dir: string, name: string, body: string): void => {
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(join(dir, name), body)
+  }
+
+  it('is null when the directory is absent or empty', async () => {
+    expect(await readEvidenceMeta(repo)).toBeNull()
+    mkdirSync(projectEvidenceDir(repo), { recursive: true })
+    expect(await readEvidenceMeta(repo)).toBeNull()
+  })
+
+  it('sees a legacy index.html-only pack', async () => {
+    writeInto(projectEvidenceDir(repo), 'index.html', '<p>x</p>')
+    expect(await readEvidenceMeta(repo)).toMatchObject({ hasReport: true, results: 0, assets: 0 })
+  })
+
+  it('sees a checks-only pack (meta.json, no page at all)', async () => {
+    const checks: EvidenceCheck[] = [{ label: 'unit', status: 'pass' }]
+    writeInto(
+      projectEvidenceDir(repo),
+      'meta.json',
+      JSON.stringify({ title: 'Checks', updatedAt: META_AT, checks }),
+    )
+    expect(await readEvidenceMeta(repo)).toMatchObject({
+      title: 'Checks',
+      checks,
+      hasReport: false,
+      results: 0,
+      assets: 0,
+    })
+  })
+
+  it('sees a results-only pack and counts the documents', async () => {
+    writeInto(projectEvidenceResultsDir(repo), 'run-log.md', 'log')
+    writeInto(projectEvidenceResultsDir(repo), 'report.html', '<p>x</p>')
+    writeInto(projectEvidenceResultsDir(repo), 'notes.txt', 'not a document')
+    expect(await readEvidenceMeta(repo)).toMatchObject({
+      title: 'Evidence',
+      results: 2,
+      assets: 0,
+      hasReport: false,
+    })
+  })
+
+  it('sees an assets-only pack and counts the images', async () => {
+    writeInto(projectEvidenceAssetsDir(repo), 'shot.png', 'png')
+    writeInto(projectEvidenceAssetsDir(repo), 'readme.txt', 'not an image')
+    expect(await readEvidenceMeta(repo)).toMatchObject({
+      results: 0,
+      assets: 1,
+      hasReport: false,
+    })
   })
 })

@@ -8,7 +8,6 @@
     "./project-porcelain": "./src/project-porcelain.ts",
     "./platform": "./src/platform.ts",
     "./evidence-check": "./src/evidence-check.ts",
-    "./excalidraw-scene": "./src/excalidraw-scene.ts",
     "./test-ids": "./src/test-ids.ts"
   },
   "typesVersions": {
@@ -24,9 +23,6 @@
       ],
       "evidence-check": [
         "./src/evidence-check.ts"
-      ],
-      "excalidraw-scene": [
-        "./src/excalidraw-scene.ts"
       ],
       "test-ids": [
         "./src/test-ids.ts"

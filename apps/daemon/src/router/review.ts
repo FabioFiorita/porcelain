@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { projectEvidenceAssetsDir as evidenceAssetsDir } from '@shared/project-porcelain'
 import { z } from 'zod'
 import type { DiffHunk } from '../git/diff'
 import {
@@ -11,6 +12,13 @@ import {
   reviewedFingerprint,
   reviewedFingerprints,
 } from '../git/git'
+import { type ReviewDoc, readActiveEvidenceResults, readActiveIntentDocs } from '../review/doc-set'
+import {
+  type EvidenceAsset,
+  type EvidenceAssetBody,
+  listEvidenceAssets,
+  readEvidenceAsset,
+} from '../review/evidence-assets-list'
 import {
   cachedFeatureReading,
   gatherFeature,
@@ -26,7 +34,6 @@ import {
 } from '../review/feature-view'
 import { DEFAULT_LAYERS, type FlowGroup } from '../review/flow'
 import { loadCommitFlow, loadRangeFlow, loadWorkingFlow } from '../review/flow-build'
-import { type IntentDoc, readActiveEvidenceDocs, readActiveIntentDocs } from '../review/intent-docs'
 import {
   addComment,
   clearResolvedComments,
@@ -242,12 +249,39 @@ export const reviewRouter = t.router({
    */
   reviewIntent: publicProcedure
     .input(z.string())
-    .query(({ input }): Promise<IntentDoc[]> => readActiveIntentDocs(input)),
+    .query(({ input }): Promise<ReviewDoc[]> => readActiveIntentDocs(input)),
 
-  /** Extra evidence documents beside index.html — same media and caps as Intent. */
+  /**
+   * Evidence is three sub-tabs over one directory: **Checks** (the structured
+   * list on `loopEvidence`), **Results** (this — `evidence/results/` as a
+   * document set, the same primitive as Intent), and **Assets** (below).
+   *
+   * The name is wire history: it used to mean "extra docs beside index.html".
+   * Installed clients call it, so it keeps its name and gains a meaning.
+   */
   reviewEvidenceDocs: publicProcedure
     .input(z.string())
-    .query(({ input }): Promise<IntentDoc[]> => readActiveEvidenceDocs(input)),
+    .query(({ input }): Promise<ReviewDoc[]> => readActiveEvidenceResults(input)),
+
+  /**
+   * The Assets sub-tab: `evidence/assets/` listed as a gallery. Metadata only —
+   * one tile's bytes arrive from `reviewEvidenceAsset`, on demand.
+   */
+  reviewEvidenceAssets: publicProcedure
+    .input(z.string())
+    .query(({ input }): Promise<EvidenceAsset[]> => listEvidenceAssets(evidenceAssetsDir(input))),
+
+  /**
+   * One gallery image as a data URL. Deliberately a procedure and not an HTTP
+   * route: the daemon's static server serves the renderer dist unauthenticated,
+   * and user files must never leave through it. Null when missing or over cap.
+   */
+  reviewEvidenceAsset: publicProcedure
+    .input(z.object({ repoPath: z.string(), file: z.string().min(1) }))
+    .query(
+      ({ input }): Promise<EvidenceAssetBody | null> =>
+        readEvidenceAsset(evidenceAssetsDir(input.repoPath), input.file),
+    ),
 
   /** Byte cost of publishing the active review, so the warning can be specific. */
   reviewPublishCost: publicProcedure

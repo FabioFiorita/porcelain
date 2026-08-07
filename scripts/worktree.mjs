@@ -721,18 +721,26 @@ function readReviewSet(worktreePath, home, keys) {
 const EVIDENCE_IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif'])
 const MAX_EVIDENCE_IMAGES = 8
 
-/** Image filenames directly inside an evidence pack dir, sorted, capped at `MAX_EVIDENCE_IMAGES`. */
+/**
+ * Image filenames from the pack's `assets/` gallery (current layout), falling back to the pack
+ * root (legacy single-page packs), sorted, capped at `MAX_EVIDENCE_IMAGES`.
+ */
 function evidenceImageNames(dir) {
-  let entries = []
-  try {
-    entries = readdirSync(dir)
-  } catch {
-    return []
+  for (const candidate of [join(dir, 'assets'), dir]) {
+    let entries = []
+    try {
+      entries = readdirSync(candidate)
+    } catch {
+      continue
+    }
+    const images = entries
+      .filter((entry) => EVIDENCE_IMAGE_EXTENSIONS.has(entry.split('.').pop()?.toLowerCase() ?? ''))
+      .sort()
+      .slice(0, MAX_EVIDENCE_IMAGES)
+    if (images.length > 0)
+      return images.map((name) => (candidate === dir ? name : join('assets', name)))
   }
-  return entries
-    .filter((entry) => EVIDENCE_IMAGE_EXTENSIONS.has(entry.split('.').pop()?.toLowerCase() ?? ''))
-    .sort()
-    .slice(0, MAX_EVIDENCE_IMAGES)
+  return []
 }
 
 /**
@@ -748,7 +756,9 @@ function readEvidence(worktreePath, home, keys) {
     ),
   ]
   for (const dir of dirs) {
-    if (!existsSync(join(dir, 'index.html'))) continue
+    // A pack exists when its checks meta or a legacy report page is present — matching the
+    // daemon's widened presence rule (evidence is a pack now, not one HTML page).
+    if (!existsSync(join(dir, 'meta.json')) && !existsSync(join(dir, 'index.html'))) continue
     const meta = readJsonFile(join(dir, 'meta.json')) ?? {}
     return {
       dir,

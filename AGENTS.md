@@ -16,7 +16,7 @@ Bare nouns resolve to exact regions of the product — act on them, don't re-ask
 | Term | Meaning |
 |---|---|
 | The Review | One unit-of-work story as a three-tab canvas: **Intent · Execution · Evidence**. Product language is Review; code may keep `feature` ids |
-| Evidence | Agent-authored self-contained HTML proof the loop closed (`.porcelain/evidence/`) |
+| Evidence | Agent-authored proof the loop closed: checks + Results documents + an image gallery (`.porcelain/active-review/evidence/`) |
 | Viewer | The central panel of the app. Never "editor" |
 | Daemon | The headless Electron-free backend (`apps/daemon`); the shell spawns and babysits it |
 | Project companion | Repo-local `.porcelain/` (board, actions, notes, reviews) — agents write it via the porcelain CLI, never an MCP server |

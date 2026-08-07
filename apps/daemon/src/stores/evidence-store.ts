@@ -1,13 +1,16 @@
-import { readFile, rm, stat } from 'node:fs/promises'
+import { readdir, readFile, rm, stat } from 'node:fs/promises'
+import { join } from 'node:path'
 import {
   type EvidenceCheck,
   MAX_CHECK_DETAIL,
   MAX_CHECK_LABEL,
   MAX_CHECKS,
 } from '@shared/evidence-check'
+import { projectEvidenceAssetsDir, projectEvidenceResultsDir } from '@shared/project-porcelain'
 import { z } from 'zod'
 import { inlineLocalAssets } from '../fs/evidence-assets'
 import { evidenceDirForRepo, evidenceIndexPath, evidenceMetaPath } from '../fs/evidence-paths'
+import { imageMimeForPath } from '../fs/image-mime'
 
 // Structured checks live in the node-free `@shared/evidence-check` leaf so the
 // renderer can import the shape + `evidenceOverallStatus` without pulling this
@@ -15,12 +18,21 @@ import { evidenceDirForRepo, evidenceIndexPath, evidenceMetaPath } from '../fs/e
 export { type EvidenceCheck, evidenceOverallStatus } from '@shared/evidence-check'
 
 /**
- * Evidence — **files on disk are the source of truth**:
- * `<repo>/.porcelain/evidence/` holds `index.html` (required), `meta.json`
- * (title / checks) and optional screenshots. Agents write them with normal Write
- * tools; the app inlines relative images for the sandboxed viewer and clears by
- * deleting the directory (or archives them with the review on clear). Excalidraw
- * is NOT an evidence medium — the Intent freeform canvas is. See `evidence-paths.ts`.
+ * Evidence — **files on disk are the source of truth**. The pack is three
+ * sub-tabs over one directory (`…/active-review/evidence/`):
+ *
+ * - **Checks** — `meta.json` (title + structured checks),
+ * - **Results** — `results/`, a document set (see `review/doc-set.ts`),
+ * - **Assets** — `assets/`, images listed as a gallery (`review/evidence-assets-list.ts`).
+ *
+ * Any ONE of them makes a pack. The old gate — "there is an index.html" — hid a
+ * checks-only pack completely: an agent that ran the suite and recorded four
+ * passes saw "no evidence yet" unless it also wrote a page saying so. Legacy
+ * `index.html` still counts, and still renders (as the Results tab's "Report").
+ *
+ * Agents write with normal Write tools; the app inlines relative images for the
+ * sandboxed viewer and clears by deleting the directory (or archives it with the
+ * review). See `evidence-paths.ts`.
  */
 
 /**
@@ -66,7 +78,7 @@ export type Evidence = {
   dir?: string
   /** Structured verification checks (empty when none were recorded). */
   checks: EvidenceCheck[]
-  /** Always HTML for evidence (Excalidraw is Intent-only). */
+  /** Always HTML for evidence. */
   medium: EvidenceMedium
   /** Inlined for the sandboxed iframe. Absent when over-cap or empty. */
   html?: string
@@ -82,7 +94,18 @@ export type EvidenceMeta = {
   updatedAt: string
   checks: EvidenceCheck[]
   dir?: string
+  /**
+   * @deprecated Evidence is no longer one medium. Installed mobile clients parse
+   * this as a required literal, so it keeps being emitted; drop it one release
+   * after mobile ships the widened schema.
+   */
   medium: EvidenceMedium
+  /** Documents in `results/` — how many tabs the Results sub-tab will have. */
+  results?: number
+  /** Images in `assets/` — how many tiles the Assets gallery will have. */
+  assets?: number
+  /** A legacy `index.html` is present, surfaced as the "Report" document. */
+  hasReport?: boolean
 }
 
 // Re-export path helpers so callers (review-watch, e2e) use one place.
@@ -105,24 +128,97 @@ async function fileExists(path: string): Promise<boolean> {
   }
 }
 
+// Mirrors `MEDIUM_BY_EXT` in `review/doc-set.ts` — the counter must agree with
+// the reader about what a document is, or the header promises a tab that is not there.
+const RESULT_EXT = /\.(?:md|markdown|html?)$/i
+
+/** Renderable document names in a `results/` directory (dotfiles excluded). */
+function isResultDoc(name: string): boolean {
+  return !name.startsWith('.') && RESULT_EXT.test(name)
+}
+
+interface PackShape {
+  hasMeta: boolean
+  hasReport: boolean
+  results: number
+  assets: number
+  /** Newest mtime seen under `results/` and `assets/`, ISO or ''. */
+  newestAt: string
+}
+
+/** Names + newest mtime for one sub-directory, matching `keep`. Missing dir → zero. */
+async function scanSubdir(
+  dir: string,
+  keep: (name: string) => boolean,
+): Promise<{ count: number; newestAt: string }> {
+  let entries: string[]
+  try {
+    entries = await readdir(dir)
+  } catch {
+    return { count: 0, newestAt: '' }
+  }
+  let count = 0
+  let newestAt = ''
+  for (const name of entries) {
+    if (!keep(name)) continue
+    try {
+      const info = await stat(join(dir, name))
+      if (!info.isFile()) continue
+      count += 1
+      const at = info.mtime.toISOString()
+      if (at > newestAt) newestAt = at
+    } catch {
+      // vanished mid-scan — the count is a snapshot
+    }
+  }
+  return { count, newestAt }
+}
+
+/** What the pack actually holds. One stat/readdir pass, reused by every reader. */
+async function readPackShape(repoPath: string): Promise<PackShape> {
+  const [results, assets, hasReport, hasMeta] = await Promise.all([
+    scanSubdir(projectEvidenceResultsDir(repoPath), isResultDoc),
+    scanSubdir(projectEvidenceAssetsDir(repoPath), (n) => imageMimeForPath(n) !== null),
+    fileExists(evidenceIndexPath(repoPath)),
+    fileExists(evidenceMetaPath(repoPath)),
+  ])
+  const newestAt = results.newestAt > assets.newestAt ? results.newestAt : assets.newestAt
+  return { hasMeta, hasReport, results: results.count, assets: assets.count, newestAt }
+}
+
 /**
- * Effective stamp for the evidence pack: the later of meta.updatedAt and
- * index.html mtime. In-place edits (sed, agent Write of screenshots + HTML)
- * must invalidate even when `evidence check` never re-bumped meta.
+ * A pack exists when ANY of its parts does: recorded checks (`meta.json`), a
+ * Results document, a gallery image, or a legacy `index.html`. Checks alone is
+ * a complete, honest evidence pack — it used to be invisible. Presence keys off
+ * the meta FILE, not a successful parse, so a half-written `meta.json` shows an
+ * empty pack rather than making the whole thing vanish mid-write.
+ */
+function evidencePackExists(shape: PackShape): boolean {
+  return shape.hasMeta || shape.hasReport || shape.results > 0 || shape.assets > 0
+}
+
+/**
+ * Effective stamp for the evidence pack: the latest of meta.updatedAt, the
+ * legacy index.html mtime, and the newest file under `results/` / `assets/`.
+ * In-place edits (sed, an agent dropping a screenshot in) must invalidate even
+ * when `evidence check` never re-bumped meta.
  */
 async function resolveUpdatedAt(
   bodyPath: string,
   meta: z.infer<typeof metaSchema> | null,
+  shape?: PackShape,
 ): Promise<string> {
-  let bodyMtime = ''
+  let latest = meta?.updatedAt?.trim() || ''
+  const consider = (at: string): void => {
+    if (at > latest) latest = at
+  }
   try {
-    bodyMtime = (await stat(bodyPath)).mtime.toISOString()
+    consider((await stat(bodyPath)).mtime.toISOString())
   } catch {
     // missing body
   }
-  const metaAt = meta?.updatedAt?.trim() || ''
-  if (metaAt && bodyMtime) return metaAt > bodyMtime ? metaAt : bodyMtime
-  return metaAt || bodyMtime || ''
+  if (shape) consider(shape.newestAt)
+  return latest
 }
 
 function tooLarge(bytes: number): EvidenceHtmlUnavailable {
@@ -132,8 +228,9 @@ function tooLarge(bytes: number): EvidenceHtmlUnavailable {
 /**
  * Prefer on-disk index.html. Oversized bodies keep title/checks and surface
  * `htmlUnavailable` (never silent null — that looked like "cleared"). Malformed
- * / empty index → null. A scene-only dir (old Excalidraw evidence) is not treated
- * as evidence — rewrite as HTML.
+ * / empty index → null. A dir with no index.html — including an old scene-only
+ * evidence pack from before HTML was the only medium — is not treated as
+ * evidence at all; rewrite it as HTML.
  */
 export async function readEvidence(repoPath: string): Promise<Evidence | null> {
   const dir = evidenceDirForRepo(repoPath)
@@ -170,18 +267,24 @@ export async function readEvidence(repoPath: string): Promise<Evidence | null> {
   }
 }
 
-/** Metadata only, for the Feature list opener (no HTML payload). */
+/**
+ * Metadata only, for the Feature list opener and the Evidence header (no HTML
+ * payload). Null means "no pack" — see `evidencePackExists` for what counts.
+ */
 export async function readEvidenceMeta(repoPath: string): Promise<EvidenceMeta | null> {
-  const indexPath = evidenceIndexPath(repoPath)
-  if (!(await fileExists(indexPath))) return null
+  const shape = await readPackShape(repoPath)
+  if (!evidencePackExists(shape)) return null
 
   const meta = await readDiskMeta(repoPath)
   return {
     title: meta?.title?.trim() || 'Evidence',
-    updatedAt: await resolveUpdatedAt(indexPath, meta),
+    updatedAt: await resolveUpdatedAt(evidenceIndexPath(repoPath), meta, shape),
     dir: evidenceDirForRepo(repoPath),
     checks: meta?.checks ?? [],
     medium: 'html',
+    results: shape.results,
+    assets: shape.assets,
+    hasReport: shape.hasReport,
   }
 }
 

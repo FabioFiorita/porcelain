@@ -52,9 +52,10 @@ references/
 node <skill>/scripts/check-evidence.mjs [--repo <abs path>]
 ```
 
-Run it before claiming a unit done. It reports missing `index.html`, missing CSS, `<script>` tags,
-remote assets, broken image references, and the inlined size against the 4 MB read cap — all of
-which fail **silently** in the sandboxed Evidence tab. Fix what it reports and run it again.
+Run it before claiming a unit done. It reports an empty pack, missing CSS, `<script>` tags,
+remote assets, broken image references (including `../assets/…`), the gallery count, and the
+inlined size against the 4 MB read cap — all of which fail **silently** in the sandboxed Evidence
+tab. Fix what it reports and run it again.
 
 ## When → what
 
@@ -62,7 +63,7 @@ which fail **silently** in the sandboxed Evidence tab. Fix what it reports and r
 |------|----|
 | **Start of session** / pick up a unit | `review clear` if the previous unit is done → `review set` with **name + thesis** |
 | **Mid-session** | Grow Execution (files/notes); light Intent updates; handle comments |
-| **End of session** / claim done | Complete Execution + real Evidence; `check-evidence.mjs`; do not invent proof |
+| **End of session** / claim done | Complete Execution + real Evidence (checks · `results/` docs · `assets/` gallery); `check-evidence.mjs`; do not invent proof |
 | Human left comments or asked what they reviewed | `comments list` / `answer` / `resolve`; `reviewed list` (read-only) |
 | Pick up queued work; capture follow-ups | **Board** list/create/move (queue only — not a second Review) |
 | Starting work; "check my notes" | `notes get` (human scratchpad — **read-only**) |
@@ -89,10 +90,15 @@ which fail **silently** in the sandboxed Evidence tab. Fix what it reports and r
 ~/.porcelain/porcelain review set --name "…" --thesis "…"        # name + thesis is a full start
 ~/.porcelain/porcelain review set --name "…" --thesis "…" --files '[…]' --sections '[…]'
 ~/.porcelain/porcelain review set-canvas --medium html --html-file ./intent.html   # optional
-~/.porcelain/porcelain intent prepare                 # then write .md / .html / .excalidraw docs
-~/.porcelain/porcelain intent order --files a.md,b.html
-~/.porcelain/porcelain evidence prepare --title "…"   # then write index.html + its own CSS
+~/.porcelain/porcelain intent prepare                 # seeds why/approach/decisions tabs
+~/.porcelain/porcelain intent prepare --tabs why,approach,decisions   # or your own list
+~/.porcelain/porcelain intent order --files why.md,approach.md
+~/.porcelain/porcelain evidence prepare --title "…"   # makes checks + results/ + assets/
 ~/.porcelain/porcelain evidence check --label "pnpm test" --status pass --detail "…"
+~/.porcelain/porcelain evidence results-order --files index.html,run-log.md
+~/.porcelain/porcelain evidence results-list
+~/.porcelain/porcelain evidence assets-list           # sizes + what will not render
+~/.porcelain/porcelain evidence get
 ~/.porcelain/porcelain comments list
 ~/.porcelain/porcelain comments resolve --id <id>
 ~/.porcelain/porcelain reviewed list
@@ -116,14 +122,15 @@ JSON
 ## Standing rules
 
 1. **Start of session** — If the previous unit is done (or this is a new unit), **`review clear`
-   first** (drops the active set **and** `.porcelain/evidence/`; the app **Archive** path keeps
-   history under `.porcelain/reviews/`). Then `review set` with **name + thesis** — that alone is
+   first** (drops the active set **and** the evidence pack under `.porcelain/active-review/`;
+   the app **Archive** path keeps history under `.porcelain/reviews/`). Then `review set` with **name + thesis** — that alone is
    a complete Intent-first start; `--files` and `--sections` are optional. Works for **bugs,
    features, chores, and investigations** — not features only.
 2. **During** — Grow Execution as you touch files; Intent updates are fine. Human comments and
    reviewed marks are app → agent (`comments` / `reviewed list`).
-3. **End of session** — Complete Execution + **real Evidence** before claiming done. Run
-   `check-evidence.mjs`. Don't invent proof.
+3. **End of session** — Complete Execution + **real Evidence** before claiming done: an
+   `evidence check` per thing you ran, Results documents for what needs narrating, screenshots in
+   `assets/`. Run `check-evidence.mjs`. Don't invent proof.
 4. **Clear before a new unit** — Never leave another agent's Intent or old evidence under a new
    document. If the human still has a previous unit open, clear it (or ask) before starting.
 5. **Notes are the human's** — read only; put actionable work on the board.
@@ -141,7 +148,8 @@ JSON
 unit is done → **`review set --name "…" --thesis "…"`** → implement, keeping the board honest.
 
 **End:** **`review set`** again with full Execution (files + notes + sections that match what
-shipped) → validate → `evidence prepare` + write HTML + `evidence check` + `check-evidence.mjs` →
+shipped) → validate → `evidence check` per thing you ran → `evidence prepare` → write `results/`
+documents + drop screenshots in `assets/` → `evidence results-order` → `check-evidence.mjs` →
 handle `comments list` → `board move` → done once the human has signed off → human Clear (or you
 `review clear` before the **next** unit).
 

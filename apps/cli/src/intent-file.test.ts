@@ -1,7 +1,7 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { INTENT_MANIFEST, projectIntentDir } from '@shared/project-porcelain'
+import { INTENT_CANONICAL_TABS, INTENT_MANIFEST, projectIntentDir } from '@shared/project-porcelain'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { listIntent, orderIntent, prepareIntent } from './intent-file'
 
@@ -15,18 +15,68 @@ afterEach(() => {
   rmSync(repo, { recursive: true, force: true })
 })
 
+const readManifest = (): { tabs: Array<{ file: string; label?: string }> } =>
+  JSON.parse(readFileSync(join(projectIntentDir(repo), INTENT_MANIFEST), 'utf8'))
+
 describe('intent prepare', () => {
   it('creates the directory and an assets home', () => {
     const prepared = prepareIntent(repo)
     expect(prepared.dir).toBe(projectIntentDir(repo))
-    expect(listIntent(repo)).toContain('assets')
+    expect(existsSync(prepared.assetsDir)).toBe(true)
   })
 
-  it('is safe to run twice', () => {
+  it('seeds the canonical tab order, labels and all', () => {
+    expect(prepareIntent(repo).seeded).toBe(true)
+    expect(readManifest().tabs).toEqual(INTENT_CANONICAL_TABS.map((tab) => ({ ...tab })))
+  })
+
+  // The manifest names files nobody has written yet on purpose: the readers filter
+  // against what is on disk, so an unwritten tab is simply not a tab.
+  it('seeds the manifest without creating the documents', () => {
     prepareIntent(repo)
+    expect(existsSync(join(projectIntentDir(repo), INTENT_MANIFEST))).toBe(true)
+    expect(listIntent(repo)).toEqual([])
+  })
+
+  it('--tabs replaces the order and gives a bare name .md', () => {
+    prepareIntent(repo, ['why', 'measurements.html'])
+    expect(readManifest().tabs).toEqual([
+      { file: 'why.md', label: 'Why' },
+      { file: 'measurements.html', label: 'Measurements' },
+    ])
+  })
+
+  it('--tabs refuses a path or an empty list', () => {
+    expect(() => prepareIntent(repo, ['../secrets'])).toThrow(/plain file names/)
+    expect(() => prepareIntent(repo, [])).toThrow(/at least one name/)
+  })
+
+  it('is safe to run twice — documents and an existing manifest both survive', () => {
+    prepareIntent(repo, ['overview'])
     writeFileSync(join(projectIntentDir(repo), 'index.md'), 'kept')
-    prepareIntent(repo)
+    const again = prepareIntent(repo)
+    expect(again.seeded).toBe(false)
     expect(readFileSync(join(projectIntentDir(repo), 'index.md'), 'utf8')).toBe('kept')
+    expect(readManifest().tabs).toEqual([{ file: 'overview.md', label: 'Overview' }])
+  })
+})
+
+describe('intent list', () => {
+  // `intent list` answers "what will the human see as tabs", so the manifest, the
+  // assets directory and a dotfile are all noise — the raw readdir printed them.
+  it('lists only renderable documents, name-sorted', () => {
+    prepareIntent(repo)
+    const dir = projectIntentDir(repo)
+    writeFileSync(join(dir, 'why.md'), 'why')
+    writeFileSync(join(dir, 'before-after.html'), '<p>x</p>')
+    writeFileSync(join(dir, 'notes.txt'), 'txt')
+    writeFileSync(join(dir, '.DS_Store'), '')
+    mkdirSync(join(dir, 'sketches.md'), { recursive: true })
+    expect(listIntent(repo)).toEqual(['before-after.html', 'why.md'])
+  })
+
+  it('lists a missing directory as empty', () => {
+    expect(listIntent(repo)).toEqual([])
   })
 })
 

@@ -29,10 +29,8 @@ export interface ReviewSection {
   anchors: ReviewSectionAnchor[]
 }
 
-/** Freeform Overview canvas — html or excalidraw scene (mirrors backend review-set). */
-export type ReviewCanvas =
-  | { medium: 'html'; html: string }
-  | { medium: 'excalidraw'; scene: Record<string, unknown> & { elements: unknown[] } }
+/** Freeform Overview canvas — html (mirrors backend review-set). */
+export type ReviewCanvas = { medium: 'html'; html: string }
 
 export interface ReviewSet {
   name: string
@@ -50,7 +48,6 @@ const MAX_TITLE_CHARS = 200
 const MAX_PROSE_CHARS = 32_768
 const MAX_DIAGRAM_CHARS = 262_144
 const MAX_HTML_CHARS = 524_288
-const MAX_SCENE_BYTES = 1_048_576
 const MIN_HTML_HEIGHT = 160
 const MAX_HTML_HEIGHT = 1600
 const MAX_ANCHORS = 40
@@ -234,15 +231,8 @@ function parseReviewCanvas(value: unknown): ReviewCanvas | undefined {
     if (value.html.length > MAX_HTML_CHARS) return undefined
     return { medium: 'html', html: value.html }
   }
-  if (value.medium === 'excalidraw') {
-    if (!isRecord(value.scene) || !Array.isArray(value.scene.elements)) return undefined
-    const bytes = Buffer.byteLength(JSON.stringify(value.scene), 'utf8')
-    if (bytes > MAX_SCENE_BYTES) return undefined
-    return {
-      medium: 'excalidraw',
-      scene: value.scene as Record<string, unknown> & { elements: unknown[] },
-    }
-  }
+  // Any other medium — including a scene canvas from before the media collapsed
+  // to HTML + Markdown — reads as no canvas. Lenient like every other row here.
   return undefined
 }
 
@@ -250,10 +240,7 @@ function parseReviewCanvas(value: unknown): ReviewCanvas | undefined {
  * Validate + build a canvas payload from CLI flags. Throws with an actionable
  * message (never silently drop).
  */
-export function toReviewCanvas(
-  medium: string,
-  opts: { html?: string; sceneRaw?: string },
-): ReviewCanvas {
+export function toReviewCanvas(medium: string, opts: { html?: string }): ReviewCanvas {
   if (medium === 'html') {
     if (typeof opts.html !== 'string' || opts.html.length === 0) {
       throw new Error('html medium requires --html or --html-file with non-empty content')
@@ -263,29 +250,7 @@ export function toReviewCanvas(
     }
     return { medium: 'html', html: opts.html }
   }
-  if (medium === 'excalidraw') {
-    if (typeof opts.sceneRaw !== 'string' || opts.sceneRaw.trim().length === 0) {
-      throw new Error('excalidraw medium requires --file <scene.excalidraw> with non-empty JSON')
-    }
-    const bytes = Buffer.byteLength(opts.sceneRaw, 'utf8')
-    if (bytes > MAX_SCENE_BYTES) {
-      throw new Error(`scene is ${bytes} bytes, over the ${MAX_SCENE_BYTES}-byte limit`)
-    }
-    let parsed: unknown
-    try {
-      parsed = JSON.parse(opts.sceneRaw)
-    } catch {
-      throw new Error('scene file is not valid JSON')
-    }
-    if (!isRecord(parsed) || !Array.isArray(parsed.elements)) {
-      throw new Error('scene must be an Excalidraw export object with an elements array')
-    }
-    return {
-      medium: 'excalidraw',
-      scene: parsed as Record<string, unknown> & { elements: unknown[] },
-    }
-  }
-  throw new Error('medium must be html or excalidraw')
+  throw new Error('medium must be html')
 }
 
 function parseReviewSet(value: unknown): ReviewSet | null {
