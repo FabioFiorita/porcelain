@@ -51,7 +51,7 @@ const CHROME_SYMBOLS = {
   network: { ios: 'network' as SFSymbol, android: 'lan' as AndroidSymbol },
   desktop: { ios: 'desktopcomputer' as SFSymbol, android: 'desktop_windows' as AndroidSymbol },
   terminal: { ios: 'terminal' as SFSymbol, android: 'terminal' as AndroidSymbol },
-  notebook: { ios: 'book' as SFSymbol, android: 'menu_book' as AndroidSymbol },
+  notebook: { ios: 'laptopcomputer' as SFSymbol, android: 'laptop' as AndroidSymbol },
   chevronRight: { ios: 'chevron.right' as SFSymbol, android: 'chevron_right' as AndroidSymbol },
   chevronLeft: { ios: 'chevron.left' as SFSymbol, android: 'chevron_left' as AndroidSymbol },
   trash: { ios: 'trash' as SFSymbol, android: 'delete' as AndroidSymbol },
