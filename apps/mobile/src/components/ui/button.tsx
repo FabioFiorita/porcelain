@@ -35,8 +35,10 @@ const buttonVariants = cva(
           Platform.select({ web: 'hover:bg-secondary/80' }),
         ),
         ghost: cn(
-          'active:bg-accent dark:active:bg-accent/50',
-          Platform.select({ web: 'hover:bg-accent dark:hover:bg-accent/50' }),
+          // Idle fill uses `foreground` opacity (not `accent`/`muted`) so it stays visible in
+          // light mode, where those tokens sit within ~3% lightness of `background`.
+          'bg-foreground/5 active:bg-foreground/10',
+          Platform.select({ web: 'hover:bg-foreground/8' }),
         ),
         link: '',
       },
