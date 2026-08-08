@@ -6,14 +6,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Text } from '@/components/ui/text'
 import { useActiveEnvironment, useConnectionState } from '@/lib/daemon/environments-store'
-import { gitFlowQuery } from '@/lib/daemon/procedures/changes'
-import {
-  type Layer,
-  repoLayersQuery,
-  setRepoLayersMutation,
-} from '@/lib/daemon/procedures/settings'
-import { useDaemonMutation, useDaemonQuery } from '@/lib/daemon/queries'
+import type { Layer } from '@/lib/daemon/procedures/settings'
 import { cn } from '@/lib/utils'
+
+import { useReviewLayers } from './use-settings'
 
 type MatchType = 'folder' | 'ext' | 'suffix'
 
@@ -142,35 +138,27 @@ function EmptyReviewState({
 }
 
 function ReviewLayersEditor({ repoPath }: { repoPath: string }): React.JSX.Element {
-  const layersQuery = useDaemonQuery(repoLayersQuery, repoPath)
-  const flowQuery = useDaemonQuery(gitFlowQuery, repoPath, { pollMs: 15_000 })
-  const saveMutation = useDaemonMutation(setRepoLayersMutation, {
-    invalidates: ['repoLayers', 'gitFlow', 'gitRangeFlow', 'featureView', 'featureReading'],
-  })
+  const review = useReviewLayers(repoPath)
+  const savedLayers = review.layers
 
   const [draft, setDraft] = useState<DraftLayer[]>([])
   const [savedFlash, setSavedFlash] = useState(false)
 
   useEffect(() => {
-    if (layersQuery.data !== undefined) setDraft(toDraft(layersQuery.data.layers))
-  }, [layersQuery.data])
+    if (savedLayers !== undefined) setDraft(toDraft([...savedLayers]))
+  }, [savedLayers])
 
-  const changedPaths = (flowQuery.data ?? []).flatMap((group) => group.files.map((f) => f.path))
   const valid = draft.every((l) => l.label.trim() !== '' && patternError(l.pattern) === null)
-  const isStarter = layersQuery.data !== undefined && !layersQuery.data.custom
 
   const handleSave = async (layers: DraftLayer[] | null): Promise<void> => {
-    await saveMutation.mutateAsync({
-      repoPath,
-      layers: layers?.map(({ label, pattern }) => ({ label, pattern })) ?? null,
-    })
+    if (!(await review.save(layers))) return
     setSavedFlash(true)
     setTimeout(() => {
       setSavedFlash(false)
     }, 1500)
   }
 
-  if (layersQuery.isLoading) {
+  if (review.isLoading) {
     return (
       <Text className="text-sm text-muted-foreground" testID="porcelain-settings-review-loading">
         Loading layers…
@@ -178,12 +166,12 @@ function ReviewLayersEditor({ repoPath }: { repoPath: string }): React.JSX.Eleme
     )
   }
 
-  if (layersQuery.isError) {
+  if (review.error !== null) {
     return (
       <View className="gap-1 rounded-xl border border-destructive/40 bg-destructive/5 p-3">
         <Text className="text-sm font-medium text-destructive">Could not load layers</Text>
         <Text className="text-xs text-muted-foreground">
-          {layersQuery.error.message || 'The daemon refused the request.'}
+          {review.error.message || 'The daemon refused the request.'}
         </Text>
       </View>
     )
@@ -191,7 +179,7 @@ function ReviewLayersEditor({ repoPath }: { repoPath: string }): React.JSX.Eleme
 
   return (
     <View className="gap-4" testID="porcelain-settings-review">
-      {isStarter ? (
+      {review.isStarter ? (
         <View className="gap-1 rounded-xl border border-border bg-muted/40 p-3">
           <Text className="text-xs font-medium text-foreground">Starter groups for this tree</Text>
           <Text className="text-xs leading-5 text-muted-foreground">
@@ -202,7 +190,7 @@ function ReviewLayersEditor({ repoPath }: { repoPath: string }): React.JSX.Eleme
       ) : null}
 
       <PatternBuilder
-        changedPaths={changedPaths}
+        changedPaths={review.changedPaths}
         onAdd={(layer) => {
           setDraft((current) => [...current, { ...layer, id: nextDraftId++ }])
         }}
@@ -242,16 +230,16 @@ function ReviewLayersEditor({ repoPath }: { repoPath: string }): React.JSX.Eleme
 
       <View className="flex-row flex-wrap gap-2">
         <Button
-          disabled={!valid || saveMutation.isPending || draft.length === 0}
+          disabled={!valid || review.isSaving || draft.length === 0}
           testID="porcelain-settings-review-save"
           onPress={() => {
             handleSave(draft)
           }}
         >
-          <Text>{savedFlash ? 'Saved' : saveMutation.isPending ? 'Saving…' : 'Save'}</Text>
+          <Text>{savedFlash ? 'Saved' : review.isSaving ? 'Saving…' : 'Save'}</Text>
         </Button>
         <Button
-          disabled={saveMutation.isPending}
+          disabled={review.isSaving}
           testID="porcelain-settings-review-reset"
           variant="outline"
           onPress={() => {
@@ -261,6 +249,12 @@ function ReviewLayersEditor({ repoPath }: { repoPath: string }): React.JSX.Eleme
           <Text>Reset to starters</Text>
         </Button>
       </View>
+
+      {review.failure === null ? null : (
+        <Text className="text-xs text-destructive" testID="porcelain-settings-review-write-error">
+          {review.failure}
+        </Text>
+      )}
     </View>
   )
 }

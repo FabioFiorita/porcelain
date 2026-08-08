@@ -1,19 +1,13 @@
 import { describeDisposition } from '@porcelain/client-runtime/companion-disposition'
-import { useState } from 'react'
 import { View } from 'react-native'
 
 import { SegmentedControl } from '@/components/segmented-control'
 import { Button } from '@/components/ui/button'
 import { Text } from '@/components/ui/text'
 import { useActiveEnvironment, useConnectionState } from '@/lib/daemon/environments-store'
-import {
-  type ChannelDisposition,
-  companionDispositionsQuery,
-  companionGitVisibilityQuery,
-  setCompanionDispositionMutation,
-  setCompanionGitVisibilityMutation,
-} from '@/lib/daemon/procedures/companion'
-import { useDaemonMutation, useDaemonQuery } from '@/lib/daemon/queries'
+import type { ChannelDisposition } from '@/lib/daemon/procedures/companion'
+
+import { useCompanionData } from './use-settings'
 
 /**
  * Settings › Data — the same repo companion dispositions the desktop client edits,
@@ -81,26 +75,10 @@ function EmptyDataState({
 }
 
 function CompanionDataEditor({ repoPath }: { repoPath: string }): React.JSX.Element {
-  const dispositions = useDaemonQuery(companionDispositionsQuery, repoPath)
-  const visibility = useDaemonQuery(companionGitVisibilityQuery, repoPath)
-  const [lastUntracked, setLastUntracked] = useState<string[]>([])
+  const companion = useCompanionData(repoPath)
+  const hidden = companion.hidden
 
-  // A flip rewrites `.gitignore` and going Local stages a deletion, so the row,
-  // the visibility line, and the Changes reads are all stale afterwards. Named
-  // for the mobile procedure set — this client has no `gitStatus`.
-  const invalidates = [
-    'companionDispositions',
-    'companionGitVisibility',
-    'gitFlow',
-    'gitRangeFlow',
-    'diffReading',
-  ]
-  const setDisposition = useDaemonMutation(setCompanionDispositionMutation, { invalidates })
-  const setVisibility = useDaemonMutation(setCompanionGitVisibilityMutation, { invalidates })
-
-  const hidden = visibility.data?.hidden === true
-
-  if (dispositions.isLoading) {
+  if (companion.isLoading) {
     return (
       <Text className="text-sm text-muted-foreground" testID="porcelain-settings-data-loading">
         Loading channels…
@@ -108,7 +86,7 @@ function CompanionDataEditor({ repoPath }: { repoPath: string }): React.JSX.Elem
     )
   }
 
-  if (dispositions.isError) {
+  if (companion.error !== null) {
     return (
       <View
         className="gap-1 rounded-xl border border-destructive/40 bg-destructive/5 p-3"
@@ -118,7 +96,7 @@ function CompanionDataEditor({ repoPath }: { repoPath: string }): React.JSX.Elem
           Could not load what git carries
         </Text>
         <Text className="text-xs text-muted-foreground">
-          {dispositions.error.message || 'The daemon refused the request.'}
+          {companion.error.message || 'The daemon refused the request.'}
         </Text>
       </View>
     )
@@ -153,12 +131,12 @@ function CompanionDataEditor({ repoPath }: { repoPath: string }): React.JSX.Elem
         ) : null}
         <Button
           className="self-start"
-          disabled={setVisibility.isPending}
+          disabled={companion.isPending}
           size="sm"
           testID="porcelain-settings-data-visibility-toggle"
           variant="outline"
           onPress={() => {
-            setVisibility.mutate({ hidden: !hidden, repoPath })
+            companion.setVisibility(!hidden)
           }}
         >
           <Text>{hidden ? 'Start sharing' : 'Hide from git'}</Text>
@@ -166,25 +144,28 @@ function CompanionDataEditor({ repoPath }: { repoPath: string }): React.JSX.Elem
       </View>
 
       <View className="gap-3">
-        {(dispositions.data ?? []).map((channel) => (
+        {companion.channels.map((channel) => (
           <DispositionRow
             key={channel.key}
             channel={channel}
-            disabled={setDisposition.isPending}
+            disabled={companion.isPending}
             onChange={(disposition) => {
-              setDisposition.mutate(
-                { disposition, key: channel.key, repoPath },
-                { onSuccess: (result) => setLastUntracked(result.untracked) },
-              )
+              companion.setDisposition(channel.key, disposition)
             }}
           />
         ))}
       </View>
 
-      {lastUntracked.length > 0 ? (
+      {companion.failure === null ? null : (
+        <Text className="text-xs text-destructive" testID="porcelain-settings-data-write-error">
+          {companion.failure}
+        </Text>
+      )}
+
+      {companion.untracked.length > 0 ? (
         <Text className="text-xs text-muted-foreground" testID="porcelain-settings-data-untracked">
-          Untracked {lastUntracked.length} {lastUntracked.length === 1 ? 'file' : 'files'} — still
-          on disk, removal staged.
+          Untracked {companion.untracked.length}{' '}
+          {companion.untracked.length === 1 ? 'file' : 'files'} — still on disk, removal staged.
         </Text>
       ) : null}
     </View>

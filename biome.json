@@ -74,12 +74,7 @@
       }
     },
     {
-      "includes": [
-        "apps/mobile/src/features/settings/data-panel.tsx",
-        "apps/mobile/src/features/settings/general-panel.tsx",
-        "apps/mobile/src/features/settings/review-panel.tsx",
-        "apps/mobile/src/features/shell/workspace-switchers.tsx"
-      ],
+      "includes": ["apps/mobile/src/features/shell/workspace-switchers.tsx"],
       "linter": {
         "rules": {
           "style": {
@@ -87,9 +82,9 @@
               "level": "warn",
               "options": {
                 "paths": {
-                  "@/lib/daemon/queries": "Phase 2 debt — remove with the use-settings.ts extraction. These four files predate the hook rule; do not add a fifth.",
-                  "@/lib/daemon/client": "Phase 2 debt — remove with the use-settings.ts extraction. These four files predate the hook rule; do not add a fifth.",
-                  "@/lib/daemon/watch": "Phase 2 debt — remove with the use-settings.ts extraction. These four files predate the hook rule; do not add a fifth."
+                  "@/lib/daemon/queries": "Phase 3 debt — the switchers keep their reads until that file is split. The settings panels left this list with use-settings.ts; do not add a second.",
+                  "@/lib/daemon/client": "Phase 3 debt — the switchers keep their reads until that file is split. The settings panels left this list with use-settings.ts; do not add a second.",
+                  "@/lib/daemon/watch": "Phase 3 debt — the switchers keep their reads until that file is split. The settings panels left this list with use-settings.ts; do not add a second."
                 }
               }
             }
