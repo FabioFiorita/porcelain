@@ -124,6 +124,40 @@ export function languageFor(path: string): BundledLanguage | null {
 }
 
 /**
+ * Fenced-code info strings (```typescript, ```shell, …) name languages by their
+ * full/common names, which only partly overlap with file extensions (fences never
+ * write "ts", extensions never write "typescript") — a separate alias table,
+ * built on top of `extToLang` for the forms the two do share.
+ */
+const FENCE_LANG_ALIASES: Record<string, BundledLanguage> = {
+  ...extToLang,
+  typescript: 'typescript',
+  javascript: 'javascript',
+  jsx: 'jsx',
+  tsx: 'tsx',
+  json: 'json',
+  css: 'css',
+  html: 'html',
+  markdown: 'markdown',
+  yaml: 'yaml',
+  shell: 'shellscript',
+  shellscript: 'shellscript',
+  console: 'shellscript',
+  swift: 'swift',
+  dotenv: 'dotenv',
+}
+
+/**
+ * Maps a markdown fence's info-string language (the ```ts / ```bash token) to a
+ * bundled Shiki grammar, or null when it names a language we don't ship (or no
+ * language at all) — callers fall back to plain, unhighlighted text.
+ */
+export function fenceLanguageFor(token: string | undefined | null): BundledLanguage | null {
+  if (!token) return null
+  return FENCE_LANG_ALIASES[token.trim().toLowerCase()] ?? null
+}
+
+/**
  * Files with more lines than this cap are not syntax-highlighted. Whole-file
  * tokenization runs synchronously on the renderer main thread via the JS regex
  * engine (the CSP blocks the faster WASM engine), so very large generated files

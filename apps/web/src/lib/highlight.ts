@@ -1,5 +1,6 @@
 /** Re-export the shared Shiki setup — implementation in @porcelain/client-runtime. */
 export {
+  fenceLanguageFor,
   getHighlighter,
   HIGHLIGHT_THEMES,
   type Highlighter,

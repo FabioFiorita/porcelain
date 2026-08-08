@@ -10,6 +10,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { CodeLine, useHighlighter } from '@renderer/components/viewer/code-line'
 import { HtmlView } from '@renderer/components/viewer/html-view'
+import { MarkdownPre } from '@renderer/components/viewer/markdown-code-block'
 import { VirtualRows } from '@renderer/components/viewer/virtual-rows'
 import {
   buildCommentIndex,
@@ -560,7 +561,7 @@ function FileHeaderRow({
 function MarkdownBlock({ md }: { md: string }): React.JSX.Element {
   return (
     <div className="sticky left-0 max-w-[var(--vrows-vw)] px-3 py-2">
-      <article className="prose prose-sm dark:prose-invert max-w-3xl font-sans prose-pre:bg-muted/40 prose-code:before:content-none prose-code:after:content-none">
+      <article className="prose prose-sm dark:prose-invert max-w-3xl font-sans prose-code:before:content-none prose-code:after:content-none">
         <Markdown
           remarkPlugins={[remarkGfm]}
           components={{
@@ -571,6 +572,7 @@ function MarkdownBlock({ md }: { md: string }): React.JSX.Element {
             }: React.JSX.IntrinsicElements['a'] & ExtraProps): React.JSX.Element => (
               <a {...props} target="_blank" rel="noreferrer" />
             ),
+            pre: MarkdownPre,
           }}
         >
           {md}
