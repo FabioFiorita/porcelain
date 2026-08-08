@@ -1,6 +1,6 @@
 ---
 name: merge-queue
-version: 0.52.0
+version: 0.52.1
 metadata:
   internal: true
 description: Land selected work/* PRs — human picks, agent rebases, verifies, squash-merges, and retires each worktree (local branch, remote branch, daemon, channels, playground). Load when the human asks to merge worktree PRs, process the queue, or clean up after merges.

@@ -1,3 +1,18 @@
+## [0.52.1](https://github.com/FabioFiorita/porcelain/compare/v0.52.0...v0.52.1) (2026-08-08)
+
+### Features
+
+* **mobile:** gate daemon imports behind feature hooks ([3d45f61](https://github.com/FabioFiorita/porcelain/commit/3d45f615dda68a578c27d3d1a8a44acc125878a1))
+* **mobile:** name the two smallest type rungs ([923d3b7](https://github.com/FabioFiorita/porcelain/commit/923d3b7db08a0772fdb64c035f890d1dfa97185b))
+* **mobile:** one card idiom, PANEL_CARD ([79f3c7f](https://github.com/FabioFiorita/porcelain/commit/79f3c7febd196ce1b68178c3bbe3b57cab9b6eda))
+
+### Bug Fixes
+
+* **daemon:** keep evidence tab labels distinguishable ([d08a529](https://github.com/FabioFiorita/porcelain/commit/d08a529e9b8228af0c219193c08a66faa87b370b))
+* **lint:** skip non-regular files in docs walk ([1d1c9d2](https://github.com/FabioFiorita/porcelain/commit/1d1c9d25f40f127a64e509a31adbffa0664bab09))
+* **mobile:** align Files, Changes and History rows to the surface gutter ([e857c95](https://github.com/FabioFiorita/porcelain/commit/e857c95181171718c6f549a16204107f590b67c4))
+* **mobile:** stop stacking a modal for New branch / New worktree ([dae778b](https://github.com/FabioFiorita/porcelain/commit/dae778bc70f89880447b270528ad469983f5bd5f))
+
 ## [0.52.0](https://github.com/FabioFiorita/porcelain/compare/v0.51.0...v0.52.0) (2026-08-08)
 
 ### Features
