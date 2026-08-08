@@ -74,25 +74,6 @@
       }
     },
     {
-      "includes": ["apps/mobile/src/features/shell/workspace-switchers.tsx"],
-      "linter": {
-        "rules": {
-          "style": {
-            "noRestrictedImports": {
-              "level": "warn",
-              "options": {
-                "paths": {
-                  "@/lib/daemon/queries": "Phase 3 debt — the switchers keep their reads until that file is split. The settings panels left this list with use-settings.ts; do not add a second.",
-                  "@/lib/daemon/client": "Phase 3 debt — the switchers keep their reads until that file is split. The settings panels left this list with use-settings.ts; do not add a second.",
-                  "@/lib/daemon/watch": "Phase 3 debt — the switchers keep their reads until that file is split. The settings panels left this list with use-settings.ts; do not add a second."
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    {
       "includes": ["apps/daemon/src/**", "apps/web/src/**", "packages/shared/src/**"],
       "linter": {
         "rules": {

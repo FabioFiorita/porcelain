@@ -13,11 +13,13 @@ import {
   ReviewSettings,
 } from '@/features/settings/settings-screen'
 import { cn } from '@/lib/utils'
+import { BranchSheetBody } from './branch-sheet'
 import { COMPANION } from './mock-data'
+import { ProjectSheetBody } from './project-sheet'
 import { type SettingsSection, useShellStore } from './shell-store'
 import { surfaceSlots } from './surface-slots'
 import { WORKSPACE_CREATE_COPY } from './workspace-create-form'
-import { BranchSheetBody, ProjectSheetBody, WorktreeSheetBody } from './workspace-switchers'
+import { WorktreeSheetBody } from './worktree-sheet'
 
 type ShellSheetsProps = {
   /**

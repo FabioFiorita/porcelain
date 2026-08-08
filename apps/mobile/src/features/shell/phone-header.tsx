@@ -5,7 +5,7 @@ import { SURFACE_HEADER_BAND } from '@/components/surface-layout'
 import { cn } from '@/lib/utils'
 import type { SurfaceId } from './mock-data'
 import { useShellStore } from './shell-store'
-import { useWorkspaceHeader } from './workspace-switchers'
+import { useWorkspaceHeader } from './use-workspace'
 
 type PhoneHeaderProps = {
   /** Large title — active face name (Files, Search, Changes, …). */

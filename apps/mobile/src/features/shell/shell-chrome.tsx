@@ -22,7 +22,7 @@ import { SurfaceGlyph } from './shell-icon'
 import { useShellStore } from './shell-store'
 import { surfaceSlots } from './surface-slots'
 import { useIsAppFullscreen } from './use-app-window'
-import { useWorkspaceHeader } from './workspace-switchers'
+import { useWorkspaceHeader } from './use-workspace'
 
 /**
  * Tablet title bar — web geometry:

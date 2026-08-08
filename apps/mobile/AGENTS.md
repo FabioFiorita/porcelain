@@ -72,8 +72,8 @@ decisions; read their comments before arguing with a failure.
 ## The data idiom
 
 - A feature reaches the daemon **only** through its own `use-<feature>.ts`. Components import
-  procedure *types* freely and `lib/daemon/queries` never — Biome enforces it, and the one file
-  still warning (`shell/workspace-switchers.tsx`) is named Phase 3 debt in `biome.json`.
+  procedure *types* freely and `lib/daemon/queries` never — Biome enforces it at error level with
+  no exemptions left. Do not add one back; split the file instead.
 - Mutations are **invalidate-only**: `useDaemonMutation` with a named `*_INVALIDATIONS` constant,
   and `await mutateAsync`. No optimistic cache writes — the daemon moves real files, and a client
   that painted the result first would show work that never happened.
