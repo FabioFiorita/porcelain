@@ -201,7 +201,31 @@ export async function readDocSet(dir: string, options: DocSetOptions = {}): Prom
     total += Buffer.byteLength(doc.body, 'utf8')
     docs.push(doc)
   }
-  return docs
+  return withUniqueLabels(docs)
+}
+
+/**
+ * Tab labels the human can tell apart. Two tabs reading "Report" is a strip
+ * nobody can navigate, and the ways to get there are many: two default-labelled
+ * files (`index.html` and `index.htm` in one pack), a manifest that names two
+ * tabs the same, or a legacy report meeting a modern one. The rule is uniform —
+ * the first doc keeps the label, a later collision is qualified by its file name
+ * — so no caller has to remember a special case.
+ */
+function withUniqueLabels(docs: readonly ReviewDoc[]): ReviewDoc[] {
+  const taken = new Set<string>()
+  return docs.map((doc) => {
+    if (!taken.has(doc.label)) {
+      taken.add(doc.label)
+      return doc
+    }
+    let label = `${doc.label} (${doc.file})`
+    // `file` is unique per set, so this only spins on a manifest that authored
+    // the qualified name itself.
+    for (let n = 2; taken.has(label); n += 1) label = `${doc.label} (${doc.file} ${n})`
+    taken.add(label)
+    return { ...doc, label }
+  })
 }
 
 /** One document, or null when it is unreadable, unrenderable, or over a cap. */
@@ -270,7 +294,10 @@ export async function readActiveEvidenceResults(repoPath: string): Promise<Revie
   const keyed = taken.has(report.file)
     ? { ...report, file: `../${report.file}`, label: 'Earlier report' }
     : report
-  return [keyed, ...docs]
+  // The legacy report is joined to a set that was made unique on its own; only
+  // this last merge can put two "Report"s next to each other (a legacy
+  // `index.htm` beside a modern `index.html`, say).
+  return withUniqueLabels([keyed, ...docs])
 }
 
 async function readLegacyReport(evidenceDir: string): Promise<ReviewDoc | null> {

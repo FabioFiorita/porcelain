@@ -78,6 +78,27 @@ describe('document sets', () => {
     expect((await readDocSet(dir)).map((d) => d.file)).toEqual(['index.md'])
   })
 
+  // Two tabs reading the same word is a strip the human cannot navigate — the
+  // first keeps the label, the later one is qualified by its file name.
+  it('qualifies a duplicate label a manifest authored', async () => {
+    await writeFile(join(dir, 'a.md'), 'a')
+    await writeFile(join(dir, 'b.md'), 'b')
+    await writeFile(
+      join(dir, INTENT_MANIFEST),
+      JSON.stringify({
+        tabs: [
+          { file: 'a.md', label: 'Proof' },
+          { file: 'b.md', label: 'Proof' },
+        ],
+      }),
+    )
+    const docs = await readDocSet(dir)
+    expect(docs.map((d) => [d.file, d.label])).toEqual([
+      ['a.md', 'Proof'],
+      ['b.md', 'Proof (b.md)'],
+    ])
+  })
+
   it('refuses a manifest entry that tries to walk out of the directory', async () => {
     await writeFile(join(dir, 'index.md'), 'ok')
     await writeFile(
@@ -224,6 +245,20 @@ describe('readActiveEvidenceResults', () => {
     ])
     expect(docs.map((d) => d.body)).toEqual(['<p>old proof</p>', '<p>modern report</p>'])
     expect(new Set(docs.map((d) => d.file)).size).toBe(docs.length)
+  })
+
+  // `index.html` and `index.htm` are two files with the same default label, and
+  // the key-collision guard never fires — the keys differ. Only a label pass
+  // over the whole strip keeps them apart.
+  it('keeps index.html and index.htm in one results dir distinguishable', async () => {
+    const results = projectEvidenceResultsDir(repo())
+    await mkdir(results, { recursive: true })
+    await writeFile(join(results, 'index.html'), '<p>html report</p>')
+    await writeFile(join(results, 'index.htm'), '<p>htm report</p>')
+    const docs = await readActiveEvidenceResults(repo())
+    expect(docs.map((d) => d.file).sort()).toEqual(['index.htm', 'index.html'])
+    expect(new Set(docs.map((d) => d.label)).size).toBe(docs.length)
+    expect(docs.filter((d) => d.label === 'Report')).toHaveLength(1)
   })
 
   it('surfaces a legacy index.html first, as "Report"', async () => {
