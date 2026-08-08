@@ -1,20 +1,19 @@
 import { applyCommitPrefix, parseCommitPrefix } from '@porcelain/client-runtime/commit-message'
 import type { CommitGroupGenerationGroup } from '@porcelain/contracts'
 import { useState } from 'react'
-import { Pressable, Text, View } from 'react-native'
+import { Text, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { PanelLabel, StatusNote } from '@/components/panel-chrome'
-import { ShellModal, ShellModalScroll, useShellModalSize } from '@/components/shell-modal'
 import { PANEL_CARD } from '@/components/surface-layout'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Text as UiText } from '@/components/ui/text'
 import { Textarea } from '@/components/ui/textarea'
-import type { FlowGroup } from '@/lib/daemon/procedures/changes'
 import { useActiveRepo } from '@/lib/daemon/repo'
 import { cn } from '@/lib/utils'
 import { useCommitDraftStore } from './commit-draft-store'
+import { commitReady, stagingState } from './commit-staging'
+import { CommitTokenChip } from './commit-token-chip'
 import { useWorkingFlow } from './use-changes'
 import {
   useCommit,
@@ -52,14 +51,9 @@ export function CommitCard({ active }: { active: boolean }): React.JSX.Element {
   const [generated, setGenerated] = useState<CommitGroupGenerationGroup[] | null>(null)
   const [applyingGroup, setApplyingGroup] = useState(false)
 
-  const files = workingFiles(groups)
-  const hasStaged = files.some((file) => file.staged === true)
-  const hasUnstaged = files.some((file) => file.unstaged === true)
-  const allStaged = files.length > 0 && files.every((f) => f.staged === true && f.unstaged !== true)
-  const treeClean = files.length === 0
-
+  const { allStaged, hasStaged, hasUnstaged, treeClean } = stagingState(groups)
   const { scope, type } = parseCommitPrefix(message)
-  const ready = applyCommitPrefix(message, null, null).trim() !== '' && !treeClean
+  const ready = commitReady(message, treeClean)
 
   /**
    * Every action in this card reports on the one status line — a generated message, a staging
@@ -153,7 +147,7 @@ export function CommitCard({ active }: { active: boolean }): React.JSX.Element {
 
       <View className={cn('gap-2.5 p-3', PANEL_CARD)}>
         <View className="flex-row gap-1.5">
-          <TokenChip
+          <CommitTokenChip
             disabled={treeClean || conventions === undefined}
             kind="type"
             options={conventions?.types ?? []}
@@ -162,7 +156,7 @@ export function CommitCard({ active }: { active: boolean }): React.JSX.Element {
               setMessage(repoPath, applyCommitPrefix(message, next, next === null ? null : scope))
             }}
           />
-          <TokenChip
+          <CommitTokenChip
             disabled={treeClean || type === null || conventions === undefined}
             kind="scope"
             options={conventions?.scopes ?? []}
@@ -305,160 +299,5 @@ export function CommitCard({ active }: { active: boolean }): React.JSX.Element {
         )}
       </View>
     </View>
-  )
-}
-
-function workingFiles(groups: FlowGroup[] | undefined): FlowGroup['files'] {
-  return (groups ?? []).flatMap((group) => group.files)
-}
-
-/**
- * A `type` / `scope` token. The value is DERIVED from the message text, so editing the
- * message by hand keeps the chips in sync; choosing one rewrites only the leading prefix.
- */
-function TokenChip({
-  disabled,
-  kind,
-  onChange,
-  options,
-  value,
-}: {
-  disabled: boolean
-  kind: 'type' | 'scope'
-  onChange: (value: string | null) => void
-  options: readonly string[]
-  value: string | null
-}): React.JSX.Element {
-  const [open, setOpen] = useState(false)
-  const [query, setQuery] = useState('')
-  const { maxHeight, width } = useShellModalSize()
-  const trimmed = query.trim()
-  const filtered = options.filter((option) => option.toLowerCase().includes(trimmed.toLowerCase()))
-  const canCreate = trimmed !== '' && !options.includes(trimmed)
-  const display = value === null ? kind : kind === 'scope' ? `(${value})` : value
-
-  const choose = (next: string | null): void => {
-    onChange(next)
-    setOpen(false)
-    setQuery('')
-  }
-
-  return (
-    <>
-      <Pressable
-        accessibilityLabel={`Commit ${kind}${value === null ? '' : `, ${value}`}`}
-        accessibilityRole="button"
-        accessibilityState={{ disabled }}
-        className={cn(
-          'h-9 flex-1 flex-row items-center justify-between gap-1 rounded-lg border border-border bg-background px-2.5 active:bg-accent',
-          disabled && 'opacity-50',
-        )}
-        disabled={disabled}
-        testID={`porcelain-changes-commit-${kind}`}
-        onPress={() => {
-          setOpen(true)
-        }}
-      >
-        <Text
-          className={cn(
-            'min-w-0 flex-1 font-mono text-xs',
-            value === null ? 'text-muted-foreground' : 'text-foreground',
-          )}
-          numberOfLines={1}
-        >
-          {display}
-        </Text>
-        <ChromeGlyph name="chevron" size={11} />
-      </Pressable>
-
-      <ShellModal
-        open={open}
-        title={kind === 'type' ? 'Commit type' : 'Commit scope'}
-        description={`Values this repository already uses — or add a new one.`}
-        contentStyle={{ maxHeight, width }}
-        onClose={() => {
-          setOpen(false)
-          setQuery('')
-        }}
-      >
-        <Input
-          accessibilityLabel={`Filter ${kind}s`}
-          autoCapitalize="none"
-          autoCorrect={false}
-          placeholder={`Add ${kind}…`}
-          testID={`porcelain-changes-commit-${kind}-input`}
-          value={query}
-          onChangeText={setQuery}
-        />
-        <ShellModalScroll className="max-h-72" contentContainerClassName="gap-0.5">
-          {value === null ? null : (
-            <TokenOption
-              label={`Clear ${kind}`}
-              testID={`porcelain-changes-commit-${kind}-clear`}
-              onPress={() => {
-                choose(null)
-              }}
-            />
-          )}
-          {filtered.map((option) => (
-            <TokenOption
-              key={option}
-              label={kind === 'scope' ? `(${option})` : option}
-              mono
-              selected={option === value}
-              testID={`porcelain-changes-commit-${kind}-${option}`}
-              onPress={() => {
-                choose(option)
-              }}
-            />
-          ))}
-          {canCreate ? (
-            <TokenOption
-              label={`Add “${trimmed}”`}
-              testID={`porcelain-changes-commit-${kind}-add`}
-              onPress={() => {
-                choose(trimmed)
-              }}
-            />
-          ) : null}
-          {filtered.length === 0 && !canCreate ? (
-            <Text className="px-4 py-6 text-center text-sm text-muted-foreground">
-              No {kind}s yet.
-            </Text>
-          ) : null}
-        </ShellModalScroll>
-      </ShellModal>
-    </>
-  )
-}
-
-function TokenOption({
-  label,
-  mono = false,
-  onPress,
-  selected = false,
-  testID,
-}: {
-  label: string
-  mono?: boolean
-  onPress: () => void
-  selected?: boolean
-  testID: string
-}): React.JSX.Element {
-  return (
-    <Pressable
-      accessibilityLabel={label}
-      accessibilityRole="button"
-      accessibilityState={{ selected }}
-      className={cn(
-        'min-h-11 flex-row items-center justify-between rounded-xl px-3 py-2 active:bg-accent',
-        selected && 'bg-muted/70',
-      )}
-      testID={testID}
-      onPress={onPress}
-    >
-      <Text className={cn('text-sm text-foreground', mono && 'font-mono text-xs')}>{label}</Text>
-      {selected ? <ChromeGlyph name="check" size={14} tone="primary" /> : null}
-    </Pressable>
   )
 }

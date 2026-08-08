@@ -16,14 +16,11 @@ const mobileSourceRoot = path.resolve('apps/mobile/src')
 /**
  * Files that were already over the ceiling when it landed, at the length they were.
  *
- * **This list may only shrink.** Phase 3b splits these four; a new entry is never the answer to
- * a failure. An allowlisted file may not grow past its recorded length either — the recorded
- * number is a cap, not a licence.
+ * **This list may only shrink.** Phase 3b split the three view files that were on it; a new entry
+ * is never the answer to a failure. An allowlisted file may not grow past its recorded length
+ * either — the recorded number is a cap, not a licence.
  */
-const ALLOWLIST = new Map([
-  ['features/changes/commit-card.tsx', 464],
-  ['lib/daemon/environments-store.ts', 453],
-])
+const ALLOWLIST = new Map([['lib/daemon/environments-store.ts', 453]])
 
 const violations = []
 const seen = new Set()

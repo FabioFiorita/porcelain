@@ -1,0 +1,164 @@
+import { useState } from 'react'
+import { Pressable, Text } from 'react-native'
+
+import { ChromeGlyph } from '@/components/chrome-glyph'
+import { ShellModal, ShellModalScroll, useShellModalSize } from '@/components/shell-modal'
+import { Input } from '@/components/ui/input'
+import { cn } from '@/lib/utils'
+
+import { type TokenKind, tokenChipLabel, tokenOptionLabel, tokenPicker } from './commit-tokens'
+
+/**
+ * A `type` / `scope` token chip and the picker behind it.
+ *
+ * Deliberately NOT a `components/` primitive: it speaks conventional commits — a kind that is
+ * one of two, values that come from what the repository already writes, and an "add" row that
+ * exists because a new scope is a normal thing to invent while committing. A generic combobox
+ * would have to be told all of that at every call site, and there is one call site.
+ *
+ * The value is DERIVED from the message text, so editing the message by hand keeps the chips in
+ * sync; choosing one rewrites only the leading prefix.
+ */
+export function CommitTokenChip({
+  disabled,
+  kind,
+  onChange,
+  options,
+  value,
+}: {
+  disabled: boolean
+  kind: TokenKind
+  onChange: (value: string | null) => void
+  options: readonly string[]
+  value: string | null
+}): React.JSX.Element {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const { maxHeight, width } = useShellModalSize()
+  const picker = tokenPicker(options, query)
+
+  const choose = (next: string | null): void => {
+    onChange(next)
+    setOpen(false)
+    setQuery('')
+  }
+
+  return (
+    <>
+      <Pressable
+        accessibilityLabel={`Commit ${kind}${value === null ? '' : `, ${value}`}`}
+        accessibilityRole="button"
+        accessibilityState={{ disabled }}
+        className={cn(
+          'h-9 flex-1 flex-row items-center justify-between gap-1 rounded-lg border border-border bg-background px-2.5 active:bg-accent',
+          disabled && 'opacity-50',
+        )}
+        disabled={disabled}
+        testID={`porcelain-changes-commit-${kind}`}
+        onPress={() => {
+          setOpen(true)
+        }}
+      >
+        <Text
+          className={cn(
+            'min-w-0 flex-1 font-mono text-xs',
+            value === null ? 'text-muted-foreground' : 'text-foreground',
+          )}
+          numberOfLines={1}
+        >
+          {tokenChipLabel(kind, value)}
+        </Text>
+        <ChromeGlyph name="chevron" size={11} />
+      </Pressable>
+
+      <ShellModal
+        open={open}
+        title={kind === 'type' ? 'Commit type' : 'Commit scope'}
+        description={`Values this repository already uses — or add a new one.`}
+        contentStyle={{ maxHeight, width }}
+        onClose={() => {
+          setOpen(false)
+          setQuery('')
+        }}
+      >
+        <Input
+          accessibilityLabel={`Filter ${kind}s`}
+          autoCapitalize="none"
+          autoCorrect={false}
+          placeholder={`Add ${kind}…`}
+          testID={`porcelain-changes-commit-${kind}-input`}
+          value={query}
+          onChangeText={setQuery}
+        />
+        <ShellModalScroll className="max-h-72" contentContainerClassName="gap-0.5">
+          {value === null ? null : (
+            <TokenOption
+              label={`Clear ${kind}`}
+              testID={`porcelain-changes-commit-${kind}-clear`}
+              onPress={() => {
+                choose(null)
+              }}
+            />
+          )}
+          {picker.matches.map((option) => (
+            <TokenOption
+              key={option}
+              label={tokenOptionLabel(kind, option)}
+              mono
+              selected={option === value}
+              testID={`porcelain-changes-commit-${kind}-${option}`}
+              onPress={() => {
+                choose(option)
+              }}
+            />
+          ))}
+          {picker.addition === null ? null : (
+            <TokenOption
+              label={`Add “${picker.addition}”`}
+              testID={`porcelain-changes-commit-${kind}-add`}
+              onPress={() => {
+                choose(picker.addition)
+              }}
+            />
+          )}
+          {picker.empty ? (
+            <Text className="px-4 py-6 text-center text-sm text-muted-foreground">
+              No {kind}s yet.
+            </Text>
+          ) : null}
+        </ShellModalScroll>
+      </ShellModal>
+    </>
+  )
+}
+
+function TokenOption({
+  label,
+  mono = false,
+  onPress,
+  selected = false,
+  testID,
+}: {
+  label: string
+  mono?: boolean
+  onPress: () => void
+  selected?: boolean
+  testID: string
+}): React.JSX.Element {
+  return (
+    <Pressable
+      accessibilityLabel={label}
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      className={cn(
+        'min-h-11 flex-row items-center justify-between rounded-xl px-3 py-2 active:bg-accent',
+        selected && 'bg-muted/70',
+      )}
+      testID={testID}
+      onPress={onPress}
+    >
+      <Text className={cn('text-sm text-foreground', mono && 'font-mono text-xs')}>{label}</Text>
+      {selected ? <ChromeGlyph name="check" size={14} tone="primary" /> : null}
+    </Pressable>
+  )
+}
