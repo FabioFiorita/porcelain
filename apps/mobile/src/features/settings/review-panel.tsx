@@ -1,8 +1,6 @@
-import { useEffect, useState } from 'react'
 import { Pressable, View } from 'react-native'
 
 import { EmptyNote, ErrorNote, PanelLabel } from '@/components/panel-chrome'
-import { SegmentedControl } from '@/components/segmented-control'
 import { PANEL_CARD } from '@/components/surface-layout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,73 +9,9 @@ import { useActiveEnvironment, useConnectionState } from '@/lib/daemon/environme
 import type { Layer } from '@/lib/daemon/procedures/settings'
 import { cn } from '@/lib/utils'
 
-import { useReviewLayers } from './use-settings'
-
-type MatchType = 'folder' | 'ext' | 'suffix'
-
-const PLACEHOLDERS: Record<MatchType, string> = {
-  folder: 'components, views',
-  ext: 'ts, tsx',
-  suffix: 'test, spec',
-}
-
-const MATCH_HELP: Record<MatchType, string> = {
-  folder: 'Files inside a folder of this name, e.g. src/components/Button.tsx.',
-  ext: 'Files with this extension, e.g. config.yaml.',
-  suffix: 'Files whose name ends with this before the extension, e.g. user.test.ts.',
-}
-
-const EXAMPLE_LIMIT = 6
-
-const escapeRe = (name: string): string => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-
-const splitNames = (raw: string): string[] =>
-  raw
-    .split(',')
-    .map((n) => n.trim())
-    .filter(Boolean)
-
-const buildPattern = (type: MatchType, names: string[]): string => {
-  if (names.length === 0) return ''
-  const alt = `(${names.map(escapeRe).join('|')})`
-  if (type === 'folder') return `(^|/)${alt}/`
-  if (type === 'ext') return `\\.${alt}$`
-  return `\\.${alt}\\.[a-z]+$`
-}
-
-const deriveLabel = (names: string[]): string => {
-  const first = names[0] ?? ''
-  return first ? first.charAt(0).toUpperCase() + first.slice(1) : 'New layer'
-}
-
-const patternError = (pattern: string): string | null => {
-  if (pattern.trim() === '') return 'pattern is required'
-  try {
-    new RegExp(pattern)
-    return null
-  } catch {
-    return 'invalid regular expression'
-  }
-}
-
-const matchingPaths = (pattern: string, paths: readonly string[]): string[] => {
-  if (pattern === '') return []
-  let re: RegExp
-  try {
-    re = new RegExp(pattern)
-  } catch {
-    return []
-  }
-  return paths.filter((p) => re.test(p))
-}
-
-interface DraftLayer extends Layer {
-  id: number
-}
-
-let nextDraftId = 0
-const toDraft = (layers: Layer[]): DraftLayer[] =>
-  layers.map((layer) => ({ ...layer, id: nextDraftId++ }))
+import { PatternBuilder } from './pattern-builder'
+import { patternError } from './review-layers'
+import { useReviewEditor } from './use-review-editor'
 
 /** Review layer config for the active environment's active repo — same model as web. */
 export function ReviewSettings(): React.JSX.Element {
@@ -123,25 +57,8 @@ export function ReviewSettings(): React.JSX.Element {
 }
 
 function ReviewLayersEditor({ repoPath }: { repoPath: string }): React.JSX.Element {
-  const review = useReviewLayers(repoPath)
-  const savedLayers = review.layers
-
-  const [draft, setDraft] = useState<DraftLayer[]>([])
-  const [savedFlash, setSavedFlash] = useState(false)
-
-  useEffect(() => {
-    if (savedLayers !== undefined) setDraft(toDraft([...savedLayers]))
-  }, [savedLayers])
-
-  const valid = draft.every((l) => l.label.trim() !== '' && patternError(l.pattern) === null)
-
-  const handleSave = async (layers: DraftLayer[] | null): Promise<void> => {
-    if (!(await review.save(layers))) return
-    setSavedFlash(true)
-    setTimeout(() => {
-      setSavedFlash(false)
-    }, 1500)
-  }
+  const editor = useReviewEditor(repoPath)
+  const { review } = editor
 
   if (review.isLoading) {
     return (
@@ -175,38 +92,25 @@ function ReviewLayersEditor({ repoPath }: { repoPath: string }): React.JSX.Eleme
         </View>
       ) : null}
 
-      <PatternBuilder
-        changedPaths={review.changedPaths}
-        onAdd={(layer) => {
-          setDraft((current) => [...current, { ...layer, id: nextDraftId++ }])
-        }}
-      />
+      <PatternBuilder changedPaths={review.changedPaths} onAdd={editor.add} />
 
       <View className="gap-2">
         <PanelLabel>Layers</PanelLabel>
-        {draft.map((layer, index) => (
+        {editor.draft.map((layer, index) => (
           <LayerRow
             key={layer.id}
-            count={draft.length}
+            count={editor.draft.length}
             index={index}
             layerId={layer.id}
             layer={layer}
             onChange={(next) => {
-              setDraft((current) =>
-                current.map((entry, i) => (i === index ? { ...entry, ...next } : entry)),
-              )
+              editor.update(index, next)
             }}
             onMove={(direction) => {
-              setDraft((current) => {
-                const next = [...current]
-                const [moved] = next.splice(index, 1)
-                if (moved === undefined) return current
-                next.splice(index + direction, 0, moved)
-                return next
-              })
+              editor.move(index, direction)
             }}
             onRemove={() => {
-              setDraft((current) => current.filter((_, i) => i !== index))
+              editor.remove(index)
             }}
           />
         ))}
@@ -214,20 +118,20 @@ function ReviewLayersEditor({ repoPath }: { repoPath: string }): React.JSX.Eleme
 
       <View className="flex-row flex-wrap gap-2">
         <Button
-          disabled={!valid || review.isSaving || draft.length === 0}
+          disabled={!editor.valid || review.isSaving || editor.draft.length === 0}
           testID="porcelain-settings-review-save"
           onPress={() => {
-            handleSave(draft)
+            editor.save(editor.draft)
           }}
         >
-          <Text>{savedFlash ? 'Saved' : review.isSaving ? 'Saving…' : 'Save'}</Text>
+          <Text>{editor.savedFlash ? 'Saved' : review.isSaving ? 'Saving…' : 'Save'}</Text>
         </Button>
         <Button
           disabled={review.isSaving}
           testID="porcelain-settings-review-reset"
           variant="outline"
           onPress={() => {
-            handleSave(null)
+            editor.save(null)
           }}
         >
           <Text>Reset to starters</Text>
@@ -237,102 +141,6 @@ function ReviewLayersEditor({ repoPath }: { repoPath: string }): React.JSX.Eleme
       {review.failure === null ? null : (
         <ErrorNote message={review.failure} testID="porcelain-settings-review-write-error" />
       )}
-    </View>
-  )
-}
-
-function PatternBuilder({
-  onAdd,
-  changedPaths,
-}: {
-  onAdd: (layer: Layer) => void
-  changedPaths: readonly string[]
-}): React.JSX.Element {
-  const [matchType, setMatchType] = useState<MatchType>('folder')
-  const [names, setNames] = useState('')
-  const parsed = splitNames(names)
-  const preview = buildPattern(matchType, parsed)
-  const matches = matchingPaths(preview, changedPaths)
-
-  const handleAdd = (): void => {
-    if (parsed.length === 0) return
-    onAdd({ label: deriveLabel(parsed), pattern: preview })
-    setNames('')
-  }
-
-  return (
-    <View className={cn(PANEL_CARD, 'gap-2.5 p-3')} testID="porcelain-settings-pattern-builder">
-      <PanelLabel>Pattern builder</PanelLabel>
-      <View className="gap-1.5">
-        <Text className="text-xs text-muted-foreground">Match</Text>
-        <SegmentedControl<MatchType>
-          options={[
-            { value: 'folder', label: 'Folder' },
-            { value: 'ext', label: 'Extension' },
-            { value: 'suffix', label: 'Suffix' },
-          ]}
-          value={matchType}
-          onChange={setMatchType}
-        />
-      </View>
-      <View className="gap-1.5">
-        <Text className="text-xs text-muted-foreground">Names</Text>
-        <Input
-          accessibilityLabel="Pattern names"
-          autoCapitalize="none"
-          autoCorrect={false}
-          className="h-9"
-          placeholder={PLACEHOLDERS[matchType]}
-          testID="porcelain-settings-pattern-names"
-          value={names}
-          onChangeText={setNames}
-          onSubmitEditing={handleAdd}
-        />
-      </View>
-      <View className="flex-row items-center gap-2">
-        <View className="min-w-0 flex-1 rounded-md bg-muted px-2 py-1.5">
-          <Text className="font-mono text-xs text-foreground" numberOfLines={1}>
-            {preview || '—'}
-          </Text>
-        </View>
-        <Button disabled={parsed.length === 0} size="sm" onPress={handleAdd}>
-          <Text>Add</Text>
-        </Button>
-      </View>
-      <Text className="text-xs leading-4 text-muted-foreground">{MATCH_HELP[matchType]}</Text>
-      {parsed.length > 0 ? (
-        <View className="gap-0.5 rounded-md bg-muted px-2.5 py-2">
-          {changedPaths.length === 0 ? (
-            <Text className="text-xs text-muted-foreground">
-              No changed files to preview against right now.
-            </Text>
-          ) : matches.length === 0 ? (
-            <Text className="text-xs text-warning">
-              No changed files match this pattern — try a different match type above.
-            </Text>
-          ) : (
-            <>
-              <PanelLabel>
-                {`Matches ${matches.length} changed ${matches.length === 1 ? 'file' : 'files'}`}
-              </PanelLabel>
-              {matches.slice(0, EXAMPLE_LIMIT).map((path) => (
-                <Text key={path} className="font-mono text-xs text-foreground" numberOfLines={1}>
-                  {path}
-                </Text>
-              ))}
-              {matches.length > EXAMPLE_LIMIT ? (
-                <Text className="text-xs text-muted-foreground">
-                  +{matches.length - EXAMPLE_LIMIT} more
-                </Text>
-              ) : null}
-            </>
-          )}
-        </View>
-      ) : null}
-      <Text className="text-xs leading-4 text-muted-foreground">
-        Furthest-right match wins; unmatched files fall into Other. You can still edit any pattern
-        by hand below.
-      </Text>
     </View>
   )
 }
