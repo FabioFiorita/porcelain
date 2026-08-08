@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  fenceLanguageFor,
   getHighlighter,
   isTokenizable,
   LANGS,
@@ -29,6 +30,28 @@ describe('languageFor', () => {
   it('returns null for unknown extensions', () => {
     expect(languageFor('binary.bin')).toBeNull()
     expect(languageFor('no-extension')).toBeNull()
+  })
+})
+
+describe('fenceLanguageFor', () => {
+  it('maps short and long fence tokens to shiki languages', () => {
+    expect(fenceLanguageFor('ts')).toBe('typescript')
+    expect(fenceLanguageFor('typescript')).toBe('typescript')
+    expect(fenceLanguageFor('bash')).toBe('shellscript')
+    expect(fenceLanguageFor('shell')).toBe('shellscript')
+    expect(fenceLanguageFor('yml')).toBe('yaml')
+  })
+
+  it('is case-insensitive and trims whitespace', () => {
+    expect(fenceLanguageFor('TypeScript')).toBe('typescript')
+    expect(fenceLanguageFor(' bash ')).toBe('shellscript')
+  })
+
+  it('returns null for unsupported or missing tokens', () => {
+    expect(fenceLanguageFor('python')).toBeNull()
+    expect(fenceLanguageFor(undefined)).toBeNull()
+    expect(fenceLanguageFor(null)).toBeNull()
+    expect(fenceLanguageFor('')).toBeNull()
   })
 })
 
