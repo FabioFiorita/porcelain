@@ -9,6 +9,9 @@ const { version } = JSON.parse(readFileSync(resolve('package.json'), 'utf8')) as
 
 export default defineConfig({
   define: { __PORCELAIN_VERSION__: JSON.stringify(version) },
+  // The renderer's libghostty-vt ABI tests import the pinned Wasm artifact as
+  // a data URL. Mirror apps/web's Vite asset treatment in this shared config.
+  assetsInclude: ['**/*.wasm'],
   plugins: [react()],
   resolve: {
     alias: {

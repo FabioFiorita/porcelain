@@ -1,49 +1,33 @@
-import '@xterm/xterm/css/xterm.css'
+import { MAX_PASTE_FILE_BYTES } from '@porcelain/contracts'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useTerminalInputStore } from '@renderer/stores/terminal-input'
-import { FitAddon } from '@xterm/addon-fit'
-import { WebglAddon } from '@xterm/addon-webgl'
-import { type ITheme, Terminal } from '@xterm/xterm'
+import type { GhosttyTheme } from '@renderer/terminal/ghostty/core'
+import { GhosttyTerminalSurface } from '@renderer/terminal/ghostty/surface'
 import { toast } from 'sonner'
 import type { PasteImageResult } from './daemon'
 import { sessionForTerminal } from './local-daemon'
 import { isBrowser, isCoarseTouch, isE2E } from './platform'
+import {
+  blobToBase64,
+  imageFromClipboardItems,
+  isTerminalImageMime,
+  type TerminalClipboardContents,
+  terminalPasteKind,
+} from './terminal-clipboard'
 import {
   type ArrowDirection,
   controlByte,
   terminalArrowBytes,
   terminalEditBytes,
 } from './terminal-keys'
-import { attachOsc52Clipboard } from './terminal-osc52'
-import { applyTerminalTouchScroll, attachTouchScroll } from './terminal-touch-scroll'
+import { Osc52StreamFilter } from './terminal-osc52'
+import { attachTouchScroll } from './terminal-touch-scroll'
 import { resolveTheme, subscribeResolvedTheme } from './theme'
 import { shellTrpcClient } from './trpc'
+import { copyText } from './utils'
 
-/** Wire an xterm instance into the pure touch-scroll applier (see terminal-touch-scroll). */
-function scrollTerminalTouch(term: Terminal, lines: number): void {
-  applyTerminalTouchScroll(
-    {
-      bufferType: term.buffer.active.type === 'alternate' ? 'alternate' : 'normal',
-      mouseTrackingMode: term.modes.mouseTrackingMode,
-      cols: term.cols,
-      rows: term.rows,
-      scrollLines: (n: number) => term.scrollLines(n),
-      // Direct PTY bytes — not synthetic WheelEvent (that can fall through to xterm's
-      // arrow-key no-scrollback path and trip Claude's "sending arrow keys" guard).
-      input: (data: string) => term.input(data, false),
-    },
-    lines,
-  )
-}
-
-/**
- * The xterm palette per resolved appearance — the single JS source of truth for
- * the terminal background (terminal-view reads `.background` for its pane fill).
- * Dark is byte-identical to the old inline literal (solid graphite in the spirit
- * of the app's neutral surfaces); light is a readable GitHub-Light-style palette
- * on a near-white ground with dark-enough ANSI colors to stay legible.
- */
-export const TERMINAL_THEMES: Record<'light' | 'dark', ITheme> = {
+/** Palette values stay CSS-facing for the viewer and existing product tests. */
+export const TERMINAL_THEMES = {
   dark: {
     background: '#16161a',
     foreground: '#e4e4e7',
@@ -72,417 +56,333 @@ export const TERMINAL_THEMES: Record<'light' | 'dark', ITheme> = {
     brightCyan: '#3192aa',
     brightWhite: '#8c959f',
   },
+} as const
+
+type TerminalMode = keyof typeof TERMINAL_THEMES
+
+function color(value: string): { r: number; g: number; b: number } {
+  const parsed = Number.parseInt(value.slice(1), 16)
+  return { r: parsed >> 16, g: (parsed >> 8) & 0xff, b: parsed & 0xff }
 }
 
-/** Resolved appearance for new/updated terminals (both the store and the OS). */
-function currentTerminalMode(): 'light' | 'dark' {
+function ghosttyTheme(mode: TerminalMode): GhosttyTheme {
+  const theme = TERMINAL_THEMES[mode]
+  return {
+    background: color(theme.background),
+    foreground: color(theme.foreground),
+    cursor: color(theme.cursor),
+    selectionBackground: theme.selectionBackground,
+  }
+}
+
+function currentTerminalMode(): TerminalMode {
   return resolveTheme(usePreferencesStore.getState().theme)
 }
 
-/**
- * Module-level home for xterm.js instances: a terminal must outlive its React view (the
- * viewer only mounts the ACTIVE tab), so each session's `Terminal` lives in a detached
- * wrapper the view re-parents on mount — nothing disposes until the session closes.
- * `useTerminalChannel` routes PTY output/exit into `receiveData`/`receiveExit`, buffered
- * until the instance exists. Paint path: WebGL by default; DOM only on multi-touch or
- * WebGL failure/context loss — no Settings toggle (one architecture).
- */
+/** Renderer-side half of the external navigation boundary for browser clients. */
+function terminalExternalUrl(text: string): string | null {
+  try {
+    const url = new URL(text)
+    return ['http:', 'https:', 'mailto:'].includes(url.protocol) ? url.href : null
+  } catch {
+    return null
+  }
+}
+
 interface Instance {
-  term: Terminal
-  fit: FitAddon
-  wrapper: HTMLDivElement
-  /** Tear down iPad touch→scrollLines listeners (absent on desktop). */
+  readonly id: string
+  readonly wrapper: HTMLDivElement
+  readonly osc52: Osc52StreamFilter
+  readonly selectionListeners: Set<() => void>
+  readonly pasteQueue: string[]
+  surface: GhosttyTerminalSurface | null
+  creating: Promise<GhosttyTerminalSurface> | null
+  initialReplay: string | null
+  output: string[]
+  disposed: boolean
   disposeTouchScroll?: () => void
 }
 
-/** Keys whose own keydown is a modifier press, never "the next keystroke". */
-const MODIFIER_KEYS = new Set(['Shift', 'Control', 'Alt', 'Meta'])
-
 const instances = new Map<string, Instance>()
-const buffers = new Map<string, string[]>()
-// Ids whose replay scrollback has already been seeded into their xterm (or buffered for
-// it). A fresh reload seeds once when the view first attaches; a later live reconnect
-// re-attaches the same id but must NOT re-write the scrollback — the xterm already holds
-// the full stream, and the live feed just resumes. Cleared on dispose (the session is
-// gone) so a future same-id session would seed cleanly.
 const seeded = new Set<string>()
 
-// Display sleep/wake (and GPU context eviction) can lose the WebGL texture atlas without
-// firing onContextLoss, leaving terminals painting smeared/wrong-color cells when the
-// window comes back. No resize accompanies it, so the fit-time clear never runs — clear
-// every instance's atlas on the visibility transition instead. No-op on the DOM renderer.
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState !== 'visible') return
-  for (const instance of instances.values()) instance.term.clearTextureAtlas()
-})
-
-// The iPad software keyboard resizes the visual viewport WITHOUT resizing any pane element,
-// so the pane ResizeObserver in terminal-view never fires and cols/rows keep tracking the
-// full-height area behind the keyboard. Refit every instance on a visual-viewport resize,
-// debounced like that observer (100ms). visualViewport is absent outside Safari/Chrome
-// (and in the test env) — guard for it.
-if (typeof window !== 'undefined' && window.visualViewport) {
-  let pending: ReturnType<typeof setTimeout> | undefined
-  window.visualViewport.addEventListener('resize', () => {
-    if (pending !== undefined) clearTimeout(pending)
-    pending = setTimeout(() => {
-      for (const id of instances.keys()) fitTerminal(id)
-    }, 100)
-  })
-}
-
-// Resolved-appearance change (theme preference or OS flip) → retint every live
-// xterm in place. Deduped by the helper (fires only when the mode truly flips);
-// new terminals read currentTerminalMode() in create().
-subscribeResolvedTheme((mode) => {
-  const theme = TERMINAL_THEMES[mode]
-  for (const instance of instances.values()) instance.term.options.theme = theme
-})
-
-// Fonts load via font-display: swap, so term.open() measures fallback-font metrics before
-// Geist Mono swaps in, leaving stale cells (misaligned DOM glyphs, tofu in WebGL). Re-measure
-// once the real faces load: WebGL re-rasterizes its atlas; DOM only invalidates its cached
-// char size when fontFamily is reassigned, so follow with a refit. Re-runs on
-// document.fonts.ready (the swap can land late); document.fonts is absent in tests.
-function remeasureFonts(instance: Instance, usesWebgl: boolean): void {
-  if (typeof document === 'undefined' || !document.fonts) return
-  const apply = (): void => {
-    if (usesWebgl) {
-      instance.term.clearTextureAtlas()
-      return
-    }
-    const { fontFamily } = instance.term.options
-    instance.term.options.fontFamily = fontFamily
-    instance.fit.fit()
-  }
-  Promise.all([
-    document.fonts.load('12px "Geist Mono Variable"'),
-    document.fonts.load('12px "Symbols Nerd Font Mono"'),
-  ])
-    .then(apply)
-    .catch(() => {})
-  document.fonts.ready.then(apply).catch(() => {})
-}
-
-/** Route inbound PTY output to its xterm, buffering until the instance is mounted. */
-export function receiveData(id: string, data: string): void {
-  // Live output means this id's xterm is being built from the stream itself — mark it
-  // seeded so a later reconnect's scrollback replay (receiveScrollback) is ignored and
-  // can't duplicate content the terminal already shows.
-  seeded.add(id)
-  const instance = instances.get(id)
-  if (instance) {
-    instance.term.write(data)
-    return
-  }
-  const buffer = buffers.get(id) ?? []
-  buffer.push(data)
-  buffers.set(id, buffer)
-}
-
-/**
- * Replay a re-attached session's scrollback into its xterm (buffering until the instance
- * mounts, like receiveData). Seeds at most once per session: the first attach after a
- * fresh reload writes it, but a later live reconnect's re-attach is ignored so the xterm
- * — which already holds the full stream — isn't duplicated. An 'exited' session replays
- * its final output the same way; the roster shows the exited state separately.
- */
-export function receiveScrollback(id: string, scrollback: string): void {
-  if (seeded.has(id)) return
-  seeded.add(id)
-  if (scrollback === '') return
-  receiveData(id, scrollback)
-}
-
-/** Write a dim footer line when a session's PTY exits. */
-export function receiveExit(id: string, exitCode: number): void {
-  const footer = `\r\n\x1b[2m[process exited${exitCode ? ` (${exitCode})` : ''}]\x1b[0m\r\n`
-  const instance = instances.get(id)
-  if (instance) instance.term.write(footer)
-  else buffers.set(id, [...(buffers.get(id) ?? []), footer])
-}
-
-function create(id: string): Instance {
-  const term = new Terminal({
-    // Geist Mono renders text; "Symbols Nerd Font Mono" is the per-glyph fallback so
-    // powerline/devicon prompt glyphs render instead of tofu (see main.css @font-face).
-    fontFamily:
-      '"Geist Mono Variable", "Symbols Nerd Font Mono", ui-monospace, SFMono-Regular, monospace',
-    fontSize: 12,
-    // 1.0 keeps the cell box flush with the glyph row: the WebGL renderer's customGlyphs
-    // draw block-element art (the Claude Code logo, powerline fills) edge-to-edge, but any
-    // extra leading would still reintroduce the horizontal gaps between block rows.
-    lineHeight: 1.0,
-    cursorBlink: true,
-    // Themed to the current resolved appearance (subscribeResolvedTheme retints
-    // live instances; new ones read the mode here).
-    theme: TERMINAL_THEMES[currentTerminalMode()],
-    scrollback: 10_000,
-  })
-  const fit = new FitAddon()
-  term.loadAddon(fit)
-  // Remote TUIs (Claude Code, vim, tmux) copy via OSC 52; without this the sequence
-  // is ignored and the host clipboard never updates. Write-only — see terminal-osc52.
-  attachOsc52Clipboard(term)
+function recordFor(id: string): Instance {
+  const existing = instances.get(id)
+  if (existing) return existing
   const wrapper = document.createElement('div')
-  wrapper.style.height = '100%'
-  wrapper.style.width = '100%'
-  term.open(wrapper)
-  // iOS soft keyboard mangles shell input (autocapitalizes the first char, autocorrects
-  // command names, injects predictive-text substitutions) via xterm's hidden helper
-  // textarea. xterm already sets autocorrect/autocapitalize/spellcheck, but not autocomplete;
-  // set all four defensively (idempotent, self-documenting). Inert on desktop.
-  const helper = wrapper.querySelector('.xterm-helper-textarea')
-  if (helper) {
-    helper.setAttribute('autocapitalize', 'off')
-    helper.setAttribute('autocorrect', 'off')
-    helper.setAttribute('autocomplete', 'off')
-    helper.setAttribute('spellcheck', 'false')
+  wrapper.className = 'porcelain-ghostty-terminal relative h-full w-full overflow-hidden'
+  const instance: Instance = {
+    id,
+    wrapper,
+    osc52: new Osc52StreamFilter(),
+    selectionListeners: new Set(),
+    pasteQueue: [],
+    surface: null,
+    creating: null,
+    initialReplay: null,
+    output: [],
+    disposed: false,
   }
-
-  let usesWebgl = false
-  // Multi-touch devices force DOM: WebGL contexts get killed under memory pressure and
-  // leave blank/garbled panes. Everywhere else prefer WebGL for edge-to-edge block glyphs
-  // (Claude Code logo, powerline fills). Load is best-effort — missing WebGL or a later
-  // context loss disposes the addon so xterm falls back to DOM instead of painting nothing.
-  if (!isCoarseTouch()) {
-    try {
-      const webgl = new WebglAddon()
-      webgl.onContextLoss(() => webgl.dispose())
-      term.loadAddon(webgl)
-      usesWebgl = true
-    } catch {
-      // No WebGL context available — stay on the DOM renderer.
-    }
-  }
-
-  // xterm 6 scrolls via SmoothScrollableElement (wheel only) — iOS Safari never fires
-  // wheel for finger pans. Normal buffer → scrollLines; alternate (Claude fullscreen)
-  // → SGR wheel bytes or PageUp/PageDown into the PTY — never arrow keys and never a
-  // synthetic WheelEvent (both trip Claude's "sending arrow keys" guard).
-  const disposeTouchScroll = isCoarseTouch()
-    ? attachTouchScroll(
-        (lines) => scrollTerminalTouch(term, lines),
-        () => {
-          const el = term.element
-          if (el && term.rows > 0) {
-            const h = el.clientHeight / term.rows
-            if (h > 0) return h
-          }
-          return (term.options.fontSize ?? 12) * (term.options.lineHeight ?? 1)
-        },
-        wrapper,
-      )
-    : undefined
-  // Keystrokes and fit-driven resizes flow back to this session's PTY over the
-  // daemon WS session (lib/daemon.ts).
-  term.onData((data) => sessionForTerminal(id).writeTerminal(id, data))
-  term.onResize(({ cols, rows }) => sessionForTerminal(id).resizeTerminal(id, cols, rows))
-  // macOS editing chords xterm doesn't send on its own. We `preventDefault()` + return
-  // false to fully own the key. The preventDefault is LOAD-BEARING for ⏎-based chords:
-  // xterm's keydown path bails on a `false` return WITHOUT calling preventDefault, so the
-  // browser still fires a `keypress` for Enter and xterm's `_keyPress` sends a bare `\r`
-  // (charCode 13) on its own — our ⇧↵ `ESC CR` would then be followed by that stray `\r`,
-  // i.e. newline-then-SUBMIT. (Backspace/arrows never fire keypress, which is why only the
-  // Enter chords were broken.) preventDefault cancels the keypress, so only our bytes go.
-  term.attachCustomKeyEventHandler((event) => {
-    if (event.type !== 'keydown') return true
-    // A modifier's own keydown is not "the next keystroke" — pressing Shift to type an
-    // uppercase letter must not consume an armed Ctrl before the letter arrives.
-    if (MODIFIER_KEYS.has(event.key)) return true
-    // Sticky Ctrl from the key bar (a soft keyboard has no Ctrl): the armed session turns
-    // its next keystroke into a control byte. Disarms on ANY key, so a non-chord key
-    // (Enter, an arrow) cancels rather than staying armed for something later.
-    const input = useTerminalInputStore.getState()
-    if (input.pendingCtrlId === id) {
-      input.clearCtrl()
-      const ctrlBytes = controlByte(event.key)
-      if (ctrlBytes !== null) {
-        event.preventDefault()
-        sessionForTerminal(id).writeTerminal(id, ctrlBytes)
-        return false
-      }
-    }
-    // ⌘/Ctrl+Shift+V — the desktop paste-image chord. Shift is load-bearing: plain
-    // ⌘/Ctrl+V must stay real text paste, which xterm already handles on its own.
-    if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === 'v') {
-      event.preventDefault()
-      pasteImageFromDesktopClipboard(id)
-      return false
-    }
-    // ⌘K clears the viewport (macOS terminal convention). Meta only — never Ctrl-K,
-    // which is readline's kill-to-end-of-line and must still reach the shell.
-    if (
-      event.metaKey &&
-      !event.ctrlKey &&
-      !event.altKey &&
-      !event.shiftKey &&
-      event.key.toLowerCase() === 'k'
-    ) {
-      event.preventDefault()
-      term.clear()
-      return false
-    }
-    // ⌘/⌥ + arrows/backspace and ⇧↵ → the control bytes a real shell expects.
-    const bytes = terminalEditBytes(event)
-    if (bytes !== null) {
-      event.preventDefault()
-      sessionForTerminal(id).writeTerminal(id, bytes)
-      return false
-    }
-    return true
-  })
-
-  const instance: Instance = { term, fit, wrapper, disposeTouchScroll }
   instances.set(id, instance)
-  const buffered = buffers.get(id)
-  if (buffered) {
-    for (const data of buffered) term.write(data)
-    buffers.delete(id)
-  }
-  // open() above measured cell metrics synchronously against whatever face was ready; re-
-  // measure once the real terminal faces have loaded (see remeasureFonts).
-  remeasureFonts(instance, usesWebgl)
   return instance
 }
 
-/** Re-parent the session's terminal into `container`, size it, and focus it. */
-export function attachTerminal(id: string, container: HTMLElement): void {
-  const instance = instances.get(id) ?? create(id)
-  container.appendChild(instance.wrapper)
-  // The wrapper now has layout — fit measures it and onResize tells the PTY.
-  instance.fit.fit()
-  // Re-parenting on a tab switch can leave the WebGL atlas painting stale cells; clear it
-  // so the re-shown terminal re-rasterizes cleanly.
-  instance.term.clearTextureAtlas()
-  // Focus is DELIBERATELY skipped on touch: focusing xterm's hidden textarea is what raises
-  // the iOS software keyboard, and this runs on every mount — opening a terminal tab,
-  // switching tabs, moving a terminal between panes — so an iPad could never just *read*
-  // scrollback without the keyboard eating half the pane. `TerminalView` focuses only on
-  // a real tap (not a scroll pan), and the touch key bar has an explicit Keyboard button.
-  if (!isCoarseTouch()) instance.term.focus()
+function notifySelection(instance: Instance): void {
+  for (const listener of instance.selectionListeners) listener()
 }
 
-/**
- * Detach the terminal from the DOM on unmount WITHOUT disposing it (PTY lives on).
- * Container-scoped: only remove the wrapper if THIS container still owns it. When a
- * terminal moves between panes, the new pane's `attach` re-parents the wrapper before
- * the old pane unmounts — without this guard the old pane's `detach` would yank the
- * wrapper back out and blank the new pane.
- */
+function focusAfterCreate(instance: Instance): void {
+  if (!isCoarseTouch() && instance.wrapper.isConnected) instance.surface?.focus()
+}
+
+function ensureSurface(instance: Instance): Promise<GhosttyTerminalSurface> | null {
+  if (instance.disposed) return null
+  if (instance.surface) return Promise.resolve(instance.surface)
+  if (instance.creating) return instance.creating
+  if (!instance.wrapper.isConnected) return null
+
+  instance.wrapper.replaceChildren()
+  instance.creating = GhosttyTerminalSurface.create(instance.wrapper, {
+    theme: ghosttyTheme(currentTerminalMode()),
+    onData: (data) => sessionForTerminal(instance.id).writeTerminal(instance.id, data),
+    onResize: (cols, rows) =>
+      sessionForTerminal(instance.id).resizeTerminal(instance.id, cols, rows),
+    onSelectionChange: () => notifySelection(instance),
+    onCopy: (text) => {
+      copyTerminalText(instance.id, text).catch(() => toast.error('Could not copy the selection'))
+    },
+    onPaste: (event) => {
+      pasteBrowserClipboardEvent(
+        instance.id,
+        event.clipboardData?.getData('text/plain') ?? '',
+        event.clipboardData ? imageFromClipboardItems(event.clipboardData.items) : null,
+      ).catch(() => {
+        toast.error('Could not paste from the clipboard', {
+          description: 'Try copying the text or image again.',
+        })
+      })
+    },
+    beforeKey: (event) => beforeTerminalKey(instance, event),
+    // Browser clients validate the scheme here; Electron repeats the allowlist
+    // in its window-open handler before handing a URL to the OS.
+    onLinkActivate: (text) => {
+      const url = terminalExternalUrl(text)
+      if (url !== null) window.open(url, '_blank', 'noopener,noreferrer')
+    },
+  })
+    .then((surface) => {
+      if (instance.disposed) {
+        surface.dispose()
+        throw new Error('terminal was disposed while renderer initialized')
+      }
+      instance.surface = surface
+      instance.creating = null
+      const replay = instance.initialReplay
+      instance.initialReplay = null
+      if (replay !== null) surface.resetAndWrite(replay)
+      else for (const data of instance.output) surface.write(data)
+      instance.output = []
+      for (const text of instance.pasteQueue.splice(0)) surface.paste(text)
+      if (isCoarseTouch()) {
+        instance.disposeTouchScroll = attachTouchScroll(
+          (lines) => surface.scrollTouch(lines),
+          () => Math.max(1, instance.wrapper.clientHeight / Math.max(1, surface.rows)),
+          instance.wrapper,
+        )
+      }
+      focusAfterCreate(instance)
+      return surface
+    })
+    .catch((error: unknown) => {
+      instance.creating = null
+      if (!instance.disposed) {
+        instance.wrapper.textContent =
+          'Terminal renderer could not start. Reopen this terminal to retry.'
+        console.error('[terminal] Ghostty renderer initialization failed', error)
+      }
+      throw error
+    })
+  // Callers retain their own interaction path; failures are visible in the host and
+  // retry on the next attach without producing unhandled promise rejections.
+  instance.creating.catch(() => undefined)
+  return instance.creating
+}
+
+function beforeTerminalKey(instance: Instance, event: KeyboardEvent): boolean {
+  const id = instance.id
+  const modifier = event.metaKey || event.ctrlKey
+  const key = event.key.toLowerCase()
+  const input = useTerminalInputStore.getState()
+  if (event.type !== 'keydown') return true
+  if (!['Shift', 'Control', 'Alt', 'Meta'].includes(event.key) && input.pendingCtrlId === id) {
+    input.clearCtrl()
+    const data = controlByte(event.key)
+    if (data !== null) {
+      event.preventDefault()
+      sessionForTerminal(id).writeTerminal(id, data)
+      return false
+    }
+  }
+  if (
+    modifier &&
+    !event.altKey &&
+    !event.shiftKey &&
+    key === 'c' &&
+    instance.surface?.hasSelection()
+  ) {
+    event.preventDefault()
+    copyTerminalSelection(id).catch(() => toast.error('Could not copy the selection'))
+    return false
+  }
+  if (modifier && event.shiftKey && key === 'v') {
+    event.preventDefault()
+    pasteTerminalImage(id)
+    return false
+  }
+  if (!isBrowser && modifier && key === 'v') {
+    event.preventDefault()
+    pasteTerminalClipboard(id)
+    return false
+  }
+  if (event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey && key === 'k') {
+    event.preventDefault()
+    instance.surface?.clearViewport()
+    return false
+  }
+  const edit = terminalEditBytes(event)
+  if (edit !== null) {
+    event.preventDefault()
+    sessionForTerminal(id).writeTerminal(id, edit)
+    return false
+  }
+  return true
+}
+
+/** Route inbound PTY data through the persistent Ghostty surface or its early buffer. */
+export function receiveData(id: string, data: string): void {
+  seeded.add(id)
+  const instance = recordFor(id)
+  const visible = instance.osc52.process(data, (text) => {
+    copyText(text).catch(() => undefined)
+  })
+  if (visible === '') return
+  if (instance.surface) instance.surface.write(visible)
+  else instance.output.push(visible)
+}
+
+/** Reset a fresh renderer from daemon replay. Replay is intentionally OSC52-silent. */
+export function receiveScrollback(id: string, scrollback: string): void {
+  if (seeded.has(id)) return
+  seeded.add(id)
+  const instance = recordFor(id)
+  instance.osc52.reset()
+  const visible = instance.osc52.process(scrollback)
+  if (instance.surface) instance.surface.resetAndWrite(visible)
+  else instance.initialReplay = visible
+}
+
+export function receiveExit(id: string, exitCode: number): void {
+  const footer = `\r\n\x1b[2m[process exited${exitCode ? ` (${exitCode})` : ''}]\x1b[0m\r\n`
+  receiveData(id, footer)
+}
+
+export function attachTerminal(id: string, container: HTMLElement): void {
+  const instance = recordFor(id)
+  if (instance.disposed) return
+  container.appendChild(instance.wrapper)
+  const surface = ensureSurface(instance)
+  surface
+    ?.then((ready) => {
+      if (instance.wrapper.parentElement !== container || instance.disposed) return
+      ready.resizeToMount()
+      focusAfterCreate(instance)
+    })
+    .catch(() => undefined)
+}
+
 export function detachTerminal(id: string, container: HTMLElement): void {
   const wrapper = instances.get(id)?.wrapper
-  if (wrapper && wrapper.parentElement === container) wrapper.remove()
+  if (wrapper?.parentElement === container) wrapper.remove()
 }
 
 export function fitTerminal(id: string): void {
-  const instance = instances.get(id)
-  if (!instance) return
-  instance.fit.fit()
-  // A resize re-lays-out the cell grid; the WebGL texture atlas can desync from the new
-  // geometry and blit glyphs from stale coordinates (sliced/smeared text, wrong-color
-  // cells). Clear it so glyphs re-rasterize cleanly against the current grid. No-op on the
-  // DOM renderer.
-  instance.term.clearTextureAtlas()
+  instances.get(id)?.surface?.resizeToMount()
 }
 
 export function focusTerminal(id: string): void {
-  instances.get(id)?.term.focus()
+  instances.get(id)?.surface?.focus()
 }
 
-/** Drop focus (on touch this is what dismisses the software keyboard). */
 export function blurTerminal(id: string): void {
-  instances.get(id)?.term.blur()
+  instances.get(id)?.surface?.blur()
 }
 
-/**
- * Whether this session's xterm currently holds focus — i.e. whether the software keyboard
- * is up. The key bar's Keyboard button reads it at click time to decide show-vs-dismiss;
- * xterm's focus lives on its hidden helper textarea, not the wrapper.
- */
 export function isTerminalFocused(id: string): boolean {
-  const wrapper = instances.get(id)?.wrapper
-  if (!wrapper) return false
-  const helper = wrapper.querySelector('.xterm-helper-textarea')
-  return helper !== null && document.activeElement === helper
+  return instances.get(id)?.surface?.isFocused() ?? false
 }
 
 export function clearTerminalSelection(id: string): void {
-  instances.get(id)?.term.clearSelection()
+  instances.get(id)?.surface?.clearSelection()
 }
 
-/**
- * Subscribe to selection changes. Returns null when the xterm instance isn't up yet
- * (common: child toolbar effect runs before TerminalView's attach effect) — callers
- * should retry. Dispose stops the listener.
- */
+export function terminalSelectionText(id: string): string {
+  return instances.get(id)?.surface?.getSelection() ?? ''
+}
+
+async function copyTerminalText(id: string, text: string): Promise<void> {
+  if (text === '') return
+  if (isBrowser) await copyText(text)
+  else await shellTrpcClient.writeTerminalClipboardText.mutate(text)
+  clearTerminalSelection(id)
+}
+
+export async function copyTerminalSelection(id: string): Promise<void> {
+  await copyTerminalText(id, terminalSelectionText(id))
+}
+
+export function selectAllTerminal(id: string): void {
+  instances.get(id)?.surface?.selectAll()
+}
+
+export function clearTerminalViewport(id: string): void {
+  instances.get(id)?.surface?.clearViewport()
+}
+
 export function subscribeTerminalSelection(id: string, cb: () => void): (() => void) | null {
-  const term = instances.get(id)?.term
-  if (!term) return null
-  const disposable = term.onSelectionChange(cb)
-  return () => disposable.dispose()
+  const instance = instances.get(id)
+  if (!instance?.surface) return null
+  instance.selectionListeners.add(cb)
+  return () => instance.selectionListeners.delete(cb)
 }
 
-/**
- * Pixel position for a selection Copy chip, relative to the terminal *host*
- * (the container that wraps the xterm element — includes its padding). Placed just
- * above the selection start, or below if there isn't room. Null when empty / gone.
- */
 export function getTerminalSelectionAnchor(
   id: string,
 ): { left: number; top: number; text: string } | null {
   const instance = instances.get(id)
-  if (!instance) return null
-  const { term, wrapper } = instance
-  const text = term.getSelection()
-  if (text === '') return null
-  const range = term.getSelectionPosition()
-  const el = term.element
-  // Host is the React container we attach into (padding lives there).
-  const host = wrapper.parentElement
-  if (!range || !el || !host) return null
-
-  const cols = Math.max(term.cols, 1)
-  const rows = Math.max(term.rows, 1)
-  const cellW = el.clientWidth / cols
-  const cellH = el.clientHeight / rows
-  // xterm documents buffer coords as 1-based.
-  const col = Math.max(0, range.start.x - 1)
-  const row = range.start.y - 1 - term.buffer.active.viewportY
-
+  const surface = instance?.surface
+  if (!instance || !surface) return null
+  const text = surface.getSelection()
+  const end = surface.getSelectionEndClientRect()
+  const host = instance.wrapper.parentElement
+  if (text === '' || !end || !host) return null
   const hostRect = host.getBoundingClientRect()
-  const termRect = el.getBoundingClientRect()
-  const originLeft = termRect.left - hostRect.left
-  const originTop = termRect.top - hostRect.top
-
-  const chipH = 36
   const chipW = 88
-  let left = originLeft + col * cellW
-  let top = originTop + row * cellH - chipH - 4
-  if (top < originTop + 4) top = originTop + Math.max(4, (row + 1) * cellH + 4)
-  // Keep the chip inside the host so overflow-hidden on the pane doesn't clip it.
-  left = Math.max(4, Math.min(left, host.clientWidth - chipW - 4))
-  top = Math.max(4, Math.min(top, host.clientHeight - chipH - 4))
-
-  return { left, top, text }
+  const chipH = 36
+  return {
+    left: Math.max(4, Math.min(end.right - hostRect.left - chipW, host.clientWidth - chipW - 4)),
+    top: Math.max(
+      4,
+      Math.min(end.bottom - hostRect.top - chipH - 4, host.clientHeight - chipH - 4),
+    ),
+    text,
+  }
 }
 
-/**
- * Write bytes to the PTY as if typed — the key bar's path for keys a soft keyboard can't
- * send. Deliberately NOT `term.input()`: these bytes must reach the shell exactly as
- * composed (the same door `attachCustomKeyEventHandler` uses). Scrolls to the prompt like
- * a real keypress does, so a key tapped after scrolling back up doesn't type off-screen.
- */
 export function sendTerminalInput(id: string, data: string): void {
   sessionForTerminal(id).writeTerminal(id, data)
-  instances.get(id)?.term.scrollToBottom()
+  instances.get(id)?.surface?.scrollToBottom()
 }
 
-/**
- * Hand a pasted image to the daemon for `id`'s session. Routed through the same
- * `sessionForTerminal` indirection as every other terminal call — a pane bound to a
- * remote (non-primary) daemon must paste through that daemon, not the primary one.
- */
 export function pasteImageToTerminal(
   id: string,
   mime: 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp',
@@ -491,7 +391,62 @@ export function pasteImageToTerminal(
   return sessionForTerminal(id).pasteImageToTerminal(id, mime, dataBase64)
 }
 
-/** One human-readable line per non-`ok` `pasteImageToTerminal` result, shared by every trigger. */
+export const PASTE_FILE_FAILURE_MESSAGE: Record<
+  Exclude<PasteImageResult['result'], 'ok'>,
+  string
+> = {
+  'no-session': 'This terminal is no longer available.',
+  'too-large': 'That file is too large to attach (8 MiB limit).',
+  'write-failed': 'The daemon could not save the file. Try again.',
+}
+
+/**
+ * Transfer browser/Electron-selected files as bytes to the terminal's daemon. `File.name` is
+ * only a display hint; the daemon sanitizes it and mints the actual scratch-file path, so a
+ * browser path or drag payload can never be interpreted as a daemon-local path.
+ */
+async function attachTerminalFile(id: string, file: File): Promise<void> {
+  if (file.size > MAX_PASTE_FILE_BYTES) {
+    toast.error('Could not attach the file', {
+      description: PASTE_FILE_FAILURE_MESSAGE['too-large'],
+    })
+    return
+  }
+  const outcome = await sessionForTerminal(id)
+    .pasteFileToTerminal(
+      id,
+      file.name || 'attachment',
+      file.type || 'application/octet-stream',
+      await blobToBase64(file),
+    )
+    .catch(() => ({ result: 'write-failed' as const }))
+  if (outcome.result !== 'ok') {
+    toast.error('Could not attach the file', {
+      description: PASTE_FILE_FAILURE_MESSAGE[outcome.result],
+    })
+  }
+}
+
+/** Attach dropped or selected files in the order the host supplied them. */
+export async function attachTerminalFiles(id: string, files: readonly File[]): Promise<void> {
+  for (const file of files) await attachTerminalFile(id, file)
+}
+
+/** Native picker shared by Electron and browsers; no local path is exposed to the daemon. */
+export function chooseTerminalFiles(id: string): void {
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.multiple = true
+  input.addEventListener('change', async () => {
+    try {
+      await attachTerminalFiles(id, Array.from(input.files ?? []))
+    } finally {
+      input.remove()
+    }
+  })
+  input.click()
+}
+
 export const PASTE_IMAGE_FAILURE_MESSAGE: Record<
   Exclude<PasteImageResult['result'], 'ok'>,
   string
@@ -501,82 +456,147 @@ export const PASTE_IMAGE_FAILURE_MESSAGE: Record<
   'write-failed': 'The daemon could not save the image. Try again.',
 }
 
-/**
- * The desktop-only paste-image chord (⌘/Ctrl+Shift+V): reads Electron's native clipboard
- * (not the web Clipboard API — more reliable, and works with no secure-context gate) via
- * the shell router's `readClipboardImage`, and hands the bytes to the same
- * `pasteImageToTerminal` path the key-bar button uses. No-ops (silently — a stray chord
- * on a plain browser tab must not toast) when there is no shell bridge at all.
- */
-async function pasteImageFromDesktopClipboard(id: string): Promise<void> {
-  if (isBrowser) return
-  const image = await shellTrpcClient.readClipboardImage.mutate().catch(() => null)
-  if (image === null) {
-    toast.error('No image on clipboard', {
-      description: 'Copy a screenshot or image first, then try again.',
+async function pasteTerminalContents(
+  id: string,
+  contents: TerminalClipboardContents,
+  imageOnly = false,
+): Promise<void> {
+  const kind = terminalPasteKind(contents, imageOnly)
+  if (kind === 'empty') {
+    toast.error(imageOnly ? 'No image on clipboard' : 'Nothing to paste', {
+      description: imageOnly ? 'Copy a screenshot or image first, then try again.' : undefined,
     })
     return
   }
+  if (kind === 'text') {
+    const instance = recordFor(id)
+    if (instance.surface) instance.surface.paste(contents.text)
+    else instance.pasteQueue.push(contents.text)
+    return
+  }
+  const image = contents.image
+  if (image === null) return
   const outcome = await pasteImageToTerminal(id, image.mime, image.dataBase64).catch(() => ({
     result: 'write-failed' as const,
   }))
-  if (outcome.result === 'ok') return
-  toast.error('Could not attach the image', {
-    description: PASTE_IMAGE_FAILURE_MESSAGE[outcome.result],
+  if (outcome.result !== 'ok') {
+    toast.error('Could not attach the image', {
+      description: PASTE_IMAGE_FAILURE_MESSAGE[outcome.result],
+    })
+  }
+}
+
+async function pasteBrowserClipboardEvent(
+  id: string,
+  text: string,
+  image: Blob | null,
+): Promise<void> {
+  await pasteTerminalContents(id, {
+    text,
+    image:
+      image !== null && isTerminalImageMime(image.type)
+        ? { mime: image.type, dataBase64: await blobToBase64(image) }
+        : null,
   })
 }
 
-/**
- * Send an arrow key, honoring the terminal's live DECCKM state — a full-screen TUI (vim,
- * less) puts the terminal in application-cursor mode, where the normal `ESC [ A` form is
- * inserted as literal text instead of moving the cursor.
- */
+async function readBrowserClipboard(): Promise<TerminalClipboardContents> {
+  if (navigator.clipboard?.read !== undefined) {
+    const items = await navigator.clipboard.read()
+    let text = ''
+    for (const item of items) {
+      if (text === '' && item.types.includes('text/plain'))
+        text = await (await item.getType('text/plain')).text()
+      const mime = item.types.find(isTerminalImageMime)
+      if (mime !== undefined)
+        return { text, image: { mime, dataBase64: await blobToBase64(await item.getType(mime)) } }
+    }
+    return { text, image: null }
+  }
+  if (navigator.clipboard?.readText !== undefined)
+    return { text: await navigator.clipboard.readText(), image: null }
+  throw new Error('Clipboard API unavailable')
+}
+
+export async function pasteTerminalClipboard(id: string): Promise<void> {
+  try {
+    await pasteTerminalContents(
+      id,
+      isBrowser
+        ? await readBrowserClipboard()
+        : await shellTrpcClient.readTerminalClipboard.mutate(),
+    )
+  } catch {
+    toast.error('Cannot read the clipboard', {
+      description: 'Paste in this browser requires clipboard permission.',
+    })
+  }
+}
+
+export async function pasteTerminalImage(id: string): Promise<void> {
+  try {
+    await pasteTerminalContents(
+      id,
+      isBrowser
+        ? await readBrowserClipboard()
+        : await shellTrpcClient.readTerminalClipboard.mutate(),
+      true,
+    )
+  } catch {
+    toast.error('Cannot read the clipboard', {
+      description: 'This connection cannot read images from the clipboard.',
+    })
+  }
+}
+
 export function sendTerminalArrow(id: string, direction: ArrowDirection): void {
   const instance = instances.get(id)
-  if (!instance) return
   sendTerminalInput(
     id,
-    terminalArrowBytes(direction, instance.term.modes.applicationCursorKeysMode),
+    terminalArrowBytes(direction, instance?.surface?.applicationCursorKeys() ?? false),
   )
 }
 
-// Test-only: the WebGL renderer paints glyphs to a canvas and never fills `.xterm-rows`,
-// so e2e can't scrape the DOM for terminal output. xterm's buffer model is maintained
-// independently of the renderer, so we serialize THAT instead. Installed on `window`
-// only under the e2e harness; `index` is creation order (Map insertion = `.first()`/
-// `.last()` pane order in the specs).
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return
+    for (const instance of instances.values()) instance.surface?.resizeToMount()
+  })
+}
+
+if (typeof window !== 'undefined' && window.visualViewport) {
+  let pending: ReturnType<typeof setTimeout> | undefined
+  window.visualViewport.addEventListener('resize', () => {
+    if (pending !== undefined) clearTimeout(pending)
+    pending = setTimeout(() => {
+      for (const instance of instances.values()) instance.surface?.resizeToMount()
+    }, 100)
+  })
+}
+
+subscribeResolvedTheme((mode) => {
+  for (const instance of instances.values()) instance.surface?.setTheme(ghosttyTheme(mode))
+})
+
 if (isE2E) {
   window.__porcelainTerminalText = (index: number): string => {
-    const instance = [...instances.values()][index]
-    if (!instance) return ''
-    const buffer = instance.term.buffer.active
-    const lines: string[] = []
-    for (let row = 0; row < buffer.length; row++) {
-      lines.push(buffer.getLine(row)?.translateToString(true) ?? '')
-    }
-    return lines.join('\n')
+    const surface = [...instances.values()][index]?.surface
+    return surface?.textContentForTesting() ?? ''
   }
-  // Marketing shots only: a 12px cell looks oversized when the full window is
-  // published Retina-wide. Shrink + re-fit so git log -p fills more rows.
   window.__porcelainSetTerminalFontSize = (size: number): void => {
-    for (const instance of instances.values()) {
-      instance.term.options.fontSize = size
-      instance.fit.fit()
-      // Force a full buffer repaint (WebGL atlas + alternate-screen pagers).
-      instance.term.refresh(0, Math.max(0, instance.term.rows - 1))
-      instance.term.clearTextureAtlas()
-    }
+    for (const instance of instances.values())
+      instance.surface?.setFont({ size }).catch(() => undefined)
   }
 }
 
-/** Tear down the xterm instance for good — the session is closing. */
 export function disposeTerminal(id: string): void {
   const instance = instances.get(id)
   if (!instance) return
+  instance.disposed = true
   instance.disposeTouchScroll?.()
-  instance.term.dispose()
+  instance.surface?.dispose()
   instance.wrapper.remove()
+  instance.osc52.reset()
   instances.delete(id)
-  buffers.delete(id)
   seeded.delete(id)
 }

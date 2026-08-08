@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 
 /**
- * The key bar's sticky Ctrl, shared with the xterm registry.
+ * The key bar's sticky Ctrl, shared with the Ghostty registry.
  *
  * A software keyboard has no Ctrl key, so the terminal key bar arms one instead: tap Ctrl,
  * then type a letter and the registry's key handler turns that keystroke into the control

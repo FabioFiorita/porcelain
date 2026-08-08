@@ -1,7 +1,7 @@
 import type { Terminal } from '@xterm/headless'
 import { copyText } from '@/lib/clipboard'
 import { resizeTerminal, writeTerminal } from '@/lib/daemon/terminal'
-
+import { NativeTerminalBuffer } from './native-terminal-buffer'
 import { attachOsc52Clipboard } from './terminal-osc52'
 import { loadTerminalEngine } from './xterm-host'
 
@@ -27,6 +27,16 @@ const REPAINT_MS = 33
 /** Matches the desktop client, so the same PTY offers the same history on both. */
 const SCROLLBACK_LINES = 10_000
 
+/**
+ * The native Ghostty surface receives a replayable stream, rather than an xterm cell dump.
+ * Keep that bridge explicitly bounded: a mobile client can be attached to a noisy PTY for days,
+ * and retaining the entire raw stream in JavaScript would duplicate the daemon's scrollback.
+ *
+ * This is code units rather than bytes because the WS protocol has already decoded UTF-8 into a
+ * JavaScript string. It is deliberately below the daemon's 10k-line history in the common case;
+ * when it rolls over the native surface rebuilds from the retained tail, just as it does after a
+ * reconnect whose daemon scrollback was pruned.
+ */
 type Instance = {
   term: Terminal
   repaintTimer: ReturnType<typeof setTimeout> | undefined
@@ -36,6 +46,8 @@ const instances = new Map<string, Instance>()
 /** Bumped on every visible change; the viewer's `useSyncExternalStore` snapshot. */
 const revisions = new Map<string, number>()
 const pending = new Map<string, string[]>()
+/** Bounded raw stream supplied to the native Ghostty surface. */
+const nativeBuffers = new Map<string, NativeTerminalBuffer>()
 const listeners = new Map<string, Set<() => void>>()
 /**
  * Why this session has no emulator. The engine is loaded on first use, so a failure there
@@ -81,6 +93,27 @@ function scheduleRepaint(id: string): void {
     current.repaintTimer = undefined
     notify(id)
   }, REPAINT_MS)
+}
+
+function appendNativeData(id: string, data: string): void {
+  if (data === '') return
+  const buffer = nativeBuffers.get(id) ?? new NativeTerminalBuffer()
+  buffer.append(data)
+  nativeBuffers.set(id, buffer)
+}
+
+function replaceNativeData(id: string, data: string): void {
+  const buffer = nativeBuffers.get(id) ?? new NativeTerminalBuffer()
+  buffer.replace(data)
+  nativeBuffers.set(id, buffer)
+}
+
+/**
+ * The current bounded PTY stream for Ghostty. Joining is intentionally done only by the
+ * throttled React paint path, never for each WebSocket frame.
+ */
+export function terminalNativeBuffer(id: string): string {
+  return nativeBuffers.get(id)?.value() ?? ''
 }
 
 /** Ensure this session has an emulator. Safe to call on every mount. */
@@ -135,10 +168,16 @@ export function receiveData(id: string, data: string): void {
   // Live output means this session is being rebuilt from the stream itself — mark it seeded so
   // a later reconnect's replay cannot duplicate what is already on screen.
   seeded.add(id)
+  appendNativeData(id, data)
+  // Ghostty consumes the raw stream directly and must not wait for the compatibility xterm
+  // parser's async write callback. A busy prompt can queue many parser writes; withholding the
+  // revision until that queue drains makes native pixels appear frozen despite having the bytes.
+  scheduleRepaint(id)
   const instance = instances.get(id)
   if (instance === undefined) {
     pending.set(id, [...(pending.get(id) ?? []), data])
     ensureTerminal(id)
+    scheduleRepaint(id)
     return
   }
   instance.term.write(data, () => {
@@ -153,6 +192,9 @@ export function receiveData(id: string, data: string): void {
  */
 export function receiveScrollback(id: string, scrollback: string): void {
   const wasSeeded = seeded.has(id)
+  // The daemon snapshot is authoritative after reconnect. Replace, never append: a missed
+  // reconnect otherwise makes Ghostty render the same replay twice even when xterm is reset.
+  replaceNativeData(id, scrollback)
   // Written straight into the emulator rather than through `receiveData`, because the replay
   // has to be marked as a replay for the whole time xterm spends parsing it — see `replaying`.
   ensureTerminal(id)
@@ -251,6 +293,7 @@ export function scrollTerminalToBottom(id: string): void {
 export function disposeTerminal(id: string): void {
   const instance = instances.get(id)
   pending.delete(id)
+  nativeBuffers.delete(id)
   seeded.delete(id)
   failures.delete(id)
   sizes.delete(id)

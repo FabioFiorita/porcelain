@@ -37,7 +37,6 @@
   replayed (attaches drop their id so the next hydrate retries). **Don't make creates auto-replay and
   don't reintroduce a kill-on-close path.**
 - **A session's scrollback is byte-capped (64 KB).** Attach replays retained output into the
-  reconnecting client's xterm, so it must be remembered — but a chatty long-running shell would grow
+  reconnecting client's terminal surface, so it must be remembered — but a chatty long-running shell would grow
   daemon memory without bound. Newest ≤64 KB kept, oldest dropped. Don't remove or unbound the cap.
   *Verify:* `scrollback-buffer.test.ts`.
-

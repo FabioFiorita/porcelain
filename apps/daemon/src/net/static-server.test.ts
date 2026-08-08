@@ -81,7 +81,7 @@ describe('resolveStaticPath', () => {
 
 describe('rewriteCsp', () => {
   const META = (connect: string): string =>
-    `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; ${connect}" />`
+    `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; ${connect}" />`
 
   // Matches the Electron index.html CSP: loopback entries + scheme-wide sources so a
   // remote daemon (LAN/tailnet) is reachable from the packaged app (Phase 4).
@@ -95,7 +95,7 @@ describe('rewriteCsp', () => {
   it('leaves default-src, script-src, style-src, and img-src byte-identical', () => {
     const out = rewriteCsp(META(ORIGINAL), 'host:1234')
     expect(out).toContain("default-src 'self'")
-    expect(out).toContain("script-src 'self'")
+    expect(out).toContain("script-src 'self' 'wasm-unsafe-eval'")
     expect(out).toContain("style-src 'self' 'unsafe-inline'")
     expect(out).toContain("img-src 'self' data:")
   })

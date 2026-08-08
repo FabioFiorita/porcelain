@@ -17,6 +17,10 @@ export default defineConfig({
   base: './', // file:// (Electron loadFile); not Vite's default '/'
   define: { __PORCELAIN_VERSION__: JSON.stringify(version) },
   publicDir: resolve(root, 'public'),
+  // `libghostty-vt` and its PTY callback shim are immutable build artifacts.
+  // Keep them as URL-addressed assets instead of inlining 600+ KB into the
+  // renderer entry chunk, so every split terminal shares one cached module.
+  assetsInclude: ['**/*.wasm'],
   resolve: {
     /**
      * One React for the whole graph.

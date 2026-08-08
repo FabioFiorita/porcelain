@@ -78,7 +78,7 @@ export function FileFinder(): React.JSX.Element {
     const handleKeyDown = (e: KeyboardEvent): void => {
       if (!(e.metaKey || e.ctrlKey)) return
       // ⌘P always; ⌘K mirrors the titlebar search bar, but over a focused terminal
-      // ⌘K stays the shell's clear-screen (handled in the xterm registry).
+      // ⌘K stays the shell's clear-screen (handled in the Ghostty registry).
       if (e.key === 'p' || (e.key === 'k' && !isTerminalTarget(e.target))) {
         e.preventDefault()
         setOpen(!useFileFinderStore.getState().open)

@@ -1,3 +1,4 @@
+import { MAX_TERMINAL_WRITE_CODE_UNITS } from '@porcelain/contracts'
 import { randomUUID } from 'expo-crypto'
 
 import { DaemonError } from './errors'
@@ -20,7 +21,7 @@ import { daemonSession } from './session'
 const REQUEST_TIMEOUT_MS = 10_000
 
 /** One `terminal:write` frame stays well under any proxy's message cap. */
-const WRITE_CHUNK = 8 * 1024
+const WRITE_CHUNK = MAX_TERMINAL_WRITE_CODE_UNITS
 
 export type TerminalAttachResult = {
   /** False when the daemon has never heard of this id — killed, or a stale roster row. */
@@ -148,12 +149,31 @@ export async function pasteImageToTerminal(
   id: string,
   mime: 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp',
   dataBase64: string,
+  options?: { insert?: boolean },
 ): Promise<PasteImageResult> {
   await whenOpen()
   const reqId = randomUUID()
   const reply = await daemonSession.request(
-    { dataBase64, id, mime, reqId, t: 'terminal:paste-image' },
+    { dataBase64, id, mime, reqId, t: 'terminal:paste-image', ...options },
     (frame) => (frame.t === 'terminal:image-pasted' && frame.reqId === reqId ? frame : null),
+    { timeoutMs: REQUEST_TIMEOUT_MS },
+  )
+  return { path: reply.path, result: reply.result }
+}
+
+/** Transfer a picked device file as bytes; the daemon mints the only terminal-visible path. */
+export async function pasteFileToTerminal(
+  id: string,
+  filename: string,
+  mime: string,
+  dataBase64: string,
+  options?: { insert?: boolean },
+): Promise<PasteImageResult> {
+  await whenOpen()
+  const reqId = randomUUID()
+  const reply = await daemonSession.request(
+    { dataBase64, filename, id, mime, reqId, t: 'terminal:paste-file', ...options },
+    (frame) => (frame.t === 'terminal:file-pasted' && frame.reqId === reqId ? frame : null),
     { timeoutMs: REQUEST_TIMEOUT_MS },
   )
   return { path: reply.path, result: reply.result }
@@ -164,6 +184,12 @@ export function writeTerminal(id: string, data: string): void {
   for (let offset = 0; offset < data.length; offset += WRITE_CHUNK) {
     daemonSession.send({ data: data.slice(offset, offset + WRITE_CHUNK), id, t: 'terminal:write' })
   }
+}
+
+/** One deliberate PTY write for a fully prepared composer payload. */
+export function writeTerminalAtomically(id: string, data: string): void {
+  if (data === '' || data.length > MAX_TERMINAL_WRITE_CODE_UNITS) return
+  daemonSession.send({ data, id, t: 'terminal:write' })
 }
 
 export function resizeTerminal(id: string, cols: number, rows: number): void {

@@ -72,34 +72,28 @@
   background-color: var(--color-muted-foreground);
 }
 
-/* The terminal's visible scrollbar is xterm's OWN custom widget — a 14px-wide `.slider`
-   <div> inside `.xterm-scrollable-element`, NOT a native scrollbar — so the global
-   `::-webkit-scrollbar` rules above can't reach it, and it rendered as a chunky gray bar.
-   It already auto-hides on its own (the `.fade` class); we only need to reshape the slider
-   into the app's slim translucent pill (border → muted on hover). `!important` overrides
-   the background xterm sets inline on the slider. */
-.xterm .xterm-scrollable-element > .scrollbar > .slider {
-  border-radius: 9999px !important;
-  /* Asymmetric transparent border (clipped via padding-box) slims the 14px slider to a
-     ~5px pill AND hugs it to the right edge — most of the inset is on the left. */
-  border-top: 4px solid transparent !important;
-  border-bottom: 4px solid transparent !important;
-  border-left: 7px solid transparent !important;
-  border-right: 2px solid transparent !important;
-  background-clip: padding-box !important;
-  background-color: var(--border) !important;
-}
-.xterm .xterm-scrollable-element > .scrollbar > .slider:hover {
-  background-color: var(--color-muted-foreground) !important;
-}
-
-/* xterm 6 scrolls via a custom wheel-driven scrollbar (SmoothScrollableElement), not
-   native overflow — finger pans never become scroll without our touch→scrollLines
-   adapter (terminal-touch-scroll.ts). touch-action:none keeps Safari from panning the
-   page over the terminal; the adapter owns vertical pan and preventDefaults move. */
-.xterm {
+/* The Ghostty surface owns a canvas and an explicit scrollback thumb. Browser scrollbars
+   are deliberately absent: touch gestures are routed to terminal semantics instead of
+   bubbling into the viewer page. */
+.porcelain-ghostty-terminal {
   touch-action: none;
   overscroll-behavior: none;
+}
+.porcelain-ghostty-scrollbar {
+  position: absolute;
+  top: 4px;
+  right: 2px;
+  bottom: 4px;
+  width: 8px;
+  border-radius: 9999px;
+}
+.porcelain-ghostty-scrollbar-thumb {
+  width: 100%;
+  border-radius: 9999px;
+  background-color: var(--border);
+}
+.porcelain-ghostty-scrollbar:hover .porcelain-ghostty-scrollbar-thumb {
+  background-color: var(--color-muted-foreground);
 }
 
 /* Electron hiddenInset title bar: draggable chrome regions */

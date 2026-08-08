@@ -1,7 +1,12 @@
 import { randomBytes } from 'node:crypto'
-import { mkdir, readdir, rm, stat, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, readdir, rm, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { MAX_PASTE_IMAGE_BYTES } from '@porcelain/contracts'
+import {
+  MAX_PASTE_FILE_BYTES,
+  MAX_PASTE_IMAGE_BYTES,
+  terminalFilePromptReference,
+  terminalImagePromptReference,
+} from '@porcelain/contracts'
 import { porcelainHomePath } from '@shared/porcelain-home'
 import { hasTerminal, writeTerminal } from './terminal-manager'
 
@@ -18,9 +23,10 @@ import { hasTerminal, writeTerminal } from './terminal-manager'
  * A bare typed path does not make Claude Code see the image — confirmed by testing the
  * CLI directly. What DOES work, per Claude Code's own docs, is mentioning the path in
  * natural language ("Analyze this image: /path"), which the model reliably reads with
- * its own `Read` tool. So the daemon writes the file, then types that mention into the
- * PTY exactly as `initial-input.ts` proves synthetic input can — `pty.write()` does not
- * distinguish a real keystroke from a daemon-authored one.
+ * its own `Read` tool. Immediate paste therefore writes the file, then types that mention into
+ * the PTY exactly as `initial-input.ts` proves synthetic input can — `pty.write()` does not
+ * distinguish a real keystroke from a daemon-authored one. A command composer can request only
+ * the upload result, then insert several returned paths in one terminal write after they all pass.
  */
 
 const MIME_EXTENSIONS: Record<string, string> = {
@@ -84,42 +90,97 @@ export type PasteImageResult = {
   path?: string
 }
 
+export type PasteFileResult = PasteImageResult
+
 /**
- * Decode, size-check, and write a pasted image for `id`'s session, then type a
- * natural-language mention of its path into the PTY. Never throws — every failure mode
- * is a typed result the caller replies with over the WS protocol.
+ * A client filename is presentation data, never a filesystem path. Normalise both path
+ * separators before taking the final component, then retain only a small portable filename
+ * alphabet. The daemon still prefixes it with random bytes, so two matching uploads cannot
+ * collide and a name like `../../.ssh/config` cannot escape this scratch directory.
+ */
+function safeFilename(filename: string): string {
+  const leaf = filename.replaceAll('\\', '/').split('/').at(-1) ?? ''
+  const safe = leaf.replace(/[^A-Za-z0-9._-]/g, '_').replace(/^\.+$/, '')
+  return (safe === '' ? 'attachment' : safe).slice(0, 120)
+}
+
+async function saveAttachment(params: {
+  id: string
+  dataBase64: string
+  filename: string
+  maxBytes: number
+}): Promise<PasteImageResult> {
+  startSweeping()
+  if (!hasTerminal(params.id)) return { result: 'no-session' }
+
+  const buffer = Buffer.from(params.dataBase64, 'base64')
+  if (buffer.byteLength > params.maxBytes) return { result: 'too-large' }
+
+  const dir = porcelainHomePath(PASTE_DIR, params.id)
+  const path = join(
+    dir,
+    `${Date.now()}-${randomBytes(4).toString('hex')}-${safeFilename(params.filename)}`,
+  )
+  try {
+    await mkdir(dir, { mode: 0o700, recursive: true })
+    await chmod(dir, 0o700)
+    await writeFile(path, buffer, { mode: 0o600 })
+  } catch {
+    return { result: 'write-failed' }
+  }
+  return { path, result: 'ok' }
+}
+
+/**
+ * Decode, size-check, and write a pasted image for `id`'s session. Unless `insert` is false,
+ * type a natural-language mention of its path into the PTY. Never throws — every failure mode is
+ * a typed result the caller replies with over the WS protocol.
  */
 export async function pasteImageToTerminal(params: {
   id: string
   mime: string
   dataBase64: string
+  insert?: boolean
 }): Promise<PasteImageResult> {
-  startSweeping()
   const { id, mime, dataBase64 } = params
-  // Checked before any write: a dead session leaves nothing on disk for the sweep to
-  // have to reclaim.
-  if (!hasTerminal(id)) return { result: 'no-session' }
-
-  const buffer = Buffer.from(dataBase64, 'base64')
-  if (buffer.byteLength > MAX_PASTE_IMAGE_BYTES) return { result: 'too-large' }
-
   const ext = MIME_EXTENSIONS[mime] ?? 'bin'
-  const dir = porcelainHomePath(PASTE_DIR, id)
-  const path = join(dir, `${Date.now()}-${randomBytes(4).toString('hex')}.${ext}`)
-  try {
-    await mkdir(dir, { recursive: true })
-    await writeFile(path, buffer)
-  } catch {
-    return { result: 'write-failed' }
-  }
+  const outcome = await saveAttachment({
+    id,
+    dataBase64,
+    filename: `image.${ext}`,
+    maxBytes: MAX_PASTE_IMAGE_BYTES,
+  })
+  if (outcome.result !== 'ok' || outcome.path === undefined) return outcome
 
   // Inserted at the cursor, not submitted (no trailing `\r`) — a real terminal paste
   // lands inline and lets the user's own surrounding message survive. Not wrapped in
   // bracketed-paste escapes either: Claude Code's TUI collapses those into an opaque
   // "[Pasted text #1]" placeholder, which would hide the path from the model and defeat
   // the whole mechanism. Plain unescaped text is what the model reliably reads.
-  const quotedPath = path.includes(' ') ? `"${path}"` : path
-  writeTerminal(id, `Analyze this image: ${quotedPath} `)
+  if (params.insert !== false) writeTerminal(id, terminalImagePromptReference(outcome.path))
 
-  return { result: 'ok', path }
+  return outcome
+}
+
+/**
+ * Store a generic attachment on the daemon host and refer to the minted path in the PTY. This
+ * intentionally shares image retention/permissions but never treats a browser or phone URI as
+ * meaningful on the daemon: only the transferred bytes exist there.
+ */
+export async function pasteFileToTerminal(params: {
+  id: string
+  filename: string
+  mime: string
+  dataBase64: string
+  insert?: boolean
+}): Promise<PasteFileResult> {
+  const outcome = await saveAttachment({
+    id: params.id,
+    dataBase64: params.dataBase64,
+    filename: params.filename,
+    maxBytes: MAX_PASTE_FILE_BYTES,
+  })
+  if (outcome.result !== 'ok' || outcome.path === undefined) return outcome
+  if (params.insert !== false) writeTerminal(params.id, terminalFilePromptReference(outcome.path))
+  return outcome
 }

@@ -13,7 +13,7 @@ function resolvedSnapshot(): 'light' | 'dark' {
  * preference and the OS `prefers-color-scheme`. Re-renders the caller only when
  * the resolved mode actually flips (useSyncExternalStore dedupes on the snapshot,
  * and subscribeResolvedTheme is deduped too). Read it wherever a value — not a
- * CSS class — must follow the theme (Shiki, xterm, the toaster).
+ * CSS class — must follow the theme (Shiki, Ghostty, the toaster).
  */
 export function useResolvedTheme(): 'light' | 'dark' {
   return useSyncExternalStore(subscribeResolvedTheme, resolvedSnapshot, resolvedSnapshot)

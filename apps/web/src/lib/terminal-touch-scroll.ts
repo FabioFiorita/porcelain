@@ -6,7 +6,7 @@ import { applyTouchScrollDelta } from '@porcelain/client-runtime/terminal-touch-
  * client in `@porcelain/client-runtime/terminal-touch-scroll`; only the listener plumbing is
  * host-specific and lives here.
  *
- * Capture-phase listeners + touch-action:none (CSS on `.xterm` + wrapper) are load-bearing:
+ * Capture-phase listeners + touch-action:none on the terminal host are load-bearing:
  * without capture, an inner handler can swallow the event; without touch-action:none Safari
  * steals the gesture for page rubber-band and our preventDefault on move is ignored.
  */
@@ -24,7 +24,7 @@ export {
  * can't rubber-band. Returns a disposer. Only meaningful on multi-touch devices; desktop keeps
  * the wheel path untouched. Prefers Pointer Events (setPointerCapture keeps moves even
  * off-element), falling back to Touch Events without pointer capture — both use capture so they
- * win over xterm-internal handlers.
+ * win over Ghostty-internal handlers.
  */
 export function attachTouchScroll(
   scrollLines: (lines: number) => void,

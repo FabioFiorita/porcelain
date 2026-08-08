@@ -29,7 +29,7 @@ Version string in `marketing/index.html` is hard-coded once — update on market
 pnpm shots
 ```
 
-Pipeline traps (blank xterm canvas, leaked hostnames, sidebar widths) used to live in a long skill
+Pipeline traps (blank terminal canvas, leaked hostnames, sidebar widths) used to live in a long skill
 reference — when regenerating, read the shots scripts under `apps/desktop` and prior commit messages
 for that path. Keep demo content generic (`you@remote-host`, not personal machines).
 

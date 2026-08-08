@@ -3,15 +3,17 @@ import {
   applyTouchScrollDelta,
 } from '@porcelain/client-runtime/terminal-touch-scroll'
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { Platform, Text, TextInput, View } from 'react-native'
+import { Keyboard, Platform, Text, TextInput, View } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 
 import { ErrorNote } from '@/components/surface-chrome'
 import { usePreferencesStore } from '@/features/settings/preferences-store'
 import { useResolvedColorScheme } from '@/features/settings/theme-provider'
 import { useBottomChrome } from '@/features/shell/bottom-chrome'
-
+import { resolvePorcelainTerminalNativeView } from './porcelain-terminal-native'
+import { PorcelainTerminalSurface } from './porcelain-terminal-surface'
 import { readViewport, type TerminalRun } from './terminal-cells'
+import { TerminalCommandComposer } from './terminal-command-composer'
 import {
   ensureTerminal,
   fitTerminal,
@@ -19,10 +21,11 @@ import {
   scrollTerminal,
   subscribeTerminal,
   terminalFailure,
+  terminalNativeBuffer,
   terminalRevision,
 } from './terminal-engine'
 import { FIELD_SENTINEL, terminalFieldEdit } from './terminal-field'
-import { sendTerminalBytes, sendTerminalText } from './terminal-input'
+import { sendTerminalArrow, sendTerminalBytes, sendTerminalText } from './terminal-input'
 import { TerminalKeyBar } from './terminal-key-bar'
 import {
   terminalColumnLeft,
@@ -77,7 +80,156 @@ const WIDTH_SAMPLE = 'M'.repeat(40)
  * Keystrokes go to the daemon, never into the emulator: the emulator's buffer is a picture of
  * what the PTY actually echoed, which is what makes it trustworthy while an agent is writing.
  */
+/**
+ * Prefer the native Ghostty canvas whenever the installed development client contains it.
+ * An OTA JS update can run against an older binary, though, so the previous xterm/React Native
+ * renderer remains a deliberate compatibility fallback instead of crashing at requireNativeView.
+ */
 export function TerminalView({ sessionId }: { sessionId: string }): React.JSX.Element {
+  return resolvePorcelainTerminalNativeView() === null ? (
+    <XtermTerminalView sessionId={sessionId} />
+  ) : (
+    <NativeTerminalView sessionId={sessionId} />
+  )
+}
+
+/** The production path: Ghostty owns terminal state and pixels; JS owns the PTY transport. */
+function NativeTerminalView({ sessionId }: { sessionId: string }): React.JSX.Element {
+  const scheme = useResolvedColorScheme()
+  const palette = TERMINAL_PALETTES[scheme === 'dark' ? 'dark' : 'light']
+  const textSize = usePreferencesStore((state) => state.terminalTextSize)
+  const fontSize = terminalFontSize(textSize)
+  const keyboardInset = useKeyboardInset()
+  // This tracks ownership of the keyboard, not whether Android/iOS currently shows an IME.
+  // The visible composer is a separate native editing surface: treating its focus as terminal
+  // focus makes the hidden Ghostty field immediately steal first responder back on every draft
+  // update, so paste, selection and dictation never reliably reach the composer.
+  const [terminalKeyboardActive, setTerminalKeyboardActive] = useState(false)
+  const [focusRequest, setFocusRequest] = useState(0)
+  const [scrollRequest, setScrollRequest] = useState({ lines: 0, revision: 0 })
+
+  useEffect(() => {
+    // Keep the headless parser alive as the protocol companion: it provides current terminal
+    // modes for the shared key encoder and handles write-only OSC 52 clipboard requests. It is
+    // not the renderer on this path.
+    ensureTerminal(sessionId)
+  }, [sessionId])
+
+  const buffer = useSyncExternalStore(
+    useCallback((listener: () => void) => subscribeTerminal(sessionId, listener), [sessionId]),
+    useCallback(() => terminalNativeBuffer(sessionId), [sessionId]),
+  )
+
+  const failure = terminalFailure(sessionId)
+  const focusTerminal = (): void => {
+    setTerminalKeyboardActive(true)
+    setFocusRequest((value) => value + 1)
+  }
+  const dismissTerminalKeyboard = (): void => {
+    Keyboard.dismiss()
+    setTerminalKeyboardActive(false)
+  }
+
+  return (
+    <View
+      className="flex-1"
+      /* nativewind-allow-style: terminal palettes are PTY rendering state, and current
+         edge-to-edge Android can overlay the IME even with adjustResize in the manifest. */
+      style={{
+        backgroundColor: palette.background,
+        paddingBottom: Platform.OS === 'android' ? keyboardInset : 0,
+      }}
+      testID="porcelain-terminal-view"
+    >
+      <TerminalKeyBar
+        keyboardVisible={terminalKeyboardActive}
+        sessionId={sessionId}
+        onToggleKeyboard={() => {
+          if (terminalKeyboardActive) dismissTerminalKeyboard()
+          else focusTerminal()
+        }}
+      />
+      <View className="min-h-0 flex-1 overflow-hidden">
+        <PorcelainTerminalSurface
+          appearanceScheme={scheme === 'dark' ? 'dark' : 'light'}
+          autoFocus={terminalKeyboardActive}
+          buffer={buffer}
+          focusRequest={focusRequest}
+          fontSize={fontSize}
+          palette={palette}
+          scrollLines={scrollRequest.lines}
+          scrollRequest={scrollRequest.revision}
+          terminalKey={sessionId}
+          themeConfig={nativeThemeConfig(palette)}
+          onInput={(data) => {
+            // This includes Ghostty's terminal replies as well as direct/native keyboard
+            // input, so it must bypass the JS hidden-field modifier/paste transformation.
+            sendTerminalBytes(sessionId, data)
+          }}
+          onKey={(key) => sendTerminalArrow(sessionId, key)}
+          onResize={({ cols, rows }) => {
+            fitTerminal(sessionId, cols, rows)
+          }}
+          onScroll={(lines) => {
+            const live = getTerminal(sessionId)
+            if (live === undefined) return
+            applyTerminalTouchScroll(
+              {
+                bufferType: live.buffer.active.type === 'alternate' ? 'alternate' : 'normal',
+                cols: live.cols,
+                input: (data: string) => sendTerminalBytes(sessionId, data),
+                mouseTrackingMode: live.modes.mouseTrackingMode,
+                rows: live.rows,
+                scrollLines: (normalLines: number) => {
+                  // Keep the compatibility parser aligned, then move the Android Ghostty canvas.
+                  scrollTerminal(sessionId, normalLines)
+                  setScrollRequest((value) => ({
+                    lines: normalLines,
+                    revision: value.revision + 1,
+                  }))
+                },
+              },
+              lines,
+            )
+          }}
+        />
+        {failure === undefined ? null : (
+          <View className="absolute left-3 right-3 top-3">
+            <ErrorNote
+              message={`Terminal compatibility features are unavailable: ${failure}. Ghostty is still connected to the shell.`}
+              testID="porcelain-terminal-engine-error"
+            />
+          </View>
+        )}
+      </View>
+      <View
+        /* nativewind-allow-style: iOS keyboards overlay the app; this docks the composer above it. */
+        style={{
+          transform: [{ translateY: Platform.OS === 'ios' ? -keyboardInset : 0 }],
+        }}
+      >
+        <TerminalCommandComposer
+          sessionId={sessionId}
+          onBlur={() => setTerminalKeyboardActive(false)}
+          onFocus={() => setTerminalKeyboardActive(false)}
+        />
+      </View>
+    </View>
+  )
+}
+
+/** Ghostty accepts its normal config grammar; Android reads this same small portable subset. */
+export function nativeThemeConfig(palette: (typeof TERMINAL_PALETTES)['dark']): string {
+  return [
+    `background = ${palette.background}`,
+    `foreground = ${palette.foreground}`,
+    `cursor-color = ${palette.cursor}`,
+    ...palette.ansi.map((color, index) => `palette = ${index}=${color}`),
+  ].join('\n')
+}
+
+/** Older installed binaries render with the former pure-JS xterm compatibility surface. */
+function XtermTerminalView({ sessionId }: { sessionId: string }): React.JSX.Element {
   const bottomInset = useBottomChrome()
   const scheme = useResolvedColorScheme()
   const palette = TERMINAL_PALETTES[scheme === 'dark' ? 'dark' : 'light']
@@ -204,16 +356,22 @@ export function TerminalView({ sessionId }: { sessionId: string }): React.JSX.El
   return (
     <View
       className="flex-1"
-      /* nativewind-allow-style: the pane fills with the terminal palette, not a theme token. */
-      style={{ backgroundColor: palette.background }}
+      /* nativewind-allow-style: the pane fills with terminal state; edge-to-edge Android can
+         overlay the IME despite adjustResize, so the compatibility renderer reserves it too. */
+      style={{
+        backgroundColor: palette.background,
+        paddingBottom: Platform.OS === 'android' ? keyboardInset : 0,
+      }}
       testID="porcelain-terminal-view"
     >
       <TerminalKeyBar
         keyboardVisible={keyboardVisible}
         sessionId={sessionId}
         onToggleKeyboard={() => {
-          if (keyboardVisible) inputRef.current?.blur()
-          else inputRef.current?.focus()
+          if (keyboardVisible) {
+            Keyboard.dismiss()
+            inputRef.current?.blur()
+          } else inputRef.current?.focus()
         }}
       />
 
@@ -309,6 +467,21 @@ export function TerminalView({ sessionId }: { sessionId: string }): React.JSX.El
           />
         </View>
       </GestureDetector>
+      <View
+        /* nativewind-allow-style: iOS keyboards overlay the app; this visually docks the
+           composer above it while its original layout space keeps terminal rows out of it. */
+        style={{ transform: [{ translateY: Platform.OS === 'ios' ? -keyboardInset : 0 }] }}
+      >
+        <TerminalCommandComposer
+          sessionId={sessionId}
+          onBlur={() => {
+            setKeyboardVisible(false)
+          }}
+          onFocus={() => {
+            setKeyboardVisible(true)
+          }}
+        />
+      </View>
     </View>
   )
 }

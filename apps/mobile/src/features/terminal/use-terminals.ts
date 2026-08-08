@@ -22,6 +22,37 @@ import { type TerminalSession, useTerminalStore } from './terminal-store'
  */
 const ROSTER_POLL_MS = 5_000
 
+let terminalStreamConsumers = 0
+let stopTerminalStream: (() => void) | null = null
+
+/**
+ * Keep exactly one inbound PTY stream across phone route transitions. Native-stack modals may
+ * detach or freeze the roster screen, so its effect cannot be the sole owner while a terminal
+ * session is visible; independent subscriptions would instead write every byte twice on
+ * tablets and during transition overlap.
+ */
+export function useTerminalStream(): void {
+  useEffect(() => {
+    terminalStreamConsumers += 1
+    if (stopTerminalStream === null) {
+      stopTerminalStream = subscribeTerminalStream({
+        onData: receiveData,
+        onExit: (id, exitCode) => {
+          receiveExit(id, exitCode)
+          useTerminalStore.getState().markExited(id, exitCode)
+        },
+        onScrollback: receiveScrollback,
+      })
+    }
+    return () => {
+      terminalStreamConsumers -= 1
+      if (terminalStreamConsumers !== 0) return
+      stopTerminalStream?.()
+      stopTerminalStream = null
+    }
+  }, [])
+}
+
 /**
  * The inbound half of the terminal stream plus roster hydration — mounted once by the
  * Terminal surface, the twin of the desktop client's `useTerminalChannel`.
@@ -39,9 +70,10 @@ export function useTerminals(active: boolean): {
   const repo = useActiveRepo()
   const repoPath = repo?.path ?? ''
   const hydrate = useTerminalStore((state) => state.hydrate)
-  const markExited = useTerminalStore((state) => state.markExited)
   const reset = useTerminalStore((state) => state.reset)
   const sessions = useTerminalStore((state) => state.sessions)
+
+  useTerminalStream()
 
   const { data, error, isLoading } = useDaemonQuery(terminalSessionsQuery, undefined, {
     enabled: active && repo !== null,
@@ -49,17 +81,6 @@ export function useTerminals(active: boolean): {
     pollMs: ROSTER_POLL_MS,
     staleTime: 0,
   })
-
-  useEffect(() => {
-    return subscribeTerminalStream({
-      onData: receiveData,
-      onExit: (id, exitCode) => {
-        receiveExit(id, exitCode)
-        markExited(id, exitCode)
-      },
-      onScrollback: receiveScrollback,
-    })
-  }, [markExited])
 
   // The daemon lists every PTY it owns, across repos. This client shows one repo at a time,
   // so a shell opened in another project belongs to that project's roster, not this one.

@@ -13,7 +13,7 @@ import {
   setWatchedFiles,
 } from '../fs/file-watch'
 import type { AuthIdentity } from '../stores/access-store'
-import { pasteImageToTerminal } from '../terminal/image-paste'
+import { pasteFileToTerminal, pasteImageToTerminal } from '../terminal/image-paste'
 import {
   attachTerminal,
   createTerminal,
@@ -186,6 +186,17 @@ class Session {
           })
           .catch(() => {
             this.push({ t: 'terminal:image-pasted', reqId, id, result: 'write-failed' })
+          })
+        break
+      }
+      case 'terminal:paste-file': {
+        const { id, reqId } = message
+        pasteFileToTerminal(message)
+          .then((outcome) => {
+            this.push({ t: 'terminal:file-pasted', reqId, id, ...outcome })
+          })
+          .catch(() => {
+            this.push({ t: 'terminal:file-pasted', reqId, id, result: 'write-failed' })
           })
         break
       }

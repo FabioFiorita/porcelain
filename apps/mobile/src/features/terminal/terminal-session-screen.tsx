@@ -6,6 +6,7 @@ import { ClearBottomChrome } from '@/features/shell/bottom-chrome'
 
 import { useTerminalStore } from './terminal-store'
 import { TerminalView } from './terminal-view'
+import { useTerminalStream } from './use-terminals'
 
 /**
  * One session, full screen, pushed from the roster.
@@ -24,6 +25,7 @@ import { TerminalView } from './terminal-view'
 export function TerminalSessionScreen({ sessionId }: { sessionId: string }): React.JSX.Element {
   const router = useRouter()
   const insets = useSafeAreaInsets()
+  useTerminalStream()
   const session = useTerminalStore((state) =>
     state.sessions.find((candidate) => candidate.id === sessionId),
   )

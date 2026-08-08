@@ -49,7 +49,7 @@ const porcelain: PorcelainBridge = {
   },
   // True only under the Playwright e2e harness (PORCELAIN_E2E). The terminal registry
   // reads this to install a buffer-scraping test hook the WebGL renderer otherwise
-  // makes impossible (the canvas never fills `.xterm-rows`). Never set in real runs.
+  // makes impossible (the canvas never fills `.Ghostty-rows`). Never set in real runs.
   e2e: process.env.PORCELAIN_E2E === '1',
   // The desktop OS the shell runs on — drives Ctrl-primary + Linux labels + the
   // opaque fallback surface in the renderer (lib/platform.ts `isLinuxShell`).

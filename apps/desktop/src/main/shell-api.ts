@@ -411,14 +411,23 @@ export const shellRouter = t.router({
     shell.showItemInFolder(input)
   }),
 
-  // Electron's own clipboard, not the web Clipboard API: the terminal pane's paste-image
-  // chord (Cmd/Ctrl+Shift+V) needs this to work regardless of secure-context, and it's the
-  // more reliable of the two on desktop. A mutation, not a query — TanStack caches a
-  // query's result, which would replay the FIRST screenshot on every later paste.
-  readClipboardImage: t.procedure.mutation(() => {
+  // Electron's own clipboard, not the web Clipboard API: terminal paste must work when
+  // the PTY is on a remote Linux host with no GUI clipboard at all. A mutation, not a
+  // query — TanStack caches a query's result, which would replay stale clipboard contents.
+  readTerminalClipboard: t.procedure.mutation(() => {
     const image = clipboard.readImage()
-    if (image.isEmpty()) return null
-    return { dataBase64: image.toPNG().toString('base64'), mime: 'image/png' as const }
+    return {
+      text: clipboard.readText(),
+      image: image.isEmpty()
+        ? null
+        : { dataBase64: image.toPNG().toString('base64'), mime: 'image/png' as const },
+    }
+  }),
+
+  // Deliberately stays in the shell router: Electron reliably writes the macOS system
+  // clipboard even when the renderer's browser Clipboard API is unavailable or denied.
+  writeTerminalClipboardText: t.procedure.input(z.string()).mutation(({ input }) => {
+    clipboard.writeText(input)
   }),
 
   updateStatus: t.procedure.query((): UpdateStatus => updateStatus()),

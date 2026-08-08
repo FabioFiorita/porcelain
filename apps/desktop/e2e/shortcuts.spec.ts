@@ -6,7 +6,7 @@ import { expect, expectTerminalText, loc, selectTab, test, waitForShell } from '
 test('⌘T spawns a terminal from any tab', async ({ page }) => {
   await waitForShell(page)
   await page.keyboard.press('Meta+t')
-  await expect(page.locator('.xterm-helper-textarea').first()).toBeVisible({ timeout: 15_000 })
+  await expect(page.locator('.porcelain-ghostty-input').first()).toBeVisible({ timeout: 15_000 })
   await expect(loc.viewerTab(page, 'Terminal 1')).toBeVisible()
 })
 
@@ -15,9 +15,12 @@ test('⌘N spawns a terminal on the Terminal tab, ⌘K clears it', async ({ page
   await selectTab(page, 'Terminal')
   await page.keyboard.press('Meta+n')
 
-  const input = page.locator('.xterm-helper-textarea').first()
+  const input = page.locator('.porcelain-ghostty-input').first()
   await input.waitFor()
   await input.focus()
+  // Ghostty mounts before the daemon's initial scrollback/prompt arrives. The old xterm host
+  // happened to be synchronous here; wait for the real shell before typing through a shortcut.
+  await expectTerminalText(page, 0, '$')
   await page.keyboard.type('echo CLEAR_$((6*7))')
   await page.keyboard.press('Enter')
   await expectTerminalText(page, 0, 'CLEAR_42')

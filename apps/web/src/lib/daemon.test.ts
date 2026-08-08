@@ -1,4 +1,8 @@
-import { type ClientMessage, clientMessageSchema } from '@porcelain/contracts'
+import {
+  type ClientMessage,
+  clientMessageSchema,
+  MAX_TERMINAL_WRITE_CODE_UNITS,
+} from '@porcelain/contracts'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**
@@ -142,6 +146,21 @@ describe('daemon WS client', () => {
     expect(kinds).not.toContain('terminal:write')
     expect(kinds).not.toContain('terminal:kill')
     expect(ws.sent).toEqual([]) // nothing flushed at all (no watch sets, no outbox)
+  })
+
+  it('chunks ordinary terminal writes at the shared bounded-frame limit', () => {
+    daemon.onDaemonEvent(() => {})
+    const ws = latest()
+    ws.open()
+
+    daemon.writeTerminal('id', 'x'.repeat(MAX_TERMINAL_WRITE_CODE_UNITS + 1))
+
+    const writes = sentMessages(ws).filter((frame) => frame.t === 'terminal:write')
+    expect(writes).toHaveLength(2)
+    expect(writes).toEqual([
+      expect.objectContaining({ data: 'x'.repeat(MAX_TERMINAL_WRITE_CODE_UNITS) }),
+      expect.objectContaining({ data: 'x' }),
+    ])
   })
 
   it('ignores invalid inbound frames; the socket survives to settle a later valid reply', async () => {
@@ -353,5 +372,27 @@ describe('daemon WS client', () => {
     const rejects = expect(pasted).rejects.toThrow(/daemon connection dropped/)
     ws.drop()
     await rejects
+  })
+
+  it('sends a generic file upload without a daemon-local path and settles its reply', async () => {
+    const pasted = daemon.pasteFileToTerminal('t1', 'notes.txt', 'text/plain', 'YWJj')
+    const ws = latest()
+    ws.open()
+
+    const frame = sentMessages(ws).find((message) => message.t === 'terminal:paste-file')
+    if (frame?.t !== 'terminal:paste-file') throw new Error('expected a file upload frame')
+    expect(frame).toMatchObject({ filename: 'notes.txt', id: 't1', mime: 'text/plain' })
+
+    ws.receive({
+      t: 'terminal:file-pasted',
+      reqId: frame.reqId,
+      id: 't1',
+      result: 'ok',
+      path: '/daemon/terminal-pastes/notes.txt',
+    })
+    await expect(pasted).resolves.toEqual({
+      result: 'ok',
+      path: '/daemon/terminal-pastes/notes.txt',
+    })
   })
 })
