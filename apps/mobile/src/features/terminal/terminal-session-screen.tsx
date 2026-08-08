@@ -41,7 +41,7 @@ export function TerminalSessionScreen({ sessionId }: { sessionId: string }): Rea
         <ScreenHeader
           actions={
             session?.status === 'exited' ? (
-              <Text className="px-2 text-[10px] uppercase tracking-widest text-muted-foreground">
+              <Text className="px-2 text-3xs uppercase tracking-widest text-muted-foreground">
                 exited
               </Text>
             ) : (

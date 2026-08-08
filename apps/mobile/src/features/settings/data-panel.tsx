@@ -127,7 +127,7 @@ function CompanionDataEditor({ repoPath }: { repoPath: string }): React.JSX.Elem
   return (
     <View className="gap-4" testID="porcelain-settings-data">
       <View className="gap-1">
-        <Text className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+        <Text className="text-3xs font-semibold uppercase tracking-widest text-muted-foreground">
           What git carries
         </Text>
         <Text className="text-xs leading-5 text-muted-foreground">

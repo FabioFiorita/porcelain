@@ -66,7 +66,7 @@ function SourceLineImpl({
         ctx.onExtendToLine(row.line)
       }}
     >
-      <Text className="w-9 shrink-0 text-right font-mono text-[10px] leading-4 text-muted-foreground/60">
+      <Text className="w-9 shrink-0 text-right font-mono text-3xs leading-4 text-muted-foreground/60">
         {row.line}
       </Text>
       {commented ? <View className="mt-1 size-1.5 shrink-0 rounded-full bg-info" /> : null}
@@ -86,7 +86,7 @@ function LineText({
   text: string
   tokens: ThemedToken[] | undefined
 }): React.JSX.Element {
-  const base = 'min-w-0 flex-1 font-mono text-[11px] leading-4 text-foreground'
+  const base = 'min-w-0 flex-1 font-mono text-2xs leading-4 text-foreground'
   if (tokens === undefined || tokens.length === 0) {
     // An empty line still needs a glyph or the row collapses to zero height.
     return <Text className={base}>{text === '' ? ' ' : text}</Text>

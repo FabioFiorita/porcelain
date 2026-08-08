@@ -41,7 +41,7 @@ export type DiffLineContext = {
 
 function LineNumber({ value }: { value: number | null }): React.JSX.Element {
   return (
-    <Text className="w-9 shrink-0 text-right font-mono text-[10px] leading-4 text-muted-foreground/60">
+    <Text className="w-9 shrink-0 text-right font-mono text-3xs leading-4 text-muted-foreground/60">
       {value ?? ''}
     </Text>
   )
@@ -64,7 +64,7 @@ function LineText({
   line: DiffLine
   tokens: ThemedToken[] | undefined
 }): React.JSX.Element {
-  const base = 'min-w-0 flex-1 font-mono text-[11px] leading-4 text-foreground'
+  const base = 'min-w-0 flex-1 font-mono text-2xs leading-4 text-foreground'
   const hasTokens = tokens !== undefined && tokens.length > 0
   const hasEmphasis = emphasis !== undefined && emphasis.length > 0
   if (!hasTokens && !hasEmphasis) {
@@ -188,7 +188,7 @@ function DiffRowViewImpl({ ctx, row }: { ctx: DiffLineContext; row: DiffRow }): 
   if (row.kind === 'header') {
     return (
       <View className="bg-muted/50 px-2 py-0.5">
-        <Text className="font-mono text-[10px] leading-4 text-muted-foreground" numberOfLines={1}>
+        <Text className="font-mono text-3xs leading-4 text-muted-foreground" numberOfLines={1}>
           {row.text}
         </Text>
       </View>

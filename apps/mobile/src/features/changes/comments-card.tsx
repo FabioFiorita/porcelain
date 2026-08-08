@@ -46,7 +46,7 @@ export function CommentsCard({ active }: { active: boolean }): React.JSX.Element
       </View>
 
       {comments.length === 0 ? (
-        <Text className="text-[11px] leading-4 text-muted-foreground">
+        <Text className="text-2xs leading-4 text-muted-foreground">
           Long-press a line in a diff to select it, tap more lines to extend the range, then
           Comment. Long-press a file in the list to comment on the whole file. Your agent reads them
           as review context.
@@ -118,10 +118,7 @@ function CommentRow({
       testID={`porcelain-changes-comment-${comment.id}`}
     >
       <View className="flex-row items-center gap-1">
-        <Text
-          className="min-w-0 flex-1 font-mono text-[11px] text-muted-foreground"
-          numberOfLines={1}
-        >
+        <Text className="min-w-0 flex-1 font-mono text-2xs text-muted-foreground" numberOfLines={1}>
           {anchorLabel(comment)}
         </Text>
         <IconAction

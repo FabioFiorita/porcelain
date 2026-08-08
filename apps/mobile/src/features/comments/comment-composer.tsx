@@ -105,7 +105,7 @@ export function CommentComposer({
       <View className="gap-3" testID={`${testIDPrefix}-composer`}>
         {target?.anchorText === undefined ? null : (
           <View className="max-h-28 overflow-hidden rounded-md bg-muted px-2.5 py-2">
-            <Text className="font-mono text-[11px] leading-4 text-muted-foreground">
+            <Text className="font-mono text-2xs leading-4 text-muted-foreground">
               {target.anchorText}
             </Text>
           </View>

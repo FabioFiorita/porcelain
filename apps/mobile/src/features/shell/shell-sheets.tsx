@@ -351,7 +351,7 @@ function CommandGroup({
 }): React.JSX.Element {
   return (
     <View className="gap-0.5 px-1 py-1">
-      <Text className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+      <Text className="px-3 py-1.5 text-3xs font-semibold uppercase tracking-widest text-muted-foreground">
         {heading}
       </Text>
       {children}

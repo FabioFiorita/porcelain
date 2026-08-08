@@ -69,9 +69,9 @@ function CommitRowImpl({
         <Text className="text-[13px] font-medium text-foreground" numberOfLines={2}>
           {commit.subject}
         </Text>
-        <Text className="text-[11px] text-muted-foreground" numberOfLines={1}>
+        <Text className="text-2xs text-muted-foreground" numberOfLines={1}>
           {commit.author} · {commit.date} ·{' '}
-          <Text className="font-mono text-[11px] text-muted-foreground">{abbreviated}</Text>
+          <Text className="font-mono text-2xs text-muted-foreground">{abbreviated}</Text>
         </Text>
       </Pressable>
 

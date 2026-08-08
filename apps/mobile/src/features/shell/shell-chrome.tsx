@@ -120,7 +120,7 @@ export function TabletHeader(_props: { platformLabel: string }): React.JSX.Eleme
             testID="porcelain-tablet-companion"
           />
           <View className="h-10 shrink-0 justify-center rounded-xl border border-border bg-card px-3">
-            <Text className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+            <Text className="text-3xs font-semibold uppercase tracking-widest text-muted-foreground">
               Environment
             </Text>
             <Text className="text-sm font-medium text-foreground" numberOfLines={1}>
@@ -155,7 +155,7 @@ function HeaderChip({
       onPress={onPress}
     >
       <View className="gap-0.5">
-        <Text className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+        <Text className="text-3xs font-semibold uppercase tracking-widest text-muted-foreground">
           {subtitle}
         </Text>
         <Text className="text-sm font-medium text-foreground" numberOfLines={1}>
@@ -371,7 +371,7 @@ export function SupplementaryColumn({
     >
       <View className="flex-1 gap-4 pb-5 pl-3 pr-3 pt-5">
         <View className={cn('gap-1', primaryCollapsed ? 'pl-12 pr-1' : 'px-1')}>
-          <Text className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+          <Text className="text-3xs font-semibold uppercase tracking-widest text-muted-foreground">
             Supplementary
           </Text>
           <Text className="text-xl font-bold text-foreground">{surface.listTitle}</Text>
@@ -557,7 +557,7 @@ function MockViewerCanvas({ surfaceId }: { surfaceId: SurfaceId }): React.JSX.El
       showsVerticalScrollIndicator={false}
     >
       <View className="gap-2">
-        <Text className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+        <Text className="text-3xs font-semibold uppercase tracking-widest text-muted-foreground">
           Viewer · {surface.label}
         </Text>
         <Text className="text-3xl font-extrabold tracking-tight text-foreground">

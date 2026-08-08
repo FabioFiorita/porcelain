@@ -152,10 +152,10 @@ function FileRowImpl({
               {name}
             </Text>
             {file.additions === undefined ? null : (
-              <Text className="shrink-0 font-mono text-[10px] text-success">+{file.additions}</Text>
+              <Text className="shrink-0 font-mono text-3xs text-success">+{file.additions}</Text>
             )}
             {file.deletions === undefined ? null : (
-              <Text className="shrink-0 font-mono text-[10px] text-destructive">
+              <Text className="shrink-0 font-mono text-3xs text-destructive">
                 −{file.deletions}
               </Text>
             )}
@@ -163,7 +163,7 @@ function FileRowImpl({
           {directory === '' ? null : (
             // Head-truncated: the tail of a path is what identifies it, the repo root never is.
             <Text
-              className="font-mono text-[11px] text-muted-foreground"
+              className="font-mono text-2xs text-muted-foreground"
               ellipsizeMode="head"
               numberOfLines={1}
             >
@@ -171,7 +171,7 @@ function FileRowImpl({
             </Text>
           )}
           {connects === '' ? null : (
-            <Text className="font-mono text-[11px] text-muted-foreground/70" numberOfLines={1}>
+            <Text className="font-mono text-2xs text-muted-foreground/70" numberOfLines={1}>
               → {connects}
             </Text>
           )}

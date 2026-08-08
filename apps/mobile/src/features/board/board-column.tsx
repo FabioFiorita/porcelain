@@ -55,7 +55,7 @@ export function BoardColumn({
   const rows =
     inColumn.length === 0 ? (
       <Text
-        className="px-1 py-3 text-[11px] text-muted-foreground"
+        className="px-1 py-3 text-2xs text-muted-foreground"
         testID={`${testIDPrefix}-column-empty-${status}`}
       >
         No cards yet

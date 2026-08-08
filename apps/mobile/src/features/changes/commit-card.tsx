@@ -145,7 +145,7 @@ export function CommitCard({ active }: { active: boolean }): React.JSX.Element {
     <View className="gap-2" testID="porcelain-changes-commit">
       <PanelLabel>Commit</PanelLabel>
       {treeClean ? (
-        <Text className="text-[11px] text-muted-foreground">
+        <Text className="text-2xs text-muted-foreground">
           Working tree clean — nothing to stage or commit.
         </Text>
       ) : null}
@@ -270,7 +270,7 @@ export function CommitCard({ active }: { active: boolean }): React.JSX.Element {
             <ChromeGlyph name="layers" size={14} tone="foreground" />
             <UiText>{isGenerating ? 'Generating…' : 'Generate Group Commit'}</UiText>
           </Button>
-          <Text className="text-[11px] leading-4 text-muted-foreground">
+          <Text className="text-2xs leading-4 text-muted-foreground">
             {hasStaged
               ? 'Message is written from the staged diff.'
               : 'Groups split the unstaged diff into separate commits — stage one to write its message.'}
@@ -286,7 +286,7 @@ export function CommitCard({ active }: { active: boolean }): React.JSX.Element {
                 className="gap-1 rounded-xl border border-border p-2.5"
               >
                 <Text className="text-xs font-medium text-foreground">{group.message}</Text>
-                <Text className="font-mono text-[10px] leading-4 text-muted-foreground">
+                <Text className="font-mono text-3xs leading-4 text-muted-foreground">
                   {group.files.join(', ')}
                 </Text>
                 <Button

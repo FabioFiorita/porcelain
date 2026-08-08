@@ -141,14 +141,14 @@ function EvidenceHeader({ meta }: { meta: EvidenceMeta }): React.JSX.Element {
         <Text className="text-xs font-semibold text-foreground" numberOfLines={2}>
           {meta.title}
         </Text>
-        <Text className="text-[10px] text-muted-foreground" numberOfLines={1}>
+        <Text className="text-3xs text-muted-foreground" numberOfLines={1}>
           Updated {formatUpdatedAt(meta.updatedAt)}
         </Text>
       </View>
       {meta.checks.length === 0 ? null : (
         <Text
           className={cn(
-            'font-mono text-[11px] font-semibold',
+            'font-mono text-2xs font-semibold',
             failed > 0 ? 'text-destructive' : 'text-success',
           )}
           testID="porcelain-review-evidence-summary"
@@ -192,11 +192,9 @@ function CheckRow({ check }: { check: EvidenceCheck }): React.JSX.Element {
         <ChromeGlyph name={face.glyph} size={13} tone={face.tone} />
       </View>
       <View className="min-w-0 flex-1">
-        <Text className="text-[11px] leading-4 text-foreground">{check.label}</Text>
+        <Text className="text-2xs leading-4 text-foreground">{check.label}</Text>
         {check.detail === undefined ? null : (
-          <Text className="font-mono text-[10px] leading-4 text-muted-foreground">
-            {check.detail}
-          </Text>
+          <Text className="font-mono text-3xs leading-4 text-muted-foreground">{check.detail}</Text>
         )}
       </View>
     </View>

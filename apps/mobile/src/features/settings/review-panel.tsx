@@ -209,7 +209,7 @@ function ReviewLayersEditor({ repoPath }: { repoPath: string }): React.JSX.Eleme
       />
 
       <View className="gap-2">
-        <Text className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+        <Text className="text-3xs font-semibold uppercase tracking-widest text-muted-foreground">
           Layers
         </Text>
         {draft.map((layer, index) => (
@@ -289,7 +289,7 @@ function PatternBuilder({
       className="gap-2.5 rounded-xl border border-border bg-muted/40 p-3"
       testID="porcelain-settings-pattern-builder"
     >
-      <Text className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+      <Text className="text-3xs font-semibold uppercase tracking-widest text-muted-foreground">
         Pattern builder
       </Text>
       <View className="gap-1.5">
@@ -341,7 +341,7 @@ function PatternBuilder({
             </Text>
           ) : (
             <>
-              <Text className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+              <Text className="text-3xs font-semibold uppercase tracking-widest text-muted-foreground">
                 Matches {matches.length} changed {matches.length === 1 ? 'file' : 'files'}
               </Text>
               {matches.slice(0, EXAMPLE_LIMIT).map((path) => (

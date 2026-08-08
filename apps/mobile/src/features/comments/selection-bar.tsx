@@ -40,7 +40,7 @@ export function SelectionBar({
         <Text className="text-xs font-semibold text-foreground" numberOfLines={1}>
           {describeRange(range)}
         </Text>
-        <Text className="font-mono text-[10px] text-muted-foreground" numberOfLines={1}>
+        <Text className="font-mono text-3xs text-muted-foreground" numberOfLines={1}>
           {fileName(path)} · tap another line to extend
         </Text>
       </View>

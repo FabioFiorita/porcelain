@@ -130,7 +130,7 @@ function PhoneSurfaceBody({ surfaceId }: { surfaceId: SurfaceId }): React.JSX.El
         ) : null}
 
         <View className="gap-1">
-          <Text className="px-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+          <Text className="px-1 text-3xs font-semibold uppercase tracking-widest text-muted-foreground">
             {surface.listTitle}
           </Text>
           {filtered.map((item) => (
@@ -153,7 +153,7 @@ function PhoneSurfaceBody({ surfaceId }: { surfaceId: SurfaceId }): React.JSX.El
         <Separator />
 
         <View className="gap-2 rounded-2xl border border-dashed border-border bg-muted/30 p-4">
-          <Text className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+          <Text className="text-3xs font-semibold uppercase tracking-widest text-muted-foreground">
             Viewer · {surface.label}
           </Text>
           <Text className="text-lg font-bold text-foreground">
@@ -173,7 +173,7 @@ function PhoneSurfaceBody({ surfaceId }: { surfaceId: SurfaceId }): React.JSX.El
         </View>
 
         <View className="gap-2 rounded-2xl border border-border bg-card p-4">
-          <Text className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+          <Text className="text-3xs font-semibold uppercase tracking-widest text-muted-foreground">
             Companion preview
           </Text>
           {COMPANION[surfaceId].slice(0, 1).map((section) => (

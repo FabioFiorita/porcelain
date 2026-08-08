@@ -41,7 +41,7 @@ export function CardRow({
         {card.title}
       </Text>
       {body === '' ? null : (
-        <Text className="text-[11px] leading-4 text-muted-foreground" numberOfLines={2}>
+        <Text className="text-2xs leading-4 text-muted-foreground" numberOfLines={2}>
           {body}
         </Text>
       )}

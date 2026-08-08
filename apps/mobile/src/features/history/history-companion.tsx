@@ -60,7 +60,7 @@ function CommitCard({ active }: { active: boolean }): React.JSX.Element {
           <Text className="text-sm font-medium leading-5 text-foreground" numberOfLines={3}>
             {commitTitle(message, hash)}
           </Text>
-          <Text className="font-mono text-[11px] text-muted-foreground">
+          <Text className="font-mono text-2xs text-muted-foreground">
             {row === undefined
               ? shortHash(hash)
               : `${row.author} · ${row.date} · ${shortHash(hash)}`}
@@ -118,7 +118,7 @@ function FileTimelineCard({ active }: { active: boolean }): React.JSX.Element {
         </Text>
       ) : (
         <>
-          <Text className="font-mono text-[11px] text-muted-foreground" numberOfLines={1}>
+          <Text className="font-mono text-2xs text-muted-foreground" numberOfLines={1}>
             {fileName(path)}
           </Text>
           {commits === undefined ? (
@@ -173,7 +173,7 @@ function TimelineRow({
         <Text className="text-[13px] text-foreground" numberOfLines={1}>
           {commit.subject}
         </Text>
-        <Text className="text-[11px] text-muted-foreground" numberOfLines={1}>
+        <Text className="text-2xs text-muted-foreground" numberOfLines={1}>
           {commit.author} · {commit.date} · {shortHash(commit.hash)}
         </Text>
       </View>

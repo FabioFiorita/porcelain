@@ -130,7 +130,7 @@ function ActionRow({
         <Text className="text-sm font-medium text-foreground" numberOfLines={1}>
           {action.title}
         </Text>
-        <Text className="font-mono text-[11px] text-muted-foreground" numberOfLines={1}>
+        <Text className="font-mono text-2xs text-muted-foreground" numberOfLines={1}>
           {action.command}
         </Text>
       </View>

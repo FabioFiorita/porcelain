@@ -24,7 +24,7 @@ export function PanelLabel({
   return (
     <Text
       className={cn(
-        'text-[10px] font-semibold uppercase tracking-widest text-muted-foreground',
+        'text-3xs font-semibold uppercase tracking-widest text-muted-foreground',
         className,
       )}
     >
@@ -126,7 +126,7 @@ export function ScreenHeader({
         </Text>
         {subtitle === undefined ? null : (
           <Text
-            className="font-mono text-[10px] text-muted-foreground"
+            className="font-mono text-3xs text-muted-foreground"
             ellipsizeMode={subtitleFromEnd ? 'head' : 'tail'}
             numberOfLines={1}
           >
@@ -156,10 +156,7 @@ export function StatusNote({
 }): React.JSX.Element {
   return (
     <Text
-      className={cn(
-        'font-mono text-[11px] leading-4',
-        failed ? 'text-destructive' : 'text-success',
-      )}
+      className={cn('font-mono text-2xs leading-4', failed ? 'text-destructive' : 'text-success')}
       testID={testID}
     >
       {text}

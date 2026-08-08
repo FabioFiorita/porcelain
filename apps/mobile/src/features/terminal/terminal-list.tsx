@@ -252,7 +252,7 @@ function TerminalRow({
         {session.name}
       </Text>
       {exited ? (
-        <Text className="text-[10px] uppercase tracking-widest text-muted-foreground">exited</Text>
+        <Text className="text-3xs uppercase tracking-widest text-muted-foreground">exited</Text>
       ) : (
         <View className="size-2 rounded-full bg-success" />
       )}

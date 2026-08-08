@@ -270,7 +270,7 @@ function ReadingRowView({
             {fileName(file.path)}
           </Text>
           <Text
-            className="font-mono text-[10px] text-muted-foreground"
+            className="font-mono text-3xs text-muted-foreground"
             ellipsizeMode="head"
             numberOfLines={1}
           >
@@ -278,10 +278,10 @@ function ReadingRowView({
           </Text>
         </View>
         {file.additions === undefined ? null : (
-          <Text className="font-mono text-[10px] text-success">+{file.additions}</Text>
+          <Text className="font-mono text-3xs text-success">+{file.additions}</Text>
         )}
         {file.deletions === undefined ? null : (
-          <Text className="font-mono text-[10px] text-destructive">−{file.deletions}</Text>
+          <Text className="font-mono text-3xs text-destructive">−{file.deletions}</Text>
         )}
         {reviewable ? (
           <IconAction
@@ -300,7 +300,7 @@ function ReadingRowView({
   }
   if (row.kind === 'no-diff') {
     return (
-      <Text className="px-3 py-2 font-mono text-[11px] text-muted-foreground">No line changes</Text>
+      <Text className="px-3 py-2 font-mono text-2xs text-muted-foreground">No line changes</Text>
     )
   }
   return (

@@ -6,15 +6,35 @@ const mobileSourceRoot = path.resolve('apps/mobile/src')
 const styleAttributes = new Set(['style', 'contentContainerStyle'])
 const violations = []
 
+/** The two arbitrary font sizes that had grown into a second type scale, and their tokens. */
+const tokenisedFontSizes = new Map([
+  ['text-[10px]', 'text-3xs'],
+  ['text-[11px]', 'text-2xs'],
+])
+
 function walk(directory) {
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
     const entryPath = path.join(directory, entry.name)
     if (entry.isDirectory()) {
       walk(entryPath)
-    } else if (entry.isFile() && entry.name.endsWith('.tsx')) {
-      inspectFile(entryPath)
+    } else if (entry.isFile() && (entry.name.endsWith('.tsx') || entry.name.endsWith('.ts'))) {
+      inspectFontSizes(entryPath)
+      if (entry.name.endsWith('.tsx')) inspectFile(entryPath)
     }
   }
+}
+
+function inspectFontSizes(filePath) {
+  const lines = readFileSync(filePath, 'utf8').split('\n')
+  lines.forEach((line, index) => {
+    for (const [literal, token] of tokenisedFontSizes) {
+      if (!line.includes(literal)) continue
+      const relativePath = path.relative(process.cwd(), filePath)
+      violations.push(
+        `${relativePath}:${index + 1} ${literal} is a named rung — use ${token} (apps/mobile/src/global.css)`,
+      )
+    }
+  })
 }
 
 function inspectFile(filePath) {
@@ -109,7 +129,9 @@ if (!statSync(mobileSourceRoot).isDirectory()) {
 walk(mobileSourceRoot)
 
 if (violations.length > 0) {
-  console.error('mobile NativeWind guard: use className for static layout styling.')
+  console.error(
+    'mobile NativeWind guard: use className for static layout styling, and named rungs for type.',
+  )
   for (const violation of violations) console.error(`  ${violation}`)
   console.error(
     'If a native/runtime exception is intentional, add a nearby nativewind-allow-style comment with its reason.',

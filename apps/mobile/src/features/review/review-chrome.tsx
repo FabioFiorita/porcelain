@@ -46,7 +46,7 @@ export function SourceCounts({
       {(['changed', 'context', 'shipped'] as const).map((source) => (
         <View key={source} className="flex-row items-center gap-1.5">
           <SourceMarker source={source} />
-          <Text className="text-[10px] text-muted-foreground">
+          <Text className="text-3xs text-muted-foreground">
             {counts[source]} {SOURCE_LABEL[source]}
           </Text>
         </View>
@@ -120,9 +120,7 @@ export function DocTabs({
           >
             <UiText className="text-xs">{tab.label}</UiText>
             {tab.count === undefined ? null : (
-              <UiText className="text-[10px] tabular-nums text-muted-foreground">
-                {tab.count}
-              </UiText>
+              <UiText className="text-3xs tabular-nums text-muted-foreground">{tab.count}</UiText>
             )}
           </Button>
         )
@@ -148,8 +146,8 @@ export function FileNote({ note, testID }: { note: string; testID: string }): Re
 export function GapRow({ lines }: { lines: number }): React.JSX.Element {
   return (
     <View className="flex-row items-center gap-2 bg-muted/40 px-2 py-1">
-      <Text className="font-mono text-[10px] leading-4 text-muted-foreground">⋯</Text>
-      <Text className="font-mono text-[10px] leading-4 text-muted-foreground">
+      <Text className="font-mono text-3xs leading-4 text-muted-foreground">⋯</Text>
+      <Text className="font-mono text-3xs leading-4 text-muted-foreground">
         {lines} {lines === 1 ? 'line' : 'lines'} not shown
       </Text>
     </View>

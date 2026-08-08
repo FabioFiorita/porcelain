@@ -83,7 +83,7 @@ export function ReviewCanvas({ active }: { active: boolean }): React.JSX.Element
           {total === 0 ? null : (
             <Text
               className={cn(
-                'text-[10px]',
+                'text-3xs',
                 reviewedCount === total ? 'text-success' : 'text-muted-foreground',
               )}
               testID="porcelain-review-reviewed-fraction"

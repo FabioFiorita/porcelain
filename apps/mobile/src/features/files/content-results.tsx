@@ -97,7 +97,7 @@ function FileGroup({
               </Text>
               {directory === '' ? null : (
                 <Text
-                  className="font-mono text-[11px] text-muted-foreground"
+                  className="font-mono text-2xs text-muted-foreground"
                   ellipsizeMode="head"
                   numberOfLines={1}
                 >
@@ -105,7 +105,7 @@ function FileGroup({
                 </Text>
               )}
             </View>
-            <Text className="font-mono text-[11px] tabular-nums text-muted-foreground">
+            <Text className="font-mono text-2xs tabular-nums text-muted-foreground">
               {file.matchCount}
             </Text>
           </Pressable>
@@ -173,7 +173,7 @@ function ResultLine({
         onOpen(path, line.line)
       }}
     >
-      <Text className="w-9 shrink-0 text-right font-mono text-[10px] leading-4 tabular-nums text-muted-foreground/60">
+      <Text className="w-9 shrink-0 text-right font-mono text-3xs leading-4 tabular-nums text-muted-foreground/60">
         {line.line}
       </Text>
       <HighlightedText
@@ -207,7 +207,7 @@ function HighlightedText({
   text: string
 }): React.JSX.Element {
   const base = cn(
-    'min-w-0 flex-1 font-mono text-[11px] leading-4',
+    'min-w-0 flex-1 font-mono text-2xs leading-4',
     match ? 'text-foreground' : 'text-muted-foreground',
   )
   const spans = match ? matchSpans(text, query, regex, caseSensitive) : []

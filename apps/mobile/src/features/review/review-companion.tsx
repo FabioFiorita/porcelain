@@ -67,7 +67,7 @@ function StartUnitCard(): React.JSX.Element {
     <View className="gap-2" testID="porcelain-review-companion-start">
       <PanelLabel>Review</PanelLabel>
       <View className="gap-2 rounded-2xl border border-dashed border-border bg-muted/30 p-3">
-        <Text className="text-[11px] leading-4 text-muted-foreground">
+        <Text className="text-2xs leading-4 text-muted-foreground">
           No active unit. Ask your agent to start one — it publishes Intent first (name + thesis),
           then grows Execution and Evidence. Archive a finished unit and it stays in Previous
           reviews.
@@ -122,10 +122,7 @@ function ReviewCurrentCard({
           {reading.name}
         </Text>
         {total === 0 && openComments === 0 ? null : (
-          <Text
-            className="text-[11px] text-muted-foreground"
-            testID="porcelain-review-current-meta"
-          >
+          <Text className="text-2xs text-muted-foreground" testID="porcelain-review-current-meta">
             {total === 0 ? '' : `${reviewedCount}/${total} reviewed`}
             {total === 0 || openComments === 0 ? '' : ' · '}
             {openComments === 0
@@ -150,7 +147,7 @@ function ReviewCurrentCard({
       </Button>
       {published === null ? null : (
         <Text
-          className="font-mono text-[10px] leading-4 text-muted-foreground"
+          className="font-mono text-3xs leading-4 text-muted-foreground"
           testID="porcelain-review-published"
         >
           Staged .porcelain/reviews/{published} — commit it in Changes to share.
@@ -300,11 +297,11 @@ function PreviousReviewsCard({ active }: { active: boolean }): React.JSX.Element
               <Text className="text-xs font-medium text-foreground" numberOfLines={1}>
                 {row.name}
               </Text>
-              <Text className="text-[10px] text-muted-foreground">
+              <Text className="text-3xs text-muted-foreground">
                 {formatArchivedAt(row.archivedAt)}
               </Text>
               {row.thesis === undefined ? null : (
-                <Text className="text-[11px] leading-4 text-muted-foreground" numberOfLines={2}>
+                <Text className="text-2xs leading-4 text-muted-foreground" numberOfLines={2}>
                   {row.thesis}
                 </Text>
               )}

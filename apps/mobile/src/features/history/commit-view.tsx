@@ -158,11 +158,11 @@ function CommitMessageCard({
         {message === undefined ? '…' : subject === '' ? shortHash(hash) : subject}
       </Text>
       {body === '' ? null : (
-        <Text className="font-mono text-[11px] leading-4 text-muted-foreground" selectable>
+        <Text className="font-mono text-2xs leading-4 text-muted-foreground" selectable>
           {body}
         </Text>
       )}
-      <Text className="font-mono text-[10px] text-muted-foreground/70" selectable>
+      <Text className="font-mono text-3xs text-muted-foreground/70" selectable>
         {hash}
       </Text>
     </View>

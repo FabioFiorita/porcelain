@@ -113,7 +113,7 @@ export function WorkspaceCreateForm({
   return (
     <View className="gap-4" testID={testID}>
       <View className="gap-1">
-        <Text className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+        <Text className="text-3xs font-semibold uppercase tracking-widest text-muted-foreground">
           Branches from
         </Text>
         <Text
@@ -142,7 +142,7 @@ export function WorkspaceCreateForm({
 
       {destination !== null ? (
         <View className="gap-1">
-          <Text className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+          <Text className="text-3xs font-semibold uppercase tracking-widest text-muted-foreground">
             Worktree folder
           </Text>
           <Text

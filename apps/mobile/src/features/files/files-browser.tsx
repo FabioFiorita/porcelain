@@ -365,7 +365,7 @@ function BrowserHeader({
         )}
         <View className="min-w-0 flex-1">
           <Breadcrumbs crumbs={crumbs} onOpenCrumb={onOpenCrumb} />
-          <Text className="text-[11px] text-muted-foreground" testID="porcelain-files-summary">
+          <Text className="text-2xs text-muted-foreground" testID="porcelain-files-summary">
             {summary}
           </Text>
         </View>

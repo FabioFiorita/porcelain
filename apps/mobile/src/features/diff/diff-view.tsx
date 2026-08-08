@@ -273,7 +273,7 @@ function DiffBody({
           resizeMode="contain"
           source={{ uri: image.dataUrl }}
         />
-        <Text className="text-[11px] text-muted-foreground">
+        <Text className="text-2xs text-muted-foreground">
           {status === 'untracked' || status === 'added' ? 'New image' : 'Image changed'} · binary
           diff
         </Text>

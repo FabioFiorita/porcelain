@@ -75,9 +75,9 @@ function PinnedCard({ active }: { active: boolean }): React.JSX.Element {
       <PanelLabel>{entries.length > 0 ? `Pinned · ${entries.length}` : 'Pinned'}</PanelLabel>
 
       {error !== null ? (
-        <Text className="text-[11px] leading-4 text-destructive">{error.message}</Text>
+        <Text className="text-2xs leading-4 text-destructive">{error.message}</Text>
       ) : entries.length === 0 ? (
-        <Text className="text-[11px] leading-4 text-muted-foreground">
+        <Text className="text-2xs leading-4 text-muted-foreground">
           Long-press a file or folder in the tree and pin it. Pins are per repo and shared with the
           desktop app.
         </Text>
@@ -104,7 +104,7 @@ function PinnedCard({ active }: { active: boolean }): React.JSX.Element {
                     {entry.name}
                   </Text>
                   <Text
-                    className="font-mono text-[10px] text-muted-foreground"
+                    className="font-mono text-3xs text-muted-foreground"
                     ellipsizeMode="head"
                     numberOfLines={1}
                   >
@@ -207,11 +207,11 @@ function NotesCard({ active }: { active: boolean }): React.JSX.Element {
     <View className="gap-2" testID="porcelain-files-notes">
       <View className="flex-row items-center justify-between gap-1">
         <PanelLabel>Notes</PanelLabel>
-        {isSaving ? <Text className="text-[10px] text-muted-foreground">Saving…</Text> : null}
+        {isSaving ? <Text className="text-3xs text-muted-foreground">Saving…</Text> : null}
       </View>
 
       {notes === undefined && draft === null ? (
-        <Text className="text-[11px] leading-4 text-muted-foreground">Loading…</Text>
+        <Text className="text-2xs leading-4 text-muted-foreground">Loading…</Text>
       ) : (
         <Textarea
           accessibilityLabel="Repo notes"

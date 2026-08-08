@@ -4,6 +4,22 @@
 @import "nativewind/theme";
 @import "@porcelain/ui/tokens.css";
 
+/*
+ * The two smallest type rungs, pinned to points for the same reason as `--spacing` below.
+ *
+ * `tokens.css` sizes these in `rem` for the browser, where rem is 16. The native runtime rem is
+ * 14, so the shared values would land at 7.9pt and 8.8pt here — unreadably small and fractional.
+ * Mobile therefore re-pins the same two rung names to the sizes the app already draws: the
+ * literals `text-[10px]` and `text-[11px]` that had grown into a second, unnamed type scale.
+ *
+ * No paired `--text-*--line-height`: the arbitrary literals set font size only, and adding a
+ * line height here would move every label that migrated to these tokens.
+ */
+@theme {
+  --text-3xs: 10px;
+  --text-2xs: 11px;
+}
+
 :root {
   --porcelain-font-sans: System;
   --porcelain-font-mono: Menlo;

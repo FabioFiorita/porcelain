@@ -46,7 +46,7 @@ export function SearchCompanion(): React.JSX.Element {
       </PanelLabel>
 
       {recent.length === 0 ? (
-        <Text className="text-[11px] leading-4 text-muted-foreground">
+        <Text className="text-2xs leading-4 text-muted-foreground">
           A search that finds something lands here. Tap one to run it again.
         </Text>
       ) : (

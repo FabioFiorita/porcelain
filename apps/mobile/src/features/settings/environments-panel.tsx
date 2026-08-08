@@ -522,7 +522,7 @@ function GroupDetail({
                     size={18}
                     tone={selected ? 'primary' : 'foreground'}
                   />
-                  <Text className="text-[11px] text-foreground">{option.label}</Text>
+                  <Text className="text-2xs text-foreground">{option.label}</Text>
                 </Pressable>
               )
             })}
@@ -544,7 +544,7 @@ function GroupDetail({
 
       <View className="gap-2">
         <View className="gap-0.5">
-          <Text className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+          <Text className="text-3xs font-semibold uppercase tracking-widest text-muted-foreground">
             Connections
           </Text>
           <Text className="text-xs leading-5 text-muted-foreground">
@@ -647,7 +647,7 @@ function ConnectionRow({
           >
             <Text
               className={cn(
-                'text-[11px] font-semibold',
+                'text-2xs font-semibold',
                 preferred ? 'text-primary-foreground' : 'text-foreground',
               )}
             >
@@ -657,7 +657,7 @@ function ConnectionRow({
           {preferred ? (
             <View className="flex-row items-center gap-1">
               <ChromeGlyph name="star" size={11} tone="primary" />
-              <Text className="text-[11px] font-semibold uppercase tracking-widest text-primary">
+              <Text className="text-2xs font-semibold uppercase tracking-widest text-primary">
                 Primary
               </Text>
             </View>
@@ -672,7 +672,7 @@ function ConnectionRow({
               }}
             >
               <ChromeGlyph name="star" size={10} />
-              <Text className="text-[11px] font-medium text-foreground">Make primary</Text>
+              <Text className="text-2xs font-medium text-foreground">Make primary</Text>
             </Pressable>
           )}
         </View>
@@ -801,7 +801,7 @@ function Field({
 function Meta({ label, value }: { label: string; value: string }): React.JSX.Element {
   return (
     <View className="gap-0.5">
-      <Text className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+      <Text className="text-3xs font-semibold uppercase tracking-widest text-muted-foreground">
         {label}
       </Text>
       <Text className="text-sm text-foreground">{value}</Text>

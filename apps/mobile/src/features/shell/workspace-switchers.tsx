@@ -270,7 +270,7 @@ function DirectoryBrowser({
   return (
     <View className="gap-3" testID="porcelain-project-browser">
       <View className="gap-1">
-        <Text className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+        <Text className="text-3xs font-semibold uppercase tracking-widest text-muted-foreground">
           Daemon folders
         </Text>
         <Text
@@ -331,7 +331,7 @@ function DirectoryBrowser({
               <Text className="min-w-0 flex-1 font-mono text-sm text-foreground" numberOfLines={1}>
                 {entry.name}
               </Text>
-              {entry.isRepo ? <Text className="text-[10px] text-primary">repo</Text> : null}
+              {entry.isRepo ? <Text className="text-3xs text-primary">repo</Text> : null}
             </Pressable>
             {entry.isRepo ? (
               <Button
@@ -848,7 +848,7 @@ function PickerSection({
 }): React.JSX.Element {
   return (
     <View className="gap-1.5">
-      <Text className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+      <Text className="text-3xs font-semibold uppercase tracking-widest text-muted-foreground">
         {title}
       </Text>
       <View className="gap-1">{children}</View>

@@ -81,7 +81,7 @@ export function QuickCommandsCard({ active }: { active: boolean }): React.JSX.El
                   <ChromeGlyph name={running === command ? 'refresh' : 'sparkles'} size={15} />
                   <View className="min-w-0 flex-1">
                     <Text className="font-mono text-xs text-foreground">git {face.label}</Text>
-                    <Text className="text-[11px] text-muted-foreground" numberOfLines={2}>
+                    <Text className="text-2xs text-muted-foreground" numberOfLines={2}>
                       {suggestion.reason}
                     </Text>
                   </View>
@@ -173,7 +173,7 @@ function CommandResultCard({
       <ScrollView className="max-h-44" nestedScrollEnabled>
         <Text
           className={cn(
-            'px-2.5 py-2 font-mono text-[11px] leading-4',
+            'px-2.5 py-2 font-mono text-2xs leading-4',
             result.failed ? 'text-destructive' : 'text-muted-foreground',
           )}
         >

@@ -268,7 +268,7 @@ function ResultSummary({
   truncated: boolean
 }): React.JSX.Element {
   return (
-    <Text className="px-4 pb-1 text-[11px] text-muted-foreground" testID="porcelain-search-summary">
+    <Text className="px-4 pb-1 text-2xs text-muted-foreground" testID="porcelain-search-summary">
       {matches} {matches === 1 ? 'result' : 'results'} in {files} {files === 1 ? 'file' : 'files'}
       {truncated ? ' · capped — narrow the search to see the rest' : ''}
     </Text>
@@ -349,7 +349,7 @@ function SearchRow({
         {directory === '' ? null : (
           // Head-truncated: the tail of a path is what tells two matches apart.
           <Text
-            className="font-mono text-[11px] text-muted-foreground"
+            className="font-mono text-2xs text-muted-foreground"
             ellipsizeMode="head"
             numberOfLines={1}
           >

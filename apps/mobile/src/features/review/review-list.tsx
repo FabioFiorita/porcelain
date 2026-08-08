@@ -75,7 +75,7 @@ export function ReviewList({ active }: { active: boolean }): React.JSX.Element {
         </Text>
         <Text
           className={cn(
-            'text-[11px]',
+            'text-2xs',
             total > 0 && reviewedCount === total ? 'text-success' : 'text-muted-foreground',
           )}
           testID="porcelain-review-list-progress"
@@ -107,7 +107,7 @@ export function ReviewList({ active }: { active: boolean }): React.JSX.Element {
         </View>
         {blocks.length === 0 ? (
           <Text
-            className="px-2 py-2 text-[11px] leading-4 text-muted-foreground"
+            className="px-2 py-2 text-2xs leading-4 text-muted-foreground"
             testID="porcelain-review-outline-no-blocks"
           >
             No files listed yet — the agent adds them with review set --files.
@@ -133,7 +133,7 @@ export function ReviewList({ active }: { active: boolean }): React.JSX.Element {
               <Text className="min-w-0 flex-1 text-[13px] text-foreground" numberOfLines={1}>
                 {block.title}
               </Text>
-              <Text className="shrink-0 font-mono text-[10px] text-muted-foreground">
+              <Text className="shrink-0 font-mono text-3xs text-muted-foreground">
                 {block.fileCount}
               </Text>
               <ChromeGlyph name="chevronRight" size={12} />
@@ -206,7 +206,7 @@ function ChapterRow({
         <Text className="text-[13px] font-medium text-foreground" numberOfLines={1}>
           {label}
         </Text>
-        <Text className="text-[11px] text-muted-foreground" numberOfLines={1}>
+        <Text className="text-2xs text-muted-foreground" numberOfLines={1}>
           {detail}
         </Text>
       </View>

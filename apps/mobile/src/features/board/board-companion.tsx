@@ -114,14 +114,14 @@ function FocusCard({ card }: { card: BoardCard }): React.JSX.Element {
           a card sits in never has to be inferred from the board behind the sheet. */}
       <View className="flex-row items-center gap-1.5">
         <ChromeGlyph name={COLUMN_GLYPH[card.status]} size={12} />
-        <Text className="text-[11px] font-medium text-muted-foreground">
+        <Text className="text-2xs font-medium text-muted-foreground">
           {STATUS_LABEL[card.status]}
         </Text>
       </View>
 
       <Text className="text-sm font-medium leading-5 text-foreground">{card.title}</Text>
       {body === '' ? (
-        <Text className="text-[11px] leading-4 text-muted-foreground">No details</Text>
+        <Text className="text-2xs leading-4 text-muted-foreground">No details</Text>
       ) : (
         <Text className="text-xs leading-5 text-muted-foreground">{body}</Text>
       )}

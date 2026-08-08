@@ -247,7 +247,7 @@ function ExecutionRowView({
     return (
       <View className="flex-row items-baseline gap-2 bg-background px-3 pb-1 pt-4">
         <PanelLabel>{row.title}</PanelLabel>
-        <Text className="text-[10px] text-muted-foreground/70">
+        <Text className="text-3xs text-muted-foreground/70">
           {row.fileCount} {row.fileCount === 1 ? 'file' : 'files'}
         </Text>
       </View>
@@ -276,7 +276,7 @@ function ExecutionRowView({
 
   if (row.kind === 'truncated') {
     return (
-      <Text className="px-3 py-2 font-mono text-[10px] text-muted-foreground">
+      <Text className="px-3 py-2 font-mono text-3xs text-muted-foreground">
         Slice capped — more relevant lines exist in this file.
       </Text>
     )
@@ -285,7 +285,7 @@ function ExecutionRowView({
   if (row.kind === 'empty') {
     return (
       <Text
-        className="px-3 py-2 font-mono text-[11px] text-muted-foreground"
+        className="px-3 py-2 font-mono text-2xs text-muted-foreground"
         testID={pathTestId('porcelain-review-no-body', row.path)}
       >
         {row.file.source === 'changed'
@@ -378,7 +378,7 @@ function FileHeader({
         </Text>
         {/* Head-truncated: the tail of a path identifies it, the repo root never does. */}
         <Text
-          className="font-mono text-[10px] text-muted-foreground"
+          className="font-mono text-3xs text-muted-foreground"
           ellipsizeMode="head"
           numberOfLines={1}
         >
@@ -386,10 +386,10 @@ function FileHeader({
         </Text>
       </View>
       {file.additions === undefined ? null : (
-        <Text className="font-mono text-[10px] text-success">+{file.additions}</Text>
+        <Text className="font-mono text-3xs text-success">+{file.additions}</Text>
       )}
       {file.deletions === undefined ? null : (
-        <Text className="font-mono text-[10px] text-destructive">−{file.deletions}</Text>
+        <Text className="font-mono text-3xs text-destructive">−{file.deletions}</Text>
       )}
       <IconAction
         accessibilityLabel={`${isReviewed ? 'Unmark' : 'Mark'} ${name} reviewed`}
