@@ -116,6 +116,28 @@ describe('surface layout', () => {
     expect(offenders).toEqual([])
   })
 
+  /**
+   * The row-inset ratchet. Files, Changes and History each wrote their own row card — the same
+   * `px-3` string three times, inside a list that already spent the 16pt gutter — so row text sat
+   * 28pt from the bezel under headers sitting at 16pt. Three copies of a spacing decision is how
+   * the three tabs drift apart again; `SURFACE_ROW` is the one place it lives.
+   */
+  it('keeps list rows on the shared row idiom', () => {
+    const rows = ['files/file-entry-row.tsx', 'changes/file-row.tsx', 'history/commit-row.tsx']
+    const offenders: string[] = []
+
+    for (const name of rows) {
+      const source = readFileSync(join(FEATURES, name), 'utf8')
+      if (!source.includes('SURFACE_ROW')) offenders.push(`${name}: no SURFACE_ROW`)
+      // A row that writes its own card is a row that can drift from the other two.
+      if (/rounded-xl border border-transparent px-/.test(source)) {
+        offenders.push(`${name}: hand-written row card`)
+      }
+    }
+
+    expect(offenders).toEqual([])
+  })
+
   it('keeps the spacing scale pinned to points, not rem', () => {
     // Comments stripped first — the declaration's own note names the default it replaces.
     const css = readFileSync(join(__dirname, '..', 'global.css'), 'utf8').replace(

@@ -4,6 +4,7 @@ import { Pressable, Text, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { ActionSheet, ConfirmDialog, type SheetAction } from '@/components/panel-chrome'
+import { SURFACE_ROW, SURFACE_ROW_SELECTED } from '@/components/surface-layout'
 import type { FileStatus, FlowFile } from '@/lib/daemon/procedures/changes'
 import { cn } from '@/lib/utils'
 
@@ -114,8 +115,9 @@ function FileRowImpl({
         accessibilityRole="button"
         accessibilityState={{ selected }}
         className={cn(
-          'min-h-14 flex-row items-start gap-2.5 rounded-xl border border-transparent px-3 py-2 active:bg-accent',
-          selected && 'border-border bg-muted/70',
+          'min-h-14 flex-row items-start gap-2.5',
+          SURFACE_ROW,
+          selected && SURFACE_ROW_SELECTED,
         )}
         testID={fileRowTestId(file.path)}
         onLongPress={() => {

@@ -3,6 +3,7 @@ import { SectionList, Text, View } from 'react-native'
 import { EmptyNote, ErrorNote, IconAction, PanelLabel } from '@/components/panel-chrome'
 import { SegmentedControl } from '@/components/segmented-control'
 import {
+  SURFACE_GUTTER,
   SURFACE_STACK_GAP,
   SURFACE_TOOLBAR,
   surfaceContentStyle,
@@ -143,7 +144,7 @@ export function ChangesList({
         />
       ) : (
         <SectionList
-          contentContainerStyle={surfaceContentStyle({ bottomInset, gap: 2 })}
+          contentContainerStyle={surfaceContentStyle({ bottomInset, edgeToEdge: true, gap: 2 })}
           keyExtractor={(file: FlowFile) => file.path}
           renderItem={({ item }) => (
             <FileRow
@@ -155,7 +156,9 @@ export function ChangesList({
             />
           )}
           renderSectionHeader={({ section }) => (
-            <View className="bg-background pb-1 pt-3">
+            // The list is edge-to-edge so its rows can carry `SURFACE_ROW`; the section
+            // label keeps the gutter itself rather than riding on the container's.
+            <View className={cn('bg-background pb-1 pt-3', SURFACE_GUTTER)}>
               <PanelLabel>{section.layer}</PanelLabel>
             </View>
           )}

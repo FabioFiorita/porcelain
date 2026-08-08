@@ -211,6 +211,7 @@ export function FilesBrowser({
       ) : (
         <SurfaceList
           data={entries}
+          edgeToEdge
           gap={2}
           keyExtractor={(entry: FileEntry) => entry.path}
           renderItem={({ item }) => (

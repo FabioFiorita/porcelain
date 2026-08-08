@@ -19,6 +19,24 @@ import type { ViewStyle } from 'react-native'
 export const SURFACE_GUTTER = 'px-4'
 
 /**
+ * A selectable list row — Files, Changes, History — inside an **edge-to-edge** list.
+ *
+ * The row used to sit inside the container's own `SURFACE_GUTTER` and add `px-3` of its own, so
+ * row text started 28pt from the bezel while every header above it started at 16pt: the "weird
+ * side padding" on Files. The gutter is now split between the two — `mx-2` of margin plus `px-2`
+ * of padding — so content lands on the same 16pt line as the chrome, and the pressed/selected
+ * card reaches 8pt past it into the gutter, the way a native list highlight does.
+ *
+ * The row's own vertical rhythm and layout (`min-h-*`, `flex-row`, gaps) stay at the call site;
+ * only the horizontal geometry and the card are shared. `surface-layout.test.ts` fails the build
+ * when a row goes back to writing its own.
+ */
+export const SURFACE_ROW = 'mx-2 rounded-xl border border-transparent px-2 py-2 active:bg-accent'
+
+/** The same row, selected: the invisible card becomes visible. */
+export const SURFACE_ROW_SELECTED = 'border-border bg-muted/70'
+
+/**
  * The band directly under the header's divider — a toolbar, a segmented control, a summary.
  *
  * Its top padding mirrors the bottom padding the header spends above the divider. The two were

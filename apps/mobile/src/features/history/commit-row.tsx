@@ -2,6 +2,7 @@ import { memo, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 
 import { ActionSheet, type SheetAction } from '@/components/panel-chrome'
+import { SURFACE_ROW, SURFACE_ROW_SELECTED } from '@/components/surface-layout'
 import type { Commit } from '@/lib/daemon/procedures/changes'
 import { cn } from '@/lib/utils'
 
@@ -56,10 +57,7 @@ function CommitRowImpl({
         accessibilityLabel={`${commit.subject}, ${commit.author}, ${commit.date}, ${abbreviated}`}
         accessibilityRole="button"
         accessibilityState={{ selected }}
-        className={cn(
-          'min-h-14 gap-0.5 rounded-xl border border-transparent px-3 py-2 active:bg-accent',
-          selected && 'border-border bg-muted/70',
-        )}
+        className={cn('min-h-14 gap-0.5', SURFACE_ROW, selected && SURFACE_ROW_SELECTED)}
         testID={commitRowTestId(commit.hash)}
         onLongPress={() => {
           setMenuOpen(true)

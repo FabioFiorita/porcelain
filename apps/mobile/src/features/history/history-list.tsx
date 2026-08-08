@@ -73,6 +73,7 @@ export function HistoryList({
       ) : (
         <SurfaceList
           data={commits ?? []}
+          edgeToEdge
           gap={2}
           initialNumToRender={20}
           keyExtractor={(commit: Commit) => commit.hash}

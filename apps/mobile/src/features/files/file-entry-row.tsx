@@ -3,6 +3,7 @@ import { Pressable, Text, View } from 'react-native'
 
 import { ChromeGlyph, type ChromeIconName } from '@/components/chrome-glyph'
 import { ActionSheet, type SheetAction } from '@/components/panel-chrome'
+import { SURFACE_ROW, SURFACE_ROW_SELECTED } from '@/components/surface-layout'
 import { cn } from '@/lib/utils'
 
 import { pathTestId } from './file-paths'
@@ -160,8 +161,9 @@ function FileEntryRowImpl({
         accessibilityRole="button"
         accessibilityState={{ selected }}
         className={cn(
-          'min-h-11 flex-row items-center gap-2.5 rounded-xl border border-transparent px-3 py-2 active:bg-accent',
-          selected && 'border-border bg-muted/70',
+          'min-h-11 flex-row items-center gap-2.5',
+          SURFACE_ROW,
+          selected && SURFACE_ROW_SELECTED,
           // A hidden row is only on screen because the scope override is on; keep it legible
           // but obviously out of scope.
           entry.hidden && 'opacity-50',
