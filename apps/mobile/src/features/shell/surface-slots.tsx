@@ -26,12 +26,11 @@ import { TerminalList } from '@/features/terminal/terminal-list'
 import { TerminalPhoneScreen } from '@/features/terminal/terminal-phone-screen'
 import { TerminalViewer } from '@/features/terminal/terminal-viewer'
 
-import type { SurfaceId } from './mock-data'
+import type { SurfaceId } from './surfaces'
 
 /**
- * A surface's real, daemon-backed panels. The shell renders these when a surface has them and
- * falls back to the mock content otherwise, so tabs can land one at a time without a
- * big-bang cutover.
+ * A surface's real, daemon-backed panels. Every surface has a full set — the shell has no other
+ * way to paint a column, and no mock fallback behind it any more.
  *
  * Slots are only mounted for the ACTIVE surface, so a mounted panel is a focused panel — the
  * `active` flag they receive is about screen focus on phone (a native tab keeps its previous
@@ -52,7 +51,7 @@ export type SurfaceSlots = {
   phone: () => React.JSX.Element
 }
 
-const SURFACE_SLOTS: Partial<Record<SurfaceId, SurfaceSlots>> = {
+const SURFACE_SLOTS: Record<SurfaceId, SurfaceSlots> = {
   // Board is the Review tab's other face on phone and its own rail destination on tablet, so
   // it owns all four panels: the columns read the same cards whichever way you arrive.
   board: {
@@ -106,6 +105,10 @@ const SURFACE_SLOTS: Partial<Record<SurfaceId, SurfaceSlots>> = {
   },
 }
 
-export function surfaceSlots(surface: SurfaceId): SurfaceSlots | undefined {
+/**
+ * Total by type, not by convention: a new `SurfaceId` without panels is a compile error, which
+ * is what replaced the mock fallbacks the shell used to render for a surface that had none.
+ */
+export function surfaceSlots(surface: SurfaceId): SurfaceSlots {
   return SURFACE_SLOTS[surface]
 }

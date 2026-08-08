@@ -3,8 +3,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { SURFACE_HEADER_BAND } from '@/components/surface-layout'
 import { cn } from '@/lib/utils'
-import type { SurfaceId } from './mock-data'
 import { useShellStore } from './shell-store'
+import type { SurfaceId } from './surfaces'
 import { useWorkspaceHeader } from './use-workspace'
 
 type PhoneHeaderProps = {

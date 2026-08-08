@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-import { defaultSelectedIds, type SurfaceId } from './mock-data'
+import type { SurfaceId } from './surfaces'
 
 export type ShellSheet =
   | 'project'
@@ -20,14 +20,12 @@ type ShellState = {
   inspectorVisible: boolean
   sheet: ShellSheet
   settingsSection: SettingsSection
-  selectedIds: Record<SurfaceId, string>
   setActiveSurface: (surface: SurfaceId) => void
   toggleInspector: () => void
   setInspectorVisible: (visible: boolean) => void
   openSheet: (sheet: Exclude<ShellSheet, null>) => void
   closeSheet: () => void
   setSettingsSection: (section: SettingsSection) => void
-  selectItem: (surface: SurfaceId, id: string) => void
 }
 
 export const useShellStore = create<ShellState>()((set) => ({
@@ -35,7 +33,6 @@ export const useShellStore = create<ShellState>()((set) => ({
   inspectorVisible: true,
   sheet: null,
   settingsSection: 'general',
-  selectedIds: defaultSelectedIds(),
   setActiveSurface: (activeSurface) => {
     set({ activeSurface })
   },
@@ -53,10 +50,5 @@ export const useShellStore = create<ShellState>()((set) => ({
   },
   setSettingsSection: (settingsSection) => {
     set({ settingsSection })
-  },
-  selectItem: (surface, id) => {
-    set((state) => ({
-      selectedIds: { ...state.selectedIds, [surface]: id },
-    }))
   },
 }))

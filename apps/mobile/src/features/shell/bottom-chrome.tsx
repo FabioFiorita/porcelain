@@ -22,7 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
  *
  * A shell-provided value cannot lie: it is zero unless a provider says otherwise, and the only
  * thing allowed to say otherwise is the shell that owns the chrome. This is the same shape as
- * `ColumnOverflowContext` in `shell-chrome`, which the tablet has used for its own bottom-edge
+ * `ColumnOverflowContext` in `shell-columns`, which the tablet has used for its own bottom-edge
  * problem all along — the phone simply never joined it.
  *
  * Read it through `SurfaceScroll` / `SurfaceList` rather than directly. A component that needs

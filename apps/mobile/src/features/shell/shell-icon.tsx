@@ -2,7 +2,7 @@ import type { AndroidSymbol, SFSymbol } from 'expo-symbols'
 
 import { GlyphSymbol } from '@/components/chrome-glyph'
 
-import type { SurfaceId } from './mock-data'
+import type { SurfaceId } from './surfaces'
 
 /** Destination iconography for the rail and the phone tab bar. Chrome icons: `ChromeGlyph`. */
 const SURFACE_SYMBOLS: Record<SurfaceId, { ios: SFSymbol; android: AndroidSymbol }> = {

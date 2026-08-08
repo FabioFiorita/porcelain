@@ -1,7 +1,7 @@
-import type { SurfaceId } from './mock-data'
 import { PhoneSurface } from './phone-surface'
-import { ViewerCanvas } from './shell-chrome'
+import { ViewerCanvas } from './shell-columns'
 import { useShellStore } from './shell-store'
+import type { SurfaceId } from './surfaces'
 import { useIsTablet } from './use-app-window'
 
 type SurfaceScreenProps = {

@@ -2,17 +2,17 @@ import { SplitView } from 'expo-router/unstable-split-view'
 import { useEffect, useState } from 'react'
 import { Linking, Platform, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import type { SurfaceId } from './mock-data'
 import {
   ColumnOverflowProvider,
   CompanionColumn,
   PrimaryColumn,
   SupplementaryColumn,
-  TabletHeader,
   ViewerCanvas,
-} from './shell-chrome'
+} from './shell-columns'
 import { ShellSheets } from './shell-sheets'
 import { useShellStore } from './shell-store'
+import type { SurfaceId } from './surfaces'
+import { TabletHeader } from './tablet-header'
 
 /**
  * Tablet outer shell — iPad native SplitView, Android shared multi-column layout.

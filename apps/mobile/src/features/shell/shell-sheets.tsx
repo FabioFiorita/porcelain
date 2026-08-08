@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native'
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { ShellModal, ShellModalScroll } from '@/components/shell-modal'
-import { PANEL_CARD, SURFACE_GUTTER } from '@/components/surface-layout'
+import { SURFACE_GUTTER } from '@/components/surface-layout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Text as UiText } from '@/components/ui/text'
@@ -14,7 +14,6 @@ import {
 } from '@/features/settings/settings-screen'
 import { cn } from '@/lib/utils'
 import { BranchSheetBody } from './branch-sheet'
-import { COMPANION } from './mock-data'
 import { ProjectSheetBody } from './project-sheet'
 import { type SettingsSection, useShellStore } from './shell-store'
 import { surfaceSlots } from './surface-slots'
@@ -148,50 +147,23 @@ export function ShellSheets({ variant = 'tablet' }: ShellSheetsProps): React.JSX
 
 function CompanionSheetBody(): React.JSX.Element {
   const surfaceId = useShellStore((state) => state.activeSurface)
-  const sections = COMPANION[surfaceId]
   const closeSheet = useShellStore((state) => state.closeSheet)
   const { sheetMaxH } = useSheetMetrics()
   const slots = surfaceSlots(surfaceId)
 
   return (
     <View className="gap-3 py-5" testID="porcelain-companion-sheet">
-      {/* Horizontal padding lives here, not on the outer View: a real surface's companion
-          (below) already carries its own `SURFACE_GUTTER`, the same one every other screen
-          uses — wrapping it in a second, wider gutter doubled the inset from the sheet edge
-          to the actual content, which is what read as "too much padding" next to Files. */}
+      {/* Horizontal padding lives here, not on the outer View: the companion below already
+          carries its own `SURFACE_GUTTER`, the same one every other screen uses — wrapping it
+          in a second, wider gutter doubled the inset from the sheet edge to the actual
+          content, which is what read as "too much padding" next to Files. */}
       <View className={cn('gap-1 pr-8', SURFACE_GUTTER)}>
         <Text className="text-lg font-semibold text-foreground">Companion</Text>
       </View>
-      {/* A real surface renders its own scrolling companion; the mock sections stay for the
-          tabs that have not landed yet. */}
-      {slots !== undefined ? (
-        <View style={{ height: sheetMaxH - 170 }}>
-          <slots.companion active />
-        </View>
-      ) : (
-        <ShellModalScroll
-          contentContainerClassName={SURFACE_GUTTER}
-          style={{ maxHeight: sheetMaxH - 120 }}
-        >
-          {sections.map((section) => (
-            <View key={section.id} className={cn('gap-2 p-3', PANEL_CARD)}>
-              <Text className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                {section.title}
-              </Text>
-              <View className="gap-2">
-                {section.rows.map((row) => (
-                  <View key={row.id} className="gap-0.5">
-                    <Text className="text-sm font-medium text-foreground">{row.label}</Text>
-                    {row.detail ? (
-                      <Text className="text-xs text-muted-foreground">{row.detail}</Text>
-                    ) : null}
-                  </View>
-                ))}
-              </View>
-            </View>
-          ))}
-        </ShellModalScroll>
-      )}
+      {/* nativewind-allow-style: the height is derived from live window metrics, not a class. */}
+      <View style={{ height: sheetMaxH - 170 }}>
+        <slots.companion active />
+      </View>
       <View className={SURFACE_GUTTER}>
         <Button onPress={closeSheet} variant="outline">
           <UiText>Done</UiText>
