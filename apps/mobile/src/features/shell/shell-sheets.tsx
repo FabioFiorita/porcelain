@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native'
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { ShellModal, ShellModalScroll } from '@/components/shell-modal'
@@ -16,6 +16,7 @@ import {
 } from './settings-screen'
 import { type SettingsSection, useShellStore } from './shell-store'
 import { surfaceSlots } from './surface-slots'
+import { WORKSPACE_CREATE_COPY } from './workspace-create-form'
 import { BranchSheetBody, ProjectSheetBody, WorktreeSheetBody } from './workspace-switchers'
 
 type ShellSheetsProps = {
@@ -51,6 +52,17 @@ export function ShellSheets({ variant = 'tablet' }: ShellSheetsProps): React.JSX
   const closeSheet = useShellStore((state) => state.closeSheet)
   const showSettingsSheet = variant === 'tablet'
   const { sheetMaxW, sheetMaxH, settingsMaxW, settingsMaxH, searchMaxW } = useSheetMetrics()
+  // The create forms are a MODE of the picker sheet, not a second modal on top of it — a nested
+  // native modal is not the key window on iOS and its keyboard avoidance stops working
+  // (`shell-modal.tsx`). The flag lives here because the sheet's own header swaps with it.
+  const [creating, setCreating] = useState<'branch' | 'worktree' | null>(null)
+
+  useEffect(() => {
+    if (sheet !== 'branch' && sheet !== 'worktree') setCreating(null)
+  }, [sheet])
+
+  const branchCreating = creating === 'branch'
+  const worktreeCreating = creating === 'worktree'
 
   return (
     <>
@@ -69,21 +81,41 @@ export function ShellSheets({ variant = 'tablet' }: ShellSheetsProps): React.JSX
       <ShellModal
         open={sheet === 'branch'}
         onClose={closeSheet}
-        title="Branch"
-        description="Switch branch in this worktree."
+        title={branchCreating ? WORKSPACE_CREATE_COPY.branch.title : 'Branch'}
+        description={
+          branchCreating
+            ? WORKSPACE_CREATE_COPY.branch.description
+            : 'Switch branch in this worktree.'
+        }
         contentStyle={{ width: sheetMaxW, maxHeight: sheetMaxH }}
       >
-        <BranchSheetBody open={sheet === 'branch'} />
+        <BranchSheetBody
+          creating={branchCreating}
+          open={sheet === 'branch'}
+          onCreatingChange={(next) => {
+            setCreating(next ? 'branch' : null)
+          }}
+        />
       </ShellModal>
 
       <ShellModal
         open={sheet === 'worktree'}
         onClose={closeSheet}
-        title="Worktree"
-        description="Open or switch a worktree."
+        title={worktreeCreating ? WORKSPACE_CREATE_COPY.worktree.title : 'Worktree'}
+        description={
+          worktreeCreating
+            ? WORKSPACE_CREATE_COPY.worktree.description
+            : 'Open or switch a worktree.'
+        }
         contentStyle={{ width: sheetMaxW, maxHeight: sheetMaxH }}
       >
-        <WorktreeSheetBody open={sheet === 'worktree'} />
+        <WorktreeSheetBody
+          creating={worktreeCreating}
+          open={sheet === 'worktree'}
+          onCreatingChange={(next) => {
+            setCreating(next ? 'worktree' : null)
+          }}
+        />
       </ShellModal>
 
       {showSettingsSheet ? (

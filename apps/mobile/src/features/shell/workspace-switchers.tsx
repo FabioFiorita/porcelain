@@ -29,7 +29,7 @@ import { useDaemonInvalidate, useDaemonMutation, useDaemonQuery } from '@/lib/da
 import { openRepo, useActiveRepo } from '@/lib/daemon/repo'
 import { cn } from '@/lib/utils'
 import { useShellStore } from './shell-store'
-import { WorkspaceCreateDialog } from './workspace-create-dialog'
+import { WorkspaceCreateForm } from './workspace-create-form'
 
 type WorkspaceHeader = {
   repo: ReturnType<typeof useActiveRepo>
@@ -99,6 +99,16 @@ export function useWorkspaceHeader(): WorkspaceHeader {
 
 type PickerBodyProps = {
   open: boolean
+}
+
+/**
+ * A picker that can create. `creating` lives in the sheet host, not here: the create form is a
+ * mode of the SAME `ShellModal` (its title swaps with it), because stacking a second native
+ * modal on the picker is what broke iOS keyboard avoidance for these two forms.
+ */
+type CreatingPickerBodyProps = PickerBodyProps & {
+  creating: boolean
+  onCreatingChange: (creating: boolean) => void
 }
 
 /** Project recents plus the daemon-side directory browser used by local and remote daemons. */
@@ -371,14 +381,17 @@ function DirectoryBrowser({
 }
 
 /** Searchable Local / Remote branch picker with the daemon's worktree guard. */
-export function BranchSheetBody({ open }: PickerBodyProps): React.JSX.Element {
+export function BranchSheetBody({
+  creating,
+  onCreatingChange,
+  open,
+}: CreatingPickerBodyProps): React.JSX.Element {
   const closeSheet = useShellStore((state) => state.closeSheet)
   const openSheet = useShellStore((state) => state.openSheet)
   const repo = useActiveRepo()
   const invalidate = useDaemonInvalidate()
   const [query, setQuery] = useState('')
   const [actionError, setActionError] = useState<string | null>(null)
-  const [createOpen, setCreateOpen] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const repoPath = repo?.path ?? ''
   const headQuery = useDaemonQuery(gitHeadQuery, repoPath, {
@@ -434,7 +447,6 @@ export function BranchSheetBody({ open }: PickerBodyProps): React.JSX.Element {
     if (!open) {
       setActionError(null)
       setCreateError(null)
-      setCreateOpen(false)
       setQuery('')
       return
     }
@@ -468,7 +480,7 @@ export function BranchSheetBody({ open }: PickerBodyProps): React.JSX.Element {
     setCreateError(null)
     try {
       await createBranch.mutateAsync({ branch, repoPath: repo.path })
-      setCreateOpen(false)
+      onCreatingChange(false)
       closeSheet()
     } catch (error) {
       // git's refusal (an existing branch, a malformed ref) is the message worth reading.
@@ -482,6 +494,26 @@ export function BranchSheetBody({ open }: PickerBodyProps): React.JSX.Element {
         body="Open a project before switching branches."
         testID="porcelain-branch-no-project"
         title="No project open"
+      />
+    )
+  }
+
+  if (creating) {
+    return (
+      <WorkspaceCreateForm
+        daemonError={createError}
+        existingBranches={localBranchNames}
+        fromLabel={currentBranch ?? 'HEAD'}
+        pending={createBranch.isPending}
+        repoPath={repo.path}
+        target="branch"
+        onCancel={() => {
+          onCreatingChange(false)
+          setCreateError(null)
+        }}
+        onSubmit={(branch) => {
+          handleCreate(branch)
+        }}
       />
     )
   }
@@ -572,7 +604,7 @@ export function BranchSheetBody({ open }: PickerBodyProps): React.JSX.Element {
         variant="outline"
         onPress={() => {
           setCreateError(null)
-          setCreateOpen(true)
+          onCreatingChange(true)
         }}
       >
         <ChromeGlyph name="plus" size={16} tone="foreground" />
@@ -582,23 +614,6 @@ export function BranchSheetBody({ open }: PickerBodyProps): React.JSX.Element {
       {actionError ? (
         <ErrorState message={actionError} testID="porcelain-branch-action-error" />
       ) : null}
-
-      <WorkspaceCreateDialog
-        daemonError={createError}
-        existingBranches={localBranchNames}
-        fromLabel={currentBranch ?? 'HEAD'}
-        open={createOpen}
-        pending={createBranch.isPending}
-        repoPath={repo.path}
-        target="branch"
-        onClose={() => {
-          setCreateOpen(false)
-          setCreateError(null)
-        }}
-        onSubmit={(branch) => {
-          handleCreate(branch)
-        }}
-      />
     </View>
   )
 }
@@ -649,12 +664,15 @@ function BranchRow({
 }
 
 /** Worktree switcher: switching the row opens that checkout, including linked worktrees. */
-export function WorktreeSheetBody({ open }: PickerBodyProps): React.JSX.Element {
+export function WorktreeSheetBody({
+  creating,
+  onCreatingChange,
+  open,
+}: CreatingPickerBodyProps): React.JSX.Element {
   const closeSheet = useShellStore((state) => state.closeSheet)
   const repo = useActiveRepo()
   const [busyPath, setBusyPath] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
-  const [createOpen, setCreateOpen] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const repoPath = repo?.path ?? ''
   const worktreesQuery = useDaemonQuery(gitWorktreesQuery, repoPath, {
@@ -690,7 +708,6 @@ export function WorktreeSheetBody({ open }: PickerBodyProps): React.JSX.Element 
       setActionError(null)
       setBusyPath(null)
       setCreateError(null)
-      setCreateOpen(false)
     }
   }, [open])
 
@@ -722,7 +739,7 @@ export function WorktreeSheetBody({ open }: PickerBodyProps): React.JSX.Element 
       const created = await addWorktree.mutateAsync({ branch, repoPath: repo.path })
       setBusyPath(created.path)
       await openRepo(created.path)
-      setCreateOpen(false)
+      onCreatingChange(false)
       closeSheet()
     } catch (error) {
       setCreateError(errorMessage(error, 'Create worktree failed.'))
@@ -737,6 +754,26 @@ export function WorktreeSheetBody({ open }: PickerBodyProps): React.JSX.Element 
         body="Open a project before switching worktrees."
         testID="porcelain-worktree-no-project"
         title="No project open"
+      />
+    )
+  }
+
+  if (creating) {
+    return (
+      <WorkspaceCreateForm
+        daemonError={createError}
+        existingBranches={localBranchNames}
+        fromLabel={headQuery.data === undefined ? 'HEAD' : headLabel(headQuery.data)}
+        pending={addWorktree.isPending || busyPath !== null}
+        repoPath={repo.path}
+        target="worktree"
+        onCancel={() => {
+          onCreatingChange(false)
+          setCreateError(null)
+        }}
+        onSubmit={(branch) => {
+          handleCreate(branch)
+        }}
       />
     )
   }
@@ -788,7 +825,7 @@ export function WorktreeSheetBody({ open }: PickerBodyProps): React.JSX.Element 
         variant="outline"
         onPress={() => {
           setCreateError(null)
-          setCreateOpen(true)
+          onCreatingChange(true)
         }}
       >
         <ChromeGlyph name="plus" size={16} tone="foreground" />
@@ -798,23 +835,6 @@ export function WorktreeSheetBody({ open }: PickerBodyProps): React.JSX.Element 
       {actionError ? (
         <ErrorState message={actionError} testID="porcelain-worktree-action-error" />
       ) : null}
-
-      <WorkspaceCreateDialog
-        daemonError={createError}
-        existingBranches={localBranchNames}
-        fromLabel={headQuery.data === undefined ? 'HEAD' : headLabel(headQuery.data)}
-        open={createOpen}
-        pending={addWorktree.isPending || busyPath !== null}
-        repoPath={repo.path}
-        target="worktree"
-        onClose={() => {
-          setCreateOpen(false)
-          setCreateError(null)
-        }}
-        onSubmit={(branch) => {
-          handleCreate(branch)
-        }}
-      />
     </View>
   )
 }

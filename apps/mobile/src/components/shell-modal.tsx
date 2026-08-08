@@ -1,4 +1,5 @@
 import { SymbolView } from 'expo-symbols'
+import { useEffect } from 'react'
 import {
   KeyboardAvoidingView,
   Modal,
@@ -30,6 +31,31 @@ type ShellModalProps = {
 }
 
 /**
+ * How many ShellModals are presented right now. Never stack them: each one is a native
+ * `Modal`, only one presented window is key on iOS, and the inner window's
+ * `KeyboardAvoidingView` then gets keyboard frames unreliably — that is how the New
+ * branch / New worktree forms ended up under the keyboard. A picker that needs a second
+ * step swaps its own body instead of opening a nested sheet.
+ */
+let presentedShellModals = 0
+
+function useStackGuard(open: boolean): void {
+  useEffect(() => {
+    if (!open) return
+    presentedShellModals += 1
+    if (__DEV__ && presentedShellModals > 1) {
+      console.warn(
+        '[ShellModal] two ShellModals are presented at once — nested native modals break iOS ' +
+          'keyboard avoidance. Swap the sheet body instead of stacking a second ShellModal.',
+      )
+    }
+    return () => {
+      presentedShellModals -= 1
+    }
+  }, [open])
+}
+
+/**
  * Reliable tablet overlay using RN Modal (not rn-primitives Dialog).
  * SplitView + FullWindowOverlay was silently failing to present search/project sheets.
  */
@@ -44,6 +70,7 @@ export function ShellModal({
   bare,
 }: ShellModalProps): React.JSX.Element {
   const insets = useSafeAreaInsets()
+  useStackGuard(open)
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light'
   const closeTint = scheme === 'dark' ? '#F5F7FA' : '#171A1C'
 

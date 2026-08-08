@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Text, View } from 'react-native'
 
-import { ShellModal, useShellModalSize } from '@/components/shell-modal'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Text as UiText } from '@/components/ui/text'
@@ -9,7 +8,11 @@ import { Text as UiText } from '@/components/ui/text'
 /**
  * The one create form behind both workspace pickers. `gitCreateBranch` and `gitAddWorktree` take
  * the same input — a repo and a branch name off the current HEAD — and differ only in where the
- * result is checked out, so they share a dialog rather than forking two near-identical sheets.
+ * result is checked out, so they share a form rather than forking two near-identical sheets.
+ *
+ * It is a plain body, not its own `ShellModal`: the pickers are already presented in one, and a
+ * second native modal on top of the first is what put this form under the iOS keyboard. The
+ * picker swaps this in as a mode of its own sheet instead — see `shell-modal.tsx`.
  */
 export type WorkspaceCreateTarget = 'branch' | 'worktree'
 
@@ -46,7 +49,8 @@ export function worktreeDirectoryPreview(repoPath: string, branch: string): stri
   return `${normalized.slice(0, cut)}/${normalized.slice(cut + 1)}-worktrees/${leaf}`
 }
 
-const COPY: Record<
+/** Header copy for the sheet hosting the form — the picker's `ShellModal` renders it. */
+export const WORKSPACE_CREATE_COPY: Record<
   WorkspaceCreateTarget,
   { title: string; description: string; placeholder: string; submit: string; pending: string }
 > = {
@@ -66,13 +70,12 @@ const COPY: Record<
   },
 }
 
-export function WorkspaceCreateDialog({
+export function WorkspaceCreateForm({
   daemonError,
   existingBranches,
   fromLabel,
-  onClose,
+  onCancel,
   onSubmit,
-  open,
   pending,
   repoPath,
   target,
@@ -81,27 +84,20 @@ export function WorkspaceCreateDialog({
   daemonError: string | null
   existingBranches: readonly string[]
   fromLabel: string
-  onClose: () => void
+  onCancel: () => void
   onSubmit: (branch: string) => void
-  open: boolean
   pending: boolean
   repoPath: string
   target: WorkspaceCreateTarget
 }): React.JSX.Element {
-  const { width } = useShellModalSize()
+  // Mounted only while the picker is in create mode, so the field starts empty every time
+  // without an effect watching an `open` prop.
   const [name, setName] = useState('')
   const [submitted, setSubmitted] = useState(false)
-  const copy = COPY[target]
+  const copy = WORKSPACE_CREATE_COPY[target]
   const testID = `porcelain-workspace-create-${target}`
   const validation = branchNameError(name, existingBranches)
   const destination = target === 'worktree' ? worktreeDirectoryPreview(repoPath, name) : null
-
-  useEffect(() => {
-    if (!open) {
-      setName('')
-      setSubmitted(false)
-    }
-  }, [open])
 
   const submit = (): void => {
     setSubmitted(true)
@@ -115,86 +111,78 @@ export function WorkspaceCreateDialog({
   const message = validation !== null && (dirty || submitted) ? validation : daemonError
 
   return (
-    <ShellModal
-      contentStyle={{ width }}
-      description={copy.description}
-      open={open}
-      title={copy.title}
-      onClose={onClose}
-    >
-      <View className="gap-4" testID={testID}>
+    <View className="gap-4" testID={testID}>
+      <View className="gap-1">
+        <Text className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+          Branches from
+        </Text>
+        <Text
+          className="font-mono text-xs text-foreground"
+          numberOfLines={1}
+          testID={`${testID}-from`}
+        >
+          {fromLabel}
+        </Text>
+      </View>
+
+      <Input
+        accessibilityLabel={copy.placeholder}
+        autoCapitalize="none"
+        autoCorrect={false}
+        autoFocus
+        className="font-mono"
+        editable={!pending}
+        placeholder={copy.placeholder}
+        returnKeyType="done"
+        testID={`${testID}-name`}
+        value={name}
+        onChangeText={setName}
+        onSubmitEditing={submit}
+      />
+
+      {destination !== null ? (
         <View className="gap-1">
           <Text className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-            Branches from
+            Worktree folder
           </Text>
           <Text
-            className="font-mono text-xs text-foreground"
-            numberOfLines={1}
-            testID={`${testID}-from`}
+            className="font-mono text-xs text-muted-foreground"
+            numberOfLines={2}
+            testID={`${testID}-destination`}
           >
-            {fromLabel}
+            {destination}
           </Text>
         </View>
+      ) : null}
 
-        <Input
-          accessibilityLabel={copy.placeholder}
-          autoCapitalize="none"
-          autoCorrect={false}
-          autoFocus={open}
-          className="font-mono"
-          editable={!pending}
-          placeholder={copy.placeholder}
-          returnKeyType="done"
-          testID={`${testID}-name`}
-          value={name}
-          onChangeText={setName}
-          onSubmitEditing={submit}
-        />
-
-        {destination !== null ? (
-          <View className="gap-1">
-            <Text className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-              Worktree folder
-            </Text>
-            <Text
-              className="font-mono text-xs text-muted-foreground"
-              numberOfLines={2}
-              testID={`${testID}-destination`}
-            >
-              {destination}
-            </Text>
-          </View>
-        ) : null}
-
-        {message !== null ? (
-          <View
-            className="rounded-xl border border-destructive/40 bg-destructive/5 p-3"
-            testID={`${testID}-error`}
-          >
-            <Text className="text-xs leading-5 text-destructive">{message}</Text>
-          </View>
-        ) : null}
-
-        <View className="flex-row justify-end gap-2">
-          <Button
-            accessibilityLabel="Cancel"
-            disabled={pending}
-            testID={`${testID}-cancel`}
-            variant="ghost"
-            onPress={onClose}
-          >
-            <UiText>Cancel</UiText>
-          </Button>
-          <Button
-            accessibilityLabel={copy.submit}
-            disabled={pending || validation !== null}
-            testID={`${testID}-submit`}
-            onPress={submit}
-          >
-            <UiText>{pending ? copy.pending : copy.submit}</UiText>
-          </Button>
+      {message !== null ? (
+        <View
+          className="rounded-xl border border-destructive/40 bg-destructive/5 p-3"
+          testID={`${testID}-error`}
+        >
+          <Text className="text-xs leading-5 text-destructive">{message}</Text>
         </View>
+      ) : null}
+
+      <View className="flex-row justify-end gap-2">
+        <Button
+          accessibilityLabel="Cancel"
+          disabled={pending}
+          testID={`${testID}-cancel`}
+          variant="ghost"
+          onPress={onCancel}
+        >
+          <UiText>Cancel</UiText>
+        </Button>
+        <Button
+          accessibilityLabel={copy.submit}
+          disabled={pending || validation !== null}
+          testID={`${testID}-submit`}
+          onPress={submit}
+        >
+          <UiText>{pending ? copy.pending : copy.submit}</UiText>
+        </Button>
       </View>
-    </ShellModal>
+    </View>
   )
 }
