@@ -2,6 +2,7 @@ import { fileName } from '@porcelain/client-runtime/paths'
 import { useState } from 'react'
 import { Text, View } from 'react-native'
 import { ConfirmDialog, IconAction, PanelLabel } from '@/components/panel-chrome'
+import { PANEL_CARD } from '@/components/surface-layout'
 import { CommentComposer } from '@/features/comments/comment-composer'
 import { useCommentActions, useReviewComments } from '@/features/comments/use-comments'
 import type { ReviewComment } from '@/lib/daemon/procedures/review'
@@ -111,10 +112,7 @@ function CommentRow({
 }): React.JSX.Element {
   return (
     <View
-      className={cn(
-        'gap-1 rounded-2xl border border-border bg-card p-2.5',
-        comment.resolved && 'opacity-60',
-      )}
+      className={cn('gap-1 p-2.5', PANEL_CARD, comment.resolved && 'opacity-60')}
       testID={`porcelain-changes-comment-${comment.id}`}
     >
       <View className="flex-row items-center gap-1">

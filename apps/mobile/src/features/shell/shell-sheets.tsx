@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native'
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { ShellModal, ShellModalScroll } from '@/components/shell-modal'
-import { SURFACE_GUTTER } from '@/components/surface-layout'
+import { PANEL_CARD, SURFACE_GUTTER } from '@/components/surface-layout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Text as UiText } from '@/components/ui/text'
@@ -172,7 +172,7 @@ function CompanionSheetBody(): React.JSX.Element {
           style={{ maxHeight: sheetMaxH - 120 }}
         >
           {sections.map((section) => (
-            <View key={section.id} className="gap-2 rounded-2xl border border-border bg-card p-3">
+            <View key={section.id} className={cn('gap-2 p-3', PANEL_CARD)}>
               <Text className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                 {section.title}
               </Text>

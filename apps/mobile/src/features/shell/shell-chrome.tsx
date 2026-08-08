@@ -2,6 +2,7 @@ import { createContext, useContext } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView, type SafeAreaViewProps } from 'react-native-screens/experimental'
 import { ChromeGlyph } from '@/components/chrome-glyph'
+import { PANEL_CARD } from '@/components/surface-layout'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -507,7 +508,7 @@ export function CompanionColumn(): React.JSX.Element {
         </View>
 
         {sections.map((section) => (
-          <View key={section.id} className="gap-2 rounded-2xl border border-border bg-card p-3">
+          <View key={section.id} className={cn('gap-2 p-3', PANEL_CARD)}>
             <Text className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               {section.title}
             </Text>

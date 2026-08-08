@@ -10,6 +10,7 @@ import {
   PanelLabel,
   type SheetAction,
 } from '@/components/panel-chrome'
+import { PANEL_CARD } from '@/components/surface-layout'
 import { Button } from '@/components/ui/button'
 import { Text as UiText } from '@/components/ui/text'
 import { useShellStore } from '@/features/shell/shell-store'
@@ -17,6 +18,7 @@ import { useTabFaces } from '@/features/shell/tab-faces'
 import { useIsTablet } from '@/features/shell/use-app-window'
 import type { BoardCard } from '@/lib/daemon/procedures/review'
 import { useActiveRepo } from '@/lib/daemon/repo'
+import { cn } from '@/lib/utils'
 
 import { COLUMN_GLYPH } from './board-column'
 import { draftFromCard, resolveBoardFocus, useBoardStore } from './board-store'
@@ -106,10 +108,7 @@ function FocusCard({ card }: { card: BoardCard }): React.JSX.Element {
   }))
 
   return (
-    <View
-      className="gap-3 rounded-2xl border border-border bg-card p-3"
-      testID="porcelain-board-focus"
-    >
+    <View className={cn('gap-3 p-3', PANEL_CARD)} testID="porcelain-board-focus">
       {/* The section caption above says "Focus"; the card keeps its own status so the column
           a card sits in never has to be inferred from the board behind the sheet. */}
       <View className="flex-row items-center gap-1.5">

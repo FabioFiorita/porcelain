@@ -2,8 +2,10 @@ import { fileName } from '@porcelain/client-runtime/paths'
 import { Text, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
+import { PANEL_CARD } from '@/components/surface-layout'
 import { Button } from '@/components/ui/button'
 import { Text as UiText } from '@/components/ui/text'
+import { cn } from '@/lib/utils'
 
 import { describeRange, type LineRange } from './line-range'
 
@@ -32,7 +34,10 @@ export function SelectionBar({
 }): React.JSX.Element {
   return (
     <View
-      className="absolute inset-x-3 flex-row items-center gap-2 rounded-2xl border border-border bg-card px-3 py-2 shadow-lg"
+      className={cn(
+        'absolute inset-x-3 flex-row items-center gap-2 px-3 py-2 shadow-lg',
+        PANEL_CARD,
+      )}
       style={{ bottom: bottomInset + 12 }}
       testID={`${testIDPrefix}-bar`}
     >

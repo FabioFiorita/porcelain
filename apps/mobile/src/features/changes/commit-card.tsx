@@ -6,6 +6,7 @@ import { Pressable, Text, View } from 'react-native'
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { PanelLabel, StatusNote } from '@/components/panel-chrome'
 import { ShellModal, ShellModalScroll, useShellModalSize } from '@/components/shell-modal'
+import { PANEL_CARD } from '@/components/surface-layout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Text as UiText } from '@/components/ui/text'
@@ -150,7 +151,7 @@ export function CommitCard({ active }: { active: boolean }): React.JSX.Element {
         </Text>
       ) : null}
 
-      <View className="gap-2.5 rounded-2xl border border-border bg-card p-3">
+      <View className={cn('gap-2.5 p-3', PANEL_CARD)}>
         <View className="flex-row gap-1.5">
           <TokenChip
             disabled={treeClean || conventions === undefined}
@@ -281,10 +282,7 @@ export function CommitCard({ active }: { active: boolean }): React.JSX.Element {
           <View className="gap-2 border-t border-border pt-2" testID="porcelain-changes-groups">
             <PanelLabel>Generated groups</PanelLabel>
             {generated.map((group) => (
-              <View
-                key={group.files.join('|')}
-                className="gap-1 rounded-xl border border-border p-2.5"
-              >
+              <View key={group.files.join('|')} className={cn('gap-1 p-2.5', PANEL_CARD)}>
                 <Text className="text-xs font-medium text-foreground">{group.message}</Text>
                 <Text className="font-mono text-3xs leading-4 text-muted-foreground">
                   {group.files.join(', ')}

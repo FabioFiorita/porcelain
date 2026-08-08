@@ -8,10 +8,11 @@ import {
   PanelLabel,
   ScreenHeader,
 } from '@/components/panel-chrome'
-import { surfaceContentStyle } from '@/components/surface-layout'
+import { PANEL_CARD, surfaceContentStyle } from '@/components/surface-layout'
 import { type CommentAnchor, CommentComposer } from '@/features/comments/comment-composer'
 import { useBottomChrome } from '@/features/shell/bottom-chrome'
 import type { FlowFile } from '@/lib/daemon/procedures/changes'
+import { cn } from '@/lib/utils'
 
 import { CommitFileRow, type CommitFileRowActions } from './commit-file-row'
 import { commitTitle, shortHash, splitCommitMessage } from './commit-message'
@@ -150,10 +151,7 @@ function CommitMessageCard({
   const { body, subject } = splitCommitMessage(message ?? '')
 
   return (
-    <View
-      className="mb-1 gap-2 rounded-2xl border border-border bg-card p-3"
-      testID="porcelain-history-commit-message"
-    >
+    <View className={cn('mb-1 gap-2 p-3', PANEL_CARD)} testID="porcelain-history-commit-message">
       <Text className="text-sm font-semibold leading-5 text-foreground" selectable>
         {message === undefined ? '…' : subject === '' ? shortHash(hash) : subject}
       </Text>

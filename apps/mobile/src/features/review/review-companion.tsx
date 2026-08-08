@@ -10,6 +10,7 @@ import {
   PanelLabel,
 } from '@/components/panel-chrome'
 import { ShellModal, useShellModalSize } from '@/components/shell-modal'
+import { PANEL_CARD } from '@/components/surface-layout'
 import { Button } from '@/components/ui/button'
 import { Text as UiText } from '@/components/ui/text'
 import { CommentsCard } from '@/features/changes/comments-card'
@@ -17,6 +18,7 @@ import { useReviewedPaths } from '@/features/changes/use-changes'
 import { useReviewComments } from '@/features/comments/use-comments'
 import { pathTestId } from '@/features/files/file-paths'
 import type { ArchivedReview, FeatureReading } from '@/lib/daemon/procedures/review'
+import { cn } from '@/lib/utils'
 
 import { reviewedFractionOf } from './review-lifecycle'
 import {
@@ -117,7 +119,7 @@ function ReviewCurrentCard({
   return (
     <View className="gap-2" testID="porcelain-review-current">
       <PanelLabel>Current review</PanelLabel>
-      <View className="gap-1 rounded-2xl border border-border bg-card p-3">
+      <View className={cn('gap-1 p-3', PANEL_CARD)}>
         <Text className="text-sm font-medium text-foreground" numberOfLines={2}>
           {reading.name}
         </Text>
@@ -280,7 +282,7 @@ function PreviousReviewsCard({ active }: { active: boolean }): React.JSX.Element
         {archived.map((row) => (
           <View
             key={row.id}
-            className="flex-row items-start gap-1 rounded-2xl border border-border bg-card p-2.5"
+            className={cn('flex-row items-start gap-1 p-2.5', PANEL_CARD)}
             testID={pathTestId('porcelain-review-previous-row', row.id)}
           >
             <Pressable

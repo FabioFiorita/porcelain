@@ -138,6 +138,32 @@ describe('surface layout', () => {
     expect(offenders).toEqual([])
   })
 
+  /**
+   * The card ratchet. The `ui/card.tsx` primitive was never adopted, so eleven surfaces hand-wrote
+   * the same shell — and drifted while doing it: `rounded-2xl` across the tabs, `rounded-xl` in
+   * settings, one nested card with no fill at all. `PANEL_CARD` is the radius decision, in one
+   * place.
+   *
+   * Settings still hand-writes `rounded-xl` cards; those panels are rebuilt with their hook
+   * extraction, and this ratchet grows to cover them then.
+   */
+  it('keeps cards on the shared card idiom', () => {
+    const offenders: string[] = []
+
+    for (const path of sourceFiles(FEATURES)) {
+      const source = readFileSync(path, 'utf8')
+      for (const match of source.matchAll(/rounded-\w+ border border-border bg-card/g)) {
+        if (!match[0].startsWith('rounded-2xl')) continue
+        if (elementAround(source, match.index).includes(ALLOW)) continue
+        offenders.push(path.slice(FEATURES.length + 1))
+      }
+    }
+
+    // Compose `PANEL_CARD` with the card's own padding instead: a hand-written shell is how the
+    // two radius families grew in the first place.
+    expect(offenders).toEqual([])
+  })
+
   it('keeps the spacing scale pinned to points, not rem', () => {
     // Comments stripped first — the declaration's own note names the default it replaces.
     const css = readFileSync(join(__dirname, '..', 'global.css'), 'utf8').replace(

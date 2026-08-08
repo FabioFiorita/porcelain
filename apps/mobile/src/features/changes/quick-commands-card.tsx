@@ -3,6 +3,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 
 import { ChromeGlyph, type ChromeIconName } from '@/components/chrome-glyph'
 import { PanelLabel } from '@/components/panel-chrome'
+import { PANEL_CARD } from '@/components/surface-layout'
 import { QUICK_COMMANDS, type QuickCommandId } from '@/lib/daemon/procedures/changes'
 import { cn } from '@/lib/utils'
 import { useGitSuggestions, useQuickCommand } from './use-commit'
@@ -57,7 +58,7 @@ export function QuickCommandsCard({ active }: { active: boolean }): React.JSX.El
       {suggestions.length === 0 ? null : (
         <View className="gap-2" testID="porcelain-changes-suggested">
           <PanelLabel>Suggested</PanelLabel>
-          <View className="gap-0.5 rounded-2xl border border-border bg-card p-1">
+          <View className={cn('gap-0.5 p-1', PANEL_CARD)}>
             {suggestions.map((suggestion) => {
               const command = asQuickCommand(suggestion.command)
               if (command === null) return null
@@ -146,10 +147,7 @@ function CommandResultCard({
   result: CommandResult
 }): React.JSX.Element {
   return (
-    <View
-      className="overflow-hidden rounded-2xl border border-border bg-card"
-      testID="porcelain-changes-command-result"
-    >
+    <View className={cn('overflow-hidden', PANEL_CARD)} testID="porcelain-changes-command-result">
       <View className="flex-row items-center gap-2 border-b border-border/60 px-2.5 py-1.5">
         <ChromeGlyph
           name={result.failed ? 'circleX' : 'circleCheck'}

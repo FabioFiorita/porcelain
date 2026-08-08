@@ -1,8 +1,7 @@
 import { Pressable, Text } from 'react-native'
-
+import { PANEL_CARD } from '@/components/surface-layout'
 import type { BoardCard } from '@/lib/daemon/procedures/review'
 import { cn } from '@/lib/utils'
-
 import { STATUS_LABEL } from './use-board'
 
 /**
@@ -31,7 +30,8 @@ export function CardRow({
       accessibilityRole="button"
       accessibilityState={{ selected }}
       className={cn(
-        'gap-1 rounded-2xl border border-border bg-card p-2.5 active:bg-accent',
+        'gap-1 p-2.5 active:bg-accent',
+        PANEL_CARD,
         selected && 'border-primary bg-muted/70',
       )}
       testID={testID}

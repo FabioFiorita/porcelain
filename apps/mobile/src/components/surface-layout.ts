@@ -33,6 +33,20 @@ export const SURFACE_GUTTER = 'px-4'
  */
 export const SURFACE_ROW = 'mx-2 rounded-xl border border-transparent px-2 py-2 active:bg-accent'
 
+/**
+ * A raised card: the companion sections, board cards, commit cards, quick commands, comments.
+ *
+ * Only the shell — radius, border, fill. Padding and inner rhythm stay at the call site, because
+ * a card holding one label wants `p-2.5` and one holding a list wants `p-1`, and forcing those
+ * into the token is what pushes a surface back to writing its own.
+ *
+ * The radius is the decision this token exists to hold. Cards had drifted into two families,
+ * `rounded-2xl` on the tabs and `rounded-xl` in settings, which reads as two design systems on
+ * two screens of one app. `rounded-2xl` wins; settings follows when its panels are rebuilt.
+ * `surface-layout.test.ts` fails the build when a feature hand-writes the shell again.
+ */
+export const PANEL_CARD = 'rounded-2xl border border-border bg-card'
+
 /** The same row, selected: the invisible card becomes visible. */
 export const SURFACE_ROW_SELECTED = 'border-border bg-muted/70'
 

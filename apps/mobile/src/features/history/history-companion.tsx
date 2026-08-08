@@ -4,11 +4,13 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { PanelLabel, StatusNote } from '@/components/panel-chrome'
+import { PANEL_CARD } from '@/components/surface-layout'
 import { Button } from '@/components/ui/button'
 import { Text as UiText } from '@/components/ui/text'
 import { useShellStore } from '@/features/shell/shell-store'
 import { useIsTablet } from '@/features/shell/use-app-window'
 import type { Commit } from '@/lib/daemon/procedures/changes'
+import { cn } from '@/lib/utils'
 
 import { commitTitle, shortHash } from './commit-message'
 import { useHistoryStore } from './history-store'
@@ -49,7 +51,7 @@ function CommitCard({ active }: { active: boolean }): React.JSX.Element {
   const row = hash === null ? undefined : commits?.find((commit) => commit.hash === hash)
 
   return (
-    <View className="gap-2 rounded-2xl border border-border bg-card p-3">
+    <View className={cn('gap-2 p-3', PANEL_CARD)}>
       <PanelLabel>Commit</PanelLabel>
       {hash === null ? (
         <Text className="text-xs leading-5 text-muted-foreground">
@@ -110,7 +112,7 @@ function FileTimelineCard({ active }: { active: boolean }): React.JSX.Element {
   const openCommit = useOpenCommitFromCompanion()
 
   return (
-    <View className="gap-2 rounded-2xl border border-border bg-card p-3">
+    <View className={cn('gap-2 p-3', PANEL_CARD)}>
       <PanelLabel>File timeline</PanelLabel>
       {path === null ? (
         <Text className="text-xs leading-5 text-muted-foreground">

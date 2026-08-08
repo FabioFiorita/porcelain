@@ -2,6 +2,7 @@ import { useIsFocused } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { ChromeGlyph } from '@/components/chrome-glyph'
+import { PANEL_CARD } from '@/components/surface-layout'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
@@ -172,7 +173,7 @@ function PhoneSurfaceBody({ surfaceId }: { surfaceId: SurfaceId }): React.JSX.El
           </View>
         </View>
 
-        <View className="gap-2 rounded-2xl border border-border bg-card p-4">
+        <View className={cn('gap-2 p-4', PANEL_CARD)}>
           <Text className="text-3xs font-semibold uppercase tracking-widest text-muted-foreground">
             Companion preview
           </Text>
