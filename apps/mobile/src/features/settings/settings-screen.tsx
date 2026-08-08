@@ -1,9 +1,8 @@
 import { View } from 'react-native'
 
+import { SegmentedControl } from '@/components/segmented-control'
 import { SURFACE_GUTTER } from '@/components/surface-layout'
 import { SurfaceScroll } from '@/components/surface-scroll'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Text as UiText } from '@/components/ui/text'
 import { cn } from '@/lib/utils'
 
 import { PhoneHeader } from '../shell/phone-header'
@@ -13,16 +12,29 @@ import { EnvironmentsSettings } from './environments-panel'
 import { GeneralSettings } from './general-panel'
 import { ReviewSettings } from './review-panel'
 
-const SECTIONS: { id: SettingsSection; label: string }[] = [
-  { id: 'general', label: 'General' },
-  { id: 'data', label: 'Data' },
-  { id: 'review', label: 'Review' },
-  { id: 'environments', label: 'Environments' },
+/**
+ * Four sections share a 390pt phone, so "Environments" gets ~85pt. `SegmentedControl`
+ * already gives every segment `flex-1` and one line of `text-xs`, which is the geometry
+ * the hand-tuned `TabsTrigger` was reaching for.
+ */
+const SECTIONS: { value: SettingsSection; label: string; testID: string }[] = [
+  { value: 'general', label: 'General', testID: 'porcelain-settings-section-general' },
+  { value: 'data', label: 'Data', testID: 'porcelain-settings-section-data' },
+  { value: 'review', label: 'Review', testID: 'porcelain-settings-section-review' },
+  {
+    value: 'environments',
+    label: 'Environments',
+    testID: 'porcelain-settings-section-environments',
+  },
 ]
 
 /**
- * Phone Settings tab — full-screen (not a sheet). Section tabs live in the
- * header band so one divider sits under the chrome, not a double line.
+ * Phone Settings tab — full-screen (not a sheet). The section switcher lives in the header
+ * band so one divider sits under the chrome, not a double line.
+ *
+ * It is the same `SegmentedControl` Board, Changes, Review and Files use. Settings had the
+ * app's only `ui/tabs` switcher, which meant one screen answering a tap with a different
+ * shape, a different height, and a different selected fill than the other four.
  */
 export function SettingsScreen(): React.JSX.Element {
   const section = useShellStore((state) => state.settingsSection)
@@ -30,52 +42,30 @@ export function SettingsScreen(): React.JSX.Element {
 
   return (
     <View className="flex-1 bg-background" testID="porcelain-phone-settings">
-      <Tabs
-        className="min-h-0 flex-1 gap-0"
-        value={section}
-        onValueChange={(value) => {
-          setSettingsSection(value as SettingsSection)
-        }}
-      >
-        <PhoneHeader border={false} companion={false} title="Settings" workspace={false}>
-          {/* The header hands its divider to this band so the tabs read as part of the chrome;
-              the band therefore owns the gutter and the space above the line. */}
-          <View className={cn(SURFACE_GUTTER, 'border-b border-border pb-3')}>
-            <TabsList className="h-10 w-full" testID="porcelain-settings-tabs">
-              {SECTIONS.map((entry) => (
-                <TabsTrigger
-                  key={entry.id}
-                  className="min-h-9 min-w-0 flex-1 px-1.5"
-                  testID={`porcelain-settings-section-${entry.id}`}
-                  value={entry.id}
-                >
-                  {/* Four sections share a 390pt phone, so "Environments" has
-                      ~85pt: one line, smaller type, and no wrap. */}
-                  <UiText className="text-xs font-medium" numberOfLines={1}>
-                    {entry.label}
-                  </UiText>
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </View>
-        </PhoneHeader>
+      <PhoneHeader border={false} companion={false} title="Settings" workspace={false}>
+        {/* The header hands its divider to this band so the switcher reads as part of the
+            chrome; the band therefore owns the gutter and the space above the line. */}
+        <View className={cn(SURFACE_GUTTER, 'border-b border-border pb-3')}>
+          <SegmentedControl<SettingsSection>
+            options={SECTIONS}
+            testID="porcelain-settings-tabs"
+            value={section}
+            onChange={setSettingsSection}
+          />
+        </View>
+      </PhoneHeader>
 
-        {SECTIONS.map((entry) => (
-          <TabsContent key={entry.id} className="min-h-0 flex-1" value={entry.id}>
-            <SurfaceScroll
-              gap={12}
-              keyboardShouldPersistTaps="handled"
-              paddingTop={12}
-              showsVerticalScrollIndicator={false}
-            >
-              {entry.id === 'general' ? <GeneralSettings /> : null}
-              {entry.id === 'data' ? <DataSettings /> : null}
-              {entry.id === 'review' ? <ReviewSettings /> : null}
-              {entry.id === 'environments' ? <EnvironmentsSettings /> : null}
-            </SurfaceScroll>
-          </TabsContent>
-        ))}
-      </Tabs>
+      <SurfaceScroll
+        gap={12}
+        keyboardShouldPersistTaps="handled"
+        paddingTop={12}
+        showsVerticalScrollIndicator={false}
+      >
+        {section === 'general' ? <GeneralSettings /> : null}
+        {section === 'data' ? <DataSettings /> : null}
+        {section === 'review' ? <ReviewSettings /> : null}
+        {section === 'environments' ? <EnvironmentsSettings /> : null}
+      </SurfaceScroll>
     </View>
   )
 }

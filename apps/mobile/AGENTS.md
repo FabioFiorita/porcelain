@@ -25,9 +25,9 @@ loop and runtime traps. This file is platform law that must stay true without lo
   smallest type rungs, all pinned to points because the native runtime rem is 14.
 - `src/components/ui/` is **not** the vocabulary. It holds the handful of React Native Reusables
   files the app actually adopted — button, text, input, textarea, badge, separator, collapsible,
-  modal-backdrop, and tabs (settings only, until its panels are rebuilt). The rest of the registry
-  was deleted for having no importer; do not re-add a file from the Reusables CLI unless a screen
-  is using it in the same change.
+  and modal-backdrop. `tabs` left with settings' switcher: `SegmentedControl` is the one
+  single-select shape. The rest of the registry was deleted for having no importer; do not re-add
+  a file from the Reusables CLI unless a screen is using it in the same change.
 - The v5 setup does not use the NativeWind v4 Babel preset or a `tailwind.config.js`. Keep
   `components.json` for Reusables CLI metadata and make CSS imports the source of truth.
 - **`src/lib/daemon/` is the only daemon seam.** Procedures are hand-declared and zod-parsed; never
@@ -72,8 +72,8 @@ decisions; read their comments before arguing with a failure.
 ## The data idiom
 
 - A feature reaches the daemon **only** through its own `use-<feature>.ts`. Components import
-  procedure *types* freely and `lib/daemon/queries` never — Biome enforces it, and the four files
-  still warning are named Phase 2 debt in `biome.json`.
+  procedure *types* freely and `lib/daemon/queries` never — Biome enforces it, and the one file
+  still warning (`shell/workspace-switchers.tsx`) is named Phase 3 debt in `biome.json`.
 - Mutations are **invalidate-only**: `useDaemonMutation` with a named `*_INVALIDATIONS` constant,
   and `await mutateAsync`. No optimistic cache writes — the daemon moves real files, and a client
   that painted the result first would show work that never happened.

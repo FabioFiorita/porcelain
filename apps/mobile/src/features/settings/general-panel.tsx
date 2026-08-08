@@ -2,7 +2,8 @@ import type { CommitModel } from '@porcelain/contracts'
 import { useState } from 'react'
 import { Pressable, View } from 'react-native'
 
-import { ErrorNote } from '@/components/panel-chrome'
+import { ChromeGlyph } from '@/components/chrome-glyph'
+import { ActionSheet, ErrorNote } from '@/components/panel-chrome'
 import { SegmentedControl } from '@/components/segmented-control'
 import { Text } from '@/components/ui/text'
 import { cn } from '@/lib/utils'
@@ -183,6 +184,7 @@ function CommitModelPicker({
 }): React.JSX.Element {
   const [open, setOpen] = useState(false)
   const selected = options.find((option) => option.id === value)
+  const disabled = unreachable || isLoading || options.length === 0
   const label = unreachable
     ? 'Connect an environment'
     : isLoading
@@ -190,55 +192,47 @@ function CommitModelPicker({
       : (selected?.label ?? (options.length === 0 ? 'No providers' : value))
 
   return (
-    <View className="w-full max-w-sm gap-1.5">
+    <View className="w-full max-w-sm">
       <Pressable
         accessibilityLabel="Commit message model"
         accessibilityRole="button"
-        accessibilityState={{ disabled: unreachable || isLoading || options.length === 0 }}
+        accessibilityState={{ disabled }}
         className={cn(
           'h-9 flex-row items-center justify-between rounded-md border border-border bg-background px-3 active:bg-accent',
-          (unreachable || isLoading || options.length === 0) && 'opacity-60',
+          disabled && 'opacity-60',
         )}
-        disabled={unreachable || isLoading || options.length === 0}
+        disabled={disabled}
         testID="porcelain-settings-commit-model-trigger"
         onPress={() => {
-          setOpen((current) => !current)
+          setOpen(true)
         }}
       >
         <Text className="text-sm text-foreground">{label}</Text>
-        <Text className="text-xs text-muted-foreground">{open ? '▲' : '▼'}</Text>
+        <ChromeGlyph name="chevron" size={12} />
       </Pressable>
-      {open ? (
-        <View
-          className="overflow-hidden rounded-md border border-border bg-card"
-          testID="porcelain-settings-commit-model-list"
-        >
-          {options.map((option) => {
-            const selectedOption = option.id === value
-            return (
-              <Pressable
-                key={option.id}
-                accessibilityRole="button"
-                accessibilityState={{ selected: selectedOption }}
-                className={cn(
-                  'flex-row items-center justify-between px-3 py-2.5 active:bg-accent',
-                  selectedOption && 'bg-accent/60',
-                )}
-                testID={`porcelain-settings-commit-model-${option.id}`}
-                onPress={() => {
-                  onChange(option.id)
-                  setOpen(false)
-                }}
-              >
-                <Text className="text-sm text-foreground">{option.label}</Text>
-                {selectedOption ? (
-                  <Text className="text-xs font-semibold text-primary">Selected</Text>
-                ) : null}
-              </Pressable>
-            )
-          })}
-        </View>
-      ) : null}
+
+      {/* The list opens as an `ActionSheet` rather than expanding under the trigger. It is a
+          single select from a short list, which is what the sheet is for — and the inline
+          version pushed every preference below it down the screen while it was open, so the
+          row you were reading moved out from under your thumb. */}
+      <ActionSheet
+        actions={options.map((option) => ({
+          glyph: option.id === value ? 'squareCheck' : 'square',
+          id: option.id,
+          label: option.label,
+          tone: option.id === value ? 'primary' : ('muted' as const),
+          onPress: () => {
+            onChange(option.id)
+          },
+        }))}
+        open={open}
+        subtitle={selected?.label ?? value}
+        testID="porcelain-settings-commit-model-list"
+        title="Commit message model"
+        onClose={() => {
+          setOpen(false)
+        }}
+      />
     </View>
   )
 }

@@ -1,9 +1,15 @@
 import { endpointKind } from '@porcelain/contracts'
 import { useState } from 'react'
 import { Alert, Pressable, View } from 'react-native'
-import { Swipeable } from 'react-native-gesture-handler'
 import { ChromeGlyph, type ChromeIconName } from '@/components/chrome-glyph'
-import { EmptyNote, ErrorNote, PanelLabel } from '@/components/panel-chrome'
+import {
+  ActionSheet,
+  ConfirmDialog,
+  EmptyNote,
+  ErrorNote,
+  PanelLabel,
+  type SheetAction,
+} from '@/components/panel-chrome'
 import { PANEL_CARD } from '@/components/surface-layout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -420,7 +426,41 @@ function GroupDetail({
   const connection = useConnectionState()
   const isActive = active?.id === environment.id
   const [nickname, setNickname] = useState(environment.nickname)
+  const [menuFor, setMenuFor] = useState<string | null>(null)
+  const [removing, setRemoving] = useState<string | null>(null)
   const version = isActive && connection.kind === 'ready' ? connection.daemonVersion : null
+  const canRemove = environment.endpoints.length > 1
+
+  /**
+   * A connection row's actions, the same long-press menu Terminal and Files rows wear. This
+   * was the app's only swipe-to-delete: one row in one panel answering a gesture nothing else
+   * in the app answers, and hiding its only destructive action behind it.
+   */
+  const rowActions = (url: string): SheetAction[] => {
+    const actions: SheetAction[] = []
+    if (url !== environment.preferredEndpoint) {
+      actions.push({
+        glyph: 'star',
+        id: 'primary',
+        label: 'Make primary',
+        onPress: () => {
+          makePrimary(environment.id, url)
+        },
+      })
+    }
+    if (canRemove) {
+      actions.push({
+        destructive: true,
+        glyph: 'trash',
+        id: 'remove',
+        label: 'Remove connection',
+        onPress: () => {
+          setRemoving(url)
+        },
+      })
+    }
+    return actions
+  }
 
   const saveNickname = async (): Promise<void> => {
     const next = nickname.trim()
@@ -546,12 +586,18 @@ function GroupDetail({
         {environment.endpoints.map((url, index) => (
           <ConnectionRow
             key={url}
-            canRemove={environment.endpoints.length > 1}
             environmentId={environment.id}
             index={index}
             preferred={url === environment.preferredEndpoint}
             total={environment.endpoints.length}
             url={url}
+            onLongPress={
+              rowActions(url).length === 0
+                ? undefined
+                : () => {
+                    setMenuFor(url)
+                  }
+            }
           />
         ))}
       </View>
@@ -573,24 +619,67 @@ function GroupDetail({
       >
         <Text>Delete group</Text>
       </Button>
+
+      <ActionSheet
+        actions={menuFor === null ? [] : rowActions(menuFor)}
+        open={menuFor !== null}
+        subtitle={menuFor ?? undefined}
+        testID="porcelain-settings-connection-menu"
+        title="Connection"
+        onClose={() => {
+          setMenuFor(null)
+        }}
+      />
+
+      <ConfirmDialog
+        body="This device stops trying that route. The others in this group are untouched, and the daemon is not changed."
+        confirmLabel="Remove"
+        open={removing !== null}
+        testID="porcelain-settings-connection-remove-confirm"
+        title="Remove this connection?"
+        onCancel={() => {
+          setRemoving(null)
+        }}
+        onConfirm={() => {
+          const url = removing
+          setRemoving(null)
+          if (url !== null) environmentActions.removeEndpoint(environment.id, url)
+        }}
+      />
     </View>
   )
+}
+
+/**
+ * Promotion also hoists the row to the top. The client walks `preferredEndpoint` first and
+ * the rest in array order, so leaving a promoted row sitting third made the list disagree
+ * with the failover it was describing — the reader had to hold two orders in their head.
+ */
+async function makePrimary(environmentId: EnvironmentId, url: string): Promise<void> {
+  await environmentActions.preferEndpoint(environmentId, url)
+  const environment = getEnvironment(environmentId)
+  if (environment === null) return
+  await environmentActions.setEndpointOrder(environmentId, [
+    url,
+    ...environment.endpoints.filter((candidate) => candidate !== url),
+  ])
 }
 
 function ConnectionRow({
   environmentId,
   url,
   preferred,
-  canRemove,
   index,
   total,
+  onLongPress,
 }: {
   environmentId: EnvironmentId
   url: string
   preferred: boolean
-  canRemove: boolean
   index: number
   total: number
+  /** Opens the row menu. Absent when this row has no action to offer. */
+  onLongPress?: () => void
 }): React.JSX.Element {
   const move = async (direction: -1 | 1): Promise<void> => {
     const environment = getEnvironment(environmentId)
@@ -606,29 +695,17 @@ function ConnectionRow({
     await environmentActions.setEndpointOrder(environmentId, next)
   }
 
-  /**
-   * Promotion also hoists the row to the top. The client walks `preferredEndpoint` first and
-   * the rest in array order, so leaving a promoted row sitting third made the list disagree
-   * with the failover it was describing — the reader had to hold two orders in their head.
-   */
-  const makePrimary = async (): Promise<void> => {
-    await environmentActions.preferEndpoint(environmentId, url)
-    const environment = getEnvironment(environmentId)
-    if (environment === null) return
-    await environmentActions.setEndpointOrder(environmentId, [
-      url,
-      ...environment.endpoints.filter((candidate) => candidate !== url),
-    ])
-  }
-
-  const body = (
-    <View
+  return (
+    <Pressable
+      accessibilityLabel={`Connection ${endpointLabel(url)}, ${url}`}
+      accessibilityRole="button"
       className={cn(
         PANEL_CARD,
         'flex-row items-center gap-3 p-3',
         preferred && 'border-primary/40 bg-primary/5',
       )}
       testID={`porcelain-settings-connection-${index}`}
+      onLongPress={onLongPress}
     >
       <View className="min-w-0 flex-1 gap-1.5">
         <View className="flex-row items-center gap-2">
@@ -661,7 +738,7 @@ function ConnectionRow({
               className="flex-row items-center gap-1 rounded-md border border-border px-2 py-0.5 active:bg-accent"
               testID={`porcelain-settings-connection-primary-${index}`}
               onPress={() => {
-                makePrimary()
+                makePrimary(environmentId, url)
               }}
             >
               <ChromeGlyph name="star" size={10} />
@@ -699,32 +776,7 @@ function ConnectionRow({
           />
         </View>
       ) : null}
-    </View>
-  )
-
-  if (!canRemove) return body
-
-  return (
-    <Swipeable
-      overshootRight={false}
-      renderRightActions={() => (
-        <Pressable
-          accessibilityLabel="Remove connection"
-          accessibilityRole="button"
-          /* surface-gutter-allow: a swipe action's own width, revealed outside the row — not a
-             gutter anything aligns to. */
-          className="ml-2 items-center justify-center rounded-xl bg-destructive px-4"
-          testID={`porcelain-settings-connection-remove-${index}`}
-          onPress={() => {
-            environmentActions.removeEndpoint(environmentId, url)
-          }}
-        >
-          <Text className="text-sm font-semibold text-white">Remove</Text>
-        </Pressable>
-      )}
-    >
-      {body}
-    </Swipeable>
+    </Pressable>
   )
 }
 
