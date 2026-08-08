@@ -14,6 +14,9 @@
  * the next file you open reads the default again.
  */
 
+import type { LineRange } from '@/features/comments/line-range'
+import type { HtmlMode, MarkdownMode } from '@/features/settings/preferences-store'
+
 /** A mode chosen for one specific file, by the reader, for as long as that file is open. */
 export type ViewerOverride<TMode extends string> = {
   /** Repo-relative path the choice was made on. */
@@ -28,4 +31,37 @@ export function viewerMode<TMode extends string>(
   path: string,
 ): TMode {
   return override !== null && override.path === path ? override.mode : fallback
+}
+
+/**
+ * Which face the viewer is actually showing.
+ *
+ * `source` is the floor, not a fallback of last resort: a rendered face only exists for a **text**
+ * file that has one, so an image, a binary and a file past the read cap all read as source no
+ * matter what either preference says.
+ */
+export type ViewerFace = 'preview' | 'reader' | 'source'
+
+export function viewerFace(file: {
+  html: boolean
+  htmlMode: HtmlMode
+  isText: boolean
+  markdown: boolean
+  markdownMode: MarkdownMode
+}): ViewerFace {
+  if (!file.isText) return 'source'
+  if (file.markdown && file.markdownMode === 'reader') return 'reader'
+  if (file.html && file.htmlMode === 'preview') return 'preview'
+  return 'source'
+}
+
+/**
+ * The range a comment would anchor to, given what is on screen.
+ *
+ * A range selected in Source means nothing while a rendered page is up: a comment anchors to a
+ * line, and a rendered page has none. The selection bar hides for the same reason — one rule, so
+ * the bar and the header's comment action can never disagree about what the tap would file.
+ */
+export function anchorableRange(selected: LineRange | null, face: ViewerFace): LineRange | null {
+  return face === 'source' ? selected : null
 }

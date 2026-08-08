@@ -21,7 +21,6 @@ const mobileSourceRoot = path.resolve('apps/mobile/src')
  * number is a cap, not a licence.
  */
 const ALLOWLIST = new Map([
-  ['features/files/file-viewer.tsx', 494],
   ['features/changes/commit-card.tsx', 464],
   ['lib/daemon/environments-store.ts', 453],
 ])

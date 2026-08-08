@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { describeBytes, sourceAnchorText, toSourceRows } from './source-rows'
+import { describeBytes, focusRowIndex, sourceAnchorText, toSourceRows } from './source-rows'
 
 describe('toSourceRows', () => {
   it('numbers lines from one', () => {
@@ -65,5 +65,29 @@ describe('describeBytes', () => {
 
   it('switches to MB at a megabyte', () => {
     expect(describeBytes(3 * 1024 * 1024)).toBe('3.0 MB')
+  })
+})
+
+describe('focusRowIndex', () => {
+  it('turns the caller’s 1-based line into a row index', () => {
+    expect(focusRowIndex(1, 100)).toBe(0)
+    expect(focusRowIndex(42, 100)).toBe(41)
+  })
+
+  it('lands on the last row when the file has shrunk under the hit', () => {
+    // A search hit is read from an index; the file can have been rewritten since, and
+    // scrollToIndex past the end throws rather than clamping itself.
+    expect(focusRowIndex(500, 100)).toBe(99)
+  })
+
+  it('lands on the first row for a line no editor would number', () => {
+    expect(focusRowIndex(0, 100)).toBe(0)
+    expect(focusRowIndex(-3, 100)).toBe(0)
+    expect(focusRowIndex(7.9, 100)).toBe(6)
+  })
+
+  it('has nowhere to jump before the contents arrive, or with no line asked for', () => {
+    expect(focusRowIndex(42, 0)).toBeNull()
+    expect(focusRowIndex(undefined, 100)).toBeNull()
   })
 })

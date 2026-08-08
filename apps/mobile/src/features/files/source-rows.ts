@@ -43,3 +43,16 @@ export function describeBytes(size: number): string {
   if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`
   return `${(size / (1024 * 1024)).toFixed(1)} MB`
 }
+
+/**
+ * The row index a caller's 1-based line asks the list to scroll to, or null for the top.
+ *
+ * Clamped rather than trusted: the line comes from a search hit, and the file it matched in can
+ * have been rewritten since — `scrollToIndex` past the end throws, and a line the caller counted
+ * from 1 indexes from 0. Null while the file has no rows yet, which is every frame between the
+ * route arriving and the contents landing.
+ */
+export function focusRowIndex(line: number | undefined, rowCount: number): number | null {
+  if (line === undefined || rowCount === 0) return null
+  return Math.min(Math.max(Math.trunc(line) - 1, 0), rowCount - 1)
+}
