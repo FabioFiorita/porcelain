@@ -19,11 +19,15 @@ loop and runtime traps. This file is platform law that must stay true without lo
   scripting, no network (`default-src 'none'` in the document itself), every navigation refused,
   and web links handed to the system browser. `features/files/preview-view.tsx` is the only host;
   route a new preview through it rather than mounting a second WebView with its own rules.
-- Reusable primitives live in `src/components/ui/` and are copied from the React Native Reusables
-  registry with its CLI. Compose them with `className` and `cn`; keep semantic tokens aligned with
-  the web shadcn vocabulary. The shared token source is `@porcelain/ui/tokens.css`; keep
-  `src/global.css` as the NativeWind entrypoint and add only mobile-specific font/setup overrides
-  there.
+- Primitives are composed with `className` and `cn`, and semantic tokens stay aligned with the web
+  shadcn vocabulary. The shared token source is `@porcelain/ui/tokens.css`; `src/global.css` is the
+  NativeWind entrypoint and carries the mobile-only overrides — fonts, `--spacing`, and the two
+  smallest type rungs, all pinned to points because the native runtime rem is 14.
+- `src/components/ui/` is **not** the vocabulary. It holds the handful of React Native Reusables
+  files the app actually adopted — button, text, input, textarea, badge, separator, collapsible,
+  modal-backdrop, and tabs (settings only, until its panels are rebuilt). The rest of the registry
+  was deleted for having no importer; do not re-add a file from the Reusables CLI unless a screen
+  is using it in the same change.
 - The v5 setup does not use the NativeWind v4 Babel preset or a `tailwind.config.js`. Keep
   `components.json` for Reusables CLI metadata and make CSS imports the source of truth.
 - **`src/lib/daemon/` is the only daemon seam.** Procedures are hand-declared and zod-parsed; never
@@ -43,6 +47,48 @@ loop and runtime traps. This file is platform law that must stay true without lo
   primitive cannot accept `testID`, keep its accessible label stable and document the exception in
   the change. The Android loop resolves these IDs through the live `uiautomator` tree.
 - Treat every **iPad** presentation claim as unproven until runtime evidence from an iPad backs it.
+
+## The vocabulary
+
+Screens are assembled from these, not from raw `View`s with their own spacing. A surface that
+hand-writes one of them is a surface that drifts from the other nine.
+
+| Reach for | For |
+|---|---|
+| `components/panel-chrome.tsx` | `ScreenHeader` (every pushed screen), `IconAction`, `PanelLabel`, `EmptyNote`, `ErrorNote`, `StatusNote`, `ActionSheet`, `ConfirmDialog` |
+| `components/shell-modal.tsx` | The **only** modal primitive — `ShellModal`, `ShellModalScroll`, `useShellModalSize`. Never stack two; `ui/dialog` was deleted, not misplaced |
+| `components/chrome-glyph.tsx` | Every icon. Never Lucide — Fabric paints red "U" placeholders for a font that has not landed |
+| `components/segmented-control.tsx` | Every single-select switcher. Not `ToggleGroup` |
+| `components/surface-scroll.tsx` | `SurfaceScroll` / `SurfaceList`: they read the bottom chrome themselves, so no inset travels as a prop |
+| `components/surface-layout.ts` | `SURFACE_GUTTER`, `SURFACE_ROW`, `PANEL_CARD`, and the toolbar/note bands |
+
+Headers: a phone tab root wears `PhoneHeader` (large title, workspace chips, the companion bolt);
+anything pushed on top of one wears `ScreenHeader`. Loading is a line of text, never a spinner.
+Empty is `EmptyNote`. A row's actions are long-press → `ActionSheet` — no swipe gestures.
+
+`surface-layout.test.ts` and `scripts/lint-mobile-nativewind.mjs` hold the spacing, type, and card
+decisions; read their comments before arguing with a failure.
+
+## The data idiom
+
+- A feature reaches the daemon **only** through its own `use-<feature>.ts`. Components import
+  procedure *types* freely and `lib/daemon/queries` never — Biome enforces it, and the four files
+  still warning are named Phase 2 debt in `biome.json`.
+- Mutations are **invalidate-only**: `useDaemonMutation` with a named `*_INVALIDATIONS` constant,
+  and `await mutateAsync`. No optimistic cache writes — the daemon moves real files, and a client
+  that painted the result first would show work that never happened.
+- The one sanctioned exception is `features/terminal/terminal-store.ts`: closing a session writes a
+  local tombstone so a poll in flight cannot resurrect the row. That is session state, not repo
+  state, and it is the only place the pattern belongs.
+- Shared poll intervals live in `lib/daemon/poll.ts`. `LIVE_POLL_MS` is shared rather than
+  per-feature because React Query takes the **shortest** interval among a key's observers — two
+  surfaces on one cache entry with different rates silently get the faster one.
+- `features/settings/preferences-store` is the shared user-config layer: any feature may import it
+  directly, and nine already do. It is the exception to features keeping to themselves.
+
+A new tab is five files: `<feature>-store.ts`, `<feature>-list.tsx`, `<feature>-viewer.tsx`,
+`<feature>-phone-screen.tsx`, `use-<feature>.ts`. Add a `<feature>-companion.tsx` when the tablet
+inspector column has something to say.
 
 ## Fingerprint first
 
