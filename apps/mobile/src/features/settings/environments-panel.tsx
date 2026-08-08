@@ -1,96 +1,38 @@
-import { endpointKind } from '@porcelain/contracts'
-import { useState } from 'react'
-import { Alert, Pressable, View } from 'react-native'
-import { ChromeGlyph, type ChromeIconName } from '@/components/chrome-glyph'
-import {
-  ActionSheet,
-  ConfirmDialog,
-  EmptyNote,
-  ErrorNote,
-  PanelLabel,
-  type SheetAction,
-} from '@/components/panel-chrome'
+import { Pressable, View } from 'react-native'
+
+import { ChromeGlyph } from '@/components/chrome-glyph'
+import { EmptyNote, ErrorNote } from '@/components/panel-chrome'
 import { PANEL_CARD } from '@/components/surface-layout'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Text } from '@/components/ui/text'
+import type { Environment, EnvironmentId } from '@/lib/daemon/environment'
 import {
-  type Environment,
-  type EnvironmentIcon,
-  type EnvironmentId,
-  hostOf,
-} from '@/lib/daemon/environment'
-import {
-  environmentActions,
-  getEnvironment,
   useActiveEnvironment,
   useConnectionState,
   useEnvironments,
   useEnvironmentsCorrupt,
 } from '@/lib/daemon/environments-store'
 import { cn } from '@/lib/utils'
-import { addGroupConnection, describePairProblem, pairNewGroup } from './pair-environment'
+import { AddConnectionForm, CreateGroupForm } from './environment-forms'
+import { describeConnection } from './environment-labels'
+import { GroupDetail } from './group-detail'
+import { useEnvironmentsNavigation } from './use-environments-panel'
 
-type EnvRoute =
-  | { kind: 'list' }
-  | { kind: 'create' }
-  | { kind: 'detail'; id: EnvironmentId }
-  | { kind: 'add-connection'; id: EnvironmentId }
-
-const ICON_OPTIONS: { id: EnvironmentIcon; label: string; glyph: ChromeIconName }[] = [
-  { id: 'desktop', label: 'Desktop', glyph: 'desktop' },
-  { id: 'terminal', label: 'Terminal', glyph: 'terminal' },
-  { id: 'notebook', label: 'Notebook', glyph: 'notebook' },
-]
-
-function endpointLabel(url: string): string {
-  switch (endpointKind(url)) {
-    case 'lan':
-      return 'LAN'
-    case 'tailnet':
-      return 'Tailscale'
-    case 'other':
-      return 'Funnel / Internet'
-  }
-}
-
-function connectionStatusLabel(kind: ReturnType<typeof useConnectionState>['kind']): string {
-  switch (kind) {
-    case 'ready':
-      return 'Connected'
-    case 'connecting':
-    case 'loading':
-      return 'Connecting…'
-    case 'unreachable':
-      return 'Unreachable'
-    case 'unauthorized':
-      return 'Token rejected'
-    case 'no-environment':
-      return 'None'
-  }
-}
-
-function iconGlyph(icon: EnvironmentIcon): ChromeIconName {
-  return icon
-}
-
-/** Environments section — list, create, and detail for client-owned groups. */
+/**
+ * Environments section — list, create, and detail for client-owned groups.
+ *
+ * This file is the router between the four screens and nothing else: the forms live in
+ * `environment-forms.tsx`, the group editor in `group-detail.tsx`, their state in
+ * `use-environments-panel.ts`, and every label in `environment-labels.ts`.
+ */
 export function EnvironmentsSettings(): React.JSX.Element {
-  const [route, setRoute] = useState<EnvRoute>({ kind: 'list' })
+  const nav = useEnvironmentsNavigation()
   const environments = useEnvironments()
   const corrupt = useEnvironmentsCorrupt()
+  const { route } = nav
 
   if (route.kind === 'create') {
-    return (
-      <CreateGroupForm
-        onCancel={() => {
-          setRoute({ kind: 'list' })
-        }}
-        onCreated={(id) => {
-          setRoute({ kind: 'detail', id })
-        }}
-      />
-    )
+    return <CreateGroupForm onCancel={nav.toList} onCreated={nav.toDetail} />
   }
 
   if (route.kind === 'detail') {
@@ -99,12 +41,7 @@ export function EnvironmentsSettings(): React.JSX.Element {
       return (
         <View className="gap-3">
           <Text className="text-sm text-muted-foreground">That environment was removed.</Text>
-          <Button
-            variant="outline"
-            onPress={() => {
-              setRoute({ kind: 'list' })
-            }}
-          >
+          <Button variant="outline" onPress={nav.toList}>
             <Text>Back</Text>
           </Button>
         </View>
@@ -113,43 +50,28 @@ export function EnvironmentsSettings(): React.JSX.Element {
     return (
       <GroupDetail
         environment={environment}
+        onBack={nav.toList}
+        onDeleted={nav.toList}
         onAddConnection={() => {
-          setRoute({ kind: 'add-connection', id: environment.id })
-        }}
-        onBack={() => {
-          setRoute({ kind: 'list' })
-        }}
-        onDeleted={() => {
-          setRoute({ kind: 'list' })
+          nav.toAddConnection(environment.id)
         }}
       />
     )
   }
 
   if (route.kind === 'add-connection') {
-    return (
-      <AddConnectionForm
-        groupId={route.id}
-        onCancel={() => {
-          setRoute({ kind: 'detail', id: route.id })
-        }}
-        onAdded={() => {
-          setRoute({ kind: 'detail', id: route.id })
-        }}
-      />
-    )
+    const back = (): void => {
+      nav.toDetail(route.id)
+    }
+    return <AddConnectionForm groupId={route.id} onAdded={back} onCancel={back} />
   }
 
   return (
     <EnvironmentsList
       corrupt={corrupt}
       environments={environments}
-      onCreate={() => {
-        setRoute({ kind: 'create' })
-      }}
-      onOpen={(id) => {
-        setRoute({ kind: 'detail', id })
-      }}
+      onCreate={nav.toCreate}
+      onOpen={nav.toDetail}
     />
   )
 }
@@ -209,7 +131,7 @@ function EnvironmentsList({
             }}
           >
             <View className="size-10 items-center justify-center rounded-lg bg-muted">
-              <ChromeGlyph name={iconGlyph(environment.icon)} size={18} tone="foreground" />
+              <ChromeGlyph name={environment.icon} size={18} tone="foreground" />
             </View>
             <View className="min-w-0 flex-1 gap-0.5">
               <Text className="font-medium text-foreground" numberOfLines={1}>
@@ -228,626 +150,6 @@ function EnvironmentsList({
       <Button testID="porcelain-settings-create-environment" variant="outline" onPress={onCreate}>
         <Text>Create environment group</Text>
       </Button>
-    </View>
-  )
-}
-
-function describeConnection(
-  environment: Environment,
-  isActive: boolean,
-  connection: ReturnType<typeof useConnectionState>,
-): string {
-  const count = environment.endpoints.length
-  const routes = `${count} connection${count === 1 ? '' : 's'}`
-  if (!isActive) {
-    if (environment.token === null) return `Unpaired · ${routes}`
-    return `${hostOf(environment.preferredEndpoint)} · ${routes}`
-  }
-  switch (connection.kind) {
-    case 'loading':
-    case 'connecting':
-      return `Connecting… · ${routes}`
-    case 'ready':
-      return `daemon ${connection.daemonVersion} · ${routes}`
-    case 'unreachable':
-      return `Unreachable · ${routes}`
-    case 'unauthorized':
-      return `Token rejected · ${routes}`
-    case 'no-environment':
-      return routes
-  }
-}
-
-function CreateGroupForm({
-  onCancel,
-  onCreated,
-}: {
-  onCancel: () => void
-  onCreated: (id: EnvironmentId) => void
-}): React.JSX.Element {
-  const [nickname, setNickname] = useState('')
-  const [link, setLink] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const submit = async (): Promise<void> => {
-    setBusy(true)
-    setError(null)
-    const result = await pairNewGroup({ connectionLink: link, nickname })
-    setBusy(false)
-    if (!result.ok) {
-      setError(describePairProblem(result.error))
-      return
-    }
-    await environmentActions.setActive(result.value.id)
-    onCreated(result.value.id)
-  }
-
-  return (
-    <View className="gap-3" testID="porcelain-settings-create-group">
-      <BackRow label="Environments" onPress={onCancel} />
-      <Text className="text-base font-semibold text-foreground">Create environment group</Text>
-      <Text className="text-xs leading-5 text-muted-foreground">
-        Pair LAN first. After the group exists you can add Tailscale or Funnel as fallback routes.
-      </Text>
-
-      <Field label="Nickname (optional)">
-        <Input
-          accessibilityLabel="Group nickname"
-          autoCapitalize="none"
-          autoCorrect={false}
-          className="h-10"
-          editable={!busy}
-          placeholder="Defaults to host name"
-          testID="porcelain-settings-group-nickname"
-          value={nickname}
-          onChangeText={setNickname}
-        />
-      </Field>
-
-      <Field label="Connection link">
-        <Input
-          accessibilityLabel="Connection link"
-          autoCapitalize="none"
-          autoCorrect={false}
-          className="h-10 font-mono text-xs"
-          editable={!busy}
-          placeholder="https://…/pair#token=…"
-          secureTextEntry
-          testID="porcelain-settings-group-link"
-          value={link}
-          onChangeText={setLink}
-        />
-      </Field>
-
-      {error ? (
-        <Text className="text-xs text-destructive" testID="porcelain-settings-pair-error">
-          {error}
-        </Text>
-      ) : null}
-
-      <View className="flex-row gap-2">
-        <Button
-          className="flex-1"
-          disabled={busy || link.trim() === ''}
-          testID="porcelain-settings-pair-submit"
-          onPress={() => {
-            submit()
-          }}
-        >
-          <Text>{busy ? 'Pairing…' : 'Create & use'}</Text>
-        </Button>
-        <Button disabled={busy} variant="ghost" onPress={onCancel}>
-          <Text>Cancel</Text>
-        </Button>
-      </View>
-    </View>
-  )
-}
-
-function AddConnectionForm({
-  groupId,
-  onCancel,
-  onAdded,
-}: {
-  groupId: EnvironmentId
-  onCancel: () => void
-  onAdded: () => void
-}): React.JSX.Element {
-  const [link, setLink] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const submit = async (): Promise<void> => {
-    setBusy(true)
-    setError(null)
-    const result = await addGroupConnection({ groupId, connectionLink: link })
-    setBusy(false)
-    if (!result.ok) {
-      setError(describePairProblem(result.error))
-      return
-    }
-    onAdded()
-  }
-
-  return (
-    <View className="gap-3" testID="porcelain-settings-add-connection">
-      <BackRow label="Group" onPress={onCancel} />
-      <Text className="text-base font-semibold text-foreground">Add connection</Text>
-      <Text className="text-xs leading-5 text-muted-foreground">
-        Paste another link for the same daemon. It is verified before joining this group.
-      </Text>
-      <Field label="Connection link">
-        <Input
-          accessibilityLabel="Connection link"
-          autoCapitalize="none"
-          autoCorrect={false}
-          className="h-10 font-mono text-xs"
-          editable={!busy}
-          placeholder="https://…/pair#token=…"
-          secureTextEntry
-          testID="porcelain-settings-add-connection-link"
-          value={link}
-          onChangeText={setLink}
-        />
-      </Field>
-      {error ? <Text className="text-xs text-destructive">{error}</Text> : null}
-      <View className="flex-row gap-2">
-        <Button
-          className="flex-1"
-          disabled={busy || link.trim() === ''}
-          testID="porcelain-settings-add-connection-submit"
-          onPress={() => {
-            submit()
-          }}
-        >
-          <Text>{busy ? 'Adding…' : 'Add connection'}</Text>
-        </Button>
-        <Button disabled={busy} variant="ghost" onPress={onCancel}>
-          <Text>Cancel</Text>
-        </Button>
-      </View>
-    </View>
-  )
-}
-
-function GroupDetail({
-  environment,
-  onBack,
-  onAddConnection,
-  onDeleted,
-}: {
-  environment: Environment
-  onBack: () => void
-  onAddConnection: () => void
-  onDeleted: () => void
-}): React.JSX.Element {
-  const active = useActiveEnvironment()
-  const connection = useConnectionState()
-  const isActive = active?.id === environment.id
-  const [nickname, setNickname] = useState(environment.nickname)
-  const [menuFor, setMenuFor] = useState<string | null>(null)
-  const [removing, setRemoving] = useState<string | null>(null)
-  const version = isActive && connection.kind === 'ready' ? connection.daemonVersion : null
-  const canRemove = environment.endpoints.length > 1
-
-  /**
-   * A connection row's actions, the same long-press menu Terminal and Files rows wear. This
-   * was the app's only swipe-to-delete: one row in one panel answering a gesture nothing else
-   * in the app answers, and hiding its only destructive action behind it.
-   */
-  const rowActions = (url: string): SheetAction[] => {
-    const actions: SheetAction[] = []
-    if (url !== environment.preferredEndpoint) {
-      actions.push({
-        glyph: 'star',
-        id: 'primary',
-        label: 'Make primary',
-        onPress: () => {
-          makePrimary(environment.id, url)
-        },
-      })
-    }
-    if (canRemove) {
-      actions.push({
-        destructive: true,
-        glyph: 'trash',
-        id: 'remove',
-        label: 'Remove connection',
-        onPress: () => {
-          setRemoving(url)
-        },
-      })
-    }
-    return actions
-  }
-
-  const saveNickname = async (): Promise<void> => {
-    const next = nickname.trim()
-    if (next === '' || next === environment.nickname) return
-    await environmentActions.rename(environment.id, next)
-  }
-
-  const confirmDelete = (): void => {
-    Alert.alert(
-      'Delete environment group?',
-      `Remove “${environment.nickname}” and its saved routes from this device.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            environmentActions.remove(environment.id).then(onDeleted)
-          },
-        },
-      ],
-    )
-  }
-
-  return (
-    <View className="gap-4" testID={`porcelain-settings-group-detail-${environment.id}`}>
-      <BackRow label="Environments" onPress={onBack} />
-
-      <View className={cn(PANEL_CARD, 'gap-3 p-3')}>
-        <Field label="Nickname">
-          <Input
-            accessibilityLabel="Group nickname"
-            autoCapitalize="none"
-            autoCorrect={false}
-            className="h-10"
-            testID="porcelain-settings-detail-nickname"
-            value={nickname}
-            onBlur={() => {
-              saveNickname()
-            }}
-            onChangeText={setNickname}
-            onSubmitEditing={() => {
-              saveNickname()
-            }}
-          />
-        </Field>
-
-        <View className="flex-row flex-wrap gap-x-4 gap-y-1">
-          <Meta
-            label="Porcelain"
-            value={
-              version ??
-              (isActive && (connection.kind === 'connecting' || connection.kind === 'loading')
-                ? 'Checking…'
-                : '—')
-            }
-          />
-          <Meta label="Connections" value={String(environment.endpoints.length)} />
-          <Meta
-            label="Status"
-            value={
-              environment.token === null
-                ? 'Unpaired'
-                : isActive
-                  ? connectionStatusLabel(connection.kind)
-                  : 'Idle'
-            }
-          />
-        </View>
-
-        <View className="gap-1.5">
-          <Text className="text-xs text-muted-foreground">Icon</Text>
-          <View className="flex-row gap-2">
-            {ICON_OPTIONS.map((option) => {
-              const selected = environment.icon === option.id
-              return (
-                <Pressable
-                  key={option.id}
-                  accessibilityLabel={`Icon ${option.label}`}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                  className={cn(
-                    'flex-1 items-center gap-1 rounded-lg border border-border py-2.5 active:bg-accent',
-                    selected && 'border-primary bg-primary/10',
-                  )}
-                  testID={`porcelain-settings-icon-${option.id}`}
-                  onPress={() => {
-                    environmentActions.setIcon(environment.id, option.id)
-                  }}
-                >
-                  <ChromeGlyph
-                    name={option.glyph}
-                    size={18}
-                    tone={selected ? 'primary' : 'foreground'}
-                  />
-                  <Text className="text-2xs text-foreground">{option.label}</Text>
-                </Pressable>
-              )
-            })}
-          </View>
-        </View>
-
-        {!isActive && environment.token !== null ? (
-          <Button
-            testID="porcelain-settings-use-environment"
-            variant="outline"
-            onPress={() => {
-              environmentActions.setActive(environment.id)
-            }}
-          >
-            <Text>Use this environment</Text>
-          </Button>
-        ) : null}
-      </View>
-
-      <View className="gap-2">
-        <View className="gap-0.5">
-          <PanelLabel>Connections</PanelLabel>
-          <Text className="text-xs leading-5 text-muted-foreground">
-            The primary is tried first; the rest follow in this order until one answers.
-          </Text>
-        </View>
-        {environment.endpoints.map((url, index) => (
-          <ConnectionRow
-            key={url}
-            environmentId={environment.id}
-            index={index}
-            preferred={url === environment.preferredEndpoint}
-            total={environment.endpoints.length}
-            url={url}
-            onLongPress={
-              rowActions(url).length === 0
-                ? undefined
-                : () => {
-                    setMenuFor(url)
-                  }
-            }
-          />
-        ))}
-      </View>
-
-      {/* Outside the connections group on purpose: inside it, the button sat 8pt below the last
-          card and 16pt above Delete group, which reads as a misalignment rather than a step. */}
-      <Button
-        testID="porcelain-settings-add-connection-open"
-        variant="outline"
-        onPress={onAddConnection}
-      >
-        <Text>Add connection</Text>
-      </Button>
-
-      <Button
-        testID="porcelain-settings-delete-group"
-        variant="destructive"
-        onPress={confirmDelete}
-      >
-        <Text>Delete group</Text>
-      </Button>
-
-      <ActionSheet
-        actions={menuFor === null ? [] : rowActions(menuFor)}
-        open={menuFor !== null}
-        subtitle={menuFor ?? undefined}
-        testID="porcelain-settings-connection-menu"
-        title="Connection"
-        onClose={() => {
-          setMenuFor(null)
-        }}
-      />
-
-      <ConfirmDialog
-        body="This device stops trying that route. The others in this group are untouched, and the daemon is not changed."
-        confirmLabel="Remove"
-        open={removing !== null}
-        testID="porcelain-settings-connection-remove-confirm"
-        title="Remove this connection?"
-        onCancel={() => {
-          setRemoving(null)
-        }}
-        onConfirm={() => {
-          const url = removing
-          setRemoving(null)
-          if (url !== null) environmentActions.removeEndpoint(environment.id, url)
-        }}
-      />
-    </View>
-  )
-}
-
-/**
- * Promotion also hoists the row to the top. The client walks `preferredEndpoint` first and
- * the rest in array order, so leaving a promoted row sitting third made the list disagree
- * with the failover it was describing — the reader had to hold two orders in their head.
- */
-async function makePrimary(environmentId: EnvironmentId, url: string): Promise<void> {
-  await environmentActions.preferEndpoint(environmentId, url)
-  const environment = getEnvironment(environmentId)
-  if (environment === null) return
-  await environmentActions.setEndpointOrder(environmentId, [
-    url,
-    ...environment.endpoints.filter((candidate) => candidate !== url),
-  ])
-}
-
-function ConnectionRow({
-  environmentId,
-  url,
-  preferred,
-  index,
-  total,
-  onLongPress,
-}: {
-  environmentId: EnvironmentId
-  url: string
-  preferred: boolean
-  index: number
-  total: number
-  /** Opens the row menu. Absent when this row has no action to offer. */
-  onLongPress?: () => void
-}): React.JSX.Element {
-  const move = async (direction: -1 | 1): Promise<void> => {
-    const environment = getEnvironment(environmentId)
-    if (environment === null) return
-    const next = [...environment.endpoints]
-    const target = index + direction
-    if (target < 0 || target >= next.length) return
-    const current = next[index]
-    const swap = next[target]
-    if (current === undefined || swap === undefined) return
-    next[index] = swap
-    next[target] = current
-    await environmentActions.setEndpointOrder(environmentId, next)
-  }
-
-  return (
-    <Pressable
-      accessibilityLabel={`Connection ${endpointLabel(url)}, ${url}`}
-      accessibilityRole="button"
-      className={cn(
-        PANEL_CARD,
-        'flex-row items-center gap-3 p-3',
-        preferred && 'border-primary/40 bg-primary/5',
-      )}
-      testID={`porcelain-settings-connection-${index}`}
-      onLongPress={onLongPress}
-    >
-      <View className="min-w-0 flex-1 gap-1.5">
-        <View className="flex-row items-center gap-2">
-          <View
-            className={cn(
-              'rounded-md px-2 py-0.5',
-              preferred ? 'bg-primary' : 'border border-border bg-muted',
-            )}
-          >
-            <Text
-              className={cn(
-                'text-2xs font-semibold',
-                preferred ? 'text-primary-foreground' : 'text-foreground',
-              )}
-            >
-              {endpointLabel(url)}
-            </Text>
-          </View>
-          {preferred ? (
-            <View className="flex-row items-center gap-1">
-              <ChromeGlyph name="star" size={11} tone="primary" />
-              <Text className="text-2xs font-semibold uppercase tracking-widest text-primary">
-                Primary
-              </Text>
-            </View>
-          ) : (
-            <Pressable
-              accessibilityLabel="Make this the primary connection"
-              accessibilityRole="button"
-              className="flex-row items-center gap-1 rounded-md border border-border px-2 py-0.5 active:bg-accent"
-              testID={`porcelain-settings-connection-primary-${index}`}
-              onPress={() => {
-                makePrimary(environmentId, url)
-              }}
-            >
-              <ChromeGlyph name="star" size={10} />
-              <Text className="text-2xs font-medium text-foreground">Make primary</Text>
-            </Pressable>
-          )}
-        </View>
-        <Text className="font-mono text-xs text-muted-foreground" numberOfLines={2}>
-          {url}
-        </Text>
-      </View>
-
-      {/* Reorder is two glyphs on the trailing edge, not two word-buttons in the row's flow:
-          "Up" and "Down" spelled out sat beside "Make primary" and read as three peers, so
-          which one changed the failover order was a guess. */}
-      {total > 1 ? (
-        <View className="shrink-0 gap-1">
-          <ReorderButton
-            accessibilityLabel="Move connection up"
-            disabled={index === 0}
-            glyph="arrowUp"
-            testID={`porcelain-settings-connection-up-${index}`}
-            onPress={() => {
-              move(-1)
-            }}
-          />
-          <ReorderButton
-            accessibilityLabel="Move connection down"
-            disabled={index === total - 1}
-            glyph="moveDown"
-            testID={`porcelain-settings-connection-down-${index}`}
-            onPress={() => {
-              move(1)
-            }}
-          />
-        </View>
-      ) : null}
-    </Pressable>
-  )
-}
-
-/** A 32pt square on the row's trailing edge — a thumb target that is still not a text button. */
-function ReorderButton({
-  accessibilityLabel,
-  disabled,
-  glyph,
-  onPress,
-  testID,
-}: {
-  accessibilityLabel: string
-  disabled: boolean
-  glyph: ChromeIconName
-  onPress: () => void
-  testID: string
-}): React.JSX.Element {
-  return (
-    <Pressable
-      accessibilityLabel={accessibilityLabel}
-      accessibilityRole="button"
-      accessibilityState={{ disabled }}
-      className={cn(
-        'size-8 items-center justify-center rounded-md border border-border active:bg-accent',
-        disabled && 'opacity-30',
-      )}
-      disabled={disabled}
-      hitSlop={4}
-      testID={testID}
-      onPress={onPress}
-    >
-      <ChromeGlyph name={glyph} size={13} tone="foreground" />
-    </Pressable>
-  )
-}
-
-function BackRow({ label, onPress }: { label: string; onPress: () => void }): React.JSX.Element {
-  return (
-    <Pressable
-      accessibilityLabel={`Back to ${label}`}
-      accessibilityRole="button"
-      className="-ml-1 flex-row items-center gap-0.5 self-start py-1 active:opacity-70"
-      testID="porcelain-settings-env-back"
-      onPress={onPress}
-    >
-      <ChromeGlyph name="chevronLeft" size={16} tone="primary" />
-      <Text className="text-sm font-medium text-primary">{label}</Text>
-    </Pressable>
-  )
-}
-
-function Field({
-  label,
-  children,
-}: {
-  label: string
-  children: React.ReactNode
-}): React.JSX.Element {
-  return (
-    <View className="gap-1.5">
-      <Text className="text-xs text-muted-foreground">{label}</Text>
-      {children}
-    </View>
-  )
-}
-
-function Meta({ label, value }: { label: string; value: string }): React.JSX.Element {
-  return (
-    <View className="gap-0.5">
-      <PanelLabel>{label}</PanelLabel>
-      <Text className="text-sm text-foreground">{value}</Text>
     </View>
   )
 }
