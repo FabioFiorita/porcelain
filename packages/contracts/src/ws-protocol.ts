@@ -47,8 +47,34 @@ export type AppEvent = z.infer<typeof appEventSchema>
  */
 export const MAX_PASTE_IMAGE_BYTES = 4_194_304
 
+/**
+ * A generic terminal attachment is deliberately modest: it crosses a WebSocket before the
+ * daemon can put it on disk, and the terminal is not a bulk-file-transfer channel.
+ */
+export const MAX_PASTE_FILE_BYTES = 8_388_608
+
+/** One PTY write must fit in one bounded WebSocket frame. */
+export const MAX_TERMINAL_WRITE_CODE_UNITS = 65_536
+
+/** Largest accepted WS message, including JSON/base64 overhead for an 8 MiB attachment. */
+export const MAX_SESSION_MESSAGE_BYTES = 12 * 1024 * 1024
+
+/** Prompt text that makes one daemon-stored image visible to an agent. */
+export function terminalImagePromptReference(path: string): string {
+  const quotedPath = path.includes(' ') ? `"${path}"` : path
+  return `Analyze this image: ${quotedPath} `
+}
+
+/** Prompt text that makes one daemon-stored non-image attachment visible to an agent. */
+export function terminalFilePromptReference(path: string): string {
+  const quotedPath = path.includes(' ') ? `"${path}"` : path
+  return `Analyze this file: ${quotedPath} `
+}
+
 export const serverMessageSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('app-event'), event: appEventSchema }),
+  // PTY output has a transport-level cap (`MAX_SESSION_MESSAGE_BYTES`); do not reuse the
+  // interactive write cap here or a burst from a noisy process would vanish client-side.
   z.object({ t: z.literal('terminal:data'), id: z.string(), data: z.string() }),
   z.object({ t: z.literal('terminal:exit'), id: z.string(), exitCode: z.number() }),
   // Answers a `terminal:create`; `reqId` correlates it back to the caller's promise.
@@ -65,6 +91,13 @@ export const serverMessageSchema = z.discriminatedUnion('t', [
     status: z.enum(['running', 'exited']),
     exitCode: z.number().optional(),
     found: z.boolean(),
+  }),
+  z.object({
+    t: z.literal('terminal:file-pasted'),
+    reqId: z.string(),
+    id: z.string(),
+    result: z.enum(['ok', 'too-large', 'no-session', 'write-failed']),
+    path: z.string().optional(),
   }),
   // Answers a `terminal:paste-image`. `result` is a reason enum, not free text — each
   // client owns its own copy for whatever it shows (mobile has no toast, only
@@ -101,7 +134,11 @@ export const clientMessageSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('terminal:attach'), id: z.string(), reqId: z.string() }),
   // Stop streaming a PTY to this client without killing it (the PTY lives on).
   z.object({ t: z.literal('terminal:detach'), id: z.string() }),
-  z.object({ t: z.literal('terminal:write'), id: z.string(), data: z.string() }),
+  z.object({
+    t: z.literal('terminal:write'),
+    id: z.string(),
+    data: z.string().max(MAX_TERMINAL_WRITE_CODE_UNITS),
+  }),
   z.object({
     t: z.literal('terminal:resize'),
     id: z.string(),
@@ -120,6 +157,20 @@ export const clientMessageSchema = z.discriminatedUnion('t', [
     reqId: z.string(),
     mime: z.enum(['image/png', 'image/jpeg', 'image/gif', 'image/webp']),
     dataBase64: z.string().max(8_388_608),
+    // Omitted preserves immediate paste. `false` uploads without prompt mutation, so a
+    // multi-image composer can wait for every upload and issue one complete terminal write.
+    insert: z.boolean().optional(),
+  }),
+  // Generic files use the same daemon-owned scratch area as images. The client never sends a
+  // local path: it sends bytes plus a display name, and the daemon mints the actual path.
+  z.object({
+    t: z.literal('terminal:paste-file'),
+    id: z.string(),
+    reqId: z.string(),
+    filename: z.string().min(1).max(255),
+    mime: z.string().max(255),
+    dataBase64: z.string().max(11_184_812),
+    insert: z.boolean().optional(),
   }),
   z.object({ t: z.literal('watch:files'), paths: z.array(z.string()) }),
   z.object({ t: z.literal('watch:dirs'), paths: z.array(z.string()) }),

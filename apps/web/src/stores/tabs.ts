@@ -197,7 +197,7 @@ export const useTabsStore = create<TabsState>((set) => ({
   activePaneIndex: 0,
   openTab: (tab: Tab) =>
     set((state) => {
-      // A terminal is a single xterm instance — it can't be cloned into a second pane.
+      // A terminal is a single Ghostty instance — it can't be cloned into a second pane.
       // If it's already open somewhere, activate it in place instead of duplicating it.
       if (tab.kind === 'terminal') {
         const existing = state.panes.findIndex((p) => p.tabs.some((t) => t.id === tab.id))
@@ -214,7 +214,7 @@ export const useTabsStore = create<TabsState>((set) => ({
     }),
   openTabToSide: (tab: Tab) =>
     set((state) => {
-      // Terminals MOVE to the other pane (one xterm can't render in two places); a
+      // Terminals MOVE to the other pane (one Ghostty can't render in two places); a
       // generic tab is cloned. Stripping the terminal from its source pane first is
       // what makes the split show two distinct shells instead of one blanking out.
       if (tab.kind === 'terminal') {

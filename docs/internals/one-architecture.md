@@ -147,10 +147,10 @@ bindings in `use-app-shortcuts.ts` → a component's own listener for its own lo
   readline's); ⌘K clear and `terminalEditBytes` stay meta-only so they go dormant in the browser and
   readline owns the equivalents. Labels use the ⌃ glyph, not the word — the OS may still be macOS;
   the trigger is the client, not the platform.
-- **`isTextEntry` deliberately excludes `.xterm`** (its hidden textarea reports as editable, yet
+- **`isTextEntry` deliberately excludes the Ghostty host** (its hidden textarea reports as editable, yet
   ⌘T/⌘N must still spawn while a PTY is focused). `FileCommands` guards with the inverse
   (`isTerminalTarget`) so destructive ⌘D/⌘⌫ never fire over a terminal.
-- **Terminal editing chords are translated in the xterm registry**, not by window listeners. **⌘K
+- **Terminal editing chords are translated in the Ghostty registry**, not by window listeners. **⌘K
   clears, never Ctrl-K** (= readline kill-to-end-of-line, which must reach the shell); the rest is
   the pure, unit-tested `terminalEditBytes`. ⌥+letter is left alone so Option-compose types accents.
 - **"Compose intent" surfaces share a tiny store with ONE dialog mounted in `AppShell`** — mounting

@@ -59,6 +59,10 @@ Hard rules:
 2. **One wire.** Clients share procedureIo / refined schemas; drift linted.
 3. **Daemon always.** Local and remote share one code path. No in-process shell backend.
 4. **Independent builds.** Daemon and CLI without electron-vite; web has its own Vite pipeline.
+5. **One terminal-native exception.** `apps/mobile/modules/porcelain-terminal` is the sole native
+   rendering exception: it owns only Ghostty terminal cells and input, while the React Native
+   terminal feature retains the daemon/PTY transport and all app chrome. It is not a reusable
+   native UI layer or precedent for platform-specific screens.
 
 ## Versioning
 

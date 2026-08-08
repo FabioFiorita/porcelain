@@ -43,6 +43,9 @@ export function useKeyboardInset(): number {
  * and the human moves the panel.
  */
 function keyboardInsetFor(frame: { height: number; screenY: number }): number {
+  // Android 15 edge-to-edge can ignore adjustResize even when the manifest requests it. Its
+  // keyboardDidShow frame is still authoritative, so reserve that docked height explicitly.
+  if (Platform.OS === 'android') return frame.height
   const screenHeight = Dimensions.get('screen').height
   // A pixel of slack: these frames arrive in points and can land fractionally short.
   const flushToBottom = frame.screenY + frame.height >= screenHeight - 1

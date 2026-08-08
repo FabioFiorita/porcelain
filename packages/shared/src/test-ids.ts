@@ -121,6 +121,13 @@ export const TestIds = {
   /** Floating Copy chip over a non-empty terminal selection. */
   terminalSelectionToolbar: 'terminal-selection-toolbar',
   terminalSelectionCopy: 'terminal-selection-copy',
+  terminalContextMenu: 'terminal-context-menu',
+  terminalContextCopy: 'terminal-context-copy',
+  terminalContextPaste: 'terminal-context-paste',
+  terminalContextPasteImage: 'terminal-context-paste-image',
+  terminalContextAttachFile: 'terminal-context-attach-file',
+  terminalContextSelectAll: 'terminal-context-select-all',
+  terminalContextClear: 'terminal-context-clear',
   /** Machine picker items shown when the window is bound to a REMOTE daemon. */
   terminalNewRemote: 'terminal-new-remote',
   terminalNewLocal: 'terminal-new-local',

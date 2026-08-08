@@ -14,15 +14,15 @@ import { useEffect } from 'react'
 /**
  * Consumes the inbound half of the terminal stream on the daemon WS session AND
  * hydrates the daemon-owned roster, mounted once in AppShell — the inbound twin of
- * `useAppEvents`. PTY output routes to the matching xterm (buffered via the registry
+ * `useAppEvents`. PTY output routes to the matching Ghostty (buffered via the registry
  * until the view mounts); an exit marks the roster session "exited"; a re-attach's
- * scrollback replays into the xterm.
+ * scrollback replays into the Ghostty.
  *
  * Roster hydration: `terminalSessions` lists every daemon-owned PTY; filter to the
  * current repo and hydrate the store. Refetches on daemon reconnect and on a 5s
  * poll, so a session killed in ANOTHER window reconciles without waiting for a
  * reconnect. Each not-yet-attached session attaches once (scrollback into a fresh
- * xterm); already-attached ids are skipped — lib/daemon re-attaches those itself.
+ * Ghostty); already-attached ids are skipped — lib/daemon re-attaches those itself.
  * `isTerminalAttached` is the single source of truth, so the poll is idempotent.
  *
  * TWO daemons: the same treatment runs against the local session when remote-bound

@@ -1,0 +1,10 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["PorcelainTerminalModule"],
+    "podspecPath": "PorcelainTerminalNative.podspec"
+  },
+  "android": {
+    "modules": ["expo.modules.porcelainterminal.PorcelainTerminalModule"]
+  }
+}

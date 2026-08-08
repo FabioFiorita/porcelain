@@ -1,6 +1,7 @@
 import { createHash, timingSafeEqual } from 'node:crypto'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import type { Duplex } from 'node:stream'
+import { MAX_SESSION_MESSAGE_BYTES } from '@porcelain/contracts'
 import type { AnyRouter } from '@trpc/server'
 import { fetchRequestHandler } from '@trpc/server/adapters/fetch'
 import { type WebSocket, WebSocketServer } from 'ws'
@@ -273,7 +274,10 @@ export function createDaemonHttp(opts: DaemonHttpOptions): DaemonHttp {
   // `porcelain.<token>`; ws's default protocol selection echoes the first offered
   // subprotocol back, which the browser requires for the handshake to complete.
   // One shared upgrade handler is wired onto every listener (loopback + tailnet).
-  const wss = new WebSocketServer({ noServer: true })
+  // This socket is a network boundary, not merely an internal event bus. Keep raw JSON below
+  // the largest supported generic attachment (8 MiB plus base64/JSON overhead) so malformed
+  // peers cannot make `raw.toString()` allocate ws's default 100 MiB payload.
+  const wss = new WebSocketServer({ maxPayload: MAX_SESSION_MESSAGE_BYTES, noServer: true })
 
   function handleUpgrade(req: IncomingMessage, socket: Duplex, head: Buffer): void {
     const offered = (req.headers['sec-websocket-protocol'] ?? '')

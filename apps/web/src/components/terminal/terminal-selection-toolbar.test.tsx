@@ -5,20 +5,14 @@ import { TerminalSelectionToolbar } from './terminal-selection-toolbar'
 
 const anchor = vi.fn()
 const subscribe = vi.fn()
-const clearSelection = vi.fn()
-const copyText = vi.fn().mockResolvedValue(undefined)
+const copySelection = vi.fn().mockResolvedValue(undefined)
 
 vi.mock('@renderer/lib/terminal-registry', () => ({
   getTerminalSelectionAnchor: (): ReturnType<typeof anchor> => anchor(),
   subscribeTerminalSelection: (_id: string, cb: () => void): (() => void) | null =>
     subscribe(_id, cb),
-  clearTerminalSelection: (...args: unknown[]) => clearSelection(...args),
+  copyTerminalSelection: (...args: unknown[]) => copySelection(...args),
 }))
-
-vi.mock('@renderer/lib/utils', async () => {
-  const actual = await vi.importActual<typeof import('@renderer/lib/utils')>('@renderer/lib/utils')
-  return { ...actual, copyText: (...args: unknown[]) => copyText(...args) }
-})
 
 describe('TerminalSelectionToolbar', () => {
   beforeEach(() => {
@@ -51,8 +45,7 @@ describe('TerminalSelectionToolbar', () => {
 
     fireEvent.click(copy)
     await waitFor(() => {
-      expect(copyText).toHaveBeenCalledWith('selected line')
-      expect(clearSelection).toHaveBeenCalledWith('s1')
+      expect(copySelection).toHaveBeenCalledWith('s1')
     })
   })
 

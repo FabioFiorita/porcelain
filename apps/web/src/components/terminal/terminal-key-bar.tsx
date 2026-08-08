@@ -3,8 +3,7 @@ import {
   blurTerminal,
   focusTerminal,
   isTerminalFocused,
-  PASTE_IMAGE_FAILURE_MESSAGE,
-  pasteImageToTerminal,
+  pasteTerminalImage,
   sendTerminalArrow,
   sendTerminalInput,
 } from '@renderer/lib/terminal-registry'
@@ -13,69 +12,6 @@ import { useTerminalInputStore } from '@renderer/stores/terminal-input'
 import { TestIds } from '@shared/test-ids'
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ImageIcon, Keyboard } from 'lucide-react'
 import { useRef } from 'react'
-import { toast } from 'sonner'
-
-/** The mime types the daemon's `terminal:paste-image` message accepts. */
-const SUPPORTED_IMAGE_MIME = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp'])
-
-/** The first image item on the clipboard, or null if there isn't one. */
-async function readClipboardImage(): Promise<Blob | null> {
-  const items = await navigator.clipboard.read()
-  for (const item of items) {
-    const type = item.types.find((candidate) => SUPPORTED_IMAGE_MIME.has(candidate))
-    if (type !== undefined) return item.getType(type)
-  }
-  return null
-}
-
-function blobToBase64(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => {
-      const result = reader.result
-      if (typeof result !== 'string') {
-        reject(new Error('unexpected FileReader result'))
-        return
-      }
-      resolve(result.slice(result.indexOf(',') + 1))
-    }
-    reader.onerror = () => reject(reader.error ?? new Error('FileReader failed'))
-    reader.readAsDataURL(blob)
-  })
-}
-
-/**
- * Copy a screenshot, tap this, and the agent in the shell can see it — the PTY is always
- * on the daemon's machine, so the daemon does the actual attaching; this only reads the
- * clipboard and reports failure. `navigator.clipboard.read()` needs a secure context,
- * same gap `editor-source.tsx`'s `handlePaste` already lives with on the tailnet's HTTP
- * browser client — feature-detected, not assumed.
- */
-async function handlePasteImage(sessionId: string): Promise<void> {
-  if (navigator.clipboard?.read === undefined) {
-    toast.error('Cannot read the clipboard', {
-      description: 'This connection cannot read images from the clipboard.',
-    })
-    return
-  }
-  const blob = await readClipboardImage().catch(() => null)
-  if (blob === null) {
-    toast.error('No image on clipboard', {
-      description: 'Copy a screenshot or image first, then try again.',
-    })
-    return
-  }
-  const base64 = await blobToBase64(blob)
-  const outcome = await pasteImageToTerminal(
-    sessionId,
-    blob.type as 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp',
-    base64,
-  ).catch(() => ({ result: 'write-failed' as const }))
-  if (outcome.result === 'ok') return
-  toast.error('Could not attach the image', {
-    description: PASTE_IMAGE_FAILURE_MESSAGE[outcome.result],
-  })
-}
 
 const ARROWS = [
   { direction: 'left', label: 'Left', Icon: ArrowLeft },
@@ -90,7 +26,7 @@ const ICON_KEY_CLASS = 'size-9 shrink-0'
 /**
  * One key, and the bar's one piece of real behaviour: FOCUS PRESERVATION.
  *
- * Tapping a button moves focus out of xterm, and on iOS losing focus dismisses the
+ * Tapping a button moves focus out of Ghostty, and on iOS losing focus dismisses the
  * software keyboard — so a key bar built the naive way closes the keyboard on its own
  * first tap. Two guards: `onMouseDown` preventDefault stops the focus move outright where
  * the browser honors it (desktop), and for touch the button samples focus at pointer-down
@@ -220,7 +156,7 @@ export function TerminalKeyBar({ sessionId }: { sessionId: string }): React.JSX.
         label="Paste image"
         title="Paste an image from the clipboard"
         onActivate={() => {
-          handlePasteImage(sessionId)
+          pasteTerminalImage(sessionId)
         }}
       >
         <ImageIcon />

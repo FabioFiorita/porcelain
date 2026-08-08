@@ -1,14 +1,11 @@
-import type { Terminal } from '@xterm/xterm'
-import { copyText } from './utils'
-
 /**
  * OSC 52 is how remote TUI apps (Claude Code, vim, tmux with set-clipboard) push
  * text onto the *client* clipboard — without it, copy on a remote PTY silently
  * no-ops and Claude prints "sent N chars via OSC 52 · if paste fails…".
  *
- * xterm.js does not handle OSC 52 by default. We register write-only: remote →
- * host clipboard via `copyText` (works in Electron AND the insecure tailnet
- * browser client). Clipboard *read* requests (`OSC 52;c;?`) are ignored —
+ * The renderer filters OSC 52 before VT parsing and writes only remote → host
+ * clipboard text (works in Electron AND the insecure tailnet browser client).
+ * Clipboard *read* requests (`OSC 52;c;?`) are ignored —
  * reporting the system clipboard to a remote PTY is an exfil path we don't want.
  */
 
@@ -44,16 +41,53 @@ export function osc52WriteText(data: string): string | null {
 }
 
 /**
- * Register OSC 52 write handling on an xterm instance. Disposal rides
- * `term.dispose()` (parser handlers are cleaned with the terminal).
+ * Consume OSC 52 from a PTY byte stream before it reaches a renderer. Ghostty
+ * deliberately owns VT parsing, so unlike Ghostty there is no parser hook to
+ * install after the fact. Keeping the tiny policy filter here makes clipboard
+ * writes renderer-neutral and, importantly, lets replay be explicitly silent.
  */
-export function attachOsc52Clipboard(term: Terminal): void {
-  term.parser.registerOscHandler(52, (data) => {
-    const text = osc52WriteText(data)
-    if (text === null) return true
-    // Fire-and-forget: the OSC handler can't usefully await UI clipboard prompts.
-    // copyText itself is best-effort (execCommand fallback on insecure contexts).
-    copyText(text)
-    return true
-  })
+export class Osc52StreamFilter {
+  private pending = ''
+
+  process(data: string, onWrite?: (text: string) => void): string {
+    let input = this.pending + data
+    this.pending = ''
+    let output = ''
+
+    while (input.length > 0) {
+      const start = input.indexOf('\u001b]52;')
+      if (start < 0) {
+        // Preserve an incomplete OSC introducer at the chunk boundary.
+        const suffix = this.trailingIntroducer(input)
+        output += input.slice(0, input.length - suffix.length)
+        this.pending = suffix
+        break
+      }
+      output += input.slice(0, start)
+      const bodyStart = start + 5
+      const bel = input.indexOf('\u0007', bodyStart)
+      const st = input.indexOf('\u001b\\', bodyStart)
+      const end = bel < 0 ? st : st < 0 ? bel : Math.min(bel, st)
+      if (end < 0) {
+        this.pending = input.slice(start)
+        break
+      }
+      const text = osc52WriteText(input.slice(bodyStart, end))
+      if (text !== null) onWrite?.(text)
+      input = input.slice(end + (end === st ? 2 : 1))
+    }
+    return output
+  }
+
+  reset(): void {
+    this.pending = ''
+  }
+
+  private trailingIntroducer(input: string): string {
+    const introducer = '\u001b]52;'
+    for (let length = Math.min(introducer.length - 1, input.length); length > 0; length -= 1) {
+      if (input.endsWith(introducer.slice(0, length))) return input.slice(-length)
+    }
+    return ''
+  }
 }

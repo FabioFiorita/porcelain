@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { formatKbd, isModExclusive, isTerminalTarget, isTextEntry } from './keyboard'
 
-// Mount a child element inside a `.xterm` host appended to the document body.
-// This lets `closest('.xterm')` traverse correctly in the jsdom environment.
-function inXterm(tag: string): HTMLElement {
+// Mount a child element inside a terminal host appended to the document body.
+// This lets `closest()` traverse correctly in the jsdom environment.
+function inTerminalHost(tag: string): HTMLElement {
   const host = document.createElement('div')
-  host.className = 'xterm'
+  host.className = 'porcelain-ghostty-terminal'
   const el = document.createElement(tag)
   host.appendChild(el)
   document.body.appendChild(host)
@@ -40,28 +40,28 @@ describe('isTextEntry', () => {
     expect(isTextEntry(null)).toBe(false)
   })
 
-  it('returns false for an <input> inside .xterm (the spawn-shortcut carve-out)', () => {
-    expect(isTextEntry(inXterm('input'))).toBe(false)
+  it('returns false for an <input> inside the terminal host (the spawn-shortcut carve-out)', () => {
+    expect(isTextEntry(inTerminalHost('input'))).toBe(false)
   })
 
-  it('returns false for a <textarea> inside .xterm', () => {
-    expect(isTextEntry(inXterm('textarea'))).toBe(false)
+  it('returns false for a <textarea> inside the terminal host', () => {
+    expect(isTextEntry(inTerminalHost('textarea'))).toBe(false)
   })
 })
 
 describe('isTerminalTarget', () => {
-  it('returns true for an element inside .xterm', () => {
-    expect(isTerminalTarget(inXterm('textarea'))).toBe(true)
+  it('returns true for an element inside the terminal host', () => {
+    expect(isTerminalTarget(inTerminalHost('textarea'))).toBe(true)
   })
 
-  it('returns true for the .xterm host itself', () => {
+  it('returns true for the terminal host itself', () => {
     const host = document.createElement('div')
-    host.className = 'xterm'
+    host.className = 'porcelain-ghostty-terminal'
     document.body.appendChild(host)
     expect(isTerminalTarget(host)).toBe(true)
   })
 
-  it('returns false for a plain element outside .xterm', () => {
+  it('returns false for a plain element outside the terminal host', () => {
     const el = document.createElement('div')
     expect(isTerminalTarget(el)).toBe(false)
   })
@@ -128,12 +128,12 @@ describe('formatKbd', () => {
   })
 })
 
-describe('the .xterm asymmetry (load-bearing for destructive-shortcut safety)', () => {
-  // A <textarea> inside .xterm is xterm's own hidden input element.
+describe('the terminal host asymmetry (load-bearing for destructive-shortcut safety)', () => {
+  // A <textarea> inside the terminal host is the renderer's hidden input element.
   // isTextEntry → false  (so ⌘T/⌘N still spawn a terminal tab)
   // isTerminalTarget → true  (so ⌘D/⌘⌫ do NOT trash a file when terminal is focused)
-  it('for a <textarea> inside .xterm: isTextEntry is false and isTerminalTarget is true', () => {
-    const el = inXterm('textarea')
+  it('for a terminal textarea: isTextEntry is false and isTerminalTarget is true', () => {
+    const el = inTerminalHost('textarea')
     expect(isTextEntry(el)).toBe(false)
     expect(isTerminalTarget(el)).toBe(true)
   })

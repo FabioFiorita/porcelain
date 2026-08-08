@@ -40,7 +40,7 @@ export function useAppShortcuts(): void {
       // Ctrl+W closes the active tab (or the window when none is open) on Linux/Windows,
       // where the renderer owns it — macOS keeps the main-process path (before-input-event
       // → shell-event 'close-tab'), so gate this on ctrlIsPrimary to avoid double-handling
-      // Cmd+W. Yield to a focused embedded terminal: let Ctrl+W fall through to xterm so
+      // Cmd+W. Yield to a focused embedded terminal: let Ctrl+W fall through to Ghostty so
       // readline gets its kill-word.
       if (ctrlIsPrimary && isModExclusive(e) && e.key.toLowerCase() === 'w' && !e.shiftKey) {
         if (isTerminalTarget(e.target)) return

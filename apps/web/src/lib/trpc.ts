@@ -11,12 +11,12 @@ declare global {
     porcelain: PorcelainBridge
     /**
      * Test-only: serialize the on-screen text of the terminal at `index` (creation
-     * order). Installed by the terminal registry only under e2e — the WebGL renderer
-     * paints to a canvas, so `.xterm-rows` can't be scraped for output.
+     * order). Installed by the terminal registry only under e2e — the canvas terminal
+     * has no text DOM that can be scraped for output.
      */
     __porcelainTerminalText?: (index: number) => string
     /**
-     * Test/marketing-only: set xterm fontSize on every live instance and re-fit.
+     * Test/marketing-only: set the terminal font size on every live instance and re-fit.
      * Installed by the terminal registry only under e2e.
      */
     __porcelainSetTerminalFontSize?: (size: number) => void

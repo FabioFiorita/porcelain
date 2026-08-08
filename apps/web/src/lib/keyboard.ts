@@ -22,23 +22,23 @@ export const ctrlIsPrimary: boolean = isBrowser || isLinuxShell
 /**
  * True when a keystroke landed in a real text field we shouldn't hijack with an app
  * shortcut (a card title, the commit box, the rename input). The terminal is the
- * deliberate exception: xterm's hidden textarea reports as editable, but ⌘T / ⌘N must
- * still spawn a terminal while it's focused, so anything inside `.xterm` is excluded.
+ * deliberate exception: the terminal's hidden textarea reports as editable, but ⌘T / ⌘N must
+ * still spawn a terminal while it's focused, so anything inside its host is excluded.
  */
 export function isTextEntry(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false
-  if (target.closest('.xterm')) return false
+  if (target.closest('.porcelain-ghostty-terminal')) return false
   return target.isContentEditable || target.tagName === 'INPUT' || target.tagName === 'TEXTAREA'
 }
 
 /**
- * True when the keystroke landed inside the embedded terminal (xterm). The inverse of
- * the `.xterm` carve-out above: the spawn shortcuts (⌘T/⌘N) WANT to fire over a focused
+ * True when the keystroke landed inside the embedded terminal. The inverse of
+ * the host carve-out above: the spawn shortcuts (⌘T/⌘N) WANT to fire over a focused
  * PTY, but the destructive Files shortcuts (⌘D/⌘⌫) must NOT — a ⌘⌫ meant to delete a
  * shell line should never trash a file.
  */
 export function isTerminalTarget(target: EventTarget | null): boolean {
-  return target instanceof HTMLElement && target.closest('.xterm') !== null
+  return target instanceof HTMLElement && target.closest('.porcelain-ghostty-terminal') !== null
 }
 
 // A keyboard event, narrowed to just the two primary-modifier flags — so the predicate

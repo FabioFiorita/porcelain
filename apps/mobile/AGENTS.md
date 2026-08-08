@@ -10,7 +10,9 @@ loop and runtime traps. This file is platform law that must stay true without lo
   Go and no second native UI architecture.
 - Mobile UI is **NativeWind v5, Tailwind CSS v4, react-native-css, and React Native Reusables**.
   Use the CSS-first setup in `metro.config.js`, `postcss.config.mjs`, and `src/global.css`; do not
-  reintroduce SwiftUI Hosts, the row canvas, DOM bridges, or custom native UI modules.
+  reintroduce SwiftUI Hosts, DOM bridges, or custom native UI modules. The sole exception is
+  `modules/porcelain-terminal`: its Ghostty-backed terminal canvas may render terminal cells, but
+  it is not an app-UI primitive and must not become a second native screen architecture.
 - A **WebView renders user content, never app UI.** The ban above is on building screens out of a
   web page; showing a document that has no native form — an HTML file from the repo, or markdown
   rendered from it — is what `react-native-webview` is here for. Such a document is untrusted: no

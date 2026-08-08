@@ -387,7 +387,7 @@ declare global {
   interface Window {
     /** Test-only terminal buffer reader installed by the registry under e2e. */
     __porcelainTerminalText?: (index: number) => string
-    /** Marketing shots only: shrink xterm font for Retina full-window captures. */
+    /** Marketing shots only: shrink Ghostty font for Retina full-window captures. */
     __porcelainSetTerminalFontSize?: (size: number) => void
   }
 }
@@ -436,10 +436,9 @@ export async function selectTab(page: Page, tab: TabName): Promise<void> {
 }
 
 /**
- * Assert a terminal's on-screen text contains `text`. The WebGL renderer paints to a
- * canvas and never fills `.xterm-rows`, so we poll xterm's buffer model through the
- * `__porcelainTerminalText` test hook (installed by the registry under e2e). `index` is
- * terminal creation order (0 = first, matching the old `.xterm-rows.first()`).
+ * Assert a terminal's on-screen text contains `text`. The Ghostty canvas has no text DOM,
+ * so we poll its test serialization through `__porcelainTerminalText` (installed by the
+ * registry under e2e). `index` is terminal creation order (0 = first).
  */
 export async function expectTerminalText(
   page: Page,

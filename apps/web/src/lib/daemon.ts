@@ -5,7 +5,12 @@ import {
   sessionSubprotocol,
   sessionWebSocketUrl,
 } from '@porcelain/client-runtime/session-protocol'
-import type { AppEvent, ClientMessage, ServerMessage } from '@porcelain/contracts'
+import {
+  type AppEvent,
+  type ClientMessage,
+  MAX_TERMINAL_WRITE_CODE_UNITS,
+  type ServerMessage,
+} from '@porcelain/contracts'
 import { randomId } from './utils'
 
 /**
@@ -55,6 +60,8 @@ export interface PasteImageResult {
   path?: string
 }
 
+export type PasteFileResult = PasteImageResult
+
 /** Where a session points. An empty `url` means "the page origin" (the browser client is served BY its daemon). */
 export interface DaemonEndpoint {
   url: string
@@ -98,6 +105,12 @@ export interface DaemonSession {
     mime: 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp',
     dataBase64: string,
   ) => Promise<PasteImageResult>
+  pasteFileToTerminal: (
+    id: string,
+    filename: string,
+    mime: string,
+    dataBase64: string,
+  ) => Promise<PasteFileResult>
 }
 
 /**
@@ -130,6 +143,7 @@ export function createDaemonSession(initial: DaemonEndpoint): DaemonSession {
     reject: (error: Error) => void
   }
   const pendingPastes = new Map<string, PendingPaste>()
+  const pendingFiles = new Map<string, PendingPaste>()
   // The ids this client is currently streaming — re-sent as `terminal:attach` on every
   // reconnect (the daemon's attached-sender set died with the old socket), with the fresh
   // scrollback routed through the scrollback listeners so the registry can replay it.
@@ -174,6 +188,9 @@ export function createDaemonSession(initial: DaemonEndpoint): DaemonSession {
     const pastes = [...pendingPastes.values()]
     pendingPastes.clear()
     for (const { reject } of pastes) reject(new Error(reason))
+    const files = [...pendingFiles.values()]
+    pendingFiles.clear()
+    for (const { reject } of files) reject(new Error(reason))
   }
 
   function dispatch(message: ServerMessage): void {
@@ -216,6 +233,14 @@ export function createDaemonSession(initial: DaemonEndpoint): DaemonSession {
         const pending = pendingPastes.get(message.reqId)
         if (pending) {
           pendingPastes.delete(message.reqId)
+          pending.resolve({ path: message.path, result: message.result })
+        }
+        break
+      }
+      case 'terminal:file-pasted': {
+        const pending = pendingFiles.get(message.reqId)
+        if (pending) {
+          pendingFiles.delete(message.reqId)
           pending.resolve({ path: message.path, result: message.result })
         }
         break
@@ -348,7 +373,7 @@ export function createDaemonSession(initial: DaemonEndpoint): DaemonSession {
       subscribe(exitListeners, listener),
     /**
      * Fires with a session's replay scrollback on attach (both the initial attach and every
-     * reconnect re-attach). The registry replays it into the xterm before live data follows.
+     * reconnect re-attach). The registry replays it into the Ghostty before live data follows.
      */
     onTerminalScrollback: (listener: (id: string, scrollback: string) => void) =>
       subscribe(scrollbackListeners, listener),
@@ -440,7 +465,15 @@ export function createDaemonSession(initial: DaemonEndpoint): DaemonSession {
     },
     /** Whether this client is currently streaming `id` — so a caller doesn't re-attach it. */
     isTerminalAttached: (id: string) => attachedIds.has(id),
-    writeTerminal: (id: string, data: string) => push({ t: 'terminal:write', id, data }),
+    writeTerminal: (id: string, data: string) => {
+      for (let offset = 0; offset < data.length; offset += MAX_TERMINAL_WRITE_CODE_UNITS) {
+        push({
+          t: 'terminal:write',
+          id,
+          data: data.slice(offset, offset + MAX_TERMINAL_WRITE_CODE_UNITS),
+        })
+      }
+    },
     resizeTerminal: (id: string, cols: number, rows: number) =>
       push({ t: 'terminal:resize', id, cols, rows }),
     killTerminal: (id: string): void => {
@@ -464,6 +497,19 @@ export function createDaemonSession(initial: DaemonEndpoint): DaemonSession {
         const reqId = randomId()
         pendingPastes.set(reqId, { resolve, reject })
         pushOrQueue({ t: 'terminal:paste-image', id, reqId, mime, dataBase64 })
+      })
+    },
+    pasteFileToTerminal: (
+      id: string,
+      filename: string,
+      mime: string,
+      dataBase64: string,
+    ): Promise<PasteFileResult> => {
+      ensureSession()
+      return new Promise<PasteFileResult>((resolve, reject) => {
+        const reqId = randomId()
+        pendingFiles.set(reqId, { resolve, reject })
+        pushOrQueue({ t: 'terminal:paste-file', id, reqId, filename, mime, dataBase64 })
       })
     },
   }
@@ -521,3 +567,4 @@ export const resizeTerminal: DaemonSession['resizeTerminal'] = primary.resizeTer
 export const killTerminal: DaemonSession['killTerminal'] = primary.killTerminal
 export const pasteImageToTerminal: DaemonSession['pasteImageToTerminal'] =
   primary.pasteImageToTerminal
+export const pasteFileToTerminal: DaemonSession['pasteFileToTerminal'] = primary.pasteFileToTerminal

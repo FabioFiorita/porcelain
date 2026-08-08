@@ -1,11 +1,11 @@
 import { Button } from '@renderer/components/ui/button'
 import { compactButtonClass } from '@renderer/lib/controls'
 import {
-  clearTerminalSelection,
+  copyTerminalSelection,
   getTerminalSelectionAnchor,
   subscribeTerminalSelection,
 } from '@renderer/lib/terminal-registry'
-import { cn, copyText } from '@renderer/lib/utils'
+import { cn } from '@renderer/lib/utils'
 import { TestIds } from '@shared/test-ids'
 import { Check, Copy } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -16,7 +16,7 @@ import { useEffect, useState } from 'react'
  *
  * Pattern from T3 Code's terminal: select → popup with Copy. We only ship Copy
  * (no "Add to chat" — agents don't live in Porcelain). `mousedown` preventDefault
- * keeps xterm from clearing the selection before the click lands.
+ * keeps Ghostty from clearing the selection before the click lands.
  */
 export function TerminalSelectionToolbar({
   sessionId,
@@ -41,7 +41,7 @@ export function TerminalSelectionToolbar({
       if (disposed) return
       unsub = subscribeTerminalSelection(sessionId, refresh)
       if (!unsub) {
-        // Parent attach effect hasn't created the xterm yet — try next frame.
+        // Parent attach effect hasn't created the Ghostty yet — try next frame.
         raf = requestAnimationFrame(connect)
         return
       }
@@ -59,8 +59,7 @@ export function TerminalSelectionToolbar({
   if (!anchor) return null
 
   const handleCopy = async (): Promise<void> => {
-    await copyText(anchor.text)
-    clearTerminalSelection(sessionId)
+    await copyTerminalSelection(sessionId)
     setCopied(true)
     setAnchor(null)
   }
@@ -83,7 +82,7 @@ export function TerminalSelectionToolbar({
             'gap-1.5 border border-border bg-popover text-popover-foreground shadow-md',
             'hover:bg-accent hover:text-accent-foreground',
           )}
-          // Don't let the press clear xterm's selection before onClick runs.
+          // Don't let the press clear Ghostty's selection before onClick runs.
           onMouseDown={(e: React.MouseEvent<HTMLButtonElement>): void => e.preventDefault()}
           onClick={async () => {
             await handleCopy()

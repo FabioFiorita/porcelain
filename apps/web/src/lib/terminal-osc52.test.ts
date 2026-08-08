@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { decodeOsc52Payload, osc52WriteText } from './terminal-osc52'
+import { describe, expect, it } from 'vitest'
+import { decodeOsc52Payload, Osc52StreamFilter, osc52WriteText } from './terminal-osc52'
 
 function b64(text: string): string {
   // Mirror the OSC 52 encode path: UTF-8 bytes → Latin-1 string → base64.
@@ -43,31 +43,33 @@ describe('osc52WriteText', () => {
   })
 })
 
-describe('attachOsc52Clipboard', () => {
-  beforeEach(() => {
-    vi.resetModules()
+describe('Osc52StreamFilter', () => {
+  it('removes OSC 52 and writes its decoded contents across chunk boundaries', () => {
+    const filter = new Osc52StreamFilter()
+    const writes: string[] = []
+    const payload = b64('copied from a remote TUI')
+    expect(
+      filter.process(`before\u001b]52;c;${payload.slice(0, 8)}`, (text) => writes.push(text)),
+    ).toBe('before')
+    expect(filter.process(`${payload.slice(8)}\u001b\\after`, (text) => writes.push(text))).toBe(
+      'after',
+    )
+    expect(writes).toEqual(['copied from a remote TUI'])
   })
 
-  it('registers an OSC 52 handler that copies decoded text', async () => {
-    const copySpy = vi.fn().mockResolvedValue(undefined)
-    vi.doMock('./utils', () => ({ copyText: copySpy }))
-    const { attachOsc52Clipboard } = await import('./terminal-osc52')
+  it('accepts BEL termination and keeps non-OSC escape sequences intact', () => {
+    const filter = new Osc52StreamFilter()
+    const writes: string[] = []
+    expect(
+      filter.process(`\u001b[31mred\u001b]52;c;${b64('clipboard')}\u0007\u001b[0m`, (text) =>
+        writes.push(text),
+      ),
+    ).toBe('\u001b[31mred\u001b[0m')
+    expect(writes).toEqual(['clipboard'])
+  })
 
-    let handler: ((data: string) => boolean) | undefined
-    const term = {
-      parser: {
-        registerOscHandler: (id: number, cb: (data: string) => boolean) => {
-          expect(id).toBe(52)
-          handler = cb
-          return { dispose: () => {} }
-        },
-      },
-    }
-    attachOsc52Clipboard(term as never)
-    expect(handler).toBeTypeOf('function')
-    expect(handler?.(`c;${b64('yanked')}`)).toBe(true)
-    // microtask: void copyText(...)
-    await Promise.resolve()
-    expect(copySpy).toHaveBeenCalledWith('yanked')
+  it('can replay output silently while still stripping a clipboard escape', () => {
+    const filter = new Osc52StreamFilter()
+    expect(filter.process(`prompt\u001b]52;c;${b64('must not replay')}\u0007`)).toBe('prompt')
   })
 })

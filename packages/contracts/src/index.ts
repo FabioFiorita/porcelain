@@ -49,7 +49,12 @@ export {
   appEventSchema,
   type ClientMessage,
   clientMessageSchema,
+  MAX_PASTE_FILE_BYTES,
   MAX_PASTE_IMAGE_BYTES,
+  MAX_SESSION_MESSAGE_BYTES,
+  MAX_TERMINAL_WRITE_CODE_UNITS,
   type ServerMessage,
   serverMessageSchema,
+  terminalFilePromptReference,
+  terminalImagePromptReference,
 } from './ws-protocol'

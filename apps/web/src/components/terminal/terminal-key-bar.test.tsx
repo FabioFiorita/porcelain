@@ -9,6 +9,7 @@ const focused = { value: false }
 vi.mock('@renderer/lib/terminal-registry', () => ({
   sendTerminalInput: vi.fn(),
   sendTerminalArrow: vi.fn(),
+  pasteTerminalImage: vi.fn(),
   focusTerminal: vi.fn(),
   blurTerminal: vi.fn(),
   isTerminalFocused: (): boolean => focused.value,
@@ -17,11 +18,16 @@ vi.mock('@renderer/lib/terminal-registry', () => ({
 const {
   sendTerminalInput,
   sendTerminalArrow,
+  pasteTerminalImage,
   focusTerminal,
   blurTerminal,
 }: Pick<
   typeof import('@renderer/lib/terminal-registry'),
-  'sendTerminalInput' | 'sendTerminalArrow' | 'focusTerminal' | 'blurTerminal'
+  | 'sendTerminalInput'
+  | 'sendTerminalArrow'
+  | 'pasteTerminalImage'
+  | 'focusTerminal'
+  | 'blurTerminal'
 > = await import('@renderer/lib/terminal-registry')
 
 /** A tap: pointerdown (where focus is sampled) then the click that acts on it. */
@@ -85,5 +91,11 @@ describe('TerminalKeyBar', () => {
     focused.value = false
     tap(TestIds.terminalKey('keyboard'))
     expect(focusTerminal).toHaveBeenCalledWith('s1')
+  })
+
+  it('routes touch image paste through the shared clipboard action', () => {
+    render(<TerminalKeyBar sessionId="s1" />)
+    tap(TestIds.terminalKey('paste-image'))
+    expect(pasteTerminalImage).toHaveBeenCalledWith('s1')
   })
 })

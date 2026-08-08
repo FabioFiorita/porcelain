@@ -9,7 +9,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 // shell per test. `write` is what this module's "ok" path asserts against.
 vi.mock('node-pty', () => ({ spawn: () => makePty() }))
 
-import { PASTE_RETENTION_MS, pasteImageToTerminal, sweepPastedImages } from './image-paste'
+import {
+  PASTE_RETENTION_MS,
+  pasteFileToTerminal,
+  pasteImageToTerminal,
+  sweepPastedImages,
+} from './image-paste'
 import { createTerminal, type TerminalSender } from './terminal-manager'
 
 interface FakePty {
@@ -94,12 +99,51 @@ describe('pasteImageToTerminal', () => {
     expect(path.endsWith('.png')).toBe(true)
     const written = await readFile(path)
     expect(written).toEqual(Buffer.from(ONE_PIXEL_PNG_BASE64, 'base64'))
+    expect((await stat(path)).mode & 0o777).toBe(0o600)
+    expect((await stat(join(path, '..'))).mode & 0o777).toBe(0o700)
 
     // Inserted, not submitted: no trailing carriage return, matching a real paste.
     const call = (ptys[0]?.write as ReturnType<typeof vi.fn>).mock.calls.at(0)?.[0] as string
     expect(call).toContain('Analyze this image:')
     expect(call).toContain(path)
     expect(call.endsWith('\r')).toBe(false)
+  })
+
+  it('can upload without touching the prompt for atomic multi-image composer delivery', async () => {
+    const id = createTerminal(makeSender(), { name: 'shell', cwd: '/repo' })
+
+    const outcome = await pasteImageToTerminal({
+      id,
+      mime: 'image/png',
+      dataBase64: ONE_PIXEL_PNG_BASE64,
+      insert: false,
+    })
+
+    expect(outcome).toMatchObject({ path: expect.stringMatching(/\.png$/), result: 'ok' })
+    expect(ptys[0]?.write).not.toHaveBeenCalled()
+  })
+
+  it('attaches through the PTY even when the daemon host has no X11 or Wayland clipboard', async () => {
+    const display = process.env.DISPLAY
+    const waylandDisplay = process.env.WAYLAND_DISPLAY
+    delete process.env.DISPLAY
+    delete process.env.WAYLAND_DISPLAY
+    try {
+      const id = createTerminal(makeSender(), { name: 'shell', cwd: '/repo' })
+      const outcome = await pasteImageToTerminal({
+        id,
+        mime: 'image/png',
+        dataBase64: ONE_PIXEL_PNG_BASE64,
+      })
+
+      expect(outcome.result).toBe('ok')
+      expect(ptys[0]?.write).toHaveBeenCalledWith(expect.stringContaining('Analyze this image:'))
+    } finally {
+      if (display === undefined) delete process.env.DISPLAY
+      else process.env.DISPLAY = display
+      if (waylandDisplay === undefined) delete process.env.WAYLAND_DISPLAY
+      else process.env.WAYLAND_DISPLAY = waylandDisplay
+    }
   })
 
   it('replies no-session for a dead session even with a valid image', async () => {
@@ -110,6 +154,25 @@ describe('pasteImageToTerminal', () => {
       dataBase64: ONE_PIXEL_PNG_BASE64,
     })
     expect(outcome).toEqual({ result: 'no-session' })
+  })
+})
+
+describe('pasteFileToTerminal', () => {
+  it('writes a generic file under the daemon scratch directory and never uses a client path', async () => {
+    const id = createTerminal(makeSender(), { name: 'shell', cwd: '/repo' })
+    const outcome = await pasteFileToTerminal({
+      dataBase64: Buffer.from('report').toString('base64'),
+      filename: '../../Quarterly report.pdf',
+      id,
+      mime: 'application/pdf',
+    })
+
+    expect(outcome).toMatchObject({
+      result: 'ok',
+      path: expect.stringContaining('Quarterly_report.pdf'),
+    })
+    expect(outcome.path).not.toContain('../')
+    expect(ptys[0]?.write).toHaveBeenCalledWith(expect.stringContaining('Analyze this file:'))
   })
 })
 
