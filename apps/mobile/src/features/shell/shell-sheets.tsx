@@ -6,14 +6,14 @@ import { PANEL_CARD, SURFACE_GUTTER } from '@/components/surface-layout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Text as UiText } from '@/components/ui/text'
-import { cn } from '@/lib/utils'
-import { COMPANION } from './mock-data'
 import {
   DataSettings,
   EnvironmentsSettings,
   GeneralSettings,
   ReviewSettings,
-} from './settings-screen'
+} from '@/features/settings/settings-screen'
+import { cn } from '@/lib/utils'
+import { COMPANION } from './mock-data'
 import { type SettingsSection, useShellStore } from './shell-store'
 import { surfaceSlots } from './surface-slots'
 import { WORKSPACE_CREATE_COPY } from './workspace-create-form'
