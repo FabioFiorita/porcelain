@@ -22,7 +22,7 @@ function walk(dir, exts, out = []) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     if (entry.isDirectory()) {
       if (!SKIP_DIRS.has(entry.name)) walk(join(dir, entry.name), exts, out)
-    } else if (exts.some((ext) => entry.name.endsWith(ext))) {
+    } else if (entry.isFile() && exts.some((ext) => entry.name.endsWith(ext))) {
       out.push(join(dir, entry.name))
     }
   }
