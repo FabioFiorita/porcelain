@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { LIVE_POLL_MS } from '@/lib/daemon/poll'
+import { BADGE_POLL_MS, LIVE_POLL_MS } from '@/lib/daemon/poll'
 import {
   type DiffReadingScope,
   type FlowGroup,
@@ -87,7 +87,7 @@ export function useChangedFileCount(): number {
   const repo = useActiveRepo()
   const { data } = useDaemonQuery(gitFlowQuery, repo?.path ?? '', {
     enabled: repo !== null,
-    pollMs: 15_000,
+    pollMs: BADGE_POLL_MS,
   })
   return (data ?? []).reduce((count, group) => count + group.files.length, 0)
 }

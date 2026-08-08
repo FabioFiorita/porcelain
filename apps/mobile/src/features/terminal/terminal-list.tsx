@@ -10,6 +10,7 @@ import {
   IconAction,
   type SheetAction,
 } from '@/components/surface-chrome'
+import { SURFACE_ROW, SURFACE_ROW_SELECTED } from '@/components/surface-layout'
 import { SurfaceList } from '@/components/surface-scroll'
 import { useActiveRepo } from '@/lib/daemon/repo'
 import { cn } from '@/lib/utils'
@@ -135,6 +136,7 @@ export function TerminalList({
       ) : (
         <SurfaceList
           data={sessions}
+          edgeToEdge
           gap={2}
           keyExtractor={(session: TerminalSession) => session.id}
           renderItem={({ item }) => (
@@ -234,8 +236,9 @@ function TerminalRow({
       accessibilityRole="button"
       accessibilityState={{ selected }}
       className={cn(
-        'min-h-12 flex-row items-center gap-2.5 rounded-xl border border-transparent px-3 py-2.5 active:bg-accent',
-        selected && 'border-border bg-muted/70',
+        'min-h-12 flex-row items-center gap-2.5 py-2.5',
+        SURFACE_ROW,
+        selected && SURFACE_ROW_SELECTED,
       )}
       testID={`porcelain-terminal-row-${session.id}`}
       onLongPress={onLongPress}

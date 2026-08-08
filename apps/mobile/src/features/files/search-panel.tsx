@@ -5,7 +5,12 @@ import { Pressable, Text, View } from 'react-native'
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { EmptyNote, ErrorNote } from '@/components/panel-chrome'
 import { SegmentedControl } from '@/components/segmented-control'
-import { SURFACE_STACK_GAP, SURFACE_TOOLBAR } from '@/components/surface-layout'
+import {
+  SURFACE_ROW,
+  SURFACE_ROW_SELECTED,
+  SURFACE_STACK_GAP,
+  SURFACE_TOOLBAR,
+} from '@/components/surface-layout'
 import { SurfaceList } from '@/components/surface-scroll'
 import { Input } from '@/components/ui/input'
 import type { CodeSearchOptions, FileSearchResult } from '@/lib/daemon/procedures/files'
@@ -232,6 +237,7 @@ export function SearchPanel({
       ) : (
         <SurfaceList
           data={paths.results}
+          edgeToEdge
           gap={2}
           keyboardShouldPersistTaps="handled"
           keyExtractor={(result: FileSearchResult) => `${result.kind}:${result.path}`}
@@ -331,8 +337,9 @@ function SearchRow({
       accessibilityRole="button"
       accessibilityState={{ selected }}
       className={cn(
-        'min-h-12 flex-row items-center gap-2.5 rounded-xl border border-transparent px-3 py-2 active:bg-accent',
-        selected && 'border-border bg-muted/70',
+        'min-h-12 flex-row items-center gap-2.5',
+        SURFACE_ROW,
+        selected && SURFACE_ROW_SELECTED,
       )}
       testID={pathTestId('porcelain-search-result', result.path)}
       onPress={onOpen}

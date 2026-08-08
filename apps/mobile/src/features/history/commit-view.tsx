@@ -8,7 +8,7 @@ import {
   PanelLabel,
   ScreenHeader,
 } from '@/components/panel-chrome'
-import { PANEL_CARD, surfaceContentStyle } from '@/components/surface-layout'
+import { PANEL_CARD, SURFACE_GUTTER, surfaceContentStyle } from '@/components/surface-layout'
 import { type CommentAnchor, CommentComposer } from '@/features/comments/comment-composer'
 import { useBottomChrome } from '@/features/shell/bottom-chrome'
 import type { FlowFile } from '@/lib/daemon/procedures/changes'
@@ -103,19 +103,27 @@ export function CommitView({
         </Text>
       ) : (
         <SectionList
-          contentContainerStyle={surfaceContentStyle({ bottomInset, gap: 2 })}
+          contentContainerStyle={surfaceContentStyle({ bottomInset, edgeToEdge: true, gap: 2 })}
           keyExtractor={(file: FlowFile) => file.path}
           ListEmptyComponent={
-            <EmptyNote
-              body="This commit records a message and nothing else — a merge or an empty commit."
-              testID="porcelain-history-commit-empty"
-              title="No files changed"
-            />
+            <View className={SURFACE_GUTTER}>
+              <EmptyNote
+                body="This commit records a message and nothing else — a merge or an empty commit."
+                testID="porcelain-history-commit-empty"
+                title="No files changed"
+              />
+            </View>
           }
-          ListHeaderComponent={<CommitMessageCard hash={hash} message={message} />}
+          ListHeaderComponent={
+            // The list went edge-to-edge so its rows can carry `SURFACE_ROW`; the message card
+            // and the layer labels keep the gutter themselves.
+            <View className={SURFACE_GUTTER}>
+              <CommitMessageCard hash={hash} message={message} />
+            </View>
+          }
           renderItem={({ item }) => <CommitFileRow actions={actions} file={item} />}
           renderSectionHeader={({ section }) => (
-            <View className="bg-background pb-1 pt-3">
+            <View className={cn('bg-background pb-1 pt-3', SURFACE_GUTTER)}>
               <PanelLabel>{section.layer}</PanelLabel>
             </View>
           )}

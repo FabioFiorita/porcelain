@@ -58,6 +58,14 @@ export function useCommitConventions(): CommitConventions | undefined {
 }
 
 /**
+ * How often the git suggestion re-reads the refs behind it.
+ *
+ * Feature-local rather than shared: `gitSuggestions` is this card's own cache key, read from
+ * nowhere else, so no other observer's interval can silently win over it.
+ */
+const SUGGESTIONS_POLL_MS = 5_000
+
+/**
  * The agent-free heuristic for "the one git command worth running right now" (behind, ahead,
  * stash present, dirty tree). Polled: it is derived from refs the daemon does not watch.
  */
@@ -65,7 +73,7 @@ export function useGitSuggestions(active: boolean): GitSuggestion[] {
   const repo = useActiveRepo()
   const { data } = useDaemonQuery(gitSuggestionsQuery, repo?.path ?? '', {
     enabled: active && repo !== null,
-    pollMs: 5_000,
+    pollMs: SUGGESTIONS_POLL_MS,
     staleTime: 0,
   })
   return data ?? []

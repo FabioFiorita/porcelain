@@ -3,8 +3,10 @@ import { memo, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 
 import { ActionSheet, type SheetAction } from '@/components/panel-chrome'
+import { SURFACE_ROW } from '@/components/surface-layout'
 import { StatusBadge } from '@/features/diff/status-badge'
 import type { FlowFile } from '@/lib/daemon/procedures/changes'
+import { cn } from '@/lib/utils'
 
 /** Deterministic per-path id — never an array index, so the Android tree resolves it. */
 export function commitFileRowTestId(path: string): string {
@@ -57,7 +59,7 @@ function CommitFileRowImpl({
         accessibilityRole="button"
         // No selected state: opening a file replaces this list with that file's diff on both
         // form factors, so the two are never on screen together.
-        className="min-h-12 flex-row items-start gap-2.5 rounded-xl border border-transparent px-3 py-2 active:bg-accent"
+        className={cn('min-h-12 flex-row items-start gap-2.5', SURFACE_ROW)}
         testID={commitFileRowTestId(file.path)}
         onLongPress={() => {
           setMenuOpen(true)

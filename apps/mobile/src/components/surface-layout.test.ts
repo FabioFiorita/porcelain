@@ -127,16 +127,35 @@ describe('surface layout', () => {
    * `px-3` string three times, inside a list that already spent the 16pt gutter — so row text sat
    * 28pt from the bezel under headers sitting at 16pt. Three copies of a spacing decision is how
    * the three tabs drift apart again; `SURFACE_ROW` is the one place it lives.
+   *
+   * Search, Terminal and a commit's file list wrote the same string afterwards, which is why the
+   * named list is no longer the whole test: the formula is now swept for across every feature, so
+   * the next row to hand-write it fails here rather than joining a list nobody updates.
    */
   it('keeps list rows on the shared row idiom', () => {
-    const rows = ['files/file-entry-row.tsx', 'changes/file-row.tsx', 'history/commit-row.tsx']
+    const rows = [
+      'changes/file-row.tsx',
+      'files/file-entry-row.tsx',
+      'files/search-panel.tsx',
+      'history/commit-file-row.tsx',
+      'history/commit-row.tsx',
+      'terminal/terminal-list.tsx',
+    ]
     const offenders: string[] = []
 
     for (const name of rows) {
       const source = readFileSync(join(FEATURES, name), 'utf8')
       if (!source.includes('SURFACE_ROW')) offenders.push(`${name}: no SURFACE_ROW`)
-      // A row that writes its own card is a row that can drift from the other two.
-      if (/rounded-xl border border-transparent px-/.test(source)) {
+    }
+
+    for (const path of sourceFiles(FEATURES)) {
+      const name = path.slice(FEATURES.length + 1)
+      // The workspace picker's rows are inside a `ShellModal`, not a surface list: there is no
+      // container gutter for `SURFACE_ROW`'s negative-margin geometry to reclaim, so the token
+      // would inset them for no reason. The only exception, and it states why.
+      if (name === 'shell/workspace-picker.tsx') continue
+      // A row that writes its own card is a row that can drift from the other five.
+      if (/rounded-xl border border-transparent px-/.test(readFileSync(path, 'utf8'))) {
         offenders.push(`${name}: hand-written row card`)
       }
     }

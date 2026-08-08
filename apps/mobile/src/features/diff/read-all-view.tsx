@@ -13,8 +13,12 @@ import {
 import { SurfaceList } from '@/components/surface-scroll'
 import { type CommentAnchor, CommentComposer } from '@/features/comments/comment-composer'
 import { rangeForPath, rangeOf } from '@/features/comments/line-range'
+import { SelectionBar } from '@/features/comments/selection-bar'
 import { useCommentedLinesByPath, useReviewComments } from '@/features/comments/use-comments'
-import type { LineSelectionControls } from '@/features/comments/use-line-selection'
+import {
+  type LineSelectionControls,
+  useLineSelection,
+} from '@/features/comments/use-line-selection'
 import { usePreferencesStore } from '@/features/settings/preferences-store'
 import { useBottomChrome } from '@/features/shell/bottom-chrome'
 import type { DiffHunk, DiffReadingScope, FeatureReading } from '@/lib/daemon/procedures/changes'
@@ -22,10 +26,8 @@ import { cn } from '@/lib/utils'
 import { DiffRowView } from './diff-lines'
 import { anchorTextFor } from './diff-rows'
 import { type ReadingRow, toReadingRows } from './reading-rows'
-import { SelectionBar } from './selection-bar'
 import { useDiffReading } from './use-diff'
 import { useDiffTokens } from './use-highlight'
-import { useLineSelection } from './use-line-selection'
 
 /** Per-file reviewed ticks, when the surface has them. A commit's files are already history. */
 export type ReviewedPaths = {
