@@ -119,6 +119,8 @@ function ActionRow({
     <Pressable
       accessibilityLabel={`Run ${action.title}`}
       accessibilityRole="button"
+      /* panel-card-allow: a quick-command chip, not a panel card — its radius belongs to the
+         40pt control family the header chips set, not to the card family. */
       className={cn(
         'min-h-12 flex-row items-center gap-2.5 rounded-xl border border-border bg-card px-3 py-2.5 active:bg-accent',
       )}

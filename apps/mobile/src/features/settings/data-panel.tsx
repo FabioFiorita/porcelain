@@ -1,11 +1,14 @@
 import { describeDisposition } from '@porcelain/client-runtime/companion-disposition'
 import { View } from 'react-native'
 
+import { EmptyNote, ErrorNote, PanelLabel } from '@/components/panel-chrome'
 import { SegmentedControl } from '@/components/segmented-control'
+import { PANEL_CARD } from '@/components/surface-layout'
 import { Button } from '@/components/ui/button'
 import { Text } from '@/components/ui/text'
 import { useActiveEnvironment, useConnectionState } from '@/lib/daemon/environments-store'
 import type { ChannelDisposition } from '@/lib/daemon/procedures/companion'
+import { cn } from '@/lib/utils'
 
 import { useCompanionData } from './use-settings'
 
@@ -22,7 +25,7 @@ export function DataSettings(): React.JSX.Element {
 
   if (environment === null || connection.kind === 'no-environment') {
     return (
-      <EmptyDataState
+      <EmptyNote
         body="Pair an environment first. What git carries is a property of the repository on the daemon."
         testID="porcelain-settings-data-no-env"
         title="No environment"
@@ -32,7 +35,7 @@ export function DataSettings(): React.JSX.Element {
 
   if (connection.kind !== 'ready') {
     return (
-      <EmptyDataState
+      <EmptyNote
         body={
           connection.kind === 'connecting' || connection.kind === 'loading'
             ? 'Connecting to the daemon…'
@@ -46,7 +49,7 @@ export function DataSettings(): React.JSX.Element {
 
   if (repoPath === null) {
     return (
-      <EmptyDataState
+      <EmptyNote
         body="Open a project from the header. Companion data is stored per repository."
         testID="porcelain-settings-data-empty"
         title="No repository selected"
@@ -57,30 +60,13 @@ export function DataSettings(): React.JSX.Element {
   return <CompanionDataEditor repoPath={repoPath} />
 }
 
-function EmptyDataState({
-  title,
-  body,
-  testID,
-}: {
-  title: string
-  body: string
-  testID: string
-}): React.JSX.Element {
-  return (
-    <View className="gap-2 rounded-xl border border-border bg-muted/40 p-4" testID={testID}>
-      <Text className="text-sm font-medium text-foreground">{title}</Text>
-      <Text className="text-xs leading-5 text-muted-foreground">{body}</Text>
-    </View>
-  )
-}
-
 function CompanionDataEditor({ repoPath }: { repoPath: string }): React.JSX.Element {
   const companion = useCompanionData(repoPath)
   const hidden = companion.hidden
 
   if (companion.isLoading) {
     return (
-      <Text className="text-sm text-muted-foreground" testID="porcelain-settings-data-loading">
+      <Text className="py-6 text-sm text-muted-foreground" testID="porcelain-settings-data-loading">
         Loading channels…
       </Text>
     )
@@ -88,26 +74,17 @@ function CompanionDataEditor({ repoPath }: { repoPath: string }): React.JSX.Elem
 
   if (companion.error !== null) {
     return (
-      <View
-        className="gap-1 rounded-xl border border-destructive/40 bg-destructive/5 p-3"
+      <ErrorNote
+        message={`Could not load what git carries. ${companion.error.message || 'The daemon refused the request.'}`}
         testID="porcelain-settings-data-error"
-      >
-        <Text className="text-sm font-medium text-destructive">
-          Could not load what git carries
-        </Text>
-        <Text className="text-xs text-muted-foreground">
-          {companion.error.message || 'The daemon refused the request.'}
-        </Text>
-      </View>
+      />
     )
   }
 
   return (
     <View className="gap-4" testID="porcelain-settings-data">
       <View className="gap-1">
-        <Text className="text-3xs font-semibold uppercase tracking-widest text-muted-foreground">
-          What git carries
-        </Text>
+        <PanelLabel>What git carries</PanelLabel>
         <Text className="text-xs leading-5 text-muted-foreground">
           Every channel below is stored in .porcelain/ inside this repo.{' '}
           <Text className="text-xs font-medium leading-5 text-foreground">Shared</Text> lets git
@@ -117,10 +94,7 @@ function CompanionDataEditor({ repoPath }: { repoPath: string }): React.JSX.Elem
         </Text>
       </View>
 
-      <View
-        className="gap-2 rounded-xl border border-border bg-muted/40 p-3"
-        testID="porcelain-settings-data-visibility"
-      >
+      <View className={cn(PANEL_CARD, 'gap-2 p-3')} testID="porcelain-settings-data-visibility">
         <Text className="text-sm font-medium text-foreground">
           {hidden ? 'Hidden from git in this clone' : 'Visible to git'}
         </Text>
@@ -157,9 +131,7 @@ function CompanionDataEditor({ repoPath }: { repoPath: string }): React.JSX.Elem
       </View>
 
       {companion.failure === null ? null : (
-        <Text className="text-xs text-destructive" testID="porcelain-settings-data-write-error">
-          {companion.failure}
-        </Text>
+        <ErrorNote message={companion.failure} testID="porcelain-settings-data-write-error" />
       )}
 
       {companion.untracked.length > 0 ? (
@@ -183,7 +155,7 @@ function DispositionRow({
 }): React.JSX.Element {
   return (
     <View
-      className="gap-2 rounded-xl border border-border bg-card p-3"
+      className={cn(PANEL_CARD, 'gap-2 p-3')}
       testID={`porcelain-settings-data-channel-${channel.key}`}
     >
       <View className="gap-0.5">

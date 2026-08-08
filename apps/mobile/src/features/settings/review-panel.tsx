@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Pressable, View } from 'react-native'
 
+import { EmptyNote, ErrorNote, PanelLabel } from '@/components/panel-chrome'
 import { SegmentedControl } from '@/components/segmented-control'
+import { PANEL_CARD } from '@/components/surface-layout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Text } from '@/components/ui/text'
@@ -85,7 +87,7 @@ export function ReviewSettings(): React.JSX.Element {
 
   if (environment === null || connection.kind === 'no-environment') {
     return (
-      <EmptyReviewState
+      <EmptyNote
         body="Pair an environment first. Review layers live on the daemon for the open repository."
         testID="porcelain-settings-review-no-env"
         title="No environment"
@@ -95,7 +97,7 @@ export function ReviewSettings(): React.JSX.Element {
 
   if (connection.kind !== 'ready') {
     return (
-      <EmptyReviewState
+      <EmptyNote
         body={
           connection.kind === 'connecting' || connection.kind === 'loading'
             ? 'Connecting to the daemon…'
@@ -109,7 +111,7 @@ export function ReviewSettings(): React.JSX.Element {
 
   if (repoPath === null) {
     return (
-      <EmptyReviewState
+      <EmptyNote
         body="Open a project from the header. Layers are stored per repository on the daemon."
         testID="porcelain-settings-review-empty"
         title="No repository selected"
@@ -118,23 +120,6 @@ export function ReviewSettings(): React.JSX.Element {
   }
 
   return <ReviewLayersEditor repoPath={repoPath} />
-}
-
-function EmptyReviewState({
-  title,
-  body,
-  testID,
-}: {
-  title: string
-  body: string
-  testID: string
-}): React.JSX.Element {
-  return (
-    <View className="gap-2 rounded-xl border border-border bg-muted/40 p-4" testID={testID}>
-      <Text className="text-sm font-medium text-foreground">{title}</Text>
-      <Text className="text-xs leading-5 text-muted-foreground">{body}</Text>
-    </View>
-  )
 }
 
 function ReviewLayersEditor({ repoPath }: { repoPath: string }): React.JSX.Element {
@@ -160,7 +145,10 @@ function ReviewLayersEditor({ repoPath }: { repoPath: string }): React.JSX.Eleme
 
   if (review.isLoading) {
     return (
-      <Text className="text-sm text-muted-foreground" testID="porcelain-settings-review-loading">
+      <Text
+        className="py-6 text-sm text-muted-foreground"
+        testID="porcelain-settings-review-loading"
+      >
         Loading layers…
       </Text>
     )
@@ -168,19 +156,17 @@ function ReviewLayersEditor({ repoPath }: { repoPath: string }): React.JSX.Eleme
 
   if (review.error !== null) {
     return (
-      <View className="gap-1 rounded-xl border border-destructive/40 bg-destructive/5 p-3">
-        <Text className="text-sm font-medium text-destructive">Could not load layers</Text>
-        <Text className="text-xs text-muted-foreground">
-          {review.error.message || 'The daemon refused the request.'}
-        </Text>
-      </View>
+      <ErrorNote
+        message={`Could not load layers. ${review.error.message || 'The daemon refused the request.'}`}
+        testID="porcelain-settings-review-error"
+      />
     )
   }
 
   return (
     <View className="gap-4" testID="porcelain-settings-review">
       {review.isStarter ? (
-        <View className="gap-1 rounded-xl border border-border bg-muted/40 p-3">
+        <View className={cn(PANEL_CARD, 'gap-1 p-3')}>
           <Text className="text-xs font-medium text-foreground">Starter groups for this tree</Text>
           <Text className="text-xs leading-5 text-muted-foreground">
             Every project starts with Docs and Agents only. Product code lands in Other until you or
@@ -197,9 +183,7 @@ function ReviewLayersEditor({ repoPath }: { repoPath: string }): React.JSX.Eleme
       />
 
       <View className="gap-2">
-        <Text className="text-3xs font-semibold uppercase tracking-widest text-muted-foreground">
-          Layers
-        </Text>
+        <PanelLabel>Layers</PanelLabel>
         {draft.map((layer, index) => (
           <LayerRow
             key={layer.id}
@@ -251,9 +235,7 @@ function ReviewLayersEditor({ repoPath }: { repoPath: string }): React.JSX.Eleme
       </View>
 
       {review.failure === null ? null : (
-        <Text className="text-xs text-destructive" testID="porcelain-settings-review-write-error">
-          {review.failure}
-        </Text>
+        <ErrorNote message={review.failure} testID="porcelain-settings-review-write-error" />
       )}
     </View>
   )
@@ -279,13 +261,8 @@ function PatternBuilder({
   }
 
   return (
-    <View
-      className="gap-2.5 rounded-xl border border-border bg-muted/40 p-3"
-      testID="porcelain-settings-pattern-builder"
-    >
-      <Text className="text-3xs font-semibold uppercase tracking-widest text-muted-foreground">
-        Pattern builder
-      </Text>
+    <View className={cn(PANEL_CARD, 'gap-2.5 p-3')} testID="porcelain-settings-pattern-builder">
+      <PanelLabel>Pattern builder</PanelLabel>
       <View className="gap-1.5">
         <Text className="text-xs text-muted-foreground">Match</Text>
         <SegmentedControl<MatchType>
@@ -330,14 +307,14 @@ function PatternBuilder({
               No changed files to preview against right now.
             </Text>
           ) : matches.length === 0 ? (
-            <Text className="text-xs text-amber-600 dark:text-amber-400">
+            <Text className="text-xs text-warning">
               No changed files match this pattern — try a different match type above.
             </Text>
           ) : (
             <>
-              <Text className="text-3xs font-semibold uppercase tracking-widest text-muted-foreground">
-                Matches {matches.length} changed {matches.length === 1 ? 'file' : 'files'}
-              </Text>
+              <PanelLabel>
+                {`Matches ${matches.length} changed ${matches.length === 1 ? 'file' : 'files'}`}
+              </PanelLabel>
               {matches.slice(0, EXAMPLE_LIMIT).map((path) => (
                 <Text key={path} className="font-mono text-xs text-foreground" numberOfLines={1}>
                   {path}
@@ -380,10 +357,7 @@ function LayerRow({
   const error = patternError(layer.pattern)
 
   return (
-    <View
-      className="gap-1.5 rounded-xl border border-border bg-card p-3"
-      testID={`porcelain-settings-layer-${index}`}
-    >
+    <View className={cn(PANEL_CARD, 'gap-1.5 p-3')} testID={`porcelain-settings-layer-${index}`}>
       <View className="flex-row gap-2">
         <Input
           accessibilityLabel={`Layer ${index + 1} label`}

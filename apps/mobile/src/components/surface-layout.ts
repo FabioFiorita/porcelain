@@ -42,8 +42,9 @@ export const SURFACE_ROW = 'mx-2 rounded-xl border border-transparent px-2 py-2 
  *
  * The radius is the decision this token exists to hold. Cards had drifted into two families,
  * `rounded-2xl` on the tabs and `rounded-xl` in settings, which reads as two design systems on
- * two screens of one app. `rounded-2xl` wins; settings follows when its panels are rebuilt.
- * `surface-layout.test.ts` fails the build when a feature hand-writes the shell again.
+ * two screens of one app. `rounded-2xl` won and settings followed. `surface-layout.test.ts`
+ * fails the build on either family hand-written again — a control that wears the shell without
+ * being a card opts out with `panel-card-allow`.
  */
 export const PANEL_CARD = 'rounded-2xl border border-border bg-card'
 

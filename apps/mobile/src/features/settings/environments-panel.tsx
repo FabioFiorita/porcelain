@@ -3,6 +3,8 @@ import { useState } from 'react'
 import { Alert, Pressable, View } from 'react-native'
 import { Swipeable } from 'react-native-gesture-handler'
 import { ChromeGlyph, type ChromeIconName } from '@/components/chrome-glyph'
+import { EmptyNote, ErrorNote, PanelLabel } from '@/components/panel-chrome'
+import { PANEL_CARD } from '@/components/surface-layout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Text } from '@/components/ui/text'
@@ -168,27 +170,18 @@ function EnvironmentsList({
       </Text>
 
       {corrupt ? (
-        <View className="gap-1 rounded-xl border border-destructive/40 bg-destructive/5 p-3">
-          <Text className="text-sm font-medium text-destructive">
-            Saved environments unreadable
-          </Text>
-          <Text className="text-xs text-muted-foreground">
-            The on-device index could not be parsed. Existing credentials were not deleted —
-            reinstall or restore from a backup, then re-pair.
-          </Text>
-        </View>
+        <ErrorNote
+          message="Saved environments unreadable. The on-device index could not be parsed. Existing credentials were not deleted — reinstall or restore from a backup, then re-pair."
+          testID="porcelain-settings-environments-corrupt"
+        />
       ) : null}
 
       {environments.length === 0 && !corrupt ? (
-        <View
-          className="gap-1 rounded-xl border border-dashed border-border bg-muted/30 p-4"
+        <EmptyNote
+          body="Create a group with a connection link from the host Share settings."
           testID="porcelain-settings-environments-empty"
-        >
-          <Text className="text-sm font-medium text-foreground">No environments yet</Text>
-          <Text className="text-xs leading-5 text-muted-foreground">
-            Create a group with a connection link from the host Share settings.
-          </Text>
-        </View>
+          title="No environments yet"
+        />
       ) : null}
 
       {environments.map((environment) => {
@@ -200,7 +193,8 @@ function EnvironmentsList({
             accessibilityLabel={`${environment.nickname}, ${statusLabel}`}
             accessibilityRole="button"
             className={cn(
-              'flex-row items-center gap-3 rounded-xl border border-border bg-card p-3 active:bg-accent',
+              PANEL_CARD,
+              'flex-row items-center gap-3 p-3 active:bg-accent',
               isActive && 'border-primary/40 bg-primary/5',
             )}
             testID={`porcelain-settings-environment-${environment.id}`}
@@ -455,7 +449,7 @@ function GroupDetail({
     <View className="gap-4" testID={`porcelain-settings-group-detail-${environment.id}`}>
       <BackRow label="Environments" onPress={onBack} />
 
-      <View className="gap-3 rounded-xl border border-border bg-card p-3">
+      <View className={cn(PANEL_CARD, 'gap-3 p-3')}>
         <Field label="Nickname">
           <Input
             accessibilityLabel="Group nickname"
@@ -544,9 +538,7 @@ function GroupDetail({
 
       <View className="gap-2">
         <View className="gap-0.5">
-          <Text className="text-3xs font-semibold uppercase tracking-widest text-muted-foreground">
-            Connections
-          </Text>
+          <PanelLabel>Connections</PanelLabel>
           <Text className="text-xs leading-5 text-muted-foreground">
             The primary is tried first; the rest follow in this order until one answers.
           </Text>
@@ -632,8 +624,9 @@ function ConnectionRow({
   const body = (
     <View
       className={cn(
-        'flex-row items-center gap-3 rounded-xl border p-3',
-        preferred ? 'border-primary/40 bg-primary/5' : 'border-border bg-card',
+        PANEL_CARD,
+        'flex-row items-center gap-3 p-3',
+        preferred && 'border-primary/40 bg-primary/5',
       )}
       testID={`porcelain-settings-connection-${index}`}
     >
@@ -801,9 +794,7 @@ function Field({
 function Meta({ label, value }: { label: string; value: string }): React.JSX.Element {
   return (
     <View className="gap-0.5">
-      <Text className="text-3xs font-semibold uppercase tracking-widest text-muted-foreground">
-        {label}
-      </Text>
+      <PanelLabel>{label}</PanelLabel>
       <Text className="text-sm text-foreground">{value}</Text>
     </View>
   )

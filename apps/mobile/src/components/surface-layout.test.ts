@@ -23,6 +23,12 @@ import { SURFACE_GUTTER, SURFACE_GUTTER_PX } from './surface-layout'
 
 const FEATURES = join(__dirname, '..', 'features')
 const ALLOW = 'surface-gutter-allow'
+/**
+ * The card ratchet's own opt-out. Separate from the gutter one because what it excuses is
+ * different: a 40pt header chip wears the card's border and fill without being a card, and
+ * "surface-gutter-allow" on a radius decision reads as a copied incantation.
+ */
+const CARD_ALLOW = 'panel-card-allow'
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((entry) => {
@@ -144,18 +150,20 @@ describe('surface layout', () => {
    * settings, one nested card with no fill at all. `PANEL_CARD` is the radius decision, in one
    * place.
    *
-   * Settings still hand-writes `rounded-xl` cards; those panels are rebuilt with their hook
-   * extraction, and this ratchet grows to cover them then.
+   * Both radii are refused, not just the one `PANEL_CARD` currently spells. Settings' panels moved
+   * off `rounded-xl` when their hooks came out, and a ratchet that only caught the current string
+   * would have let the old family grow back one card at a time — which is exactly how the two
+   * families appeared. Something that wears the shell without being a card — a 40pt header chip,
+   * a quick-command pill — says so at the call site with `panel-card-allow`.
    */
   it('keeps cards on the shared card idiom', () => {
     const offenders: string[] = []
 
     for (const path of sourceFiles(FEATURES)) {
       const source = readFileSync(path, 'utf8')
-      for (const match of source.matchAll(/rounded-\w+ border border-border bg-card/g)) {
-        if (!match[0].startsWith('rounded-2xl')) continue
-        if (elementAround(source, match.index).includes(ALLOW)) continue
-        offenders.push(path.slice(FEATURES.length + 1))
+      for (const match of source.matchAll(/rounded-(?:2xl|xl) border border-border bg-card/g)) {
+        if (elementAround(source, match.index).includes(CARD_ALLOW)) continue
+        offenders.push(`${path.slice(FEATURES.length + 1)}: ${match[0]}`)
       }
     }
 

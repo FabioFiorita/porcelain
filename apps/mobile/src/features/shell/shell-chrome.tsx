@@ -120,6 +120,7 @@ export function TabletHeader(_props: { platformLabel: string }): React.JSX.Eleme
             symbol="companion"
             testID="porcelain-tablet-companion"
           />
+          {/* panel-card-allow: a 40pt chip in the header rail, not a card. */}
           <View className="h-10 shrink-0 justify-center rounded-xl border border-border bg-card px-3">
             <Text className="text-3xs font-semibold uppercase tracking-widest text-muted-foreground">
               Environment
@@ -151,6 +152,7 @@ function HeaderChip({
     <Pressable
       accessibilityLabel={accessibilityLabel}
       accessibilityRole="button"
+      /* panel-card-allow: a 40pt chip, not a card. */
       className="h-10 shrink-0 flex-row items-center gap-1.5 rounded-xl border border-border bg-card px-2.5 active:bg-accent"
       testID={testID}
       onPress={onPress}
@@ -184,6 +186,7 @@ function HeaderIconButton({
     <Pressable
       accessibilityLabel={accessibilityLabel}
       accessibilityRole="button"
+      /* panel-card-allow: a 40pt control, not a card. */
       className="size-10 items-center justify-center rounded-xl border border-border bg-card active:bg-accent"
       testID={testID}
       onPress={onPress}

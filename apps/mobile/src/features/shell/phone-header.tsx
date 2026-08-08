@@ -81,6 +81,7 @@ export function PhoneHeader({
             <Pressable
               accessibilityLabel="Companion"
               accessibilityRole="button"
+              /* panel-card-allow: a 40pt control, not a card. */
               className="size-10 shrink-0 items-center justify-center rounded-xl border border-border bg-card active:bg-accent"
               testID="porcelain-phone-bolt"
               onPress={() => {
