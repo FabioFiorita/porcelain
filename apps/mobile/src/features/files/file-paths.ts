@@ -84,3 +84,14 @@ export function pathTestId(prefix: string, relative: string): string {
     .slice(-80)
   return `${prefix}-${slug === '' ? 'root' : slug}`
 }
+
+/**
+ * Where a "new file/folder" action long-pressed on `entry` should create it.
+ *
+ * Inside a folder row — pressing a folder means "in here" — and beside a file row, which has no
+ * inside. Without the second half, creating from a file row would try to nest a path under a
+ * file and the daemon would refuse it.
+ */
+export function containerFor(entry: { kind: 'dir' | 'file'; path: string }): string {
+  return entry.kind === 'dir' ? entry.path : parentPath(entry.path)
+}

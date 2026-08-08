@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   absolutePath,
   breadcrumbs,
+  containerFor,
   parentPath,
   pathFromSegments,
   pathSegments,
@@ -103,5 +104,19 @@ describe('pathTestId', () => {
 
   it('names the root rather than emitting a dangling prefix', () => {
     expect(pathTestId('porcelain-files-rows', REPO_ROOT)).toBe('porcelain-files-rows-root')
+  })
+})
+
+describe('containerFor', () => {
+  it('creates inside a folder that was long-pressed', () => {
+    expect(containerFor({ kind: 'dir', path: 'src/features' })).toBe('src/features')
+  })
+
+  it('creates beside a file, which has no inside', () => {
+    expect(containerFor({ kind: 'file', path: 'src/features/app.ts' })).toBe('src/features')
+  })
+
+  it('creates at the root beside a file that lives there', () => {
+    expect(containerFor({ kind: 'file', path: 'README.md' })).toBe(REPO_ROOT)
   })
 })
