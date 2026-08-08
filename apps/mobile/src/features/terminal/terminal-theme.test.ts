@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { paletteColor, rgbColor, TERMINAL_PALETTES } from './terminal-theme'
+import { nativeThemeConfig, paletteColor, rgbColor, TERMINAL_PALETTES } from './terminal-theme'
 
 const palette = TERMINAL_PALETTES.dark
 
@@ -35,5 +35,25 @@ describe('rgbColor', () => {
     expect(rgbColor(0xff0000)).toBe('#ff0000')
     expect(rgbColor(0x010203)).toBe('#010203')
     expect(rgbColor(0)).toBe('#000000')
+  })
+})
+
+describe('nativeThemeConfig', () => {
+  it("writes the palette in Ghostty's own config grammar", () => {
+    const lines = nativeThemeConfig(palette).split('\n')
+    expect(lines[0]).toBe(`background = ${palette.background}`)
+    expect(lines[1]).toBe(`foreground = ${palette.foreground}`)
+    expect(lines[2]).toBe(`cursor-color = ${palette.cursor}`)
+  })
+
+  it('numbers every ANSI slot so the canvas and the parser agree on a colour', () => {
+    const lines = nativeThemeConfig(palette).split('\n').slice(3)
+    expect(lines).toHaveLength(palette.ansi.length)
+    expect(lines[0]).toBe(`palette = 0=${palette.ansi[0]}`)
+    expect(lines.at(-1)).toBe(`palette = 15=${palette.ansi[15]}`)
+  })
+
+  it('says something different for light than for dark', () => {
+    expect(nativeThemeConfig(TERMINAL_PALETTES.light)).not.toBe(nativeThemeConfig(palette))
   })
 })

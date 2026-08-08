@@ -101,3 +101,19 @@ export function paletteColor(index: number, palette: TerminalPalette): string {
 export function rgbColor(packed: number): string {
   return `#${hex2((packed >> 16) & 0xff)}${hex2((packed >> 8) & 0xff)}${hex2(packed & 0xff)}`
 }
+
+/**
+ * A palette as Ghostty's own config grammar — the string the native canvas is configured with.
+ *
+ * Ghostty accepts its normal config file syntax here; Android reads this same small portable
+ * subset. It lives with the palette rather than with the view so the two renderers cannot drift
+ * apart about what "dark" means.
+ */
+export function nativeThemeConfig(palette: TerminalPalette): string {
+  return [
+    `background = ${palette.background}`,
+    `foreground = ${palette.foreground}`,
+    `cursor-color = ${palette.cursor}`,
+    ...palette.ansi.map((color, index) => `palette = ${index}=${color}`),
+  ].join('\n')
+}

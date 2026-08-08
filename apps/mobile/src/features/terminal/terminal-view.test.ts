@@ -6,6 +6,7 @@ import {
   TERMINAL_PANE_PADDING_X,
   TERMINAL_PANE_PADDING_Y,
   terminalColumnLeft,
+  terminalCoveredInset,
   terminalGrid,
   terminalLineHeight,
   terminalRowTop,
@@ -135,5 +136,42 @@ describe("a TUI's input line on the grid the pane fitted", () => {
     // that cannot show it, which is exactly why this failed silently.
     expect((viewport.rows[borderBoxRows - 1] ?? []).map((run) => run.text).join('')).toBe('> ready')
     expect(bottomOf(borderBoxRows - 1)).toBeGreaterThan(PANE.height)
+  })
+})
+
+describe('the chrome covering the bottom of the pane', () => {
+  const BOTTOM = 60
+  const KEYBOARD = 300
+
+  it('reserves the tab bar while no keyboard is up', () => {
+    for (const keyboardOverlays of [true, false]) {
+      expect(
+        terminalCoveredInset({ bottomInset: BOTTOM, keyboardInset: 0, keyboardOverlays }),
+      ).toBe(BOTTOM)
+    }
+  })
+
+  it('reserves the keyboard instead of the tab bar where the keyboard overlays the app', () => {
+    // iOS: the pane keeps its full height, so the rows the keyboard hides come off here — and
+    // the tab bar is behind that keyboard, so it is not reserved a second time.
+    expect(
+      terminalCoveredInset({
+        bottomInset: BOTTOM,
+        keyboardInset: KEYBOARD,
+        keyboardOverlays: true,
+      }),
+    ).toBe(KEYBOARD)
+  })
+
+  it('reserves nothing where the platform already resized the pane', () => {
+    // Android: `onLayout` has already reported the shorter pane. Subtracting the inset again
+    // would shrink it twice and cost the prompt its rows.
+    expect(
+      terminalCoveredInset({
+        bottomInset: BOTTOM,
+        keyboardInset: KEYBOARD,
+        keyboardOverlays: false,
+      }),
+    ).toBe(0)
   })
 })

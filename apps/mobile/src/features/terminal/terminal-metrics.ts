@@ -94,3 +94,25 @@ export function terminalRowTop(row: number, lineHeight: number): number {
 export function terminalColumnLeft(column: number, charWidth: number): number {
   return TERMINAL_PANE_PADDING_X + column * charWidth
 }
+
+/**
+ * How much of the measured pane is covered by chrome the grid must not be fitted into.
+ *
+ * Android resizes the pane when the keyboard appears; iOS overlays it, so only iOS subtracts the
+ * keyboard inset here — applying it on both platforms shrinks Android twice.
+ *
+ * The floating tab bar sits over the bottom of the same pane, but the keyboard covers the tab
+ * bar, so exactly one of the two is ever between the last row and the reader. Reserving both
+ * would spend a couple of rows on space nothing occupies, and on a phone those rows are the
+ * prompt — hence the max of two mutually exclusive claims rather than their sum.
+ */
+export function terminalCoveredInset(chrome: {
+  bottomInset: number
+  keyboardInset: number
+  keyboardOverlays: boolean
+}): number {
+  return Math.max(
+    chrome.keyboardOverlays ? chrome.keyboardInset : 0,
+    chrome.keyboardInset > 0 ? 0 : chrome.bottomInset,
+  )
+}
