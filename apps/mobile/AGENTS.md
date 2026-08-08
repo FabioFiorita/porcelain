@@ -69,6 +69,11 @@ Empty is `EmptyNote`. A row's actions are long-press → `ActionSheet` — no sw
 `surface-layout.test.ts` and `scripts/lint-mobile-nativewind.mjs` hold the spacing, type, and card
 decisions; read their comments before arguing with a failure.
 
+No file under `src/` may pass **450 lines** (`scripts/lint-mobile-file-size.mjs`). Length is a
+proxy for a file doing several jobs — which is also why the long ones had no tests. Split into a
+`use-<feature>.ts`, a pure module beside its `.test.ts`, and the markup. The script's allowlist is
+a record of Phase 3b debt and may only shrink; adding an entry is never the fix.
+
 ## The data idiom
 
 - A feature reaches the daemon **only** through its own `use-<feature>.ts`. Components import

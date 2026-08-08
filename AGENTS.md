@@ -66,6 +66,7 @@ Don't memorize these — the gate catches you. Hooks run `pnpm lint` on every co
 |---|---|
 | No `as unknown as`; no `void`-swallowed promises | `lint-escapes` |
 | No inline `style` / `contentContainerStyle` in mobile src | `lint-mobile-nativewind` |
+| No file over 450 lines under `apps/mobile/src` (shrink-only allowlist) | `lint-mobile-file-size` |
 | Components never import `lib/trpc` / `lib/daemon` | Biome |
 | External-URL guard, git env scrub, hook env scrub | `lint-audit` |
 | EAS workflows stay dispatch-only | `lint-eas-triggers` |
