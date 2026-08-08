@@ -1,3 +1,14 @@
+## [0.52.0](https://github.com/FabioFiorita/porcelain/compare/v0.51.0...v0.52.0) (2026-08-08)
+
+### Features
+
+* **terminal:** Ghostty terminals across web, Electron, and mobile ([#17](https://github.com/FabioFiorita/porcelain/issues/17)) ([98de562](https://github.com/FabioFiorita/porcelain/commit/98de5620465d6232089fe331f2b1447303d73601))
+
+### Bug Fixes
+
+* **release:** stage the whole skills dir when cutting ([fbc3d3a](https://github.com/FabioFiorita/porcelain/commit/fbc3d3a35c358e17f87624d86eab0f0f42665897))
+* **web:** render markdown code blocks with real syntax highlighting ([#16](https://github.com/FabioFiorita/porcelain/issues/16)) ([0fa0d59](https://github.com/FabioFiorita/porcelain/commit/0fa0d5980f0377c147d959ed5c47e5969ae8cbdc))
+
 ## [0.51.0](https://github.com/FabioFiorita/porcelain/compare/v0.50.0...v0.51.0) (2026-08-07)
 
 ### Features
