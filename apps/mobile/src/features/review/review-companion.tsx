@@ -16,15 +16,13 @@ import { CommentsCard } from '@/features/changes/comments-card'
 import { useReviewedPaths } from '@/features/changes/use-changes'
 import { useReviewComments } from '@/features/comments/use-comments'
 import { pathTestId } from '@/features/files/file-paths'
-import { companionGitVisibilityQuery } from '@/lib/daemon/procedures/companion'
 import type { ArchivedReview, FeatureReading } from '@/lib/daemon/procedures/review'
-import { useDaemonQuery } from '@/lib/daemon/queries'
-import { useActiveRepo } from '@/lib/daemon/repo'
 
 import { reviewedFractionOf } from './review-lifecycle'
 import {
   useArchivedReviewActions,
   useArchivedReviews,
+  useCompanionGitVisibility,
   useFeatureReading,
   useReviewActions,
   useReviewPublishCost,
@@ -102,12 +100,7 @@ function ReviewCurrentCard({
   const [error, setError] = useState<string | null>(null)
   const cost = useReviewPublishCost(publishOpen)
   const { width } = useShellModalSize()
-  const repo = useActiveRepo()
-  // Only asked while the dialog is up: publishing is the one moment the answer changes what
-  // the human is about to agree to.
-  const visibility = useDaemonQuery(companionGitVisibilityQuery, repo?.path ?? '', {
-    enabled: publishOpen && repo !== null,
-  })
+  const visibility = useCompanionGitVisibility(publishOpen)
   const reviewed = useReviewedPaths(active)
   // Shares the CommentsCard's cache entry below, so the count costs no extra read.
   const comments = useReviewComments(active)
@@ -206,7 +199,7 @@ function ReviewCurrentCard({
             >
               Checking this clone&rsquo;s git visibility…
             </Text>
-          ) : visibility.data?.hidden === true ? (
+          ) : visibility.hidden === true ? (
             <Text
               className="text-xs leading-5 text-muted-foreground"
               testID="porcelain-review-publish-hidden"

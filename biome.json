@@ -50,6 +50,54 @@
       }
     },
     {
+      "includes": [
+        "apps/mobile/src/**",
+        "!apps/mobile/src/lib/**",
+        "!apps/mobile/src/**/use-*.ts",
+        "!apps/mobile/src/**/*-store.ts"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "@/lib/daemon/queries": "Features reach the daemon through their use-<feature>.ts hooks — never import lib/daemon/queries from a component.",
+                  "@/lib/daemon/client": "Features reach the daemon through their use-<feature>.ts hooks — never import lib/daemon/client from a component.",
+                  "@/lib/daemon/watch": "Features reach the daemon through their use-<feature>.ts hooks — never import lib/daemon/watch from a component."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "apps/mobile/src/features/settings/data-panel.tsx",
+        "apps/mobile/src/features/settings/general-panel.tsx",
+        "apps/mobile/src/features/settings/review-panel.tsx",
+        "apps/mobile/src/features/shell/workspace-switchers.tsx"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "warn",
+              "options": {
+                "paths": {
+                  "@/lib/daemon/queries": "Phase 2 debt — remove with the use-settings.ts extraction. These four files predate the hook rule; do not add a fifth.",
+                  "@/lib/daemon/client": "Phase 2 debt — remove with the use-settings.ts extraction. These four files predate the hook rule; do not add a fifth.",
+                  "@/lib/daemon/watch": "Phase 2 debt — remove with the use-settings.ts extraction. These four files predate the hook rule; do not add a fifth."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": ["apps/daemon/src/**", "apps/web/src/**", "packages/shared/src/**"],
       "linter": {
         "rules": {

@@ -1,4 +1,5 @@
 import { LIVE_POLL_MS } from '@/lib/daemon/poll'
+import { companionGitVisibilityQuery } from '@/lib/daemon/procedures/companion'
 import {
   type ArchivedReview,
   archivedReviewsQuery,
@@ -168,6 +169,23 @@ export function useReviewPublishCost(enabled: boolean): PublishCost | undefined 
     enabled: enabled && repo !== null,
   })
   return data
+}
+
+/**
+ * Whether this clone hides `.porcelain/` from git.
+ *
+ * Only asked while the publish dialog is up: publishing is the one moment the answer changes
+ * what the human is about to agree to.
+ */
+export function useCompanionGitVisibility(enabled: boolean): {
+  hidden: boolean | undefined
+  isPending: boolean
+} {
+  const repo = useActiveRepo()
+  const { data, isPending } = useDaemonQuery(companionGitVisibilityQuery, repo?.path ?? '', {
+    enabled: enabled && repo !== null,
+  })
+  return { hidden: data?.hidden, isPending }
 }
 
 /** Previous reviews under `.porcelain/reviews/`, newest first. */
