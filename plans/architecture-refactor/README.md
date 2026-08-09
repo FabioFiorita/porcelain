@@ -97,15 +97,17 @@ that contains an unresolved product or architecture choice returns to the decisi
 14. [`014-make-the-delivery-loop-always-on.md`](decisions/014-make-the-delivery-loop-always-on.md) —
     the delivery loop becomes agent identity, Ship retires, Audit invariants move to their owners
     before Audit retires, and Companion remains an explicit product-surface procedure.
+15. [`015-make-a-clean-pre-launch-cutover.md`](decisions/015-make-a-clean-pre-launch-cutover.md) —
+    the refactor ships one versioned wire, storage format, and code path without pre-launch
+    compatibility baggage, while retaining real recovery and safety behavior.
 
 ## Decision queue
 
 Only the first unresolved item is discussed at a time. The order may change when a decision exposes
 a dependency.
 
-1. Decide the pre-launch clean-break policy for wire and persisted data.
-2. Map every procedure, contract, CLI noun, persisted file, module, client region, and workflow.
-3. Order migrations and author execution specifications, including agent-foundation migration.
+1. Map every procedure, contract, CLI noun, persisted file, module, client region, and workflow.
+2. Order migrations and author execution specifications, including agent-foundation migration.
 
 ## Inputs considered
 
