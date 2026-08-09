@@ -6,8 +6,8 @@ export type CompanionDispositionValue = z.infer<typeof companionDispositionSchem
 
 /**
  * Notes are a single repo-scoped document. A repository without notes reads as the empty
- * string rather than null — the store creates the companion file on read, so the wire never
- * carries an absence the renderer would have to special-case.
+ * string rather than null — the read helper maps an absent file to `''`, so the wire never carries
+ * an absence the renderer would have to special-case.
  */
 export const repoNotesInputSchema = z.string()
 export const repoNotesOutputSchema = z.string()
