@@ -85,15 +85,17 @@ that contains an unresolved product or architecture choice returns to the decisi
 10. [`010-type-expected-failures-and-validate-boundaries.md`](decisions/010-type-expected-failures-and-validate-boundaries.md)
     — each boundary validates its own concern, expected failures remain typed, and one safe public
     error model connects daemon failures to client recovery.
+11. [`011-test-the-boundary-that-owns-the-risk.md`](decisions/011-test-the-boundary-that-owns-the-risk.md)
+    — operation tests form the server regression backbone, clients mock the public contract, real
+    adapters prove external behavior, and E2E stays a small wiring suite.
 
 ## Decision queue
 
 Only the first unresolved item is discussed at a time. The order may change when a decision exposes
 a dependency.
 
-1. Define test responsibilities by boundary and risk.
-2. Define naming, file-size, dependency, and architecture enforcement.
-3. Inventory domains, order migrations, and author execution specifications.
+1. Define naming, file-size, dependency, and architecture enforcement.
+2. Inventory domains, order migrations, and author execution specifications.
 
 ## Inputs considered
 
